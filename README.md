@@ -1,8 +1,18 @@
+<div align="center">
+
+<img src="apps/mobile/assets/images/icon.png" width="120" alt="Focus GTD Logo">
+
 # Focus GTD
 
 A complete Getting Things Done (GTD) productivity system for desktop and mobile.
 
-![Focus GTD](apps/mobile/assets/images/icon.png)
+[![CI](https://github.com/dongdongbh/Focus-GTD/actions/workflows/ci.yml/badge.svg)](https://github.com/dongdongbh/Focus-GTD/actions/workflows/ci.yml)
+[![GitHub stars](https://img.shields.io/github/stars/dongdongbh/Focus-GTD?style=social)](https://github.com/dongdongbh/Focus-GTD/stargazers)
+[![GitHub license](https://img.shields.io/github/license/dongdongbh/Focus-GTD)](LICENSE)
+[![GitHub last commit](https://img.shields.io/github/last-commit/dongdongbh/Focus-GTD)](https://github.com/dongdongbh/Focus-GTD/commits/main)
+[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](https://github.com/dongdongbh/Focus-GTD/pulls)
+
+</div>
 
 ## Features
 
