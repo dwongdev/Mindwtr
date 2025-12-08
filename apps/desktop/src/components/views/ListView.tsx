@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { Plus, Play, X, Trash2, Clock, Archive, Moon, User, CheckCircle } from 'lucide-react';
+import { Plus, Play, X, Trash2, Moon, User, CheckCircle } from 'lucide-react';
 import { useTaskStore, TaskStatus, Task } from '@focus-gtd/core';
 import { TaskItem } from '../TaskItem';
 import { cn } from '../../lib/utils';
