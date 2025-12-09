@@ -40,6 +40,7 @@
     "expo-web-browser": "~15.0.10",
     "invariant": "^2.2.4",
     "lucide-react-native": "^0.556.0",
+    "nativewind": "^4.2.1",
     "nullthrows": "^1.1.1",
     "react": "19.1.0",
     "react-dom": "19.1.0",
@@ -51,6 +52,7 @@
     "react-native-svg": "15.12.1",
     "react-native-web": "~0.21.0",
     "react-native-worklets": "0.5.1",
+    "tailwindcss": "3.3.2",
     "whatwg-fetch": "^3.6.20"
   },
   "devDependencies": {

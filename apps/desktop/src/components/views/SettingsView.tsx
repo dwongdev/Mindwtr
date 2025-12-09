@@ -2,6 +2,8 @@ import { useState, useEffect } from 'react';
 import { Moon, Sun, Monitor, Globe, Check, ExternalLink } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { useLanguage, Language } from '../../contexts/language-context';
+import { invoke } from '@tauri-apps/api/core';
+import { open } from '@tauri-apps/plugin-dialog';
 
 type ThemeMode = 'system' | 'light' | 'dark';
 
@@ -26,10 +28,8 @@ export function SettingsView() {
     }, []);
 
     useEffect(() => {
-        // Load current sync path
-        if (window.electronAPI) {
-            window.electronAPI.getSyncPath().then(setSyncPath);
-        }
+        // Load current sync path from Tauri
+        invoke<string>('get_sync_path').then(setSyncPath).catch(console.error);
     }, []);
 
     useEffect(() => {
@@ -53,24 +53,16 @@ export function SettingsView() {
         showSaved();
     };
 
-
     const handleChangeSyncLocation = async () => {
-        console.log('[Settings] handleChangeSyncLocation called');
-        console.log('[Settings] window.electronAPI:', window.electronAPI);
-
-        if (!window.electronAPI) {
-            console.error('[Settings] electronAPI not available');
-            return;
-        }
-
         try {
-            console.log('[Settings] Calling selectDirectory...');
-            const newPath = await window.electronAPI.selectDirectory();
-            console.log('[Settings] Selected path:', newPath);
+            const selected = await open({
+                directory: true,
+                multiple: false,
+                title: 'Select Sync Folder'
+            });
 
-            if (newPath) {
-                const result = await window.electronAPI.setSyncPath(newPath);
-                console.log('[Settings] setSyncPath result:', result);
+            if (selected && typeof selected === 'string') {
+                const result = await invoke<{ success: boolean; path: string }>('set_sync_path', { syncPath: selected });
                 if (result.success) {
                     setSyncPath(result.path);
                     showSaved();
@@ -82,15 +74,12 @@ export function SettingsView() {
     };
 
     const handleSync = async () => {
-        if (!window.electronAPI || !syncPath) return;
+        if (!syncPath) return;
 
         try {
             setIsSyncing(true);
-            const result = await window.electronAPI.syncData();
+            const result = await invoke<{ success: boolean; data: any }>('sync_data');
             if (result.success) {
-                // Optionally reload data here if the view needs a refresh, 
-                // but usually global store handles checking for updates or we might need to trigger a reload.
-                // For now, just show saved.
                 showSaved();
                 alert('Sync completed successfully!');
             }
@@ -100,7 +89,7 @@ export function SettingsView() {
         } finally {
             setIsSyncing(false);
         }
-    }
+    };
 
     const showSaved = () => {
         setSaved(true);
@@ -320,8 +309,8 @@ export function SettingsView() {
                                 />
                                 <button
                                     onClick={async () => {
-                                        if (syncPath && window.electronAPI) {
-                                            const result = await window.electronAPI.setSyncPath(syncPath);
+                                        if (syncPath) {
+                                            const result = await invoke<{ success: boolean; path: string }>('set_sync_path', { syncPath });
                                             if (result.success) {
                                                 showSaved();
                                             }

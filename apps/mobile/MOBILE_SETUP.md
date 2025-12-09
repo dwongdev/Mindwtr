@@ -2,19 +2,29 @@
 
 ## Overview
 
-This is the React Native mobile app for the Focus GTD workflow application, built with Expo SDK 54 and sharing business logic with the desktop app through the `@focus-gtd/core` package.
+This is the React Native mobile app for the Focus GTD workflow application, built with Expo SDK 54, NativeWind for Tailwind CSS styling, and sharing business logic with the desktop app through the `@focus-gtd/core` package.
+
+## Tech Stack
+
+- **Expo SDK 54** - React Native framework
+- **Expo Router** - File-based navigation
+- **NativeWind v4** - Tailwind CSS for React Native
+- **React Native 0.81.5** - Mobile framework
+- **@focus-gtd/core** - Shared Zustand store
+- **AsyncStorage** - Local data persistence
+- **TypeScript** - Type safety
 
 ## Prerequisites
 
-- **Bun** - Package manager (already configured)
+- **Bun** - Package manager
 - **Node.js** - Required by React Native
-- **Expo Go** app (for testing on physical device) OR
+- **Expo Go** app (for quick testing) OR
 - **Android Studio** (for Android emulator) OR
 - **Xcode** (for iOS Simulator on macOS)
 
 ## Installation
 
-Dependencies are managed at the monorepo level. From the project root:
+From the project root:
 
 ```bash
 bun install
@@ -24,195 +34,132 @@ bun install
 
 ### Development Server
 
-From the project root:
-
 ```bash
-# Start the Expo development server
+# From project root
 bun mobile:start
 
-# Or run directly in the mobile directory
+# Or directly in mobile directory
 cd apps/mobile
 bun start
 ```
 
-### Running on Devices
-
-#### Environment Setup
-
-For Android setup, ensure you have the environment variables set:
+### Running on Android
 
 ```bash
+# Set up Android environment
 export ANDROID_HOME=$HOME/Android/Sdk
-export PATH=$PATH:$ANDROID_HOME/emulator
-export PATH=$PATH:$ANDROID_HOME/platform-tools
+export PATH=$PATH:$ANDROID_HOME/emulator:$ANDROID_HOME/platform-tools
 
-ANDROID_HOME=/home/dd/Android/Sdk PATH=$PATH:/home/dd/Android/Sdk/emulator:/home/dd/Android/Sdk/platform-tools bun mobile:android
+# Start emulator (optional)
+emulator -avd Pixel_API_34 &
+
+# Run on Android
+cd apps/mobile
+bun android
 ```
 
-#### Option 1: Expo Go (Recommended for Quick Testing)
-
-1. Install Expo Go app on your phone:
-   - [iOS App Store](https://apps.apple.com/app/expo-go/id982107779)
-   - [Google Play Store](https://play.google.com/store/apps/details?id=host.exp.exponent)
-
-2. Start the dev server: `bun mobile:start`
-
-3. Scan the QR code with:
-   - **iOS**: Camera app
-   - **Android**: Expo Go app
-
-#### Option 2: Android Emulator
-
-1. Verify emulator is accessible:
-   ```bash
-   emulator -list-avds
-   ```
-
-2. Start emulator (replace `Pixel_API_34` with your AVD name):
-   ```bash
-   emulator -avd Pixel_API_34 &
-   ```
-
-3. Run android build:
-   ```bash
-   # From project root
-   bun mobile:android
-   
-   # Or from mobile directory
-   cd apps/mobile
-   bun android
-   ```
-
-#### Option 3: iOS Simulator (macOS only)
+### Running on iOS (macOS only)
 
 ```bash
-# From project root
-bun mobile:ios
-
-# Or from mobile directory
 cd apps/mobile
 bun ios
 ```
 
-## Architecture
+### Expo Go (Quick Testing)
 
-### Monorepo Structure
-
-```
-Focus-GTD/
-├── apps/
-│   ├── desktop/          # Electron desktop app
-│   └── mobile/           # React Native mobile app (Expo)
-└── packages/
-    └── core/             # Shared business logic (Zustand store)
-```
-
-### Key Technologies
-
-- **Expo SDK 54** - React Native framework
-- **Expo Router** - File-based navigation
-- **React Native 0.81.5** - Mobile framework
-- **@focus-gtd/core** - Shared Zustand store for state management
-- **AsyncStorage** - Local data persistence
-- **TypeScript** - Type safety
-
-### Data Storage
-
-The mobile app uses React Native AsyncStorage through a storage adapter pattern:
-
-- Storage adapter: `lib/storage-adapter.ts`
-- Shared store: `@focus-gtd/core` package
-- Data is automatically saved when tasks/projects change (debounced)
-- Data is loaded on app startup
+1. Install Expo Go from [App Store](https://apps.apple.com/app/expo-go/id982107779) or [Play Store](https://play.google.com/store/apps/details?id=host.exp.exponent)
+2. Run `bun mobile:start`
+3. Scan QR code with Camera (iOS) or Expo Go app (Android)
 
 ## Project Structure
 
 ```
 apps/mobile/
-├── app/
-│   ├── (tabs)/          # Tab navigation screens
-│   │   ├── inbox.tsx    # Inbox view (status: 'inbox')
-│   │   ├── next.tsx     # Next Actions (status: 'next')
-│   │   └── projects.tsx # Projects list
-│   └── _layout.tsx      # Root layout with storage initialization
-├── components/
-│   ├── task-list.tsx    # Reusable task list component
-│   └── ui/              # UI components
-├── lib/
-│   └── storage-adapter.ts # AsyncStorage integration
-├── metro.config.js      # Metro bundler config for monorepo
-├── shim.js              # Polyfills for React Native
-└── whatwg-url-mock.js   # Mock for problematic dependency
+├── app/                    # Expo Router pages
+│   ├── (tabs)/            # Tab navigation
+│   ├── _layout.tsx        # Root layout
+│   └── settings.tsx       # Settings page
+├── components/            # React components
+├── contexts/              # React contexts (theme, language)
+├── lib/                   # Utilities
+│   ├── storage-adapter.ts # AsyncStorage integration
+│   └── storage-file.ts    # File operations for sync
+├── global.css             # NativeWind entry CSS
+├── tailwind.config.js     # Tailwind configuration
+├── metro.config.js        # Metro bundler config
+├── babel.config.js        # Babel config with NativeWind
+└── nativewind-env.d.ts    # TypeScript declarations
 ```
+
+## NativeWind (Tailwind CSS)
+
+The mobile app uses NativeWind v4 for Tailwind CSS styling, allowing shared styling patterns with the desktop app.
+
+### Usage
+
+```tsx
+import { View, Text } from 'react-native';
+
+function MyComponent() {
+  return (
+    <View className="bg-blue-500 p-4 rounded-lg">
+      <Text className="text-white font-bold">Hello!</Text>
+    </View>
+  );
+}
+```
+
+### Configuration Files
+
+| File | Purpose |
+|------|---------|
+| `tailwind.config.js` | Tailwind theme and NativeWind preset |
+| `global.css` | Tailwind directives entry point |
+| `babel.config.js` | NativeWind babel preset |
+| `metro.config.js` | CSS processing with `withNativeWind` |
+| `nativewind-env.d.ts` | TypeScript types for `className` prop |
 
 ## Features
 
-### Current Features
-
 - ✅ **Inbox** - Capture new tasks
-- ✅ **Next Actions** - See tasks ready to do
-- ✅ **Projects** - Organize work into projects
-- ✅ **Local Storage** - Data persists across app restarts
-- ✅ **Shared Logic** - Same business logic as desktop app
+- ✅ **Next Actions** - Tasks ready to work on
+- ✅ **Projects** - Organize multi-step outcomes
+- ✅ **Contexts** - Filter by @home, @work, etc.
+- ✅ **Settings** - Theme, language, sync
+- ✅ **File Sync** - Sync data with Dropbox/Syncthing
+- ✅ **Dark Mode** - Full dark theme support
+- ✅ **i18n** - English and Chinese
 
-### Screens
+## Data & Sync
 
-1. **Inbox Tab** - View and add tasks with 'inbox' status
-2. **Next Tab** - View and manage 'next' action tasks
-3. **Projects Tab** - Create and manage projects with color coding
+### Local Storage
+Data is stored in AsyncStorage and automatically synced with the shared Zustand store.
 
-## Development Notes
-
-### Monorepo + Bun + Expo
-
-This project uses a monorepo setup with bun workspaces, which required some special configuration:
-
-1. **Metro Config** (`metro.config.js`) - Configured to:
-   - Watch the entire monorepo
-   - Resolve packages from both app and root node_modules
-   - Handle the `@focus-gtd/core` workspace package
-   - Mock incompatible dependencies (whatwg-url-without-unicode)
-
-2. **Dependencies** - Some React Native peer dependencies (like `nullthrows`, `invariant`) are installed directly in the mobile app to avoid resolution issues with bun's symlink structure.
-
-3. **Shim** (`shim.js`) - Provides polyfills for:
-   - SharedArrayBuffer
-   - Buffer
-
-### Known Workarounds
-
-- `whatwg-url-without-unicode` is mocked because it doesn't work in React Native
-- Metro's custom resolver handles the workspace package resolution
-- Storage adapter is initialized at app root to ensure it's set before components mount
+### File Sync
+Configure a sync folder in Settings to sync via:
+- Dropbox
+- Syncthing
+- Any folder-based sync service
 
 ## Troubleshooting
 
-### Metro Bundler Issues
-
-If you see dependency resolution errors:
+### Metro Cache Issues
 
 ```bash
-# Clear Metro cache
-cd apps/mobile
+# Clear cache and restart
 bun start --clear
 
 # Or manually clear
 rm -rf .expo node_modules/.cache
 ```
 
-### Storage Issues
+### NativeWind Not Working
 
-If data isn't persisting:
-
-1. Check that storage adapter is initialized in `app/_layout.tsx`
-2. Verify AsyncStorage is working:
-   ```bash
-   # Clear app data and restart
-   ```
+1. Ensure `global.css` is imported in `app/_layout.tsx`
+2. Check `babel.config.js` has NativeWind preset
+3. Restart Metro with cache clear
 
 ### Build Errors
-
-If you encounter build errors:
 
 ```bash
 # Reinstall dependencies
@@ -221,32 +168,9 @@ rm -rf node_modules apps/mobile/node_modules
 bun install
 ```
 
-## Testing
-
-The app can be tested using:
-
-1. **Expo Go** - Quick testing on physical devices
-2. **Android Emulator** - Full Android environment
-3. **iOS Simulator** - Full iOS environment (macOS only)
-
-## Next Steps
-
-Potential enhancements:
-
-- [ ] Add Contexts view (filter by @context tags)
-- [ ] Add Calendar view (show tasks by date)
-- [ ] Add Waiting/Someday tabs
-- [ ] Implement task detail modal
-- [ ] Add drag-and-drop for task reordering
-- [ ] Add pull-to-refresh
-- [ ] Implement search functionality
-- [ ] Add dark mode support (UI already set up)
-- [ ] Add task editing capabilities
-- [ ] Sync between mobile and desktop (future)
-
 ## Resources
 
 - [Expo Documentation](https://docs.expo.dev/)
-- [React Native Documentation](https://reactnative.dev/)
-- [Expo Router Documentation](https://docs.expo.dev/router/introduction/)
-- [Bun Documentation](https://bun.sh/docs)
+- [NativeWind Documentation](https://www.nativewind.dev/)
+- [Tailwind CSS](https://tailwindcss.com/)
+- [React Native](https://reactnative.dev/)

@@ -1,10 +1,14 @@
 import { StorageAdapter, AppData } from '@focus-gtd/core';
+import { invoke } from '@tauri-apps/api/core';
 
-export const electronStorage: StorageAdapter = {
+export const tauriStorage: StorageAdapter = {
     getData: async (): Promise<AppData> => {
-        return window.electronAPI.getData();
+        return invoke('get_data');
     },
     saveData: async (data: AppData): Promise<void> => {
-        await window.electronAPI.saveData(data);
+        await invoke('save_data', { data });
     },
 };
+
+// Export for backward compatibility
+export const electronStorage = tauriStorage;

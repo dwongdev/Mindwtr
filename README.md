@@ -6,6 +6,8 @@
 
 A complete Getting Things Done (GTD) productivity system for desktop and mobile.
 
+*New to GTD? Read [GTD in 15 minutes](https://hamberg.no/gtd) for a quick introduction.*
+
 [![CI](https://github.com/dongdongbh/Focus-GTD/actions/workflows/ci.yml/badge.svg)](https://github.com/dongdongbh/Focus-GTD/actions/workflows/ci.yml)
 [![GitHub stars](https://img.shields.io/github/stars/dongdongbh/Focus-GTD?style=social)](https://github.com/dongdongbh/Focus-GTD/stargazers)
 [![GitHub license](https://img.shields.io/github/license/dongdongbh/Focus-GTD)](LICENSE)
@@ -40,7 +42,7 @@ A complete Getting Things Done (GTD) productivity system for desktop and mobile.
 - 📤 **Export/Backup** - Export data to JSON
 
 ### Cross-Platform
-- 🖥️ **Desktop** - Electron app (macOS, Linux)
+- 🖥️ **Desktop** - Tauri v2 app (macOS, Linux, Windows)
 - 📱 **Mobile** - React Native/Expo (iOS, Android)
 - 🌍 **i18n** - English and Chinese language support
 - 🔄 **Shared Core** - Same data model and business logic
@@ -63,8 +65,8 @@ bun mobile:start
 ```
 Focus-GTD/
 ├── apps/
-│   ├── desktop/     # Electron + React + Vite
-│   └── mobile/      # Expo + React Native
+│   ├── desktop/     # Tauri v2 + React + Vite
+│   └── mobile/      # Expo + React Native + NativeWind
 ├── packages/
 │   └── core/        # Shared business logic (Zustand store)
 └── package.json     # Monorepo root
@@ -75,14 +77,14 @@ Focus-GTD/
 | Layer | Desktop | Mobile |
 |-------|---------|--------|
 | Framework | React + Vite | React Native + Expo |
-| Styling | Tailwind CSS | StyleSheet |
+| Styling | Tailwind CSS | NativeWind (Tailwind) |
 | State | Zustand (shared) | Zustand (shared) |
-| Platform | Electron | iOS/Android |
+| Platform | Tauri v2 (Rust) | iOS/Android |
 
 ## Data & Sync
 
 Tasks and projects are stored locally:
-- **Desktop**: `~/.config/gtd-todo-app/data.json`
+- **Desktop**: `~/.config/tech.dongdongbh.focus-gtd/data.json`
 - **Mobile**: AsyncStorage
 
 Optional sync folder (e.g., Dropbox, Syncthing) can be configured in Settings for cross-device sync.
@@ -91,6 +93,13 @@ Optional sync folder (e.g., Dropbox, Syncthing) can be configured in Settings fo
 
 - [Desktop README](apps/desktop/README.md)
 - [Mobile Setup Guide](apps/mobile/MOBILE_SETUP.md)
+
+## Roadmap
+
+- [ ] 🔔 **Notifications/Reminders** - Mobile push notifications for due tasks
+- [ ] 📱 **Android Widget** - Agenda widget using [react-native-android-widget](https://github.com/nickhudkins/react-native-android-widget)
+- [ ] ☁️ **Cloud Sync** - Optional cloud-based sync service
+- [ ] 🌐 **Web App** - Browser-based version
 
 ## License
 

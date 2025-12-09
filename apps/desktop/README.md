@@ -1,6 +1,6 @@
 # Focus GTD Desktop
 
-Electron desktop app for the Focus GTD productivity system.
+Tauri v2 desktop app for the Focus GTD productivity system.
 
 ## Features
 
@@ -22,15 +22,31 @@ Electron desktop app for the Focus GTD productivity system.
 | Someday/Maybe | Deferred ideas |
 | Calendar | Time-based view |
 | Review | Weekly review wizard |
-| Settings | Theme and preferences |
+| Settings | Theme, sync, and preferences |
 
 ## Tech Stack
 
-- React + TypeScript + Vite
-- Tailwind CSS
-- Zustand (shared with mobile)
-- Electron
-- @dnd-kit (drag and drop)
+- **Frontend**: React + TypeScript + Vite
+- **Styling**: Tailwind CSS
+- **State**: Zustand (shared with mobile)
+- **Platform**: Tauri v2 (Rust backend, WebKitGTK)
+- **Drag & Drop**: @dnd-kit
+
+### Why Tauri?
+- 🚀 **Small binary** (~5MB vs ~150MB for Electron)
+- 💾 **Low memory** (~50MB vs ~300MB for Electron)
+- 🦀 **Rust backend** for fast file operations
+- 🖥️ **Native dialogs** via system webview
+
+## Prerequisites
+
+- [Rust](https://rustup.rs/) (for building Tauri)
+- [Bun](https://bun.sh/) (package manager)
+
+### Arch Linux
+```bash
+sudo pacman -S rust webkit2gtk-4.1 base-devel
+```
 
 ## Getting Started
 
@@ -38,18 +54,33 @@ Electron desktop app for the Focus GTD productivity system.
 # From monorepo root
 bun install
 
-# Run desktop app
-bun desktop:dev
+# Run desktop app (dev mode)
+cd apps/desktop
+bun dev
 
+# Or from root
+bun desktop:dev
+```
+
+## Building
+
+```bash
 # Build for distribution
-bun desktop:build
+bun run build
+
+# Output in src-tauri/target/release/
 ```
 
 ## Data Storage
 
 Tasks are saved to:
-- **macOS**: `~/Library/Application Support/focus-gtd/data.json`
-- **Linux**: `~/.config/focus-gtd/data.json`
+- **Linux**: `~/.config/tech.dongdongbh.focus-gtd/data.json`
+- **macOS**: `~/Library/Application Support/tech.dongdongbh.focus-gtd/data.json`
+- **Windows**: `%APPDATA%/tech.dongdongbh.focus-gtd/data.json`
+
+## Sync
+
+Configure a sync folder in Settings to sync data with Dropbox, Syncthing, or any folder-based sync service.
 
 ## Testing
 
