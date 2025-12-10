@@ -12,6 +12,7 @@ import { ThemeProvider, useTheme } from '../contexts/theme-context';
 import { LanguageProvider, useLanguage } from '../contexts/language-context';
 import { setStorageAdapter, useTaskStore } from '@focus-gtd/core';
 import { mobileStorage } from '../lib/storage-adapter';
+import { ErrorBoundary } from '../components/ErrorBoundary';
 
 // Initialize storage for mobile
 let storageInitError: Error | null = null;
@@ -88,10 +89,12 @@ function RootLayoutContent() {
 
 export default function RootLayout() {
   return (
-    <ThemeProvider>
-      <LanguageProvider>
-        <RootLayoutContent />
-      </LanguageProvider>
-    </ThemeProvider>
+    <ErrorBoundary>
+      <ThemeProvider>
+        <LanguageProvider>
+          <RootLayoutContent />
+        </LanguageProvider>
+      </ThemeProvider>
+    </ErrorBoundary>
   );
 }

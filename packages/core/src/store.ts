@@ -33,12 +33,16 @@ interface TaskStore {
     updateSettings: (updates: Partial<AppData['settings']>) => Promise<void>;
 }
 
-// Debounce save helper
-let saveTimeout: any; // using any to avoid NodeJS.Timeout type issues in pure JS/TS environment
+// Debounce save helper - captures data snapshot immediately to prevent race conditions
+let saveTimeout: ReturnType<typeof setTimeout> | null = null;
 const debouncedSave = (data: AppData) => {
-    clearTimeout(saveTimeout);
+    // Capture snapshot of data immediately to prevent stale state saves
+    const dataSnapshot = { ...data, tasks: [...data.tasks], projects: [...data.projects] };
+
+    if (saveTimeout) clearTimeout(saveTimeout);
     saveTimeout = setTimeout(() => {
-        storage.saveData(data).catch(console.error);
+        storage.saveData(dataSnapshot).catch(console.error);
+        saveTimeout = null;
     }, 1000);
 };
 

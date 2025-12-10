@@ -12,6 +12,7 @@ import { ArchiveView } from './components/views/ArchiveView';
 import { AgendaView } from './components/views/AgendaView';
 import { useTaskStore } from '@focus-gtd/core';
 import { GlobalSearch } from './components/GlobalSearch';
+import { ErrorBoundary } from './components/ErrorBoundary';
 
 function App() {
     const [currentView, setCurrentView] = useState('inbox');
@@ -57,10 +58,12 @@ function App() {
     };
 
     return (
-        <Layout currentView={currentView} onViewChange={setCurrentView}>
-            {renderView()}
-            <GlobalSearch onNavigate={(view, _id) => setCurrentView(view)} />
-        </Layout>
+        <ErrorBoundary>
+            <Layout currentView={currentView} onViewChange={setCurrentView}>
+                {renderView()}
+                <GlobalSearch onNavigate={(view, _id) => setCurrentView(view)} />
+            </Layout>
+        </ErrorBoundary>
     );
 }
 

@@ -9,15 +9,19 @@ const createStorage = (): StorageAdapter => {
     if (Platform.OS === 'web') {
         return {
             getData: async (): Promise<AppData> => {
-                try {
-                    if (typeof window === 'undefined') {
-                        return { tasks: [], projects: [], settings: {} };
-                    }
-                    const jsonValue = localStorage.getItem(DATA_KEY);
-                    return jsonValue != null ? JSON.parse(jsonValue) : { tasks: [], projects: [], settings: {} };
-                } catch (e) {
-                    console.error('Failed to load data', e);
+                if (typeof window === 'undefined') {
                     return { tasks: [], projects: [], settings: {} };
+                }
+                const jsonValue = localStorage.getItem(DATA_KEY);
+                if (jsonValue == null) {
+                    return { tasks: [], projects: [], settings: {} };
+                }
+                try {
+                    return JSON.parse(jsonValue);
+                } catch (e) {
+                    // JSON parse error - data corrupted, throw so user is notified
+                    console.error('Failed to parse stored data - may be corrupted', e);
+                    throw new Error('Data appears corrupted. Please restore from backup.');
                 }
             },
             saveData: async (data: AppData): Promise<void> => {
@@ -28,6 +32,7 @@ const createStorage = (): StorageAdapter => {
                     }
                 } catch (e) {
                     console.error('Failed to save data', e);
+                    throw new Error('Failed to save data: ' + (e as Error).message);
                 }
             },
         };
@@ -37,12 +42,16 @@ const createStorage = (): StorageAdapter => {
     const AsyncStorage = require('@react-native-async-storage/async-storage').default;
     return {
         getData: async (): Promise<AppData> => {
-            try {
-                const jsonValue = await AsyncStorage.getItem(DATA_KEY);
-                return jsonValue != null ? JSON.parse(jsonValue) : { tasks: [], projects: [], settings: {} };
-            } catch (e) {
-                console.error('Failed to load data', e);
+            const jsonValue = await AsyncStorage.getItem(DATA_KEY);
+            if (jsonValue == null) {
                 return { tasks: [], projects: [], settings: {} };
+            }
+            try {
+                return JSON.parse(jsonValue);
+            } catch (e) {
+                // JSON parse error - data corrupted, throw so user is notified
+                console.error('Failed to parse stored data - may be corrupted', e);
+                throw new Error('Data appears corrupted. Please restore from backup.');
             }
         },
         saveData: async (data: AppData): Promise<void> => {
@@ -51,6 +60,7 @@ const createStorage = (): StorageAdapter => {
                 await AsyncStorage.setItem(DATA_KEY, jsonValue);
             } catch (e) {
                 console.error('Failed to save data', e);
+                throw new Error('Failed to save data: ' + (e as Error).message);
             }
         },
     };
