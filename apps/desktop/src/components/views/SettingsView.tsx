@@ -2,10 +2,9 @@ import { useState, useEffect } from 'react';
 import { Moon, Sun, Monitor, Globe, Check, ExternalLink } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { useLanguage, Language } from '../../contexts/language-context';
-import { invoke } from '@tauri-apps/api/core';
 import { open } from '@tauri-apps/plugin-dialog';
 import { getVersion } from '@tauri-apps/api/app';
-import { mergeAppData, AppData, useTaskStore } from '@focus-gtd/core';
+import { SyncService } from '../../lib/sync-service';
 
 type ThemeMode = 'system' | 'light' | 'dark';
 
@@ -33,7 +32,7 @@ export function SettingsView() {
 
     useEffect(() => {
         // Load current sync path from Tauri
-        invoke<string>('get_sync_path').then(setSyncPath).catch(console.error);
+        SyncService.getSyncPath().then(setSyncPath).catch(console.error);
     }, []);
 
     useEffect(() => {
@@ -66,7 +65,7 @@ export function SettingsView() {
             });
 
             if (selected && typeof selected === 'string') {
-                const result = await invoke<{ success: boolean; path: string }>('set_sync_path', { syncPath: selected });
+                const result = await SyncService.setSyncPath(selected);
                 if (result.success) {
                     setSyncPath(result.path);
                     showSaved();
@@ -83,33 +82,14 @@ export function SettingsView() {
         try {
             setIsSyncing(true);
 
-            // 1. Read Local Data
-            const localData = await invoke<AppData>('get_data');
+            const result = await SyncService.performSync();
 
-            // 2. Read Sync Data
-            const syncData = await invoke<AppData>('read_sync_file');
-
-            // 3. Merge Strategies
-            // mergeAppData uses Last-Write-Wins (LWW) based on updatedAt
-            const mergedData = mergeAppData(localData, syncData);
-
-            console.log('Sync Merge Stats:', {
-                localTasks: localData.tasks.length,
-                syncTasks: syncData.tasks.length,
-                mergedTasks: mergedData.tasks.length
-            });
-
-            // 4. Write back to Local
-            await invoke('save_data', { data: mergedData });
-
-            // 5. Write back to Sync
-            await invoke('write_sync_file', { data: mergedData });
-
-            // 6. Refresh UI
-            await useTaskStore.getState().fetchData();
-
-            showSaved();
-            alert('Sync completed successfully!');
+            if (result.success) {
+                showSaved();
+                alert('Sync completed successfully!');
+            } else {
+                throw new Error(result.error || 'Unknown error');
+            }
         } catch (error) {
             console.error('Sync failed', error);
             alert('Sync failed: ' + String(error));
@@ -337,7 +317,7 @@ export function SettingsView() {
                                 <button
                                     onClick={async () => {
                                         if (syncPath) {
-                                            const result = await invoke<{ success: boolean; path: string }>('set_sync_path', { syncPath });
+                                            const result = await SyncService.setSyncPath(syncPath);
                                             if (result.success) {
                                                 showSaved();
                                             }

@@ -8,8 +8,13 @@
         "zustand": "^4.5.0",
         "uuid": "^9.0.1"
     },
+    "scripts": {
+        "build": "tsc",
+        "test": "vitest run"
+    },
     "devDependencies": {
+        "@types/uuid": "^9.0.8",
         "typescript": "^5.2.2",
-        "@types/uuid": "^9.0.8"
+        "vitest": "^4.0.15"
     }
 }
