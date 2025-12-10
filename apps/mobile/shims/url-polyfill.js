@@ -84,6 +84,14 @@ class FallbackURL {
     toString() {
         return this.href;
     }
+    /**
+     * Non-standard implementation: returns empty string instead of throwing or creating a blob URL.
+     * 
+     * Rationale: React Native (especially Hermes) does not support Blob/File API fully in the same way
+     * browsers do. Many libraries call this feature detection or blindly.
+     * Throwing here causes immediate crashes in those libraries.
+     * returning '' is safer and prevents the crash, though function will assume it failed or got nothing.
+     */
     static createObjectURL() {
         console.warn('[Focus-GTD] URL.createObjectURL called but not supported by shim. Returning empty string to prevent crash.');
         return '';

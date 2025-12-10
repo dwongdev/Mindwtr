@@ -44,15 +44,16 @@ export class SyncService {
 
             // 3. Merge Strategies
             // mergeAppData uses Last-Write-Wins (LWW) based on updatedAt
+            // Note: For web builds, `invoke` calls are shims that return mock data.
+            // This means `localData` and `syncData` might be identical if the mock
+            // data is static, leading to no actual merge changes.
             const mergedData = mergeAppData(localData, syncData);
 
-            const stats = {
+            console.log('Sync Merge Stats:', {
                 localTasks: localData.tasks.length,
                 syncTasks: syncData.tasks.length,
                 mergedTasks: mergedData.tasks.length
-            };
-
-            console.log('Sync Merge Stats:', stats);
+            });
 
             // 4. Write back to Local
             await invoke('save_data', { data: mergedData });
@@ -63,7 +64,7 @@ export class SyncService {
             // 6. Refresh UI Store
             await useTaskStore.getState().fetchData();
 
-            return { success: true, stats };
+            return { success: true };
         } catch (error) {
             console.error('Sync failed', error);
             return { success: false, error: String(error) };
