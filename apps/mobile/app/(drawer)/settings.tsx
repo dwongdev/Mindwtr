@@ -10,6 +10,7 @@ import {
     Linking,
     Alert,
     ActivityIndicator,
+    BackHandler,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -46,6 +47,21 @@ export default function SettingsPage() {
             if (path) setSyncPath(path);
         });
     }, []);
+
+    // Handle Android hardware back button
+    useEffect(() => {
+        const onBackPress = () => {
+            if (currentScreen !== 'main') {
+                setCurrentScreen('main');
+                return true; // prevent default behavior
+            }
+            return false;
+        };
+
+        const subscription = BackHandler.addEventListener('hardwareBackPress', onBackPress);
+
+        return () => subscription.remove();
+    }, [currentScreen]);
 
     const toggleDarkMode = () => setThemeMode(isDark ? 'light' : 'dark');
     const toggleSystemMode = (useSystem: boolean) => setThemeMode(useSystem ? 'system' : (isDark ? 'dark' : 'light'));

@@ -1,7 +1,21 @@
 # Changelog
 
 All notable changes to Focus GTD will be documented in this file.
+## [0.2.0] - 2025-12-10
 
+### Features
+- **Mobile Navigation**: Implemented proper Android back button handling in Settings sub-menus.
+- **Sync Logic**: Implemented robust Last-Write-Wins (LWW) synchronization strategy with dedicated `SyncService`.
+- **Architecture**: Consolidated translations and theme logic into `@focus-gtd/core` for consistency.
+
+### Fixed
+- **Mobile Stability**: Implemented safe URL shim to prevent Hermes crashes (non-standard `createObjectURL`).
+- **Data Integrity**: Improved data persistence with reliable `AppState` flushing on background.
+- **Security**: Replaced unsafe `dangerouslySetInnerHTML` with safe text rendering.
+- **Performance**: Optimized Project views by replacing O(N*M) lookups with efficient single-pass loops.
+
+### Removed
+- **Dependencies**: Removed patched `react-native-url-polyfill` in favor of a standard shim.
 ## [0.1.1] - 2024-12-07
 
 ### Fixed

@@ -104,7 +104,19 @@ export function ProjectsView() {
                         })
                         .map(project => {
                             const projTasks = tasksByProject[project.id] || [];
-                            const nextAction = projTasks.find(t => t.status === 'todo') || projTasks.find(t => t.status === 'next');
+                            // Optimize: Single pass to find todo (priority) or next (fallback)
+                            let nextAction = undefined;
+                            let nextCandidate = undefined;
+                            for (const t of projTasks) {
+                                if (t.status === 'todo') {
+                                    nextAction = t;
+                                    break;
+                                }
+                                if (!nextCandidate && t.status === 'next') {
+                                    nextCandidate = t;
+                                }
+                            }
+                            nextAction = nextAction || nextCandidate;
                             const focusedCount = projects.filter(p => p.isFocused).length;
 
                             return (

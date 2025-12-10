@@ -76,12 +76,12 @@ Focus-GTD/
 
 ## Tech Stack
 
-| Layer | Desktop | Mobile |
-|-------|---------|--------|
-| Framework | React + Vite | React Native + Expo |
-| Styling | Tailwind CSS | NativeWind (Tailwind) |
-| State | Zustand (shared) | Zustand (shared) |
-| Platform | Tauri v2 (Rust) | iOS/Android |
+| Layer     | Desktop          | Mobile                |
+| --------- | ---------------- | --------------------- |
+| Framework | React + Vite     | React Native + Expo   |
+| Styling   | Tailwind CSS     | NativeWind (Tailwind) |
+| State     | Zustand (shared) | Zustand (shared)      |
+| Platform  | Tauri v2 (Rust)  | iOS/Android           |
 
 ## Data & Sync
 
@@ -102,6 +102,13 @@ Optional sync folder (e.g., Dropbox, Syncthing) can be configured in Settings fo
 - [ ] 📱 **Android Widget** - Agenda widget using [react-native-android-widget](https://github.com/nickhudkins/react-native-android-widget)
 - [ ] ☁️ **Cloud Sync** - Optional cloud-based sync service
 - [ ] 🌐 **Web App** - Browser-based version
+
+## Development Notes
+
+### Mobile URL Shim
+The mobile app uses a custom URL shim (`apps/mobile/shims/url-polyfill.js`) to support `URL` and `URLSearchParams` in the Hermes environment.
+- **Safety**: `URL.createObjectURL` is intentionally implemented to return an empty string (`''`) and log a warning. This prevents crashes in Hermes which lacks `Blob` support for this method.
+- **Testing**: This behavior is verified by `apps/mobile/shims/url-polyfill.test.ts`.
 
 ## License
 

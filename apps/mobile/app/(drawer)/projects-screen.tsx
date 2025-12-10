@@ -91,7 +91,19 @@ export default function ProjectsScreen() {
         }
         renderItem={({ item }) => {
           const projTasks = tasks.filter(t => t.projectId === item.id && t.status !== 'done' && !t.deletedAt);
-          const nextAction = projTasks.find(t => t.status === 'todo') || projTasks.find(t => t.status === 'next');
+          // Optimize: Single pass to find todo (priority) or next (fallback)
+          let nextAction = undefined;
+          let nextCandidate = undefined;
+          for (const t of projTasks) {
+            if (t.status === 'todo') {
+              nextAction = t;
+              break;
+            }
+            if (!nextCandidate && t.status === 'next') {
+              nextCandidate = t;
+            }
+          }
+          nextAction = nextAction || nextCandidate;
           const focusedCount = projects.filter(p => p.isFocused).length;
 
           return (

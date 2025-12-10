@@ -34,7 +34,7 @@ export class SyncService {
      * 3. Write merged data back to both Local & Remote
      * 4. Refresh Core Store
      */
-    static async performSync(): Promise<{ success: boolean; stats?: any; error?: string }> {
+    static async performSync(): Promise<{ success: boolean; stats?: { localTasks: number; syncTasks: number; mergedTasks: number }; error?: string }> {
         try {
             // 1. Read Local Data
             const localData = await invoke<AppData>('get_data');
