@@ -2,7 +2,7 @@
   "expo": {
     "name": "Focus GTD",
     "slug": "focus-gtd-monorepo",
-    "version": "0.2.3",
+    "version": "0.2.4",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "mobile",
