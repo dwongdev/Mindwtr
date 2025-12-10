@@ -1,6 +1,6 @@
-import { DarkTheme, DefaultTheme, ThemeProvider as NavigationThemeProvider } from '@react-navigation/native';
+
 import { Drawer } from 'expo-router/drawer';
-import { useRouter, Link } from 'expo-router';
+import { Link } from 'expo-router';
 import { TouchableOpacity } from 'react-native';
 import { Search } from 'lucide-react-native';
 import { useTheme } from '../../contexts/theme-context';
@@ -9,7 +9,7 @@ import { useLanguage } from '../../contexts/language-context';
 export default function DrawerLayout() {
     const { isDark } = useTheme();
     const { t } = useLanguage();
-    const router = useRouter();
+
 
     return (
         <Drawer

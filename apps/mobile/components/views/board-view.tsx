@@ -1,4 +1,4 @@
-import { View, Text, ScrollView, StyleSheet, Pressable } from 'react-native';
+import { View, Text, ScrollView, StyleSheet } from 'react-native';
 import { useTaskStore } from '@focus-gtd/core';
 import type { Task, TaskStatus } from '@focus-gtd/core';
 import { useMemo, useState, useCallback } from 'react';

@@ -1,12 +1,14 @@
 import { View, Text, ScrollView, Pressable, StyleSheet, TouchableOpacity } from 'react-native';
 import { useRouter } from 'expo-router';
-import { useTaskStore } from '@focus-gtd/core';
+import { useTaskStore, sortTasks, type Task, type TaskStatus } from '@focus-gtd/core';
 import { useState } from 'react';
-import type { Task, TaskStatus } from '@focus-gtd/core';
 import { useTheme } from '../../../contexts/theme-context';
 import { useLanguage } from '../../../contexts/language-context';
 import { useThemeColors } from '@/hooks/use-theme-colors';
-import { checkReviewTime, ReviewModal } from '../../../components/review-modal';
+import { ReviewModal } from '../../../components/review-modal';
+
+import { TaskEditModal } from '@/components/task-edit-modal';
+import { SwipeableTaskItem } from '@/components/swipeable-task-item';
 
 const STATUS_OPTIONS: TaskStatus[] = ['inbox', 'next', 'waiting', 'someday', 'done'];
 
@@ -36,10 +38,6 @@ const getStatusLabels = (lang: 'en' | 'zh'): Record<TaskStatus, string> => {
     archived: '🗄️ Archived',
   };
 };
-
-import { TaskEditModal } from '@/components/task-edit-modal';
-import { SwipeableTaskItem } from '@/components/swipeable-task-item';
-import { sortTasks } from '@focus-gtd/core';
 
 export default function ReviewScreen() {
   const router = useRouter();

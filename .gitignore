@@ -64,3 +64,6 @@ aur/*.pkg.tar.zst
 aur/*.deb
 aur/pkg/
 aur/src/
+
+# Agent files
+AGENTS.md

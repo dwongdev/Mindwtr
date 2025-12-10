@@ -76,6 +76,12 @@ chmod +x Focus.GTD_*.AppImage
 ./Focus.GTD_*.AppImage
 ```
 
+### Desktop (Windows)
+Download the installer (`.msi` or `.exe`) from [GitHub Releases](https://github.com/dongdongbh/Focus-GTD/releases) and run it.
+
+### Desktop (macOS)
+Download the disk image (`.dmg`) from [GitHub Releases](https://github.com/dongdongbh/Focus-GTD/releases), open it, and drag the application to your Applications folder.
+
 ### Mobile
 
 **Android:**

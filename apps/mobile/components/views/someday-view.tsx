@@ -1,9 +1,9 @@
-import { View, Text, ScrollView, Pressable, StyleSheet } from 'react-native';
+import { View, Text, ScrollView, StyleSheet } from 'react-native';
 import { useTaskStore } from '@focus-gtd/core';
-import type { Task, TaskStatus } from '@focus-gtd/core';
+import type { TaskStatus } from '@focus-gtd/core';
 import { useTheme } from '../../contexts/theme-context';
 import { useLanguage } from '../../contexts/language-context';
-import { Colors } from '@/constants/theme';
+
 import { useThemeColors } from '@/hooks/use-theme-colors';
 import { SwipeableTaskItem } from '../swipeable-task-item';
 
@@ -66,8 +66,8 @@ export function SomedayView() {
             <Text style={styles.emptyIcon}>💭</Text>
             <Text style={styles.emptyTitle}>No someday/maybe items</Text>
             <Text style={styles.emptyText}>
-              Use "Someday" status for ideas, goals, and projects you might want to do in
-              the future but aren't ready to commit to now
+              Use {`"Someday"`} status for ideas, goals, and projects you might want to do in
+              the future but aren{"'"}t ready to commit to now
             </Text>
           </View>
         )}

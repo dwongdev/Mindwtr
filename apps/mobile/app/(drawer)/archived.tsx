@@ -3,7 +3,7 @@ import { useTaskStore } from '@focus-gtd/core';
 import type { Task } from '@focus-gtd/core';
 import { useTheme } from '../../contexts/theme-context';
 import { useLanguage } from '../../contexts/language-context';
-import { Colors } from '@/constants/theme';
+
 import { useThemeColors, ThemeColors } from '@/hooks/use-theme-colors';
 import { Swipeable, GestureHandlerRootView } from 'react-native-gesture-handler';
 import { useRef } from 'react';

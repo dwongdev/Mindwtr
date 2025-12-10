@@ -1,12 +1,12 @@
 import { View, Text, SectionList, Pressable, StyleSheet } from 'react-native';
-import { useRef, useMemo, useState, useCallback } from 'react';
-import { useRouter } from 'expo-router';
-import { useTaskStore, Task, Project } from '@focus-gtd/core';
-import { useTheme } from '../../../contexts/theme-context';
+import { useMemo, useState, useCallback } from 'react';
+
+import { useTaskStore, Task } from '@focus-gtd/core';
+
 import { useLanguage } from '../../../contexts/language-context';
-import { Colors } from '@/constants/theme';
+
 import { useThemeColors, ThemeColors } from '@/hooks/use-theme-colors';
-import { SwipeableTaskItem } from '../../../components/swipeable-task-item';
+
 
 function TaskCard({ task, onPress, onToggleFocus, tc, focusedCount }: {
   task: Task;
@@ -102,7 +102,7 @@ function TaskCard({ task, onPress, onToggleFocus, tc, focusedCount }: {
 
 export default function AgendaScreen() {
   const { tasks, updateTask } = useTaskStore();
-  const { isDark } = useTheme();
+
   const { t } = useLanguage();
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
 

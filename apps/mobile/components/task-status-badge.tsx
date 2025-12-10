@@ -5,13 +5,11 @@ import {
     StyleSheet,
     ActionSheetIOS,
     Platform,
-    Alert,
+    ScrollView,
     Modal,
-    View,
-    Pressable,
-    ScrollView
+    Pressable
 } from 'react-native';
-import { Task, TaskStatus, getStatusColor } from '@focus-gtd/core';
+import { TaskStatus, getStatusColor } from '@focus-gtd/core';
 
 interface TaskStatusBadgeProps {
     status: TaskStatus;

@@ -1,15 +1,15 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Modal, ScrollView, TextInput } from 'react-native';
-import { useRouter, useFocusEffect } from 'expo-router';
-import { useTaskStore, Task, TaskStatus, PRESET_CONTEXTS } from '@focus-gtd/core';
+
+import { useTaskStore, PRESET_CONTEXTS } from '@focus-gtd/core';
 import { TaskList } from '../../../components/task-list';
-import { useTheme } from '../../../contexts/theme-context';
+
 import { useLanguage } from '../../../contexts/language-context';
 import { useThemeColors } from '@/hooks/use-theme-colors';
 
 
 export default function InboxScreen() {
-  const router = useRouter();
+
   const { tasks, updateTask, deleteTask } = useTaskStore();
   const { t } = useLanguage();
   const [isProcessing, setIsProcessing] = useState(false);
@@ -200,7 +200,7 @@ export default function InboxScreen() {
                     style={[styles.bigButton, styles.buttonPrimary]}
                     onPress={handleActionable}
                   >
-                    <Text style={styles.bigButtonText}>✅ Yes, it's actionable</Text>
+                    <Text style={styles.bigButtonText}>✅ Yes, it{"'"}s actionable</Text>
                   </TouchableOpacity>
 
                   <View style={styles.buttonRow}>
@@ -260,7 +260,7 @@ export default function InboxScreen() {
                     style={[styles.bigButton, styles.buttonPrimary]}
                     onPress={() => handleDecision('defer')}
                   >
-                    <Text style={styles.bigButtonText}>📋 I'll do it (Add to Todo)</Text>
+                    <Text style={styles.bigButtonText}>📋 I{"'"}ll do it (Add to Todo)</Text>
                   </TouchableOpacity>
                   <TouchableOpacity
                     style={[styles.bigButton, { backgroundColor: '#F59E0B' }]}
@@ -278,7 +278,7 @@ export default function InboxScreen() {
                   👤 Who/what are you waiting for?
                 </Text>
                 <Text style={[styles.stepHint, { color: tc.secondaryText }]}>
-                  Add a note to remember what you're waiting on
+                  Add a note to remember what you{"'"}re waiting on
                 </Text>
 
                 <TextInput

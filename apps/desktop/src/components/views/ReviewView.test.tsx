@@ -11,21 +11,37 @@ const renderWithProviders = (ui: React.ReactElement) => {
     );
 };
 
-// Mock store
-vi.mock('@focus-gtd/core', async () => {
-    const actual = await vi.importActual('@focus-gtd/core');
-    return {
-        ...actual,
-        useTaskStore: () => ({
-            tasks: [],
-            projects: [],
-        }),
-    };
-});
+// Mock store - use vi.hoisted for proper hoisting
+const mockUseTaskStore = vi.hoisted(() => vi.fn(() => ({
+    tasks: [],
+    projects: [],
+})));
+
+vi.mock('@focus-gtd/core', () => ({
+    useTaskStore: mockUseTaskStore,
+    Task: {},
+    Project: {},
+    TaskStatus: {},
+    translations: {
+        en: {
+            'review.timeFor': 'Time for your Weekly Review',
+            'review.startReview': 'Start Review',
+            'review.inboxStep': 'Process Inbox',
+            'review.inboxZero': 'Inbox Zero Goal',
+            'review.calendarStep': 'Review Calendar',
+            'review.past14': 'Past 14 Days',
+            'review.waitingStep': 'Waiting For',
+            'review.projectsStep': 'Review Projects',
+            'review.somedayStep': 'Someday/Maybe',
+            'review.allDone': 'Review Complete!',
+            'review.finish': 'Finish'
+        }
+    }
+}));
 
 // Mock TaskItem to simplify testing
 vi.mock('../TaskItem', () => ({
-    TaskItem: ({ task }: { task: import('@focus-gtd/core').Task }) => <div data-testid="task-item">{task.title}</div>,
+    TaskItem: ({ task }: { task: { title: string } }) => <div data-testid="task-item">{task.title}</div>,
 }));
 
 describe('ReviewView', () => {

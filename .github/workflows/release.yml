@@ -85,6 +85,8 @@ jobs:
       - name: Locate and Move artifacts
         run: |
           mkdir -p release-artifacts
+          echo "Listing build output for debugging:"
+          ls -R apps/desktop/src-tauri/target/release/bundle || echo "Bundle dir not found"
           ${{ matrix.artifacts }}
           ls -la release-artifacts/
         shell: bash

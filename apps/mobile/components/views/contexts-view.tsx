@@ -4,7 +4,7 @@ import type { Task, TaskStatus } from '@focus-gtd/core';
 import { useState } from 'react';
 import { useTheme } from '../../contexts/theme-context';
 import { useLanguage } from '../../contexts/language-context';
-import { Colors } from '@/constants/theme';
+
 import { useThemeColors } from '@/hooks/use-theme-colors';
 import { TaskEditModal } from '../task-edit-modal';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';

@@ -4,7 +4,7 @@ import { useTaskStore } from '@focus-gtd/core';
 import type { Task, TaskStatus } from '@focus-gtd/core';
 import { useTheme } from '../contexts/theme-context';
 import { useLanguage } from '../contexts/language-context';
-import { Colors } from '@/constants/theme';
+
 import { SwipeableTaskItem } from './swipeable-task-item';
 import { TaskEditModal } from './task-edit-modal';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
@@ -20,15 +20,7 @@ interface ReviewModalProps {
 
 // Helper to check review time (kept for backward compatibility)
 export const checkReviewTime = () => {
-    try {
-        // Check mobile specific storage or simple default true for now to avoid async issues in sync helper
-        // Ideally this should be async but for UI logic often simple check is enough
-        // For mobile we might check this differently or in a useEffect, but let's default to true if unsure
-        return true;
-
-    } catch {
-        return true;
-    }
+    return true;
 };
 
 // Get text labels based on language
@@ -113,7 +105,6 @@ export function ReviewModal({ visible, onClose }: ReviewModalProps) {
     const [expandedProject, setExpandedProject] = useState<string | null>(null);
 
     const labels = getReviewLabels(language);
-
     const tc = useThemeColors();
 
     const steps: { id: ReviewStep; title: string; icon: string }[] = [

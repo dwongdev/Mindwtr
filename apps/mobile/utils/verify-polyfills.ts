@@ -31,11 +31,11 @@ export function verifyPolyfills() {
             if (!params.has('bar')) errors.push('URLSearchParams.has failed');
 
             // Critical check: .keys() support (often missing in native Hermes 101 checks)
-            if (typeof params.keys !== 'function') {
+            if (typeof (params as any).keys !== 'function') {
                 errors.push('URLSearchParams.keys() is missing (Shim failed?)');
             } else {
                 // Verify iteration
-                const keys = Array.from(params.keys());
+                const keys = Array.from((params as any).keys());
                 if (!keys.includes('foo')) errors.push('URLSearchParams iteration failed');
             }
         }

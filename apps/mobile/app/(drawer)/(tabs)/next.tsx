@@ -1,17 +1,16 @@
 import React, { useCallback, useState } from 'react';
 import { useRouter } from 'expo-router';
 import { View, Text, FlatList, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
-import { useTaskStore, PRESET_CONTEXTS, Task, TaskStatus, Project } from '@focus-gtd/core';
+import { useTaskStore, PRESET_CONTEXTS, Task, Project, sortTasks } from '@focus-gtd/core';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { TaskEditModal } from '@/components/task-edit-modal';
-import { TaskList } from '../../../components/task-list';
+
 import { useTheme } from '../../../contexts/theme-context';
 import { useLanguage } from '../../../contexts/language-context';
-import { Colors } from '@/constants/theme';
+
 import { useThemeColors } from '@/hooks/use-theme-colors';
 import { SwipeableTaskItem } from '@/components/swipeable-task-item';
 
-import { sortTasks } from '@focus-gtd/core';
 
 export default function NextActionsScreen() {
   const router = useRouter();
@@ -79,9 +78,7 @@ export default function NextActionsScreen() {
     updateTask(taskId, { status: 'next' });
   }, [updateTask]);
 
-  const handleComplete = useCallback((taskId: string) => {
-    updateTask(taskId, { status: 'done' });
-  }, [updateTask]);
+
 
   const onEdit = useCallback((task: Task) => {
     setEditingTask(task);

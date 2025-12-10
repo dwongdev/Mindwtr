@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useCallback } from 'react';
-import { View, TextInput, FlatList, StyleSheet, TouchableOpacity, Text, Animated, Pressable, RefreshControl } from 'react-native';
+import { View, TextInput, FlatList, StyleSheet, TouchableOpacity, Text, RefreshControl } from 'react-native';
 import { router } from 'expo-router';
 import { useTaskStore, Task, TaskStatus } from '@focus-gtd/core';
 
@@ -8,8 +8,8 @@ import { TaskEditModal } from './task-edit-modal';
 import { SwipeableTaskItem } from './swipeable-task-item';
 import { useTheme } from '../contexts/theme-context';
 import { useLanguage } from '../contexts/language-context';
-import { Colors } from '@/constants/theme';
-import { useThemeColors, ThemeColors } from '@/hooks/use-theme-colors';
+
+import { useThemeColors } from '@/hooks/use-theme-colors';
 
 export interface TaskListProps {
   statusFilter: TaskStatus | 'all';

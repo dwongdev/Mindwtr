@@ -23,7 +23,7 @@ const TIME_ESTIMATE_OPTIONS: { value: TimeEstimate | ''; label: string }[] = [
 ];
 
 export function TaskEditModal({ visible, task, onClose, onSave, onFocusMode }: TaskEditModalProps) {
-    const { tasks, updateTask } = useTaskStore();
+    const { tasks } = useTaskStore();
     const [editedTask, setEditedTask] = useState<Partial<Task>>({});
     const [showDatePicker, setShowDatePicker] = useState<'start' | 'due' | null>(null);
     const [focusMode, setFocusMode] = useState(false);
@@ -84,12 +84,7 @@ export function TaskEditModal({ visible, task, onClose, onSave, onFocusMode }: T
         }
     };
 
-    const handleQuickDone = () => {
-        if (task.id) {
-            onSave(task.id, { ...editedTask, status: 'done' });
-            onClose();
-        }
-    };
+
 
     const onDateChange = (event: DateTimePickerEvent, selectedDate?: Date) => {
         const currentMode = showDatePicker;

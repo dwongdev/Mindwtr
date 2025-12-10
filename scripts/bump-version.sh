@@ -9,7 +9,7 @@ if [ -n "$1" ]; then
     NEW_VERSION="$1"
 else
     echo "Current versions:"
-    grep '"version"' package.json apps/*/package.json packages/*/package.json apps/mobile/app.json 2>/dev/null | head -10
+    grep '"version"' package.json apps/*/package.json packages/*/package.json apps/mobile/app.json apps/desktop/src-tauri/tauri.conf.json 2>/dev/null | head -10
     echo ""
     read -p "Enter new version (e.g., 0.2.5): " NEW_VERSION
 fi
@@ -19,22 +19,8 @@ if [ -z "$NEW_VERSION" ]; then
     exit 1
 fi
 
-echo "Updating all packages to version $NEW_VERSION..."
-
-# Update root package.json
-sed -i "s/\"version\": \"[0-9]*\.[0-9]*\.[0-9]*\"/\"version\": \"$NEW_VERSION\"/" package.json
-
-# Update apps
-sed -i "s/\"version\": \"[0-9]*\.[0-9]*\.[0-9]*\"/\"version\": \"$NEW_VERSION\"/" apps/desktop/package.json
-sed -i "s/\"version\": \"[0-9]*\.[0-9]*\.[0-9]*\"/\"version\": \"$NEW_VERSION\"/" apps/mobile/package.json
-sed -i "s/\"version\": \"[0-9]*\.[0-9]*\.[0-9]*\"/\"version\": \"$NEW_VERSION\"/" apps/mobile/app.json
-
-# Update packages
-sed -i "s/\"version\": \"[0-9]*\.[0-9]*\.[0-9]*\"/\"version\": \"$NEW_VERSION\"/" packages/core/package.json
-
-echo ""
-echo "Updated versions:"
-grep '"version"' package.json apps/*/package.json packages/*/package.json apps/mobile/app.json 2>/dev/null | head -10
+# Use Node.js script for safe JSON updates
+node scripts/update-versions.js "$NEW_VERSION"
 
 echo ""
 echo "Done! Now you can:"
