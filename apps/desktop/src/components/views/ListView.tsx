@@ -201,12 +201,12 @@ export function ListView({ title, statusFilter }: ListViewProps) {
     const handleAddTask = (e: React.FormEvent) => {
         e.preventDefault();
         if (newTaskTitle.trim()) {
-            const defaultStatus = statusFilter !== 'all' ? statusFilter : undefined;
             const { title: parsedTitle, props } = parseQuickAdd(newTaskTitle, projects);
             const finalTitle = parsedTitle || newTaskTitle;
             const initialProps: Partial<Task> = { ...props };
-            if (!initialProps.status && defaultStatus && defaultStatus !== 'all') {
-                initialProps.status = defaultStatus as TaskStatus;
+            // Only set status if we have an explicit filter and parser didn't set one
+            if (!initialProps.status && statusFilter !== 'all') {
+                initialProps.status = statusFilter;
             }
             addTask(finalTitle, initialProps);
             setNewTaskTitle('');
@@ -633,15 +633,15 @@ export function ListView({ title, statusFilter }: ListViewProps) {
 
             {/* Only show add task for inbox/next/todo - other views are read-only */}
             {['inbox', 'next', 'todo'].includes(statusFilter) && (
-	                <form onSubmit={handleAddTask} className="relative">
-	                    <input
+                <form onSubmit={handleAddTask} className="relative">
+                    <input
                         ref={addInputRef}
-	                        type="text"
-	                        placeholder={`${t('nav.addTask')}... ${t('quickAdd.example')}`}
-	                        value={newTaskTitle}
-	                        onChange={(e) => setNewTaskTitle(e.target.value)}
-	                        className="w-full bg-card border border-border rounded-lg py-3 pl-4 pr-12 shadow-sm focus:ring-2 focus:ring-primary focus:border-transparent transition-all"
-	                    />
+                        type="text"
+                        placeholder={`${t('nav.addTask')}... ${t('quickAdd.example')}`}
+                        value={newTaskTitle}
+                        onChange={(e) => setNewTaskTitle(e.target.value)}
+                        className="w-full bg-card border border-border rounded-lg py-3 pl-4 pr-12 shadow-sm focus:ring-2 focus:ring-primary focus:border-transparent transition-all"
+                    />
                     <button
                         type="submit"
                         disabled={!newTaskTitle.trim()}

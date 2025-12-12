@@ -86,8 +86,5 @@ export async function startDesktopNotifications() {
     checkDueAndNotify();
 
     // Re-check on data changes.
-    useTaskStore.subscribe(
-        (state) => state.tasks,
-        () => checkDueAndNotify(),
-    );
+    useTaskStore.subscribe(() => checkDueAndNotify());
 }
