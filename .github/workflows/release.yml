@@ -43,12 +43,13 @@ jobs:
             artifacts: |
               cp apps/desktop/src-tauri/target/release/bundle/msi/*.msi release-artifacts/ 2>/dev/null || true
               cp apps/desktop/src-tauri/target/release/bundle/nsis/*.exe release-artifacts/ 2>/dev/null || true
-          - platform: macos-latest
-            target: macos
+          - platform: macos-14  # ARM64 runner (Apple Silicon)
+            target: macos-arm64
+            rust_target: aarch64-apple-darwin
             deps: echo "No extra deps needed for macOS"
             artifacts: |
-              cp apps/desktop/src-tauri/target/release/bundle/dmg/*.dmg release-artifacts/ 2>/dev/null || true
-              cp apps/desktop/src-tauri/target/release/bundle/macos/*.app.tar.gz release-artifacts/ 2>/dev/null || true
+              cp apps/desktop/src-tauri/target/aarch64-apple-darwin/release/bundle/dmg/*.dmg release-artifacts/ 2>/dev/null || true
+              cp apps/desktop/src-tauri/target/aarch64-apple-darwin/release/bundle/macos/*.app.tar.gz release-artifacts/ 2>/dev/null || true
 
     runs-on: ${{ matrix.platform }}
     name: Desktop Build (${{ matrix.target }})
@@ -63,6 +64,8 @@ jobs:
 
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.rust_target || '' }}
 
       - name: Rust cache
         uses: Swatinem/rust-cache@v2
@@ -83,7 +86,11 @@ jobs:
       - name: Build Tauri app
         run: |
           cd apps/desktop
-          cargo tauri build
+          if [ -n "${{ matrix.rust_target }}" ]; then
+            cargo tauri build --target ${{ matrix.rust_target }}
+          else
+            cargo tauri build
+          fi
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
