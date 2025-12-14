@@ -20,14 +20,14 @@ describe('ReviewView', () => {
     it('renders the review list with a guide button', () => {
         const { getByText } = renderWithProviders(<ReviewView />);
         expect(getByText('Review')).toBeInTheDocument();
-        expect(getByText('Weekly Review Guide')).toBeInTheDocument();
+        expect(getByText('Weekly Review')).toBeInTheDocument();
     });
 
     it('navigates through the wizard steps', () => {
         const { getByText } = renderWithProviders(<ReviewView />);
 
         // Open guide
-        fireEvent.click(getByText('Weekly Review Guide'));
+        fireEvent.click(getByText('Weekly Review'));
         expect(getByText('Time for your Weekly Review')).toBeInTheDocument();
 
         // Intro -> Inbox
@@ -62,7 +62,7 @@ describe('ReviewView', () => {
         const { getByText } = renderWithProviders(<ReviewView />);
 
         // Open guide
-        fireEvent.click(getByText('Weekly Review Guide'));
+        fireEvent.click(getByText('Weekly Review'));
         expect(getByText('Time for your Weekly Review')).toBeInTheDocument();
 
         // Go to Inbox

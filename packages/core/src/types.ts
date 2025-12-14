@@ -1,8 +1,22 @@
 export type TaskStatus = 'inbox' | 'todo' | 'next' | 'in-progress' | 'waiting' | 'someday' | 'done' | 'archived';
 
-export type TimeEstimate = '5min' | '15min' | '30min' | '1hr' | '2hr+';
+export type TimeEstimate = '5min' | '10min' | '15min' | '30min' | '1hr' | '2hr' | '3hr' | '4hr' | '4hr+';
 
 export type TaskSortBy = 'default' | 'due' | 'start' | 'review' | 'title' | 'created' | 'created-desc';
+
+export type TaskEditorFieldId =
+    | 'status'
+    | 'contexts'
+    | 'tags'
+    | 'blockedBy'
+    | 'timeEstimate'
+    | 'recurrence'
+    | 'startTime'
+    | 'dueDate'
+    | 'reviewAt'
+    | 'description'
+    | 'attachments'
+    | 'checklist';
 
 export interface Project {
     id: string;
@@ -79,6 +93,13 @@ export interface AppData {
     tasks: Task[];
     projects: Project[];
     settings: {
+        gtd?: {
+            timeEstimatePresets?: TimeEstimate[];
+            taskEditor?: {
+                order?: TaskEditorFieldId[];
+                hidden?: TaskEditorFieldId[];
+            };
+        };
         theme?: 'light' | 'dark' | 'system';
         language?: 'en' | 'zh' | 'system';
         weekStart?: 'monday' | 'sunday';

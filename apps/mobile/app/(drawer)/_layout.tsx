@@ -18,8 +18,8 @@ export default function AppLayout() {
       }}
     >
       <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-      <Stack.Screen name="agenda" options={{ title: t('agenda.title') }} />
-      <Stack.Screen name="calendar" options={{ title: t('calendar.title') }} />
+      <Stack.Screen name="board" options={{ title: t('nav.board') }} />
+      <Stack.Screen name="review" options={{ title: t('nav.review') }} />
       <Stack.Screen name="contexts" options={{ title: t('contexts.title') }} />
       <Stack.Screen name="waiting" options={{ title: t('waiting.title') }} />
       <Stack.Screen name="someday" options={{ title: t('someday.title') }} />

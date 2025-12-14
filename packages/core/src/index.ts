@@ -19,3 +19,4 @@ export * from './hierarchy-utils';
 export * from './markdown';
 export * from './webdav';
 export * from './cloud';
+export * from './ics';

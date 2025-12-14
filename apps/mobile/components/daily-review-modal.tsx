@@ -22,7 +22,7 @@ function isSameDay(a: Date, b: Date): boolean {
     return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
 }
 
-export function DailyReviewModal({ visible, onClose }: DailyReviewModalProps) {
+function DailyReviewFlow({ onClose }: { onClose: () => void }) {
     const { tasks, settings, updateTask, deleteTask } = useTaskStore();
     const { isDark } = useTheme();
     const { t } = useLanguage();
@@ -147,17 +147,6 @@ export function DailyReviewModal({ visible, onClose }: DailyReviewModalProps) {
                                 <Text style={{ fontWeight: '700' }}>{totalToday}</Text> {t('common.tasks')}
                             </Text>
                             <Text style={[styles.guideText, { color: tc.secondaryText }]}>{t('dailyReview.todayDesc')}</Text>
-                            <View style={styles.quickActions}>
-                                    <TouchableOpacity
-                                        style={[styles.actionButton, { borderColor: tc.border, backgroundColor: tc.filterBg }]}
-                                        onPress={() => {
-                                            onClose();
-                                        router.push('/calendar');
-                                    }}
-                                >
-                                    <Text style={[styles.actionButtonText, { color: tc.text }]}>{t('dailyReview.openCalendar')}</Text>
-                                </TouchableOpacity>
-                            </View>
                         </View>
                         {topTasks.length === 0 ? (
                             <View style={styles.emptyState}>
@@ -179,17 +168,6 @@ export function DailyReviewModal({ visible, onClose }: DailyReviewModalProps) {
                                 <Text style={{ fontWeight: '700' }}>{focusedTasks.length}</Text> / 3
                             </Text>
                             <Text style={[styles.guideText, { color: tc.secondaryText }]}>{t('dailyReview.focusDesc')}</Text>
-                            <View style={styles.quickActions}>
-                                    <TouchableOpacity
-                                        style={[styles.actionButton, { borderColor: tc.border, backgroundColor: tc.filterBg }]}
-                                        onPress={() => {
-                                            onClose();
-                                        router.push('/agenda');
-                                    }}
-                                >
-                                    <Text style={[styles.actionButtonText, { color: tc.text }]}>{t('dailyReview.openAgenda')}</Text>
-                                </TouchableOpacity>
-                            </View>
                         </View>
                         {focusedTasks.length === 0 ? (
                             <View style={styles.emptyState}>
@@ -210,17 +188,6 @@ export function DailyReviewModal({ visible, onClose }: DailyReviewModalProps) {
                                 <Text style={{ fontWeight: '700' }}>{inboxTasks.length}</Text> {t('common.tasks')}
                             </Text>
                             <Text style={[styles.guideText, { color: tc.secondaryText }]}>{t('dailyReview.inboxDesc')}</Text>
-                            <View style={styles.quickActions}>
-                                    <TouchableOpacity
-                                        style={[styles.actionButton, { borderColor: tc.border, backgroundColor: tc.filterBg }]}
-                                        onPress={() => {
-                                            onClose();
-                                        router.push('/inbox');
-                                    }}
-                                >
-                                    <Text style={[styles.actionButtonText, { color: tc.text }]}>{t('dailyReview.openInbox')}</Text>
-                                </TouchableOpacity>
-                            </View>
                         </View>
                         {inboxTasks.length === 0 ? (
                             <View style={styles.emptyState}>
@@ -241,17 +208,6 @@ export function DailyReviewModal({ visible, onClose }: DailyReviewModalProps) {
                                 <Text style={{ fontWeight: '700' }}>{waitingDueTasks.length}</Text> {t('common.tasks')}
                             </Text>
                             <Text style={[styles.guideText, { color: tc.secondaryText }]}>{t('dailyReview.waitingDesc')}</Text>
-                            <View style={styles.quickActions}>
-                                    <TouchableOpacity
-                                        style={[styles.actionButton, { borderColor: tc.border, backgroundColor: tc.filterBg }]}
-                                        onPress={() => {
-                                            onClose();
-                                        router.push('/waiting');
-                                    }}
-                                >
-                                    <Text style={[styles.actionButtonText, { color: tc.text }]}>{t('dailyReview.openWaiting')}</Text>
-                                </TouchableOpacity>
-                            </View>
                         </View>
                         {waitingDueTasks.length === 0 ? (
                             <View style={styles.emptyState}>
@@ -280,58 +236,68 @@ export function DailyReviewModal({ visible, onClose }: DailyReviewModalProps) {
     };
 
     return (
-        <Modal visible={visible} animationType="slide" presentationStyle="fullScreen" onRequestClose={onClose}>
-            <GestureHandlerRootView style={[styles.modalContainer, { backgroundColor: tc.bg }]}>
-                <View style={[styles.header, { borderBottomColor: tc.border }]}>
-                    <TouchableOpacity onPress={onClose}>
-                        <Text style={[styles.closeButton, { color: tc.text }]}>✕</Text>
+        <GestureHandlerRootView style={[styles.modalContainer, { backgroundColor: tc.bg }]}>
+            <View style={[styles.header, { borderBottomColor: tc.border }]}>
+                <TouchableOpacity onPress={onClose}>
+                    <Text style={[styles.closeButton, { color: tc.text }]}>✕</Text>
+                </TouchableOpacity>
+                <View style={styles.headerCenter}>
+                    <Text style={[styles.headerTitle, { color: tc.text }]}>{t('dailyReview.title')}</Text>
+                    <Text style={[styles.headerStep, { color: tc.secondaryText }]}>
+                        {t('review.step')} {Math.max(1, currentIndex + 1)} {t('review.of')} {steps.length}
+                    </Text>
+                </View>
+                <View style={{ width: 28 }} />
+            </View>
+
+            <View style={[styles.progressTrack, { backgroundColor: tc.border }]}>
+                <View style={[styles.progressFill, { width: `${progress}%`, backgroundColor: tc.tint }]} />
+            </View>
+
+            <View style={styles.content}>{renderStep()}</View>
+
+            {currentStep !== 'intro' && currentStep !== 'complete' && (
+                <View style={[styles.footer, { borderTopColor: tc.border, backgroundColor: tc.cardBg }]}>
+                    <TouchableOpacity
+                        onPress={back}
+                        disabled={currentIndex === 0}
+                        style={[styles.footerButton, { backgroundColor: tc.filterBg, opacity: currentIndex === 0 ? 0.5 : 1 }]}
+                    >
+                        <Text style={[styles.footerButtonText, { color: tc.text }]}>{t('review.back')}</Text>
                     </TouchableOpacity>
-                    <View style={styles.headerCenter}>
-                        <Text style={[styles.headerTitle, { color: tc.text }]}>{t('dailyReview.title')}</Text>
-                        <Text style={[styles.headerStep, { color: tc.secondaryText }]}>
-                            {t('review.step')} {Math.max(1, currentIndex + 1)} {t('review.of')} {steps.length}
-                        </Text>
-                    </View>
-                    <View style={{ width: 28 }} />
+                    <TouchableOpacity onPress={next} style={[styles.footerButton, { backgroundColor: tc.tint }]}>
+                        <Text style={styles.footerPrimaryText}>{t('review.nextStepBtn')}</Text>
+                    </TouchableOpacity>
                 </View>
+            )}
 
-                <View style={[styles.progressTrack, { backgroundColor: tc.border }]}>
-                    <View style={[styles.progressFill, { width: `${progress}%`, backgroundColor: tc.tint }]} />
-                </View>
+            <TaskEditModal
+                visible={isTaskModalVisible}
+                task={editingTask}
+                onClose={closeTask}
+                onSave={(taskId, updates) => {
+                    updateTask(taskId, updates);
+                    closeTask();
+                }}
+                onFocusMode={(taskId) => {
+                    closeTask();
+                    router.push(`/check-focus?id=${taskId}`);
+                }}
+            />
+        </GestureHandlerRootView>
+    );
+}
 
-                <View style={styles.content}>{renderStep()}</View>
-
-                {currentStep !== 'intro' && currentStep !== 'complete' && (
-                    <View style={[styles.footer, { borderTopColor: tc.border, backgroundColor: tc.cardBg }]}>
-                        <TouchableOpacity
-                            onPress={back}
-                            disabled={currentIndex === 0}
-                            style={[styles.footerButton, { backgroundColor: tc.filterBg, opacity: currentIndex === 0 ? 0.5 : 1 }]}
-                        >
-                            <Text style={[styles.footerButtonText, { color: tc.text }]}>{t('review.back')}</Text>
-                        </TouchableOpacity>
-                        <TouchableOpacity onPress={next} style={[styles.footerButton, { backgroundColor: tc.tint }]}>
-                            <Text style={styles.footerPrimaryText}>{t('review.nextStepBtn')}</Text>
-                        </TouchableOpacity>
-                    </View>
-                )}
-
-                <TaskEditModal
-                    visible={isTaskModalVisible}
-                    task={editingTask}
-                    onClose={closeTask}
-                    onSave={(taskId, updates) => {
-                        updateTask(taskId, updates);
-                        closeTask();
-                    }}
-                    onFocusMode={(taskId) => {
-                        closeTask();
-                        router.push(`/check-focus?id=${taskId}`);
-                    }}
-                />
-            </GestureHandlerRootView>
+export function DailyReviewModal({ visible, onClose }: DailyReviewModalProps) {
+    return (
+        <Modal visible={visible} animationType="slide" presentationStyle="fullScreen" onRequestClose={onClose}>
+            <DailyReviewFlow onClose={onClose} />
         </Modal>
     );
+}
+
+export function DailyReviewScreen({ onClose }: { onClose: () => void }) {
+    return <DailyReviewFlow onClose={onClose} />;
 }
 
 const styles = StyleSheet.create({

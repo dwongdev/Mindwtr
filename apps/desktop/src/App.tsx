@@ -21,10 +21,10 @@ import { startDesktopNotifications, stopDesktopNotifications } from './lib/notif
 import { SyncService } from './lib/sync-service';
 import { isTauriRuntime } from './lib/runtime';
 
-    function App() {
-        const [currentView, setCurrentView] = useState('inbox');
-        const { fetchData } = useTaskStore();
-        const { t } = useLanguage();
+function App() {
+    const [currentView, setCurrentView] = useState('inbox');
+    const { fetchData } = useTaskStore();
+    const { t } = useLanguage();
 
     useEffect(() => {
         fetchData();
@@ -39,27 +39,68 @@ import { isTauriRuntime } from './lib/runtime';
         }
 
         let lastAutoSync = 0;
+        let syncDebounceTimer: ReturnType<typeof setTimeout> | null = null;
+
         const autoSync = async () => {
             if (!isTauriRuntime()) return;
-            const path = await SyncService.getSyncPath();
-            if (!path) return;
             const now = Date.now();
-            if (now - lastAutoSync < 30_000) return;
+            if (now - lastAutoSync < 5_000) return;
+
+            const backend = await SyncService.getSyncBackend();
+            if (backend === 'file') {
+                const path = await SyncService.getSyncPath();
+                if (!path) return;
+            } else if (backend === 'webdav') {
+                const { url } = await SyncService.getWebDavConfig();
+                if (!url) return;
+            } else {
+                const { url, token } = await SyncService.getCloudConfig();
+                if (!url || !token) return;
+            }
+
             lastAutoSync = now;
+            await flushPendingSave().catch(console.error);
             await SyncService.performSync();
         };
 
         const focusListener = () => {
+            // On focus, use 30s throttle to avoid excessive syncs
+            const now = Date.now();
+            if (now - lastAutoSync > 30_000) {
+                autoSync().catch(console.error);
+            }
+        };
+
+        const blurListener = () => {
+            // Sync when window loses focus
+            flushPendingSave().catch(console.error);
             autoSync().catch(console.error);
         };
 
-        // Background/on-resume sync (focus) and initial auto-sync.
+        // Auto-sync on data changes with debounce
+        const storeUnsubscribe = useTaskStore.subscribe((state, prevState) => {
+            if (state.lastDataChangeAt === prevState.lastDataChangeAt) return;
+            if (syncDebounceTimer) {
+                clearTimeout(syncDebounceTimer);
+            }
+            syncDebounceTimer = setTimeout(() => {
+                autoSync().catch(console.error);
+            }, 5000);
+        });
+
+        // Background/on-resume sync (focus/blur) and initial auto-sync
         window.addEventListener('focus', focusListener);
+        window.addEventListener('blur', blurListener);
         setTimeout(() => autoSync().catch(console.error), 1500);
 
         return () => {
             window.removeEventListener('beforeunload', handleUnload);
             window.removeEventListener('focus', focusListener);
+            window.removeEventListener('blur', blurListener);
+            storeUnsubscribe();
+            if (syncDebounceTimer) {
+                clearTimeout(syncDebounceTimer);
+            }
             stopDesktopNotifications();
         };
     }, [fetchData]);

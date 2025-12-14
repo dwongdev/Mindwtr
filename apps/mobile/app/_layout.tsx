@@ -31,11 +31,42 @@ function RootLayoutContent() {
   const [storageWarningShown, setStorageWarningShown] = useState(false);
   const appState = useRef(AppState.currentState);
   const lastAutoSyncAt = useRef(0);
+  const syncDebounceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Flush pending saves when app goes to background
+  // Auto-sync on data changes with debounce
+  useEffect(() => {
+    const unsubscribe = useTaskStore.subscribe((state, prevState) => {
+      if (state.lastDataChangeAt === prevState.lastDataChangeAt) return;
+      // Debounce sync: wait 5 seconds after last change
+      if (syncDebounceTimer.current) {
+        clearTimeout(syncDebounceTimer.current);
+      }
+      syncDebounceTimer.current = setTimeout(() => {
+        const now = Date.now();
+        if (now - lastAutoSyncAt.current > 5_000) {
+          lastAutoSyncAt.current = now;
+          flushPendingSave()
+            .catch(console.error)
+            .finally(() => {
+              performMobileSync().catch(console.error);
+            });
+        }
+      }, 5000);
+    });
+
+    return () => {
+      unsubscribe();
+      if (syncDebounceTimer.current) {
+        clearTimeout(syncDebounceTimer.current);
+      }
+    };
+  }, []);
+
+  // Sync on foreground/background transitions
   useEffect(() => {
     const handleAppStateChange = (nextAppState: AppStateStatus) => {
       if (appState.current.match(/inactive|background/) && nextAppState === 'active') {
+        // Coming back to foreground - sync to get latest data
         const now = Date.now();
         if (now - lastAutoSyncAt.current > 30_000) {
           lastAutoSyncAt.current = now;
@@ -43,8 +74,13 @@ function RootLayoutContent() {
         }
       }
       if (appState.current === 'active' && nextAppState.match(/inactive|background/)) {
-        // App is going to background - flush any pending saves
+        // Going to background - flush saves and sync
+        if (syncDebounceTimer.current) {
+          clearTimeout(syncDebounceTimer.current);
+          syncDebounceTimer.current = null;
+        }
         flushPendingSave().catch(console.error);
+        performMobileSync().catch(console.error);
       }
       appState.current = nextAppState;
     };
@@ -119,6 +155,12 @@ function RootLayoutContent() {
       <NavigationThemeProvider value={isDark ? DarkTheme : DefaultTheme}>
         <Stack>
           <Stack.Screen name="(drawer)" options={{ headerShown: false }} />
+          <Stack.Screen
+            name="daily-review"
+            options={{
+              headerShown: false,
+            }}
+          />
           <Stack.Screen
             name="global-search"
             options={{

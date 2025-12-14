@@ -1,6 +1,6 @@
 import { View, Text, Pressable, StyleSheet, Modal } from 'react-native';
 import { Swipeable } from 'react-native-gesture-handler';
-import { useTaskStore, Task, getChecklistProgress, getTaskAgeLabel, getTaskStaleness, getStatusColor, safeFormatDate, TaskStatus } from '@mindwtr/core';
+import { useTaskStore, Task, getChecklistProgress, getTaskAgeLabel, getTaskStaleness, getStatusColor, safeFormatDate, safeParseDate, TaskStatus, Project } from '@mindwtr/core';
 import { useLanguage } from '../contexts/language-context';
 import { useRef, useState } from 'react';
 import { ThemeColors } from '../hooks/use-theme-colors';
@@ -46,7 +46,9 @@ export function SwipeableTaskItem({
     const swipeableRef = useRef<Swipeable>(null);
     const ignorePressUntil = useRef<number>(0);
     const { t, language } = useLanguage();
-    const { updateTask } = useTaskStore();
+    const { updateTask, projects } = useTaskStore();
+
+    const project: Project | undefined = task.projectId ? projects.find(p => p.id === task.projectId) : undefined;
 
     // Status-aware left swipe action
     const getLeftAction = (): { label: string; color: string; action: TaskStatus } => {
@@ -74,10 +76,21 @@ export function SwipeableTaskItem({
     const timeEstimateLabel = (() => {
         if (!task.timeEstimate) return null;
         if (task.timeEstimate === '5min') return '5m';
+        if (task.timeEstimate === '10min') return '10m';
         if (task.timeEstimate === '15min') return '15m';
         if (task.timeEstimate === '30min') return '30m';
         if (task.timeEstimate === '1hr') return '1h';
-        return '2h+';
+        if (task.timeEstimate === '2hr') return '2h';
+        if (task.timeEstimate === '3hr') return '3h';
+        if (task.timeEstimate === '4hr') return '4h';
+        return '4h+';
+    })();
+
+    const dueLabel = (() => {
+        const due = safeParseDate(task.dueDate);
+        if (!due) return null;
+        const hasTime = due.getHours() !== 0 || due.getMinutes() !== 0;
+        return safeFormatDate(due, hasTime ? 'Pp' : 'P');
     })();
 
     const showMetaChips =
@@ -118,9 +131,9 @@ export function SwipeableTaskItem({
     const accessibilityLabel = [
         task.title,
         `Status: ${task.status}`,
-        task.dueDate ? `Due: ${safeFormatDate(task.dueDate, 'P')}` : null,
+        dueLabel ? `Due: ${dueLabel}` : null,
         task.contexts?.length ? `Contexts: ${task.contexts.join(', ')}` : null,
-        task.timeEstimate ? `Estimate: ${task.timeEstimate}` : null,
+        timeEstimateLabel ? `Estimate: ${timeEstimateLabel}` : null,
     ].filter(Boolean).join(', ');
 
     const handlePress = () => {
@@ -182,9 +195,16 @@ export function SwipeableTaskItem({
                                 {task.description}
                             </Text>
                         )}
-                        {task.dueDate && (
+                        {project && (
+                            <View style={[styles.projectBadge, { backgroundColor: project.color + '20', borderColor: project.color }]}>
+                                <Text style={[styles.projectBadgeText, { color: project.color }]} numberOfLines={1}>
+                                    📁 {project.title}
+                                </Text>
+                            </View>
+                        )}
+                        {dueLabel && (
                             <Text style={styles.taskDueDate}>
-                                {t('taskEdit.dueDateLabel')}: {safeFormatDate(task.dueDate, 'P')}
+                                {t('taskEdit.dueDateLabel')}: {dueLabel}
                             </Text>
                         )}
                         {(task.startTime || task.reviewAt) && (
@@ -423,9 +443,12 @@ const styles = StyleSheet.create({
     metaPill: {
         borderWidth: 1,
         paddingHorizontal: 8,
-        paddingVertical: 2,
+        paddingVertical: 0,
         borderRadius: 999,
-        fontSize: 11,
+        fontSize: 10,
+        lineHeight: 13,
+        includeFontPadding: false,
+        textAlignVertical: 'center',
         overflow: 'hidden',
     },
     tagsRow: {
@@ -435,10 +458,13 @@ const styles = StyleSheet.create({
         marginTop: 8,
     },
     tagChip: {
-        fontSize: 11,
+        fontSize: 10,
         paddingHorizontal: 8,
-        paddingVertical: 2,
-        borderRadius: 10,
+        paddingVertical: 0,
+        borderRadius: 9,
+        lineHeight: 13,
+        includeFontPadding: false,
+        textAlignVertical: 'center',
     },
     tagChipLight: {
         color: '#6D28D9',
@@ -457,10 +483,13 @@ const styles = StyleSheet.create({
         marginTop: 8,
     },
     contextTag: {
-        fontSize: 11,
+        fontSize: 10,
         paddingHorizontal: 8,
-        paddingVertical: 2,
-        borderRadius: 10,
+        paddingVertical: 0,
+        borderRadius: 9,
+        lineHeight: 13,
+        includeFontPadding: false,
+        textAlignVertical: 'center',
     },
     contextTagLight: {
         color: '#1D4ED8',
@@ -651,5 +680,19 @@ const styles = StyleSheet.create({
         fontSize: 10,
         fontWeight: '500',
         color: '#1D4ED8',
+    },
+    projectBadge: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingHorizontal: 8,
+        paddingVertical: 3,
+        borderRadius: 6,
+        marginTop: 4,
+        alignSelf: 'flex-start',
+        borderWidth: 1,
+    },
+    projectBadgeText: {
+        fontSize: 11,
+        fontWeight: '500',
     },
 });

@@ -31,6 +31,15 @@ struct AppConfigToml {
     webdav_password: Option<String>,
     cloud_url: Option<String>,
     cloud_token: Option<String>,
+    external_calendars: Option<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+struct ExternalCalendarSubscription {
+    id: String,
+    name: String,
+    url: String,
+    enabled: bool,
 }
 
 struct QuickAddPending(AtomicBool);
@@ -124,6 +133,8 @@ fn read_config_toml(path: &Path) -> AppConfigToml {
             config.cloud_url = parse_toml_string_value(value);
         } else if key == "cloud_token" {
             config.cloud_token = parse_toml_string_value(value);
+        } else if key == "external_calendars" {
+            config.external_calendars = parse_toml_string_value(value);
         }
     }
     config
@@ -156,6 +167,9 @@ fn write_config_toml(path: &Path, config: &AppConfigToml) -> Result<(), String> 
     }
     if let Some(cloud_token) = &config.cloud_token {
         lines.push(format!("cloud_token = {}", serialize_toml_string_value(cloud_token)));
+    }
+    if let Some(external_calendars) = &config.external_calendars {
+        lines.push(format!("external_calendars = {}", serialize_toml_string_value(external_calendars)));
     }
     let content = format!("{}\n", lines.join("\n"));
     fs::write(path, content).map_err(|e| e.to_string())
@@ -359,6 +373,47 @@ fn set_cloud_config(app: tauri::AppHandle, url: String, token: String) -> Result
     Ok(true)
 }
 
+#[tauri::command]
+fn get_external_calendars(app: tauri::AppHandle) -> Result<Vec<ExternalCalendarSubscription>, String> {
+    let config = read_config_toml(&get_config_path(&app));
+    let raw = config.external_calendars.unwrap_or_else(|| "[]".to_string());
+    let parsed: Vec<ExternalCalendarSubscription> = serde_json::from_str(&raw).unwrap_or_default();
+    Ok(parsed
+        .into_iter()
+        .filter(|c| !c.url.trim().is_empty())
+        .map(|mut c| {
+            c.url = c.url.trim().to_string();
+            c.name = c.name.trim().to_string();
+            if c.name.is_empty() {
+                c.name = "Calendar".to_string();
+            }
+            c
+        })
+        .collect())
+}
+
+#[tauri::command]
+fn set_external_calendars(app: tauri::AppHandle, calendars: Vec<ExternalCalendarSubscription>) -> Result<bool, String> {
+    let config_path = get_config_path(&app);
+    let mut config = read_config_toml(&config_path);
+    let sanitized: Vec<ExternalCalendarSubscription> = calendars
+        .into_iter()
+        .filter(|c| !c.url.trim().is_empty())
+        .map(|mut c| {
+            c.url = c.url.trim().to_string();
+            c.name = c.name.trim().to_string();
+            if c.name.is_empty() {
+                c.name = "Calendar".to_string();
+            }
+            c
+        })
+        .collect();
+
+    config.external_calendars = Some(serde_json::to_string(&sanitized).map_err(|e| e.to_string())?);
+    write_config_toml(&config_path, &config)?;
+    Ok(true)
+}
+
 
 #[tauri::command]
 fn read_sync_file(app: tauri::AppHandle) -> Result<serde_json::Value, String> {
@@ -405,6 +460,7 @@ pub fn run() {
         .manage(QuickAddPending(AtomicBool::new(false)))
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_fs::init())
+        .plugin(tauri_plugin_http::init())
         .plugin(tauri_plugin_global_shortcut::Builder::new().build())
         .setup(|app| {
             // Ensure data file exists on startup
@@ -473,6 +529,8 @@ pub fn run() {
             set_webdav_config,
             get_cloud_config,
             set_cloud_config,
+            get_external_calendars,
+            set_external_calendars,
             read_sync_file,
             write_sync_file,
             consume_quick_add_pending

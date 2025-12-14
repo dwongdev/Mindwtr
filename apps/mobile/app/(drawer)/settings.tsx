@@ -17,12 +17,16 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { GestureDetector, Gesture } from 'react-native-gesture-handler';
+import Animated, { runOnJS, useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
 import { useTheme } from '../../contexts/theme-context';
 import { useLanguage, Language } from '../../contexts/language-context';
 
 import { useThemeColors } from '@/hooks/use-theme-colors';
-import { useTaskStore } from '@mindwtr/core';
+import { IconSymbol } from '@/components/ui/icon-symbol';
+import { generateUUID, type ExternalCalendarSubscription, type TaskEditorFieldId, type TimeEstimate, useTaskStore } from '@mindwtr/core';
 import { pickAndParseSyncFile, exportData } from '../../lib/storage-file';
+import { fetchExternalCalendarEvents, getExternalCalendars, saveExternalCalendars } from '../../lib/external-calendar';
 import {
     performMobileSync,
     SYNC_PATH_KEY,
@@ -34,7 +38,17 @@ import {
     CLOUD_TOKEN_KEY,
 } from '../../lib/sync-service';
 
-type SettingsScreen = 'main' | 'appearance' | 'language' | 'notifications' | 'sync' | 'about';
+type SettingsScreen =
+    | 'main'
+    | 'appearance'
+    | 'language'
+    | 'notifications'
+    | 'calendar'
+    | 'gtd'
+    | 'gtd-time-estimates'
+    | 'gtd-task-editor'
+    | 'sync'
+    | 'about';
 
 const LANGUAGES: { id: Language; native: string }[] = [
     { id: 'en', native: 'English' },
@@ -56,6 +70,9 @@ export default function SettingsPage() {
     const [cloudToken, setCloudToken] = useState('');
     const [isCheckingUpdate, setIsCheckingUpdate] = useState(false);
     const [digestTimePicker, setDigestTimePicker] = useState<'morning' | 'evening' | null>(null);
+    const [externalCalendars, setExternalCalendars] = useState<ExternalCalendarSubscription[]>([]);
+    const [newCalendarName, setNewCalendarName] = useState('');
+    const [newCalendarUrl, setNewCalendarUrl] = useState('');
 
     const tc = useThemeColors();
     const notificationsEnabled = settings.notificationsEnabled !== false;
@@ -63,6 +80,23 @@ export default function SettingsPage() {
     const dailyDigestEveningEnabled = settings.dailyDigestEveningEnabled === true;
     const dailyDigestMorningTime = settings.dailyDigestMorningTime || '09:00';
     const dailyDigestEveningTime = settings.dailyDigestEveningTime || '20:00';
+    const defaultTimeEstimatePresets: TimeEstimate[] = ['10min', '30min', '1hr', '2hr', '3hr', '4hr', '4hr+'];
+    const timeEstimateOptions: TimeEstimate[] = ['5min', '10min', '15min', '30min', '1hr', '2hr', '3hr', '4hr', '4hr+'];
+    const timeEstimatePresets: TimeEstimate[] = (settings.gtd?.timeEstimatePresets?.length
+        ? settings.gtd.timeEstimatePresets
+        : defaultTimeEstimatePresets) as TimeEstimate[];
+
+    const formatTimeEstimateLabel = (value: TimeEstimate) => {
+        if (value === '5min') return '5m';
+        if (value === '10min') return '10m';
+        if (value === '15min') return '15m';
+        if (value === '30min') return '30m';
+        if (value === '1hr') return '1h';
+        if (value === '2hr') return '2h';
+        if (value === '3hr') return '3h';
+        if (value === '4hr') return '4h';
+        return '4h+';
+    };
 
     const formatTime = (time: string) => time;
     const toTimePickerDate = (time: string) => {
@@ -116,11 +150,19 @@ export default function SettingsPage() {
         }).catch(console.error);
     }, []);
 
+    useEffect(() => {
+        getExternalCalendars().then(setExternalCalendars).catch(console.error);
+    }, []);
+
     // Handle Android hardware back button
     useEffect(() => {
         const onBackPress = () => {
             if (currentScreen !== 'main') {
-                setCurrentScreen('main');
+                if (currentScreen === 'gtd-time-estimates' || currentScreen === 'gtd-task-editor') {
+                    setCurrentScreen('gtd');
+                } else {
+                    setCurrentScreen('main');
+                }
                 return true; // prevent default behavior
             }
             return false;
@@ -297,8 +339,13 @@ export default function SettingsPage() {
     };
 
     // Sub-screen header
-    const SubHeader = ({ title }: { title: string }) => (
+    const SubHeader = ({ title, onBack }: { title: string; onBack?: () => void }) => (
         <View style={styles.subHeader}>
+            {onBack && (
+                <TouchableOpacity onPress={onBack}>
+                    <Text style={[styles.backButton, { color: tc.tint }]}>{t('common.back')}</Text>
+                </TouchableOpacity>
+            )}
             <Text style={[styles.subHeaderTitle, { color: tc.text }]}>{title}</Text>
         </View>
     );
@@ -315,7 +362,7 @@ export default function SettingsPage() {
     if (currentScreen === 'appearance') {
         return (
             <SafeAreaView style={[styles.container, { backgroundColor: tc.bg }]} edges={['bottom']}>
-                <SubHeader title={t('settings.appearance')} />
+                <SubHeader title={t('settings.appearance')} onBack={() => setCurrentScreen('main')} />
                 <ScrollView style={styles.scrollView}>
                     <View style={[styles.settingCard, { backgroundColor: tc.cardBg }]}>
                         <View style={styles.settingRow}>
@@ -355,7 +402,7 @@ export default function SettingsPage() {
     if (currentScreen === 'language') {
         return (
             <SafeAreaView style={[styles.container, { backgroundColor: tc.bg }]} edges={['bottom']}>
-                <SubHeader title={t('settings.language')} />
+                <SubHeader title={t('settings.language')} onBack={() => setCurrentScreen('main')} />
                 <ScrollView style={styles.scrollView}>
                     <Text style={[styles.description, { color: tc.secondaryText }]}>{t('settings.selectLang')}</Text>
                     <View style={[styles.settingCard, { backgroundColor: tc.cardBg }]}>
@@ -379,7 +426,7 @@ export default function SettingsPage() {
     if (currentScreen === 'notifications') {
         return (
             <SafeAreaView style={[styles.container, { backgroundColor: tc.bg }]} edges={['bottom']}>
-                <SubHeader title={t('settings.notifications')} />
+                <SubHeader title={t('settings.notifications')} onBack={() => setCurrentScreen('main')} />
                 <ScrollView style={styles.scrollView}>
                     <View style={[styles.settingCard, { backgroundColor: tc.cardBg }]}>
                         <View style={styles.settingRow}>
@@ -483,9 +530,416 @@ export default function SettingsPage() {
                         />
                     )}
 
-                    <Text style={[styles.description, { color: tc.secondaryText, marginTop: 12 }]}>
-                        {t('settings.notificationsDevHint')}
+
+                </ScrollView>
+            </SafeAreaView>
+        );
+    }
+
+    // ============ GTD MENU ============
+    if (currentScreen === 'gtd') {
+        return (
+            <SafeAreaView style={[styles.container, { backgroundColor: tc.bg }]} edges={['bottom']}>
+                <SubHeader title={t('settings.gtd')} onBack={() => setCurrentScreen('main')} />
+                <ScrollView style={styles.scrollView}>
+                    <Text style={[styles.description, { color: tc.secondaryText }]}>{t('settings.gtdDesc')}</Text>
+                    <View style={[styles.menuCard, { backgroundColor: tc.cardBg }]}>
+                        <MenuItem
+                            title={t('settings.timeEstimatePresets')}
+                            onPress={() => setCurrentScreen('gtd-time-estimates')}
+                        />
+                        <MenuItem
+                            title={t('settings.taskEditorLayout')}
+                            onPress={() => setCurrentScreen('gtd-task-editor')}
+                        />
+                    </View>
+                </ScrollView>
+            </SafeAreaView>
+        );
+    }
+
+    // ============ GTD: TIME ESTIMATES ============
+    if (currentScreen === 'gtd-time-estimates') {
+        const togglePreset = (value: TimeEstimate) => {
+            const isSelected = timeEstimatePresets.includes(value);
+            if (isSelected && timeEstimatePresets.length <= 1) return;
+
+            const next = isSelected ? timeEstimatePresets.filter((v) => v !== value) : [...timeEstimatePresets, value];
+            const ordered = timeEstimateOptions.filter((v) => next.includes(v));
+
+            updateSettings({
+                gtd: {
+                    ...(settings.gtd ?? {}),
+                    timeEstimatePresets: ordered,
+                },
+            }).catch(console.error);
+        };
+
+        const resetToDefault = () => {
+            updateSettings({
+                gtd: {
+                    ...(settings.gtd ?? {}),
+                    timeEstimatePresets: [...defaultTimeEstimatePresets],
+                },
+            }).catch(console.error);
+        };
+
+        return (
+            <SafeAreaView style={[styles.container, { backgroundColor: tc.bg }]} edges={['bottom']}>
+                <SubHeader title={t('settings.timeEstimatePresets')} onBack={() => setCurrentScreen('gtd')} />
+                <ScrollView style={styles.scrollView}>
+                    <Text style={[styles.description, { color: tc.secondaryText }]}>{t('settings.timeEstimatePresetsDesc')}</Text>
+
+                    <View style={[styles.settingCard, { backgroundColor: tc.cardBg }]}>
+                        {timeEstimateOptions.map((value, idx) => {
+                            const selected = timeEstimatePresets.includes(value);
+                            return (
+                                <TouchableOpacity
+                                    key={value}
+                                    style={[styles.settingRow, idx > 0 && { borderTopWidth: 1, borderTopColor: tc.border }]}
+                                    onPress={() => togglePreset(value)}
+                                >
+                                    <Text style={[styles.settingLabel, { color: tc.text }]}>
+                                        {formatTimeEstimateLabel(value)}
+                                    </Text>
+                                    {selected && <Text style={{ color: '#3B82F6', fontSize: 20 }}>✓</Text>}
+                                </TouchableOpacity>
+                            );
+                        })}
+                    </View>
+
+                    <TouchableOpacity
+                        style={[styles.settingCard, { backgroundColor: tc.cardBg, marginTop: 12 }]}
+                        onPress={resetToDefault}
+                    >
+                        <View style={styles.settingRow}>
+                            <Text style={[styles.settingLabel, { color: tc.text }]}>{t('settings.resetToDefault')}</Text>
+                        </View>
+                    </TouchableOpacity>
+                </ScrollView>
+            </SafeAreaView>
+        );
+    }
+
+    // ============ GTD: TASK EDITOR ============
+    if (currentScreen === 'gtd-task-editor') {
+        const ROW_HEIGHT = 52;
+
+        const defaultTaskEditorOrder: TaskEditorFieldId[] = [
+            'status',
+            'contexts',
+            'description',
+            'tags',
+            'timeEstimate',
+            'recurrence',
+            'startTime',
+            'dueDate',
+            'reviewAt',
+            'blockedBy',
+            'attachments',
+            'checklist',
+        ];
+
+        const defaultTaskEditorHidden = defaultTaskEditorOrder.filter((id) => !['status', 'contexts', 'description'].includes(id));
+        const known = new Set(defaultTaskEditorOrder);
+        const savedOrder = (settings.gtd?.taskEditor?.order ?? []).filter((id) => known.has(id));
+        const taskEditorOrder = [...savedOrder, ...defaultTaskEditorOrder.filter((id) => !savedOrder.includes(id))];
+
+        const savedHidden = settings.gtd?.taskEditor?.hidden ?? defaultTaskEditorHidden;
+        const hiddenSet = new Set(savedHidden.filter((id) => known.has(id)));
+
+        const fieldLabel = (fieldId: TaskEditorFieldId) => {
+            switch (fieldId) {
+                case 'status':
+                    return t('taskEdit.statusLabel');
+                case 'contexts':
+                    return t('taskEdit.contextsLabel');
+                case 'description':
+                    return t('taskEdit.descriptionLabel');
+                case 'tags':
+                    return t('taskEdit.tagsLabel');
+                case 'timeEstimate':
+                    return t('taskEdit.timeEstimateLabel');
+                case 'recurrence':
+                    return t('taskEdit.recurrenceLabel');
+                case 'startTime':
+                    return t('taskEdit.startDateLabel');
+                case 'dueDate':
+                    return t('taskEdit.dueDateLabel');
+                case 'reviewAt':
+                    return t('taskEdit.reviewDateLabel');
+                case 'blockedBy':
+                    return t('taskEdit.blockedByLabel');
+                case 'attachments':
+                    return t('attachments.title');
+                case 'checklist':
+                    return t('taskEdit.checklist');
+                default:
+                    return fieldId;
+            }
+        };
+
+        const saveTaskEditor = (next: { order?: TaskEditorFieldId[]; hidden?: TaskEditorFieldId[] }) => {
+            updateSettings({
+                gtd: {
+                    ...(settings.gtd ?? {}),
+                    taskEditor: {
+                        ...(settings.gtd?.taskEditor ?? {}),
+                        ...(next.order ? { order: next.order } : null),
+                        ...(next.hidden ? { hidden: next.hidden } : null),
+                    },
+                },
+            }).catch(console.error);
+        };
+
+        const toggleFieldVisibility = (fieldId: TaskEditorFieldId) => {
+            const nextHidden = new Set(hiddenSet);
+            if (nextHidden.has(fieldId)) nextHidden.delete(fieldId);
+            else nextHidden.add(fieldId);
+            saveTaskEditor({ order: taskEditorOrder, hidden: Array.from(nextHidden) });
+        };
+
+        const moveOrder = (fromIndex: number, toIndex: number) => {
+            if (fromIndex === toIndex) return;
+            const clampedTo = Math.max(0, Math.min(taskEditorOrder.length - 1, toIndex));
+            const nextOrder = [...taskEditorOrder];
+            const [item] = nextOrder.splice(fromIndex, 1);
+            nextOrder.splice(clampedTo, 0, item);
+            saveTaskEditor({ order: nextOrder, hidden: Array.from(hiddenSet) });
+        };
+
+        function TaskEditorRow({ fieldId, index }: { fieldId: TaskEditorFieldId; index: number }) {
+            const translateY = useSharedValue(0);
+            const scale = useSharedValue(1);
+            const zIndex = useSharedValue(0);
+
+            const onDrop = (from: number, deltaRows: number) => {
+                const nextIndex = Math.max(0, Math.min(taskEditorOrder.length - 1, from + deltaRows));
+                moveOrder(from, nextIndex);
+            };
+
+            const panGesture = Gesture.Pan()
+                .activateAfterLongPress(220)
+                .onStart(() => {
+                    scale.value = withSpring(1.02);
+                    zIndex.value = 50;
+                })
+                .onUpdate((event) => {
+                    translateY.value = event.translationY;
+                })
+                .onEnd((event) => {
+                    const deltaRows = Math.round(event.translationY / ROW_HEIGHT);
+                    if (deltaRows !== 0) runOnJS(onDrop)(index, deltaRows);
+                    translateY.value = withSpring(0);
+                    scale.value = withSpring(1);
+                    zIndex.value = 0;
+                });
+
+            const animatedStyle = useAnimatedStyle(() => ({
+                transform: [{ translateY: translateY.value }, { scale: scale.value }],
+                zIndex: zIndex.value,
+            }));
+
+            const visible = !hiddenSet.has(fieldId);
+
+            return (
+                <Animated.View
+                    style={[
+                        styles.taskEditorRow,
+                        { borderTopColor: tc.border },
+                        index > 0 && styles.taskEditorRowBorder,
+                        animatedStyle,
+                    ]}
+                >
+                    <TouchableOpacity
+                        style={styles.taskEditorRowContent}
+                        onPress={() => toggleFieldVisibility(fieldId)}
+                        activeOpacity={0.7}
+                    >
+                        <View style={styles.taskEditorCheckSlot}>
+                            {visible ? <Text style={{ color: tc.tint, fontSize: 18 }}>✓</Text> : null}
+                        </View>
+                        <Text style={[styles.settingLabel, { color: tc.text }]}>{fieldLabel(fieldId)}</Text>
+                    </TouchableOpacity>
+
+                    <GestureDetector gesture={panGesture}>
+                        <View style={styles.taskEditorDragHandle}>
+                            <IconSymbol name="line.3.horizontal" size={18} color={tc.secondaryText} />
+                        </View>
+                    </GestureDetector>
+                </Animated.View>
+            );
+        }
+
+        const resetToDefault = () => {
+            saveTaskEditor({ order: [...defaultTaskEditorOrder], hidden: [...defaultTaskEditorHidden] });
+        };
+
+        return (
+            <SafeAreaView style={[styles.container, { backgroundColor: tc.bg }]} edges={['bottom']}>
+                <SubHeader title={t('settings.taskEditorLayout')} onBack={() => setCurrentScreen('gtd')} />
+                <ScrollView style={styles.scrollView}>
+                    <Text style={[styles.description, { color: tc.secondaryText }]}>{t('settings.taskEditorLayoutDesc')}</Text>
+                    <Text style={[styles.description, { color: tc.secondaryText, marginTop: -6 }]}>{t('settings.taskEditorLayoutHint')}</Text>
+
+                    <View style={[styles.settingCard, { backgroundColor: tc.cardBg, overflow: 'visible' }]}>
+                        {taskEditorOrder.map((fieldId, index) => (
+                            <TaskEditorRow key={fieldId} fieldId={fieldId} index={index} />
+                        ))}
+                    </View>
+
+                    <TouchableOpacity
+                        style={[styles.settingCard, { backgroundColor: tc.cardBg, marginTop: 12 }]}
+                        onPress={resetToDefault}
+                    >
+                        <View style={styles.settingRow}>
+                            <Text style={[styles.settingLabel, { color: tc.text }]}>{t('settings.resetToDefault')}</Text>
+                        </View>
+                    </TouchableOpacity>
+                </ScrollView>
+            </SafeAreaView>
+        );
+    }
+
+    // ============ CALENDAR SCREEN ============
+    if (currentScreen === 'calendar') {
+        const handleAddCalendar = async () => {
+            const url = newCalendarUrl.trim();
+            if (!url) return;
+
+            const name = (newCalendarName.trim() || (language === 'zh' ? '日历' : 'Calendar')).trim();
+            const next: ExternalCalendarSubscription[] = [
+                ...externalCalendars,
+                { id: generateUUID(), name, url, enabled: true },
+            ];
+
+            setExternalCalendars(next);
+            setNewCalendarName('');
+            setNewCalendarUrl('');
+            await saveExternalCalendars(next);
+        };
+
+        const handleToggleCalendar = async (id: string, enabled: boolean) => {
+            const next = externalCalendars.map((c) => (c.id === id ? { ...c, enabled } : c));
+            setExternalCalendars(next);
+            await saveExternalCalendars(next);
+        };
+
+        const handleRemoveCalendar = async (id: string) => {
+            const next = externalCalendars.filter((c) => c.id !== id);
+            setExternalCalendars(next);
+            await saveExternalCalendars(next);
+        };
+
+        const handleTestFetch = async () => {
+            try {
+                const now = new Date();
+                const rangeStart = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0, 0);
+                const rangeEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
+                const { events } = await fetchExternalCalendarEvents(rangeStart, rangeEnd);
+                Alert.alert(
+                    language === 'zh' ? '成功' : 'Success',
+                    language === 'zh' ? `已加载 ${events.length} 个日程` : `Loaded ${events.length} events`
+                );
+            } catch (error) {
+                console.error(error);
+                Alert.alert(language === 'zh' ? '错误' : 'Error', language === 'zh' ? '加载失败' : 'Failed to load events');
+            }
+        };
+
+        return (
+            <SafeAreaView style={[styles.container, { backgroundColor: tc.bg }]} edges={['bottom']}>
+                <SubHeader title={t('settings.calendar')} onBack={() => setCurrentScreen('main')} />
+                <ScrollView style={styles.scrollView}>
+                    <Text style={[styles.description, { color: tc.secondaryText }]}>
+                        {t('settings.calendarDesc')}
                     </Text>
+
+                    <View style={[styles.settingCard, { backgroundColor: tc.cardBg }]}>
+                        <View style={styles.inputGroup}>
+                            <Text style={[styles.settingLabel, { color: tc.text }]}>{t('settings.externalCalendarName')}</Text>
+                            <TextInput
+                                style={[styles.textInput, { borderColor: tc.border, color: tc.text }]}
+                                placeholder={language === 'zh' ? '可选' : 'Optional'}
+                                placeholderTextColor={tc.secondaryText}
+                                value={newCalendarName}
+                                onChangeText={setNewCalendarName}
+                            />
+
+                            <Text style={[styles.settingLabel, { color: tc.text, marginTop: 12 }]}>{t('settings.externalCalendarUrl')}</Text>
+                            <TextInput
+                                style={[styles.textInput, { borderColor: tc.border, color: tc.text }]}
+                                placeholder="https://..."
+                                placeholderTextColor={tc.secondaryText}
+                                autoCapitalize="none"
+                                autoCorrect={false}
+                                value={newCalendarUrl}
+                                onChangeText={setNewCalendarUrl}
+                            />
+
+                            <View style={{ flexDirection: 'row', gap: 12, marginTop: 12 }}>
+                                <TouchableOpacity
+                                    style={[
+                                        styles.backendOption,
+                                        { borderColor: tc.border, backgroundColor: newCalendarUrl.trim() ? tc.tint : tc.filterBg },
+                                    ]}
+                                    onPress={handleAddCalendar}
+                                    disabled={!newCalendarUrl.trim()}
+                                >
+                                    <Text style={[styles.backendOptionText, { color: newCalendarUrl.trim() ? '#FFFFFF' : tc.secondaryText }]}>
+                                        {t('settings.externalCalendarAdd')}
+                                    </Text>
+                                </TouchableOpacity>
+
+                                <TouchableOpacity
+                                    style={[styles.backendOption, { borderColor: tc.border, backgroundColor: tc.filterBg }]}
+                                    onPress={handleTestFetch}
+                                >
+                                    <Text style={[styles.backendOptionText, { color: tc.text }]}>
+                                        {language === 'zh' ? '测试' : 'Test'}
+                                    </Text>
+                                </TouchableOpacity>
+                            </View>
+                        </View>
+                    </View>
+
+                    {externalCalendars.length > 0 && (
+                        <View style={{ marginTop: 16 }}>
+                            <Text style={[styles.sectionTitle, { color: tc.secondaryText }]}>{t('settings.externalCalendars')}</Text>
+                            <View style={[styles.settingCard, { backgroundColor: tc.cardBg }]}>
+                                {externalCalendars.map((calendar, idx) => (
+                                    <View
+                                        key={calendar.id}
+                                        style={[
+                                            styles.settingRow,
+                                            idx > 0 && { borderTopWidth: 1, borderTopColor: tc.border },
+                                        ]}
+                                    >
+                                        <View style={styles.settingInfo}>
+                                            <Text style={[styles.settingLabel, { color: tc.text }]} numberOfLines={1}>
+                                                {calendar.name}
+                                            </Text>
+                                            <Text style={[styles.settingDescription, { color: tc.secondaryText }]} numberOfLines={1}>
+                                                {calendar.url}
+                                            </Text>
+                                        </View>
+                                        <View style={{ alignItems: 'flex-end', gap: 10 }}>
+                                            <Switch
+                                                value={calendar.enabled}
+                                                onValueChange={(value) => handleToggleCalendar(calendar.id, value)}
+                                                trackColor={{ false: '#767577', true: '#3B82F6' }}
+                                            />
+                                            <TouchableOpacity onPress={() => handleRemoveCalendar(calendar.id)}>
+                                                <Text style={{ color: '#EF4444', fontSize: 13, fontWeight: '600' }}>
+                                                    {t('settings.externalCalendarRemove')}
+                                                </Text>
+                                            </TouchableOpacity>
+                                        </View>
+                                    </View>
+                                ))}
+                            </View>
+                        </View>
+                    )}
                 </ScrollView>
             </SafeAreaView>
         );
@@ -495,7 +949,7 @@ export default function SettingsPage() {
     if (currentScreen === 'sync') {
         return (
             <SafeAreaView style={[styles.container, { backgroundColor: tc.bg }]} edges={['bottom']}>
-                <SubHeader title={t('settings.dataSync')} />
+                <SubHeader title={t('settings.dataSync')} onBack={() => setCurrentScreen('main')} />
                 <ScrollView style={styles.scrollView}>
                     <View style={[styles.settingCard, { backgroundColor: tc.cardBg, marginBottom: 12 }]}>
                         <View style={styles.settingRow}>
@@ -872,7 +1326,7 @@ export default function SettingsPage() {
     if (currentScreen === 'about') {
         return (
             <SafeAreaView style={[styles.container, { backgroundColor: tc.bg }]} edges={['bottom']}>
-                <SubHeader title={t('settings.about')} />
+                <SubHeader title={t('settings.about')} onBack={() => setCurrentScreen('main')} />
                 <ScrollView style={styles.scrollView}>
                     <View style={[styles.settingCard, { backgroundColor: tc.cardBg }]}>
                         <View style={styles.settingRow}>
@@ -929,6 +1383,8 @@ export default function SettingsPage() {
                     <MenuItem title={t('settings.appearance')} onPress={() => setCurrentScreen('appearance')} />
                     <MenuItem title={t('settings.language')} onPress={() => setCurrentScreen('language')} />
                     <MenuItem title={t('settings.notifications')} onPress={() => setCurrentScreen('notifications')} />
+                    <MenuItem title={t('settings.calendar')} onPress={() => setCurrentScreen('calendar')} />
+                    <MenuItem title={t('settings.gtd')} onPress={() => setCurrentScreen('gtd')} />
                     <MenuItem title={t('settings.dataSync')} onPress={() => setCurrentScreen('sync')} />
                     <MenuItem title={t('settings.about')} onPress={() => setCurrentScreen('about')} />
                 </View>
@@ -951,6 +1407,11 @@ const styles = StyleSheet.create({
     chevron: { fontSize: 24, fontWeight: '300' },
     settingCard: { borderRadius: 12, overflow: 'hidden' },
     settingRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 16 },
+    taskEditorRow: { flexDirection: 'row', alignItems: 'center', height: 52, paddingHorizontal: 16, position: 'relative' },
+    taskEditorRowBorder: { borderTopWidth: 1 },
+    taskEditorRowContent: { flex: 1, flexDirection: 'row', alignItems: 'center' },
+    taskEditorCheckSlot: { width: 28, alignItems: 'center', marginRight: 12 },
+    taskEditorDragHandle: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
     settingInfo: { flex: 1, marginRight: 16 },
     settingLabel: { fontSize: 16, fontWeight: '500' },
     settingDescription: { fontSize: 13, marginTop: 2 },

@@ -1,6 +1,7 @@
 import { StorageAdapter, AppData } from '@mindwtr/core';
 
 const DATA_KEY = 'mindwtr-data';
+const LEGACY_DATA_KEYS = ['focus-gtd-data', 'gtd-todo-data', 'gtd-data'];
 
 // Web version using localStorage
 export const mobileStorage: StorageAdapter = {
@@ -8,7 +9,17 @@ export const mobileStorage: StorageAdapter = {
         if (typeof window === 'undefined') {
             return { tasks: [], projects: [], settings: {} };
         }
-        const jsonValue = localStorage.getItem(DATA_KEY);
+        let jsonValue = localStorage.getItem(DATA_KEY);
+        if (jsonValue == null) {
+            for (const legacyKey of LEGACY_DATA_KEYS) {
+                const legacyValue = localStorage.getItem(legacyKey);
+                if (legacyValue != null) {
+                    localStorage.setItem(DATA_KEY, legacyValue);
+                    jsonValue = legacyValue;
+                    break;
+                }
+            }
+        }
         if (jsonValue == null) {
             return { tasks: [], projects: [], settings: {} };
         }

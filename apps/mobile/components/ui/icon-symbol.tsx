@@ -1,10 +1,8 @@
 // Fallback using simple emoji icons instead of MaterialIcons to avoid font loading issues
 
 import { Text } from 'react-native';
-import { SymbolViewProps } from 'expo-symbols';
 import { type StyleProp, type TextStyle } from 'react-native';
 
-type IconMapping = Partial<Record<SymbolViewProps['name'], string>>;
 type IconSymbolName = keyof typeof MAPPING;
 
 /**
@@ -20,12 +18,12 @@ const MAPPING = {
   'folder.fill': '📁',
   'square.grid.2x2.fill': '🗂️',
   'line.3.horizontal': '☰',
-  'calendar.fill': '📅',
-  'calendar': '📅',
+  'calendar.fill': '📆',
+  'calendar': '🗓️',
   'checkmark.circle.fill': '✅',
   'circle': '⚪',
   'arrow.up.circle.fill': '⬆️',
-} as IconMapping;
+} as const;
 
 /**
  * An icon component that uses emoji to avoid font loading issues.
@@ -36,12 +34,13 @@ export function IconSymbol({
   size = 24,
   color,
   style,
+  weight: _weight,
 }: {
   name: IconSymbolName;
   size?: number;
   color: string;
   style?: StyleProp<TextStyle>;
-  weight?: SymbolViewProps['weight'];
+  weight?: string;
 }) {
   return <Text style={[{ fontSize: size, color }, style]}>{MAPPING[name]}</Text>;
 }

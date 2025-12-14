@@ -29,9 +29,11 @@ interface DraggableTaskProps {
   onTap: (task: Task) => void;
   onDelete: (taskId: string) => void;
   deleteLabel: string;
+  projectTitle?: string;
+  projectColor?: string;
 }
 
-function DraggableTask({ task, isDark, currentColumnIndex, onDrop, onTap, onDelete, deleteLabel }: DraggableTaskProps) {
+function DraggableTask({ task, isDark, currentColumnIndex, onDrop, onTap, onDelete, deleteLabel, projectTitle, projectColor }: DraggableTaskProps) {
   const translateY = useSharedValue(0);
   const scale = useSharedValue(1);
   const zIndex = useSharedValue(1);
@@ -89,14 +91,14 @@ function DraggableTask({ task, isDark, currentColumnIndex, onDrop, onTap, onDele
 
   const timeEstimateLabel = (() => {
     if (!task.timeEstimate) return null;
-    if (task.timeEstimate === '5min') return '5m';
-    if (task.timeEstimate === '15min') return '15m';
-    if (task.timeEstimate === '30min') return '30m';
-    if (task.timeEstimate === '1hr') return '1h';
-    return '2h+';
+    const estimate = String(task.timeEstimate);
+    if (estimate.endsWith('min')) return estimate.replace('min', 'm');
+    if (estimate.endsWith('hr+')) return estimate.replace('hr+', 'h+');
+    if (estimate.endsWith('hr')) return estimate.replace('hr', 'h');
+    return estimate;
   })();
 
-  const showMetaRow = (task.tags?.length ?? 0) > 0 || (task.contexts?.length ?? 0) > 0 || Boolean(timeEstimateLabel);
+  const showMetaRow = Boolean(projectTitle) || (task.tags?.length ?? 0) > 0 || (task.contexts?.length ?? 0) > 0 || Boolean(timeEstimateLabel);
 
   return (
     <GestureDetector gesture={composedGesture}>
@@ -121,6 +123,13 @@ function DraggableTask({ task, isDark, currentColumnIndex, onDrop, onTap, onDele
 	            </Text>
               {showMetaRow && (
                 <View style={styles.contextsRow}>
+                  {projectTitle && projectColor && (
+                    <View style={[styles.projectBadge, { backgroundColor: projectColor + '20', borderColor: projectColor }]}>
+                      <Text style={[styles.projectBadgeText, { color: projectColor }]} numberOfLines={1}>
+                        📁 {projectTitle}
+                      </Text>
+                    </View>
+                  )}
                   {(task.tags || []).slice(0, 6).map((tag, idx) => (
                     <Text
                       key={`${tag}-${idx}`}
@@ -168,9 +177,10 @@ interface ColumnProps {
   onDelete: (taskId: string) => void;
   noTasksLabel: string;
   deleteLabel: string;
+  projectById: Record<string, { title: string; color: string }>;
 }
 
-function Column({ columnIndex, label, color, tasks, isDark, onDrop, onTap, onDelete, noTasksLabel, deleteLabel }: ColumnProps) {
+function Column({ columnIndex, label, color, tasks, isDark, onDrop, onTap, onDelete, noTasksLabel, deleteLabel, projectById }: ColumnProps) {
   return (
     <View style={[styles.column, { borderTopColor: color, backgroundColor: isDark ? '#1F2937' : '#F3F4F6' }]}>
       <View style={[styles.columnHeader, { borderBottomColor: isDark ? '#374151' : '#E5E7EB' }]}>
@@ -190,6 +200,8 @@ function Column({ columnIndex, label, color, tasks, isDark, onDrop, onTap, onDel
             onTap={onTap}
             onDelete={onDelete}
             deleteLabel={deleteLabel}
+            projectTitle={task.projectId ? projectById[task.projectId]?.title : undefined}
+            projectColor={task.projectId ? projectById[task.projectId]?.color : undefined}
           />
         ))}
         {tasks.length === 0 && (
@@ -205,10 +217,17 @@ function Column({ columnIndex, label, color, tasks, isDark, onDrop, onTap, onDel
 }
 
 export function BoardView() {
-  const { tasks, updateTask, deleteTask } = useTaskStore();
+  const { tasks, projects, updateTask, deleteTask } = useTaskStore();
   const { isDark } = useTheme();
   const { t } = useLanguage();
   const [editingTask, setEditingTask] = useState<Task | null>(null);
+
+  const projectById = useMemo(() => {
+    return projects.reduce((acc, project) => {
+      acc[project.id] = { title: project.title, color: project.color };
+      return acc;
+    }, {} as Record<string, { title: string; color: string }>);
+  }, [projects]);
 
   // Filter active tasks and group by status
   const tasksByStatus = useMemo(() => {
@@ -259,6 +278,7 @@ export function BoardView() {
             onDelete={handleDelete}
             noTasksLabel={t('board.noTasks')}
             deleteLabel={t('board.delete')}
+            projectById={projectById}
           />
         ))}
       </ScrollView>
@@ -375,11 +395,24 @@ const styles = StyleSheet.create({
     gap: 4,
     marginTop: 6,
   },
+  projectBadge: {
+    borderWidth: 1,
+    borderRadius: 10,
+    paddingHorizontal: 8,
+    paddingVertical: 1,
+    alignSelf: 'flex-start',
+  },
+  projectBadgeText: {
+    fontSize: 11,
+    fontWeight: '700',
+    lineHeight: 14,
+  },
   contextTag: {
     fontSize: 11,
     paddingHorizontal: 6,
-    paddingVertical: 2,
+    paddingVertical: 1,
     borderRadius: 4,
+    lineHeight: 14,
   },
   contextTagLight: {
     color: '#1D4ED8',
@@ -394,8 +427,9 @@ const styles = StyleSheet.create({
   tagChip: {
     fontSize: 11,
     paddingHorizontal: 6,
-    paddingVertical: 2,
+    paddingVertical: 1,
     borderRadius: 4,
+    lineHeight: 14,
   },
   tagChipLight: {
     color: '#6D28D9',
@@ -410,12 +444,13 @@ const styles = StyleSheet.create({
   timeEstimateBadge: {
     backgroundColor: '#DBEAFE',
     paddingHorizontal: 8,
-    paddingVertical: 3,
+    paddingVertical: 2,
     borderRadius: 4,
   },
   timeEstimateText: {
     fontSize: 11,
     fontWeight: '600',
     color: '#1D4ED8',
+    lineHeight: 14,
   },
 });

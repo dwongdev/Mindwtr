@@ -77,3 +77,19 @@ This document captures the phased product roadmap and how work splits between `@
 
 - Placeholder stub added (`apps/mobile/lib/widget-service.ts`)
 - Full implementation requires EAS dev build + native code
+
+---
+
+## 🔜 Phase 6 — Calendar Integration (Hard + Soft Landscape)
+
+**Goal:** Show external calendar events as read-only “Hard Landscape” and let users schedule existing tasks (“Soft Landscape”) into free time.
+
+- **Core**
+  - Clarify semantics: `dueDate` = deadline; `startTime` = tickler/scheduled start; `timeEstimate` = duration hint.
+  - Helpers for day planning (group by day, compute blocks, conflict detection).
+- **Desktop**
+  - Day + 3‑day timeline views with drag scheduling.
+  - External calendar overlays (gray blocks) with refresh/status.
+- **Mobile**
+  - Day + 3‑day views (initially pick-time scheduling; drag later).
+  - Settings UI to connect calendars and control refresh.

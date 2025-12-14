@@ -67,6 +67,7 @@ export const translations: Record<Language, Record<string, string>> = {
         'tab.board': 'Board',
         'tab.menu': 'Menu',
         'tab.agenda': 'Agenda',
+        'tab.calendar': 'Calendar',
         'tab.review': 'Review',
 
         // List Views
@@ -193,6 +194,14 @@ export const translations: Record<Language, Record<string, string>> = {
         // Calendar
         'calendar.title': 'Calendar',
         'calendar.addTask': 'Add new task...',
+        'calendar.schedulePlaceholder': 'Search tasks to schedule...',
+        'calendar.scheduleResults': 'Schedule',
+        'calendar.scheduleAction': 'Schedule',
+        'calendar.events': 'Events',
+        'calendar.allDay': 'All day',
+        'calendar.deadline': 'Deadline',
+        'calendar.unschedule': 'Remove from calendar',
+        'calendar.changeTime': 'Change time',
         'calendar.noTasks': 'No tasks for this day',
 
         // Projects
@@ -398,6 +407,13 @@ export const translations: Record<Language, Record<string, string>> = {
         'settings.selectLang': 'Select your preferred language',
         'settings.dataSync': 'Data & Sync',
         'settings.dataDesc': 'Import or export your data to sync with other devices.',
+        'settings.calendar': 'Calendar',
+        'settings.calendarDesc': 'Connect external calendars (ICS subscription URLs).',
+        'settings.externalCalendars': 'External calendars',
+        'settings.externalCalendarName': 'Name',
+        'settings.externalCalendarUrl': 'ICS URL',
+        'settings.externalCalendarAdd': 'Add calendar',
+        'settings.externalCalendarRemove': 'Remove',
         'settings.syncBackend': 'Sync backend',
         'settings.syncBackendFile': 'File',
         'settings.syncBackendWebdav': 'WebDAV',
@@ -425,6 +441,14 @@ export const translations: Record<Language, Record<string, string>> = {
         'settings.dailyDigestMorningTime': 'Morning time',
         'settings.dailyDigestEvening': 'Evening review',
         'settings.dailyDigestEveningTime': 'Evening time',
+        'settings.gtd': 'GTD',
+        'settings.gtdDesc': 'Customize GTD defaults and quick options.',
+        'settings.timeEstimatePresets': 'Time estimate presets',
+        'settings.timeEstimatePresetsDesc': 'Choose which time estimates appear in the task editor.',
+        'settings.resetToDefault': 'Reset to default',
+        'settings.taskEditorLayout': 'Task editor layout',
+        'settings.taskEditorLayoutDesc': 'Choose which fields appear when editing a task.',
+        'settings.taskEditorLayoutHint': 'Tap to toggle a field. Drag the handle to reorder. Hidden fields show under “More”.',
 
         'digest.morningTitle': 'Morning briefing',
         'digest.morningBody': 'Open Mindwtr to plan your day.',
@@ -443,6 +467,7 @@ export const translations: Record<Language, Record<string, string>> = {
         'common.delete': 'Delete',
         'common.edit': 'Edit',
         'common.add': 'Add',
+        'common.share': 'Share',
         'common.all': 'All',
         'common.search': 'Search...',
         'common.none': 'None',
@@ -452,6 +477,9 @@ export const translations: Record<Language, Record<string, string>> = {
         'common.done': 'Done',
         'common.skip': 'Skip',
         'common.clear': 'Clear',
+        'common.comingSoon': 'Coming soon',
+        'common.more': 'More',
+        'common.less': 'Less',
 
         // Bulk Actions
         'bulk.select': 'Select',
@@ -613,6 +641,7 @@ export const translations: Record<Language, Record<string, string>> = {
         'tab.board': '看板',
         'tab.menu': '菜单',
         'tab.agenda': '日程',
+        'tab.calendar': '日历',
         'tab.review': '回顾',
 
         // List Views
@@ -739,6 +768,14 @@ export const translations: Record<Language, Record<string, string>> = {
         // Calendar
         'calendar.title': '日历',
         'calendar.addTask': '添加新任务...',
+        'calendar.schedulePlaceholder': '搜索要安排的任务...',
+        'calendar.scheduleResults': '安排任务',
+        'calendar.scheduleAction': '安排',
+        'calendar.events': '日程',
+        'calendar.allDay': '全天',
+        'calendar.deadline': '截止',
+        'calendar.unschedule': '从日历移除',
+        'calendar.changeTime': '调整时间',
         'calendar.noTasks': '这一天没有任务',
 
         // Projects
@@ -944,6 +981,13 @@ export const translations: Record<Language, Record<string, string>> = {
         'settings.selectLang': '选择您的首选语言',
         'settings.dataSync': '数据与同步',
         'settings.dataDesc': '导入或导出数据以与其他设备同步。',
+        'settings.calendar': '日历',
+        'settings.calendarDesc': '通过 ICS 订阅地址连接外部日历（只读）。',
+        'settings.externalCalendars': '外部日历',
+        'settings.externalCalendarName': '名称',
+        'settings.externalCalendarUrl': 'ICS 地址',
+        'settings.externalCalendarAdd': '添加日历',
+        'settings.externalCalendarRemove': '移除',
         'settings.syncBackend': '同步后端',
         'settings.syncBackendFile': '文件',
         'settings.syncBackendWebdav': 'WebDAV',
@@ -971,6 +1015,14 @@ export const translations: Record<Language, Record<string, string>> = {
         'settings.dailyDigestMorningTime': '早间时间',
         'settings.dailyDigestEvening': '晚间回顾',
         'settings.dailyDigestEveningTime': '晚间时间',
+        'settings.gtd': 'GTD',
+        'settings.gtdDesc': '自定义 GTD 默认设置与快捷选项。',
+        'settings.timeEstimatePresets': '时间预估选项',
+        'settings.timeEstimatePresetsDesc': '选择在任务编辑器中显示哪些时间预估。',
+        'settings.resetToDefault': '恢复默认',
+        'settings.taskEditorLayout': '任务编辑布局',
+        'settings.taskEditorLayoutDesc': '选择编辑任务时显示哪些字段。',
+        'settings.taskEditorLayoutHint': '点击切换字段显示，长按右侧拖动手柄排序。隐藏字段会收在“更多”中。',
 
         'digest.morningTitle': '早间简报',
         'digest.morningBody': '打开 Mindwtr 规划今天。',
@@ -989,6 +1041,7 @@ export const translations: Record<Language, Record<string, string>> = {
         'common.delete': '删除',
         'common.edit': '编辑',
         'common.add': '添加',
+        'common.share': '分享',
         'common.all': '全部',
         'common.search': '搜索...',
         'common.none': '无',
@@ -998,6 +1051,9 @@ export const translations: Record<Language, Record<string, string>> = {
         'common.done': '完成',
         'common.skip': '跳过',
         'common.clear': '清除',
+        'common.comingSoon': '即将推出',
+        'common.more': '更多',
+        'common.less': '收起',
 
         // Bulk Actions
         'bulk.select': '选择',

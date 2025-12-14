@@ -1,12 +1,11 @@
-import { View, Text, ScrollView, Pressable, StyleSheet, TouchableOpacity, Modal, TextInput } from 'react-native';
+import { BackHandler, View, Text, ScrollView, Pressable, StyleSheet, TouchableOpacity, Modal, TextInput, Share } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useTaskStore, sortTasksBy, type Task, type TaskStatus, type TaskSortBy } from '@mindwtr/core';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { useTheme } from '../../../contexts/theme-context';
-import { useLanguage } from '../../../contexts/language-context';
+import { useTheme } from '../../contexts/theme-context';
+import { useLanguage } from '../../contexts/language-context';
 import { useThemeColors } from '@/hooks/use-theme-colors';
-import { ReviewModal } from '../../../components/review-modal';
-import { DailyReviewModal } from '@/components/daily-review-modal';
+import { ReviewModal } from '../../components/review-modal';
 
 import { TaskEditModal } from '@/components/task-edit-modal';
 import { SwipeableTaskItem } from '@/components/swipeable-task-item';
@@ -22,7 +21,6 @@ export default function ReviewScreen() {
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [showReviewModal, setShowReviewModal] = useState(false);
-  const [showDailyReviewModal, setShowDailyReviewModal] = useState(false);
   const [selectionMode, setSelectionMode] = useState(false);
   const [multiSelectedIds, setMultiSelectedIds] = useState<Set<string>>(new Set());
   const [tagModalVisible, setTagModalVisible] = useState(false);
@@ -50,6 +48,20 @@ export default function ReviewScreen() {
     exitSelectionMode();
   }, [filterStatus, exitSelectionMode]);
 
+  useEffect(() => {
+    const handleBackPress = () => {
+      if (isModalVisible || tagModalVisible || moveModalVisible || showReviewModal) {
+        return false;
+      }
+      if (!selectionMode) return false;
+      exitSelectionMode();
+      return true;
+    };
+
+    const subscription = BackHandler.addEventListener('hardwareBackPress', handleBackPress);
+    return () => subscription.remove();
+  }, [selectionMode, exitSelectionMode, isModalVisible, tagModalVisible, moveModalVisible, showReviewModal]);
+
   const toggleMultiSelect = useCallback((taskId: string) => {
     if (!selectionMode) setSelectionMode(true);
     setMultiSelectedIds((prev) => {
@@ -71,6 +83,32 @@ export default function ReviewScreen() {
     await batchDeleteTasks(selectedIdsArray);
     exitSelectionMode();
   }, [batchDeleteTasks, selectedIdsArray, hasSelection, exitSelectionMode]);
+
+  const handleBatchShare = useCallback(async () => {
+    if (!hasSelection) return;
+    const selectedTasks = selectedIdsArray.map((id) => tasksById[id]).filter(Boolean);
+    const lines: string[] = [];
+
+    selectedTasks.forEach((task) => {
+      lines.push(`- ${task.title}`);
+      if (task.checklist?.length) {
+        task.checklist.forEach((item) => {
+          if (!item.title) return;
+          lines.push(`  - ${item.isCompleted ? '[x]' : '[ ]'} ${item.title}`);
+        });
+      }
+    });
+
+    const message = lines.join('\n').trim();
+    if (!message) return;
+
+    try {
+      await Share.share({ message });
+      exitSelectionMode();
+    } catch (error) {
+      console.error('Share failed:', error);
+    }
+  }, [hasSelection, selectedIdsArray, tasksById, exitSelectionMode]);
 
   const handleBatchAddTag = useCallback(async () => {
     const input = tagInput.trim();
@@ -116,7 +154,7 @@ export default function ReviewScreen() {
         <View style={styles.headerButtonsRow}>
           <TouchableOpacity
             style={[styles.guideButton, { borderColor: tc.border, backgroundColor: tc.filterBg }]}
-            onPress={() => setShowDailyReviewModal(true)}
+            onPress={() => router.push('/daily-review')}
           >
             <Text
               style={[styles.guideButtonText, { color: tc.text }]}
@@ -184,6 +222,13 @@ export default function ReviewScreen() {
               style={[styles.bulkActionButton, { backgroundColor: tc.filterBg, opacity: hasSelection ? 1 : 0.5 }]}
             >
               <Text style={[styles.bulkActionText, { color: tc.text }]}>{t('bulk.addTag')}</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={handleBatchShare}
+              disabled={!hasSelection}
+              style={[styles.bulkActionButton, { backgroundColor: tc.filterBg, opacity: hasSelection ? 1 : 0.5 }]}
+            >
+              <Text style={[styles.bulkActionText, { color: tc.text }]}>{t('common.share')}</Text>
             </TouchableOpacity>
             <TouchableOpacity
               onPress={handleBatchDelete}
@@ -318,11 +363,6 @@ export default function ReviewScreen() {
       <ReviewModal
         visible={showReviewModal}
         onClose={() => setShowReviewModal(false)}
-      />
-
-      <DailyReviewModal
-        visible={showDailyReviewModal}
-        onClose={() => setShowDailyReviewModal(false)}
       />
     </View>
   );

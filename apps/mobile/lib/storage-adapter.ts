@@ -2,6 +2,7 @@ import { StorageAdapter, AppData } from '@mindwtr/core';
 import { Platform } from 'react-native';
 
 const DATA_KEY = 'mindwtr-data';
+const LEGACY_DATA_KEYS = ['focus-gtd-data', 'gtd-todo-data', 'gtd-data'];
 
 // Platform-specific storage implementation
 const createStorage = (): StorageAdapter => {
@@ -12,7 +13,17 @@ const createStorage = (): StorageAdapter => {
                 if (typeof window === 'undefined') {
                     return { tasks: [], projects: [], settings: {} };
                 }
-                const jsonValue = localStorage.getItem(DATA_KEY);
+                let jsonValue = localStorage.getItem(DATA_KEY);
+                if (jsonValue == null) {
+                    for (const legacyKey of LEGACY_DATA_KEYS) {
+                        const legacyValue = localStorage.getItem(legacyKey);
+                        if (legacyValue != null) {
+                            localStorage.setItem(DATA_KEY, legacyValue);
+                            jsonValue = legacyValue;
+                            break;
+                        }
+                    }
+                }
                 if (jsonValue == null) {
                     return { tasks: [], projects: [], settings: {} };
                 }
@@ -42,7 +53,17 @@ const createStorage = (): StorageAdapter => {
     const AsyncStorage = require('@react-native-async-storage/async-storage').default;
     return {
         getData: async (): Promise<AppData> => {
-            const jsonValue = await AsyncStorage.getItem(DATA_KEY);
+            let jsonValue = await AsyncStorage.getItem(DATA_KEY);
+            if (jsonValue == null) {
+                for (const legacyKey of LEGACY_DATA_KEYS) {
+                    const legacyValue = await AsyncStorage.getItem(legacyKey);
+                    if (legacyValue != null) {
+                        await AsyncStorage.setItem(DATA_KEY, legacyValue);
+                        jsonValue = legacyValue;
+                        break;
+                    }
+                }
+            }
             if (jsonValue == null) {
                 return { tasks: [], projects: [], settings: {} };
             }

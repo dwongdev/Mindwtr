@@ -66,6 +66,24 @@ export default function ProjectsScreen() {
     }
   };
 
+  const persistSelectedProjectEdits = (project: Project | null) => {
+    if (!project) return;
+    const original = projects.find((p) => p.id === project.id);
+    if (!original) return;
+
+    const nextTitle = project.title.trim();
+    const nextArea = project.areaTitle?.trim() || undefined;
+    const prevArea = original.areaTitle?.trim() || undefined;
+
+    const updates: Partial<Project> = {};
+    if (nextTitle && nextTitle !== original.title) updates.title = nextTitle;
+    if (nextArea !== prevArea) updates.areaTitle = nextArea;
+
+    if (Object.keys(updates).length > 0) {
+      updateProject(project.id, updates);
+    }
+  };
+
   const handleCompleteSelectedProject = () => {
     if (!selectedProject) return;
     Alert.alert(
@@ -307,6 +325,7 @@ export default function ProjectsScreen() {
         visible={!!selectedProject}
         animationType="slide"
         onRequestClose={() => {
+          persistSelectedProjectEdits(selectedProject);
           setSelectedProject(null);
           setNotesExpanded(false);
           setShowNotesPreview(false);
@@ -320,7 +339,24 @@ export default function ProjectsScreen() {
             {selectedProject && (
               <>
                 <View style={[styles.modalHeader, { borderBottomColor: tc.border, backgroundColor: tc.cardBg }]}>
-                  <Text style={[styles.modalTitle, { color: tc.text, marginLeft: 16 }]}>{selectedProject.title}</Text>
+                  <TextInput
+                    style={[styles.modalTitle, { color: tc.text, marginLeft: 16, flex: 1 }]}
+                    value={selectedProject.title}
+                    onChangeText={(text) => setSelectedProject({ ...selectedProject, title: text })}
+                    onSubmitEditing={() => {
+                      const title = selectedProject.title.trim();
+                      if (!title) return;
+                      updateProject(selectedProject.id, { title });
+                      setSelectedProject({ ...selectedProject, title });
+                    }}
+                    onEndEditing={() => {
+                      const title = selectedProject.title.trim();
+                      if (!title) return;
+                      updateProject(selectedProject.id, { title });
+                      setSelectedProject({ ...selectedProject, title });
+                    }}
+                    returnKeyType="done"
+                  />
                   <TouchableOpacity
                     onPress={() => {
                       updateProject(selectedProject.id, { isSequential: !selectedProject.isSequential });
@@ -337,202 +373,210 @@ export default function ProjectsScreen() {
                     ]}>
                       {selectedProject.isSequential ? '📋 Seq' : '⏸ Par'}
                     </Text>
-	                  </TouchableOpacity>
-	                </View>
+                  </TouchableOpacity>
+                </View>
 
-                  <View style={[styles.statusActionsRow, { backgroundColor: tc.cardBg, borderBottomColor: tc.border }]}>
-                    {selectedProject.status === 'active' ? (
-                      <>
-                        <TouchableOpacity
-                          onPress={handleCompleteSelectedProject}
-                          style={[styles.statusButton, styles.completeButton]}
-                        >
-                          <Text style={[styles.statusButtonText, styles.completeText]}>
-                            {t('projects.complete')}
-                          </Text>
-                        </TouchableOpacity>
-                        <TouchableOpacity
-                          onPress={handleArchiveSelectedProject}
-                          style={[styles.statusButton, styles.archiveButton]}
-                        >
-                          <Text style={[styles.statusButtonText, styles.archiveText]}>
-                            {t('projects.archive')}
-                          </Text>
-                        </TouchableOpacity>
-                      </>
-                    ) : (
+                <View style={[styles.statusActionsRow, { backgroundColor: tc.cardBg, borderBottomColor: tc.border }]}>
+                  {selectedProject.status === 'active' ? (
+                    <>
                       <TouchableOpacity
-                        onPress={() => {
-                          updateProject(selectedProject.id, { status: 'active' });
-                          setSelectedProject({ ...selectedProject, status: 'active' });
-                        }}
-                        style={[styles.statusButton, styles.reactivateButton]}
+                        onPress={handleCompleteSelectedProject}
+                        style={[styles.statusButton, styles.completeButton]}
                       >
-                        <Text style={[styles.statusButtonText, styles.reactivateText]}>
-                          {t('projects.reactivate')}
+                        <Text style={[styles.statusButtonText, styles.completeText]}>
+                          {t('projects.complete')}
+                        </Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        onPress={handleArchiveSelectedProject}
+                        style={[styles.statusButton, styles.archiveButton]}
+                      >
+                        <Text style={[styles.statusButtonText, styles.archiveText]}>
+                          {t('projects.archive')}
+                        </Text>
+                      </TouchableOpacity>
+                    </>
+                  ) : (
+                    <TouchableOpacity
+                      onPress={() => {
+                        updateProject(selectedProject.id, { status: 'active' });
+                        setSelectedProject({ ...selectedProject, status: 'active' });
+                      }}
+                      style={[styles.statusButton, styles.reactivateButton]}
+                    >
+                      <Text style={[styles.statusButtonText, styles.reactivateText]}>
+                        {t('projects.reactivate')}
+                      </Text>
+                    </TouchableOpacity>
+                  )}
+                </View>
+
+                {/* Project Notes Section */}
+                <View style={[styles.notesContainer, { backgroundColor: tc.cardBg, borderColor: tc.border }]}>
+                  <View style={styles.notesHeaderRow}>
+                    <TouchableOpacity
+                      style={styles.notesHeader}
+                      onPress={() => {
+                        setNotesExpanded(!notesExpanded);
+                        if (notesExpanded) setShowNotesPreview(false);
+                      }}
+                    >
+                      <Text style={[styles.notesTitle, { color: tc.text }]}>
+                        {notesExpanded ? '▼' : '▶'} {t('project.notes')}
+                      </Text>
+                    </TouchableOpacity>
+                    {notesExpanded && (
+                      <TouchableOpacity
+                        onPress={() => setShowNotesPreview((v) => !v)}
+                        style={[styles.smallButton, { borderColor: tc.border, backgroundColor: tc.cardBg }]}
+                      >
+                        <Text style={[styles.smallButtonText, { color: tc.tint }]}>
+                          {showNotesPreview ? t('markdown.edit') : t('markdown.preview')}
                         </Text>
                       </TouchableOpacity>
                     )}
                   </View>
-	
-		                {/* Project Notes Section */}
-	                <View style={[styles.notesContainer, { backgroundColor: tc.cardBg, borderColor: tc.border }]}>
-	                  <View style={styles.notesHeaderRow}>
-	                    <TouchableOpacity
-	                      style={styles.notesHeader}
-	                      onPress={() => {
-	                        setNotesExpanded(!notesExpanded);
-	                        if (notesExpanded) setShowNotesPreview(false);
-	                      }}
-	                    >
-	                      <Text style={[styles.notesTitle, { color: tc.text }]}>
-	                        {notesExpanded ? '▼' : '▶'} {t('project.notes')}
-	                      </Text>
-	                    </TouchableOpacity>
-	                    {notesExpanded && (
-	                      <TouchableOpacity
-	                        onPress={() => setShowNotesPreview((v) => !v)}
-	                        style={[styles.smallButton, { borderColor: tc.border, backgroundColor: tc.cardBg }]}
-	                      >
-	                        <Text style={[styles.smallButtonText, { color: tc.tint }]}>
-	                          {showNotesPreview ? t('markdown.edit') : t('markdown.preview')}
-	                        </Text>
-	                      </TouchableOpacity>
-	                    )}
-	                  </View>
-	                  {notesExpanded && (
-	                    showNotesPreview ? (
-	                      <View style={[styles.markdownPreview, { borderColor: tc.border, backgroundColor: tc.filterBg }]}>
-	                        <MarkdownText markdown={selectedProject.supportNotes || ''} tc={tc} />
-	                      </View>
-	                    ) : (
-	                      <TextInput
-	                        style={[styles.notesInput, { color: tc.text, backgroundColor: tc.inputBg, borderColor: tc.border }]}
-	                        multiline
-	                        placeholder={t('projects.notesPlaceholder')}
-	                        placeholderTextColor={tc.secondaryText}
-	                        value={selectedProject.supportNotes || ''}
-	                        onChangeText={(text) => setSelectedProject({ ...selectedProject, supportNotes: text })}
-	                        onEndEditing={() => updateProject(selectedProject.id, { supportNotes: selectedProject.supportNotes })}
-	                      />
-	                    )
-	                  )}
-		                </View>
+                  {notesExpanded && (
+                    showNotesPreview ? (
+                      <View style={[styles.markdownPreview, { borderColor: tc.border, backgroundColor: tc.filterBg }]}>
+                        <MarkdownText markdown={selectedProject.supportNotes || ''} tc={tc} />
+                      </View>
+                    ) : (
+                      <TextInput
+                        style={[styles.notesInput, { color: tc.text, backgroundColor: tc.inputBg, borderColor: tc.border }]}
+                        multiline
+                        placeholder={t('projects.notesPlaceholder')}
+                        placeholderTextColor={tc.secondaryText}
+                        value={selectedProject.supportNotes || ''}
+                        onChangeText={(text) => setSelectedProject({ ...selectedProject, supportNotes: text })}
+                        onEndEditing={() => updateProject(selectedProject.id, { supportNotes: selectedProject.supportNotes })}
+                      />
+                    )
+                  )}
+                </View>
 
-		                {/* Project Attachments */}
-		                <View style={[styles.attachmentsContainer, { backgroundColor: tc.cardBg, borderColor: tc.border }]}>
-		                  <View style={styles.attachmentsHeader}>
-		                    <Text style={[styles.attachmentsTitle, { color: tc.text }]}>{t('attachments.title')}</Text>
-		                    <View style={styles.attachmentsActions}>
-		                      <TouchableOpacity
-		                        onPress={addProjectFileAttachment}
-		                        style={[styles.smallButton, { borderColor: tc.border, backgroundColor: tc.cardBg }]}
-		                      >
-		                        <Text style={[styles.smallButtonText, { color: tc.tint }]}>{t('attachments.addFile')}</Text>
-		                      </TouchableOpacity>
-		                      <TouchableOpacity
-		                        onPress={() => {
-		                          setLinkModalVisible(true);
-		                          setLinkInput('');
-		                        }}
-		                        style={[styles.smallButton, { borderColor: tc.border, backgroundColor: tc.cardBg }]}
-		                      >
-		                        <Text style={[styles.smallButtonText, { color: tc.tint }]}>{t('attachments.addLink')}</Text>
-		                      </TouchableOpacity>
-		                    </View>
-		                  </View>
-		                  {((selectedProject.attachments || []) as Attachment[]).filter((a) => !a.deletedAt).length === 0 ? (
-		                    <Text style={[styles.helperText, { color: tc.secondaryText }]}>{t('common.none')}</Text>
-		                  ) : (
-		                    <View style={[styles.attachmentsList, { borderColor: tc.border, backgroundColor: tc.cardBg }]}>
-		                      {((selectedProject.attachments || []) as Attachment[])
-		                        .filter((a) => !a.deletedAt)
-		                        .map((attachment) => (
-		                          <View key={attachment.id} style={[styles.attachmentRow, { borderBottomColor: tc.border }]}>
-		                            <TouchableOpacity
-		                              style={styles.attachmentTitleWrap}
-		                              onPress={() => openAttachment(attachment)}
-		                            >
-		                              <Text style={[styles.attachmentTitle, { color: tc.tint }]} numberOfLines={1}>
-		                                {attachment.title}
-		                              </Text>
-		                            </TouchableOpacity>
-		                            <TouchableOpacity onPress={() => removeProjectAttachment(attachment.id)}>
-		                              <Text style={[styles.attachmentRemove, { color: tc.secondaryText }]}>
-		                                {t('attachments.remove')}
-		                              </Text>
-		                            </TouchableOpacity>
-		                          </View>
-		                        ))}
-		                    </View>
-		                  )}
-		                </View>
+                {/* Project Attachments */}
+                <View style={[styles.attachmentsContainer, { backgroundColor: tc.cardBg, borderColor: tc.border }]}>
+                  <View style={styles.attachmentsHeader}>
+                    <Text style={[styles.attachmentsTitle, { color: tc.text }]}>{t('attachments.title')}</Text>
+                    <View style={styles.attachmentsActions}>
+                      <TouchableOpacity
+                        onPress={addProjectFileAttachment}
+                        style={[styles.smallButton, { borderColor: tc.border, backgroundColor: tc.cardBg }]}
+                      >
+                        <Text style={[styles.smallButtonText, { color: tc.tint }]}>{t('attachments.addFile')}</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        onPress={() => {
+                          setLinkModalVisible(true);
+                          setLinkInput('');
+                        }}
+                        style={[styles.smallButton, { borderColor: tc.border, backgroundColor: tc.cardBg }]}
+                      >
+                        <Text style={[styles.smallButtonText, { color: tc.tint }]}>{t('attachments.addLink')}</Text>
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+                  {((selectedProject.attachments || []) as Attachment[]).filter((a) => !a.deletedAt).length === 0 ? (
+                    <Text style={[styles.helperText, { color: tc.secondaryText }]}>{t('common.none')}</Text>
+                  ) : (
+                    <View style={[styles.attachmentsList, { borderColor: tc.border, backgroundColor: tc.cardBg }]}>
+                      {((selectedProject.attachments || []) as Attachment[])
+                        .filter((a) => !a.deletedAt)
+                        .map((attachment) => (
+                          <View key={attachment.id} style={[styles.attachmentRow, { borderBottomColor: tc.border }]}>
+                            <TouchableOpacity
+                              style={styles.attachmentTitleWrap}
+                              onPress={() => openAttachment(attachment)}
+                            >
+                              <Text style={[styles.attachmentTitle, { color: tc.tint }]} numberOfLines={1}>
+                                {attachment.title}
+                              </Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity onPress={() => removeProjectAttachment(attachment.id)}>
+                              <Text style={[styles.attachmentRemove, { color: tc.secondaryText }]}>
+                                {t('attachments.remove')}
+                              </Text>
+                            </TouchableOpacity>
+                          </View>
+                        ))}
+                    </View>
+                  )}
+                </View>
 
-		                {/* Project Area */}
-		                <View style={[styles.reviewContainer, { backgroundColor: tc.cardBg, borderColor: tc.border }]}>
-		                  <Text style={[styles.reviewLabel, { color: tc.text }]}>
-		                    {t('projects.areaLabel')}
-		                  </Text>
-		                  <TextInput
-		                    style={[styles.reviewButton, { backgroundColor: tc.inputBg, borderColor: tc.border, color: tc.text }]}
-		                    placeholder={t('projects.areaPlaceholder')}
-		                    placeholderTextColor={tc.secondaryText}
-		                    defaultValue={selectedProject.areaTitle || ''}
-		                    onEndEditing={(e) => {
-		                      const value = e.nativeEvent.text.trim();
-		                      updateProject(selectedProject.id, { areaTitle: value || undefined });
-		                      setSelectedProject({ ...selectedProject, areaTitle: value || undefined });
-		                    }}
-		                  />
-		                </View>
+                {/* Project Area */}
+                <View style={[styles.reviewContainer, { backgroundColor: tc.cardBg, borderColor: tc.border }]}>
+                  <Text style={[styles.reviewLabel, { color: tc.text }]}>
+                    {t('projects.areaLabel')}
+                  </Text>
+                  <TextInput
+                    style={[styles.reviewButton, { backgroundColor: tc.inputBg, borderColor: tc.border, color: tc.text }]}
+                    placeholder={t('projects.areaPlaceholder')}
+                    placeholderTextColor={tc.secondaryText}
+                    value={selectedProject.areaTitle || ''}
+                    onChangeText={(text) => setSelectedProject({ ...selectedProject, areaTitle: text })}
+                    onSubmitEditing={(e) => {
+                      const value = e.nativeEvent.text.trim();
+                      updateProject(selectedProject.id, { areaTitle: value || undefined });
+                      setSelectedProject({ ...selectedProject, areaTitle: value || undefined });
+                    }}
+                    onEndEditing={(e) => {
+                      const value = e.nativeEvent.text.trim();
+                      updateProject(selectedProject.id, { areaTitle: value || undefined });
+                      setSelectedProject({ ...selectedProject, areaTitle: value || undefined });
+                    }}
+                    returnKeyType="done"
+                    blurOnSubmit
+                  />
+                </View>
 
-		                {/* Project Review Date (Tickler) */}
-		                <View style={[styles.reviewContainer, { backgroundColor: tc.cardBg, borderColor: tc.border }]}>
-		                  <Text style={[styles.reviewLabel, { color: tc.text }]}>
-	                    {t('projects.reviewAt') || 'Review Date'}
-	                  </Text>
-		                  <TouchableOpacity
-		                    style={[styles.reviewButton, { backgroundColor: tc.inputBg, borderColor: tc.border }]}
-		                    onPress={() => setShowReviewPicker(true)}
-		                  >
-		                    <Text style={{ color: tc.text }}>
-		                      {formatReviewDate(selectedProject.reviewAt)}
-		                    </Text>
-		                  </TouchableOpacity>
-		                  {!!selectedProject.reviewAt && (
-		                    <TouchableOpacity
-		                      style={styles.clearReviewBtn}
-		                      onPress={() => {
-		                        updateProject(selectedProject.id, { reviewAt: undefined });
-		                        setSelectedProject({ ...selectedProject, reviewAt: undefined });
-		                      }}
-		                    >
-		                      <Text style={[styles.clearReviewText, { color: tc.secondaryText }]}>
-		                        {t('common.clear')}
-		                      </Text>
-		                    </TouchableOpacity>
-		                  )}
-		                  {showReviewPicker && (
-		                    <DateTimePicker
-		                      value={new Date(selectedProject.reviewAt || Date.now())}
-	                      mode="date"
-	                      display="default"
-	                      onChange={(_, date) => {
-	                        setShowReviewPicker(false);
-	                        if (date) {
-	                          const iso = date.toISOString();
-	                          updateProject(selectedProject.id, { reviewAt: iso });
-	                          setSelectedProject({ ...selectedProject, reviewAt: iso });
-	                        }
-	                      }}
-	                    />
-	                  )}
-	                </View>
+                {/* Project Review Date (Tickler) */}
+                <View style={[styles.reviewContainer, { backgroundColor: tc.cardBg, borderColor: tc.border }]}>
+                  <Text style={[styles.reviewLabel, { color: tc.text }]}>
+                    {t('projects.reviewAt') || 'Review Date'}
+                  </Text>
+                  <TouchableOpacity
+                    style={[styles.reviewButton, { backgroundColor: tc.inputBg, borderColor: tc.border }]}
+                    onPress={() => setShowReviewPicker(true)}
+                  >
+                    <Text style={{ color: tc.text }}>
+                      {formatReviewDate(selectedProject.reviewAt)}
+                    </Text>
+                  </TouchableOpacity>
+                  {!!selectedProject.reviewAt && (
+                    <TouchableOpacity
+                      style={styles.clearReviewBtn}
+                      onPress={() => {
+                        updateProject(selectedProject.id, { reviewAt: undefined });
+                        setSelectedProject({ ...selectedProject, reviewAt: undefined });
+                      }}
+                    >
+                      <Text style={[styles.clearReviewText, { color: tc.secondaryText }]}>
+                        {t('common.clear')}
+                      </Text>
+                    </TouchableOpacity>
+                  )}
+                  {showReviewPicker && (
+                    <DateTimePicker
+                      value={new Date(selectedProject.reviewAt || Date.now())}
+                      mode="date"
+                      display="default"
+                      onChange={(_, date) => {
+                        setShowReviewPicker(false);
+                        if (date) {
+                          const iso = date.toISOString();
+                          updateProject(selectedProject.id, { reviewAt: iso });
+                          setSelectedProject({ ...selectedProject, reviewAt: iso });
+                        }
+                      }}
+                    />
+                  )}
+                </View>
 
-	                <TaskList
-	                  statusFilter="all"
-	                  title={selectedProject.title}
-	                  showHeader={false}
+                <TaskList
+                  statusFilter="all"
+                  title={selectedProject.title}
+                  showHeader={false}
                   projectId={selectedProject.id}
                   allowAdd={true}
                 />

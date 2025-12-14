@@ -3,8 +3,8 @@ import { useMemo, useState, useCallback } from 'react';
 
 import { useTaskStore, Task, safeFormatDate, safeParseDate, isDueForReview } from '@mindwtr/core';
 
-import { useLanguage } from '../../contexts/language-context';
-import { useTheme } from '../../contexts/theme-context';
+import { useLanguage } from '../../../contexts/language-context';
+import { useTheme } from '../../../contexts/theme-context';
 
 import { useThemeColors, ThemeColors } from '@/hooks/use-theme-colors';
 

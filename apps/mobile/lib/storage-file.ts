@@ -46,14 +46,25 @@ export const pickAndParseSyncFile = async (): Promise<PickResult | null> => {
 // Read sync file from a stored path
 export const readSyncFile = async (fileUri: string): Promise<AppData | null> => {
     try {
-        const fileInfo = await FileSystem.getInfoAsync(fileUri);
+        const readContent = async () => {
+            if (fileUri.startsWith('content://') && StorageAccessFramework?.readAsStringAsync) {
+                try {
+                    return await StorageAccessFramework.readAsStringAsync(fileUri);
+                } catch (error) {
+                    console.warn('[Sync] SAF read failed, falling back to FileSystem:', error);
+                }
+            }
 
-        if (!fileInfo.exists) {
-            console.log('[Sync] File does not exist:', fileUri);
-            return null;
+            const fileInfo = await FileSystem.getInfoAsync(fileUri);
+            if (!fileInfo.exists) {
+                console.log('[Sync] File does not exist:', fileUri);
+                return null;
+            }
+            return await FileSystem.readAsStringAsync(fileUri);
         }
 
-        const fileContent = await FileSystem.readAsStringAsync(fileUri);
+        const fileContent = await readContent();
+        if (!fileContent) return null;
         const data = JSON.parse(fileContent) as AppData;
 
         if (!data.tasks || !data.projects) {
@@ -70,8 +81,15 @@ export const readSyncFile = async (fileUri: string): Promise<AppData | null> => 
 // Write merged data back to sync file
 export const writeSyncFile = async (fileUri: string, data: AppData): Promise<void> => {
     try {
-        await FileSystem.writeAsStringAsync(fileUri, JSON.stringify(data, null, 2));
-        console.log('[Sync] Written to sync file:', fileUri);
+        const content = JSON.stringify(data, null, 2);
+        // SAF URIs (content://) require special handling on Android
+        if (fileUri.startsWith('content://') && StorageAccessFramework) {
+            await StorageAccessFramework.writeAsStringAsync(fileUri, content);
+            console.log('[Sync] Written via SAF to:', fileUri);
+        } else {
+            await FileSystem.writeAsStringAsync(fileUri, content);
+            console.log('[Sync] Written to sync file:', fileUri);
+        }
     } catch (error) {
         console.error('Failed to write sync file:', error);
         throw error;
@@ -101,7 +119,7 @@ export const exportData = async (data: AppData): Promise<void> => {
                         'application/json'
                     );
 
-                    await FileSystem.writeAsStringAsync(fileUri, jsonContent);
+                    await StorageAccessFramework.writeAsStringAsync(fileUri, jsonContent);
                     console.log('[Export] Saved via SAF to:', fileUri);
                     return;
                 }

@@ -385,10 +385,14 @@ export const TaskItem = memo(function TaskItem({
 			                                    >
 		                                        <option value="">{t('common.none')}</option>
 		                                        <option value="5min">5m</option>
+		                                        <option value="10min">10m</option>
 		                                        <option value="15min">15m</option>
 		                                        <option value="30min">30m</option>
 		                                        <option value="1hr">1h</option>
-		                                        <option value="2hr+">2h+</option>
+		                                        <option value="2hr">2h</option>
+		                                        <option value="3hr">3h</option>
+		                                        <option value="4hr">4h</option>
+		                                        <option value="4hr+">4h+</option>
 		                                    </select>
 		                                </div>
 		                                <div className="flex flex-col gap-1 w-full">
@@ -735,11 +739,13 @@ export const TaskItem = memo(function TaskItem({
                                 {task.timeEstimate && (
                                     <div className="flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400" title="Estimated time">
                                         <Timer className="w-3 h-3" />
-                                        {task.timeEstimate === '5min' && '5m'}
-                                        {task.timeEstimate === '15min' && '15m'}
-                                        {task.timeEstimate === '30min' && '30m'}
-                                        {task.timeEstimate === '1hr' && '1h'}
-                                        {task.timeEstimate === '2hr+' && '2h+'}
+                                        {String(task.timeEstimate).endsWith('min')
+                                            ? String(task.timeEstimate).replace('min', 'm')
+                                            : String(task.timeEstimate).endsWith('hr+')
+                                                ? String(task.timeEstimate).replace('hr+', 'h+')
+                                                : String(task.timeEstimate).endsWith('hr')
+                                                    ? String(task.timeEstimate).replace('hr', 'h')
+                                                    : String(task.timeEstimate)}
                                     </div>
                                 )}
                             </div>

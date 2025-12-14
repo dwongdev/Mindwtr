@@ -1,6 +1,7 @@
 import { useEffect, useState, type ComponentType } from 'react';
 import {
     Bell,
+    CalendarDays,
     Check,
     Database,
     ExternalLink,
@@ -8,17 +9,18 @@ import {
     Monitor,
     RefreshCw,
 } from 'lucide-react';
-import { useTaskStore, safeFormatDate } from '@mindwtr/core';
+import { generateUUID, safeFormatDate, type ExternalCalendarSubscription, useTaskStore } from '@mindwtr/core';
 
 import { useKeybindings } from '../../contexts/keybinding-context';
 import { useLanguage, type Language } from '../../contexts/language-context';
 import { isTauriRuntime } from '../../lib/runtime';
 import { SyncService } from '../../lib/sync-service';
+import { ExternalCalendarService } from '../../lib/external-calendar-service';
 import { checkForUpdates, type UpdateInfo, GITHUB_RELEASES_URL } from '../../lib/update-service';
 import { cn } from '../../lib/utils';
 
 type ThemeMode = 'system' | 'light' | 'dark';
-type SettingsPage = 'main' | 'notifications' | 'sync' | 'about';
+type SettingsPage = 'main' | 'notifications' | 'sync' | 'calendar' | 'about';
 
 const THEME_STORAGE_KEY = 'mindwtr-theme';
 
@@ -59,6 +61,10 @@ export function SettingsView() {
     const [webdavPassword, setWebdavPassword] = useState('');
     const [cloudUrl, setCloudUrl] = useState('');
     const [cloudToken, setCloudToken] = useState('');
+    const [externalCalendars, setExternalCalendars] = useState<ExternalCalendarSubscription[]>([]);
+    const [newCalendarName, setNewCalendarName] = useState('');
+    const [newCalendarUrl, setNewCalendarUrl] = useState('');
+    const [calendarError, setCalendarError] = useState<string | null>(null);
 
     useEffect(() => {
         const savedTheme = localStorage.getItem(THEME_STORAGE_KEY);
@@ -104,6 +110,10 @@ export function SettingsView() {
                 setCloudToken(cfg.token);
             })
             .catch(console.error);
+    }, []);
+
+    useEffect(() => {
+        ExternalCalendarService.getCalendars().then(setExternalCalendars).catch(console.error);
     }, []);
 
     useEffect(() => {
@@ -276,6 +286,13 @@ export function SettingsView() {
             syncBackendFile: 'File',
             syncBackendWebdav: 'WebDAV',
             syncBackendCloud: 'Cloud',
+            calendar: 'Calendar',
+            calendarDesc: 'View external calendars via ICS subscription URLs.',
+            externalCalendars: 'External calendars',
+            calendarName: 'Name',
+            calendarUrl: 'ICS URL',
+            calendarAdd: 'Add calendar',
+            calendarRemove: 'Remove',
             syncFolderLocation: 'Sync folder',
             savePath: 'Save',
             browse: 'Browse…',
@@ -348,6 +365,13 @@ export function SettingsView() {
             syncBackendFile: '文件',
             syncBackendWebdav: 'WebDAV',
             syncBackendCloud: '云端',
+            calendar: '日历',
+            calendarDesc: '通过 ICS 订阅地址查看外部日历（只读）。',
+            externalCalendars: '外部日历',
+            calendarName: '名称',
+            calendarUrl: 'ICS 地址',
+            calendarAdd: '添加日历',
+            calendarRemove: '移除',
             syncFolderLocation: '同步文件夹',
             savePath: '保存',
             browse: '浏览…',
@@ -399,7 +423,15 @@ export function SettingsView() {
     const lastSyncDisplay = lastSyncAt ? safeFormatDate(lastSyncAt, 'PPpp', lastSyncAt) : t.lastSyncNever;
     const conflictCount = (lastSyncStats?.tasks.conflicts || 0) + (lastSyncStats?.projects.conflicts || 0);
 
-    const pageTitle = page === 'notifications' ? t.notifications : page === 'sync' ? t.sync : page === 'about' ? t.about : t.general;
+    const pageTitle = page === 'notifications'
+        ? t.notifications
+        : page === 'sync'
+            ? t.sync
+            : page === 'calendar'
+                ? t.calendar
+                : page === 'about'
+                    ? t.about
+                    : t.general;
 
     const navItems: Array<{
         id: SettingsPage;
@@ -410,6 +442,7 @@ export function SettingsView() {
         { id: 'main', icon: Monitor, label: t.general, description: `${t.appearance} • ${t.language} • ${t.keybindings}` },
         { id: 'notifications', icon: Bell, label: t.notifications },
         { id: 'sync', icon: Database, label: t.sync },
+        { id: 'calendar', icon: CalendarDays, label: t.calendar },
         { id: 'about', icon: Info, label: t.about },
     ];
 
@@ -555,6 +588,114 @@ export function SettingsView() {
                             </div>
                         </div>
                     </div>
+                </div>
+            );
+        }
+
+        if (page === 'calendar') {
+            const persistCalendars = async (next: ExternalCalendarSubscription[]) => {
+                setCalendarError(null);
+                setExternalCalendars(next);
+                try {
+                    await ExternalCalendarService.setCalendars(next);
+                    showSaved();
+                } catch (error) {
+                    console.error(error);
+                    setCalendarError(String(error));
+                }
+            };
+
+            return (
+                <div className="space-y-6">
+                    <div className="bg-card border border-border rounded-lg p-6 space-y-4">
+                        <p className="text-sm text-muted-foreground">{t.calendarDesc}</p>
+
+                        <div className="grid gap-3 md:grid-cols-2">
+                            <div className="space-y-1">
+                                <div className="text-sm font-medium">{t.calendarName}</div>
+                                <input
+                                    value={newCalendarName}
+                                    onChange={(e) => setNewCalendarName(e.target.value)}
+                                    placeholder={t.calendarName}
+                                    className="w-full text-sm px-3 py-2 rounded border border-border bg-background focus:outline-none focus:ring-2 focus:ring-primary/30"
+                                />
+                            </div>
+                            <div className="space-y-1">
+                                <div className="text-sm font-medium">{t.calendarUrl}</div>
+                                <input
+                                    value={newCalendarUrl}
+                                    onChange={(e) => setNewCalendarUrl(e.target.value)}
+                                    placeholder="https://..."
+                                    className="w-full text-sm px-3 py-2 rounded border border-border bg-background focus:outline-none focus:ring-2 focus:ring-primary/30"
+                                />
+                            </div>
+                        </div>
+
+                        <div className="flex items-center justify-between gap-4">
+                            <button
+                                disabled={!newCalendarUrl.trim()}
+                                onClick={() => {
+                                    const url = newCalendarUrl.trim();
+                                    if (!url) return;
+                                    const name = (newCalendarName.trim() || 'Calendar').trim();
+                                    const next = [
+                                        ...externalCalendars,
+                                        { id: generateUUID(), name, url, enabled: true },
+                                    ];
+                                    setNewCalendarName('');
+                                    setNewCalendarUrl('');
+                                    persistCalendars(next);
+                                }}
+                                className={cn(
+                                    "text-sm px-3 py-2 rounded-md transition-colors",
+                                    newCalendarUrl.trim()
+                                        ? "bg-primary text-primary-foreground hover:bg-primary/90"
+                                        : "bg-muted text-muted-foreground cursor-not-allowed"
+                                )}
+                            >
+                                {t.calendarAdd}
+                            </button>
+                            {calendarError && (
+                                <div className="text-xs text-red-400">{calendarError}</div>
+                            )}
+                        </div>
+                    </div>
+
+                    {externalCalendars.length > 0 && (
+                        <div className="bg-card border border-border rounded-lg overflow-hidden">
+                            <div className="px-4 py-3 text-sm font-medium border-b border-border">{t.externalCalendars}</div>
+                            <div className="divide-y divide-border">
+                                {externalCalendars.map((calendar) => (
+                                    <div key={calendar.id} className="p-4 flex items-start justify-between gap-4">
+                                        <div className="min-w-0">
+                                            <div className="text-sm font-medium truncate">{calendar.name}</div>
+                                            <div className="text-xs text-muted-foreground truncate mt-1">{calendar.url}</div>
+                                        </div>
+                                        <div className="flex items-center gap-3">
+                                            <input
+                                                type="checkbox"
+                                                checked={calendar.enabled}
+                                                onChange={(e) => {
+                                                    const next = externalCalendars.map((c) => c.id === calendar.id ? { ...c, enabled: e.target.checked } : c);
+                                                    persistCalendars(next);
+                                                }}
+                                                className="h-4 w-4 accent-blue-600"
+                                            />
+                                            <button
+                                                onClick={() => {
+                                                    const next = externalCalendars.filter((c) => c.id !== calendar.id);
+                                                    persistCalendars(next);
+                                                }}
+                                                className="text-sm text-red-400 hover:text-red-300"
+                                            >
+                                                {t.calendarRemove}
+                                            </button>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    )}
                 </div>
             );
         }

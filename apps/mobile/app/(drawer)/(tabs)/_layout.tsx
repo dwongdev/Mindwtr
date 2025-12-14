@@ -92,14 +92,26 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
-        name="board"
+        name="agenda"
         options={{
-          title: t('tab.board'),
+          title: t('tab.agenda'),
           tabBarLabel: ({ focused, color }) => (
-            <Text style={[styles.tabLabel, { color, fontWeight: focused ? '700' : '600' }]}>{t('tab.board')}</Text>
+            <Text style={[styles.tabLabel, { color, fontWeight: focused ? '700' : '600' }]}>{t('tab.agenda')}</Text>
           ),
           tabBarIcon: ({ color, focused }) => (
-            <IconSymbol size={focused ? 28 : 24} name="square.grid.2x2.fill" color={color} style={{ opacity: focused ? 1 : 0.65 }} />
+            <IconSymbol size={focused ? 28 : 24} name="calendar.fill" color={color} style={{ opacity: focused ? 1 : 0.65 }} />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="calendar"
+        options={{
+          title: t('tab.calendar'),
+          tabBarLabel: ({ focused, color }) => (
+            <Text style={[styles.tabLabel, { color, fontWeight: focused ? '700' : '600' }]}>{t('tab.calendar')}</Text>
+          ),
+          tabBarIcon: ({ color, focused }) => (
+            <IconSymbol size={focused ? 28 : 24} name="calendar" color={color} style={{ opacity: focused ? 1 : 0.65 }} />
           ),
         }}
       />
@@ -112,18 +124,6 @@ export default function TabLayout() {
           ),
           tabBarIcon: ({ color, focused }) => (
             <IconSymbol size={focused ? 28 : 24} name="line.3.horizontal" color={color} style={{ opacity: focused ? 1 : 0.65 }} />
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="review"
-        options={{
-          title: t('tab.review'),
-          tabBarLabel: ({ focused, color }) => (
-            <Text style={[styles.tabLabel, { color, fontWeight: focused ? '700' : '600' }]}>{t('tab.review')}</Text>
-          ),
-          tabBarIcon: ({ color, focused }) => (
-            <IconSymbol size={focused ? 28 : 24} name="paperplane.fill" color={color} style={{ opacity: focused ? 1 : 0.65 }} />
           ),
         }}
       />

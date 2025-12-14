@@ -55,6 +55,8 @@ interface TaskStore {
     settings: AppData['settings'];
     isLoading: boolean;
     error: string | null;
+    /** Updated whenever tasks/projects change (not settings) */
+    lastDataChangeAt: number;
 
     // Internal: full data including tombstones (not exposed to UI)
     _allTasks: Task[];
@@ -154,6 +156,7 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
     settings: {},
     isLoading: false,
     error: null,
+    lastDataChangeAt: 0,
     // Internal: full data including tombstones
     _allTasks: [],
     _allProjects: [],
@@ -191,6 +194,7 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
      * @param initialProps Optional initial properties
      */
     addTask: async (title: string, initialProps?: Partial<Task>) => {
+        const changeAt = Date.now();
         const newTask: Task = {
             id: uuidv4(),
             title,
@@ -204,7 +208,7 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
 
         const newAllTasks = [...get()._allTasks, newTask];
         const newVisibleTasks = [...get().tasks, newTask];
-        set({ tasks: newVisibleTasks, _allTasks: newAllTasks });
+        set({ tasks: newVisibleTasks, _allTasks: newAllTasks, lastDataChangeAt: changeAt });
         debouncedSave(
             { tasks: newAllTasks, projects: get()._allProjects, settings: get().settings },
             (msg) => set({ error: msg })
@@ -217,6 +221,7 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
      * @param updates Properties to update
      */
     updateTask: async (id: string, updates: Partial<Task>) => {
+        const changeAt = Date.now();
         const now = new Date().toISOString();
         const oldTask = get()._allTasks.find((t) => t.id === id);
 
@@ -233,7 +238,7 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
         if (nextRecurringTask) newAllTasks.push(nextRecurringTask);
 
         const newVisibleTasks = newAllTasks.filter((t) => !t.deletedAt);
-        set({ tasks: newVisibleTasks, _allTasks: newAllTasks });
+        set({ tasks: newVisibleTasks, _allTasks: newAllTasks, lastDataChangeAt: changeAt });
         debouncedSave(
             { tasks: newAllTasks, projects: get()._allProjects, settings: get().settings },
             (msg) => set({ error: msg })
@@ -245,6 +250,7 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
      * @param id Task ID
      */
     deleteTask: async (id: string) => {
+        const changeAt = Date.now();
         const now = new Date().toISOString();
         // Update in full data (set tombstone)
         const newAllTasks = get()._allTasks.map((task) =>
@@ -252,7 +258,7 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
         );
         // Filter for UI state (hide deleted)
         const newVisibleTasks = newAllTasks.filter(t => !t.deletedAt);
-        set({ tasks: newVisibleTasks, _allTasks: newAllTasks });
+        set({ tasks: newVisibleTasks, _allTasks: newAllTasks, lastDataChangeAt: changeAt });
         // Save with all data including tombstones
         debouncedSave(
             { tasks: newAllTasks, projects: get()._allProjects, settings: get().settings },
@@ -275,6 +281,7 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
      */
     batchUpdateTasks: async (updatesList: Array<{ id: string; updates: Partial<Task> }>) => {
         if (updatesList.length === 0) return;
+        const changeAt = Date.now();
         const now = new Date().toISOString();
         const updatesById = new Map(updatesList.map((u) => [u.id, u.updates]));
         const nextRecurringTasks: Task[] = [];
@@ -290,7 +297,7 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
         if (nextRecurringTasks.length > 0) newAllTasks.push(...nextRecurringTasks);
 
         const newVisibleTasks = newAllTasks.filter((t) => !t.deletedAt);
-        set({ tasks: newVisibleTasks, _allTasks: newAllTasks });
+        set({ tasks: newVisibleTasks, _allTasks: newAllTasks, lastDataChangeAt: changeAt });
         debouncedSave(
             { tasks: newAllTasks, projects: get()._allProjects, settings: get().settings },
             (msg) => set({ error: msg })
@@ -303,13 +310,14 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
 
     batchDeleteTasks: async (ids: string[]) => {
         if (ids.length === 0) return;
+        const changeAt = Date.now();
         const now = new Date().toISOString();
         const idSet = new Set(ids);
         const newAllTasks = get()._allTasks.map((task) =>
             idSet.has(task.id) ? { ...task, deletedAt: now, updatedAt: now } : task
         );
         const newVisibleTasks = newAllTasks.filter((t) => !t.deletedAt);
-        set({ tasks: newVisibleTasks, _allTasks: newAllTasks });
+        set({ tasks: newVisibleTasks, _allTasks: newAllTasks, lastDataChangeAt: changeAt });
         debouncedSave(
             { tasks: newAllTasks, projects: get()._allProjects, settings: get().settings },
             (msg) => set({ error: msg })
@@ -322,6 +330,7 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
      * @param color Project color hex code
      */
     addProject: async (title: string, color: string) => {
+        const changeAt = Date.now();
         const newProject: Project = {
             id: uuidv4(),
             title,
@@ -332,7 +341,7 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
         };
         const newAllProjects = [...get()._allProjects, newProject];
         const newVisibleProjects = [...get().projects, newProject];
-        set({ projects: newVisibleProjects, _allProjects: newAllProjects });
+        set({ projects: newVisibleProjects, _allProjects: newAllProjects, lastDataChangeAt: changeAt });
         debouncedSave(
             { tasks: get()._allTasks, projects: newAllProjects, settings: get().settings },
             (msg) => set({ error: msg })
@@ -345,6 +354,7 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
      * @param updates Properties to update
      */
     updateProject: async (id: string, updates: Partial<Project>) => {
+        const changeAt = Date.now();
         const now = new Date().toISOString();
         const allProjects = get()._allProjects;
         const oldProject = allProjects.find(p => p.id === id);
@@ -394,6 +404,7 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
             _allProjects: newAllProjects,
             tasks: newVisibleTasks,
             _allTasks: newAllTasks,
+            lastDataChangeAt: changeAt,
         });
 
         debouncedSave(
@@ -407,6 +418,7 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
      * @param id Project ID
      */
     deleteProject: async (id: string) => {
+        const changeAt = Date.now();
         const now = new Date().toISOString();
         // Soft-delete project
         const newAllProjects = get()._allProjects.map((project) =>
@@ -425,7 +437,8 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
             projects: newVisibleProjects,
             tasks: newVisibleTasks,
             _allProjects: newAllProjects,
-            _allTasks: newAllTasks
+            _allTasks: newAllTasks,
+            lastDataChangeAt: changeAt,
         });
         // Save with all data including tombstones
         debouncedSave(
@@ -453,12 +466,13 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
             return;
         }
 
+        const changeAt = Date.now();
         const now = new Date().toISOString();
         const newAllProjects = allProjects.map(p =>
             p.id === id ? { ...p, isFocused: !p.isFocused, updatedAt: now } : p
         );
         const newVisibleProjects = newAllProjects.filter(p => !p.deletedAt);
-        set({ projects: newVisibleProjects, _allProjects: newAllProjects });
+        set({ projects: newVisibleProjects, _allProjects: newAllProjects, lastDataChangeAt: changeAt });
         debouncedSave(
             { tasks: get()._allTasks, projects: newAllProjects, settings: get().settings },
             (msg) => set({ error: msg })
