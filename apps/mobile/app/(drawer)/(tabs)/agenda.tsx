@@ -48,15 +48,15 @@ function TaskCard({ task, onPress, onToggleFocus, tc, isDark, focusedCount }: {
   return (
     <Pressable style={[styles.taskCard, { backgroundColor: tc.cardBg }, task.isFocusedToday && styles.focusedCard]} onPress={onPress}>
       <View style={[styles.statusBar, { backgroundColor: getStatusColor(task.status) }]} />
-      <View style={styles.taskContent}>
-        <View style={styles.taskTitleRow}>
-          <Text style={[styles.taskTitle, { color: tc.text, flex: 1 }]} numberOfLines={2}>
-            {task.isFocusedToday && '⭐ '}{task.title}
-          </Text>
-          {onToggleFocus && (
-            <Pressable
-              onPress={(e) => { e.stopPropagation(); onToggleFocus(); }}
-              style={[styles.focusButton, !canFocus && styles.focusButtonDisabled]}
+        <View style={styles.taskContent}>
+          <View style={styles.taskTitleRow}>
+            <Text style={[styles.taskTitle, { color: tc.text, flex: 1 }]} numberOfLines={2}>
+            {(task.isFocusedToday ? '⭐ ' : '')}{task.title}
+            </Text>
+            {onToggleFocus && (
+              <Pressable
+                onPress={(e) => { e.stopPropagation(); onToggleFocus(); }}
+                style={[styles.focusButton, !canFocus && styles.focusButtonDisabled]}
               disabled={!canFocus}
             >
               <Text style={styles.focusButtonText}>

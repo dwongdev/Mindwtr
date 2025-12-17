@@ -339,13 +339,8 @@ export default function SettingsPage() {
     };
 
     // Sub-screen header
-    const SubHeader = ({ title, onBack }: { title: string; onBack?: () => void }) => (
+    const SubHeader = ({ title }: { title: string }) => (
         <View style={styles.subHeader}>
-            {onBack && (
-                <TouchableOpacity onPress={onBack}>
-                    <Text style={[styles.backButton, { color: tc.tint }]}>{t('common.back')}</Text>
-                </TouchableOpacity>
-            )}
             <Text style={[styles.subHeaderTitle, { color: tc.text }]}>{title}</Text>
         </View>
     );
@@ -362,7 +357,7 @@ export default function SettingsPage() {
     if (currentScreen === 'appearance') {
         return (
             <SafeAreaView style={[styles.container, { backgroundColor: tc.bg }]} edges={['bottom']}>
-                <SubHeader title={t('settings.appearance')} onBack={() => setCurrentScreen('main')} />
+                <SubHeader title={t('settings.appearance')} />
                 <ScrollView style={styles.scrollView}>
                     <View style={[styles.settingCard, { backgroundColor: tc.cardBg }]}>
                         <View style={styles.settingRow}>
@@ -402,7 +397,7 @@ export default function SettingsPage() {
     if (currentScreen === 'language') {
         return (
             <SafeAreaView style={[styles.container, { backgroundColor: tc.bg }]} edges={['bottom']}>
-                <SubHeader title={t('settings.language')} onBack={() => setCurrentScreen('main')} />
+                <SubHeader title={t('settings.language')} />
                 <ScrollView style={styles.scrollView}>
                     <Text style={[styles.description, { color: tc.secondaryText }]}>{t('settings.selectLang')}</Text>
                     <View style={[styles.settingCard, { backgroundColor: tc.cardBg }]}>
@@ -426,7 +421,7 @@ export default function SettingsPage() {
     if (currentScreen === 'notifications') {
         return (
             <SafeAreaView style={[styles.container, { backgroundColor: tc.bg }]} edges={['bottom']}>
-                <SubHeader title={t('settings.notifications')} onBack={() => setCurrentScreen('main')} />
+                <SubHeader title={t('settings.notifications')} />
                 <ScrollView style={styles.scrollView}>
                     <View style={[styles.settingCard, { backgroundColor: tc.cardBg }]}>
                         <View style={styles.settingRow}>
@@ -540,7 +535,7 @@ export default function SettingsPage() {
     if (currentScreen === 'gtd') {
         return (
             <SafeAreaView style={[styles.container, { backgroundColor: tc.bg }]} edges={['bottom']}>
-                <SubHeader title={t('settings.gtd')} onBack={() => setCurrentScreen('main')} />
+                <SubHeader title={t('settings.gtd')} />
                 <ScrollView style={styles.scrollView}>
                     <Text style={[styles.description, { color: tc.secondaryText }]}>{t('settings.gtdDesc')}</Text>
                     <View style={[styles.menuCard, { backgroundColor: tc.cardBg }]}>
@@ -586,7 +581,7 @@ export default function SettingsPage() {
 
         return (
             <SafeAreaView style={[styles.container, { backgroundColor: tc.bg }]} edges={['bottom']}>
-                <SubHeader title={t('settings.timeEstimatePresets')} onBack={() => setCurrentScreen('gtd')} />
+                <SubHeader title={t('settings.timeEstimatePresets')} />
                 <ScrollView style={styles.scrollView}>
                     <Text style={[styles.description, { color: tc.secondaryText }]}>{t('settings.timeEstimatePresetsDesc')}</Text>
 
@@ -777,7 +772,7 @@ export default function SettingsPage() {
 
         return (
             <SafeAreaView style={[styles.container, { backgroundColor: tc.bg }]} edges={['bottom']}>
-                <SubHeader title={t('settings.taskEditorLayout')} onBack={() => setCurrentScreen('gtd')} />
+                <SubHeader title={t('settings.taskEditorLayout')} />
                 <ScrollView style={styles.scrollView}>
                     <Text style={[styles.description, { color: tc.secondaryText }]}>{t('settings.taskEditorLayoutDesc')}</Text>
                     <Text style={[styles.description, { color: tc.secondaryText, marginTop: -6 }]}>{t('settings.taskEditorLayoutHint')}</Text>
@@ -849,7 +844,7 @@ export default function SettingsPage() {
 
         return (
             <SafeAreaView style={[styles.container, { backgroundColor: tc.bg }]} edges={['bottom']}>
-                <SubHeader title={t('settings.calendar')} onBack={() => setCurrentScreen('main')} />
+                <SubHeader title={t('settings.calendar')} />
                 <ScrollView style={styles.scrollView}>
                     <Text style={[styles.description, { color: tc.secondaryText }]}>
                         {t('settings.calendarDesc')}
@@ -949,7 +944,7 @@ export default function SettingsPage() {
     if (currentScreen === 'sync') {
         return (
             <SafeAreaView style={[styles.container, { backgroundColor: tc.bg }]} edges={['bottom']}>
-                <SubHeader title={t('settings.dataSync')} onBack={() => setCurrentScreen('main')} />
+                <SubHeader title={t('settings.dataSync')} />
                 <ScrollView style={styles.scrollView}>
                     <View style={[styles.settingCard, { backgroundColor: tc.cardBg, marginBottom: 12 }]}>
                         <View style={styles.settingRow}>
@@ -1326,7 +1321,7 @@ export default function SettingsPage() {
     if (currentScreen === 'about') {
         return (
             <SafeAreaView style={[styles.container, { backgroundColor: tc.bg }]} edges={['bottom']}>
-                <SubHeader title={t('settings.about')} onBack={() => setCurrentScreen('main')} />
+                <SubHeader title={t('settings.about')} />
                 <ScrollView style={styles.scrollView}>
                     <View style={[styles.settingCard, { backgroundColor: tc.cardBg }]}>
                         <View style={styles.settingRow}>

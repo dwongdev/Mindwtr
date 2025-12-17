@@ -1,6 +1,6 @@
 import { Link, Tabs } from 'expo-router';
 import { Search } from 'lucide-react-native';
-import { Platform, StyleSheet, Text, TouchableOpacity } from 'react-native';
+import { Platform, StyleSheet, TouchableOpacity } from 'react-native';
 
 import { HapticTab } from '@/components/haptic-tab';
 import { IconSymbol } from '@/components/ui/icon-symbol';
@@ -23,6 +23,7 @@ export default function TabLayout() {
         tabBarInactiveTintColor: inactiveTint,
         tabBarActiveBackgroundColor: activeItemBg,
         tabBarInactiveBackgroundColor: 'transparent',
+        tabBarShowLabel: false,
         headerShown: true,
         headerTitleAlign: 'center',
         headerShadowVisible: false,
@@ -44,10 +45,6 @@ export default function TabLayout() {
             </Link>
           ),
         tabBarButton: HapticTab,
-        tabBarLabelStyle: {
-          fontSize: 11,
-          fontWeight: '600',
-        },
         tabBarItemStyle: {
           borderRadius: 14,
           marginHorizontal: 6,
@@ -71,9 +68,6 @@ export default function TabLayout() {
         name="inbox"
         options={{
           title: t('tab.inbox'),
-          tabBarLabel: ({ focused, color }) => (
-            <Text style={[styles.tabLabel, { color, fontWeight: focused ? '700' : '600' }]}>{t('tab.inbox')}</Text>
-          ),
           tabBarIcon: ({ color, focused }) => (
             <IconSymbol size={focused ? 28 : 24} name="tray.fill" color={color} style={{ opacity: focused ? 1 : 0.65 }} />
           ),
@@ -83,9 +77,6 @@ export default function TabLayout() {
         name="next"
         options={{
           title: t('tab.next'),
-          tabBarLabel: ({ focused, color }) => (
-            <Text style={[styles.tabLabel, { color, fontWeight: focused ? '700' : '600' }]}>{t('tab.next')}</Text>
-          ),
           tabBarIcon: ({ color, focused }) => (
             <IconSymbol size={focused ? 28 : 24} name="arrow.right.circle.fill" color={color} style={{ opacity: focused ? 1 : 0.65 }} />
           ),
@@ -95,9 +86,6 @@ export default function TabLayout() {
         name="agenda"
         options={{
           title: t('tab.agenda'),
-          tabBarLabel: ({ focused, color }) => (
-            <Text style={[styles.tabLabel, { color, fontWeight: focused ? '700' : '600' }]}>{t('tab.agenda')}</Text>
-          ),
           tabBarIcon: ({ color, focused }) => (
             <IconSymbol size={focused ? 28 : 24} name="calendar.fill" color={color} style={{ opacity: focused ? 1 : 0.65 }} />
           ),
@@ -107,9 +95,6 @@ export default function TabLayout() {
         name="calendar"
         options={{
           title: t('tab.calendar'),
-          tabBarLabel: ({ focused, color }) => (
-            <Text style={[styles.tabLabel, { color, fontWeight: focused ? '700' : '600' }]}>{t('tab.calendar')}</Text>
-          ),
           tabBarIcon: ({ color, focused }) => (
             <IconSymbol size={focused ? 28 : 24} name="calendar" color={color} style={{ opacity: focused ? 1 : 0.65 }} />
           ),
@@ -119,9 +104,6 @@ export default function TabLayout() {
         name="menu"
         options={{
           title: t('tab.menu'),
-          tabBarLabel: ({ focused, color }) => (
-            <Text style={[styles.tabLabel, { color, fontWeight: focused ? '700' : '600' }]}>{t('tab.menu')}</Text>
-          ),
           tabBarIcon: ({ color, focused }) => (
             <IconSymbol size={focused ? 28 : 24} name="line.3.horizontal" color={color} style={{ opacity: focused ? 1 : 0.65 }} />
           ),
@@ -132,9 +114,6 @@ export default function TabLayout() {
 }
 
 const styles = StyleSheet.create({
-  tabLabel: {
-    fontSize: 11,
-  },
   headerIconButton: {
     marginRight: 16,
     padding: 4,

@@ -384,7 +384,7 @@ export function CalendarView() {
       { text: t('common.cancel'), style: 'cancel' },
     );
 
-    Alert.alert(task.title, undefined, buttons);
+    Alert.alert(task.title, undefined, buttons, { cancelable: true });
   };
 
   function ScheduledTaskBlock({
@@ -954,7 +954,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    padding: 16,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
     backgroundColor: '#FFFFFF',
     borderBottomWidth: 1,
     borderBottomColor: '#E5E7EB',
@@ -978,7 +979,7 @@ const styles = StyleSheet.create({
   dayHeaders: {
     flexDirection: 'row',
     backgroundColor: '#FFFFFF',
-    paddingVertical: 8,
+    paddingVertical: 6,
     borderBottomWidth: 1,
     borderBottomColor: '#E5E7EB',
   },
@@ -994,7 +995,8 @@ const styles = StyleSheet.create({
   calendarGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    padding: 4,
+    paddingHorizontal: 4,
+    paddingTop: 2,
   },
   dayCell: {
     width: '14.28%',
