@@ -94,6 +94,12 @@ chmod +x Mindwtr_*.AppImage
 ./Mindwtr_*.AppImage
 ```
 
+**Fedora/RHEL/openSUSE:**
+Download the `.rpm` from [GitHub Releases](https://github.com/dongdongbh/Mindwtr/releases) and install:
+```bash
+sudo rpm -i mindwtr-*.rpm
+```
+
 ### Desktop (Windows)
 Download the installer (`.msi` or `.exe`) from [GitHub Releases](https://github.com/dongdongbh/Mindwtr/releases) and run it.
 
