@@ -127,8 +127,6 @@ Tasks and projects are stored locally on your device:
 - **Desktop config (Linux)**: `~/.config/mindwtr/config.toml` (sync + app settings)
 - **Mobile**: Device storage (AsyncStorage)
 
-Desktop settings show the exact paths for your OS (Settings → Sync → Local Data). If you used very early builds, data may exist under legacy Tauri directories like `~/.config/tech.dongdongbh.mindwtr/` and `~/.local/share/tech.dongdongbh.mindwtr/` and will be migrated automatically.
-
 Sync via File (Dropbox, etc.), WebDAV (Nextcloud, etc.), or Cloud can be configured in Settings.
 
 ## Documentation
@@ -150,7 +148,3 @@ For developers, see the [Development Guide](docs/development.md).
 - [x] 🌐 **Web App (PWA)** - Browser-based version
 - [x] 🔌 **CLI & API** - Automation and scripting support
 - [ ] 📱 **Android Widget** - Agenda widget for home screen
-
-## License
-
-MIT
