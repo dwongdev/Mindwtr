@@ -41,11 +41,28 @@
             "backgroundColor": "#000000"
           }
         }
+      ],
+      [
+        "react-native-android-widget",
+        {
+          "widgets": [
+            {
+              "name": "TasksWidget",
+              "label": "Mindwtr Focus",
+              "description": "Today's focus and next actions",
+              "minWidth": "200dp",
+              "minHeight": "200dp",
+              "targetCellWidth": 3,
+              "targetCellHeight": 3,
+              "resizeMode": "horizontal|vertical",
+              "previewImage": "./assets/images/widget-preview.png"
+            }
+          ]
+        }
       ]
     ],
     "experiments": {
-      "typedRoutes": true,
-      "reactCompiler": true
+      "typedRoutes": true
     },
     "extra": {
       "router": {},

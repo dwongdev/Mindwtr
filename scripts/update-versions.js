@@ -55,4 +55,12 @@ files.forEach(file => {
     }
 });
 
+console.log('\nRunning bun install to update lockfile...');
+try {
+    require('child_process').execSync('bun install', { stdio: 'inherit', cwd: path.resolve(__dirname, '..') });
+} catch (e) {
+    console.error(`Error running bun install: ${e.message}`);
+    process.exit(1);
+}
+
 console.log('\nVersion update complete.');
