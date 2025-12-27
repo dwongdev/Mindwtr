@@ -117,6 +117,12 @@ export interface AppData {
         weeklyReviewEnabled?: boolean;
         weeklyReviewDay?: number; // 0 = Sunday
         weeklyReviewTime?: string; // HH:mm
+        ai?: {
+            enabled?: boolean;
+            provider?: 'gemini' | 'openai';
+            apiKey?: string;
+            model?: string;
+        };
         savedSearches?: SavedSearch[];
         sidebarCollapsed?: boolean;
         taskSortBy?: TaskSortBy;

@@ -21,3 +21,5 @@ export * from './webdav';
 export * from './cloud';
 export * from './ics';
 export * from './task-status';
+export * from './ai/ai-service';
+export * from './ai/types';

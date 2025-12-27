@@ -80,6 +80,10 @@ interface TaskStore {
     updateTask: (id: string, updates: Partial<Task>) => Promise<void>;
     /** Soft-delete a task */
     deleteTask: (id: string) => Promise<void>;
+    /** Duplicate a task (useful for reusable lists/templates) */
+    duplicateTask: (id: string, asNextAction?: boolean) => Promise<void>;
+    /** Reset checklist items to unchecked */
+    resetTaskChecklist: (id: string) => Promise<void>;
     /** Move task to a different status */
     moveTask: (id: string, newStatus: TaskStatus) => Promise<void>;
     /** Batch update multiple tasks */
@@ -299,6 +303,88 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
         const newVisibleTasks = newAllTasks.filter(t => !t.deletedAt && t.status !== 'archived');
         set({ tasks: newVisibleTasks, _allTasks: newAllTasks, lastDataChangeAt: changeAt });
         // Save with all data including tombstones
+        debouncedSave(
+            { tasks: newAllTasks, projects: get()._allProjects, settings: get().settings },
+            (msg) => set({ error: msg })
+        );
+    },
+
+    /**
+     * Duplicate a task for reusable lists/templates.
+     */
+    duplicateTask: async (id: string, asNextAction?: boolean) => {
+        const changeAt = Date.now();
+        const now = new Date().toISOString();
+        const sourceTask = get()._allTasks.find((task) => task.id === id && !task.deletedAt);
+        if (!sourceTask) return;
+
+        const duplicatedChecklist = (sourceTask.checklist || []).map((item) => ({
+            ...item,
+            id: uuidv4(),
+            isCompleted: false,
+        }));
+        const duplicatedAttachments = (sourceTask.attachments || []).map((attachment) => ({
+            ...attachment,
+            id: uuidv4(),
+            createdAt: now,
+            updatedAt: now,
+            deletedAt: undefined,
+        }));
+
+        const newTask: Task = {
+            ...sourceTask,
+            id: uuidv4(),
+            title: `${sourceTask.title} (Copy)`,
+            status: asNextAction ? 'next' : 'inbox',
+            checklist: duplicatedChecklist.length > 0 ? duplicatedChecklist : undefined,
+            attachments: duplicatedAttachments.length > 0 ? duplicatedAttachments : undefined,
+            startTime: undefined,
+            dueDate: undefined,
+            recurrence: undefined,
+            reviewAt: undefined,
+            completedAt: undefined,
+            isFocusedToday: false,
+            deletedAt: undefined,
+            createdAt: now,
+            updatedAt: now,
+        };
+
+        const newAllTasks = [...get()._allTasks, newTask];
+        const newVisibleTasks = newAllTasks.filter((task) => !task.deletedAt && task.status !== 'archived');
+        set({ tasks: newVisibleTasks, _allTasks: newAllTasks, lastDataChangeAt: changeAt });
+        debouncedSave(
+            { tasks: newAllTasks, projects: get()._allProjects, settings: get().settings },
+            (msg) => set({ error: msg })
+        );
+    },
+
+    /**
+     * Reset checklist items to unchecked (useful for reusable lists).
+     */
+    resetTaskChecklist: async (id: string) => {
+        const changeAt = Date.now();
+        const now = new Date().toISOString();
+        const sourceTask = get()._allTasks.find((task) => task.id === id && !task.deletedAt);
+        if (!sourceTask || !sourceTask.checklist || sourceTask.checklist.length === 0) return;
+
+        const resetChecklist = sourceTask.checklist.map((item) => ({
+            ...item,
+            isCompleted: false,
+        }));
+        const nextStatus = sourceTask.status === 'done' ? 'next' : sourceTask.status;
+
+        const updatedTask: Task = {
+            ...sourceTask,
+            checklist: resetChecklist,
+            status: nextStatus,
+            completedAt: nextStatus === 'done' ? sourceTask.completedAt : undefined,
+            isFocusedToday: nextStatus === 'done' ? sourceTask.isFocusedToday : false,
+            updatedAt: now,
+        };
+
+        const newAllTasks = get()._allTasks.map((task) => (task.id === id ? updatedTask : task));
+        const newVisibleTasks = newAllTasks.filter((task) => !task.deletedAt && task.status !== 'archived');
+        set({ tasks: newVisibleTasks, _allTasks: newAllTasks, lastDataChangeAt: changeAt });
         debouncedSave(
             { tasks: newAllTasks, projects: get()._allProjects, settings: get().settings },
             (msg) => set({ error: msg })
