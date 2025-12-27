@@ -6,6 +6,10 @@ const OPENAI_BASE_URL = 'https://api.openai.com/v1/chat/completions';
 
 async function requestOpenAI(config: AIProviderConfig, prompt: { system: string; user: string }) {
     const url = config.endpoint || OPENAI_BASE_URL;
+    const reasoning = config.model.startsWith('gpt-5') && config.reasoningEffort
+        ? { effort: config.reasoningEffort }
+        : undefined;
+
     const body = {
         model: config.model,
         messages: [
@@ -14,6 +18,7 @@ async function requestOpenAI(config: AIProviderConfig, prompt: { system: string;
         ],
         temperature: 0.2,
         response_format: { type: 'json_object' },
+        ...(reasoning ? { reasoning } : {}),
     };
 
     const response = await fetch(url, {

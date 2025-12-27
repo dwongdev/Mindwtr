@@ -2,6 +2,8 @@ import type { TimeEstimate } from '../types';
 
 export type AIProviderId = 'gemini' | 'openai';
 
+export type AIReasoningEffort = 'low' | 'medium' | 'high';
+
 export interface ClarifyOption {
     label: string;
     action: string;
@@ -39,6 +41,7 @@ export interface AIProviderConfig {
     apiKey: string;
     model: string;
     endpoint?: string;
+    reasoningEffort?: AIReasoningEffort;
 }
 
 export interface AIProvider {

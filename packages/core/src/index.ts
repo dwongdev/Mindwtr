@@ -23,3 +23,4 @@ export * from './ics';
 export * from './task-status';
 export * from './ai/ai-service';
 export * from './ai/types';
+export * from './ai/catalog';
