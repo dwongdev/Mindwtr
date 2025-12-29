@@ -218,7 +218,12 @@ export function GlobalSearch({ onNavigate }: GlobalSearchProps) {
             </div>
 
             {/* Click backdrop to close */}
-            <div className="absolute inset-0 -z-10" onClick={() => setIsOpen(false)} />
+            <button
+                type="button"
+                className="absolute inset-0 -z-10"
+                aria-label={t('common.close')}
+                onClick={() => setIsOpen(false)}
+            />
         </div>
     );
 }

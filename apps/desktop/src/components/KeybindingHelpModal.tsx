@@ -69,7 +69,19 @@ export function KeybindingHelpModal({ style, onClose, currentView, t }: Keybindi
     const listItems = style === 'emacs' ? emacsList : vimList;
 
     return (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={onClose}>
+        <div
+            className="fixed inset-0 bg-black/50 flex items-center justify-center z-50"
+            role="button"
+            tabIndex={0}
+            aria-label={t('common.close')}
+            onClick={onClose}
+            onKeyDown={(event) => {
+                if (event.key === 'Enter' || event.key === ' ') {
+                    event.preventDefault();
+                    onClose();
+                }
+            }}
+        >
             <div
                 className="bg-card border border-border rounded-lg shadow-xl max-w-2xl w-full mx-4 max-h-[80vh] flex flex-col"
                 onClick={(e) => e.stopPropagation()}

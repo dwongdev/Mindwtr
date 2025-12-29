@@ -78,7 +78,19 @@ export function QuickAddModal() {
     if (!isOpen) return null;
 
     return (
-        <div className="fixed inset-0 bg-black/50 flex items-start justify-center pt-[20vh] z-50" onClick={close}>
+        <div
+            className="fixed inset-0 bg-black/50 flex items-start justify-center pt-[20vh] z-50"
+            role="button"
+            tabIndex={0}
+            aria-label={t('common.close')}
+            onClick={close}
+            onKeyDown={(event) => {
+                if (event.key === 'Enter' || event.key === ' ') {
+                    event.preventDefault();
+                    close();
+                }
+            }}
+        >
             <div
                 className="w-full max-w-lg bg-popover text-popover-foreground rounded-xl border shadow-2xl overflow-hidden flex flex-col"
                 onClick={(e) => e.stopPropagation()}

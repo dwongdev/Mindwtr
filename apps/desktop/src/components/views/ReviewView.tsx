@@ -412,7 +412,19 @@ function WeeklyReviewGuideModal({ onClose }: { onClose: () => void }) {
     };
 
     return (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={onClose}>
+        <div
+            className="fixed inset-0 bg-black/50 flex items-center justify-center z-50"
+            role="button"
+            tabIndex={0}
+            aria-label={t('common.close')}
+            onClick={onClose}
+            onKeyDown={(event) => {
+                if (event.key === 'Enter' || event.key === ' ') {
+                    event.preventDefault();
+                    onClose();
+                }
+            }}
+        >
             <div
                 className="bg-card border border-border rounded-lg shadow-xl max-w-4xl w-full mx-4 max-h-[85vh] flex flex-col"
                 onClick={(e) => e.stopPropagation()}
@@ -652,7 +664,19 @@ function DailyReviewGuideModal({ onClose }: { onClose: () => void }) {
     };
 
     return (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={onClose}>
+        <div
+            className="fixed inset-0 bg-black/50 flex items-center justify-center z-50"
+            role="button"
+            tabIndex={0}
+            aria-label={t('common.close')}
+            onClick={onClose}
+            onKeyDown={(event) => {
+                if (event.key === 'Enter' || event.key === ' ') {
+                    event.preventDefault();
+                    onClose();
+                }
+            }}
+        >
             <div
                 className="bg-card border border-border rounded-lg shadow-xl max-w-4xl w-full mx-4 max-h-[85vh] flex flex-col"
                 onClick={(e) => e.stopPropagation()}
