@@ -175,12 +175,15 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
         set({ isLoading: true, error: null });
         try {
             const data = await storage.getData();
+            const rawTasks = Array.isArray(data.tasks) ? data.tasks : [];
+            const rawProjects = Array.isArray(data.projects) ? data.projects : [];
+            const rawSettings = data.settings && typeof data.settings === 'object' ? data.settings : {};
             // Store ALL data including tombstones for persistence
             const nowIso = new Date().toISOString();
-            let allTasks = (data.tasks || []).map((task) => normalizeTaskForLoad(task, nowIso));
+            let allTasks = rawTasks.map((task) => normalizeTaskForLoad(task, nowIso));
 
             // Auto-archive stale completed items to keep day-to-day UI fast/clean.
-            const configuredArchiveDays = data.settings?.gtd?.autoArchiveDays;
+            const configuredArchiveDays = (rawSettings as AppData['settings']).gtd?.autoArchiveDays;
             const archiveDays = Number.isFinite(configuredArchiveDays)
                 ? Math.max(0, Math.floor(configuredArchiveDays as number))
                 : 7;
@@ -206,14 +209,14 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
                     };
                 });
             }
-            const allProjects = data.projects || [];
+            const allProjects = rawProjects;
             // Filter out soft-deleted and archived items for day-to-day UI display
             const visibleTasks = allTasks.filter(t => !t.deletedAt && t.status !== 'archived');
             const visibleProjects = allProjects.filter(p => !p.deletedAt);
             set({
                 tasks: visibleTasks,
                 projects: visibleProjects,
-                settings: data.settings || {},
+                settings: rawSettings as AppData['settings'],
                 _allTasks: allTasks,
                 _allProjects: allProjects,
                 isLoading: false,
@@ -222,7 +225,7 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
 
             if (didAutoArchive) {
                 debouncedSave(
-                    { tasks: allTasks, projects: allProjects, settings: data.settings || {} },
+                    { tasks: allTasks, projects: allProjects, settings: rawSettings as AppData['settings'] },
                     (msg) => set({ error: msg })
                 );
             }
