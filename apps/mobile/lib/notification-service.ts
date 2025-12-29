@@ -262,10 +262,16 @@ export async function startMobileNotifications() {
   started = true;
 
   const api = await loadNotifications();
-  if (!api || typeof api.scheduleNotificationAsync !== 'function') return;
+  if (!api || typeof api.scheduleNotificationAsync !== 'function') {
+    started = false;
+    return;
+  }
 
   const granted = await ensurePermission(api);
-  if (!granted) return;
+  if (!granted) {
+    started = false;
+    return;
+  }
 
   await api.setNotificationCategoryAsync('task-reminder', [
     {

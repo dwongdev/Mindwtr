@@ -377,7 +377,10 @@ export function TaskEditModal({ visible, task, onClose, onSave, onFocusMode, def
             Linking.openURL(attachment.uri).catch(console.error);
             return;
         }
-        const available = await Sharing.isAvailableAsync().catch(() => false);
+        const available = await Sharing.isAvailableAsync().catch((error) => {
+            console.warn('[Sharing] availability check failed', error);
+            return false;
+        });
         if (available) {
             Sharing.shareAsync(attachment.uri).catch(console.error);
         } else {

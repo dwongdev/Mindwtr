@@ -34,8 +34,32 @@ function RootLayoutContent() {
   const lastAutoSyncAt = useRef(0);
   const syncDebounceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const widgetRefreshTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const syncInFlight = useRef<Promise<void> | null>(null);
+  const syncQueued = useRef(false);
   const isActive = useRef(true);
   const loadAttempts = useRef(0);
+
+  const queueSync = (minIntervalMs = 5_000) => {
+    if (!isActive.current) return;
+    if (syncInFlight.current) {
+      syncQueued.current = true;
+      return;
+    }
+    const now = Date.now();
+    if (now - lastAutoSyncAt.current < minIntervalMs) return;
+    lastAutoSyncAt.current = now;
+
+    syncInFlight.current = (async () => {
+      await flushPendingSave().catch(console.error);
+      await performMobileSync().catch(console.error);
+    })().finally(() => {
+      syncInFlight.current = null;
+      if (syncQueued.current && isActive.current) {
+        syncQueued.current = false;
+        queueSync(0);
+      }
+    });
+  };
 
   // Auto-sync on data changes with debounce
   useEffect(() => {
@@ -47,15 +71,7 @@ function RootLayoutContent() {
       }
       syncDebounceTimer.current = setTimeout(() => {
         if (!isActive.current) return;
-        const now = Date.now();
-        if (now - lastAutoSyncAt.current > 5_000) {
-          lastAutoSyncAt.current = now;
-          flushPendingSave()
-            .catch(console.error)
-            .finally(() => {
-              performMobileSync().catch(console.error);
-            });
-        }
+        queueSync(5_000);
       }, 5000);
     });
 
@@ -75,8 +91,7 @@ function RootLayoutContent() {
         // Coming back to foreground - sync to get latest data
         const now = Date.now();
         if (now - lastAutoSyncAt.current > 30_000) {
-          lastAutoSyncAt.current = now;
-          performMobileSync().catch(console.error);
+          queueSync(0);
         }
         updateAndroidWidgetFromStore().catch(console.error);
         if (widgetRefreshTimer.current) {
@@ -93,8 +108,7 @@ function RootLayoutContent() {
           clearTimeout(syncDebounceTimer.current);
           syncDebounceTimer.current = null;
         }
-        flushPendingSave().catch(console.error);
-        performMobileSync().catch(console.error);
+        queueSync(0);
       }
       appState.current = nextAppState;
     };
