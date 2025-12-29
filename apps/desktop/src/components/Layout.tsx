@@ -28,15 +28,8 @@ export function Layout({ children, currentView, onViewChange }: LayoutProps) {
         return { inboxCount: inbox, nextCount: next };
     }, [tasks]);
 
-    // Trigger global search by simulating Cmd+K
     const triggerSearch = () => {
-        const event = new KeyboardEvent('keydown', {
-            key: 'k',
-            metaKey: true,
-            ctrlKey: true,
-            bubbles: true
-        });
-        window.dispatchEvent(event);
+        window.dispatchEvent(new CustomEvent('mindwtr:open-search'));
     };
 
     const savedSearches = settings?.savedSearches || [];
