@@ -917,7 +917,7 @@ export const TaskItem = memo(function TaskItem({
                                             type="button"
                                             onClick={() => {
                                                 const newItem = {
-                                                    id: Date.now().toString(),
+                                                    id: generateUUID(),
                                                     title: '',
                                                     isCompleted: false
                                                 };

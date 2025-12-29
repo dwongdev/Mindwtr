@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, TextInput } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useTaskStore } from '@mindwtr/core';
+import { generateUUID, useTaskStore } from '@mindwtr/core';
 import { Check, ArrowLeft, Trash2, Plus } from 'lucide-react-native';
 
 export default function FocusChecklistPage() {
@@ -37,7 +37,7 @@ export default function FocusChecklistPage() {
         if (!task) return;
 
         const newItem = {
-            id: Date.now().toString(),
+            id: generateUUID(),
             title: '',
             isCompleted: false
         };
