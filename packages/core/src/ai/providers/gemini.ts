@@ -111,7 +111,17 @@ async function requestGemini(config: AIProviderConfig, prompt: { system: string;
     if (!config.apiKey) {
         throw new Error('Gemini API key is required.');
     }
-    const url = `${endpoint}/${config.model}:generateContent`;
+    const rawUrl = `${endpoint.replace(/\/+$/, '')}/${config.model}:generateContent`;
+    let url = rawUrl;
+    try {
+        const parsed = new URL(rawUrl);
+        if (parsed.searchParams.has('key')) {
+            parsed.searchParams.delete('key');
+        }
+        url = parsed.toString();
+    } catch {
+        // If URL parsing fails, fall back to the raw string.
+    }
     const thinkingBudget = typeof config.thinkingBudget === 'number' && config.thinkingBudget > 0
         ? Math.floor(config.thinkingBudget)
         : undefined;
