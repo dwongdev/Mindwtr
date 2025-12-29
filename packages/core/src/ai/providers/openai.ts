@@ -26,6 +26,9 @@ async function fetchWithTimeout(url: string, init: RequestInit, timeoutMs: numbe
 }
 
 async function requestOpenAI(config: AIProviderConfig, prompt: { system: string; user: string }) {
+    if (!config.apiKey) {
+        throw new Error('OpenAI API key is required.');
+    }
     const url = config.endpoint || OPENAI_BASE_URL;
     const reasoning = config.model.startsWith('gpt-5') && config.reasoningEffort
         ? { effort: config.reasoningEffort }
