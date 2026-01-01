@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react';
-import { Plus, Play, X, Trash2, Moon, User, CheckCircle } from 'lucide-react';
-import { useTaskStore, TaskStatus, Task, PRESET_CONTEXTS, PRESET_TAGS, sortTasksBy, Project, parseQuickAdd, isTaskBlocked, matchesHierarchicalToken, safeParseDate, createAIProvider } from '@mindwtr/core';
+import { Plus, Play, X, Trash2, Moon, User, CheckCircle, Filter } from 'lucide-react';
+import { useTaskStore, TaskStatus, Task, TaskPriority, TimeEstimate, PRESET_CONTEXTS, PRESET_TAGS, sortTasksBy, Project, parseQuickAdd, isTaskBlocked, matchesHierarchicalToken, safeParseDate, createAIProvider } from '@mindwtr/core';
 import type { TaskSortBy } from '@mindwtr/core';
 import { TaskItem } from '../TaskItem';
 import { cn } from '../../lib/utils';
@@ -23,7 +23,10 @@ export function ListView({ title, statusFilter }: ListViewProps) {
     const { registerTaskListScope } = useKeybindings();
     const sortBy = (settings?.taskSortBy ?? 'default') as TaskSortBy;
     const [newTaskTitle, setNewTaskTitle] = useState('');
-    const [selectedContext, setSelectedContext] = useState<string | null>(null);
+    const [selectedTokens, setSelectedTokens] = useState<string[]>([]);
+    const [selectedPriorities, setSelectedPriorities] = useState<TaskPriority[]>([]);
+    const [selectedTimeEstimates, setSelectedTimeEstimates] = useState<TimeEstimate[]>([]);
+    const [filtersOpen, setFiltersOpen] = useState(false);
     const [customContext, setCustomContext] = useState('');
     const [selectedIndex, setSelectedIndex] = useState(0);
     const [selectionMode, setSelectionMode] = useState(false);
@@ -59,6 +62,9 @@ export function ListView({ title, statusFilter }: ListViewProps) {
         const taskTags = tasks.flatMap(t => t.tags || []);
         return Array.from(new Set([...PRESET_TAGS, ...taskTags])).sort();
     }, [tasks]);
+    const allTokens = useMemo(() => {
+        return Array.from(new Set([...allContexts, ...allTags])).sort();
+    }, [allContexts, allTags]);
 
     useEffect(() => {
         setAiKey(loadAIKey(aiProvider));
@@ -151,17 +157,25 @@ export function ListView({ title, statusFilter }: ListViewProps) {
 
             if (statusFilter === 'next' && isTaskBlocked(t, tasksById)) return false;
 
-            if (selectedContext && !(t.contexts || []).some(ctx => matchesHierarchicalToken(selectedContext, ctx))) return false;
+            const taskTokens = [...(t.contexts || []), ...(t.tags || [])];
+            if (selectedTokens.length > 0) {
+                const matchesAll = selectedTokens.every((token) =>
+                    taskTokens.some((taskToken) => matchesHierarchicalToken(token, taskToken))
+                );
+                if (!matchesAll) return false;
+            }
+            if (selectedPriorities.length > 0 && (!t.priority || !selectedPriorities.includes(t.priority))) return false;
+            if (selectedTimeEstimates.length > 0 && (!t.timeEstimate || !selectedTimeEstimates.includes(t.timeEstimate))) return false;
             return true;
         });
 
         return sortTasksBy(filtered, sortBy);
-    }, [tasks, projects, statusFilter, selectedContext, sequentialProjectFirstTasks, projectMap, sortBy]);
+    }, [tasks, projects, statusFilter, selectedTokens, selectedPriorities, selectedTimeEstimates, sequentialProjectFirstTasks, projectMap, sortBy]);
 
     useEffect(() => {
         setSelectedIndex(0);
         exitSelectionMode();
-    }, [statusFilter, selectedContext, exitSelectionMode]);
+    }, [statusFilter, selectedTokens, selectedPriorities, selectedTimeEstimates, exitSelectionMode]);
 
     useEffect(() => {
         if (filteredTasks.length === 0) {
@@ -254,13 +268,16 @@ export function ListView({ title, statusFilter }: ListViewProps) {
         deleteSelected,
     ]);
 
-    const contextCounts = useMemo(() => {
+    const tokenCounts = useMemo(() => {
         const counts: Record<string, number> = {};
-        tasks.filter(t => !t.deletedAt && (statusFilter === 'all' || t.status === statusFilter)).forEach(t => {
-            (t.contexts || []).forEach(ctx => {
-                counts[ctx] = (counts[ctx] || 0) + 1;
+        tasks
+            .filter(t => !t.deletedAt && (statusFilter === 'all' || t.status === statusFilter))
+            .forEach(t => {
+                const tokens = new Set([...(t.contexts || []), ...(t.tags || [])]);
+                tokens.forEach((token) => {
+                    counts[token] = (counts[token] || 0) + 1;
+                });
             });
-        });
         return counts;
     }, [tasks, statusFilter]);
 
@@ -419,7 +436,7 @@ export function ListView({ title, statusFilter }: ListViewProps) {
         processNext();
     };
 
-    const showContextFilter = ['next', 'all'].includes(statusFilter);
+    const showFilters = ['next', 'all'].includes(statusFilter);
     const isInbox = statusFilter === 'inbox';
     const inboxCount = tasks.filter(t => {
         if (t.status !== 'inbox' || t.deletedAt) return false;
@@ -430,6 +447,45 @@ export function ListView({ title, statusFilter }: ListViewProps) {
     const nextCount = tasks.filter(t => t.status === 'next' && !t.deletedAt).length;
     const isNextView = statusFilter === 'next';
     const NEXT_WARNING_THRESHOLD = 15;
+    const priorityOptions: TaskPriority[] = ['low', 'medium', 'high', 'urgent'];
+    const timeEstimateOptions: TimeEstimate[] = ['5min', '10min', '15min', '30min', '1hr', '2hr', '3hr', '4hr', '4hr+'];
+    const formatEstimate = (estimate: TimeEstimate) => {
+        if (estimate.endsWith('min')) return estimate.replace('min', 'm');
+        if (estimate.endsWith('hr+')) return estimate.replace('hr+', 'h+');
+        if (estimate.endsWith('hr')) return estimate.replace('hr', 'h');
+        return estimate;
+    };
+    const filterSummary = useMemo(() => {
+        return [
+            ...selectedTokens,
+            ...selectedPriorities.map((priority) => t(`priority.${priority}`)),
+            ...selectedTimeEstimates.map(formatEstimate),
+        ];
+    }, [selectedTokens, selectedPriorities, selectedTimeEstimates, t]);
+    const hasFilters = filterSummary.length > 0;
+    const filterSummaryLabel = filterSummary.slice(0, 3).join(', ');
+    const filterSummarySuffix = filterSummary.length > 3 ? ` +${filterSummary.length - 3}` : '';
+    const showFiltersPanel = filtersOpen || hasFilters;
+    const toggleTokenFilter = (token: string) => {
+        setSelectedTokens((prev) =>
+            prev.includes(token) ? prev.filter((item) => item !== token) : [...prev, token]
+        );
+    };
+    const togglePriorityFilter = (priority: TaskPriority) => {
+        setSelectedPriorities((prev) =>
+            prev.includes(priority) ? prev.filter((item) => item !== priority) : [...prev, priority]
+        );
+    };
+    const toggleTimeFilter = (estimate: TimeEstimate) => {
+        setSelectedTimeEstimates((prev) =>
+            prev.includes(estimate) ? prev.filter((item) => item !== estimate) : [...prev, estimate]
+        );
+    };
+    const clearFilters = () => {
+        setSelectedTokens([]);
+        setSelectedPriorities([]);
+        setSelectedTimeEstimates([]);
+    };
 
     return (
         <>
@@ -442,7 +498,9 @@ export function ListView({ title, statusFilter }: ListViewProps) {
                 <div className="flex items-center gap-3">
                     <span className="text-muted-foreground text-sm">
                         {filteredTasks.length} {t('common.tasks')}
-                        {selectedContext && <span className="ml-1 text-primary">• {selectedContext}</span>}
+                        {hasFilters && (
+                            <span className="ml-1 text-primary">• {filterSummaryLabel}{filterSummarySuffix}</span>
+                        )}
                     </span>
                     <select
                         value={sortBy}
@@ -771,37 +829,112 @@ export function ListView({ title, statusFilter }: ListViewProps) {
                 </div>
             )}
 
-            {/* Context Filter Bar */}
-            {showContextFilter && !isProcessing && (
-                <div className="flex items-center gap-2 flex-wrap">
-                    <button
-                        onClick={() => setSelectedContext(null)}
-                        className={cn(
-                            "px-3 py-1.5 rounded-full text-sm font-medium transition-colors",
-                            selectedContext === null
-                                ? "bg-primary text-primary-foreground"
-                                : "bg-muted hover:bg-muted/80 text-muted-foreground"
-                        )}
-                    >
-                        {t('common.all')}
-                    </button>
-                    {allContexts.map(context => (
-                        <button
-                            key={context}
-                            onClick={() => setSelectedContext(context)}
-                            className={cn(
-                                "px-3 py-1.5 rounded-full text-sm font-medium transition-colors",
-                                selectedContext === context
-                                    ? "bg-primary text-primary-foreground"
-                                    : "bg-muted hover:bg-muted/80 text-muted-foreground"
+            {/* Filters */}
+            {showFilters && !isProcessing && (
+                <div className="bg-card border border-border rounded-lg p-3 space-y-3">
+                    <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
+                            <Filter className="w-4 h-4" />
+                            {t('filters.label')}
+                        </div>
+                        <div className="flex items-center gap-2">
+                            {hasFilters && (
+                                <button
+                                    type="button"
+                                    onClick={clearFilters}
+                                    className="text-xs text-muted-foreground hover:text-foreground transition-colors"
+                                >
+                                    {t('filters.clear')}
+                                </button>
                             )}
-                        >
-                            {context}
-                            {contextCounts[context] > 0 && (
-                                <span className="ml-1 opacity-70">({contextCounts[context]})</span>
-                            )}
-                        </button>
-                    ))}
+                            <button
+                                type="button"
+                                onClick={() => setFiltersOpen((prev) => !prev)}
+                                className="text-xs text-muted-foreground hover:text-foreground transition-colors"
+                            >
+                                {showFiltersPanel ? t('filters.hide') : t('filters.show')}
+                            </button>
+                        </div>
+                    </div>
+                    {showFiltersPanel && (
+                        <div className="space-y-4">
+                            <div className="space-y-2">
+                                <div className="text-xs text-muted-foreground uppercase tracking-wide">{t('filters.contexts')}</div>
+                                <div className="flex flex-wrap gap-2 max-h-32 overflow-y-auto">
+                                    {allTokens.map((token) => {
+                                        const isActive = selectedTokens.includes(token);
+                                        return (
+                                            <button
+                                                key={token}
+                                                type="button"
+                                                onClick={() => toggleTokenFilter(token)}
+                                                aria-pressed={isActive}
+                                                className={cn(
+                                                    "px-3 py-1.5 rounded-full text-xs font-medium transition-colors",
+                                                    isActive
+                                                        ? "bg-primary text-primary-foreground"
+                                                        : "bg-muted hover:bg-muted/80 text-muted-foreground"
+                                                )}
+                                            >
+                                                {token}
+                                                {tokenCounts[token] > 0 && (
+                                                    <span className="ml-1 opacity-70">({tokenCounts[token]})</span>
+                                                )}
+                                            </button>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+                            <div className="space-y-2">
+                                <div className="text-xs text-muted-foreground uppercase tracking-wide">{t('filters.priority')}</div>
+                                <div className="flex flex-wrap gap-2">
+                                    {priorityOptions.map((priority) => {
+                                        const isActive = selectedPriorities.includes(priority);
+                                        return (
+                                            <button
+                                                key={priority}
+                                                type="button"
+                                                onClick={() => togglePriorityFilter(priority)}
+                                                aria-pressed={isActive}
+                                                className={cn(
+                                                    "px-3 py-1.5 rounded-full text-xs font-medium transition-colors",
+                                                    isActive
+                                                        ? "bg-primary text-primary-foreground"
+                                                        : "bg-muted hover:bg-muted/80 text-muted-foreground"
+                                                )}
+                                            >
+                                                {t(`priority.${priority}`)}
+                                            </button>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+                            <div className="space-y-2">
+                                <div className="text-xs text-muted-foreground uppercase tracking-wide">{t('filters.timeEstimate')}</div>
+                                <div className="flex flex-wrap gap-2">
+                                    {timeEstimateOptions.map((estimate) => {
+                                        const isActive = selectedTimeEstimates.includes(estimate);
+                                        return (
+                                            <button
+                                                key={estimate}
+                                                type="button"
+                                                onClick={() => toggleTimeFilter(estimate)}
+                                                aria-pressed={isActive}
+                                                className={cn(
+                                                    "px-3 py-1.5 rounded-full text-xs font-medium transition-colors",
+                                                    isActive
+                                                        ? "bg-primary text-primary-foreground"
+                                                        : "bg-muted hover:bg-muted/80 text-muted-foreground"
+                                                )}
+                                            >
+                                                {formatEstimate(estimate)}
+                                            </button>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+                        </div>
+                    )}
                 </div>
             )}
 
@@ -863,9 +996,7 @@ export function ListView({ title, statusFilter }: ListViewProps) {
                 {filteredTasks.length === 0 ? (
                     <div className="text-center py-12 text-muted-foreground">
                         <p>
-                            {selectedContext
-                                ? t('next.noContext') + ` ${selectedContext}`
-                                : t('list.noTasks') || `${t('contexts.noTasks')}`}
+                            {hasFilters ? t('filters.noMatch') : t('list.noTasks') || `${t('contexts.noTasks')}`}
                         </p>
                     </div>
                 ) : (

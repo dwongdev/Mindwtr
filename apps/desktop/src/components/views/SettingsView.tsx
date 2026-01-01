@@ -178,6 +178,10 @@ export function SettingsView() {
         } else {
             root.classList.toggle('dark', themeMode === 'dark');
         }
+        if (!isTauriRuntime()) return;
+        import('@tauri-apps/api/app')
+            .then(({ setTheme }) => setTheme(themeMode === 'system' ? null : themeMode))
+            .catch(console.error);
     }, [themeMode]);
 
     const showSaved = () => {

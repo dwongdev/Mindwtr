@@ -90,6 +90,12 @@ export const translations: Record<Language, Record<string, string>> = {
         'status.done': 'Done',
         'status.archived': 'Archived',
 
+        // Priority Labels
+        'priority.low': 'Low',
+        'priority.medium': 'Medium',
+        'priority.high': 'High',
+        'priority.urgent': 'Urgent',
+
         // Task Edit
         'taskEdit.editTask': 'Edit Task',
         'taskEdit.checklist': 'Checklist',
@@ -110,6 +116,7 @@ export const translations: Record<Language, Record<string, string>> = {
         'taskEdit.itemNamePlaceholder': 'Item name',
         'taskEdit.titleLabel': 'Title',
         'taskEdit.statusLabel': 'Status',
+        'taskEdit.priorityLabel': 'Priority',
         'taskEdit.contextsLabel': 'Contexts (comma separated)',
         'taskEdit.tagsLabel': 'Tags (comma separated)',
         'taskEdit.timeEstimateLabel': 'Time Estimate',
@@ -191,6 +198,15 @@ export const translations: Record<Language, Record<string, string>> = {
         // Contact / Contexts (Mobile updates)
         'contexts.title': 'Contexts',
         'contexts.filter': 'Filter tasks by context',
+        'filters.label': 'Filters',
+        'filters.clear': 'Clear',
+        'filters.show': 'Show',
+        'filters.hide': 'Hide',
+        'filters.contexts': 'Contexts & tags',
+        'filters.priority': 'Priority',
+        'filters.timeEstimate': 'Time estimate',
+        'filters.projects': 'Projects',
+        'filters.noMatch': 'No tasks match these filters.',
         'contexts.all': 'All Contexts',
         'contexts.noContexts': 'No contexts found. Add contexts like @home, @work, @computer to your tasks',
         'contexts.noTasks': 'No active tasks for this context',
@@ -241,6 +257,9 @@ export const translations: Record<Language, Record<string, string>> = {
         'projects.reviewAt': 'Review Date',
         'projects.areaLabel': 'Area',
         'projects.areaPlaceholder': 'e.g. Work',
+        'projects.areaFilter': 'Area filter',
+        'projects.allAreas': 'All areas',
+        'projects.noArea': 'No area',
         'projects.complete': 'Complete',
         'projects.archive': 'Archive',
         'projects.reactivate': 'Reactivate',
@@ -738,6 +757,12 @@ export const translations: Record<Language, Record<string, string>> = {
         'status.done': '已完成',
         'status.archived': '归档',
 
+        // Priority Labels
+        'priority.low': '低',
+        'priority.medium': '中',
+        'priority.high': '高',
+        'priority.urgent': '紧急',
+
         // Task Edit
         'taskEdit.editTask': '编辑任务',
         'taskEdit.checklist': '清单',
@@ -758,6 +783,7 @@ export const translations: Record<Language, Record<string, string>> = {
         'taskEdit.itemNamePlaceholder': '项目名称',
         'taskEdit.titleLabel': '标题',
         'taskEdit.statusLabel': '状态',
+        'taskEdit.priorityLabel': '优先级',
         'taskEdit.contextsLabel': '情境（逗号分隔）',
         'taskEdit.tagsLabel': '标签（逗号分隔）',
         'taskEdit.timeEstimateLabel': '时间预估',
@@ -839,6 +865,15 @@ export const translations: Record<Language, Record<string, string>> = {
         // Contact / Contexts (Mobile updates)
         'contexts.title': '情境',
         'contexts.filter': '按情境筛选任务',
+        'filters.label': '筛选',
+        'filters.clear': '清除',
+        'filters.show': '显示',
+        'filters.hide': '隐藏',
+        'filters.contexts': '情境与标签',
+        'filters.priority': '优先级',
+        'filters.timeEstimate': '时间预估',
+        'filters.projects': '项目',
+        'filters.noMatch': '没有匹配这些筛选条件的任务。',
         'contexts.all': '所有情境',
         'contexts.noContexts': '未找到情境。为任务添加 @家, @工作, @电脑 等情境',
         'contexts.noTasks': '此情境没有活跃任务',
@@ -889,6 +924,9 @@ export const translations: Record<Language, Record<string, string>> = {
         'projects.reviewAt': '回顾日期',
         'projects.areaLabel': '领域',
         'projects.areaPlaceholder': '例如：工作',
+        'projects.areaFilter': '领域筛选',
+        'projects.allAreas': '所有领域',
+        'projects.noArea': '无领域',
         'projects.complete': '完成',
         'projects.archive': '归档',
         'projects.reactivate': '重新激活',

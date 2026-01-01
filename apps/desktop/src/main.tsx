@@ -12,6 +12,7 @@ import { webStorage } from './lib/storage-adapter-web';
 const THEME_STORAGE_KEY = 'mindwtr-theme';
 const savedTheme = localStorage.getItem(THEME_STORAGE_KEY);
 const root = document.documentElement;
+const nativeTheme = savedTheme === 'dark' ? 'dark' : savedTheme === 'light' ? 'light' : null;
 if (savedTheme === 'dark') {
     root.classList.add('dark');
 } else if (savedTheme === 'light') {
@@ -20,6 +21,11 @@ if (savedTheme === 'dark') {
     // System preference
     const isDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
     root.classList.toggle('dark', isDark);
+}
+if (isTauriRuntime()) {
+    import('@tauri-apps/api/app')
+        .then(({ setTheme }) => setTheme(nativeTheme))
+        .catch(() => undefined);
 }
 
 async function initStorage() {

@@ -1,5 +1,7 @@
 export type TaskStatus = 'inbox' | 'next' | 'waiting' | 'someday' | 'done' | 'archived';
 
+export type TaskPriority = 'low' | 'medium' | 'high' | 'urgent';
+
 export type TimeEstimate = '5min' | '10min' | '15min' | '30min' | '1hr' | '2hr' | '3hr' | '4hr' | '4hr+';
 
 export type TaskSortBy = 'default' | 'due' | 'start' | 'review' | 'title' | 'created' | 'created-desc';
@@ -8,6 +10,7 @@ export type TaskMode = 'task' | 'list';
 
 export type TaskEditorFieldId =
     | 'status'
+    | 'priority'
     | 'contexts'
     | 'tags'
     | 'blockedBy'
@@ -61,6 +64,7 @@ export interface Task {
     id: string;
     title: string;
     status: TaskStatus;
+    priority?: TaskPriority;
     taskMode?: TaskMode; // 'list' for checklist-first tasks
     startTime?: string; // ISO date string
     dueDate?: string; // ISO date string

@@ -4,6 +4,7 @@ import { TaskItem } from '../TaskItem';
 import { useTaskStore, Task, TaskStatus, sortTasksBy } from '@mindwtr/core';
 import type { TaskSortBy } from '@mindwtr/core';
 import { useLanguage } from '../../contexts/language-context';
+import { Filter } from 'lucide-react';
 
 const getColumns = (t: (key: string) => string): { id: TaskStatus; label: string }[] => [
     { id: 'inbox', label: t('list.inbox') || 'Inbox' },
@@ -62,12 +63,29 @@ function DraggableTask({ task }: { task: Task }) {
 }
 
 export function BoardView() {
-    const { tasks, moveTask, settings } = useTaskStore();
+    const { tasks, moveTask, settings, projects } = useTaskStore();
     const { t } = useLanguage();
     const sortBy = (settings?.taskSortBy ?? 'default') as TaskSortBy;
 
     const [activeTask, setActiveTask] = React.useState<Task | null>(null);
+    const [selectedProjectIds, setSelectedProjectIds] = React.useState<string[]>([]);
+    const [filtersOpen, setFiltersOpen] = React.useState(false);
     const COLUMNS = getColumns(t);
+    const NO_PROJECT_FILTER = '__no_project__';
+    const hasProjectFilters = selectedProjectIds.length > 0;
+    const showFiltersPanel = filtersOpen || hasProjectFilters;
+    const sortedProjects = React.useMemo(
+        () => projects.filter(p => !p.deletedAt).sort((a, b) => a.title.localeCompare(b.title)),
+        [projects]
+    );
+    const toggleProjectFilter = (projectId: string) => {
+        setSelectedProjectIds((prev) =>
+            prev.includes(projectId) ? prev.filter((item) => item !== projectId) : [...prev, projectId]
+        );
+    };
+    const clearProjectFilters = () => {
+        setSelectedProjectIds([]);
+    };
 
     const handleDragStart = (event: DragStartEvent) => {
         setActiveTask(event.active.data.current?.task || null);
@@ -89,9 +107,87 @@ export function BoardView() {
 
     // Sort tasks for consistency, filter out deleted
     const sortedTasks = sortTasksBy(tasks.filter(t => !t.deletedAt), sortBy);
+    const filteredTasks = React.useMemo(() => {
+        if (!hasProjectFilters) return sortedTasks;
+        return sortedTasks.filter((task) => {
+            const projectKey = task.projectId ?? NO_PROJECT_FILTER;
+            return selectedProjectIds.includes(projectKey);
+        });
+    }, [hasProjectFilters, sortedTasks, selectedProjectIds]);
 
     return (
         <div className="h-full overflow-x-auto">
+            <div className="px-4 pb-4">
+                <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                        <h2 className="text-2xl font-bold tracking-tight">{t('board.title')}</h2>
+                        <span className="text-xs text-muted-foreground">
+                            {filteredTasks.length} {t('common.tasks')}
+                        </span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                        {hasProjectFilters && (
+                            <button
+                                type="button"
+                                onClick={clearProjectFilters}
+                                className="text-xs text-muted-foreground hover:text-foreground transition-colors"
+                            >
+                                {t('filters.clear')}
+                            </button>
+                        )}
+                        <button
+                            type="button"
+                            onClick={() => setFiltersOpen((prev) => !prev)}
+                            className="text-xs text-muted-foreground hover:text-foreground transition-colors"
+                        >
+                            {showFiltersPanel ? t('filters.hide') : t('filters.show')}
+                        </button>
+                    </div>
+                </div>
+
+                {showFiltersPanel && (
+                    <div className="mt-3 bg-card border border-border rounded-lg p-3 space-y-2">
+                        <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
+                            <Filter className="w-4 h-4" />
+                            {t('filters.projects')}
+                        </div>
+                        <div className="flex flex-wrap gap-2">
+                            <button
+                                type="button"
+                                onClick={() => toggleProjectFilter(NO_PROJECT_FILTER)}
+                                aria-pressed={selectedProjectIds.includes(NO_PROJECT_FILTER)}
+                                className={`px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${
+                                    selectedProjectIds.includes(NO_PROJECT_FILTER)
+                                        ? "bg-primary text-primary-foreground"
+                                        : "bg-muted hover:bg-muted/80 text-muted-foreground"
+                                }`}
+                            >
+                                {t('taskEdit.noProjectOption')}
+                            </button>
+                            {sortedProjects.map((project) => {
+                                const isActive = selectedProjectIds.includes(project.id);
+                                return (
+                                    <button
+                                        key={project.id}
+                                        type="button"
+                                        onClick={() => toggleProjectFilter(project.id)}
+                                        aria-pressed={isActive}
+                                        className={`px-3 py-1.5 rounded-full text-xs font-medium transition-colors flex items-center gap-2 ${
+                                            isActive
+                                                ? "bg-primary text-primary-foreground"
+                                                : "bg-muted hover:bg-muted/80 text-muted-foreground"
+                                        }`}
+                                    >
+                                        <span className="w-2 h-2 rounded-full" style={{ backgroundColor: project.color }} />
+                                        <span className="truncate max-w-[140px]">{project.title}</span>
+                                    </button>
+                                );
+                            })}
+                        </div>
+                    </div>
+                )}
+            </div>
+
             <div className="flex gap-6 h-full min-w-full pb-4 px-4">
                 <DndContext
                     onDragStart={handleDragStart}
@@ -103,7 +199,7 @@ export function BoardView() {
                             key={col.id}
                             id={col.id}
                             label={col.label}
-                            tasks={sortedTasks.filter(t => t.status === col.id)}
+                            tasks={filteredTasks.filter(t => t.status === col.id)}
                         />
                     ))}
 

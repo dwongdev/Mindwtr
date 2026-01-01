@@ -739,6 +739,11 @@ pub fn run() {
         .setup(|app| {
             // Ensure data file exists on startup
             ensure_data_file(&app.handle()).ok();
+            if let Some(window) = app.get_webview_window("main") {
+                if cfg!(target_os = "linux") {
+                    let _ = window.set_decorations(false);
+                }
+            }
 
             // Build system tray with Quick Add entry.
             let handle = app.handle();

@@ -26,7 +26,10 @@ export function ProjectsView() {
     const [showNotesPreview, setShowNotesPreview] = useState(false);
     const [attachmentError, setAttachmentError] = useState<string | null>(null);
     const [showLinkPrompt, setShowLinkPrompt] = useState(false);
+    const ALL_AREAS = '__all__';
+    const NO_AREA = '__none__';
     const [areaDraft, setAreaDraft] = useState('');
+    const [selectedArea, setSelectedArea] = useState(ALL_AREAS);
     const projectColorInputRef = useRef<HTMLInputElement | null>(null);
 
     useEffect(() => {
@@ -47,6 +50,19 @@ export function ProjectsView() {
         }
     });
 
+    const areaOptions = useMemo(() => {
+        const visibleProjects = projects.filter(p => !p.deletedAt);
+        const areas = new Set<string>();
+        visibleProjects.forEach((project) => {
+            const area = project.areaTitle?.trim();
+            if (area) areas.add(area);
+            else areas.add(NO_AREA);
+        });
+        const sorted = Array.from(areas).filter(area => area !== NO_AREA).sort((a, b) => a.localeCompare(b));
+        if (areas.has(NO_AREA)) sorted.push(NO_AREA);
+        return sorted;
+    }, [projects, NO_AREA]);
+
     const groupedProjects = useMemo(() => {
         const visibleProjects = projects.filter(p => !p.deletedAt);
         const sorted = [...visibleProjects].sort((a, b) => {
@@ -54,18 +70,23 @@ export function ProjectsView() {
             if (!a.isFocused && b.isFocused) return 1;
             return a.title.localeCompare(b.title);
         });
+        const filtered = sorted.filter((project) => {
+            if (selectedArea === ALL_AREAS) return true;
+            if (selectedArea === NO_AREA) return !project.areaTitle?.trim();
+            return project.areaTitle?.trim() === selectedArea;
+        });
 
         const groups = new Map<string, typeof sorted>();
         const noAreaLabel = t('common.none');
 
-        for (const project of sorted) {
+        for (const project of filtered) {
             const area = project.areaTitle?.trim() || noAreaLabel;
             if (!groups.has(area)) groups.set(area, []);
             groups.get(area)!.push(project);
         }
 
         return Array.from(groups.entries()).sort((a, b) => a[0].localeCompare(b[0]));
-    }, [projects, t]);
+    }, [projects, t, selectedArea, ALL_AREAS, NO_AREA]);
 
     const handleCreateProject = (e: React.FormEvent) => {
         e.preventDefault();
@@ -161,6 +182,24 @@ export function ProjectsView() {
                     >
                         <Plus className="w-5 h-5" />
                     </button>
+                </div>
+
+                <div className="space-y-1">
+                    <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                        {t('projects.areaFilter')}
+                    </label>
+                    <select
+                        value={selectedArea}
+                        onChange={(e) => setSelectedArea(e.target.value)}
+                        className="w-full text-xs bg-muted/50 border border-border rounded px-2 py-1 text-foreground"
+                    >
+                        <option value={ALL_AREAS}>{t('projects.allAreas')}</option>
+                        {areaOptions.map((area) => (
+                            <option key={area} value={area}>
+                                {area === NO_AREA ? t('projects.noArea') : area}
+                            </option>
+                        ))}
+                    </select>
                 </div>
 
                 {isCreating && (

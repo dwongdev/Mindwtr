@@ -1,23 +1,89 @@
-import { useMemo } from 'react';
-import { useTaskStore, Task, getTaskAgeLabel, getTaskStaleness, type TaskStatus, safeFormatDate, safeParseDate, isDueForReview } from '@mindwtr/core';
+import { useMemo, useState } from 'react';
+import { useTaskStore, Task, TaskPriority, TimeEstimate, PRESET_CONTEXTS, PRESET_TAGS, matchesHierarchicalToken, getTaskAgeLabel, getTaskStaleness, type TaskStatus, safeFormatDate, safeParseDate, isDueForReview } from '@mindwtr/core';
 import { useLanguage } from '../../contexts/language-context';
 import { cn } from '../../lib/utils';
-import { Clock, Star, Calendar, AlertCircle, ArrowRight, type LucideIcon } from 'lucide-react';
+import { Clock, Star, Calendar, AlertCircle, ArrowRight, Filter, type LucideIcon } from 'lucide-react';
 
 export function AgendaView() {
     const { tasks, updateTask } = useTaskStore();
     const { t, language } = useLanguage();
+    const [selectedTokens, setSelectedTokens] = useState<string[]>([]);
+    const [selectedPriorities, setSelectedPriorities] = useState<TaskPriority[]>([]);
+    const [selectedTimeEstimates, setSelectedTimeEstimates] = useState<TimeEstimate[]>([]);
+    const [filtersOpen, setFiltersOpen] = useState(false);
 
     // Filter active tasks
     const activeTasks = useMemo(() =>
         tasks.filter(t => !t.deletedAt && t.status !== 'done'),
         [tasks]
     );
+    const allTokens = useMemo(() => {
+        const taskTokens = activeTasks.flatMap(t => [...(t.contexts || []), ...(t.tags || [])]);
+        return Array.from(new Set([...PRESET_CONTEXTS, ...PRESET_TAGS, ...taskTokens])).sort();
+    }, [activeTasks]);
+    const priorityOptions: TaskPriority[] = ['low', 'medium', 'high', 'urgent'];
+    const timeEstimateOptions: TimeEstimate[] = ['5min', '10min', '15min', '30min', '1hr', '2hr', '3hr', '4hr', '4hr+'];
+    const formatEstimate = (estimate: TimeEstimate) => {
+        if (estimate.endsWith('min')) return estimate.replace('min', 'm');
+        if (estimate.endsWith('hr+')) return estimate.replace('hr+', 'h+');
+        if (estimate.endsWith('hr')) return estimate.replace('hr', 'h');
+        return estimate;
+    };
+    const filteredActiveTasks = useMemo(() => {
+        return activeTasks.filter((task) => {
+            const taskTokens = [...(task.contexts || []), ...(task.tags || [])];
+            if (selectedTokens.length > 0) {
+                const matchesAll = selectedTokens.every((token) =>
+                    taskTokens.some((taskToken) => matchesHierarchicalToken(token, taskToken))
+                );
+                if (!matchesAll) return false;
+            }
+            if (selectedPriorities.length > 0 && (!task.priority || !selectedPriorities.includes(task.priority))) return false;
+            if (selectedTimeEstimates.length > 0 && (!task.timeEstimate || !selectedTimeEstimates.includes(task.timeEstimate))) return false;
+            return true;
+        });
+    }, [activeTasks, selectedTokens, selectedPriorities, selectedTimeEstimates]);
+    const hasFilters = selectedTokens.length > 0 || selectedPriorities.length > 0 || selectedTimeEstimates.length > 0;
+    const showFiltersPanel = filtersOpen || hasFilters;
+    const toggleTokenFilter = (token: string) => {
+        setSelectedTokens((prev) =>
+            prev.includes(token) ? prev.filter((item) => item !== token) : [...prev, token]
+        );
+    };
+    const togglePriorityFilter = (priority: TaskPriority) => {
+        setSelectedPriorities((prev) =>
+            prev.includes(priority) ? prev.filter((item) => item !== priority) : [...prev, priority]
+        );
+    };
+    const toggleTimeFilter = (estimate: TimeEstimate) => {
+        setSelectedTimeEstimates((prev) =>
+            prev.includes(estimate) ? prev.filter((item) => item !== estimate) : [...prev, estimate]
+        );
+    };
+    const clearFilters = () => {
+        setSelectedTokens([]);
+        setSelectedPriorities([]);
+        setSelectedTimeEstimates([]);
+    };
+    const getPriorityBadge = (priority: TaskPriority) => {
+        switch (priority) {
+            case 'low':
+                return 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400';
+            case 'medium':
+                return 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400';
+            case 'high':
+                return 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400';
+            case 'urgent':
+                return 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400';
+            default:
+                return 'bg-muted text-muted-foreground';
+        }
+    };
 
     // Today's Focus: tasks marked as isFocusedToday (max 3)
     const focusedTasks = useMemo(() =>
-        activeTasks.filter(t => t.isFocusedToday).slice(0, 3),
-        [activeTasks]
+        filteredActiveTasks.filter(t => t.isFocusedToday).slice(0, 3),
+        [filteredActiveTasks]
     );
 
     const focusedCount = focusedTasks.length;
@@ -27,29 +93,29 @@ export function AgendaView() {
         const now = new Date();
         const todayStr = now.toDateString();
 
-        const overdue = activeTasks.filter(t => {
+        const overdue = filteredActiveTasks.filter(t => {
             if (!t.dueDate) return false;
             const dueDate = safeParseDate(t.dueDate);
             return dueDate && dueDate < now && !t.isFocusedToday;
         });
-        const dueToday = activeTasks.filter(t => {
+        const dueToday = filteredActiveTasks.filter(t => {
             if (!t.dueDate) return false;
             const dueDate = safeParseDate(t.dueDate);
             return dueDate && dueDate.toDateString() === todayStr &&
                 !t.isFocusedToday;
         });
-        const nextActions = activeTasks.filter(t =>
+        const nextActions = filteredActiveTasks.filter(t =>
             t.status === 'next' && !t.isFocusedToday
         ).slice(0, 5);
 
-        const reviewDue = activeTasks.filter(t =>
+        const reviewDue = filteredActiveTasks.filter(t =>
             (t.status === 'waiting' || t.status === 'someday') &&
             isDueForReview(t.reviewAt, now) &&
             !t.isFocusedToday
         );
 
         return { overdue, dueToday, nextActions, reviewDue };
-    }, [activeTasks]);
+    }, [filteredActiveTasks]);
 
     const handleToggleFocus = (taskId: string) => {
         const task = tasks.find(t => t.id === taskId);
@@ -105,10 +171,26 @@ export function AgendaView() {
                                 </span>
                             )}
 
+                            {task.priority && (
+                                <span className={cn(
+                                    "px-2 py-0.5 rounded-full text-[10px] font-semibold uppercase tracking-wide",
+                                    getPriorityBadge(task.priority)
+                                )}>
+                                    {t(`priority.${task.priority}`)}
+                                </span>
+                            )}
+
                             {task.dueDate && (
                                 <span className={cn("flex items-center gap-1", focusMutedClass)}>
                                     <Calendar className="w-3 h-3" />
                                     {safeFormatDate(task.dueDate, 'P')}
+                                </span>
+                            )}
+
+                            {task.timeEstimate && (
+                                <span className={cn("flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full", focusMutedClass)}>
+                                    <Clock className="w-3 h-3" />
+                                    {formatEstimate(task.timeEstimate)}
                                 </span>
                             )}
 
@@ -198,6 +280,7 @@ export function AgendaView() {
     };
 
     const totalActive = activeTasks.length;
+    const visibleActive = filteredActiveTasks.length;
 
     return (
         <div className="space-y-6 max-w-4xl">
@@ -207,9 +290,112 @@ export function AgendaView() {
                     {t('agenda.title')}
                 </h2>
                 <p className="text-muted-foreground">
-                    {totalActive} {t('agenda.active')}
+                    {hasFilters ? `${visibleActive} / ${totalActive}` : totalActive} {t('agenda.active')}
                 </p>
             </header>
+
+            <div className="bg-card border border-border rounded-lg p-3 space-y-3">
+                <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
+                        <Filter className="w-4 h-4" />
+                        {t('filters.label')}
+                    </div>
+                    <div className="flex items-center gap-2">
+                        {hasFilters && (
+                            <button
+                                type="button"
+                                onClick={clearFilters}
+                                className="text-xs text-muted-foreground hover:text-foreground transition-colors"
+                            >
+                                {t('filters.clear')}
+                            </button>
+                        )}
+                        <button
+                            type="button"
+                            onClick={() => setFiltersOpen((prev) => !prev)}
+                            className="text-xs text-muted-foreground hover:text-foreground transition-colors"
+                        >
+                            {showFiltersPanel ? t('filters.hide') : t('filters.show')}
+                        </button>
+                    </div>
+                </div>
+                {showFiltersPanel && (
+                    <div className="space-y-4">
+                        <div className="space-y-2">
+                            <div className="text-xs text-muted-foreground uppercase tracking-wide">{t('filters.contexts')}</div>
+                            <div className="flex flex-wrap gap-2 max-h-32 overflow-y-auto">
+                                {allTokens.map((token) => {
+                                    const isActive = selectedTokens.includes(token);
+                                    return (
+                                        <button
+                                            key={token}
+                                            type="button"
+                                            onClick={() => toggleTokenFilter(token)}
+                                            aria-pressed={isActive}
+                                            className={cn(
+                                                "px-3 py-1.5 rounded-full text-xs font-medium transition-colors",
+                                                isActive
+                                                    ? "bg-primary text-primary-foreground"
+                                                    : "bg-muted hover:bg-muted/80 text-muted-foreground"
+                                            )}
+                                        >
+                                            {token}
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                        </div>
+                        <div className="space-y-2">
+                            <div className="text-xs text-muted-foreground uppercase tracking-wide">{t('filters.priority')}</div>
+                            <div className="flex flex-wrap gap-2">
+                                {priorityOptions.map((priority) => {
+                                    const isActive = selectedPriorities.includes(priority);
+                                    return (
+                                        <button
+                                            key={priority}
+                                            type="button"
+                                            onClick={() => togglePriorityFilter(priority)}
+                                            aria-pressed={isActive}
+                                            className={cn(
+                                                "px-3 py-1.5 rounded-full text-xs font-medium transition-colors",
+                                                isActive
+                                                    ? "bg-primary text-primary-foreground"
+                                                    : "bg-muted hover:bg-muted/80 text-muted-foreground"
+                                            )}
+                                        >
+                                            {t(`priority.${priority}`)}
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                        </div>
+                        <div className="space-y-2">
+                            <div className="text-xs text-muted-foreground uppercase tracking-wide">{t('filters.timeEstimate')}</div>
+                            <div className="flex flex-wrap gap-2">
+                                {timeEstimateOptions.map((estimate) => {
+                                    const isActive = selectedTimeEstimates.includes(estimate);
+                                    return (
+                                        <button
+                                            key={estimate}
+                                            type="button"
+                                            onClick={() => toggleTimeFilter(estimate)}
+                                            aria-pressed={isActive}
+                                            className={cn(
+                                                "px-3 py-1.5 rounded-full text-xs font-medium transition-colors",
+                                                isActive
+                                                    ? "bg-primary text-primary-foreground"
+                                                    : "bg-muted hover:bg-muted/80 text-muted-foreground"
+                                            )}
+                                        >
+                                            {formatEstimate(estimate)}
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                        </div>
+                    </div>
+                )}
+            </div>
 
             {/* Today's Focus Section */}
             <div className="bg-gradient-to-r from-yellow-50 to-orange-50 dark:from-yellow-950/60 dark:to-orange-950/40 border border-yellow-200 dark:border-yellow-700 rounded-xl p-6">
@@ -265,11 +451,11 @@ export function AgendaView() {
                 />
             </div>
 
-            {totalActive === 0 && (
+            {visibleActive === 0 && (
                 <div className="text-center py-12 text-muted-foreground">
                     <p className="text-4xl mb-4">✨</p>
                     <p className="text-lg font-medium">{t('agenda.allClear')}</p>
-                    <p>{t('agenda.noTasks')}</p>
+                    <p>{hasFilters ? t('filters.noMatch') : t('agenda.noTasks')}</p>
                 </div>
             )}
         </div>

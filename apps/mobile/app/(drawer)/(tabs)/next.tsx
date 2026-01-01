@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'expo-router';
 import { View, Text, FlatList, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
-import { useTaskStore, PRESET_CONTEXTS, sortTasksBy, matchesHierarchicalToken, type Task, type Project, type TaskSortBy, type TaskStatus } from '@mindwtr/core';
+import { useTaskStore, PRESET_CONTEXTS, PRESET_TAGS, sortTasksBy, matchesHierarchicalToken, type Task, type Project, type TaskPriority, type TaskSortBy, type TaskStatus, type TimeEstimate } from '@mindwtr/core';
 import { TaskEditModal } from '@/components/task-edit-modal';
 
 import { useTheme } from '../../../contexts/theme-context';
@@ -18,16 +18,22 @@ export default function NextActionsScreen() {
   const { t } = useLanguage();
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [isModalVisible, setIsModalVisible] = useState(false);
-  const [selectedContext, setSelectedContext] = useState<string | null>(null);
+  const [selectedTokens, setSelectedTokens] = useState<string[]>([]);
+  const [selectedPriorities, setSelectedPriorities] = useState<TaskPriority[]>([]);
+  const [selectedTimeEstimates, setSelectedTimeEstimates] = useState<TimeEstimate[]>([]);
+  const [filtersOpen, setFiltersOpen] = useState(false);
   const highlightTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const tc = useThemeColors();
   const sortBy = (settings?.taskSortBy ?? 'default') as TaskSortBy;
 
-  // Get all unique contexts from tasks (merge with presets)
-  const allContexts = useMemo(() => Array.from(new Set([
+  // Get all unique contexts/tags from tasks (merge with presets)
+  const allTokens = useMemo(() => Array.from(new Set([
     ...PRESET_CONTEXTS,
-    ...tasks.filter((t) => !t.deletedAt && t.status === 'next').flatMap(t => t.contexts || []),
+    ...PRESET_TAGS,
+    ...tasks
+      .filter((t) => !t.deletedAt && t.status === 'next')
+      .flatMap(t => [...(t.contexts || []), ...(t.tags || [])]),
   ])).sort(), [tasks]);
 
   const projectMap = useMemo(() => {
@@ -54,15 +60,49 @@ export default function NextActionsScreen() {
     return firstTaskIds;
   }, [tasks, projects]);
 
-  const matchesSelectedContext = (task: Task, context: string | null) => {
-    if (!context) return true;
-    return (task.contexts || []).some(ctx => matchesHierarchicalToken(context, ctx));
+  const priorityOptions: TaskPriority[] = ['low', 'medium', 'high', 'urgent'];
+  const timeEstimateOptions: TimeEstimate[] = ['5min', '10min', '15min', '30min', '1hr', '2hr', '3hr', '4hr', '4hr+'];
+  const formatEstimate = (estimate: TimeEstimate) => {
+    if (estimate.endsWith('min')) return estimate.replace('min', 'm');
+    if (estimate.endsWith('hr+')) return estimate.replace('hr+', 'h+');
+    if (estimate.endsWith('hr')) return estimate.replace('hr', 'h');
+    return estimate;
+  };
+  const hasFilters = selectedTokens.length > 0 || selectedPriorities.length > 0 || selectedTimeEstimates.length > 0;
+  const showFiltersPanel = filtersOpen || hasFilters;
+  const toggleToken = (token: string) => {
+    setSelectedTokens((prev) => (
+      prev.includes(token) ? prev.filter((item) => item !== token) : [...prev, token]
+    ));
+  };
+  const togglePriority = (priority: TaskPriority) => {
+    setSelectedPriorities((prev) => (
+      prev.includes(priority) ? prev.filter((item) => item !== priority) : [...prev, priority]
+    ));
+  };
+  const toggleEstimate = (estimate: TimeEstimate) => {
+    setSelectedTimeEstimates((prev) => (
+      prev.includes(estimate) ? prev.filter((item) => item !== estimate) : [...prev, estimate]
+    ));
+  };
+  const clearFilters = () => {
+    setSelectedTokens([]);
+    setSelectedPriorities([]);
+    setSelectedTimeEstimates([]);
   };
 
   const nextTasks = sortTasksBy(tasks.filter(t => {
     if (t.deletedAt) return false;
     if (t.status !== 'next') return false;
-    if (!matchesSelectedContext(t, selectedContext)) return false;
+    const taskTokens = [...(t.contexts || []), ...(t.tags || [])];
+    if (selectedTokens.length > 0) {
+      const matchesAll = selectedTokens.every((token) =>
+        taskTokens.some((taskToken) => matchesHierarchicalToken(token, taskToken))
+      );
+      if (!matchesAll) return false;
+    }
+    if (selectedPriorities.length > 0 && (!t.priority || !selectedPriorities.includes(t.priority))) return false;
+    if (selectedTimeEstimates.length > 0 && (!t.timeEstimate || !selectedTimeEstimates.includes(t.timeEstimate))) return false;
     // Sequential project filter
     if (t.projectId) {
       const project = projectMap[t.projectId];
@@ -90,40 +130,56 @@ export default function NextActionsScreen() {
       <TouchableOpacity
         style={[
           styles.contextChip,
-          { backgroundColor: selectedContext === null ? tc.tint : tc.filterBg, borderColor: tc.border },
+          { backgroundColor: selectedTokens.length === 0 ? tc.tint : tc.filterBg, borderColor: tc.border },
         ]}
-        onPress={() => setSelectedContext(null)}
+        onPress={() => setSelectedTokens([])}
       >
         <Text style={[
           styles.contextChipText,
-          { color: selectedContext === null ? '#FFFFFF' : tc.text }
+          { color: selectedTokens.length === 0 ? '#FFFFFF' : tc.text }
         ]}>
           {t('common.all')}
         </Text>
       </TouchableOpacity>
-      {allContexts.map(context => {
+      {allTokens.map(token => {
         const count = tasks.filter(t =>
           t.status === 'next' &&
-          matchesSelectedContext(t, context)
+          !t.deletedAt &&
+          [...(t.contexts || []), ...(t.tags || [])].some((item) => matchesHierarchicalToken(token, item))
         ).length;
+        const isActive = selectedTokens.includes(token);
         return (
           <TouchableOpacity
-            key={context}
+            key={token}
             style={[
               styles.contextChip,
-              { backgroundColor: selectedContext === context ? tc.tint : tc.filterBg, borderColor: tc.border },
+              { backgroundColor: isActive ? tc.tint : tc.filterBg, borderColor: tc.border },
             ]}
-            onPress={() => setSelectedContext(context)}
+            onPress={() => toggleToken(token)}
           >
             <Text style={[
               styles.contextChipText,
-              { color: selectedContext === context ? '#FFFFFF' : tc.text }
+              { color: isActive ? '#FFFFFF' : tc.text }
             ]}>
-              {context} {count > 0 && `(${count})`}
+              {token} {count > 0 && `(${count})`}
             </Text>
           </TouchableOpacity>
         );
       })}
+      <TouchableOpacity
+        style={[
+          styles.contextChip,
+          { backgroundColor: showFiltersPanel ? tc.tint : tc.filterBg, borderColor: tc.border },
+        ]}
+        onPress={() => setFiltersOpen((prev) => !prev)}
+      >
+        <Text style={[
+          styles.contextChipText,
+          { color: showFiltersPanel ? '#FFFFFF' : tc.text }
+        ]}>
+          {showFiltersPanel ? t('filters.hide') : t('filters.show')}
+        </Text>
+      </TouchableOpacity>
     </ScrollView>
   );
 
@@ -157,6 +213,68 @@ export default function NextActionsScreen() {
   return (
     <View style={[styles.container, { backgroundColor: tc.bg }]}>
       {renderContextFilter()}
+      {showFiltersPanel && (
+        <View style={[styles.filterPanel, { backgroundColor: tc.cardBg, borderBottomColor: tc.border }]}>
+          <View style={styles.filterHeader}>
+            <Text style={[styles.filterTitle, { color: tc.secondaryText }]}>{t('filters.label')}</Text>
+            {hasFilters && (
+              <TouchableOpacity onPress={clearFilters}>
+                <Text style={[styles.filterAction, { color: tc.secondaryText }]}>{t('filters.clear')}</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+          <View style={styles.filterSection}>
+            <Text style={[styles.filterLabel, { color: tc.secondaryText }]}>{t('filters.priority')}</Text>
+            <View style={styles.filterChips}>
+              {priorityOptions.map((priority) => {
+                const isActive = selectedPriorities.includes(priority);
+                return (
+                  <TouchableOpacity
+                    key={priority}
+                    style={[
+                      styles.contextChip,
+                      { backgroundColor: isActive ? tc.tint : tc.filterBg, borderColor: tc.border },
+                    ]}
+                    onPress={() => togglePriority(priority)}
+                  >
+                    <Text style={[
+                      styles.contextChipText,
+                      { color: isActive ? '#FFFFFF' : tc.text }
+                    ]}>
+                      {t(`priority.${priority}`)}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          </View>
+          <View style={styles.filterSection}>
+            <Text style={[styles.filterLabel, { color: tc.secondaryText }]}>{t('filters.timeEstimate')}</Text>
+            <View style={styles.filterChips}>
+              {timeEstimateOptions.map((estimate) => {
+                const isActive = selectedTimeEstimates.includes(estimate);
+                return (
+                  <TouchableOpacity
+                    key={estimate}
+                    style={[
+                      styles.contextChip,
+                      { backgroundColor: isActive ? tc.tint : tc.filterBg, borderColor: tc.border },
+                    ]}
+                    onPress={() => toggleEstimate(estimate)}
+                  >
+                    <Text style={[
+                      styles.contextChipText,
+                      { color: isActive ? '#FFFFFF' : tc.text }
+                    ]}>
+                      {formatEstimate(estimate)}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          </View>
+        </View>
+      )}
 
       {/* Next Actions Warning */}
       {nextTasks.length > 15 && (
@@ -178,9 +296,7 @@ export default function NextActionsScreen() {
         ListEmptyComponent={
           <View style={styles.emptyContainer}>
             <Text style={[styles.emptyText, { color: tc.secondaryText }]}>
-              {selectedContext
-                ? `${t('next.noContext')} ${selectedContext} `
-                : t('next.noTasks')}
+              {hasFilters ? t('filters.noMatch') : t('next.noTasks')}
             </Text>
           </View>
         }
@@ -304,5 +420,38 @@ const styles = StyleSheet.create({
     fontSize: 12,
     textAlign: 'center',
     opacity: 0.95,
+  },
+  filterPanel: {
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+  },
+  filterHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  filterTitle: {
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  filterAction: {
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  filterSection: {
+    marginBottom: 10,
+  },
+  filterLabel: {
+    fontSize: 11,
+    textTransform: 'uppercase',
+    letterSpacing: 0.8,
+    marginBottom: 6,
+  },
+  filterChips: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
   },
 });

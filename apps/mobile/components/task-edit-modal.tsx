@@ -6,6 +6,7 @@ import {
     Task,
     TaskEditorFieldId,
     TaskStatus,
+    TaskPriority,
     TimeEstimate,
     useTaskStore,
     createAIProvider,
@@ -38,6 +39,7 @@ const STATUS_OPTIONS: TaskStatus[] = ['inbox', 'next', 'waiting', 'someday', 'do
 
 const DEFAULT_TASK_EDITOR_ORDER: TaskEditorFieldId[] = [
     'status',
+    'priority',
     'contexts',
     'description',
     'tags',
@@ -51,7 +53,7 @@ const DEFAULT_TASK_EDITOR_ORDER: TaskEditorFieldId[] = [
     'checklist',
 ];
 
-const DEFAULT_TASK_EDITOR_HIDDEN = DEFAULT_TASK_EDITOR_ORDER.filter((id) => !['status', 'contexts', 'description'].includes(id));
+const DEFAULT_TASK_EDITOR_HIDDEN = DEFAULT_TASK_EDITOR_ORDER.filter((id) => !['status', 'priority', 'contexts', 'description'].includes(id));
 
 type TaskEditTab = 'task' | 'view';
 
@@ -238,7 +240,12 @@ export function TaskEditModal({ visible, task, onClose, onSave, onFocusMode, def
 
     const handleSave = () => {
         if (!task) return;
-        onSave(task.id, editedTask);
+        const updates: Partial<Task> = { ...editedTask };
+        if (editedTask.blockedByTaskIds) {
+            const filtered = editedTask.blockedByTaskIds.filter((id) => availableBlockerIds.has(id));
+            updates.blockedByTaskIds = filtered.length > 0 ? filtered : undefined;
+        }
+        onSave(task.id, updates);
         onClose();
     };
 
@@ -252,6 +259,8 @@ export function TaskEditModal({ visible, task, onClose, onSave, onFocusMode, def
 
         const status = (editedTask.status ?? task.status) as TaskStatus | undefined;
         if (status) lines.push(`${t('taskEdit.statusLabel')}: ${t(`status.${status}`)}`);
+        const priority = editedTask.priority ?? task.priority;
+        if (priority) lines.push(`${t('taskEdit.priorityLabel')}: ${t(`priority.${priority}`)}`);
 
         if (editedTask.startTime) lines.push(`${t('taskEdit.startDateLabel')}: ${formatDate(editedTask.startTime)}`);
         if (editedTask.dueDate) lines.push(`${t('taskEdit.dueDateLabel')}: ${formatDueDate(editedTask.dueDate)}`);
@@ -557,6 +566,7 @@ export function TaskEditModal({ visible, task, onClose, onSave, onFocusMode, def
         { value: '', label: t('common.none') },
         ...effectivePresets.map((value) => ({ value, label: formatTimeEstimateLabel(value) })),
     ];
+    const priorityOptions: TaskPriority[] = ['low', 'medium', 'high', 'urgent'];
 
     const savedOrder = settings.gtd?.taskEditor?.order ?? [];
     const savedHidden = settings.gtd?.taskEditor?.hidden ?? DEFAULT_TASK_EDITOR_HIDDEN;
@@ -587,12 +597,27 @@ export function TaskEditModal({ visible, task, onClose, onSave, onFocusMode, def
         ...(task ?? {}),
         ...editedTask,
     }), [task, editedTask]);
+    const availableBlockerTasks = useMemo(() => {
+        const projectId = mergedTask.projectId;
+        return tasks.filter((otherTask) =>
+            otherTask.id !== task?.id &&
+            !otherTask.deletedAt &&
+            (otherTask.projectId ?? null) === (projectId ?? null) &&
+            otherTask.status !== 'done'
+        );
+    }, [mergedTask.projectId, task?.id, tasks]);
+    const availableBlockerIds = useMemo(
+        () => new Set(availableBlockerTasks.map((blocker) => blocker.id)),
+        [availableBlockerTasks]
+    );
 
     const compactFieldIds = useMemo(() => {
         const hasValue = (fieldId: TaskEditorFieldId) => {
             switch (fieldId) {
                 case 'status':
                     return true;
+                case 'priority':
+                    return Boolean(mergedTask.priority);
                 case 'contexts':
                     return (mergedTask.contexts || []).length > 0;
                 case 'description':
@@ -892,6 +917,33 @@ export function TaskEditModal({ visible, task, onClose, onSave, onFocusMode, def
                         </View>
                     </View>
                 );
+            case 'priority':
+                return (
+                    <View style={styles.formGroup}>
+                        <Text style={[styles.label, { color: tc.secondaryText }]}>{t('taskEdit.priorityLabel')}</Text>
+                        <View style={styles.statusContainer}>
+                            <TouchableOpacity
+                                style={getStatusChipStyle(!editedTask.priority)}
+                                onPress={() => setEditedTask(prev => ({ ...prev, priority: undefined }))}
+                            >
+                                <Text style={getStatusTextStyle(!editedTask.priority)}>
+                                    {t('common.none')}
+                                </Text>
+                            </TouchableOpacity>
+                            {priorityOptions.map(priority => (
+                                <TouchableOpacity
+                                    key={priority}
+                                    style={getStatusChipStyle(editedTask.priority === priority)}
+                                    onPress={() => setEditedTask(prev => ({ ...prev, priority }))}
+                                >
+                                    <Text style={getStatusTextStyle(editedTask.priority === priority)}>
+                                        {t(`priority.${priority}`)}
+                                    </Text>
+                                </TouchableOpacity>
+                            ))}
+                        </View>
+                    </View>
+                );
             case 'contexts':
                 return (
                     <View style={styles.formGroup}>
@@ -968,13 +1020,7 @@ export function TaskEditModal({ visible, task, onClose, onSave, onFocusMode, def
                         <Text style={[styles.label, { color: tc.secondaryText }]}>{t('taskEdit.blockedByLabel')}</Text>
                         <View style={styles.suggestionsContainer}>
                             <View style={styles.suggestionTags}>
-	                                {tasks
-	                                    .filter(otherTask =>
-	                                        otherTask.id !== task?.id &&
-	                                        !otherTask.deletedAt &&
-	                                        otherTask.status !== 'done'
-	                                    )
-                                    .map(otherTask => {
+	                                {availableBlockerTasks.map(otherTask => {
                                         const isActive = Boolean(editedTask.blockedByTaskIds?.includes(otherTask.id));
                                         return (
                                             <TouchableOpacity
@@ -1288,12 +1334,14 @@ export function TaskEditModal({ visible, task, onClose, onSave, onFocusMode, def
     const renderViewContent = () => {
         const project = projects.find((p) => p.id === mergedTask.projectId);
         const blockedByTitles = (mergedTask.blockedByTaskIds || [])
+            .filter((id) => availableBlockerIds.has(id))
             .map((id) => tasks.find((t) => t.id === id)?.title)
             .filter(Boolean) as string[];
         const description = String(mergedTask.description || '').trim();
         const checklist = mergedTask.checklist || [];
 
         const statusLabel = mergedTask.status ? (t(`status.${mergedTask.status}`) || mergedTask.status) : undefined;
+        const priorityLabel = mergedTask.priority ? (t(`priority.${mergedTask.priority}`) || mergedTask.priority) : undefined;
         const timeEstimateLabel = mergedTask.timeEstimate
             ? (formatTimeEstimateLabel(mergedTask.timeEstimate as TimeEstimate) || String(mergedTask.timeEstimate))
             : undefined;
@@ -1306,6 +1354,7 @@ export function TaskEditModal({ visible, task, onClose, onSave, onFocusMode, def
                 keyboardShouldPersistTaps="handled"
             >
                 {renderViewRow(t('taskEdit.statusLabel'), statusLabel)}
+                {renderViewRow(t('taskEdit.priorityLabel'), priorityLabel)}
                 {renderViewRow(t('taskEdit.projectLabel'), project?.title)}
                 {renderViewRow(t('taskEdit.startDateLabel'), mergedTask.startTime ? formatDate(mergedTask.startTime) : undefined)}
                 {renderViewRow(t('taskEdit.dueDateLabel'), mergedTask.dueDate ? formatDueDate(mergedTask.dueDate) : undefined)}

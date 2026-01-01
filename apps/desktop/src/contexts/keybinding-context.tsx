@@ -2,6 +2,7 @@ import React, { createContext, useCallback, useContext, useEffect, useMemo, useR
 import { useTaskStore } from '@mindwtr/core';
 import { useLanguage } from './language-context';
 import { KeybindingHelpModal } from '../components/KeybindingHelpModal';
+import { isTauriRuntime } from '../lib/runtime';
 
 export type KeybindingStyle = 'vim' | 'emacs';
 
@@ -87,6 +88,17 @@ export function KeybindingProvider({
     }, []);
 
     const openHelp = useCallback(() => setIsHelpOpen(true), []);
+    const toggleFullscreen = useCallback(async () => {
+        if (!isTauriRuntime()) return;
+        try {
+            const { getCurrentWindow } = await import('@tauri-apps/api/window');
+            const current = getCurrentWindow();
+            const isFullscreen = await current.isFullscreen();
+            await current.setFullscreen(!isFullscreen);
+        } catch (error) {
+            console.warn('Failed to toggle fullscreen', error);
+        }
+    }, []);
 
     const vimGoMap = useMemo<Record<string, string>>(() => ({
         i: 'inbox',
@@ -108,6 +120,13 @@ export function KeybindingProvider({
     useEffect(() => {
         const handleVim = (e: KeyboardEvent) => {
             if (e.metaKey || e.ctrlKey || e.altKey) return;
+            if (e.key === 'F11') {
+                if (isTauriRuntime()) {
+                    e.preventDefault();
+                    void toggleFullscreen();
+                }
+                return;
+            }
             if (isEditableTarget(e.target)) return;
 
             const scope = scopeRef.current;
@@ -178,6 +197,13 @@ export function KeybindingProvider({
         };
 
         const handleEmacs = (e: KeyboardEvent) => {
+            if (e.key === 'F11') {
+                if (isTauriRuntime()) {
+                    e.preventDefault();
+                    void toggleFullscreen();
+                }
+                return;
+            }
             if (isEditableTarget(e.target)) return;
             const scope = scopeRef.current;
 

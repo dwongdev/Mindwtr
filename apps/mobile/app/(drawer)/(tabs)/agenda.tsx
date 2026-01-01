@@ -1,7 +1,7 @@
-import { View, Text, SectionList, Pressable, StyleSheet } from 'react-native';
+import { View, Text, SectionList, Pressable, ScrollView, StyleSheet } from 'react-native';
 import { useMemo, useState, useCallback } from 'react';
 
-import { useTaskStore, Task, safeFormatDate, safeParseDate, isDueForReview, getChecklistProgress, type TaskStatus } from '@mindwtr/core';
+import { useTaskStore, Task, TaskPriority, TimeEstimate, PRESET_CONTEXTS, PRESET_TAGS, matchesHierarchicalToken, safeFormatDate, safeParseDate, isDueForReview, getChecklistProgress, type TaskStatus } from '@mindwtr/core';
 
 import { useLanguage } from '../../../contexts/language-context';
 import { useTheme } from '../../../contexts/theme-context';
@@ -195,33 +195,86 @@ export default function AgendaScreen() {
   const { t } = useLanguage();
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const { isDark } = useTheme();
+  const [selectedTokens, setSelectedTokens] = useState<string[]>([]);
+  const [selectedPriorities, setSelectedPriorities] = useState<TaskPriority[]>([]);
+  const [selectedTimeEstimates, setSelectedTimeEstimates] = useState<TimeEstimate[]>([]);
+  const [filtersOpen, setFiltersOpen] = useState(false);
 
   // Theme colors
   // Theme colors
   const tc = useThemeColors();
+  const allTokens = useMemo(() => Array.from(new Set([
+    ...PRESET_CONTEXTS,
+    ...PRESET_TAGS,
+    ...tasks
+      .filter((t) => !t.deletedAt && t.status !== 'done')
+      .flatMap((t) => [...(t.contexts || []), ...(t.tags || [])]),
+  ])).sort(), [tasks]);
+  const priorityOptions: TaskPriority[] = ['low', 'medium', 'high', 'urgent'];
+  const timeEstimateOptions: TimeEstimate[] = ['5min', '10min', '15min', '30min', '1hr', '2hr', '3hr', '4hr', '4hr+'];
+  const formatEstimate = (estimate: TimeEstimate) => {
+    if (estimate.endsWith('min')) return estimate.replace('min', 'm');
+    if (estimate.endsWith('hr+')) return estimate.replace('hr+', 'h+');
+    if (estimate.endsWith('hr')) return estimate.replace('hr', 'h');
+    return estimate;
+  };
+  const hasFilters = selectedTokens.length > 0 || selectedPriorities.length > 0 || selectedTimeEstimates.length > 0;
+  const showFiltersPanel = filtersOpen || hasFilters;
+  const toggleToken = (token: string) => {
+    setSelectedTokens((prev) => (
+      prev.includes(token) ? prev.filter((item) => item !== token) : [...prev, token]
+    ));
+  };
+  const togglePriority = (priority: TaskPriority) => {
+    setSelectedPriorities((prev) => (
+      prev.includes(priority) ? prev.filter((item) => item !== priority) : [...prev, priority]
+    ));
+  };
+  const toggleEstimate = (estimate: TimeEstimate) => {
+    setSelectedTimeEstimates((prev) => (
+      prev.includes(estimate) ? prev.filter((item) => item !== estimate) : [...prev, estimate]
+    ));
+  };
+  const clearFilters = () => {
+    setSelectedTokens([]);
+    setSelectedPriorities([]);
+    setSelectedTimeEstimates([]);
+  };
 
     const sections = useMemo(() => {
         const activeTasks = tasks.filter(t => t.status !== 'done' && !t.deletedAt);
+        const filteredActiveTasks = activeTasks.filter((task) => {
+          const taskTokens = [...(task.contexts || []), ...(task.tags || [])];
+          if (selectedTokens.length > 0) {
+            const matchesAll = selectedTokens.every((token) =>
+              taskTokens.some((taskToken) => matchesHierarchicalToken(token, taskToken))
+            );
+            if (!matchesAll) return false;
+          }
+          if (selectedPriorities.length > 0 && (!task.priority || !selectedPriorities.includes(task.priority))) return false;
+          if (selectedTimeEstimates.length > 0 && (!task.timeEstimate || !selectedTimeEstimates.includes(task.timeEstimate))) return false;
+          return true;
+        });
 
         // Today's Focus: tasks marked as isFocusedToday
-        const focusedTasks = activeTasks.filter(t => t.isFocusedToday);
+        const focusedTasks = filteredActiveTasks.filter(t => t.isFocusedToday);
 
-    const overdueTasks = activeTasks.filter(t => {
+    const overdueTasks = filteredActiveTasks.filter(t => {
       const dd = safeParseDate(t.dueDate);
       return dd && dd < new Date() && !t.isFocusedToday;
     });
-    const todayTasks = activeTasks.filter(t => {
+    const todayTasks = filteredActiveTasks.filter(t => {
       const dd = safeParseDate(t.dueDate);
       return dd && dd.toDateString() === new Date().toDateString() &&
         !t.isFocusedToday;
     });
-    const nextTasks = activeTasks.filter(t => t.status === 'next' && !t.isFocusedToday).slice(0, 5);
-    const reviewDueTasks = activeTasks.filter(t =>
+    const nextTasks = filteredActiveTasks.filter(t => t.status === 'next' && !t.isFocusedToday).slice(0, 5);
+    const reviewDueTasks = filteredActiveTasks.filter(t =>
       (t.status === 'waiting' || t.status === 'someday') &&
       isDueForReview(t.reviewAt, new Date()) &&
       !t.isFocusedToday
     );
-    const upcomingTasks = activeTasks
+    const upcomingTasks = filteredActiveTasks
       .filter(t => {
         const dd = safeParseDate(t.dueDate);
         return dd && dd > new Date() && !t.isFocusedToday;
@@ -243,7 +296,7 @@ export default function AgendaScreen() {
     if (upcomingTasks.length > 0) result.push({ title: `📆 ${t('agenda.upcoming')}`, data: upcomingTasks });
 
     return result;
-  }, [tasks, t]);
+  }, [tasks, t, selectedTokens, selectedPriorities, selectedTimeEstimates]);
 
   // Count focused tasks (max 3)
   const focusedCount = tasks.filter(t => t.isFocusedToday && !t.deletedAt && t.status !== 'done').length;
@@ -316,6 +369,101 @@ export default function AgendaScreen() {
 
   return (
     <View style={[styles.container, { backgroundColor: tc.bg }]}>
+      <View style={[styles.filterHeader, { borderBottomColor: tc.border }]}>
+        <Pressable onPress={() => setFiltersOpen((prev) => !prev)}>
+          <Text style={[styles.filterTitle, { color: tc.secondaryText }]}>
+            {showFiltersPanel ? t('filters.hide') : t('filters.show')}
+          </Text>
+        </Pressable>
+        {hasFilters && (
+          <Pressable onPress={clearFilters}>
+            <Text style={[styles.filterAction, { color: tc.secondaryText }]}>{t('filters.clear')}</Text>
+          </Pressable>
+        )}
+      </View>
+      {showFiltersPanel && (
+        <View style={[styles.filterPanel, { borderBottomColor: tc.border }]}>
+          <View style={styles.filterSection}>
+            <Text style={[styles.filterLabel, { color: tc.secondaryText }]}>{t('filters.contexts')}</Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+              <View style={styles.filterChips}>
+                <Pressable
+                  style={[
+                    styles.filterChip,
+                    { backgroundColor: selectedTokens.length === 0 ? tc.tint : tc.filterBg, borderColor: tc.border },
+                  ]}
+                  onPress={() => setSelectedTokens([])}
+                >
+                  <Text style={[styles.filterChipText, { color: selectedTokens.length === 0 ? '#fff' : tc.text }]}>
+                    {t('common.all')}
+                  </Text>
+                </Pressable>
+                {allTokens.map((token) => {
+                  const isActive = selectedTokens.includes(token);
+                  return (
+                    <Pressable
+                      key={token}
+                      style={[
+                        styles.filterChip,
+                        { backgroundColor: isActive ? tc.tint : tc.filterBg, borderColor: tc.border },
+                      ]}
+                      onPress={() => toggleToken(token)}
+                    >
+                      <Text style={[styles.filterChipText, { color: isActive ? '#fff' : tc.text }]}>
+                        {token}
+                      </Text>
+                    </Pressable>
+                  );
+                })}
+              </View>
+            </ScrollView>
+          </View>
+          <View style={styles.filterSection}>
+            <Text style={[styles.filterLabel, { color: tc.secondaryText }]}>{t('filters.priority')}</Text>
+            <View style={styles.filterChips}>
+              {priorityOptions.map((priority) => {
+                const isActive = selectedPriorities.includes(priority);
+                return (
+                  <Pressable
+                    key={priority}
+                    style={[
+                      styles.filterChip,
+                      { backgroundColor: isActive ? tc.tint : tc.filterBg, borderColor: tc.border },
+                    ]}
+                    onPress={() => togglePriority(priority)}
+                  >
+                    <Text style={[styles.filterChipText, { color: isActive ? '#fff' : tc.text }]}>
+                      {t(`priority.${priority}`)}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+          </View>
+          <View style={styles.filterSection}>
+            <Text style={[styles.filterLabel, { color: tc.secondaryText }]}>{t('filters.timeEstimate')}</Text>
+            <View style={styles.filterChips}>
+              {timeEstimateOptions.map((estimate) => {
+                const isActive = selectedTimeEstimates.includes(estimate);
+                return (
+                  <Pressable
+                    key={estimate}
+                    style={[
+                      styles.filterChip,
+                      { backgroundColor: isActive ? tc.tint : tc.filterBg, borderColor: tc.border },
+                    ]}
+                    onPress={() => toggleEstimate(estimate)}
+                  >
+                    <Text style={[styles.filterChipText, { color: isActive ? '#fff' : tc.text }]}>
+                      {formatEstimate(estimate)}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+          </View>
+        </View>
+      )}
       {sections.length > 0 && (
         <View style={styles.summaryRow}>
           <Text style={[styles.summaryText, { color: tc.secondaryText }]}>
@@ -335,7 +483,9 @@ export default function AgendaScreen() {
           <View style={styles.emptyState}>
             <Text style={styles.emptyIcon}>✨</Text>
             <Text style={[styles.emptyTitle, { color: tc.text }]}>{t('agenda.allClear')}</Text>
-            <Text style={[styles.emptyText, { color: tc.secondaryText }]}>{t('agenda.noTasks')}</Text>
+            <Text style={[styles.emptyText, { color: tc.secondaryText }]}>
+              {hasFilters ? t('filters.noMatch') : t('agenda.noTasks')}
+            </Text>
           </View>
         }
       />
@@ -408,6 +558,52 @@ const styles = StyleSheet.create({
   summaryText: {
     fontSize: 13,
     fontWeight: '500',
+  },
+  filterHeader: {
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    borderBottomWidth: 1,
+  },
+  filterTitle: {
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  filterAction: {
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  filterPanel: {
+    paddingHorizontal: 16,
+    paddingBottom: 8,
+    borderBottomWidth: 1,
+  },
+  filterSection: {
+    marginTop: 8,
+  },
+  filterLabel: {
+    fontSize: 11,
+    fontWeight: '600',
+    textTransform: 'uppercase',
+    letterSpacing: 0.8,
+    marginBottom: 6,
+  },
+  filterChips: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+  },
+  filterChip: {
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 14,
+    borderWidth: 1,
+  },
+  filterChipText: {
+    fontSize: 12,
+    fontWeight: '600',
   },
   sectionHeaderContainer: {
     paddingHorizontal: 16,

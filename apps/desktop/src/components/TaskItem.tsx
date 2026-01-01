@@ -6,6 +6,7 @@ import {
     Attachment,
     Task,
     TaskStatus,
+    TaskPriority,
     TimeEstimate,
     generateUUID,
     getTaskAgeLabel,
@@ -72,6 +73,7 @@ export const TaskItem = memo(function TaskItem({
     const [editLocation, setEditLocation] = useState(task.location || '');
     const [editRecurrence, setEditRecurrence] = useState(task.recurrence || '');
     const [editTimeEstimate, setEditTimeEstimate] = useState<TimeEstimate | ''>(task.timeEstimate || '');
+    const [editPriority, setEditPriority] = useState<TaskPriority | ''>(task.priority || '');
     const [editReviewAt, setEditReviewAt] = useState(toDateTimeLocalValue(task.reviewAt));
     const [editBlockedByTaskIds, setEditBlockedByTaskIds] = useState<string[]>(task.blockedByTaskIds || []);
     const [editAttachments, setEditAttachments] = useState<Attachment[]>(task.attachments || []);
@@ -131,6 +133,17 @@ export const TaskItem = memo(function TaskItem({
             .map(([tag]) => tag);
         return Array.from(new Set([...sorted, ...PRESET_TAGS])).slice(0, 8);
     }, [tasks]);
+    const availableBlockerTasks = useMemo(() => {
+        return (tasks ?? []).filter((otherTask) =>
+            otherTask.id !== task.id &&
+            !otherTask.deletedAt &&
+            (otherTask.projectId ?? null) === (task.projectId ?? null)
+        );
+    }, [tasks, task.id, task.projectId]);
+    const availableBlockerIds = useMemo(
+        () => new Set(availableBlockerTasks.map((blocker) => blocker.id)),
+        [availableBlockerTasks]
+    );
 
     const ageLabel = getTaskAgeLabel(task.createdAt, language);
     const checklistProgress = getChecklistProgress(task);
@@ -142,8 +155,8 @@ export const TaskItem = memo(function TaskItem({
         const taskMap = new Map((tasks ?? []).map((t) => [t.id, t]));
         return task.blockedByTaskIds
             .map((id) => taskMap.get(id))
-            .filter((t): t is Task => Boolean(t));
-    }, [task.blockedByTaskIds, tasks]);
+            .filter((t): t is Task => Boolean(t && availableBlockerIds.has(t.id)));
+    }, [task.blockedByTaskIds, tasks, availableBlockerIds]);
 
     const removeBlocker = (blockerId: string) => {
         const nextBlockedBy = (task.blockedByTaskIds || []).filter((id) => id !== blockerId);
@@ -212,8 +225,9 @@ export const TaskItem = memo(function TaskItem({
         setEditLocation(task.location || '');
         setEditRecurrence(task.recurrence || '');
         setEditTimeEstimate(task.timeEstimate || '');
+        setEditPriority(task.priority || '');
         setEditReviewAt(toDateTimeLocalValue(task.reviewAt));
-        setEditBlockedByTaskIds(task.blockedByTaskIds || []);
+        setEditBlockedByTaskIds((task.blockedByTaskIds || []).filter((id) => availableBlockerIds.has(id)));
         setEditAttachments(task.attachments || []);
         setAttachmentError(null);
         setShowDescriptionPreview(false);
@@ -395,6 +409,7 @@ export const TaskItem = memo(function TaskItem({
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
         if (editTitle.trim()) {
+            const filteredBlockedBy = editBlockedByTaskIds.filter((id) => availableBlockerIds.has(id));
             updateTask(task.id, {
                 title: editTitle,
                 dueDate: editDueDate || undefined,
@@ -406,8 +421,9 @@ export const TaskItem = memo(function TaskItem({
                 location: editLocation || undefined,
                 recurrence: editRecurrence || undefined,
                 timeEstimate: editTimeEstimate || undefined,
+                priority: editPriority || undefined,
                 reviewAt: editReviewAt || undefined,
-                blockedByTaskIds: editBlockedByTaskIds.length > 0 ? editBlockedByTaskIds : undefined,
+                blockedByTaskIds: filteredBlockedBy.length > 0 ? filteredBlockedBy : undefined,
                 attachments: editAttachments.length > 0 ? editAttachments : undefined,
             });
             setIsEditing(false);
@@ -422,6 +438,21 @@ export const TaskItem = memo(function TaskItem({
             case 'urgent': return 'text-orange-500 font-medium';
             case 'upcoming': return 'text-yellow-600';
             default: return 'text-muted-foreground';
+        }
+    };
+
+    const getPriorityBadge = (priority: TaskPriority) => {
+        switch (priority) {
+            case 'low':
+                return 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400';
+            case 'medium':
+                return 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400';
+            case 'high':
+                return 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400';
+            case 'urgent':
+                return 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400';
+            default:
+                return 'bg-muted text-muted-foreground';
         }
     };
 
@@ -719,6 +750,21 @@ export const TaskItem = memo(function TaskItem({
 			                                    </select>
 		                                </div>
 		                                <div className="flex flex-col gap-1">
+		                                    <label className="text-xs text-muted-foreground font-medium">{t('taskEdit.priorityLabel')}</label>
+		                                    <select
+	                                        value={editPriority}
+	                                        aria-label={t('taskEdit.priorityLabel')}
+	                                        onChange={(e) => setEditPriority(e.target.value as TaskPriority | '')}
+	                                        className="text-xs bg-muted/50 border border-border rounded px-2 py-1 text-foreground"
+	                                    >
+		                                        <option value="">{t('common.none')}</option>
+		                                        <option value="low">{t('priority.low')}</option>
+		                                        <option value="medium">{t('priority.medium')}</option>
+		                                        <option value="high">{t('priority.high')}</option>
+		                                        <option value="urgent">{t('priority.urgent')}</option>
+		                                    </select>
+		                                </div>
+		                                <div className="flex flex-col gap-1">
 		                                    <label className="text-xs text-muted-foreground font-medium">{t('projects.title')}</label>
 		                                    <select
 	                                        value={editProjectId}
@@ -744,13 +790,11 @@ export const TaskItem = memo(function TaskItem({
 				                                        }}
 				                                        className="text-xs bg-muted/50 border border-border rounded px-2 py-1 h-20 text-foreground"
 				                                    >
-                                        {(tasks ?? [])
-                                            .filter(otherTask => otherTask.id !== task.id && !otherTask.deletedAt)
-                                            .map(otherTask => (
-                                                <option key={otherTask.id} value={otherTask.id}>
-                                                    {otherTask.title}
-			                                                </option>
-			                                            ))}
+                                        {availableBlockerTasks.map((otherTask) => (
+                                            <option key={otherTask.id} value={otherTask.id}>
+                                                {otherTask.title}
+			                                </option>
+			                            ))}
 			                                    </select>
 			                                </div>
 			                                <div className="flex flex-col gap-1">
@@ -986,23 +1030,30 @@ export const TaskItem = memo(function TaskItem({
                             </div>
                         </form>
 	                    ) : (
-	                        <div
-	                            data-task-edit-trigger
-	                            onClick={() => {
-	                                if (selectionMode) {
-	                                    onToggleSelect?.();
-	                                }
-	                            }}
-	                            onDoubleClick={() => {
-	                                if (!selectionMode) {
-	                                    setIsEditing(true);
-	                                }
-	                            }}
-	                            className={cn(
-	                                "group/content rounded -ml-2 pl-2 pr-1 py-1 transition-colors",
-	                                selectionMode ? "cursor-pointer hover:bg-muted/40" : "cursor-default",
-	                            )}
-	                        >
+                        <div
+                            onClick={() => {
+                                if (selectionMode) {
+                                    onToggleSelect?.();
+                                }
+                            }}
+                            onDoubleClick={() => {
+                                if (!selectionMode) {
+                                    setIsEditing(true);
+                                }
+                            }}
+                            className={cn(
+                                "group/content rounded -ml-2 pl-2 pr-1 py-1 transition-colors",
+                                selectionMode ? "cursor-pointer hover:bg-muted/40" : "cursor-default",
+                            )}
+                        >
+                            <button
+                                type="button"
+                                data-task-edit-trigger
+                                onClick={() => setIsEditing(true)}
+                                className="sr-only"
+                                aria-hidden="true"
+                                tabIndex={-1}
+                            />
                             <div
                                 className={cn(
                                     "text-base font-medium truncate group-hover/content:text-primary transition-colors",
@@ -1070,6 +1121,17 @@ export const TaskItem = memo(function TaskItem({
                                     <div className="flex items-center gap-1 text-purple-600" title={t('taskEdit.recurrenceLabel')}>
                                         <Repeat className="w-3 h-3" />
                                         <span>{t(`recurrence.${task.recurrence}`)}</span>
+                                    </div>
+                                )}
+                                {task.priority && (
+                                    <div
+                                        className={cn(
+                                            "flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full font-medium uppercase tracking-wide",
+                                            getPriorityBadge(task.priority)
+                                        )}
+                                        title={t('taskEdit.priorityLabel')}
+                                    >
+                                        {t(`priority.${task.priority}`)}
                                     </div>
                                 )}
                                 {task.contexts?.length > 0 && (

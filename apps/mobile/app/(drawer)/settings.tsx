@@ -1067,6 +1067,7 @@ export default function SettingsPage() {
 
         const defaultTaskEditorOrder: TaskEditorFieldId[] = [
             'status',
+            'priority',
             'contexts',
             'description',
             'tags',
@@ -1080,7 +1081,7 @@ export default function SettingsPage() {
             'checklist',
         ];
 
-        const defaultTaskEditorHidden = defaultTaskEditorOrder.filter((id) => !['status', 'contexts', 'description'].includes(id));
+        const defaultTaskEditorHidden = defaultTaskEditorOrder.filter((id) => !['status', 'priority', 'contexts', 'description'].includes(id));
         const known = new Set(defaultTaskEditorOrder);
         const savedOrder = (settings.gtd?.taskEditor?.order ?? []).filter((id) => known.has(id));
         const taskEditorOrder = [...savedOrder, ...defaultTaskEditorOrder.filter((id) => !savedOrder.includes(id))];
@@ -1092,6 +1093,8 @@ export default function SettingsPage() {
             switch (fieldId) {
                 case 'status':
                     return t('taskEdit.statusLabel');
+                case 'priority':
+                    return t('taskEdit.priorityLabel');
                 case 'contexts':
                     return t('taskEdit.contextsLabel');
                 case 'description':
