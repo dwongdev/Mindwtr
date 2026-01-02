@@ -1,5 +1,6 @@
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
+use std::env;
 use std::fs;
 use std::fs::File;
 use std::fs::OpenOptions;
@@ -755,6 +756,19 @@ fn read_json_with_retries(path: &Path, attempts: usize) -> Result<Value, String>
     Err(last_err.unwrap_or_else(|| "Failed to read sync file".to_string()))
 }
 
+fn is_niri_session() -> bool {
+    if env::var("NIRI_SOCKET").is_ok() {
+        return true;
+    }
+    if let Ok(desktop) = env::var("XDG_CURRENT_DESKTOP") {
+        return desktop.to_lowercase().contains("niri");
+    }
+    if let Ok(session) = env::var("XDG_SESSION_DESKTOP") {
+        return session.to_lowercase().contains("niri");
+    }
+    false
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -775,7 +789,7 @@ pub fn run() {
             // Ensure data file exists on startup
             ensure_data_file(&app.handle()).ok();
             if let Some(window) = app.get_webview_window("main") {
-                if cfg!(target_os = "linux") {
+                if cfg!(target_os = "linux") && is_niri_session() {
                     let _ = window.set_decorations(false);
                 }
             }
