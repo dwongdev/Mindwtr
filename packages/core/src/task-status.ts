@@ -28,9 +28,12 @@ export function normalizeTaskStatus(value: unknown): TaskStatus {
 export function normalizeTaskForLoad(task: Task, nowIso: string = new Date().toISOString()): Task {
     const normalizedStatus = normalizeTaskStatus((task as any).status);
 
-    if (normalizedStatus === task.status) return task;
-
-    const next: Task = { ...task, status: normalizedStatus };
+    const hasValidPushCount = typeof task.pushCount === 'number' && Number.isFinite(task.pushCount);
+    const next: Task = {
+        ...task,
+        status: normalizedStatus,
+        ...(hasValidPushCount ? {} : { pushCount: 0 }),
+    };
 
     if (normalizedStatus === 'done' || normalizedStatus === 'archived') {
         next.completedAt = task.completedAt || task.updatedAt || nowIso;

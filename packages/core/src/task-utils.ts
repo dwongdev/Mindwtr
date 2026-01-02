@@ -36,6 +36,24 @@ const safeTime = (value: string | undefined, fallback: number): number => {
     return Number.isFinite(parsed) ? parsed : fallback;
 };
 
+const shouldIncrementPushCount = (oldDueDate?: string, newDueDate?: string): boolean => {
+    if (!oldDueDate || !newDueDate) return false;
+    const oldTime = Date.parse(oldDueDate);
+    const newTime = Date.parse(newDueDate);
+    if (!Number.isFinite(oldTime) || !Number.isFinite(newTime)) return false;
+    return newTime > oldTime;
+};
+
+export function rescheduleTask(task: Task, newDueDate?: string): Task {
+    const next: Task = { ...task, dueDate: newDueDate };
+    if (shouldIncrementPushCount(task.dueDate, newDueDate)) {
+        next.pushCount = (task.pushCount ?? 0) + 1;
+    } else if (typeof task.pushCount === 'number') {
+        next.pushCount = task.pushCount;
+    }
+    return next;
+}
+
 /**
  * Sort tasks by status, due date, and creation time.
  * Order: inbox → next → waiting → someday → done → archived

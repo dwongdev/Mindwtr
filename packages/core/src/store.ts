@@ -5,6 +5,7 @@ import { StorageAdapter, noopStorage } from './storage';
 import { createNextRecurringTask } from './recurrence';
 import { safeParseDate } from './date';
 import { normalizeTaskForLoad } from './task-status';
+import { rescheduleTask } from './task-utils';
 
 let storage: StorageAdapter = noopStorage;
 
@@ -36,6 +37,15 @@ export function applyTaskUpdates(oldTask: Task, updates: Partial<Task>, now: str
             ...updates,
             status: incomingStatus,
             completedAt: undefined,
+        };
+    }
+
+    if (Object.prototype.hasOwnProperty.call(updates, 'dueDate')) {
+        const rescheduled = rescheduleTask(oldTask, updates.dueDate);
+        finalUpdates = {
+            ...finalUpdates,
+            dueDate: rescheduled.dueDate,
+            pushCount: rescheduled.pushCount,
         };
     }
 
@@ -210,7 +220,16 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
                     };
                 });
             }
-            const allProjects = rawProjects;
+            const allProjects = rawProjects.map((project) => {
+                const status = project.status;
+                const normalizedStatus =
+                    status === 'active' || status === 'someday' || status === 'waiting' || status === 'archived'
+                        ? status
+                        : status === 'completed'
+                            ? 'archived'
+                            : 'active';
+                return normalizedStatus === status ? project : { ...project, status: normalizedStatus };
+            });
             // Filter out soft-deleted and archived items for day-to-day UI display
             const visibleTasks = allTasks.filter(t => !t.deletedAt && t.status !== 'archived');
             const visibleProjects = allProjects.filter(p => !p.deletedAt);
@@ -249,6 +268,7 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
             taskMode: 'task',
             tags: [],
             contexts: [],
+            pushCount: 0,
             createdAt: new Date().toISOString(),
             updatedAt: new Date().toISOString(),
             ...initialProps,
@@ -349,6 +369,7 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
             reviewAt: undefined,
             completedAt: undefined,
             isFocusedToday: false,
+            pushCount: 0,
             deletedAt: undefined,
             createdAt: now,
             updatedAt: now,
@@ -496,8 +517,8 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
 
         let newAllTasks = get()._allTasks;
 
-        if (statusChanged && (incomingStatus === 'completed' || incomingStatus === 'archived')) {
-            const taskStatus: TaskStatus = incomingStatus === 'archived' ? 'archived' : 'done';
+        if (statusChanged && incomingStatus === 'archived') {
+            const taskStatus: TaskStatus = 'archived';
             newAllTasks = newAllTasks.map(task => {
                 if (
                     task.projectId === id &&
@@ -518,7 +539,7 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
 
         const finalProjectUpdates: Partial<Project> = {
             ...updates,
-            ...(statusChanged && (incomingStatus === 'completed' || incomingStatus === 'archived')
+            ...(statusChanged && incomingStatus && incomingStatus !== 'active'
                 ? { isFocused: false }
                 : {}),
         };
@@ -587,6 +608,7 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
         const allProjects = get()._allProjects;
         const project = allProjects.find(p => p.id === id);
         if (!project) return;
+        if (project.status !== 'active' && !project.isFocused) return;
 
         // If turning on focus, check if we already have 5 focused
         const focusedCount = allProjects.filter(p => p.isFocused && !p.deletedAt).length;

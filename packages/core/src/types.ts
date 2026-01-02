@@ -8,6 +8,15 @@ export type TaskSortBy = 'default' | 'due' | 'start' | 'review' | 'title' | 'cre
 
 export type TaskMode = 'task' | 'list';
 
+export type RecurrenceRule = 'daily' | 'weekly' | 'monthly' | 'yearly';
+
+export type RecurrenceStrategy = 'strict' | 'fluid';
+
+export interface Recurrence {
+    rule: RecurrenceRule;
+    strategy?: RecurrenceStrategy; // Defaults to 'strict'
+}
+
 export type TaskEditorFieldId =
     | 'status'
     | 'priority'
@@ -26,7 +35,7 @@ export type TaskEditorFieldId =
 export interface Project {
     id: string;
     title: string;
-    status: 'active' | 'completed' | 'archived';
+    status: 'active' | 'someday' | 'waiting' | 'archived';
     color: string;
     isSequential?: boolean; // If true, only first incomplete task shows in Next Actions
     isFocused?: boolean; // If true, this project is a priority focus (max 5 allowed)
@@ -68,7 +77,8 @@ export interface Task {
     taskMode?: TaskMode; // 'list' for checklist-first tasks
     startTime?: string; // ISO date string
     dueDate?: string; // ISO date string
-    recurrence?: string; // e.g., 'daily', 'weekly', 'monthly'
+    recurrence?: Recurrence | RecurrenceRule;
+    pushCount?: number; // Tracks how many times dueDate was pushed later
     tags: string[];
     contexts: string[]; // e.g., '@home', '@work'
     checklist?: ChecklistItem[]; // Subtasks/Shopping list items

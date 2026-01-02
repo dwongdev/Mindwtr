@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { sortTasks, getStatusColor, getTaskAgeLabel } from './task-utils';
+import { sortTasks, getStatusColor, getTaskAgeLabel, rescheduleTask } from './task-utils';
 import { Task } from './types';
 
 describe('task-utils', () => {
@@ -53,6 +53,39 @@ describe('task-utils', () => {
             const twoWeeksAgo = new Date();
             twoWeeksAgo.setDate(twoWeeksAgo.getDate() - 14);
             expect(getTaskAgeLabel(twoWeeksAgo.toISOString())).toBe('2 weeks old');
+        });
+    });
+
+    describe('rescheduleTask', () => {
+        it('increments pushCount when dueDate moves later', () => {
+            const task: Task = {
+                id: '1',
+                title: 'Reschedule',
+                status: 'next',
+                tags: [],
+                contexts: [],
+                dueDate: '2025-01-01T09:00:00.000Z',
+                createdAt: '2025-01-01T00:00:00.000Z',
+                updatedAt: '2025-01-01T00:00:00.000Z',
+            };
+            const updated = rescheduleTask(task, '2025-01-02T09:00:00.000Z');
+            expect(updated.pushCount).toBe(1);
+        });
+
+        it('does not increment pushCount when dueDate moves earlier', () => {
+            const task: Task = {
+                id: '2',
+                title: 'Reschedule earlier',
+                status: 'next',
+                tags: [],
+                contexts: [],
+                dueDate: '2025-01-03T09:00:00.000Z',
+                pushCount: 2,
+                createdAt: '2025-01-01T00:00:00.000Z',
+                updatedAt: '2025-01-01T00:00:00.000Z',
+            };
+            const updated = rescheduleTask(task, '2025-01-02T09:00:00.000Z');
+            expect(updated.pushCount).toBe(2);
         });
     });
 });

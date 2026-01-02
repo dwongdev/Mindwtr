@@ -2,14 +2,30 @@ import { addDays, addMonths, addWeeks, addYears, format } from 'date-fns';
 
 import { safeParseDate } from './date';
 import { generateUUID as uuidv4 } from './uuid';
-import type { Task, TaskStatus, ChecklistItem } from './types';
-
-export type RecurrenceRule = 'daily' | 'weekly' | 'monthly' | 'yearly';
+import type { Recurrence, RecurrenceRule, RecurrenceStrategy, Task, TaskStatus, ChecklistItem } from './types';
 
 export const RECURRENCE_RULES: RecurrenceRule[] = ['daily', 'weekly', 'monthly', 'yearly'];
 
 export function isRecurrenceRule(value: string | undefined | null): value is RecurrenceRule {
     return !!value && (RECURRENCE_RULES as readonly string[]).includes(value);
+}
+
+function getRecurrenceRule(value: Task['recurrence']): RecurrenceRule | null {
+    if (!value) return null;
+    if (typeof value === 'string') {
+        return isRecurrenceRule(value) ? value : null;
+    }
+    if (typeof value === 'object' && isRecurrenceRule((value as Recurrence).rule)) {
+        return (value as Recurrence).rule;
+    }
+    return null;
+}
+
+function getRecurrenceStrategy(value: Task['recurrence']): RecurrenceStrategy {
+    if (value && typeof value === 'object' && value.strategy === 'fluid') {
+        return 'fluid';
+    }
+    return 'strict';
 }
 
 function addInterval(base: Date, rule: RecurrenceRule): Date {
@@ -59,14 +75,19 @@ export function createNextRecurringTask(
     completedAtIso: string,
     previousStatus: TaskStatus
 ): Task | null {
-    if (!isRecurrenceRule(task.recurrence)) return null;
-
-    const rule = task.recurrence;
+    const rule = getRecurrenceRule(task.recurrence);
+    if (!rule) return null;
+    const strategy = getRecurrenceStrategy(task.recurrence);
     const completedAtDate = safeParseDate(completedAtIso) || new Date(completedAtIso);
+    const baseIso = strategy === 'fluid' ? completedAtIso : task.dueDate;
 
-    const nextDueDate = nextIsoFrom(task.dueDate, rule, completedAtDate);
-    const nextStartTime = task.startTime ? nextIsoFrom(task.startTime, rule, completedAtDate) : undefined;
-    const nextReviewAt = task.reviewAt ? nextIsoFrom(task.reviewAt, rule, completedAtDate) : undefined;
+    const nextDueDate = nextIsoFrom(baseIso, rule, completedAtDate);
+    const nextStartTime = task.startTime
+        ? nextIsoFrom(strategy === 'fluid' ? completedAtIso : task.startTime, rule, completedAtDate)
+        : undefined;
+    const nextReviewAt = task.reviewAt
+        ? nextIsoFrom(strategy === 'fluid' ? completedAtIso : task.reviewAt, rule, completedAtDate)
+        : undefined;
 
     let newStatus: TaskStatus = previousStatus;
     if (newStatus === 'done') {

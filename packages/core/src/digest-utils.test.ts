@@ -74,8 +74,8 @@ describe('getDailyDigestSummary', () => {
             },
             {
                 id: 'p2',
-                title: 'Completed (ignored)',
-                status: 'completed',
+                title: 'Archived (ignored)',
+                status: 'archived',
                 color: '#000000',
                 reviewAt: '2025-01-10T01:00:00.000Z',
                 createdAt: now.toISOString(),
@@ -93,4 +93,3 @@ describe('getDailyDigestSummary', () => {
         });
     });
 });
-
