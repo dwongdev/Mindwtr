@@ -1,0 +1,1 @@
+Local-first, privacy-focused GTD task manager.

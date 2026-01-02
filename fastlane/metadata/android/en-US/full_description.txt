@@ -1,0 +1,10 @@
+Mindwtr is a minimalist, local-first implementation of the Getting Things Done (GTD) methodology. It is designed for users who prioritize privacy, speed, and data ownership.
+
+Features:
+- 100% Local: Your data lives on your device in plain JSON files. No cloud servers, no accounts, no tracking.
+- GTD Workflow: Dedicated interfaces for Inbox Capture, Processing, and Reviewing.
+- Fast & Keyboard Driven: Designed for efficiency with quick capture and rapid task sorting.
+- Cross-Platform: Works seamlessly on Android and Desktop (Linux/macOS).
+- Open Source: Completely free and transparent.
+
+Take back control of your productivity without sacrificing your privacy.
