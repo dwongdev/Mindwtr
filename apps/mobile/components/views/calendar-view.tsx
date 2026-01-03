@@ -39,6 +39,7 @@ export function CalendarView() {
   const { tasks, updateTask, deleteTask } = useTaskStore();
   const { isDark } = useTheme();
   const { t, language } = useLanguage();
+  const timeEstimatesEnabled = useTaskStore((state) => state.settings?.features?.timeEstimates === true);
   const today = new Date();
   const [currentMonth, setCurrentMonth] = useState(today.getMonth());
   const [currentYear, setCurrentYear] = useState(today.getFullYear());
@@ -110,6 +111,7 @@ export function CalendarView() {
   };
 
   const timeEstimateToMinutes = (estimate: Task['timeEstimate']): number => {
+    if (!timeEstimatesEnabled) return 30;
     switch (estimate) {
       case '5min': return 5;
       case '10min': return 10;

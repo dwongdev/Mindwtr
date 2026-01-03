@@ -35,6 +35,7 @@ export function ProjectsView() {
     const [showQuickAreaPrompt, setShowQuickAreaPrompt] = useState(false);
     const [pendingAreaAssignProjectId, setPendingAreaAssignProjectId] = useState<string | null>(null);
     const [tagDraft, setTagDraft] = useState('');
+    const [editProjectTitle, setEditProjectTitle] = useState('');
     const ALL_AREAS = '__all__';
     const NO_AREA = '__none__';
     const ALL_TAGS = '__all__';
@@ -169,6 +170,10 @@ export function ProjectsView() {
     };
 
     const selectedProject = projects.find(p => p.id === selectedProjectId);
+
+    useEffect(() => {
+        setEditProjectTitle(selectedProject?.title ?? '');
+    }, [selectedProject?.id, selectedProject?.title]);
     const projectTasks = selectedProjectId
         ? tasks.filter(t => t.projectId === selectedProjectId && t.status !== 'done' && !t.deletedAt)
         : [];
@@ -528,7 +533,32 @@ export function ProjectsView() {
                                         aria-hidden="true"
                                     />
                                     <div className="flex flex-col min-w-0">
-                                        <h2 className="text-2xl font-bold truncate">{selectedProject.title}</h2>
+                                        <input
+                                            value={editProjectTitle}
+                                            onChange={(e) => setEditProjectTitle(e.target.value)}
+                                            onBlur={() => {
+                                                if (!selectedProject) return;
+                                                const nextTitle = editProjectTitle.trim();
+                                                if (!nextTitle) {
+                                                    setEditProjectTitle(selectedProject.title);
+                                                    return;
+                                                }
+                                                if (nextTitle !== selectedProject.title) {
+                                                    updateProject(selectedProject.id, { title: nextTitle });
+                                                }
+                                            }}
+                                            onKeyDown={(e) => {
+                                                if (!selectedProject) return;
+                                                if (e.key === 'Enter') {
+                                                    (e.currentTarget as HTMLInputElement).blur();
+                                                } else if (e.key === 'Escape') {
+                                                    setEditProjectTitle(selectedProject.title);
+                                                    (e.currentTarget as HTMLInputElement).blur();
+                                                }
+                                            }}
+                                            className="text-2xl font-bold truncate bg-transparent border-b border-transparent focus:border-border focus:outline-none w-full"
+                                            aria-label={t('projects.title')}
+                                        />
                                         {selectedProject.tagIds && selectedProject.tagIds.length > 0 && (
                                             <div className="flex flex-wrap gap-1 pt-1">
                                                 {selectedProject.tagIds.map((tag) => (

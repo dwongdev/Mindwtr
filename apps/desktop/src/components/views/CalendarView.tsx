@@ -7,8 +7,9 @@ import { ExternalCalendarService } from '../../lib/external-calendar-service';
 import { cn } from '../../lib/utils';
 
 export function CalendarView() {
-    const { tasks, updateTask, deleteTask } = useTaskStore();
+    const { tasks, updateTask, deleteTask, settings } = useTaskStore();
     const { t } = useLanguage();
+    const timeEstimatesEnabled = settings?.features?.timeEstimates === true;
     const today = new Date();
     const [currentMonth] = useState(today);
     const [selectedDate, setSelectedDate] = useState<Date | null>(null);
@@ -57,6 +58,7 @@ export function CalendarView() {
     };
 
     const timeEstimateToMinutes = (estimate: any): number => {
+        if (!timeEstimatesEnabled) return 30;
         switch (estimate) {
             case '5min': return 5;
             case '10min': return 10;

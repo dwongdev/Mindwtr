@@ -147,12 +147,19 @@ export function parseQuickAdd(input: string, projects?: Project[], now: Date = n
     let projectId: string | undefined;
     const projectIdMatch = working.match(/\/project:([^\s/]+)/i);
     if (projectIdMatch) {
-        projectId = projectIdMatch[1];
+        const token = projectIdMatch[1];
+        if (token) {
+            projectId = token;
+        }
         working = stripToken(working, projectIdMatch[0]);
     } else {
         const plusMatch = working.match(/\+([^\s/]+)/);
         if (plusMatch) {
-            const rawProject = plusMatch[1];
+            const rawProject = plusMatch[1] || '';
+            if (!rawProject) {
+                working = stripToken(working, plusMatch[0]);
+                return { title: working, props: {} };
+            }
             if (projects && projects.length > 0) {
                 const found = projects.find((p) => p.title.toLowerCase() === rawProject.toLowerCase());
                 if (found) projectId = found.id;

@@ -30,6 +30,8 @@ import { MarkdownText } from './markdown-text';
 import { buildAIConfig, buildCopilotConfig, loadAIKey } from '../lib/ai-config';
 import { AIResponseModal, type AIResponseAction } from './ai-response-modal';
 
+const MAX_SUGGESTED_TAGS = 8;
+
 interface TaskEditModalProps {
     visible: boolean;
     task: Task | null;
@@ -52,7 +54,6 @@ const DEFAULT_TASK_EDITOR_ORDER: TaskEditorFieldId[] = [
     'startTime',
     'dueDate',
     'reviewAt',
-    'blockedBy',
     'attachments',
     'checklist',
 ];
@@ -112,6 +113,8 @@ export function TaskEditModal({ visible, task, onClose, onSave, onFocusMode, def
     const { tasks, projects, settings, duplicateTask, resetTaskChecklist } = useTaskStore();
     const { t } = useLanguage();
     const tc = useThemeColors();
+    const prioritiesEnabled = settings.features?.priorities === true;
+    const timeEstimatesEnabled = settings.features?.timeEstimates === true;
     const [editedTask, setEditedTask] = useState<Partial<Task>>({});
     const [showDatePicker, setShowDatePicker] = useState<'start' | 'start-time' | 'due' | 'due-time' | 'review' | null>(null);
     const [pendingStartDate, setPendingStartDate] = useState<Date | null>(null);
@@ -132,6 +135,8 @@ export function TaskEditModal({ visible, task, onClose, onSave, onFocusMode, def
     const [copilotContext, setCopilotContext] = useState<string | undefined>(undefined);
     const [copilotEstimate, setCopilotEstimate] = useState<TimeEstimate | undefined>(undefined);
     const [copilotTags, setCopilotTags] = useState<string[]>([]);
+    const copilotMountedRef = useRef(true);
+    const copilotAbortRef = useRef<AbortController | null>(null);
 
     // Compute most frequent tags from all tasks
     const suggestedTags = React.useMemo(() => {
@@ -150,7 +155,7 @@ export function TaskEditModal({ visible, task, onClose, onSave, onFocusMode, def
         const defaults = ['@home', '@work', '@errands', '@computer', '@phone'];
         const unique = new Set([...sorted, ...defaults]);
 
-        return Array.from(unique).slice(0, 8);
+        return Array.from(unique).slice(0, MAX_SUGGESTED_TAGS);
     }, [tasks]);
 
     const contextOptions = React.useMemo(() => {
@@ -180,7 +185,7 @@ export function TaskEditModal({ visible, task, onClose, onSave, onFocusMode, def
         // But TS says "Cannot find name", so import is the key.
         const unique = new Set([...sorted, ...PRESET_TAGS]);
 
-        return Array.from(unique).slice(0, 8);
+        return Array.from(unique).slice(0, MAX_SUGGESTED_TAGS);
     }, [tasks]);
 
     const resolveInitialTab = (target?: TaskEditTab, currentTask?: Task | null): TaskEditTab => {
@@ -224,6 +229,13 @@ export function TaskEditModal({ visible, task, onClose, onSave, onFocusMode, def
     }, [aiProvider]);
 
     useEffect(() => {
+        copilotMountedRef.current = true;
+        return () => {
+            copilotMountedRef.current = false;
+        };
+    }, []);
+
+    useEffect(() => {
         if (!aiEnabled || !aiKey) {
             setCopilotSuggestion(null);
             return;
@@ -236,29 +248,48 @@ export function TaskEditModal({ visible, task, onClose, onSave, onFocusMode, def
             return;
         }
         let cancelled = false;
-        const handle = setTimeout(async () => {
-            try {
-                const provider = createAIProvider(buildCopilotConfig(settings, aiKey));
-                const suggestion = await provider.predictMetadata({ title: input, contexts: contextOptions, tags: tagOptions });
-                if (cancelled) return;
-                if (!suggestion.context && !suggestion.timeEstimate && !suggestion.tags?.length) {
+            const handle = setTimeout(async () => {
+                try {
+                    if (copilotAbortRef.current) copilotAbortRef.current.abort();
+                    const abortController = typeof AbortController === 'function' ? new AbortController() : null;
+                    copilotAbortRef.current = abortController;
+                    const provider = createAIProvider(buildCopilotConfig(settings, aiKey));
+                    const suggestion = await provider.predictMetadata(
+                        { title: input, contexts: contextOptions, tags: tagOptions },
+                        abortController ? { signal: abortController.signal } : undefined
+                    );
+                    if (cancelled || !copilotMountedRef.current) return;
+                if (!suggestion.context && (!timeEstimatesEnabled || !suggestion.timeEstimate) && !suggestion.tags?.length) {
                     setCopilotSuggestion(null);
                 } else {
                     setCopilotSuggestion(suggestion);
                 }
             } catch {
-                if (!cancelled) setCopilotSuggestion(null);
+                if (!cancelled && copilotMountedRef.current) setCopilotSuggestion(null);
             }
         }, 800);
-        return () => {
-            cancelled = true;
-            clearTimeout(handle);
-        };
-    }, [aiEnabled, aiKey, editedTask.title, editedTask.description, contextOptions, tagOptions, settings]);
+            return () => {
+                cancelled = true;
+                clearTimeout(handle);
+                if (copilotAbortRef.current) {
+                    copilotAbortRef.current.abort();
+                    copilotAbortRef.current = null;
+                }
+            };
+    }, [aiEnabled, aiKey, editedTask.title, editedTask.description, contextOptions, tagOptions, settings, timeEstimatesEnabled]);
 
     useEffect(() => {
         if (!visible) {
             setAiModal(null);
+            setCopilotSuggestion(null);
+            setCopilotApplied(false);
+            setCopilotContext(undefined);
+            setCopilotEstimate(undefined);
+            setCopilotTags([]);
+            if (copilotAbortRef.current) {
+                copilotAbortRef.current.abort();
+                copilotAbortRef.current = null;
+            }
         }
     }, [visible]);
 
@@ -284,7 +315,7 @@ export function TaskEditModal({ visible, task, onClose, onSave, onFocusMode, def
             setEditedTask(prev => ({ ...prev, tags: nextTags }));
             setCopilotTags(copilotSuggestion.tags);
         }
-        if (copilotSuggestion.timeEstimate) {
+        if (copilotSuggestion.timeEstimate && timeEstimatesEnabled) {
             setEditedTask(prev => ({ ...prev, timeEstimate: copilotSuggestion.timeEstimate }));
             setCopilotEstimate(copilotSuggestion.timeEstimate);
         }
@@ -317,10 +348,6 @@ export function TaskEditModal({ visible, task, onClose, onSave, onFocusMode, def
         } else {
             updates.recurrence = buildRecurrenceValue(recurrenceRule, recurrenceStrategy);
         }
-        if (editedTask.blockedByTaskIds) {
-            const filtered = editedTask.blockedByTaskIds.filter((id) => availableBlockerIds.has(id));
-            updates.blockedByTaskIds = filtered.length > 0 ? filtered : undefined;
-        }
         onSave(task.id, updates);
         onClose();
     };
@@ -335,15 +362,19 @@ export function TaskEditModal({ visible, task, onClose, onSave, onFocusMode, def
 
         const status = (editedTask.status ?? task.status) as TaskStatus | undefined;
         if (status) lines.push(`${t('taskEdit.statusLabel')}: ${t(`status.${status}`)}`);
-        const priority = editedTask.priority ?? task.priority;
-        if (priority) lines.push(`${t('taskEdit.priorityLabel')}: ${t(`priority.${priority}`)}`);
+        if (prioritiesEnabled) {
+            const priority = editedTask.priority ?? task.priority;
+            if (priority) lines.push(`${t('taskEdit.priorityLabel')}: ${t(`priority.${priority}`)}`);
+        }
 
         if (editedTask.startTime) lines.push(`${t('taskEdit.startDateLabel')}: ${formatDate(editedTask.startTime)}`);
         if (editedTask.dueDate) lines.push(`${t('taskEdit.dueDateLabel')}: ${formatDueDate(editedTask.dueDate)}`);
         if (editedTask.reviewAt) lines.push(`${t('taskEdit.reviewDateLabel')}: ${formatDate(editedTask.reviewAt)}`);
 
-        const estimate = editedTask.timeEstimate as TimeEstimate | undefined;
-        if (estimate) lines.push(`${t('taskEdit.timeEstimateLabel')}: ${formatTimeEstimateLabel(estimate)}`);
+        if (timeEstimatesEnabled) {
+            const estimate = editedTask.timeEstimate as TimeEstimate | undefined;
+            if (estimate) lines.push(`${t('taskEdit.timeEstimateLabel')}: ${formatTimeEstimateLabel(estimate)}`);
+        }
 
         const contexts = (editedTask.contexts ?? []).filter(Boolean);
         if (contexts.length) lines.push(`${t('taskEdit.contextsLabel')}: ${contexts.join(', ')}`);
@@ -645,13 +676,19 @@ export function TaskEditModal({ visible, task, onClose, onSave, onFocusMode, def
     const priorityOptions: TaskPriority[] = ['low', 'medium', 'high', 'urgent'];
 
     const savedOrder = settings.gtd?.taskEditor?.order ?? [];
+    const disabledFields = useMemo(() => {
+        const next = new Set<TaskEditorFieldId>();
+        if (!prioritiesEnabled) next.add('priority');
+        if (!timeEstimatesEnabled) next.add('timeEstimate');
+        return next;
+    }, [prioritiesEnabled, timeEstimatesEnabled]);
 
     const taskEditorOrder = useMemo(() => {
         const known = new Set(DEFAULT_TASK_EDITOR_ORDER);
         const normalized = savedOrder.filter((id) => known.has(id));
         const missing = DEFAULT_TASK_EDITOR_ORDER.filter((id) => !normalized.includes(id));
-        return [...normalized, ...missing];
-    }, [savedOrder]);
+        return [...normalized, ...missing].filter((id) => !disabledFields.has(id));
+    }, [savedOrder, disabledFields]);
 
     const primaryFieldIds = useMemo(() => new Set<TaskEditorFieldId>(['dueDate']), []);
 
@@ -664,26 +701,12 @@ export function TaskEditModal({ visible, task, onClose, onSave, onFocusMode, def
         ...(task ?? {}),
         ...editedTask,
     }), [task, editedTask]);
-    const availableBlockerTasks = useMemo(() => {
-        const projectId = mergedTask.projectId;
-        return tasks.filter((otherTask) =>
-            otherTask.id !== task?.id &&
-            !otherTask.deletedAt &&
-            (otherTask.projectId ?? null) === (projectId ?? null) &&
-            otherTask.status !== 'done'
-        );
-    }, [mergedTask.projectId, task?.id, tasks]);
-    const availableBlockerIds = useMemo(
-        () => new Set(availableBlockerTasks.map((blocker) => blocker.id)),
-        [availableBlockerTasks]
-    );
-
     const hasFieldValue = (fieldId: TaskEditorFieldId) => {
         switch (fieldId) {
             case 'status':
                 return Boolean(mergedTask.status);
             case 'priority':
-                return Boolean(mergedTask.priority);
+                return prioritiesEnabled && Boolean(mergedTask.priority);
             case 'contexts':
                 return (mergedTask.contexts || []).length > 0;
             case 'description':
@@ -691,7 +714,7 @@ export function TaskEditModal({ visible, task, onClose, onSave, onFocusMode, def
             case 'tags':
                 return (mergedTask.tags || []).length > 0;
             case 'timeEstimate':
-                return Boolean(mergedTask.timeEstimate);
+                return timeEstimatesEnabled && Boolean(mergedTask.timeEstimate);
             case 'recurrence':
                 return Boolean(mergedTask.recurrence);
             case 'startTime':
@@ -700,8 +723,6 @@ export function TaskEditModal({ visible, task, onClose, onSave, onFocusMode, def
                 return Boolean(mergedTask.dueDate);
             case 'reviewAt':
                 return Boolean(mergedTask.reviewAt);
-            case 'blockedBy':
-                return (mergedTask.blockedByTaskIds || []).length > 0;
             case 'attachments':
                 return (mergedTask.attachments || []).some((attachment) => !attachment.deletedAt);
             case 'checklist':
@@ -739,13 +760,6 @@ export function TaskEditModal({ visible, task, onClose, onSave, onFocusMode, def
             newContexts = [...current, tag];
         }
         setEditedTask(prev => ({ ...prev, contexts: newContexts }));
-    };
-
-    const toggleBlocker = (blockerId: string) => {
-        const current = editedTask.blockedByTaskIds || [];
-        const exists = current.includes(blockerId);
-        const next = exists ? current.filter(id => id !== blockerId) : [...current, blockerId];
-        setEditedTask(prev => ({ ...prev, blockedByTaskIds: next }));
     };
 
     const handleDone = () => {
@@ -990,6 +1004,7 @@ export function TaskEditModal({ visible, task, onClose, onSave, onFocusMode, def
                     </View>
                 );
             case 'priority':
+                if (!prioritiesEnabled) return null;
                 return (
                     <View style={styles.formGroup}>
                         <Text style={[styles.label, { color: tc.secondaryText }]}>{t('taskEdit.priorityLabel')}</Text>
@@ -1086,34 +1101,8 @@ export function TaskEditModal({ visible, task, onClose, onSave, onFocusMode, def
                         </View>
                     </View>
                 );
-            case 'blockedBy':
-                return (
-                    <View style={styles.formGroup}>
-                        <Text style={[styles.label, { color: tc.secondaryText }]}>{t('taskEdit.blockedByLabel')}</Text>
-                        <View style={styles.suggestionsContainer}>
-                            <View style={styles.suggestionTags}>
-	                                {availableBlockerTasks.map(otherTask => {
-                                        const isActive = Boolean(editedTask.blockedByTaskIds?.includes(otherTask.id));
-                                        return (
-                                            <TouchableOpacity
-                                                key={otherTask.id}
-                                                style={getSuggestionChipStyle(isActive)}
-                                                onPress={() => toggleBlocker(otherTask.id)}
-                                            >
-                                                <Text
-                                                    style={getSuggestionTextStyle(isActive)}
-                                                    numberOfLines={1}
-                                                >
-                                                    {otherTask.title}
-                                                </Text>
-                                            </TouchableOpacity>
-                                        );
-                                    })}
-                            </View>
-                        </View>
-                    </View>
-                );
             case 'timeEstimate':
+                if (!timeEstimatesEnabled) return null;
                 return (
                     <View style={styles.formGroup}>
                         <Text style={[styles.label, { color: tc.secondaryText }]}>{t('taskEdit.timeEstimateLabel')}</Text>
@@ -1203,28 +1192,28 @@ export function TaskEditModal({ visible, task, onClose, onSave, onFocusMode, def
                         )}
                         {!!recurrenceRuleValue && (
                             <View style={[styles.statusContainer, { marginTop: 8 }]}>
-                                {(['strict', 'fluid'] as RecurrenceStrategy[]).map((strategy) => (
-                                    <TouchableOpacity
-                                        key={strategy}
-                                        style={getStatusChipStyle(recurrenceStrategyValue === strategy)}
-                                        onPress={() => setEditedTask(prev => ({
+                                <TouchableOpacity
+                                    style={getStatusChipStyle(recurrenceStrategyValue === 'fluid')}
+                                    onPress={() => {
+                                        const nextStrategy: RecurrenceStrategy = recurrenceStrategyValue === 'fluid' ? 'strict' : 'fluid';
+                                        setEditedTask(prev => ({
                                             ...prev,
                                             recurrence:
                                                 recurrenceRuleValue === 'weekly' && customWeekdays.length > 0
                                                     ? {
                                                         rule: 'weekly',
-                                                        strategy,
+                                                        strategy: nextStrategy,
                                                         byDay: customWeekdays,
                                                         rrule: buildRRuleString('weekly', customWeekdays),
                                                     }
-                                                    : buildRecurrenceValue(recurrenceRuleValue, strategy),
-                                        }))}
-                                    >
-                                        <Text style={getStatusTextStyle(recurrenceStrategyValue === strategy)}>
-                                            {strategy === 'strict' ? t('recurrence.strategyStrict') : t('recurrence.strategyFluid')}
-                                        </Text>
-                                    </TouchableOpacity>
-                                ))}
+                                                    : buildRecurrenceValue(recurrenceRuleValue, nextStrategy),
+                                        }));
+                                    }}
+                                >
+                                    <Text style={getStatusTextStyle(recurrenceStrategyValue === 'fluid')}>
+                                        {t('recurrence.afterCompletion')}
+                                    </Text>
+                                </TouchableOpacity>
                             </View>
                         )}
                     </View>
@@ -1475,10 +1464,6 @@ export function TaskEditModal({ visible, task, onClose, onSave, onFocusMode, def
 
     const renderViewContent = () => {
         const project = projects.find((p) => p.id === mergedTask.projectId);
-        const blockedByTitles = (mergedTask.blockedByTaskIds || [])
-            .filter((id) => availableBlockerIds.has(id))
-            .map((id) => tasks.find((t) => t.id === id)?.title)
-            .filter(Boolean) as string[];
         const description = String(mergedTask.description || '').trim();
         const checklist = mergedTask.checklist || [];
 
@@ -1490,7 +1475,7 @@ export function TaskEditModal({ visible, task, onClose, onSave, onFocusMode, def
         const recurrenceRule = getRecurrenceRuleValue(mergedTask.recurrence);
         const recurrenceStrategy = getRecurrenceStrategyValue(mergedTask.recurrence);
         const recurrenceLabel = recurrenceRule
-            ? `${t(`recurrence.${recurrenceRule}`) || recurrenceRule}${recurrenceStrategy === 'fluid' ? ` · ${t('recurrence.strategyFluid')}` : ''}`
+            ? `${t(`recurrence.${recurrenceRule}`) || recurrenceRule}${recurrenceStrategy === 'fluid' ? ` · ${t('recurrence.afterCompletionShort')}` : ''}`
             : undefined;
 
         return (
@@ -1500,12 +1485,12 @@ export function TaskEditModal({ visible, task, onClose, onSave, onFocusMode, def
                 keyboardShouldPersistTaps="handled"
             >
                 {renderViewRow(t('taskEdit.statusLabel'), statusLabel)}
-                {renderViewRow(t('taskEdit.priorityLabel'), priorityLabel)}
+                {prioritiesEnabled ? renderViewRow(t('taskEdit.priorityLabel'), priorityLabel) : null}
                 {renderViewRow(t('taskEdit.projectLabel'), project?.title)}
                 {renderViewRow(t('taskEdit.startDateLabel'), mergedTask.startTime ? formatDate(mergedTask.startTime) : undefined)}
                 {renderViewRow(t('taskEdit.dueDateLabel'), mergedTask.dueDate ? formatDueDate(mergedTask.dueDate) : undefined)}
                 {renderViewRow(t('taskEdit.reviewDateLabel'), mergedTask.reviewAt ? formatDate(mergedTask.reviewAt) : undefined)}
-                {renderViewRow(t('taskEdit.timeEstimateLabel'), timeEstimateLabel)}
+                {timeEstimatesEnabled ? renderViewRow(t('taskEdit.timeEstimateLabel'), timeEstimateLabel) : null}
                 {mergedTask.contexts?.length ? (
                     <View style={styles.viewSection}>
                         <Text style={[styles.viewLabel, { color: tc.secondaryText }]}>{t('taskEdit.contextsLabel')}</Text>
@@ -1520,12 +1505,6 @@ export function TaskEditModal({ visible, task, onClose, onSave, onFocusMode, def
                 ) : null}
                 {mergedTask.location ? renderViewRow(t('taskEdit.locationLabel'), mergedTask.location) : null}
                 {recurrenceLabel ? renderViewRow(t('taskEdit.recurrenceLabel'), recurrenceLabel) : null}
-                {blockedByTitles.length ? (
-                    <View style={styles.viewSection}>
-                        <Text style={[styles.viewLabel, { color: tc.secondaryText }]}>{t('taskEdit.blockedByLabel')}</Text>
-                        {renderViewPills(blockedByTitles)}
-                    </View>
-                ) : null}
                 {description ? (
                     <View style={styles.viewSection}>
                         <Text style={[styles.viewLabel, { color: tc.secondaryText }]}>{t('taskEdit.descriptionLabel')}</Text>
@@ -1736,7 +1715,7 @@ export function TaskEditModal({ visible, task, onClose, onSave, onFocusMode, def
                                             <Text style={[styles.copilotText, { color: tc.text }]}>
                                                 ✨ {t('copilot.suggested')}{' '}
                                                 {copilotSuggestion.context ? `${copilotSuggestion.context} ` : ''}
-                                                {copilotSuggestion.timeEstimate ? `${copilotSuggestion.timeEstimate}` : ''}
+                                                {timeEstimatesEnabled && copilotSuggestion.timeEstimate ? `${copilotSuggestion.timeEstimate}` : ''}
                                                 {copilotSuggestion.tags?.length ? copilotSuggestion.tags.join(' ') : ''}
                                             </Text>
                                             <Text style={[styles.copilotHint, { color: tc.secondaryText }]}>
@@ -1749,7 +1728,7 @@ export function TaskEditModal({ visible, task, onClose, onSave, onFocusMode, def
                                             <Text style={[styles.copilotText, { color: tc.text }]}>
                                                 ✅ {t('copilot.applied')}{' '}
                                                 {copilotContext ? `${copilotContext} ` : ''}
-                                                {copilotEstimate ? `${copilotEstimate}` : ''}
+                                                {timeEstimatesEnabled && copilotEstimate ? `${copilotEstimate}` : ''}
                                                 {copilotTags.length ? copilotTags.join(' ') : ''}
                                             </Text>
                                         </View>

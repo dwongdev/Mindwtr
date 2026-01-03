@@ -1,17 +1,21 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useTaskStore, Task, TaskPriority, TimeEstimate, PRESET_CONTEXTS, PRESET_TAGS, matchesHierarchicalToken, getTaskAgeLabel, getTaskStaleness, type TaskStatus, safeFormatDate, safeParseDate, isDueForReview } from '@mindwtr/core';
 import { useLanguage } from '../../contexts/language-context';
 import { cn } from '../../lib/utils';
 import { Clock, Star, Calendar, AlertCircle, ArrowRight, Filter, type LucideIcon } from 'lucide-react';
 
 export function AgendaView() {
-    const { tasks, updateTask } = useTaskStore();
+    const { tasks, updateTask, settings } = useTaskStore();
     const { t, language } = useLanguage();
     const [selectedTokens, setSelectedTokens] = useState<string[]>([]);
     const [selectedPriorities, setSelectedPriorities] = useState<TaskPriority[]>([]);
     const [selectedTimeEstimates, setSelectedTimeEstimates] = useState<TimeEstimate[]>([]);
     const [filtersOpen, setFiltersOpen] = useState(false);
     const [top3Only, setTop3Only] = useState(false);
+    const prioritiesEnabled = settings?.features?.priorities === true;
+    const timeEstimatesEnabled = settings?.features?.timeEstimates === true;
+    const activePriorities = prioritiesEnabled ? selectedPriorities : [];
+    const activeTimeEstimates = timeEstimatesEnabled ? selectedTimeEstimates : [];
 
     // Filter active tasks
     const activeTasks = useMemo(() =>
@@ -39,12 +43,12 @@ export function AgendaView() {
                 );
                 if (!matchesAll) return false;
             }
-            if (selectedPriorities.length > 0 && (!task.priority || !selectedPriorities.includes(task.priority))) return false;
-            if (selectedTimeEstimates.length > 0 && (!task.timeEstimate || !selectedTimeEstimates.includes(task.timeEstimate))) return false;
+            if (activePriorities.length > 0 && (!task.priority || !activePriorities.includes(task.priority))) return false;
+            if (activeTimeEstimates.length > 0 && (!task.timeEstimate || !activeTimeEstimates.includes(task.timeEstimate))) return false;
             return true;
         });
-    }, [activeTasks, selectedTokens, selectedPriorities, selectedTimeEstimates]);
-    const hasFilters = selectedTokens.length > 0 || selectedPriorities.length > 0 || selectedTimeEstimates.length > 0;
+    }, [activeTasks, selectedTokens, activePriorities, activeTimeEstimates]);
+    const hasFilters = selectedTokens.length > 0 || activePriorities.length > 0 || activeTimeEstimates.length > 0;
     const showFiltersPanel = filtersOpen || hasFilters;
     const toggleTokenFilter = (token: string) => {
         setSelectedTokens((prev) =>
@@ -66,6 +70,14 @@ export function AgendaView() {
         setSelectedPriorities([]);
         setSelectedTimeEstimates([]);
     };
+    useEffect(() => {
+        if (!prioritiesEnabled && selectedPriorities.length > 0) {
+            setSelectedPriorities([]);
+        }
+        if (!timeEstimatesEnabled && selectedTimeEstimates.length > 0) {
+            setSelectedTimeEstimates([]);
+        }
+    }, [prioritiesEnabled, timeEstimatesEnabled, selectedPriorities.length, selectedTimeEstimates.length]);
     const getPriorityBadge = (priority: TaskPriority) => {
         switch (priority) {
             case 'low':
@@ -136,8 +148,10 @@ export function AgendaView() {
             return parsed ? parsed.getTime() : Number.POSITIVE_INFINITY;
         };
         const sorted = [...top3Candidates].sort((a, b) => {
-            const priorityDiff = (priorityRank[b.priority as TaskPriority] || 0) - (priorityRank[a.priority as TaskPriority] || 0);
-            if (priorityDiff !== 0) return priorityDiff;
+            if (prioritiesEnabled) {
+                const priorityDiff = (priorityRank[b.priority as TaskPriority] || 0) - (priorityRank[a.priority as TaskPriority] || 0);
+                if (priorityDiff !== 0) return priorityDiff;
+            }
             const dueDiff = parseDue(a.dueDate) - parseDue(b.dueDate);
             if (dueDiff !== 0) return dueDiff;
             const aCreated = safeParseDate(a.createdAt)?.getTime() ?? 0;
@@ -145,7 +159,7 @@ export function AgendaView() {
             return aCreated - bCreated;
         });
         return sorted.slice(0, 3);
-    }, [top3Candidates]);
+    }, [top3Candidates, prioritiesEnabled]);
     const remainingCount = Math.max(top3Candidates.length - top3Tasks.length, 0);
 
     const handleToggleFocus = (taskId: string) => {
@@ -202,7 +216,7 @@ export function AgendaView() {
                                 </span>
                             )}
 
-                            {task.priority && (
+                            {prioritiesEnabled && task.priority && (
                                 <span className={cn(
                                     "px-2 py-0.5 rounded-full text-[10px] font-semibold uppercase tracking-wide",
                                     getPriorityBadge(task.priority)
@@ -218,7 +232,7 @@ export function AgendaView() {
                                 </span>
                             )}
 
-                            {task.timeEstimate && (
+                            {timeEstimatesEnabled && task.timeEstimate && (
                                 <span className={cn("flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full", focusMutedClass)}>
                                     <Clock className="w-3 h-3" />
                                     {formatEstimate(task.timeEstimate)}
@@ -388,54 +402,58 @@ export function AgendaView() {
                                 })}
                             </div>
                         </div>
-                        <div className="space-y-2">
-                            <div className="text-xs text-muted-foreground uppercase tracking-wide">{t('filters.priority')}</div>
-                            <div className="flex flex-wrap gap-2">
-                                {priorityOptions.map((priority) => {
-                                    const isActive = selectedPriorities.includes(priority);
-                                    return (
-                                        <button
-                                            key={priority}
-                                            type="button"
-                                            onClick={() => togglePriorityFilter(priority)}
-                                            aria-pressed={isActive}
-                                            className={cn(
-                                                "px-3 py-1.5 rounded-full text-xs font-medium transition-colors",
-                                                isActive
-                                                    ? "bg-primary text-primary-foreground"
-                                                    : "bg-muted hover:bg-muted/80 text-muted-foreground"
-                                            )}
-                                        >
-                                            {t(`priority.${priority}`)}
-                                        </button>
-                                    );
-                                })}
+                        {prioritiesEnabled && (
+                            <div className="space-y-2">
+                                <div className="text-xs text-muted-foreground uppercase tracking-wide">{t('filters.priority')}</div>
+                                <div className="flex flex-wrap gap-2">
+                                    {priorityOptions.map((priority) => {
+                                        const isActive = selectedPriorities.includes(priority);
+                                        return (
+                                            <button
+                                                key={priority}
+                                                type="button"
+                                                onClick={() => togglePriorityFilter(priority)}
+                                                aria-pressed={isActive}
+                                                className={cn(
+                                                    "px-3 py-1.5 rounded-full text-xs font-medium transition-colors",
+                                                    isActive
+                                                        ? "bg-primary text-primary-foreground"
+                                                        : "bg-muted hover:bg-muted/80 text-muted-foreground"
+                                                )}
+                                            >
+                                                {t(`priority.${priority}`)}
+                                            </button>
+                                        );
+                                    })}
+                                </div>
                             </div>
-                        </div>
-                        <div className="space-y-2">
-                            <div className="text-xs text-muted-foreground uppercase tracking-wide">{t('filters.timeEstimate')}</div>
-                            <div className="flex flex-wrap gap-2">
-                                {timeEstimateOptions.map((estimate) => {
-                                    const isActive = selectedTimeEstimates.includes(estimate);
-                                    return (
-                                        <button
-                                            key={estimate}
-                                            type="button"
-                                            onClick={() => toggleTimeFilter(estimate)}
-                                            aria-pressed={isActive}
-                                            className={cn(
-                                                "px-3 py-1.5 rounded-full text-xs font-medium transition-colors",
-                                                isActive
-                                                    ? "bg-primary text-primary-foreground"
-                                                    : "bg-muted hover:bg-muted/80 text-muted-foreground"
-                                            )}
-                                        >
-                                            {formatEstimate(estimate)}
-                                        </button>
-                                    );
-                                })}
+                        )}
+                        {timeEstimatesEnabled && (
+                            <div className="space-y-2">
+                                <div className="text-xs text-muted-foreground uppercase tracking-wide">{t('filters.timeEstimate')}</div>
+                                <div className="flex flex-wrap gap-2">
+                                    {timeEstimateOptions.map((estimate) => {
+                                        const isActive = selectedTimeEstimates.includes(estimate);
+                                        return (
+                                            <button
+                                                key={estimate}
+                                                type="button"
+                                                onClick={() => toggleTimeFilter(estimate)}
+                                                aria-pressed={isActive}
+                                                className={cn(
+                                                    "px-3 py-1.5 rounded-full text-xs font-medium transition-colors",
+                                                    isActive
+                                                        ? "bg-primary text-primary-foreground"
+                                                        : "bg-muted hover:bg-muted/80 text-muted-foreground"
+                                                )}
+                                            >
+                                                {formatEstimate(estimate)}
+                                            </button>
+                                        );
+                                    })}
+                                </div>
                             </div>
-                        </div>
+                        )}
                     </div>
                 )}
             </div>

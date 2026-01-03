@@ -55,21 +55,20 @@ import {
     WEBDAV_URL_KEY,
     WEBDAV_USERNAME_KEY,
     WEBDAV_PASSWORD_KEY,
-    CLOUD_URL_KEY,
-    CLOUD_TOKEN_KEY,
 } from '../../lib/sync-service';
 
 type SettingsScreen =
     | 'main'
-    | 'appearance'
-    | 'language'
+    | 'general'
     | 'notifications'
     | 'ai'
     | 'calendar'
+    | 'advanced'
     | 'gtd'
     | 'gtd-archive'
     | 'gtd-time-estimates'
     | 'gtd-task-editor'
+    | 'gtd-features'
     | 'sync'
     | 'about';
 
@@ -100,12 +99,10 @@ export default function SettingsPage() {
     const [isSyncing, setIsSyncing] = useState(false);
     const [currentScreen, setCurrentScreen] = useState<SettingsScreen>('main');
     const [syncPath, setSyncPath] = useState<string | null>(null);
-    const [syncBackend, setSyncBackend] = useState<'file' | 'webdav' | 'cloud'>('file');
+    const [syncBackend, setSyncBackend] = useState<'file' | 'webdav'>('file');
     const [webdavUrl, setWebdavUrl] = useState('');
     const [webdavUsername, setWebdavUsername] = useState('');
     const [webdavPassword, setWebdavPassword] = useState('');
-    const [cloudUrl, setCloudUrl] = useState('');
-    const [cloudToken, setCloudToken] = useState('');
     const [isCheckingUpdate, setIsCheckingUpdate] = useState(false);
     const [digestTimePicker, setDigestTimePicker] = useState<'morning' | 'evening' | null>(null);
     const [weeklyReviewTimePicker, setWeeklyReviewTimePicker] = useState(false);
@@ -141,6 +138,8 @@ export default function SettingsPage() {
     const autoArchiveDays = Number.isFinite(settings.gtd?.autoArchiveDays)
         ? Math.max(0, Math.floor(settings.gtd?.autoArchiveDays as number))
         : 7;
+    const prioritiesEnabled = settings.features?.priorities === true;
+    const timeEstimatesEnabled = settings.features?.timeEstimates === true;
 
     const formatTimeEstimateLabel = (value: TimeEstimate) => {
         if (value === '5min') return '5m';
@@ -208,8 +207,6 @@ export default function SettingsPage() {
             WEBDAV_URL_KEY,
             WEBDAV_USERNAME_KEY,
             WEBDAV_PASSWORD_KEY,
-            CLOUD_URL_KEY,
-            CLOUD_TOKEN_KEY,
         ]).then((entries) => {
             const entryMap = new Map(entries);
             const path = entryMap.get(SYNC_PATH_KEY);
@@ -217,16 +214,12 @@ export default function SettingsPage() {
             const url = entryMap.get(WEBDAV_URL_KEY);
             const username = entryMap.get(WEBDAV_USERNAME_KEY);
             const password = entryMap.get(WEBDAV_PASSWORD_KEY);
-            const cloudUrlValue = entryMap.get(CLOUD_URL_KEY);
-            const cloudTokenValue = entryMap.get(CLOUD_TOKEN_KEY);
 
             if (path) setSyncPath(path);
-            setSyncBackend(backend === 'webdav' ? 'webdav' : backend === 'cloud' ? 'cloud' : 'file');
+            setSyncBackend(backend === 'webdav' ? 'webdav' : 'file');
             if (url) setWebdavUrl(url);
             if (username) setWebdavUsername(username);
             if (password) setWebdavPassword(password);
-            if (cloudUrlValue) setCloudUrl(cloudUrlValue);
-            if (cloudTokenValue) setCloudToken(cloudTokenValue);
         }).catch(console.error);
     }, []);
 
@@ -242,8 +235,10 @@ export default function SettingsPage() {
     useEffect(() => {
         const onBackPress = () => {
             if (currentScreen !== 'main') {
-                if (currentScreen === 'gtd-time-estimates' || currentScreen === 'gtd-task-editor' || currentScreen === 'gtd-archive') {
+                if (currentScreen === 'gtd-time-estimates' || currentScreen === 'gtd-task-editor' || currentScreen === 'gtd-archive' || currentScreen === 'gtd-features') {
                     setCurrentScreen('gtd');
+                } else if (currentScreen === 'ai' || currentScreen === 'calendar') {
+                    setCurrentScreen('advanced');
                 } else {
                     setCurrentScreen('main');
                 }
@@ -464,6 +459,15 @@ export default function SettingsPage() {
         Alert.alert(t('settings.debugLogging'), t('settings.logCleared'));
     };
 
+    const updateFeatureFlags = (next: { priorities?: boolean; timeEstimates?: boolean }) => {
+        updateSettings({
+            features: {
+                ...(settings.features ?? {}),
+                ...next,
+            },
+        }).catch(console.error);
+    };
+
     // Sub-screen header
     const SubHeader = ({ title }: { title: string }) => (
         <View style={styles.subHeader}>
@@ -478,85 +482,6 @@ export default function SettingsPage() {
             <Text style={[styles.chevron, { color: tc.secondaryText }]}>›</Text>
         </TouchableOpacity>
     );
-
-    // ============ APPEARANCE SCREEN ============
-    if (currentScreen === 'appearance') {
-        return (
-            <SafeAreaView style={[styles.container, { backgroundColor: tc.bg }]} edges={['bottom']}>
-                <SubHeader title={t('settings.appearance')} />
-                <ScrollView style={styles.scrollView}>
-                    <View style={[styles.settingCard, { backgroundColor: tc.cardBg }]}>
-                        <View style={styles.settingRow}>
-                            <View style={styles.settingInfo}>
-                                <Text style={[styles.settingLabel, { color: tc.text }]}>{t('settings.useSystem')}</Text>
-                                <Text style={[styles.settingDescription, { color: tc.secondaryText }]}>{t('settings.followDevice')}</Text>
-                            </View>
-                            <Switch
-                                value={themeMode === 'system'}
-                                onValueChange={toggleSystemMode}
-                                trackColor={{ false: '#767577', true: '#3B82F6' }}
-                            />
-                        </View>
-                        {themeMode !== 'system' && (
-                            <View style={[styles.settingRow, { borderTopWidth: 1, borderTopColor: tc.border }]}>
-                                <View style={styles.settingInfo}>
-                                    <Text style={[styles.settingLabel, { color: tc.text }]}>{t('settings.darkMode')}</Text>
-                                    <Text style={[styles.settingDescription, { color: tc.secondaryText }]}>
-                                        {isDark ? t('settings.darkEnabled') : t('settings.lightEnabled')}
-                                    </Text>
-                                </View>
-                                <Switch
-                                    value={isDark}
-                                    onValueChange={toggleDarkMode}
-                                    trackColor={{ false: '#767577', true: '#3B82F6' }}
-                                />
-                            </View>
-                        )}
-                        {Platform.OS === 'android' && (
-                            <View style={[styles.settingRow, { borderTopWidth: 1, borderTopColor: tc.border }]}>
-                                <View style={styles.settingInfo}>
-                                    <Text style={[styles.settingLabel, { color: tc.text }]}>{t('settings.material3Theme')}</Text>
-                                    <Text style={[styles.settingDescription, { color: tc.secondaryText }]}>
-                                        {t('settings.material3ThemeDesc')}
-                                    </Text>
-                                </View>
-                                <Switch
-                                    value={themeStyle === 'material3'}
-                                    onValueChange={(value) => setThemeStyle(value ? 'material3' : 'default')}
-                                    trackColor={{ false: '#767577', true: '#3B82F6' }}
-                                />
-                            </View>
-                        )}
-
-                    </View>
-                </ScrollView>
-            </SafeAreaView>
-        );
-    }
-
-    // ============ LANGUAGE SCREEN ============
-    if (currentScreen === 'language') {
-        return (
-            <SafeAreaView style={[styles.container, { backgroundColor: tc.bg }]} edges={['bottom']}>
-                <SubHeader title={t('settings.language')} />
-                <ScrollView style={styles.scrollView}>
-                    <Text style={[styles.description, { color: tc.secondaryText }]}>{t('settings.selectLang')}</Text>
-                    <View style={[styles.settingCard, { backgroundColor: tc.cardBg }]}>
-                        {LANGUAGES.map((lang, idx) => (
-                            <TouchableOpacity
-                                key={lang.id}
-                                style={[styles.settingRow, idx > 0 && { borderTopWidth: 1, borderTopColor: tc.border }]}
-                                onPress={() => setLanguage(lang.id)}
-                            >
-                                <Text style={[styles.settingLabel, { color: tc.text }]}>{lang.native}</Text>
-                                {language === lang.id && <Text style={{ color: '#3B82F6', fontSize: 20 }}>✓</Text>}
-                            </TouchableOpacity>
-                        ))}
-                    </View>
-                </ScrollView>
-            </SafeAreaView>
-        );
-    }
 
     // ============ NOTIFICATIONS SCREEN ============
     if (currentScreen === 'notifications') {
@@ -578,6 +503,53 @@ export default function SettingsPage() {
                                 trackColor={{ false: '#767577', true: '#3B82F6' }}
                             />
                         </View>
+                    </View>
+
+                    <View style={[styles.settingCard, { backgroundColor: tc.cardBg, marginTop: 12 }]}>
+                        <View style={styles.settingRow}>
+                            <View style={styles.settingInfo}>
+                                <Text style={[styles.settingLabel, { color: tc.text }]}>{t('settings.weeklyReview')}</Text>
+                                <Text style={[styles.settingDescription, { color: tc.secondaryText }]}>
+                                    {t('settings.weeklyReviewDesc')}
+                                </Text>
+                            </View>
+                            <Switch
+                                value={weeklyReviewEnabled}
+                                onValueChange={(value) => updateSettings({ weeklyReviewEnabled: value }).catch(console.error)}
+                                trackColor={{ false: '#767577', true: '#3B82F6' }}
+                                disabled={!notificationsEnabled}
+                            />
+                        </View>
+
+                        <TouchableOpacity
+                            style={[styles.settingRow, { borderTopWidth: 1, borderTopColor: tc.border }]}
+                            onPress={selectWeeklyReviewDay}
+                            disabled={!weeklyReviewEnabled || !notificationsEnabled}
+                        >
+                            <View style={styles.settingInfo}>
+                                <Text style={[styles.settingLabel, { color: tc.text, opacity: weeklyReviewEnabled ? 1 : 0.5 }]}>
+                                    {t('settings.weeklyReviewDay')}
+                                </Text>
+                                <Text style={[styles.settingDescription, { color: tc.secondaryText, opacity: weeklyReviewEnabled ? 1 : 0.5 }]}>
+                                    {getWeekdayLabel(weeklyReviewDay)}
+                                </Text>
+                            </View>
+                        </TouchableOpacity>
+
+                        <TouchableOpacity
+                            style={[styles.settingRow, { borderTopWidth: 1, borderTopColor: tc.border }]}
+                            onPress={() => setWeeklyReviewTimePicker(true)}
+                            disabled={!weeklyReviewEnabled || !notificationsEnabled}
+                        >
+                            <View style={styles.settingInfo}>
+                                <Text style={[styles.settingLabel, { color: tc.text, opacity: weeklyReviewEnabled ? 1 : 0.5 }]}>
+                                    {t('settings.weeklyReviewTime')}
+                                </Text>
+                                <Text style={[styles.settingDescription, { color: tc.secondaryText, opacity: weeklyReviewEnabled ? 1 : 0.5 }]}>
+                                    {formatTime(weeklyReviewTime)}
+                                </Text>
+                            </View>
+                        </TouchableOpacity>
                     </View>
 
                     <View style={[styles.settingCard, { backgroundColor: tc.cardBg, marginTop: 12 }]}>
@@ -649,53 +621,6 @@ export default function SettingsPage() {
                         </TouchableOpacity>
                     </View>
 
-                    <View style={[styles.settingCard, { backgroundColor: tc.cardBg, marginTop: 12 }]}>
-                        <View style={styles.settingRow}>
-                            <View style={styles.settingInfo}>
-                                <Text style={[styles.settingLabel, { color: tc.text }]}>{t('settings.weeklyReview')}</Text>
-                                <Text style={[styles.settingDescription, { color: tc.secondaryText }]}>
-                                    {t('settings.weeklyReviewDesc')}
-                                </Text>
-                            </View>
-                            <Switch
-                                value={weeklyReviewEnabled}
-                                onValueChange={(value) => updateSettings({ weeklyReviewEnabled: value }).catch(console.error)}
-                                trackColor={{ false: '#767577', true: '#3B82F6' }}
-                                disabled={!notificationsEnabled}
-                            />
-                        </View>
-
-                        <TouchableOpacity
-                            style={[styles.settingRow, { borderTopWidth: 1, borderTopColor: tc.border }]}
-                            onPress={selectWeeklyReviewDay}
-                            disabled={!weeklyReviewEnabled || !notificationsEnabled}
-                        >
-                            <View style={styles.settingInfo}>
-                                <Text style={[styles.settingLabel, { color: tc.text, opacity: weeklyReviewEnabled ? 1 : 0.5 }]}>
-                                    {t('settings.weeklyReviewDay')}
-                                </Text>
-                                <Text style={[styles.settingDescription, { color: tc.secondaryText, opacity: weeklyReviewEnabled ? 1 : 0.5 }]}>
-                                    {getWeekdayLabel(weeklyReviewDay)}
-                                </Text>
-                            </View>
-                        </TouchableOpacity>
-
-                        <TouchableOpacity
-                            style={[styles.settingRow, { borderTopWidth: 1, borderTopColor: tc.border }]}
-                            onPress={() => setWeeklyReviewTimePicker(true)}
-                            disabled={!weeklyReviewEnabled || !notificationsEnabled}
-                        >
-                            <View style={styles.settingInfo}>
-                                <Text style={[styles.settingLabel, { color: tc.text, opacity: weeklyReviewEnabled ? 1 : 0.5 }]}>
-                                    {t('settings.weeklyReviewTime')}
-                                </Text>
-                                <Text style={[styles.settingDescription, { color: tc.secondaryText, opacity: weeklyReviewEnabled ? 1 : 0.5 }]}>
-                                    {formatTime(weeklyReviewTime)}
-                                </Text>
-                            </View>
-                        </TouchableOpacity>
-                    </View>
-
                     {digestTimePicker && (
                         <DateTimePicker
                             value={toTimePickerDate(digestTimePicker === 'morning' ? dailyDigestMorningTime : dailyDigestEveningTime)}
@@ -731,6 +656,76 @@ export default function SettingsPage() {
                     )}
 
 
+                </ScrollView>
+            </SafeAreaView>
+        );
+    }
+
+    // ============ GENERAL SCREEN ============
+    if (currentScreen === 'general') {
+        return (
+            <SafeAreaView style={[styles.container, { backgroundColor: tc.bg }]} edges={['bottom']}>
+                <SubHeader title={t('settings.general')} />
+                <ScrollView style={styles.scrollView}>
+                    <Text style={[styles.sectionTitle, { color: tc.secondaryText }]}>{t('settings.appearance')}</Text>
+                    <View style={[styles.settingCard, { backgroundColor: tc.cardBg }]}>
+                        <View style={styles.settingRow}>
+                            <View style={styles.settingInfo}>
+                                <Text style={[styles.settingLabel, { color: tc.text }]}>{t('settings.useSystem')}</Text>
+                                <Text style={[styles.settingDescription, { color: tc.secondaryText }]}>{t('settings.followDevice')}</Text>
+                            </View>
+                            <Switch
+                                value={themeMode === 'system'}
+                                onValueChange={toggleSystemMode}
+                                trackColor={{ false: '#767577', true: '#3B82F6' }}
+                            />
+                        </View>
+                        {themeMode !== 'system' && (
+                            <View style={[styles.settingRow, { borderTopWidth: 1, borderTopColor: tc.border }]}>
+                                <View style={styles.settingInfo}>
+                                    <Text style={[styles.settingLabel, { color: tc.text }]}>{t('settings.darkMode')}</Text>
+                                    <Text style={[styles.settingDescription, { color: tc.secondaryText }]}>
+                                        {isDark ? t('settings.darkEnabled') : t('settings.lightEnabled')}
+                                    </Text>
+                                </View>
+                                <Switch
+                                    value={isDark}
+                                    onValueChange={toggleDarkMode}
+                                    trackColor={{ false: '#767577', true: '#3B82F6' }}
+                                />
+                            </View>
+                        )}
+                        {Platform.OS === 'android' && (
+                            <View style={[styles.settingRow, { borderTopWidth: 1, borderTopColor: tc.border }]}>
+                                <View style={styles.settingInfo}>
+                                    <Text style={[styles.settingLabel, { color: tc.text }]}>{t('settings.material3Theme')}</Text>
+                                    <Text style={[styles.settingDescription, { color: tc.secondaryText }]}>
+                                        {t('settings.material3ThemeDesc')}
+                                    </Text>
+                                </View>
+                                <Switch
+                                    value={themeStyle === 'material3'}
+                                    onValueChange={(value) => setThemeStyle(value ? 'material3' : 'default')}
+                                    trackColor={{ false: '#767577', true: '#3B82F6' }}
+                                />
+                            </View>
+                        )}
+                    </View>
+
+                    <Text style={[styles.sectionTitle, { color: tc.secondaryText, marginTop: 16 }]}>{t('settings.language')}</Text>
+                    <Text style={[styles.description, { color: tc.secondaryText }]}>{t('settings.selectLang')}</Text>
+                    <View style={[styles.settingCard, { backgroundColor: tc.cardBg }]}>
+                        {LANGUAGES.map((lang, idx) => (
+                            <TouchableOpacity
+                                key={lang.id}
+                                style={[styles.settingRow, idx > 0 && { borderTopWidth: 1, borderTopColor: tc.border }]}
+                                onPress={() => setLanguage(lang.id)}
+                            >
+                                <Text style={[styles.settingLabel, { color: tc.text }]}>{lang.native}</Text>
+                                {language === lang.id && <Text style={{ color: '#3B82F6', fontSize: 20 }}>✓</Text>}
+                            </TouchableOpacity>
+                        ))}
+                    </View>
                 </ScrollView>
             </SafeAreaView>
         );
@@ -997,9 +992,15 @@ export default function SettingsPage() {
                     <Text style={[styles.description, { color: tc.secondaryText }]}>{t('settings.gtdDesc')}</Text>
                     <View style={[styles.menuCard, { backgroundColor: tc.cardBg }]}>
                         <MenuItem
-                            title={t('settings.timeEstimatePresets')}
-                            onPress={() => setCurrentScreen('gtd-time-estimates')}
+                            title={t('settings.features')}
+                            onPress={() => setCurrentScreen('gtd-features')}
                         />
+                        {timeEstimatesEnabled && (
+                            <MenuItem
+                                title={t('settings.timeEstimatePresets')}
+                                onPress={() => setCurrentScreen('gtd-time-estimates')}
+                            />
+                        )}
                         <MenuItem
                             title={t('settings.autoArchive')}
                             onPress={() => setCurrentScreen('gtd-archive')}
@@ -1008,6 +1009,45 @@ export default function SettingsPage() {
                             title={t('settings.taskEditorLayout')}
                             onPress={() => setCurrentScreen('gtd-task-editor')}
                         />
+                    </View>
+                </ScrollView>
+            </SafeAreaView>
+        );
+    }
+
+    if (currentScreen === 'gtd-features') {
+        return (
+            <SafeAreaView style={[styles.container, { backgroundColor: tc.bg }]} edges={['bottom']}>
+                <SubHeader title={t('settings.features')} />
+                <ScrollView style={styles.scrollView}>
+                    <Text style={[styles.description, { color: tc.secondaryText }]}>{t('settings.featuresDesc')}</Text>
+                    <View style={[styles.settingCard, { backgroundColor: tc.cardBg }]}>
+                        <View style={styles.settingRow}>
+                            <View style={styles.settingInfo}>
+                                <Text style={[styles.settingLabel, { color: tc.text }]}>{t('settings.featurePriorities')}</Text>
+                                <Text style={[styles.settingDescription, { color: tc.secondaryText }]}>
+                                    {t('settings.featurePrioritiesDesc')}
+                                </Text>
+                            </View>
+                            <Switch
+                                value={prioritiesEnabled}
+                                onValueChange={(value) => updateFeatureFlags({ priorities: value })}
+                                trackColor={{ false: '#767577', true: '#3B82F6' }}
+                            />
+                        </View>
+                        <View style={[styles.settingRow, { borderTopWidth: 1, borderTopColor: tc.border }]}>
+                            <View style={styles.settingInfo}>
+                                <Text style={[styles.settingLabel, { color: tc.text }]}>{t('settings.featureTimeEstimates')}</Text>
+                                <Text style={[styles.settingDescription, { color: tc.secondaryText }]}>
+                                    {t('settings.featureTimeEstimatesDesc')}
+                                </Text>
+                            </View>
+                            <Switch
+                                value={timeEstimatesEnabled}
+                                onValueChange={(value) => updateFeatureFlags({ timeEstimates: value })}
+                                trackColor={{ false: '#767577', true: '#3B82F6' }}
+                            />
+                        </View>
                     </View>
                 </ScrollView>
             </SafeAreaView>
@@ -1058,6 +1098,29 @@ export default function SettingsPage() {
 
     // ============ GTD: TIME ESTIMATES ============
     if (currentScreen === 'gtd-time-estimates') {
+        if (!timeEstimatesEnabled) {
+            return (
+                <SafeAreaView style={[styles.container, { backgroundColor: tc.bg }]} edges={['bottom']}>
+                    <SubHeader title={t('settings.timeEstimatePresets')} />
+                    <ScrollView style={styles.scrollView}>
+                        <Text style={[styles.description, { color: tc.secondaryText }]}>
+                            {t('settings.timeEstimatePresetsDisabled')}
+                        </Text>
+                        <TouchableOpacity
+                            style={[styles.settingCard, { backgroundColor: tc.cardBg }]}
+                            onPress={() => updateFeatureFlags({ timeEstimates: true })}
+                        >
+                            <View style={styles.settingRow}>
+                                <Text style={[styles.settingLabel, { color: tc.tint }]}>
+                                    {t('settings.enableTimeEstimates')}
+                                </Text>
+                            </View>
+                        </TouchableOpacity>
+                    </ScrollView>
+                </SafeAreaView>
+            );
+        }
+
         const togglePreset = (value: TimeEstimate) => {
             const isSelected = timeEstimatePresets.includes(value);
             if (isSelected && timeEstimatePresets.length <= 1) return;
@@ -1123,6 +1186,10 @@ export default function SettingsPage() {
     if (currentScreen === 'gtd-task-editor') {
         const ROW_HEIGHT = 52;
 
+        const featureHiddenFields = new Set<TaskEditorFieldId>();
+        if (!prioritiesEnabled) featureHiddenFields.add('priority');
+        if (!timeEstimatesEnabled) featureHiddenFields.add('timeEstimate');
+
         const defaultTaskEditorOrder: TaskEditorFieldId[] = [
             'status',
             'priority',
@@ -1134,10 +1201,9 @@ export default function SettingsPage() {
             'startTime',
             'dueDate',
             'reviewAt',
-            'blockedBy',
             'attachments',
             'checklist',
-        ];
+        ].filter((fieldId) => !featureHiddenFields.has(fieldId));
 
         const defaultTaskEditorHidden = defaultTaskEditorOrder.filter((id) => !['status', 'priority', 'contexts', 'description', 'recurrence'].includes(id));
         const known = new Set(defaultTaskEditorOrder);
@@ -1169,8 +1235,6 @@ export default function SettingsPage() {
                     return t('taskEdit.dueDateLabel');
                 case 'reviewAt':
                     return t('taskEdit.reviewDateLabel');
-                case 'blockedBy':
-                    return t('taskEdit.blockedByLabel');
                 case 'attachments':
                     return t('attachments.title');
                 case 'checklist':
@@ -1446,6 +1510,20 @@ export default function SettingsPage() {
         );
     }
 
+    if (currentScreen === 'advanced') {
+        return (
+            <SafeAreaView style={[styles.container, { backgroundColor: tc.bg }]} edges={['bottom']}>
+                <SubHeader title={t('settings.advanced')} />
+                <ScrollView style={styles.scrollView}>
+                    <View style={[styles.menuCard, { backgroundColor: tc.cardBg }]}>
+                        <MenuItem title={t('settings.ai')} onPress={() => setCurrentScreen('ai')} />
+                        <MenuItem title={t('settings.calendar')} onPress={() => setCurrentScreen('calendar')} />
+                    </View>
+                </ScrollView>
+            </SafeAreaView>
+        );
+    }
+
     // ============ SYNC SCREEN ============
     if (currentScreen === 'sync') {
         return (
@@ -1459,9 +1537,7 @@ export default function SettingsPage() {
                                 <Text style={[styles.settingDescription, { color: tc.secondaryText }]}>
                                     {syncBackend === 'webdav'
                                         ? t('settings.syncBackendWebdav')
-                                        : syncBackend === 'cloud'
-                                            ? t('settings.syncBackendCloud')
-                                            : t('settings.syncBackendFile')}
+                                        : t('settings.syncBackendFile')}
                                 </Text>
                             </View>
                             <View style={styles.backendToggle}>
@@ -1491,20 +1567,6 @@ export default function SettingsPage() {
                                 >
                                     <Text style={[styles.backendOptionText, { color: syncBackend === 'webdav' ? tc.tint : tc.secondaryText }]}>
                                         {t('settings.syncBackendWebdav')}
-                                    </Text>
-                                </TouchableOpacity>
-                                <TouchableOpacity
-                                    style={[
-                                        styles.backendOption,
-                                        { borderColor: tc.border, backgroundColor: syncBackend === 'cloud' ? tc.filterBg : 'transparent' },
-                                    ]}
-                                    onPress={() => {
-                                        AsyncStorage.setItem(SYNC_BACKEND_KEY, 'cloud').catch(console.error);
-                                        setSyncBackend('cloud');
-                                    }}
-                                >
-                                    <Text style={[styles.backendOptionText, { color: syncBackend === 'cloud' ? tc.tint : tc.secondaryText }]}>
-                                        {t('settings.syncBackendCloud')}
                                     </Text>
                                 </TouchableOpacity>
                             </View>
@@ -1572,6 +1634,7 @@ export default function SettingsPage() {
                                                 ? new Date(settings.lastSyncAt).toLocaleString()
                                                 : (language === 'zh' ? '从未同步' : 'Never')}
                                             {settings.lastSyncStatus === 'error' && (language === 'zh' ? '（失败）' : ' (failed)')}
+                                            {settings.lastSyncStatus === 'conflict' && (language === 'zh' ? '（有冲突）' : ' (conflicts)')}
                                         </Text>
                                         {settings.lastSyncStats && (
                                             <Text style={[styles.settingDescription, { color: tc.secondaryText }]}>
@@ -1683,6 +1746,7 @@ export default function SettingsPage() {
                                                 ? new Date(settings.lastSyncAt).toLocaleString()
                                                 : (language === 'zh' ? '从未同步' : 'Never')}
                                             {settings.lastSyncStatus === 'error' && (language === 'zh' ? '（失败）' : ' (failed)')}
+                                            {settings.lastSyncStatus === 'conflict' && (language === 'zh' ? '（有冲突）' : ' (conflicts)')}
                                         </Text>
                                         {settings.lastSyncStats && (
                                             <Text style={[styles.settingDescription, { color: tc.secondaryText }]}>
@@ -1700,103 +1764,6 @@ export default function SettingsPage() {
                         </>
                     )}
 
-                    {syncBackend === 'cloud' && (
-                        <>
-                            <Text style={[styles.sectionTitle, { color: tc.text, marginTop: 16 }]}>
-                                {t('settings.syncBackendCloud')}
-                            </Text>
-                            <View style={[styles.settingCard, { backgroundColor: tc.cardBg }]}>
-                                <View style={styles.inputGroup}>
-                                    <Text style={[styles.settingLabel, { color: tc.text }]}>{t('settings.cloudUrl')}</Text>
-                                    <TextInput
-                                        value={cloudUrl}
-                                        onChangeText={setCloudUrl}
-                                        placeholder="https://example.com/v1/data"
-                                        placeholderTextColor={tc.secondaryText}
-                                        autoCapitalize="none"
-                                        autoCorrect={false}
-                                        style={[styles.textInput, { backgroundColor: tc.inputBg, borderColor: tc.border, color: tc.text }]}
-                                    />
-                                    <Text style={[styles.settingDescription, { color: tc.secondaryText }]}>
-                                        {t('settings.cloudHint')}
-                                    </Text>
-                                </View>
-
-                                <View style={[styles.inputGroup, { borderTopWidth: 1, borderTopColor: tc.border }]}>
-                                    <Text style={[styles.settingLabel, { color: tc.text }]}>{t('settings.cloudToken')}</Text>
-                                    <TextInput
-                                        value={cloudToken}
-                                        onChangeText={setCloudToken}
-                                        placeholderTextColor={tc.secondaryText}
-                                        autoCapitalize="none"
-                                        autoCorrect={false}
-                                        secureTextEntry
-                                        style={[styles.textInput, { backgroundColor: tc.inputBg, borderColor: tc.border, color: tc.text }]}
-                                    />
-                                </View>
-
-                                <TouchableOpacity
-                                    style={[styles.settingRow, { borderTopWidth: 1, borderTopColor: tc.border }]}
-                                    onPress={() => {
-                                        AsyncStorage.multiSet([
-                                            [CLOUD_URL_KEY, cloudUrl.trim()],
-                                            [CLOUD_TOKEN_KEY, cloudToken.trim()],
-                                        ]).catch(console.error);
-                                    }}
-                                    disabled={!cloudUrl.trim() || !cloudToken.trim()}
-                                >
-                                    <View style={styles.settingInfo}>
-                                        <Text style={[styles.settingLabel, { color: cloudUrl.trim() && cloudToken.trim() ? tc.tint : tc.secondaryText }]}>
-                                            {t('settings.cloudSave')}
-                                        </Text>
-                                        <Text style={[styles.settingDescription, { color: tc.secondaryText }]}>
-                                            {t('settings.cloudUrl')}
-                                        </Text>
-                                    </View>
-                                </TouchableOpacity>
-
-                                <TouchableOpacity
-                                    style={[styles.settingRow, { borderTopWidth: 1, borderTopColor: tc.border }]}
-                                    onPress={handleSync}
-                                    disabled={isSyncing || !cloudUrl.trim() || !cloudToken.trim()}
-                                >
-                                    <View style={styles.settingInfo}>
-                                        <Text style={[styles.settingLabel, { color: cloudUrl.trim() && cloudToken.trim() ? tc.tint : tc.secondaryText }]}>
-                                            {language === 'zh' ? '同步' : 'Sync'}
-                                        </Text>
-                                        <Text style={[styles.settingDescription, { color: tc.secondaryText }]}>
-                                            {language === 'zh' ? '读取并合并云端数据' : 'Read and merge cloud data'}
-                                        </Text>
-                                    </View>
-                                    {isSyncing && <ActivityIndicator size="small" color={tc.tint} />}
-                                </TouchableOpacity>
-
-                                <View style={[styles.settingRow, { borderTopWidth: 1, borderTopColor: tc.border }]}>
-                                    <View style={styles.settingInfo}>
-                                        <Text style={[styles.settingLabel, { color: tc.text }]}>
-                                            {language === 'zh' ? '上次同步' : 'Last Sync'}
-                                        </Text>
-                                        <Text style={[styles.settingDescription, { color: tc.secondaryText }]}>
-                                            {settings.lastSyncAt
-                                                ? new Date(settings.lastSyncAt).toLocaleString()
-                                                : (language === 'zh' ? '从未同步' : 'Never')}
-                                            {settings.lastSyncStatus === 'error' && (language === 'zh' ? '（失败）' : ' (failed)')}
-                                        </Text>
-                                        {settings.lastSyncStats && (
-                                            <Text style={[styles.settingDescription, { color: tc.secondaryText }]}>
-                                                {(language === 'zh' ? '冲突' : 'Conflicts')}: {(settings.lastSyncStats.tasks.conflicts || 0) + (settings.lastSyncStats.projects.conflicts || 0)}
-                                            </Text>
-                                        )}
-                                        {settings.lastSyncStatus === 'error' && settings.lastSyncError && (
-                                            <Text style={[styles.settingDescription, { color: '#EF4444' }]}>
-                                                {settings.lastSyncError}
-                                            </Text>
-                                        )}
-                                    </View>
-                                </View>
-                            </View>
-                        </>
-                    )}
 
                     <Text style={[styles.sectionTitle, { color: tc.text, marginTop: 16 }]}>
                         {t('settings.diagnostics')}
@@ -1922,14 +1889,12 @@ export default function SettingsPage() {
     return (
         <SafeAreaView style={[styles.container, { backgroundColor: tc.bg }]} edges={['bottom']}>
             <ScrollView style={styles.scrollView}>
-                <View style={[styles.menuCard, { backgroundColor: tc.cardBg }]}>
-                    <MenuItem title={t('settings.appearance')} onPress={() => setCurrentScreen('appearance')} />
-                    <MenuItem title={t('settings.language')} onPress={() => setCurrentScreen('language')} />
-                    <MenuItem title={t('settings.notifications')} onPress={() => setCurrentScreen('notifications')} />
-                    <MenuItem title={t('settings.ai')} onPress={() => setCurrentScreen('ai')} />
-                    <MenuItem title={t('settings.calendar')} onPress={() => setCurrentScreen('calendar')} />
+                <View style={[styles.menuCard, { backgroundColor: tc.cardBg, marginTop: 16 }]}>
+                    <MenuItem title={t('settings.general')} onPress={() => setCurrentScreen('general')} />
                     <MenuItem title={t('settings.gtd')} onPress={() => setCurrentScreen('gtd')} />
+                    <MenuItem title={t('settings.notifications')} onPress={() => setCurrentScreen('notifications')} />
                     <MenuItem title={t('settings.dataSync')} onPress={() => setCurrentScreen('sync')} />
+                    <MenuItem title={t('settings.advanced')} onPress={() => setCurrentScreen('advanced')} />
                     <MenuItem title={t('settings.about')} onPress={() => setCurrentScreen('about')} />
                 </View>
             </ScrollView>

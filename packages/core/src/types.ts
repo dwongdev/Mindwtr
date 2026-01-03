@@ -26,7 +26,6 @@ export type TaskEditorFieldId =
     | 'priority'
     | 'contexts'
     | 'tags'
-    | 'blockedBy'
     | 'timeEstimate'
     | 'recurrence'
     | 'startTime'
@@ -104,7 +103,6 @@ export interface Task {
     isFocusedToday?: boolean; // Marked as today's priority (Top 3 focus)
     timeEstimate?: TimeEstimate; // Estimated time to complete
     reviewAt?: string; // Tickler/review date (ISO string). If set, task is due for review at/after this time.
-    blockedByTaskIds?: string[]; // Task dependencies that block this task.
     completedAt?: string; // ISO timestamp when task was last completed/archived.
     createdAt: string;
     updatedAt: string;
@@ -134,6 +132,10 @@ export interface AppData {
             };
             autoArchiveDays?: number;
         };
+        features?: {
+            priorities?: boolean;
+            timeEstimates?: boolean;
+        };
         theme?: 'light' | 'dark' | 'system';
         language?: 'en' | 'zh' | 'system';
         weekStart?: 'monday' | 'sunday';
@@ -160,7 +162,7 @@ export interface AppData {
         sidebarCollapsed?: boolean;
         taskSortBy?: TaskSortBy;
         lastSyncAt?: string;
-        lastSyncStatus?: 'idle' | 'syncing' | 'success' | 'error';
+        lastSyncStatus?: 'idle' | 'syncing' | 'success' | 'error' | 'conflict';
         lastSyncError?: string;
         lastSyncStats?: MergeStats;
         diagnostics?: {

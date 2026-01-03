@@ -1,5 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { mergeAppDataWithStats, AppData, MergeStats, useTaskStore, cloudGetJson, cloudPutJson, webdavGetJson, webdavPutJson } from '@mindwtr/core';
+import { mergeAppDataWithStats, AppData, MergeStats, useTaskStore, webdavGetJson, webdavPutJson } from '@mindwtr/core';
 import { mobileStorage } from './storage-adapter';
 import { logSyncError, sanitizeLogMessage } from './app-log';
 import { readSyncFile, writeSyncFile } from './storage-file';
@@ -9,8 +9,6 @@ export const SYNC_BACKEND_KEY = '@mindwtr_sync_backend';
 export const WEBDAV_URL_KEY = '@mindwtr_webdav_url';
 export const WEBDAV_USERNAME_KEY = '@mindwtr_webdav_username';
 export const WEBDAV_PASSWORD_KEY = '@mindwtr_webdav_password';
-export const CLOUD_URL_KEY = '@mindwtr_cloud_url';
-export const CLOUD_TOKEN_KEY = '@mindwtr_cloud_token';
 
 const DEFAULT_SYNC_TIMEOUT_MS = 30_000;
 
@@ -22,14 +20,13 @@ export async function performMobileSync(syncPathOverride?: string): Promise<{ su
   }
   syncInFlight = (async () => {
     const rawBackend = await AsyncStorage.getItem(SYNC_BACKEND_KEY);
-    const backend = rawBackend === 'webdav' ? 'webdav' : rawBackend === 'cloud' ? 'cloud' : 'file';
+    const backend = rawBackend === 'webdav' ? 'webdav' : 'file';
 
     let step = 'init';
     let syncUrl: string | undefined;
     let wroteLocal = false;
     try {
       let webdavConfig: { url: string; username: string; password: string } | null = null;
-      let cloudConfig: { url: string; token: string } | null = null;
       let fileSyncPath: string | null = null;
       let incomingData: AppData | null;
       step = 'read-remote';
@@ -41,13 +38,6 @@ export async function performMobileSync(syncPathOverride?: string): Promise<{ su
         const password = (await AsyncStorage.getItem(WEBDAV_PASSWORD_KEY)) || '';
         webdavConfig = { url, username, password };
         incomingData = await webdavGetJson<AppData>(url, { username, password, timeoutMs: DEFAULT_SYNC_TIMEOUT_MS });
-      } else if (backend === 'cloud') {
-        const url = await AsyncStorage.getItem(CLOUD_URL_KEY);
-        const token = await AsyncStorage.getItem(CLOUD_TOKEN_KEY);
-        if (!url || !token) return { success: false, error: 'Cloud sync not configured' };
-        syncUrl = url;
-        cloudConfig = { url, token };
-        incomingData = await cloudGetJson<AppData>(url, { token, timeoutMs: DEFAULT_SYNC_TIMEOUT_MS });
       } else {
         fileSyncPath = syncPathOverride || await AsyncStorage.getItem(SYNC_PATH_KEY);
         if (!fileSyncPath) {
@@ -63,13 +53,15 @@ export async function performMobileSync(syncPathOverride?: string): Promise<{ su
       step = 'merge';
       const mergeResult = mergeAppDataWithStats(currentData, incomingData || { tasks: [], projects: [], areas: [], settings: {} });
       const now = new Date().toISOString();
+      const conflictCount = (mergeResult.stats.tasks.conflicts || 0) + (mergeResult.stats.projects.conflicts || 0);
+      const nextSyncStatus = conflictCount > 0 ? 'conflict' : 'success';
 
       const finalData: AppData = {
         ...mergeResult.data,
         settings: {
           ...mergeResult.data.settings,
           lastSyncAt: now,
-          lastSyncStatus: 'success',
+          lastSyncStatus: nextSyncStatus,
           lastSyncError: undefined,
           lastSyncStats: mergeResult.stats,
         },
@@ -82,9 +74,6 @@ export async function performMobileSync(syncPathOverride?: string): Promise<{ su
       if (backend === 'webdav') {
         if (!webdavConfig?.url) return { success: false, error: 'WebDAV URL not configured' };
         await webdavPutJson(webdavConfig.url, finalData, { username: webdavConfig.username, password: webdavConfig.password, timeoutMs: DEFAULT_SYNC_TIMEOUT_MS });
-      } else if (backend === 'cloud') {
-        if (!cloudConfig?.url || !cloudConfig.token) return { success: false, error: 'Cloud sync not configured' };
-        await cloudPutJson(cloudConfig.url, finalData, { token: cloudConfig.token, timeoutMs: DEFAULT_SYNC_TIMEOUT_MS });
       } else {
         if (!fileSyncPath) return { success: false, error: 'No sync file configured' };
         await writeSyncFile(fileSyncPath, finalData);

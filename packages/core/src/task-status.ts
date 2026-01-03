@@ -27,10 +27,11 @@ export function normalizeTaskStatus(value: unknown): TaskStatus {
 
 export function normalizeTaskForLoad(task: Task, nowIso: string = new Date().toISOString()): Task {
     const normalizedStatus = normalizeTaskStatus((task as any).status);
+    const { ...rest } = task as Task;
 
     const hasValidPushCount = typeof task.pushCount === 'number' && Number.isFinite(task.pushCount);
     const next: Task = {
-        ...task,
+        ...rest,
         status: normalizedStatus,
         ...(hasValidPushCount ? {} : { pushCount: 0 }),
     };

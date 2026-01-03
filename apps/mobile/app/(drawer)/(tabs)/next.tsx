@@ -26,6 +26,10 @@ export default function NextActionsScreen() {
 
   const tc = useThemeColors();
   const sortBy = (settings?.taskSortBy ?? 'default') as TaskSortBy;
+  const prioritiesEnabled = settings?.features?.priorities === true;
+  const timeEstimatesEnabled = settings?.features?.timeEstimates === true;
+  const activePriorities = prioritiesEnabled ? selectedPriorities : [];
+  const activeTimeEstimates = timeEstimatesEnabled ? selectedTimeEstimates : [];
 
   // Get all unique contexts/tags from tasks (merge with presets)
   const allTokens = useMemo(() => Array.from(new Set([
@@ -68,7 +72,7 @@ export default function NextActionsScreen() {
     if (estimate.endsWith('hr')) return estimate.replace('hr', 'h');
     return estimate;
   };
-  const hasFilters = selectedTokens.length > 0 || selectedPriorities.length > 0 || selectedTimeEstimates.length > 0;
+  const hasFilters = selectedTokens.length > 0 || activePriorities.length > 0 || activeTimeEstimates.length > 0;
   const showFiltersPanel = filtersOpen || hasFilters;
   const toggleToken = (token: string) => {
     setSelectedTokens((prev) => (
@@ -91,6 +95,18 @@ export default function NextActionsScreen() {
     setSelectedTimeEstimates([]);
   };
 
+  useEffect(() => {
+    if (!prioritiesEnabled && selectedPriorities.length > 0) {
+      setSelectedPriorities([]);
+    }
+  }, [prioritiesEnabled, selectedPriorities.length]);
+
+  useEffect(() => {
+    if (!timeEstimatesEnabled && selectedTimeEstimates.length > 0) {
+      setSelectedTimeEstimates([]);
+    }
+  }, [timeEstimatesEnabled, selectedTimeEstimates.length]);
+
   const nextTasks = sortTasksBy(tasks.filter(t => {
     if (t.deletedAt) return false;
     if (t.status !== 'next') return false;
@@ -101,8 +117,8 @@ export default function NextActionsScreen() {
       );
       if (!matchesAll) return false;
     }
-    if (selectedPriorities.length > 0 && (!t.priority || !selectedPriorities.includes(t.priority))) return false;
-    if (selectedTimeEstimates.length > 0 && (!t.timeEstimate || !selectedTimeEstimates.includes(t.timeEstimate))) return false;
+    if (activePriorities.length > 0 && (!t.priority || !activePriorities.includes(t.priority))) return false;
+    if (activeTimeEstimates.length > 0 && (!t.timeEstimate || !activeTimeEstimates.includes(t.timeEstimate))) return false;
     // Sequential project filter
     if (t.projectId) {
       const project = projectMap[t.projectId];
@@ -223,56 +239,60 @@ export default function NextActionsScreen() {
               </TouchableOpacity>
             )}
           </View>
-          <View style={styles.filterSection}>
-            <Text style={[styles.filterLabel, { color: tc.secondaryText }]}>{t('filters.priority')}</Text>
-            <View style={styles.filterChips}>
-              {priorityOptions.map((priority) => {
-                const isActive = selectedPriorities.includes(priority);
-                return (
-                  <TouchableOpacity
-                    key={priority}
-                    style={[
-                      styles.contextChip,
-                      { backgroundColor: isActive ? tc.tint : tc.filterBg, borderColor: tc.border },
-                    ]}
-                    onPress={() => togglePriority(priority)}
-                  >
-                    <Text style={[
-                      styles.contextChipText,
-                      { color: isActive ? '#FFFFFF' : tc.text }
-                    ]}>
-                      {t(`priority.${priority}`)}
-                    </Text>
-                  </TouchableOpacity>
-                );
-              })}
+          {prioritiesEnabled && (
+            <View style={styles.filterSection}>
+              <Text style={[styles.filterLabel, { color: tc.secondaryText }]}>{t('filters.priority')}</Text>
+              <View style={styles.filterChips}>
+                {priorityOptions.map((priority) => {
+                  const isActive = selectedPriorities.includes(priority);
+                  return (
+                    <TouchableOpacity
+                      key={priority}
+                      style={[
+                        styles.contextChip,
+                        { backgroundColor: isActive ? tc.tint : tc.filterBg, borderColor: tc.border },
+                      ]}
+                      onPress={() => togglePriority(priority)}
+                    >
+                      <Text style={[
+                        styles.contextChipText,
+                        { color: isActive ? '#FFFFFF' : tc.text }
+                      ]}>
+                        {t(`priority.${priority}`)}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
             </View>
-          </View>
-          <View style={styles.filterSection}>
-            <Text style={[styles.filterLabel, { color: tc.secondaryText }]}>{t('filters.timeEstimate')}</Text>
-            <View style={styles.filterChips}>
-              {timeEstimateOptions.map((estimate) => {
-                const isActive = selectedTimeEstimates.includes(estimate);
-                return (
-                  <TouchableOpacity
-                    key={estimate}
-                    style={[
-                      styles.contextChip,
-                      { backgroundColor: isActive ? tc.tint : tc.filterBg, borderColor: tc.border },
-                    ]}
-                    onPress={() => toggleEstimate(estimate)}
-                  >
-                    <Text style={[
-                      styles.contextChipText,
-                      { color: isActive ? '#FFFFFF' : tc.text }
-                    ]}>
-                      {formatEstimate(estimate)}
-                    </Text>
-                  </TouchableOpacity>
-                );
-              })}
+          )}
+          {timeEstimatesEnabled && (
+            <View style={styles.filterSection}>
+              <Text style={[styles.filterLabel, { color: tc.secondaryText }]}>{t('filters.timeEstimate')}</Text>
+              <View style={styles.filterChips}>
+                {timeEstimateOptions.map((estimate) => {
+                  const isActive = selectedTimeEstimates.includes(estimate);
+                  return (
+                    <TouchableOpacity
+                      key={estimate}
+                      style={[
+                        styles.contextChip,
+                        { backgroundColor: isActive ? tc.tint : tc.filterBg, borderColor: tc.border },
+                      ]}
+                      onPress={() => toggleEstimate(estimate)}
+                    >
+                      <Text style={[
+                        styles.contextChipText,
+                        { color: isActive ? '#FFFFFF' : tc.text }
+                      ]}>
+                        {formatEstimate(estimate)}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
             </View>
-          </View>
+          )}
         </View>
       )}
 

@@ -32,9 +32,10 @@ interface DraggableTaskProps {
   deleteLabel: string;
   projectTitle?: string;
   projectColor?: string;
+  timeEstimatesEnabled: boolean;
 }
 
-function DraggableTask({ task, isDark, currentColumnIndex, onDrop, onTap, onDelete, deleteLabel, projectTitle, projectColor }: DraggableTaskProps) {
+function DraggableTask({ task, isDark, currentColumnIndex, onDrop, onTap, onDelete, deleteLabel, projectTitle, projectColor, timeEstimatesEnabled }: DraggableTaskProps) {
   const translateY = useSharedValue(0);
   const scale = useSharedValue(1);
   const zIndex = useSharedValue(1);
@@ -91,7 +92,7 @@ function DraggableTask({ task, isDark, currentColumnIndex, onDrop, onTap, onDele
   }));
 
   const timeEstimateLabel = (() => {
-    if (!task.timeEstimate) return null;
+    if (!timeEstimatesEnabled || !task.timeEstimate) return null;
     const estimate = String(task.timeEstimate);
     if (estimate.endsWith('min')) return estimate.replace('min', 'm');
     if (estimate.endsWith('hr+')) return estimate.replace('hr+', 'h+');
@@ -179,9 +180,10 @@ interface ColumnProps {
   noTasksLabel: string;
   deleteLabel: string;
   projectById: Record<string, { title: string; color: string }>;
+  timeEstimatesEnabled: boolean;
 }
 
-function Column({ columnIndex, label, color, tasks, isDark, onDrop, onTap, onDelete, noTasksLabel, deleteLabel, projectById }: ColumnProps) {
+function Column({ columnIndex, label, color, tasks, isDark, onDrop, onTap, onDelete, noTasksLabel, deleteLabel, projectById, timeEstimatesEnabled }: ColumnProps) {
   return (
     <View style={[styles.column, { borderTopColor: color, backgroundColor: isDark ? '#1F2937' : '#F3F4F6' }]}>
       <View style={[styles.columnHeader, { borderBottomColor: isDark ? '#374151' : '#E5E7EB' }]}>
@@ -203,6 +205,7 @@ function Column({ columnIndex, label, color, tasks, isDark, onDrop, onTap, onDel
             deleteLabel={deleteLabel}
             projectTitle={task.projectId ? projectById[task.projectId]?.title : undefined}
             projectColor={task.projectId ? projectById[task.projectId]?.color : undefined}
+            timeEstimatesEnabled={timeEstimatesEnabled}
           />
         ))}
         {tasks.length === 0 && (
@@ -221,6 +224,7 @@ export function BoardView() {
   const { tasks, projects, updateTask, deleteTask } = useTaskStore();
   const { isDark } = useTheme();
   const { t } = useLanguage();
+  const timeEstimatesEnabled = useTaskStore((state) => state.settings?.features?.timeEstimates === true);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
 
   const projectById = useMemo(() => {
@@ -280,6 +284,7 @@ export function BoardView() {
             noTasksLabel={t('board.noTasks')}
             deleteLabel={t('board.delete')}
             projectById={projectById}
+            timeEstimatesEnabled={timeEstimatesEnabled}
           />
         ))}
       </ScrollView>

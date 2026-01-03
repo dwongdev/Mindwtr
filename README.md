@@ -30,6 +30,16 @@ A complete Getting Things Done (GTD) productivity system for desktop and mobile.
   </p>
 </div>
 
+## Philosophy
+
+Mindwtr is built to be **simple by default and powerful when you need it**. We focus on reducing cognitive load, cutting the fat, and keeping you in flow. That means:
+
+- **Progressive disclosure**: advanced options stay hidden until they matter.
+- **Less by default**: fewer fields, fewer knobs, fewer distractions.
+- **Avoid feature creep**: we prioritize clarity over clutter.
+
+*Don't show me a cockpit when I just want to ride a bike.*
+
 ## Features
 
 ### GTD Workflow

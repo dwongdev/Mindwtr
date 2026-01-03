@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import { Plus, Play, X, Trash2, Moon, User, CheckCircle, Filter } from 'lucide-react';
-import { useTaskStore, TaskStatus, Task, TaskPriority, TimeEstimate, PRESET_CONTEXTS, PRESET_TAGS, sortTasksBy, Project, parseQuickAdd, isTaskBlocked, matchesHierarchicalToken, safeParseDate, createAIProvider } from '@mindwtr/core';
+import { useTaskStore, TaskStatus, Task, TaskPriority, TimeEstimate, PRESET_CONTEXTS, PRESET_TAGS, sortTasksBy, Project, parseQuickAdd, matchesHierarchicalToken, safeParseDate, createAIProvider } from '@mindwtr/core';
 import type { TaskSortBy } from '@mindwtr/core';
 import { TaskItem } from '../TaskItem';
 import { cn } from '../../lib/utils';
@@ -41,6 +41,10 @@ export function ListView({ title, statusFilter }: ListViewProps) {
     const [copilotTags, setCopilotTags] = useState<string[]>([]);
     const aiEnabled = settings?.ai?.enabled === true;
     const aiProvider = (settings?.ai?.provider ?? 'openai') as 'openai' | 'gemini';
+    const prioritiesEnabled = settings?.features?.priorities === true;
+    const timeEstimatesEnabled = settings?.features?.timeEstimates === true;
+    const activePriorities = prioritiesEnabled ? selectedPriorities : [];
+    const activeTimeEstimates = timeEstimatesEnabled ? selectedTimeEstimates : [];
 
     const exitSelectionMode = useCallback(() => {
         setSelectionMode(false);
@@ -70,6 +74,8 @@ export function ListView({ title, statusFilter }: ListViewProps) {
         setAiKey(loadAIKey(aiProvider));
     }, [aiProvider]);
 
+    const copilotAbortRef = useRef<AbortController | null>(null);
+
     useEffect(() => {
         if (!aiEnabled || !aiKey) {
             setCopilotSuggestion(null);
@@ -84,7 +90,13 @@ export function ListView({ title, statusFilter }: ListViewProps) {
         const handle = setTimeout(async () => {
             try {
                 const provider = createAIProvider(buildCopilotConfig(settings, aiKey));
-                const suggestion = await provider.predictMetadata({ title, contexts: allContexts, tags: allTags });
+                if (copilotAbortRef.current) copilotAbortRef.current.abort();
+                const abortController = typeof AbortController === 'function' ? new AbortController() : null;
+                copilotAbortRef.current = abortController;
+                const suggestion = await provider.predictMetadata(
+                    { title, contexts: allContexts, tags: allTags },
+                    abortController ? { signal: abortController.signal } : undefined
+                );
                 if (cancelled) return;
                 if (!suggestion.context && !suggestion.tags?.length) {
                     setCopilotSuggestion(null);
@@ -98,6 +110,10 @@ export function ListView({ title, statusFilter }: ListViewProps) {
         return () => {
             cancelled = true;
             clearTimeout(handle);
+            if (copilotAbortRef.current) {
+                copilotAbortRef.current.abort();
+                copilotAbortRef.current = null;
+            }
         };
     }, [aiEnabled, aiKey, newTaskTitle, allContexts, allTags, settings]);
 
@@ -155,7 +171,6 @@ export function ListView({ title, statusFilter }: ListViewProps) {
                 }
             }
 
-            if (statusFilter === 'next' && isTaskBlocked(t, tasksById)) return false;
 
             const taskTokens = [...(t.contexts || []), ...(t.tags || [])];
             if (selectedTokens.length > 0) {
@@ -164,18 +179,18 @@ export function ListView({ title, statusFilter }: ListViewProps) {
                 );
                 if (!matchesAll) return false;
             }
-            if (selectedPriorities.length > 0 && (!t.priority || !selectedPriorities.includes(t.priority))) return false;
-            if (selectedTimeEstimates.length > 0 && (!t.timeEstimate || !selectedTimeEstimates.includes(t.timeEstimate))) return false;
+            if (activePriorities.length > 0 && (!t.priority || !activePriorities.includes(t.priority))) return false;
+            if (activeTimeEstimates.length > 0 && (!t.timeEstimate || !activeTimeEstimates.includes(t.timeEstimate))) return false;
             return true;
         });
 
         return sortTasksBy(filtered, sortBy);
-    }, [tasks, projects, statusFilter, selectedTokens, selectedPriorities, selectedTimeEstimates, sequentialProjectFirstTasks, projectMap, sortBy]);
+    }, [tasks, projects, statusFilter, selectedTokens, activePriorities, activeTimeEstimates, sequentialProjectFirstTasks, projectMap, sortBy]);
 
     useEffect(() => {
         setSelectedIndex(0);
         exitSelectionMode();
-    }, [statusFilter, selectedTokens, selectedPriorities, selectedTimeEstimates, exitSelectionMode]);
+    }, [statusFilter, selectedTokens, activePriorities, activeTimeEstimates, exitSelectionMode]);
 
     useEffect(() => {
         if (filteredTasks.length === 0) {
@@ -458,10 +473,10 @@ export function ListView({ title, statusFilter }: ListViewProps) {
     const filterSummary = useMemo(() => {
         return [
             ...selectedTokens,
-            ...selectedPriorities.map((priority) => t(`priority.${priority}`)),
-            ...selectedTimeEstimates.map(formatEstimate),
+            ...(prioritiesEnabled ? selectedPriorities.map((priority) => t(`priority.${priority}`)) : []),
+            ...(timeEstimatesEnabled ? selectedTimeEstimates.map(formatEstimate) : []),
         ];
-    }, [selectedTokens, selectedPriorities, selectedTimeEstimates, t]);
+    }, [selectedTokens, selectedPriorities, selectedTimeEstimates, prioritiesEnabled, timeEstimatesEnabled, t]);
     const hasFilters = filterSummary.length > 0;
     const filterSummaryLabel = filterSummary.slice(0, 3).join(', ');
     const filterSummarySuffix = filterSummary.length > 3 ? ` +${filterSummary.length - 3}` : '';
@@ -486,6 +501,18 @@ export function ListView({ title, statusFilter }: ListViewProps) {
         setSelectedPriorities([]);
         setSelectedTimeEstimates([]);
     };
+
+    useEffect(() => {
+        if (!prioritiesEnabled && selectedPriorities.length > 0) {
+            setSelectedPriorities([]);
+        }
+    }, [prioritiesEnabled, selectedPriorities.length]);
+
+    useEffect(() => {
+        if (!timeEstimatesEnabled && selectedTimeEstimates.length > 0) {
+            setSelectedTimeEstimates([]);
+        }
+    }, [timeEstimatesEnabled, selectedTimeEstimates.length]);
 
     return (
         <>
@@ -885,54 +912,58 @@ export function ListView({ title, statusFilter }: ListViewProps) {
                                     })}
                                 </div>
                             </div>
-                            <div className="space-y-2">
-                                <div className="text-xs text-muted-foreground uppercase tracking-wide">{t('filters.priority')}</div>
-                                <div className="flex flex-wrap gap-2">
-                                    {priorityOptions.map((priority) => {
-                                        const isActive = selectedPriorities.includes(priority);
-                                        return (
-                                            <button
-                                                key={priority}
-                                                type="button"
-                                                onClick={() => togglePriorityFilter(priority)}
-                                                aria-pressed={isActive}
-                                                className={cn(
-                                                    "px-3 py-1.5 rounded-full text-xs font-medium transition-colors",
-                                                    isActive
-                                                        ? "bg-primary text-primary-foreground"
-                                                        : "bg-muted hover:bg-muted/80 text-muted-foreground"
-                                                )}
-                                            >
-                                                {t(`priority.${priority}`)}
-                                            </button>
-                                        );
-                                    })}
+                            {prioritiesEnabled && (
+                                <div className="space-y-2">
+                                    <div className="text-xs text-muted-foreground uppercase tracking-wide">{t('filters.priority')}</div>
+                                    <div className="flex flex-wrap gap-2">
+                                        {priorityOptions.map((priority) => {
+                                            const isActive = selectedPriorities.includes(priority);
+                                            return (
+                                                <button
+                                                    key={priority}
+                                                    type="button"
+                                                    onClick={() => togglePriorityFilter(priority)}
+                                                    aria-pressed={isActive}
+                                                    className={cn(
+                                                        "px-3 py-1.5 rounded-full text-xs font-medium transition-colors",
+                                                        isActive
+                                                            ? "bg-primary text-primary-foreground"
+                                                            : "bg-muted hover:bg-muted/80 text-muted-foreground"
+                                                    )}
+                                                >
+                                                    {t(`priority.${priority}`)}
+                                                </button>
+                                            );
+                                        })}
+                                    </div>
                                 </div>
-                            </div>
-                            <div className="space-y-2">
-                                <div className="text-xs text-muted-foreground uppercase tracking-wide">{t('filters.timeEstimate')}</div>
-                                <div className="flex flex-wrap gap-2">
-                                    {timeEstimateOptions.map((estimate) => {
-                                        const isActive = selectedTimeEstimates.includes(estimate);
-                                        return (
-                                            <button
-                                                key={estimate}
-                                                type="button"
-                                                onClick={() => toggleTimeFilter(estimate)}
-                                                aria-pressed={isActive}
-                                                className={cn(
-                                                    "px-3 py-1.5 rounded-full text-xs font-medium transition-colors",
-                                                    isActive
-                                                        ? "bg-primary text-primary-foreground"
-                                                        : "bg-muted hover:bg-muted/80 text-muted-foreground"
-                                                )}
-                                            >
-                                                {formatEstimate(estimate)}
-                                            </button>
-                                        );
-                                    })}
+                            )}
+                            {timeEstimatesEnabled && (
+                                <div className="space-y-2">
+                                    <div className="text-xs text-muted-foreground uppercase tracking-wide">{t('filters.timeEstimate')}</div>
+                                    <div className="flex flex-wrap gap-2">
+                                        {timeEstimateOptions.map((estimate) => {
+                                            const isActive = selectedTimeEstimates.includes(estimate);
+                                            return (
+                                                <button
+                                                    key={estimate}
+                                                    type="button"
+                                                    onClick={() => toggleTimeFilter(estimate)}
+                                                    aria-pressed={isActive}
+                                                    className={cn(
+                                                        "px-3 py-1.5 rounded-full text-xs font-medium transition-colors",
+                                                        isActive
+                                                            ? "bg-primary text-primary-foreground"
+                                                            : "bg-muted hover:bg-muted/80 text-muted-foreground"
+                                                    )}
+                                                >
+                                                    {formatEstimate(estimate)}
+                                                </button>
+                                            );
+                                        })}
+                                    </div>
                                 </div>
-                            </div>
+                            )}
                         </div>
                     )}
                 </div>

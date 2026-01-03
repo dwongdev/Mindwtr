@@ -23,6 +23,8 @@ export default function CaptureScreen() {
   const [copilotTags, setCopilotTags] = useState<string[]>([]);
   const [showHelp, setShowHelp] = useState(false);
   const inputRef = useRef<TextInput>(null);
+  const copilotMountedRef = useRef(true);
+  const copilotAbortRef = useRef<AbortController | null>(null);
 
   useEffect(() => {
     setTimeout(() => inputRef.current?.focus(), 120);
@@ -36,6 +38,7 @@ export default function CaptureScreen() {
 
   const aiEnabled = settings.ai?.enabled === true;
   const aiProvider = (settings.ai?.provider ?? 'openai') as 'openai' | 'gemini';
+  const timeEstimatesEnabled = settings.features?.timeEstimates === true;
 
   useEffect(() => {
     loadAIKey(aiProvider).then(setAiKey).catch(console.error);
@@ -63,10 +66,16 @@ export default function CaptureScreen() {
     let cancelled = false;
     const handle = setTimeout(async () => {
       try {
+        if (copilotAbortRef.current) copilotAbortRef.current.abort();
+        const abortController = typeof AbortController === 'function' ? new AbortController() : null;
+        copilotAbortRef.current = abortController;
         const provider = createAIProvider(buildCopilotConfig(settings, aiKey));
-        const suggestion = await provider.predictMetadata({ title, contexts: contextOptions, tags: tagOptions });
-        if (cancelled) return;
-        if (!suggestion.context && !suggestion.timeEstimate) {
+        const suggestion = await provider.predictMetadata(
+          { title, contexts: contextOptions, tags: tagOptions },
+          abortController ? { signal: abortController.signal } : undefined
+        );
+        if (cancelled || !copilotMountedRef.current) return;
+        if (!suggestion.context && (!timeEstimatesEnabled || !suggestion.timeEstimate)) {
           setCopilotSuggestion(null);
         } else {
           setCopilotSuggestion(suggestion);
@@ -82,6 +91,10 @@ export default function CaptureScreen() {
     return () => {
       cancelled = true;
       clearTimeout(handle);
+      if (copilotAbortRef.current) {
+        copilotAbortRef.current.abort();
+        copilotAbortRef.current = null;
+      }
     };
   }, [
     aiEnabled,
@@ -90,8 +103,20 @@ export default function CaptureScreen() {
     contextOptions,
     settings.ai?.copilotModel,
     settings.ai?.thinkingBudget,
+    timeEstimatesEnabled,
     value,
   ]);
+
+  useEffect(() => {
+    copilotMountedRef.current = true;
+    return () => {
+      copilotMountedRef.current = false;
+      if (copilotAbortRef.current) {
+        copilotAbortRef.current.abort();
+        copilotAbortRef.current = null;
+      }
+    };
+  }, []);
 
   const handleInputChange = (text: string) => {
     setValue(text);
@@ -122,7 +147,7 @@ export default function CaptureScreen() {
       const nextContexts = Array.from(new Set([...(initialProps.contexts ?? []), copilotContext]));
       initialProps.contexts = nextContexts;
     }
-    if (copilotEstimate && !initialProps.timeEstimate) {
+    if (timeEstimatesEnabled && copilotEstimate && !initialProps.timeEstimate) {
       initialProps.timeEstimate = copilotEstimate;
     }
     if (copilotTags.length) {
@@ -161,7 +186,7 @@ export default function CaptureScreen() {
             style={[styles.copilotPill, { borderColor: tc.border, backgroundColor: tc.inputBg }]}
             onPress={() => {
               setCopilotContext(copilotSuggestion.context);
-              setCopilotEstimate(copilotSuggestion.timeEstimate);
+              if (timeEstimatesEnabled) setCopilotEstimate(copilotSuggestion.timeEstimate);
               setCopilotTags(copilotSuggestion.tags ?? []);
               setCopilotApplied(true);
             }}
@@ -169,7 +194,7 @@ export default function CaptureScreen() {
             <Text style={[styles.copilotText, { color: tc.text }]}>
               ✨ {t('copilot.suggested')}{' '}
               {copilotSuggestion.context ? `${copilotSuggestion.context} ` : ''}
-              {copilotSuggestion.timeEstimate ? `${copilotSuggestion.timeEstimate}` : ''}
+              {timeEstimatesEnabled && copilotSuggestion.timeEstimate ? `${copilotSuggestion.timeEstimate}` : ''}
               {copilotSuggestion.tags?.length ? copilotSuggestion.tags.join(' ') : ''}
             </Text>
             <Text style={[styles.copilotHint, { color: tc.secondaryText }]}>
@@ -182,7 +207,7 @@ export default function CaptureScreen() {
             <Text style={[styles.copilotText, { color: tc.text }]}>
               ✅ {t('copilot.applied')}{' '}
               {copilotContext ? `${copilotContext} ` : ''}
-              {copilotEstimate ? `${copilotEstimate}` : ''}
+              {timeEstimatesEnabled && copilotEstimate ? `${copilotEstimate}` : ''}
               {copilotTags.length ? copilotTags.join(' ') : ''}
             </Text>
           </View>

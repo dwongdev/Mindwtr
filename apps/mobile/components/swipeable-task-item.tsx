@@ -48,7 +48,8 @@ export function SwipeableTaskItem({
     const swipeableRef = useRef<Swipeable>(null);
     const ignorePressUntil = useRef<number>(0);
     const { t, language } = useLanguage();
-    const { updateTask, projects } = useTaskStore();
+    const { updateTask, projects, settings } = useTaskStore();
+    const timeEstimatesEnabled = settings?.features?.timeEstimates === true;
 
     const project: Project | undefined = task.projectId ? projects.find(p => p.id === task.projectId) : undefined;
 
@@ -92,7 +93,7 @@ export function SwipeableTaskItem({
     );
 
     const timeEstimateLabel = (() => {
-        if (!task.timeEstimate) return null;
+        if (!timeEstimatesEnabled || !task.timeEstimate) return null;
         if (task.timeEstimate === '5min') return '5m';
         if (task.timeEstimate === '10min') return '10m';
         if (task.timeEstimate === '15min') return '15m';

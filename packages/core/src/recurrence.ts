@@ -121,13 +121,18 @@ function nextIsoFrom(
 ): string | undefined {
     const parsed = safeParseDate(baseIso);
     const base = parsed || fallbackBase;
-    const nextDate = rule === 'weekly' && byDay && byDay.length > 0
-        ? nextWeeklyByDay(base, byDay)
+    const effectiveByDay = byDay && byDay.length > 0 ? byDay : undefined;
+    const nextDate = rule === 'weekly' && effectiveByDay
+        ? nextWeeklyByDay(base, effectiveByDay)
         : addInterval(base, rule);
 
     // Preserve existing storage format:
     // - If base has timezone/offset, keep ISO (Z/offset).
     // - Otherwise, return local datetime-local compatible string.
+    const isDateOnly = !!baseIso && /^\d{4}-\d{2}-\d{2}$/.test(baseIso);
+    if (isDateOnly) {
+        return format(nextDate, 'yyyy-MM-dd');
+    }
     const hasTimezone = !!baseIso && /Z$|[+-]\d{2}:?\d{2}$/.test(baseIso);
     return hasTimezone ? nextDate.toISOString() : format(nextDate, "yyyy-MM-dd'T'HH:mm");
 }

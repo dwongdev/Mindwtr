@@ -33,6 +33,22 @@ function App() {
             flushPendingSave().catch(console.error);
         };
         window.addEventListener('beforeunload', handleUnload);
+        let unlistenClose: (() => void) | null = null;
+        let isClosing = false;
+        if (isTauriRuntime()) {
+            import('@tauri-apps/api/window')
+                .then(async ({ getCurrentWindow }) => {
+                    const window = getCurrentWindow();
+                    unlistenClose = await window.onCloseRequested(async (event) => {
+                        if (isClosing) return;
+                        isClosing = true;
+                        event.preventDefault();
+                        await flushPendingSave().catch(console.error);
+                        await window.close();
+                    });
+                })
+                .catch(console.error);
+        }
 
         if (isTauriRuntime()) {
             startDesktopNotifications().catch(console.error);
@@ -127,6 +143,9 @@ function App() {
             window.removeEventListener('beforeunload', handleUnload);
             window.removeEventListener('focus', focusListener);
             window.removeEventListener('blur', blurListener);
+            if (unlistenClose) {
+                unlistenClose();
+            }
             storeUnsubscribe();
             if (syncDebounceTimer) {
                 clearTimeout(syncDebounceTimer);

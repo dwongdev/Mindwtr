@@ -85,9 +85,13 @@ export interface AIProviderConfig {
     timeoutMs?: number;
 }
 
+export interface AIRequestOptions {
+    signal?: AbortSignal;
+}
+
 export interface AIProvider {
-    clarifyTask: (input: ClarifyInput) => Promise<ClarifyResponse>;
-    breakDownTask: (input: BreakdownInput) => Promise<BreakdownResponse>;
-    analyzeReview: (input: ReviewAnalysisInput) => Promise<ReviewAnalysisResponse>;
-    predictMetadata: (input: CopilotInput) => Promise<CopilotResponse>;
+    clarifyTask: (input: ClarifyInput, options?: AIRequestOptions) => Promise<ClarifyResponse>;
+    breakDownTask: (input: BreakdownInput, options?: AIRequestOptions) => Promise<BreakdownResponse>;
+    analyzeReview: (input: ReviewAnalysisInput, options?: AIRequestOptions) => Promise<ReviewAnalysisResponse>;
+    predictMetadata: (input: CopilotInput, options?: AIRequestOptions) => Promise<CopilotResponse>;
 }

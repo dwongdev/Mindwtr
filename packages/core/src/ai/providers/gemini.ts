@@ -1,4 +1,4 @@
-import type { AIProvider, AIProviderConfig, BreakdownInput, BreakdownResponse, ClarifyInput, ClarifyResponse, CopilotInput, CopilotResponse, ReviewAnalysisInput, ReviewAnalysisResponse } from '../types';
+import type { AIProvider, AIProviderConfig, BreakdownInput, BreakdownResponse, ClarifyInput, ClarifyResponse, CopilotInput, CopilotResponse, ReviewAnalysisInput, ReviewAnalysisResponse, AIRequestOptions } from '../types';
 import { buildBreakdownPrompt, buildClarifyPrompt, buildCopilotPrompt, buildReviewAnalysisPrompt } from '../prompts';
 import { normalizeTags, normalizeTimeEstimate, parseJson } from '../utils';
 import { isBreakdownResponse, isClarifyResponse, isCopilotResponse, isReviewAnalysisResponse } from '../validators';
@@ -21,18 +21,32 @@ interface GeminiResponse {
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
-async function fetchWithTimeout(url: string, init: RequestInit, timeoutMs: number): Promise<Response> {
+async function fetchWithTimeout(url: string, init: RequestInit, timeoutMs: number, externalSignal?: AbortSignal): Promise<Response> {
     const abortController = typeof AbortController === 'function' ? new AbortController() : null;
+    let removeExternalListener: (() => void) | null = null;
+    if (abortController && externalSignal) {
+        const onAbort = () => abortController.abort();
+        if (externalSignal.aborted) {
+            abortController.abort();
+        } else {
+            externalSignal.addEventListener('abort', onAbort);
+            removeExternalListener = () => externalSignal.removeEventListener('abort', onAbort);
+        }
+    }
     const timeoutId = abortController ? setTimeout(() => abortController.abort(), timeoutMs) : null;
     try {
         return await fetch(url, { ...init, signal: abortController?.signal ?? init.signal });
     } catch (error) {
         if (abortController?.signal.aborted) {
+            if (externalSignal?.aborted) {
+                throw new Error('Gemini request aborted');
+            }
             throw new Error('Gemini request timed out');
         }
         throw error;
     } finally {
         if (timeoutId) clearTimeout(timeoutId);
+        if (removeExternalListener) removeExternalListener();
     }
 }
 
@@ -106,7 +120,7 @@ const COPILOT_SCHEMA: GeminiSchema = {
     },
 };
 
-async function requestGemini(config: AIProviderConfig, prompt: { system: string; user: string }, schema?: GeminiSchema) {
+async function requestGemini(config: AIProviderConfig, prompt: { system: string; user: string }, schema?: GeminiSchema, options?: AIRequestOptions) {
     const endpoint = config.endpoint || GEMINI_BASE_URL;
     if (!config.apiKey) {
         throw new Error('Gemini API key is required.');
@@ -159,7 +173,8 @@ async function requestGemini(config: AIProviderConfig, prompt: { system: string;
                     },
                     body: JSON.stringify(body),
                 },
-                config.timeoutMs ?? DEFAULT_TIMEOUT_MS
+                config.timeoutMs ?? DEFAULT_TIMEOUT_MS,
+                options?.signal
             );
         } catch (error) {
             if (attempt < MAX_RETRIES) {
@@ -195,9 +210,9 @@ async function requestGemini(config: AIProviderConfig, prompt: { system: string;
 
 export function createGeminiProvider(config: AIProviderConfig): AIProvider {
     return {
-        clarifyTask: async (input: ClarifyInput): Promise<ClarifyResponse> => {
+        clarifyTask: async (input: ClarifyInput, options?: AIRequestOptions): Promise<ClarifyResponse> => {
             const prompt = buildClarifyPrompt(input);
-            const text = await requestGemini(config, prompt, CLARIFY_SCHEMA);
+            const text = await requestGemini(config, prompt, CLARIFY_SCHEMA, options);
             try {
                 return parseJson<ClarifyResponse>(text, isClarifyResponse);
             } catch (error) {
@@ -205,13 +220,13 @@ export function createGeminiProvider(config: AIProviderConfig): AIProvider {
                     system: prompt.system,
                     user: `${prompt.user}\n\nReturn ONLY valid JSON. Do not include any extra text.`,
                 };
-                const retryText = await requestGemini(config, retryPrompt, CLARIFY_SCHEMA);
+                const retryText = await requestGemini(config, retryPrompt, CLARIFY_SCHEMA, options);
                 return parseJson<ClarifyResponse>(retryText, isClarifyResponse);
             }
         },
-        breakDownTask: async (input: BreakdownInput): Promise<BreakdownResponse> => {
+        breakDownTask: async (input: BreakdownInput, options?: AIRequestOptions): Promise<BreakdownResponse> => {
             const prompt = buildBreakdownPrompt(input);
-            const text = await requestGemini(config, prompt, BREAKDOWN_SCHEMA);
+            const text = await requestGemini(config, prompt, BREAKDOWN_SCHEMA, options);
             try {
                 return parseJson<BreakdownResponse>(text, isBreakdownResponse);
             } catch (error) {
@@ -219,13 +234,13 @@ export function createGeminiProvider(config: AIProviderConfig): AIProvider {
                     system: prompt.system,
                     user: `${prompt.user}\n\nReturn ONLY valid JSON. Do not include any extra text.`,
                 };
-                const retryText = await requestGemini(config, retryPrompt, BREAKDOWN_SCHEMA);
+                const retryText = await requestGemini(config, retryPrompt, BREAKDOWN_SCHEMA, options);
                 return parseJson<BreakdownResponse>(retryText, isBreakdownResponse);
             }
         },
-        analyzeReview: async (input: ReviewAnalysisInput): Promise<ReviewAnalysisResponse> => {
+        analyzeReview: async (input: ReviewAnalysisInput, options?: AIRequestOptions): Promise<ReviewAnalysisResponse> => {
             const prompt = buildReviewAnalysisPrompt(input.items);
-            const text = await requestGemini(config, prompt, REVIEW_SCHEMA);
+            const text = await requestGemini(config, prompt, REVIEW_SCHEMA, options);
             try {
                 return parseJson<ReviewAnalysisResponse>(text, isReviewAnalysisResponse);
             } catch (error) {
@@ -233,13 +248,13 @@ export function createGeminiProvider(config: AIProviderConfig): AIProvider {
                     system: prompt.system,
                     user: `${prompt.user}\n\nReturn ONLY valid JSON. Do not include any extra text.`,
                 };
-                const retryText = await requestGemini(config, retryPrompt, REVIEW_SCHEMA);
+                const retryText = await requestGemini(config, retryPrompt, REVIEW_SCHEMA, options);
                 return parseJson<ReviewAnalysisResponse>(retryText, isReviewAnalysisResponse);
             }
         },
-        predictMetadata: async (input: CopilotInput): Promise<CopilotResponse> => {
+        predictMetadata: async (input: CopilotInput, options?: AIRequestOptions): Promise<CopilotResponse> => {
             const prompt = buildCopilotPrompt(input);
-            const text = await requestGemini(config, prompt, COPILOT_SCHEMA);
+            const text = await requestGemini(config, prompt, COPILOT_SCHEMA, options);
             try {
                 const parsed = parseJson<CopilotResponse>(text, isCopilotResponse);
                 const context = typeof parsed.context === 'string' ? parsed.context : undefined;
@@ -255,7 +270,7 @@ export function createGeminiProvider(config: AIProviderConfig): AIProvider {
                     system: prompt.system,
                     user: `${prompt.user}\n\nReturn ONLY valid JSON. Do not include any extra text.`,
                 };
-                const retryText = await requestGemini(config, retryPrompt, COPILOT_SCHEMA);
+                const retryText = await requestGemini(config, retryPrompt, COPILOT_SCHEMA, options);
                 const parsed = parseJson<CopilotResponse>(retryText, isCopilotResponse);
                 const context = typeof parsed.context === 'string' ? parsed.context : undefined;
                 const timeEstimate = typeof parsed.timeEstimate === 'string' ? parsed.timeEstimate : undefined;

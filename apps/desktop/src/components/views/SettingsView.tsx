@@ -95,6 +95,8 @@ export function SettingsView() {
     const aiCopilotOptions = getCopilotModelOptions(aiProvider);
     const loggingEnabled = settings?.diagnostics?.loggingEnabled === true;
     const didWriteLogRef = useRef(false);
+    const prioritiesEnabled = settings?.features?.priorities === true;
+    const timeEstimatesEnabled = settings?.features?.timeEstimates === true;
 
     const [isCheckingUpdate, setIsCheckingUpdate] = useState(false);
     const [updateInfo, setUpdateInfo] = useState<UpdateInfo | null>(null);
@@ -108,12 +110,10 @@ export function SettingsView() {
     const [syncPath, setSyncPath] = useState<string>('');
     const [isSyncing, setIsSyncing] = useState(false);
     const [syncError, setSyncError] = useState<string | null>(null);
-    const [syncBackend, setSyncBackend] = useState<'file' | 'webdav' | 'cloud'>('file');
+    const [syncBackend, setSyncBackend] = useState<'file' | 'webdav'>('file');
     const [webdavUrl, setWebdavUrl] = useState('');
     const [webdavUsername, setWebdavUsername] = useState('');
     const [webdavPassword, setWebdavPassword] = useState('');
-    const [cloudUrl, setCloudUrl] = useState('');
-    const [cloudToken, setCloudToken] = useState('');
     const [externalCalendars, setExternalCalendars] = useState<ExternalCalendarSubscription[]>([]);
     const [newCalendarName, setNewCalendarName] = useState('');
     const [newCalendarUrl, setNewCalendarUrl] = useState('');
@@ -163,12 +163,6 @@ export function SettingsView() {
                 setWebdavUrl(cfg.url);
                 setWebdavUsername(cfg.username);
                 setWebdavPassword(cfg.password);
-            })
-            .catch(console.error);
-        SyncService.getCloudConfig()
-            .then((cfg) => {
-                setCloudUrl(cfg.url);
-                setCloudToken(cfg.token);
             })
             .catch(console.error);
     }, []);
@@ -227,6 +221,12 @@ export function SettingsView() {
             .catch(console.error);
     };
 
+    const updateFeatureFlags = (next: Partial<NonNullable<typeof settings.features>>) => {
+        updateSettings({ features: { ...(settings.features ?? {}), ...next } })
+            .then(showSaved)
+            .catch(console.error);
+    };
+
     const openLink = (url: string) => {
         window.open(url, '_blank');
     };
@@ -254,7 +254,7 @@ export function SettingsView() {
         }
     };
 
-    const handleSetSyncBackend = async (backend: 'file' | 'webdav' | 'cloud') => {
+    const handleSetSyncBackend = async (backend: 'file' | 'webdav') => {
         setSyncBackend(backend);
         await SyncService.setSyncBackend(backend);
         showSaved();
@@ -269,14 +269,6 @@ export function SettingsView() {
         showSaved();
     };
 
-    const handleSaveCloud = async () => {
-        await SyncService.setCloudConfig({
-            url: cloudUrl.trim(),
-            token: cloudToken.trim(),
-        });
-        showSaved();
-    };
-
     const handleSync = async () => {
         try {
             setIsSyncing(true);
@@ -286,11 +278,6 @@ export function SettingsView() {
                 if (!webdavUrl.trim()) return;
                 await handleSaveWebDav();
             }
-            if (syncBackend === 'cloud') {
-                if (!cloudUrl.trim() || !cloudToken.trim()) return;
-                await handleSaveCloud();
-            }
-
             if (syncBackend === 'file') {
                 const path = syncPath.trim();
                 if (path) {
@@ -398,6 +385,8 @@ export function SettingsView() {
             general: 'General',
             subtitle: 'Customize your Mindwtr experience',
             back: 'Back',
+            features: 'Features',
+            featuresDesc: 'Optional signals you can turn on when needed.',
             appearance: 'Appearance',
             gtd: 'GTD',
             gtdDesc: 'Tune the GTD workflow defaults.',
@@ -424,9 +413,12 @@ export function SettingsView() {
             taskEditorFieldStartTime: 'Start date',
             taskEditorFieldDueDate: 'Due date',
             taskEditorFieldReviewAt: 'Review date',
-            taskEditorFieldBlockedBy: 'Blocked by',
             taskEditorFieldAttachments: 'Attachments',
             taskEditorFieldChecklist: 'Checklist',
+            featurePriorities: 'Priorities',
+            featurePrioritiesDesc: 'Show a priority flag on tasks.',
+            featureTimeEstimates: 'Time estimates',
+            featureTimeEstimatesDesc: 'Add quick duration estimates for time blocking.',
             notifications: 'Notifications',
             notificationsDesc: 'Enable task reminders and daily digest notifications.',
             notificationsEnable: 'Enable notifications',
@@ -456,8 +448,15 @@ export function SettingsView() {
             dailyDigestDesc: 'Morning briefing and evening review prompts.',
             dailyDigestMorning: 'Morning briefing',
             dailyDigestEvening: 'Evening review',
+            weeklyReview: 'Weekly review',
+            weeklyReviewDesc: 'Get a weekly review reminder at your chosen time.',
+            weeklyReviewDay: 'Review day',
+            weeklyReviewTime: 'Review time',
             on: 'On',
             off: 'Off',
+            visible: 'Shown',
+            hidden: 'Hidden',
+            manage: 'Manage',
             localData: 'Local Data',
             localDataDesc: 'Config is stored in your system config folder; data is stored in your system data folder.',
             webDataDesc: 'The web app stores data in browser storage.',
@@ -473,7 +472,6 @@ export function SettingsView() {
             syncBackend: 'Sync backend',
             syncBackendFile: 'File',
             syncBackendWebdav: 'WebDAV',
-            syncBackendCloud: 'Cloud',
             calendar: 'Calendar',
             calendarDesc: 'View external calendars via ICS subscription URLs.',
             externalCalendars: 'External calendars',
@@ -492,14 +490,11 @@ export function SettingsView() {
             webdavPassword: 'Password',
             webdavSave: 'Save WebDAV',
             webdavHint: 'Use a full URL to your sync JSON file (e.g., https://example.com/remote.php/dav/files/user/data.json).',
-            cloudUrl: 'Cloud URL',
-            cloudToken: 'Access token',
-            cloudSave: 'Save Cloud',
-            cloudHint: 'Use your cloud endpoint URL (e.g., https://example.com/v1/data).',
             lastSync: 'Last sync',
             lastSyncNever: 'Never',
             lastSyncSuccess: 'Sync completed',
             lastSyncError: 'Sync failed',
+            lastSyncConflict: 'Conflicts resolved',
             lastSyncConflicts: 'Conflicts',
             about: 'About',
             version: 'Version',
@@ -533,6 +528,8 @@ export function SettingsView() {
             general: '通用',
             subtitle: '自定义您的 Mindwtr 体验',
             back: '返回',
+            features: '功能',
+            featuresDesc: '按需开启可选信号。',
             appearance: '外观',
             gtd: 'GTD',
             gtdDesc: '调整 GTD 工作流默认设置。',
@@ -559,9 +556,12 @@ export function SettingsView() {
             taskEditorFieldStartTime: '开始日期',
             taskEditorFieldDueDate: '截止日期',
             taskEditorFieldReviewAt: '回顾日期',
-            taskEditorFieldBlockedBy: '被阻塞',
             taskEditorFieldAttachments: '附件',
             taskEditorFieldChecklist: '清单',
+            featurePriorities: '优先级',
+            featurePrioritiesDesc: '为任务显示优先级标记。',
+            featureTimeEstimates: '时间估算',
+            featureTimeEstimatesDesc: '为时间管理添加时长估计。',
             notifications: '通知',
             notificationsDesc: '启用任务提醒与每日简报通知。',
             notificationsEnable: '启用通知',
@@ -591,8 +591,15 @@ export function SettingsView() {
             dailyDigestDesc: '早间简报与晚间回顾提醒。',
             dailyDigestMorning: '早间简报',
             dailyDigestEvening: '晚间回顾',
+            weeklyReview: '每周回顾',
+            weeklyReviewDesc: '在你设定的时间提醒进行每周回顾。',
+            weeklyReviewDay: '回顾日期',
+            weeklyReviewTime: '回顾时间',
             on: '开启',
             off: '关闭',
+            visible: '显示',
+            hidden: '隐藏',
+            manage: '管理',
             localData: '本地数据',
             localDataDesc: '配置保存在系统配置目录；数据保存在系统数据目录。',
             webDataDesc: 'Web 版本使用浏览器存储。',
@@ -608,7 +615,6 @@ export function SettingsView() {
             syncBackend: '同步后端',
             syncBackendFile: '文件',
             syncBackendWebdav: 'WebDAV',
-            syncBackendCloud: '云端',
             calendar: '日历',
             calendarDesc: '通过 ICS 订阅地址查看外部日历（只读）。',
             externalCalendars: '外部日历',
@@ -627,14 +633,11 @@ export function SettingsView() {
             webdavPassword: '密码',
             webdavSave: '保存 WebDAV',
             webdavHint: '请输入同步 JSON 文件的完整 URL（例如 https://example.com/remote.php/dav/files/user/data.json）。',
-            cloudUrl: '云端地址',
-            cloudToken: '访问令牌',
-            cloudSave: '保存云端配置',
-            cloudHint: '请填写云端同步端点（例如 https://example.com/v1/data）。',
             lastSync: '上次同步',
             lastSyncNever: '从未同步',
             lastSyncSuccess: '同步完成',
             lastSyncError: '同步失败',
+            lastSyncConflict: '已解决冲突',
             lastSyncConflicts: '冲突',
             about: '关于',
             version: '版本',
@@ -735,6 +738,16 @@ export function SettingsView() {
     const lastSyncStats = settings?.lastSyncStats;
     const lastSyncDisplay = lastSyncAt ? safeFormatDate(lastSyncAt, 'PPpp', lastSyncAt) : t.lastSyncNever;
     const conflictCount = (lastSyncStats?.tasks.conflicts || 0) + (lastSyncStats?.projects.conflicts || 0);
+    const weeklyReviewEnabled = settings?.weeklyReviewEnabled === true;
+    const weeklyReviewTime = settings?.weeklyReviewTime || '18:00';
+    const weeklyReviewDay = Number.isFinite(settings?.weeklyReviewDay) ? settings?.weeklyReviewDay as number : 0;
+    const locale = language === 'zh' ? 'zh-CN' : 'en-US';
+    const weekdayOptions = useMemo(() => (
+        Array.from({ length: 7 }, (_, i) => {
+            const base = new Date(2021, 7, 1 + i);
+            return { value: i, label: base.toLocaleDateString(locale, { weekday: 'long' }) };
+        })
+    ), [locale]);
 
     const pageTitle = page === 'gtd'
         ? t.gtd
@@ -759,8 +772,8 @@ export function SettingsView() {
         { id: 'main', icon: Monitor, label: t.general, description: `${t.appearance} • ${t.language} • ${t.keybindings}` },
         { id: 'gtd', icon: ListChecks, label: t.gtd, description: t.gtdDesc },
         { id: 'notifications', icon: Bell, label: t.notifications },
-        { id: 'ai', icon: Sparkles, label: t.ai, description: t.aiDesc },
         { id: 'sync', icon: Database, label: t.sync },
+        { id: 'ai', icon: Sparkles, label: t.ai, description: t.aiDesc },
         { id: 'calendar', icon: CalendarDays, label: t.calendar },
         { id: 'about', icon: Info, label: t.about },
     ];
@@ -848,6 +861,9 @@ export function SettingsView() {
                 if (days <= 0) return t.autoArchiveNever;
                 return language === 'zh' ? `${days} 天` : `${days} days`;
             };
+            const featureHiddenFields = new Set<TaskEditorFieldId>();
+            if (!prioritiesEnabled) featureHiddenFields.add('priority');
+            if (!timeEstimatesEnabled) featureHiddenFields.add('timeEstimate');
             const defaultTaskEditorOrder: TaskEditorFieldId[] = [
                 'status',
                 'priority',
@@ -859,10 +875,9 @@ export function SettingsView() {
                 'startTime',
                 'dueDate',
                 'reviewAt',
-                'blockedBy',
                 'attachments',
                 'checklist',
-            ];
+            ].filter((fieldId) => !featureHiddenFields.has(fieldId));
             const defaultTaskEditorHidden = [...defaultTaskEditorOrder];
             const savedOrder = settings.gtd?.taskEditor?.order ?? [];
             const savedHidden = settings.gtd?.taskEditor?.hidden ?? defaultTaskEditorHidden;
@@ -894,8 +909,6 @@ export function SettingsView() {
                         return t.taskEditorFieldDueDate;
                     case 'reviewAt':
                         return t.taskEditorFieldReviewAt;
-                    case 'blockedBy':
-                        return t.taskEditorFieldBlockedBy;
                     case 'attachments':
                         return t.taskEditorFieldAttachments;
                     case 'checklist':
@@ -966,6 +979,49 @@ export function SettingsView() {
                             </div>
                         </div>
                     </div>
+                    <div className="bg-card border border-border rounded-lg divide-y divide-border">
+                        <div className="p-4">
+                            <div className="text-sm font-medium">{t.features}</div>
+                            <div className="text-xs text-muted-foreground mt-1">{t.featuresDesc}</div>
+                        </div>
+                        <div className="p-4 flex items-center justify-between gap-6">
+                            <div className="min-w-0">
+                                <div className="text-sm font-medium">{t.featurePriorities}</div>
+                                <div className="text-xs text-muted-foreground mt-1">{t.featurePrioritiesDesc}</div>
+                            </div>
+                            <button
+                                type="button"
+                                onClick={() => updateFeatureFlags({ priorities: !prioritiesEnabled })}
+                                className={cn(
+                                    "px-3 py-1.5 rounded-md text-xs font-medium transition-colors border",
+                                    prioritiesEnabled
+                                        ? "bg-primary/10 text-primary border-primary ring-1 ring-primary"
+                                        : "bg-muted/50 text-muted-foreground border-border hover:bg-muted hover:text-foreground",
+                                )}
+                            >
+                                {prioritiesEnabled ? t.on : t.off}
+                            </button>
+                        </div>
+
+                        <div className="p-4 flex items-center justify-between gap-6">
+                            <div className="min-w-0">
+                                <div className="text-sm font-medium">{t.featureTimeEstimates}</div>
+                                <div className="text-xs text-muted-foreground mt-1">{t.featureTimeEstimatesDesc}</div>
+                            </div>
+                            <button
+                                type="button"
+                                onClick={() => updateFeatureFlags({ timeEstimates: !timeEstimatesEnabled })}
+                                className={cn(
+                                    "px-3 py-1.5 rounded-md text-xs font-medium transition-colors border",
+                                    timeEstimatesEnabled
+                                        ? "bg-primary/10 text-primary border-primary ring-1 ring-primary"
+                                        : "bg-muted/50 text-muted-foreground border-border hover:bg-muted hover:text-foreground",
+                                )}
+                            >
+                                {timeEstimatesEnabled ? t.on : t.off}
+                            </button>
+                        </div>
+                    </div>
                     <div className="bg-card border border-border rounded-lg p-4 space-y-3">
                         <div className="flex items-center justify-between">
                             <div>
@@ -995,7 +1051,7 @@ export function SettingsView() {
                                     >
                                         <div className="flex items-center gap-2 text-sm">
                                             <span className={cn("text-xs uppercase tracking-wide", isVisible ? "text-primary" : "text-muted-foreground")}>
-                                                {isVisible ? t.on : t.off}
+                                                {isVisible ? t.visible : t.hidden}
                                             </span>
                                             <span className={cn(isVisible ? "text-foreground" : "text-muted-foreground")}>
                                                 {fieldLabel(fieldId)}
@@ -1195,6 +1251,64 @@ export function SettingsView() {
                                 )}
                             />
                         </button>
+                    </div>
+
+                    <div className="border-t border-border/50"></div>
+
+                    <div className="space-y-3">
+                        <div>
+                            <p className="text-sm font-medium">{t.weeklyReview}</p>
+                            <p className="text-xs text-muted-foreground mt-1">{t.weeklyReviewDesc}</p>
+                        </div>
+
+                        <div className="flex items-center justify-between gap-4">
+                            <div className="text-sm font-medium">{t.weeklyReview}</div>
+                            <button
+                                type="button"
+                                role="switch"
+                                aria-checked={weeklyReviewEnabled}
+                                onClick={() => updateSettings({ weeklyReviewEnabled: !weeklyReviewEnabled }).then(showSaved).catch(console.error)}
+                                disabled={!notificationsEnabled}
+                                className={cn(
+                                    "relative inline-flex h-5 w-9 items-center rounded-full border transition-colors disabled:opacity-50",
+                                    weeklyReviewEnabled ? "bg-primary border-primary" : "bg-muted/50 border-border"
+                                )}
+                            >
+                                <span
+                                    className={cn(
+                                        "inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform",
+                                        weeklyReviewEnabled ? "translate-x-4" : "translate-x-1"
+                                    )}
+                                />
+                            </button>
+                        </div>
+
+                        <div className="flex items-center justify-between gap-4">
+                            <div className="text-sm font-medium">{t.weeklyReviewDay}</div>
+                            <select
+                                value={weeklyReviewDay}
+                                disabled={!notificationsEnabled || !weeklyReviewEnabled}
+                                onChange={(e) => updateSettings({ weeklyReviewDay: Number(e.target.value) }).then(showSaved).catch(console.error)}
+                                className="bg-muted px-2 py-1 rounded text-sm border border-border disabled:opacity-50"
+                            >
+                                {weekdayOptions.map((option) => (
+                                    <option key={option.value} value={option.value}>
+                                        {option.label}
+                                    </option>
+                                ))}
+                            </select>
+                        </div>
+
+                        <div className="flex items-center justify-between gap-4">
+                            <div className="text-sm font-medium">{t.weeklyReviewTime}</div>
+                            <input
+                                type="time"
+                                value={weeklyReviewTime}
+                                disabled={!notificationsEnabled || !weeklyReviewEnabled}
+                                onChange={(e) => updateSettings({ weeklyReviewTime: e.target.value }).then(showSaved).catch(console.error)}
+                                className="bg-muted px-2 py-1 rounded text-sm border border-border disabled:opacity-50"
+                            />
+                        </div>
                     </div>
 
                     <div className="border-t border-border/50"></div>
@@ -1488,17 +1602,6 @@ export function SettingsView() {
                                     >
                                         {t.syncBackendWebdav}
                                     </button>
-                                    <button
-                                        onClick={() => handleSetSyncBackend('cloud')}
-                                        className={cn(
-                                            "px-3 py-1.5 rounded-md text-sm font-medium transition-colors border",
-                                            syncBackend === 'cloud'
-                                                ? "bg-primary/10 text-primary border-primary ring-1 ring-primary"
-                                                : "bg-muted/50 text-muted-foreground border-border hover:bg-muted hover:text-foreground",
-                                        )}
-                                    >
-                                        {t.syncBackendCloud}
-                                    </button>
                                 </div>
                             </div>
 
@@ -1585,46 +1688,9 @@ export function SettingsView() {
                                 </div>
                             )}
 
-                            {syncBackend === 'cloud' && (
-                                <div className="space-y-3">
-                                    <div className="flex flex-col gap-2">
-                                        <label className="text-sm font-medium">{t.cloudUrl}</label>
-                                        <input
-                                            type="text"
-                                            value={cloudUrl}
-                                            onChange={(e) => setCloudUrl(e.target.value)}
-                                            placeholder="https://example.com/v1/data"
-                                            className="bg-muted p-2 rounded text-sm font-mono border border-border focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                        />
-                                        <p className="text-xs text-muted-foreground">{t.cloudHint}</p>
-                                    </div>
-
-                                    <div className="flex flex-col gap-2">
-                                        <label className="text-sm font-medium">{t.cloudToken}</label>
-                                        <input
-                                            type="password"
-                                            value={cloudToken}
-                                            onChange={(e) => setCloudToken(e.target.value)}
-                                            className="bg-muted p-2 rounded text-sm border border-border focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                        />
-                                    </div>
-
-                                    <div className="flex justify-end">
-                                        <button
-                                            onClick={handleSaveCloud}
-                                            className="px-4 py-2 bg-blue-600 text-white rounded-md text-sm font-medium hover:bg-blue-700 whitespace-nowrap"
-                                        >
-                                            {t.cloudSave}
-                                        </button>
-                                    </div>
-                                </div>
-                            )}
-
                             {(syncBackend === 'webdav'
                                 ? !!webdavUrl.trim()
-                                : syncBackend === 'cloud'
-                                    ? !!cloudUrl.trim() && !!cloudToken.trim()
-                                    : !!syncPath.trim()) && (
+                                : !!syncPath.trim()) && (
                                 <div className="pt-2 flex items-center gap-3">
                                     <button
                                         onClick={handleSync}
@@ -1645,6 +1711,7 @@ export function SettingsView() {
                                 <div>
                                     {t.lastSync}: {lastSyncDisplay}
                                     {lastSyncStatus === 'success' && ` • ${t.lastSyncSuccess}`}
+                                    {lastSyncStatus === 'conflict' && ` • ${t.lastSyncConflict}`}
                                     {lastSyncStatus === 'error' && ` • ${t.lastSyncError}`}
                                 </div>
                                 {lastSyncStats && (

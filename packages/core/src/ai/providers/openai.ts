@@ -1,4 +1,4 @@
-import type { AIProvider, AIProviderConfig, BreakdownInput, BreakdownResponse, ClarifyInput, ClarifyResponse, CopilotInput, CopilotResponse, ReviewAnalysisInput, ReviewAnalysisResponse } from '../types';
+import type { AIProvider, AIProviderConfig, BreakdownInput, BreakdownResponse, ClarifyInput, ClarifyResponse, CopilotInput, CopilotResponse, ReviewAnalysisInput, ReviewAnalysisResponse, AIRequestOptions } from '../types';
 import { buildBreakdownPrompt, buildClarifyPrompt, buildCopilotPrompt, buildReviewAnalysisPrompt } from '../prompts';
 import { normalizeTags, normalizeTimeEstimate, parseJson } from '../utils';
 import { isBreakdownResponse, isClarifyResponse, isCopilotResponse, isReviewAnalysisResponse } from '../validators';
@@ -10,22 +10,36 @@ const RETRYABLE_STATUSES = new Set([408, 429, 500, 502, 503, 504]);
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
-async function fetchWithTimeout(url: string, init: RequestInit, timeoutMs: number): Promise<Response> {
+async function fetchWithTimeout(url: string, init: RequestInit, timeoutMs: number, externalSignal?: AbortSignal): Promise<Response> {
     const abortController = typeof AbortController === 'function' ? new AbortController() : null;
+    let removeExternalListener: (() => void) | null = null;
+    if (abortController && externalSignal) {
+        const onAbort = () => abortController.abort();
+        if (externalSignal.aborted) {
+            abortController.abort();
+        } else {
+            externalSignal.addEventListener('abort', onAbort);
+            removeExternalListener = () => externalSignal.removeEventListener('abort', onAbort);
+        }
+    }
     const timeoutId = abortController ? setTimeout(() => abortController.abort(), timeoutMs) : null;
     try {
         return await fetch(url, { ...init, signal: abortController?.signal ?? init.signal });
     } catch (error) {
         if (abortController?.signal.aborted) {
+            if (externalSignal?.aborted) {
+                throw new Error('OpenAI request aborted');
+            }
             throw new Error('OpenAI request timed out');
         }
         throw error;
     } finally {
         if (timeoutId) clearTimeout(timeoutId);
+        if (removeExternalListener) removeExternalListener();
     }
 }
 
-async function requestOpenAI(config: AIProviderConfig, prompt: { system: string; user: string }) {
+async function requestOpenAI(config: AIProviderConfig, prompt: { system: string; user: string }, options?: AIRequestOptions) {
     if (!config.apiKey) {
         throw new Error('OpenAI API key is required.');
     }
@@ -58,7 +72,8 @@ async function requestOpenAI(config: AIProviderConfig, prompt: { system: string;
                     },
                     body: JSON.stringify(body),
                 },
-                config.timeoutMs ?? DEFAULT_TIMEOUT_MS
+                config.timeoutMs ?? DEFAULT_TIMEOUT_MS,
+                options?.signal
             );
         } catch (error) {
             if (attempt < MAX_RETRIES) {
@@ -96,24 +111,24 @@ async function requestOpenAI(config: AIProviderConfig, prompt: { system: string;
 
 export function createOpenAIProvider(config: AIProviderConfig): AIProvider {
     return {
-        clarifyTask: async (input: ClarifyInput): Promise<ClarifyResponse> => {
+        clarifyTask: async (input: ClarifyInput, options?: AIRequestOptions): Promise<ClarifyResponse> => {
             const prompt = buildClarifyPrompt(input);
-            const text = await requestOpenAI(config, prompt);
+            const text = await requestOpenAI(config, prompt, options);
             return parseJson<ClarifyResponse>(text, isClarifyResponse);
         },
-        breakDownTask: async (input: BreakdownInput): Promise<BreakdownResponse> => {
+        breakDownTask: async (input: BreakdownInput, options?: AIRequestOptions): Promise<BreakdownResponse> => {
             const prompt = buildBreakdownPrompt(input);
-            const text = await requestOpenAI(config, prompt);
+            const text = await requestOpenAI(config, prompt, options);
             return parseJson<BreakdownResponse>(text, isBreakdownResponse);
         },
-        analyzeReview: async (input: ReviewAnalysisInput): Promise<ReviewAnalysisResponse> => {
+        analyzeReview: async (input: ReviewAnalysisInput, options?: AIRequestOptions): Promise<ReviewAnalysisResponse> => {
             const prompt = buildReviewAnalysisPrompt(input.items);
-            const text = await requestOpenAI(config, prompt);
+            const text = await requestOpenAI(config, prompt, options);
             return parseJson<ReviewAnalysisResponse>(text, isReviewAnalysisResponse);
         },
-        predictMetadata: async (input: CopilotInput): Promise<CopilotResponse> => {
+        predictMetadata: async (input: CopilotInput, options?: AIRequestOptions): Promise<CopilotResponse> => {
             const prompt = buildCopilotPrompt(input);
-            const text = await requestOpenAI(config, prompt);
+            const text = await requestOpenAI(config, prompt, options);
             const parsed = parseJson<CopilotResponse>(text, isCopilotResponse);
             const context = typeof parsed.context === 'string' ? parsed.context : undefined;
             const timeEstimate = typeof parsed.timeEstimate === 'string' ? parsed.timeEstimate : undefined;

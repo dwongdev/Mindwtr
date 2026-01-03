@@ -1,6 +1,6 @@
 import { useMemo, useState, memo, useEffect, useRef, useCallback } from 'react';
 
-import { Calendar as CalendarIcon, Tag, Trash2, ArrowRight, Repeat, Check, Plus, Clock, Timer, Paperclip, Link2, Pencil } from 'lucide-react';
+import { Check, Plus, Paperclip, Link2, Trash2 } from 'lucide-react';
 import {
     useTaskStore,
     Attachment,
@@ -15,16 +15,10 @@ import {
     buildRRuleString,
     parseRRuleString,
     generateUUID,
-    getTaskAgeLabel,
-    getTaskStaleness,
-    getTaskUrgency,
     getStatusColor,
     Project,
     safeFormatDate,
     safeParseDate,
-    getChecklistProgress,
-    getUnblocksCount,
-    stripMarkdown,
     createAIProvider,
     PRESET_CONTEXTS,
     PRESET_TAGS,
@@ -38,6 +32,8 @@ import { isTauriRuntime } from '../lib/runtime';
 import { normalizeAttachmentInput } from '../lib/attachment-utils';
 import { buildAIConfig, buildCopilotConfig, loadAIKey } from '../lib/ai-config';
 import { WeekdaySelector } from './Task/TaskForm/WeekdaySelector';
+import { TaskItemEditor } from './Task/TaskItemEditor';
+import { TaskItemDisplay } from './Task/TaskItemDisplay';
 
 const DEFAULT_TASK_EDITOR_ORDER: TaskEditorFieldId[] = [
     'status',
@@ -50,11 +46,21 @@ const DEFAULT_TASK_EDITOR_ORDER: TaskEditorFieldId[] = [
     'startTime',
     'dueDate',
     'reviewAt',
-    'blockedBy',
     'attachments',
     'checklist',
 ];
-const DEFAULT_TASK_EDITOR_HIDDEN: TaskEditorFieldId[] = [...DEFAULT_TASK_EDITOR_ORDER];
+const DEFAULT_TASK_EDITOR_HIDDEN: TaskEditorFieldId[] = [
+    'priority',
+    'contexts',
+    'tags',
+    'timeEstimate',
+    'recurrence',
+    'startTime',
+    'dueDate',
+    'reviewAt',
+    'attachments',
+    'checklist',
+];
 
 // Convert stored ISO or datetime-local strings into datetime-local input values.
 function toDateTimeLocalValue(dateStr: string | undefined): string {
@@ -105,7 +111,7 @@ export const TaskItem = memo(function TaskItem({
     onToggleSelect,
 }: TaskItemProps) {
     const { updateTask, deleteTask, moveTask, projects, tasks, settings, duplicateTask, resetTaskChecklist, highlightTaskId, setHighlightTask } = useTaskStore();
-    const { t, language } = useLanguage();
+    const { t } = useLanguage();
     const [isEditing, setIsEditing] = useState(false);
     const [editTitle, setEditTitle] = useState(task.title);
     const [editDueDate, setEditDueDate] = useState(toDateTimeLocalValue(task.dueDate));
@@ -122,7 +128,6 @@ export const TaskItem = memo(function TaskItem({
     const [editTimeEstimate, setEditTimeEstimate] = useState<TimeEstimate | ''>(task.timeEstimate || '');
     const [editPriority, setEditPriority] = useState<TaskPriority | ''>(task.priority || '');
     const [editReviewAt, setEditReviewAt] = useState(toDateTimeLocalValue(task.reviewAt));
-    const [editBlockedByTaskIds, setEditBlockedByTaskIds] = useState<string[]>(task.blockedByTaskIds || []);
     const [editAttachments, setEditAttachments] = useState<Attachment[]>(task.attachments || []);
     const [attachmentError, setAttachmentError] = useState<string | null>(null);
     const [showLinkPrompt, setShowLinkPrompt] = useState(false);
@@ -136,8 +141,11 @@ export const TaskItem = memo(function TaskItem({
     const [copilotContext, setCopilotContext] = useState<string | undefined>(undefined);
     const [copilotEstimate, setCopilotEstimate] = useState<TimeEstimate | undefined>(undefined);
     const [isAIWorking, setIsAIWorking] = useState(false);
+    const copilotAbortRef = useRef<AbortController | null>(null);
     const aiEnabled = settings?.ai?.enabled === true;
     const aiProvider = (settings?.ai?.provider ?? 'openai') as 'openai' | 'gemini';
+    const prioritiesEnabled = settings?.features?.priorities === true;
+    const timeEstimatesEnabled = settings?.features?.timeEstimates === true;
     const isHighlighted = highlightTaskId === task.id;
     const recurrenceRule = getRecurrenceRuleValue(task.recurrence);
     const recurrenceStrategy = getRecurrenceStrategyValue(task.recurrence);
@@ -185,40 +193,25 @@ export const TaskItem = memo(function TaskItem({
             .map(([tag]) => tag);
         return Array.from(new Set([...sorted, ...PRESET_TAGS])).slice(0, 8);
     }, [tasks]);
-    const availableBlockerTasks = useMemo(() => {
-        return (tasks ?? []).filter((otherTask) =>
-            otherTask.id !== task.id &&
-            !otherTask.deletedAt &&
-            (otherTask.projectId ?? null) === (task.projectId ?? null)
-        );
-    }, [tasks, task.id, task.projectId]);
-    const availableBlockerIds = useMemo(
-        () => new Set(availableBlockerTasks.map((blocker) => blocker.id)),
-        [availableBlockerTasks]
-    );
-
-    const ageLabel = getTaskAgeLabel(task.createdAt, language);
-    const checklistProgress = getChecklistProgress(task);
-    const unblocksCount = getUnblocksCount(task.id, tasks ?? []);
     const visibleAttachments = (task.attachments || []).filter((a) => !a.deletedAt);
     const visibleEditAttachments = editAttachments.filter((a) => !a.deletedAt);
     const wasEditingRef = useRef(false);
-    const blockedByTasks = useMemo(() => {
-        if (!task.blockedByTaskIds?.length) return [];
-        const taskMap = new Map((tasks ?? []).map((t) => [t.id, t]));
-        return task.blockedByTaskIds
-            .map((id) => taskMap.get(id))
-            .filter((t): t is Task => Boolean(t && availableBlockerIds.has(t.id)));
-    }, [task.blockedByTaskIds, tasks, availableBlockerIds]);
 
     const savedOrder = settings?.gtd?.taskEditor?.order ?? [];
     const savedHidden = settings?.gtd?.taskEditor?.hidden ?? DEFAULT_TASK_EDITOR_HIDDEN;
+    const disabledFields = useMemo(() => {
+        const disabled = new Set<TaskEditorFieldId>();
+        if (!prioritiesEnabled) disabled.add('priority');
+        if (!timeEstimatesEnabled) disabled.add('timeEstimate');
+        return disabled;
+    }, [prioritiesEnabled, timeEstimatesEnabled]);
+
     const taskEditorOrder = useMemo(() => {
         const known = new Set(DEFAULT_TASK_EDITOR_ORDER);
         const normalized = savedOrder.filter((id) => known.has(id));
         const missing = DEFAULT_TASK_EDITOR_ORDER.filter((id) => !normalized.includes(id));
-        return [...normalized, ...missing];
-    }, [savedOrder]);
+        return [...normalized, ...missing].filter((id) => !disabledFields.has(id));
+    }, [savedOrder, disabledFields]);
     const hiddenSet = useMemo(() => {
         const known = new Set(taskEditorOrder);
         return new Set(savedHidden.filter((id) => known.has(id)));
@@ -234,6 +227,7 @@ export const TaskItem = memo(function TaskItem({
             case 'status':
                 return task.status !== 'inbox';
             case 'priority':
+                if (!prioritiesEnabled) return false;
                 return Boolean(editPriority);
             case 'contexts':
                 return Boolean(editContexts.trim());
@@ -242,6 +236,7 @@ export const TaskItem = memo(function TaskItem({
             case 'tags':
                 return Boolean(editTags.trim());
             case 'timeEstimate':
+                if (!timeEstimatesEnabled) return false;
                 return Boolean(editTimeEstimate);
             case 'recurrence':
                 return Boolean(editRecurrence);
@@ -251,8 +246,6 @@ export const TaskItem = memo(function TaskItem({
                 return Boolean(editDueDate);
             case 'reviewAt':
                 return Boolean(editReviewAt);
-            case 'blockedBy':
-                return editBlockedByTaskIds.length > 0;
             case 'attachments':
                 return visibleEditAttachments.length > 0;
             case 'checklist':
@@ -270,9 +263,10 @@ export const TaskItem = memo(function TaskItem({
         editStartTime,
         editTags,
         editTimeEstimate,
-        editBlockedByTaskIds,
+        prioritiesEnabled,
         task.checklist,
         task.status,
+        timeEstimatesEnabled,
         visibleEditAttachments.length,
     ]);
 
@@ -463,37 +457,15 @@ export const TaskItem = memo(function TaskItem({
                             <option value="yearly">{t('recurrence.yearly')}</option>
                         </select>
                         {editRecurrence && (
-                            <div className="flex items-center gap-2 pt-1">
-                                <span className="text-[10px] text-muted-foreground">{t('recurrence.strategyLabel')}</span>
-                                <div className="flex items-center gap-1">
-                                    <button
-                                        type="button"
-                                        onClick={() => setEditRecurrenceStrategy('strict')}
-                                        className={cn(
-                                            "text-[10px] px-2 py-1 rounded border transition-colors",
-                                            editRecurrenceStrategy === 'strict'
-                                                ? "bg-primary text-primary-foreground border-primary"
-                                                : "bg-transparent text-muted-foreground border-border hover:bg-accent"
-                                        )}
-                                        title={t('recurrence.strategyStrictDesc')}
-                                    >
-                                        {t('recurrence.strategyStrict')}
-                                    </button>
-                                    <button
-                                        type="button"
-                                        onClick={() => setEditRecurrenceStrategy('fluid')}
-                                        className={cn(
-                                            "text-[10px] px-2 py-1 rounded border transition-colors",
-                                            editRecurrenceStrategy === 'fluid'
-                                                ? "bg-primary text-primary-foreground border-primary"
-                                                : "bg-transparent text-muted-foreground border-border hover:bg-accent"
-                                        )}
-                                        title={t('recurrence.strategyFluidDesc')}
-                                    >
-                                        {t('recurrence.strategyFluid')}
-                                    </button>
-                                </div>
-                            </div>
+                            <label className="flex items-center gap-2 pt-1 text-[10px] text-muted-foreground">
+                                <input
+                                    type="checkbox"
+                                    checked={editRecurrenceStrategy === 'fluid'}
+                                    onChange={(e) => setEditRecurrenceStrategy(e.target.checked ? 'fluid' : 'strict')}
+                                    className="accent-primary"
+                                />
+                                {t('recurrence.afterCompletion')}
+                            </label>
                         )}
                         {editRecurrence === 'weekly' && (
                             <div className="pt-1">
@@ -614,28 +586,6 @@ export const TaskItem = memo(function TaskItem({
                                 );
                             })}
                         </div>
-                    </div>
-                );
-            case 'blockedBy':
-                return (
-                    <div className="flex flex-col gap-1 min-w-[180px]">
-                        <label className="text-xs text-muted-foreground font-medium">{t('taskEdit.blockedByLabel')}</label>
-                        <select
-                            multiple
-                            value={editBlockedByTaskIds}
-                            aria-label="Blocked by"
-                            onChange={(e) => {
-                                const selected = Array.from(e.target.selectedOptions).map(o => o.value);
-                                setEditBlockedByTaskIds(selected);
-                            }}
-                            className="text-xs bg-muted/50 border border-border rounded px-2 py-1 h-20 text-foreground"
-                        >
-                            {availableBlockerTasks.map((otherTask) => (
-                                <option key={otherTask.id} value={otherTask.id}>
-                                    {otherTask.title}
-                                </option>
-                            ))}
-                        </select>
                     </div>
                 );
             case 'checklist':
@@ -808,7 +758,6 @@ export const TaskItem = memo(function TaskItem({
         setEditTimeEstimate(task.timeEstimate || '');
         setEditPriority(task.priority || '');
         setEditReviewAt(toDateTimeLocalValue(task.reviewAt));
-        setEditBlockedByTaskIds((task.blockedByTaskIds || []).filter((id) => availableBlockerIds.has(id)));
         setEditAttachments(task.attachments || []);
         setAttachmentError(null);
         setShowDescriptionPreview(false);
@@ -840,7 +789,7 @@ export const TaskItem = memo(function TaskItem({
             const nextTags = Array.from(new Set([...currentTags, ...copilotSuggestion.tags]));
             setEditTags(nextTags.join(', '));
         }
-        if (copilotSuggestion.timeEstimate) {
+        if (copilotSuggestion.timeEstimate && timeEstimatesEnabled) {
             setEditTimeEstimate(copilotSuggestion.timeEstimate);
             setCopilotEstimate(copilotSuggestion.timeEstimate);
         }
@@ -869,13 +818,19 @@ export const TaskItem = memo(function TaskItem({
             try {
                 const currentContexts = editContexts.split(',').map((c) => c.trim()).filter(Boolean);
                 const provider = createAIProvider(buildCopilotConfig(settings, apiKey));
-                const suggestion = await provider.predictMetadata({
-                    title: input,
-                    contexts: Array.from(new Set([...PRESET_CONTEXTS, ...currentContexts])),
-                    tags: tagOptions,
-                });
+                if (copilotAbortRef.current) copilotAbortRef.current.abort();
+                const abortController = typeof AbortController === 'function' ? new AbortController() : null;
+                copilotAbortRef.current = abortController;
+                const suggestion = await provider.predictMetadata(
+                    {
+                        title: input,
+                        contexts: Array.from(new Set([...PRESET_CONTEXTS, ...currentContexts])),
+                        tags: tagOptions,
+                    },
+                    abortController ? { signal: abortController.signal } : undefined
+                );
                 if (cancelled) return;
-                if (!suggestion.context && !suggestion.timeEstimate && !suggestion.tags?.length) {
+                if (!suggestion.context && (!timeEstimatesEnabled || !suggestion.timeEstimate) && !suggestion.tags?.length) {
                     setCopilotSuggestion(null);
                 } else {
                     setCopilotSuggestion(suggestion);
@@ -889,8 +844,12 @@ export const TaskItem = memo(function TaskItem({
         return () => {
             cancelled = true;
             clearTimeout(handle);
+            if (copilotAbortRef.current) {
+                copilotAbortRef.current.abort();
+                copilotAbortRef.current = null;
+            }
         };
-    }, [aiEnabled, aiProvider, editTitle, editDescription, editContexts, settings]);
+    }, [aiEnabled, aiProvider, editTitle, editDescription, editContexts, settings, timeEstimatesEnabled]);
 
     const logAIDebug = async (context: string, message: string) => {
         if (!isTauriRuntime()) return;
@@ -923,7 +882,7 @@ export const TaskItem = memo(function TaskItem({
 
     const applyAISuggestion = (suggested: { title?: string; context?: string; timeEstimate?: TimeEstimate }) => {
         if (suggested.title) setEditTitle(suggested.title);
-        if (suggested.timeEstimate) setEditTimeEstimate(suggested.timeEstimate);
+        if (suggested.timeEstimate && timeEstimatesEnabled) setEditTimeEstimate(suggested.timeEstimate);
         if (suggested.context) {
             const currentContexts = editContexts.split(',').map((c) => c.trim()).filter(Boolean);
             const nextContexts = Array.from(new Set([...currentContexts, suggested.context]));
@@ -990,7 +949,6 @@ export const TaskItem = memo(function TaskItem({
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
         if (editTitle.trim()) {
-            const filteredBlockedBy = editBlockedByTaskIds.filter((id) => availableBlockerIds.has(id));
             const recurrenceValue: Recurrence | undefined = editRecurrence
                 ? { rule: editRecurrence, strategy: editRecurrenceStrategy }
                 : undefined;
@@ -1014,36 +972,9 @@ export const TaskItem = memo(function TaskItem({
                 timeEstimate: editTimeEstimate || undefined,
                 priority: editPriority || undefined,
                 reviewAt: editReviewAt || undefined,
-                blockedByTaskIds: filteredBlockedBy.length > 0 ? filteredBlockedBy : undefined,
                 attachments: editAttachments.length > 0 ? editAttachments : undefined,
             });
             setIsEditing(false);
-        }
-    };
-
-    // Urgency Logic
-    const getUrgencyColor = () => {
-        const urgency = getTaskUrgency(task);
-        switch (urgency) {
-            case 'overdue': return 'text-destructive font-bold';
-            case 'urgent': return 'text-orange-500 font-medium';
-            case 'upcoming': return 'text-yellow-600';
-            default: return 'text-muted-foreground';
-        }
-    };
-
-    const getPriorityBadge = (priority: TaskPriority) => {
-        switch (priority) {
-            case 'low':
-                return 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400';
-            case 'medium':
-                return 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400';
-            case 'high':
-                return 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400';
-            case 'urgent':
-                return 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400';
-            default:
-                return 'bg-muted text-muted-foreground';
         }
     };
 
@@ -1072,499 +1003,91 @@ export const TaskItem = memo(function TaskItem({
                     />
                 )}
 
-                <div className="flex-1 min-w-0">
-                    {isEditing ? (
-                        <form
+                {isEditing ? (
+                    <div className="flex-1 min-w-0">
+                        <TaskItemEditor
+                            t={t}
+                            editTitle={editTitle}
+                            setEditTitle={setEditTitle}
+                            resetCopilotDraft={resetCopilotDraft}
+                            aiEnabled={aiEnabled}
+                            isAIWorking={isAIWorking}
+                            handleAIClarify={handleAIClarify}
+                            handleAIBreakdown={handleAIBreakdown}
+                            copilotSuggestion={copilotSuggestion}
+                            copilotApplied={copilotApplied}
+                            applyCopilotSuggestion={applyCopilotSuggestion}
+                            copilotContext={copilotContext}
+                            copilotEstimate={copilotEstimate}
+                            copilotTags={copilotSuggestion?.tags ?? []}
+                            timeEstimatesEnabled={timeEstimatesEnabled}
+                            aiError={aiError}
+                            aiBreakdownSteps={aiBreakdownSteps}
+                            onAddBreakdownSteps={() => {
+                                if (!aiBreakdownSteps?.length) return;
+                                const newItems = aiBreakdownSteps.map((step) => ({
+                                    id: generateUUID(),
+                                    title: step,
+                                    isCompleted: false,
+                                }));
+                                updateTask(task.id, { checklist: [...(task.checklist || []), ...newItems] });
+                                setAiBreakdownSteps(null);
+                            }}
+                            onDismissBreakdown={() => setAiBreakdownSteps(null)}
+                            aiClarifyResponse={aiClarifyResponse}
+                            onSelectClarifyOption={(action) => {
+                                setEditTitle(action);
+                                setAiClarifyResponse(null);
+                            }}
+                            onApplyAISuggestion={() => {
+                                if (aiClarifyResponse?.suggestedAction) {
+                                    applyAISuggestion(aiClarifyResponse.suggestedAction);
+                                }
+                            }}
+                            onDismissClarify={() => setAiClarifyResponse(null)}
+                            projects={projects}
+                            editProjectId={editProjectId}
+                            setEditProjectId={setEditProjectId}
+                            editDueDate={editDueDate}
+                            setEditDueDate={setEditDueDate}
+                            showDetails={showDetails}
+                            toggleDetails={() => setShowDetails((prev) => !prev)}
+                            fieldIdsToRender={fieldIdsToRender}
+                            renderField={renderField}
+                            editLocation={editLocation}
+                            setEditLocation={setEditLocation}
+                            onDuplicateTask={() => duplicateTask(task.id, false)}
+                            onCancel={() => {
+                                resetEditState();
+                                setIsEditing(false);
+                            }}
                             onSubmit={handleSubmit}
-                            onPointerDown={(e) => e.stopPropagation()}
-                            onClick={(e) => e.stopPropagation()}
-                            className="space-y-3"
-                        >
-                            <input
-                                autoFocus
-                                type="text"
-                                aria-label="Task title"
-                                value={editTitle}
-                                onChange={(e) => {
-                                    setEditTitle(e.target.value);
-                                    resetCopilotDraft();
-                                }}
-                                className="w-full bg-transparent border-b border-primary/50 p-1 text-base font-medium focus:ring-0 focus:border-primary outline-none"
-                                placeholder={t('taskEdit.titleLabel')}
-                            />
-                            {aiEnabled && (
-                                <div className="flex flex-wrap gap-2">
-                                    <button
-                                        type="button"
-                                        onClick={handleAIClarify}
-                                        disabled={isAIWorking}
-                                        className="text-xs px-2 py-1 rounded bg-muted/50 hover:bg-muted transition-colors text-muted-foreground disabled:opacity-60"
-                                    >
-                                        {t('taskEdit.aiClarify')}
-                                    </button>
-                                    <button
-                                        type="button"
-                                        onClick={handleAIBreakdown}
-                                        disabled={isAIWorking}
-                                        className="text-xs px-2 py-1 rounded bg-muted/50 hover:bg-muted transition-colors text-muted-foreground disabled:opacity-60"
-                                    >
-                                        {t('taskEdit.aiBreakdown')}
-                                    </button>
-                                </div>
-                            )}
-                            {aiEnabled && copilotSuggestion && !copilotApplied && (
-                                <button
-                                    type="button"
-                                    onClick={applyCopilotSuggestion}
-                                    className="text-xs px-2 py-1 rounded bg-muted/30 border border-border text-muted-foreground hover:bg-muted/60 transition-colors text-left"
-                                >
-                                    ✨ {t('copilot.suggested')}{' '}
-                                    {copilotSuggestion.context ? `${copilotSuggestion.context} ` : ''}
-                                    {copilotSuggestion.timeEstimate ? `${copilotSuggestion.timeEstimate}` : ''}
-                                    {copilotSuggestion.tags?.length ? copilotSuggestion.tags.join(' ') : ''}
-                                    <span className="ml-2 text-muted-foreground/70">{t('copilot.applyHint')}</span>
-                                </button>
-                            )}
-                            {aiEnabled && copilotApplied && (
-                                <div className="text-xs px-2 py-1 rounded bg-muted/30 border border-border text-muted-foreground">
-                                    ✅ {t('copilot.applied')}{' '}
-                                    {copilotContext ? `${copilotContext} ` : ''}
-                                    {copilotEstimate ? `${copilotEstimate}` : ''}
-                                    {copilotSuggestion?.tags?.length ? copilotSuggestion.tags.join(' ') : ''}
-                                </div>
-                            )}
-                            {aiEnabled && aiError && (
-                                <div className="text-xs text-muted-foreground border border-border rounded-md p-2 bg-muted/20 break-words whitespace-pre-wrap">
-                                    {aiError}
-                                </div>
-                            )}
-                            {aiEnabled && aiBreakdownSteps && (
-                                <div className="border border-border rounded-md p-2 space-y-2 text-xs">
-                                    <div className="text-muted-foreground">{t('ai.breakdownTitle')}</div>
-                                    <div className="space-y-1">
-                                        {aiBreakdownSteps.map((step, index) => (
-                                            <div key={`${step}-${index}`} className="text-foreground">
-                                                {index + 1}. {step}
-                                            </div>
-                                        ))}
-                                    </div>
-                                    <div className="flex flex-wrap gap-2">
-                                        <button
-                                            type="button"
-                                            onClick={() => {
-                                                const newItems = aiBreakdownSteps.map((step) => ({
-                                                    id: generateUUID(),
-                                                    title: step,
-                                                    isCompleted: false,
-                                                }));
-                                                updateTask(task.id, { checklist: [...(task.checklist || []), ...newItems] });
-                                                setAiBreakdownSteps(null);
-                                            }}
-                                            className="px-2 py-1 rounded bg-primary/10 text-primary hover:bg-primary/20 transition-colors"
-                                        >
-                                            {t('ai.addSteps')}
-                                        </button>
-                                        <button
-                                            type="button"
-                                            onClick={() => setAiBreakdownSteps(null)}
-                                            className="px-2 py-1 rounded bg-muted/50 hover:bg-muted transition-colors text-muted-foreground"
-                                        >
-                                            {t('common.cancel')}
-                                        </button>
-                                    </div>
-                                </div>
-                            )}
-                            {aiEnabled && aiClarifyResponse && (
-                                <div className="border border-border rounded-md p-2 space-y-2 text-xs">
-                                    <div className="text-muted-foreground">{aiClarifyResponse.question}</div>
-                                    <div className="flex flex-wrap gap-2">
-                                        {aiClarifyResponse.options.map((option) => (
-                                            <button
-                                                key={option.label}
-                                                type="button"
-                                                onClick={() => {
-                                                    setEditTitle(option.action);
-                                                    setAiClarifyResponse(null);
-                                                }}
-                                                className="px-2 py-1 rounded bg-muted/50 hover:bg-muted transition-colors"
-                                            >
-                                                {option.label}
-                                            </button>
-                                        ))}
-                                        {aiClarifyResponse.suggestedAction?.title && (
-                                            <button
-                                                type="button"
-                                                onClick={() => applyAISuggestion(aiClarifyResponse.suggestedAction!)}
-                                                className="px-2 py-1 rounded bg-primary/10 text-primary hover:bg-primary/20 transition-colors"
-                                            >
-                                                {t('ai.applySuggestion')}
-                                            </button>
-                                        )}
-                                        <button
-                                            type="button"
-                                            onClick={() => setAiClarifyResponse(null)}
-                                            className="px-2 py-1 rounded bg-muted/50 hover:bg-muted transition-colors text-muted-foreground"
-                                        >
-                                            {t('common.cancel')}
-                                        </button>
-                                    </div>
-                                </div>
-                            )}
-                            <div className="flex flex-wrap gap-4">
-                                <div className="flex flex-col gap-1 min-w-[200px]">
-                                    <label className="text-xs text-muted-foreground font-medium">{t('projects.title')}</label>
-                                    <select
-                                        value={editProjectId}
-                                        aria-label="Project"
-                                        onChange={(e) => setEditProjectId(e.target.value)}
-                                        className="text-xs bg-muted/50 border border-border rounded px-2 py-1 text-foreground"
-                                    >
-                                        <option value="">{t('taskEdit.noProjectOption')}</option>
-                                        {projects.map(p => (
-                                            <option key={p.id} value={p.id}>{p.title}</option>
-                                        ))}
-                                    </select>
-                                </div>
-                                <div className="flex flex-col gap-1">
-                                    <label className="text-xs text-muted-foreground font-medium">{t('taskEdit.dueDateLabel')}</label>
-                                    <input
-                                        type="datetime-local"
-                                        aria-label="Deadline"
-                                        value={editDueDate}
-                                        onChange={(e) => setEditDueDate(e.target.value)}
-                                        className="text-xs bg-muted/50 border border-border rounded px-2 py-1 text-foreground"
-                                    />
-                                </div>
-                            </div>
-                            <div>
-                                <button
-                                    type="button"
-                                    onClick={() => setShowDetails((prev) => !prev)}
-                                    className="text-xs px-2 py-1 rounded bg-muted/50 hover:bg-muted transition-colors text-muted-foreground"
-                                >
-                                    {showDetails ? t('taskEdit.hideOptions') : t('taskEdit.moreOptions')}
-                                </button>
-                            </div>
-                            {fieldIdsToRender.length > 0 && (
-                                <div className="space-y-3">
-                                    {fieldIdsToRender.map((fieldId) => (
-                                        <div key={fieldId}>
-                                            {renderField(fieldId)}
-                                        </div>
-                                    ))}
-                                </div>
-                            )}
-                            {(showDetails || Boolean(editLocation.trim())) && (
-                                <div className="flex flex-col gap-1">
-                                    <label className="text-xs text-muted-foreground font-medium">{t('taskEdit.locationLabel')}</label>
-                                    <input
-                                        type="text"
-                                        aria-label="Location"
-                                        value={editLocation}
-                                        onChange={(e) => setEditLocation(e.target.value)}
-                                        placeholder={t('taskEdit.locationPlaceholder')}
-                                        className="text-xs bg-muted/50 border border-border rounded px-2 py-1 text-foreground placeholder:text-muted-foreground"
-                                    />
-                                </div>
-                            )}
-                            <div className="flex gap-2 pt-1">
-                                <button
-                                    type="button"
-                                    onClick={() => duplicateTask(task.id, false)}
-                                    className="text-xs px-3 py-1.5 rounded bg-muted/50 hover:bg-muted transition-colors text-muted-foreground"
-                                >
-                                    {t('taskEdit.duplicateTask')}
-                                </button>
-                                <button
-                                    type="submit"
-                                    className="text-xs bg-primary text-primary-foreground px-3 py-1.5 rounded hover:bg-primary/90"
-                                >
-                                    {t('common.save')}
-                                </button>
-                                <button
-                                    type="button"
-                                    onClick={() => {
-                                        resetEditState();
-                                        setIsEditing(false);
-                                    }}
-                                    className="text-xs bg-muted text-muted-foreground px-3 py-1.5 rounded hover:bg-muted/80"
-                                >
-                                    {t('common.cancel')}
-                                </button>
-                            </div>
-                        </form>
-	                    ) : (
-                        <div
-                            className={cn(
-                                "group/content rounded -ml-2 pl-2 pr-1 py-1 transition-colors",
-                                selectionMode ? "cursor-pointer hover:bg-muted/40" : "cursor-default",
-                            )}
-                        >
-                            <button
-                                type="button"
-                                data-task-edit-trigger
-                                onClick={() => setIsEditing(true)}
-                                className="sr-only"
-                                aria-hidden="true"
-                                tabIndex={-1}
-                            />
-                            <button
-                                type="button"
-                                onClick={() => {
-                                    if (selectionMode) {
-                                        onToggleSelect?.();
-                                        return;
-                                    }
-                                    setIsViewOpen((prev) => !prev);
-                                }}
-                                onDoubleClick={() => {
-                                    if (!selectionMode) {
-                                        setIsEditing(true);
-                                    }
-                                }}
-                                className={cn(
-                                    "w-full text-left rounded px-0.5 py-0.5 transition-colors focus:outline-none focus:ring-2 focus:ring-primary/40",
-                                    selectionMode ? "cursor-pointer" : "cursor-default"
-                                )}
-                                aria-expanded={isViewOpen}
-                                aria-label="Toggle task details"
-                            >
-                                <div
-                                    className={cn(
-                                        "text-base font-medium truncate group-hover/content:text-primary transition-colors",
-                                        task.status === 'done' && "line-through text-muted-foreground"
-                                    )}
-                                >
-                                    {task.title}
-                                </div>
-                                {task.description && (
-                                    <p className="text-sm text-muted-foreground mt-1">
-                                        {stripMarkdown(task.description)}
-                                    </p>
-                                )}
-                            </button>
-
-                            {isViewOpen && (
-                                <div onClick={(e) => e.stopPropagation()}>
-	                            {visibleAttachments.length > 0 && (
-	                                <div className="flex flex-wrap items-center gap-2 mt-2 text-xs text-muted-foreground">
-	                                    <Paperclip className="w-3 h-3" />
-	                                    {visibleAttachments.map((attachment) => (
-	                                        <button
-	                                            key={attachment.id}
-	                                            type="button"
-	                                            onClick={(e) => {
-	                                                e.preventDefault();
-	                                                e.stopPropagation();
-	                                                openAttachment(attachment);
-	                                            }}
-	                                            className="truncate hover:underline"
-	                                            title={attachment.title}
-	                                        >
-	                                            {attachment.title}
-	                                        </button>
-	                                    ))}
-	                                </div>
-	                            )}
-
-                            <div className="flex flex-wrap items-center gap-4 mt-2 text-xs">
-                                {project && (
-                                    <div className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-accent/50 text-accent-foreground font-medium text-[10px]">
-                                        <div className="w-2 h-2 rounded-full" style={{ backgroundColor: project.color }} />
-                                        {project.title}
-                                    </div>
-                                )}
-                                {task.startTime && (
-                                    <div className="flex items-center gap-1 text-blue-500/80" title={t('taskEdit.startDateLabel')}>
-                                        <ArrowRight className="w-3 h-3" />
-                                        {safeFormatDate(task.startTime, 'MMM d, HH:mm')}
-                                    </div>
-                                )}
-                                {task.dueDate && (
-                                    <div
-                                        className={cn("flex items-center gap-1", getUrgencyColor(), isStagnant && "text-muted-foreground/70")}
-                                        title={t('taskEdit.dueDateLabel')}
-                                    >
-                                        <CalendarIcon className="w-3 h-3" />
-                                        {safeFormatDate(task.dueDate, 'MMM d, HH:mm')}
-                                        {isStagnant && (
-                                            <span
-                                                className="ml-1 text-[10px] text-muted-foreground"
-                                                title={`${t('taskEdit.pushCountHint')}: ${task.pushCount ?? 0}`}
-                                            >
-                                                ⏳ {task.pushCount}
-                                            </span>
-                                        )}
-                                    </div>
-                                )}
-                                {task.location && (
-                                    <div className="flex items-center gap-1 text-muted-foreground" title={t('taskEdit.locationLabel')}>
-                                        <span className="font-medium">📍 {task.location}</span>
-                                    </div>
-                                )}
-                                {recurrenceRule && (
-                                    <div className="flex items-center gap-1 text-purple-600" title={t('taskEdit.recurrenceLabel')}>
-                                        <Repeat className="w-3 h-3" />
-                                        <span>
-                                            {t(`recurrence.${recurrenceRule}`)}
-                                            {recurrenceStrategy === 'fluid' ? ` · ${t('recurrence.strategyFluid')}` : ''}
-                                        </span>
-                                    </div>
-                                )}
-                                {task.priority && (
-                                    <div
-                                        className={cn(
-                                            "flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full font-medium uppercase tracking-wide",
-                                            getPriorityBadge(task.priority)
-                                        )}
-                                        title={t('taskEdit.priorityLabel')}
-                                    >
-                                        {t(`priority.${task.priority}`)}
-                                    </div>
-                                )}
-                                {task.contexts?.length > 0 && (
-                                    <div className="flex items-center gap-2">
-                                        {task.contexts.map(ctx => (
-                                            <span key={ctx} className="text-muted-foreground hover:text-foreground transition-colors">
-                                                {ctx}
-                                            </span>
-                                        ))}
-                                    </div>
-                                )}
-                                {task.tags.length > 0 && (
-                                    <div className="flex items-center gap-1 text-muted-foreground">
-                                        <Tag className="w-3 h-3" />
-                                        {task.tags.join(', ')}
-                                    </div>
-                                )}
-                                {blockedByTasks.length > 0 && (
-                                    <div className="flex flex-wrap items-center gap-2 text-muted-foreground">
-                                        <span className="text-[10px] uppercase tracking-wide">{t('taskEdit.blockedByLabel')}</span>
-                                        {blockedByTasks.map((blocker) => (
-                                            <span
-                                                key={blocker.id}
-                                                className="text-[10px] px-2 py-0.5 rounded-full border border-border bg-muted/40"
-                                            >
-                                                {blocker.title}
-                                            </span>
-                                        ))}
-                                    </div>
-                                )}
-                                {checklistProgress && (
-                                    <div
-                                        className="flex items-center gap-2 text-muted-foreground"
-                                        title={t('checklist.progress')}
-                                    >
-                                        <span className="font-medium">
-                                            {checklistProgress.completed}/{checklistProgress.total}
-                                        </span>
-                                        <div className="w-16 h-1 bg-muted rounded overflow-hidden">
-                                            <div
-                                                className="h-full bg-primary"
-                                                style={{ width: `${Math.round(checklistProgress.percent * 100)}%` }}
-                                            />
-                                        </div>
-                                    </div>
-                                )}
-                                {unblocksCount > 0 && (
-                                    <div className="text-muted-foreground text-xs">
-                                        {t('taskEdit.unblocksLabel')} {unblocksCount}
-                                    </div>
-                                )}
-                                {/* Task Age Indicator */}
-                                {task.status !== 'done' && ageLabel && (
-                                    <div className={cn(
-                                        "flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full",
-                                        getTaskStaleness(task.createdAt) === 'fresh' && 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400',
-                                        getTaskStaleness(task.createdAt) === 'aging' && 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400',
-                                        getTaskStaleness(task.createdAt) === 'stale' && 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400',
-                                        getTaskStaleness(task.createdAt) === 'very-stale' && 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
-                                    )} title="Task age">
-                                        <Clock className="w-3 h-3" />
-                                        {ageLabel}
-                                    </div>
-                                )}
-                                {/* Time Estimate Badge */}
-                                {task.timeEstimate && (
-                                    <div className="flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400" title="Estimated time">
-                                        <Timer className="w-3 h-3" />
-                                        {String(task.timeEstimate).endsWith('min')
-                                            ? String(task.timeEstimate).replace('min', 'm')
-                                            : String(task.timeEstimate).endsWith('hr+')
-                                                ? String(task.timeEstimate).replace('hr+', 'h+')
-                                                : String(task.timeEstimate).endsWith('hr')
-                                                    ? String(task.timeEstimate).replace('hr', 'h')
-                                                    : String(task.timeEstimate)}
-                                    </div>
-                                )}
-                            </div>
-
-                            {(task.checklist || []).length > 0 && (
-                                <div
-                                    className="mt-3 space-y-1 pl-1"
-                                    onPointerDown={(e) => e.stopPropagation()}
-                                >
-                                    {(task.checklist || []).map((item, index) => (
-                                        <div key={item.id || index} className="flex items-center gap-2 text-xs text-muted-foreground">
-                                            <span
-                                                className={cn(
-                                                    "w-3 h-3 border rounded flex items-center justify-center",
-                                                    item.isCompleted
-                                                        ? "bg-primary border-primary text-primary-foreground"
-                                                        : "border-muted-foreground"
-                                                )}
-                                            >
-                                                {item.isCompleted && <Check className="w-2 h-2" />}
-                                            </span>
-                                            <span className={cn(item.isCompleted && "line-through")}>{item.title}</span>
-                                        </div>
-                                    ))}
-                                </div>
-                            )}
-                                </div>
-                            )}
-                        </div>
-                    )}
-                </div>
-
-	                {!isEditing && (
-	                    <div
-	                        className="relative flex items-center gap-2"
-	                        onPointerDown={(e) => e.stopPropagation()}
-	                    >
-	                        <button
-	                            type="button"
-	                            onClick={() => {
-	                                resetEditState();
-                                    setIsViewOpen(false);
-	                                setIsEditing(true);
-	                            }}
-	                            aria-label={t('common.edit')}
-	                            className="text-muted-foreground hover:text-foreground p-1 rounded hover:bg-muted/50"
-	                        >
-	                            <Pencil className="w-4 h-4" />
-	                        </button>
-		                        <select
-		                            value={task.status}
-		                            aria-label="Task status"
-		                            onChange={handleStatusChange}
-		                            className="text-xs px-2 py-1 rounded cursor-pointer bg-muted/50 text-foreground border border-border hover:bg-muted focus:outline-none focus:ring-2 focus:ring-primary/40"
-		                        >
-		                            <option value="inbox">{t('status.inbox')}</option>
-		                            <option value="next">{t('status.next')}</option>
-	                            <option value="waiting">{t('status.waiting')}</option>
-	                            <option value="someday">{t('status.someday')}</option>
-	                            <option value="done">{t('status.done')}</option>
-	                        </select>
-
-                        <button
-                            onClick={() => deleteTask(task.id)}
-                            aria-label="Delete task"
-                            className="text-red-400 hover:text-red-300 p-1 rounded hover:bg-red-500/20"
-                        >
-                            <Trash2 className="w-4 h-4" />
-                        </button>
+                        />
                     </div>
+                ) : (
+                    <TaskItemDisplay
+                        task={task}
+                        project={project}
+                        selectionMode={selectionMode}
+                        isViewOpen={isViewOpen}
+                        onToggleSelect={onToggleSelect}
+                        onToggleView={() => setIsViewOpen((prev) => !prev)}
+                        onEdit={() => {
+                            resetEditState();
+                            setIsViewOpen(false);
+                            setIsEditing(true);
+                        }}
+                        onDelete={() => deleteTask(task.id)}
+                        onStatusChange={(status) => moveTask(task.id, status)}
+                        openAttachment={openAttachment}
+                        visibleAttachments={visibleAttachments}
+                        recurrenceRule={recurrenceRule}
+                        recurrenceStrategy={recurrenceStrategy}
+                        prioritiesEnabled={prioritiesEnabled}
+                        timeEstimatesEnabled={timeEstimatesEnabled}
+                        isStagnant={isStagnant}
+                        t={t}
+                    />
                 )}
             </div>
         </div >

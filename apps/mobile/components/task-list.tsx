@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import { View, TextInput, FlatList, StyleSheet, TouchableOpacity, Text, RefreshControl, ScrollView, Modal, Pressable } from 'react-native';
 import { router } from 'expo-router';
-import { useTaskStore, Task, TaskStatus, sortTasksBy, parseQuickAdd, isTaskBlocked, safeParseDate, PRESET_CONTEXTS, PRESET_TAGS, createAIProvider } from '@mindwtr/core';
+import { useTaskStore, Task, TaskStatus, sortTasksBy, parseQuickAdd, safeParseDate, PRESET_CONTEXTS, PRESET_TAGS, createAIProvider } from '@mindwtr/core';
 import type { TaskSortBy } from '@mindwtr/core';
 
 
@@ -61,6 +61,7 @@ export function TaskList({
   const [tagInput, setTagInput] = useState('');
   const [sortModalVisible, setSortModalVisible] = useState(false);
   const highlightTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const copilotAbortRef = useRef<AbortController | null>(null);
 
   // Dynamic colors based on theme
   const themeColors = useThemeColors();
@@ -75,6 +76,7 @@ export function TaskList({
   const sortBy = (settings?.taskSortBy ?? 'default') as TaskSortBy;
   const aiEnabled = settings?.ai?.enabled === true;
   const aiProvider = (settings?.ai?.provider ?? 'openai') as 'openai' | 'gemini';
+  const timeEstimatesEnabled = settings?.features?.timeEstimates === true;
 
   // Memoize filtered and sorted tasks for performance
   const filteredTasks = useMemo(() => {
@@ -84,7 +86,6 @@ export function TaskList({
       if (t.deletedAt) return false;
       const matchesStatus = statusFilter === 'all' ? true : t.status === statusFilter;
       const matchesProject = projectId ? t.projectId === projectId : true;
-      if (statusFilter === 'next' && isTaskBlocked(t, tasksById)) return false;
       if (statusFilter === 'inbox') {
         const start = safeParseDate(t.startTime);
         if (start && start > now) return false;
@@ -92,7 +93,7 @@ export function TaskList({
       return matchesStatus && matchesProject;
     });
     return sortTasksBy(filtered, sortBy);
-  }, [tasks, statusFilter, projectId, tasksById, sortBy]);
+  }, [tasks, statusFilter, projectId, sortBy]);
 
   const contextOptions = useMemo(() => {
     const taskContexts = tasks.flatMap((task) => task.contexts || []);
@@ -120,10 +121,16 @@ export function TaskList({
     let cancelled = false;
     const handle = setTimeout(async () => {
       try {
+        if (copilotAbortRef.current) copilotAbortRef.current.abort();
+        const abortController = typeof AbortController === 'function' ? new AbortController() : null;
+        copilotAbortRef.current = abortController;
         const provider = createAIProvider(buildCopilotConfig(settings, aiKey));
-        const suggestion = await provider.predictMetadata({ title, contexts: contextOptions, tags: tagOptions });
+        const suggestion = await provider.predictMetadata(
+          { title, contexts: contextOptions, tags: tagOptions },
+          abortController ? { signal: abortController.signal } : undefined
+        );
         if (cancelled) return;
-        if (!suggestion.context && !suggestion.timeEstimate && !suggestion.tags?.length) {
+        if (!suggestion.context && (!timeEstimatesEnabled || !suggestion.timeEstimate) && !suggestion.tags?.length) {
           setCopilotSuggestion(null);
         } else {
           setCopilotSuggestion(suggestion);
@@ -137,8 +144,12 @@ export function TaskList({
     return () => {
       cancelled = true;
       clearTimeout(handle);
+      if (copilotAbortRef.current) {
+        copilotAbortRef.current.abort();
+        copilotAbortRef.current = null;
+      }
     };
-  }, [aiEnabled, aiKey, aiProvider, contextOptions, enableCopilot, newTaskTitle, settings, statusFilter, tagOptions]);
+  }, [aiEnabled, aiKey, aiProvider, contextOptions, enableCopilot, newTaskTitle, settings, statusFilter, tagOptions, timeEstimatesEnabled]);
 
   useEffect(() => {
     if (!highlightTaskId) return;

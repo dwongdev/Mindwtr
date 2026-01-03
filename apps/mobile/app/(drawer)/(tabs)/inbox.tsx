@@ -30,6 +30,7 @@ export default function InboxScreen() {
   const { isDark } = useTheme();
   const tc = useThemeColors();
   const aiEnabled = settings.ai?.enabled === true;
+  const timeEstimatesEnabled = settings.features?.timeEstimates === true;
   const closeAIModal = () => setAiModal(null);
 
   const inboxTasks = useMemo(() => {
@@ -200,7 +201,7 @@ export default function InboxScreen() {
       : currentTask?.contexts;
     updateTask(taskId, {
       title: suggested.title ?? currentTask?.title,
-      timeEstimate: suggested.timeEstimate ?? currentTask?.timeEstimate,
+      timeEstimate: timeEstimatesEnabled ? (suggested.timeEstimate ?? currentTask?.timeEstimate) : currentTask?.timeEstimate,
       contexts: nextContexts,
     });
   };
