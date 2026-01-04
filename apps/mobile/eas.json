@@ -10,7 +10,7 @@
         },
         "preview": {
             "android": {
-                "buildType": "app-bundle",
+                "buildType": "apk",
                 "credentialsSource": "remote"
             },
             "ios": {
@@ -23,7 +23,7 @@
         },
         "production": {
             "android": {
-                "buildType": "apk",
+                "buildType": "app-bundle",
                 "credentialsSource": "remote"
             }
         }

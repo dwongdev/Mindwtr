@@ -29,7 +29,7 @@ async function loadNotifications(): Promise<NotificationsApi | null> {
   if (Notifications) return Notifications;
 
   // Skip notifications in Expo Go (not supported in newer SDKs)
-  if (Constants.appOwnership === 'expo') {
+  if (!Constants.appOwnership || Constants.appOwnership === 'expo') {
     return null;
   }
 
