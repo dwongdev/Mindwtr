@@ -10,6 +10,51 @@ const SYNC_BACKEND_KEY = 'mindwtr-sync-backend';
 const WEBDAV_URL_KEY = 'mindwtr-webdav-url';
 const WEBDAV_USERNAME_KEY = 'mindwtr-webdav-username';
 const WEBDAV_PASSWORD_KEY = 'mindwtr-webdav-password';
+const SYNC_FILE_NAME = 'data.json';
+const LEGACY_SYNC_FILE_NAME = 'mindwtr-sync.json';
+
+const toStableJson = (value: unknown): string => {
+    const normalize = (input: any): any => {
+        if (Array.isArray(input)) {
+            return input.map(normalize);
+        }
+        if (input && typeof input === 'object') {
+            const entries = Object.keys(input)
+                .sort()
+                .map((key) => [key, normalize(input[key])]);
+            const result: Record<string, any> = {};
+            for (const [key, val] of entries) {
+                result[key] = val;
+            }
+            return result;
+        }
+        return input;
+    };
+    return JSON.stringify(normalize(value));
+};
+
+const hashString = (value: string): string => {
+    let hash = 0;
+    for (let i = 0; i < value.length; i += 1) {
+        hash = Math.imul(31, hash) + value.charCodeAt(i);
+        hash |= 0;
+    }
+    return hash.toString(16);
+};
+
+const normalizeAppData = (data: AppData): AppData => ({
+    tasks: Array.isArray(data.tasks) ? data.tasks : [],
+    projects: Array.isArray(data.projects) ? data.projects : [],
+    areas: Array.isArray(data.areas) ? data.areas : [],
+    settings: data.settings ?? {},
+});
+
+const normalizePath = (input: string) => input.replace(/\\/g, '/').toLowerCase();
+
+const isSyncFilePath = (path: string) => {
+    const normalized = normalizePath(path);
+    return normalized.endsWith(`/${SYNC_FILE_NAME}`) || normalized.endsWith(`/${LEGACY_SYNC_FILE_NAME}`);
+};
 
 async function tauriInvoke<T>(command: string, args?: Record<string, unknown>): Promise<T> {
     const mod = await import('@tauri-apps/api/core');
@@ -37,6 +82,13 @@ export class SyncService {
     private static didMigrate = false;
     private static syncInFlight: Promise<{ success: boolean; stats?: MergeStats; error?: string }> | null = null;
     private static syncQueued = false;
+    private static fileWatcherStop: (() => void) | null = null;
+    private static fileWatcherPath: string | null = null;
+    private static fileWatcherBackend: SyncBackend | null = null;
+    private static lastWrittenHash: string | null = null;
+    private static lastObservedHash: string | null = null;
+    private static ignoreFileEventsUntil = 0;
+    private static externalSyncTimer: ReturnType<typeof setTimeout> | null = null;
 
     private static getSyncBackendLocal(): SyncBackend {
         return normalizeSyncBackend(localStorage.getItem(SYNC_BACKEND_KEY));
@@ -117,6 +169,7 @@ export class SyncService {
         }
         try {
             await tauriInvoke('set_sync_backend', { backend });
+            await SyncService.startFileWatcher();
         } catch (error) {
             console.error('Failed to set sync backend:', error);
         }
@@ -168,11 +221,113 @@ export class SyncService {
     static async setSyncPath(path: string): Promise<{ success: boolean; path: string }> {
         if (!isTauriRuntime()) return { success: false, path: '' };
         try {
-            return await tauriInvoke<{ success: boolean; path: string }>('set_sync_path', { syncPath: path });
+            const result = await tauriInvoke<{ success: boolean; path: string }>('set_sync_path', { syncPath: path });
+            if (result?.success) {
+                await SyncService.startFileWatcher();
+            }
+            return result;
         } catch (error) {
             console.error('Failed to set sync path:', error);
             return { success: false, path: '' };
         }
+    }
+
+    private static markSyncWrite(data: AppData) {
+        const hash = hashString(toStableJson(data));
+        SyncService.lastWrittenHash = hash;
+        SyncService.ignoreFileEventsUntil = Date.now() + 2000;
+    }
+
+    private static async handleFileChange(paths: string[]) {
+        if (!isTauriRuntime()) return;
+        if (Date.now() < SyncService.ignoreFileEventsUntil) return;
+
+        const hasSyncFile = paths.some(isSyncFilePath);
+        if (!hasSyncFile) return;
+
+        try {
+            const syncData = await tauriInvoke<AppData>('read_sync_file');
+            const normalized = normalizeAppData(syncData);
+            const hash = hashString(toStableJson(normalized));
+            if (hash === SyncService.lastWrittenHash) {
+                return;
+            }
+            if (hash === SyncService.lastObservedHash) {
+                return;
+            }
+            SyncService.lastObservedHash = hash;
+
+            if (SyncService.externalSyncTimer) {
+                clearTimeout(SyncService.externalSyncTimer);
+            }
+            SyncService.externalSyncTimer = setTimeout(() => {
+                SyncService.performSync().catch(console.error);
+            }, 750);
+        } catch (error) {
+            console.warn('Failed to process external sync change', error);
+        }
+    }
+
+    private static resolveUnwatch(unwatch: unknown): (() => void) | null {
+        if (typeof unwatch === 'function') return unwatch as () => void;
+        if (unwatch && typeof (unwatch as any).stop === 'function') {
+            return () => (unwatch as any).stop();
+        }
+        if (unwatch && typeof (unwatch as any).unwatch === 'function') {
+            return () => (unwatch as any).unwatch();
+        }
+        return null;
+    }
+
+    static async startFileWatcher(): Promise<void> {
+        if (!isTauriRuntime()) return;
+        const backend = await SyncService.getSyncBackend();
+        if (backend !== 'file') {
+            await SyncService.stopFileWatcher();
+            return;
+        }
+        const syncPath = await SyncService.getSyncPath();
+        if (!syncPath) {
+            await SyncService.stopFileWatcher();
+            return;
+        }
+        const watchPath = syncPath;
+        if (SyncService.fileWatcherStop && SyncService.fileWatcherPath === watchPath && SyncService.fileWatcherBackend === backend) {
+            return;
+        }
+
+        await SyncService.stopFileWatcher();
+
+        try {
+            const { watch } = await import('@tauri-apps/plugin-fs');
+            const unwatch = await watch(watchPath, (event: any) => {
+                const paths = Array.isArray(event?.paths)
+                    ? event.paths
+                    : event?.path
+                        ? [event.path]
+                        : [];
+                if (paths.length === 0) return;
+                void SyncService.handleFileChange(paths);
+            });
+            SyncService.fileWatcherStop = SyncService.resolveUnwatch(unwatch);
+            SyncService.fileWatcherPath = watchPath;
+            SyncService.fileWatcherBackend = backend;
+        } catch (error) {
+            console.warn('Failed to start sync file watcher', error);
+        }
+    }
+
+    static async stopFileWatcher(): Promise<void> {
+        if (SyncService.fileWatcherStop) {
+            try {
+                SyncService.fileWatcherStop();
+            } catch (error) {
+                console.warn('Failed to stop sync watcher', error);
+            }
+        }
+        SyncService.fileWatcherStop = null;
+        SyncService.fileWatcherPath = null;
+        SyncService.fileWatcherBackend = null;
     }
 
     /**
@@ -195,7 +350,8 @@ export class SyncService {
         const runSync = async (): Promise<{ success: boolean; stats?: MergeStats; error?: string }> => {
             // 1. Read Local Data
             step = 'read-local';
-            const localData = isTauriRuntime() ? await tauriInvoke<AppData>('get_data') : await webStorage.getData();
+            const localDataRaw = isTauriRuntime() ? await tauriInvoke<AppData>('get_data') : await webStorage.getData();
+            const localData = normalizeAppData(localDataRaw);
 
             // 2. Read Sync Data (file or WebDAV)
             let syncData: AppData;
@@ -209,12 +365,12 @@ export class SyncService {
                 syncUrl = url;
                 const fetcher = await getTauriFetch();
                 const remote = await webdavGetJson<AppData>(url, { username, password, fetcher });
-                syncData = remote || { tasks: [], projects: [], areas: [], settings: {} };
+                syncData = normalizeAppData(remote || { tasks: [], projects: [], areas: [], settings: {} });
             } else {
                 if (!isTauriRuntime()) {
                     throw new Error('File sync is not available in the web app.');
                 }
-                syncData = await tauriInvoke<AppData>('read_sync_file');
+                syncData = normalizeAppData(await tauriInvoke<AppData>('read_sync_file'));
             }
 
             // 3. Merge Strategies
@@ -253,6 +409,7 @@ export class SyncService {
                 const fetcher = await getTauriFetch();
                 await webdavPutJson(url, finalData, { username, password, fetcher });
             } else {
+                SyncService.markSyncWrite(finalData);
                 await tauriInvoke('write_sync_file', { data: finalData });
             }
 

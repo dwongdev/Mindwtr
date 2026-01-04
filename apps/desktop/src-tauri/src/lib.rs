@@ -1,5 +1,5 @@
 use serde::{Deserialize, Serialize};
-use serde_json::Value;
+use serde_json::{Map, Value};
 use std::env;
 use std::fs;
 use std::fs::File;
@@ -1274,12 +1274,15 @@ fn read_sync_file(app: tauri::AppHandle) -> Result<serde_json::Value, String> {
         let legacy_sync_file = PathBuf::from(&sync_path_str).join(format!("{}-sync.json", APP_NAME));
         if legacy_sync_file.exists() {
             let content = fs::read_to_string(&legacy_sync_file).map_err(|e| e.to_string())?;
-            return parse_json_relaxed(&content).map_err(|e| e.to_string());
+            return parse_json_relaxed(&content)
+                .map(normalize_sync_value)
+                .map_err(|e| e.to_string());
         }
         // Return empty app data structure if file doesn't exist
         return Ok(serde_json::json!({
             "tasks": [],
             "projects": [],
+            "areas": [],
             "settings": {}
         }));
     }
@@ -1362,12 +1365,36 @@ fn parse_json_relaxed(raw: &str) -> Result<Value, serde_json::Error> {
     Value::deserialize(&mut de)
 }
 
+fn normalize_sync_value(value: Value) -> Value {
+    if let Value::Object(mut map) = value {
+        if !matches!(map.get("tasks"), Some(Value::Array(_))) {
+            map.insert("tasks".to_string(), Value::Array(Vec::new()));
+        }
+        if !matches!(map.get("projects"), Some(Value::Array(_))) {
+            map.insert("projects".to_string(), Value::Array(Vec::new()));
+        }
+        if !matches!(map.get("areas"), Some(Value::Array(_))) {
+            map.insert("areas".to_string(), Value::Array(Vec::new()));
+        }
+        if !matches!(map.get("settings"), Some(Value::Object(_))) {
+            map.insert("settings".to_string(), Value::Object(Map::new()));
+        }
+        return Value::Object(map);
+    }
+    serde_json::json!({
+        "tasks": [],
+        "projects": [],
+        "areas": [],
+        "settings": {}
+    })
+}
+
 fn read_json_with_retries(path: &Path, attempts: usize) -> Result<Value, String> {
     let mut last_err: Option<String> = None;
     for attempt in 0..attempts {
         match fs::read_to_string(path) {
             Ok(content) => match parse_json_relaxed(&content) {
-                Ok(value) => return Ok(value),
+                Ok(value) => return Ok(normalize_sync_value(value)),
                 Err(e) => last_err = Some(e.to_string()),
             },
             Err(e) => last_err = Some(e.to_string()),

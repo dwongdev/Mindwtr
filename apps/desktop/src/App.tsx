@@ -53,6 +53,7 @@ function App() {
 
         if (isTauriRuntime()) {
             startDesktopNotifications().catch(console.error);
+            SyncService.startFileWatcher().catch(console.error);
         }
 
         let isActive = true;
@@ -154,6 +155,7 @@ function App() {
                 clearTimeout(initialSyncTimer);
             }
             stopDesktopNotifications();
+            SyncService.stopFileWatcher().catch(console.error);
         };
     }, [fetchData]);
 
