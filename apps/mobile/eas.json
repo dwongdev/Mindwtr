@@ -22,13 +22,17 @@
             }
         },
         "production": {
-            "android": {
-                "buildType": "app-bundle",
-                "credentialsSource": "remote"
-            }
+          "android": {
+            "buildType": "app-bundle",
+            "credentialsSource": "remote"
+          }
+        },
+        "production-apk": {
+          "extends": "production",
+          "android": { "buildType": "apk" }
         }
     },
     "submit": {
-        "production": {}
+      "production": {}
     }
 }
