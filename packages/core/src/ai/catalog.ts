@@ -2,10 +2,10 @@ import type { AIProviderConfig, AIProviderId, AIReasoningEffort } from './types'
 
 export const OPENAI_DEFAULT_MODEL = 'gpt-5-mini';
 export const GEMINI_DEFAULT_MODEL = 'gemini-2.5-flash';
-export const ANTHROPIC_DEFAULT_MODEL = 'claude-sonnet-4-20250514';
+export const ANTHROPIC_DEFAULT_MODEL = 'claude-sonnet-4-5';
 export const OPENAI_COPILOT_DEFAULT_MODEL = 'gpt-4o-mini';
 export const GEMINI_COPILOT_DEFAULT_MODEL = 'gemini-2.0-flash-lite';
-export const ANTHROPIC_COPILOT_DEFAULT_MODEL = 'claude-3-5-haiku-20241022';
+export const ANTHROPIC_COPILOT_DEFAULT_MODEL = 'claude-haiku-4-5';
 export const DEFAULT_GEMINI_THINKING_BUDGET = 0;
 export const DEFAULT_ANTHROPIC_THINKING_BUDGET = 0;
 
@@ -24,12 +24,14 @@ export const GEMINI_MODEL_OPTIONS = [
     'gemini-3-flash-preview',
 ];
 export const ANTHROPIC_MODEL_OPTIONS = [
-    'claude-sonnet-4-20250514',
-    'claude-opus-4-1-20250805',
-    'claude-opus-4-20250514',
-    'claude-3-7-sonnet-20250219',
-    'claude-3-5-sonnet-20241022',
-    'claude-3-5-haiku-20241022',
+    'claude-sonnet-4-5',
+    'claude-haiku-4-5',
+    'claude-opus-4-5',
+    'claude-opus-4-1',
+    'claude-sonnet-4',
+    'claude-opus-4',
+    'claude-3-7-sonnet',
+    'claude-3-5-haiku',
 ];
 
 export const DEFAULT_REASONING_EFFORT: AIReasoningEffort = 'low';
