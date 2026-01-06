@@ -769,7 +769,7 @@ const zh: Record<string, string> = {
         'nav.addTask': '添加任务',
 
         // Quick Add
-        'quickAdd.help': '快速添加支持 /due:<时间>、/note:<备注>、/next|/todo、@情境、#标签、+项目。',
+        'quickAdd.help': '快速添加支持 /due:<when>、/note:<text>、/next|/todo、@context、#tag、+Project。',
         'quickAdd.example': '示例：给妈妈打电话 /due:tomorrow 5pm @phone #family',
 
         // Checklist
@@ -3055,13 +3055,35 @@ const buildReplacements = (pairs: Array<[string, string]>) =>
             .sort((a, b) => b[0].length - a[0].length)
             .map(([from, to]) => [new RegExp(escapeRegExp(from), 'gi'), to] as const);
 
+const PROTECTED_TOKENS = [
+        '/due:<when>',
+        '/note:<text>',
+        '/next|/todo',
+        '@context',
+        '#tag',
+        '+Project',
+];
+
 const autoTranslate = (value: string, lang: Language): string => {
         const pairs = translationPairs[lang];
         if (!pairs || pairs.length === 0) return value;
+
+        const placeholders = new Map<string, string>();
+        let protectedValue = value;
+        PROTECTED_TOKENS.forEach((token, index) => {
+                if (!protectedValue.includes(token)) return;
+                const key = `__MW_TOKEN_${index}__`;
+                placeholders.set(key, token);
+                protectedValue = protectedValue.split(token).join(key);
+        });
+
         const replacements = buildReplacements(pairs);
-        let result = value;
+        let result = protectedValue;
         for (const [pattern, replacement] of replacements) {
                 result = result.replace(pattern, replacement);
+        }
+        for (const [key, token] of placeholders.entries()) {
+                result = result.split(key).join(token);
         }
         return result;
 };

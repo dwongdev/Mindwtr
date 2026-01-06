@@ -43,6 +43,7 @@ coverage/
 
 # Mobile (Expo)
 apps/mobile/.expo/
+.expo/
 apps/mobile/android/
 apps/mobile/ios/
 apps/mobile/build
