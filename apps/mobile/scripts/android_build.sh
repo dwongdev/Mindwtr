@@ -9,6 +9,23 @@ cd "$ROOT_DIR"
 
 npx expo prebuild --clean --platform android
 
+if [[ "${UNSIGNED_APK:-0}" == "1" ]]; then
+  python3 - <<'PY'
+from pathlib import Path
+import re
+
+path = Path("android/app/build.gradle")
+text = path.read_text()
+
+# Remove signingConfigs block (debug/release)
+text = re.sub(r"\n\s*signingConfigs\s*\{.*?\n\s*\}\n", "\n", text, flags=re.S)
+# Remove signingConfig assignments inside buildTypes
+text = re.sub(r"^\s*signingConfig\s+signingConfigs\.\w+\s*$\n?", "", text, flags=re.M)
+
+path.write_text(text)
+PY
+fi
+
 if grep -q "^reactNativeArchitectures=" android/gradle.properties; then
   sed -i "s/^reactNativeArchitectures=.*/reactNativeArchitectures=${ARCHS}/" android/gradle.properties
 else

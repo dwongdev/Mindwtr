@@ -19,7 +19,7 @@ versions:
           - cd apps/mobile
           - bash ./scripts/fdroid_prep.sh
           - bun install
-          - FOSS_BUILD=1 ARCHS=arm64-v8a OUTPUT_DIR=./build bash ./scripts/android_build.sh
+          - FOSS_BUILD=1 UNSIGNED_APK=1 ARCHS=arm64-v8a OUTPUT_DIR=./build bash ./scripts/android_build.sh
           - find ./build -name '*.apk' -maxdepth 2
         build_cpus:
         build_home_dir: /build
