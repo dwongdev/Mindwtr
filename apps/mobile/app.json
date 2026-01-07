@@ -20,7 +20,6 @@
         "backgroundImage": "./assets/images/android-icon-background.png",
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
-      "minSdkVersion": 24,
       "versionCode": 2,
       "package": "tech.dongdongbh.mindwtr",
       "edgeToEdgeEnabled": true,
@@ -83,7 +82,14 @@
           "disableIOS": true
         }
       ],
-      "expo-build-properties"
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "minSdkVersion": 24
+          }
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true
