@@ -1,5 +1,5 @@
 
-import { mergeAppDataWithStats, AppData, useTaskStore, MergeStats, webdavGetJson, webdavPutJson, cloudGetJson, cloudPutJson } from '@mindwtr/core';
+import { mergeAppDataWithStats, AppData, useTaskStore, MergeStats, webdavGetJson, webdavPutJson, cloudGetJson, cloudPutJson, flushPendingSave } from '@mindwtr/core';
 import { isTauriRuntime } from './runtime';
 import { logSyncError, sanitizeLogMessage } from './app-log';
 import { webStorage } from './storage-adapter-web';
@@ -399,12 +399,16 @@ export class SyncService {
         let syncUrl: string | undefined;
 
         const runSync = async (): Promise<{ success: boolean; stats?: MergeStats; error?: string }> => {
-            // 1. Read Local Data
+            // 1. Flush pending writes so disk reflects the latest state
+            step = 'flush';
+            await flushPendingSave();
+
+            // 2. Read Local Data
             step = 'read-local';
             const localDataRaw = isTauriRuntime() ? await tauriInvoke<AppData>('get_data') : await webStorage.getData();
             const localData = normalizeAppData(localDataRaw);
 
-            // 2. Read Sync Data (file or WebDAV)
+            // 3. Read Sync Data (file or WebDAV)
             let syncData: AppData;
             backend = await SyncService.getSyncBackend();
             step = 'read-remote';
@@ -433,7 +437,7 @@ export class SyncService {
                 syncData = normalizeAppData(await tauriInvoke<AppData>('read_sync_file'));
             }
 
-            // 3. Merge Strategies
+            // 4. Merge Strategies
             // mergeAppData uses Last-Write-Wins (LWW) based on updatedAt
             step = 'merge';
             const mergeResult = mergeAppDataWithStats(localData, syncData);
@@ -454,7 +458,7 @@ export class SyncService {
                 },
             };
 
-            // 4. Write back to Local
+            // 5. Write back to Local
             step = 'write-local';
             if (isTauriRuntime()) {
                 await tauriInvoke('save_data', { data: finalData });
@@ -462,7 +466,7 @@ export class SyncService {
                 await webStorage.saveData(finalData);
             }
 
-            // 5. Write back to Sync
+            // 6. Write back to Sync
             step = 'write-remote';
             if (backend === 'webdav') {
                 const { url, username, password } = await SyncService.getWebDavConfig();
@@ -477,7 +481,7 @@ export class SyncService {
                 await tauriInvoke('write_sync_file', { data: finalData });
             }
 
-            // 6. Refresh UI Store
+            // 7. Refresh UI Store
             step = 'refresh';
             await useTaskStore.getState().fetchData();
 

@@ -1,10 +1,12 @@
 import { useEffect, useMemo, useState, useRef } from 'react';
 import { endOfMonth, endOfWeek, format, isSameDay, isSameMonth, isToday, startOfMonth, startOfWeek, eachDayOfInterval } from 'date-fns';
-import { parseIcs, safeParseDate, type ExternalCalendarEvent, type ExternalCalendarSubscription, useTaskStore } from '@mindwtr/core';
+import { parseIcs, safeParseDate, type ExternalCalendarEvent, type ExternalCalendarSubscription, useTaskStore, type Task } from '@mindwtr/core';
 import { useLanguage } from '../../contexts/language-context';
 import { isTauriRuntime } from '../../lib/runtime';
 import { ExternalCalendarService } from '../../lib/external-calendar-service';
 import { cn } from '../../lib/utils';
+
+const dayKey = (date: Date) => format(date, 'yyyy-MM-dd');
 
 export function CalendarView() {
     const { tasks, updateTask, deleteTask, settings } = useTaskStore();
@@ -30,21 +32,36 @@ export function CalendarView() {
         end: calendarEnd,
     });
 
-    const getDeadlinesForDay = (date: Date) => {
-        return tasks.filter(task => {
-            if (!task.dueDate) return false;
+    const deadlinesByDay = useMemo(() => {
+        const map = new Map<string, Task[]>();
+        for (const task of tasks) {
+            if (!task.dueDate) continue;
             const dueDate = safeParseDate(task.dueDate);
-            return dueDate && isSameDay(dueDate, date);
-        });
-    };
+            if (!dueDate) continue;
+            const key = dayKey(dueDate);
+            const existing = map.get(key);
+            if (existing) existing.push(task);
+            else map.set(key, [task]);
+        }
+        return map;
+    }, [tasks]);
 
-    const getScheduledForDay = (date: Date) => {
-        return tasks.filter(task => {
-            if (!task.startTime) return false;
+    const scheduledByDay = useMemo(() => {
+        const map = new Map<string, Task[]>();
+        for (const task of tasks) {
+            if (!task.startTime) continue;
             const startTime = safeParseDate(task.startTime);
-            return startTime && isSameDay(startTime, date);
-        });
-    };
+            if (!startTime) continue;
+            const key = dayKey(startTime);
+            const existing = map.get(key);
+            if (existing) existing.push(task);
+            else map.set(key, [task]);
+        }
+        return map;
+    }, [tasks]);
+
+    const getDeadlinesForDay = (date: Date) => deadlinesByDay.get(dayKey(date)) ?? [];
+    const getScheduledForDay = (date: Date) => scheduledByDay.get(dayKey(date)) ?? [];
 
     const getExternalEventsForDay = (date: Date) => {
         const dayStart = new Date(date.getFullYear(), date.getMonth(), date.getDate(), 0, 0, 0, 0);

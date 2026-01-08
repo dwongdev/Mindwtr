@@ -163,19 +163,20 @@ export function ListView({ title, statusFilter }: ListViewProps) {
 
     // For sequential projects, get only the first (oldest) task to show in Next view
     const sequentialProjectFirstTasks = useMemo(() => {
-        const sequentialProjects = projects.filter(p => p.isSequential);
-        const firstTaskIds = new Set<string>();
+        const sequentialIds = new Set(projects.filter(p => p.isSequential).map((p) => p.id));
+        if (sequentialIds.size === 0) return new Set<string>();
+        const earliestByProject = new Map<string, Task>();
 
-        for (const project of sequentialProjects) {
-            const projectTasks = baseTasks
-                .filter(t => t.projectId === project.id && t.status === 'next' && !t.deletedAt)
-                .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
-
-            if (projectTasks.length > 0) {
-                firstTaskIds.add(projectTasks[0].id);
+        for (const task of baseTasks) {
+            if (task.deletedAt || task.status !== 'next' || !task.projectId) continue;
+            if (!sequentialIds.has(task.projectId)) continue;
+            const existing = earliestByProject.get(task.projectId);
+            if (!existing || new Date(task.createdAt).getTime() < new Date(existing.createdAt).getTime()) {
+                earliestByProject.set(task.projectId, task);
             }
         }
-        return firstTaskIds;
+
+        return new Set(Array.from(earliestByProject.values()).map((task) => task.id));
     }, [baseTasks, projects]);
 
     useEffect(() => {

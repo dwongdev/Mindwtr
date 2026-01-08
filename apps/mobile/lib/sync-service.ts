@@ -1,5 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { mergeAppDataWithStats, AppData, MergeStats, useTaskStore, webdavGetJson, webdavPutJson, cloudGetJson, cloudPutJson } from '@mindwtr/core';
+import { mergeAppDataWithStats, AppData, MergeStats, useTaskStore, webdavGetJson, webdavPutJson, cloudGetJson, cloudPutJson, flushPendingSave } from '@mindwtr/core';
 import { mobileStorage } from './storage-adapter';
 import { logSyncError, sanitizeLogMessage } from './app-log';
 import { readSyncFile, writeSyncFile } from './storage-file';
@@ -32,6 +32,8 @@ export async function performMobileSync(syncPathOverride?: string): Promise<{ su
       let cloudConfig: { url: string; token: string } | null = null;
       let fileSyncPath: string | null = null;
       let incomingData: AppData | null;
+      step = 'flush';
+      await flushPendingSave();
       step = 'read-remote';
       if (backend === 'webdav') {
         const url = await AsyncStorage.getItem(WEBDAV_URL_KEY);

@@ -184,23 +184,29 @@ const debouncedSave = (data: AppData, onError?: (msg: string) => void) => {
  * Call this when the app goes to background or is about to be terminated.
  */
 export const flushPendingSave = async (): Promise<void> => {
-    if (saveInFlight || !pendingData) return;
-    const dataToSave = pendingData;
-    const onErrorCallback = pendingOnError;
-    pendingData = null;
-    pendingOnError = null;
-    saveInFlight = storage.saveData(dataToSave).catch((e) => {
-        console.error('Failed to flush pending save:', e);
-        if (onErrorCallback) {
-            onErrorCallback('Failed to save data');
+    while (true) {
+        if (saveInFlight) {
+            await saveInFlight;
+            continue;
         }
-    }).finally(() => {
-        saveInFlight = null;
-        if (pendingData) {
-            void flushPendingSave();
-        }
-    });
-    await saveInFlight;
+        if (!pendingData) return;
+        const dataToSave = pendingData;
+        const onErrorCallback = pendingOnError;
+        pendingData = null;
+        pendingOnError = null;
+        saveInFlight = storage.saveData(dataToSave).catch((e) => {
+            console.error('Failed to flush pending save:', e);
+            if (onErrorCallback) {
+                onErrorCallback('Failed to save data');
+            }
+        }).finally(() => {
+            saveInFlight = null;
+            if (pendingData) {
+                void flushPendingSave();
+            }
+        });
+        await saveInFlight;
+    }
 };
 
 export const useTaskStore = create<TaskStore>((set, get) => ({

@@ -15,6 +15,7 @@ type SqliteState = {
 };
 
 let sqliteStatePromise: Promise<SqliteState> | null = null;
+let preferJsonBackup = false;
 
 const createLegacyClient = (db: any): SqliteClient => {
     const execSql = (sql: string, params: unknown[] = []) =>
@@ -233,6 +234,21 @@ const createStorage = (): StorageAdapter => {
 
     return {
         getData: async (): Promise<AppData> => {
+            if (preferJsonBackup) {
+                const jsonValue = await getLegacyJson(AsyncStorage);
+                if (jsonValue != null) {
+                    try {
+                        const data = JSON.parse(jsonValue) as AppData;
+                        data.areas = Array.isArray(data.areas) ? data.areas : [];
+                        updateAndroidWidgetFromData(data).catch((error) => {
+                            console.warn('[Widgets] Failed to update Android widget from backup', error);
+                        });
+                        return data;
+                    } catch (parseError) {
+                        console.error('Failed to parse stored data - may be corrupted', parseError);
+                    }
+                }
+            }
             try {
                 if (!shouldUseSqlite) {
                     throw new Error('SQLite disabled in Expo Go');
@@ -273,7 +289,9 @@ const createStorage = (): StorageAdapter => {
                 }
                 const { adapter } = await getSqliteState();
                 await adapter.saveData(data);
+                preferJsonBackup = false;
             } catch (error) {
+                preferJsonBackup = true;
                 if (__DEV__ && !shouldUseSqlite && String(error).includes('Expo Go')) {
                     console.warn('[Storage] SQLite disabled in Expo Go, keeping JSON backup');
                 } else {

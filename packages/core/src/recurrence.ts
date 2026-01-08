@@ -161,23 +161,28 @@ function addInterval(base: Date, rule: RecurrenceRule, interval: number = 1): Da
     }
 }
 
-function nextWeeklyByDay(base: Date, byDay: RecurrenceByDay[]): Date {
+const weekdayIndex = (weekday: RecurrenceWeekday): number => WEEKDAY_ORDER.indexOf(weekday);
+
+function nextWeeklyByDay(base: Date, byDay: RecurrenceByDay[], interval: number = 1): Date {
     const normalizedDays = normalizeWeeklyByDay(byDay);
     if (!normalizedDays || normalizedDays.length === 0) {
-        return addWeeks(base, 1);
+        return addWeeks(base, interval);
     }
-    const daySet = new Set(normalizedDays);
-    for (let offset = 1; offset <= 7; offset += 1) {
-        const candidate = addDays(base, offset);
-        const weekday = WEEKDAY_ORDER[candidate.getDay()];
-        if (daySet.has(weekday)) {
+    const safeInterval = interval > 0 ? interval : 1;
+    const orderedDays = WEEKDAY_ORDER.filter((day) => normalizedDays.includes(day));
+    const weekStart = new Date(base);
+    weekStart.setDate(base.getDate() - base.getDay());
+
+    for (let weekOffset = 0; weekOffset <= safeInterval * 52; weekOffset += safeInterval) {
+        const candidateWeekStart = addWeeks(weekStart, weekOffset);
+        for (const weekday of orderedDays) {
+            const candidate = addDays(candidateWeekStart, weekdayIndex(weekday));
+            if (weekOffset === 0 && candidate <= base) continue;
             return candidate;
         }
     }
-    return addWeeks(base, 1);
+    return addWeeks(base, safeInterval);
 }
-
-const weekdayIndex = (weekday: RecurrenceWeekday): number => WEEKDAY_ORDER.indexOf(weekday);
 
 const getNthWeekdayOfMonth = (year: number, month: number, weekday: RecurrenceWeekday, ordinal: number): Date | null => {
     if (ordinal === 0) return null;
@@ -217,7 +222,7 @@ function nextMonthlyByDay(base: Date, byDay: RecurrenceByDay[], interval: number
         .map(parseOrdinalByDay)
         .filter((item): item is { weekday: RecurrenceWeekday; ordinal?: number } => Boolean(item));
     const safeInterval = interval > 0 ? interval : 1;
-    for (let offset = safeInterval; offset <= safeInterval * 12; offset += safeInterval) {
+    for (let offset = 0; offset <= safeInterval * 12; offset += safeInterval) {
         const monthDate = addMonths(base, offset);
         const year = monthDate.getFullYear();
         const month = monthDate.getMonth();
@@ -225,7 +230,17 @@ function nextMonthlyByDay(base: Date, byDay: RecurrenceByDay[], interval: number
         candidates.forEach((candidate) => {
             if (typeof candidate.ordinal === 'number') {
                 const result = getNthWeekdayOfMonth(year, month, candidate.weekday, candidate.ordinal);
-                if (result) monthCandidates.push(result);
+                if (result) {
+                    monthCandidates.push(new Date(
+                        result.getFullYear(),
+                        result.getMonth(),
+                        result.getDate(),
+                        base.getHours(),
+                        base.getMinutes(),
+                        base.getSeconds(),
+                        base.getMilliseconds()
+                    ));
+                }
             }
         });
         const filtered = monthCandidates
@@ -280,7 +295,7 @@ function nextIsoFrom(
     const effectiveByDay = byDay && byDay.length > 0 ? byDay : undefined;
     const effectiveByMonthDay = byMonthDay && byMonthDay.length > 0 ? byMonthDay : undefined;
     const nextDate = rule === 'weekly' && effectiveByDay
-        ? nextWeeklyByDay(base, effectiveByDay)
+        ? nextWeeklyByDay(base, effectiveByDay, interval)
         : rule === 'monthly' && effectiveByDay
             ? nextMonthlyByDay(base, effectiveByDay, interval)
             : rule === 'monthly' && effectiveByMonthDay
