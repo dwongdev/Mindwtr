@@ -1719,7 +1719,7 @@ export default function SettingsPage() {
                 <SubHeader title={t('settings.dataSync')} />
                 <ScrollView style={styles.scrollView}>
                     <View style={[styles.settingCard, { backgroundColor: tc.cardBg, marginBottom: 12 }]}>
-                        <View style={styles.settingRow}>
+                        <View style={styles.settingRowColumn}>
                             <View style={styles.settingInfo}>
                                 <Text style={[styles.settingLabel, { color: tc.text }]}>{t('settings.syncBackend')}</Text>
                                 <Text style={[styles.settingDescription, { color: tc.secondaryText }]}>
@@ -1730,7 +1730,7 @@ export default function SettingsPage() {
                                             : t('settings.syncBackendFile')}
                                 </Text>
                             </View>
-                            <View style={styles.backendToggle}>
+                            <View style={[styles.backendToggle, { marginTop: 8, width: '100%' }]}>
                                 <TouchableOpacity
                                     style={[
                                         styles.backendOption,
@@ -2220,6 +2220,7 @@ const styles = StyleSheet.create({
     chevron: { fontSize: 24, fontWeight: '300' },
     settingCard: { borderRadius: 12, overflow: 'hidden' },
     settingRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 16 },
+    settingRowColumn: { padding: 16 },
     taskEditorRow: { flexDirection: 'row', alignItems: 'center', height: 52, paddingHorizontal: 16, position: 'relative' },
     taskEditorRowBorder: { borderTopWidth: 1 },
     taskEditorRowContent: { flex: 1, flexDirection: 'row', alignItems: 'center' },
@@ -2233,7 +2234,7 @@ const styles = StyleSheet.create({
     helpBox: { borderRadius: 12, padding: 16, marginBottom: 8, borderWidth: 1 },
     helpTitle: { fontSize: 15, fontWeight: '600', marginBottom: 8 },
     helpText: { fontSize: 13, lineHeight: 20 },
-    backendToggle: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+    backendToggle: { flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap' },
     backendOption: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 16, borderWidth: 1 },
     backendOptionText: { fontSize: 13, fontWeight: '700' },
     dropdownButton: {
