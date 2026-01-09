@@ -17,7 +17,7 @@ export function Layout({ children, currentView, onViewChange }: LayoutProps) {
     const isCollapsed = settings?.sidebarCollapsed ?? false;
     const isFocusMode = useUiStore((state) => state.isFocusMode);
 
-    const { inboxCount, nextCount } = useMemo(() => {
+    const { inboxCount } = useMemo(() => {
         const activeTasks = tasks.filter((task) => !task.deletedAt);
         const now = Date.now();
         const inbox = activeTasks.filter((task) => {
@@ -26,8 +26,7 @@ export function Layout({ children, currentView, onViewChange }: LayoutProps) {
             if (start && start.getTime() > now) return false;
             return true;
         }).length;
-        const next = activeTasks.filter((task) => task.status === 'next').length;
-        return { inboxCount: inbox, nextCount: next };
+        return { inboxCount: inbox };
     }, [tasks]);
 
     const triggerSearch = () => {
@@ -42,7 +41,6 @@ export function Layout({ children, currentView, onViewChange }: LayoutProps) {
 
     const navItems = [
         { id: 'inbox', labelKey: 'nav.inbox', icon: Inbox, count: inboxCount },
-        { id: 'next', labelKey: 'nav.next', icon: Layers, count: nextCount },
         { id: 'agenda', labelKey: 'nav.agenda', icon: Target },
         { id: 'projects', labelKey: 'nav.projects', icon: Folder },
         { id: 'board', labelKey: 'nav.board', icon: Layers },

@@ -171,7 +171,7 @@ function App() {
             case 'agenda':
                 return <AgendaView />;
             case 'next':
-                return <ListView title={t('list.next')} statusFilter="next" />;
+                return <AgendaView />;
             case 'someday':
                 return <ListView title={t('list.someday')} statusFilter="someday" />;
             case 'waiting':
