@@ -103,6 +103,38 @@ export function AgendaView() {
     const sections = useMemo(() => {
         const now = new Date();
         const todayStr = now.toDateString();
+        const priorityRank: Record<TaskPriority, number> = {
+            low: 1,
+            medium: 2,
+            high: 3,
+            urgent: 4,
+        };
+        const sortWith = (items: Task[], getTime: (task: Task) => number) => {
+            return [...items].sort((a, b) => {
+                const timeDiff = getTime(a) - getTime(b);
+                if (timeDiff !== 0) return timeDiff;
+                if (prioritiesEnabled) {
+                    const priorityDiff = (priorityRank[b.priority as TaskPriority] || 0) - (priorityRank[a.priority as TaskPriority] || 0);
+                    if (priorityDiff !== 0) return priorityDiff;
+                }
+                const aCreated = safeParseDate(a.createdAt)?.getTime() ?? 0;
+                const bCreated = safeParseDate(b.createdAt)?.getTime() ?? 0;
+                return aCreated - bCreated;
+            });
+        };
+        const sequentialProjectIds = new Set(
+            projects.filter((project) => project.isSequential && !project.deletedAt).map((project) => project.id)
+        );
+        const earliestByProject = new Map<string, Task>();
+        for (const task of filteredActiveTasks) {
+            if (task.deletedAt || task.status !== 'next' || !task.projectId) continue;
+            if (!sequentialProjectIds.has(task.projectId)) continue;
+            const existing = earliestByProject.get(task.projectId);
+            if (!existing || new Date(task.createdAt).getTime() < new Date(existing.createdAt).getTime()) {
+                earliestByProject.set(task.projectId, task);
+            }
+        }
+        const sequentialFirstTasks = new Set(Array.from(earliestByProject.values()).map((task) => task.id));
 
         const overdue = filteredActiveTasks.filter(t => {
             if (!t.dueDate) return false;
@@ -115,9 +147,13 @@ export function AgendaView() {
             return dueDate && dueDate.toDateString() === todayStr &&
                 !t.isFocusedToday;
         });
-        const nextActions = filteredActiveTasks.filter(t =>
-            t.status === 'next' && !t.isFocusedToday
-        );
+        const nextActions = filteredActiveTasks.filter(t => {
+            if (t.status !== 'next' || t.isFocusedToday) return false;
+            if (t.projectId && sequentialProjectIds.has(t.projectId)) {
+                return sequentialFirstTasks.has(t.id);
+            }
+            return true;
+        });
 
         const reviewDue = filteredActiveTasks.filter(t =>
             (t.status === 'waiting' || t.status === 'someday') &&
@@ -125,8 +161,13 @@ export function AgendaView() {
             !t.isFocusedToday
         );
 
-        return { overdue, dueToday, nextActions, reviewDue };
-    }, [filteredActiveTasks]);
+        return {
+            overdue: sortWith(overdue, (task) => safeParseDueDate(task.dueDate)?.getTime() ?? Number.POSITIVE_INFINITY),
+            dueToday: sortWith(dueToday, (task) => safeParseDueDate(task.dueDate)?.getTime() ?? Number.POSITIVE_INFINITY),
+            nextActions: sortWith(nextActions, (task) => safeParseDate(task.startTime)?.getTime() ?? Number.POSITIVE_INFINITY),
+            reviewDue: sortWith(reviewDue, (task) => safeParseDate(task.reviewAt)?.getTime() ?? Number.POSITIVE_INFINITY),
+        };
+    }, [filteredActiveTasks, projects, prioritiesEnabled]);
     const focusedCount = focusedTasks.length;
     const top3Candidates = useMemo(() => {
         const byId = new Map<string, Task>();
