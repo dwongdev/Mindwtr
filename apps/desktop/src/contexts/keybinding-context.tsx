@@ -116,8 +116,9 @@ export function KeybindingProvider({
 
     useEffect(() => {
         if (isTest) return;
-        if (settings.keybindingStyle === 'vim' || settings.keybindingStyle === 'emacs') {
-            setStyleState((prev) => (prev === settings.keybindingStyle ? prev : settings.keybindingStyle));
+        const nextStyle = settings.keybindingStyle;
+        if (nextStyle === 'vim' || nextStyle === 'emacs') {
+            setStyleState((prev) => (prev === nextStyle ? prev : nextStyle));
         }
     }, [isTest, settings.keybindingStyle]);
 
