@@ -23,7 +23,7 @@ export default function TabLayout() {
   const iconTint = isDark ? '#E5E7EB' : '#1F2937';
   const inactiveTint = isDark ? '#9CA3AF' : '#9CA3AF';
   const activeIndicator = isDark ? '#60A5FA' : '#2563EB';
-  const captureColor = isDark ? '#F472B6' : '#FF2D55';
+  const captureColor = isDark ? '#F472B6' : '#FF7AA2';
 
   return (
     <>
@@ -37,7 +37,9 @@ export default function TabLayout() {
         headerTitleAlign: 'center',
         headerShadowVisible: false,
         headerStyle: {
-          backgroundColor: isDark ? '#1F2937' : '#FFFFFF',
+          backgroundColor: isDark ? '#1F2937' : '#F3F4F6',
+          borderBottomWidth: StyleSheet.hairlineWidth,
+          borderBottomColor: isDark ? '#374151' : '#E5E7EB',
         },
         headerTintColor: isDark ? '#F9FAFB' : '#111827',
         headerTitleStyle: {
