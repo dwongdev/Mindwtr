@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'expo-router';
 import { View, Text, FlatList, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
-import { useTaskStore, PRESET_CONTEXTS, PRESET_TAGS, sortTasksBy, matchesHierarchicalToken, type Task, type Project, type TaskPriority, type TaskSortBy, type TaskStatus, type TimeEstimate } from '@mindwtr/core';
+import { useTaskStore, PRESET_CONTEXTS, PRESET_TAGS, sortTasksBy, matchesHierarchicalToken, safeParseDate, type Task, type Project, type TaskPriority, type TaskSortBy, type TaskStatus, type TimeEstimate } from '@mindwtr/core';
 import { TaskEditModal } from '@/components/task-edit-modal';
 
 import { useTheme } from '../../../contexts/theme-context';
@@ -108,9 +108,21 @@ export default function NextActionsScreen() {
     }
   }, [timeEstimatesEnabled, selectedTimeEstimates.length]);
 
+  const agendaBounds = useMemo(() => {
+    const now = new Date();
+    const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const endOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
+    return { startOfToday, endOfToday };
+  }, []);
+
   const nextTasks = sortTasksBy(tasks.filter(t => {
     if (t.deletedAt) return false;
     if (t.status !== 'next') return false;
+    if (t.isFocusedToday) return false;
+    const due = safeParseDate(t.dueDate);
+    if (due && due <= agendaBounds.endOfToday) return false;
+    const start = safeParseDate(t.startTime);
+    if (start && start <= agendaBounds.endOfToday) return false;
     const taskTokens = [...(t.contexts || []), ...(t.tags || [])];
     if (selectedTokens.length > 0) {
       const matchesAll = selectedTokens.every((token) =>

@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
-import { isDueForReview, safeParseDate, type Task, type TaskStatus, useTaskStore } from '@mindwtr/core';
+import { safeParseDate, type Task, type TaskStatus, useTaskStore } from '@mindwtr/core';
 
 import { useLanguage } from '../contexts/language-context';
 import { useTheme } from '../contexts/theme-context';
@@ -9,27 +9,38 @@ import { SwipeableTaskItem } from './swipeable-task-item';
 
 const buildSections = (tasks: Task[]) => {
   const now = new Date();
+  const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const endOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
+  const used = new Set<string>();
+
+  const focused = tasks.filter((task) => task.isFocusedToday);
+  focused.forEach((task) => used.add(task.id));
+
   const overdue = tasks.filter((task) => {
+    if (used.has(task.id)) return false;
     const due = safeParseDate(task.dueDate);
-    return Boolean(due && due < now);
+    return Boolean(due && due < startOfToday);
   });
+  overdue.forEach((task) => used.add(task.id));
+
   const dueToday = tasks.filter((task) => {
+    if (used.has(task.id)) return false;
     const due = safeParseDate(task.dueDate);
-    return Boolean(due && due.toDateString() === now.toDateString());
+    return Boolean(due && due >= startOfToday && due <= endOfToday);
   });
-  const upcoming = tasks.filter((task) => {
-    const due = safeParseDate(task.dueDate);
-    return Boolean(due && due > now);
+  dueToday.forEach((task) => used.add(task.id));
+
+  const starting = tasks.filter((task) => {
+    if (used.has(task.id)) return false;
+    const start = safeParseDate(task.startTime);
+    return Boolean(start && start <= endOfToday);
   });
-  const reviewDue = tasks.filter((task) =>
-    (task.status === 'waiting' || task.status === 'someday') && isDueForReview(task.reviewAt, now)
-  );
 
   return [
+    { key: 'focus', titleKey: 'agenda.todaysFocus', data: focused.slice(0, 3) },
     { key: 'overdue', titleKey: 'agenda.overdue', data: overdue },
     { key: 'dueToday', titleKey: 'agenda.dueToday', data: dueToday },
-    { key: 'upcoming', titleKey: 'agenda.upcoming', data: upcoming },
-    { key: 'review', titleKey: 'agenda.reviewDue', data: reviewDue },
+    { key: 'starting', titleKey: 'agenda.starting', data: starting },
   ].filter((section) => section.data.length > 0);
 };
 
@@ -40,22 +51,23 @@ export function AgendaPreview({ onEdit }: { onEdit: (task: Task) => void }) {
   const tc = useThemeColors();
 
   const agendaTasks = useMemo(() => {
+    const now = new Date();
+    const endOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
     return tasks.filter((task) => {
       if (task.deletedAt) return false;
       if (task.status === 'done') return false;
-      return Boolean(task.dueDate) || Boolean(task.reviewAt);
+      const due = safeParseDate(task.dueDate);
+      const start = safeParseDate(task.startTime);
+      return Boolean(task.isFocusedToday)
+        || Boolean(due && due <= endOfToday)
+        || Boolean(start && start <= endOfToday);
     });
   }, [tasks]);
 
   const sections = useMemo(() => buildSections(agendaTasks), [agendaTasks]);
 
   if (sections.length === 0) {
-    return (
-      <View style={[styles.emptyCard, { backgroundColor: tc.cardBg, borderColor: tc.border }]}>        
-        <Text style={[styles.emptyTitle, { color: tc.text }]}>{t('agenda.allClear')}</Text>
-        <Text style={[styles.emptySubtitle, { color: tc.secondaryText }]}>{t('agenda.noTasks')}</Text>
-      </View>
-    );
+    return null;
   }
 
   return (

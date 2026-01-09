@@ -25,9 +25,10 @@ export default function TabLayout() {
   const activeIndicator = isDark ? '#60A5FA' : '#2563EB';
 
   return (
-    <Tabs
-      initialRouteName="inbox"
-      screenOptions={({ route }) => ({
+    <>
+      <Tabs
+        initialRouteName="inbox"
+        screenOptions={({ route }) => ({
         tabBarActiveTintColor: iconTint,
         tabBarInactiveTintColor: inactiveTint,
         tabBarShowLabel: false,
@@ -88,8 +89,7 @@ export default function TabLayout() {
           }),
         },
       })}
-    >
-      <QuickCaptureSheet visible={captureOpen} onClose={() => setCaptureOpen(false)} />
+      >
       <Tabs.Screen
         name="inbox"
         options={{
@@ -112,6 +112,7 @@ export default function TabLayout() {
         name="capture"
         options={{
           title: t('nav.addTask'),
+          href: null,
           tabBarButton: () => (
             <TouchableOpacity
               onPress={() => setCaptureOpen(true)}
@@ -145,6 +146,8 @@ export default function TabLayout() {
         }}
       />
     </Tabs>
+    <QuickCaptureSheet visible={captureOpen} onClose={() => setCaptureOpen(false)} />
+    </>
   );
 }
 

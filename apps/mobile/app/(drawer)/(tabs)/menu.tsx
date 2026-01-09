@@ -54,6 +54,7 @@ export default function MenuScreen() {
       <View style={[styles.card, { backgroundColor: tc.cardBg, borderColor: tc.border }]}>
         <MenuRow label={t('nav.board')} icon="square.grid.2x2.fill" tc={tc} onPress={() => router.push('/board')} />
         <MenuRow label={t('nav.calendar')} icon="calendar" tc={tc} onPress={() => router.push('/calendar')} />
+        <MenuRow label={t('nav.agenda')} icon="calendar" tc={tc} onPress={() => router.push('/agenda')} />
         <MenuRow label={t('nav.review')} icon="paperplane.fill" tc={tc} onPress={() => router.push('/review')} />
         <MenuRow label={t('nav.contexts')} icon="circle" tc={tc} onPress={() => router.push('/contexts')} />
         <MenuRow label={t('nav.waiting')} icon="pause.circle.fill" tc={tc} onPress={() => router.push('/waiting')} />

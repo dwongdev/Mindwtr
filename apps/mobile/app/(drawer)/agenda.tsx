@@ -1,7 +1,7 @@
 import { View, Text, SectionList, Pressable, ScrollView, StyleSheet } from 'react-native';
 import { useMemo, useState, useCallback, useEffect } from 'react';
 
-import { useTaskStore, Task, TaskPriority, TimeEstimate, PRESET_CONTEXTS, PRESET_TAGS, matchesHierarchicalToken, safeFormatDate, safeParseDate, isDueForReview, getChecklistProgress, type TaskStatus } from '@mindwtr/core';
+import { useTaskStore, Task, TaskPriority, TimeEstimate, PRESET_CONTEXTS, PRESET_TAGS, matchesHierarchicalToken, safeFormatDate, safeParseDate, getChecklistProgress, type TaskStatus } from '@mindwtr/core';
 
 import { useLanguage } from '../../../contexts/language-context';
 import { useTheme } from '../../../contexts/theme-context';
@@ -259,6 +259,9 @@ export default function AgendaScreen() {
   }, [timeEstimatesEnabled, selectedTimeEstimates.length]);
 
     const { sections, zenHiddenCount } = useMemo(() => {
+        const now = new Date();
+        const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+        const endOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
         const activeTasks = tasks.filter(t => t.status !== 'done' && !t.deletedAt);
         const filteredActiveTasks = activeTasks.filter((task) => {
           const taskTokens = [...(task.contexts || []), ...(task.tags || [])];
@@ -273,54 +276,56 @@ export default function AgendaScreen() {
           return true;
         });
 
-        // Today's Focus: tasks marked as isFocusedToday
+        const used = new Set<string>();
         const focusedTasks = filteredActiveTasks.filter(t => t.isFocusedToday);
+        focusedTasks.forEach((task) => used.add(task.id));
 
-        const overdueTasks = filteredActiveTasks.filter(t => {
-          const dd = safeParseDate(t.dueDate);
-          return dd && dd < new Date() && !t.isFocusedToday;
+        const overdueTasks = filteredActiveTasks.filter((task) => {
+          if (used.has(task.id)) return false;
+          const due = safeParseDate(task.dueDate);
+          return Boolean(due && due < startOfToday);
         });
-        const todayTasks = filteredActiveTasks.filter(t => {
-          const dd = safeParseDate(t.dueDate);
-          return dd && dd.toDateString() === new Date().toDateString() &&
-            !t.isFocusedToday;
+        overdueTasks.forEach((task) => used.add(task.id));
+
+        const todayTasks = filteredActiveTasks.filter((task) => {
+          if (used.has(task.id)) return false;
+          const due = safeParseDate(task.dueDate);
+          return Boolean(due && due >= startOfToday && due <= endOfToday);
         });
-        const nextTasks = filteredActiveTasks.filter(t => t.status === 'next' && !t.isFocusedToday);
-        const reviewDueTasks = filteredActiveTasks.filter(t =>
-          (t.status === 'waiting' || t.status === 'someday') &&
-          isDueForReview(t.reviewAt, new Date()) &&
-          !t.isFocusedToday
-        );
-        const upcomingTasks = filteredActiveTasks
-          .filter(t => {
-            const dd = safeParseDate(t.dueDate);
-            return dd && dd > new Date() && !t.isFocusedToday;
-          })
-          .sort((a, b) => {
-            const da = safeParseDate(a.dueDate);
-            const db = safeParseDate(b.dueDate);
-            return (da ? da.getTime() : 0) - (db ? db.getTime() : 0);
-          });
+        todayTasks.forEach((task) => used.add(task.id));
 
-    if (isZenMode) {
-      const limitedToday = todayTasks.slice(0, 3);
-      const hiddenCount = Math.max(0, todayTasks.length - limitedToday.length);
-      const zenSections = limitedToday.length > 0
-        ? [{ title: `🟡 ${t('agenda.dueToday')}`, data: limitedToday }]
-        : [];
-      return { sections: zenSections, zenHiddenCount: hiddenCount };
-    }
+        const startingTasks = filteredActiveTasks.filter((task) => {
+          if (used.has(task.id)) return false;
+          const start = safeParseDate(task.startTime);
+          return Boolean(start && start <= endOfToday);
+        });
 
-    const result = [];
-    // Today's Focus always at the top (max 3)
-    if (focusedTasks.length > 0) result.push({ title: `🎯 ${t('agenda.todaysFocus') || "Today's Focus"}`, data: focusedTasks.slice(0, 3) });
-    if (overdueTasks.length > 0) result.push({ title: `🔴 ${t('agenda.overdue')}`, data: overdueTasks });
-    if (todayTasks.length > 0) result.push({ title: `🟡 ${t('agenda.dueToday')}`, data: todayTasks });
-    if (nextTasks.length > 0) result.push({ title: `▶️ ${t('agenda.nextActions')}`, data: nextTasks });
-    if (reviewDueTasks.length > 0) result.push({ title: `⏰ ${t('agenda.reviewDue') || 'Review Due'}`, data: reviewDueTasks });
-    if (upcomingTasks.length > 0) result.push({ title: `📆 ${t('agenda.upcoming')}`, data: upcomingTasks });
+        if (isZenMode) {
+          const limitedToday = todayTasks.slice(0, 3);
+          const hiddenCount = Math.max(0, todayTasks.length - limitedToday.length);
+          const zenSections = [];
+          if (focusedTasks.length > 0) {
+            zenSections.push({ title: `🎯 ${t('agenda.todaysFocus')}`, data: focusedTasks.slice(0, 3) });
+          }
+          if (overdueTasks.length > 0) {
+            zenSections.push({ title: `🔴 ${t('agenda.overdue')}`, data: overdueTasks });
+          }
+          if (limitedToday.length > 0) {
+            zenSections.push({ title: `🟡 ${t('agenda.dueToday')}`, data: limitedToday });
+          }
+          if (startingTasks.length > 0) {
+            zenSections.push({ title: `⏳ ${t('agenda.starting')}`, data: startingTasks });
+          }
+          return { sections: zenSections, zenHiddenCount: hiddenCount };
+        }
 
-    return { sections: result, zenHiddenCount: 0 };
+        const result = [];
+        if (focusedTasks.length > 0) result.push({ title: `🎯 ${t('agenda.todaysFocus')}`, data: focusedTasks.slice(0, 3) });
+        if (overdueTasks.length > 0) result.push({ title: `🔴 ${t('agenda.overdue')}`, data: overdueTasks });
+        if (todayTasks.length > 0) result.push({ title: `🟡 ${t('agenda.dueToday')}`, data: todayTasks });
+        if (startingTasks.length > 0) result.push({ title: `⏳ ${t('agenda.starting')}`, data: startingTasks });
+
+        return { sections: result, zenHiddenCount: 0 };
   }, [tasks, t, selectedTokens, selectedPriorities, selectedTimeEstimates, isZenMode]);
 
   // Count focused tasks (max 3)
