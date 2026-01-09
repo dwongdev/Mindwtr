@@ -1,4 +1,4 @@
-import { View, Text, Pressable, StyleSheet, Modal } from 'react-native';
+import { View, Text, Pressable, StyleSheet, Modal, Alert } from 'react-native';
 import { Swipeable } from 'react-native-gesture-handler';
 import { useTaskStore, Task, getChecklistProgress, getTaskAgeLabel, getTaskStaleness, getStatusColor, safeFormatDate, safeParseDate, TaskStatus, Project } from '@mindwtr/core';
 import { useLanguage } from '../contexts/language-context';
@@ -66,7 +66,10 @@ export function SwipeableTaskItem({
             updateTask(task.id, { isFocusedToday: false });
             return;
         }
-        if (focusedCount >= 3) return;
+        if (focusedCount >= 3) {
+            Alert.alert(t('digest.focus') || 'Focus', t('agenda.maxFocusItems') || 'Max 3 focus items.');
+            return;
+        }
         updateTask(task.id, { isFocusedToday: true });
     };
 
