@@ -221,6 +221,7 @@ export default function NextActionsScreen() {
       onStatusChange={(status) => updateTask(item.id, { status: status as TaskStatus })}
       onDelete={() => deleteTask(item.id)}
       isHighlighted={item.id === highlightTaskId}
+      showFocusToggle
     />
   ), [onEdit, tc, updateTask, deleteTask, isDark, highlightTaskId]);
 
@@ -318,6 +319,8 @@ export default function NextActionsScreen() {
         ListHeaderComponent={(
           <>
             <AgendaPreview onEdit={onEdit} />
+            <View style={[styles.sectionDivider, { borderBottomColor: tc.border }]} />
+            <Text style={[styles.sectionHeading, { color: tc.text }]}>{t('list.next')}</Text>
             {nextTasks.length > 15 && (
               <View style={[styles.warningBanner, { backgroundColor: isDark ? '#78350F' : '#FEF3C7', borderColor: '#F59E0B' }]}>
                 <Text style={[styles.warningText, { color: isDark ? '#FCD34D' : '#92400E' }]}>
@@ -457,6 +460,17 @@ const styles = StyleSheet.create({
     fontSize: 12,
     textAlign: 'center',
     opacity: 0.95,
+  },
+  sectionDivider: {
+    marginTop: 12,
+    marginHorizontal: 16,
+    borderBottomWidth: 1,
+  },
+  sectionHeading: {
+    marginTop: 10,
+    marginHorizontal: 16,
+    fontSize: 16,
+    fontWeight: '700',
   },
   filterPanel: {
     paddingHorizontal: 12,

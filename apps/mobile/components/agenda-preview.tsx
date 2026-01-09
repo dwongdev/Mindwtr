@@ -80,15 +80,16 @@ export function AgendaPreview({ onEdit }: { onEdit: (task: Task) => void }) {
             <Text style={[styles.sectionTitle, { color: tc.secondaryText }]}>{t(section.titleKey)}</Text>
             <View style={styles.sectionList}>
               {section.data.map((task) => (
-                <SwipeableTaskItem
-                  key={task.id}
-                  task={task}
-                  isDark={isDark}
-                  tc={tc}
-                  onPress={() => onEdit(task)}
-                  onStatusChange={(status: TaskStatus) => updateTask(task.id, { status })}
-                  onDelete={() => deleteTask(task.id)}
-                />
+              <SwipeableTaskItem
+                key={task.id}
+                task={task}
+                isDark={isDark}
+                tc={tc}
+                onPress={() => onEdit(task)}
+                onStatusChange={(status: TaskStatus) => updateTask(task.id, { status })}
+                onDelete={() => deleteTask(task.id)}
+                showFocusToggle
+              />
               ))}
             </View>
           </View>

@@ -21,6 +21,7 @@ export interface SwipeableTaskItemProps {
     isMultiSelected?: boolean;
     onToggleSelect?: () => void;
     isHighlighted?: boolean;
+    showFocusToggle?: boolean;
 }
 
 /**
@@ -43,13 +44,29 @@ export function SwipeableTaskItem({
     selectionMode = false,
     isMultiSelected = false,
     onToggleSelect,
-    isHighlighted = false
+    isHighlighted = false,
+    showFocusToggle = false,
 }: SwipeableTaskItemProps) {
     const swipeableRef = useRef<Swipeable>(null);
     const ignorePressUntil = useRef<number>(0);
     const { t, language } = useLanguage();
-    const { updateTask, projects, areas, settings } = useTaskStore();
+    const { updateTask, projects, areas, settings, tasks } = useTaskStore();
     const timeEstimatesEnabled = settings?.features?.timeEstimates === true;
+
+    const focusedCount = useMemo(
+        () => tasks.filter((taskItem) => taskItem.isFocusedToday && !taskItem.deletedAt && taskItem.status !== 'done').length,
+        [tasks]
+    );
+
+    const toggleFocus = () => {
+        if (selectionMode) return;
+        if (task.isFocusedToday) {
+            updateTask(task.id, { isFocusedToday: false });
+            return;
+        }
+        if (focusedCount >= 3) return;
+        updateTask(task.id, { isFocusedToday: true });
+    };
 
     const areaById = useMemo(() => new Map(areas.map((area) => [area.id, area])), [areas]);
     const project: Project | undefined = task.projectId ? projects.find(p => p.id === task.projectId) : undefined;
@@ -210,9 +227,26 @@ export function SwipeableTaskItem({
                         </View>
                     )}
                     <View style={styles.taskContent}>
-                        <Text style={[styles.taskTitle, { color: tc.text }]} numberOfLines={2}>
-                            {task.title}
-                        </Text>
+                        <View style={styles.titleRow}>
+                            <Text style={[styles.taskTitle, { color: tc.text }]} numberOfLines={2}>
+                                {task.title}
+                            </Text>
+                            {showFocusToggle && !selectionMode && (
+                                <Pressable
+                                    onPress={(event) => {
+                                        event.stopPropagation();
+                                        toggleFocus();
+                                    }}
+                                    style={styles.focusButton}
+                                    accessibilityRole="button"
+                                    accessibilityLabel={task.isFocusedToday ? t('agenda.removeFromFocus') : t('agenda.addToFocus')}
+                                >
+                                    <Text style={[styles.focusButtonText, task.isFocusedToday && styles.focusButtonActive]}>
+                                        {task.isFocusedToday ? '★' : '☆'}
+                                    </Text>
+                                </Pressable>
+                            )}
+                        </View>
                         {task.description && (
                             <Text style={[styles.taskDescription, { color: tc.secondaryText }]} numberOfLines={1}>
                                 {task.description}
@@ -463,6 +497,11 @@ const styles = StyleSheet.create({
         fontSize: 12,
         fontWeight: '700',
     },
+    titleRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 8,
+    },
     taskContent: {
         flex: 1,
     },
@@ -470,6 +509,19 @@ const styles = StyleSheet.create({
         fontSize: 16,
         fontWeight: '600',
         marginBottom: 4,
+    },
+    focusButton: {
+        paddingHorizontal: 6,
+        paddingVertical: 2,
+        borderRadius: 10,
+        backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    },
+    focusButtonText: {
+        fontSize: 16,
+        color: '#94A3B8',
+    },
+    focusButtonActive: {
+        color: '#F59E0B',
     },
     taskDescription: {
         fontSize: 14,
