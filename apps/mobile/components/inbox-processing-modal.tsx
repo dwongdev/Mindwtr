@@ -784,7 +784,7 @@ export function InboxProcessingModal({ visible, onClose }: InboxProcessingModalP
                   </TouchableOpacity>
                 </View>
 
-                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.contextScroll}>
+                <View style={styles.contextWrap}>
                   {PRESET_CONTEXTS.map(ctx => (
                     <TouchableOpacity
                       key={ctx}
@@ -802,7 +802,7 @@ export function InboxProcessingModal({ visible, onClose }: InboxProcessingModalP
                       ]}>{ctx}</Text>
                     </TouchableOpacity>
                   ))}
-                </ScrollView>
+                </View>
 
                 <TouchableOpacity
                   style={[styles.bigButton, styles.buttonPrimary, { marginTop: 16 }]}
@@ -1155,7 +1155,10 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '700',
   },
-  contextScroll: {
+  contextWrap: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
     marginBottom: 12,
   },
   contextChip: {
