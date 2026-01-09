@@ -20,7 +20,8 @@ interface GeminiResponse {
 }
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
-const resolveTimeoutMs = (value?: number) => (Number.isFinite(value) && value > 0 ? value : DEFAULT_TIMEOUT_MS);
+const resolveTimeoutMs = (value?: number) =>
+    typeof value === 'number' && Number.isFinite(value) && value > 0 ? value : DEFAULT_TIMEOUT_MS;
 
 const CLARIFY_SCHEMA: GeminiSchema = {
     type: 'object',

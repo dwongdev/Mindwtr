@@ -2,7 +2,7 @@ import { addDays, addMonths, addWeeks, addYears, endOfDay, isAfter, isBefore, is
 import { safeParseDate } from './date';
 import { matchesHierarchicalToken, normalizePrefixedToken } from './hierarchy-utils';
 import { normalizeTaskStatus, TASK_STATUS_SET } from './task-status';
-import type { Project, Task, TaskStatus } from './types';
+import type { Project, Task } from './types';
 
 export type SearchComparator = '<' | '<=' | '>' | '>=' | '=';
 

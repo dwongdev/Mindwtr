@@ -9,7 +9,8 @@ const MAX_RETRIES = 2;
 const RETRYABLE_STATUSES = new Set([408, 429, 500, 502, 503, 504]);
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
-const resolveTimeoutMs = (value?: number) => (Number.isFinite(value) && value > 0 ? value : DEFAULT_TIMEOUT_MS);
+const resolveTimeoutMs = (value?: number) =>
+    typeof value === 'number' && Number.isFinite(value) && value > 0 ? value : DEFAULT_TIMEOUT_MS;
 
 async function requestOpenAI(config: AIProviderConfig, prompt: { system: string; user: string }, options?: AIRequestOptions) {
     if (!config.apiKey) {
