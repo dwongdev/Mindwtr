@@ -137,6 +137,7 @@ export function Layout({ children, currentView, onViewChange }: LayoutProps) {
                             key={item.id}
                             onClick={() => onViewChange(item.id)}
                             data-sidebar-item
+                            data-view={item.id}
                             className={cn(
                                 "w-full flex items-center rounded-md text-sm font-medium transition-colors",
                                 currentView === item.id
@@ -186,7 +187,7 @@ export function Layout({ children, currentView, onViewChange }: LayoutProps) {
             )}
 
             {/* Main Content */}
-            <main className="flex-1 overflow-auto">
+            <main className="flex-1 overflow-auto" data-main-content tabIndex={-1}>
                 <div className={cn(
                     "mx-auto p-8 h-full",
                     isFocusMode ? "max-w-[800px]" : ['board', 'calendar'].includes(currentView) ? "max-w-full" : "max-w-4xl"

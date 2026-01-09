@@ -15,6 +15,8 @@ export function KeybindingHelpModal({ style, onClose, currentView, t }: Keybindi
         { keys: '/', labelKey: 'keybindings.openSearch' },
         { keys: '?', labelKey: 'keybindings.openHelp' },
         { keys: 'Ctrl-b', labelKey: 'keybindings.toggleSidebar' },
+        { keys: 'h / ←', labelKey: 'keybindings.focusSidebar' },
+        { keys: 'l / →', labelKey: 'keybindings.focusContent' },
         { keys: 'Ctrl+\\ / Cmd+\\', labelKey: 'keybindings.toggleFocusMode' },
         { keys: 'gi', labelKey: 'keybindings.goInbox' },
         { keys: 'gn', labelKey: 'keybindings.goNext' },
@@ -31,7 +33,7 @@ export function KeybindingHelpModal({ style, onClose, currentView, t }: Keybindi
     ];
 
     const vimList: HelpItem[] = [
-        { keys: 'j / k', labelKey: 'keybindings.list.nextPrev' },
+        { keys: 'j / k / ↑ / ↓', labelKey: 'keybindings.list.nextPrev' },
         { keys: 'gg / G', labelKey: 'keybindings.list.firstLast' },
         { keys: 'e', labelKey: 'keybindings.list.edit' },
         { keys: 'Esc', labelKey: 'keybindings.list.cancelEdit' },
@@ -61,7 +63,7 @@ export function KeybindingHelpModal({ style, onClose, currentView, t }: Keybindi
     ];
 
     const emacsList: HelpItem[] = [
-        { keys: 'Ctrl-n / Ctrl-p', labelKey: 'keybindings.list.nextPrev' },
+        { keys: 'Ctrl-n / Ctrl-p / ↑ / ↓', labelKey: 'keybindings.list.nextPrev' },
         { keys: 'Ctrl-e', labelKey: 'keybindings.list.edit' },
         { keys: 'Esc', labelKey: 'keybindings.list.cancelEdit' },
         { keys: 'Ctrl-t', labelKey: 'keybindings.list.toggleDone' },

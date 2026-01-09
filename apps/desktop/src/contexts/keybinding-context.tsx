@@ -35,13 +35,14 @@ function isEditableTarget(target: EventTarget | null): boolean {
 }
 
 function moveSidebarFocus(target: EventTarget | null, direction: 'next' | 'prev'): boolean {
-    if (!(target instanceof HTMLElement)) return false;
-    const sidebar = target.closest('[data-sidebar-nav]');
+    const active = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    const origin = active ?? (target instanceof HTMLElement ? target : null);
+    if (!origin) return false;
+    const sidebar = origin.closest('[data-sidebar-nav]');
     if (!sidebar) return false;
     const items = Array.from(sidebar.querySelectorAll<HTMLElement>('[data-sidebar-item]'));
     if (items.length === 0) return false;
-    const activeElement = document.activeElement as HTMLElement | null;
-    const currentIndex = activeElement ? items.findIndex((item) => item === activeElement) : -1;
+    const currentIndex = active ? items.findIndex((item) => item === active) : -1;
     const nextIndex = currentIndex >= 0
         ? direction === 'next'
             ? Math.min(items.length - 1, currentIndex + 1)
@@ -50,6 +51,21 @@ function moveSidebarFocus(target: EventTarget | null, direction: 'next' | 'prev'
             ? 0
             : items.length - 1;
     items[nextIndex]?.focus();
+    return true;
+}
+
+function focusSidebarCurrentView(view: string): boolean {
+    const items = Array.from(document.querySelectorAll<HTMLElement>('[data-sidebar-item]'));
+    if (items.length === 0) return false;
+    const match = items.find((item) => item.dataset.view === view) ?? items[0];
+    match?.focus();
+    return Boolean(match);
+}
+
+function focusMainContent(): boolean {
+    const main = document.querySelector<HTMLElement>('[data-main-content]');
+    if (!main) return false;
+    main.focus();
     return true;
 }
 
@@ -191,6 +207,16 @@ export function KeybindingProvider({
                     e.preventDefault();
                     scope?.selectPrev();
                     break;
+                case 'h':
+                    if (focusSidebarCurrentView(currentView)) {
+                        e.preventDefault();
+                    }
+                    break;
+                case 'l':
+                    if (focusMainContent()) {
+                        e.preventDefault();
+                    }
+                    break;
                 case 'G':
                     e.preventDefault();
                     scope?.selectLast();
@@ -317,6 +343,18 @@ export function KeybindingProvider({
                         return;
                     }
                 }
+                if (style === 'vim' && e.key === 'ArrowLeft') {
+                    if (focusSidebarCurrentView(currentView)) {
+                        e.preventDefault();
+                        return;
+                    }
+                }
+                if (style === 'vim' && e.key === 'ArrowRight') {
+                    if (focusMainContent()) {
+                        e.preventDefault();
+                        return;
+                    }
+                }
             }
             if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.code === 'Space' && !e.altKey && !isEditableTarget(e.target)) {
                 e.preventDefault();
@@ -342,7 +380,7 @@ export function KeybindingProvider({
 
         window.addEventListener('keydown', handleKeyDown);
         return () => window.removeEventListener('keydown', handleKeyDown);
-    }, [style, vimGoMap, emacsAltMap, onNavigate, isHelpOpen, toggleSidebar, toggleFocusMode]);
+    }, [style, vimGoMap, emacsAltMap, onNavigate, isHelpOpen, toggleSidebar, toggleFocusMode, currentView]);
 
     const contextValue = useMemo<KeybindingContextType>(() => ({
         style,
