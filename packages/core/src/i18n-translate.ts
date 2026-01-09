@@ -436,7 +436,7 @@ const translationPairs: Record<Language, Array<[string, string]>> = {
         en: [],
         zh: [],
         es: [
-            ['Settings', 'Configuración'],
+            ['Settings', 'Ajustes'],
             ['General', 'General'],
             ['Appearance', 'Apariencia'],
             ['Language', 'Idioma'],
@@ -454,7 +454,7 @@ const translationPairs: Record<Language, Array<[string, string]>> = {
             ['Archive', 'Archivo'],
             ['Archived', 'Archivado'],
             ['Trash', 'Papelera'],
-            ['Add', 'Agregar'],
+            ['Add', 'Añadir'],
             ['Delete', 'Eliminar'],
             ['Save', 'Guardar'],
             ['Cancel', 'Cancelar'],
@@ -619,6 +619,7 @@ const PROTECTED_TOKENS = [
         '@context',
         '#tag',
         '+Project',
+        'project:',
 ];
 
 export const autoTranslate = (value: string, lang: Language): string => {
