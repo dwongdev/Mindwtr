@@ -35,6 +35,7 @@ export default function ProjectsScreen() {
   const [showStatusMenu, setShowStatusMenu] = useState(false);
   const [linkModalVisible, setLinkModalVisible] = useState(false);
   const [linkInput, setLinkInput] = useState('');
+  const [isReorderingTasks, setIsReorderingTasks] = useState(false);
   const [showAreaPicker, setShowAreaPicker] = useState(false);
   const [showAreaManager, setShowAreaManager] = useState(false);
   const [newAreaName, setNewAreaName] = useState('');
@@ -543,14 +544,15 @@ export default function ProjectsScreen() {
           persistSelectedProjectEdits(selectedProject);
           setSelectedProject(null);
           setNotesExpanded(false);
-                    setShowNotesPreview(false);
-                    setShowReviewPicker(false);
-                    setShowStatusMenu(false);
-                    setLinkModalVisible(false);
-                    setLinkInput('');
-                  setShowAreaPicker(false);
-                  setShowTagPicker(false);
-                }}
+          setShowNotesPreview(false);
+          setShowReviewPicker(false);
+          setShowStatusMenu(false);
+          setLinkModalVisible(false);
+          setLinkInput('');
+          setShowAreaPicker(false);
+          setShowTagPicker(false);
+          setIsReorderingTasks(false);
+        }}
               >
                 <SafeAreaView style={{ flex: 1, backgroundColor: tc.bg }}>
                   {selectedProject && (
@@ -558,6 +560,7 @@ export default function ProjectsScreen() {
                       style={{ flex: 1 }}
                       contentContainerStyle={styles.projectDetailScroll}
                       keyboardShouldPersistTaps="handled"
+                      scrollEnabled={!isReorderingTasks}
                     >
                 <View style={[styles.modalHeader, { borderBottomColor: tc.border, backgroundColor: tc.cardBg }]}>
                   <TextInput
@@ -843,6 +846,7 @@ export default function ProjectsScreen() {
                   enableReorder
                   allowAdd={true}
                   scrollEnabled={false}
+                  onReorderActiveChange={setIsReorderingTasks}
                 />
                     </ScrollView>
                   )}

@@ -31,6 +31,7 @@ export interface TaskListProps {
   allowAdd?: boolean;
   projectId?: string;
   enableReorder?: boolean;
+  onReorderActiveChange?: (active: boolean) => void;
   enableBulkActions?: boolean;
   showSort?: boolean;
   showQuickAddHelp?: boolean;
@@ -49,6 +50,7 @@ export function TaskList({
   allowAdd = true,
   projectId,
   enableReorder = false,
+  onReorderActiveChange,
   enableBulkActions = true,
   showSort = true,
   showQuickAddHelp = true,
@@ -430,14 +432,17 @@ export function TaskList({
         isDark={isDark}
         tc={themeColors}
         onPress={() => handleEditTask(item)}
-        onDragStart={drag}
+        onDragStart={() => {
+          onReorderActiveChange?.(true);
+          drag();
+        }}
         selectionMode={false}
         onStatusChange={(status) => updateTask(item.id, { status: status as TaskStatus })}
         onDelete={() => deleteTask(item.id)}
         isHighlighted={item.id === highlightTaskId}
       />
     </View>
-  ), [deleteTask, handleEditTask, highlightTaskId, isDark, themeColors, updateTask]);
+  ), [deleteTask, handleEditTask, highlightTaskId, isDark, onReorderActiveChange, themeColors, updateTask]);
 
   return (
     <View style={[styles.container, { backgroundColor: themeColors.bg }]}>
@@ -626,9 +631,12 @@ export function TaskList({
           contentContainerStyle={styles.listContent}
           activationDistance={12}
           scrollEnabled={scrollEnabled}
+          onDragBegin={() => onReorderActiveChange?.(true)}
           onDragEnd={({ data }) => {
             reorderProjectTasks(projectId, data.map((task) => task.id));
+            onReorderActiveChange?.(false);
           }}
+          onDragCancel={() => onReorderActiveChange?.(false)}
           ListEmptyComponent={
             <View style={styles.emptyContainer}>
               <Text style={[styles.emptyText, { color: themeColors.secondaryText }]}>
