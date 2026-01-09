@@ -768,12 +768,7 @@ export function TaskEditModal({ visible, task, onClose, onSave, onFocusMode, def
         return [...normalized, ...missing].filter((id) => !disabledFields.has(id));
     }, [savedOrder, disabledFields]);
 
-    const hiddenSet = useMemo(() => {
-        const known = new Set(taskEditorOrder);
-        return new Set((settings.gtd?.taskEditor?.hidden ?? []).filter((id) => known.has(id)));
-    }, [settings.gtd?.taskEditor?.hidden, taskEditorOrder]);
-
-    const primaryFieldIds = useMemo(() => new Set<TaskEditorFieldId>(['dueDate']), []);
+    const primaryFieldIds = useMemo(() => new Set<TaskEditorFieldId>(['status', 'project', 'contexts', 'dueDate']), []);
 
     useEffect(() => {
         if (!visible) return;
@@ -818,11 +813,11 @@ export function TaskEditModal({ visible, task, onClose, onSave, onFocusMode, def
     };
 
     const compactFieldIds = useMemo(() => {
-        return taskEditorOrder.filter((fieldId) => primaryFieldIds.has(fieldId) || !hiddenSet.has(fieldId) || hasFieldValue(fieldId));
-    }, [taskEditorOrder, primaryFieldIds, hiddenSet, mergedTask]);
+        return taskEditorOrder.filter((fieldId) => primaryFieldIds.has(fieldId) || hasFieldValue(fieldId));
+    }, [taskEditorOrder, primaryFieldIds, mergedTask]);
 
     const fieldIdsToRender = showMoreOptions ? taskEditorOrder : compactFieldIds;
-    const hasHiddenFields = taskEditorOrder.some((fieldId) => hiddenSet.has(fieldId) && !hasFieldValue(fieldId));
+    const hasHiddenFields = compactFieldIds.length < taskEditorOrder.length;
 
     const recurrenceOptions: { value: RecurrenceRule | ''; label: string }[] = [
         { value: '', label: t('recurrence.none') },
