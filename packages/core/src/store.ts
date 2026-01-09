@@ -255,6 +255,7 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
      * Stores full data internally, filters for UI display.
      */
     fetchData: async () => {
+        await flushPendingSave();
         set({ isLoading: true, error: null });
         try {
             const data = await storage.getData();
