@@ -882,7 +882,7 @@ export default function ProjectsScreen() {
                   onReorderActiveChange={setIsReorderingTasks}
                 />
                     </ScrollView>
-                  )}
+                  ) : null}
                 </SafeAreaView>
       </Modal>
 
