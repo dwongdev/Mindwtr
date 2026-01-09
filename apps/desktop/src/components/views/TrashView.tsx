@@ -3,6 +3,7 @@ import { useTaskStore, sortTasksBy, safeFormatDate } from '@mindwtr/core';
 import type { TaskSortBy } from '@mindwtr/core';
 import { Undo2, Trash2 } from 'lucide-react';
 import { useLanguage } from '../../contexts/language-context';
+import { isTauriRuntime } from '../../lib/runtime';
 
 export function TrashView() {
     const { _allTasks, restoreTask, purgeTask, purgeDeletedTasks, settings } = useTaskStore();
@@ -18,10 +19,18 @@ export function TrashView() {
         return sorted.filter((task) => task.title.toLowerCase().includes(query));
     }, [_allTasks, searchQuery, sortBy]);
 
-    const handleClearTrash = () => {
+    const handleClearTrash = async () => {
         if (trashedTasks.length === 0) return;
         const confirmMessage = `${t('trash.clearAllConfirm')}\n${t('trash.clearAllConfirmBody')}`;
-        if (!window.confirm(confirmMessage)) return;
+        const confirmed = isTauriRuntime()
+            ? await import('@tauri-apps/plugin-dialog').then(({ confirm }) =>
+                confirm(confirmMessage, {
+                    title: t('trash.title'),
+                    kind: 'warning',
+                }),
+            )
+            : window.confirm(confirmMessage);
+        if (!confirmed) return;
         purgeDeletedTasks();
     };
 
