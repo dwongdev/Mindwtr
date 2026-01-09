@@ -131,11 +131,12 @@ export function Layout({ children, currentView, onViewChange }: LayoutProps) {
                     </div>
                 )}
 
-                <nav className="space-y-1 flex-1">
+                <nav className="space-y-1 flex-1" data-sidebar-nav>
                     {navItems.map((item) => (
                         <button
                             key={item.id}
                             onClick={() => onViewChange(item.id)}
+                            data-sidebar-item
                             className={cn(
                                 "w-full flex items-center rounded-md text-sm font-medium transition-colors",
                                 currentView === item.id

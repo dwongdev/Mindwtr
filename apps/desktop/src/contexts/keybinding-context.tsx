@@ -34,6 +34,25 @@ function isEditableTarget(target: EventTarget | null): boolean {
     return tag === 'input' || tag === 'textarea' || tag === 'select' || target.isContentEditable;
 }
 
+function moveSidebarFocus(target: EventTarget | null, direction: 'next' | 'prev'): boolean {
+    if (!(target instanceof HTMLElement)) return false;
+    const sidebar = target.closest('[data-sidebar-nav]');
+    if (!sidebar) return false;
+    const items = Array.from(sidebar.querySelectorAll<HTMLElement>('[data-sidebar-item]'));
+    if (items.length === 0) return false;
+    const activeElement = document.activeElement as HTMLElement | null;
+    const currentIndex = activeElement ? items.findIndex((item) => item === activeElement) : -1;
+    const nextIndex = currentIndex >= 0
+        ? direction === 'next'
+            ? Math.min(items.length - 1, currentIndex + 1)
+            : Math.max(0, currentIndex - 1)
+        : direction === 'next'
+            ? 0
+            : items.length - 1;
+    items[nextIndex]?.focus();
+    return true;
+}
+
 function triggerGlobalSearch() {
     const event = new KeyboardEvent('keydown', {
         key: 'k',
@@ -157,10 +176,18 @@ export function KeybindingProvider({
 
             switch (e.key) {
                 case 'j':
+                    if (moveSidebarFocus(e.target, 'next')) {
+                        e.preventDefault();
+                        break;
+                    }
                     e.preventDefault();
                     scope?.selectNext();
                     break;
                 case 'k':
+                    if (moveSidebarFocus(e.target, 'prev')) {
+                        e.preventDefault();
+                        break;
+                    }
                     e.preventDefault();
                     scope?.selectPrev();
                     break;
@@ -264,6 +291,32 @@ export function KeybindingProvider({
                 e.preventDefault();
                 setIsHelpOpen(false);
                 return;
+            }
+            if (!e.metaKey && !e.ctrlKey && !e.altKey && !isEditableTarget(e.target)) {
+                if (e.key === 'ArrowDown') {
+                    if (moveSidebarFocus(e.target, 'next')) {
+                        e.preventDefault();
+                        return;
+                    }
+                    const scope = scopeRef.current;
+                    if (scope) {
+                        e.preventDefault();
+                        scope.selectNext();
+                        return;
+                    }
+                }
+                if (e.key === 'ArrowUp') {
+                    if (moveSidebarFocus(e.target, 'prev')) {
+                        e.preventDefault();
+                        return;
+                    }
+                    const scope = scopeRef.current;
+                    if (scope) {
+                        e.preventDefault();
+                        scope.selectPrev();
+                        return;
+                    }
+                }
             }
             if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.code === 'Space' && !e.altKey && !isEditableTarget(e.target)) {
                 e.preventDefault();
