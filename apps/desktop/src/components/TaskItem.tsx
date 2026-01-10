@@ -56,7 +56,6 @@ const DEFAULT_TASK_EDITOR_ORDER: TaskEditorFieldId[] = [
 ];
 const DEFAULT_TASK_EDITOR_HIDDEN: TaskEditorFieldId[] = [
     'priority',
-    'contexts',
     'tags',
     'timeEstimate',
     'recurrence',

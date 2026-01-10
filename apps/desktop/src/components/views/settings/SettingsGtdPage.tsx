@@ -98,6 +98,7 @@ export function SettingsGtdPage({
         'project',
         'description',
         'checklist',
+        'contexts',
         'dueDate',
         'priority',
         'timeEstimate',

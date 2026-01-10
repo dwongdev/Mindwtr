@@ -1369,6 +1369,7 @@ export default function SettingsPage() {
             'project',
             'description',
             'checklist',
+            'contexts',
             'dueDate',
             'priority',
             'timeEstimate',

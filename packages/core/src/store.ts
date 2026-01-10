@@ -180,8 +180,8 @@ let savedVersion = 0;
 let saveInFlight: Promise<void> | null = null;
 const MIGRATION_VERSION = 1;
 const AUTO_ARCHIVE_INTERVAL_MS = 12 * 60 * 60 * 1000;
-const TASK_EDITOR_DEFAULTS_VERSION = 1;
-const TASK_EDITOR_ALWAYS_VISIBLE: TaskEditorFieldId[] = ['status', 'project', 'description', 'checklist'];
+const TASK_EDITOR_DEFAULTS_VERSION = 2;
+const TASK_EDITOR_ALWAYS_VISIBLE: TaskEditorFieldId[] = ['status', 'project', 'description', 'checklist', 'contexts'];
 const STORAGE_TIMEOUT_MS = 15_000;
 
 const withTimeout = async <T>(promise: Promise<T>, timeoutMs: number, message: string): Promise<T> => {
