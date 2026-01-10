@@ -127,7 +127,7 @@ const en: Record<string, string> = {
         'taskEdit.titleLabel': 'Title',
         'taskEdit.statusLabel': 'Status',
         'taskEdit.priorityLabel': 'Priority',
-        'taskEdit.contextsLabel': 'Where?',
+        'taskEdit.contextsLabel': 'Contexts',
         'taskEdit.tagsLabel': 'Tags',
         'taskEdit.timeEstimateLabel': 'Time Estimate',
         'taskEdit.recurrenceLabel': 'Recurrence',
