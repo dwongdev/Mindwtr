@@ -17,6 +17,7 @@ export function GlobalSearch({ onNavigate }: GlobalSearchProps) {
     const [savePromptDefault, setSavePromptDefault] = useState('');
     const [ftsResults, setFtsResults] = useState<{ tasks: Task[]; projects: Project[] } | null>(null);
     const [ftsLoading, setFtsLoading] = useState(false);
+    const [debouncedQuery, setDebouncedQuery] = useState('');
     const inputRef = useRef<HTMLInputElement>(null);
     const isOpenRef = useRef(false);
     const { _allTasks, projects, settings, updateSettings, setHighlightTask } = useTaskStore();
@@ -59,7 +60,14 @@ export function GlobalSearch({ onNavigate }: GlobalSearchProps) {
     }, [isOpen]);
 
     const trimmedQuery = query.trim();
-    const shouldUseFts = trimmedQuery.length > 0 && !/\b\w+:/i.test(trimmedQuery);
+    useEffect(() => {
+        const timer = window.setTimeout(() => {
+            setDebouncedQuery(trimmedQuery);
+        }, 200);
+        return () => window.clearTimeout(timer);
+    }, [trimmedQuery]);
+
+    const shouldUseFts = debouncedQuery.length > 0 && !/\b\w+:/i.test(debouncedQuery);
 
     useEffect(() => {
         let cancelled = false;
@@ -75,7 +83,7 @@ export function GlobalSearch({ onNavigate }: GlobalSearchProps) {
             return;
         }
         setFtsLoading(true);
-        adapter.searchAll(trimmedQuery)
+        adapter.searchAll(debouncedQuery)
             .then((results) => {
                 if (!cancelled) setFtsResults(results);
             })
@@ -88,7 +96,7 @@ export function GlobalSearch({ onNavigate }: GlobalSearchProps) {
         return () => {
             cancelled = true;
         };
-    }, [trimmedQuery, shouldUseFts]);
+    }, [debouncedQuery, shouldUseFts]);
 
     const fallbackResults = trimmedQuery === ''
         ? { tasks: [] as Task[], projects: [] as Project[] }
