@@ -116,7 +116,7 @@ export default function SettingsPage() {
     const [isSyncing, setIsSyncing] = useState(false);
     const [currentScreen, setCurrentScreen] = useState<SettingsScreen>('main');
     const [syncPath, setSyncPath] = useState<string | null>(null);
-    const [syncBackend, setSyncBackend] = useState<'file' | 'webdav' | 'cloud'>('file');
+    const [syncBackend, setSyncBackend] = useState<'file' | 'webdav' | 'cloud' | 'off'>('file');
     const [webdavUrl, setWebdavUrl] = useState('');
     const [webdavUsername, setWebdavUsername] = useState('');
     const [webdavPassword, setWebdavPassword] = useState('');
@@ -256,7 +256,7 @@ export default function SettingsPage() {
             const cloudSyncToken = entryMap.get(CLOUD_TOKEN_KEY);
 
             if (path) setSyncPath(path);
-            setSyncBackend(backend === 'webdav' || backend === 'cloud' ? backend : 'file');
+            setSyncBackend(backend === 'webdav' || backend === 'cloud' || backend === 'off' ? backend : 'file');
             if (url) setWebdavUrl(url);
             if (username) setWebdavUsername(username);
             if (password) setWebdavPassword(password);
@@ -419,6 +419,9 @@ export default function SettingsPage() {
     const handleSync = async () => {
         setIsSyncing(true);
         try {
+            if (syncBackend === 'off') {
+                return;
+            }
             if (syncBackend === 'webdav') {
                 if (!webdavUrl.trim()) {
                     Alert.alert(
@@ -1760,14 +1763,30 @@ export default function SettingsPage() {
                             <View style={styles.settingInfo}>
                                 <Text style={[styles.settingLabel, { color: tc.text }]}>{t('settings.syncBackend')}</Text>
                                 <Text style={[styles.settingDescription, { color: tc.secondaryText }]}>
-                                    {syncBackend === 'webdav'
-                                        ? t('settings.syncBackendWebdav')
-                                        : syncBackend === 'cloud'
-                                            ? t('settings.syncBackendCloud')
-                                            : t('settings.syncBackendFile')}
+                                    {syncBackend === 'off'
+                                        ? t('settings.syncBackendOff')
+                                        : syncBackend === 'webdav'
+                                            ? t('settings.syncBackendWebdav')
+                                            : syncBackend === 'cloud'
+                                                ? t('settings.syncBackendCloud')
+                                                : t('settings.syncBackendFile')}
                                 </Text>
                             </View>
                             <View style={[styles.backendToggle, { marginTop: 8, width: '100%' }]}>
+                                <TouchableOpacity
+                                    style={[
+                                        styles.backendOption,
+                                        { borderColor: tc.border, backgroundColor: syncBackend === 'off' ? tc.filterBg : 'transparent' },
+                                    ]}
+                                    onPress={() => {
+                                        AsyncStorage.setItem(SYNC_BACKEND_KEY, 'off').catch(console.error);
+                                        setSyncBackend('off');
+                                    }}
+                                >
+                                    <Text style={[styles.backendOptionText, { color: syncBackend === 'off' ? tc.tint : tc.secondaryText }]}>
+                                        {t('settings.syncBackendOff')}
+                                    </Text>
+                                </TouchableOpacity>
                                 <TouchableOpacity
                                     style={[
                                         styles.backendOption,
@@ -1813,6 +1832,17 @@ export default function SettingsPage() {
                             </View>
                         </View>
                     </View>
+
+                    {syncBackend === 'off' && (
+                        <View style={[styles.helpBox, { backgroundColor: tc.cardBg, borderColor: tc.border }]}>
+                            <Text style={[styles.helpTitle, { color: tc.text }]}>
+                                {localize('Sync is off', '同步已关闭')}
+                            </Text>
+                            <Text style={[styles.helpText, { color: tc.secondaryText }]}>
+                                {localize('Turn sync back on anytime from this screen.', '您可以随时在此页面重新开启同步。')}
+                            </Text>
+                        </View>
+                    )}
 
                     {syncBackend === 'file' && (
                         <>

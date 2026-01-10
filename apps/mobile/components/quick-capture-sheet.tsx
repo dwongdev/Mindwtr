@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Modal, View, Text, TextInput, TouchableOpacity, StyleSheet, Pressable, ScrollView, Switch, Platform } from 'react-native';
+import { Modal, View, Text, TextInput, TouchableOpacity, StyleSheet, Pressable, ScrollView, Switch, Platform, KeyboardAvoidingView } from 'react-native';
 import { CalendarDays, Folder, Flag, X, Clock } from 'lucide-react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
 
@@ -126,83 +126,89 @@ export function QuickCaptureSheet({
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={handleClose}>
       <Pressable style={styles.backdrop} onPress={handleClose} />
-      <View style={[styles.sheet, { backgroundColor: tc.cardBg, paddingBottom: Math.max(20, insets.bottom + 12) }]}>        
-        <View style={styles.headerRow}>
-          <Text style={[styles.title, { color: tc.text }]}>{t('nav.addTask')}</Text>
-          <TouchableOpacity onPress={handleClose} accessibilityLabel={t('common.close')}>
-            <X size={18} color={tc.secondaryText} />
-          </TouchableOpacity>
-        </View>
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? insets.top + 24 : 0}
+        style={styles.keyboardAvoiding}
+      >
+        <View style={[styles.sheet, { backgroundColor: tc.cardBg, paddingBottom: Math.max(20, insets.bottom + 12) }]}>
+          <View style={styles.headerRow}>
+            <Text style={[styles.title, { color: tc.text }]}>{t('nav.addTask')}</Text>
+            <TouchableOpacity onPress={handleClose} accessibilityLabel={t('common.close')}>
+              <X size={18} color={tc.secondaryText} />
+            </TouchableOpacity>
+          </View>
 
-        <TextInput
-          ref={inputRef}
-          style={[styles.input, { backgroundColor: tc.inputBg, borderColor: tc.border, color: tc.text }]}
-          placeholder={t('quickAdd.placeholder')}
-          placeholderTextColor={tc.secondaryText}
-          value={value}
-          onChangeText={setValue}
-          onSubmitEditing={handleSave}
-          returnKeyType="done"
-        />
+          <TextInput
+            ref={inputRef}
+            style={[styles.input, { backgroundColor: tc.inputBg, borderColor: tc.border, color: tc.text }]}
+            placeholder={t('quickAdd.placeholder')}
+            placeholderTextColor={tc.secondaryText}
+            value={value}
+            onChangeText={setValue}
+            onSubmitEditing={handleSave}
+            returnKeyType="done"
+          />
 
-        <View style={styles.optionsRow}>
-          <TouchableOpacity
-            style={[styles.optionChip, { backgroundColor: tc.filterBg, borderColor: tc.border }]}
-            onPress={() => setShowStartPicker(true)}
-            onLongPress={() => setStartTime(null)}
-          >
-            <Clock size={16} color={tc.text} />
-            <Text style={[styles.optionText, { color: tc.text }]} numberOfLines={1}>{startLabel}</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.optionChip, { backgroundColor: tc.filterBg, borderColor: tc.border }]}
-            onPress={() => setShowDatePicker(true)}
-            onLongPress={() => setDueDate(null)}
-          >
-            <CalendarDays size={16} color={tc.text} />
-            <Text style={[styles.optionText, { color: tc.text }]} numberOfLines={1}>{dueLabel}</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[styles.optionChip, { backgroundColor: tc.filterBg, borderColor: tc.border }]}
-            onPress={() => setShowProjectPicker(true)}
-            onLongPress={() => setProjectId(null)}
-          >
-            <Folder size={16} color={tc.text} />
-            <Text style={[styles.optionText, { color: tc.text }]} numberOfLines={1}>{projectLabel}</Text>
-          </TouchableOpacity>
-
-          {prioritiesEnabled && (
+          <View style={styles.optionsRow}>
             <TouchableOpacity
               style={[styles.optionChip, { backgroundColor: tc.filterBg, borderColor: tc.border }]}
-              onPress={() => setShowPriorityPicker(true)}
-              onLongPress={() => setPriority(null)}
+              onPress={() => setShowStartPicker(true)}
+              onLongPress={() => setStartTime(null)}
             >
-              <Flag size={16} color={tc.text} />
-              <Text style={[styles.optionText, { color: tc.text }]} numberOfLines={1}>{priorityLabel}</Text>
+              <Clock size={16} color={tc.text} />
+              <Text style={[styles.optionText, { color: tc.text }]} numberOfLines={1}>{startLabel}</Text>
             </TouchableOpacity>
-          )}
-        </View>
+            <TouchableOpacity
+              style={[styles.optionChip, { backgroundColor: tc.filterBg, borderColor: tc.border }]}
+              onPress={() => setShowDatePicker(true)}
+              onLongPress={() => setDueDate(null)}
+            >
+              <CalendarDays size={16} color={tc.text} />
+              <Text style={[styles.optionText, { color: tc.text }]} numberOfLines={1}>{dueLabel}</Text>
+            </TouchableOpacity>
 
-        <View style={styles.footerRow}>
-          <View style={styles.toggleRow}>
-            <Switch
-              value={addAnother}
-              onValueChange={setAddAnother}
-              thumbColor={addAnother ? tc.tint : tc.border}
-              trackColor={{ false: tc.border, true: `${tc.tint}55` }}
-            />
-            <Text style={[styles.toggleText, { color: tc.text }]}>{t('quickAdd.addAnother')}</Text>
+            <TouchableOpacity
+              style={[styles.optionChip, { backgroundColor: tc.filterBg, borderColor: tc.border }]}
+              onPress={() => setShowProjectPicker(true)}
+              onLongPress={() => setProjectId(null)}
+            >
+              <Folder size={16} color={tc.text} />
+              <Text style={[styles.optionText, { color: tc.text }]} numberOfLines={1}>{projectLabel}</Text>
+            </TouchableOpacity>
+
+            {prioritiesEnabled && (
+              <TouchableOpacity
+                style={[styles.optionChip, { backgroundColor: tc.filterBg, borderColor: tc.border }]}
+                onPress={() => setShowPriorityPicker(true)}
+                onLongPress={() => setPriority(null)}
+              >
+                <Flag size={16} color={tc.text} />
+                <Text style={[styles.optionText, { color: tc.text }]} numberOfLines={1}>{priorityLabel}</Text>
+              </TouchableOpacity>
+            )}
           </View>
-          <TouchableOpacity
-            onPress={handleSave}
-            style={[styles.saveButton, { backgroundColor: tc.tint, opacity: value.trim() ? 1 : 0.5 }]}
-            disabled={!value.trim()}
-          >
-            <Text style={styles.saveText}>{t('common.save')}</Text>
-          </TouchableOpacity>
+
+          <View style={styles.footerRow}>
+            <View style={styles.toggleRow}>
+              <Switch
+                value={addAnother}
+                onValueChange={setAddAnother}
+                thumbColor={addAnother ? tc.tint : tc.border}
+                trackColor={{ false: tc.border, true: `${tc.tint}55` }}
+              />
+              <Text style={[styles.toggleText, { color: tc.text }]}>{t('quickAdd.addAnother')}</Text>
+            </View>
+            <TouchableOpacity
+              onPress={handleSave}
+              style={[styles.saveButton, { backgroundColor: tc.tint, opacity: value.trim() ? 1 : 0.5 }]}
+              disabled={!value.trim()}
+            >
+              <Text style={styles.saveText}>{t('common.save')}</Text>
+            </TouchableOpacity>
+          </View>
         </View>
-      </View>
+      </KeyboardAvoidingView>
 
       {showDatePicker && (
         <DateTimePicker
@@ -342,6 +348,10 @@ const styles = StyleSheet.create({
   backdrop: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.35)',
+  },
+  keyboardAvoiding: {
+    flex: 1,
+    justifyContent: 'flex-end',
   },
   sheet: {
     borderTopLeftRadius: 20,
