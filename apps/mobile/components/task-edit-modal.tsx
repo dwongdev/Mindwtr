@@ -140,7 +140,7 @@ const getRecurrenceRRuleValue = (recurrence: Task['recurrence']): string => {
 
 
 export function TaskEditModal({ visible, task, onClose, onSave, onFocusMode, defaultTab }: TaskEditModalProps) {
-    const { tasks, projects, settings, duplicateTask, resetTaskChecklist, addProject } = useTaskStore();
+    const { tasks, projects, settings, duplicateTask, resetTaskChecklist, addProject, deleteTask } = useTaskStore();
     const { t } = useLanguage();
     const tc = useThemeColors();
     const prioritiesEnabled = settings.features?.priorities === true;
@@ -169,6 +169,7 @@ export function TaskEditModal({ visible, task, onClose, onSave, onFocusMode, def
     const [linkModalVisible, setLinkModalVisible] = useState(false);
     const [showProjectPicker, setShowProjectPicker] = useState(false);
     const [linkInput, setLinkInput] = useState('');
+    const [menuVisible, setMenuVisible] = useState(false);
     const [customWeekdays, setCustomWeekdays] = useState<RecurrenceWeekday[]>([]);
     const [isAIWorking, setIsAIWorking] = useState(false);
     const [aiModal, setAiModal] = useState<{ title: string; message?: string; actions: AIResponseAction[] } | null>(null);
@@ -942,6 +943,12 @@ export function TaskEditModal({ visible, task, onClose, onSave, onFocusMode, def
         Alert.alert(t('taskEdit.duplicateDoneTitle'), t('taskEdit.duplicateDoneBody'));
     };
 
+    const handleDeleteTask = async () => {
+        if (!task) return;
+        await deleteTask(task.id).catch(console.error);
+        onClose();
+    };
+
     const getAIProvider = async () => {
         if (!aiEnabled) {
             Alert.alert(t('ai.disabledTitle'), t('ai.disabledBody'));
@@ -1664,11 +1671,50 @@ export function TaskEditModal({ visible, task, onClose, onSave, onFocusMode, def
                         {String(editedTask.title || '').trim() || t('taskEdit.title')}
                     </Text>
                     <View style={styles.headerRight}>
-                        <TouchableOpacity onPress={handleShare}>
-                            <Text style={[styles.headerBtn, { color: tc.tint }]}>{t('common.share')}</Text>
+                        <TouchableOpacity onPress={() => setMenuVisible(true)}>
+                            <Text style={[styles.headerBtn, { color: tc.tint }]}>•••</Text>
                         </TouchableOpacity>
                     </View>
                 </View>
+
+                <Modal
+                    visible={menuVisible}
+                    transparent
+                    animationType="fade"
+                    onRequestClose={() => setMenuVisible(false)}
+                >
+                    <Pressable style={styles.menuOverlay} onPress={() => setMenuVisible(false)}>
+                        <View style={[styles.menuCard, { backgroundColor: tc.cardBg, borderColor: tc.border }]}>
+                            <Pressable
+                                style={styles.menuItem}
+                                onPress={() => {
+                                    setMenuVisible(false);
+                                    handleShare();
+                                }}
+                            >
+                                <Text style={[styles.menuItemText, { color: tc.text }]}>{t('common.share')}</Text>
+                            </Pressable>
+                            <Pressable
+                                style={styles.menuItem}
+                                onPress={() => {
+                                    setMenuVisible(false);
+                                    handleDuplicateTask();
+                                }}
+                            >
+                                <Text style={[styles.menuItemText, { color: tc.text }]}>{t('taskEdit.duplicateTask')}</Text>
+                            </Pressable>
+                            <Pressable
+                                style={styles.menuItem}
+                                onPress={() => {
+                                    setMenuVisible(false);
+                                    handleDeleteTask();
+                                }}
+                            >
+                                <Text style={[styles.menuItemText, { color: '#EF4444' }]}>{t('common.delete')}</Text>
+                            </Pressable>
+                        </View>
+                    </Pressable>
+                </Modal>
 
                 <View style={[styles.modeTabs, { borderBottomColor: tc.border, backgroundColor: tc.cardBg }]}>
                     <View style={[styles.modeTabsTrack, { backgroundColor: tc.filterBg, borderColor: tc.border }]}>
@@ -1787,7 +1833,6 @@ export function TaskEditModal({ visible, task, onClose, onSave, onFocusMode, def
                             copilotTags={copilotTags}
                             timeEstimatesEnabled={timeEstimatesEnabled}
                             task={task}
-                            handleDuplicateTask={handleDuplicateTask}
                             renderField={renderField}
                             showDatePicker={showDatePicker}
                             pendingStartDate={pendingStartDate}

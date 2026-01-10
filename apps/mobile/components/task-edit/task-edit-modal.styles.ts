@@ -160,6 +160,27 @@ export const styles = StyleSheet.create({
         color: '#007AFF',
         fontWeight: '500',
     },
+    menuOverlay: {
+        flex: 1,
+        backgroundColor: 'rgba(0,0,0,0.4)',
+        justifyContent: 'flex-start',
+        alignItems: 'flex-end',
+        padding: 16,
+    },
+    menuCard: {
+        borderRadius: 12,
+        borderWidth: 1,
+        minWidth: 180,
+        overflow: 'hidden',
+    },
+    menuItem: {
+        paddingHorizontal: 16,
+        paddingVertical: 12,
+    },
+    menuItemText: {
+        fontSize: 14,
+        fontWeight: '500',
+    },
     checklistContainer: {
         backgroundColor: '#fff',
         borderRadius: 10,

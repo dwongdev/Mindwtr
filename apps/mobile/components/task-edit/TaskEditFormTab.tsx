@@ -27,7 +27,6 @@ type TaskEditFormTabProps = {
     copilotTags: string[];
     timeEstimatesEnabled: boolean;
     task: Task | null;
-    handleDuplicateTask: () => void;
     renderField: (fieldId: TaskEditorFieldId) => React.ReactNode;
     showDatePicker: string | null;
     pendingStartDate: Date | null;
@@ -57,7 +56,6 @@ export function TaskEditFormTab({
     copilotTags,
     timeEstimatesEnabled,
     task,
-    handleDuplicateTask,
     renderField,
     showDatePicker,
     pendingStartDate,
@@ -162,18 +160,6 @@ export function TaskEditFormTab({
                                 {timeEstimatesEnabled && copilotEstimate ? `${copilotEstimate}` : ''}
                                 {copilotTags.length ? copilotTags.join(' ') : ''}
                             </Text>
-                        </View>
-                    )}
-                    {task && (
-                        <View style={styles.checklistActions}>
-                            <TouchableOpacity
-                                style={[styles.checklistActionButton, { backgroundColor: tc.cardBg, borderColor: tc.border }]}
-                                onPress={handleDuplicateTask}
-                            >
-                                <Text style={[styles.checklistActionText, { color: tc.secondaryText }]}>
-                                    {t('taskEdit.duplicateTask')}
-                                </Text>
-                            </TouchableOpacity>
                         </View>
                     )}
                     {renderField('status')}
