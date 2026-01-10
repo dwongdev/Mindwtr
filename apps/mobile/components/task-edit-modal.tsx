@@ -41,9 +41,19 @@ import { TaskEditFormTab } from './task-edit/TaskEditFormTab';
 import { TaskEditHeader } from './task-edit/TaskEditHeader';
 import { TaskEditTabs } from './task-edit/TaskEditTabs';
 import { TaskEditProjectPicker } from './task-edit/TaskEditProjectPicker';
+import {
+    MAX_SUGGESTED_TAGS,
+    MAX_VISIBLE_SUGGESTIONS,
+    WEEKDAY_ORDER,
+    WEEKDAY_BUTTONS,
+    MONTHLY_WEEKDAY_LABELS,
+    getRecurrenceRuleValue,
+    getRecurrenceStrategyValue,
+    buildRecurrenceValue,
+    getRecurrenceByDayValue,
+    getRecurrenceRRuleValue,
+} from './task-edit/recurrence-utils';
 
-const MAX_SUGGESTED_TAGS = 8;
-const MAX_VISIBLE_SUGGESTIONS = 4;
 
 interface TaskEditModalProps {
     visible: boolean;
@@ -82,65 +92,6 @@ const DEFAULT_TASK_EDITOR_ORDER: TaskEditorFieldId[] = [
 
 
 type TaskEditTab = 'task' | 'view';
-
-const getRecurrenceRuleValue = (recurrence: Task['recurrence']): RecurrenceRule | '' => {
-    if (!recurrence) return '';
-    if (typeof recurrence === 'string') return recurrence as RecurrenceRule;
-    return recurrence.rule;
-};
-
-const getRecurrenceStrategyValue = (recurrence: Task['recurrence']): RecurrenceStrategy => {
-    if (recurrence && typeof recurrence === 'object' && recurrence.strategy === 'fluid') {
-        return 'fluid';
-    }
-    return 'strict';
-};
-
-const buildRecurrenceValue = (rule: RecurrenceRule | '', strategy: RecurrenceStrategy): Task['recurrence'] | undefined => {
-    if (!rule) return undefined;
-    return { rule, strategy };
-};
-
-const WEEKDAY_ORDER: RecurrenceWeekday[] = ['SU', 'MO', 'TU', 'WE', 'TH', 'FR', 'SA'];
-const WEEKDAY_BUTTONS: { key: RecurrenceWeekday; label: string }[] = [
-    { key: 'SU', label: 'S' },
-    { key: 'MO', label: 'M' },
-    { key: 'TU', label: 'T' },
-    { key: 'WE', label: 'W' },
-    { key: 'TH', label: 'T' },
-    { key: 'FR', label: 'F' },
-    { key: 'SA', label: 'S' },
-];
-
-const MONTHLY_WEEKDAY_LABELS: Record<RecurrenceWeekday, string> = {
-    SU: 'Sunday',
-    MO: 'Monday',
-    TU: 'Tuesday',
-    WE: 'Wednesday',
-    TH: 'Thursday',
-    FR: 'Friday',
-    SA: 'Saturday',
-};
-
-const getRecurrenceByDayValue = (recurrence: Task['recurrence']): RecurrenceWeekday[] => {
-    if (!recurrence || typeof recurrence === 'string') return [];
-    if (recurrence.byDay?.length) {
-        return recurrence.byDay.filter((day) => WEEKDAY_ORDER.includes(day as RecurrenceWeekday)) as RecurrenceWeekday[];
-    }
-    if (recurrence.rrule) {
-        const parsed = parseRRuleString(recurrence.rrule);
-        return (parsed.byDay || []).filter((day) => WEEKDAY_ORDER.includes(day as RecurrenceWeekday)) as RecurrenceWeekday[];
-    }
-    return [];
-};
-
-const getRecurrenceRRuleValue = (recurrence: Task['recurrence']): string => {
-    if (!recurrence || typeof recurrence === 'string') return '';
-    if (recurrence.rrule) return recurrence.rrule;
-    if (recurrence.byDay?.length) return buildRRuleString(recurrence.rule, recurrence.byDay);
-    return buildRRuleString(recurrence.rule);
-};
-
 
 export function TaskEditModal({ visible, task, onClose, onSave, onFocusMode, defaultTab }: TaskEditModalProps) {
     const { tasks, projects, settings, duplicateTask, resetTaskChecklist, addProject, deleteTask } = useTaskStore();
