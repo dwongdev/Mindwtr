@@ -20,7 +20,7 @@ interface ListViewProps {
 
 const EMPTY_PRIORITIES: TaskPriority[] = [];
 const EMPTY_ESTIMATES: TimeEstimate[] = [];
-const VIRTUALIZATION_THRESHOLD = 80;
+const VIRTUALIZATION_THRESHOLD = 40;
 const VIRTUAL_ROW_ESTIMATE = 120;
 const VIRTUAL_OVERSCAN = 600;
 

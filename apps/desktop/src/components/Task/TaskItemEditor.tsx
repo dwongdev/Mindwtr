@@ -352,6 +352,7 @@ export function TaskItemEditor({
                         type="button"
                         onClick={() => setSchedulingOpen((prev) => !prev)}
                         className="w-full flex items-center justify-between text-xs uppercase tracking-wide text-muted-foreground font-semibold"
+                        aria-expanded={schedulingOpen}
                     >
                         <span className="flex items-center gap-2">
                             {t('taskEdit.scheduling')}
@@ -376,6 +377,7 @@ export function TaskItemEditor({
                         type="button"
                         onClick={() => setOrganizationOpen((prev) => !prev)}
                         className="w-full flex items-center justify-between text-xs uppercase tracking-wide text-muted-foreground font-semibold"
+                        aria-expanded={organizationOpen}
                     >
                         <span className="flex items-center gap-2">
                             {t('taskEdit.organization')}
@@ -400,6 +402,7 @@ export function TaskItemEditor({
                         type="button"
                         onClick={() => setDetailsOpen((prev) => !prev)}
                         className="w-full flex items-center justify-between text-xs uppercase tracking-wide text-muted-foreground font-semibold"
+                        aria-expanded={detailsOpen}
                     >
                         <span className="flex items-center gap-2">
                             {t('taskEdit.details')}
