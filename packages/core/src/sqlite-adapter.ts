@@ -1,4 +1,4 @@
-import type { AppData, Area, Project, Task } from './types';
+import type { AppData, Area, Attachment, Project, Task } from './types';
 import type { TaskQueryOptions, SearchResults } from './storage';
 import { SQLITE_SCHEMA } from './sqlite-schema';
 
@@ -32,6 +32,52 @@ const fromJson = <T>(value: unknown, fallback: T): T => {
 
 const toBool = (value?: boolean) => (value ? 1 : 0);
 const fromBool = (value: unknown) => Boolean(value);
+
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+    typeof value === 'object' && value !== null && !Array.isArray(value);
+
+const toStringArray = (value: unknown): string[] => {
+    if (!Array.isArray(value)) return [];
+    return value.filter((item): item is string => typeof item === 'string');
+};
+
+const toChecklist = (value: unknown): Task['checklist'] => {
+    if (!Array.isArray(value)) return undefined;
+    const cleaned = value
+        .filter(isRecord)
+        .filter((item) => typeof item.id === 'string' && typeof item.title === 'string')
+        .map((item) => ({
+            id: item.id as string,
+            title: item.title as string,
+            isCompleted: Boolean(item.isCompleted),
+        }));
+    return cleaned.length > 0 ? cleaned : undefined;
+};
+
+const toAttachments = (value: unknown): Attachment[] | undefined => {
+    if (!Array.isArray(value)) return undefined;
+    const cleaned = value
+        .filter(isRecord)
+        .filter(
+            (item) =>
+                typeof item.id === 'string' &&
+                typeof item.kind === 'string' &&
+                typeof item.title === 'string' &&
+                typeof item.uri === 'string'
+        )
+        .map((item) => ({
+            id: item.id as string,
+            kind: item.kind as Attachment['kind'],
+            title: item.title as string,
+            uri: item.uri as string,
+            mimeType: typeof item.mimeType === 'string' ? item.mimeType : undefined,
+            size: typeof item.size === 'number' ? item.size : undefined,
+            createdAt: typeof item.createdAt === 'string' ? item.createdAt : '',
+            updatedAt: typeof item.updatedAt === 'string' ? item.updatedAt : '',
+            deletedAt: typeof item.deletedAt === 'string' ? item.deletedAt : undefined,
+        }));
+    return cleaned.length > 0 ? cleaned : undefined;
+};
 
 export class SqliteAdapter {
     private client: SqliteClient;
@@ -77,6 +123,28 @@ export class SqliteAdapter {
     }
 
     private async ensureFtsPopulated(forceRebuild = false) {
+        const totals = await this.client.get<{
+            tasks_total?: number;
+            tasks_fts_total?: number;
+            projects_total?: number;
+            projects_fts_total?: number;
+        }>(
+            `SELECT
+                (SELECT COUNT(*) FROM tasks) as tasks_total,
+                (SELECT COUNT(*) FROM tasks_fts) as tasks_fts_total,
+                (SELECT COUNT(*) FROM projects) as projects_total,
+                (SELECT COUNT(*) FROM projects_fts) as projects_fts_total
+            `
+        );
+        const tasksTotal = Number(totals?.tasks_total ?? 0);
+        const tasksFtsTotal = Number(totals?.tasks_fts_total ?? 0);
+        const projectsTotal = Number(totals?.projects_total ?? 0);
+        const projectsFtsTotal = Number(totals?.projects_fts_total ?? 0);
+
+        if (!forceRebuild && tasksTotal === tasksFtsTotal && projectsTotal === projectsFtsTotal && tasksTotal > 0) {
+            return;
+        }
+
         const counts = await this.client.get<{
             task_count?: number;
             task_missing?: number;
@@ -87,19 +155,19 @@ export class SqliteAdapter {
         }>(
             `SELECT
                 (SELECT COUNT(*) FROM tasks_fts) as task_count,
-                (SELECT COUNT(*) FROM tasks WHERE id NOT IN (SELECT id FROM tasks_fts)) as task_missing,
-                (SELECT COUNT(*) FROM tasks_fts WHERE id NOT IN (SELECT id FROM tasks)) as task_extra,
+                (SELECT COUNT(*) FROM (SELECT id FROM tasks EXCEPT SELECT id FROM tasks_fts)) as task_missing,
+                (SELECT COUNT(*) FROM (SELECT id FROM tasks_fts EXCEPT SELECT id FROM tasks)) as task_extra,
                 (SELECT COUNT(*) FROM projects_fts) as project_count,
-                (SELECT COUNT(*) FROM projects WHERE id NOT IN (SELECT id FROM projects_fts)) as project_missing,
-                (SELECT COUNT(*) FROM projects_fts WHERE id NOT IN (SELECT id FROM projects)) as project_extra
+                (SELECT COUNT(*) FROM (SELECT id FROM projects EXCEPT SELECT id FROM projects_fts)) as project_missing,
+                (SELECT COUNT(*) FROM (SELECT id FROM projects_fts EXCEPT SELECT id FROM projects)) as project_extra
             `
         );
-        const taskCount = Number(counts?.task_count ?? 0);
+        const taskCount = Number(counts?.task_count ?? tasksFtsTotal ?? 0);
         const taskMissing = Number(counts?.task_missing ?? 0);
         const taskExtra = Number(counts?.task_extra ?? 0);
         const needsTaskRebuild = forceRebuild || taskCount === 0 || taskMissing > 0 || taskExtra > 0;
 
-        const projectCount = Number(counts?.project_count ?? 0);
+        const projectCount = Number(counts?.project_count ?? projectsFtsTotal ?? 0);
         const projectMissing = Number(counts?.project_missing ?? 0);
         const projectExtra = Number(counts?.project_extra ?? 0);
         const needsProjectRebuild = forceRebuild || projectCount === 0 || projectMissing > 0 || projectExtra > 0;
@@ -138,13 +206,16 @@ export class SqliteAdapter {
             taskMode: row.taskMode as Task['taskMode'] | undefined,
             startTime: row.startTime as string | undefined,
             dueDate: row.dueDate as string | undefined,
-            recurrence: fromJson<Task['recurrence']>(row.recurrence, undefined),
+            recurrence: ((): Task['recurrence'] => {
+                const parsed = fromJson<Task['recurrence']>(row.recurrence, undefined);
+                return parsed && typeof parsed === 'object' ? parsed : undefined;
+            })(),
             pushCount: row.pushCount === null || row.pushCount === undefined ? undefined : Number(row.pushCount),
-            tags: fromJson<string[]>(row.tags, []),
-            contexts: fromJson<string[]>(row.contexts, []),
-            checklist: fromJson<Task['checklist']>(row.checklist, undefined),
+            tags: toStringArray(fromJson<unknown>(row.tags, [])),
+            contexts: toStringArray(fromJson<unknown>(row.contexts, [])),
+            checklist: toChecklist(fromJson<unknown>(row.checklist, undefined)),
             description: row.description as string | undefined,
-            attachments: fromJson<Task['attachments']>(row.attachments, undefined),
+            attachments: toAttachments(fromJson<unknown>(row.attachments, undefined)),
             location: row.location as string | undefined,
             projectId: row.projectId as string | undefined,
             orderNum: row.orderNum === null || row.orderNum === undefined ? undefined : Number(row.orderNum),
@@ -166,11 +237,11 @@ export class SqliteAdapter {
             status: row.status as Project['status'],
             color: String(row.color ?? '#6B7280'),
             order: row.orderNum === null || row.orderNum === undefined ? 0 : Number(row.orderNum),
-            tagIds: fromJson<string[]>(row.tagIds, []),
+            tagIds: toStringArray(fromJson<unknown>(row.tagIds, [])),
             isSequential: fromBool(row.isSequential),
             isFocused: fromBool(row.isFocused),
             supportNotes: row.supportNotes as string | undefined,
-            attachments: fromJson<Project['attachments']>(row.attachments, undefined),
+            attachments: toAttachments(fromJson<unknown>(row.attachments, undefined)),
             reviewAt: row.reviewAt as string | undefined,
             areaId: row.areaId as string | undefined,
             areaTitle: row.areaTitle as string | undefined,
@@ -298,7 +369,7 @@ export class SqliteAdapter {
                 columns: string[],
                 rows: unknown[][],
                 updateClause: string,
-                chunkSize = 50,
+                chunkSize = 200,
             ) => {
                 if (rows.length === 0) return;
                 const columnList = columns.join(', ');
@@ -319,17 +390,16 @@ export class SqliteAdapter {
             };
 
             const syncIds = async (table: 'tasks' | 'projects' | 'areas', ids: string[]) => {
-                const tempTable = `temp_${table}_ids`;
+                const tempTable = `temp_${table}_ids_${Date.now()}`;
                 try {
-                    await this.client.run(`CREATE TEMP TABLE IF NOT EXISTS ${tempTable} (id TEXT PRIMARY KEY)`);
-                    await this.client.run(`DELETE FROM ${tempTable}`);
+                    await this.client.run(`CREATE TEMP TABLE ${tempTable} (id TEXT PRIMARY KEY)`);
                     for (const id of ids) {
                         await this.client.run(`INSERT OR IGNORE INTO ${tempTable} (id) VALUES (?)`, [id]);
                     }
                     await this.client.run(`DELETE FROM ${table} WHERE id NOT IN (SELECT id FROM ${tempTable})`);
                 } finally {
                     try {
-                        await this.client.run(`DROP TABLE IF EXISTS ${tempTable}`);
+                        await this.client.run(`DROP TABLE ${tempTable}`);
                     } catch (dropError) {
                         console.warn(`Failed to drop temp table ${tempTable}`, dropError);
                     }
