@@ -86,8 +86,7 @@ async function requestAnthropic(
                 await sleep(400 * Math.pow(2, attempt));
                 continue;
             }
-            const statusText = response.statusText || 'Request failed';
-            throw new Error(`Anthropic error: ${response.status} ${statusText}`);
+            throw new Error('Anthropic request failed. Please try again.');
         }
         break;
     }

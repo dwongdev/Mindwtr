@@ -64,8 +64,7 @@ async function requestOpenAI(config: AIProviderConfig, prompt: { system: string;
                 await sleep(400 * Math.pow(2, attempt));
                 continue;
             }
-            const statusText = response.statusText || 'Request failed';
-            throw new Error(`OpenAI error: ${response.status} ${statusText}`);
+            throw new Error('OpenAI request failed. Please try again.');
         }
         break;
     }

@@ -166,8 +166,7 @@ async function requestGemini(config: AIProviderConfig, prompt: { system: string;
                 await sleep(400 * Math.pow(2, attempt));
                 continue;
             }
-            const statusText = response.statusText || 'Request failed';
-            throw new Error(`Gemini error: ${response.status} ${statusText}`);
+            throw new Error('Gemini request failed. Please try again.');
         }
         break;
     }
