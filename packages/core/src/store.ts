@@ -297,7 +297,7 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
             const rawAreas = Array.isArray((data as AppData).areas) ? (data as AppData).areas : [];
             // Store ALL data including tombstones for persistence
             const nowIso = new Date().toISOString();
-            const settings = rawSettings as AppData['settings'];
+            const settings = stripSensitiveSettings(rawSettings as AppData['settings']);
             const migrations = settings.migrations ?? {};
             const shouldRunMigrations = (migrations.version ?? 0) < MIGRATION_VERSION;
             const lastAutoArchiveAt = safeParseDate(migrations.lastAutoArchiveAt)?.getTime() ?? 0;
