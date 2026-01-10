@@ -249,17 +249,30 @@ const sanitizeAppDataForStorage = (data: AppData): AppData => ({
     areas: (data.areas || []).map(cloneArea),
 });
 
+const projectOrderCache = new WeakMap<Task[], Map<string, number>>();
+
 const getNextProjectOrder = (projectId: string | undefined, tasks: Task[]): number | undefined => {
     if (!projectId) return undefined;
+    let cache = projectOrderCache.get(tasks);
+    if (!cache) {
+        cache = new Map();
+        projectOrderCache.set(tasks, cache);
+    }
+    const cached = cache.get(projectId);
+    if (cached !== undefined) return cached;
     const projectTasks = tasks.filter((task) => task.projectId === projectId && !task.deletedAt);
     if (projectTasks.length === 0) return 0;
     const ordered = projectTasks
         .map((task) => task.orderNum)
         .filter((value): value is number => Number.isFinite(value));
     if (ordered.length > 0) {
-        return Math.max(...ordered) + 1;
+        const next = Math.max(...ordered) + 1;
+        cache.set(projectId, next);
+        return next;
     }
-    return projectTasks.length;
+    const next = projectTasks.length;
+    cache.set(projectId, next);
+    return next;
 };
 
 /**
