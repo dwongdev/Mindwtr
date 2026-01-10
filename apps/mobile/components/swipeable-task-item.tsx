@@ -379,7 +379,7 @@ export function SwipeableTaskItem({
                                                 const pending = pendingChecklist.current;
                                                 if (!pending) return;
                                                 const latestTask = useTaskStore.getState().tasks.find((t) => t.id === taskId);
-                                                if (!latestTask) return;
+                                                if (!latestTask || latestTask.deletedAt) return;
                                                 const isListMode = latestTask.taskMode === 'list';
                                                 const allComplete = pending.length > 0 && pending.every((entry) => entry.isCompleted);
                                                 const nextStatus = isListMode
