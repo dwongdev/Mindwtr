@@ -34,16 +34,31 @@ export async function updateAndroidWidgetFromData(data: AppData): Promise<boolea
         const languageValue = await AsyncStorage.getItem(WIDGET_LANGUAGE_KEY);
         const language = resolveWidgetLanguage(languageValue, data.settings?.language);
         const payload = buildWidgetPayload(data, language);
-        await widgetApi.requestWidgetUpdate({
-            widgetName: 'TasksWidget',
-            renderWidget: () => buildTasksWidgetTree(payload),
-        });
-        return true;
+        for (let attempt = 0; attempt < 2; attempt += 1) {
+            try {
+                await widgetApi.requestWidgetUpdate({
+                    widgetName: 'TasksWidget',
+                    renderWidget: () => buildTasksWidgetTree(payload),
+                });
+                return true;
+            } catch (error) {
+                if (attempt < 1) {
+                    await new Promise((resolve) => setTimeout(resolve, 300));
+                    continue;
+                }
+                if (__DEV__) {
+                    console.warn('[RNWidget] Failed to update Android widget', error);
+                }
+                void logError(error, { scope: 'widget', extra: { platform: 'android', attempt: attempt + 1 } });
+                return false;
+            }
+        }
+        return false;
     } catch (error) {
         if (__DEV__) {
             console.warn('[RNWidget] Failed to update Android widget', error);
         }
-        void logError(error, { scope: 'widget', extra: { platform: 'android' } });
+        void logError(error, { scope: 'widget', extra: { platform: 'android', attempt: 'setup' } });
         return false;
     }
 }
