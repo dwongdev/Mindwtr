@@ -2,18 +2,7 @@ import { StyleSheet } from 'react-native';
 
 export const styles = StyleSheet.create({
     container: { flex: 1, backgroundColor: '#f2f2f7' },
-    header: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        padding: 16,
-        backgroundColor: '#fff',
-        borderBottomWidth: 1,
-        borderBottomColor: '#e5e5e5',
-        alignItems: 'center',
-    },
-    headerBtn: { fontSize: 17, color: '#007AFF' },
     saveBtn: { fontWeight: '600' },
-    headerTitle: { fontSize: 17, fontWeight: '600' },
     modeTabs: {
         flexDirection: 'row',
         justifyContent: 'center',
@@ -134,7 +123,6 @@ export const styles = StyleSheet.create({
     statusChipActive: { backgroundColor: '#007AFF' },
     statusText: { fontSize: 14, color: '#333' },
     statusTextActive: { color: '#fff' },
-    headerRight: { flexDirection: 'row', alignItems: 'center', gap: 12 },
     startBtn: { backgroundColor: '#34C759', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 16 },
     startBtnText: { color: '#fff', fontSize: 14, fontWeight: '600' },
     doneBtn: { backgroundColor: '#007AFF', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 16 },
@@ -158,27 +146,6 @@ export const styles = StyleSheet.create({
     },
     suggestionTextActive: {
         color: '#007AFF',
-        fontWeight: '500',
-    },
-    menuOverlay: {
-        flex: 1,
-        backgroundColor: 'rgba(0,0,0,0.4)',
-        justifyContent: 'flex-start',
-        alignItems: 'flex-end',
-        padding: 16,
-    },
-    menuCard: {
-        borderRadius: 12,
-        borderWidth: 1,
-        minWidth: 180,
-        overflow: 'hidden',
-    },
-    menuItem: {
-        paddingHorizontal: 16,
-        paddingVertical: 12,
-    },
-    menuItemText: {
-        fontSize: 14,
         fontWeight: '500',
     },
     checklistContainer: {

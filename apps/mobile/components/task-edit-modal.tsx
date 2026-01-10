@@ -38,6 +38,7 @@ import { AIResponseModal, type AIResponseAction } from './ai-response-modal';
 import { styles } from './task-edit/task-edit-modal.styles';
 import { TaskEditViewTab } from './task-edit/TaskEditViewTab';
 import { TaskEditFormTab } from './task-edit/TaskEditFormTab';
+import { TaskEditHeader } from './task-edit/TaskEditHeader';
 import { TaskEditProjectPicker } from './task-edit/TaskEditProjectPicker';
 
 const MAX_SUGGESTED_TAGS = 8;
@@ -170,7 +171,6 @@ export function TaskEditModal({ visible, task, onClose, onSave, onFocusMode, def
     const [linkModalVisible, setLinkModalVisible] = useState(false);
     const [showProjectPicker, setShowProjectPicker] = useState(false);
     const [linkInput, setLinkInput] = useState('');
-    const [menuVisible, setMenuVisible] = useState(false);
     const [customWeekdays, setCustomWeekdays] = useState<RecurrenceWeekday[]>([]);
     const [isAIWorking, setIsAIWorking] = useState(false);
     const [aiModal, setAiModal] = useState<{ title: string; message?: string; actions: AIResponseAction[] } | null>(null);
@@ -1718,58 +1718,13 @@ export function TaskEditModal({ visible, task, onClose, onSave, onFocusMode, def
             onRequestClose={handleDone}
         >
             <SafeAreaView style={[styles.container, { backgroundColor: tc.bg }]} edges={['top']}>
-                <View style={[styles.header, { backgroundColor: tc.cardBg, borderBottomColor: tc.border }]}>
-                    <TouchableOpacity onPress={handleDone}>
-                        <Text style={[styles.headerBtn, { color: tc.tint }]}>{t('common.done')}</Text>
-                    </TouchableOpacity>
-                    <Text style={[styles.headerTitle, { color: tc.text }]}>
-                        {String(editedTask.title || '').trim() || t('taskEdit.title')}
-                    </Text>
-                    <View style={styles.headerRight}>
-                        <TouchableOpacity onPress={() => setMenuVisible(true)}>
-                            <Text style={[styles.headerBtn, { color: tc.tint }]}>•••</Text>
-                        </TouchableOpacity>
-                    </View>
-                </View>
-
-                <Modal
-                    visible={menuVisible}
-                    transparent
-                    animationType="fade"
-                    onRequestClose={() => setMenuVisible(false)}
-                >
-                    <Pressable style={styles.menuOverlay} onPress={() => setMenuVisible(false)}>
-                        <View style={[styles.menuCard, { backgroundColor: tc.cardBg, borderColor: tc.border }]}>
-                            <Pressable
-                                style={styles.menuItem}
-                                onPress={() => {
-                                    setMenuVisible(false);
-                                    handleShare();
-                                }}
-                            >
-                                <Text style={[styles.menuItemText, { color: tc.text }]}>{t('common.share')}</Text>
-                            </Pressable>
-                            <Pressable
-                                style={styles.menuItem}
-                                onPress={() => {
-                                    setMenuVisible(false);
-                                    handleDuplicateTask();
-                                }}
-                            >
-                                <Text style={[styles.menuItemText, { color: tc.text }]}>{t('taskEdit.duplicateTask')}</Text>
-                            </Pressable>
-                            <Pressable
-                                style={styles.menuItem}
-                                onPress={() => {
-                                    setMenuVisible(false);
-                                    handleDeleteTask();
-                                }}
-                            >
-                                <Text style={[styles.menuItemText, { color: '#EF4444' }]}>{t('common.delete')}</Text>
-                            </Pressable>
-                        </View>
-                    </Pressable>
-                </Modal>
+                <TaskEditHeader
+                    title={String(editedTask.title || '').trim() || t('taskEdit.title')}
+                    onDone={handleDone}
+                    onShare={handleShare}
+                    onDuplicate={handleDuplicateTask}
+                    onDelete={handleDeleteTask}
+                />
 
                 <View style={[styles.modeTabs, { borderBottomColor: tc.border, backgroundColor: tc.cardBg }]}>
                     <View style={[styles.modeTabsTrack, { backgroundColor: tc.filterBg, borderColor: tc.border }]}>
