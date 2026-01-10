@@ -1,6 +1,6 @@
 import type { AIProvider, AIProviderConfig, BreakdownInput, BreakdownResponse, ClarifyInput, ClarifyResponse, CopilotInput, CopilotResponse, ReviewAnalysisInput, ReviewAnalysisResponse, AIRequestOptions } from '../types';
 import { buildBreakdownPrompt, buildClarifyPrompt, buildCopilotPrompt, buildReviewAnalysisPrompt } from '../prompts';
-import { fetchWithTimeout, normalizeTags, normalizeTimeEstimate, parseJson } from '../utils';
+import { fetchWithTimeout, normalizeTags, normalizeTimeEstimate, parseJson, rateLimit } from '../utils';
 import { isBreakdownResponse, isClarifyResponse, isCopilotResponse, isReviewAnalysisResponse } from '../validators';
 
 const GEMINI_BASE_URL = 'https://generativelanguage.googleapis.com/v1beta/models';
@@ -107,7 +107,8 @@ async function requestGemini(config: AIProviderConfig, prompt: { system: string;
         }
         url = parsed.toString();
     } catch {
-        // If URL parsing fails, fall back to the raw string.
+        // If URL parsing fails, fall back to a manual cleanup of key params.
+        url = rawUrl.replace(/([?&])key=[^&]+&?/gi, '$1').replace(/[?&]$/, '');
     }
     const thinkingBudget = typeof config.thinkingBudget === 'number' && config.thinkingBudget > 0
         ? Math.floor(config.thinkingBudget)
@@ -132,6 +133,8 @@ async function requestGemini(config: AIProviderConfig, prompt: { system: string;
             ...(thinkingBudget !== undefined ? { thinkingConfig: { thinkingBudget } } : {}),
         },
     };
+
+    await rateLimit('gemini');
 
     let response: Response | null = null;
     for (let attempt = 0; attempt <= MAX_RETRIES; attempt += 1) {

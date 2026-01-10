@@ -1,6 +1,6 @@
 import type { AIProvider, AIProviderConfig, BreakdownInput, BreakdownResponse, ClarifyInput, ClarifyResponse, CopilotInput, CopilotResponse, ReviewAnalysisInput, ReviewAnalysisResponse, AIRequestOptions } from '../types';
 import { buildBreakdownPrompt, buildClarifyPrompt, buildCopilotPrompt, buildReviewAnalysisPrompt } from '../prompts';
-import { fetchWithTimeout, normalizeTags, normalizeTimeEstimate, parseJson } from '../utils';
+import { fetchWithTimeout, normalizeTags, normalizeTimeEstimate, parseJson, rateLimit } from '../utils';
 import { isBreakdownResponse, isClarifyResponse, isCopilotResponse, isReviewAnalysisResponse } from '../validators';
 
 const OPENAI_BASE_URL = 'https://api.openai.com/v1/chat/completions';
@@ -31,6 +31,8 @@ async function requestOpenAI(config: AIProviderConfig, prompt: { system: string;
         response_format: { type: 'json_object' },
         ...(reasoning ? { reasoning } : {}),
     };
+
+    await rateLimit('openai');
 
     let response: Response | null = null;
     for (let attempt = 0; attempt <= MAX_RETRIES; attempt += 1) {

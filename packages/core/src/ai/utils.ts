@@ -109,3 +109,15 @@ export async function fetchWithTimeout(
         if (removeExternalListener) removeExternalListener();
     }
 }
+
+const lastRequestAt = new Map<string, number>();
+
+export async function rateLimit(key: string, minIntervalMs = 250): Promise<void> {
+    const now = Date.now();
+    const last = lastRequestAt.get(key) ?? 0;
+    const waitMs = minIntervalMs - (now - last);
+    if (waitMs > 0) {
+        await new Promise((resolve) => setTimeout(resolve, waitMs));
+    }
+    lastRequestAt.set(key, Date.now());
+}

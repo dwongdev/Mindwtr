@@ -12,7 +12,7 @@ import type {
     AIRequestOptions,
 } from '../types';
 import { buildBreakdownPrompt, buildClarifyPrompt, buildCopilotPrompt, buildReviewAnalysisPrompt } from '../prompts';
-import { fetchWithTimeout, normalizeTags, normalizeTimeEstimate, parseJson } from '../utils';
+import { fetchWithTimeout, normalizeTags, normalizeTimeEstimate, parseJson, rateLimit } from '../utils';
 import { isBreakdownResponse, isClarifyResponse, isCopilotResponse, isReviewAnalysisResponse } from '../validators';
 
 const ANTHROPIC_BASE_URL = 'https://api.anthropic.com/v1/messages';
@@ -52,6 +52,8 @@ async function requestAnthropic(
             budget_tokens: thinkingBudget,
         };
     }
+
+    await rateLimit('anthropic');
 
     let response: Response | null = null;
     for (let attempt = 0; attempt <= MAX_RETRIES; attempt += 1) {
