@@ -5,6 +5,7 @@ const notifiedAtByTask = new Map<string, string>();
 const digestSentOnByKind = new Map<'morning' | 'evening', string>();
 let intervalId: number | null = null;
 let storeSubscription: (() => void) | null = null;
+let started = false;
 
 type TauriNotificationApi = {
     sendNotification: (payload: { title: string; body?: string }) => void;
@@ -144,9 +145,16 @@ function checkDueAndNotify() {
 }
 
 export async function startDesktopNotifications() {
-    await loadTranslations(getCurrentLanguage());
-    await ensurePermission();
-    await loadTauriNotificationApi();
+    if (started) return;
+    started = true;
+    try {
+        await loadTranslations(getCurrentLanguage());
+        await ensurePermission();
+        await loadTauriNotificationApi();
+    } catch (error) {
+        started = false;
+        throw error;
+    }
 
     if (intervalId) clearInterval(intervalId);
     intervalId = window.setInterval(checkDueAndNotify, CHECK_INTERVAL_MS);
@@ -168,4 +176,5 @@ export function stopDesktopNotifications() {
 
     notifiedAtByTask.clear();
     digestSentOnByKind.clear();
+    started = false;
 }
