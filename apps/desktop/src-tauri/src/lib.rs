@@ -16,6 +16,7 @@ use tauri::tray::{TrayIconBuilder, TrayIconEvent};
 use tauri::image::Image;
 use tauri_plugin_global_shortcut::GlobalShortcutExt;
 use rusqlite::{params, Connection, OptionalExtension, params_from_iter, ToSql};
+use keyring::{Entry, Error as KeyringError};
 
 /// App name used for config directories and files
 const APP_NAME: &str = "mindwtr";
@@ -23,6 +24,11 @@ const CONFIG_FILE_NAME: &str = "config.toml";
 const SECRETS_FILE_NAME: &str = "secrets.toml";
 const DATA_FILE_NAME: &str = "data.json";
 const DB_FILE_NAME: &str = "mindwtr.db";
+const KEYRING_WEB_DAV_PASSWORD: &str = "webdav_password";
+const KEYRING_CLOUD_TOKEN: &str = "cloud_token";
+const KEYRING_AI_OPENAI: &str = "ai_key_openai";
+const KEYRING_AI_ANTHROPIC: &str = "ai_key_anthropic";
+const KEYRING_AI_GEMINI: &str = "ai_key_gemini";
 
 const SQLITE_SCHEMA: &str = r#"
 PRAGMA journal_mode = WAL;
@@ -937,6 +943,7 @@ fn read_config(app: &tauri::AppHandle) -> AppConfigToml {
         let secrets = read_config_toml(&secrets_path);
         merge_config(&mut config, secrets);
     }
+    migrate_legacy_secrets(app, &mut config);
     config
 }
 
@@ -997,6 +1004,74 @@ fn write_config_files(config_path: &Path, secrets_path: &Path, config: &AppConfi
     }
 
     Ok(())
+}
+
+fn migrate_legacy_secrets(app: &tauri::AppHandle, config: &mut AppConfigToml) {
+    let mut migrated = false;
+    if let Some(value) = config.webdav_password.clone() {
+        if set_keyring_secret(app, KEYRING_WEB_DAV_PASSWORD, Some(value)).is_ok() {
+            config.webdav_password = None;
+            migrated = true;
+        }
+    }
+    if let Some(value) = config.cloud_token.clone() {
+        if set_keyring_secret(app, KEYRING_CLOUD_TOKEN, Some(value)).is_ok() {
+            config.cloud_token = None;
+            migrated = true;
+        }
+    }
+    if let Some(value) = config.ai_key_openai.clone() {
+        if set_keyring_secret(app, KEYRING_AI_OPENAI, Some(value)).is_ok() {
+            config.ai_key_openai = None;
+            migrated = true;
+        }
+    }
+    if let Some(value) = config.ai_key_anthropic.clone() {
+        if set_keyring_secret(app, KEYRING_AI_ANTHROPIC, Some(value)).is_ok() {
+            config.ai_key_anthropic = None;
+            migrated = true;
+        }
+    }
+    if let Some(value) = config.ai_key_gemini.clone() {
+        if set_keyring_secret(app, KEYRING_AI_GEMINI, Some(value)).is_ok() {
+            config.ai_key_gemini = None;
+            migrated = true;
+        }
+    }
+    if migrated {
+        let _ = write_config_files(&get_config_path(app), &get_secrets_path(app), config);
+    }
+}
+
+fn keyring_service(app: &tauri::AppHandle) -> String {
+    format!("{}:secrets", app.config().identifier)
+}
+
+fn keyring_entry(app: &tauri::AppHandle, key: &str) -> Result<Entry, String> {
+    Entry::new(&keyring_service(app), key).map_err(|e| e.to_string())
+}
+
+fn get_keyring_secret(app: &tauri::AppHandle, key: &str) -> Result<Option<String>, String> {
+    let entry = keyring_entry(app, key)?;
+    match entry.get_password() {
+        Ok(value) => Ok(Some(value)),
+        Err(KeyringError::NoEntry) => Ok(None),
+        Err(error) => Err(error.to_string()),
+    }
+}
+
+fn set_keyring_secret(app: &tauri::AppHandle, key: &str, value: Option<String>) -> Result<(), String> {
+    let entry = keyring_entry(app, key)?;
+    match value {
+        Some(value) if !value.trim().is_empty() => {
+            entry.set_password(value.trim()).map_err(|e| e.to_string())
+        }
+        _ => match entry.delete_password() {
+            Ok(_) => Ok(()),
+            Err(KeyringError::NoEntry) => Ok(()),
+            Err(error) => Err(error.to_string()),
+        },
+    }
 }
 
 fn bootstrap_storage_layout(app: &tauri::AppHandle) -> Result<(), String> {
@@ -1230,30 +1305,44 @@ fn get_config_path_cmd(app: tauri::AppHandle) -> String {
 
 #[tauri::command]
 fn get_ai_key(app: tauri::AppHandle, provider: String) -> Option<String> {
-    let config = read_config(&app);
-    match provider.as_str() {
-        "openai" => config.ai_key_openai,
-        "anthropic" => config.ai_key_anthropic,
-        "gemini" => config.ai_key_gemini,
-        _ => None,
+    let mut config = read_config(&app);
+    let (key_name, legacy_value) = match provider.as_str() {
+        "openai" => (KEYRING_AI_OPENAI, config.ai_key_openai.clone()),
+        "anthropic" => (KEYRING_AI_ANTHROPIC, config.ai_key_anthropic.clone()),
+        "gemini" => (KEYRING_AI_GEMINI, config.ai_key_gemini.clone()),
+        _ => return None,
+    };
+    if let Ok(Some(value)) = get_keyring_secret(&app, key_name) {
+        return Some(value);
     }
+    if let Some(legacy) = legacy_value {
+        if set_keyring_secret(&app, key_name, Some(legacy.clone())).is_ok() {
+            match provider.as_str() {
+                "openai" => config.ai_key_openai = None,
+                "anthropic" => config.ai_key_anthropic = None,
+                "gemini" => config.ai_key_gemini = None,
+                _ => {}
+            }
+            let _ = write_config_files(&get_config_path(&app), &get_secrets_path(&app), &config);
+        }
+        return Some(legacy);
+    }
+    None
 }
 
 #[tauri::command]
 fn set_ai_key(app: tauri::AppHandle, provider: String, value: Option<String>) -> Result<(), String> {
-    let config_path = get_config_path(&app);
-    let mut config = read_config(&app);
     let next_value = value.and_then(|v| {
         let trimmed = v.trim().to_string();
         if trimmed.is_empty() { None } else { Some(trimmed) }
     });
-    match provider.as_str() {
-        "openai" => config.ai_key_openai = next_value,
-        "anthropic" => config.ai_key_anthropic = next_value,
-        "gemini" => config.ai_key_gemini = next_value,
+    let key_name = match provider.as_str() {
+        "openai" => KEYRING_AI_OPENAI,
+        "anthropic" => KEYRING_AI_ANTHROPIC,
+        "gemini" => KEYRING_AI_GEMINI,
         _ => return Ok(()),
-    }
-    write_config_files(&config_path, &get_secrets_path(&app), &config)?;
+    };
+    set_keyring_secret(&app, key_name, next_value)?;
     Ok(())
 }
 
@@ -1315,11 +1404,20 @@ fn set_sync_backend(app: tauri::AppHandle, backend: String) -> Result<bool, Stri
 
 #[tauri::command]
 fn get_webdav_config(app: tauri::AppHandle) -> Result<Value, String> {
-    let config = read_config(&app);
+    let mut config = read_config(&app);
+    let mut password = get_keyring_secret(&app, KEYRING_WEB_DAV_PASSWORD)?;
+    if password.is_none() {
+        if let Some(legacy) = config.webdav_password.clone() {
+            set_keyring_secret(&app, KEYRING_WEB_DAV_PASSWORD, Some(legacy.clone()))?;
+            config.webdav_password = None;
+            write_config_files(&get_config_path(&app), &get_secrets_path(&app), &config)?;
+            password = Some(legacy);
+        }
+    }
     Ok(serde_json::json!({
         "url": config.webdav_url.unwrap_or_default(),
         "username": config.webdav_username.unwrap_or_default(),
-        "password": config.webdav_password.unwrap_or_default()
+        "password": password.unwrap_or_default()
     }))
 }
 
@@ -1333,10 +1431,12 @@ fn set_webdav_config(app: tauri::AppHandle, url: String, username: String, passw
         config.webdav_url = None;
         config.webdav_username = None;
         config.webdav_password = None;
+        set_keyring_secret(&app, KEYRING_WEB_DAV_PASSWORD, None)?;
     } else {
         config.webdav_url = Some(url);
-        config.webdav_username = Some(username);
-        config.webdav_password = Some(password);
+        config.webdav_username = Some(username.trim().to_string());
+        config.webdav_password = None;
+        set_keyring_secret(&app, KEYRING_WEB_DAV_PASSWORD, Some(password))?;
     }
 
     write_config_files(&config_path, &get_secrets_path(&app), &config)?;
@@ -1345,10 +1445,19 @@ fn set_webdav_config(app: tauri::AppHandle, url: String, username: String, passw
 
 #[tauri::command]
 fn get_cloud_config(app: tauri::AppHandle) -> Result<Value, String> {
-    let config = read_config(&app);
+    let mut config = read_config(&app);
+    let mut token = get_keyring_secret(&app, KEYRING_CLOUD_TOKEN)?;
+    if token.is_none() {
+        if let Some(legacy) = config.cloud_token.clone() {
+            set_keyring_secret(&app, KEYRING_CLOUD_TOKEN, Some(legacy.clone()))?;
+            config.cloud_token = None;
+            write_config_files(&get_config_path(&app), &get_secrets_path(&app), &config)?;
+            token = Some(legacy);
+        }
+    }
     Ok(serde_json::json!({
         "url": config.cloud_url.unwrap_or_default(),
-        "token": config.cloud_token.unwrap_or_default()
+        "token": token.unwrap_or_default()
     }))
 }
 
@@ -1361,9 +1470,11 @@ fn set_cloud_config(app: tauri::AppHandle, url: String, token: String) -> Result
     if url.is_empty() {
         config.cloud_url = None;
         config.cloud_token = None;
+        set_keyring_secret(&app, KEYRING_CLOUD_TOKEN, None)?;
     } else {
         config.cloud_url = Some(url);
-        config.cloud_token = Some(token);
+        config.cloud_token = None;
+        set_keyring_secret(&app, KEYRING_CLOUD_TOKEN, Some(token))?;
     }
 
     write_config_files(&config_path, &get_secrets_path(&app), &config)?;
