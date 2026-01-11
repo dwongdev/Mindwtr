@@ -74,7 +74,7 @@ export default function MenuScreen() {
         <MenuRow label={t('nav.someday')} icon="arrow.up.circle.fill" iconColor={iconColors.someday} tc={tc} onPress={() => router.push('/someday')} />
         <MenuRow label={t('nav.archived')} icon="checkmark.circle.fill" iconColor={iconColors.archived} tc={tc} onPress={() => router.push('/archived')} />
         <MenuRow label={t('nav.trash')} icon="trash.fill" iconColor={iconColors.trash} tc={tc} onPress={() => router.push('/trash')} />
-        <MenuRow label={t('nav.settings')} icon="chevron.left.forwardslash.chevron.right" iconColor={iconColors.settings} tc={tc} onPress={() => router.push('/settings')} isLast />
+        <MenuRow label={t('nav.settings')} icon="gearshape.fill" iconColor={iconColors.settings} tc={tc} onPress={() => router.push('/settings')} isLast />
       </View>
 
       {savedSearches.length > 0 && (

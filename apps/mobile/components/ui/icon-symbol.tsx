@@ -23,6 +23,7 @@ const MAPPING = {
   'circle': 'ellipse-outline',
   'arrow.up.circle.fill': 'arrow-up-circle',
   'trash.fill': 'trash',
+  'gearshape.fill': 'settings',
 } as const;
 
 /**

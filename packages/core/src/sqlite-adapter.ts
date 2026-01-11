@@ -109,7 +109,63 @@ export class SqliteAdapter {
         await this.ensureTaskPurgedAtColumn();
         await this.ensureTaskOrderColumn();
         await this.ensureProjectOrderColumn();
-        await this.ensureFtsPopulated();
+        // FTS operations are optional - don't block startup if they fail
+        try {
+            await this.ensureFtsTriggers();
+            await this.ensureFtsPopulated();
+        } catch (error) {
+            console.warn('[SQLite] FTS setup failed, search may not work:', error);
+        }
+    }
+
+    private async ensureFtsTriggers() {
+        // Recreate FTS triggers to use proper contentless FTS5 delete syntax
+        // Old triggers used "DELETE FROM tasks_fts WHERE id = ..." which fails on contentless tables
+        try {
+            const migrations = await this.client.all<{ version: number }>('SELECT version FROM schema_migrations');
+            const hasV2 = migrations.some((m) => m.version === 2);
+            if (hasV2) return;
+
+            // Drop old triggers and recreate with correct syntax
+            await this.client.run('DROP TRIGGER IF EXISTS tasks_ad');
+            await this.client.run('DROP TRIGGER IF EXISTS tasks_au');
+            await this.client.run('DROP TRIGGER IF EXISTS projects_ad');
+            await this.client.run('DROP TRIGGER IF EXISTS projects_au');
+
+            await this.client.run(`
+                CREATE TRIGGER tasks_ad AFTER DELETE ON tasks BEGIN
+                  INSERT INTO tasks_fts (tasks_fts, id, title, description, tags, contexts)
+                  VALUES ('delete', old.id, old.title, coalesce(old.description, ''), coalesce(old.tags, ''), coalesce(old.contexts, ''));
+                END
+            `);
+            await this.client.run(`
+                CREATE TRIGGER tasks_au AFTER UPDATE ON tasks BEGIN
+                  INSERT INTO tasks_fts (tasks_fts, id, title, description, tags, contexts)
+                  VALUES ('delete', old.id, old.title, coalesce(old.description, ''), coalesce(old.tags, ''), coalesce(old.contexts, ''));
+                  INSERT INTO tasks_fts (id, title, description, tags, contexts)
+                  VALUES (new.id, new.title, coalesce(new.description, ''), coalesce(new.tags, ''), coalesce(new.contexts, ''));
+                END
+            `);
+            await this.client.run(`
+                CREATE TRIGGER projects_ad AFTER DELETE ON projects BEGIN
+                  INSERT INTO projects_fts (projects_fts, id, title, supportNotes, tagIds, areaTitle)
+                  VALUES ('delete', old.id, old.title, coalesce(old.supportNotes, ''), coalesce(old.tagIds, ''), coalesce(old.areaTitle, ''));
+                END
+            `);
+            await this.client.run(`
+                CREATE TRIGGER projects_au AFTER UPDATE ON projects BEGIN
+                  INSERT INTO projects_fts (projects_fts, id, title, supportNotes, tagIds, areaTitle)
+                  VALUES ('delete', old.id, old.title, coalesce(old.supportNotes, ''), coalesce(old.tagIds, ''), coalesce(old.areaTitle, ''));
+                  INSERT INTO projects_fts (id, title, supportNotes, tagIds, areaTitle)
+                  VALUES (new.id, new.title, coalesce(new.supportNotes, ''), coalesce(new.tagIds, ''), coalesce(new.areaTitle, ''));
+                END
+            `);
+
+            await this.client.run('INSERT OR IGNORE INTO schema_migrations (version) VALUES (2)');
+        } catch (error) {
+            console.warn('[SQLite] Failed to migrate FTS triggers:', error);
+            // Continue without migrating - triggers may still work or will fail gracefully
+        }
     }
 
     private async ensureTaskOrderColumn() {
@@ -137,77 +193,84 @@ export class SqliteAdapter {
     }
 
     private async ensureFtsPopulated(forceRebuild = false) {
-        const totals = await this.client.get<{
-            tasks_total?: number;
-            tasks_fts_total?: number;
-            projects_total?: number;
-            projects_fts_total?: number;
-        }>(
-            `SELECT
-                (SELECT COUNT(*) FROM tasks) as tasks_total,
-                (SELECT COUNT(*) FROM tasks_fts) as tasks_fts_total,
-                (SELECT COUNT(*) FROM projects) as projects_total,
-                (SELECT COUNT(*) FROM projects_fts) as projects_fts_total
-            `
-        );
-        const tasksTotal = Number(totals?.tasks_total ?? 0);
-        const tasksFtsTotal = Number(totals?.tasks_fts_total ?? 0);
-        const projectsTotal = Number(totals?.projects_total ?? 0);
-        const projectsFtsTotal = Number(totals?.projects_fts_total ?? 0);
-
-        if (!forceRebuild && tasksTotal === tasksFtsTotal && projectsTotal === projectsFtsTotal && tasksTotal > 0) {
-            return;
-        }
-
-        const counts = await this.client.get<{
-            task_count?: number;
-            task_missing?: number;
-            task_extra?: number;
-            project_count?: number;
-            project_missing?: number;
-            project_extra?: number;
-        }>(
-            `SELECT
-                (SELECT COUNT(*) FROM tasks_fts) as task_count,
-                (SELECT COUNT(*) FROM (SELECT id FROM tasks EXCEPT SELECT id FROM tasks_fts)) as task_missing,
-                (SELECT COUNT(*) FROM (SELECT id FROM tasks_fts EXCEPT SELECT id FROM tasks)) as task_extra,
-                (SELECT COUNT(*) FROM projects_fts) as project_count,
-                (SELECT COUNT(*) FROM (SELECT id FROM projects EXCEPT SELECT id FROM projects_fts)) as project_missing,
-                (SELECT COUNT(*) FROM (SELECT id FROM projects_fts EXCEPT SELECT id FROM projects)) as project_extra
-            `
-        );
-        const taskCount = Number(counts?.task_count ?? tasksFtsTotal ?? 0);
-        const taskMissing = Number(counts?.task_missing ?? 0);
-        const taskExtra = Number(counts?.task_extra ?? 0);
-        const needsTaskRebuild = forceRebuild || taskCount === 0 || taskMissing > 0 || taskExtra > 0;
-
-        const projectCount = Number(counts?.project_count ?? projectsFtsTotal ?? 0);
-        const projectMissing = Number(counts?.project_missing ?? 0);
-        const projectExtra = Number(counts?.project_extra ?? 0);
-        const needsProjectRebuild = forceRebuild || projectCount === 0 || projectMissing > 0 || projectExtra > 0;
-
-        if (!needsTaskRebuild && !needsProjectRebuild) return;
-
-        await this.client.run('BEGIN');
         try {
-            if (needsTaskRebuild) {
-                await this.client.run('DELETE FROM tasks_fts');
-                await this.client.run(
-                    `INSERT INTO tasks_fts (id, title, description, tags, contexts)
-                     SELECT id, title, coalesce(description, ''), coalesce(tags, ''), coalesce(contexts, '') FROM tasks`
-                );
+            const totals = await this.client.get<{
+                tasks_total?: number;
+                tasks_fts_total?: number;
+                projects_total?: number;
+                projects_fts_total?: number;
+            }>(
+                `SELECT
+                    (SELECT COUNT(*) FROM tasks) as tasks_total,
+                    (SELECT COUNT(*) FROM tasks_fts) as tasks_fts_total,
+                    (SELECT COUNT(*) FROM projects) as projects_total,
+                    (SELECT COUNT(*) FROM projects_fts) as projects_fts_total
+                `
+            );
+            const tasksTotal = Number(totals?.tasks_total ?? 0);
+            const tasksFtsTotal = Number(totals?.tasks_fts_total ?? 0);
+            const projectsTotal = Number(totals?.projects_total ?? 0);
+            const projectsFtsTotal = Number(totals?.projects_fts_total ?? 0);
+
+            if (!forceRebuild && tasksTotal === tasksFtsTotal && projectsTotal === projectsFtsTotal && tasksTotal > 0) {
+                return;
             }
-            if (needsProjectRebuild) {
-                await this.client.run('DELETE FROM projects_fts');
-                await this.client.run(
-                    `INSERT INTO projects_fts (id, title, supportNotes, tagIds, areaTitle)
-                     SELECT id, title, coalesce(supportNotes, ''), coalesce(tagIds, ''), coalesce(areaTitle, '') FROM projects`
-                );
+
+            const counts = await this.client.get<{
+                task_count?: number;
+                task_missing?: number;
+                task_extra?: number;
+                project_count?: number;
+                project_missing?: number;
+                project_extra?: number;
+            }>(
+                `SELECT
+                    (SELECT COUNT(*) FROM tasks_fts) as task_count,
+                    (SELECT COUNT(*) FROM (SELECT id FROM tasks EXCEPT SELECT id FROM tasks_fts)) as task_missing,
+                    (SELECT COUNT(*) FROM (SELECT id FROM tasks_fts EXCEPT SELECT id FROM tasks)) as task_extra,
+                    (SELECT COUNT(*) FROM projects_fts) as project_count,
+                    (SELECT COUNT(*) FROM (SELECT id FROM projects EXCEPT SELECT id FROM projects_fts)) as project_missing,
+                    (SELECT COUNT(*) FROM (SELECT id FROM projects_fts EXCEPT SELECT id FROM projects)) as project_extra
+                `
+            );
+            const taskCount = Number(counts?.task_count ?? tasksFtsTotal ?? 0);
+            const taskMissing = Number(counts?.task_missing ?? 0);
+            const taskExtra = Number(counts?.task_extra ?? 0);
+            const needsTaskRebuild = forceRebuild || taskCount === 0 || taskMissing > 0 || taskExtra > 0;
+
+            const projectCount = Number(counts?.project_count ?? projectsFtsTotal ?? 0);
+            const projectMissing = Number(counts?.project_missing ?? 0);
+            const projectExtra = Number(counts?.project_extra ?? 0);
+            const needsProjectRebuild = forceRebuild || projectCount === 0 || projectMissing > 0 || projectExtra > 0;
+
+            if (!needsTaskRebuild && !needsProjectRebuild) return;
+
+            await this.client.run('BEGIN');
+            try {
+                if (needsTaskRebuild) {
+                    // Use FTS5 delete-all command for contentless tables (content='')
+                    await this.client.run("INSERT INTO tasks_fts(tasks_fts) VALUES('delete-all')");
+                    await this.client.run(
+                        `INSERT INTO tasks_fts (id, title, description, tags, contexts)
+                         SELECT id, title, coalesce(description, ''), coalesce(tags, ''), coalesce(contexts, '') FROM tasks`
+                    );
+                }
+                if (needsProjectRebuild) {
+                    // Use FTS5 delete-all command for contentless tables (content='')
+                    await this.client.run("INSERT INTO projects_fts(projects_fts) VALUES('delete-all')");
+                    await this.client.run(
+                        `INSERT INTO projects_fts (id, title, supportNotes, tagIds, areaTitle)
+                         SELECT id, title, coalesce(supportNotes, ''), coalesce(tagIds, ''), coalesce(areaTitle, '') FROM projects`
+                    );
+                }
+                await this.client.run('COMMIT');
+            } catch (error) {
+                await this.client.run('ROLLBACK');
+                throw error;
             }
-            await this.client.run('COMMIT');
         } catch (error) {
-            await this.client.run('ROLLBACK');
-            throw error;
+            console.warn('[SQLite] Failed to populate FTS index:', error);
+            // Continue without FTS - search will fail gracefully
         }
     }
 

@@ -1,7 +1,7 @@
 import '../polyfills';
 import { DarkTheme, DefaultTheme, ThemeProvider as NavigationThemeProvider } from '@react-navigation/native';
 import { Stack, useRouter } from 'expo-router';
-import { StatusBar } from 'expo-status-bar';
+import { StatusBar } from 'react-native';
 import 'react-native-reanimated';
 import * as SplashScreen from 'expo-splash-screen';
 import { useEffect, useState, useRef, useCallback } from 'react';
@@ -394,7 +394,7 @@ function RootLayoutContent() {
               }}
             />
           </Stack>
-          <StatusBar style="auto" />
+          <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} />
         </NavigationThemeProvider>
       </QuickCaptureProvider>
     </GestureHandlerRootView>

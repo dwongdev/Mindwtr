@@ -2,7 +2,7 @@
   "expo": {
     "name": "Mindwtr",
     "slug": "mindwtr",
-    "version": "0.5.1",
+    "version": "0.5.2",
     "orientation": "default",
     "icon": "./assets/images/icon.png",
     "scheme": "mindwtr",
@@ -11,7 +11,10 @@
     "newArchEnabled": true,
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "tech.dongdongbh.mindwtr"
+      "bundleIdentifier": "tech.dongdongbh.mindwtr",
+      "infoPlist": {
+        "NSMicrophoneUsageDescription": "Mindwtr uses the microphone to capture voice notes."
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -20,9 +23,12 @@
         "backgroundImage": "./assets/images/android-icon-background.png",
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
-      "versionCode": 4,
+      "versionCode": 6,
       "package": "tech.dongdongbh.mindwtr",
-      "edgeToEdgeEnabled": true,
+      "permissions": [
+        "RECORD_AUDIO"
+      ],
+      "edgeToEdgeEnabled": false,
       "predictiveBackGestureEnabled": false
     },
     "web": {
@@ -90,7 +96,8 @@
           }
         }
       ],
-      "expo-secure-store"
+      "expo-secure-store",
+      "./plugins/android-manifest-fixes"
     ],
     "experiments": {
       "typedRoutes": true

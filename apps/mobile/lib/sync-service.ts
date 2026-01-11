@@ -24,7 +24,11 @@ export async function performMobileSync(syncPathOverride?: string): Promise<{ su
   }
   syncInFlight = (async () => {
     const rawBackend = await AsyncStorage.getItem(SYNC_BACKEND_KEY);
-    const backend = rawBackend === 'webdav' || rawBackend === 'cloud' ? rawBackend : 'file';
+    const backend = rawBackend === 'webdav' || rawBackend === 'cloud' || rawBackend === 'off' ? rawBackend : 'file';
+
+    if (backend === 'off') {
+      return { success: true };
+    }
 
     let step = 'init';
     let syncUrl: string | undefined;
@@ -35,6 +39,12 @@ export async function performMobileSync(syncPathOverride?: string): Promise<{ su
       let fileSyncPath: string | null = null;
       step = 'flush';
       await flushPendingSave();
+      if (backend === 'file') {
+        fileSyncPath = syncPathOverride || await AsyncStorage.getItem(SYNC_PATH_KEY);
+        if (!fileSyncPath) {
+          return { success: true };
+        }
+      }
       const syncResult = await performSyncCycle({
         readLocal: async () => await mobileStorage.getData(),
         readRemote: async () => {
@@ -55,7 +65,6 @@ export async function performMobileSync(syncPathOverride?: string): Promise<{ su
             cloudConfig = { url, token };
             return await cloudGetJson<AppData>(url, { token, timeoutMs: DEFAULT_SYNC_TIMEOUT_MS });
           }
-          fileSyncPath = syncPathOverride || await AsyncStorage.getItem(SYNC_PATH_KEY);
           if (!fileSyncPath) {
             throw new Error('No sync file configured');
           }

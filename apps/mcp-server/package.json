@@ -1,0 +1,21 @@
+{
+  "name": "mindwtr-mcp-server",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "main": "dist/index.js",
+  "bin": {
+    "mindwtr-mcp": "dist/index.js"
+  },
+  "scripts": {
+    "dev": "bun src/index.ts",
+    "build": "bun build src/index.ts --target node --format esm --outfile dist/index.js --external:better-sqlite3 --external:bun:sqlite",
+    "start": "node dist/index.js"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.0.0",
+    "@mindwtr/core": "workspace:*",
+    "better-sqlite3": "^9.6.0",
+    "zod": "^3.24.1"
+  }
+}

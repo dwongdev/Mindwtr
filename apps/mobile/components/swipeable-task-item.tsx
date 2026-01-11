@@ -311,7 +311,7 @@ export function SwipeableTaskItem({
             ]}
             onPress={handlePress}
             onLongPress={handleLongPress}
-            delayLongPress={120}
+            delayLongPress={300}
             accessibilityLabel={accessibilityLabel}
             accessibilityHint="Double tap to edit task details. Swipe left to change status, right to delete."
             accessibilityRole="button"

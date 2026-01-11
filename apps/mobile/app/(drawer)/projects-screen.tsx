@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { View, Text, TextInput, StyleSheet, TouchableOpacity, Modal, Alert, Pressable, ScrollView } from 'react-native';
+import { View, Text, TextInput, StyleSheet, TouchableOpacity, Modal, Alert, Pressable, ScrollView, SectionList } from 'react-native';
 import DraggableFlatList, { type RenderItemParams } from 'react-native-draggable-flatlist';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
@@ -17,7 +17,7 @@ import { MarkdownText } from '../../components/markdown-text';
 import { ListSectionHeader, defaultListContentStyle } from '@/components/list-layout';
 
 export default function ProjectsScreen() {
-  const { projects, tasks, areas, addProject, updateProject, deleteProject, toggleProjectFocus, addArea, updateArea, deleteArea, reorderAreas, reorderProjects } = useTaskStore();
+  const { projects, tasks, areas, addProject, updateProject, deleteProject, toggleProjectFocus, addArea, updateArea, deleteArea, reorderAreas } = useTaskStore();
   const { t } = useLanguage();
   const tc = useThemeColors();
   const statusPalette: Record<Project['status'], { text: string; bg: string; border: string }> = {
@@ -31,6 +31,7 @@ export default function ProjectsScreen() {
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
   const [notesExpanded, setNotesExpanded] = useState(false);
   const [showNotesPreview, setShowNotesPreview] = useState(false);
+  const [showProjectMeta, setShowProjectMeta] = useState(false);
   const [showReviewPicker, setShowReviewPicker] = useState(false);
   const [showStatusMenu, setShowStatusMenu] = useState(false);
   const [linkModalVisible, setLinkModalVisible] = useState(false);
@@ -57,6 +58,7 @@ export default function ProjectsScreen() {
   const colors = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899'];
 
   const sortedAreas = useMemo(() => [...areas].sort((a, b) => a.order - b.order), [areas]);
+  const focusedCount = useMemo(() => projects.filter((project) => project.isFocused).length, [projects]);
   const areaById = useMemo(() => new Map(sortedAreas.map((area) => [area.id, area])), [sortedAreas]);
   const areaUsage = useMemo(() => {
     const counts = new Map<string, number>();
@@ -164,6 +166,103 @@ export default function ProjectsScreen() {
 
     return sections;
   }, [projects, t, sortedAreas, areaById, selectedTagFilter, ALL_TAGS, NO_TAGS]);
+
+  const renderProjectItem = ({ item }: { item: Project }) => {
+    const project = item;
+    const projTasks = tasks.filter(t => t.projectId === project.id && t.status !== 'done' && !t.deletedAt);
+    const nextAction = projTasks.find((task) => task.status === 'next');
+    const showFocusedWarning = project.isFocused && !nextAction && projTasks.length > 0;
+    const projectColor = project.areaId ? areaById.get(project.areaId)?.color : undefined;
+
+    return (
+      <View style={[
+        styles.projectItem,
+        { backgroundColor: tc.cardBg },
+        project.isFocused && { borderColor: '#F59E0B', borderWidth: 1 },
+      ]}>
+        <TouchableOpacity
+          onPress={() => toggleProjectFocus(project.id)}
+          style={styles.focusButton}
+          disabled={!project.isFocused && focusedCount >= 5}
+        >
+          <Text style={[
+            styles.focusIcon,
+            project.isFocused ? { opacity: 1 } : { opacity: focusedCount >= 5 ? 0.3 : 0.5 }
+          ]}>
+            {project.isFocused ? '⭐' : '☆'}
+          </Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={styles.projectTouchArea}
+          onPress={() => {
+            setSelectedProject(project);
+            setNotesExpanded(false);
+            setShowNotesPreview(false);
+            setShowProjectMeta(false);
+            setShowReviewPicker(false);
+            setShowStatusMenu(false);
+            setLinkModalVisible(false);
+            setLinkInput('');
+          }}
+        >
+          <View style={[styles.projectColor, { backgroundColor: projectColor || '#6B7280' }]} />
+          <View style={styles.projectContent}>
+            <View style={styles.projectTitleRow}>
+              <Text style={[styles.projectTitle, { color: tc.text }]}>{project.title}</Text>
+              {project.tagIds?.length ? (
+                <View style={styles.projectTagDots}>
+                  {project.tagIds.slice(0, 4).map((tag: string) => (
+                    <View key={tag} style={[styles.projectTagDot, { backgroundColor: tc.secondaryText }]} />
+                  ))}
+                </View>
+              ) : null}
+            </View>
+            {nextAction ? (
+              <Text style={[styles.projectMeta, { color: tc.secondaryText }]} numberOfLines={1}>
+                ↳ {nextAction.title}
+              </Text>
+            ) : showFocusedWarning ? (
+              <Text style={[styles.projectMeta, { color: '#F59E0B' }]}>
+                ⚠️ No next action
+              </Text>
+            ) : (
+              <Text
+                style={[
+                  styles.projectMeta,
+                  { color: statusPalette[project.status]?.text ?? tc.secondaryText },
+                ]}
+              >
+                {project.status === 'active'
+                  ? t('status.active')
+                  : project.status === 'waiting'
+                    ? t('status.waiting')
+                    : project.status === 'someday'
+                      ? t('status.someday')
+                      : t('status.archived')}
+              </Text>
+            )}
+          </View>
+        </TouchableOpacity>
+        <TouchableOpacity
+          onPress={() => {
+            Alert.alert(
+              t('projects.title'),
+              t('projects.deleteConfirm'),
+              [
+                { text: t('common.cancel'), style: 'cancel' },
+                { text: t('common.delete'), style: 'destructive', onPress: () => deleteProject(project.id) }
+              ]
+            );
+          }}
+          style={styles.deleteButton}
+          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+        >
+          <Trash2 size={18} color={tc.secondaryText} />
+        </TouchableOpacity>
+      </View>
+    );
+  };
+
 
   const handleAddProject = () => {
     if (newProjectTitle.trim()) {
@@ -455,133 +554,22 @@ export default function ProjectsScreen() {
         </TouchableOpacity>
       </View>
 
-      <ScrollView contentContainerStyle={defaultListContentStyle}>
-        {groupedProjects.length === 0 ? (
+      <SectionList
+        sections={groupedProjects}
+        keyExtractor={(item) => item.id}
+        stickySectionHeadersEnabled={false}
+        contentContainerStyle={defaultListContentStyle}
+        style={{ flex: 1 }}
+        ListEmptyComponent={
           <View style={styles.emptyContainer}>
             <Text style={[styles.emptyText, { color: tc.secondaryText }]}>{t('projects.empty')}</Text>
           </View>
-        ) : (
-          groupedProjects.map((section) => {
-            const areaKey = section.areaId ?? 'no-area';
-            return (
-              <View key={section.areaId ?? section.title} style={styles.sectionBlock}>
-                <ListSectionHeader title={section.title} tc={tc} />
-                <DraggableFlatList<Project>
-                  data={section.data}
-                  keyExtractor={(item: Project) => item.id}
-                  scrollEnabled={false}
-                  activationDistance={8}
-                  onDragEnd={({ data }: { data: Project[] }) => {
-                    reorderProjects(data.map((project) => project.id), areaKey === 'no-area' ? undefined : areaKey);
-                  }}
-                  renderItem={({ item, drag, isActive }: RenderItemParams<Project>) => {
-                    const projTasks = tasks.filter(t => t.projectId === item.id && t.status !== 'done' && !t.deletedAt);
-                    const nextAction = projTasks.find((task) => task.status === 'next');
-                    const focusedCount = projects.filter(p => p.isFocused).length;
-                    const showFocusedWarning = item.isFocused && !nextAction && projTasks.length > 0;
-                    const projectColor = item.areaId ? areaById.get(item.areaId)?.color : undefined;
-
-                    return (
-                      <View style={[
-                        styles.projectItem,
-                        { backgroundColor: tc.cardBg },
-                        item.isFocused && { borderColor: '#F59E0B', borderWidth: 1 },
-                        isActive && { opacity: 0.7 },
-                      ]}>
-                        <TouchableOpacity
-                          onPress={() => toggleProjectFocus(item.id)}
-                          style={styles.focusButton}
-                          disabled={!item.isFocused && focusedCount >= 5}
-                        >
-                          <Text style={[
-                            styles.focusIcon,
-                            item.isFocused ? { opacity: 1 } : { opacity: focusedCount >= 5 ? 0.3 : 0.5 }
-                          ]}>
-                            {item.isFocused ? '⭐' : '☆'}
-                          </Text>
-                        </TouchableOpacity>
-                        <TouchableOpacity
-                          style={styles.projectTouchArea}
-                          onPress={() => {
-                            setSelectedProject(item);
-                            setNotesExpanded(false);
-                            setShowNotesPreview(false);
-                            setShowReviewPicker(false);
-                            setShowStatusMenu(false);
-                            setLinkModalVisible(false);
-                            setLinkInput('');
-                          }}
-                        >
-                          <View style={[styles.projectColor, { backgroundColor: projectColor || '#6B7280' }]} />
-                          <View style={styles.projectContent}>
-                            <View style={styles.projectTitleRow}>
-                              <Text style={[styles.projectTitle, { color: tc.text }]}>{item.title}</Text>
-                              {item.tagIds?.length ? (
-                                <View style={styles.projectTagDots}>
-                                  {item.tagIds.slice(0, 4).map((tag: string) => (
-                                    <View key={tag} style={[styles.projectTagDot, { backgroundColor: tc.secondaryText }]} />
-                                  ))}
-                                </View>
-                              ) : null}
-                            </View>
-                            {nextAction ? (
-                              <Text style={[styles.projectMeta, { color: tc.secondaryText }]} numberOfLines={1}>
-                                ↳ {nextAction.title}
-                              </Text>
-                            ) : showFocusedWarning ? (
-                              <Text style={[styles.projectMeta, { color: '#F59E0B' }]}>
-                                ⚠️ No next action
-                              </Text>
-                            ) : (
-                              <Text
-                                style={[
-                                  styles.projectMeta,
-                                  { color: statusPalette[item.status]?.text ?? tc.secondaryText },
-                                ]}
-                              >
-                                {item.status === 'active'
-                                  ? t('status.active')
-                                  : item.status === 'waiting'
-                                    ? t('status.waiting')
-                                    : item.status === 'someday'
-                                      ? t('status.someday')
-                                      : t('status.archived')}
-                              </Text>
-                            )}
-                          </View>
-                        </TouchableOpacity>
-                        <TouchableOpacity
-                          onPress={() => {
-                            Alert.alert(
-                              t('projects.title'),
-                              t('projects.deleteConfirm'),
-                              [
-                                { text: t('common.cancel'), style: 'cancel' },
-                                { text: t('common.delete'), style: 'destructive', onPress: () => deleteProject(item.id) }
-                              ]
-                            );
-                          }}
-                          style={styles.deleteButton}
-                          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-                        >
-                          <Trash2 size={18} color={tc.secondaryText} />
-                        </TouchableOpacity>
-                        <TouchableOpacity
-                          onLongPress={drag}
-                          delayLongPress={150}
-                          style={styles.dragHandle}
-                        >
-                          <Text style={[styles.dragHandleText, { color: tc.secondaryText }]}>≡</Text>
-                        </TouchableOpacity>
-                      </View>
-                    );
-                  }}
-                />
-              </View>
-            );
-          })
+        }
+        renderSectionHeader={({ section }) => (
+          <ListSectionHeader title={section.title} tc={tc} />
         )}
-      </ScrollView>
+        renderItem={({ item }) => renderProjectItem({ item })}
+      />
 
       <Modal
         visible={!!selectedProject}
@@ -591,6 +579,7 @@ export default function ProjectsScreen() {
           setSelectedProject(null);
           setNotesExpanded(false);
           setShowNotesPreview(false);
+          setShowProjectMeta(false);
           setShowReviewPicker(false);
           setShowStatusMenu(false);
           setLinkModalVisible(false);
@@ -717,171 +706,186 @@ export default function ProjectsScreen() {
                   )}
                 </View>
 
-                <View style={[styles.reviewContainer, { backgroundColor: tc.cardBg, borderColor: tc.border }]}>
-                  <Text style={[styles.reviewLabel, { color: tc.text }]}>
-                    {t('projects.areaLabel')}
-                  </Text>
+                <View style={[styles.detailsToggle, { backgroundColor: tc.cardBg, borderColor: tc.border }]}>
                   <TouchableOpacity
-                    style={[styles.reviewButton, { backgroundColor: tc.inputBg, borderColor: tc.border }]}
-                    onPress={() => setShowAreaPicker(true)}
+                    style={styles.detailsToggleButton}
+                    onPress={() => setShowProjectMeta((prev) => !prev)}
                   >
-                    <Text style={{ color: tc.text }}>
-                      {selectedProject.areaId && areaById.has(selectedProject.areaId)
-                        ? areaById.get(selectedProject.areaId)?.name
-                        : t('projects.noArea')}
+                    <Text style={[styles.detailsToggleText, { color: tc.text }]}>
+                      {showProjectMeta ? '▼' : '▶'} {t('taskEdit.details')}
                     </Text>
                   </TouchableOpacity>
                 </View>
 
-                <View style={[styles.reviewContainer, { backgroundColor: tc.cardBg, borderColor: tc.border }]}>
-                  <Text style={[styles.reviewLabel, { color: tc.text }]}>
-                    {t('taskEdit.tagsLabel')}
-                  </Text>
-                  <TouchableOpacity
-                    style={[styles.reviewButton, { backgroundColor: tc.inputBg, borderColor: tc.border }]}
-                    onPress={() => setShowTagPicker(true)}
-                  >
-                    <Text style={{ color: tc.text }}>
-                      {selectedProject.tagIds?.length ? selectedProject.tagIds.join(', ') : t('common.none')}
-                    </Text>
-                  </TouchableOpacity>
-                </View>
-
-                {/* Project Notes Section */}
-                <View style={[styles.notesContainer, { backgroundColor: tc.cardBg, borderColor: tc.border }]}>
-                  <View style={styles.notesHeaderRow}>
-                    <TouchableOpacity
-                      style={styles.notesHeader}
-                      onPress={() => {
-                        setNotesExpanded(!notesExpanded);
-                        if (notesExpanded) setShowNotesPreview(false);
-                      }}
-                    >
-                      <Text style={[styles.notesTitle, { color: tc.text }]}>
-                        {notesExpanded ? '▼' : '▶'} {t('project.notes')}
+                {showProjectMeta && (
+                  <>
+                    <View style={[styles.reviewContainer, { backgroundColor: tc.cardBg, borderColor: tc.border }]}>
+                      <Text style={[styles.reviewLabel, { color: tc.text }]}>
+                        {t('projects.areaLabel')}
                       </Text>
-                    </TouchableOpacity>
-                    {notesExpanded && (
                       <TouchableOpacity
-                        onPress={() => setShowNotesPreview((v) => !v)}
-                        style={[styles.smallButton, { borderColor: tc.border, backgroundColor: tc.cardBg }]}
+                        style={[styles.reviewButton, { backgroundColor: tc.inputBg, borderColor: tc.border }]}
+                        onPress={() => setShowAreaPicker(true)}
                       >
-                        <Text style={[styles.smallButtonText, { color: tc.tint }]}>
-                          {showNotesPreview ? t('markdown.edit') : t('markdown.preview')}
+                        <Text style={{ color: tc.text }}>
+                          {selectedProject.areaId && areaById.has(selectedProject.areaId)
+                            ? areaById.get(selectedProject.areaId)?.name
+                            : t('projects.noArea')}
                         </Text>
                       </TouchableOpacity>
-                    )}
-                  </View>
-                  {notesExpanded && (
-                    showNotesPreview ? (
-                      <View style={[styles.markdownPreview, { borderColor: tc.border, backgroundColor: tc.filterBg }]}>
-                        <MarkdownText markdown={selectedProject.supportNotes || ''} tc={tc} />
-                      </View>
-                    ) : (
-                      <TextInput
-                        style={[styles.notesInput, { color: tc.text, backgroundColor: tc.inputBg, borderColor: tc.border }]}
-                        multiline
-                        placeholder={t('projects.notesPlaceholder')}
-                        placeholderTextColor={tc.secondaryText}
-                        value={selectedProject.supportNotes || ''}
-                        onChangeText={(text) => setSelectedProject({ ...selectedProject, supportNotes: text })}
-                        onEndEditing={() => updateProject(selectedProject.id, { supportNotes: selectedProject.supportNotes })}
-                      />
-                    )
-                  )}
-                </View>
-
-                {/* Project Attachments */}
-                <View style={[styles.attachmentsContainer, { backgroundColor: tc.cardBg, borderColor: tc.border }]}>
-                  <View style={styles.attachmentsHeader}>
-                    <Text style={[styles.attachmentsTitle, { color: tc.text }]}>{t('attachments.title')}</Text>
-                    <View style={styles.attachmentsActions}>
-                      <TouchableOpacity
-                        onPress={addProjectFileAttachment}
-                        style={[styles.smallButton, { borderColor: tc.border, backgroundColor: tc.cardBg }]}
-                      >
-                        <Text style={[styles.smallButtonText, { color: tc.tint }]}>{t('attachments.addFile')}</Text>
-                      </TouchableOpacity>
-                      <TouchableOpacity
-                        onPress={() => {
-                          setLinkModalVisible(true);
-                          setLinkInput('');
-                        }}
-                        style={[styles.smallButton, { borderColor: tc.border, backgroundColor: tc.cardBg }]}
-                      >
-                        <Text style={[styles.smallButtonText, { color: tc.tint }]}>{t('attachments.addLink')}</Text>
-                      </TouchableOpacity>
                     </View>
-                  </View>
-                  {((selectedProject.attachments || []) as Attachment[]).filter((a) => !a.deletedAt).length === 0 ? (
-                    <Text style={[styles.helperText, { color: tc.secondaryText }]}>{t('common.none')}</Text>
-                  ) : (
-                    <View style={[styles.attachmentsList, { borderColor: tc.border, backgroundColor: tc.cardBg }]}>
-                      {((selectedProject.attachments || []) as Attachment[])
-                        .filter((a) => !a.deletedAt)
-                        .map((attachment) => (
-                          <View key={attachment.id} style={[styles.attachmentRow, { borderBottomColor: tc.border }]}>
-                            <TouchableOpacity
-                              style={styles.attachmentTitleWrap}
-                              onPress={() => openAttachment(attachment)}
-                            >
-                              <Text style={[styles.attachmentTitle, { color: tc.tint }]} numberOfLines={1}>
-                                {attachment.title}
-                              </Text>
-                            </TouchableOpacity>
-                            <TouchableOpacity onPress={() => removeProjectAttachment(attachment.id)}>
-                              <Text style={[styles.attachmentRemove, { color: tc.secondaryText }]}>
-                                {t('attachments.remove')}
-                              </Text>
-                            </TouchableOpacity>
-                          </View>
-                        ))}
-                    </View>
-                  )}
-                </View>
 
-                {/* Project Review Date (Tickler) */}
-                <View style={[styles.reviewContainer, { backgroundColor: tc.cardBg, borderColor: tc.border }]}>
-                  <Text style={[styles.reviewLabel, { color: tc.text }]}>
-                    {t('projects.reviewAt') || 'Review Date'}
-                  </Text>
-                  <TouchableOpacity
-                    style={[styles.reviewButton, { backgroundColor: tc.inputBg, borderColor: tc.border }]}
-                    onPress={() => setShowReviewPicker(true)}
-                  >
-                    <Text style={{ color: tc.text }}>
-                      {formatReviewDate(selectedProject.reviewAt)}
-                    </Text>
-                  </TouchableOpacity>
-                  {!!selectedProject.reviewAt && (
-                    <TouchableOpacity
-                      style={styles.clearReviewBtn}
-                      onPress={() => {
-                        updateProject(selectedProject.id, { reviewAt: undefined });
-                        setSelectedProject({ ...selectedProject, reviewAt: undefined });
-                      }}
-                    >
-                      <Text style={[styles.clearReviewText, { color: tc.secondaryText }]}>
-                        {t('common.clear')}
+                    <View style={[styles.reviewContainer, { backgroundColor: tc.cardBg, borderColor: tc.border }]}>
+                      <Text style={[styles.reviewLabel, { color: tc.text }]}>
+                        {t('taskEdit.tagsLabel')}
                       </Text>
-                    </TouchableOpacity>
-                  )}
-                  {showReviewPicker && (
-                    <DateTimePicker
-                      value={new Date(selectedProject.reviewAt || Date.now())}
-                      mode="date"
-                      display="default"
-                      onChange={(_, date) => {
-                        setShowReviewPicker(false);
-                        if (date) {
-                          const iso = date.toISOString();
-                          updateProject(selectedProject.id, { reviewAt: iso });
-                          setSelectedProject({ ...selectedProject, reviewAt: iso });
-                        }
-                      }}
-                    />
-                  )}
-                </View>
+                      <TouchableOpacity
+                        style={[styles.reviewButton, { backgroundColor: tc.inputBg, borderColor: tc.border }]}
+                        onPress={() => setShowTagPicker(true)}
+                      >
+                        <Text style={{ color: tc.text }}>
+                          {selectedProject.tagIds?.length ? selectedProject.tagIds.join(', ') : t('common.none')}
+                        </Text>
+                      </TouchableOpacity>
+                    </View>
+
+                    {/* Project Notes Section */}
+                    <View style={[styles.notesContainer, { backgroundColor: tc.cardBg, borderColor: tc.border }]}>
+                      <View style={styles.notesHeaderRow}>
+                        <TouchableOpacity
+                          style={styles.notesHeader}
+                          onPress={() => {
+                            setNotesExpanded(!notesExpanded);
+                            if (notesExpanded) setShowNotesPreview(false);
+                          }}
+                        >
+                          <Text style={[styles.notesTitle, { color: tc.text }]}>
+                            {notesExpanded ? '▼' : '▶'} {t('project.notes')}
+                          </Text>
+                        </TouchableOpacity>
+                        {notesExpanded && (
+                          <TouchableOpacity
+                            onPress={() => setShowNotesPreview((v) => !v)}
+                            style={[styles.smallButton, { borderColor: tc.border, backgroundColor: tc.cardBg }]}
+                          >
+                            <Text style={[styles.smallButtonText, { color: tc.tint }]}>
+                              {showNotesPreview ? t('markdown.edit') : t('markdown.preview')}
+                            </Text>
+                          </TouchableOpacity>
+                        )}
+                      </View>
+                      {notesExpanded && (
+                        showNotesPreview ? (
+                          <View style={[styles.markdownPreview, { borderColor: tc.border, backgroundColor: tc.filterBg }]}>
+                            <MarkdownText markdown={selectedProject.supportNotes || ''} tc={tc} />
+                          </View>
+                        ) : (
+                          <TextInput
+                            style={[styles.notesInput, { color: tc.text, backgroundColor: tc.inputBg, borderColor: tc.border }]}
+                            multiline
+                            placeholder={t('projects.notesPlaceholder')}
+                            placeholderTextColor={tc.secondaryText}
+                            value={selectedProject.supportNotes || ''}
+                            onChangeText={(text) => setSelectedProject({ ...selectedProject, supportNotes: text })}
+                            onEndEditing={() => updateProject(selectedProject.id, { supportNotes: selectedProject.supportNotes })}
+                          />
+                        )
+                      )}
+                    </View>
+
+                    {/* Project Attachments */}
+                    <View style={[styles.attachmentsContainer, { backgroundColor: tc.cardBg, borderColor: tc.border }]}>
+                      <View style={styles.attachmentsHeader}>
+                        <Text style={[styles.attachmentsTitle, { color: tc.text }]}>{t('attachments.title')}</Text>
+                        <View style={styles.attachmentsActions}>
+                          <TouchableOpacity
+                            onPress={addProjectFileAttachment}
+                            style={[styles.smallButton, { borderColor: tc.border, backgroundColor: tc.cardBg }]}
+                          >
+                            <Text style={[styles.smallButtonText, { color: tc.tint }]}>{t('attachments.addFile')}</Text>
+                          </TouchableOpacity>
+                          <TouchableOpacity
+                            onPress={() => {
+                              setLinkModalVisible(true);
+                              setLinkInput('');
+                            }}
+                            style={[styles.smallButton, { borderColor: tc.border, backgroundColor: tc.cardBg }]}
+                          >
+                            <Text style={[styles.smallButtonText, { color: tc.tint }]}>{t('attachments.addLink')}</Text>
+                          </TouchableOpacity>
+                        </View>
+                      </View>
+                      {((selectedProject.attachments || []) as Attachment[]).filter((a) => !a.deletedAt).length === 0 ? (
+                        <Text style={[styles.helperText, { color: tc.secondaryText }]}>{t('common.none')}</Text>
+                      ) : (
+                        <View style={[styles.attachmentsList, { borderColor: tc.border, backgroundColor: tc.cardBg }]}>
+                          {((selectedProject.attachments || []) as Attachment[])
+                            .filter((a) => !a.deletedAt)
+                            .map((attachment) => (
+                              <View key={attachment.id} style={[styles.attachmentRow, { borderBottomColor: tc.border }]}>
+                                <TouchableOpacity
+                                  style={styles.attachmentTitleWrap}
+                                  onPress={() => openAttachment(attachment)}
+                                >
+                                  <Text style={[styles.attachmentTitle, { color: tc.tint }]} numberOfLines={1}>
+                                    {attachment.title}
+                                  </Text>
+                                </TouchableOpacity>
+                                <TouchableOpacity onPress={() => removeProjectAttachment(attachment.id)}>
+                                  <Text style={[styles.attachmentRemove, { color: tc.secondaryText }]}>
+                                    {t('attachments.remove')}
+                                  </Text>
+                                </TouchableOpacity>
+                              </View>
+                            ))}
+                        </View>
+                      )}
+                    </View>
+
+                    {/* Project Review Date (Tickler) */}
+                    <View style={[styles.reviewContainer, { backgroundColor: tc.cardBg, borderColor: tc.border }]}>
+                      <Text style={[styles.reviewLabel, { color: tc.text }]}>
+                        {t('projects.reviewAt') || 'Review Date'}
+                      </Text>
+                      <TouchableOpacity
+                        style={[styles.reviewButton, { backgroundColor: tc.inputBg, borderColor: tc.border }]}
+                        onPress={() => setShowReviewPicker(true)}
+                      >
+                        <Text style={{ color: tc.text }}>
+                          {formatReviewDate(selectedProject.reviewAt)}
+                        </Text>
+                      </TouchableOpacity>
+                      {!!selectedProject.reviewAt && (
+                        <TouchableOpacity
+                          style={styles.clearReviewBtn}
+                          onPress={() => {
+                            updateProject(selectedProject.id, { reviewAt: undefined });
+                            setSelectedProject({ ...selectedProject, reviewAt: undefined });
+                          }}
+                        >
+                          <Text style={[styles.clearReviewText, { color: tc.secondaryText }]}>
+                            {t('common.clear')}
+                          </Text>
+                        </TouchableOpacity>
+                      )}
+                      {showReviewPicker && (
+                        <DateTimePicker
+                          value={new Date(selectedProject.reviewAt || Date.now())}
+                          mode="date"
+                          display="default"
+                          onChange={(_, date) => {
+                            setShowReviewPicker(false);
+                            if (date) {
+                              const iso = date.toISOString();
+                              updateProject(selectedProject.id, { reviewAt: iso });
+                              setSelectedProject({ ...selectedProject, reviewAt: iso });
+                            }
+                          }}
+                        />
+                      )}
+                    </View>
+                  </>
+                )}
 
                 <TaskList
                   statusFilter="all"
@@ -1281,16 +1285,6 @@ const styles = StyleSheet.create({
   sectionBlock: {
     marginBottom: 12,
   },
-  dragHandle: {
-    paddingHorizontal: 6,
-    paddingVertical: 4,
-    marginRight: 4,
-    borderRadius: 6,
-  },
-  dragHandleText: {
-    fontSize: 16,
-    fontWeight: '700',
-  },
   projectTitleRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1315,6 +1309,16 @@ const styles = StyleSheet.create({
   projectMeta: {
     fontSize: 12,
     color: '#666',
+  },
+  dragHandle: {
+    paddingHorizontal: 6,
+    paddingVertical: 4,
+    marginLeft: 4,
+    borderRadius: 6,
+  },
+  dragHandleText: {
+    fontSize: 16,
+    fontWeight: '700',
   },
   deleteButton: {
     width: 32,
@@ -1466,6 +1470,22 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     gap: 12,
+  },
+  detailsToggle: {
+    borderRadius: 10,
+    borderWidth: 1,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    marginTop: 8,
+    marginBottom: 12,
+  },
+  detailsToggleButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  detailsToggleText: {
+    fontSize: 14,
+    fontWeight: '600',
   },
   notesHeader: {
     paddingVertical: 8,

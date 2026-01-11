@@ -94,11 +94,13 @@ CREATE TRIGGER IF NOT EXISTS tasks_ai AFTER INSERT ON tasks BEGIN
 END;
 
 CREATE TRIGGER IF NOT EXISTS tasks_ad AFTER DELETE ON tasks BEGIN
-  DELETE FROM tasks_fts WHERE id = old.id;
+  INSERT INTO tasks_fts (tasks_fts, id, title, description, tags, contexts)
+  VALUES ('delete', old.id, old.title, coalesce(old.description, ''), coalesce(old.tags, ''), coalesce(old.contexts, ''));
 END;
 
 CREATE TRIGGER IF NOT EXISTS tasks_au AFTER UPDATE ON tasks BEGIN
-  DELETE FROM tasks_fts WHERE id = old.id;
+  INSERT INTO tasks_fts (tasks_fts, id, title, description, tags, contexts)
+  VALUES ('delete', old.id, old.title, coalesce(old.description, ''), coalesce(old.tags, ''), coalesce(old.contexts, ''));
   INSERT INTO tasks_fts (id, title, description, tags, contexts)
   VALUES (new.id, new.title, coalesce(new.description, ''), coalesce(new.tags, ''), coalesce(new.contexts, ''));
 END;
@@ -109,11 +111,13 @@ CREATE TRIGGER IF NOT EXISTS projects_ai AFTER INSERT ON projects BEGIN
 END;
 
 CREATE TRIGGER IF NOT EXISTS projects_ad AFTER DELETE ON projects BEGIN
-  DELETE FROM projects_fts WHERE id = old.id;
+  INSERT INTO projects_fts (projects_fts, id, title, supportNotes, tagIds, areaTitle)
+  VALUES ('delete', old.id, old.title, coalesce(old.supportNotes, ''), coalesce(old.tagIds, ''), coalesce(old.areaTitle, ''));
 END;
 
 CREATE TRIGGER IF NOT EXISTS projects_au AFTER UPDATE ON projects BEGIN
-  DELETE FROM projects_fts WHERE id = old.id;
+  INSERT INTO projects_fts (projects_fts, id, title, supportNotes, tagIds, areaTitle)
+  VALUES ('delete', old.id, old.title, coalesce(old.supportNotes, ''), coalesce(old.tagIds, ''), coalesce(old.areaTitle, ''));
   INSERT INTO projects_fts (id, title, supportNotes, tagIds, areaTitle)
   VALUES (new.id, new.title, coalesce(new.supportNotes, ''), coalesce(new.tagIds, ''), coalesce(new.areaTitle, ''));
 END;

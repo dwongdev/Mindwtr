@@ -79,7 +79,6 @@ export default function FocusScreen() {
         stickySectionHeadersEnabled={false}
         contentContainerStyle={[
           styles.listContent,
-          schedule.length === 0 && nextActions.length === 0 && { flex: 1, justifyContent: 'center' },
         ]}
         ListHeaderComponent={(
           <View style={styles.header}>

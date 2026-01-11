@@ -363,7 +363,7 @@ export function KeybindingProvider({
                     }
                 }
             }
-            if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.code === 'Space' && !e.altKey && !isEditableTarget(e.target)) {
+            if ((e.ctrlKey || e.metaKey) && e.shiftKey && !e.altKey && e.code === 'KeyA' && !isEditableTarget(e.target)) {
                 e.preventDefault();
                 triggerQuickAdd();
                 return;
