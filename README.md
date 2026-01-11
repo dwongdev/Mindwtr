@@ -72,7 +72,7 @@ Mindwtr is built to be **simple by default and powerful when you need it**. We f
 - ♾️ **Fluid Recurrence** - Strict dates or “X days after completion”
 - ♻️ **Reusable Lists** - Duplicate tasks or reset checklists
 - ✅ **Checklist Mode** - Fast list-style checking for checklist tasks
-- 🎙️ **Audio Capture** - Quick voice capture with automatic transcription and task creation
+- ✅ **Audio Capture** - Quick voice capture with automatic transcription and task creation
 - 🧭 **Copilot Suggestions** - Optional context/tag/time hints while typing
 - 🧘 **Focus / Zen Modes** - Reduce clutter and highlight top priorities
 - 🔔 **Notifications** - Due date reminders with snooze
@@ -187,7 +187,8 @@ Sync via File (Dropbox, etc.) or WebDAV (Nextcloud, etc.) can be configured in S
 
 ## Roadmap
 
-- Build an MCP server for Mindwtr (LLM integration and automation).
+- ✅ Build an MCP server for Mindwtr (LLM integration and automation).
+- ⏳ Add email capture (forward emails to create tasks).
 
 ## Development
 
