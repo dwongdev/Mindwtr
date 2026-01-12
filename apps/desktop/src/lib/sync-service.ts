@@ -259,7 +259,7 @@ const getCloudBaseUrl = (fullUrl: string): string => {
 
 const getFileSyncDir = (syncPath: string): string => {
     if (!syncPath) return '';
-    const trimmed = syncPath.replace(/[\\\/]+$/, '');
+    const trimmed = syncPath.replace(/[\\/]+$/, '');
     if (isSyncFilePath(trimmed)) {
         const lastSlash = Math.max(trimmed.lastIndexOf('/'), trimmed.lastIndexOf('\\'));
         return lastSlash > -1 ? trimmed.slice(0, lastSlash) : '';
