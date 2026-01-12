@@ -1,7 +1,15 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as FileSystem from 'expo-file-system/legacy';
 import type { AppData, Attachment } from '@mindwtr/core';
-import { cloudGetFile, cloudPutFile, webdavGetFile, webdavMakeDirectory, webdavPutFile } from '@mindwtr/core';
+import {
+  cloudGetFile,
+  cloudPutFile,
+  computeSha256Hex,
+  webdavGetFile,
+  webdavMakeDirectory,
+  webdavPutFile,
+  withRetry,
+} from '@mindwtr/core';
 import {
   SYNC_BACKEND_KEY,
   SYNC_PATH_KEY,
@@ -25,6 +33,8 @@ const BASE64_LOOKUP = (() => {
   }
   return map;
 })();
+
+const downloadLocks = new Map<string, Promise<Attachment | null>>();
 
 const bytesToBase64 = (bytes: Uint8Array): string => {
   let out = '';
@@ -78,6 +88,16 @@ const extractExtension = (value?: string): string => {
   const leaf = stripped.split(/[\\/]/).pop() || '';
   const match = leaf.match(/\.[A-Za-z0-9]{1,8}$/);
   return match ? match[0].toLowerCase() : '';
+};
+
+const validateAttachmentHash = async (attachment: Attachment, bytes: Uint8Array): Promise<void> => {
+  const expected = attachment.fileHash;
+  if (!expected || expected.length !== 64) return;
+  const computed = await computeSha256Hex(bytes);
+  if (!computed) return;
+  if (computed.toLowerCase() !== expected.toLowerCase()) {
+    throw new Error('Integrity validation failed');
+  }
 };
 
 export const buildCloudKey = (attachment: Attachment): string => {
@@ -487,7 +507,7 @@ const ensureFileAttachmentAvailable = async (attachment: Attachment, syncPath: s
   }
 };
 
-export const ensureAttachmentAvailable = async (attachment: Attachment): Promise<Attachment | null> => {
+const ensureAttachmentAvailableInternal = async (attachment: Attachment): Promise<Attachment | null> => {
   if (attachment.kind !== 'file') return attachment;
   const uri = attachment.uri || '';
   const isHttp = /^https?:\/\//i.test(uri);
@@ -526,10 +546,13 @@ export const ensureAttachmentAvailable = async (attachment: Attachment): Promise
       return { ...attachment, uri: targetUri, localStatus: 'available' };
     }
     try {
-      const data = await cloudGetFile(`${baseSyncUrl}/${attachment.cloudKey}`, {
-        token: config.token,
-      });
+      const data = await withRetry(() =>
+        cloudGetFile(`${baseSyncUrl}/${attachment.cloudKey}`, {
+          token: config.token,
+        })
+      );
       const bytes = data instanceof ArrayBuffer ? new Uint8Array(data) : new Uint8Array(data as ArrayBuffer);
+      await validateAttachmentHash(attachment, bytes);
       const base64 = bytesToBase64(bytes);
       await FileSystem.writeAsStringAsync(targetUri, base64, { encoding: FileSystem.EncodingType.Base64 });
       return { ...attachment, uri: targetUri, localStatus: 'available' };
@@ -552,11 +575,14 @@ export const ensureAttachmentAvailable = async (attachment: Attachment): Promise
       return { ...attachment, uri: targetUri, localStatus: 'available' };
     }
     try {
-      const data = await webdavGetFile(`${baseSyncUrl}/${attachment.cloudKey}`, {
-        username: config.username,
-        password: config.password,
-      });
+      const data = await withRetry(() =>
+        webdavGetFile(`${baseSyncUrl}/${attachment.cloudKey}`, {
+          username: config.username,
+          password: config.password,
+        })
+      );
       const bytes = data instanceof ArrayBuffer ? new Uint8Array(data) : new Uint8Array(data as ArrayBuffer);
+      await validateAttachmentHash(attachment, bytes);
       const base64 = bytesToBase64(bytes);
       await FileSystem.writeAsStringAsync(targetUri, base64, { encoding: FileSystem.EncodingType.Base64 });
       return { ...attachment, uri: targetUri, localStatus: 'available' };
@@ -567,4 +593,17 @@ export const ensureAttachmentAvailable = async (attachment: Attachment): Promise
   }
 
   return null;
+};
+
+export const ensureAttachmentAvailable = async (attachment: Attachment): Promise<Attachment | null> => {
+  if (attachment.kind !== 'file') return attachment;
+  const existing = downloadLocks.get(attachment.id);
+  if (existing) return existing;
+  const downloadPromise = ensureAttachmentAvailableInternal(attachment);
+  downloadLocks.set(attachment.id, downloadPromise);
+  try {
+    return await downloadPromise;
+  } finally {
+    downloadLocks.delete(attachment.id);
+  }
 };

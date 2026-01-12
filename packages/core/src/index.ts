@@ -23,6 +23,7 @@ export * from './markdown';
 export * from './webdav';
 export * from './cloud';
 export * from './retry-utils';
+export * from './attachment-hash';
 export * from './ics';
 export * from './task-status';
 export * from './text-direction';

@@ -4,6 +4,7 @@ import {
     Attachment,
     useTaskStore,
     MergeStats,
+    computeSha256Hex,
     webdavGetJson,
     webdavPutJson,
     webdavGetFile,
@@ -16,6 +17,7 @@ import {
     flushPendingSave,
     performSyncCycle,
     normalizeAppData,
+    withRetry,
 } from '@mindwtr/core';
 import { isTauriRuntime } from './runtime';
 import { logSyncError, sanitizeLogMessage } from './app-log';
@@ -95,6 +97,16 @@ const extractExtension = (value?: string): string => {
 const buildCloudKey = (attachment: Attachment): string => {
     const ext = extractExtension(attachment.title) || extractExtension(attachment.uri);
     return `${ATTACHMENTS_DIR_NAME}/${attachment.id}${ext}`;
+};
+
+const validateAttachmentHash = async (attachment: Attachment, bytes: Uint8Array): Promise<void> => {
+    const expected = attachment.fileHash;
+    if (!expected || expected.length !== 64) return;
+    const computed = await computeSha256Hex(bytes);
+    if (!computed) return;
+    if (computed.toLowerCase() !== expected.toLowerCase()) {
+        throw new Error('Integrity validation failed');
+    }
 };
 
 const getBaseSyncUrl = (fullUrl: string): string => {
@@ -278,21 +290,31 @@ async function syncAttachments(
         }
 
         if (attachment.cloudKey && !existsLocally) {
+            if (attachment.localStatus !== 'downloading') {
+                attachment.localStatus = 'downloading';
+                didMutate = true;
+            }
             try {
                 const downloadUrl = `${baseSyncUrl}/${attachment.cloudKey}`;
-                const fileData = await webdavGetFile(downloadUrl, {
-                    username: webDavConfig.username,
-                    password: webDavConfig.password || '',
-                    fetcher,
-                });
+                const fileData = await withRetry(() =>
+                    webdavGetFile(downloadUrl, {
+                        username: webDavConfig.username,
+                        password: webDavConfig.password || '',
+                        fetcher,
+                    })
+                );
+                const bytes = fileData instanceof ArrayBuffer ? new Uint8Array(fileData) : new Uint8Array(fileData as ArrayBuffer);
+                await validateAttachmentHash(attachment, bytes);
                 const filename = attachment.cloudKey.split('/').pop() || `${attachment.id}${extractExtension(attachment.uri)}`;
                 const relativePath = `${ATTACHMENTS_DIR_NAME}/${filename}`;
-                await writeFile(relativePath, new Uint8Array(fileData), { baseDir: BaseDirectory.Data });
+                await writeFile(relativePath, bytes, { baseDir: BaseDirectory.Data });
                 const absolutePath = await join(baseDataDir, relativePath);
                 attachment.uri = absolutePath;
                 attachment.localStatus = 'available';
                 didMutate = true;
             } catch (error) {
+                attachment.localStatus = 'missing';
+                didMutate = true;
                 console.warn(`Failed to download attachment ${attachment.title}`, error);
             }
         }
@@ -394,20 +416,30 @@ async function syncCloudAttachments(
         }
 
         if (attachment.cloudKey && !existsLocally) {
+            if (attachment.localStatus !== 'downloading') {
+                attachment.localStatus = 'downloading';
+                didMutate = true;
+            }
             try {
                 const downloadUrl = `${baseSyncUrl}/${attachment.cloudKey}`;
-                const fileData = await cloudGetFile(downloadUrl, {
-                    token: cloudConfig.token,
-                    fetcher,
-                });
+                const fileData = await withRetry(() =>
+                    cloudGetFile(downloadUrl, {
+                        token: cloudConfig.token,
+                        fetcher,
+                    })
+                );
+                const bytes = fileData instanceof ArrayBuffer ? new Uint8Array(fileData) : new Uint8Array(fileData as ArrayBuffer);
+                await validateAttachmentHash(attachment, bytes);
                 const filename = attachment.cloudKey.split('/').pop() || `${attachment.id}${extractExtension(attachment.uri)}`;
                 const relativePath = `${ATTACHMENTS_DIR_NAME}/${filename}`;
-                await writeFile(relativePath, new Uint8Array(fileData), { baseDir: BaseDirectory.Data });
+                await writeFile(relativePath, bytes, { baseDir: BaseDirectory.Data });
                 const absolutePath = await join(baseDataDir, relativePath);
                 attachment.uri = absolutePath;
                 attachment.localStatus = 'available';
                 didMutate = true;
             } catch (error) {
+                attachment.localStatus = 'missing';
+                didMutate = true;
                 console.warn(`Failed to download attachment ${attachment.title}`, error);
             }
         }
@@ -507,11 +539,16 @@ async function syncFileAttachments(
         }
 
         if (attachment.cloudKey && !existsLocally) {
+            if (attachment.localStatus !== 'downloading') {
+                attachment.localStatus = 'downloading';
+                didMutate = true;
+            }
             try {
                 const sourcePath = await join(baseSyncDir, attachment.cloudKey);
                 const hasRemote = await exists(sourcePath);
                 if (!hasRemote) continue;
                 const fileData = await readFile(sourcePath);
+                await validateAttachmentHash(attachment, fileData);
                 const filename = attachment.cloudKey.split('/').pop() || `${attachment.id}${extractExtension(attachment.uri)}`;
                 const relativePath = `${ATTACHMENTS_DIR_NAME}/${filename}`;
                 await writeFile(relativePath, fileData, { baseDir: BaseDirectory.Data });
@@ -520,6 +557,8 @@ async function syncFileAttachments(
                 attachment.localStatus = 'available';
                 didMutate = true;
             } catch (error) {
+                attachment.localStatus = 'missing';
+                didMutate = true;
                 console.warn(`Failed to copy attachment ${attachment.title} from sync folder`, error);
             }
         }
