@@ -108,6 +108,7 @@ export class SqliteAdapter {
         }
         await this.ensureTaskPurgedAtColumn();
         await this.ensureTaskOrderColumn();
+        await this.ensureTaskTextDirectionColumn();
         await this.ensureProjectOrderColumn();
         // FTS operations are optional - don't block startup if they fail
         try {
@@ -181,6 +182,14 @@ export class SqliteAdapter {
         const hasPurgedAt = columns.some((col) => col.name === 'purgedAt');
         if (!hasPurgedAt) {
             await this.client.run('ALTER TABLE tasks ADD COLUMN purgedAt TEXT');
+        }
+    }
+
+    private async ensureTaskTextDirectionColumn() {
+        const columns = await this.client.all<{ name?: string }>('PRAGMA table_info(tasks)');
+        const hasTextDirection = columns.some((col) => col.name === 'textDirection');
+        if (!hasTextDirection) {
+            await this.client.run('ALTER TABLE tasks ADD COLUMN textDirection TEXT');
         }
     }
 
@@ -292,6 +301,7 @@ export class SqliteAdapter {
             contexts: toStringArray(fromJson<unknown>(row.contexts, [])),
             checklist: toChecklist(fromJson<unknown>(row.checklist, undefined)),
             description: row.description as string | undefined,
+            textDirection: row.textDirection as Task['textDirection'] | undefined,
             attachments: toAttachments(fromJson<unknown>(row.attachments, undefined)),
             location: row.location as string | undefined,
             projectId: row.projectId as string | undefined,
@@ -503,6 +513,7 @@ export class SqliteAdapter {
                     'contexts',
                     'checklist',
                     'description',
+                    'textDirection',
                     'attachments',
                     'location',
                     'projectId',
@@ -530,6 +541,7 @@ export class SqliteAdapter {
                     toJson(task.contexts ?? []),
                     toJson(task.checklist),
                     task.description ?? null,
+                    task.textDirection ?? null,
                     toJson(task.attachments),
                     task.location ?? null,
                     task.projectId ?? null,
@@ -555,6 +567,7 @@ export class SqliteAdapter {
                  contexts=excluded.contexts,
                  checklist=excluded.checklist,
                  description=excluded.description,
+                 textDirection=excluded.textDirection,
                  attachments=excluded.attachments,
                  location=excluded.location,
                  projectId=excluded.projectId,

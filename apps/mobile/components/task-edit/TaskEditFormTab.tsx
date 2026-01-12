@@ -38,6 +38,7 @@ type TaskEditFormTabProps = {
     onDateChange: (event: DateTimePickerEvent, selectedDate?: Date) => void;
     onCloseDatePicker: () => void;
     containerWidth: number;
+    textDirectionStyle: Record<string, any>;
 };
 
 export function TaskEditFormTab({
@@ -71,6 +72,7 @@ export function TaskEditFormTab({
     onDateChange,
     onCloseDatePicker,
     containerWidth,
+    textDirectionStyle,
 }: TaskEditFormTabProps) {
     const countFilledFields = (fieldIds: TaskEditorFieldId[]): number => {
         return fieldIds.filter((fieldId) => {
@@ -95,6 +97,8 @@ export function TaskEditFormTab({
                     return (editedTask.checklist?.length ?? 0) > 0;
                 case 'attachments':
                     return (editedTask.attachments || []).some((attachment) => !attachment.deletedAt);
+                case 'textDirection':
+                    return Boolean(editedTask.textDirection);
                 default:
                     return false;
             }
@@ -117,7 +121,7 @@ export function TaskEditFormTab({
                     <View style={styles.formGroup}>
                         <Text style={[styles.label, { color: tc.secondaryText }]}>{t('taskEdit.titleLabel')}</Text>
                         <TextInput
-                            style={[styles.input, inputStyle]}
+                            style={[styles.input, inputStyle, textDirectionStyle]}
                             value={editedTask.title}
                             onChangeText={(text) => {
                                 setEditedTask((prev) => ({ ...prev, title: text }));

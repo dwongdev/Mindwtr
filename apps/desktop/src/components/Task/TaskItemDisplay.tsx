@@ -1,6 +1,6 @@
 import { Calendar as CalendarIcon, Tag, Trash2, ArrowRight, Repeat, Check, Clock, Timer, Paperclip, Pencil, RotateCcw, Copy, MapPin, Hourglass } from 'lucide-react';
 import type { Attachment, Project, Task, TaskStatus, RecurrenceRule, RecurrenceStrategy } from '@mindwtr/core';
-import { getChecklistProgress, getTaskAgeLabel, getTaskStaleness, getTaskUrgency, hasTimeComponent, safeFormatDate, stripMarkdown } from '@mindwtr/core';
+import { getChecklistProgress, getTaskAgeLabel, getTaskStaleness, getTaskUrgency, hasTimeComponent, safeFormatDate, stripMarkdown, resolveTaskTextDirection } from '@mindwtr/core';
 import { cn } from '../../lib/utils';
 import { MetadataBadge } from '../ui/MetadataBadge';
 
@@ -76,6 +76,8 @@ export function TaskItemDisplay({
     const showCompactMeta = compactMetaEnabled
         && !isViewOpen
         && (project || (task.contexts?.length ?? 0) > 0);
+    const resolvedDirection = resolveTaskTextDirection(task);
+    const isRtl = resolvedDirection === 'rtl';
 
     return (
         <div className="flex-1 min-w-0 flex items-start justify-between gap-3">
@@ -109,10 +111,12 @@ export function TaskItemDisplay({
                     }}
                     className={cn(
                         "w-full text-left rounded px-0.5 py-0.5 transition-colors focus:outline-none focus:ring-2 focus:ring-primary/40",
-                        selectionMode ? "cursor-pointer" : "cursor-default"
+                        selectionMode ? "cursor-pointer" : "cursor-default",
+                        isRtl && "text-right"
                     )}
                     aria-expanded={isViewOpen}
                     aria-label={t('task.toggleDetails') || 'Toggle task details'}
+                    dir={resolvedDirection}
                 >
                     <div
                         className={cn(
@@ -123,7 +127,7 @@ export function TaskItemDisplay({
                         {task.title}
                     </div>
                     {task.description && (
-                        <p className="text-sm text-muted-foreground mt-1">
+                        <p className={cn("text-sm text-muted-foreground mt-1", isRtl && "text-right")} dir={resolvedDirection}>
                             {stripMarkdown(task.description)}
                         </p>
                     )}

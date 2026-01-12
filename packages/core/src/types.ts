@@ -12,6 +12,8 @@ export type RecurrenceRule = 'daily' | 'weekly' | 'monthly' | 'yearly';
 
 export type RecurrenceStrategy = 'strict' | 'fluid';
 
+export type TextDirection = 'auto' | 'ltr' | 'rtl';
+
 export type RecurrenceWeekday = 'MO' | 'TU' | 'WE' | 'TH' | 'FR' | 'SA' | 'SU';
 
 export type RecurrenceByDay =
@@ -37,6 +39,7 @@ export type TaskEditorFieldId =
     | 'dueDate'
     | 'reviewAt'
     | 'description'
+    | 'textDirection'
     | 'attachments'
     | 'checklist';
 
@@ -103,6 +106,7 @@ export interface Task {
     contexts: string[]; // e.g., '@home', '@work'
     checklist?: ChecklistItem[]; // Subtasks/Shopping list items
     description?: string;
+    textDirection?: TextDirection;
     attachments?: Attachment[];
     location?: string;
     projectId?: string;

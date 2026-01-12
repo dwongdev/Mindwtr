@@ -52,9 +52,20 @@ function renderInline(text: string, tc: ThemeColors, keyPrefix: string): React.R
   return nodes.filter((node): node is string | React.ReactElement => node !== null);
 }
 
-export function MarkdownText({ markdown, tc }: { markdown: string; tc: ThemeColors }) {
+export function MarkdownText({
+  markdown,
+  tc,
+  direction,
+}: {
+  markdown: string;
+  tc: ThemeColors;
+  direction?: 'ltr' | 'rtl';
+}) {
   const source = (markdown || '').replace(/\r\n/g, '\n');
   const lines = source.split('\n');
+  const directionStyle = direction
+    ? { writingDirection: direction, textAlign: direction === 'rtl' ? 'right' : 'left' }
+    : null;
 
   const blocks: React.ReactNode[] = [];
   let i = 0;
@@ -75,7 +86,8 @@ export function MarkdownText({ markdown, tc }: { markdown: string; tc: ThemeColo
           key={`h-${i}`}
           style={[
             styles.heading,
-            { color: tc.text, fontSize: level === 1 ? 16 : level === 2 ? 15 : 14 }
+            { color: tc.text, fontSize: level === 1 ? 16 : level === 2 ? 15 : 14 },
+            directionStyle,
           ]}
         >
           {renderInline(text, tc, `h-${i}`)}
@@ -97,7 +109,7 @@ export function MarkdownText({ markdown, tc }: { markdown: string; tc: ThemeColo
       blocks.push(
         <View key={`ul-${i}`} style={styles.list}>
           {items.map((item, idx) => (
-            <Text key={idx} style={[styles.paragraph, { color: tc.text }]}>
+            <Text key={idx} style={[styles.paragraph, { color: tc.text }, directionStyle]}>
               • {renderInline(item, tc, `li-${i}-${idx}`)}
             </Text>
           ))}
@@ -114,7 +126,7 @@ export function MarkdownText({ markdown, tc }: { markdown: string; tc: ThemeColo
     const text = paragraph.join(' ').trim();
     if (text) {
       blocks.push(
-        <Text key={`p-${i}`} style={[styles.paragraph, { color: tc.text }]}>
+        <Text key={`p-${i}`} style={[styles.paragraph, { color: tc.text }, directionStyle]}>
           {renderInline(text, tc, `p-${i}`)}
         </Text>
       );

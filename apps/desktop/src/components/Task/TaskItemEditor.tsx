@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, type FormEvent, type ReactNode } from 'react';
 import { Loader2, Sparkles } from 'lucide-react';
-import { hasTimeComponent, safeFormatDate, safeParseDate, type ClarifyResponse, type Project, type TaskEditorFieldId, type TimeEstimate } from '@mindwtr/core';
+import { hasTimeComponent, safeFormatDate, safeParseDate, resolveTextDirection, type ClarifyResponse, type Project, type TaskEditorFieldId, type TextDirection, type TimeEstimate } from '@mindwtr/core';
 import { ProjectSelector } from '../ui/ProjectSelector';
 import { TaskInput } from './TaskInput';
 
@@ -48,6 +48,7 @@ interface TaskItemEditorProps {
     renderField: (fieldId: TaskEditorFieldId) => ReactNode;
     editLocation: string;
     setEditLocation: (value: string) => void;
+    editTextDirection: TextDirection | undefined;
     inputContexts: string[];
     onDuplicateTask: () => void;
     onCancel: () => void;
@@ -94,6 +95,7 @@ export function TaskItemEditor({
     renderField,
     editLocation,
     setEditLocation,
+    editTextDirection,
     inputContexts,
     onDuplicateTask,
     onCancel,
@@ -103,6 +105,7 @@ export function TaskItemEditor({
     const dueParsed = editDueDate ? safeParseDate(editDueDate) : null;
     const dueDateValue = dueParsed ? safeFormatDate(dueParsed, 'yyyy-MM-dd') : '';
     const dueTimeValue = dueHasTime && dueParsed ? safeFormatDate(dueParsed, 'HH:mm') : '';
+    const titleDirection = resolveTextDirection(editTitle, editTextDirection);
 
     const handleDueDateChange = (value: string) => {
         if (!value) {
@@ -171,6 +174,7 @@ export function TaskItemEditor({
                     onCreateProject={onCreateProject}
                     placeholder={t('taskEdit.titleLabel')}
                     className="w-full bg-transparent border-b border-primary/50 p-1 text-base font-medium focus:ring-0 focus:border-primary outline-none"
+                    dir={titleDirection}
                 />
                 {aiEnabled && (
                     <div className="relative" ref={aiMenuRef}>

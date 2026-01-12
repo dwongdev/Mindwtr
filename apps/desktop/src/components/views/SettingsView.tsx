@@ -789,6 +789,7 @@ export function SettingsView() {
             taskEditorFieldReviewAt: 'Review date',
             taskEditorFieldAttachments: 'Attachments',
             taskEditorFieldChecklist: 'Checklist',
+            taskEditorFieldTextDirection: 'Text direction',
             featurePriorities: 'Priorities',
             featurePrioritiesDesc: 'Show a priority flag on tasks.',
             featureTimeEstimates: 'Time estimates',
@@ -976,6 +977,7 @@ export function SettingsView() {
             taskEditorFieldReviewAt: '回顾日期',
             taskEditorFieldAttachments: '附件',
             taskEditorFieldChecklist: '清单',
+            taskEditorFieldTextDirection: '文本方向',
             featurePriorities: '优先级',
             featurePrioritiesDesc: '为任务显示优先级标记。',
             featureTimeEstimates: '时间估算',
@@ -1145,6 +1147,7 @@ export function SettingsView() {
         taskEditorFieldReviewAt: 'taskEdit.reviewDateLabel',
         taskEditorFieldAttachments: 'attachments.title',
         taskEditorFieldChecklist: 'taskEdit.checklist',
+        taskEditorFieldTextDirection: 'taskEdit.textDirectionLabel',
     };
     const labelsFallback = language === 'zh' ? labelFallback.zh : labelFallback.en;
     const t = useMemo(() => {

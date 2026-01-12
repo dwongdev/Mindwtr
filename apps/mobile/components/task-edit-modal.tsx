@@ -25,6 +25,7 @@ import {
     safeFormatDate,
     safeParseDate,
     safeParseDueDate,
+    resolveTextDirection,
 } from '@mindwtr/core';
 import type { DateTimePickerEvent } from '@react-native-community/datetimepicker';
 import * as DocumentPicker from 'expo-document-picker';
@@ -81,6 +82,7 @@ const DEFAULT_TASK_EDITOR_ORDER: TaskEditorFieldId[] = [
     'priority',
     'contexts',
     'description',
+    'textDirection',
     'tags',
     'timeEstimate',
     'recurrence',
@@ -863,7 +865,7 @@ export function TaskEditModal({ visible, task, onClose, onSave, onFocusMode, def
         [orderFields]
     );
     const detailsFields = useMemo(
-        () => orderFields(['description', 'checklist', 'attachments']),
+        () => orderFields(['description', 'textDirection', 'checklist', 'attachments']),
         [orderFields]
     );
 
@@ -1179,6 +1181,13 @@ export function TaskEditModal({ visible, task, onClose, onSave, onFocusMode, def
     };
 
     const inputStyle = { backgroundColor: tc.inputBg, borderColor: tc.border, color: tc.text };
+    const textDirectionValue = (editedTask.textDirection ?? 'auto') as Task['textDirection'] | 'auto';
+    const combinedText = `${editedTask.title ?? ''}\n${editedTask.description ?? ''}`.trim();
+    const resolvedDirection = resolveTextDirection(combinedText, textDirectionValue);
+    const textDirectionStyle = {
+        writingDirection: resolvedDirection,
+        textAlign: resolvedDirection === 'rtl' ? 'right' : 'left',
+    } as const;
     const getStatusChipStyle = (active: boolean) => ([
         styles.statusChip,
         { backgroundColor: active ? tc.tint : tc.filterBg, borderColor: active ? tc.tint : tc.border },
@@ -1611,6 +1620,35 @@ export function TaskEditModal({ visible, task, onClose, onSave, onFocusMode, def
                         </View>
                     </View>
                 );
+            case 'textDirection':
+                return (
+                    <View style={styles.formGroup}>
+                        <Text style={[styles.label, { color: tc.secondaryText }]}>{t('taskEdit.textDirectionLabel')}</Text>
+                        <View style={styles.statusContainer}>
+                            {([
+                                { value: 'auto', label: t('taskEdit.textDirection.auto') },
+                                { value: 'ltr', label: t('taskEdit.textDirection.ltr') },
+                                { value: 'rtl', label: t('taskEdit.textDirection.rtl') },
+                            ] as const).map((option) => {
+                                const isActive = (editedTask.textDirection ?? 'auto') === option.value;
+                                return (
+                                    <TouchableOpacity
+                                        key={option.value}
+                                        style={getStatusChipStyle(isActive)}
+                                        onPress={() => {
+                                            setEditedTask((prev) => ({
+                                                ...prev,
+                                                textDirection: option.value === 'auto' ? undefined : option.value,
+                                            }));
+                                        }}
+                                    >
+                                        <Text style={getStatusTextStyle(isActive)}>{option.label}</Text>
+                                    </TouchableOpacity>
+                                );
+                            })}
+                        </View>
+                    </View>
+                );
             case 'description':
                 return (
                     <View style={styles.formGroup}>
@@ -1624,11 +1662,11 @@ export function TaskEditModal({ visible, task, onClose, onSave, onFocusMode, def
                         </View>
                         {showDescriptionPreview ? (
                             <View style={[styles.markdownPreview, { backgroundColor: tc.filterBg, borderColor: tc.border }]}>
-                                <MarkdownText markdown={editedTask.description || ''} tc={tc} />
+                                <MarkdownText markdown={editedTask.description || ''} tc={tc} direction={resolvedDirection} />
                             </View>
                         ) : (
                             <TextInput
-                                style={[styles.input, styles.textArea, inputStyle]}
+                                style={[styles.input, styles.textArea, inputStyle, textDirectionStyle]}
                                 value={editedTask.description || ''}
                                 onChangeText={(text) => {
                                     setEditedTask(prev => ({ ...prev, description: text }));
@@ -1715,6 +1753,7 @@ export function TaskEditModal({ visible, task, onClose, onSave, onFocusMode, def
                                     <TextInput
                                         style={[
                                             styles.checklistInput,
+                                            textDirectionStyle,
                                             { color: item.isCompleted ? tc.secondaryText : tc.text },
                                             item.isCompleted && styles.completedText,
                                         ]}
@@ -1874,6 +1913,7 @@ export function TaskEditModal({ visible, task, onClose, onSave, onFocusMode, def
                             onDateChange={onDateChange}
                             onCloseDatePicker={() => setShowDatePicker(null)}
                             containerWidth={containerWidth}
+                            textDirectionStyle={textDirectionStyle}
                         />
                         <View style={[styles.tabPage, { width: containerWidth || '100%' }]}>
                             <TaskEditViewTab
@@ -1893,6 +1933,8 @@ export function TaskEditModal({ visible, task, onClose, onSave, onFocusMode, def
                                 visibleAttachments={visibleAttachments}
                                 openAttachment={openAttachment}
                                 isImageAttachment={isImageAttachment}
+                                textDirectionStyle={textDirectionStyle}
+                                resolvedDirection={resolvedDirection}
                                 nestedScrollEnabled
                             />
                         </View>

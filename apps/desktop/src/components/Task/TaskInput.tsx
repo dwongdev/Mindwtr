@@ -28,6 +28,7 @@ interface TaskInputProps {
     autoFocus?: boolean;
     inputRef?: RefObject<HTMLInputElement | null>;
     onKeyDown?: KeyboardEventHandler<HTMLInputElement>;
+    dir?: 'ltr' | 'rtl';
 }
 
 function getTrigger(text: string, caret: number): TriggerState | null {
@@ -57,6 +58,7 @@ export function TaskInput({
     autoFocus,
     inputRef,
     onKeyDown,
+    dir,
 }: TaskInputProps) {
     const localRef = useRef<HTMLInputElement>(null);
     const mergedRef = inputRef ?? localRef;
@@ -192,7 +194,8 @@ export function TaskInput({
                     window.setTimeout(() => closeTrigger(), 250);
                 }}
                 placeholder={placeholder}
-                className={className}
+                className={cn(className, dir === 'rtl' && 'text-right')}
+                dir={dir}
             />
             {trigger && options.length > 0 && (
                 <div className="absolute z-20 mt-2 w-64 rounded-md border border-border bg-popover shadow-lg p-1 text-xs">

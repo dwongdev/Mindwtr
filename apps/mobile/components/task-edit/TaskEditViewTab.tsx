@@ -28,6 +28,8 @@ type TaskEditViewTabProps = {
   visibleAttachments: Attachment[];
   openAttachment: (attachment: Attachment) => void;
   isImageAttachment: (attachment: Attachment) => boolean;
+  textDirectionStyle: Record<string, any>;
+  resolvedDirection: 'ltr' | 'rtl';
   nestedScrollEnabled?: boolean;
 };
 
@@ -48,6 +50,8 @@ export function TaskEditViewTab({
   visibleAttachments,
   openAttachment,
   isImageAttachment,
+  textDirectionStyle,
+  resolvedDirection,
   nestedScrollEnabled,
 }: TaskEditViewTabProps) {
   const renderViewRow = (label: string, value?: string) => {
@@ -76,6 +80,13 @@ export function TaskEditViewTab({
   const project = projects.find((p) => p.id === mergedTask.projectId);
   const description = String(mergedTask.description || '').trim();
   const checklist = mergedTask.checklist || [];
+  const textDirectionValue = mergedTask.textDirection ?? 'auto';
+  const textDirectionLabel =
+    textDirectionValue === 'rtl'
+      ? t('taskEdit.textDirection.rtl')
+      : textDirectionValue === 'ltr'
+        ? t('taskEdit.textDirection.ltr')
+        : t('taskEdit.textDirection.auto');
 
   const statusLabel = mergedTask.status ? (t(`status.${mergedTask.status}`) || mergedTask.status) : undefined;
   const priorityLabel = mergedTask.priority ? (t(`priority.${mergedTask.priority}`) || mergedTask.priority) : undefined;
@@ -102,6 +113,7 @@ export function TaskEditViewTab({
       {renderViewRow(t('taskEdit.dueDateLabel'), mergedTask.dueDate ? formatDueDate(mergedTask.dueDate) : undefined)}
       {renderViewRow(t('taskEdit.reviewDateLabel'), mergedTask.reviewAt ? formatDate(mergedTask.reviewAt) : undefined)}
       {timeEstimatesEnabled ? renderViewRow(t('taskEdit.timeEstimateLabel'), timeEstimateLabel) : null}
+      {mergedTask.textDirection ? renderViewRow(t('taskEdit.textDirectionLabel'), textDirectionLabel) : null}
       {mergedTask.contexts?.length ? (
         <View style={styles.viewSection}>
           <Text style={[styles.viewLabel, { color: tc.secondaryText }]}>{t('taskEdit.contextsLabel')}</Text>
@@ -121,7 +133,7 @@ export function TaskEditViewTab({
           <Text style={[styles.viewLabel, { color: tc.secondaryText }]}>{t('taskEdit.descriptionLabel')}</Text>
           <View style={[styles.viewCard, { borderColor: tc.border, backgroundColor: tc.inputBg }]}
           >
-            <MarkdownText markdown={description} tc={tc} />
+            <MarkdownText markdown={description} tc={tc} direction={resolvedDirection} />
           </View>
         </View>
       ) : null}
@@ -143,7 +155,7 @@ export function TaskEditViewTab({
                 <Text style={[styles.viewChecklistMarker, { color: item.isCompleted ? tc.tint : tc.secondaryText }]}>
                   {item.isCompleted ? '✓' : '○'}
                 </Text>
-                <Text style={[styles.viewChecklistText, { color: tc.text }]}>{item.title}</Text>
+                <Text style={[styles.viewChecklistText, textDirectionStyle, { color: tc.text }]}>{item.title}</Text>
               </TouchableOpacity>
             ))}
           </View>

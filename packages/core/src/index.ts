@@ -24,6 +24,7 @@ export * from './webdav';
 export * from './cloud';
 export * from './ics';
 export * from './task-status';
+export * from './text-direction';
 export * from './ai/ai-service';
 export * from './ai/types';
 export * from './ai/catalog';

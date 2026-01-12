@@ -48,6 +48,7 @@ const DEFAULT_TASK_EDITOR_ORDER: TaskEditorFieldId[] = [
     'priority',
     'contexts',
     'description',
+    'textDirection',
     'tags',
     'timeEstimate',
     'recurrence',
@@ -135,6 +136,7 @@ export const TaskItem = memo(function TaskItem({
     const [editContexts, setEditContexts] = useState(task.contexts?.join(', ') || '');
     const [editTags, setEditTags] = useState(task.tags?.join(', ') || '');
     const [editDescription, setEditDescription] = useState(task.description || '');
+    const [editTextDirection, setEditTextDirection] = useState(task.textDirection ?? 'auto');
     const [showDescriptionPreview, setShowDescriptionPreview] = useState(false);
     const [editLocation, setEditLocation] = useState(task.location || '');
     const [editRecurrence, setEditRecurrence] = useState<RecurrenceRule | ''>(getRecurrenceRuleValue(task.recurrence));
@@ -348,6 +350,8 @@ export const TaskItem = memo(function TaskItem({
                 return Boolean(editContexts.trim());
             case 'description':
                 return Boolean(editDescription.trim());
+            case 'textDirection':
+                return editTextDirection !== undefined && editTextDirection !== 'auto';
             case 'tags':
                 return Boolean(editTags.trim());
             case 'timeEstimate':
@@ -371,6 +375,7 @@ export const TaskItem = memo(function TaskItem({
     }, [
         editContexts,
         editDescription,
+        editTextDirection,
         editDueDate,
         editPriority,
         editRecurrence,
@@ -416,7 +421,7 @@ export const TaskItem = memo(function TaskItem({
         [filterVisibleFields, orderFields]
     );
     const detailsFields = useMemo(
-        () => filterVisibleFields(orderFields(['description', 'attachments', 'checklist'])),
+        () => filterVisibleFields(orderFields(['description', 'textDirection', 'attachments', 'checklist'])),
         [filterVisibleFields, orderFields]
     );
     const sectionCounts = useMemo(
@@ -450,6 +455,7 @@ export const TaskItem = memo(function TaskItem({
                 editTimeEstimate,
                 editContexts,
                 editTags,
+                editTextDirection,
                 popularTagOptions,
             }}
             handlers={{
@@ -473,6 +479,7 @@ export const TaskItem = memo(function TaskItem({
                 setEditTimeEstimate,
                 setEditContexts,
                 setEditTags,
+                setEditTextDirection,
                 updateTask,
                 resetTaskChecklist,
             }}
@@ -726,6 +733,7 @@ export const TaskItem = memo(function TaskItem({
         setEditContexts(task.contexts?.join(', ') || '');
         setEditTags(task.tags?.join(', ') || '');
         setEditDescription(task.description || '');
+        setEditTextDirection(task.textDirection ?? 'auto');
         setEditLocation(task.location || '');
         setEditRecurrence(getRecurrenceRuleValue(task.recurrence));
         setEditRecurrenceStrategy(getRecurrenceStrategyValue(task.recurrence));
@@ -976,6 +984,7 @@ export const TaskItem = memo(function TaskItem({
                 }
                 recurrenceValue.rrule = editRecurrenceRRule;
             }
+            const nextTextDirection = editTextDirection === 'auto' ? undefined : editTextDirection;
             updateTask(task.id, {
                 title: editTitle,
                 status: editStatus,
@@ -985,6 +994,7 @@ export const TaskItem = memo(function TaskItem({
                 contexts: editContexts.split(',').map(c => c.trim()).filter(Boolean),
                 tags: editTags.split(',').map(c => c.trim()).filter(Boolean),
                 description: editDescription || undefined,
+                textDirection: nextTextDirection,
                 location: editLocation || undefined,
                 recurrence: recurrenceValue,
                 timeEstimate: editTimeEstimate || undefined,
@@ -1084,6 +1094,7 @@ export const TaskItem = memo(function TaskItem({
                                 renderField={renderField}
                                 editLocation={editLocation}
                                 setEditLocation={setEditLocation}
+                                editTextDirection={editTextDirection}
                                 inputContexts={allContexts}
                                 onDuplicateTask={() => duplicateTask(task.id, false)}
                                 onCancel={() => {

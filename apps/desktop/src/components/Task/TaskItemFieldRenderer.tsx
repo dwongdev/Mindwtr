@@ -7,6 +7,7 @@ import {
     parseRRuleString,
     safeFormatDate,
     safeParseDate,
+    resolveTextDirection,
     type Attachment,
     type RecurrenceRule,
     type RecurrenceStrategy,
@@ -45,6 +46,7 @@ export type TaskItemFieldRendererData = {
     editTimeEstimate: TimeEstimate | '';
     editContexts: string;
     editTags: string;
+    editTextDirection: Task['textDirection'] | undefined;
     popularTagOptions: string[];
 };
 
@@ -66,6 +68,7 @@ export type TaskItemFieldRendererHandlers = {
     setEditTimeEstimate: (value: TimeEstimate | '') => void;
     setEditContexts: (value: string) => void;
     setEditTags: (value: string) => void;
+    setEditTextDirection: (value: Task['textDirection']) => void;
     updateTask: (taskId: string, updates: Partial<Task>) => void;
     resetTaskChecklist: (taskId: string) => void;
 };
@@ -100,6 +103,7 @@ export function TaskItemFieldRenderer({
         editTimeEstimate,
         editContexts,
         editTags,
+        editTextDirection,
         popularTagOptions,
     } = data;
     const {
@@ -120,9 +124,16 @@ export function TaskItemFieldRenderer({
         setEditTimeEstimate,
         setEditContexts,
         setEditTags,
+        setEditTextDirection,
         updateTask,
         resetTaskChecklist,
     } = handlers;
+
+    const resolvedDirection = resolveTextDirection(
+        [task.title, editDescription].filter(Boolean).join(' '),
+        editTextDirection
+    );
+    const isRtl = resolvedDirection === 'rtl';
 
     const [checklistDraft, setChecklistDraft] = useState<Task['checklist']>(task.checklist || []);
     const checklistDraftRef = useRef<Task['checklist']>(task.checklist || []);
@@ -176,7 +187,7 @@ export function TaskItemFieldRenderer({
                         </button>
                     </div>
                     {showDescriptionPreview ? (
-                        <div className="text-xs bg-muted/30 border border-border rounded px-2 py-2">
+                        <div className={cn("text-xs bg-muted/30 border border-border rounded px-2 py-2", isRtl && "text-right")} dir={resolvedDirection}>
                             <Markdown markdown={editDescription || ''} />
                         </div>
                         ) : (
@@ -184,11 +195,27 @@ export function TaskItemFieldRenderer({
                                 aria-label={t('task.aria.description')}
                                 value={editDescription}
                                 onChange={(e) => setEditDescription(e.target.value)}
-                                className="text-xs bg-muted/50 border border-border rounded px-2 py-1 min-h-[60px] resize-y"
+                                className={cn("text-xs bg-muted/50 border border-border rounded px-2 py-1 min-h-[60px] resize-y", isRtl && "text-right")}
                                 placeholder={t('taskEdit.descriptionPlaceholder')}
+                                dir={resolvedDirection}
                             />
                         )}
                     </div>
+            );
+        case 'textDirection':
+            return (
+                <div className="flex flex-col gap-1">
+                    <label className="text-xs text-muted-foreground font-medium">{t('taskEdit.textDirectionLabel')}</label>
+                    <select
+                        value={editTextDirection ?? 'auto'}
+                        onChange={(event) => setEditTextDirection(event.target.value as Task['textDirection'])}
+                        className="text-xs bg-muted/50 border border-border rounded px-2 py-1 text-foreground"
+                    >
+                        <option value="auto">{t('taskEdit.textDirection.auto')}</option>
+                        <option value="ltr">{t('taskEdit.textDirection.ltr')}</option>
+                        <option value="rtl">{t('taskEdit.textDirection.rtl')}</option>
+                    </select>
+                </div>
             );
         case 'attachments':
             return (

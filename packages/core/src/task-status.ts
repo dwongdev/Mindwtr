@@ -45,10 +45,15 @@ export function normalizeTaskForLoad(task: Task, nowIso: string = new Date().toI
         typeof task.projectId === 'string' && task.projectId.trim().length > 0
             ? task.projectId
             : undefined;
+    const textDirection =
+        typeof task.textDirection === 'string' && ['auto', 'ltr', 'rtl'].includes(task.textDirection)
+            ? task.textDirection
+            : undefined;
     const next: Task = {
         ...rest,
         status: normalizedStatus,
         projectId,
+        ...(textDirection ? { textDirection } : {}),
         ...(hasValidPushCount ? {} : { pushCount: 0 }),
     };
 

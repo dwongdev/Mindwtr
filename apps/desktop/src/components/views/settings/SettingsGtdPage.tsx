@@ -33,6 +33,7 @@ type Labels = {
     taskEditorFieldReviewAt: string;
     taskEditorFieldAttachments: string;
     taskEditorFieldChecklist: string;
+    taskEditorFieldTextDirection: string;
     visible: string;
     hidden: string;
 };
@@ -89,6 +90,7 @@ export function SettingsGtdPage({
         'priority',
         'contexts',
         'description',
+        'textDirection',
         'tags',
         'timeEstimate',
         'recurrence',
@@ -150,6 +152,8 @@ export function SettingsGtdPage({
                 return t.taskEditorFieldAttachments;
             case 'checklist':
                 return t.taskEditorFieldChecklist;
+            case 'textDirection':
+                return t.taskEditorFieldTextDirection;
             default:
                 return fieldId;
         }
@@ -205,7 +209,7 @@ export function SettingsGtdPage({
         { id: 'basic', title: translateText('Basic', language), fields: ['status', 'project', 'dueDate'] },
         { id: 'scheduling', title: translateText('Scheduling', language), fields: ['startTime', 'recurrence', 'reviewAt'] },
         { id: 'organization', title: translateText('Organization', language), fields: ['contexts', 'tags', 'priority', 'timeEstimate'] },
-        { id: 'details', title: translateText('Details', language), fields: ['description', 'attachments', 'checklist'] },
+        { id: 'details', title: translateText('Details', language), fields: ['description', 'textDirection', 'attachments', 'checklist'] },
     ];
 
     return (

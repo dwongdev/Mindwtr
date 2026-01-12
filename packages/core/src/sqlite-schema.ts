@@ -16,6 +16,7 @@ CREATE TABLE IF NOT EXISTS tasks (
   contexts TEXT,
   checklist TEXT,
   description TEXT,
+  textDirection TEXT,
   attachments TEXT,
   location TEXT,
   projectId TEXT,

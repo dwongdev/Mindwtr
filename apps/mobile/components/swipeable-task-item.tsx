@@ -1,6 +1,6 @@
 import { View, Text, Pressable, StyleSheet, Modal, Alert } from 'react-native';
 import { Swipeable } from 'react-native-gesture-handler';
-import { useTaskStore, Task, getChecklistProgress, getTaskAgeLabel, getTaskStaleness, getStatusColor, hasTimeComponent, safeFormatDate, safeParseDueDate, TaskStatus, Project } from '@mindwtr/core';
+import { useTaskStore, Task, getChecklistProgress, getTaskAgeLabel, getTaskStaleness, getStatusColor, hasTimeComponent, safeFormatDate, safeParseDueDate, TaskStatus, Project, resolveTaskTextDirection } from '@mindwtr/core';
 import { useLanguage } from '../contexts/language-context';
 import { useRef, useState, useEffect, useMemo, useCallback, type ReactNode } from 'react';
 import { ThemeColors } from '../hooks/use-theme-colors';
@@ -79,6 +79,9 @@ export function SwipeableTaskItem({
     const areaById = useMemo(() => new Map(areas.map((area) => [area.id, area])), [areas]);
     const project: Project | undefined = task.projectId ? projects.find(p => p.id === task.projectId) : undefined;
     const projectColor = project?.areaId ? areaById.get(project.areaId)?.color : undefined;
+    const resolvedDirection = resolveTaskTextDirection(task);
+    const textDirection = resolvedDirection === 'rtl' ? 'rtl' : 'ltr';
+    const textAlign = resolvedDirection === 'rtl' ? 'right' : 'left';
 
     // Status-aware left swipe action
     const getLeftAction = (): { label: string; color: string; action: TaskStatus } => {
@@ -333,7 +336,11 @@ export function SwipeableTaskItem({
             <View style={styles.taskContent}>
                         <View style={styles.titleRow}>
                             <Text
-                                style={[styles.taskTitle, { color: tc.text }, showFocusToggle && styles.taskTitleFlex]}
+                                style={[
+                                    styles.taskTitle,
+                                    { color: tc.text, writingDirection: textDirection, textAlign },
+                                    showFocusToggle && styles.taskTitleFlex,
+                                ]}
                                 numberOfLines={2}
                             >
                                 {task.title}
@@ -363,7 +370,10 @@ export function SwipeableTaskItem({
                             )}
                         </View>
                         {task.description && (
-                            <Text style={[styles.taskDescription, { color: tc.secondaryText }]} numberOfLines={1}>
+                            <Text
+                                style={[styles.taskDescription, { color: tc.secondaryText, writingDirection: textDirection, textAlign }]}
+                                numberOfLines={1}
+                            >
                                 {task.description}
                             </Text>
                         )}
