@@ -95,7 +95,8 @@ export function SettingsView() {
     const [themeMode, setThemeMode] = useState<ThemeMode>('system');
     const { language, setLanguage, t: translate } = useLanguage();
     const { style: keybindingStyle, setStyle: setKeybindingStyle, openHelp } = useKeybindings();
-    const { settings, updateSettings } = useTaskStore();
+    const settings = useTaskStore((state) => state.settings);
+    const updateSettings = useTaskStore((state) => state.updateSettings);
     const isTauri = isTauriRuntime();
 
     const [saved, setSaved] = useState(false);
@@ -914,11 +915,11 @@ export function SettingsView() {
             webdavUsername: 'Username',
             webdavPassword: 'Password',
             webdavSave: 'Save WebDAV',
-            webdavHint: 'Use a full URL to your sync JSON file (e.g., https://example.com/remote.php/dav/files/user/data.json).',
+            webdavHint: 'Point to a folder — Mindwtr will store data.json inside (e.g., https://example.com/remote.php/dav/files/user/mindwtr).',
             cloudUrl: 'Self-hosted URL',
             cloudToken: 'Access token',
             cloudSave: 'Save Self-Hosted',
-            cloudHint: 'Use your self-hosted endpoint URL.',
+            cloudHint: 'Use the base endpoint URL (e.g., https://example.com/v1). Mindwtr will append /data.',
             lastSync: 'Last sync',
             lastSyncNever: 'Never',
             lastSyncSuccess: 'Sync completed',
@@ -1108,11 +1109,11 @@ export function SettingsView() {
             webdavUsername: '用户名',
             webdavPassword: '密码',
             webdavSave: '保存 WebDAV',
-            webdavHint: '请输入同步 JSON 文件的完整 URL（例如 https://example.com/remote.php/dav/files/user/data.json）。',
+            webdavHint: '请输入同步文件夹地址，Mindwtr 会在其中存放 data.json（例如 https://example.com/remote.php/dav/files/user/mindwtr）。',
             cloudUrl: '自托管地址',
             cloudToken: '访问令牌',
             cloudSave: '保存自托管配置',
-            cloudHint: '请输入自托管同步端点 URL。',
+            cloudHint: '请输入自托管基础地址（例如 https://example.com/v1），Mindwtr 会自动追加 /data。',
             lastSync: '上次同步',
             lastSyncNever: '从未同步',
             lastSyncSuccess: '同步完成',

@@ -1828,10 +1828,22 @@ fn set_webdav_config(app: tauri::AppHandle, url: String, username: String, passw
     Ok(true)
 }
 
+fn normalize_webdav_url(raw: &str) -> String {
+    let trimmed = raw.trim().trim_end_matches('/');
+    if trimmed.is_empty() {
+        return String::new();
+    }
+    if trimmed.to_lowercase().ends_with(".json") {
+        trimmed.to_string()
+    } else {
+        format!("{}/{}", trimmed, DATA_FILE_NAME)
+    }
+}
+
 #[tauri::command]
 fn webdav_get_json(app: tauri::AppHandle) -> Result<Value, String> {
     let config = read_config(&app);
-    let url = config.webdav_url.unwrap_or_default();
+    let url = normalize_webdav_url(&config.webdav_url.unwrap_or_default());
     if url.trim().is_empty() {
         return Err("WebDAV URL not configured".to_string());
     }
@@ -1858,7 +1870,7 @@ fn webdav_get_json(app: tauri::AppHandle) -> Result<Value, String> {
 #[tauri::command]
 fn webdav_put_json(app: tauri::AppHandle, data: Value) -> Result<bool, String> {
     let config = read_config(&app);
-    let url = config.webdav_url.unwrap_or_default();
+    let url = normalize_webdav_url(&config.webdav_url.unwrap_or_default());
     if url.trim().is_empty() {
         return Err("WebDAV URL not configured".to_string());
     }

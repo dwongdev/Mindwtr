@@ -22,7 +22,14 @@ The cloud server expects a token. In `docker/compose.yaml`, set:
 MINDWTR_CLOUD_TOKEN=your_token_here
 ```
 
-Use the **same token** in Mindwtr Settings → Sync → Cloud.
+Use the **same token** in Mindwtr Settings → Sync → Self-Hosted.
+Set the Self-Hosted URL to the **base** endpoint, for example:
+
+```
+http://localhost:8787/v1
+```
+
+Mindwtr will automatically append `/data` and store `data.json` (and attachments) under that endpoint.
 
 Example to generate a token:
 

@@ -1,13 +1,13 @@
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState, useRef, useTransition, useCallback, Suspense, lazy } from 'react';
 import { Layout } from './components/Layout';
 import { ListView } from './components/views/ListView';
 import { CalendarView } from './components/views/CalendarView';
-import { BoardView } from './components/views/BoardView';
+const BoardView = lazy(() => import('./components/views/BoardView').then((m) => ({ default: m.BoardView })));
 import { ProjectsView } from './components/views/ProjectsView';
 import { ContextsView } from './components/views/ContextsView';
 import { ReviewView } from './components/views/ReviewView';
 import { TutorialView } from './components/views/TutorialView';
-import { SettingsView } from './components/views/SettingsView';
+const SettingsView = lazy(() => import('./components/views/SettingsView').then((m) => ({ default: m.SettingsView })));
 import { ArchiveView } from './components/views/ArchiveView';
 import { TrashView } from './components/views/TrashView';
 import { AgendaView } from './components/views/AgendaView';
@@ -24,6 +24,8 @@ import { isTauriRuntime } from './lib/runtime';
 
 function App() {
     const [currentView, setCurrentView] = useState('inbox');
+    const [activeView, setActiveView] = useState('inbox');
+    const [isNavigating, startTransition] = useTransition();
     const { fetchData } = useTaskStore();
     const { t } = useLanguage();
     const isActiveRef = useRef(true);
@@ -187,11 +189,11 @@ function App() {
     }, [fetchData]);
 
     const renderView = () => {
-        if (currentView.startsWith('savedSearch:')) {
-            const savedSearchId = currentView.replace('savedSearch:', '');
+        if (activeView.startsWith('savedSearch:')) {
+            const savedSearchId = activeView.replace('savedSearch:', '');
             return <SearchView savedSearchId={savedSearchId} />;
         }
-        switch (currentView) {
+        switch (activeView) {
             case 'inbox':
                 return <ListView title={t('list.inbox')} statusFilter="inbox" />;
             case 'agenda':
@@ -227,12 +229,31 @@ function App() {
         }
     };
 
+    const handleViewChange = useCallback((view: string) => {
+        setCurrentView(view);
+        if (view === 'settings') {
+            setActiveView(view);
+            return;
+        }
+        startTransition(() => {
+            setActiveView(view);
+        });
+    }, [startTransition]);
+
     return (
         <ErrorBoundary>
-            <KeybindingProvider currentView={currentView} onNavigate={setCurrentView}>
-                <Layout currentView={currentView} onViewChange={setCurrentView}>
-                    {renderView()}
-                    <GlobalSearch onNavigate={(view, _id) => setCurrentView(view)} />
+            <KeybindingProvider currentView={currentView} onNavigate={handleViewChange}>
+                <Layout currentView={currentView} onViewChange={handleViewChange}>
+                    <Suspense
+                        fallback={(
+                            <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
+                                {isNavigating ? t('common.loading') : t('common.loading')}
+                            </div>
+                        )}
+                    >
+                        {renderView()}
+                    </Suspense>
+                    <GlobalSearch onNavigate={(view, _id) => handleViewChange(view)} />
                     <QuickAddModal />
                 </Layout>
             </KeybindingProvider>

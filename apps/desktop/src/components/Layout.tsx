@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useCallback, useMemo } from 'react';
 import { Calendar, Inbox, CheckSquare, Archive, Layers, Tag, CheckCircle2, HelpCircle, Folder, Settings, Target, Search, ChevronsLeft, ChevronsRight, Trash2, PauseCircle } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { useTaskStore, safeParseDate } from '@mindwtr/core';
@@ -12,34 +12,25 @@ interface LayoutProps {
 }
 
 export function Layout({ children, currentView, onViewChange }: LayoutProps) {
-    const { tasks, settings, updateSettings } = useTaskStore();
+    const inboxCount = useTaskStore(useCallback((state) => {
+        const now = Date.now();
+        let count = 0;
+        for (const task of state.tasks) {
+            if (task.deletedAt) continue;
+            if (task.status !== 'inbox') continue;
+            const start = safeParseDate(task.startTime);
+            if (start && start.getTime() > now) continue;
+            count += 1;
+        }
+        return count;
+    }, []));
+    const settings = useTaskStore((state) => state.settings);
+    const updateSettings = useTaskStore((state) => state.updateSettings);
     const { t } = useLanguage();
     const isCollapsed = settings?.sidebarCollapsed ?? false;
     const isFocusMode = useUiStore((state) => state.isFocusMode);
 
-    const { inboxCount } = useMemo(() => {
-        const activeTasks = tasks.filter((task) => !task.deletedAt);
-        const now = Date.now();
-        const inbox = activeTasks.filter((task) => {
-            if (task.status !== 'inbox') return false;
-            const start = safeParseDate(task.startTime);
-            if (start && start.getTime() > now) return false;
-            return true;
-        }).length;
-        return { inboxCount: inbox };
-    }, [tasks]);
-
-    const triggerSearch = () => {
-        window.dispatchEvent(new CustomEvent('mindwtr:open-search'));
-    };
-
-    const savedSearches = settings?.savedSearches || [];
-
-    const toggleSidebar = () => {
-        updateSettings({ sidebarCollapsed: !isCollapsed }).catch(console.error);
-    };
-
-    const navItems = [
+    const navItems = useMemo(() => ([
         { id: 'inbox', labelKey: 'nav.inbox', icon: Inbox, count: inboxCount },
         { id: 'agenda', labelKey: 'nav.agenda', icon: Target },
         { id: 'projects', labelKey: 'nav.projects', icon: Folder },
@@ -54,7 +45,18 @@ export function Layout({ children, currentView, onViewChange }: LayoutProps) {
         { id: 'done', labelKey: 'nav.done', icon: CheckSquare },
         { id: 'archived', labelKey: 'nav.archived', icon: Archive },
         { id: 'trash', labelKey: 'nav.trash', icon: Trash2 },
-    ];
+    ]), [inboxCount]);
+
+    const triggerSearch = () => {
+        window.dispatchEvent(new CustomEvent('mindwtr:open-search'));
+    };
+
+    const savedSearches = settings?.savedSearches || [];
+
+    const toggleSidebar = () => {
+        updateSettings({ sidebarCollapsed: !isCollapsed }).catch(console.error);
+    };
+
 
     return (
         <div className="flex h-screen overflow-hidden bg-background text-foreground">
