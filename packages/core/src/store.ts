@@ -256,23 +256,23 @@ const getNextProjectOrder = (projectId: string | undefined, tasks: Task[]): numb
     let cache = projectOrderCache.get(tasks);
     if (!cache) {
         cache = new Map();
+        // Build a max-order index once per tasks array to avoid O(n) scans per project.
+        for (const task of tasks) {
+            if (!task.projectId || task.deletedAt) continue;
+            const order = Number.isFinite(task.orderNum) ? (task.orderNum as number) : -1;
+            const current = cache.get(task.projectId);
+            if (current === undefined) {
+                cache.set(task.projectId, Math.max(order, -1) + 1);
+            } else if (order >= current) {
+                cache.set(task.projectId, order + 1);
+            }
+        }
         projectOrderCache.set(tasks, cache);
     }
     const cached = cache.get(projectId);
     if (cached !== undefined) return cached;
-    const projectTasks = tasks.filter((task) => task.projectId === projectId && !task.deletedAt);
-    if (projectTasks.length === 0) return 0;
-    const ordered = projectTasks
-        .map((task) => task.orderNum)
-        .filter((value): value is number => Number.isFinite(value));
-    if (ordered.length > 0) {
-        const next = Math.max(...ordered) + 1;
-        cache.set(projectId, next);
-        return next;
-    }
-    const next = projectTasks.length;
-    cache.set(projectId, next);
-    return next;
+    cache.set(projectId, 0);
+    return 0;
 };
 
 /**
