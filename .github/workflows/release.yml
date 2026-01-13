@@ -369,7 +369,7 @@ jobs:
             -v "$PWD/aur:/aur" \
             -w /aur \
             archlinux:latest \
-            bash -lc "pacman -Sy --noconfirm --needed base-devel git && makepkg --printsrcinfo > .SRCINFO"
+            bash -lc "pacman -Sy --noconfirm --needed base-devel git && useradd -m builder && chown -R builder:builder /aur && su builder -c 'makepkg --printsrcinfo > .SRCINFO'"
         shell: bash
 
       - name: Publish to AUR
