@@ -27,6 +27,9 @@ type UseAiSettingsOptions = {
     showSaved: () => void;
 };
 
+type AiSettingsUpdate = Partial<NonNullable<AppData['settings']>['ai']>;
+type SpeechSettingsUpdate = Partial<NonNullable<NonNullable<AppData['settings']>['ai']>['speechToText']>;
+
 export function useAiSettings({ isTauri, settings, updateSettings, showSaved }: UseAiSettingsOptions) {
     const [aiApiKey, setAiApiKey] = useState('');
     const [speechApiKey, setSpeechApiKey] = useState('');
@@ -65,15 +68,13 @@ export function useAiSettings({ isTauri, settings, updateSettings, showSaved }: 
             ? GEMINI_SPEECH_MODELS
             : WHISPER_MODELS.map((model) => model.id);
 
-    const updateAISettings = useCallback((next: Partial<NonNullable<AppData['settings']>['ai']>) => {
+    const updateAISettings = useCallback((next: AiSettingsUpdate) => {
         updateSettings({ ai: { ...(settings?.ai ?? {}), ...next } })
             .then(showSaved)
             .catch(console.error);
     }, [settings?.ai, showSaved, updateSettings]);
 
-    const updateSpeechSettings = useCallback((
-        next: Partial<NonNullable<NonNullable<AppData['settings']>['ai']>['speechToText']>>
-    ) => {
+    const updateSpeechSettings = useCallback((next: SpeechSettingsUpdate) => {
         updateSettings({
             ai: {
                 ...(settings?.ai ?? {}),
