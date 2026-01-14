@@ -1,11 +1,9 @@
 import { useState, useMemo, useEffect } from 'react';
 import { useTaskStore, Attachment, Task, type Project, type Area, generateUUID, safeFormatDate, safeParseDate, parseQuickAdd, PRESET_CONTEXTS, validateAttachmentForUpload } from '@mindwtr/core';
-import { TaskItem } from '../TaskItem';
 import { TaskInput } from '../Task/TaskInput';
-import { Plus, Folder, Trash2, ListOrdered, ChevronRight, ChevronDown, Archive as ArchiveIcon, RotateCcw, Paperclip, Link2, GripVertical, Star, AlertTriangle, CornerDownRight } from 'lucide-react';
+import { Plus, Folder, ListOrdered, ChevronRight, ChevronDown, Archive as ArchiveIcon, RotateCcw, Paperclip, Link2, Star, AlertTriangle, CornerDownRight } from 'lucide-react';
 import { DndContext, PointerSensor, useSensor, useSensors, closestCenter, type DragEndEvent } from '@dnd-kit/core';
-import { SortableContext, useSortable, verticalListSortingStrategy, arrayMove } from '@dnd-kit/sortable';
-import { CSS } from '@dnd-kit/utilities';
+import { SortableContext, verticalListSortingStrategy, arrayMove } from '@dnd-kit/sortable';
 import { cn } from '../../lib/utils';
 import { useLanguage } from '../../contexts/language-context';
 import { Markdown } from '../Markdown';
@@ -15,152 +13,13 @@ import { normalizeAttachmentInput } from '../../lib/attachment-utils';
 import { invoke } from '@tauri-apps/api/core';
 import { size } from '@tauri-apps/plugin-fs';
 import { AttachmentProgressIndicator } from '../AttachmentProgressIndicator';
+import { SortableAreaRow, SortableProjectRow, SortableProjectTaskRow } from './projects/SortableRows';
 
 function toDateTimeLocalValue(dateStr: string | undefined): string {
     if (!dateStr) return '';
     const parsed = safeParseDate(dateStr);
     if (!parsed) return dateStr;
     return safeFormatDate(parsed, "yyyy-MM-dd'T'HH:mm", dateStr);
-}
-
-type AreaRowProps = {
-    area: Area;
-    onDelete: (areaId: string) => void;
-    onUpdateName: (areaId: string, name: string) => void;
-    onUpdateColor: (areaId: string, color: string) => void;
-    t: (key: string) => string;
-};
-
-function SortableAreaRow({
-    area,
-    onDelete,
-    onUpdateName,
-    onUpdateColor,
-    t,
-}: AreaRowProps) {
-    const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: area.id });
-    const style = {
-        transform: CSS.Transform.toString(transform),
-        transition,
-        opacity: isDragging ? 0.6 : 1,
-    };
-
-    return (
-        <div ref={setNodeRef} style={style} className="flex items-center gap-2">
-            <button
-                type="button"
-                {...attributes}
-                {...listeners}
-                className="h-8 w-8 rounded-md border border-border text-muted-foreground hover:text-foreground hover:bg-muted flex items-center justify-center"
-                title={t('projects.sortAreas')}
-            >
-                <GripVertical className="w-4 h-4" />
-            </button>
-            <input
-                type="color"
-                value={area.color || '#94a3b8'}
-                onChange={(e) => onUpdateColor(area.id, e.target.value)}
-                className="w-8 h-8 rounded cursor-pointer border-0 p-0"
-                title={t('projects.color')}
-            />
-            <input
-                key={`${area.id}-${area.updatedAt}`}
-                defaultValue={area.name}
-                onBlur={(e) => {
-                    const name = e.target.value.trim();
-                    if (name && name !== area.name) {
-                        onUpdateName(area.id, name);
-                    }
-                }}
-                onKeyDown={(e) => {
-                    if (e.key === 'Enter') {
-                        e.preventDefault();
-                        const name = e.currentTarget.value.trim();
-                        if (name && name !== area.name) {
-                            onUpdateName(area.id, name);
-                        }
-                        e.currentTarget.blur();
-                    }
-                }}
-                className="flex-1 bg-muted/50 border border-border rounded px-2 py-1 text-sm"
-            />
-            <button
-                type="button"
-                onClick={() => onDelete(area.id)}
-                className="text-destructive hover:bg-destructive/10 h-8 w-8 rounded-md transition-colors flex items-center justify-center"
-                title={t('common.delete')}
-            >
-                <Trash2 className="w-4 h-4" />
-            </button>
-        </div>
-    );
-}
-
-function SortableProjectRow({
-    projectId,
-    children,
-}: {
-    projectId: string;
-    children: (props: { handle: React.ReactNode; isDragging: boolean }) => React.ReactNode;
-}) {
-    const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: projectId });
-    const style = {
-        transform: CSS.Transform.toString(transform),
-        transition,
-        opacity: isDragging ? 0.65 : 1,
-    };
-
-    const handle = (
-        <button
-            type="button"
-            {...attributes}
-            {...listeners}
-            className="h-7 w-7 rounded-md border border-border text-muted-foreground hover:text-foreground hover:bg-muted flex items-center justify-center"
-            title="Drag"
-        >
-            <GripVertical className="w-3.5 h-3.5" />
-        </button>
-    );
-
-    return (
-        <div ref={setNodeRef} style={style}>
-            {children({ handle, isDragging })}
-        </div>
-    );
-}
-
-function SortableProjectTaskRow({
-    task,
-    project,
-}: {
-    task: Task;
-    project: Project;
-}) {
-    const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
-        id: task.id,
-    });
-    const style = {
-        transform: CSS.Transform.toString(transform),
-        transition,
-        opacity: isDragging ? 0.6 : 1,
-    };
-
-    return (
-        <div ref={setNodeRef} style={style} className="flex items-start gap-2">
-            <button
-                type="button"
-                {...attributes}
-                {...listeners}
-                className="mt-3 h-7 w-7 rounded-md border border-border text-muted-foreground hover:text-foreground hover:bg-muted flex items-center justify-center"
-                title="Drag"
-            >
-                <GripVertical className="w-3.5 h-3.5" />
-            </button>
-            <div className="flex-1 min-w-0">
-                <TaskItem task={task} project={project} />
-            </div>
-        </div>
-    );
 }
 
 export function ProjectsView() {
