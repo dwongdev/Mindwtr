@@ -38,6 +38,7 @@ import { TaskItemEditor } from './Task/TaskItemEditor';
 import { TaskItemDisplay } from './Task/TaskItemDisplay';
 import { TaskItemFieldRenderer } from './Task/TaskItemFieldRenderer';
 import { TaskItemRecurrenceModal } from './Task/TaskItemRecurrenceModal';
+import { AudioAttachmentModal } from './Task/AudioAttachmentModal';
 import { WEEKDAY_FULL_LABELS, WEEKDAY_ORDER } from './Task/recurrence-constants';
 import { convertFileSrc, invoke } from '@tauri-apps/api/core';
 import { readFile, readTextFile, BaseDirectory, size } from '@tauri-apps/plugin-fs';
@@ -633,6 +634,20 @@ export const TaskItem = memo(function TaskItem({
         void openExternal(audioAttachment.uri);
     }, [audioAttachment, openExternal]);
 
+    const handleAudioError = useCallback(() => {
+        const code = audioRef.current?.error?.code;
+        const message = code === 1
+            ? 'Audio playback aborted.'
+            : code === 2
+                ? 'Network error while loading audio.'
+                : code === 3
+                    ? 'Audio decoding failed.'
+                    : code === 4
+                        ? 'Audio format not supported.'
+                        : 'Audio playback failed.';
+        setAudioError(message);
+    }, [audioRef]);
+
     const openTextExternally = useCallback(() => {
         if (!textAttachment) return;
         void openExternal(textAttachment.uri);
@@ -1215,70 +1230,16 @@ export const TaskItem = memo(function TaskItem({
                 setShowLinkPrompt(false);
             }}
         />
-        {audioAttachment && audioSource && (
-            <div
-                className="fixed inset-0 bg-black/50 flex items-center justify-center z-50"
-                role="button"
-                tabIndex={0}
-                aria-label={t('common.close')}
-                onClick={closeAudio}
-                onKeyDown={(event) => {
-                    if (event.key !== 'Escape') return;
-                    if (event.currentTarget !== event.target) return;
-                    event.preventDefault();
-                    closeAudio();
-                }}
-            >
-                <div
-                    className="w-full max-w-md bg-popover text-popover-foreground rounded-xl border shadow-2xl p-4 space-y-3"
-                    role="dialog"
-                    aria-modal="true"
-                    onClick={(e) => e.stopPropagation()}
-                >
-                    <div className="flex items-center justify-between">
-                        <div className="text-sm font-medium">{audioAttachment.title || t('quickAdd.audioNoteTitle')}</div>
-                        <button
-                            type="button"
-                            onClick={closeAudio}
-                            className="text-xs text-muted-foreground hover:text-foreground"
-                        >
-                            {t('common.close')}
-                        </button>
-                    </div>
-                    <audio
-                        ref={audioRef}
-                        controls
-                        src={audioSource}
-                        className="w-full"
-                        onError={() => {
-                            const code = audioRef.current?.error?.code;
-                            const message = code === 1
-                                ? 'Audio playback aborted.'
-                                : code === 2
-                                    ? 'Network error while loading audio.'
-                                    : code === 3
-                                        ? 'Audio decoding failed.'
-                                        : code === 4
-                                            ? 'Audio format not supported.'
-                                            : 'Audio playback failed.';
-                            setAudioError(message);
-                        }}
-                    />
-                    {audioError ? (
-                        <div className="flex items-center justify-between text-xs text-red-500">
-                            <span>{audioError}</span>
-                            <button
-                                type="button"
-                                onClick={openAudioExternally}
-                                className="text-xs text-muted-foreground hover:text-foreground"
-                            >
-                                {t('attachments.open')}
-                            </button>
-                        </div>
-                    ) : null}
-                </div>
-            </div>
-        )}
+        <AudioAttachmentModal
+            attachment={audioAttachment}
+            audioSource={audioSource}
+            audioRef={audioRef}
+            audioError={audioError}
+            onClose={closeAudio}
+            onAudioError={handleAudioError}
+            onOpenExternally={openAudioExternally}
+            t={t}
+        />
         {imageAttachment && imageSource && (
             <div
                 className="fixed inset-0 bg-black/50 flex items-center justify-center z-50"
