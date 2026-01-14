@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ErrorBoundary } from '../ErrorBoundary';
+import { ReviewHeader } from './review/ReviewHeader';
 
 import { createAIProvider, getStaleItems, isDueForReview, safeFormatDate, safeParseDate, safeParseDueDate, sortTasksBy, PRESET_CONTEXTS, type ReviewSuggestion, useTaskStore, type Project, type Task, type TaskStatus, type TaskSortBy, type AIProviderId } from '@mindwtr/core';
 import { Archive, ArrowRight, Calendar, Check, CheckSquare, Layers, RefreshCw, Sparkles, Star, X, type LucideIcon } from 'lucide-react';
@@ -1072,44 +1073,23 @@ export function ReviewView() {
     return (
         <ErrorBoundary>
             <div className="space-y-6">
-            <header className="flex items-center justify-between">
-                <div className="space-y-1">
-                    <h2 className="text-3xl font-bold tracking-tight">
-                        {t('review.title')}
-                    </h2>
-                    <p className="text-sm text-muted-foreground">
-                        {filteredTasks.length} {t('common.tasks')}
-                    </p>
-                </div>
-                <div className="flex items-center gap-3">
-                    <button
-                        onClick={() => {
-                            if (selectionMode) exitSelectionMode();
-                            else setSelectionMode(true);
-                        }}
-                        className={cn(
-                            "text-xs px-3 py-1 rounded-md border transition-colors",
-                            selectionMode
-                                ? "bg-primary/10 text-primary border-primary"
-                                : "bg-muted/50 text-muted-foreground border-border hover:bg-muted hover:text-foreground"
-                        )}
-                    >
-                        {selectionMode ? t('bulk.exitSelect') : t('bulk.select')}
-                    </button>
-                    <button
-                        onClick={() => setShowDailyGuide(true)}
-                        className="bg-muted/50 text-foreground px-4 py-2 rounded-md hover:bg-muted transition-colors"
-                    >
-                        {t('dailyReview.title')}
-                    </button>
-                    <button
-                        onClick={() => setShowGuide(true)}
-                        className="bg-primary text-primary-foreground px-4 py-2 rounded-md hover:bg-primary/90 transition-colors"
-                    >
-                        {t('review.openGuide')}
-                    </button>
-                </div>
-            </header>
+                <ReviewHeader
+                    title={t('review.title')}
+                    taskCountLabel={`${filteredTasks.length} ${t('common.tasks')}`}
+                    selectionMode={selectionMode}
+                    onToggleSelection={() => {
+                        if (selectionMode) exitSelectionMode();
+                        else setSelectionMode(true);
+                    }}
+                    onShowDailyGuide={() => setShowDailyGuide(true)}
+                    onShowGuide={() => setShowGuide(true)}
+                    labels={{
+                        select: t('bulk.select'),
+                        exitSelect: t('bulk.exitSelect'),
+                        dailyReview: t('dailyReview.title'),
+                        weeklyReview: t('review.openGuide'),
+                    }}
+                />
 
             <div className="flex items-center gap-2 overflow-x-auto pb-1">
                 <button
