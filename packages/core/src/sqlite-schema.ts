@@ -130,6 +130,7 @@ CREATE INDEX IF NOT EXISTS idx_tasks_dueDate ON tasks(dueDate);
 CREATE INDEX IF NOT EXISTS idx_tasks_startTime ON tasks(startTime);
 CREATE INDEX IF NOT EXISTS idx_tasks_reviewAt ON tasks(reviewAt);
 CREATE INDEX IF NOT EXISTS idx_tasks_createdAt ON tasks(createdAt);
+CREATE INDEX IF NOT EXISTS idx_tasks_updatedAt ON tasks(updatedAt);
 CREATE INDEX IF NOT EXISTS idx_tasks_status_deletedAt ON tasks(status, deletedAt);
 CREATE INDEX IF NOT EXISTS idx_tasks_project_status_deletedAt ON tasks(projectId, status, deletedAt);
 CREATE INDEX IF NOT EXISTS idx_projects_status ON projects(status);
