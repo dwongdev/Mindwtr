@@ -1,4 +1,5 @@
 import { useState, useMemo, useEffect } from 'react';
+import { ErrorBoundary } from '../ErrorBoundary';
 import { useTaskStore, Attachment, Task, type Project, type Area, generateUUID, safeFormatDate, safeParseDate, parseQuickAdd, PRESET_CONTEXTS, validateAttachmentForUpload } from '@mindwtr/core';
 import { TaskInput } from '../Task/TaskInput';
 import { Plus, Folder, ListOrdered, ChevronRight, ChevronDown, Archive as ArchiveIcon, RotateCcw, Paperclip, Link2, Star, AlertTriangle, CornerDownRight } from 'lucide-react';
@@ -422,8 +423,8 @@ export function ProjectsView() {
     };
 
     return (
-        <>
-        <div className="flex h-full gap-6">
+        <ErrorBoundary>
+            <div className="flex h-full gap-6">
             {/* Sidebar List of Projects */}
             <div className="w-64 flex-shrink-0 flex flex-col gap-4 border-r border-border pr-6">
                 <div className="flex items-center justify-between">
@@ -1288,6 +1289,7 @@ export function ProjectsView() {
                 setPendingAreaAssignProjectId(null);
             }}
         />
-        </>
+            </div>
+        </ErrorBoundary>
     );
 }
