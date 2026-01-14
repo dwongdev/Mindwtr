@@ -17,16 +17,14 @@ import {
     parseRRuleString,
     generateUUID,
     getStatusColor,
-    hasTimeComponent,
     Project,
-    safeFormatDate,
-    safeParseDate,
     createAIProvider,
     PRESET_CONTEXTS,
     PRESET_TAGS,
     type ClarifyResponse,
     type AIProviderId,
     validateAttachmentForUpload,
+    safeParseDate,
 } from '@mindwtr/core';
 import { cn } from '../lib/utils';
 import { PromptModal } from './PromptModal';
@@ -42,67 +40,17 @@ import { AudioAttachmentModal } from './Task/AudioAttachmentModal';
 import { ImageAttachmentModal } from './Task/ImageAttachmentModal';
 import { TextAttachmentModal } from './Task/TextAttachmentModal';
 import { WEEKDAY_FULL_LABELS, WEEKDAY_ORDER } from './Task/recurrence-constants';
+import {
+    DEFAULT_TASK_EDITOR_HIDDEN,
+    DEFAULT_TASK_EDITOR_ORDER,
+    getRecurrenceRRuleValue,
+    getRecurrenceRuleValue,
+    getRecurrenceStrategyValue,
+    toDateTimeLocalValue,
+} from './Task/task-item-helpers';
 import { convertFileSrc, invoke } from '@tauri-apps/api/core';
 import { readFile, readTextFile, BaseDirectory, size } from '@tauri-apps/plugin-fs';
 import { dataDir } from '@tauri-apps/api/path';
-
-const DEFAULT_TASK_EDITOR_ORDER: TaskEditorFieldId[] = [
-    'status',
-    'project',
-    'priority',
-    'contexts',
-    'description',
-    'textDirection',
-    'tags',
-    'timeEstimate',
-    'recurrence',
-    'startTime',
-    'dueDate',
-    'reviewAt',
-    'attachments',
-    'checklist',
-];
-const DEFAULT_TASK_EDITOR_HIDDEN: TaskEditorFieldId[] = [
-    'priority',
-    'tags',
-    'timeEstimate',
-    'recurrence',
-    'startTime',
-    'reviewAt',
-    'attachments',
-];
-
-// Convert stored ISO or datetime-local strings into datetime-local input values.
-function toDateTimeLocalValue(dateStr: string | undefined): string {
-    if (!dateStr) return '';
-    const parsed = safeParseDate(dateStr);
-    if (!parsed) return dateStr;
-    if (!hasTimeComponent(dateStr)) {
-        return safeFormatDate(parsed, 'yyyy-MM-dd', dateStr);
-    }
-    return safeFormatDate(parsed, "yyyy-MM-dd'T'HH:mm", dateStr);
-}
-
-function getRecurrenceRuleValue(recurrence: Task['recurrence']): RecurrenceRule | '' {
-    if (!recurrence) return '';
-    if (typeof recurrence === 'string') return recurrence as RecurrenceRule;
-    return recurrence.rule || '';
-}
-
-function getRecurrenceStrategyValue(recurrence: Task['recurrence']): RecurrenceStrategy {
-    if (recurrence && typeof recurrence === 'object' && recurrence.strategy === 'fluid') {
-        return 'fluid';
-    }
-    return 'strict';
-}
-
-function getRecurrenceRRuleValue(recurrence: Task['recurrence']): string {
-    if (!recurrence || typeof recurrence === 'string') return '';
-    const rec = recurrence as Recurrence;
-    if (rec.rrule) return rec.rrule;
-    if (rec.byDay && rec.byDay.length > 0) return buildRRuleString(rec.rule, rec.byDay);
-    return rec.rule ? buildRRuleString(rec.rule) : '';
-}
 
 interface TaskItemProps {
     task: Task;

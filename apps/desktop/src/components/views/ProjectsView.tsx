@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect } from 'react';
 import { ErrorBoundary } from '../ErrorBoundary';
-import { useTaskStore, Attachment, Task, type Project, generateUUID, safeFormatDate, safeParseDate, parseQuickAdd, PRESET_CONTEXTS, validateAttachmentForUpload } from '@mindwtr/core';
+import { useTaskStore, Attachment, Task, type Project, generateUUID, parseQuickAdd, PRESET_CONTEXTS, validateAttachmentForUpload } from '@mindwtr/core';
 import { TaskInput } from '../Task/TaskInput';
 import { Folder } from 'lucide-react';
 import { DndContext, PointerSensor, useSensor, useSensors, closestCenter, type DragEndEvent } from '@dnd-kit/core';
@@ -16,13 +16,14 @@ import { ProjectsSidebar } from './projects/ProjectsSidebar';
 import { AreaManagerModal } from './projects/AreaManagerModal';
 import { ProjectNotesSection } from './projects/ProjectNotesSection';
 import { ProjectDetailsHeader } from './projects/ProjectDetailsHeader';
-
-function toDateTimeLocalValue(dateStr: string | undefined): string {
-    if (!dateStr) return '';
-    const parsed = safeParseDate(dateStr);
-    if (!parsed) return dateStr;
-    return safeFormatDate(parsed, "yyyy-MM-dd'T'HH:mm", dateStr);
-}
+import {
+    DEFAULT_AREA_COLOR,
+    getProjectColor,
+    parseTagInput,
+    sortAreasByColor as sortAreasByColorIds,
+    sortAreasByName as sortAreasByNameIds,
+    toDateTimeLocalValue,
+} from './projects/projects-utils';
 
 export function ProjectsView() {
     const { projects, tasks, areas, addArea, updateArea, deleteArea, reorderAreas, reorderProjects, reorderProjectTasks, addProject, updateProject, deleteProject, addTask, toggleProjectFocus, queryTasks, lastDataChangeAt } = useTaskStore();
@@ -75,31 +76,11 @@ export function ProjectsView() {
         return new Map(sortedAreas.map((area) => [area.id, area]));
     }, [sortedAreas]);
 
-    const normalizeTag = (value: string) => {
-        const trimmed = value.trim();
-        if (!trimmed) return '';
-        return trimmed.startsWith('#') ? trimmed : `#${trimmed}`;
-    };
-
-    const parseTagInput = (input: string) => {
-        const values = input
-            .split(',')
-            .map((tag) => normalizeTag(tag))
-            .filter(Boolean);
-        return Array.from(new Set(values));
-    };
-
     const toggleAreaCollapse = (areaId: string) => {
         setCollapsedAreas((prev) => ({ ...prev, [areaId]: !prev[areaId] }));
     };
 
-    const getProjectColor = (project: Project) => {
-        if (project.areaId) {
-            const area = areaById.get(project.areaId);
-            if (area?.color) return area.color;
-        }
-        return '#94a3b8';
-    };
+    const getProjectColorForTask = (project: Project) => getProjectColor(project, areaById, DEFAULT_AREA_COLOR);
 
     const handleAreaDragEnd = (event: DragEndEvent) => {
         const { active, over } = event;
@@ -125,26 +106,8 @@ export function ProjectsView() {
         }
     };
 
-    const sortAreasByName = () => {
-        const reordered = [...sortedAreas]
-            .sort((a, b) => a.name.localeCompare(b.name))
-            .map((area) => area.id);
-        reorderAreas(reordered);
-    };
-
-    const sortAreasByColor = () => {
-        const reordered = [...sortedAreas]
-            .sort((a, b) => {
-                const colorA = (a.color || '').toLowerCase();
-                const colorB = (b.color || '').toLowerCase();
-                if (colorA && colorB && colorA !== colorB) return colorA.localeCompare(colorB);
-                if (colorA && !colorB) return -1;
-                if (!colorA && colorB) return 1;
-                return a.name.localeCompare(b.name);
-            })
-            .map((area) => area.id);
-        reorderAreas(reordered);
-    };
+    const sortAreasByName = () => reorderAreas(sortAreasByNameIds(sortedAreas));
+    const sortAreasByColor = () => reorderAreas(sortAreasByColorIds(sortedAreas));
 
     // Group tasks by project to avoid O(N*M) filtering
     const tasksByProject = useMemo(() => {
@@ -488,7 +451,7 @@ export function ProjectsView() {
                         onToggleDeferredProjects={() => setShowDeferredProjects((prev) => !prev)}
                         selectedProjectId={selectedProjectId}
                         onSelectProject={setSelectedProjectId}
-                        getProjectColor={getProjectColor}
+                        getProjectColor={getProjectColorForTask}
                         tasksByProject={tasksByProject}
                         projects={projects}
                         toggleProjectFocus={toggleProjectFocus}
@@ -501,7 +464,7 @@ export function ProjectsView() {
                             <>
                         <ProjectDetailsHeader
                             project={selectedProject}
-                            projectColor={getProjectColor(selectedProject)}
+                            projectColor={getProjectColorForTask(selectedProject)}
                             editTitle={editProjectTitle}
                             onEditTitleChange={setEditProjectTitle}
                             onCommitTitle={handleCommitProjectTitle}
