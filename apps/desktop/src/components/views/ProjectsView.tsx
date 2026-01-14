@@ -14,8 +14,9 @@ import { normalizeAttachmentInput } from '../../lib/attachment-utils';
 import { invoke } from '@tauri-apps/api/core';
 import { size } from '@tauri-apps/plugin-fs';
 import { AttachmentProgressIndicator } from '../AttachmentProgressIndicator';
-import { SortableAreaRow, SortableProjectTaskRow } from './projects/SortableRows';
+import { SortableProjectTaskRow } from './projects/SortableRows';
 import { ProjectsSidebar } from './projects/ProjectsSidebar';
+import { AreaManagerModal } from './projects/AreaManagerModal';
 
 function toDateTimeLocalValue(dateStr: string | undefined): string {
     if (!dateStr) return '';
@@ -856,103 +857,27 @@ export function ProjectsView() {
             </div>
         </div>
         {showAreaManager && (
-            <div
-                className="fixed inset-0 bg-black/50 flex items-start justify-center pt-[15vh] z-50"
-                role="dialog"
-                aria-modal="true"
-                onClick={() => setShowAreaManager(false)}
-            >
-                <div
-                    className="w-full max-w-lg bg-popover text-popover-foreground rounded-xl border shadow-2xl overflow-hidden flex flex-col"
-                    onClick={(e) => e.stopPropagation()}
-                >
-                    <div className="px-4 py-3 border-b flex items-center justify-between gap-2">
-                        <div className="flex items-center gap-2">
-                            <h3 className="font-semibold">Manage Areas</h3>
-                            <div className="flex items-center gap-1">
-                                <button
-                                    type="button"
-                                    onClick={sortAreasByName}
-                                    className="text-xs px-2 py-1 rounded border border-border bg-muted/50 hover:bg-muted"
-                                >
-                                    {t('projects.sortByName')}
-                                </button>
-                                <button
-                                    type="button"
-                                    onClick={sortAreasByColor}
-                                    className="text-xs px-2 py-1 rounded border border-border bg-muted/50 hover:bg-muted"
-                                >
-                                    {t('projects.sortByColor')}
-                                </button>
-                            </div>
-                        </div>
-                        <button
-                            type="button"
-                            onClick={() => setShowAreaManager(false)}
-                            className="text-muted-foreground hover:text-foreground"
-                        >
-                            ✕
-                        </button>
-                    </div>
-                    <div className="p-4 space-y-4">
-                        <div className="space-y-2">
-                            {sortedAreas.length === 0 && (
-                                <div className="text-sm text-muted-foreground">
-                                    {t('projects.noArea')}
-                                </div>
-                            )}
-                            {sortedAreas.length > 0 && (
-                                <DndContext sensors={areaSensors} collisionDetection={closestCenter} onDragEnd={handleAreaDragEnd}>
-                                    <SortableContext items={sortedAreas.map((area) => area.id)} strategy={verticalListSortingStrategy}>
-                                        {sortedAreas.map((area) => (
-                                            <SortableAreaRow
-                                                key={area.id}
-                                                area={area}
-                                                onDelete={handleDeleteArea}
-                                                onUpdateName={(areaId, name) => updateArea(areaId, { name })}
-                                                onUpdateColor={(areaId, color) => updateArea(areaId, { color })}
-                                                t={t}
-                                            />
-                                        ))}
-                                    </SortableContext>
-                                </DndContext>
-                            )}
-                        </div>
-                        <div className="border-t border-border/50 pt-3 space-y-2">
-                            <label className="text-xs text-muted-foreground font-medium uppercase tracking-wider">
-                                New Area
-                            </label>
-                            <div className="flex items-center gap-2">
-                                <input
-                                    type="color"
-                                    value={newAreaColor}
-                                    onChange={(e) => setNewAreaColor(e.target.value)}
-                                    className="w-8 h-8 rounded cursor-pointer border-0 p-0"
-                                />
-                                <input
-                                    type="text"
-                                    value={newAreaName}
-                                    onChange={(e) => setNewAreaName(e.target.value)}
-                                    placeholder="Area name"
-                                    className="flex-1 bg-muted/50 border border-border rounded px-2 py-1 text-sm"
-                                />
-                                <button
-                                    type="button"
-                                    onClick={() => {
-                                        const name = newAreaName.trim();
-                                        if (!name) return;
-                                        addArea(name, { color: newAreaColor });
-                                        setNewAreaName('');
-                                    }}
-                                    className="px-3 py-1.5 rounded-md text-sm bg-primary text-primary-foreground hover:bg-primary/90"
-                                >
-                                    {t('projects.create')}
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
+            <AreaManagerModal
+                sortedAreas={sortedAreas}
+                areaSensors={areaSensors}
+                onDragEnd={handleAreaDragEnd}
+                onDeleteArea={handleDeleteArea}
+                onUpdateArea={updateArea}
+                newAreaColor={newAreaColor}
+                onChangeNewAreaColor={(event) => setNewAreaColor(event.target.value)}
+                newAreaName={newAreaName}
+                onChangeNewAreaName={(event) => setNewAreaName(event.target.value)}
+                onCreateArea={() => {
+                    const name = newAreaName.trim();
+                    if (!name) return;
+                    addArea(name, { color: newAreaColor });
+                    setNewAreaName('');
+                }}
+                onSortByName={sortAreasByName}
+                onSortByColor={sortAreasByColor}
+                onClose={() => setShowAreaManager(false)}
+                t={t}
+            />
         )}
         <PromptModal
             isOpen={showLinkPrompt}
