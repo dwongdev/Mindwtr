@@ -11,9 +11,6 @@ import {
     type Recurrence,
     type RecurrenceRule,
     type RecurrenceStrategy,
-    type RecurrenceWeekday,
-    type RecurrenceByDay,
-    buildRRuleString,
     parseRRuleString,
     getStatusColor,
     Project,
@@ -22,7 +19,6 @@ import {
     PRESET_TAGS,
     type ClarifyResponse,
     type AIProviderId,
-    safeParseDate,
 } from '@mindwtr/core';
 import { cn } from '../lib/utils';
 import { PromptModal } from './PromptModal';
@@ -46,6 +42,7 @@ import {
     toDateTimeLocalValue,
 } from './Task/task-item-helpers';
 import { useTaskItemAttachments } from './Task/useTaskItemAttachments';
+import { useTaskItemRecurrence } from './Task/useTaskItemRecurrence';
 
 interface TaskItemProps {
     task: Task;
@@ -147,78 +144,34 @@ export const TaskItem = memo(function TaskItem({
     const recurrenceStrategy = getRecurrenceStrategyValue(task.recurrence);
     const isStagnant = (task.pushCount ?? 0) > 3;
     const effectiveReadOnly = readOnly || task.status === 'done';
-    const monthlyAnchorDate = safeParseDate(editDueDate) ?? safeParseDate(task.dueDate) ?? new Date();
-    const monthlyWeekdayCode = WEEKDAY_ORDER[monthlyAnchorDate.getDay()];
-    const monthlyRecurrence = useMemo(() => {
-        if (editRecurrence !== 'monthly') {
-            return { pattern: 'date' as const, interval: 1 };
-        }
-        const parsed = parseRRuleString(editRecurrenceRRule);
-        const hasLast = parsed.byDay?.some((day) => String(day).startsWith('-1'));
-        const hasNth = parsed.byDay?.some((day) => /^[1-4]/.test(String(day)));
-        const hasByMonthDay = parsed.byMonthDay && parsed.byMonthDay.length > 0;
-        const interval = parsed.interval && parsed.interval > 0 ? parsed.interval : 1;
-        const isCustomDay = hasByMonthDay && parsed.byMonthDay?.[0] !== monthlyAnchorDate.getDate();
-        const pattern: 'custom' | 'date' = hasNth || hasLast || interval > 1 || isCustomDay ? 'custom' : 'date';
-        return { pattern, interval };
-    }, [editRecurrence, editRecurrenceRRule, monthlyAnchorDate]);
-
-    const [showCustomRecurrence, setShowCustomRecurrence] = useState(false);
-    const [customInterval, setCustomInterval] = useState(1);
-    const [customMode, setCustomMode] = useState<'date' | 'nth'>('date');
-    const [customOrdinal, setCustomOrdinal] = useState<'1' | '2' | '3' | '4' | '-1'>('1');
-    const [customWeekday, setCustomWeekday] = useState<RecurrenceWeekday>(monthlyWeekdayCode);
-    const [customMonthDay, setCustomMonthDay] = useState<number>(monthlyAnchorDate.getDate());
-
-    const openCustomRecurrence = useCallback(() => {
-        const parsed = parseRRuleString(editRecurrenceRRule);
-        const interval = parsed.interval && parsed.interval > 0 ? parsed.interval : 1;
-        let mode: 'date' | 'nth' = 'date';
-        let ordinal: '1' | '2' | '3' | '4' | '-1' = '1';
-        let weekday: RecurrenceWeekday = monthlyWeekdayCode;
-        const monthDay = parsed.byMonthDay?.[0];
-        if (monthDay) {
-            mode = 'date';
-            setCustomMonthDay(Math.min(Math.max(monthDay, 1), 31));
-        }
-        const token = parsed.byDay?.find((day) => /^(-?1|2|3|4)/.test(String(day)));
-        if (token) {
-            const match = String(token).match(/^(-1|1|2|3|4)?(SU|MO|TU|WE|TH|FR|SA)$/);
-            if (match) {
-                mode = 'nth';
-                ordinal = (match[1] ?? '1') as '1' | '2' | '3' | '4' | '-1';
-                weekday = match[2] as RecurrenceWeekday;
-            }
-        }
-        setCustomInterval(interval);
-        setCustomMode(mode);
-        setCustomOrdinal(ordinal);
-        setCustomWeekday(weekday);
-        if (!monthDay) {
-            setCustomMonthDay(monthlyAnchorDate.getDate());
-        }
-        setShowCustomRecurrence(true);
-    }, [editRecurrenceRRule, monthlyAnchorDate, monthlyWeekdayCode]);
+    const {
+        monthlyRecurrence,
+        showCustomRecurrence,
+        setShowCustomRecurrence,
+        customInterval,
+        setCustomInterval,
+        customMode,
+        setCustomMode,
+        customOrdinal,
+        setCustomOrdinal,
+        customWeekday,
+        setCustomWeekday,
+        customMonthDay,
+        setCustomMonthDay,
+        openCustomRecurrence,
+        applyCustomRecurrence,
+    } = useTaskItemRecurrence({
+        task,
+        editDueDate,
+        editRecurrence,
+        editRecurrenceRRule,
+        setEditRecurrence,
+        setEditRecurrenceRRule,
+    });
 
     const handleSetEditTextDirection = useCallback((value: Task['textDirection']) => {
         setEditTextDirection(value ?? 'auto');
     }, []);
-
-    const applyCustomRecurrence = useCallback(() => {
-        const intervalValue = Number(customInterval);
-        const safeInterval = Number.isFinite(intervalValue) && intervalValue > 0 ? intervalValue : 1;
-        const safeMonthDay = Math.min(Math.max(Math.round(customMonthDay || 1), 1), 31);
-        const rrule = customMode === 'nth'
-            ? buildRRuleString('monthly', [`${customOrdinal}${customWeekday}` as RecurrenceByDay], safeInterval)
-            : [
-                'FREQ=MONTHLY',
-                safeInterval > 1 ? `INTERVAL=${safeInterval}` : null,
-                `BYMONTHDAY=${safeMonthDay}`,
-            ].filter(Boolean).join(';');
-        setEditRecurrence('monthly');
-        setEditRecurrenceRRule(rrule);
-        setShowCustomRecurrence(false);
-    }, [customInterval, customMode, customOrdinal, customWeekday, customMonthDay]);
 
     useEffect(() => {
         if (!isHighlighted) return;
@@ -484,6 +437,7 @@ export const TaskItem = memo(function TaskItem({
         setEditRecurrence(getRecurrenceRuleValue(task.recurrence));
         setEditRecurrenceStrategy(getRecurrenceStrategyValue(task.recurrence));
         setEditRecurrenceRRule(getRecurrenceRRuleValue(task.recurrence));
+        setShowCustomRecurrence(false);
         setEditTimeEstimate(task.timeEstimate || '');
         setEditPriority(task.priority || '');
         setEditReviewAt(toDateTimeLocalValue(task.reviewAt));
