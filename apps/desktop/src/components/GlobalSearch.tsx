@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { Search, FileText, CheckCircle, Save } from 'lucide-react';
 import { useTaskStore, Task, Project, searchAll, generateUUID, SavedSearch, getStorageAdapter } from '@mindwtr/core';
 import { useLanguage } from '../contexts/language-context';
