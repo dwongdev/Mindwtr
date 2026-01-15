@@ -126,6 +126,9 @@ export function TaskEditModal({ visible, task, onClose, onSave, onFocusMode, def
     const [pendingDueDate, setPendingDueDate] = useState<Date | null>(null);
     const [editTab, setEditTab] = useState<TaskEditTab>('task');
     const [showDescriptionPreview, setShowDescriptionPreview] = useState(false);
+    const [descriptionDraft, setDescriptionDraft] = useState('');
+    const descriptionDraftRef = useRef('');
+    const descriptionDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const [linkModalVisible, setLinkModalVisible] = useState(false);
     const [audioModalVisible, setAudioModalVisible] = useState(false);
     const [audioAttachment, setAudioAttachment] = useState<Attachment | null>(null);
@@ -235,6 +238,9 @@ export function TaskEditModal({ visible, task, onClose, onSave, onFocusMode, def
                 baseTaskRef.current = normalizedTask;
                 isDirtyRef.current = false;
                 setShowDescriptionPreview(false);
+                const nextDescription = String(normalizedTask.description ?? '');
+                descriptionDraftRef.current = nextDescription;
+                setDescriptionDraft(nextDescription);
                 setEditTab(resolveInitialTab(defaultTab, normalizedTask));
                 setCopilotSuggestion(null);
                 setCopilotApplied(false);
@@ -247,6 +253,8 @@ export function TaskEditModal({ visible, task, onClose, onSave, onFocusMode, def
             baseTaskRef.current = null;
             isDirtyRef.current = false;
             setShowDescriptionPreview(false);
+            descriptionDraftRef.current = '';
+            setDescriptionDraft('');
             setEditTab(resolveInitialTab(defaultTab, null));
             setCustomWeekdays([]);
         }
@@ -334,6 +342,20 @@ export function TaskEditModal({ visible, task, onClose, onSave, onFocusMode, def
         }
     }, [visible]);
 
+    useEffect(() => {
+        if (!visible && descriptionDebounceRef.current) {
+            clearTimeout(descriptionDebounceRef.current);
+            descriptionDebounceRef.current = null;
+        }
+    }, [visible]);
+
+    useEffect(() => () => {
+        if (descriptionDebounceRef.current) {
+            clearTimeout(descriptionDebounceRef.current);
+            descriptionDebounceRef.current = null;
+        }
+    }, []);
+
     const closeAIModal = () => setAiModal(null);
     const resetCopilotDraft = () => {
         setCopilotApplied(false);
@@ -380,7 +402,11 @@ export function TaskEditModal({ visible, task, onClose, onSave, onFocusMode, def
 
     const handleSave = () => {
         if (!task) return;
-        const updates: Partial<Task> = { ...editedTask };
+        if (descriptionDebounceRef.current) {
+            clearTimeout(descriptionDebounceRef.current);
+            descriptionDebounceRef.current = null;
+        }
+        const updates: Partial<Task> = { ...editedTask, description: descriptionDraftRef.current };
         const recurrenceRule = getRecurrenceRuleValue(editedTask.recurrence);
         const recurrenceStrategy = getRecurrenceStrategyValue(editedTask.recurrence);
         if (recurrenceRule) {
@@ -1236,7 +1262,7 @@ export function TaskEditModal({ visible, task, onClose, onSave, onFocusMode, def
             if (!provider) return;
             const response = await provider.breakDownTask({
                 title,
-                description: String(editedTask.description ?? ''),
+                description: String(descriptionDraft ?? ''),
                 ...(projectContext ?? {}),
             });
             const steps = response.steps.map((step) => step.trim()).filter(Boolean).slice(0, 8);
@@ -1275,7 +1301,7 @@ export function TaskEditModal({ visible, task, onClose, onSave, onFocusMode, def
 
     const inputStyle = { backgroundColor: tc.inputBg, borderColor: tc.border, color: tc.text };
     const textDirectionValue = (editedTask.textDirection ?? 'auto') as Task['textDirection'] | 'auto';
-    const combinedText = `${editedTask.title ?? ''}\n${editedTask.description ?? ''}`.trim();
+    const combinedText = `${editedTask.title ?? ''}\n${descriptionDraft ?? ''}`.trim();
     const resolvedDirection = resolveTextDirection(combinedText, textDirectionValue);
     const textDirectionStyle = {
         writingDirection: resolvedDirection,
@@ -1755,15 +1781,22 @@ export function TaskEditModal({ visible, task, onClose, onSave, onFocusMode, def
                         </View>
                         {showDescriptionPreview ? (
                             <View style={[styles.markdownPreview, { backgroundColor: tc.filterBg, borderColor: tc.border }]}>
-                                <MarkdownText markdown={editedTask.description || ''} tc={tc} direction={resolvedDirection} />
+                                <MarkdownText markdown={descriptionDraft || ''} tc={tc} direction={resolvedDirection} />
                             </View>
                         ) : (
                             <TextInput
                                 style={[styles.input, styles.textArea, inputStyle, textDirectionStyle]}
-                                value={editedTask.description || ''}
+                                value={descriptionDraft}
                                 onChangeText={(text) => {
-                                    setEditedTask(prev => ({ ...prev, description: text }));
+                                    setDescriptionDraft(text);
+                                    descriptionDraftRef.current = text;
                                     resetCopilotDraft();
+                                    if (descriptionDebounceRef.current) {
+                                        clearTimeout(descriptionDebounceRef.current);
+                                    }
+                                    descriptionDebounceRef.current = setTimeout(() => {
+                                        setEditedTask(prev => ({ ...prev, description: text }));
+                                    }, 250);
                                 }}
                                 placeholder={t('taskEdit.descriptionPlaceholder')}
                                 multiline
