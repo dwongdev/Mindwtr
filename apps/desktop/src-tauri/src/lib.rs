@@ -82,6 +82,7 @@ CREATE TABLE IF NOT EXISTS projects (
   title TEXT NOT NULL,
   status TEXT NOT NULL,
   color TEXT NOT NULL,
+  orderNum INTEGER,
   tagIds TEXT,
   isSequential INTEGER,
   isFocused INTEGER,
@@ -176,7 +177,6 @@ CREATE INDEX IF NOT EXISTS idx_tasks_status_deletedAt ON tasks(status, deletedAt
 CREATE INDEX IF NOT EXISTS idx_tasks_project_status_deletedAt ON tasks(projectId, status, deletedAt);
 CREATE INDEX IF NOT EXISTS idx_projects_status ON projects(status);
 CREATE INDEX IF NOT EXISTS idx_projects_areaId ON projects(areaId);
-CREATE INDEX IF NOT EXISTS idx_projects_area_order ON projects(areaId, orderNum);
 "#;
 
 #[derive(Debug, Serialize, Deserialize, Default)]
@@ -603,6 +603,7 @@ fn open_sqlite(app: &tauri::AppHandle) -> Result<Connection, String> {
     ensure_tasks_purged_at_column(&conn)?;
     ensure_tasks_order_column(&conn)?;
     ensure_projects_order_column(&conn)?;
+    ensure_projects_area_order_index(&conn)?;
     ensure_fts_populated(&conn, false)?;
     Ok(conn)
 }
@@ -655,6 +656,30 @@ fn ensure_projects_order_column(conn: &Connection) -> Result<(), String> {
     }
     conn.execute("ALTER TABLE projects ADD COLUMN orderNum INTEGER", [])
         .map_err(|e| e.to_string())?;
+    Ok(())
+}
+
+fn ensure_projects_area_order_index(conn: &Connection) -> Result<(), String> {
+    let mut stmt = conn
+        .prepare("PRAGMA table_info(projects)")
+        .map_err(|e| e.to_string())?;
+    let columns = stmt
+        .query_map([], |row| row.get::<_, String>(1))
+        .map_err(|e| e.to_string())?;
+    let mut has_order = false;
+    for col in columns {
+        if col.map_err(|e| e.to_string())? == "orderNum" {
+            has_order = true;
+            break;
+        }
+    }
+    if has_order {
+        conn.execute(
+            "CREATE INDEX IF NOT EXISTS idx_projects_area_order ON projects(areaId, orderNum)",
+            [],
+        )
+        .map_err(|e| e.to_string())?;
+    }
     Ok(())
 }
 

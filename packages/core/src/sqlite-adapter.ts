@@ -199,6 +199,9 @@ export class SqliteAdapter {
         if (!hasOrder) {
             await this.client.run('ALTER TABLE projects ADD COLUMN orderNum INTEGER');
         }
+        await this.client.run(
+            'CREATE INDEX IF NOT EXISTS idx_projects_area_order ON projects(areaId, orderNum)'
+        );
     }
 
     private async ensureFtsPopulated(forceRebuild = false) {

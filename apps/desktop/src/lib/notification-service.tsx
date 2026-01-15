@@ -61,6 +61,11 @@ async function ensurePermission() {
     }
 
     if (typeof Notification !== 'undefined' && Notification.permission === 'default') {
+        const canPrompt =
+            typeof navigator !== 'undefined'
+            && 'userActivation' in navigator
+            && (navigator as Navigator & { userActivation?: { isActive: boolean } }).userActivation?.isActive;
+        if (!canPrompt) return;
         try {
             await Notification.requestPermission();
         } catch {
