@@ -141,11 +141,13 @@ CREATE TRIGGER IF NOT EXISTS tasks_ai AFTER INSERT ON tasks BEGIN
 END;
 
 CREATE TRIGGER IF NOT EXISTS tasks_ad AFTER DELETE ON tasks BEGIN
-  DELETE FROM tasks_fts WHERE id = old.id;
+  INSERT INTO tasks_fts (tasks_fts, id, title, description, tags, contexts)
+  VALUES ('delete', old.id, old.title, coalesce(old.description, ''), coalesce(old.tags, ''), coalesce(old.contexts, ''));
 END;
 
 CREATE TRIGGER IF NOT EXISTS tasks_au AFTER UPDATE ON tasks BEGIN
-  DELETE FROM tasks_fts WHERE id = old.id;
+  INSERT INTO tasks_fts (tasks_fts, id, title, description, tags, contexts)
+  VALUES ('delete', old.id, old.title, coalesce(old.description, ''), coalesce(old.tags, ''), coalesce(old.contexts, ''));
   INSERT INTO tasks_fts (id, title, description, tags, contexts)
   VALUES (new.id, new.title, coalesce(new.description, ''), coalesce(new.tags, ''), coalesce(new.contexts, ''));
 END;
@@ -156,11 +158,13 @@ CREATE TRIGGER IF NOT EXISTS projects_ai AFTER INSERT ON projects BEGIN
 END;
 
 CREATE TRIGGER IF NOT EXISTS projects_ad AFTER DELETE ON projects BEGIN
-  DELETE FROM projects_fts WHERE id = old.id;
+  INSERT INTO projects_fts (projects_fts, id, title, supportNotes, tagIds, areaTitle)
+  VALUES ('delete', old.id, old.title, coalesce(old.supportNotes, ''), coalesce(old.tagIds, ''), coalesce(old.areaTitle, ''));
 END;
 
 CREATE TRIGGER IF NOT EXISTS projects_au AFTER UPDATE ON projects BEGIN
-  DELETE FROM projects_fts WHERE id = old.id;
+  INSERT INTO projects_fts (projects_fts, id, title, supportNotes, tagIds, areaTitle)
+  VALUES ('delete', old.id, old.title, coalesce(old.supportNotes, ''), coalesce(old.tagIds, ''), coalesce(old.areaTitle, ''));
   INSERT INTO projects_fts (id, title, supportNotes, tagIds, areaTitle)
   VALUES (new.id, new.title, coalesce(new.supportNotes, ''), coalesce(new.tagIds, ''), coalesce(new.areaTitle, ''));
 END;
@@ -604,6 +608,7 @@ fn open_sqlite(app: &tauri::AppHandle) -> Result<Connection, String> {
     ensure_tasks_order_column(&conn)?;
     ensure_projects_order_column(&conn)?;
     ensure_projects_area_order_index(&conn)?;
+    ensure_fts_triggers(&conn)?;
     ensure_fts_populated(&conn, false)?;
     Ok(conn)
 }
@@ -683,6 +688,70 @@ fn ensure_projects_area_order_index(conn: &Connection) -> Result<(), String> {
     Ok(())
 }
 
+fn ensure_fts_triggers(conn: &Connection) -> Result<(), String> {
+    let has_v2: Option<i64> = conn
+        .query_row(
+            "SELECT version FROM schema_migrations WHERE version = 2 LIMIT 1",
+            [],
+            |row| row.get(0),
+        )
+        .optional()
+        .map_err(|e| e.to_string())?;
+    if has_v2.is_some() {
+        return Ok(());
+    }
+
+    conn.execute("DROP TRIGGER IF EXISTS tasks_ad", [])
+        .map_err(|e| e.to_string())?;
+    conn.execute("DROP TRIGGER IF EXISTS tasks_au", [])
+        .map_err(|e| e.to_string())?;
+    conn.execute("DROP TRIGGER IF EXISTS projects_ad", [])
+        .map_err(|e| e.to_string())?;
+    conn.execute("DROP TRIGGER IF EXISTS projects_au", [])
+        .map_err(|e| e.to_string())?;
+
+    conn.execute(
+        "CREATE TRIGGER tasks_ad AFTER DELETE ON tasks BEGIN
+          INSERT INTO tasks_fts (tasks_fts, id, title, description, tags, contexts)
+          VALUES ('delete', old.id, old.title, coalesce(old.description, ''), coalesce(old.tags, ''), coalesce(old.contexts, ''));
+        END",
+        [],
+    )
+    .map_err(|e| e.to_string())?;
+    conn.execute(
+        "CREATE TRIGGER tasks_au AFTER UPDATE ON tasks BEGIN
+          INSERT INTO tasks_fts (tasks_fts, id, title, description, tags, contexts)
+          VALUES ('delete', old.id, old.title, coalesce(old.description, ''), coalesce(old.tags, ''), coalesce(old.contexts, ''));
+          INSERT INTO tasks_fts (id, title, description, tags, contexts)
+          VALUES (new.id, new.title, coalesce(new.description, ''), coalesce(new.tags, ''), coalesce(new.contexts, ''));
+        END",
+        [],
+    )
+    .map_err(|e| e.to_string())?;
+    conn.execute(
+        "CREATE TRIGGER projects_ad AFTER DELETE ON projects BEGIN
+          INSERT INTO projects_fts (projects_fts, id, title, supportNotes, tagIds, areaTitle)
+          VALUES ('delete', old.id, old.title, coalesce(old.supportNotes, ''), coalesce(old.tagIds, ''), coalesce(old.areaTitle, ''));
+        END",
+        [],
+    )
+    .map_err(|e| e.to_string())?;
+    conn.execute(
+        "CREATE TRIGGER projects_au AFTER UPDATE ON projects BEGIN
+          INSERT INTO projects_fts (projects_fts, id, title, supportNotes, tagIds, areaTitle)
+          VALUES ('delete', old.id, old.title, coalesce(old.supportNotes, ''), coalesce(old.tagIds, ''), coalesce(old.areaTitle, ''));
+          INSERT INTO projects_fts (id, title, supportNotes, tagIds, areaTitle)
+          VALUES (new.id, new.title, coalesce(new.supportNotes, ''), coalesce(new.tagIds, ''), coalesce(new.areaTitle, ''));
+        END",
+        [],
+    )
+    .map_err(|e| e.to_string())?;
+
+    conn.execute("INSERT OR IGNORE INTO schema_migrations (version) VALUES (2)", [])
+        .map_err(|e| e.to_string())?;
+    Ok(())
+}
+
 fn sqlite_has_any_data(conn: &Connection) -> Result<bool, String> {
     let task_count: i64 = conn
         .query_row("SELECT COUNT(*) FROM tasks", [], |row| row.get(0))
@@ -718,7 +787,8 @@ fn ensure_fts_populated(conn: &Connection, force_rebuild: bool) -> Result<(), St
         )
         .unwrap_or(0);
     if force_rebuild || tasks_fts_count == 0 || missing_tasks > 0 || extra_tasks > 0 {
-        conn.execute("DELETE FROM tasks_fts", []).map_err(|e| e.to_string())?;
+        conn.execute("INSERT INTO tasks_fts(tasks_fts) VALUES('delete-all')", [])
+            .map_err(|e| e.to_string())?;
         conn.execute(
             "INSERT INTO tasks_fts (id, title, description, tags, contexts)
              SELECT id, title, coalesce(description, ''), coalesce(tags, ''), coalesce(contexts, '') FROM tasks",
@@ -745,7 +815,8 @@ fn ensure_fts_populated(conn: &Connection, force_rebuild: bool) -> Result<(), St
         )
         .unwrap_or(0);
     if force_rebuild || projects_fts_count == 0 || missing_projects > 0 || extra_projects > 0 {
-        conn.execute("DELETE FROM projects_fts", []).map_err(|e| e.to_string())?;
+        conn.execute("INSERT INTO projects_fts(projects_fts) VALUES('delete-all')", [])
+            .map_err(|e| e.to_string())?;
         conn.execute(
             "INSERT INTO projects_fts (id, title, supportNotes, tagIds, areaTitle)
              SELECT id, title, coalesce(supportNotes, ''), coalesce(tagIds, ''), coalesce(areaTitle, '') FROM projects",
