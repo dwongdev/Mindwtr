@@ -1,5 +1,6 @@
 import { generateUUID, type ExternalCalendarSubscription } from '@mindwtr/core';
 import { isTauriRuntime } from './runtime';
+import { reportError } from './report-error';
 
 const EXTERNAL_CALENDARS_KEY = 'mindwtr-external-calendars';
 
@@ -39,7 +40,7 @@ export class ExternalCalendarService {
             const calendars = await tauriInvoke<ExternalCalendarSubscription[]>('get_external_calendars');
             return sanitizeCalendars(calendars);
         } catch (error) {
-            console.error('Failed to read external calendars:', error);
+            reportError('Failed to read external calendars', error);
             return sanitizeCalendars(safeJsonParse(localStorage.getItem(EXTERNAL_CALENDARS_KEY), []));
         }
     }
@@ -54,9 +55,8 @@ export class ExternalCalendarService {
         try {
             await tauriInvoke('set_external_calendars', { calendars: sanitized });
         } catch (error) {
-            console.error('Failed to save external calendars:', error);
+            reportError('Failed to save external calendars', error);
             localStorage.setItem(EXTERNAL_CALENDARS_KEY, JSON.stringify(sanitized));
         }
     }
 }
-
