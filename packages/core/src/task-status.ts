@@ -40,6 +40,17 @@ export function normalizeTaskForLoad(task: Task, nowIso: string = new Date().toI
     const normalizedStatus = normalizeTaskStatus((task as any).status);
     const { ...rest } = task as Task;
 
+    let createdAtIso = typeof task.createdAt === 'string' ? task.createdAt : nowIso;
+    const createdAtMs = Date.parse(createdAtIso);
+    if (!Number.isFinite(createdAtMs)) {
+        createdAtIso = nowIso;
+    }
+    let updatedAtIso = typeof task.updatedAt === 'string' ? task.updatedAt : createdAtIso;
+    const updatedAtMs = Date.parse(updatedAtIso);
+    if (!Number.isFinite(updatedAtMs) || updatedAtMs < Date.parse(createdAtIso)) {
+        updatedAtIso = createdAtIso;
+    }
+
     const hasValidPushCount = typeof task.pushCount === 'number' && Number.isFinite(task.pushCount);
     const projectId =
         typeof task.projectId === 'string' && task.projectId.trim().length > 0
@@ -51,6 +62,8 @@ export function normalizeTaskForLoad(task: Task, nowIso: string = new Date().toI
             : undefined;
     const next: Task = {
         ...rest,
+        createdAt: createdAtIso,
+        updatedAt: updatedAtIso,
         status: normalizedStatus,
         projectId,
         ...(textDirection ? { textDirection } : {}),
