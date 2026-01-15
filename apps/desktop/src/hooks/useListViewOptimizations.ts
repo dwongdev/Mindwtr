@@ -23,7 +23,9 @@ export function useListViewOptimizations(
     const derived = getDerivedState();
     const allContexts = derived.allContexts;
     const allTags = derived.allTags;
+    const projectMap = derived.projectMap;
     const sequentialProjectIds = derived.sequentialProjectIds;
+    const tasksById = derived.tasksById;
 
     const sequentialProjectFirstTasks = useConditionalMemo(
         statusFilter === 'next',
@@ -112,8 +114,10 @@ export function useListViewOptimizations(
     return {
         allContexts,
         allTags,
+        projectMap,
         sequentialProjectIds,
         sequentialProjectFirstTasks,
+        tasksById,
         tokenCounts,
         nextCount,
     };

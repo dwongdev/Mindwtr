@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import { AlertTriangle } from 'lucide-react';
 import { useVirtualizer } from '@tanstack/react-virtual';
-import { shallow, useTaskStore, TaskPriority, TimeEstimate, sortTasksBy, Project, parseQuickAdd, matchesHierarchicalToken, safeParseDate } from '@mindwtr/core';
+import { shallow, useTaskStore, TaskPriority, TimeEstimate, sortTasksBy, parseQuickAdd, matchesHierarchicalToken, safeParseDate } from '@mindwtr/core';
 import type { Task, TaskStatus } from '@mindwtr/core';
 import type { TaskSortBy } from '@mindwtr/core';
 import { TaskItem } from '../TaskItem';
@@ -123,7 +123,9 @@ export function ListView({ title, statusFilter }: ListViewProps) {
     const {
         allContexts,
         allTags,
+        projectMap,
         sequentialProjectFirstTasks,
+        tasksById,
         tokenCounts,
         nextCount,
     } = useListViewOptimizations(tasks, baseTasks, statusFilter, perf);
@@ -145,13 +147,6 @@ export function ListView({ title, statusFilter }: ListViewProps) {
         allContexts,
         allTags,
     });
-
-    const projectMap = useMemo(() => {
-        return projects.reduce((acc, project) => {
-            acc[project.id] = project;
-            return acc;
-        }, {} as Record<string, Project>);
-    }, [projects]);
 
     const projectOrderMap = useMemo(() => {
         const sorted = [...projects]
@@ -180,13 +175,6 @@ export function ListView({ title, statusFilter }: ListViewProps) {
             return aCreated - bCreated;
         });
     }, [projectOrderMap]);
-
-    const tasksById = useMemo(() => {
-        return tasks.reduce((acc, task) => {
-            acc[task.id] = task;
-            return acc;
-        }, {} as Record<string, Task>);
-    }, [tasks]);
 
     // For sequential projects, get only the first task to show in Next view
 
@@ -242,7 +230,7 @@ export function ListView({ title, statusFilter }: ListViewProps) {
 
                 // Sequential project filter: for 'next' status, only show first task from sequential projects
                 if (statusFilter === 'next' && t.projectId) {
-                    const project = projectMap[t.projectId];
+                    const project = projectMap.get(t.projectId);
                     if (project?.isSequential) {
                         // Only include if this is the first task
                         if (!sequentialProjectFirstTasks.has(t.id)) return false;
@@ -268,7 +256,7 @@ export function ListView({ title, statusFilter }: ListViewProps) {
 
             return sortTasksBy(filtered, sortBy);
         });
-    }, [baseTasks, projects, statusFilter, selectedTokens, activePriorities, activeTimeEstimates, sequentialProjectFirstTasks, projectMap, sortBy, sortByProjectOrder]);
+    }, [baseTasks, statusFilter, selectedTokens, activePriorities, activeTimeEstimates, sequentialProjectFirstTasks, projectMap, sortBy, sortByProjectOrder]);
 
     const shouldVirtualize = filteredTasks.length > VIRTUALIZATION_THRESHOLD;
     const rowVirtualizer = useVirtualizer({
@@ -722,7 +710,7 @@ export function ListView({ title, statusFilter }: ListViewProps) {
                                         <TaskItem
                                             key={task.id}
                                             task={task}
-                                            project={task.projectId ? projectMap[task.projectId] : undefined}
+                                            project={task.projectId ? projectMap.get(task.projectId) : undefined}
                                             isSelected={virtualRow.index === selectedIndex}
                                             onSelect={() => handleSelectIndex(virtualRow.index)}
                                             selectionMode={selectionMode}
@@ -743,7 +731,7 @@ export function ListView({ title, statusFilter }: ListViewProps) {
                             <TaskItem
                                 key={task.id}
                                 task={task}
-                                project={task.projectId ? projectMap[task.projectId] : undefined}
+                                project={task.projectId ? projectMap.get(task.projectId) : undefined}
                                 isSelected={index === selectedIndex}
                                 onSelect={() => handleSelectIndex(index)}
                                 selectionMode={selectionMode}
@@ -772,7 +760,7 @@ export function ListView({ title, statusFilter }: ListViewProps) {
                 if (!input) return;
                 const tag = input.startsWith('#') ? input : `#${input}`;
                 await batchUpdateTasks(tagPromptIds.map((id) => {
-                    const task = tasksById[id];
+                    const task = tasksById.get(id);
                     const existingTags = task?.tags || [];
                     const nextTags = Array.from(new Set([...existingTags, tag]));
                     return { id, updates: { tags: nextTags } };
