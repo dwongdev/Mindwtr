@@ -1225,6 +1225,18 @@ export class SyncService {
             step = 'refresh';
             await useTaskStore.getState().fetchData();
 
+            const syncStatus = syncResult.status;
+            const now = new Date().toISOString();
+            try {
+                await useTaskStore.getState().updateSettings({
+                    lastSyncAt: now,
+                    lastSyncStatus: syncStatus,
+                    lastSyncError: syncStatus === 'error' ? useTaskStore.getState().settings?.lastSyncError : undefined,
+                });
+            } catch (error) {
+                console.warn('Failed to persist sync status', error);
+            }
+
             useTaskStore.getState().setError(null);
             return { success: true, stats };
         };
