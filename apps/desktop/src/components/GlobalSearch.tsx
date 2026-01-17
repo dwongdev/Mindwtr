@@ -15,6 +15,7 @@ export function GlobalSearch({ onNavigate }: GlobalSearchProps) {
     const [selectedIndex, setSelectedIndex] = useState(0);
     const [showSavePrompt, setShowSavePrompt] = useState(false);
     const [savePromptDefault, setSavePromptDefault] = useState('');
+    const [includeCompleted, setIncludeCompleted] = useState(false);
     const [ftsResults, setFtsResults] = useState<{ tasks: Task[]; projects: Project[] } | null>(null);
     const [ftsLoading, setFtsLoading] = useState(false);
     const [debouncedQuery, setDebouncedQuery] = useState('');
@@ -66,6 +67,7 @@ export function GlobalSearch({ onNavigate }: GlobalSearchProps) {
             setQuery('');
             setSelectedIndex(0);
             setShowSavePrompt(false);
+            setIncludeCompleted(false);
         }
     }, [isOpen]);
 
@@ -121,13 +123,33 @@ export function GlobalSearch({ onNavigate }: GlobalSearchProps) {
         ? ftsResults
         : fallbackResults;
     const { tasks: taskResults, projects: projectResults } = effectiveResults;
+    const includeCompletedLabel = t('search.includeCompleted');
+    const includeCompletedText = includeCompletedLabel === 'search.includeCompleted'
+        ? 'Include Done and Archived tasks'
+        : includeCompletedLabel;
+    const filteredTasks = includeCompleted
+        ? taskResults
+        : taskResults.filter((task) => ['next', 'waiting', 'someday'].includes(task.status));
+    const filteredProjects = includeCompleted
+        ? projectResults
+        : projectResults.filter((project) => project.status !== 'archived');
 
-    const totalResults = projectResults.length + taskResults.length;
+    const totalResults = filteredProjects.length + filteredTasks.length;
     const results = trimmedQuery === '' ? [] : [
-        ...projectResults.map(p => ({ type: 'project' as const, item: p })),
-        ...taskResults.map(t => ({ type: 'task' as const, item: t })),
+        ...filteredProjects.map(p => ({ type: 'project' as const, item: p })),
+        ...filteredTasks.map(t => ({ type: 'task' as const, item: t })),
     ].slice(0, 50); // Limit results
     const isTruncated = totalResults > results.length;
+
+    useEffect(() => {
+        if (results.length === 0) {
+            if (selectedIndex !== 0) setSelectedIndex(0);
+            return;
+        }
+        if (selectedIndex >= results.length) {
+            setSelectedIndex(results.length - 1);
+        }
+    }, [results.length, selectedIndex]);
 
     useEffect(() => {
         if (!isOpen) return;
@@ -242,6 +264,17 @@ export function GlobalSearch({ onNavigate }: GlobalSearchProps) {
                     </div>
                 </div>
 
+                <div className="px-4 py-2 border-b text-xs text-muted-foreground flex items-center gap-2">
+                    <label className="flex items-center gap-2 cursor-pointer select-none">
+                        <input
+                            type="checkbox"
+                            checked={includeCompleted}
+                            onChange={(event) => setIncludeCompleted(event.target.checked)}
+                            className="h-3.5 w-3.5 rounded border-border text-primary focus:ring-primary"
+                        />
+                        <span>{includeCompletedText}</span>
+                    </label>
+                </div>
                 <div ref={resultsRef} className="max-h-[60vh] overflow-y-auto p-2">
                     {isTruncated && (
                         <div className="px-3 pb-2 text-xs text-muted-foreground">
