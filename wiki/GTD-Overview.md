@@ -82,6 +82,16 @@ A next action is the **next visible, physical activity** to move something forwa
 
 A project is any outcome requiring more than one action. It's a commitment to a result, not a to-do list.
 
+### Areas, Projects, and Tasks
+
+Mindwtr uses a flexible "container" model so you can organize without friction:
+
+- **Areas** are ongoing responsibilities (e.g., Work, Home, Health).  
+- **Projects** are outcomes with an end. They can live inside an Area *or* stand alone.  
+- **Tasks** can live inside a Project, inside an Area directly, or be completely unassigned (Inbox / no Area).
+
+This lets you keep long‑running responsibilities in Areas while still capturing quick tasks without forcing a folder choice.
+
 ### The 2-Minute Rule
 
 If an action takes less than 2 minutes, **do it immediately** during processing.
