@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState, useRef } from 'react';
 import { ErrorBoundary } from '../ErrorBoundary';
 import { endOfMonth, endOfWeek, format, isSameDay, isSameMonth, isToday, startOfMonth, startOfWeek, eachDayOfInterval } from 'date-fns';
-import { shallow, parseIcs, safeParseDate, safeParseDueDate, type ExternalCalendarEvent, type ExternalCalendarSubscription, useTaskStore, type Task } from '@mindwtr/core';
+import { shallow, parseIcs, safeParseDate, safeParseDueDate, type ExternalCalendarEvent, type ExternalCalendarSubscription, useTaskStore, type Task, isTaskInActiveProject } from '@mindwtr/core';
 import { useLanguage } from '../../contexts/language-context';
 import { isTauriRuntime } from '../../lib/runtime';
 import { ExternalCalendarService } from '../../lib/external-calendar-service';
@@ -14,15 +14,17 @@ const dayKey = (date: Date) => format(date, 'yyyy-MM-dd');
 
 export function CalendarView() {
     const perf = usePerformanceMonitor('CalendarView');
-    const { tasks, updateTask, deleteTask, settings } = useTaskStore(
+    const { tasks, updateTask, deleteTask, settings, getDerivedState } = useTaskStore(
         (state) => ({
             tasks: state.tasks,
             updateTask: state.updateTask,
             deleteTask: state.deleteTask,
             settings: state.settings,
+            getDerivedState: state.getDerivedState,
         }),
         shallow
     );
+    const { projectMap } = getDerivedState();
     const { t } = useLanguage();
     const timeEstimatesEnabled = settings?.features?.timeEstimates === true;
     const today = new Date();
@@ -53,9 +55,17 @@ export function CalendarView() {
         end: calendarEnd,
     });
 
+    const isCalendarTaskVisible = (task: Task) => {
+        if (task.deletedAt) return false;
+        if (task.status === 'done' || task.status === 'archived') return false;
+        if (!isTaskInActiveProject(task, projectMap)) return false;
+        return true;
+    };
+
     const deadlinesByDay = useMemo(() => {
         const map = new Map<string, Task[]>();
         for (const task of tasks) {
+            if (!isCalendarTaskVisible(task)) continue;
             if (!task.dueDate) continue;
             const dueDate = safeParseDueDate(task.dueDate);
             if (!dueDate) continue;
@@ -65,11 +75,12 @@ export function CalendarView() {
             else map.set(key, [task]);
         }
         return map;
-    }, [tasks]);
+    }, [tasks, projectMap]);
 
     const scheduledByDay = useMemo(() => {
         const map = new Map<string, Task[]>();
         for (const task of tasks) {
+            if (!isCalendarTaskVisible(task)) continue;
             if (!task.startTime) continue;
             const startTime = safeParseDate(task.startTime);
             if (!startTime) continue;
@@ -79,7 +90,7 @@ export function CalendarView() {
             else map.set(key, [task]);
         }
         return map;
-    }, [tasks]);
+    }, [tasks, projectMap]);
 
     const getDeadlinesForDay = (date: Date) => deadlinesByDay.get(dayKey(date)) ?? [];
     const getScheduledForDay = (date: Date) => scheduledByDay.get(dayKey(date)) ?? [];
@@ -139,9 +150,8 @@ export function CalendarView() {
         }
 
         for (const task of tasks) {
-            if (task.deletedAt) continue;
+            if (!isCalendarTaskVisible(task)) continue;
             if (task.id === excludeTaskId) continue;
-            if (task.status === 'done') continue;
             const start = task.startTime ? safeParseDate(task.startTime) : null;
             if (!start) continue;
             if (!isSameDay(start, day)) continue;
@@ -193,9 +203,8 @@ export function CalendarView() {
         }
 
         for (const task of tasks) {
-            if (task.deletedAt) continue;
+            if (!isCalendarTaskVisible(task)) continue;
             if (task.id === excludeTaskId) continue;
-            if (task.status === 'done') continue;
             const start = task.startTime ? safeParseDate(task.startTime) : null;
             if (!start) continue;
             if (!isSameDay(start, day)) continue;
@@ -302,13 +311,12 @@ export function CalendarView() {
 
         return tasks
             .filter((task) => {
-                if (task.deletedAt) return false;
-                if (task.status === 'done') return false;
+                if (!isCalendarTaskVisible(task)) return false;
                 if (task.status !== 'next') return false;
                 return task.title.toLowerCase().includes(query);
             })
             .slice(0, 12);
-    }, [tasks, scheduleQuery, selectedDate]);
+    }, [tasks, scheduleQuery, selectedDate, projectMap]);
 
     useEffect(() => {
         if (!selectedDate) return;

@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react';
-import { AlertTriangle } from 'lucide-react';
+import { AlertTriangle, Folder } from 'lucide-react';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { shallow, useTaskStore, TaskPriority, TimeEstimate, sortTasksBy, parseQuickAdd, matchesHierarchicalToken, safeParseDate, isTaskInActiveProject } from '@mindwtr/core';
 import type { Task, TaskStatus } from '@mindwtr/core';
@@ -212,7 +212,8 @@ export function ListView({ title, statusFilter }: ListViewProps) {
         perf.trackUseMemo();
         return perf.measure('filteredTasks', () => {
             const now = new Date();
-            const allowDeferredProjectTasks = statusFilter === 'someday' || statusFilter === 'done' || statusFilter === 'archived';
+            const allowDeferredProjectTasks = statusFilter === 'done' || statusFilter === 'archived';
+            const hideProjectTasksInDeferredList = statusFilter === 'someday' || statusFilter === 'waiting';
             const filtered = baseTasks.filter(t => {
                 // Always filter out soft-deleted tasks
                 if (t.deletedAt) return false;
@@ -220,6 +221,7 @@ export function ListView({ title, statusFilter }: ListViewProps) {
                 if (statusFilter !== 'all' && t.status !== statusFilter) return false;
                 // Respect statusFilter (handled above).
                 if (!allowDeferredProjectTasks && !isTaskInActiveProject(t, projectMap)) return false;
+                if (hideProjectTasksInDeferredList && t.projectId && projectMap.get(t.projectId)) return false;
 
                 if (statusFilter === 'inbox') {
                     const start = safeParseDate(t.startTime);
@@ -259,6 +261,16 @@ export function ListView({ title, statusFilter }: ListViewProps) {
             return sortTasksBy(filtered, sortBy);
         });
     }, [baseTasks, statusFilter, selectedTokens, activePriorities, activeTimeEstimates, sequentialProjectFirstTasks, projectMap, sortBy, sortByProjectOrder]);
+
+    const showDeferredProjects = statusFilter === 'someday' || statusFilter === 'waiting';
+    const deferredProjects = useMemo(() => {
+        if (!showDeferredProjects) return [] as typeof projects;
+        return [...projects]
+            .filter((project) => !project.deletedAt && project.status === statusFilter)
+            .sort((a, b) => (a.order - b.order) || a.title.localeCompare(b.title));
+    }, [projects, showDeferredProjects, statusFilter]);
+    const showDeferredProjectSection = showDeferredProjects && deferredProjects.length > 0;
+    const showEmptyState = filteredTasks.length === 0 && !showDeferredProjectSection;
 
     const shouldVirtualize = filteredTasks.length > VIRTUALIZATION_THRESHOLD;
     const rowVirtualizer = useVirtualizer({
@@ -593,6 +605,25 @@ export function ListView({ title, statusFilter }: ListViewProps) {
                 </div>
             )}
 
+            {showDeferredProjectSection && (
+                <div className="rounded-lg border border-border bg-card/50 p-4">
+                    <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                        {t('projects.deferredSection')}
+                    </div>
+                    <div className="mt-3 space-y-2">
+                        {deferredProjects.map((project) => (
+                            <div
+                                key={project.id}
+                                className="flex items-center gap-2 rounded-md border border-border/60 bg-background px-3 py-2"
+                            >
+                                <Folder className="h-4 w-4" style={{ color: project.color }} />
+                                <span className="text-sm font-medium text-foreground">{project.title}</span>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            )}
+
             <InboxProcessor
                 t={t}
                 isInbox={isInbox}
@@ -683,7 +714,7 @@ export function ListView({ title, statusFilter }: ListViewProps) {
                 role="list"
                 aria-label={t('list.tasks') || 'Task list'}
             >
-                {filteredTasks.length === 0 ? (
+                {showEmptyState ? (
                     <ListEmptyState
                         hasFilters={hasFilters}
                         emptyState={emptyState}

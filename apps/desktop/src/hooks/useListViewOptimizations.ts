@@ -75,13 +75,15 @@ export function useListViewOptimizations(
             const perfApi = perfRef.current;
             perfApi?.trackUseMemo?.();
             const compute = () => {
-                const allowDeferredProjectTasks = statusFilter === 'someday' || statusFilter === 'done' || statusFilter === 'archived';
+                const allowDeferredProjectTasks = statusFilter === 'done' || statusFilter === 'archived';
+                const hideProjectTasksInDeferredList = statusFilter === 'someday' || statusFilter === 'waiting';
                 const counts: Record<string, number> = {};
                 tasks
                     .filter((task) => {
                         if (task.deletedAt) return false;
                         if (statusFilter !== 'all' && task.status !== statusFilter) return false;
                         if (!allowDeferredProjectTasks && !isTaskInActiveProject(task, projectMap)) return false;
+                        if (hideProjectTasksInDeferredList && task.projectId && projectMap.get(task.projectId)) return false;
                         return true;
                     })
                     .forEach((task) => {
@@ -94,7 +96,7 @@ export function useListViewOptimizations(
             };
             return perfApi?.measure ? perfApi.measure('tokenCounts', compute) : compute();
         },
-        [tasks, statusFilter],
+        [tasks, statusFilter, projectMap],
         {},
         'low',
     );
@@ -115,7 +117,7 @@ export function useListViewOptimizations(
             };
             return perfApi?.measure ? perfApi.measure('nextCount', compute) : compute();
         },
-        [tasks],
+        [tasks, projectMap],
         0,
         'low',
     );
