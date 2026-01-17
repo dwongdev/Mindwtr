@@ -15,7 +15,7 @@ export function ContextsView() {
     );
     const { t } = useLanguage();
     const [selectedContext, setSelectedContext] = useState<string | null>(null);
-    const [statusFilter, setStatusFilter] = useState<TaskStatus | 'all'>('next');
+    const [statusFilter, setStatusFilter] = useState<TaskStatus | 'all'>('all');
 
     useEffect(() => {
         if (!perf.enabled) return;
