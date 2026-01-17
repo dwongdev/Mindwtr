@@ -22,6 +22,7 @@ const MAPPING = {
   'checkmark.circle.fill': 'checkmark-circle',
   'circle': 'ellipse-outline',
   'arrow.up.circle.fill': 'arrow-up-circle',
+  'book.closed.fill': 'book',
   'trash.fill': 'trash',
   'gearshape.fill': 'settings',
 } as const;
