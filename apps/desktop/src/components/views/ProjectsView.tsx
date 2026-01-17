@@ -1,5 +1,6 @@
 import { useState, useMemo, useEffect } from 'react';
 import { ErrorBoundary } from '../ErrorBoundary';
+import { TaskItem } from '../TaskItem';
 import { shallow, useTaskStore, Attachment, Task, type Project, generateUUID, parseQuickAdd, PRESET_CONTEXTS, validateAttachmentForUpload } from '@mindwtr/core';
 import { Folder } from 'lucide-react';
 import { DndContext, PointerSensor, useSensor, useSensors, closestCenter, type DragEndEvent } from '@dnd-kit/core';
@@ -124,6 +125,13 @@ export function ProjectsView() {
         return new Map(sortedAreas.map((area) => [area.id, area]));
     }, [sortedAreas]);
 
+    useEffect(() => {
+        if (selectedArea === ALL_AREAS || selectedArea === NO_AREA) return;
+        if (!areaById.has(selectedArea)) {
+            setSelectedArea(ALL_AREAS);
+        }
+    }, [areaById, selectedArea, ALL_AREAS, NO_AREA]);
+
     const toggleAreaCollapse = (areaId: string) => {
         setCollapsedAreas((prev) => ({ ...prev, [areaId]: !prev[areaId] }));
     };
@@ -173,14 +181,28 @@ export function ProjectsView() {
         return map;
     }, [projects, tasks]);
 
+    const areaTasks = useMemo(() => {
+        if (selectedArea === ALL_AREAS) return [];
+        return tasks.filter((task) => {
+            if (task.deletedAt) return false;
+            if (task.status === 'archived' || task.status === 'done') return false;
+            if (task.projectId) return false;
+            if (selectedArea === NO_AREA) {
+                return !task.areaId || !areaById.has(task.areaId);
+            }
+            return task.areaId === selectedArea;
+        });
+    }, [tasks, selectedArea, areaById, ALL_AREAS, NO_AREA]);
+
     const areaOptions = useMemo(() => {
         const visibleProjects = projects.filter(p => !p.deletedAt);
-        const hasNoArea = visibleProjects.some((project) => !project.areaId || !areaById.has(project.areaId));
+        const hasNoArea = visibleProjects.some((project) => !project.areaId || !areaById.has(project.areaId))
+            || tasks.some((task) => !task.projectId && (!task.areaId || !areaById.has(task.areaId)) && !task.deletedAt);
         return {
             list: sortedAreas,
             hasNoArea,
         };
-    }, [projects, sortedAreas, areaById]);
+    }, [projects, sortedAreas, areaById, tasks]);
 
     const tagOptions = useMemo(() => {
         const visibleProjects = projects.filter(p => !p.deletedAt);
@@ -623,6 +645,35 @@ export function ProjectsView() {
                                     )}
                                 </div>
                             </>
+                        ) : selectedArea !== ALL_AREAS ? (
+                            <div className="flex-1 flex flex-col h-full overflow-hidden">
+                                <div className="flex items-center justify-between border-b border-border pb-3">
+                                    <div className="flex items-center gap-2">
+                                        <Folder className="w-5 h-5 text-muted-foreground" />
+                                        <div className="text-lg font-semibold">
+                                            {selectedArea === NO_AREA
+                                                ? t('projects.noArea')
+                                                : (areaById.get(selectedArea)?.name || t('projects.noArea'))}
+                                        </div>
+                                    </div>
+                                    <div className="text-xs text-muted-foreground">
+                                        {areaTasks.length} {t('common.tasks')}
+                                    </div>
+                                </div>
+                                <div className="flex-1 overflow-y-auto pr-2 pt-4">
+                                    {areaTasks.length > 0 ? (
+                                        <div className="space-y-2">
+                                            {areaTasks.map((task) => (
+                                                <TaskItem key={task.id} task={task} />
+                                            ))}
+                                        </div>
+                                    ) : (
+                                        <div className="text-center text-muted-foreground py-12">
+                                            {t('projects.noActiveTasks')}
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
                         ) : (
                             <div className="flex-1 flex items-center justify-center text-muted-foreground">
                                 <div className="text-center">

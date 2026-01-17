@@ -30,6 +30,7 @@ export interface Recurrence {
 export type TaskEditorFieldId =
     | 'status'
     | 'project'
+    | 'area'
     | 'priority'
     | 'contexts'
     | 'tags'
@@ -124,6 +125,7 @@ export interface Task {
     attachments?: Attachment[];
     location?: string;
     projectId?: string;
+    areaId?: string;
     isFocusedToday?: boolean; // Marked as today's priority (Top 3 focus)
     timeEstimate?: TimeEstimate; // Estimated time to complete
     reviewAt?: string; // Tickler/review date (ISO string). If set, task is due for review at/after this time.

@@ -109,6 +109,7 @@ export class SqliteAdapter {
         await this.ensureTaskPurgedAtColumn();
         await this.ensureTaskOrderColumn();
         await this.ensureTaskTextDirectionColumn();
+        await this.ensureTaskAreaColumn();
         await this.ensureProjectOrderColumn();
         // FTS operations are optional - don't block startup if they fail
         try {
@@ -191,6 +192,15 @@ export class SqliteAdapter {
         if (!hasTextDirection) {
             await this.client.run('ALTER TABLE tasks ADD COLUMN textDirection TEXT');
         }
+    }
+
+    private async ensureTaskAreaColumn() {
+        const columns = await this.client.all<{ name?: string }>('PRAGMA table_info(tasks)');
+        const hasAreaId = columns.some((col) => col.name === 'areaId');
+        if (!hasAreaId) {
+            await this.client.run('ALTER TABLE tasks ADD COLUMN areaId TEXT');
+        }
+        await this.client.run('CREATE INDEX IF NOT EXISTS idx_tasks_area_id ON tasks(areaId)');
     }
 
     private async ensureProjectOrderColumn() {
@@ -308,6 +318,7 @@ export class SqliteAdapter {
             attachments: toAttachments(fromJson<unknown>(row.attachments, undefined)),
             location: row.location as string | undefined,
             projectId: row.projectId as string | undefined,
+            areaId: row.areaId as string | undefined,
             orderNum: row.orderNum === null || row.orderNum === undefined ? undefined : Number(row.orderNum),
             isFocusedToday: fromBool(row.isFocusedToday),
             timeEstimate: row.timeEstimate as Task['timeEstimate'] | undefined,
@@ -520,6 +531,7 @@ export class SqliteAdapter {
                     'attachments',
                     'location',
                     'projectId',
+                    'areaId',
                     'orderNum',
                     'isFocusedToday',
                     'timeEstimate',
@@ -548,6 +560,7 @@ export class SqliteAdapter {
                     toJson(task.attachments),
                     task.location ?? null,
                     task.projectId ?? null,
+                    task.areaId ?? null,
                     task.orderNum ?? null,
                     toBool(task.isFocusedToday),
                     task.timeEstimate ?? null,
@@ -574,6 +587,7 @@ export class SqliteAdapter {
                  attachments=excluded.attachments,
                  location=excluded.location,
                  projectId=excluded.projectId,
+                 areaId=excluded.areaId,
                  orderNum=excluded.orderNum,
                  isFocusedToday=excluded.isFocusedToday,
                  timeEstimate=excluded.timeEstimate,

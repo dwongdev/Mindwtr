@@ -1,5 +1,5 @@
 import { Calendar as CalendarIcon, Tag, Trash2, ArrowRight, Repeat, Check, Clock, Timer, Paperclip, Pencil, RotateCcw, Copy, MapPin, Hourglass } from 'lucide-react';
-import type { Attachment, Project, Task, TaskStatus, RecurrenceRule, RecurrenceStrategy } from '@mindwtr/core';
+import type { Area, Attachment, Project, Task, TaskStatus, RecurrenceRule, RecurrenceStrategy } from '@mindwtr/core';
 import { getChecklistProgress, getTaskAgeLabel, getTaskStaleness, getTaskUrgency, hasTimeComponent, safeFormatDate, stripMarkdown, resolveTaskTextDirection } from '@mindwtr/core';
 import { cn } from '../../lib/utils';
 import { MetadataBadge } from '../ui/MetadataBadge';
@@ -8,6 +8,7 @@ import { AttachmentProgressIndicator } from '../AttachmentProgressIndicator';
 interface TaskItemDisplayProps {
     task: Task;
     project?: Project;
+    area?: Area;
     projectColor?: string;
     selectionMode: boolean;
     isViewOpen: boolean;
@@ -51,6 +52,7 @@ const formatTimeEstimate = (estimate: string) => {
 export function TaskItemDisplay({
     task,
     project,
+    area,
     projectColor,
     selectionMode,
     isViewOpen,
@@ -76,7 +78,7 @@ export function TaskItemDisplay({
     const ageLabel = getTaskAgeLabel(task.createdAt);
     const showCompactMeta = compactMetaEnabled
         && !isViewOpen
-        && (project || (task.contexts?.length ?? 0) > 0);
+        && (project || area || (task.contexts?.length ?? 0) > 0);
     const resolvedDirection = resolveTaskTextDirection(task);
     const isRtl = resolvedDirection === 'rtl';
 
@@ -141,6 +143,13 @@ export function TaskItemDisplay({
                                     dotColor={projectColor || '#94a3b8'}
                                 />
                             )}
+                            {!project && area && (
+                                <MetadataBadge
+                                    variant="project"
+                                    label={area.name}
+                                    dotColor={area.color || '#94a3b8'}
+                                />
+                            )}
                             {(task.contexts ?? []).slice(0, 3).map((ctx) => (
                                 <MetadataBadge key={ctx} variant="context" label={ctx} />
                             ))}
@@ -182,6 +191,13 @@ export function TaskItemDisplay({
                                     variant="project"
                                     label={project.title}
                                     dotColor={projectColor || '#94a3b8'}
+                                />
+                            )}
+                            {!project && area && (
+                                <MetadataBadge
+                                    variant="project"
+                                    label={area.name}
+                                    dotColor={area.color || '#94a3b8'}
                                 />
                             )}
                             {task.startTime && (

@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, type FormEvent, type ReactNode } from 'react';
 import { Loader2, Sparkles } from 'lucide-react';
-import { hasTimeComponent, safeFormatDate, safeParseDate, resolveTextDirection, type ClarifyResponse, type Project, type TaskEditorFieldId, type TextDirection, type TimeEstimate } from '@mindwtr/core';
+import { hasTimeComponent, safeFormatDate, safeParseDate, resolveTextDirection, type Area, type ClarifyResponse, type Project, type TaskEditorFieldId, type TextDirection, type TimeEstimate } from '@mindwtr/core';
+import { AreaSelector } from '../ui/AreaSelector';
 import { ProjectSelector } from '../ui/ProjectSelector';
 import { TaskInput } from './TaskInput';
 
@@ -29,10 +30,15 @@ interface TaskItemEditorProps {
     onApplyAISuggestion: () => void;
     onDismissClarify: () => void;
     projects: Project[];
+    areas: Area[];
     editProjectId: string;
     setEditProjectId: (value: string) => void;
+    editAreaId: string;
+    setEditAreaId: (value: string) => void;
     onCreateProject: (title: string) => Promise<string | null>;
+    onCreateArea?: (name: string) => Promise<string | null>;
     showProjectField: boolean;
+    showAreaField: boolean;
     showDueDate: boolean;
     editDueDate: string;
     setEditDueDate: (value: string) => void;
@@ -80,10 +86,15 @@ export function TaskItemEditor({
     onApplyAISuggestion,
     onDismissClarify,
     projects,
+    areas,
     editProjectId,
     setEditProjectId,
+    editAreaId,
+    setEditAreaId,
     onCreateProject,
+    onCreateArea,
     showProjectField,
+    showAreaField,
     showDueDate,
     editDueDate,
     setEditDueDate,
@@ -128,6 +139,13 @@ export function TaskItemEditor({
         const datePart = dueDateValue || safeFormatDate(new Date(), 'yyyy-MM-dd');
         setEditDueDate(`${datePart}T${value}`);
     };
+
+    const sortedAreas = [...areas].sort((a, b) => {
+        const aOrder = Number.isFinite(a.order) ? a.order : 0;
+        const bOrder = Number.isFinite(b.order) ? b.order : 0;
+        if (aOrder !== bOrder) return aOrder - bOrder;
+        return a.name.localeCompare(b.name);
+    });
     const [schedulingOpen, setSchedulingOpen] = useState(sectionCounts.scheduling > 0);
     const [organizationOpen, setOrganizationOpen] = useState(sectionCounts.organization > 0);
     const [detailsOpen, setDetailsOpen] = useState(
@@ -318,6 +336,19 @@ export function TaskItemEditor({
                             onCreateProject={onCreateProject}
                             placeholder={t('taskEdit.noProjectOption')}
                             noProjectLabel={t('taskEdit.noProjectOption')}
+                        />
+                    </div>
+                )}
+                {showAreaField && (
+                    <div className="flex flex-col gap-1 min-w-[200px]">
+                        <label className="text-xs text-muted-foreground font-medium">{t('taskEdit.areaLabel')}</label>
+                        <AreaSelector
+                            areas={sortedAreas}
+                            value={editAreaId}
+                            onChange={setEditAreaId}
+                            onCreateArea={onCreateArea}
+                            placeholder={t('taskEdit.noAreaOption')}
+                            noAreaLabel={t('taskEdit.noAreaOption')}
                         />
                     </div>
                 )}

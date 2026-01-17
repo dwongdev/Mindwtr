@@ -55,6 +55,7 @@ CREATE TABLE IF NOT EXISTS tasks (
   attachments TEXT,
   location TEXT,
   projectId TEXT,
+  areaId TEXT,
   orderNum INTEGER,
   isFocusedToday INTEGER,
   timeEstimate TEXT,
@@ -606,6 +607,7 @@ fn open_sqlite(app: &tauri::AppHandle) -> Result<Connection, String> {
     conn.execute_batch(SQLITE_SCHEMA).map_err(|e| e.to_string())?;
     ensure_tasks_purged_at_column(&conn)?;
     ensure_tasks_order_column(&conn)?;
+    ensure_tasks_area_column(&conn)?;
     ensure_projects_order_column(&conn)?;
     ensure_projects_area_order_index(&conn)?;
     ensure_fts_triggers(&conn)?;
@@ -643,6 +645,29 @@ fn ensure_tasks_order_column(conn: &Connection) -> Result<(), String> {
         }
     }
     conn.execute("ALTER TABLE tasks ADD COLUMN orderNum INTEGER", [])
+        .map_err(|e| e.to_string())?;
+    Ok(())
+}
+
+fn ensure_tasks_area_column(conn: &Connection) -> Result<(), String> {
+    let mut stmt = conn
+        .prepare("PRAGMA table_info(tasks)")
+        .map_err(|e| e.to_string())?;
+    let columns = stmt
+        .query_map([], |row| row.get::<_, String>(1))
+        .map_err(|e| e.to_string())?;
+    let mut has_area = false;
+    for col in columns {
+        if col.map_err(|e| e.to_string())? == "areaId" {
+            has_area = true;
+            break;
+        }
+    }
+    if !has_area {
+        conn.execute("ALTER TABLE tasks ADD COLUMN areaId TEXT", [])
+            .map_err(|e| e.to_string())?;
+    }
+    conn.execute("CREATE INDEX IF NOT EXISTS idx_tasks_area_id ON tasks(areaId)", [])
         .map_err(|e| e.to_string())?;
     Ok(())
 }
@@ -916,6 +941,9 @@ fn row_to_task_value(row: &rusqlite::Row<'_>) -> Result<Value, rusqlite::Error> 
     if let Ok(val) = row.get::<_, Option<String>>("projectId") {
         if let Some(v) = val { map.insert("projectId".to_string(), Value::String(v)); }
     }
+    if let Ok(val) = row.get::<_, Option<String>>("areaId") {
+        if let Some(v) = val { map.insert("areaId".to_string(), Value::String(v)); }
+    }
     if let Ok(val) = row.get::<_, Option<i64>>("orderNum") {
         if let Some(v) = val { map.insert("orderNum".to_string(), Value::Number(v.into())); }
     }
@@ -997,7 +1025,7 @@ fn migrate_json_to_sqlite(conn: &mut Connection, data: &Value) -> Result<(), Str
         let checklist_json = json_str(task.get("checklist"));
         let attachments_json = json_str(task.get("attachments"));
         tx.execute(
-            "INSERT INTO tasks (id, title, status, priority, taskMode, startTime, dueDate, recurrence, pushCount, tags, contexts, checklist, description, attachments, location, projectId, orderNum, isFocusedToday, timeEstimate, reviewAt, completedAt, createdAt, updatedAt, deletedAt, purgedAt) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20, ?21, ?22, ?23, ?24, ?25)",
+            "INSERT INTO tasks (id, title, status, priority, taskMode, startTime, dueDate, recurrence, pushCount, tags, contexts, checklist, description, attachments, location, projectId, areaId, orderNum, isFocusedToday, timeEstimate, reviewAt, completedAt, createdAt, updatedAt, deletedAt, purgedAt) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20, ?21, ?22, ?23, ?24, ?25, ?26)",
             params![
                 task.get("id").and_then(|v| v.as_str()).unwrap_or_default(),
                 task.get("title").and_then(|v| v.as_str()).unwrap_or_default(),
@@ -1015,6 +1043,7 @@ fn migrate_json_to_sqlite(conn: &mut Connection, data: &Value) -> Result<(), Str
                 attachments_json,
                 task.get("location").and_then(|v| v.as_str()),
                 task.get("projectId").and_then(|v| v.as_str()),
+                task.get("areaId").and_then(|v| v.as_str()),
                 task.get("orderNum").and_then(|v| v.as_i64()),
                 task.get("isFocusedToday").and_then(|v| v.as_bool()).unwrap_or(false) as i32,
                 task.get("timeEstimate").and_then(|v| v.as_str()),

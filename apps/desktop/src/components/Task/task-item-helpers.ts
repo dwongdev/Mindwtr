@@ -13,6 +13,7 @@ import {
 export const DEFAULT_TASK_EDITOR_ORDER: TaskEditorFieldId[] = [
     'status',
     'project',
+    'area',
     'priority',
     'contexts',
     'description',

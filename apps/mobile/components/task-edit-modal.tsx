@@ -45,6 +45,7 @@ import { TaskEditFormTab } from './task-edit/TaskEditFormTab';
 import { TaskEditHeader } from './task-edit/TaskEditHeader';
 import { TaskEditTabs } from './task-edit/TaskEditTabs';
 import { TaskEditProjectPicker } from './task-edit/TaskEditProjectPicker';
+import { TaskEditAreaPicker } from './task-edit/TaskEditAreaPicker';
 import {
     MAX_SUGGESTED_TAGS,
     MAX_VISIBLE_SUGGESTIONS,
@@ -82,6 +83,7 @@ const COMPACT_STATUS_LABELS: Record<TaskStatus, string> = {
 const DEFAULT_TASK_EDITOR_ORDER: TaskEditorFieldId[] = [
     'status',
     'project',
+    'area',
     'priority',
     'contexts',
     'description',
@@ -101,7 +103,7 @@ const DEFAULT_TASK_EDITOR_ORDER: TaskEditorFieldId[] = [
 type TaskEditTab = 'task' | 'view';
 
 export function TaskEditModal({ visible, task, onClose, onSave, onFocusMode, defaultTab }: TaskEditModalProps) {
-    const { tasks, projects, settings, duplicateTask, resetTaskChecklist, addProject, deleteTask } = useTaskStore();
+    const { tasks, projects, areas, settings, duplicateTask, resetTaskChecklist, addProject, addArea, deleteTask } = useTaskStore();
     const { t } = useLanguage();
     const tc = useThemeColors();
     const prioritiesEnabled = settings.features?.priorities === true;
@@ -127,6 +129,7 @@ export function TaskEditModal({ visible, task, onClose, onSave, onFocusMode, def
     const [pendingDueDate, setPendingDueDate] = useState<Date | null>(null);
     const [editTab, setEditTab] = useState<TaskEditTab>('task');
     const [showDescriptionPreview, setShowDescriptionPreview] = useState(false);
+    const [showAreaPicker, setShowAreaPicker] = useState(false);
     const [titleDraft, setTitleDraft] = useState('');
     const titleDraftRef = useRef('');
     const titleDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -390,6 +393,10 @@ export function TaskEditModal({ visible, task, onClose, onSave, onFocusMode, def
             updates.recurrence = undefined;
         }
         const baseTask = baseTaskRef.current ?? task;
+        const nextProjectId = updates.projectId ?? baseTask.projectId;
+        if (nextProjectId) {
+            updates.areaId = undefined;
+        }
         const trimmedUpdates: Partial<Task> = { ...updates };
         (Object.keys(trimmedUpdates) as (keyof Task)[]).forEach((key) => {
             const nextValue = trimmedUpdates[key];
@@ -935,7 +942,7 @@ export function TaskEditModal({ visible, task, onClose, onSave, onFocusMode, def
     );
 
     const alwaysFields = useMemo(
-        () => orderFields(['status', 'project', 'dueDate']),
+        () => orderFields(['status', 'project', 'area', 'dueDate']),
         [orderFields]
     );
     const schedulingFields = useMemo(
@@ -1328,6 +1335,31 @@ export function TaskEditModal({ visible, task, onClose, onSave, onFocusMode, def
                                 <TouchableOpacity
                                     style={[styles.clearDateBtn, { borderColor: tc.border, backgroundColor: tc.filterBg }]}
                                     onPress={() => setEditedTask(prev => ({ ...prev, projectId: undefined }))}
+                                >
+                                    <Text style={[styles.clearDateText, { color: tc.secondaryText }]}>{t('common.clear')}</Text>
+                                </TouchableOpacity>
+                            )}
+                        </View>
+                    </View>
+                );
+            case 'area':
+                if (editedTask.projectId) return null;
+                return (
+                    <View style={styles.formGroup}>
+                        <Text style={[styles.label, { color: tc.secondaryText }]}>{t('taskEdit.areaLabel')}</Text>
+                        <View style={styles.dateRow}>
+                            <TouchableOpacity
+                                style={[styles.dateBtn, styles.flex1, { backgroundColor: tc.inputBg, borderColor: tc.border }]}
+                                onPress={() => setShowAreaPicker(true)}
+                            >
+                                <Text style={{ color: tc.text }}>
+                                    {areas.find((area) => area.id === editedTask.areaId)?.name || t('taskEdit.noAreaOption')}
+                                </Text>
+                            </TouchableOpacity>
+                            {!!editedTask.areaId && (
+                                <TouchableOpacity
+                                    style={[styles.clearDateBtn, { borderColor: tc.border, backgroundColor: tc.filterBg }]}
+                                    onPress={() => setEditedTask(prev => ({ ...prev, areaId: undefined }))}
                                 >
                                     <Text style={[styles.clearDateText, { color: tc.secondaryText }]}>{t('common.clear')}</Text>
                                 </TouchableOpacity>
@@ -2037,6 +2069,7 @@ export function TaskEditModal({ visible, task, onClose, onSave, onFocusMode, def
                                 styles={styles}
                                 mergedTask={mergedTask}
                                 projects={projects}
+                                areas={areas}
                                 prioritiesEnabled={prioritiesEnabled}
                                 timeEstimatesEnabled={timeEstimatesEnabled}
                                 formatTimeEstimateLabel={formatTimeEstimateLabel}
@@ -2268,9 +2301,21 @@ export function TaskEditModal({ visible, task, onClose, onSave, onFocusMode, def
                     t={t}
                     onClose={() => setShowProjectPicker(false)}
                     onSelectProject={(projectId) => {
-                        setEditedTask(prev => ({ ...prev, projectId }));
+                        setEditedTask(prev => ({ ...prev, projectId, areaId: undefined }));
                     }}
                     onCreateProject={(title) => addProject(title, '#94a3b8')}
+                />
+
+                <TaskEditAreaPicker
+                    visible={showAreaPicker}
+                    areas={areas}
+                    tc={tc}
+                    t={t}
+                    onClose={() => setShowAreaPicker(false)}
+                    onSelectArea={(areaId) => {
+                        setEditedTask(prev => ({ ...prev, areaId, projectId: undefined }));
+                    }}
+                    onCreateArea={(name) => addArea(name, { color: '#94a3b8' })}
                 />
 
                 {aiModal && (

@@ -97,6 +97,9 @@ const en: Record<string, string> = {
         'list.tasks': 'Task list',
         'list.confirmBatchDelete': 'Delete selected tasks?',
         'list.noTasks': 'No tasks found',
+        'list.details': 'Details',
+        'list.detailsOff': 'Details off',
+        'list.compact': 'Compact',
 
         // Status Labels
         'status.inbox': 'Inbox',
@@ -170,6 +173,8 @@ const en: Record<string, string> = {
         'taskEdit.locationPlaceholder': 'e.g. Office',
         'taskEdit.projectLabel': 'Project',
         'taskEdit.noProjectOption': 'No Project',
+        'taskEdit.areaLabel': 'Area',
+        'taskEdit.noAreaOption': 'No Area',
         'taskEdit.moreOptions': 'More options',
         'taskEdit.hideOptions': 'Hide options',
         'taskEdit.startDateLabel': 'Start Date',
@@ -191,6 +196,7 @@ const en: Record<string, string> = {
         'task.aria.timeEstimate': 'Time estimate',
         'task.aria.contexts': 'Contexts',
         'task.aria.tags': 'Tags',
+        'task.aria.area': 'Area',
         'task.aria.dueDate': 'Due date',
         'task.aria.dueTime': 'Due time',
         'task.aria.location': 'Location',
@@ -965,6 +971,9 @@ const zh: Record<string, string> = {
         'list.tasks': '任务列表',
         'list.confirmBatchDelete': '删除选中的任务？',
         'list.noTasks': '未找到任务',
+        'list.details': '详情',
+        'list.detailsOff': '详情关闭',
+        'list.compact': '紧凑',
 
         // Status Labels
         'status.inbox': '收集箱',
@@ -1034,6 +1043,8 @@ const zh: Record<string, string> = {
         'taskEdit.locationPlaceholder': '例如：办公室',
         'taskEdit.projectLabel': '项目',
         'taskEdit.noProjectOption': '无项目',
+        'taskEdit.areaLabel': '领域',
+        'taskEdit.noAreaOption': '无领域',
         'taskEdit.moreOptions': '更多选项',
         'taskEdit.hideOptions': '收起选项',
         'taskEdit.startDateLabel': '开始日期',
@@ -1055,6 +1066,7 @@ const zh: Record<string, string> = {
         'task.aria.timeEstimate': '时间估算',
         'task.aria.contexts': '场景',
         'task.aria.tags': '标签',
+        'task.aria.area': '领域',
         'task.aria.dueDate': '截止日期',
         'task.aria.dueTime': '截止时间',
         'task.aria.location': '地点',

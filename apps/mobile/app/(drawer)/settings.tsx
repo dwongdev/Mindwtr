@@ -2023,6 +2023,7 @@ export default function SettingsPage() {
         const baseTaskEditorOrder: TaskEditorFieldId[] = [
             'status',
             'project',
+            'area',
             'priority',
             'contexts',
             'description',
@@ -2040,6 +2041,7 @@ export default function SettingsPage() {
         const defaultVisibleFields: TaskEditorFieldId[] = [
             'status',
             'project',
+            'area',
             'description',
             'textDirection',
             'checklist',
@@ -2064,6 +2066,8 @@ export default function SettingsPage() {
                         return t('taskEdit.statusLabel');
                     case 'project':
                         return t('taskEdit.projectLabel');
+                    case 'area':
+                        return t('taskEdit.areaLabel');
                     case 'priority':
                         return t('taskEdit.priorityLabel');
                 case 'contexts':

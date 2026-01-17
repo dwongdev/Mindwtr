@@ -152,10 +152,10 @@ interface TaskStore {
 
     // Area Actions
     /** Add a new area */
-    addArea: (name: string, initialProps?: Partial<Area>) => Promise<void>;
+    addArea: (name: string, initialProps?: Partial<Area>) => Promise<Area | null>;
     /** Update an area */
     updateArea: (id: string, updates: Partial<Area>) => Promise<void>;
-    /** Delete an area and clear areaId on child projects */
+    /** Delete an area and clear areaId on child projects/tasks */
     deleteArea: (id: string) => Promise<void>;
     /** Reorder areas by id list */
     reorderAreas: (orderedIds: string[]) => Promise<void>;
@@ -593,12 +593,58 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
                         didAreaMigration = true;
                         return { ...project, areaId: derivedId };
                     });
+                    if (areaIdRemap.size > 0) {
+                        allTasks = allTasks.map((task) => {
+                            const remappedAreaId = task.areaId ? areaIdRemap.get(task.areaId) : undefined;
+                            if (!remappedAreaId || remappedAreaId === task.areaId) return task;
+                            didAreaMigration = true;
+                            return { ...task, areaId: remappedAreaId };
+                        });
+                    }
                     allAreas = allAreas
                         .map((area, index) => ({
                             ...area,
                             order: Number.isFinite(area.order) ? area.order : index,
                         }))
                         .sort((a, b) => a.order - b.order);
+                }
+            }
+            {
+                const areaByName = new Map<string, string>();
+                const areaIdRemap = new Map<string, string>();
+                const uniqueAreas: Area[] = [];
+                allAreas.forEach((area) => {
+                    const normalizedName = typeof area?.name === 'string' ? area.name.trim().toLowerCase() : '';
+                    if (!normalizedName) {
+                        uniqueAreas.push(area);
+                        return;
+                    }
+                    const existingId = areaByName.get(normalizedName);
+                    if (existingId) {
+                        areaIdRemap.set(area.id, existingId);
+                        return;
+                    }
+                    areaByName.set(normalizedName, area.id);
+                    uniqueAreas.push(area);
+                });
+                if (areaIdRemap.size > 0) {
+                    didAreaMigration = true;
+                    allAreas = uniqueAreas
+                        .map((area, index) => ({
+                            ...area,
+                            order: Number.isFinite(area.order) ? area.order : index,
+                        }))
+                        .sort((a, b) => a.order - b.order);
+                    allProjects = allProjects.map((project) => {
+                        const remappedAreaId = project.areaId ? areaIdRemap.get(project.areaId) : undefined;
+                        if (!remappedAreaId || remappedAreaId === project.areaId) return project;
+                        return { ...project, areaId: remappedAreaId };
+                    });
+                    allTasks = allTasks.map((task) => {
+                        const remappedAreaId = task.areaId ? areaIdRemap.get(task.areaId) : undefined;
+                        if (!remappedAreaId || remappedAreaId === task.areaId) return task;
+                        return { ...task, areaId: remappedAreaId };
+                    });
                 }
             }
             // Filter out soft-deleted and archived items for day-to-day UI display
@@ -636,6 +682,7 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
         const changeAt = Date.now();
         const hasOrderNum = Object.prototype.hasOwnProperty.call(initialProps ?? {}, 'orderNum');
         const resolvedProjectId = initialProps?.projectId;
+        const resolvedAreaId = resolvedProjectId ? undefined : initialProps?.areaId;
         const resolvedOrderNum = !hasOrderNum && resolvedProjectId
             ? getNextProjectOrder(resolvedProjectId, get()._allTasks)
             : initialProps?.orderNum;
@@ -650,6 +697,7 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
             createdAt: new Date().toISOString(),
             updatedAt: new Date().toISOString(),
             ...initialProps,
+            areaId: resolvedAreaId,
             orderNum: resolvedOrderNum,
         };
 
@@ -692,6 +740,12 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
                             adjustedUpdates = {
                                 ...adjustedUpdates,
                                 orderNum: getNextProjectOrder(nextProjectId, state._allTasks),
+                            };
+                        }
+                        if (!Object.prototype.hasOwnProperty.call(updates, 'areaId')) {
+                            adjustedUpdates = {
+                                ...adjustedUpdates,
+                                areaId: undefined,
                             };
                         }
                     } else {
@@ -1193,7 +1247,7 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
 
     addArea: async (name: string, initialProps?: Partial<Area>) => {
         const trimmedName = typeof name === 'string' ? name.trim() : '';
-        if (!trimmedName) return;
+        if (!trimmedName) return null;
         const changeAt = Date.now();
         const now = new Date().toISOString();
         const allAreas = get()._allAreas;
@@ -1203,7 +1257,7 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
             if (initialProps && Object.keys(initialProps).length > 0) {
                 await get().updateArea(existing.id, { ...initialProps });
             }
-            return;
+            return get()._allAreas.find((area) => area.id === existing.id) ?? existing;
         }
         const maxOrder = allAreas.reduce(
             (max, area) => Math.max(max, Number.isFinite(area.order) ? area.order : -1),
@@ -1224,6 +1278,7 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
             { tasks: get()._allTasks, projects: get()._allProjects, areas: newAllAreas, settings: get().settings },
             (msg) => set({ error: msg })
         );
+        return newArea;
     },
 
     updateArea: async (id: string, updates: Partial<Area>) => {
@@ -1286,16 +1341,23 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
             if (project.areaId !== id) return project;
             return { ...project, areaId: undefined, areaTitle: undefined, updatedAt: now };
         });
+        const newAllTasks = get()._allTasks.map((task) => {
+            if (task.areaId !== id) return task;
+            return { ...task, areaId: undefined, updatedAt: now };
+        });
         const newVisibleProjects = newAllProjects.filter(p => !p.deletedAt);
+        const newVisibleTasks = newAllTasks.filter((task) => !task.deletedAt && task.status !== 'archived');
         set({
             areas: newAllAreas,
             _allAreas: newAllAreas,
             projects: newVisibleProjects,
             _allProjects: newAllProjects,
+            tasks: newVisibleTasks,
+            _allTasks: newAllTasks,
             lastDataChangeAt: changeAt,
         });
         debouncedSave(
-            { tasks: get()._allTasks, projects: newAllProjects, areas: newAllAreas, settings: get().settings },
+            { tasks: newAllTasks, projects: newAllProjects, areas: newAllAreas, settings: get().settings },
             (msg) => set({ error: msg })
         );
     },

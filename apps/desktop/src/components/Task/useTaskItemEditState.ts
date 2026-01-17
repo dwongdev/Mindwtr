@@ -21,6 +21,8 @@ type TaskItemEditState = {
     setEditStartTime: (value: string) => void;
     editProjectId: string;
     setEditProjectId: (value: string) => void;
+    editAreaId: string;
+    setEditAreaId: (value: string) => void;
     editStatus: TaskStatus;
     setEditStatus: (value: TaskStatus) => void;
     editContexts: string;
@@ -58,6 +60,7 @@ export function useTaskItemEditState({
     const [editDueDate, setEditDueDate] = useState(toDateTimeLocalValue(task.dueDate));
     const [editStartTime, setEditStartTime] = useState(toDateTimeLocalValue(task.startTime));
     const [editProjectId, setEditProjectId] = useState(task.projectId || '');
+    const [editAreaId, setEditAreaId] = useState(task.areaId || '');
     const [editStatus, setEditStatus] = useState<TaskStatus>(task.status);
     const [editContexts, setEditContexts] = useState(task.contexts?.join(', ') || '');
     const [editTags, setEditTags] = useState(task.tags?.join(', ') || '');
@@ -79,6 +82,7 @@ export function useTaskItemEditState({
         setEditDueDate(toDateTimeLocalValue(task.dueDate));
         setEditStartTime(toDateTimeLocalValue(task.startTime));
         setEditProjectId(task.projectId || '');
+        setEditAreaId(task.areaId || '');
         setEditStatus(task.status);
         setEditContexts(task.contexts?.join(', ') || '');
         setEditTags(task.tags?.join(', ') || '');
@@ -104,6 +108,8 @@ export function useTaskItemEditState({
         setEditStartTime,
         editProjectId,
         setEditProjectId,
+        editAreaId,
+        setEditAreaId,
         editStatus,
         setEditStatus,
         editContexts,

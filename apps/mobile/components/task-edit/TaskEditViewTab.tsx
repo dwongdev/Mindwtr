@@ -2,6 +2,7 @@ import React from 'react';
 import { Image, ScrollView, Text, TouchableOpacity, View } from 'react-native';
 import type {
   Attachment,
+  Area,
   Project,
   RecurrenceRule,
   RecurrenceStrategy,
@@ -18,6 +19,7 @@ type TaskEditViewTabProps = {
   styles: Record<string, any>;
   mergedTask: Partial<Task>;
   projects: Project[];
+  areas: Area[];
   prioritiesEnabled: boolean;
   timeEstimatesEnabled: boolean;
   formatTimeEstimateLabel: (value: TimeEstimate) => string;
@@ -40,6 +42,7 @@ export function TaskEditViewTab({
   styles,
   mergedTask,
   projects,
+  areas,
   prioritiesEnabled,
   timeEstimatesEnabled,
   formatTimeEstimateLabel,
@@ -80,6 +83,7 @@ export function TaskEditViewTab({
 
   const project = projects.find((p) => p.id === mergedTask.projectId);
   const description = String(mergedTask.description || '').trim();
+  const area = areas.find((a) => a.id === mergedTask.areaId);
   const checklist = mergedTask.checklist || [];
   const textDirectionValue = mergedTask.textDirection ?? 'auto';
   const textDirectionLabel =
@@ -110,6 +114,7 @@ export function TaskEditViewTab({
       {renderViewRow(t('taskEdit.statusLabel'), statusLabel)}
       {prioritiesEnabled ? renderViewRow(t('taskEdit.priorityLabel'), priorityLabel) : null}
       {renderViewRow(t('taskEdit.projectLabel'), project?.title)}
+      {!project?.id ? renderViewRow(t('taskEdit.areaLabel'), area?.name) : null}
       {renderViewRow(t('taskEdit.startDateLabel'), mergedTask.startTime ? formatDate(mergedTask.startTime) : undefined)}
       {renderViewRow(t('taskEdit.dueDateLabel'), mergedTask.dueDate ? formatDueDate(mergedTask.dueDate) : undefined)}
       {renderViewRow(t('taskEdit.reviewDateLabel'), mergedTask.reviewAt ? formatDate(mergedTask.reviewAt) : undefined)}

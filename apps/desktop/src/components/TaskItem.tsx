@@ -71,6 +71,7 @@ export const TaskItem = memo(function TaskItem({
         highlightTaskId,
         setHighlightTask,
         addProject,
+        addArea,
     } = useTaskStore(
         (state) => ({
             updateTask: state.updateTask,
@@ -84,6 +85,7 @@ export const TaskItem = memo(function TaskItem({
             highlightTaskId: state.highlightTaskId,
             setHighlightTask: state.setHighlightTask,
             addProject: state.addProject,
+            addArea: state.addArea,
         }),
         shallow
     );
@@ -127,6 +129,8 @@ export const TaskItem = memo(function TaskItem({
         setEditStartTime,
         editProjectId,
         setEditProjectId,
+        editAreaId,
+        setEditAreaId,
         editStatus,
         setEditStatus,
         editContexts,
@@ -210,6 +214,9 @@ export const TaskItem = memo(function TaskItem({
 
     useEffect(() => {
         if (!isEditing) return;
+        if (editProjectId) {
+            setEditAreaId('');
+        }
         const { tasks: storeTasks, projects: storeProjects } = useTaskStore.getState();
         const projectId = editProjectId || task.projectId;
         const project = propProject || (projectId ? storeProjects.find((item) => item.id === projectId) : undefined);
@@ -244,7 +251,7 @@ export const TaskItem = memo(function TaskItem({
             .map(([tag]) => tag);
         setPopularTagOptions(Array.from(new Set([...sortedTags, ...PRESET_TAGS])).slice(0, 8));
         setAllContexts(Array.from(contexts).sort());
-    }, [editProjectId, isEditing, propProject, task.id, task.projectId]);
+    }, [editProjectId, isEditing, propProject, setEditAreaId, task.id, task.projectId]);
 
     const {
         aiEnabled,
@@ -296,6 +303,14 @@ export const TaskItem = memo(function TaskItem({
         const created = await addProject(trimmed, DEFAULT_PROJECT_COLOR);
         return created.id;
     }, [addProject, projects]);
+    const handleCreateArea = useCallback(async (name: string) => {
+        const trimmed = name.trim();
+        if (!trimmed) return null;
+        const existing = areas.find((area) => area.name.toLowerCase() === trimmed.toLowerCase());
+        if (existing) return existing.id;
+        const created = await addArea(trimmed, { color: DEFAULT_PROJECT_COLOR });
+        return created?.id ?? null;
+    }, [addArea, areas]);
     const visibleAttachments = (task.attachments || []).filter((a) => !a.deletedAt);
     const visibleEditAttachments = editAttachments.filter((a) => !a.deletedAt);
     const wasEditingRef = useRef(false);
@@ -329,6 +344,8 @@ export const TaskItem = memo(function TaskItem({
                 return task.status !== 'inbox';
             case 'project':
                 return Boolean(editProjectId || task.projectId);
+            case 'area':
+                return Boolean(editAreaId || task.areaId);
             case 'priority':
                 if (!prioritiesEnabled) return false;
                 return Boolean(editPriority);
@@ -374,6 +391,8 @@ export const TaskItem = memo(function TaskItem({
         task.status,
         timeEstimatesEnabled,
         visibleEditAttachments.length,
+        editAreaId,
+        task.areaId,
     ]);
 
     const isFieldVisible = useCallback(
@@ -381,6 +400,7 @@ export const TaskItem = memo(function TaskItem({
         [hasValue, hiddenSet]
     );
     const showProjectField = isFieldVisible('project');
+    const showAreaField = isFieldVisible('area') && !editProjectId;
     const showDueDate = isFieldVisible('dueDate');
     const orderFields = useCallback(
         (fields: TaskEditorFieldId[]) => {
@@ -510,6 +530,7 @@ export const TaskItem = memo(function TaskItem({
                 dueDate: editDueDate || undefined,
                 startTime: editStartTime || undefined,
                 projectId: editProjectId || undefined,
+                areaId: editProjectId ? undefined : (editAreaId || undefined),
                 contexts: editContexts.split(',').map(c => c.trim()).filter(Boolean),
                 tags: editTags.split(',').map(c => c.trim()).filter(Boolean),
                 description: editDescription || undefined,
@@ -526,6 +547,9 @@ export const TaskItem = memo(function TaskItem({
     };
 
     const project = propProject || (task.projectId ? projectById.get(task.projectId) : undefined);
+    const taskArea = task.projectId
+        ? (project?.areaId ? areaById.get(project.areaId) : undefined)
+        : (task.areaId ? areaById.get(task.areaId) : undefined);
     const projectColor = project?.areaId ? areaById.get(project.areaId)?.color : undefined;
     const selectAriaLabel = (() => {
         const label = t('task.select');
@@ -598,10 +622,15 @@ export const TaskItem = memo(function TaskItem({
                                 }}
                                 onDismissClarify={clearAiClarify}
                                 projects={projects}
+                                areas={areas}
                                 editProjectId={editProjectId}
                                 setEditProjectId={setEditProjectId}
+                                editAreaId={editAreaId}
+                                setEditAreaId={setEditAreaId}
                                 onCreateProject={handleCreateProject}
+                                onCreateArea={handleCreateArea}
                                 showProjectField={showProjectField}
+                                showAreaField={showAreaField}
                                 showDueDate={showDueDate}
                                 editDueDate={editDueDate}
                                 setEditDueDate={setEditDueDate}
@@ -627,6 +656,7 @@ export const TaskItem = memo(function TaskItem({
             <TaskItemDisplay
                 task={task}
                 project={project}
+                area={taskArea}
                 projectColor={projectColor}
                 selectionMode={selectionMode}
                 isViewOpen={isViewOpen}
