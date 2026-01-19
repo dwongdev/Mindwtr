@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useLayoutEffect } from 'react';
 import Constants from 'expo-constants';
 import {
     View,
@@ -17,6 +17,7 @@ import {
     Modal,
     Pressable,
 } from 'react-native';
+import { HeaderBackButton } from '@react-navigation/elements';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -24,6 +25,7 @@ import { Directory, File, Paths } from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
 import { GestureDetector, Gesture } from 'react-native-gesture-handler';
 import Animated, { runOnJS, useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
+import { useNavigation, useRouter } from 'expo-router';
 import { useTheme } from '../../contexts/theme-context';
 import { useLanguage, Language } from '../../contexts/language-context';
 
@@ -136,6 +138,8 @@ const isValidHttpUrl = (value: string): boolean => {
 };
 
 export default function SettingsPage() {
+    const navigation = useNavigation();
+    const router = useRouter();
     const { themeMode, setThemeMode } = useTheme();
     const { language, setLanguage, t } = useLanguage();
     const localize = (enText: string, zhText?: string) =>
@@ -347,26 +351,41 @@ export default function SettingsPage() {
         loadAIKey(speechProvider).then(setSpeechApiKey).catch(console.error);
     }, [speechProvider]);
 
+    const handleSettingsBack = useCallback(() => {
+        if (currentScreen !== 'main') {
+            if (currentScreen === 'gtd-time-estimates' || currentScreen === 'gtd-task-editor' || currentScreen === 'gtd-archive') {
+                setCurrentScreen('gtd');
+            } else if (currentScreen === 'ai' || currentScreen === 'calendar') {
+                setCurrentScreen('advanced');
+            } else {
+                setCurrentScreen('main');
+            }
+            return true;
+        }
+        return false;
+    }, [currentScreen]);
+
+    const handleHeaderBack = useCallback(() => {
+        if (handleSettingsBack()) return;
+        if (router.canGoBack()) {
+            router.back();
+        }
+    }, [handleSettingsBack, router]);
+
+    useLayoutEffect(() => {
+        navigation.setOptions({
+            headerLeft: (props) => (
+                <HeaderBackButton {...props} onPress={handleHeaderBack} />
+            ),
+        });
+    }, [navigation, handleHeaderBack]);
+
     // Handle Android hardware back button
     useEffect(() => {
-        const onBackPress = () => {
-            if (currentScreen !== 'main') {
-                if (currentScreen === 'gtd-time-estimates' || currentScreen === 'gtd-task-editor' || currentScreen === 'gtd-archive') {
-                    setCurrentScreen('gtd');
-                } else if (currentScreen === 'ai' || currentScreen === 'calendar') {
-                    setCurrentScreen('advanced');
-                } else {
-                    setCurrentScreen('main');
-                }
-                return true; // prevent default behavior
-            }
-            return false;
-        };
-
+        const onBackPress = () => handleSettingsBack();
         const subscription = BackHandler.addEventListener('hardwareBackPress', onBackPress);
-
         return () => subscription.remove();
-    }, [currentScreen]);
+    }, [handleSettingsBack]);
 
     const themeOptions: { value: typeof themeMode; label: string }[] = [
         { value: 'system', label: t('settings.system') },
