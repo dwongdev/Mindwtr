@@ -17,7 +17,7 @@ import {
     Modal,
     Pressable,
 } from 'react-native';
-import { HeaderBackButton } from '@react-navigation/elements';
+import { HeaderBackButton, type HeaderBackButtonProps } from '@react-navigation/elements';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -144,7 +144,7 @@ export default function SettingsPage() {
     const { language, setLanguage, t } = useLanguage();
     const localize = (enText: string, zhText?: string) =>
         language === 'zh' && zhText ? zhText : translateText(enText, language);
-    const { tasks, projects, areas, settings, updateSettings } = useTaskStore();
+    const { tasks, projects, sections, areas, settings, updateSettings } = useTaskStore();
     const [isSyncing, setIsSyncing] = useState(false);
     const [currentScreen, setCurrentScreen] = useState<SettingsScreen>('main');
     const [syncPath, setSyncPath] = useState<string | null>(null);
@@ -374,7 +374,7 @@ export default function SettingsPage() {
 
     useLayoutEffect(() => {
         navigation.setOptions({
-            headerLeft: (props) => (
+            headerLeft: (props: HeaderBackButtonProps) => (
                 <HeaderBackButton {...props} onPress={handleHeaderBack} />
             ),
         });
@@ -770,7 +770,7 @@ export default function SettingsPage() {
     const handleBackup = async () => {
         setIsSyncing(true);
         try {
-            await exportData({ tasks, projects, areas, settings });
+            await exportData({ tasks, projects, sections, areas, settings });
         } catch (error) {
             console.error(error);
             Alert.alert(localize('Error', '错误'), localize('Failed to export data', '导出失败'));

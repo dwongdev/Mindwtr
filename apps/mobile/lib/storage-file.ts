@@ -142,6 +142,7 @@ export const pickAndParseSyncFolder = async (): Promise<PickResult | null> => {
             return {
                 tasks: [],
                 projects: [],
+                sections: [],
                 areas: [],
                 settings: {},
                 __fileUri: fileUri,
