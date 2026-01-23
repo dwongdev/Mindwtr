@@ -320,6 +320,10 @@ export function InboxProcessor({
     };
 
     const handleConfirmContexts = () => {
+        if (projectFirst) {
+            handleSetProject(selectedProjectId);
+            return;
+        }
         goToStep('project');
     };
 
