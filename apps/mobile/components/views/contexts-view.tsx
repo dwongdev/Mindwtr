@@ -14,7 +14,7 @@ export function ContextsView() {
   const { tasks, updateTask, deleteTask, settings } = useTaskStore();
   const { isDark } = useTheme();
   const { t } = useLanguage();
-  const [selectedContext, setSelectedContext] = useState<string | null>(null);
+  const [selectedContexts, setSelectedContexts] = useState<string[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [editingTask, setEditingTask] = useState<Task | null>(null);
 
@@ -37,8 +37,8 @@ export function ContextsView() {
     const tokens = [...(task.contexts || []), ...(task.tags || [])];
     return tokens.some(token => matchesHierarchicalToken(context, token));
   };
-  const filteredTasks = selectedContext
-    ? activeTasks.filter((t) => matchesSelected(t, selectedContext))
+  const filteredTasks = selectedContexts.length > 0
+    ? activeTasks.filter((t) => selectedContexts.every((ctx) => matchesSelected(t, ctx)))
     : activeTasks.filter((t) => (t.contexts?.length || 0) > 0 || (t.tags?.length || 0) > 0);
 
   const sortBy = (settings?.taskSortBy ?? 'default') as TaskSortBy;
@@ -80,16 +80,16 @@ export function ContextsView() {
             style={[
               styles.contextButton,
               {
-                backgroundColor: selectedContext === null ? tc.tint : tc.filterBg,
+                backgroundColor: selectedContexts.length === 0 ? tc.tint : tc.filterBg,
                 borderColor: tc.border,
               },
             ]}
-            onPress={() => setSelectedContext(null)}
+            onPress={() => setSelectedContexts([])}
           >
             <Text
               style={[
                 styles.contextButtonText,
-                { color: selectedContext === null ? '#FFFFFF' : tc.text },
+                { color: selectedContexts.length === 0 ? '#FFFFFF' : tc.text },
               ]}
             >
               {t('contexts.all')}
@@ -99,7 +99,7 @@ export function ContextsView() {
                 styles.contextBadge,
                 {
                   backgroundColor:
-                    selectedContext === null
+                    selectedContexts.length === 0
                       ? 'rgba(255, 255, 255, 0.25)'
                       : isDark
                         ? 'rgba(255, 255, 255, 0.12)'
@@ -107,7 +107,7 @@ export function ContextsView() {
                 },
               ]}
             >
-              <Text style={[styles.contextBadgeText, { color: selectedContext === null ? '#FFFFFF' : tc.secondaryText }]}>
+              <Text style={[styles.contextBadgeText, { color: selectedContexts.length === 0 ? '#FFFFFF' : tc.secondaryText }]}>
                 {activeTasks.filter((t) => (t.contexts?.length || 0) > 0 || (t.tags?.length || 0) > 0).length}
               </Text>
             </View>
@@ -115,7 +115,7 @@ export function ContextsView() {
 
           {filteredContexts.map((context) => {
             const count = activeTasks.filter((t) => matchesSelected(t, context)).length;
-            const isActive = selectedContext === context;
+            const isActive = selectedContexts.includes(context);
             return (
               <Pressable
                 key={context}
@@ -123,7 +123,9 @@ export function ContextsView() {
                   styles.contextButton,
                   { backgroundColor: isActive ? tc.tint : tc.filterBg, borderColor: tc.border },
                 ]}
-                onPress={() => setSelectedContext((prev) => (prev === context ? null : context))}
+                onPress={() => setSelectedContexts((prev) => (
+                  prev.includes(context) ? prev.filter((item) => item !== context) : [...prev, context]
+                ))}
               >
                 <Text
                   style={[
@@ -155,7 +157,7 @@ export function ContextsView() {
         <View style={styles.content}>
           <View style={[styles.contentHeader, { backgroundColor: tc.cardBg, borderBottomColor: tc.border }]}>
             <Text style={[styles.contentTitle, { color: tc.text }]}>
-              {selectedContext || t('contexts.all')}
+              {selectedContexts.length > 0 ? selectedContexts.join(', ') : t('contexts.all')}
             </Text>
             <Text style={[styles.contentCount, { color: tc.secondaryText }]}>{sortedTasks.length} {t('common.tasks')}</Text>
           </View>
@@ -188,8 +190,8 @@ export function ContextsView() {
                     <Text style={styles.emptyIcon}>✓</Text>
                     <Text style={[styles.emptyTitle, { color: tc.text }]}>{t('contexts.noTasks')}</Text>
                     <Text style={[styles.emptyText, { color: tc.secondaryText }]}>
-                      {selectedContext
-                        ? `${t('contexts.noTasks')} ${selectedContext}`
+                      {selectedContexts.length > 0
+                        ? `${t('contexts.noTasks')} ${selectedContexts.join(', ')}`
                         : t('contexts.noTasks')}
                     </Text>
                   </>
