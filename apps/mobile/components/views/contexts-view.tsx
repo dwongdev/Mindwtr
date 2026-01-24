@@ -123,7 +123,7 @@ export function ContextsView() {
                   styles.contextButton,
                   { backgroundColor: isActive ? tc.tint : tc.filterBg, borderColor: tc.border },
                 ]}
-                onPress={() => setSelectedContext(context)}
+                onPress={() => setSelectedContext((prev) => (prev === context ? null : context))}
               >
                 <Text
                   style={[

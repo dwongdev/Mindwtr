@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Modal, ScrollView, TextInput, Platform, Alert, Share, ActivityIndicator } from 'react-native';
 
-import { useTaskStore, PRESET_CONTEXTS, createAIProvider, safeFormatDate, safeParseDate, type Task, type AIProviderId } from '@mindwtr/core';
+import { useTaskStore, PRESET_CONTEXTS, PRESET_TAGS, createAIProvider, safeFormatDate, safeParseDate, type Task, type AIProviderId } from '@mindwtr/core';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { AIResponseModal, type AIResponseAction } from './ai-response-modal';
 
@@ -57,6 +57,7 @@ export function InboxProcessingModal({ visible, onClose }: InboxProcessingModalP
   const processedCount = totalCount - processingQueue.length + currentIndex;
 
   const [selectedContexts, setSelectedContexts] = useState<string[]>([]);
+  const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const areaById = useMemo(() => new Map(areas.map((area) => [area.id, area])), [areas]);
 
   const filteredProjects = useMemo(() => {
@@ -81,6 +82,7 @@ export function InboxProcessingModal({ visible, onClose }: InboxProcessingModalP
     setDelegateFollowUpDate(null);
     setShowDelegateDatePicker(false);
     setSelectedContexts([]);
+    setSelectedTags([]);
     setNewContext('');
     setProjectSearch('');
     setProcessingTitle('');
@@ -116,6 +118,7 @@ export function InboxProcessingModal({ visible, onClose }: InboxProcessingModalP
     setDelegateFollowUpDate(null);
     setShowDelegateDatePicker(false);
     setSelectedContexts(firstTask?.contexts ?? []);
+    setSelectedTags(firstTask?.tags ?? []);
     setNewContext('');
     setProjectSearch('');
     setProcessingTitle(firstTask?.title ?? '');
@@ -171,6 +174,7 @@ export function InboxProcessingModal({ visible, onClose }: InboxProcessingModalP
     setDelegateWho('');
     setDelegateFollowUpDate(null);
     setSelectedContexts(nextTask?.contexts ?? []);
+    setSelectedTags(nextTask?.tags ?? []);
     setNewContext('');
     setProjectSearch('');
     setProcessingTitle(nextTask?.title ?? '');
@@ -289,12 +293,25 @@ export function InboxProcessingModal({ visible, onClose }: InboxProcessingModalP
     );
   };
 
+  const toggleTag = (tag: string) => {
+    setSelectedTags((prev) =>
+      prev.includes(tag) ? prev.filter((item) => item !== tag) : [...prev, tag]
+    );
+  };
+
   const addCustomContextMobile = () => {
     const trimmed = newContext.trim();
     if (!trimmed) return;
-    const normalized = trimmed.startsWith('@') ? trimmed : `@${trimmed}`;
-    if (!selectedContexts.includes(normalized)) {
-      setSelectedContexts((prev) => [...prev, normalized]);
+    if (trimmed.startsWith('#')) {
+      const normalized = trimmed.startsWith('#') ? trimmed : `#${trimmed}`;
+      if (!selectedTags.includes(normalized)) {
+        setSelectedTags((prev) => [...prev, normalized]);
+      }
+    } else {
+      const normalized = trimmed.startsWith('@') ? trimmed : `@${trimmed}`;
+      if (!selectedContexts.includes(normalized)) {
+        setSelectedContexts((prev) => [...prev, normalized]);
+      }
     }
     setNewContext('');
   };
@@ -303,6 +320,7 @@ export function InboxProcessingModal({ visible, onClose }: InboxProcessingModalP
     applyProcessingEdits({
       status: 'next',
       contexts: selectedContexts,
+      tags: selectedTags,
       startTime: pendingStartDate ? pendingStartDate.toISOString() : undefined,
     });
     setPendingStartDate(null);
@@ -314,6 +332,7 @@ export function InboxProcessingModal({ visible, onClose }: InboxProcessingModalP
       status: 'next',
       projectId: projectId ?? undefined,
       contexts: selectedContexts,
+      tags: selectedTags,
       startTime: pendingStartDate ? pendingStartDate.toISOString() : undefined,
     });
     setPendingStartDate(null);
@@ -853,6 +872,19 @@ export function InboxProcessingModal({ visible, onClose }: InboxProcessingModalP
                   </View>
                 )}
 
+                {selectedTags.length > 0 && (
+                  <View style={[styles.selectedContextsContainer, { backgroundColor: '#8B5CF620' }]}>
+                    <Text style={{ fontSize: 12, color: '#8B5CF6', marginBottom: 4 }}>{t('taskEdit.tagsLabel')}</Text>
+                    <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
+                      {selectedTags.map(tag => (
+                        <View key={tag} style={{ backgroundColor: '#8B5CF6', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12 }}>
+                          <Text style={{ color: '#FFF', fontSize: 12 }}>{tag}</Text>
+                        </View>
+                      ))}
+                    </View>
+                  </View>
+                )}
+
                 <View style={styles.customContextContainer}>
                   <TextInput
                     style={[styles.contextInput, { borderColor: tc.border, color: tc.text }]}
@@ -872,7 +904,7 @@ export function InboxProcessingModal({ visible, onClose }: InboxProcessingModalP
                 </View>
 
                 <View style={styles.contextWrap}>
-                  {PRESET_CONTEXTS.map(ctx => (
+                  {PRESET_CONTEXTS.filter((ctx) => ctx.startsWith('@')).map(ctx => (
                     <TouchableOpacity
                       key={ctx}
                       style={[
@@ -891,13 +923,33 @@ export function InboxProcessingModal({ visible, onClose }: InboxProcessingModalP
                   ))}
                 </View>
 
+                <View style={styles.contextWrap}>
+                  {PRESET_TAGS.map(tag => (
+                    <TouchableOpacity
+                      key={tag}
+                      style={[
+                        styles.contextChip,
+                        selectedTags.includes(tag)
+                          ? { backgroundColor: '#8B5CF6' }
+                          : { backgroundColor: tc.cardBg, borderWidth: 1, borderColor: tc.border }
+                      ]}
+                      onPress={() => toggleTag(tag)}
+                    >
+                      <Text style={[
+                        styles.contextChipText,
+                        { color: selectedTags.includes(tag) ? '#FFF' : tc.text }
+                      ]}>{tag}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+
                 <TouchableOpacity
                   style={[styles.bigButton, styles.buttonPrimary, { marginTop: 16 }]}
                   onPress={handleConfirmContextsMobile}
                 >
                   <Text style={styles.bigButtonText}>
-                    {selectedContexts.length > 0
-                      ? `${t('common.done')} (${selectedContexts.length})`
+                    {(selectedContexts.length + selectedTags.length) > 0
+                      ? `${t('common.done')} (${selectedContexts.length + selectedTags.length})`
                       : t('common.done')}
                   </Text>
                 </TouchableOpacity>
