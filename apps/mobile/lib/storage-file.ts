@@ -14,6 +14,12 @@ interface PickResult extends AppData {
 
 const SYNC_FILE_NAME = 'data.json';
 const LEGACY_SYNC_FILE_NAME = 'mindwtr-sync.json';
+const READONLY_FOLDER_MESSAGE = 'Selected folder is read-only. Please choose a writable folder or make it available offline.';
+
+const isReadOnlyError = (error: unknown): boolean => {
+    const message = String(error);
+    return /isn't writable|not writable|read-only|read only|permission denied|EACCES/i.test(message);
+};
 
 function sleep(ms: number) {
     return new Promise((resolve) => setTimeout(resolve, ms));
@@ -122,6 +128,45 @@ const findSyncFileInDirectory = async (directoryUri: string): Promise<string | n
     }
 };
 
+const assertDirectoryWritable = async (
+    directoryUri: string,
+    existingFileUri?: string,
+    existingContent?: string | null,
+): Promise<void> => {
+    if (!StorageAccessFramework?.createFileAsync || !StorageAccessFramework?.writeAsStringAsync) return;
+    let testUri: string | null = null;
+    try {
+        try {
+            testUri = await StorageAccessFramework.createFileAsync(
+                directoryUri,
+                `mindwtr-write-test-${Date.now()}`,
+                'text/plain'
+            );
+            await StorageAccessFramework.writeAsStringAsync(testUri, 'ok');
+            return;
+        } catch (error) {
+            if (existingFileUri) {
+                await StorageAccessFramework.writeAsStringAsync(existingFileUri, existingContent ?? '');
+                return;
+            }
+            throw error;
+        }
+    } catch (error) {
+        if (isReadOnlyError(error)) {
+            throw new Error(READONLY_FOLDER_MESSAGE);
+        }
+        throw error;
+    } finally {
+        if (testUri && StorageAccessFramework?.deleteAsync) {
+            try {
+                await StorageAccessFramework.deleteAsync(testUri, { idempotent: true });
+            } catch {
+                // Ignore cleanup failures for the temp file.
+            }
+        }
+    }
+};
+
 export const pickAndParseSyncFolder = async (): Promise<PickResult | null> => {
     if (Platform.OS !== 'android' || !StorageAccessFramework?.requestDirectoryPermissionsAsync) {
         return pickAndParseSyncFile();
@@ -131,13 +176,20 @@ export const pickAndParseSyncFolder = async (): Promise<PickResult | null> => {
         if (!permissions.granted) return null;
         const directoryUri = permissions.directoryUri;
         let fileUri = await findSyncFileInDirectory(directoryUri);
+        let fileContent: string | null = null;
+        if (fileUri) {
+            fileContent = await readFileText(fileUri);
+        }
+        await assertDirectoryWritable(directoryUri, fileUri ?? undefined, fileContent ?? undefined);
         if (!fileUri && StorageAccessFramework?.createFileAsync) {
             fileUri = await StorageAccessFramework.createFileAsync(directoryUri, SYNC_FILE_NAME, 'application/json');
         }
         if (!fileUri) {
             throw new Error('Unable to create sync file in selected folder');
         }
-        const fileContent = await readFileText(fileUri);
+        if (fileContent === null) {
+            fileContent = await readFileText(fileUri);
+        }
         if (!fileContent) {
             return {
                 tasks: [],

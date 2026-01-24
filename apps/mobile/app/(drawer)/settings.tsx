@@ -683,6 +683,17 @@ export default function SettingsPage() {
             }
         } catch (error) {
             console.error(error);
+            const message = String(error);
+            if (/read-only|read only|not writable|isn't writable|permission denied|EACCES/i.test(message)) {
+                Alert.alert(
+                    localize('Sync folder is read-only', '同步文件夹不可写'),
+                    localize(
+                        'The selected folder is read-only. Please choose a writable folder (e.g. My files) or make it available offline.',
+                        '所选文件夹不可写。请选择可写文件夹（如“我的文件”），或将其设为离线可用。'
+                    )
+                );
+                return;
+            }
             Alert.alert(localize('Error', '错误'), localize('Failed to set sync path', '设置失败'));
         }
     };
