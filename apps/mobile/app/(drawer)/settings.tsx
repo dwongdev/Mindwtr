@@ -157,6 +157,7 @@ export default function SettingsPage() {
     const [isCheckingUpdate, setIsCheckingUpdate] = useState(false);
     const [digestTimePicker, setDigestTimePicker] = useState<'morning' | 'evening' | null>(null);
     const [weeklyReviewTimePicker, setWeeklyReviewTimePicker] = useState(false);
+    const [weeklyReviewDayPickerOpen, setWeeklyReviewDayPickerOpen] = useState(false);
     const [modelPicker, setModelPicker] = useState<null | 'model' | 'copilot' | 'speech'>(null);
     const [languagePickerOpen, setLanguagePickerOpen] = useState(false);
     const [externalCalendars, setExternalCalendars] = useState<ExternalCalendarSubscription[]>([]);
@@ -306,13 +307,7 @@ export default function SettingsPage() {
     };
 
     const selectWeeklyReviewDay = () => {
-        const options: { text: string; onPress?: () => void; style?: 'default' | 'cancel' | 'destructive' }[] =
-            Array.from({ length: 7 }, (_, idx) => ({
-                text: getWeekdayLabel(idx),
-                onPress: () => updateSettings({ weeklyReviewDay: idx }).catch(console.error),
-            }));
-        options.push({ text: t('common.cancel'), style: 'cancel' });
-        Alert.alert(t('settings.weeklyReviewDay'), '', options);
+        setWeeklyReviewDayPickerOpen(true);
     };
 
     // Load sync path on mount
@@ -947,6 +942,46 @@ export default function SettingsPage() {
                             </View>
                         </TouchableOpacity>
                     </View>
+
+                    <Modal
+                        transparent
+                        visible={weeklyReviewDayPickerOpen}
+                        animationType="fade"
+                        onRequestClose={() => setWeeklyReviewDayPickerOpen(false)}
+                    >
+                        <Pressable style={styles.pickerOverlay} onPress={() => setWeeklyReviewDayPickerOpen(false)}>
+                            <View
+                                style={[styles.pickerCard, { backgroundColor: tc.cardBg, borderColor: tc.border }]}
+                                onStartShouldSetResponder={() => true}
+                            >
+                                <Text style={[styles.pickerTitle, { color: tc.text }]}>{t('settings.weeklyReviewDay')}</Text>
+                                <ScrollView style={styles.pickerList} contentContainerStyle={styles.pickerListContent}>
+                                    {Array.from({ length: 7 }, (_, idx) => {
+                                        const label = getWeekdayLabel(idx);
+                                        const selected = weeklyReviewDay === idx;
+                                        return (
+                                            <TouchableOpacity
+                                                key={label}
+                                                style={[
+                                                    styles.pickerOption,
+                                                    { borderColor: tc.border, backgroundColor: selected ? tc.filterBg : 'transparent' },
+                                                ]}
+                                                onPress={() => {
+                                                    updateSettings({ weeklyReviewDay: idx }).catch(console.error);
+                                                    setWeeklyReviewDayPickerOpen(false);
+                                                }}
+                                            >
+                                                <Text style={[styles.pickerOptionText, { color: selected ? tc.tint : tc.text }]}>
+                                                    {label}
+                                                </Text>
+                                                {selected && <Text style={{ color: tc.tint, fontSize: 18 }}>✓</Text>}
+                                            </TouchableOpacity>
+                                        );
+                                    })}
+                                </ScrollView>
+                            </View>
+                        </Pressable>
+                    </Modal>
 
                     <View style={[styles.settingCard, { backgroundColor: tc.cardBg, marginTop: 12 }]}>
                         <View style={styles.settingRow}>
