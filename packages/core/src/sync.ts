@@ -15,6 +15,7 @@ export interface EntityMergeStats {
     conflictIds: string[];
     maxClockSkewMs: number;
     timestampAdjustments: number;
+    timestampAdjustmentIds: string[];
 }
 
 export interface MergeStats {
@@ -97,6 +98,7 @@ function createEmptyEntityStats(localTotal: number, incomingTotal: number): Enti
         conflictIds: [],
         maxClockSkewMs: 0,
         timestampAdjustments: 0,
+        timestampAdjustmentIds: [],
     };
 }
 
@@ -111,13 +113,22 @@ function mergeEntitiesWithStats<T extends { id: string; updatedAt: string; delet
 
     const stats = createEmptyEntityStats(local.length, incoming.length);
     const merged: T[] = [];
-    const normalizeTimestamps = <Item extends { updatedAt: string; createdAt?: string }>(item: Item): Item => {
+    const normalizeTimestamps = <Item extends { id?: string; updatedAt: string; createdAt?: string }>(item: Item): Item => {
         if (!('createdAt' in item) || !item.createdAt) return item;
         const createdTime = new Date(item.createdAt).getTime();
         const updatedTime = new Date(item.updatedAt).getTime();
         if (!Number.isFinite(createdTime) || !Number.isFinite(updatedTime)) return item;
         if (updatedTime >= createdTime) return item;
         stats.timestampAdjustments += 1;
+        if (item.id && stats.timestampAdjustmentIds.length < 20) {
+            stats.timestampAdjustmentIds.push(item.id);
+        }
+        if (stats.timestampAdjustments <= 5) {
+            console.warn(
+                '[mindwtr-sync] normalized updatedAt before createdAt',
+                { id: item.id, createdAt: item.createdAt, updatedAt: item.updatedAt }
+            );
+        }
         return { ...item, updatedAt: item.createdAt } as Item;
     };
 
