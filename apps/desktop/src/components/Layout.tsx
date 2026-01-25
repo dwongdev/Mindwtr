@@ -5,6 +5,7 @@ import { useTaskStore, safeParseDate } from '@mindwtr/core';
 import { useLanguage } from '../contexts/language-context';
 import { useUiStore } from '../store/ui-store';
 import { reportError } from '../lib/report-error';
+import { ToastHost } from './ToastHost';
 
 interface LayoutProps {
     children: React.ReactNode;
@@ -257,6 +258,7 @@ export function Layout({ children, currentView, onViewChange }: LayoutProps) {
                     {children}
                 </div>
             </main>
+            <ToastHost />
         </div>
     );
 }

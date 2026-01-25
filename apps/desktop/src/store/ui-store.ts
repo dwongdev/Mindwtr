@@ -5,6 +5,9 @@ interface UiState {
     isFocusMode: boolean;
     setFocusMode: (value: boolean) => void;
     toggleFocusMode: () => void;
+    toasts: Array<{ id: string; message: string; tone: 'success' | 'error' | 'info' }>;
+    showToast: (message: string, tone?: 'success' | 'error' | 'info', durationMs?: number) => void;
+    dismissToast: (id: string) => void;
     listFilters: {
         tokens: string[];
         priorities: TaskPriority[];
@@ -32,6 +35,15 @@ export const useUiStore = create<UiState>((set) => ({
     isFocusMode: false,
     setFocusMode: (value) => set({ isFocusMode: value }),
     toggleFocusMode: () => set((state) => ({ isFocusMode: !state.isFocusMode })),
+    toasts: [],
+    showToast: (message, tone = 'info', durationMs = 3000) => {
+        const id = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+        set((state) => ({ toasts: [...state.toasts, { id, message, tone }] }));
+        window.setTimeout(() => {
+            set((state) => ({ toasts: state.toasts.filter((toast) => toast.id !== id) }));
+        }, durationMs);
+    },
+    dismissToast: (id) => set((state) => ({ toasts: state.toasts.filter((toast) => toast.id !== id) })),
     listFilters: {
         tokens: [],
         priorities: [],

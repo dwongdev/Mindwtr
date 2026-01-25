@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { SyncService } from '../../../lib/sync-service';
+import { useUiStore } from '../../../store/ui-store';
 
 export type SyncBackend = 'off' | 'file' | 'webdav' | 'cloud';
 
@@ -20,6 +21,7 @@ export const useSyncSettings = ({ isTauri, showSaved, selectSyncFolderTitle }: U
     const [webdavHasPassword, setWebdavHasPassword] = useState(false);
     const [cloudUrl, setCloudUrl] = useState('');
     const [cloudToken, setCloudToken] = useState('');
+    const showToast = useUiStore((state) => state.showToast);
 
     useEffect(() => {
         SyncService.getSyncPath()
@@ -142,14 +144,20 @@ export const useSyncSettings = ({ isTauri, showSaved, selectSyncFolderTitle }: U
                 }
             }
 
-            await SyncService.performSync();
+            const result = await SyncService.performSync();
+            if (result.success) {
+                showToast('Sync completed', 'success');
+            } else if (result.error) {
+                showToast(result.error, 'error');
+            }
         } catch (error) {
             console.error(error);
             setSyncError(String(error));
+            showToast(String(error), 'error');
         } finally {
             setIsSyncing(false);
         }
-    }, [cloudUrl, handleSaveCloud, handleSaveWebDav, syncBackend, syncPath, webdavUrl]);
+    }, [cloudUrl, handleSaveCloud, handleSaveWebDav, showToast, syncBackend, syncPath, webdavUrl]);
 
     return {
         syncPath,
