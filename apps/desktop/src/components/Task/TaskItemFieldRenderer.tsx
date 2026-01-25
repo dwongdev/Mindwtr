@@ -79,6 +79,22 @@ type TaskItemFieldRendererProps = {
     handlers: TaskItemFieldRendererHandlers;
 };
 
+const areChecklistsEqual = (a: Task['checklist'], b: Task['checklist']): boolean => {
+    if (a === b) return true;
+    const listA = a || [];
+    const listB = b || [];
+    if (listA.length !== listB.length) return false;
+    for (let i = 0; i < listA.length; i += 1) {
+        const itemA = listA[i];
+        const itemB = listB[i];
+        if (!itemA || !itemB) return false;
+        if (itemA.id !== itemB.id) return false;
+        if (itemA.title !== itemB.title) return false;
+        if (itemA.isCompleted !== itemB.isCompleted) return false;
+    }
+    return true;
+};
+
 export function TaskItemFieldRenderer({
     fieldId,
     data,
@@ -153,7 +169,15 @@ export function TaskItemFieldRenderer({
         checklistDraftRef.current = task.checklist || [];
         checklistDirtyRef.current = false;
         checklistInputRefs.current = [];
-    }, [task.id, task.checklist]);
+    }, [task.id]);
+
+    useEffect(() => {
+        if (checklistDirtyRef.current) return;
+        const incoming = task.checklist || [];
+        if (areChecklistsEqual(incoming, checklistDraftRef.current)) return;
+        setChecklistDraft(incoming);
+        checklistDraftRef.current = incoming;
+    }, [task.checklist]);
 
     const updateChecklistDraft = useCallback((next: Task['checklist']) => {
         setChecklistDraft(next);
