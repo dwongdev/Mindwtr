@@ -61,6 +61,37 @@ Authorization: Bearer <token>
 | `GET`    | `/projects`           | List projects                 |
 | `GET`    | `/search?query=...`   | Search tasks + projects       |
 
+### Response Shapes
+
+**Task (partial)**
+```json
+{
+  "id": "uuid",
+  "title": "Task title",
+  "status": "inbox",
+  "projectId": "uuid",
+  "dueDate": "2026-01-25T12:00:00.000Z",
+  "tags": ["#work"],
+  "contexts": ["@email"],
+  "createdAt": "2026-01-25T10:00:00.000Z",
+  "updatedAt": "2026-01-25T10:00:00.000Z",
+  "deletedAt": null
+}
+```
+
+**Project (partial)**
+```json
+{
+  "id": "uuid",
+  "title": "Project name",
+  "status": "active",
+  "color": "#94a3b8",
+  "createdAt": "2026-01-25T10:00:00.000Z",
+  "updatedAt": "2026-01-25T10:00:00.000Z",
+  "deletedAt": null
+}
+```
+
 ### Create Task Body
 
 ```json
@@ -119,6 +150,17 @@ bun mindwtr:cli -- complete <taskId>
 # Search
 bun mindwtr:cli -- search "@work"
 ```
+
+### CLI Reference
+
+| Command      | Example                                      | Notes                                |
+| ------------ | -------------------------------------------- | ------------------------------------ |
+| `add`        | `mindwtr:cli -- add "Call mom @phone"`       | Uses quick-add parsing               |
+| `list`       | `mindwtr:cli -- list --status next`          | Supports `--query` for search        |
+| `search`     | `mindwtr:cli -- search "@work due:<=7d"`     | Searches tasks/projects              |
+| `complete`   | `mindwtr:cli -- complete <taskId>`           | Marks task as done                   |
+| `delete`     | `mindwtr:cli -- delete <taskId>`             | Soft-deletes task                    |
+| `restore`    | `mindwtr:cli -- restore <taskId>`            | Restores a deleted task              |
 
 ---
 
