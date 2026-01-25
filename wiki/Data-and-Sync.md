@@ -39,6 +39,11 @@ Data is stored in a local SQLite database, with a JSON sync/backup file:
 
 Mindwtr supports three sync backends:
 
+**Quick guidance:**
+- **Syncthing**: device-to-device file sync. Best on the same LAN/subnet. For remote sync, use a Syncthing relay or a mesh VPN (Nebula/Tailscale).
+- **WebDAV**: use a provider that supports WebDAV (e.g., Nextcloud, ownCloud, Fastmail, self-hosted).
+- **Dropbox/Google Drive**: no native WebDAV; on Android, use a bridge app to keep a local folder synced for file sync.
+
 ### 1. File Sync
 
 Sync via a shared JSON file with any folder-based sync service:
