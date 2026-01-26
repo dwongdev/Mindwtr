@@ -113,6 +113,7 @@ export function SettingsView() {
         }
     }, [isTauri]);
     const windowDecorationsEnabled = settings?.window?.decorations !== false;
+    const closeBehavior = settings?.window?.closeBehavior ?? 'ask';
 
     const [saved, setSaved] = useState(false);
     const [appVersion, setAppVersion] = useState('0.1.0');
@@ -369,6 +370,17 @@ export function SettingsView() {
             .then(({ getCurrentWindow }) => getCurrentWindow().setDecorations(enabled))
             .catch((error) => reportError('Failed to set window decorations', error));
     }, [isLinux, isTauri, settings?.window, showSaved, updateSettings]);
+
+    const handleCloseBehaviorChange = useCallback((behavior: 'ask' | 'tray' | 'quit') => {
+        updateSettings({
+            window: {
+                ...(settings?.window ?? {}),
+                closeBehavior: behavior,
+            },
+        })
+            .then(showSaved)
+            .catch((error) => reportError('Failed to update close behavior', error));
+    }, [settings?.window, showSaved, updateSettings]);
 
     const handleKeybindingStyleChange = (style: 'vim' | 'emacs') => {
         setKeybindingStyle(style);
@@ -844,6 +856,9 @@ export function SettingsView() {
                     showWindowDecorations={isLinux}
                     windowDecorationsEnabled={windowDecorationsEnabled}
                     onWindowDecorationsChange={handleWindowDecorationsChange}
+                    showCloseBehavior={isTauri}
+                    closeBehavior={closeBehavior}
+                    onCloseBehaviorChange={handleCloseBehaviorChange}
                 />
             );
         }

@@ -19,6 +19,11 @@ type Labels = {
     viewShortcuts: string;
     windowDecorations: string;
     windowDecorationsDesc: string;
+    closeBehavior: string;
+    closeBehaviorDesc: string;
+    closeBehaviorAsk: string;
+    closeBehaviorTray: string;
+    closeBehaviorQuit: string;
 };
 
 type LanguageOption = { id: Language; native: string };
@@ -36,6 +41,9 @@ type SettingsMainPageProps = {
     showWindowDecorations?: boolean;
     windowDecorationsEnabled?: boolean;
     onWindowDecorationsChange?: (enabled: boolean) => void;
+    showCloseBehavior?: boolean;
+    closeBehavior?: 'ask' | 'tray' | 'quit';
+    onCloseBehaviorChange?: (behavior: 'ask' | 'tray' | 'quit') => void;
 };
 
 export function SettingsMainPage({
@@ -51,6 +59,9 @@ export function SettingsMainPage({
     showWindowDecorations = false,
     windowDecorationsEnabled = true,
     onWindowDecorationsChange,
+    showCloseBehavior = false,
+    closeBehavior = 'ask',
+    onCloseBehaviorChange,
 }: SettingsMainPageProps) {
     return (
         <div className="space-y-6">
@@ -145,6 +156,26 @@ export function SettingsMainPage({
                                 }`}
                             />
                         </button>
+                    </div>
+                )}
+
+                {showCloseBehavior && (
+                    <div className="p-4 flex items-center justify-between gap-6">
+                        <div className="min-w-0">
+                            <div className="text-sm font-medium">{t.closeBehavior}</div>
+                            <div className="text-xs text-muted-foreground mt-1">{t.closeBehaviorDesc}</div>
+                        </div>
+                        <div className="flex items-center gap-2 shrink-0">
+                            <select
+                                value={closeBehavior}
+                                onChange={(e) => onCloseBehaviorChange?.(e.target.value as 'ask' | 'tray' | 'quit')}
+                                className="text-sm bg-muted/50 text-foreground border border-border rounded px-2 py-1 hover:bg-muted focus:outline-none focus:ring-2 focus:ring-primary/40"
+                            >
+                                <option value="ask">{t.closeBehaviorAsk}</option>
+                                <option value="tray">{t.closeBehaviorTray}</option>
+                                <option value="quit">{t.closeBehaviorQuit}</option>
+                            </select>
+                        </div>
                     </div>
                 )}
             </div>

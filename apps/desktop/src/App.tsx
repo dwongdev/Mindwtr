@@ -18,6 +18,7 @@ import { ErrorBoundary } from './components/ErrorBoundary';
 import { useLanguage } from './contexts/language-context';
 import { KeybindingProvider } from './contexts/keybinding-context';
 import { QuickAddModal } from './components/QuickAddModal';
+import { CloseBehaviorModal } from './components/CloseBehaviorModal';
 import { startDesktopNotifications, stopDesktopNotifications } from './lib/notification-service';
 import { SyncService } from './lib/sync-service';
 import { isTauriRuntime } from './lib/runtime';
@@ -31,6 +32,8 @@ function App() {
     const isLoading = useTaskStore((state) => state.isLoading);
     const setError = useTaskStore((state) => state.setError);
     const windowDecorations = useTaskStore((state) => state.settings?.window?.decorations);
+    const closeBehavior = useTaskStore((state) => state.settings?.window?.closeBehavior ?? 'ask');
+    const updateSettings = useTaskStore((state) => state.updateSettings);
     const { t } = useLanguage();
     const isActiveRef = useRef(true);
     const lastAutoSyncRef = useRef(0);
@@ -40,6 +43,25 @@ function App() {
     const syncQueuedRef = useRef(false);
     const lastSyncErrorRef = useRef<string | null>(null);
     const lastSyncErrorAtRef = useRef(0);
+    const [closePromptOpen, setClosePromptOpen] = useState(false);
+    const [closePromptRemember, setClosePromptRemember] = useState(false);
+
+    const translateOrFallback = useCallback((key: string, fallback: string) => {
+        const value = t(key);
+        return value === key ? fallback : value;
+    }, [t]);
+
+    const hideToTray = useCallback(async () => {
+        const { getCurrentWindow } = await import('@tauri-apps/api/window');
+        const window = getCurrentWindow();
+        await window.setSkipTaskbar(true);
+        await window.hide();
+    }, []);
+
+    const quitApp = useCallback(async () => {
+        const { invoke } = await import('@tauri-apps/api/core');
+        await invoke('quit_app');
+    }, []);
 
     useEffect(() => {
         if (import.meta.env.MODE === 'test' || import.meta.env.VITEST || process.env.NODE_ENV === 'test') return;
@@ -204,6 +226,40 @@ function App() {
 
     useEffect(() => {
         if (!isTauriRuntime()) return;
+        let unlisten: (() => void) | undefined;
+        const reportCloseError = (label: string, error: unknown) => {
+            const message = error instanceof Error ? error.message : String(error);
+            setError(`${label}: ${message}`);
+            void logError(error, { scope: 'app', step: label });
+        };
+
+        const setup = async () => {
+            const { listen } = await import('@tauri-apps/api/event');
+            unlisten = await listen('close-requested', async () => {
+                if (closeBehavior === 'quit') {
+                    await quitApp().catch((error) => reportCloseError('Quit failed', error));
+                    return;
+                }
+                if (closeBehavior === 'tray') {
+                    await hideToTray().catch((error) => reportCloseError('Hide failed', error));
+                    return;
+                }
+                if (!closePromptOpen) {
+                    setClosePromptRemember(false);
+                    setClosePromptOpen(true);
+                }
+            });
+        };
+
+        setup().catch((error) => reportCloseError('Close listener failed', error));
+
+        return () => {
+            if (unlisten) unlisten();
+        };
+    }, [closeBehavior, closePromptOpen, hideToTray, quitApp, setError]);
+
+    useEffect(() => {
+        if (!isTauriRuntime()) return;
         if (windowDecorations === undefined) return;
         if (!/linux/i.test(navigator.userAgent || '')) return;
         let cancelled = false;
@@ -317,6 +373,57 @@ function App() {
                     </Suspense>
                     <GlobalSearch onNavigate={(view, _id) => handleViewChange(view)} />
                     <QuickAddModal />
+                    <CloseBehaviorModal
+                        isOpen={closePromptOpen}
+                        title={translateOrFallback('settings.closeBehaviorPromptTitle', 'Close Mindwtr?')}
+                        description={translateOrFallback(
+                            'settings.closeBehaviorPromptBody',
+                            'Do you want Mindwtr to stay running in the tray or quit completely?'
+                        )}
+                        rememberLabel={translateOrFallback('settings.closeBehaviorRemember', "Don't ask again")}
+                        stayLabel={translateOrFallback('settings.closeBehaviorTray', 'Keep running in tray')}
+                        quitLabel={translateOrFallback('settings.closeBehaviorQuit', 'Quit the app')}
+                        cancelLabel={translateOrFallback('common.cancel', 'Cancel')}
+                        remember={closePromptRemember}
+                        onRememberChange={setClosePromptRemember}
+                        onCancel={() => setClosePromptOpen(false)}
+                        onStay={() => {
+                            const apply = async () => {
+                                if (closePromptRemember) {
+                                    await updateSettings({
+                                        window: {
+                                            ...(useTaskStore.getState().settings?.window ?? {}),
+                                            closeBehavior: 'tray',
+                                        },
+                                    });
+                                }
+                                setClosePromptOpen(false);
+                                await hideToTray();
+                            };
+                            apply().catch((error) => {
+                                setClosePromptOpen(false);
+                                void logError(error, { scope: 'app', step: 'close-tray' });
+                            });
+                        }}
+                        onQuit={() => {
+                            const apply = async () => {
+                                if (closePromptRemember) {
+                                    await updateSettings({
+                                        window: {
+                                            ...(useTaskStore.getState().settings?.window ?? {}),
+                                            closeBehavior: 'quit',
+                                        },
+                                    });
+                                }
+                                setClosePromptOpen(false);
+                                await quitApp();
+                            };
+                            apply().catch((error) => {
+                                setClosePromptOpen(false);
+                                void logError(error, { scope: 'app', step: 'close-quit' });
+                            });
+                        }}
+                    />
                 </Layout>
             </KeybindingProvider>
         </ErrorBoundary>

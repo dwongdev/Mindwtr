@@ -197,6 +197,7 @@ export interface AppData {
         keybindingStyle?: 'vim' | 'emacs';
         window?: {
             decorations?: boolean;
+            closeBehavior?: 'ask' | 'tray' | 'quit';
         };
         notificationsEnabled?: boolean;
         reviewAtNotificationsEnabled?: boolean;

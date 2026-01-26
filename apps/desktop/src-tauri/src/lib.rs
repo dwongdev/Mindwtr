@@ -275,6 +275,11 @@ fn consume_quick_add_pending(state: tauri::State<'_, QuickAddPending>) -> bool {
 }
 
 #[tauri::command]
+fn quit_app(app: tauri::AppHandle) {
+    app.exit(0);
+}
+
+#[tauri::command]
 fn start_audio_recording(state: tauri::State<'_, AudioRecorderState>) -> Result<(), String> {
     let mut guard = state.inner().0.lock().map_err(|_| "Recorder lock poisoned".to_string())?;
     if guard.is_some() {
@@ -2438,8 +2443,10 @@ pub fn run() {
         .on_window_event(|window, event| {
             if let tauri::WindowEvent::CloseRequested { api, .. } = event {
                 api.prevent_close();
-                let _ = window.set_skip_taskbar(true);
-                let _ = window.hide();
+                if window.emit("close-requested", ()).is_err() {
+                    let _ = window.set_skip_taskbar(true);
+                    let _ = window.hide();
+                }
             }
         })
         .setup(|app| {
@@ -2545,7 +2552,8 @@ pub fn run() {
             log_ai_debug,
             append_log_line,
             clear_log_file,
-            consume_quick_add_pending
+            consume_quick_add_pending,
+            quit_app
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
