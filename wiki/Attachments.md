@@ -51,13 +51,6 @@ sudo apt install gstreamer1.0-plugins-base gstreamer1.0-plugins-good gstreamer1.
 sudo dnf install gstreamer1-plugins-base gstreamer1-plugins-good gstreamer1-plugins-bad-free gstreamer1-plugins-ugly gstreamer1-libav
 ```
 
-### Whisper language codes
-
-If you use the **Whisper** offline model, you can set an explicit language code in **Settings → AI Assistant → Audio language**.  
-See the language list here: `https://whisper-api.com/docs/languages/`
-
----
-
 ## Sync behavior
 
 - Attachment metadata syncs with tasks/projects.

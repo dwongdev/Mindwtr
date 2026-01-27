@@ -62,3 +62,7 @@ Transcribe voice notes into tasks.
 
 - AI is **optional** — Mindwtr works fully without it.
 - Responses are parsed as structured JSON; if parsing fails, no changes are applied.
+## Whisper language codes
+
+If you use the Whisper offline model, you can set an explicit language code in Settings → AI Assistant → Audio language.
+See the language list here: [Whisper language list](https://whisper-api.com/docs/languages/).
