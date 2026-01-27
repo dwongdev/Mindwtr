@@ -164,7 +164,6 @@ export function InboxProcessingWizard({
                     <div className="space-y-1">
                         <label className="text-xs text-muted-foreground font-medium">{t('taskEdit.titleLabel')}</label>
                         <input
-                            autoFocus
                             value={processingTitle}
                             onChange={(e) => setProcessingTitle(e.target.value)}
                             className="w-full bg-card border border-border rounded-md px-3 py-2 text-sm focus:ring-2 focus:ring-primary"
