@@ -114,6 +114,7 @@ export function SettingsView() {
     }, [isTauri]);
     const windowDecorationsEnabled = settings?.window?.decorations !== false;
     const closeBehavior = settings?.window?.closeBehavior ?? 'ask';
+    const trayVisible = settings?.window?.showTray !== false;
 
     const [saved, setSaved] = useState(false);
     const [appVersion, setAppVersion] = useState('0.1.0');
@@ -369,6 +370,17 @@ export function SettingsView() {
         })
             .then(showSaved)
             .catch((error) => reportError('Failed to update close behavior', error));
+    }, [settings?.window, showSaved, updateSettings]);
+
+    const handleTrayVisibleChange = useCallback(async (visible: boolean) => {
+        updateSettings({
+            window: {
+                ...(settings?.window ?? {}),
+                showTray: visible,
+            },
+        })
+            .then(showSaved)
+            .catch((error) => reportError('Failed to update tray visibility setting', error));
     }, [settings?.window, showSaved, updateSettings]);
 
     const handleKeybindingStyleChange = (style: 'vim' | 'emacs') => {
@@ -850,6 +862,9 @@ export function SettingsView() {
                     showCloseBehavior={isTauri}
                     closeBehavior={closeBehavior}
                     onCloseBehaviorChange={handleCloseBehaviorChange}
+                    showTrayToggle={isTauri}
+                    trayVisible={trayVisible}
+                    onTrayVisibleChange={handleTrayVisibleChange}
                 />
             );
         }
