@@ -18,7 +18,7 @@ import {
 
 import { useKeybindings } from '../../contexts/keybinding-context';
 import { useLanguage, type Language } from '../../contexts/language-context';
-import { isTauriRuntime } from '../../lib/runtime';
+import { isFlatpakRuntime, isTauriRuntime } from '../../lib/runtime';
 import { reportError } from '../../lib/report-error';
 import { SyncService } from '../../lib/sync-service';
 import { clearLog, getLogPath, logDiagnosticsEnabled, logWarn } from '../../lib/app-log';
@@ -104,6 +104,7 @@ export function SettingsView() {
     const settings = useTaskStore((state) => state.settings) ?? ({} as AppData['settings']);
     const updateSettings = useTaskStore((state) => state.updateSettings);
     const isTauri = isTauriRuntime();
+    const isFlatpak = isFlatpakRuntime();
     const isLinux = useMemo(() => {
         if (!isTauri) return false;
         try {
@@ -818,10 +819,10 @@ export function SettingsView() {
                     showWindowDecorations={isLinux}
                     windowDecorationsEnabled={windowDecorationsEnabled}
                     onWindowDecorationsChange={handleWindowDecorationsChange}
-                    showCloseBehavior={isTauri}
+                    showCloseBehavior={isTauri && !isFlatpak}
                     closeBehavior={closeBehavior}
                     onCloseBehaviorChange={handleCloseBehaviorChange}
-                    showTrayToggle={isTauri}
+                    showTrayToggle={isTauri && !isFlatpak}
                     trayVisible={trayVisible}
                     onTrayVisibleChange={handleTrayVisibleChange}
                 />

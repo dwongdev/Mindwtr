@@ -2477,6 +2477,9 @@ pub fn run() {
                         let _ = window.open_devtools();
                     }
                 }
+                if cfg!(target_os = "linux") && is_flatpak() {
+                    let _ = window.eval("window.__MINDWTR_FLATPAK__ = true;");
+                }
             }
 
             let handle = app.handle();

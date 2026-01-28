@@ -21,7 +21,7 @@ import { QuickAddModal } from './components/QuickAddModal';
 import { CloseBehaviorModal } from './components/CloseBehaviorModal';
 import { startDesktopNotifications, stopDesktopNotifications } from './lib/notification-service';
 import { SyncService } from './lib/sync-service';
-import { isTauriRuntime } from './lib/runtime';
+import { isFlatpakRuntime, isTauriRuntime } from './lib/runtime';
 import { logError } from './lib/app-log';
 
 function App() {
@@ -35,6 +35,7 @@ function App() {
     const closeBehavior = useTaskStore((state) => state.settings?.window?.closeBehavior ?? 'ask');
     const showTray = useTaskStore((state) => state.settings?.window?.showTray);
     const updateSettings = useTaskStore((state) => state.updateSettings);
+    const isFlatpak = isFlatpakRuntime();
     const { t } = useLanguage();
     const isActiveRef = useRef(true);
     const lastAutoSyncRef = useRef(0);
@@ -241,6 +242,10 @@ function App() {
         const setup = async () => {
             const { listen } = await import('@tauri-apps/api/event');
             unlisten = await listen('close-requested', async () => {
+                if (isFlatpak) {
+                    await quitApp().catch((error) => reportCloseError('Quit failed', error));
+                    return;
+                }
                 if (closeBehavior === 'quit') {
                     await quitApp().catch((error) => reportCloseError('Quit failed', error));
                     return;
@@ -266,7 +271,7 @@ function App() {
         return () => {
             if (unlisten) unlisten();
         };
-    }, [closeBehavior, closePromptOpen, hideToTray, quitApp, setError, showTray]);
+    }, [closeBehavior, closePromptOpen, hideToTray, isFlatpak, quitApp, setError, showTray]);
 
     useEffect(() => {
         if (!isTauriRuntime()) return;
