@@ -94,14 +94,26 @@ function DraggableTask({ task }: { task: Task }) {
     if (isDragging) {
         return (
             <div ref={setNodeRef} style={style} className="opacity-50">
-                <TaskItem task={task} readOnly={task.status === 'done'} showStatusSelect={false} showProjectBadgeInActions={false} />
-            </div>
-        );
-    }
+                        <TaskItem
+                            task={task}
+                            readOnly={task.status === 'done'}
+                            showStatusSelect={false}
+                            showProjectBadgeInActions={false}
+                            enableDoubleClickEdit
+                        />
+                    </div>
+                );
+            }
 
     return (
         <div ref={setNodeRef} style={style} {...listeners} {...attributes} className="touch-none">
-            <TaskItem task={task} readOnly={task.status === 'done'} showStatusSelect={false} showProjectBadgeInActions={false} />
+            <TaskItem
+                task={task}
+                readOnly={task.status === 'done'}
+                showStatusSelect={false}
+                showProjectBadgeInActions={false}
+                enableDoubleClickEdit
+            />
         </div>
     );
 }

@@ -60,6 +60,7 @@ interface TaskItemProps {
     };
     readOnly?: boolean;
     compactMetaEnabled?: boolean;
+    enableDoubleClickEdit?: boolean;
 }
 
 export const TaskItem = memo(function TaskItem({
@@ -76,6 +77,7 @@ export const TaskItem = memo(function TaskItem({
     focusToggle,
     readOnly = false,
     compactMetaEnabled = true,
+    enableDoubleClickEdit = false,
 }: TaskItemProps) {
     const {
         updateTask,
@@ -749,6 +751,11 @@ export const TaskItem = memo(function TaskItem({
             <div
                 data-task-id={task.id}
                 onClickCapture={onSelect ? () => onSelect?.() : undefined}
+                onDoubleClick={(event) => {
+                    if (!enableDoubleClickEdit || selectionMode || effectiveReadOnly) return;
+                    event.stopPropagation();
+                    startEditing();
+                }}
                 className={cn(
                     "group bg-card border border-border rounded-lg p-4 hover:shadow-md transition-all animate-in fade-in slide-in-from-bottom-2 border-l-4",
                     isSelected && "ring-2 ring-primary/40",
