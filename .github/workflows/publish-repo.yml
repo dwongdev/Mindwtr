@@ -1,0 +1,77 @@
+name: Update Linux Repos
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Release tag to publish (e.g. v0.6.3)"
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  build-repo:
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Import GPG Key
+        uses: crazy-max/ghaction-import-gpg@v6
+        with:
+          gpg_private_key: ${{ secrets.GPG_PRIVATE_KEY }}
+          passphrase: ${{ secrets.GPG_PASSPHRASE }}
+
+      - name: Set release tag (release event)
+        if: github.event_name == 'release'
+        run: echo "RELEASE_TAG=${{ github.event.release.tag_name }}" >> $GITHUB_ENV
+
+      - name: Set release tag (manual)
+        if: github.event_name == 'workflow_dispatch'
+        run: echo "RELEASE_TAG=${{ inputs.tag }}" >> $GITHUB_ENV
+
+      - name: Download Release Assets
+        uses: robinraju/release-downloader@v1
+        with:
+          repository: ${{ github.repository }}
+          tag: ${{ env.RELEASE_TAG }}
+          fileName: "*"
+
+      - name: Prepare Repo Directories
+        run: |
+          set -euo pipefail
+          mkdir -p build_repo/deb build_repo/rpm
+          shopt -s nullglob
+          debs=( *.deb )
+          rpms=( *.rpm )
+          if [ ${#debs[@]} -gt 0 ]; then mv "${debs[@]}" build_repo/deb/; fi
+          if [ ${#rpms[@]} -gt 0 ]; then mv "${rpms[@]}" build_repo/rpm/; fi
+          gpg --armor --export > build_repo/mindwtr.gpg.key
+
+      - name: Build DEB Repo
+        working-directory: build_repo/deb
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y apt-utils
+          apt-ftparchive packages . > Packages
+          apt-ftparchive release . > Release
+          gpg --batch --yes --clearsign -o InRelease Release
+          gpg --batch --yes -abs -o Release.gpg Release
+
+      - name: Build RPM Repo
+        working-directory: build_repo/rpm
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y createrepo-c
+          createrepo_c .
+
+      - name: Deploy to GitHub Pages
+        uses: peaceiris/actions-gh-pages@v3
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./build_repo
+          publish_branch: gh-pages
+          keep_files: true
