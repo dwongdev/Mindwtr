@@ -79,6 +79,13 @@ const logSyncWarning = (message: string, error?: unknown) => {
     void logWarn(message, { scope: 'sync', extra });
 };
 
+class LocalSyncAbort extends Error {
+    constructor() {
+        super('Local changes detected during sync');
+        this.name = 'LocalSyncAbort';
+    }
+}
+
 const normalizePath = (input: string) => input.replace(/\\/g, '/').toLowerCase();
 
 const isSyncFilePath = (path: string) => {
@@ -1210,6 +1217,7 @@ export class SyncService {
         let step = 'init';
         let backend: SyncBackend = 'off';
         let syncUrl: string | undefined;
+        let localSnapshotChangeAt = useTaskStore.getState().lastDataChangeAt;
 
         const runSync = async (): Promise<{ success: boolean; stats?: MergeStats; error?: string }> => {
             // 1. Flush pending writes so disk reflects the latest state
@@ -1225,6 +1233,12 @@ export class SyncService {
             const cloudConfig = backend === 'cloud' ? await SyncService.getCloudConfig() : null;
             const syncPath = backend === 'file' ? await SyncService.getSyncPath() : '';
             const fileBaseDir = backend === 'file' ? getFileSyncDir(syncPath) : '';
+            const ensureLocalSnapshotFresh = () => {
+                if (useTaskStore.getState().lastDataChangeAt > localSnapshotChangeAt) {
+                    SyncService.syncQueued = true;
+                    throw new LocalSyncAbort();
+                }
+            };
 
             // Pre-sync local attachments so cloudKeys exist before writing remote data.
             if (isTauriRuntime() && (backend === 'webdav' || backend === 'file' || backend === 'cloud')) {
@@ -1249,11 +1263,13 @@ export class SyncService {
                 }
             }
             const syncResult = await performSyncCycle({
-                readLocal: async () => (
-                    isTauriRuntime()
+                readLocal: async () => {
+                    const data = isTauriRuntime()
                         ? await tauriInvoke<AppData>('get_data')
-                        : await webStorage.getData()
-                ),
+                        : await webStorage.getData();
+                    localSnapshotChangeAt = useTaskStore.getState().lastDataChangeAt;
+                    return data;
+                },
                 readRemote: async () => {
                     if (backend === 'webdav') {
                         if (isTauriRuntime()) {
@@ -1290,6 +1306,7 @@ export class SyncService {
                     return await tauriInvoke<AppData>('read_sync_file');
                 },
                 writeLocal: async (data) => {
+                    ensureLocalSnapshotFresh();
                     if (isTauriRuntime()) {
                         await tauriInvoke('save_data', { data });
                     } else {
@@ -1297,6 +1314,7 @@ export class SyncService {
                     }
                 },
                 writeRemote: async (data) => {
+                    ensureLocalSnapshotFresh();
                     const sanitized = sanitizeAppDataForRemote(data);
                     if (backend === 'webdav') {
                         if (isTauriRuntime()) {
@@ -1410,6 +1428,9 @@ export class SyncService {
         };
 
         const resultPromise = runSync().catch(async (error) => {
+            if (error instanceof LocalSyncAbort) {
+                return { success: true };
+            }
             logSyncWarning('Sync failed', error);
             const now = new Date().toISOString();
             const logPath = await logSyncError(error, {
