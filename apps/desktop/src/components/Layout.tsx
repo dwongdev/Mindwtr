@@ -97,7 +97,12 @@ export function Layout({ children, currentView, onViewChange }: LayoutProps) {
 
     useEffect(() => {
         if (areas.length === 0) return;
-        if (resolvedAreaFilter === (settings?.filters?.areaId ?? AREA_FILTER_ALL)) return;
+        if (!settings?.filters?.areaId) {
+            updateSettings({ filters: { ...(settings?.filters ?? {}), areaId: AREA_FILTER_ALL } })
+                .catch((error) => reportError('Failed to set default area filter', error));
+            return;
+        }
+        if (resolvedAreaFilter === settings?.filters?.areaId) return;
         updateSettings({ filters: { ...(settings?.filters ?? {}), areaId: resolvedAreaFilter } })
             .catch((error) => reportError('Failed to update area filter', error));
     }, [areas.length, resolvedAreaFilter, settings?.filters?.areaId, updateSettings]);
