@@ -105,7 +105,7 @@ export function ProjectsSidebar({
 
     useEffect(() => {
         if (!contextMenu) return;
-        const handlePointer = (event: MouseEvent) => {
+        const handlePointer = (event: Event) => {
             if (contextMenuRef.current && contextMenuRef.current.contains(event.target as Node)) return;
             closeContextMenu();
         };

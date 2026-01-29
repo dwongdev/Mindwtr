@@ -1626,7 +1626,7 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
             const sourceTasks = state._allTasks.filter(
                 (task) => task.projectId === sourceProject.id && !task.deletedAt
             );
-            const newTasks = sourceTasks.map((task) => {
+            const newTasks: Task[] = sourceTasks.map((task) => {
                 const checklist = task.checklist?.map((item) => ({
                     ...item,
                     id: uuidv4(),
@@ -1642,12 +1642,12 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
                         deletedAt: undefined,
                     }));
                 const nextSectionId = task.sectionId ? sectionIdMap.get(task.sectionId) : undefined;
-                return {
+                const newTask: Task = {
                     ...task,
                     id: uuidv4(),
                     projectId: newProject.id,
                     sectionId: nextSectionId,
-                    status: 'next',
+                    status: 'next' as TaskStatus,
                     startTime: undefined,
                     dueDate: undefined,
                     reviewAt: undefined,
@@ -1663,6 +1663,7 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
                     rev: 1,
                     revBy: deviceState.deviceId,
                 };
+                return newTask;
             });
 
             const newAllProjects = [...state._allProjects, newProject];
