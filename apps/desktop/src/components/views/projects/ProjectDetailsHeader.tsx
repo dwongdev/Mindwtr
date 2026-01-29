@@ -1,4 +1,4 @@
-import { Archive as ArchiveIcon, ListOrdered, RotateCcw, Trash2, Loader2 } from 'lucide-react';
+import { Archive as ArchiveIcon, Copy, ListOrdered, RotateCcw, Trash2, Loader2 } from 'lucide-react';
 import type { Project } from '@mindwtr/core';
 import { cn } from '../../../lib/utils';
 
@@ -17,6 +17,7 @@ type ProjectDetailsHeaderProps = {
     onResetTitle: () => void;
     onToggleSequential: () => void;
     onChangeStatus: (status: Project['status']) => void;
+    onDuplicate: () => void;
     onArchive: () => Promise<void> | void;
     onReactivate: () => void;
     onDelete: () => Promise<void> | void;
@@ -34,6 +35,7 @@ export function ProjectDetailsHeader({
     onResetTitle,
     onToggleSequential,
     onChangeStatus,
+    onDuplicate,
     onArchive,
     onReactivate,
     onDelete,
@@ -86,6 +88,14 @@ export function ProjectDetailsHeader({
                     </div>
                 </div>
                 <div className="flex items-center gap-2">
+                    <button
+                        type="button"
+                        onClick={onDuplicate}
+                        className="flex items-center gap-1 px-3 h-8 rounded-md text-xs font-medium bg-muted hover:bg-muted/80 text-muted-foreground transition-colors whitespace-nowrap"
+                    >
+                        <Copy className="w-4 h-4" />
+                        {t('projects.duplicate')}
+                    </button>
                     {project.status === 'archived' ? (
                         <button
                             type="button"

@@ -812,6 +812,7 @@ export function ProjectsView() {
                                         onResetTitle={handleResetProjectTitle}
                                         onToggleSequential={() => updateProject(selectedProject.id, { isSequential: !selectedProject.isSequential })}
                                         onChangeStatus={(status) => updateProject(selectedProject.id, { status })}
+                                        onDuplicate={() => handleDuplicateProject(selectedProject.id)}
                                         onArchive={handleArchiveProject}
                                         onReactivate={() => updateProject(selectedProject.id, { status: 'active' })}
                                         onDelete={handleDeleteProject}
