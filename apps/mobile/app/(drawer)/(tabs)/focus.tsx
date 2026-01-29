@@ -22,8 +22,6 @@ export default function FocusScreen() {
     const endOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
 
     const isPlannedForFuture = (task: Task) => {
-      const due = safeParseDueDate(task.dueDate);
-      if (due && due > endOfToday) return true;
       const start = safeParseDate(task.startTime);
       return Boolean(start && start > endOfToday);
     };
@@ -33,9 +31,10 @@ export default function FocusScreen() {
       if (task.status === 'done' || task.status === 'reference') return false;
       const due = safeParseDueDate(task.dueDate);
       const start = safeParseDate(task.startTime);
+      const startReady = !start || start <= endOfToday;
       return Boolean(task.isFocusedToday)
-        || Boolean(due && due <= endOfToday)
-        || Boolean(start && start <= endOfToday);
+        || (startReady && Boolean(due && due <= endOfToday))
+        || (startReady && Boolean(start && start <= endOfToday));
     });
 
     const scheduleIds = new Set(scheduleItems.map((task) => task.id));

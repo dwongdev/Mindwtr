@@ -190,6 +190,11 @@ export function AgendaView() {
     const sections = useMemo(() => {
         const now = new Date();
         const todayStr = now.toDateString();
+        const endOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
+        const isDeferred = (task: Task) => {
+            const start = safeParseDate(task.startTime);
+            return Boolean(start && start > endOfToday);
+        };
         const priorityRank: Record<TaskPriority, number> = {
             low: 1,
             medium: 2,
@@ -237,16 +242,17 @@ export function AgendaView() {
         const overdue = filteredActiveTasks.filter(t => {
             if (!t.dueDate) return false;
             const dueDate = safeParseDueDate(t.dueDate);
-            return dueDate && dueDate < now && !t.isFocusedToday;
+            return dueDate && dueDate < now && !t.isFocusedToday && !isDeferred(t);
         });
         const dueToday = filteredActiveTasks.filter(t => {
             if (!t.dueDate) return false;
             const dueDate = safeParseDueDate(t.dueDate);
             return dueDate && dueDate.toDateString() === todayStr &&
-                !t.isFocusedToday;
+                !t.isFocusedToday && !isDeferred(t);
         });
         const nextActions = filteredActiveTasks.filter(t => {
             if (t.status !== 'next' || t.isFocusedToday) return false;
+            if (isDeferred(t)) return false;
             if (t.projectId && sequentialProjectIds.has(t.projectId)) {
                 return sequentialFirstTasks.has(t.id);
             }
