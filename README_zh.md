@@ -18,13 +18,6 @@
 [![Sponsor](https://img.shields.io/static/v1?label=Sponsor&message=%E2%9D%A4&logo=GitHub&color=%23fe8e86)](https://github.com/sponsors/dongdongbh)
 
 <p align="center" style="text-align: center;">
-  <a href="https://snapcraft.io/mindwtr" target="_blank">
-    <img alt="Get it from the Snap Store"
-         src="https://snapcraft.io/static/images/badges/en/snap-store-black.svg"
-         align="center"
-         style="height: 50px"
-         height="50" />
-  </a>
   <a href="https://apps.microsoft.com/detail/9n0v5b0b6frx?ocid=webpdpshare" target="_blank">
     <img src="https://developer.microsoft.com/store/badges/images/English_get-it-from-MS.png"
          align="center"
@@ -39,10 +32,10 @@
          style="height: 56px"
          height="56" />
   </a>
-  <a href="https://aur.archlinux.org/packages/mindwtr-bin" target="_blank">
-    <img src="https://img.shields.io/aur/version/mindwtr-bin?logo=arch-linux&logoColor=white&color=1793d1&label=AUR"
+  <a href="https://snapcraft.io/mindwtr" target="_blank">
+    <img alt="Get it from the Snap Store"
+         src="https://snapcraft.io/static/images/badges/en/snap-store-black.svg"
          align="center"
-         alt="AUR"
          style="height: 50px"
          height="50" />
   </a>
