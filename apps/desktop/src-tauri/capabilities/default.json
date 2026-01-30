@@ -25,6 +25,7 @@
     "fs:allow-rename",
     "fs:allow-watch",
     "global-shortcut:default",
+    "notification:default",
     "shell:default",
     "shell:allow-open",
     {

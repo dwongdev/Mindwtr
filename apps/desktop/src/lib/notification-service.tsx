@@ -75,6 +75,11 @@ async function ensurePermission() {
     }
 }
 
+export async function requestDesktopNotificationPermission() {
+    await ensurePermission();
+    await loadTauriNotificationApi();
+}
+
 function sendNotification(title: string, body?: string) {
     if (tauriNotificationApi?.sendNotification) {
         tauriNotificationApi.sendNotification({ title, body });
