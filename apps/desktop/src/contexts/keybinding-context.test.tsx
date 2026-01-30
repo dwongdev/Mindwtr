@@ -47,7 +47,7 @@ const DummyList = () => {
 };
 
 describe('KeybindingProvider (vim)', () => {
-    it('moves selection with j/k', () => {
+    it('moves selection with j/k', async () => {
         render(
             <LanguageProvider>
                 <KeybindingProvider currentView="inbox" onNavigate={vi.fn()}>
@@ -62,6 +62,7 @@ describe('KeybindingProvider (vim)', () => {
         expect(first?.className).toMatch(/ring-2/);
         expect(second?.className).not.toMatch(/ring-2/);
 
+        await new Promise((resolve) => setTimeout(resolve, 0));
         fireEvent.keyDown(window, { key: 'j' });
 
         expect(second?.className).toMatch(/ring-2/);

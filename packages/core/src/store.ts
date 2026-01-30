@@ -481,7 +481,7 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
             }
             logWarn('Skipped fetch while edits are in progress', {
                 scope: 'store',
-                category: 'fetch',
+                category: 'storage',
                 context: { editLockCount: get().editLockCount },
             });
             return;
