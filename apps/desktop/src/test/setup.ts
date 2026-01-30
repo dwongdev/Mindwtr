@@ -1,8 +1,13 @@
-import { expect } from 'vitest';
+import { afterEach, expect } from 'vitest';
 import '@testing-library/jest-dom';
+import { cleanup } from '@testing-library/react';
 import * as matchers from 'vitest-axe/matchers';
 import 'vitest-axe/extend-expect'; // Keep for types if needed, but extend manually too just in case
 expect.extend(matchers);
+
+afterEach(() => {
+    cleanup();
+});
 
 const localStorageMock = (function () {
     let store: Record<string, string> = {};
