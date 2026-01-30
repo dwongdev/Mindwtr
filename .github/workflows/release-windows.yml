@@ -197,11 +197,14 @@ jobs:
             --clientId $clientId `
             --clientSecret $clientSecret
 
-          Push-Location $msstoreInput
-          & msstore publish . `
-            --inputDirectory "." `
-            --appId $env:MS_IDENTITY_NAME
-          Pop-Location
+          $msixInputDir = (Resolve-Path $msstoreInput).Path
+          $projectDir = (Resolve-Path "msix-staging").Path
+          $publishArgs = @(
+            "publish", $projectDir,
+            "--inputDirectory", $msixInputDir,
+            "--appId", $env:MS_IDENTITY_NAME
+          )
+          & msstore @publishArgs
 
       - name: Collect Windows artifacts
         shell: pwsh
