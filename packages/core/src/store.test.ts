@@ -97,6 +97,14 @@ describe('TaskStore', () => {
         expect(tasks).toHaveLength(0);
     });
 
+    it('skips fetch while edits are in progress', async () => {
+        const { lockEditing, unlockEditing, fetchData } = useTaskStore.getState();
+        lockEditing();
+        await fetchData({ silent: true });
+        expect(mockStorage.getData).not.toHaveBeenCalled();
+        unlockEditing();
+    });
+
     it('supports a basic task lifecycle', async () => {
         const { addTask, updateTask, moveTask } = useTaskStore.getState();
         addTask('Lifecycle Task');
