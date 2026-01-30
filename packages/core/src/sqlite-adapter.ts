@@ -1,6 +1,6 @@
 import type { AppData, Area, Attachment, Project, Task, Section } from './types';
 import type { TaskQueryOptions, SearchResults } from './storage';
-import { SQLITE_BASE_SCHEMA, SQLITE_FTS_SCHEMA } from './sqlite-schema';
+import { SQLITE_BASE_SCHEMA, SQLITE_FTS_SCHEMA, SQLITE_INDEX_SCHEMA } from './sqlite-schema';
 import { normalizeTaskStatus } from './task-status';
 import { logWarn } from './logger';
 
@@ -145,18 +145,14 @@ export class SqliteAdapter {
         } else {
             await this.client.run(SQLITE_BASE_SCHEMA);
         }
-        await this.ensureTaskPurgedAtColumn();
-        await this.ensureTaskOrderColumn();
-        await this.ensureTaskTextDirectionColumn();
-        await this.ensureTaskAreaColumn();
-        await this.ensureTaskSectionColumn();
-        await this.ensureTaskFtsColumns();
-        await this.ensureProjectOrderColumn();
-        await this.ensureProjectFtsColumns();
+        await this.ensureTaskColumns();
+        await this.ensureProjectColumns();
         if (this.client.exec) {
             await this.client.exec(SQLITE_FTS_SCHEMA);
+            await this.client.exec(SQLITE_INDEX_SCHEMA);
         } else {
             await this.client.run(SQLITE_FTS_SCHEMA);
+            await this.client.run(SQLITE_INDEX_SCHEMA);
         }
         // FTS operations are optional - don't block startup if they fail
         try {
@@ -225,85 +221,68 @@ export class SqliteAdapter {
         }
     }
 
-    private async ensureTaskOrderColumn() {
+    private async ensureTaskColumns() {
         const columns = await this.client.all<{ name?: string }>('PRAGMA table_info(tasks)');
-        const hasOrder = columns.some((col) => col.name === 'orderNum');
-        if (!hasOrder) {
-            await this.client.run('ALTER TABLE tasks ADD COLUMN orderNum INTEGER');
+        const names = new Set(columns.map((col) => col.name));
+        const definitions: Array<{ name: string; sql: string }> = [
+            { name: 'priority', sql: 'ALTER TABLE tasks ADD COLUMN priority TEXT' },
+            { name: 'taskMode', sql: 'ALTER TABLE tasks ADD COLUMN taskMode TEXT' },
+            { name: 'startTime', sql: 'ALTER TABLE tasks ADD COLUMN startTime TEXT' },
+            { name: 'dueDate', sql: 'ALTER TABLE tasks ADD COLUMN dueDate TEXT' },
+            { name: 'recurrence', sql: 'ALTER TABLE tasks ADD COLUMN recurrence TEXT' },
+            { name: 'pushCount', sql: 'ALTER TABLE tasks ADD COLUMN pushCount INTEGER' },
+            { name: 'tags', sql: 'ALTER TABLE tasks ADD COLUMN tags TEXT' },
+            { name: 'contexts', sql: 'ALTER TABLE tasks ADD COLUMN contexts TEXT' },
+            { name: 'checklist', sql: 'ALTER TABLE tasks ADD COLUMN checklist TEXT' },
+            { name: 'description', sql: 'ALTER TABLE tasks ADD COLUMN description TEXT' },
+            { name: 'textDirection', sql: 'ALTER TABLE tasks ADD COLUMN textDirection TEXT' },
+            { name: 'attachments', sql: 'ALTER TABLE tasks ADD COLUMN attachments TEXT' },
+            { name: 'location', sql: 'ALTER TABLE tasks ADD COLUMN location TEXT' },
+            { name: 'projectId', sql: 'ALTER TABLE tasks ADD COLUMN projectId TEXT' },
+            { name: 'sectionId', sql: 'ALTER TABLE tasks ADD COLUMN sectionId TEXT' },
+            { name: 'areaId', sql: 'ALTER TABLE tasks ADD COLUMN areaId TEXT' },
+            { name: 'orderNum', sql: 'ALTER TABLE tasks ADD COLUMN orderNum INTEGER' },
+            { name: 'isFocusedToday', sql: 'ALTER TABLE tasks ADD COLUMN isFocusedToday INTEGER' },
+            { name: 'timeEstimate', sql: 'ALTER TABLE tasks ADD COLUMN timeEstimate TEXT' },
+            { name: 'reviewAt', sql: 'ALTER TABLE tasks ADD COLUMN reviewAt TEXT' },
+            { name: 'completedAt', sql: 'ALTER TABLE tasks ADD COLUMN completedAt TEXT' },
+            { name: 'createdAt', sql: 'ALTER TABLE tasks ADD COLUMN createdAt TEXT' },
+            { name: 'updatedAt', sql: 'ALTER TABLE tasks ADD COLUMN updatedAt TEXT' },
+            { name: 'deletedAt', sql: 'ALTER TABLE tasks ADD COLUMN deletedAt TEXT' },
+            { name: 'purgedAt', sql: 'ALTER TABLE tasks ADD COLUMN purgedAt TEXT' },
+        ];
+        for (const definition of definitions) {
+            if (!names.has(definition.name)) {
+                await this.client.run(definition.sql);
+            }
         }
     }
 
-    private async ensureTaskPurgedAtColumn() {
-        const columns = await this.client.all<{ name?: string }>('PRAGMA table_info(tasks)');
-        const hasPurgedAt = columns.some((col) => col.name === 'purgedAt');
-        if (!hasPurgedAt) {
-            await this.client.run('ALTER TABLE tasks ADD COLUMN purgedAt TEXT');
-        }
-    }
-
-    private async ensureTaskTextDirectionColumn() {
-        const columns = await this.client.all<{ name?: string }>('PRAGMA table_info(tasks)');
-        const hasTextDirection = columns.some((col) => col.name === 'textDirection');
-        if (!hasTextDirection) {
-            await this.client.run('ALTER TABLE tasks ADD COLUMN textDirection TEXT');
-        }
-    }
-
-    private async ensureTaskAreaColumn() {
-        const columns = await this.client.all<{ name?: string }>('PRAGMA table_info(tasks)');
-        const hasAreaId = columns.some((col) => col.name === 'areaId');
-        if (!hasAreaId) {
-            await this.client.run('ALTER TABLE tasks ADD COLUMN areaId TEXT');
-        }
-        await this.client.run('CREATE INDEX IF NOT EXISTS idx_tasks_area_id ON tasks(areaId)');
-    }
-
-    private async ensureTaskSectionColumn() {
-        const columns = await this.client.all<{ name?: string }>('PRAGMA table_info(tasks)');
-        const hasSectionId = columns.some((col) => col.name === 'sectionId');
-        if (!hasSectionId) {
-            await this.client.run('ALTER TABLE tasks ADD COLUMN sectionId TEXT');
-        }
-        await this.client.run('CREATE INDEX IF NOT EXISTS idx_tasks_section_id ON tasks(sectionId)');
-    }
-
-    private async ensureProjectOrderColumn() {
+    private async ensureProjectColumns() {
         const columns = await this.client.all<{ name?: string }>('PRAGMA table_info(projects)');
-        const hasOrder = columns.some((col) => col.name === 'orderNum');
-        if (!hasOrder) {
-            await this.client.run('ALTER TABLE projects ADD COLUMN orderNum INTEGER');
+        const names = new Set(columns.map((col) => col.name));
+        const definitions: Array<{ name: string; sql: string }> = [
+            { name: 'orderNum', sql: 'ALTER TABLE projects ADD COLUMN orderNum INTEGER' },
+            { name: 'tagIds', sql: 'ALTER TABLE projects ADD COLUMN tagIds TEXT' },
+            { name: 'isSequential', sql: 'ALTER TABLE projects ADD COLUMN isSequential INTEGER' },
+            { name: 'isFocused', sql: 'ALTER TABLE projects ADD COLUMN isFocused INTEGER' },
+            { name: 'supportNotes', sql: 'ALTER TABLE projects ADD COLUMN supportNotes TEXT' },
+            { name: 'attachments', sql: 'ALTER TABLE projects ADD COLUMN attachments TEXT' },
+            { name: 'reviewAt', sql: 'ALTER TABLE projects ADD COLUMN reviewAt TEXT' },
+            { name: 'areaId', sql: 'ALTER TABLE projects ADD COLUMN areaId TEXT' },
+            { name: 'areaTitle', sql: 'ALTER TABLE projects ADD COLUMN areaTitle TEXT' },
+            { name: 'createdAt', sql: 'ALTER TABLE projects ADD COLUMN createdAt TEXT' },
+            { name: 'updatedAt', sql: 'ALTER TABLE projects ADD COLUMN updatedAt TEXT' },
+            { name: 'deletedAt', sql: 'ALTER TABLE projects ADD COLUMN deletedAt TEXT' },
+        ];
+        for (const definition of definitions) {
+            if (!names.has(definition.name)) {
+                await this.client.run(definition.sql);
+            }
         }
         await this.client.run(
             'CREATE INDEX IF NOT EXISTS idx_projects_area_order ON projects(areaId, orderNum)'
         );
-    }
-
-    private async ensureTaskFtsColumns() {
-        const columns = await this.client.all<{ name?: string }>('PRAGMA table_info(tasks)');
-        const names = new Set(columns.map((col) => col.name));
-        if (!names.has('description')) {
-            await this.client.run('ALTER TABLE tasks ADD COLUMN description TEXT');
-        }
-        if (!names.has('tags')) {
-            await this.client.run('ALTER TABLE tasks ADD COLUMN tags TEXT');
-        }
-        if (!names.has('contexts')) {
-            await this.client.run('ALTER TABLE tasks ADD COLUMN contexts TEXT');
-        }
-    }
-
-    private async ensureProjectFtsColumns() {
-        const columns = await this.client.all<{ name?: string }>('PRAGMA table_info(projects)');
-        const names = new Set(columns.map((col) => col.name));
-        if (!names.has('supportNotes')) {
-            await this.client.run('ALTER TABLE projects ADD COLUMN supportNotes TEXT');
-        }
-        if (!names.has('tagIds')) {
-            await this.client.run('ALTER TABLE projects ADD COLUMN tagIds TEXT');
-        }
-        if (!names.has('areaTitle')) {
-            await this.client.run('ALTER TABLE projects ADD COLUMN areaTitle TEXT');
-        }
     }
 
     private async ensureFtsPopulated(forceRebuild = false) {
