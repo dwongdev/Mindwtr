@@ -32,7 +32,7 @@
 "\u5B8C\u5168\u79BB\u7EBF\u53EF\u7528\uFF0C\u65E0\u9700\u4E92\u8054\u7F51\u8FDE\u63A5",
           "\u5B8C\u5168\u5F00\u6E90\uFF0C\u5B89\u5168\u900F\u660E"
         ],
-        "ReleaseNotes": "\u2022 \u65b0\u589e\u5168\u5c40\u201c\u533a\u57df\u201d\u7b5b\u9009\uff0c\u5e76\u652f\u6301\u4e3a\u72ec\u7acb\u4efb\u52a1\u8bbe\u7f6e\u533a\u57df\u3002\n\u2022 \u684c\u9762\u7aef\u652f\u6301\u590d\u5236\u9879\u76ee\uff0c\u6539\u8fdb\u770b\u677f\u95f4\u8ddd\u4e0e\u62d6\u62fd\u624b\u67c4\u3002\n\u2022 \u65b0\u589e\u5bc6\u5ea6/\u7d27\u51d1\u6a21\u5f0f\u5207\u6362\uff0c\u4f18\u5316\u8be6\u60c5\u6807\u7b7e\u3002\n\u2022 \u79fb\u52a8\u7aef\u5c0f\u7ec4\u4ef6\u53ef\u5b8c\u6210\u4efb\u52a1\uff0c\u4fee\u590d\u6536\u4ef6\u7bb1\u5904\u7406\u4e0e\u5e03\u5c40\u91cd\u53e0\u95ee\u9898\u3002\n\u2022 \u542f\u7528\u539f\u751f\u901a\u77e5\uff0c\u65b0\u589e\u81ea\u6258\u7ba1\u540c\u6b65\u7684 REST API \u652f\u6301\u3002",
+        "ReleaseNotes": "\u2022 \u65b0\u589e\u8bbe\u7f6e\u540c\u6b65\u9009\u9879\uff1a\u4e3b\u9898\u3001\u8bed\u8a00/\u65e5\u671f\u683c\u5f0f\u3001\u5916\u90e8\u65e5\u5386 URL\u3001AI \u8bbe\u7f6e\uff08API \u5bc6\u94a5\u4e0d\u4f1a\u540c\u6b65\uff09\u3002\n\u2022 \u4fa7\u8fb9\u680f\u663e\u793a\u4e0a\u6b21\u540c\u6b65\u65f6\u95f4\u53ca\u5728\u7ebf/\u79bb\u7ebf\u72b6\u6001\u3002\n\u2022 \u63d0\u5347\u540c\u6b65\u7a33\u5b9a\u6027\u4e0e\u6027\u80fd\uff08\u961f\u5217\u540c\u6b65\u3001\u81ea\u9002\u5e94\u9632\u6296\uff09\u3002\n\u2022 \u5feb\u901f\u6dfb\u52a0\u652f\u6301 Unicode \u7684\u4e0a\u4e0b\u6587/\u6807\u7b7e\u540d\u79f0\u3002\n\u2022 \u9879\u76ee/\u770b\u677f\u5e03\u5c40\u66f4\u6e05\u723d\uff0c\u540c\u6b65\u5386\u53f2\u9ed8\u8ba4\u6298\u53e0\u3002",
         "Images": [
           {
             "FileName": "2026-01-27_22-59-40.png",
@@ -84,7 +84,7 @@
           "No internet connection required to function",
           "Open source and transparent"
         ],
-        "ReleaseNotes": "\u2022 Global Area filter across views and area assignment for standalone tasks.\n\u2022 Duplicate projects on desktop and improved board spacing/drag handle.\n\u2022 Density/compact mode toggle and details label cleanup.\n\u2022 Mobile widget can complete tasks; inbox processing fixes and layout polish.\n\u2022 Added native notifications and REST API support for self-hosted sync.",
+        "ReleaseNotes": "\u2022 Settings sync options for theme, language/date format, external calendar URLs, and AI settings (API keys never synced).\n\u2022 Sidebar now shows last sync time plus online/offline status.\n\u2022 Sync reliability and performance improvements (queued syncs, adaptive debounce).\n\u2022 Quick-add supports Unicode context and tag names.\n\u2022 Cleaner Projects/Board layouts and sync history folded by default.",
         "Images": [
           {
             "FileName": "2026-01-27_22-59-40.png",
@@ -132,7 +132,7 @@
           "No requiere conexi\u00F3n a internet para funcionar",
           "C\u00F3digo abierto y transparente"
         ],
-        "ReleaseNotes": "\u2022 Filtro global de \u00c1reas en todas las vistas y asignaci\u00f3n de \u00e1rea para tareas sin proyecto.\n\u2022 Duplicar proyectos en escritorio y mejoras de espaciado/arrastre en el tablero.\n\u2022 Alternar densidad/compacto y limpieza de etiquetas en detalles.\n\u2022 El widget m\u00f3vil puede completar tareas; se corrigi\u00f3 el flujo de bandeja de entrada y el solapamiento.\n\u2022 Notificaciones nativas y soporte de API REST para sincronizaci\u00f3n autoalojada.",
+        "ReleaseNotes": "\u2022 Opciones de sincronizaci\u00f3n de ajustes para tema, idioma/formato de fecha, URLs de calendarios externos y ajustes de IA (las claves API no se sincronizan).\n\u2022 La barra lateral ahora muestra la \u00faltima sincronizaci\u00f3n y el estado en l\u00ednea/sin conexi\u00f3n.\n\u2022 Mejoras de fiabilidad y rendimiento de la sincronizaci\u00f3n (colas de sync y debounce adaptativo).\n\u2022 Quick-add admite nombres Unicode para contextos y etiquetas.\n\u2022 Interfaz m\u00e1s limpia en Proyectos/Tablero y el historial de sync se pliega por defecto.",
         "Images": [
           {
             "FileName": "2026-01-27_22-59-40.png",

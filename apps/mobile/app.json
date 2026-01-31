@@ -2,7 +2,7 @@
   "expo": {
     "name": "Mindwtr",
     "slug": "mindwtr",
-    "version": "0.6.4",
+    "version": "0.6.5",
     "orientation": "default",
     "icon": "./assets/images/icon.png",
     "scheme": "mindwtr",
@@ -23,7 +23,7 @@
         "backgroundImage": "./assets/images/android-icon-background.png",
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
-      "versionCode": 23,
+      "versionCode": 24,
       "package": "tech.dongdongbh.mindwtr",
       "permissions": [
         "RECORD_AUDIO",
