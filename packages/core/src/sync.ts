@@ -335,16 +335,18 @@ export function mergeAppDataWithStats(local: AppData, incoming: AppData): MergeR
         if (localList.length === 0) return merged;
 
         const localById = new Map(localList.map((item) => [item.id, item]));
+        const incomingById = new Map(incomingList.map((item) => [item.id, item]));
         return merged.map((attachment) => {
             const localAttachment = localById.get(attachment.id);
             if (!localAttachment) return attachment;
             if (attachment.kind !== 'file' || localAttachment.kind !== 'file') {
                 return attachment;
             }
+            const incomingAttachment = incomingById.get(attachment.id);
             return {
                 ...attachment,
-                cloudKey: attachment.cloudKey || localAttachment.cloudKey,
-                fileHash: attachment.fileHash || localAttachment.fileHash,
+                cloudKey: attachment.cloudKey || localAttachment.cloudKey || incomingAttachment?.cloudKey,
+                fileHash: attachment.fileHash || localAttachment.fileHash || incomingAttachment?.fileHash,
                 uri: localAttachment.uri,
                 localStatus: localAttachment.localStatus,
             };

@@ -78,6 +78,12 @@ const toChecklist = (value: unknown): Task['checklist'] => {
 
 const toAttachments = (value: unknown): Attachment[] | undefined => {
     if (!Array.isArray(value)) return undefined;
+    const allowedStatuses = new Set<Attachment['localStatus']>([
+        'available',
+        'missing',
+        'uploading',
+        'downloading',
+    ]);
     const cleaned = value
         .filter(isRecord)
         .filter(
@@ -97,6 +103,11 @@ const toAttachments = (value: unknown): Attachment[] | undefined => {
             createdAt: typeof item.createdAt === 'string' ? item.createdAt : '',
             updatedAt: typeof item.updatedAt === 'string' ? item.updatedAt : '',
             deletedAt: typeof item.deletedAt === 'string' ? item.deletedAt : undefined,
+            cloudKey: typeof item.cloudKey === 'string' ? item.cloudKey : undefined,
+            fileHash: typeof item.fileHash === 'string' ? item.fileHash : undefined,
+            localStatus: typeof item.localStatus === 'string' && allowedStatuses.has(item.localStatus as Attachment['localStatus'])
+                ? (item.localStatus as Attachment['localStatus'])
+                : undefined,
         }));
     return cleaned.length > 0 ? cleaned : undefined;
 };
