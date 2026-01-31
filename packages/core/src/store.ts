@@ -301,6 +301,7 @@ let pendingDataVersion = 0;
 let savedVersion = 0;
 let saveInFlight: Promise<void> | null = null;
 const MIGRATION_VERSION = 1;
+// Run auto-archive at most twice a day to keep background work bounded.
 const AUTO_ARCHIVE_INTERVAL_MS = 12 * 60 * 60 * 1000;
 const TASK_EDITOR_DEFAULTS_VERSION = 3;
 const TASK_EDITOR_ALWAYS_VISIBLE: TaskEditorFieldId[] = ['status', 'project', 'description', 'checklist', 'contexts'];

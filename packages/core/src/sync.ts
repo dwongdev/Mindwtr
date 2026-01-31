@@ -39,6 +39,7 @@ export type SyncHistoryEntry = {
     error?: string;
 };
 
+// Log clock skew warnings if merges show >5 minutes drift.
 export const CLOCK_SKEW_THRESHOLD_MS = 5 * 60 * 1000;
 
 export type SyncStep = 'read-local' | 'read-remote' | 'merge' | 'write-local' | 'write-remote';
