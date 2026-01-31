@@ -390,7 +390,7 @@ function App() {
                     <Suspense
                         fallback={(
                             <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
-                                {isNavigating ? t('common.loading') : t('common.loading')}
+                                {t('common.loading')}
                             </div>
                         )}
                     >
