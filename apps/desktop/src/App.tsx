@@ -374,6 +374,16 @@ function App() {
         });
     }, [startTransition]);
 
+    const LoadingFallback = () => (
+        <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
+            <div className="w-full max-w-md space-y-3">
+                <div className="h-4 w-2/3 rounded bg-muted/60 animate-pulse" />
+                <div className="h-4 w-5/6 rounded bg-muted/50 animate-pulse" />
+                <div className="h-4 w-1/2 rounded bg-muted/40 animate-pulse" />
+            </div>
+        </div>
+    );
+
     useEffect(() => {
         const handler: EventListener = (event) => {
             const detail = (event as CustomEvent<{ view?: string }>).detail;
@@ -391,15 +401,11 @@ function App() {
                 <Layout currentView={currentView} onViewChange={handleViewChange}>
                     <Suspense
                         fallback={(
-                            <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
-                                {t('common.loading')}
-                            </div>
+                            <LoadingFallback />
                         )}
                     >
                         {isLoading ? (
-                            <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
-                                {t('common.loading')}
-                            </div>
+                            <LoadingFallback />
                         ) : (
                             renderView()
                         )}
