@@ -428,6 +428,7 @@ const sanitizeAppDataForRemote = (data: AppData): AppData => {
         if (prefs.appearance !== true) {
             next.theme = undefined;
             next.appearance = undefined;
+            next.keybindingStyle = undefined;
         }
 
         if (prefs.language !== true) {

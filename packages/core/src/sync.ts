@@ -148,11 +148,20 @@ const mergeSettingsForSync = (localSettings: AppData['settings'], incomingSettin
 
     mergeGroup(
         'appearance',
-        { theme: localSettings.theme, appearance: localSettings.appearance },
-        { theme: incomingSettings.theme, appearance: incomingSettings.appearance },
+        {
+            theme: localSettings.theme,
+            appearance: localSettings.appearance,
+            keybindingStyle: localSettings.keybindingStyle,
+        },
+        {
+            theme: incomingSettings.theme,
+            appearance: incomingSettings.appearance,
+            keybindingStyle: incomingSettings.keybindingStyle,
+        },
         (value) => {
             merged.theme = value.theme;
             merged.appearance = value.appearance;
+            merged.keybindingStyle = value.keybindingStyle;
         }
     );
 

@@ -2358,7 +2358,7 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
                 markSyncUpdated('preferences');
             }
 
-            if ('theme' in updates || 'appearance' in updates) {
+            if ('theme' in updates || 'appearance' in updates || 'keybindingStyle' in updates) {
                 markSyncUpdated('appearance');
             }
 
