@@ -209,7 +209,7 @@ export interface AppData {
         appearance?: {
             density?: 'comfortable' | 'compact';
         };
-        theme?: 'light' | 'dark' | 'system';
+        theme?: 'light' | 'dark' | 'system' | 'eink' | 'nord' | 'sepia' | 'material3-light' | 'material3-dark' | 'oled';
         language?: 'en' | 'zh' | 'es' | 'hi' | 'ar' | 'de' | 'ru' | 'ja' | 'fr' | 'pt' | 'ko' | 'it' | 'tr' | 'system';
         weekStart?: 'monday' | 'sunday';
         dateFormat?: string;

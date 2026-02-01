@@ -31,8 +31,9 @@ import { useCalendarSettings } from './settings/useCalendarSettings';
 import { useSyncSettings } from './settings/useSyncSettings';
 import { usePerformanceMonitor } from '../../hooks/usePerformanceMonitor';
 import { checkBudget } from '../../config/performanceBudgets';
+import { THEME_STORAGE_KEY, applyThemeMode, coerceDesktopThemeMode, mapSyncedThemeToDesktop, resolveNativeTheme, type DesktopThemeMode } from '../../lib/theme';
 
-type ThemeMode = 'system' | 'light' | 'dark' | 'eink' | 'nord' | 'sepia';
+type ThemeMode = DesktopThemeMode;
 type DensityMode = 'comfortable' | 'compact';
 type SettingsPage = 'main' | 'gtd' | 'notifications' | 'sync' | 'calendar' | 'ai' | 'about';
 type LinuxDistroInfo = { id?: string; id_like?: string[] };
@@ -45,7 +46,6 @@ const SettingsCalendarPage = lazy(() => import('./settings/SettingsCalendarPage'
 const SettingsSyncPage = lazy(() => import('./settings/SettingsSyncPage').then((m) => ({ default: m.SettingsSyncPage })));
 const SettingsAboutPage = lazy(() => import('./settings/SettingsAboutPage').then((m) => ({ default: m.SettingsAboutPage })));
 
-const THEME_STORAGE_KEY = 'mindwtr-theme';
 const UPDATE_BADGE_AVAILABLE_KEY = 'mindwtr-update-available';
 const UPDATE_BADGE_LAST_CHECK_KEY = 'mindwtr-update-last-check';
 const UPDATE_BADGE_LATEST_KEY = 'mindwtr-update-latest';
@@ -267,15 +267,8 @@ export function SettingsView() {
     }, [perf.enabled]);
 
     useEffect(() => {
-        const savedTheme = localStorage.getItem(THEME_STORAGE_KEY);
-        if (
-            savedTheme === 'system'
-            || savedTheme === 'light'
-            || savedTheme === 'dark'
-            || savedTheme === 'eink'
-            || savedTheme === 'nord'
-            || savedTheme === 'sepia'
-        ) {
+        const savedTheme = coerceDesktopThemeMode(localStorage.getItem(THEME_STORAGE_KEY));
+        if (savedTheme) {
             setThemeMode(savedTheme);
         }
 
@@ -314,6 +307,13 @@ export function SettingsView() {
             window.clearTimeout(timer);
         };
     }, [isTauri]);
+
+    useEffect(() => {
+        const syncedTheme = mapSyncedThemeToDesktop(settings?.theme);
+        if (!syncedTheme || syncedTheme === themeMode) return;
+        localStorage.setItem(THEME_STORAGE_KEY, syncedTheme);
+        setThemeMode(syncedTheme);
+    }, [settings?.theme, themeMode]);
 
     useEffect(() => {
         if (!isTauri || !appVersion || appVersion === 'web') return;
@@ -396,28 +396,10 @@ export function SettingsView() {
     }, [loggingEnabled]);
 
     useEffect(() => {
-        const root = document.documentElement;
-        root.classList.remove('theme-eink', 'theme-nord', 'theme-sepia');
-
-        const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-        if (themeMode === 'system') {
-            root.classList.toggle('dark', prefersDark);
-        } else if (themeMode === 'dark' || themeMode === 'nord') {
-            root.classList.add('dark');
-        } else {
-            root.classList.remove('dark');
-        }
-
-        if (themeMode === 'eink') root.classList.add('theme-eink');
-        if (themeMode === 'nord') root.classList.add('theme-nord');
-        if (themeMode === 'sepia') root.classList.add('theme-sepia');
+        applyThemeMode(themeMode);
 
         if (!isTauri) return;
-        const tauriTheme = themeMode === 'system'
-            ? null
-            : themeMode === 'dark' || themeMode === 'nord'
-                ? 'dark'
-                : 'light';
+        const tauriTheme = resolveNativeTheme(themeMode);
         import('@tauri-apps/api/app')
             .then(({ setTheme }) => setTheme(tauriTheme))
             .catch((error) => reportError('Failed to set theme', error));
@@ -426,7 +408,9 @@ export function SettingsView() {
     const saveThemePreference = (mode: ThemeMode) => {
         localStorage.setItem(THEME_STORAGE_KEY, mode);
         setThemeMode(mode);
-        showSaved();
+        updateSettings({ theme: mode })
+            .then(showSaved)
+            .catch((error) => reportError('Failed to update theme', error));
     };
 
     const saveDensityPreference = (mode: DensityMode) => {

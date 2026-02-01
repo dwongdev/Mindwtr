@@ -499,15 +499,7 @@ export default function SettingsPage() {
         { value: 'sepia', label: t('settings.sepia') },
         { value: 'oled', label: t('settings.oled') },
     ];
-    const mapThemeToSetting = (mode: typeof themeMode): AppData['settings']['theme'] => {
-        if (mode === 'dark' || mode === 'material3-dark' || mode === 'nord' || mode === 'oled') {
-            return 'dark';
-        }
-        if (mode === 'light' || mode === 'material3-light' || mode === 'eink' || mode === 'sepia') {
-            return 'light';
-        }
-        return 'system';
-    };
+    const mapThemeToSetting = (mode: typeof themeMode): AppData['settings']['theme'] => mode;
     const [themePickerOpen, setThemePickerOpen] = useState(false);
     const currentThemeLabel = themeOptions.find((opt) => opt.value === themeMode)?.label ?? t('settings.system');
     const openLink = (url: string) => Linking.openURL(url);

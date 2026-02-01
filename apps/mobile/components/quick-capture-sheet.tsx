@@ -799,7 +799,7 @@ export function QuickCaptureSheet({
         ? (whisperResolved?.exists ? whisperResolved.path : modelPath)
         : undefined;
 
-      const allowWhisperOffline = provider !== 'whisper' || currentRecording.kind === 'whisper';
+      const allowWhisperOffline = provider !== 'whisper';
       const speechReady = speech?.enabled
         ? provider === 'whisper'
           ? whisperModelReady && allowWhisperOffline

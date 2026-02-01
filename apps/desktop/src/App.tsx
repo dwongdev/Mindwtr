@@ -23,6 +23,7 @@ import { startDesktopNotifications, stopDesktopNotifications } from './lib/notif
 import { SyncService } from './lib/sync-service';
 import { isFlatpakRuntime, isTauriRuntime } from './lib/runtime';
 import { logError } from './lib/app-log';
+import { THEME_STORAGE_KEY, applyThemeMode, mapSyncedThemeToDesktop, resolveNativeTheme } from './lib/theme';
 import { useUiStore } from './store/ui-store';
 
 function App() {
@@ -35,6 +36,7 @@ function App() {
     const windowDecorations = useTaskStore((state) => state.settings?.window?.decorations);
     const closeBehavior = useTaskStore((state) => state.settings?.window?.closeBehavior ?? 'ask');
     const showTray = useTaskStore((state) => state.settings?.window?.showTray);
+    const settingsTheme = useTaskStore((state) => state.settings?.theme);
     const updateSettings = useTaskStore((state) => state.updateSettings);
     const showToast = useUiStore((state) => state.showToast);
     const isFlatpak = isFlatpakRuntime();
@@ -49,6 +51,19 @@ function App() {
     const lastSyncErrorAtRef = useRef(0);
     const [closePromptOpen, setClosePromptOpen] = useState(false);
     const [closePromptRemember, setClosePromptRemember] = useState(false);
+
+    useEffect(() => {
+        const normalizedTheme = mapSyncedThemeToDesktop(settingsTheme);
+        if (!normalizedTheme) return;
+        localStorage.setItem(THEME_STORAGE_KEY, normalizedTheme);
+        applyThemeMode(normalizedTheme);
+
+        if (!isTauriRuntime()) return;
+        const nativeTheme = resolveNativeTheme(normalizedTheme);
+        import('@tauri-apps/api/app')
+            .then(({ setTheme }) => setTheme(nativeTheme))
+            .catch((error) => void logError(error, { scope: 'theme', step: 'apply' }));
+    }, [settingsTheme]);
 
     const translateOrFallback = useCallback((key: string, fallback: string) => {
         const value = t(key);
