@@ -200,7 +200,7 @@ export function parseQuickAdd(input: string, projects?: Project[], now: Date = n
 
     // Status tokens like /next, /waiting, etc.
     let status: TaskStatus | undefined;
-    const statusMatch = working.match(/\/(inbox|next|in-progress|waiting|someday|done|archived)\b/i);
+    const statusMatch = working.match(/(?:^|\s)\/(inbox|next|in-progress|waiting|someday|done|archived)\b/i);
     if (statusMatch) {
         const token = statusMatch[1].toLowerCase();
         status = STATUS_TOKENS[token] ?? normalizeTaskStatus(token);

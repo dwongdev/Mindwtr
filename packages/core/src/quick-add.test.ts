@@ -100,4 +100,12 @@ describe('quick-add', () => {
         expect(result.props.tags).toEqual(['#项目']);
         expect(result.props.status).toBe('next');
     });
+
+    it('does not treat status tokens inside URLs as commands', () => {
+        const now = new Date('2025-01-01T10:00:00Z');
+        const result = parseQuickAdd('Check https://example.com/archived/123', undefined, now);
+
+        expect(result.title).toBe('Check https://example.com/archived/123');
+        expect(result.props.status).toBeUndefined();
+    });
 });
