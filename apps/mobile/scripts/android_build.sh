@@ -2,10 +2,15 @@
 set -euo pipefail
 
 ARCHS="${ARCHS:-arm64-v8a,armeabi-v7a}"
+export FOSS_BUILD="${FOSS_BUILD:-0}"
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 OUTPUT_DIR="${OUTPUT_DIR:-${ROOT_DIR}/build}"
 cd "$ROOT_DIR"
+
+if [[ "${FOSS_BUILD}" == "1" ]]; then
+  ./scripts/fdroid_prep.sh
+fi
 
 npx expo prebuild --clean --platform android
 
@@ -59,6 +64,27 @@ if marker in text:
 """
         text = text[: end + 6] + insert + text[end + 6 :]
         path.write_text(text)
+PY
+fi
+
+if [[ "${FOSS_BUILD}" == "1" ]]; then
+  python3 - <<'PY'
+from pathlib import Path
+
+path = Path("android/app/build.gradle")
+text = path.read_text()
+block = """
+
+configurations.all {
+    exclude group: 'com.google.firebase'
+    exclude group: 'com.google.android.datatransport'
+    exclude group: 'com.google.mlkit'
+}
+"""
+
+if "exclude group: 'com.google.firebase'" not in text:
+    text = text.rstrip() + block
+    path.write_text(text)
 PY
 fi
 
