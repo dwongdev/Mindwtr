@@ -116,8 +116,21 @@ jobs:
             }
           }
           $metadataJson = $metadata | ConvertTo-Json -Depth 100 -Compress
-          $updateOutput = msstore submission updateMetadata $env:MS_STORE_APP_ID $metadataJson 2>&1
-          if ($LASTEXITCODE -ne 0) {
+          $psi = [System.Diagnostics.ProcessStartInfo]::new()
+          $psi.FileName = 'msstore'
+          $psi.ArgumentList.Add('submission')
+          $psi.ArgumentList.Add('updateMetadata')
+          $psi.ArgumentList.Add($env:MS_STORE_APP_ID)
+          $psi.ArgumentList.Add($metadataJson)
+          $psi.RedirectStandardOutput = $true
+          $psi.RedirectStandardError = $true
+          $psi.UseShellExecute = $false
+          $process = [System.Diagnostics.Process]::Start($psi)
+          $stdout = $process.StandardOutput.ReadToEnd()
+          $stderr = $process.StandardError.ReadToEnd()
+          $process.WaitForExit()
+          $updateOutput = ($stdout + $stderr).Trim()
+          if ($process.ExitCode -ne 0) {
             if ($updateOutput -match 'InvalidState' -or $updateOutput -match 'certification' -or $updateOutput -match 'Pending Submission') {
               Write-Warning "Store submission is in certification. Skipping metadata update."
               exit 0
