@@ -50,20 +50,44 @@ jobs:
           if ($LASTEXITCODE -ne 0) {
             Write-Warning "Failed to check submission status. Continuing: $statusOutput"
             "skip=false" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+            "create=false" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
             exit 0
           }
-          $blocked = $statusOutput -match 'CommitStarted' -or
-            $statusOutput -match 'PreProcessing' -or
-            $statusOutput -match 'Certification' -or
-            $statusOutput -match 'PendingCommit' -or
-            $statusOutput -match 'InProgress' -or
-            $statusOutput -match 'Pending Submission'
+          if ($statusOutput -match 'Could not find a Pending Submission') {
+            "skip=false" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+            "create=true" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+            exit 0
+          }
+
+          $status = ''
+          $pendingMatch = [regex]::Match($statusOutput, 'Pending Submission.*?Submission Status\\s*=\\s*(\\w+)', 'Singleline')
+          if ($pendingMatch.Success) {
+            $status = $pendingMatch.Groups[1].Value
+          } else {
+            $statusMatch = [regex]::Match($statusOutput, 'Submission Status\\s*=\\s*(\\w+)')
+            if ($statusMatch.Success) {
+              $status = $statusMatch.Groups[1].Value
+            }
+          }
+          $blockedStatuses = @('CommitStarted', 'PreProcessing', 'Certification', 'PendingCommit', 'InProgress')
+          $blocked = $blockedStatuses -contains $status
           if ($blocked) {
             Write-Warning "Store submission in progress. Skipping metadata update. Status: $statusOutput"
             "skip=true" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+            "create=false" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
             exit 0
           }
           "skip=false" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+          "create=false" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+
+      - name: Create Microsoft Store submission
+        shell: pwsh
+        if: steps.msstore_status.outputs.skip != 'true' && steps.msstore_status.outputs.create == 'true'
+        run: |
+          $createOutput = msstore submission create $env:MS_STORE_APP_ID 2>&1
+          if ($LASTEXITCODE -ne 0) {
+            throw "Failed to create submission: $createOutput"
+          }
 
       - name: Update store metadata
         shell: pwsh
