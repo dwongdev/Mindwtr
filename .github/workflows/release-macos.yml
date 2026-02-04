@@ -86,6 +86,36 @@ jobs:
           CMAKE_OSX_DEPLOYMENT_TARGET: "10.15"
           DEVELOPER_DIR: ${{ env.DEVELOPER_DIR }}
 
+      - name: Notarize DMG
+        if: ${{ secrets.APPLE_ID != '' && secrets.APPLE_PASSWORD != '' && secrets.APPLE_TEAM_ID != '' }}
+        env:
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          set -euo pipefail
+          DMG_DIR="apps/desktop/src-tauri/target/${{ matrix.rust_target }}/release/bundle/dmg"
+          if [ ! -d "$DMG_DIR" ]; then
+            echo "No dmg directory found at $DMG_DIR"
+            exit 1
+          fi
+          found=0
+          for dmg in "$DMG_DIR"/*.dmg; do
+            if [ ! -f "$dmg" ]; then
+              continue
+            fi
+            found=1
+            echo "Submitting $dmg for notarization"
+            xcrun notarytool submit "$dmg" --apple-id "$APPLE_ID" --password "$APPLE_PASSWORD" --team-id "$APPLE_TEAM_ID" --wait
+            echo "Stapling $dmg"
+            xcrun stapler staple "$dmg"
+          done
+          if [ "$found" -eq 0 ]; then
+            echo "No dmg files found in $DMG_DIR"
+            exit 1
+          fi
+        shell: bash
+
       - name: Collect macOS artifacts
         run: |
           mkdir -p release-artifacts
