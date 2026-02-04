@@ -115,9 +115,8 @@ jobs:
               }
             }
           }
-          $tempMetadataPath = "metadata-cleaned.json"
-          $metadata | ConvertTo-Json -Depth 100 | Set-Content -Path $tempMetadataPath -Encoding UTF8NoBOM
-          $updateOutput = msstore submission updateMetadata $env:MS_STORE_APP_ID $tempMetadataPath 2>&1
+          $metadataJson = $metadata | ConvertTo-Json -Depth 100 -Compress
+          $updateOutput = msstore submission updateMetadata $env:MS_STORE_APP_ID $metadataJson 2>&1
           if ($LASTEXITCODE -ne 0) {
             if ($updateOutput -match 'InvalidState' -or $updateOutput -match 'certification' -or $updateOutput -match 'Pending Submission') {
               Write-Warning "Store submission is in certification. Skipping metadata update."
