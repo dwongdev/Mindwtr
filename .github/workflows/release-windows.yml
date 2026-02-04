@@ -237,13 +237,39 @@ jobs:
           }
           $metadataRaw = Get-Content -Raw "metadata/metadata.json"
           $metadata = $metadataRaw | ConvertFrom-Json
-          foreach ($prop in @('Id','Status','StatusDetails','FileUploadUrl','ApplicationPackages','PackageDeliveryOptions','FriendlyName','Trailers')) {
+          foreach ($prop in @('Id','PendingApplicationId','Status','StatusDetails','FileUploadUrl','ApplicationPackages','PackageDeliveryOptions','FriendlyName','Trailers')) {
             if ($metadata.PSObject.Properties.Name -contains $prop) {
               $metadata.PSObject.Properties.Remove($prop)
             }
           }
-          $metadataJson = $metadata | ConvertTo-Json -Depth 100
-          $updateOutput = & msstore submission updateMetadata $env:MS_STORE_APP_ID $metadataJson 2>&1
+          $ensureArray = {
+            param($value)
+            if ($null -eq $value) { return $value }
+            if ($value -is [System.Array]) { return $value }
+            return @($value)
+          }
+          if ($metadata.HardwarePreferences) {
+            $metadata.HardwarePreferences = & $ensureArray $metadata.HardwarePreferences
+          }
+          if ($metadata.GamingOptions) {
+            $metadata.GamingOptions = & $ensureArray $metadata.GamingOptions
+          }
+          if ($metadata.Listings) {
+            foreach ($listingProp in $metadata.Listings.PSObject.Properties) {
+              $listing = $listingProp.Value
+              if (-not $listing) { continue }
+              $baseListing = $listing.BaseListing
+              if (-not $baseListing) { continue }
+              foreach ($field in @('Keywords','Features','Images','RecommendedHardware','MinimumHardware')) {
+                if ($baseListing.PSObject.Properties.Name -contains $field) {
+                  $baseListing.$field = & $ensureArray $baseListing.$field
+                }
+              }
+            }
+          }
+          $tempMetadataPath = "metadata-cleaned.json"
+          $metadata | ConvertTo-Json -Depth 100 | Out-File -FilePath $tempMetadataPath -Encoding UTF8
+          $updateOutput = & msstore submission updateMetadata $env:MS_STORE_APP_ID $tempMetadataPath 2>&1
           if ($LASTEXITCODE -ne 0) {
             if ($updateOutput -match 'InvalidState' -or $updateOutput -match 'certification' -or $updateOutput -match 'Pending Submission') {
               Write-Warning "Store submission is in certification. Skipping metadata update."
