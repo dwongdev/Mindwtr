@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { mergeAppData, mergeAppDataWithStats, filterDeleted } from './sync';
+import { mergeAppData, mergeAppDataWithStats, filterDeleted, appendSyncHistory, performSyncCycle } from './sync';
 import { AppData, Task, Project, Attachment, Section } from './types';
 
 describe('Sync Logic', () => {
@@ -327,6 +327,51 @@ describe('Sync Logic', () => {
             expect(result.stats.tasks.incomingOnly).toBe(1);
             expect(result.stats.tasks.conflicts).toBe(1);
             expect(result.stats.tasks.resolvedUsingLocal).toBeGreaterThan(0);
+        });
+    });
+
+    describe('performSyncCycle', () => {
+        it('returns conflict status when merge finds conflicts', async () => {
+            const local = mockAppData([createMockTask('1', '2023-01-02')]);
+            const incoming = mockAppData([createMockTask('1', '2023-01-01')]);
+
+            const result = await performSyncCycle({
+                readLocal: async () => local,
+                readRemote: async () => incoming,
+                writeLocal: async () => undefined,
+                writeRemote: async () => undefined,
+            });
+
+            expect(result.status).toBe('conflict');
+            expect(result.stats.tasks.conflicts).toBe(1);
+        });
+    });
+
+    describe('appendSyncHistory', () => {
+        it('drops invalid entries and respects limits', () => {
+            const entry = {
+                at: '2024-01-01T00:00:00.000Z',
+                status: 'success',
+                conflicts: 0,
+                conflictIds: [],
+                maxClockSkewMs: 0,
+                timestampAdjustments: 0,
+            } as const;
+            const settings: AppData['settings'] = {
+                lastSyncHistory: [
+                    entry,
+                    { invalid: true } as any,
+                ],
+            };
+
+            const next = appendSyncHistory(settings, {
+                ...entry,
+                at: '2024-01-02T00:00:00.000Z',
+            }, 2);
+
+            expect(next).toHaveLength(2);
+            expect(next[0].at).toBe('2024-01-02T00:00:00.000Z');
+            expect(next[1].at).toBe('2024-01-01T00:00:00.000Z');
         });
     });
 
