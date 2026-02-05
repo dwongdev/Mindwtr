@@ -14,6 +14,7 @@ type NotificationContentInput = {
 type NotificationResponse = {
   notification?: {
     request?: {
+      identifier?: string;
       content?: {
         data?: Record<string, unknown>;
       };
@@ -26,6 +27,7 @@ type Subscription = { remove: () => void };
 type ScheduledEntry = { scheduledAtIso: string; notificationId: string };
 
 const scheduledByTask = new Map<string, ScheduledEntry>();
+const taskIdByNotificationId = new Map<string, string>();
 const scheduledByProject = new Map<string, ScheduledEntry>();
 const scheduledDigestByKind = new Map<'morning' | 'evening', string>();
 let digestConfigKey: string | null = null;
@@ -196,18 +198,18 @@ async function rescheduleDailyDigest(api: NotificationsApi) {
 
   if (morningEnabled) {
     const { hour, minute } = parseTimeOfDay(settings.dailyDigestMorningTime, { hour: 9, minute: 0 });
+    const data = Platform.OS === 'android' ? undefined : { kind: 'daily-digest', when: 'morning' };
     const id = await scheduleNotification(api, {
       content: {
         title: tr['digest.morningTitle'],
         body: tr['digest.morningBody'],
-        data: { kind: 'daily-digest', when: 'morning' },
+        data,
       } as any,
       trigger: {
         type: api.SchedulableTriggerInputTypes.DAILY,
         hour,
         minute,
-        channelId: ANDROID_NOTIFICATION_CHANNEL_ID,
-      } as any,
+      },
     }, 'daily digest (morning)');
     if (id) {
       scheduledDigestByKind.set('morning', id);
@@ -216,18 +218,18 @@ async function rescheduleDailyDigest(api: NotificationsApi) {
 
   if (eveningEnabled) {
     const { hour, minute } = parseTimeOfDay(settings.dailyDigestEveningTime, { hour: 20, minute: 0 });
+    const data = Platform.OS === 'android' ? undefined : { kind: 'daily-digest', when: 'evening' };
     const id = await scheduleNotification(api, {
       content: {
         title: tr['digest.eveningTitle'],
         body: tr['digest.eveningBody'],
-        data: { kind: 'daily-digest', when: 'evening' },
+        data,
       } as any,
       trigger: {
         type: api.SchedulableTriggerInputTypes.DAILY,
         hour,
         minute,
-        channelId: ANDROID_NOTIFICATION_CHANNEL_ID,
-      } as any,
+      },
     }, 'daily digest (evening)');
     if (id) {
       scheduledDigestByKind.set('evening', id);
@@ -262,19 +264,19 @@ async function rescheduleWeeklyReview(api: NotificationsApi) {
   const { hour, minute } = parseTimeOfDay(weeklyReviewTime, { hour: 18, minute: 0 });
   const weekday = weeklyReviewDay + 1; // Expo: 1 = Sunday
 
+  const data = Platform.OS === 'android' ? undefined : { kind: 'weekly-review', weekday };
   scheduledWeeklyReviewId = await scheduleNotification(api, {
     content: {
       title: tr['digest.weeklyReviewTitle'],
       body: tr['digest.weeklyReviewBody'],
-      data: { kind: 'weekly-review', weekday },
+      data,
     } as any,
     trigger: {
       type: api.SchedulableTriggerInputTypes.WEEKLY,
       weekday,
       hour,
       minute,
-      channelId: ANDROID_NOTIFICATION_CHANNEL_ID,
-    } as any,
+    },
   }, 'weekly review');
 }
 
@@ -298,6 +300,7 @@ async function scheduleForTask(api: NotificationsApi, task: Task, when: Date) {
 
   if (id) {
     scheduledByTask.set(task.id, { scheduledAtIso: when.toISOString(), notificationId: id });
+    taskIdByNotificationId.set(id, task.id);
   }
 }
 
@@ -327,6 +330,7 @@ async function scheduleForProject(api: NotificationsApi, project: Project, when:
 async function cancelTaskNotification(api: NotificationsApi, taskId: string, entry: ScheduledEntry) {
   await api.cancelScheduledNotificationAsync(entry.notificationId).catch((error) => logNotificationError(`Failed to cancel task reminder (${taskId})`, error));
   scheduledByTask.delete(taskId);
+  taskIdByNotificationId.delete(entry.notificationId);
 }
 
 async function cancelProjectNotification(api: NotificationsApi, projectId: string, entry: ScheduledEntry) {
@@ -531,7 +535,9 @@ export async function startMobileNotifications() {
 
   responseSubscription?.remove();
   responseSubscription = api.addNotificationResponseReceivedListener((response: NotificationResponse) => {
-    const taskId = (response.notification?.request?.content?.data as any)?.taskId as string | undefined;
+    const notificationId = response.notification?.request?.identifier;
+    const taskId = (response.notification?.request?.content?.data as any)?.taskId as string | undefined
+      ?? (notificationId ? taskIdByNotificationId.get(notificationId) : undefined);
     if (response.actionIdentifier === 'snooze10' && taskId) {
       snoozeTask(api, taskId, 10).catch((error) => logNotificationError('Failed to snooze task', error));
     }
@@ -561,6 +567,7 @@ export async function stopMobileNotifications() {
   }
 
   scheduledByTask.clear();
+  taskIdByNotificationId.clear();
   scheduledByProject.clear();
   scheduledDigestByKind.clear();
   scheduledWeeklyReviewId = null;
