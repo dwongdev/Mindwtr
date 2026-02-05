@@ -919,6 +919,7 @@ export const syncWebdavAttachments = async (
       if (attachment.kind !== 'file') continue;
       if (attachment.deletedAt) continue;
       if (abortedByRateLimit) break;
+      if (!attachment.cloudKey) continue;
       if (getWebdavDownloadBackoff(attachment.id)) continue;
       if (downloadCount >= WEBDAV_ATTACHMENT_MAX_DOWNLOADS_PER_SYNC) {
         logAttachmentInfo('WebDAV attachment download limit reached', {
@@ -928,8 +929,9 @@ export const syncWebdavAttachments = async (
       }
       downloadCount += 1;
 
+      const cloudKey = attachment.cloudKey;
       try {
-        const downloadUrl = `${baseSyncUrl}/${attachment.cloudKey}`;
+        const downloadUrl = `${baseSyncUrl}/${cloudKey}`;
         const fileData = await withRetry(
           async () => {
             await waitForSlot();
@@ -943,7 +945,7 @@ export const syncWebdavAttachments = async (
         );
         const bytes = fileData instanceof ArrayBuffer ? new Uint8Array(fileData) : new Uint8Array(fileData as ArrayBuffer);
         await validateAttachmentHash(attachment, bytes);
-        const filename = attachment.cloudKey.split('/').pop() || `${attachment.id}${extractExtension(attachment.title)}`;
+        const filename = cloudKey.split('/').pop() || `${attachment.id}${extractExtension(attachment.title)}`;
         const targetUri = `${attachmentsDir}${filename}`;
         await writeBytesSafely(targetUri, bytes);
         attachment.uri = targetUri;
