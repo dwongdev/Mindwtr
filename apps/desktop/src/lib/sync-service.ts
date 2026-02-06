@@ -38,6 +38,22 @@ import { reportError } from './report-error';
 import { logInfo, logSyncError, logWarn, sanitizeLogMessage } from './app-log';
 import { ExternalCalendarService } from './external-calendar-service';
 import { webStorage } from './storage-adapter-web';
+import {
+    ATTACHMENTS_DIR_NAME,
+    buildCloudKey,
+    cloneAppData,
+    extractExtension,
+    getErrorStatus,
+    hashString,
+    isSyncFilePath,
+    isTempAttachmentFile,
+    isWebdavRateLimitedError,
+    sleep,
+    stripFileScheme,
+    toStableJson,
+    writeAttachmentFileSafely,
+    writeFileSafelyAbsolute,
+} from './sync-service-utils';
 
 type SyncBackend = 'off' | 'file' | 'webdav' | 'cloud';
 
@@ -58,35 +74,6 @@ const WEBDAV_ATTACHMENT_MISSING_BACKOFF_MS = 15 * 60_000;
 const WEBDAV_ATTACHMENT_ERROR_BACKOFF_MS = 2 * 60_000;
 const webdavAttachmentDownloadBackoff = new Map<string, number>();
 
-const toStableJson = (value: unknown): string => {
-    const normalize = (input: any): any => {
-        if (Array.isArray(input)) {
-            return input.map(normalize);
-        }
-        if (input && typeof input === 'object') {
-            const entries = Object.keys(input)
-                .sort()
-                .map((key) => [key, normalize(input[key])]);
-            const result: Record<string, any> = {};
-            for (const [key, val] of entries) {
-                result[key] = val;
-            }
-            return result;
-        }
-        return input;
-    };
-    return JSON.stringify(normalize(value));
-};
-
-const hashString = (value: string): string => {
-    let hash = 0;
-    for (let i = 0; i < value.length; i += 1) {
-        hash = Math.imul(31, hash) + value.charCodeAt(i);
-        hash |= 0;
-    }
-    return hash.toString(16);
-};
-
 const logSyncWarning = (message: string, error?: unknown) => {
     const extra = error
         ? { error: sanitizeLogMessage(error instanceof Error ? error.message : String(error)) }
@@ -96,15 +83,6 @@ const logSyncWarning = (message: string, error?: unknown) => {
 
 const logSyncInfo = (message: string, extra?: Record<string, string>) => {
     void logInfo(message, { scope: 'sync', extra });
-};
-
-const sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
-
-const getErrorStatus = (error: unknown): number | null => {
-    if (!error || typeof error !== 'object') return null;
-    const anyError = error as { status?: unknown; statusCode?: unknown; response?: { status?: unknown } };
-    const status = anyError.status ?? anyError.statusCode ?? anyError.response?.status;
-    return typeof status === 'number' ? status : null;
 };
 
 const getWebdavDownloadBackoff = (attachmentId: string): number | null => {
@@ -135,19 +113,6 @@ const pruneWebdavDownloadBackoff = (): void => {
     }
 };
 
-const isWebdavRateLimitedError = (error: unknown): boolean => {
-    const status = getErrorStatus(error);
-    if (status === 429 || status === 503) return true;
-    const message = error instanceof Error ? error.message : String(error || '');
-    const normalized = message.toLowerCase();
-    return (
-        normalized.includes('blockedtemporarily') ||
-        normalized.includes('too many requests') ||
-        normalized.includes('rate limit') ||
-        normalized.includes('rate limited')
-    );
-};
-
 const externalCalendarProvider = {
     load: () => ExternalCalendarService.getCalendars(),
     save: (calendars: AppData['settings']['externalCalendars'] | undefined) =>
@@ -168,13 +133,6 @@ class LocalSyncAbort extends Error {
     }
 }
 
-const normalizePath = (input: string) => input.replace(/\\/g, '/').toLowerCase();
-
-const isSyncFilePath = (path: string) => {
-    const normalized = normalizePath(path);
-    return normalized.endsWith(`/${SYNC_FILE_NAME}`) || normalized.endsWith(`/${LEGACY_SYNC_FILE_NAME}`);
-};
-
 const buildStoreSnapshot = (): AppData => {
     const state = useTaskStore.getState();
     return {
@@ -186,9 +144,6 @@ const buildStoreSnapshot = (): AppData => {
     };
 };
 
-const cloneAppData = (data: AppData): AppData => JSON.parse(JSON.stringify(data)) as AppData;
-
-const ATTACHMENTS_DIR_NAME = 'attachments';
 const LOCAL_ATTACHMENTS_DIR = `mindwtr/${ATTACHMENTS_DIR_NAME}`;
 const FILE_BACKEND_VALIDATION_CONFIG = {
     maxFileSizeBytes: Number.POSITIVE_INFINITY,
@@ -196,92 +151,6 @@ const FILE_BACKEND_VALIDATION_CONFIG = {
 };
 const CLEANUP_INTERVAL_MS = 24 * 60 * 60 * 1000;
 const UPLOAD_TIMEOUT_MS = 120_000;
-
-const stripFileScheme = (uri: string): string => {
-    if (!/^file:\/\//i.test(uri)) return uri;
-    try {
-        const parsed = new URL(uri);
-        let path = decodeURIComponent(parsed.pathname);
-        if (/^\/[A-Za-z]:\//.test(path)) {
-            path = path.slice(1);
-        }
-        return path;
-    } catch {
-        return uri.replace(/^file:\/\//i, '');
-    }
-};
-
-const extractExtension = (value?: string): string => {
-    if (!value) return '';
-    const stripped = value.split('?')[0].split('#')[0];
-    const leaf = stripped.split(/[\\/]/).pop() || '';
-    const match = leaf.match(/\.[A-Za-z0-9]{1,8}$/);
-    return match ? match[0].toLowerCase() : '';
-};
-
-const buildTempPath = (relativePath: string): string => {
-    const suffix = `${Date.now()}-${Math.random().toString(16).slice(2, 8)}`;
-    return `${relativePath}.tmp-${suffix}`;
-};
-
-const writeAttachmentFileSafely = async (
-    relativePath: string,
-    bytes: Uint8Array,
-    options: {
-        baseDir: any;
-        writeFile: (path: string, data: Uint8Array, opts: { baseDir: any }) => Promise<void>;
-        rename: (oldPath: string, newPath: string, opts: { oldPathBaseDir: any; newPathBaseDir: any }) => Promise<void>;
-        remove: (path: string, opts: { baseDir: any }) => Promise<void>;
-    }
-): Promise<void> => {
-    const tempPath = buildTempPath(relativePath);
-    await options.writeFile(tempPath, bytes, { baseDir: options.baseDir });
-    try {
-        await options.rename(tempPath, relativePath, {
-            oldPathBaseDir: options.baseDir,
-            newPathBaseDir: options.baseDir,
-        });
-    } catch (error) {
-        await options.writeFile(relativePath, bytes, { baseDir: options.baseDir });
-        try {
-            await options.remove(tempPath, { baseDir: options.baseDir });
-        } catch {
-            // Ignore cleanup errors for temp file.
-        }
-    }
-};
-
-const writeFileSafelyAbsolute = async (
-    path: string,
-    bytes: Uint8Array,
-    options: {
-        writeFile: (path: string, data: Uint8Array) => Promise<void>;
-        rename: (oldPath: string, newPath: string) => Promise<void>;
-        remove: (path: string) => Promise<void>;
-    }
-): Promise<void> => {
-    const tempPath = buildTempPath(path);
-    await options.writeFile(tempPath, bytes);
-    try {
-        await options.rename(tempPath, path);
-    } catch (error) {
-        await options.writeFile(path, bytes);
-        try {
-            await options.remove(tempPath);
-        } catch {
-            // Ignore cleanup errors for temp file.
-        }
-    }
-};
-
-const buildCloudKey = (attachment: Attachment): string => {
-    const ext = extractExtension(attachment.title) || extractExtension(attachment.uri);
-    return `${ATTACHMENTS_DIR_NAME}/${attachment.id}${ext}`;
-};
-
-const isTempAttachmentFile = (name: string): boolean => {
-    return name.includes('.tmp-') || name.endsWith('.tmp') || name.endsWith('.partial');
-};
 
 const cleanupAttachmentTempFiles = async (): Promise<void> => {
     if (!isTauriRuntime()) return;
@@ -457,7 +326,7 @@ const getCloudBaseUrl = (fullUrl: string): string => {
 const getFileSyncDir = (syncPath: string): string => {
     if (!syncPath) return '';
     const trimmed = syncPath.replace(/[\\/]+$/, '');
-    if (isSyncFilePath(trimmed)) {
+    if (isSyncFilePath(trimmed, SYNC_FILE_NAME, LEGACY_SYNC_FILE_NAME)) {
         const lastSlash = Math.max(trimmed.lastIndexOf('/'), trimmed.lastIndexOf('\\'));
         return lastSlash > -1 ? trimmed.slice(0, lastSlash) : '';
     }
