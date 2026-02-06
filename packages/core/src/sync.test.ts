@@ -503,6 +503,26 @@ describe('Sync Logic', () => {
             expect(saved).not.toBeNull();
             expect(saved!.tasks.some((task) => task.id === 'old-purged')).toBe(true);
         });
+
+        it('does not write local when remote write fails', async () => {
+            let wroteLocal = false;
+            let wroteRemote = false;
+
+            await expect(performSyncCycle({
+                readLocal: async () => mockAppData([createMockTask('1', '2024-01-01T00:00:00.000Z')]),
+                readRemote: async () => mockAppData(),
+                writeLocal: async () => {
+                    wroteLocal = true;
+                },
+                writeRemote: async () => {
+                    wroteRemote = true;
+                    throw new Error('remote write failed');
+                },
+            })).rejects.toThrow('remote write failed');
+
+            expect(wroteRemote).toBe(true);
+            expect(wroteLocal).toBe(false);
+        });
     });
 
     describe('appendSyncHistory', () => {

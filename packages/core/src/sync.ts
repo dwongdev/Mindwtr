@@ -746,11 +746,12 @@ export async function performSyncCycle(io: SyncCycleIO): Promise<SyncCycleResult
         throw new Error(`Sync validation failed: ${sample}`);
     }
 
-    io.onStep?.('write-local');
-    await io.writeLocal(finalData);
-
+    // Write remote first so a failed remote flush does not advance local sync state.
     io.onStep?.('write-remote');
     await io.writeRemote(finalData);
+
+    io.onStep?.('write-local');
+    await io.writeLocal(finalData);
 
     return { data: finalData, stats: mergeResult.stats, status: nextSyncStatus };
 }
