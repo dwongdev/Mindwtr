@@ -11,6 +11,7 @@ import {
     Section,
     PRESET_CONTEXTS,
     PRESET_TAGS,
+    generateUUID,
     parseQuickAdd,
     extractChecklistFromMarkdown,
 } from '@mindwtr/core';

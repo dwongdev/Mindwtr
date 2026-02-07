@@ -487,7 +487,7 @@ export function GlobalSearch({ onNavigate }: GlobalSearchProps) {
                                 <div className="text-[11px] uppercase tracking-wide text-muted-foreground/80">Due</div>
                                 <select
                                     value={duePreset}
-                                    onChange={(event) => setDuePreset(event.target.value)}
+                                    onChange={(event) => setDuePreset(event.target.value as DuePreset)}
                                     className="w-full rounded border border-border bg-muted/40 px-2 py-1 text-xs"
                                 >
                                     <option value="any">Any</option>

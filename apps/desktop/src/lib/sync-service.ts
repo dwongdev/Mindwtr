@@ -1226,7 +1226,7 @@ export class SyncService {
         if (!isTauriRuntime()) return;
         if (Date.now() < SyncService.ignoreFileEventsUntil) return;
 
-        const hasSyncFile = paths.some(isSyncFilePath);
+        const hasSyncFile = paths.some((path) => isSyncFilePath(path, SYNC_FILE_NAME, LEGACY_SYNC_FILE_NAME));
         if (!hasSyncFile) return;
 
         try {
