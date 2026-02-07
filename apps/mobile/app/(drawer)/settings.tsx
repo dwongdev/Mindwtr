@@ -293,6 +293,7 @@ export default function SettingsPage() {
         : 7;
     const prioritiesEnabled = settings.features?.priorities === true;
     const timeEstimatesEnabled = settings.features?.timeEstimates === true;
+    const pomodoroEnabled = settings.features?.pomodoro === true;
 
     const updateSyncPreferences = (partial: Partial<NonNullable<AppData['settings']['syncPreferences']>>) => {
         updateSettings({ syncPreferences: { ...syncPreferences, ...partial } }).catch(logSettingsError);
@@ -1149,7 +1150,7 @@ export default function SettingsPage() {
         Alert.alert(t('settings.debugLogging'), t('settings.logCleared'));
     };
 
-    const updateFeatureFlags = (next: { priorities?: boolean; timeEstimates?: boolean }) => {
+    const updateFeatureFlags = (next: { priorities?: boolean; timeEstimates?: boolean; pomodoro?: boolean }) => {
         updateSettings({
             features: {
                 ...(settings.features ?? {}),
@@ -2302,11 +2303,68 @@ export default function SettingsPage() {
 
     // ============ GTD MENU ============
     if (currentScreen === 'gtd') {
+        const featurePomodoroLabelRaw = t('settings.featurePomodoro');
+        const featurePomodoroDescRaw = t('settings.featurePomodoroDesc');
+        const featurePomodoroLabel = featurePomodoroLabelRaw === 'settings.featurePomodoro'
+            ? localize('Pomodoro timer', '番茄钟')
+            : featurePomodoroLabelRaw;
+        const featurePomodoroDesc = featurePomodoroDescRaw === 'settings.featurePomodoroDesc'
+            ? localize('Enable the optional Pomodoro panel in Focus view.', '在聚焦视图中启用可选的番茄钟面板。')
+            : featurePomodoroDescRaw;
         return (
             <SafeAreaView style={[styles.container, { backgroundColor: tc.bg }]} edges={['bottom']}>
                 <SubHeader title={t('settings.gtd')} />
                 <ScrollView style={styles.scrollView} contentContainerStyle={scrollContentStyle}>
                     <Text style={[styles.description, { color: tc.secondaryText }]}>{t('settings.gtdDesc')}</Text>
+                    <View style={[styles.settingCard, { backgroundColor: tc.cardBg, marginBottom: 12 }]}>
+                        <View style={styles.settingRow}>
+                            <View style={styles.settingInfo}>
+                                <Text style={[styles.settingLabel, { color: tc.text }]}>{t('settings.features')}</Text>
+                                <Text style={[styles.settingDescription, { color: tc.secondaryText }]}>
+                                    {t('settings.featuresDesc')}
+                                </Text>
+                            </View>
+                        </View>
+                        <View style={[styles.settingRow, { borderTopWidth: 1, borderTopColor: tc.border }]}>
+                            <View style={styles.settingInfo}>
+                                <Text style={[styles.settingLabel, { color: tc.text }]}>{t('settings.featurePriorities')}</Text>
+                                <Text style={[styles.settingDescription, { color: tc.secondaryText }]}>
+                                    {t('settings.featurePrioritiesDesc')}
+                                </Text>
+                            </View>
+                            <Switch
+                                value={prioritiesEnabled}
+                                onValueChange={(value) => updateFeatureFlags({ priorities: value })}
+                                trackColor={{ false: '#767577', true: '#3B82F6' }}
+                            />
+                        </View>
+                        <View style={[styles.settingRow, { borderTopWidth: 1, borderTopColor: tc.border }]}>
+                            <View style={styles.settingInfo}>
+                                <Text style={[styles.settingLabel, { color: tc.text }]}>{t('settings.featureTimeEstimates')}</Text>
+                                <Text style={[styles.settingDescription, { color: tc.secondaryText }]}>
+                                    {t('settings.featureTimeEstimatesDesc')}
+                                </Text>
+                            </View>
+                            <Switch
+                                value={timeEstimatesEnabled}
+                                onValueChange={(value) => updateFeatureFlags({ timeEstimates: value })}
+                                trackColor={{ false: '#767577', true: '#3B82F6' }}
+                            />
+                        </View>
+                        <View style={[styles.settingRow, { borderTopWidth: 1, borderTopColor: tc.border }]}>
+                            <View style={styles.settingInfo}>
+                                <Text style={[styles.settingLabel, { color: tc.text }]}>{featurePomodoroLabel}</Text>
+                                <Text style={[styles.settingDescription, { color: tc.secondaryText }]}>
+                                    {featurePomodoroDesc}
+                                </Text>
+                            </View>
+                            <Switch
+                                value={pomodoroEnabled}
+                                onValueChange={(value) => updateFeatureFlags({ pomodoro: value })}
+                                trackColor={{ false: '#767577', true: '#3B82F6' }}
+                            />
+                        </View>
+                    </View>
                     <View style={[styles.menuCard, { backgroundColor: tc.cardBg }]}>
                         {timeEstimatesEnabled && (
                             <MenuItem

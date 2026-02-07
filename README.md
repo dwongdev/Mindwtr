@@ -97,6 +97,7 @@ Mindwtr is built to be **simple by default and powerful when you need it**. We f
 - ✅ **Checklist Mode** - Fast list-style checking for checklist tasks
 - ✅ **Audio Capture** - Quick voice capture with automatic transcription and task creation
 - 🧭 **Copilot Suggestions** - Optional context/tag/time hints while typing
+- 🍅 **Pomodoro Focus (Optional)** - 15/3, 25/5, 50/10 timer panel in Focus view
 - 🔔 **Notifications** - Due date reminders with snooze
 - 📊 **Daily Digest** - Morning briefing + evening review
 - 📅 **Weekly Review** - Customizable weekly reminder

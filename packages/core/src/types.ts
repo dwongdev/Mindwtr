@@ -205,6 +205,7 @@ export interface AppData {
         features?: {
             priorities?: boolean;
             timeEstimates?: boolean;
+            pomodoro?: boolean;
         };
         appearance?: {
             density?: 'comfortable' | 'compact';

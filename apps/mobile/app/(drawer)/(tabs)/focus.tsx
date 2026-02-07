@@ -13,7 +13,7 @@ import { PomodoroPanel } from '@/components/pomodoro-panel';
 
 export default function FocusScreen() {
   const { taskId, openToken } = useLocalSearchParams<{ taskId?: string; openToken?: string }>();
-  const { tasks, projects, updateTask, deleteTask, highlightTaskId, setHighlightTask } = useTaskStore();
+  const { tasks, projects, settings, updateTask, deleteTask, highlightTaskId, setHighlightTask } = useTaskStore();
   const { isDark } = useTheme();
   const { t } = useLanguage();
   const tc = useThemeColors();
@@ -21,6 +21,7 @@ export default function FocusScreen() {
   const [isModalVisible, setIsModalVisible] = useState(false);
   const lastOpenedFromNotificationRef = useRef<string | null>(null);
   const highlightTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const pomodoroEnabled = settings?.features?.pomodoro === true;
 
   useEffect(() => {
     if (!taskId || typeof taskId !== 'string') return;
@@ -174,10 +175,12 @@ export default function FocusScreen() {
         ]}
         ListHeaderComponent={(
           <View style={styles.header}>
-            <PomodoroPanel
-              tasks={pomodoroTasks}
-              onMarkDone={(id) => updateTask(id, { status: 'done', isFocusedToday: false })}
-            />
+            {pomodoroEnabled && (
+              <PomodoroPanel
+                tasks={pomodoroTasks}
+                onMarkDone={(id) => updateTask(id, { status: 'done', isFocusedToday: false })}
+              />
+            )}
             <Text style={[styles.dateText, { color: tc.secondaryText }]}>
               {format(new Date(), 'EEEE, MMMM do')}
             </Text>

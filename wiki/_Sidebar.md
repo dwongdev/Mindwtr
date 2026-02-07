@@ -14,6 +14,7 @@
   * [[Desktop Keyboard Shortcuts]]
 * [[User Guide Mobile]]
   * [[Mobile Installation]]
+* [[Pomodoro Focus]]
 * [[Docker Deployment]]
 
 ---

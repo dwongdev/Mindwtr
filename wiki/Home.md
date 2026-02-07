@@ -37,6 +37,7 @@ Mindwtr is **simple by default and powerful when needed**. We focus on reducing 
   - [[Desktop Keyboard Shortcuts]] — Vim and Emacs keybindings
 - [[User Guide Mobile]] — Complete mobile app documentation
   - [[Mobile Installation]] — Install on Android (iOS simulator builds)
+- [[Pomodoro Focus]] — Optional deep-work timer in Focus view
 - [[Docker Deployment]] — Run PWA and Cloud Server with Docker
 
 ### GTD Methodology
@@ -68,6 +69,7 @@ Mindwtr is **simple by default and powerful when needed**. We focus on reducing 
 | --------------------- | -------------------------------------------------- |
 | 📥 **Inbox**           | Capture everything with quick-add                  |
 | 🎯 **Focus**           | Combined daily agenda and next actions             |
+| 🍅 **Pomodoro Focus**  | Optional task-linked focus/break timer in Focus view |
 | 📁 **Projects**        | Multi-step outcomes with sequential/parallel modes |
 | 🧭 **Areas of Focus**  | Group projects by higher-level areas               |
 | 🏷️ **Contexts & Tags** | @home, @work, #focused, #lowenergy                 |
@@ -100,6 +102,7 @@ Mindwtr is **simple by default and powerful when needed**. We focus on reducing 
 | **Calendar View** | ✅ | ✅ |
 | **Weekly Review** | ✅ | ✅ |
 | **Focus/Zen Mode** | ✅ (Sidebar toggle + Top 3) | ✅ (Zen toggle) |
+| **Pomodoro Focus** | ✅ (Optional in Focus) | ✅ (Optional in Focus) |
 | **Notifications** | ✅ | ✅ |
 | **Widgets** | ❌ | ✅ (Android) |
 | **Global Hotkey** | ✅ | ❌ |

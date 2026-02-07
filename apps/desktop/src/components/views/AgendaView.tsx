@@ -40,6 +40,7 @@ export function AgendaView() {
     const [top3Only, setTop3Only] = useState(false);
     const prioritiesEnabled = settings?.features?.priorities === true;
     const timeEstimatesEnabled = settings?.features?.timeEstimates === true;
+    const pomodoroEnabled = settings?.features?.pomodoro === true;
     const activePriorities = prioritiesEnabled ? selectedPriorities : [];
     const activeTimeEstimates = timeEstimatesEnabled ? selectedTimeEstimates : [];
     const areaById = useMemo(() => new Map(areas.map((area) => [area.id, area])), [areas]);
@@ -481,7 +482,7 @@ export function AgendaView() {
                 </div>
             </header>
 
-            <PomodoroPanel tasks={pomodoroTasks} />
+            {pomodoroEnabled && <PomodoroPanel tasks={pomodoroTasks} />}
 
             <div className="bg-card border border-border rounded-lg p-3 space-y-3">
                 <div className="flex items-center justify-between">
