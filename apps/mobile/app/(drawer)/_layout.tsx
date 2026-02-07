@@ -26,6 +26,7 @@ export default function AppLayout() {
       <Stack.Screen name="waiting" options={{ title: t('waiting.title') }} />
       <Stack.Screen name="someday" options={{ title: t('someday.title') }} />
       <Stack.Screen name="reference" options={{ title: t('nav.reference') }} />
+      <Stack.Screen name="done" options={{ title: t('nav.done') || t('list.done') || 'Done' }} />
       <Stack.Screen name="projects-screen" options={{ title: t('projects.title') }} />
       <Stack.Screen name="archived" options={{ title: t('archived.title') || 'Archived' }} />
       <Stack.Screen name="trash" options={{ title: t('trash.title') || 'Trash' }} />
