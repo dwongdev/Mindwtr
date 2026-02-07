@@ -224,7 +224,6 @@ jobs:
           mkdir -p "$PKG_DIR"
 
           xcrun productbuild \
-            --verbose \
             --keychain "$KEYCHAIN_PATH" \
             --component "$APP_PATH" /Applications \
             --sign "$INSTALLER_IDENTITY" \
