@@ -13,7 +13,7 @@ permissions:
 
 jobs:
   ios-appstore:
-    runs-on: macos-15
+    runs-on: macos-26
     timeout-minutes: 90
     env:
       EXPECTED_TEAM_ID: 5X9JC5PL7T
@@ -25,10 +25,16 @@ jobs:
       - name: Select Xcode
         run: |
           set -euo pipefail
-          if [ -d "/Applications/Xcode_16.4.app" ]; then
-            sudo xcode-select -s "/Applications/Xcode_16.4.app"
+          XCODE_26_PATH="$(ls -d /Applications/Xcode_26*.app 2>/dev/null | sort -V | tail -n 1 || true)"
+          if [ -n "${XCODE_26_PATH:-}" ]; then
+            sudo xcode-select -s "$XCODE_26_PATH"
           fi
           xcodebuild -version
+          if ! xcodebuild -showsdks | grep -q "iphoneos26"; then
+            echo "::error::iOS 26 SDK not found on runner. Current SDKs:"
+            xcodebuild -showsdks
+            exit 1
+          fi
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
