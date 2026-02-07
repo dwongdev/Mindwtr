@@ -474,14 +474,14 @@ export function SettingsView() {
         showSaved();
     };
 
-    const openLink = async (url: string) => {
+    const openLink = async (url: string): Promise<boolean> => {
         const nextUrl = url.trim();
         let openError: unknown = null;
         if (isTauri) {
             try {
                 const { open } = await import('@tauri-apps/plugin-shell');
                 await open(nextUrl);
-                return;
+                return true;
             } catch (error) {
                 openError = error;
             }
@@ -490,7 +490,9 @@ export function SettingsView() {
         const opened = window.open(nextUrl, '_blank', 'noopener,noreferrer');
         if (!opened) {
             reportError('Failed to open external link', openError ?? new Error('Popup blocked'));
+            return false;
         }
+        return true;
     };
 
     const handleAttachmentsCleanup = useCallback(async () => {
@@ -577,7 +579,7 @@ export function SettingsView() {
     const handleDownloadUpdate = async () => {
         const targetUrl = preferredDownloadUrl;
         if (updateInfo?.platform === 'linux' && linuxFlavor === 'arch') {
-            setDownloadNotice(t.downloadAURHint);
+            setDownloadNotice(getLinuxPostDownloadNotice());
             return;
         }
         if (!targetUrl) {
@@ -588,38 +590,35 @@ export function SettingsView() {
         setDownloadNotice(t.downloadStarting);
 
         try {
+            let checksumStatus: 'verified' | 'unavailable' | 'mismatch' = 'unavailable';
             if (updateInfo?.assets?.length) {
-                const verified = await verifyDownloadChecksum(targetUrl, updateInfo.assets);
-                if (!verified) {
-                    setDownloadNotice(t.downloadFailed);
-                    setIsDownloadingUpdate(false);
+                try {
+                    checksumStatus = await verifyDownloadChecksum(targetUrl, updateInfo.assets);
+                } catch (error) {
+                    reportError('Checksum verification failed unexpectedly', error);
+                    checksumStatus = 'unavailable';
+                }
+                if (checksumStatus === 'mismatch') {
+                    setDownloadNotice(t.downloadChecksumMismatch);
                     return;
                 }
             }
-            if (isTauri) {
-                const { open } = await import('@tauri-apps/plugin-shell');
-                await open(targetUrl);
-            } else {
-                window.open(targetUrl, '_blank');
+            const opened = await openLink(targetUrl);
+            if (!opened) {
+                setDownloadNotice(t.downloadFailed);
+                return;
             }
-            setDownloadNotice(t.downloadStarted);
+            if (updateInfo?.platform === 'linux') {
+                setDownloadNotice(getLinuxPostDownloadNotice());
+            } else {
+                setDownloadNotice(t.downloadStarted);
+            }
         } catch (error) {
             reportError('Failed to open update URL', error);
-            window.open(targetUrl, '_blank');
             setDownloadNotice(t.downloadFailed);
+        } finally {
+            setIsDownloadingUpdate(false);
         }
-
-        if (isTauri) {
-            try {
-                const userAgent = typeof navigator !== 'undefined' ? navigator.userAgent : '';
-                if (/linux/i.test(userAgent)) {
-                    setDownloadNotice(t.linuxUpdateHint);
-                }
-            } catch (error) {
-                reportError('Failed to detect platform', error);
-            }
-        }
-
     };
 
     const attachmentsLastCleanupDisplay = useMemo(() => {
@@ -646,6 +645,19 @@ export function SettingsView() {
         if (tokens.some((token) => token.includes('suse') || token.includes('opensuse'))) return 'rpm';
         return 'other';
     }, [linuxDistro]);
+
+    const getLinuxPostDownloadNotice = useCallback((): string => {
+        if (linuxFlavor === 'arch') {
+            return `${t.downloadAURHint}: yay -Syu mindwtr-bin / paru -Syu mindwtr-bin`;
+        }
+        if (linuxFlavor === 'debian') {
+            return `${t.linuxUpdateHint} APT repo update: sudo apt update && sudo apt install --only-upgrade mindwtr. Local file install: sudo apt install ./<downloaded-file>.deb`;
+        }
+        if (linuxFlavor === 'rpm') {
+            return `${t.linuxUpdateHint} Repo update: sudo dnf upgrade mindwtr. Local file install: sudo dnf install ./<downloaded-file>.rpm`;
+        }
+        return `${t.linuxUpdateHint} AppImage tip: chmod +x <downloaded-file>.AppImage && ./<downloaded-file>.AppImage`;
+    }, [linuxFlavor, t.downloadAURHint, t.linuxUpdateHint]);
 
     const recommendedDownload = useMemo(() => {
         if (!updateInfo) return null;

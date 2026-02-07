@@ -170,10 +170,12 @@ export async function downloadUpdate(downloadUrl: string): Promise<void> {
     window.open(downloadUrl, '_blank');
 }
 
-export async function verifyDownloadChecksum(downloadUrl: string, assets: UpdateAsset[]): Promise<boolean> {
+export type ChecksumVerificationResult = 'verified' | 'unavailable' | 'mismatch';
+
+export async function verifyDownloadChecksum(downloadUrl: string, assets: UpdateAsset[]): Promise<ChecksumVerificationResult> {
     const checksumAsset = findChecksumAsset(assets, downloadUrl);
     if (!checksumAsset || typeof crypto === 'undefined' || !crypto.subtle) {
-        return false;
+        return 'unavailable';
     }
     const [fileRes, checksumRes] = await Promise.all([
         fetch(downloadUrl),
@@ -187,10 +189,10 @@ export async function verifyDownloadChecksum(downloadUrl: string, assets: Update
         checksumRes.text(),
     ]);
     const expected = parseChecksum(checksumText);
-    if (!expected) return false;
+    if (!expected) return 'unavailable';
     const digest = await crypto.subtle.digest('SHA-256', fileBuffer);
     const actual = bufferToHex(digest);
-    return actual === expected;
+    return actual === expected ? 'verified' : 'mismatch';
 }
 
 export { GITHUB_RELEASES_URL, MS_STORE_URL };
