@@ -202,7 +202,9 @@ export default function SettingsPage() {
     const [isCheckingUpdate, setIsCheckingUpdate] = useState(false);
     const [hasUpdateBadge, setHasUpdateBadge] = useState(false);
     const [digestTimePicker, setDigestTimePicker] = useState<'morning' | 'evening' | null>(null);
+    const [digestTimeDraft, setDigestTimeDraft] = useState<Date | null>(null);
     const [weeklyReviewTimePicker, setWeeklyReviewTimePicker] = useState(false);
+    const [weeklyReviewTimeDraft, setWeeklyReviewTimeDraft] = useState<Date | null>(null);
     const [weeklyReviewDayPickerOpen, setWeeklyReviewDayPickerOpen] = useState(false);
     const [modelPicker, setModelPicker] = useState<null | 'model' | 'copilot' | 'speech'>(null);
     const [languagePickerOpen, setLanguagePickerOpen] = useState(false);
@@ -355,14 +357,60 @@ export default function SettingsPage() {
         date.setHours(Number.isFinite(hours) ? hours : 9, Number.isFinite(minutes) ? minutes : 0, 0, 0);
         return date;
     };
+    const toTimeValue = (date: Date) => {
+        const hours = String(date.getHours()).padStart(2, '0');
+        const minutes = String(date.getMinutes()).padStart(2, '0');
+        return `${hours}:${minutes}`;
+    };
+
+    const openDigestTimePicker = useCallback((picker: 'morning' | 'evening') => {
+        setDigestTimePicker(picker);
+        if (Platform.OS !== 'ios') return;
+        const current = picker === 'morning' ? dailyDigestMorningTime : dailyDigestEveningTime;
+        setDigestTimeDraft(toTimePickerDate(current));
+    }, [dailyDigestEveningTime, dailyDigestMorningTime]);
+
+    const closeDigestTimePicker = useCallback(() => {
+        setDigestTimePicker(null);
+        setDigestTimeDraft(null);
+    }, []);
+
+    const saveDigestTimePicker = useCallback(() => {
+        const picker = digestTimePicker;
+        const selected = digestTimeDraft;
+        closeDigestTimePicker();
+        if (!picker || !selected) return;
+        const value = toTimeValue(selected);
+        if (picker === 'morning') {
+            updateSettings({ dailyDigestMorningTime: value }).catch(logSettingsError);
+            return;
+        }
+        updateSettings({ dailyDigestEveningTime: value }).catch(logSettingsError);
+    }, [closeDigestTimePicker, digestTimeDraft, digestTimePicker, updateSettings]);
+
+    const openWeeklyReviewTimePicker = useCallback(() => {
+        setWeeklyReviewTimePicker(true);
+        if (Platform.OS !== 'ios') return;
+        setWeeklyReviewTimeDraft(toTimePickerDate(weeklyReviewTime));
+    }, [weeklyReviewTime]);
+
+    const closeWeeklyReviewTimePicker = useCallback(() => {
+        setWeeklyReviewTimePicker(false);
+        setWeeklyReviewTimeDraft(null);
+    }, []);
+
+    const saveWeeklyReviewTimePicker = useCallback(() => {
+        const selected = weeklyReviewTimeDraft;
+        closeWeeklyReviewTimePicker();
+        if (!selected) return;
+        updateSettings({ weeklyReviewTime: toTimeValue(selected) }).catch(logSettingsError);
+    }, [closeWeeklyReviewTimePicker, updateSettings, weeklyReviewTimeDraft]);
 
     const onDigestTimeChange = (_event: DateTimePickerEvent, selected?: Date) => {
         const picker = digestTimePicker;
         setDigestTimePicker(null);
         if (!picker || !selected) return;
-        const hours = String(selected.getHours()).padStart(2, '0');
-        const minutes = String(selected.getMinutes()).padStart(2, '0');
-        const value = `${hours}:${minutes}`;
+        const value = toTimeValue(selected);
         if (picker === 'morning') {
             updateSettings({ dailyDigestMorningTime: value }).catch(logSettingsError);
         } else {
@@ -373,9 +421,7 @@ export default function SettingsPage() {
     const onWeeklyReviewTimeChange = (_event: DateTimePickerEvent, selected?: Date) => {
         setWeeklyReviewTimePicker(false);
         if (!selected) return;
-        const hours = String(selected.getHours()).padStart(2, '0');
-        const minutes = String(selected.getMinutes()).padStart(2, '0');
-        updateSettings({ weeklyReviewTime: `${hours}:${minutes}` }).catch(logSettingsError);
+        updateSettings({ weeklyReviewTime: toTimeValue(selected) }).catch(logSettingsError);
     };
 
     const getWeekdayLabel = (dayIndex: number) => {
@@ -1328,7 +1374,7 @@ export default function SettingsPage() {
 
                         <TouchableOpacity
                             style={[styles.settingRow, { borderTopWidth: 1, borderTopColor: tc.border }]}
-                            onPress={() => setWeeklyReviewTimePicker(true)}
+                            onPress={openWeeklyReviewTimePicker}
                             disabled={!weeklyReviewEnabled || !notificationsEnabled}
                         >
                             <View style={styles.settingInfo}>
@@ -1419,7 +1465,7 @@ export default function SettingsPage() {
 
                         <TouchableOpacity
                             style={[styles.settingRow, { borderTopWidth: 1, borderTopColor: tc.border }]}
-                            onPress={() => setDigestTimePicker('morning')}
+                            onPress={() => openDigestTimePicker('morning')}
                             disabled={!dailyDigestMorningEnabled}
                         >
                             <View style={styles.settingInfo}>
@@ -1459,7 +1505,7 @@ export default function SettingsPage() {
 
                         <TouchableOpacity
                             style={[styles.settingRow, { borderTopWidth: 1, borderTopColor: tc.border }]}
-                            onPress={() => setDigestTimePicker('evening')}
+                            onPress={() => openDigestTimePicker('evening')}
                             disabled={!dailyDigestEveningEnabled}
                         >
                             <View style={styles.settingInfo}>
@@ -1473,34 +1519,112 @@ export default function SettingsPage() {
                         </TouchableOpacity>
                     </View>
 
-                    {digestTimePicker && (
+                    {digestTimePicker && Platform.OS === 'ios' && (
+                        <Modal
+                            transparent
+                            visible
+                            animationType="fade"
+                            onRequestClose={closeDigestTimePicker}
+                        >
+                            <Pressable style={styles.pickerOverlay} onPress={closeDigestTimePicker}>
+                                <View
+                                    style={[styles.pickerCard, { backgroundColor: tc.cardBg, borderColor: tc.border }]}
+                                    onStartShouldSetResponder={() => true}
+                                >
+                                    <Text style={[styles.pickerTitle, { color: tc.text }]}>
+                                        {digestTimePicker === 'morning'
+                                            ? t('settings.dailyDigestMorningTime')
+                                            : t('settings.dailyDigestEveningTime')}
+                                    </Text>
+                                    <DateTimePicker
+                                        value={digestTimeDraft ?? toTimePickerDate(digestTimePicker === 'morning' ? dailyDigestMorningTime : dailyDigestEveningTime)}
+                                        mode="time"
+                                        display="spinner"
+                                        onChange={(_, date) => {
+                                            if (!date) return;
+                                            setDigestTimeDraft(date);
+                                        }}
+                                    />
+                                    <View style={[styles.timePickerActions, { borderTopColor: tc.border }]}>
+                                        <TouchableOpacity onPress={closeDigestTimePicker} style={styles.timePickerActionButton}>
+                                            <Text style={[styles.timePickerActionText, { color: tc.secondaryText }]}>
+                                                {t('common.cancel') || 'Cancel'}
+                                            </Text>
+                                        </TouchableOpacity>
+                                        <TouchableOpacity onPress={saveDigestTimePicker} style={styles.timePickerActionButton}>
+                                            <Text style={[styles.timePickerActionText, { color: tc.tint }]}>
+                                                {t('common.done') || 'Done'}
+                                            </Text>
+                                        </TouchableOpacity>
+                                    </View>
+                                </View>
+                            </Pressable>
+                        </Modal>
+                    )}
+
+                    {digestTimePicker && Platform.OS === 'android' && (
                         <DateTimePicker
                             value={toTimePickerDate(digestTimePicker === 'morning' ? dailyDigestMorningTime : dailyDigestEveningTime)}
                             mode="time"
                             display="default"
                             onChange={(event, date) => {
-                                if (Platform.OS === 'android') {
-                                    if (event.type === 'dismissed') {
-                                        setDigestTimePicker(null);
-                                        return;
-                                    }
+                                if (event.type === 'dismissed') {
+                                    setDigestTimePicker(null);
+                                    return;
                                 }
                                 onDigestTimeChange(event, date);
                             }}
                         />
                     )}
 
-                    {weeklyReviewTimePicker && (
+                    {weeklyReviewTimePicker && Platform.OS === 'ios' && (
+                        <Modal
+                            transparent
+                            visible
+                            animationType="fade"
+                            onRequestClose={closeWeeklyReviewTimePicker}
+                        >
+                            <Pressable style={styles.pickerOverlay} onPress={closeWeeklyReviewTimePicker}>
+                                <View
+                                    style={[styles.pickerCard, { backgroundColor: tc.cardBg, borderColor: tc.border }]}
+                                    onStartShouldSetResponder={() => true}
+                                >
+                                    <Text style={[styles.pickerTitle, { color: tc.text }]}>{t('settings.weeklyReviewTime')}</Text>
+                                    <DateTimePicker
+                                        value={weeklyReviewTimeDraft ?? toTimePickerDate(weeklyReviewTime)}
+                                        mode="time"
+                                        display="spinner"
+                                        onChange={(_, date) => {
+                                            if (!date) return;
+                                            setWeeklyReviewTimeDraft(date);
+                                        }}
+                                    />
+                                    <View style={[styles.timePickerActions, { borderTopColor: tc.border }]}>
+                                        <TouchableOpacity onPress={closeWeeklyReviewTimePicker} style={styles.timePickerActionButton}>
+                                            <Text style={[styles.timePickerActionText, { color: tc.secondaryText }]}>
+                                                {t('common.cancel') || 'Cancel'}
+                                            </Text>
+                                        </TouchableOpacity>
+                                        <TouchableOpacity onPress={saveWeeklyReviewTimePicker} style={styles.timePickerActionButton}>
+                                            <Text style={[styles.timePickerActionText, { color: tc.tint }]}>
+                                                {t('common.done') || 'Done'}
+                                            </Text>
+                                        </TouchableOpacity>
+                                    </View>
+                                </View>
+                            </Pressable>
+                        </Modal>
+                    )}
+
+                    {weeklyReviewTimePicker && Platform.OS === 'android' && (
                         <DateTimePicker
                             value={toTimePickerDate(weeklyReviewTime)}
                             mode="time"
                             display="default"
                             onChange={(event, date) => {
-                                if (Platform.OS === 'android') {
-                                    if (event.type === 'dismissed') {
-                                        setWeeklyReviewTimePicker(false);
-                                        return;
-                                    }
+                                if (event.type === 'dismissed') {
+                                    setWeeklyReviewTimePicker(false);
+                                    return;
                                 }
                                 onWeeklyReviewTimeChange(event, date);
                             }}
@@ -3875,6 +3999,22 @@ const styles = StyleSheet.create({
     },
     pickerOptionText: {
         fontSize: 13,
+        fontWeight: '600',
+    },
+    timePickerActions: {
+        marginTop: 12,
+        borderTopWidth: 1,
+        paddingTop: 12,
+        flexDirection: 'row',
+        justifyContent: 'flex-end',
+        gap: 8,
+    },
+    timePickerActionButton: {
+        paddingHorizontal: 10,
+        paddingVertical: 8,
+    },
+    timePickerActionText: {
+        fontSize: 15,
         fontWeight: '600',
     },
     inputGroup: { padding: 16 },
