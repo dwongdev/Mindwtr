@@ -1,10 +1,11 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
     createPomodoroState,
     DEFAULT_POMODORO_DURATIONS,
     formatPomodoroClock,
     POMODORO_PRESETS,
     PomodoroDurations,
+    PomodoroState,
     resetPomodoroState,
     Task,
     tickPomodoroState,
@@ -20,36 +21,95 @@ interface PomodoroPanelProps {
 
 type PomodoroEvent = 'focus-finished' | 'break-finished' | null;
 
+type PomodoroSnapshot = {
+    durations: PomodoroDurations;
+    timerState: PomodoroState;
+    selectedTaskId?: string;
+    lastEvent: PomodoroEvent;
+    updatedAtMs: number;
+};
+
+const createInitialSnapshot = (): PomodoroSnapshot => ({
+    durations: DEFAULT_POMODORO_DURATIONS,
+    timerState: createPomodoroState(DEFAULT_POMODORO_DURATIONS),
+    selectedTaskId: undefined,
+    lastEvent: null,
+    updatedAtMs: Date.now(),
+});
+
+const advancePomodoro = (
+    timerState: PomodoroState,
+    durations: PomodoroDurations,
+    elapsedSeconds: number
+): { timerState: PomodoroState; lastEvent: PomodoroEvent } => {
+    let nextState = timerState;
+    let lastEvent: PomodoroEvent = null;
+    for (let i = 0; i < elapsedSeconds; i += 1) {
+        const next = tickPomodoroState(nextState, durations);
+        nextState = next.state;
+        if (next.switchedPhase) {
+            lastEvent = next.completedFocusSession ? 'focus-finished' : 'break-finished';
+        }
+    }
+    return { timerState: nextState, lastEvent };
+};
+
+const reconcileSnapshot = (snapshot: PomodoroSnapshot, nowMs: number): PomodoroSnapshot => {
+    if (!snapshot.timerState.isRunning) {
+        return { ...snapshot, updatedAtMs: nowMs };
+    }
+    const elapsedSeconds = Math.floor((nowMs - snapshot.updatedAtMs) / 1000);
+    if (elapsedSeconds <= 0) return snapshot;
+    const advanced = advancePomodoro(snapshot.timerState, snapshot.durations, elapsedSeconds);
+    const updatedAtMs = snapshot.updatedAtMs + elapsedSeconds * 1000;
+    return {
+        ...snapshot,
+        timerState: advanced.timerState,
+        lastEvent: advanced.lastEvent ?? snapshot.lastEvent,
+        updatedAtMs,
+    };
+};
+
+let persistedSnapshot: PomodoroSnapshot = createInitialSnapshot();
+
 export function PomodoroPanel({ tasks }: PomodoroPanelProps) {
     const updateTask = useTaskStore((state) => state.updateTask);
     const { t } = useLanguage();
-    const [durations, setDurations] = useState<PomodoroDurations>(DEFAULT_POMODORO_DURATIONS);
-    const [timerState, setTimerState] = useState(() => createPomodoroState(DEFAULT_POMODORO_DURATIONS));
-    const [selectedTaskId, setSelectedTaskId] = useState<string | undefined>(undefined);
-    const [lastEvent, setLastEvent] = useState<PomodoroEvent>(null);
+    const [snapshot, setSnapshot] = useState<PomodoroSnapshot>(() => {
+        persistedSnapshot = reconcileSnapshot(persistedSnapshot, Date.now());
+        return persistedSnapshot;
+    });
+
+    const commitSnapshot = useCallback((updater: (prev: PomodoroSnapshot) => PomodoroSnapshot) => {
+        setSnapshot((prev) => {
+            const next = updater(prev);
+            persistedSnapshot = next;
+            return next;
+        });
+    }, []);
 
     useEffect(() => {
         if (tasks.length === 0) {
-            setSelectedTaskId(undefined);
+            if (!snapshot.selectedTaskId) return;
+            commitSnapshot((prev) => ({ ...prev, selectedTaskId: undefined }));
             return;
         }
-        if (selectedTaskId && tasks.some((task) => task.id === selectedTaskId)) return;
-        setSelectedTaskId(tasks[0].id);
-    }, [tasks, selectedTaskId]);
+        if (snapshot.selectedTaskId && tasks.some((task) => task.id === snapshot.selectedTaskId)) return;
+        commitSnapshot((prev) => ({ ...prev, selectedTaskId: tasks[0].id }));
+    }, [commitSnapshot, snapshot.selectedTaskId, tasks]);
 
     useEffect(() => {
-        if (!timerState.isRunning) return;
+        if (!snapshot.timerState.isRunning) return;
         const intervalId = window.setInterval(() => {
-            setTimerState((prev) => {
-                const next = tickPomodoroState(prev, durations);
-                if (next.switchedPhase) {
-                    setLastEvent(next.completedFocusSession ? 'focus-finished' : 'break-finished');
-                }
-                return next.state;
-            });
+            commitSnapshot((prev) => reconcileSnapshot(prev, Date.now()));
         }, 1000);
         return () => window.clearInterval(intervalId);
-    }, [durations, timerState.isRunning]);
+    }, [commitSnapshot, snapshot.timerState.isRunning]);
+
+    const durations = snapshot.durations;
+    const timerState = snapshot.timerState;
+    const selectedTaskId = snapshot.selectedTaskId;
+    const lastEvent = snapshot.lastEvent;
 
     const selectedTask = useMemo(
         () => (selectedTaskId ? tasks.find((task) => task.id === selectedTaskId) : undefined),
@@ -77,29 +137,61 @@ export function PomodoroPanel({ tasks }: PomodoroPanelProps) {
 
     const handleApplyPreset = (focusMinutes: number, breakMinutes: number) => {
         const nextDurations = { focusMinutes, breakMinutes };
-        setDurations(nextDurations);
-        setTimerState((prev) => resetPomodoroState(prev, nextDurations, prev.phase));
-        setLastEvent(null);
+        commitSnapshot((prev) => {
+            const reconciled = reconcileSnapshot(prev, Date.now());
+            return {
+                ...reconciled,
+                durations: nextDurations,
+                timerState: resetPomodoroState(reconciled.timerState, nextDurations, reconciled.timerState.phase),
+                lastEvent: null,
+                updatedAtMs: Date.now(),
+            };
+        });
     };
 
     const handleToggleRun = () => {
-        setTimerState((prev) => ({ ...prev, isRunning: !prev.isRunning }));
+        commitSnapshot((prev) => {
+            const reconciled = reconcileSnapshot(prev, Date.now());
+            return {
+                ...reconciled,
+                timerState: { ...reconciled.timerState, isRunning: !reconciled.timerState.isRunning },
+                updatedAtMs: Date.now(),
+            };
+        });
     };
 
     const handleReset = () => {
-        setTimerState((prev) => resetPomodoroState(prev, durations, prev.phase));
-        setLastEvent(null);
+        commitSnapshot((prev) => {
+            const reconciled = reconcileSnapshot(prev, Date.now());
+            return {
+                ...reconciled,
+                timerState: resetPomodoroState(reconciled.timerState, reconciled.durations, reconciled.timerState.phase),
+                lastEvent: null,
+                updatedAtMs: Date.now(),
+            };
+        });
     };
 
     const handleSwitchPhase = () => {
-        setTimerState((prev) => resetPomodoroState(prev, durations, prev.phase === 'focus' ? 'break' : 'focus'));
-        setLastEvent(null);
+        commitSnapshot((prev) => {
+            const reconciled = reconcileSnapshot(prev, Date.now());
+            return {
+                ...reconciled,
+                timerState: resetPomodoroState(
+                    reconciled.timerState,
+                    reconciled.durations,
+                    reconciled.timerState.phase === 'focus' ? 'break' : 'focus'
+                ),
+                lastEvent: null,
+                updatedAtMs: Date.now(),
+            };
+        });
     };
 
     const handleMarkTaskDone = async () => {
         if (!selectedTask) return;
         await updateTask(selectedTask.id, { status: 'done', isFocusedToday: false });
-        setLastEvent(null);
+        commitSnapshot((prev) => ({ ...prev, lastEvent: null }));
     };
 
     return (
@@ -156,7 +248,10 @@ export function PomodoroPanel({ tasks }: PomodoroPanelProps) {
                 <select
                     className="w-full text-sm px-3 py-2 rounded border border-border bg-background focus:outline-none focus:ring-2 focus:ring-primary/30"
                     value={selectedTaskId ?? ''}
-                    onChange={(event) => setSelectedTaskId(event.target.value || undefined)}
+                    onChange={(event) => {
+                        const nextId = event.target.value || undefined;
+                        commitSnapshot((prev) => ({ ...prev, selectedTaskId: nextId }));
+                    }}
                 >
                     {tasks.length === 0 ? (
                         <option value="">{noTaskLabel}</option>
