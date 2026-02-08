@@ -23,6 +23,7 @@ export interface MergeStats {
     tasks: EntityMergeStats;
     projects: EntityMergeStats;
     sections: EntityMergeStats;
+    areas: EntityMergeStats;
 }
 
 export interface MergeResult {
@@ -594,16 +595,17 @@ const normalizeAreaForMerge = (area: Area, nowIso: string): Area & { createdAt: 
     };
 };
 
-function mergeAreas(local: Area[], incoming: Area[], nowIso: string): Area[] {
+function mergeAreas(local: Area[], incoming: Area[], nowIso: string): { merged: Area[]; stats: EntityMergeStats } {
     const localNormalized = local.map((area) => normalizeAreaForMerge(area, nowIso));
     const incomingNormalized = incoming.map((area) => normalizeAreaForMerge(area, nowIso));
     const result = mergeEntitiesWithStats(localNormalized, incomingNormalized);
-    return result.merged
+    const merged = result.merged
         .map((area, index) => ({
             ...area,
             order: Number.isFinite(area.order) ? area.order : index,
         }))
         .sort((a, b) => a.order - b.order);
+    return { merged, stats: result.stats };
 }
 
 /**
@@ -682,18 +684,21 @@ export function mergeAppDataWithStats(local: AppData, incoming: AppData): MergeR
 
     const sectionsResult = mergeEntitiesWithStats(localNormalized.sections, incomingNormalized.sections);
 
+    const areasResult = mergeAreas(localNormalized.areas, incomingNormalized.areas, nowIso);
+
     return {
         data: {
             tasks: tasksResult.merged,
             projects: projectsResult.merged,
             sections: sectionsResult.merged,
-            areas: mergeAreas(localNormalized.areas, incomingNormalized.areas, nowIso),
+            areas: areasResult.merged,
             settings: mergeSettingsForSync(localNormalized.settings, incomingNormalized.settings),
         },
         stats: {
             tasks: tasksResult.stats,
             projects: projectsResult.stats,
             sections: sectionsResult.stats,
+            areas: areasResult.stats,
         },
     };
 }
@@ -715,18 +720,21 @@ export async function performSyncCycle(io: SyncCycleIO): Promise<SyncCycleResult
     const mergeResult = mergeAppDataWithStats(localData, remoteData);
     const conflictCount = (mergeResult.stats.tasks.conflicts || 0)
         + (mergeResult.stats.projects.conflicts || 0)
-        + (mergeResult.stats.sections.conflicts || 0);
+        + (mergeResult.stats.sections.conflicts || 0)
+        + (mergeResult.stats.areas.conflicts || 0);
     const nextSyncStatus: SyncCycleResult['status'] = conflictCount > 0 ? 'conflict' : 'success';
     const nowIso = io.now ? io.now() : new Date().toISOString();
     const conflictIds = [
         ...(mergeResult.stats.tasks.conflictIds || []),
         ...(mergeResult.stats.projects.conflictIds || []),
         ...(mergeResult.stats.sections.conflictIds || []),
+        ...(mergeResult.stats.areas.conflictIds || []),
     ].slice(0, 10);
     const maxClockSkewMs = Math.max(
         mergeResult.stats.tasks.maxClockSkewMs || 0,
         mergeResult.stats.projects.maxClockSkewMs || 0,
-        mergeResult.stats.sections.maxClockSkewMs || 0
+        mergeResult.stats.sections.maxClockSkewMs || 0,
+        mergeResult.stats.areas.maxClockSkewMs || 0
     );
     if (maxClockSkewMs > CLOCK_SKEW_THRESHOLD_MS) {
         logWarn('Sync merge detected large clock skew', {
@@ -739,7 +747,8 @@ export async function performSyncCycle(io: SyncCycleIO): Promise<SyncCycleResult
     }
     const timestampAdjustments = (mergeResult.stats.tasks.timestampAdjustments || 0)
         + (mergeResult.stats.projects.timestampAdjustments || 0)
-        + (mergeResult.stats.sections.timestampAdjustments || 0);
+        + (mergeResult.stats.sections.timestampAdjustments || 0)
+        + (mergeResult.stats.areas.timestampAdjustments || 0);
     const historyEntry: SyncHistoryEntry = {
         at: nowIso,
         status: nextSyncStatus,

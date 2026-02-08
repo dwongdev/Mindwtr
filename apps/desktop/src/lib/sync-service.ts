@@ -1479,20 +1479,24 @@ export class SyncService {
             await persistExternalCalendars(mergedData);
             const conflictCount = (stats.tasks.conflicts || 0)
                 + (stats.projects.conflicts || 0)
-                + (stats.sections.conflicts || 0);
+                + (stats.sections.conflicts || 0)
+                + (stats.areas.conflicts || 0);
             const maxClockSkewMs = Math.max(
                 stats.tasks.maxClockSkewMs || 0,
                 stats.projects.maxClockSkewMs || 0,
-                stats.sections.maxClockSkewMs || 0
+                stats.sections.maxClockSkewMs || 0,
+                stats.areas.maxClockSkewMs || 0
             );
             const timestampAdjustments = (stats.tasks.timestampAdjustments || 0)
                 + (stats.projects.timestampAdjustments || 0)
-                + (stats.sections.timestampAdjustments || 0);
+                + (stats.sections.timestampAdjustments || 0)
+                + (stats.areas.timestampAdjustments || 0);
             if (isTauriRuntime() && (conflictCount > 0 || maxClockSkewMs > CLOCK_SKEW_THRESHOLD_MS || timestampAdjustments > 0)) {
                 const conflictSamples = [
                     ...(stats.tasks.conflictIds || []),
                     ...(stats.projects.conflictIds || []),
                     ...(stats.sections.conflictIds || []),
+                    ...(stats.areas.conflictIds || []),
                 ].slice(0, 6);
                 void logInfo(
                     `Sync merge summary: ${conflictCount} conflicts, max skew ${Math.round(maxClockSkewMs)}ms, ${timestampAdjustments} timestamp fixes.`,
