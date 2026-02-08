@@ -144,23 +144,7 @@ jobs:
               }
 
               if ! ASC_TOKEN="$(
-                node <<'NODE' "$ASC_KEY_ID" "$ASC_ISSUER_ID" "$KEY_PATH"
-const fs = require("fs");
-const crypto = require("crypto");
-const [keyId, issuerId, keyPath] = process.argv.slice(2);
-const now = Math.floor(Date.now() / 1000);
-const exp = now + 1200;
-const encodeJson = (obj) => Buffer.from(JSON.stringify(obj)).toString("base64url");
-const header = encodeJson({ alg: "ES256", kid: keyId, typ: "JWT" });
-const payload = encodeJson({ iss: issuerId, iat: now, exp, aud: "appstoreconnect-v1" });
-const unsignedToken = `${header}.${payload}`;
-const privateKey = fs.readFileSync(keyPath, "utf8");
-const signature = crypto.sign("sha256", Buffer.from(unsignedToken), {
-    key: privateKey,
-    dsaEncoding: "ieee-p1363",
-});
-process.stdout.write(`${unsignedToken}.${signature.toString("base64url")}`);
-NODE
+                node -e 'const fs = require("fs"); const crypto = require("crypto"); const keyId = process.argv[1]; const issuerId = process.argv[2]; const keyPath = process.argv[3]; const now = Math.floor(Date.now() / 1000); const exp = now + 1200; const encodeJson = (obj) => Buffer.from(JSON.stringify(obj)).toString("base64url"); const header = encodeJson({ alg: "ES256", kid: keyId, typ: "JWT" }); const payload = encodeJson({ iss: issuerId, iat: now, exp, aud: "appstoreconnect-v1" }); const unsignedToken = header + "." + payload; const privateKey = fs.readFileSync(keyPath, "utf8"); const signature = crypto.sign("sha256", Buffer.from(unsignedToken), { key: privateKey, dsaEncoding: "ieee-p1363" }); process.stdout.write(unsignedToken + "." + signature.toString("base64url"));' "$ASC_KEY_ID" "$ASC_ISSUER_ID" "$KEY_PATH"
               )"; then
                 echo "::warning::Failed to generate App Store Connect JWT from IOS_ASC_* secrets."
                 REMOTE_LOOKUP_STATUS="invalid_jwt"
