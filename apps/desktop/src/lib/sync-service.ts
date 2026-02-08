@@ -1036,22 +1036,27 @@ export class SyncService {
     }
 
     private static getCloudConfigLocal(): CloudConfig {
+        const sessionToken = sessionStorage.getItem(CLOUD_TOKEN_KEY) || '';
+        const legacyLocalToken = localStorage.getItem(CLOUD_TOKEN_KEY) || '';
+        const token = sessionToken || legacyLocalToken;
+        if (!sessionToken && legacyLocalToken) {
+            sessionStorage.setItem(CLOUD_TOKEN_KEY, legacyLocalToken);
+            localStorage.removeItem(CLOUD_TOKEN_KEY);
+        }
         return {
             url: localStorage.getItem(CLOUD_URL_KEY) || '',
-            token: localStorage.getItem(CLOUD_TOKEN_KEY)
-                || sessionStorage.getItem(CLOUD_TOKEN_KEY)
-                || '',
+            token,
         };
     }
 
     private static setCloudConfigLocal(config: { url: string; token?: string }) {
         localStorage.setItem(CLOUD_URL_KEY, config.url);
         if (config.token) {
-            localStorage.setItem(CLOUD_TOKEN_KEY, config.token);
+            sessionStorage.setItem(CLOUD_TOKEN_KEY, config.token);
         } else {
-            localStorage.removeItem(CLOUD_TOKEN_KEY);
+            sessionStorage.removeItem(CLOUD_TOKEN_KEY);
         }
-        sessionStorage.removeItem(CLOUD_TOKEN_KEY);
+        localStorage.removeItem(CLOUD_TOKEN_KEY);
     }
 
     private static async maybeMigrateLegacyLocalStorageToConfig() {
