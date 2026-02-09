@@ -120,6 +120,7 @@ function DraggableTask({ task }: { task: Task }) {
                     actionsOverlay
                     showHoverHint={false}
                     enableDoubleClickEdit
+                    editorPresentation="modal"
                 />
             </div>
         );
@@ -148,6 +149,7 @@ function DraggableTask({ task }: { task: Task }) {
                     </button>
                 )}
                 enableDoubleClickEdit
+                editorPresentation="modal"
             />
         </div>
     );

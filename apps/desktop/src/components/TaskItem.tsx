@@ -64,6 +64,7 @@ interface TaskItemProps {
     compactMetaEnabled?: boolean;
     enableDoubleClickEdit?: boolean;
     showHoverHint?: boolean;
+    editorPresentation?: 'inline' | 'modal';
 }
 
 export const TaskItem = memo(function TaskItem({
@@ -84,6 +85,7 @@ export const TaskItem = memo(function TaskItem({
     compactMetaEnabled = true,
     enableDoubleClickEdit = false,
     showHoverHint = true,
+    editorPresentation = 'inline',
 }: TaskItemProps) {
     const {
         updateTask,
@@ -814,6 +816,89 @@ export const TaskItem = memo(function TaskItem({
         editReviewAt,
         task,
     ]);
+    const isModalEditor = editorPresentation === 'modal';
+    const handleEditorCancel = useCallback(() => {
+        if (hasPendingEdits()) {
+            setShowDiscardConfirm(true);
+            return;
+        }
+        handleDiscardChanges();
+    }, [handleDiscardChanges, hasPendingEdits]);
+    const renderEditor = () => (
+        <TaskItemEditor
+            t={t}
+            editTitle={editTitle}
+            setEditTitle={setEditTitle}
+            autoFocusTitle={autoFocusTitle}
+            resetCopilotDraft={resetCopilotDraft}
+            aiEnabled={aiEnabled}
+            isAIWorking={isAIWorking}
+            handleAIClarify={handleAIClarify}
+            handleAIBreakdown={handleAIBreakdown}
+            copilotSuggestion={copilotSuggestion}
+            copilotApplied={copilotApplied}
+            applyCopilotSuggestion={applyCopilotSuggestion}
+            copilotContext={copilotContext}
+            copilotEstimate={copilotEstimate}
+            copilotTags={copilotSuggestion?.tags ?? []}
+            timeEstimatesEnabled={timeEstimatesEnabled}
+            aiError={aiError}
+            aiBreakdownSteps={aiBreakdownSteps}
+            onAddBreakdownSteps={() => {
+                if (!aiBreakdownSteps?.length) return;
+                const newItems = aiBreakdownSteps.map((step) => ({
+                    id: generateUUID(),
+                    title: step,
+                    isCompleted: false,
+                }));
+                updateTask(task.id, { checklist: [...(task.checklist || []), ...newItems] });
+                clearAiBreakdown();
+            }}
+            onDismissBreakdown={clearAiBreakdown}
+            aiClarifyResponse={aiClarifyResponse}
+            onSelectClarifyOption={(action) => {
+                setEditTitle(action);
+                clearAiClarify();
+            }}
+            onApplyAISuggestion={() => {
+                if (aiClarifyResponse?.suggestedAction) {
+                    applyAISuggestion(aiClarifyResponse.suggestedAction);
+                }
+            }}
+            onDismissClarify={clearAiClarify}
+            projects={projects}
+            areas={areas}
+            editProjectId={editProjectId}
+            setEditProjectId={setEditProjectId}
+            sections={projectSections}
+            editSectionId={editSectionId}
+            setEditSectionId={setEditSectionId}
+            editAreaId={editAreaId}
+            setEditAreaId={setEditAreaId}
+            onCreateProject={handleCreateProject}
+            onCreateArea={handleCreateArea}
+            onCreateSection={handleCreateSection}
+            showProjectField={showProjectField}
+            showAreaField={showAreaField}
+            showSectionField={showSectionField}
+            showDueDate={showDueDate}
+            editDueDate={editDueDate}
+            setEditDueDate={setEditDueDate}
+            alwaysFields={alwaysFields}
+            schedulingFields={schedulingFields}
+            organizationFields={organizationFields}
+            detailsFields={detailsFields}
+            sectionCounts={sectionCounts}
+            renderField={renderField}
+            editLocation={editLocation}
+            setEditLocation={setEditLocation}
+            editTextDirection={editTextDirection}
+            inputContexts={allContexts}
+            onDuplicateTask={() => duplicateTask(task.id, false)}
+            onCancel={handleEditorCancel}
+            onSubmit={handleSubmit}
+        />
+    );
 
     const selectAriaLabel = (() => {
         const label = t('task.select');
@@ -851,87 +936,9 @@ export const TaskItem = memo(function TaskItem({
                         />
                     )}
 
-                    {isEditing ? (
+                    {isEditing && !isModalEditor ? (
                         <div className="flex-1 min-w-0">
-                            <TaskItemEditor
-                                t={t}
-                                editTitle={editTitle}
-                                setEditTitle={setEditTitle}
-                                autoFocusTitle={autoFocusTitle}
-                                resetCopilotDraft={resetCopilotDraft}
-                                aiEnabled={aiEnabled}
-                                isAIWorking={isAIWorking}
-                                handleAIClarify={handleAIClarify}
-                                handleAIBreakdown={handleAIBreakdown}
-                                copilotSuggestion={copilotSuggestion}
-                                copilotApplied={copilotApplied}
-                                applyCopilotSuggestion={applyCopilotSuggestion}
-                                copilotContext={copilotContext}
-                                copilotEstimate={copilotEstimate}
-                                copilotTags={copilotSuggestion?.tags ?? []}
-                                timeEstimatesEnabled={timeEstimatesEnabled}
-                                aiError={aiError}
-                                aiBreakdownSteps={aiBreakdownSteps}
-                                onAddBreakdownSteps={() => {
-                                    if (!aiBreakdownSteps?.length) return;
-                                    const newItems = aiBreakdownSteps.map((step) => ({
-                                        id: generateUUID(),
-                                        title: step,
-                                        isCompleted: false,
-                                    }));
-                                    updateTask(task.id, { checklist: [...(task.checklist || []), ...newItems] });
-                                    clearAiBreakdown();
-                                }}
-                                onDismissBreakdown={clearAiBreakdown}
-                                aiClarifyResponse={aiClarifyResponse}
-                                onSelectClarifyOption={(action) => {
-                                    setEditTitle(action);
-                                    clearAiClarify();
-                                }}
-                                onApplyAISuggestion={() => {
-                                    if (aiClarifyResponse?.suggestedAction) {
-                                        applyAISuggestion(aiClarifyResponse.suggestedAction);
-                                    }
-                                }}
-                                onDismissClarify={clearAiClarify}
-                                projects={projects}
-                                areas={areas}
-                                editProjectId={editProjectId}
-                                setEditProjectId={setEditProjectId}
-                                sections={projectSections}
-                                editSectionId={editSectionId}
-                                setEditSectionId={setEditSectionId}
-                                editAreaId={editAreaId}
-                                setEditAreaId={setEditAreaId}
-                                onCreateProject={handleCreateProject}
-                                onCreateArea={handleCreateArea}
-                                onCreateSection={handleCreateSection}
-                                showProjectField={showProjectField}
-                                showAreaField={showAreaField}
-                                showSectionField={showSectionField}
-                                showDueDate={showDueDate}
-                                editDueDate={editDueDate}
-                                setEditDueDate={setEditDueDate}
-                                alwaysFields={alwaysFields}
-                                schedulingFields={schedulingFields}
-                                organizationFields={organizationFields}
-                                detailsFields={detailsFields}
-                                sectionCounts={sectionCounts}
-                                renderField={renderField}
-                                editLocation={editLocation}
-                                setEditLocation={setEditLocation}
-                                editTextDirection={editTextDirection}
-                                inputContexts={allContexts}
-                                onDuplicateTask={() => duplicateTask(task.id, false)}
-                                onCancel={() => {
-                                    if (hasPendingEdits()) {
-                                        setShowDiscardConfirm(true);
-                                        return;
-                                    }
-                                    handleDiscardChanges();
-                                }}
-                                onSubmit={handleSubmit}
-                            />
+                            {renderEditor()}
                         </div>
                     ) : (
                         <TaskItemDisplay
@@ -973,6 +980,26 @@ export const TaskItem = memo(function TaskItem({
                     )}
                 </div>
             </div>
+            {isEditing && isModalEditor && (
+                <div
+                    className="fixed inset-0 z-50 flex items-center justify-center bg-black/45 p-4"
+                    role="dialog"
+                    aria-modal="true"
+                    aria-label={t('taskEdit.editTask') || 'Edit task'}
+                    onMouseDown={(event) => {
+                        if (event.target !== event.currentTarget) return;
+                        handleEditorCancel();
+                    }}
+                >
+                    <div
+                        className="w-[min(1100px,92vw)] max-h-[90vh] rounded-xl border border-border bg-card p-4 shadow-2xl"
+                        onMouseDown={(event) => event.stopPropagation()}
+                        onClick={(event) => event.stopPropagation()}
+                    >
+                        {renderEditor()}
+                    </div>
+                </div>
+            )}
             {showCustomRecurrence && (
                 <TaskItemRecurrenceModal
                     t={t}
