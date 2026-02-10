@@ -26,8 +26,13 @@ if (pkg.dependencies && pkg.dependencies['@mindwtr/core'] === 'workspace:*') {
 }
 
 if (changed) {
-  fs.writeFileSync(pkgPath, JSON.stringify(pkg, null, 2));
+  fs.writeFileSync(pkgPath, `${JSON.stringify(pkg, null, 2)}\n`);
   console.log('[fdroid] stripped deps:', removeDeps.join(', '));
 } else {
   console.log('[fdroid] no deps to strip');
+}
+
+const coreDep = pkg.dependencies?.['@mindwtr/core'];
+if (typeof coreDep === 'string' && coreDep.startsWith('workspace:')) {
+  throw new Error('[fdroid] @mindwtr/core still uses workspace:*; npm install will fail in non-workspace environments');
 }

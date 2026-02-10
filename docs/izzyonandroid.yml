@@ -11,11 +11,14 @@ artifacts:
   - apps/mobile/build/mindwtr-*-arm64-v8a-foss.apk
 
 notes:
+  - Build with plain npm + Gradle; no Bun and no EAS required.
   - FOSS mode strips non-free Expo dependencies via scripts/fdroid_prep.sh.
   - scripts/fdroid_prep.sh rewrites @mindwtr/core from workspace:* to file:../../packages/core for npm compatibility.
-  - Install packages/core first because @mindwtr/core is a symlinked local package in this flow.
+  - Install packages/core first because @mindwtr/core is a local package in this flow.
   - scripts/fdroid_prep.sh mutates apps/mobile/package.json; run from a clean checkout/CI workspace.
   - SKIP_FDROID_PREP=1 avoids running prep twice after explicit pre-install prep.
+  - Use `FOSS_BUILD=1 ARCHS=arm64-v8a bash apps/mobile/scripts/android_build.sh --prep-only` for prep-only mode, then run Gradle manually in apps/mobile/android.
   - Android manifest fixes remove unused CAMERA, SYSTEM_ALERT_WINDOW, and legacy storage permissions.
   - RECORD_AUDIO is intentionally kept for voice notes.
   - FOSS mode disables Gradle dependenciesInfo inclusion in APK/AAB.
+  - FOSS mode pins `react_native_dev_server_ip` to `localhost` in the React Native Gradle plugin for reproducible APKs.

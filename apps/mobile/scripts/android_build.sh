@@ -3,6 +3,19 @@ set -euo pipefail
 
 ARCHS="${ARCHS:-arm64-v8a,armeabi-v7a}"
 export FOSS_BUILD="${FOSS_BUILD:-0}"
+PREP_ONLY=0
+
+for arg in "$@"; do
+  case "$arg" in
+    --prep-only)
+      PREP_ONLY=1
+      ;;
+    *)
+      echo "Unknown argument: $arg" >&2
+      exit 1
+      ;;
+  esac
+done
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 REPO_ROOT="$(cd "${ROOT_DIR}/../.." && pwd)"
@@ -18,6 +31,39 @@ if [[ "${FOSS_BUILD}" == "1" && "${SKIP_FDROID_PREP:-0}" != "1" ]]; then
 fi
 
 npx expo prebuild --clean --platform android
+
+if [[ "${FOSS_BUILD}" == "1" ]]; then
+  # Reproducible builds: pin RN gradle plugin dev-server host instead of host IP.
+  python3 - <<'PY'
+from pathlib import Path
+
+candidates = [
+    Path("node_modules/@react-native/gradle-plugin/react-native-gradle-plugin/src/main/kotlin/com/facebook/react/utils/AgpConfiguratorUtils.kt"),
+    Path("../../node_modules/@react-native/gradle-plugin/react-native-gradle-plugin/src/main/kotlin/com/facebook/react/utils/AgpConfiguratorUtils.kt"),
+]
+
+needle = '"string", "react_native_dev_server_ip", getHostIpAddress()'
+replacement = '"string", "react_native_dev_server_ip", "localhost"'
+patched = False
+for path in candidates:
+    if not path.exists():
+        continue
+    text = path.read_text()
+    if replacement in text:
+        print(f"[foss] react_native_dev_server_ip already pinned to localhost in {path}")
+        patched = True
+        break
+    if needle not in text:
+        continue
+    path.write_text(text.replace(needle, replacement))
+    print(f"[foss] patched {path} to pin react_native_dev_server_ip=localhost")
+    patched = True
+    break
+
+if not patched:
+    print("[foss] warning: react_native_dev_server_ip patch target not found; reproducibility may be affected")
+PY
+fi
 
 if [[ "${UNSIGNED_APK:-0}" == "1" ]]; then
   python3 - <<'PY'
@@ -107,6 +153,11 @@ if "dependenciesInfo {" not in text:
 
 path.write_text(text)
 PY
+fi
+
+if [[ "${PREP_ONLY}" == "1" ]]; then
+  echo "Preparation complete. Skipping Gradle build (--prep-only)."
+  exit 0
 fi
 
 cd android
