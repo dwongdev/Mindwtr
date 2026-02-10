@@ -8,6 +8,22 @@ const AI_KEY_PATTERNS = [
 ];
 const TOKEN_PATTERN = /(password|pass|token|access_token|api_key|apikey|authorization|username|user|secret|session|cookie)=([^\s&]+)/gi;
 const AUTH_HEADER_PATTERN = /(Authorization:\s*)(Basic|Bearer)\s+[A-Za-z0-9+\/=._-]+/gi;
+const OFFLINE_ERROR_PATTERNS = [
+  /network request failed/i,
+  /internet connection appears to be offline/i,
+  /airplane mode/i,
+  /unable to resolve host/i,
+  /failed host lookup/i,
+  /name or service not known/i,
+  /nodename nor servname provided/i,
+  /unknownhostexception/i,
+  /eai_again/i,
+  /enotfound/i,
+  /network is unreachable/i,
+  /no route to host/i,
+  /software caused connection abort/i,
+  /failed to connect to/i,
+];
 
 const sanitizeMessage = (value: string): string => {
   let result = value;
@@ -36,6 +52,11 @@ export const formatSyncErrorMessage = (error: unknown, backend: SyncBackend): st
     return 'WebDAV folder URL is not configured. Save WebDAV settings first.';
   }
   return raw;
+};
+
+export const isLikelyOfflineSyncError = (errorOrMessage: unknown): boolean => {
+  const message = String(errorOrMessage || '');
+  return OFFLINE_ERROR_PATTERNS.some((pattern) => pattern.test(message));
 };
 
 export const isSyncFilePath = (path: string) =>

@@ -6,6 +6,7 @@ import { readSyncFile, writeSyncFile } from './storage-file';
 import { getBaseSyncUrl, getCloudBaseUrl, syncCloudAttachments, syncFileAttachments, syncWebdavAttachments, cleanupAttachmentTempFiles } from './attachment-sync';
 import { getExternalCalendars, saveExternalCalendars } from './external-calendar';
 import * as FileSystem from 'expo-file-system/legacy';
+import * as Network from 'expo-network';
 import { formatSyncErrorMessage, getFileSyncBaseDir, isSyncFilePath, resolveBackend, type SyncBackend } from './sync-service-utils';
 import {
   SYNC_PATH_KEY,
@@ -69,6 +70,32 @@ const getAttachmentsArray = (attachments: Attachment[] | undefined): Attachment[
   Array.isArray(attachments) ? attachments : []
 );
 
+const shouldSkipSyncForOfflineState = async (backend: SyncBackend): Promise<boolean> => {
+  if (backend !== 'webdav' && backend !== 'cloud') return false;
+  try {
+    const state = await Network.getNetworkStateAsync();
+    const isConnected = state.isConnected ?? false;
+    const isInternetReachable = state.isInternetReachable ?? isConnected;
+    const isAirplaneModeEnabled = (() => {
+      const value = (state as { isAirplaneModeEnabled?: unknown }).isAirplaneModeEnabled;
+      return typeof value === 'boolean' ? value : false;
+    })();
+
+    if (isAirplaneModeEnabled || !isInternetReachable) {
+      logSyncInfo('Sync skipped: offline/airplane mode', {
+        backend,
+        isConnected: String(isConnected),
+        isInternetReachable: String(isInternetReachable),
+        isAirplaneModeEnabled: String(isAirplaneModeEnabled),
+      });
+      return true;
+    }
+  } catch (error) {
+    logSyncWarning('Failed to read network state before sync', error);
+  }
+  return false;
+};
+
 const findDeletedAttachmentsForFileCleanupLocal = (appData: AppData): Attachment[] => {
   const deleted = new Map<string, Attachment>();
 
@@ -114,6 +141,9 @@ export async function performMobileSync(syncPathOverride?: string): Promise<{ su
     const backend: SyncBackend = resolveBackend(rawBackend);
 
     if (backend === 'off') {
+      return { success: true };
+    }
+    if (await shouldSkipSyncForOfflineState(backend)) {
       return { success: true };
     }
 

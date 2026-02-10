@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { formatSyncErrorMessage, getFileSyncBaseDir, isSyncFilePath, resolveBackend } from './sync-service-utils';
+import {
+  formatSyncErrorMessage,
+  getFileSyncBaseDir,
+  isLikelyOfflineSyncError,
+  isSyncFilePath,
+  resolveBackend,
+} from './sync-service-utils';
 
 describe('mobile sync-service test utils', () => {
   it('normalizes backend values', () => {
@@ -23,5 +29,12 @@ describe('mobile sync-service test utils', () => {
     expect(isSyncFilePath('/storage/folder')).toBe(false);
     expect(getFileSyncBaseDir('/storage/folder/data.json')).toBe('/storage/folder');
     expect(getFileSyncBaseDir('/storage/folder/')).toBe('/storage/folder');
+  });
+
+  it('detects likely offline sync errors', () => {
+    expect(isLikelyOfflineSyncError('TypeError: Network request failed')).toBe(true);
+    expect(isLikelyOfflineSyncError('java.net.UnknownHostException: Unable to resolve host')).toBe(true);
+    expect(isLikelyOfflineSyncError('Software caused connection abort')).toBe(true);
+    expect(isLikelyOfflineSyncError('WebDAV unauthorized (401). Check folder URL')).toBe(false);
   });
 });

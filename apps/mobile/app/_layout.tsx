@@ -16,6 +16,7 @@ import { setStorageAdapter, useTaskStore, flushPendingSave, isSupportedLanguage 
 import { mobileStorage } from '../lib/storage-adapter';
 import { setNotificationOpenHandler, startMobileNotifications, stopMobileNotifications } from '../lib/notification-service';
 import { performMobileSync } from '../lib/sync-service';
+import { isLikelyOfflineSyncError } from '../lib/sync-service-utils';
 import { updateAndroidWidgetFromStore } from '../lib/widget-service';
 import { ErrorBoundary } from '../components/ErrorBoundary';
 import { verifyPolyfills } from '../utils/verify-polyfills';
@@ -87,6 +88,9 @@ function RootLayoutContent() {
       await flushPendingSave().catch(logAppError);
       const result = await performMobileSync().catch((error) => ({ success: false, error: String(error) }));
       if (!result.success && result.error) {
+        if (isLikelyOfflineSyncError(result.error)) {
+          return;
+        }
         const nowMs = Date.now();
         const shouldShow = result.error !== lastSyncErrorShown.current && nowMs - lastSyncErrorAt.current > 10 * 60 * 1000;
         if (shouldShow) {
