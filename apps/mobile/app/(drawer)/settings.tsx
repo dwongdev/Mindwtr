@@ -224,6 +224,8 @@ export default function SettingsPage() {
     const tc = useThemeColors();
     const insets = useSafeAreaInsets();
     const isExpoGo = Constants.appOwnership === 'expo';
+    const extraConfig = Constants.expoConfig?.extra as { isFossBuild?: boolean | string } | undefined;
+    const isFossBuild = extraConfig?.isFossBuild === true || extraConfig?.isFossBuild === 'true';
     const currentVersion = Constants.expoConfig?.version || '0.0.0';
     const notificationsEnabled = settings.notificationsEnabled !== false;
     const dailyDigestMorningEnabled = settings.dailyDigestMorningEnabled === true;
@@ -877,6 +879,11 @@ export default function SettingsPage() {
         return response.json();
     }, [GITHUB_RELEASES_API]);
 
+    const fetchLatestGithubVersion = useCallback(async () => {
+        const release = await fetchLatestRelease();
+        return release.tag_name?.replace(/^v/, '') || '0.0.0';
+    }, [fetchLatestRelease]);
+
     const parsePlayStoreVersion = useCallback((html: string): string | null => {
         const patterns = [
             /"softwareVersion"\s*:\s*"([^"]+)"/i,
@@ -923,6 +930,21 @@ export default function SettingsPage() {
         throw new Error('Unable to fetch Play Store version');
     }, [PLAY_STORE_LOOKUP_URL, PLAY_STORE_URL, parsePlayStoreVersion]);
 
+    const fetchLatestComparableVersion = useCallback(async (): Promise<{ version: string; source: 'play-store' | 'github-release' }> => {
+        if (Platform.OS !== 'android' || isFossBuild) {
+            const githubVersion = await fetchLatestGithubVersion();
+            return { version: githubVersion, source: 'github-release' };
+        }
+        try {
+            const playStoreVersion = await fetchLatestPlayStoreVersion();
+            return { version: playStoreVersion, source: 'play-store' };
+        } catch (error) {
+            logSettingsWarn('Play Store update check failed; falling back to GitHub release', error);
+            const githubVersion = await fetchLatestGithubVersion();
+            return { version: githubVersion, source: 'github-release' };
+        }
+    }, [fetchLatestGithubVersion, fetchLatestPlayStoreVersion, isFossBuild]);
+
     useEffect(() => {
         let cancelled = false;
         AsyncStorage.multiGet([UPDATE_BADGE_AVAILABLE_KEY, UPDATE_BADGE_LATEST_KEY])
@@ -953,9 +975,7 @@ export default function SettingsPage() {
                 const lastCheck = Number(lastCheckRaw || 0);
                 if (Date.now() - lastCheck < UPDATE_BADGE_INTERVAL_MS) return;
                 await AsyncStorage.setItem(UPDATE_BADGE_LAST_CHECK_KEY, String(Date.now()));
-                const latestVersion = Platform.OS === 'android'
-                    ? await fetchLatestPlayStoreVersion()
-                    : (await fetchLatestRelease()).tag_name?.replace(/^v/, '') || '0.0.0';
+                const { version: latestVersion } = await fetchLatestComparableVersion();
                 const hasUpdate = compareVersions(latestVersion, currentVersion) > 0;
                 if (cancelled) return;
                 await persistUpdateBadge(hasUpdate, hasUpdate ? latestVersion : undefined);
@@ -967,25 +987,31 @@ export default function SettingsPage() {
         return () => {
             cancelled = true;
         };
-    }, [currentVersion, fetchLatestPlayStoreVersion, fetchLatestRelease, isExpoGo, persistUpdateBadge]);
+    }, [currentVersion, fetchLatestComparableVersion, isExpoGo, persistUpdateBadge]);
 
     const handleCheckUpdates = async () => {
         setIsCheckingUpdate(true);
         try {
             await AsyncStorage.setItem(UPDATE_BADGE_LAST_CHECK_KEY, String(Date.now()));
 
-            if (Platform.OS === 'android') {
+            if (Platform.OS === 'android' && !isFossBuild) {
                 const canOpenMarket = await Linking.canOpenURL(PLAY_STORE_MARKET_URL);
                 const targetUrl = canOpenMarket ? PLAY_STORE_MARKET_URL : PLAY_STORE_URL;
-                const latestVersion = await fetchLatestPlayStoreVersion();
+                const { version: latestVersion, source } = await fetchLatestComparableVersion();
                 const hasUpdate = compareVersions(latestVersion, currentVersion) > 0;
                 if (hasUpdate) {
-                    Alert.alert(
-                        localize('Update Available', '有可用更新'),
-                        localize(
+                    const updateMessage = source === 'play-store'
+                        ? localize(
                             `v${currentVersion} → v${latestVersion}\n\nUpdate is available on Google Play. Open app listing now?`,
                             `v${currentVersion} → v${latestVersion}\n\nGoogle Play 已提供更新，是否立即打开应用页面？`
-                        ),
+                        )
+                        : localize(
+                            `v${currentVersion} → v${latestVersion}\n\nPlay Store version lookup is temporarily unavailable. A newer GitHub release is available, and Play rollout may lag. Open app listing now?`,
+                            `v${currentVersion} → v${latestVersion}\n\n暂时无法直接获取 Google Play 版本，GitHub 已有更新，Play 商店可能会延迟推送。是否立即打开应用页面？`
+                        );
+                    Alert.alert(
+                        localize('Update Available', '有可用更新'),
+                        updateMessage,
                         [
                             { text: localize('Later', '稍后'), style: 'cancel' },
                             { text: localize('Open', '打开'), onPress: () => Linking.openURL(targetUrl) }
@@ -993,9 +1019,15 @@ export default function SettingsPage() {
                     );
                     await persistUpdateBadge(true, latestVersion);
                 } else {
+                    const upToDateMessage = source === 'play-store'
+                        ? localize('You are using the latest Google Play version!', '您正在使用 Google Play 最新版本！')
+                        : localize(
+                            'Play Store version lookup is temporarily unavailable. Your version matches the latest GitHub release.',
+                            '暂时无法直接获取 Google Play 版本，但当前版本与 GitHub 最新发布一致。'
+                        );
                     Alert.alert(
                         localize('Up to Date', '已是最新'),
-                        localize('You are using the latest Google Play version!', '您正在使用 Google Play 最新版本！')
+                        upToDateMessage
                     );
                     await persistUpdateBadge(false);
                 }
