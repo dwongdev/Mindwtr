@@ -160,12 +160,41 @@ export async function performMobileSync(syncPathOverride?: string): Promise<{ su
     let syncUrl: string | undefined;
     let wroteLocal = false;
     let localSnapshotChangeAt = useTaskStore.getState().lastDataChangeAt;
+    let networkWentOffline = false;
+    let networkSubscription: { remove?: () => void } | null = null;
     const ensureLocalSnapshotFresh = () => {
       if (useTaskStore.getState().lastDataChangeAt > localSnapshotChangeAt) {
         syncQueued = true;
         throw new LocalSyncAbort();
       }
     };
+    const ensureNetworkStillAvailable = async () => {
+      if (backend !== 'webdav' && backend !== 'cloud') return;
+      if (networkWentOffline) {
+        throw new Error('Sync paused: offline state detected');
+      }
+      if (await shouldSkipSyncForOfflineState(backend)) {
+        networkWentOffline = true;
+        throw new Error('Sync paused: offline state detected');
+      }
+    };
+    if (backend === 'webdav' || backend === 'cloud') {
+      try {
+        networkSubscription = Network.addNetworkStateListener((state) => {
+          const isConnected = state.isConnected ?? false;
+          const isInternetReachable = state.isInternetReachable ?? isConnected;
+          const isAirplaneModeEnabled = (() => {
+            const value = (state as { isAirplaneModeEnabled?: unknown }).isAirplaneModeEnabled;
+            return typeof value === 'boolean' ? value : false;
+          })();
+          if (isAirplaneModeEnabled || !isInternetReachable) {
+            networkWentOffline = true;
+          }
+        });
+      } catch (error) {
+        logSyncWarning('Failed to subscribe to network state during sync', error);
+      }
+    }
     try {
       let webdavConfig: { url: string; username: string; password: string } | null = null;
       let cloudConfig: { url: string; token: string } | null = null;
@@ -238,6 +267,7 @@ export async function performMobileSync(syncPathOverride?: string): Promise<{ su
           return data;
         },
         readRemote: async () => {
+          await ensureNetworkStillAvailable();
           if (backend === 'webdav' && webdavConfig?.url) {
             return await withRetry(
               () =>
@@ -267,6 +297,7 @@ export async function performMobileSync(syncPathOverride?: string): Promise<{ su
         },
         writeRemote: async (data) => {
           ensureLocalSnapshotFresh();
+          await ensureNetworkStillAvailable();
           const sanitized = sanitizeAppDataForRemote(data);
           if (backend === 'webdav') {
             if (!webdavConfig?.url) throw new Error('WebDAV URL not configured');
@@ -342,6 +373,7 @@ export async function performMobileSync(syncPathOverride?: string): Promise<{ su
         step = 'attachments';
         logSyncInfo('Sync step', { step });
         ensureLocalSnapshotFresh();
+        await ensureNetworkStillAvailable();
         const baseSyncUrl = getBaseSyncUrl(webdavConfigValue.url);
         const candidateData = cloneAppData(mergedData);
         const mutated = await syncWebdavAttachments(candidateData, webdavConfigValue, baseSyncUrl);
@@ -357,6 +389,7 @@ export async function performMobileSync(syncPathOverride?: string): Promise<{ su
         step = 'attachments';
         logSyncInfo('Sync step', { step });
         ensureLocalSnapshotFresh();
+        await ensureNetworkStillAvailable();
         const baseSyncUrl = getCloudBaseUrl(cloudConfigValue.url);
         const candidateData = cloneAppData(mergedData);
         const mutated = await syncCloudAttachments(candidateData, cloudConfigValue, baseSyncUrl);
@@ -388,6 +421,7 @@ export async function performMobileSync(syncPathOverride?: string): Promise<{ su
         step = 'attachments_cleanup';
         logSyncInfo('Sync step', { step });
         ensureLocalSnapshotFresh();
+        await ensureNetworkStillAvailable();
         const orphaned = findOrphanedAttachments(mergedData);
         const deletedAttachments = findDeletedAttachmentsForFileCleanupLocal(mergedData);
         const cleanupTargets = new Map<string, Attachment>();
@@ -487,6 +521,12 @@ export async function performMobileSync(syncPathOverride?: string): Promise<{ su
       }
 
       return { success: false, error: `${safeMessage}${logHint}` };
+    } finally {
+      try {
+        networkSubscription?.remove?.();
+      } catch (error) {
+        logSyncWarning('Failed to unsubscribe network listener after sync', error);
+      }
     }
   })();
 
