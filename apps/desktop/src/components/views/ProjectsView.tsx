@@ -1,8 +1,8 @@
-import { useState, useMemo, useEffect, useCallback, type ReactNode } from 'react';
+import { useState, useMemo, useEffect, useCallback } from 'react';
 import { ErrorBoundary } from '../ErrorBoundary';
 import { shallow, useTaskStore, Attachment, Task, type Project, type Section, generateUUID, parseQuickAdd } from '@mindwtr/core';
 import { ChevronDown, ChevronRight, FileText, Folder, Pencil, Plus, Trash2 } from 'lucide-react';
-import { DndContext, PointerSensor, useDroppable, useSensor, useSensors, closestCenter, type DragEndEvent } from '@dnd-kit/core';
+import { DndContext, PointerSensor, useSensor, useSensors, closestCenter, type DragEndEvent } from '@dnd-kit/core';
 import { SortableContext, verticalListSortingStrategy, arrayMove } from '@dnd-kit/sortable';
 import { useLanguage } from '../../contexts/language-context';
 import { PromptModal } from '../PromptModal';
@@ -29,28 +29,8 @@ import { useUiStore } from '../../store/ui-store';
 import { AREA_FILTER_ALL, AREA_FILTER_NONE, projectMatchesAreaFilter } from '../../lib/area-filter';
 import { useAreaSidebarState } from './projects/useAreaSidebarState';
 import { useProjectAttachmentActions } from './projects/useProjectAttachmentActions';
-
-const SECTION_CONTAINER_PREFIX = 'section:';
-const NO_SECTION_CONTAINER = `${SECTION_CONTAINER_PREFIX}none`;
-const getSectionContainerId = (sectionId?: string | null) =>
-    sectionId ? `${SECTION_CONTAINER_PREFIX}${sectionId}` : NO_SECTION_CONTAINER;
-const getSectionIdFromContainer = (containerId: string) =>
-    containerId === NO_SECTION_CONTAINER ? null : containerId.replace(SECTION_CONTAINER_PREFIX, '');
-
-type SectionDropZoneProps = {
-    id: string;
-    className?: string;
-    children: ReactNode;
-};
-
-const SectionDropZone = ({ id, className, children }: SectionDropZoneProps) => {
-    const { setNodeRef, isOver } = useDroppable({ id });
-    return (
-        <div ref={setNodeRef} className={cn(className, isOver && 'ring-2 ring-primary/40')}>
-            {children}
-        </div>
-    );
-};
+import { SectionDropZone, getSectionContainerId, getSectionIdFromContainer, NO_SECTION_CONTAINER } from './projects/section-dnd';
+import { useProjectSectionActions } from './projects/useProjectSectionActions';
 
 export function ProjectsView() {
     const perf = usePerformanceMonitor('ProjectsView');
@@ -188,47 +168,6 @@ export function ProjectsView() {
 
     const getProjectColorForTask = (project: Project) => getProjectColor(project, areaById, DEFAULT_AREA_COLOR);
 
-    const handleAddSection = () => {
-        if (!selectedProject) return;
-        setEditingSectionId(null);
-        setSectionDraft('');
-        setShowSectionPrompt(true);
-    };
-
-    const handleRenameSection = (section: Section) => {
-        setEditingSectionId(section.id);
-        setSectionDraft(section.title);
-        setShowSectionPrompt(true);
-    };
-
-    const handleDeleteSection = async (section: Section) => {
-        const confirmed = isTauriRuntime()
-            ? await import('@tauri-apps/plugin-dialog').then(({ confirm }) =>
-                confirm(t('projects.deleteSectionConfirm'), {
-                    title: t('projects.sectionsLabel'),
-                    kind: 'warning',
-                }),
-            )
-            : window.confirm(t('projects.deleteSectionConfirm'));
-        if (confirmed) {
-            deleteSection(section.id);
-        }
-    };
-
-    const handleToggleSection = (section: Section) => {
-        updateSection(section.id, { isCollapsed: !section.isCollapsed });
-    };
-
-    const handleToggleSectionNotes = (sectionId: string) => {
-        setSectionNotesOpen((prev) => ({ ...prev, [sectionId]: !prev[sectionId] }));
-    };
-
-    const handleOpenSectionTaskPrompt = (sectionId: string) => {
-        setSectionTaskTargetId(sectionId);
-        setSectionTaskDraft('');
-        setShowSectionTaskPrompt(true);
-    };
-
     const sortAreasByName = () => reorderAreas(sortAreasByNameIds(sortedAreas));
     const sortAreasByColor = () => reorderAreas(sortAreasByColorIds(sortedAreas));
 
@@ -335,6 +274,27 @@ export function ProjectsView() {
     };
 
     const selectedProject = projects.find(p => p.id === selectedProjectId);
+
+    const {
+        handleAddSection,
+        handleRenameSection,
+        handleDeleteSection,
+        handleToggleSection,
+        handleToggleSectionNotes,
+        handleOpenSectionTaskPrompt,
+    } = useProjectSectionActions({
+        t,
+        selectedProject,
+        setEditingSectionId,
+        setSectionDraft,
+        setShowSectionPrompt,
+        deleteSection,
+        updateSection,
+        setSectionNotesOpen,
+        setSectionTaskTargetId,
+        setSectionTaskDraft,
+        setShowSectionTaskPrompt,
+    });
 
     useEffect(() => {
         if (!selectedProjectId || !selectedProject) return;
