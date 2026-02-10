@@ -14,7 +14,8 @@ export function findOrphanedAttachments(appData: AppData): Attachment[] {
         const taskDeleted = Boolean(task.deletedAt);
         for (const attachment of task.attachments || []) {
             allAttachments.set(attachment.id, attachment);
-            if (!taskDeleted && !attachment.deletedAt) {
+            // Keep attachment tombstones on active entities so deletion can sync across devices.
+            if (!taskDeleted) {
                 activeReferenceIds.add(attachment.id);
             }
         }
@@ -24,15 +25,35 @@ export function findOrphanedAttachments(appData: AppData): Attachment[] {
         const projectDeleted = Boolean(project.deletedAt);
         for (const attachment of project.attachments || []) {
             allAttachments.set(attachment.id, attachment);
-            if (!projectDeleted && !attachment.deletedAt) {
+            if (!projectDeleted) {
                 activeReferenceIds.add(attachment.id);
             }
         }
     }
 
-    return Array.from(allAttachments.values()).filter(
-        (attachment) => attachment.deletedAt || !activeReferenceIds.has(attachment.id)
-    );
+    return Array.from(allAttachments.values()).filter((attachment) => !activeReferenceIds.has(attachment.id));
+}
+
+export function findDeletedAttachmentsForFileCleanup(appData: AppData): Attachment[] {
+    const deleted = new Map<string, Attachment>();
+
+    for (const task of appData.tasks) {
+        if (task.deletedAt) continue;
+        for (const attachment of task.attachments || []) {
+            if (!attachment.deletedAt) continue;
+            deleted.set(attachment.id, attachment);
+        }
+    }
+
+    for (const project of appData.projects) {
+        if (project.deletedAt) continue;
+        for (const attachment of project.attachments || []) {
+            if (!attachment.deletedAt) continue;
+            deleted.set(attachment.id, attachment);
+        }
+    }
+
+    return Array.from(deleted.values());
 }
 
 export function removeOrphanedAttachmentsFromData(appData: AppData): AppData {

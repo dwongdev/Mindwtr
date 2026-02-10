@@ -6,6 +6,7 @@ import {
     MergeStats,
     computeSha256Hex,
     globalProgressTracker,
+    findDeletedAttachmentsForFileCleanup,
     findOrphanedAttachments,
     removeOrphanedAttachmentsFromData,
     validateAttachmentForUpload,
@@ -243,9 +244,13 @@ const deleteAttachmentFile = async (attachment: Attachment): Promise<void> => {
 
 const cleanupOrphanedAttachments = async (appData: AppData, backend: SyncBackend): Promise<AppData> => {
     const orphaned = findOrphanedAttachments(appData);
+    const deletedAttachments = findDeletedAttachmentsForFileCleanup(appData);
+    const cleanupTargets = new Map<string, Attachment>();
+    for (const attachment of orphaned) cleanupTargets.set(attachment.id, attachment);
+    for (const attachment of deletedAttachments) cleanupTargets.set(attachment.id, attachment);
     const lastCleanupAt = new Date().toISOString();
 
-    if (orphaned.length === 0) {
+    if (cleanupTargets.size === 0) {
         await cleanupAttachmentTempFiles();
         return {
             ...appData,
@@ -276,7 +281,7 @@ const cleanupOrphanedAttachments = async (appData: AppData, backend: SyncBackend
     const fetcher = await getTauriFetch();
     const webdavPassword = webdavConfig ? await resolveWebdavPassword(webdavConfig) : '';
 
-    for (const attachment of orphaned) {
+    for (const attachment of cleanupTargets.values()) {
         await deleteAttachmentFile(attachment);
         if (attachment.cloudKey) {
             try {
@@ -307,7 +312,7 @@ const cleanupOrphanedAttachments = async (appData: AppData, backend: SyncBackend
 
     await cleanupAttachmentTempFiles();
 
-    const cleaned = removeOrphanedAttachmentsFromData(appData);
+    const cleaned = orphaned.length > 0 ? removeOrphanedAttachmentsFromData(appData) : appData;
     return {
         ...cleaned,
         settings: {

@@ -1,5 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { AppData, MergeStats, useTaskStore, webdavGetJson, webdavPutJson, cloudGetJson, cloudPutJson, flushPendingSave, performSyncCycle, findOrphanedAttachments, removeOrphanedAttachmentsFromData, webdavDeleteFile, cloudDeleteFile, CLOCK_SKEW_THRESHOLD_MS, appendSyncHistory, withRetry, normalizeWebdavUrl, normalizeCloudUrl, sanitizeAppDataForRemote, injectExternalCalendars as injectExternalCalendarsForSync, persistExternalCalendars as persistExternalCalendarsForSync, mergeAppData } from '@mindwtr/core';
+import { AppData, Attachment, MergeStats, useTaskStore, webdavGetJson, webdavPutJson, cloudGetJson, cloudPutJson, flushPendingSave, performSyncCycle, findDeletedAttachmentsForFileCleanup, findOrphanedAttachments, removeOrphanedAttachmentsFromData, webdavDeleteFile, cloudDeleteFile, CLOCK_SKEW_THRESHOLD_MS, appendSyncHistory, withRetry, normalizeWebdavUrl, normalizeCloudUrl, sanitizeAppDataForRemote, injectExternalCalendars as injectExternalCalendarsForSync, persistExternalCalendars as persistExternalCalendarsForSync, mergeAppData } from '@mindwtr/core';
 import { mobileStorage } from './storage-adapter';
 import { logInfo, logSyncError, logWarn, sanitizeLogMessage } from './app-log';
 import { readSyncFile, writeSyncFile } from './storage-file';
@@ -302,7 +302,11 @@ export async function performMobileSync(syncPathOverride?: string): Promise<{ su
         step = 'attachments_cleanup';
         logSyncInfo('Sync step', { step });
         const orphaned = findOrphanedAttachments(mergedData);
-        if (orphaned.length > 0) {
+        const deletedAttachments = findDeletedAttachmentsForFileCleanup(mergedData);
+        const cleanupTargets = new Map<string, Attachment>();
+        for (const attachment of orphaned) cleanupTargets.set(attachment.id, attachment);
+        for (const attachment of deletedAttachments) cleanupTargets.set(attachment.id, attachment);
+        if (cleanupTargets.size > 0) {
           const isFileBackend = backend === 'file';
           const isWebdavBackend = backend === 'webdav' && webdavConfigValue?.url;
           const isCloudBackend = backend === 'cloud' && cloudConfigValue?.url;
@@ -310,7 +314,7 @@ export async function performMobileSync(syncPathOverride?: string): Promise<{ su
             ? getFileSyncBaseDir(fileSyncPath)
             : null;
 
-          for (const attachment of orphaned) {
+          for (const attachment of cleanupTargets.values()) {
             await deleteAttachmentFile(attachment.uri);
             if (attachment.cloudKey) {
               try {
@@ -336,7 +340,9 @@ export async function performMobileSync(syncPathOverride?: string): Promise<{ su
               }
             }
           }
-          mergedData = removeOrphanedAttachmentsFromData(mergedData);
+          if (orphaned.length > 0) {
+            mergedData = removeOrphanedAttachmentsFromData(mergedData);
+          }
         }
         mergedData.settings.attachments = {
           ...mergedData.settings.attachments,
