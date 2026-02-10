@@ -1318,6 +1318,10 @@ export class SyncService {
                 logSyncWarning('Failed to stop sync watcher', error);
             }
         }
+        if (SyncService.externalSyncTimer) {
+            clearTimeout(SyncService.externalSyncTimer);
+            SyncService.externalSyncTimer = null;
+        }
         SyncService.fileWatcherStop = null;
         SyncService.fileWatcherPath = null;
         SyncService.fileWatcherBackend = null;
