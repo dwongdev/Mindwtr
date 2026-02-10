@@ -1,5 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { AppData, Attachment, MergeStats, useTaskStore, webdavGetJson, webdavPutJson, cloudGetJson, cloudPutJson, flushPendingSave, performSyncCycle, findDeletedAttachmentsForFileCleanup, findOrphanedAttachments, removeOrphanedAttachmentsFromData, webdavDeleteFile, cloudDeleteFile, CLOCK_SKEW_THRESHOLD_MS, appendSyncHistory, withRetry, normalizeWebdavUrl, normalizeCloudUrl, sanitizeAppDataForRemote, injectExternalCalendars as injectExternalCalendarsForSync, persistExternalCalendars as persistExternalCalendarsForSync, mergeAppData } from '@mindwtr/core';
+import { AppData, Attachment, MergeStats, useTaskStore, webdavGetJson, webdavPutJson, cloudGetJson, cloudPutJson, flushPendingSave, performSyncCycle, findOrphanedAttachments, removeOrphanedAttachmentsFromData, webdavDeleteFile, cloudDeleteFile, CLOCK_SKEW_THRESHOLD_MS, appendSyncHistory, withRetry, normalizeWebdavUrl, normalizeCloudUrl, sanitizeAppDataForRemote, injectExternalCalendars as injectExternalCalendarsForSync, persistExternalCalendars as persistExternalCalendarsForSync, mergeAppData } from '@mindwtr/core';
 import { mobileStorage } from './storage-adapter';
 import { logInfo, logSyncError, logWarn, sanitizeLogMessage } from './app-log';
 import { readSyncFile, writeSyncFile } from './storage-file';
@@ -63,6 +63,32 @@ const shouldRunAttachmentCleanup = (lastCleanupAt?: string): boolean => {
   const parsed = Date.parse(lastCleanupAt);
   if (Number.isNaN(parsed)) return true;
   return Date.now() - parsed >= CLEANUP_INTERVAL_MS;
+};
+
+const getAttachmentsArray = (attachments: Attachment[] | undefined): Attachment[] => (
+  Array.isArray(attachments) ? attachments : []
+);
+
+const findDeletedAttachmentsForFileCleanupLocal = (appData: AppData): Attachment[] => {
+  const deleted = new Map<string, Attachment>();
+
+  for (const task of appData.tasks) {
+    if (task.deletedAt) continue;
+    for (const attachment of getAttachmentsArray(task.attachments)) {
+      if (!attachment.deletedAt) continue;
+      deleted.set(attachment.id, attachment);
+    }
+  }
+
+  for (const project of appData.projects) {
+    if (project.deletedAt) continue;
+    for (const attachment of getAttachmentsArray(project.attachments)) {
+      if (!attachment.deletedAt) continue;
+      deleted.set(attachment.id, attachment);
+    }
+  }
+
+  return Array.from(deleted.values());
 };
 
 const deleteAttachmentFile = async (uri?: string): Promise<void> => {
@@ -302,7 +328,7 @@ export async function performMobileSync(syncPathOverride?: string): Promise<{ su
         step = 'attachments_cleanup';
         logSyncInfo('Sync step', { step });
         const orphaned = findOrphanedAttachments(mergedData);
-        const deletedAttachments = findDeletedAttachmentsForFileCleanup(mergedData);
+        const deletedAttachments = findDeletedAttachmentsForFileCleanupLocal(mergedData);
         const cleanupTargets = new Map<string, Attachment>();
         for (const attachment of orphaned) cleanupTargets.set(attachment.id, attachment);
         for (const attachment of deletedAttachments) cleanupTargets.set(attachment.id, attachment);
