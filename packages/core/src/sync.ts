@@ -483,6 +483,113 @@ const chooseDeterministicWinner = <T>(localItem: T, incomingItem: T): T => {
     return incomingSignature.localeCompare(localSignature) > 0 ? incomingItem : localItem;
 };
 
+const CONFLICT_DEBUG_LOG_LIMIT = 12;
+const CONFLICT_DEBUG_PREVIEW_LENGTH = 120;
+
+const previewConflictValue = (value: unknown): string => {
+    if (value === undefined) return '<undefined>';
+    if (value === null) return '<null>';
+    if (typeof value === 'string') {
+        const collapsed = value.replace(/\s+/g, ' ').trim();
+        const head = collapsed.slice(0, CONFLICT_DEBUG_PREVIEW_LENGTH);
+        const suffix = collapsed.length > CONFLICT_DEBUG_PREVIEW_LENGTH ? '…' : '';
+        return `${head}${suffix} (len:${value.length})`;
+    }
+    try {
+        return JSON.stringify(value);
+    } catch {
+        return String(value);
+    }
+};
+
+const resolveConflictWinner = (
+    localItem: unknown,
+    incomingItem: unknown,
+    mergedItem: unknown
+): 'local' | 'incoming' | 'mixed' => {
+    const mergedSig = toComparableSignature(mergedItem);
+    const localSig = toComparableSignature(localItem);
+    const incomingSig = toComparableSignature(incomingItem);
+    if (mergedSig === localSig && mergedSig !== incomingSig) return 'local';
+    if (mergedSig === incomingSig && mergedSig !== localSig) return 'incoming';
+    return 'mixed';
+};
+
+const logTaskConflictDiagnostics = (
+    localTasks: Task[],
+    incomingTasks: Task[],
+    mergedTasks: Task[],
+    conflictIds: string[]
+) => {
+    if (!Array.isArray(conflictIds) || conflictIds.length === 0) return;
+    const localMap = new Map(localTasks.map((item) => [item.id, item]));
+    const incomingMap = new Map(incomingTasks.map((item) => [item.id, item]));
+    const mergedMap = new Map(mergedTasks.map((item) => [item.id, item]));
+    const trackedFields: Array<keyof Task> = [
+        'title',
+        'description',
+        'status',
+        'projectId',
+        'sectionId',
+        'areaId',
+        'dueDate',
+        'startTime',
+        'reviewAt',
+        'deletedAt',
+    ];
+    let logged = 0;
+    for (const id of conflictIds) {
+        if (logged >= CONFLICT_DEBUG_LOG_LIMIT) break;
+        const local = localMap.get(id);
+        const incoming = incomingMap.get(id);
+        const merged = mergedMap.get(id);
+        if (!local || !incoming || !merged) continue;
+        const changedFields = trackedFields.filter((field) =>
+            JSON.stringify(local[field]) !== JSON.stringify(incoming[field])
+        );
+        if (changedFields.length === 0) continue;
+        logged += 1;
+        const winner = resolveConflictWinner(local, incoming, merged);
+        logWarn('Sync task conflict detail', {
+            scope: 'sync',
+            category: 'sync',
+            context: {
+                id,
+                winner,
+                changedFields: changedFields.join(','),
+                localUpdatedAt: local.updatedAt,
+                incomingUpdatedAt: incoming.updatedAt,
+                mergedUpdatedAt: merged.updatedAt,
+                localRev: local.rev ?? 0,
+                incomingRev: incoming.rev ?? 0,
+                mergedRev: merged.rev ?? 0,
+                localRevBy: local.revBy ?? '',
+                incomingRevBy: incoming.revBy ?? '',
+                mergedRevBy: merged.revBy ?? '',
+                localTitle: previewConflictValue(local.title),
+                incomingTitle: previewConflictValue(incoming.title),
+                mergedTitle: previewConflictValue(merged.title),
+                localDescription: previewConflictValue(local.description),
+                incomingDescription: previewConflictValue(incoming.description),
+                mergedDescription: previewConflictValue(merged.description),
+                localAttachments: local.attachments?.length ?? 0,
+                incomingAttachments: incoming.attachments?.length ?? 0,
+                mergedAttachments: merged.attachments?.length ?? 0,
+            },
+        });
+    }
+    if (logged > 0) {
+        logWarn('Sync task conflict diagnostics emitted', {
+            scope: 'sync',
+            category: 'sync',
+            context: {
+                logged,
+                total: conflictIds.length,
+            },
+        });
+    }
+};
+
 function mergeEntitiesWithStats<T extends { id: string; updatedAt: string; deletedAt?: string }>(
     local: T[],
     incoming: T[],
@@ -799,6 +906,14 @@ export async function performSyncCycle(io: SyncCycleIO): Promise<SyncCycleResult
         mergeResult.stats.sections.maxClockSkewMs || 0,
         mergeResult.stats.areas.maxClockSkewMs || 0
     );
+    if (mergeResult.stats.tasks.conflicts > 0) {
+        logTaskConflictDiagnostics(
+            localData.tasks,
+            remoteData.tasks,
+            mergeResult.data.tasks,
+            mergeResult.stats.tasks.conflictIds || []
+        );
+    }
     if (maxClockSkewMs > CLOCK_SKEW_THRESHOLD_MS) {
         logWarn('Sync merge detected large clock skew', {
             scope: 'sync',

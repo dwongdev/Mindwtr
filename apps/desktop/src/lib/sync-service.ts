@@ -125,6 +125,134 @@ const logSyncInfo = (message: string, extra?: Record<string, string>) => {
     void logInfo(message, { scope: 'sync', extra });
 };
 
+const TASK_CONFLICT_DEBUG_LOG_LIMIT = 12;
+const TASK_CONFLICT_PREVIEW_LENGTH = 120;
+type SyncTask = AppData['tasks'][number];
+const TASK_CONFLICT_TRACKED_FIELDS: (keyof SyncTask)[] = [
+    'title',
+    'description',
+    'status',
+    'projectId',
+    'sectionId',
+    'areaId',
+    'dueDate',
+    'startTime',
+    'reviewAt',
+    'deletedAt',
+];
+
+const toConflictComparableSignature = (value: unknown): string => {
+    if (value === undefined) return '<undefined>';
+    if (value === null) return '<null>';
+    try {
+        return toStableJson(value);
+    } catch {
+        return String(value);
+    }
+};
+
+const previewConflictValue = (value: unknown): string => {
+    if (value === undefined) return '<undefined>';
+    if (value === null) return '<null>';
+    if (typeof value === 'string') {
+        const collapsed = value.replace(/\s+/g, ' ').trim();
+        const head = collapsed.slice(0, TASK_CONFLICT_PREVIEW_LENGTH);
+        const suffix = collapsed.length > TASK_CONFLICT_PREVIEW_LENGTH ? '…' : '';
+        return `${head}${suffix} (len:${value.length})`;
+    }
+    return toConflictComparableSignature(value);
+};
+
+const resolveTaskConflictWinner = (
+    localTask: SyncTask,
+    incomingTask: SyncTask,
+    mergedTask: SyncTask
+): 'local' | 'incoming' | 'mixed' => {
+    const mergedSignature = toConflictComparableSignature(mergedTask);
+    const localSignature = toConflictComparableSignature(localTask);
+    const incomingSignature = toConflictComparableSignature(incomingTask);
+    if (mergedSignature === localSignature && mergedSignature !== incomingSignature) return 'local';
+    if (mergedSignature === incomingSignature && mergedSignature !== localSignature) return 'incoming';
+    return 'mixed';
+};
+
+const logTaskConflictDiagnostics = (
+    stats: MergeStats,
+    localData: AppData | null,
+    remoteData: AppData | null,
+    mergedData: AppData
+) => {
+    const taskConflicts = stats.tasks.conflicts || 0;
+    if (taskConflicts <= 0) return;
+    if (!localData || !remoteData) {
+        logSyncInfo('Sync task conflict diagnostics skipped', {
+            reason: 'missing-sync-snapshots',
+            taskConflicts: String(taskConflicts),
+        });
+        return;
+    }
+    const conflictIds = stats.tasks.conflictIds || [];
+    if (conflictIds.length === 0) {
+        logSyncInfo('Sync task conflict diagnostics skipped', {
+            reason: 'missing-task-conflict-ids',
+            taskConflicts: String(taskConflicts),
+        });
+        return;
+    }
+    const localTasksById = new Map(localData.tasks.map((task) => [task.id, task]));
+    const remoteTasksById = new Map(remoteData.tasks.map((task) => [task.id, task]));
+    const mergedTasksById = new Map(mergedData.tasks.map((task) => [task.id, task]));
+    let logged = 0;
+    for (const id of conflictIds) {
+        if (logged >= TASK_CONFLICT_DEBUG_LOG_LIMIT) break;
+        const localTask = localTasksById.get(id);
+        const incomingTask = remoteTasksById.get(id);
+        const mergedTask = mergedTasksById.get(id);
+        if (!localTask || !incomingTask || !mergedTask) continue;
+        const changedFields = TASK_CONFLICT_TRACKED_FIELDS
+            .filter(
+                (field) =>
+                    toConflictComparableSignature(localTask[field]) !== toConflictComparableSignature(incomingTask[field])
+            )
+            .map((field) => String(field));
+        if (
+            toConflictComparableSignature(localTask.attachments || [])
+            !== toConflictComparableSignature(incomingTask.attachments || [])
+        ) {
+            changedFields.push('attachments');
+        }
+        if (changedFields.length === 0) continue;
+        logged += 1;
+        const winner = resolveTaskConflictWinner(localTask, incomingTask, mergedTask);
+        logSyncInfo('Sync task conflict detail', {
+            id,
+            winner,
+            changedFields: changedFields.join(','),
+            localUpdatedAt: localTask.updatedAt,
+            incomingUpdatedAt: incomingTask.updatedAt,
+            mergedUpdatedAt: mergedTask.updatedAt,
+            localRev: String(localTask.rev ?? 0),
+            incomingRev: String(incomingTask.rev ?? 0),
+            mergedRev: String(mergedTask.rev ?? 0),
+            localRevBy: localTask.revBy ?? '',
+            incomingRevBy: incomingTask.revBy ?? '',
+            mergedRevBy: mergedTask.revBy ?? '',
+            localDescription: previewConflictValue(localTask.description),
+            incomingDescription: previewConflictValue(incomingTask.description),
+            mergedDescription: previewConflictValue(mergedTask.description),
+            localAttachments: String(localTask.attachments?.length ?? 0),
+            incomingAttachments: String(incomingTask.attachments?.length ?? 0),
+            mergedAttachments: String(mergedTask.attachments?.length ?? 0),
+        });
+    }
+    if (logged > 0) {
+        logSyncInfo('Sync task conflict diagnostics emitted', {
+            logged: String(logged),
+            total: String(conflictIds.length),
+        });
+    }
+};
+
 const getWebdavDownloadBackoff = (attachmentId: string): number | null => {
     return webdavDownloadBackoff.getBlockedUntil(attachmentId);
 };
@@ -1479,11 +1607,14 @@ export class SyncService {
                     logSyncWarning('Attachment pre-sync warning', error);
                 }
             }
+            let localSyncSnapshot: AppData | null = null;
+            let remoteSyncSnapshot: AppData | null = null;
             const syncResult = await performSyncCycle({
                 readLocal: async () => {
                     const baseData = await readLocalDataForSync();
                     const data = await injectExternalCalendars(baseData);
                     localSnapshotChangeAt = useTaskStore.getState().lastDataChangeAt;
+                    localSyncSnapshot = cloneAppData(data);
                     return data;
                 },
                 readRemote: async () => {
@@ -1493,7 +1624,9 @@ export class SyncService {
                                 throw new Error('WebDAV URL not configured');
                             }
                             syncUrl = webdavConfig.url;
-                            return await tauriInvoke<AppData>('webdav_get_json');
+                            const data = await tauriInvoke<AppData>('webdav_get_json');
+                            remoteSyncSnapshot = cloneAppData(data);
+                            return data;
                         }
                         if (!webdavConfig?.url) {
                             throw new Error('WebDAV URL not configured');
@@ -1501,11 +1634,13 @@ export class SyncService {
                         const normalizedUrl = normalizeWebdavUrl(webdavConfig.url);
                         syncUrl = normalizedUrl;
                         const fetcher = await getTauriFetch();
-                        return await webdavGetJson<AppData>(normalizedUrl, {
+                        const data = await webdavGetJson<AppData>(normalizedUrl, {
                             username: webdavConfig.username,
                             password: webdavConfig.password || '',
                             fetcher,
                         });
+                        remoteSyncSnapshot = cloneAppData(data);
+                        return data;
                     }
                     if (backend === 'cloud') {
                         if (!cloudConfig?.url) {
@@ -1514,12 +1649,16 @@ export class SyncService {
                         const normalizedUrl = normalizeCloudUrl(cloudConfig.url);
                         syncUrl = normalizedUrl;
                         const fetcher = await getTauriFetch();
-                        return await cloudGetJson<AppData>(normalizedUrl, { token: cloudConfig.token, fetcher });
+                        const data = await cloudGetJson<AppData>(normalizedUrl, { token: cloudConfig.token, fetcher });
+                        remoteSyncSnapshot = cloneAppData(data);
+                        return data;
                     }
                     if (!isTauriRuntimeEnv()) {
                         throw new Error('File sync is not available in the web app.');
                     }
-                    return await tauriInvoke<AppData>('read_sync_file');
+                    const data = await tauriInvoke<AppData>('read_sync_file');
+                    remoteSyncSnapshot = cloneAppData(data);
+                    return data;
                 },
                 writeLocal: async (data) => {
                     ensureLocalSnapshotFresh();
@@ -1593,6 +1732,9 @@ export class SyncService {
                         },
                     }
                 );
+            }
+            if (isTauriRuntimeEnv()) {
+                logTaskConflictDiagnostics(stats, localSyncSnapshot, remoteSyncSnapshot, syncResult.data);
             }
 
             ensureLocalSnapshotFresh();
