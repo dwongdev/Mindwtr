@@ -432,12 +432,16 @@ export class SqliteAdapter {
             const maxAttempts = 3;
             let lockOwner = await this.acquireFtsLock();
             for (let attempt = 1; !lockOwner && attempt < maxAttempts; attempt += 1) {
-                const delayMs = Math.min(2000, 200 * Math.pow(2, attempt - 1));
+                const baseDelayMs = Math.min(2000, 200 * Math.pow(2, attempt - 1));
+                const jitterMs = Math.floor(Math.random() * (baseDelayMs * 0.5));
+                const delayMs = baseDelayMs + jitterMs;
                 logWarn('FTS rebuild lock unavailable, retrying', {
                     scope: 'sqlite',
                     category: 'fts',
                     context: {
                         attempt: attempt + 1,
+                        baseDelayMs,
+                        jitterMs,
                         delayMs,
                     },
                 });
