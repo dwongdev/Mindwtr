@@ -130,6 +130,18 @@ Mindwtr is built to be **simple by default and powerful when you need it**. We f
 - 🌍 **i18n** - English, Chinese, Spanish, Hindi, Arabic, German, Russian, Japanese, French, Portuguese, Korean, Italian, Turkish
 - 🐳 **Docker** - Run the PWA + self-hosted sync server with Docker
 
+## Requirements
+
+### End Users
+- Desktop builds from package managers/app stores do not require Bun or Node.js.
+- Mobile users can install from App Store / Google Play directly.
+
+### Building From Source
+- **Bun**: `>= 1.1` (workspace install, scripts, tests)
+- **Node.js**: `>= 18` (recommended for tooling compatibility)
+- **Rust toolchain** + platform WebView dependencies (for Tauri desktop builds)
+- **Android Studio/SDK** and/or **Xcode** (for React Native mobile builds)
+
 ## Installation
 
 ### Desktop (Linux)
