@@ -24,7 +24,6 @@ const CLEANUP_INTERVAL_MS = 24 * 60 * 60 * 1000;
 const ATTACHMENT_CLEANUP_BATCH_LIMIT = 25;
 const SYNC_CONFIG_CACHE_TTL_MS = 3_000;
 const SYNC_FILE_NAME = 'data.json';
-const LEGACY_SYNC_FILE_NAME = 'mindwtr-sync.json';
 const syncConfigCache = new Map<string, { value: string | null; readAt: number }>();
 
 const logSyncWarning = (message: string, error?: unknown) => {
@@ -34,134 +33,6 @@ const logSyncWarning = (message: string, error?: unknown) => {
 
 const logSyncInfo = (message: string, extra?: Record<string, string>) => {
   void logInfo(message, { scope: 'sync', extra });
-};
-
-const TASK_CONFLICT_DEBUG_LOG_LIMIT = 12;
-const TASK_CONFLICT_PREVIEW_LENGTH = 120;
-type SyncTask = AppData['tasks'][number];
-const TASK_CONFLICT_TRACKED_FIELDS: (keyof SyncTask)[] = [
-  'title',
-  'description',
-  'status',
-  'projectId',
-  'sectionId',
-  'areaId',
-  'dueDate',
-  'startTime',
-  'reviewAt',
-  'deletedAt',
-];
-
-const toConflictComparableSignature = (value: unknown): string => {
-  if (value === undefined) return '<undefined>';
-  if (value === null) return '<null>';
-  try {
-    return JSON.stringify(value);
-  } catch {
-    return String(value);
-  }
-};
-
-const previewConflictValue = (value: unknown): string => {
-  if (value === undefined) return '<undefined>';
-  if (value === null) return '<null>';
-  if (typeof value === 'string') {
-    const collapsed = value.replace(/\s+/g, ' ').trim();
-    const head = collapsed.slice(0, TASK_CONFLICT_PREVIEW_LENGTH);
-    const suffix = collapsed.length > TASK_CONFLICT_PREVIEW_LENGTH ? '…' : '';
-    return `${head}${suffix} (len:${value.length})`;
-  }
-  return toConflictComparableSignature(value);
-};
-
-const resolveTaskConflictWinner = (
-  localTask: SyncTask,
-  incomingTask: SyncTask,
-  mergedTask: SyncTask
-): 'local' | 'incoming' | 'mixed' => {
-  const mergedSignature = toConflictComparableSignature(mergedTask);
-  const localSignature = toConflictComparableSignature(localTask);
-  const incomingSignature = toConflictComparableSignature(incomingTask);
-  if (mergedSignature === localSignature && mergedSignature !== incomingSignature) return 'local';
-  if (mergedSignature === incomingSignature && mergedSignature !== localSignature) return 'incoming';
-  return 'mixed';
-};
-
-const logTaskConflictDiagnostics = (
-  stats: MergeStats,
-  localData: AppData | null,
-  remoteData: AppData | null,
-  mergedData: AppData
-): void => {
-  const taskConflicts = stats.tasks.conflicts || 0;
-  if (taskConflicts <= 0) return;
-  if (!localData || !remoteData) {
-    logSyncInfo('Sync task conflict diagnostics skipped', {
-      reason: 'missing-sync-snapshots',
-      taskConflicts: String(taskConflicts),
-    });
-    return;
-  }
-  const conflictIds = stats.tasks.conflictIds || [];
-  if (conflictIds.length === 0) {
-    logSyncInfo('Sync task conflict diagnostics skipped', {
-      reason: 'missing-task-conflict-ids',
-      taskConflicts: String(taskConflicts),
-    });
-    return;
-  }
-  const localTasksById = new Map(localData.tasks.map((task) => [task.id, task]));
-  const remoteTasksById = new Map(remoteData.tasks.map((task) => [task.id, task]));
-  const mergedTasksById = new Map(mergedData.tasks.map((task) => [task.id, task]));
-  let logged = 0;
-  for (const id of conflictIds) {
-    if (logged >= TASK_CONFLICT_DEBUG_LOG_LIMIT) break;
-    const localTask = localTasksById.get(id);
-    const incomingTask = remoteTasksById.get(id);
-    const mergedTask = mergedTasksById.get(id);
-    if (!localTask || !incomingTask || !mergedTask) continue;
-    const changedFields = TASK_CONFLICT_TRACKED_FIELDS
-      .filter(
-        (field) =>
-          toConflictComparableSignature(localTask[field]) !== toConflictComparableSignature(incomingTask[field])
-      )
-      .map((field) => String(field));
-    if (
-      toConflictComparableSignature(localTask.attachments || [])
-      !== toConflictComparableSignature(incomingTask.attachments || [])
-    ) {
-      changedFields.push('attachments');
-    }
-    if (changedFields.length === 0) continue;
-    logged += 1;
-    const winner = resolveTaskConflictWinner(localTask, incomingTask, mergedTask);
-    logSyncInfo('Sync task conflict detail', {
-      id,
-      winner,
-      changedFields: changedFields.join(','),
-      localUpdatedAt: localTask.updatedAt,
-      incomingUpdatedAt: incomingTask.updatedAt,
-      mergedUpdatedAt: mergedTask.updatedAt,
-      localRev: String(localTask.rev ?? 0),
-      incomingRev: String(incomingTask.rev ?? 0),
-      mergedRev: String(mergedTask.rev ?? 0),
-      localRevBy: localTask.revBy ?? '',
-      incomingRevBy: incomingTask.revBy ?? '',
-      mergedRevBy: mergedTask.revBy ?? '',
-      localDescription: previewConflictValue(localTask.description),
-      incomingDescription: previewConflictValue(incomingTask.description),
-      mergedDescription: previewConflictValue(mergedTask.description),
-      localAttachments: String(localTask.attachments?.length ?? 0),
-      incomingAttachments: String(incomingTask.attachments?.length ?? 0),
-      mergedAttachments: String(mergedTask.attachments?.length ?? 0),
-    });
-  }
-  if (logged > 0) {
-    logSyncInfo('Sync task conflict diagnostics emitted', {
-      logged: String(logged),
-      total: String(conflictIds.length),
-    });
-  }
 };
 
 const externalCalendarProvider = {
@@ -414,8 +285,6 @@ export async function performMobileSync(syncPathOverride?: string): Promise<{ su
         }
         logSyncWarning('Attachment pre-sync warning', error);
       }
-      let localSyncSnapshot: AppData | null = null;
-      let remoteSyncSnapshot: AppData | null = null;
       const syncResult = await performSyncCycle({
         readLocal: async () => {
           const inMemorySnapshot = getInMemoryAppDataSnapshot();
@@ -424,7 +293,6 @@ export async function performMobileSync(syncPathOverride?: string): Promise<{ su
             : mergeAppData(await mobileStorage.getData(), inMemorySnapshot);
           const data = await injectExternalCalendars(baseData);
           localSnapshotChangeAt = useTaskStore.getState().lastDataChangeAt;
-          localSyncSnapshot = cloneAppData(data);
           return data;
         },
         readRemote: async () => {
@@ -440,7 +308,6 @@ export async function performMobileSync(syncPathOverride?: string): Promise<{ su
                 }),
               WEBDAV_RETRY_OPTIONS
             );
-            remoteSyncSnapshot = cloneAppData(data);
             return data;
           }
           if (backend === 'cloud' && cloudConfig?.url) {
@@ -449,14 +316,12 @@ export async function performMobileSync(syncPathOverride?: string): Promise<{ su
               timeoutMs: DEFAULT_SYNC_TIMEOUT_MS,
               fetcher: fetchWithAbort,
             });
-            remoteSyncSnapshot = cloneAppData(data);
             return data;
           }
           if (!fileSyncPath) {
             throw new Error('No sync folder configured');
           }
           const data = await readSyncFile(fileSyncPath);
-          remoteSyncSnapshot = cloneAppData(data);
           return data;
         },
         writeLocal: async (data) => {
@@ -535,8 +400,6 @@ export async function performMobileSync(syncPathOverride?: string): Promise<{ su
           }
         );
       }
-      logTaskConflictDiagnostics(stats, localSyncSnapshot, remoteSyncSnapshot, syncResult.data);
-
       let mergedData = syncResult.data;
       ensureLocalSnapshotFresh();
       await persistExternalCalendars(mergedData);
