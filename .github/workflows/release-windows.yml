@@ -227,8 +227,12 @@ jobs:
             exit 0
           }
 
-          if ($app.pendingApplicationSubmission) {
-            $pendingId = $app.pendingApplicationSubmission.id
+          $pendingSub = $null
+          if ($app.PSObject.Properties.Name -contains 'pendingApplicationSubmission') {
+            $pendingSub = $app.pendingApplicationSubmission
+          }
+          if ($pendingSub) {
+            $pendingId = $pendingSub.id
             $applicationId = $app.id
             try {
               $statusResponse = Invoke-RestMethod -Method Get `
@@ -305,8 +309,12 @@ jobs:
           $applicationId = $app.id
           Write-Host "Found application: $($app.primaryName) (ID: $applicationId)"
 
-          if ($app.pendingApplicationSubmission) {
-            $pendingId = $app.pendingApplicationSubmission.id
+          $pendingSub = $null
+          if ($app.PSObject.Properties.Name -contains 'pendingApplicationSubmission') {
+            $pendingSub = $app.pendingApplicationSubmission
+          }
+          if ($pendingSub) {
+            $pendingId = $pendingSub.id
             Write-Host "Deleting existing pending submission $pendingId..."
             try {
               Invoke-RestMethod -Method Delete `
