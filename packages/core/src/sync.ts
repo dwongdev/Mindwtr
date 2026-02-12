@@ -761,12 +761,12 @@ export function mergeAppDataWithStats(local: AppData, incoming: AppData): MergeR
 
     const tasksResult = mergeEntitiesWithStats(localNormalized.tasks, incomingNormalized.tasks, (localTask: Task, incomingTask: Task, winner: Task) => {
         const attachments = mergeAttachments(localTask.attachments, incomingTask.attachments);
-        return attachments ? { ...winner, attachments } : winner;
+        return { ...winner, attachments };
     });
 
     const projectsResult = mergeEntitiesWithStats(localNormalized.projects, incomingNormalized.projects, (localProject: Project, incomingProject: Project, winner: Project) => {
         const attachments = mergeAttachments(localProject.attachments, incomingProject.attachments);
-        return attachments ? { ...winner, attachments } : winner;
+        return { ...winner, attachments };
     });
 
     const sectionsResult = mergeEntitiesWithStats(localNormalized.sections, incomingNormalized.sections);
