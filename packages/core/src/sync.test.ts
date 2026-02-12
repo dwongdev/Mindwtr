@@ -700,6 +700,30 @@ describe('Sync Logic', () => {
             expect(wroteRemote).toBe(false);
         });
 
+        it('fails before merge when remote payload shape is invalid', async () => {
+            let wroteLocal = false;
+            let wroteRemote = false;
+
+            await expect(performSyncCycle({
+                readLocal: async () => mockAppData(),
+                readRemote: async () => ({
+                    tasks: 'not-an-array',
+                    projects: [],
+                    sections: [],
+                    areas: [],
+                    settings: {},
+                } as unknown as AppData),
+                writeLocal: async () => {
+                    wroteLocal = true;
+                },
+                writeRemote: async () => {
+                    wroteRemote = true;
+                },
+            })).rejects.toThrow('Invalid remote sync payload');
+            expect(wroteLocal).toBe(false);
+            expect(wroteRemote).toBe(false);
+        });
+
         it('drops empty task revBy values from incoming payloads', async () => {
             let saved: AppData | null = null;
             const incoming = mockAppData([

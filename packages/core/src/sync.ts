@@ -196,6 +196,31 @@ const validateMergedSyncData = (data: AppData): string[] => {
     return errors;
 };
 
+const validateSyncPayloadShape = (data: unknown, source: 'local' | 'remote'): string[] => {
+    const errors: string[] = [];
+    if (!isObjectRecord(data)) {
+        errors.push(`${source} payload must be an object`);
+        return errors;
+    }
+    const record = data as Record<string, unknown>;
+    if (record.tasks !== undefined && !Array.isArray(record.tasks)) {
+        errors.push(`${source} payload field "tasks" must be an array when present`);
+    }
+    if (record.projects !== undefined && !Array.isArray(record.projects)) {
+        errors.push(`${source} payload field "projects" must be an array when present`);
+    }
+    if (record.sections !== undefined && !Array.isArray(record.sections)) {
+        errors.push(`${source} payload field "sections" must be an array when present`);
+    }
+    if (record.areas !== undefined && !Array.isArray(record.areas)) {
+        errors.push(`${source} payload field "areas" must be an array when present`);
+    }
+    if (record.settings !== undefined && !isObjectRecord(record.settings)) {
+        errors.push(`${source} payload field "settings" must be an object when present`);
+    }
+    return errors;
+};
+
 const resolveTombstoneRetentionDays = (value?: number): number => {
     if (!Number.isFinite(value)) return DEFAULT_TOMBSTONE_RETENTION_DAYS;
     const rounded = Math.floor(value as number);
@@ -772,10 +797,29 @@ export function mergeAppData(local: AppData, incoming: AppData): AppData {
 export async function performSyncCycle(io: SyncCycleIO): Promise<SyncCycleResult> {
     io.onStep?.('read-local');
     const localDataRaw = await io.readLocal();
+    const localShapeErrors = validateSyncPayloadShape(localDataRaw, 'local');
+    if (localShapeErrors.length > 0) {
+        const sample = localShapeErrors.slice(0, 3).join('; ');
+        throw new Error(`Invalid local sync payload: ${sample}`);
+    }
     const localData = normalizeAppData(localDataRaw);
 
     io.onStep?.('read-remote');
     const remoteDataRaw = await io.readRemote();
+    if (remoteDataRaw) {
+        const remoteShapeErrors = validateSyncPayloadShape(remoteDataRaw, 'remote');
+        if (remoteShapeErrors.length > 0) {
+            const sample = remoteShapeErrors.slice(0, 3).join('; ');
+            logWarn('Invalid remote sync payload shape', {
+                scope: 'sync',
+                context: {
+                    issues: remoteShapeErrors.length,
+                    sample,
+                },
+            });
+            throw new Error(`Invalid remote sync payload: ${sample}`);
+        }
+    }
     const remoteData = normalizeAppData(remoteDataRaw || { tasks: [], projects: [], sections: [], areas: [], settings: {} });
 
     io.onStep?.('merge');
