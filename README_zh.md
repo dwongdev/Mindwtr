@@ -265,6 +265,24 @@ TestFlight 测试版：[加入测试版](https://testflight.apple.com/join/7SMJC
 - 🚀 [快速开始](https://github.com/dongdongbh/Mindwtr/wiki/Getting-Started)
 - 📚 [全平台与包管理器](https://github.com/dongdongbh/Mindwtr/wiki)
 
+## 社区
+
+Mindwtr 的发展离不开用户与贡献者的支持，感谢大家一起把它变得更好。
+
+### :hearts: 贡献与支持
+
+如果你想参与进来，请先阅读 [CONTRIBUTING.md](CONTRIBUTING.md)。
+
+你可以通过以下方式帮助项目：
+
+1. **帮忙传播：** 向朋友和社区推荐 Mindwtr，并在 [Product Hunt](https://www.producthunt.com/products/mindwtr) 与 [AlternativeTo](https://alternativeto.net/software/mindwtr/) 支持它。
+2. **留下应用商店评价：** 在 [App Store](https://apps.apple.com/app/mindwtr/id6758597144)、[Google Play](https://play.google.com/store/apps/details?id=tech.dongdongbh.mindwtr) 或 [Microsoft Store](https://apps.microsoft.com/detail/9n0v5b0b6frx?ocid=webpdpshare) 的好评对项目帮助很大。
+3. **在社交平台分享：** 在 [X](https://twitter.com/intent/tweet?text=I%20like%20Mindwtr%20https%3A%2F%2Fgithub.com%2Fdongdongbh%2FMindwtr)、[Reddit](https://www.reddit.com/submit?url=https%3A%2F%2Fgithub.com%2Fdongdongbh%2FMindwtr&title=I%20like%20Mindwtr)、[LinkedIn](https://www.linkedin.com/shareArticle?mini=true&url=https%3A%2F%2Fgithub.com%2Fdongdongbh%2FMindwtr&title=I%20like%20Mindwtr) 发布使用体验。
+4. **报告问题与提出需求：** 在 [GitHub Issues](https://github.com/dongdongbh/Mindwtr/issues) 提交 Bug 和功能建议。
+5. **加入社区讨论：** 欢迎加入 [Discord](https://discord.gg/ahhFxuDBb4)。
+6. **贡献代码或文档：** 提交 PR，并遵循[贡献指南](docs/CONTRIBUTING.md)和提交规范。
+7. **赞助项目：** 可通过 [GitHub Sponsors](https://github.com/sponsors/dongdongbh) 或 [Ko-fi](https://ko-fi.com/D1D01T20WK) 支持持续开发。
+
 ## 路线图
 
 - 📦 上架 Flathub
