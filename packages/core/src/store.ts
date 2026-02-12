@@ -70,14 +70,23 @@ export const flushPendingSave = async (): Promise<void> => {
             await saveInFlight;
             continue;
         }
-        if (pendingSaves.length === 0) return;
-        const queuedSaves = pendingSaves;
+        const currentQueue = Array.isArray(pendingSaves) ? pendingSaves : [];
+        if (currentQueue.length === 0) return;
         pendingSaves = [];
+        const queuedSaves = currentQueue.filter((item): item is PendingSave =>
+            !!item &&
+            typeof item.version === 'number' &&
+            !!item.data &&
+            Array.isArray(item.onErrorCallbacks)
+        );
+        if (queuedSaves.length === 0) continue;
         const latestSave = queuedSaves[queuedSaves.length - 1];
         if (!latestSave || latestSave.version <= savedVersion) continue;
         const targetVersion = latestSave.version;
         const dataToSave = latestSave.data;
-        const onErrorCallbacks = queuedSaves.flatMap((item) => item.onErrorCallbacks);
+        const onErrorCallbacks = queuedSaves
+            .flatMap((item) => item.onErrorCallbacks)
+            .filter((callback): callback is (msg: string) => void => typeof callback === 'function');
         let saveSucceeded = false;
         saveInFlight = Promise.resolve()
             .then(() => storage.saveData(dataToSave))
