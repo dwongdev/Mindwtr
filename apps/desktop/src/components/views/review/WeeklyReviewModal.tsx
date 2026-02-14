@@ -79,6 +79,7 @@ export function WeeklyReviewGuideModal({ onClose }: WeeklyReviewGuideModalProps)
 
         tasks.forEach((task) => {
             if (task.deletedAt) return;
+            if (task.status === 'done' || task.status === 'archived' || task.status === 'reference') return;
             const dueDate = safeParseDueDate(task.dueDate);
             if (dueDate) entries.push({ task, date: dueDate, kind: 'due' });
             const startTime = safeParseDate(task.startTime);
