@@ -151,7 +151,7 @@ describe('TaskStore', () => {
     });
 
     it('promotes scheduled tasks to next when scheduled date is reached', async () => {
-        vi.setSystemTime(new Date('2026-02-14T10:00:00.000Z'));
+        vi.spyOn(Date, 'now').mockReturnValue(new Date('2026-02-14T10:00:00.000Z').getTime());
         mockStorage.getData = vi.fn().mockResolvedValue({
             tasks: [
                 {
