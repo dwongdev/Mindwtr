@@ -6,6 +6,7 @@ import {
     isDueForReview,
     safeFormatDate,
     safeParseDate,
+    safeParseDueDate,
     type ExternalCalendarEvent,
     type ReviewSuggestion,
     type AIProviderId,
@@ -30,6 +31,11 @@ type ExternalCalendarDaySummary = {
     dayStart: Date;
     events: ExternalCalendarEvent[];
     totalCount: number;
+};
+type CalendarTaskReviewEntry = {
+    task: Task;
+    date: Date;
+    kind: 'due' | 'start';
 };
 
 interface ReviewModalProps {
@@ -74,6 +80,10 @@ const getReviewLabels = (lang: string) => {
             calendarDesc: '先查看未来 7 天的日程摘要。',
             calendarEmpty: '该时间范围没有日历事件。',
             calendarUpcoming: '未来 7 天',
+            calendarTasks: '未来 7 天任务',
+            calendarTasksEmpty: '未来 7 天没有已安排任务。',
+            dueLabel: '截止',
+            startLabel: '开始',
             allDay: '全天',
             more: '更多',
             waitingDesc: '跟进等待项目',
@@ -125,6 +135,10 @@ const getReviewLabels = (lang: string) => {
         calendarDesc: 'Review your hard landscape first: a compact summary of the next 7 days.',
         calendarEmpty: 'No calendar events in this range.',
         calendarUpcoming: 'Next 7 days',
+        calendarTasks: 'Mindwtr tasks (next 7 days)',
+        calendarTasksEmpty: 'No scheduled/due tasks in this range.',
+        dueLabel: 'Due',
+        startLabel: 'Start',
         allDay: 'All day',
         more: 'more',
         waitingDesc: 'Follow Up on Waiting Items',
@@ -365,6 +379,26 @@ export function ReviewModal({ visible, onClose }: ReviewModalProps) {
     const dueProjects = activeProjects.filter(p => isDueForReview(p.reviewAt));
     const futureProjects = activeProjects.filter(p => !isDueForReview(p.reviewAt));
     const orderedProjects = [...dueProjects, ...futureProjects];
+    const calendarReviewItems = useMemo<CalendarTaskReviewEntry[]>(() => {
+        const now = new Date();
+        const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+        const upcomingEnd = new Date(startOfToday);
+        upcomingEnd.setDate(upcomingEnd.getDate() + 7);
+        const entries: CalendarTaskReviewEntry[] = [];
+
+        tasks.forEach((task) => {
+            if (task.deletedAt) return;
+            if (task.status === 'done' || task.status === 'archived' || task.status === 'reference') return;
+            const dueDate = safeParseDueDate(task.dueDate);
+            if (dueDate) entries.push({ task, date: dueDate, kind: 'due' });
+            const startTime = safeParseDate(task.startTime);
+            if (startTime) entries.push({ task, date: startTime, kind: 'start' });
+        });
+
+        return entries
+            .filter((entry) => entry.date >= startOfToday && entry.date < upcomingEnd)
+            .sort((a, b) => a.date.getTime() - b.date.getTime());
+    }, [tasks]);
 
     const externalCalendarReviewItems = useMemo<ExternalCalendarDaySummary[]>(() => {
         const now = new Date();
@@ -450,6 +484,28 @@ export function ReviewModal({ visible, onClose }: ReviewModalProps) {
                                 +{day.totalCount - day.events.length} {labels.more}
                             </Text>
                         )}
+                    </View>
+                ))}
+            </View>
+        );
+    };
+    const renderCalendarTaskList = (items: CalendarTaskReviewEntry[]) => {
+        if (items.length === 0) {
+            return <Text style={[styles.calendarEventMeta, { color: tc.secondaryText }]}>{labels.calendarTasksEmpty}</Text>;
+        }
+        return (
+            <View style={styles.calendarEventList}>
+                {items.slice(0, 12).map((entry) => (
+                    <View
+                        key={`${entry.kind}-${entry.task.id}-${entry.date.toISOString()}`}
+                        style={[styles.calendarDayCard, { borderColor: tc.border }]}
+                    >
+                        <Text style={[styles.calendarEventTitle, { color: tc.text }]} numberOfLines={1}>
+                            {entry.task.title}
+                        </Text>
+                        <Text style={[styles.calendarEventMeta, { color: tc.secondaryText }]}>
+                            {(entry.kind === 'due' ? labels.dueLabel : labels.startLabel)} · {safeFormatDate(entry.date, 'MMM d, HH:mm')}
+                        </Text>
                     </View>
                 ))}
             </View>
@@ -600,6 +656,10 @@ export function ReviewModal({ visible, onClose }: ReviewModalProps) {
                         <View style={[styles.calendarColumn, { backgroundColor: tc.cardBg, borderColor: tc.border }]}>
                             <Text style={[styles.calendarColumnTitle, { color: tc.secondaryText }]}>{labels.calendarUpcoming}</Text>
                             {renderExternalCalendarList(externalCalendarReviewItems)}
+                        </View>
+                        <View style={[styles.calendarColumn, { backgroundColor: tc.cardBg, borderColor: tc.border, marginTop: 12 }]}>
+                            <Text style={[styles.calendarColumnTitle, { color: tc.secondaryText }]}>{labels.calendarTasks}</Text>
+                            {renderCalendarTaskList(calendarReviewItems)}
                         </View>
                     </View>
                 );
