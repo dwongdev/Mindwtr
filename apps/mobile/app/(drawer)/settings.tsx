@@ -1,5 +1,7 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import Constants from 'expo-constants';
+import { useLocalSearchParams, useRouter } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
 import {
     View,
     Text,
@@ -11,10 +13,8 @@ import {
     Linking,
     Alert,
     ActivityIndicator,
-    BackHandler,
     Platform,
     KeyboardAvoidingView,
-    LayoutAnimation,
     Modal,
     Pressable,
 } from 'react-native';
@@ -25,7 +25,6 @@ import { Directory, File, Paths } from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
 import { GestureDetector, Gesture } from 'react-native-gesture-handler';
 import Animated, { runOnJS, useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
-import { usePreventRemove } from '@react-navigation/native';
 import { useTheme } from '../../contexts/theme-context';
 import { useLanguage, Language } from '../../contexts/language-context';
 
@@ -78,6 +77,21 @@ type SettingsScreen =
     | 'gtd-task-editor'
     | 'sync'
     | 'about';
+
+const SETTINGS_SCREEN_SET: Record<SettingsScreen, true> = {
+    main: true,
+    general: true,
+    notifications: true,
+    ai: true,
+    calendar: true,
+    advanced: true,
+    gtd: true,
+    'gtd-archive': true,
+    'gtd-time-estimates': true,
+    'gtd-task-editor': true,
+    sync: true,
+    about: true,
+};
 
 const LANGUAGES: { id: Language; native: string }[] = [
     { id: 'en', native: 'English' },
@@ -183,13 +197,26 @@ const isValidHttpUrl = (value: string): boolean => {
 };
 
 export default function SettingsPage() {
+    const router = useRouter();
+    const { settingsScreen } = useLocalSearchParams<{ settingsScreen?: string | string[] }>();
     const { themeMode, setThemeMode } = useTheme();
     const { language, setLanguage, t } = useLanguage();
     const localize = (enText: string, zhText?: string) =>
         language === 'zh' && zhText ? zhText : translateText(enText, language);
     const { tasks, projects, sections, areas, settings, updateSettings } = useTaskStore();
     const [isSyncing, setIsSyncing] = useState(false);
-    const [currentScreen, setCurrentScreen] = useState<SettingsScreen>('main');
+    const currentScreen = useMemo<SettingsScreen>(() => {
+        const rawScreen = Array.isArray(settingsScreen) ? settingsScreen[0] : settingsScreen;
+        if (!rawScreen) return 'main';
+        return SETTINGS_SCREEN_SET[rawScreen as SettingsScreen] ? (rawScreen as SettingsScreen) : 'main';
+    }, [settingsScreen]);
+    const pushSettingsScreen = useCallback((nextScreen: SettingsScreen) => {
+        if (nextScreen === 'main') {
+            router.push('/settings');
+            return;
+        }
+        router.push({ pathname: '/settings', params: { settingsScreen: nextScreen } });
+    }, [router]);
     const [syncPath, setSyncPath] = useState<string | null>(null);
     const [syncBackend, setSyncBackend] = useState<'file' | 'webdav' | 'cloud' | 'off'>('off');
     const [webdavUrl, setWebdavUrl] = useState('');
@@ -218,12 +245,6 @@ export default function SettingsPage() {
     const [whisperDownloadError, setWhisperDownloadError] = useState('');
     const [aiAssistantOpen, setAiAssistantOpen] = useState(false);
     const [speechOpen, setSpeechOpen] = useState(false);
-    const setCurrentScreenWithAnimation = useCallback((nextScreen: SettingsScreen) => {
-        if (Platform.OS === 'ios') {
-            LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-        }
-        setCurrentScreen(nextScreen);
-    }, []);
 
     const tc = useThemeColors();
     const insets = useSafeAreaInsets();
@@ -507,31 +528,6 @@ export default function SettingsPage() {
         }
         loadAIKey(speechProvider).then(setSpeechApiKey).catch(logSettingsError);
     }, [speechProvider]);
-
-    const handleSettingsBack = useCallback(() => {
-        if (currentScreen !== 'main') {
-            if (currentScreen === 'gtd-time-estimates' || currentScreen === 'gtd-task-editor' || currentScreen === 'gtd-archive') {
-                setCurrentScreenWithAnimation('gtd');
-            } else if (currentScreen === 'ai' || currentScreen === 'calendar') {
-                setCurrentScreenWithAnimation('advanced');
-            } else {
-                setCurrentScreenWithAnimation('main');
-            }
-            return true;
-        }
-        return false;
-    }, [currentScreen, setCurrentScreenWithAnimation]);
-
-    usePreventRemove(currentScreen !== 'main', () => {
-        handleSettingsBack();
-    });
-
-    // Handle Android hardware back button
-    useEffect(() => {
-        const onBackPress = () => handleSettingsBack();
-        const subscription = BackHandler.addEventListener('hardwareBackPress', onBackPress);
-        return () => subscription.remove();
-    }, [handleSettingsBack]);
 
     const themeOptions: { value: typeof themeMode; label: string }[] = [
         { value: 'system', label: t('settings.system') },
@@ -1395,10 +1391,45 @@ export default function SettingsPage() {
         </TouchableOpacity>
     );
 
+    const SettingsTopBar = () => {
+        const canGoBack = router.canGoBack();
+        return (
+            <View
+                style={[
+                    styles.topBar,
+                    {
+                        backgroundColor: tc.cardBg,
+                        borderBottomColor: tc.border,
+                        height: 52 + insets.top,
+                        paddingTop: insets.top,
+                    },
+                ]}
+            >
+                <Pressable
+                    accessibilityRole="button"
+                    accessibilityLabel="Back"
+                    disabled={!canGoBack}
+                    hitSlop={8}
+                    onPress={() => {
+                        if (canGoBack) router.back();
+                    }}
+                    style={[styles.topBarBackButton, !canGoBack && styles.topBarBackButtonHidden]}
+                >
+                    <Ionicons color={tc.text} name="chevron-back" size={24} />
+                </Pressable>
+                <Text style={[styles.topBarTitle, { color: tc.text }]} numberOfLines={1}>
+                    {t('settings.title')}
+                </Text>
+                <View style={styles.topBarBackButton} />
+            </View>
+        );
+    };
+
     // ============ NOTIFICATIONS SCREEN ============
     if (currentScreen === 'notifications') {
         return (
             <SafeAreaView style={[styles.container, { backgroundColor: tc.bg }]} edges={['bottom']}>
+                <SettingsTopBar />
                 <SubHeader title={t('settings.notifications')} />
                 <ScrollView style={styles.scrollView} contentContainerStyle={scrollContentStyle}>
                     <View style={[styles.settingCard, { backgroundColor: tc.cardBg }]}>
@@ -1739,6 +1770,7 @@ export default function SettingsPage() {
     if (currentScreen === 'general') {
         return (
             <SafeAreaView style={[styles.container, { backgroundColor: tc.bg }]} edges={['bottom']}>
+                <SettingsTopBar />
                 <SubHeader title={t('settings.general')} />
                 <ScrollView style={styles.scrollView} contentContainerStyle={scrollContentStyle}>
                     <Text style={[styles.sectionTitle, { color: tc.secondaryText }]}>{t('settings.appearance')}</Text>
@@ -1904,6 +1936,7 @@ export default function SettingsPage() {
     if (currentScreen === 'ai') {
         return (
             <SafeAreaView style={[styles.container, { backgroundColor: tc.bg }]} edges={['bottom']}>
+                <SettingsTopBar />
                 <SubHeader title={t('settings.ai')} />
                 <KeyboardAvoidingView
                     behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
@@ -2582,6 +2615,7 @@ export default function SettingsPage() {
             : featurePomodoroDescRaw;
         return (
             <SafeAreaView style={[styles.container, { backgroundColor: tc.bg }]} edges={['bottom']}>
+                <SettingsTopBar />
                 <SubHeader title={t('settings.gtd')} />
                 <ScrollView style={styles.scrollView} contentContainerStyle={scrollContentStyle}>
                     <Text style={[styles.description, { color: tc.secondaryText }]}>{t('settings.gtdDesc')}</Text>
@@ -2638,16 +2672,16 @@ export default function SettingsPage() {
                         {timeEstimatesEnabled && (
                             <MenuItem
                                 title={t('settings.timeEstimatePresets')}
-                                onPress={() => setCurrentScreenWithAnimation('gtd-time-estimates')}
+                                onPress={() => pushSettingsScreen('gtd-time-estimates')}
                             />
                         )}
                         <MenuItem
                             title={t('settings.autoArchive')}
-                            onPress={() => setCurrentScreenWithAnimation('gtd-archive')}
+                            onPress={() => pushSettingsScreen('gtd-archive')}
                         />
                         <MenuItem
                             title={t('settings.taskEditorLayout')}
-                            onPress={() => setCurrentScreenWithAnimation('gtd-task-editor')}
+                            onPress={() => pushSettingsScreen('gtd-task-editor')}
                         />
                     </View>
                     <View style={[styles.settingCard, { backgroundColor: tc.cardBg, marginTop: 12 }]}>
@@ -2787,6 +2821,7 @@ export default function SettingsPage() {
 
         return (
             <SafeAreaView style={[styles.container, { backgroundColor: tc.bg }]} edges={['bottom']}>
+                <SettingsTopBar />
                 <SubHeader title={t('settings.autoArchive')} />
                 <ScrollView style={styles.scrollView} contentContainerStyle={scrollContentStyle}>
                     <Text style={[styles.description, { color: tc.secondaryText }]}>{t('settings.autoArchiveDesc')}</Text>
@@ -2815,6 +2850,7 @@ export default function SettingsPage() {
         if (!timeEstimatesEnabled) {
             return (
                 <SafeAreaView style={[styles.container, { backgroundColor: tc.bg }]} edges={['bottom']}>
+                <SettingsTopBar />
                     <SubHeader title={t('settings.timeEstimatePresets')} />
                     <ScrollView style={styles.scrollView} contentContainerStyle={scrollContentStyle}>
                         <Text style={[styles.description, { color: tc.secondaryText }]}>
@@ -2861,6 +2897,7 @@ export default function SettingsPage() {
 
         return (
             <SafeAreaView style={[styles.container, { backgroundColor: tc.bg }]} edges={['bottom']}>
+                <SettingsTopBar />
                 <SubHeader title={t('settings.timeEstimatePresets')} />
                 <ScrollView style={styles.scrollView} contentContainerStyle={scrollContentStyle}>
                     <Text style={[styles.description, { color: tc.secondaryText }]}>{t('settings.timeEstimatePresetsDesc')}</Text>
@@ -3115,6 +3152,7 @@ export default function SettingsPage() {
 
         return (
             <SafeAreaView style={[styles.container, { backgroundColor: tc.bg }]} edges={['bottom']}>
+                <SettingsTopBar />
                 <SubHeader title={t('settings.taskEditorLayout')} />
                 <ScrollView style={styles.scrollView} contentContainerStyle={scrollContentStyle}>
                     <Text style={[styles.description, { color: tc.secondaryText }]}>{t('settings.taskEditorLayoutDesc')}</Text>
@@ -3206,6 +3244,7 @@ export default function SettingsPage() {
 
         return (
             <SafeAreaView style={[styles.container, { backgroundColor: tc.bg }]} edges={['bottom']}>
+                <SettingsTopBar />
                 <SubHeader title={t('settings.calendar')} />
                 <ScrollView style={styles.scrollView} contentContainerStyle={scrollContentStyle}>
                     <Text style={[styles.description, { color: tc.secondaryText }]}>
@@ -3305,11 +3344,12 @@ export default function SettingsPage() {
     if (currentScreen === 'advanced') {
         return (
             <SafeAreaView style={[styles.container, { backgroundColor: tc.bg }]} edges={['bottom']}>
+                <SettingsTopBar />
                 <SubHeader title={t('settings.advanced')} />
                 <ScrollView style={styles.scrollView} contentContainerStyle={scrollContentStyle}>
                     <View style={[styles.menuCard, { backgroundColor: tc.cardBg }]}>
-                        <MenuItem title={t('settings.ai')} onPress={() => setCurrentScreenWithAnimation('ai')} />
-                        <MenuItem title={t('settings.calendar')} onPress={() => setCurrentScreenWithAnimation('calendar')} />
+                        <MenuItem title={t('settings.ai')} onPress={() => pushSettingsScreen('ai')} />
+                        <MenuItem title={t('settings.calendar')} onPress={() => pushSettingsScreen('calendar')} />
                     </View>
                 </ScrollView>
             </SafeAreaView>
@@ -3320,6 +3360,7 @@ export default function SettingsPage() {
     if (currentScreen === 'sync') {
         return (
             <SafeAreaView style={[styles.container, { backgroundColor: tc.bg }]} edges={['bottom']}>
+                <SettingsTopBar />
                 <SubHeader title={t('settings.dataSync')} />
                 <ScrollView style={styles.scrollView} contentContainerStyle={scrollContentStyle}>
                     <View style={[styles.settingCard, { backgroundColor: tc.cardBg, marginBottom: 12 }]}>
@@ -3925,6 +3966,7 @@ export default function SettingsPage() {
     if (currentScreen === 'about') {
         return (
             <SafeAreaView style={[styles.container, { backgroundColor: tc.bg }]} edges={['bottom']}>
+                <SettingsTopBar />
                 <SubHeader title={t('settings.about')} />
                 <ScrollView style={styles.scrollView} contentContainerStyle={scrollContentStyle}>
                     <View style={[styles.settingCard, { backgroundColor: tc.cardBg }]}>
@@ -3995,14 +4037,15 @@ export default function SettingsPage() {
     // ============ MAIN SETTINGS SCREEN ============
     return (
         <SafeAreaView style={[styles.container, { backgroundColor: tc.bg }]} edges={['bottom']}>
+                <SettingsTopBar />
             <ScrollView style={styles.scrollView} contentContainerStyle={scrollContentStyle}>
                 <View style={[styles.menuCard, { backgroundColor: tc.cardBg, marginTop: 16 }]}>
-                    <MenuItem title={t('settings.general')} onPress={() => setCurrentScreenWithAnimation('general')} />
-                    <MenuItem title={t('settings.gtd')} onPress={() => setCurrentScreenWithAnimation('gtd')} />
-                    <MenuItem title={t('settings.notifications')} onPress={() => setCurrentScreenWithAnimation('notifications')} />
-                    <MenuItem title={t('settings.dataSync')} onPress={() => setCurrentScreenWithAnimation('sync')} />
-                    <MenuItem title={t('settings.advanced')} onPress={() => setCurrentScreenWithAnimation('advanced')} />
-                    <MenuItem title={t('settings.about')} onPress={() => setCurrentScreenWithAnimation('about')} showIndicator={hasUpdateBadge} />
+                    <MenuItem title={t('settings.general')} onPress={() => pushSettingsScreen('general')} />
+                    <MenuItem title={t('settings.gtd')} onPress={() => pushSettingsScreen('gtd')} />
+                    <MenuItem title={t('settings.notifications')} onPress={() => pushSettingsScreen('notifications')} />
+                    <MenuItem title={t('settings.dataSync')} onPress={() => pushSettingsScreen('sync')} />
+                    <MenuItem title={t('settings.advanced')} onPress={() => pushSettingsScreen('advanced')} />
+                    <MenuItem title={t('settings.about')} onPress={() => pushSettingsScreen('about')} showIndicator={hasUpdateBadge} />
                 </View>
             </ScrollView>
         </SafeAreaView>
@@ -4013,6 +4056,27 @@ const styles = StyleSheet.create({
     container: { flex: 1 },
     scrollView: { flex: 1 },
     scrollContent: { padding: 16 },
+    topBar: {
+        height: 52,
+        borderBottomWidth: StyleSheet.hairlineWidth,
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        paddingHorizontal: 8,
+    },
+    topBarBackButton: {
+        width: 40,
+        height: 40,
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    topBarBackButtonHidden: {
+        opacity: 0,
+    },
+    topBarTitle: {
+        fontSize: 17,
+        fontWeight: '700',
+    },
     subHeader: { flexDirection: 'row', alignItems: 'center', padding: 16, gap: 12 },
     backButton: { fontSize: 16, fontWeight: '500' },
     subHeaderTitle: { fontSize: 18, fontWeight: '600' },
