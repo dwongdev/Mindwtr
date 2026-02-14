@@ -30,6 +30,16 @@ export const clearDerivedCache = () => {
     derivedCache = null;
 };
 
+function shouldPromoteScheduledTask(task: AppData['tasks'][number], nowMs: number): boolean {
+    if (task.deletedAt || task.purgedAt) return false;
+    if (task.status === 'next' || task.status === 'done' || task.status === 'archived' || task.status === 'reference') return false;
+    const startMs = safeParseDate(task.startTime)?.getTime() ?? NaN;
+    if (Number.isFinite(startMs) && startMs <= nowMs) return true;
+    const dueMs = safeParseDate(task.dueDate)?.getTime() ?? NaN;
+    if (Number.isFinite(dueMs) && dueMs <= nowMs) return true;
+    return false;
+}
+
 type SettingsActionContext = {
     set: (partial: Partial<TaskStore> | ((state: TaskStore) => Partial<TaskStore> | TaskStore)) => void;
     get: () => TaskStore;
@@ -163,6 +173,19 @@ export const createSettingsActions = ({
                     };
                 });
             }
+            const nowMs = Date.now();
+            let didPromoteScheduled = false;
+            allTasks = allTasks.map((task) => {
+                if (!shouldPromoteScheduledTask(task, nowMs)) return task;
+                didPromoteScheduled = true;
+                return {
+                    ...task,
+                    status: 'next',
+                    updatedAt: nowIso,
+                    rev: normalizeRevision(task.rev) + 1,
+                    revBy: nextSettings.deviceId,
+                };
+            });
             let didProjectOrderMigration = false;
             let didAreaMigration = false;
             let allProjects = rawProjects;
@@ -387,10 +410,10 @@ export const createSettingsActions = ({
                 _allSections: allSections,
                 _allAreas: allAreas,
                 isLoading: false,
-                lastDataChangeAt: didAutoArchive || didTombstoneCleanup ? Date.now() : get().lastDataChangeAt,
+                lastDataChangeAt: didAutoArchive || didPromoteScheduled || didTombstoneCleanup ? Date.now() : get().lastDataChangeAt,
             });
 
-            if (didAutoArchive || didTombstoneCleanup || didAreaMigration || didProjectOrderMigration || didSettingsUpdate) {
+            if (didAutoArchive || didPromoteScheduled || didTombstoneCleanup || didAreaMigration || didProjectOrderMigration || didSettingsUpdate) {
                 debouncedSave(
                     { tasks: allTasks, projects: allProjects, sections: allSections, areas: allAreas, settings: nextSettings },
                     (msg) => set({ error: msg })

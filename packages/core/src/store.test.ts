@@ -150,6 +150,59 @@ describe('TaskStore', () => {
         expect((mockStorage.saveData as unknown as { mock: { calls: any[][] } }).mock.calls.length).toBeGreaterThan(0);
     });
 
+    it('promotes scheduled tasks to next when scheduled date is reached', async () => {
+        vi.setSystemTime(new Date('2026-02-14T10:00:00.000Z'));
+        mockStorage.getData = vi.fn().mockResolvedValue({
+            tasks: [
+                {
+                    id: 't-inbox',
+                    title: 'Inbox task due today',
+                    status: 'inbox',
+                    dueDate: '2026-02-14',
+                    tags: [],
+                    contexts: [],
+                    createdAt: '2026-02-01T00:00:00.000Z',
+                    updatedAt: '2026-02-01T00:00:00.000Z',
+                },
+                {
+                    id: 't-someday',
+                    title: 'Someday task start passed',
+                    status: 'someday',
+                    startTime: '2026-02-13T08:00:00.000Z',
+                    tags: [],
+                    contexts: [],
+                    createdAt: '2026-02-01T00:00:00.000Z',
+                    updatedAt: '2026-02-01T00:00:00.000Z',
+                },
+                {
+                    id: 't-waiting-future',
+                    title: 'Waiting task still future',
+                    status: 'waiting',
+                    startTime: '2026-02-15T08:00:00.000Z',
+                    tags: [],
+                    contexts: [],
+                    createdAt: '2026-02-01T00:00:00.000Z',
+                    updatedAt: '2026-02-01T00:00:00.000Z',
+                },
+            ],
+            projects: [],
+            sections: [],
+            areas: [],
+            settings: {},
+        });
+
+        await useTaskStore.getState().fetchData({ silent: true });
+        await flushPendingSave();
+
+        const byId = new Map(useTaskStore.getState()._allTasks.map((task) => [task.id, task]));
+        expect(byId.get('t-inbox')?.status).toBe('next');
+        expect(byId.get('t-someday')?.status).toBe('next');
+        expect(byId.get('t-waiting-future')?.status).toBe('waiting');
+        expect(byId.get('t-inbox')?.rev).toBe(1);
+        expect(typeof byId.get('t-inbox')?.revBy).toBe('string');
+        expect(mockStorage.saveData).toHaveBeenCalled();
+    });
+
     it('supports a basic task lifecycle', async () => {
         const { addTask, updateTask, moveTask } = useTaskStore.getState();
         addTask('Lifecycle Task');
