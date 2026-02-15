@@ -239,7 +239,7 @@ export function InboxProcessor({
         setConvertToProject(true);
         const baseTitle = processingTitle.trim() || processingTask?.title || '';
         setProjectTitleDraft(baseTitle);
-        setNextActionDraft('');
+        setNextActionDraft(baseTitle);
         goToStep('project');
     }, [goToStep, processingTask?.title, processingTitle]);
 

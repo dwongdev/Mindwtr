@@ -71,14 +71,13 @@ const renderInboxProcessor = (): RenderResult => {
 
 describe('InboxProcessor', () => {
     it('routes actionable multi-step tasks directly to project conversion', async () => {
-        const { getByRole, getByText, getByPlaceholderText, addProject, updateTask } = renderInboxProcessor();
+        const { getByRole, getByText, addProject, updateTask } = renderInboxProcessor();
 
         fireEvent.click(getByRole('button', { name: /process\.btn/i }));
         fireEvent.click(getByText('process.refineNext'));
         fireEvent.click(getByText('process.yesActionable'));
         fireEvent.click(getByText('process.moreThanOneStepYes'));
 
-        fireEvent.change(getByPlaceholderText('taskEdit.titleLabel'), { target: { value: 'Draft next action' } });
         fireEvent.click(getByText('process.createProject'));
 
         await waitFor(() => {
@@ -88,7 +87,7 @@ describe('InboxProcessor', () => {
             expect(updateTask).toHaveBeenCalledWith(
                 'task-1',
                 expect.objectContaining({
-                    title: 'Draft next action',
+                    title: 'Plan launch',
                     status: 'next',
                     projectId: 'project-1',
                 }),
