@@ -22,7 +22,16 @@ import { isFlatpakRuntime, isTauriRuntime } from '../../lib/runtime';
 import { reportError } from '../../lib/report-error';
 import { SyncService } from '../../lib/sync-service';
 import { clearLog, getLogPath } from '../../lib/app-log';
-import { checkForUpdates, type UpdateInfo, GITHUB_RELEASES_URL, MS_STORE_URL, verifyDownloadChecksum } from '../../lib/update-service';
+import {
+    checkForUpdates,
+    compareVersions,
+    normalizeInstallSource,
+    type UpdateInfo,
+    type InstallSource,
+    GITHUB_RELEASES_URL,
+    MS_STORE_URL,
+    verifyDownloadChecksum,
+} from '../../lib/update-service';
 import { labelFallback, labelKeyOverrides, type SettingsLabels } from './settings/labels';
 import { SettingsUpdateModal } from './settings/SettingsUpdateModal';
 import { SettingsSidebar } from './settings/SettingsSidebar';
@@ -67,20 +76,6 @@ const LANGUAGES: { id: Language; label: string; native: string }[] = [
     { id: 'tr', label: 'Turkish', native: 'Türkçe' },
 ];
 
-const compareVersions = (v1: string, v2: string): number => {
-    const clean1 = v1.replace(/^v/, '');
-    const clean2 = v2.replace(/^v/, '');
-    const parts1 = clean1.split('.').map(Number);
-    const parts2 = clean2.split('.').map(Number);
-    for (let i = 0; i < Math.max(parts1.length, parts2.length); i += 1) {
-        const p1 = parts1[i] || 0;
-        const p2 = parts2[i] || 0;
-        if (p1 > p2) return 1;
-        if (p1 < p2) return -1;
-    }
-    return 0;
-};
-
 const maskCalendarUrl = (url: string): string => {
     const trimmed = url.trim();
     if (!trimmed) return '';
@@ -114,15 +109,7 @@ export function SettingsView() {
             return false;
         }
     }, [isTauri]);
-    const isWindows = useMemo(() => {
-        if (!isTauri) return false;
-        try {
-            return /win/i.test(navigator.userAgent);
-        } catch {
-            return false;
-        }
-    }, [isTauri]);
-    const [windowsUpdateChannel, setWindowsUpdateChannel] = useState<'store' | 'direct' | 'unknown'>('unknown');
+    const [installSource, setInstallSource] = useState<InstallSource>('unknown');
     const windowDecorationsEnabled = settings?.window?.decorations !== false;
     const closeBehavior = settings?.window?.closeBehavior ?? 'ask';
     const trayVisible = settings?.window?.showTray !== false;
@@ -173,29 +160,30 @@ export function SettingsView() {
     }, []);
 
     useEffect(() => {
-        if (!isTauri || !isWindows) {
-            setWindowsUpdateChannel('direct');
+        if (!isTauri) {
+            setInstallSource('github-release');
             return;
         }
         let cancelled = false;
         (async () => {
             try {
                 const { invoke } = await import('@tauri-apps/api/core');
-                const isStore = await invoke<boolean>('is_windows_store_install');
+                const rawSource = await invoke<string>('get_install_source');
+                const source = normalizeInstallSource(rawSource);
                 if (!cancelled) {
-                    setWindowsUpdateChannel(isStore ? 'store' : 'direct');
+                    setInstallSource(source);
                 }
             } catch (error) {
                 if (!cancelled) {
-                    setWindowsUpdateChannel('direct');
+                    setInstallSource('unknown');
                 }
-                reportError('Failed to detect Windows update channel', error);
+                reportError('Failed to detect install source', error);
             }
         })();
         return () => {
             cancelled = true;
         };
-    }, [isTauri, isWindows]);
+    }, [isTauri]);
 
     const {
         aiEnabled,
@@ -318,17 +306,6 @@ export function SettingsView() {
 
     useEffect(() => {
         if (!isTauri || !appVersion || appVersion === 'web') return;
-        if (isWindows && windowsUpdateChannel === 'unknown') return;
-        if (isWindows && windowsUpdateChannel === 'store') {
-            setHasUpdateBadge(false);
-            try {
-                localStorage.setItem(UPDATE_BADGE_AVAILABLE_KEY, 'false');
-                localStorage.removeItem(UPDATE_BADGE_LATEST_KEY);
-            } catch (error) {
-                reportError('Failed to clear update badge state', error);
-            }
-            return;
-        }
         try {
             const storedAvailable = localStorage.getItem(UPDATE_BADGE_AVAILABLE_KEY);
             const storedLatest = localStorage.getItem(UPDATE_BADGE_LATEST_KEY);
@@ -344,12 +321,10 @@ export function SettingsView() {
         } catch (error) {
             reportError('Failed to read update badge state', error);
         }
-    }, [appVersion, isTauri, isWindows, windowsUpdateChannel]);
+    }, [appVersion, installSource, isTauri]);
 
     useEffect(() => {
         if (!isTauri || !appVersion || appVersion === 'web') return;
-        if (isWindows && windowsUpdateChannel === 'unknown') return;
-        if (isWindows && windowsUpdateChannel === 'store') return;
         let lastCheck = 0;
         try {
             lastCheck = Number(localStorage.getItem(UPDATE_BADGE_LAST_CHECK_KEY) || 0);
@@ -365,7 +340,7 @@ export function SettingsView() {
         let cancelled = false;
         (async () => {
             try {
-                const info = await checkForUpdates(appVersion);
+                const info = await checkForUpdates(appVersion, { installSource });
                 if (cancelled) return;
                 if (info.hasUpdate) {
                     persistUpdateBadge(true, info.latestVersion);
@@ -379,7 +354,7 @@ export function SettingsView() {
         return () => {
             cancelled = true;
         };
-    }, [appVersion, isTauri, isWindows, windowsUpdateChannel, persistUpdateBadge]);
+    }, [appVersion, installSource, isTauri, persistUpdateBadge]);
 
     useEffect(() => {
         if (!loggingEnabled) {
@@ -529,32 +504,12 @@ export function SettingsView() {
         setUpdateError(null);
         setUpdateNotice(null);
         try {
-            if (isWindows) {
-                let channel = windowsUpdateChannel;
-                if (channel === 'unknown' && isTauri) {
-                    try {
-                        const { invoke } = await import('@tauri-apps/api/core');
-                        const isStore = await invoke<boolean>('is_windows_store_install');
-                        channel = isStore ? 'store' : 'direct';
-                        setWindowsUpdateChannel(channel);
-                    } catch (error) {
-                        reportError('Failed to detect Windows update channel', error);
-                        channel = 'direct';
-                        setWindowsUpdateChannel('direct');
-                    }
-                }
-                if (channel === 'store') {
-                    await openLink(MS_STORE_URL);
-                    setUpdateNotice(t.storeUpdateHint);
-                    return;
-                }
-            }
             try {
                 localStorage.setItem(UPDATE_BADGE_LAST_CHECK_KEY, String(Date.now()));
             } catch (error) {
                 reportError('Failed to persist update check timestamp', error);
             }
-            const info = await checkForUpdates(appVersion);
+            const info = await checkForUpdates(appVersion, { installSource });
             if (!info || !info.hasUpdate) {
                 setUpdateNotice(t.upToDate);
                 persistUpdateBadge(false);
@@ -579,6 +534,26 @@ export function SettingsView() {
 
     const handleDownloadUpdate = async () => {
         const targetUrl = preferredDownloadUrl;
+        if (installSource === 'microsoft-store') {
+            await openLink(MS_STORE_URL);
+            setDownloadNotice(t.storeUpdateHint);
+            return;
+        }
+        if (installSource === 'mac-app-store') {
+            const opened = await openLink(updateInfo?.releaseUrl || 'https://apps.apple.com/app/mindwtr/id6758597144');
+            setDownloadNotice(opened ? 'Update via App Store.' : t.downloadFailed);
+            return;
+        }
+        if (installSource === 'homebrew') {
+            await openLink(updateInfo?.releaseUrl || 'https://formulae.brew.sh/cask/mindwtr');
+            setDownloadNotice('Update via Homebrew: brew update && brew upgrade --cask mindwtr');
+            return;
+        }
+        if (installSource === 'winget') {
+            await openLink(updateInfo?.releaseUrl || 'https://github.com/microsoft/winget-pkgs/tree/master/manifests/d/dongdongbh/Mindwtr');
+            setDownloadNotice('Update via winget: winget upgrade --id dongdongbh.Mindwtr --exact');
+            return;
+        }
         if (updateInfo?.platform === 'linux' && linuxFlavor === 'arch') {
             setDownloadNotice(getLinuxPostDownloadNotice());
             return;
@@ -662,6 +637,18 @@ export function SettingsView() {
 
     const recommendedDownload = useMemo(() => {
         if (!updateInfo) return null;
+        if (installSource === 'homebrew') {
+            return { label: 'Homebrew' };
+        }
+        if (installSource === 'winget') {
+            return { label: 'winget' };
+        }
+        if (installSource === 'mac-app-store') {
+            return { label: 'App Store' };
+        }
+        if (installSource === 'microsoft-store') {
+            return { label: 'Microsoft Store' };
+        }
         const assets = updateInfo.assets || [];
         const findAsset = (patterns: RegExp[]) => assets.find((asset) => patterns.some((pattern) => pattern.test(asset.name)));
 
@@ -692,10 +679,13 @@ export function SettingsView() {
         }
 
         return null;
-    }, [updateInfo, linuxFlavor]);
+    }, [installSource, linuxFlavor, updateInfo]);
 
     const preferredDownloadUrl = useMemo(() => {
         if (!updateInfo) return null;
+        if (installSource === 'homebrew' || installSource === 'winget' || installSource === 'mac-app-store' || installSource === 'microsoft-store') {
+            return null;
+        }
         if (updateInfo.platform === 'linux') {
             if (linuxFlavor === 'arch') return null;
             if (linuxFlavor === 'debian' || linuxFlavor === 'rpm') {
@@ -703,10 +693,15 @@ export function SettingsView() {
             }
         }
         return recommendedDownload?.url ?? updateInfo.downloadUrl ?? updateInfo.releaseUrl ?? GITHUB_RELEASES_URL;
-    }, [updateInfo, linuxFlavor, recommendedDownload]);
+    }, [installSource, linuxFlavor, recommendedDownload, updateInfo]);
 
     const isArchLinuxUpdate = updateInfo?.platform === 'linux' && linuxFlavor === 'arch';
-    const canDownloadUpdate = Boolean(preferredDownloadUrl) && !isArchLinuxUpdate;
+    const canDownloadUpdate = useMemo(() => {
+        if (installSource === 'homebrew' || installSource === 'winget' || installSource === 'mac-app-store' || installSource === 'microsoft-store') {
+            return true;
+        }
+        return Boolean(preferredDownloadUrl) && !isArchLinuxUpdate;
+    }, [installSource, isArchLinuxUpdate, preferredDownloadUrl]);
 
     const lastSyncAt = settings?.lastSyncAt;
     const lastSyncStats = settings?.lastSyncStats ?? null;
@@ -1005,7 +1000,7 @@ export function SettingsView() {
         }
 
         if (page === 'about') {
-            const updateActionLabel = isWindows && windowsUpdateChannel === 'store'
+            const updateActionLabel = installSource === 'microsoft-store'
                 ? t.checkStoreUpdates
                 : t.checkForUpdates;
             return (

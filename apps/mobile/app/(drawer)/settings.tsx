@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import Constants from 'expo-constants';
+import * as Application from 'expo-application';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import {
@@ -251,6 +252,9 @@ export default function SettingsPage() {
     const isExpoGo = Constants.appOwnership === 'expo';
     const extraConfig = Constants.expoConfig?.extra as { isFossBuild?: boolean | string } | undefined;
     const isFossBuild = extraConfig?.isFossBuild === true || extraConfig?.isFossBuild === 'true';
+    const [androidInstallerSource, setAndroidInstallerSource] = useState<'play-store' | 'sideload' | 'unknown'>(
+        Platform.OS === 'android' ? 'unknown' : 'play-store'
+    );
     const currentVersion = Constants.expoConfig?.version || '0.0.0';
     const notificationsEnabled = settings.notificationsEnabled !== false;
     const dailyDigestMorningEnabled = settings.dailyDigestMorningEnabled === true;
@@ -831,6 +835,33 @@ export default function SettingsPage() {
         }
     };
 
+    useEffect(() => {
+        if (Platform.OS !== 'android') {
+            setAndroidInstallerSource('play-store');
+            return;
+        }
+        if (isFossBuild) {
+            setAndroidInstallerSource('sideload');
+            return;
+        }
+        let cancelled = false;
+        Application.getInstallReferrerAsync()
+            .then((referrer) => {
+                if (cancelled) return;
+                const normalized = (referrer || '').trim().toLowerCase();
+                setAndroidInstallerSource(normalized ? 'play-store' : 'sideload');
+            })
+            .catch((error) => {
+                if (!cancelled) {
+                    setAndroidInstallerSource('unknown');
+                }
+                logSettingsWarn('Failed to detect Android installer source', error);
+            });
+        return () => {
+            cancelled = true;
+        };
+    }, [isFossBuild]);
+
     const GITHUB_RELEASES_API = 'https://api.github.com/repos/dongdongbh/Mindwtr/releases/latest';
     const GITHUB_RELEASES_URL = 'https://github.com/dongdongbh/Mindwtr/releases/latest';
     const PLAY_STORE_URL = 'https://play.google.com/store/apps/details?id=tech.dongdongbh.mindwtr';
@@ -966,6 +997,10 @@ export default function SettingsPage() {
             const githubVersion = await fetchLatestGithubVersion();
             return { version: githubVersion, source: 'github-release' };
         }
+        if (androidInstallerSource === 'sideload') {
+            const githubVersion = await fetchLatestGithubVersion();
+            return { version: githubVersion, source: 'github-release' };
+        }
         try {
             const playStoreVersion = await fetchLatestPlayStoreVersion();
             return { version: playStoreVersion, source: 'play-store' };
@@ -974,7 +1009,7 @@ export default function SettingsPage() {
             const githubVersion = await fetchLatestGithubVersion();
             return { version: githubVersion, source: 'github-release' };
         }
-    }, [fetchLatestAppStoreInfo, fetchLatestGithubVersion, fetchLatestPlayStoreVersion, isFossBuild]);
+    }, [androidInstallerSource, fetchLatestAppStoreInfo, fetchLatestGithubVersion, fetchLatestPlayStoreVersion, isFossBuild]);
 
     useEffect(() => {
         let cancelled = false;
@@ -1025,7 +1060,7 @@ export default function SettingsPage() {
         try {
             await AsyncStorage.setItem(UPDATE_BADGE_LAST_CHECK_KEY, String(Date.now()));
 
-            if (Platform.OS === 'android' && !isFossBuild) {
+            if (Platform.OS === 'android' && !isFossBuild && androidInstallerSource !== 'sideload') {
                 const canOpenMarket = await Linking.canOpenURL(PLAY_STORE_MARKET_URL);
                 const targetUrl = canOpenMarket ? PLAY_STORE_MARKET_URL : PLAY_STORE_URL;
                 const { version: latestVersion, source } = await fetchLatestComparableVersion();

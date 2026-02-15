@@ -7,6 +7,7 @@ use std::fs::OpenOptions;
 use std::io::Write;
 use std::path::Path;
 use std::path::PathBuf;
+use std::process::Command;
 use std::sync::{mpsc, Arc, Mutex};
 use std::time::Duration;
 use std::time::{SystemTime, UNIX_EPOCH};
@@ -304,6 +305,117 @@ fn is_windows_store_install() -> bool {
     #[cfg(not(target_os = "windows"))]
     {
         false
+    }
+}
+
+fn current_exe_path_lowercase() -> Option<String> {
+    env::current_exe()
+        .ok()
+        .and_then(|path| path.to_str().map(|value| value.to_lowercase()))
+}
+
+fn command_succeeds(cmd: &str, args: &[&str]) -> bool {
+    Command::new(cmd)
+        .args(args)
+        .output()
+        .map(|output| output.status.success())
+        .unwrap_or(false)
+}
+
+#[cfg(target_os = "macos")]
+fn find_macos_bundle_root(path: &Path) -> Option<PathBuf> {
+    path.ancestors()
+        .find(|ancestor| {
+            ancestor
+                .extension()
+                .and_then(|ext| ext.to_str())
+                .map(|ext| ext.eq_ignore_ascii_case("app"))
+                .unwrap_or(false)
+        })
+        .map(|ancestor| ancestor.to_path_buf())
+}
+
+#[tauri::command]
+fn get_install_source() -> String {
+    #[cfg(target_os = "windows")]
+    {
+        if is_windows_store_install() {
+            return "microsoft-store".to_string();
+        }
+        if env::var_os("WINGET_PACKAGE_IDENTIFIER").is_some() {
+            return "winget".to_string();
+        }
+        if let Some(path) = current_exe_path_lowercase() {
+            if path.contains("\\microsoft\\winget\\packages\\")
+                || path.contains("/microsoft/winget/packages/")
+            {
+                return "winget".to_string();
+            }
+        }
+        return "direct".to_string();
+    }
+
+    #[cfg(target_os = "macos")]
+    {
+        if let Ok(exe_path) = env::current_exe() {
+            if let Some(bundle_root) = find_macos_bundle_root(&exe_path) {
+                if bundle_root
+                    .join("Contents")
+                    .join("_MASReceipt")
+                    .join("receipt")
+                    .exists()
+                {
+                    return "mac-app-store".to_string();
+                }
+            }
+        }
+        if let Some(path) = current_exe_path_lowercase() {
+            if path.contains("/caskroom/") || path.contains("/homebrew/") {
+                return "homebrew".to_string();
+            }
+        }
+        return "direct".to_string();
+    }
+
+    #[cfg(target_os = "linux")]
+    {
+        if is_flatpak() {
+            return "flatpak".to_string();
+        }
+        if env::var_os("SNAP").is_some() || env::var_os("SNAP_NAME").is_some() {
+            return "snap".to_string();
+        }
+        if env::var_os("APPIMAGE").is_some() {
+            return "appimage".to_string();
+        }
+        if let Some(path) = current_exe_path_lowercase() {
+            if path.ends_with(".appimage") || path.contains(".appimage") {
+                return "appimage".to_string();
+            }
+            if path.contains("/home/linuxbrew/") || path.contains("/linuxbrew/") {
+                return "homebrew".to_string();
+            }
+        }
+        if command_succeeds("brew", &["list", "--cask", "mindwtr"]) {
+            return "homebrew".to_string();
+        }
+        if command_succeeds("pacman", &["-Q", "mindwtr-bin"])
+            || command_succeeds("pacman", &["-Q", "mindwtr"])
+        {
+            return "aur".to_string();
+        }
+        if command_succeeds("dpkg-query", &["-W", "mindwtr"]) {
+            return "apt".to_string();
+        }
+        if command_succeeds("rpm", &["-q", "mindwtr"]) {
+            return "rpm".to_string();
+        }
+        return "direct".to_string();
+    }
+
+    #[cfg(not(any(target_os = "windows", target_os = "macos", target_os = "linux")))]
+    {
+        "direct".to_string()
     }
 }
 
@@ -2713,6 +2825,7 @@ pub fn run() {
             clear_log_file,
             consume_quick_add_pending,
             is_windows_store_install,
+            get_install_source,
             quit_app
         ])
         .run(tauri::generate_context!())
