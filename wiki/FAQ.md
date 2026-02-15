@@ -117,13 +117,15 @@ For Horizons 3–5 (Goals, Vision, Purpose), there isn’t a dedicated entity ye
 
 If you rely on explicit Goal/Vision objects, please open an issue with your desired workflow and review cadence.
 
-### How do I enable Due Date, Priority, or Time Estimate?
+### How do I enable Priority or Estimated Time?
 
-These fields are hidden by default to keep the UI clean. Enable them here:
+Mindwtr uses progressive disclosure, so optional fields are hidden by default.
 
-**Settings → GTD → Task Editor**
+Enable them in:
 
-You can also reorder the fields there.
+**Settings → GTD → Task Editor Layout**
+
+Turn on **Priority** and **Estimated Time** there (and reorder fields if needed).
 
 
 
