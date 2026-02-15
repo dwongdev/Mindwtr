@@ -21,17 +21,15 @@ jobs:
     name: Bump Official Homebrew Cask
     timeout-minutes: 30
     steps:
+      - name: Checkout release repo
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+
       - name: Resolve release tag/version
         id: version
         run: |
-          TAG="${{ github.event.inputs.tag }}"
-          VERSION="${TAG#v}"
-          if [ -z "$TAG" ] || [ -z "$VERSION" ]; then
-            echo "Invalid tag input: '$TAG'"
-            exit 1
-          fi
-          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
-          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          INPUT_TAG="${{ github.event.inputs.tag }}"
+          GITHUB_EVENT_INPUTS_TAG="${{ github.event.inputs.tag }}"
+          scripts/ci/resolve-release-version.sh "$INPUT_TAG" >> "$GITHUB_OUTPUT"
 
       - name: Wait for macOS release assets to be live
         run: |

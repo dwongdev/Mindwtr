@@ -11,12 +11,9 @@ on:
         required: true
         type: string
 
-permissions:
-  contents: write
-
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 jobs:
   linux:
@@ -42,16 +39,16 @@ jobs:
   ios-appstore:
     uses: ./.github/workflows/release-ios-appstore.yml
     with:
-      upload: 'true'
-      submit_for_review: 'true'
+      upload: true
+      submit_for_review: true
       testflight_group: 'external_testing'
     secrets: inherit
 
   macos-appstore:
     uses: ./.github/workflows/release-macos-appstore.yml
     with:
-      upload: 'true'
-      submit_for_review: 'true'
+      upload: true
+      submit_for_review: true
       testflight_group: 'external_testing'
     secrets: inherit
 
@@ -60,15 +57,24 @@ jobs:
     runs-on: ubuntu-latest
     name: Create Release
     timeout-minutes: 30
+    permissions:
+      contents: write
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
         with:
           fetch-depth: 0
 
+      - name: Validate release tag
+        id: release_version
+        env:
+          INPUT_TAG: ${{ github.event.inputs.tag }}
+          GITHUB_EVENT_INPUTS_TAG: ${{ github.event.inputs.tag }}
+        run: scripts/ci/resolve-release-version.sh "$INPUT_TAG" >> "$GITHUB_OUTPUT"
+
       - name: Download build artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
           pattern: release-*
           path: ./release-assets
@@ -77,10 +83,20 @@ jobs:
       - name: List release assets
         run: ls -la ./release-assets/ || echo "No assets found"
 
+      - name: Validate release assets
+        run: |
+          set -euo pipefail
+          count="$(find ./release-assets -maxdepth 1 -type f | wc -l | tr -d ' ')"
+          if [ "${count}" -eq 0 ]; then
+            echo "No release artifacts were downloaded. Aborting release creation."
+            exit 1
+          fi
+          echo "Release asset count: ${count}"
+
       - name: Resolve release notes
         id: release_notes
         run: |
-          CURRENT_TAG=${GITHUB_REF#refs/tags/}
+          CURRENT_TAG="${{ steps.release_version.outputs.tag }}"
           NOTES_PATH="docs/release-notes/${CURRENT_TAG}.md"
           ALT_NOTES_PATH="docs/release-notes/${CURRENT_TAG#v}.md"
           if [ -f "$NOTES_PATH" ]; then
@@ -101,7 +117,7 @@ jobs:
         if: ${{ steps.release_notes.outputs.body_path == 'CHANGELOG.md' }}
         run: |
           PREV_TAG=$(git describe --tags --abbrev=0 HEAD^ 2>/dev/null || echo "")
-          CURRENT_TAG=${GITHUB_REF#refs/tags/}
+          CURRENT_TAG="${{ steps.release_version.outputs.tag }}"
           echo "## What's Changed in $CURRENT_TAG" > CHANGELOG.md
           echo "" >> CHANGELOG.md
           if [ -n "$PREV_TAG" ]; then
@@ -114,12 +130,12 @@ jobs:
           echo "**Full Changelog**: https://github.com/${{ github.repository }}/compare/$PREV_TAG...$CURRENT_TAG" >> CHANGELOG.md
 
       - name: Create Release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@a06a81a03ee405af7f2048a818ed3f03bbf83c7b # v2
         with:
           files: ./release-assets/*
           body_path: ${{ steps.release_notes.outputs.body_path }}
           draft: false
-          prerelease: ${{ contains(github.ref, '-') }}
+          prerelease: ${{ contains(steps.release_version.outputs.tag, '-') }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -128,10 +144,17 @@ jobs:
     runs-on: ubuntu-latest
     name: Update Homebrew/Scoop Packages
     timeout-minutes: 45
+    permissions:
+      contents: read
     if: startsWith(github.ref, 'refs/tags/') && github.event_name == 'push' && needs.release.result == 'success'
     steps:
+      - name: Checkout release repo
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          path: source
+
       - name: Checkout packages repo
-        uses: actions/checkout@v4
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
         with:
           repository: dongdongbh/homebrew-mindwtr
           token: ${{ secrets.PACKAGES_REPO_TOKEN }}
@@ -141,11 +164,8 @@ jobs:
         id: version
         env:
           INPUT_TAG: ${{ github.event.inputs.tag }}
-        run: |
-          TAG="${INPUT_TAG:-${GITHUB_REF#refs/tags/}}"
-          VERSION="${TAG#v}"
-          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
-          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          GITHUB_EVENT_INPUTS_TAG: ${{ github.event.inputs.tag }}
+        run: source/scripts/ci/resolve-release-version.sh "$INPUT_TAG" >> "$GITHUB_OUTPUT"
 
       - name: Download release assets and compute hashes
         id: hashes
@@ -227,7 +247,7 @@ jobs:
 
       - name: Checkout winget-pkgs fork
         if: steps.winget_check.outputs.exists == 'true'
-        uses: actions/checkout@v4
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
         with:
           repository: dongdongbh/winget-pkgs
           token: ${{ secrets.PACKAGES_REPO_TOKEN }}
@@ -387,17 +407,19 @@ jobs:
     runs-on: macos-latest
     name: Bump Official Homebrew Cask
     timeout-minutes: 30
+    permissions:
+      contents: read
     if: startsWith(github.ref, 'refs/tags/') && github.event_name == 'push' && needs.release.result == 'success' && !contains(github.ref, '-')
     steps:
+      - name: Checkout release repo
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+
       - name: Resolve release tag/version
         id: version
         env:
           INPUT_TAG: ${{ github.event.inputs.tag }}
-        run: |
-          TAG="${INPUT_TAG:-${GITHUB_REF#refs/tags/}}"
-          VERSION="${TAG#v}"
-          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
-          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          GITHUB_EVENT_INPUTS_TAG: ${{ github.event.inputs.tag }}
+        run: scripts/ci/resolve-release-version.sh "$INPUT_TAG" >> "$GITHUB_OUTPUT"
 
       - name: Wait for macOS release assets to be live
         run: |
@@ -478,21 +500,22 @@ jobs:
     runs-on: windows-latest
     name: Publish Chocolatey
     timeout-minutes: 45
+    permissions:
+      contents: read
     if: startsWith(github.ref, 'refs/tags/') && github.event_name == 'push' && needs.release.result == 'success' && !contains(github.ref, '-') && vars.CHOCOLATEY_PUBLISH_ENABLED == 'true'
     steps:
       - name: Checkout repo
-        uses: actions/checkout@v4
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
 
       - name: Resolve release tag/version
         id: version
         shell: pwsh
         run: |
-          $tag = "${{ github.ref_name }}"
-          if (-not $tag) { throw "Missing tag." }
-          $version = $tag.TrimStart('v')
-          if (-not $version) { throw "Failed to resolve version from tag '$tag'." }
-          "tag=$tag" >> $env:GITHUB_OUTPUT
-          "version=$version" >> $env:GITHUB_OUTPUT
+          $env:GITHUB_EVENT_INPUTS_TAG = "${{ github.event.inputs.tag }}"
+          $lines = & scripts/ci/resolve-release-version.ps1 -InputTag "${{ github.ref_name }}"
+          foreach ($line in $lines) {
+            $line >> $env:GITHUB_OUTPUT
+          }
 
       - name: Download Windows installer and compute SHA256
         id: installer
@@ -600,10 +623,12 @@ jobs:
     runs-on: ubuntu-latest
     name: Update AUR
     timeout-minutes: 30
+    permissions:
+      contents: read
     if: startsWith(github.ref, 'refs/tags/') && github.event_name == 'push' && needs.release.result == 'success'
     steps:
       - name: Checkout repo
-        uses: actions/checkout@v4
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
 
       - name: Update PKGBUILD version
         run: |
@@ -623,7 +648,7 @@ jobs:
         shell: bash
 
       - name: Publish to AUR
-        uses: KSXGitHub/github-actions-deploy-aur@v3
+        uses: KSXGitHub/github-actions-deploy-aur@a97f56a8425a7a7f3b8c58607f769c69b089cadb # v3
         with:
           pkgname: mindwtr-bin
           pkgbuild: ./aur/PKGBUILD
@@ -638,6 +663,8 @@ jobs:
     runs-on: ubuntu-latest
     name: Update AUR (mindwtr)
     timeout-minutes: 30
+    permissions:
+      contents: read
     if: startsWith(github.ref, 'refs/tags/') && github.event_name == 'push' && needs.release.result == 'success'
     steps:
       - name: Configure SSH for AUR

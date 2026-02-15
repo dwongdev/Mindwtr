@@ -25,7 +25,7 @@ const ATTACHMENT_CLEANUP_BATCH_LIMIT = 25;
 const SYNC_CONFIG_CACHE_TTL_MS = 30_000;
 const SYNC_FILE_NAME = 'data.json';
 const syncConfigCache = new Map<string, { value: string | null; readAt: number }>();
-const IOS_TEMP_INBOX_PATH_PATTERN = /\/tmp\/[^/\s]*-Inbox\//i;
+const IOS_TEMP_INBOX_PATH_PATTERN = /\/tmp\/[^/]*-Inbox\//i;
 
 const decodeUriSafe = (value: string): string => {
   try {

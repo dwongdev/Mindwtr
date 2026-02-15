@@ -28,11 +28,11 @@ on:
         type: string
 
 permissions:
-  contents: write
+  contents: read
 
 concurrency:
   group: release-macos-${{ github.ref }}
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 jobs:
   macos:
@@ -52,10 +52,10 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
 
       - name: Setup Rust
-        uses: dtolnay/rust-toolchain@stable
+        uses: dtolnay/rust-toolchain@631a55b12751854ce901bb631d5902ceb48146f7 # stable
         with:
           targets: ${{ matrix.rust_target }}
 
@@ -73,7 +73,7 @@ jobs:
           which SetFile || true
 
       - name: Rust cache
-        uses: Swatinem/rust-cache@v2
+        uses: Swatinem/rust-cache@779680da715d629ac1d338a641029a2f4372abb5 # v2
         with:
           workspaces: apps/desktop/src-tauri
 
@@ -81,7 +81,7 @@ jobs:
         run: cargo install tauri-cli --version "^2.0"
 
       - name: Setup Bun
-        uses: oven-sh/setup-bun@v2
+        uses: oven-sh/setup-bun@3d267786b128fe76c2f16a390aa2448b815359f3 # v2
         with:
           bun-version: "1.x"
 
@@ -89,6 +89,7 @@ jobs:
         run: bun install
 
       - name: Build App
+        timeout-minutes: 40
         run: |
           cd apps/desktop
           cargo tauri build --target ${{ matrix.rust_target }}
@@ -105,6 +106,7 @@ jobs:
           DEVELOPER_DIR: ${{ env.DEVELOPER_DIR }}
 
       - name: Notarize DMG
+        timeout-minutes: 25
         env:
           APPLE_ID: ${{ secrets.APPLE_ID }}
           APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
@@ -149,7 +151,7 @@ jobs:
         shell: bash
 
       - name: Upload macOS artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: ${{ matrix.artifact_name }}
           path: release-artifacts/*

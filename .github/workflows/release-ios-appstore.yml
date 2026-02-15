@@ -6,13 +6,13 @@ on:
       upload:
         description: Upload to App Store Connect
         required: false
-        type: string
-        default: 'true'
+        type: boolean
+        default: true
       submit_for_review:
         description: Submit build for review after upload
         required: false
-        type: string
-        default: 'true'
+        type: boolean
+        default: true
       testflight_group:
         description: TestFlight external group for review-blocked uploads
         required: false
@@ -23,14 +23,17 @@ on:
       upload:
         description: Upload to App Store Connect
         required: false
-        default: 'true'
+        type: boolean
+        default: true
       submit_for_review:
         description: Submit build for review after upload
         required: false
-        default: 'false'
+        type: boolean
+        default: false
       testflight_group:
         description: TestFlight external group for review-blocked uploads
         required: false
+        type: string
         default: 'external_testing'
 
 permissions:
@@ -49,10 +52,10 @@ jobs:
       EXPECTED_BUNDLE_ID: tech.dongdongbh.mindwtr
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
 
       - name: Setup Ruby
-        uses: ruby/setup-ruby@v1
+        uses: ruby/setup-ruby@09a7688d3b55cf0e976497ff046b70949eeaccfd # v1
         with:
           ruby-version: '3.3'
 
@@ -67,19 +70,21 @@ jobs:
             sudo xcode-select -s "$XCODE_26_PATH"
           fi
           xcodebuild -version
-          if ! xcodebuild -showsdks | grep -q "iphoneos26"; then
-            echo "::error::iOS 26 SDK not found on runner. Current SDKs:"
+          IOS_SDK_LINE="$(xcodebuild -showsdks | awk '/-sdk iphoneos/{line=$0} END{print line}')"
+          if [ -z "${IOS_SDK_LINE:-}" ]; then
+            echo "::error::No iPhoneOS SDK found on runner. Current SDKs:"
             xcodebuild -showsdks
             exit 1
           fi
+          echo "Using SDK line: ${IOS_SDK_LINE}"
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: 20
 
       - name: Setup Bun
-        uses: oven-sh/setup-bun@v2
+        uses: oven-sh/setup-bun@3d267786b128fe76c2f16a390aa2448b815359f3 # v2
         with:
           bun-version: "1.x"
 
@@ -374,6 +379,7 @@ jobs:
           echo "EXPORT_OPTIONS_PATH=$EXPORT_OPTIONS_PATH" >> "$GITHUB_ENV"
 
       - name: Archive iOS app
+        timeout-minutes: 25
         run: |
           set -euo pipefail
           ARCHIVE_PATH="$RUNNER_TEMP/Mindwtr.xcarchive"
@@ -409,6 +415,7 @@ jobs:
           echo "ARCHIVE_PATH=$ARCHIVE_PATH" >> "$GITHUB_ENV"
 
       - name: Export IPA
+        timeout-minutes: 10
         run: |
           set -euo pipefail
           EXPORT_PATH="$RUNNER_TEMP/ios-export"
@@ -425,109 +432,25 @@ jobs:
           ls -la "$EXPORT_PATH"
 
       - name: Prepare Fastlane metadata
-        if: ${{ (inputs.upload || 'true') == 'true' }}
+        if: ${{ inputs.upload }}
         env:
           RELEASE_BODY: ${{ github.event.release.body || '' }}
           APP_SUPPORT_URL: "https://github.com/dongdongbh/Mindwtr/issues"
           APP_MARKETING_URL: "https://github.com/dongdongbh/Mindwtr"
         run: |
           set -euo pipefail
-
           FASTLANE_METADATA_DIR="$RUNNER_TEMP/fastlane_metadata"
-          rm -rf "$FASTLANE_METADATA_DIR"
-          mkdir -p "$FASTLANE_METADATA_DIR"
-          if [ -f "metadata/copyright.txt" ]; then
-            cp "metadata/copyright.txt" "$FASTLANE_METADATA_DIR/copyright.txt"
-          fi
-
-          map_metadata() {
-            local src_locale="$1"
-            local dst_locale="$2"
-            local src_dir="metadata/$src_locale"
-            local dst_dir="$FASTLANE_METADATA_DIR/$dst_locale"
-
-            if [ ! -d "$src_dir" ]; then
-              echo "Skipping $src_locale (missing metadata folder)"
-              return
-            fi
-
-            mkdir -p "$dst_dir"
-
-            if [ -f "$src_dir/description.txt" ]; then
-              cp "$src_dir/description.txt" "$dst_dir/description.txt"
-            elif [ -f "$src_dir/full_description.txt" ]; then
-              cp "$src_dir/full_description.txt" "$dst_dir/description.txt"
-            fi
-            if [ -f "$src_dir/name.txt" ]; then
-              cp "$src_dir/name.txt" "$dst_dir/name.txt"
-            elif [ -f "$src_dir/title.txt" ]; then
-              cp "$src_dir/title.txt" "$dst_dir/name.txt"
-            fi
-            if [ -f "$src_dir/subtitle.txt" ]; then
-              cp "$src_dir/subtitle.txt" "$dst_dir/subtitle.txt"
-            elif [ -f "$src_dir/short_description.txt" ]; then
-              cp "$src_dir/short_description.txt" "$dst_dir/subtitle.txt"
-            fi
-            if [ -f "$src_dir/keywords.txt" ]; then
-              cp "$src_dir/keywords.txt" "$dst_dir/keywords.txt"
-            fi
-            if [ -f "$src_dir/support_url.txt" ]; then
-              cp "$src_dir/support_url.txt" "$dst_dir/support_url.txt"
-            elif [ -n "${APP_SUPPORT_URL:-}" ]; then
-              printf '%s\n' "$APP_SUPPORT_URL" > "$dst_dir/support_url.txt"
-            fi
-            if [ -f "$src_dir/marketing_url.txt" ]; then
-              cp "$src_dir/marketing_url.txt" "$dst_dir/marketing_url.txt"
-            elif [ -n "${APP_MARKETING_URL:-}" ]; then
-              printf '%s\n' "$APP_MARKETING_URL" > "$dst_dir/marketing_url.txt"
-            fi
-
-            if [ -f "$src_dir/release_notes.txt" ]; then
-              cp "$src_dir/release_notes.txt" "$dst_dir/release_notes.txt"
-              echo "Release notes source for $src_locale: release_notes.txt"
-              return
-            fi
-
-            if [ -d "$src_dir/changelogs" ]; then
-              local latest_log=""
-              latest_log="$(
-                ls -1 "$src_dir/changelogs" 2>/dev/null \
-                  | sed -E 's/\.txt$//' \
-                  | grep -E '^[0-9]+$' \
-                  | sort -n \
-                  | tail -n 1 || true
-              )"
-              if [ -n "$latest_log" ] && [ -f "$src_dir/changelogs/${latest_log}.txt" ]; then
-                cp "$src_dir/changelogs/${latest_log}.txt" "$dst_dir/release_notes.txt"
-                echo "Release notes source for $src_locale: changelogs/${latest_log}.txt"
-                return
-              fi
-            fi
-
-            if [ -n "${RELEASE_BODY:-}" ]; then
-              printf '%s\n' "$RELEASE_BODY" > "$dst_dir/release_notes.txt"
-              echo "Release notes source for $src_locale: github release body"
-              return
-            fi
-
-            echo "No release notes found for $src_locale"
-          }
-
-          map_metadata "en-US" "en-US"
-          map_metadata "es-ES" "es-ES"
-          map_metadata "zh-CN" "zh-Hans"
-
+          scripts/ci/prepare-fastlane-metadata.sh
           echo "FASTLANE_METADATA_PATH=$FASTLANE_METADATA_DIR" >> "$GITHUB_ENV"
-          echo "Generated fastlane metadata files:"
-          find "$FASTLANE_METADATA_DIR" -type f | sort
 
       - name: Resolve App Store review submission flag
-        if: ${{ (inputs.upload || 'true') == 'true' }}
+        if: ${{ inputs.upload }}
+        timeout-minutes: 10
         env:
           IOS_ASC_KEY_ID: ${{ secrets.IOS_ASC_KEY_ID }}
           IOS_ASC_ISSUER_ID: ${{ secrets.IOS_ASC_ISSUER_ID }}
           IOS_ASC_PRIVATE_KEY: ${{ secrets.IOS_ASC_PRIVATE_KEY }}
-          REQUESTED_SUBMIT_FOR_REVIEW: ${{ inputs.submit_for_review || 'true' }}
+          REQUESTED_SUBMIT_FOR_REVIEW: ${{ inputs.submit_for_review && 'true' || 'false' }}
         run: |
           set -euo pipefail
 
@@ -617,7 +540,8 @@ jobs:
           fi
 
       - name: Upload IPA to App Store Connect
-        if: ${{ (inputs.upload || 'true') == 'true' }}
+        if: ${{ inputs.upload }}
+        timeout-minutes: 30
         env:
           IOS_ASC_KEY_ID: ${{ secrets.IOS_ASC_KEY_ID }}
           IOS_ASC_ISSUER_ID: ${{ secrets.IOS_ASC_ISSUER_ID }}
@@ -666,7 +590,8 @@ jobs:
           ASC_KEY_PATH="$ASC_KEY_PATH" fastlane ios upload_app_store
 
       - name: Distribute upload to TestFlight external group when review is active
-        if: ${{ (inputs.upload || 'true') == 'true' && env.ENABLE_TESTFLIGHT_EXTERNAL_RELEASE == 'true' }}
+        if: ${{ inputs.upload && env.ENABLE_TESTFLIGHT_EXTERNAL_RELEASE == 'true' }}
+        timeout-minutes: 30
         env:
           IOS_ASC_KEY_ID: ${{ secrets.IOS_ASC_KEY_ID }}
           IOS_ASC_ISSUER_ID: ${{ secrets.IOS_ASC_ISSUER_ID }}
@@ -719,7 +644,7 @@ jobs:
           ASC_KEY_PATH="$ASC_KEY_PATH" fastlane ios distribute_external_group
 
       - name: Upload IPA artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: mindwtr-ios-appstore-ipa
           path: ${{ env.IPA_PATH }}

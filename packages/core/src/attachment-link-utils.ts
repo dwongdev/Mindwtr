@@ -34,8 +34,12 @@ function collapseWhitespace(value: string): string {
 function truncateMiddle(value: string, maxLength = MAX_COMPACT_LABEL): string {
     if (value.length <= maxLength) return value;
     const separator = '...';
+    if (maxLength <= separator.length) return value.slice(0, maxLength);
     const front = Math.max(16, Math.floor((maxLength - separator.length) * 0.7));
     const back = Math.max(8, maxLength - front - separator.length);
+    if (front + back + separator.length > maxLength) {
+        return value.slice(0, maxLength);
+    }
     return `${value.slice(0, front)}${separator}${value.slice(-back)}`;
 }
 

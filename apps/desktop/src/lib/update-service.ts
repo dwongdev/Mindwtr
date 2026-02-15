@@ -354,8 +354,9 @@ const fetchSourceVersion = async (installSource: InstallSource): Promise<SourceV
 };
 
 /**
- * Check for updates from install source first, then GitHub release fallback.
- * Managed channels (App Store / package managers) stay on their own source.
+ * Check updates from install source first, with GitHub as fallback.
+ * Managed channels (App Store / package managers) stay on their own source
+ * when their source lookup succeeds; GitHub is only used if managed lookup fails.
  */
 export async function checkForUpdates(currentVersion: string, options: CheckForUpdatesOptions = {}): Promise<UpdateInfo> {
     const platform = detectPlatform();
@@ -395,6 +396,8 @@ export async function checkForUpdates(currentVersion: string, options: CheckForU
             latestVersion = cleanCurrentVersion;
         }
 
+        // Managed sources pin users to their channel when source lookup succeeds.
+        // If managed lookup fails, allow GitHub to serve as a fallback source.
         const allowGitHubOverride = !sourceResult || !isManagedInstallSource(installSource);
         if (allowGitHubOverride && githubLatestVersion && compareVersions(githubLatestVersion, latestVersion) > 0) {
             latestVersion = githubLatestVersion;
