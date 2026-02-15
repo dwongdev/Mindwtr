@@ -162,6 +162,7 @@ export function TaskItemFieldRenderer({
                         <div className={cn("text-xs bg-muted/30 border border-border rounded px-2 py-2", isRtl && "text-right")} dir={resolvedDirection}>
                             <ReactMarkdown
                                 remarkPlugins={[remarkGfm]}
+                                disallowedElements={['img']}
                                 components={{
                                     a: ({ className, ...props }: any) => (
                                         <a

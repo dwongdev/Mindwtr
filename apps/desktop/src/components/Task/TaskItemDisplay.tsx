@@ -295,6 +295,7 @@ export function TaskItemDisplay({
                         >
                             <ReactMarkdown
                                 remarkPlugins={[remarkGfm]}
+                                disallowedElements={['img']}
                                 components={{
                                     a: ({ className, ...props }: any) => (
                                         <a
