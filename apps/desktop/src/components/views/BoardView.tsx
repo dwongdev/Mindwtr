@@ -47,6 +47,7 @@ function DroppableColumn({
     tasks,
     emptyState,
     onQuickAdd,
+    dragLabel,
     compact,
 }: {
     id: TaskStatus;
@@ -54,6 +55,7 @@ function DroppableColumn({
     tasks: Task[];
     emptyState: { title: string; body: string; action: string };
     onQuickAdd: (status: TaskStatus) => void;
+    dragLabel: string;
     compact?: boolean;
 }) {
     const { setNodeRef } = useDroppable({ id });
@@ -91,7 +93,7 @@ function DroppableColumn({
                     </div>
                 ) : (
                     tasks.map((task) => (
-                        <DraggableTask key={task.id} task={task} />
+                        <DraggableTask key={task.id} task={task} dragLabel={dragLabel} />
                     ))
                 )}
             </div>
@@ -99,7 +101,7 @@ function DroppableColumn({
     );
 }
 
-function DraggableTask({ task }: { task: Task }) {
+function DraggableTask({ task, dragLabel }: { task: Task; dragLabel: string }) {
     const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
         id: task.id,
         data: { task },
@@ -111,7 +113,7 @@ function DraggableTask({ task }: { task: Task }) {
 
     if (isDragging) {
         return (
-            <div ref={setNodeRef} style={style} className="opacity-50">
+            <div ref={setNodeRef} style={style} className="opacity-50" role="listitem">
                 <TaskItem
                     task={task}
                     readOnly={task.status === 'done'}
@@ -127,7 +129,7 @@ function DraggableTask({ task }: { task: Task }) {
     }
 
     return (
-        <div ref={setNodeRef} style={style} className="touch-none">
+        <div ref={setNodeRef} style={style} className="touch-none" role="listitem">
             <TaskItem
                 task={task}
                 readOnly={task.status === 'done'}
@@ -142,8 +144,8 @@ function DraggableTask({ task }: { task: Task }) {
                         {...attributes}
                         onClick={(event) => event.stopPropagation()}
                         className="text-muted-foreground/70 hover:text-foreground p-1 rounded hover:bg-muted/50 cursor-grab active:cursor-grabbing"
-                        aria-label="Drag task"
-                        title="Drag task"
+                        aria-label={dragLabel}
+                        title={dragLabel}
                     >
                         <GripVertical className="w-4 h-4" />
                     </button>
@@ -493,6 +495,7 @@ export function BoardView() {
                             tasks={getColumnTasks(col.id)}
                             emptyState={getEmptyState(col.id)}
                             onQuickAdd={openQuickAdd}
+                            dragLabel={t('board.dragTask') || 'Drag task'}
                             compact={isCompact}
                         />
                     ))}

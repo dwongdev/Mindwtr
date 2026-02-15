@@ -32,34 +32,37 @@ import { useAreaSidebarState } from './projects/useAreaSidebarState';
 import { useProjectAttachmentActions } from './projects/useProjectAttachmentActions';
 import { SectionDropZone, getSectionContainerId, getSectionIdFromContainer, NO_SECTION_CONTAINER } from './projects/section-dnd';
 import { useProjectSectionActions } from './projects/useProjectSectionActions';
+import { useProjectsViewStore } from './projects/useProjectsViewStore';
 
 export function ProjectsView() {
     const perf = usePerformanceMonitor('ProjectsView');
-    const projects = useTaskStore((state) => state.projects);
-    const tasks = useTaskStore((state) => state.tasks);
-    const sections = useTaskStore((state) => state.sections);
-    const areas = useTaskStore((state) => state.areas);
-    const addArea = useTaskStore((state) => state.addArea);
-    const updateArea = useTaskStore((state) => state.updateArea);
-    const deleteArea = useTaskStore((state) => state.deleteArea);
-    const reorderAreas = useTaskStore((state) => state.reorderAreas);
-    const reorderProjects = useTaskStore((state) => state.reorderProjects);
-    const reorderProjectTasks = useTaskStore((state) => state.reorderProjectTasks);
-    const addProject = useTaskStore((state) => state.addProject);
-    const updateProject = useTaskStore((state) => state.updateProject);
-    const deleteProject = useTaskStore((state) => state.deleteProject);
-    const duplicateProject = useTaskStore((state) => state.duplicateProject);
-    const updateTask = useTaskStore((state) => state.updateTask);
-    const addSection = useTaskStore((state) => state.addSection);
-    const updateSection = useTaskStore((state) => state.updateSection);
-    const deleteSection = useTaskStore((state) => state.deleteSection);
-    const addTask = useTaskStore((state) => state.addTask);
-    const toggleProjectFocus = useTaskStore((state) => state.toggleProjectFocus);
-    const allTasks = useTaskStore((state) => state._allTasks);
-    const highlightTaskId = useTaskStore((state) => state.highlightTaskId);
-    const setHighlightTask = useTaskStore((state) => state.setHighlightTask);
-    const settings = useTaskStore((state) => state.settings);
-    const getDerivedState = useTaskStore((state) => state.getDerivedState);
+    const {
+        projects,
+        tasks,
+        sections,
+        areas,
+        addArea,
+        updateArea,
+        deleteArea,
+        reorderAreas,
+        reorderProjects,
+        reorderProjectTasks,
+        addProject,
+        updateProject,
+        deleteProject,
+        duplicateProject,
+        updateTask,
+        addSection,
+        updateSection,
+        deleteSection,
+        addTask,
+        toggleProjectFocus,
+        allTasks,
+        highlightTaskId,
+        setHighlightTask,
+        settings,
+        getDerivedState,
+    } = useProjectsViewStore();
     const { allContexts } = getDerivedState();
     const { t } = useLanguage();
     const selectedProjectId = useUiStore((state) => state.projectView.selectedProjectId);

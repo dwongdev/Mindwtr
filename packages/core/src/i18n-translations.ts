@@ -327,6 +327,7 @@ const en: Record<string, string> = {
         'board.done': 'Done',
         'board.noTasks': 'No tasks',
         'board.hint': 'Hold to drag • Swipe left to delete',
+        'board.dragTask': 'Drag task',
         'board.delete': 'Delete',
 
         // Calendar

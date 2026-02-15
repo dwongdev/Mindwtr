@@ -1,6 +1,5 @@
 import { useState, memo, useEffect, useRef, useCallback, type ReactNode } from 'react';
 import {
-    useTaskStore,
     Task,
     TaskEditorFieldId,
     type Recurrence,
@@ -32,9 +31,9 @@ import { useTaskItemAi } from './Task/useTaskItemAi';
 import { useTaskItemEditState } from './Task/useTaskItemEditState';
 import { useTaskItemProjectContext } from './Task/useTaskItemProjectContext';
 import { useTaskItemFieldLayout } from './Task/useTaskItemFieldLayout';
-import { useUiStore } from '../store/ui-store';
 import { reportError } from '../lib/report-error';
 import { mergeMarkdownChecklist } from './Task/task-item-checklist';
+import { useTaskItemStoreState, useTaskItemUiState } from './Task/useTaskItemStoreState';
 
 interface TaskItemProps {
     task: Task;
@@ -83,31 +82,30 @@ export const TaskItem = memo(function TaskItem({
     showHoverHint = true,
     editorPresentation = 'inline',
 }: TaskItemProps) {
-    const updateTask = useTaskStore((state) => state.updateTask);
-    const deleteTask = useTaskStore((state) => state.deleteTask);
-    const moveTask = useTaskStore((state) => state.moveTask);
-    const projects = useTaskStore((state) => state.projects);
-    const sections = useTaskStore((state) => state.sections);
-    const areas = useTaskStore((state) => state.areas);
-    const settings = useTaskStore((state) => state.settings);
-    const duplicateTask = useTaskStore((state) => state.duplicateTask);
-    const resetTaskChecklist = useTaskStore((state) => state.resetTaskChecklist);
-    const restoreTask = useTaskStore((state) => state.restoreTask);
-    const highlightTaskId = useTaskStore((state) => state.highlightTaskId);
-    const setHighlightTask = useTaskStore((state) => state.setHighlightTask);
-    const addProject = useTaskStore((state) => state.addProject);
-    const addArea = useTaskStore((state) => state.addArea);
-    const addSection = useTaskStore((state) => state.addSection);
-    const lockEditing = useTaskStore((state) => state.lockEditing);
-    const unlockEditing = useTaskStore((state) => state.unlockEditing);
-    const setProjectView = useUiStore((state) => state.setProjectView);
+    const {
+        updateTask,
+        deleteTask,
+        moveTask,
+        projects,
+        sections,
+        areas,
+        settings,
+        duplicateTask,
+        resetTaskChecklist,
+        restoreTask,
+        highlightTaskId,
+        setHighlightTask,
+        addProject,
+        addArea,
+        addSection,
+        lockEditing,
+        unlockEditing,
+    } = useTaskItemStoreState();
+    const { setProjectView, editingTaskId, setEditingTaskId, showToast } = useTaskItemUiState();
     const setSelectedProjectId = useCallback(
         (value: string | null) => setProjectView({ selectedProjectId: value }),
         [setProjectView]
     );
-    const editingTaskId = useUiStore((state) => state.editingTaskId);
-    const setEditingTaskId = useUiStore((state) => state.setEditingTaskId);
-    const showToast = useUiStore((state) => state.showToast);
     const { t } = useLanguage();
     const [isEditing, setIsEditing] = useState(false);
     const [autoFocusTitle, setAutoFocusTitle] = useState(false);
