@@ -371,7 +371,7 @@ function resetChecklist(checklist: ChecklistItem[] | undefined): ChecklistItem[]
 /**
  * Create the next instance of a recurring task.
  *
- * - Uses task.dueDate as the base if present/valid, else completion time.
+ * - Advances dueDate only when the original task has a dueDate.
  * - Shifts startTime/reviewAt forward if present.
  * - Resets checklist completion and IDs.
  * - New instance status is based on the previous status, with done -> next.
@@ -393,9 +393,9 @@ export function createNextRecurringTask(
         return Number.isNaN(candidate.getTime()) ? new Date() : candidate;
     })();
     const completedAtDate = parsedCompletedAt ?? fallbackCompletedAt;
-    const baseIso = strategy === 'fluid' ? completedAtIso : task.dueDate;
-
-    const nextDueDate = nextIsoFrom(baseIso, rule, completedAtDate, byDay, interval, byMonthDay);
+    const nextDueDate = task.dueDate
+        ? nextIsoFrom(strategy === 'fluid' ? completedAtIso : task.dueDate, rule, completedAtDate, byDay, interval, byMonthDay)
+        : undefined;
     let nextStartTime = task.startTime
         ? nextIsoFrom(strategy === 'fluid' ? completedAtIso : task.startTime, rule, completedAtDate, byDay, interval, byMonthDay)
         : undefined;

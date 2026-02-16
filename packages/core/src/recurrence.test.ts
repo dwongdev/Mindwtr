@@ -47,6 +47,24 @@ describe('recurrence', () => {
         expect(next?.dueDate).toBe('2025-01-06T14:00:00.000Z');
     });
 
+    it('keeps dueDate unset for startTime-only recurring tasks', () => {
+        const task: Task = {
+            id: 't2-start-only',
+            title: 'Read a book',
+            status: 'done',
+            tags: [],
+            contexts: [],
+            startTime: '2025-01-01T09:00:00.000Z',
+            recurrence: { rule: 'daily', strategy: 'strict' },
+            createdAt: '2025-01-01T00:00:00.000Z',
+            updatedAt: '2025-01-01T00:00:00.000Z',
+        };
+
+        const next = createNextRecurringTask(task, '2025-01-01T12:00:00.000Z', 'done');
+        expect(next?.startTime).toBe('2025-01-02T09:00:00.000Z');
+        expect(next?.dueDate).toBeUndefined();
+    });
+
     it('respects daily interval for strict recurrence', () => {
         const task: Task = {
             id: 't2b',
