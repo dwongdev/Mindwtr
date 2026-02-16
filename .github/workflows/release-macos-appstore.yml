@@ -474,7 +474,7 @@ jobs:
                 force: true,
                 run_precheck_before_submit: false,
                 submit_for_review: ENV.fetch("SUBMIT_FOR_REVIEW", "false") == "true",
-                automatic_release: false
+                automatic_release: true
               )
             end
           end
@@ -482,8 +482,8 @@ jobs:
 
           ASC_KEY_PATH="$ASC_KEY_PATH" fastlane mac upload_app_store
 
-      - name: Distribute upload to TestFlight external group when review is active
-        if: ${{ inputs.upload && env.ENABLE_TESTFLIGHT_EXTERNAL_RELEASE == 'true' }}
+      - name: Distribute upload to TestFlight external group
+        if: ${{ inputs.upload }}
         timeout-minutes: 30
         env:
           IOS_ASC_KEY_ID: ${{ secrets.IOS_ASC_KEY_ID }}
