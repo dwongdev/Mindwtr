@@ -105,6 +105,14 @@ const isReleasedAudioPlayerError = (error: unknown): boolean => {
         || message.includes('cannot be cast to type expo.modules.audio.audioplayer')
     );
 };
+const isValidLinkUri = (value: string): boolean => {
+    try {
+        const parsed = new URL(value);
+        return parsed.protocol.length > 0;
+    } catch {
+        return false;
+    }
+};
 const STATUS_LABEL_FALLBACKS: Record<TaskStatus, string> = {
     inbox: 'Inbox',
     next: 'Next',
@@ -789,7 +797,10 @@ function TaskEditModalInner({ visible, task, onClose, onSave, onFocusMode, defau
 
     const confirmAddLink = () => {
         const normalized = normalizeLinkAttachmentInput(linkInput);
-        if (!normalized.uri) return;
+        if (!normalized.uri || !isValidLinkUri(normalized.uri)) {
+            Alert.alert(t('attachments.title'), t('attachments.invalidLink'));
+            return;
+        }
         const now = new Date().toISOString();
         const attachment: Attachment = {
             id: generateUUID(),
