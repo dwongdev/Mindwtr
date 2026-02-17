@@ -34,6 +34,7 @@ export function PromptModal({
             setTimeout(() => inputRef.current?.focus(), 50);
         }
     }, [isOpen, defaultValue]);
+    const canConfirm = value.trim().length > 0;
 
     if (!isOpen) return null;
 
@@ -70,7 +71,9 @@ export function PromptModal({
                             }
                             if (e.key === 'Enter') {
                                 e.preventDefault();
-                                onConfirm(value);
+                                if (canConfirm) {
+                                    onConfirm(value);
+                                }
                             }
                         }}
                         placeholder={placeholder}
@@ -86,8 +89,13 @@ export function PromptModal({
                         </button>
                         <button
                             type="button"
-                            onClick={() => onConfirm(value)}
-                            className="px-3 py-1.5 rounded-md text-sm bg-primary text-primary-foreground hover:bg-primary/90"
+                            onClick={() => {
+                                if (canConfirm) {
+                                    onConfirm(value);
+                                }
+                            }}
+                            disabled={!canConfirm}
+                            className="px-3 py-1.5 rounded-md text-sm bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                             {confirmLabel}
                         </button>
