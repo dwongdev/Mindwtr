@@ -179,6 +179,10 @@ function TaskListComponent({
     | { type: 'section'; id: string; title: string; count: number; muted?: boolean }
     | { type: 'task'; task: Task };
 
+  const LIST_CONTENT_VERTICAL_PADDING = 12;
+  const ESTIMATED_SECTION_HEIGHT = 32;
+  const ESTIMATED_TASK_HEIGHT = 86;
+
   const listItems = useMemo<ListItem[]>(() => {
     if (statusFilter === 'reference' && !projectId) {
       const activeAreas = [...areas].filter((area) => !area.deletedAt).sort((a, b) => {
@@ -258,6 +262,42 @@ function TaskListComponent({
     }
     return items;
   }, [areas, orderedTasks, projectById, projectId, projectSections, statusFilter, t]);
+  const itemHeightsRef = useRef<Record<string, number>>({});
+  const [itemLayoutVersion, setItemLayoutVersion] = useState(0);
+  const getListItemKey = useCallback((item: ListItem) => (
+    item.type === 'section' ? `section-${item.id}` : item.task.id
+  ), []);
+  const estimateItemHeight = useCallback((item: ListItem) => (
+    item.type === 'section' ? ESTIMATED_SECTION_HEIGHT : ESTIMATED_TASK_HEIGHT
+  ), []);
+  const registerItemHeight = useCallback((itemKey: string, height: number) => {
+    const rounded = Math.round(height);
+    if (!Number.isFinite(rounded) || rounded <= 0) return;
+    if (itemHeightsRef.current[itemKey] === rounded) return;
+    itemHeightsRef.current[itemKey] = rounded;
+    setItemLayoutVersion((prev) => prev + 1);
+  }, []);
+  const itemLayouts = useMemo(() => {
+    let offset = LIST_CONTENT_VERTICAL_PADDING;
+    return listItems.map((item) => {
+      const key = getListItemKey(item);
+      const length = itemHeightsRef.current[key] ?? estimateItemHeight(item);
+      const layout = { length, offset };
+      offset += length;
+      return layout;
+    });
+  }, [estimateItemHeight, getListItemKey, itemLayoutVersion, listItems]);
+  const getItemLayout = useCallback((_: ArrayLike<ListItem> | null | undefined, index: number) => {
+    const measured = itemLayouts[index];
+    if (measured) {
+      return { index, length: measured.length, offset: measured.offset };
+    }
+    return {
+      index,
+      length: ESTIMATED_TASK_HEIGHT,
+      offset: LIST_CONTENT_VERTICAL_PADDING + (ESTIMATED_TASK_HEIGHT * index),
+    };
+  }, [itemLayouts]);
 
   const contextOptions = useMemo(() => {
     const taskContexts = tasks.flatMap((task) => task.contexts || []);
@@ -574,9 +614,13 @@ function TaskListComponent({
   ]);
 
   const renderListItem = useCallback(({ item }: { item: ListItem }) => {
+    const itemKey = getListItemKey(item);
     if (item.type === 'section') {
       return (
-        <View style={styles.sectionHeader}>
+        <View
+          style={styles.sectionHeader}
+          onLayout={(event) => registerItemHeight(itemKey, event.nativeEvent.layout.height)}
+        >
           <Text style={[styles.sectionTitle, { color: item.muted ? themeColorsMemo.secondaryText : themeColorsMemo.text }]}>
             {item.title}
           </Text>
@@ -586,8 +630,12 @@ function TaskListComponent({
         </View>
       );
     }
-    return renderTask({ item: item.task });
-  }, [renderTask, themeColorsMemo.secondaryText, themeColorsMemo.text]);
+    return (
+      <View onLayout={(event) => registerItemHeight(itemKey, event.nativeEvent.layout.height)}>
+        {renderTask({ item: item.task })}
+      </View>
+    );
+  }, [getListItemKey, registerItemHeight, renderTask, themeColorsMemo.secondaryText, themeColorsMemo.text]);
 
   return (
     <View style={[styles.container, { backgroundColor: themeColorsMemo.bg }]}>
@@ -796,7 +844,7 @@ function TaskListComponent({
           keyExtractor={(item) => (item.type === 'section' ? `section-${item.id}` : item.task.id)}
           style={styles.list}
           contentContainerStyle={listContentStyle}
-          getItemLayout={undefined}
+          getItemLayout={getItemLayout}
           initialNumToRender={12}
           maxToRenderPerBatch={12}
           windowSize={5}
