@@ -1523,13 +1523,10 @@ function TaskEditModalInner({ visible, task, onClose, onSave, onFocusMode, defau
             scrollToTab(editTab, false);
         });
     }, [containerWidth, editTab, scrollToTab, visible]);
-    const swipeStartX = useRef(0);
-    const swipeThreshold = containerWidth ? Math.max(32, containerWidth * 0.1) : 32;
-
     useEffect(() => {
         if (!visible || !containerWidth) return;
         scrollToTab(editTab, false);
-    }, [containerWidth, editTab, scrollToTab, task?.id, visible]);
+    }, [containerWidth, scrollToTab, task?.id, visible]);
 
     useEffect(() => {
         if (!visible || !containerWidth) return;
@@ -1537,7 +1534,7 @@ function TaskEditModalInner({ visible, task, onClose, onSave, onFocusMode, defau
             scrollToTab(editTab, false);
         }, 90);
         return () => clearTimeout(alignmentTimer);
-    }, [containerWidth, editTab, scrollToTab, task?.id, visible]);
+    }, [containerWidth, scrollToTab, task?.id, visible]);
 
     useEffect(() => {
         if (!visible) return;
@@ -2637,26 +2634,9 @@ function TaskEditModalInner({ visible, task, onClose, onSave, onFocusMode, defau
                         horizontal
                         pagingEnabled
                         scrollEnabled
-                        snapToInterval={containerWidth}
-                        snapToAlignment="start"
-                        decelerationRate="fast"
-                        disableIntervalMomentum
                         scrollEventThrottle={16}
                         showsHorizontalScrollIndicator={false}
                         directionalLockEnabled
-                        onScrollBeginDrag={(event) => {
-                            swipeStartX.current = event.nativeEvent.contentOffset.x;
-                        }}
-                        onScrollEndDrag={(event) => {
-                            if (!containerWidth) return;
-                            const offsetX = event.nativeEvent.contentOffset.x;
-                            const deltaX = offsetX - swipeStartX.current;
-                            const target = Math.abs(deltaX) >= swipeThreshold
-                                ? (deltaX > 0 ? 'view' : 'task')
-                                : (offsetX >= containerWidth * 0.5 ? 'view' : 'task');
-                            scrollToTab(target);
-                            setModeTab(target);
-                        }}
                         onScroll={Animated.event(
                             [{ nativeEvent: { contentOffset: { x: scrollX } } }],
                             { useNativeDriver: true }
