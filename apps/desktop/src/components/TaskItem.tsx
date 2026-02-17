@@ -515,8 +515,24 @@ export const TaskItem = memo(function TaskItem({
             try {
                 const created = await addProject(projectTitle, DEFAULT_PROJECT_COLOR);
                 resolvedProjectId = created?.id;
+                if (!resolvedProjectId) {
+                    const projectCreateFailed = t('projects.createFailed');
+                    showToast(
+                        projectCreateFailed === 'projects.createFailed'
+                            ? 'Failed to create project from quick add.'
+                            : projectCreateFailed,
+                        'error'
+                    );
+                }
             } catch (error) {
                 reportError('Failed to create project from quick add', error);
+                const projectCreateFailed = t('projects.createFailed');
+                showToast(
+                    projectCreateFailed === 'projects.createFailed'
+                        ? 'Failed to create project from quick add.'
+                        : projectCreateFailed,
+                    'error'
+                );
             }
         }
         if (!resolvedProjectId) {
