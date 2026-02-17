@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, test } from 'bun:test';
-import { mkdtempSync, rmSync } from 'fs';
+import { mkdtempSync, mkdirSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'fs';
 import { join } from 'path';
 import { tmpdir } from 'os';
 import { __cloudTestUtils, startCloudServer } from './server';
@@ -265,6 +265,29 @@ describe('cloud server api', () => {
             headers: authHeaders,
         });
         expect(missingResponse.status).toBe(404);
+    });
+
+    test('rejects attachment uploads when target path is a symlink', async () => {
+        const token = 'integration-token';
+        const key = __cloudTestUtils.tokenToKey(token);
+        const attachmentDir = join(dataDir, key, 'attachments', 'folder');
+        mkdirSync(attachmentDir, { recursive: true });
+
+        const outsideDir = mkdtempSync(join(tmpdir(), 'mindwtr-cloud-outside-'));
+        const outsideFile = join(outsideDir, 'outside.bin');
+        writeFileSync(outsideFile, 'original');
+        const symlinkPath = join(attachmentDir, 'link.bin');
+        symlinkSync(outsideFile, symlinkPath);
+
+        const putResponse = await fetch(`${baseUrl}/v1/attachments/folder/link.bin`, {
+            method: 'PUT',
+            headers: authHeaders,
+            body: new TextEncoder().encode('attacker-data'),
+        });
+        expect(putResponse.status).toBe(400);
+        expect(readFileSync(outsideFile, 'utf8')).toBe('original');
+
+        rmSync(outsideDir, { recursive: true, force: true });
     });
 
     test('applies attachment endpoint rate limits', async () => {
