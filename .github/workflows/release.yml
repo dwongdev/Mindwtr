@@ -14,37 +14,37 @@ on:
         description: 'Run Linux release job'
         required: false
         type: boolean
-        default: true
+        default: false
       run_macos:
         description: 'Run macOS release job'
         required: false
         type: boolean
-        default: true
+        default: false
       run_windows:
         description: 'Run Windows release job'
         required: false
         type: boolean
-        default: true
+        default: false
       run_android:
         description: 'Run Android release job'
         required: false
         type: boolean
-        default: true
+        default: false
       run_android_foss:
         description: 'Run Android FOSS release job'
         required: false
         type: boolean
-        default: true
+        default: false
       run_ios_appstore:
         description: 'Run iOS App Store release job'
         required: false
         type: boolean
-        default: true
+        default: false
       run_macos_appstore:
         description: 'Run macOS App Store release job'
         required: false
         type: boolean
-        default: true
+        default: false
       run_update_packages:
         description: 'Run Homebrew/Scoop update job'
         required: false
