@@ -95,7 +95,7 @@ export function TaskEditFormTab({
     const keyboardTopRef = React.useRef(Dimensions.get('window').height);
 
     React.useEffect(() => {
-        if (Platform.OS !== 'android') return;
+        if (typeof Keyboard?.addListener !== 'function') return;
         const updateKeyboardTop = (event: { endCoordinates?: { screenY?: number; height?: number } }) => {
             const windowHeight = Dimensions.get('window').height;
             const endCoords = event.endCoordinates;
@@ -138,10 +138,11 @@ export function TaskEditFormTab({
             if (!Number.isFinite(targetY) || !Number.isFinite(targetH)) return;
             UIManager.measureInWindow(scrollHandle, (_sx, scrollY, _sw, scrollH) => {
                 if (!Number.isFinite(scrollY) || !Number.isFinite(scrollH)) return;
-                const padding = 12;
-                const visibleTop = scrollY + padding;
+                const topPadding = 12;
+                const bottomPadding = Platform.OS === 'ios' ? 44 : 12;
+                const visibleTop = scrollY + topPadding;
                 const keyboardTop = keyboardTopRef.current;
-                const visibleBottom = Math.min(scrollY + scrollH - padding, keyboardTop - padding);
+                const visibleBottom = Math.min(scrollY + scrollH - bottomPadding, keyboardTop - bottomPadding);
                 const targetTop = targetY;
                 const targetBottom = targetY + targetH;
 
@@ -168,10 +169,8 @@ export function TaskEditFormTab({
                 ? Number(targetInput)
                 : NaN;
         const hasTargetHandle = Number.isFinite(normalizedHandle) && normalizedHandle > 0;
-        if (Platform.OS !== 'android') return;
-
         if (!hasTargetHandle) {
-            scrollDownForKeyboard(96);
+            scrollDownForKeyboard(Platform.OS === 'ios' ? 140 : 96);
             return;
         }
         requestAnimationFrame(() => {
@@ -222,7 +221,7 @@ export function TaskEditFormTab({
             <KeyboardAvoidingView
                 behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
                 style={{ flex: 1 }}
-                keyboardVerticalOffset={Platform.OS === 'ios' ? 100 : 0}
+                keyboardVerticalOffset={0}
             >
                 <ScrollView
                     ref={formScrollRef}
@@ -242,7 +241,10 @@ export function TaskEditFormTab({
                             value={titleDraft}
                             onChangeText={(text) => onTitleDraftChange(text)}
                             placeholderTextColor={tc.secondaryText}
-                            onFocus={() => setTitleFocused(true)}
+                            onFocus={(event) => {
+                                setTitleFocused(true);
+                                ensureInputVisible(event.nativeEvent.target);
+                            }}
                             onBlur={() => setTitleFocused(false)}
                             selection={titleFocused ? undefined : { start: 0, end: 0 }}
                         />

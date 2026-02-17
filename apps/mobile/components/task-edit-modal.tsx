@@ -1528,7 +1528,8 @@ export function TaskEditModal({ visible, task, onClose, onSave, onFocusMode, def
     }, [containerWidth, editTab, scrollToTab, task?.id, visible]);
 
     useEffect(() => {
-        if (Platform.OS !== 'android' || !visible) return;
+        if (!visible) return;
+        if (typeof Keyboard?.addListener !== 'function') return;
         const handleKeyboardShow = () => {
             alignPagerToActiveTab();
             if (lastFocusedInputRef.current !== undefined) {
@@ -1546,8 +1547,7 @@ export function TaskEditModal({ visible, task, onClose, onSave, onFocusMode, def
         };
     }, [alignPagerToActiveTab, scrollTaskFormToEnd, visible]);
 
-    const handleAndroidInputFocus = useCallback((targetInput?: number | string) => {
-        if (Platform.OS !== 'android') return;
+    const handleInputFocus = useCallback((targetInput?: number | string) => {
         lastFocusedInputRef.current = targetInput;
         setTimeout(() => {
             scrollTaskFormToEnd?.(targetInput);
@@ -1951,7 +1951,7 @@ export function TaskEditModal({ visible, task, onClose, onSave, onFocusMode, def
                             onChangeText={updateContextInput}
                             onFocus={(event) => {
                                 setIsContextInputFocused(true);
-                                handleAndroidInputFocus(event.nativeEvent.target);
+                                handleInputFocus(event.nativeEvent.target);
                             }}
                             onBlur={commitContextDraft}
                             onSubmitEditing={() => {
@@ -2008,7 +2008,7 @@ export function TaskEditModal({ visible, task, onClose, onSave, onFocusMode, def
                             onChangeText={updateTagInput}
                             onFocus={(event) => {
                                 setIsTagInputFocused(true);
-                                handleAndroidInputFocus(event.nativeEvent.target);
+                                handleInputFocus(event.nativeEvent.target);
                             }}
                             onBlur={commitTagDraft}
                             onSubmitEditing={() => {
@@ -2399,7 +2399,7 @@ export function TaskEditModal({ visible, task, onClose, onSave, onFocusMode, def
                                 style={[styles.input, styles.textArea, inputStyle, textDirectionStyle]}
                                 value={descriptionDraft}
                                 onFocus={(event) => {
-                                    handleAndroidInputFocus(event.nativeEvent.target);
+                                    handleInputFocus(event.nativeEvent.target);
                                 }}
                                 onChangeText={(text) => {
                                     setDescriptionDraft(text);
@@ -2522,7 +2522,7 @@ export function TaskEditModal({ visible, task, onClose, onSave, onFocusMode, def
                                         ]}
                                         value={item.title}
                                         onFocus={(event) => {
-                                            handleAndroidInputFocus(event.nativeEvent.target);
+                                            handleInputFocus(event.nativeEvent.target);
                                         }}
                                         onChangeText={(text) => {
                                             const newChecklist = (editedTask.checklist || []).map((item, i) =>
