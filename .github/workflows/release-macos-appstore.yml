@@ -217,6 +217,118 @@ jobs:
           cp "$PROFILE_PATH" "$HOME/Library/MobileDevice/Provisioning Profiles/mindwtr-mas.provisionprofile"
           cp "$PROFILE_PATH" apps/desktop/src-tauri/embedded.provisionprofile
 
+      - name: Resolve macOS version metadata
+        env:
+          IOS_ASC_KEY_ID: ${{ secrets.IOS_ASC_KEY_ID }}
+          IOS_ASC_ISSUER_ID: ${{ secrets.IOS_ASC_ISSUER_ID }}
+          IOS_ASC_PRIVATE_KEY: ${{ secrets.IOS_ASC_PRIVATE_KEY }}
+        run: |
+          set -euo pipefail
+
+          APP_VERSION="$(jq -r '.version // empty' apps/desktop/src-tauri/tauri.conf.json)"
+          if [ -z "${APP_VERSION}" ]; then
+            echo "::error::Missing version in apps/desktop/src-tauri/tauri.conf.json"
+            exit 1
+          fi
+
+          LOCAL_MIN_BUILD=1
+          EXISTING_BUNDLE_VERSION="$(jq -r '.bundle.macOS.bundleVersion // empty' apps/desktop/src-tauri/tauri.appstore.conf.json)"
+          if [[ "${EXISTING_BUNDLE_VERSION}" =~ ^[0-9]+$ ]]; then
+            LOCAL_MIN_BUILD="$((EXISTING_BUNDLE_VERSION + 1))"
+          fi
+
+          APPSTORE_APP_ID=""
+          REMOTE_MAX_BUILD=0
+          REMOTE_LOOKUP_STATUS="skipped"
+
+          ASC_KEY_ID="$(printf '%s' "$IOS_ASC_KEY_ID" | tr -d '\r\n\t ')"
+          ASC_ISSUER_ID="$(printf '%s' "$IOS_ASC_ISSUER_ID" | tr -d '\r\n\t ')"
+          KEY_PATH="$RUNNER_TEMP/macos-asc-key-versioning.p8"
+          bash scripts/ci/write-asc-private-key.sh "$IOS_ASC_PRIVATE_KEY" "$KEY_PATH"
+
+          if ! openssl pkey -in "$KEY_PATH" -noout >/dev/null 2>&1; then
+            echo "::warning::IOS_ASC_PRIVATE_KEY is not a valid .p8 key; skipping remote build-number lookup."
+            REMOTE_LOOKUP_STATUS="invalid_key"
+          else
+            ASC_API_TMP_PREFIX="asc-macos-versioning"
+            source scripts/ci/asc-api-utils.sh
+
+            if ! ASC_TOKEN="$(
+              node scripts/ci/generate-asc-jwt.js "$ASC_KEY_ID" "$ASC_ISSUER_ID" "$KEY_PATH"
+            )"; then
+              echo "::warning::Failed to generate App Store Connect JWT from IOS_ASC_* secrets."
+              REMOTE_LOOKUP_STATUS="invalid_jwt"
+            fi
+
+            APP_LOOKUP_JSON_FILE="$RUNNER_TEMP/asc-macos-app-lookup.json"
+            if [ "${REMOTE_LOOKUP_STATUS}" != "invalid_jwt" ]; then
+              if api_get "$APP_LOOKUP_JSON_FILE" -G \
+                -H "Authorization: Bearer ${ASC_TOKEN}" \
+                --data-urlencode "filter[bundleId]=${EXPECTED_BUNDLE_ID}" \
+                --data-urlencode "limit=1" \
+                "https://api.appstoreconnect.apple.com/v1/apps"; then
+                APPSTORE_APP_ID="$(jq -r '.data[0].id // empty' "$APP_LOOKUP_JSON_FILE")"
+                if [ -n "${APPSTORE_APP_ID}" ]; then
+                  BUILDS_JSON_FILE="$RUNNER_TEMP/asc-macos-builds-page.json"
+                  if api_get "$BUILDS_JSON_FILE" -G \
+                    -H "Authorization: Bearer ${ASC_TOKEN}" \
+                    --data-urlencode "filter[app]=${APPSTORE_APP_ID}" \
+                    --data-urlencode "limit=200" \
+                    "https://api.appstoreconnect.apple.com/v1/builds"; then
+                    while : ; do
+                      PAGE_MAX="$(jq -r '[.data[]?.attributes.version | select(type=="string") | select(test("^[0-9]+$")) | tonumber] | max // 0' "$BUILDS_JSON_FILE")"
+                      if [ "${PAGE_MAX}" -gt "${REMOTE_MAX_BUILD}" ]; then
+                        REMOTE_MAX_BUILD="${PAGE_MAX}"
+                      fi
+                      NEXT_URL="$(jq -r '.links.next // empty' "$BUILDS_JSON_FILE")"
+                      if [ -z "${NEXT_URL}" ]; then
+                        REMOTE_LOOKUP_STATUS="ok"
+                        break
+                      fi
+                      if ! api_get "$BUILDS_JSON_FILE" -g -H "Authorization: Bearer ${ASC_TOKEN}" "$NEXT_URL"; then
+                        REMOTE_LOOKUP_STATUS="api_error"
+                        break
+                      fi
+                    done
+                  else
+                    REMOTE_LOOKUP_STATUS="api_error"
+                  fi
+                else
+                  echo "::warning::App Store Connect app lookup returned no app for bundle id ${EXPECTED_BUNDLE_ID}."
+                  REMOTE_LOOKUP_STATUS="no_app"
+                fi
+              else
+                REMOTE_LOOKUP_STATUS="api_error"
+              fi
+            fi
+          fi
+
+          REMOTE_MIN_BUILD="$((REMOTE_MAX_BUILD + 1))"
+          FINAL_BUILD_NUMBER="${LOCAL_MIN_BUILD}"
+          if [ "${REMOTE_MIN_BUILD}" -gt "${FINAL_BUILD_NUMBER}" ]; then
+            FINAL_BUILD_NUMBER="${REMOTE_MIN_BUILD}"
+          fi
+
+          echo "APP_VERSION=${APP_VERSION}" >> "$GITHUB_ENV"
+          echo "APP_BUILD_NUMBER=${FINAL_BUILD_NUMBER}" >> "$GITHUB_ENV"
+          echo "APPSTORE_APP_ID=${APPSTORE_APP_ID:-}" >> "$GITHUB_ENV"
+          echo "Resolved macOS build number: ${FINAL_BUILD_NUMBER} (remote max: ${REMOTE_MAX_BUILD}, remote lookup: ${REMOTE_LOOKUP_STATUS}, local floor: ${LOCAL_MIN_BUILD})"
+
+          APPSTORE_CONFIG_PATH="apps/desktop/src-tauri/tauri.appstore.conf.json"
+          APP_BUILD_NUMBER="${FINAL_BUILD_NUMBER}" APPSTORE_CONFIG_PATH="${APPSTORE_CONFIG_PATH}" node - <<'NODE'
+          const fs = require('fs');
+          const path = require('path');
+
+          const filePath = path.resolve(process.env.APPSTORE_CONFIG_PATH);
+          const buildNumber = process.env.APP_BUILD_NUMBER;
+          const config = JSON.parse(fs.readFileSync(filePath, 'utf8'));
+          config.bundle = config.bundle || {};
+          config.bundle.macOS = config.bundle.macOS || {};
+          config.bundle.macOS.bundleVersion = String(buildNumber);
+          fs.writeFileSync(filePath, JSON.stringify(config, null, 2) + '\n');
+          console.log(`Updated ${filePath} bundle.macOS.bundleVersion -> ${buildNumber}`);
+          NODE
+
       - name: Build signed macOS app bundle (App Store)
         timeout-minutes: 30
         env:
