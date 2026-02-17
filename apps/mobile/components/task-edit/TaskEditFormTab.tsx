@@ -1,5 +1,18 @@
 import React from 'react';
-import { View, Text, TextInput, TouchableOpacity, ScrollView, KeyboardAvoidingView, Platform, ActivityIndicator } from 'react-native';
+import {
+    View,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    ScrollView,
+    KeyboardAvoidingView,
+    Platform,
+    ActivityIndicator,
+    Keyboard,
+    Dimensions,
+    UIManager,
+    findNodeHandle,
+} from 'react-native';
 import DateTimePicker, { type DateTimePickerEvent } from '@react-native-community/datetimepicker';
 import type { Task, TaskEditorFieldId, TimeEstimate } from '@mindwtr/core';
 import type { ThemeColors } from '@/hooks/use-theme-colors';
@@ -39,7 +52,7 @@ type TaskEditFormTabProps = {
     textDirectionStyle: Record<string, any>;
     titleDraft: string;
     onTitleDraftChange: (text: string) => void;
-    registerScrollToEnd?: (handler: (() => void) | null) => void;
+    registerScrollToEnd?: (handler: ((targetInput?: number | string) => void) | null) => void;
 };
 
 export function TaskEditFormTab({
@@ -78,14 +91,101 @@ export function TaskEditFormTab({
 }: TaskEditFormTabProps) {
     const [titleFocused, setTitleFocused] = React.useState(false);
     const formScrollRef = React.useRef<ScrollView | null>(null);
+    const formScrollOffsetRef = React.useRef(0);
+    const keyboardTopRef = React.useRef(Dimensions.get('window').height);
+
+    React.useEffect(() => {
+        if (Platform.OS !== 'android') return;
+        const updateKeyboardTop = (event: { endCoordinates?: { screenY?: number; height?: number } }) => {
+            const windowHeight = Dimensions.get('window').height;
+            const endCoords = event.endCoordinates;
+            if (typeof endCoords?.screenY === 'number') {
+                keyboardTopRef.current = endCoords.screenY;
+                return;
+            }
+            if (typeof endCoords?.height === 'number') {
+                keyboardTopRef.current = Math.max(0, windowHeight - endCoords.height);
+                return;
+            }
+            keyboardTopRef.current = windowHeight;
+        };
+        const resetKeyboardTop = () => {
+            keyboardTopRef.current = Dimensions.get('window').height;
+        };
+        const showListener = Keyboard.addListener('keyboardDidShow', updateKeyboardTop);
+        const changeListener = Keyboard.addListener('keyboardDidChangeFrame', updateKeyboardTop);
+        const hideListener = Keyboard.addListener('keyboardDidHide', resetKeyboardTop);
+        return () => {
+            showListener.remove();
+            changeListener.remove();
+            hideListener.remove();
+        };
+    }, []);
+
+    const scrollDownForKeyboard = React.useCallback((amount = 180) => {
+        const nextOffset = Math.max(0, formScrollOffsetRef.current + amount);
+        formScrollRef.current?.scrollTo({ y: nextOffset, animated: true });
+    }, []);
+
+    const scrollHandleIntoView = React.useCallback((targetHandle: number) => {
+        const scrollView = formScrollRef.current;
+        if (!scrollView) return;
+
+        const scrollHandle = findNodeHandle(scrollView);
+        if (!scrollHandle) return;
+
+        UIManager.measureInWindow(targetHandle, (_x, targetY, _w, targetH) => {
+            if (!Number.isFinite(targetY) || !Number.isFinite(targetH)) return;
+            UIManager.measureInWindow(scrollHandle, (_sx, scrollY, _sw, scrollH) => {
+                if (!Number.isFinite(scrollY) || !Number.isFinite(scrollH)) return;
+                const padding = 12;
+                const visibleTop = scrollY + padding;
+                const keyboardTop = keyboardTopRef.current;
+                const visibleBottom = Math.min(scrollY + scrollH - padding, keyboardTop - padding);
+                const targetTop = targetY;
+                const targetBottom = targetY + targetH;
+
+                if (targetBottom > visibleBottom) {
+                    const delta = targetBottom - visibleBottom;
+                    const nextOffset = Math.max(0, formScrollOffsetRef.current + delta);
+                    formScrollRef.current?.scrollTo({ y: nextOffset, animated: true });
+                    return;
+                }
+
+                if (targetTop < visibleTop) {
+                    const delta = visibleTop - targetTop;
+                    const nextOffset = Math.max(0, formScrollOffsetRef.current - delta);
+                    formScrollRef.current?.scrollTo({ y: nextOffset, animated: true });
+                }
+            });
+        });
+    }, []);
+
+    const ensureInputVisible = React.useCallback((targetInput?: number | string) => {
+        const normalizedHandle = typeof targetInput === 'number'
+            ? targetInput
+            : typeof targetInput === 'string'
+                ? Number(targetInput)
+                : NaN;
+        const hasTargetHandle = Number.isFinite(normalizedHandle) && normalizedHandle > 0;
+        if (Platform.OS !== 'android') return;
+
+        if (!hasTargetHandle) {
+            scrollDownForKeyboard(96);
+            return;
+        }
+        requestAnimationFrame(() => {
+            scrollHandleIntoView(normalizedHandle);
+        });
+    }, [scrollDownForKeyboard, scrollHandleIntoView]);
 
     React.useEffect(() => {
         if (!registerScrollToEnd) return;
-        registerScrollToEnd(() => {
-            formScrollRef.current?.scrollToEnd({ animated: true });
+        registerScrollToEnd((targetInput) => {
+            ensureInputVisible(targetInput);
         });
         return () => registerScrollToEnd(null);
-    }, [registerScrollToEnd]);
+    }, [ensureInputVisible, registerScrollToEnd]);
     const countFilledFields = (fieldIds: TaskEditorFieldId[]): number => {
         return fieldIds.filter((fieldId) => {
             switch (fieldId) {
@@ -129,6 +229,10 @@ export function TaskEditFormTab({
                     style={styles.content}
                     contentContainerStyle={styles.contentContainer}
                     keyboardShouldPersistTaps="handled"
+                    onScroll={(event) => {
+                        formScrollOffsetRef.current = event.nativeEvent.contentOffset.y;
+                    }}
+                    scrollEventThrottle={16}
                     nestedScrollEnabled
                 >
                     <View style={styles.formGroup}>

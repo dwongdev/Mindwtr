@@ -1482,10 +1482,11 @@ export function TaskEditModal({ visible, task, onClose, onSave, onFocusMode, def
     const [containerWidth, setContainerWidth] = useState(0);
     const scrollX = useRef(new Animated.Value(0)).current;
     const scrollRef = useRef<ScrollView | null>(null);
-    const [scrollTaskFormToEnd, setScrollTaskFormToEnd] = useState<(() => void) | null>(null);
-    const registerScrollTaskFormToEnd = useCallback((handler: (() => void) | null) => {
+    const [scrollTaskFormToEnd, setScrollTaskFormToEnd] = useState<((targetInput?: number | string) => void) | null>(null);
+    const registerScrollTaskFormToEnd = useCallback((handler: ((targetInput?: number | string) => void) | null) => {
         setScrollTaskFormToEnd(() => handler);
     }, []);
+    const lastFocusedInputRef = useRef<number | string | undefined>(undefined);
 
     const scrollToTab = useCallback((mode: TaskEditTab, animated = true) => {
         if (!containerWidth) return;
@@ -1518,16 +1519,30 @@ export function TaskEditModal({ visible, task, onClose, onSave, onFocusMode, def
 
     useEffect(() => {
         if (Platform.OS !== 'android' || !visible) return;
-        const handleKeyboardEvent = () => {
+        const handleKeyboardShow = () => {
+            alignPagerToActiveTab();
+            if (lastFocusedInputRef.current !== undefined) {
+                scrollTaskFormToEnd?.(lastFocusedInputRef.current);
+            }
+        };
+        const handleKeyboardHide = () => {
             alignPagerToActiveTab();
         };
-        const showListener = Keyboard.addListener('keyboardDidShow', handleKeyboardEvent);
-        const hideListener = Keyboard.addListener('keyboardDidHide', handleKeyboardEvent);
+        const showListener = Keyboard.addListener('keyboardDidShow', handleKeyboardShow);
+        const hideListener = Keyboard.addListener('keyboardDidHide', handleKeyboardHide);
         return () => {
             showListener.remove();
             hideListener.remove();
         };
-    }, [alignPagerToActiveTab, visible]);
+    }, [alignPagerToActiveTab, scrollTaskFormToEnd, visible]);
+
+    const handleAndroidInputFocus = useCallback((targetInput?: number | string) => {
+        if (Platform.OS !== 'android') return;
+        lastFocusedInputRef.current = targetInput;
+        setTimeout(() => {
+            scrollTaskFormToEnd?.(targetInput);
+        }, 140);
+    }, [scrollTaskFormToEnd]);
 
     const handleTabPress = (mode: TaskEditTab) => {
         setModeTab(mode);
@@ -1924,7 +1939,10 @@ export function TaskEditModal({ visible, task, onClose, onSave, onFocusMode, def
                             style={[styles.input, inputStyle]}
                             value={contextInputDraft}
                             onChangeText={updateContextInput}
-                            onFocus={() => setIsContextInputFocused(true)}
+                            onFocus={(event) => {
+                                setIsContextInputFocused(true);
+                                handleAndroidInputFocus(event.nativeEvent.target);
+                            }}
                             onBlur={commitContextDraft}
                             onSubmitEditing={() => {
                                 commitContextDraft();
@@ -1978,7 +1996,10 @@ export function TaskEditModal({ visible, task, onClose, onSave, onFocusMode, def
                             style={[styles.input, inputStyle]}
                             value={tagInputDraft}
                             onChangeText={updateTagInput}
-                            onFocus={() => setIsTagInputFocused(true)}
+                            onFocus={(event) => {
+                                setIsTagInputFocused(true);
+                                handleAndroidInputFocus(event.nativeEvent.target);
+                            }}
                             onBlur={commitTagDraft}
                             onSubmitEditing={() => {
                                 commitTagDraft();
@@ -2367,6 +2388,9 @@ export function TaskEditModal({ visible, task, onClose, onSave, onFocusMode, def
                             <TextInput
                                 style={[styles.input, styles.textArea, inputStyle, textDirectionStyle]}
                                 value={descriptionDraft}
+                                onFocus={(event) => {
+                                    handleAndroidInputFocus(event.nativeEvent.target);
+                                }}
                                 onChangeText={(text) => {
                                     setDescriptionDraft(text);
                                     descriptionDraftRef.current = text;
@@ -2487,11 +2511,8 @@ export function TaskEditModal({ visible, task, onClose, onSave, onFocusMode, def
                                             item.isCompleted && styles.completedText,
                                         ]}
                                         value={item.title}
-                                        onFocus={() => {
-                                            if (Platform.OS !== 'android') return;
-                                            setTimeout(() => {
-                                                scrollTaskFormToEnd?.();
-                                            }, 120);
+                                        onFocus={(event) => {
+                                            handleAndroidInputFocus(event.nativeEvent.target);
                                         }}
                                         onChangeText={(text) => {
                                             const newChecklist = (editedTask.checklist || []).map((item, i) =>
