@@ -90,6 +90,12 @@ export const createSettingsActions = ({
             // Store ALL data including tombstones for persistence
             const nowIso = new Date().toISOString();
             const settings = stripSensitiveSettings(rawSettings as AppData['settings']);
+            const isFreshInstall =
+                rawTasks.length === 0 &&
+                rawProjects.length === 0 &&
+                rawSections.length === 0 &&
+                rawAreas.length === 0 &&
+                Object.keys(settings).length === 0;
             const migrations = settings.migrations ?? {};
             const shouldRunMigrations = (migrations.version ?? 0) < MIGRATION_VERSION;
             const lastAutoArchiveAt = safeParseDate(migrations.lastAutoArchiveAt)?.getTime() ?? 0;
@@ -118,6 +124,10 @@ export const createSettingsActions = ({
             const deviceState = ensureDeviceId(nextSettings);
             nextSettings = deviceState.settings;
             if (deviceState.updated) {
+                didSettingsUpdate = true;
+            }
+            if (isFreshInstall && nextSettings.notificationsEnabled === undefined) {
+                nextSettings = { ...nextSettings, notificationsEnabled: false };
                 didSettingsUpdate = true;
             }
 

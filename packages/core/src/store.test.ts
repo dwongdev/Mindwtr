@@ -203,6 +203,44 @@ describe('TaskStore', () => {
         expect(mockStorage.saveData).toHaveBeenCalled();
     });
 
+    it('defaults notifications to off on first install', async () => {
+        mockStorage.getData = vi.fn().mockResolvedValue({
+            tasks: [],
+            projects: [],
+            sections: [],
+            areas: [],
+            settings: {},
+        });
+
+        await useTaskStore.getState().fetchData({ silent: true });
+
+        expect(useTaskStore.getState().settings.notificationsEnabled).toBe(false);
+    });
+
+    it('does not force notifications off for existing data with legacy settings', async () => {
+        mockStorage.getData = vi.fn().mockResolvedValue({
+            tasks: [
+                {
+                    id: 'legacy-task',
+                    title: 'Legacy task',
+                    status: 'inbox',
+                    tags: [],
+                    contexts: [],
+                    createdAt: '2026-02-01T00:00:00.000Z',
+                    updatedAt: '2026-02-01T00:00:00.000Z',
+                },
+            ],
+            projects: [],
+            sections: [],
+            areas: [],
+            settings: {},
+        });
+
+        await useTaskStore.getState().fetchData({ silent: true });
+
+        expect(useTaskStore.getState().settings.notificationsEnabled).toBeUndefined();
+    });
+
     it('supports a basic task lifecycle', async () => {
         const { addTask, updateTask, moveTask } = useTaskStore.getState();
         addTask('Lifecycle Task');
