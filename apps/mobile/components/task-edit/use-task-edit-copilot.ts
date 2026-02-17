@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState, type SetStateAction } from 'r
 import type { AppData, Task, TimeEstimate } from '@mindwtr/core';
 import { createAIProvider } from '@mindwtr/core';
 import type { AIProviderId } from '@mindwtr/core';
-import { buildCopilotConfig, loadAIKey } from '../../lib/ai-config';
+import { buildCopilotConfig, isAIKeyRequired, loadAIKey } from '../../lib/ai-config';
 import { logError } from '../../lib/app-log';
 
 type CopilotSuggestion = {
@@ -39,6 +39,7 @@ export function useTaskEditCopilot({
     setEditedTask,
 }: UseTaskEditCopilotArgs) {
     const [aiKey, setAiKey] = useState('');
+    const keyRequired = isAIKeyRequired(settings);
     const [copilotSuggestion, setCopilotSuggestion] = useState<CopilotSuggestion | null>(null);
     const [copilotApplied, setCopilotApplied] = useState(false);
     const [copilotContext, setCopilotContext] = useState<string | undefined>(undefined);
@@ -76,7 +77,7 @@ export function useTaskEditCopilot({
     }, [contextOptions, tagOptions]);
 
     useEffect(() => {
-        if (!aiEnabled || !aiKey) {
+        if (!aiEnabled || (keyRequired && !aiKey)) {
             setCopilotSuggestion(null);
             return;
         }
@@ -123,7 +124,7 @@ export function useTaskEditCopilot({
                 copilotAbortRef.current = null;
             }
         };
-    }, [aiEnabled, aiKey, titleDraft, descriptionDraft, settings, timeEstimatesEnabled]);
+    }, [aiEnabled, aiKey, descriptionDraft, keyRequired, settings, timeEstimatesEnabled, titleDraft]);
 
     useEffect(() => {
         if (!visible) {

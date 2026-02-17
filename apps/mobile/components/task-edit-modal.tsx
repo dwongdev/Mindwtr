@@ -41,7 +41,7 @@ import { Paths } from 'expo-file-system';
 import { useLanguage } from '../contexts/language-context';
 import { useThemeColors } from '@/hooks/use-theme-colors';
 import { MarkdownText } from './markdown-text';
-import { buildAIConfig, loadAIKey } from '../lib/ai-config';
+import { buildAIConfig, isAIKeyRequired, loadAIKey } from '../lib/ai-config';
 import { ensureAttachmentAvailable, persistAttachmentLocally } from '../lib/attachment-sync';
 import { logError, logWarn } from '../lib/app-log';
 import { AIResponseModal, type AIResponseAction } from './ai-response-modal';
@@ -1637,7 +1637,7 @@ function TaskEditModalInner({ visible, task, onClose, onSave, onFocusMode, defau
         }
         const provider = (settings.ai?.provider ?? 'openai') as AIProviderId;
         const apiKey = await loadAIKey(provider);
-        if (!apiKey) {
+        if (isAIKeyRequired(settings) && !apiKey) {
             Alert.alert(t('ai.missingKeyTitle'), t('ai.missingKeyBody'));
             return null;
         }

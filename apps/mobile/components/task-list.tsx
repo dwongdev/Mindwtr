@@ -23,7 +23,7 @@ import { useTheme } from '../contexts/theme-context';
 import { useLanguage } from '../contexts/language-context';
 
 import { useThemeColors } from '@/hooks/use-theme-colors';
-import { buildCopilotConfig, loadAIKey } from '../lib/ai-config';
+import { buildCopilotConfig, isAIKeyRequired, loadAIKey } from '../lib/ai-config';
 import { logError } from '../lib/app-log';
 
 export interface TaskListProps {
@@ -142,6 +142,7 @@ function TaskListComponent({
   const sortBy = (settings?.taskSortBy ?? 'default') as TaskSortBy;
   const aiEnabled = settings?.ai?.enabled === true;
   const aiProvider = (settings?.ai?.provider ?? 'openai') as AIProviderId;
+  const keyRequired = isAIKeyRequired(settings);
   const timeEstimatesEnabled = settings?.features?.timeEstimates === true;
   const projectById = useMemo(() => new Map(projects.map((project) => [project.id, project])), [projects]);
 
@@ -387,7 +388,7 @@ function TaskListComponent({
   }, [aiProvider]);
 
   useEffect(() => {
-    if (!enableCopilot || !aiEnabled || !aiKey) {
+    if (!enableCopilot || !aiEnabled || (keyRequired && !aiKey)) {
       setCopilotSuggestion(null);
       return;
     }
@@ -427,7 +428,7 @@ function TaskListComponent({
         copilotAbortRef.current = null;
       }
     };
-  }, [aiEnabled, aiKey, aiProvider, contextOptions, enableCopilot, newTaskTitle, settings, statusFilter, tagOptions, timeEstimatesEnabled]);
+  }, [aiEnabled, aiKey, aiProvider, contextOptions, enableCopilot, keyRequired, newTaskTitle, settings, statusFilter, tagOptions, timeEstimatesEnabled]);
 
   useEffect(() => {
     if (!highlightTaskId) return;

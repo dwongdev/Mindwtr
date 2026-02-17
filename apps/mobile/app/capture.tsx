@@ -4,7 +4,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { createAIProvider, PRESET_CONTEXTS, PRESET_TAGS, parseQuickAdd, type Task, type TimeEstimate, type AIProviderId, useTaskStore } from '@mindwtr/core';
 import { useThemeColors } from '@/hooks/use-theme-colors';
 import { useLanguage } from '../contexts/language-context';
-import { buildCopilotConfig, loadAIKey } from '../lib/ai-config';
+import { buildCopilotConfig, isAIKeyRequired, loadAIKey } from '../lib/ai-config';
 import { logError } from '../lib/app-log';
 
 export default function CaptureScreen() {
@@ -38,6 +38,7 @@ export default function CaptureScreen() {
 
   const aiEnabled = settings.ai?.enabled === true;
   const aiProvider = (settings.ai?.provider ?? 'openai') as AIProviderId;
+  const keyRequired = isAIKeyRequired(settings);
   const timeEstimatesEnabled = settings.features?.timeEstimates === true;
 
   useEffect(() => {
@@ -56,7 +57,7 @@ export default function CaptureScreen() {
   }, [tasks]);
 
   useEffect(() => {
-    if (!aiEnabled || !aiKey) {
+    if (!aiEnabled || (keyRequired && !aiKey)) {
       setCopilotSuggestion(null);
       return;
     }
@@ -103,6 +104,7 @@ export default function CaptureScreen() {
     aiKey,
     aiProvider,
     contextOptions,
+    keyRequired,
     settings,
     settings.ai?.copilotModel,
     settings.ai?.thinkingBudget,

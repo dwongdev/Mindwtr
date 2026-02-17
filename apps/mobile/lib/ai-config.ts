@@ -1,6 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as SecureStore from 'expo-secure-store';
-import type { AIProviderId } from '@mindwtr/core';
+import type { AIProviderId, AppData } from '@mindwtr/core';
 import { buildAIConfig, buildCopilotConfig, getAIKeyStorageKey, loadAIKeyFromStorage, saveAIKeyToStorage } from '@mindwtr/core';
 
 const secureAvailable = (() => {
@@ -38,6 +38,11 @@ export async function saveAIKey(provider: AIProviderId, value: string): Promise<
         return;
     }
     await saveAIKeyToStorage(AsyncStorage, provider, value);
+}
+
+export function isAIKeyRequired(settings: AppData['settings'] | undefined): boolean {
+    const config = buildAIConfig(settings ?? {}, '');
+    return !(config.provider === 'openai' && Boolean(config.endpoint));
 }
 
 export { buildAIConfig, buildCopilotConfig };

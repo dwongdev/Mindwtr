@@ -22,7 +22,7 @@ import { TaskEditModal } from './task-edit-modal';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useThemeColors } from '@/hooks/use-theme-colors';
-import { buildAIConfig, loadAIKey } from '../lib/ai-config';
+import { buildAIConfig, isAIKeyRequired, loadAIKey } from '../lib/ai-config';
 import { logError } from '../lib/app-log';
 import { fetchExternalCalendarEvents } from '../lib/external-calendar';
 
@@ -320,7 +320,7 @@ export function ReviewModal({ visible, onClose }: ReviewModalProps) {
             return;
         }
         const apiKey = await loadAIKey(aiProvider);
-        if (!apiKey) {
+        if (isAIKeyRequired(settings) && !apiKey) {
             setAiError('Missing API key. Add it in Settings.');
             return;
         }
