@@ -724,6 +724,7 @@ const en: Record<string, string> = {
         'settings.speechFieldDescription': 'Description',
         'settings.aiReasoning': 'Reasoning effort',
         'settings.aiReasoningHint': 'Used by GPT-5 models.',
+        'settings.aiReasoningHintFoss': 'Used by supported models.',
         'settings.aiProviderOpenAI': 'OpenAI',
         'settings.aiProviderGemini': 'Gemini',
         'settings.aiProviderAnthropic': 'Anthropic (Claude)',

@@ -2314,7 +2314,7 @@ export default function SettingsPage() {
                                     <View style={styles.settingInfo}>
                                         <Text style={[styles.settingLabel, { color: tc.text }]}>{t('settings.aiReasoning')}</Text>
                                         <Text style={[styles.settingDescription, { color: tc.secondaryText }]}>
-                                            {t('settings.aiReasoningHint')}
+                                            {t(isFossBuild ? 'settings.aiReasoningHintFoss' : 'settings.aiReasoningHint')}
                                         </Text>
                                     </View>
                                 </View>
