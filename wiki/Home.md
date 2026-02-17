@@ -62,6 +62,7 @@ Mindwtr is **simple by default and powerful when needed**. We focus on reducing 
 - [[Developer Guide]] — Development setup and overview
 - [[Architecture]] — Technical architecture and design
 - [[Core API]] — `@mindwtr/core` package documentation
+- [[MCP Server]] — Local MCP server setup and tool usage
 - [[Deployment Guide]] — Platform deployment entry points
 - [[Performance Guide]] — Performance-focused implementation notes
 - [[Contributing]] — How to contribute to Mindwtr
