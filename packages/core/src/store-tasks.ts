@@ -6,6 +6,7 @@ import {
     buildSaveSnapshot,
     ensureDeviceId,
     getNextProjectOrder,
+    getReferenceTaskFieldClears,
     normalizeRevision,
     updateVisibleTasks,
 } from './store-helpers';
@@ -54,17 +55,7 @@ export const createTaskActions = ({ set, get, getStorage, debouncedSave }: TaskA
         const resolvedSectionId = resolvedProjectId ? initialProps?.sectionId : undefined;
         const resolvedAreaId = resolvedProjectId ? undefined : initialProps?.areaId;
         const referenceClears = resolvedStatus === 'reference'
-            ? {
-                startTime: undefined,
-                dueDate: undefined,
-                reviewAt: undefined,
-                recurrence: undefined,
-                priority: undefined,
-                timeEstimate: undefined,
-                checklist: undefined,
-                isFocusedToday: false,
-                pushCount: 0,
-            }
+            ? getReferenceTaskFieldClears()
             : {};
         const now = new Date().toISOString();
         let snapshot: AppData | null = null;

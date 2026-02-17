@@ -15,6 +15,19 @@ export const ensureDeviceId = (settings: AppData['settings']): { settings: AppDa
     return { settings: { ...settings, deviceId }, deviceId, updated: true };
 };
 
+export const getReferenceTaskFieldClears = (): Partial<Task> => ({
+    status: 'reference',
+    startTime: undefined,
+    dueDate: undefined,
+    reviewAt: undefined,
+    recurrence: undefined,
+    priority: undefined,
+    timeEstimate: undefined,
+    checklist: undefined,
+    isFocusedToday: false,
+    pushCount: 0,
+});
+
 export function applyTaskUpdates(oldTask: Task, updates: Partial<Task>, now: string): { updatedTask: Task; nextRecurringTask: Task | null } {
     let normalizedUpdates = updates;
     if (Object.prototype.hasOwnProperty.call(updates, 'textDirection') && updates.textDirection === undefined) {
@@ -65,16 +78,7 @@ export function applyTaskUpdates(oldTask: Task, updates: Partial<Task>, now: str
     if (incomingStatus === 'reference') {
         finalUpdates = {
             ...finalUpdates,
-            status: incomingStatus,
-            startTime: undefined,
-            dueDate: undefined,
-            reviewAt: undefined,
-            recurrence: undefined,
-            priority: undefined,
-            timeEstimate: undefined,
-            checklist: undefined,
-            isFocusedToday: false,
-            pushCount: 0,
+            ...getReferenceTaskFieldClears(),
         };
     }
 
