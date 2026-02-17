@@ -156,8 +156,29 @@ export async function performMobileSync(syncPathOverride?: string): Promise<{ su
     let networkWentOffline = false;
     let networkSubscription: { remove?: () => void } | null = null;
     const requestAbortController = new AbortController();
-    const fetchWithAbort: typeof fetch = (input, init) =>
-      fetch(input, { ...(init || {}), signal: requestAbortController.signal });
+    const fetchWithAbort: typeof fetch = (input, init) => {
+      const baseSignal = requestAbortController.signal;
+      const existingSignal = (init?.signal ?? undefined) as AbortSignal | undefined;
+      if (!existingSignal) {
+        return fetch(input, { ...(init || {}), signal: baseSignal });
+      }
+      if (typeof AbortSignal !== 'undefined' && typeof AbortSignal.any === 'function') {
+        return fetch(input, { ...(init || {}), signal: AbortSignal.any([baseSignal, existingSignal]) });
+      }
+
+      const mergedController = new AbortController();
+      const abortMerged = () => mergedController.abort();
+      if (baseSignal.aborted || existingSignal.aborted) {
+        mergedController.abort();
+      } else {
+        baseSignal.addEventListener('abort', abortMerged, { once: true });
+        existingSignal.addEventListener('abort', abortMerged, { once: true });
+      }
+      return fetch(input, { ...(init || {}), signal: mergedController.signal }).finally(() => {
+        baseSignal.removeEventListener('abort', abortMerged);
+        existingSignal.removeEventListener('abort', abortMerged);
+      });
+    };
     const ensureLocalSnapshotFresh = () => {
       if (useTaskStore.getState().lastDataChangeAt > localSnapshotChangeAt) {
         syncQueued = true;
