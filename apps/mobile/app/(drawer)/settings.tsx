@@ -214,20 +214,15 @@ export default function SettingsPage() {
     const currentScreen = useMemo<SettingsScreen>(() => {
         const rawScreen = Array.isArray(settingsScreen) ? settingsScreen[0] : settingsScreen;
         if (!rawScreen) return 'main';
-        if (isFossBuild && rawScreen === 'notifications') return 'main';
         return SETTINGS_SCREEN_SET[rawScreen as SettingsScreen] ? (rawScreen as SettingsScreen) : 'main';
-    }, [isFossBuild, settingsScreen]);
+    }, [settingsScreen]);
     const pushSettingsScreen = useCallback((nextScreen: SettingsScreen) => {
-        if (isFossBuild && nextScreen === 'notifications') {
-            router.push('/settings');
-            return;
-        }
         if (nextScreen === 'main') {
             router.push('/settings');
             return;
         }
         router.push({ pathname: '/settings', params: { settingsScreen: nextScreen } });
-    }, [isFossBuild, router]);
+    }, [router]);
     const [syncPath, setSyncPath] = useState<string | null>(null);
     const [syncBackend, setSyncBackend] = useState<'file' | 'webdav' | 'cloud' | 'off'>('off');
     const [webdavUrl, setWebdavUrl] = useState('');
@@ -4286,9 +4281,7 @@ export default function SettingsPage() {
                 <View style={[styles.menuCard, { backgroundColor: tc.cardBg, marginTop: 16 }]}>
                     <MenuItem title={t('settings.general')} onPress={() => pushSettingsScreen('general')} />
                     <MenuItem title={t('settings.gtd')} onPress={() => pushSettingsScreen('gtd')} />
-                    {!isFossBuild && (
-                        <MenuItem title={t('settings.notifications')} onPress={() => pushSettingsScreen('notifications')} />
-                    )}
+                    <MenuItem title={t('settings.notifications')} onPress={() => pushSettingsScreen('notifications')} />
                     <MenuItem title={t('settings.dataSync')} onPress={() => pushSettingsScreen('sync')} />
                     <MenuItem title={t('settings.advanced')} onPress={() => pushSettingsScreen('advanced')} />
                     <MenuItem title={t('settings.about')} onPress={() => pushSettingsScreen('about')} showIndicator={!isFossBuild && hasUpdateBadge} />

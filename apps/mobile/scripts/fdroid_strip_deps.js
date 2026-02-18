@@ -5,7 +5,7 @@ const path = require('path');
 const pkgPath = path.join(__dirname, '..', 'package.json');
 const pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf8'));
 
-const removeDeps = ['expo-dev-client', 'expo-notifications'];
+const removeDeps = ['expo-dev-client'];
 let changed = false;
 
 for (const dep of removeDeps) {
