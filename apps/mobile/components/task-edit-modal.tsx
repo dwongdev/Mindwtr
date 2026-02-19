@@ -114,15 +114,6 @@ const isValidLinkUri = (value: string): boolean => {
         return false;
     }
 };
-const STATUS_LABEL_FALLBACKS: Record<TaskStatus, string> = {
-    inbox: 'Inbox',
-    next: 'Next',
-    waiting: 'Waiting',
-    someday: 'Someday',
-    reference: 'Reference',
-    done: 'Done',
-    archived: 'Archived',
-};
 const QUICK_TOKEN_LIMIT = 6;
 const DEFAULT_CONTEXT_SUGGESTIONS = ['@home', '@work', '@errands', '@computer', '@phone'];
 const getInitialWindowWidth = (): number => {
@@ -1780,7 +1771,7 @@ function TaskEditModalInner({ visible, task, onClose, onSave, onFocusMode, defau
     const getStatusLabel = (status: TaskStatus) => {
         const key = `status.${status}` as const;
         const translated = t(key);
-        return translated === key ? STATUS_LABEL_FALLBACKS[status] : translated;
+        return translated === key ? status : translated;
     };
     const getQuickTokenChipStyle = (active: boolean) => ([
         styles.quickTokenChip,
