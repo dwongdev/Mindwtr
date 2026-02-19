@@ -5,7 +5,7 @@ import Constants from 'expo-constants';
 import { Stack, useRouter } from 'expo-router';
 import 'react-native-reanimated';
 import * as SplashScreen from 'expo-splash-screen';
-import { useEffect, useState, useRef, useCallback, useMemo } from 'react';
+import { useEffect, useState, useRef, useCallback } from 'react';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { Alert, AppState, AppStateStatus, Platform, SafeAreaView, StatusBar, Text, View } from 'react-native';
 import { ShareIntentProvider, useShareIntentContext } from 'expo-share-intent';
@@ -133,21 +133,6 @@ const getDeviceLocale = (): string => {
   }
 };
 
-const isBackendMismatchedSyncConfigError = (backend: SyncBackend, errorMessage?: string): boolean => {
-  const message = (errorMessage || '').trim();
-  if (!message) return false;
-  if (/self-hosted url not configured/i.test(message)) {
-    return backend !== 'cloud';
-  }
-  if (/webdav url not configured|webdav unauthorized/i.test(message)) {
-    return backend !== 'webdav';
-  }
-  if (/no sync folder configured|selected ios sync file is in a temporary inbox location/i.test(message)) {
-    return backend !== 'file';
-  }
-  return false;
-};
-
 // Initialize storage for mobile
 let storageInitError: Error | null = null;
 const logAppError = (error: unknown) => {
@@ -179,9 +164,6 @@ function RootLayoutContent() {
   const [isDataLoaded, setIsDataLoaded] = useState(false);
   const settingsLanguage = useTaskStore((state) => state.settings?.language);
   const settingsDateFormat = useTaskStore((state) => state.settings?.dateFormat);
-  const lastSyncStatus = useTaskStore((state) => state.settings?.lastSyncStatus ?? 'idle');
-  const lastSyncError = useTaskStore((state) => state.settings?.lastSyncError);
-  const [syncBackendForUi, setSyncBackendForUi] = useState<SyncBackend>('off');
   const appState = useRef(AppState.currentState);
   const lastAutoSyncAt = useRef(0);
   const syncDebounceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -210,7 +192,6 @@ function RootLayoutContent() {
     }
     const rawBackend = await AsyncStorage.getItem(SYNC_BACKEND_KEY);
     const backend = resolveBackend(rawBackend);
-    setSyncBackendForUi((current) => (current === backend ? current : backend));
     syncBackendCacheRef.current = { backend, readAt: now };
     syncCadenceRef.current = getCadenceForBackend(backend);
     return syncCadenceRef.current;
@@ -564,29 +545,6 @@ function RootLayoutContent() {
   }, []);
 
   const isAppReady = isDataLoaded && themeReady && languageReady;
-  const syncStatusBanner = useMemo(() => {
-    if (syncBackendForUi === 'off') return null;
-    if (lastSyncStatus === 'idle' || lastSyncStatus === 'success') return null;
-    if (lastSyncStatus === 'error' && isBackendMismatchedSyncConfigError(syncBackendForUi, lastSyncError)) {
-      return null;
-    }
-    if (lastSyncStatus === 'syncing') {
-      return {
-        text: `${t('settings.lastSync')}: ${t('common.loading')}`,
-        backgroundColor: isDark ? '#0F172A' : '#E2E8F0',
-        borderColor: isDark ? '#334155' : '#CBD5E1',
-        textColor: isDark ? '#E2E8F0' : '#0F172A',
-      };
-    }
-    if (lastSyncStatus === 'conflict') return null;
-    return {
-      text: lastSyncError ? `${t('settings.lastSyncError')}: ${lastSyncError}` : t('settings.lastSyncError'),
-      backgroundColor: isDark ? '#3F1D1D' : '#FEE2E2',
-      borderColor: isDark ? '#991B1B' : '#FCA5A5',
-      textColor: isDark ? '#FECACA' : '#991B1B',
-    };
-  }, [isDark, lastSyncError, lastSyncStatus, syncBackendForUi, t]);
-
   useEffect(() => {
     if (!isAppReady) return;
     if (typeof SplashScreen?.hideAsync === 'function') {
@@ -670,35 +628,6 @@ function RootLayoutContent() {
               }}
             />
           </Stack>
-          {syncStatusBanner && (
-            <View
-              accessibilityRole="text"
-              accessibilityLiveRegion="polite"
-              style={{
-                position: 'absolute',
-                top: 8,
-                left: 12,
-                right: 12,
-                borderRadius: 10,
-                borderWidth: 1,
-                paddingHorizontal: 12,
-                paddingVertical: 8,
-                backgroundColor: syncStatusBanner.backgroundColor,
-                borderColor: syncStatusBanner.borderColor,
-              }}
-            >
-              <Text
-                numberOfLines={1}
-                style={{
-                  color: syncStatusBanner.textColor,
-                  fontSize: 12,
-                  fontWeight: '600',
-                }}
-              >
-                {syncStatusBanner.text}
-              </Text>
-            </View>
-          )}
           <StatusBar
             barStyle={isDark ? 'light-content' : 'dark-content'}
           />
