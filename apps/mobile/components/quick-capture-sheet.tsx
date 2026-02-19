@@ -1133,6 +1133,8 @@ export function QuickCaptureSheet({
               style={[styles.optionChip, { backgroundColor: tc.filterBg, borderColor: tc.border }]}
               onPress={openDueDatePicker}
               onLongPress={() => setDueDate(null)}
+              accessibilityRole="button"
+              accessibilityLabel={`${t('taskEdit.dueDate')}: ${dueLabel}`}
             >
               <CalendarDays size={16} color={tc.text} />
               <Text style={[styles.optionText, { color: tc.text }]} numberOfLines={1}>{dueLabel}</Text>
@@ -1142,6 +1144,8 @@ export function QuickCaptureSheet({
               style={[styles.optionChip, { backgroundColor: tc.filterBg, borderColor: tc.border }]}
               onPress={() => setShowContextPicker(true)}
               onLongPress={() => setContextTags([])}
+              accessibilityRole="button"
+              accessibilityLabel={`${t('taskEdit.contextsLabel')}: ${contextLabel}`}
             >
               <AtSign size={16} color={tc.text} />
               <Text style={[styles.optionText, { color: tc.text }]} numberOfLines={1}>{contextLabel}</Text>
@@ -1151,6 +1155,8 @@ export function QuickCaptureSheet({
               style={[styles.optionChip, { backgroundColor: tc.filterBg, borderColor: tc.border }]}
               onPress={() => setShowProjectPicker(true)}
               onLongPress={() => setProjectId(null)}
+              accessibilityRole="button"
+              accessibilityLabel={`${t('taskEdit.project')}: ${projectLabel}`}
             >
               <Folder size={16} color={tc.text} />
               <Text style={[styles.optionText, { color: tc.text }]} numberOfLines={1}>{projectLabel}</Text>
@@ -1161,6 +1167,8 @@ export function QuickCaptureSheet({
                 style={[styles.optionChip, { backgroundColor: tc.filterBg, borderColor: tc.border }]}
                 onPress={() => setShowPriorityPicker(true)}
                 onLongPress={() => setPriority(null)}
+                accessibilityRole="button"
+                accessibilityLabel={`${t('taskEdit.priorityLabel')}: ${priorityLabel}`}
               >
                 <Flag size={16} color={tc.text} />
                 <Text style={[styles.optionText, { color: tc.text }]} numberOfLines={1}>{priorityLabel}</Text>
@@ -1175,6 +1183,7 @@ export function QuickCaptureSheet({
                 onValueChange={setAddAnother}
                 thumbColor={addAnother ? tc.tint : tc.border}
                 trackColor={{ false: tc.border, true: `${tc.tint}55` }}
+                accessibilityLabel={t('quickAdd.addAnother')}
               />
               <Text style={[styles.toggleText, { color: tc.text }]}>{t('quickAdd.addAnother')}</Text>
             </View>
@@ -1182,6 +1191,8 @@ export function QuickCaptureSheet({
               onPress={handleSave}
               style={[styles.saveButton, { backgroundColor: tc.tint, opacity: value.trim() ? 1 : 0.5 }]}
               disabled={!value.trim()}
+              accessibilityRole="button"
+              accessibilityLabel={t('common.save')}
             >
               <Text style={styles.saveText}>{t('common.save')}</Text>
             </TouchableOpacity>
