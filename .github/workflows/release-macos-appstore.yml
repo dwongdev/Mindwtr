@@ -333,6 +333,7 @@ jobs:
         timeout-minutes: 30
         env:
           APPLE_SIGNING_IDENTITY: ${{ secrets.MAS_SIGNING_IDENTITY }}
+          VITE_ANALYTICS_HEARTBEAT_URL: ${{ secrets.ANALYTICS_HEARTBEAT_URL }}
           CFLAGS: -march=armv8.5-a+i8mm
           CXXFLAGS: -march=armv8.5-a+i8mm
           CMAKE_C_FLAGS: -march=armv8.5-a+i8mm

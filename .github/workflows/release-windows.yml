@@ -89,6 +89,7 @@ jobs:
           cargo tauri build
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VITE_ANALYTICS_HEARTBEAT_URL: ${{ secrets.ANALYTICS_HEARTBEAT_URL }}
 
       - name: Ensure MakeAppx is available
         shell: pwsh
