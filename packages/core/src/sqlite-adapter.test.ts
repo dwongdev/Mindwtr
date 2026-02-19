@@ -158,7 +158,7 @@ describeBun('SqliteAdapter', () => {
         expect(area.revBy).toBe('device-desktop');
     });
 
-    it('drops attachments with empty URIs when loading tasks', async () => {
+    it('preserves attachments with empty URIs when loading tasks', async () => {
         const now = new Date().toISOString();
         const data: AppData = {
             tasks: [
@@ -192,7 +192,9 @@ describeBun('SqliteAdapter', () => {
         const loaded = await adapter.getData();
 
         expect(loaded.tasks).toHaveLength(1);
-        expect(loaded.tasks[0].attachments).toBeUndefined();
+        expect(loaded.tasks[0].attachments).toHaveLength(1);
+        expect(loaded.tasks[0].attachments?.[0]?.id).toBe('att-empty');
+        expect(loaded.tasks[0].attachments?.[0]?.uri).toBe('   ');
     });
 
     it('adds missing task columns on older schemas', async () => {

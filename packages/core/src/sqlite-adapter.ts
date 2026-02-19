@@ -91,8 +91,7 @@ const toAttachments = (value: unknown): Attachment[] | undefined => {
                 typeof item.id === 'string' &&
                 typeof item.kind === 'string' &&
                 typeof item.title === 'string' &&
-                typeof item.uri === 'string' &&
-                item.uri.trim().length > 0
+                typeof item.uri === 'string'
         )
         .map((item) => ({
             id: item.id as string,
