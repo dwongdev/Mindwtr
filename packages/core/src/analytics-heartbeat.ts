@@ -40,37 +40,48 @@ const parseEndpoint = (value: string): string | null => {
 };
 
 export async function sendDailyHeartbeat(options: SendDailyHeartbeatOptions): Promise<boolean> {
-    if (options.enabled === false) return false;
-
-    const endpoint = parseEndpoint(trimValue(options.endpointUrl));
-    const distinctId = trimValue(options.distinctId);
-    const platform = trimValue(options.platform);
-    const channel = trimValue(options.channel);
-    const appVersion = trimValue(options.appVersion);
-    const deviceClass = trimValue(options.deviceClass);
-    const osMajor = trimValue(options.osMajor);
-    const locale = trimValue(options.locale);
-
-    if (!endpoint || !distinctId || !platform || !channel || !appVersion) {
-        return false;
-    }
-
-    const storageKey = trimValue(options.storageKey) || HEARTBEAT_LAST_SENT_DAY_KEY;
-    const now = options.now ? options.now() : new Date();
-    const today = getIsoDay(now);
-    const lastSentDay = await options.storage.getItem(storageKey);
-    if (lastSentDay === today) return false;
-
-    const fetcher: HeartbeatFetch = options.fetcher ?? (globalThis.fetch as HeartbeatFetch);
-    if (typeof fetcher !== 'function') return false;
-
-    const timeoutMs = Number.isFinite(options.timeoutMs) ? Math.max(500, options.timeoutMs as number) : 5_000;
-    const controller = typeof AbortController !== 'undefined' ? new AbortController() : null;
-    const timeout = controller
-        ? setTimeout(() => controller.abort(), timeoutMs)
-        : null;
-
+    let timeout: ReturnType<typeof setTimeout> | null = null;
     try {
+        if (!options || options.enabled === false) return false;
+
+        const endpoint = parseEndpoint(trimValue(options.endpointUrl));
+        const distinctId = trimValue(options.distinctId);
+        const platform = trimValue(options.platform);
+        const channel = trimValue(options.channel);
+        const appVersion = trimValue(options.appVersion);
+        const deviceClass = trimValue(options.deviceClass);
+        const osMajor = trimValue(options.osMajor);
+        const locale = trimValue(options.locale);
+        const storage = options.storage;
+
+        if (
+            !endpoint
+            || !distinctId
+            || !platform
+            || !channel
+            || !appVersion
+            || !storage
+            || typeof storage.getItem !== 'function'
+            || typeof storage.setItem !== 'function'
+        ) {
+            return false;
+        }
+
+        const storageKey = trimValue(options.storageKey) || HEARTBEAT_LAST_SENT_DAY_KEY;
+        const now = options.now ? options.now() : new Date();
+        const today = getIsoDay(now);
+        const lastSentDay = await storage.getItem(storageKey);
+        if (lastSentDay === today) return false;
+
+        const fetcher: HeartbeatFetch = options.fetcher ?? (globalThis.fetch as HeartbeatFetch);
+        if (typeof fetcher !== 'function') return false;
+
+        const timeoutMs = Number.isFinite(options.timeoutMs) ? Math.max(500, options.timeoutMs as number) : 5_000;
+        const controller = typeof AbortController !== 'undefined' ? new AbortController() : null;
+        timeout = controller
+            ? setTimeout(() => controller.abort(), timeoutMs)
+            : null;
+
         const payload: Record<string, string> = {
             distinct_id: distinctId,
             platform,
@@ -92,7 +103,7 @@ export async function sendDailyHeartbeat(options: SendDailyHeartbeatOptions): Pr
             ...(controller ? { signal: controller.signal } : {}),
         });
         if (!response.ok) return false;
-        await options.storage.setItem(storageKey, today);
+        await storage.setItem(storageKey, today);
         return true;
     } catch {
         return false;

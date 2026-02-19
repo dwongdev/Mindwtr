@@ -152,4 +152,50 @@ describe('sendDailyHeartbeat', () => {
         expect(body.os_major).toBe('linux-6');
         expect(body.locale).toBe('en-US');
     });
+
+    it('fails silently when storage getItem throws', async () => {
+        const store = {
+            getItem: () => {
+                throw new Error('storage read failed');
+            },
+            setItem: () => undefined,
+        };
+        const fetcher = vi.fn().mockResolvedValue({ ok: true });
+
+        await expect(sendDailyHeartbeat({
+            enabled: true,
+            endpointUrl: 'https://analytics.example.com/heartbeat',
+            distinctId: 'device-123',
+            platform: 'ios',
+            channel: 'app-store',
+            appVersion: '0.6.17',
+            storage: store,
+            now: () => fixedDate,
+            fetcher,
+        })).resolves.toBe(false);
+        expect(fetcher).not.toHaveBeenCalled();
+    });
+
+    it('fails silently when storage setItem throws', async () => {
+        const store = {
+            getItem: () => null,
+            setItem: () => {
+                throw new Error('storage write failed');
+            },
+        };
+        const fetcher = vi.fn().mockResolvedValue({ ok: true });
+
+        await expect(sendDailyHeartbeat({
+            enabled: true,
+            endpointUrl: 'https://analytics.example.com/heartbeat',
+            distinctId: 'device-123',
+            platform: 'android',
+            channel: 'play-store',
+            appVersion: '0.6.17',
+            storage: store,
+            now: () => fixedDate,
+            fetcher,
+        })).resolves.toBe(false);
+        expect(fetcher).toHaveBeenCalledTimes(1);
+    });
 });
