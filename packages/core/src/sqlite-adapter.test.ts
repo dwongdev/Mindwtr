@@ -1,37 +1,32 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { createRequire } from 'node:module';
 
 import { SqliteAdapter, type SqliteClient } from './sqlite-adapter';
 import type { AppData } from './types';
 
-type Database = import('bun:sqlite').Database;
-
-const isBun = typeof (globalThis as { Bun?: unknown }).Bun !== 'undefined';
-const describeBun = isBun ? describe : describe.skip;
+const require = createRequire(import.meta.url);
+const { DatabaseSync } = require('node:sqlite') as typeof import('node:sqlite');
+type Database = DatabaseSync;
 
 const createClient = (db: Database): SqliteClient => ({
     run: async (sql: string, params: unknown[] = []) => {
-        db.query(sql).run(params);
+        db.prepare(sql).run(...params);
     },
     all: async <T = Record<string, unknown>>(sql: string, params: unknown[] = []) =>
-        db.query(sql).all(params) as T[],
+        db.prepare(sql).all(...params) as T[],
     get: async <T = Record<string, unknown>>(sql: string, params: unknown[] = []) =>
-        db.query(sql).get(params) as T | undefined,
+        db.prepare(sql).get(...params) as T | undefined,
     exec: async (sql: string) => {
         db.exec(sql);
     },
 });
 
-describeBun('SqliteAdapter', () => {
+describe('SqliteAdapter', () => {
     let db: Database;
     let adapter: SqliteAdapter;
-    let DatabaseCtor: typeof Database | null = null;
 
-    beforeEach(async () => {
-        if (!DatabaseCtor) {
-            const mod = await import('bun:sqlite');
-            DatabaseCtor = mod.Database;
-        }
-        db = new DatabaseCtor(':memory:');
+    beforeEach(() => {
+        db = new DatabaseSync(':memory:');
         adapter = new SqliteAdapter(createClient(db));
     });
 
@@ -218,7 +213,7 @@ describeBun('SqliteAdapter', () => {
 
         await adapter.ensureSchema();
 
-        const columns = db.query('PRAGMA table_info(tasks)').all() as { name: string }[];
+        const columns = db.prepare('PRAGMA table_info(tasks)').all() as { name: string }[];
         const names = columns.map((col) => col.name);
         expect(names).toContain('orderNum');
         expect(names).toContain('areaId');
@@ -227,17 +222,17 @@ describeBun('SqliteAdapter', () => {
         expect(names).toContain('rev');
         expect(names).toContain('revBy');
 
-        const projectColumns = db.query('PRAGMA table_info(projects)').all() as { name: string }[];
+        const projectColumns = db.prepare('PRAGMA table_info(projects)').all() as { name: string }[];
         const projectColumnNames = projectColumns.map((col) => col.name);
         expect(projectColumnNames).toContain('rev');
         expect(projectColumnNames).toContain('revBy');
 
-        const sectionColumns = db.query('PRAGMA table_info(sections)').all() as { name: string }[];
+        const sectionColumns = db.prepare('PRAGMA table_info(sections)').all() as { name: string }[];
         const sectionColumnNames = sectionColumns.map((col) => col.name);
         expect(sectionColumnNames).toContain('rev');
         expect(sectionColumnNames).toContain('revBy');
 
-        const areaColumns = db.query('PRAGMA table_info(areas)').all() as { name: string }[];
+        const areaColumns = db.prepare('PRAGMA table_info(areas)').all() as { name: string }[];
         const areaColumnNames = areaColumns.map((col) => col.name);
         expect(areaColumnNames).toContain('rev');
         expect(areaColumnNames).toContain('revBy');
@@ -247,7 +242,7 @@ describeBun('SqliteAdapter', () => {
         await adapter.ensureSchema();
 
         expect(() =>
-            db.query(`
+            db.prepare(`
                 INSERT INTO tasks (id, title, status, createdAt, updatedAt)
                 VALUES ('bad-status', 'Bad status', 'active', '2026-01-01T00:00:00.000Z', '2026-01-01T00:00:00.000Z')
             `).run()
@@ -258,7 +253,7 @@ describeBun('SqliteAdapter', () => {
         await adapter.ensureSchema();
 
         expect(() =>
-            db.query(`
+            db.prepare(`
                 INSERT INTO tasks (id, title, status, tags, createdAt, updatedAt)
                 VALUES ('bad-json', 'Bad json', 'next', '{invalid', '2026-01-01T00:00:00.000Z', '2026-01-01T00:00:00.000Z')
             `).run()
@@ -268,7 +263,7 @@ describeBun('SqliteAdapter', () => {
     it('creates composite indexes used by sync queries', async () => {
         await adapter.ensureSchema();
 
-        const indexes = db.query(`PRAGMA index_list(tasks)`).all() as Array<{ name: string }>;
+        const indexes = db.prepare(`PRAGMA index_list(tasks)`).all() as Array<{ name: string }>;
         const names = new Set(indexes.map((index) => index.name));
 
         expect(names.has('idx_tasks_project_status_updatedAt')).toBe(true);
