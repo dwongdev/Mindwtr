@@ -696,6 +696,9 @@ export async function startCloudServer(options: CloudServerOptions = {}): Promis
                             return errorResponse(String(err?.message || 'Payload too large'), Number(err?.status) || 413);
                         }
                         if (!body || typeof body !== 'object') return errorResponse('Invalid JSON body');
+                        if (typeof (body as any).title === 'string' && (body as any).title.length > MAX_TASK_TITLE_LENGTH) {
+                            return errorResponse(`Task title too long (max ${MAX_TASK_TITLE_LENGTH} characters)`, 400);
+                        }
 
                         return await withWriteLock(key, async () => {
                             const data = loadAppData(filePath);
