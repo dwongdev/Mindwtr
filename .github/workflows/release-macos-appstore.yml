@@ -637,7 +637,6 @@ jobs:
               message = error.to_s
               message.match?(/cannot accept new beta review submission/i) ||
                 message.match?(/another build.*beta review/i) ||
-                message.match?(/another build.*in review/i) ||
                 message.match?(/same train.*beta review/i)
             end
 
