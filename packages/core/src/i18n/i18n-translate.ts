@@ -613,7 +613,9 @@ const buildReplacements = (pairs: Array<[string, string]>) =>
             .map(([from, to]) => [new RegExp(escapeRegExp(from), 'gi'), to] as const);
 
 const PROTECTED_TOKENS = [
+        '/start:<when>',
         '/due:<when>',
+        '/review:<when>',
         '/note:<text>',
         '/next',
         '/area:<name>',

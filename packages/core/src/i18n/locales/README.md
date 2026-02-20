@@ -13,7 +13,7 @@ Any missing key is automatically translated from English by the i18n build step.
 
 1. Open the language file (for example `fr.ts`).
 2. Add or update keys in `<lang>Overrides`.
-3. Keep command tokens in English where applicable (`/due:`, `/note:`, `/next`, `@context`, `#tag`, `+Project`).
+3. Keep command tokens in English where applicable (`/start:`, `/due:`, `/review:`, `/note:`, `/next`, `@context`, `#tag`, `+Project`).
 4. Run tests:
 
 ```bash

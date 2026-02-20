@@ -24,8 +24,8 @@ export const esOverrides: Record<string, string> = {
         'nav.sectionArchive': 'Archivo',
 
         // Quick Add
-        'quickAdd.help': 'Al capturar de forma rápida puedes usar los comandos /due:<fecha de vencimiento>, /note:<texto de la nota>, /next, /area:<name> o !Area, @context, #tag, +Project.',
-        'quickAdd.example': 'Ejemplo: Llamar a mamá /due:tomorrow 5pm @movil #familia',
+        'quickAdd.help': 'Al capturar de forma rápida puedes usar los comandos /start:<when>, /due:<when>, /review:<when>, /note:<text>, /next, /area:<name> o !Area, @context, #tag, +Project.',
+        'quickAdd.example': 'Ejemplo: Llamar a mamá /start:tomorrow /due:tomorrow 5pm @movil #familia',
 
         // Checklist
         'checklist.progress': 'Progreso de la checklist',

@@ -130,6 +130,19 @@ function stripToken(source: string, token: string): string {
     return source.replace(token, '').replace(/\s{2,}/g, ' ').trim();
 }
 
+function parseDateCommand(command: string, working: string, now: Date): { value?: string; working: string } {
+    const match = working.match(new RegExp(`\\/${command}:([^/]+?)(?=\\s\\/|$)`, 'i'));
+    if (!match) return { working };
+
+    const dateText = match[1].trim();
+    const parsed = parseNaturalDate(dateText, now);
+    const nextWorking = stripToken(working, match[0]);
+    return {
+        value: parsed ? parsed.toISOString() : undefined,
+        working: nextWorking,
+    };
+}
+
 export function parseQuickAdd(input: string, projects?: Project[], now: Date = new Date(), areas?: Area[]): QuickAddResult {
     let working = protectEscapes(input.trim());
 
@@ -188,15 +201,18 @@ export function parseQuickAdd(input: string, projects?: Project[], now: Date = n
         working = stripToken(working, noteMatch[0]);
     }
 
-    // Due: /due:...
-    let dueDate: string | undefined;
-    const dueMatch = working.match(/\/due:([^/]+?)(?=\s\/|$)/i);
-    if (dueMatch) {
-        const dueText = dueMatch[1].trim();
-        const parsed = parseNaturalDate(dueText, now);
-        if (parsed) dueDate = parsed.toISOString();
-        working = stripToken(working, dueMatch[0]);
-    }
+    // Date commands: /start:..., /due:..., /review:...
+    const startResult = parseDateCommand('start', working, now);
+    let startTime = startResult.value;
+    working = startResult.working;
+
+    const dueResult = parseDateCommand('due', working, now);
+    let dueDate = dueResult.value;
+    working = dueResult.working;
+
+    const reviewResult = parseDateCommand('review', working, now);
+    let reviewAt = reviewResult.value;
+    working = reviewResult.working;
 
     // Status tokens like /next, /waiting, etc.
     let status: TaskStatus | undefined;
@@ -243,7 +259,9 @@ export function parseQuickAdd(input: string, projects?: Project[], now: Date = n
 
     const props: Partial<Task> = {};
     if (status) props.status = status;
+    if (startTime) props.startTime = startTime;
     if (dueDate) props.dueDate = dueDate;
+    if (reviewAt) props.reviewAt = reviewAt;
     if (description) props.description = description;
     if (contexts.size > 0) props.contexts = Array.from(contexts);
     if (tags.size > 0) props.tags = Array.from(tags);

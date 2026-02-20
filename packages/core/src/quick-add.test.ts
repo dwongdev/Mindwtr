@@ -15,6 +15,22 @@ describe('quick-add', () => {
         expect(result.props.dueDate).toBe(expectedLocal);
     });
 
+    it('parses /start and /review with the same natural date parser as /due', () => {
+        const now = new Date('2025-01-01T10:00:00Z');
+        const result = parseQuickAdd(
+            'Review proposal /start:tomorrow /review:friday /due:next week',
+            undefined,
+            now
+        );
+
+        expect(result.title).toBe('Review proposal');
+        const expectedHour = now.getHours();
+        const expectedMinute = now.getMinutes();
+        expect(result.props.startTime).toBe(new Date(2025, 0, 2, expectedHour, expectedMinute, 0, 0).toISOString());
+        expect(result.props.reviewAt).toBe(new Date(2025, 0, 3, expectedHour, expectedMinute, 0, 0).toISOString());
+        expect(result.props.dueDate).toBe(new Date(2025, 0, 8, expectedHour, expectedMinute, 0, 0).toISOString());
+    });
+
     it('matches project by title when provided', () => {
         const now = new Date('2025-01-01T10:00:00Z');
         const projects = [
