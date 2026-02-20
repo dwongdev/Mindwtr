@@ -48,6 +48,7 @@ import { useSyncSettings } from './settings/useSyncSettings';
 import { usePerformanceMonitor } from '../../hooks/usePerformanceMonitor';
 import { checkBudget } from '../../config/performanceBudgets';
 import { THEME_STORAGE_KEY, applyThemeMode, coerceDesktopThemeMode, mapSyncedThemeToDesktop, resolveNativeTheme, type DesktopThemeMode } from '../../lib/theme';
+import { type GlobalQuickAddShortcutSetting } from '../../lib/global-quick-add-shortcut';
 
 type ThemeMode = DesktopThemeMode;
 type DensityMode = 'comfortable' | 'compact';
@@ -104,7 +105,13 @@ export function SettingsView() {
     const [page, setPage] = useState<SettingsPage>('main');
     const [themeMode, setThemeMode] = useState<ThemeMode>('system');
     const { language, setLanguage, t: translate } = useLanguage();
-    const { style: keybindingStyle, setStyle: setKeybindingStyle, openHelp } = useKeybindings();
+    const {
+        style: keybindingStyle,
+        setStyle: setKeybindingStyle,
+        quickAddShortcut: globalQuickAddShortcut,
+        setQuickAddShortcut: setGlobalQuickAddShortcut,
+        openHelp,
+    } = useKeybindings();
     const settings = useTaskStore((state) => state.settings) ?? ({} as AppData['settings']);
     const updateSettings = useTaskStore((state) => state.updateSettings);
     const isTauri = isTauriRuntime();
@@ -465,6 +472,10 @@ export function SettingsView() {
 
     const handleKeybindingStyleChange = (style: 'vim' | 'emacs') => {
         setKeybindingStyle(style);
+        showSaved();
+    };
+    const handleGlobalQuickAddShortcutChange = (shortcut: GlobalQuickAddShortcutSetting) => {
+        setGlobalQuickAddShortcut(shortcut);
         showSaved();
     };
 
@@ -881,6 +892,8 @@ export function SettingsView() {
                     onDateFormatChange={saveDateFormatPreference}
                     keybindingStyle={keybindingStyle}
                     onKeybindingStyleChange={handleKeybindingStyleChange}
+                    globalQuickAddShortcut={globalQuickAddShortcut}
+                    onGlobalQuickAddShortcutChange={handleGlobalQuickAddShortcutChange}
                     onOpenHelp={openHelp}
                     languages={LANGUAGES}
                     showWindowDecorations={isLinux}

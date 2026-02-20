@@ -227,6 +227,7 @@ export interface AppData {
         syncPreferencesUpdatedAt?: SettingsSyncUpdatedAt;
         externalCalendars?: ExternalCalendarSubscription[];
         keybindingStyle?: 'vim' | 'emacs';
+        globalQuickAddShortcut?: string;
         window?: {
             decorations?: boolean;
             closeBehavior?: 'ask' | 'tray' | 'quit';

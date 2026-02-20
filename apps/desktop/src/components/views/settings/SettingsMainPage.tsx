@@ -1,4 +1,8 @@
 import type { Language } from '../../../contexts/language-context';
+import {
+    type GlobalQuickAddShortcutSetting,
+    getGlobalQuickAddShortcutOptions,
+} from '../../../lib/global-quick-add-shortcut';
 
 type ThemeMode = 'system' | 'light' | 'dark' | 'eink' | 'nord' | 'sepia';
 type DensityMode = 'comfortable' | 'compact';
@@ -27,6 +31,8 @@ type Labels = {
     dateFormatMdy: string;
     keybindings: string;
     keybindingsDesc: string;
+    globalQuickAddShortcut: string;
+    globalQuickAddShortcutDesc: string;
     keybindingVim: string;
     keybindingEmacs: string;
     viewShortcuts: string;
@@ -57,6 +63,8 @@ type SettingsMainPageProps = {
     onDateFormatChange: (format: DateFormatSetting) => void;
     keybindingStyle: 'vim' | 'emacs';
     onKeybindingStyleChange: (style: 'vim' | 'emacs') => void;
+    globalQuickAddShortcut: GlobalQuickAddShortcutSetting;
+    onGlobalQuickAddShortcutChange: (shortcut: GlobalQuickAddShortcutSetting) => void;
     onOpenHelp: () => void;
     languages: LanguageOption[];
     showWindowDecorations?: boolean;
@@ -134,6 +142,8 @@ export function SettingsMainPage({
     onDateFormatChange,
     keybindingStyle,
     onKeybindingStyleChange,
+    globalQuickAddShortcut,
+    onGlobalQuickAddShortcutChange,
     onOpenHelp,
     languages,
     showWindowDecorations = false,
@@ -147,6 +157,8 @@ export function SettingsMainPage({
     onTrayVisibleChange,
 }: SettingsMainPageProps) {
     const hasWindowSection = showWindowDecorations || showCloseBehavior || showTrayToggle;
+    const isMac = typeof navigator !== 'undefined' && /mac/i.test(navigator.platform);
+    const globalQuickAddOptions = getGlobalQuickAddShortcutOptions(isMac);
 
     return (
         <div className="space-y-5">
@@ -254,6 +266,19 @@ export function SettingsMainPage({
                     >
                         {t.viewShortcuts}
                     </button>
+                </SettingsRow>
+                <SettingsRow title={t.globalQuickAddShortcut} description={t.globalQuickAddShortcutDesc}>
+                    <select
+                        value={globalQuickAddShortcut}
+                        onChange={(e) => onGlobalQuickAddShortcutChange(e.target.value as GlobalQuickAddShortcutSetting)}
+                        className={selectCls}
+                    >
+                        {globalQuickAddOptions.map((option) => (
+                            <option key={option.value} value={option.value}>
+                                {option.label}
+                            </option>
+                        ))}
+                    </select>
                 </SettingsRow>
             </SettingsCard>
 

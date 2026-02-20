@@ -112,7 +112,8 @@ When a task list is visible:
 
 ## Customization
 
-Currently, keyboard shortcuts cannot be customized beyond selecting Vim or Emacs preset. Custom keybindings may be added in a future release.
+- You can choose Vim or Emacs preset in **Settings → General → Input**.
+- The global **Quick Add** shortcut can be changed or disabled in **Settings → General → Input → Global quick add shortcut**.
 
 ---
 

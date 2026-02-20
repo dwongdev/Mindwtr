@@ -36,6 +36,9 @@ const KEYRING_CLOUD_TOKEN: &str = "cloud_token";
 const KEYRING_AI_OPENAI: &str = "ai_key_openai";
 const KEYRING_AI_ANTHROPIC: &str = "ai_key_anthropic";
 const KEYRING_AI_GEMINI: &str = "ai_key_gemini";
+const GLOBAL_QUICK_ADD_SHORTCUT_DEFAULT: &str = "Control+Alt+M";
+const GLOBAL_QUICK_ADD_SHORTCUT_LEGACY: &str = "CommandOrControl+Shift+A";
+const GLOBAL_QUICK_ADD_SHORTCUT_DISABLED: &str = "disabled";
 #[cfg(target_os = "macos")]
 const MENU_HELP_DOCS_ID: &str = "help_docs";
 #[cfg(target_os = "macos")]
@@ -259,6 +262,7 @@ struct TaskQueryOptions {
 }
 
 struct QuickAddPending(AtomicBool);
+struct GlobalQuickAddShortcutState(Mutex<Option<String>>);
 
 struct AudioRecorderState(Mutex<Option<AudioRecorderHandle>>);
 
@@ -288,6 +292,64 @@ struct AudioCaptureResult {
 #[tauri::command]
 fn consume_quick_add_pending(state: tauri::State<'_, QuickAddPending>) -> bool {
     state.0.swap(false, Ordering::SeqCst)
+}
+
+fn normalize_global_quick_add_shortcut(shortcut: Option<&str>) -> Result<Option<String>, String> {
+    let trimmed = shortcut.map(str::trim).unwrap_or("");
+    if trimmed.is_empty() {
+        return Ok(Some(GLOBAL_QUICK_ADD_SHORTCUT_DEFAULT.to_string()));
+    }
+
+    if trimmed.eq_ignore_ascii_case(GLOBAL_QUICK_ADD_SHORTCUT_DISABLED) {
+        return Ok(None);
+    }
+
+    if trimmed == GLOBAL_QUICK_ADD_SHORTCUT_DEFAULT || trimmed == GLOBAL_QUICK_ADD_SHORTCUT_LEGACY {
+        return Ok(Some(trimmed.to_string()));
+    }
+
+    Err("Unsupported quick add shortcut".to_string())
+}
+
+fn apply_global_quick_add_shortcut(
+    app: &tauri::AppHandle,
+    state: &tauri::State<'_, GlobalQuickAddShortcutState>,
+    shortcut: Option<&str>,
+) -> Result<String, String> {
+    let normalized = normalize_global_quick_add_shortcut(shortcut)?;
+    let mut guard = state.0.lock().map_err(|_| "Shortcut state lock poisoned".to_string())?;
+
+    if *guard == normalized {
+        return Ok(guard
+            .clone()
+            .unwrap_or_else(|| GLOBAL_QUICK_ADD_SHORTCUT_DISABLED.to_string()));
+    }
+
+    if let Some(existing) = guard.as_ref() {
+        if let Err(error) = app.global_shortcut().unregister(existing.as_str()) {
+            log::warn!("Failed to unregister existing quick add shortcut: {error}");
+        }
+    }
+
+    if let Some(next_shortcut) = normalized.as_ref() {
+        app.global_shortcut()
+            .on_shortcut(next_shortcut.as_str(), move |app, _shortcut, _event| {
+                show_main_and_emit(app);
+            })
+            .map_err(|error| format!("Failed to register global quick add shortcut: {error}"))?;
+    }
+
+    *guard = normalized.clone();
+    Ok(normalized.unwrap_or_else(|| GLOBAL_QUICK_ADD_SHORTCUT_DISABLED.to_string()))
+}
+
+#[tauri::command]
+fn set_global_quick_add_shortcut(
+    app: tauri::AppHandle,
+    state: tauri::State<'_, GlobalQuickAddShortcutState>,
+    shortcut: Option<String>,
+) -> Result<String, String> {
+    apply_global_quick_add_shortcut(&app, &state, shortcut.as_deref())
 }
 
 #[tauri::command]
@@ -2728,6 +2790,7 @@ fn diagnostics_enabled() -> bool {
 pub fn run() {
     let builder = tauri::Builder::default()
         .manage(QuickAddPending(AtomicBool::new(false)))
+        .manage(GlobalQuickAddShortcutState(Mutex::new(None)))
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_http::init())
@@ -2831,12 +2894,12 @@ pub fn run() {
             }
 
             // Global hotkey for Quick Add.
-            let quick_add_shortcut = "Control+Alt+M";
-            handle
-                .global_shortcut()
-                .on_shortcut(quick_add_shortcut, move |app, _shortcut, _event| {
-                    show_main_and_emit(app);
-                })?;
+            let shortcut_state = app.state::<GlobalQuickAddShortcutState>();
+            apply_global_quick_add_shortcut(
+                &handle,
+                &shortcut_state,
+                Some(GLOBAL_QUICK_ADD_SHORTCUT_DEFAULT),
+            )?;
             
             if cfg!(debug_assertions) || diagnostics_enabled {
                 app.handle().plugin(
@@ -2884,6 +2947,7 @@ pub fn run() {
             append_log_line,
             clear_log_file,
             consume_quick_add_pending,
+            set_global_quick_add_shortcut,
             is_windows_store_install,
             get_install_source,
             quit_app

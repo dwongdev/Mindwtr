@@ -6,6 +6,11 @@ import { isTauriRuntime } from '../lib/runtime';
 import { reportError } from '../lib/report-error';
 import { logWarn } from '../lib/app-log';
 import { useUiStore } from '../store/ui-store';
+import {
+    type GlobalQuickAddShortcutSetting,
+    matchesGlobalQuickAddShortcut,
+    normalizeGlobalQuickAddShortcut,
+} from '../lib/global-quick-add-shortcut';
 
 export type KeybindingStyle = 'vim' | 'emacs';
 
@@ -24,6 +29,8 @@ export interface TaskListScope {
 interface KeybindingContextType {
     style: KeybindingStyle;
     setStyle: (style: KeybindingStyle) => void;
+    quickAddShortcut: GlobalQuickAddShortcutSetting;
+    setQuickAddShortcut: (shortcut: GlobalQuickAddShortcutSetting) => void;
     registerTaskListScope: (scope: TaskListScope | null) => void;
     openHelp: () => void;
 }
@@ -115,6 +122,10 @@ export function KeybindingProvider({
             : 'vim';
     const [style, setStyleState] = useState<KeybindingStyle>(initialStyle);
     const [isHelpOpen, setIsHelpOpen] = useState(false);
+    const quickAddShortcut = useMemo(
+        () => normalizeGlobalQuickAddShortcut(settings.globalQuickAddShortcut),
+        [settings.globalQuickAddShortcut]
+    );
 
     const isSidebarCollapsed = settings.sidebarCollapsed ?? false;
     const toggleSidebar = useCallback(() => {
@@ -147,6 +158,9 @@ export function KeybindingProvider({
     const setStyle = useCallback((next: KeybindingStyle) => {
         setStyleState(next);
         updateSettings({ keybindingStyle: next }).catch((error) => reportError('Failed to update settings', error));
+    }, [updateSettings]);
+    const setQuickAddShortcut = useCallback((shortcut: GlobalQuickAddShortcutSetting) => {
+        updateSettings({ globalQuickAddShortcut: shortcut }).catch((error) => reportError('Failed to update settings', error));
     }, [updateSettings]);
 
     const registerTaskListScope = useCallback((scope: TaskListScope | null) => {
@@ -406,12 +420,10 @@ export function KeybindingProvider({
                     }
                 }
             }
-            if (e.ctrlKey && e.altKey && !e.metaKey && !e.shiftKey && !isEditableTarget(e.target)) {
-                if (e.code === 'KeyM') {
-                    e.preventDefault();
-                    triggerQuickAdd();
-                    return;
-                }
+            if (!isEditableTarget(e.target) && matchesGlobalQuickAddShortcut(e, quickAddShortcut)) {
+                e.preventDefault();
+                triggerQuickAdd();
+                return;
             }
             if ((e.ctrlKey || e.metaKey) && e.shiftKey && !e.altKey && !isEditableTarget(e.target)) {
                 if (e.code === 'Backslash') {
@@ -449,14 +461,42 @@ export function KeybindingProvider({
 
         window.addEventListener('keydown', handleKeyDown);
         return () => window.removeEventListener('keydown', handleKeyDown);
-    }, [style, vimGoMap, emacsAltMap, onNavigate, isHelpOpen, toggleSidebar, toggleFocusMode, toggleListDetails, toggleDensity, currentView]);
+    }, [
+        style,
+        quickAddShortcut,
+        vimGoMap,
+        emacsAltMap,
+        onNavigate,
+        isHelpOpen,
+        toggleSidebar,
+        toggleFocusMode,
+        toggleListDetails,
+        toggleDensity,
+        currentView,
+    ]);
+
+    useEffect(() => {
+        if (isTest || !isTauriRuntime()) return;
+        let cancelled = false;
+        import('@tauri-apps/api/core')
+            .then(({ invoke }) => invoke('set_global_quick_add_shortcut', { shortcut: quickAddShortcut }))
+            .catch((error) => {
+                if (cancelled) return;
+                reportError('Failed to apply global quick add shortcut', error);
+            });
+        return () => {
+            cancelled = true;
+        };
+    }, [isTest, quickAddShortcut]);
 
     const contextValue = useMemo<KeybindingContextType>(() => ({
         style,
         setStyle,
+        quickAddShortcut,
+        setQuickAddShortcut,
         registerTaskListScope,
         openHelp,
-    }), [style, setStyle, registerTaskListScope, openHelp]);
+    }), [style, setStyle, quickAddShortcut, setQuickAddShortcut, registerTaskListScope, openHelp]);
 
     return (
         <KeybindingContext.Provider value={contextValue}>
@@ -466,6 +506,8 @@ export function KeybindingProvider({
                     style={style}
                     onClose={() => setIsHelpOpen(false)}
                     currentView={currentView}
+                    quickAddShortcut={quickAddShortcut}
+                    onQuickAddShortcutChange={setQuickAddShortcut}
                     t={t}
                 />
             )}

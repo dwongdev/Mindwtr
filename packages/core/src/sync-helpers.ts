@@ -95,6 +95,7 @@ export const sanitizeAppDataForRemote = (data: AppData): AppData => {
     const sanitizeSettingsForRemote = (settings: AppData['settings']): AppData['settings'] => {
         const prefs = settings.syncPreferences ?? {};
         const next: AppData['settings'] = { ...settings };
+        next.globalQuickAddShortcut = undefined;
 
         if (prefs.appearance !== true) {
             next.theme = undefined;

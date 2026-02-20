@@ -209,6 +209,8 @@ Capture tasks from anywhere on your desktop without switching windows:
 3. Press Enter to add to Inbox
 4. Continue what you were doing
 
+You can change or disable this shortcut in **Settings → General → Input → Global quick add shortcut**.
+
 ### Tray Icon
 
 Click the system tray icon for instant capture:
