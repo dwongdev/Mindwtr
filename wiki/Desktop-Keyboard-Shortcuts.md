@@ -114,6 +114,10 @@ When a task list is visible:
 
 - You can choose Vim or Emacs preset in **Settings → General → Input**.
 - The global **Quick Add** shortcut can be changed or disabled in **Settings → General → Input → Global quick add shortcut**.
+- Quick Add follows platform-safe defaults:
+  - macOS: `Ctrl+Option+M` (default), `Ctrl+Option+N`, `Ctrl+Option+Q`, or legacy `Cmd+Shift+A`
+  - Windows/Linux: `Ctrl+Alt+M` (default), `Ctrl+Alt+N`, `Ctrl+Alt+Q`, or legacy `Ctrl+Shift+A`
+- You can also set it to **Disabled** if you do not want a system-wide shortcut.
 
 ---
 

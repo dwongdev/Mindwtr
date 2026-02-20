@@ -37,6 +37,8 @@ const KEYRING_AI_OPENAI: &str = "ai_key_openai";
 const KEYRING_AI_ANTHROPIC: &str = "ai_key_anthropic";
 const KEYRING_AI_GEMINI: &str = "ai_key_gemini";
 const GLOBAL_QUICK_ADD_SHORTCUT_DEFAULT: &str = "Control+Alt+M";
+const GLOBAL_QUICK_ADD_SHORTCUT_ALTERNATE_N: &str = "Control+Alt+N";
+const GLOBAL_QUICK_ADD_SHORTCUT_ALTERNATE_Q: &str = "Control+Alt+Q";
 const GLOBAL_QUICK_ADD_SHORTCUT_LEGACY: &str = "CommandOrControl+Shift+A";
 const GLOBAL_QUICK_ADD_SHORTCUT_DISABLED: &str = "disabled";
 #[cfg(target_os = "macos")]
@@ -304,7 +306,11 @@ fn normalize_global_quick_add_shortcut(shortcut: Option<&str>) -> Result<Option<
         return Ok(None);
     }
 
-    if trimmed == GLOBAL_QUICK_ADD_SHORTCUT_DEFAULT || trimmed == GLOBAL_QUICK_ADD_SHORTCUT_LEGACY {
+    if trimmed == GLOBAL_QUICK_ADD_SHORTCUT_DEFAULT
+        || trimmed == GLOBAL_QUICK_ADD_SHORTCUT_ALTERNATE_N
+        || trimmed == GLOBAL_QUICK_ADD_SHORTCUT_ALTERNATE_Q
+        || trimmed == GLOBAL_QUICK_ADD_SHORTCUT_LEGACY
+    {
         return Ok(Some(trimmed.to_string()));
     }
 
