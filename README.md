@@ -302,13 +302,12 @@ You can help in several ways:
 
 ## Roadmap
 
-- 📦 [Add to Flathub](https://github.com/dongdongbh/Mindwtr/issues?q=is%3Aissue+is%3Aopen+flathub)
-- 📱 [Improve iOS experience](https://github.com/dongdongbh/Mindwtr/issues?q=is%3Aissue+is%3Aopen+iOS)
-- 🗣️ [iOS Reminders Inbox import (Siri capture -> Mindwtr Inbox)](https://github.com/dongdongbh/Mindwtr/issues?q=is%3Aissue+is%3Aopen+iOS+reminders)
-- ⚡ [iOS Shortcuts + URL scheme quick capture](https://github.com/dongdongbh/Mindwtr/issues?q=is%3Aissue+is%3Aopen+iOS+shortcuts)
-- 🧩 [iOS Home Screen widget](https://github.com/dongdongbh/Mindwtr/issues?q=is%3Aissue+is%3Aopen+iOS+widget)
-- 🔗 [Obsidian integration (task deep links)](https://github.com/dongdongbh/Mindwtr/issues?q=is%3Aissue+is%3Aopen+obsidian)
-- ✉️ [Email to Inbox](https://github.com/dongdongbh/Mindwtr/issues/35)
+- 📦 Add to Flathub
+- 🗣️ iOS Reminders Inbox import (Siri capture -> Mindwtr Inbox)
+- ⚡ iOS Shortcuts + URL scheme quick capture
+- 🧩 iOS Home Screen widget
+- 🔗 Obsidian integration (task deep links)
+- ✉️ Email to Inbox
 
 ## Documentation
 
