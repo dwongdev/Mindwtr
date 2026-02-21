@@ -105,6 +105,10 @@ type SettingsSyncPageProps = {
     attachmentsLastCleanupDisplay: string;
     onRunAttachmentsCleanup: () => Promise<void> | void;
     isCleaningAttachments: boolean;
+    snapshots: string[];
+    isLoadingSnapshots: boolean;
+    isRestoringSnapshot: boolean;
+    onRestoreSnapshot: (snapshotFileName: string) => Promise<boolean | void> | boolean | void;
 };
 
 const isValidHttpUrl = (value: string): boolean => {
@@ -170,6 +174,10 @@ export function SettingsSyncPage({
     attachmentsLastCleanupDisplay,
     onRunAttachmentsCleanup,
     isCleaningAttachments,
+    snapshots,
+    isLoadingSnapshots,
+    isRestoringSnapshot,
+    onRestoreSnapshot,
 }: SettingsSyncPageProps) {
     const webdavUrlError = webdavUrl.trim() ? !isValidHttpUrl(webdavUrl.trim()) : false;
     const cloudUrlError = cloudUrl.trim() ? !isValidHttpUrl(cloudUrl.trim()) : false;
@@ -211,6 +219,19 @@ export function SettingsSyncPage({
     };
     const [syncOptionsOpen, setSyncOptionsOpen] = useState(false);
     const [syncHistoryOpen, setSyncHistoryOpen] = useState(false);
+    const formatSnapshotLabel = (fileName: string) => {
+        const match = fileName.match(/^data\.(\d{4}-\d{2}-\d{2})T(\d{2})-(\d{2})-(\d{2})\.snapshot\.json$/);
+        if (!match) return fileName;
+        const [, day, hh, mm, ss] = match;
+        const [year, month, date] = day.split('-').map((part) => Number.parseInt(part, 10));
+        const hour = Number.parseInt(hh, 10);
+        const minute = Number.parseInt(mm, 10);
+        const second = Number.parseInt(ss, 10);
+        if (![year, month, date, hour, minute, second].every(Number.isFinite)) return fileName;
+        const utc = new Date(Date.UTC(year, month - 1, date, hour, minute, second));
+        if (Number.isNaN(utc.getTime())) return fileName;
+        return utc.toLocaleString();
+    };
 
     const renderSyncToggle = (
         key: keyof NonNullable<AppData['settings']['syncPreferences']>,
@@ -532,9 +553,12 @@ export function SettingsSyncPage({
                                             const timestamp = safeFormatDate(entry.at, 'PPpp', entry.at);
                                             const statusLabel = formatHistoryStatus(entry.status);
                                             const parts = [
+                                                entry.backend ? `Backend: ${entry.backend}` : null,
+                                                entry.type ? `Type: ${entry.type}` : null,
                                                 entry.conflicts ? `${t.lastSyncConflicts}: ${entry.conflicts}` : null,
                                                 entry.maxClockSkewMs > 0 ? `${t.lastSyncSkew}: ${formatClockSkew(entry.maxClockSkewMs)}` : null,
                                                 entry.timestampAdjustments > 0 ? `${t.lastSyncAdjusted}: ${entry.timestampAdjustments}` : null,
+                                                entry.details ? `Details: ${entry.details}` : null,
                                             ].filter(Boolean);
                                             return (
                                                 <div key={`${entry.at}-${entry.status}`} className="text-xs text-muted-foreground">
@@ -548,6 +572,39 @@ export function SettingsSyncPage({
                                 )}
                             </div>
                         )}
+                        <div className="pt-3">
+                            <div className="text-xs font-medium text-muted-foreground">Recovery snapshots</div>
+                            <div className="text-xs text-muted-foreground">
+                                Created before sync. Kept for up to 7 days (max 5 files).
+                            </div>
+                            <div className="mt-2 space-y-1">
+                                {isLoadingSnapshots && (
+                                    <div className="text-xs text-muted-foreground">Loading snapshots…</div>
+                                )}
+                                {!isLoadingSnapshots && snapshots.length === 0 && (
+                                    <div className="text-xs text-muted-foreground">No snapshots yet.</div>
+                                )}
+                                {!isLoadingSnapshots && snapshots.slice(0, 5).map((snapshot) => (
+                                    <div key={snapshot} className="flex items-center justify-between gap-2 text-xs">
+                                        <span className="text-muted-foreground font-mono truncate">{formatSnapshotLabel(snapshot)}</span>
+                                        <button
+                                            type="button"
+                                            disabled={isRestoringSnapshot}
+                                            onClick={async () => {
+                                                const ok = window.confirm(
+                                                    `Restore snapshot ${snapshot}? This will replace current local data.`
+                                                );
+                                                if (!ok) return;
+                                                await onRestoreSnapshot(snapshot);
+                                            }}
+                                            className="px-2 py-1 rounded border border-border text-foreground hover:bg-muted/70 disabled:opacity-50"
+                                        >
+                                            Restore
+                                        </button>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
                     </div>
                 </div>
             </section>

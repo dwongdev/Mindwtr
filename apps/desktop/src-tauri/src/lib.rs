@@ -22,6 +22,7 @@ use tauri::image::Image;
 use tauri_plugin_global_shortcut::GlobalShortcutExt;
 use rusqlite::{params, Connection, OptionalExtension, params_from_iter, ToSql};
 use keyring::{Entry, Error as KeyringError};
+use time::OffsetDateTime;
 use whisper_rs::{FullParams, SamplingStrategy, WhisperContext, WhisperContextParameters};
 use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
 
@@ -31,6 +32,9 @@ const CONFIG_FILE_NAME: &str = "config.toml";
 const SECRETS_FILE_NAME: &str = "secrets.toml";
 const DATA_FILE_NAME: &str = "data.json";
 const DB_FILE_NAME: &str = "mindwtr.db";
+const SNAPSHOT_DIR_NAME: &str = "snapshots";
+const SNAPSHOT_RETENTION_MAX_COUNT: usize = 5;
+const SNAPSHOT_RETENTION_MAX_AGE_SECS: u64 = 7 * 24 * 60 * 60;
 const KEYRING_WEB_DAV_PASSWORD: &str = "webdav_password";
 const KEYRING_CLOUD_TOKEN: &str = "cloud_token";
 const KEYRING_AI_OPENAI: &str = "ai_key_openai";
@@ -2122,6 +2126,147 @@ async fn save_data(app: tauri::AppHandle, data: Value) -> Result<bool, String> {
     .map_err(|e| e.to_string())?
 }
 
+fn get_snapshot_dir(app: &tauri::AppHandle) -> Result<PathBuf, String> {
+    let data_path = get_data_path(app);
+    let parent = data_path
+        .parent()
+        .ok_or_else(|| "Failed to resolve data directory for snapshots".to_string())?;
+    Ok(parent.join(SNAPSHOT_DIR_NAME))
+}
+
+fn is_snapshot_file_name(name: &str) -> bool {
+    name.starts_with("data.") && name.ends_with(".snapshot.json")
+}
+
+fn format_snapshot_file_name(now: OffsetDateTime) -> String {
+    format!(
+        "data.{:04}-{:02}-{:02}T{:02}-{:02}-{:02}.snapshot.json",
+        now.year(),
+        u8::from(now.month()),
+        now.day(),
+        now.hour(),
+        now.minute(),
+        now.second()
+    )
+}
+
+fn list_snapshot_entries(snapshot_dir: &Path) -> Vec<(String, PathBuf, SystemTime)> {
+    let mut entries: Vec<(String, PathBuf, SystemTime)> = Vec::new();
+    let Ok(read_dir) = fs::read_dir(snapshot_dir) else {
+        return entries;
+    };
+    for entry in read_dir.flatten() {
+        let path = entry.path();
+        if !path.is_file() {
+            continue;
+        }
+        let Some(name) = path.file_name().and_then(|value| value.to_str()) else {
+            continue;
+        };
+        if !is_snapshot_file_name(name) {
+            continue;
+        }
+        let modified = fs::metadata(&path)
+            .and_then(|metadata| metadata.modified())
+            .unwrap_or(UNIX_EPOCH);
+        entries.push((name.to_string(), path, modified));
+    }
+    entries.sort_by(|a, b| b.2.cmp(&a.2));
+    entries
+}
+
+fn prune_data_snapshots(snapshot_dir: &Path) {
+    let now = SystemTime::now();
+    let max_age = Duration::from_secs(SNAPSHOT_RETENTION_MAX_AGE_SECS);
+    let entries = list_snapshot_entries(snapshot_dir);
+    let mut retained = 0usize;
+    for (_, path, modified) in entries {
+        let is_older_than_limit = now
+            .duration_since(modified)
+            .map(|age| age > max_age)
+            .unwrap_or(false);
+        if is_older_than_limit {
+            let _ = fs::remove_file(&path);
+            continue;
+        }
+        retained += 1;
+        if retained > SNAPSHOT_RETENTION_MAX_COUNT {
+            let _ = fs::remove_file(&path);
+        }
+    }
+}
+
+#[tauri::command]
+fn create_data_snapshot(app: tauri::AppHandle) -> Result<String, String> {
+    ensure_data_file(&app)?;
+    let data_path = get_data_path(&app);
+    if !data_path.exists() {
+        return Err("Local data file not found".to_string());
+    }
+    let snapshot_dir = get_snapshot_dir(&app)?;
+    fs::create_dir_all(&snapshot_dir).map_err(|e| e.to_string())?;
+    let now = OffsetDateTime::now_utc();
+    let file_name = format_snapshot_file_name(now);
+    let snapshot_path = snapshot_dir.join(&file_name);
+    fs::copy(&data_path, &snapshot_path).map_err(|e| e.to_string())?;
+    prune_data_snapshots(&snapshot_dir);
+    Ok(file_name)
+}
+
+#[tauri::command]
+fn list_data_snapshots(app: tauri::AppHandle) -> Result<Vec<String>, String> {
+    ensure_data_file(&app)?;
+    let snapshot_dir = get_snapshot_dir(&app)?;
+    if !snapshot_dir.exists() {
+        return Ok(Vec::new());
+    }
+    prune_data_snapshots(&snapshot_dir);
+    let names = list_snapshot_entries(&snapshot_dir)
+        .into_iter()
+        .map(|(name, _, _)| name)
+        .collect();
+    Ok(names)
+}
+
+#[tauri::command]
+fn restore_data_snapshot(app: tauri::AppHandle, snapshot_file_name: String) -> Result<bool, String> {
+    ensure_data_file(&app)?;
+    let trimmed = snapshot_file_name.trim();
+    if trimmed.is_empty() || trimmed.contains('/') || trimmed.contains('\\') {
+        return Err("Invalid snapshot file name".to_string());
+    }
+    if !is_snapshot_file_name(trimmed) {
+        return Err("Invalid snapshot file format".to_string());
+    }
+    let snapshot_dir = get_snapshot_dir(&app)?;
+    let snapshot_path = snapshot_dir.join(trimmed);
+    if !snapshot_path.exists() {
+        return Err("Snapshot file not found".to_string());
+    }
+
+    let data = read_json_with_retries(&snapshot_path, 2)?;
+    let mut conn = open_sqlite(&app)?;
+    migrate_json_to_sqlite(&mut conn, &data)?;
+
+    let data_path = get_data_path(&app);
+    let backup_path = data_path.with_extension("json.bak");
+    if data_path.exists() {
+        let _ = fs::copy(&data_path, &backup_path);
+    }
+    let tmp_path = data_path.with_extension("json.tmp");
+    let content = serde_json::to_string_pretty(&data).map_err(|e| e.to_string())?;
+    {
+        let mut file = File::create(&tmp_path).map_err(|e| e.to_string())?;
+        file.write_all(content.as_bytes()).map_err(|e| e.to_string())?;
+        file.sync_all().map_err(|e| e.to_string())?;
+    }
+    if cfg!(windows) && data_path.exists() {
+        fs::remove_file(&data_path).map_err(|e| e.to_string())?;
+    }
+    fs::rename(&tmp_path, &data_path).map_err(|e| e.to_string())?;
+    Ok(true)
+}
+
 #[tauri::command]
 fn query_tasks(app: tauri::AppHandle, options: TaskQueryOptions) -> Result<Vec<Value>, String> {
     let conn = open_sqlite(&app)?;
@@ -2980,6 +3125,9 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             get_data,
             save_data,
+            create_data_snapshot,
+            list_data_snapshots,
+            restore_data_snapshot,
             query_tasks,
             search_fts,
             get_data_path_cmd,

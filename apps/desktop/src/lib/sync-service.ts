@@ -45,6 +45,7 @@ import {
 import { isTauriRuntime } from './runtime';
 import { reportError } from './report-error';
 import { logInfo, logSyncError, logWarn, sanitizeLogMessage } from './app-log';
+import { useUiStore } from '../store/ui-store';
 import { ExternalCalendarService } from './external-calendar-service';
 import { webStorage } from './storage-adapter-web';
 import {
@@ -72,6 +73,17 @@ import {
     writeFileSafelyAbsolute,
 } from './sync-service-utils';
 import type { SyncBackend } from './sync-service-utils';
+
+export type ExternalSyncChangeResolution = 'keep-local' | 'use-external' | 'merge';
+
+export type ExternalSyncChange = {
+    at: string;
+    incomingHash: string;
+    syncPath: string;
+    hasLocalChanges: boolean;
+    localChangeAt: number;
+    lastSyncAt?: string;
+};
 
 const SYNC_BACKEND_KEY = 'mindwtr-sync-backend';
 const WEBDAV_URL_KEY = 'mindwtr-webdav-url';
@@ -970,8 +982,11 @@ export class SyncService {
     private static fileWatcherBackend: SyncBackend | null = null;
     private static lastWrittenHash: string | null = null;
     private static lastObservedHash: string | null = null;
+    private static lastSuccessfulSyncLocalChangeAt = 0;
     private static ignoreFileEventsUntil = 0;
     private static externalSyncTimer: ReturnType<typeof setTimeout> | null = null;
+    private static pendingExternalSyncChange: ExternalSyncChange | null = null;
+    private static externalSyncChangeListeners = new Set<(change: ExternalSyncChange | null) => void>();
 
     static getSyncStatus() {
         return SyncService.syncStatus;
@@ -981,6 +996,25 @@ export class SyncService {
         SyncService.syncListeners.add(listener);
         listener(SyncService.syncStatus);
         return () => SyncService.syncListeners.delete(listener);
+    }
+
+    static getPendingExternalSyncChange(): ExternalSyncChange | null {
+        return SyncService.pendingExternalSyncChange;
+    }
+
+    static subscribeExternalSyncChange(listener: (change: ExternalSyncChange | null) => void): () => void {
+        SyncService.externalSyncChangeListeners.add(listener);
+        listener(SyncService.pendingExternalSyncChange);
+        return () => SyncService.externalSyncChangeListeners.delete(listener);
+    }
+
+    private static notifyExternalSyncChange() {
+        SyncService.externalSyncChangeListeners.forEach((listener) => listener(SyncService.pendingExternalSyncChange));
+    }
+
+    private static setPendingExternalSyncChange(change: ExternalSyncChange | null) {
+        SyncService.pendingExternalSyncChange = change;
+        SyncService.notifyExternalSyncChange();
     }
 
     static async resetForTests(): Promise<void> {
@@ -1001,8 +1035,11 @@ export class SyncService {
         SyncService.fileWatcherBackend = null;
         SyncService.lastWrittenHash = null;
         SyncService.lastObservedHash = null;
+        SyncService.lastSuccessfulSyncLocalChangeAt = 0;
         SyncService.ignoreFileEventsUntil = 0;
         SyncService.externalSyncTimer = null;
+        SyncService.pendingExternalSyncChange = null;
+        SyncService.externalSyncChangeListeners.clear();
         webdavDownloadBackoff.clear();
     }
 
@@ -1226,6 +1263,71 @@ export class SyncService {
         SyncService.ignoreFileEventsUntil = Date.now() + 2000;
     }
 
+    private static hasPendingLocalChangesForExternalSync(): boolean {
+        const state = useTaskStore.getState();
+        if (!state.settings?.lastSyncAt) return false;
+        if (state.lastDataChangeAt <= 0) return false;
+        return state.lastDataChangeAt > SyncService.lastSuccessfulSyncLocalChangeAt;
+    }
+
+    static async resolveExternalSyncChange(
+        resolution: ExternalSyncChangeResolution
+    ): Promise<{ success: boolean; stats?: MergeStats; error?: string }> {
+        if (!isTauriRuntimeEnv()) return { success: false, error: 'Desktop runtime is required.' };
+        const backend = await SyncService.getSyncBackend();
+        if (backend !== 'file') return { success: false, error: 'External file conflict handling is only available for file sync.' };
+
+        const pendingChange = SyncService.pendingExternalSyncChange;
+        SyncService.setPendingExternalSyncChange(null);
+
+        try {
+            if (resolution === 'merge') {
+                return await SyncService.performSync();
+            }
+
+            if (resolution === 'keep-local') {
+                await flushPendingSave();
+                const localData = await injectExternalCalendars(await readLocalDataForSync());
+                const sanitized = sanitizeAppDataForRemote(localData);
+                await SyncService.markSyncWrite(sanitized);
+                await tauriInvoke('write_sync_file', { data: sanitized });
+                return await SyncService.performSync();
+            }
+
+            await flushPendingSave();
+            const externalData = normalizeAppData(await tauriInvoke<AppData>('read_sync_file'));
+            await tauriInvoke('save_data', { data: externalData });
+            await useTaskStore.getState().fetchData({ silent: true });
+            const now = new Date().toISOString();
+            const nextHistory = appendSyncHistory(useTaskStore.getState().settings, {
+                at: now,
+                status: 'success',
+                backend: 'file',
+                type: 'pull',
+                conflicts: 0,
+                conflictIds: [],
+                maxClockSkewMs: 0,
+                timestampAdjustments: 0,
+                details: 'external_override',
+            });
+            await useTaskStore.getState().updateSettings({
+                lastSyncAt: now,
+                lastSyncStatus: 'success',
+                lastSyncError: undefined,
+                lastSyncHistory: nextHistory,
+            });
+            SyncService.lastSuccessfulSyncLocalChangeAt = useTaskStore.getState().lastDataChangeAt;
+            if (pendingChange?.incomingHash) {
+                SyncService.lastObservedHash = pendingChange.incomingHash;
+            }
+            return { success: true };
+        } catch (error) {
+            SyncService.setPendingExternalSyncChange(pendingChange);
+            const message = error instanceof Error ? error.message : String(error);
+            return { success: false, error: message };
+        }
+    }
+
     private static async handleFileChange(paths: string[]) {
         if (!isTauriRuntimeEnv()) return;
         if (Date.now() < SyncService.ignoreFileEventsUntil) return;
@@ -1245,11 +1347,47 @@ export class SyncService {
             }
             SyncService.lastObservedHash = hash;
 
+            if (SyncService.hasPendingLocalChangesForExternalSync()) {
+                if (SyncService.externalSyncTimer) {
+                    clearTimeout(SyncService.externalSyncTimer);
+                    SyncService.externalSyncTimer = null;
+                }
+                const localState = useTaskStore.getState();
+                const syncPath = SyncService.fileWatcherPath ?? await SyncService.getSyncPath();
+                const pending = SyncService.pendingExternalSyncChange;
+                if (!pending || pending.incomingHash !== hash) {
+                    SyncService.setPendingExternalSyncChange({
+                        at: new Date().toISOString(),
+                        incomingHash: hash,
+                        syncPath,
+                        hasLocalChanges: true,
+                        localChangeAt: localState.lastDataChangeAt,
+                        lastSyncAt: localState.settings?.lastSyncAt,
+                    });
+                }
+                return;
+            }
+
             if (SyncService.externalSyncTimer) {
                 clearTimeout(SyncService.externalSyncTimer);
             }
             SyncService.externalSyncTimer = setTimeout(() => {
-                SyncService.performSync().catch((error) => reportError('Sync failed', error));
+                SyncService.performSync()
+                    .then((result) => {
+                        if (result.success) {
+                            SyncService.setPendingExternalSyncChange(null);
+                            const conflicts = (result.stats?.tasks.conflicts || 0) + (result.stats?.projects.conflicts || 0);
+                            const message = conflicts > 0
+                                ? `Data updated from sync (${conflicts} conflict${conflicts === 1 ? '' : 's'} resolved).`
+                                : 'Data updated from sync.';
+                            try {
+                                useUiStore.getState().showToast(message, 'info', 5000);
+                            } catch {
+                                // UI store may be unavailable during bootstrap/tests.
+                            }
+                        }
+                    })
+                    .catch((error) => reportError('Sync failed', error));
             }, 750);
         } catch (error) {
             logSyncWarning('Failed to process external sync change', error);
@@ -1320,6 +1458,7 @@ export class SyncService {
         SyncService.fileWatcherStop = null;
         SyncService.fileWatcherPath = null;
         SyncService.fileWatcherBackend = null;
+        SyncService.setPendingExternalSyncChange(null);
     }
 
     static async cleanupAttachmentsNow(): Promise<void> {
@@ -1329,6 +1468,28 @@ export class SyncService {
         const cleaned = await cleanupOrphanedAttachments(data, backend);
         await tauriInvoke('save_data', { data: cleaned });
         await useTaskStore.getState().fetchData({ silent: true });
+    }
+
+    static async listDataSnapshots(): Promise<string[]> {
+        if (!isTauriRuntimeEnv()) return [];
+        try {
+            return await tauriInvoke<string[]>('list_data_snapshots');
+        } catch (error) {
+            reportError('Failed to list snapshots', error);
+            return [];
+        }
+    }
+
+    static async restoreDataSnapshot(snapshotFileName: string): Promise<{ success: boolean; error?: string }> {
+        if (!isTauriRuntimeEnv()) return { success: false, error: 'Desktop runtime is required.' };
+        try {
+            await tauriInvoke<boolean>('restore_data_snapshot', { snapshotFileName });
+            await useTaskStore.getState().fetchData({ silent: true });
+            return { success: true };
+        } catch (error) {
+            const message = error instanceof Error ? error.message : String(error);
+            return { success: false, error: message };
+        }
     }
 
     /**
@@ -1383,6 +1544,14 @@ export class SyncService {
             backend = await SyncService.getSyncBackend();
             if (backend === 'off') {
                 return { success: true };
+            }
+            if (isTauriRuntimeEnv()) {
+                setStep('snapshot');
+                try {
+                    await tauriInvoke<string>('create_data_snapshot');
+                } catch (error) {
+                    logSyncWarning('Failed to create pre-sync snapshot', error);
+                }
             }
             if (
                 (backend === 'cloud' || backend === 'webdav')
@@ -1531,6 +1700,10 @@ export class SyncService {
                 onStep: (next) => {
                     setStep(next);
                 },
+                historyContext: {
+                    backend,
+                    type: 'merge',
+                },
             });
             const stats = syncResult.stats;
             let mergedData = syncResult.data;
@@ -1640,6 +1813,8 @@ export class SyncService {
             } catch (error) {
                 logSyncWarning('Failed to persist sync status', error);
             }
+            SyncService.lastSuccessfulSyncLocalChangeAt = useTaskStore.getState().lastDataChangeAt;
+            SyncService.setPendingExternalSyncChange(null);
 
             useTaskStore.getState().setError(null);
             return { success: true, stats };
@@ -1661,10 +1836,13 @@ export class SyncService {
             const nextHistory = appendSyncHistory(useTaskStore.getState().settings, {
                 at: now,
                 status: 'error',
+                backend,
+                type: 'merge',
                 conflicts: 0,
                 conflictIds: [],
                 maxClockSkewMs: 0,
                 timestampAdjustments: 0,
+                details: step,
                 error: `${safeMessage}${logHint}`,
             });
             useTaskStore.getState().setError(`${safeMessage}${logHint}`);

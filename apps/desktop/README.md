@@ -108,6 +108,10 @@ Configure sync in Settings:
 - **Cloud** - Self-hosted cloud backend (see `../../docs/cloud-sync.md`)
 - **External Calendars (ICS)** - View-only calendar overlay
 
+Sync recommendation:
+- Prefer **WebDAV** for frequent multi-device edits.
+- If using **Syncthing**, use `Send & Receive` + `Watch for Changes`, keep scan intervals short, and tap **Sync now** before switching devices.
+
 ## Testing
 
 ```bash

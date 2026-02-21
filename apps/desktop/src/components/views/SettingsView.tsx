@@ -828,12 +828,16 @@ export function SettingsView() {
         setCloudUrl,
         cloudToken,
         setCloudToken,
+        snapshots,
+        isLoadingSnapshots,
+        isRestoringSnapshot,
         handleSaveSyncPath,
         handleChangeSyncLocation,
         handleSetSyncBackend,
         handleSaveWebDav,
         handleSaveCloud,
         handleSync,
+        handleRestoreSnapshot,
     } = useSyncSettings({
         isTauri,
         showSaved,
@@ -1034,6 +1038,10 @@ export function SettingsView() {
                     attachmentsLastCleanupDisplay={attachmentsLastCleanupDisplay}
                     onRunAttachmentsCleanup={handleAttachmentsCleanup}
                     isCleaningAttachments={isCleaningAttachments}
+                    snapshots={snapshots}
+                    isLoadingSnapshots={isLoadingSnapshots}
+                    isRestoringSnapshot={isRestoringSnapshot}
+                    onRestoreSnapshot={handleRestoreSnapshot}
                 />
             );
         }

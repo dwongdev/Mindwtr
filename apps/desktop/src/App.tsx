@@ -21,6 +21,7 @@ import { QuickAddModal } from './components/QuickAddModal';
 import { CloseBehaviorModal } from './components/CloseBehaviorModal';
 import { startDesktopNotifications, stopDesktopNotifications } from './lib/notification-service';
 import { SyncService } from './lib/sync-service';
+import type { ExternalSyncChange, ExternalSyncChangeResolution } from './lib/sync-service';
 import { isFlatpakRuntime, isTauriRuntime } from './lib/runtime';
 import { logError } from './lib/app-log';
 import { THEME_STORAGE_KEY, applyThemeMode, mapSyncedThemeToDesktop, resolveNativeTheme } from './lib/theme';
@@ -53,12 +54,41 @@ function App() {
     const lastSyncErrorAtRef = useRef(0);
     const [closePromptOpen, setClosePromptOpen] = useState(false);
     const [closePromptRemember, setClosePromptRemember] = useState(false);
+    const [externalSyncChange, setExternalSyncChange] = useState<ExternalSyncChange | null>(null);
+    const [resolvingExternalSync, setResolvingExternalSync] = useState(false);
     const closePromptRememberRef = useRef(false);
 
     const setClosePromptRememberValue = useCallback((next: boolean) => {
         closePromptRememberRef.current = next;
         setClosePromptRemember(next);
     }, []);
+
+    const resolveExternalSync = useCallback(async (resolution: ExternalSyncChangeResolution) => {
+        setResolvingExternalSync(true);
+        try {
+            const result = await SyncService.resolveExternalSyncChange(resolution);
+            if (result.success) {
+                if (resolution === 'keep-local') {
+                    showToast('Kept local changes and updated sync file.', 'success');
+                } else if (resolution === 'use-external') {
+                    showToast('Loaded external sync file changes.', 'success');
+                } else {
+                    const conflicts = (result.stats?.tasks.conflicts || 0) + (result.stats?.projects.conflicts || 0);
+                    showToast(
+                        conflicts > 0
+                            ? `Sync merged with ${conflicts} conflict${conflicts === 1 ? '' : 's'} resolved.`
+                            : 'Sync merged external changes.',
+                        'success'
+                    );
+                }
+                setExternalSyncChange(null);
+                return;
+            }
+            showToast(result.error || 'Failed to resolve external sync change.', 'error');
+        } finally {
+            setResolvingExternalSync(false);
+        }
+    }, [showToast]);
 
     const persistCloseBehavior = useCallback(async (behavior: 'tray' | 'quit') => {
         await updateSettings({
@@ -137,6 +167,7 @@ function App() {
     useEffect(() => {
         if (import.meta.env.MODE === 'test' || import.meta.env.VITEST || process.env.NODE_ENV === 'test') return;
         fetchData();
+        const unsubscribeExternalSync = SyncService.subscribeExternalSyncChange(setExternalSyncChange);
 
         const reportError = (label: string, error: unknown) => {
             const message = error instanceof Error ? error.message : String(error);
@@ -295,6 +326,7 @@ function App() {
             }
             stopDesktopNotifications();
             SyncService.stopFileWatcher().catch((error) => reportError('File watcher failed', error));
+            unsubscribeExternalSync();
         };
     }, [fetchData, setError]);
 
@@ -533,6 +565,60 @@ function App() {
                             });
                         }}
                     />
+                    {externalSyncChange && (
+                        <div
+                            className="fixed inset-0 bg-black/50 flex items-start justify-center pt-[20vh] z-50"
+                            role="dialog"
+                            aria-modal="true"
+                            onClick={() => !resolvingExternalSync && setExternalSyncChange(null)}
+                        >
+                            <div
+                                className="w-full max-w-lg bg-popover text-popover-foreground rounded-xl border shadow-2xl overflow-hidden flex flex-col"
+                                onClick={(event) => event.stopPropagation()}
+                            >
+                                <div className="px-4 py-3 border-b">
+                                    <h3 className="font-semibold">
+                                        {translateOrFallback('settings.externalSyncChangeTitle', 'External sync change detected')}
+                                    </h3>
+                                    <p className="text-xs text-muted-foreground mt-1">
+                                        {translateOrFallback(
+                                            'settings.externalSyncChangeBody',
+                                            'The sync file changed while local edits were pending. Choose how to continue.'
+                                        )}
+                                    </p>
+                                    <p className="text-xs text-muted-foreground mt-2">
+                                        {translateOrFallback('settings.lastSync', 'Last sync')}: {externalSyncChange.lastSyncAt || translateOrFallback('settings.lastSyncNever', 'Never')}
+                                    </p>
+                                </div>
+                                <div className="p-4 flex flex-wrap justify-end gap-2">
+                                    <button
+                                        type="button"
+                                        onClick={() => resolveExternalSync('use-external')}
+                                        disabled={resolvingExternalSync}
+                                        className="px-3 py-1.5 rounded-md text-sm bg-muted hover:bg-muted/80 disabled:opacity-50"
+                                    >
+                                        {translateOrFallback('settings.useExternal', 'Use external')}
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => resolveExternalSync('merge')}
+                                        disabled={resolvingExternalSync}
+                                        className="px-3 py-1.5 rounded-md text-sm bg-secondary text-secondary-foreground hover:bg-secondary/90 disabled:opacity-50"
+                                    >
+                                        {translateOrFallback('settings.mergeChanges', 'Merge')}
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => resolveExternalSync('keep-local')}
+                                        disabled={resolvingExternalSync}
+                                        className="px-3 py-1.5 rounded-md text-sm bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
+                                    >
+                                        {translateOrFallback('settings.keepLocal', 'Keep local')}
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    )}
                 </Layout>
             </KeybindingProvider>
         </ErrorBoundary>

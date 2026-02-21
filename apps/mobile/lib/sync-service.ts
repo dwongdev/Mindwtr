@@ -383,6 +383,10 @@ export async function performMobileSync(syncPathOverride?: string): Promise<{ su
           step = next;
           logSyncInfo('Sync step', { step });
         },
+        historyContext: {
+          backend,
+          type: 'merge',
+        },
       });
 
       const stats = syncResult.stats;
@@ -568,10 +572,13 @@ export async function performMobileSync(syncPathOverride?: string): Promise<{ su
       const nextHistory = appendSyncHistory(useTaskStore.getState().settings, {
         at: now,
         status: 'error',
+        backend,
+        type: 'merge',
         conflicts: 0,
         conflictIds: [],
         maxClockSkewMs: 0,
         timestampAdjustments: 0,
+        details: step,
         error: `${safeMessage}${logHint}`,
       });
       try {

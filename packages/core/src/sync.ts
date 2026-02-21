@@ -34,10 +34,13 @@ export interface MergeResult {
 export type SyncHistoryEntry = {
     at: string;
     status: 'success' | 'conflict' | 'error';
+    backend?: 'file' | 'webdav' | 'cloud' | 'off';
+    type?: 'push' | 'pull' | 'merge';
     conflicts: number;
     conflictIds: string[];
     maxClockSkewMs: number;
     timestampAdjustments: number;
+    details?: string;
     error?: string;
 };
 
@@ -54,6 +57,11 @@ export type SyncCycleIO = {
     readRemote: () => Promise<AppData | null | undefined>;
     writeLocal: (data: AppData) => Promise<void>;
     writeRemote: (data: AppData) => Promise<void>;
+    historyContext?: {
+        backend?: SyncHistoryEntry['backend'];
+        type?: SyncHistoryEntry['type'];
+        details?: string;
+    };
     tombstoneRetentionDays?: number;
     now?: () => string;
     onStep?: (step: SyncStep) => void;
@@ -68,7 +76,7 @@ export type SyncCycleResult = {
 export const appendSyncHistory = (
     settings: AppData['settings'] | undefined,
     entry: SyncHistoryEntry,
-    limit: number = 20
+    limit: number = 50
 ): SyncHistoryEntry[] => {
     const history = Array.isArray(settings?.lastSyncHistory) ? settings?.lastSyncHistory ?? [] : [];
     const items = [entry, ...history];
@@ -940,10 +948,13 @@ export async function performSyncCycle(io: SyncCycleIO): Promise<SyncCycleResult
     const historyEntry: SyncHistoryEntry = {
         at: nowIso,
         status: nextSyncStatus,
+        backend: io.historyContext?.backend,
+        type: io.historyContext?.type ?? 'merge',
         conflicts: conflictCount,
         conflictIds,
         maxClockSkewMs,
         timestampAdjustments,
+        details: io.historyContext?.details,
     };
     const nextHistory = appendSyncHistory(mergeResult.data.settings, historyEntry);
     const nextMergedData: AppData = {

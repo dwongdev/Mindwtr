@@ -23,6 +23,9 @@ export const useSyncSettings = ({ isTauri, showSaved, selectSyncFolderTitle }: U
     const [isSavingWebDav, setIsSavingWebDav] = useState(false);
     const [cloudUrl, setCloudUrl] = useState('');
     const [cloudToken, setCloudToken] = useState('');
+    const [snapshots, setSnapshots] = useState<string[]>([]);
+    const [isLoadingSnapshots, setIsLoadingSnapshots] = useState(false);
+    const [isRestoringSnapshot, setIsRestoringSnapshot] = useState(false);
     const showToast = useUiStore((state) => state.showToast);
 
     const formatSyncPathError = useCallback((message?: string): string => {
@@ -38,6 +41,15 @@ export const useSyncSettings = ({ isTauri, showSaved, selectSyncFolderTitle }: U
 
     useEffect(() => {
         const unsubscribe = SyncService.subscribeSyncStatus(setSyncStatus);
+        const loadSnapshots = async () => {
+            if (!isTauri) return;
+            setIsLoadingSnapshots(true);
+            try {
+                setSnapshots(await SyncService.listDataSnapshots());
+            } finally {
+                setIsLoadingSnapshots(false);
+            }
+        };
         SyncService.getSyncPath()
             .then(setSyncPath)
             .catch((error) => {
@@ -70,8 +82,11 @@ export const useSyncSettings = ({ isTauri, showSaved, selectSyncFolderTitle }: U
                 setSyncError('Failed to load Cloud config.');
                 void logError(error, { scope: 'sync', step: 'loadCloud' });
             });
+        loadSnapshots().catch((error) => {
+            void logError(error, { scope: 'sync', step: 'loadSnapshots' });
+        });
         return unsubscribe;
-    }, []);
+    }, [isTauri]);
 
     const handleSaveSyncPath = useCallback(async () => {
         if (!syncPath.trim()) return;
@@ -182,6 +197,9 @@ export const useSyncSettings = ({ isTauri, showSaved, selectSyncFolderTitle }: U
             const result = await SyncService.performSync();
             if (result.success) {
                 showToast('Sync completed', 'success');
+                if (isTauri) {
+                    setSnapshots(await SyncService.listDataSnapshots());
+                }
             } else if (result.error) {
                 showToast(result.error, 'error');
             }
@@ -190,7 +208,24 @@ export const useSyncSettings = ({ isTauri, showSaved, selectSyncFolderTitle }: U
             setSyncError(String(error));
             showToast(String(error), 'error');
         }
-    }, [cloudUrl, formatSyncPathError, handleSaveCloud, handleSaveWebDav, showToast, syncBackend, syncPath, webdavUrl]);
+    }, [cloudUrl, formatSyncPathError, handleSaveCloud, handleSaveWebDav, isTauri, showToast, syncBackend, syncPath, webdavUrl]);
+
+    const handleRestoreSnapshot = useCallback(async (snapshotFileName: string) => {
+        if (!snapshotFileName) return false;
+        setIsRestoringSnapshot(true);
+        try {
+            const result = await SyncService.restoreDataSnapshot(snapshotFileName);
+            if (!result.success) {
+                showToast(result.error || 'Failed to restore snapshot.', 'error');
+                return false;
+            }
+            showToast('Snapshot restored.', 'success');
+            setSnapshots(await SyncService.listDataSnapshots());
+            return true;
+        } finally {
+            setIsRestoringSnapshot(false);
+        }
+    }, [showToast]);
 
     return {
         syncPath,
@@ -214,11 +249,15 @@ export const useSyncSettings = ({ isTauri, showSaved, selectSyncFolderTitle }: U
         setCloudUrl,
         cloudToken,
         setCloudToken,
+        snapshots,
+        isLoadingSnapshots,
+        isRestoringSnapshot,
         handleSaveSyncPath,
         handleChangeSyncLocation,
         handleSetSyncBackend,
         handleSaveWebDav,
         handleSaveCloud,
         handleSync,
+        handleRestoreSnapshot,
     };
 };

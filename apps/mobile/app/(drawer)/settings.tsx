@@ -1562,9 +1562,12 @@ export default function SettingsPage() {
                             ? localize('Conflicts', '冲突')
                             : localize('Failed', '失败');
                     const details = [
+                        entry.backend ? `${localize('Backend', '后端')}: ${entry.backend}` : null,
+                        entry.type ? `${localize('Type', '类型')}: ${entry.type}` : null,
                         entry.conflicts ? `${localize('Conflicts', '冲突')}: ${entry.conflicts}` : null,
                         entry.maxClockSkewMs > 0 ? `${localize('Clock skew', '时钟偏差')}: ${formatClockSkew(entry.maxClockSkewMs)}` : null,
                         entry.timestampAdjustments > 0 ? `${localize('Timestamp fixes', '时间修正')}: ${entry.timestampAdjustments}` : null,
+                        entry.details ? `${localize('Details', '详情')}: ${entry.details}` : null,
                     ].filter(Boolean);
                     return (
                         <Text key={`${entry.at}-${entry.status}`} style={[styles.settingDescription, { color: tc.secondaryText }]}>
@@ -3834,6 +3837,11 @@ export default function SettingsPage() {
                                     {language === 'zh'
                                         ? '1. 先点击"导出备份"保存文件到同步文件夹（如 Google Drive）\n2. 点击"选择文件夹"授权该文件夹\n3. 之后点击"同步"即可合并数据'
                                         : translateText('1. First, tap "Export Backup" and save to your sync folder (e.g., Google Drive)\n2. Tap "Select Folder" to grant access to that folder\n3. Then tap "Sync" to merge data', language)}
+                                </Text>
+                                <Text style={[styles.helpText, { color: tc.secondaryText, marginTop: 8 }]}>
+                                    {language === 'zh'
+                                        ? '建议：高频多设备编辑优先使用 WebDAV。若使用 Syncthing，请开启 Send & Receive 和 Watch for Changes，并在切换设备前手动点“同步”。'
+                                        : translateText('Tip: For frequent multi-device edits, WebDAV is recommended. If using Syncthing, enable Send & Receive + Watch for Changes and tap Sync before switching devices.', language)}
                                 </Text>
                             </View>
 

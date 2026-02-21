@@ -346,6 +346,9 @@ Configure a sync folder in Settings to sync via:
 - Syncthing
 - Any folder-based sync service
 
+For frequent multi-device edits, WebDAV is recommended over folder sync tools.
+If you use Syncthing, prefer `Send & Receive` + `Watch for Changes`, keep scan intervals short, and run **Sync** before switching devices.
+
 ### WebDAV / Cloud
 Mindwtr also supports WebDAV and self-hosted Cloud sync backends. Configure in **Settings → Data & Sync**.
 

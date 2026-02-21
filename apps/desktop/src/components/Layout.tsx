@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Calendar, Inbox, CheckSquare, Archive, Layers, Tag, CheckCircle2, HelpCircle, Folder, Settings, Target, Search, ChevronsLeft, ChevronsRight, Trash2, PauseCircle, Book, Clock3 } from 'lucide-react';
+import { Calendar, Inbox, CheckSquare, Archive, Layers, Tag, CheckCircle2, HelpCircle, Folder, Settings, Target, Search, ChevronsLeft, ChevronsRight, Trash2, PauseCircle, Book, Clock3, RefreshCw } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { useTaskStore, safeParseDate, safeFormatDate } from '@mindwtr/core';
 import { useLanguage } from '../contexts/language-context';
@@ -7,6 +7,7 @@ import { useUiStore } from '../store/ui-store';
 import { reportError } from '../lib/report-error';
 import { ToastHost } from './ToastHost';
 import { AREA_FILTER_ALL, AREA_FILTER_NONE, resolveAreaFilter, taskMatchesAreaFilter } from '../lib/area-filter';
+import { SyncService } from '../lib/sync-service';
 
 interface LayoutProps {
     children: React.ReactNode;
@@ -27,12 +28,30 @@ export function Layout({ children, currentView, onViewChange }: LayoutProps) {
     const { t } = useLanguage();
     const isCollapsed = settings?.sidebarCollapsed ?? false;
     const isFocusMode = useUiStore((state) => state.isFocusMode);
+    const showToast = useUiStore((state) => state.showToast);
+    const [syncStatus, setSyncStatus] = useState(() => SyncService.getSyncStatus());
+    const [isOnline, setIsOnline] = useState(() => (typeof navigator !== 'undefined' ? navigator.onLine : true));
     const lastSyncAt = settings?.lastSyncAt;
     const lastSyncStatus = settings?.lastSyncStatus;
     const lastSyncDisplay = lastSyncAt ? safeFormatDate(lastSyncAt, 'PPp', lastSyncAt) : t('settings.lastSyncNever');
-    const [isOnline, setIsOnline] = useState(() => (typeof navigator !== 'undefined' ? navigator.onLine : true));
+    const lastSyncAgeMs = lastSyncAt ? Math.max(0, Date.now() - Date.parse(lastSyncAt)) : Number.POSITIVE_INFINITY;
+    const syncFreshnessDotClass = !isOnline
+        ? 'bg-destructive'
+        : lastSyncStatus === 'error'
+            ? 'bg-orange-400'
+            : !lastSyncAt
+                ? 'bg-muted-foreground/40'
+                : lastSyncAgeMs > 2 * 60 * 60 * 1000
+                    ? 'bg-destructive'
+                : lastSyncAgeMs > 30 * 60 * 1000
+                        ? 'bg-amber-400'
+                        : 'bg-emerald-400';
     const dismissLabel = t('common.dismiss');
     const dismissText = dismissLabel && dismissLabel !== 'common.dismiss' ? dismissLabel : 'Dismiss';
+    const tOrFallback = (key: string, fallback: string) => {
+        const value = t(key);
+        return value === key ? fallback : value;
+    };
     const areaById = useMemo(() => new Map(areas.map((area) => [area.id, area])), [areas]);
     const projectMap = useMemo(() => new Map(projects.map((project) => [project.id, project])), [projects]);
     const resolvedAreaFilter = useMemo(
@@ -147,6 +166,49 @@ export function Layout({ children, currentView, onViewChange }: LayoutProps) {
             window.removeEventListener('offline', handleOffline);
         };
     }, []);
+
+    useEffect(() => {
+        return SyncService.subscribeSyncStatus(setSyncStatus);
+    }, []);
+
+    const triggerManualSync = async () => {
+        const backend = await SyncService.getSyncBackend();
+        if (backend === 'off') {
+            showToast('Sync is off. Enable a sync backend in Settings.', 'info');
+            return;
+        }
+        if (backend === 'file') {
+            const syncPath = await SyncService.getSyncPath();
+            if (!syncPath) {
+                showToast('Select a sync folder first in Settings.', 'error');
+                return;
+            }
+        } else if (backend === 'webdav') {
+            const { url } = await SyncService.getWebDavConfig({ silent: true });
+            if (!url) {
+                showToast('Set your WebDAV URL in Settings first.', 'error');
+                return;
+            }
+        } else if (backend === 'cloud') {
+            const { url } = await SyncService.getCloudConfig({ silent: true });
+            if (!url) {
+                showToast('Set your self-hosted URL in Settings first.', 'error');
+                return;
+            }
+        }
+        const result = await SyncService.performSync();
+        if (!result.success) {
+            showToast(result.error || 'Sync failed.', 'error');
+            return;
+        }
+        const conflicts = (result.stats?.tasks.conflicts || 0) + (result.stats?.projects.conflicts || 0);
+        showToast(
+            conflicts > 0
+                ? `Sync completed with ${conflicts} conflict${conflicts === 1 ? '' : 's'} resolved.`
+                : 'Sync completed.',
+            'success'
+        );
+    };
 
     const handleAreaFilterChange = (value: string) => {
         updateSettings({ filters: { ...(settings?.filters ?? {}), areaId: value } })
@@ -320,7 +382,7 @@ export function Layout({ children, currentView, onViewChange }: LayoutProps) {
                                 <div className="flex items-center gap-1.5">
                                     <span className={cn(
                                         "w-1.5 h-1.5 rounded-full shrink-0",
-                                        !isOnline ? "bg-destructive" : lastSyncStatus === 'error' ? "bg-orange-400" : "bg-emerald-400"
+                                        syncFreshnessDotClass
                                     )} />
                                     <span className="text-[10px] text-muted-foreground/60 truncate max-w-[100px]">
                                         {!isOnline
@@ -333,6 +395,26 @@ export function Layout({ children, currentView, onViewChange }: LayoutProps) {
                             </div>
                         )}
                     </button>
+                    {!isCollapsed && (
+                        <div className="px-3 pb-2 pt-1">
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    triggerManualSync().catch((error) => reportError('Sync failed', error));
+                                }}
+                                disabled={syncStatus.inFlight}
+                                className={cn(
+                                    "w-full flex items-center justify-center gap-2 rounded-md border px-3 py-1.5 text-xs font-medium transition-colors",
+                                    syncStatus.inFlight
+                                        ? "border-border bg-muted/40 text-muted-foreground cursor-not-allowed"
+                                        : "border-border bg-muted/60 hover:bg-accent text-foreground"
+                                )}
+                            >
+                                <RefreshCw className={cn("w-3.5 h-3.5", syncStatus.inFlight && "animate-spin")} />
+                                {syncStatus.inFlight ? tOrFallback('settings.syncing', 'Syncing...') : tOrFallback('settings.syncNow', 'Sync now')}
+                            </button>
+                        </div>
+                    )}
                 </div>
                 </aside>
             )}
