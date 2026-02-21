@@ -243,7 +243,10 @@ function RootLayoutContent() {
         if (shouldShow) {
           lastSyncErrorShown.current = result.error;
           lastSyncErrorAt.current = nowMs;
-          Alert.alert('Sync failed', 'Please check your sync settings and try again.');
+          void logWarn('Auto-sync failed (ui alert suppressed)', {
+            scope: 'sync',
+            extra: { error: result.error },
+          });
         }
       }
     })().finally(() => {
