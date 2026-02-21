@@ -2978,32 +2978,6 @@ export default function SettingsPage() {
                         </View>
                         <View style={[styles.settingRow, { borderTopWidth: 1, borderTopColor: tc.border }]}>
                             <View style={styles.settingInfo}>
-                                <Text style={[styles.settingLabel, { color: tc.text }]}>{t('settings.featurePriorities')}</Text>
-                                <Text style={[styles.settingDescription, { color: tc.secondaryText }]}>
-                                    {t('settings.featurePrioritiesDesc')}
-                                </Text>
-                            </View>
-                            <Switch
-                                value={prioritiesEnabled}
-                                onValueChange={(value) => updateFeatureFlags({ priorities: value })}
-                                trackColor={{ false: '#767577', true: '#3B82F6' }}
-                            />
-                        </View>
-                        <View style={[styles.settingRow, { borderTopWidth: 1, borderTopColor: tc.border }]}>
-                            <View style={styles.settingInfo}>
-                                <Text style={[styles.settingLabel, { color: tc.text }]}>{t('settings.featureTimeEstimates')}</Text>
-                                <Text style={[styles.settingDescription, { color: tc.secondaryText }]}>
-                                    {t('settings.featureTimeEstimatesDesc')}
-                                </Text>
-                            </View>
-                            <Switch
-                                value={timeEstimatesEnabled}
-                                onValueChange={(value) => updateFeatureFlags({ timeEstimates: value })}
-                                trackColor={{ false: '#767577', true: '#3B82F6' }}
-                            />
-                        </View>
-                        <View style={[styles.settingRow, { borderTopWidth: 1, borderTopColor: tc.border }]}>
-                            <View style={styles.settingInfo}>
                                 <Text style={[styles.settingLabel, { color: tc.text }]}>{featurePomodoroLabel}</Text>
                                 <Text style={[styles.settingDescription, { color: tc.secondaryText }]}>
                                     {featurePomodoroDesc}
