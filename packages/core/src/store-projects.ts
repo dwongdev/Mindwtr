@@ -648,12 +648,22 @@ export const createProjectActions = ({ set, get, debouncedSave }: ProjectActionC
         });
         if (existingAreaId) {
             if (shouldRestoreDeletedArea || (initialProps && Object.keys(initialProps).length > 0)) {
-                await get().updateArea(existingAreaId, {
-                    ...(initialProps ?? {}),
-                    ...(shouldRestoreDeletedArea ? { deletedAt: undefined, name: trimmedName } : {}),
-                });
+                try {
+                    await get().updateArea(existingAreaId, {
+                        ...(initialProps ?? {}),
+                        ...(shouldRestoreDeletedArea ? { deletedAt: undefined, name: trimmedName } : {}),
+                    });
+                } catch {
+                    set({ error: shouldRestoreDeletedArea ? 'Failed to restore area' : 'Failed to update area' });
+                    return null;
+                }
             }
-            return get()._allAreas.find((area) => area.id === existingAreaId && !area.deletedAt) ?? null;
+            const resolvedArea = get()._allAreas.find((area) => area.id === existingAreaId);
+            if (shouldRestoreDeletedArea && (!resolvedArea || resolvedArea.deletedAt)) {
+                set({ error: 'Failed to restore area' });
+                return null;
+            }
+            return resolvedArea && !resolvedArea.deletedAt ? resolvedArea : null;
         }
         if (snapshot) {
             debouncedSave(snapshot, (msg) => set({ error: msg }));

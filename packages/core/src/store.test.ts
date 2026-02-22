@@ -482,6 +482,28 @@ describe('TaskStore', () => {
         expect(updatedTask.areaId).toBeUndefined();
     });
 
+    it('returns null when restoring a deleted area fails', async () => {
+        const { addArea, deleteArea } = useTaskStore.getState();
+        const area = await addArea('Work');
+        expect(area).not.toBeNull();
+        if (!area) return;
+
+        await deleteArea(area.id);
+
+        const originalUpdateArea = useTaskStore.getState().updateArea;
+        useTaskStore.setState({
+            updateArea: async () => {
+                // Simulate a failed restore/update operation.
+            },
+        });
+
+        const restored = await useTaskStore.getState().addArea('Work');
+        expect(restored).toBeNull();
+        expect(useTaskStore.getState().error).toBe('Failed to restore area');
+
+        useTaskStore.setState({ updateArea: originalUpdateArea });
+    });
+
     it('should move a project to someday without altering task status', () => {
         const { addProject, addTask, updateProject } = useTaskStore.getState();
         addProject('My Project', '#00ff00');
