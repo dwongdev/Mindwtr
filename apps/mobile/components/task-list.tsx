@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react';
-import { View, TextInput, FlatList, StyleSheet, TouchableOpacity, Text, RefreshControl, ScrollView, Modal, Pressable, Alert, ActivityIndicator } from 'react-native';
+import { View, TextInput, FlatList, StyleSheet, TouchableOpacity, Text, RefreshControl, ScrollView, Modal, Pressable, Alert, ActivityIndicator, Keyboard } from 'react-native';
 import { router } from 'expo-router';
 import {
   useTaskStore,
@@ -499,6 +499,7 @@ function TaskListComponent({
     setCopilotApplied(false);
     setCopilotContext(undefined);
     setCopilotTags([]);
+    Keyboard.dismiss();
   };
 
   const applyTypeaheadOption = useCallback(async (option: Option) => {
