@@ -111,6 +111,38 @@ describe('TaskStore', () => {
         expect(tasks).toHaveLength(0);
     });
 
+    it('keeps store state consistent under rapid add/delete interleaving', async () => {
+        const { addTask, deleteTask } = useTaskStore.getState();
+
+        await Promise.all(
+            Array.from({ length: 20 }, (_, index) => addTask(`Burst Task ${index}`))
+        );
+
+        const seededTaskIds = useTaskStore
+            .getState()
+            ._allTasks
+            .filter((task) => task.title.startsWith('Burst Task'))
+            .map((task) => task.id);
+
+        const deleteIds = seededTaskIds.filter((_, index) => index % 2 === 0);
+        await Promise.all([
+            ...deleteIds.map((id) => deleteTask(id)),
+            ...Array.from({ length: 10 }, (_, index) => addTask(`Late Task ${index}`)),
+        ]);
+        await flushPendingSave();
+
+        const state = useTaskStore.getState();
+        const allIds = state._allTasks.map((task) => task.id);
+        expect(new Set(allIds).size).toBe(allIds.length);
+
+        const expectedVisibleIds = state._allTasks
+            .filter((task) => !task.deletedAt && task.status !== 'archived')
+            .map((task) => task.id)
+            .sort();
+        const visibleIds = state.tasks.map((task) => task.id).sort();
+        expect(visibleIds).toEqual(expectedVisibleIds);
+    });
+
     it('should increment revision metadata when purging a task', () => {
         const { addTask, deleteTask, purgeTask } = useTaskStore.getState();
         addTask('Task to Purge');
