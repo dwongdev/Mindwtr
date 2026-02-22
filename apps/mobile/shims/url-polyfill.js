@@ -1,3 +1,62 @@
+// Install minimal timer fallbacks before any other code runs.
+// Some Android startup contexts (e.g. widget/background init) may start without
+// setImmediate/setTimeout populated, which can crash Promise scheduling in Hermes.
+(() => {
+    const root =
+        typeof globalThis !== 'undefined'
+            ? globalThis
+            : typeof global !== 'undefined'
+                ? global
+                : typeof self !== 'undefined'
+                    ? self
+                    : typeof window !== 'undefined'
+                        ? window
+                        : null;
+
+    if (!root) return;
+
+    let nextTimerId = 1;
+    const pendingTimers = new Map();
+    const queueTask = (callback) => {
+        if (typeof root.queueMicrotask === 'function') {
+            root.queueMicrotask(callback);
+            return;
+        }
+        if (typeof root.Promise === 'function' && typeof root.Promise.resolve === 'function') {
+            root.Promise.resolve().then(callback).catch(() => {});
+            return;
+        }
+        callback();
+    };
+
+    if (typeof root.setTimeout !== 'function') {
+        root.setTimeout = (handler, _delay, ...args) => {
+            const id = nextTimerId++;
+            pendingTimers.set(id, true);
+            queueTask(() => {
+                if (!pendingTimers.has(id)) return;
+                pendingTimers.delete(id);
+                if (typeof handler === 'function') handler(...args);
+            });
+            return id;
+        };
+    }
+
+    if (typeof root.clearTimeout !== 'function') {
+        root.clearTimeout = (id) => {
+            pendingTimers.delete(id);
+        };
+    }
+
+    if (typeof root.setImmediate !== 'function') {
+        root.setImmediate = (handler, ...args) => root.setTimeout(handler, 0, ...args);
+    }
+
+    if (typeof root.clearImmediate !== 'function') {
+        root.clearImmediate = (id) => root.clearTimeout(id);
+    }
+})();
+
 // Lightweight shim that prefers native Hermes URL/URLSearchParams.
 // Falls back to a minimal, standards-like implementation if missing.
 // IMPORTANT: This file is loaded via Metro's getModulesRunBeforeMainModule
