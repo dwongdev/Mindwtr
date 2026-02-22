@@ -4100,7 +4100,7 @@ export default function SettingsPage() {
                             <Text style={[styles.settingLabel, { color: tc.text, marginTop: 12 }]}>{t('settings.externalCalendarUrl')}</Text>
                             <TextInput
                                 style={[styles.textInput, { borderColor: tc.border, color: tc.text }]}
-                                placeholder="https://..."
+                                placeholder={t('settings.externalCalendarUrlPlaceholder')}
                                 placeholderTextColor={tc.secondaryText}
                                 autoCapitalize="none"
                                 autoCorrect={false}
@@ -4398,7 +4398,7 @@ export default function SettingsPage() {
                                     <TextInput
                                         value={webdavUrl}
                                         onChangeText={setWebdavUrl}
-                                        placeholder="https://example.com/remote.php/dav/files/user/mindwtr"
+                                        placeholder={t('settings.webdavUrlPlaceholder')}
                                         placeholderTextColor={tc.secondaryText}
                                         autoCapitalize="none"
                                         autoCorrect={false}
@@ -4419,7 +4419,7 @@ export default function SettingsPage() {
                                     <TextInput
                                         value={webdavUsername}
                                         onChangeText={setWebdavUsername}
-                                        placeholder="user"
+                                        placeholder={t('settings.webdavUsernamePlaceholder')}
                                         placeholderTextColor={tc.secondaryText}
                                         autoCapitalize="none"
                                         autoCorrect={false}
@@ -4619,7 +4619,7 @@ export default function SettingsPage() {
                                         <TextInput
                                             value={cloudUrl}
                                             onChangeText={setCloudUrl}
-                                            placeholder="https://example.com/v1"
+                                            placeholder={t('settings.cloudUrlPlaceholder')}
                                             placeholderTextColor={tc.secondaryText}
                                             autoCapitalize="none"
                                             autoCorrect={false}

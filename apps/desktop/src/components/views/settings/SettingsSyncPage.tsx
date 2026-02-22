@@ -65,6 +65,12 @@ type Labels = {
     lastSyncAdjusted: string;
     lastSyncConflictIds: string;
     syncHistory: string;
+    recoverySnapshots: string;
+    recoverySnapshotsDesc: string;
+    recoverySnapshotsLoading: string;
+    recoverySnapshotsEmpty: string;
+    recoverySnapshotsRestore: string;
+    recoverySnapshotsConfirm: string;
     attachmentsCleanup: string;
     attachmentsCleanupDesc: string;
     attachmentsCleanupLastRun: string;
@@ -701,19 +707,19 @@ export function SettingsSyncPage({
                                 className="w-full flex items-center justify-between text-left"
                                 aria-expanded={snapshotsOpen}
                             >
-                                <span className="text-xs font-medium text-muted-foreground">Recovery snapshots</span>
+                                <span className="text-xs font-medium text-muted-foreground">{t.recoverySnapshots}</span>
                                 <span className="text-muted-foreground">{snapshotsOpen ? '▾' : '▸'}</span>
                             </button>
                             <div className="text-xs text-muted-foreground">
-                                Created before sync. Kept for up to 7 days (max 5 files).
+                                {t.recoverySnapshotsDesc}
                             </div>
                             {snapshotsOpen && (
                                 <div className="mt-2 space-y-1">
                                     {isLoadingSnapshots && (
-                                        <div className="text-xs text-muted-foreground">Loading snapshots…</div>
+                                        <div className="text-xs text-muted-foreground">{t.recoverySnapshotsLoading}</div>
                                     )}
                                     {!isLoadingSnapshots && snapshots.length === 0 && (
-                                        <div className="text-xs text-muted-foreground">No snapshots yet.</div>
+                                        <div className="text-xs text-muted-foreground">{t.recoverySnapshotsEmpty}</div>
                                     )}
                                     {!isLoadingSnapshots && snapshots.slice(0, 5).map((snapshot) => (
                                         <div key={snapshot} className="flex items-center justify-between gap-2 text-xs">
@@ -723,14 +729,14 @@ export function SettingsSyncPage({
                                                 disabled={isRestoringSnapshot}
                                                 onClick={async () => {
                                                     const ok = window.confirm(
-                                                        `Restore snapshot ${snapshot}? This will replace current local data.`
+                                                        t.recoverySnapshotsConfirm.replace('{snapshot}', snapshot)
                                                     );
                                                     if (!ok) return;
                                                     await onRestoreSnapshot(snapshot);
                                                 }}
                                                 className="px-2 py-1 rounded border border-border text-foreground hover:bg-muted/70 disabled:opacity-50"
                                             >
-                                                Restore
+                                                {t.recoverySnapshotsRestore}
                                             </button>
                                         </div>
                                     ))}
