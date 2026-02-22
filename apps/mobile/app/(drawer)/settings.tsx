@@ -136,10 +136,20 @@ const FOSS_LOCAL_LLM_COPILOT_OPTIONS = ['llama3.2', 'qwen2.5', 'mistral', 'phi-4
 const formatError = (error: unknown) => (error instanceof Error ? error.message : String(error));
 
 const compareVersions = (v1: string, v2: string): number => {
-    const clean1 = v1.replace(/^v/, '');
-    const clean2 = v2.replace(/^v/, '');
-    const parts1 = clean1.split('.').map(Number);
-    const parts2 = clean2.split('.').map(Number);
+    const parseVersionParts = (version: string): number[] => (
+        version
+            .trim()
+            .replace(/^v/i, '')
+            .split(/[+-]/)[0]
+            .split('.')
+            .map((part) => {
+                const match = part.match(/\d+/);
+                return match ? Number.parseInt(match[0], 10) : 0;
+            })
+    );
+
+    const parts1 = parseVersionParts(v1);
+    const parts2 = parseVersionParts(v2);
     for (let i = 0; i < Math.max(parts1.length, parts2.length); i += 1) {
         const p1 = parts1[i] || 0;
         const p2 = parts2[i] || 0;
@@ -1069,14 +1079,18 @@ export default function SettingsPage() {
     }, [fetchLatestRelease]);
 
     const fetchLatestAppStoreInfo = useCallback(async (): Promise<{ version: string; trackViewUrl: string | null }> => {
-        const lookupUrls = [APP_STORE_LOOKUP_URL, APP_STORE_LOOKUP_FALLBACK_URL];
+        const lookupUrls = [APP_STORE_LOOKUP_FALLBACK_URL, APP_STORE_LOOKUP_URL];
         let lastError: Error | null = null;
-        for (const url of lookupUrls) {
+        let bestMatch: { version: string; trackViewUrl: string | null } | null = null;
+        for (const baseUrl of lookupUrls) {
+            const separator = baseUrl.includes('?') ? '&' : '?';
+            const url = `${baseUrl}${separator}_=${Date.now()}`;
             const response = await fetch(url, {
                 headers: {
                     'Accept': 'application/json',
                     'User-Agent': 'Mindwtr-App'
-                }
+                },
+                cache: 'no-store',
             });
             if (!response.ok) {
                 lastError = new Error(`App Store lookup failed (${url}): ${response.status}`);
@@ -1092,8 +1106,11 @@ export default function SettingsPage() {
             const trackViewUrl = typeof candidate?.trackViewUrl === 'string' && candidate.trackViewUrl.trim()
                 ? candidate.trackViewUrl.trim()
                 : null;
-            return { version, trackViewUrl };
+            if (!bestMatch || compareVersions(version, bestMatch.version) > 0) {
+                bestMatch = { version, trackViewUrl };
+            }
         }
+        if (bestMatch) return bestMatch;
         if (lastError) {
             throw lastError;
         }
