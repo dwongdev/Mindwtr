@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useMemo, useDeferredValue, useEffect, useRef, useCallback } from 'react';
 import { AlertTriangle, Folder } from 'lucide-react';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { useTaskStore, TaskPriority, TimeEstimate, DEFAULT_AREA_COLOR, sortTasksBy, parseQuickAdd, matchesHierarchicalToken, safeParseDate, isTaskInActiveProject, extractWaitingPerson } from '@mindwtr/core';
@@ -243,62 +243,105 @@ export function ListView({ title, statusFilter }: ListViewProps) {
         if (!exists) setSelectedWaitingPerson('');
     }, [selectedWaitingPerson, statusFilter, waitingPeople]);
 
+    const filterInputs = useMemo(() => ({
+        baseTasks,
+        statusFilter,
+        selectedTokens,
+        activePriorities,
+        activeTimeEstimates,
+        sequentialProjectFirstTasks,
+        projectMap,
+        sortBy,
+        sortByProjectOrder,
+        resolvedAreaFilter,
+        areaById,
+        selectedWaitingPerson,
+    }), [
+        baseTasks,
+        statusFilter,
+        selectedTokens,
+        activePriorities,
+        activeTimeEstimates,
+        sequentialProjectFirstTasks,
+        projectMap,
+        sortBy,
+        sortByProjectOrder,
+        resolvedAreaFilter,
+        areaById,
+        selectedWaitingPerson,
+    ]);
+    const deferredFilterInputs = useDeferredValue(filterInputs);
+    const isFiltering = deferredFilterInputs !== filterInputs;
+
     const filteredTasks = useMemo(() => {
         perf.trackUseMemo();
         return perf.measure('filteredTasks', () => {
             const now = new Date();
-            const allowDeferredProjectTasks = statusFilter === 'done' || statusFilter === 'archived';
-            const filtered = baseTasks.filter(t => {
+            const allowDeferredProjectTasks =
+                deferredFilterInputs.statusFilter === 'done'
+                || deferredFilterInputs.statusFilter === 'archived';
+            const filtered = deferredFilterInputs.baseTasks.filter(t => {
                 // Always filter out soft-deleted tasks
                 if (t.deletedAt) return false;
 
-                if (statusFilter !== 'all' && t.status !== statusFilter) return false;
+                if (deferredFilterInputs.statusFilter !== 'all' && t.status !== deferredFilterInputs.statusFilter) return false;
                 // Respect statusFilter (handled above).
-                if (!allowDeferredProjectTasks && !isTaskInActiveProject(t, projectMap)) return false;
-                if (!taskMatchesAreaFilter(t, resolvedAreaFilter, projectMap, areaById)) return false;
+                if (!allowDeferredProjectTasks && !isTaskInActiveProject(t, deferredFilterInputs.projectMap)) return false;
+                if (!taskMatchesAreaFilter(
+                    t,
+                    deferredFilterInputs.resolvedAreaFilter,
+                    deferredFilterInputs.projectMap,
+                    deferredFilterInputs.areaById
+                )) return false;
 
-                if (statusFilter === 'inbox') {
+                if (deferredFilterInputs.statusFilter === 'inbox') {
                     const start = safeParseDate(t.startTime);
                     if (start && start > now) return false;
                 }
-                if (statusFilter === 'next') {
+                if (deferredFilterInputs.statusFilter === 'next') {
                     const start = safeParseDate(t.startTime);
                     if (start && start > now) return false;
                 }
 
                 // Sequential project filter: for 'next' status, only show first task from sequential projects
-                if (statusFilter === 'next' && t.projectId) {
-                    const project = projectMap.get(t.projectId);
+                if (deferredFilterInputs.statusFilter === 'next' && t.projectId) {
+                    const project = deferredFilterInputs.projectMap.get(t.projectId);
                     if (project?.isSequential) {
                         // Only include if this is the first task
-                        if (!sequentialProjectFirstTasks.has(t.id)) return false;
+                        if (!deferredFilterInputs.sequentialProjectFirstTasks.has(t.id)) return false;
                     }
                 }
 
 
                 const taskTokens = [...(t.contexts || []), ...(t.tags || [])];
-                if (selectedTokens.length > 0) {
-                    const matchesAll = selectedTokens.every((token) =>
+                if (deferredFilterInputs.selectedTokens.length > 0) {
+                    const matchesAll = deferredFilterInputs.selectedTokens.every((token) =>
                         taskTokens.some((taskToken) => matchesHierarchicalToken(token, taskToken))
                     );
                     if (!matchesAll) return false;
                 }
-                if (activePriorities.length > 0 && (!t.priority || !activePriorities.includes(t.priority))) return false;
-                if (activeTimeEstimates.length > 0 && (!t.timeEstimate || !activeTimeEstimates.includes(t.timeEstimate))) return false;
-                if (statusFilter === 'waiting' && selectedWaitingPerson) {
+                if (
+                    deferredFilterInputs.activePriorities.length > 0
+                    && (!t.priority || !deferredFilterInputs.activePriorities.includes(t.priority))
+                ) return false;
+                if (
+                    deferredFilterInputs.activeTimeEstimates.length > 0
+                    && (!t.timeEstimate || !deferredFilterInputs.activeTimeEstimates.includes(t.timeEstimate))
+                ) return false;
+                if (deferredFilterInputs.statusFilter === 'waiting' && deferredFilterInputs.selectedWaitingPerson) {
                     const person = extractWaitingPerson(t.description);
-                    if (!person || person.toLowerCase() !== selectedWaitingPerson.toLowerCase()) return false;
+                    if (!person || person.toLowerCase() !== deferredFilterInputs.selectedWaitingPerson.toLowerCase()) return false;
                 }
                 return true;
             });
 
-            if (statusFilter === 'next' && sortBy === 'default') {
-                return sortByProjectOrder(filtered);
+            if (deferredFilterInputs.statusFilter === 'next' && deferredFilterInputs.sortBy === 'default') {
+                return deferredFilterInputs.sortByProjectOrder(filtered);
             }
 
-            return sortTasksBy(filtered, sortBy);
+            return sortTasksBy(filtered, deferredFilterInputs.sortBy);
         });
-    }, [baseTasks, statusFilter, selectedTokens, activePriorities, activeTimeEstimates, sequentialProjectFirstTasks, projectMap, sortBy, sortByProjectOrder, resolvedAreaFilter, areaById, selectedWaitingPerson]);
+    }, [deferredFilterInputs]);
     const resolveText = useCallback((key: string, fallback: string) => {
         const value = t(key);
         return value === key ? fallback : value;
@@ -958,6 +1001,11 @@ export function ListView({ title, statusFilter }: ListViewProps) {
                 role="list"
                 aria-label={t('list.tasks') || 'Task list'}
             >
+                {isFiltering && (
+                    <div className="px-3 pb-2 text-xs text-muted-foreground">
+                        {t('common.loading') || 'Filtering...'}
+                    </div>
+                )}
                 {showEmptyState ? (
                     <ListEmptyState
                         hasFilters={hasFilters}
