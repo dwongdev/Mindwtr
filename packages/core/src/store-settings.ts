@@ -395,6 +395,28 @@ export const createSettingsActions = ({
                     });
                 }
             }
+            let didArchiveTasksForArchivedProjects = false;
+            const archivedProjectIds = new Set(
+                allProjects
+                    .filter((project) => !project.deletedAt && project.status === 'archived')
+                    .map((project) => project.id)
+            );
+            if (archivedProjectIds.size > 0) {
+                allTasks = allTasks.map((task) => {
+                    if (task.deletedAt || task.status === 'archived') return task;
+                    if (!task.projectId || !archivedProjectIds.has(task.projectId)) return task;
+                    didArchiveTasksForArchivedProjects = true;
+                    return {
+                        ...task,
+                        status: 'archived',
+                        completedAt: task.completedAt || nowIso,
+                        isFocusedToday: false,
+                        updatedAt: nowIso,
+                        rev: normalizeRevision(task.rev) + 1,
+                        revBy: nextSettings.deviceId,
+                    };
+                });
+            }
             let didTombstoneCleanup = false;
             if (shouldRunTombstoneCleanup) {
                 const cleanup = purgeExpiredTombstones(
@@ -439,11 +461,22 @@ export const createSettingsActions = ({
                     _allSections: allSections,
                     _allAreas: allAreas,
                     isLoading: false,
-                    lastDataChangeAt: didAutoArchive || didPromoteScheduled || didTombstoneCleanup ? Date.now() : get().lastDataChangeAt,
+                    lastDataChangeAt:
+                        didAutoArchive || didPromoteScheduled || didArchiveTasksForArchivedProjects || didTombstoneCleanup
+                            ? Date.now()
+                            : get().lastDataChangeAt,
                 });
             });
 
-            if (didAutoArchive || didPromoteScheduled || didTombstoneCleanup || didAreaMigration || didProjectOrderMigration || didSettingsUpdate) {
+            if (
+                didAutoArchive
+                || didPromoteScheduled
+                || didArchiveTasksForArchivedProjects
+                || didTombstoneCleanup
+                || didAreaMigration
+                || didProjectOrderMigration
+                || didSettingsUpdate
+            ) {
                 markCoreStartupPhase('core.fetch_data.debounced_save_enqueued');
                 debouncedSave(
                     { tasks: allTasks, projects: allProjects, sections: allSections, areas: allAreas, settings: nextSettings },

@@ -217,6 +217,48 @@ describe('TaskStore', () => {
         expect(mockStorage.saveData).toHaveBeenCalled();
     });
 
+    it('archives active tasks that belong to archived projects during fetch', async () => {
+        vi.spyOn(Date, 'now').mockReturnValue(new Date('2026-02-14T10:00:00.000Z').getTime());
+        mockStorage.getData = vi.fn().mockResolvedValue({
+            tasks: [
+                {
+                    id: 't-linked',
+                    title: 'Should be archived',
+                    status: 'next',
+                    projectId: 'p-archived',
+                    tags: [],
+                    contexts: [],
+                    createdAt: '2026-02-01T00:00:00.000Z',
+                    updatedAt: '2026-02-01T00:00:00.000Z',
+                },
+            ],
+            projects: [
+                {
+                    id: 'p-archived',
+                    title: 'Archived project',
+                    status: 'archived',
+                    color: '#123456',
+                    order: 0,
+                    tagIds: [],
+                    createdAt: '2026-02-01T00:00:00.000Z',
+                    updatedAt: '2026-02-01T00:00:00.000Z',
+                },
+            ],
+            sections: [],
+            areas: [],
+            settings: {},
+        });
+
+        await useTaskStore.getState().fetchData({ silent: true });
+        await flushPendingSave();
+
+        const linkedTask = useTaskStore.getState()._allTasks.find((task) => task.id === 't-linked');
+        expect(linkedTask?.status).toBe('archived');
+        expect(linkedTask?.isFocusedToday).toBe(false);
+        expect(linkedTask?.completedAt).toBeTruthy();
+        expect(mockStorage.saveData).toHaveBeenCalled();
+    });
+
     it('defaults notifications to off on first install', async () => {
         mockStorage.getData = vi.fn().mockResolvedValue({
             tasks: [],
