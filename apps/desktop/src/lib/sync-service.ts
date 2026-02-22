@@ -710,11 +710,8 @@ async function syncAttachments(
         logSyncWarning('WebDAV attachment sync aborted due to rate limiting');
     }
     if (didMutate) {
-        appData.tasks = workingData.tasks;
-        appData.projects = workingData.projects;
-        appData.sections = workingData.sections;
-        appData.areas = workingData.areas;
-        appData.settings = workingData.settings;
+        // Apply the full working copy so attachment metadata changes are never dropped.
+        Object.assign(appData, workingData);
     }
     logSyncInfo('WebDAV attachment sync done', { mutated: didMutate ? 'true' : 'false' });
     return didMutate;
