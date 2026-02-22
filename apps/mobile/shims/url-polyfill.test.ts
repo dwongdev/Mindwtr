@@ -20,31 +20,13 @@ describe('URL Polyfill Shim', () => {
         expect(shim.URLSearchParams).toBeDefined();
     });
 
-    test('installs timer fallbacks when setImmediate is missing', async () => {
+    test('does not mutate existing timer globals', async () => {
         vi.resetModules();
         const originalSetImmediate = (globalThis as any).setImmediate;
         const originalClearImmediate = (globalThis as any).clearImmediate;
-        const originalSetTimeout = (globalThis as any).setTimeout;
-        const originalClearTimeout = (globalThis as any).clearTimeout;
-
-        try {
-            (globalThis as any).setImmediate = undefined;
-            (globalThis as any).clearImmediate = undefined;
-            (globalThis as any).setTimeout = undefined;
-            (globalThis as any).clearTimeout = undefined;
-
-            await import('./url-polyfill');
-
-            expect(typeof (globalThis as any).setImmediate).toBe('function');
-            expect(typeof (globalThis as any).clearImmediate).toBe('function');
-            expect(typeof (globalThis as any).setTimeout).toBe('function');
-            expect(typeof (globalThis as any).clearTimeout).toBe('function');
-        } finally {
-            (globalThis as any).setImmediate = originalSetImmediate;
-            (globalThis as any).clearImmediate = originalClearImmediate;
-            (globalThis as any).setTimeout = originalSetTimeout;
-            (globalThis as any).clearTimeout = originalClearTimeout;
-        }
+        await import('./url-polyfill');
+        expect((globalThis as any).setImmediate).toBe(originalSetImmediate);
+        expect((globalThis as any).clearImmediate).toBe(originalClearImmediate);
     });
 
     test('shimmed URL has createObjectURL that is safe (mocked environment)', async () => {

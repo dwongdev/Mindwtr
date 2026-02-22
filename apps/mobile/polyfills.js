@@ -1,4 +1,5 @@
 // Install shared URL/URLSearchParams shim up front so all modules see a consistent API
+require('./shims/timers-bootstrap');
 const { URL: ShimURL, URLSearchParams: ShimURLSearchParams, setupURLPolyfill } = require('./shims/url-polyfill');
 const { logError } = require('./lib/app-log');
 setupURLPolyfill();

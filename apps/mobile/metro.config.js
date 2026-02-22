@@ -20,6 +20,7 @@ const config = getDefaultConfig(projectRoot);
 config.serializer = {
     ...config.serializer,
     getModulesRunBeforeMainModule: () => [
+        require.resolve('./shims/timers-bootstrap.js'),
         require.resolve('./shims/url-polyfill.js'),
     ],
 };
