@@ -2,6 +2,53 @@ require('./polyfills');
 const startupProfiler = require('./lib/startup-profiler');
 startupProfiler?.markStartupPhase?.('js.index.polyfills_loaded');
 const skipWidgetHandlerInit = process.env.EXPO_PUBLIC_SKIP_WIDGET_HANDLER_INIT === '1';
+
+const installKeepAwakeActivationGuard = () => {
+  try {
+    if (process.env.NODE_ENV === 'production') {
+      return;
+    }
+
+    const { Platform } = require('react-native');
+    if (Platform.OS !== 'android') {
+      return;
+    }
+
+    const { requireNativeModule } = require('expo-modules-core');
+    const keepAwakeModule = requireNativeModule?.('ExpoKeepAwake');
+    if (!keepAwakeModule || typeof keepAwakeModule.activate !== 'function') {
+      return;
+    }
+
+    if (keepAwakeModule.__mindwtrActivateWrapped) {
+      return;
+    }
+
+    const originalActivate = keepAwakeModule.activate.bind(keepAwakeModule);
+    keepAwakeModule.activate = async (...args) => {
+      try {
+        return await originalActivate(...args);
+      } catch (error) {
+        const details = error instanceof Error ? (error.stack || error.message) : String(error);
+        if (details.includes('Unable to activate keep awake')) {
+          startupProfiler?.markStartupPhase?.('js.index.keep_awake_activate_ignored');
+          console.warn('[MindwtrStartup] keep-awake activation skipped until activity is ready');
+          return;
+        }
+        throw error;
+      }
+    };
+    keepAwakeModule.__mindwtrActivateWrapped = true;
+    startupProfiler?.markStartupPhase?.('js.index.keep_awake_activate_guard_installed');
+  } catch (error) {
+    const details = error instanceof Error ? (error.stack || error.message) : String(error);
+    startupProfiler?.markStartupPhase?.('js.index.keep_awake_activate_guard_failed');
+    console.warn(`[MindwtrStartup] keep-awake guard install failed: ${details}`);
+  }
+};
+
+installKeepAwakeActivationGuard();
+
 const loadWidgetHandler = () => {
   startupProfiler?.markStartupPhase?.('js.index.widget_handler_require:start');
   try {
