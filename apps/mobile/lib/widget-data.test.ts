@@ -36,4 +36,90 @@ describe('widget-data', () => {
         expect(payload.items.map((item) => item.title)).toEqual(['Focused 1', 'Focused 2', 'Focused 3']);
         expect(payload.inboxCount).toBe(1);
     });
+
+    it('keeps focused tasks even when start time is in the future', () => {
+        const now = new Date('2026-02-22T12:00:00.000Z');
+        const future = new Date('2026-02-23T09:00:00.000Z').toISOString();
+        const created = now.toISOString();
+        const data: AppData = {
+            ...baseData,
+            tasks: [
+                {
+                    id: 'focus-future',
+                    title: 'Focused future',
+                    status: 'next',
+                    isFocusedToday: true,
+                    startTime: future,
+                    tags: [],
+                    contexts: [],
+                    createdAt: created,
+                    updatedAt: created,
+                },
+                {
+                    id: 'non-focus-future',
+                    title: 'Non-focus future',
+                    status: 'next',
+                    isFocusedToday: false,
+                    startTime: future,
+                    tags: [],
+                    contexts: [],
+                    createdAt: created,
+                    updatedAt: created,
+                },
+            ],
+        };
+        const payload = buildWidgetPayload(data, 'en');
+        expect(payload.items.map((item) => item.id)).toEqual(['focus-future']);
+    });
+
+    it('orders focused tasks using task sort setting before taking top three', () => {
+        const data: AppData = {
+            ...baseData,
+            settings: { taskSortBy: 'created-desc' },
+            tasks: [
+                {
+                    id: 'old',
+                    title: 'Old',
+                    status: 'next',
+                    isFocusedToday: true,
+                    tags: [],
+                    contexts: [],
+                    createdAt: '2026-02-20T10:00:00.000Z',
+                    updatedAt: '2026-02-20T10:00:00.000Z',
+                },
+                {
+                    id: 'newest',
+                    title: 'Newest',
+                    status: 'next',
+                    isFocusedToday: true,
+                    tags: [],
+                    contexts: [],
+                    createdAt: '2026-02-22T10:00:00.000Z',
+                    updatedAt: '2026-02-22T10:00:00.000Z',
+                },
+                {
+                    id: 'middle',
+                    title: 'Middle',
+                    status: 'next',
+                    isFocusedToday: true,
+                    tags: [],
+                    contexts: [],
+                    createdAt: '2026-02-21T10:00:00.000Z',
+                    updatedAt: '2026-02-21T10:00:00.000Z',
+                },
+                {
+                    id: 'older',
+                    title: 'Older',
+                    status: 'next',
+                    isFocusedToday: true,
+                    tags: [],
+                    contexts: [],
+                    createdAt: '2026-02-19T10:00:00.000Z',
+                    updatedAt: '2026-02-19T10:00:00.000Z',
+                },
+            ],
+        };
+        const payload = buildWidgetPayload(data, 'en');
+        expect(payload.items.map((item) => item.id)).toEqual(['newest', 'middle', 'old']);
+    });
 });

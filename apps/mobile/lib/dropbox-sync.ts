@@ -147,6 +147,9 @@ export async function uploadDropboxFile(
     contentType = 'application/octet-stream',
     fetcher: typeof fetch = fetch
 ): Promise<{ rev: string | null }> {
+    const body: ArrayBuffer = content instanceof Uint8Array
+        ? new Uint8Array(content).buffer
+        : content;
     const response = await fetcher(UPLOAD_ENDPOINT, {
         method: 'POST',
         headers: {
@@ -159,7 +162,7 @@ export async function uploadDropboxFile(
             }),
             'Content-Type': contentType,
         },
-        body: content instanceof Uint8Array ? content : new Uint8Array(content),
+        body,
     });
     if (response.status === 401) {
         throw new DropboxUnauthorizedError('Dropbox file upload failed: HTTP 401');

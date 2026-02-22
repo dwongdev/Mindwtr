@@ -1,4 +1,13 @@
-import { type AppData, type Language, safeParseDate, SUPPORTED_LANGUAGES, getTranslationsSync, loadTranslations } from '@mindwtr/core';
+import {
+    type AppData,
+    type Language,
+    type TaskSortBy,
+    safeParseDate,
+    SUPPORTED_LANGUAGES,
+    getTranslationsSync,
+    loadTranslations,
+    sortTasksBy,
+} from '@mindwtr/core';
 import type { ColorProp } from 'react-native-android-widget';
 
 export const WIDGET_DATA_KEY = 'mindwtr-data';
@@ -34,6 +43,13 @@ export interface TasksWidgetPayload {
     captureLabel: string;
     palette: WidgetPalette;
 }
+
+const TASK_SORT_OPTIONS: TaskSortBy[] = ['default', 'due', 'start', 'review', 'title', 'created', 'created-desc'];
+
+const resolveWidgetTaskSort = (data: AppData): TaskSortBy => {
+    const sortBy = data.settings?.taskSortBy;
+    return TASK_SORT_OPTIONS.includes(sortBy as TaskSortBy) ? (sortBy as TaskSortBy) : 'default';
+};
 
 export function resolveWidgetLanguage(saved: string | null, setting?: string): Language {
     const candidate = setting && setting !== 'system' ? setting : saved;
@@ -92,7 +108,8 @@ export function buildWidgetPayload(
     const activeTasks = tasks.filter((task) => {
         if (task.deletedAt) return false;
         if (task.status === 'archived' || task.status === 'done' || task.status === 'reference') return false;
-        if (task.startTime) {
+        // Focused tasks should remain visible even if they have a future start time.
+        if (!task.isFocusedToday && task.startTime) {
             const start = safeParseDate(task.startTime);
             if (start && start > now) return false;
         }
@@ -100,7 +117,7 @@ export function buildWidgetPayload(
     });
 
     const focusedTasks = activeTasks.filter((task) => task.isFocusedToday);
-    const listSource = focusedTasks;
+    const listSource = sortTasksBy(focusedTasks, resolveWidgetTaskSort(data));
 
     const items = listSource.slice(0, 3).map((task) => ({
         id: task.id,
