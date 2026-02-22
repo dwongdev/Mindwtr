@@ -14,6 +14,22 @@ const loadWidgetHandler = () => {
   }
 };
 
+const scheduleWidgetHandlerLoad = () => {
+  if (typeof setImmediate === 'function') {
+    setImmediate(loadWidgetHandler);
+    return;
+  }
+  if (typeof setTimeout === 'function') {
+    setTimeout(loadWidgetHandler, 0);
+    return;
+  }
+  if (typeof queueMicrotask === 'function') {
+    queueMicrotask(loadWidgetHandler);
+    return;
+  }
+  Promise.resolve().then(loadWidgetHandler);
+};
+
 const loadExpoRouterEntry = () => {
   startupProfiler?.markStartupPhase?.('js.index.metro_runtime_require:start');
   require('@expo/metro-runtime');
@@ -36,11 +52,7 @@ if (skipWidgetHandlerInit) {
   startupProfiler?.markStartupPhase?.('js.index.widget_handler_skipped');
 } else {
   startupProfiler?.markStartupPhase?.('js.index.widget_handler_deferred_scheduled');
-  if (typeof setImmediate === 'function') {
-    setImmediate(loadWidgetHandler);
-  } else {
-    setTimeout(loadWidgetHandler, 0);
-  }
+  scheduleWidgetHandlerLoad();
 }
 
 startupProfiler?.markStartupPhase?.('js.index.expo_router_entry_require:start');
