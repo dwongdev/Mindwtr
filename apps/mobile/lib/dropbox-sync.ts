@@ -1,4 +1,10 @@
-import type { AppData } from '@mindwtr/core';
+import {
+    isDropboxPathConflictTag,
+    parseDropboxApiErrorTag,
+    parseDropboxMetadataRev,
+    resolveDropboxPath,
+    type AppData,
+} from '@mindwtr/core';
 
 const DROPBOX_SYNC_PATH = '/data.json';
 const DOWNLOAD_ENDPOINT = 'https://content.dropboxapi.com/2/files/download';
@@ -32,44 +38,6 @@ type DropboxDownloadResult = {
     rev: string | null;
 };
 
-const parseDropboxMetadata = (raw: string | null): { rev: string | null } => {
-    if (!raw) return { rev: null };
-    try {
-        const parsed = JSON.parse(raw) as { rev?: unknown };
-        return { rev: typeof parsed.rev === 'string' ? parsed.rev : null };
-    } catch {
-        return { rev: null };
-    }
-};
-
-const parseDropboxApiErrorTag = async (response: Response): Promise<string> => {
-    try {
-        const payload = await response.json() as {
-            error?: {
-                '.tag'?: unknown;
-                path?: { '.tag'?: unknown };
-            };
-        };
-        const top = payload?.error?.['.tag'];
-        if (typeof top === 'string') {
-            if (top === 'path') {
-                const nested = payload?.error?.path?.['.tag'];
-                if (typeof nested === 'string') return `path/${nested}`;
-            }
-            return top;
-        }
-        return '';
-    } catch {
-        return '';
-    }
-};
-
-const resolveDropboxPath = (path: string): string => {
-    const trimmed = path.trim();
-    if (!trimmed) throw new Error('Dropbox path is required');
-    return trimmed.startsWith('/') ? trimmed : `/${trimmed}`;
-};
-
 export async function downloadDropboxAppData(
     accessToken: string,
     fetcher: typeof fetch = fetch
@@ -92,7 +60,7 @@ export async function downloadDropboxAppData(
         throw new Error(`Dropbox download failed: HTTP ${response.status}`);
     }
 
-    const metadata = parseDropboxMetadata(response.headers.get('dropbox-api-result'));
+    const metadata = parseDropboxMetadataRev(response.headers.get('dropbox-api-result'));
     const text = await response.text();
     if (!text.trim()) {
         return { data: null, rev: metadata.rev };
@@ -133,7 +101,7 @@ export async function uploadDropboxAppData(
 
     if (response.status === 409) {
         const errorTag = await parseDropboxApiErrorTag(response);
-        if (errorTag === 'path' || errorTag === 'path/conflict') {
+        if (isDropboxPathConflictTag(errorTag)) {
             throw new DropboxConflictError();
         }
     }
