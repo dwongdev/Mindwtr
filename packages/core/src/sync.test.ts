@@ -781,6 +781,56 @@ describe('Sync Logic', () => {
             expect(merged.settings.externalCalendars?.[0]?.name).toBe('Team');
         });
 
+        it('falls back to local values when incoming synced settings are malformed', () => {
+            const local: AppData = {
+                ...mockAppData(),
+                settings: {
+                    language: 'en',
+                    weekStart: 'monday',
+                    dateFormat: 'yyyy-MM-dd',
+                    externalCalendars: [
+                        { id: 'cal-local', name: 'Local', url: 'https://calendar.example.com/local.ics', enabled: true },
+                    ],
+                    syncPreferences: {
+                        language: true,
+                        externalCalendars: true,
+                    },
+                    syncPreferencesUpdatedAt: {
+                        preferences: '2024-01-01T00:00:00.000Z',
+                        language: '2024-01-01T00:00:00.000Z',
+                        externalCalendars: '2024-01-01T00:00:00.000Z',
+                    },
+                },
+            };
+            const incoming: AppData = {
+                ...mockAppData(),
+                settings: {
+                    language: 'xx' as AppData['settings']['language'],
+                    weekStart: 'friday' as AppData['settings']['weekStart'],
+                    dateFormat: 123 as unknown as string,
+                    externalCalendars: [
+                        { id: '', name: 'Broken', url: '', enabled: true },
+                    ] as AppData['settings']['externalCalendars'],
+                    syncPreferences: {
+                        language: 'yes' as unknown as boolean,
+                    },
+                    syncPreferencesUpdatedAt: {
+                        preferences: '2024-01-02T00:00:00.000Z',
+                        language: '2024-01-02T00:00:00.000Z',
+                        externalCalendars: '2024-01-02T00:00:00.000Z',
+                    },
+                },
+            };
+
+            const merged = mergeAppData(local, incoming);
+
+            expect(merged.settings.language).toBe('en');
+            expect(merged.settings.weekStart).toBe('monday');
+            expect(merged.settings.dateFormat).toBe('yyyy-MM-dd');
+            expect(merged.settings.externalCalendars).toEqual(local.settings.externalCalendars);
+            expect(merged.settings.syncPreferences).toEqual(local.settings.syncPreferences);
+        });
+
         it('keeps area tombstones so deletions sync across devices', () => {
             const local: AppData = {
                 ...mockAppData(),

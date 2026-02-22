@@ -371,6 +371,220 @@ const sanitizeAiForSync = (
     return sanitized;
 };
 
+const SETTINGS_SYNC_GROUP_KEYS: SettingsSyncGroup[] = ['appearance', 'language', 'externalCalendars', 'ai'];
+const SETTINGS_SYNC_UPDATED_AT_KEYS: Array<SettingsSyncGroup | 'preferences'> = ['preferences', ...SETTINGS_SYNC_GROUP_KEYS];
+const SUPPORTED_THEME_VALUES = new Set([
+    'light',
+    'dark',
+    'system',
+    'eink',
+    'nord',
+    'sepia',
+    'material3-light',
+    'material3-dark',
+    'oled',
+]);
+const SUPPORTED_LANGUAGE_VALUES = new Set([
+    'en',
+    'zh',
+    'es',
+    'hi',
+    'ar',
+    'de',
+    'ru',
+    'ja',
+    'fr',
+    'pt',
+    'pl',
+    'ko',
+    'it',
+    'tr',
+    'system',
+]);
+const SUPPORTED_WEEK_START_VALUES = new Set(['monday', 'sunday']);
+const SUPPORTED_KEYBINDING_VALUES = new Set(['vim', 'emacs']);
+const SUPPORTED_DENSITY_VALUES = new Set(['comfortable', 'compact']);
+const SUPPORTED_AI_PROVIDERS = new Set(['gemini', 'openai', 'anthropic']);
+const SUPPORTED_REASONING_EFFORT = new Set(['low', 'medium', 'high']);
+const SUPPORTED_STT_PROVIDERS = new Set(['openai', 'gemini', 'whisper']);
+const SUPPORTED_STT_MODES = new Set(['smart_parse', 'transcribe_only']);
+const SUPPORTED_STT_FIELD_STRATEGIES = new Set(['smart', 'title_only', 'description_only']);
+
+const cloneSettingValue = <T>(value: T): T => {
+    if (Array.isArray(value)) {
+        return value.map((item) => cloneSettingValue(item)) as unknown as T;
+    }
+    if (value && typeof value === 'object') {
+        const cloned: Record<string, unknown> = {};
+        for (const [key, item] of Object.entries(value as Record<string, unknown>)) {
+            cloned[key] = cloneSettingValue(item);
+        }
+        return cloned as T;
+    }
+    return value;
+};
+
+const sanitizeSyncPreferences = (
+    value: AppData['settings']['syncPreferences'] | undefined,
+    fallback: AppData['settings']['syncPreferences'] | undefined
+): AppData['settings']['syncPreferences'] | undefined => {
+    if (value === undefined) return fallback ? cloneSettingValue(fallback) : undefined;
+    if (!isObjectRecord(value)) return fallback ? cloneSettingValue(fallback) : undefined;
+    const next: NonNullable<AppData['settings']['syncPreferences']> = {};
+    for (const key of SETTINGS_SYNC_GROUP_KEYS) {
+        const candidate = (value as Record<string, unknown>)[key];
+        if (typeof candidate === 'boolean') {
+            next[key] = candidate;
+        }
+    }
+    return Object.keys(next).length > 0 ? next : (fallback ? cloneSettingValue(fallback) : undefined);
+};
+
+const sanitizeSyncPreferencesUpdatedAt = (
+    value: AppData['settings']['syncPreferencesUpdatedAt'] | undefined,
+    fallback: AppData['settings']['syncPreferencesUpdatedAt'] | undefined
+): AppData['settings']['syncPreferencesUpdatedAt'] | undefined => {
+    if (value === undefined) return fallback ? cloneSettingValue(fallback) : undefined;
+    if (!isObjectRecord(value)) return fallback ? cloneSettingValue(fallback) : undefined;
+    const next: NonNullable<AppData['settings']['syncPreferencesUpdatedAt']> = {};
+    for (const key of SETTINGS_SYNC_UPDATED_AT_KEYS) {
+        const candidate = (value as Record<string, unknown>)[key];
+        if (isValidTimestamp(candidate)) {
+            next[key] = candidate;
+        }
+    }
+    return Object.keys(next).length > 0 ? next : (fallback ? cloneSettingValue(fallback) : undefined);
+};
+
+const sanitizeExternalCalendars = (
+    value: AppData['settings']['externalCalendars'] | undefined,
+    fallback: AppData['settings']['externalCalendars'] | undefined
+): AppData['settings']['externalCalendars'] | undefined => {
+    if (value === undefined) return fallback ? cloneSettingValue(fallback) : undefined;
+    if (!Array.isArray(value)) return fallback ? cloneSettingValue(fallback) : undefined;
+    const next = value
+        .filter((item): item is { id: string; name: string; url: string; enabled: boolean } =>
+            isObjectRecord(item)
+            && isNonEmptyString(item.id)
+            && isNonEmptyString(item.name)
+            && isNonEmptyString(item.url)
+            && typeof item.enabled === 'boolean'
+        )
+        .map((item) => ({
+            id: item.id.trim(),
+            name: item.name.trim(),
+            url: item.url.trim(),
+            enabled: item.enabled,
+        }));
+    const deduped = new Map<string, (typeof next)[number]>();
+    for (const item of next) {
+        deduped.set(item.id, item);
+    }
+    if (value.length > 0 && deduped.size === 0 && fallback) {
+        return cloneSettingValue(fallback);
+    }
+    return Array.from(deduped.values());
+};
+
+const sanitizeAiSettings = (
+    value: AppData['settings']['ai'] | undefined,
+    fallback: AppData['settings']['ai'] | undefined
+): AppData['settings']['ai'] | undefined => {
+    if (value === undefined) return fallback ? sanitizeAiForSync(cloneSettingValue(fallback), fallback) : undefined;
+    if (!isObjectRecord(value)) return fallback ? sanitizeAiForSync(cloneSettingValue(fallback), fallback) : undefined;
+    const next: AppData['settings']['ai'] = cloneSettingValue(value as AppData['settings']['ai']);
+    if (next.enabled !== undefined && typeof next.enabled !== 'boolean') {
+        next.enabled = fallback?.enabled;
+    }
+    if (next.provider !== undefined && !SUPPORTED_AI_PROVIDERS.has(next.provider)) {
+        next.provider = fallback?.provider;
+    }
+    if (next.baseUrl !== undefined && !isNonEmptyString(next.baseUrl)) {
+        next.baseUrl = fallback?.baseUrl;
+    }
+    if (next.model !== undefined && !isNonEmptyString(next.model)) {
+        next.model = fallback?.model;
+    }
+    if (next.reasoningEffort !== undefined && !SUPPORTED_REASONING_EFFORT.has(next.reasoningEffort)) {
+        next.reasoningEffort = fallback?.reasoningEffort;
+    }
+    if (next.thinkingBudget !== undefined && (!Number.isFinite(next.thinkingBudget) || next.thinkingBudget < 0)) {
+        next.thinkingBudget = fallback?.thinkingBudget;
+    }
+    if (next.copilotModel !== undefined && !isNonEmptyString(next.copilotModel)) {
+        next.copilotModel = fallback?.copilotModel;
+    }
+    if (next.speechToText !== undefined && !isObjectRecord(next.speechToText)) {
+        next.speechToText = fallback?.speechToText ? cloneSettingValue(fallback.speechToText) : undefined;
+    } else if (next.speechToText) {
+        const speechFallback = fallback?.speechToText;
+        if (next.speechToText.enabled !== undefined && typeof next.speechToText.enabled !== 'boolean') {
+            next.speechToText.enabled = speechFallback?.enabled;
+        }
+        if (next.speechToText.provider !== undefined && !SUPPORTED_STT_PROVIDERS.has(next.speechToText.provider)) {
+            next.speechToText.provider = speechFallback?.provider;
+        }
+        if (next.speechToText.model !== undefined && !isNonEmptyString(next.speechToText.model)) {
+            next.speechToText.model = speechFallback?.model;
+        }
+        if (next.speechToText.language !== undefined && !isNonEmptyString(next.speechToText.language)) {
+            next.speechToText.language = speechFallback?.language;
+        }
+        if (next.speechToText.mode !== undefined && !SUPPORTED_STT_MODES.has(next.speechToText.mode)) {
+            next.speechToText.mode = speechFallback?.mode;
+        }
+        if (
+            next.speechToText.fieldStrategy !== undefined
+            && !SUPPORTED_STT_FIELD_STRATEGIES.has(next.speechToText.fieldStrategy)
+        ) {
+            next.speechToText.fieldStrategy = speechFallback?.fieldStrategy;
+        }
+    }
+    return sanitizeAiForSync(next, fallback);
+};
+
+const sanitizeMergedSettingsForSync = (
+    merged: AppData['settings'],
+    localSettings: AppData['settings']
+): AppData['settings'] => {
+    const next: AppData['settings'] = cloneSettingValue(merged);
+
+    if (next.theme !== undefined && !SUPPORTED_THEME_VALUES.has(next.theme)) {
+        next.theme = localSettings.theme;
+    }
+    if (next.language !== undefined && !SUPPORTED_LANGUAGE_VALUES.has(next.language)) {
+        next.language = localSettings.language;
+    }
+    if (next.weekStart !== undefined && !SUPPORTED_WEEK_START_VALUES.has(next.weekStart)) {
+        next.weekStart = localSettings.weekStart;
+    }
+    if (next.keybindingStyle !== undefined && !SUPPORTED_KEYBINDING_VALUES.has(next.keybindingStyle)) {
+        next.keybindingStyle = localSettings.keybindingStyle;
+    }
+    if (next.dateFormat !== undefined && typeof next.dateFormat !== 'string') {
+        next.dateFormat = localSettings.dateFormat;
+    }
+    if (next.appearance !== undefined && !isObjectRecord(next.appearance)) {
+        next.appearance = localSettings.appearance ? cloneSettingValue(localSettings.appearance) : undefined;
+    } else if (next.appearance?.density !== undefined && !SUPPORTED_DENSITY_VALUES.has(next.appearance.density)) {
+        next.appearance = {
+            ...(localSettings.appearance ? cloneSettingValue(localSettings.appearance) : {}),
+            ...next.appearance,
+            density: localSettings.appearance?.density,
+        };
+    }
+
+    next.syncPreferences = sanitizeSyncPreferences(next.syncPreferences, localSettings.syncPreferences);
+    next.syncPreferencesUpdatedAt = sanitizeSyncPreferencesUpdatedAt(
+        next.syncPreferencesUpdatedAt,
+        localSettings.syncPreferencesUpdatedAt
+    );
+    next.externalCalendars = sanitizeExternalCalendars(next.externalCalendars, localSettings.externalCalendars);
+    next.ai = sanitizeAiSettings(next.ai, localSettings.ai);
+
+    return next;
+};
+
 const mergeSettingsForSync = (localSettings: AppData['settings'], incomingSettings: AppData['settings']): AppData['settings'] => {
     const merged: AppData['settings'] = { ...localSettings };
     const nextSyncUpdatedAt: NonNullable<AppData['settings']['syncPreferencesUpdatedAt']> = {
@@ -384,20 +598,6 @@ const mergeSettingsForSync = (localSettings: AppData['settings'], incomingSettin
     const incomingPrefsAt = incomingSettings.syncPreferencesUpdatedAt?.preferences;
     const incomingPrefsWins = isIncomingNewer(localPrefsAt, incomingPrefsAt);
     const mergedPrefs = incomingPrefsWins ? incomingPrefs : localPrefs;
-
-    const cloneSettingValue = <T>(value: T): T => {
-        if (Array.isArray(value)) {
-            return value.map((item) => cloneSettingValue(item)) as unknown as T;
-        }
-        if (value && typeof value === 'object') {
-            const cloned: Record<string, unknown> = {};
-            for (const [key, item] of Object.entries(value as Record<string, unknown>)) {
-                cloned[key] = cloneSettingValue(item);
-            }
-            return cloned as T;
-        }
-        return value;
-    };
 
     merged.syncPreferences = cloneSettingValue(mergedPrefs);
     if (incomingPrefsWins) {
@@ -496,7 +696,7 @@ const mergeSettingsForSync = (localSettings: AppData['settings'], incomingSettin
     );
 
     merged.syncPreferencesUpdatedAt = Object.keys(nextSyncUpdatedAt).length > 0 ? nextSyncUpdatedAt : merged.syncPreferencesUpdatedAt;
-    return merged;
+    return sanitizeMergedSettingsForSync(merged, localSettings);
 };
 
 /**
