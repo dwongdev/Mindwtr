@@ -133,7 +133,7 @@ export async function uploadDropboxAppData(
 
     if (response.status === 409) {
         const errorTag = await parseDropboxApiErrorTag(response);
-        if (errorTag.startsWith('path')) {
+        if (errorTag === 'path' || errorTag === 'path/conflict') {
             throw new DropboxConflictError();
         }
     }

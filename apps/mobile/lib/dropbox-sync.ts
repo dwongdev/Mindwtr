@@ -44,9 +44,21 @@ const parseDropboxMetadata = (raw: string | null): { rev: string | null } => {
 
 const parseDropboxApiErrorTag = async (response: Response): Promise<string> => {
     try {
-        const payload = await response.json() as { error?: { '.tag'?: unknown } };
-        const tag = payload?.error?.['.tag'];
-        return typeof tag === 'string' ? tag : '';
+        const payload = await response.json() as {
+            error?: {
+                '.tag'?: unknown;
+                path?: { '.tag'?: unknown };
+            };
+        };
+        const top = payload?.error?.['.tag'];
+        if (typeof top === 'string') {
+            if (top === 'path') {
+                const nested = payload?.error?.path?.['.tag'];
+                if (typeof nested === 'string') return `path/${nested}`;
+            }
+            return top;
+        }
+        return '';
     } catch {
         return '';
     }

@@ -58,6 +58,20 @@ describe('dropbox-sync', () => {
         ).rejects.toBeInstanceOf(DropboxConflictError);
     });
 
+    it('throws conflict error when upload returns nested path/conflict', async () => {
+        const fetcher = async () => buildResponse(409, '{"error":{".tag":"path","path":{".tag":"conflict"}}}');
+        await expect(
+            uploadDropboxAppData('token', { tasks: [], projects: [], sections: [], areas: [], settings: {} }, 'rev-1', fetcher as typeof fetch)
+        ).rejects.toBeInstanceOf(DropboxConflictError);
+    });
+
+    it('does not classify path/not_found as conflict', async () => {
+        const fetcher = async () => buildResponse(409, '{"error":{".tag":"path","path":{".tag":"not_found"}}}');
+        await expect(
+            uploadDropboxAppData('token', { tasks: [], projects: [], sections: [], areas: [], settings: {} }, 'rev-1', fetcher as typeof fetch)
+        ).rejects.toThrow('Dropbox upload failed: HTTP 409');
+    });
+
     it('throws unauthorized error when account probe returns 401', async () => {
         const fetcher = async () => buildResponse(401, '{"error_summary":"expired_access_token/.."}');
         await expect(testDropboxAccess('token', fetcher as typeof fetch)).rejects.toBeInstanceOf(DropboxUnauthorizedError);
