@@ -17,10 +17,17 @@ import {
   getErrorStatus,
 } from '@mindwtr/core';
 import {
+  DropboxFileNotFoundError,
+  DropboxUnauthorizedError,
+  downloadDropboxFile,
+  uploadDropboxFile,
+} from './dropbox-sync';
+import {
   SYNC_BACKEND_KEY,
   SYNC_PATH_KEY,
   CLOUD_URL_KEY,
   CLOUD_TOKEN_KEY,
+  CLOUD_PROVIDER_KEY,
   WEBDAV_PASSWORD_KEY,
   WEBDAV_URL_KEY,
   WEBDAV_USERNAME_KEY,
@@ -37,10 +44,13 @@ const WEBDAV_ATTACHMENT_MAX_DOWNLOADS_PER_SYNC = 10;
 const WEBDAV_ATTACHMENT_MAX_UPLOADS_PER_SYNC = 10;
 const WEBDAV_ATTACHMENT_MISSING_BACKOFF_MS = 15 * 60_000;
 const WEBDAV_ATTACHMENT_ERROR_BACKOFF_MS = 2 * 60_000;
+const DROPBOX_ATTACHMENT_MAX_DOWNLOADS_PER_SYNC = 10;
+const DROPBOX_ATTACHMENT_MAX_UPLOADS_PER_SYNC = 10;
 const webdavDownloadBackoff = createWebdavDownloadBackoff({
   missingBackoffMs: WEBDAV_ATTACHMENT_MISSING_BACKOFF_MS,
   errorBackoffMs: WEBDAV_ATTACHMENT_ERROR_BACKOFF_MS,
 });
+const CLOUD_PROVIDER_DROPBOX = 'dropbox';
 
 const BASE64_ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
 const BASE64_LOOKUP = (() => {
@@ -390,6 +400,45 @@ export const getCloudBaseUrl = (fullUrl: string): string => {
 
 type WebDavConfig = { url: string; username: string; password: string };
 type CloudConfig = { url: string; token: string };
+
+const getDropboxClientId = async (): Promise<string> => {
+  try {
+    const constantsModule = await import('expo-constants');
+    const constants = constantsModule.default as { expoConfig?: { extra?: { dropboxAppKey?: unknown } } } | undefined;
+    const extra = constants?.expoConfig?.extra;
+    return typeof extra?.dropboxAppKey === 'string' ? extra.dropboxAppKey.trim() : '';
+  } catch {
+    return '';
+  }
+};
+
+const isDropboxUnauthorizedError = (error: unknown): boolean => {
+  if (error instanceof DropboxUnauthorizedError) return true;
+  const message = sanitizeLogMessage(error instanceof Error ? error.message : String(error)).toLowerCase();
+  return message.includes('http 401')
+    || message.includes('invalid_access_token')
+    || message.includes('expired_access_token')
+    || message.includes('unauthorized');
+};
+
+const runDropboxAuthorized = async <T,>(
+  dropboxClientId: string,
+  operation: (accessToken: string) => Promise<T>,
+  fetcher: typeof fetch = fetch
+): Promise<T> => {
+  const {
+    forceRefreshDropboxAccessToken,
+    getValidDropboxAccessToken,
+  } = await import('./dropbox-auth');
+  let accessToken = await getValidDropboxAccessToken(dropboxClientId, fetcher);
+  try {
+    return await operation(accessToken);
+  } catch (error) {
+    if (!isDropboxUnauthorizedError(error)) throw error;
+    accessToken = await forceRefreshDropboxAccessToken(dropboxClientId, fetcher);
+    return operation(accessToken);
+  }
+};
 
 const loadWebDavConfig = async (): Promise<WebDavConfig | null> => {
   const url = await AsyncStorage.getItem(WEBDAV_URL_KEY);
@@ -1110,6 +1159,171 @@ export const syncCloudAttachments = async (
   return didMutate;
 };
 
+export const syncDropboxAttachments = async (
+  appData: AppData,
+  dropboxClientId: string,
+  fetcher: typeof fetch = fetch
+): Promise<boolean> => {
+  if (!dropboxClientId) return false;
+  const attachmentsDir = await getAttachmentsDir();
+
+  const attachmentsById = new Map<string, Attachment>();
+  for (const task of appData.tasks) {
+    for (const attachment of task.attachments || []) {
+      attachmentsById.set(attachment.id, attachment);
+    }
+  }
+  for (const project of appData.projects) {
+    for (const attachment of project.attachments || []) {
+      attachmentsById.set(attachment.id, attachment);
+    }
+  }
+
+  let didMutate = false;
+  const downloadQueue: Attachment[] = [];
+  let uploadCount = 0;
+  let uploadLimitLogged = false;
+
+  for (const attachment of attachmentsById.values()) {
+    if (attachment.kind !== 'file') continue;
+    if (attachment.deletedAt) continue;
+
+    const uri = attachment.uri || '';
+    const isHttp = /^https?:\/\//i.test(uri);
+    const isContent = uri.startsWith('content://');
+    const hasLocalPath = Boolean(uri) && !isHttp;
+    const existsLocally = hasLocalPath ? await fileExists(uri) : false;
+    const nextStatus: Attachment['localStatus'] = (existsLocally || isContent || isHttp) ? 'available' : 'missing';
+    if (attachment.localStatus !== nextStatus) {
+      attachment.localStatus = nextStatus;
+      didMutate = true;
+    }
+
+    if (!attachment.cloudKey && hasLocalPath && existsLocally && !isHttp) {
+      if (uploadCount >= DROPBOX_ATTACHMENT_MAX_UPLOADS_PER_SYNC) {
+        if (!uploadLimitLogged) {
+          uploadLimitLogged = true;
+          logAttachmentInfo('Dropbox attachment upload limit reached', {
+            limit: String(DROPBOX_ATTACHMENT_MAX_UPLOADS_PER_SYNC),
+          });
+        }
+        continue;
+      }
+      uploadCount += 1;
+      try {
+        let fileSize = await getAttachmentByteSize(attachment, uri);
+        let fileData: Uint8Array | null = null;
+        if (!Number.isFinite(fileSize ?? NaN)) {
+          fileData = await readFileAsBytes(uri);
+          fileSize = fileData.byteLength;
+        }
+
+        const validation = await validateAttachmentForUpload(attachment, fileSize);
+        if (!validation.valid) {
+          logAttachmentWarn(`Attachment validation failed (${validation.error}) for ${attachment.title}`);
+          continue;
+        }
+        const totalBytes = Math.max(0, Number(fileSize ?? 0));
+        reportProgress(attachment.id, 'upload', 0, totalBytes, 'active');
+
+        const cloudKey = buildCloudKey(attachment);
+        const uploadBytes = fileData ?? await readFileAsBytes(uri);
+        await runDropboxAuthorized(
+          dropboxClientId,
+          (accessToken) =>
+            uploadDropboxFile(
+              accessToken,
+              cloudKey,
+              toArrayBuffer(uploadBytes),
+              attachment.mimeType || DEFAULT_CONTENT_TYPE,
+              fetcher
+            ),
+          fetcher
+        );
+
+        attachment.cloudKey = cloudKey;
+        if (!Number.isFinite(attachment.size ?? NaN) && Number.isFinite(fileSize ?? NaN)) {
+          attachment.size = Number(fileSize);
+        }
+        attachment.localStatus = 'available';
+        didMutate = true;
+        reportProgress(attachment.id, 'upload', totalBytes, totalBytes, 'completed');
+      } catch (error) {
+        reportProgress(
+          attachment.id,
+          'upload',
+          0,
+          attachment.size ?? 0,
+          'failed',
+          error instanceof Error ? error.message : String(error)
+        );
+        logAttachmentWarn(`Failed to upload attachment ${attachment.title}`, error);
+      }
+    }
+
+    if (attachment.cloudKey && !existsLocally && !isContent && !isHttp) {
+      downloadQueue.push(attachment);
+    }
+  }
+
+  if (!attachmentsDir) return didMutate;
+
+  let downloadCount = 0;
+  for (const attachment of downloadQueue) {
+    if (attachment.kind !== 'file') continue;
+    if (attachment.deletedAt) continue;
+    if (!attachment.cloudKey) continue;
+    if (downloadCount >= DROPBOX_ATTACHMENT_MAX_DOWNLOADS_PER_SYNC) {
+      logAttachmentInfo('Dropbox attachment download limit reached', {
+        limit: String(DROPBOX_ATTACHMENT_MAX_DOWNLOADS_PER_SYNC),
+      });
+      break;
+    }
+    downloadCount += 1;
+
+    const cloudKey = attachment.cloudKey;
+    try {
+      reportProgress(attachment.id, 'download', 0, attachment.size ?? 0, 'active');
+      const data = await runDropboxAuthorized(
+        dropboxClientId,
+        (accessToken) => downloadDropboxFile(accessToken, cloudKey, fetcher),
+        fetcher
+      );
+      const bytes = data instanceof ArrayBuffer ? new Uint8Array(data) : new Uint8Array(data as ArrayBuffer);
+      await validateAttachmentHash(attachment, bytes);
+      const filename = cloudKey.split('/').pop() || `${attachment.id}${extractExtension(attachment.title)}`;
+      const targetUri = `${attachmentsDir}${filename}`;
+      await writeBytesSafely(targetUri, bytes);
+      if (attachment.uri !== targetUri || attachment.localStatus !== 'available') {
+        attachment.uri = targetUri;
+        attachment.localStatus = 'available';
+        didMutate = true;
+      }
+      reportProgress(attachment.id, 'download', bytes.length, bytes.length, 'completed');
+    } catch (error) {
+      if (error instanceof DropboxFileNotFoundError && attachment.cloudKey) {
+        attachment.cloudKey = undefined;
+        didMutate = true;
+      }
+      if (attachment.localStatus !== 'missing') {
+        attachment.localStatus = 'missing';
+        didMutate = true;
+      }
+      reportProgress(
+        attachment.id,
+        'download',
+        0,
+        attachment.size ?? 0,
+        'failed',
+        error instanceof Error ? error.message : String(error)
+      );
+      logAttachmentWarn(`Failed to download attachment ${attachment.title}`, error);
+    }
+  }
+
+  return didMutate;
+};
+
 export const syncFileAttachments = async (
   appData: AppData,
   syncPath: string
@@ -1263,9 +1477,6 @@ const ensureAttachmentAvailableInternal = async (attachment: Attachment): Promis
   }
 
   if (backend === 'cloud' && attachment.cloudKey) {
-    const config = await loadCloudConfig();
-    if (!config?.url) return null;
-    const baseSyncUrl = getCloudBaseUrl(config.url);
     const attachmentsDir = await getAttachmentsDir();
     if (!attachmentsDir) return null;
     const filename = attachment.cloudKey.split('/').pop() || `${attachment.id}${extractExtension(attachment.title)}`;
@@ -1274,6 +1485,36 @@ const ensureAttachmentAvailableInternal = async (attachment: Attachment): Promis
     if (existing) {
       return { ...attachment, uri: targetUri, localStatus: 'available' };
     }
+    const cloudProvider = ((await AsyncStorage.getItem(CLOUD_PROVIDER_KEY)) || '').trim();
+    if (cloudProvider === CLOUD_PROVIDER_DROPBOX) {
+      const dropboxClientId = await getDropboxClientId();
+      if (!dropboxClientId) return null;
+      try {
+        const data = await runDropboxAuthorized(
+          dropboxClientId,
+          (accessToken) => downloadDropboxFile(accessToken, attachment.cloudKey as string),
+        );
+        const bytes = data instanceof ArrayBuffer ? new Uint8Array(data) : new Uint8Array(data as ArrayBuffer);
+        await validateAttachmentHash(attachment, bytes);
+        await writeBytesSafely(targetUri, bytes);
+        reportProgress(attachment.id, 'download', bytes.length, bytes.length, 'completed');
+        return { ...attachment, uri: targetUri, localStatus: 'available' };
+      } catch (error) {
+        reportProgress(
+          attachment.id,
+          'download',
+          0,
+          attachment.size ?? 0,
+          'failed',
+          error instanceof Error ? error.message : String(error)
+        );
+        logAttachmentWarn(`Failed to download attachment ${attachment.title}`, error);
+        return null;
+      }
+    }
+    const config = await loadCloudConfig();
+    if (!config?.url) return null;
+    const baseSyncUrl = getCloudBaseUrl(config.url);
     try {
       const data = await withRetry(() =>
         cloudGetFile(`${baseSyncUrl}/${attachment.cloudKey}`, {

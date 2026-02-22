@@ -72,6 +72,15 @@ import { loadAIKey, saveAIKey } from '../../lib/ai-config';
 import { clearLog, ensureLogFilePath, logError, logInfo, logWarn } from '../../lib/app-log';
 import { performMobileSync } from '../../lib/sync-service';
 import { requestNotificationPermission, startMobileNotifications } from '../../lib/notification-service';
+import { authorizeDropbox, getDropboxRedirectUri } from '../../lib/dropbox-oauth';
+import {
+    disconnectDropbox,
+    forceRefreshDropboxAccessToken,
+    getValidDropboxAccessToken,
+    isDropboxClientConfigured,
+    isDropboxConnected,
+} from '../../lib/dropbox-auth';
+import { DropboxUnauthorizedError, testDropboxAccess } from '../../lib/dropbox-sync';
 import {
     SYNC_PATH_KEY,
     SYNC_BACKEND_KEY,
@@ -80,6 +89,7 @@ import {
     WEBDAV_PASSWORD_KEY,
     CLOUD_URL_KEY,
     CLOUD_TOKEN_KEY,
+    CLOUD_PROVIDER_KEY,
 } from '../../lib/sync-constants';
 
 type SettingsScreen =
@@ -145,6 +155,14 @@ const FOSS_LOCAL_LLM_MODEL_OPTIONS = ['llama3.2', 'qwen2.5', 'mistral', 'phi-4-m
 const FOSS_LOCAL_LLM_COPILOT_OPTIONS = ['llama3.2', 'qwen2.5', 'mistral', 'phi-4-mini'];
 
 const formatError = (error: unknown) => (error instanceof Error ? error.message : String(error));
+const isDropboxUnauthorizedError = (error: unknown): boolean => {
+    if (error instanceof DropboxUnauthorizedError) return true;
+    const message = formatError(error).toLowerCase();
+    return message.includes('http 401')
+        || message.includes('invalid_access_token')
+        || message.includes('expired_access_token')
+        || message.includes('unauthorized');
+};
 
 const compareVersions = (v1: string, v2: string): number => {
     const parseVersionParts = (version: string): number[] => (
@@ -228,6 +246,13 @@ const isValidHttpUrl = (value: string): boolean => {
     }
 };
 
+type MobileExtraConfig = {
+    isFossBuild?: boolean | string;
+    dropboxAppKey?: string;
+};
+
+type CloudProvider = 'selfhosted' | 'dropbox';
+
 export default function SettingsPage() {
     const router = useRouter();
     const { settingsScreen } = useLocalSearchParams<{ settingsScreen?: string | string[] }>();
@@ -236,8 +261,10 @@ export default function SettingsPage() {
     const localize = (enText: string, zhText?: string) =>
         language === 'zh' && zhText ? zhText : translateText(enText, language);
     const { tasks, projects, sections, areas, settings, updateSettings } = useTaskStore();
-    const extraConfig = Constants.expoConfig?.extra as { isFossBuild?: boolean | string } | undefined;
+    const extraConfig = Constants.expoConfig?.extra as MobileExtraConfig | undefined;
     const isFossBuild = extraConfig?.isFossBuild === true || extraConfig?.isFossBuild === 'true';
+    const dropboxAppKey = typeof extraConfig?.dropboxAppKey === 'string' ? extraConfig.dropboxAppKey.trim() : '';
+    const dropboxConfigured = isDropboxClientConfigured(dropboxAppKey);
     const [isSyncing, setIsSyncing] = useState(false);
     const currentScreen = useMemo<SettingsScreen>(() => {
         const rawScreen = Array.isArray(settingsScreen) ? settingsScreen[0] : settingsScreen;
@@ -259,6 +286,9 @@ export default function SettingsPage() {
     const [webdavPassword, setWebdavPassword] = useState('');
     const [cloudUrl, setCloudUrl] = useState('');
     const [cloudToken, setCloudToken] = useState('');
+    const [cloudProvider, setCloudProvider] = useState<CloudProvider>('selfhosted');
+    const [dropboxConnected, setDropboxConnected] = useState(false);
+    const [dropboxBusy, setDropboxBusy] = useState(false);
     const [isCheckingUpdate, setIsCheckingUpdate] = useState(false);
     const [hasUpdateBadge, setHasUpdateBadge] = useState(false);
     const [digestTimePicker, setDigestTimePicker] = useState<'morning' | 'evening' | null>(null);
@@ -499,6 +529,17 @@ export default function SettingsPage() {
         updateSettings({ weeklyReviewTime: toTimeValue(selected) }).catch(logSettingsError);
     };
 
+    const runDropboxConnectionTest = useCallback(async () => {
+        let accessToken = await getValidDropboxAccessToken(dropboxAppKey);
+        try {
+            await testDropboxAccess(accessToken);
+        } catch (error) {
+            if (!isDropboxUnauthorizedError(error)) throw error;
+            accessToken = await forceRefreshDropboxAccessToken(dropboxAppKey);
+            await testDropboxAccess(accessToken);
+        }
+    }, [dropboxAppKey]);
+
     const getWeekdayLabel = (dayIndex: number) => {
         const base = new Date(2024, 0, 7 + dayIndex);
         return base.toLocaleDateString(locale, { weekday: 'long' });
@@ -562,6 +603,7 @@ export default function SettingsPage() {
             WEBDAV_PASSWORD_KEY,
             CLOUD_URL_KEY,
             CLOUD_TOKEN_KEY,
+            CLOUD_PROVIDER_KEY,
         ]).then((entries) => {
             const entryMap = new Map(entries);
             const path = entryMap.get(SYNC_PATH_KEY);
@@ -571,6 +613,7 @@ export default function SettingsPage() {
             const password = entryMap.get(WEBDAV_PASSWORD_KEY);
             const cloudSyncUrl = entryMap.get(CLOUD_URL_KEY);
             const cloudSyncToken = entryMap.get(CLOUD_TOKEN_KEY);
+            const storedCloudProvider = entryMap.get(CLOUD_PROVIDER_KEY);
 
             if (path) setSyncPath(path);
             const resolvedBackend = backend === 'webdav' || backend === 'cloud' || backend === 'off' || backend === 'file'
@@ -582,6 +625,7 @@ export default function SettingsPage() {
             if (password) setWebdavPassword(password);
             if (cloudSyncUrl) setCloudUrl(cloudSyncUrl);
             if (cloudSyncToken) setCloudToken(cloudSyncToken);
+            setCloudProvider(storedCloudProvider === 'dropbox' ? 'dropbox' : 'selfhosted');
         }).catch(logSettingsError);
     }, []);
 
@@ -612,6 +656,26 @@ export default function SettingsPage() {
             cancelled = true;
         };
     }, [settings.externalCalendars]);
+
+    useEffect(() => {
+        let cancelled = false;
+        const loadDropboxState = async () => {
+            if (!dropboxConfigured) {
+                if (!cancelled) setDropboxConnected(false);
+                return;
+            }
+            try {
+                const connected = await isDropboxConnected();
+                if (!cancelled) setDropboxConnected(connected);
+            } catch {
+                if (!cancelled) setDropboxConnected(false);
+            }
+        };
+        void loadDropboxState();
+        return () => {
+            cancelled = true;
+        };
+    }, [dropboxConfigured]);
 
     useEffect(() => {
         loadAIKey(aiProvider).then(setAiApiKey).catch(logSettingsError);
@@ -1488,6 +1552,109 @@ export default function SettingsPage() {
         }
     };
 
+    const handleConnectDropbox = async () => {
+        if (!dropboxConfigured) {
+            Alert.alert(
+                localize('Dropbox unavailable', 'Dropbox 不可用'),
+                localize('Dropbox app key is not configured in this build.', '当前构建未配置 Dropbox App Key。')
+            );
+            return;
+        }
+        if (isExpoGo) {
+            Alert.alert(
+                localize('Dropbox unavailable in Expo Go', 'Expo Go 不支持 Dropbox'),
+                `${localize(
+                    'Dropbox OAuth requires a development/release build. Expo Go uses temporary redirect URIs that Dropbox rejects.',
+                    'Dropbox OAuth 需要开发版或正式版应用。Expo Go 使用临时回调地址，Dropbox 会拒绝。'
+                )}\n\n${localize('Use redirect URI', '请使用回调地址')}: ${getDropboxRedirectUri()}`
+            );
+            return;
+        }
+        setDropboxBusy(true);
+        try {
+            await authorizeDropbox(dropboxAppKey);
+            await AsyncStorage.multiSet([
+                [SYNC_BACKEND_KEY, 'cloud'],
+                [CLOUD_PROVIDER_KEY, 'dropbox'],
+            ]);
+            setCloudProvider('dropbox');
+            setSyncBackend('cloud');
+            setDropboxConnected(true);
+            resetSyncStatusForBackendSwitch();
+            Alert.alert(localize('Success', '成功'), localize('Connected to Dropbox.', '已连接 Dropbox。'));
+        } catch (error) {
+            logSettingsError(error);
+            const message = formatError(error);
+            if (/redirect[_\s-]?uri/i.test(message)) {
+                Alert.alert(
+                    localize('Invalid redirect URI', '回调地址无效'),
+                    `${localize(
+                        'Add this exact redirect URI in Dropbox OAuth settings.',
+                        '请在 Dropbox OAuth 设置里添加以下精确回调地址。'
+                    )}\n\n${getDropboxRedirectUri()}`
+                );
+            } else {
+                Alert.alert(localize('Connection failed', '连接失败'), message);
+            }
+        } finally {
+            setDropboxBusy(false);
+        }
+    };
+
+    const handleDisconnectDropbox = async () => {
+        if (!dropboxConfigured) {
+            setDropboxConnected(false);
+            return;
+        }
+        setDropboxBusy(true);
+        try {
+            await disconnectDropbox(dropboxAppKey);
+            setDropboxConnected(false);
+            resetSyncStatusForBackendSwitch();
+            Alert.alert(localize('Disconnected', '已断开'), localize('Dropbox connection removed.', '已移除 Dropbox 连接。'));
+        } catch (error) {
+            logSettingsError(error);
+            Alert.alert(localize('Disconnect failed', '断开失败'), formatError(error));
+        } finally {
+            setDropboxBusy(false);
+        }
+    };
+
+    const handleTestDropboxConnection = async () => {
+        if (!dropboxConfigured) {
+            Alert.alert(
+                localize('Dropbox unavailable', 'Dropbox 不可用'),
+                localize('Dropbox app key is not configured in this build.', '当前构建未配置 Dropbox App Key。')
+            );
+            return;
+        }
+        setIsTestingConnection(true);
+        try {
+            await runDropboxConnectionTest();
+            setDropboxConnected(true);
+            Alert.alert(
+                localize('Connection OK', '连接成功'),
+                localize('Dropbox account is reachable.', 'Dropbox 账号可访问。')
+            );
+        } catch (error) {
+            logSettingsWarn('Dropbox connection test failed', error);
+            if (isDropboxUnauthorizedError(error)) {
+                setDropboxConnected(false);
+                Alert.alert(
+                    localize('Connection failed', '连接失败'),
+                    localize(
+                        'Dropbox token is invalid or revoked. Please tap Connect Dropbox to re-authorize.',
+                        'Dropbox 令牌无效或已失效。请点击“连接 Dropbox”重新授权。'
+                    )
+                );
+            } else {
+                Alert.alert(localize('Connection failed', '连接失败'), formatError(error));
+            }
+        } finally {
+            setIsTestingConnection(false);
+        }
+    };
+
     // Sync from stored path
     const handleSync = async () => {
         setIsSyncing(true);
@@ -1517,25 +1684,48 @@ export default function SettingsPage() {
                     [WEBDAV_PASSWORD_KEY, webdavPassword],
                 ]);
             } else if (syncBackend === 'cloud') {
-                if (!cloudUrl.trim()) {
-                    Alert.alert(
-                        localize('Notice', '提示'),
-                        localize('Please set a self-hosted URL first', '请先设置自托管地址')
-                    );
-                    return;
+                if (cloudProvider === 'dropbox') {
+                    if (!dropboxConfigured) {
+                        Alert.alert(
+                            localize('Dropbox unavailable', 'Dropbox 不可用'),
+                            localize('Dropbox app key is not configured in this build.', '当前构建未配置 Dropbox App Key。')
+                        );
+                        return;
+                    }
+                    const connected = await isDropboxConnected();
+                    if (!connected) {
+                        Alert.alert(
+                            localize('Notice', '提示'),
+                            localize('Please connect Dropbox first.', '请先连接 Dropbox。')
+                        );
+                        return;
+                    }
+                    await AsyncStorage.multiSet([
+                        [SYNC_BACKEND_KEY, 'cloud'],
+                        [CLOUD_PROVIDER_KEY, 'dropbox'],
+                    ]);
+                } else {
+                    if (!cloudUrl.trim()) {
+                        Alert.alert(
+                            localize('Notice', '提示'),
+                            localize('Please set a self-hosted URL first', '请先设置自托管地址')
+                        );
+                        return;
+                    }
+                    if (cloudUrlError) {
+                        Alert.alert(
+                            localize('Invalid URL', '地址无效'),
+                            localize('Please enter a valid self-hosted URL (http/https).', '请输入有效的自托管地址（http/https）。')
+                        );
+                        return;
+                    }
+                    await AsyncStorage.multiSet([
+                        [SYNC_BACKEND_KEY, 'cloud'],
+                        [CLOUD_PROVIDER_KEY, 'selfhosted'],
+                        [CLOUD_URL_KEY, cloudUrl.trim()],
+                        [CLOUD_TOKEN_KEY, cloudToken],
+                    ]);
                 }
-                if (cloudUrlError) {
-                    Alert.alert(
-                        localize('Invalid URL', '地址无效'),
-                        localize('Please enter a valid self-hosted URL (http/https).', '请输入有效的自托管地址（http/https）。')
-                    );
-                    return;
-                }
-                await AsyncStorage.multiSet([
-                    [SYNC_BACKEND_KEY, 'cloud'],
-                    [CLOUD_URL_KEY, cloudUrl.trim()],
-                    [CLOUD_TOKEN_KEY, cloudToken],
-                ]);
             } else {
                 if (!syncPath) {
                     Alert.alert(
@@ -1602,6 +1792,16 @@ export default function SettingsPage() {
                 return;
             }
 
+            if (cloudProvider === 'dropbox') {
+                await runDropboxConnectionTest();
+                setDropboxConnected(true);
+                Alert.alert(
+                    localize('Connection OK', '连接成功'),
+                    localize('Dropbox account is reachable.', 'Dropbox 账号可访问。')
+                );
+                return;
+            }
+
             if (!cloudUrl.trim() || cloudUrlError) {
                 Alert.alert(
                     localize('Invalid URL', '地址无效'),
@@ -1619,9 +1819,17 @@ export default function SettingsPage() {
             );
         } catch (error) {
             logSettingsWarn('Sync connection test failed', error);
+            if (cloudProvider === 'dropbox' && isDropboxUnauthorizedError(error)) {
+                setDropboxConnected(false);
+            }
             Alert.alert(
                 localize('Connection failed', '连接失败'),
-                formatError(error)
+                cloudProvider === 'dropbox' && isDropboxUnauthorizedError(error)
+                    ? localize(
+                        'Dropbox token is invalid or revoked. Please tap Connect Dropbox to re-authorize.',
+                        'Dropbox 令牌无效或已失效。请点击“连接 Dropbox”重新授权。'
+                    )
+                    : formatError(error)
             );
         } finally {
             setIsTestingConnection(false);
@@ -4322,110 +4530,255 @@ export default function SettingsPage() {
                                 {t('settings.syncBackendCloud')}
                             </Text>
                             <View style={[styles.settingCard, { backgroundColor: tc.cardBg }]}>
-                                <View style={styles.inputGroup}>
-                                    <Text style={[styles.settingLabel, { color: tc.text }]}>{t('settings.cloudUrl')}</Text>
-                                    <TextInput
-                                        value={cloudUrl}
-                                        onChangeText={setCloudUrl}
-                                        placeholder="https://example.com/v1"
-                                        placeholderTextColor={tc.secondaryText}
-                                        autoCapitalize="none"
-                                        autoCorrect={false}
-                                        style={[styles.textInput, { backgroundColor: tc.inputBg, borderColor: tc.border, color: tc.text }]}
-                                    />
-                                    <Text style={[styles.settingDescription, { color: tc.secondaryText }]}>
-                                        {t('settings.cloudHint')}
+                                <View style={[styles.settingRowColumn]}>
+                                    <Text style={[styles.settingLabel, { color: tc.text }]}>
+                                        {localize('Cloud provider', '云端提供方')}
                                     </Text>
-                                    <Text style={[styles.settingDescription, { color: tc.secondaryText }]}>
-                                        {localize('Use the base URL — Mindwtr will append /data.', '填写基础地址，Mindwtr 会自动加上 /data。')}
-                                    </Text>
-                                    {cloudUrlError && (
-                                        <Text style={[styles.settingDescription, { color: '#EF4444' }]}>
-                                            {localize('Invalid URL. Use http/https.', '地址无效，请使用 http/https。')}
-                                        </Text>
-                                    )}
+                                    <View style={[styles.backendToggle, { marginTop: 8, width: '100%' }]}>
+                                        <TouchableOpacity
+                                            style={[
+                                                styles.backendOption,
+                                                {
+                                                    borderColor: tc.border,
+                                                    backgroundColor: cloudProvider === 'selfhosted' ? tc.filterBg : 'transparent',
+                                                },
+                                            ]}
+                                            onPress={() => {
+                                                setCloudProvider('selfhosted');
+                                                AsyncStorage.setItem(CLOUD_PROVIDER_KEY, 'selfhosted').catch(logSettingsError);
+                                                resetSyncStatusForBackendSwitch();
+                                            }}
+                                        >
+                                            <Text style={[styles.backendOptionText, { color: cloudProvider === 'selfhosted' ? tc.tint : tc.secondaryText }]}>
+                                                {localize('Self-hosted', '自托管')}
+                                            </Text>
+                                        </TouchableOpacity>
+                                        <TouchableOpacity
+                                            style={[
+                                                styles.backendOption,
+                                                {
+                                                    borderColor: tc.border,
+                                                    backgroundColor: cloudProvider === 'dropbox' ? tc.filterBg : 'transparent',
+                                                },
+                                            ]}
+                                            onPress={() => {
+                                                setCloudProvider('dropbox');
+                                                AsyncStorage.setItem(CLOUD_PROVIDER_KEY, 'dropbox').catch(logSettingsError);
+                                                resetSyncStatusForBackendSwitch();
+                                            }}
+                                        >
+                                            <Text style={[styles.backendOptionText, { color: cloudProvider === 'dropbox' ? tc.tint : tc.secondaryText }]}>
+                                                Dropbox
+                                            </Text>
+                                        </TouchableOpacity>
+                                    </View>
                                 </View>
+                            </View>
 
-                                <View style={[styles.inputGroup, { borderTopWidth: 1, borderTopColor: tc.border }]}>
-                                    <Text style={[styles.settingLabel, { color: tc.text }]}>{t('settings.cloudToken')}</Text>
-                                    <TextInput
-                                        value={cloudToken}
-                                        onChangeText={setCloudToken}
-                                        placeholder="••••••••"
-                                        placeholderTextColor={tc.secondaryText}
-                                        autoCapitalize="none"
-                                        autoCorrect={false}
-                                        secureTextEntry
-                                        style={[styles.textInput, { backgroundColor: tc.inputBg, borderColor: tc.border, color: tc.text }]}
-                                    />
+                            {cloudProvider === 'selfhosted' ? (
+                                <View style={[styles.settingCard, { backgroundColor: tc.cardBg, marginTop: 12 }]}>
+                                    <View style={styles.inputGroup}>
+                                        <Text style={[styles.settingLabel, { color: tc.text }]}>{t('settings.cloudUrl')}</Text>
+                                        <TextInput
+                                            value={cloudUrl}
+                                            onChangeText={setCloudUrl}
+                                            placeholder="https://example.com/v1"
+                                            placeholderTextColor={tc.secondaryText}
+                                            autoCapitalize="none"
+                                            autoCorrect={false}
+                                            style={[styles.textInput, { backgroundColor: tc.inputBg, borderColor: tc.border, color: tc.text }]}
+                                        />
+                                        <Text style={[styles.settingDescription, { color: tc.secondaryText }]}>
+                                            {t('settings.cloudHint')}
+                                        </Text>
+                                        <Text style={[styles.settingDescription, { color: tc.secondaryText }]}>
+                                            {localize('Use the base URL — Mindwtr will append /data.', '填写基础地址，Mindwtr 会自动加上 /data。')}
+                                        </Text>
+                                        {cloudUrlError && (
+                                            <Text style={[styles.settingDescription, { color: '#EF4444' }]}>
+                                                {localize('Invalid URL. Use http/https.', '地址无效，请使用 http/https。')}
+                                            </Text>
+                                        )}
+                                    </View>
+
+                                    <View style={[styles.inputGroup, { borderTopWidth: 1, borderTopColor: tc.border }]}>
+                                        <Text style={[styles.settingLabel, { color: tc.text }]}>{t('settings.cloudToken')}</Text>
+                                        <TextInput
+                                            value={cloudToken}
+                                            onChangeText={setCloudToken}
+                                            placeholder="••••••••"
+                                            placeholderTextColor={tc.secondaryText}
+                                            autoCapitalize="none"
+                                            autoCorrect={false}
+                                            secureTextEntry
+                                            style={[styles.textInput, { backgroundColor: tc.inputBg, borderColor: tc.border, color: tc.text }]}
+                                        />
+                                    </View>
+
+                                    <TouchableOpacity
+                                        style={[styles.settingRow, { borderTopWidth: 1, borderTopColor: tc.border }]}
+                                        onPress={() => {
+                                            if (cloudUrlError || !cloudUrl.trim()) {
+                                                Alert.alert(
+                                                    localize('Invalid URL', '地址无效'),
+                                                    localize('Please enter a valid self-hosted URL (http/https).', '请输入有效的自托管地址（http/https）。')
+                                                );
+                                                return;
+                                            }
+                                            AsyncStorage.multiSet([
+                                                [SYNC_BACKEND_KEY, 'cloud'],
+                                                [CLOUD_PROVIDER_KEY, 'selfhosted'],
+                                                [CLOUD_URL_KEY, cloudUrl.trim()],
+                                                [CLOUD_TOKEN_KEY, cloudToken],
+                                            ]).then(() => {
+                                                resetSyncStatusForBackendSwitch();
+                                                Alert.alert(localize('Success', '成功'), t('settings.cloudSave'));
+                                            }).catch(logSettingsError);
+                                        }}
+                                        disabled={cloudUrlError || !cloudUrl.trim()}
+                                    >
+                                        <View style={styles.settingInfo}>
+                                            <Text style={[styles.settingLabel, { color: cloudUrlError || !cloudUrl.trim() ? tc.secondaryText : tc.tint }]}>
+                                                {t('settings.cloudSave')}
+                                            </Text>
+                                            <Text style={[styles.settingDescription, { color: tc.secondaryText }]}>
+                                                {t('settings.cloudUrl')}
+                                            </Text>
+                                        </View>
+                                    </TouchableOpacity>
+
+                                    <TouchableOpacity
+                                        style={[styles.settingRow, { borderTopWidth: 1, borderTopColor: tc.border }]}
+                                        onPress={handleSync}
+                                        disabled={isSyncing || !cloudUrl.trim() || cloudUrlError}
+                                    >
+                                        <View style={styles.settingInfo}>
+                                            <Text style={[styles.settingLabel, { color: cloudUrl.trim() && !cloudUrlError ? tc.tint : tc.secondaryText }]}>
+                                                {localize('Sync', '同步')}
+                                            </Text>
+                                            <Text style={[styles.settingDescription, { color: tc.secondaryText }]}>
+                                                {language === 'zh' ? '读取并合并自托管数据' : translateText('Read and merge self-hosted data', language)}
+                                            </Text>
+                                        </View>
+                                        {isSyncing && <ActivityIndicator size="small" color={tc.tint} />}
+                                    </TouchableOpacity>
+
+                                    <TouchableOpacity
+                                        style={[styles.settingRow, { borderTopWidth: 1, borderTopColor: tc.border }]}
+                                        onPress={() => handleTestConnection('cloud')}
+                                        disabled={isSyncing || isTestingConnection || !cloudUrl.trim() || cloudUrlError}
+                                        accessibilityRole="button"
+                                        accessibilityLabel={localize('Test self-hosted connection', '测试自托管连接')}
+                                    >
+                                        <View style={styles.settingInfo}>
+                                            <Text style={[styles.settingLabel, { color: cloudUrl.trim() && !cloudUrlError ? tc.tint : tc.secondaryText }]}>
+                                                {localize('Test connection', '测试连接')}
+                                            </Text>
+                                            <Text style={[styles.settingDescription, { color: tc.secondaryText }]}>
+                                                {localize('Verify URL and token without syncing data', '仅验证地址和令牌，不执行数据同步')}
+                                            </Text>
+                                        </View>
+                                        {isTestingConnection && <ActivityIndicator size="small" color={tc.tint} />}
+                                    </TouchableOpacity>
                                 </View>
-
-                                <TouchableOpacity
-                                    style={[styles.settingRow, { borderTopWidth: 1, borderTopColor: tc.border }]}
-                                    onPress={() => {
-                                        if (cloudUrlError || !cloudUrl.trim()) {
-                                            Alert.alert(
-                                                localize('Invalid URL', '地址无效'),
-                                                localize('Please enter a valid self-hosted URL (http/https).', '请输入有效的自托管地址（http/https）。')
-                                            );
-                                            return;
-                                        }
-                                        AsyncStorage.multiSet([
-                                            [SYNC_BACKEND_KEY, 'cloud'],
-                                            [CLOUD_URL_KEY, cloudUrl.trim()],
-                                            [CLOUD_TOKEN_KEY, cloudToken],
-                                        ]).then(() => {
-                                            resetSyncStatusForBackendSwitch();
-                                            Alert.alert(localize('Success', '成功'), t('settings.cloudSave'));
-                                        }).catch(logSettingsError);
-                                    }}
-                                    disabled={cloudUrlError || !cloudUrl.trim()}
-                                >
-                                    <View style={styles.settingInfo}>
-                                        <Text style={[styles.settingLabel, { color: cloudUrlError || !cloudUrl.trim() ? tc.secondaryText : tc.tint }]}>
-                                            {t('settings.cloudSave')}
+                            ) : (
+                                <View style={[styles.settingCard, { backgroundColor: tc.cardBg, marginTop: 12 }]}>
+                                    <View style={styles.settingRowColumn}>
+                                        <Text style={[styles.settingLabel, { color: tc.text }]}>
+                                            {localize('Dropbox account', 'Dropbox 账号')}
                                         </Text>
-                                        <Text style={[styles.settingDescription, { color: tc.secondaryText }]}>
-                                            {t('settings.cloudUrl')}
+                                        <Text style={[styles.settingDescription, { color: tc.secondaryText, marginTop: 6 }]}>
+                                            {localize(
+                                                'OAuth with Dropbox App Folder access. Mindwtr syncs /Apps/Mindwtr/data.json and /Apps/Mindwtr/attachments/* in your Dropbox.',
+                                                '使用 Dropbox OAuth（应用文件夹权限）。Mindwtr 会同步 Dropbox 中 /Apps/Mindwtr/data.json 与 /Apps/Mindwtr/attachments/*。'
+                                            )}
                                         </Text>
-                                    </View>
-                                </TouchableOpacity>
-
-                                <TouchableOpacity
-                                    style={[styles.settingRow, { borderTopWidth: 1, borderTopColor: tc.border }]}
-                                    onPress={handleSync}
-                                    disabled={isSyncing || !cloudUrl.trim() || cloudUrlError}
-                                >
-                                    <View style={styles.settingInfo}>
-                                        <Text style={[styles.settingLabel, { color: cloudUrl.trim() && !cloudUrlError ? tc.tint : tc.secondaryText }]}>
-                                            {localize('Sync', '同步')}
+                                        <Text style={[styles.settingDescription, { color: tc.secondaryText, marginTop: 6 }]}>
+                                            {localize('Redirect URI', '回调地址')}: {getDropboxRedirectUri()}
                                         </Text>
-                                        <Text style={[styles.settingDescription, { color: tc.secondaryText }]}>
-                                            {language === 'zh' ? '读取并合并自托管数据' : translateText('Read and merge self-hosted data', language)}
+                                        {!dropboxConfigured && (
+                                            <Text style={[styles.settingDescription, { color: '#EF4444', marginTop: 8 }]}>
+                                                {localize('Dropbox app key is not configured for this build.', '当前构建未配置 Dropbox App Key。')}
+                                            </Text>
+                                        )}
+                                        {isExpoGo && (
+                                            <Text style={[styles.settingDescription, { color: '#EF4444', marginTop: 8 }]}>
+                                                {localize(
+                                                    'Expo Go is not supported for Dropbox OAuth. Use a development/release build.',
+                                                    'Expo Go 不支持 Dropbox OAuth。请使用开发版或正式版应用。'
+                                                )}
+                                            </Text>
+                                        )}
+                                        <Text style={[styles.settingDescription, { color: tc.secondaryText, marginTop: 8 }]}>
+                                            {dropboxConnected
+                                                ? localize('Status: Connected', '状态：已连接')
+                                                : localize('Status: Not connected', '状态：未连接')}
                                         </Text>
                                     </View>
-                                    {isSyncing && <ActivityIndicator size="small" color={tc.tint} />}
-                                </TouchableOpacity>
 
-                                <TouchableOpacity
-                                    style={[styles.settingRow, { borderTopWidth: 1, borderTopColor: tc.border }]}
-                                    onPress={() => handleTestConnection('cloud')}
-                                    disabled={isSyncing || isTestingConnection || !cloudUrl.trim() || cloudUrlError}
-                                    accessibilityRole="button"
-                                    accessibilityLabel={localize('Test self-hosted connection', '测试自托管连接')}
-                                >
-                                    <View style={styles.settingInfo}>
-                                        <Text style={[styles.settingLabel, { color: cloudUrl.trim() && !cloudUrlError ? tc.tint : tc.secondaryText }]}>
-                                            {localize('Test connection', '测试连接')}
-                                        </Text>
-                                        <Text style={[styles.settingDescription, { color: tc.secondaryText }]}>
-                                            {localize('Verify URL and token without syncing data', '仅验证地址和令牌，不执行数据同步')}
-                                        </Text>
-                                    </View>
-                                    {isTestingConnection && <ActivityIndicator size="small" color={tc.tint} />}
-                                </TouchableOpacity>
+                                    <TouchableOpacity
+                                        style={[styles.settingRow, { borderTopWidth: 1, borderTopColor: tc.border }]}
+                                        onPress={dropboxConnected ? handleDisconnectDropbox : handleConnectDropbox}
+                                        disabled={dropboxBusy || !dropboxConfigured || isExpoGo}
+                                    >
+                                        <View style={styles.settingInfo}>
+                                            <Text style={[styles.settingLabel, { color: dropboxConfigured && !isExpoGo ? tc.tint : tc.secondaryText }]}>
+                                                {dropboxConnected
+                                                    ? localize('Disconnect Dropbox', '断开 Dropbox')
+                                                    : localize('Connect Dropbox', '连接 Dropbox')}
+                                            </Text>
+                                            <Text style={[styles.settingDescription, { color: tc.secondaryText }]}>
+                                                {isExpoGo
+                                                    ? localize(
+                                                        'Requires development/release build (Expo Go unsupported).',
+                                                        '需要开发版/正式版应用（Expo Go 不支持）。'
+                                                    )
+                                                    : dropboxConnected
+                                                    ? localize('Revoke app token and remove local auth.', '撤销应用令牌并移除本地授权。')
+                                                    : localize('Open Dropbox OAuth sign-in in browser.', '在浏览器中打开 Dropbox OAuth 登录。')}
+                                            </Text>
+                                        </View>
+                                        {dropboxBusy && <ActivityIndicator size="small" color={tc.tint} />}
+                                    </TouchableOpacity>
 
-                                <View style={[styles.settingRow, { borderTopWidth: 1, borderTopColor: tc.border }]}>
+                                    <TouchableOpacity
+                                        style={[styles.settingRow, { borderTopWidth: 1, borderTopColor: tc.border }]}
+                                        onPress={handleTestDropboxConnection}
+                                        disabled={isTestingConnection || !dropboxConfigured || !dropboxConnected}
+                                        accessibilityRole="button"
+                                        accessibilityLabel={localize('Test Dropbox connection', '测试 Dropbox 连接')}
+                                    >
+                                        <View style={styles.settingInfo}>
+                                            <Text style={[styles.settingLabel, { color: dropboxConnected ? tc.tint : tc.secondaryText }]}>
+                                                {localize('Test connection', '测试连接')}
+                                            </Text>
+                                            <Text style={[styles.settingDescription, { color: tc.secondaryText }]}>
+                                                {localize('Verify Dropbox token and account access.', '验证 Dropbox 令牌与账号访问。')}
+                                            </Text>
+                                        </View>
+                                        {isTestingConnection && <ActivityIndicator size="small" color={tc.tint} />}
+                                    </TouchableOpacity>
+
+                                    <TouchableOpacity
+                                        style={[styles.settingRow, { borderTopWidth: 1, borderTopColor: tc.border }]}
+                                        onPress={handleSync}
+                                        disabled={isSyncing || !dropboxConfigured || !dropboxConnected}
+                                    >
+                                        <View style={styles.settingInfo}>
+                                            <Text style={[styles.settingLabel, { color: dropboxConnected ? tc.tint : tc.secondaryText }]}>
+                                                {localize('Sync', '同步')}
+                                            </Text>
+                                            <Text style={[styles.settingDescription, { color: tc.secondaryText }]}>
+                                                {localize('Read and merge Dropbox data.', '读取并合并 Dropbox 数据。')}
+                                            </Text>
+                                        </View>
+                                        {isSyncing && <ActivityIndicator size="small" color={tc.tint} />}
+                                    </TouchableOpacity>
+                                </View>
+                            )}
+
+                            <View style={[styles.settingCard, { backgroundColor: tc.cardBg, marginTop: 12 }]}>
+                                <View style={styles.settingRow}>
                                     <View style={styles.settingInfo}>
                                         <Text style={[styles.settingLabel, { color: tc.text }]}>
                                             {localize('Last Sync', '上次同步')}

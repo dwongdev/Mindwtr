@@ -1,11 +1,20 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform } from 'react-native';
+import Constants from 'expo-constants';
 import { AppData, Attachment, MergeStats, useTaskStore, webdavGetJson, webdavPutJson, cloudGetJson, cloudPutJson, flushPendingSave, performSyncCycle, findOrphanedAttachments, removeOrphanedAttachmentsFromData, webdavDeleteFile, cloudDeleteFile, CLOCK_SKEW_THRESHOLD_MS, appendSyncHistory, withRetry, normalizeWebdavUrl, normalizeCloudUrl, sanitizeAppDataForRemote, areSyncPayloadsEqual, assertNoPendingAttachmentUploads, injectExternalCalendars as injectExternalCalendarsForSync, persistExternalCalendars as persistExternalCalendarsForSync, mergeAppData, cloneAppData, LocalSyncAbort, getInMemoryAppDataSnapshot, shouldRunAttachmentCleanup } from '@mindwtr/core';
 import { mobileStorage } from './storage-adapter';
 import { logInfo, logSyncError, logWarn, sanitizeLogMessage } from './app-log';
 import { readSyncFile, resolveSyncFileUri, writeSyncFile } from './storage-file';
-import { getBaseSyncUrl, getCloudBaseUrl, syncCloudAttachments, syncFileAttachments, syncWebdavAttachments, cleanupAttachmentTempFiles } from './attachment-sync';
+import { getBaseSyncUrl, getCloudBaseUrl, syncCloudAttachments, syncDropboxAttachments, syncFileAttachments, syncWebdavAttachments, cleanupAttachmentTempFiles } from './attachment-sync';
 import { getExternalCalendars, saveExternalCalendars } from './external-calendar';
+import { forceRefreshDropboxAccessToken, getValidDropboxAccessToken } from './dropbox-auth';
+import {
+  DropboxConflictError,
+  DropboxUnauthorizedError,
+  deleteDropboxFile,
+  downloadDropboxAppData,
+  uploadDropboxAppData,
+} from './dropbox-sync';
 import * as FileSystem from 'expo-file-system/legacy';
 import * as Network from 'expo-network';
 import { formatSyncErrorMessage, getFileSyncBaseDir, isSyncFilePath, normalizeFileSyncPath, resolveBackend, type SyncBackend } from './sync-service-utils';
@@ -17,6 +26,8 @@ import {
   WEBDAV_PASSWORD_KEY,
   CLOUD_URL_KEY,
   CLOUD_TOKEN_KEY,
+  CLOUD_PROVIDER_KEY,
+  DROPBOX_LAST_REV_KEY,
 } from './sync-constants';
 
 const DEFAULT_SYNC_TIMEOUT_MS = 30_000;
@@ -28,6 +39,9 @@ const SYNC_FILE_NAME = 'data.json';
 const syncConfigCache = new Map<string, { value: string | null; readAt: number }>();
 const IOS_TEMP_INBOX_PATH_PATTERN = /\/tmp\/[^/]*-Inbox\//i;
 const INVALID_CONFIG_CHAR_PATTERN = /[\u0000-\u001F\u007F]/;
+const CLOUD_PROVIDER_SELF_HOSTED = 'selfhosted';
+const CLOUD_PROVIDER_DROPBOX = 'dropbox';
+type CloudProvider = typeof CLOUD_PROVIDER_SELF_HOSTED | typeof CLOUD_PROVIDER_DROPBOX;
 
 const decodeUriSafe = (value: string): string => {
   try {
@@ -51,6 +65,24 @@ const sanitizeConfigValue = (value: unknown): string | null => {
   if (!value) return null;
   if (INVALID_CONFIG_CHAR_PATTERN.test(value)) return null;
   return value;
+};
+
+const normalizeCloudProvider = (value: string | null): CloudProvider => (
+  value === CLOUD_PROVIDER_DROPBOX ? CLOUD_PROVIDER_DROPBOX : CLOUD_PROVIDER_SELF_HOSTED
+);
+
+const getDropboxAppKey = (): string => {
+  const extra = Constants.expoConfig?.extra as { dropboxAppKey?: unknown } | undefined;
+  return typeof extra?.dropboxAppKey === 'string' ? extra.dropboxAppKey.trim() : '';
+};
+
+const isDropboxUnauthorizedError = (error: unknown): boolean => {
+  if (error instanceof DropboxUnauthorizedError) return true;
+  const message = sanitizeLogMessage(error instanceof Error ? error.message : String(error)).toLowerCase();
+  return message.includes('http 401')
+    || message.includes('invalid_access_token')
+    || message.includes('expired_access_token')
+    || message.includes('unauthorized');
 };
 
 const externalCalendarProvider = {
@@ -227,6 +259,9 @@ export async function performMobileSync(syncPathOverride?: string): Promise<{ su
       }
       let webdavConfig: { url: string; username: string; password: string } | null = null;
       let cloudConfig: { url: string; token: string } | null = null;
+      let cloudProvider: CloudProvider = CLOUD_PROVIDER_SELF_HOSTED;
+      let dropboxClientId = '';
+      let dropboxLastRev: string | null = null;
       let fileSyncPath: string | null = null;
       let preSyncedLocalData: AppData | null = null;
       let remoteDataForCompare: AppData | null = null;
@@ -275,12 +310,34 @@ export async function performMobileSync(syncPathOverride?: string): Promise<{ su
         webdavConfig = { url: syncUrl, username, password };
       }
       if (backend === 'cloud') {
-        const url = (await getCachedConfigValue(CLOUD_URL_KEY))?.trim() ?? null;
-        if (!url) throw new Error('Self-hosted URL not configured');
-        syncUrl = normalizeCloudUrl(url);
-        const token = (await getCachedConfigValue(CLOUD_TOKEN_KEY))?.trim() ?? '';
-        cloudConfig = { url: syncUrl, token };
+        cloudProvider = normalizeCloudProvider((await getCachedConfigValue(CLOUD_PROVIDER_KEY))?.trim() ?? null);
+        if (cloudProvider === CLOUD_PROVIDER_DROPBOX) {
+          dropboxClientId = getDropboxAppKey();
+          if (!dropboxClientId) {
+            throw new Error('Dropbox app key is not configured');
+          }
+          dropboxLastRev = (await getCachedConfigValue(DROPBOX_LAST_REV_KEY))?.trim() ?? null;
+          syncUrl = 'dropbox://Apps/Mindwtr/data.json';
+        } else {
+          const url = (await getCachedConfigValue(CLOUD_URL_KEY))?.trim() ?? null;
+          if (!url) throw new Error('Self-hosted URL not configured');
+          syncUrl = normalizeCloudUrl(url);
+          const token = (await getCachedConfigValue(CLOUD_TOKEN_KEY))?.trim() ?? '';
+          cloudConfig = { url: syncUrl, token };
+        }
       }
+      const runDropboxOperation = async <T,>(
+        operation: (accessToken: string) => Promise<T>
+      ): Promise<T> => {
+        let accessToken = await getValidDropboxAccessToken(dropboxClientId, fetchWithAbort);
+        try {
+          return await operation(accessToken);
+        } catch (error) {
+          if (!isDropboxUnauthorizedError(error)) throw error;
+          accessToken = await forceRefreshDropboxAccessToken(dropboxClientId, fetchWithAbort);
+          return operation(accessToken);
+        }
+      };
 
       // Pre-sync local attachments so cloudKeys exist before writing remote data.
       step = 'attachments_prepare';
@@ -292,9 +349,11 @@ export async function performMobileSync(syncPathOverride?: string): Promise<{ su
         if (backend === 'webdav' && webdavConfig?.url) {
           const baseSyncUrl = getBaseSyncUrl(webdavConfig.url);
           preMutated = await syncWebdavAttachments(localData, webdavConfig, baseSyncUrl);
-        } else if (backend === 'cloud' && cloudConfig?.url) {
+        } else if (backend === 'cloud' && cloudProvider === CLOUD_PROVIDER_SELF_HOSTED && cloudConfig?.url) {
           const baseSyncUrl = getCloudBaseUrl(cloudConfig.url);
           preMutated = await syncCloudAttachments(localData, cloudConfig, baseSyncUrl);
+        } else if (backend === 'cloud' && cloudProvider === CLOUD_PROVIDER_DROPBOX) {
+          preMutated = await syncDropboxAttachments(localData, dropboxClientId, fetchWithAbort);
         } else if (backend === 'file' && fileSyncPath) {
           preMutated = await syncFileAttachments(localData, fileSyncPath);
         }
@@ -344,6 +403,21 @@ export async function performMobileSync(syncPathOverride?: string): Promise<{ su
             remoteDataForCompare = data ?? null;
             return data;
           }
+          if (backend === 'cloud' && cloudProvider === CLOUD_PROVIDER_DROPBOX) {
+            const { data, rev } = await runDropboxOperation((accessToken) =>
+              downloadDropboxAppData(accessToken, fetchWithAbort)
+            );
+            dropboxLastRev = rev;
+            if (rev) {
+              await AsyncStorage.setItem(DROPBOX_LAST_REV_KEY, rev);
+              syncConfigCache.set(DROPBOX_LAST_REV_KEY, { value: rev, readAt: Date.now() });
+            } else {
+              await AsyncStorage.removeItem(DROPBOX_LAST_REV_KEY);
+              syncConfigCache.set(DROPBOX_LAST_REV_KEY, { value: null, readAt: Date.now() });
+            }
+            remoteDataForCompare = data ?? null;
+            return data;
+          }
           if (!fileSyncPath) {
             throw new Error('No sync folder configured');
           }
@@ -383,6 +457,30 @@ export async function performMobileSync(syncPathOverride?: string): Promise<{ su
             return;
           }
           if (backend === 'cloud') {
+            if (cloudProvider === CLOUD_PROVIDER_DROPBOX) {
+              try {
+                const result = await runDropboxOperation((accessToken) =>
+                  uploadDropboxAppData(accessToken, sanitized, dropboxLastRev, fetchWithAbort)
+                );
+                dropboxLastRev = result.rev;
+                if (result.rev) {
+                  await AsyncStorage.setItem(DROPBOX_LAST_REV_KEY, result.rev);
+                  syncConfigCache.set(DROPBOX_LAST_REV_KEY, { value: result.rev, readAt: Date.now() });
+                } else {
+                  await AsyncStorage.removeItem(DROPBOX_LAST_REV_KEY);
+                  syncConfigCache.set(DROPBOX_LAST_REV_KEY, { value: null, readAt: Date.now() });
+                }
+                remoteDataForCompare = sanitized;
+                return;
+              } catch (error) {
+                if (error instanceof DropboxConflictError) {
+                  // Another device wrote between readRemote and writeRemote; retry next cycle.
+                  syncQueued = true;
+                  throw new LocalSyncAbort();
+                }
+                throw error;
+              }
+            }
             if (!cloudConfig?.url) throw new Error('Self-hosted URL not configured');
             await cloudPutJson(cloudConfig.url, sanitized, {
               token: cloudConfig.token,
@@ -470,7 +568,7 @@ export async function performMobileSync(syncPathOverride?: string): Promise<{ su
         );
       }
 
-      if (backend === 'cloud' && cloudConfigValue?.url) {
+      if (backend === 'cloud' && cloudProvider === CLOUD_PROVIDER_SELF_HOSTED && cloudConfigValue?.url) {
         step = 'attachments';
         logSyncInfo('Sync step', { step });
         ensureLocalSnapshotFresh();
@@ -478,6 +576,16 @@ export async function performMobileSync(syncPathOverride?: string): Promise<{ su
         const baseSyncUrl = getCloudBaseUrl(cloudConfigValue.url);
         await applyAttachmentSyncMutation((candidateData) =>
           syncCloudAttachments(candidateData, cloudConfigValue, baseSyncUrl)
+        );
+      }
+
+      if (backend === 'cloud' && cloudProvider === CLOUD_PROVIDER_DROPBOX) {
+        step = 'attachments';
+        logSyncInfo('Sync step', { step });
+        ensureLocalSnapshotFresh();
+        await ensureNetworkStillAvailable();
+        await applyAttachmentSyncMutation((candidateData) =>
+          syncDropboxAttachments(candidateData, dropboxClientId, fetchWithAbort)
         );
       }
 
@@ -505,7 +613,11 @@ export async function performMobileSync(syncPathOverride?: string): Promise<{ su
         if (cleanupTargets.size > 0) {
           const isFileBackend = backend === 'file';
           const isWebdavBackend = backend === 'webdav' && webdavConfigValue?.url;
-          const isCloudBackend = backend === 'cloud' && cloudConfigValue?.url;
+          const isCloudBackend = backend === 'cloud'
+            && cloudProvider === CLOUD_PROVIDER_SELF_HOSTED
+            && cloudConfigValue?.url;
+          const isDropboxBackend = backend === 'cloud'
+            && cloudProvider === CLOUD_PROVIDER_DROPBOX;
           const fileBaseDir = isFileBackend && fileSyncPath && !fileSyncPath.startsWith('content://')
             ? getFileSyncBaseDir(fileSyncPath)
             : null;
@@ -536,6 +648,10 @@ export async function performMobileSync(syncPathOverride?: string): Promise<{ su
                     timeoutMs: DEFAULT_SYNC_TIMEOUT_MS,
                     fetcher: fetchWithAbort,
                   });
+                } else if (isDropboxBackend) {
+                  await runDropboxOperation((accessToken) =>
+                    deleteDropboxFile(accessToken, attachment.cloudKey as string, fetchWithAbort)
+                  );
                 } else if (fileBaseDir) {
                   const targetPath = `${fileBaseDir}/${attachment.cloudKey}`;
                   await FileSystem.deleteAsync(targetPath, { idempotent: true });

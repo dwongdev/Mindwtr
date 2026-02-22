@@ -5,3 +5,5 @@ export const WEBDAV_USERNAME_KEY = '@mindwtr_webdav_username';
 export const WEBDAV_PASSWORD_KEY = '@mindwtr_webdav_password';
 export const CLOUD_URL_KEY = '@mindwtr_cloud_url';
 export const CLOUD_TOKEN_KEY = '@mindwtr_cloud_token';
+export const CLOUD_PROVIDER_KEY = '@mindwtr_cloud_provider';
+export const DROPBOX_LAST_REV_KEY = '@mindwtr_dropbox_last_rev';

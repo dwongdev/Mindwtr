@@ -26,6 +26,7 @@ vi.mock('./attachment-sync', () => ({
   getBaseSyncUrl: vi.fn(() => ''),
   getCloudBaseUrl: vi.fn(() => ''),
   syncCloudAttachments: vi.fn(async () => false),
+  syncDropboxAttachments: vi.fn(async () => false),
   syncFileAttachments: vi.fn(async () => false),
   syncWebdavAttachments: vi.fn(async () => false),
   cleanupAttachmentTempFiles: vi.fn(async () => undefined),
@@ -36,9 +37,32 @@ vi.mock('./external-calendar', () => ({
   saveExternalCalendars: vi.fn(async () => undefined),
 }));
 
+vi.mock('./dropbox-auth', () => ({
+  getValidDropboxAccessToken: vi.fn(async () => 'token'),
+  forceRefreshDropboxAccessToken: vi.fn(async () => 'token'),
+}));
+
+vi.mock('./dropbox-sync', () => ({
+  DropboxConflictError: class DropboxConflictError extends Error { },
+  DropboxUnauthorizedError: class DropboxUnauthorizedError extends Error { },
+  downloadDropboxAppData: vi.fn(async () => ({ data: null, rev: null })),
+  uploadDropboxAppData: vi.fn(async () => ({ rev: 'rev-1' })),
+  deleteDropboxFile: vi.fn(async () => undefined),
+}));
+
 vi.mock('expo-network', () => ({
   getNetworkStateAsync: vi.fn(async () => ({ isConnected: true, isInternetReachable: true })),
   addNetworkStateListener: vi.fn(() => ({ remove: vi.fn() })),
+}));
+
+vi.mock('expo-constants', () => ({
+  default: {
+    expoConfig: {
+      extra: {
+        dropboxAppKey: '',
+      },
+    },
+  },
 }));
 
 describe('mobile sync orchestration', () => {

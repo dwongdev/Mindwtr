@@ -350,7 +350,22 @@ For frequent multi-device edits, WebDAV is recommended over folder sync tools.
 If you use Syncthing, prefer `Send & Receive` + `Watch for Changes`, keep scan intervals short, and run **Sync** before switching devices.
 
 ### WebDAV / Cloud
-Mindwtr also supports WebDAV and self-hosted Cloud sync backends. Configure in **Settings → Data & Sync**.
+Mindwtr also supports WebDAV and Cloud sync backends in **Settings → Data & Sync**:
+- `Self-hosted` (existing `/data` endpoint + token)
+- `Dropbox` OAuth (App Folder)
+
+#### Dropbox OAuth setup
+1. Create a Dropbox app with **Scoped access** + **App folder**.
+2. Enable scopes: `files.content.read`, `files.content.write`, `files.metadata.read`.
+3. Add redirect URI: `mindwtr://redirect`.
+4. Set env var before starting Expo:
+   - `DROPBOX_APP_KEY=<your-dropbox-app-key>`
+5. Restart app and connect in **Settings → Data & Sync → Cloud → Dropbox**.
+6. Use a development/release build for OAuth. Expo Go is not supported for Dropbox OAuth redirects.
+
+Dropbox backend syncs:
+- `/Apps/Mindwtr/data.json`
+- `/Apps/Mindwtr/attachments/*` (file attachments)
 
 ## Troubleshooting
 
