@@ -207,7 +207,10 @@ function RootLayoutContent() {
     return syncCadenceRef.current;
   }, []);
 
-  const runSync = useCallback((minIntervalMs = syncCadenceRef.current.minIntervalMs) => {
+  const runSync = useCallback((minIntervalMs?: number) => {
+    const effectiveMinIntervalMs = typeof minIntervalMs === 'number'
+      ? minIntervalMs
+      : syncCadenceRef.current.minIntervalMs;
     if (!isActive.current) return;
     if (syncInFlight.current && appState.current !== 'active') {
       backgroundSyncPending.current = true;
@@ -218,9 +221,9 @@ function RootLayoutContent() {
       return;
     }
     const now = Date.now();
-    if (now - lastAutoSyncAt.current < minIntervalMs) {
+    if (now - lastAutoSyncAt.current < effectiveMinIntervalMs) {
       if (!syncThrottleTimer.current) {
-        const waitMs = Math.max(0, minIntervalMs - (now - lastAutoSyncAt.current));
+        const waitMs = Math.max(0, effectiveMinIntervalMs - (now - lastAutoSyncAt.current));
         syncThrottleTimer.current = setTimeout(() => {
           syncThrottleTimer.current = null;
           runSync(0);
