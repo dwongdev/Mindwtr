@@ -1,4 +1,4 @@
-import React, { useLayoutEffect, useRef } from 'react';
+import React, { useCallback, useLayoutEffect, useRef } from 'react';
 import type { Project, Task } from '@mindwtr/core';
 import { TaskItem } from '../../TaskItem';
 import { cn } from '../../../lib/utils';
@@ -37,6 +37,8 @@ export const VirtualTaskRow = React.memo(function VirtualTaskRow({
     dense = false,
 }: VirtualTaskRowProps) {
     const rowRef = useRef<HTMLDivElement | null>(null);
+    const handleSelect = useCallback(() => onSelectIndex(index), [index, onSelectIndex]);
+    const handleToggleSelect = useCallback(() => onToggleSelectId(task.id), [onToggleSelectId, task.id]);
 
     useLayoutEffect(() => {
         const node = rowRef.current;
@@ -56,10 +58,10 @@ export const VirtualTaskRow = React.memo(function VirtualTaskRow({
                     task={task}
                     project={project}
                     isSelected={isSelected}
-                    onSelect={() => onSelectIndex(index)}
+                    onSelect={handleSelect}
                     selectionMode={selectionMode}
                     isMultiSelected={isMultiSelected}
-                    onToggleSelect={() => onToggleSelectId(task.id)}
+                    onToggleSelect={handleToggleSelect}
                     showQuickDone={showQuickDone}
                     readOnly={readOnly}
                     compactMetaEnabled={compactMetaEnabled}
