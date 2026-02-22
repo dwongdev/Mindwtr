@@ -87,11 +87,20 @@ export async function updateAndroidWidgetFromData(data: AppData): Promise<boolea
 export async function updateAndroidWidgetFromStore(): Promise<boolean> {
     if (Platform.OS !== 'android') return false;
     const { _allTasks, _allProjects, _allSections, _allAreas, tasks, projects, sections, areas, settings } = useTaskStore.getState();
+    const ensureArray = <T,>(value: unknown): T[] => (Array.isArray(value) ? (value as T[]) : []);
+    const allTasks = ensureArray<AppData['tasks'][number]>(_allTasks);
+    const allProjects = ensureArray<AppData['projects'][number]>(_allProjects);
+    const allSections = ensureArray<AppData['sections'][number]>(_allSections);
+    const allAreas = ensureArray<AppData['areas'][number]>(_allAreas);
+    const visibleTasks = ensureArray<AppData['tasks'][number]>(tasks);
+    const visibleProjects = ensureArray<AppData['projects'][number]>(projects);
+    const visibleSections = ensureArray<AppData['sections'][number]>(sections);
+    const visibleAreas = ensureArray<AppData['areas'][number]>(areas);
     const data: AppData = {
-        tasks: _allTasks?.length ? _allTasks : tasks,
-        projects: _allProjects?.length ? _allProjects : projects,
-        sections: _allSections?.length ? _allSections : sections,
-        areas: _allAreas?.length ? _allAreas : areas,
+        tasks: allTasks.length ? allTasks : visibleTasks,
+        projects: allProjects.length ? allProjects : visibleProjects,
+        sections: allSections.length ? allSections : visibleSections,
+        areas: allAreas.length ? allAreas : visibleAreas,
         settings: settings ?? {},
     };
     return await updateAndroidWidgetFromData(data);
