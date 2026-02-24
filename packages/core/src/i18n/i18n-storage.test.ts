@@ -5,6 +5,8 @@ describe('i18n-storage locale defaults', () => {
     it('maps well-supported system locales to app language', () => {
         expect(resolveLanguageFromLocale('en-US')).toBe('en');
         expect(resolveLanguageFromLocale('zh-CN')).toBe('zh');
+        expect(resolveLanguageFromLocale('zh-TW')).toBe('zh-Hant');
+        expect(resolveLanguageFromLocale('zh-Hant-HK')).toBe('zh-Hant');
         expect(resolveLanguageFromLocale('es-ES')).toBe('es');
     });
 

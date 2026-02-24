@@ -81,6 +81,7 @@ export function SettingsGtdPage({
         const dayLabelMap: Record<Language, string> = {
             en: 'days',
             zh: '天',
+            'zh-Hant': '天',
             es: 'días',
             hi: 'दिन',
             ar: 'أيام',

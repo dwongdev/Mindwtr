@@ -11,7 +11,7 @@ type KeyValueStorageAsync = {
     setItem: (key: string, value: string) => Promise<void>;
 };
 
-const WELL_SUPPORTED_DEFAULT_LANGUAGES = new Set<Language>(['en', 'zh', 'es']);
+const WELL_SUPPORTED_DEFAULT_LANGUAGES = new Set<Language>(['en', 'zh', 'zh-Hant', 'es']);
 
 /**
  * Resolve app language from a locale string.
@@ -19,8 +19,14 @@ const WELL_SUPPORTED_DEFAULT_LANGUAGES = new Set<Language>(['en', 'zh', 'es']);
  */
 export function resolveLanguageFromLocale(locale: string | null | undefined, fallback: Language = 'en'): Language {
     if (!locale) return fallback;
-    const primary = locale.trim().replace(/_/g, '-').toLowerCase().split('-')[0];
+    const normalized = locale.trim().replace(/_/g, '-');
+    const lower = normalized.toLowerCase();
+    const primary = lower.split('-')[0];
     if (!primary) return fallback;
+    if (primary === 'zh') {
+        if (lower.includes('-hant') || /-(tw|hk|mo)\b/.test(lower)) return 'zh-Hant';
+        return 'zh';
+    }
     if (!isSupportedLanguage(primary)) return fallback;
     return WELL_SUPPORTED_DEFAULT_LANGUAGES.has(primary) ? primary : fallback;
 }

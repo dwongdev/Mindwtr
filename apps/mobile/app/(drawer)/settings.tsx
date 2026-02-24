@@ -123,7 +123,8 @@ const SETTINGS_SCREEN_SET: Record<SettingsScreen, true> = {
 
 const LANGUAGES: { id: Language; native: string }[] = [
     { id: 'en', native: 'English' },
-    { id: 'zh', native: '中文' },
+    { id: 'zh', native: '中文（简体）' },
+    { id: 'zh-Hant', native: '中文（繁體）' },
     { id: 'es', native: 'Español' },
     { id: 'hi', native: 'हिन्दी' },
     { id: 'ar', native: 'العربية' },
@@ -259,8 +260,9 @@ export default function SettingsPage() {
     const { settingsScreen } = useLocalSearchParams<{ settingsScreen?: string | string[] }>();
     const { themeMode, setThemeMode } = useTheme();
     const { language, setLanguage, t } = useLanguage();
+    const isChineseLanguage = language === 'zh' || language === 'zh-Hant';
     const localize = (enText: string, zhText?: string) =>
-        language === 'zh' && zhText ? zhText : translateText(enText, language);
+        isChineseLanguage && zhText ? zhText : translateText(enText, language);
     const { tasks, projects, sections, areas, settings, updateSettings } = useTaskStore();
     const extraConfig = Constants.expoConfig?.extra as MobileExtraConfig | undefined;
     const isFossBuild = extraConfig?.isFossBuild === true || extraConfig?.isFossBuild === 'true';
@@ -3511,7 +3513,7 @@ export default function SettingsPage() {
         const autoArchiveOptions = [0, 1, 3, 7, 14, 30, 60];
         const formatAutoArchiveLabel = (days: number) => {
             if (days <= 0) return t('settings.autoArchiveNever');
-            return language === 'zh' ? `${days} 天` : `${days} ${translateText('days', language)}`;
+            return isChineseLanguage ? `${days} 天` : `${days} ${translateText('days', language)}`;
         };
 
         const handleSelectArchive = (days: number) => {
@@ -3981,7 +3983,7 @@ export default function SettingsPage() {
                 const { events } = await fetchExternalCalendarEvents(rangeStart, rangeEnd);
                 Alert.alert(
                     localize('Success', '成功'),
-                    language === 'zh' ? `已加载 ${events.length} 个日程` : translateText(`Loaded ${events.length} events`, language)
+                    isChineseLanguage ? `已加载 ${events.length} 个日程` : translateText(`Loaded ${events.length} events`, language)
                 );
             } catch (error) {
                 logSettingsError(error);
@@ -4296,12 +4298,12 @@ export default function SettingsPage() {
                                     {localize('How to Sync', '如何同步')}
                                 </Text>
                                 <Text style={[styles.helpText, { color: tc.secondaryText }]}>
-                                    {language === 'zh'
+                                    {isChineseLanguage
                                         ? '1. 先点击"导出备份"保存文件到同步文件夹（如 Google Drive）\n2. 点击"选择文件夹"授权该文件夹\n3. 之后点击"同步"即可合并数据'
                                         : translateText('1. First, tap "Export Backup" and save to your sync folder (e.g., Google Drive)\n2. Tap "Select Folder" to grant access to that folder\n3. Then tap "Sync" to merge data', language)}
                                 </Text>
                                 <Text style={[styles.helpText, { color: tc.secondaryText, marginTop: 8 }]}>
-                                    {language === 'zh'
+                                    {isChineseLanguage
                                         ? '建议：高频多设备编辑优先使用 WebDAV。若使用 Syncthing，请开启 Send & Receive 和 Watch for Changes，并在切换设备前手动点“同步”。'
                                         : translateText('Tip: For frequent multi-device edits, WebDAV is recommended. If using Syncthing, enable Send & Receive + Watch for Changes and tap Sync before switching devices.', language)}
                                 </Text>
@@ -4337,7 +4339,7 @@ export default function SettingsPage() {
                                             {localize('Sync', '同步')}
                                         </Text>
                                         <Text style={[styles.settingDescription, { color: tc.secondaryText }]}>
-                                            {language === 'zh' ? '读取并合并同步文件夹' : translateText('Read and merge sync folder', language)}
+                                            {isChineseLanguage ? '读取并合并同步文件夹' : translateText('Read and merge sync folder', language)}
                                         </Text>
                                     </View>
                                     {isSyncing && <ActivityIndicator size="small" color="#3B82F6" />}
@@ -4492,7 +4494,7 @@ export default function SettingsPage() {
                                             {localize('Sync', '同步')}
                                         </Text>
                                         <Text style={[styles.settingDescription, { color: tc.secondaryText }]}>
-                                            {language === 'zh' ? '读取并合并 WebDAV 数据' : translateText('Read and merge WebDAV data', language)}
+                                            {isChineseLanguage ? '读取并合并 WebDAV 数据' : translateText('Read and merge WebDAV data', language)}
                                         </Text>
                                     </View>
                                     {isSyncing && <ActivityIndicator size="small" color={tc.tint} />}
@@ -4695,7 +4697,7 @@ export default function SettingsPage() {
                                                 {localize('Sync', '同步')}
                                             </Text>
                                             <Text style={[styles.settingDescription, { color: tc.secondaryText }]}>
-                                                {language === 'zh' ? '读取并合并自托管数据' : translateText('Read and merge self-hosted data', language)}
+                                                {isChineseLanguage ? '读取并合并自托管数据' : translateText('Read and merge self-hosted data', language)}
                                             </Text>
                                         </View>
                                         {isSyncing && <ActivityIndicator size="small" color={tc.tint} />}

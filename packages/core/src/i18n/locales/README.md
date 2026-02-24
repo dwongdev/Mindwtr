@@ -3,7 +3,9 @@
 Mindwtr keeps translations under this folder so community contributions are easy to submit.
 
 - `en.ts`: English source strings (base dictionary).
-- `zh.ts`: Full Chinese dictionary.
+- `zh-Hans.ts`: Full Simplified Chinese dictionary.
+- `zh-Hant.ts`: Full Traditional Chinese dictionary.
+- `zh.ts`: Legacy alias that points to `zh-Hans.ts` for backward compatibility.
 - `*.ts` for other languages: manual override dictionaries.
 
 For languages using overrides, prefer adding explicit translations for all keys.

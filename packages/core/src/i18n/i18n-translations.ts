@@ -1,7 +1,8 @@
 import type { Language } from './i18n-types';
 
 import { en } from './locales/en';
-import { zh } from './locales/zh';
+import { zhHans } from './locales/zh-Hans';
+import { zhHant } from './locales/zh-Hant';
 import { esOverrides } from './locales/es';
 import { hiOverrides } from './locales/hi';
 import { arOverrides } from './locales/ar';
@@ -40,7 +41,8 @@ const nl = buildTranslations(nlOverrides);
 
 export const translations: Record<Language, Record<string, string>> = {
     en,
-    zh,
+    zh: zhHans,
+    'zh-Hant': zhHant,
     es,
     hi,
     ar,

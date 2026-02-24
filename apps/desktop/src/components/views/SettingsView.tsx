@@ -71,7 +71,8 @@ const UPDATE_BADGE_INTERVAL_MS = 1000 * 60 * 60 * 24;
 
 const LANGUAGES: { id: Language; label: string; native: string }[] = [
     { id: 'en', label: 'English', native: 'English' },
-    { id: 'zh', label: 'Chinese', native: '中文' },
+    { id: 'zh', label: 'Chinese (Simplified)', native: '中文（简体）' },
+    { id: 'zh-Hant', label: 'Chinese (Traditional)', native: '中文（繁體）' },
     { id: 'es', label: 'Spanish', native: 'Español' },
     { id: 'hi', label: 'Hindi', native: 'हिन्दी' },
     { id: 'ar', label: 'Arabic', native: 'العربية' },
@@ -264,7 +265,7 @@ export function SettingsView() {
 
 
     const t = useMemo(() => {
-        const labelsFallback = language === 'zh' ? labelFallback.zh : labelFallback.en;
+        const labelsFallback = language === 'zh' || language === 'zh-Hant' ? labelFallback.zh : labelFallback.en;
         const result = {} as SettingsLabels;
         (Object.keys(labelFallback.en) as Array<keyof SettingsLabels>).forEach((key) => {
             const i18nKey = labelKeyOverrides[key] ?? `settings.${key}`;

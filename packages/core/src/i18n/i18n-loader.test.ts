@@ -12,4 +12,9 @@ describe('i18n-loader sync fallback', () => {
         expect(nl['settings.language']).toBe('Taal');
         expect(nl['app.name']).toBe('Mindwtr');
     });
+
+    it('loads Traditional Chinese translations on demand', async () => {
+        const zhHant = await loadTranslations('zh-Hant');
+        expect(zhHant['nav.settings']).toBe('設置');
+    });
 });

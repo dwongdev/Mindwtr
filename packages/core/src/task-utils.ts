@@ -172,9 +172,10 @@ export function getTaskAgeDays(createdAt: string): number {
  */
 export function getTaskAgeLabel(createdAt: string, lang: Language = 'en'): string | null {
     const days = getTaskAgeDays(createdAt);
+    const isChinese = lang === 'zh' || lang === 'zh-Hant';
 
     if (days < 1) return null;
-    if (lang === 'zh') {
+    if (isChinese) {
         if (days === 1) return '1天前';
         if (days < 7) return `${days}天前`;
         if (days < 14) return '1周前';

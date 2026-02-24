@@ -543,6 +543,7 @@ const nlPairs: Array<[string, string]> = [
 const translationPairs: Record<Language, Array<[string, string]>> = {
         en: [],
         zh: [],
+        'zh-Hant': [],
         es: [
             ['Settings', 'Ajustes'],
             ['General', 'General'],
@@ -761,6 +762,6 @@ export const autoTranslate = (value: string, lang: Language): string => {
 };
 
 export const translateText = (value: string, lang: Language): string => {
-        if (lang === 'en' || lang === 'zh') return value;
+        if (lang === 'en' || lang === 'zh' || lang === 'zh-Hant') return value;
         return autoTranslate(value, lang);
 };

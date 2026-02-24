@@ -1,5 +1,5 @@
 import { format, isValid, parseISO, setDefaultOptions, type Locale } from 'date-fns';
-import { ar, de, enGB, enUS, es, fr, hi, it, ja, ko, nl, pl, ptBR, ru, tr, zhCN } from 'date-fns/locale';
+import { ar, de, enGB, enUS, es, fr, hi, it, ja, ko, nl, pl, ptBR, ru, tr, zhCN, zhTW } from 'date-fns/locale';
 import type { Language } from './i18n/i18n-types';
 
 export type DateFormatSetting = 'system' | 'dmy' | 'mdy' | 'ymd';
@@ -9,6 +9,7 @@ const DMY_EN_REGIONS = new Set(['GB', 'IE', 'AU', 'NZ', 'ZA']);
 const DATE_LOCALE_BY_LANGUAGE: Record<Language, Locale> = {
     en: enUS,
     zh: zhCN,
+    'zh-Hant': zhTW,
     es,
     hi,
     ar,
@@ -26,6 +27,7 @@ const DATE_LOCALE_BY_LANGUAGE: Record<Language, Locale> = {
 const LOCALE_TAG_BY_LANGUAGE: Record<Language, string> = {
     en: 'en-US',
     zh: 'zh-CN',
+    'zh-Hant': 'zh-TW',
     es: 'es-ES',
     hi: 'hi-IN',
     ar: 'ar',
@@ -47,7 +49,18 @@ let activeDateFormatSetting: DateFormatSetting = 'system';
 const normalizeLocaleTag = (value?: string | null): string => String(value || '').trim().replace(/_/g, '-');
 
 const normalizeLanguage = (language?: string | null): Language => {
-    const primary = normalizeLocaleTag(language).toLowerCase().split('-')[0];
+    const normalized = normalizeLocaleTag(language);
+    if (normalized in DATE_LOCALE_BY_LANGUAGE) {
+        return normalized as Language;
+    }
+    const lower = normalized.toLowerCase();
+    if (lower.startsWith('zh')) {
+        if (lower.includes('-hant') || /-(tw|hk|mo)\b/.test(lower)) {
+            return 'zh-Hant';
+        }
+        return 'zh';
+    }
+    const primary = lower.split('-')[0];
     if (primary in DATE_LOCALE_BY_LANGUAGE) {
         return primary as Language;
     }
@@ -56,10 +69,15 @@ const normalizeLanguage = (language?: string | null): Language => {
 
 const resolveLocaleFromSystem = (systemLocale?: string | null, fallback: Language = 'en'): Locale => {
     const tag = normalizeLocaleTag(systemLocale);
-    const primary = tag.toLowerCase().split('-')[0];
+    const lower = tag.toLowerCase();
+    const primary = lower.split('-')[0];
     const region = tag.split('-')[1]?.toUpperCase();
     if (primary === 'en') {
         return region && DMY_EN_REGIONS.has(region) ? enGB : enUS;
+    }
+    if (primary === 'zh') {
+        if (lower.includes('-hant') || /-(tw|hk|mo)\b/.test(lower)) return zhTW;
+        return zhCN;
     }
     if (primary in DATE_LOCALE_BY_LANGUAGE) {
         return DATE_LOCALE_BY_LANGUAGE[primary as Language];

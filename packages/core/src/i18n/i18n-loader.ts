@@ -165,10 +165,19 @@ async function ensureLoaded(lang: Language): Promise<void> {
         if (lang === 'zh') {
             const mod = await loadWithFallback(
                 // eslint-disable-next-line @typescript-eslint/no-var-requires
-                () => require('./locales/zh') as typeof import('./locales/zh'),
-                () => import('./locales/zh')
+                () => require('./locales/zh-Hans') as typeof import('./locales/zh-Hans'),
+                () => import('./locales/zh-Hans')
             );
-            translationsCache.set('zh', mod.zh);
+            translationsCache.set('zh', mod.zhHans);
+            return;
+        }
+        if (lang === 'zh-Hant') {
+            const mod = await loadWithFallback(
+                // eslint-disable-next-line @typescript-eslint/no-var-requires
+                () => require('./locales/zh-Hant') as typeof import('./locales/zh-Hant'),
+                () => import('./locales/zh-Hant')
+            );
+            translationsCache.set('zh-Hant', mod.zhHant);
             return;
         }
 

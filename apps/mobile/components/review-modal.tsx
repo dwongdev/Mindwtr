@@ -55,7 +55,7 @@ export const checkReviewTime = () => {
 
 // Get text labels based on language
 const getReviewLabels = (lang: string) => {
-    if (lang === 'zh') {
+    if (lang === 'zh' || lang === 'zh-Hant') {
         return {
             weeklyReview: '周回顾',
             inbox: '收集箱',
