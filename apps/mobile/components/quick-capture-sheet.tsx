@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Alert, Modal, View, Text, TextInput, TouchableOpacity, StyleSheet, Pressable, ScrollView, Switch, Platform, KeyboardAvoidingView, Keyboard } from 'react-native';
+import { Alert, Modal, View, Text, TextInput, TouchableOpacity, StyleSheet, Pressable, ScrollView, Switch, Platform, KeyboardAvoidingView, Keyboard, useWindowDimensions } from 'react-native';
 import { CalendarDays, Folder, Flag, X, AtSign, Mic, Square } from 'lucide-react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { RecordingPresets, requestRecordingPermissionsAsync, setAudioModeAsync, useAudioRecorder } from 'expo-audio';
@@ -58,6 +58,7 @@ export function QuickCaptureSheet({
   const { t } = useLanguage();
   const tc = useThemeColors();
   const insets = useSafeAreaInsets();
+  const { height: windowHeight } = useWindowDimensions();
   const inputRef = useRef<TextInput>(null);
   const contextInputRef = useRef<TextInput>(null);
   const prioritiesEnabled = settings?.features?.priorities === true;
@@ -92,7 +93,6 @@ export function QuickCaptureSheet({
   const [priority, setPriority] = useState<TaskPriority | null>(null);
   const [showPriorityPicker, setShowPriorityPicker] = useState(false);
   const [addAnother, setAddAnother] = useState(false);
-  const [keyboardHeight, setKeyboardHeight] = useState(0);
   const [recording, setRecording] = useState<RecordingState | null>(null);
   const [recordingBusy, setRecordingBusy] = useState(false);
   const [recordingReady, setRecordingReady] = useState(false);
@@ -204,22 +204,6 @@ export function QuickCaptureSheet({
     const handle = setTimeout(() => inputRef.current?.focus(), 120);
     return () => clearTimeout(handle);
   }, [autoRecord, visible, initialProps, initialValue]);
-
-  useEffect(() => {
-    if (Platform.OS !== 'android' || !visible) return;
-    const showListener = Keyboard.addListener('keyboardDidShow', (event) => {
-      const nextHeight = event.endCoordinates?.height ?? 0;
-      setKeyboardHeight(nextHeight);
-    });
-    const hideListener = Keyboard.addListener('keyboardDidHide', () => {
-      setKeyboardHeight(0);
-    });
-    return () => {
-      showListener.remove();
-      hideListener.remove();
-      setKeyboardHeight(0);
-    };
-  }, [visible]);
 
   useEffect(() => {
     if (prioritiesEnabled) return;
@@ -1038,6 +1022,7 @@ export function QuickCaptureSheet({
     : `${contextTags[0].replace(/^@+/, '')}${contextTags.length > 1 ? ` +${contextTags.length - 1}` : ''}`;
   const projectLabel = selectedProject ? selectedProject.title : t('taskEdit.projectLabel');
   const priorityLabel = priority ? t(`priority.${priority}`) : t('taskEdit.priorityLabel');
+  const sheetMaxHeight = Math.max(260, windowHeight - Math.max(insets.top, 12) - 8);
   const openDueDatePicker = useCallback(() => {
     inputRef.current?.blur();
     Keyboard.dismiss();
@@ -1061,9 +1046,8 @@ export function QuickCaptureSheet({
             styles.sheet,
             {
               backgroundColor: tc.cardBg,
-              paddingBottom:
-                Math.max(20, insets.bottom + 12)
-                + (Platform.OS === 'android' ? Math.max(0, keyboardHeight - insets.bottom) : 0),
+              paddingBottom: Math.max(20, insets.bottom + 12),
+              maxHeight: sheetMaxHeight,
             },
           ]}
         >
