@@ -37,6 +37,15 @@ const normalizeDirectoryUri = (uri: string): string => uri.replace(/\/+$/, '');
 const buildSyncFileUri = (directoryUri: string, fileName = SYNC_FILE_NAME): string =>
     `${normalizeDirectoryUri(directoryUri)}/${fileName}`;
 
+const emptyPickResult = (fileUri: string): PickResult => ({
+    tasks: [],
+    projects: [],
+    sections: [],
+    areas: [],
+    settings: {},
+    __fileUri: fileUri,
+});
+
 const decodeUriSafe = (value: string): string => {
     try {
         return decodeURIComponent(value);
@@ -105,6 +114,14 @@ const parseSafContext = (uri: string): SafContext | null => {
 const buildTreeDocumentUri = (context: SafContext, documentId: string): string => {
     const documentIdEncoded = encodeURIComponent(documentId);
     return `${context.prefix}/tree/${context.treeIdEncoded}/document/${documentIdEncoded}`;
+};
+
+const getParentDirectoryUri = (fileUri: string): string | null => {
+    const withoutQuery = fileUri.split('?')[0]?.split('#')[0] ?? fileUri;
+    const normalized = withoutQuery.replace(/\/+$/, '');
+    const lastSlash = normalized.lastIndexOf('/');
+    if (lastSlash <= 0) return null;
+    return normalized.slice(0, lastSlash);
 };
 
 const listDirectoryForSyncFile = async (directoryUri: string): Promise<string | null> => {
@@ -334,10 +351,18 @@ const assertIosDirectoryWritable = async (
 };
 
 const pickAndParseIosSyncFolder = async (): Promise<PickResult | null> => {
-    try {
-        const directory = await ExpoDirectory.pickDirectoryAsync();
-        const directoryUri = directory?.uri;
-        if (!directoryUri) return null;
+    const pickFolderFromExistingFile = async (): Promise<PickResult | null> => {
+        const result = await DocumentPicker.getDocumentAsync({
+            type: 'application/json',
+            copyToCacheDirectory: false,
+        });
+        if (result.canceled) return null;
+        const pickedFileUri = result.assets[0]?.uri;
+        if (!pickedFileUri) return null;
+        const directoryUri = getParentDirectoryUri(pickedFileUri);
+        if (!directoryUri) {
+            throw new Error('Unable to determine folder from selected file');
+        }
 
         await assertIosDirectoryWritable(directoryUri);
 
@@ -353,23 +378,60 @@ const pickAndParseIosSyncFolder = async (): Promise<PickResult | null> => {
             }
         }
 
-        if (!fileContent) {
-            return {
-                tasks: [],
-                projects: [],
-                sections: [],
-                areas: [],
-                settings: {},
-                __fileUri: primaryFileUri,
-            };
+        if (fileContent) {
+            const data = parseAppData(fileContent);
+            return { ...data, __fileUri: fileUri };
         }
+
+        const pickedContent = await readFileText(pickedFileUri);
+        if (pickedContent) {
+            try {
+                const data = parseAppData(pickedContent);
+                return { ...data, __fileUri: primaryFileUri };
+            } catch {
+                void logWarn('Selected file is not a Mindwtr sync JSON; initializing empty sync file', {
+                    scope: 'sync',
+                    extra: { operation: 'import' },
+                });
+            }
+        }
+
+        return emptyPickResult(primaryFileUri);
+    };
+
+    try {
+        const directory = await ExpoDirectory.pickDirectoryAsync();
+        const directoryUri = directory?.uri;
+        if (!directoryUri) {
+            return await pickFolderFromExistingFile();
+        }
+
+        await assertIosDirectoryWritable(directoryUri);
+
+        const primaryFileUri = buildSyncFileUri(directoryUri, SYNC_FILE_NAME);
+        const legacyFileUri = buildSyncFileUri(directoryUri, LEGACY_SYNC_FILE_NAME);
+        let fileUri = primaryFileUri;
+        let fileContent = await readFileText(primaryFileUri);
+        if (fileContent === null) {
+            const legacyContent = await readFileText(legacyFileUri);
+            if (legacyContent !== null) {
+                fileUri = legacyFileUri;
+                fileContent = legacyContent;
+            }
+        }
+
+        if (!fileContent) return emptyPickResult(primaryFileUri);
         const data = parseAppData(fileContent);
         return { ...data, __fileUri: fileUri };
     } catch (error) {
         if (isPickerCanceledError(error)) {
-            return null;
+            return await pickFolderFromExistingFile();
         }
-        throw error;
+        void logWarn('iOS folder picker failed; falling back to file-based folder selection', {
+            scope: 'sync',
+            extra: { operation: 'import' },
+        });
+        return await pickFolderFromExistingFile();
     }
 };
 
@@ -401,16 +463,7 @@ export const pickAndParseSyncFolder = async (): Promise<PickResult | null> => {
         if (fileContent === null) {
             fileContent = await readFileText(fileUri);
         }
-        if (!fileContent) {
-            return {
-                tasks: [],
-                projects: [],
-                sections: [],
-                areas: [],
-                settings: {},
-                __fileUri: fileUri,
-            };
-        }
+        if (!fileContent) return emptyPickResult(fileUri);
         const data = parseAppData(fileContent);
         return { ...data, __fileUri: fileUri };
     } catch (error) {

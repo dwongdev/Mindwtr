@@ -1526,7 +1526,7 @@ export default function SettingsPage() {
         }).catch(logSettingsError);
     }, [updateSettings]);
 
-    // Set sync folder (Android) or sync file (iOS)
+    // Set sync folder path (iOS can fall back to selecting a JSON file inside the target folder)
     const handleSetSyncPath = async () => {
         try {
             const result = await pickAndParseSyncFolder();
@@ -1551,10 +1551,15 @@ export default function SettingsPage() {
             if (/read-only|read only|not writable|isn't writable|permission denied|EACCES/i.test(message)) {
                 Alert.alert(
                     localize('Sync folder is read-only', '同步文件夹不可写'),
-                    localize(
-                        'The selected folder is read-only. Please choose a writable folder (e.g. My files) or make it available offline.',
-                        '所选文件夹不可写。请选择可写文件夹（如“我的文件”），或将其设为离线可用。'
-                    )
+                    Platform.OS === 'ios'
+                        ? localize(
+                            'The selected folder is read-only. Choose a writable location, or make the cloud folder available offline in Files before selecting it.',
+                            '所选文件夹不可写。请选择可写位置，或先在“文件”App中将云端文件夹设为离线可用后再选择。'
+                        )
+                        : localize(
+                            'The selected folder is read-only. Please choose a writable folder (e.g. My files) or make it available offline.',
+                            '所选文件夹不可写。请选择可写文件夹（如“我的文件”），或将其设为离线可用。'
+                        )
                 );
                 return;
             }
@@ -4299,8 +4304,15 @@ export default function SettingsPage() {
                                 </Text>
                                 <Text style={[styles.helpText, { color: tc.secondaryText }]}>
                                     {isChineseLanguage
-                                        ? '1. 先点击"导出备份"保存文件到同步文件夹（如 Google Drive）\n2. 点击"选择文件夹"授权该文件夹\n3. 之后点击"同步"即可合并数据'
-                                        : translateText('1. First, tap "Export Backup" and save to your sync folder (e.g., Google Drive)\n2. Tap "Select Folder" to grant access to that folder\n3. Then tap "Sync" to merge data', language)}
+                                        ? (Platform.OS === 'ios'
+                                            ? '1. 先点击"导出备份"保存到目标同步文件夹\n2. 点击"选择文件夹"；若 Google Drive 等在文件夹选择器中灰显，请改为选择该文件夹中的任意 JSON 文件\n3. 之后点击"同步"即可合并数据'
+                                            : '1. 先点击"导出备份"保存文件到同步文件夹（如 Google Drive）\n2. 点击"选择文件夹"授权该文件夹\n3. 之后点击"同步"即可合并数据')
+                                        : translateText(
+                                            Platform.OS === 'ios'
+                                                ? '1. First, tap "Export Backup" and save to your target sync folder\n2. Tap "Select Folder"; if providers like Google Drive are greyed out in the folder picker, choose any JSON file inside that folder instead\n3. Then tap "Sync" to merge data'
+                                                : '1. First, tap "Export Backup" and save to your sync folder (e.g., Google Drive)\n2. Tap "Select Folder" to grant access to that folder\n3. Then tap "Sync" to merge data',
+                                            language
+                                        )}
                                 </Text>
                                 <Text style={[styles.helpText, { color: tc.secondaryText, marginTop: 8 }]}>
                                     {isChineseLanguage
