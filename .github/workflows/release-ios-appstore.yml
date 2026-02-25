@@ -586,7 +586,11 @@ jobs:
           File.write(project_file, lines.join)
           puts "Updated signing settings in #{modified_blocks} buildSettings blocks."
           RUBY
-          rg -n 'PRODUCT_BUNDLE_IDENTIFIER = "|CODE_SIGN_STYLE =|DEVELOPMENT_TEAM =|CODE_SIGN_IDENTITY =|PROVISIONING_PROFILE_SPECIFIER =' "$PROJECT_FILE" | sed -n '1,120p'
+          if command -v rg >/dev/null 2>&1; then
+            rg -n 'PRODUCT_BUNDLE_IDENTIFIER = "|CODE_SIGN_STYLE =|DEVELOPMENT_TEAM =|CODE_SIGN_IDENTITY =|PROVISIONING_PROFILE_SPECIFIER =' "$PROJECT_FILE" | sed -n '1,120p'
+          else
+            grep -nE 'PRODUCT_BUNDLE_IDENTIFIER = "|CODE_SIGN_STYLE =|DEVELOPMENT_TEAM =|CODE_SIGN_IDENTITY =|PROVISIONING_PROFILE_SPECIFIER =' "$PROJECT_FILE" | sed -n '1,120p'
+          fi
 
       - name: Archive iOS app
         timeout-minutes: 25
