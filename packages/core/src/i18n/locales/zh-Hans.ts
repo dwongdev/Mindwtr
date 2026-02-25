@@ -550,7 +550,7 @@ export const zhHans: Record<string, string> = {
         'process.addContext': '添加',
         'process.newContextPlaceholder': '新情境...',
         'process.remaining': '项剩余',
-        'process.btn': '处理收件箱',
+        'process.btn': '处理收集箱',
         'settings.title': '设置',
         'settings.subtitle': '自定义您的 Mindwtr 体验',
         'settings.appearance': '外观',
