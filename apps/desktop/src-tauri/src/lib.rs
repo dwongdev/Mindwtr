@@ -433,8 +433,35 @@ fn quit_app(app: tauri::AppHandle) {
 fn is_windows_store_install() -> bool {
     #[cfg(target_os = "windows")]
     {
-        std::env::var_os("APPX_PACKAGE_FAMILY_NAME").is_some()
+        if std::env::var_os("APPX_PACKAGE_FAMILY_NAME").is_some()
             || std::env::var_os("APPX_PACKAGE_FULL_NAME").is_some()
+            || std::env::var_os("MSIX_PACKAGE_ROOT").is_some()
+            || std::env::var_os("PACKAGE_FAMILY_NAME").is_some()
+            || std::env::var_os("PACKAGE_FULL_NAME").is_some()
+        {
+            return true;
+        }
+
+        let is_windows_store_path = |path: &str| {
+            if !(path.contains("\\windowsapps\\") || path.contains("/windowsapps/")) {
+                return false;
+            }
+            path.contains("mindwtr")
+                && (path.contains("dongdongbh") || path.contains("tech.dongdongbh"))
+        };
+
+        if let Some(path) = current_exe_path_lowercase() {
+            if is_windows_store_path(&path) {
+                return true;
+            }
+        }
+        if let Some(path) = current_exe_canonical_path_lowercase() {
+            if is_windows_store_path(&path) {
+                return true;
+            }
+        }
+
+        false
     }
     #[cfg(not(target_os = "windows"))]
     {
@@ -3938,48 +3965,53 @@ pub fn run() {
 
             let handle = app.handle();
             if !(cfg!(target_os = "linux") && is_flatpak()) && !is_windows_store {
-                // Build system tray with Quick Add entry.
-                let quick_add_item = MenuItem::with_id(handle, "quick_add", "Quick Add", true, None::<&str>)?;
-                let show_item = MenuItem::with_id(handle, "show", "Show Mindwtr", true, None::<&str>)?;
-                let quit_item = MenuItem::with_id(handle, "quit", "Quit", true, None::<&str>)?;
-                let tray_menu = Menu::with_items(handle, &[&quick_add_item, &show_item, &quit_item])?;
+                // Build system tray with Quick Add entry. Never hard-fail startup here.
+                let tray_init_result: tauri::Result<()> = (|| {
+                    let quick_add_item = MenuItem::with_id(handle, "quick_add", "Quick Add", true, None::<&str>)?;
+                    let show_item = MenuItem::with_id(handle, "show", "Show Mindwtr", true, None::<&str>)?;
+                    let quit_item = MenuItem::with_id(handle, "quit", "Quit", true, None::<&str>)?;
+                    let tray_menu = Menu::with_items(handle, &[&quick_add_item, &show_item, &quit_item])?;
 
-                let tray_icon = Image::from_bytes(include_bytes!("../icons/tray.png"))
-                    .ok()
-                    .or_else(|| handle.default_window_icon().cloned());
+                    let tray_icon = Image::from_bytes(include_bytes!("../icons/tray.png"))
+                        .ok()
+                        .or_else(|| handle.default_window_icon().cloned());
 
-                if let Some(tray_icon) = tray_icon {
-                    if let Err(error) = TrayIconBuilder::with_id("main")
-                        .icon(tray_icon)
-                        .menu(&tray_menu)
-                        .show_menu_on_left_click(false)
-                        .on_menu_event(move |app, event| {
-                            match event.id().as_ref() {
-                                "quick_add" => {
-                                    show_main_and_emit(app);
+                    if let Some(tray_icon) = tray_icon {
+                        let _ = TrayIconBuilder::with_id("main")
+                            .icon(tray_icon)
+                            .menu(&tray_menu)
+                            .show_menu_on_left_click(false)
+                            .on_menu_event(move |app, event| {
+                                match event.id().as_ref() {
+                                    "quick_add" => {
+                                        show_main_and_emit(app);
+                                    }
+                                    "show" => {
+                                        show_main(app);
+                                    }
+                                    "quit" => {
+                                        app.exit(0);
+                                    }
+                                    _ => {}
                                 }
-                                "show" => {
-                                    show_main(app);
+                            })
+                            .on_tray_icon_event(|tray, event| {
+                                if let TrayIconEvent::Click { button, button_state, .. } = event {
+                                    if button == MouseButton::Left && button_state == MouseButtonState::Up {
+                                        show_main(tray.app_handle());
+                                    }
                                 }
-                                "quit" => {
-                                    app.exit(0);
-                                }
-                                _ => {}
-                            }
-                        })
-                        .on_tray_icon_event(|tray, event| {
-                            if let TrayIconEvent::Click { button, button_state, .. } = event {
-                                if button == MouseButton::Left && button_state == MouseButtonState::Up {
-                                    show_main(tray.app_handle());
-                                }
-                            }
-                        })
-                        .build(handle)
-                    {
-                        log::warn!("Failed to initialize tray icon: {error}");
+                            })
+                            .build(handle)?;
+                    } else {
+                        log::warn!("No tray icon available; skipping tray initialization.");
                     }
-                } else {
-                    log::warn!("No tray icon available; skipping tray initialization.");
+
+                    Ok(())
+                })();
+
+                if let Err(error) = tray_init_result {
+                    log::warn!("Failed to initialize tray support: {error}");
                 }
             } else if is_windows_store {
                 log::info!("Tray disabled for Microsoft Store install.");
