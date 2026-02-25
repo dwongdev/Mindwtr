@@ -342,6 +342,11 @@ jobs:
           SOURCE_DATE_EPOCH: "1"
         run: |
           set -euo pipefail
+          # rust-cache can restore stale CMake cache where GGML_NATIVE stayed ON.
+          # Clear whisper-rs-sys build dirs so GGML_NATIVE_DEFAULT=OFF is applied.
+          if [ -d apps/desktop/src-tauri/target ]; then
+            find apps/desktop/src-tauri/target -type d -path '*/build/whisper-rs-sys-*' -prune -exec rm -rf {} +
+          fi
           cd apps/desktop
           cargo tauri build \
             --target universal-apple-darwin \
