@@ -581,6 +581,14 @@ function App() {
                                 <div className="p-4 flex flex-wrap justify-end gap-2">
                                     <button
                                         type="button"
+                                        onClick={() => setExternalSyncChange(null)}
+                                        disabled={resolvingExternalSync}
+                                        className="px-3 py-1.5 rounded-md text-sm bg-muted hover:bg-muted/80 disabled:opacity-50"
+                                    >
+                                        {translateOrFallback('common.reviewLater', 'Review later')}
+                                    </button>
+                                    <button
+                                        type="button"
                                         onClick={() => resolveExternalSync('use-external')}
                                         disabled={resolvingExternalSync}
                                         className="px-3 py-1.5 rounded-md text-sm bg-muted hover:bg-muted/80 disabled:opacity-50"
