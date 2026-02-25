@@ -312,7 +312,6 @@ TestFlight 测试版：[加入测试版](https://testflight.apple.com/join/7SMJC
 
 安装指南：
 - 🚀 [快速开始](https://github.com/dongdongbh/Mindwtr/wiki/Getting-Started)
-- 📚 [全平台与包管理器](https://github.com/dongdongbh/Mindwtr/wiki)
 
 ## 社区
 

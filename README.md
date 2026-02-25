@@ -312,7 +312,6 @@ Run the web app (PWA) and the self-hosted sync server with Docker:
 
 Install guides:
 - 🚀 [Getting Started](https://github.com/dongdongbh/Mindwtr/wiki/Getting-Started)
-- 📚 [All platforms & package managers](https://github.com/dongdongbh/Mindwtr/wiki)
 
 ## Community
 
