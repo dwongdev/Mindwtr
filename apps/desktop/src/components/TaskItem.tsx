@@ -909,6 +909,11 @@ export const TaskItem = memo(function TaskItem({
                         onMouseDown={(event) => event.stopPropagation()}
                         onClick={(event) => event.stopPropagation()}
                         onKeyDown={(event) => {
+                            if (event.key === 'Escape') {
+                                event.preventDefault();
+                                handleEditorCancel();
+                                return;
+                            }
                             if (event.key !== 'Tab') return;
                             const focusable = getModalFocusableElements();
                             if (focusable.length === 0) return;
