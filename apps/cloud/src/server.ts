@@ -309,7 +309,10 @@ function resolveAllowedAuthTokensFromEnv(env: Record<string, string | undefined>
         .map((value) => String(value || '').trim())
         .filter((value) => value.length > 0);
     if (values.length === 0) {
-        if (parseBoolEnv(env.MINDWTR_CLOUD_ALLOW_ANY_TOKEN)) return null;
+        if (parseBoolEnv(env.MINDWTR_CLOUD_ALLOW_ANY_TOKEN)) {
+            logWarn('MINDWTR_CLOUD_ALLOW_ANY_TOKEN is enabled. Prefer MINDWTR_CLOUD_AUTH_TOKENS for stronger access control.');
+            return null;
+        }
         throw new Error(
             'Cloud auth is not configured. Set MINDWTR_CLOUD_AUTH_TOKENS (or legacy MINDWTR_CLOUD_TOKEN), or explicitly set MINDWTR_CLOUD_ALLOW_ANY_TOKEN=true to enable token namespace mode.'
         );
