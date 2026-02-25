@@ -463,6 +463,10 @@ jobs:
         run: |
           set -euo pipefail
           ARCHIVE_PATH="$RUNNER_TEMP/Mindwtr.xcarchive"
+          ARCHIVE_LOG="$RUNNER_TEMP/ios-xcodebuild-archive.log"
+          echo "ARCHIVE_LOG=$ARCHIVE_LOG" >> "$GITHUB_ENV"
+
+          set +e
           xcodebuild \
             -workspace "apps/mobile/ios/Mindwtr.xcworkspace" \
             -scheme "Mindwtr" \
@@ -474,7 +478,21 @@ jobs:
             CODE_SIGNING_REQUIRED=NO \
             MARKETING_VERSION="$APP_VERSION" \
             CURRENT_PROJECT_VERSION="$APP_BUILD_NUMBER" \
-            clean archive
+            clean archive >"$ARCHIVE_LOG" 2>&1
+          ARCHIVE_STATUS=$?
+          set -e
+
+          if [ "$ARCHIVE_STATUS" -ne 0 ]; then
+            echo "::group::xcodebuild archive error summary"
+            grep -E "(^| )error:|\\*\\* ARCHIVE FAILED \\*\\*|The following build commands failed|Provisioning|CodeSign|No profiles|conflicting provisioning settings" "$ARCHIVE_LOG" | tail -n 200 || true
+            echo "::endgroup::"
+            echo "::group::xcodebuild archive tail (last 200 lines)"
+            tail -n 200 "$ARCHIVE_LOG" || true
+            echo "::endgroup::"
+            exit "$ARCHIVE_STATUS"
+          fi
+
+          echo "::notice::xcodebuild archive completed. Full log at $ARCHIVE_LOG"
           ARCHIVE_INFO_PLIST="$ARCHIVE_PATH/Products/Applications/Mindwtr.app/Info.plist"
           if [ ! -f "$ARCHIVE_INFO_PLIST" ]; then
             echo "::error::Archived app Info.plist not found: $ARCHIVE_INFO_PLIST"
@@ -495,10 +513,28 @@ jobs:
         run: |
           set -euo pipefail
           EXPORT_PATH="$RUNNER_TEMP/ios-export"
+          EXPORT_LOG="$RUNNER_TEMP/ios-xcodebuild-export.log"
+          echo "EXPORT_LOG=$EXPORT_LOG" >> "$GITHUB_ENV"
+
+          set +e
           xcodebuild -exportArchive \
             -archivePath "$ARCHIVE_PATH" \
             -exportPath "$EXPORT_PATH" \
-            -exportOptionsPlist "$EXPORT_OPTIONS_PATH"
+            -exportOptionsPlist "$EXPORT_OPTIONS_PATH" >"$EXPORT_LOG" 2>&1
+          EXPORT_STATUS=$?
+          set -e
+
+          if [ "$EXPORT_STATUS" -ne 0 ]; then
+            echo "::group::xcodebuild export error summary"
+            grep -E "(^| )error:|\\*\\* EXPORT FAILED \\*\\*|The following build commands failed|Provisioning|CodeSign|No profiles" "$EXPORT_LOG" | tail -n 200 || true
+            echo "::endgroup::"
+            echo "::group::xcodebuild export tail (last 200 lines)"
+            tail -n 200 "$EXPORT_LOG" || true
+            echo "::endgroup::"
+            exit "$EXPORT_STATUS"
+          fi
+
+          echo "::notice::xcodebuild export completed. Full log at $EXPORT_LOG"
           IPA_PATH="$(find "$EXPORT_PATH" -maxdepth 1 -name '*.ipa' | head -n 1)"
           if [ -z "${IPA_PATH:-}" ]; then
             echo "::error::IPA was not generated."
@@ -506,6 +542,14 @@ jobs:
           fi
           echo "IPA_PATH=$IPA_PATH" >> "$GITHUB_ENV"
           ls -la "$EXPORT_PATH"
+
+      - name: Upload iOS xcodebuild logs
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: mindwtr-ios-xcodebuild-logs
+          path: ${{ runner.temp }}/ios-xcodebuild-*.log
+          if-no-files-found: warn
 
       - name: Prepare Fastlane metadata
         if: ${{ inputs.upload }}
