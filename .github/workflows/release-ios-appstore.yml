@@ -50,6 +50,8 @@ jobs:
     env:
       EXPECTED_TEAM_ID: 5X9JC5PL7T
       EXPECTED_BUNDLE_ID: tech.dongdongbh.mindwtr
+      EXPECTED_WIDGET_BUNDLE_ID: tech.dongdongbh.mindwtr.MindwtrWidgets
+      EXPECTED_APP_GROUP: group.tech.dongdongbh.mindwtr
       ANALYTICS_HEARTBEAT_URL: ${{ secrets.ANALYTICS_HEARTBEAT_URL }}
       DROPBOX_APP_KEY: ${{ vars.DROPBOX_APP_KEY || secrets.DROPBOX_APP_KEY }}
     steps:
@@ -123,6 +125,7 @@ jobs:
           IOS_DISTRIBUTION_CERT: ${{ secrets.IOS_DISTRIBUTION_CERT }}
           IOS_DISTRIBUTION_CERT_PWD: ${{ secrets.IOS_DISTRIBUTION_CERT_PWD }}
           IOS_PROVISIONING_PROFILE: ${{ secrets.IOS_PROVISIONING_PROFILE }}
+          IOS_WIDGET_PROVISIONING_PROFILE: ${{ secrets.IOS_WIDGET_PROVISIONING_PROFILE }}
           IOS_ASC_KEY_ID: ${{ secrets.IOS_ASC_KEY_ID }}
           IOS_ASC_ISSUER_ID: ${{ secrets.IOS_ASC_ISSUER_ID }}
           IOS_ASC_PRIVATE_KEY: ${{ secrets.IOS_ASC_PRIVATE_KEY }}
@@ -135,6 +138,9 @@ jobs:
               missing=1
             fi
           done
+          if [ -z "${IOS_WIDGET_PROVISIONING_PROFILE:-}" ]; then
+            echo "::warning::IOS_WIDGET_PROVISIONING_PROFILE is not set. Falling back to IOS_PROVISIONING_PROFILE for MindwtrWidgets."
+          fi
           for key in IOS_ASC_KEY_ID IOS_ASC_ISSUER_ID IOS_ASC_PRIVATE_KEY; do
             if [ -z "${!key:-}" ]; then
               echo "::error::Missing required App Store Connect API secret: $key"
@@ -300,38 +306,83 @@ jobs:
       - name: Install and validate provisioning profile
         env:
           IOS_PROVISIONING_PROFILE: ${{ secrets.IOS_PROVISIONING_PROFILE }}
+          IOS_WIDGET_PROVISIONING_PROFILE: ${{ secrets.IOS_WIDGET_PROVISIONING_PROFILE }}
         run: |
           set -euo pipefail
 
+          profile_field() {
+            local plist_path="$1"
+            local key_path="$2"
+            /usr/libexec/PlistBuddy -c "Print $key_path" "$plist_path" 2>/dev/null || true
+          }
 
-          PROFILE_PATH="$RUNNER_TEMP/mindwtr-ios.mobileprovision"
-          PROFILE_PLIST="$RUNNER_TEMP/mindwtr-ios-profile.plist"
-          bash scripts/ci/decode-base64-to-file.sh "$IOS_PROVISIONING_PROFILE" "$PROFILE_PATH"
-          security cms -D -i "$PROFILE_PATH" > "$PROFILE_PLIST"
+          verify_profile_bundle() {
+            local app_id="$1"
+            local expected_bundle="$2"
+            local profile_label="$3"
+            local expected_id="${EXPECTED_TEAM_ID}.${expected_bundle}"
+            local wildcard_id="${EXPECTED_TEAM_ID}.*"
+            if [ "$app_id" != "$expected_id" ] && [ "$app_id" != "$wildcard_id" ]; then
+              echo "::error::${profile_label} application-identifier (${app_id}) does not match expected (${expected_id}) or wildcard (${wildcard_id})."
+              exit 1
+            fi
+          }
 
-          PROFILE_UUID="$(/usr/libexec/PlistBuddy -c 'Print UUID' "$PROFILE_PLIST")"
-          PROFILE_NAME="$(/usr/libexec/PlistBuddy -c 'Print Name' "$PROFILE_PLIST")"
-          PROFILE_TEAM_ID="$(/usr/libexec/PlistBuddy -c 'Print TeamIdentifier:0' "$PROFILE_PLIST")"
-          PROFILE_APP_ID="$(/usr/libexec/PlistBuddy -c 'Print Entitlements:application-identifier' "$PROFILE_PLIST")"
+          APP_PROFILE_PATH="$RUNNER_TEMP/mindwtr-ios-app.mobileprovision"
+          APP_PROFILE_PLIST="$RUNNER_TEMP/mindwtr-ios-app-profile.plist"
+          WIDGET_PROFILE_PATH="$RUNNER_TEMP/mindwtr-ios-widget.mobileprovision"
+          WIDGET_PROFILE_PLIST="$RUNNER_TEMP/mindwtr-ios-widget-profile.plist"
 
-          if [ "$PROFILE_TEAM_ID" != "$EXPECTED_TEAM_ID" ]; then
-            echo "::error::Profile TeamIdentifier ($PROFILE_TEAM_ID) does not match expected team ($EXPECTED_TEAM_ID)."
+          bash scripts/ci/decode-base64-to-file.sh "$IOS_PROVISIONING_PROFILE" "$APP_PROFILE_PATH"
+          security cms -D -i "$APP_PROFILE_PATH" > "$APP_PROFILE_PLIST"
+          if [ -n "${IOS_WIDGET_PROVISIONING_PROFILE:-}" ]; then
+            bash scripts/ci/decode-base64-to-file.sh "$IOS_WIDGET_PROVISIONING_PROFILE" "$WIDGET_PROFILE_PATH"
+          else
+            cp "$APP_PROFILE_PATH" "$WIDGET_PROFILE_PATH"
+          fi
+          security cms -D -i "$WIDGET_PROFILE_PATH" > "$WIDGET_PROFILE_PLIST"
+
+          APP_PROFILE_UUID="$(profile_field "$APP_PROFILE_PLIST" "UUID")"
+          APP_PROFILE_NAME="$(profile_field "$APP_PROFILE_PLIST" "Name")"
+          APP_PROFILE_TEAM_ID="$(profile_field "$APP_PROFILE_PLIST" "TeamIdentifier:0")"
+          APP_PROFILE_APP_ID="$(profile_field "$APP_PROFILE_PLIST" "Entitlements:application-identifier")"
+          APP_PROFILE_GROUPS="$(profile_field "$APP_PROFILE_PLIST" "Entitlements:com.apple.security.application-groups")"
+
+          if [ "$APP_PROFILE_TEAM_ID" != "$EXPECTED_TEAM_ID" ]; then
+            echo "::error::App profile TeamIdentifier (${APP_PROFILE_TEAM_ID}) does not match expected team (${EXPECTED_TEAM_ID})."
+            exit 1
+          fi
+          verify_profile_bundle "$APP_PROFILE_APP_ID" "$EXPECTED_BUNDLE_ID" "App profile"
+          if ! printf '%s\n' "$APP_PROFILE_GROUPS" | grep -Fq "$EXPECTED_APP_GROUP"; then
+            echo "::error::App profile (${APP_PROFILE_NAME}) is missing App Group ${EXPECTED_APP_GROUP}. Recreate the profile with App Groups enabled and re-upload IOS_PROVISIONING_PROFILE."
             exit 1
           fi
 
-          EXPECTED_APP_ID="${EXPECTED_TEAM_ID}.${EXPECTED_BUNDLE_ID}"
-          WILDCARD_APP_ID="${EXPECTED_TEAM_ID}.*"
-          if [ "$PROFILE_APP_ID" != "$EXPECTED_APP_ID" ] && [ "$PROFILE_APP_ID" != "$WILDCARD_APP_ID" ]; then
-            echo "::error::Profile application-identifier ($PROFILE_APP_ID) does not match expected ($EXPECTED_APP_ID)."
+          WIDGET_PROFILE_UUID="$(profile_field "$WIDGET_PROFILE_PLIST" "UUID")"
+          WIDGET_PROFILE_NAME="$(profile_field "$WIDGET_PROFILE_PLIST" "Name")"
+          WIDGET_PROFILE_TEAM_ID="$(profile_field "$WIDGET_PROFILE_PLIST" "TeamIdentifier:0")"
+          WIDGET_PROFILE_APP_ID="$(profile_field "$WIDGET_PROFILE_PLIST" "Entitlements:application-identifier")"
+          WIDGET_PROFILE_GROUPS="$(profile_field "$WIDGET_PROFILE_PLIST" "Entitlements:com.apple.security.application-groups")"
+
+          if [ "$WIDGET_PROFILE_TEAM_ID" != "$EXPECTED_TEAM_ID" ]; then
+            echo "::error::Widget profile TeamIdentifier (${WIDGET_PROFILE_TEAM_ID}) does not match expected team (${EXPECTED_TEAM_ID})."
+            exit 1
+          fi
+          verify_profile_bundle "$WIDGET_PROFILE_APP_ID" "$EXPECTED_WIDGET_BUNDLE_ID" "Widget profile"
+          if ! printf '%s\n' "$WIDGET_PROFILE_GROUPS" | grep -Fq "$EXPECTED_APP_GROUP"; then
+            echo "::error::Widget profile (${WIDGET_PROFILE_NAME}) is missing App Group ${EXPECTED_APP_GROUP}. Recreate the extension profile with App Groups enabled and re-upload IOS_WIDGET_PROVISIONING_PROFILE."
             exit 1
           fi
 
           mkdir -p "$HOME/Library/MobileDevice/Provisioning Profiles"
-          cp "$PROFILE_PATH" "$HOME/Library/MobileDevice/Provisioning Profiles/$PROFILE_UUID.mobileprovision"
+          cp "$APP_PROFILE_PATH" "$HOME/Library/MobileDevice/Provisioning Profiles/$APP_PROFILE_UUID.mobileprovision"
+          cp "$WIDGET_PROFILE_PATH" "$HOME/Library/MobileDevice/Provisioning Profiles/$WIDGET_PROFILE_UUID.mobileprovision"
 
-          echo "PROFILE_UUID=$PROFILE_UUID" >> "$GITHUB_ENV"
-          echo "PROFILE_NAME=$PROFILE_NAME" >> "$GITHUB_ENV"
-          echo "PROFILE_TEAM_ID=$PROFILE_TEAM_ID" >> "$GITHUB_ENV"
+          echo "APP_PROFILE_UUID=$APP_PROFILE_UUID" >> "$GITHUB_ENV"
+          echo "APP_PROFILE_NAME=$APP_PROFILE_NAME" >> "$GITHUB_ENV"
+          echo "APP_PROFILE_TEAM_ID=$APP_PROFILE_TEAM_ID" >> "$GITHUB_ENV"
+          echo "WIDGET_PROFILE_UUID=$WIDGET_PROFILE_UUID" >> "$GITHUB_ENV"
+          echo "WIDGET_PROFILE_NAME=$WIDGET_PROFILE_NAME" >> "$GITHUB_ENV"
 
       - name: Generate iOS native project if missing
         run: |
@@ -389,11 +440,13 @@ jobs:
               printf '%s\n' '    <key>signingStyle</key>'
               printf '%s\n' '    <string>manual</string>'
               printf '%s\n' '    <key>teamID</key>'
-              printf '    <string>%s</string>\n' "$PROFILE_TEAM_ID"
+              printf '    <string>%s</string>\n' "$APP_PROFILE_TEAM_ID"
               printf '%s\n' '    <key>provisioningProfiles</key>'
               printf '%s\n' '    <dict>'
               printf '        <key>%s</key>\n' "$EXPECTED_BUNDLE_ID"
-              printf '        <string>%s</string>\n' "$PROFILE_NAME"
+              printf '        <string>%s</string>\n' "$APP_PROFILE_NAME"
+              printf '        <key>%s</key>\n' "$EXPECTED_WIDGET_BUNDLE_ID"
+              printf '        <string>%s</string>\n' "$WIDGET_PROFILE_NAME"
               printf '%s\n' '    </dict>'
               printf '%s\n' '    <key>stripSwiftSymbols</key>'
               printf '%s\n' '    <true/>'
@@ -418,9 +471,7 @@ jobs:
             -destination "generic/platform=iOS" \
             -archivePath "$ARCHIVE_PATH" \
             CODE_SIGN_STYLE=Manual \
-            DEVELOPMENT_TEAM="$PROFILE_TEAM_ID" \
-            PRODUCT_BUNDLE_IDENTIFIER="$EXPECTED_BUNDLE_ID" \
-            PROVISIONING_PROFILE_SPECIFIER="$PROFILE_NAME" \
+            DEVELOPMENT_TEAM="$APP_PROFILE_TEAM_ID" \
             CODE_SIGN_IDENTITY="$IOS_SIGNING_IDENTITY" \
             OTHER_CODE_SIGN_FLAGS="--keychain $KEYCHAIN_PATH" \
             MARKETING_VERSION="$APP_VERSION" \
