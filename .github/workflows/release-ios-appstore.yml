@@ -474,8 +474,7 @@ jobs:
             -sdk "iphoneos" \
             -destination "generic/platform=iOS" \
             -archivePath "$ARCHIVE_PATH" \
-            CODE_SIGNING_ALLOWED=NO \
-            CODE_SIGNING_REQUIRED=NO \
+            DEVELOPMENT_TEAM="$EXPECTED_TEAM_ID" \
             MARKETING_VERSION="$APP_VERSION" \
             CURRENT_PROJECT_VERSION="$APP_BUILD_NUMBER" \
             clean archive >"$ARCHIVE_LOG" 2>&1
@@ -542,6 +541,55 @@ jobs:
           fi
           echo "IPA_PATH=$IPA_PATH" >> "$GITHUB_ENV"
           ls -la "$EXPORT_PATH"
+
+      - name: Verify IPA code-sign entitlements
+        run: |
+          set -euo pipefail
+          IPA_INSPECT_DIR="$RUNNER_TEMP/ios-ipa-inspect"
+          rm -rf "$IPA_INSPECT_DIR"
+          mkdir -p "$IPA_INSPECT_DIR"
+          unzip -q "$IPA_PATH" -d "$IPA_INSPECT_DIR"
+
+          APP_PATH="$(find "$IPA_INSPECT_DIR/Payload" -maxdepth 1 -name '*.app' | head -n 1)"
+          if [ -z "${APP_PATH:-}" ]; then
+            echo "::error::Unable to locate .app payload inside IPA."
+            exit 1
+          fi
+
+          WIDGET_PATH="$APP_PATH/PlugIns/MindwtrWidgets.appex"
+          if [ ! -d "$WIDGET_PATH" ]; then
+            echo "::error::Widget extension not found in IPA at $WIDGET_PATH."
+            exit 1
+          fi
+
+          APP_ENTITLEMENTS="$RUNNER_TEMP/ios-app-entitlements.plist"
+          WIDGET_ENTITLEMENTS="$RUNNER_TEMP/ios-widget-entitlements.plist"
+
+          codesign -d --entitlements :- "$APP_PATH" > "$APP_ENTITLEMENTS" 2>/dev/null || true
+          codesign -d --entitlements :- "$WIDGET_PATH" > "$WIDGET_ENTITLEMENTS" 2>/dev/null || true
+
+          if ! grep -q "<plist" "$APP_ENTITLEMENTS"; then
+            echo "::error::App bundle is missing signed entitlements."
+            exit 1
+          fi
+
+          if ! grep -q "<plist" "$WIDGET_ENTITLEMENTS"; then
+            echo "::error::Widget extension is missing signed entitlements."
+            echo "::error::Ensure archive/export are code-signed for MindwtrWidgets (bundle $EXPECTED_WIDGET_BUNDLE_ID) with a valid provisioning profile."
+            exit 1
+          fi
+
+          if ! grep -q "$EXPECTED_APP_GROUP" "$APP_ENTITLEMENTS"; then
+            echo "::error::App entitlements missing expected App Group: $EXPECTED_APP_GROUP."
+            exit 1
+          fi
+
+          if ! grep -q "$EXPECTED_APP_GROUP" "$WIDGET_ENTITLEMENTS"; then
+            echo "::error::Widget entitlements missing expected App Group: $EXPECTED_APP_GROUP."
+            exit 1
+          fi
+
+          echo "::notice::IPA signing entitlements verified for app and widget extension."
 
       - name: Upload iOS xcodebuild logs
         if: always()

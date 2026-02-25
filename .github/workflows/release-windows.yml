@@ -288,6 +288,80 @@ jobs:
             return $text -match '(?i)(InvalidState|CommitStarted|PreProcessing|Certification|InCertification|PendingCommit|InProgress|Pending[\s_-]*Submission|Another\s+submission|already\s+.*submission)'
           }
 
+          function Get-HttpStatusCodeFromError {
+            param([System.Management.Automation.ErrorRecord]$ErrorRecord)
+            try {
+              $response = $ErrorRecord.Exception.Response
+              if ($null -eq $response) { return $null }
+              $statusCode = $response.StatusCode
+              if ($null -eq $statusCode) { return $null }
+              return [int]$statusCode
+            } catch {
+              return $null
+            }
+          }
+
+          function Test-IsRetryableHttpFailure {
+            param([System.Management.Automation.ErrorRecord]$ErrorRecord)
+            $status = Get-HttpStatusCodeFromError -ErrorRecord $ErrorRecord
+            if ($status -in @(408, 425, 429)) { return $true }
+            if ($status -ge 500 -and $status -lt 600) { return $true }
+
+            $message = [string]$ErrorRecord.Exception.Message
+            if ($message -match '(?i)(gateway timeout|origin timeout|service unavailable|temporarily unavailable|timed out|azure front door)') {
+              return $true
+            }
+
+            return $false
+          }
+
+          function Invoke-RestMethodWithRetry {
+            param(
+              [Parameter(Mandatory = $true)][ValidateSet('Get', 'Post', 'Put', 'Delete')] [string]$Method,
+              [Parameter(Mandatory = $true)][string]$Uri,
+              [hashtable]$Headers,
+              [object]$Body,
+              [string]$ContentType,
+              [int]$MaxAttempts = 6
+            )
+
+            for ($attempt = 1; $attempt -le $MaxAttempts; $attempt++) {
+              try {
+                $invokeParams = @{
+                  Method = $Method
+                  Uri    = $Uri
+                }
+                if ($null -ne $Headers) {
+                  $invokeParams.Headers = $Headers
+                }
+                if ($PSBoundParameters.ContainsKey('Body') -and $null -ne $Body) {
+                  $invokeParams.Body = $Body
+                }
+                if ($PSBoundParameters.ContainsKey('ContentType') -and -not [string]::IsNullOrWhiteSpace($ContentType)) {
+                  $invokeParams.ContentType = $ContentType
+                }
+
+                return Invoke-RestMethod @invokeParams
+              } catch {
+                $retryable = Test-IsRetryableHttpFailure -ErrorRecord $_
+                if (-not $retryable -or $attempt -ge $MaxAttempts) {
+                  throw
+                }
+
+                $delaySeconds = [Math]::Min(60, [int]([Math]::Pow(2, $attempt - 1) * 2))
+                $status = Get-HttpStatusCodeFromError -ErrorRecord $_
+                if ($null -ne $status) {
+                  Write-Warning "HTTP $status from $Method $Uri (attempt $attempt/$MaxAttempts). Retrying in $delaySeconds seconds..."
+                } else {
+                  Write-Warning "Transient error from $Method $Uri (attempt $attempt/$MaxAttempts). Retrying in $delaySeconds seconds..."
+                }
+                Start-Sleep -Seconds $delaySeconds
+              }
+            }
+
+            throw "Retry loop exhausted unexpectedly for $Method $Uri."
+          }
+
           $tokenBody = @{
             grant_type    = 'client_credentials'
             resource      = 'https://manage.devcenter.microsoft.com'
@@ -295,7 +369,7 @@ jobs:
             client_secret = $env:MS_CLIENT_SECRET
           }
           Write-Host "Obtaining Partner Center access token..."
-          $tokenResponse = Invoke-RestMethod -Method Post `
+          $tokenResponse = Invoke-RestMethodWithRetry -Method Post `
             -Uri "https://login.microsoftonline.com/$($env:MS_TENANT_ID)/oauth2/token" `
             -ContentType 'application/x-www-form-urlencoded' `
             -Body $tokenBody
@@ -309,7 +383,7 @@ jobs:
           }
 
           Write-Host "Looking up application..."
-          $appsResponse = Invoke-RestMethod -Method Get `
+          $appsResponse = Invoke-RestMethodWithRetry -Method Get `
             -Uri 'https://manage.devcenter.microsoft.com/v1.0/my/applications' `
             -Headers $headers
           $app = $appsResponse.value | Where-Object {
@@ -333,7 +407,7 @@ jobs:
             $pendingId = $pendingSub.id
             Write-Host "Deleting existing pending submission $pendingId..."
             try {
-              Invoke-RestMethod -Method Delete `
+              Invoke-RestMethodWithRetry -Method Delete `
                 -Uri "https://manage.devcenter.microsoft.com/v1.0/my/applications/$applicationId/submissions/$pendingId" `
                 -Headers $headers
               Write-Host "Deleted pending submission."
@@ -348,7 +422,7 @@ jobs:
           }
 
           Write-Host "Creating new submission..."
-          $submission = Invoke-RestMethod -Method Post `
+          $submission = Invoke-RestMethodWithRetry -Method Post `
             -Uri "https://manage.devcenter.microsoft.com/v1.0/my/applications/$applicationId/submissions" `
             -Headers $headers
           $submissionId = $submission.id
@@ -455,7 +529,7 @@ jobs:
           $submissionJson = $submission | ConvertTo-Json -Depth 100 -Compress
 
           Write-Host "Updating submission data (metadata + package references)..."
-          Invoke-RestMethod -Method Put `
+          Invoke-RestMethodWithRetry -Method Put `
             -Uri "https://manage.devcenter.microsoft.com/v1.0/my/applications/$applicationId/submissions/$submissionId" `
             -Headers $headers `
             -Body ([System.Text.Encoding]::UTF8.GetBytes($submissionJson)) `
@@ -468,14 +542,14 @@ jobs:
           $zipBytes = [System.IO.File]::ReadAllBytes($zipPath)
 
           Write-Host "Uploading package payload..."
-          Invoke-RestMethod -Method Put `
+          Invoke-RestMethodWithRetry -Method Put `
             -Uri $fileUploadUrl `
             -Headers @{ 'x-ms-blob-type' = 'BlockBlob' } `
             -Body $zipBytes `
             -ContentType 'application/octet-stream'
 
           Write-Host "Committing submission..."
-          Invoke-RestMethod -Method Post `
+          Invoke-RestMethodWithRetry -Method Post `
             -Uri "https://manage.devcenter.microsoft.com/v1.0/my/applications/$applicationId/submissions/$submissionId/commit" `
             -Headers @{ 'Authorization' = "Bearer $accessToken"; 'Content-Type' = 'application/json' } `
             -Body '{}'
@@ -485,16 +559,22 @@ jobs:
           while ((Get-Date) -lt $deadline) {
             Start-Sleep -Seconds 30
             try {
-              $statusResponse = Invoke-RestMethod -Method Get `
+              $statusResponse = Invoke-RestMethodWithRetry -Method Get `
                 -Uri "https://manage.devcenter.microsoft.com/v1.0/my/applications/$applicationId/submissions/$submissionId/status" `
-                -Headers @{ 'Authorization' = "Bearer $accessToken" }
+                -Headers @{ 'Authorization' = "Bearer $accessToken" } `
+                -MaxAttempts 3
             } catch {
-              Write-Warning "Status poll failed, refreshing token: $_"
-              $tokenResponse = Invoke-RestMethod -Method Post `
-                -Uri "https://login.microsoftonline.com/$($env:MS_TENANT_ID)/oauth2/token" `
-                -ContentType 'application/x-www-form-urlencoded' `
-                -Body $tokenBody
-              $accessToken = $tokenResponse.access_token
+              $statusCode = Get-HttpStatusCodeFromError -ErrorRecord $_
+              if ($statusCode -in @(401, 403)) {
+                Write-Warning "Status poll unauthorized; refreshing token."
+                $tokenResponse = Invoke-RestMethodWithRetry -Method Post `
+                  -Uri "https://login.microsoftonline.com/$($env:MS_TENANT_ID)/oauth2/token" `
+                  -ContentType 'application/x-www-form-urlencoded' `
+                  -Body $tokenBody
+                $accessToken = $tokenResponse.access_token
+              } else {
+                Write-Warning "Status poll failed: $($_.Exception.Message)"
+              }
               continue
             }
             $currentStatus = $statusResponse.status
