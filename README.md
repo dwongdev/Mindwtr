@@ -75,15 +75,12 @@ Mindwtr is built for people who want a complete GTD system without lock-in. Here
 | Capability | Mindwtr | Todoist | TickTick | Everdo | NirvanaHQ |
 |---|---|---|---|---|---|
 | Open source | ✅ | ❌ | ❌ | ❌ | ❌ |
-| Local-first data ownership | ✅ | ❌ | ❌ | ✅ | ❌ |
-| Desktop app | ✅ | ✅ | ✅ | ✅ | ✅ |
-| Mobile app | ✅ | ✅ | ✅ | ✅ | ✅ |
-| Linux desktop app | ✅ | ✅ | ✅ | ✅ | ❌ |
-| Web app | ✅ | ✅ | ✅ | ❌ | ✅ |
 | GTD-native workflow | ✅ | ⚠️ | ⚠️ | ✅ | ✅ |
-| Free plan | ✅ | ✅ | ✅ | ⚠️ | ✅ |
-| Paid model | Free | Subscription | Subscription | Freemium | Subscription |
-| Sync without vendor cloud account | ✅ | ❌ | ❌ | ✅ | ❌ |
+| All major platforms (desktop + mobile + web, incl. Linux desktop) | ✅ | ✅ | ✅ | ⚠️ | ⚠️ |
+| Local-first + no account required | ✅ | ❌ | ❌ | ✅ | ❌ |
+| AI assistant (BYOK + local LLM) | ✅ | ❌ | ❌ | ❌ | ❌ |
+| Flexible sync (WebDAV / Dropbox / self-hosted / local file) | ✅ | ❌ | ❌ | ⚠️ | ❌ |
+| Completely free | ✅ | ❌ | ❌ | ❌ | ❌ |
 
 Legend: `✅` = yes, `❌` = no, `⚠️` = partial/limited support.
 
