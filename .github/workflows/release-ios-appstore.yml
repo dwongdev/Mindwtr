@@ -464,66 +464,116 @@ jobs:
           export PROJECT_FILE="apps/mobile/ios/Mindwtr.xcodeproj/project.pbxproj"
           ruby <<'RUBY'
           project_file = ENV.fetch('PROJECT_FILE')
-          app_bundle = ENV.fetch('EXPECTED_BUNDLE_ID')
-          widget_bundle = ENV.fetch('EXPECTED_WIDGET_BUNDLE_ID')
+          targets = {
+            'Mindwtr' => {
+              bundle: ENV.fetch('EXPECTED_BUNDLE_ID'),
+              profile_name: ENV.fetch('APP_PROFILE_NAME'),
+              profile_uuid: ENV.fetch('APP_PROFILE_UUID')
+            },
+            'MindwtrWidgets' => {
+              bundle: ENV.fetch('EXPECTED_WIDGET_BUNDLE_ID'),
+              profile_name: ENV.fetch('WIDGET_PROFILE_NAME'),
+              profile_uuid: ENV.fetch('WIDGET_PROFILE_UUID')
+            }
+          }
           team_id = ENV.fetch('EXPECTED_TEAM_ID')
           signing_identity = ENV.fetch('IOS_SIGNING_IDENTITY')
-          app_profile_name = ENV.fetch('APP_PROFILE_NAME')
-          widget_profile_name = ENV.fetch('WIDGET_PROFILE_NAME')
-          app_profile_uuid = ENV.fetch('APP_PROFILE_UUID')
-          widget_profile_uuid = ENV.fetch('WIDGET_PROFILE_UUID')
 
           lines = File.readlines(project_file, chomp: false)
-          block_start = nil
-          modified_blocks = 0
 
+          # Map XCBuildConfiguration IDs to target names via XCConfigurationList entries.
+          config_to_target = {}
           i = 0
           while i < lines.length
-            if lines[i].include?('buildSettings = {')
-              block_start = i
-              block_end = nil
-              bundle_id = nil
-              j = i + 1
-              while j < lines.length
-                if (m = lines[j].match(/PRODUCT_BUNDLE_IDENTIFIER = \"([^\"]+)\";/))
-                  bundle_id = m[1]
+            m = lines[i].match(/^\s*([A-F0-9]{24})\s*\/\*\s*Build configuration list for PBXNativeTarget \"([^\"]+)\"\s*\*\/\s*=\s*\{/)
+            if m
+              target_name = m[2]
+              if targets.key?(target_name)
+                j = i + 1
+                in_build_configs = false
+                while j < lines.length
+                  in_build_configs = true if lines[j].match?(/^\s*buildConfigurations\s*=\s*\(/)
+                  if in_build_configs
+                    lines[j].scan(/([A-F0-9]{24})\s*\/\*.*?\*\//) do |cfg|
+                      config_to_target[cfg[0]] = target_name
+                    end
+                    break if lines[j].match?(/^\s*\);\s*$/)
+                  end
+                  break if lines[j].match?(/^\s*};\s*$/) && !in_build_configs
+                  j += 1
                 end
-                if lines[j].match?(/^\s*};\s*$/)
-                  block_end = j
-                  break
-                end
-                j += 1
               end
+            end
+            i += 1
+          end
 
-              if block_end && [app_bundle, widget_bundle].include?(bundle_id)
-                is_app = (bundle_id == app_bundle)
-                profile_name = is_app ? app_profile_name : widget_profile_name
-                profile_uuid = is_app ? app_profile_uuid : widget_profile_uuid
-                block = lines[(block_start + 1)...block_end]
-                indent = block.find { |line| line.match?(/\S/) }&.match(/^\s*/)&.to_s || "\t\t\t\t\t"
+          if config_to_target.empty?
+            puts "DEBUG: Could not map any build configurations to Mindwtr targets."
+            lines.each do |line|
+              if line.include?('Build configuration list for PBXNativeTarget')
+                puts "DEBUG: #{line.strip}"
+              end
+            end
+            abort("No target build configuration IDs resolved in #{project_file}.")
+          end
 
-                updates = {
-                  'CODE_SIGN_STYLE' => 'Manual',
-                  'DEVELOPMENT_TEAM' => team_id,
-                  'CODE_SIGN_IDENTITY' => "\"#{signing_identity}\"",
-                  'PROVISIONING_PROFILE_SPECIFIER' => "\"#{profile_name}\"",
-                  'PROVISIONING_PROFILE' => "\"#{profile_uuid}\""
-                }
+          modified_blocks = 0
+          i = 0
+          while i < lines.length
+            m = lines[i].match(/^\s*([A-F0-9]{24})\s*\/\*.*?\*\/\s*=\s*\{/)
+            if m
+              config_id = m[1]
+              target_name = config_to_target[config_id]
+              if target_name
+                target_info = targets.fetch(target_name)
 
-                updates.each do |key, value|
-                  replacement = "#{indent}#{key} = #{value};\n"
-                  idx = block.index { |line| line.match?(/^\s*#{Regexp.escape(key)}\s*=/) }
-                  if idx
-                    block[idx] = replacement
-                  else
-                    block << replacement
+                # Find buildSettings block boundaries for this XCBuildConfiguration block.
+                bs_start = nil
+                j = i + 1
+                while j < lines.length
+                  if lines[j].match?(/^\s*buildSettings\s*=\s*\{/)
+                    bs_start = j
+                    break
+                  end
+                  break if lines[j].match?(/^\s*};\s*$/)
+                  j += 1
+                end
+
+                if bs_start
+                  brace_depth = lines[bs_start].count('{') - lines[bs_start].count('}')
+                  k = bs_start + 1
+                  while k < lines.length && brace_depth > 0
+                    brace_depth += lines[k].count('{') - lines[k].count('}')
+                    k += 1
+                  end
+                  bs_end = k - 1
+
+                  if brace_depth == 0 && bs_end > bs_start
+                    block = lines[(bs_start + 1)...bs_end]
+                    indent = block.find { |line| line.match?(/\S/) }&.match(/^\s*/)&.to_s || "\t\t\t\t\t"
+                    updates = {
+                      'CODE_SIGN_STYLE' => 'Manual',
+                      'DEVELOPMENT_TEAM' => team_id,
+                      'CODE_SIGN_IDENTITY' => "\"#{signing_identity}\"",
+                      'PROVISIONING_PROFILE_SPECIFIER' => "\"#{target_info[:profile_name]}\"",
+                      'PROVISIONING_PROFILE' => "\"#{target_info[:profile_uuid]}\"",
+                      'PRODUCT_BUNDLE_IDENTIFIER' => "\"#{target_info[:bundle]}\""
+                    }
+
+                    updates.each do |key, value|
+                      replacement = "#{indent}#{key} = #{value};\n"
+                      idx = block.index { |line| line.match?(/^\s*#{Regexp.escape(key)}\s*=/) }
+                      if idx
+                        block[idx] = replacement
+                      else
+                        block << replacement
+                      end
+                    end
+
+                    lines[(bs_start + 1)...bs_end] = block
+                    modified_blocks += 1
                   end
                 end
-
-                lines[(block_start + 1)...block_end] = block
-                modified_blocks += 1
-                i = block_start + block.length + 1
-                next
               end
             end
             i += 1
