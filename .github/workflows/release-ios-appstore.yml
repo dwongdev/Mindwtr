@@ -458,6 +458,86 @@ jobs:
           fi
           echo "EXPORT_OPTIONS_PATH=$EXPORT_OPTIONS_PATH" >> "$GITHUB_ENV"
 
+      - name: Apply CI signing settings to Xcode project
+        run: |
+          set -euo pipefail
+          export PROJECT_FILE="apps/mobile/ios/Mindwtr.xcodeproj/project.pbxproj"
+          ruby <<'RUBY'
+          project_file = ENV.fetch('PROJECT_FILE')
+          app_bundle = ENV.fetch('EXPECTED_BUNDLE_ID')
+          widget_bundle = ENV.fetch('EXPECTED_WIDGET_BUNDLE_ID')
+          team_id = ENV.fetch('EXPECTED_TEAM_ID')
+          signing_identity = ENV.fetch('IOS_SIGNING_IDENTITY')
+          app_profile_name = ENV.fetch('APP_PROFILE_NAME')
+          widget_profile_name = ENV.fetch('WIDGET_PROFILE_NAME')
+          app_profile_uuid = ENV.fetch('APP_PROFILE_UUID')
+          widget_profile_uuid = ENV.fetch('WIDGET_PROFILE_UUID')
+
+          lines = File.readlines(project_file, chomp: false)
+          block_start = nil
+          modified_blocks = 0
+
+          i = 0
+          while i < lines.length
+            if lines[i].include?('buildSettings = {')
+              block_start = i
+              block_end = nil
+              bundle_id = nil
+              j = i + 1
+              while j < lines.length
+                if (m = lines[j].match(/PRODUCT_BUNDLE_IDENTIFIER = \"([^\"]+)\";/))
+                  bundle_id = m[1]
+                end
+                if lines[j].match?(/^\s*};\s*$/)
+                  block_end = j
+                  break
+                end
+                j += 1
+              end
+
+              if block_end && [app_bundle, widget_bundle].include?(bundle_id)
+                is_app = (bundle_id == app_bundle)
+                profile_name = is_app ? app_profile_name : widget_profile_name
+                profile_uuid = is_app ? app_profile_uuid : widget_profile_uuid
+                block = lines[(block_start + 1)...block_end]
+                indent = block.find { |line| line.match?(/\S/) }&.match(/^\s*/)&.to_s || "\t\t\t\t\t"
+
+                updates = {
+                  'CODE_SIGN_STYLE' => 'Manual',
+                  'DEVELOPMENT_TEAM' => team_id,
+                  'CODE_SIGN_IDENTITY' => "\"#{signing_identity}\"",
+                  'PROVISIONING_PROFILE_SPECIFIER' => "\"#{profile_name}\"",
+                  'PROVISIONING_PROFILE' => "\"#{profile_uuid}\""
+                }
+
+                updates.each do |key, value|
+                  replacement = "#{indent}#{key} = #{value};\n"
+                  idx = block.index { |line| line.match?(/^\s*#{Regexp.escape(key)}\s*=/) }
+                  if idx
+                    block[idx] = replacement
+                  else
+                    block << replacement
+                  end
+                end
+
+                lines[(block_start + 1)...block_end] = block
+                modified_blocks += 1
+                i = block_start + block.length + 1
+                next
+              end
+            end
+            i += 1
+          end
+
+          if modified_blocks == 0
+            abort("No signing blocks were updated in #{project_file}.")
+          end
+
+          File.write(project_file, lines.join)
+          puts "Updated signing settings in #{modified_blocks} buildSettings blocks."
+          RUBY
+          rg -n 'PRODUCT_BUNDLE_IDENTIFIER = "|CODE_SIGN_STYLE =|DEVELOPMENT_TEAM =|CODE_SIGN_IDENTITY =|PROVISIONING_PROFILE_SPECIFIER =' "$PROJECT_FILE" | sed -n '1,120p'
+
       - name: Archive iOS app
         timeout-minutes: 25
         run: |
