@@ -126,9 +126,13 @@ export const createTaskActions = ({ set, get, getStorage, debouncedSave }: TaskA
         const changeAt = Date.now();
         const now = new Date().toISOString();
         let snapshot: AppData | null = null;
+        let missingTask = false;
         set((state) => {
             const oldTask = state._allTasks.find((t) => t.id === id);
-            if (!oldTask) return state;
+            if (!oldTask) {
+                missingTask = true;
+                return state;
+            }
             const deviceState = ensureDeviceId(state.settings);
             const nextRevision = {
                 rev: normalizeRevision(oldTask.rev) + 1,
@@ -210,6 +214,13 @@ export const createTaskActions = ({ set, get, getStorage, debouncedSave }: TaskA
                 ...(deviceState.updated ? { settings: deviceState.settings } : {}),
             };
         });
+
+        if (missingTask) {
+            const message = 'Task not found';
+            console.warn(`[mindwtr] updateTask skipped: ${id} was not found`);
+            set({ error: message });
+            return;
+        }
 
         if (snapshot) {
             debouncedSave(snapshot, (msg) => set({ error: msg }));

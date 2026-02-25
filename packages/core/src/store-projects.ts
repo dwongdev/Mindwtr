@@ -109,10 +109,14 @@ export const createProjectActions = ({ set, get, debouncedSave }: ProjectActionC
         const changeAt = Date.now();
         const now = new Date().toISOString();
         let snapshot: AppData | null = null;
+        let missingProject = false;
         set((state) => {
             const allProjects = state._allProjects;
             const oldProject = allProjects.find(p => p.id === id);
-            if (!oldProject) return state;
+            if (!oldProject) {
+                missingProject = true;
+                return state;
+            }
             const deviceState = ensureDeviceId(state.settings);
 
             const incomingStatus = updates.status ?? oldProject.status;
@@ -263,6 +267,12 @@ export const createProjectActions = ({ set, get, debouncedSave }: ProjectActionC
                 ...(deviceState.updated ? { settings: deviceState.settings } : {}),
             };
         });
+        if (missingProject) {
+            const message = 'Project not found';
+            console.warn(`[mindwtr] updateProject skipped: ${id} was not found`);
+            set({ error: message });
+            return;
+        }
         if (snapshot) {
             debouncedSave(snapshot, (msg) => set({ error: msg }));
         }
