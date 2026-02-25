@@ -593,6 +593,17 @@ describe('TaskStore', () => {
         expect(projectTasks.every(t => t.status === 'archived')).toBe(true);
     });
 
+    it('sets error when updateProject targets a missing project', () => {
+        const { updateProject } = useTaskStore.getState();
+        const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+
+        updateProject('missing-project-id', { status: 'active' });
+
+        expect(useTaskStore.getState().error).toBe('Project not found');
+        expect(warnSpy).toHaveBeenCalledWith('[mindwtr] updateProject skipped: missing-project-id was not found');
+        warnSpy.mockRestore();
+    });
+
     it('should roll a recurring task when completed', () => {
         const { addTask, moveTask } = useTaskStore.getState();
         addTask('Daily Task', {

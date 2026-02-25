@@ -194,6 +194,13 @@ export const createProjectActions = ({ set, get, debouncedSave }: ProjectActionC
             };
         });
 
+        if (missingProject) {
+            const message = 'Project not found';
+            console.warn(`[mindwtr] updateProject skipped: ${id} was not found`);
+            set({ error: message });
+            return;
+        }
+
         if (snapshot) {
             debouncedSave(snapshot, (msg) => set({ error: msg }));
         }
