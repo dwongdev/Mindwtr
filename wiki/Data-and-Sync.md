@@ -85,6 +85,7 @@ Recommended setup:
 3. Export once to create `data.json` and `attachments/`.
 4. Wait for iCloud Drive to finish uploading.
 5. On iOS, in Mindwtr mobile **Settings → Data & Sync → Select Folder**, choose the same iCloud Drive folder in Files.
+   - If a provider is greyed out in the iOS folder picker, select any JSON file inside the target folder. Mindwtr will still use that folder for `data.json` and `attachments/`.
 
 Important:
 - Sync both `data.json` **and** `attachments/`. Attachments are part of sync data.
@@ -251,6 +252,8 @@ Mindwtr will automatically sync on startup and when data changes.
 ## Mobile Sync Setup
 
 Mobile sync requires manually selecting a sync folder due to Android/iOS storage restrictions.
+
+On iOS, some cloud providers may not expose folder selection in Files. In that case, select any JSON file inside the target sync folder; Mindwtr will resolve and use the folder path for sync.
 
 ### 1. Export Your Data First
 

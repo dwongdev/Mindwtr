@@ -1,3 +1,4 @@
-- Added system calendar integration on mobile.
-- Added Dropbox OAuth sync with attachment support on mobile.
-- Reduced false sync conflict counts caused by timestamp-only skew.
+- Added iOS home widget and app quick actions for faster capture.
+- Added iOS URL-scheme quick capture support and follow-up handling improvements.
+- Improved iOS file sync setup when cloud providers do not expose folder selection.
+- Improved sync reliability and cloud auth hardening across platforms.

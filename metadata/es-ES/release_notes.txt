@@ -1,3 +1,4 @@
-- Añadimos integracion con calendario del sistema en mobile.
-- Añadimos sincronizacion OAuth con Dropbox y soporte de adjuntos en mobile.
-- Reducimos conflictos falsos causados solo por desfase de marcas de tiempo.
+- Añadimos widget en iOS y accesos rapidos de la app para capturar mas rapido.
+- Añadimos soporte de captura rapida por URL scheme en iOS y mejoras en el flujo de seguimiento.
+- Mejoramos la configuracion de sincronizacion en iOS cuando los proveedores cloud no permiten elegir carpeta.
+- Mejoramos la fiabilidad de sincronizacion y reforzamos la autenticacion cloud en multiplataforma.

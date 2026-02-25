@@ -30,7 +30,7 @@
           "完全离线可用，无需互联网连接",
           "完全开源，安全透明"
         ],
-        "ReleaseNotes": "• 新增桌面端 Dropbox 同步支持。\n• 在 Linux 缺少安全钥匙串服务时，新增 WebDAV 凭据回退存储。\n• 降低仅由时间戳偏差导致的误报冲突计数。\n• 改进 Homebrew 与 Microsoft Store 安装来源识别。",
+        "ReleaseNotes": "• 新增桌面端“等待/跟进”日期选择器，并统一使用回顾日期流程。\n• 改进任务编辑器可访问性（焦点陷阱、Escape 关闭、按平台显示快捷键）。\n• 提升同步可靠性：补偿远端写入重试与附件校验保护。\n• 强化云端鉴权处理，并修复 Microsoft Store 启动稳定性问题。",
         "Images": [
           {
             "FileName": "2026-01-27_22-59-40.png",
@@ -82,7 +82,7 @@
           "No internet connection required to function",
           "Open source and transparent"
         ],
-        "ReleaseNotes": "• Added desktop Dropbox sync support.\n• Added Linux WebDAV credential fallback when secure keyring services are unavailable.\n• Reduced false sync conflict counts caused by timestamp-only skew.\n• Improved install-source detection for Homebrew and Microsoft Store channel tracking.",
+        "ReleaseNotes": "• Added desktop waiting follow-up date picker and review-date flow.\n• Improved task editor accessibility (focus trap, Escape close, platform-specific shortcut hints).\n• Improved sync reliability with pending remote write retry and attachment validation safeguards.\n• Hardened cloud auth handling and fixed Windows Store startup reliability.",
         "Images": [
           {
             "FileName": "2026-01-27_22-59-40.png",
@@ -130,7 +130,7 @@
           "No requiere conexión a internet para funcionar",
           "Código abierto y transparente"
         ],
-        "ReleaseNotes": "• Añadimos soporte de sincronizacion Dropbox en desktop.\n• Añadimos respaldo de credenciales WebDAV en Linux cuando no hay servicio de llavero seguro.\n• Reducimos conflictos falsos causados solo por desfase de marcas de tiempo.\n• Mejoramos la deteccion de origen de instalacion para Homebrew y Microsoft Store.",
+        "ReleaseNotes": "• Añadimos selector de fecha para seguimiento en desktop usando fecha de revision.\n• Mejoramos accesibilidad del editor de tareas (focus trap, cierre con Escape y atajos por plataforma).\n• Mejoramos fiabilidad de sincronizacion con reintento de escritura pendiente y validacion de adjuntos.\n• Reforzamos autenticacion cloud y corregimos fiabilidad de inicio en Microsoft Store.",
         "Images": [
           {
             "FileName": "2026-01-27_22-59-40.png",
