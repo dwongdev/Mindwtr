@@ -447,10 +447,33 @@ fn quit_app(app: tauri::AppHandle) {
     app.exit(0);
 }
 
+#[cfg(target_os = "windows")]
+fn has_windows_package_identity() -> bool {
+    use windows_sys::Win32::Foundation::{APPMODEL_ERROR_NO_PACKAGE, ERROR_INSUFFICIENT_BUFFER};
+    use windows_sys::Win32::Storage::Packaging::Appx::GetCurrentPackageFullName;
+
+    let mut package_name_len: u32 = 0;
+    // Per Win32 docs, packaged apps return ERROR_INSUFFICIENT_BUFFER on a size probe.
+    let status = unsafe { GetCurrentPackageFullName(&mut package_name_len, std::ptr::null_mut()) };
+    if status == APPMODEL_ERROR_NO_PACKAGE {
+        return false;
+    }
+    status == ERROR_INSUFFICIENT_BUFFER || (status == 0 && package_name_len > 0)
+}
+
+#[cfg(target_os = "windows")]
+fn is_windowsapps_mindwtr_path(path: &str) -> bool {
+    (path.contains("\\windowsapps\\") || path.contains("/windowsapps/")) && path.contains("mindwtr")
+}
+
 #[tauri::command]
 fn is_windows_store_install() -> bool {
     #[cfg(target_os = "windows")]
     {
+        if has_windows_package_identity() {
+            return true;
+        }
+
         if std::env::var_os("APPX_PACKAGE_FAMILY_NAME").is_some()
             || std::env::var_os("APPX_PACKAGE_FULL_NAME").is_some()
             || std::env::var_os("MSIX_PACKAGE_ROOT").is_some()
@@ -460,21 +483,13 @@ fn is_windows_store_install() -> bool {
             return true;
         }
 
-        let is_windows_store_path = |path: &str| {
-            if !(path.contains("\\windowsapps\\") || path.contains("/windowsapps/")) {
-                return false;
-            }
-            path.contains("mindwtr")
-                && (path.contains("dongdongbh") || path.contains("tech.dongdongbh"))
-        };
-
         if let Some(path) = current_exe_path_lowercase() {
-            if is_windows_store_path(&path) {
+            if is_windowsapps_mindwtr_path(&path) {
                 return true;
             }
         }
         if let Some(path) = current_exe_canonical_path_lowercase() {
-            if is_windows_store_path(&path) {
+            if is_windowsapps_mindwtr_path(&path) {
                 return true;
             }
         }
@@ -600,29 +615,6 @@ fn get_install_source() -> String {
     {
         if is_windows_store_install() {
             return "microsoft-store".to_string();
-        }
-        if env::var_os("MSIX_PACKAGE_ROOT").is_some()
-            || env::var_os("PACKAGE_FAMILY_NAME").is_some()
-            || env::var_os("PACKAGE_FULL_NAME").is_some()
-        {
-            return "microsoft-store".to_string();
-        }
-        let is_windows_store_path = |path: &str| {
-            if !(path.contains("\\windowsapps\\") || path.contains("/windowsapps/")) {
-                return false;
-            }
-            path.contains("mindwtr")
-                && (path.contains("dongdongbh") || path.contains("tech.dongdongbh"))
-        };
-        if let Some(path) = current_exe_path_lowercase() {
-            if is_windows_store_path(&path) {
-                return "microsoft-store".to_string();
-            }
-        }
-        if let Some(path) = current_exe_canonical_path_lowercase() {
-            if is_windows_store_path(&path) {
-                return "microsoft-store".to_string();
-            }
         }
         if env::var_os("WINGET_PACKAGE_IDENTIFIER").is_some() {
             return "winget".to_string();
