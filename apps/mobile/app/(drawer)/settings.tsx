@@ -1895,21 +1895,21 @@ export default function SettingsPage() {
             <View style={{ marginTop: 6 }}>
                 <TouchableOpacity onPress={() => setSyncHistoryExpanded((value) => !value)} activeOpacity={0.7}>
                     <Text style={[styles.settingDescription, { color: tc.secondaryText, fontWeight: '600' }]}>
-                        {localize('Sync history', '同步历史')} ({syncHistoryEntries.length}) {syncHistoryExpanded ? '▾' : '▸'}
+                        {t('settings.syncHistory')} ({syncHistoryEntries.length}) {syncHistoryExpanded ? '▾' : '▸'}
                     </Text>
                 </TouchableOpacity>
                 {syncHistoryExpanded && syncHistoryEntries.map((entry) => {
                     const statusLabel = entry.status === 'success'
-                        ? localize('Completed', '完成')
+                        ? t('settings.lastSyncSuccess')
                         : entry.status === 'conflict'
-                            ? localize('Conflicts', '冲突')
-                            : localize('Failed', '失败');
+                            ? t('settings.lastSyncConflict')
+                            : t('settings.lastSyncError');
                     const details = [
                         entry.backend ? `${localize('Backend', '后端')}: ${entry.backend}` : null,
                         entry.type ? `${localize('Type', '类型')}: ${entry.type}` : null,
-                        entry.conflicts ? `${localize('Conflicts', '冲突')}: ${entry.conflicts}` : null,
-                        entry.maxClockSkewMs > 0 ? `${localize('Clock skew', '时钟偏差')}: ${formatClockSkew(entry.maxClockSkewMs)}` : null,
-                        entry.timestampAdjustments > 0 ? `${localize('Timestamp fixes', '时间修正')}: ${entry.timestampAdjustments}` : null,
+                        entry.conflicts ? `${t('settings.lastSyncConflicts')}: ${entry.conflicts}` : null,
+                        entry.maxClockSkewMs > 0 ? `${t('settings.lastSyncSkew')}: ${formatClockSkew(entry.maxClockSkewMs)}` : null,
+                        entry.timestampAdjustments > 0 ? `${t('settings.lastSyncAdjusted')}: ${entry.timestampAdjustments}` : null,
                         entry.details ? `${localize('Details', '详情')}: ${entry.details}` : null,
                     ].filter(Boolean);
                     return (
@@ -4339,10 +4339,10 @@ export default function SettingsPage() {
                                 <View style={styles.settingRow}>
                                     <View style={styles.settingInfo}>
                                         <Text style={[styles.settingLabel, { color: tc.text }]}>
-                                            {localize('Sync Folder', '同步文件夹')}
+                                            {t('settings.syncFolderLocation')}
                                         </Text>
                                         <Text style={[styles.settingDescription, { color: tc.secondaryText }]} numberOfLines={1}>
-                                            {syncPath ? syncPath.split('/').pop() : localize('Not set', '未设置')}
+                                            {syncPath ? syncPath.split('/').pop() : t('common.notSet')}
                                         </Text>
                                     </View>
                                     <TouchableOpacity onPress={handleSetSyncPath}>
@@ -4358,7 +4358,7 @@ export default function SettingsPage() {
                                 >
                                     <View style={styles.settingInfo}>
                                         <Text style={[styles.settingLabel, { color: syncPath ? '#3B82F6' : tc.secondaryText }]}>
-                                            {localize('Sync', '同步')}
+                                            {t('settings.syncNow')}
                                         </Text>
                                         <Text style={[styles.settingDescription, { color: tc.secondaryText }]}>
                                             {isChineseLanguage ? '读取并合并同步文件夹' : translateText('Read and merge sync folder', language)}
@@ -4371,33 +4371,33 @@ export default function SettingsPage() {
                                 <View style={[styles.settingRow, { borderTopWidth: 1, borderTopColor: tc.border }]}>
                                     <View style={styles.settingInfo}>
                                         <Text style={[styles.settingLabel, { color: tc.text }]}>
-                                            {localize('Last Sync', '上次同步')}
+                                            {t('settings.lastSync')}
                                         </Text>
                                         <Text style={[styles.settingDescription, { color: tc.secondaryText }]}>
                                             {settings.lastSyncAt
                                                 ? new Date(settings.lastSyncAt).toLocaleString()
-                                                : localize('Never', '从未同步')}
+                                                : t('settings.lastSyncNever')}
                                             {settings.lastSyncStatus === 'error' && localize(' (failed)', '（失败）')}
                                             {settings.lastSyncStatus === 'conflict' && localize(' (conflicts)', '（有冲突）')}
                                         </Text>
                                         {lastSyncStats && (
                                             <Text style={[styles.settingDescription, { color: tc.secondaryText }]}>
-                                                {localize('Conflicts', '冲突')}: {syncConflictCount}
+                                                {t('settings.lastSyncConflicts')}: {syncConflictCount}
                                             </Text>
                                         )}
                                         {lastSyncStats && maxClockSkewMs > 0 && (
                                             <Text style={[styles.settingDescription, { color: tc.secondaryText }]}>
-                                                {localize('Clock skew', '时钟偏差')}: {formatClockSkew(maxClockSkewMs)}
+                                                {t('settings.lastSyncSkew')}: {formatClockSkew(maxClockSkewMs)}
                                             </Text>
                                         )}
                                         {lastSyncStats && timestampAdjustments > 0 && (
                                             <Text style={[styles.settingDescription, { color: tc.secondaryText }]}>
-                                                {localize('Timestamp fixes', '时间修正')}: {timestampAdjustments}
+                                                {t('settings.lastSyncAdjusted')}: {timestampAdjustments}
                                             </Text>
                                         )}
                                         {lastSyncStats && conflictIds.length > 0 && (
                                             <Text style={[styles.settingDescription, { color: tc.secondaryText }]}>
-                                                {localize('Conflict IDs', '冲突 ID')}: {conflictIds.join(', ')}
+                                                {t('settings.lastSyncConflictIds')}: {conflictIds.join(', ')}
                                             </Text>
                                         )}
                                         {settings.lastSyncStatus === 'error' && settings.lastSyncError && (
@@ -4513,7 +4513,7 @@ export default function SettingsPage() {
                                 >
                                     <View style={styles.settingInfo}>
                                         <Text style={[styles.settingLabel, { color: webdavUrl.trim() && !webdavUrlError ? tc.tint : tc.secondaryText }]}>
-                                            {localize('Sync', '同步')}
+                                            {t('settings.syncNow')}
                                         </Text>
                                         <Text style={[styles.settingDescription, { color: tc.secondaryText }]}>
                                             {isChineseLanguage ? '读取并合并 WebDAV 数据' : translateText('Read and merge WebDAV data', language)}
@@ -4543,33 +4543,33 @@ export default function SettingsPage() {
                                 <View style={[styles.settingRow, { borderTopWidth: 1, borderTopColor: tc.border }]}>
                                     <View style={styles.settingInfo}>
                                         <Text style={[styles.settingLabel, { color: tc.text }]}>
-                                            {localize('Last Sync', '上次同步')}
+                                            {t('settings.lastSync')}
                                         </Text>
                                         <Text style={[styles.settingDescription, { color: tc.secondaryText }]}>
                                             {settings.lastSyncAt
                                                 ? new Date(settings.lastSyncAt).toLocaleString()
-                                                : localize('Never', '从未同步')}
+                                                : t('settings.lastSyncNever')}
                                             {settings.lastSyncStatus === 'error' && localize(' (failed)', '（失败）')}
                                             {settings.lastSyncStatus === 'conflict' && localize(' (conflicts)', '（有冲突）')}
                                         </Text>
                                         {lastSyncStats && (
                                             <Text style={[styles.settingDescription, { color: tc.secondaryText }]}>
-                                                {localize('Conflicts', '冲突')}: {syncConflictCount}
+                                                {t('settings.lastSyncConflicts')}: {syncConflictCount}
                                             </Text>
                                         )}
                                         {lastSyncStats && maxClockSkewMs > 0 && (
                                             <Text style={[styles.settingDescription, { color: tc.secondaryText }]}>
-                                                {localize('Clock skew', '时钟偏差')}: {formatClockSkew(maxClockSkewMs)}
+                                                {t('settings.lastSyncSkew')}: {formatClockSkew(maxClockSkewMs)}
                                             </Text>
                                         )}
                                         {lastSyncStats && timestampAdjustments > 0 && (
                                             <Text style={[styles.settingDescription, { color: tc.secondaryText }]}>
-                                                {localize('Timestamp fixes', '时间修正')}: {timestampAdjustments}
+                                                {t('settings.lastSyncAdjusted')}: {timestampAdjustments}
                                             </Text>
                                         )}
                                         {lastSyncStats && conflictIds.length > 0 && (
                                             <Text style={[styles.settingDescription, { color: tc.secondaryText }]}>
-                                                {localize('Conflict IDs', '冲突 ID')}: {conflictIds.join(', ')}
+                                                {t('settings.lastSyncConflictIds')}: {conflictIds.join(', ')}
                                             </Text>
                                         )}
                                         {settings.lastSyncStatus === 'error' && settings.lastSyncError && (
@@ -4716,7 +4716,7 @@ export default function SettingsPage() {
                                     >
                                         <View style={styles.settingInfo}>
                                             <Text style={[styles.settingLabel, { color: cloudUrl.trim() && !cloudUrlError ? tc.tint : tc.secondaryText }]}>
-                                                {localize('Sync', '同步')}
+                                                {t('settings.syncNow')}
                                             </Text>
                                             <Text style={[styles.settingDescription, { color: tc.secondaryText }]}>
                                                 {isChineseLanguage ? '读取并合并自托管数据' : translateText('Read and merge self-hosted data', language)}
@@ -4828,7 +4828,7 @@ export default function SettingsPage() {
                                     >
                                         <View style={styles.settingInfo}>
                                             <Text style={[styles.settingLabel, { color: dropboxConnected ? tc.tint : tc.secondaryText }]}>
-                                                {localize('Sync', '同步')}
+                                                {t('settings.syncNow')}
                                             </Text>
                                             <Text style={[styles.settingDescription, { color: tc.secondaryText }]}>
                                                 {localize('Read and merge Dropbox data.', '读取并合并 Dropbox 数据。')}
@@ -4843,33 +4843,33 @@ export default function SettingsPage() {
                                 <View style={styles.settingRow}>
                                     <View style={styles.settingInfo}>
                                         <Text style={[styles.settingLabel, { color: tc.text }]}>
-                                            {localize('Last Sync', '上次同步')}
+                                            {t('settings.lastSync')}
                                         </Text>
                                         <Text style={[styles.settingDescription, { color: tc.secondaryText }]}>
                                             {settings.lastSyncAt
                                                 ? new Date(settings.lastSyncAt).toLocaleString()
-                                                : localize('Never', '从未同步')}
+                                                : t('settings.lastSyncNever')}
                                             {settings.lastSyncStatus === 'error' && localize(' (failed)', '（失败）')}
                                             {settings.lastSyncStatus === 'conflict' && localize(' (conflicts)', '（有冲突）')}
                                         </Text>
                                         {lastSyncStats && (
                                             <Text style={[styles.settingDescription, { color: tc.secondaryText }]}>
-                                                {localize('Conflicts', '冲突')}: {syncConflictCount}
+                                                {t('settings.lastSyncConflicts')}: {syncConflictCount}
                                             </Text>
                                         )}
                                         {lastSyncStats && maxClockSkewMs > 0 && (
                                             <Text style={[styles.settingDescription, { color: tc.secondaryText }]}>
-                                                {localize('Clock skew', '时钟偏差')}: {formatClockSkew(maxClockSkewMs)}
+                                                {t('settings.lastSyncSkew')}: {formatClockSkew(maxClockSkewMs)}
                                             </Text>
                                         )}
                                         {lastSyncStats && timestampAdjustments > 0 && (
                                             <Text style={[styles.settingDescription, { color: tc.secondaryText }]}>
-                                                {localize('Timestamp fixes', '时间修正')}: {timestampAdjustments}
+                                                {t('settings.lastSyncAdjusted')}: {timestampAdjustments}
                                             </Text>
                                         )}
                                         {lastSyncStats && conflictIds.length > 0 && (
                                             <Text style={[styles.settingDescription, { color: tc.secondaryText }]}>
-                                                {localize('Conflict IDs', '冲突 ID')}: {conflictIds.join(', ')}
+                                                {t('settings.lastSyncConflictIds')}: {conflictIds.join(', ')}
                                             </Text>
                                         )}
                                         {settings.lastSyncStatus === 'error' && settings.lastSyncError && (
@@ -5034,7 +5034,7 @@ export default function SettingsPage() {
                             style={[styles.settingRow, { borderTopWidth: 1, borderTopColor: tc.border }]}
                             onPress={() => openLink('https://github.com/dongdongbh/Mindwtr/wiki')}
                         >
-                            <Text style={[styles.settingLabel, { color: tc.text }]}>{localize('Documentation', '文档')}</Text>
+                            <Text style={[styles.settingLabel, { color: tc.text }]}>{t('settings.documentation')}</Text>
                             <Text style={styles.linkText}>GitHub Wiki</Text>
                         </TouchableOpacity>
                         <TouchableOpacity
@@ -5042,7 +5042,7 @@ export default function SettingsPage() {
                             onPress={() => openLink('https://ko-fi.com/dongdongbh')}
                         >
                             <Text style={[styles.settingLabel, { color: tc.text }]}>
-                                {localize('Support Project', '支持项目')}
+                                {t('settings.sponsorProject')}
                             </Text>
                             <Text style={styles.linkText}>Ko-fi</Text>
                         </TouchableOpacity>
@@ -5058,12 +5058,12 @@ export default function SettingsPage() {
                             onPress={() => openLink('https://dongdongbh.tech')}
                         >
                             <Text style={[styles.settingLabel, { color: tc.text }]}>
-                                {localize('Developer Website', '开发者网站')}
+                                {t('settings.website')}
                             </Text>
                             <Text style={styles.linkText}>dongdongbh.tech</Text>
                         </TouchableOpacity>
                         <View style={[styles.settingRow, { borderTopWidth: 1, borderTopColor: tc.border }]}>
-                            <Text style={[styles.settingLabel, { color: tc.text }]}>{localize('License', '许可证')}</Text>
+                            <Text style={[styles.settingLabel, { color: tc.text }]}>{t('settings.license')}</Text>
                             <Text style={[styles.settingValue, { color: tc.secondaryText }]}>AGPL-3.0</Text>
                         </View>
                         {!isFossBuild && (
@@ -5073,7 +5073,7 @@ export default function SettingsPage() {
                                 disabled={isCheckingUpdate}
                             >
                                 <Text style={[styles.settingLabel, { color: tc.text }]}>
-                                    {localize('Check for Updates', '检查更新')}
+                                    {t('settings.checkForUpdates')}
                                 </Text>
                                 {isCheckingUpdate ? (
                                     <ActivityIndicator size="small" color="#3B82F6" />
