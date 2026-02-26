@@ -33,6 +33,7 @@ import {
   WEBDAV_USERNAME_KEY,
 } from './sync-constants';
 import { logInfo, logWarn, sanitizeLogMessage } from './app-log';
+import { isLikelyFilePath } from './sync-service-utils';
 
 const ATTACHMENTS_DIR_NAME = 'attachments';
 const DEFAULT_CONTENT_TYPE = 'application/octet-stream';
@@ -90,6 +91,32 @@ const setWebdavDownloadBackoff = (attachmentId: string, error: unknown): void =>
 
 const pruneWebdavDownloadBackoff = (): void => {
   webdavDownloadBackoff.prune();
+};
+
+const markAttachmentUnrecoverable = (attachment: Attachment): boolean => {
+  const now = new Date().toISOString();
+  let mutated = false;
+  if (attachment.cloudKey !== undefined) {
+    attachment.cloudKey = undefined;
+    mutated = true;
+  }
+  if (attachment.fileHash !== undefined) {
+    attachment.fileHash = undefined;
+    mutated = true;
+  }
+  if (attachment.localStatus !== 'missing') {
+    attachment.localStatus = 'missing';
+    mutated = true;
+  }
+  if (!attachment.deletedAt) {
+    attachment.deletedAt = now;
+    mutated = true;
+  }
+  if (attachment.updatedAt !== now) {
+    attachment.updatedAt = now;
+    mutated = true;
+  }
+  return mutated;
 };
 
 const reportProgress = (
@@ -493,9 +520,6 @@ export const cleanupAttachmentTempFiles = async (): Promise<void> => {
   }
 };
 
-const isSyncFilePath = (path: string) =>
-  /(?:^|[\\/])(data\.json|mindwtr-sync\.json)$/i.test(path);
-
 const resolveSafSyncDir = async (syncUri: string): Promise<{ type: 'saf'; dirUri: string; attachmentsDirUri: string } | null> => {
   if (!StorageAccessFramework?.readDirectoryAsync) return null;
   const prefixMatch = syncUri.match(/^(content:\/\/[^/]+)/);
@@ -571,7 +595,7 @@ const resolveFileSyncDir = async (
   }
 
   const normalized = syncPath.replace(/\/+$/, '');
-  const isFilePath = isSyncFilePath(normalized);
+  const isFilePath = isLikelyFilePath(normalized);
   const baseDir = isFilePath ? normalized.replace(/\/[^/]+$/, '') : normalized;
   if (!baseDir) return null;
   const dirUri = baseDir.endsWith('/') ? baseDir : `${baseDir}/`;
@@ -1029,16 +1053,17 @@ export const syncWebdavAttachments = async (
         }
         const status = getErrorStatus(error);
         if (status === 404 && attachment.cloudKey) {
-          attachment.cloudKey = undefined;
           webdavDownloadBackoff.deleteEntry(attachment.id);
-          didMutate = true;
+          if (markAttachmentUnrecoverable(attachment)) {
+            didMutate = true;
+          }
           logAttachmentInfo('Cleared missing WebDAV cloud key after 404', {
             id: attachment.id,
           });
         } else {
           setWebdavDownloadBackoff(attachment.id, error);
         }
-        if (attachment.localStatus !== 'missing') {
+        if (status !== 404 && attachment.localStatus !== 'missing') {
           attachment.localStatus = 'missing';
           didMutate = true;
         }
@@ -1302,10 +1327,11 @@ export const syncDropboxAttachments = async (
       reportProgress(attachment.id, 'download', bytes.length, bytes.length, 'completed');
     } catch (error) {
       if (error instanceof DropboxFileNotFoundError && attachment.cloudKey) {
-        attachment.cloudKey = undefined;
-        didMutate = true;
+        if (markAttachmentUnrecoverable(attachment)) {
+          didMutate = true;
+        }
       }
-      if (attachment.localStatus !== 'missing') {
+      if (!(error instanceof DropboxFileNotFoundError) && attachment.localStatus !== 'missing') {
         attachment.localStatus = 'missing';
         didMutate = true;
       }

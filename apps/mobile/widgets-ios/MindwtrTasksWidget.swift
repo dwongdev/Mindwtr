@@ -4,6 +4,8 @@ import WidgetKit
 private let mindwtrWidgetKind = "MindwtrTasksWidget"
 private let mindwtrWidgetAppGroup = "group.tech.dongdongbh.mindwtr"
 private let mindwtrWidgetPayloadKey = "mindwtr-ios-widget-payload"
+private let darkThemeModes: Set<String> = ["dark", "material3-dark", "nord", "oled"]
+private let lightThemeModes: Set<String> = ["light", "material3-light", "eink", "sepia"]
 
 private struct MindwtrWidgetTaskItem: Decodable {
     let id: String
@@ -21,6 +23,28 @@ private struct MindwtrWidgetPalette: Decodable {
     let onAccent: String
 }
 
+private extension MindwtrWidgetPalette {
+    static let light = MindwtrWidgetPalette(
+        background: "#F8FAFC",
+        card: "#FFFFFF",
+        border: "#CBD5E1",
+        text: "#0F172A",
+        mutedText: "#475569",
+        accent: "#2563EB",
+        onAccent: "#FFFFFF"
+    )
+
+    static let dark = MindwtrWidgetPalette(
+        background: "#111827",
+        card: "#1F2937",
+        border: "#374151",
+        text: "#F9FAFB",
+        mutedText: "#CBD5E1",
+        accent: "#2563EB",
+        onAccent: "#FFFFFF"
+    )
+}
+
 private struct MindwtrTasksWidgetPayload: Decodable {
     let headerTitle: String
     let subtitle: String
@@ -29,6 +53,7 @@ private struct MindwtrTasksWidgetPayload: Decodable {
     let captureLabel: String
     let focusUri: String
     let quickCaptureUri: String
+    let themeMode: String?
     let palette: MindwtrWidgetPalette
 
     static var fallback: MindwtrTasksWidgetPayload {
@@ -40,15 +65,8 @@ private struct MindwtrTasksWidgetPayload: Decodable {
             captureLabel: "Quick capture",
             focusUri: "mindwtr:///focus",
             quickCaptureUri: "mindwtr:///capture-quick?mode=text",
-            palette: MindwtrWidgetPalette(
-                background: "#F8FAFC",
-                card: "#FFFFFF",
-                border: "#CBD5E1",
-                text: "#0F172A",
-                mutedText: "#475569",
-                accent: "#2563EB",
-                onAccent: "#FFFFFF"
-            )
+            themeMode: "system",
+            palette: .light
         )
     }
 }
@@ -94,9 +112,11 @@ private struct MindwtrTasksWidgetProvider: TimelineProvider {
 private struct MindwtrTasksWidgetView: View {
     let entry: MindwtrTasksWidgetEntry
     @Environment(\.widgetFamily) private var widgetFamily
+    @Environment(\.colorScheme) private var colorScheme
 
     var body: some View {
         let payload = entry.payload
+        let palette = resolvePalette(payload)
         GeometryReader { geometry in
             let visibleTaskLimit = resolveTaskLimit(itemCount: payload.items.count, availableHeight: geometry.size.height)
             VStack(alignment: .leading, spacing: 6) {
@@ -104,11 +124,11 @@ private struct MindwtrTasksWidgetView: View {
                     VStack(alignment: .leading, spacing: 2) {
                         Text(payload.headerTitle)
                             .font(.system(size: 14, weight: .semibold))
-                            .foregroundColor(hexColor(payload.palette.text))
+                            .foregroundColor(hexColor(palette.text))
                             .lineLimit(1)
                         Text(payload.subtitle)
                             .font(.system(size: 11))
-                            .foregroundColor(hexColor(payload.palette.mutedText))
+                            .foregroundColor(hexColor(palette.mutedText))
                             .lineLimit(1)
                     }
                 }
@@ -116,14 +136,14 @@ private struct MindwtrTasksWidgetView: View {
                 if payload.items.isEmpty {
                     TaskLineView(
                         title: payload.emptyMessage,
-                        textColor: payload.palette.mutedText,
+                        textColor: palette.mutedText,
                         focusUri: payload.focusUri
                     )
                 } else {
                     ForEach(payload.items.prefix(visibleTaskLimit), id: \.id) { item in
                         TaskLineView(
                             title: "• \(item.title)",
-                            textColor: payload.palette.text,
+                            textColor: palette.text,
                             focusUri: payload.focusUri
                         )
                     }
@@ -134,16 +154,16 @@ private struct MindwtrTasksWidgetView: View {
                 Link(destination: URL(string: payload.quickCaptureUri) ?? URL(fileURLWithPath: "/")) {
                     Text(payload.captureLabel)
                         .font(.system(size: 12, weight: .semibold))
-                        .foregroundColor(hexColor(payload.palette.onAccent))
+                        .foregroundColor(hexColor(palette.onAccent))
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 8)
-                        .background(hexColor(payload.palette.accent))
+                        .background(hexColor(palette.accent))
                         .clipShape(Capsule())
                 }
             }
             .padding(12)
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-            .background(hexColor(payload.palette.background))
+            .mindwtrWidgetBackground(hexColor(palette.background))
         }
     }
 
@@ -169,6 +189,24 @@ private struct MindwtrTasksWidgetView: View {
         }
         return min(itemCount, max(1, fitRows))
     }
+
+    private func resolvePalette(_ payload: MindwtrTasksWidgetPayload) -> MindwtrWidgetPalette {
+        let mode = (payload.themeMode ?? "system")
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .lowercased()
+
+        if darkThemeModes.contains(mode) {
+            return .dark
+        }
+        if lightThemeModes.contains(mode) {
+            return .light
+        }
+        if mode.isEmpty || mode == "system" {
+            return colorScheme == .dark ? .dark : .light
+        }
+
+        return payload.palette
+    }
 }
 
 private struct TaskLineView: View {
@@ -185,6 +223,17 @@ private struct TaskLineView: View {
                 .truncationMode(.tail)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(.vertical, 1)
+        }
+    }
+}
+
+private extension View {
+    @ViewBuilder
+    func mindwtrWidgetBackground(_ color: Color) -> some View {
+        if #available(iOSApplicationExtension 17.0, *) {
+            self.containerBackground(for: .widget) { color }
+        } else {
+            self.background(color)
         }
     }
 }

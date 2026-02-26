@@ -175,6 +175,32 @@ const pruneWebdavDownloadBackoff = (): void => {
     webdavDownloadBackoff.prune();
 };
 
+const markAttachmentUnrecoverable = (attachment: Attachment): boolean => {
+    const now = new Date().toISOString();
+    let mutated = false;
+    if (attachment.cloudKey !== undefined) {
+        attachment.cloudKey = undefined;
+        mutated = true;
+    }
+    if (attachment.fileHash !== undefined) {
+        attachment.fileHash = undefined;
+        mutated = true;
+    }
+    if (attachment.localStatus !== 'missing') {
+        attachment.localStatus = 'missing';
+        mutated = true;
+    }
+    if (!attachment.deletedAt) {
+        attachment.deletedAt = now;
+        mutated = true;
+    }
+    if (attachment.updatedAt !== now) {
+        attachment.updatedAt = now;
+        mutated = true;
+    }
+    return mutated;
+};
+
 const externalCalendarProvider = {
     load: () => ExternalCalendarService.getCalendars(),
     save: (calendars: AppData['settings']['externalCalendars'] | undefined) =>
@@ -397,6 +423,13 @@ const cleanupOrphanedAttachments = async (appData: AppData, backend: SyncBackend
                 await remove(targetPath);
             }
         } catch (error) {
+            const status = getErrorStatus(error);
+            if (status === 404 || error instanceof DropboxFileNotFoundError) {
+                logSyncInfo('Remote attachment already missing during cleanup', {
+                    cloudKey: target.cloudKey,
+                });
+                continue;
+            }
             logSyncWarning(`Failed to delete remote attachment ${target.title}`, error);
             nextPendingRemoteDeletes.set(target.cloudKey, {
                 cloudKey: target.cloudKey,
@@ -749,16 +782,17 @@ async function syncAttachments(
             }
             const status = getErrorStatus(error);
             if (status === 404 && attachment.cloudKey) {
-                attachment.cloudKey = undefined;
                 webdavDownloadBackoff.deleteEntry(attachment.id);
-                didMutate = true;
+                if (markAttachmentUnrecoverable(attachment)) {
+                    didMutate = true;
+                }
                 logSyncInfo('Cleared missing WebDAV cloud key after 404', {
                     id: attachment.id,
                 });
             } else {
                 setWebdavDownloadBackoff(attachment.id, error);
             }
-            if (attachment.localStatus !== 'missing') {
+            if (status !== 404 && attachment.localStatus !== 'missing') {
                 attachment.localStatus = 'missing';
                 didMutate = true;
             }
@@ -1037,12 +1071,7 @@ async function syncDropboxAttachments(
                 );
             } catch (error) {
                 if (error instanceof DropboxFileNotFoundError) {
-                    attachment.cloudKey = undefined;
-                    const statusChanged = attachment.localStatus !== 'missing';
-                    if (statusChanged) {
-                        attachment.localStatus = 'missing';
-                    }
-                    return true;
+                    return markAttachmentUnrecoverable(attachment);
                 }
                 throw error;
             }

@@ -49,6 +49,7 @@ export interface TasksWidgetPayload {
     captureLabel: string;
     focusUri: string;
     quickCaptureUri: string;
+    themeMode?: string;
     palette: WidgetPalette;
 }
 
@@ -218,6 +219,7 @@ export function buildWidgetPayload(
         captureLabel: tr['widget.capture'] ?? 'Quick capture',
         focusUri: WIDGET_FOCUS_URI,
         quickCaptureUri: WIDGET_QUICK_CAPTURE_URI,
+        themeMode: typeof data.settings?.theme === 'string' ? data.settings.theme : 'system',
         palette,
     };
 }
