@@ -11,7 +11,8 @@ import Animated, {
   useSharedValue,
   useAnimatedStyle,
   withSpring,
-  runOnJS
+  runOnJS,
+  type SharedValue,
 } from 'react-native-reanimated';
 import { TaskEditModal } from '../task-edit-modal';
 import { resolveBoardDropColumnIndex } from './board-view.utils';
@@ -37,7 +38,7 @@ interface DraggableTaskProps {
   onDuplicate: (task: Task) => void;
   deleteLabel: string;
   duplicateLabel: string;
-  dragScrollCompensation: number;
+  dragScrollCompensation: SharedValue<number>;
   isDragActive: boolean;
   projectTitle?: string;
   projectColor?: string;
@@ -68,9 +69,10 @@ function DraggableTask({
   const zIndex = useSharedValue(1);
   const isDragging = useSharedValue(false);
 
-  const handleDropFromGesture = useCallback((taskId: string, translationYDelta: number) => {
+  const handleDropAndEndFromGesture = useCallback((taskId: string, translationYDelta: number) => {
     onDrop(taskId, translationYDelta);
-  }, [currentColumnIndex, onDrop]);
+    onDragEnd();
+  }, [onDrop, onDragEnd]);
 
   // Tap gesture for editing
   const tapGesture = Gesture.Tap()
@@ -95,15 +97,11 @@ function DraggableTask({
     })
     .onEnd((event) => {
       isDragging.value = false;
-      runOnJS(handleDropFromGesture)(task.id, event.translationY);
+      runOnJS(handleDropAndEndFromGesture)(task.id, event.translationY);
 
       translateY.value = withSpring(0);
       scale.value = withSpring(1);
       zIndex.value = 1;
-      runOnJS(onDragEnd)();
-    })
-    .onFinalize(() => {
-      runOnJS(onDragEnd)();
     });
 
   // Combine gestures - tap works immediately, drag requires hold
@@ -114,7 +112,7 @@ function DraggableTask({
 
   const animatedStyle = useAnimatedStyle(() => ({
     transform: [
-      { translateY: translateY.value + (isDragActive ? dragScrollCompensation : 0) },
+      { translateY: translateY.value + (isDragActive ? dragScrollCompensation.value : 0) },
       { scale: scale.value },
     ],
     position: 'relative',
@@ -225,7 +223,7 @@ interface ColumnProps {
   deleteLabel: string;
   duplicateLabel: string;
   draggingTaskId: string | null;
-  dragScrollCompensation: number;
+  dragScrollCompensation: SharedValue<number>;
   projectById: Record<string, { title: string; color?: string }>;
   timeEstimatesEnabled: boolean;
 }
@@ -308,7 +306,6 @@ export function BoardView() {
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [dragSourceColumnIndex, setDragSourceColumnIndex] = useState<number | null>(null);
   const [draggingTaskId, setDraggingTaskId] = useState<string | null>(null);
-  const [dragScrollCompensation, setDragScrollCompensation] = useState(0);
   const insets = useSafeAreaInsets();
   const boardScrollRef = useRef<ScrollView | null>(null);
   const draggingTaskIdRef = useRef<string | null>(null);
@@ -318,6 +315,7 @@ export function BoardView() {
   const dragStartScrollOffsetRef = useRef(0);
   const currentDragTranslationYRef = useRef(0);
   const dragScrollCompensationRef = useRef(0);
+  const dragScrollCompensationSv = useSharedValue(0);
   const autoScrollDirectionRef = useRef<-1 | 0 | 1>(0);
   const autoScrollIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -347,7 +345,7 @@ export function BoardView() {
   }, [tasks]);
 
   const handleDrop = useCallback((taskId: string, translationYDelta: number) => {
-    const effectiveTranslationY = translationYDelta + dragScrollCompensation;
+    const effectiveTranslationY = translationYDelta + dragScrollCompensationRef.current;
     const currentTask = tasks.find((item) => item.id === taskId);
     const currentStatus = currentTask?.status;
     const currentColumnIndex = COLUMNS.findIndex((column) => column.id === currentStatus);
@@ -361,7 +359,7 @@ export function BoardView() {
       const newStatus = COLUMNS[newColumnIndex].id;
       updateTask(taskId, { status: newStatus });
     }
-  }, [dragScrollCompensation, tasks, updateTask]);
+  }, [tasks, updateTask]);
 
   const handleTap = useCallback((task: Task) => {
     setEditingTask(task);
@@ -410,11 +408,11 @@ export function BoardView() {
       if (draggingTaskIdRef.current) {
         const nextCompensation = nextOffset - dragStartScrollOffsetRef.current;
         dragScrollCompensationRef.current = nextCompensation;
-        setDragScrollCompensation(nextCompensation);
+        dragScrollCompensationSv.value = nextCompensation;
       }
       boardScrollRef.current?.scrollTo({ y: nextOffset, animated: false });
     }, 16);
-  }, [stopAutoScroll]);
+  }, [dragScrollCompensationSv, stopAutoScroll]);
 
   const handleDragStart = useCallback((taskId: string, columnIndex: number) => {
     setDraggingTaskId(taskId);
@@ -423,9 +421,9 @@ export function BoardView() {
     dragStartScrollOffsetRef.current = scrollOffsetRef.current;
     currentDragTranslationYRef.current = 0;
     dragScrollCompensationRef.current = 0;
-    setDragScrollCompensation(0);
+    dragScrollCompensationSv.value = 0;
     stopAutoScroll();
-  }, [stopAutoScroll]);
+  }, [dragScrollCompensationSv, stopAutoScroll]);
 
   const handleDragMove = useCallback((absoluteY: number, translationY: number) => {
     currentDragTranslationYRef.current = translationY;
@@ -449,9 +447,9 @@ export function BoardView() {
     setDragSourceColumnIndex(null);
     currentDragTranslationYRef.current = 0;
     dragScrollCompensationRef.current = 0;
-    setDragScrollCompensation(0);
+    dragScrollCompensationSv.value = 0;
     stopAutoScroll();
-  }, [stopAutoScroll]);
+  }, [dragScrollCompensationSv, stopAutoScroll]);
 
   useEffect(() => {
     return () => {
@@ -478,7 +476,7 @@ export function BoardView() {
           if (draggingTaskIdRef.current) {
             const nextCompensation = nextOffset - dragStartScrollOffsetRef.current;
             dragScrollCompensationRef.current = nextCompensation;
-            setDragScrollCompensation(nextCompensation);
+            dragScrollCompensationSv.value = nextCompensation;
           }
         }}
         scrollEventThrottle={16}
@@ -503,7 +501,7 @@ export function BoardView() {
             deleteLabel={t('board.delete')}
             duplicateLabel={t('taskEdit.duplicateTask')}
             draggingTaskId={draggingTaskId}
-            dragScrollCompensation={dragScrollCompensation}
+            dragScrollCompensation={dragScrollCompensationSv}
             projectById={projectById}
             timeEstimatesEnabled={timeEstimatesEnabled}
           />
