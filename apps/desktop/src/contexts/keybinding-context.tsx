@@ -97,6 +97,10 @@ function triggerQuickAdd() {
     window.dispatchEvent(new Event('mindwtr:quick-add'));
 }
 
+function triggerTaskEditCancel(taskId: string) {
+    window.dispatchEvent(new CustomEvent('mindwtr:cancel-task-edit', { detail: { taskId } }));
+}
+
 export function KeybindingProvider({
     children,
     currentView,
@@ -390,7 +394,18 @@ export function KeybindingProvider({
                 setIsHelpOpen(false);
                 return;
             }
-            if (editingTaskIdRef.current) return;
+            if (editingTaskIdRef.current) {
+                if (!e.metaKey && !e.ctrlKey && !e.altKey && e.key === 'Escape') {
+                    e.preventDefault();
+                    triggerTaskEditCancel(editingTaskIdRef.current);
+                }
+                return;
+            }
+            if ((e.ctrlKey || e.metaKey) && !e.altKey && !e.shiftKey && e.code === 'Comma') {
+                e.preventDefault();
+                onNavigate('settings');
+                return;
+            }
             if (!e.metaKey && !e.ctrlKey && !e.altKey && !isEditableTarget(e.target)) {
                 if (e.key === 'ArrowDown') {
                     if (moveSidebarFocus(e.target, 'next')) {

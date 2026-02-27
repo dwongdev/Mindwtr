@@ -43,8 +43,11 @@ export function ChecklistField({
         setChecklistDraft(checklist || []);
         checklistDraftRef.current = checklist || [];
         checklistDirtyRef.current = false;
-        checklistInputRefs.current = [];
     }, [taskId, checklist]);
+
+    useEffect(() => {
+        checklistInputRefs.current = [];
+    }, [taskId]);
 
     useEffect(() => {
         if (checklistDirtyRef.current) return;

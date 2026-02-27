@@ -734,6 +734,16 @@ export const TaskItem = memo(function TaskItem({
         }
         handleDiscardChanges();
     }, [handleDiscardChanges, hasPendingEdits]);
+    useEffect(() => {
+        if (!isEditing) return;
+        const handleGlobalCancel = (event: Event) => {
+            const detail = (event as CustomEvent<{ taskId?: string }>).detail;
+            if (detail?.taskId && detail.taskId !== task.id) return;
+            handleEditorCancel();
+        };
+        window.addEventListener('mindwtr:cancel-task-edit', handleGlobalCancel);
+        return () => window.removeEventListener('mindwtr:cancel-task-edit', handleGlobalCancel);
+    }, [handleEditorCancel, isEditing, task.id]);
     const renderEditor = () => (
         <TaskItemEditor
             t={t}
