@@ -409,6 +409,8 @@ function App() {
 
     useEffect(() => {
         if (import.meta.env.MODE === 'test' || import.meta.env.VITEST || process.env.NODE_ENV === 'test') return;
+        // Settings is frequently opened from menu actions; preload it eagerly to avoid first-open delay.
+        void import('./components/views/SettingsView');
         const idleCallback =
             (window as Window & { requestIdleCallback?: (cb: () => void) => number }).requestIdleCallback
             ?? ((cb: () => void) => window.setTimeout(cb, 200));
@@ -416,7 +418,6 @@ function App() {
             (window as Window & { cancelIdleCallback?: (id: number) => void }).cancelIdleCallback
             ?? ((id: number) => window.clearTimeout(id));
         const id = idleCallback(() => {
-            void import('./components/views/SettingsView');
             void import('./components/views/BoardView');
             void import('./components/views/ProjectsView');
             void import('./components/views/ReviewView');
@@ -469,6 +470,10 @@ function App() {
 
     const handleViewChange = useCallback((view: string) => {
         setCurrentView(view);
+        if (view === 'settings') {
+            setActiveView(view);
+            return;
+        }
         startTransition(() => {
             setActiveView(view);
         });
