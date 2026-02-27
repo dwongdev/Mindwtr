@@ -32,6 +32,7 @@ import {
     injectExternalCalendars as injectExternalCalendarsForSync,
     persistExternalCalendars as persistExternalCalendarsForSync,
     withRetry,
+    isRetryableWebdavReadError,
     CLOCK_SKEW_THRESHOLD_MS,
     appendSyncHistory,
     cloneAppData,
@@ -107,6 +108,12 @@ const SYNC_FILE_NAME = 'data.json';
 const LEGACY_SYNC_FILE_NAME = 'mindwtr-sync.json';
 const DEFAULT_DROPBOX_APP_KEY = String(import.meta.env.VITE_DROPBOX_APP_KEY || '').trim();
 const WEBDAV_ATTACHMENT_RETRY_OPTIONS = { maxAttempts: 5, baseDelayMs: 2000, maxDelayMs: 60_000 };
+const WEBDAV_READ_RETRY_OPTIONS = {
+    maxAttempts: 5,
+    baseDelayMs: 2000,
+    maxDelayMs: 30_000,
+    shouldRetry: isRetryableWebdavReadError,
+};
 const CLOUD_ATTACHMENT_RETRY_OPTIONS = { maxAttempts: 5, baseDelayMs: 2000, maxDelayMs: 60_000 };
 const WEBDAV_ATTACHMENT_MIN_INTERVAL_MS = 400;
 const WEBDAV_ATTACHMENT_COOLDOWN_MS = 60_000;
@@ -2016,7 +2023,10 @@ export class SyncService {
                                 throw new Error('WebDAV URL not configured');
                             }
                             syncUrl = webdavConfig.url;
-                            const data = await tauriInvoke<AppData>('webdav_get_json');
+                            const data = await withRetry(
+                                () => tauriInvoke<AppData>('webdav_get_json'),
+                                WEBDAV_READ_RETRY_OPTIONS,
+                            );
                             remoteDataForCompare = data ?? null;
                             return data;
                         }
@@ -2026,11 +2036,14 @@ export class SyncService {
                         const normalizedUrl = normalizeWebdavUrl(webdavConfig.url);
                         syncUrl = normalizedUrl;
                         const fetcher = await getTauriFetch();
-                        const data = await webdavGetJson<AppData>(normalizedUrl, {
-                            username: webdavConfig.username,
-                            password: webdavConfig.password || '',
-                            fetcher,
-                        });
+                        const data = await withRetry(
+                            () => webdavGetJson<AppData>(normalizedUrl, {
+                                username: webdavConfig.username,
+                                password: webdavConfig.password || '',
+                                fetcher,
+                            }),
+                            WEBDAV_READ_RETRY_OPTIONS,
+                        );
                         remoteDataForCompare = data ?? null;
                         return data;
                     }

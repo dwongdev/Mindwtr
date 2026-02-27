@@ -3224,9 +3224,15 @@ fn webdav_get_json(app: tauri::AppHandle) -> Result<Value, String> {
         return Err(format!("WebDAV error: {}", response.status()));
     }
 
-    response
-        .json::<Value>()
-        .map_err(|e| format!("Invalid WebDAV response: {e}"))
+    let body = response
+        .text()
+        .map_err(|e| format!("Invalid WebDAV response: error reading response body: {e}"))?;
+    let normalized_body = body.trim_start_matches('\u{feff}').trim();
+    if normalized_body.is_empty() {
+        return Ok(Value::Null);
+    }
+    serde_json::from_str::<Value>(normalized_body)
+        .map_err(|e| format!("Invalid WebDAV response: error decoding response body: {e}"))
 }
 
 #[tauri::command]
