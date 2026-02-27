@@ -457,7 +457,11 @@ function TaskEditModalInner({ visible, task, onClose, onSave, onFocusMode, defau
             descriptionDebounceRef.current = null;
         }
         const rawTitle = String(titleDraftRef.current ?? '');
-        const { title: parsedTitle, props: parsedProps, projectTitle } = parseQuickAdd(rawTitle, projects, new Date(), areas);
+        const { title: parsedTitle, props: parsedProps, projectTitle, invalidDateCommands } = parseQuickAdd(rawTitle, projects, new Date(), areas);
+        if (invalidDateCommands && invalidDateCommands.length > 0) {
+            Alert.alert(t('common.notice'), `Invalid date command: ${invalidDateCommands.join(', ')}`);
+            return;
+        }
         const existingProjectId = editedTask.projectId ?? task?.projectId;
         const hasProjectCommand = Boolean(parsedProps.projectId || projectTitle);
         let resolvedProjectId = parsedProps.projectId;

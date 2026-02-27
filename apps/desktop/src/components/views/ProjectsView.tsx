@@ -724,7 +724,11 @@ export function ProjectsView() {
     const handleAddTaskForProject = useCallback(
         async (value: string, sectionId?: string | null) => {
             if (!selectedProject) return;
-            const { title: parsedTitle, props, projectTitle } = parseQuickAdd(value, projects, new Date(), areas);
+            const { title: parsedTitle, props, projectTitle, invalidDateCommands } = parseQuickAdd(value, projects, new Date(), areas);
+            if (invalidDateCommands && invalidDateCommands.length > 0) {
+                showToast(`Invalid date command: ${invalidDateCommands.join(', ')}`, 'error');
+                return;
+            }
             const finalTitle = (parsedTitle || value).trim();
             if (!finalTitle) return;
             const initialProps: Partial<Task> = { projectId: selectedProject.id, status: 'next', ...props };

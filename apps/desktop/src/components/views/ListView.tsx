@@ -632,7 +632,11 @@ export function ListView({ title, statusFilter }: ListViewProps) {
         e.preventDefault();
         if (!newTaskTitle.trim()) return;
         try {
-            const { title: parsedTitle, props, projectTitle } = parseQuickAdd(newTaskTitle, projects, new Date(), areas);
+            const { title: parsedTitle, props, projectTitle, invalidDateCommands } = parseQuickAdd(newTaskTitle, projects, new Date(), areas);
+            if (invalidDateCommands && invalidDateCommands.length > 0) {
+                showToast(`Invalid date command: ${invalidDateCommands.join(', ')}`, 'error');
+                return;
+            }
             const finalTitle = parsedTitle || newTaskTitle;
             const initialProps: Partial<Task> = { ...props };
             if (!initialProps.projectId && projectTitle) {
