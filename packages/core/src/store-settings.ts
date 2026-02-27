@@ -51,7 +51,7 @@ type SettingsActionContext = {
     getStorage: () => StorageAdapter;
 };
 
-type SettingsActions = Pick<TaskStore, 'fetchData' | 'updateSettings' | 'getDerivedState' | 'setHighlightTask'>;
+type SettingsActions = Pick<TaskStore, 'fetchData' | 'updateSettings' | 'persistSnapshot' | 'getDerivedState' | 'setHighlightTask'>;
 
 export const createSettingsActions = ({
     set,
@@ -585,6 +585,17 @@ export const createSettingsActions = ({
             return { settings: newSettings };
         });
 
+        if (snapshot) {
+            debouncedSave(snapshot, (msg) => set({ error: msg }));
+        }
+    },
+
+    persistSnapshot: async () => {
+        let snapshot: AppData | null = null;
+        set((state) => {
+            snapshot = buildSaveSnapshot(state);
+            return {};
+        });
         if (snapshot) {
             debouncedSave(snapshot, (msg) => set({ error: msg }));
         }

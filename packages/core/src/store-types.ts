@@ -106,6 +106,8 @@ export interface TaskStore {
     // Settings Actions
     /** Update application settings */
     updateSettings: (updates: Partial<AppData['settings']>) => Promise<void>;
+    /** Persist current in-memory snapshot through the save queue */
+    persistSnapshot: () => Promise<void>;
     /** Highlight a task in UI lists (non-persistent) */
     setHighlightTask: (id: string | null) => void;
 
