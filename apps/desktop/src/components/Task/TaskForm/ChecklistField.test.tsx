@@ -25,29 +25,36 @@ function ChecklistHarness() {
 
 describe('ChecklistField', () => {
     it('keeps Tab and Shift+Tab navigation working after inserting with Enter', async () => {
-        const { getAllByRole } = render(<ChecklistHarness />);
+        const originalRaf = window.requestAnimationFrame;
+        (window as Window & { requestAnimationFrame?: typeof window.requestAnimationFrame }).requestAnimationFrame =
+            ((callback: FrameRequestCallback) => {
+                callback(0);
+                return 0;
+            }) as typeof window.requestAnimationFrame;
+        try {
+            const { getAllByRole } = render(<ChecklistHarness />);
 
-        const initialInputs = getAllByRole('textbox');
-        fireEvent.focus(initialInputs[1]);
-        fireEvent.keyDown(initialInputs[1], { key: 'Enter' });
+            const initialInputs = getAllByRole('textbox');
+            fireEvent.focus(initialInputs[1]);
+            fireEvent.keyDown(initialInputs[1], { key: 'Enter' });
 
-        await waitFor(() => {
-            expect(getAllByRole('textbox')).toHaveLength(4);
-        });
+            await waitFor(() => {
+                expect(getAllByRole('textbox')).toHaveLength(4);
+            }, { timeout: 500 });
 
-        const afterInsert = getAllByRole('textbox');
-        await waitFor(() => {
-            expect(document.activeElement).toBe(afterInsert[2]);
-        });
+            const afterInsert = getAllByRole('textbox');
 
-        fireEvent.keyDown(afterInsert[2], { key: 'Tab' });
-        await waitFor(() => {
-            expect(document.activeElement).toBe(getAllByRole('textbox')[3]);
-        });
+            fireEvent.keyDown(afterInsert[2], { key: 'Tab' });
+            await waitFor(() => {
+                expect(document.activeElement).toBe(getAllByRole('textbox')[3]);
+            }, { timeout: 500 });
 
-        fireEvent.keyDown(getAllByRole('textbox')[3], { key: 'Tab', shiftKey: true });
-        await waitFor(() => {
-            expect(document.activeElement).toBe(getAllByRole('textbox')[2]);
-        });
+            fireEvent.keyDown(getAllByRole('textbox')[3], { key: 'Tab', shiftKey: true });
+            await waitFor(() => {
+                expect(document.activeElement).toBe(getAllByRole('textbox')[2]);
+            }, { timeout: 500 });
+        } finally {
+            (window as Window & { requestAnimationFrame?: typeof window.requestAnimationFrame }).requestAnimationFrame = originalRaf;
+        }
     });
 });

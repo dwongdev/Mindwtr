@@ -98,7 +98,8 @@ function triggerQuickAdd() {
 }
 
 function triggerTaskEditCancel(taskId: string) {
-    window.dispatchEvent(new CustomEvent('mindwtr:cancel-task-edit', { detail: { taskId } }));
+    const CancelEvent = typeof window.CustomEvent === 'function' ? window.CustomEvent : CustomEvent;
+    window.dispatchEvent(new CancelEvent('mindwtr:cancel-task-edit', { detail: { taskId } }));
 }
 
 export function KeybindingProvider({
