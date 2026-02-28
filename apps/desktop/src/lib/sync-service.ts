@@ -121,10 +121,12 @@ const WEBDAV_ATTACHMENT_MAX_DOWNLOADS_PER_SYNC = 10;
 const WEBDAV_ATTACHMENT_MAX_UPLOADS_PER_SYNC = 10;
 const WEBDAV_ATTACHMENT_MISSING_BACKOFF_MS = 15 * 60_000;
 const WEBDAV_ATTACHMENT_ERROR_BACKOFF_MS = 2 * 60_000;
+const ATTACHMENT_VALIDATION_MAX_ATTEMPTS = 3;
 const webdavDownloadBackoff = createWebdavDownloadBackoff({
     missingBackoffMs: WEBDAV_ATTACHMENT_MISSING_BACKOFF_MS,
     errorBackoffMs: WEBDAV_ATTACHMENT_ERROR_BACKOFF_MS,
 });
+const attachmentValidationFailures = new Map<string, number>();
 type SyncServiceDependencies = {
     isTauriRuntime: () => boolean;
     invoke: <T>(command: string, args?: Record<string, unknown>) => Promise<T>;
@@ -206,6 +208,26 @@ const markAttachmentUnrecoverable = (attachment: Attachment): boolean => {
         mutated = true;
     }
     return mutated;
+};
+
+const clearAttachmentValidationFailure = (attachmentId: string): void => {
+    attachmentValidationFailures.delete(attachmentId);
+};
+
+const handleAttachmentValidationFailure = (
+    attachment: Attachment,
+    error: string | undefined,
+): { attempts: number; reachedLimit: boolean; mutated: boolean; message: string } => {
+    const attempts = (attachmentValidationFailures.get(attachment.id) || 0) + 1;
+    attachmentValidationFailures.set(attachment.id, attempts);
+    const reason = error || 'unknown';
+    const message = `Attachment validation failed (${reason}) for ${attachment.title} [attempt ${attempts}/${ATTACHMENT_VALIDATION_MAX_ATTEMPTS}]`;
+    if (attempts < ATTACHMENT_VALIDATION_MAX_ATTEMPTS) {
+        return { attempts, reachedLimit: false, mutated: false, message };
+    }
+    attachmentValidationFailures.delete(attachment.id);
+    const mutated = markAttachmentUnrecoverable(attachment);
+    return { attempts, reachedLimit: true, mutated, message };
 };
 
 const externalCalendarProvider = {
@@ -666,9 +688,24 @@ async function syncAttachments(
                 const fileData = await readLocalFile(localPath);
                 const validation = await validateAttachmentForUpload(attachment, fileData.length);
                 if (!validation.valid) {
-                    logSyncWarning(`Attachment validation failed (${validation.error}) for ${attachment.title}`);
+                    const failure = handleAttachmentValidationFailure(attachment, validation.error);
+                    reportProgress(
+                        attachment.id,
+                        'upload',
+                        0,
+                        attachment.size ?? fileData.length,
+                        'failed',
+                        failure.message
+                    );
+                    if (failure.reachedLimit) {
+                        didMutate = didMutate || failure.mutated;
+                        logSyncWarning(`${failure.message}; marking attachment unrecoverable`);
+                    } else {
+                        logSyncWarning(failure.message);
+                    }
                     continue;
                 }
+                clearAttachmentValidationFailure(attachment.id);
                 reportProgress(attachment.id, 'upload', 0, fileData.length, 'active');
                 logSyncInfo('WebDAV attachment upload start', {
                     id: attachment.id,
@@ -877,9 +914,23 @@ async function syncCloudAttachments(
             const fileData = await readLocalFile(localPath);
             const validation = await validateAttachmentForUpload(attachment, fileData.length);
             if (!validation.valid) {
-                logSyncWarning(`Attachment validation failed (${validation.error}) for ${attachment.title}`);
-                return false;
+                const failure = handleAttachmentValidationFailure(attachment, validation.error);
+                reportProgress(
+                    attachment.id,
+                    'upload',
+                    0,
+                    attachment.size ?? fileData.length,
+                    'failed',
+                    failure.message
+                );
+                if (failure.reachedLimit) {
+                    logSyncWarning(`${failure.message}; marking attachment unrecoverable`);
+                } else {
+                    logSyncWarning(failure.message);
+                }
+                return failure.mutated;
             }
+            clearAttachmentValidationFailure(attachment.id);
             reportProgress(attachment.id, 'upload', 0, fileData.length, 'active');
             await withRetry(
                 () => cloudPutFile(
@@ -1026,9 +1077,23 @@ async function syncDropboxAttachments(
             const fileData = await readLocalFile(localPath);
             const validation = await validateAttachmentForUpload(attachment, fileData.length);
             if (!validation.valid) {
-                logSyncWarning(`Attachment validation failed (${validation.error}) for ${attachment.title}`);
-                return false;
+                const failure = handleAttachmentValidationFailure(attachment, validation.error);
+                reportProgress(
+                    attachment.id,
+                    'upload',
+                    0,
+                    attachment.size ?? fileData.length,
+                    'failed',
+                    failure.message
+                );
+                if (failure.reachedLimit) {
+                    logSyncWarning(`${failure.message}; marking attachment unrecoverable`);
+                } else {
+                    logSyncWarning(failure.message);
+                }
+                return failure.mutated;
             }
+            clearAttachmentValidationFailure(attachment.id);
             reportProgress(attachment.id, 'upload', 0, fileData.length, 'active');
             await withRetry(
                 () => withDropboxAccess((token) =>
@@ -1171,9 +1236,15 @@ async function syncFileAttachments(
             const fileData = await readLocalFile(localPath);
             const validation = await validateAttachmentForUpload(attachment, fileData.length, FILE_BACKEND_VALIDATION_CONFIG);
             if (!validation.valid) {
-                logSyncWarning(`Attachment validation failed (${validation.error}) for ${attachment.title}`);
-                return false;
+                const failure = handleAttachmentValidationFailure(attachment, validation.error);
+                if (failure.reachedLimit) {
+                    logSyncWarning(`${failure.message}; marking attachment unrecoverable`);
+                } else {
+                    logSyncWarning(failure.message);
+                }
+                return failure.mutated;
             }
+            clearAttachmentValidationFailure(attachment.id);
             const targetPath = await join(baseSyncDir, cloudKey);
             await writeFileSafelyAbsolute(targetPath, fileData, {
                 writeFile,
@@ -1298,6 +1369,7 @@ export class SyncService {
         SyncService.pendingExternalSyncChange = null;
         SyncService.externalSyncChangeListeners.clear();
         webdavDownloadBackoff.clear();
+        attachmentValidationFailures.clear();
     }
 
     private static updateSyncStatus(partial: Partial<typeof SyncService.syncStatus>) {
@@ -2354,5 +2426,8 @@ export const __syncServiceTestUtils = {
     },
     clearWebdavDownloadBackoff() {
         webdavDownloadBackoff.clear();
+    },
+    clearAttachmentValidationFailures() {
+        attachmentValidationFailures.clear();
     },
 };
