@@ -129,7 +129,7 @@ jobs:
     needs: [linux, macos, windows, android, android-foss]
     runs-on: ubuntu-latest
     name: Create Release
-    timeout-minutes: 30
+    timeout-minutes: 60
     permissions:
       contents: write
 
@@ -144,7 +144,12 @@ jobs:
         env:
           INPUT_TAG: ${{ github.event.inputs.tag }}
           GITHUB_EVENT_INPUTS_TAG: ${{ github.event.inputs.tag }}
-        run: scripts/ci/resolve-release-version.sh "$INPUT_TAG" >> "$GITHUB_OUTPUT"
+        run: |
+          if [ -n "${INPUT_TAG:-}" ] && ! echo "${INPUT_TAG}" | grep -Eq '^v[0-9]+\.[0-9]+\.[0-9]+([.-][0-9A-Za-z.-]+)?$'; then
+            echo "Invalid tag format" >&2
+            exit 1
+          fi
+          scripts/ci/resolve-release-version.sh "$INPUT_TAG" >> "$GITHUB_OUTPUT"
 
       - name: Download build artifacts
         uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
@@ -238,7 +243,12 @@ jobs:
         env:
           INPUT_TAG: ${{ github.event.inputs.tag }}
           GITHUB_EVENT_INPUTS_TAG: ${{ github.event.inputs.tag }}
-        run: source/scripts/ci/resolve-release-version.sh "$INPUT_TAG" >> "$GITHUB_OUTPUT"
+        run: |
+          if [ -n "${INPUT_TAG:-}" ] && ! echo "${INPUT_TAG}" | grep -Eq '^v[0-9]+\.[0-9]+\.[0-9]+([.-][0-9A-Za-z.-]+)?$'; then
+            echo "Invalid tag format" >&2
+            exit 1
+          fi
+          source/scripts/ci/resolve-release-version.sh "$INPUT_TAG" >> "$GITHUB_OUTPUT"
 
       - name: Download release assets and compute hashes
         id: hashes
@@ -477,7 +487,12 @@ jobs:
         env:
           INPUT_TAG: ${{ github.event.inputs.tag }}
           GITHUB_EVENT_INPUTS_TAG: ${{ github.event.inputs.tag }}
-        run: scripts/ci/resolve-release-version.sh "$INPUT_TAG" >> "$GITHUB_OUTPUT"
+        run: |
+          if [ -n "${INPUT_TAG:-}" ] && ! echo "${INPUT_TAG}" | grep -Eq '^v[0-9]+\.[0-9]+\.[0-9]+([.-][0-9A-Za-z.-]+)?$'; then
+            echo "Invalid tag format" >&2
+            exit 1
+          fi
+          scripts/ci/resolve-release-version.sh "$INPUT_TAG" >> "$GITHUB_OUTPUT"
 
       - name: Wait for macOS release assets to be live
         run: |
@@ -700,7 +715,12 @@ jobs:
         env:
           INPUT_TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
           GITHUB_EVENT_INPUTS_TAG: ${{ github.event.inputs.tag }}
-        run: scripts/ci/resolve-release-version.sh "$INPUT_TAG" >> "$GITHUB_OUTPUT"
+        run: |
+          if [ -n "${INPUT_TAG:-}" ] && ! echo "${INPUT_TAG}" | grep -Eq '^v[0-9]+\.[0-9]+\.[0-9]+([.-][0-9A-Za-z.-]+)?$'; then
+            echo "Invalid tag format" >&2
+            exit 1
+          fi
+          scripts/ci/resolve-release-version.sh "$INPUT_TAG" >> "$GITHUB_OUTPUT"
 
       - name: Update PKGBUILD version
         run: |
@@ -775,7 +795,12 @@ jobs:
         env:
           INPUT_TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
           GITHUB_EVENT_INPUTS_TAG: ${{ github.event.inputs.tag }}
-        run: source/scripts/ci/resolve-release-version.sh "$INPUT_TAG" >> "$GITHUB_OUTPUT"
+        run: |
+          if [ -n "${INPUT_TAG:-}" ] && ! echo "${INPUT_TAG}" | grep -Eq '^v[0-9]+\.[0-9]+\.[0-9]+([.-][0-9A-Za-z.-]+)?$'; then
+            echo "Invalid tag format" >&2
+            exit 1
+          fi
+          source/scripts/ci/resolve-release-version.sh "$INPUT_TAG" >> "$GITHUB_OUTPUT"
 
       - name: Update PKGBUILD version
         id: pkgbuild_version

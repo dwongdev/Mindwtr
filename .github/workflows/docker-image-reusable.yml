@@ -64,7 +64,7 @@ jobs:
           platforms: linux/amd64,linux/arm64
           context: .
           file: ${{ inputs.dockerfile }}
-          push: ${{ github.event_name != 'pull_request' }}
+          push: ${{ github.event_name == 'push' && startsWith(github.ref, 'refs/tags/') }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: |

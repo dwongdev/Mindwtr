@@ -43,6 +43,9 @@ jobs:
       - name: Run unit tests
         run: cd packages/core && bun test
 
+      - name: Cloud app tests
+        run: bun run --filter mindwtr-cloud test
+
   # Desktop app build and tests (Tauri)
   desktop:
     runs-on: ubuntu-latest
