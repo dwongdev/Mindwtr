@@ -74,6 +74,16 @@ describe('mcp server index', () => {
     expect(result?.content[0]?.text).toContain('Either title or quickAdd is required');
   });
 
+  test('validates add_task rejects providing both title and quickAdd', async () => {
+    const { server, tools } = createMockServer();
+    registerMindwtrTools(server, createMockService(), false);
+    const addHandler = tools.get('mindwtr_add_task')?.handler;
+    expect(addHandler).toBeTruthy();
+    const result = await addHandler?.({ title: 'Task', quickAdd: 'Task /next' });
+    expect(result?.isError).toBe(true);
+    expect(result?.content[0]?.text).toContain('Provide either title or quickAdd, not both');
+  });
+
   test('wraps service exceptions in MCP error response format', async () => {
     const { server, tools } = createMockServer();
     const failingService = {

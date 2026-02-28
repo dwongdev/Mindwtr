@@ -121,8 +121,13 @@ const addTaskSchema = z.object({
   timeEstimate: z.string().optional().describe('Time estimate (e.g. "30m", "2h")'),
 });
 const validateAddTask = (data: z.infer<typeof addTaskSchema>) => {
-  if (!data.title && !data.quickAdd) {
+  const hasTitle = typeof data.title === 'string' && data.title.trim().length > 0;
+  const hasQuickAdd = typeof data.quickAdd === 'string' && data.quickAdd.trim().length > 0;
+  if (!hasTitle && !hasQuickAdd) {
     throw new Error('Either title or quickAdd is required');
+  }
+  if (hasTitle && hasQuickAdd) {
+    throw new Error('Provide either title or quickAdd, not both');
   }
 };
 
