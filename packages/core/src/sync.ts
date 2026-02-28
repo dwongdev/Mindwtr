@@ -391,6 +391,13 @@ const SETTINGS_SYNC_GROUP_KEYS: SettingsSyncGroup[] = ['appearance', 'language',
 const SETTINGS_SYNC_UPDATED_AT_KEYS: Array<SettingsSyncGroup | 'preferences'> = ['preferences', ...SETTINGS_SYNC_GROUP_KEYS];
 
 const cloneSettingValue = <T>(value: T): T => {
+    if (typeof globalThis.structuredClone === 'function') {
+        try {
+            return globalThis.structuredClone(value);
+        } catch {
+            // Fallback to manual deep clone for environments/values unsupported by structuredClone.
+        }
+    }
     if (Array.isArray(value)) {
         return value.map((item) => cloneSettingValue(item)) as unknown as T;
     }
