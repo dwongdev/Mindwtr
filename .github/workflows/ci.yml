@@ -41,7 +41,7 @@ jobs:
         run: cd packages/core && bun run tsc --noEmit
 
       - name: Run unit tests
-        run: cd packages/core && bun test --coverage
+        run: cd packages/core && bun test --coverage --coverage-reporter=lcov
 
       - name: Cloud app tests
         run: bun run --filter mindwtr-cloud test
@@ -108,7 +108,7 @@ jobs:
         run: cd apps/desktop && bun run tsc --noEmit
 
       - name: Run tests
-        run: cd apps/desktop && bun test --coverage
+        run: cd apps/desktop && bun test --coverage --coverage-reporter=lcov
 
       - name: Upload desktop coverage report
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
