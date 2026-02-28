@@ -158,6 +158,7 @@ function TaskEditModalInner({ visible, task, onClose, onSave, onFocusMode, defau
     const [showProjectPicker, setShowProjectPicker] = useState(false);
     const [showSectionPicker, setShowSectionPicker] = useState(false);
     const [linkInput, setLinkInput] = useState('');
+    const [linkInputTouched, setLinkInputTouched] = useState(false);
     const [customWeekdays, setCustomWeekdays] = useState<RecurrenceWeekday[]>([]);
     const [isAIWorking, setIsAIWorking] = useState(false);
     const [aiModal, setAiModal] = useState<{ title: string; message?: string; actions: AIResponseAction[] } | null>(null);
@@ -734,6 +735,10 @@ function TaskEditModalInner({ visible, task, onClose, onSave, onFocusMode, defau
     };
 
     const confirmAddLink = () => {
+        if (!linkInput.trim()) {
+            setLinkInputTouched(true);
+            return;
+        }
         const normalized = normalizeLinkAttachmentInput(linkInput);
         if (!normalized.uri || !isValidLinkUri(normalized.uri)) {
             Alert.alert(t('attachments.title'), t('attachments.invalidLink'));
@@ -750,6 +755,7 @@ function TaskEditModalInner({ visible, task, onClose, onSave, onFocusMode, defau
         };
         setEditedTask((prev) => ({ ...prev, attachments: [...(prev.attachments || []), attachment] }));
         setLinkInput('');
+        setLinkInputTouched(false);
         setLinkModalVisible(false);
     };
 
@@ -2357,7 +2363,10 @@ function TaskEditModalInner({ visible, task, onClose, onSave, onFocusMode, defau
                                     <Text style={[styles.smallButtonText, { color: tc.tint }]}>{t('attachments.addPhoto')}</Text>
                                 </TouchableOpacity>
                                 <TouchableOpacity
-                                    onPress={() => setLinkModalVisible(true)}
+                                    onPress={() => {
+                                        setLinkInputTouched(false);
+                                        setLinkModalVisible(true);
+                                    }}
                                     style={[styles.smallButton, { backgroundColor: tc.cardBg, borderColor: tc.border }]}
                                 >
                                     <Text style={[styles.smallButtonText, { color: tc.tint }]}>{t('attachments.addLink')}</Text>
@@ -2628,14 +2637,21 @@ function TaskEditModalInner({ visible, task, onClose, onSave, onFocusMode, defau
                     visible={linkModalVisible}
                     transparent
                     animationType="fade"
-                    onRequestClose={() => setLinkModalVisible(false)}
+                    onRequestClose={() => {
+                        setLinkModalVisible(false);
+                        setLinkInputTouched(false);
+                    }}
                 >
                     <View style={styles.overlay}>
                         <View style={[styles.modalCard, { backgroundColor: tc.cardBg, borderColor: tc.border }]}>
                             <Text style={[styles.modalTitle, { color: tc.text }]}>{t('attachments.addLink')}</Text>
                             <TextInput
                                 value={linkInput}
-                                onChangeText={setLinkInput}
+                                onChangeText={(text) => {
+                                    setLinkInput(text);
+                                    setLinkInputTouched(true);
+                                }}
+                                onBlur={() => setLinkInputTouched(true)}
                                 placeholder={t('attachments.linkPlaceholder')}
                                 placeholderTextColor={tc.secondaryText}
                                 style={[styles.modalInput, { backgroundColor: tc.inputBg, borderColor: tc.border, color: tc.text }]}
@@ -2645,11 +2661,17 @@ function TaskEditModalInner({ visible, task, onClose, onSave, onFocusMode, defau
                             <Text style={[styles.modalLabel, { color: tc.secondaryText, marginTop: 8 }]}>
                                 {t('attachments.linkInputHint')}
                             </Text>
+                            {linkInputTouched && !linkInput.trim() && (
+                                <Text style={[styles.validationText, { color: tc.danger }]}>
+                                    Link is required.
+                                </Text>
+                            )}
                             <View style={styles.modalButtons}>
                                 <TouchableOpacity
                                     onPress={() => {
                                         setLinkModalVisible(false);
                                         setLinkInput('');
+                                        setLinkInputTouched(false);
                                     }}
                                     style={styles.modalButton}
                                 >
@@ -2657,7 +2679,6 @@ function TaskEditModalInner({ visible, task, onClose, onSave, onFocusMode, defau
                                 </TouchableOpacity>
                                 <TouchableOpacity
                                     onPress={confirmAddLink}
-                                    disabled={!linkInput.trim()}
                                     style={[styles.modalButton, !linkInput.trim() && styles.modalButtonDisabled]}
                                 >
                                     <Text style={[styles.modalButtonText, { color: tc.tint }]}>{t('common.save')}</Text>
