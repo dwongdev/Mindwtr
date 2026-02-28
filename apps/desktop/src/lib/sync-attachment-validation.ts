@@ -3,7 +3,7 @@ import type { Attachment } from '@mindwtr/core';
 const ATTACHMENT_VALIDATION_MAX_ATTEMPTS = 3;
 const attachmentValidationFailures = new Map<string, number>();
 
-const markAttachmentUnrecoverable = (attachment: Attachment): boolean => {
+export const markAttachmentUnrecoverable = (attachment: Attachment): boolean => {
     const now = new Date().toISOString();
     let mutated = false;
     if (attachment.cloudKey !== undefined) {

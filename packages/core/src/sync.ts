@@ -58,6 +58,7 @@ export type SyncHistoryEntry = {
 
 // Log clock skew warnings if merges show >5 minutes drift.
 export const CLOCK_SKEW_THRESHOLD_MS = 5 * 60 * 1000;
+const DELETE_VS_LIVE_AMBIGUOUS_WINDOW_MS = 0;
 const DEFAULT_TOMBSTONE_RETENTION_DAYS = 90;
 const MIN_TOMBSTONE_RETENTION_DAYS = 1;
 const MAX_TOMBSTONE_RETENTION_DAYS = 3650;
@@ -886,7 +887,7 @@ function mergeEntitiesWithStats<T extends { id: string; updatedAt: string; delet
             const localOpTime = resolveOperationTime(localCandidate);
             const incomingOpTime = resolveOperationTime(incomingCandidate);
             const operationDiff = incomingOpTime - localOpTime;
-            if (Math.abs(operationDiff) <= CLOCK_SKEW_THRESHOLD_MS) {
+            if (Math.abs(operationDiff) <= DELETE_VS_LIVE_AMBIGUOUS_WINDOW_MS) {
                 return localCandidate.deletedAt ? localCandidate : incomingCandidate;
             }
             if (operationDiff > 0) return incomingCandidate;

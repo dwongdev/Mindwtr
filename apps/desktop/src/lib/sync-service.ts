@@ -78,6 +78,7 @@ import {
     clearAttachmentValidationFailures,
     getAttachmentValidationFailureAttempts,
     handleAttachmentValidationFailure,
+    markAttachmentUnrecoverable,
 } from './sync-attachment-validation';
 import type { SyncBackend } from './sync-service-utils';
 import {
