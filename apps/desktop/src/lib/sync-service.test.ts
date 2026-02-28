@@ -172,4 +172,29 @@ describe('SyncService orchestration', () => {
         expect(maxActive).toBe(1);
         expect(backendSpy.mock.calls.length).toBeGreaterThanOrEqual(2);
     });
+
+    it('runs a queued follow-up sync after an in-flight failure', async () => {
+        const backendSpy = vi.spyOn(SyncService as any, 'getSyncBackend');
+        backendSpy
+            .mockImplementationOnce(async () => {
+                await new Promise((resolve) => setTimeout(resolve, 20));
+                throw new Error('temporary backend failure');
+            })
+            .mockResolvedValue('off');
+
+        const first = SyncService.performSync();
+        const second = SyncService.performSync();
+        const [firstResult, secondResult] = await Promise.all([first, second]);
+
+        expect(firstResult.success).toBe(false);
+        expect(secondResult.success).toBe(false);
+
+        await new Promise((resolve) => setTimeout(resolve, 40));
+        expect(backendSpy.mock.calls.length).toBeGreaterThanOrEqual(2);
+        expect(SyncService.getSyncStatus()).toMatchObject({
+            inFlight: false,
+            queued: false,
+            lastResult: 'success',
+        });
+    });
 });
