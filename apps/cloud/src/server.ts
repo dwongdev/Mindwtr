@@ -912,7 +912,11 @@ export async function startCloudServer(options: CloudServerOptions = {}): Promis
                         const existingData = loadAppData(filePath);
                         const incomingData = validated.data as AppData;
                         const mergedData = mergeAppData(existingData, incomingData);
-                        writeData(filePath, mergedData);
+                        const validatedMerged = validateAppData(mergedData);
+                        if (!validatedMerged.ok) {
+                            return errorResponse(`Invalid merged data: ${validatedMerged.error}`, 500);
+                        }
+                        writeData(filePath, validatedMerged.data);
                         return jsonResponse({ ok: true });
                     });
                 }

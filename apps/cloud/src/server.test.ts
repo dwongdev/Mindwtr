@@ -526,6 +526,47 @@ describe('cloud server api', () => {
         expect(taskIds.has(taskB.id)).toBe(true);
     });
 
+    test('rejects /v1/data merge when existing on-disk state is invalid', async () => {
+        const key = __cloudTestUtils.tokenToKey(integrationToken);
+        const filePath = join(dataDir, `${key}.json`);
+        writeFileSync(filePath, JSON.stringify({
+            tasks: [],
+            projects: [{ id: 'broken-project', title: 'Broken project', status: 'active', createdAt: '2026-01-01T00:00:00.000Z' }],
+            sections: [],
+            areas: [],
+            settings: {},
+        }));
+
+        const response = await fetch(`${baseUrl}/v1/data`, {
+            method: 'PUT',
+            headers: {
+                ...authHeaders,
+                'content-type': 'application/json',
+            },
+            body: JSON.stringify({
+                tasks: [{
+                    id: 'valid-task',
+                    title: 'Valid task',
+                    status: 'inbox',
+                    createdAt: '2026-01-01T00:00:00.000Z',
+                    updatedAt: '2026-01-01T00:00:00.000Z',
+                }],
+                projects: [],
+                sections: [],
+                areas: [],
+                settings: {},
+            }),
+        });
+
+        expect(response.status).toBe(500);
+        const body = await response.json();
+        expect(String(body.error || '')).toContain('Invalid merged data');
+
+        const persisted = JSON.parse(readFileSync(filePath, 'utf8'));
+        expect((persisted.tasks as Array<{ id: string }>).some((task) => task.id === 'valid-task')).toBe(false);
+        expect((persisted.projects as Array<{ id: string }>).some((project) => project.id === 'broken-project')).toBe(true);
+    });
+
     test('keeps newer live update over older delete during /v1/data merge', async () => {
         const base = { projects: [], sections: [], areas: [], settings: {} };
         const taskId = 'merge-race-live-wins';
