@@ -425,11 +425,11 @@ function validateAppData(value: unknown): { ok: true; data: Record<string, unkno
             if (!isRecord(area) || typeof area.id !== 'string' || typeof area.name !== 'string') {
                 return { ok: false, error: 'Invalid data: each area must be an object with string id and name' };
             }
-            if (area.createdAt != null && !isValidIsoTimestamp(area.createdAt)) {
-                return { ok: false, error: 'Invalid data: area createdAt must be a valid ISO timestamp when present' };
+            if (!isValidIsoTimestamp(area.createdAt)) {
+                return { ok: false, error: 'Invalid data: area createdAt must be a valid ISO timestamp' };
             }
-            if (area.updatedAt != null && !isValidIsoTimestamp(area.updatedAt)) {
-                return { ok: false, error: 'Invalid data: area updatedAt must be a valid ISO timestamp when present' };
+            if (!isValidIsoTimestamp(area.updatedAt)) {
+                return { ok: false, error: 'Invalid data: area updatedAt must be a valid ISO timestamp' };
             }
             if (area.deletedAt != null && !isValidIsoTimestamp(area.deletedAt)) {
                 return { ok: false, error: 'Invalid data: area deletedAt must be a valid ISO timestamp when present' };
@@ -446,11 +446,28 @@ function loadAppData(filePath: string): AppData {
     const raw = readData(filePath);
     if (!raw || typeof raw !== 'object') return { ...DEFAULT_DATA };
     const record = raw as Record<string, unknown>;
+    const nowIso = new Date().toISOString();
+    const normalizedAreas = Array.isArray(record.areas)
+        ? (record.areas as unknown[]).map((area) => {
+            if (!isRecord(area)) return area;
+            const createdAt = typeof area.createdAt === 'string' && area.createdAt.trim().length > 0
+                ? area.createdAt
+                : (typeof area.updatedAt === 'string' && area.updatedAt.trim().length > 0 ? area.updatedAt : nowIso);
+            const updatedAt = typeof area.updatedAt === 'string' && area.updatedAt.trim().length > 0
+                ? area.updatedAt
+                : createdAt;
+            return {
+                ...area,
+                createdAt,
+                updatedAt,
+            };
+        })
+        : [];
     return {
         tasks: Array.isArray(record.tasks) ? (record.tasks as Task[]) : [],
         projects: Array.isArray(record.projects) ? (record.projects as any) : [],
         sections: Array.isArray(record.sections) ? (record.sections as any) : [],
-        areas: Array.isArray(record.areas) ? (record.areas as any) : [],
+        areas: normalizedAreas as any,
         settings: typeof record.settings === 'object' && record.settings ? (record.settings as any) : {},
     };
 }

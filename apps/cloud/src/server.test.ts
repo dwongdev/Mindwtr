@@ -100,7 +100,7 @@ describe('cloud server utils', () => {
         expect(invalidTimestamp.ok).toBe(false);
     });
 
-    test('accepts null optional timestamps in tasks, projects, sections, and areas', () => {
+    test('accepts null optional deletedAt timestamps while requiring area createdAt/updatedAt', () => {
      const iso = '2024-01-01T00:00:00.000Z';
      const result = __cloudTestUtils.validateAppData({
          tasks: [{
@@ -130,8 +130,8 @@ describe('cloud server utils', () => {
          areas: [{
              id: 'a1',
              name: 'Area',
-             createdAt: null,
-             updatedAt: null,
+             createdAt: iso,
+             updatedAt: iso,
              deletedAt: null,
          }],
      });

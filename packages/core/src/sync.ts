@@ -227,11 +227,15 @@ const validateMergedSyncData = (data: AppData): string[] => {
             if (!isNonEmptyString(area.name)) {
                 errors.push(`areas[${index}].name must be a non-empty string`);
             }
-            if (area.createdAt !== undefined && !isValidTimestamp(area.createdAt)) {
-                errors.push(`areas[${index}].createdAt must be a valid ISO timestamp when present`);
+            if (!isNonEmptyString(area.createdAt)) {
+                errors.push(`areas[${index}].createdAt must be a non-empty string`);
+            } else if (!isValidTimestamp(area.createdAt)) {
+                errors.push(`areas[${index}].createdAt must be a valid ISO timestamp`);
             }
-            if (area.updatedAt !== undefined && !isValidTimestamp(area.updatedAt)) {
-                errors.push(`areas[${index}].updatedAt must be a valid ISO timestamp when present`);
+            if (!isNonEmptyString(area.updatedAt)) {
+                errors.push(`areas[${index}].updatedAt must be a non-empty string`);
+            } else if (!isValidTimestamp(area.updatedAt)) {
+                errors.push(`areas[${index}].updatedAt must be a valid ISO timestamp`);
             }
             if (isValidTimestamp(area.createdAt) && isValidTimestamp(area.updatedAt)) {
                 const createdMs = Date.parse(area.createdAt);

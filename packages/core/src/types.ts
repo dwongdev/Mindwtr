@@ -96,8 +96,8 @@ export interface Area {
     order: number; // For sorting in the sidebar
     rev?: number; // Monotonic revision counter for sync conflict resolution
     revBy?: string; // Device identifier that issued the revision
-    createdAt?: string;
-    updatedAt?: string;
+    createdAt: string;
+    updatedAt: string;
     deletedAt?: string; // Soft-delete tombstone for cross-device area deletion
 }
 

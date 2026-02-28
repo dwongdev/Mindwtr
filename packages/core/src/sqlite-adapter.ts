@@ -602,19 +602,30 @@ export class SqliteAdapter {
         const tasks: Task[] = tasksRows.map((row) => this.mapTaskRow(row));
         const projects: Project[] = projectsRows.map((row) => this.mapProjectRow(row));
         const sections: Section[] = sectionsRows.map((row) => this.mapSectionRow(row));
+        const nowIso = new Date().toISOString();
 
-        const areas: Area[] = areasRows.map((row) => ({
-            id: String(row.id),
-            name: String(row.name ?? ''),
-            color: row.color as string | undefined,
-            icon: row.icon as string | undefined,
-            order: Number(row.orderNum ?? 0),
-            rev: row.rev === null || row.rev === undefined ? undefined : Number(row.rev),
-            revBy: row.revBy as string | undefined,
-            createdAt: row.createdAt as string | undefined,
-            updatedAt: row.updatedAt as string | undefined,
-            deletedAt: row.deletedAt as string | undefined,
-        }));
+        const areas: Area[] = areasRows.map((row) => {
+            const createdAtRaw = typeof row.createdAt === 'string' && row.createdAt.trim().length > 0
+                ? row.createdAt
+                : undefined;
+            const updatedAtRaw = typeof row.updatedAt === 'string' && row.updatedAt.trim().length > 0
+                ? row.updatedAt
+                : undefined;
+            const createdAt = createdAtRaw ?? updatedAtRaw ?? nowIso;
+            const updatedAt = updatedAtRaw ?? createdAtRaw ?? nowIso;
+            return {
+                id: String(row.id),
+                name: String(row.name ?? ''),
+                color: row.color as string | undefined,
+                icon: row.icon as string | undefined,
+                order: Number(row.orderNum ?? 0),
+                rev: row.rev === null || row.rev === undefined ? undefined : Number(row.rev),
+                revBy: row.revBy as string | undefined,
+                createdAt,
+                updatedAt,
+                deletedAt: row.deletedAt as string | undefined,
+            };
+        });
 
         const settings = settingsRow?.data ? fromJson<AppData['settings']>(settingsRow.data, {}) : {};
 
