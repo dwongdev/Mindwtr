@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import type { Attachment } from '@mindwtr/core';
 import { getFileSyncDir, hashString, normalizeSyncBackend } from './sync-service-utils';
 import { SyncService, __syncServiceTestUtils } from './sync-service';
 
@@ -29,6 +30,33 @@ describe('sync-service test utils', () => {
     it('hashes sync payloads with sha256 output', async () => {
         const hash = await hashString('mindwtr');
         expect(hash).toBe('feb7a7b01b1c68e586e77288a4b2598d146ee3696ec7dbfac0074196b8d68c33');
+    });
+
+    it('marks attachments unrecoverable when validation failures hit retry cap', () => {
+        const attachment: Attachment = {
+            id: 'att-1',
+            kind: 'file',
+            title: 'Design Doc',
+            uri: '/tmp/design-doc.pdf',
+            createdAt: '2026-01-01T00:00:00.000Z',
+            updatedAt: '2026-01-01T00:00:00.000Z',
+            localStatus: 'available',
+            cloudKey: 'attachments/att-1.pdf',
+            fileHash: 'hash-1',
+        };
+
+        const first = __syncServiceTestUtils.simulateAttachmentValidationFailure(attachment, 'invalid hash');
+        const second = __syncServiceTestUtils.simulateAttachmentValidationFailure(attachment, 'invalid hash');
+        const third = __syncServiceTestUtils.simulateAttachmentValidationFailure(attachment, 'invalid hash');
+
+        expect(first.reachedLimit).toBe(false);
+        expect(second.reachedLimit).toBe(false);
+        expect(third.reachedLimit).toBe(true);
+        expect(__syncServiceTestUtils.getAttachmentValidationFailureAttempts(attachment.id)).toBe(0);
+        expect(attachment.deletedAt).toBeDefined();
+        expect(attachment.localStatus).toBe('missing');
+        expect(attachment.cloudKey).toBeUndefined();
+        expect(attachment.fileHash).toBeUndefined();
     });
 });
 

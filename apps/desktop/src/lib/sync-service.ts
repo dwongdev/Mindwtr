@@ -2430,4 +2430,10 @@ export const __syncServiceTestUtils = {
     clearAttachmentValidationFailures() {
         attachmentValidationFailures.clear();
     },
+    simulateAttachmentValidationFailure(attachment: Attachment, error?: string) {
+        return handleAttachmentValidationFailure(attachment, error);
+    },
+    getAttachmentValidationFailureAttempts(attachmentId: string) {
+        return attachmentValidationFailures.get(attachmentId) ?? 0;
+    },
 };
