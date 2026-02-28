@@ -1,4 +1,4 @@
-import { useEffect, useId, useRef, useState } from 'react';
+import { useEffect, useId, useState } from 'react';
 
 interface PromptModalProps {
     isOpen: boolean;
@@ -31,7 +31,6 @@ export function PromptModal({
 }: PromptModalProps) {
     const [value, setValue] = useState(defaultValue ?? '');
     const [hasInteracted, setHasInteracted] = useState(false);
-    const inputRef = useRef<HTMLInputElement>(null);
     const titleId = useId();
     const descriptionId = useId();
     const validationId = useId();
@@ -40,7 +39,6 @@ export function PromptModal({
         if (isOpen) {
             setValue(defaultValue ?? '');
             setHasInteracted(false);
-            setTimeout(() => inputRef.current?.focus(), 50);
         }
     }, [isOpen, defaultValue]);
     const canConfirm = value.trim().length > 0;
@@ -71,7 +69,7 @@ export function PromptModal({
                 </div>
                 <div className="p-4 space-y-3">
                     <input
-                        ref={inputRef}
+                        autoFocus
                         type={inputType}
                         value={value}
                         onChange={(e) => {
