@@ -2068,7 +2068,6 @@ export class SyncService {
                     }
                     if (preMutated) {
                         ensureLocalSnapshotFresh();
-                        await tauriInvoke('save_data', { data: preSyncedLocalData ?? localData });
                         preSyncedLocalData = preSyncedLocalData ?? localData;
                     }
                 } catch (error) {
