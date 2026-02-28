@@ -1,7 +1,8 @@
 import { useMemo } from 'react';
 import type { Task } from '@mindwtr/core';
 import { PRESET_TAGS } from '@mindwtr/core';
-import { MAX_VISIBLE_SUGGESTIONS, QUICK_TOKEN_LIMIT } from './task-edit-modal.utils';
+import { QUICK_TOKEN_LIMIT } from './task-edit-modal.utils';
+import { MAX_VISIBLE_SUGGESTIONS } from './recurrence-utils';
 import { getActiveTokenQuery, parseTokenList } from './task-edit-token-utils';
 
 type UseTaskTokenSuggestionsParams = {
