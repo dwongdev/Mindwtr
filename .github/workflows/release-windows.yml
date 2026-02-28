@@ -26,7 +26,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: release-windows-${{ github.ref }}
+  group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 env:
@@ -605,3 +605,4 @@ jobs:
           name: release-windows
           path: release-artifacts/*
           if-no-files-found: warn
+          retention-days: 28

@@ -40,7 +40,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: release-ios-appstore-${{ github.ref }}
+  group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: false
 
 jobs:
@@ -391,6 +391,17 @@ jobs:
             cd apps/mobile
             npx expo prebuild --platform ios --non-interactive --no-install
           fi
+
+      - name: Cache CocoaPods dependencies
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: |
+            apps/mobile/ios/Pods
+            ~/Library/Caches/CocoaPods
+            ~/.cocoapods/repos
+          key: ${{ runner.os }}-cocoapods-${{ hashFiles('apps/mobile/ios/Podfile.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cocoapods-
 
       - name: Install CocoaPods dependencies
         run: |
@@ -752,6 +763,7 @@ jobs:
           name: mindwtr-ios-xcodebuild-logs
           path: ${{ runner.temp }}/ios-xcodebuild-*.log
           if-no-files-found: warn
+          retention-days: 28
 
       - name: Prepare Fastlane metadata
         if: ${{ inputs.upload }}
@@ -1023,6 +1035,7 @@ jobs:
           name: mindwtr-ios-appstore-ipa
           path: ${{ env.IPA_PATH }}
           if-no-files-found: error
+          retention-days: 28
 
       - name: Cleanup signing files
         if: always()

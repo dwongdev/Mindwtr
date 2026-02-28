@@ -18,7 +18,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: release-linux-${{ github.ref }}
+  group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -261,3 +261,4 @@ jobs:
           name: release-linux
           path: release-artifacts/*
           if-no-files-found: warn
+          retention-days: 28

@@ -18,7 +18,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: release-android
+  group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -43,6 +43,7 @@ jobs:
         with:
           distribution: temurin
           java-version: 17
+          cache: gradle
 
       - name: Setup Android SDK
         uses: android-actions/setup-android@9fc6c4e9069bf8d3d10b2204b1fb8f6ef7065407 # v3
@@ -199,3 +200,4 @@ jobs:
           name: release-android
           path: release-artifacts/*
           if-no-files-found: error
+          retention-days: 28
