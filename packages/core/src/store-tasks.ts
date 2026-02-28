@@ -5,6 +5,7 @@ import {
     applyTaskUpdates,
     buildSaveSnapshot,
     ensureDeviceId,
+    getTaskOrder,
     getNextProjectOrder,
     getReferenceTaskFieldClears,
     isTaskVisible,
@@ -62,7 +63,8 @@ export const createTaskActions = ({ set, get, getStorage, debouncedSave }: TaskA
             return;
         }
         const resolvedStatus = (initialProps?.status ?? 'inbox') as TaskStatus;
-        const hasOrderNum = Object.prototype.hasOwnProperty.call(initialProps ?? {}, 'orderNum');
+        const hasTaskOrder = Object.prototype.hasOwnProperty.call(initialProps ?? {}, 'order')
+            || Object.prototype.hasOwnProperty.call(initialProps ?? {}, 'orderNum');
         const resolvedProjectId = initialProps?.projectId;
         const resolvedSectionId = resolvedProjectId ? initialProps?.sectionId : undefined;
         const resolvedAreaId = resolvedProjectId ? undefined : initialProps?.areaId;
@@ -75,9 +77,10 @@ export const createTaskActions = ({ set, get, getStorage, debouncedSave }: TaskA
         set((state) => {
             const deviceState = ensureDeviceId(state.settings);
             const deviceId = deviceState.deviceId;
-            const resolvedOrderNum = !hasOrderNum && resolvedProjectId
+            const explicitOrder = getTaskOrder(initialProps ?? {});
+            const resolvedOrder = !hasTaskOrder && resolvedProjectId
                 ? getNextProjectOrder(resolvedProjectId, state._allTasks, state.lastDataChangeAt)
-                : initialProps?.orderNum;
+                : explicitOrder;
             const newTask: Task = {
                 id: uuidv4(),
                 title: trimmedTitle,
@@ -95,7 +98,8 @@ export const createTaskActions = ({ set, get, getStorage, debouncedSave }: TaskA
                 areaId: resolvedAreaId,
                 projectId: resolvedProjectId,
                 sectionId: resolvedSectionId,
-                orderNum: resolvedOrderNum,
+                order: resolvedOrder,
+                orderNum: resolvedOrder,
             };
 
             const newAllTasks = [...state._allTasks, newTask];
@@ -140,6 +144,16 @@ export const createTaskActions = ({ set, get, getStorage, debouncedSave }: TaskA
             };
 
             let adjustedUpdates = updates;
+            const hasOrder = Object.prototype.hasOwnProperty.call(updates, 'order');
+            const hasOrderNum = Object.prototype.hasOwnProperty.call(updates, 'orderNum');
+            if (hasOrder || hasOrderNum) {
+                const normalizedOrder = getTaskOrder(updates);
+                adjustedUpdates = {
+                    ...adjustedUpdates,
+                    order: normalizedOrder,
+                    orderNum: normalizedOrder,
+                };
+            }
             if (Object.prototype.hasOwnProperty.call(updates, 'projectId')) {
                 const rawProjectId = updates.projectId;
                 const normalizedProjectId =
@@ -150,12 +164,14 @@ export const createTaskActions = ({ set, get, getStorage, debouncedSave }: TaskA
                 const projectChanged = (oldTask.projectId ?? undefined) !== nextProjectId;
                 if (projectChanged) {
                     const shouldClearSection = !Object.prototype.hasOwnProperty.call(updates, 'sectionId');
-                    const hasOrderNum = Object.prototype.hasOwnProperty.call(updates, 'orderNum');
+                    const hasTaskOrderOverride = hasOrder || hasOrderNum;
                     if (nextProjectId) {
-                        if (!hasOrderNum) {
+                        if (!hasTaskOrderOverride) {
+                            const nextOrder = getNextProjectOrder(nextProjectId, state._allTasks, state.lastDataChangeAt);
                             adjustedUpdates = {
                                 ...adjustedUpdates,
-                                orderNum: getNextProjectOrder(nextProjectId, state._allTasks, state.lastDataChangeAt),
+                                order: nextOrder,
+                                orderNum: nextOrder,
                             };
                         }
                         if (!Object.prototype.hasOwnProperty.call(updates, 'areaId')) {
@@ -174,6 +190,7 @@ export const createTaskActions = ({ set, get, getStorage, debouncedSave }: TaskA
                         adjustedUpdates = {
                             ...adjustedUpdates,
                             projectId: undefined,
+                            order: undefined,
                             orderNum: undefined,
                             sectionId: undefined,
                         };
@@ -409,6 +426,9 @@ export const createTaskActions = ({ set, get, getStorage, debouncedSave }: TaskA
                 updatedAt: now,
                 deletedAt: undefined,
             }));
+            const duplicatedOrder = sourceTask.projectId
+                ? getNextProjectOrder(sourceTask.projectId, state._allTasks, state.lastDataChangeAt)
+                : undefined;
 
             const newTask: Task = {
                 ...sourceTask,
@@ -429,9 +449,8 @@ export const createTaskActions = ({ set, get, getStorage, debouncedSave }: TaskA
                 updatedAt: now,
                 rev: 1,
                 revBy: deviceState.deviceId,
-                orderNum: sourceTask.projectId
-                    ? getNextProjectOrder(sourceTask.projectId, state._allTasks, state.lastDataChangeAt)
-                    : undefined,
+                order: duplicatedOrder,
+                orderNum: duplicatedOrder,
             };
 
             const newAllTasks = [...state._allTasks, newTask];

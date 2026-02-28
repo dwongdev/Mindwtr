@@ -1,6 +1,6 @@
 import type { AppData, Area, Project, Section, Task, TaskStatus } from './types';
 import type { TaskStore } from './store-types';
-import { buildSaveSnapshot, ensureDeviceId, normalizeRevision, normalizeTagId } from './store-helpers';
+import { buildSaveSnapshot, ensureDeviceId, getTaskOrder, normalizeRevision, normalizeTagId } from './store-helpers';
 import { generateUUID as uuidv4 } from './uuid';
 import { clearDerivedCache } from './store-settings';
 
@@ -993,8 +993,8 @@ export const createProjectActions = ({ set, get, debouncedSave }: ProjectActionC
             const remaining = projectTasks
                 .filter((task) => !orderedSet.has(task.id))
                 .sort((a, b) => {
-                    const aOrder = Number.isFinite(a.orderNum) ? (a.orderNum as number) : Number.POSITIVE_INFINITY;
-                    const bOrder = Number.isFinite(b.orderNum) ? (b.orderNum as number) : Number.POSITIVE_INFINITY;
+                    const aOrder = getTaskOrder(a) ?? Number.POSITIVE_INFINITY;
+                    const bOrder = getTaskOrder(b) ?? Number.POSITIVE_INFINITY;
                     if (aOrder !== bOrder) return aOrder - bOrder;
                     return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
                 });
@@ -1011,6 +1011,7 @@ export const createProjectActions = ({ set, get, debouncedSave }: ProjectActionC
                 if (!Number.isFinite(nextOrder)) return task;
                 return {
                     ...task,
+                    order: nextOrder as number,
                     orderNum: nextOrder as number,
                     updatedAt: now,
                     rev: normalizeRevision(task.rev) + 1,
