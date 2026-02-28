@@ -1917,6 +1917,8 @@ function TaskEditModalInner({ visible, task, onClose, onSave, onFocusMode, defau
                             placeholder={t('taskEdit.contextsPlaceholder')}
                             autoCapitalize="none"
                             placeholderTextColor={tc.secondaryText}
+                            accessibilityLabel={t('taskEdit.contextsLabel')}
+                            accessibilityHint={t('taskEdit.contextsPlaceholder')}
                         />
                         {contextTokenSuggestions.length > 0 && (
                             <View style={[styles.tokenSuggestionsMenu, { backgroundColor: tc.cardBg, borderColor: tc.border }]}>
@@ -1974,6 +1976,8 @@ function TaskEditModalInner({ visible, task, onClose, onSave, onFocusMode, defau
                             placeholder={t('taskEdit.tagsPlaceholder')}
                             autoCapitalize="none"
                             placeholderTextColor={tc.secondaryText}
+                            accessibilityLabel={t('taskEdit.tagsLabel')}
+                            accessibilityHint={t('taskEdit.tagsPlaceholder')}
                         />
                         {tagTokenSuggestions.length > 0 && (
                             <View style={[styles.tokenSuggestionsMenu, { backgroundColor: tc.cardBg, borderColor: tc.border }]}>
@@ -2141,6 +2145,8 @@ function TaskEditModalInner({ visible, task, onClose, onSave, onFocusMode, defau
                                     }}
                                     keyboardType="number-pad"
                                     style={[styles.customInput, { backgroundColor: tc.inputBg, borderColor: tc.border, color: tc.text }]}
+                                    accessibilityLabel={t('recurrence.repeatEvery')}
+                                    accessibilityHint={t('recurrence.dayUnit')}
                                 />
                                 <Text style={[styles.modalLabel, { color: tc.secondaryText }]}>{t('recurrence.dayUnit')}</Text>
                             </View>
@@ -2340,6 +2346,8 @@ function TaskEditModalInner({ visible, task, onClose, onSave, onFocusMode, defau
                                 placeholder={t('taskEdit.descriptionPlaceholder')}
                                 multiline
                                 placeholderTextColor={tc.secondaryText}
+                                accessibilityLabel={t('taskEdit.descriptionLabel')}
+                                accessibilityHint={t('taskEdit.descriptionPlaceholder')}
                             />
                         )}
                     </View>
@@ -2460,6 +2468,8 @@ function TaskEditModalInner({ visible, task, onClose, onSave, onFocusMode, defau
                                         }}
                                         placeholder={t('taskEdit.itemNamePlaceholder')}
                                         placeholderTextColor={tc.secondaryText}
+                                        accessibilityLabel={`${t('taskEdit.checklist')} ${index + 1}`}
+                                        accessibilityHint={t('taskEdit.itemNamePlaceholder')}
                                     />
                                     <TouchableOpacity
                                         onPress={() => {
@@ -2657,6 +2667,9 @@ function TaskEditModalInner({ visible, task, onClose, onSave, onFocusMode, defau
                                 style={[styles.modalInput, { backgroundColor: tc.inputBg, borderColor: tc.border, color: tc.text }]}
                                 autoCapitalize="none"
                                 autoCorrect={false}
+                                returnKeyType="done"
+                                accessibilityLabel={t('attachments.addLink')}
+                                accessibilityHint={t('attachments.linkInputHint')}
                             />
                             <Text style={[styles.modalLabel, { color: tc.secondaryText, marginTop: 8 }]}>
                                 {t('attachments.linkInputHint')}
@@ -2779,6 +2792,8 @@ function TaskEditModalInner({ visible, task, onClose, onSave, onFocusMode, defau
                                     }}
                                     keyboardType="number-pad"
                                     style={[styles.customInput, { backgroundColor: tc.inputBg, borderColor: tc.border, color: tc.text }]}
+                                    accessibilityLabel={t('recurrence.repeatEvery')}
+                                    accessibilityHint={t('recurrence.monthUnit')}
                                 />
                                 <Text style={[styles.modalLabel, { color: tc.secondaryText }]}>{t('recurrence.monthUnit')}</Text>
                             </View>
@@ -2865,6 +2880,8 @@ function TaskEditModalInner({ visible, task, onClose, onSave, onFocusMode, defau
                                             }}
                                             keyboardType="number-pad"
                                             style={[styles.customInput, { backgroundColor: tc.inputBg, borderColor: tc.border, color: tc.text }]}
+                                            accessibilityLabel={t('recurrence.onDayOfMonth').replace('{day}', '')}
+                                            accessibilityHint={t('recurrence.monthlyOnDay')}
                                         />
                                     </View>
                                 )}
