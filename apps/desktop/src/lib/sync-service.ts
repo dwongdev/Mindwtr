@@ -73,6 +73,12 @@ import {
     writeAttachmentFileSafely,
     writeFileSafelyAbsolute,
 } from './sync-service-utils';
+import {
+    clearAttachmentValidationFailure,
+    clearAttachmentValidationFailures,
+    getAttachmentValidationFailureAttempts,
+    handleAttachmentValidationFailure,
+} from './sync-attachment-validation';
 import type { SyncBackend } from './sync-service-utils';
 import {
     deleteDropboxFile,
@@ -121,12 +127,10 @@ const WEBDAV_ATTACHMENT_MAX_DOWNLOADS_PER_SYNC = 10;
 const WEBDAV_ATTACHMENT_MAX_UPLOADS_PER_SYNC = 10;
 const WEBDAV_ATTACHMENT_MISSING_BACKOFF_MS = 15 * 60_000;
 const WEBDAV_ATTACHMENT_ERROR_BACKOFF_MS = 2 * 60_000;
-const ATTACHMENT_VALIDATION_MAX_ATTEMPTS = 3;
 const webdavDownloadBackoff = createWebdavDownloadBackoff({
     missingBackoffMs: WEBDAV_ATTACHMENT_MISSING_BACKOFF_MS,
     errorBackoffMs: WEBDAV_ATTACHMENT_ERROR_BACKOFF_MS,
 });
-const attachmentValidationFailures = new Map<string, number>();
 type SyncServiceDependencies = {
     isTauriRuntime: () => boolean;
     invoke: <T>(command: string, args?: Record<string, unknown>) => Promise<T>;
@@ -182,52 +186,6 @@ const setWebdavDownloadBackoff = (attachmentId: string, error: unknown): void =>
 
 const pruneWebdavDownloadBackoff = (): void => {
     webdavDownloadBackoff.prune();
-};
-
-const markAttachmentUnrecoverable = (attachment: Attachment): boolean => {
-    const now = new Date().toISOString();
-    let mutated = false;
-    if (attachment.cloudKey !== undefined) {
-        attachment.cloudKey = undefined;
-        mutated = true;
-    }
-    if (attachment.fileHash !== undefined) {
-        attachment.fileHash = undefined;
-        mutated = true;
-    }
-    if (attachment.localStatus !== 'missing') {
-        attachment.localStatus = 'missing';
-        mutated = true;
-    }
-    if (!attachment.deletedAt) {
-        attachment.deletedAt = now;
-        mutated = true;
-    }
-    if (attachment.updatedAt !== now) {
-        attachment.updatedAt = now;
-        mutated = true;
-    }
-    return mutated;
-};
-
-const clearAttachmentValidationFailure = (attachmentId: string): void => {
-    attachmentValidationFailures.delete(attachmentId);
-};
-
-const handleAttachmentValidationFailure = (
-    attachment: Attachment,
-    error: string | undefined,
-): { attempts: number; reachedLimit: boolean; mutated: boolean; message: string } => {
-    const attempts = (attachmentValidationFailures.get(attachment.id) || 0) + 1;
-    attachmentValidationFailures.set(attachment.id, attempts);
-    const reason = error || 'unknown';
-    const message = `Attachment validation failed (${reason}) for ${attachment.title} [attempt ${attempts}/${ATTACHMENT_VALIDATION_MAX_ATTEMPTS}]`;
-    if (attempts < ATTACHMENT_VALIDATION_MAX_ATTEMPTS) {
-        return { attempts, reachedLimit: false, mutated: false, message };
-    }
-    attachmentValidationFailures.delete(attachment.id);
-    const mutated = markAttachmentUnrecoverable(attachment);
-    return { attempts, reachedLimit: true, mutated, message };
 };
 
 const externalCalendarProvider = {
@@ -1365,7 +1323,7 @@ export class SyncService {
         SyncService.pendingExternalSyncChange = null;
         SyncService.externalSyncChangeListeners.clear();
         webdavDownloadBackoff.clear();
-        attachmentValidationFailures.clear();
+        clearAttachmentValidationFailures();
     }
 
     private static updateSyncStatus(partial: Partial<typeof SyncService.syncStatus>) {
@@ -2428,12 +2386,12 @@ export const __syncServiceTestUtils = {
         webdavDownloadBackoff.clear();
     },
     clearAttachmentValidationFailures() {
-        attachmentValidationFailures.clear();
+        clearAttachmentValidationFailures();
     },
     simulateAttachmentValidationFailure(attachment: Attachment, error?: string) {
         return handleAttachmentValidationFailure(attachment, error);
     },
     getAttachmentValidationFailureAttempts(attachmentId: string) {
-        return attachmentValidationFailures.get(attachmentId) ?? 0;
+        return getAttachmentValidationFailureAttempts(attachmentId);
     },
 };
