@@ -1883,12 +1883,12 @@ export default function SettingsPage() {
                             ? t('settings.lastSyncConflict')
                             : t('settings.lastSyncError');
                     const details = [
-                        entry.backend ? `${localize('Backend', '后端')}: ${entry.backend}` : null,
-                        entry.type ? `${localize('Type', '类型')}: ${entry.type}` : null,
+                        entry.backend ? `${t('settings.syncHistoryBackend')}: ${entry.backend}` : null,
+                        entry.type ? `${t('settings.syncHistoryType')}: ${entry.type}` : null,
                         entry.conflicts ? `${t('settings.lastSyncConflicts')}: ${entry.conflicts}` : null,
                         entry.maxClockSkewMs > 0 ? `${t('settings.lastSyncSkew')}: ${formatClockSkew(entry.maxClockSkewMs)}` : null,
                         entry.timestampAdjustments > 0 ? `${t('settings.lastSyncAdjusted')}: ${entry.timestampAdjustments}` : null,
-                        entry.details ? `${localize('Details', '详情')}: ${entry.details}` : null,
+                        entry.details ? `${t('settings.syncHistoryDetails')}: ${entry.details}` : null,
                     ].filter(Boolean);
                     return (
                         <Text key={`${entry.at}-${entry.status}`} style={[styles.settingDescription, { color: tc.secondaryText }]}>
@@ -4303,26 +4303,15 @@ export default function SettingsPage() {
                                     {localize('How to Sync', '如何同步')}
                                 </Text>
                                 <Text style={[styles.helpText, { color: tc.secondaryText }]}>
-                                    {isChineseLanguage
-                                        ? (Platform.OS === 'ios'
-                                            ? '1. 先点击"导出备份"保存到目标同步文件夹\n2. 点击"选择文件夹"；若 Google Drive 等在文件夹选择器中灰显，请在随后打开的文件选择器中选中该文件夹里的 Mindwtr 备份 JSON（部分提供商无“打开”按钮，点按或长按文件即可）\n3. 之后点击"同步"即可合并数据'
-                                            : '1. 先点击"导出备份"保存文件到同步文件夹（如 Google Drive）\n2. 点击"选择文件夹"授权该文件夹\n3. 之后点击"同步"即可合并数据')
-                                        : translateText(
-                                            Platform.OS === 'ios'
-                                                ? '1. First, tap "Export Backup" and save to your target sync folder\n2. Tap "Select Folder"; if providers like Google Drive are greyed out in the folder picker, use the next file picker to choose the Mindwtr backup JSON in that folder (some providers do not show an "Open" button; tap or long-press the file)\n3. Then tap "Sync" to merge data'
-                                                : '1. First, tap "Export Backup" and save to your sync folder (e.g., Google Drive)\n2. Tap "Select Folder" to grant access to that folder\n3. Then tap "Sync" to merge data',
-                                            language
-                                        )}
+                                    {Platform.OS === 'ios' ? t('settings.fileSyncHowToIos') : t('settings.fileSyncHowToAndroid')}
                                 </Text>
                                 <Text style={[styles.helpText, { color: tc.secondaryText, marginTop: 8 }]}>
-                                    {isChineseLanguage
-                                        ? '建议：高频多设备编辑优先使用 WebDAV。若使用 Syncthing，请开启 Send & Receive 和 Watch for Changes，并在切换设备前手动点“同步”。'
-                                        : translateText('Tip: For frequent multi-device edits, WebDAV is recommended. If using Syncthing, enable Send & Receive + Watch for Changes and tap Sync before switching devices.', language)}
+                                    {t('settings.fileSyncTip')}
                                 </Text>
                             </View>
 
                             <Text style={[styles.sectionTitle, { color: tc.text, marginTop: 16 }]}>
-                                {localize('Sync Settings', '同步设置')}
+                                {t('settings.syncSettings')}
                             </Text>
                             <View style={[styles.settingCard, { backgroundColor: tc.cardBg }]}>
                                 {/* Sync File Path */}
@@ -4336,7 +4325,7 @@ export default function SettingsPage() {
                                         </Text>
                                     </View>
                                     <TouchableOpacity onPress={handleSetSyncPath}>
-                                        <Text style={styles.linkText}>{localize('Select Folder', '选择文件夹')}</Text>
+                                        <Text style={styles.linkText}>{t('settings.selectFolder')}</Text>
                                     </TouchableOpacity>
                                 </View>
 
@@ -4351,7 +4340,7 @@ export default function SettingsPage() {
                                             {t('settings.syncNow')}
                                         </Text>
                                         <Text style={[styles.settingDescription, { color: tc.secondaryText }]}>
-                                            {isChineseLanguage ? '读取并合并同步文件夹' : translateText('Read and merge sync folder', language)}
+                                            {t('settings.syncReadMergeFolder')}
                                         </Text>
                                     </View>
                                     {isSyncing && <ActivityIndicator size="small" color="#3B82F6" />}
@@ -4367,8 +4356,8 @@ export default function SettingsPage() {
                                             {settings.lastSyncAt
                                                 ? new Date(settings.lastSyncAt).toLocaleString()
                                                 : t('settings.lastSyncNever')}
-                                            {settings.lastSyncStatus === 'error' && localize(' (failed)', '（失败）')}
-                                            {settings.lastSyncStatus === 'conflict' && localize(' (conflicts)', '（有冲突）')}
+                                            {settings.lastSyncStatus === 'error' && t('settings.syncStatusFailedSuffix')}
+                                            {settings.lastSyncStatus === 'conflict' && t('settings.syncStatusConflictsSuffix')}
                                         </Text>
                                         {lastSyncStats && (
                                             <Text style={[styles.settingDescription, { color: tc.secondaryText }]}>
@@ -4506,7 +4495,7 @@ export default function SettingsPage() {
                                             {t('settings.syncNow')}
                                         </Text>
                                         <Text style={[styles.settingDescription, { color: tc.secondaryText }]}>
-                                            {isChineseLanguage ? '读取并合并 WebDAV 数据' : translateText('Read and merge WebDAV data', language)}
+                                            {t('settings.syncReadMergeWebdav')}
                                         </Text>
                                     </View>
                                     {isSyncing && <ActivityIndicator size="small" color={tc.tint} />}
@@ -4539,8 +4528,8 @@ export default function SettingsPage() {
                                             {settings.lastSyncAt
                                                 ? new Date(settings.lastSyncAt).toLocaleString()
                                                 : t('settings.lastSyncNever')}
-                                            {settings.lastSyncStatus === 'error' && localize(' (failed)', '（失败）')}
-                                            {settings.lastSyncStatus === 'conflict' && localize(' (conflicts)', '（有冲突）')}
+                                            {settings.lastSyncStatus === 'error' && t('settings.syncStatusFailedSuffix')}
+                                            {settings.lastSyncStatus === 'conflict' && t('settings.syncStatusConflictsSuffix')}
                                         </Text>
                                         {lastSyncStats && (
                                             <Text style={[styles.settingDescription, { color: tc.secondaryText }]}>
@@ -4709,7 +4698,7 @@ export default function SettingsPage() {
                                                 {t('settings.syncNow')}
                                             </Text>
                                             <Text style={[styles.settingDescription, { color: tc.secondaryText }]}>
-                                                {isChineseLanguage ? '读取并合并自托管数据' : translateText('Read and merge self-hosted data', language)}
+                                                {t('settings.syncReadMergeSelfHosted')}
                                             </Text>
                                         </View>
                                         {isSyncing && <ActivityIndicator size="small" color={tc.tint} />}
@@ -4839,8 +4828,8 @@ export default function SettingsPage() {
                                             {settings.lastSyncAt
                                                 ? new Date(settings.lastSyncAt).toLocaleString()
                                                 : t('settings.lastSyncNever')}
-                                            {settings.lastSyncStatus === 'error' && localize(' (failed)', '（失败）')}
-                                            {settings.lastSyncStatus === 'conflict' && localize(' (conflicts)', '（有冲突）')}
+                                            {settings.lastSyncStatus === 'error' && t('settings.syncStatusFailedSuffix')}
+                                            {settings.lastSyncStatus === 'conflict' && t('settings.syncStatusConflictsSuffix')}
                                         </Text>
                                         {lastSyncStats && (
                                             <Text style={[styles.settingDescription, { color: tc.secondaryText }]}>
@@ -4877,7 +4866,7 @@ export default function SettingsPage() {
 
                     {/* Backup Section */}
                     <Text style={[styles.sectionTitle, { color: tc.text, marginTop: 24 }]}>
-                        {localize('Backup', '备份')}
+                        {t('settings.backup')}
                     </Text>
                     <View style={[styles.settingCard, { backgroundColor: tc.cardBg }]}>
                         <TouchableOpacity
@@ -4887,10 +4876,10 @@ export default function SettingsPage() {
                         >
                             <View style={styles.settingInfo}>
                                 <Text style={[styles.settingLabel, { color: '#3B82F6' }]}>
-                                    {localize('Export Backup', '导出备份')}
+                                    {t('settings.exportBackup')}
                                 </Text>
                                 <Text style={[styles.settingDescription, { color: tc.secondaryText }]}>
-                                    {localize('Save to sync folder', '保存到同步文件夹')}
+                                    {t('settings.saveToSyncFolder')}
                                 </Text>
                             </View>
                         </TouchableOpacity>
