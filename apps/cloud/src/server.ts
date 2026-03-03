@@ -593,6 +593,7 @@ export const __cloudTestUtils = {
     normalizeAttachmentRelativePath,
     isPathWithinRoot,
     pathContainsSymlink,
+    createWriteLockRunner,
 };
 
 type CloudServerOptions = {
@@ -612,6 +613,16 @@ type CloudServerHandle = {
     port: number;
 };
 
+function createWriteLockRunner() {
+    const writeLocks = new Map<string, Promise<void>>();
+    return async <T>(key: string, fn: () => Promise<T>) => {
+        const current = writeLocks.get(key) ?? Promise.resolve();
+        const run = current.catch(() => undefined).then(() => fn());
+        writeLocks.set(key, run.then(() => undefined, () => undefined));
+        return run;
+    };
+}
+
 export async function startCloudServer(options: CloudServerOptions = {}): Promise<CloudServerHandle> {
     const flags = parseArgs(process.argv.slice(2));
     const port = Number(options.port ?? flags.port ?? process.env.PORT ?? 8787);
@@ -630,13 +641,7 @@ export async function startCloudServer(options: CloudServerOptions = {}): Promis
     );
     const allowedAuthTokens = options.allowedAuthTokens ?? resolveAllowedAuthTokensFromEnv(process.env);
     const encoder = new TextEncoder();
-    const writeLocks = new Map<string, Promise<void>>();
-    const withWriteLock = async <T>(key: string, fn: () => Promise<T>) => {
-        const current = writeLocks.get(key) ?? Promise.resolve();
-        const run = current.then(() => fn(), () => fn());
-        writeLocks.set(key, run.then(() => undefined, () => undefined));
-        return run;
-    };
+    const withWriteLock = createWriteLockRunner();
     const rateLimitCleanupMs = Number(process.env.MINDWTR_CLOUD_RATE_CLEANUP_MS || 60_000);
     const pruneExpiredRateLimits = (now: number) => {
         for (const [key, state] of rateLimits.entries()) {

@@ -240,6 +240,26 @@ describe('cloud server utils', () => {
 
         rmSync(sandbox, { recursive: true, force: true });
     });
+
+    test('write lock runner executes each queued write once, even after a failure', async () => {
+        const withWriteLock = __cloudTestUtils.createWriteLockRunner();
+        let failingCalls = 0;
+        let succeedingCalls = 0;
+
+        const first = withWriteLock('key', async () => {
+            failingCalls += 1;
+            throw new Error('boom');
+        });
+        const second = withWriteLock('key', async () => {
+            succeedingCalls += 1;
+            return 'ok';
+        });
+
+        await expect(first).rejects.toThrow('boom');
+        await expect(second).resolves.toBe('ok');
+        expect(failingCalls).toBe(1);
+        expect(succeedingCalls).toBe(1);
+    });
 });
 
 describe('cloud server api', () => {
