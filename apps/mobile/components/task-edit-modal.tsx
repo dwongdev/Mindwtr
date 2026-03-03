@@ -1,5 +1,5 @@
 import React, { useMemo, useState, useEffect, useRef, useCallback } from 'react';
-import { View, Text, TextInput, Modal, TouchableOpacity, ScrollView, Platform, Share, Alert, Animated, Pressable, Keyboard, Image } from 'react-native';
+import { View, Text, TextInput, Modal, TouchableOpacity, ScrollView, Platform, Share, Alert, Animated, Pressable, Keyboard } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import {
     Attachment,
@@ -52,6 +52,11 @@ import { TaskEditTabs } from './task-edit/TaskEditTabs';
 import { TaskEditProjectPicker } from './task-edit/TaskEditProjectPicker';
 import { TaskEditAreaPicker } from './task-edit/TaskEditAreaPicker';
 import { TaskEditSectionPicker } from './task-edit/TaskEditSectionPicker';
+import {
+    TaskEditAudioModal,
+    TaskEditImagePreviewModal,
+    TaskEditLinkModal,
+} from './task-edit/TaskEditOverlayModals';
 import {
     MAX_SUGGESTED_TAGS,
     WEEKDAY_ORDER,
@@ -716,6 +721,12 @@ function TaskEditModalInner({ visible, task, onClose, onSave, onFocusMode, defau
         setLinkModalVisible(false);
     };
 
+    const closeLinkModal = useCallback(() => {
+        setLinkModalVisible(false);
+        setLinkInput('');
+        setLinkInputTouched(false);
+    }, []);
+
     const isAudioAttachment = (attachment: Attachment) => {
         const mime = attachment.mimeType?.toLowerCase();
         if (mime?.startsWith('audio/')) return true;
@@ -910,14 +921,6 @@ function TaskEditModalInner({ visible, task, onClose, onSave, onFocusMode, defau
         const mime = attachment.mimeType?.toLowerCase();
         if (mime?.startsWith('image/')) return true;
         return /\.(png|jpg|jpeg|gif|webp|heic|heif)$/i.test(attachment.uri);
-    };
-
-    const formatAudioTimestamp = (millis?: number) => {
-        if (!millis || millis < 0) return '0:00';
-        const totalSeconds = Math.floor(millis / 1000);
-        const minutes = Math.floor(totalSeconds / 60);
-        const seconds = totalSeconds % 60;
-        return `${minutes}:${String(seconds).padStart(2, '0')}`;
     };
 
     useEffect(() => {
@@ -2600,133 +2603,39 @@ function TaskEditModalInner({ visible, task, onClose, onSave, onFocusMode, defau
                     </Animated.ScrollView>
                 </View>
 
-                <Modal
+                <TaskEditLinkModal
                     visible={linkModalVisible}
-                    transparent
-                    animationType="fade"
-                    onRequestClose={() => {
-                        setLinkModalVisible(false);
-                        setLinkInputTouched(false);
+                    t={t}
+                    tc={tc}
+                    linkInput={linkInput}
+                    linkInputTouched={linkInputTouched}
+                    onChangeLinkInput={(text) => {
+                        setLinkInput(text);
+                        setLinkInputTouched(true);
                     }}
-                >
-                    <View style={styles.overlay}>
-                        <View style={[styles.modalCard, { backgroundColor: tc.cardBg, borderColor: tc.border }]}>
-                            <Text style={[styles.modalTitle, { color: tc.text }]}>{t('attachments.addLink')}</Text>
-                            <TextInput
-                                value={linkInput}
-                                onChangeText={(text) => {
-                                    setLinkInput(text);
-                                    setLinkInputTouched(true);
-                                }}
-                                onBlur={() => setLinkInputTouched(true)}
-                                placeholder={t('attachments.linkPlaceholder')}
-                                placeholderTextColor={tc.secondaryText}
-                                style={[styles.modalInput, { backgroundColor: tc.inputBg, borderColor: tc.border, color: tc.text }]}
-                                autoCapitalize="none"
-                                autoCorrect={false}
-                                returnKeyType="done"
-                                accessibilityLabel={t('attachments.addLink')}
-                                accessibilityHint={t('attachments.linkInputHint')}
-                            />
-                            <Text style={[styles.modalLabel, { color: tc.secondaryText, marginTop: 8 }]}>
-                                {t('attachments.linkInputHint')}
-                            </Text>
-                            {linkInputTouched && !linkInput.trim() && (
-                                <Text style={[styles.validationText, { color: tc.danger }]}>
-                                    Link is required.
-                                </Text>
-                            )}
-                            <View style={styles.modalButtons}>
-                                <TouchableOpacity
-                                    onPress={() => {
-                                        setLinkModalVisible(false);
-                                        setLinkInput('');
-                                        setLinkInputTouched(false);
-                                    }}
-                                    style={styles.modalButton}
-                                >
-                                    <Text style={[styles.modalButtonText, { color: tc.secondaryText }]}>{t('common.cancel')}</Text>
-                                </TouchableOpacity>
-                                <TouchableOpacity
-                                    onPress={confirmAddLink}
-                                    style={[styles.modalButton, !linkInput.trim() && styles.modalButtonDisabled]}
-                                >
-                                    <Text style={[styles.modalButtonText, { color: tc.tint }]}>{t('common.save')}</Text>
-                                </TouchableOpacity>
-                            </View>
-                        </View>
-                    </View>
-                </Modal>
-                <Modal
+                    onBlurLinkInput={() => setLinkInputTouched(true)}
+                    onClose={closeLinkModal}
+                    onSave={confirmAddLink}
+                />
+                <TaskEditAudioModal
                     visible={audioModalVisible}
-                    transparent
-                    animationType="fade"
-                    onRequestClose={closeAudioModal}
-                >
-                    <Pressable style={styles.overlay} onPress={closeAudioModal}>
-                        <Pressable
-                            style={[styles.modalCard, { backgroundColor: tc.cardBg, borderColor: tc.border }]}
-                            onPress={(event) => event.stopPropagation()}
-                        >
-                            <Text style={[styles.modalTitle, { color: tc.text }]}>
-                                {audioAttachment?.title || t('quickAdd.audioNoteTitle')}
-                            </Text>
-                            <Text style={[styles.modalLabel, { color: tc.secondaryText }]}>
-                                {audioStatus?.isLoaded
-                                    ? `${formatAudioTimestamp(audioStatus.currentTime * 1000)} / ${formatAudioTimestamp(audioStatus.duration * 1000)}`
-                                    : t('audio.loading')}
-                            </Text>
-                            <View style={styles.modalButtons}>
-                                <TouchableOpacity
-                                    onPress={toggleAudioPlayback}
-                                    disabled={audioLoading || !audioStatus?.isLoaded}
-                                    style={[styles.modalButton, (audioLoading || !audioStatus?.isLoaded) && styles.modalButtonDisabled]}
-                                >
-                                    <Text style={[styles.modalButtonText, { color: tc.tint }]}>
-                                        {audioStatus?.isLoaded && audioStatus.playing ? t('common.pause') : t('common.play')}
-                                    </Text>
-                                </TouchableOpacity>
-                                <TouchableOpacity onPress={closeAudioModal} style={styles.modalButton}>
-                                    <Text style={[styles.modalButtonText, { color: tc.secondaryText }]}>{t('common.close')}</Text>
-                                </TouchableOpacity>
-                            </View>
-                        </Pressable>
-                    </Pressable>
-                </Modal>
-                <Modal
+                    t={t}
+                    tc={tc}
+                    audioTitle={audioAttachment?.title}
+                    audioStatus={audioStatus}
+                    audioLoading={audioLoading}
+                    onTogglePlayback={() => {
+                        void toggleAudioPlayback();
+                    }}
+                    onClose={closeAudioModal}
+                />
+                <TaskEditImagePreviewModal
                     visible={Boolean(imagePreviewAttachment)}
-                    transparent
-                    animationType="fade"
-                    onRequestClose={closeImagePreview}
-                >
-                    <Pressable style={styles.previewOverlay} onPress={closeImagePreview}>
-                        <Pressable
-                            style={[styles.previewCard, { backgroundColor: tc.cardBg, borderColor: tc.border }]}
-                            onPress={(event) => event.stopPropagation()}
-                        >
-                            <View style={styles.previewHeader}>
-                                <Text
-                                    numberOfLines={1}
-                                    style={[styles.previewTitle, { color: tc.text }]}
-                                >
-                                    {imagePreviewAttachment?.title || t('attachments.title')}
-                                </Text>
-                                <TouchableOpacity onPress={closeImagePreview} style={styles.modalButton}>
-                                    <Text style={[styles.modalButtonText, { color: tc.secondaryText }]}>{t('common.close')}</Text>
-                                </TouchableOpacity>
-                            </View>
-                            {imagePreviewAttachment?.uri ? (
-                                <Image
-                                    source={{ uri: imagePreviewAttachment.uri }}
-                                    style={styles.previewImage}
-                                    resizeMode="contain"
-                                />
-                            ) : (
-                                <Text style={[styles.modalLabel, { color: tc.secondaryText }]}>{t('attachments.missing')}</Text>
-                            )}
-                        </Pressable>
-                    </Pressable>
-                </Modal>
+                    t={t}
+                    tc={tc}
+                    imagePreviewAttachment={imagePreviewAttachment}
+                    onClose={closeImagePreview}
+                />
                 <Modal
                     visible={customRecurrenceVisible}
                     transparent
