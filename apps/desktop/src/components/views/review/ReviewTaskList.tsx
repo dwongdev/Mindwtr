@@ -45,8 +45,16 @@ export function ReviewTaskList({
             }
         };
         scrollToHighlightedTask();
-        const raf = window.requestAnimationFrame(scrollToHighlightedTask);
-        return () => window.cancelAnimationFrame(raf);
+        if (typeof window.requestAnimationFrame === 'function') {
+            const raf = window.requestAnimationFrame(scrollToHighlightedTask);
+            return () => {
+                if (typeof window.cancelAnimationFrame === 'function') {
+                    window.cancelAnimationFrame(raf);
+                }
+            };
+        }
+        const timeout = window.setTimeout(scrollToHighlightedTask, 0);
+        return () => window.clearTimeout(timeout);
     }, [highlightTaskId, tasks, shouldVirtualize, rowVirtualizer]);
 
     if (tasks.length === 0) {
