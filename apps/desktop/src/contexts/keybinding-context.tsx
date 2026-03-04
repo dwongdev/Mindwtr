@@ -289,8 +289,19 @@ export function KeybindingProvider({
     const fallbackEditSelected = useCallback(() => {
         const selectedElement = pickFallbackTaskElement();
         if (!selectedElement) return;
-        const editTrigger = selectedElement.querySelector<HTMLElement>('[data-task-edit-trigger]');
-        if (!editTrigger) return;
+        const editTrigger = selectedElement.matches('[data-task-edit-trigger]')
+            ? selectedElement
+            : selectedElement.querySelector<HTMLElement>('[data-task-edit-trigger]');
+        if (!editTrigger) {
+            const openTrigger = selectedElement.querySelector<HTMLElement>('button, [role="button"], [tabindex]:not([tabindex="-1"])');
+            if (openTrigger) {
+                openTrigger.focus();
+                openTrigger.click();
+                return;
+            }
+            selectedElement.click();
+            return;
+        }
         editTrigger.focus();
         editTrigger.click();
     }, [pickFallbackTaskElement]);

@@ -529,6 +529,8 @@ export function CalendarView() {
                                     {deadlines.map(task => (
                                         <div
                                             key={task.id}
+                                            data-task-id={task.id}
+                                            data-task-edit-trigger
                                             className="text-xs truncate px-1.5 py-0.5 rounded bg-primary/10 text-primary border border-primary/20"
                                             title={task.title}
                                             onClick={(e) => {
@@ -542,6 +544,8 @@ export function CalendarView() {
                                     {scheduled.slice(0, 2).map(task => (
                                         <div
                                             key={task.id}
+                                            data-task-id={task.id}
+                                            data-task-edit-trigger
                                             className="text-xs truncate px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"
                                             title={task.title}
                                             onClick={(e) => {
@@ -655,6 +659,8 @@ export function CalendarView() {
                                     <div key={task.id} className="flex items-center justify-between gap-2">
                                         <button
                                             type="button"
+                                            data-task-id={task.id}
+                                            data-task-edit-trigger
                                             onClick={() => openTaskFromCalendar(task)}
                                             className="min-w-0 flex-1 text-sm truncate text-left text-foreground hover:underline"
                                         >
@@ -688,6 +694,8 @@ export function CalendarView() {
                                         <div key={task.id} className="flex items-center justify-between gap-3">
                                             <button
                                                 type="button"
+                                                data-task-id={task.id}
+                                                data-task-edit-trigger
                                                 onClick={() => openTaskFromCalendar(task)}
                                                 className="min-w-0 text-sm truncate text-left text-foreground hover:underline"
                                             >

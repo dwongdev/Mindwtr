@@ -92,14 +92,18 @@ export function ListView({ title, statusFilter }: ListViewProps) {
     const [contextPromptMode, setContextPromptMode] = useState<'add' | 'remove'>('add');
     const [contextPromptIds, setContextPromptIds] = useState<string[]>([]);
     const [selectedWaitingPerson, setSelectedWaitingPerson] = useState('');
+    const [searchQuery, setSearchQuery] = useState('');
     const lastFilterKeyRef = useRef<string>('');
     const addInputRef = useRef<HTMLInputElement>(null);
+    const viewFilterInputRef = useRef<HTMLInputElement>(null);
     const listScrollRef = useRef<HTMLDivElement>(null);
     const prioritiesEnabled = settings?.features?.priorities === true;
     const timeEstimatesEnabled = settings?.features?.timeEstimates === true;
     const undoNotificationsEnabled = settings?.undoNotificationsEnabled !== false;
     const showQuickDone = statusFilter !== 'done' && statusFilter !== 'archived';
     const readOnly = statusFilter === 'done';
+    const showViewFilterInput = statusFilter !== 'inbox';
+    const normalizedSearchQuery = searchQuery.trim().toLowerCase();
     const activePriorities = useMemo(
         () => (prioritiesEnabled ? selectedPriorities : EMPTY_PRIORITIES),
         [prioritiesEnabled, selectedPriorities]
@@ -229,6 +233,10 @@ export function ListView({ title, statusFilter }: ListViewProps) {
         };
     }, [statusFilter, queryTasks, lastDataChangeAt, tasks]);
 
+    useEffect(() => {
+        setSearchQuery('');
+    }, [statusFilter]);
+
     const areaById = useMemo(() => new Map(areas.map((area) => [area.id, area])), [areas]);
     const waitingPeople = useMemo(() => {
         if (statusFilter !== 'waiting') return [];
@@ -345,6 +353,9 @@ export function ListView({ title, statusFilter }: ListViewProps) {
                     const person = extractWaitingPerson(t.description);
                     if (!person || person.toLowerCase() !== deferredFilterInputs.selectedWaitingPerson.toLowerCase()) return false;
                 }
+                if (showViewFilterInput && normalizedSearchQuery && !t.title.toLowerCase().includes(normalizedSearchQuery)) {
+                    return false;
+                }
                 return true;
             });
 
@@ -357,7 +368,7 @@ export function ListView({ title, statusFilter }: ListViewProps) {
 
             return sortTasksBy(filtered, deferredFilterInputs.sortBy);
         });
-    }, [deferredFilterInputs]);
+    }, [deferredFilterInputs, normalizedSearchQuery, showViewFilterInput]);
     const resolveText = useCallback((key: string, fallback: string) => {
         const value = t(key);
         return value === key ? fallback : value;
@@ -585,7 +596,13 @@ export function ListView({ title, statusFilter }: ListViewProps) {
             editSelected,
             toggleDoneSelected,
             deleteSelected,
-            focusAddInput: () => addInputRef.current?.focus(),
+            focusAddInput: () => {
+                if (showViewFilterInput) {
+                    viewFilterInputRef.current?.focus();
+                    return;
+                }
+                addInputRef.current?.focus();
+            },
         });
 
         return () => registerTaskListScope(null);
@@ -599,6 +616,7 @@ export function ListView({ title, statusFilter }: ListViewProps) {
         editSelected,
         toggleDoneSelected,
         deleteSelected,
+        showViewFilterInput,
     ]);
 
     const toggleMultiSelect = useCallback((taskId: string) => {
@@ -718,12 +736,13 @@ export function ListView({ title, statusFilter }: ListViewProps) {
     };
     const filterSummary = useMemo(() => {
         return [
+            ...(normalizedSearchQuery ? [`${t('common.search')}: ${searchQuery.trim()}`] : []),
             ...selectedTokens,
             ...(prioritiesEnabled ? selectedPriorities.map((priority) => t(`priority.${priority}`)) : []),
             ...(timeEstimatesEnabled ? selectedTimeEstimates.map(formatEstimate) : []),
             ...(selectedWaitingPerson ? [`${t('process.delegateWhoLabel')}: ${selectedWaitingPerson}`] : []),
         ];
-    }, [selectedTokens, selectedPriorities, selectedTimeEstimates, prioritiesEnabled, timeEstimatesEnabled, selectedWaitingPerson, t]);
+    }, [normalizedSearchQuery, prioritiesEnabled, searchQuery, selectedPriorities, selectedTimeEstimates, selectedTokens, selectedWaitingPerson, t, timeEstimatesEnabled]);
     const hasFilters = filterSummary.length > 0;
     const filterSummaryLabel = filterSummary.slice(0, 3).join(', ');
     const filterSummarySuffix = filterSummary.length > 3 ? ` +${filterSummary.length - 3}` : '';
@@ -937,6 +956,18 @@ export function ListView({ title, statusFilter }: ListViewProps) {
                 isProcessing={isProcessing}
                 setIsProcessing={setIsProcessing}
             />
+
+            {showViewFilterInput && !isProcessing && (
+                <input
+                    ref={viewFilterInputRef}
+                    type="text"
+                    data-view-filter-input
+                    placeholder={t('common.search')}
+                    value={searchQuery}
+                    onChange={(event) => setSearchQuery(event.target.value)}
+                    className="w-full text-sm px-3 py-2 rounded border border-border bg-background focus:outline-none focus:ring-2 focus:ring-primary/30"
+                />
+            )}
 
             {isWaitingView && !isProcessing && (
                 <div className="flex flex-wrap items-center gap-2 rounded-lg border border-border/60 bg-muted/20 px-3 py-2">

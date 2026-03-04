@@ -100,6 +100,27 @@ const FallbackTaskList = ({
     );
 };
 
+const FallbackTaskListWithoutEditTrigger = ({
+    onOpenTask1,
+    onOpenTask2,
+}: {
+    onOpenTask1: () => void;
+    onOpenTask2: () => void;
+}) => {
+    return (
+        <div data-main-content tabIndex={-1}>
+            <div data-task-id="1" data-task-edit-trigger ref={setVisibleRect} onClick={onOpenTask1}>
+                Task 1
+            </div>
+            <div data-task-id="2" ref={setVisibleRect}>
+                <button type="button" onClick={onOpenTask2}>
+                    Open Task 2
+                </button>
+            </div>
+        </div>
+    );
+};
+
 describe('KeybindingProvider (vim)', () => {
     beforeEach(() => {
         useUiStore.setState({ editingTaskId: null });
@@ -216,5 +237,22 @@ describe('KeybindingProvider (vim)', () => {
         fireEvent.keyDown(window, { key: 'g' });
         fireEvent.keyDown(window, { key: 'e' });
         expect(onEditTask1).toHaveBeenCalledTimes(1);
+    });
+
+    it('falls back to clickable task row when explicit edit trigger is absent', () => {
+        const onOpenTask1 = vi.fn();
+        const onOpenTask2 = vi.fn();
+
+        render(
+            <LanguageProvider>
+                <KeybindingProvider currentView="calendar" onNavigate={vi.fn()}>
+                    <FallbackTaskListWithoutEditTrigger onOpenTask1={onOpenTask1} onOpenTask2={onOpenTask2} />
+                </KeybindingProvider>
+            </LanguageProvider>
+        );
+
+        fireEvent.keyDown(window, { key: 'j' });
+        fireEvent.keyDown(window, { key: 'e' });
+        expect(onOpenTask2).toHaveBeenCalledTimes(1);
     });
 });
