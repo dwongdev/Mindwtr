@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 
 import { ListBulkActions } from './ListBulkActions';
@@ -26,7 +26,7 @@ describe('ListBulkActions', () => {
     it('assigns selected area from bulk action select', () => {
         const onAssignArea = vi.fn();
 
-        render(
+        const { getByRole } = render(
             <ListBulkActions
                 selectionCount={2}
                 onMoveToStatus={() => undefined}
@@ -40,7 +40,7 @@ describe('ListBulkActions', () => {
             />
         );
 
-        fireEvent.change(screen.getByRole('combobox', { name: 'Area' }), {
+        fireEvent.change(getByRole('combobox', { name: 'Area' }), {
             target: { value: 'area-1' },
         });
 
@@ -50,7 +50,7 @@ describe('ListBulkActions', () => {
     it('assigns no area when no-area option is selected', () => {
         const onAssignArea = vi.fn();
 
-        render(
+        const { getByRole } = render(
             <ListBulkActions
                 selectionCount={1}
                 onMoveToStatus={() => undefined}
@@ -64,7 +64,7 @@ describe('ListBulkActions', () => {
             />
         );
 
-        fireEvent.change(screen.getByRole('combobox', { name: 'Area' }), {
+        fireEvent.change(getByRole('combobox', { name: 'Area' }), {
             target: { value: '__NO_AREA__' },
         });
 
