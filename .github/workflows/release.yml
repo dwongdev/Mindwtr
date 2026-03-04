@@ -882,7 +882,7 @@ jobs:
             "  const infoPlist = mac.infoPlist;",
             "  delete mac.infoPlist;",
             "  mac.files = { ...(mac.files || {}), 'Info.plist': infoPlist };",
-            "  fs.writeFileSync(configPath, JSON.stringify(config, null, 2) + '\\\\n');",
+            "  fs.writeFileSync(configPath, JSON.stringify(config, null, 2) + '\\n');",
             "  console.log(`Patched ${configPath} for tauri v2 schema compatibility`);",
             "}",
             "NODE",
