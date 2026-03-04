@@ -33,7 +33,11 @@ export function TaskEditProjectPicker({
     const activeProjects = useMemo(() => {
         return projects
             .filter((project) => !project.deletedAt)
-            .sort((a, b) => a.title.localeCompare(b.title));
+            .sort((a, b) => {
+                const orderA = Number.isFinite(a.order) ? a.order : 0;
+                const orderB = Number.isFinite(b.order) ? b.order : 0;
+                return orderA - orderB;
+            });
     }, [projects]);
 
     const normalizedProjectQuery = projectQuery.trim().toLowerCase();
