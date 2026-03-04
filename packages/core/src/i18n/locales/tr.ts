@@ -213,6 +213,7 @@ export const trOverrides: Record<string, string> = {
         'recurrence.custom': 'Gelenek…',
         'recurrence.customTitle': 'Özel yineleme',
         'recurrence.repeatEvery': 'Her birini tekrarla',
+        'recurrence.repeatOn': 'Tekrar et',
         'recurrence.dayUnit': 'gün(ler)',
         'recurrence.monthUnit': 'ay(lar)',
         'recurrence.onLabel': 'Açık',

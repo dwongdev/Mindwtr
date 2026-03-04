@@ -213,6 +213,7 @@ export const arOverrides: Record<string, string> = {
         'recurrence.custom': 'مخصص…',
         'recurrence.customTitle': 'التكرار المخصص',
         'recurrence.repeatEvery': 'كرر كل',
+        'recurrence.repeatOn': 'كرر في',
         'recurrence.dayUnit': 'أيام)',
         'recurrence.monthUnit': 'شهور)',
         'recurrence.onLabel': 'على',

@@ -77,6 +77,7 @@ export const nlOverrides: Record<string, string> = {
         'taskEdit.tab.task': 'Taak',
         'taskEdit.tab.list': 'Lijst',
         'taskEdit.tab.view': 'Weergave',
+        'recurrence.repeatOn': 'Herhalen op',
         'settings.title': 'Instellingen',
         'settings.subtitle': 'Pas je Mindwtr-ervaring aan',
         'settings.appearance': 'Uiterlijk',

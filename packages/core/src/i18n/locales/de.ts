@@ -213,6 +213,7 @@ export const deOverrides: Record<string, string> = {
         'recurrence.custom': 'Benutzerdefiniert …',
         'recurrence.customTitle': 'Benutzerdefinierte Wiederholung',
         'recurrence.repeatEvery': 'Wiederholen jeden',
+        'recurrence.repeatOn': 'Wiederholen am',
         'recurrence.dayUnit': 'Tag(e)',
         'recurrence.monthUnit': 'Monat(e)',
         'recurrence.onLabel': 'Am',

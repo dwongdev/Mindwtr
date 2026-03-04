@@ -213,6 +213,7 @@ export const koOverrides: Record<string, string> = {
         'recurrence.custom': '관습…',
         'recurrence.customTitle': '맞춤 반복',
         'recurrence.repeatEvery': '반복 간격',
+        'recurrence.repeatOn': '반복 요일',
         'recurrence.dayUnit': '날)',
         'recurrence.monthUnit': '월',
         'recurrence.onLabel': '~에',

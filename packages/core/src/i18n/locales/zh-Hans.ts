@@ -216,6 +216,7 @@ export const zhHans: Record<string, string> = {
         'recurrence.custom': '自定义…',
         'recurrence.customTitle': '自定义重复',
         'recurrence.repeatEvery': '每隔',
+        'recurrence.repeatOn': '重复于',
         'recurrence.dayUnit': '天',
         'recurrence.monthUnit': '个月',
         'recurrence.onLabel': '在',

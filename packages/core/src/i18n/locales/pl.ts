@@ -213,6 +213,7 @@ export const plOverrides: Record<string, string> = {
         'recurrence.custom': 'Niestandardowe…',
         'recurrence.customTitle': 'Niestandardowe powtarzanie',
         'recurrence.repeatEvery': 'Powtarzaj co',
+        'recurrence.repeatOn': 'Powtarzaj w',
         'recurrence.dayUnit': 'dzień(i)',
         'recurrence.monthUnit': 'miesiąc(e)',
         'recurrence.onLabel': 'W',

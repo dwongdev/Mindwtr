@@ -213,6 +213,7 @@ export const jaOverrides: Record<string, string> = {
         'recurrence.custom': 'カスタム…',
         'recurrence.customTitle': 'カスタムの繰り返し',
         'recurrence.repeatEvery': '毎回繰り返す',
+        'recurrence.repeatOn': '繰り返す曜日',
         'recurrence.dayUnit': '日',
         'recurrence.monthUnit': '月',
         'recurrence.onLabel': 'の上',

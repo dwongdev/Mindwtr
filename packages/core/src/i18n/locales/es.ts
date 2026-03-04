@@ -213,6 +213,7 @@ export const esOverrides: Record<string, string> = {
         'recurrence.custom': 'Custom…',
         'recurrence.customTitle': 'Custom recurrence',
         'recurrence.repeatEvery': 'Repeat every',
+        'recurrence.repeatOn': 'Repetir en',
         'recurrence.dayUnit': 'day(s)',
         'recurrence.monthUnit': 'Mes(s)',
         'recurrence.onLabel': 'On',

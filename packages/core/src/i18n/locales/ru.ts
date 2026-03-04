@@ -213,6 +213,7 @@ export const ruOverrides: Record<string, string> = {
         'recurrence.custom': 'Обычай…',
         'recurrence.customTitle': 'Пользовательское повторение',
         'recurrence.repeatEvery': 'Повторяйте каждые',
+        'recurrence.repeatOn': 'Повторять в',
         'recurrence.dayUnit': 'день(а)',
         'recurrence.monthUnit': 'месяц(ы)',
         'recurrence.onLabel': 'На',

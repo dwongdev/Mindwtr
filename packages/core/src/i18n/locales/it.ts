@@ -213,6 +213,7 @@ export const itOverrides: Record<string, string> = {
         'recurrence.custom': 'Costume…',
         'recurrence.customTitle': 'Ricorrenza personalizzata',
         'recurrence.repeatEvery': 'Ripeti ogni',
+        'recurrence.repeatOn': 'Ripeti il',
         'recurrence.dayUnit': 'giorno/i',
         'recurrence.monthUnit': 'mesi)',
         'recurrence.onLabel': 'SU',

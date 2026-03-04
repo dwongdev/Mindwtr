@@ -213,6 +213,7 @@ export const hiOverrides: Record<string, string> = {
         'recurrence.custom': 'रिवाज़…',
         'recurrence.customTitle': 'कस्टम पुनरावृत्ति',
         'recurrence.repeatEvery': 'प्रत्येक को दोहराएँ',
+        'recurrence.repeatOn': 'इस दिन दोहराएं',
         'recurrence.dayUnit': 'दिन',
         'recurrence.monthUnit': 'महीना',
         'recurrence.onLabel': 'पर',

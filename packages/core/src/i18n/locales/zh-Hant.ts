@@ -216,6 +216,7 @@ export const zhHant: Record<string, string> = {
         'recurrence.custom': '自定義…',
         'recurrence.customTitle': '自定義重複',
         'recurrence.repeatEvery': '每隔',
+        'recurrence.repeatOn': '重複於',
         'recurrence.dayUnit': '天',
         'recurrence.monthUnit': '個月',
         'recurrence.onLabel': '在',

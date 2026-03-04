@@ -213,6 +213,7 @@ export const ptOverrides: Record<string, string> = {
         'recurrence.custom': 'Personalizado…',
         'recurrence.customTitle': 'Recorrência personalizada',
         'recurrence.repeatEvery': 'Repita cada',
+        'recurrence.repeatOn': 'Repetir em',
         'recurrence.dayUnit': 'dia(s)',
         'recurrence.monthUnit': 'meses)',
         'recurrence.onLabel': 'Sobre',
