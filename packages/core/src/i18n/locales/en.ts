@@ -114,6 +114,10 @@ export const en: Record<string, string> = {
         'list.density': 'Density',
         'list.densityComfortable': 'Comfortable',
         'list.densityCompact': 'Compact',
+        'list.groupBy': 'Group',
+        'list.groupByNone': 'No grouping',
+        'list.groupByContext': 'Context',
+        'list.groupByArea': 'Area',
         'reference.empty': 'No reference items yet.',
 
         // Status Labels

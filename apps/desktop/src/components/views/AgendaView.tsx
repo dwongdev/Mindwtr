@@ -11,6 +11,7 @@ import { checkBudget } from '../../config/performanceBudgets';
 import { TaskItem } from '../TaskItem';
 import { projectMatchesAreaFilter, resolveAreaFilter, taskMatchesAreaFilter } from '../../lib/area-filter';
 import { PomodoroPanel } from './PomodoroPanel';
+import { groupTasksByArea, groupTasksByContext, type NextGroupBy, type TaskGroup } from './list/next-grouping';
 
 export function AgendaView() {
     const perf = usePerformanceMonitor('AgendaView');
@@ -29,8 +30,9 @@ export function AgendaView() {
     const getDerivedState = useTaskStore((state) => state.getDerivedState);
     const { projectMap, sequentialProjectIds } = getDerivedState();
     const { t } = useLanguage();
-    const { showListDetails, setListOptions } = useUiStore((state) => ({
+    const { showListDetails, nextGroupBy, setListOptions } = useUiStore((state) => ({
         showListDetails: state.listOptions.showDetails,
+        nextGroupBy: state.listOptions.nextGroupBy,
         setListOptions: state.setListOptions,
     }));
     const [selectedTokens, setSelectedTokens] = useState<string[]>([]);
@@ -98,6 +100,10 @@ export function AgendaView() {
         if (!normalizedSearchQuery) return true;
         return title.toLowerCase().includes(normalizedSearchQuery);
     }, [normalizedSearchQuery]);
+    const resolveText = useCallback((key: string, fallback: string) => {
+        const value = t(key);
+        return value === key ? fallback : value;
+    }, [t]);
 
     const { filteredActiveTasks, reviewDueCandidates } = useMemo(() => {
         const now = new Date();
@@ -316,6 +322,21 @@ export function AgendaView() {
             reviewDue: sortWith(reviewDue, (task) => safeParseDate(task.reviewAt)?.getTime() ?? Number.POSITIVE_INFINITY),
         };
     }, [filteredActiveTasks, reviewDueCandidates, prioritiesEnabled, sortByProjectOrder, sequentialProjectIds]);
+    const nextActionGroups = useMemo(() => {
+        if (nextGroupBy === 'none') return [] as TaskGroup[];
+        if (nextGroupBy === 'area') {
+            return groupTasksByArea({
+                areas,
+                tasks: sections.nextActions,
+                projectMap,
+                generalLabel: resolveText('settings.general', 'General'),
+            });
+        }
+        return groupTasksByContext({
+            tasks: sections.nextActions,
+            noContextLabel: resolveText('contexts.none', 'No context'),
+        });
+    }, [areas, nextGroupBy, projectMap, resolveText, sections.nextActions]);
     const focusedCount = focusedTasks.length;
     const { top3Tasks, remainingCount } = useMemo(() => {
         const byId = new Map<string, Task>();
@@ -514,6 +535,16 @@ export function AgendaView() {
                         <List className="w-3.5 h-3.5" />
                         {showListDetails ? (t('list.details') || 'Details') : (t('list.detailsOff') || 'Details off')}
                     </button>
+                    <select
+                        value={nextGroupBy}
+                        onChange={(event) => setListOptions({ nextGroupBy: event.target.value as NextGroupBy })}
+                        aria-label={resolveText('list.groupBy', 'Group')}
+                        className="text-xs bg-muted/50 text-foreground border border-border rounded-full px-3 py-1.5 hover:bg-muted focus:outline-none focus:ring-2 focus:ring-primary/40"
+                    >
+                        <option value="none">{resolveText('list.groupByNone', 'No grouping')}</option>
+                        <option value="context">{resolveText('list.groupByContext', 'Context')}</option>
+                        <option value="area">{resolveText('list.groupByArea', 'Area')}</option>
+                    </select>
                 </div>
             </header>
 
@@ -702,12 +733,53 @@ export function AgendaView() {
                             color="text-yellow-600"
                         />
 
-                        <Section
-                            title={t('agenda.nextActions')}
-                            icon={ArrowRight}
-                            tasks={sections.nextActions}
-                            color="text-blue-600"
-                        />
+                        {nextGroupBy === 'none' ? (
+                            <Section
+                                title={t('agenda.nextActions')}
+                                icon={ArrowRight}
+                                tasks={sections.nextActions}
+                                color="text-blue-600"
+                            />
+                        ) : (
+                            <div className="space-y-3">
+                                <h3 className="font-semibold flex items-center gap-2 text-blue-600">
+                                    <ArrowRight className="w-5 h-5" />
+                                    {t('agenda.nextActions')}
+                                    <span className="text-muted-foreground font-normal">({sections.nextActions.length})</span>
+                                </h3>
+                                <div className="space-y-2">
+                                    {nextActionGroups.map((group) => (
+                                        <div key={group.id} className="rounded-md border border-border/40 bg-card/30">
+                                            <div className={cn(
+                                                'px-3 py-2 text-xs font-semibold uppercase tracking-wide border-b border-border/30',
+                                                group.muted ? 'text-muted-foreground' : 'text-foreground/90',
+                                            )}>
+                                                <span className="inline-flex items-center gap-1.5">
+                                                    {group.dotColor && (
+                                                        <span className="h-2 w-2 rounded-full" style={{ backgroundColor: group.dotColor }} aria-hidden="true" />
+                                                    )}
+                                                    <span>{group.title}</span>
+                                                </span>
+                                                <span className="ml-2 text-muted-foreground">{group.tasks.length}</span>
+                                            </div>
+                                            <div className="divide-y divide-border/30">
+                                                {group.tasks.map((task) => (
+                                                    <TaskItem
+                                                        key={task.id}
+                                                        task={task}
+                                                        project={task.projectId ? projectMap.get(task.projectId) : undefined}
+                                                        focusToggle={buildFocusToggle(task)}
+                                                        showProjectBadgeInActions={false}
+                                                        compactMetaEnabled={showListDetails}
+                                                        enableDoubleClickEdit
+                                                    />
+                                                ))}
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
 
                         <Section
                             title={t('agenda.reviewDue') || 'Review Due'}

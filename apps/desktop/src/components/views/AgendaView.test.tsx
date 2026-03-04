@@ -3,6 +3,7 @@ import { fireEvent, render } from '@testing-library/react';
 import { useTaskStore, type Task } from '@mindwtr/core';
 import { LanguageProvider } from '../../contexts/language-context';
 import { AgendaView } from './AgendaView';
+import { useUiStore } from '../../store/ui-store';
 
 const nowIso = '2026-02-28T12:00:00.000Z';
 
@@ -37,6 +38,12 @@ describe('AgendaView', () => {
             _allAreas: [],
             settings: {},
             highlightTaskId: null,
+        });
+        useUiStore.setState({
+            listOptions: {
+                showDetails: false,
+                nextGroupBy: 'none',
+            },
         });
     });
 
@@ -143,5 +150,46 @@ describe('AgendaView', () => {
 
         fireEvent.doubleClick(row!);
         expect(getByDisplayValue('Next action task')).toBeInTheDocument();
+    });
+
+    it('groups next actions by context in Focus view', () => {
+        const workTask: Task = {
+            id: 'next-work-task',
+            title: 'Work next task',
+            status: 'next',
+            contexts: ['@work'],
+            tags: [],
+            createdAt: nowIso,
+            updatedAt: nowIso,
+        };
+        const homeTask: Task = {
+            id: 'next-home-task',
+            title: 'Home next task',
+            status: 'next',
+            contexts: ['@home'],
+            tags: [],
+            createdAt: nowIso,
+            updatedAt: nowIso,
+        };
+
+        useTaskStore.setState({
+            tasks: [workTask, homeTask],
+            _allTasks: [workTask, homeTask],
+            projects: [],
+            _allProjects: [],
+            areas: [],
+            _allAreas: [],
+            settings: {},
+            highlightTaskId: null,
+        });
+
+        const { getByLabelText, getByText } = renderAgenda();
+        const groupSelect = getByLabelText('Group') as HTMLSelectElement;
+        fireEvent.change(groupSelect, { target: { value: 'context' } });
+
+        expect(getByText('@work')).toBeInTheDocument();
+        expect(getByText('@home')).toBeInTheDocument();
+        expect(getByText('Work next task')).toBeInTheDocument();
+        expect(getByText('Home next task')).toBeInTheDocument();
     });
 });
