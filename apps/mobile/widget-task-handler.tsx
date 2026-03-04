@@ -2,7 +2,6 @@ import React from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { registerWidgetTaskHandler, type WidgetTaskHandler } from 'react-native-android-widget';
 import { type AppData } from '@mindwtr/core';
-import { Appearance } from 'react-native';
 
 import { buildTasksWidgetTree } from './components/TasksWidget';
 import {
@@ -13,19 +12,10 @@ import {
 } from './lib/widget-data';
 import { getAdaptiveWidgetTaskLimit } from './lib/widget-layout';
 import { logWarn } from './lib/app-log';
+import { getSystemColorSchemeForWidget } from './lib/system-color-scheme';
 
 const DEFAULT_DATA: AppData = { tasks: [], projects: [], sections: [], areas: [], settings: {} };
 // Task completion via widget taps is disabled. Keep handler to render widget payloads only.
-
-const getSystemColorScheme = (): 'light' | 'dark' | undefined => {
-    try {
-        const scheme = Appearance.getColorScheme();
-        if (scheme === 'light' || scheme === 'dark') return scheme;
-        return undefined;
-    } catch {
-        return undefined;
-    }
-};
 
 async function loadWidgetContext() {
     try {
@@ -60,7 +50,7 @@ const widgetTaskHandler: WidgetTaskHandler = async ({ renderWidget, widgetInfo }
     let { data, language } = await loadWidgetContext();
     const maxItems = getAdaptiveWidgetTaskLimit(widgetInfo.height);
     const tasksPayload = buildWidgetPayload(data, language, {
-        systemColorScheme: getSystemColorScheme(),
+        systemColorScheme: getSystemColorSchemeForWidget(),
         maxItems,
     });
     try {

@@ -1,4 +1,4 @@
-import { Appearance, Platform } from 'react-native';
+import { Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { type AppData, useTaskStore } from '@mindwtr/core';
 
@@ -13,6 +13,7 @@ import {
     WIDGET_LANGUAGE_KEY,
 } from './widget-data';
 import { logError, logWarn } from './app-log';
+import { getSystemColorSchemeForWidget } from './system-color-scheme';
 
 export function isAndroidWidgetSupported(): boolean {
     return Platform.OS === 'android';
@@ -21,16 +22,6 @@ export function isAndroidWidgetSupported(): boolean {
 export function isIosWidgetSupported(): boolean {
     return Platform.OS === 'ios';
 }
-
-const getSystemColorScheme = (): 'light' | 'dark' | undefined => {
-    try {
-        const scheme = Appearance.getColorScheme();
-        if (scheme === 'light' || scheme === 'dark') return scheme;
-        return undefined;
-    } catch {
-        return undefined;
-    }
-};
 
 type AndroidWidgetApi = {
     requestWidgetUpdate: (params: {
@@ -85,7 +76,7 @@ async function buildPayloadFromData(data: AppData): Promise<TasksWidgetPayload> 
     const language = resolveWidgetLanguage(languageValue, data.settings?.language);
     const maxItems = Platform.OS === 'ios' ? 8 : undefined;
     return buildWidgetPayload(data, language, {
-        systemColorScheme: getSystemColorScheme(),
+        systemColorScheme: getSystemColorSchemeForWidget(),
         maxItems,
     });
 }
