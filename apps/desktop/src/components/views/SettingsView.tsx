@@ -1120,6 +1120,7 @@ export function SettingsView() {
                     <SettingsSidebar
                         title={t.title}
                         subtitle={t.subtitle}
+                        searchPlaceholder={t.searchPlaceholder}
                         items={navItems}
                         activeId={page}
                         onSelect={(id) => setPage(id as SettingsPage)}
