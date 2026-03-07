@@ -1,6 +1,6 @@
 import { Colors, Material3 } from '../constants/theme';
 import { THEME_PRESETS } from '../constants/theme-presets';
-import { useTheme } from '../contexts/theme-context';
+import { useTheme, type ThemeContextType } from '../contexts/theme-context';
 
 export interface ThemeColors {
     bg: string;
@@ -21,8 +21,31 @@ export interface ThemeColors {
     filterBg: string;
 }
 
-export function useThemeColors() {
-    const { isDark, themeStyle, themePreset, themeMode } = useTheme();
+export const FALLBACK_THEME_COLORS: ThemeColors = {
+    bg: Colors.light.background,
+    cardBg: '#FFFFFF',
+    taskItemBg: '#F1F5F9',
+    text: Colors.light.text,
+    secondaryText: '#4B5563',
+    icon: Colors.light.icon,
+    border: '#E2E8F0',
+    tint: Colors.light.tint,
+    onTint: '#FFFFFF',
+    tabIconDefault: Colors.light.tabIconDefault,
+    tabIconSelected: Colors.light.tabIconSelected,
+    inputBg: '#EEF2F7',
+    danger: '#EF4444',
+    success: '#10B981',
+    warning: '#F59E0B',
+    filterBg: '#EEF2F7',
+};
+
+export function resolveThemeColors(theme?: Pick<ThemeContextType, 'isDark' | 'themeStyle' | 'themePreset' | 'themeMode'> | null): ThemeColors {
+    if (!theme) {
+        return FALLBACK_THEME_COLORS;
+    }
+
+    const { isDark, themeStyle, themePreset, themeMode } = theme;
 
     if (themePreset !== 'default') {
         return THEME_PRESETS[themePreset];
@@ -58,7 +81,7 @@ export function useThemeColors() {
         };
     }
 
-    const tc: ThemeColors = {
+    return {
         bg: isDark ? Colors.dark.background : Colors.light.background,
         cardBg: isDark ? '#1F2937' : '#FFFFFF',
         taskItemBg: isDark ? '#1F2937' : '#F1F5F9',
@@ -74,8 +97,10 @@ export function useThemeColors() {
         danger: '#EF4444',
         success: '#10B981',
         warning: '#F59E0B',
-        filterBg: isDark ? '#374151' : '#EEF2F7'
+        filterBg: isDark ? '#374151' : '#EEF2F7',
     };
+}
 
-    return tc;
+export function useThemeColors() {
+    return resolveThemeColors(useTheme());
 }

@@ -7,7 +7,7 @@ import { markStartupPhase, measureStartupPhase } from '../lib/startup-profiler';
 
 export type { Language };
 
-interface LanguageContextType {
+export interface LanguageContextType {
     language: Language;
     setLanguage: (lang: Language) => void;
     t: (key: string) => string;
@@ -16,7 +16,7 @@ interface LanguageContextType {
 
 
 
-const LanguageContext = createContext<LanguageContextType | undefined>(undefined);
+export const LanguageContext = createContext<LanguageContextType | undefined>(undefined);
 
 export function LanguageProvider({ children }: { children: React.ReactNode }) {
     const [language, setLanguageState] = useState<Language>(() => getSystemDefaultLanguage());

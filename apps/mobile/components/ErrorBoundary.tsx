@@ -1,8 +1,9 @@
-import React, { Component, ErrorInfo, ReactNode } from 'react';
+import React, { Component, ErrorInfo, ReactNode, useContext } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
-import { useThemeColors } from '@/hooks/use-theme-colors';
+import { resolveThemeColors } from '@/hooks/use-theme-colors';
 import { logError } from '@/lib/app-log';
-import { useLanguage } from '@/contexts/language-context';
+import { LanguageContext } from '@/contexts/language-context';
+import { ThemeContext } from '@/contexts/theme-context';
 
 interface Props {
     children: ReactNode;
@@ -13,9 +14,17 @@ interface State {
     error: Error | null;
 }
 
+const FALLBACK_ERROR_STRINGS: Record<string, string> = {
+    'errorBoundary.title': 'Something went wrong',
+    'errorBoundary.message': 'The app hit an unexpected error.',
+    'errorBoundary.retry': 'Try again',
+};
+
 function ErrorFallback({ error, onRetry }: { error: Error | null; onRetry: () => void }) {
-    const tc = useThemeColors();
-    const { t } = useLanguage();
+    const themeContext = useContext(ThemeContext);
+    const languageContext = useContext(LanguageContext);
+    const tc = resolveThemeColors(themeContext);
+    const t = (key: string) => languageContext?.t(key) ?? FALLBACK_ERROR_STRINGS[key] ?? key;
     return (
         <View style={[styles.container, { backgroundColor: tc.bg }]}>
             <Text style={styles.emoji}>💥</Text>

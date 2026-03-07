@@ -10,7 +10,7 @@ type ThemePreset = 'default' | 'eink' | 'nord' | 'sepia' | 'oled';
 type ThemeStyle = 'default' | 'material3';
 type ColorScheme = 'light' | 'dark';
 
-interface ThemeContextType {
+export interface ThemeContextType {
     themeMode: ThemeMode;
     themeStyle: ThemeStyle;
     themePreset: ThemePreset;
@@ -24,7 +24,7 @@ interface ThemeContextType {
 const THEME_STORAGE_KEY = '@mindwtr_theme';
 const THEME_STYLE_STORAGE_KEY = '@mindwtr_theme_style';
 
-const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
+export const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
     const systemColorScheme = useSystemColorScheme() ?? 'light';
