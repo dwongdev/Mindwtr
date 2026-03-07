@@ -4426,7 +4426,7 @@ export default function SettingsPage() {
                                     </Text>
                                     {webdavUrlError && (
                                         <Text style={[styles.settingDescription, { color: '#EF4444' }]}>
-                                            {localize('Invalid URL. Use http/https.', '地址无效，请使用 http/https。')}
+                                            {t('settings.invalidUrlHttp')}
                                         </Text>
                                     )}
                                 </View>
@@ -4519,14 +4519,14 @@ export default function SettingsPage() {
                                     onPress={() => handleTestConnection('webdav')}
                                     disabled={isSyncing || isTestingConnection || !webdavUrl.trim() || webdavUrlError}
                                     accessibilityRole="button"
-                                    accessibilityLabel={localize('Test WebDAV connection', '测试 WebDAV 连接')}
+                                    accessibilityLabel={t('settings.webdavTestAccessibility')}
                                 >
                                     <View style={styles.settingInfo}>
                                         <Text style={[styles.settingLabel, { color: webdavUrl.trim() && !webdavUrlError ? tc.tint : tc.secondaryText }]}>
-                                            {localize('Test connection', '测试连接')}
+                                            {t('settings.testConnection')}
                                         </Text>
                                         <Text style={[styles.settingDescription, { color: tc.secondaryText }]}>
-                                            {localize('Verify URL and credentials without syncing data', '仅验证地址和凭据，不执行数据同步')}
+                                            {t('settings.webdavTestHint')}
                                         </Text>
                                     </View>
                                     {isTestingConnection && <ActivityIndicator size="small" color={tc.tint} />}
@@ -4646,11 +4646,11 @@ export default function SettingsPage() {
                                             {t('settings.cloudHint')}
                                         </Text>
                                         <Text style={[styles.settingDescription, { color: tc.secondaryText }]}>
-                                            {localize('Use the base URL — Mindwtr will append /data.', '填写基础地址，Mindwtr 会自动加上 /data。')}
+                                            {t('settings.cloudBaseUrlHint')}
                                         </Text>
                                         {cloudUrlError && (
                                             <Text style={[styles.settingDescription, { color: '#EF4444' }]}>
-                                                {localize('Invalid URL. Use http/https.', '地址无效，请使用 http/https。')}
+                                                {t('settings.invalidUrlHttp')}
                                             </Text>
                                         )}
                                     </View>
@@ -4722,14 +4722,14 @@ export default function SettingsPage() {
                                         onPress={() => handleTestConnection('cloud')}
                                         disabled={isSyncing || isTestingConnection || !cloudUrl.trim() || cloudUrlError}
                                         accessibilityRole="button"
-                                        accessibilityLabel={localize('Test self-hosted connection', '测试自托管连接')}
+                                        accessibilityLabel={t('settings.cloudTestAccessibility')}
                                     >
                                         <View style={styles.settingInfo}>
                                             <Text style={[styles.settingLabel, { color: cloudUrl.trim() && !cloudUrlError ? tc.tint : tc.secondaryText }]}>
-                                                {localize('Test connection', '测试连接')}
+                                                {t('settings.testConnection')}
                                             </Text>
                                             <Text style={[styles.settingDescription, { color: tc.secondaryText }]}>
-                                                {localize('Verify URL and token without syncing data', '仅验证地址和令牌，不执行数据同步')}
+                                                {t('settings.cloudTestHint')}
                                             </Text>
                                         </View>
                                         {isTestingConnection && <ActivityIndicator size="small" color={tc.tint} />}
@@ -4800,14 +4800,14 @@ export default function SettingsPage() {
                                         onPress={handleTestDropboxConnection}
                                         disabled={isTestingConnection || !dropboxConfigured || !dropboxConnected}
                                         accessibilityRole="button"
-                                        accessibilityLabel={localize('Test Dropbox connection', '测试 Dropbox 连接')}
+                                        accessibilityLabel={t('settings.dropboxTestAccessibility')}
                                     >
                                         <View style={styles.settingInfo}>
                                             <Text style={[styles.settingLabel, { color: dropboxConnected ? tc.tint : tc.secondaryText }]}>
-                                                {localize('Test connection', '测试连接')}
+                                                {t('settings.testConnection')}
                                             </Text>
                                             <Text style={[styles.settingDescription, { color: tc.secondaryText }]}>
-                                                {localize('Verify Dropbox token and account access.', '验证 Dropbox 令牌与账号访问。')}
+                                                {t('settings.dropboxTestHint')}
                                             </Text>
                                         </View>
                                         {isTestingConnection && <ActivityIndicator size="small" color={tc.tint} />}

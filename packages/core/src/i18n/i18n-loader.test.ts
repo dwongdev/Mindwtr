@@ -30,4 +30,13 @@ describe('i18n-loader sync fallback', () => {
         expect(zhHant['taskEdit.discardChangesDesc']).toBe('如果現在離開，你的更改將會丟失。');
         expect(zhHant['common.discard']).toBe('放棄');
     });
+
+    it('loads Traditional Chinese sync settings copy for provider test actions', async () => {
+        const zhHant = await loadTranslations('zh-Hant');
+
+        expect(zhHant['settings.cloudBaseUrlHint']).toBe('填寫基礎地址，Mindwtr 會自動加上 /data。');
+        expect(zhHant['settings.webdavTestHint']).toBe('僅驗證地址與憑證，不執行資料同步');
+        expect(zhHant['settings.cloudTestHint']).toBe('僅驗證地址與令牌，不執行資料同步');
+        expect(zhHant['settings.dropboxTestHint']).toBe('驗證 Dropbox 令牌與帳號存取。');
+    });
 });
