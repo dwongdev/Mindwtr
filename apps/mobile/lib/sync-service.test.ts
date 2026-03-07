@@ -25,11 +25,11 @@ describe('mobile sync-service test utils', () => {
     expect(message).toContain('WebDAV unauthorized (401)');
   });
 
-  it('formats iOS temporary inbox file sync errors with actionable text', () => {
+  it('formats iOS temporary inbox file sync errors with provider guidance', () => {
     const error = new Error("Calling the 'writeAsStringAsync' function has failed -> File '/private/var/mobile/.../tmp/tech.dongdongbh.mindwtr-Inbox/data.json.tmp' is not writable");
     const message = formatSyncErrorMessage(error, 'file');
-    expect(message).toContain('temporary Inbox location');
-    expect(message).toContain('Re-select a folder');
+    expect(message).toContain('temporary Files copy');
+    expect(message).toContain('iCloud Drive or WebDAV');
   });
 
   it('formats writable file sync errors with actionable text', () => {

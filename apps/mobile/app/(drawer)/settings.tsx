@@ -1541,10 +1541,10 @@ export default function SettingsPage() {
             }
             if (/temporary Inbox location|re-select a folder in Settings -> Data & Sync/i.test(message)) {
                 Alert.alert(
-                    localize('Sync folder access expired', '同步目录访问已失效'),
+                    localize('Unsupported cloud provider on iOS', 'iOS 云端提供商暂不支持'),
                     localize(
-                        'The selected iOS sync file is in a temporary read-only location. Please go to Settings → Data & Sync → Select Folder and pick a writable cloud file again.',
-                        '当前 iOS 同步文件位于临时只读目录。请前往「设置 → 数据与同步 → 选择文件夹」，重新选择可写的云端文件。'
+                        'The selected file came from a temporary iOS Files copy. Providers like Google Drive and OneDrive are not reliable for file sync here yet. Please choose iCloud Drive instead, or switch to WebDAV.',
+                        '当前选择的是 iOS“文件”提供的临时副本。Google Drive、OneDrive 等提供商暂不适合作为这里的文件同步目录。请改用 iCloud Drive，或切换到 WebDAV。'
                     )
                 );
                 return;
@@ -1792,10 +1792,10 @@ export default function SettingsPage() {
             const message = String(error);
             if (/temporary Inbox location|re-select a folder in Settings -> Data & Sync|Cannot access the selected sync file/i.test(message)) {
                 Alert.alert(
-                    localize('Sync folder access expired', '同步目录访问已失效'),
+                    localize('Unsupported cloud provider on iOS', 'iOS 云端提供商暂不支持'),
                     localize(
-                        'The selected iOS sync file is in a temporary read-only location. Please go to Settings → Data & Sync → Select Folder and pick a writable iCloud Drive folder.',
-                        '当前 iOS 同步文件位于临时只读目录。请前往「设置 → 数据与同步 → 选择文件夹」，重新选择可写的 iCloud Drive 文件夹。'
+                        'The selected file came from a temporary iOS Files copy. Providers like Google Drive and OneDrive are not reliable for file sync here yet. Please go to Settings → Data & Sync, choose iCloud Drive, or switch to WebDAV.',
+                        '当前选择的是 iOS“文件”提供的临时副本。Google Drive、OneDrive 等提供商暂不适合作为这里的文件同步目录。请前往「设置 → 数据与同步」，改选 iCloud Drive，或切换到 WebDAV。'
                     )
                 );
                 return;

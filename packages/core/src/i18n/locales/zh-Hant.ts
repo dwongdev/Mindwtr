@@ -1015,7 +1015,7 @@ export const zhHant: Record<string, string> = {
         'settings.selectFolder': '選擇資料夾',
         'settings.syncStatusFailedSuffix': '（失敗）',
         'settings.syncStatusConflictsSuffix': '（有衝突）',
-        'settings.fileSyncHowToIos': '1. 先點選「導出備份」並儲存到目標同步資料夾\n2. 點選「選擇資料夾」；若 Google Drive 等提供者在資料夾選擇器中呈灰色，請在接著開啟的檔案選擇器中選擇該資料夾內的 Mindwtr 備份 JSON（部分提供者不會顯示「開啟」按鈕，點按或長按檔案即可）\n3. 之後點選「同步」即可合併資料',
+        'settings.fileSyncHowToIos': '1. 先點選「導出備份」，儲存到 iCloud Drive，或改用 WebDAV 進行多裝置同步\n2. 點選「選擇資料夾」，選擇可寫的 iCloud Drive 資料夾\n3. 之後點選「同步」即可合併資料\n\n注意：Google Drive、OneDrive 等「檔案」提供者目前在 iOS 中只會回傳臨時副本，暫不適合作為檔案同步目錄',
         'settings.fileSyncHowToAndroid': '1. 先點選「導出備份」並儲存到同步資料夾（例如 Google Drive）\n2. 點選「選擇資料夾」授權該資料夾\n3. 之後點選「同步」即可合併資料',
         'settings.fileSyncTip': '建議：若常在多裝置頻繁編輯，優先使用 WebDAV。若使用 Syncthing，請開啟 Send & Receive 與 Watch for Changes，並在切換裝置前手動點選「同步」。',
         'settings.syncReadMergeFolder': '讀取並合併同步資料夾',

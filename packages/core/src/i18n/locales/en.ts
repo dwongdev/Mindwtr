@@ -1084,7 +1084,7 @@ export const en: Record<string, string> = {
         'settings.selectFolder': 'Select Folder',
         'settings.syncStatusFailedSuffix': ' (failed)',
         'settings.syncStatusConflictsSuffix': ' (conflicts)',
-        'settings.fileSyncHowToIos': '1. First, tap "Export Backup" and save to your target sync folder\n2. Tap "Select Folder"; if providers like Google Drive are greyed out in the folder picker, use the next file picker to choose the Mindwtr backup JSON in that folder (some providers do not show an "Open" button; tap or long-press the file)\n3. Then tap "Sync" to merge data',
+        'settings.fileSyncHowToIos': '1. First, tap "Export Backup" and save to iCloud Drive, or use WebDAV for multi-device sync\n2. Tap "Select Folder" and choose a writable iCloud Drive folder\n3. Then tap "Sync" to merge data\n\nNote: Third-party Files providers like Google Drive and OneDrive currently return temporary copies in iOS, so they are not reliable for file sync yet',
         'settings.fileSyncHowToAndroid': '1. First, tap "Export Backup" and save to your sync folder (e.g., Google Drive)\n2. Tap "Select Folder" to grant access to that folder\n3. Then tap "Sync" to merge data',
         'settings.fileSyncTip': 'Tip: For frequent multi-device edits, WebDAV is recommended. If using Syncthing, enable Send & Receive + Watch for Changes and tap Sync before switching devices.',
         'settings.syncReadMergeFolder': 'Read and merge sync folder',

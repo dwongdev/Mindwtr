@@ -48,7 +48,7 @@ export const formatSyncErrorMessage = (error: unknown, backend: SyncBackend): st
   const raw = sanitizeMessage(String(error));
   if (backend === 'file') {
     if (IOS_TEMP_INBOX_PATTERN.test(raw) && READONLY_ERROR_PATTERN.test(raw)) {
-      return 'Selected iOS sync file is in a temporary Inbox location and is read-only. Re-select a folder in Settings -> Data & Sync.';
+      return 'Selected iOS sync file is a temporary Files copy. Google Drive and OneDrive are not reliable for file sync here yet. Use iCloud Drive or WebDAV instead.';
     }
     if (READONLY_ERROR_PATTERN.test(raw)) {
       return 'Sync file is not writable. Re-select the sync folder in Settings -> Data & Sync, then sync again.';
