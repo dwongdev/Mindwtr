@@ -562,6 +562,7 @@ export const zhHant: Record<string, string> = {
         'process.btn': '處理收集箱',
         'settings.title': '設置',
         'settings.subtitle': '自定義您的 Mindwtr 體驗',
+        'settings.searchPlaceholder': '搜索設置…',
         'settings.appearance': '外觀',
         'settings.general': '通用',
         'settings.system': '系統',
