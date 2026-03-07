@@ -38,7 +38,9 @@
     ],
     "macOS": {
       "signingIdentity": "Developer ID Application",
-      "infoPlist": "./Info.plist"
+      "files": {
+        "Info.plist": "./Info.plist"
+      }
     },
     "icon": [
       "icons/icon.png",
