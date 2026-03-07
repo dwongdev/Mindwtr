@@ -13,6 +13,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { NativeEventEmitter, NativeModules, PermissionsAndroid, Platform } from 'react-native';
 
 import { logWarn } from './app-log';
+import { getDuplicateAlarmRetryFireAt } from './notification-service-local-utils';
 
 type NotificationOpenPayload = {
   notificationId?: string;
@@ -334,7 +335,8 @@ async function scheduleAlarmForKey(api: AlarmNotificationsApi, key: string, conf
   let lastError: unknown = null;
 
   for (let retry = 0; retry <= MAX_DUPLICATE_ALARM_RETRIES; retry += 1) {
-    const fireAt = new Date(baseFireAt.getTime() + retry * 1000);
+    // The Android alarm library treats same-minute alarms as duplicates.
+    const fireAt = getDuplicateAlarmRetryFireAt(baseFireAt, retry);
     try {
       const result = await api.scheduleAlarm({
         ...detailsBase,
