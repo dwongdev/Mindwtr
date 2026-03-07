@@ -6,8 +6,8 @@ import type { Project } from '@mindwtr/core';
 import { ProjectSelector } from './ProjectSelector';
 
 const projects: Project[] = [
-    { id: 'p1', title: 'Alpha', status: 'active', createdAt: '', updatedAt: '' },
-    { id: 'p2', title: 'Work Project', status: 'active', areaId: 'a1', createdAt: '', updatedAt: '' },
+    { id: 'p1', title: 'Alpha', status: 'active', color: '#3b82f6', order: 0, tagIds: [], createdAt: '', updatedAt: '' },
+    { id: 'p2', title: 'Work Project', status: 'active', color: '#10b981', order: 1, tagIds: [], areaId: 'a1', createdAt: '', updatedAt: '' },
 ];
 
 describe('ProjectSelector', () => {
