@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useWindowVirtualizer } from '@tanstack/react-virtual';
 import { ErrorBoundary } from '../ErrorBoundary';
 import { shallow, useTaskStore, TaskPriority, TimeEstimate, PRESET_CONTEXTS, PRESET_TAGS, matchesHierarchicalToken, safeFormatDate, safeParseDate, safeParseDueDate, isDueForReview, isTaskInActiveProject } from '@mindwtr/core';
 import type { Task, Project } from '@mindwtr/core';
@@ -12,6 +13,108 @@ import { TaskItem } from '../TaskItem';
 import { projectMatchesAreaFilter, resolveAreaFilter, taskMatchesAreaFilter } from '../../lib/area-filter';
 import { PomodoroPanel } from './PomodoroPanel';
 import { groupTasksByArea, groupTasksByContext, type NextGroupBy, type TaskGroup } from './list/next-grouping';
+
+const AGENDA_VIRTUALIZATION_THRESHOLD = 25;
+
+function AgendaTaskList({
+    tasks,
+    projectMap,
+    buildFocusToggle,
+    showListDetails,
+    highlightTaskId,
+}: {
+    tasks: Task[];
+    projectMap: Map<string, Project>;
+    buildFocusToggle: (task: Task) => {
+        isFocused: boolean;
+        canToggle: boolean;
+        onToggle: () => void;
+        title: string;
+        ariaLabel: string;
+        alwaysVisible?: boolean;
+    };
+    showListDetails: boolean;
+    highlightTaskId: string | null;
+}) {
+    const [containerElement, setContainerElement] = useState<HTMLDivElement | null>(null);
+    const [scrollMargin, setScrollMargin] = useState(0);
+    const shouldVirtualize = !highlightTaskId && tasks.length > AGENDA_VIRTUALIZATION_THRESHOLD;
+    const rowVirtualizer = useWindowVirtualizer({
+        count: shouldVirtualize ? tasks.length : 0,
+        estimateSize: () => (showListDetails ? 96 : 82),
+        overscan: 4,
+        scrollMargin,
+    });
+
+    useEffect(() => {
+        if (!containerElement || typeof window === 'undefined') return;
+        const updateScrollMargin = () => {
+            const rect = containerElement.getBoundingClientRect();
+            setScrollMargin(rect.top + window.scrollY);
+        };
+        updateScrollMargin();
+        window.requestAnimationFrame(updateScrollMargin);
+        window.addEventListener('resize', updateScrollMargin);
+        return () => window.removeEventListener('resize', updateScrollMargin);
+    }, [containerElement, tasks.length, showListDetails]);
+
+    if (!shouldVirtualize) {
+        return (
+            <div className="divide-y divide-border/30">
+                {tasks.map((task) => (
+                    <TaskItem
+                        key={task.id}
+                        task={task}
+                        project={task.projectId ? projectMap.get(task.projectId) : undefined}
+                        focusToggle={buildFocusToggle(task)}
+                        showProjectBadgeInActions={false}
+                        compactMetaEnabled={showListDetails}
+                        enableDoubleClickEdit
+                    />
+                ))}
+            </div>
+        );
+    }
+
+    const virtualRows = rowVirtualizer.getVirtualItems();
+        return (
+            <div
+                ref={setContainerElement}
+                className="relative"
+                style={{ height: `${rowVirtualizer.getTotalSize()}px` }}
+            >
+            {virtualRows.map((virtualRow) => {
+                const task = tasks[virtualRow.index];
+                if (!task) return null;
+                const isLast = virtualRow.index === tasks.length - 1;
+                return (
+                    <div
+                        key={virtualRow.key}
+                        ref={rowVirtualizer.measureElement}
+                        data-index={virtualRow.index}
+                        className={cn(!isLast && 'border-b border-border/30')}
+                        style={{
+                            position: 'absolute',
+                            top: 0,
+                            left: 0,
+                            width: '100%',
+                            transform: `translateY(${virtualRow.start - scrollMargin}px)`,
+                        }}
+                    >
+                        <TaskItem
+                            task={task}
+                            project={task.projectId ? projectMap.get(task.projectId) : undefined}
+                            focusToggle={buildFocusToggle(task)}
+                            showProjectBadgeInActions={false}
+                            compactMetaEnabled={showListDetails}
+                            enableDoubleClickEdit
+                        />
+                    </div>
+                );
+            })}
+        </div>
+    );
+}
 
 export function AgendaView() {
     const perf = usePerformanceMonitor('AgendaView');
@@ -420,19 +523,13 @@ export function AgendaView() {
                     {title}
                     <span className="text-muted-foreground font-normal">({tasks.length})</span>
                 </h3>
-                <div className="divide-y divide-border/30">
-                    {tasks.map(task => (
-                        <TaskItem
-                            key={task.id}
-                            task={task}
-                            project={task.projectId ? projectMap.get(task.projectId) : undefined}
-                            focusToggle={buildFocusToggle(task)}
-                            showProjectBadgeInActions={false}
-                            compactMetaEnabled={showListDetails}
-                            enableDoubleClickEdit
-                        />
-                    ))}
-                </div>
+                <AgendaTaskList
+                    tasks={tasks}
+                    projectMap={projectMap}
+                    buildFocusToggle={buildFocusToggle}
+                    showListDetails={showListDetails}
+                    highlightTaskId={highlightTaskId}
+                />
             </div>
         );
     };
@@ -772,19 +869,13 @@ export function AgendaView() {
                                                 </span>
                                                 <span className="ml-2 text-muted-foreground">{group.tasks.length}</span>
                                             </div>
-                                            <div className="divide-y divide-border/30">
-                                                {group.tasks.map((task) => (
-                                                    <TaskItem
-                                                        key={task.id}
-                                                        task={task}
-                                                        project={task.projectId ? projectMap.get(task.projectId) : undefined}
-                                                        focusToggle={buildFocusToggle(task)}
-                                                        showProjectBadgeInActions={false}
-                                                        compactMetaEnabled={showListDetails}
-                                                        enableDoubleClickEdit
-                                                    />
-                                                ))}
-                                            </div>
+                                            <AgendaTaskList
+                                                tasks={group.tasks}
+                                                projectMap={projectMap}
+                                                buildFocusToggle={buildFocusToggle}
+                                                showListDetails={showListDetails}
+                                                highlightTaskId={highlightTaskId}
+                                            />
                                         </div>
                                     ))}
                                 </div>
