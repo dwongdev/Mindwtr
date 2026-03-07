@@ -9,8 +9,8 @@
       "signingIdentity": "Apple Distribution",
       "entitlements": "./Entitlements.mas.plist",
       "minimumSystemVersion": "12.0",
+      "infoPlist": "./Info.appstore.plist",
       "files": {
-        "Info.plist": "./Info.appstore.plist",
         "embedded.provisionprofile": "./embedded.provisionprofile"
       }
     }

@@ -333,6 +333,37 @@ jobs:
           console.log(`Updated ${filePath} bundle.macOS.bundleVersion -> ${buildNumber}`);
           NODE
 
+      - name: Prepare macOS App Store Tauri config
+        run: |
+          node - <<'NODE'
+          const fs = require('fs');
+          const path = require('path');
+
+          const prepareMacConfig = (filePath, infoPlistPath) => {
+            const config = JSON.parse(fs.readFileSync(filePath, 'utf8'));
+            const mac = ((config.bundle ??= {}).macOS ??= {});
+            const files = mac.files;
+
+            if (files && typeof files === 'object' && !Array.isArray(files)) {
+              delete files['Info.plist'];
+              if (Object.keys(files).length === 0) {
+                delete mac.files;
+              } else {
+                mac.files = files;
+              }
+            }
+
+            mac.infoPlist = infoPlistPath;
+            fs.writeFileSync(filePath, JSON.stringify(config, null, 2) + '\n');
+          };
+
+          prepareMacConfig(path.resolve('apps/desktop/src-tauri/tauri.conf.json'), './Info.plist');
+          prepareMacConfig(path.resolve('apps/desktop/src-tauri/tauri.appstore.conf.json'), './Info.appstore.plist');
+          console.log('Prepared Tauri configs for macOS App Store build');
+          NODE
+          grep -n '"infoPlist"\|"files"' apps/desktop/src-tauri/tauri.conf.json || true
+          grep -n '"infoPlist"\|"files"' apps/desktop/src-tauri/tauri.appstore.conf.json || true
+
       - name: Build signed macOS app bundle (App Store)
         timeout-minutes: 45
         env:
