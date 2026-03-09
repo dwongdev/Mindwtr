@@ -60,7 +60,12 @@ export const hashString = async (value: string): Promise<string> => {
     return hash.toString(16);
 };
 
-export const sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
+export const sleep = (ms: number) => new Promise<void>((resolve) => {
+    const timerHost = typeof window !== 'undefined' && typeof window.setTimeout === 'function'
+        ? window
+        : globalThis;
+    timerHost.setTimeout(resolve, ms);
+});
 
 export const yieldToRenderer = async (): Promise<void> => {
     if (typeof window !== 'undefined' && typeof window.requestAnimationFrame === 'function') {
