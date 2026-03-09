@@ -1,9 +1,11 @@
 import { existsSync } from 'fs';
 import { homedir } from 'os';
-import { join, resolve } from 'path';
+import { dirname, join, resolve } from 'path';
 
 const APP_ID = 'tech.dongdongbh.mindwtr';
 const APP_DIR = 'mindwtr';
+const DATA_FILE_NAME = 'data.json';
+const DB_FILE_NAME = 'mindwtr.db';
 
 function getLinuxConfigHome() {
     return process.env.XDG_CONFIG_HOME || join(homedir(), '.config');
@@ -35,18 +37,15 @@ function getDataHome(): string {
     return getLinuxDataHome();
 }
 
-function getCandidateDataPaths(): string[] {
+function getCandidateRoots(): string[] {
     const configHome = getConfigHome();
     const dataHome = getDataHome();
 
     return [
-        // XDG-style (data dir + mindwtr/data.json)
-        join(dataHome, APP_DIR, 'data.json'),
-        // Legacy desktop storage (v0.3.x): config dir + mindwtr/data.json
-        join(configHome, APP_DIR, 'data.json'),
-        // Legacy Tauri identifier-based paths
-        join(dataHome, APP_ID, 'data.json'),
-        join(configHome, APP_ID, 'data.json'),
+        join(dataHome, APP_DIR),
+        join(configHome, APP_DIR),
+        join(dataHome, APP_ID),
+        join(configHome, APP_ID),
     ];
 }
 
@@ -61,7 +60,23 @@ export function resolveMindwtrDataPath(overridePath?: string): string {
     const explicit = overridePath || process.env.MINDWTR_DATA;
     if (explicit) return resolve(explicit);
 
-    const candidates = getCandidateDataPaths();
+    const candidates = getCandidateRoots().map((root) => join(root, DATA_FILE_NAME));
     const existing = firstExisting(candidates);
-    return existing || candidates[0] || join(getConfigHome(), APP_DIR, 'data.json');
+    return existing || candidates[0] || join(getDataHome(), APP_DIR, DATA_FILE_NAME);
+}
+
+export function resolveMindwtrDbPath(overridePath?: string, dataPath?: string): string {
+    const explicit = overridePath || process.env.MINDWTR_DB_PATH || process.env.MINDWTR_DB;
+    if (explicit) return resolve(explicit);
+    if (dataPath) return join(dirname(resolve(dataPath)), DB_FILE_NAME);
+
+    const candidates = getCandidateRoots().map((root) => join(root, DB_FILE_NAME));
+    const existing = firstExisting(candidates);
+    return existing || candidates[0] || join(getDataHome(), APP_DIR, DB_FILE_NAME);
+}
+
+export function resolveMindwtrStoragePaths(options?: { dataPath?: string; dbPath?: string }) {
+    const dataPath = resolveMindwtrDataPath(options?.dataPath);
+    const dbPath = resolveMindwtrDbPath(options?.dbPath, dataPath);
+    return { dataPath, dbPath };
 }

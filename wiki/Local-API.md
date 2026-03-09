@@ -1,6 +1,6 @@
 # Local API Server
 
-Mindwtr includes an optional local REST API server for scripting and integrations. It reads and writes your local `data.json` directly.
+Mindwtr includes an optional local REST API server for scripting and integrations. On desktop-compatible paths it keeps `mindwtr.db` and `data.json` in sync so automation changes are visible both before and after the app starts.
 
 ---
 
@@ -20,15 +20,17 @@ bun run mindwtr:api -- --port 4317 --host 127.0.0.1
 | `--port <n>`    | `4317`           | Server port                 |
 | `--host <host>` | `127.0.0.1`      | Bind address                |
 | `--data <path>` | Platform default | Override data.json location |
+| `--db <path>`   | Platform default | Override mindwtr.db location |
 
 ### Environment Variables
 
 | Variable            | Description                                          |
 | ------------------- | ---------------------------------------------------- |
 | `MINDWTR_DATA`      | Override data.json location (if `--data` is omitted) |
+| `MINDWTR_DB_PATH`   | Override mindwtr.db location (if `--db` is omitted)  |
 | `MINDWTR_API_TOKEN` | If set, require `Authorization: Bearer <token>`      |
 
-By default, the API resolves `data.json` using Mindwtr's platform paths (preferring XDG data on Linux).
+By default, the API resolves both `data.json` and `mindwtr.db` using Mindwtr's platform paths (preferring XDG data on Linux).
 
 ---
 
@@ -58,6 +60,7 @@ Authorization: Bearer <token>
 | `DELETE` | `/tasks/:id`          | Soft delete task              |
 | `POST`   | `/tasks/:id/complete` | Mark as done                  |
 | `POST`   | `/tasks/:id/archive`  | Mark as archived              |
+| `POST`   | `/tasks/:id/restore`  | Restore a soft-deleted task   |
 | `GET`    | `/projects`           | List projects                 |
 | `GET`    | `/search?query=...`   | Search tasks + projects       |
 
@@ -144,11 +147,23 @@ bun mindwtr:cli -- list
 # List with filters
 bun mindwtr:cli -- list --status next --query "due:<=7d"
 
+# Read or update a task
+bun mindwtr:cli -- get <taskId>
+bun mindwtr:cli -- update <taskId> '{"status":"next"}'
+
 # Complete a task
 bun mindwtr:cli -- complete <taskId>
 
+# Archive, delete, or restore
+bun mindwtr:cli -- archive <taskId>
+bun mindwtr:cli -- delete <taskId>
+bun mindwtr:cli -- restore <taskId>
+
 # Search
 bun mindwtr:cli -- search "@work"
+
+# List projects
+bun mindwtr:cli -- projects
 ```
 
 ### CLI Reference
@@ -156,11 +171,15 @@ bun mindwtr:cli -- search "@work"
 | Command      | Example                                      | Notes                                |
 | ------------ | -------------------------------------------- | ------------------------------------ |
 | `add`        | `mindwtr:cli -- add "Call mom @phone"`       | Uses quick-add parsing               |
-| `list`       | `mindwtr:cli -- list --status next`          | Supports `--query` for search        |
+| `list`       | `mindwtr:cli -- list --status next`          | Supports `--all`, `--deleted`, `--query` |
+| `get`        | `mindwtr:cli -- get <taskId>`                | Prints full task JSON                |
+| `update`     | `mindwtr:cli -- update <taskId> '{"status":"next"}'` | Applies a JSON patch         |
 | `search`     | `mindwtr:cli -- search "@work due:<=7d"`     | Searches tasks/projects              |
 | `complete`   | `mindwtr:cli -- complete <taskId>`           | Marks task as done                   |
+| `archive`    | `mindwtr:cli -- archive <taskId>`            | Marks task as archived               |
 | `delete`     | `mindwtr:cli -- delete <taskId>`             | Soft-deletes task                    |
 | `restore`    | `mindwtr:cli -- restore <taskId>`            | Restores a deleted task              |
+| `projects`   | `mindwtr:cli -- projects`                    | Lists active projects                |
 
 ---
 

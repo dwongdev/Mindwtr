@@ -263,16 +263,32 @@ bun mindwtr:cli -- list
 # List with filters
 bun mindwtr:cli -- list --status next --query "due:<=7d"
 
+# Read or update a task
+bun mindwtr:cli -- get <taskId>
+bun mindwtr:cli -- update <taskId> '{"status":"next"}'
+
 # Complete a task
 bun mindwtr:cli -- complete <taskId>
 
+# Archive, delete, or restore
+bun mindwtr:cli -- archive <taskId>
+bun mindwtr:cli -- delete <taskId>
+bun mindwtr:cli -- restore <taskId>
+
 # Search
 bun mindwtr:cli -- search "@work"
+
+# List projects
+bun mindwtr:cli -- projects
 ```
 
 **Options:**
 - `--data <path>` — Override data.json location
+- `--db <path>` — Override mindwtr.db location
 - `MINDWTR_DATA` — Environment variable for data path
+- `MINDWTR_DB_PATH` — Environment variable for DB path
+
+On desktop-compatible paths, the CLI keeps `mindwtr.db` and `data.json` aligned so changes remain visible before and after the app starts.
 
 ---
 
@@ -288,6 +304,8 @@ bun mindwtr:api -- --port 4317
 MINDWTR_API_TOKEN=secret bun mindwtr:api -- --port 4317
 ```
 
+The local API uses the same storage contract as the CLI, keeping `mindwtr.db` and `data.json` in sync on desktop-compatible paths.
+
 ### Endpoints
 
 | Method   | Endpoint              | Description           |
@@ -300,6 +318,8 @@ MINDWTR_API_TOKEN=secret bun mindwtr:api -- --port 4317
 | `PATCH`  | `/tasks/:id`          | Update task           |
 | `DELETE` | `/tasks/:id`          | Soft delete task      |
 | `POST`   | `/tasks/:id/complete` | Mark task done        |
+| `POST`   | `/tasks/:id/archive`  | Mark task archived    |
+| `POST`   | `/tasks/:id/restore`  | Restore deleted task  |
 | `GET`    | `/projects`           | List projects         |
 | `GET`    | `/search?query=...`   | Search tasks+projects |
 

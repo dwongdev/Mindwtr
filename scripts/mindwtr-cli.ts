@@ -1,18 +1,7 @@
 #!/usr/bin/env bun
-import { mkdirSync, readFileSync, writeFileSync } from 'fs';
-import { dirname } from 'path';
+import { type Task } from '@mindwtr/core';
 
-import {
-    applyTaskUpdates,
-    generateUUID,
-    parseQuickAdd,
-    searchAll,
-    type AppData,
-    type Task,
-    type TaskStatus,
-} from '@mindwtr/core';
-
-import { resolveMindwtrDataPath } from './mindwtr-paths';
+import { asTaskStatus, createMindwtrAutomationService } from './mindwtr-automation-core';
 
 type Flags = Record<string, string | boolean>;
 
@@ -46,55 +35,64 @@ function usage(exitCode: number) {
         '',
         'Usage:',
         '  bun run scripts/mindwtr-cli.ts -- add "<text>"',
-        '  bun run scripts/mindwtr-cli.ts -- list [--all] [--status <status>] [--query "<q>"]',
+        '  bun run scripts/mindwtr-cli.ts -- list [--all] [--deleted] [--status <status>] [--query "<q>"]',
+        '  bun run scripts/mindwtr-cli.ts -- get <taskId>',
+        '  bun run scripts/mindwtr-cli.ts -- update <taskId> "<json-patch>"',
         '  bun run scripts/mindwtr-cli.ts -- complete <taskId>',
+        '  bun run scripts/mindwtr-cli.ts -- archive <taskId>',
+        '  bun run scripts/mindwtr-cli.ts -- delete <taskId>',
+        '  bun run scripts/mindwtr-cli.ts -- restore <taskId>',
         '  bun run scripts/mindwtr-cli.ts -- search "<q>"',
+        '  bun run scripts/mindwtr-cli.ts -- projects',
         '',
         'Options:',
         '  --data <path>  Override data.json location',
+        '  --db <path>    Override mindwtr.db location',
         '',
         'Environment:',
-        '  MINDWTR_DATA  Override data.json location (if --data is omitted)',
+        '  MINDWTR_DATA     Override data.json location (if --data is omitted)',
+        '  MINDWTR_DB_PATH  Override mindwtr.db location (if --db is omitted)',
     ];
     console.log(lines.join('\n'));
     process.exit(exitCode);
 }
 
-function loadAppData(path: string): AppData {
-    try {
-        const raw = readFileSync(path, 'utf8');
-        const parsed = JSON.parse(raw) as Partial<AppData>;
-        return {
-            tasks: Array.isArray(parsed.tasks) ? (parsed.tasks as any) : [],
-            projects: Array.isArray(parsed.projects) ? (parsed.projects as any) : [],
-            sections: Array.isArray((parsed as AppData).sections) ? ((parsed as AppData).sections as any) : [],
-            areas: Array.isArray((parsed as AppData).areas) ? ((parsed as AppData).areas as any) : [],
-            settings: typeof parsed.settings === 'object' && parsed.settings ? (parsed.settings as any) : {},
-        };
-    } catch {
-        return { tasks: [], projects: [], sections: [], areas: [], settings: {} };
-    }
-}
-
-function saveAppData(path: string, data: AppData) {
-    mkdirSync(dirname(path), { recursive: true });
-    writeFileSync(path, JSON.stringify(data, null, 2));
-}
-
-function asStatus(value: string | undefined): TaskStatus | null {
-    if (!value) return null;
-    const allowed: TaskStatus[] = ['inbox', 'todo', 'next', 'in-progress', 'waiting', 'someday', 'done', 'archived'];
-    return allowed.includes(value as TaskStatus) ? (value as TaskStatus) : null;
-}
-
 function formatTaskLine(task: Task): string {
     const parts = [
         task.id,
-        `[${task.status}]`,
+        `[${task.deletedAt ? 'deleted' : task.status}]`,
         task.title,
         task.dueDate ? `(due ${task.dueDate.slice(0, 10)})` : '',
     ].filter(Boolean);
     return parts.join(' ');
+}
+
+function requireTaskId(value: string | undefined): string {
+    const taskId = value?.trim();
+    if (!taskId) {
+        console.error('Missing taskId.');
+        usage(1);
+    }
+    return taskId;
+}
+
+function parseTaskPatch(raw: string | undefined): Partial<Task> {
+    if (!raw) {
+        console.error('Missing JSON patch.');
+        usage(1);
+    }
+
+    try {
+        const parsed = JSON.parse(raw) as Partial<Task>;
+        if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+            throw new Error('Patch must be a JSON object.');
+        }
+        return parsed;
+    } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        console.error(`Invalid JSON patch: ${message}`);
+        process.exit(1);
+    }
 }
 
 async function main() {
@@ -102,8 +100,10 @@ async function main() {
 
     if (flags.help || positional.length === 0) usage(0);
 
-    const filePath = resolveMindwtrDataPath(flags.data as string | undefined);
-    const data = loadAppData(filePath);
+    const service = await createMindwtrAutomationService({
+        dataPath: flags.data as string | undefined,
+        dbPath: flags.db as string | undefined,
+    });
 
     const cmd = positional[0];
     if (!cmd) usage(1);
@@ -114,67 +114,62 @@ async function main() {
             console.error('Missing task text.');
             usage(1);
         }
-
-        const now = new Date().toISOString();
-        const { title, props } = parseQuickAdd(input, data.projects, new Date(now), data.areas);
-        const finalTitle = (title || input).trim();
-        const status = asStatus(props.status) || 'inbox';
-        const tags = Array.isArray(props.tags) ? props.tags : [];
-        const contexts = Array.isArray(props.contexts) ? props.contexts : [];
-        const {
-            id: _id,
-            title: _title,
-            createdAt: _createdAt,
-            updatedAt: _updatedAt,
-            status: _status,
-            tags: _tags,
-            contexts: _contexts,
-            ...restProps
-        } = props as any;
-
-        const deviceId = data.settings.deviceId || generateUUID();
-        if (!data.settings.deviceId) {
-            data.settings.deviceId = deviceId;
-        }
-
-        const task: Task = {
-            id: generateUUID(),
-            title: finalTitle,
-            ...restProps,
-            taskMode: 'task',
-            status,
-            tags,
-            contexts,
-            pushCount: 0,
-            rev: 1,
-            revBy: deviceId,
-            createdAt: now,
-            updatedAt: now,
-        } as Task;
-
-        data.tasks.push(task);
-        saveAppData(filePath, data);
+        const task = await service.createTask({ input });
         console.log(task.id);
         return;
     }
 
     if (cmd === 'list') {
-        const includeAll = Boolean(flags.all);
-        const statusFilter = asStatus(flags.status as string | undefined);
-        const query = typeof flags.query === 'string' ? String(flags.query) : '';
-
-        let tasks = data.tasks.filter((t) => !t.deletedAt);
-        if (!includeAll) {
-            tasks = tasks.filter((t) => t.status !== 'done' && t.status !== 'archived');
-        }
-        if (statusFilter) {
-            tasks = tasks.filter((t) => t.status === statusFilter);
-        }
-        if (query.trim()) {
-            tasks = searchAll(tasks, data.projects.filter((p) => !p.deletedAt), query).tasks;
+        const statusFilter = asTaskStatus(flags.status);
+        if (flags.status && !statusFilter) {
+            console.error(`Invalid status: ${String(flags.status)}`);
+            process.exit(1);
         }
 
-        tasks.forEach((t) => console.log(formatTaskLine(t)));
+        const tasks = await service.listTasks({
+            includeAll: Boolean(flags.all),
+            includeDeleted: Boolean(flags.deleted),
+            status: statusFilter,
+            query: typeof flags.query === 'string' ? String(flags.query) : '',
+        });
+
+        tasks.forEach((task) => console.log(formatTaskLine(task)));
+        return;
+    }
+
+    if (cmd === 'get') {
+        const task = await service.getTask(requireTaskId(positional[1]));
+        console.log(JSON.stringify(task, null, 2));
+        return;
+    }
+
+    if (cmd === 'update') {
+        const task = await service.updateTask(requireTaskId(positional[1]), parseTaskPatch(positional[2]));
+        console.log(JSON.stringify(task, null, 2));
+        return;
+    }
+
+    if (cmd === 'complete') {
+        await service.completeTask(requireTaskId(positional[1]));
+        console.log('ok');
+        return;
+    }
+
+    if (cmd === 'archive') {
+        await service.archiveTask(requireTaskId(positional[1]));
+        console.log('ok');
+        return;
+    }
+
+    if (cmd === 'delete') {
+        await service.deleteTask(requireTaskId(positional[1]));
+        console.log('ok');
+        return;
+    }
+
+    if (cmd === 'restore') {
+        await service.restoreTask(requireTaskId(positional[1]));
+        console.log('ok');
         return;
     }
 
@@ -184,43 +179,23 @@ async function main() {
             console.error('Missing search query.');
             usage(1);
         }
-        const tasks = data.tasks.filter((t) => !t.deletedAt);
-        const projects = data.projects.filter((p) => !p.deletedAt);
-        const results = searchAll(tasks, projects, query);
+        const results = await service.search(query);
 
         if (results.projects.length) {
             console.log('Projects:');
-            results.projects.forEach((p) => console.log(`${p.id} ${p.title}`));
+            results.projects.forEach((project) => console.log(`${project.id} ${project.title}`));
             console.log('');
         }
         if (results.tasks.length) {
             console.log('Tasks:');
-            results.tasks.forEach((t) => console.log(formatTaskLine(t)));
+            results.tasks.forEach((task) => console.log(`${task.id} [${task.status}] ${task.title}`));
         }
         return;
     }
 
-    if (cmd === 'complete') {
-        const taskId = positional[1];
-        if (!taskId) {
-            console.error('Missing taskId.');
-            usage(1);
-        }
-
-        const idx = data.tasks.findIndex((t) => t.id === taskId);
-        if (idx < 0) {
-            console.error(`Task not found: ${taskId}`);
-            process.exit(2);
-        }
-
-        const now = new Date().toISOString();
-        const existing = data.tasks[idx];
-        const { updatedTask, nextRecurringTask } = applyTaskUpdates(existing, { status: 'done' }, now);
-        data.tasks[idx] = updatedTask;
-        if (nextRecurringTask) data.tasks.push(nextRecurringTask);
-
-        saveAppData(filePath, data);
-        console.log('ok');
+    if (cmd === 'projects') {
+        const projects = await service.listProjects();
+        projects.forEach((project) => console.log(`${project.id} [${project.status}] ${project.title}`));
         return;
     }
 
@@ -228,7 +203,8 @@ async function main() {
     usage(1);
 }
 
-main().catch((err) => {
-    console.error(err);
+main().catch((error) => {
+    const message = error instanceof Error ? error.message : String(error);
+    console.error(message);
     process.exit(1);
 });
