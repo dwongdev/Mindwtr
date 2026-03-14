@@ -2,10 +2,16 @@ const fs = require('fs');
 const path = require('path');
 const { withAndroidManifest, withDangerousMod } = require('@expo/config-plugins');
 
-const applyGradleCompatPatch = (filePath) => {
+const patchFile = (filePath, transform) => {
   if (!fs.existsSync(filePath)) return false;
-
   const original = fs.readFileSync(filePath, 'utf8');
+  const next = transform(original);
+  if (next === original) return false;
+  fs.writeFileSync(filePath, next);
+  return true;
+};
+
+const applyGradleCompatPatchToSource = (original) => {
   let next = original;
 
   // Removed in modern Gradle.
@@ -24,17 +30,13 @@ const applyGradleCompatPatch = (filePath) => {
     next = `${next.slice(0, markerIndex).trimEnd()}\n\n// Legacy publishing tasks removed for modern Gradle compatibility.\n`;
   }
 
-  if (next === original) return false;
-  fs.writeFileSync(filePath, next);
-  return true;
+  return next;
 };
 
-const applyAlarmPendingIntentPatch = (filePath) => {
-  if (!fs.existsSync(filePath)) return false;
+const applyGradleCompatPatch = (filePath) => patchFile(filePath, applyGradleCompatPatchToSource);
 
-  const original = fs.readFileSync(filePath, 'utf8');
+const applyAlarmPendingIntentPatchToSource = (original) => {
   let next = original;
-
   const helperMarker = '    private NotificationManager getNotificationManager() {';
   if (!next.includes('getUpdateCurrentImmutableFlags()') && next.includes(helperMarker)) {
     next = next.replace(
@@ -71,9 +73,89 @@ ${helperMarker}`
     'PendingIntent.getActivity($1, getImmutableFlag())'
   );
 
-  if (next === original) return false;
-  fs.writeFileSync(filePath, next);
-  return true;
+  return next;
+};
+
+const applyAlarmPendingIntentPatch = (filePath) => patchFile(filePath, applyAlarmPendingIntentPatchToSource);
+
+const applyAlarmReminderBehaviorPatchToSource = (original) => {
+  let next = original;
+
+  next = next.replace(
+    '        uri = Settings.System.DEFAULT_ALARM_ALERT_URI;',
+    '        uri = Settings.System.DEFAULT_NOTIFICATION_URI;'
+  );
+  next = next.replace(
+    '.setCategory(NotificationCompat.CATEGORY_ALARM)',
+    '.setCategory(NotificationCompat.CATEGORY_REMINDER)'
+  );
+  next = next.replace(
+    'vibrator.vibrate(VibrationEffect.createWaveform(vibrationPattern, 0));',
+    'vibrator.vibrate(VibrationEffect.createWaveform(vibrationPattern, -1));'
+  );
+
+  return next;
+};
+
+const applyAlarmReminderBehaviorPatch = (filePath) => patchFile(filePath, applyAlarmReminderBehaviorPatchToSource);
+
+const applyAlarmDismissReceiverPatchToSource = (original) => {
+  let next = original;
+
+  next = next.replace(
+    `        try {
+            if (ANModule.getReactAppContext() != null) {
+                int notificationId = intent.getExtras().getInt(Constants.DISMISSED_NOTIFICATION_ID);
+                ANModule.getReactAppContext().getJSModule(DeviceEventManagerModule.RCTDeviceEventEmitter.class).emit("OnNotificationDismissed", "{\\"id\\": \\"" + notificationId + "\\"}");
+
+                alarmUtil.removeFiredNotification(notificationId);
+
+                alarmUtil.doCancelAlarm(notificationId);
+            }
+        } catch (Exception e) {`,
+    `        try {
+            int notificationId = intent.getExtras().getInt(Constants.DISMISSED_NOTIFICATION_ID);
+            if (ANModule.getReactAppContext() != null) {
+                ANModule.getReactAppContext().getJSModule(DeviceEventManagerModule.RCTDeviceEventEmitter.class).emit("OnNotificationDismissed", "{\\"id\\": \\"" + notificationId + "\\"}");
+            }
+            alarmUtil.removeFiredNotification(notificationId);
+            alarmUtil.doCancelAlarm(notificationId);
+            alarmUtil.stopAlarmSound();
+        } catch (Exception e) {`
+  );
+
+  return next;
+};
+
+const applyAlarmDismissReceiverPatch = (filePath) => patchFile(filePath, applyAlarmDismissReceiverPatchToSource);
+
+const applyAlarmReceiverPatchToSource = (original) => {
+  let next = original;
+
+  next = next.replace(
+    `                            // emit notification dismissed
+                            ANModule.getReactAppContext().getJSModule(DeviceEventManagerModule.RCTDeviceEventEmitter.class).emit("OnNotificationDismissed", "{\\"id\\": \\"" + alarm.getId() + "\\"}");
+`,
+    `                            // emit notification dismissed
+                            if (ANModule.getReactAppContext() != null) {
+                                ANModule.getReactAppContext().getJSModule(DeviceEventManagerModule.RCTDeviceEventEmitter.class).emit("OnNotificationDismissed", "{\\"id\\": \\"" + alarm.getId() + "\\"}");
+                            }
+`
+  );
+
+  return next;
+};
+
+const applyAlarmReceiverPatch = (filePath) => patchFile(filePath, applyAlarmReceiverPatchToSource);
+
+const getAndroidSourceCandidates = (projectRoot, fileName) => [
+  path.join(projectRoot, 'node_modules', 'react-native-alarm-notification', 'android', 'src', 'main', 'java', 'com', 'emekalites', 'react', 'alarm', 'notification', fileName),
+  path.join(projectRoot, '..', '..', 'node_modules', 'react-native-alarm-notification', 'android', 'src', 'main', 'java', 'com', 'emekalites', 'react', 'alarm', 'notification', fileName),
+];
+
+const logPatchedCandidate = (label, candidate) => {
+  // eslint-disable-next-line no-console
+  console.log(`[${label}] patched ${candidate}`);
 };
 
 const ensurePermission = (manifest, name) => {
@@ -138,7 +220,7 @@ const ensureReceiver = (application, name, attrs, actions = []) => {
   mergeIntentActions(receiver, actions);
 };
 
-module.exports = function withAlarmNotificationGradlePatch(config) {
+function withAlarmNotificationGradlePatch(config) {
   const withManifestEntries = withAndroidManifest(config, (cfg) => {
     const manifest = cfg.modResults;
     const application = manifest.manifest.application?.[0];
@@ -194,27 +276,49 @@ module.exports = function withAlarmNotificationGradlePatch(config) {
         path.join(projectRoot, 'node_modules', 'react-native-alarm-notification', 'android', 'build.gradle'),
         path.join(projectRoot, '..', '..', 'node_modules', 'react-native-alarm-notification', 'android', 'build.gradle'),
       ];
-      const javaCandidates = [
-        path.join(projectRoot, 'node_modules', 'react-native-alarm-notification', 'android', 'src', 'main', 'java', 'com', 'emekalites', 'react', 'alarm', 'notification', 'AlarmUtil.java'),
-        path.join(projectRoot, '..', '..', 'node_modules', 'react-native-alarm-notification', 'android', 'src', 'main', 'java', 'com', 'emekalites', 'react', 'alarm', 'notification', 'AlarmUtil.java'),
-      ];
+      const alarmUtilCandidates = getAndroidSourceCandidates(projectRoot, 'AlarmUtil.java');
+      const dismissReceiverCandidates = getAndroidSourceCandidates(projectRoot, 'AlarmDismissReceiver.java');
+      const alarmReceiverCandidates = getAndroidSourceCandidates(projectRoot, 'AlarmReceiver.java');
 
       for (const candidate of gradleCandidates) {
         if (applyGradleCompatPatch(candidate)) {
-          // eslint-disable-next-line no-console
-          console.log(`[alarm-gradle-patch] patched ${candidate}`);
+          logPatchedCandidate('alarm-gradle-patch', candidate);
           break;
         }
       }
 
-      for (const candidate of javaCandidates) {
+      for (const candidate of alarmUtilCandidates) {
         if (applyAlarmPendingIntentPatch(candidate)) {
-          // eslint-disable-next-line no-console
-          console.log(`[alarm-pending-intent-patch] patched ${candidate}`);
+          logPatchedCandidate('alarm-pending-intent-patch', candidate);
+        }
+        if (applyAlarmReminderBehaviorPatch(candidate)) {
+          logPatchedCandidate('alarm-reminder-behavior-patch', candidate);
+        }
+      }
+
+      for (const candidate of dismissReceiverCandidates) {
+        if (applyAlarmDismissReceiverPatch(candidate)) {
+          logPatchedCandidate('alarm-dismiss-receiver-patch', candidate);
+          break;
+        }
+      }
+
+      for (const candidate of alarmReceiverCandidates) {
+        if (applyAlarmReceiverPatch(candidate)) {
+          logPatchedCandidate('alarm-receiver-patch', candidate);
           break;
         }
       }
       return cfg;
     },
   ]);
+}
+
+module.exports = withAlarmNotificationGradlePatch;
+module.exports.__testables = {
+  applyGradleCompatPatchToSource,
+  applyAlarmPendingIntentPatchToSource,
+  applyAlarmReminderBehaviorPatchToSource,
+  applyAlarmDismissReceiverPatchToSource,
+  applyAlarmReceiverPatchToSource,
 };
