@@ -126,6 +126,42 @@ describe('Sync Logic', () => {
             expect(attachment?.cloudKey).toBe('attachments/att-1.txt');
         });
 
+        it('does not copy attachment uris with traversal segments from the winning side', () => {
+            const localAttachment: Attachment = {
+                id: 'att-traversal',
+                kind: 'file',
+                title: 'doc.txt',
+                uri: '/local/doc.txt',
+                localStatus: 'available',
+                createdAt: '2023-01-01T00:00:00.000Z',
+                updatedAt: '2023-01-02T00:00:00.000Z',
+            };
+            const incomingAttachment: Attachment = {
+                id: 'att-traversal',
+                kind: 'file',
+                title: 'doc.txt',
+                uri: '/incoming/../secret.txt',
+                cloudKey: 'attachments/att-traversal.txt',
+                createdAt: '2023-01-01T00:00:00.000Z',
+                updatedAt: '2023-01-03T00:00:00.000Z',
+            };
+
+            const localTask: Task = {
+                ...createMockTask('1', '2023-01-02'),
+                attachments: [localAttachment],
+            };
+            const incomingTask: Task = {
+                ...createMockTask('1', '2023-01-03'),
+                attachments: [incomingAttachment],
+            };
+
+            const merged = mergeAppData(mockAppData([localTask]), mockAppData([incomingTask]));
+            const attachment = merged.tasks[0].attachments?.find((item) => item.id === 'att-traversal');
+
+            expect(attachment?.uri).toBe('/local/doc.txt');
+            expect(attachment?.cloudKey).toBe('attachments/att-traversal.txt');
+        });
+
         it('marks attachment as available when local URI exists without localStatus', () => {
             const localAttachment: Attachment = {
                 id: 'att-available',
@@ -515,7 +551,7 @@ describe('Sync Logic', () => {
             expect(merged.tasks[0].updatedAt).toBe('2023-01-02T00:00:00.100Z');
         });
 
-        it('keeps newer delete when live update is 100ms older', () => {
+        it('keeps the live item when delete is only 100ms newer', () => {
             const local = mockAppData([
                 createMockTask('1', '2023-01-02T00:00:00.100Z', '2023-01-02T00:00:00.100Z'),
             ]);
@@ -526,8 +562,8 @@ describe('Sync Logic', () => {
             const merged = mergeAppData(local, incoming);
 
             expect(merged.tasks).toHaveLength(1);
-            expect(merged.tasks[0].deletedAt).toBe('2023-01-02T00:00:00.100Z');
-            expect(merged.tasks[0].updatedAt).toBe('2023-01-02T00:00:00.100Z');
+            expect(merged.tasks[0].deletedAt).toBeUndefined();
+            expect(merged.tasks[0].updatedAt).toBe('2023-01-02T00:00:00.000Z');
         });
 
         it('prefers newer timestamp when revisions tie but revBy differs', () => {
@@ -707,7 +743,7 @@ describe('Sync Logic', () => {
             expect(forward.tasks[0]).toEqual(reverse.tasks[0]);
         });
 
-        it('prefers tombstone when delete-vs-live operation times are equal', () => {
+        it('prefers the live item when delete-vs-live operation times are equal', () => {
             const local = mockAppData([
                 createMockTask('1', '2023-01-02T00:00:00.000Z', '2023-01-02T00:05:00.000Z'),
             ]);
@@ -718,8 +754,23 @@ describe('Sync Logic', () => {
             const merged = mergeAppData(local, incoming);
 
             expect(merged.tasks).toHaveLength(1);
-            expect(merged.tasks[0].deletedAt).toBe('2023-01-02T00:05:00.000Z');
-            expect(merged.tasks[0].updatedAt).toBe('2023-01-02T00:00:00.000Z');
+            expect(merged.tasks[0].deletedAt).toBeUndefined();
+            expect(merged.tasks[0].updatedAt).toBe('2023-01-02T00:05:00.000Z');
+        });
+
+        it('still prefers delete when it is more than the ambiguity window newer than live', () => {
+            const local = mockAppData([
+                createMockTask('1', '2023-01-02T00:00:06.000Z', '2023-01-02T00:00:06.000Z'),
+            ]);
+            const incoming = mockAppData([
+                createMockTask('1', '2023-01-02T00:00:00.000Z'),
+            ]);
+
+            const merged = mergeAppData(local, incoming);
+
+            expect(merged.tasks).toHaveLength(1);
+            expect(merged.tasks[0].deletedAt).toBe('2023-01-02T00:00:06.000Z');
+            expect(merged.tasks[0].updatedAt).toBe('2023-01-02T00:00:06.000Z');
         });
 
         it('treats invalid deletedAt as a conservative deletion timestamp', () => {

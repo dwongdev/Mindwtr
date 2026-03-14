@@ -330,6 +330,64 @@ describe('TaskStore', () => {
         expect(mockStorage.saveData).toHaveBeenCalled();
     });
 
+    it('repairs invalid project, section, and area references during fetch', async () => {
+        vi.spyOn(Date, 'now').mockReturnValue(new Date('2026-02-14T10:00:00.000Z').getTime());
+        mockStorage.getData = vi.fn().mockResolvedValue({
+            tasks: [
+                {
+                    id: 't-invalid',
+                    title: 'Broken links',
+                    status: 'next',
+                    projectId: 'missing-project',
+                    sectionId: 'missing-section',
+                    areaId: 'missing-area',
+                    tags: [],
+                    contexts: [],
+                    createdAt: '2026-02-01T00:00:00.000Z',
+                    updatedAt: '2026-02-01T00:00:00.000Z',
+                },
+            ],
+            projects: [
+                {
+                    id: 'p-invalid',
+                    title: 'Broken area',
+                    status: 'active',
+                    color: '#123456',
+                    order: 0,
+                    tagIds: [],
+                    areaId: 'missing-area',
+                    createdAt: '2026-02-01T00:00:00.000Z',
+                    updatedAt: '2026-02-01T00:00:00.000Z',
+                },
+            ],
+            sections: [
+                {
+                    id: 's-invalid',
+                    projectId: 'missing-project',
+                    title: 'Orphan section',
+                    order: 0,
+                    createdAt: '2026-02-01T00:00:00.000Z',
+                    updatedAt: '2026-02-01T00:00:00.000Z',
+                },
+            ],
+            areas: [],
+            settings: {},
+        });
+
+        await useTaskStore.getState().fetchData({ silent: true });
+        await flushPendingSave();
+
+        const repairedTask = useTaskStore.getState()._allTasks.find((task) => task.id === 't-invalid');
+        const repairedProject = useTaskStore.getState()._allProjects.find((project) => project.id === 'p-invalid');
+        const orphanedSection = useTaskStore.getState()._allSections.find((section) => section.id === 's-invalid');
+        expect(repairedTask?.projectId).toBeUndefined();
+        expect(repairedTask?.sectionId).toBeUndefined();
+        expect(repairedTask?.areaId).toBeUndefined();
+        expect(repairedProject?.areaId).toBeUndefined();
+        expect(orphanedSection?.deletedAt).toBeTruthy();
+        expect(mockStorage.saveData).toHaveBeenCalled();
+    });
+
     it('defaults notifications to off on first install', async () => {
         mockStorage.getData = vi.fn().mockResolvedValue({
             tasks: [],
@@ -550,6 +608,18 @@ describe('TaskStore', () => {
         const lastSaved = saveCalls[saveCalls.length - 1]?.[0];
         expect(lastSaved.tasks).toHaveLength(1);
         expect(lastSaved.tasks[0].title).toBe('Alpha Updated');
+    });
+
+    it('stops retrying after repeated terminal save failures', async () => {
+        mockStorage.saveData = vi.fn().mockRejectedValue(new Error('disk full'));
+        setStorageAdapter(mockStorage);
+
+        const { addTask } = useTaskStore.getState();
+        addTask('Unsaveable task');
+
+        await vi.runAllTimersAsync();
+        expect(mockStorage.saveData).toHaveBeenCalledTimes(5);
+        expect(useTaskStore.getState().error).toContain('disk full');
     });
 
     it('should add a project', () => {

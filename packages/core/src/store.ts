@@ -31,6 +31,7 @@ type PendingSave = {
     version: number;
     data: AppData;
     onErrorCallbacks: Array<(msg: string) => void>;
+    attempts: number;
 };
 
 let pendingSaves: PendingSave[] = [];
@@ -38,7 +39,17 @@ let pendingVersion = 0;
 let savedVersion = 0;
 let saveInFlight: Promise<void> | null = null;
 const MAX_PENDING_SAVES = 100;
+const MAX_SAVE_RETRY_ATTEMPTS = 5;
+const INITIAL_SAVE_RETRY_DELAY_MS = 250;
+const MAX_SAVE_RETRY_DELAY_MS = 4000;
 const hasPendingSaveWork = (): boolean => pendingSaves.length > 0 || saveInFlight !== null;
+const sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
+const getSaveRetryDelayMs = (attempt: number): number => {
+    const cappedAttempt = Math.max(0, attempt - 1);
+    return Math.min(MAX_SAVE_RETRY_DELAY_MS, INITIAL_SAVE_RETRY_DELAY_MS * (2 ** cappedAttempt));
+};
+const getSaveQueueOverflowMessage = (droppedCount: number): string =>
+    `Save queue overflow: dropped ${droppedCount} stale snapshot(s) while keeping the newest state.`;
 
 const enforcePendingSaveCap = () => {
     if (pendingSaves.length <= MAX_PENDING_SAVES) return;
@@ -47,9 +58,15 @@ const enforcePendingSaveCap = () => {
     const callbacks = dropped
         .flatMap((item) => item.onErrorCallbacks)
         .filter((callback): callback is (msg: string) => void => typeof callback === 'function');
-    const latest = pendingSaves[pendingSaves.length - 1];
-    if (latest && callbacks.length > 0) {
-        latest.onErrorCallbacks.push(...callbacks);
+    if (callbacks.length > 0) {
+        const message = getSaveQueueOverflowMessage(overflow);
+        callbacks.forEach((callback) => {
+            try {
+                callback(message);
+            } catch {
+                // Ignore callback failures so the queue can keep draining.
+            }
+        });
     }
     markCoreStartupPhase('core.debounced_save.capped', {
         dropped: overflow,
@@ -96,6 +113,7 @@ const debouncedSave = (data: AppData, onError?: (msg: string) => void) => {
         version: pendingVersion,
         data: sanitizeAppDataForStorage(data),
         onErrorCallbacks: onError ? [onError] : [],
+        attempts: 0,
     });
     enforcePendingSaveCap();
     markCoreStartupPhase('core.debounced_save.enqueued', {
@@ -154,7 +172,12 @@ export const flushPendingSave = async (): Promise<void> => {
         const onErrorCallbacks = queuedSaves
             .flatMap((item) => item.onErrorCallbacks)
             .filter((callback): callback is (msg: string) => void => typeof callback === 'function');
+        const attempts = queuedSaves.reduce(
+            (maxAttempts, item) => Math.max(maxAttempts, Number.isFinite(item.attempts) ? item.attempts : 0),
+            0
+        );
         let saveSucceeded = false;
+        let saveError: unknown = null;
         saveInFlight = Promise.resolve()
             .then(() => {
                 markCoreStartupPhase('core.flush_pending_save.storage_save:start', { targetVersion });
@@ -166,12 +189,10 @@ export const flushPendingSave = async (): Promise<void> => {
                 markCoreStartupPhase('core.flush_pending_save.storage_save:end', { targetVersion });
             })
             .catch((e) => {
+                saveError = e;
                 markCoreStartupPhase('core.flush_pending_save.storage_save:error', { targetVersion });
                 logError('Failed to flush pending save', { scope: 'store', category: 'storage', error: e });
                 const message = toSaveErrorMessage(e);
-                if (onErrorCallbacks.length > 0) {
-                    onErrorCallbacks.forEach((callback) => callback(message));
-                }
                 try {
                     useTaskStore.getState().setError(message);
                 } catch {
@@ -182,11 +203,13 @@ export const flushPendingSave = async (): Promise<void> => {
                 saveInFlight = null;
                 if (!saveSucceeded) {
                     const hasNewerQueuedSave = pendingSaves.some((item) => item.version > targetVersion);
-                    if (!hasNewerQueuedSave) {
+                    const nextAttempt = attempts + 1;
+                    if (!hasNewerQueuedSave && nextAttempt < MAX_SAVE_RETRY_ATTEMPTS) {
                         pendingSaves.unshift({
                             version: targetVersion,
                             data: dataToSave,
-                            onErrorCallbacks: [],
+                            onErrorCallbacks,
+                            attempts: nextAttempt,
                         });
                         enforcePendingSaveCap();
                     }
@@ -196,8 +219,23 @@ export const flushPendingSave = async (): Promise<void> => {
         if (!saveSucceeded) {
             const hasQueuedSaves = pendingSaves.some((item) => item.version > targetVersion);
             if (hasQueuedSaves) continue;
+            const hasRetriableSaveQueued = pendingSaves.some((item) => item.version === targetVersion);
+            if (hasRetriableSaveQueued) {
+                await sleep(getSaveRetryDelayMs(attempts + 1));
+                continue;
+            }
+            const message = toSaveErrorMessage(saveError);
+            if (onErrorCallbacks.length > 0) {
+                onErrorCallbacks.forEach((callback) => {
+                    try {
+                        callback(message);
+                    } catch {
+                        // Ignore callback failures so terminal save errors still surface.
+                    }
+                });
+            }
             markCoreStartupPhase('core.flush_pending_save.exit_failed');
-            return;
+            throw saveError instanceof Error ? saveError : new Error(message);
         }
     }
 };

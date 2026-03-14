@@ -1,9 +1,14 @@
 import { PRESET_CONTEXTS, PRESET_TAGS } from './contexts';
 import { createNextRecurringTask } from './recurrence';
 import { rescheduleTask } from './task-utils';
-import type { AppData, Project, Task, TaskStatus } from './types';
+import type { AppData, Area, Project, Section, Task, TaskStatus } from './types';
 import { generateUUID as uuidv4 } from './uuid';
 import type { DerivedState, SaveBaseState } from './store-types';
+
+type EntityWithId = { id: string };
+
+const projectOrderCache = new WeakMap<Task[], Map<string, number>>();
+const reservedProjectOrders = new WeakMap<Task[], Map<string, number>>();
 
 export const normalizeRevision = (value?: number): number => (typeof value === 'number' && Number.isFinite(value) ? value : 0);
 
@@ -117,13 +122,48 @@ export const updateVisibleTasks = (visible: Task[], previous?: Task | null, next
     return visible;
 };
 
-export const buildSaveSnapshot = (state: SaveBaseState, overrides?: Partial<AppData>): AppData => ({
-    tasks: overrides?.tasks ?? state._allTasks,
-    projects: overrides?.projects ?? state._allProjects,
-    sections: overrides?.sections ?? state._allSections,
-    areas: overrides?.areas ?? state._allAreas,
-    settings: overrides?.settings ?? state.settings,
-});
+const assertCollectionSnapshotIncludesExistingItems = <T extends EntityWithId>(
+    label: string,
+    nextItems: T[],
+    previousItems: T[]
+): void => {
+    if (nextItems.length >= previousItems.length) return;
+    const nextIds = new Set(nextItems.map((item) => item.id));
+    const missingIds = previousItems
+        .filter((item) => !nextIds.has(item.id))
+        .slice(0, 10)
+        .map((item) => item.id);
+    if (missingIds.length === 0) return;
+    throw new Error(
+        `Refusing to save a partial ${label} snapshot; missing existing ids: ${missingIds.join(', ')}`
+    );
+};
+
+export const buildSaveSnapshot = (state: SaveBaseState, overrides?: Partial<AppData>): AppData => {
+    const tasks = overrides?.tasks ?? state._allTasks;
+    const projects = overrides?.projects ?? state._allProjects;
+    const sections = overrides?.sections ?? state._allSections;
+    const areas = overrides?.areas ?? state._allAreas;
+    if (overrides?.tasks) {
+        assertCollectionSnapshotIncludesExistingItems<Task>('task', tasks, state._allTasks);
+    }
+    if (overrides?.projects) {
+        assertCollectionSnapshotIncludesExistingItems<Project>('project', projects, state._allProjects);
+    }
+    if (overrides?.sections) {
+        assertCollectionSnapshotIncludesExistingItems<Section>('section', sections, state._allSections);
+    }
+    if (overrides?.areas) {
+        assertCollectionSnapshotIncludesExistingItems<Area>('area', areas, state._allAreas);
+    }
+    return {
+        tasks,
+        projects,
+        sections,
+        areas,
+        settings: overrides?.settings ?? state.settings,
+    };
+};
 
 export const computeDerivedState = (tasks: Task[], projects: Project[]): DerivedState => {
     const projectDerived = computeProjectDerivedState(projects);
@@ -248,19 +288,46 @@ export const getTaskOrder = (task: Pick<Task, 'order' | 'orderNum'>): number | u
     return undefined;
 };
 
+const getProjectOrderIndex = (tasks: Task[]): Map<string, number> => {
+    const cached = projectOrderCache.get(tasks);
+    if (cached) return cached;
+    const nextCache = new Map<string, number>();
+    for (const task of tasks) {
+        if (task.deletedAt || !task.projectId) continue;
+        const order = getTaskOrder(task) ?? -1;
+        const previous = nextCache.get(task.projectId) ?? -1;
+        if (order > previous) {
+            nextCache.set(task.projectId, order);
+        }
+    }
+    projectOrderCache.set(tasks, nextCache);
+    return nextCache;
+};
+
 export const getNextProjectOrder = (
     projectId: string | undefined,
     tasks: Task[],
     _cacheKey?: number
 ): number | undefined => {
     if (!projectId) return undefined;
-    let maxOrder = -1;
-    for (const task of tasks) {
-        if (task.deletedAt || task.projectId !== projectId) continue;
-        const order = getTaskOrder(task) ?? -1;
-        if (order > maxOrder) {
-            maxOrder = order;
-        }
+    return (getProjectOrderIndex(tasks).get(projectId) ?? -1) + 1;
+};
+
+export const reserveNextProjectOrder = (
+    projectId: string | undefined,
+    tasks: Task[],
+    cacheKey?: number
+): number | undefined => {
+    if (!projectId) return undefined;
+    const snapshotReservations = reservedProjectOrders.get(tasks) ?? new Map<string, number>();
+    reservedProjectOrders.set(tasks, snapshotReservations);
+    const reserved = snapshotReservations.get(projectId);
+    if (typeof reserved === 'number') {
+        snapshotReservations.set(projectId, reserved + 1);
+        return reserved;
     }
-    return maxOrder + 1;
+    const nextOrder = getNextProjectOrder(projectId, tasks, cacheKey);
+    if (typeof nextOrder !== 'number') return undefined;
+    snapshotReservations.set(projectId, nextOrder + 1);
+    return nextOrder;
 };

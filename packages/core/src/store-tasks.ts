@@ -6,10 +6,10 @@ import {
     buildSaveSnapshot,
     ensureDeviceId,
     getTaskOrder,
-    getNextProjectOrder,
     getReferenceTaskFieldClears,
     isTaskVisible,
     normalizeRevision,
+    reserveNextProjectOrder,
     updateVisibleTasks,
 } from './store-helpers';
 import { generateUUID as uuidv4 } from './uuid';
@@ -83,7 +83,7 @@ export const createTaskActions = ({ set, get, getStorage, debouncedSave }: TaskA
             const deviceId = deviceState.deviceId;
             const explicitOrder = getTaskOrder(initialProps ?? {});
             const resolvedOrder = !hasTaskOrder && resolvedProjectId
-                ? getNextProjectOrder(resolvedProjectId, state._allTasks, state.lastDataChangeAt)
+                ? reserveNextProjectOrder(resolvedProjectId, state._allTasks, state.lastDataChangeAt)
                 : explicitOrder;
             const newTask: Task = {
                 id: uuidv4(),
@@ -172,7 +172,7 @@ export const createTaskActions = ({ set, get, getStorage, debouncedSave }: TaskA
                     const hasTaskOrderOverride = hasOrder || hasOrderNum;
                     if (nextProjectId) {
                         if (!hasTaskOrderOverride) {
-                            const nextOrder = getNextProjectOrder(nextProjectId, state._allTasks, state.lastDataChangeAt);
+                            const nextOrder = reserveNextProjectOrder(nextProjectId, state._allTasks, state.lastDataChangeAt);
                             adjustedUpdates = {
                                 ...adjustedUpdates,
                                 order: nextOrder,
@@ -453,7 +453,7 @@ export const createTaskActions = ({ set, get, getStorage, debouncedSave }: TaskA
                 deletedAt: undefined,
             }));
             const duplicatedOrder = sourceTask.projectId
-                ? getNextProjectOrder(sourceTask.projectId, state._allTasks, state.lastDataChangeAt)
+                ? reserveNextProjectOrder(sourceTask.projectId, state._allTasks, state.lastDataChangeAt)
                 : undefined;
 
             const newTask: Task = {

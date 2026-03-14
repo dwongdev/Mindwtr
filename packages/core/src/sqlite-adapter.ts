@@ -40,6 +40,7 @@ const toBool = (value?: boolean) => (value ? 1 : 0);
 const fromBool = (value: unknown) => Boolean(value);
 const READ_PAGE_SIZE = 1000;
 const FTS_LOCK_TTL_MS = 5 * 60 * 1000;
+const FTS_LOCK_REFRESH_INTERVAL_MS = Math.max(15_000, Math.floor(FTS_LOCK_TTL_MS / 3));
 const sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
 const SEARCH_TASK_SELECT = [
     't.id AS id',
@@ -198,6 +199,26 @@ export class SqliteAdapter {
 
     private async releaseFtsLock(owner: string): Promise<void> {
         await this.client.run('DELETE FROM fts_lock WHERE id = 1 AND owner = ?', [owner]);
+    }
+
+    private async refreshFtsLock(owner: string): Promise<void> {
+        await this.client.run('UPDATE fts_lock SET acquiredAt = ? WHERE id = 1 AND owner = ?', [Date.now(), owner]);
+    }
+
+    private startFtsLockHeartbeat(owner: string): ReturnType<typeof setInterval> {
+        const timer = setInterval(() => {
+            void this.refreshFtsLock(owner).catch((error) => {
+                logWarn('Failed to refresh FTS rebuild lock', {
+                    scope: 'sqlite',
+                    category: 'fts',
+                    error,
+                });
+            });
+        }, FTS_LOCK_REFRESH_INTERVAL_MS);
+        if (typeof timer.unref === 'function') {
+            timer.unref();
+        }
+        return timer;
     }
 
     private async ensureSchemaInternal(): Promise<void> {
@@ -488,6 +509,7 @@ export class SqliteAdapter {
                 return;
             }
 
+            const lockHeartbeat = this.startFtsLockHeartbeat(lockOwner);
             try {
                 await this.client.run('BEGIN');
                 try {
@@ -513,6 +535,7 @@ export class SqliteAdapter {
                     throw error;
                 }
             } finally {
+                clearInterval(lockHeartbeat);
                 await this.releaseFtsLock(lockOwner);
             }
         } catch (error) {
@@ -726,7 +749,7 @@ export class SqliteAdapter {
         const ftsQuery = tokens.map((token) => `${token}*`).join(' ');
         const runSearch = async (): Promise<SearchResults> => {
             const taskRows = await this.client.all<Record<string, unknown>>(
-                `SELECT ${SEARCH_TASK_SELECT} FROM tasks_fts f JOIN tasks t ON f.id = t.id WHERE tasks_fts MATCH ? AND t.deletedAt IS NULL`,
+                `SELECT ${SEARCH_TASK_SELECT} FROM tasks_fts f JOIN tasks t ON f.id = t.id WHERE tasks_fts MATCH ? AND t.deletedAt IS NULL AND t.status != 'archived'`,
                 [ftsQuery]
             );
             const projectRows = await this.client.all<Record<string, unknown>>(

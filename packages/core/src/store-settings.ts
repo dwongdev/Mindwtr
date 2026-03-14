@@ -204,6 +204,19 @@ export const createSettingsActions = ({
             }
 
             let allTasks = rawTasks.map((task) => normalizeTaskForLoad(task, nowIso));
+            const nowMs = Date.now();
+            let didPromoteScheduled = false;
+            allTasks = allTasks.map((task) => {
+                if (!shouldPromoteScheduledTask(task, nowMs)) return task;
+                didPromoteScheduled = true;
+                return {
+                    ...task,
+                    status: 'next',
+                    updatedAt: nowIso,
+                    rev: normalizeRevision(task.rev) + 1,
+                    revBy: nextSettings.deviceId,
+                };
+            });
 
             // Auto-archive stale completed items to keep day-to-day UI fast/clean.
             const configuredArchiveDays = settings.gtd?.autoArchiveDays;
@@ -234,19 +247,6 @@ export const createSettingsActions = ({
                     };
                 });
             }
-            const nowMs = Date.now();
-            let didPromoteScheduled = false;
-            allTasks = allTasks.map((task) => {
-                if (!shouldPromoteScheduledTask(task, nowMs)) return task;
-                didPromoteScheduled = true;
-                return {
-                    ...task,
-                    status: 'next',
-                    updatedAt: nowIso,
-                    rev: normalizeRevision(task.rev) + 1,
-                    revBy: nextSettings.deviceId,
-                };
-            });
             let didProjectOrderMigration = false;
             let didAreaMigration = didNormalizeAreaTimestamps;
             let didRunAreaDedupePass = false;
@@ -466,6 +466,80 @@ export const createSettingsActions = ({
                     };
                 });
             }
+            let didRepairEntityReferences = false;
+            const activeAreaIds = new Set(
+                allAreas
+                    .filter((area) => !area.deletedAt)
+                    .map((area) => area.id)
+            );
+            allProjects = allProjects.map((project) => {
+                if (project.deletedAt || !project.areaId || activeAreaIds.has(project.areaId)) return project;
+                didRepairEntityReferences = true;
+                return {
+                    ...project,
+                    areaId: undefined,
+                    updatedAt: nowIso,
+                    rev: normalizeRevision(project.rev) + 1,
+                    revBy: nextSettings.deviceId,
+                };
+            });
+            const activeProjectIds = new Set(
+                allProjects
+                    .filter((project) => !project.deletedAt)
+                    .map((project) => project.id)
+            );
+            allSections = allSections.map((section) => {
+                if (section.deletedAt || activeProjectIds.has(section.projectId)) return section;
+                didRepairEntityReferences = true;
+                return {
+                    ...section,
+                    deletedAt: nowIso,
+                    updatedAt: nowIso,
+                    rev: normalizeRevision(section.rev) + 1,
+                    revBy: nextSettings.deviceId,
+                };
+            });
+            const activeSectionProjectIds = new Map(
+                allSections
+                    .filter((section) => !section.deletedAt)
+                    .map((section) => [section.id, section.projectId])
+            );
+            allTasks = allTasks.map((task) => {
+                if (task.deletedAt) return task;
+                let nextTask = task;
+                let changed = false;
+                if (nextTask.projectId && !activeProjectIds.has(nextTask.projectId)) {
+                    nextTask = {
+                        ...nextTask,
+                        projectId: undefined,
+                        sectionId: undefined,
+                    };
+                    changed = true;
+                }
+                const sectionProjectId = nextTask.sectionId ? activeSectionProjectIds.get(nextTask.sectionId) : undefined;
+                if (nextTask.sectionId && (!sectionProjectId || (nextTask.projectId && sectionProjectId !== nextTask.projectId))) {
+                    nextTask = {
+                        ...nextTask,
+                        sectionId: undefined,
+                    };
+                    changed = true;
+                }
+                if (nextTask.areaId && !activeAreaIds.has(nextTask.areaId)) {
+                    nextTask = {
+                        ...nextTask,
+                        areaId: undefined,
+                    };
+                    changed = true;
+                }
+                if (!changed) return task;
+                didRepairEntityReferences = true;
+                return {
+                    ...nextTask,
+                    updatedAt: nowIso,
+                    rev: normalizeRevision(task.rev) + 1,
+                    revBy: nextSettings.deviceId,
+                };
+            });
             let didTombstoneCleanup = false;
             if (shouldRunTombstoneCleanup) {
                 const cleanup = purgeExpiredTombstones(
@@ -515,6 +589,7 @@ export const createSettingsActions = ({
                             || didPromoteScheduled
                             || didArchiveTasksForArchivedProjects
                             || didArchiveSectionsForArchivedProjects
+                            || didRepairEntityReferences
                             || didTombstoneCleanup
                             ? Date.now()
                             : get().lastDataChangeAt,
@@ -526,6 +601,7 @@ export const createSettingsActions = ({
                 || didPromoteScheduled
                 || didArchiveTasksForArchivedProjects
                 || didArchiveSectionsForArchivedProjects
+                || didRepairEntityReferences
                 || didTombstoneCleanup
                 || didAreaMigration
                 || didProjectOrderMigration

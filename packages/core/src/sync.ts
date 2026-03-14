@@ -59,10 +59,9 @@ export type SyncHistoryEntry = {
 
 // Log clock skew warnings if merges show >5 minutes drift.
 export const CLOCK_SKEW_THRESHOLD_MS = 5 * 60 * 1000;
-// Intentionally zero: when delete and live operation times are equal, the tombstone wins.
-// This preserves deterministic convergence and matches the accepted sync policy in
-// docs/adr/0003-revision-aware-sync.md plus the equal-time coverage in sync.test.ts.
-const DELETE_VS_LIVE_AMBIGUOUS_WINDOW_MS = 0;
+// Within a small delete-vs-live window, prefer the live record to avoid accidental data loss
+// from near-simultaneous "edit vs delete" races across devices.
+const DELETE_VS_LIVE_AMBIGUOUS_WINDOW_MS = 5 * 1000;
 const DEFAULT_TOMBSTONE_RETENTION_DAYS = 90;
 const MIN_TOMBSTONE_RETENTION_DAYS = 1;
 const MAX_TOMBSTONE_RETENTION_DAYS = 3650;
@@ -926,6 +925,27 @@ const parseMergeTimestamp = (value: unknown, maxAllowedMs?: number): number => {
     return parsed;
 };
 
+const containsAttachmentTraversalSegment = (value: string): boolean => {
+    const candidates = [value];
+    try {
+        const decoded = decodeURIComponent(value);
+        if (decoded !== value) {
+            candidates.push(decoded);
+        }
+    } catch {
+        // Ignore malformed URI escapes and fall back to the raw string check.
+    }
+    return candidates.some((candidate) => /(^|[\\/])\.\.([\\/]|$)/.test(candidate));
+};
+
+const sanitizeMergedAttachmentUri = (value: unknown): string | undefined => {
+    if (typeof value !== 'string') return undefined;
+    const trimmed = value.trim();
+    if (!trimmed || trimmed.includes('\0')) return undefined;
+    if (containsAttachmentTraversalSegment(trimmed)) return undefined;
+    return trimmed;
+};
+
 function mergeEntitiesWithStats<T extends { id: string; updatedAt: string; deletedAt?: string; rev?: number; revBy?: string }>(
     local: T[],
     incoming: T[],
@@ -1043,17 +1063,17 @@ function mergeEntitiesWithStats<T extends { id: string; updatedAt: string; delet
             return deletedTimeRaw > maxAllowedMergeTime ? maxAllowedMergeTime : deletedTimeRaw;
         };
         let winner = safeIncomingTime > safeLocalTime ? normalizedIncomingItem : normalizedLocalItem;
-        const resolveDeleteVsLiveWinner = (localCandidate: T, incomingCandidate: T): T => {
-            const localOpTime = resolveOperationTime(localCandidate);
-            const incomingOpTime = resolveOperationTime(incomingCandidate);
-            const operationDiff = incomingOpTime - localOpTime;
-            if (Math.abs(operationDiff) <= DELETE_VS_LIVE_AMBIGUOUS_WINDOW_MS) {
-                return localCandidate.deletedAt ? localCandidate : incomingCandidate;
-            }
-            if (operationDiff > 0) return incomingCandidate;
-            if (operationDiff < 0) return localCandidate;
-            return localCandidate.deletedAt ? localCandidate : incomingCandidate;
-        };
+            const resolveDeleteVsLiveWinner = (localCandidate: T, incomingCandidate: T): T => {
+                const localOpTime = resolveOperationTime(localCandidate);
+                const incomingOpTime = resolveOperationTime(incomingCandidate);
+                const operationDiff = incomingOpTime - localOpTime;
+                if (Math.abs(operationDiff) <= DELETE_VS_LIVE_AMBIGUOUS_WINDOW_MS) {
+                    return localCandidate.deletedAt ? incomingCandidate : localCandidate;
+                }
+                if (operationDiff > 0) return incomingCandidate;
+                if (operationDiff < 0) return localCandidate;
+                return localCandidate.deletedAt ? incomingCandidate : localCandidate;
+            };
 
         if (hasRevision) {
             if (localDeleted !== incomingDeleted) {
@@ -1159,8 +1179,7 @@ export function mergeAppDataWithStats(local: AppData, incoming: AppData): MergeR
         const hasAvailableUri = (attachment?: Attachment): boolean => {
             return attachment?.kind === 'file'
                 && attachment.localStatus !== 'missing'
-                && typeof attachment.uri === 'string'
-                && attachment.uri.trim().length > 0;
+                && !!sanitizeMergedAttachmentUri(attachment.uri);
         };
 
         const merged = mergeEntitiesWithStats(localList, incomingList, (localAttachment, incomingAttachment, winner) => {
@@ -1172,20 +1191,26 @@ export function mergeAppDataWithStats(local: AppData, incoming: AppData): MergeR
             const winnerHasUri = hasAvailableUri(winner);
             const localHasUri = hasAvailableUri(localAttachment);
             const incomingHasUri = hasAvailableUri(incomingAttachment);
+            const winnerUri = sanitizeMergedAttachmentUri(winner.uri);
+            const localUri = sanitizeMergedAttachmentUri(localAttachment.uri);
+            const incomingUri = sanitizeMergedAttachmentUri(incomingAttachment.uri);
 
             let uri = winner.uri;
             let localStatus = winner.localStatus;
 
             if (winnerHasUri) {
-                uri = winner.uri;
+                uri = winnerUri || winner.uri;
                 localStatus = winner.localStatus || 'available';
             } else if (winnerIsIncoming && localHasUri) {
-                uri = localAttachment.uri;
+                uri = localUri || localAttachment.uri;
                 localStatus = localAttachment.localStatus || 'available';
             } else if (!winnerIsIncoming && incomingHasUri) {
-                uri = incomingAttachment.uri;
+                uri = incomingUri || incomingAttachment.uri;
                 localStatus = incomingAttachment.localStatus || 'available';
-            } else if ((localStatus === undefined || localStatus === null) && typeof uri === 'string' && uri.trim().length > 0) {
+            } else {
+                uri = sanitizeMergedAttachmentUri(uri) ?? '';
+            }
+            if ((localStatus === undefined || localStatus === null) && !!sanitizeMergedAttachmentUri(uri)) {
                 localStatus = 'available';
             }
 
@@ -1208,9 +1233,11 @@ export function mergeAppDataWithStats(local: AppData, incoming: AppData): MergeR
             const incomingAttachment = incomingById.get(attachment.id);
             const localFile = localAttachment?.kind === 'file' ? localAttachment : undefined;
             const incomingFile = incomingAttachment?.kind === 'file' ? incomingAttachment : undefined;
-            const uriAvailable = hasAvailableUri(attachment);
+            const safeUri = sanitizeMergedAttachmentUri(attachment.uri);
+            const uriAvailable = !!safeUri && hasAvailableUri(attachment);
             return {
                 ...attachment,
+                uri: safeUri ?? '',
                 cloudKey: attachment.deletedAt
                     ? attachment.cloudKey
                     : attachment.cloudKey || localFile?.cloudKey || incomingFile?.cloudKey,

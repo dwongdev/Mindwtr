@@ -19,9 +19,9 @@ CREATE TABLE IF NOT EXISTS tasks (
   textDirection TEXT,
   attachments TEXT,
   location TEXT,
-  projectId TEXT,
-  sectionId TEXT,
-  areaId TEXT,
+  projectId TEXT REFERENCES projects(id) ON DELETE SET NULL,
+  sectionId TEXT REFERENCES sections(id) ON DELETE SET NULL,
+  areaId TEXT REFERENCES areas(id) ON DELETE SET NULL,
   orderNum INTEGER,
   isFocusedToday INTEGER,
   timeEstimate TEXT,
@@ -47,7 +47,7 @@ CREATE TABLE IF NOT EXISTS projects (
   supportNotes TEXT,
   attachments TEXT,
   reviewAt TEXT,
-  areaId TEXT,
+  areaId TEXT REFERENCES areas(id) ON DELETE SET NULL,
   areaTitle TEXT,
   rev INTEGER,
   revBy TEXT,
@@ -71,7 +71,7 @@ CREATE TABLE IF NOT EXISTS areas (
 
 CREATE TABLE IF NOT EXISTS sections (
   id TEXT PRIMARY KEY,
-  projectId TEXT NOT NULL,
+  projectId TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
   title TEXT NOT NULL,
   description TEXT,
   orderNum INTEGER,
@@ -162,6 +162,7 @@ CREATE INDEX IF NOT EXISTS idx_tasks_reviewAt ON tasks(reviewAt);
 CREATE INDEX IF NOT EXISTS idx_tasks_completedAt ON tasks(completedAt);
 CREATE INDEX IF NOT EXISTS idx_tasks_createdAt ON tasks(createdAt);
 CREATE INDEX IF NOT EXISTS idx_tasks_updatedAt ON tasks(updatedAt);
+CREATE INDEX IF NOT EXISTS idx_tasks_updatedAt_deletedAt ON tasks(updatedAt, deletedAt);
 CREATE INDEX IF NOT EXISTS idx_tasks_status_deletedAt ON tasks(status, deletedAt);
 CREATE INDEX IF NOT EXISTS idx_tasks_project_deletedAt ON tasks(projectId, deletedAt);
 CREATE INDEX IF NOT EXISTS idx_tasks_project_status_deletedAt ON tasks(projectId, status, deletedAt);
