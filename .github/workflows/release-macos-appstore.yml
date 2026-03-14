@@ -371,6 +371,9 @@ jobs:
           VITE_ANALYTICS_HEARTBEAT_URL: ${{ secrets.ANALYTICS_HEARTBEAT_URL }}
           TAURI_LOG_LEVEL: debug
           SOURCE_DATE_EPOCH: "1"
+          # Bundled whisper bindings are only needed on this macOS build path.
+          # Linux/AUR source builds must generate native bindings instead.
+          WHISPER_DONT_GENERATE_BINDINGS: "1"
         run: |
           set -euo pipefail
           # rust-cache can restore stale CMake cache where GGML_NATIVE stayed ON.

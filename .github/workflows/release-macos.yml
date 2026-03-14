@@ -232,6 +232,8 @@ jobs:
           RUST_LOG: "tauri=debug,tauri_bundler=debug,tauri_cli=debug"
           MACOSX_DEPLOYMENT_TARGET: "10.15"
           CMAKE_OSX_DEPLOYMENT_TARGET: "10.15"
+          # Keep bundled whisper bindings on macOS release builds.
+          WHISPER_DONT_GENERATE_BINDINGS: "1"
           DEVELOPER_DIR: ${{ env.DEVELOPER_DIR }}
 
       - name: Verify macOS app signature
