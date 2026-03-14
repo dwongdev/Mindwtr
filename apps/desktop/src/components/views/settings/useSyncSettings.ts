@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { SyncService, type CloudProvider } from '../../../lib/sync-service';
 import { useUiStore } from '../../../store/ui-store';
 import { logError } from '../../../lib/app-log';
+import { markSettingsOpenTrace, measureSettingsOpenStep } from '../../../lib/settings-open-diagnostics';
 
 export type SyncBackend = 'off' | 'file' | 'webdav' | 'cloud';
 export type DropboxTestState = 'idle' | 'success' | 'error';
@@ -54,29 +55,30 @@ export const useSyncSettings = ({ isTauri, showSaved, selectSyncFolderTitle }: U
     }, []);
 
     useEffect(() => {
+        markSettingsOpenTrace('sync-settings-effect');
         const unsubscribe = SyncService.subscribeSyncStatus(setSyncStatus);
         const loadSnapshots = async () => {
             if (!isTauri) return;
             setIsLoadingSnapshots(true);
             try {
-                setSnapshots(await SyncService.listDataSnapshots());
+                setSnapshots(await measureSettingsOpenStep('sync-load-snapshots', () => SyncService.listDataSnapshots()));
             } finally {
                 setIsLoadingSnapshots(false);
             }
         };
-        SyncService.getSyncPath()
+        measureSettingsOpenStep('sync-load-path', () => SyncService.getSyncPath())
             .then(setSyncPath)
             .catch((error) => {
                 setSyncError('Failed to load sync path.');
                 void logError(error, { scope: 'sync', step: 'loadPath' });
             });
-        SyncService.getSyncBackend()
+        measureSettingsOpenStep('sync-load-backend', () => SyncService.getSyncBackend())
             .then(setSyncBackend)
             .catch((error) => {
                 setSyncError('Failed to load sync backend.');
                 void logError(error, { scope: 'sync', step: 'loadBackend' });
             });
-        SyncService.getWebDavConfig({ silent: true })
+        measureSettingsOpenStep('sync-load-webdav', () => SyncService.getWebDavConfig({ silent: true }))
             .then((cfg) => {
                 setWebdavUrl(cfg.url);
                 setWebdavUsername(cfg.username);
@@ -87,7 +89,7 @@ export const useSyncSettings = ({ isTauri, showSaved, selectSyncFolderTitle }: U
                 setSyncError('Failed to load WebDAV config.');
                 void logError(error, { scope: 'sync', step: 'loadWebDav' });
             });
-        SyncService.getCloudConfig({ silent: true })
+        measureSettingsOpenStep('sync-load-cloud', () => SyncService.getCloudConfig({ silent: true }))
             .then((cfg) => {
                 setCloudUrl(cfg.url);
                 setCloudToken(cfg.token);
@@ -96,13 +98,13 @@ export const useSyncSettings = ({ isTauri, showSaved, selectSyncFolderTitle }: U
                 setSyncError('Failed to load Cloud config.');
                 void logError(error, { scope: 'sync', step: 'loadCloud' });
             });
-        SyncService.getCloudProvider()
+        measureSettingsOpenStep('sync-load-cloud-provider', () => SyncService.getCloudProvider())
             .then(setCloudProvider)
             .catch((error) => {
                 setSyncError('Failed to load cloud provider.');
                 void logError(error, { scope: 'sync', step: 'loadCloudProvider' });
             });
-        SyncService.getDropboxAppKey()
+        measureSettingsOpenStep('sync-load-dropbox-app-key', () => SyncService.getDropboxAppKey())
             .then((value) => {
                 const trimmed = value.trim();
                 setDropboxAppKey(trimmed);
@@ -113,7 +115,7 @@ export const useSyncSettings = ({ isTauri, showSaved, selectSyncFolderTitle }: U
                 setSyncError('Failed to load Dropbox app key.');
                 void logError(error, { scope: 'sync', step: 'loadDropboxAppKey' });
             });
-        SyncService.getDropboxRedirectUri()
+        measureSettingsOpenStep('sync-load-dropbox-redirect-uri', () => SyncService.getDropboxRedirectUri())
             .then(setDropboxRedirectUri)
             .catch((error) => {
                 void logError(error, { scope: 'sync', step: 'loadDropboxRedirectUri' });

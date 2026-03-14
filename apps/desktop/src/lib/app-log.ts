@@ -112,7 +112,7 @@ function isLoggingEnabled(): boolean {
     return useTaskStore.getState().settings.diagnostics?.loggingEnabled === true;
 }
 
-function isDiagnosticsEnabled(): boolean {
+export function isDiagnosticsEnabled(): boolean {
     if (typeof window === 'undefined') return false;
     return (window as any).__MINDWTR_DIAGNOSTICS__ === true;
 }

@@ -7,7 +7,6 @@ const ProjectsView = lazy(() => import('./components/views/ProjectsView').then((
 import { ContextsView } from './components/views/ContextsView';
 const ReviewView = lazy(() => import('./components/views/ReviewView').then((m) => ({ default: m.ReviewView })));
 import { TutorialView } from './components/views/TutorialView';
-const SettingsView = lazy(() => import('./components/views/SettingsView').then((m) => ({ default: m.SettingsView })));
 import { ArchiveView } from './components/views/ArchiveView';
 import { TrashView } from './components/views/TrashView';
 import { AgendaView } from './components/views/AgendaView';
@@ -25,8 +24,14 @@ import type { ExternalSyncChange, ExternalSyncChangeResolution } from './lib/syn
 import * as LocalDataWatcher from './lib/local-data-watcher';
 import { isFlatpakRuntime, isTauriRuntime } from './lib/runtime';
 import { logError } from './lib/app-log';
+import { beginSettingsOpenTrace, markSettingsOpenTrace, wrapSettingsOpenImport } from './lib/settings-open-diagnostics';
 import { THEME_STORAGE_KEY, applyThemeMode, mapSyncedThemeToDesktop, resolveNativeTheme } from './lib/theme';
 import { useUiStore } from './store/ui-store';
+
+const SettingsView = lazy(wrapSettingsOpenImport(
+    'settings-view-chunk',
+    () => import('./components/views/SettingsView').then((m) => ({ default: m.SettingsView }))
+));
 
 function App() {
     const [currentView, setCurrentView] = useState('inbox');
@@ -481,6 +486,7 @@ function App() {
     const handleViewChange = useCallback((view: string) => {
         setCurrentView(view);
         if (view === 'settings') {
+            beginSettingsOpenTrace('handleViewChange');
             setActiveView(view);
             return;
         }
@@ -489,15 +495,22 @@ function App() {
         });
     }, [startTransition]);
 
-    const LoadingFallback = () => (
-        <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
-            <div className="w-full max-w-md space-y-3">
-                <div className="h-4 w-2/3 rounded bg-muted/60 animate-pulse" />
-                <div className="h-4 w-5/6 rounded bg-muted/50 animate-pulse" />
-                <div className="h-4 w-1/2 rounded bg-muted/40 animate-pulse" />
+    const LoadingFallback = ({ view }: { view: string }) => {
+        useEffect(() => {
+            if (view !== 'settings') return;
+            markSettingsOpenTrace('app-suspense-fallback-mounted');
+        }, [view]);
+
+        return (
+            <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
+                <div className="w-full max-w-md space-y-3">
+                    <div className="h-4 w-2/3 rounded bg-muted/60 animate-pulse" />
+                    <div className="h-4 w-5/6 rounded bg-muted/50 animate-pulse" />
+                    <div className="h-4 w-1/2 rounded bg-muted/40 animate-pulse" />
+                </div>
             </div>
-        </div>
-    );
+        );
+    };
 
     useEffect(() => {
         const handler: EventListener = (event) => {
@@ -516,11 +529,11 @@ function App() {
                 <Layout currentView={currentView} onViewChange={handleViewChange}>
                     <Suspense
                         fallback={(
-                            <LoadingFallback />
+                            <LoadingFallback view={activeView} />
                         )}
                     >
                         {isLoading ? (
-                            <LoadingFallback />
+                            <LoadingFallback view={activeView} />
                         ) : (
                             renderView()
                         )}

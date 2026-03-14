@@ -14,6 +14,7 @@ import { dataDir, join } from '@tauri-apps/api/path';
 import { loadAIKey, saveAIKey } from '../../../lib/ai-config';
 import { reportError } from '../../../lib/report-error';
 import { logWarn } from '../../../lib/app-log';
+import { markSettingsOpenTrace, measureSettingsOpenStep } from '../../../lib/settings-open-diagnostics';
 import {
     DEFAULT_WHISPER_MODEL,
     GEMINI_SPEECH_MODELS,
@@ -144,7 +145,8 @@ export function useAiSettings({ isTauri, settings, updateSettings, showSaved, en
                 active = false;
             };
         }
-        loadAIKey(aiProvider)
+        markSettingsOpenTrace('ai-settings-load-provider-key', { provider: aiProvider });
+        measureSettingsOpenStep(`ai-load-key:${aiProvider}`, () => loadAIKey(aiProvider))
             .then((key) => {
                 if (active) setAiApiKey(key);
             })
@@ -169,7 +171,8 @@ export function useAiSettings({ isTauri, settings, updateSettings, showSaved, en
                 active = false;
             };
         }
-        loadAIKey(speechProvider as AIProviderId)
+        markSettingsOpenTrace('ai-settings-load-speech-key', { provider: speechProvider });
+        measureSettingsOpenStep(`ai-load-speech-key:${speechProvider}`, () => loadAIKey(speechProvider as AIProviderId))
             .then((key) => {
                 if (active) setSpeechApiKey(key);
             })
@@ -196,7 +199,11 @@ export function useAiSettings({ isTauri, settings, updateSettings, showSaved, en
             };
         }
         const load = async () => {
-            const resolved = speechSettings.offlineModelPath || await resolveWhisperPath(speechModel);
+            markSettingsOpenTrace('ai-settings-load-whisper-state', { model: speechModel });
+            const resolved = speechSettings.offlineModelPath || await measureSettingsOpenStep(
+                `ai-resolve-whisper-path:${speechModel}`,
+                () => resolveWhisperPath(speechModel)
+            );
             if (!active) return;
             setSpeechOfflinePath(resolved);
             if (!resolved) {
@@ -204,7 +211,10 @@ export function useAiSettings({ isTauri, settings, updateSettings, showSaved, en
                 return;
             }
             try {
-                const present = await exists(resolved);
+                const present = await measureSettingsOpenStep(
+                    `ai-check-whisper-exists:${speechModel}`,
+                    () => exists(resolved)
+                );
                 if (!present) {
                     setSpeechOfflineSize(null);
                     return;
@@ -212,7 +222,10 @@ export function useAiSettings({ isTauri, settings, updateSettings, showSaved, en
                 if (!speechSettings.offlineModelPath) {
                     updateSpeechSettings({ offlineModelPath: resolved, model: speechModel });
                 }
-                const fileSize = await size(resolved);
+                const fileSize = await measureSettingsOpenStep(
+                    `ai-read-whisper-size:${speechModel}`,
+                    () => size(resolved)
+                );
                 if (active) {
                     setSpeechOfflineSize(fileSize);
                 }

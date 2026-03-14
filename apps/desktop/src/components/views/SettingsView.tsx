@@ -1,4 +1,4 @@
-import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState, type ComponentType } from 'react';
+import { Suspense, lazy, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ComponentType } from 'react';
 import { ErrorBoundary } from '../ErrorBoundary';
 import {
     Bell,
@@ -28,6 +28,7 @@ import { getInstallSourceOrFallback, isFlatpakRuntime, isTauriRuntime } from '..
 import { reportError } from '../../lib/report-error';
 import { SyncService } from '../../lib/sync-service';
 import { clearLog, getLogPath } from '../../lib/app-log';
+import { markSettingsOpenTrace, measureSettingsOpenStep, wrapSettingsOpenImport } from '../../lib/settings-open-diagnostics';
 import {
     APP_STORE_LISTING_URL,
     checkForUpdates,
@@ -58,13 +59,34 @@ type SettingsPage = 'main' | 'gtd' | 'notifications' | 'sync' | 'calendar' | 'ai
 type LinuxDistroInfo = { id?: string; id_like?: string[] };
 type DateFormatUiSetting = DateFormatSetting;
 
-const SettingsMainPage = lazy(() => import('./settings/SettingsMainPage').then((m) => ({ default: m.SettingsMainPage })));
-const SettingsGtdPage = lazy(() => import('./settings/SettingsGtdPage').then((m) => ({ default: m.SettingsGtdPage })));
-const SettingsAiPage = lazy(() => import('./settings/SettingsAiPage').then((m) => ({ default: m.SettingsAiPage })));
-const SettingsNotificationsPage = lazy(() => import('./settings/SettingsNotificationsPage').then((m) => ({ default: m.SettingsNotificationsPage })));
-const SettingsCalendarPage = lazy(() => import('./settings/SettingsCalendarPage').then((m) => ({ default: m.SettingsCalendarPage })));
-const SettingsSyncPage = lazy(() => import('./settings/SettingsSyncPage').then((m) => ({ default: m.SettingsSyncPage })));
-const SettingsAboutPage = lazy(() => import('./settings/SettingsAboutPage').then((m) => ({ default: m.SettingsAboutPage })));
+const SettingsMainPage = lazy(wrapSettingsOpenImport(
+    'page-chunk:main',
+    () => import('./settings/SettingsMainPage').then((m) => ({ default: m.SettingsMainPage }))
+));
+const SettingsGtdPage = lazy(wrapSettingsOpenImport(
+    'page-chunk:gtd',
+    () => import('./settings/SettingsGtdPage').then((m) => ({ default: m.SettingsGtdPage }))
+));
+const SettingsAiPage = lazy(wrapSettingsOpenImport(
+    'page-chunk:ai',
+    () => import('./settings/SettingsAiPage').then((m) => ({ default: m.SettingsAiPage }))
+));
+const SettingsNotificationsPage = lazy(wrapSettingsOpenImport(
+    'page-chunk:notifications',
+    () => import('./settings/SettingsNotificationsPage').then((m) => ({ default: m.SettingsNotificationsPage }))
+));
+const SettingsCalendarPage = lazy(wrapSettingsOpenImport(
+    'page-chunk:calendar',
+    () => import('./settings/SettingsCalendarPage').then((m) => ({ default: m.SettingsCalendarPage }))
+));
+const SettingsSyncPage = lazy(wrapSettingsOpenImport(
+    'page-chunk:sync',
+    () => import('./settings/SettingsSyncPage').then((m) => ({ default: m.SettingsSyncPage }))
+));
+const SettingsAboutPage = lazy(wrapSettingsOpenImport(
+    'page-chunk:about',
+    () => import('./settings/SettingsAboutPage').then((m) => ({ default: m.SettingsAboutPage }))
+));
 
 const UPDATE_BADGE_AVAILABLE_KEY = 'mindwtr-update-available';
 const UPDATE_BADGE_LAST_CHECK_KEY = 'mindwtr-update-last-check';
@@ -198,7 +220,10 @@ export function SettingsView() {
         let cancelled = false;
         (async () => {
             try {
-                const rawSource = await getInstallSourceOrFallback('unknown');
+                const rawSource = await measureSettingsOpenStep(
+                    'install-source',
+                    () => getInstallSourceOrFallback('unknown')
+                );
                 const source = normalizeInstallSource(rawSource);
                 if (!cancelled) {
                     setInstallSource(source);
@@ -277,6 +302,18 @@ export function SettingsView() {
         return result;
     }, [language, translate]);
 
+    useLayoutEffect(() => {
+        markSettingsOpenTrace('settings-view-layout-effect', { page });
+    }, [page]);
+
+    useEffect(() => {
+        markSettingsOpenTrace('settings-view-effect', { page });
+        const frameId = window.requestAnimationFrame(() => {
+            markSettingsOpenTrace('settings-view-first-paint', { page });
+        });
+        return () => window.cancelAnimationFrame(frameId);
+    }, [page]);
+
     useEffect(() => {
         if (!perf.enabled) return;
         const timer = window.setTimeout(() => {
@@ -299,22 +336,26 @@ export function SettingsView() {
         let cancelled = false;
         const timer = window.setTimeout(() => {
             if (cancelled) return;
-            import('@tauri-apps/api/app')
-                .then(({ getVersion }) => getVersion())
+            measureSettingsOpenStep('app-version', async () => {
+                const { getVersion } = await import('@tauri-apps/api/app');
+                return await getVersion();
+            })
                 .then((version) => {
                     if (!cancelled) setAppVersion(version);
                 })
                 .catch((error) => reportError('Failed to read app version', error));
 
-            import('@tauri-apps/api/core')
-                .then(async ({ invoke }) => {
-                    const distro = await invoke<LinuxDistroInfo | null>('get_linux_distro');
+            measureSettingsOpenStep('linux-distro', async () => {
+                const { invoke } = await import('@tauri-apps/api/core');
+                return await invoke<LinuxDistroInfo | null>('get_linux_distro');
+            })
+                .then((distro) => {
                     if (cancelled) return;
                     setLinuxDistro(distro);
                 })
                 .catch((error) => reportError('Failed to read system paths', error));
 
-            getLogPath()
+            measureSettingsOpenStep('log-path', () => getLogPath())
                 .then((path) => {
                     if (path && !cancelled) setLogPath(path);
                 })
@@ -370,7 +411,10 @@ export function SettingsView() {
         let cancelled = false;
         (async () => {
             try {
-                const info = await checkForUpdates(appVersion, { installSource });
+                const info = await measureSettingsOpenStep(
+                    'background-update-check',
+                    () => checkForUpdates(appVersion, { installSource })
+                );
                 if (cancelled) return;
                 if (info.hasUpdate) {
                     persistUpdateBadge(true, info.latestVersion);
@@ -1121,6 +1165,18 @@ export function SettingsView() {
         return null;
     };
 
+    const PageFallback = ({ currentPage }: { currentPage: SettingsPage }) => {
+        useEffect(() => {
+            markSettingsOpenTrace('settings-page-fallback-mounted', { page: currentPage });
+        }, [currentPage]);
+
+        return (
+            <div className="rounded-lg border border-border bg-card p-6 text-sm text-muted-foreground">
+                {translate('common.loading')}
+            </div>
+        );
+    };
+
     return (
         <ErrorBoundary>
             <div className="h-full overflow-y-auto">
@@ -1144,9 +1200,7 @@ export function SettingsView() {
                             </header>
                             <Suspense
                                 fallback={(
-                                    <div className="rounded-lg border border-border bg-card p-6 text-sm text-muted-foreground">
-                                        {translate('common.loading')}
-                                    </div>
+                                    <PageFallback currentPage={page} />
                                 )}
                             >
                                 {renderPage()}
