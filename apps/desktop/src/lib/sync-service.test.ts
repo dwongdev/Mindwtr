@@ -181,6 +181,16 @@ describe('SyncService testability hooks', () => {
 });
 
 describe('SyncService orchestration', () => {
+    const createDeferred = <T = void>() => {
+        let resolve!: (value: T | PromiseLike<T>) => void;
+        let reject!: (reason?: unknown) => void;
+        const promise = new Promise<T>((nextResolve, nextReject) => {
+            resolve = nextResolve;
+            reject = nextReject;
+        });
+        return { promise, resolve, reject };
+    };
+
     const countInFlightStarts = (snapshots: Array<ReturnType<typeof SyncService.getSyncStatus>>) => (
         snapshots.reduce((count, snapshot, index) => {
             const previous = snapshots[index - 1];
@@ -192,10 +202,11 @@ describe('SyncService orchestration', () => {
     );
 
     it('re-runs a queued sync cycle after the in-flight sync finishes', async () => {
+        const firstRun = createDeferred();
         const backendSpy = vi.spyOn(SyncService as any, 'getSyncBackend');
         backendSpy
             .mockImplementationOnce(async () => {
-                await new Promise((resolve) => setTimeout(resolve, 25));
+                await firstRun.promise;
                 return 'off';
             })
             .mockResolvedValue('off');
@@ -205,7 +216,20 @@ describe('SyncService orchestration', () => {
         });
 
         const first = SyncService.performSync();
+        await vi.waitFor(() => {
+            expect(SyncService.getSyncStatus()).toMatchObject({
+                inFlight: true,
+                queued: false,
+            });
+        });
         const second = SyncService.performSync();
+        await vi.waitFor(() => {
+            expect(SyncService.getSyncStatus()).toMatchObject({
+                inFlight: true,
+                queued: true,
+            });
+        });
+        firstRun.resolve();
 
         const [firstResult, secondResult] = await Promise.all([first, second]);
         expect(firstResult.success).toBe(true);
@@ -216,18 +240,19 @@ describe('SyncService orchestration', () => {
                 queued: false,
                 lastResult: 'success',
             });
+            expect(countInFlightStarts(snapshots)).toBe(2);
         });
         unsubscribe();
 
         expect(snapshots.some((status) => status.queued === true)).toBe(true);
-        expect(countInFlightStarts(snapshots)).toBe(2);
     });
 
     it('emits queued status updates while a sync is already in flight', async () => {
+        const firstRun = createDeferred();
         const backendSpy = vi.spyOn(SyncService as any, 'getSyncBackend');
         backendSpy
             .mockImplementationOnce(async () => {
-                await new Promise((resolve) => setTimeout(resolve, 25));
+                await firstRun.promise;
                 return 'off';
             })
             .mockResolvedValue('off');
@@ -238,7 +263,20 @@ describe('SyncService orchestration', () => {
         });
 
         const first = SyncService.performSync();
+        await vi.waitFor(() => {
+            expect(SyncService.getSyncStatus()).toMatchObject({
+                inFlight: true,
+                queued: false,
+            });
+        });
         const second = SyncService.performSync();
+        await vi.waitFor(() => {
+            expect(SyncService.getSyncStatus()).toMatchObject({
+                inFlight: true,
+                queued: true,
+            });
+        });
+        firstRun.resolve();
         await Promise.all([first, second]);
         await vi.waitFor(() => {
             expect(SyncService.getSyncStatus()).toMatchObject({
@@ -254,9 +292,10 @@ describe('SyncService orchestration', () => {
     });
 
     it('serializes re-entrant sync calls triggered by sync status listeners', async () => {
+        const firstRun = createDeferred();
         const backendSpy = vi.spyOn(SyncService as any, 'getSyncBackend');
         backendSpy.mockImplementation(async () => {
-            await new Promise((resolve) => setTimeout(resolve, 20));
+            await firstRun.promise;
             return 'off';
         });
         const snapshots: Array<ReturnType<typeof SyncService.getSyncStatus>> = [];
@@ -272,33 +311,56 @@ describe('SyncService orchestration', () => {
             }
         });
 
-        const result = await SyncService.performSync();
+        const resultPromise = SyncService.performSync();
+        await vi.waitFor(() => {
+            expect(triggered).toBe(true);
+            expect(SyncService.getSyncStatus()).toMatchObject({
+                inFlight: true,
+                queued: true,
+            });
+        });
+        firstRun.resolve();
+        const result = await resultPromise;
         await vi.waitFor(() => {
             expect(SyncService.getSyncStatus()).toMatchObject({
                 inFlight: false,
                 queued: false,
                 lastResult: 'success',
             });
+            expect(countInFlightStarts(snapshots)).toBe(2);
         });
         unsubscribe();
         unsubscribeSnapshots();
 
         expect(result.success).toBe(true);
         expect(snapshots.some((status) => status.queued === true)).toBe(true);
-        expect(countInFlightStarts(snapshots)).toBe(2);
     });
 
     it('runs a queued follow-up sync after an in-flight failure', async () => {
+        const firstRun = createDeferred();
         const backendSpy = vi.spyOn(SyncService as any, 'getSyncBackend');
         backendSpy
             .mockImplementationOnce(async () => {
-                await new Promise((resolve) => setTimeout(resolve, 20));
+                await firstRun.promise;
                 throw new Error('temporary backend failure');
             })
             .mockResolvedValue('off');
 
         const first = SyncService.performSync();
+        await vi.waitFor(() => {
+            expect(SyncService.getSyncStatus()).toMatchObject({
+                inFlight: true,
+                queued: false,
+            });
+        });
         const second = SyncService.performSync();
+        await vi.waitFor(() => {
+            expect(SyncService.getSyncStatus()).toMatchObject({
+                inFlight: true,
+                queued: true,
+            });
+        });
+        firstRun.resolve();
         const [firstResult, secondResult] = await Promise.all([first, second]);
 
         expect(firstResult.success).toBe(false);

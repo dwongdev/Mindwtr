@@ -57,7 +57,9 @@ describe('createDesktopAutoSyncController', () => {
         vi.setSystemTime(nowMs);
         await vi.advanceTimersByTimeAsync(4_000);
 
-        expect(performSync).toHaveBeenCalledTimes(2);
+        await vi.waitFor(() => {
+            expect(performSync).toHaveBeenCalledTimes(2);
+        });
     });
 
     it('debounces repeated data changes before syncing', async () => {
@@ -81,6 +83,8 @@ describe('createDesktopAutoSyncController', () => {
         expect(performSync).not.toHaveBeenCalled();
 
         await vi.advanceTimersByTimeAsync(1);
-        expect(performSync).toHaveBeenCalledTimes(1);
+        await vi.waitFor(() => {
+            expect(performSync).toHaveBeenCalledTimes(1);
+        });
     });
 });

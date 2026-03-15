@@ -11,11 +11,6 @@ const renderWithProviders = (ui: React.ReactElement) => {
     );
 };
 
-// Mock TaskItem to simplify testing
-vi.mock('../TaskItem', () => ({
-    TaskItem: ({ task }: { task: { title: string } }) => <div data-testid="task-item">{task.title}</div>,
-}));
-
 // Avoid async state updates from calendar fetch effects in review modals.
 vi.mock('../../lib/external-calendar-events', () => ({
     fetchExternalCalendarEvents: vi.fn(() => new Promise(() => {})),
