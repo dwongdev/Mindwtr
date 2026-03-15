@@ -3445,15 +3445,14 @@ fn normalize_webdav_url(raw: &str) -> String {
     }
 }
 
-#[tauri::command]
-fn webdav_get_json(app: tauri::AppHandle) -> Result<Value, String> {
-    let config = read_config(&app);
+fn webdav_get_json_blocking(app: &tauri::AppHandle) -> Result<Value, String> {
+    let config = read_config(app);
     let url = normalize_webdav_url(&config.webdav_url.unwrap_or_default());
     if url.trim().is_empty() {
         return Err("WebDAV URL not configured".to_string());
     }
     let username = config.webdav_username.unwrap_or_default();
-    let password = match get_keyring_secret(&app, KEYRING_WEB_DAV_PASSWORD) {
+    let password = match get_keyring_secret(app, KEYRING_WEB_DAV_PASSWORD) {
         Ok(value) => value,
         Err(_) => None,
     }
@@ -3487,14 +3486,20 @@ fn webdav_get_json(app: tauri::AppHandle) -> Result<Value, String> {
 }
 
 #[tauri::command]
-fn webdav_put_json(app: tauri::AppHandle, data: Value) -> Result<bool, String> {
-    let config = read_config(&app);
+async fn webdav_get_json(app: tauri::AppHandle) -> Result<Value, String> {
+    tauri::async_runtime::spawn_blocking(move || webdav_get_json_blocking(&app))
+        .await
+        .map_err(|e| e.to_string())?
+}
+
+fn webdav_put_json_blocking(app: &tauri::AppHandle, data: &Value) -> Result<bool, String> {
+    let config = read_config(app);
     let url = normalize_webdav_url(&config.webdav_url.unwrap_or_default());
     if url.trim().is_empty() {
         return Err("WebDAV URL not configured".to_string());
     }
     let username = config.webdav_username.unwrap_or_default();
-    let password = match get_keyring_secret(&app, KEYRING_WEB_DAV_PASSWORD) {
+    let password = match get_keyring_secret(app, KEYRING_WEB_DAV_PASSWORD) {
         Ok(value) => value,
         Err(_) => None,
     }
@@ -3516,6 +3521,13 @@ fn webdav_put_json(app: tauri::AppHandle, data: Value) -> Result<bool, String> {
         return Err(format!("WebDAV error: {}", response.status()));
     }
     Ok(true)
+}
+
+#[tauri::command]
+async fn webdav_put_json(app: tauri::AppHandle, data: Value) -> Result<bool, String> {
+    tauri::async_runtime::spawn_blocking(move || webdav_put_json_blocking(&app, &data))
+        .await
+        .map_err(|e| e.to_string())?
 }
 
 #[tauri::command]
