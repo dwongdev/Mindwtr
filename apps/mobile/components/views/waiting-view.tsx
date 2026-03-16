@@ -10,6 +10,8 @@ import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useThemeColors } from '@/hooks/use-theme-colors';
+import { useMobileAreaFilter } from '@/hooks/use-mobile-area-filter';
+import { projectMatchesAreaFilter, taskMatchesAreaFilter } from '@/lib/area-filter';
 import { SwipeableTaskItem } from '../swipeable-task-item';
 import { TaskEditModal } from '../task-edit-modal';
 import {
@@ -21,7 +23,7 @@ import {
 
 
 export function WaitingView() {
-  const { tasks, projects, areas, updateTask, updateProject, deleteTask, highlightTaskId, setHighlightTask, settings } = useTaskStore();
+  const { tasks, projects, updateTask, updateProject, deleteTask, highlightTaskId, setHighlightTask, settings } = useTaskStore();
   const { isDark } = useTheme();
   const { t } = useLanguage();
   const [editingTask, setEditingTask] = useState<Task | null>(null);
@@ -33,6 +35,8 @@ export function WaitingView() {
   const timeEstimatesEnabled = settings?.features?.timeEstimates === true;
   const insets = useSafeAreaInsets();
   const navBarInset = Platform.OS === 'android' && insets.bottom >= 24 ? insets.bottom : 0;
+  const { areaById, resolvedAreaFilter } = useMobileAreaFilter();
+  const projectById = useMemo(() => new Map(projects.map((project) => [project.id, project])), [projects]);
   const taskListContentStyle = useMemo(
     () => [styles.taskListContent, navBarInset ? { paddingBottom: 16 + navBarInset } : null],
     [navBarInset],
@@ -40,7 +44,11 @@ export function WaitingView() {
 
   const waitingTasks = useMemo(() => {
     return tasks
-      .filter((task) => !task.deletedAt && task.status === 'waiting')
+      .filter((task) => (
+        !task.deletedAt
+        && task.status === 'waiting'
+        && taskMatchesAreaFilter(task, resolvedAreaFilter, projectById, areaById)
+      ))
       .sort((a, b) => {
         if (a.dueDate && !b.dueDate) return -1;
         if (!a.dueDate && b.dueDate) return 1;
@@ -51,7 +59,7 @@ export function WaitingView() {
         }
         return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
       });
-  }, [tasks]);
+  }, [tasks, resolvedAreaFilter, projectById, areaById]);
   const waitingPeople = useMemo(() => {
     const people = new Map<string, string>();
     for (const task of waitingTasks) {
@@ -76,17 +84,20 @@ export function WaitingView() {
       return true;
     });
   }, [selectedTimeEstimates, selectedWaitingPerson, timeEstimatesEnabled, waitingTasks]);
-  const areaById = useMemo(() => new Map(areas.map((area) => [area.id, area])), [areas]);
   const deferredProjects = useMemo(() => {
     return [...projects]
-      .filter((project) => !project.deletedAt && project.status === 'waiting')
+      .filter((project) => (
+        !project.deletedAt
+        && project.status === 'waiting'
+        && projectMatchesAreaFilter(project, resolvedAreaFilter, areaById)
+      ))
       .sort((a, b) => {
         const aOrder = Number.isFinite(a.order) ? (a.order as number) : Number.POSITIVE_INFINITY;
         const bOrder = Number.isFinite(b.order) ? (b.order as number) : Number.POSITIVE_INFINITY;
         if (aOrder !== bOrder) return aOrder - bOrder;
         return a.title.localeCompare(b.title);
       });
-  }, [projects]);
+  }, [projects, resolvedAreaFilter, areaById]);
 
   useEffect(() => {
     if (!selectedWaitingPerson) return;

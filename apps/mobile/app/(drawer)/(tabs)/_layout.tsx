@@ -7,6 +7,9 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useCallback, useRef, useState } from 'react';
 
 import { HapticTab } from '@/components/haptic-tab';
+import { MobileAreaSwitcher } from '@/components/mobile-area-switcher';
+import { MobileHeaderSyncBar } from '@/components/mobile-header-sync-bar';
+import { useMobileAreaFilter } from '@/hooks/use-mobile-area-filter';
 import { useMobileSyncBadge } from '@/hooks/use-mobile-sync-badge';
 import { useThemeColors } from '@/hooks/use-theme-colors';
 import { useLanguage } from '../../../contexts/language-context';
@@ -190,15 +193,24 @@ export default function TabLayout() {
     autoRecord: false,
   });
   const longPressRef = useRef(false);
+  const { selectedAreaIdForNewTasks } = useMobileAreaFilter();
+
+  const withSelectedArea = useCallback((initialProps?: Partial<Task> | null): Partial<Task> | undefined => {
+    const nextInitialProps = initialProps ? { ...initialProps } : {};
+    if (!nextInitialProps.projectId && !nextInitialProps.areaId && selectedAreaIdForNewTasks) {
+      nextInitialProps.areaId = selectedAreaIdForNewTasks;
+    }
+    return Object.keys(nextInitialProps).length > 0 ? nextInitialProps : undefined;
+  }, [selectedAreaIdForNewTasks]);
 
   const openQuickCapture = useCallback((options?: { initialValue?: string; initialProps?: Partial<Task>; autoRecord?: boolean }) => {
     setCaptureState({
       visible: true,
       initialValue: options?.initialValue ?? '',
-      initialProps: options?.initialProps ?? null,
+      initialProps: withSelectedArea(options?.initialProps) ?? null,
       autoRecord: options?.autoRecord ?? false,
     });
-  }, []);
+  }, [withSelectedArea]);
 
   const closeQuickCapture = useCallback(() => {
     setCaptureState({ visible: false, initialValue: '', initialProps: null, autoRecord: false });
@@ -240,8 +252,25 @@ export default function TabLayout() {
         headerShadowVisible: false,
         headerStyle: {
           backgroundColor: tc.cardBg,
-          borderBottomWidth: StyleSheet.hairlineWidth,
-          borderBottomColor: tc.border,
+          borderBottomWidth: 0,
+        },
+        headerBackground: () => (
+          <View
+            style={[
+              StyleSheet.absoluteFillObject,
+              {
+                backgroundColor: tc.cardBg,
+                borderBottomWidth: StyleSheet.hairlineWidth,
+                borderBottomColor: tc.border,
+              },
+            ]}
+          >
+            <MobileHeaderSyncBar />
+          </View>
+        ),
+        headerLeft: () => <MobileAreaSwitcher />,
+        headerLeftContainerStyle: {
+          paddingLeft: 16,
         },
         headerTintColor: tc.text,
         headerTitleStyle: {
@@ -257,6 +286,9 @@ export default function TabLayout() {
               </TouchableOpacity>
             </Link>
           ),
+        headerRightContainerStyle: {
+          paddingRight: 16,
+        },
         tabBarButton: (props) => (
           <HapticTab
             {...props}
@@ -388,7 +420,6 @@ const styles = StyleSheet.create({
     opacity: 0.85,
   },
   headerIconButton: {
-    marginRight: 16,
     padding: 4,
   },
   captureButton: {

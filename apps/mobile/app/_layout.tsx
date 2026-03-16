@@ -38,9 +38,9 @@ import { SYNC_BACKEND_KEY } from '../lib/sync-constants';
 import { updateMobileWidgetFromStore } from '../lib/widget-service';
 import { markStartupPhase, measureStartupPhase } from '../lib/startup-profiler';
 import { ErrorBoundary } from '../components/ErrorBoundary';
-import { SyncActivityIndicator } from '../components/SyncActivityIndicator';
 import { verifyPolyfills } from '../utils/verify-polyfills';
 import { logError, logWarn, setupGlobalErrorLogging } from '../lib/app-log';
+import { useMobileAreaFilter } from '../hooks/use-mobile-area-filter';
 import { useThemeColors } from '../hooks/use-theme-colors';
 import { parseShortcutCaptureUrl, type ShortcutCapturePayload } from '../lib/capture-deeplink';
 
@@ -212,6 +212,14 @@ function RootLayoutContent() {
     backend: 'off',
     readAt: 0,
   });
+  const { selectedAreaIdForNewTasks } = useMobileAreaFilter();
+  const buildQuickCaptureInitialProps = useCallback((initialProps?: QuickCaptureOptions['initialProps']) => {
+    const nextInitialProps = initialProps ? { ...initialProps } : {};
+    if (!nextInitialProps.projectId && !nextInitialProps.areaId && selectedAreaIdForNewTasks) {
+      nextInitialProps.areaId = selectedAreaIdForNewTasks;
+    }
+    return Object.keys(nextInitialProps).length > 0 ? nextInitialProps : undefined;
+  }, [selectedAreaIdForNewTasks]);
   if (!firstRenderLogged.current) {
     firstRenderLogged.current = true;
     markStartupPhase('js.root_layout.first_render');
@@ -719,8 +727,9 @@ function RootLayoutContent() {
             if (options?.initialValue) {
               params.set('initialValue', options.initialValue);
             }
-            if (options?.initialProps) {
-              params.set('initialProps', encodeURIComponent(JSON.stringify(options.initialProps)));
+            const initialProps = buildQuickCaptureInitialProps(options?.initialProps);
+            if (initialProps) {
+              params.set('initialProps', encodeURIComponent(JSON.stringify(initialProps)));
             }
             const query = params.toString();
             router.push((query ? `/capture-modal?${query}` : '/capture-modal') as never);
@@ -760,7 +769,6 @@ function RootLayoutContent() {
               }}
             />
           </Stack>
-          <SyncActivityIndicator />
           <StatusBar
             barStyle={isDark ? 'light-content' : 'dark-content'}
           />

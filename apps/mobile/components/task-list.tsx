@@ -25,6 +25,8 @@ import { useTheme } from '../contexts/theme-context';
 import { useLanguage } from '../contexts/language-context';
 
 import { useThemeColors } from '@/hooks/use-theme-colors';
+import { useMobileAreaFilter } from '@/hooks/use-mobile-area-filter';
+import { taskMatchesAreaFilter } from '@/lib/area-filter';
 import { buildCopilotConfig, isAIKeyRequired, loadAIKey } from '../lib/ai-config';
 import { logError } from '../lib/app-log';
 import {
@@ -157,6 +159,7 @@ function TaskListComponent({
   const timeEstimatesEnabled = settings?.features?.timeEstimates === true;
   const projectById = useMemo(() => new Map(projects.map((project) => [project.id, project])), [projects]);
   const hasActiveTimeEstimateFilters = timeEstimatesEnabled && selectedTimeEstimates.length > 0;
+  const { areaById, resolvedAreaFilter, selectedAreaIdForNewTasks } = useMobileAreaFilter();
 
   useEffect(() => {
     if (!timeEstimatesEnabled && selectedTimeEstimates.length > 0) {
@@ -186,10 +189,11 @@ function TaskListComponent({
         if (start && start > now) return false;
       }
       if (timeEstimatesEnabled && !matchesSelectedTimeEstimates(t, selectedTimeEstimates)) return false;
+      if (!taskMatchesAreaFilter(t, resolvedAreaFilter, projectById, areaById)) return false;
       return matchesStatus && matchesProject;
     });
     return filtered;
-  }, [tasks, statusFilter, projectId, selectedTimeEstimates, timeEstimatesEnabled]);
+  }, [tasks, statusFilter, projectId, selectedTimeEstimates, timeEstimatesEnabled, resolvedAreaFilter, projectById, areaById]);
 
   const orderedTasks = useMemo(() => {
     return sortTasksBy(filteredTasks, sortBy);
@@ -509,6 +513,12 @@ function TaskListComponent({
       const created = await addProject(projectTitle, DEFAULT_PROJECT_COLOR);
       if (!created) return;
       initialProps.projectId = created.id;
+    }
+    if (!initialProps.projectId && !initialProps.areaId && selectedAreaIdForNewTasks) {
+      initialProps.areaId = selectedAreaIdForNewTasks;
+    }
+    if (initialProps.projectId) {
+      initialProps.areaId = undefined;
     }
     if (copilotContext) {
       const nextContexts = Array.from(new Set([...(initialProps.contexts ?? []), copilotContext]));
