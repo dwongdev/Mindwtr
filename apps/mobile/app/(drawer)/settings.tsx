@@ -77,6 +77,7 @@ import {
     performMobileSync,
     subscribeMobileSyncActivityState,
 } from '../../lib/sync-service';
+import { isLikelyOfflineSyncError } from '../../lib/sync-service-utils';
 import { MOBILE_SYNC_BADGE_COLORS, resolveMobileSyncBadgeState } from '../../lib/sync-badge';
 import { requestNotificationPermission, startMobileNotifications } from '../../lib/notification-service';
 import { authorizeDropbox, getDropboxRedirectUri } from '../../lib/dropbox-oauth';
@@ -1787,6 +1788,13 @@ export default function SettingsPage() {
 
             resetSyncStatusForBackendSwitch();
             const result = await performMobileSync(syncBackend === 'file' ? syncPath || undefined : undefined);
+            if (result.skipped === 'offline' || isLikelyOfflineSyncError(result.error)) {
+                Alert.alert(
+                    localize('Offline', '离线'),
+                    localize('No internet connection. Sync skipped.', '当前无网络连接，已跳过同步。')
+                );
+                return;
+            }
             if (result.success) {
                 const conflictCount = (result.stats?.tasks.conflicts || 0) + (result.stats?.projects.conflicts || 0);
                 Alert.alert(

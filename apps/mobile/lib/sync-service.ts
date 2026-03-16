@@ -17,7 +17,7 @@ import {
 } from './dropbox-sync';
 import * as FileSystem from 'expo-file-system/legacy';
 import * as Network from 'expo-network';
-import { formatSyncErrorMessage, getFileSyncBaseDir, isLikelyFilePath, normalizeFileSyncPath, resolveBackend, type SyncBackend } from './sync-service-utils';
+import { formatSyncErrorMessage, getFileSyncBaseDir, isLikelyFilePath, isLikelyOfflineSyncError, normalizeFileSyncPath, resolveBackend, type SyncBackend } from './sync-service-utils';
 import { createWebdavSyncRateLimitController } from './sync-rate-limit';
 import {
   SYNC_PATH_KEY,
@@ -43,7 +43,8 @@ const IOS_TEMP_INBOX_PATH_PATTERN = /\/tmp\/[^/]*-Inbox\//i;
 const INVALID_CONFIG_CHAR_PATTERN = /[\u0000-\u001F\u007F]/;
 type MobileSyncActivityState = 'idle' | 'syncing';
 type MobileSyncActivityListener = (state: MobileSyncActivityState) => void;
-type MobileSyncResult = { success: boolean; stats?: MergeStats; error?: string };
+type MobileSyncSkipReason = 'offline';
+type MobileSyncResult = { success: boolean; stats?: MergeStats; error?: string; skipped?: MobileSyncSkipReason };
 const isFossBuild = (() => {
   const extra = Constants.expoConfig?.extra as { isFossBuild?: unknown } | undefined;
   return extra?.isFossBuild === true || extra?.isFossBuild === 'true';
@@ -185,8 +186,17 @@ const getAttachmentsArray = (attachments: Attachment[] | undefined): Attachment[
   Array.isArray(attachments) ? attachments : []
 );
 
+const isRemoteSyncBackend = (backend: SyncBackend): boolean => (
+  backend === 'webdav' || backend === 'cloud'
+);
+
+const buildOfflineSkipResult = (): MobileSyncResult => ({
+  success: true,
+  skipped: 'offline',
+});
+
 const shouldSkipSyncForOfflineState = async (backend: SyncBackend): Promise<boolean> => {
-  if (backend !== 'webdav' && backend !== 'cloud') return false;
+  if (!isRemoteSyncBackend(backend)) return false;
   try {
     const state = await Network.getNetworkStateAsync();
     const isConnected = state.isConnected ?? false;
@@ -250,7 +260,7 @@ const mobileSyncOrchestrator = createSyncOrchestrator<string | undefined, Mobile
       return { success: true };
     }
     if (await shouldSkipSyncForOfflineState(backend)) {
-      return { success: true };
+      return buildOfflineSkipResult();
     }
 
     setMobileSyncActivityState('syncing');
@@ -291,7 +301,7 @@ const mobileSyncOrchestrator = createSyncOrchestrator<string | undefined, Mobile
       }
     };
     try {
-      if (backend === 'webdav' || backend === 'cloud') {
+      if (isRemoteSyncBackend(backend)) {
         try {
           networkSubscription = Network.addNetworkStateListener((state) => {
             const isConnected = state.isConnected ?? false;
@@ -796,6 +806,23 @@ const mobileSyncOrchestrator = createSyncOrchestrator<string | undefined, Mobile
           wroteLocal = true;
         }
         return { success: true };
+      }
+      if (isRemoteSyncBackend(backend) && (networkWentOffline || isLikelyOfflineSyncError(error))) {
+        if (preSyncedLocalData && !wroteLocal) {
+          const inMemorySnapshot = getInMemoryAppDataSnapshot();
+          const reconciledData = mergeAppData(preSyncedLocalData, inMemorySnapshot);
+          await mobileStorage.saveData(reconciledData);
+          wroteLocal = true;
+        }
+        if (wroteLocal) {
+          try {
+            await useTaskStore.getState().fetchData();
+          } catch (fetchError) {
+            logSyncWarning('[Mobile] Failed to refresh store after offline sync skip', fetchError);
+          }
+        }
+        logSyncInfo('Sync skipped after offline detection', { backend, step });
+        return buildOfflineSkipResult();
       }
       const now = new Date().toISOString();
       const logPath = await logSyncError(error, { backend, step, url: syncUrl });
