@@ -100,13 +100,19 @@ jobs:
         uses: dtolnay/rust-toolchain@631a55b12751854ce901bb631d5902ceb48146f7 # stable
 
       - name: Ensure Rust toolchain (retry)
-        uses: nick-fields/retry@ce71cc2ab81d554ebbe88c79ab5975992d79ba08 # v3
-        with:
-          timeout_minutes: 10
-          max_attempts: 3
-          command: |
-            rustup toolchain install stable --profile minimal --no-self-update
-            rustup default stable
+        shell: bash
+        run: |
+          for attempt in 1 2 3; do
+            if rustup toolchain install stable --profile minimal --no-self-update && rustup default stable; then
+              exit 0
+            fi
+            if [ "$attempt" -eq 3 ]; then
+              echo "Rust toolchain setup failed after $attempt attempts" >&2
+              exit 1
+            fi
+            echo "Rust toolchain setup failed on attempt $attempt, retrying..." >&2
+            sleep 10
+          done
 
       - name: Cache Rust artifacts
         uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1

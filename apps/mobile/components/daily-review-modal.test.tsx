@@ -134,7 +134,7 @@ describe('DailyReviewScreen', () => {
       nextStepButton.props.onPress();
     });
 
-    const taskRows = tree.root.findAllByType('SwipeableTaskItem');
+    const taskRows = tree.root.findAll((node) => String(node.type) === 'SwipeableTaskItem');
     expect(taskRows).toHaveLength(1);
     expect(taskRows[0].props.showFocusToggle).toBe(true);
     expect(taskRows[0].props.hideStatusBadge).toBe(true);

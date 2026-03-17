@@ -992,18 +992,19 @@ function mergeEntitiesWithStats<T extends MergeableEntity>(
         const localItem = localMap.get(id);
         const incomingItem = incomingMap.get(id);
 
-        if (!localItem && !incomingItem) {
+        if (localItem === undefined && incomingItem === undefined) {
             continue;
         }
 
-        if (!incomingItem) {
+        if (incomingItem === undefined) {
+            if (localItem === undefined) continue;
             stats.localOnly += 1;
             stats.resolvedUsingLocal += 1;
             merged.push(normalizeTimestamps(localItem));
             continue;
         }
 
-        if (!localItem) {
+        if (localItem === undefined) {
             stats.incomingOnly += 1;
             stats.resolvedUsingIncoming += 1;
             merged.push(normalizeTimestamps(incomingItem));
