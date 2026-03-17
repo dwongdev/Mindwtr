@@ -1,0 +1,98 @@
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { act, cleanup, render } from '@testing-library/react';
+import { useTaskStore } from '@mindwtr/core';
+
+import { LanguageProvider } from '../contexts/language-context';
+import { useUiStore } from '../store/ui-store';
+import { useObsidianStore } from '../store/obsidian-store';
+import { Layout } from './Layout';
+
+vi.mock('../lib/sync-service', () => ({
+    SyncService: {
+        getSyncStatus: () => ({ inFlight: false }),
+        subscribeSyncStatus: () => () => {},
+    },
+}));
+
+const initialTaskState = useTaskStore.getState();
+const initialUiState = useUiStore.getState();
+const initialObsidianState = useObsidianStore.getState();
+
+const renderLayout = () => render(
+    <LanguageProvider>
+        <Layout currentView="inbox" onViewChange={vi.fn()}>
+            <div>Main content</div>
+        </Layout>
+    </LanguageProvider>
+);
+
+const resetStores = () => {
+    act(() => {
+        useTaskStore.setState(initialTaskState, true);
+        useUiStore.setState(initialUiState, true);
+        useObsidianStore.setState(initialObsidianState, true);
+    });
+};
+
+beforeEach(() => {
+    resetStores();
+    act(() => {
+        useTaskStore.setState((state) => ({
+            ...state,
+            tasks: [],
+            projects: [],
+            areas: [],
+            settings: {
+                ...state.settings,
+                sidebarCollapsed: false,
+                filters: {
+                    ...(state.settings?.filters ?? {}),
+                    areaId: 'all',
+                },
+            },
+            error: null,
+        }));
+        useUiStore.setState((state) => ({
+            ...state,
+            isFocusMode: false,
+        }));
+        useObsidianStore.setState((state) => ({
+            ...state,
+            config: {
+                ...state.config,
+                enabled: false,
+            },
+            isInitialized: true,
+        }));
+    });
+});
+
+afterEach(() => {
+    cleanup();
+    resetStores();
+    vi.clearAllMocks();
+});
+
+describe('Layout Obsidian nav visibility', () => {
+    it('hides Obsidian when the integration is disabled', () => {
+        const { queryByRole } = renderLayout();
+
+        expect(queryByRole('button', { name: 'Obsidian' })).not.toBeInTheDocument();
+    });
+
+    it('shows Obsidian when the integration is enabled', () => {
+        act(() => {
+            useObsidianStore.setState((state) => ({
+                ...state,
+                config: {
+                    ...state.config,
+                    enabled: true,
+                },
+            }));
+        });
+
+        const { getByRole } = renderLayout();
+
+        expect(getByRole('button', { name: 'Obsidian' })).toBeInTheDocument();
+    });
+});

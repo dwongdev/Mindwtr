@@ -26,6 +26,7 @@ import { cn } from '../lib/utils';
 import { shallow, useTaskStore, safeParseDate, safeFormatDate } from '@mindwtr/core';
 import { useLanguage } from '../contexts/language-context';
 import { useUiStore } from '../store/ui-store';
+import { useObsidianStore } from '../store/obsidian-store';
 import { reportError } from '../lib/report-error';
 import { ToastHost } from './ToastHost';
 import { AREA_FILTER_ALL, resolveAreaFilter, taskMatchesAreaFilter } from '../lib/area-filter';
@@ -64,6 +65,7 @@ export function Layout({ children, currentView, onViewChange }: LayoutProps) {
     const { t } = useLanguage();
     const isCollapsed = settings?.sidebarCollapsed ?? false;
     const isFocusMode = useUiStore((state) => state.isFocusMode);
+    const isObsidianEnabled = useObsidianStore((state) => state.config.enabled);
     const tOrFallback = (key: string, fallback: string) => {
         const value = t(key);
         return value === key ? fallback : value;
@@ -198,7 +200,9 @@ export function Layout({ children, currentView, onViewChange }: LayoutProps) {
                 { id: 'calendar', labelKey: 'nav.calendar', icon: Calendar },
                 { id: 'review', labelKey: 'nav.review', icon: CheckCircle2 },
                 { id: 'contexts', labelKey: 'nav.contexts', icon: Tag },
-                { id: 'obsidian', labelKey: 'nav.obsidian', fallbackLabel: 'Obsidian', icon: BookOpen },
+                ...(isObsidianEnabled
+                    ? [{ id: 'obsidian', labelKey: 'nav.obsidian', fallbackLabel: 'Obsidian', icon: BookOpen }]
+                    : []),
                 { id: 'board', labelKey: 'nav.board', icon: Layers },
                 { id: 'tutorial', labelKey: 'nav.tutorial', icon: HelpCircle },
             ],
@@ -211,7 +215,7 @@ export function Layout({ children, currentView, onViewChange }: LayoutProps) {
                 { id: 'trash', labelKey: 'nav.trash', icon: Trash2 },
             ],
         },
-    ]), [inboxCount, t]);
+    ]), [inboxCount, isObsidianEnabled, t]);
 
     const triggerSearch = () => {
         window.dispatchEvent(new CustomEvent('mindwtr:open-search'));

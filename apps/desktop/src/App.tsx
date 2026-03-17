@@ -62,6 +62,7 @@ function App() {
     const [externalSyncChange, setExternalSyncChange] = useState<ExternalSyncChange | null>(null);
     const [resolvingExternalSync, setResolvingExternalSync] = useState(false);
     const closePromptRememberRef = useRef(false);
+    const isObsidianEnabled = useObsidianStore((state) => state.config.enabled);
 
     const setClosePromptRememberValue = useCallback((next: boolean) => {
         closePromptRememberRef.current = next;
@@ -453,16 +454,22 @@ function App() {
     };
 
     const handleViewChange = useCallback((view: string) => {
-        setCurrentView(view);
-        if (view === 'settings') {
+        const nextView = view === 'obsidian' && !useObsidianStore.getState().config.enabled ? 'settings' : view;
+        setCurrentView(nextView);
+        if (nextView === 'settings') {
             beginSettingsOpenTrace('handleViewChange');
-            setActiveView(view);
+            setActiveView(nextView);
             return;
         }
         startTransition(() => {
-            setActiveView(view);
+            setActiveView(nextView);
         });
     }, [startTransition]);
+
+    useEffect(() => {
+        if (isObsidianEnabled || currentView !== 'obsidian') return;
+        handleViewChange('settings');
+    }, [currentView, handleViewChange, isObsidianEnabled]);
 
     const LoadingFallback = ({ view }: { view: string }) => {
         useEffect(() => {
