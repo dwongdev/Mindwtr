@@ -1157,6 +1157,52 @@ describe('Sync Logic', () => {
             expect(result.stats.tasks.resolvedUsingLocal).toBeGreaterThan(0);
         });
 
+        it('captures conflict diagnostics for content and revision drift', () => {
+            const now = '2026-03-16T00:00:00.000Z';
+            const local = mockAppData([
+                {
+                    ...createMockTask('content-conflict', now),
+                    title: 'Local title',
+                },
+                {
+                    ...createMockTask('revision-conflict', now),
+                    rev: 2,
+                    revBy: 'device-local',
+                },
+            ]);
+            const incoming = mockAppData([
+                {
+                    ...createMockTask('content-conflict', now),
+                    title: 'Incoming title',
+                },
+                {
+                    ...createMockTask('revision-conflict', now),
+                    rev: 1,
+                    revBy: 'device-remote',
+                },
+            ]);
+
+            const result = mergeAppDataWithStats(local, incoming);
+            const contentSample = result.stats.tasks.conflictSamples?.find((sample) => sample.id === 'content-conflict');
+            const revisionSample = result.stats.tasks.conflictSamples?.find((sample) => sample.id === 'revision-conflict');
+
+            expect(result.stats.tasks.conflictReasonCounts).toEqual({
+                content: 1,
+                revision: 1,
+            });
+            expect(contentSample).toMatchObject({
+                reasons: ['content'],
+                winner: 'local',
+                diffKeys: ['title'],
+            });
+            expect(revisionSample).toMatchObject({
+                reasons: ['revision'],
+                winner: 'local',
+                diffKeys: [],
+            });
+            expect(revisionSample?.localComparableHash).toBe(revisionSample?.incomingComparableHash);
+        });
+
         it('does not count conflict when only timestamp differs for legacy items', () => {
             const local = mockAppData([createMockTask('1', '2026-02-22T22:30:40.000Z')]);
             const incoming = mockAppData([createMockTask('1', '2026-02-22T22:30:11.000Z')]);

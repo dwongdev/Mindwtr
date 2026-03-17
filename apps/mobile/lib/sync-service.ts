@@ -69,6 +69,31 @@ const logSyncInfo = (message: string, extra?: Record<string, string>) => {
   void logInfo(message, { scope: 'sync', extra });
 };
 
+const buildConflictDiagnosticsLogExtra = (stats: MergeStats): Record<string, string> => {
+  const reasonCountsByEntity = Object.fromEntries(
+    Object.entries({
+      tasks: stats.tasks.conflictReasonCounts ?? {},
+      projects: stats.projects.conflictReasonCounts ?? {},
+      sections: stats.sections.conflictReasonCounts ?? {},
+      areas: stats.areas.conflictReasonCounts ?? {},
+    }).filter(([, counts]) => Object.keys(counts).length > 0)
+  );
+  const conflictSamples = [
+    ...(stats.tasks.conflictSamples ?? []).map((sample) => ({ entity: 'task', ...sample })),
+    ...(stats.projects.conflictSamples ?? []).map((sample) => ({ entity: 'project', ...sample })),
+    ...(stats.sections.conflictSamples ?? []).map((sample) => ({ entity: 'section', ...sample })),
+    ...(stats.areas.conflictSamples ?? []).map((sample) => ({ entity: 'area', ...sample })),
+  ].slice(0, 6);
+  const extra: Record<string, string> = {};
+  if (Object.keys(reasonCountsByEntity).length > 0) {
+    extra.conflictReasonCounts = JSON.stringify(reasonCountsByEntity);
+  }
+  if (conflictSamples.length > 0) {
+    extra.conflictSamples = JSON.stringify(conflictSamples);
+  }
+  return extra;
+};
+
 const sanitizeConfigValue = (value: unknown): string | null => {
   if (typeof value !== 'string') return null;
   if (!value) return null;
@@ -644,7 +669,7 @@ const mobileSyncOrchestrator = createSyncOrchestrator<string | undefined, Mobile
         + (stats.sections.timestampAdjustments || 0)
         + (stats.areas.timestampAdjustments || 0);
       if (conflictCount > 0 || maxClockSkewMs > CLOCK_SKEW_THRESHOLD_MS || timestampAdjustments > 0) {
-        const conflictSamples = [
+        const conflictIds = [
           ...(stats.tasks.conflictIds || []),
           ...(stats.projects.conflictIds || []),
           ...(stats.sections.conflictIds || []),
@@ -658,7 +683,8 @@ const mobileSyncOrchestrator = createSyncOrchestrator<string | undefined, Mobile
               conflicts: String(conflictCount),
               maxClockSkewMs: String(Math.round(maxClockSkewMs)),
               timestampFixes: String(timestampAdjustments),
-              conflictSamples: conflictSamples.join(','),
+              conflictIds: conflictIds.join(','),
+              ...buildConflictDiagnosticsLogExtra(stats),
             },
           }
         );

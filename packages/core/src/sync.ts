@@ -30,6 +30,29 @@ export interface EntityMergeStats {
     maxClockSkewMs: number;
     timestampAdjustments: number;
     timestampAdjustmentIds: string[];
+    conflictReasonCounts?: Partial<Record<ConflictReason, number>>;
+    conflictSamples?: MergeConflictSample[];
+}
+
+export type ConflictReason = 'revision' | 'deleteState' | 'content';
+
+export interface MergeConflictSample {
+    id: string;
+    winner: 'local' | 'incoming';
+    reasons: ConflictReason[];
+    hasRevision: boolean;
+    timeDiffMs: number;
+    localUpdatedAt: string;
+    incomingUpdatedAt: string;
+    localDeletedAt?: string;
+    incomingDeletedAt?: string;
+    localRev: number;
+    incomingRev: number;
+    localRevBy?: string;
+    incomingRevBy?: string;
+    localComparableHash: string;
+    incomingComparableHash: string;
+    diffKeys: string[];
 }
 
 export interface MergeStats {
@@ -805,6 +828,8 @@ function createEmptyEntityStats(localTotal: number, incomingTotal: number): Enti
         maxClockSkewMs: 0,
         timestampAdjustments: 0,
         timestampAdjustmentIds: [],
+        conflictReasonCounts: {},
+        conflictSamples: [],
     };
 }
 
@@ -819,6 +844,9 @@ const CONTENT_DIFF_IGNORED_KEYS = new Set([
     'order',
     'orderNum',
 ]);
+
+const CONFLICT_SAMPLE_LIMIT = 5;
+const CONFLICT_DIFF_KEY_LIMIT = 8;
 
 type ComparisonNormalizer<T> = (item: T) => unknown;
 
@@ -875,9 +903,6 @@ const toComparableValue = (value: unknown, options?: { includeIgnoredKeys?: bool
     return value;
 };
 
-const hasContentDifference = (localItem: unknown, incomingItem: unknown): boolean =>
-    JSON.stringify(toComparableValue(localItem)) !== JSON.stringify(toComparableValue(incomingItem));
-
 const comparableSignatureCache = new WeakMap<object, string>();
 const deterministicSignatureCache = new WeakMap<object, string>();
 
@@ -901,6 +926,73 @@ const toDeterministicSignature = (value: unknown): string => {
         return signature;
     }
     return JSON.stringify(toComparableValue(value, { includeIgnoredKeys: true }));
+};
+
+const hashComparableSignature = (signature: string): string => {
+    let hash = 0x811c9dc5;
+    for (let index = 0; index < signature.length; index += 1) {
+        hash ^= signature.charCodeAt(index);
+        hash = Math.imul(hash, 0x01000193);
+    }
+    return (hash >>> 0).toString(16).padStart(8, '0');
+};
+
+const collectComparableDiffKeys = (
+    localValue: unknown,
+    incomingValue: unknown,
+    limit: number = CONFLICT_DIFF_KEY_LIMIT
+): string[] => {
+    const diffKeys: string[] = [];
+    const visit = (left: unknown, right: unknown, path: string) => {
+        if (diffKeys.length >= limit) return;
+        if (Object.is(left, right)) return;
+
+        const leftIsArray = Array.isArray(left);
+        const rightIsArray = Array.isArray(right);
+        if (leftIsArray || rightIsArray) {
+            if (!leftIsArray || !rightIsArray) {
+                diffKeys.push(path || '(root)');
+                return;
+            }
+            if (left.length !== right.length) {
+                diffKeys.push(path || '(root)');
+                return;
+            }
+            for (let index = 0; index < left.length; index += 1) {
+                visit(left[index], right[index], `${path}[${index}]`);
+                if (diffKeys.length >= limit) return;
+            }
+            return;
+        }
+
+        const leftIsObject = typeof left === 'object' && left !== null;
+        const rightIsObject = typeof right === 'object' && right !== null;
+        if (leftIsObject || rightIsObject) {
+            if (!leftIsObject || !rightIsObject) {
+                diffKeys.push(path || '(root)');
+                return;
+            }
+            const leftRecord = left as Record<string, unknown>;
+            const rightRecord = right as Record<string, unknown>;
+            const keys = Array.from(new Set([...Object.keys(leftRecord), ...Object.keys(rightRecord)])).sort();
+            for (const key of keys) {
+                const nextPath = path ? `${path}.${key}` : key;
+                if (!(key in leftRecord) || !(key in rightRecord)) {
+                    diffKeys.push(nextPath);
+                    if (diffKeys.length >= limit) return;
+                    continue;
+                }
+                visit(leftRecord[key], rightRecord[key], nextPath);
+                if (diffKeys.length >= limit) return;
+            }
+            return;
+        }
+
+        diffKeys.push(path || '(root)');
+    };
+
+    visit(localValue, incomingValue, '');
+    return diffKeys;
 };
 
 const chooseDeterministicWinner = <T>(localItem: T, incomingItem: T): T => {
@@ -1034,10 +1126,16 @@ function mergeEntitiesWithStats<T extends MergeableEntity>(
         const revByDiff = localRevBy !== incomingRevBy;
         const comparableLocalItem = normalizeForComparison ? normalizeForComparison(normalizedLocalItem) : normalizedLocalItem;
         const comparableIncomingItem = normalizeForComparison ? normalizeForComparison(normalizedIncomingItem) : normalizedIncomingItem;
+        const localComparableSignature = toComparableSignature(comparableLocalItem);
+        const incomingComparableSignature = toComparableSignature(comparableIncomingItem);
         const shouldCheckContentDiff = hasRevision
             ? revDiff === 0 && localDeleted === incomingDeleted
             : localDeleted === incomingDeleted;
-        const contentDiff = shouldCheckContentDiff ? hasContentDifference(comparableLocalItem, comparableIncomingItem) : false;
+        const contentDiff = shouldCheckContentDiff ? localComparableSignature !== incomingComparableSignature : false;
+        const conflictReasons: ConflictReason[] = [];
+        if (localDeleted !== incomingDeleted) conflictReasons.push('deleteState');
+        if (hasRevision && revDiff !== 0) conflictReasons.push('revision');
+        if (contentDiff) conflictReasons.push('content');
 
         const differs = hasRevision
             ? revDiff !== 0 || localDeleted !== incomingDeleted || contentDiff
@@ -1046,6 +1144,10 @@ function mergeEntitiesWithStats<T extends MergeableEntity>(
         if (differs) {
             stats.conflicts += 1;
             if (stats.conflictIds.length < 20) stats.conflictIds.push(id);
+            for (const reason of conflictReasons) {
+                stats.conflictReasonCounts = stats.conflictReasonCounts ?? {};
+                stats.conflictReasonCounts[reason] = (stats.conflictReasonCounts[reason] || 0) + 1;
+            }
         }
 
         const timeDiff = safeIncomingTime - safeLocalTime;
@@ -1110,6 +1212,35 @@ function mergeEntitiesWithStats<T extends MergeableEntity>(
 
         if (winner.deletedAt && (!normalizedLocalItem.deletedAt || !normalizedIncomingItem.deletedAt || differs)) {
             stats.deletionsWon += 1;
+        }
+
+        if (differs && (stats.conflictSamples?.length || 0) < CONFLICT_SAMPLE_LIMIT) {
+            const comparableLocalValue = contentDiff ? toComparableValue(comparableLocalItem) : undefined;
+            const comparableIncomingValue = contentDiff ? toComparableValue(comparableIncomingItem) : undefined;
+            const diffKeys = contentDiff && comparableLocalValue !== undefined && comparableIncomingValue !== undefined
+                ? collectComparableDiffKeys(comparableLocalValue, comparableIncomingValue, CONFLICT_DIFF_KEY_LIMIT)
+                : [];
+            stats.conflictSamples = stats.conflictSamples ?? [];
+            stats.conflictSamples.push({
+                id,
+                winner: winner === normalizedIncomingItem ? 'incoming' : 'local',
+                reasons: conflictReasons,
+                hasRevision,
+                timeDiffMs: Number.isFinite(safeIncomingTime) && Number.isFinite(safeLocalTime)
+                    ? safeIncomingTime - safeLocalTime
+                    : 0,
+                localUpdatedAt: normalizedLocalItem.updatedAt,
+                incomingUpdatedAt: normalizedIncomingItem.updatedAt,
+                localDeletedAt: normalizedLocalItem.deletedAt,
+                incomingDeletedAt: normalizedIncomingItem.deletedAt,
+                localRev,
+                incomingRev,
+                localRevBy: localRevBy || undefined,
+                incomingRevBy: incomingRevBy || undefined,
+                localComparableHash: hashComparableSignature(localComparableSignature),
+                incomingComparableHash: hashComparableSignature(incomingComparableSignature),
+                diffKeys,
+            });
         }
 
         const mergedItem = mergeConflict ? mergeConflict(normalizedLocalItem, normalizedIncomingItem, winner) : winner;
