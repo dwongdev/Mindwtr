@@ -359,16 +359,16 @@ Mindwtr 的发展离不开用户与贡献者的支持，感谢大家一起把它
 
 <p align="center">
   <a href="https://github.com/jarrydstan" title="@jarrydstan">
-    <img src="https://github.com/jarrydstan.png?size=96" width="56" height="56" alt="@jarrydstan" style="border-radius: 50%; margin: 0 6px;" />
+    <img src="docs/assets/sponsors/jarrydstan.png" width="60" height="60" alt="@jarrydstan" />
   </a>
   <a href="https://github.com/ronmolenda" title="@ronmolenda">
-    <img src="https://github.com/ronmolenda.png?size=96" width="56" height="56" alt="@ronmolenda" style="border-radius: 50%; margin: 0 6px;" />
+    <img src="docs/assets/sponsors/ronmolenda.png" width="60" height="60" alt="@ronmolenda" />
   </a>
   <a href="https://github.com/laripernu" title="@laripernu">
-    <img src="https://github.com/laripernu.png?size=96" width="56" height="56" alt="@laripernu" style="border-radius: 50%; margin: 0 6px;" />
+    <img src="docs/assets/sponsors/laripernu.png" width="60" height="60" alt="@laripernu" />
   </a>
   <a href="https://github.com/karl1990" title="@karl1990">
-    <img src="https://github.com/karl1990.png?size=96" width="56" height="56" alt="@karl1990" style="border-radius: 50%; margin: 0 6px;" />
+    <img src="docs/assets/sponsors/karl1990.png" width="60" height="60" alt="@karl1990" />
   </a>
 </p>
 
