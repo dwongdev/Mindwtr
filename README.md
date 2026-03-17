@@ -352,3 +352,36 @@ You can help in several ways:
 - 🛠️ [Cloud Deployment](https://github.com/dongdongbh/Mindwtr/wiki/Cloud-Deployment)
 - 🧠 [MCP Server](https://github.com/dongdongbh/Mindwtr/wiki/MCP-Server)
 - 📝 [Release Notes Index](docs/release-notes/README.md)
+
+## Sponsors
+
+Thanks to these monthly sponsors for supporting Mindwtr.
+
+<table align="center">
+  <tr>
+    <td align="center">
+      <a href="https://github.com/ronmolenda">
+        <img src="https://github.com/ronmolenda.png?size=96" width="72" height="72" alt="@ronmolenda"><br />
+        <sub><b>@ronmolenda</b></sub>
+      </a>
+    </td>
+    <td align="center">
+      <a href="https://github.com/jarrydstan">
+        <img src="https://github.com/jarrydstan.png?size=96" width="72" height="72" alt="@jarrydstan"><br />
+        <sub><b>@jarrydstan</b></sub>
+      </a>
+    </td>
+    <td align="center">
+      <a href="https://github.com/laripernu">
+        <img src="https://github.com/laripernu.png?size=96" width="72" height="72" alt="@laripernu"><br />
+        <sub><b>@laripernu</b></sub>
+      </a>
+    </td>
+    <td align="center">
+      <a href="https://github.com/karl1990">
+        <img src="https://github.com/karl1990.png?size=96" width="72" height="72" alt="@karl1990"><br />
+        <sub><b>@karl1990</b></sub>
+      </a>
+    </td>
+  </tr>
+</table>

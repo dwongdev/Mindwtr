@@ -348,3 +348,40 @@ Mindwtr 的发展离不开用户与贡献者的支持，感谢大家一起把它
 - 🚀 [快速开始](https://github.com/dongdongbh/Mindwtr/wiki/Getting-Started)
 - ❓ [FAQ](https://github.com/dongdongbh/Mindwtr/wiki/FAQ)
 - 🔄 [数据与同步](https://github.com/dongdongbh/Mindwtr/wiki/Data-and-Sync)
+- ☁️ [云同步](https://github.com/dongdongbh/Mindwtr/wiki/Cloud-Sync)
+- 🛠️ [云端部署](https://github.com/dongdongbh/Mindwtr/wiki/Cloud-Deployment)
+- 🧠 [MCP 服务器](https://github.com/dongdongbh/Mindwtr/wiki/MCP-Server)
+- 📝 [版本说明索引](docs/release-notes/README.md)
+
+## 赞助者
+
+感谢这些按月赞助 Mindwtr 的朋友。
+
+<table align="center">
+  <tr>
+    <td align="center">
+      <a href="https://github.com/ronmolenda">
+        <img src="https://github.com/ronmolenda.png?size=96" width="72" height="72" alt="@ronmolenda"><br />
+        <sub><b>@ronmolenda</b></sub>
+      </a>
+    </td>
+    <td align="center">
+      <a href="https://github.com/jarrydstan">
+        <img src="https://github.com/jarrydstan.png?size=96" width="72" height="72" alt="@jarrydstan"><br />
+        <sub><b>@jarrydstan</b></sub>
+      </a>
+    </td>
+    <td align="center">
+      <a href="https://github.com/laripernu">
+        <img src="https://github.com/laripernu.png?size=96" width="72" height="72" alt="@laripernu"><br />
+        <sub><b>@laripernu</b></sub>
+      </a>
+    </td>
+    <td align="center">
+      <a href="https://github.com/karl1990">
+        <img src="https://github.com/karl1990.png?size=96" width="72" height="72" alt="@karl1990"><br />
+        <sub><b>@karl1990</b></sub>
+      </a>
+    </td>
+  </tr>
+</table>
