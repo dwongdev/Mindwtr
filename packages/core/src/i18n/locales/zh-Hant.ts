@@ -363,6 +363,7 @@ export const zhHant: Record<string, string> = {
         'projects.areaFilter': '領域篩選',
         'projects.allAreas': '所有領域',
         'projects.noArea': '無領域',
+        'projects.deletedAreaFilterResetAlert': '所選領域已被刪除，因此篩選器已重設為所有領域。',
         'projects.search': '搜索項目',
         'sections.search': '搜索分區',
         'areas.search': '搜索領域',

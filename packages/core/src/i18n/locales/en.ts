@@ -399,6 +399,7 @@ export const en: Record<string, string> = {
         'projects.areaFilter': 'Area filter',
         'projects.allAreas': 'All areas',
         'projects.noArea': 'No area',
+        'projects.deletedAreaFilterResetAlert': 'The selected area was removed, so the filter was reset to All areas.',
         'projects.search': 'Search projects',
         'sections.search': 'Search sections',
         'areas.search': 'Search areas',

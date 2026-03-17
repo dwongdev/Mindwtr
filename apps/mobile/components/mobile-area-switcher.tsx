@@ -58,7 +58,7 @@ export function MobileAreaSwitcher() {
     staleFilterAlertShown.current = true;
     Alert.alert(
       t('projects.areaFilter'),
-      'The selected area was removed, so the filter was reset to All Areas.',
+      t('projects.deletedAreaFilterResetAlert'),
     );
   }, [didResetDeletedAreaFilter, t]);
 
