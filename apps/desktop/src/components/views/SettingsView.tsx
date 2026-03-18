@@ -959,63 +959,26 @@ export function SettingsView() {
             scanSuccess: t.obsidianScanSuccess,
         },
     });
+    // Keep integrations state at SettingsView scope so the page does not remount and flicker on parent rerenders.
+    const {
+        externalCalendars,
+        newCalendarName,
+        newCalendarUrl,
+        calendarError,
+        systemCalendarPermission,
+        setNewCalendarName,
+        setNewCalendarUrl,
+        handleAddCalendar,
+        handleToggleCalendar,
+        handleRemoveCalendar,
+        handleRequestSystemCalendarPermission,
+    } = useCalendarSettings({ showSaved, settings, updateSettings, isMac });
     const syncPreferences = settings?.syncPreferences ?? {};
     const handleUpdateSyncPreferences = useCallback((updates: Partial<NonNullable<AppData['settings']['syncPreferences']>>) => {
         updateSettings({ syncPreferences: { ...syncPreferences, ...updates } })
             .then(showSaved)
             .catch((error) => reportError('Failed to update sync preferences', error));
     }, [syncPreferences, showSaved, updateSettings]);
-
-    const IntegrationsPage = () => {
-        const {
-            externalCalendars,
-            newCalendarName,
-            newCalendarUrl,
-            calendarError,
-            systemCalendarPermission,
-            setNewCalendarName,
-            setNewCalendarUrl,
-            handleAddCalendar,
-            handleToggleCalendar,
-            handleRemoveCalendar,
-            handleRequestSystemCalendarPermission,
-        } = useCalendarSettings({ showSaved, settings, updateSettings, isMac });
-
-        return (
-            <SettingsIntegrationsPage
-                t={t}
-                isTauri={isTauri}
-                newCalendarName={newCalendarName}
-                newCalendarUrl={newCalendarUrl}
-                calendarError={calendarError}
-                externalCalendars={externalCalendars}
-                showSystemCalendarSection={isMac}
-                systemCalendarPermission={systemCalendarPermission}
-                onCalendarNameChange={setNewCalendarName}
-                onCalendarUrlChange={setNewCalendarUrl}
-                onAddCalendar={handleAddCalendar}
-                onToggleCalendar={handleToggleCalendar}
-                onRemoveCalendar={handleRemoveCalendar}
-                onRequestSystemCalendarPermission={handleRequestSystemCalendarPermission}
-                maskCalendarUrl={maskCalendarUrl}
-                obsidianVaultPath={obsidianVaultPath}
-                obsidianEnabled={obsidianEnabled}
-                obsidianScanFoldersText={obsidianScanFoldersText}
-                obsidianLastScannedAt={obsidianLastScannedAt}
-                obsidianHasVaultMarker={obsidianHasVaultMarker}
-                obsidianVaultWarning={obsidianVaultWarning}
-                isSavingObsidian={isSavingObsidian}
-                isScanningObsidian={isScanningObsidian}
-                onObsidianVaultPathChange={setObsidianVaultPath}
-                onObsidianEnabledChange={setObsidianEnabled}
-                onObsidianScanFoldersTextChange={setObsidianScanFoldersText}
-                onBrowseObsidianVault={onBrowseObsidianVault}
-                onSaveObsidian={onSaveObsidian}
-                onRemoveObsidian={onRemoveObsidian}
-                onRescanObsidian={onRescanObsidian}
-            />
-        );
-    };
 
     const renderPage = () => {
         if (page === 'main') {
@@ -1130,7 +1093,40 @@ export function SettingsView() {
         }
 
         if (page === 'integrations') {
-            return <IntegrationsPage />;
+            return (
+                <SettingsIntegrationsPage
+                    t={t}
+                    isTauri={isTauri}
+                    newCalendarName={newCalendarName}
+                    newCalendarUrl={newCalendarUrl}
+                    calendarError={calendarError}
+                    externalCalendars={externalCalendars}
+                    showSystemCalendarSection={isMac}
+                    systemCalendarPermission={systemCalendarPermission}
+                    onCalendarNameChange={setNewCalendarName}
+                    onCalendarUrlChange={setNewCalendarUrl}
+                    onAddCalendar={handleAddCalendar}
+                    onToggleCalendar={handleToggleCalendar}
+                    onRemoveCalendar={handleRemoveCalendar}
+                    onRequestSystemCalendarPermission={handleRequestSystemCalendarPermission}
+                    maskCalendarUrl={maskCalendarUrl}
+                    obsidianVaultPath={obsidianVaultPath}
+                    obsidianEnabled={obsidianEnabled}
+                    obsidianScanFoldersText={obsidianScanFoldersText}
+                    obsidianLastScannedAt={obsidianLastScannedAt}
+                    obsidianHasVaultMarker={obsidianHasVaultMarker}
+                    obsidianVaultWarning={obsidianVaultWarning}
+                    isSavingObsidian={isSavingObsidian}
+                    isScanningObsidian={isScanningObsidian}
+                    onObsidianVaultPathChange={setObsidianVaultPath}
+                    onObsidianEnabledChange={setObsidianEnabled}
+                    onObsidianScanFoldersTextChange={setObsidianScanFoldersText}
+                    onBrowseObsidianVault={onBrowseObsidianVault}
+                    onSaveObsidian={onSaveObsidian}
+                    onRemoveObsidian={onRemoveObsidian}
+                    onRescanObsidian={onRescanObsidian}
+                />
+            );
         }
 
         if (page === 'sync') {
