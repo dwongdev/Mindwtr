@@ -36,6 +36,7 @@ const TOOLCHAIN_REPLACEMENTS = new Map([
 ]);
 
 const EXPLICIT_ANDROID_OVERRIDES = [
+  'android/app/build.gradle',
   'node_modules/react-native-safe-area-context/android/build.gradle',
   'node_modules/react-native-screens/android/build.gradle',
   'node_modules/react-native-gesture-handler/android/build.gradle',
