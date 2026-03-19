@@ -145,6 +145,55 @@ describe('local-data-watcher', () => {
         expect(__localDataWatcherTestUtils.getPendingSelfWritePayloadLengthForTests()).toBe(0);
     });
 
+    it('ignores older self-written payloads when multiple local writes happen back-to-back', async () => {
+        const firstWrite = {
+            ...emptyData(),
+            tasks: [
+                {
+                    id: 'local-older',
+                    title: 'First write',
+                    status: 'inbox',
+                    createdAt: '2026-01-01T00:00:00.000Z',
+                    updatedAt: '2026-01-01T00:00:00.000Z',
+                },
+            ],
+        } as AppData;
+        const secondWrite = {
+            ...emptyData(),
+            tasks: [
+                {
+                    id: 'local-newer',
+                    title: 'Second write',
+                    status: 'next',
+                    createdAt: '2026-01-02T00:00:00.000Z',
+                    updatedAt: '2026-01-02T00:00:00.000Z',
+                },
+            ],
+        } as AppData;
+
+        markLocalWrite(firstWrite);
+
+        nowMs = 500;
+        markLocalWrite(secondWrite);
+
+        externalData = firstWrite;
+        nowMs = 1000;
+        await __localDataWatcherTestUtils.triggerChangeForTests();
+        expect(saveCalls).toHaveLength(0);
+
+        nowMs = 2600;
+        await flushScheduledTimers();
+
+        expect(saveCalls).toHaveLength(0);
+        expect(__localDataWatcherTestUtils.getPendingSelfWritePayloadLengthForTests()).toBeGreaterThan(0);
+
+        externalData = secondWrite;
+        await __localDataWatcherTestUtils.triggerChangeForTests();
+
+        expect(saveCalls).toHaveLength(0);
+        expect(__localDataWatcherTestUtils.getPendingSelfWritePayloadLengthForTests()).toBe(0);
+    });
+
     it('re-reads external writes that happen during ignore window', async () => {
         externalData = {
             ...emptyData(),

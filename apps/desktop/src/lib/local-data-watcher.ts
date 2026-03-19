@@ -14,6 +14,8 @@ import { logInfo, logWarn } from './app-log';
 const IGNORE_WINDOW_MS = 2000;
 const DEBOUNCE_MS = 750;
 const IGNORE_DRAIN_PADDING_MS = 25;
+const SELF_WRITE_RETENTION_MS = 10_000;
+const MAX_PENDING_SELF_WRITES = 8;
 const timerHost = getDesktopTimerHost();
 
 type FsEvent = {
@@ -81,7 +83,7 @@ let localDataWatcherDependencies: LocalDataWatcherDependencies = { ...defaultDep
 let unwatchFn: (() => void) | null = null;
 let ignoreUntil = 0;
 let lastKnownHash = '';
-let pendingSelfWritePayload = '';
+let pendingSelfWrites: Array<{ payload: string; expiresAt: number }> = [];
 let debounceTimer: ReturnType<typeof setTimeout> | null = null;
 let ignoreDrainTimer: ReturnType<typeof setTimeout> | null = null;
 let hasPendingChangeDuringIgnore = false;
@@ -117,6 +119,10 @@ const resolveUnwatch = (unwatch: unknown): (() => void) | null => {
         return () => (unwatch as any).unwatch();
     }
     return null;
+};
+
+const pruneExpiredSelfWrites = (now: number) => {
+    pendingSelfWrites = pendingSelfWrites.filter((entry) => entry.expiresAt > now);
 };
 
 const scheduleIgnoreDrain = () => {
@@ -179,7 +185,10 @@ async function mergeExternalData(externalData: AppData): Promise<void> {
 }
 
 async function handleExternalChange(): Promise<void> {
-    if (localDataWatcherDependencies.now() < ignoreUntil) {
+    const now = localDataWatcherDependencies.now();
+    pruneExpiredSelfWrites(now);
+
+    if (now < ignoreUntil) {
         hasPendingChangeDuringIgnore = true;
         scheduleIgnoreDrain();
         return;
@@ -190,13 +199,12 @@ async function handleExternalChange(): Promise<void> {
         const normalized = localDataWatcherDependencies.normalize(rawData);
         const payload = toStableJson(normalized);
 
-        if (payload === pendingSelfWritePayload) {
+        const matchedSelfWriteIndex = pendingSelfWrites.findIndex((entry) => entry.payload === payload);
+        if (matchedSelfWriteIndex >= 0) {
             lastKnownHash = await localDataWatcherDependencies.hashPayload(payload);
-            pendingSelfWritePayload = '';
+            pendingSelfWrites.splice(matchedSelfWriteIndex, 1);
             return;
         }
-
-        pendingSelfWritePayload = '';
 
         const hash = await localDataWatcherDependencies.hashPayload(payload);
 
@@ -219,17 +227,28 @@ async function handleExternalChange(): Promise<void> {
 }
 
 export function markLocalWrite(data?: AppData): void {
+    const now = localDataWatcherDependencies.now();
+    pruneExpiredSelfWrites(now);
+
     if (data) {
         try {
             const normalized = localDataWatcherDependencies.normalize(data);
-            pendingSelfWritePayload = toStableJson(normalized);
+            const payload = toStableJson(normalized);
+            pendingSelfWrites = pendingSelfWrites.filter((entry) => entry.payload !== payload);
+            pendingSelfWrites.push({
+                payload,
+                expiresAt: now + SELF_WRITE_RETENTION_MS,
+            });
+            if (pendingSelfWrites.length > MAX_PENDING_SELF_WRITES) {
+                pendingSelfWrites = pendingSelfWrites.slice(-MAX_PENDING_SELF_WRITES);
+            }
         } catch {
-            pendingSelfWritePayload = '';
+            pendingSelfWrites = [];
         }
     } else {
-        pendingSelfWritePayload = '';
+        pendingSelfWrites = [];
     }
-    ignoreUntil = localDataWatcherDependencies.now() + IGNORE_WINDOW_MS;
+    ignoreUntil = now + IGNORE_WINDOW_MS;
     scheduleIgnoreDrain();
 }
 
@@ -265,6 +284,7 @@ export function stop(): void {
     }
     hasPendingChangeDuringIgnore = false;
     pendingExternalData = null;
+    pendingSelfWrites = [];
 
     if (unwatchFn) {
         unwatchFn();
@@ -288,10 +308,10 @@ export const __localDataWatcherTestUtils = {
         localDataWatcherDependencies = { ...defaultDependencies };
         ignoreUntil = 0;
         lastKnownHash = '';
-        pendingSelfWritePayload = '';
+        pendingSelfWrites = [];
         mergeInFlight = null;
     },
     getPendingSelfWritePayloadLengthForTests() {
-        return pendingSelfWritePayload.length;
+        return pendingSelfWrites.reduce((total, entry) => total + entry.payload.length, 0);
     },
 };
