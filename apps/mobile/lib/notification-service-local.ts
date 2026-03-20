@@ -331,6 +331,13 @@ function buildAlarmConfigSignature(config: LocalAlarmConfig): string {
   });
 }
 
+function normalizeNotificationMessage(title: string, message?: string): string {
+  const trimmedMessage = String(message || '').trim();
+  if (trimmedMessage) return trimmedMessage;
+
+  return String(title || '').trim();
+}
+
 async function cancelAlarmByKey(api: AlarmNotificationsApi, key: string): Promise<boolean> {
   const entry = alarmMap.get(key);
   if (!entry) return false;
@@ -369,7 +376,7 @@ async function scheduleAlarmForKey(api: AlarmNotificationsApi, key: string, conf
 
   const detailsBase: Record<string, unknown> = {
     title: config.title,
-    message: config.message,
+    message: normalizeNotificationMessage(config.title, config.message),
     channel: LOCAL_ALARM_CHANNEL,
     auto_cancel: true,
     small_icon: LOCAL_SMALL_ICON,
@@ -605,7 +612,7 @@ export async function sendLocalMobileNotification(
   try {
     await api.scheduleAlarm({
       title: trimmedTitle,
-      message: String(message || '').trim(),
+      message: normalizeNotificationMessage(trimmedTitle, message),
       channel: LOCAL_ALARM_CHANNEL,
       auto_cancel: true,
       small_icon: LOCAL_SMALL_ICON,

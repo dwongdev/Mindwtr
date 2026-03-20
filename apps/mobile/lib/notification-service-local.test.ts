@@ -104,6 +104,7 @@ vi.mock('./app-log', () => ({
 
 import {
   __localNotificationTestUtils,
+  sendLocalMobileNotification,
   setLocalNotificationOpenHandler,
   startLocalMobileNotifications,
   stopLocalMobileNotifications,
@@ -176,7 +177,7 @@ describe('notification-service-local', () => {
     expect(mockAsyncStorageSetItem).toHaveBeenCalledWith('mindwtr:local:alarms:v1', '{}');
   });
 
-  it('schedules task reminders as normal notification-style alerts', async () => {
+  it('schedules task reminders with a non-empty message body', async () => {
     mockStoreState.tasks = [
       {
         id: 'task-1',
@@ -194,11 +195,22 @@ describe('notification-service-local', () => {
         channel: 'mindwtr_reminders_v2',
         has_button: false,
         loop_sound: false,
-        message: '',
+        message: 'Pay rent',
         play_sound: true,
         title: 'Pay rent',
         use_big_text: true,
         vibrate: false,
+      })
+    );
+  });
+
+  it('falls back to the title when sending an immediate notification without a message', async () => {
+    await sendLocalMobileNotification('Focus session done');
+
+    expect(mockAlarmScheduleAlarm).toHaveBeenCalledWith(
+      expect.objectContaining({
+        title: 'Focus session done',
+        message: 'Focus session done',
       })
     );
   });
