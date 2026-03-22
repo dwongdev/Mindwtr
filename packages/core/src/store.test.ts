@@ -254,6 +254,55 @@ describe('TaskStore', () => {
         unlockEditing();
     });
 
+    it('does not overwrite local task edits made during an in-flight fetch', async () => {
+        const persistedData = {
+            tasks: [
+                {
+                    id: 'task-1',
+                    title: 'Original title',
+                    status: 'next',
+                    tags: [],
+                    contexts: [],
+                    createdAt: '2026-03-22T10:00:00.000Z',
+                    updatedAt: '2026-03-22T10:00:00.000Z',
+                },
+            ],
+            projects: [],
+            sections: [],
+            areas: [],
+            settings: {},
+        };
+        let resolveFetch: ((value: typeof persistedData) => void) | null = null;
+        mockStorage.getData = vi.fn()
+            .mockResolvedValue(persistedData)
+            .mockResolvedValueOnce(persistedData)
+            .mockImplementationOnce(
+                () =>
+                    new Promise<typeof persistedData>((resolve) => {
+                        resolveFetch = resolve;
+                    })
+            );
+
+        await useTaskStore.getState().fetchData({ silent: true });
+
+        const slowFetch = useTaskStore.getState().fetchData({ silent: true });
+        await waitForExpectation(() => {
+            expect(mockStorage.getData).toHaveBeenCalledTimes(2);
+        });
+
+        await useTaskStore.getState().updateTask('task-1', { title: 'Edited during sync' });
+        resolveFetch?.(persistedData);
+        await slowFetch;
+        await flushPendingSave();
+
+        const currentTask = useTaskStore.getState()._allTasks.find((task) => task.id === 'task-1');
+        expect(currentTask?.title).toBe('Edited during sync');
+
+        const saveCalls = (mockStorage.saveData as unknown as { mock: { calls: any[][] } }).mock.calls;
+        const lastSaved = saveCalls[saveCalls.length - 1]?.[0];
+        expect(lastSaved?.tasks?.[0]?.title).toBe('Edited during sync');
+    });
+
     it('purges expired tombstones during fetch even without sync', async () => {
         mockStorage.getData = vi.fn().mockResolvedValue({
             tasks: [
