@@ -30,6 +30,7 @@ import { taskMatchesAreaFilter } from '@/lib/area-filter';
 import { openContextsScreen, openProjectScreen } from '@/lib/task-meta-navigation';
 import { buildCopilotConfig, isAIKeyRequired, loadAIKey } from '../lib/ai-config';
 import { logError } from '../lib/app-log';
+import { getBulkActionFailureMessage } from './task-list-utils';
 import {
   MOBILE_TIME_ESTIMATE_OPTIONS,
   formatTimeEstimateChipLabel,
@@ -626,11 +627,17 @@ function TaskListComponent({
     setBulkActionLoading(true);
     try {
       await action();
+    } catch (error) {
+      void logError(error, { scope: 'tasks', extra: { message: `Bulk action failed: ${label}` } });
+      Alert.alert(
+        t('common.notice'),
+        getBulkActionFailureMessage(error, `${label} failed.`)
+      );
     } finally {
       setBulkActionLoading(false);
       setBulkActionLabel('');
     }
-  }, [bulkActionLoading]);
+  }, [bulkActionLoading, t]);
 
   const toggleMultiSelect = useCallback((taskId: string) => {
     if (!selectionMode) setSelectionMode(true);
