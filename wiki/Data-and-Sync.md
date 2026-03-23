@@ -59,7 +59,7 @@ Mindwtr directly supports five sync backends:
 - **Syncthing**: device-to-device file sync. Best on the same LAN/subnet. For remote sync, use a Syncthing relay or a mesh VPN (Nebula/Tailscale).
 - **WebDAV**: use a provider that supports WebDAV (e.g., Nextcloud, ownCloud, Fastmail, self-hosted).
 - **Dropbox**: use native Dropbox sync (supported builds) or File Sync.
-- **iCloud**: use native iCloud sync on supported Apple mobile builds, or iCloud Drive via File Sync.
+- **iCloud**: use native iCloud sync on supported Apple builds, or iCloud Drive via File Sync.
 - **Google Drive/OneDrive**: use File Sync (and Android bridge apps when needed).
 
 ## Sync Recommendations
