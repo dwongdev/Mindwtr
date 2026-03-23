@@ -63,6 +63,18 @@ const normalizeTaskStatus = (value: string): TaskStatus => {
   return STATUS_TOKENS[key] ?? 'inbox';
 };
 
+const parseTaskStatusInput = (value: unknown): TaskStatus | undefined => {
+  if (value === undefined || value === null) return undefined;
+  if (typeof value !== 'string') {
+    throw new Error(`Invalid task status: ${String(value)}`);
+  }
+  const normalized = STATUS_TOKENS[value.toLowerCase()];
+  if (!normalized) {
+    throw new Error(`Invalid task status: ${value}`);
+  }
+  return normalized;
+};
+
 const generateUUID = (): string => {
   if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) {
     return crypto.randomUUID();
@@ -390,7 +402,7 @@ export function addTask(db: DbClient, input: AddTaskInput): TaskRow {
       throw new Error('Task title is required.');
     }
 
-    const status = input.status ?? (props.status as TaskStatus) ?? 'inbox';
+    const status = parseTaskStatusInput(input.status) ?? parseTaskStatusInput(props.status) ?? 'inbox';
     const task: Task = {
       id: generateUUID(),
       title,
@@ -538,7 +550,7 @@ export function updateTask(db: DbClient, input: UpdateTaskInput): TaskRow {
     const updated: TaskRow = {
       ...current,
       title: input.title ?? current.title,
-      status: input.status ?? current.status,
+      status: parseTaskStatusInput(input.status) ?? current.status,
       projectId: input.projectId === null ? undefined : input.projectId ?? current.projectId,
       dueDate: input.dueDate === null ? undefined : input.dueDate ?? current.dueDate,
       startTime: input.startTime === null ? undefined : input.startTime ?? current.startTime,
