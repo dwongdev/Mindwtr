@@ -33,21 +33,3 @@ export const buildMultipartAudioPart = ({
     part: { uri, name, type },
   };
 };
-
-export const loadModuleFromCandidates = <T>(
-  candidates: readonly string[],
-  load: (candidate: string) => T
-): { candidate: string; module: T } => {
-  let lastError: unknown = new Error('No module candidates provided.');
-  for (const candidate of candidates) {
-    try {
-      return {
-        candidate,
-        module: load(candidate),
-      };
-    } catch (error) {
-      lastError = error;
-    }
-  }
-  throw lastError;
-};

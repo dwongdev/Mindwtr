@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { buildMultipartAudioPart, loadModuleFromCandidates } from './speech-to-text.helpers';
+import { buildMultipartAudioPart } from './speech-to-text.helpers';
 
 describe('speech-to-text helpers', () => {
   it('builds a blob-backed multipart part when bytes are available', async () => {
@@ -30,30 +30,5 @@ describe('speech-to-text helpers', () => {
       type: 'audio/mp4',
     });
     expect(fileName).toBeUndefined();
-  });
-
-  it('loads the first working module candidate', () => {
-    const seen: string[] = [];
-    const loaded = loadModuleFromCandidates(['first', 'second', 'third'], (candidate) => {
-      seen.push(candidate);
-      if (candidate === 'third') {
-        return { ok: true };
-      }
-      throw new Error(`missing ${candidate}`);
-    });
-
-    expect(loaded).toEqual({
-      candidate: 'third',
-      module: { ok: true },
-    });
-    expect(seen).toEqual(['first', 'second', 'third']);
-  });
-
-  it('rethrows the last module load error when all candidates fail', () => {
-    expect(() =>
-      loadModuleFromCandidates(['first', 'second'], (candidate) => {
-        throw new Error(`missing ${candidate}`);
-      })
-    ).toThrow('missing second');
   });
 });

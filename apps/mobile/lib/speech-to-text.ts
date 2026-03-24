@@ -5,7 +5,7 @@ import { AudioPcmStreamAdapter } from 'whisper.rn/realtime-transcription/adapter
 import { RealtimeTranscriber, type RealtimeTranscriberEvent } from 'whisper.rn/realtime-transcription/index.js';
 import type { AudioCaptureMode, AudioFieldStrategy } from '@mindwtr/core';
 import { logInfo, logWarn } from './app-log';
-import { buildMultipartAudioPart, loadModuleFromCandidates } from './speech-to-text.helpers';
+import { buildMultipartAudioPart } from './speech-to-text.helpers';
 
 type SpeechProvider = 'openai' | 'gemini' | 'whisper';
 
@@ -66,12 +66,6 @@ let whisperContextCache: { modelPath: string; context: WhisperContextLike } | nu
 let whisperNativeLogEnabled = false;
 type WhisperModule = typeof import('whisper.rn');
 let whisperModuleCache: WhisperModule | null = null;
-const WHISPER_MODULE_CANDIDATES = [
-  'whisper.rn/src/index',
-  'whisper.rn/lib/commonjs/index',
-  'whisper.rn/lib/commonjs/index.js',
-  'whisper.rn/index',
-] as const;
 
 type RNFSModule = typeof import('react-native-fs');
 let rnfsModuleCache: RNFSModule | null | undefined;
@@ -102,16 +96,35 @@ const getRNFSModule = (): RNFSModule | null => {
 const getWhisperModule = () => {
   if (whisperModuleCache) return whisperModuleCache;
   try {
-    // Prefer the React Native source entry, but keep CJS fallbacks for release bundles.
-    const { module: mod } = loadModuleFromCandidates(WHISPER_MODULE_CANDIDATES, (candidate) => {
+    // Use static fallback paths so Metro can bundle this file.
+    try {
       // eslint-disable-next-line @typescript-eslint/no-var-requires
-      return require(candidate) as WhisperModule;
-    });
-    whisperModuleCache = mod;
-    return mod;
+      const mod = require('whisper.rn/src/index') as WhisperModule;
+      whisperModuleCache = mod;
+      return mod;
+    } catch (sourceError) {
+      try {
+        // eslint-disable-next-line @typescript-eslint/no-var-requires
+        const mod = require('whisper.rn') as WhisperModule;
+        whisperModuleCache = mod;
+        return mod;
+      } catch (rootError) {
+        try {
+          // eslint-disable-next-line @typescript-eslint/no-var-requires
+          const mod = require('whisper.rn/index') as WhisperModule;
+          whisperModuleCache = mod;
+          return mod;
+        } catch (finalError) {
+          const errors = [sourceError, rootError, finalError]
+            .map((value) => (value instanceof Error ? value.message : String(value)))
+            .join(' | ');
+          throw new Error(`Whisper module unavailable: ${errors}`);
+        }
+      }
+    }
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
-    throw new Error(`Whisper module unavailable after trying ${WHISPER_MODULE_CANDIDATES.join(', ')}: ${message}`);
+    throw new Error(`Whisper module unavailable: ${message}`);
   }
 };
 
