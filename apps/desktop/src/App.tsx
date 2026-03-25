@@ -27,7 +27,13 @@ import { isFlatpakRuntime, isTauriRuntime } from './lib/runtime';
 import { logError } from './lib/app-log';
 import { createDesktopAutoSyncController } from './lib/auto-sync-controller';
 import { beginSettingsOpenTrace, markSettingsOpenTrace, wrapSettingsOpenImport } from './lib/settings-open-diagnostics';
-import { THEME_STORAGE_KEY, applyThemeMode, mapSyncedThemeToDesktop, resolveNativeTheme } from './lib/theme';
+import {
+    THEME_STORAGE_KEY,
+    applyThemeMode,
+    mapSyncedThemeToDesktop,
+    resolveNativeTheme,
+    watchSystemThemePreference,
+} from './lib/theme';
 import { useUiStore } from './store/ui-store';
 import { useObsidianStore } from './store/obsidian-store';
 
@@ -117,6 +123,51 @@ function App() {
         import('@tauri-apps/api/app')
             .then(({ setTheme }) => setTheme(nativeTheme))
             .catch((error) => void logError(error, { scope: 'theme', step: 'apply' }));
+    }, [settingsTheme]);
+
+    useEffect(() => {
+        const normalizedTheme = mapSyncedThemeToDesktop(settingsTheme);
+        if (normalizedTheme !== 'system') return;
+
+        const stopWatchingSystemTheme = watchSystemThemePreference((theme) => {
+            applyThemeMode('system', theme);
+        });
+
+        if (!isTauriRuntime()) {
+            return () => {
+                stopWatchingSystemTheme();
+            };
+        }
+
+        let cancelled = false;
+        let stopWatchingNativeTheme = () => { };
+        import('@tauri-apps/api/window')
+            .then(async ({ getCurrentWindow }) => {
+                const currentWindow = getCurrentWindow();
+                try {
+                    const nativeTheme = await currentWindow.theme();
+                    if (!cancelled && nativeTheme) {
+                        applyThemeMode('system', nativeTheme);
+                    }
+                } catch (error) {
+                    void logError(error, { scope: 'theme', step: 'resolveSystem' });
+                }
+                const unlisten = await currentWindow.onThemeChanged(({ payload }) => {
+                    applyThemeMode('system', payload);
+                });
+                if (cancelled) {
+                    unlisten();
+                    return;
+                }
+                stopWatchingNativeTheme = unlisten;
+            })
+            .catch((error) => void logError(error, { scope: 'theme', step: 'watch' }));
+
+        return () => {
+            cancelled = true;
+            stopWatchingSystemTheme();
+            stopWatchingNativeTheme();
+        };
     }, [settingsTheme]);
 
     useEffect(() => {
