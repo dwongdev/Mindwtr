@@ -593,6 +593,17 @@ export function QuickAddModal() {
     const scheduledLabel = initialProps?.startTime
         ? safeFormatDate(initialProps.startTime, 'Pp')
         : null;
+    const loadingLabel = t('common.loading') === 'common.loading' ? 'Loading...' : t('common.loading');
+    const audioButtonLabel = recordingBusy
+        ? loadingLabel
+        : isRecording
+            ? t('quickAdd.audioStop')
+            : t('quickAdd.audioRecord');
+    const audioStatusLabel = recordingBusy
+        ? 'Processing audio capture...'
+        : isRecording
+            ? t('quickAdd.audioRecording')
+            : t('quickAdd.audioCaptureLabel');
 
     if (!isOpen) return null;
 
@@ -750,14 +761,19 @@ export function QuickAddModal() {
                                     isRecording ? 'bg-red-500 text-white' : 'bg-primary text-primary-foreground',
                                     recordingBusy ? 'opacity-70 cursor-not-allowed' : 'hover:opacity-90'
                                 )}
-                                aria-label={isRecording ? t('quickAdd.audioStop') : t('quickAdd.audioRecord')}
+                                aria-label={audioButtonLabel}
                                 disabled={recordingBusy}
                             >
-                                {isRecording ? t('quickAdd.audioStop') : t('quickAdd.audioRecord')}
+                                {audioButtonLabel}
                             </button>
-                            <div className="text-xs text-muted-foreground">
-                                {isRecording ? t('quickAdd.audioRecording') : t('quickAdd.audioCaptureLabel')}
+                            <div className="text-xs text-muted-foreground" aria-live="polite">
+                                {audioStatusLabel}
                             </div>
+                            {recordingBusy ? (
+                                <div className="text-xs text-muted-foreground text-center" aria-live="polite">
+                                    Saving the recording and applying speech-to-text.
+                                </div>
+                            ) : null}
                             {recordingError ? (
                                 <div className="text-xs text-red-500 text-center">{recordingError}</div>
                             ) : null}
