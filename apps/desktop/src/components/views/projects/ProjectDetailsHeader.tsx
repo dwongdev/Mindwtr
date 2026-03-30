@@ -1,5 +1,6 @@
-import { Archive as ArchiveIcon, Copy, Loader2, RotateCcw, Trash2 } from 'lucide-react';
-import type { Project } from '@mindwtr/core';
+import { format } from 'date-fns';
+import { safeParseDate, type Project } from '@mindwtr/core';
+import { Archive as ArchiveIcon, CalendarClock, ChevronDown, ChevronRight, Copy, FolderOpenDot, ListOrdered, Loader2, RotateCcw, Signal, Trash2 } from 'lucide-react';
 
 type ProjectProgress = {
     total: number;
@@ -10,10 +11,15 @@ type ProjectProgress = {
 type ProjectDetailsHeaderProps = {
     project: Project;
     projectColor: string;
+    areaLabel?: string;
+    isSequential: boolean;
+    reviewAt?: string;
     editTitle: string;
     onEditTitleChange: (value: string) => void;
     onCommitTitle: () => void;
     onResetTitle: () => void;
+    detailsExpanded: boolean;
+    onToggleDetails: () => void;
     onDuplicate: () => void;
     onArchive: () => Promise<void> | void;
     onReactivate: () => void;
@@ -26,10 +32,15 @@ type ProjectDetailsHeaderProps = {
 export function ProjectDetailsHeader({
     project,
     projectColor,
+    areaLabel,
+    isSequential,
+    reviewAt,
     editTitle,
     onEditTitleChange,
     onCommitTitle,
     onResetTitle,
+    detailsExpanded,
+    onToggleDetails,
     onDuplicate,
     onArchive,
     onReactivate,
@@ -41,6 +52,33 @@ export function ProjectDetailsHeader({
     const completedRatio = projectProgress && projectProgress.total > 0
         ? Math.round((projectProgress.doneCount / projectProgress.total) * 100)
         : 0;
+    const detailsLabel = t('taskEdit.details') === 'taskEdit.details' ? 'Details' : t('taskEdit.details');
+    const reviewDate = reviewAt ? safeParseDate(reviewAt) : null;
+    const reviewLabel = reviewDate ? format(reviewDate, 'MMM d') : null;
+    const summaryItems = [
+        {
+            key: 'status',
+            icon: Signal,
+            label: t(`status.${project.status}`) || project.status,
+        },
+        ...(areaLabel ? [{
+            key: 'area',
+            icon: FolderOpenDot,
+            label: areaLabel,
+        }] : []),
+        {
+            key: 'sequence',
+            icon: ListOrdered,
+            label: isSequential
+                ? (t('projects.sequential') === 'projects.sequential' ? 'Sequential' : t('projects.sequential'))
+                : (t('projects.parallel') === 'projects.parallel' ? 'Parallel' : t('projects.parallel')),
+        },
+        ...(reviewLabel ? [{
+            key: 'review',
+            icon: CalendarClock,
+            label: reviewLabel,
+        }] : []),
+    ];
 
     return (
         <header className="pb-5 border-b border-border/50">
@@ -84,6 +122,20 @@ export function ProjectDetailsHeader({
                                 )}
                             </div>
                         ) : null}
+                        <div className="flex flex-wrap gap-1.5">
+                            {summaryItems.map((item) => {
+                                const Icon = item.icon;
+                                return (
+                                    <span
+                                        key={item.key}
+                                        className="inline-flex items-center gap-1.5 rounded-full border border-border/60 bg-muted/20 px-2 py-0.5 text-[11px] text-muted-foreground"
+                                    >
+                                        <Icon className="h-3.5 w-3.5" />
+                                        <span>{item.label}</span>
+                                    </span>
+                                );
+                            })}
+                        </div>
                         {project.tagIds && project.tagIds.length > 0 && (
                             <div className="flex flex-wrap gap-1">
                                 {project.tagIds.map((tag) => (
@@ -96,6 +148,15 @@ export function ProjectDetailsHeader({
                     </div>
                 </div>
                 <div className="flex items-center gap-2 flex-wrap justify-end">
+                    <button
+                        type="button"
+                        onClick={onToggleDetails}
+                        className="inline-flex items-center gap-1 px-3 h-8 rounded-md text-xs font-medium border border-border bg-background hover:bg-muted/40 text-muted-foreground transition-colors whitespace-nowrap"
+                        aria-expanded={detailsExpanded}
+                    >
+                        {detailsExpanded ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
+                        {detailsLabel}
+                    </button>
                     <button
                         type="button"
                         onClick={onDuplicate}

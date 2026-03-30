@@ -16,6 +16,7 @@ import { ProjectNotesSection } from './projects/ProjectNotesSection';
 import { ProjectDetailsHeader } from './projects/ProjectDetailsHeader';
 import { ProjectDetailsFields } from './projects/ProjectDetailsFields';
 import { TaskItem } from '../TaskItem';
+import { TaskInput } from '../Task/TaskInput';
 import {
     DEFAULT_AREA_COLOR,
     getProjectColor,
@@ -107,6 +108,7 @@ export function ProjectsView() {
     const [searchQuery, setSearchQuery] = useState('');
     const [editProjectTitle, setEditProjectTitle] = useState('');
     const [projectTaskTitle, setProjectTaskTitle] = useState('');
+    const [projectDetailsExpanded, setProjectDetailsExpanded] = useState(false);
     const [isCreatingProject, setIsCreatingProject] = useState(false);
     const [isProjectDeleting, setIsProjectDeleting] = useState(false);
     const [isAreaCreating, setIsAreaCreating] = useState(false);
@@ -751,6 +753,15 @@ export function ProjectsView() {
     }, [selectedProject?.id]);
 
     useEffect(() => {
+        setProjectDetailsExpanded(false);
+    }, [selectedProject?.id]);
+
+    const selectedProjectAreaLabel = useMemo(() => {
+        if (!selectedProject?.areaId) return undefined;
+        return areaById.get(selectedProject.areaId)?.name;
+    }, [areaById, selectedProject?.areaId]);
+
+    useEffect(() => {
         setSectionNotesOpen({});
         setShowSectionTaskPrompt(false);
         setSectionTaskTargetId(null);
@@ -852,10 +863,15 @@ export function ProjectsView() {
                                     <ProjectDetailsHeader
                                         project={selectedProject}
                                         projectColor={getProjectColorForTask(selectedProject)}
+                                        areaLabel={selectedProjectAreaLabel}
+                                        isSequential={selectedProject.isSequential === true}
+                                        reviewAt={selectedProject.reviewAt}
                                         editTitle={editProjectTitle}
                                         onEditTitleChange={setEditProjectTitle}
                                         onCommitTitle={handleCommitProjectTitle}
                                         onResetTitle={handleResetProjectTitle}
+                                        detailsExpanded={projectDetailsExpanded}
+                                        onToggleDetails={() => setProjectDetailsExpanded((prev) => !prev)}
                                         onDuplicate={() => handleDuplicateProject(selectedProject.id)}
                                         onArchive={handleArchiveProject}
                                         onReactivate={() => {
@@ -893,51 +909,71 @@ export function ProjectsView() {
                                         t={t}
                                     />
 
-                                    <ProjectDetailsFields
-                                        project={selectedProject}
-                                        selectedAreaId={
-                                            selectedProject.areaId && areaById.has(selectedProject.areaId)
-                                                ? selectedProject.areaId
-                                                : NO_AREA
-                                        }
-                                        sortedAreas={sortedAreas}
-                                        noAreaId={NO_AREA}
-                                        t={t}
-                                        tagDraft={tagDraft}
-                                        onTagDraftChange={setTagDraft}
-                                        onCommitTags={() => {
-                                            const tags = parseTagInput(tagDraft);
-                                            updateProject(selectedProject.id, { tagIds: tags });
-                                        }}
-                                        onNewArea={() => {
-                                            setPendingAreaAssignProjectId(selectedProject.id);
-                                            setShowQuickAreaPrompt(true);
-                                        }}
-                                        onManageAreas={() => setShowAreaManager(true)}
-                                        onAreaChange={(value) => {
-                                            updateProject(selectedProject.id, { areaId: value === NO_AREA ? undefined : value });
-                                        }}
-                                        isSequential={selectedProject.isSequential === true}
-                                        onToggleSequential={() => updateProject(selectedProject.id, { isSequential: !selectedProject.isSequential })}
-                                        status={selectedProject.status}
-                                        onChangeStatus={(status) => updateProject(selectedProject.id, { status })}
-                                        reviewAtValue={toDateTimeLocalValue(selectedProject.reviewAt)}
-                                        onReviewAtChange={(value) => updateProject(selectedProject.id, { reviewAt: value || undefined })}
-                                        projectTaskTitle={projectTaskTitle}
-                                        onProjectTaskTitleChange={setProjectTaskTitle}
-                                        onSubmitProjectTask={async (value) => {
-                                            await handleAddTaskForProject(value);
-                                            setProjectTaskTitle('');
-                                        }}
-                                        projects={projects}
-                                        contexts={allTokens}
-                                        onCreateProject={async (title) => {
-                                            const created = await addProject(title, DEFAULT_AREA_COLOR);
-                                            return created?.id ?? null;
-                                        }}
-                                    />
+                                    {projectDetailsExpanded && (
+                                        <ProjectDetailsFields
+                                            project={selectedProject}
+                                            selectedAreaId={
+                                                selectedProject.areaId && areaById.has(selectedProject.areaId)
+                                                    ? selectedProject.areaId
+                                                    : NO_AREA
+                                            }
+                                            sortedAreas={sortedAreas}
+                                            noAreaId={NO_AREA}
+                                            t={t}
+                                            tagDraft={tagDraft}
+                                            onTagDraftChange={setTagDraft}
+                                            onCommitTags={() => {
+                                                const tags = parseTagInput(tagDraft);
+                                                updateProject(selectedProject.id, { tagIds: tags });
+                                            }}
+                                            onNewArea={() => {
+                                                setPendingAreaAssignProjectId(selectedProject.id);
+                                                setShowQuickAreaPrompt(true);
+                                            }}
+                                            onManageAreas={() => setShowAreaManager(true)}
+                                            onAreaChange={(value) => {
+                                                updateProject(selectedProject.id, { areaId: value === NO_AREA ? undefined : value });
+                                            }}
+                                            isSequential={selectedProject.isSequential === true}
+                                            onToggleSequential={() => updateProject(selectedProject.id, { isSequential: !selectedProject.isSequential })}
+                                            status={selectedProject.status}
+                                            onChangeStatus={(status) => updateProject(selectedProject.id, { status })}
+                                            reviewAtValue={toDateTimeLocalValue(selectedProject.reviewAt)}
+                                            onReviewAtChange={(value) => updateProject(selectedProject.id, { reviewAt: value || undefined })}
+                                        />
+                                    )}
 
                                     <section className="py-5 border-t border-border/50">
+                                        <form
+                                            onSubmit={async (e) => {
+                                                e.preventDefault();
+                                                if (!projectTaskTitle.trim()) return;
+                                                await handleAddTaskForProject(projectTaskTitle);
+                                                setProjectTaskTitle('');
+                                            }}
+                                            className="mb-4 flex gap-2"
+                                        >
+                                            <TaskInput
+                                                value={projectTaskTitle}
+                                                projects={projects}
+                                                contexts={allTokens}
+                                                areas={areas}
+                                                onCreateProject={async (title) => {
+                                                    const created = await addProject(title, DEFAULT_AREA_COLOR);
+                                                    return created?.id ?? null;
+                                                }}
+                                                onChange={(next) => setProjectTaskTitle(next)}
+                                                placeholder={t('projects.addTaskPlaceholder')}
+                                                containerClassName="flex-1"
+                                                className="h-9 w-full bg-background border border-border rounded-md px-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
+                                            />
+                                            <button
+                                                type="submit"
+                                                className="h-9 bg-primary text-primary-foreground px-4 rounded-md text-sm font-medium hover:bg-primary/90 transition-colors whitespace-nowrap"
+                                            >
+                                                {t('projects.addTask')}
+                                            </button>
+                                        </form>
                                         <div className="flex items-center justify-between mb-3">
                                             <div className="text-xs uppercase tracking-wider text-muted-foreground">
                                                 {t('projects.sectionsLabel')}
