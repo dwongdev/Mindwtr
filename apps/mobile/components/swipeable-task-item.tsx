@@ -4,6 +4,7 @@ import { useTaskStore, Task, getChecklistProgress, getTaskAgeLabel, getTaskStale
 import { useLanguage } from '../contexts/language-context';
 import React, { useRef, useState, useEffect, useMemo, useCallback, type ReactNode } from 'react';
 import { ArrowRight, Check, RotateCcw, Trash2 } from 'lucide-react-native';
+import * as Haptics from 'expo-haptics';
 import { ThemeColors } from '../hooks/use-theme-colors';
 
 export interface SwipeableTaskItemProps {
@@ -127,6 +128,9 @@ export function SwipeableTaskItem({
     };
 
     const leftAction = getLeftAction();
+    const swipeAccessibilityHint = selectionMode || disableSwipe
+        ? 'Double tap to edit task details. Additional actions are available in the accessibility actions menu.'
+        : `Double tap to edit task details. Swipe right to ${leftAction.label.toLowerCase()} and swipe left to delete. Additional actions are available in the accessibility actions menu.`;
     const [showStatusMenu, setShowStatusMenu] = useState(false);
     const [showChecklist, setShowChecklist] = useState(false);
     const [localChecklist, setLocalChecklist] = useState(task.checklist || []);
@@ -347,6 +351,7 @@ export function SwipeableTaskItem({
                 style={[styles.swipeActionLeft, { backgroundColor: leftAction.color }]}
                 onPress={() => {
                     swipeableRef.current?.close();
+                    void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => undefined);
                     onStatusChange(leftAction.action);
                 }}
                 accessibilityLabel={`${leftAction.label} action`}
@@ -398,7 +403,14 @@ export function SwipeableTaskItem({
             t('task.deleteConfirmBody') || 'Move this task to Trash?',
             [
                 { text: t('common.cancel') || 'Cancel', style: 'cancel' },
-                { text: t('common.delete') || 'Delete', style: 'destructive', onPress: onDelete },
+                {
+                    text: t('common.delete') || 'Delete',
+                    style: 'destructive',
+                    onPress: () => {
+                        void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning).catch(() => undefined);
+                        onDelete();
+                    },
+                },
             ],
             { cancelable: true }
         );
@@ -462,7 +474,7 @@ export function SwipeableTaskItem({
             onLongPress={handleLongPress}
             delayLongPress={300}
             accessibilityLabel={accessibilityLabel}
-            accessibilityHint="Double tap to edit task details. Additional actions are available in the accessibility actions menu."
+            accessibilityHint={swipeAccessibilityHint}
             accessibilityRole="button"
             accessibilityActions={accessibilityActions}
             onAccessibilityAction={handleAccessibilityAction}

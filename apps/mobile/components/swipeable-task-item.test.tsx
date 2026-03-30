@@ -16,6 +16,9 @@ const { updateTask, storeState } = vi.hoisted(() => ({
     tasks: [] as any[],
   },
 }));
+const hapticsMocks = vi.hoisted(() => ({
+  notificationAsync: vi.fn().mockResolvedValue(undefined),
+}));
 
 vi.mock('@mindwtr/core', () => {
   storeState.updateTask = updateTask;
@@ -66,6 +69,14 @@ vi.mock('react-native-gesture-handler', () => ({
       renderRightActions ? renderRightActions() : null,
       children
     ),
+}));
+
+vi.mock('expo-haptics', () => ({
+  NotificationFeedbackType: {
+    Success: 'success',
+    Warning: 'warning',
+  },
+  notificationAsync: hapticsMocks.notificationAsync,
 }));
 
 vi.mock('lucide-react-native', () => ({
@@ -140,6 +151,7 @@ describe('SwipeableTaskItem', () => {
     });
 
     expect(onDelete).toHaveBeenCalledTimes(1);
+    expect(hapticsMocks.notificationAsync).toHaveBeenCalledWith('warning');
   });
 
   it('navigates from project, context, and tag meta labels', () => {
@@ -196,5 +208,49 @@ describe('SwipeableTaskItem', () => {
     expect(onProjectPress).toHaveBeenCalledWith('project-1');
     expect(onContextPress).toHaveBeenCalledWith('@work');
     expect(onTagPress).toHaveBeenCalledWith('#urgent');
+  });
+
+  it('announces swipe directions and triggers haptics for status actions', () => {
+    const onStatusChange = vi.fn();
+
+    let tree!: renderer.ReactTestRenderer;
+    renderer.act(() => {
+      tree = renderer.create(
+        <SwipeableTaskItem
+          task={{
+            id: 'task-1',
+            title: 'Plan release',
+            status: 'inbox',
+            createdAt: '2026-01-01T00:00:00.000Z',
+            updatedAt: '2026-01-01T00:00:00.000Z',
+          } as any}
+          isDark={false}
+          tc={{
+            taskItemBg: '#111111',
+            border: '#222222',
+            text: '#ffffff',
+            secondaryText: '#999999',
+            tint: '#3b82f6',
+            warning: '#f59e0b',
+          } as any}
+          onPress={vi.fn()}
+          onStatusChange={onStatusChange}
+          onDelete={vi.fn()}
+        />
+      );
+    });
+
+    const taskButton = tree.root.find((node) => node.props.accessibilityRole === 'button' && node.props.accessibilityLabel?.includes('Status: Inbox'));
+    const nextAction = tree.root.find((node) => node.props.accessibilityLabel === 'Next action' && typeof node.props.onPress === 'function');
+
+    expect(taskButton.props.accessibilityHint).toContain('Swipe right to next');
+    expect(taskButton.props.accessibilityHint).toContain('swipe left to delete');
+
+    renderer.act(() => {
+      nextAction.props.onPress();
+    });
+
+    expect(onStatusChange).toHaveBeenCalledWith('next');
+    expect(hapticsMocks.notificationAsync).toHaveBeenCalledWith('success');
   });
 });
