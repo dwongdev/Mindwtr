@@ -1035,13 +1035,6 @@ jobs:
             -e "/patch -Np1 -i \\.\\.\\/tauri-v2-schema\\.patch/d" \
             PKGBUILD
 
-      - name: Backport whisper-rs Arch compatibility
-        shell: bash
-        working-directory: aur-mindwtr
-        run: |
-          set -euo pipefail
-          python3 ../source/scripts/ci/backport-aur-whisper.py PKGBUILD
-
       - name: Normalize desktop test runner for source package
         shell: bash
         working-directory: aur-mindwtr
