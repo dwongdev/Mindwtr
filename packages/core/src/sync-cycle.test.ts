@@ -522,6 +522,7 @@ describe('performSyncCycle', () => {
             'merge',
             'write-local',
             'write-remote',
+            'write-local',
         ]);
     });
 });

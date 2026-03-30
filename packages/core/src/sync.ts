@@ -621,11 +621,9 @@ export async function performSyncCycle(io: SyncCycleIO): Promise<SyncCycleResult
         io.onStep?.('write-remote');
         await yieldToUi();
         await io.writeRemote(recoveredLocalData);
-        if (recoveredLocalData !== localData) {
-            io.onStep?.('write-local');
-            await yieldToUi();
-            await io.writeLocal(recoveredLocalData);
-        }
+        io.onStep?.('write-local');
+        await yieldToUi();
+        await io.writeLocal(recoveredLocalData);
         localData = recoveredLocalData;
     }
 
@@ -742,10 +740,9 @@ export async function performSyncCycle(io: SyncCycleIO): Promise<SyncCycleResult
     await yieldToUi();
     await io.writeRemote(persistedFinalData);
 
-    if (persistedFinalData !== finalDataWithPendingRemoteWrite) {
-        await yieldToUi();
-        await io.writeLocal(persistedFinalData);
-    }
+    io.onStep?.('write-local');
+    await yieldToUi();
+    await io.writeLocal(persistedFinalData);
 
     return { data: persistedFinalData, stats: mergeResult.stats, status: nextSyncStatus };
 }
