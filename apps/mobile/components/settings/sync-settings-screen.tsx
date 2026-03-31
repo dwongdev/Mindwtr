@@ -7,14 +7,28 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import {
     CLOCK_SKEW_THRESHOLD_MS,
     cloudGetJson,
+    type BackupValidation,
+    type ParsedTodoistProject,
+    type TodoistImportParseResult,
     useTaskStore,
     webdavGetJson,
 } from '@mindwtr/core';
 
 import { useMobileSyncBadge } from '@/hooks/use-mobile-sync-badge';
 import { useThemeColors } from '@/hooks/use-theme-colors';
-import { exportData, pickAndParseSyncFolder } from '@/lib/storage-file';
+import { pickAndParseSyncFolder } from '@/lib/storage-file';
 import { isCloudKitAvailable } from '@/lib/cloudkit-sync';
+import {
+    exportCurrentDataBackup,
+    importTodoistData,
+    inspectBackupDocument,
+    inspectTodoistDocument,
+    listLocalDataSnapshots,
+    pickBackupDocument,
+    pickTodoistDocument,
+    restoreDataFromBackup,
+    restoreLocalDataSnapshot,
+} from '@/lib/data-transfer';
 import { authorizeDropbox, getDropboxRedirectUri } from '@/lib/dropbox-oauth';
 import {
     disconnectDropbox,
@@ -83,6 +97,10 @@ export function SyncSettingsScreen() {
     const [dropboxBusy, setDropboxBusy] = useState(false);
     const [syncOptionsOpen, setSyncOptionsOpen] = useState(false);
     const [syncHistoryExpanded, setSyncHistoryExpanded] = useState(false);
+    const [backupAction, setBackupAction] = useState<null | 'export' | 'restore' | 'import' | 'snapshot'>(null);
+    const [recoverySnapshots, setRecoverySnapshots] = useState<string[]>([]);
+    const [recoverySnapshotsOpen, setRecoverySnapshotsOpen] = useState(false);
+    const [isLoadingRecoverySnapshots, setIsLoadingRecoverySnapshots] = useState(false);
     const { refreshSyncBadgeConfig } = useMobileSyncBadge();
 
     const syncPreferences = settings.syncPreferences ?? {};
@@ -102,6 +120,7 @@ export function SyncSettingsScreen() {
         ...(lastSyncStats?.projects.conflictIds ?? []),
     ].slice(0, 6);
     const loggingEnabled = settings.diagnostics?.loggingEnabled === true;
+    const isBackupBusy = backupAction !== null;
     const webdavUrlError = webdavUrl.trim() ? !isValidHttpUrl(webdavUrl.trim()) : false;
     const cloudUrlError = cloudUrl.trim() ? !isValidHttpUrl(cloudUrl.trim()) : false;
     const backendOptions: typeof syncBackend[] = supportsNativeICloudSync
@@ -211,6 +230,77 @@ export function SyncSettingsScreen() {
         }
     }, [dropboxAppKey]);
 
+    const refreshRecoverySnapshots = useCallback(async () => {
+        setIsLoadingRecoverySnapshots(true);
+        try {
+            setRecoverySnapshots(await listLocalDataSnapshots());
+        } catch (error) {
+            logSettingsError(error);
+        } finally {
+            setIsLoadingRecoverySnapshots(false);
+        }
+    }, []);
+
+    useEffect(() => {
+        void refreshRecoverySnapshots();
+    }, [refreshRecoverySnapshots]);
+
+    const formatRecoverySnapshotLabel = (fileName: string): string => {
+        const match = fileName.match(/^data\.(\d{4}-\d{2}-\d{2})T(\d{2})-(\d{2})-(\d{2})\.snapshot\.json$/i);
+        if (!match) return fileName;
+        const [, datePart, hour, minute, second] = match;
+        const localDate = new Date(`${datePart}T${hour}:${minute}:${second}Z`);
+        return Number.isFinite(localDate.getTime()) ? localDate.toLocaleString() : fileName;
+    };
+
+    const buildBackupSummary = (validation: Awaited<ReturnType<typeof inspectBackupDocument>>) => {
+        const details = [
+            validation.metadata?.backupAt
+                ? localize(`Backup date: ${new Date(validation.metadata.backupAt).toLocaleString()}`, `备份时间：${new Date(validation.metadata.backupAt).toLocaleString()}`)
+                : validation.metadata?.fileName
+                    ? localize(`File: ${validation.metadata.fileName}`, `文件：${validation.metadata.fileName}`)
+                    : null,
+            localize(
+                `Contains ${validation.metadata?.taskCount ?? 0} tasks and ${validation.metadata?.projectCount ?? 0} projects.`,
+                `包含 ${(validation.metadata?.taskCount ?? 0)} 个任务和 ${(validation.metadata?.projectCount ?? 0)} 个项目。`
+            ),
+            localize(
+                'This will replace all current local data. A recovery snapshot will be saved first.',
+                '这将替换当前所有本地数据。系统会先保存一个恢复快照。'
+            ),
+            ...(validation.warnings.length > 0 ? ['', ...validation.warnings] : []),
+        ].filter(Boolean);
+        return details.join('\n');
+    };
+
+    const buildTodoistSummary = (preview: NonNullable<TodoistImportParseResult['preview']>) => {
+        const projectLines = preview.projects
+            .slice(0, 4)
+            .map((project) => `• ${project.name}: ${project.taskCount}`);
+        if (preview.projects.length > 4) {
+            projectLines.push(localize(`• ${preview.projects.length - 4} more project(s)…`, `• 另外还有 ${preview.projects.length - 4} 个项目…`));
+        }
+        const details = [
+            localize(
+                `Import ${preview.taskCount} tasks from ${preview.projectCount} Todoist project(s)?`,
+                `导入来自 ${preview.projectCount} 个 Todoist 项目的 ${preview.taskCount} 个任务？`
+            ),
+            preview.sectionCount > 0
+                ? localize(`${preview.sectionCount} section(s) will be preserved.`, `${preview.sectionCount} 个分组将被保留。`)
+                : null,
+            preview.checklistItemCount > 0
+                ? localize(`${preview.checklistItemCount} subtask(s) will become checklist items.`, `${preview.checklistItemCount} 个子任务会变成清单项。`)
+                : null,
+            localize(
+                'Imported tasks stay in Inbox so you can process them in Mindwtr.',
+                '导入后的任务会保留在收集箱中，方便你在 Mindwtr 里继续处理。'
+            ),
+            ...(projectLines.length > 0 ? ['', ...projectLines] : []),
+            ...(preview.warnings.length > 0 ? ['', ...preview.warnings] : []),
+        ].filter(Boolean);
+        return details.join('\n');
+    };
+
     const renderSyncHistory = () => {
         if (syncHistoryEntries.length === 0) return null;
         return (
@@ -247,15 +337,162 @@ export function SyncSettingsScreen() {
     };
 
     const handleBackup = async () => {
-        setIsSyncing(true);
+        setBackupAction('export');
         try {
-            await exportData({ tasks, projects, sections, areas, settings });
+            await exportCurrentDataBackup({ tasks, projects, sections, areas, settings });
         } catch (error) {
             logSettingsError(error);
-            Alert.alert(localize('Error', '错误'), localize('Failed to export data', '导出失败'));
+            Alert.alert(localize('Error', '错误'), localize('Failed to export backup', '导出备份失败'));
         } finally {
-            setIsSyncing(false);
+            setBackupAction(null);
         }
+    };
+
+    const confirmRestoreBackup = async (validation: BackupValidation) => {
+        if (!validation.data) return;
+        setBackupAction('restore');
+        try {
+            const { snapshotName } = await restoreDataFromBackup(validation.data);
+            await refreshRecoverySnapshots();
+            Alert.alert(
+                localize('Restore complete', '恢复完成'),
+                localize(
+                    `Backup restored successfully. Recovery snapshot saved as ${snapshotName}.`,
+                    `备份恢复成功。恢复快照已保存为 ${snapshotName}。`
+                )
+            );
+        } catch (error) {
+            logSettingsError(error);
+            Alert.alert(localize('Restore failed', '恢复失败'), String(error));
+        } finally {
+            setBackupAction(null);
+        }
+    };
+
+    const handleRestoreBackup = async () => {
+        setBackupAction('restore');
+        try {
+            const document = await pickBackupDocument();
+            if (!document) return;
+            const validation = await inspectBackupDocument(document, {
+                appVersion: Constants.expoConfig?.version ?? '0.0.0',
+            });
+            if (!validation.valid || !validation.data) {
+                Alert.alert(
+                    localize('Invalid backup', '无效备份'),
+                    validation.errors[0] || localize('This file is not a valid Mindwtr backup.', '这不是有效的 Mindwtr 备份文件。')
+                );
+                return;
+            }
+            const summary = buildBackupSummary(validation);
+            Alert.alert(
+                localize('Restore backup?', '恢复备份？'),
+                summary,
+                [
+                    { text: localize('Cancel', '取消'), style: 'cancel' },
+                    {
+                        text: localize('Restore', '恢复'),
+                        style: 'destructive',
+                        onPress: () => void confirmRestoreBackup(validation),
+                    },
+                ]
+            );
+        } catch (error) {
+            logSettingsError(error);
+            Alert.alert(localize('Restore failed', '恢复失败'), String(error));
+        } finally {
+            setBackupAction(null);
+        }
+    };
+
+    const confirmTodoistImport = async (parsedProjects: ParsedTodoistProject[]) => {
+        setBackupAction('import');
+        try {
+            const { snapshotName, result } = await importTodoistData(parsedProjects);
+            await refreshRecoverySnapshots();
+            const details = [
+                localize(
+                    `Imported ${result.importedTaskCount} tasks into ${result.importedProjectCount} project(s).`,
+                    `已导入 ${result.importedProjectCount} 个项目中的 ${result.importedTaskCount} 个任务。`
+                ),
+                result.importedChecklistItemCount > 0
+                    ? localize(
+                        `${result.importedChecklistItemCount} subtask(s) became checklist items.`,
+                        `${result.importedChecklistItemCount} 个子任务已转换为清单项。`
+                    )
+                    : null,
+                localize(`Recovery snapshot saved as ${snapshotName}.`, `恢复快照已保存为 ${snapshotName}。`),
+                ...(result.warnings.length > 0 ? ['', ...result.warnings] : []),
+            ].filter(Boolean);
+            Alert.alert(localize('Import complete', '导入完成'), details.join('\n'));
+        } catch (error) {
+            logSettingsError(error);
+            Alert.alert(localize('Import failed', '导入失败'), String(error));
+        } finally {
+            setBackupAction(null);
+        }
+    };
+
+    const handleImportTodoist = async () => {
+        setBackupAction('import');
+        try {
+            const document = await pickTodoistDocument();
+            if (!document) return;
+            const parseResult = await inspectTodoistDocument(document);
+            if (!parseResult.valid || !parseResult.preview) {
+                Alert.alert(
+                    localize('Import failed', '导入失败'),
+                    parseResult.errors[0] || localize('The selected file is not a supported Todoist export.', '所选文件不是受支持的 Todoist 导出文件。')
+                );
+                return;
+            }
+            Alert.alert(
+                localize('Import Todoist data?', '导入 Todoist 数据？'),
+                buildTodoistSummary(parseResult.preview),
+                [
+                    { text: localize('Cancel', '取消'), style: 'cancel' },
+                    {
+                        text: localize('Import', '导入'),
+                        onPress: () => void confirmTodoistImport(parseResult.parsedProjects),
+                    },
+                ]
+            );
+        } catch (error) {
+            logSettingsError(error);
+            Alert.alert(localize('Import failed', '导入失败'), String(error));
+        } finally {
+            setBackupAction(null);
+        }
+    };
+
+    const handleRestoreRecoverySnapshot = async (snapshotName: string) => {
+        Alert.alert(
+            localize('Restore recovery snapshot?', '恢复快照？'),
+            localize(
+                `Restore ${formatRecoverySnapshotLabel(snapshotName)}? This will replace current local data.`,
+                `恢复 ${formatRecoverySnapshotLabel(snapshotName)}？这将替换当前本地数据。`
+            ),
+            [
+                { text: localize('Cancel', '取消'), style: 'cancel' },
+                {
+                    text: localize('Restore', '恢复'),
+                    style: 'destructive',
+                    onPress: async () => {
+                        setBackupAction('snapshot');
+                        try {
+                            await restoreLocalDataSnapshot(snapshotName);
+                            await refreshRecoverySnapshots();
+                            Alert.alert(localize('Restore complete', '恢复完成'), localize('Recovery snapshot restored.', '恢复快照已恢复。'));
+                        } catch (error) {
+                            logSettingsError(error);
+                            Alert.alert(localize('Restore failed', '恢复失败'), String(error));
+                        } finally {
+                            setBackupAction(null);
+                        }
+                    },
+                },
+            ]
+        );
     };
 
     const toggleDebugLogging = (value: boolean) => {
@@ -1107,12 +1344,92 @@ export function SyncSettingsScreen() {
 
                 <Text style={[styles.sectionTitle, { color: tc.text, marginTop: 24 }]}>{t('settings.backup')}</Text>
                 <View style={[styles.settingCard, { backgroundColor: tc.cardBg }]}>
-                    <TouchableOpacity style={styles.settingRow} onPress={() => void handleBackup()} disabled={isSyncing}>
+                    <TouchableOpacity style={styles.settingRow} onPress={() => void handleBackup()} disabled={isSyncing || isBackupBusy}>
                         <View style={styles.settingInfo}>
                             <Text style={[styles.settingLabel, { color: '#3B82F6' }]}>{t('settings.exportBackup')}</Text>
                             <Text style={[styles.settingDescription, { color: tc.secondaryText }]}>{t('settings.saveToSyncFolder')}</Text>
                         </View>
+                        {backupAction === 'export' && <ActivityIndicator size="small" color={tc.tint} />}
                     </TouchableOpacity>
+                    <TouchableOpacity
+                        style={[styles.settingRow, { borderTopWidth: 1, borderTopColor: tc.border }]}
+                        onPress={() => void handleRestoreBackup()}
+                        disabled={isSyncing || isBackupBusy}
+                    >
+                        <View style={styles.settingInfo}>
+                            <Text style={[styles.settingLabel, { color: tc.tint }]}>{localize('Restore Backup', '恢复备份')}</Text>
+                            <Text style={[styles.settingDescription, { color: tc.secondaryText }]}>
+                                {localize('Replace local data from a backup JSON file.', '从备份 JSON 文件替换本地数据。')}
+                            </Text>
+                        </View>
+                        {backupAction === 'restore' && <ActivityIndicator size="small" color={tc.tint} />}
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                        style={[styles.settingRow, { borderTopWidth: 1, borderTopColor: tc.border }]}
+                        onPress={() => void handleImportTodoist()}
+                        disabled={isSyncing || isBackupBusy}
+                    >
+                        <View style={styles.settingInfo}>
+                            <Text style={[styles.settingLabel, { color: tc.tint }]}>{localize('Import from Todoist', '从 Todoist 导入')}</Text>
+                            <Text style={[styles.settingDescription, { color: tc.secondaryText }]}>
+                                {localize('Import Todoist CSV or ZIP exports into Mindwtr projects.', '将 Todoist 的 CSV 或 ZIP 导出导入为 Mindwtr 项目。')}
+                            </Text>
+                        </View>
+                        {backupAction === 'import' && <ActivityIndicator size="small" color={tc.tint} />}
+                    </TouchableOpacity>
+                </View>
+
+                <View style={[styles.settingCard, { backgroundColor: tc.cardBg, marginTop: 12 }]}>
+                    <TouchableOpacity style={styles.settingRow} onPress={() => setRecoverySnapshotsOpen((prev) => !prev)}>
+                        <View style={styles.settingInfo}>
+                            <Text style={[styles.settingLabel, { color: tc.text }]}>{t('settings.recoverySnapshots')}</Text>
+                            <Text style={[styles.settingDescription, { color: tc.secondaryText }]}>
+                                {localize(
+                                    'Saved automatically before restore and import operations.',
+                                    '在恢复和导入之前自动保存。'
+                                )}
+                            </Text>
+                        </View>
+                        <Text style={[styles.chevron, { color: tc.secondaryText }]}>{recoverySnapshotsOpen ? '▾' : '▸'}</Text>
+                    </TouchableOpacity>
+                    {recoverySnapshotsOpen && (
+                        <>
+                            {isLoadingRecoverySnapshots && (
+                                <View style={[styles.settingRow, { borderTopWidth: 1, borderTopColor: tc.border }]}>
+                                    <Text style={[styles.settingDescription, { color: tc.secondaryText }]}>
+                                        {t('settings.recoverySnapshotsLoading')}
+                                    </Text>
+                                </View>
+                            )}
+                            {!isLoadingRecoverySnapshots && recoverySnapshots.length === 0 && (
+                                <View style={[styles.settingRow, { borderTopWidth: 1, borderTopColor: tc.border }]}>
+                                    <Text style={[styles.settingDescription, { color: tc.secondaryText }]}>
+                                        {t('settings.recoverySnapshotsEmpty')}
+                                    </Text>
+                                </View>
+                            )}
+                            {!isLoadingRecoverySnapshots && recoverySnapshots.map((snapshot) => (
+                                <TouchableOpacity
+                                    key={snapshot}
+                                    style={[styles.settingRow, { borderTopWidth: 1, borderTopColor: tc.border }]}
+                                    onPress={() => void handleRestoreRecoverySnapshot(snapshot)}
+                                    disabled={isSyncing || isBackupBusy}
+                                >
+                                    <View style={styles.settingInfo}>
+                                        <Text style={[styles.settingLabel, { color: tc.text }]} numberOfLines={1}>
+                                            {formatRecoverySnapshotLabel(snapshot)}
+                                        </Text>
+                                        <Text style={[styles.settingDescription, { color: tc.secondaryText }]} numberOfLines={1}>
+                                            {snapshot}
+                                        </Text>
+                                    </View>
+                                    {backupAction === 'snapshot'
+                                        ? <ActivityIndicator size="small" color={tc.tint} />
+                                        : <Text style={[styles.settingLabel, { color: tc.tint }]}>{t('settings.recoverySnapshotsRestore')}</Text>}
+                                </TouchableOpacity>
+                            ))}
+                        </>
+                    )}
                 </View>
 
                 <View style={[styles.settingCard, { backgroundColor: tc.cardBg, marginTop: 16 }]}>

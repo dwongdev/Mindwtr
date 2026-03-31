@@ -840,6 +840,16 @@ export class SyncService {
         }
     }
 
+    static async createDataSnapshot(): Promise<string | null> {
+        if (!isTauriRuntimeEnv()) return null;
+        try {
+            return await tauriInvoke<string>('create_data_snapshot');
+        } catch (error) {
+            reportError('Failed to create snapshot', error);
+            return null;
+        }
+    }
+
     static async restoreDataSnapshot(snapshotFileName: string): Promise<{ success: boolean; error?: string }> {
         if (!isTauriRuntimeEnv()) return { success: false, error: 'Desktop runtime is required.' };
         try {

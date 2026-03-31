@@ -933,6 +933,7 @@ export function SettingsView() {
         snapshots,
         isLoadingSnapshots,
         isRestoringSnapshot,
+        transferAction,
         handleSaveSyncPath,
         handleChangeSyncLocation,
         handleSetSyncBackend,
@@ -945,7 +946,11 @@ export function SettingsView() {
         handleTestDropboxConnection,
         handleSync,
         handleRestoreSnapshot,
+        handleExportBackup,
+        handleRestoreBackup,
+        handleImportTodoist,
     } = useSyncSettings({
+        appVersion,
         isTauri,
         showSaved,
         selectSyncFolderTitle,
@@ -1221,7 +1226,11 @@ export function SettingsView() {
                     snapshots={snapshots}
                     isLoadingSnapshots={isLoadingSnapshots}
                     isRestoringSnapshot={isRestoringSnapshot}
+                    transferAction={transferAction}
                     onRestoreSnapshot={handleRestoreSnapshot}
+                    onExportBackup={handleExportBackup}
+                    onRestoreBackup={handleRestoreBackup}
+                    onImportTodoist={handleImportTodoist}
                 />
             );
         }

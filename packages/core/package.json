@@ -37,9 +37,11 @@
     "./attachment-validation": "./src/attachment-validation.ts",
     "./attachment-progress": "./src/attachment-progress.ts",
     "./attachment-cleanup": "./src/attachment-cleanup.ts",
+    "./backup-transfer": "./src/backup-transfer.ts",
     "./ics": "./src/ics.ts",
     "./task-status": "./src/task-status.ts",
     "./text-direction": "./src/text-direction.ts",
+    "./todoist-import": "./src/todoist-import.ts",
     "./ai/ai-service": "./src/ai/ai-service.ts",
     "./ai/types": "./src/ai/types.ts",
     "./ai/catalog": "./src/ai/catalog.ts",
@@ -53,6 +55,7 @@
   "dependencies": {
     "@babel/runtime": "^7.28.4",
     "date-fns": "^4.1.0",
+    "fflate": "^0.8.2",
     "uuid": "^9.0.1",
     "zustand": "^4.5.0"
   },

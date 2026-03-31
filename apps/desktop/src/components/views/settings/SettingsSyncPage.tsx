@@ -7,6 +7,14 @@ import { cn } from '../../../lib/utils';
 import { ConfirmModal } from '../../ConfirmModal';
 
 type Labels = {
+    dataTransfer: string;
+    dataTransferDesc: string;
+    exportBackup: string;
+    exportBackupDesc: string;
+    restoreBackup: string;
+    restoreBackupDesc: string;
+    importTodoist: string;
+    importTodoistDesc: string;
     diagnostics: string;
     diagnosticsDesc: string;
     debugLogging: string;
@@ -153,7 +161,11 @@ type SettingsSyncPageProps = {
     snapshots: string[];
     isLoadingSnapshots: boolean;
     isRestoringSnapshot: boolean;
+    transferAction: null | 'export' | 'restore' | 'import';
     onRestoreSnapshot: (snapshotFileName: string) => Promise<boolean | void> | boolean | void;
+    onExportBackup: () => Promise<void> | void;
+    onRestoreBackup: () => Promise<void> | void;
+    onImportTodoist: () => Promise<void> | void;
 };
 
 const isValidHttpUrl = (value: string): boolean => {
@@ -236,7 +248,11 @@ export function SettingsSyncPage({
     snapshots,
     isLoadingSnapshots,
     isRestoringSnapshot,
+    transferAction,
     onRestoreSnapshot,
+    onExportBackup,
+    onRestoreBackup,
+    onImportTodoist,
 }: SettingsSyncPageProps) {
     const isMacOS = typeof navigator !== 'undefined'
         && /mac/i.test(`${navigator.platform || ''} ${navigator.userAgent || ''}`);
@@ -805,6 +821,60 @@ export function SettingsSyncPage({
                                 </div>
                             )}
                         </div>
+                    </div>
+                </div>
+            </section>
+
+            <section className="space-y-3">
+                <h2 className="text-lg font-semibold flex items-center gap-2">
+                    <RefreshCw className="w-5 h-5" />
+                    {t.dataTransfer}
+                </h2>
+                <div className="bg-card border border-border rounded-lg p-6 space-y-3">
+                    <p className="text-sm text-muted-foreground">{t.dataTransferDesc}</p>
+                    <div className="space-y-2">
+                        <button
+                            type="button"
+                            onClick={() => void onExportBackup()}
+                            disabled={transferAction !== null}
+                            className="w-full flex items-center justify-between rounded-md border border-border px-3 py-2 text-left hover:bg-muted/50 disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                            <div>
+                                <div className="text-sm font-medium text-foreground">{t.exportBackup}</div>
+                                <div className="text-xs text-muted-foreground">{t.exportBackupDesc}</div>
+                            </div>
+                            <div className="text-xs text-muted-foreground">
+                                {transferAction === 'export' ? t.syncing : null}
+                            </div>
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => void onRestoreBackup()}
+                            disabled={transferAction !== null}
+                            className="w-full flex items-center justify-between rounded-md border border-border px-3 py-2 text-left hover:bg-muted/50 disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                            <div>
+                                <div className="text-sm font-medium text-foreground">{t.restoreBackup}</div>
+                                <div className="text-xs text-muted-foreground">{t.restoreBackupDesc}</div>
+                            </div>
+                            <div className="text-xs text-muted-foreground">
+                                {transferAction === 'restore' ? t.syncing : null}
+                            </div>
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => void onImportTodoist()}
+                            disabled={transferAction !== null}
+                            className="w-full flex items-center justify-between rounded-md border border-border px-3 py-2 text-left hover:bg-muted/50 disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                            <div>
+                                <div className="text-sm font-medium text-foreground">{t.importTodoist}</div>
+                                <div className="text-xs text-muted-foreground">{t.importTodoistDesc}</div>
+                            </div>
+                            <div className="text-xs text-muted-foreground">
+                                {transferAction === 'import' ? t.syncing : null}
+                            </div>
+                        </button>
                     </div>
                 </div>
             </section>

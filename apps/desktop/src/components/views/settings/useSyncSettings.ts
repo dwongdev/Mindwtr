@@ -3,7 +3,18 @@ import { SyncService, type CloudProvider } from '../../../lib/sync-service';
 import { useUiStore } from '../../../store/ui-store';
 import { logError } from '../../../lib/app-log';
 import { markSettingsOpenTrace, measureSettingsOpenStep } from '../../../lib/settings-open-diagnostics';
-import { CLOCK_SKEW_THRESHOLD_MS, type SyncBackend } from '@mindwtr/core';
+import {
+    CLOCK_SKEW_THRESHOLD_MS,
+    getInMemoryAppDataSnapshot,
+    type SyncBackend,
+} from '@mindwtr/core';
+import {
+    exportDesktopBackup,
+    importDesktopTodoistData,
+    inspectDesktopBackup,
+    inspectDesktopTodoistImport,
+    restoreDesktopBackup,
+} from '../../../lib/data-transfer';
 
 export type { SyncBackend };
 export type DropboxTestState = 'idle' | 'success' | 'error';
@@ -19,12 +30,13 @@ const formatClockSkew = (ms: number): string => {
 };
 
 type UseSyncSettingsOptions = {
+    appVersion: string;
     isTauri: boolean;
     showSaved: () => void;
     selectSyncFolderTitle: string;
 };
 
-export const useSyncSettings = ({ isTauri, showSaved, selectSyncFolderTitle }: UseSyncSettingsOptions) => {
+export const useSyncSettings = ({ appVersion, isTauri, showSaved, selectSyncFolderTitle }: UseSyncSettingsOptions) => {
     const [syncPath, setSyncPath] = useState('');
     const [syncStatus, setSyncStatus] = useState(() => SyncService.getSyncStatus());
     const [syncError, setSyncError] = useState<string | null>(null);
@@ -48,6 +60,7 @@ export const useSyncSettings = ({ isTauri, showSaved, selectSyncFolderTitle }: U
     const [snapshots, setSnapshots] = useState<string[]>([]);
     const [isLoadingSnapshots, setIsLoadingSnapshots] = useState(false);
     const [isRestoringSnapshot, setIsRestoringSnapshot] = useState(false);
+    const [transferAction, setTransferAction] = useState<null | 'export' | 'restore' | 'import'>(null);
     const showToast = useUiStore((state) => state.showToast);
 
     const formatSyncPathError = useCallback((message?: string): string => {
@@ -66,6 +79,27 @@ export const useSyncSettings = ({ isTauri, showSaved, selectSyncFolderTitle }: U
         const text = String(error || '').trim();
         return text || fallback;
     }, []);
+
+    const requestConfirmation = useCallback(async ({
+        message,
+        title,
+    }: {
+        message: string;
+        title: string;
+    }): Promise<boolean> => {
+        if (isTauri) {
+            const { confirm } = await import('@tauri-apps/plugin-dialog');
+            return await confirm(message, {
+                title,
+                okLabel: 'Continue',
+                cancelLabel: 'Cancel',
+            });
+        }
+        if (typeof window !== 'undefined') {
+            return window.confirm(`${title}\n\n${message}`);
+        }
+        return false;
+    }, [isTauri]);
 
     useEffect(() => {
         markSettingsOpenTrace('sync-settings-effect');
@@ -490,6 +524,105 @@ export const useSyncSettings = ({ isTauri, showSaved, selectSyncFolderTitle }: U
         }
     }, [showToast]);
 
+    const handleExportBackup = useCallback(async () => {
+        setTransferAction('export');
+        try {
+            await exportDesktopBackup(getInMemoryAppDataSnapshot());
+            showToast('Backup exported.', 'success');
+        } catch (error) {
+            showToast(toErrorMessage(error, 'Failed to export backup.'), 'error');
+        } finally {
+            setTransferAction(null);
+        }
+    }, [showToast, toErrorMessage]);
+
+    const handleRestoreBackup = useCallback(async () => {
+        setTransferAction('restore');
+        try {
+            const validation = await inspectDesktopBackup(appVersion);
+            if (!validation) return;
+            if (!validation.valid || !validation.data) {
+                showToast(validation.errors[0] || 'Selected file is not a valid Mindwtr backup.', 'error');
+                return;
+            }
+
+            const lines = [
+                validation.metadata?.backupAt
+                    ? `Backup date: ${new Date(validation.metadata.backupAt).toLocaleString()}`
+                    : validation.metadata?.fileName
+                        ? `File: ${validation.metadata.fileName}`
+                        : null,
+                `Contains ${validation.metadata?.taskCount ?? 0} tasks and ${validation.metadata?.projectCount ?? 0} projects.`,
+                'This will replace current local data. A recovery snapshot will be saved first when available.',
+                ...(validation.warnings.length > 0 ? ['', ...validation.warnings] : []),
+            ].filter(Boolean);
+            const confirmed = await requestConfirmation({
+                title: 'Restore backup?',
+                message: lines.join('\n'),
+            });
+            if (!confirmed) return;
+
+            const { snapshotName } = await restoreDesktopBackup(validation.data);
+            if (isTauri) {
+                setSnapshots(await SyncService.listDataSnapshots());
+            }
+            showToast(snapshotName ? `Backup restored. Snapshot saved as ${snapshotName}.` : 'Backup restored.', 'success', 6000);
+        } catch (error) {
+            showToast(toErrorMessage(error, 'Failed to restore backup.'), 'error');
+        } finally {
+            setTransferAction(null);
+        }
+    }, [appVersion, isTauri, requestConfirmation, showToast, toErrorMessage]);
+
+    const handleImportTodoist = useCallback(async () => {
+        setTransferAction('import');
+        try {
+            const parseResult = await inspectDesktopTodoistImport();
+            if (!parseResult) return;
+            if (!parseResult.valid || !parseResult.preview) {
+                showToast(parseResult.errors[0] || 'The selected file is not a supported Todoist export.', 'error');
+                return;
+            }
+
+            const preview = parseResult.preview;
+            const projectLines = preview.projects
+                .slice(0, 4)
+                .map((project) => `- ${project.name}: ${project.taskCount}`);
+            if (preview.projects.length > 4) {
+                projectLines.push(`- ${preview.projects.length - 4} more project(s)...`);
+            }
+
+            const confirmed = await requestConfirmation({
+                title: 'Import Todoist data?',
+                message: [
+                    `Import ${preview.taskCount} tasks from ${preview.projectCount} project(s)?`,
+                    preview.sectionCount > 0 ? `${preview.sectionCount} section(s) will be preserved.` : null,
+                    preview.checklistItemCount > 0 ? `${preview.checklistItemCount} subtask(s) will become checklist items.` : null,
+                    'Imported tasks stay in Inbox so you can process them in Mindwtr.',
+                    ...(projectLines.length > 0 ? ['', ...projectLines] : []),
+                    ...(preview.warnings.length > 0 ? ['', ...preview.warnings] : []),
+                ].filter(Boolean).join('\n'),
+            });
+            if (!confirmed) return;
+
+            const { snapshotName, result } = await importDesktopTodoistData(parseResult.parsedProjects);
+            if (isTauri) {
+                setSnapshots(await SyncService.listDataSnapshots());
+            }
+            const details = [
+                `Imported ${result.importedTaskCount} tasks into ${result.importedProjectCount} project(s).`,
+                result.importedChecklistItemCount > 0 ? `${result.importedChecklistItemCount} subtask(s) became checklist items.` : null,
+                snapshotName ? `Snapshot saved as ${snapshotName}.` : null,
+                ...(result.warnings.length > 0 ? ['', ...result.warnings] : []),
+            ].filter(Boolean).join('\n');
+            showToast(details, 'success', 7000);
+        } catch (error) {
+            showToast(toErrorMessage(error, 'Failed to import Todoist data.'), 'error');
+        } finally {
+            setTransferAction(null);
+        }
+    }, [isTauri, requestConfirmation, showToast, toErrorMessage]);
+
     return {
         syncPath,
         setSyncPath,
@@ -525,6 +658,7 @@ export const useSyncSettings = ({ isTauri, showSaved, selectSyncFolderTitle }: U
         snapshots,
         isLoadingSnapshots,
         isRestoringSnapshot,
+        transferAction,
         handleSaveSyncPath,
         handleChangeSyncLocation,
         handleSetSyncBackend,
@@ -537,5 +671,8 @@ export const useSyncSettings = ({ isTauri, showSaved, selectSyncFolderTitle }: U
         handleTestDropboxConnection,
         handleSync,
         handleRestoreSnapshot,
+        handleExportBackup,
+        handleRestoreBackup,
+        handleImportTodoist,
     };
 };
