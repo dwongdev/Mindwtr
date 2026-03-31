@@ -151,6 +151,8 @@ Mindwtr is built to be **simple by default and powerful when you need it**. We f
 - 🔄 **Sync Options** - See the [Data & Sync wiki](https://github.com/dongdongbh/Mindwtr/wiki/Data-and-Sync) for supported backends and setup
 - ☁️ **Dropbox OAuth Sync (Optional)** - Native Dropbox App Folder sync in supported non-FOSS builds
 - 📤 **Export/Backup** - Export data to JSON
+- ♻️ **Restore from Backup** - Replace local data from a validated Mindwtr backup with a recovery snapshot first
+- 📥 **Todoist CSV/ZIP Import** - Import Todoist exports into Mindwtr projects and Inbox
 - 🔗 **Obsidian Integration** - Desktop vault task import with deep links back to source notes
 - 🗓️ **External Calendars (System + ICS)** - Mobile reads system calendars; desktop supports ICS subscriptions
 
@@ -340,7 +342,6 @@ You can help in several ways:
 - ☁️ Expand native iCloud/CloudKit sync to macOS desktop
 - 🗣️ iOS Reminders Inbox import (Siri capture -> Mindwtr Inbox)
 - ✉️ Email to Inbox
-- 📥 Todoist import
 - 🕒 Natural language input using `chrono-node`
 
 ## Documentation

@@ -347,18 +347,52 @@ The same workflow applies. Avoid editing on multiple devices simultaneously to p
 ### Export Data
 
 **Desktop:**
-- Data is automatically saved to the sync folder
+- Use **Settings → Sync → Data Transfer → Export Backup**
+- Sync backends also keep `data.json` updated automatically when sync is enabled
 
 **Mobile:**
 1. Go to **Settings → Data & Sync**
 2. Tap **Export Backup**
 3. Save to your desired location
 
+### Restore from Backup
+
+Mindwtr can restore local data directly from a backup JSON file on both desktop and mobile.
+
+Flow:
+1. Open **Settings → Data & Sync / Sync**
+2. Choose **Restore Backup**
+3. Pick a Mindwtr backup JSON file
+4. Review the backup summary and confirm
+
+Before restore, Mindwtr validates the file and creates a recovery snapshot when the platform supports it. Restore is a full local replacement, not a merge.
+
+- **Desktop**: a recovery snapshot is created in the app data snapshot folder before restore
+- **Mobile**: a local recovery snapshot is created in app storage before restore
+- **If the file is invalid**: restore is blocked and your current data stays untouched
+
+See [[Backup and Restore]] for the detailed flow.
+
+### Todoist CSV / ZIP Import
+
+Mindwtr can import Todoist exports from **Settings → Data & Sync / Sync → Import from Todoist**.
+
+- Supports a single Todoist CSV export or a ZIP backup containing multiple project CSVs
+- Creates Mindwtr projects from Todoist projects
+- Preserves Todoist sections as Mindwtr sections
+- Converts Todoist subtasks into checklist items
+- Leaves imported tasks in **Inbox** so you can process them through your normal GTD flow
+
+Recurring Todoist schedules are not recreated automatically. Mindwtr imports the task once and keeps the original recurrence text in the description.
+
+See [[Todoist Import]] for details and supported mappings.
+
 ### Backup Strategy
 
 - Regular exports to sync folder
 - Keep local config folder backed up
 - The sync file serves as a backup
+- Recovery snapshots are saved automatically before restore/import operations
 
 ---
 

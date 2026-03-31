@@ -309,12 +309,26 @@ We recommend using one sync folder to avoid conflicts. Pick one service (Dropbox
 
 ### How do I backup my data?
 
-**Desktop:** Your data is in the data folder. Back up `data.json`.
-**Mobile:** Use Export Backup in Settings to save a copy.
+**Desktop:** Use **Settings → Sync → Data Transfer → Export Backup**, or back up `data.json` from the app data folder.
+**Mobile:** Use **Settings → Data & Sync → Export Backup** to save a copy.
+
+See [[Backup and Restore]].
 
 ### Can I restore deleted tasks?
 
-Soft-deleted tasks are not shown in the UI but remain in the data file briefly. There's no built-in undelete, but you could restore from a backup.
+There’s no single-task undelete UI yet, but you can restore your local data from a previous backup or recovery snapshot.
+
+See [[Backup and Restore]].
+
+### Can I import from Todoist?
+
+Yes. Mindwtr can import Todoist CSV exports and ZIP backups from **Settings → Data & Sync / Sync → Import from Todoist**.
+
+- Todoist projects become Mindwtr projects
+- Subtasks become checklist items
+- Imported tasks land in **Inbox**
+
+See [[Todoist Import]].
 
 ---
 
