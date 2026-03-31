@@ -5,9 +5,12 @@ import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 
 import {
+    DEFAULT_OBSIDIAN_INBOX_FILE,
+    isObsidianFileInScanFolders,
     MAX_OBSIDIAN_MARKDOWN_BYTES,
     MAX_OBSIDIAN_SCAN_WARNINGS,
     normalizeObsidianConfig,
+    scanObsidianFile,
     scanObsidianVault,
     type ObsidianScannerDependencies,
 } from './obsidian-scanner';
@@ -47,10 +50,12 @@ describe('scanObsidianVault', () => {
         }, nodeFsDeps);
 
         expect(result.scannedFileCount).toBe(8);
+        expect(result.scannedRelativePaths).toHaveLength(8);
         expect(result.tasks).toHaveLength(13);
         expect(result.warnings).toEqual([]);
         expect(result.tasks.map((task) => task.source.relativeFilePath)).not.toContain('.trash/Deleted.md');
         expect(result.tasks.map((task) => task.source.relativeFilePath)).not.toContain('.obsidian/.gitkeep');
+        expect(result.scannedRelativePaths).not.toContain('.trash/Deleted.md');
         expect(result.tasks[0]?.source.relativeFilePath).toBe('Daily/2026-03-14.md');
         expect(result.tasks[result.tasks.length - 1]?.source.relativeFilePath).toBe('Unicode-任务.md');
     });
@@ -158,6 +163,31 @@ describe('scanObsidianVault', () => {
             `Skipped large Markdown file: Huge-${MAX_OBSIDIAN_SCAN_WARNINGS - 1}.md`
         );
     });
+
+    it('incrementally rescans a single changed markdown file', async () => {
+        const result = await scanObsidianFile({
+            vaultPath: fixtureRoot,
+            enabled: true,
+            scanFolders: ['/'],
+        }, 'Projects/Alpha.md', nodeFsDeps);
+
+        expect(result.isTracked).toBe(true);
+        expect(result.warning).toBeNull();
+        expect(result.tasks.map((task) => task.text)).toEqual([
+            'Follow up on [[Meeting Notes 2026-03-14]] #work #urgent',
+            'Review [[Project Alpha|Alpha project]] proposal',
+        ]);
+    });
+});
+
+describe('isObsidianFileInScanFolders', () => {
+    it('matches folder and file based scan scopes', () => {
+        expect(isObsidianFileInScanFolders('Projects/Alpha.md', ['/'])).toBe(true);
+        expect(isObsidianFileInScanFolders('Projects/Alpha.md', ['Projects'])).toBe(true);
+        expect(isObsidianFileInScanFolders('Projects/Alpha.md', ['Inbox.md'])).toBe(false);
+        expect(isObsidianFileInScanFolders('Inbox.md', ['Inbox.md'])).toBe(true);
+        expect(isObsidianFileInScanFolders('.obsidian/config.md', ['/'])).toBe(false);
+    });
 });
 
 describe('normalizeObsidianConfig', () => {
@@ -170,6 +200,7 @@ describe('normalizeObsidianConfig', () => {
             vaultPath: null,
             vaultName: '',
             scanFolders: ['/'],
+            inboxFile: DEFAULT_OBSIDIAN_INBOX_FILE,
             lastScannedAt: null,
             enabled: false,
         });
@@ -183,6 +214,7 @@ describe('normalizeObsidianConfig', () => {
             vaultName: 'Notes',
             enabled: true,
             scanFolders: ['Projects', 'Daily'],
+            inboxFile: DEFAULT_OBSIDIAN_INBOX_FILE,
         });
     });
 });

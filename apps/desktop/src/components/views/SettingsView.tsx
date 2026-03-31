@@ -962,9 +962,13 @@ export function SettingsView() {
         setObsidianEnabled,
         obsidianScanFoldersText,
         setObsidianScanFoldersText,
+        obsidianInboxFile,
+        setObsidianInboxFile,
         obsidianLastScannedAt,
         obsidianHasVaultMarker,
         obsidianVaultWarning,
+        obsidianIsWatching,
+        obsidianWatcherError,
         isSavingObsidian,
         isScanningObsidian,
         onBrowseObsidianVault,
@@ -1147,14 +1151,18 @@ export function SettingsView() {
                     obsidianVaultPath={obsidianVaultPath}
                     obsidianEnabled={obsidianEnabled}
                     obsidianScanFoldersText={obsidianScanFoldersText}
+                    obsidianInboxFile={obsidianInboxFile}
                     obsidianLastScannedAt={obsidianLastScannedAt}
                     obsidianHasVaultMarker={obsidianHasVaultMarker}
                     obsidianVaultWarning={obsidianVaultWarning}
+                    obsidianIsWatching={obsidianIsWatching}
+                    obsidianWatcherError={obsidianWatcherError}
                     isSavingObsidian={isSavingObsidian}
                     isScanningObsidian={isScanningObsidian}
                     onObsidianVaultPathChange={setObsidianVaultPath}
                     onObsidianEnabledChange={setObsidianEnabled}
                     onObsidianScanFoldersTextChange={setObsidianScanFoldersText}
+                    onObsidianInboxFileChange={setObsidianInboxFile}
                     onBrowseObsidianVault={onBrowseObsidianVault}
                     onSaveObsidian={onSaveObsidian}
                     onRemoveObsidian={onRemoveObsidian}

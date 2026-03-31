@@ -3,6 +3,7 @@ import type { ObsidianSourceRef } from '@mindwtr/core';
 
 const isTauriRuntimeMock = vi.hoisted(() => vi.fn(() => false));
 const invokeMock = vi.hoisted(() => vi.fn());
+const listenMock = vi.hoisted(() => vi.fn());
 const logWarnMock = vi.hoisted(() => vi.fn());
 
 vi.mock('./runtime', () => ({
@@ -11,6 +12,10 @@ vi.mock('./runtime', () => ({
 
 vi.mock('@tauri-apps/api/core', () => ({
     invoke: invokeMock,
+}));
+
+vi.mock('@tauri-apps/api/event', () => ({
+    listen: listenMock,
 }));
 
 vi.mock('./app-log', () => ({
@@ -33,6 +38,7 @@ afterEach(() => {
     isTauriRuntimeMock.mockReset();
     isTauriRuntimeMock.mockReturnValue(false);
     invokeMock.mockReset();
+    listenMock.mockReset();
     logWarnMock.mockReset();
     vi.restoreAllMocks();
 });
@@ -89,5 +95,67 @@ describe('obsidian-service helpers', () => {
             hasObsidianDir: null,
         });
         expect(logWarnMock).toHaveBeenCalledTimes(2);
+    });
+
+    it('starts and stops the native Obsidian watcher in Tauri', async () => {
+        isTauriRuntimeMock.mockReturnValue(true);
+        const unlistenChanged = vi.fn();
+        const unlistenError = vi.fn();
+        listenMock
+            .mockResolvedValueOnce(unlistenChanged)
+            .mockResolvedValueOnce(unlistenError);
+        invokeMock.mockResolvedValue(undefined);
+
+        await ObsidianService.startWatcher({
+            vaultPath: '/Vault',
+            vaultName: 'Vault',
+            scanFolders: ['/'],
+            inboxFile: 'Mindwtr/Inbox.md',
+            lastScannedAt: null,
+            enabled: true,
+        }, {
+            onFilesChanged: vi.fn(),
+            onError: vi.fn(),
+        });
+
+        expect(listenMock).toHaveBeenCalledTimes(2);
+        expect(invokeMock).toHaveBeenCalledWith('start_obsidian_watcher', { vaultPath: '/Vault' });
+
+        await ObsidianService.stopWatcher();
+
+        expect(unlistenChanged).toHaveBeenCalledTimes(1);
+        expect(unlistenError).toHaveBeenCalledTimes(1);
+        expect(invokeMock).toHaveBeenLastCalledWith('stop_obsidian_watcher', undefined);
+    });
+
+    it('invokes the desktop write commands for task toggle and creation', async () => {
+        isTauriRuntimeMock.mockReturnValue(true);
+        invokeMock.mockResolvedValue(undefined);
+
+        await ObsidianService.toggleTask({
+            vaultPath: '/Vault',
+            relativeFilePath: 'Inbox.md',
+            lineNumber: 14,
+            taskText: 'Follow up',
+            setCompleted: true,
+        });
+        await ObsidianService.createTask({
+            vaultPath: '/Vault',
+            relativeFilePath: 'Mindwtr/Inbox.md',
+            taskText: 'Capture task',
+        });
+
+        expect(invokeMock).toHaveBeenNthCalledWith(1, 'obsidian_toggle_task', {
+            vaultPath: '/Vault',
+            relativeFilePath: 'Inbox.md',
+            lineNumber: 14,
+            taskText: 'Follow up',
+            setCompleted: true,
+        });
+        expect(invokeMock).toHaveBeenNthCalledWith(2, 'obsidian_create_task', {
+            vaultPath: '/Vault',
+            relativeFilePath: 'Mindwtr/Inbox.md',
+            taskText: 'Capture task',
+        });
     });
 });

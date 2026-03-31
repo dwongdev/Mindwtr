@@ -28,6 +28,10 @@ type Labels = {
     obsidianVaultPathHint: string;
     obsidianScanFolders: string;
     obsidianScanFoldersHint: string;
+    obsidianInboxFile: string;
+    obsidianInboxFileHint: string;
+    obsidianWatching: string;
+    obsidianWatcherUnavailable: string;
     obsidianSave: string;
     obsidianRemove: string;
     obsidianRescan: string;
@@ -57,14 +61,18 @@ type SettingsIntegrationsPageProps = {
     obsidianVaultPath: string;
     obsidianEnabled: boolean;
     obsidianScanFoldersText: string;
+    obsidianInboxFile: string;
     obsidianLastScannedAt: string | null;
     obsidianHasVaultMarker: boolean | null;
     obsidianVaultWarning: string | null;
+    obsidianIsWatching: boolean;
+    obsidianWatcherError: string | null;
     isSavingObsidian: boolean;
     isScanningObsidian: boolean;
     onObsidianVaultPathChange: (value: string) => void;
     onObsidianEnabledChange: (value: boolean) => void;
     onObsidianScanFoldersTextChange: (value: string) => void;
+    onObsidianInboxFileChange: (value: string) => void;
     onBrowseObsidianVault: () => Promise<void> | void;
     onSaveObsidian: () => Promise<void> | void;
     onRemoveObsidian: () => Promise<void> | void;
@@ -90,14 +98,18 @@ export function SettingsIntegrationsPage({
     obsidianVaultPath,
     obsidianEnabled,
     obsidianScanFoldersText,
+    obsidianInboxFile,
     obsidianLastScannedAt,
     obsidianHasVaultMarker,
     obsidianVaultWarning,
+    obsidianIsWatching,
+    obsidianWatcherError,
     isSavingObsidian,
     isScanningObsidian,
     onObsidianVaultPathChange,
     onObsidianEnabledChange,
     onObsidianScanFoldersTextChange,
+    onObsidianInboxFileChange,
     onBrowseObsidianVault,
     onSaveObsidian,
     onRemoveObsidian,
@@ -128,14 +140,18 @@ export function SettingsIntegrationsPage({
                 obsidianVaultPath={obsidianVaultPath}
                 obsidianEnabled={obsidianEnabled}
                 obsidianScanFoldersText={obsidianScanFoldersText}
+                obsidianInboxFile={obsidianInboxFile}
                 obsidianLastScannedAt={obsidianLastScannedAt}
                 obsidianHasVaultMarker={obsidianHasVaultMarker}
                 obsidianVaultWarning={obsidianVaultWarning}
+                obsidianIsWatching={obsidianIsWatching}
+                obsidianWatcherError={obsidianWatcherError}
                 isSavingObsidian={isSavingObsidian}
                 isScanningObsidian={isScanningObsidian}
                 onObsidianVaultPathChange={onObsidianVaultPathChange}
                 onObsidianEnabledChange={onObsidianEnabledChange}
                 onObsidianScanFoldersTextChange={onObsidianScanFoldersTextChange}
+                onObsidianInboxFileChange={onObsidianInboxFileChange}
                 onBrowseObsidianVault={onBrowseObsidianVault}
                 onSaveObsidian={onSaveObsidian}
                 onRemoveObsidian={onRemoveObsidian}

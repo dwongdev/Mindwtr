@@ -8,6 +8,7 @@ export type ObsidianConfig = {
     vaultPath: string | null;
     vaultName: string;
     scanFolders: string[];
+    inboxFile: string;
     lastScannedAt: string | null;
     enabled: boolean;
 };
@@ -15,7 +16,15 @@ export type ObsidianConfig = {
 export type ObsidianScanResult = {
     tasks: ObsidianTask[];
     scannedFileCount: number;
+    scannedRelativePaths: string[];
     warnings: string[];
+};
+
+export type ObsidianFileScanResult = {
+    tasks: ObsidianTask[];
+    warning: string | null;
+    isTracked: boolean;
+    relativeFilePath: string;
 };
 
 type ScannerDirEntry = {
@@ -40,6 +49,7 @@ export type ObsidianScannerDependencies = {
 };
 
 const DEFAULT_SCAN_FOLDERS = ['/'];
+export const DEFAULT_OBSIDIAN_INBOX_FILE = 'Mindwtr/Inbox.md';
 export const MAX_OBSIDIAN_MARKDOWN_BYTES = 5 * 1024 * 1024;
 export const MAX_OBSIDIAN_SCAN_WARNINGS = 100;
 const MAX_OBSIDIAN_SCAN_DEPTH = 32;
@@ -98,6 +108,14 @@ const pushWarning = (warnings: string[], message: string): void => {
     warnings.push(message);
 };
 
+const safeNormalizeRelativePath = (value: string): string => {
+    try {
+        return normalizeObsidianRelativePath(value);
+    } catch {
+        return String(value || '').trim();
+    }
+};
+
 export const deriveVaultName = (vaultPath: string | null | undefined): string => {
     const trimmed = String(vaultPath || '').trim();
     if (!trimmed) return '';
@@ -125,6 +143,15 @@ const sanitizeScanFolder = (value: string): string => {
     return segments.length > 0 ? segments.join('/') : '/';
 };
 
+export const sanitizeObsidianInboxFile = (value: string | null | undefined): string => {
+    try {
+        const normalized = normalizeObsidianRelativePath(String(value || '').trim());
+        return normalized || DEFAULT_OBSIDIAN_INBOX_FILE;
+    } catch {
+        return DEFAULT_OBSIDIAN_INBOX_FILE;
+    }
+};
+
 export const sanitizeScanFolders = (folders: string[] | null | undefined): string[] => {
     const source = Array.isArray(folders) ? folders : DEFAULT_SCAN_FOLDERS;
     const sanitized = source.map(sanitizeScanFolder);
@@ -142,18 +169,181 @@ export const normalizeObsidianConfig = (config: Partial<ObsidianConfig> | null |
         vaultPath,
         vaultName: deriveVaultName(vaultPath),
         scanFolders,
+        inboxFile: sanitizeObsidianInboxFile(config?.inboxFile),
         lastScannedAt,
         enabled,
     };
 };
 
-const sortTasks = (tasks: ObsidianTask[]): ObsidianTask[] => {
+export const resolveObsidianAbsolutePath = (vaultPath: string, relativeFilePath: string): string => {
+    const trimmedVaultPath = String(vaultPath || '').trim();
+    if (!trimmedVaultPath) {
+        throw new Error('Obsidian vault path is not configured.');
+    }
+    const normalizedRelativePath = normalizeObsidianRelativePath(relativeFilePath);
+    if (!normalizedRelativePath) {
+        throw new Error('Obsidian file path is not configured.');
+    }
+    return joinPath(trimmedVaultPath, normalizedRelativePath);
+};
+
+export const isObsidianFileInScanFolders = (
+    relativeFilePath: string,
+    folders: string[] | null | undefined
+): boolean => {
+    let normalizedRelativePath: string;
+    try {
+        normalizedRelativePath = normalizeObsidianRelativePath(relativeFilePath);
+    } catch {
+        return false;
+    }
+    if (!normalizedRelativePath) return false;
+    if (!normalizedRelativePath.toLowerCase().endsWith('.md')) return false;
+    if (shouldSkipRelativePath(normalizedRelativePath)) return false;
+
+    return sanitizeScanFolders(folders).some((scanFolder) => {
+        if (scanFolder === '/') return true;
+        let normalizedScanFolder: string;
+        try {
+            normalizedScanFolder = normalizeObsidianRelativePath(scanFolder);
+        } catch {
+            return false;
+        }
+        if (!normalizedScanFolder) return false;
+        if (shouldSkipRelativePath(normalizedScanFolder)) return false;
+        if (normalizedScanFolder.toLowerCase().endsWith('.md')) {
+            return normalizedRelativePath === normalizedScanFolder;
+        }
+        return normalizedRelativePath === normalizedScanFolder
+            || normalizedRelativePath.startsWith(`${normalizedScanFolder}/`);
+    });
+};
+
+export const sortObsidianTasks = (tasks: ObsidianTask[]): ObsidianTask[] => {
     return [...tasks].sort((left, right) => {
         const pathCompare = left.source.relativeFilePath.localeCompare(right.source.relativeFilePath);
         if (pathCompare !== 0) return pathCompare;
         return left.source.lineNumber - right.source.lineNumber;
     });
 };
+
+const readAndParseObsidianMarkdownFile = async (
+    rawConfig: Partial<ObsidianConfig> | null | undefined,
+    absolutePath: string,
+    relativePath: string,
+    deps: Pick<ObsidianScannerDependencies, 'exists' | 'readTextFile' | 'stat'>
+): Promise<ObsidianFileScanResult> => {
+    const config = normalizeObsidianConfig(rawConfig);
+    const vaultPath = config.vaultPath;
+    if (!config.enabled || !vaultPath) {
+        return {
+            tasks: [],
+            warning: null,
+            isTracked: false,
+            relativeFilePath: safeNormalizeRelativePath(relativePath),
+        };
+    }
+
+    let normalizedRelativePath: string;
+    try {
+        normalizedRelativePath = normalizeObsidianRelativePath(relativePath);
+    } catch (error) {
+        return {
+            tasks: [],
+            warning:
+                error instanceof Error && error.message.trim()
+                    ? error.message
+                    : `Skipped invalid Obsidian path: ${relativePath}`,
+            isTracked: false,
+            relativeFilePath: String(relativePath || '').trim(),
+        };
+    }
+
+    if (!normalizedRelativePath.toLowerCase().endsWith('.md')) {
+        return {
+            tasks: [],
+            warning: null,
+            isTracked: false,
+            relativeFilePath: normalizedRelativePath,
+        };
+    }
+    if (shouldSkipRelativePath(normalizedRelativePath)) {
+        return {
+            tasks: [],
+            warning: null,
+            isTracked: false,
+            relativeFilePath: normalizedRelativePath,
+        };
+    }
+    if (!isPathWithinVault(vaultPath, absolutePath)) {
+        return {
+            tasks: [],
+            warning: `Skipped file outside the configured vault: ${normalizedRelativePath}`,
+            isTracked: false,
+            relativeFilePath: normalizedRelativePath,
+        };
+    }
+    if (!(await deps.exists(absolutePath))) {
+        return {
+            tasks: [],
+            warning: null,
+            isTracked: false,
+            relativeFilePath: normalizedRelativePath,
+        };
+    }
+
+    const fileInfo = await deps.stat(absolutePath);
+    if (fileInfo.isDirectory) {
+        return {
+            tasks: [],
+            warning: null,
+            isTracked: false,
+            relativeFilePath: normalizedRelativePath,
+        };
+    }
+    if ((fileInfo.size ?? 0) > MAX_OBSIDIAN_MARKDOWN_BYTES) {
+        return {
+            tasks: [],
+            warning: `Skipped large Markdown file: ${normalizedRelativePath}`,
+            isTracked: false,
+            relativeFilePath: normalizedRelativePath,
+        };
+    }
+
+    const markdown = await deps.readTextFile(absolutePath);
+    const fileModifiedAt = fileInfo.mtime?.toISOString() ?? new Date(0).toISOString();
+    const parsed = parseObsidianTasksFromMarkdown(markdown, {
+        vaultName: config.vaultName,
+        vaultPath,
+        relativeFilePath: normalizedRelativePath,
+        fileModifiedAt,
+    });
+    return {
+        tasks: parsed.tasks,
+        warning: null,
+        isTracked: true,
+        relativeFilePath: normalizedRelativePath,
+    };
+};
+
+export async function scanObsidianFile(
+    rawConfig: Partial<ObsidianConfig> | null | undefined,
+    relativeFilePath: string,
+    deps: Pick<ObsidianScannerDependencies, 'exists' | 'readTextFile' | 'stat'>
+): Promise<ObsidianFileScanResult> {
+    const config = normalizeObsidianConfig(rawConfig);
+    const vaultPath = config.vaultPath;
+    if (!config.enabled || !vaultPath) {
+        return {
+            tasks: [],
+            warning: null,
+            isTracked: false,
+            relativeFilePath: safeNormalizeRelativePath(relativeFilePath),
+        };
+    }
+    const absolutePath = resolveObsidianAbsolutePath(vaultPath, relativeFilePath);
+    return readAndParseObsidianMarkdownFile(config, absolutePath, relativeFilePath, deps);
+}
 
 export async function scanObsidianVault(
     rawConfig: Partial<ObsidianConfig> | null | undefined,
@@ -162,53 +352,33 @@ export async function scanObsidianVault(
     const config = normalizeObsidianConfig(rawConfig);
     const vaultPath = config.vaultPath;
     if (!config.enabled || !vaultPath) {
-        return { tasks: [], scannedFileCount: 0, warnings: [] };
+        return { tasks: [], scannedFileCount: 0, scannedRelativePaths: [], warnings: [] };
     }
 
     const tasks: ObsidianTask[] = [];
     const warnings: string[] = [];
     const seenFiles = new Set<string>();
     const visitedDirectories = new Set<string>();
+    const scannedRelativePaths: string[] = [];
     let scannedFileCount = 0;
 
     const scanMarkdownFile = async (absolutePath: string, relativePath: string): Promise<void> => {
-        let normalizedRelativePath: string;
-        try {
-            normalizedRelativePath = normalizeObsidianRelativePath(relativePath);
-        } catch (error) {
-            pushWarning(warnings,
-                error instanceof Error && error.message.trim()
-                    ? error.message
-                    : `Skipped invalid Obsidian path: ${relativePath}`
-            );
+        const fileResult = await readAndParseObsidianMarkdownFile(config, absolutePath, relativePath, deps);
+        const { relativeFilePath: normalizedRelativePath } = fileResult;
+        if (!normalizedRelativePath) return;
+        if (seenFiles.has(normalizedRelativePath)) return;
+        if (fileResult.warning) {
+            pushWarning(warnings, fileResult.warning);
             return;
         }
-
-        if (!normalizedRelativePath.toLowerCase().endsWith('.md')) return;
-        if (shouldSkipRelativePath(normalizedRelativePath) || seenFiles.has(normalizedRelativePath)) return;
-        if (!isPathWithinVault(vaultPath, absolutePath)) {
-            pushWarning(warnings, `Skipped file outside the configured vault: ${normalizedRelativePath}`);
-            return;
-        }
-
-        const fileInfo = await deps.stat(absolutePath);
-        if ((fileInfo.size ?? 0) > MAX_OBSIDIAN_MARKDOWN_BYTES) {
-            pushWarning(warnings, `Skipped large Markdown file: ${normalizedRelativePath}`);
+        if (!fileResult.isTracked) {
             return;
         }
 
         seenFiles.add(normalizedRelativePath);
-        const markdown = await deps.readTextFile(absolutePath);
-
         scannedFileCount += 1;
-        const fileModifiedAt = fileInfo.mtime?.toISOString() ?? new Date(0).toISOString();
-        const parsed = parseObsidianTasksFromMarkdown(markdown, {
-            vaultName: config.vaultName,
-            vaultPath,
-            relativeFilePath: normalizedRelativePath,
-            fileModifiedAt,
-        });
-        tasks.push(...parsed.tasks);
+        scannedRelativePaths.push(normalizedRelativePath);
+        tasks.push(...fileResult.tasks);
     };
 
     const walkDirectory = async (absoluteDirPath: string, relativeDirPath: string, depth: number): Promise<void> => {
@@ -271,8 +441,9 @@ export async function scanObsidianVault(
     }
 
     return {
-        tasks: sortTasks(tasks),
+        tasks: sortObsidianTasks(tasks),
         scannedFileCount,
+        scannedRelativePaths: [...scannedRelativePaths].sort((left, right) => left.localeCompare(right)),
         warnings,
     };
 }

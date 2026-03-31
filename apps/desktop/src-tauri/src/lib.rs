@@ -44,6 +44,9 @@ mod audio;
 mod config;
 mod install;
 mod logging;
+mod obsidian_paths;
+mod obsidian_watcher;
+mod obsidian_writer;
 mod platform;
 mod storage;
 mod sync;
@@ -61,6 +64,9 @@ use install::{
     is_windows_store_install,
 };
 use logging::{append_log_line, clear_log_file, log_ai_debug};
+use obsidian_paths::default_obsidian_inbox_file;
+use obsidian_watcher::{start_obsidian_watcher, stop_obsidian_watcher, ObsidianWatcherState};
+use obsidian_writer::{obsidian_create_task, obsidian_toggle_task};
 use platform::{
     cloudkit_account_status, cloudkit_consume_pending_remote_change, cloudkit_delete_records,
     cloudkit_ensure_subscription, cloudkit_ensure_zone, cloudkit_fetch_all_records,
@@ -82,19 +88,20 @@ use ui::{
     quit_app, set_global_quick_add_shortcut, set_tray_visible, show_main, show_main_and_emit,
 };
 
+#[cfg(test)]
+use config::read_config_toml;
 pub(crate) use config::{
-    get_keyring_secret, parse_toml_string_value, read_config, set_keyring_secret, write_config_files,
+    get_keyring_secret, parse_toml_string_value, read_config, set_keyring_secret,
+    write_config_files,
 };
+#[cfg(test)]
+use install::parse_flatpak_install_channel;
 pub(crate) use storage::{
     ensure_data_file, get_config_path, get_data_dir, get_secrets_path, read_json_with_retries,
 };
 #[cfg(target_os = "macos")]
 use sync::resolve_sync_path_bookmark;
 pub(crate) use sync::{expand_tauri_fs_scope, is_icloud_evicted};
-#[cfg(test)]
-use config::read_config_toml;
-#[cfg(test)]
-use install::parse_flatpak_install_channel;
 
 /// App name used for config directories and files
 const APP_NAME: &str = "mindwtr";
@@ -344,6 +351,8 @@ struct ObsidianConfigPayload {
     vault_name: String,
     #[serde(default = "default_obsidian_scan_folders")]
     scan_folders: Vec<String>,
+    #[serde(default = "default_obsidian_inbox_file")]
+    inbox_file: String,
     last_scanned_at: Option<String>,
     enabled: bool,
 }
@@ -354,6 +363,7 @@ impl Default for ObsidianConfigPayload {
             vault_path: None,
             vault_name: String::new(),
             scan_folders: default_obsidian_scan_folders(),
+            inbox_file: default_obsidian_inbox_file(),
             last_scanned_at: None,
             enabled: false,
         }
@@ -707,6 +717,7 @@ pub fn run() {
             Ok(())
         })
         .manage(AudioRecorderState(Mutex::new(None)))
+        .manage(ObsidianWatcherState::default())
         .invoke_handler(tauri::generate_handler![
             get_data,
             read_data_json,
@@ -729,6 +740,10 @@ pub fn run() {
             get_obsidian_config,
             set_obsidian_config,
             check_obsidian_vault_marker,
+            start_obsidian_watcher,
+            stop_obsidian_watcher,
+            obsidian_toggle_task,
+            obsidian_create_task,
             get_webdav_config,
             get_webdav_password,
             set_webdav_config,

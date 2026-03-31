@@ -1,3 +1,4 @@
+use crate::obsidian_paths::normalize_obsidian_inbox_file;
 use crate::*;
 
 pub(crate) fn parse_toml_string_value(raw: &str) -> Option<String> {
@@ -524,6 +525,7 @@ fn normalize_obsidian_config_payload(payload: ObsidianConfigPayload) -> Obsidian
         vault_path,
         vault_name,
         scan_folders: normalize_obsidian_scan_folders(payload.scan_folders),
+        inbox_file: normalize_obsidian_inbox_file(&payload.inbox_file),
         last_scanned_at,
     }
 }

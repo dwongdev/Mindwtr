@@ -73,6 +73,9 @@ function App() {
     const [resolvingExternalSync, setResolvingExternalSync] = useState(false);
     const closePromptRememberRef = useRef(false);
     const isObsidianEnabled = useObsidianStore((state) => state.config.enabled);
+    const obsidianVaultPath = useObsidianStore((state) => state.config.vaultPath);
+    const startObsidianWatcher = useObsidianStore((state) => state.startWatcher);
+    const stopObsidianWatcher = useObsidianStore((state) => state.stopWatcher);
 
     const setClosePromptRememberValue = useCallback((next: boolean) => {
         closePromptRememberRef.current = next;
@@ -402,6 +405,20 @@ function App() {
             cancelled = true;
         };
     }, [windowDecorations]);
+
+    useEffect(() => {
+        if (!isTauriRuntime()) return;
+        if (!isObsidianEnabled || !obsidianVaultPath) {
+            void stopObsidianWatcher().catch((error) => void logError(error, { scope: 'obsidian', step: 'stopWatcher' }));
+            return;
+        }
+
+        void startObsidianWatcher().catch((error) => void logError(error, { scope: 'obsidian', step: 'startWatcher' }));
+
+        return () => {
+            void stopObsidianWatcher().catch((error) => void logError(error, { scope: 'obsidian', step: 'stopWatcher' }));
+        };
+    }, [isObsidianEnabled, obsidianVaultPath, startObsidianWatcher, stopObsidianWatcher]);
 
     useEffect(() => {
         if (!isTauriRuntime()) return;

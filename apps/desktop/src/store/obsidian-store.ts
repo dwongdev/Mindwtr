@@ -1,19 +1,38 @@
-import type { ObsidianTask } from '@mindwtr/core';
+import { normalizeObsidianRelativePath, type ObsidianTask } from '@mindwtr/core';
 import { createWithEqualityFn } from 'zustand/traditional';
-import { ObsidianService, type ObsidianConfig } from '../lib/obsidian-service';
-import { normalizeObsidianConfig } from '../lib/obsidian-scanner';
+import {
+    ObsidianService,
+    type ObsidianConfig,
+    type ObsidianFilesChangedPayload,
+} from '../lib/obsidian-service';
+import {
+    isObsidianFileInScanFolders,
+    normalizeObsidianConfig,
+    sortObsidianTasks,
+} from '../lib/obsidian-scanner';
+import { useUiStore } from './ui-store';
+
+type ObsidianWatchUpdateResult = {
+    changedCount: number;
+    deletedCount: number;
+    warnings: string[];
+    skippedBeforeInitialScan: boolean;
+};
 
 type ObsidianStoreState = {
     config: ObsidianConfig;
     tasks: ObsidianTask[];
     scannedFileCount: number;
+    scannedRelativePaths: string[];
     warnings: string[];
     hasScannedThisSession: boolean;
     hasVaultMarker: boolean | null;
     isLoadingConfig: boolean;
     isScanning: boolean;
+    isWatching: boolean;
     isInitialized: boolean;
     error: string | null;
+    watcherError: string | null;
     refreshConfig: () => Promise<void>;
     loadConfig: () => Promise<void>;
     saveConfig: (nextConfig: Partial<ObsidianConfig>) => Promise<ObsidianConfig>;
@@ -24,10 +43,14 @@ type ObsidianStoreState = {
     refreshVaultMarker: () => Promise<void>;
     scan: () => Promise<void>;
     rescan: () => Promise<void>;
+    startWatcher: () => Promise<void>;
+    stopWatcher: () => Promise<void>;
+    handleFilesChanged: (payload: ObsidianFilesChangedPayload) => Promise<ObsidianWatchUpdateResult | null>;
     clearError: () => void;
 };
 
 const defaultConfig = normalizeObsidianConfig({});
+let watchUpdateQueue: Promise<ObsidianWatchUpdateResult | null> = Promise.resolve(null);
 
 const toErrorMessage = (error: unknown, fallback: string): string => {
     if (error instanceof Error && error.message.trim()) return error.message.trim();
@@ -35,17 +58,48 @@ const toErrorMessage = (error: unknown, fallback: string): string => {
     return text || fallback;
 };
 
+const enqueueWatchUpdate = (
+    work: () => Promise<ObsidianWatchUpdateResult | null>
+): Promise<ObsidianWatchUpdateResult | null> => {
+    const next = watchUpdateQueue.catch(() => null).then(work);
+    watchUpdateQueue = next.catch(() => null);
+    return next;
+};
+
+const normalizeEventPaths = (paths: string[], config: ObsidianConfig): string[] => {
+    const normalized = new Set<string>();
+    for (const rawPath of paths) {
+        try {
+            const relativePath = normalizeObsidianRelativePath(rawPath);
+            if (!relativePath) continue;
+            if (!isObsidianFileInScanFolders(relativePath, config.scanFolders)) continue;
+            normalized.add(relativePath);
+        } catch {
+            continue;
+        }
+    }
+    return [...normalized].sort((left, right) => left.localeCompare(right));
+};
+
+const scanConfigChanged = (left: ObsidianConfig, right: ObsidianConfig): boolean => {
+    return left.vaultPath !== right.vaultPath
+        || left.scanFolders.join('\n') !== right.scanFolders.join('\n');
+};
+
 export const useObsidianStore = createWithEqualityFn<ObsidianStoreState>()((set, get) => ({
     config: defaultConfig,
     tasks: [],
     scannedFileCount: 0,
+    scannedRelativePaths: [],
     warnings: [],
     hasScannedThisSession: false,
     hasVaultMarker: null,
     isLoadingConfig: false,
     isScanning: false,
+    isWatching: false,
     isInitialized: false,
     error: null,
+    watcherError: null,
     refreshConfig: async () => {
         await get().loadConfig();
     },
@@ -59,6 +113,14 @@ export const useObsidianStore = createWithEqualityFn<ObsidianStoreState>()((set,
                 config,
                 hasVaultMarker,
                 warnings: [],
+                ...(config.enabled && config.vaultPath
+                    ? {}
+                    : {
+                        tasks: [],
+                        scannedFileCount: 0,
+                        scannedRelativePaths: [],
+                        hasScannedThisSession: false,
+                    }),
                 isInitialized: true,
                 isLoadingConfig: false,
             });
@@ -77,15 +139,33 @@ export const useObsidianStore = createWithEqualityFn<ObsidianStoreState>()((set,
         const merged = normalizeObsidianConfig({ ...get().config, ...nextConfig });
         const saved = normalizeObsidianConfig(await ObsidianService.setConfig(merged));
         const hasVaultMarker = saved.vaultPath ? await ObsidianService.hasVaultMarker(saved.vaultPath) : null;
+        const previousConfig = get().config;
+        const shouldResetScanState = scanConfigChanged(previousConfig, saved);
         set({
             config: saved,
             hasVaultMarker,
             warnings: [],
             error: null,
+            watcherError: null,
             hasScannedThisSession: false,
+            ...(shouldResetScanState
+                ? {
+                    tasks: [],
+                    scannedFileCount: 0,
+                    scannedRelativePaths: [],
+                }
+                : {}),
         });
         if (!saved.enabled || !saved.vaultPath) {
-            set({ tasks: [], scannedFileCount: 0, warnings: [], hasScannedThisSession: false });
+            set({
+                tasks: [],
+                scannedFileCount: 0,
+                scannedRelativePaths: [],
+                warnings: [],
+                hasScannedThisSession: false,
+                isWatching: false,
+                watcherError: null,
+            });
         }
         return saved;
     },
@@ -113,9 +193,12 @@ export const useObsidianStore = createWithEqualityFn<ObsidianStoreState>()((set,
         set({
             tasks: [],
             scannedFileCount: 0,
+            scannedRelativePaths: [],
             warnings: [],
             hasScannedThisSession: false,
             hasVaultMarker: null,
+            isWatching: false,
+            watcherError: null,
         });
     },
     refreshVaultMarker: async () => {
@@ -130,7 +213,13 @@ export const useObsidianStore = createWithEqualityFn<ObsidianStoreState>()((set,
         if (get().isScanning) return;
         const config = get().config;
         if (!config.enabled || !config.vaultPath) {
-            set({ tasks: [], scannedFileCount: 0, warnings: [], hasScannedThisSession: false });
+            set({
+                tasks: [],
+                scannedFileCount: 0,
+                scannedRelativePaths: [],
+                warnings: [],
+                hasScannedThisSession: false,
+            });
             return;
         }
 
@@ -146,6 +235,7 @@ export const useObsidianStore = createWithEqualityFn<ObsidianStoreState>()((set,
                 config: savedConfig,
                 tasks: result.tasks,
                 scannedFileCount: result.scannedFileCount,
+                scannedRelativePaths: result.scannedRelativePaths,
                 warnings: result.warnings,
                 hasScannedThisSession: true,
                 isScanning: false,
@@ -160,5 +250,120 @@ export const useObsidianStore = createWithEqualityFn<ObsidianStoreState>()((set,
             });
         }
     },
+    startWatcher: async () => {
+        const config = get().config;
+        if (!config.enabled || !config.vaultPath) {
+            await get().stopWatcher();
+            return;
+        }
+
+        try {
+            await ObsidianService.startWatcher(config, {
+                onFilesChanged: async (payload) => {
+                    const result = await get().handleFilesChanged(payload);
+                    if (!result || result.skippedBeforeInitialScan) return;
+                    const totalFiles = result.changedCount + result.deletedCount;
+                    if (totalFiles > 0) {
+                        useUiStore.getState().showToast(
+                            totalFiles === 1 ? 'Updated 1 Obsidian file.' : `Updated ${totalFiles} Obsidian files.`,
+                            'info',
+                            2500,
+                        );
+                        return;
+                    }
+                    if (result.warnings.length > 0) {
+                        useUiStore.getState().showToast(result.warnings[0], 'info', 6000);
+                    }
+                },
+                onError: (message) => {
+                    set({
+                        isWatching: false,
+                        watcherError: message,
+                    });
+                    void ObsidianService.stopWatcher();
+                },
+            });
+            set({
+                isWatching: true,
+                watcherError: null,
+            });
+        } catch (error) {
+            set({
+                isWatching: false,
+                watcherError: toErrorMessage(error, 'Failed to start live Obsidian updates.'),
+            });
+        }
+    },
+    stopWatcher: async () => {
+        await ObsidianService.stopWatcher();
+        set({
+            isWatching: false,
+            watcherError: null,
+        });
+    },
+    handleFilesChanged: async (payload) => enqueueWatchUpdate(async () => {
+        const config = get().config;
+        if (!config.enabled || !config.vaultPath) return null;
+
+        const changed = normalizeEventPaths(payload.changed, config);
+        const deleted = normalizeEventPaths(payload.deleted, config)
+            .filter((path) => !changed.includes(path));
+
+        if (changed.length === 0 && deleted.length === 0) {
+            return null;
+        }
+
+        if (!get().hasScannedThisSession) {
+            return {
+                changedCount: changed.length,
+                deletedCount: deleted.length,
+                warnings: [],
+                skippedBeforeInitialScan: true,
+            };
+        }
+
+        const deletedSet = new Set(deleted);
+        let nextTasks = get().tasks.filter((task) => !deletedSet.has(task.source.relativeFilePath));
+        const nextRelativePaths = new Set(get().scannedRelativePaths);
+        const warnings: string[] = [];
+
+        for (const deletedPath of deleted) {
+            nextRelativePaths.delete(deletedPath);
+        }
+
+        let changedCount = 0;
+        for (const changedPath of changed) {
+            try {
+                const fileResult = await ObsidianService.scanFile(config, changedPath);
+                if (fileResult.warning) warnings.push(fileResult.warning);
+
+                nextTasks = nextTasks.filter((task) => task.source.relativeFilePath !== changedPath);
+                nextRelativePaths.delete(changedPath);
+
+                if (fileResult.isTracked) {
+                    nextTasks.push(...fileResult.tasks);
+                    nextRelativePaths.add(fileResult.relativeFilePath);
+                }
+                changedCount += 1;
+            } catch (error) {
+                warnings.push(toErrorMessage(error, `Failed to refresh ${changedPath}.`));
+            }
+        }
+
+        set({
+            tasks: sortObsidianTasks(nextTasks),
+            scannedFileCount: nextRelativePaths.size,
+            scannedRelativePaths: [...nextRelativePaths].sort((left, right) => left.localeCompare(right)),
+            warnings,
+            error: null,
+        });
+
+        return {
+            changedCount,
+            deletedCount: deleted.length,
+            warnings,
+            skippedBeforeInitialScan: false,
+        };
+    }),
     clearError: () => set({ error: null }),
 }));

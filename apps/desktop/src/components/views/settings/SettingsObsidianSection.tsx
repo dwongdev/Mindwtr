@@ -10,6 +10,10 @@ type Labels = {
     obsidianVaultPathHint: string;
     obsidianScanFolders: string;
     obsidianScanFoldersHint: string;
+    obsidianInboxFile: string;
+    obsidianInboxFileHint: string;
+    obsidianWatching: string;
+    obsidianWatcherUnavailable: string;
     obsidianSave: string;
     obsidianRemove: string;
     obsidianRescan: string;
@@ -26,14 +30,18 @@ type SettingsObsidianSectionProps = {
     obsidianVaultPath: string;
     obsidianEnabled: boolean;
     obsidianScanFoldersText: string;
+    obsidianInboxFile: string;
     obsidianLastScannedAt: string | null;
     obsidianHasVaultMarker: boolean | null;
     obsidianVaultWarning: string | null;
+    obsidianIsWatching: boolean;
+    obsidianWatcherError: string | null;
     isSavingObsidian: boolean;
     isScanningObsidian: boolean;
     onObsidianVaultPathChange: (value: string) => void;
     onObsidianEnabledChange: (value: boolean) => void;
     onObsidianScanFoldersTextChange: (value: string) => void;
+    onObsidianInboxFileChange: (value: string) => void;
     onBrowseObsidianVault: () => Promise<void> | void;
     onSaveObsidian: () => Promise<void> | void;
     onRemoveObsidian: () => Promise<void> | void;
@@ -46,14 +54,18 @@ export function SettingsObsidianSection({
     obsidianVaultPath,
     obsidianEnabled,
     obsidianScanFoldersText,
+    obsidianInboxFile,
     obsidianLastScannedAt,
     obsidianHasVaultMarker,
     obsidianVaultWarning,
+    obsidianIsWatching,
+    obsidianWatcherError,
     isSavingObsidian,
     isScanningObsidian,
     onObsidianVaultPathChange,
     onObsidianEnabledChange,
     onObsidianScanFoldersTextChange,
+    onObsidianInboxFileChange,
     onBrowseObsidianVault,
     onSaveObsidian,
     onRemoveObsidian,
@@ -128,13 +140,34 @@ export function SettingsObsidianSection({
                 <p className="text-xs text-muted-foreground">{t.obsidianScanFoldersHint}</p>
             </div>
 
+            <div className="flex flex-col gap-2">
+                <label className="text-sm font-medium">{t.obsidianInboxFile}</label>
+                <input
+                    type="text"
+                    value={obsidianInboxFile}
+                    onChange={(event) => onObsidianInboxFileChange(event.target.value)}
+                    placeholder="Mindwtr/Inbox.md"
+                    className="bg-muted p-2 rounded text-sm font-mono border border-border focus:outline-none focus:ring-2 focus:ring-primary"
+                />
+                <p className="text-xs text-muted-foreground">{t.obsidianInboxFileHint}</p>
+            </div>
+
             <div className="flex flex-wrap items-center justify-between gap-3">
-                <p className="text-xs text-muted-foreground">
-                    {t.obsidianLastScanned}:{' '}
-                    <span className="font-medium text-foreground">
-                        {obsidianLastScannedAt ? safeFormatDate(obsidianLastScannedAt, 'PPpp', obsidianLastScannedAt) : t.obsidianNeverScanned}
-                    </span>
-                </p>
+                <div className="space-y-1">
+                    <p className="text-xs text-muted-foreground">
+                        {t.obsidianLastScanned}:{' '}
+                        <span className="font-medium text-foreground">
+                            {obsidianLastScannedAt ? safeFormatDate(obsidianLastScannedAt, 'PPpp', obsidianLastScannedAt) : t.obsidianNeverScanned}
+                        </span>
+                    </p>
+                    {obsidianWatcherError ? (
+                        <p className="text-xs text-amber-600">
+                            {t.obsidianWatcherUnavailable} {obsidianWatcherError}
+                        </p>
+                    ) : obsidianIsWatching ? (
+                        <p className="text-xs text-muted-foreground">{t.obsidianWatching}</p>
+                    ) : null}
+                </div>
                 <div className="flex flex-wrap gap-2">
                     <button
                         type="button"
