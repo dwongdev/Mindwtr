@@ -668,12 +668,19 @@ pub(crate) fn get_webdav_password(app: tauri::AppHandle) -> Result<String, Strin
 #[tauri::command]
 pub(crate) fn get_cloud_config(app: tauri::AppHandle) -> Result<Value, String> {
     let mut config = read_config(&app);
-    let mut token = get_keyring_secret(&app, KEYRING_CLOUD_TOKEN)?;
+    let mut token = match get_keyring_secret(&app, KEYRING_CLOUD_TOKEN) {
+        Ok(value) => value,
+        Err(error) => {
+            log::warn!("Failed to read cloud token from keyring: {error}");
+            None
+        }
+    };
     if token.is_none() {
         if let Some(legacy) = config.cloud_token.clone() {
-            set_keyring_secret(&app, KEYRING_CLOUD_TOKEN, Some(legacy.clone()))?;
-            config.cloud_token = None;
-            write_config_files(&get_config_path(&app), &get_secrets_path(&app), &config)?;
+            if set_keyring_secret(&app, KEYRING_CLOUD_TOKEN, Some(legacy.clone())).is_ok() {
+                config.cloud_token = None;
+                write_config_files(&get_config_path(&app), &get_secrets_path(&app), &config)?;
+            }
             token = Some(legacy);
         }
     }
@@ -692,15 +699,29 @@ pub(crate) fn set_cloud_config(
     let url = url.trim().to_string();
     let config_path = get_config_path(&app);
     let mut config = read_config(&app);
+    let next_token = {
+        let trimmed = token.trim().to_string();
+        if trimmed.is_empty() {
+            None
+        } else {
+            Some(trimmed)
+        }
+    };
 
     if url.is_empty() {
         config.cloud_url = None;
         config.cloud_token = None;
-        set_keyring_secret(&app, KEYRING_CLOUD_TOKEN, None)?;
+        let _ = set_keyring_secret(&app, KEYRING_CLOUD_TOKEN, None);
     } else {
         config.cloud_url = Some(url);
-        config.cloud_token = None;
-        set_keyring_secret(&app, KEYRING_CLOUD_TOKEN, Some(token))?;
+        match set_keyring_secret(&app, KEYRING_CLOUD_TOKEN, next_token.clone()) {
+            Ok(_) => {
+                config.cloud_token = None;
+            }
+            Err(_) => {
+                config.cloud_token = next_token;
+            }
+        }
     }
 
     write_config_files(&config_path, &get_secrets_path(&app), &config)?;
