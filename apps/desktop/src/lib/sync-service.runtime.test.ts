@@ -56,7 +56,11 @@ const getInMemoryAppDataSnapshotMock = vi.hoisted(() => vi.fn());
 const useTaskStoreGetStateMock = vi.hoisted(() => vi.fn());
 const logInfoMock = vi.hoisted(() => vi.fn());
 const logWarnMock = vi.hoisted(() => vi.fn());
+const logErrorMock = vi.hoisted(() => vi.fn());
 const logSyncErrorMock = vi.hoisted(() => vi.fn());
+const ensureCloudKitReadyMock = vi.hoisted(() => vi.fn());
+const readRemoteCloudKitMock = vi.hoisted(() => vi.fn());
+const writeRemoteCloudKitMock = vi.hoisted(() => vi.fn());
 const externalCalendarGetMock = vi.hoisted(() => vi.fn());
 const externalCalendarSetMock = vi.hoisted(() => vi.fn());
 const fsMocks = vi.hoisted(() => ({
@@ -105,12 +109,19 @@ vi.mock('./external-calendar-service', () => ({
 vi.mock('./app-log', () => ({
     logInfo: logInfoMock,
     logWarn: logWarnMock,
+    logError: logErrorMock,
     logSyncError: logSyncErrorMock,
     sanitizeLogMessage: (value: string) => value,
 }));
 
 vi.mock('./report-error', () => ({
     reportError: vi.fn(),
+}));
+
+vi.mock('./cloudkit-sync', () => ({
+    ensureCloudKitReady: ensureCloudKitReadyMock,
+    readRemoteCloudKit: readRemoteCloudKitMock,
+    writeRemoteCloudKit: writeRemoteCloudKitMock,
 }));
 
 vi.mock('@tauri-apps/plugin-fs', () => fsMocks);
@@ -160,6 +171,15 @@ describe('desktop sync-service runtime', () => {
         externalCalendarGetMock.mockResolvedValue([]);
         externalCalendarSetMock.mockResolvedValue(undefined);
         logSyncErrorMock.mockResolvedValue(null);
+        ensureCloudKitReadyMock.mockResolvedValue(undefined);
+        readRemoteCloudKitMock.mockResolvedValue({
+            tasks: [],
+            projects: [],
+            sections: [],
+            areas: [],
+            settings: {},
+        });
+        writeRemoteCloudKitMock.mockResolvedValue(undefined);
 
         fsMocks.exists.mockImplementation(async (path: string) => path === '/local/doc.txt');
         fsMocks.mkdir.mockResolvedValue(undefined);
@@ -315,5 +335,38 @@ describe('desktop sync-service runtime', () => {
             addEventListenerSpy.mockRestore();
             removeEventListenerSpy.mockRestore();
         }
+    });
+
+    it('supports a one-off CloudKit sync before the backend is persisted', async () => {
+        const syncServiceModule = await syncServiceModulePromise;
+
+        invokeMock.mockImplementation(async (command: string, args?: Record<string, unknown>) => {
+            if (command === 'get_sync_backend') return 'off';
+            if (command === 'create_data_snapshot') return undefined;
+            if (command === 'get_data') return structuredClone(localData);
+            if (command === 'save_data') return undefined;
+            throw new Error(`Unexpected command: ${command} ${JSON.stringify(args)}`);
+        });
+        performSyncCycleMock.mockImplementation(async (io: {
+            readLocal: () => Promise<AppData>;
+            readRemote: () => Promise<AppData | null>;
+        }) => {
+            const merged = await io.readLocal();
+            expect(await io.readRemote()).toEqual({
+                tasks: [],
+                projects: [],
+                sections: [],
+                areas: [],
+                settings: {},
+            });
+            return { status: 'success', stats: emptyStats, data: merged };
+        });
+
+        const result = await syncServiceModule.SyncService.performSync({ backendOverride: 'cloudkit' });
+
+        expect(result).toEqual({ success: true, stats: emptyStats });
+        expect(ensureCloudKitReadyMock).toHaveBeenCalledTimes(1);
+        expect(readRemoteCloudKitMock).toHaveBeenCalledTimes(1);
+        expect(invokeMock).not.toHaveBeenCalledWith('get_sync_backend', undefined);
     });
 });

@@ -314,6 +314,10 @@ type SyncRunResult = {
     skipped?: 'requeued';
 };
 
+type SyncRunOptions = {
+    backendOverride?: SyncBackend;
+};
+
 export class SyncService {
     private static didMigrate = false;
     private static syncInFlight: Promise<SyncRunResult> | null = null;
@@ -869,7 +873,7 @@ export class SyncService {
      * 3. Write merged data back to both Local & Remote
      * 4. Refresh Core Store
      */
-    static async performSync(): Promise<SyncRunResult> {
+    static async performSync(options: SyncRunOptions = {}): Promise<SyncRunResult> {
         if (SyncService.syncInFlight) {
             SyncService.syncQueued = true;
             SyncService.updateSyncStatus({ queued: true });
@@ -946,7 +950,7 @@ export class SyncService {
             localSnapshotChangeAt = useTaskStore.getState().lastDataChangeAt;
 
             // 2. Read/merge/write via shared core orchestration.
-            backend = await SyncService.getSyncBackend();
+            backend = options.backendOverride ?? await SyncService.getSyncBackend();
             if (backend === 'off') {
                 return { success: true };
             }
@@ -1453,7 +1457,7 @@ export class SyncService {
         });
 
         if (SyncService.syncQueued) {
-            void SyncService.performSync()
+            void SyncService.performSync(options)
                 .then((queuedResult) => {
                     if (!queuedResult.success) {
                         logSyncWarning('Queued sync failed', queuedResult.error);

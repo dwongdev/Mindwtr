@@ -254,6 +254,10 @@ export const useSyncSettings = ({ appVersion, isTauri, showSaved, selectSyncFold
 
     const handleSetSyncBackend = useCallback(async (backend: SyncBackend) => {
         setSyncBackend(backend);
+        setSyncError(null);
+        if (backend === 'cloudkit') {
+            return;
+        }
         await SyncService.setSyncBackend(backend);
         showSaved();
     }, [showSaved]);
@@ -452,10 +456,18 @@ export const useSyncSettings = ({ appVersion, isTauri, showSaved, selectSyncFold
                 }
             }
 
-            const result = await SyncService.performSync();
+            const persistedBackend = await SyncService.getSyncBackend();
+            const isPendingCloudKitEnable = syncBackend === 'cloudkit' && persistedBackend !== 'cloudkit';
+            const result = await SyncService.performSync(
+                isPendingCloudKitEnable ? { backendOverride: 'cloudkit' } : undefined
+            );
             if (result.skipped === 'requeued') {
                 showToast('Local changes arrived during sync. Retry queued.', 'info');
             } else if (result.success) {
+                if (isPendingCloudKitEnable) {
+                    await SyncService.setSyncBackend('cloudkit');
+                    showSaved();
+                }
                 const maxClockSkewMs = Math.max(
                     result.stats?.tasks.maxClockSkewMs ?? 0,
                     result.stats?.projects.maxClockSkewMs ?? 0,
