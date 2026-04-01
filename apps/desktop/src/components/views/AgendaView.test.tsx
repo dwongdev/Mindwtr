@@ -122,6 +122,40 @@ describe('AgendaView', () => {
         expect(queryByRole('heading', { name: /next actions/i })).not.toBeInTheDocument();
     });
 
+    it('keeps waiting tasks with review dates out of Today', () => {
+        const now = new Date();
+        const startToday = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 9, 0, 0, 0).toISOString();
+        const reviewDue = new Date(now.getTime() - 60_000).toISOString();
+        const waitingTask: Task = {
+            id: 'waiting-review-task',
+            title: 'Waiting review task',
+            status: 'waiting',
+            startTime: startToday,
+            reviewAt: reviewDue,
+            tags: [],
+            contexts: [],
+            createdAt: nowIso,
+            updatedAt: nowIso,
+        };
+
+        useTaskStore.setState({
+            tasks: [waitingTask],
+            _allTasks: [waitingTask],
+            projects: [],
+            _allProjects: [],
+            areas: [],
+            _allAreas: [],
+            settings: {},
+            highlightTaskId: null,
+        });
+
+        const { getAllByText, getByRole, queryByRole } = renderAgenda();
+
+        expect(queryByRole('heading', { name: /today/i })).not.toBeInTheDocument();
+        expect(getByRole('heading', { name: /review due/i })).toBeInTheDocument();
+        expect(getAllByText('Waiting review task')).toHaveLength(1);
+    });
+
     it('opens editor when double-clicking a non-focused task row in Focus', () => {
         const nextTask: Task = {
             id: 'next-action-task',
