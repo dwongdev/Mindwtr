@@ -133,7 +133,14 @@ export const fetchWithTimeout = async (
     }
 
     try {
-        return await fetcher(url, { ...init, signal });
+        const requestInit: RequestInit & { duplex?: 'half' } = { ...init, signal };
+        const body = requestInit.body;
+        const isReadableStreamBody = typeof ReadableStream === 'function'
+            && body instanceof ReadableStream;
+        if (isReadableStreamBody) {
+            requestInit.duplex = 'half';
+        }
+        return await fetcher(url, requestInit);
     } catch (error) {
         if (isAbortError(error)) {
             throw new Error(timeoutMessage);

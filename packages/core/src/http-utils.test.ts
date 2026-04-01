@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { isAllowedInsecureUrl } from './http-utils';
+import { fetchWithTimeout, isAllowedInsecureUrl } from './http-utils';
 
 describe('isAllowedInsecureUrl', () => {
     it('allows HTTPS URLs', () => {
@@ -41,5 +41,47 @@ describe('isAllowedInsecureUrl', () => {
     it('preserves Android emulator override behavior', () => {
         expect(isAllowedInsecureUrl('http://10.0.2.2/data.json')).toBe(false);
         expect(isAllowedInsecureUrl('http://10.0.2.2/data.json', { allowAndroidEmulator: true })).toBe(true);
+    });
+});
+
+describe('fetchWithTimeout', () => {
+    it('adds duplex=half for ReadableStream request bodies', async () => {
+        let receivedInit: (RequestInit & { duplex?: 'half' }) | undefined;
+        const body = new ReadableStream<Uint8Array>({
+            start(controller) {
+                controller.enqueue(new Uint8Array([1, 2, 3]));
+                controller.close();
+            },
+        });
+
+        await fetchWithTimeout(
+            'https://example.com/upload',
+            { method: 'PUT', body },
+            1_000,
+            async (_input, init) => {
+                receivedInit = init as RequestInit & { duplex?: 'half' };
+                return new Response(null, { status: 200 });
+            },
+            'Request timed out',
+        );
+
+        expect(receivedInit?.duplex).toBe('half');
+    });
+
+    it('does not add duplex for non-stream bodies', async () => {
+        let receivedInit: (RequestInit & { duplex?: 'half' }) | undefined;
+
+        await fetchWithTimeout(
+            'https://example.com/upload',
+            { method: 'PUT', body: JSON.stringify({ ok: true }) },
+            1_000,
+            async (_input, init) => {
+                receivedInit = init as RequestInit & { duplex?: 'half' };
+                return new Response(null, { status: 200 });
+            },
+            'Request timed out',
+        );
+
+        expect(receivedInit?.duplex).toBeUndefined();
     });
 });
