@@ -80,6 +80,27 @@ describe('parseTaskNotesFile', () => {
         expect(result.task?.taskNotesData?.completedDate).toBe('2025-01-20');
     });
 
+    it('accepts ISO-style date-time values in TaskNotes frontmatter', () => {
+        const result = parseTaskNotesFile(
+            [
+                '---',
+                'tags:',
+                '  - task',
+                'title: Sync with partner',
+                'status: open',
+                'due: 2025-01-15T08:30:00Z',
+                'scheduled: 2025-01-14 09:00:00',
+                'completedDate: 2025-01-16T17:45:00-05:00',
+                '---',
+            ].join('\n'),
+            createOptions('TaskNotes/Sync with partner.md')
+        );
+
+        expect(result.task?.taskNotesData?.dueDate).toBe('2025-01-15T08:30:00Z');
+        expect(result.task?.taskNotesData?.scheduledDate).toBe('2025-01-14 09:00:00');
+        expect(result.task?.taskNotesData?.completedDate).toBe('2025-01-16T17:45:00-05:00');
+    });
+
     it('skips archived TaskNotes files by default but still flags the format', () => {
         const result = parseTaskNotesFile(
             readFixture('TaskNotes/Archive/Old task.md'),

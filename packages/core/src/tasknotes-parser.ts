@@ -88,7 +88,7 @@ const mapTaskNotesStatus = (value: string | boolean): {
 };
 
 const isIsoDateValue = (value: unknown): value is string => {
-    return typeof value === 'string' && /^\d{4}-\d{2}-\d{2}(?:[T ][^]+)?$/.test(value.trim());
+    return typeof value === 'string' && /^\d{4}-\d{2}-\d{2}(?:[T ][\s\S]+)?$/.test(value.trim());
 };
 
 const parseTaskNotesDate = (value: unknown): string | null => {
