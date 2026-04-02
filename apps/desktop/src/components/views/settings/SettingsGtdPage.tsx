@@ -46,6 +46,7 @@ type Labels = {
     taskEditorLayoutReset: string;
     taskEditorSection: string;
     taskEditorDefaultOpen: string;
+    taskEditorOpenByDefault: string;
     taskEditorDefaultOpenDesc: string;
     taskEditorFieldStatus: string;
     taskEditorFieldProject: string;
@@ -704,45 +705,41 @@ export function SettingsGtdPage({
                             {t.taskEditorLayoutReset}
                         </button>
                     </div>
-                    <div className="rounded-lg border border-border bg-muted/20 p-3 space-y-3">
-                        <div>
-                            <div className="text-xs uppercase tracking-wide text-muted-foreground font-semibold">
-                                {t.taskEditorDefaultOpen}
-                            </div>
-                            <div className="text-xs text-muted-foreground mt-1">{t.taskEditorDefaultOpenDesc}</div>
-                        </div>
-                        {(['scheduling', 'organization', 'details'] as const).map((sectionId) => {
-                            const isOpen = taskEditorSectionOpen[sectionId];
-                            return (
-                                <div key={sectionId} className="flex items-center justify-between gap-4">
-                                    <span className="text-sm">{taskEditorSectionLabel(sectionId)}</span>
-                                    <button
-                                        type="button"
-                                        role="switch"
-                                        aria-checked={isOpen}
-                                        onClick={() => updateSectionOpenDefault(sectionId, !isOpen)}
-                                        className={cn(
-                                            'relative inline-flex h-5 w-9 items-center rounded-full border transition-colors',
-                                            isOpen ? 'bg-primary border-primary' : 'bg-muted/50 border-border'
-                                        )}
-                                    >
-                                        <span
-                                            className={cn(
-                                                'inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform',
-                                                isOpen ? 'translate-x-4' : 'translate-x-1'
-                                            )}
-                                        />
-                                    </button>
-                                </div>
-                            );
-                        })}
-                    </div>
                     {fieldGroups.map((group) => {
                         const groupOrder = taskEditorOrder.filter((id) => group.fields.includes(id));
+                        const sectionOpenSectionId = group.id === 'basic' ? null : group.id;
+                        const isOpenByDefault = sectionOpenSectionId ? taskEditorSectionOpen[sectionOpenSectionId] : false;
                         return (
                             <div key={group.id} className="space-y-2">
-                                <div className="text-xs uppercase tracking-wide text-muted-foreground font-semibold">
-                                    {group.title}
+                                <div className="flex items-center justify-between gap-3">
+                                    <div className="text-xs uppercase tracking-wide text-muted-foreground font-semibold">
+                                        {group.title}
+                                    </div>
+                                    {sectionOpenSectionId && (
+                                        <div className="flex items-center gap-2">
+                                            <span className="text-[11px] text-muted-foreground">
+                                                {t.taskEditorOpenByDefault}
+                                            </span>
+                                            <button
+                                                type="button"
+                                                role="switch"
+                                                aria-checked={isOpenByDefault}
+                                                aria-label={`${group.title}: ${t.taskEditorOpenByDefault}`}
+                                                onClick={() => updateSectionOpenDefault(sectionOpenSectionId, !isOpenByDefault)}
+                                                className={cn(
+                                                    'relative inline-flex h-5 w-9 items-center rounded-full border transition-colors',
+                                                    isOpenByDefault ? 'bg-primary border-primary' : 'bg-muted/50 border-border'
+                                                )}
+                                            >
+                                                <span
+                                                    className={cn(
+                                                        'inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform',
+                                                        isOpenByDefault ? 'translate-x-4' : 'translate-x-1'
+                                                    )}
+                                                />
+                                            </button>
+                                        </div>
+                                    )}
                                 </div>
                                 {groupOrder.map((fieldId, index) => {
                                     const isVisible = !hiddenSet.has(fieldId);
