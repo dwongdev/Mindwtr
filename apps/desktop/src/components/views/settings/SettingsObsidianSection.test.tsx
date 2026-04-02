@@ -1,0 +1,79 @@
+import { fireEvent, render } from '@testing-library/react';
+import { describe, expect, it, vi } from 'vitest';
+
+import { SettingsObsidianSection } from './SettingsObsidianSection';
+
+const t = {
+    obsidianVault: 'Obsidian Vault',
+    obsidianVaultDesc: 'Connect a local Obsidian vault.',
+    obsidianEnable: 'Enable Obsidian integration',
+    obsidianVaultPath: 'Vault folder',
+    obsidianVaultPathHint: 'Select the root folder of your vault.',
+    obsidianScanFolders: 'Scan folders',
+    obsidianScanFoldersHint: 'One relative folder per line.',
+    obsidianInboxFile: 'Mindwtr inbox note',
+    obsidianInboxFileHint: 'Relative path for new notes.',
+    obsidianTaskNotes: 'TaskNotes',
+    obsidianTaskNotesDesc: 'TaskNotes file options.',
+    obsidianTaskNotesIncludeArchived: 'Include archived TaskNotes',
+    obsidianTaskNotesIncludeArchivedHint: 'Keep archived TaskNotes visible.',
+    obsidianNewTaskFormat: 'New task format',
+    obsidianNewTaskFormatHint: 'Choose how new notes are written.',
+    obsidianNewTaskFormatAuto: 'Auto-detect',
+    obsidianNewTaskFormatInline: 'Inline',
+    obsidianNewTaskFormatTaskNotes: 'TaskNotes',
+    obsidianWatching: 'Watching vault',
+    obsidianWatcherUnavailable: 'Watcher unavailable.',
+    obsidianSave: 'Save Obsidian settings',
+    obsidianRemove: 'Disconnect vault',
+    obsidianRescan: 'Rescan vault',
+    obsidianRescanning: 'Rescanning…',
+    obsidianLastScanned: 'Last Obsidian scan',
+    obsidianNeverScanned: 'Never scanned',
+    obsidianMissingMarker: 'Missing .obsidian folder',
+    browse: 'Browse...',
+};
+
+const baseProps: Parameters<typeof SettingsObsidianSection>[0] = {
+    t,
+    isTauri: false,
+    obsidianVaultPath: '',
+    obsidianEnabled: false,
+    obsidianScanFoldersText: '/',
+    obsidianInboxFile: 'Mindwtr/Inbox.md',
+    obsidianTaskNotesIncludeArchived: false,
+    obsidianNewTaskFormat: 'auto',
+    obsidianLastScannedAt: null,
+    obsidianHasVaultMarker: null,
+    obsidianVaultWarning: null,
+    obsidianIsWatching: false,
+    obsidianWatcherError: null,
+    isSavingObsidian: false,
+    isScanningObsidian: false,
+    onObsidianVaultPathChange: vi.fn(),
+    onObsidianEnabledChange: vi.fn(),
+    onObsidianScanFoldersTextChange: vi.fn(),
+    onObsidianInboxFileChange: vi.fn(),
+    onObsidianTaskNotesIncludeArchivedChange: vi.fn(),
+    onObsidianNewTaskFormatChange: vi.fn(),
+    onBrowseObsidianVault: vi.fn(),
+    onSaveObsidian: vi.fn(),
+    onRemoveObsidian: vi.fn(),
+    onRescanObsidian: vi.fn(),
+};
+
+describe('SettingsObsidianSection', () => {
+    it('starts collapsed and expands on demand', () => {
+        const { getByRole, queryByText, getByText } = render(<SettingsObsidianSection {...baseProps} />);
+
+        const toggle = getByRole('button', { name: /Obsidian Vault/i });
+        expect(toggle).toHaveAttribute('aria-expanded', 'false');
+        expect(queryByText('Vault folder')).not.toBeInTheDocument();
+
+        fireEvent.click(toggle);
+
+        expect(toggle).toHaveAttribute('aria-expanded', 'true');
+        expect(getByText('Vault folder')).toBeInTheDocument();
+        expect(getByText('Save Obsidian settings')).toBeInTheDocument();
+    });
+});
