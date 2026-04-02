@@ -689,7 +689,7 @@ export class SyncService {
     }
 
     private static async persistSuccessfulSyncStatus(
-        syncStatus: string,
+        syncStatus: NonNullable<AppData['settings']['lastSyncStatus']>,
         now: string,
         lastSyncHistory?: ReturnType<typeof appendSyncHistory>
     ): Promise<boolean> {

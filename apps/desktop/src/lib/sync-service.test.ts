@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import type { Attachment } from '@mindwtr/core';
+import type { AppData, Attachment } from '@mindwtr/core';
 import { DropboxUnauthorizedError } from './dropbox-sync';
 import { getFileSyncDir, hashString, normalizeSyncBackend } from './sync-service-utils';
 

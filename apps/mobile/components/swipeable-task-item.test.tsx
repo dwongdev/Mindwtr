@@ -7,7 +7,7 @@ import { SwipeableTaskItem } from './swipeable-task-item';
 
 const { updateTask, getChecklistProgress, storeState } = vi.hoisted(() => ({
   updateTask: vi.fn(),
-  getChecklistProgress: vi.fn(() => null),
+  getChecklistProgress: vi.fn((_value: any): any => null),
   storeState: {
     updateTask: vi.fn(),
     projects: [] as any[],

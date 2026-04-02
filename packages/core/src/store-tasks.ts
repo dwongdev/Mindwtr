@@ -151,7 +151,6 @@ const prepareTaskUpdatesForStore = ({
     allProjects,
     allSections,
     allAreas,
-    lastDataChangeAt,
 }: {
     task: Task;
     updates: Partial<Task>;
@@ -159,7 +158,6 @@ const prepareTaskUpdatesForStore = ({
     allProjects: AppData['projects'];
     allSections: AppData['sections'];
     allAreas: AppData['areas'];
-    lastDataChangeAt: number;
 }): { ok: true; updates: Partial<Task> } | { ok: false; error: string } => {
     const resolveEffectiveContainer = (candidateUpdates: Partial<Task>) => resolveTaskContainerAssignment({
         projectId: hasOwnField(candidateUpdates, 'projectId') ? candidateUpdates.projectId : task.projectId,
@@ -174,7 +172,6 @@ const prepareTaskUpdatesForStore = ({
         task,
         updates,
         allTasks,
-        lastDataChangeAt,
     });
 
     const firstResolution = resolveEffectiveContainer(adjustedUpdates);
@@ -189,7 +186,6 @@ const prepareTaskUpdatesForStore = ({
             areaId: firstResolution.areaId,
         },
         allTasks,
-        lastDataChangeAt,
     });
 
     const finalResolution = resolveEffectiveContainer(adjustedUpdates);
@@ -210,12 +206,10 @@ const normalizeTaskUpdateForStore = ({
     task,
     updates,
     allTasks,
-    lastDataChangeAt,
 }: {
     task: Task;
     updates: Partial<Task>;
     allTasks: Task[];
-    lastDataChangeAt: number;
 }): Partial<Task> => {
     let adjustedUpdates = updates;
     const hasOrder = Object.prototype.hasOwnProperty.call(updates, 'order');
@@ -394,7 +388,6 @@ export const createTaskActions = ({ set, get, getStorage, debouncedSave }: TaskA
             allProjects: currentState._allProjects,
             allSections: currentState._allSections,
             allAreas: currentState._allAreas,
-            lastDataChangeAt: currentState.lastDataChangeAt,
         });
         if (!preparedUpdates.ok) {
             set({ error: preparedUpdates.error });
@@ -799,7 +792,6 @@ export const createTaskActions = ({ set, get, getStorage, debouncedSave }: TaskA
                 allProjects: state._allProjects,
                 allSections: state._allSections,
                 allAreas: state._allAreas,
-                lastDataChangeAt: state.lastDataChangeAt,
             });
             if (!preparedUpdates.ok) {
                 set({ error: preparedUpdates.error });
@@ -824,7 +816,6 @@ export const createTaskActions = ({ set, get, getStorage, debouncedSave }: TaskA
                     task,
                     updates: preparedUpdates,
                     allTasks: newAllTasksBase,
-                    lastDataChangeAt: state.lastDataChangeAt,
                 });
                 const { updatedTask, nextRecurringTask } = applyTaskUpdates(
                     task,
