@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, test } from 'bun:test';
 import { existsSync, mkdtempSync, mkdirSync, readFileSync, readdirSync, rmSync, symlinkSync, writeFileSync } from 'fs';
 import { join } from 'path';
 import { tmpdir } from 'os';
+import { corsOrigin, errorResponse } from './server-config';
 import { __cloudTestUtils, startCloudServer } from './server';
 
 describe('cloud server utils', () => {
@@ -123,6 +124,16 @@ describe('cloud server utils', () => {
     test('rejects invalid app data payload', () => {
         const result = __cloudTestUtils.validateAppData({ tasks: 'invalid', projects: [] });
         expect(result.ok).toBe(false);
+    });
+
+    test('applies CORS headers to error responses', () => {
+        const response = errorResponse('Unauthorized', 401);
+
+        expect(response.status).toBe(401);
+        expect(response.headers.get('Content-Type')).toBe('application/json; charset=utf-8');
+        expect(response.headers.get('Access-Control-Allow-Origin')).toBe(corsOrigin);
+        expect(response.headers.get('Access-Control-Allow-Headers')).toBe('Authorization, Content-Type');
+        expect(response.headers.get('Access-Control-Allow-Methods')).toBe('GET,PUT,POST,PATCH,DELETE,OPTIONS');
     });
 
     test('rejects invalid task status and timestamps in app data', () => {
