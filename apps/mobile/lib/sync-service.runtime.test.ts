@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const emptyData = {
   tasks: [],
@@ -189,10 +189,14 @@ vi.mock('@mindwtr/core', async () => {
   };
 });
 
-const syncServiceModulePromise = import('./sync-service');
+let syncServiceModule: Awaited<typeof import('./sync-service')>;
 
 describe('mobile sync-service runtime', () => {
-  beforeEach(async () => {
+  beforeAll(async () => {
+    syncServiceModule = await import('./sync-service');
+  });
+
+  beforeEach(() => {
     vi.clearAllMocks();
 
     storeStateRef.current = {
@@ -252,7 +256,6 @@ describe('mobile sync-service runtime', () => {
       return { status: 'success', stats: emptyStats, data };
     });
 
-    const syncServiceModule = await syncServiceModulePromise;
     syncServiceModule.__mobileSyncTestUtils.reset();
   });
 
@@ -260,7 +263,6 @@ describe('mobile sync-service runtime', () => {
     const rateLimitError = Object.assign(new Error('WebDAV GET failed (429): Too Many Requests'), { status: 429 });
     coreMocks.webdavGetJson.mockRejectedValue(rateLimitError);
 
-    const syncServiceModule = await syncServiceModulePromise;
     const first = await syncServiceModule.performMobileSync();
     expect(first.success).toBe(false);
     expect(first.error).toContain('WebDAV rate limited. Sync paused briefly; try again in about a minute.');
@@ -282,7 +284,6 @@ describe('mobile sync-service runtime', () => {
       isAirplaneModeEnabled: false,
     });
 
-    const syncServiceModule = await syncServiceModulePromise;
     const result = await syncServiceModule.performMobileSync();
 
     expect(result).toEqual({ success: true, skipped: 'offline' });
@@ -295,7 +296,6 @@ describe('mobile sync-service runtime', () => {
   it('skips remote sync when the request fails with an offline network error', async () => {
     coreMocks.webdavGetJson.mockRejectedValue(new TypeError('Network request failed'));
 
-    const syncServiceModule = await syncServiceModulePromise;
     const result = await syncServiceModule.performMobileSync();
 
     expect(result).toEqual({ success: true, skipped: 'offline' });
@@ -316,7 +316,6 @@ describe('mobile sync-service runtime', () => {
       return { status: 'success', stats: emptyStats, data: local };
     });
 
-    const syncServiceModule = await syncServiceModulePromise;
     const result = await syncServiceModule.performMobileSync();
 
     expect(result).toEqual({ success: true, skipped: 'requeued' });
@@ -340,7 +339,6 @@ describe('mobile sync-service runtime', () => {
     };
     coreMocks.webdavGetJson.mockRejectedValue(new Error('sync read failed'));
 
-    const syncServiceModule = await syncServiceModulePromise;
     const result = await syncServiceModule.performMobileSync();
 
     expect(result.success).toBe(false);
@@ -365,7 +363,6 @@ describe('mobile sync-service runtime', () => {
       return { status: 'success', stats: emptyStats, data: emptyData };
     });
 
-    const syncServiceModule = await syncServiceModulePromise;
     const states: string[] = [];
     const unsubscribe = syncServiceModule.subscribeMobileSyncActivityState((state) => {
       states.push(state);
