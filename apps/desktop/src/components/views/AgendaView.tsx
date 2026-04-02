@@ -710,6 +710,7 @@ export function AgendaView() {
                         <button
                             type="button"
                             onClick={() => setFiltersOpen((prev) => !prev)}
+                            aria-expanded={showFiltersPanel}
                             className="text-xs text-muted-foreground hover:text-foreground transition-colors"
                         >
                             {showFiltersPanel ? t('filters.hide') : t('filters.show')}

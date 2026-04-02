@@ -446,6 +446,7 @@ export function BoardView() {
                             <button
                                 type="button"
                                 onClick={() => setBoardFilters({ open: !boardFilters.open })}
+                                aria-expanded={showFiltersPanel}
                                 className="text-xs text-muted-foreground hover:text-foreground transition-colors"
                             >
                                 {showFiltersPanel ? t('filters.hide') : t('filters.show')}

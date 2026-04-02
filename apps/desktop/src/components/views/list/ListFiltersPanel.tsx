@@ -63,6 +63,7 @@ export function ListFiltersPanel({
                     <button
                         type="button"
                         onClick={onToggleOpen}
+                        aria-expanded={showFiltersPanel}
                         className="text-xs text-muted-foreground hover:text-foreground transition-colors"
                     >
                         {showFiltersPanel ? t('filters.hide') : t('filters.show')}

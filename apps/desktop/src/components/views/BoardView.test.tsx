@@ -1,5 +1,5 @@
 import { beforeEach, describe, it, expect, vi } from 'vitest';
-import { render } from '@testing-library/react';
+import { fireEvent, render } from '@testing-library/react';
 import { BoardView } from './BoardView';
 import { LanguageProvider } from '../../contexts/language-context';
 import { useTaskStore } from '@mindwtr/core';
@@ -47,5 +47,15 @@ describe('BoardView', () => {
         const { getByRole } = renderWithProviders();
         expect(getByRole('heading', { name: /inbox/i })).toBeInTheDocument();
         expect(getByRole('heading', { name: /next actions/i })).toBeInTheDocument();
+    });
+
+    it('exposes the project filter panel state with aria-expanded', () => {
+        const { getByRole } = renderWithProviders();
+
+        const filtersButton = getByRole('button', { name: /show/i });
+        expect(filtersButton).toHaveAttribute('aria-expanded', 'false');
+
+        fireEvent.click(filtersButton);
+        expect(getByRole('button', { name: /hide/i })).toHaveAttribute('aria-expanded', 'true');
     });
 });

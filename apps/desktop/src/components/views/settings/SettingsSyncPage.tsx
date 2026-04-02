@@ -675,6 +675,7 @@ export function SettingsSyncPage({
                         <button
                             type="button"
                             onClick={() => setSyncOptionsOpen((prev) => !prev)}
+                            aria-expanded={syncOptionsOpen}
                             className="w-full flex items-start justify-between gap-4 text-left"
                         >
                             <div>

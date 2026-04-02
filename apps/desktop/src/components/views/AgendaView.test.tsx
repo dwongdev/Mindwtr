@@ -227,6 +227,16 @@ describe('AgendaView', () => {
         expect(getByText('Home next task')).toBeInTheDocument();
     });
 
+    it('exposes the filter panel state with aria-expanded', () => {
+        const { getByRole } = renderAgenda();
+
+        const filtersButton = getByRole('button', { name: /^show$/i });
+        expect(filtersButton).toHaveAttribute('aria-expanded', 'false');
+
+        fireEvent.click(filtersButton);
+        expect(getByRole('button', { name: /hide/i })).toHaveAttribute('aria-expanded', 'true');
+    });
+
     it('renders every grouped no-context task when the list is large', () => {
         const tasks = Array.from({ length: 30 }, (_, index) => ({
             id: `next-task-${index + 1}`,
