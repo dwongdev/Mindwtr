@@ -210,6 +210,9 @@ export function ProjectsSidebar({
     const activeProjectDnd = useMemo(() => buildProjectDndState(groupedActiveProjects), [buildProjectDndState, groupedActiveProjects]);
     const deferredProjectDnd = useMemo(() => buildProjectDndState(groupedDeferredProjects), [buildProjectDndState, groupedDeferredProjects]);
     const archivedProjectDnd = useMemo(() => buildProjectDndState(groupedArchivedProjects), [buildProjectDndState, groupedArchivedProjects]);
+    const removeFromFocusLabel = t('projects.removeFromFocus');
+    const addToFocusLabel = t('projects.addToFocus');
+    const maxFocusedProjectsLabel = t('projects.maxFocusedProjects');
 
     const handleProjectDragEnd = useCallback((dndState: ReturnType<typeof buildProjectDndState>) => (event: DragEndEvent) => {
         const { active, over } = event;
@@ -411,8 +414,8 @@ export function ProjectsSidebar({
                                                                         project.isFocused ? "text-amber-500" : "text-muted-foreground hover:text-amber-500",
                                                                         !project.isFocused && focusedCount >= 5 && "opacity-30 cursor-not-allowed",
                                                                     )}
-                                                                    title={project.isFocused ? "Remove from focus" : focusedCount >= 5 ? "Max 5 focused projects" : "Add to focus"}
-                                                                    aria-label={project.isFocused ? "Remove from focus" : "Add to focus"}
+                                                                    title={project.isFocused ? removeFromFocusLabel : focusedCount >= 5 ? maxFocusedProjectsLabel : addToFocusLabel}
+                                                                    aria-label={project.isFocused ? removeFromFocusLabel : addToFocusLabel}
                                                                 >
                                                                     <Star className="w-4 h-4" fill={project.isFocused ? 'currentColor' : 'none'} />
                                                                 </button>

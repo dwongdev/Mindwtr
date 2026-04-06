@@ -216,12 +216,9 @@ export const TaskItem = memo(function TaskItem({
         if (task.status === 'done' || task.status === 'reference' || task.status === 'archived') return undefined;
         const isFocused = Boolean(task.isFocusedToday);
         const canToggle = isFocused || focusedCount < 3;
-        const removeLabelRaw = t('agenda.removeFromFocus');
-        const addLabelRaw = t('agenda.addToFocus');
-        const maxLabelRaw = t('agenda.maxFocusItems');
-        const removeLabel = removeLabelRaw === 'agenda.removeFromFocus' ? 'Remove from focus' : removeLabelRaw;
-        const addLabel = addLabelRaw === 'agenda.addToFocus' ? 'Add to focus' : addLabelRaw;
-        const maxLabel = maxLabelRaw === 'agenda.maxFocusItems' ? 'Max 3 focus items' : maxLabelRaw;
+        const removeLabel = t('agenda.removeFromFocus');
+        const addLabel = t('agenda.addToFocus');
+        const maxLabel = t('agenda.maxFocusItems');
         return {
             isFocused,
             canToggle,
