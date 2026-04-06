@@ -497,6 +497,12 @@ export function CalendarView() {
                         const taskCount = new Set([...deadlines, ...scheduled].map((t) => t.id)).size;
                         const eventCount = getExternalEventsForDay(day).length;
                         const isSelected = selectedDate && isSameDay(day, selectedDate);
+                        const todayMarkerStyle = isToday(day)
+                            ? {
+                                backgroundColor: 'hsl(var(--primary))',
+                                color: 'hsl(var(--primary-foreground))',
+                            }
+                            : undefined;
 
                         return (
                             <div
@@ -512,12 +518,8 @@ export function CalendarView() {
                                 <div className="flex justify-between items-start">
                                     <div className={cn(
                                         "text-sm font-medium w-6 h-6 flex items-center justify-center rounded-full mb-1",
-                                        isToday(day) && "bg-primary text-primary-foreground"
-                                    )}>
-                                        <span className={cn(
-                                            "tabular-nums leading-none",
-                                            isToday(day) && "text-primary-foreground"
-                                        )}>
+                                    )} style={todayMarkerStyle}>
+                                        <span className="tabular-nums leading-none">
                                             {format(day, 'd')}
                                         </span>
                                     </div>

@@ -1,11 +1,11 @@
-import { render, screen } from '@testing-library/react';
+import { act, render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { LanguageProvider } from '../../contexts/language-context';
 import { CalendarView } from './CalendarView';
 
-vi.mock('@mindwtr/core', async (importOriginal) => {
-    const actual = await importOriginal<typeof import('@mindwtr/core')>();
+vi.mock('@mindwtr/core', async () => {
+    const actual = await vi.importActual<typeof import('@mindwtr/core')>('@mindwtr/core');
     const taskStoreState = {
         areas: [],
         deleteTask: vi.fn(async () => {}),
@@ -41,7 +41,7 @@ vi.mock('@mindwtr/core', async (importOriginal) => {
 });
 
 vi.mock('../../lib/external-calendar-events', () => ({
-    fetchExternalCalendarEvents: vi.fn(() => new Promise(() => {})),
+    fetchExternalCalendarEvents: vi.fn(async () => ({ calendars: [], events: [] })),
 }));
 
 describe('CalendarView', () => {
@@ -54,13 +54,20 @@ describe('CalendarView', () => {
         vi.useRealTimers();
     });
 
-    it('renders the today date number with the primary foreground color', () => {
+    it('renders the today marker with explicit primary contrast tokens', async () => {
         render(
             <LanguageProvider>
                 <CalendarView />
             </LanguageProvider>
         );
 
-        expect(screen.getByText('3')).toHaveClass('text-primary-foreground');
+        await act(async () => {
+            await Promise.resolve();
+        });
+
+        const todayNumber = screen.getByText('3');
+        const markerStyle = todayNumber.parentElement?.getAttribute('style') ?? '';
+        expect(markerStyle).toContain('background-color: hsl(var(--primary));');
+        expect(markerStyle).toContain('color: hsl(var(--primary-foreground));');
     });
 });
