@@ -110,7 +110,16 @@ scoop install mindwtr
 
 ### Portable
 
-The `.exe` standalone can be run without installation (place in any folder).
+1. Download `mindwtr_<version>_x64_portable.zip` from [GitHub Releases](https://github.com/dongdongbh/Mindwtr/releases).
+2. Extract it to any writable folder.
+3. Keep `portable.txt` next to `mindwtr.exe`.
+
+Portable mode stores local state beside the executable:
+
+- `profile/data/` for the SQLite DB, sync JSON, logs, snapshots, and audio captures
+- `profile/config/` for `config.toml` and `secrets.toml`
+
+Windows WebView2 is still required.
 
 ---
 

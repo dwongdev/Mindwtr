@@ -51,6 +51,18 @@
   <url type="bugtracker">https://github.com/dongdongbh/Mindwtr/issues</url>
   <url type="vcs-browser">https://github.com/dongdongbh/Mindwtr</url>
   <releases>
+    <release version="0.8.0" date="2026-04-05">
+      <url type="details">https://github.com/dongdongbh/Mindwtr/releases/tag/v0.8.0</url>
+      <description translate="no">
+        <p>Mindwtr 0.8.0 improves desktop project planning, sidebar behavior, and storage safety across Linux and other desktop builds.</p>
+        <ul>
+          <li>Added optional project due dates so project planning and review timing are easier to manage.</li>
+          <li>Improved the Projects sidebar with single-click selection, a separate archived section, and clearer calendar and review contrast.</li>
+          <li>Added configurable inline task editor sections and kept the Obsidian integration settings collapsed until needed.</li>
+          <li>Hardened sync and storage with safer pending-write recovery, filtered deleted attachments, clearer keyring fallback warnings, and more consistent search visibility.</li>
+        </ul>
+      </description>
+    </release>
     <release version="0.7.9" date="2026-04-01">
       <url type="details">https://github.com/dongdongbh/Mindwtr/releases/tag/v0.7.9</url>
       <description translate="no">

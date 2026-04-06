@@ -30,7 +30,7 @@
           "完全离线可用，无需互联网连接",
           "完全开源，安全透明"
         ],
-        "ReleaseNotes": "• 新增备份恢复与 Todoist 导入，让数据进出 Mindwtr 更轻松。\n• 桌面端 Obsidian 集成现已支持 TaskNotes，并加入实时更新与回写能力。\n• 改进桌面端在 self-hosted 与 CloudKit 场景下的同步可靠性，并更清楚显示过滤器与同步开关状态。\n• 现在支持恢复项目和领域，同时进一步打磨专注视图、删除撤销文案与无障碍后备标签。",
+        "ReleaseNotes": "• 新增项目可选截止日期，让项目规划与复查时间更清晰。\n• 项目侧边栏现在支持单击切换、分离归档项目，并改进日历与复查计数对比度。\n• 新增可配置的行内任务编辑分区，并默认折叠 Obsidian 集成设置。\n• 桌面端同步与存储更稳健，带来更安全的文件写入、更清晰的 keyring 回退提示，以及更一致的搜索与可见性行为。",
         "Images": [
           {
             "FileName": "2026-01-27_22-59-40.png",
@@ -82,7 +82,7 @@
           "No internet connection required to function",
           "Open source and transparent"
         ],
-        "ReleaseNotes": "• Added backup restore and Todoist import so moving data in and out of Mindwtr is simpler.\n• Desktop Obsidian integration now supports TaskNotes plus live updates and write-back.\n• Improved desktop sync reliability for self-hosted and CloudKit setups, with clearer filter and sync-toggle state.\n• Restoring projects and areas is now supported, while focus views, delete undo copy, and accessibility fallbacks are more polished.",
+        "ReleaseNotes": "• Added optional project due dates so planning and review can happen at the right time.\n• The Projects sidebar now switches with a single click, separates archived projects, and improves calendar and review contrast.\n• Added configurable inline task editor sections and kept the Obsidian integration collapsed by default.\n• Hardened desktop sync and storage with safer file writes, clearer keyring fallback warnings, and more consistent search and task visibility.",
         "Images": [
           {
             "FileName": "2026-01-27_22-59-40.png",
@@ -130,7 +130,7 @@
           "No requiere conexión a internet para funcionar",
           "Código abierto y transparente"
         ],
-        "ReleaseNotes": "• Agregamos restauracion de copias e importacion de Todoist para mover datos dentro y fuera de Mindwtr con mas facilidad.\n• La integracion de Obsidian en escritorio ahora admite TaskNotes, actualizacion en vivo y escritura de vuelta.\n• Mejoramos la fiabilidad del sync en escritorio para entornos self-hosted y CloudKit, con un estado mas claro de filtros y sync.\n• Ahora se pueden restaurar proyectos y areas, y pulimos las vistas Focus, el deshacer borrado y las etiquetas de accesibilidad.",
+        "ReleaseNotes": "• Agregamos fechas objetivo opcionales para proyectos y asi planificar y revisar en el momento adecuado.\n• La barra lateral de proyectos ahora cambia con un solo clic, separa los proyectos archivados y mejora el contraste en calendario y revision.\n• Agregamos secciones configurables en el editor inline de tareas y dejamos la integracion de Obsidian colapsada por defecto.\n• Reforzamos el sync y el almacenamiento en escritorio con escrituras mas seguras, avisos mas claros sobre fallback del keyring y una visibilidad de busqueda y tareas mas consistente.",
         "Images": [
           {
             "FileName": "2026-01-27_22-59-40.png",

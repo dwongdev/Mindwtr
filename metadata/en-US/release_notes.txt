@@ -1,4 +1,4 @@
-- Added backup restore and Todoist import so it is easier to move your data in and out of Mindwtr.
-- Improved iCloud sync startup by staging CloudKit until first sync and handling missing record types more safely.
-- Mobile sync now snapshots app state, avoids repeated conflict alerts, and cancels pending checklist flushes on delete.
-- Restoring projects and areas is now supported, and area color editing is reliable again.
+- Added optional project due dates and review scheduling so projects show up at the right time.
+- iOS widgets now size task lists adaptively and avoid redundant legacy payload writes.
+- File sync on iOS now preserves folder bookmarks more reliably after reselecting locations.
+- Cloud provider settings group iCloud more clearly, while sync and attachment handling are more reliable overall.
