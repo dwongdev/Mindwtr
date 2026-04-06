@@ -1,6 +1,8 @@
 import type { AppData, Attachment, Area, Project, Task } from './types';
 import { logWarn } from './logger';
 import {
+    type ClockSkewDirection,
+    type ClockSkewWarning,
     type ConflictReason,
     type EntityMergeStats,
     type MergeResult,
@@ -33,6 +35,8 @@ import {
 import { purgeExpiredTombstones } from './sync-tombstones';
 
 export type {
+    ClockSkewDirection,
+    ClockSkewWarning,
     ConflictReason,
     EntityMergeStats,
     MergeConflictSample,
@@ -78,6 +82,7 @@ function createEmptyEntityStats(localTotal: number, incomingTotal: number): Enti
         deletionsWon: 0,
         conflictIds: [],
         maxClockSkewMs: 0,
+        maxClockSkewDirection: undefined,
         timestampAdjustments: 0,
         timestampAdjustmentIds: [],
         conflictReasonCounts: {},
@@ -304,6 +309,7 @@ function mergeEntitiesWithStats<T extends MergeableEntity>(
         const absoluteSkew = Math.abs(safeTimeDiff);
         if (absoluteSkew > stats.maxClockSkewMs) {
             stats.maxClockSkewMs = absoluteSkew;
+            stats.maxClockSkewDirection = safeTimeDiff >= 0 ? 'remote-ahead' : 'local-ahead';
         }
         const withinSkew = Math.abs(safeTimeDiff) <= CLOCK_SKEW_THRESHOLD_MS;
         const resolveOperationTime = (item: T): number => {
@@ -438,6 +444,26 @@ function mergeAreas(local: Area[], incoming: Area[], nowIso: string): { merged: 
 export function filterDeleted<T extends { deletedAt?: string }>(items: T[]): T[] {
     return items.filter((item) => !item.deletedAt);
 }
+
+const getClockSkewWarning = (stats: MergeResult['stats']): ClockSkewWarning | undefined => {
+    const candidates = [
+        stats.tasks,
+        stats.projects,
+        stats.sections,
+        stats.areas,
+    ].filter((entityStats) =>
+        (entityStats.maxClockSkewMs || 0) > CLOCK_SKEW_THRESHOLD_MS
+        && !!entityStats.maxClockSkewDirection
+    );
+    if (candidates.length === 0) return undefined;
+    candidates.sort((left, right) => (right.maxClockSkewMs || 0) - (left.maxClockSkewMs || 0));
+    const winner = candidates[0];
+    if (!winner.maxClockSkewDirection) return undefined;
+    return {
+        skewMs: winner.maxClockSkewMs,
+        direction: winner.maxClockSkewDirection,
+    };
+};
 
 export function mergeAppDataWithStats(local: AppData, incoming: AppData): MergeResult {
     const nowIso = new Date().toISOString();
@@ -583,6 +609,13 @@ export function mergeAppDataWithStats(local: AppData, incoming: AppData): MergeR
 
     const areasResult = mergeAreas(localNormalized.areas, incomingNormalized.areas, nowIso);
 
+    const stats = {
+        tasks: tasksResult.stats,
+        projects: projectsResult.stats,
+        sections: sectionsResult.stats,
+        areas: areasResult.stats,
+    };
+
     return {
         data: repairMergedSyncReferences({
             tasks: tasksResult.merged,
@@ -591,12 +624,8 @@ export function mergeAppDataWithStats(local: AppData, incoming: AppData): MergeR
             areas: areasResult.merged,
             settings: mergeSettingsForSync(localNormalized.settings, incomingNormalized.settings),
         }, nowIso),
-        stats: {
-            tasks: tasksResult.stats,
-            projects: projectsResult.stats,
-            sections: sectionsResult.stats,
-            areas: areasResult.stats,
-        },
+        stats,
+        clockSkewWarning: getClockSkewWarning(stats),
     };
 }
 
@@ -762,6 +791,7 @@ export async function performSyncCycle(io: SyncCycleIO): Promise<SyncCycleResult
             context: {
                 maxClockSkewMs: Math.round(maxClockSkewMs),
                 thresholdMs: CLOCK_SKEW_THRESHOLD_MS,
+                direction: mergeResult.clockSkewWarning?.direction,
             },
         });
     }
@@ -839,5 +869,10 @@ export async function performSyncCycle(io: SyncCycleIO): Promise<SyncCycleResult
     await yieldToUi();
     await io.writeLocal(persistedFinalData);
 
-    return { data: persistedFinalData, stats: mergeResult.stats, status: nextSyncStatus };
+    return {
+        data: persistedFinalData,
+        stats: mergeResult.stats,
+        status: nextSyncStatus,
+        clockSkewWarning: mergeResult.clockSkewWarning,
+    };
 }

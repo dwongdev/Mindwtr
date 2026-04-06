@@ -12,6 +12,7 @@ export interface EntityMergeStats {
     deletionsWon: number;
     conflictIds: string[];
     maxClockSkewMs: number;
+    maxClockSkewDirection?: ClockSkewDirection;
     timestampAdjustments: number;
     timestampAdjustmentIds: string[];
     conflictReasonCounts?: Partial<Record<ConflictReason, number>>;
@@ -46,9 +47,17 @@ export interface MergeStats {
     areas: EntityMergeStats;
 }
 
+export type ClockSkewDirection = 'local-ahead' | 'remote-ahead';
+
+export interface ClockSkewWarning {
+    skewMs: number;
+    direction: ClockSkewDirection;
+}
+
 export interface MergeResult {
     data: AppData;
     stats: MergeStats;
+    clockSkewWarning?: ClockSkewWarning;
 }
 
 export type SyncHistoryEntry = {
@@ -89,4 +98,5 @@ export type SyncCycleResult = {
     data: AppData;
     stats: MergeStats;
     status: 'success' | 'conflict';
+    clockSkewWarning?: ClockSkewWarning;
 };

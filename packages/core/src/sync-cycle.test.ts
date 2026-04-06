@@ -92,6 +92,24 @@ describe('performSyncCycle', () => {
         expect(result.stats.tasks.conflicts).toBe(0);
     });
 
+    it('surfaces a clock skew warning when merge drift exceeds the threshold', async () => {
+        const result = await performSyncCycle({
+            readLocal: async () => mockAppData([
+                createMockTask('task-1', '2026-03-01T00:10:00.000Z'),
+            ]),
+            readRemote: async () => mockAppData([
+                createMockTask('task-1', '2026-03-01T00:00:00.000Z'),
+            ]),
+            writeLocal: async () => undefined,
+            writeRemote: async () => undefined,
+        });
+
+        expect(result.clockSkewWarning).toEqual({
+            skewMs: 10 * 60 * 1000,
+            direction: 'local-ahead',
+        });
+    });
+
     it('returns success when local defaults differ from omitted legacy fields', async () => {
         const now = '2026-03-07T00:00:00.000Z';
         const localTask = {
