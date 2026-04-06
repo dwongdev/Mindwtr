@@ -111,15 +111,39 @@ fn is_retryable_storage_error(message: &str) -> bool {
         || normalized.contains("temporarily unavailable")
 }
 
+fn data_json_backup_path(data_path: &Path) -> PathBuf {
+    data_path.with_extension("json.bak")
+}
+
+fn data_json_tmp_path(data_path: &Path) -> PathBuf {
+    data_path.with_extension("json.tmp")
+}
+
+fn cleanup_stale_data_json_backup(data_path: &Path) -> Result<(), String> {
+    if !cfg!(windows) {
+        return Ok(());
+    }
+    let backup_path = data_json_backup_path(data_path);
+    if !backup_path.exists() {
+        return Ok(());
+    }
+    if data_path.exists() {
+        fs::remove_file(&backup_path)
+            .map_err(|e| format!("Failed to remove stale backup file: {e}"))?;
+        return Ok(());
+    }
+    fs::rename(&backup_path, data_path)
+        .map_err(|e| format!("Failed to restore data file from backup: {e}"))?;
+    Ok(())
+}
+
 fn write_data_json_file(data_path: &Path, data: &Value) -> Result<(), String> {
     if let Some(parent) = data_path.parent() {
         fs::create_dir_all(parent).map_err(|e| e.to_string())?;
     }
-    let backup_path = data_path.with_extension("json.bak");
-    if data_path.exists() {
-        let _ = fs::copy(data_path, &backup_path);
-    }
-    let tmp_path = data_path.with_extension("json.tmp");
+    cleanup_stale_data_json_backup(data_path)?;
+    let backup_path = data_json_backup_path(data_path);
+    let tmp_path = data_json_tmp_path(data_path);
     let content = serde_json::to_string_pretty(data).map_err(|e| e.to_string())?;
     {
         let mut file = File::create(&tmp_path).map_err(|e| e.to_string())?;
@@ -127,9 +151,28 @@ fn write_data_json_file(data_path: &Path, data: &Value) -> Result<(), String> {
             .map_err(|e| e.to_string())?;
         file.sync_all().map_err(|e| e.to_string())?;
     }
+
     if cfg!(windows) && data_path.exists() {
-        fs::remove_file(data_path).map_err(|e| e.to_string())?;
+        fs::rename(data_path, &backup_path).map_err(|e| e.to_string())?;
+        match fs::rename(&tmp_path, data_path) {
+            Ok(()) => {
+                let _ = fs::remove_file(&backup_path);
+                return Ok(());
+            }
+            Err(rename_err) => {
+                let restore_err = fs::rename(&backup_path, data_path).err();
+                let _ = fs::remove_file(&tmp_path);
+                return match restore_err {
+                    Some(error) => Err(format!(
+                        "Failed to replace data file: {rename_err}; original data kept at {} but restore also failed: {error}",
+                        backup_path.display()
+                    )),
+                    None => Err(format!("Failed to replace data file: {rename_err}")),
+                };
+            }
+        }
     }
+
     fs::rename(&tmp_path, data_path).map_err(|e| e.to_string())?;
     Ok(())
 }
@@ -1116,6 +1159,7 @@ fn bootstrap_storage_layout(app: &tauri::AppHandle) -> Result<(), String> {
     }
 
     let data_path = get_data_path(app);
+    cleanup_stale_data_json_backup(&data_path)?;
     if !data_path.exists() {
         if let Some(custom_path) = legacy_config.data_file_path.as_ref() {
             let custom_path = PathBuf::from(custom_path);
@@ -1161,7 +1205,7 @@ pub(crate) async fn get_data(app: tauri::AppHandle) -> Result<Value, String> {
     tauri::async_runtime::spawn_blocking(move || {
         ensure_data_file(&app)?;
         let data_path = get_data_path(&app);
-        let backup_path = data_path.with_extension("json.bak");
+        let backup_path = data_json_backup_path(&data_path);
         let mut conn = open_sqlite(&app)?;
 
         if !sqlite_has_any_data(&conn)? && data_path.exists() {
@@ -1220,6 +1264,7 @@ pub(crate) async fn get_data(app: tauri::AppHandle) -> Result<Value, String> {
 pub(crate) async fn read_data_json(app: tauri::AppHandle) -> Result<Value, String> {
     tauri::async_runtime::spawn_blocking(move || {
         let data_path = get_data_path(&app);
+        cleanup_stale_data_json_backup(&data_path)?;
         read_json_with_retries(&data_path, 2).map_err(|e| e.to_string())
     })
     .await
