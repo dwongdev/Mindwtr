@@ -35,6 +35,12 @@ import {
     watchNativeSystemThemePreference,
     watchSystemThemePreference,
 } from './lib/theme';
+import {
+    DEFAULT_DESKTOP_TEXT_SIZE_MODE,
+    TEXT_SIZE_STORAGE_KEY,
+    applyDesktopTextSize,
+    coerceDesktopTextSize,
+} from './lib/text-size';
 import { useUiStore } from './store/ui-store';
 import { useObsidianStore } from './store/obsidian-store';
 
@@ -57,6 +63,7 @@ function App() {
     const closeBehavior = useTaskStore((state) => state.settings?.window?.closeBehavior ?? 'ask');
     const showTray = useTaskStore((state) => state.settings?.window?.showTray);
     const settingsTheme = useTaskStore((state) => state.settings?.theme);
+    const settingsTextSize = useTaskStore((state) => state.settings?.appearance?.textSize);
     const settingsLanguage = useTaskStore((state) => state.settings?.language);
     const settingsDateFormat = useTaskStore((state) => state.settings?.dateFormat);
     const settingsTimeFormat = useTaskStore((state) => state.settings?.timeFormat);
@@ -71,6 +78,7 @@ function App() {
     const [closePromptRemember, setClosePromptRemember] = useState(false);
     const [externalSyncChange, setExternalSyncChange] = useState<ExternalSyncChange | null>(null);
     const [resolvingExternalSync, setResolvingExternalSync] = useState(false);
+    const [hasHydratedSettings, setHasHydratedSettings] = useState(false);
     const closePromptRememberRef = useRef(false);
     const isObsidianEnabled = useObsidianStore((state) => state.config.enabled);
     const obsidianVaultPath = useObsidianStore((state) => state.config.vaultPath);
@@ -131,6 +139,17 @@ function App() {
             .then(({ setTheme }) => setTheme(nativeTheme))
             .catch((error) => void logError(error, { scope: 'theme', step: 'apply' }));
     }, [settingsTheme]);
+
+    useEffect(() => {
+        if (!hasHydratedSettings) return;
+        const normalizedTextSize = coerceDesktopTextSize(settingsTextSize);
+        if (normalizedTextSize === DEFAULT_DESKTOP_TEXT_SIZE_MODE) {
+            localStorage.removeItem(TEXT_SIZE_STORAGE_KEY);
+        } else {
+            localStorage.setItem(TEXT_SIZE_STORAGE_KEY, normalizedTextSize);
+        }
+        applyDesktopTextSize(normalizedTextSize);
+    }, [hasHydratedSettings, settingsTextSize]);
 
     useEffect(() => {
         const normalizedTheme = mapSyncedThemeToDesktop(settingsTheme);
@@ -204,7 +223,13 @@ function App() {
 
     useEffect(() => {
         if (import.meta.env.MODE === 'test' || import.meta.env.VITEST || process.env.NODE_ENV === 'test') return;
-        fetchData();
+        let cancelled = false;
+        fetchData()
+            .finally(() => {
+                if (!cancelled) {
+                    setHasHydratedSettings(true);
+                }
+            });
         useObsidianStore.getState().loadConfig().catch((error) => reportError('Obsidian init failed', error));
         const unsubscribeExternalSync = SyncService.subscribeExternalSyncChange(setExternalSyncChange);
 
@@ -326,6 +351,7 @@ function App() {
         autoSyncController.scheduleInitialSync();
 
         return () => {
+            cancelled = true;
             disposed = true;
             isActiveRef.current = false;
             window.removeEventListener('beforeunload', handleUnload);

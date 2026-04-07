@@ -84,9 +84,11 @@ import {
   type DesktopThemeMode,
 } from "../../lib/theme";
 import { type GlobalQuickAddShortcutSetting } from "../../lib/global-quick-add-shortcut";
+import { coerceDesktopTextSize, type DesktopTextSizeMode } from "../../lib/text-size";
 
 type ThemeMode = DesktopThemeMode;
 type DensityMode = "comfortable" | "compact";
+type TextSizeMode = DesktopTextSizeMode;
 type SettingsPage =
   | "main"
   | "gtd"
@@ -238,6 +240,7 @@ export function SettingsView() {
   const densityMode = (
     settings?.appearance?.density === "compact" ? "compact" : "comfortable"
   ) as DensityMode;
+  const textSizeMode = coerceDesktopTextSize(settings?.appearance?.textSize);
   const dateFormat = normalizeDateFormatSetting(settings?.dateFormat);
   const timeFormat = normalizeTimeFormatSetting(settings?.timeFormat);
   const [saved, setSaved] = useState(false);
@@ -568,6 +571,17 @@ export function SettingsView() {
     })
       .then(showSaved)
       .catch((error) => reportError("Failed to update density", error));
+  };
+
+  const saveTextSizePreference = (mode: TextSizeMode) => {
+    updateSettings({
+      appearance: {
+        ...(settings?.appearance ?? {}),
+        textSize: mode,
+      },
+    })
+      .then(showSaved)
+      .catch((error) => reportError("Failed to update text size", error));
   };
 
   const saveLanguagePreference = (lang: Language) => {
@@ -1104,6 +1118,7 @@ export function SettingsView() {
         keywords: [
           t.appearance,
           t.density,
+          t.textSize,
           t.language,
           t.weekStart,
           t.dateFormat,
@@ -1112,6 +1127,8 @@ export function SettingsView() {
           t.closeBehavior,
           t.showTray,
           "theme",
+          "font size",
+          "text size",
           "dark mode",
           "light mode",
         ],
@@ -1330,6 +1347,8 @@ export function SettingsView() {
           onThemeChange={saveThemePreference}
           densityMode={densityMode}
           onDensityChange={saveDensityPreference}
+          textSizeMode={textSizeMode}
+          onTextSizeChange={saveTextSizePreference}
           language={language}
           onLanguageChange={saveLanguagePreference}
           weekStart={weekStart}

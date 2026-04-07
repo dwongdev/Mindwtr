@@ -11,6 +11,7 @@ import { reportError } from './lib/report-error';
 import { webStorage } from './lib/storage-adapter-web';
 import { logWarn, setupGlobalErrorLogging } from './lib/app-log';
 import { THEME_STORAGE_KEY, applyThemeMode, coerceDesktopThemeMode, resolveNativeTheme } from './lib/theme';
+import { TEXT_SIZE_STORAGE_KEY, applyDesktopTextSize, coerceDesktopTextSize } from './lib/text-size';
 
 const ANALYTICS_DISTINCT_ID_KEY = 'mindwtr-analytics-distinct-id';
 const ANALYTICS_HEARTBEAT_URL = String(import.meta.env.VITE_ANALYTICS_HEARTBEAT_URL || '').trim();
@@ -116,6 +117,8 @@ const sendDesktopHeartbeat = async (): Promise<void> => {
 // Initialize theme immediately before React renders to prevent flash
 const savedTheme = coerceDesktopThemeMode(localStorage.getItem(THEME_STORAGE_KEY));
 applyThemeMode(savedTheme);
+const savedTextSize = coerceDesktopTextSize(localStorage.getItem(TEXT_SIZE_STORAGE_KEY));
+applyDesktopTextSize(savedTextSize);
 
 const diagnosticsEnabled = typeof window !== 'undefined'
     && (window as any).__MINDWTR_DIAGNOSTICS__ === true;

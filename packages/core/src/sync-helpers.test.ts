@@ -127,7 +127,7 @@ describe('sync-helpers sanitizeAppDataForRemote', () => {
                     preferences: now,
                 },
                 theme: 'dark',
-                appearance: { density: 'compact' },
+                appearance: { density: 'compact', textSize: 'large' },
                 keybindingStyle: 'emacs',
                 globalQuickAddShortcut: 'ctrl+alt+m',
                 language: 'zh',
@@ -153,7 +153,7 @@ describe('sync-helpers sanitizeAppDataForRemote', () => {
         expect(sanitized.settings.syncPreferences).toEqual(data.settings.syncPreferences);
         expect(sanitized.settings.syncPreferencesUpdatedAt).toEqual(data.settings.syncPreferencesUpdatedAt);
         expect(sanitized.settings.theme).toBe('dark');
-        expect(sanitized.settings.appearance).toEqual({ density: 'compact' });
+        expect(sanitized.settings.appearance).toEqual({ density: 'compact', textSize: 'large' });
         expect(sanitized.settings.keybindingStyle).toBe('emacs');
         expect(sanitized.settings.externalCalendars).toEqual(data.settings.externalCalendars);
 
