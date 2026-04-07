@@ -9,6 +9,7 @@ const {
   mockAlarmDeleteRepeatingAlarm,
   mockAlarmRemoveAllFiredNotifications,
   mockAlarmRemoveFiredNotification,
+  mockAlarmSendNotification,
   mockAlarmScheduleAlarm,
   mockGetNextScheduledAt,
   mockPermissionsAndroidCheck,
@@ -26,6 +27,7 @@ const {
   mockAlarmDeleteRepeatingAlarm: vi.fn(),
   mockAlarmRemoveAllFiredNotifications: vi.fn(),
   mockAlarmRemoveFiredNotification: vi.fn(),
+  mockAlarmSendNotification: vi.fn(),
   mockAlarmScheduleAlarm: vi.fn(async () => ({ id: 99 })),
   mockGetNextScheduledAt: vi.fn<(...args: unknown[]) => Date | null>(() => null),
   mockPermissionsAndroidCheck: vi.fn(async () => true),
@@ -62,6 +64,7 @@ vi.mock('react-native-alarm-notification', () => ({
   default: {
     parseDate: (date: Date) => date.toISOString(),
     scheduleAlarm: mockAlarmScheduleAlarm,
+    sendNotification: mockAlarmSendNotification,
     deleteAlarm: mockAlarmDeleteAlarm,
     deleteRepeatingAlarm: mockAlarmDeleteRepeatingAlarm,
     removeFiredNotification: mockAlarmRemoveFiredNotification,
@@ -122,6 +125,7 @@ describe('notification-service-local', () => {
     mockAlarmDeleteRepeatingAlarm.mockReset();
     mockAlarmRemoveAllFiredNotifications.mockReset();
     mockAlarmRemoveFiredNotification.mockReset();
+    mockAlarmSendNotification.mockReset();
     mockAlarmScheduleAlarm.mockReset();
     mockAlarmScheduleAlarm.mockResolvedValue({ id: 99 });
     mockGetNextScheduledAt.mockReset();
@@ -207,11 +211,12 @@ describe('notification-service-local', () => {
   it('falls back to the title when sending an immediate notification without a message', async () => {
     await sendLocalMobileNotification('Focus session done');
 
-    expect(mockAlarmScheduleAlarm).toHaveBeenCalledWith(
+    expect(mockAlarmSendNotification).toHaveBeenCalledWith(
       expect.objectContaining({
         title: 'Focus session done',
         message: 'Focus session done',
       })
     );
+    expect(mockAlarmScheduleAlarm).not.toHaveBeenCalled();
   });
 });
