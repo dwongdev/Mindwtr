@@ -22,6 +22,8 @@ export function TaskEditOverlayStack(props: TaskEditOverlayStackProps) {
         areas,
         audioAttachment,
         audioLoading,
+        audioTranscribing,
+        audioTranscriptionError,
         audioModalVisible,
         audioStatus,
         closeAIModal,
@@ -58,6 +60,7 @@ export function TaskEditOverlayStack(props: TaskEditOverlayStackProps) {
         showSectionPicker,
         t,
         tc,
+        retryAudioTranscription,
         toggleAudioPlayback,
     } = props;
 
@@ -84,8 +87,13 @@ export function TaskEditOverlayStack(props: TaskEditOverlayStackProps) {
                 audioTitle={audioAttachment?.title}
                 audioStatus={audioStatus}
                 audioLoading={audioLoading}
+                audioTranscribing={audioTranscribing}
+                audioTranscriptionError={audioTranscriptionError}
                 onTogglePlayback={() => {
                     void toggleAudioPlayback();
+                }}
+                onRetryTranscription={() => {
+                    void retryAudioTranscription();
                 }}
                 onClose={closeAudioModal}
             />

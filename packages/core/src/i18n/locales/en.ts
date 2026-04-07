@@ -913,6 +913,10 @@ export const en: Record<string, string> = {
         'errorBoundary.message': 'The app encountered an unexpected error.',
         'errorBoundary.retry': 'Try again',
         'audio.loading': 'Loading audio...',
+        'attachments.retryTranscription': 'Re-transcribe',
+        'attachments.transcribing': 'Transcribing...',
+        'attachments.transcriptionUnavailable': 'Speech-to-text is not ready. Check your AI settings and try again.',
+        'attachments.transcriptionFailed': 'Transcription failed. Please try again.',
 
         // Bulk Actions
         'bulk.select': 'Select',

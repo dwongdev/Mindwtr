@@ -213,6 +213,8 @@ function TaskEditModalInner({
         addImageAttachment,
         audioAttachment,
         audioLoading,
+        audioTranscribing,
+        audioTranscriptionError,
         audioModalVisible,
         audioStatus,
         closeAudioModal,
@@ -227,6 +229,7 @@ function TaskEditModalInner({
         linkModalVisible,
         openAttachment,
         removeAttachment,
+        retryAudioTranscription,
         setLinkInput,
         setLinkInputTouched,
         setLinkModalVisible,
@@ -1206,6 +1209,8 @@ function TaskEditModalInner({
                     areas={areas}
                     audioAttachment={audioAttachment}
                     audioLoading={audioLoading}
+                    audioTranscribing={audioTranscribing}
+                    audioTranscriptionError={audioTranscriptionError}
                     audioModalVisible={audioModalVisible}
                     audioStatus={audioStatus}
                     closeAIModal={closeAIModal}
@@ -1248,6 +1253,7 @@ function TaskEditModalInner({
                     styles={styles}
                     t={t}
                     tc={tc}
+                    retryAudioTranscription={retryAudioTranscription}
                     toggleAudioPlayback={toggleAudioPlayback}
                     DEFAULT_PROJECT_COLOR={DEFAULT_PROJECT_COLOR}
                 />

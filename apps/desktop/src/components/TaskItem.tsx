@@ -142,9 +142,12 @@ export const TaskItem = memo(function TaskItem({
         audioAttachment,
         audioSource,
         audioError,
+        audioTranscribing,
+        audioTranscriptionError,
         audioRef,
         openAudioExternally,
         handleAudioError,
+        retryAudioTranscription,
         closeAudio,
         imageAttachment,
         imageSource,
@@ -1151,9 +1154,12 @@ export const TaskItem = memo(function TaskItem({
                 audioSource={audioSource}
                 audioRef={audioRef}
                 audioError={audioError}
+                audioTranscribing={audioTranscribing}
+                audioTranscriptionError={audioTranscriptionError}
                 onCloseAudio={closeAudio}
                 onAudioError={handleAudioError}
                 onOpenAudioExternally={openAudioExternally}
+                onRetryAudioTranscription={retryAudioTranscription}
                 imageAttachment={imageAttachment}
                 imageSource={imageSource}
                 onCloseImage={closeImage}
