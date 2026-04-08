@@ -71,7 +71,7 @@ export function QuickCaptureSheet({
   const { height: windowHeight } = useWindowDimensions();
   const inputRef = useRef<TextInput>(null);
   const contextInputRef = useRef<TextInput>(null);
-  const prioritiesEnabled = settings?.features?.priorities === true;
+  const prioritiesEnabled = settings?.features?.priorities !== false;
   const { selectedAreaIdForNewTasks } = useMobileAreaFilter();
 
   const updateSpeechSettings = useCallback(

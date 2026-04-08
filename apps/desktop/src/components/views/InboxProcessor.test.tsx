@@ -178,11 +178,8 @@ describe('InboxProcessor', () => {
         expect(getByText('taskEdit.startDateLabel')).toBeInTheDocument();
     });
 
-    it('processes a task from quick mode with schedule, contexts, tags, and priority', async () => {
+    it('processes a task from quick mode with schedule, contexts, tags, and priority by default', async () => {
         const { getByRole, getByLabelText, updateTask } = renderInboxProcessor({
-            features: {
-                priorities: true,
-            },
             gtd: {
                 inboxProcessing: {
                     scheduleEnabled: true,
@@ -228,12 +225,8 @@ describe('InboxProcessor', () => {
         });
     });
 
-    it('processes a task from guided mode with priority in the context step', async () => {
-        const { getByRole, getByText, updateTask } = renderInboxProcessor({
-            features: {
-                priorities: true,
-            },
-        });
+    it('processes a task from guided mode with priority in the context step by default', async () => {
+        const { getByRole, getByText, updateTask } = renderInboxProcessor();
 
         fireEvent.click(getByRole('button', { name: /process\.btn/i }));
         fireEvent.click(getByText('process.refineNext'));

@@ -209,8 +209,8 @@ export const TaskItem = memo(function TaskItem({
     const [showDiscardConfirm, setShowDiscardConfirm] = useState(false);
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
     const [showWaitingDuePrompt, setShowWaitingDuePrompt] = useState(false);
-    const prioritiesEnabled = settings?.features?.priorities === true;
-    const timeEstimatesEnabled = settings?.features?.timeEstimates === true;
+    const prioritiesEnabled = settings?.features?.priorities !== false;
+    const timeEstimatesEnabled = settings?.features?.timeEstimates !== false;
     const undoNotificationsEnabled = settings?.undoNotificationsEnabled !== false;
     const isCompact = settings?.appearance?.density === 'compact';
     const isHighlighted = highlightTaskId === task.id;

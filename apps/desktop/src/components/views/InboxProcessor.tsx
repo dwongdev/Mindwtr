@@ -96,7 +96,7 @@ export function InboxProcessor({
     const contextStepEnabled = inboxProcessing.contextStepEnabled !== false;
     const scheduleEnabled = inboxProcessing.scheduleEnabled === true;
     const referenceEnabled = inboxProcessing.referenceEnabled === true;
-    const prioritiesEnabled = settings?.features?.priorities === true;
+    const prioritiesEnabled = settings?.features?.priorities !== false;
 
     const areaById = useMemo(() => new Map(areas.map((area) => [area.id, area])), [areas]);
     const projectMap = useMemo(() => new Map(projects.map((project) => [project.id, project])), [projects]);

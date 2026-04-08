@@ -33,7 +33,7 @@ export function WaitingView() {
   const router = useRouter();
 
   const tc = useThemeColors();
-  const timeEstimatesEnabled = settings?.features?.timeEstimates === true;
+  const timeEstimatesEnabled = settings?.features?.timeEstimates !== false;
   const insets = useSafeAreaInsets();
   const navBarInset = Platform.OS === 'android' && insets.bottom >= 24 ? insets.bottom : 0;
   const { areaById, resolvedAreaFilter } = useMobileAreaFilter();

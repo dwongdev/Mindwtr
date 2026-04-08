@@ -74,7 +74,7 @@ export function SwipeableTaskItem({
         projects: state.projects,
         areas: state.areas,
         focusedCount: state.getDerivedState().focusedCount,
-        timeEstimatesEnabled: state.settings?.features?.timeEstimates === true,
+        timeEstimatesEnabled: state.settings?.features?.timeEstimates !== false,
     }), shallow);
     const canShowFocusToggle = showFocusToggle
         && task.status !== 'done'

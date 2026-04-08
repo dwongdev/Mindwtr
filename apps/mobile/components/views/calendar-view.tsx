@@ -70,7 +70,7 @@ export function CalendarView() {
   const { t, language } = useLanguage();
   const localize = (enText: string, zhText?: string) =>
     (language === 'zh' || language === 'zh-Hant') && zhText ? zhText : translateText(enText, language);
-  const timeEstimatesEnabled = useTaskStore((state) => state.settings?.features?.timeEstimates === true);
+  const timeEstimatesEnabled = useTaskStore((state) => state.settings?.features?.timeEstimates !== false);
   const today = new Date();
   const [currentMonth, setCurrentMonth] = useState(today.getMonth());
   const [currentYear, setCurrentYear] = useState(today.getFullYear());

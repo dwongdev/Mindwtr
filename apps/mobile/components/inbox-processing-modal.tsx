@@ -55,7 +55,7 @@ export function InboxProcessingModal({ visible, onClose }: InboxProcessingModalP
   const contextStepEnabled = inboxProcessing.contextStepEnabled !== false;
   const scheduleEnabled = inboxProcessing.scheduleEnabled === true;
   const referenceEnabled = inboxProcessing.referenceEnabled === true;
-  const prioritiesEnabled = settings?.features?.priorities === true;
+  const prioritiesEnabled = settings?.features?.priorities !== false;
 
   const aiEnabled = settings?.ai?.enabled === true;
   const aiProvider = (settings?.ai?.provider ?? 'openai') as AIProviderId;

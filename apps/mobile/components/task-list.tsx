@@ -214,7 +214,7 @@ function TaskListComponent({
   const aiEnabled = settings?.ai?.enabled === true;
   const aiProvider = (settings?.ai?.provider ?? 'openai') as AIProviderId;
   const keyRequired = isAIKeyRequired(settings);
-  const timeEstimatesEnabled = settings?.features?.timeEstimates === true;
+  const timeEstimatesEnabled = settings?.features?.timeEstimates !== false;
   const projectById = useMemo(() => new Map(projects.map((project) => [project.id, project])), [projects]);
   const hasActiveTimeEstimateFilters = timeEstimatesEnabled && selectedTimeEstimates.length > 0;
   const { areaById, resolvedAreaFilter, selectedAreaIdForNewTasks } = useMobileAreaFilter();

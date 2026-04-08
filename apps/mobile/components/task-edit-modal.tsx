@@ -101,8 +101,8 @@ function TaskEditModalInner({
     } = useTaskStore();
     const { t, language } = useLanguage();
     const tc = useThemeColors();
-    const prioritiesEnabled = settings.features?.priorities === true;
-    const timeEstimatesEnabled = settings.features?.timeEstimates === true;
+    const prioritiesEnabled = settings.features?.priorities !== false;
+    const timeEstimatesEnabled = settings.features?.timeEstimates !== false;
     const resetCopilotStateRef = useRef<() => void>(() => {});
     const {
         aiModal,

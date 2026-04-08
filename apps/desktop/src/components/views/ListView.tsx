@@ -161,8 +161,8 @@ export const ListView = memo(function ListView({ title, statusFilter }: ListView
     const addInputRef = useRef<HTMLInputElement>(null);
     const viewFilterInputRef = useRef<HTMLInputElement>(null);
     const listScrollRef = useRef<HTMLDivElement>(null);
-    const prioritiesEnabled = settings?.features?.priorities === true;
-    const timeEstimatesEnabled = settings?.features?.timeEstimates === true;
+    const prioritiesEnabled = settings?.features?.priorities !== false;
+    const timeEstimatesEnabled = settings?.features?.timeEstimates !== false;
     const undoNotificationsEnabled = settings?.undoNotificationsEnabled !== false;
     const showQuickDone = statusFilter !== 'done' && statusFilter !== 'archived';
     const readOnly = statusFilter === 'done';

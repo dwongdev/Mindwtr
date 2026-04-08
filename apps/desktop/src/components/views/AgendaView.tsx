@@ -183,8 +183,8 @@ export function AgendaView() {
         nextActions: true,
         reviewDue: true,
     });
-    const prioritiesEnabled = settings?.features?.priorities === true;
-    const timeEstimatesEnabled = settings?.features?.timeEstimates === true;
+    const prioritiesEnabled = settings?.features?.priorities !== false;
+    const timeEstimatesEnabled = settings?.features?.timeEstimates !== false;
     const pomodoroEnabled = settings?.features?.pomodoro === true;
     const activePriorities = prioritiesEnabled ? selectedPriorities : [];
     const activeTimeEstimates = timeEstimatesEnabled ? selectedTimeEstimates : [];

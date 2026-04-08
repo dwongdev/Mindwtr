@@ -173,8 +173,8 @@ describe('InboxProcessingModal', () => {
     expect(root.findAllByProps({ placeholder: 'inbox.addContextPlaceholder' })).toHaveLength(0);
   });
 
-  it('saves the selected priority when priorities are enabled', () => {
-    mockSettings.features = { priorities: true };
+  it('saves the selected priority by default when priorities are not explicitly disabled', () => {
+    mockSettings.features = undefined;
     mockSettings.gtd.inboxProcessing = {};
     updateTask.mockClear();
     const onClose = vi.fn();

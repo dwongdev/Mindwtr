@@ -36,7 +36,7 @@ export function CalendarView() {
         },
         [t]
     );
-    const timeEstimatesEnabled = settings?.features?.timeEstimates === true;
+    const timeEstimatesEnabled = settings?.features?.timeEstimates !== false;
     const areaById = useMemo(() => new Map(areas.map((area) => [area.id, area])), [areas]);
     const resolvedAreaFilter = useMemo(
         () => resolveAreaFilter(settings?.filters?.areaId, areas),
