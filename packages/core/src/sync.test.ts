@@ -1428,6 +1428,38 @@ describe('Sync Logic', () => {
             expect(merged.areas.map((area) => area.id)).toEqual(['a1', 'a2']);
             expect(merged.areas.map((area) => area.order)).toEqual([10, 0]);
         });
+
+        it('normalizes blank area metadata before merge', () => {
+            const now = '2023-01-04T00:00:00.000Z';
+            const local: AppData = {
+                ...mockAppData(),
+                areas: [{
+                    ...createMockArea('a1', now),
+                    color: '   ',
+                    icon: '',
+                    order: Number.NaN as unknown as number,
+                    createdAt: '',
+                }],
+            };
+            const incoming: AppData = {
+                ...mockAppData(),
+                areas: [{
+                    ...createMockArea('a1', now),
+                    color: undefined,
+                    icon: undefined,
+                    order: Number.NaN as unknown as number,
+                    createdAt: now,
+                }],
+            };
+
+            const merged = mergeAppData(local, incoming);
+            expect(merged.areas).toHaveLength(1);
+            expect(merged.areas[0].color).toBeUndefined();
+            expect(merged.areas[0].icon).toBeUndefined();
+            expect(merged.areas[0].order).toBe(0);
+            expect(merged.areas[0].createdAt).toBe(now);
+            expect(merged.areas[0].updatedAt).toBe(now);
+        });
     });
 
     describe('mergeAppDataWithStats', () => {

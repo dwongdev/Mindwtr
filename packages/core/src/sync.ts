@@ -12,6 +12,7 @@ import {
 } from './sync-types';
 import {
     isValidTimestamp,
+    normalizeAreaForSyncMerge,
     normalizeAppData,
     normalizeProjectForSyncMerge,
     repairMergedSyncReferences,
@@ -415,19 +416,9 @@ function mergeEntitiesWithStats<T extends MergeableEntity>(
     return { merged, stats };
 }
 
-const normalizeAreaForMerge = (area: Area, nowIso: string): Area & { createdAt: string; updatedAt: string } => {
-    const createdAt = area.createdAt || area.updatedAt || nowIso;
-    const updatedAt = area.updatedAt || area.createdAt || nowIso;
-    return {
-        ...area,
-        createdAt,
-        updatedAt,
-    };
-};
-
 function mergeAreas(local: Area[], incoming: Area[], nowIso: string): { merged: Area[]; stats: EntityMergeStats } {
-    const localNormalized = local.map((area) => normalizeAreaForMerge(area, nowIso));
-    const incomingNormalized = incoming.map((area) => normalizeAreaForMerge(area, nowIso));
+    const localNormalized = local.map((area) => normalizeAreaForSyncMerge(area, nowIso));
+    const incomingNormalized = incoming.map((area) => normalizeAreaForSyncMerge(area, nowIso));
     const result = mergeEntitiesWithStats(localNormalized, incomingNormalized);
     let fallbackOrder = result.merged.reduce((maxOrder, area) => {
         const order = Number.isFinite(area.order) ? area.order : -1;

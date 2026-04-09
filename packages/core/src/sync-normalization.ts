@@ -1,4 +1,4 @@
-import type { AppData, Project, Task } from './types';
+import type { AppData, Area, Project, Task } from './types';
 import { normalizeTaskForLoad } from './task-status';
 import {
     AI_PROVIDER_VALUE_SET,
@@ -104,6 +104,25 @@ export const normalizeProjectForSyncMerge = (project: Project): Project => {
         reviewAt: normalizeOptionalString(project.reviewAt),
         areaId: normalizeOptionalString(project.areaId),
         areaTitle: normalizeOptionalString(project.areaTitle),
+    };
+};
+
+export type SyncMergeArea = Omit<Area, 'order'> & {
+    order?: number;
+    createdAt: string;
+    updatedAt: string;
+};
+
+export const normalizeAreaForSyncMerge = (area: Area, nowIso: string): SyncMergeArea => {
+    const createdAt = normalizeOptionalString(area.createdAt) ?? normalizeOptionalString(area.updatedAt) ?? nowIso;
+    const updatedAt = normalizeOptionalString(area.updatedAt) ?? normalizeOptionalString(area.createdAt) ?? nowIso;
+    return {
+        ...area,
+        color: normalizeOptionalString(area.color),
+        icon: normalizeOptionalString(area.icon),
+        order: Number.isFinite(area.order) ? area.order : undefined,
+        createdAt,
+        updatedAt,
     };
 };
 
