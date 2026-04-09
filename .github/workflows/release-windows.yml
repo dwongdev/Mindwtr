@@ -420,6 +420,40 @@ jobs:
             throw "Retry loop exhausted unexpectedly for $Method $Uri."
           }
 
+          function Get-PartnerCenterApplication {
+            $appsResponse = Invoke-RestMethodWithRetry -Method Get `
+              -Uri 'https://manage.devcenter.microsoft.com/v1.0/my/applications' `
+              -Headers $headers
+            $matchedApp = $appsResponse.value | Where-Object {
+              $_.id -eq $env:MS_STORE_APP_ID -or
+              ($_.applicationId -and $_.applicationId -eq $env:MS_STORE_APP_ID) -or
+              ($_ | ConvertTo-Json -Depth 5 | Select-String -Pattern $env:MS_STORE_APP_ID -Quiet)
+            } | Select-Object -First 1
+            if (-not $matchedApp) {
+              Write-Host "Available apps:"
+              $appsResponse.value | ForEach-Object { Write-Host "  ID=$($_.id)  primaryName=$($_.primaryName)" }
+              throw "Could not find app matching MS_STORE_APP_ID='$($env:MS_STORE_APP_ID)'."
+            }
+            return $matchedApp
+          }
+
+          function Get-PendingSubmissionFromStore {
+            param([string]$ApplicationId)
+            $appSnapshot = Get-PartnerCenterApplication
+            $pending = $null
+            if ($appSnapshot.PSObject.Properties.Name -contains 'pendingApplicationSubmission') {
+              $pending = $appSnapshot.pendingApplicationSubmission
+            }
+            if (-not $pending) {
+              return $null
+            }
+            $pendingId = $pending.id
+            Write-Warning "Found pending submission $pendingId after ambiguous create attempt. Reusing it."
+            return Invoke-RestMethodWithRetry -Method Get `
+              -Uri "https://manage.devcenter.microsoft.com/v1.0/my/applications/$ApplicationId/submissions/$pendingId" `
+              -Headers $headers
+          }
+
           $tokenBody = @{
             grant_type    = 'client_credentials'
             resource      = 'https://manage.devcenter.microsoft.com'
@@ -441,19 +475,7 @@ jobs:
           }
 
           Write-Host "Looking up application..."
-          $appsResponse = Invoke-RestMethodWithRetry -Method Get `
-            -Uri 'https://manage.devcenter.microsoft.com/v1.0/my/applications' `
-            -Headers $headers
-          $app = $appsResponse.value | Where-Object {
-            $_.id -eq $env:MS_STORE_APP_ID -or
-            ($_.applicationId -and $_.applicationId -eq $env:MS_STORE_APP_ID) -or
-            ($_ | ConvertTo-Json -Depth 5 | Select-String -Pattern $env:MS_STORE_APP_ID -Quiet)
-          } | Select-Object -First 1
-          if (-not $app) {
-            Write-Host "Available apps:"
-            $appsResponse.value | ForEach-Object { Write-Host "  ID=$($_.id)  primaryName=$($_.primaryName)" }
-            throw "Could not find app matching MS_STORE_APP_ID='$($env:MS_STORE_APP_ID)'."
-          }
+          $app = Get-PartnerCenterApplication
           $applicationId = $app.id
           Write-Host "Found application: $($app.primaryName) (ID: $applicationId)"
 
@@ -480,17 +502,49 @@ jobs:
           }
 
           Write-Host "Creating new submission..."
-          try {
-            $submission = Invoke-RestMethodWithRetry -Method Post `
-              -Uri "https://manage.devcenter.microsoft.com/v1.0/my/applications/$applicationId/submissions" `
-              -Headers $headers
-          } catch {
-            $errText = $_.Exception.Message
-            if (& $isStoreBusy $errText) {
-              Write-Warning "Microsoft Store rejected new submission creation because another submission is still being processed. Skipping publish."
-              exit 0
+          $submission = $null
+          for ($createAttempt = 1; $createAttempt -le 3 -and -not $submission; $createAttempt++) {
+            try {
+              $submission = Invoke-RestMethodWithRetry -Method Post `
+                -Uri "https://manage.devcenter.microsoft.com/v1.0/my/applications/$applicationId/submissions" `
+                -Headers $headers `
+                -MaxAttempts 1
+            } catch {
+              $errText = $_.Exception.Message
+              $statusCode = Get-HttpStatusCodeFromError -ErrorRecord $_
+              $retryable = Test-IsRetryableHttpFailure -ErrorRecord $_
+
+              try {
+                $submission = Get-PendingSubmissionFromStore -ApplicationId $applicationId
+              } catch {
+                Write-Warning "Failed to inspect pending submissions after create attempt $createAttempt: $($_.Exception.Message)"
+              }
+
+              if ($submission) {
+                break
+              }
+
+              if (& $isStoreBusy $errText) {
+                Write-Warning "Microsoft Store rejected new submission creation because another submission is still being processed. Skipping publish."
+                exit 0
+              }
+
+              if ($retryable -and $createAttempt -lt 3) {
+                $delaySeconds = [Math]::Min(60, [int]([Math]::Pow(2, $createAttempt - 1) * 5))
+                if ($null -ne $statusCode) {
+                  Write-Warning "Submission creation returned HTTP $statusCode on attempt $createAttempt/3. Retrying after checking store state in $delaySeconds seconds..."
+                } else {
+                  Write-Warning "Submission creation failed on attempt $createAttempt/3. Retrying after checking store state in $delaySeconds seconds..."
+                }
+                Start-Sleep -Seconds $delaySeconds
+                continue
+              }
+
+              throw
             }
-            throw
+          }
+          if (-not $submission) {
+            throw "Failed to create or recover a Microsoft Store submission."
           }
           $submissionId = $submission.id
           $fileUploadUrl = $submission.fileUploadUrl
