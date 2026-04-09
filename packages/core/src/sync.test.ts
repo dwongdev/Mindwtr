@@ -1024,7 +1024,7 @@ describe('Sync Logic', () => {
 
         it('still prefers delete when it is more than the ambiguity window newer than live', () => {
             const local = mockAppData([
-                createMockTask('1', '2023-01-02T00:00:06.000Z', '2023-01-02T00:00:06.000Z'),
+                createMockTask('1', '2023-01-02T00:00:31.000Z', '2023-01-02T00:00:31.000Z'),
             ]);
             const incoming = mockAppData([
                 createMockTask('1', '2023-01-02T00:00:00.000Z'),
@@ -1033,8 +1033,8 @@ describe('Sync Logic', () => {
             const merged = mergeAppData(local, incoming);
 
             expect(merged.tasks).toHaveLength(1);
-            expect(merged.tasks[0].deletedAt).toBe('2023-01-02T00:00:06.000Z');
-            expect(merged.tasks[0].updatedAt).toBe('2023-01-02T00:00:06.000Z');
+            expect(merged.tasks[0].deletedAt).toBe('2023-01-02T00:00:31.000Z');
+            expect(merged.tasks[0].updatedAt).toBe('2023-01-02T00:00:31.000Z');
         });
 
         it('treats invalid deletedAt as a conservative deletion timestamp', () => {
