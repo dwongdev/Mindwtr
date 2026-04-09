@@ -2,7 +2,11 @@ import { Directory, File, Paths } from 'expo-file-system';
 import { Platform } from 'react-native';
 import type { AudioCaptureMode, AudioFieldStrategy } from '@mindwtr/core';
 import { logInfo, logWarn } from './app-log';
-import { buildMultipartAudioPart } from './speech-to-text.helpers';
+import {
+  buildMultipartAudioPart,
+  normalizeAudioUri,
+  normalizeAudioUriForFileRead,
+} from './speech-to-text.helpers';
 
 type SpeechProvider = 'openai' | 'gemini' | 'whisper';
 
@@ -392,10 +396,12 @@ const buildOpenAIMultipartPayload = async (
   fileName?: string;
   meta: Record<string, string>;
 }> => {
-  const file = new File(audioUri);
-  const name = file.name || `audio${getExtension(audioUri)}`;
-  const type = file.type || getMimeType(audioUri);
-  const uriScheme = audioUri.split(':')[0] || 'unknown';
+  const uploadUri = normalizeAudioUri(audioUri);
+  const fileReadUri = normalizeAudioUriForFileRead(audioUri);
+  const file = new File(fileReadUri);
+  const name = file.name || `audio${getExtension(uploadUri)}`;
+  const type = file.type || getMimeType(uploadUri);
+  const uriScheme = uploadUri.split(':')[0] || 'unknown';
   const baseMeta = {
     strategy,
     uriScheme,
@@ -416,7 +422,7 @@ const buildOpenAIMultipartPayload = async (
       );
     }
     const { part, fileName } = buildMultipartAudioPart({
-      uri: audioUri,
+      uri: uploadUri,
       name,
       type,
       bytes,
@@ -435,7 +441,7 @@ const buildOpenAIMultipartPayload = async (
   }
 
   return {
-    part: { uri: audioUri, name, type },
+    part: { uri: uploadUri, name, type },
     meta: baseMeta,
   };
 };
@@ -658,10 +664,12 @@ const requestGemini = async (audioUri: string, config: SpeechToTextConfig, promp
     now,
     timeZone: config.timeZone,
   });
-  const file = new File(audioUri);
+  const normalizedUri = normalizeAudioUri(audioUri);
+  const fileReadUri = normalizeAudioUriForFileRead(audioUri);
+  const file = new File(fileReadUri);
   const bytes = await file.bytes();
   const base64Audio = bytesToBase64(bytes);
-  const mimeType = getMimeType(audioUri);
+  const mimeType = getMimeType(normalizedUri);
   const url = `${GEMINI_BASE_URL}/${config.model}:generateContent`;
   const body = {
     contents: [

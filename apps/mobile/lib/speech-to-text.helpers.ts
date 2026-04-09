@@ -6,6 +6,25 @@ export type MultipartAudioFallbackPart = {
 
 export type MultipartAudioPart = Blob | MultipartAudioFallbackPart;
 
+export const normalizeAudioUri = (uri: string): string => {
+  if (!uri) return '';
+  if (uri.startsWith('content://') || uri.startsWith('file://')) return uri;
+  if (uri.startsWith('file:/')) {
+    const stripped = uri.replace(/^file:\//, '/');
+    return `file://${stripped}`;
+  }
+  if (uri.startsWith('/')) return `file://${uri}`;
+  return uri;
+};
+
+export const normalizeAudioUriForFileRead = (uri: string): string => {
+  const normalized = normalizeAudioUri(uri);
+  if (normalized.startsWith('file://')) {
+    return normalized.replace(/^file:\/\//, '');
+  }
+  return normalized;
+};
+
 export const buildMultipartAudioPart = ({
   uri,
   name,

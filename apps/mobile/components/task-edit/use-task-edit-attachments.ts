@@ -18,6 +18,7 @@ import { Paths } from 'expo-file-system';
 import { ensureAttachmentAvailable, persistAttachmentLocally } from '../../lib/attachment-sync';
 import { loadAIKey } from '../../lib/ai-config';
 import { ensureWhisperModelPathForConfig, processAudioCapture } from '../../lib/speech-to-text';
+import { normalizeAudioUri } from '../../lib/speech-to-text.helpers';
 import {
     isReleasedAudioPlayerError,
     isValidLinkUri,
@@ -217,6 +218,7 @@ export function useTaskEditAttachments({
         audioStoppingRef.current = true;
         try {
             await Promise.resolve(audioPlayer.pause());
+            audioPlayer.replace(null);
         } catch (error) {
             if (!isReleasedAudioPlayerError(error)) {
                 logTaskWarn('Stop audio failed', error);
@@ -226,17 +228,6 @@ export function useTaskEditAttachments({
             audioStoppingRef.current = false;
         }
     }, [audioPlayer]);
-
-    const normalizeAudioUri = React.useCallback((uri: string) => {
-        if (!uri) return '';
-        if (uri.startsWith('file://') || uri.startsWith('content://')) return uri;
-        if (uri.startsWith('file:/')) {
-            const stripped = uri.replace(/^file:\//, '/');
-            return `file://${stripped}`;
-        }
-        if (uri.startsWith('/')) return `file://${uri}`;
-        return uri;
-    }, []);
 
     const openAudioAttachment = React.useCallback(async (attachment: Attachment) => {
         setAudioAttachment(attachment);
@@ -291,7 +282,7 @@ export function useTaskEditAttachments({
         } finally {
             setAudioLoading(false);
         }
-    }, [audioPlayer, normalizeAudioUri, t, unloadAudio]);
+    }, [audioPlayer, t, unloadAudio]);
 
     const closeAudioModal = React.useCallback(() => {
         setAudioModalVisible(false);
@@ -339,6 +330,7 @@ export function useTaskEditAttachments({
         setAudioTranscribing(true);
         setAudioTranscriptionError(null);
         try {
+            await unloadAudio();
             const {
                 tasks: currentTasks,
                 projects: currentProjects,
@@ -375,7 +367,7 @@ export function useTaskEditAttachments({
             const timeZone = typeof Intl === 'object' && typeof Intl.DateTimeFormat === 'function'
                 ? Intl.DateTimeFormat().resolvedOptions().timeZone
                 : undefined;
-            const result = await processAudioCapture(currentAttachment.uri, {
+            const result = await processAudioCapture(normalizeAudioUri(currentAttachment.uri), {
                 provider,
                 apiKey,
                 model,
@@ -413,7 +405,7 @@ export function useTaskEditAttachments({
         } finally {
             setAudioTranscribing(false);
         }
-    }, [audioAttachment, audioTranscribing, closeAudioModal, editedTask.id, resolveText, setEditedTask]);
+    }, [audioAttachment, audioTranscribing, closeAudioModal, editedTask.id, resolveText, setEditedTask, unloadAudio]);
 
     const updateAttachmentState = React.useCallback((nextAttachment: Attachment) => {
         setEditedTask((prev) => {
