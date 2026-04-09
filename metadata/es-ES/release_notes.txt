@@ -1,4 +1,4 @@
-- Agregamos fechas objetivo y fechas de revision opcionales para proyectos y asi planificar mejor.
-- Los widgets de iOS ahora ajustan la cantidad de tareas segun el tamano y evitan escrituras de payload redundantes.
-- File sync en iOS ahora conserva con mas fiabilidad los bookmarks de carpetas al volver a elegir una ubicacion.
-- La configuracion de proveedores cloud ahora agrupa iCloud con mas claridad y el sync y los adjuntos son mas fiables.
+- Agregamos soporte para Share Sheet en iOS para enviar texto y enlaces a Mindwtr desde otras apps.
+- El procesamiento del inbox ahora conserva mejor prioridad, responsable y nivel de energia.
+- Las vistas de Foco e Inbox son mas claras con secciones plegables, una regla de Hoy mas precisa y menos ruido visual.
+- El sync y las fusiones son mas seguros al limpiar areas, manejar borrados y corregir validaciones de tipos.

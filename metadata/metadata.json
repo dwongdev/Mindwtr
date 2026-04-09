@@ -30,7 +30,7 @@
           "完全离线可用，无需互联网连接",
           "完全开源，安全透明"
         ],
-        "ReleaseNotes": "• 新增项目可选截止日期，让项目规划与复查时间更清晰。\n• 项目侧边栏现在支持单击切换、分离归档项目，并改进日历与复查计数对比度。\n• 新增可配置的行内任务编辑分区，并默认折叠 Obsidian 集成设置。\n• 桌面端同步与存储更稳健，带来更安全的文件写入、更清晰的 keyring 回退提示，以及更一致的搜索与可见性行为。",
+        "ReleaseNotes": "• 新增桌面文字大小设置，阅读和布局调整更灵活。\n• 桌面收集箱整理现在可稳定处理优先级、负责人和能量等级信息。\n• 日历与“今天”视图更清晰，选中日期事件显示更稳定，任务归类规则也更严格。\n• 桌面同步与存储更稳健，区域合并处理更安全，任务元数据筛选也更快。",
         "Images": [
           {
             "FileName": "2026-01-27_22-59-40.png",
@@ -82,7 +82,7 @@
           "No internet connection required to function",
           "Open source and transparent"
         ],
-        "ReleaseNotes": "• Added optional project due dates so planning and review can happen at the right time.\n• The Projects sidebar now switches with a single click, separates archived projects, and improves calendar and review contrast.\n• Added configurable inline task editor sections and kept the Obsidian integration collapsed by default.\n• Hardened desktop sync and storage with safer file writes, clearer keyring fallback warnings, and more consistent search and task visibility.",
+        "ReleaseNotes": "• Added adjustable desktop text size settings so layouts are easier to tune.\n• Desktop inbox processing now handles priority, assignee, and energy details more reliably.\n• Calendar and Today views are clearer, with steadier selected-day events and stricter task grouping rules.\n• Desktop sync and storage are more robust, with safer area merges and faster task metadata filtering.",
         "Images": [
           {
             "FileName": "2026-01-27_22-59-40.png",
@@ -130,7 +130,7 @@
           "No requiere conexión a internet para funcionar",
           "Código abierto y transparente"
         ],
-        "ReleaseNotes": "• Agregamos fechas objetivo opcionales para proyectos y asi planificar y revisar en el momento adecuado.\n• La barra lateral de proyectos ahora cambia con un solo clic, separa los proyectos archivados y mejora el contraste en calendario y revision.\n• Agregamos secciones configurables en el editor inline de tareas y dejamos la integracion de Obsidian colapsada por defecto.\n• Reforzamos el sync y el almacenamiento en escritorio con escrituras mas seguras, avisos mas claros sobre fallback del keyring y una visibilidad de busqueda y tareas mas consistente.",
+        "ReleaseNotes": "• Agregamos ajuste de tamano de texto en escritorio para adaptar mejor la interfaz.\n• El procesamiento del inbox en escritorio ahora maneja mejor prioridad, responsable y nivel de energia.\n• Calendario y la vista de Hoy son mas claros, con eventos del dia seleccionado mas estables y reglas mas estrictas.\n• El sync y el almacenamiento en escritorio son mas robustos, con fusiones de areas mas seguras y filtros mas rapidos.",
         "Images": [
           {
             "FileName": "2026-01-27_22-59-40.png",

@@ -1,4 +1,4 @@
-- Added optional project due dates and review scheduling so projects show up at the right time.
-- iOS widgets now size task lists adaptively and avoid redundant legacy payload writes.
-- File sync on iOS now preserves folder bookmarks more reliably after reselecting locations.
-- Cloud provider settings group iCloud more clearly, while sync and attachment handling are more reliable overall.
+- Added iOS Share Sheet support so you can send text and links into Mindwtr from other apps.
+- Inbox processing now keeps priority, assignee, and energy details more consistently.
+- Focus and Inbox views are clearer with collapsible sections, tighter Today rules, and less Inbox clutter.
+- Sync and merge handling are safer around deleted items, area cleanup, and follow-up typecheck fixes.
