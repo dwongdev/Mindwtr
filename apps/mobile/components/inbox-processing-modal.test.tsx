@@ -270,6 +270,68 @@ describe('InboxProcessingModal', () => {
     expect(onClose).toHaveBeenCalled();
   });
 
+  it('keeps the selected priority when delegating a task', () => {
+    mockSettings.features = undefined;
+    mockSettings.gtd.inboxProcessing = {};
+    updateTask.mockClear();
+    const onClose = vi.fn();
+    let tree: ReturnType<typeof create>;
+
+    act(() => {
+      tree = create(<InboxProcessingModal visible onClose={onClose} />);
+    });
+
+    const root = tree!.root;
+    const priorityLabel = root.findByProps({ children: 'priority.high' });
+    const priorityButton = priorityLabel.parent;
+
+    if (!priorityButton) {
+      throw new Error('Priority button not found');
+    }
+
+    act(() => {
+      priorityButton.props.onPress();
+    });
+
+    const delegateLabel = findNodeWithText(root, 'inbox.delegate');
+    const delegateButton = delegateLabel.parent;
+
+    if (!delegateButton) {
+      throw new Error('Delegate button not found');
+    }
+
+    act(() => {
+      delegateButton.props.onPress();
+    });
+
+    const whoInput = root.findByProps({ placeholder: 'process.delegateWhoPlaceholder' });
+
+    act(() => {
+      whoInput.props.onChangeText('Alex');
+    });
+
+    const nextTaskLabel = findNodeWithText(root, 'Next task →');
+    const nextTaskButton = nextTaskLabel.parent;
+
+    if (!nextTaskButton) {
+      throw new Error('Next task button not found');
+    }
+
+    act(() => {
+      nextTaskButton.props.onPress();
+    });
+
+    expect(updateTask).toHaveBeenCalledWith(
+      'inbox-1',
+      expect.objectContaining({
+        status: 'waiting',
+        assignedTo: 'Alex',
+        priority: 'high',
+      })
+    );
+    expect(onClose).toHaveBeenCalled();
+  });
+
   it('does not allow delegation without an assignee name', () => {
     mockSettings.features = undefined;
     mockSettings.gtd.inboxProcessing = {};

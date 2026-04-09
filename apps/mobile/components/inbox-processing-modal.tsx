@@ -390,6 +390,7 @@ export function InboxProcessingModal({ visible, onClose }: InboxProcessingModalP
       const updates: Partial<Task> = {
         status: 'waiting',
         assignedTo: who,
+        ...(prioritiesEnabled ? { priority: selectedPriority ?? undefined } : {}),
       };
       if (delegateFollowUpDate) {
         updates.reviewAt = delegateFollowUpDate.toISOString();
