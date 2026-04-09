@@ -754,6 +754,21 @@ describe('Sync Logic', () => {
             expect(merged.tasks[0].updatedAt).toBe('2023-01-02T00:00:00.000Z');
         });
 
+        it('prefers delete when live update is 20 seconds newer inside the ambiguity window', () => {
+            const local = mockAppData([
+                createMockTask('1', '2023-01-02T00:00:20.000Z'),
+            ]);
+            const incoming = mockAppData([
+                createMockTask('1', '2023-01-02T00:00:00.000Z', '2023-01-02T00:00:00.000Z'),
+            ]);
+
+            const merged = mergeAppData(local, incoming);
+
+            expect(merged.tasks).toHaveLength(1);
+            expect(merged.tasks[0].deletedAt).toBe('2023-01-02T00:00:00.000Z');
+            expect(merged.tasks[0].updatedAt).toBe('2023-01-02T00:00:00.000Z');
+        });
+
         it('prefers delete when delete time is only 100ms newer', () => {
             const local = mockAppData([
                 createMockTask('1', '2023-01-02T00:00:00.100Z', '2023-01-02T00:00:00.100Z'),
