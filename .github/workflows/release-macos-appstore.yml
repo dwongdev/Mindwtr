@@ -613,6 +613,12 @@ jobs:
               if [ -n "${TARGET_VERSION_ID}" ]; then
                 echo "::notice::Found existing macOS App Store version ${APP_VERSION} in state ${TARGET_VERSION_STATE:-unknown}. Reusing the existing version record for upload."
                 echo "SKIP_APP_VERSION_UPDATE_FOR_UPLOAD=true" >> "$GITHUB_ENV"
+                if [ "${TARGET_VERSION_STATE:-}" != "PREPARE_FOR_SUBMISSION" ]; then
+                  echo "::warning::Existing macOS App Store version ${APP_VERSION} is not editable (state ${TARGET_VERSION_STATE:-unknown}). Upload will skip metadata updates and review submission, then fall back to TestFlight external distribution."
+                  echo "EFFECTIVE_SUBMIT_FOR_REVIEW=false" >> "$GITHUB_ENV"
+                  echo "ENABLE_TESTFLIGHT_EXTERNAL_RELEASE=true" >> "$GITHUB_ENV"
+                  echo "SKIP_METADATA_FOR_UPLOAD=true" >> "$GITHUB_ENV"
+                fi
               fi
             else
               echo "::warning::Target-version lookup failed. Upload will continue and may attempt to create version ${APP_VERSION}."
@@ -649,6 +655,8 @@ jobs:
             exit 1
           fi
 
+          ASC_KEY_ID_CLEAN="$(printf '%s' "$IOS_ASC_KEY_ID" | tr -d '\r\n\t ')"
+          ASC_ISSUER_ID_CLEAN="$(printf '%s' "$IOS_ASC_ISSUER_ID" | tr -d '\r\n\t ')"
           ASC_KEY_PATH="$RUNNER_TEMP/macos-asc-key-fastlane.p8"
           bash scripts/ci/write-asc-private-key.sh "$IOS_ASC_PRIVATE_KEY" "$ASC_KEY_PATH"
 
@@ -659,16 +667,9 @@ jobs:
 
           platform :mac do
             lane :upload_app_store do
-              api_key = app_store_connect_api_key(
-                key_id: ENV.fetch("IOS_ASC_KEY_ID"),
-                issuer_id: ENV.fetch("IOS_ASC_ISSUER_ID"),
-                key_filepath: ENV.fetch("ASC_KEY_PATH"),
-                duration: 1200,
-                in_house: false
-              )
-
-              deliver(
-                api_key: api_key,
+              deliver_options = {
+                app_identifier: ENV.fetch("EXPECTED_BUNDLE_ID"),
+                app_version: ENV.fetch("APP_VERSION"),
                 platform: "osx",
                 pkg: ENV.fetch("PKG_PATH"),
                 metadata_path: ENV.fetch("FASTLANE_METADATA_PATH"),
@@ -679,12 +680,27 @@ jobs:
                 run_precheck_before_submit: false,
                 submit_for_review: ENV.fetch("SUBMIT_FOR_REVIEW", "false") == "true",
                 automatic_release: true
+              }
+              apple_id = ENV["APPSTORE_APP_ID"]
+              deliver_options[:apple_id] = apple_id unless apple_id.to_s.empty?
+
+              api_key = app_store_connect_api_key(
+                key_id: ENV.fetch("FASTLANE_ASC_KEY_ID"),
+                issuer_id: ENV.fetch("FASTLANE_ASC_ISSUER_ID"),
+                key_filepath: ENV.fetch("ASC_KEY_PATH"),
+                duration: 1200,
+                in_house: false
               )
+
+              deliver(deliver_options.merge(api_key: api_key))
             end
           end
           EOF
 
-          ASC_KEY_PATH="$ASC_KEY_PATH" fastlane mac upload_app_store
+          FASTLANE_ASC_KEY_ID="$ASC_KEY_ID_CLEAN" \
+          FASTLANE_ASC_ISSUER_ID="$ASC_ISSUER_ID_CLEAN" \
+          ASC_KEY_PATH="$ASC_KEY_PATH" \
+          fastlane mac upload_app_store
 
       - name: Distribute upload to TestFlight external group
         if: ${{ inputs.upload }}

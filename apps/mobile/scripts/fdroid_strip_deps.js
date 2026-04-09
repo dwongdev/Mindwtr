@@ -38,6 +38,14 @@ if (enableExpoBuildFromSource) {
   if (!pkg.expo.autolinking || typeof pkg.expo.autolinking !== 'object' || Array.isArray(pkg.expo.autolinking)) {
     pkg.expo.autolinking = {};
   }
+  const existingExclude = Array.isArray(pkg.expo.autolinking.exclude)
+    ? pkg.expo.autolinking.exclude.filter((value) => typeof value === 'string')
+    : [];
+  if (!existingExclude.includes('play-store-updates')) {
+    pkg.expo.autolinking.exclude = [...existingExclude, 'play-store-updates'];
+    changed = true;
+    changes.push('excluded play-store-updates from Expo autolinking for F-Droid builds');
+  }
   if (
     !pkg.expo.autolinking.android ||
     typeof pkg.expo.autolinking.android !== 'object' ||
