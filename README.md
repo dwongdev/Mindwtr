@@ -361,7 +361,6 @@ You can help in several ways:
 ## Roadmap
 
 - 🤖 Add to F-Droid
-- ☁️ Expand native iCloud/CloudKit sync to macOS desktop
 - 🗣️ iOS Reminders Inbox import (Siri capture -> Mindwtr Inbox)
 - ✉️ Email to Inbox
 - 🕒 Natural language input using `chrono-node`
