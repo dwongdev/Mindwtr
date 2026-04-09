@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Play } from 'lucide-react';
 import {
+    addBreadcrumb,
     DEFAULT_PROJECT_COLOR,
     getFrequentTaskTokens,
     getRecentTaskTokens,
@@ -272,6 +273,7 @@ export function InboxProcessor({
         const inboxTasks = tasks.filter((task) => task.status === 'inbox' && matchesAreaFilter(task));
         if (inboxTasks.length === 0) return;
         hydrateProcessingTask(inboxTasks[0]);
+        addBreadcrumb('inbox:start');
         setIsProcessing(true);
     }, [tasks, hydrateProcessingTask, setIsProcessing, matchesAreaFilter]);
     const closeProcessing = useCallback(() => {
@@ -290,6 +292,7 @@ export function InboxProcessor({
             hydrateProcessingTask(inboxTasks[0]);
             return;
         }
+        addBreadcrumb('inbox:done');
         setIsProcessing(false);
         setProcessingTask(null);
         setSelectedContexts([]);

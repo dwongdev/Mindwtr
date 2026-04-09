@@ -3,7 +3,7 @@ import { View, Text, TouchableOpacity, Modal, ScrollView, TextInput, Platform, A
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { DEFAULT_PROJECT_COLOR, collectTaskTokenUsage, useTaskStore, createAIProvider, safeFormatDate, safeParseDate, resolveAutoTextDirection, type Task, type AIProviderId, type TaskPriority } from '@mindwtr/core';
+import { addBreadcrumb, DEFAULT_PROJECT_COLOR, collectTaskTokenUsage, useTaskStore, createAIProvider, safeFormatDate, safeParseDate, resolveAutoTextDirection, type Task, type AIProviderId, type TaskPriority } from '@mindwtr/core';
 
 import { AIResponseModal, type AIResponseAction } from './ai-response-modal';
 import { useLanguage } from '../contexts/language-context';
@@ -218,6 +218,9 @@ export function InboxProcessingModal({ visible, onClose }: InboxProcessingModalP
       hasInitialized.current = false;
       return;
     }
+    if (inboxTasks.length > 0) {
+      addBreadcrumb('inbox:start');
+    }
     if (hasInitialized.current) return;
     hasInitialized.current = true;
     if (inboxTasks.length === 0) {
@@ -256,6 +259,7 @@ export function InboxProcessingModal({ visible, onClose }: InboxProcessingModalP
   useEffect(() => {
     if (!visible) return;
     if (processingQueue.length === 0) {
+      addBreadcrumb('inbox:done');
       handleClose();
       return;
     }

@@ -1,3 +1,5 @@
+export const SQLITE_SCHEMA_VERSION = 2;
+
 export const SQLITE_BASE_SCHEMA = `
 PRAGMA journal_mode = WAL;
 PRAGMA foreign_keys = ON;

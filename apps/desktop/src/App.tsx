@@ -12,7 +12,7 @@ import { ArchiveView } from './components/views/ArchiveView';
 import { TrashView } from './components/views/TrashView';
 import { AgendaView } from './components/views/AgendaView';
 import { SearchView } from './components/views/SearchView';
-import { useTaskStore, configureDateFormatting, flushPendingSave, isSupportedLanguage } from '@mindwtr/core';
+import { addBreadcrumb, useTaskStore, configureDateFormatting, flushPendingSave, isSupportedLanguage } from '@mindwtr/core';
 import { GlobalSearch } from './components/GlobalSearch';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { useLanguage } from './contexts/language-context';
@@ -80,6 +80,7 @@ function App() {
     const [resolvingExternalSync, setResolvingExternalSync] = useState(false);
     const [hasHydratedSettings, setHasHydratedSettings] = useState(false);
     const closePromptRememberRef = useRef(false);
+    const lastViewBreadcrumbRef = useRef<string | null>(null);
     const isObsidianEnabled = useObsidianStore((state) => state.config.enabled);
     const obsidianVaultPath = useObsidianStore((state) => state.config.vaultPath);
     const startObsidianWatcher = useObsidianStore((state) => state.startWatcher);
@@ -186,6 +187,13 @@ function App() {
         if (settingsLanguage === language) return;
         setLanguage(settingsLanguage);
     }, [settingsLanguage, language, setLanguage]);
+
+    useEffect(() => {
+        const next = `view:${currentView}`;
+        if (lastViewBreadcrumbRef.current === next) return;
+        lastViewBreadcrumbRef.current = next;
+        addBreadcrumb(next);
+    }, [currentView]);
 
     useEffect(() => {
         const systemLocale = (() => {

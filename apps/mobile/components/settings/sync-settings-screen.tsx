@@ -5,6 +5,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import {
+    addBreadcrumb,
     CLOCK_SKEW_THRESHOLD_MS,
     cloudGetJson,
     type BackupValidation,
@@ -655,6 +656,7 @@ export function SyncSettingsScreen() {
                     }
                     setSyncPath(fileUri);
                     await AsyncStorage.setItem(SYNC_BACKEND_KEY, 'file');
+                    addBreadcrumb('settings:syncBackend:file');
                     setSyncBackend('file');
                     resetSyncStatusForBackendSwitch();
                     showToast({
@@ -733,6 +735,7 @@ export function SyncSettingsScreen() {
                 [CLOUD_PROVIDER_KEY, 'dropbox'],
             ]);
             setCloudProvider('dropbox');
+            addBreadcrumb('settings:syncBackend:cloud');
             setSyncBackend('cloud');
             setDropboxConnected(true);
             resetSyncStatusForBackendSwitch();
@@ -818,6 +821,7 @@ export function SyncSettingsScreen() {
     };
 
     const handleSync = async () => {
+        addBreadcrumb('sync:manual');
         setIsSyncing(true);
         try {
             const previousLastSyncStatus = settings.lastSyncStatus;
@@ -1110,6 +1114,7 @@ export function SyncSettingsScreen() {
                                             ? (cloudProvider === 'cloudkit' ? 'cloudkit' : 'cloud')
                                             : backend;
                                         AsyncStorage.setItem(SYNC_BACKEND_KEY, nextBackend).catch(logSettingsError);
+                                        addBreadcrumb(`settings:syncBackend:${nextBackend}`);
                                         setSyncBackend(nextBackend);
                                         resetSyncStatusForBackendSwitch();
                                     }}

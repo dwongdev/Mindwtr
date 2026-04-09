@@ -3,7 +3,7 @@ import { DarkTheme, DefaultTheme, ThemeProvider as NavigationThemeProvider } fro
 import * as Application from 'expo-application';
 import Constants from 'expo-constants';
 import * as Linking from 'expo-linking';
-import { Stack, useRouter } from 'expo-router';
+import { Stack, usePathname, useRouter } from 'expo-router';
 import 'react-native-reanimated';
 import * as SplashScreen from 'expo-splash-screen';
 import { useEffect, useState, useRef, useCallback } from 'react';
@@ -17,9 +17,13 @@ import { ToastProvider } from '../contexts/toast-context';
 import { ThemeProvider, useTheme } from '../contexts/theme-context';
 import { LanguageProvider, useLanguage } from '../contexts/language-context';
 import {
+  addBreadcrumb,
+  consoleLogger,
   configureDateFormatting,
   DEFAULT_PROJECT_COLOR,
   setStorageAdapter,
+  setLogger,
+  SQLITE_SCHEMA_VERSION,
   useTaskStore,
   flushPendingSave,
   isSupportedLanguage,
@@ -41,7 +45,7 @@ import { updateMobileWidgetFromStore } from '../lib/widget-service';
 import { markStartupPhase, measureStartupPhase } from '../lib/startup-profiler';
 import { ErrorBoundary } from '../components/ErrorBoundary';
 import { verifyPolyfills } from '../utils/verify-polyfills';
-import { logError, logWarn, setupGlobalErrorLogging } from '../lib/app-log';
+import { logError, logInfo, logWarn, setupGlobalErrorLogging } from '../lib/app-log';
 import { useMobileAreaFilter } from '../hooks/use-mobile-area-filter';
 import { useThemeColors } from '../hooks/use-theme-colors';
 import { isShortcutCaptureUrl, parseShortcutCaptureUrl, type ShortcutCapturePayload } from '../lib/capture-deeplink';
@@ -73,6 +77,53 @@ const AUTO_SYNC_CADENCE_OFF: AutoSyncCadence = {
   foregroundMinIntervalMs: 60_000,
 };
 const ANALYTICS_DISTINCT_ID_KEY = 'mindwtr-analytics-distinct-id';
+let coreLoggerBridgeInstalled = false;
+
+const buildCoreLogExtra = (payload: {
+  category?: string;
+  context?: Record<string, unknown>;
+  error?: unknown;
+}): Record<string, unknown> | undefined => {
+  const extra: Record<string, unknown> = {
+    ...(payload.context ?? {}),
+  };
+  if (payload.category) {
+    extra.category = payload.category;
+  }
+  if (payload.error) {
+    extra.error = payload.error instanceof Error ? payload.error.message : String(payload.error);
+    if (payload.error instanceof Error && payload.error.name) {
+      extra.errorName = payload.error.name;
+    }
+    if (payload.error instanceof Error && payload.error.stack) {
+      extra.errorStack = payload.error.stack;
+    }
+  }
+  return Object.keys(extra).length > 0 ? extra : undefined;
+};
+
+const installCoreLoggerBridge = () => {
+  if (coreLoggerBridgeInstalled) return;
+  coreLoggerBridgeInstalled = true;
+  setLogger((payload) => {
+    consoleLogger(payload);
+    const scope = payload.scope ?? 'core';
+    const extra = buildCoreLogExtra(payload);
+    if (payload.level === 'error') {
+      void logError(payload.error ?? payload.message, {
+        scope,
+        extra,
+        message: payload.message,
+      });
+      return;
+    }
+    if (payload.level === 'warn') {
+      void logWarn(payload.message, { scope, extra });
+      return;
+    }
+    void logInfo(payload.message, { scope, extra });
+  });
+};
 
 type MobileExtraConfig = {
   isFossBuild?: boolean | string;
@@ -148,6 +199,19 @@ const getDeviceLocale = (): string => {
   }
 };
 
+const getStartupLoggingReason = (loggingEnabled: boolean): string =>
+  loggingEnabled ? 'user-enabled' : 'startup-force';
+
+const getViewBreadcrumb = (pathname: string | null): string | null => {
+  const trimmed = String(pathname || '').trim();
+  if (!trimmed) return null;
+  const normalized = trimmed.replace(/^\/+|\/+$/g, '');
+  if (!normalized) return 'view:root';
+  const segments = normalized.split('/').filter(Boolean);
+  const view = segments[segments.length - 1] || 'root';
+  return `view:${view}`;
+};
+
 const normalizeShortcutTags = (tags: string[]): string[] => {
   const normalized: string[] = [];
   const seen = new Set<string>();
@@ -169,6 +233,8 @@ const logAppError = (error: unknown) => {
   void logError(error, { scope: 'app' });
 };
 
+installCoreLoggerBridge();
+
 try {
   setStorageAdapter(mobileStorage);
 } catch (e) {
@@ -182,6 +248,7 @@ markStartupPhase('js.root_layout.module_loaded');
 
 function RootLayoutContent() {
   const router = useRouter();
+  const pathname = usePathname();
   const incomingUrl = Linking.useURL();
   const { isDark, isReady: themeReady } = useTheme();
   const tc = useThemeColors();
@@ -212,6 +279,7 @@ function RootLayoutContent() {
   const lastHandledCaptureUrl = useRef<string | null>(null);
   const lastLoggedAutoSyncError = useRef<string | null>(null);
   const lastLoggedAutoSyncErrorAt = useRef(0);
+  const startupContextLogged = useRef(false);
   const syncCadenceRef = useRef<AutoSyncCadence>(AUTO_SYNC_CADENCE_REMOTE);
   const syncBackendCacheRef = useRef<{ backend: SyncBackend; readAt: number }>({
     backend: 'off',
@@ -233,6 +301,12 @@ function RootLayoutContent() {
   useEffect(() => {
     markStartupPhase('js.root_layout.mounted');
   }, []);
+
+  useEffect(() => {
+    const breadcrumb = getViewBreadcrumb(pathname);
+    if (!breadcrumb) return;
+    addBreadcrumb(breadcrumb);
+  }, [pathname]);
 
   useEffect(() => {
     if (Platform.OS !== 'android' || isExpoGo) return;
@@ -606,6 +680,28 @@ function RootLayoutContent() {
         if (cancelled) return;
         setDataReady(true);
         markStartupPhase('js.store.fetch_data.applied');
+        if (!startupContextLogged.current) {
+          startupContextLogged.current = true;
+          const rawBackend = await AsyncStorage.getItem(SYNC_BACKEND_KEY);
+          const syncBackend = coerceSupportedBackend(resolveBackend(rawBackend), supportsNativeICloudSync());
+          const channel = await getMobileAnalyticsChannel(isFossBuild).catch(() => Platform.OS || 'mobile');
+          void logInfo('App started', {
+            scope: 'startup',
+            force: true,
+            extra: {
+              version: appVersion,
+              platform: Platform.OS,
+              osMajor: getMobileOsMajor(),
+              locale: getDeviceLocale(),
+              channel,
+              syncBackend,
+              schemaVersion: String(SQLITE_SCHEMA_VERSION),
+              deviceClass: getMobileDeviceClass(),
+              buildType: isFossBuild ? 'foss' : 'standard',
+              loggingReason: getStartupLoggingReason(store.settings.diagnostics?.loggingEnabled === true),
+            },
+          });
+        }
         if (!isFossBuild && !isExpoGo && !__DEV__ && analyticsHeartbeatUrl) {
           try {
             const [distinctId, channel] = await Promise.all([
