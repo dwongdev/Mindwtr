@@ -89,6 +89,13 @@ describe('sync-helpers pending attachment uploads', () => {
         expect(findPendingAttachmentUploads(data)).toHaveLength(0);
     });
 
+    it('ignores attachments whose parent task is deleted', () => {
+        const data = createData([fileAttachment()]);
+        data.tasks[0].deletedAt = now;
+
+        expect(findPendingAttachmentUploads(data)).toHaveLength(0);
+    });
+
     it('throws a clear error when pending uploads remain before remote write', () => {
         const data = createData([
             fileAttachment({ id: 'att-1' }),
@@ -258,6 +265,20 @@ describe('sync-helpers sanitizeAppDataForRemote', () => {
         expect(attachment?.deletedAt).toBeDefined();
         expect(attachment?.uri).toBe('');
         expect(attachment?.cloudKey).toBeUndefined();
+    });
+
+    it('tombstones local-only file attachments on deleted tasks before remote sync', () => {
+        const data = createData([fileAttachment({ id: 'deleted-parent-attachment' })]);
+        data.tasks[0].deletedAt = now;
+
+        const sanitized = sanitizeAppDataForRemote(data);
+        const attachment = sanitized.tasks[0]?.attachments?.[0];
+
+        expect(attachment).toBeDefined();
+        expect(attachment?.deletedAt).toBe(now);
+        expect(attachment?.uri).toBe('');
+        expect(attachment?.cloudKey).toBeUndefined();
+        expect(attachment?.localStatus).toBeUndefined();
     });
 });
 
