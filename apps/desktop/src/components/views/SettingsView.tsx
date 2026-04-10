@@ -73,6 +73,7 @@ import { useAiSettings } from "./settings/useAiSettings";
 import { useCalendarSettings } from "./settings/useCalendarSettings";
 import { useObsidianSettings } from "./settings/useObsidianSettings";
 import { useSyncSettings } from "./settings/useSyncSettings";
+import { useConfirmDialog } from "../../hooks/useConfirmDialog";
 import { usePerformanceMonitor } from "../../hooks/usePerformanceMonitor";
 import { checkBudget } from "../../config/performanceBudgets";
 import {
@@ -272,6 +273,7 @@ export function SettingsView() {
   const [downloadNotice, setDownloadNotice] = useState<string | null>(null);
   const [linuxDistro, setLinuxDistro] = useState<LinuxDistroInfo | null>(null);
   const [hasUpdateBadge, setHasUpdateBadge] = useState(false);
+  const { requestConfirmation, confirmModal } = useConfirmDialog();
 
   const showSaved = useCallback(() => {
     setSaved(true);
@@ -398,6 +400,16 @@ export function SettingsView() {
     );
     return result;
   }, [language, translate]);
+  const requestSettingsConfirmation = useCallback(
+    ({ title, message }: { title: string; message: string }) =>
+      requestConfirmation({
+        title,
+        description: message,
+        confirmLabel: "Continue",
+        cancelLabel: t.cancel ?? "Cancel",
+      }),
+    [requestConfirmation, t.cancel],
+  );
 
   useLayoutEffect(() => {
     markSettingsOpenTrace("settings-view-layout-effect", { page });
@@ -1274,6 +1286,7 @@ export function SettingsView() {
     isTauri,
     showSaved,
     selectSyncFolderTitle,
+    requestConfirmation: requestSettingsConfirmation,
   });
   const {
     obsidianVaultPath,
@@ -1667,6 +1680,7 @@ export function SettingsView() {
           }}
           onDownload={handleDownloadUpdate}
         />
+        {confirmModal}
       </div>
     </ErrorBoundary>
   );

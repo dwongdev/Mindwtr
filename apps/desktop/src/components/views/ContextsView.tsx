@@ -20,6 +20,7 @@ import { usePerformanceMonitor } from '../../hooks/usePerformanceMonitor';
 import { checkBudget } from '../../config/performanceBudgets';
 import { resolveAreaFilter, taskMatchesAreaFilter } from '../../lib/area-filter';
 import { reportError } from '../../lib/report-error';
+import { useConfirmDialog } from '../../hooks/useConfirmDialog';
 
 type BulkTokenPickerState = {
     field: 'tags' | 'contexts';
@@ -44,6 +45,7 @@ export function ContextsView() {
     const [multiSelectedIds, setMultiSelectedIds] = useState<Set<string>>(new Set());
     const [bulkTokenPicker, setBulkTokenPicker] = useState<BulkTokenPickerState>(null);
     const [isBatchDeleting, setIsBatchDeleting] = useState(false);
+    const { requestConfirmation, confirmModal } = useConfirmDialog();
     const areaById = useMemo(() => new Map(areas.map((area) => [area.id, area])), [areas]);
     const resolvedAreaFilter = useMemo(
         () => resolveAreaFilter(settings?.filters?.areaId, areas),
@@ -150,8 +152,13 @@ export function ContextsView() {
 
     const handleBatchDelete = async () => {
         if (selectedIdsArray.length === 0) return;
-        const confirmMessage = t('list.confirmBatchDelete') || 'Delete selected tasks?';
-        if (!window.confirm(confirmMessage)) return;
+        const confirmed = await requestConfirmation({
+            title: t('common.delete') || 'Delete',
+            description: t('list.confirmBatchDelete') || 'Delete selected tasks?',
+            confirmLabel: t('common.delete') || 'Delete',
+            cancelLabel: t('common.cancel') || 'Cancel',
+        });
+        if (!confirmed) return;
         setIsBatchDeleting(true);
         try {
             await batchDeleteTasks(selectedIdsArray);
@@ -437,6 +444,7 @@ export function ContextsView() {
                 onCancel={() => setBulkTokenPicker(null)}
                 onConfirm={handleBulkTokenConfirm}
             />
+            {confirmModal}
         </>
     );
 }

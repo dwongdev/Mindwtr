@@ -35,9 +35,16 @@ type UseSyncSettingsOptions = {
     isTauri: boolean;
     showSaved: () => void;
     selectSyncFolderTitle: string;
+    requestConfirmation: (options: { title: string; message: string }) => Promise<boolean>;
 };
 
-export const useSyncSettings = ({ appVersion, isTauri, showSaved, selectSyncFolderTitle }: UseSyncSettingsOptions) => {
+export const useSyncSettings = ({
+    appVersion,
+    isTauri,
+    showSaved,
+    selectSyncFolderTitle,
+    requestConfirmation,
+}: UseSyncSettingsOptions) => {
     const [syncPath, setSyncPath] = useState('');
     const [syncStatus, setSyncStatus] = useState(() => SyncService.getSyncStatus());
     const [syncError, setSyncError] = useState<string | null>(null);
@@ -80,27 +87,6 @@ export const useSyncSettings = ({ appVersion, isTauri, showSaved, selectSyncFold
         const text = String(error || '').trim();
         return text || fallback;
     }, []);
-
-    const requestConfirmation = useCallback(async ({
-        message,
-        title,
-    }: {
-        message: string;
-        title: string;
-    }): Promise<boolean> => {
-        if (isTauri) {
-            const { confirm } = await import('@tauri-apps/plugin-dialog');
-            return await confirm(message, {
-                title,
-                okLabel: 'Continue',
-                cancelLabel: 'Cancel',
-            });
-        }
-        if (typeof window !== 'undefined') {
-            return window.confirm(`${title}\n\n${message}`);
-        }
-        return false;
-    }, [isTauri]);
 
     useEffect(() => {
         markSettingsOpenTrace('sync-settings-effect');

@@ -6,7 +6,6 @@ import { DndContext, PointerSensor, MeasuringStrategy, useSensor, useSensors, ty
 import { SortableContext, verticalListSortingStrategy, arrayMove } from '@dnd-kit/sortable';
 import { useLanguage } from '../../contexts/language-context';
 import { PromptModal } from '../PromptModal';
-import { isTauriRuntime } from '../../lib/runtime';
 import { normalizeAttachmentInput } from '../../lib/attachment-utils';
 import { cn } from '../../lib/utils';
 import { SortableProjectTaskRow } from './projects/SortableRows';
@@ -38,6 +37,7 @@ import { useProjectSectionActions } from './projects/useProjectSectionActions';
 import { useProjectsViewStore } from './projects/useProjectsViewStore';
 import { projectTaskCollisionDetection } from './projects/project-task-dnd';
 import { splitProjectsForSidebar } from './projects/project-sidebar-grouping';
+import { useConfirmDialog } from '../../hooks/useConfirmDialog';
 
 const projectTaskDndMeasuring = {
     droppable: {
@@ -84,6 +84,7 @@ export function ProjectsView() {
     const selectedProjectId = useUiStore((state) => state.projectView.selectedProjectId);
     const setProjectView = useUiStore((state) => state.setProjectView);
     const showToast = useUiStore((state) => state.showToast);
+    const { requestConfirmation, confirmModal } = useConfirmDialog();
     const setSelectedProjectId = useCallback(
         (value: string | null) => setProjectView({ selectedProjectId: value }),
         [setProjectView]
@@ -151,6 +152,7 @@ export function ProjectsView() {
         reorderAreas,
         deleteArea,
         setCollapsedAreas,
+        requestConfirmation,
     });
 
     const taskSensors = useSensors(
@@ -304,6 +306,7 @@ export function ProjectsView() {
         setSectionTaskTargetId,
         setSectionTaskDraft,
         setShowSectionTaskPrompt,
+        requestConfirmation,
     });
 
     useEffect(() => {
@@ -684,14 +687,12 @@ export function ProjectsView() {
     const handleArchiveProject = async () => {
         if (!selectedProject) return;
         try {
-            const confirmed = isTauriRuntime()
-                ? await import('@tauri-apps/plugin-dialog').then(({ confirm }) =>
-                    confirm(t('projects.archiveConfirm'), {
-                        title: t('projects.title'),
-                        kind: 'warning',
-                    }),
-                )
-                : window.confirm(t('projects.archiveConfirm'));
+            const confirmed = await requestConfirmation({
+                title: t('projects.archive') || 'Archive',
+                description: t('projects.archiveConfirm'),
+                confirmLabel: t('projects.archive') || 'Archive',
+                cancelLabel: t('common.cancel') || 'Cancel',
+            });
             if (confirmed) {
                 await Promise.resolve(updateProject(selectedProject.id, { status: 'archived' }));
             }
@@ -704,14 +705,12 @@ export function ProjectsView() {
     const handleDeleteProject = async () => {
         if (!selectedProject) return;
         try {
-            const confirmed = isTauriRuntime()
-                ? await import('@tauri-apps/plugin-dialog').then(({ confirm }) =>
-                    confirm(t('projects.deleteConfirm'), {
-                        title: t('projects.title'),
-                        kind: 'warning',
-                    }),
-                )
-                : window.confirm(t('projects.deleteConfirm'));
+            const confirmed = await requestConfirmation({
+                title: t('common.delete') || 'Delete',
+                description: t('projects.deleteConfirm'),
+                confirmLabel: t('common.delete') || 'Delete',
+                cancelLabel: t('common.cancel') || 'Cancel',
+            });
             if (confirmed) {
                 setIsProjectDeleting(true);
                 try {
@@ -1179,6 +1178,7 @@ export function ProjectsView() {
                         }
                     }}
                 />
+                {confirmModal}
             </div>
         </ErrorBoundary>
     );

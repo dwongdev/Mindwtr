@@ -3,7 +3,7 @@ import { useSensor, useSensors, PointerSensor, type DragEndEvent } from '@dnd-ki
 import { arrayMove } from '@dnd-kit/sortable';
 import type { Area, AppData } from '@mindwtr/core';
 import { AREA_FILTER_ALL, AREA_FILTER_NONE, resolveAreaFilter } from '../../../lib/area-filter';
-import { isTauriRuntime } from '../../../lib/runtime';
+import type { ConfirmationRequestOptions } from '../../../hooks/useConfirmDialog';
 
 type UseAreaSidebarStateParams = {
     areas: Area[];
@@ -12,6 +12,7 @@ type UseAreaSidebarStateParams = {
     reorderAreas: (ids: string[]) => void;
     deleteArea: (id: string) => void;
     setCollapsedAreas: React.Dispatch<React.SetStateAction<Record<string, boolean>>>;
+    requestConfirmation: (options: ConfirmationRequestOptions) => Promise<boolean>;
 };
 
 export function useAreaSidebarState({
@@ -21,6 +22,7 @@ export function useAreaSidebarState({
     reorderAreas,
     deleteArea,
     setCollapsedAreas,
+    requestConfirmation,
 }: UseAreaSidebarStateParams) {
     const ALL_AREAS = AREA_FILTER_ALL;
     const NO_AREA = AREA_FILTER_NONE;
@@ -64,14 +66,12 @@ export function useAreaSidebarState({
     };
 
     const handleDeleteArea = async (areaId: string) => {
-        const confirmed = isTauriRuntime()
-            ? await import('@tauri-apps/plugin-dialog').then(({ confirm }) =>
-                confirm(t('projects.deleteConfirm'), {
-                    title: 'Area',
-                    kind: 'warning',
-                }),
-            )
-            : window.confirm(t('projects.deleteConfirm'));
+        const confirmed = await requestConfirmation({
+            title: t('projects.areaLabel'),
+            description: t('projects.deleteConfirm'),
+            confirmLabel: t('common.delete') || 'Delete',
+            cancelLabel: t('common.cancel') || 'Cancel',
+        });
         if (confirmed) {
             deleteArea(areaId);
         }
