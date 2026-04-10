@@ -46,8 +46,14 @@ export default function CaptureScreen() {
   useEffect(() => {
     loadAIKey(aiProvider).then(setAiKey).catch((error) => {
       void logError(error, { scope: 'ai', extra: { message: 'Failed to load AI key' } });
+      showToast({
+        title: t('ai.errorTitle'),
+        message: t('ai.disabledBody'),
+        tone: 'warning',
+        durationMs: 4200,
+      });
     });
-  }, [aiProvider]);
+  }, [aiProvider, showToast, t]);
 
   const contextOptions = React.useMemo(() => {
     return getUsedTaskTokens(tasks, (task) => task.contexts, { prefix: '@' });

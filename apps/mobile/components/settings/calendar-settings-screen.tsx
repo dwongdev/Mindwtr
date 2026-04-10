@@ -79,10 +79,16 @@ export function CalendarSettingsScreen() {
             });
         } catch (error) {
             console.error(error);
+            showToast({
+                title: localize('Error', '错误'),
+                message: localize('Failed to load device calendar settings', '加载系统日历设置失败'),
+                tone: 'warning',
+                durationMs: 4200,
+            });
         } finally {
             setIsSystemCalendarLoading(false);
         }
-    }, []);
+    }, [localize, showToast]);
 
     useEffect(() => {
         void loadSystemCalendarState();
@@ -104,13 +110,19 @@ export function CalendarSettingsScreen() {
                 setExternalCalendars(stored);
             } catch (error) {
                 console.error(error);
+                showToast({
+                    title: localize('Error', '错误'),
+                    message: localize('Failed to load saved calendars', '加载已保存的日历失败'),
+                    tone: 'warning',
+                    durationMs: 4200,
+                });
             }
         };
         void load();
         return () => {
             cancelled = true;
         };
-    }, [settings.externalCalendars]);
+    }, [localize, settings.externalCalendars, showToast]);
 
     const persistSystemCalendarState = async (next: {
         enabled?: boolean;

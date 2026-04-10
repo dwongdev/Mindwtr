@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react';
-import { View, TextInput, FlatList, StyleSheet, TouchableOpacity, Text, RefreshControl, ScrollView, Modal, Pressable, Alert, ActivityIndicator, Keyboard } from 'react-native';
+import { View, TextInput, FlatList, StyleSheet, TouchableOpacity, Text, RefreshControl, ScrollView, Modal, Pressable, ActivityIndicator, Keyboard } from 'react-native';
 import { router } from 'expo-router';
 import {
   useTaskStore,
@@ -481,8 +481,14 @@ function TaskListComponent({
   useEffect(() => {
     loadAIKey(aiProvider).then(setAiKey).catch((error) => {
       void logError(error, { scope: 'ai', extra: { message: 'Failed to load AI key' } });
+      showToast({
+        title: t('ai.errorTitle'),
+        message: t('ai.disabledBody'),
+        tone: 'warning',
+        durationMs: 4200,
+      });
     });
-  }, [aiProvider]);
+  }, [aiProvider, showToast, t]);
 
   useEffect(() => {
     if (!enableCopilot || !aiEnabled || (keyRequired && !aiKey)) {
