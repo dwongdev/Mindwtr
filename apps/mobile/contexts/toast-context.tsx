@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { Animated, Easing, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -27,17 +27,28 @@ type ToastContextValue = {
 
 const TOAST_DEFAULT_DURATION_MS = 3200;
 const TOAST_ACTION_DURATION_MS = 5200;
+const TOAST_QUEUE_GAP_MS = 120;
 
 const ToastContext = createContext<ToastContextValue | null>(null);
 
 export function ToastProvider({ children }: { children: ReactNode }) {
     const insets = useSafeAreaInsets();
     const tc = useThemeColors();
-    const [toast, setToast] = useState<ToastState | null>(null);
+    const [queue, setQueue] = useState<ToastState[]>([]);
     const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const queueAdvanceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const opacity = useRef(new Animated.Value(0)).current;
     const translateY = useRef(new Animated.Value(18)).current;
     const nextToastId = useRef(1);
+    const isDismissingRef = useRef(false);
+    const queueRef = useRef<ToastState[]>([]);
+    const activeToastRef = useRef<ToastState | null>(null);
+    const toast = queue[0] ?? null;
+
+    useEffect(() => {
+        queueRef.current = queue;
+        activeToastRef.current = toast;
+    }, [queue, toast]);
 
     const clearTimer = useCallback(() => {
         if (!timerRef.current) return;
@@ -45,8 +56,17 @@ export function ToastProvider({ children }: { children: ReactNode }) {
         timerRef.current = null;
     }, []);
 
+    const clearQueueAdvanceTimer = useCallback(() => {
+        if (!queueAdvanceTimerRef.current) return;
+        clearTimeout(queueAdvanceTimerRef.current);
+        queueAdvanceTimerRef.current = null;
+    }, []);
+
     const dismissToast = useCallback(() => {
         clearTimer();
+        clearQueueAdvanceTimer();
+        if (!activeToastRef.current || isDismissingRef.current) return;
+        isDismissingRef.current = true;
         Animated.parallel([
             Animated.timing(opacity, {
                 toValue: 0,
@@ -61,22 +81,36 @@ export function ToastProvider({ children }: { children: ReactNode }) {
                 useNativeDriver: true,
             }),
         ]).start(() => {
-            setToast(null);
+            const advanceQueue = () => {
+                isDismissingRef.current = false;
+                setQueue((current) => current.slice(1));
+            };
+            if (queueRef.current.length > 1) {
+                queueAdvanceTimerRef.current = setTimeout(() => {
+                    queueAdvanceTimerRef.current = null;
+                    advanceQueue();
+                }, TOAST_QUEUE_GAP_MS);
+                return;
+            }
+            advanceQueue();
         });
-    }, [clearTimer, opacity, translateY]);
+    }, [clearQueueAdvanceTimer, clearTimer, opacity, translateY]);
 
     const showToast = useCallback((options: ToastOptions) => {
-        clearTimer();
-        setToast({
-            id: nextToastId.current++,
-            tone: options.tone ?? 'info',
-            durationMs: options.durationMs ?? (options.actionLabel ? TOAST_ACTION_DURATION_MS : TOAST_DEFAULT_DURATION_MS),
-            ...options,
-        });
-    }, [clearTimer]);
+        setQueue((current) => [
+            ...current,
+            {
+                id: nextToastId.current++,
+                tone: options.tone ?? 'info',
+                durationMs: options.durationMs ?? (options.actionLabel ? TOAST_ACTION_DURATION_MS : TOAST_DEFAULT_DURATION_MS),
+                ...options,
+            },
+        ]);
+    }, []);
 
     useEffect(() => {
         if (!toast) return undefined;
+        isDismissingRef.current = false;
 
         opacity.stopAnimation();
         translateY.stopAnimation();
@@ -107,7 +141,8 @@ export function ToastProvider({ children }: { children: ReactNode }) {
 
     useEffect(() => () => {
         clearTimer();
-    }, [clearTimer]);
+        clearQueueAdvanceTimer();
+    }, [clearQueueAdvanceTimer, clearTimer]);
 
     const value = useMemo<ToastContextValue>(() => ({
         showToast,
@@ -165,6 +200,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
                                             dismissToast();
                                         } catch (error) {
                                             void logError(error, { scope: 'toast', extra: { message: 'Toast action failed' } });
+                                            dismissToast();
                                             showToast({
                                                 title: 'Action failed',
                                                 message: error instanceof Error && error.message.trim()

@@ -50,6 +50,7 @@ import {
 } from '@/lib/settings-utils';
 import { performMobileSync } from '@/lib/sync-service';
 import {
+    classifySyncFailure,
     coerceSupportedBackend,
     getSyncConflictCount,
     getSyncMaxClockSkewMs,
@@ -154,6 +155,36 @@ export function SyncSettingsScreen() {
             durationMs,
         });
     }, [showToast]);
+    const getSyncFailureToastMessage = useCallback((error: unknown) => {
+        switch (classifySyncFailure(error)) {
+            case 'offline':
+                return localize('Check your internet connection and try again.', '请检查网络连接后重试。');
+            case 'auth':
+                return localize(
+                    'Re-authenticate or review your sync credentials in Data & Sync.',
+                    '请在“数据与同步”中重新验证或检查同步凭据。'
+                );
+            case 'permission':
+                return localize(
+                    'Re-select the sync file or folder, or grant access again in Data & Sync.',
+                    '请在“数据与同步”中重新选择同步文件/文件夹，或重新授予访问权限。'
+                );
+            case 'rateLimited':
+                return localize('The sync backend is rate limiting requests. Wait a moment and try again.', '同步后端正在限流。请稍后再试。');
+            case 'misconfigured':
+                return localize(
+                    'Finish configuring the selected sync backend in Data & Sync.',
+                    '请先在“数据与同步”中完成所选同步后端的配置。'
+                );
+            case 'conflict':
+                return localize(
+                    'Another device or backend reported a sync conflict. Retry after both sides finish syncing.',
+                    '另一台设备或后端报告了同步冲突。请等待双方完成同步后再重试。'
+                );
+            default:
+                return localize('Review Data & Sync settings and try again.', '请检查“数据与同步”设置后重试。');
+        }
+    }, [localize]);
 
     useEffect(() => {
         AsyncStorage.multiGet([
@@ -985,7 +1016,7 @@ export function SyncSettingsScreen() {
                 );
                 return;
             }
-            showSettingsErrorToast(localize('Error', '错误'), localize('Sync failed', '同步失败'));
+            showSettingsErrorToast(localize('Error', '错误'), getSyncFailureToastMessage(error));
         } finally {
             setIsSyncing(false);
         }
