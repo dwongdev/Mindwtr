@@ -44,12 +44,16 @@ const MAX_SAVE_RETRY_ATTEMPTS = 5;
 const INITIAL_SAVE_RETRY_DELAY_MS = 250;
 const MAX_SAVE_RETRY_DELAY_MS = 4000;
 const ERROR_AUTO_CLEAR_MS = 10_000;
+const SAVE_QUEUE_OVERFLOW_ERROR_PREFIX = 'Save queue overflow:';
 const hasPendingSaveWork = (): boolean => pendingSaves.length > 0 || saveInFlight !== null;
 const sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
 const getSaveRetryDelayMs = (attempt: number): number => {
     const cappedAttempt = Math.max(0, attempt - 1);
     return Math.min(MAX_SAVE_RETRY_DELAY_MS, INITIAL_SAVE_RETRY_DELAY_MS * (2 ** cappedAttempt));
 };
+const isPersistentStoreError = (error: string | null | undefined): boolean => (
+    typeof error === 'string' && error.startsWith(SAVE_QUEUE_OVERFLOW_ERROR_PREFIX)
+);
 const getSaveQueueOverflowMessage = ({
     droppedCount,
     droppedFromVersion,
@@ -148,7 +152,7 @@ const scheduleErrorAutoClear = (error: string | null) => {
         clearTimeout(errorAutoClearTimer);
         errorAutoClearTimer = null;
     }
-    if (!error) return;
+    if (!error || isPersistentStoreError(error)) return;
     errorAutoClearTimer = setTimeout(() => {
         errorAutoClearTimer = null;
         try {
@@ -303,14 +307,21 @@ export const flushPendingSave = async (): Promise<void> => {
 
 export const useTaskStore = createWithEqualityFn<TaskStore>()((rawSet, get) => {
     const set: typeof rawSet = (partial) => rawSet((state) => {
-        const nextState = typeof partial === 'function' ? partial(state) : partial;
+        let nextState = typeof partial === 'function' ? partial(state) : partial;
         if (
             nextState &&
             nextState !== state &&
             typeof nextState === 'object' &&
             Object.prototype.hasOwnProperty.call(nextState, 'error')
         ) {
-            scheduleErrorAutoClear((nextState as Partial<TaskStore>).error ?? null);
+            const currentError = state.error;
+            const nextError = (nextState as Partial<TaskStore>).error ?? null;
+            if (isPersistentStoreError(currentError) && nextError && !isPersistentStoreError(nextError)) {
+                const { error: _ignored, ...rest } = nextState as Partial<TaskStore>;
+                nextState = rest as Partial<TaskStore>;
+            } else {
+                scheduleErrorAutoClear(nextError);
+            }
         }
         return nextState as Partial<TaskStore> | TaskStore;
     });

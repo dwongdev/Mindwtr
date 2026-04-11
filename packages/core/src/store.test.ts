@@ -326,6 +326,31 @@ describe('TaskStore', () => {
         expect(useTaskStore.getState().error).toBeNull();
     });
 
+    it('keeps save queue overflow errors visible until dismissed', () => {
+        useTaskStore.getState().setError(
+            'Save queue overflow: dropped 1 queued save(s) (versions 1-1) while keeping versions 2-2.'
+        );
+
+        vi.advanceTimersByTime(10_000);
+
+        expect(useTaskStore.getState().error).toBe(
+            'Save queue overflow: dropped 1 queued save(s) (versions 1-1) while keeping versions 2-2.'
+        );
+    });
+
+    it('does not replace a visible save queue overflow error with a transient error', () => {
+        useTaskStore.getState().setError(
+            'Save queue overflow: dropped 1 queued save(s) (versions 1-1) while keeping versions 2-2.'
+        );
+
+        useTaskStore.getState().setError('Temporary failure');
+        vi.advanceTimersByTime(10_000);
+
+        expect(useTaskStore.getState().error).toBe(
+            'Save queue overflow: dropped 1 queued save(s) (versions 1-1) while keeping versions 2-2.'
+        );
+    });
+
     it('tracks filter changes as local data mutations', async () => {
         vi.setSystemTime(new Date('2026-03-21T12:00:00.000Z'));
 
