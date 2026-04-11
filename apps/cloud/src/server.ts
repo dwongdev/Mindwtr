@@ -86,6 +86,20 @@ const getBlockedAttachmentSignature = (bytes: Uint8Array): string | null => {
     return null;
 };
 
+const generateRequestId = (): string => {
+    if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+        return crypto.randomUUID();
+    }
+    return `req-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+};
+
+const createInternalServerErrorResponse = (message: string, requestId: string): Response => (
+    jsonResponse(
+        { error: message, requestId },
+        { status: 500, headers: { 'X-Request-Id': requestId } },
+    )
+);
+
 type RateLimitState = {
     count: number;
     resetAt: number;
@@ -136,6 +150,7 @@ export const __cloudTestUtils = {
     isPathWithinRoot,
     pathContainsSymlink,
     createWriteLockRunner,
+    createInternalServerErrorResponse,
 };
 
 type CloudServerOptions = {
@@ -289,6 +304,7 @@ export async function startCloudServer(options: CloudServerOptions = {}): Promis
         hostname: host,
         port,
         async fetch(req) {
+            const requestId = generateRequestId();
             const requestAbortController = new AbortController();
             const requestTimeout = setTimeout(() => {
                 requestAbortController.abort(createRequestAbortError('Request timed out', 408));
@@ -721,12 +737,15 @@ export async function startCloudServer(options: CloudServerOptions = {}): Promis
                 if (error && typeof error === 'object' && 'code' in error) {
                     const code = (error as any).code;
                     if (code === 'EACCES') {
-                        logError('permission denied writing cloud data', error);
-                        return errorResponse('Cloud data directory is not writable. Check volume permissions.', 500);
+                        logError(`permission denied writing cloud data (requestId=${requestId})`, error);
+                        return createInternalServerErrorResponse(
+                            'Cloud data directory is not writable. Check volume permissions.',
+                            requestId,
+                        );
                     }
                 }
-                logError('request failed', error);
-                return errorResponse('Internal server error', 500);
+                logError(`request failed (requestId=${requestId})`, error);
+                return createInternalServerErrorResponse('Internal server error', requestId);
             } finally {
                 clearTimeout(requestTimeout);
             }

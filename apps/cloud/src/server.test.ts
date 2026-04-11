@@ -136,6 +136,16 @@ describe('cloud server utils', () => {
         expect(response.headers.get('Access-Control-Allow-Methods')).toBe('GET,PUT,POST,PATCH,DELETE,OPTIONS');
     });
 
+    test('includes a request id in internal server error responses', async () => {
+        const response = __cloudTestUtils.createInternalServerErrorResponse('Internal server error', 'req-test-123');
+
+        expect(response.status).toBe(500);
+        expect(response.headers.get('X-Request-Id')).toBe('req-test-123');
+        const body = await response.json();
+        expect(body.error).toBe('Internal server error');
+        expect(body.requestId).toBe('req-test-123');
+    });
+
     test('rejects invalid task status and timestamps in app data', () => {
         const invalidStatus = __cloudTestUtils.validateAppData({
             tasks: [{
