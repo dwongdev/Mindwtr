@@ -822,6 +822,24 @@ describe('cloud server api', () => {
         expect(getResponse.status).toBe(404);
     });
 
+    test('rejects attachment uploads with executable file signatures even when content-type is benign', async () => {
+        const putResponse = await fetch(`${baseUrl}/v1/attachments/folder/file.png`, {
+            method: 'PUT',
+            headers: {
+                ...authHeaders,
+                'content-type': 'image/png',
+            },
+            body: new Uint8Array([0x4d, 0x5a, 0x90, 0x00, 0x03, 0x00]),
+        });
+        expect(putResponse.status).toBe(400);
+        expect((await putResponse.json()).error).toBe('Blocked executable attachment signature: windows-pe');
+
+        const getResponse = await fetch(`${baseUrl}/v1/attachments/folder/file.png`, {
+            headers: authHeaders,
+        });
+        expect(getResponse.status).toBe(404);
+    });
+
     test('rejects attachment uploads when target path is a symlink', async () => {
         const token = integrationToken;
         const key = __cloudTestUtils.tokenToKey(token);

@@ -69,6 +69,23 @@ import {
 
 const normalizeAttachmentContentType = (value: string | null): string => value?.split(';', 1)[0]?.trim().toLowerCase() || '';
 
+const getBlockedAttachmentSignature = (bytes: Uint8Array): string | null => {
+    if (bytes.length >= 2 && bytes[0] === 0x4d && bytes[1] === 0x5a) {
+        return 'windows-pe';
+    }
+    if (bytes.length >= 4) {
+        if (bytes[0] === 0x7f && bytes[1] === 0x45 && bytes[2] === 0x4c && bytes[3] === 0x46) {
+            return 'elf';
+        }
+        const signature = `${bytes[0].toString(16).padStart(2, '0')}${bytes[1].toString(16).padStart(2, '0')}`
+            + `${bytes[2].toString(16).padStart(2, '0')}${bytes[3].toString(16).padStart(2, '0')}`;
+        if (signature === 'feedface' || signature === 'feedfacf' || signature === 'cefaedfe' || signature === 'cffaedfe') {
+            return 'mach-o';
+        }
+    }
+    return null;
+};
+
 type RateLimitState = {
     count: number;
     resetAt: number;
@@ -666,6 +683,10 @@ export async function startCloudServer(options: CloudServerOptions = {}): Promis
                         const body = await readRequestBytes(req, maxAttachmentBytes, requestAbortController.signal);
                         if (isBodyReadError(body)) {
                             return errorResponse(body.__mindwtrError.message, body.__mindwtrError.status);
+                        }
+                        const blockedSignature = getBlockedAttachmentSignature(body);
+                        if (blockedSignature) {
+                            return errorResponse(`Blocked executable attachment signature: ${blockedSignature}`, 400);
                         }
                         throwIfRequestAborted(requestAbortController.signal);
                         const wrote = writeAttachmentFileSafely(rootRealPath, filePath, body);
