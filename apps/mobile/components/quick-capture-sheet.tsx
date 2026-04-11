@@ -233,6 +233,13 @@ export function QuickCaptureSheet({
     let projectTitle: string | undefined;
     let parsedProps: Partial<Task> = {};
     let invalidDateCommands: string[] | undefined;
+    let detectedDate:
+      | {
+          date: string;
+          matchedText: string;
+          titleWithoutDate: string;
+        }
+      | undefined;
 
     if (trimmed) {
       const parsed = parseQuickAdd(trimmed, projects, new Date(), areas);
@@ -240,10 +247,16 @@ export function QuickCaptureSheet({
       parsedProps = parsed.props;
       projectTitle = parsed.projectTitle;
       invalidDateCommands = parsed.invalidDateCommands;
+      detectedDate = parsed.detectedDate;
     }
 
     const initialPropsMerged: Partial<Task> = { status: 'inbox', ...initialProps, ...parsedProps, ...extraProps };
     if (!initialPropsMerged.status) initialPropsMerged.status = 'inbox';
+    const shouldApplyDetectedDate = Boolean(detectedDate?.date && !initialPropsMerged.dueDate && !dueDate);
+    if (shouldApplyDetectedDate && detectedDate) {
+      initialPropsMerged.dueDate = detectedDate.date;
+      finalTitle = detectedDate.titleWithoutDate;
+    }
 
     if (!initialPropsMerged.projectId && projectTitle) {
       const created = await addProject(projectTitle, DEFAULT_PROJECT_COLOR);

@@ -54,6 +54,7 @@
   "type": "module",
   "dependencies": {
     "@babel/runtime": "^7.28.4",
+    "chrono-node": "^2.9.0",
     "date-fns": "^4.1.0",
     "fflate": "^0.8.2",
     "uuid": "^9.0.1",

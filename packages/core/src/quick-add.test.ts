@@ -77,6 +77,78 @@ describe('quick-add', () => {
         expect(result.props.dueDate).toBe(new Date(2026, 2, 15, now.getHours(), now.getMinutes(), 0, 0).toISOString());
     });
 
+    it('parses richer chrono expressions in explicit date commands', () => {
+        const now = new Date('2026-04-06T10:00:00Z');
+        const result = parseQuickAdd('Call dentist /due:next friday at 3pm', undefined, now);
+
+        expect(result.invalidDateCommands).toBeUndefined();
+        expect(result.props.dueDate).toBe(new Date(2026, 3, 17, 15, 0, 0, 0).toISOString());
+    });
+
+    it('keeps the current fallback time for explicit calendar dates without a time', () => {
+        const now = new Date('2026-02-01T10:00:00Z');
+        const result = parseQuickAdd('Submit report /due:march 15', undefined, now);
+
+        expect(result.invalidDateCommands).toBeUndefined();
+        expect(result.props.dueDate).toBe(new Date(2026, 2, 15, now.getHours(), now.getMinutes(), 0, 0).toISOString());
+    });
+
+    it('detects a trailing natural-language due date without auto-applying it in core', () => {
+        const now = new Date('2026-04-06T10:00:00Z');
+        const result = parseQuickAdd('Call mom tomorrow at 3pm @phone /next', undefined, now);
+
+        expect(result.title).toBe('Call mom tomorrow at 3pm');
+        expect(result.props.status).toBe('next');
+        expect(result.props.contexts).toEqual(['@phone']);
+        expect(result.props.dueDate).toBeUndefined();
+        expect(result.detectedDate).toEqual({
+            date: new Date(2026, 3, 7, 15, 0, 0, 0).toISOString(),
+            matchedText: 'tomorrow at 3pm',
+            titleWithoutDate: 'Call mom',
+        });
+    });
+
+    it('does not auto-detect dates from the middle of the title', () => {
+        const now = new Date('2026-04-06T10:00:00Z');
+        const result = parseQuickAdd('Call March about the report', undefined, now);
+
+        expect(result.title).toBe('Call March about the report');
+        expect(result.detectedDate).toBeUndefined();
+    });
+
+    it('does not auto-detect pure time-only suffixes', () => {
+        const now = new Date('2026-04-06T10:00:00Z');
+        const result = parseQuickAdd('Task at 3', undefined, now);
+
+        expect(result.title).toBe('Task at 3');
+        expect(result.detectedDate).toBeUndefined();
+    });
+
+    it('does not auto-detect when the entire title is just a date phrase', () => {
+        const now = new Date('2026-04-06T10:00:00Z');
+        const result = parseQuickAdd('tomorrow', undefined, now);
+
+        expect(result.title).toBe('tomorrow');
+        expect(result.detectedDate).toBeUndefined();
+    });
+
+    it('does not auto-detect bare month names at the end of the title', () => {
+        const now = new Date('2026-04-06T10:00:00Z');
+        const result = parseQuickAdd('Call March', undefined, now);
+
+        expect(result.title).toBe('Call March');
+        expect(result.detectedDate).toBeUndefined();
+    });
+
+    it('skips trailing NLP detection when an explicit due command is present', () => {
+        const now = new Date('2026-04-06T10:00:00Z');
+        const result = parseQuickAdd('Call mom tomorrow /due:friday', undefined, now);
+
+        expect(result.props.dueDate).toBe(new Date(2026, 3, 10, now.getHours(), now.getMinutes(), 0, 0).toISOString());
+        expect(result.detectedDate).toBeUndefined();
+        expect(result.title).toBe('Call mom tomorrow');
+    });
+
     it('matches project by title when provided', () => {
         const now = new Date('2025-01-01T10:00:00Z');
         const projects = [

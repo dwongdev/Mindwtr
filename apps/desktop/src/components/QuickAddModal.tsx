@@ -493,13 +493,17 @@ export function QuickAddModal() {
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!value.trim()) return;
-        const { title, props, projectTitle, invalidDateCommands } = parseQuickAdd(value, projects, new Date(), areas);
+        const { title, props, projectTitle, invalidDateCommands, detectedDate } = parseQuickAdd(value, projects, new Date(), areas);
         if (invalidDateCommands && invalidDateCommands.length > 0) {
             return;
         }
-        const finalTitle = title || value;
-        if (!finalTitle.trim()) return;
         const baseProps: Partial<Task> = { ...initialProps, ...props };
+        const shouldApplyDetectedDate = Boolean(detectedDate?.date && !baseProps.dueDate);
+        if (shouldApplyDetectedDate && detectedDate) {
+            baseProps.dueDate = detectedDate.date;
+        }
+        const finalTitle = shouldApplyDetectedDate && detectedDate ? detectedDate.titleWithoutDate : (title || value);
+        if (!finalTitle.trim()) return;
         if (!baseProps.areaId && selectedAreaId) {
             baseProps.areaId = selectedAreaId;
         }

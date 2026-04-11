@@ -150,7 +150,7 @@ export default function CaptureScreen() {
 
   const handleSave = () => {
     if (!value.trim()) return;
-    const { title, props, invalidDateCommands } = parseQuickAdd(value, projects, new Date(), areas);
+    const { title, props, invalidDateCommands, detectedDate } = parseQuickAdd(value, projects, new Date(), areas);
     if (invalidDateCommands && invalidDateCommands.length > 0) {
       showToast({
         title: t('common.notice'),
@@ -160,10 +160,14 @@ export default function CaptureScreen() {
       });
       return;
     }
-    const finalTitle = title || value;
+    const shouldApplyDetectedDate = Boolean(detectedDate?.date && !props.dueDate);
+    const finalTitle = shouldApplyDetectedDate && detectedDate ? detectedDate.titleWithoutDate : (title || value);
     if (!finalTitle.trim()) return;
     const initialProps: Partial<Task> = { status: 'inbox', ...props };
     if (!props.status) initialProps.status = 'inbox';
+    if (shouldApplyDetectedDate && detectedDate) {
+      initialProps.dueDate = detectedDate.date;
+    }
     if (copilotContext) {
       const nextContexts = Array.from(new Set([...(initialProps.contexts ?? []), copilotContext]));
       initialProps.contexts = nextContexts;
