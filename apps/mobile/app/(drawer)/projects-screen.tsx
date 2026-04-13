@@ -3,7 +3,7 @@ import { View, Text, TextInput, TouchableOpacity, Modal, Alert, Pressable, Scrol
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { Ionicons } from '@expo/vector-icons';
-import { AREA_PRESET_COLORS, Area, Attachment, DEFAULT_PROJECT_COLOR, generateUUID, getAttachmentDisplayTitle, normalizeLinkAttachmentInput, Project, resolveAutoTextDirection, safeParseDate, Task, type MarkdownSelection, type MarkdownToolbarActionId, type MarkdownToolbarResult, applyMarkdownToolbarAction, useTaskStore, validateAttachmentForUpload } from '@mindwtr/core';
+import { AREA_PRESET_COLORS, Area, Attachment, DEFAULT_PROJECT_COLOR, generateUUID, getAttachmentDisplayTitle, normalizeLinkAttachmentInput, Project, resolveAutoTextDirection, safeParseDate, Task, type MarkdownSelection, type MarkdownToolbarActionId, type MarkdownToolbarResult, applyMarkdownToolbarAction, continueMarkdownOnTextChange, useTaskStore, validateAttachmentForUpload } from '@mindwtr/core';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import * as DocumentPicker from 'expo-document-picker';
 import * as Linking from 'expo-linking';
@@ -35,6 +35,10 @@ import { AttachmentProgressIndicator } from '../../components/AttachmentProgress
 import { logError, logWarn } from '../../lib/app-log';
 import { AREA_FILTER_ALL, AREA_FILTER_NONE } from '@/lib/area-filter';
 import { openContextsScreen, openProjectScreen } from '@/lib/task-meta-navigation';
+
+const selectionsEqual = (left: MarkdownSelection, right: MarkdownSelection) => (
+  left.start === right.start && left.end === right.end
+);
 
 export default function ProjectsScreen() {
   const { projects, tasks, addProject, updateProject, deleteProject, toggleProjectFocus, addArea, updateArea, deleteArea, reorderAreas, updateTask, setHighlightTask } = useTaskStore();
@@ -93,6 +97,8 @@ export default function ProjectsScreen() {
   const [selectedProjectNotesUndoDepth, setSelectedProjectNotesUndoDepth] = useState(0);
   const [isSelectedProjectNotesFocused, setIsSelectedProjectNotesFocused] = useState(false);
   const [selectedProjectNotesSelection, setSelectedProjectNotesSelection] = useState({ start: 0, end: 0 });
+  const selectedProjectNotesSelectionRef = useRef<MarkdownSelection>({ start: 0, end: 0 });
+  const pendingSelectedProjectNotesSelectionRef = useRef<MarkdownSelection | null>(null);
   const windowHeight = Dimensions.get('window').height;
   const pickerCardMaxHeight = Math.min(windowHeight * 0.8, 560);
   const areaListMaxHeight = Math.min(windowHeight * 0.4, 280);
@@ -164,6 +170,8 @@ export default function ProjectsScreen() {
     selectedProjectNotesUndoRef.current = [];
     setSelectedProjectNotesUndoDepth(0);
     setIsSelectedProjectNotesFocused(false);
+    pendingSelectedProjectNotesSelectionRef.current = null;
+    selectedProjectNotesSelectionRef.current = { start: selectionEnd, end: selectionEnd };
     setSelectedProjectNotesSelection({ start: selectionEnd, end: selectionEnd });
   }, [selectedProject]);
 
@@ -250,17 +258,61 @@ export default function ProjectsScreen() {
   ) => {
     if (!selectedProject) return;
     if ((options?.recordUndo ?? true) && text !== selectedProjectNotes) {
-      pushSelectedProjectNotesUndoEntry(selectedProjectNotes, options?.baseSelection ?? selectedProjectNotesSelection);
+      pushSelectedProjectNotesUndoEntry(selectedProjectNotes, options?.baseSelection ?? selectedProjectNotesSelectionRef.current);
     }
     selectedProjectNotesRef.current = text;
     setSelectedProject({ ...selectedProject, supportNotes: text });
     if (options?.nextSelection) {
+      selectedProjectNotesSelectionRef.current = options.nextSelection;
       setSelectedProjectNotesSelection(options.nextSelection);
     }
-  }, [pushSelectedProjectNotesUndoEntry, selectedProject, selectedProjectNotes, selectedProjectNotesSelection]);
+  }, [pushSelectedProjectNotesUndoEntry, selectedProject, selectedProjectNotes]);
+  const restoreSelectedProjectNotesSelection = useCallback((selection: MarkdownSelection) => {
+    pendingSelectedProjectNotesSelectionRef.current = selection;
+    const applySelection = () => {
+      selectedProjectNotesInputRef.current?.setNativeProps?.({ selection });
+    };
+    requestAnimationFrame(applySelection);
+    setTimeout(() => {
+      applySelection();
+      if (
+        pendingSelectedProjectNotesSelectionRef.current
+        && selectionsEqual(pendingSelectedProjectNotesSelectionRef.current, selection)
+      ) {
+        pendingSelectedProjectNotesSelectionRef.current = null;
+      }
+    }, 40);
+  }, []);
   const handleSelectedProjectNotesChange = useCallback((text: string) => {
+    const continued = continueMarkdownOnTextChange(
+      selectedProjectNotesRef.current,
+      text,
+      selectedProjectNotesSelectionRef.current,
+    );
+    if (continued) {
+      applySelectedProjectNotesValue(continued.value, {
+        baseSelection: selectedProjectNotesSelectionRef.current,
+        nextSelection: continued.selection,
+      });
+      restoreSelectedProjectNotesSelection(continued.selection);
+      return;
+    }
     applySelectedProjectNotesValue(text);
-  }, [applySelectedProjectNotesValue]);
+  }, [applySelectedProjectNotesValue, restoreSelectedProjectNotesSelection]);
+  useEffect(() => {
+    selectedProjectNotesSelectionRef.current = selectedProjectNotesSelection;
+  }, [selectedProjectNotesSelection]);
+  const handleSelectedProjectNotesSelectionChange = useCallback((selection: MarkdownSelection) => {
+    const pendingSelection = pendingSelectedProjectNotesSelectionRef.current;
+    if (pendingSelection) {
+      if (!selectionsEqual(pendingSelection, selection)) {
+        return;
+      }
+      pendingSelectedProjectNotesSelectionRef.current = null;
+    }
+    selectedProjectNotesSelectionRef.current = selection;
+    setSelectedProjectNotesSelection(selection);
+  }, []);
   useEffect(() => {
     setSelectedProjectNotesSelection((prev) => {
       const nextStart = Math.min(prev.start, selectedProjectNotes.length);
@@ -1224,7 +1276,7 @@ export default function ProjectsScreen() {
                           <>
                             <MarkdownFormatToolbar
                               selection={selectedProjectNotesSelection}
-                              onSelectionChange={setSelectedProjectNotesSelection}
+                              onSelectionChange={handleSelectedProjectNotesSelectionChange}
                               inputRef={selectedProjectNotesInputRef}
                               t={t}
                               tc={tc}
@@ -1247,7 +1299,9 @@ export default function ProjectsScreen() {
                               onFocus={() => setIsSelectedProjectNotesFocused(true)}
                               onBlur={() => setIsSelectedProjectNotesFocused(false)}
                               onChangeText={handleSelectedProjectNotesChange}
-                              onSelectionChange={(event) => setSelectedProjectNotesSelection(event.nativeEvent.selection)}
+                              onSelectionChange={(event) => {
+                                handleSelectedProjectNotesSelectionChange(event.nativeEvent.selection);
+                              }}
                               selection={selectedProjectNotesSelection}
                               onEndEditing={commitSelectedProjectNotes}
                             />
@@ -1439,7 +1493,7 @@ export default function ProjectsScreen() {
                   initialMode="edit"
                   direction={selectedProjectNotesDirection}
                   selection={selectedProjectNotesSelection}
-                  onSelectionChange={setSelectedProjectNotesSelection}
+                  onSelectionChange={handleSelectedProjectNotesSelectionChange}
                   canUndo={selectedProjectNotesUndoDepth > 0}
                   onUndo={handleSelectedProjectNotesUndo}
                   onApplyAction={handleSelectedProjectNotesApplyAction}

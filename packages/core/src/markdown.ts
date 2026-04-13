@@ -238,6 +238,34 @@ const findLineEnd = (value: string, index: number) => {
     return nextNewline === -1 ? value.length : nextNewline;
 };
 
+const getMarkdownContinuationPrefix = (line: string): string | null => {
+    const quoteMatch = line.match(/^(\s*(?:>\s?)+)(.*)$/);
+    const quotePrefix = quoteMatch ? quoteMatch[1].replace(/\s*$/, ' ') : '';
+    const innerLine = quoteMatch ? quoteMatch[2] : line;
+
+    const taskMatch = innerLine.match(/^(\s*)([-+*])\s+\[(?: |x|X)\]\s+(.*)$/);
+    if (taskMatch && taskMatch[3].trim().length > 0) {
+        return `${quotePrefix}${taskMatch[1]}${taskMatch[2]} [ ] `;
+    }
+
+    const orderedMatch = innerLine.match(/^(\s*)(\d+)([.)])\s+(.*)$/);
+    if (orderedMatch && orderedMatch[4].trim().length > 0) {
+        const nextNumber = Number.parseInt(orderedMatch[2], 10) + 1;
+        return `${quotePrefix}${orderedMatch[1]}${nextNumber}${orderedMatch[3]} `;
+    }
+
+    const bulletMatch = innerLine.match(/^(\s*)([-+*])\s+(.*)$/);
+    if (bulletMatch && bulletMatch[3].trim().length > 0) {
+        return `${quotePrefix}${bulletMatch[1]}${bulletMatch[2]} `;
+    }
+
+    if (quotePrefix && innerLine.trim().length > 0) {
+        return quotePrefix;
+    }
+
+    return null;
+};
+
 const prefixLines = (value: string, selection: MarkdownSelection, prefix: string): MarkdownToolbarResult => {
     const { start, end } = normalizeSelection(value, selection);
     const blockStart = findLineStart(value, start);
@@ -305,4 +333,52 @@ export function applyMarkdownToolbarAction(
         default:
             return { value, selection: normalizeSelection(value, selection) };
     }
+}
+
+export function continueMarkdownOnEnter(
+    value: string,
+    selection: MarkdownSelection,
+): MarkdownToolbarResult | null {
+    const normalizedSelection = normalizeSelection(value, selection);
+    if (normalizedSelection.start !== normalizedSelection.end) {
+        return null;
+    }
+
+    const cursor = normalizedSelection.start;
+    const lineEnd = findLineEnd(value, cursor);
+    if (cursor !== lineEnd) {
+        return null;
+    }
+
+    const lineStart = findLineStart(value, cursor);
+    const line = value.slice(lineStart, lineEnd);
+    const continuationPrefix = getMarkdownContinuationPrefix(line);
+    if (!continuationPrefix) {
+        return null;
+    }
+
+    const nextValue = `${value.slice(0, cursor)}\n${continuationPrefix}${value.slice(cursor)}`;
+    const nextCursor = cursor + 1 + continuationPrefix.length;
+    return {
+        value: nextValue,
+        selection: { start: nextCursor, end: nextCursor },
+    };
+}
+
+export function continueMarkdownOnTextChange(
+    previousValue: string,
+    nextValue: string,
+    selection: MarkdownSelection,
+): MarkdownToolbarResult | null {
+    const normalizedSelection = normalizeSelection(previousValue, selection);
+    if (normalizedSelection.start !== normalizedSelection.end) {
+        return null;
+    }
+
+    const expectedValue = `${previousValue.slice(0, normalizedSelection.start)}\n${previousValue.slice(normalizedSelection.end)}`;
+    if (nextValue !== expectedValue) {
+        return null;
+    }
+
+    return continueMarkdownOnEnter(previousValue, normalizedSelection);
 }

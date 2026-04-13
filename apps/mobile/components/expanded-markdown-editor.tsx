@@ -18,6 +18,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import {
     applyMarkdownToolbarAction,
+    continueMarkdownOnTextChange,
     type MarkdownSelection,
     type MarkdownToolbarActionId,
     type MarkdownToolbarResult,
@@ -29,6 +30,10 @@ import { expandedMarkdownEditorStyles as styles } from './expanded-markdown-edit
 import { KeyboardAccessoryHost } from './keyboard-accessory-host';
 import { MarkdownFormatToolbar } from './markdown-format-toolbar';
 import { MarkdownText } from './markdown-text';
+
+const selectionsEqual = (left: MarkdownSelection, right: MarkdownSelection) => (
+    left.start === right.start && left.end === right.end
+);
 
 type ExpandedMarkdownEditorProps = {
     isOpen: boolean;
@@ -75,6 +80,7 @@ export function ExpandedMarkdownEditor({
     const pendingInitialFocusRef = React.useRef(false);
     const wasOpenRef = React.useRef(false);
     const toolbarInteractionUntilRef = React.useRef(0);
+    const pendingSelectionRef = React.useRef<MarkdownSelection | null>(null);
     const valueRef = React.useRef(value);
     const selectionRef = React.useRef(selection);
     // Keep a local mirror while the fullscreen editor is open so Android
@@ -97,6 +103,7 @@ export function ExpandedMarkdownEditor({
             setMode(initialMode);
             valueRef.current = value;
             selectionRef.current = selection;
+            pendingSelectionRef.current = null;
             setEditorValue(value);
             setEditorSelection(selection);
         }
@@ -105,6 +112,7 @@ export function ExpandedMarkdownEditor({
 
     React.useEffect(() => {
         if (!isOpen) {
+            pendingSelectionRef.current = null;
             setIsInputFocused(false);
         }
     }, [isOpen]);
@@ -190,17 +198,29 @@ export function ExpandedMarkdownEditor({
     }, []);
 
     const handleSelectionChange = React.useCallback((event: NativeSyntheticEvent<TextInputSelectionChangeEventData>) => {
-        selectionRef.current = event.nativeEvent.selection;
-        setEditorSelection(event.nativeEvent.selection);
-        onSelectionChange(event.nativeEvent.selection);
+        const nextSelection = event.nativeEvent.selection;
+        const pendingSelection = pendingSelectionRef.current;
+        if (pendingSelection) {
+            if (!selectionsEqual(pendingSelection, nextSelection)) {
+                return;
+            }
+            pendingSelectionRef.current = null;
+        }
+        selectionRef.current = nextSelection;
+        setEditorSelection(nextSelection);
+        onSelectionChange(nextSelection);
     }, [onSelectionChange]);
     const handleToolbarSelectionChange = React.useCallback((nextSelection: MarkdownSelection) => {
+        pendingSelectionRef.current = null;
         selectionRef.current = nextSelection;
         setEditorSelection(nextSelection);
         onSelectionChange(nextSelection);
     }, [onSelectionChange]);
     const restoreEditorFocus = React.useCallback((selectionOverride?: MarkdownSelection) => {
         const targetSelection = selectionOverride ?? selectionRef.current;
+        if (targetSelection) {
+            pendingSelectionRef.current = targetSelection;
+        }
         const focusInput = () => {
             inputRef.current?.focus();
             if (targetSelection) {
@@ -208,7 +228,16 @@ export function ExpandedMarkdownEditor({
             }
         };
         requestAnimationFrame(focusInput);
-        setTimeout(focusInput, 40);
+        setTimeout(() => {
+            focusInput();
+            if (
+                targetSelection
+                && pendingSelectionRef.current
+                && selectionsEqual(pendingSelectionRef.current, targetSelection)
+            ) {
+                pendingSelectionRef.current = null;
+            }
+        }, 40);
     }, []);
     const handleToolbarInteractionStart = React.useCallback(() => {
         toolbarInteractionUntilRef.current = Date.now() + 300;
@@ -216,10 +245,26 @@ export function ExpandedMarkdownEditor({
     }, []);
 
     const handleChangeText = React.useCallback((nextValue: string) => {
+        const continued = continueMarkdownOnTextChange(
+            valueRef.current,
+            nextValue,
+            selectionRef.current,
+        );
+        if (continued) {
+            valueRef.current = continued.value;
+            selectionRef.current = continued.selection;
+            setEditorValue(continued.value);
+            setEditorSelection(continued.selection);
+            onChange(continued.value);
+            onSelectionChange(continued.selection);
+            restoreEditorFocus(continued.selection);
+            return;
+        }
+
         valueRef.current = nextValue;
         setEditorValue(nextValue);
         onChange(nextValue);
-    }, [onChange]);
+    }, [onChange, onSelectionChange, restoreEditorFocus]);
 
     const handleApplyAction = React.useCallback((actionId: MarkdownToolbarActionId, currentSelection: MarkdownSelection) => {
         const liveSelection = selectionRef.current ?? currentSelection;

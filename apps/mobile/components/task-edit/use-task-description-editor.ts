@@ -2,6 +2,7 @@ import React from 'react';
 import { TextInput } from 'react-native';
 import {
     applyMarkdownToolbarAction,
+    continueMarkdownOnTextChange,
     type MarkdownSelection,
     type MarkdownToolbarActionId,
     type MarkdownToolbarResult,
@@ -9,6 +10,10 @@ import {
 } from '@mindwtr/core';
 
 import type { SetEditedTask } from './use-task-edit-state';
+
+const selectionsEqual = (left: MarkdownSelection, right: MarkdownSelection) => (
+    left.start === right.start && left.end === right.end
+);
 
 type UseTaskDescriptionEditorParams = {
     task: Task | null;
@@ -44,6 +49,29 @@ export function useTaskDescriptionEditor({
         start: descriptionDraft.length,
         end: descriptionDraft.length,
     });
+    const descriptionSelectionRef = React.useRef(descriptionSelection);
+    const pendingDescriptionSelectionRef = React.useRef<MarkdownSelection | null>(null);
+
+    React.useEffect(() => {
+        descriptionSelectionRef.current = descriptionSelection;
+    }, [descriptionSelection]);
+
+    const restoreDescriptionSelection = React.useCallback((selection: MarkdownSelection) => {
+        pendingDescriptionSelectionRef.current = selection;
+        const applySelection = () => {
+            descriptionInputRef.current?.setNativeProps?.({ selection });
+        };
+        requestAnimationFrame(applySelection);
+        setTimeout(() => {
+            applySelection();
+            if (
+                pendingDescriptionSelectionRef.current
+                && selectionsEqual(pendingDescriptionSelectionRef.current, selection)
+            ) {
+                pendingDescriptionSelectionRef.current = null;
+            }
+        }, 40);
+    }, []);
 
     React.useEffect(() => {
         setDescriptionSelection((prev) => {
@@ -61,7 +89,10 @@ export function useTaskDescriptionEditor({
         setDescriptionUndoDepth(0);
         setIsDescriptionInputFocused(false);
         setDescriptionExpanded(false);
-        setDescriptionSelection({ start: 0, end: 0 });
+        const resetSelection = { start: 0, end: 0 };
+        pendingDescriptionSelectionRef.current = null;
+        descriptionSelectionRef.current = resetSelection;
+        setDescriptionSelection(resetSelection);
     }, [task?.id]);
 
     const pushDescriptionUndoEntry = React.useCallback((value: string, selection: MarkdownSelection) => {
@@ -90,11 +121,12 @@ export function useTaskDescriptionEditor({
         },
     ) => {
         if ((options?.recordUndo ?? true) && text !== descriptionDraftRef.current) {
-            pushDescriptionUndoEntry(descriptionDraftRef.current, options?.baseSelection ?? descriptionSelection);
+            pushDescriptionUndoEntry(descriptionDraftRef.current, options?.baseSelection ?? descriptionSelectionRef.current);
         }
         setDescriptionDraft(text);
         descriptionDraftRef.current = text;
         if (options?.nextSelection) {
+            descriptionSelectionRef.current = options.nextSelection;
             setDescriptionSelection(options.nextSelection);
         }
         resetCopilotDraft();
@@ -107,7 +139,6 @@ export function useTaskDescriptionEditor({
     }, [
         descriptionDebounceRef,
         descriptionDraftRef,
-        descriptionSelection,
         pushDescriptionUndoEntry,
         resetCopilotDraft,
         setDescriptionDraft,
@@ -115,8 +146,33 @@ export function useTaskDescriptionEditor({
     ]);
 
     const handleDescriptionChange = React.useCallback((text: string) => {
+        const continued = continueMarkdownOnTextChange(
+            descriptionDraftRef.current,
+            text,
+            descriptionSelectionRef.current,
+        );
+        if (continued) {
+            applyDescriptionValue(continued.value, {
+                baseSelection: descriptionSelectionRef.current,
+                nextSelection: continued.selection,
+            });
+            restoreDescriptionSelection(continued.selection);
+            return;
+        }
         applyDescriptionValue(text);
-    }, [applyDescriptionValue]);
+    }, [applyDescriptionValue, restoreDescriptionSelection]);
+
+    const handleDescriptionSelectionChange = React.useCallback((selection: MarkdownSelection) => {
+        const pendingSelection = pendingDescriptionSelectionRef.current;
+        if (pendingSelection) {
+            if (!selectionsEqual(pendingSelection, selection)) {
+                return;
+            }
+            pendingDescriptionSelectionRef.current = null;
+        }
+        descriptionSelectionRef.current = selection;
+        setDescriptionSelection(selection);
+    }, []);
 
     const handleDescriptionUndo = React.useCallback(() => {
         const previousEntry = descriptionUndoRef.current[descriptionUndoRef.current.length - 1];
@@ -156,7 +212,7 @@ export function useTaskDescriptionEditor({
         descriptionExpanded,
         descriptionInputRef,
         descriptionSelection,
-        setDescriptionSelection,
+        setDescriptionSelection: handleDescriptionSelectionChange,
         descriptionUndoDepth,
         isDescriptionInputFocused,
         setIsDescriptionInputFocused,

@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, type KeyboardEvent } from 'react';
 import { Link2, Maximize2, Paperclip } from 'lucide-react';
 import {
     applyMarkdownToolbarAction,
+    continueMarkdownOnEnter,
     resolveAutoTextDirection,
     type Attachment,
     type MarkdownSelection,
@@ -136,11 +137,33 @@ export function ProjectNotesSection({
     };
 
     const handleNotesKeyDown = (event: KeyboardEvent<HTMLTextAreaElement>) => {
-        if (!(event.metaKey || event.ctrlKey) || event.altKey) return;
-        if (event.key.toLowerCase() !== 'z') return;
-        if (notesUndoRef.current.length === 0) return;
+        if ((event.metaKey || event.ctrlKey) && !event.altKey) {
+            if (event.key.toLowerCase() !== 'z') return;
+            if (notesUndoRef.current.length === 0) return;
+            event.preventDefault();
+            handleNotesUndo();
+            return;
+        }
+
+        if (event.key !== 'Enter' || event.shiftKey || event.altKey) return;
+        const currentValue = event.currentTarget.value;
+        const selection = {
+            start: event.currentTarget.selectionStart ?? currentValue.length,
+            end: event.currentTarget.selectionEnd ?? currentValue.length,
+        };
+        const next = continueMarkdownOnEnter(currentValue, selection);
+        if (!next) return;
+
         event.preventDefault();
-        handleNotesUndo();
+        applyNotesValue(next.value, {
+            baseSelection: selection,
+            nextSelection: next.selection,
+        });
+        notesSelectionRef.current = next.selection;
+        requestAnimationFrame(() => {
+            textareaRef.current?.focus();
+            textareaRef.current?.setSelectionRange(next.selection.start, next.selection.end);
+        });
     };
 
     return (

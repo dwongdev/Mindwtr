@@ -3,6 +3,7 @@ import { Maximize2 } from 'lucide-react';
 import {
     applyMarkdownToolbarAction,
     buildRRuleString,
+    continueMarkdownOnEnter,
     hasTimeComponent,
     parseRRuleString,
     resolveAutoTextDirection,
@@ -230,12 +231,34 @@ export function TaskItemFieldRenderer({
         return next;
     };
     const handleDescriptionKeyDown = (event: KeyboardEvent<HTMLTextAreaElement>) => {
-        if (!(event.metaKey || event.ctrlKey) || event.altKey) return;
         const lowerKey = event.key.toLowerCase();
-        if (lowerKey !== 'z') return;
-        if (descriptionUndoRef.current.length === 0) return;
+        if ((event.metaKey || event.ctrlKey) && !event.altKey) {
+            if (lowerKey !== 'z') return;
+            if (descriptionUndoRef.current.length === 0) return;
+            event.preventDefault();
+            handleDescriptionUndo();
+            return;
+        }
+
+        if (event.key !== 'Enter' || event.shiftKey || event.altKey) return;
+        const currentValue = event.currentTarget.value;
+        const selection = {
+            start: event.currentTarget.selectionStart ?? currentValue.length,
+            end: event.currentTarget.selectionEnd ?? currentValue.length,
+        };
+        const next = continueMarkdownOnEnter(currentValue, selection);
+        if (!next) return;
+
         event.preventDefault();
-        handleDescriptionUndo();
+        applyDescriptionValue(next.value, {
+            baseSelection: selection,
+            nextSelection: next.selection,
+        });
+        descriptionSelectionRef.current = next.selection;
+        requestAnimationFrame(() => {
+            descriptionTextareaRef.current?.focus();
+            descriptionTextareaRef.current?.setSelectionRange(next.selection.start, next.selection.end);
+        });
     };
 
     switch (fieldId) {

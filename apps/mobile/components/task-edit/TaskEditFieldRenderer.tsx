@@ -64,7 +64,7 @@ type TaskEditFieldRendererProps = {
     descriptionDraft: string;
     descriptionInputRef: React.RefObject<TextInput | null>;
     descriptionSelection: MarkdownSelection;
-    setDescriptionSelection: React.Dispatch<React.SetStateAction<MarkdownSelection>>;
+    setDescriptionSelection: (selection: MarkdownSelection) => void;
     descriptionUndoDepth: number;
     isDescriptionInputFocused: boolean;
     setIsDescriptionInputFocused: React.Dispatch<React.SetStateAction<boolean>>;
