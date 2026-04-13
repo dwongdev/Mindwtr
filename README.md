@@ -158,7 +158,7 @@ _Don't show me a cockpit when I just want to ride a bike._
 - ☁️ **Dropbox OAuth Sync (Optional)** - Native Dropbox App Folder sync in supported non-FOSS builds
 - 📤 **Export/Backup** - Export data to JSON
 - ♻️ **Restore from Backup** - Replace local data from a validated Mindwtr backup with a recovery snapshot first
-- 📥 **Todoist CSV/ZIP Import** - Import Todoist exports into Mindwtr projects and Inbox
+- 📥 **Todoist + DGT GTD Import** - Import Todoist CSV/ZIP exports or DGT GTD JSON/ZIP exports into Mindwtr
 - 🔗 **Obsidian Integration** - Desktop vault task import with deep links back to source notes
 - 🗓️ **External Calendars (System + ICS)** - Mobile reads system calendars; desktop supports ICS subscriptions
 
