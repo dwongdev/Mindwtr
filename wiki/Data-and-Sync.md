@@ -224,8 +224,8 @@ Mindwtr uses **revision-aware Last-Write-Wins (LWW)** per item:
 
 Delete-vs-live conflicts use the **last operation time**, not just the raw `updatedAt`:
 - For deleted items, Mindwtr compares `deletedAt` against the live item's latest update.
-- If the delete and live edit are more than 5 seconds apart, the newer operation wins.
-- Inside that 5-second ambiguity window, Mindwtr prefers higher revision metadata first, then newer timestamps, then `revBy`, and finally a deterministic content signature so both devices converge on the same winner.
+- If the delete and live edit are more than 30 seconds apart, the newer operation wins.
+- Inside that 30-second ambiguity window, a higher revision number still wins when available. Otherwise, Mindwtr preserves the live item instead of eagerly letting the tombstone win.
 
 Clock-skewed future timestamps are clamped during merge safety checks so a bad device clock does not dominate forever. If both sides are clamped into the future, Mindwtr still preserves their relative ordering instead of treating them as a false tie.
 

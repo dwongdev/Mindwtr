@@ -42,7 +42,8 @@ Yes — GitHub Sponsors: https://github.com/sponsors/dongdongbh
 Mindwtr currently supports:
 
 - English
-- 中文
+- 中文（简体）
+- 中文（繁體）
 - Español
 - Deutsch
 - 日本語
@@ -51,6 +52,7 @@ Mindwtr currently supports:
 - Русский
 - Français
 - Português
+- Polski
 - 한국어
 - Italiano
 - Türkçe

@@ -448,7 +448,7 @@ Make sure notifications are enabled:
 ### General
 
 - **Appearance** — System, Light, or Dark
-- **Language** — English, Chinese, Spanish, Hindi, Arabic, German, Russian, Japanese, French, Portuguese, Korean, Italian, Turkish
+- **Language** — English, Chinese (Simplified), Chinese (Traditional), Spanish, Hindi, Arabic, German, Russian, Japanese, French, Portuguese, Polish, Korean, Italian, Turkish
 
 ### Notifications
 

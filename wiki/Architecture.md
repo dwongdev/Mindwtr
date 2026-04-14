@@ -255,7 +255,7 @@ setStorageAdapter(mobileStorage);
 
 ### Persistence
 
-- **Debounced saves** — Changes are batched and saved after 1 second
+- **Write coalescing** — Changes are enqueued immediately and overlapping writes are coalesced into the next flush
 - **Flush on exit** — Pending saves are flushed when app backgrounds
 - **Soft deletes** — Items are marked with `deletedAt` for sync
 
