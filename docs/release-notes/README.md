@@ -2,6 +2,10 @@
 
 Versioned notes for desktop/mobile/core/cloud releases live in this folder.
 
+## Drafts
+
+- [v0.8.3 draft](./0.8.3.md)
+
 ## Versions
 
 - [v0.4.2](./0.4.2.md)
