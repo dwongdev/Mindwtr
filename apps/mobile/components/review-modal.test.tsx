@@ -124,7 +124,11 @@ vi.mock('@react-native-async-storage/async-storage', () => ({
 }));
 
 vi.mock('lucide-react-native', () => {
-    const icon = (name: string) => (props: any) => React.createElement(name, props);
+    const icon = (name: string) => {
+        const Icon = (props: any) => React.createElement(name, props);
+        Icon.displayName = `${name}Icon`;
+        return Icon;
+    };
     return {
         X: icon('X'),
         Inbox: icon('Inbox'),
