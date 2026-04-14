@@ -86,6 +86,10 @@ export const TaskItem = memo(function TaskItem({
     showHoverHint = true,
     editorPresentation = 'inline',
 }: TaskItemProps) {
+    const [isEditing, setIsEditing] = useState(false);
+    const [autoFocusTitle, setAutoFocusTitle] = useState(false);
+    const modalEditorRef = useRef<HTMLDivElement | null>(null);
+    const lastFocusedBeforeModalRef = useRef<HTMLElement | null>(null);
     const {
         updateTask,
         deleteTask,
@@ -93,6 +97,9 @@ export const TaskItem = memo(function TaskItem({
         projects,
         sections,
         areas,
+        project: storeProject,
+        projectArea,
+        taskArea: storeTaskArea,
         settings,
         focusedCount,
         duplicateTask,
@@ -105,7 +112,11 @@ export const TaskItem = memo(function TaskItem({
         addSection,
         lockEditing,
         unlockEditing,
-    } = useTaskItemStoreState();
+    } = useTaskItemStoreState({
+        task,
+        propProject,
+        isEditing,
+    });
     const {
         setProjectView,
         editingTaskId,
@@ -124,10 +135,6 @@ export const TaskItem = memo(function TaskItem({
         () => getLocalizedWeekdayLabels(language, 'long'),
         [language]
     );
-    const [isEditing, setIsEditing] = useState(false);
-    const [autoFocusTitle, setAutoFocusTitle] = useState(false);
-    const modalEditorRef = useRef<HTMLDivElement | null>(null);
-    const lastFocusedBeforeModalRef = useRef<HTMLElement | null>(null);
     const {
         editAttachments,
         attachmentError,
@@ -288,9 +295,10 @@ export const TaskItem = memo(function TaskItem({
     }, [isHighlighted, setHighlightTask]);
 
     const {
-        projectById,
         sectionsByProject,
-        areaById,
+        currentProject,
+        currentTaskArea,
+        currentProjectColor,
         projectContext,
         tagOptions,
         popularContextOptions,
@@ -298,10 +306,10 @@ export const TaskItem = memo(function TaskItem({
         allContexts,
     } = useTaskItemProjectContext({
         task,
-        propProject,
-        projects,
+        project: storeProject,
+        projectArea,
+        taskArea: storeTaskArea,
         sections,
-        areas,
         isEditing,
         editProjectId,
         setEditAreaId,
@@ -710,11 +718,9 @@ export const TaskItem = memo(function TaskItem({
         }
     };
 
-    const project = propProject || (task.projectId ? projectById.get(task.projectId) : undefined);
-    const taskArea = task.projectId
-        ? (project?.areaId ? areaById.get(project.areaId) : undefined)
-        : (task.areaId ? areaById.get(task.areaId) : undefined);
-    const projectColor = project?.areaId ? areaById.get(project.areaId)?.color : undefined;
+    const project = currentProject;
+    const taskArea = currentTaskArea;
+    const projectColor = currentProjectColor;
     const handleOpenProject = useCallback((projectId: string) => {
         setHighlightTask(task.id);
         setSelectedProjectId(projectId);
