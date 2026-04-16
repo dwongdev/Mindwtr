@@ -263,6 +263,37 @@ describe('desktop sync-service runtime', () => {
         });
     });
 
+    it('splits file backend cloud keys into native path segments for Windows sync folders', async () => {
+        const syncServiceModule = await syncServiceModulePromise;
+
+        invokeMock.mockImplementation(async (command: string, args?: Record<string, unknown>) => {
+            if (command === 'get_sync_backend') return 'file';
+            if (command === 'get_sync_path') return 'C:\\Users\\Pjuter\\Documents\\Mindwtr_sync\\data.json';
+            if (command === 'create_data_snapshot') return undefined;
+            if (command === 'get_data') return structuredClone(localData);
+            if (command === 'save_data') return undefined;
+            throw new Error(`Unexpected command: ${command} ${JSON.stringify(args)}`);
+        });
+        pathMocks.join.mockImplementation(async (...parts: string[]) => {
+            if (parts.slice(1).some((part) => part.includes('/'))) {
+                throw new Error(`Invalid Windows path segment: ${parts.join(' | ')}`);
+            }
+            return `\\\\?\\${parts.join('\\')}`;
+        });
+
+        const result = await syncServiceModule.SyncService.performSync();
+
+        expect(result).toEqual({ success: true, skipped: 'requeued' });
+        expect(fsMocks.writeFile).toHaveBeenCalledWith(
+            expect.stringMatching(/^\\\\\?\\C:\\Users\\Pjuter\\Documents\\Mindwtr_sync\\attachments\\att-1\.txt\.tmp-/),
+            expect.any(Uint8Array),
+        );
+        expect(fsMocks.rename).toHaveBeenCalledWith(
+            expect.stringMatching(/^\\\\\?\\C:\\Users\\Pjuter\\Documents\\Mindwtr_sync\\attachments\\att-1\.txt\.tmp-/),
+            '\\\\?\\C:\\Users\\Pjuter\\Documents\\Mindwtr_sync\\attachments\\att-1.txt',
+        );
+    });
+
     it('cleans up the offline listener even when sync error logging fails', async () => {
         const syncServiceModule = await syncServiceModulePromise;
         const addEventListenerSpy = vi.spyOn(window, 'addEventListener');
