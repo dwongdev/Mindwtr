@@ -22,7 +22,7 @@ export const StoreTaskItem = memo(function StoreTaskItem({
     ...taskItemProps
 }: StoreTaskItemProps) {
     const task = useTaskById(taskId);
-    const project = useProjectById(task?.projectId ?? '');
+    const project = useProjectById(task?.projectId);
     const handleSelect = useCallback(() => {
         if (typeof index === 'number') {
             onSelectIndex?.(index);

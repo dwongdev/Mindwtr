@@ -3,6 +3,7 @@ import { addDays } from 'date-fns';
 import { safeParseDate } from './date';
 import { useTaskStore, flushPendingSave, setStorageAdapter } from './store';
 import type { StorageAdapter } from './storage';
+import type { Task } from './types';
 
 const waitForExpectation = async (assertion: () => void, maxAttempts = 200): Promise<void> => {
     let lastError: unknown = null;
@@ -22,6 +23,19 @@ const parseLoggedContext = (value: unknown): Record<string, unknown> => {
     expect(typeof value).toBe('string');
     return JSON.parse(String(value)) as Record<string, unknown>;
 };
+
+const createStoreTask = (id: string, overrides: Partial<Task> = {}): Task => ({
+    id,
+    title: `Task ${id}`,
+    status: 'inbox',
+    tags: [],
+    contexts: [],
+    createdAt: '2026-04-01T00:00:00.000Z',
+    updatedAt: '2026-04-01T00:00:00.000Z',
+    rev: 1,
+    revBy: 'device-a',
+    ...overrides,
+});
 
 describe('TaskStore', () => {
     let mockStorage: StorageAdapter;
@@ -376,6 +390,51 @@ describe('TaskStore', () => {
         expect(state.settings.lastSyncAt).toBe('2026-03-21T12:00:00.000Z');
         expect(state.settings.lastSyncStatus).toBe('success');
         expect(state.lastDataChangeAt).toBe(123);
+    });
+
+    it('keeps entity maps synchronized when a same-slot task update arrives via setState', () => {
+        const first = createStoreTask('task-1');
+        const second = createStoreTask('task-2');
+        useTaskStore.setState({
+            tasks: [first, second],
+            _allTasks: [first, second],
+        });
+
+        const previousMap = useTaskStore.getState()._tasksById;
+        const updatedFirst = createStoreTask('task-1', {
+            title: 'Task task-1 updated',
+            updatedAt: '2026-04-02T00:00:00.000Z',
+            rev: 2,
+        });
+        useTaskStore.setState({
+            tasks: [updatedFirst, second],
+            _allTasks: [updatedFirst, second],
+        });
+
+        const state = useTaskStore.getState();
+        expect(state._tasksById).not.toBe(previousMap);
+        expect(state._tasksById.get(updatedFirst.id)).toBe(updatedFirst);
+        expect(state._tasksById.get(second.id)).toBe(second);
+    });
+
+    it('removes deleted ids from entity maps when a collection shrinks via setState', () => {
+        const visibleTask = createStoreTask('task-visible');
+        const deletedTask = createStoreTask('task-deleted', {
+            deletedAt: '2026-04-02T00:00:00.000Z',
+        });
+        useTaskStore.setState({
+            tasks: [visibleTask],
+            _allTasks: [visibleTask, deletedTask],
+        });
+
+        useTaskStore.setState({
+            tasks: [visibleTask],
+            _allTasks: [visibleTask],
+        });
+
+        const state = useTaskStore.getState();
+        expect(state._tasksById.has(deletedTask.id)).toBe(false);
+        expect(state._tasksById.get(visibleTask.id)).toBe(visibleTask);
     });
 
     it('keeps derived context and tag lists scoped to used tokens', () => {

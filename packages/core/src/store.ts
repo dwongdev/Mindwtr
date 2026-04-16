@@ -52,6 +52,11 @@ const SAVE_QUEUE_OVERFLOW_ERROR_PREFIX = 'Save queue overflow:';
 const hasPendingSaveWork = (): boolean => pendingSaves.length > 0 || saveInFlight !== null;
 const sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
 const hasOwnField = (value: object, field: PropertyKey): boolean => Object.prototype.hasOwnProperty.call(value, field);
+const getRequiredArrayField = <T>(value: Record<string, unknown>, field: string): T[] => {
+    const resolved = value[field];
+    if (Array.isArray(resolved)) return resolved as T[];
+    throw new Error(`TaskStore invariant violated: missing ${field} array state`);
+};
 const getSaveRetryDelayMs = (attempt: number): number => {
     const cappedAttempt = Math.max(0, attempt - 1);
     return Math.min(MAX_SAVE_RETRY_DELAY_MS, INITIAL_SAVE_RETRY_DELAY_MS * (2 ** cappedAttempt));
@@ -177,6 +182,24 @@ type EntityCollectionConfig = {
     mapKey: '_tasksById' | '_projectsById' | '_sectionsById' | '_areasById';
 };
 
+const patchEntityMapFromAlignedArray = <T extends { id: string }>(
+    currentItems: T[],
+    currentMap: Map<string, T>,
+    nextItems: T[]
+): Map<string, T> | null => {
+    if (currentItems.length !== nextItems.length) return null;
+    let nextMap: Map<string, T> | null = null;
+    for (let index = 0; index < nextItems.length; index += 1) {
+        const currentItem = currentItems[index];
+        const nextItem = nextItems[index];
+        if (currentItem === nextItem) continue;
+        if (currentItem?.id !== nextItem?.id) return null;
+        if (!nextMap) nextMap = new Map(currentMap);
+        nextMap.set(nextItem.id, nextItem);
+    }
+    return nextMap ?? currentMap;
+};
+
 const normalizeEntityCollectionUpdate = <T extends { id: string }>(
     state: TaskStore,
     nextState: Partial<TaskStore>,
@@ -189,9 +212,10 @@ const normalizeEntityCollectionUpdate = <T extends { id: string }>(
     if (!touchesAll && !touchesVisible && !touchesMap) return;
 
     const currentStateRecord = state as unknown as Record<string, unknown>;
-    const currentAll = (currentStateRecord[allKey] ?? currentStateRecord[visibleKey] ?? []) as T[];
-    const currentVisible = (currentStateRecord[visibleKey] ?? []) as T[];
-    const currentMap = (currentStateRecord[mapKey] ?? buildEntityMap(currentAll)) as Map<string, T>;
+    const currentAll = getRequiredArrayField<T>(currentStateRecord, allKey);
+    const currentVisible = getRequiredArrayField<T>(currentStateRecord, visibleKey);
+    const currentMapValue = currentStateRecord[mapKey];
+    const currentMap = currentMapValue instanceof Map ? currentMapValue as Map<string, T> : buildEntityMap(currentAll);
     const nextAllRaw = (nextState as Record<string, unknown>)[allKey] as T[] | undefined;
     const nextVisibleRaw = (nextState as Record<string, unknown>)[visibleKey] as T[] | undefined;
     const nextMapRaw = (nextState as Record<string, unknown>)[mapKey] as Map<string, T> | undefined;
@@ -241,7 +265,7 @@ const normalizeEntityCollectionUpdate = <T extends { id: string }>(
         ? nextMapRaw
         : resolvedAll === currentAll
             ? currentMap
-            : buildEntityMap(resolvedAll);
+            : patchEntityMapFromAlignedArray(currentAll, currentMap, resolvedAll) ?? buildEntityMap(resolvedAll);
     const resolvedVisible = visibleChanged && Array.isArray(nextVisibleRaw)
         ? nextVisibleRaw
         : currentVisible;
@@ -499,8 +523,8 @@ useTaskStore.setState = ((partial, replace) => {
 export const useTaskById = (id: string) =>
     useTaskStore((state) => state._tasksById.get(id));
 
-export const useProjectById = (id: string) =>
-    useTaskStore((state) => state._projectsById.get(id));
+export const useProjectById = (id?: string | null) =>
+    useTaskStore((state) => (id ? state._projectsById.get(id) : undefined));
 
 export const useVisibleTaskIds = () =>
     useTaskStore(useShallow((state) => state.tasks.map((task) => task.id)));

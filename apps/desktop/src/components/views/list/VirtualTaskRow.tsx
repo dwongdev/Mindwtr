@@ -46,6 +46,8 @@ export const VirtualTaskRow = React.memo(function VirtualTaskRow({
     useLayoutEffect(() => {
         const node = rowRef.current;
         if (!node || !task) return undefined;
+        // `useTaskById` preserves task object identity for unchanged rows, so `[task]`
+        // re-measures only when this row's task actually changes.
         const measure = () => {
             const nextHeight = Math.ceil(node.getBoundingClientRect().height);
             onMeasure(task.id, nextHeight);

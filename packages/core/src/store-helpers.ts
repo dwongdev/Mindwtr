@@ -146,7 +146,7 @@ export const reuseArrayIfShallowEqual = <T>(previous: T[], next: T[]): T[] => (
         : next
 );
 
-const hasSameEntityIdentity = <T extends EntityWithRevision>(existing: T, incoming: T): boolean => (
+export const hasSameEntityIdentity = <T extends EntityWithRevision>(existing: T, incoming: T): boolean => (
     existing.updatedAt === incoming.updatedAt
     && normalizeRevision(existing.rev) === normalizeRevision(incoming.rev)
     && existing.revBy === incoming.revBy
