@@ -2,7 +2,7 @@ import { createWithEqualityFn } from 'zustand/traditional';
 import type { TaskPriority, TimeEstimate } from '@mindwtr/core';
 
 const toastTimeouts = new Map<string, number>();
-type ListNextGroupBy = 'none' | 'context' | 'area';
+type ListNextGroupBy = 'none' | 'context' | 'area' | 'project';
 
 interface UiState {
     isFocusMode: boolean;

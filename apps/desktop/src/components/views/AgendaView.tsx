@@ -12,12 +12,13 @@ import { checkBudget } from '../../config/performanceBudgets';
 import { TaskItem } from '../TaskItem';
 import { projectMatchesAreaFilter, resolveAreaFilter, taskMatchesAreaFilter } from '../../lib/area-filter';
 import { PomodoroPanel } from './PomodoroPanel';
-import { AgendaFiltersPanel } from './agenda/AgendaFiltersPanel';
+import { AgendaFiltersPanel, type AgendaProjectFilterOption } from './agenda/AgendaFiltersPanel';
 import { AgendaHeader } from './agenda/AgendaHeader';
 import { AgendaCollapsibleSection, AgendaProjectSection } from './agenda/AgendaSections';
-import { groupTasksByArea, groupTasksByContext, type TaskGroup } from './list/next-grouping';
+import { groupTasksByArea, groupTasksByContext, groupTasksByProject, type TaskGroup } from './list/next-grouping';
 
 const AGENDA_VIRTUALIZATION_THRESHOLD = 25;
+const NO_PROJECT_FILTER_ID = '__no_project__';
 
 function getAgendaScrollElement(containerElement: HTMLDivElement | null): HTMLElement | null {
     if (containerElement) {
@@ -179,6 +180,7 @@ export function AgendaView() {
     const [selectedPriorities, setSelectedPriorities] = useState<TaskPriority[]>([]);
     const [selectedEnergyLevels, setSelectedEnergyLevels] = useState<TaskEnergyLevel[]>([]);
     const [selectedTimeEstimates, setSelectedTimeEstimates] = useState<TimeEstimate[]>([]);
+    const [selectedProjects, setSelectedProjects] = useState<string[]>([]);
     const [searchQuery, setSearchQuery] = useState('');
     const [filtersOpen, setFiltersOpen] = useState(false);
     const [top3Only, setTop3Only] = useState(false);
@@ -223,6 +225,30 @@ export function AgendaView() {
     const priorityOptions: TaskPriority[] = ['low', 'medium', 'high', 'urgent'];
     const energyLevelOptions: TaskEnergyLevel[] = ['low', 'medium', 'high'];
     const timeEstimateOptions: TimeEstimate[] = ['5min', '10min', '15min', '30min', '1hr', '2hr', '3hr', '4hr', '4hr+'];
+    const projectOptions = useMemo<AgendaProjectFilterOption[]>(() => {
+        const activeProjectIds = new Set(
+            activeTasks
+                .map((task) => task.projectId)
+                .filter((projectId): projectId is string => Boolean(projectId))
+        );
+        return [...projects]
+            .filter((project) => !project.deletedAt && project.status !== 'archived' && activeProjectIds.has(project.id))
+            .sort((a, b) => {
+                const aOrder = Number.isFinite(a.order) ? (a.order as number) : Number.POSITIVE_INFINITY;
+                const bOrder = Number.isFinite(b.order) ? (b.order as number) : Number.POSITIVE_INFINITY;
+                if (aOrder !== bOrder) return aOrder - bOrder;
+                return a.title.localeCompare(b.title);
+            })
+            .map((project) => ({
+                id: project.id,
+                title: project.title,
+                dotColor: (project.areaId ? areaById.get(project.areaId)?.color : undefined) || project.color || undefined,
+            }));
+    }, [activeTasks, areaById, projects]);
+    const showNoProjectOption = useMemo(
+        () => activeTasks.some((task) => !task.projectId),
+        [activeTasks]
+    );
     const formatEstimate = (estimate: TimeEstimate) => {
         if (estimate.endsWith('min')) return estimate.replace('min', 'm');
         if (estimate.endsWith('hr+')) return estimate.replace('hr+', 'h+');
@@ -237,11 +263,19 @@ export function AgendaView() {
             );
             if (!matchesAll) return false;
         }
+        if (selectedProjects.length > 0) {
+            const matchesProject = selectedProjects.some((selectedProjectId) => (
+                selectedProjectId === NO_PROJECT_FILTER_ID
+                    ? !task.projectId
+                    : task.projectId === selectedProjectId
+            ));
+            if (!matchesProject) return false;
+        }
         if (activePriorities.length > 0 && (!task.priority || !activePriorities.includes(task.priority))) return false;
         if (selectedEnergyLevels.length > 0 && (!task.energyLevel || !selectedEnergyLevels.includes(task.energyLevel))) return false;
         if (activeTimeEstimates.length > 0 && (!task.timeEstimate || !activeTimeEstimates.includes(task.timeEstimate))) return false;
         return true;
-    }, [selectedTokens, activePriorities, selectedEnergyLevels, activeTimeEstimates]);
+    }, [selectedProjects, selectedTokens, activePriorities, selectedEnergyLevels, activeTimeEstimates]);
     const normalizedSearchQuery = searchQuery.trim().toLowerCase();
     const matchesSearchQuery = useCallback((title: string) => {
         if (!normalizedSearchQuery) return true;
@@ -295,6 +329,7 @@ export function AgendaView() {
     }, [projects, matchesSearchQuery, resolvedAreaFilter, areaById]);
     const hasFilters = (
         selectedTokens.length > 0
+        || selectedProjects.length > 0
         || activePriorities.length > 0
         || selectedEnergyLevels.length > 0
         || activeTimeEstimates.length > 0
@@ -311,6 +346,11 @@ export function AgendaView() {
             prev.includes(priority) ? prev.filter((item) => item !== priority) : [...prev, priority]
         );
     };
+    const toggleProjectFilter = (projectId: string) => {
+        setSelectedProjects((prev) =>
+            prev.includes(projectId) ? prev.filter((item) => item !== projectId) : [...prev, projectId]
+        );
+    };
     const toggleEnergyFilter = (energyLevel: TaskEnergyLevel) => {
         setSelectedEnergyLevels((prev) =>
             prev.includes(energyLevel) ? prev.filter((item) => item !== energyLevel) : [...prev, energyLevel]
@@ -323,6 +363,7 @@ export function AgendaView() {
     };
     const clearFilters = () => {
         setSelectedTokens([]);
+        setSelectedProjects([]);
         setSelectedPriorities([]);
         setSelectedEnergyLevels([]);
         setSelectedTimeEstimates([]);
@@ -496,6 +537,13 @@ export function AgendaView() {
                 generalLabel: resolveText('settings.general', 'General'),
             });
         }
+        if (nextGroupBy === 'project') {
+            return groupTasksByProject({
+                tasks: sections.nextActions,
+                projectMap,
+                noProjectLabel: resolveText('taskEdit.noProjectOption', 'No project'),
+            });
+        }
         return groupTasksByContext({
             tasks: sections.nextActions,
             noContextLabel: resolveText('contexts.none', 'No context'),
@@ -619,16 +667,20 @@ export function AgendaView() {
                 onSearchChange={setSearchQuery}
                 onToggleEnergy={toggleEnergyFilter}
                 onToggleFiltersOpen={() => setFiltersOpen((prev) => !prev)}
+                onToggleProject={toggleProjectFilter}
                 onTogglePriority={togglePriorityFilter}
                 onToggleTime={toggleTimeFilter}
                 onToggleToken={toggleTokenFilter}
                 prioritiesEnabled={prioritiesEnabled}
+                projectOptions={projectOptions}
                 priorityOptions={priorityOptions}
                 searchQuery={searchQuery}
                 selectedEnergyLevels={selectedEnergyLevels}
+                selectedProjects={selectedProjects}
                 selectedPriorities={selectedPriorities}
                 selectedTimeEstimates={selectedTimeEstimates}
                 selectedTokens={selectedTokens}
+                showNoProjectOption={showNoProjectOption}
                 showFiltersPanel={showFiltersPanel}
                 t={t}
                 timeEstimateOptions={timeEstimateOptions}

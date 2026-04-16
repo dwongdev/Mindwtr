@@ -3,6 +3,12 @@ import { Filter } from 'lucide-react';
 
 import { cn } from '../../../lib/utils';
 
+export type AgendaProjectFilterOption = {
+    id: string;
+    title: string;
+    dotColor?: string;
+};
+
 type AgendaFiltersPanelProps = {
     allTokens: string[];
     energyLevelOptions: TaskEnergyLevel[];
@@ -12,16 +18,20 @@ type AgendaFiltersPanelProps = {
     onSearchChange: (value: string) => void;
     onToggleEnergy: (energyLevel: TaskEnergyLevel) => void;
     onToggleFiltersOpen: () => void;
+    onToggleProject: (projectId: string) => void;
     onTogglePriority: (priority: TaskPriority) => void;
     onToggleTime: (estimate: TimeEstimate) => void;
     onToggleToken: (token: string) => void;
     prioritiesEnabled: boolean;
+    projectOptions: AgendaProjectFilterOption[];
     priorityOptions: TaskPriority[];
     searchQuery: string;
     selectedEnergyLevels: TaskEnergyLevel[];
+    selectedProjects: string[];
     selectedPriorities: TaskPriority[];
     selectedTimeEstimates: TimeEstimate[];
     selectedTokens: string[];
+    showNoProjectOption: boolean;
     showFiltersPanel: boolean;
     t: (key: string) => string;
     timeEstimateOptions: TimeEstimate[];
@@ -37,16 +47,20 @@ export function AgendaFiltersPanel({
     onSearchChange,
     onToggleEnergy,
     onToggleFiltersOpen,
+    onToggleProject,
     onTogglePriority,
     onToggleTime,
     onToggleToken,
     prioritiesEnabled,
+    projectOptions,
     priorityOptions,
     searchQuery,
     selectedEnergyLevels,
+    selectedProjects,
     selectedPriorities,
     selectedTimeEstimates,
     selectedTokens,
+    showNoProjectOption,
     showFiltersPanel,
     t,
     timeEstimateOptions,
@@ -113,6 +127,54 @@ export function AgendaFiltersPanel({
                             })}
                         </div>
                     </div>
+                    {(showNoProjectOption || projectOptions.length > 0) && (
+                        <div className="space-y-2">
+                            <div className="text-xs uppercase tracking-wide text-muted-foreground">{t('filters.projects')}</div>
+                            <div className="flex max-h-32 flex-wrap gap-2 overflow-y-auto">
+                                {showNoProjectOption && (
+                                    <button
+                                        type="button"
+                                        onClick={() => onToggleProject('__no_project__')}
+                                        aria-pressed={selectedProjects.includes('__no_project__')}
+                                        className={cn(
+                                            'rounded-full px-3 py-1.5 text-xs font-medium transition-colors',
+                                            selectedProjects.includes('__no_project__')
+                                                ? 'bg-primary text-primary-foreground'
+                                                : 'bg-muted text-muted-foreground hover:bg-muted/80',
+                                        )}
+                                    >
+                                        {t('taskEdit.noProjectOption')}
+                                    </button>
+                                )}
+                                {projectOptions.map((project) => {
+                                    const isActive = selectedProjects.includes(project.id);
+                                    return (
+                                        <button
+                                            key={project.id}
+                                            type="button"
+                                            onClick={() => onToggleProject(project.id)}
+                                            aria-pressed={isActive}
+                                            className={cn(
+                                                'inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-xs font-medium transition-colors',
+                                                isActive
+                                                    ? 'bg-primary text-primary-foreground'
+                                                    : 'bg-muted text-muted-foreground hover:bg-muted/80',
+                                            )}
+                                        >
+                                            {project.dotColor && (
+                                                <span
+                                                    className="h-2 w-2 rounded-full"
+                                                    style={{ backgroundColor: project.dotColor }}
+                                                    aria-hidden="true"
+                                                />
+                                            )}
+                                            <span className="truncate max-w-[140px]">{project.title}</span>
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                        </div>
+                    )}
                     {prioritiesEnabled && (
                         <div className="space-y-2">
                             <div className="text-xs uppercase tracking-wide text-muted-foreground">{t('filters.priority')}</div>

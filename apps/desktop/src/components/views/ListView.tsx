@@ -22,7 +22,7 @@ import { reportError } from '../../lib/report-error';
 import { AREA_FILTER_ALL, AREA_FILTER_NONE, projectMatchesAreaFilter, resolveAreaFilter, taskMatchesAreaFilter } from '../../lib/area-filter';
 import { cn } from '../../lib/utils';
 import { sortDoneTasksForListView } from './list/done-sort';
-import { groupTasksByArea, groupTasksByContext, type NextGroupBy, type TaskGroup } from './list/next-grouping';
+import { groupTasksByArea, groupTasksByContext, groupTasksByProject, type NextGroupBy, type TaskGroup } from './list/next-grouping';
 import { useListSelection } from './list/useListSelection';
 
 
@@ -439,6 +439,13 @@ export const ListView = memo(function ListView({ title, statusFilter }: ListView
                 tasks: filteredTasks,
                 projectMap,
                 generalLabel: resolveText('settings.general', 'General'),
+            });
+        }
+        if (activeNextGroupBy === 'project') {
+            return groupTasksByProject({
+                tasks: filteredTasks,
+                projectMap,
+                noProjectLabel: resolveText('taskEdit.noProjectOption', 'No project'),
             });
         }
         return groupTasksByContext({

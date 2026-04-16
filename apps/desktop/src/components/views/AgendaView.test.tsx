@@ -227,6 +227,170 @@ describe('AgendaView', () => {
         expect(getByText('Home next task')).toBeInTheDocument();
     });
 
+    it('groups next actions by project in Focus view', () => {
+        const projectTask: Task = {
+            id: 'project-task',
+            title: 'Project task',
+            status: 'next',
+            projectId: 'project-alpha',
+            contexts: [],
+            tags: [],
+            createdAt: nowIso,
+            updatedAt: nowIso,
+        };
+        const noProjectTask: Task = {
+            id: 'no-project-task',
+            title: 'Standalone task',
+            status: 'next',
+            contexts: [],
+            tags: [],
+            createdAt: nowIso,
+            updatedAt: nowIso,
+        };
+
+        useTaskStore.setState({
+            tasks: [projectTask, noProjectTask],
+            _allTasks: [projectTask, noProjectTask],
+            projects: [{
+                id: 'project-alpha',
+                title: 'Alpha project',
+                status: 'active',
+                color: '#123456',
+                order: 0,
+                tagIds: [],
+                createdAt: nowIso,
+                updatedAt: nowIso,
+            }],
+            _allProjects: [],
+            areas: [],
+            _allAreas: [],
+            settings: {},
+            highlightTaskId: null,
+        });
+
+        const { getByLabelText, getByText } = renderAgenda();
+        const groupSelect = getByLabelText('Group') as HTMLSelectElement;
+        fireEvent.change(groupSelect, { target: { value: 'project' } });
+
+        expect(getByText('Alpha project')).toBeInTheDocument();
+        expect(getByText('No Project')).toBeInTheDocument();
+        expect(getByText('Project task')).toBeInTheDocument();
+        expect(getByText('Standalone task')).toBeInTheDocument();
+    });
+
+    it('filters focus tasks by project', () => {
+        const projectTask: Task = {
+            id: 'project-task',
+            title: 'Project task',
+            status: 'next',
+            projectId: 'project-alpha',
+            contexts: [],
+            tags: [],
+            createdAt: nowIso,
+            updatedAt: nowIso,
+        };
+        const otherTask: Task = {
+            id: 'other-task',
+            title: 'Other task',
+            status: 'next',
+            projectId: 'project-beta',
+            contexts: [],
+            tags: [],
+            createdAt: nowIso,
+            updatedAt: nowIso,
+        };
+
+        useTaskStore.setState({
+            tasks: [projectTask, otherTask],
+            _allTasks: [projectTask, otherTask],
+            projects: [
+                {
+                    id: 'project-alpha',
+                    title: 'Alpha project',
+                    status: 'active',
+                    color: '#123456',
+                    order: 0,
+                    tagIds: [],
+                    createdAt: nowIso,
+                    updatedAt: nowIso,
+                },
+                {
+                    id: 'project-beta',
+                    title: 'Beta project',
+                    status: 'active',
+                    color: '#654321',
+                    order: 1,
+                    tagIds: [],
+                    createdAt: nowIso,
+                    updatedAt: nowIso,
+                },
+            ],
+            _allProjects: [],
+            areas: [],
+            _allAreas: [],
+            settings: {},
+            highlightTaskId: null,
+        });
+
+        const { getByRole, getByText, queryByText } = renderAgenda();
+
+        fireEvent.click(getByRole('button', { name: /^Show$/i }));
+        fireEvent.click(getByRole('button', { name: 'Alpha project' }));
+
+        expect(getByText('Project task')).toBeInTheDocument();
+        expect(queryByText('Other task')).not.toBeInTheDocument();
+    });
+
+    it('filters focus tasks with the no-project option', () => {
+        const projectTask: Task = {
+            id: 'project-task',
+            title: 'Project task',
+            status: 'next',
+            projectId: 'project-alpha',
+            contexts: [],
+            tags: [],
+            createdAt: nowIso,
+            updatedAt: nowIso,
+        };
+        const noProjectTask: Task = {
+            id: 'no-project-task',
+            title: 'Standalone task',
+            status: 'next',
+            contexts: [],
+            tags: [],
+            createdAt: nowIso,
+            updatedAt: nowIso,
+        };
+
+        useTaskStore.setState({
+            tasks: [projectTask, noProjectTask],
+            _allTasks: [projectTask, noProjectTask],
+            projects: [{
+                id: 'project-alpha',
+                title: 'Alpha project',
+                status: 'active',
+                color: '#123456',
+                order: 0,
+                tagIds: [],
+                createdAt: nowIso,
+                updatedAt: nowIso,
+            }],
+            _allProjects: [],
+            areas: [],
+            _allAreas: [],
+            settings: {},
+            highlightTaskId: null,
+        });
+
+        const { getByRole, getByText, queryByText } = renderAgenda();
+
+        fireEvent.click(getByRole('button', { name: /^Show$/i }));
+        fireEvent.click(getByRole('button', { name: 'No Project' }));
+
+        expect(getByText('Standalone task')).toBeInTheDocument();
+        expect(queryByText('Project task')).not.toBeInTheDocument();
+    });
+
     it('filters focus tasks by energy level', () => {
         const lowEnergyTask: Task = {
             id: 'low-energy-task',
