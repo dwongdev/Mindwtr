@@ -8,6 +8,16 @@ Mindwtr uses local-first synchronization with deterministic conflict handling.
 - Input B: remote snapshot (same shape)
 - Output: merged snapshot + merge stats (`conflicts`, `clockSkew`, `timestampAdjustments`, `conflictIds`)
 
+## Snapshot-Based Transport
+
+Mindwtr currently syncs by merging full snapshots. That is the intended design, not an unbuilt delta layer.
+
+- ADR 0003 and ADR 0007 define the revision-aware merge behavior that runs on top of the snapshot payload.
+- ADR 0008 records the transport decision to keep snapshot sync and defer any append-only delta log.
+- For current scale, this keeps sync atomic and easier to reason about than replaying and compacting per-device operation logs.
+
+Revisit ADR 0008 only if snapshot files regularly exceed 5 MB, sync round-trips exceed 5 seconds on typical networks, or Mindwtr needs real-time multi-device streaming. If that happens, the delta design should extend existing `rev` and `revBy` metadata instead of introducing a parallel sequence scheme.
+
 ## Merge Rules
 
 1. Entities are matched by `id`.
