@@ -14,6 +14,7 @@ Mindwtr currently syncs by merging full snapshots. That is the intended design, 
 
 - ADR 0003 and ADR 0007 define the revision-aware merge behavior that runs on top of the snapshot payload.
 - ADR 0008 records the transport decision to keep snapshot sync and defer any append-only delta log.
+- ADR 0009 records the SQLite-to-JSON bridge contract: SQLite is the primary local store, while `data.json` is the sync/backup snapshot.
 - For current scale, this keeps sync atomic and easier to reason about than replaying and compacting per-device operation logs.
 
 Revisit ADR 0008 only if snapshot files regularly exceed 5 MB, sync round-trips exceed 5 seconds on typical networks, or Mindwtr needs real-time multi-device streaming. If that happens, the delta design should extend existing `rev` and `revBy` metadata instead of introducing a parallel sequence scheme.
@@ -42,9 +43,13 @@ Revisit ADR 0008 only if snapshot files regularly exceed 5 MB, sync round-trips 
    - Local data is first written with `pendingRemoteWriteAt`.
    - Remote write clears the flag on success.
    - Failed remote writes schedule retries with exponential backoff from 5 seconds up to 5 minutes.
+   - Device-local sync diagnostics stay local and are stripped before remote writes.
 9. Clock skew telemetry:
    - Merge stats record the largest observed skew.
    - Warnings surface when skew exceeds 5 minutes.
+10. Local edits during sync do not take a hard lock:
+   - Desktop and mobile detect when local state changed during the sync write phase.
+   - When that happens, the current cycle aborts and a fresh sync is queued rather than overwriting the newer local snapshot.
 
 ## Pseudocode
 
