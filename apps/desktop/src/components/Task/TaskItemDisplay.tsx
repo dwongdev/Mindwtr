@@ -9,7 +9,8 @@ import { AttachmentProgressIndicator } from '../AttachmentProgressIndicator';
 import { RichMarkdown } from '../RichMarkdown';
 import type { KeyboardEvent, MouseEvent, ReactNode } from 'react';
 import { useEffect, useRef } from 'react';
-import { isImageAttachment, resolveAttachmentSource } from './task-item-attachment-utils';
+import { isImageAttachment } from './task-item-attachment-utils';
+import { AttachmentImage } from './AttachmentImage';
 
 interface TaskItemDisplayActions {
     onToggleSelect?: () => void;
@@ -507,11 +508,10 @@ export function TaskItemDisplay({
                                                         title={fullTitle || displayTitle}
                                                         aria-label={`${t('attachments.open') || 'Open'}: ${displayTitle}`}
                                                     >
-                                                        <img
-                                                            src={resolveAttachmentSource(attachment.uri)}
+                                                        <AttachmentImage
+                                                            attachment={attachment}
                                                             alt={displayTitle}
                                                             className="block h-28 w-full object-cover bg-muted/30"
-                                                            loading="lazy"
                                                         />
                                                         <div className="flex items-start justify-between gap-2 px-2 py-1.5">
                                                             <div className="min-w-0">
