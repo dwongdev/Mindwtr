@@ -14,17 +14,19 @@ import { useLanguage } from '../../contexts/language-context';
 import { usePerformanceMonitor } from '../../hooks/usePerformanceMonitor';
 import { checkBudget } from '../../config/performanceBudgets';
 import { resolveAreaFilter, taskMatchesAreaFilter } from '../../lib/area-filter';
+import { useUiStore } from '../../store/ui-store';
 
 const STATUS_OPTIONS: TaskStatus[] = ['inbox', 'next', 'waiting', 'someday', 'done'];
 
 export function ReviewView() {
     const perf = usePerformanceMonitor('ReviewView');
-    const { tasks, projects, areas, settings, batchMoveTasks, batchDeleteTasks, batchUpdateTasks, highlightTaskId } = useTaskStore(
+    const { tasks, projects, areas, settings, updateSettings, batchMoveTasks, batchDeleteTasks, batchUpdateTasks, highlightTaskId } = useTaskStore(
         (state) => ({
             tasks: state.tasks,
             projects: state.projects,
             areas: state.areas,
             settings: state.settings,
+            updateSettings: state.updateSettings,
             batchMoveTasks: state.batchMoveTasks,
             batchDeleteTasks: state.batchDeleteTasks,
             batchUpdateTasks: state.batchUpdateTasks,
@@ -42,6 +44,9 @@ export function ReviewView() {
     const [showGuide, setShowGuide] = useState(false);
     const [showDailyGuide, setShowDailyGuide] = useState(false);
     const [moveToStatus, setMoveToStatus] = useState<TaskStatus | ''>('');
+    const showListDetails = useUiStore((state) => state.listOptions.showDetails);
+    const setListOptions = useUiStore((state) => state.setListOptions);
+    const collapseAllTaskDetails = useUiStore((state) => state.collapseAllTaskDetails);
 
     const sortBy = (settings?.taskSortBy ?? 'default') as TaskSortBy;
     const normalizedSearchQuery = searchQuery.trim().toLowerCase();
@@ -151,6 +156,15 @@ export function ReviewView() {
         setTagPromptOpen(true);
     }, [batchUpdateTasks, selectedIdsArray, tasksById, t, exitSelectionMode]);
 
+    const handleToggleDetails = useCallback(() => {
+        if (showListDetails) {
+            collapseAllTaskDetails();
+            setListOptions({ showDetails: false });
+            return;
+        }
+        setListOptions({ showDetails: true });
+    }, [collapseAllTaskDetails, setListOptions, showListDetails]);
+
     return (
         <ErrorBoundary>
             <div className="space-y-6">
@@ -162,8 +176,13 @@ export function ReviewView() {
                         if (selectionMode) exitSelectionMode();
                         else setSelectionMode(true);
                     }}
+                    sortBy={sortBy}
+                    onChangeSortBy={(value) => updateSettings({ taskSortBy: value })}
+                    showListDetails={showListDetails}
+                    onToggleDetails={handleToggleDetails}
                     onShowDailyGuide={() => setShowDailyGuide(true)}
                     onShowGuide={() => setShowGuide(true)}
+                    t={t}
                     labels={{
                         select: t('bulk.select'),
                         exitSelect: t('bulk.exitSelect'),
