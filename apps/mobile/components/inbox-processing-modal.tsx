@@ -38,8 +38,6 @@ export function InboxProcessingModal({ visible, onClose }: InboxProcessingModalP
     currentTask,
     delegateFollowUpDate,
     delegateWho,
-    descriptionMaxHeight,
-    displayDescription,
     executionChoice,
     filteredProjects,
     formatProgressLabel,
@@ -53,7 +51,6 @@ export function InboxProcessingModal({ visible, onClose }: InboxProcessingModalP
     headerStyle,
     insets,
     isAIWorking,
-    isDark,
     isDelegateConfirmationDisabled,
     newContext,
     pendingDueDate,
@@ -65,7 +62,6 @@ export function InboxProcessingModal({ visible, onClose }: InboxProcessingModalP
     processingTitleFocused,
     projectFirst,
     projectSearch,
-    projectTitle,
     referenceEnabled,
     selectedAreaId,
     selectedAssignedTo,
@@ -119,7 +115,6 @@ export function InboxProcessingModal({ visible, onClose }: InboxProcessingModalP
     showTimeEstimateField,
     t,
     tagCopilotSuggestions,
-    taskDisplayMaxHeight,
     tc,
     timeEstimateOptions,
     titleDirectionStyle,
@@ -652,108 +647,6 @@ export function InboxProcessingModal({ visible, onClose }: InboxProcessingModalP
             </TouchableOpacity>
           </View>
 
-          <View style={[styles.taskDisplay, { maxHeight: taskDisplayMaxHeight }]}>
-            <Text style={[styles.taskTitle, titleDirectionStyle, { color: tc.text }]}>
-              {processingTitle || currentTask.title}
-            </Text>
-            {displayDescription ? (
-              <ScrollView
-                nestedScrollEnabled
-                style={[styles.descriptionScroll, { maxHeight: descriptionMaxHeight }]}
-                contentContainerStyle={styles.descriptionScrollContent}
-              >
-                <Text style={[styles.taskDescription, { color: tc.secondaryText }]}>
-                  {displayDescription}
-                </Text>
-              </ScrollView>
-            ) : null}
-            <View style={styles.taskMetaRow}>
-              {projectTitle && (
-                <Text
-                  style={[
-                    styles.metaPill,
-                    { backgroundColor: tc.filterBg, borderColor: tc.border, color: tc.text },
-                  ]}
-                >
-                  📁 {projectTitle}
-                </Text>
-              )}
-              {currentTask.startTime && (
-                <Text
-                  style={[
-                    styles.metaPill,
-                    { backgroundColor: tc.filterBg, borderColor: tc.border, color: tc.text },
-                  ]}
-                >
-                  ⏱ {safeFormatDate(currentTask.startTime, 'P')}
-                </Text>
-              )}
-              {currentTask.dueDate && (
-                <Text
-                  style={[
-                    styles.metaPill,
-                    { backgroundColor: tc.filterBg, borderColor: tc.border, color: tc.text },
-                  ]}
-                >
-                  📅 {safeFormatDate(currentTask.dueDate, 'P')}
-                </Text>
-              )}
-              {currentTask.reviewAt && (
-                <Text
-                  style={[
-                    styles.metaPill,
-                    { backgroundColor: tc.filterBg, borderColor: tc.border, color: tc.text },
-                  ]}
-                >
-                  🔁 {safeFormatDate(currentTask.reviewAt, 'P')}
-                </Text>
-              )}
-            </View>
-            {(currentTask.contexts.length > 0 || currentTask.tags.length > 0) && (
-              <View style={styles.taskMetaRow}>
-                {currentTask.contexts.slice(0, 6).map((context) => (
-                  <Text
-                    key={context}
-                    style={[
-                      styles.metaPill,
-                      isDark ? styles.metaPillContextDark : styles.metaPillContextLight,
-                      { borderColor: tc.border },
-                    ]}
-                  >
-                    {context}
-                  </Text>
-                ))}
-                {currentTask.tags.slice(0, 6).map((tag) => (
-                  <Text
-                    key={tag}
-                    style={[
-                      styles.metaPill,
-                      isDark ? styles.metaPillTagDark : styles.metaPillTagLight,
-                      { borderColor: tc.border },
-                    ]}
-                  >
-                    {tag}
-                  </Text>
-                ))}
-              </View>
-            )}
-            {aiEnabled && (
-              <View style={styles.aiActionRow}>
-                <TouchableOpacity
-                  style={[styles.aiActionButton, { backgroundColor: tc.filterBg, borderColor: tc.border }]}
-                  onPress={handleAIClarifyInbox}
-                  disabled={isAIWorking}
-                  accessibilityState={{ disabled: isAIWorking, busy: isAIWorking }}
-                >
-                  {isAIWorking && <ActivityIndicator size="small" color={tc.tint} />}
-                  <Text style={[styles.aiActionText, { color: tc.tint }]}>
-                    {isAIWorking ? aiWorkingText : t('taskEdit.aiClarify')}
-                  </Text>
-                </TouchableOpacity>
-              </View>
-            )}
-          </View>
-
           <View style={styles.stepContainer}>
             <ScrollView
               ref={processingScrollRef}
@@ -770,6 +663,21 @@ export function InboxProcessingModal({ visible, onClose }: InboxProcessingModalP
                 <Text style={[styles.stepHint, { color: tc.secondaryText }]}>
                   {t('inbox.refineHint')}
                 </Text>
+                {aiEnabled && (
+                  <View style={styles.aiActionRow}>
+                    <TouchableOpacity
+                      style={[styles.aiActionButton, { backgroundColor: tc.filterBg, borderColor: tc.border }]}
+                      onPress={handleAIClarifyInbox}
+                      disabled={isAIWorking}
+                      accessibilityState={{ disabled: isAIWorking, busy: isAIWorking }}
+                    >
+                      {isAIWorking && <ActivityIndicator size="small" color={tc.tint} />}
+                      <Text style={[styles.aiActionText, { color: tc.tint }]}>
+                        {isAIWorking ? aiWorkingText : t('taskEdit.aiClarify')}
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
+                )}
                 <Text style={[styles.refineLabel, { color: tc.secondaryText }]}>{t('taskEdit.titleLabel')}</Text>
                 <TextInput
                   ref={titleInputRef}

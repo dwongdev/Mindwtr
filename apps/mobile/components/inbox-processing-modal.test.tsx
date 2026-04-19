@@ -131,6 +131,17 @@ describe('InboxProcessingModal', () => {
     });
   };
 
+  const findNodesWithText = (root: ReturnType<typeof create>['root'], text: string) => {
+    return root.findAll((node) => {
+      const children = node.props?.children;
+      if (children === text) return true;
+      if (Array.isArray(children)) {
+        return children.some((child) => child === text);
+      }
+      return false;
+    });
+  };
+
   it('replaces the header next action with skip and saves edits before advancing', () => {
     mockSettings.features = undefined;
     mockSettings.gtd.inboxProcessing = {};
@@ -210,6 +221,21 @@ describe('InboxProcessingModal', () => {
     const root = tree!.root;
 
     expect(root.findAllByProps({ placeholder: 'inbox.addContextPlaceholder' })).toHaveLength(0);
+  });
+
+  it('starts mobile inbox processing at the refine form without duplicating the task preview', () => {
+    const onClose = vi.fn();
+    let tree: ReturnType<typeof create>;
+
+    act(() => {
+      tree = create(<InboxProcessingModal visible onClose={onClose} />);
+    });
+
+    const root = tree!.root;
+
+    expect(root.findByProps({ children: 'inbox.refineTitle' })).toBeTruthy();
+    expect(findNodesWithText(root, 'Inbox task')).toHaveLength(0);
+    expect(findNodesWithText(root, 'Original description')).toHaveLength(0);
   });
 
   it('saves the selected priority by default when priorities are not explicitly disabled', () => {
