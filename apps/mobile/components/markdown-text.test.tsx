@@ -35,11 +35,13 @@ vi.mock('expo-linking', () => ({
   openURL: vi.fn(),
 }));
 
-const flattenText = (value: renderer.ReactTestRendererJSON | renderer.ReactTestRendererJSON[] | string | null): string => {
+const flattenText = (
+  value: renderer.ReactTestRendererNode | renderer.ReactTestRendererNode[] | null,
+): string => {
   if (value == null) return '';
   if (typeof value === 'string') return value;
   if (Array.isArray(value)) return value.map((item) => flattenText(item)).join('');
-  return flattenText(value.children as renderer.ReactTestRendererJSON[] | string[] | null);
+  return flattenText(value.children);
 };
 
 describe('MarkdownText', () => {

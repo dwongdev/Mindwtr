@@ -102,8 +102,12 @@ describe('ManageSettingsScreen', () => {
     });
 
     expect(asyncStorageMocks.getItem).toHaveBeenCalledWith('mindwtr:settings:manage:openSections');
-    expect(tree.root.findAll((node) => node.type === 'Text' && node.props.children === 'Design')).toHaveLength(1);
-    expect(tree.root.findAll((node) => node.type === 'Text' && node.props.children === '#design')).toHaveLength(1);
+    expect(
+      tree.root.findAll((node) => (node.type as unknown) === 'Text' && node.props.children === 'Design'),
+    ).toHaveLength(1);
+    expect(
+      tree.root.findAll((node) => (node.type as unknown) === 'Text' && node.props.children === '#design'),
+    ).toHaveLength(1);
   });
 
   it('persists section toggles after hydration', async () => {

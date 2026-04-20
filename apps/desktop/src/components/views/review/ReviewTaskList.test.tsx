@@ -55,6 +55,7 @@ describe('ReviewTaskList', () => {
         render(
             <ReviewTaskList
                 tasks={tasks}
+                showListDetails
                 selectionMode={false}
                 multiSelectedIds={new Set()}
                 highlightTaskId="task-3"

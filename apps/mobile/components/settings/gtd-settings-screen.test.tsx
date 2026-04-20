@@ -1,5 +1,6 @@
 import React from 'react';
 import renderer from 'react-test-renderer';
+import { Modal } from 'react-native';
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 
 import { GtdSettingsScreen } from './gtd-settings-screen';
@@ -121,7 +122,7 @@ describe('GtdSettingsScreen task editor layout', () => {
         }),
       }),
     }));
-    expect(tree.root.findByType('Modal').props.visible).toBe(false);
+    expect(tree.root.findByType(Modal).props.visible).toBe(false);
   });
 
   it('still opens the field sheet when the row body is tapped', () => {
@@ -136,6 +137,6 @@ describe('GtdSettingsScreen task editor layout', () => {
       rowButton.props.onPress();
     });
 
-    expect(tree.root.findByType('Modal').props.visible).toBe(true);
+    expect(tree.root.findByType(Modal).props.visible).toBe(true);
   });
 });
