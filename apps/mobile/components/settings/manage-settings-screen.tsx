@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Alert, Modal, Pressable, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -12,6 +13,24 @@ import { SettingsTopBar, SubHeader } from './settings.shell';
 import { styles } from './settings.styles';
 
 type ManageSectionKey = 'areas' | 'contexts' | 'tags';
+const MANAGE_OPEN_SECTIONS_STORAGE_KEY = 'mindwtr:settings:manage:openSections';
+const DEFAULT_OPEN_SECTIONS: Record<ManageSectionKey, boolean> = {
+    areas: false,
+    contexts: false,
+    tags: false,
+};
+
+const normalizeOpenSections = (value: unknown): Record<ManageSectionKey, boolean> => {
+    if (!value || typeof value !== 'object' || Array.isArray(value)) {
+        return { ...DEFAULT_OPEN_SECTIONS };
+    }
+    const record = value as Record<string, unknown>;
+    return {
+        areas: record.areas === true,
+        contexts: record.contexts === true,
+        tags: record.tags === true,
+    };
+};
 
 function CollapsibleSection({
     children,
@@ -19,6 +38,7 @@ function CollapsibleSection({
     onToggle,
     open,
     tc,
+    testID,
     title,
 }: {
     children: React.ReactNode;
@@ -26,11 +46,13 @@ function CollapsibleSection({
     onToggle: () => void;
     open: boolean;
     tc: ReturnType<typeof useThemeColors>;
+    testID?: string;
     title: string;
 }) {
     return (
         <View style={{ marginBottom: 16 }}>
             <TouchableOpacity
+                testID={testID}
                 onPress={onToggle}
                 style={[
                     styles.settingCard,
@@ -72,11 +94,37 @@ export function ManageSettingsScreen() {
     >(null);
     const [editorName, setEditorName] = useState('');
     const [editorColor, setEditorColor] = useState(DEFAULT_AREA_COLOR);
-    const [openSections, setOpenSections] = useState<Record<ManageSectionKey, boolean>>({
-        areas: false,
-        contexts: false,
-        tags: false,
-    });
+    const [openSections, setOpenSections] = useState<Record<ManageSectionKey, boolean>>(() => ({ ...DEFAULT_OPEN_SECTIONS }));
+    const openSectionsHydratedRef = useRef(false);
+
+    useEffect(() => {
+        let cancelled = false;
+        AsyncStorage.getItem(MANAGE_OPEN_SECTIONS_STORAGE_KEY)
+            .then((raw) => {
+                if (cancelled) return;
+                if (raw) {
+                    try {
+                        setOpenSections(normalizeOpenSections(JSON.parse(raw)));
+                    } catch {
+                        setOpenSections({ ...DEFAULT_OPEN_SECTIONS });
+                    }
+                }
+            })
+            .catch(() => {})
+            .finally(() => {
+                if (!cancelled) {
+                    openSectionsHydratedRef.current = true;
+                }
+            });
+        return () => {
+            cancelled = true;
+        };
+    }, []);
+
+    useEffect(() => {
+        if (!openSectionsHydratedRef.current) return;
+        AsyncStorage.setItem(MANAGE_OPEN_SECTIONS_STORAGE_KEY, JSON.stringify(openSections)).catch(() => {});
+    }, [openSections]);
 
     const localize2 = (en: string, zh: string) => localize(en, zh);
     const confirmDelete = (label: string, onConfirm: () => void) => {
@@ -180,6 +228,7 @@ export function ManageSettingsScreen() {
             <SubHeader title={t('settings.manage')} />
             <ScrollView style={styles.scrollView} contentContainerStyle={scrollContentStyle}>
                 <CollapsibleSection
+                    testID="manage-section-toggle-areas"
                     title={t('areas.manage')}
                     count={sortedAreas.length}
                     open={openSections.areas}
@@ -197,6 +246,7 @@ export function ManageSettingsScreen() {
                 </CollapsibleSection>
 
                 <CollapsibleSection
+                    testID="manage-section-toggle-contexts"
                     title={t('contexts.title')}
                     count={allContexts.length}
                     open={openSections.contexts}
@@ -221,6 +271,7 @@ export function ManageSettingsScreen() {
                 </CollapsibleSection>
 
                 <CollapsibleSection
+                    testID="manage-section-toggle-tags"
                     title={localize2('Tags', '标签')}
                     count={allTags.length}
                     open={openSections.tags}
