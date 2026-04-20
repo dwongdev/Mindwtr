@@ -26,16 +26,36 @@
   </description>
   <screenshots>
     <screenshot type="default" xml:lang="en">
-      <caption>Review tasks across your lists</caption>
-      <image>https://raw.githubusercontent.com/dongdongbh/Mindwtr/main/apps/desktop/screenshots/review_light.png</image>
+      <caption>Capture and triage tasks in Inbox</caption>
+      <image>https://raw.githubusercontent.com/dongdongbh/Mindwtr/main/apps/desktop/screenshots/flathub/inbox_light.png</image>
     </screenshot>
     <screenshot xml:lang="en">
-      <caption>Capture tasks quickly in Inbox</caption>
-      <image>https://raw.githubusercontent.com/dongdongbh/Mindwtr/main/apps/desktop/screenshots/inbox_light.png</image>
+      <caption>Focus on your next actions for today</caption>
+      <image>https://raw.githubusercontent.com/dongdongbh/Mindwtr/main/apps/desktop/screenshots/flathub/focus_light.png</image>
     </screenshot>
     <screenshot xml:lang="en">
-      <caption>Learn the workflow with the built-in guide</caption>
-      <image>https://raw.githubusercontent.com/dongdongbh/Mindwtr/main/apps/desktop/screenshots/tutorial_light.png</image>
+      <caption>Organize work in the projects workspace</caption>
+      <image>https://raw.githubusercontent.com/dongdongbh/Mindwtr/main/apps/desktop/screenshots/flathub/projects_workspace_light.png</image>
+    </screenshot>
+    <screenshot xml:lang="en">
+      <caption>Plan visually with board view</caption>
+      <image>https://raw.githubusercontent.com/dongdongbh/Mindwtr/main/apps/desktop/screenshots/flathub/board_view_light.png</image>
+    </screenshot>
+    <screenshot xml:lang="en">
+      <caption>Adjust appearance and workflow settings</caption>
+      <image>https://raw.githubusercontent.com/dongdongbh/Mindwtr/main/apps/desktop/screenshots/flathub/settings_light.png</image>
+    </screenshot>
+    <screenshot xml:lang="en">
+      <caption>Keep supporting material in Reference</caption>
+      <image>https://raw.githubusercontent.com/dongdongbh/Mindwtr/main/apps/desktop/screenshots/flathub/reference_light.png</image>
+    </screenshot>
+    <screenshot xml:lang="en">
+      <caption>Review due dates in calendar view</caption>
+      <image>https://raw.githubusercontent.com/dongdongbh/Mindwtr/main/apps/desktop/screenshots/flathub/calendar_light.png</image>
+    </screenshot>
+    <screenshot xml:lang="en">
+      <caption>Group and filter work by context</caption>
+      <image>https://raw.githubusercontent.com/dongdongbh/Mindwtr/main/apps/desktop/screenshots/flathub/contexts_light.png</image>
     </screenshot>
   </screenshots>
   <branding>
