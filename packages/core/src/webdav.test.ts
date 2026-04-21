@@ -1,5 +1,11 @@
 import { describe, expect, it, vi } from 'vitest';
-import { webdavGetJson } from './webdav';
+import { webdavGetJson, webdavPutFile, webdavPutJson } from './webdav';
+
+const makeResponse = (overrides: Partial<Response> & { status: number; ok: boolean }): Response => ({
+    statusText: '',
+    text: async () => '',
+    ...overrides,
+}) as Response;
 
 describe('webdav http helpers', () => {
     it('allows HTTP for private IP targets', async () => {
@@ -86,5 +92,50 @@ describe('webdav http helpers', () => {
         );
 
         await expect(webdavGetJson<{ ok: boolean }>('https://example.com/data.json', { fetcher })).resolves.toEqual({ ok: true });
+    });
+
+    it('creates missing parent collections before retrying a JSON PUT', async () => {
+        const fetcher = vi
+            .fn()
+            .mockResolvedValueOnce(makeResponse({ ok: false, status: 409, statusText: 'Conflict', text: async () => 'Conflict' }))
+            .mockResolvedValueOnce(makeResponse({ ok: false, status: 409, statusText: 'Conflict' }))
+            .mockResolvedValueOnce(makeResponse({ ok: true, status: 201, statusText: 'Created' }))
+            .mockResolvedValueOnce(makeResponse({ ok: true, status: 201, statusText: 'Created' }))
+            .mockResolvedValueOnce(makeResponse({ ok: true, status: 201, statusText: 'Created' }));
+
+        await expect(
+            webdavPutJson('https://example.com/remote.php/dav/files/user/mindwtr/nested/data.json', { ok: true }, { fetcher }),
+        ).resolves.toBeUndefined();
+
+        expect(fetcher.mock.calls.map(([url, init]) => [url, init?.method])).toEqual([
+            ['https://example.com/remote.php/dav/files/user/mindwtr/nested/data.json', 'PUT'],
+            ['https://example.com/remote.php/dav/files/user/mindwtr/nested', 'MKCOL'],
+            ['https://example.com/remote.php/dav/files/user/mindwtr', 'MKCOL'],
+            ['https://example.com/remote.php/dav/files/user/mindwtr/nested', 'MKCOL'],
+            ['https://example.com/remote.php/dav/files/user/mindwtr/nested/data.json', 'PUT'],
+        ]);
+    });
+
+    it('creates missing parent collections before retrying a file PUT', async () => {
+        const fetcher = vi
+            .fn()
+            .mockResolvedValueOnce(makeResponse({ ok: false, status: 409, statusText: 'Conflict' }))
+            .mockResolvedValueOnce(makeResponse({ ok: true, status: 201, statusText: 'Created' }))
+            .mockResolvedValueOnce(makeResponse({ ok: true, status: 201, statusText: 'Created' }));
+
+        await expect(
+            webdavPutFile(
+                'https://example.com/remote.php/dav/files/user/mindwtr/attachments/doc.txt',
+                new Uint8Array([1, 2, 3]),
+                'text/plain',
+                { fetcher },
+            ),
+        ).resolves.toBeUndefined();
+
+        expect(fetcher.mock.calls.map(([url, init]) => [url, init?.method])).toEqual([
+            ['https://example.com/remote.php/dav/files/user/mindwtr/attachments/doc.txt', 'PUT'],
+            ['https://example.com/remote.php/dav/files/user/mindwtr/attachments', 'MKCOL'],
+            ['https://example.com/remote.php/dav/files/user/mindwtr/attachments/doc.txt', 'PUT'],
+        ]);
     });
 });
