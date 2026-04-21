@@ -33,6 +33,9 @@ export interface Recurrence {
     rule: RecurrenceRule;
     strategy?: RecurrenceStrategy; // Defaults to 'strict'
     byDay?: RecurrenceByDay[]; // Explicit weekdays for weekly/monthly recurrences
+    count?: number; // Total occurrences in the series, including the current task
+    until?: string; // ISO date/datetime when the series should stop
+    completedOccurrences?: number; // Internal counter used to preserve COUNT across generated tasks
     rrule?: string; // Optional RFC 5545 fragment (e.g. FREQ=WEEKLY;BYDAY=MO,WE)
 }
 

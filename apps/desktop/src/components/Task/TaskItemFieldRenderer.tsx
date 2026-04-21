@@ -13,6 +13,7 @@ import {
     type MarkdownSelection,
     type MarkdownToolbarActionId,
     type MarkdownToolbarResult,
+    type RecurrenceByDay,
     type RecurrenceRule,
     type RecurrenceStrategy,
     type Task,
@@ -178,6 +179,40 @@ export function TaskItemFieldRenderer({
         updateTask,
         resetTaskChecklist,
     } = handlers;
+    const parsedRecurrenceRRule = parseRRuleString(editRecurrenceRRule);
+    const recurrenceEndMode: 'never' | 'until' | 'count' = parsedRecurrenceRRule.count
+        ? 'count'
+        : parsedRecurrenceRRule.until
+            ? 'until'
+            : 'never';
+    const recurrenceDefaultEndDate = parsedRecurrenceRRule.until
+        || safeFormatDate(
+            safeParseDate(editDueDate || editStartTime || task.dueDate || task.startTime) ?? new Date(),
+            'yyyy-MM-dd'
+        );
+    const buildRecurrenceRRule = (
+        rule: RecurrenceRule,
+        overrides: {
+            byDay?: RecurrenceByDay[];
+            interval?: number;
+            byMonthDay?: number[];
+            count?: number;
+            until?: string;
+        } = {}
+    ) => {
+        const hasOverride = <TKey extends keyof typeof overrides>(key: TKey) =>
+            Object.prototype.hasOwnProperty.call(overrides, key);
+        return buildRRuleString(
+            rule,
+            hasOverride('byDay') ? overrides.byDay : parsedRecurrenceRRule.byDay,
+            hasOverride('interval') ? overrides.interval : parsedRecurrenceRRule.interval,
+            {
+                byMonthDay: hasOverride('byMonthDay') ? overrides.byMonthDay : parsedRecurrenceRRule.byMonthDay,
+                count: hasOverride('count') ? overrides.count : parsedRecurrenceRRule.count,
+                until: hasOverride('until') ? overrides.until : parsedRecurrenceRRule.until,
+            }
+        );
+    };
 
     const resolvedDirection = resolveAutoTextDirection([task.title, editDescription].filter(Boolean).join(' '), language);
     const isRtl = resolvedDirection === 'rtl';
@@ -698,21 +733,35 @@ export function TaskItemFieldRenderer({
                             const value = e.target.value as RecurrenceRule | '';
                             setEditRecurrence(value);
                             if (value === 'daily') {
-                                const parsed = parseRRuleString(editRecurrenceRRule);
-                                if (!editRecurrenceRRule || parsed.rule !== 'daily') {
-                                    setEditRecurrenceRRule(buildRRuleString('daily'));
+                                if (!editRecurrenceRRule || parsedRecurrenceRRule.rule !== 'daily') {
+                                    setEditRecurrenceRRule(buildRRuleString('daily', undefined, 1, {
+                                        count: parsedRecurrenceRRule.count,
+                                        until: parsedRecurrenceRRule.until,
+                                    }));
                                 }
                             }
                             if (value === 'weekly') {
-                                const parsed = parseRRuleString(editRecurrenceRRule);
-                                if (!editRecurrenceRRule || parsed.rule !== 'weekly') {
-                                    setEditRecurrenceRRule(buildRRuleString('weekly'));
+                                if (!editRecurrenceRRule || parsedRecurrenceRRule.rule !== 'weekly') {
+                                    setEditRecurrenceRRule(buildRRuleString('weekly', undefined, undefined, {
+                                        count: parsedRecurrenceRRule.count,
+                                        until: parsedRecurrenceRRule.until,
+                                    }));
                                 }
                             }
                             if (value === 'monthly') {
-                                const parsed = parseRRuleString(editRecurrenceRRule);
-                                if (!editRecurrenceRRule || parsed.rule !== 'monthly') {
-                                    setEditRecurrenceRRule(buildRRuleString('monthly'));
+                                if (!editRecurrenceRRule || parsedRecurrenceRRule.rule !== 'monthly') {
+                                    setEditRecurrenceRRule(buildRRuleString('monthly', undefined, undefined, {
+                                        count: parsedRecurrenceRRule.count,
+                                        until: parsedRecurrenceRRule.until,
+                                    }));
+                                }
+                            }
+                            if (value === 'yearly') {
+                                if (!editRecurrenceRRule || parsedRecurrenceRRule.rule !== 'yearly') {
+                                    setEditRecurrenceRRule(buildRRuleString('yearly', undefined, undefined, {
+                                        count: parsedRecurrenceRRule.count,
+                                        until: parsedRecurrenceRRule.until,
+                                    }));
                                 }
                             }
 
@@ -735,13 +784,17 @@ export function TaskItemFieldRenderer({
                                 type="number"
                                 min={1}
                                 max={365}
-                                value={Math.max(parseRRuleString(editRecurrenceRRule).interval ?? 1, 1)}
+                                value={Math.max(parsedRecurrenceRRule.interval ?? 1, 1)}
                                 onChange={(event) => {
                                     const intervalValue = Number(event.target.valueAsNumber);
                                     const safeInterval = Number.isFinite(intervalValue) && intervalValue > 0
                                         ? Math.min(Math.round(intervalValue), 365)
                                         : 1;
-                                    setEditRecurrenceRRule(buildRRuleString('daily', undefined, safeInterval));
+                                    setEditRecurrenceRRule(buildRecurrenceRRule('daily', {
+                                        byDay: undefined,
+                                        byMonthDay: undefined,
+                                        interval: safeInterval,
+                                    }));
                                 }}
                                 className="w-20 text-xs bg-muted/50 border border-border rounded px-2 py-1 text-foreground"
                             />
@@ -763,10 +816,88 @@ export function TaskItemFieldRenderer({
                         <div className="pt-1">
                             <span className="text-[10px] text-muted-foreground">{t('recurrence.repeatOn')}</span>
                             <WeekdaySelector
-                                value={editRecurrenceRRule || buildRRuleString('weekly')}
-                                onChange={(rrule) => setEditRecurrenceRRule(rrule)}
+                                value={editRecurrenceRRule || buildRRuleString('weekly', undefined, undefined, {
+                                    count: parsedRecurrenceRRule.count,
+                                    until: parsedRecurrenceRRule.until,
+                                })}
+                                onChange={(rrule) => {
+                                    const parsed = parseRRuleString(rrule);
+                                    setEditRecurrenceRRule(buildRRuleString('weekly', parsed.byDay, parsed.interval, {
+                                        count: parsedRecurrenceRRule.count,
+                                        until: parsedRecurrenceRRule.until,
+                                    }));
+                                }}
                                 className="pt-1"
                             />
+                        </div>
+                    )}
+                    {editRecurrence && (
+                        <div className="flex items-center gap-2 pt-1 flex-wrap">
+                            <span className="text-[10px] text-muted-foreground">{t('recurrence.endsLabel')}</span>
+                            <select
+                                value={recurrenceEndMode}
+                                onChange={(event) => {
+                                    const value = event.target.value as 'never' | 'until' | 'count';
+                                    if (value === 'never') {
+                                        setEditRecurrenceRRule(buildRecurrenceRRule(editRecurrence, {
+                                            count: undefined,
+                                            until: undefined,
+                                        }));
+                                        return;
+                                    }
+                                    if (value === 'until') {
+                                        setEditRecurrenceRRule(buildRecurrenceRRule(editRecurrence, {
+                                            count: undefined,
+                                            until: recurrenceDefaultEndDate,
+                                        }));
+                                        return;
+                                    }
+                                    setEditRecurrenceRRule(buildRecurrenceRRule(editRecurrence, {
+                                        count: parsedRecurrenceRRule.count ?? 1,
+                                        until: undefined,
+                                    }));
+                                }}
+                                className="text-xs bg-muted/50 border border-border rounded px-2 py-1 text-foreground"
+                            >
+                                <option value="never">{t('recurrence.endsNever')}</option>
+                                <option value="until">{t('recurrence.endsOnDate')}</option>
+                                <option value="count">{t('recurrence.endsAfterCount')}</option>
+                            </select>
+                            {recurrenceEndMode === 'until' && (
+                                <input
+                                    type="date"
+                                    value={parsedRecurrenceRRule.until || recurrenceDefaultEndDate}
+                                    onChange={(event) => {
+                                        setEditRecurrenceRRule(buildRecurrenceRRule(editRecurrence, {
+                                            count: undefined,
+                                            until: event.target.value || recurrenceDefaultEndDate,
+                                        }));
+                                    }}
+                                    className="text-xs bg-muted/50 border border-border rounded px-2 py-1 text-foreground"
+                                />
+                            )}
+                            {recurrenceEndMode === 'count' && (
+                                <>
+                                    <input
+                                        type="number"
+                                        min={1}
+                                        max={999}
+                                        value={Math.max(parsedRecurrenceRRule.count ?? 1, 1)}
+                                        onChange={(event) => {
+                                            const countValue = Number(event.target.valueAsNumber);
+                                            const safeCount = Number.isFinite(countValue) && countValue > 0
+                                                ? Math.min(Math.round(countValue), 999)
+                                                : 1;
+                                            setEditRecurrenceRRule(buildRecurrenceRRule(editRecurrence, {
+                                                count: safeCount,
+                                                until: undefined,
+                                            }));
+                                        }}
+                                        className="w-20 text-xs bg-muted/50 border border-border rounded px-2 py-1 text-foreground"
+                                    />
+                                    <span className="text-[10px] text-muted-foreground">{t('recurrence.occurrenceUnit')}</span>
+                                </>
+                            )}
                         </div>
                     )}
                     {editRecurrence === 'monthly' && (
@@ -775,7 +906,10 @@ export function TaskItemFieldRenderer({
                             <div className="flex flex-wrap gap-2">
                                 <button
                                     type="button"
-                                    onClick={() => setEditRecurrenceRRule(buildRRuleString('monthly'))}
+                                    onClick={() => setEditRecurrenceRRule(buildRRuleString('monthly', undefined, undefined, {
+                                        count: parsedRecurrenceRRule.count,
+                                        until: parsedRecurrenceRRule.until,
+                                    }))}
                                     className={cn(
                                         'text-[10px] px-2 py-1 rounded border transition-colors',
                                         monthlyRecurrence.pattern === 'date'

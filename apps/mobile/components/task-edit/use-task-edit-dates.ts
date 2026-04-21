@@ -1,9 +1,10 @@
 import React from 'react';
 import { Platform } from 'react-native';
 import type { DateTimePickerEvent } from '@react-native-community/datetimepicker';
-import { hasTimeComponent, safeFormatDate, safeParseDate, safeParseDueDate, type Task } from '@mindwtr/core';
+import { buildRRuleString, hasTimeComponent, parseRRuleString, safeFormatDate, safeParseDate, safeParseDueDate, type Task } from '@mindwtr/core';
 
 import type { SetEditedTask } from './use-task-edit-state';
+import { buildRecurrenceValue } from './recurrence-utils';
 
 type UseTaskEditDatesParams = {
     editedTask: Partial<Task>;
@@ -12,8 +13,8 @@ type UseTaskEditDatesParams = {
     setEditedTask: SetEditedTask;
     setPendingDueDate: React.Dispatch<React.SetStateAction<Date | null>>;
     setPendingStartDate: React.Dispatch<React.SetStateAction<Date | null>>;
-    setShowDatePicker: React.Dispatch<React.SetStateAction<'start' | 'start-time' | 'due' | 'due-time' | 'review' | null>>;
-    showDatePicker: 'start' | 'start-time' | 'due' | 'due-time' | 'review' | null;
+    setShowDatePicker: React.Dispatch<React.SetStateAction<'start' | 'start-time' | 'due' | 'due-time' | 'review' | 'recurrence-end' | null>>;
+    showDatePicker: 'start' | 'start-time' | 'due' | 'due-time' | 'review' | 'recurrence-end' | null;
     t: (key: string) => string;
 };
 
@@ -28,6 +29,38 @@ export function useTaskEditDates({
     showDatePicker,
     t,
 }: UseTaskEditDatesParams) {
+    const updateRecurrenceEndDate = React.useCallback((until: string) => {
+        setEditedTask((prev) => {
+            const recurrence = prev.recurrence;
+            if (!recurrence) return prev;
+            const rule = typeof recurrence === 'string' ? recurrence : recurrence.rule;
+            if (!rule) return prev;
+            const strategy = typeof recurrence === 'object' && recurrence.strategy === 'fluid' ? 'fluid' : 'strict';
+            const parsed = typeof recurrence === 'object' && recurrence.rrule
+                ? parseRRuleString(recurrence.rrule)
+                : {};
+            const byDay = typeof recurrence === 'object' && recurrence.byDay?.length
+                ? recurrence.byDay
+                : parsed.byDay;
+            const completedOccurrences = typeof recurrence === 'object'
+                ? recurrence.completedOccurrences
+                : undefined;
+            const rrule = buildRRuleString(rule, byDay, parsed.interval, {
+                byMonthDay: parsed.byMonthDay,
+                until,
+            });
+            return {
+                ...prev,
+                recurrence: buildRecurrenceValue(rule, strategy, {
+                    byDay,
+                    until,
+                    completedOccurrences,
+                    rrule,
+                }),
+            };
+        });
+    }, [setEditedTask]);
+
     const onDateChange = React.useCallback((event: DateTimePickerEvent, selectedDate?: Date) => {
         const currentMode = showDatePicker;
         if (!currentMode) return;
@@ -75,6 +108,12 @@ export function useTaskEditDates({
             return;
         }
 
+        if (currentMode === 'recurrence-end') {
+            updateRecurrenceEndDate(safeFormatDate(selectedDate, 'yyyy-MM-dd'));
+            if (Platform.OS === 'android') setShowDatePicker(null);
+            return;
+        }
+
         if (currentMode === 'due') {
             const dateOnly = safeFormatDate(selectedDate, 'yyyy-MM-dd');
             const existing = editedTask.dueDate && hasTimeComponent(editedTask.dueDate)
@@ -109,6 +148,7 @@ export function useTaskEditDates({
         setPendingStartDate,
         setShowDatePicker,
         showDatePicker,
+        updateRecurrenceEndDate,
     ]);
 
     const formatDate = React.useCallback((dateStr?: string) => {

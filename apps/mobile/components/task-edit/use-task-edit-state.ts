@@ -1,5 +1,5 @@
 import React from 'react';
-import type { RecurrenceWeekday, Task } from '@mindwtr/core';
+import { getRecurrenceCompletedOccurrencesValue, getRecurrenceCountValue, getRecurrenceUntilValue, type RecurrenceWeekday, type Task } from '@mindwtr/core';
 import {
     getRecurrenceByDayValue,
     getRecurrenceRRuleValue,
@@ -53,7 +53,7 @@ export function useTaskEditState({
         []
     );
 
-    const [showDatePicker, setShowDatePicker] = React.useState<'start' | 'start-time' | 'due' | 'due-time' | 'review' | null>(null);
+    const [showDatePicker, setShowDatePicker] = React.useState<'start' | 'start-time' | 'due' | 'due-time' | 'review' | 'recurrence-end' | null>(null);
     const [pendingStartDate, setPendingStartDate] = React.useState<Date | null>(null);
     const [pendingDueDate, setPendingDueDate] = React.useState<Date | null>(null);
     const [editTab, setEditTab] = React.useState<TaskEditTab>(() => resolveInitialTaskEditTab(defaultTab, task));
@@ -81,10 +81,21 @@ export function useTaskEditState({
             const recurrenceStrategy = getRecurrenceStrategyValue(liveTask.recurrence);
             const byDay = getRecurrenceByDayValue(liveTask.recurrence);
             const rrule = getRecurrenceRRuleValue(liveTask.recurrence);
+            const count = getRecurrenceCountValue(liveTask.recurrence);
+            const until = getRecurrenceUntilValue(liveTask.recurrence);
+            const completedOccurrences = getRecurrenceCompletedOccurrencesValue(liveTask.recurrence);
             const normalizedTask: Task = {
                 ...liveTask,
                 recurrence: recurrenceRule
-                    ? { rule: recurrenceRule, strategy: recurrenceStrategy, ...(rrule ? { rrule } : {}), ...(byDay.length ? { byDay } : {}) }
+                    ? {
+                        rule: recurrenceRule,
+                        strategy: recurrenceStrategy,
+                        ...(rrule ? { rrule } : {}),
+                        ...(byDay.length ? { byDay } : {}),
+                        ...(count ? { count } : {}),
+                        ...(until ? { until } : {}),
+                        ...(typeof completedOccurrences === 'number' ? { completedOccurrences } : {}),
+                    }
                     : undefined,
             };
             const taskChanged = baseTaskRef.current?.id !== normalizedTask.id;

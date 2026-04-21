@@ -3,10 +3,14 @@ import { Keyboard, Platform, Pressable, Text, TextInput, TouchableOpacity, View 
 import DateTimePicker from '@react-native-community/datetimepicker';
 import {
     buildRRuleString,
+    getRecurrenceUntilValue,
     hasTimeComponent,
     parseRRuleString,
     safeFormatDate,
     safeParseDate,
+    type RecurrenceByDay,
+    type RecurrenceRule,
+    type RecurrenceStrategy,
 } from '@mindwtr/core';
 
 import { buildRecurrenceValue } from './recurrence-utils';
@@ -57,6 +61,54 @@ export function TaskEditScheduleField({
         styles.statusText,
         { color: active ? '#fff' : tc.secondaryText },
     ]);
+    const parsedRecurrenceRRule = parseRRuleString(recurrenceRRuleValue);
+    const recurrenceEndMode: 'never' | 'until' | 'count' = parsedRecurrenceRRule.count
+        ? 'count'
+        : parsedRecurrenceRRule.until
+            ? 'until'
+            : 'never';
+    const recurrenceDefaultEndDate = parsedRecurrenceRRule.until
+        || safeFormatDate(
+            safeParseDate(editedTask.dueDate ?? editedTask.startTime ?? task?.dueDate ?? task?.startTime) ?? new Date(),
+            'yyyy-MM-dd'
+        );
+    const buildEditedRecurrence = (
+        rule: RecurrenceRule,
+        overrides: {
+            strategy?: RecurrenceStrategy;
+            byDay?: RecurrenceByDay[];
+            interval?: number;
+            byMonthDay?: number[];
+            count?: number;
+            until?: string;
+            rrule?: string;
+        } = {}
+    ) => {
+        const hasOverride = <TKey extends keyof typeof overrides>(key: TKey) =>
+            Object.prototype.hasOwnProperty.call(overrides, key);
+        const completedOccurrences = editedTask.recurrence && typeof editedTask.recurrence === 'object'
+            ? editedTask.recurrence.completedOccurrences
+            : undefined;
+        const byDay = hasOverride('byDay')
+            ? overrides.byDay
+            : (editedTask.recurrence && typeof editedTask.recurrence === 'object' && editedTask.recurrence.byDay?.length
+                ? editedTask.recurrence.byDay
+                : parsedRecurrenceRRule.byDay);
+        const interval = hasOverride('interval') ? overrides.interval : parsedRecurrenceRRule.interval;
+        const byMonthDay = hasOverride('byMonthDay') ? overrides.byMonthDay : parsedRecurrenceRRule.byMonthDay;
+        const count = hasOverride('count') ? overrides.count : parsedRecurrenceRRule.count;
+        const until = hasOverride('until') ? overrides.until : parsedRecurrenceRRule.until;
+        const rrule = hasOverride('rrule')
+            ? overrides.rrule
+            : buildRRuleString(rule, byDay, interval, { byMonthDay, count, until });
+        return buildRecurrenceValue(rule, hasOverride('strategy') ? overrides.strategy ?? recurrenceStrategyValue : recurrenceStrategyValue, {
+            byDay,
+            count,
+            until,
+            completedOccurrences,
+            rrule,
+        });
+    };
     const openDatePicker = (mode: NonNullable<ShowDatePickerMode>) => {
         Keyboard.dismiss();
         setShowDatePicker(mode);
@@ -65,6 +117,9 @@ export function TaskEditScheduleField({
         if (mode === 'start') return getSafePickerDateValue(editedTask.startTime);
         if (mode === 'start-time') return pendingStartDate ?? getSafePickerDateValue(editedTask.startTime);
         if (mode === 'review') return getSafePickerDateValue(editedTask.reviewAt);
+        if (mode === 'recurrence-end') {
+            return getSafePickerDateValue(getRecurrenceUntilValue(editedTask.recurrence) || recurrenceDefaultEndDate);
+        }
         if (mode === 'due-time') return pendingDueDate ?? getSafePickerDateValue(editedTask.dueDate);
         return getSafePickerDateValue(editedTask.dueDate);
     };
@@ -123,27 +178,53 @@ export function TaskEditScheduleField({
                                     if (option.value !== 'weekly') {
                                         setCustomWeekdays([]);
                                     }
+                                    if (!option.value) {
+                                        setEditedTask((prev) => ({ ...prev, recurrence: undefined }));
+                                        return;
+                                    }
                                     if (option.value === 'daily') {
-                                        const parsed = parseRRuleString(recurrenceRRuleValue);
-                                        const interval = parsed.rule === 'daily' && parsed.interval && parsed.interval > 0 ? parsed.interval : 1;
                                         setEditedTask((prev) => ({
                                             ...prev,
-                                            recurrence: {
-                                                rule: 'daily',
-                                                strategy: recurrenceStrategyValue,
-                                                rrule: buildRRuleString('daily', undefined, interval),
-                                            },
+                                            recurrence: buildEditedRecurrence('daily', {
+                                                byDay: undefined,
+                                                byMonthDay: undefined,
+                                                interval: parsedRecurrenceRRule.rule === 'daily' && parsedRecurrenceRRule.interval && parsedRecurrenceRRule.interval > 0
+                                                    ? parsedRecurrenceRRule.interval
+                                                    : 1,
+                                            }),
                                         }));
                                         return;
                                     }
                                     if (option.value === 'monthly') {
                                         setEditedTask((prev) => ({
                                             ...prev,
-                                            recurrence: {
-                                                rule: 'monthly',
-                                                strategy: recurrenceStrategyValue,
-                                                rrule: buildRRuleString('monthly'),
-                                            },
+                                            recurrence: buildEditedRecurrence('monthly', {
+                                                byDay: undefined,
+                                                byMonthDay: undefined,
+                                                interval: undefined,
+                                            }),
+                                        }));
+                                        return;
+                                    }
+                                    if (option.value === 'weekly') {
+                                        setEditedTask((prev) => ({
+                                            ...prev,
+                                            recurrence: buildEditedRecurrence('weekly', {
+                                                byDay: undefined,
+                                                byMonthDay: undefined,
+                                                interval: undefined,
+                                            }),
+                                        }));
+                                        return;
+                                    }
+                                    if (option.value === 'yearly') {
+                                        setEditedTask((prev) => ({
+                                            ...prev,
+                                            recurrence: buildEditedRecurrence('yearly', {
+                                                byDay: undefined,
+                                                byMonthDay: undefined,
+                                                interval: undefined,
+                                            }),
                                         }));
                                         return;
                                     }
@@ -182,12 +263,10 @@ export function TaskEditScheduleField({
                                             setCustomWeekdays(next);
                                             setEditedTask((prev) => ({
                                                 ...prev,
-                                                recurrence: {
-                                                    rule: 'weekly',
-                                                    strategy: recurrenceStrategyValue,
+                                                recurrence: buildEditedRecurrence('weekly', {
                                                     byDay: next,
-                                                    rrule: buildRRuleString('weekly', next),
-                                                },
+                                                    byMonthDay: undefined,
+                                                }),
                                             }));
                                         }}
                                     >
@@ -207,11 +286,11 @@ export function TaskEditScheduleField({
                                     const interval = Number.isFinite(parsed) && parsed > 0 ? Math.min(parsed, 365) : 1;
                                     setEditedTask((prev) => ({
                                         ...prev,
-                                        recurrence: {
-                                            rule: 'daily',
-                                            strategy: recurrenceStrategyValue,
-                                            rrule: buildRRuleString('daily', undefined, interval),
-                                        },
+                                        recurrence: buildEditedRecurrence('daily', {
+                                            byDay: undefined,
+                                            byMonthDay: undefined,
+                                            interval,
+                                        }),
                                     }));
                                 }}
                                 keyboardType="number-pad"
@@ -229,11 +308,11 @@ export function TaskEditScheduleField({
                                 onPress={() => {
                                     setEditedTask((prev) => ({
                                         ...prev,
-                                        recurrence: {
-                                            rule: 'monthly',
-                                            strategy: recurrenceStrategyValue,
-                                            rrule: buildRRuleString('monthly'),
-                                        },
+                                        recurrence: buildEditedRecurrence('monthly', {
+                                            byDay: undefined,
+                                            byMonthDay: undefined,
+                                            interval: undefined,
+                                        }),
                                     }));
                                 }}
                             >
@@ -252,6 +331,100 @@ export function TaskEditScheduleField({
                         </View>
                     )}
                     {!!recurrenceRuleValue && (
+                        <View style={{ marginTop: 8 }}>
+                            <Text style={[styles.modalLabel, { color: tc.secondaryText }]}>{t('recurrence.endsLabel')}</Text>
+                            <View style={[styles.statusContainer, { marginTop: 8 }]}>
+                                <TouchableOpacity
+                                    style={getStatusChipStyle(recurrenceEndMode === 'never')}
+                                    onPress={() => {
+                                        setShowDatePicker(null);
+                                        setEditedTask((prev) => ({
+                                            ...prev,
+                                            recurrence: buildEditedRecurrence(recurrenceRuleValue, {
+                                                count: undefined,
+                                                until: undefined,
+                                            }),
+                                        }));
+                                    }}
+                                >
+                                    <Text style={getStatusTextStyle(recurrenceEndMode === 'never')}>
+                                        {t('recurrence.endsNever')}
+                                    </Text>
+                                </TouchableOpacity>
+                                <TouchableOpacity
+                                    style={getStatusChipStyle(recurrenceEndMode === 'until')}
+                                    onPress={() => {
+                                        setEditedTask((prev) => ({
+                                            ...prev,
+                                            recurrence: buildEditedRecurrence(recurrenceRuleValue, {
+                                                count: undefined,
+                                                until: parsedRecurrenceRRule.until || recurrenceDefaultEndDate,
+                                            }),
+                                        }));
+                                        openDatePicker('recurrence-end');
+                                    }}
+                                >
+                                    <Text style={getStatusTextStyle(recurrenceEndMode === 'until')}>
+                                        {t('recurrence.endsOnDate')}
+                                    </Text>
+                                </TouchableOpacity>
+                                <TouchableOpacity
+                                    style={getStatusChipStyle(recurrenceEndMode === 'count')}
+                                    onPress={() => {
+                                        setShowDatePicker(null);
+                                        setEditedTask((prev) => ({
+                                            ...prev,
+                                            recurrence: buildEditedRecurrence(recurrenceRuleValue, {
+                                                count: parsedRecurrenceRRule.count ?? 1,
+                                                until: undefined,
+                                            }),
+                                        }));
+                                    }}
+                                >
+                                    <Text style={getStatusTextStyle(recurrenceEndMode === 'count')}>
+                                        {t('recurrence.endsAfterCount')}
+                                    </Text>
+                                </TouchableOpacity>
+                            </View>
+                            {recurrenceEndMode === 'until' && (
+                                <View style={{ marginTop: 8 }}>
+                                    <TouchableOpacity
+                                        style={[styles.dateBtn, { backgroundColor: tc.inputBg, borderColor: tc.border }]}
+                                        onPress={() => openDatePicker('recurrence-end')}
+                                    >
+                                        <Text style={{ color: tc.text }}>
+                                            {formatDate(parsedRecurrenceRRule.until || recurrenceDefaultEndDate)}
+                                        </Text>
+                                    </TouchableOpacity>
+                                    {renderInlineIOSDatePicker(['recurrence-end'])}
+                                </View>
+                            )}
+                            {recurrenceEndMode === 'count' && (
+                                <View style={[styles.customRow, { marginTop: 8, borderColor: tc.border }]}>
+                                    <TextInput
+                                        value={String(Math.max(parsedRecurrenceRRule.count ?? 1, 1))}
+                                        onChangeText={(value) => {
+                                            const parsed = Number.parseInt(value, 10);
+                                            const count = Number.isFinite(parsed) && parsed > 0 ? Math.min(parsed, 999) : 1;
+                                            setEditedTask((prev) => ({
+                                                ...prev,
+                                                recurrence: buildEditedRecurrence(recurrenceRuleValue, {
+                                                    count,
+                                                    until: undefined,
+                                                }),
+                                            }));
+                                        }}
+                                        keyboardType="number-pad"
+                                        style={[styles.customInput, { backgroundColor: tc.inputBg, borderColor: tc.border, color: tc.text }]}
+                                        accessibilityLabel={t('recurrence.endsAfterCount')}
+                                        accessibilityHint={t('recurrence.occurrenceUnit')}
+                                    />
+                                    <Text style={[styles.modalLabel, { color: tc.secondaryText }]}>{t('recurrence.occurrenceUnit')}</Text>
+                                </View>
+                            )}
+                        </View>
+                    )}
+                    {!!recurrenceRuleValue && (
                         <View style={[styles.statusContainer, { marginTop: 8 }]}>
                             <TouchableOpacity
                                 style={getStatusChipStyle(recurrenceStrategyValue === 'fluid')}
@@ -259,24 +432,12 @@ export function TaskEditScheduleField({
                                     const nextStrategy = recurrenceStrategyValue === 'fluid' ? 'strict' : 'fluid';
                                     setEditedTask((prev) => ({
                                         ...prev,
-                                        recurrence:
-                                            recurrenceRuleValue === 'weekly' && customWeekdays.length > 0
-                                                ? {
-                                                    rule: 'weekly',
-                                                    strategy: nextStrategy,
-                                                    byDay: customWeekdays,
-                                                    rrule: buildRRuleString('weekly', customWeekdays),
-                                                }
-                                                : recurrenceRuleValue && recurrenceRRuleValue
-                                                    ? {
-                                                        rule: recurrenceRuleValue,
-                                                        strategy: nextStrategy,
-                                                        ...(parseRRuleString(recurrenceRRuleValue).byDay
-                                                            ? { byDay: parseRRuleString(recurrenceRRuleValue).byDay }
-                                                            : {}),
-                                                        rrule: recurrenceRRuleValue,
-                                                    }
-                                                    : buildRecurrenceValue(recurrenceRuleValue, nextStrategy),
+                                        recurrence: buildEditedRecurrence(recurrenceRuleValue, {
+                                            strategy: nextStrategy,
+                                            byDay: recurrenceRuleValue === 'weekly' && customWeekdays.length > 0
+                                                ? customWeekdays
+                                                : undefined,
+                                        }),
                                     }));
                                 }}
                             >
