@@ -69,6 +69,46 @@ const getStoredCalendarId = (): Promise<string | null> =>
 const setStoredCalendarId = (id: string): Promise<void> =>
     AsyncStorage.setItem(CALENDAR_ID_KEY, id);
 
+function getAndroidManagedCalendarSeed(
+    calendars: Awaited<ReturnType<typeof Calendar.getCalendarsAsync>>
+): Parameters<typeof Calendar.createCalendarAsync>[0] | null {
+    const ownedCalendar = calendars.find((calendar) =>
+        calendar.accessLevel === Calendar.CalendarAccessLevel.OWNER
+        && typeof calendar.ownerAccount === 'string'
+        && calendar.ownerAccount.trim().length > 0
+        && typeof calendar.source?.name === 'string'
+        && calendar.source.name.trim().length > 0
+    ) ?? calendars.find((calendar) =>
+        calendar.allowsModifications
+        && typeof calendar.ownerAccount === 'string'
+        && calendar.ownerAccount.trim().length > 0
+        && typeof calendar.source?.name === 'string'
+        && calendar.source.name.trim().length > 0
+    );
+
+    if (!ownedCalendar || !ownedCalendar.source) {
+        return null;
+    }
+
+    return {
+        title: MANAGED_CALENDAR_TITLE,
+        color: '#3B82F6',
+        entityType: Calendar.EntityTypes.EVENT,
+        name: MANAGED_CALENDAR_NAME,
+        ownerAccount: ownedCalendar.ownerAccount,
+        accessLevel: Calendar.CalendarAccessLevel.OWNER,
+        source: {
+            name: ownedCalendar.source.name,
+            ...(ownedCalendar.source.type ? { type: ownedCalendar.source.type } : {}),
+            ...(typeof ownedCalendar.source.isLocalAccount === 'boolean'
+                ? { isLocalAccount: ownedCalendar.source.isLocalAccount }
+                : {}),
+        },
+        isVisible: true,
+        isSynced: true,
+    };
+}
+
 /**
  * Returns the ID of the managed "Mindwtr" calendar, creating it if needed.
  * Returns null if the calendar cannot be created (e.g. no permission, no source).
@@ -76,8 +116,8 @@ const setStoredCalendarId = (id: string): Promise<void> =>
 export const ensureMindwtrCalendar = async (): Promise<string | null> => {
     try {
         const storedId = await getStoredCalendarId();
+        const allCalendars = await Calendar.getCalendarsAsync(Calendar.EntityTypes.EVENT);
         if (storedId) {
-            const allCalendars = await Calendar.getCalendarsAsync(Calendar.EntityTypes.EVENT);
             if (allCalendars.some((c) => c.id === storedId)) return storedId;
             // Calendar was deleted externally — fall through to recreate
         }
@@ -85,22 +125,17 @@ export const ensureMindwtrCalendar = async (): Promise<string | null> => {
         let calendarDetails: Parameters<typeof Calendar.createCalendarAsync>[0];
 
         if (Platform.OS === 'android') {
-            // Expo Calendar on Android requires a local-account source object
-            // when creating device calendars.
-            calendarDetails = {
-                title: MANAGED_CALENDAR_TITLE,
-                color: '#3B82F6',
-                entityType: Calendar.EntityTypes.EVENT,
-                name: MANAGED_CALENDAR_NAME,
-                ownerAccount: MANAGED_CALENDAR_TITLE,
-                accessLevel: Calendar.CalendarAccessLevel.OWNER,
-                source: {
-                    name: MANAGED_CALENDAR_TITLE,
-                    isLocalAccount: true,
-                },
-                isVisible: true,
-                isSynced: true,
-            };
+            // Android calendars need to be attached to a real device account/source
+            // or some calendar providers will keep them hidden from the OS calendar app.
+            const androidSeed = getAndroidManagedCalendarSeed(allCalendars);
+            if (!androidSeed) {
+                void logWarn('No owned Android calendar source available; cannot create Mindwtr calendar', {
+                    scope: 'calendar-push',
+                    extra: { calendarCount: String(allCalendars.length) },
+                });
+                return null;
+            }
+            calendarDetails = androidSeed;
         } else {
             // iOS requires a source
             const sources = await Calendar.getSourcesAsync();

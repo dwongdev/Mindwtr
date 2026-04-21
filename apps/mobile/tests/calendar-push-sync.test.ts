@@ -28,7 +28,18 @@ const {
     mockGetItem: vi.fn(async () => null as string | null),
     mockSetItem: vi.fn(async () => {}),
     mockRemoveItem: vi.fn(async () => {}),
-    mockGetCalendarsAsync: vi.fn(async () => [] as Array<{ id: string; title?: string }>),
+    mockGetCalendarsAsync: vi.fn(async () => [] as Array<{
+        id: string;
+        title?: string;
+        ownerAccount?: string;
+        accessLevel?: string;
+        allowsModifications?: boolean;
+        source?: {
+            name: string;
+            type?: string;
+            isLocalAccount?: boolean;
+        };
+    }>),
     mockGetSourcesAsync: vi.fn(async () => [{ id: 'src1', type: 'local', name: 'Local' }]),
     mockCreateCalendarAsync: vi.fn(async () => 'cal-1'),
     mockDeleteCalendarAsync: vi.fn(async () => {}),
@@ -183,10 +194,22 @@ describe('ensureMindwtrCalendar', () => {
         expect(mockSetItem).toHaveBeenCalledWith('mindwtr:calendar-push-sync:calendar-id', 'cal-2');
     });
 
-    it('creates an Android local calendar with the required source metadata', async () => {
+    it('creates an Android managed calendar using an existing owned calendar source', async () => {
         mockPlatform.OS = 'android';
         mockGetItem.mockResolvedValueOnce(null);
         mockCreateCalendarAsync.mockResolvedValue('cal-android');
+        mockGetCalendarsAsync.mockResolvedValue([
+            {
+                id: 'google-primary',
+                title: 'Personal',
+                ownerAccount: 'me@gmail.com',
+                accessLevel: 'owner',
+                source: {
+                    name: 'me@gmail.com',
+                    type: 'com.google',
+                },
+            },
+        ]);
 
         const id = await ensureMindwtrCalendar();
 
@@ -194,15 +217,29 @@ describe('ensureMindwtrCalendar', () => {
         expect(mockCreateCalendarAsync).toHaveBeenCalledWith(expect.objectContaining({
             title: 'Mindwtr',
             name: 'mindwtr',
-            ownerAccount: 'Mindwtr',
+            ownerAccount: 'me@gmail.com',
             accessLevel: 'owner',
             isVisible: true,
             isSynced: true,
             source: {
-                name: 'Mindwtr',
-                isLocalAccount: true,
+                name: 'me@gmail.com',
+                type: 'com.google',
             },
         }));
+    });
+
+    it('returns null on Android when no usable owned calendar source exists', async () => {
+        mockPlatform.OS = 'android';
+        mockGetItem.mockResolvedValueOnce(null);
+        mockGetCalendarsAsync.mockResolvedValue([
+            { id: 'read-only', title: 'Holidays', accessLevel: 'read' },
+        ]);
+
+        const id = await ensureMindwtrCalendar();
+
+        expect(id).toBeNull();
+        expect(mockCreateCalendarAsync).not.toHaveBeenCalled();
+        expect(mockLogWarn).toHaveBeenCalled();
     });
 });
 
