@@ -363,6 +363,16 @@ Mindwtr 的发展离不开用户与贡献者的支持，感谢大家一起把它
 - 🧠 [MCP 服务器](https://github.com/dongdongbh/Mindwtr/wiki/MCP-Server)
 - 📝 [版本说明索引](docs/release-notes/README.md)
 
+## Star History
+
+<a href="https://www.star-history.com/?repos=dongdongbh%2FMindwtr&type=date&legend=top-left">
+ <picture>
+   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/chart?repos=dongdongbh/Mindwtr&type=date&theme=dark&legend=top-left" />
+   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/chart?repos=dongdongbh/Mindwtr&type=date&legend=top-left" />
+   <img alt="Star History Chart" src="https://api.star-history.com/chart?repos=dongdongbh/Mindwtr&type=date&legend=top-left" />
+ </picture>
+</a>
+
 ## 赞助者
 
 感谢这些按月赞助 Mindwtr 的朋友。
