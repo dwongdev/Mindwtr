@@ -440,7 +440,6 @@ export function SyncSettingsScreen() {
                         isSyncing={isSyncing}
                         isTestingConnection={isTestingConnection}
                         lastSyncCard={lastSyncCard}
-                        localize={localize}
                         onSave={(settings) => void handleSaveWebDavSettings(settings)}
                         onSync={(settings) => void handleSync({ backend: 'webdav', webdav: settings })}
                         onTestConnection={(settings) => void handleTestConnection('webdav', { webdav: settings })}
