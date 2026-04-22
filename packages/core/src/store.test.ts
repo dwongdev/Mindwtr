@@ -982,6 +982,24 @@ describe('TaskStore', () => {
         expect(useTaskStore.getState()._allTasks.find((task) => task.id === deletedTask.id)?.purgedAt).toBeTruthy();
     });
 
+    it('does not re-purge tasks that already have a tombstone purge marker', async () => {
+        const alreadyPurgedTask = createStoreTask('purged-task', {
+            deletedAt: '2026-04-01T00:00:00.000Z',
+            purgedAt: '2026-04-02T00:00:00.000Z',
+            updatedAt: '2026-04-03T00:00:00.000Z',
+            rev: 7,
+        });
+
+        useTaskStore.setState({
+            tasks: [],
+            _allTasks: [alreadyPurgedTask],
+        });
+
+        await useTaskStore.getState().purgeDeletedTasks();
+
+        expect(useTaskStore.getState()._allTasks).toEqual([alreadyPurgedTask]);
+    });
+
     it('should coalesce saves and allow immediate flush', async () => {
         const { addTask } = useTaskStore.getState();
 

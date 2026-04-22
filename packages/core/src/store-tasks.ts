@@ -601,18 +601,22 @@ export const createTaskActions = ({ set, get, getStorage, debouncedSave }: TaskA
         let snapshot: AppData | null = null;
         set((state) => {
             const deviceState = ensureDeviceId(state.settings);
-            const newAllTasks = state._allTasks.map((task) =>
-                task.deletedAt
-                    ? {
-                        ...task,
-                        purgedAt: now,
-                        attachments: stripAttachmentRemoteMetadata(task.attachments),
-                        updatedAt: now,
-                        rev: normalizeRevision(task.rev) + 1,
-                        revBy: deviceState.deviceId,
-                    }
-                    : task
-            );
+            let changed = false;
+            const newAllTasks = state._allTasks.map((task) => {
+                if (!task.deletedAt || task.purgedAt) return task;
+                changed = true;
+                return {
+                    ...task,
+                    purgedAt: now,
+                    attachments: stripAttachmentRemoteMetadata(task.attachments),
+                    updatedAt: now,
+                    rev: normalizeRevision(task.rev) + 1,
+                    revBy: deviceState.deviceId,
+                };
+            });
+            if (!changed && !deviceState.updated) {
+                return state;
+            }
             snapshot = buildSaveSnapshot(state, {
                 tasks: newAllTasks,
                 ...(deviceState.updated ? { settings: deviceState.settings } : {}),
