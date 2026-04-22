@@ -109,33 +109,21 @@ export function SyncSettingsScreen() {
     const getSyncFailureToastMessage = useCallback((error: unknown) => {
         switch (classifySyncFailure(error)) {
             case 'offline':
-                return localize('Check your internet connection and try again.', '请检查网络连接后重试。');
+                return t('settings.syncFailureOffline');
             case 'auth':
-                return localize(
-                    'Re-authenticate or review your sync credentials in Data & Sync.',
-                    '请在“数据与同步”中重新验证或检查同步凭据。'
-                );
+                return t('settings.syncFailureAuth');
             case 'permission':
-                return localize(
-                    'Re-select the sync file or folder, or grant access again in Data & Sync.',
-                    '请在“数据与同步”中重新选择同步文件/文件夹，或重新授予访问权限。'
-                );
+                return t('settings.syncFailurePermission');
             case 'rateLimited':
-                return localize('The sync backend is rate limiting requests. Wait a moment and try again.', '同步后端正在限流。请稍后再试。');
+                return t('settings.syncFailureRateLimited');
             case 'misconfigured':
-                return localize(
-                    'Finish configuring the selected sync backend in Data & Sync.',
-                    '请先在“数据与同步”中完成所选同步后端的配置。'
-                );
+                return t('settings.syncFailureMisconfigured');
             case 'conflict':
-                return localize(
-                    'Another device or backend reported a sync conflict. Retry after both sides finish syncing.',
-                    '另一台设备或后端报告了同步冲突。请等待双方完成同步后再重试。'
-                );
+                return t('settings.syncFailureConflict');
             default:
-                return localize('Review Data & Sync settings and try again.', '请检查“数据与同步”设置后重试。');
+                return t('settings.syncFailureGeneric');
         }
-    }, [localize]);
+    }, [t]);
 
     const resetSyncStatusForBackendSwitch = useCallback(() => {
         updateSettings({
