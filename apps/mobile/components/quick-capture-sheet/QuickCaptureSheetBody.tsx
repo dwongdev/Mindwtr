@@ -122,10 +122,7 @@ export function QuickCaptureSheetBody({
                 value={value}
                 onChangeText={onValueChange}
                 onSubmitEditing={() => {
-                  if (Platform.OS === 'ios') {
-                    inputRef.current?.blur();
-                    return;
-                  }
+                  inputRef.current?.blur();
                   handleSave();
                 }}
                 returnKeyType="done"

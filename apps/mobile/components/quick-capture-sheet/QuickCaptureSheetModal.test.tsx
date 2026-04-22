@@ -1,5 +1,5 @@
 import React from 'react';
-import { Modal, Platform } from 'react-native';
+import { Modal, Platform, TextInput } from 'react-native';
 import { act, create } from 'react-test-renderer';
 import { describe, expect, it, vi } from 'vitest';
 
@@ -179,5 +179,68 @@ describe('Quick capture modal composition', () => {
     expect(modal.props.transparent).toBe(true);
     expect(modal.props.hardwareAccelerated).toBe(Platform.OS === 'android');
     expect(modal.props.statusBarTranslucent).toBe(Platform.OS === 'android');
+  });
+
+  it('submits the quick capture input from the keyboard Done action on iOS', () => {
+    const handleSave = vi.fn();
+    let tree!: ReturnType<typeof create>;
+    const originalPlatformOs = Platform.OS;
+
+    Object.defineProperty(Platform, 'OS', {
+      configurable: true,
+      value: 'ios',
+    });
+
+    try {
+      act(() => {
+        tree = create(
+          <QuickCaptureSheetBody
+            addAnother={false}
+            areaLabel="No Area"
+            contextLabel="Contexts"
+            dueLabel="Due Date"
+            handleClose={vi.fn()}
+            handleSave={handleSave}
+            insetsBottom={0}
+            inputRef={{ current: null }}
+            onOpenAreaPicker={vi.fn()}
+            onOpenContextPicker={vi.fn()}
+            onOpenDueDatePicker={vi.fn()}
+            onOpenPriorityPicker={vi.fn()}
+            onOpenProjectPicker={vi.fn()}
+            onResetArea={vi.fn()}
+            onResetContexts={vi.fn()}
+            onResetDueDate={vi.fn()}
+            onResetPriority={vi.fn()}
+            onResetProject={vi.fn()}
+            onToggleAddAnother={vi.fn()}
+            onToggleRecording={vi.fn()}
+            onValueChange={vi.fn()}
+            prioritiesEnabled
+            priorityLabel="Priority"
+            projectLabel="Project"
+            recording={false}
+            recordingBusy={false}
+            recordingReady={false}
+            sheetMaxHeight={500}
+            t={(key) => key}
+            tc={tc}
+            value="Capture me"
+            visible
+          />
+        );
+      });
+
+      act(() => {
+        tree.root.findByType(TextInput).props.onSubmitEditing();
+      });
+    } finally {
+      Object.defineProperty(Platform, 'OS', {
+        configurable: true,
+        value: originalPlatformOs,
+      });
+    }
+
+    expect(handleSave).toHaveBeenCalledOnce();
   });
 });
