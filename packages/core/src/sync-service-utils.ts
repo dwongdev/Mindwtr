@@ -1,6 +1,16 @@
 import { isWebdavRateLimitedError } from './sync-runtime-utils';
 
 export type SyncBackend = 'off' | 'file' | 'webdav' | 'cloud' | 'cloudkit';
+export type SyncCloudProvider = 'dropbox' | 'selfhosted';
+export type AutoSyncConfig = {
+    backend: SyncBackend;
+    filePath?: string;
+    webdavUrl?: string;
+    cloudProvider?: SyncCloudProvider;
+    cloudUrl?: string;
+    dropboxAppKey?: string;
+    isDropboxConnected?: boolean;
+};
 
 const DEFAULT_SYNC_FILE_NAME = 'data.json';
 const DEFAULT_LEGACY_SYNC_FILE_NAME = 'mindwtr-sync.json';
@@ -48,6 +58,20 @@ export const isSyncFilePath = (
 export const normalizeSyncBackend = (raw: string | null): SyncBackend => {
     if (raw === 'off' || raw === 'file' || raw === 'webdav' || raw === 'cloud' || raw === 'cloudkit') return raw;
     return 'off';
+};
+
+export const canAutoSync = (config: AutoSyncConfig): boolean => {
+    if (config.backend === 'off') return false;
+    if (config.backend === 'cloudkit') return true;
+    if (config.backend === 'file') return Boolean(config.filePath?.trim());
+    if (config.backend === 'webdav') return Boolean(config.webdavUrl?.trim());
+    if (config.backend === 'cloud') {
+        if (config.cloudProvider === 'dropbox') {
+            return Boolean(config.dropboxAppKey?.trim()) && config.isDropboxConnected === true;
+        }
+        return Boolean(config.cloudUrl?.trim());
+    }
+    return false;
 };
 
 export const getFileSyncDir = (
