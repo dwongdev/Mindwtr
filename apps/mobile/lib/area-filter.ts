@@ -5,4 +5,4 @@ export {
   resolveAreaFilter,
   taskMatchesAreaFilter,
   type AreaFilterValue,
-} from '@mindwtr/core/area-filter';
+} from '@mindwtr/core';

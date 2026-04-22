@@ -279,6 +279,8 @@ export const en: Record<string, string> = {
         'recurrence.onLabel': 'On',
         'recurrence.onDayOfMonth': 'Day {day}',
         'recurrence.onNthWeekday': 'The {ordinal} {weekday}',
+        'recurrence.ordinalSelectLabel': 'Recurrence ordinal',
+        'recurrence.weekdaySelectLabel': 'Recurrence weekday',
         'recurrence.ordinal.first': 'First',
         'recurrence.ordinal.second': 'Second',
         'recurrence.ordinal.third': 'Third',

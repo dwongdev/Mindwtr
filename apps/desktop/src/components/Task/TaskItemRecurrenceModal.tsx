@@ -39,6 +39,14 @@ export function TaskItemRecurrenceModal({
     onApply,
 }: TaskItemRecurrenceModalProps) {
     const titleId = useId();
+    const intervalInputId = useId();
+    const ordinalSelectId = useId();
+    const weekdaySelectId = useId();
+    const monthDayInputId = useId();
+    const resolveText = (key: string, fallback: string) => {
+        const translated = t(key);
+        return translated === key ? fallback : translated;
+    };
     const ordinalKey = customOrdinal === '-1'
         ? 'last'
         : customOrdinal === '1'
@@ -54,6 +62,8 @@ export function TaskItemRecurrenceModal({
     const onNthLabel = t('recurrence.onNthWeekday')
         .replace('{ordinal}', ordinalLabel)
         .replace('{weekday}', weekdayLabel);
+    const ordinalSelectLabel = resolveText('recurrence.ordinalSelectLabel', 'Recurrence ordinal');
+    const weekdaySelectLabel = resolveText('recurrence.weekdaySelectLabel', 'Recurrence weekday');
 
     return (
         <div
@@ -78,8 +88,9 @@ export function TaskItemRecurrenceModal({
                 </div>
                 <div className="p-4 space-y-4">
                     <div className="flex items-center gap-2 flex-wrap">
-                        <span className="text-sm">{t('recurrence.repeatEvery')}</span>
+                        <label htmlFor={intervalInputId} className="text-sm">{t('recurrence.repeatEvery')}</label>
                         <input
+                            id={intervalInputId}
                             type="number"
                             min={1}
                             max={12}
@@ -119,7 +130,9 @@ export function TaskItemRecurrenceModal({
                         </div>
                         {customMode === 'nth' && (
                             <div className="flex flex-wrap gap-2 items-center">
+                                <label htmlFor={ordinalSelectId} className="sr-only">{ordinalSelectLabel}</label>
                                 <select
+                                    id={ordinalSelectId}
                                     value={customOrdinal}
                                     onChange={(event) => onOrdinalChange(event.target.value as '1' | '2' | '3' | '4' | '-1')}
                                     className="text-xs bg-muted/50 border border-border rounded px-2 py-1 text-foreground"
@@ -130,7 +143,9 @@ export function TaskItemRecurrenceModal({
                                     <option value="4">{t('recurrence.ordinal.fourth')}</option>
                                     <option value="-1">{t('recurrence.ordinal.last')}</option>
                                 </select>
+                                <label htmlFor={weekdaySelectId} className="sr-only">{weekdaySelectLabel}</label>
                                 <select
+                                    id={weekdaySelectId}
                                     value={customWeekday}
                                     onChange={(event) => onWeekdayChange(event.target.value as RecurrenceWeekday)}
                                     className="text-xs bg-muted/50 border border-border rounded px-2 py-1 text-foreground"
@@ -145,10 +160,11 @@ export function TaskItemRecurrenceModal({
                         )}
                         {customMode === 'date' && (
                             <div className="flex items-center gap-2">
-                                <label className="text-xs text-muted-foreground">
+                                <label htmlFor={monthDayInputId} className="text-xs text-muted-foreground">
                                     {t('recurrence.onDayOfMonth').replace('{day}', '')}
                                 </label>
                                 <input
+                                    id={monthDayInputId}
                                     type="number"
                                     min={1}
                                     max={31}
