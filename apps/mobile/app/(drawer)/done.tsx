@@ -9,13 +9,13 @@ export default function DoneScreen() {
   const tc = useThemeColors();
   const insets = useSafeAreaInsets();
   const { t } = useLanguage();
-  const title = t('nav.done') || t('list.done') || 'Done';
-  const emptyLabel = t('list.done');
-  const emptyText = emptyLabel === 'list.done' ? 'Done' : emptyLabel;
-  const hintLabel = t('done.emptyHint');
-  const emptyHint = hintLabel === 'done.emptyHint'
-    ? 'Completed tasks land here — a running log of what you finished.'
-    : hintLabel;
+  const resolveText = (key: string, fallback: string) => {
+    const translated = t(key);
+    return translated && translated !== key ? translated : fallback;
+  };
+  const title = resolveText('nav.done', 'Done');
+  const emptyText = resolveText('list.done', 'Done');
+  const emptyHint = resolveText('done.emptyHint', 'Completed tasks land here — a running log of what you finished.');
   const navBarInset = Platform.OS === 'android' && insets.bottom >= 24 ? insets.bottom : 0;
 
   return (

@@ -9,20 +9,20 @@ export default function ReferenceScreen() {
   const tc = useThemeColors();
   const insets = useSafeAreaInsets();
   const { t } = useLanguage();
-  const title = t('nav.reference');
-  const emptyLabel = t('reference.empty');
-  const emptyText = emptyLabel === 'reference.empty' ? 'Nothing filed yet' : emptyLabel;
-  const hintLabel = t('reference.emptyHint');
-  const emptyHint = hintLabel === 'reference.emptyHint'
-    ? 'Reference holds info you might want later — no action required.'
-    : hintLabel;
+  const resolveText = (key: string, fallback: string) => {
+    const translated = t(key);
+    return translated && translated !== key ? translated : fallback;
+  };
+  const title = resolveText('nav.reference', 'Reference');
+  const emptyText = resolveText('reference.empty', 'Nothing filed yet');
+  const emptyHint = resolveText('reference.emptyHint', 'Reference holds info you might want later — no action required.');
   const navBarInset = Platform.OS === 'android' && insets.bottom >= 24 ? insets.bottom : 0;
 
   return (
     <View style={[styles.container, { backgroundColor: tc.bg }]}>
       <TaskList
         statusFilter="reference"
-        title={title === 'nav.reference' ? 'Reference' : title}
+        title={title}
         emptyText={emptyText}
         emptyHint={emptyHint}
         allowAdd={false}
