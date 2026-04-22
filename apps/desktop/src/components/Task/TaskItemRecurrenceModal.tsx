@@ -1,3 +1,4 @@
+import { useId } from 'react';
 import type { RecurrenceWeekday } from '@mindwtr/core';
 
 import { cn } from '../../lib/utils';
@@ -37,6 +38,7 @@ export function TaskItemRecurrenceModal({
     onClose,
     onApply,
 }: TaskItemRecurrenceModalProps) {
+    const titleId = useId();
     const ordinalKey = customOrdinal === '-1'
         ? 'last'
         : customOrdinal === '1'
@@ -56,9 +58,6 @@ export function TaskItemRecurrenceModal({
     return (
         <div
             className="fixed inset-0 bg-black/50 flex items-center justify-center z-50"
-            role="button"
-            tabIndex={0}
-            aria-label={t('common.close')}
             onClick={onClose}
             onKeyDown={(event) => {
                 if (event.key === 'Escape') {
@@ -69,10 +68,13 @@ export function TaskItemRecurrenceModal({
         >
             <div
                 className="bg-card border border-border rounded-lg shadow-xl max-w-md w-full mx-4"
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby={titleId}
                 onClick={(event) => event.stopPropagation()}
             >
                 <div className="p-4 border-b border-border">
-                    <h3 className="text-lg font-semibold">{t('recurrence.customTitle')}</h3>
+                    <h3 id={titleId} className="text-lg font-semibold">{t('recurrence.customTitle')}</h3>
                 </div>
                 <div className="p-4 space-y-4">
                     <div className="flex items-center gap-2 flex-wrap">
