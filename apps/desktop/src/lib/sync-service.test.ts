@@ -675,14 +675,15 @@ describe('SyncService orchestration', () => {
             setError: vi.fn(),
         };
         const prepareSpy = vi.spyOn(SyncService as any, 'prepareSyncExecutionContext').mockImplementation(
-            async (context: Record<string, unknown>) => {
+            async (...args: unknown[]) => {
+                const context = args[0] as Record<string, unknown>;
                 context.backend = 'file';
                 context.fileBaseDir = '';
             }
         );
         const preSyncSpy = vi.spyOn(SyncService as any, 'runPreSyncAttachmentPhase').mockResolvedValue(undefined);
         const postMergeSpy = vi.spyOn(SyncService as any, 'runPostMergeAttachmentPhase').mockImplementation(
-            async (_context: unknown, data: AppData) => data
+            async (...args: unknown[]) => args[1] as AppData
         );
 
         try {
