@@ -616,4 +616,61 @@ describe('SyncService orchestration', () => {
         expect(updateSettings).toHaveBeenCalledTimes(1);
         expect((SyncService as any).lastSuccessfulSyncLocalChangeAt).toBe(0);
     });
+
+    it('persists successful sync status before refreshing store data', async () => {
+        const callOrder: string[] = [];
+        const storeState = {
+            lastDataChangeAt: 0,
+            settings: {},
+            fetchData: vi.fn(async () => {
+                callOrder.push('fetchData');
+            }),
+            updateSettings: vi.fn(async () => {
+                callOrder.push('updateSettings');
+            }),
+            setError: vi.fn(),
+        };
+        const prepareSpy = vi.spyOn(SyncService as any, 'prepareSyncExecutionContext').mockImplementation(
+            async (context: Record<string, unknown>) => {
+                context.backend = 'file';
+                context.fileBaseDir = '';
+            }
+        );
+        const preSyncSpy = vi.spyOn(SyncService as any, 'runPreSyncAttachmentPhase').mockResolvedValue(undefined);
+        const postMergeSpy = vi.spyOn(SyncService as any, 'runPostMergeAttachmentPhase').mockImplementation(
+            async (_context: unknown, data: AppData) => data
+        );
+
+        try {
+            __syncServiceTestUtils.setDependenciesForTests({
+                flushPendingSave: vi.fn(async () => undefined),
+                getStoreState: () => storeState as any,
+                performSyncCycle: vi.fn(async () => ({
+                    data: {
+                        tasks: [],
+                        projects: [],
+                        sections: [],
+                        areas: [],
+                        settings: {},
+                    } satisfies AppData,
+                    status: 'success' as const,
+                    stats: {
+                        tasks: {},
+                        projects: {},
+                        sections: {},
+                        areas: {},
+                    } as any,
+                })),
+            });
+
+            const result = await SyncService.performSync();
+
+            expect(result.success).toBe(true);
+            expect(callOrder).toEqual(['updateSettings', 'fetchData']);
+        } finally {
+            prepareSpy.mockRestore();
+            preSyncSpy.mockRestore();
+            postMergeSpy.mockRestore();
+        }
+    });
 });
