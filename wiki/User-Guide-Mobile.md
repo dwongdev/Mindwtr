@@ -192,7 +192,7 @@ Tap **Process Inbox** to start the clarify workflow:
    - Yes → Do it now, mark Done
    - No → Continue
 
-3. **What's next?**
+3. **Who should do it?**
    - I'll do it → Add context, move to Next Actions
    - Delegate → Move to Waiting For
 

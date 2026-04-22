@@ -317,7 +317,7 @@ export const en: Record<string, string> = {
         'inbox.twoMinHint': 'If yes, do it now!',
         'inbox.doneIt': 'Done it!',
         'inbox.takesLonger': 'Takes longer than 2 min',
-        'inbox.whatNext': "What's next?",
+        'inbox.whatNext': 'Who should do it?',
         'inbox.illDoIt': "I'll do it",
         'inbox.delegate': 'Delegate',
         'inbox.whereDoIt': 'Where will you do this?',
