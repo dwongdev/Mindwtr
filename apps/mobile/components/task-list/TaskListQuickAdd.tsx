@@ -67,6 +67,14 @@ export function TaskListQuickAdd({
   typeaheadOpen,
   typeaheadOptions,
 }: TaskListQuickAddProps) {
+  const resolveText = (key: string, fallback: string) => {
+    const translated = t(key);
+    return translated && translated !== key ? translated : fallback;
+  };
+  const addTaskLabel = resolveText('nav.addTask', 'Add Task');
+  const inputLabel = title ? `${addTaskLabel}: ${title}` : resolveText('quickAdd.inputLabel', 'Task title');
+  const inputHint = resolveText('quickAdd.inputHint', 'Type a task title, then press add or the return key.');
+
   return (
     <>
       <View style={[styles.inputContainer, { borderBottomColor: themeColors.border }]}>
@@ -87,8 +95,8 @@ export function TaskListQuickAdd({
           }}
           onSubmitEditing={handleAddTask}
           returnKeyType="done"
-          accessibilityLabel={`Input new task for ${title}`}
-          accessibilityHint="Type task title, then tap add button or enter"
+          accessibilityLabel={inputLabel}
+          accessibilityHint={inputHint}
         />
         <TouchableOpacity
           onPress={handleAddTask}
@@ -98,7 +106,7 @@ export function TaskListQuickAdd({
             !newTaskTitle.trim() && styles.addButtonDisabled,
           ]}
           disabled={!newTaskTitle.trim()}
-          accessibilityLabel="Add Task"
+          accessibilityLabel={addTaskLabel}
           accessibilityRole="button"
           accessibilityState={{ disabled: !newTaskTitle.trim() }}
         >
