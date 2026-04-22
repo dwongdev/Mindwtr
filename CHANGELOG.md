@@ -6,10 +6,13 @@ This file intentionally stays as a short index so it does not drift from the per
 
 ## Upcoming
 
-- [v0.8.3 draft](docs/release-notes/0.8.3.md)
+- [v0.8.6 draft](docs/release-notes/0.8.6.md)
 
 ## Latest Releases
 
+- [v0.8.5](docs/release-notes/0.8.5.md)
+- [v0.8.4](docs/release-notes/0.8.4.md)
+- [v0.8.3](docs/release-notes/0.8.3.md)
 - [v0.8.2](docs/release-notes/0.8.2.md)
 - [v0.8.1](docs/release-notes/0.8.1.md)
 - [v0.8.0](docs/release-notes/0.8.0.md)
@@ -17,4 +20,4 @@ This file intentionally stays as a short index so it does not drift from the per
 
 ## Unreleased
 
-Incremental changes continue landing in git history and pull requests, but the next planned cut is tracked in the `v0.8.3` draft note above.
+Incremental changes continue landing in git history and pull requests, but the next planned cut is tracked in the `v0.8.6` draft note above.

@@ -164,6 +164,8 @@ Sync directly to a WebDAV server:
 - Fastmail
 - Any WebDAV-compatible server
 
+Mindwtr now creates missing parent folders automatically before the first `PUT`, so you can point it at a new empty folder without manually pre-creating every level.
+
 ### 4. Mindwtr Cloud (Self-Hosted)
 
 For advanced users, Mindwtr includes a simple sync server (`apps/cloud`) that can be self-hosted.
@@ -270,6 +272,8 @@ Mindwtr will automatically sync on startup and when data changes.
    - **Username** — Your WebDAV username
    - **Password** — Your WebDAV password
 4. Click **Save WebDAV**
+
+If the target folder path does not exist yet, Mindwtr will try to create the missing parent collections automatically before uploading `data.json`.
 
 > **Linux note:** If your desktop session does not provide a Secret Service keyring (for example `org.freedesktop.secrets` is unavailable), Mindwtr falls back to local secrets storage in `~/.config/mindwtr/secrets.toml`.
 

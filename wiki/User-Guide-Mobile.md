@@ -257,8 +257,10 @@ Markdown checkbox lines can populate checklist items when you save.
 Recurring tasks support two strategies:
 - **Strict** (fixed cadence)
 - **Repeat after completion** (next date from completion time)
+- **Ends: Never / On date / After N occurrences**
 
 Use the recurrence field in the task editor, then toggle **Repeat after completion** when needed.
+The same sheet lets you stop a series on a target date or after a fixed number of total occurrences.
 
 ### Attachments
 

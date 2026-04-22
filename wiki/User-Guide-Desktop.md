@@ -345,8 +345,11 @@ When you complete a recurring task, Mindwtr automatically creates the next insta
   Example: every 5 days remains anchored to the planned cycle.
 - **Repeat after completion**: shifts the next due date from completion time.
   Example: complete now, next is due 5 days later.
+- **Ends: Never / On date / After N occurrences**: choose whether the series runs forever, stops on a specific date, or stops after a fixed number of occurrences.
+  `After N occurrences` counts the current task as part of the series total.
 
 You can toggle this in the task editor recurrence field using **Repeat after completion**.
+Use the same recurrence sheet to set an end date or an occurrence count when you need the series to stop automatically.
 
 
 ---

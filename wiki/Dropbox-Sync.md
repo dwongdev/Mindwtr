@@ -59,6 +59,8 @@ In Dropbox App Console:
 - Desktop: `VITE_DROPBOX_APP_KEY=<your_app_key>`
 - Mobile: `DROPBOX_APP_KEY=<your_app_key>`
 
+For macOS App Store builds, the desktop OAuth callback uses a local loopback listener on `127.0.0.1:53682`, so the app entitlement set must include `com.apple.security.network.server`.
+
 In CI/release workflows, set repository variables or secrets:
 
 - `VITE_DROPBOX_APP_KEY`
