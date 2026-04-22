@@ -1,5 +1,18 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+type MockCalendarSyncEntry = {
+    taskId: string;
+    calendarEventId: string;
+    calendarId: string;
+    platform: string;
+    lastSyncedAt: string;
+};
+
+type MockCalendarStoreState = {
+    tasks: unknown[];
+    _allTasks: unknown[];
+};
+
 // ---------------------------------------------------------------------------
 // Hoisted mocks — must be set up before any imports that reference them
 // ---------------------------------------------------------------------------
@@ -47,16 +60,12 @@ const {
     mockCreateEventAsync: vi.fn(async () => 'evt-1'),
     mockUpdateEventAsync: vi.fn(async () => 'evt-1'),
     mockDeleteEventAsync: vi.fn(async () => {}),
-    mockGetCalendarSyncEntry: vi.fn(async () => null as null | {
-        taskId: string; calendarEventId: string; calendarId: string; platform: string; lastSyncedAt: string;
-    }),
+    mockGetCalendarSyncEntry: vi.fn<(taskId: string, platform: string) => Promise<MockCalendarSyncEntry | null>>(async () => null),
     mockUpsertCalendarSyncEntry: vi.fn(async () => {}),
-    mockDeleteCalendarSyncEntry: vi.fn(async () => {}),
-    mockGetAllCalendarSyncEntries: vi.fn(async () => [] as Array<{
-        taskId: string; calendarEventId: string; calendarId: string; platform: string; lastSyncedAt: string;
-    }>),
-    mockGetState: vi.fn(() => ({ tasks: [] as unknown[], _allTasks: [] as unknown[] })),
-    mockSubscribe: vi.fn(() => () => {}),
+    mockDeleteCalendarSyncEntry: vi.fn<(taskId: string, platform: string) => Promise<void>>(async () => {}),
+    mockGetAllCalendarSyncEntries: vi.fn<(platform: string) => Promise<MockCalendarSyncEntry[]>>(async () => []),
+    mockGetState: vi.fn<() => MockCalendarStoreState>(() => ({ tasks: [], _allTasks: [] })),
+    mockSubscribe: vi.fn<(listener: (state: MockCalendarStoreState) => void) => () => void>(() => () => {}),
     mockLogInfo: vi.fn(),
     mockLogWarn: vi.fn(),
     mockLogError: vi.fn(),
@@ -162,6 +171,10 @@ function setupEnabled(calendarId = 'cal-1') {
         .mockResolvedValueOnce(calendarId); // ensureMindwtrCalendar → stored ID
 }
 
+function setStoreTasks(tasks: unknown[], allTasks: unknown[] = tasks) {
+    mockGetState.mockReturnValue({ tasks, _allTasks: allTasks });
+}
+
 beforeEach(() => {
     vi.clearAllMocks();
     vi.useFakeTimers();
@@ -260,7 +273,7 @@ describe('buildEventDetails — date-only due date stays on correct local day', 
         // new Date('2026-04-20') parses as UTC midnight and shifts to Apr 19
         // in US time zones; safeParseDate('2026-04-20') must produce Apr 20.
         const task = makeTask({ dueDate: '2026-04-20' });
-        mockGetState.mockReturnValue({ tasks: [task] });
+        setStoreTasks([task]);
         mockGetCalendarSyncEntry.mockResolvedValue(null);
         mockGetAllCalendarSyncEntries.mockResolvedValue([]);
 
@@ -286,7 +299,7 @@ describe('runFullCalendarSync — completion removes event', () => {
     it('removes a calendar event when the task is marked done', async () => {
         setupEnabled();
         const task = makeTask({ status: 'done' });
-        mockGetState.mockReturnValue({ tasks: [task] });
+        setStoreTasks([task]);
         const entry = { taskId: task.id, calendarEventId: 'evt-done', calendarId: 'cal-1', platform: 'ios', lastSyncedAt: '' };
         mockGetCalendarSyncEntry.mockResolvedValue(entry);
         mockGetAllCalendarSyncEntries.mockResolvedValue([]);
@@ -301,7 +314,7 @@ describe('runFullCalendarSync — completion removes event', () => {
     it('removes a calendar event when the task is archived', async () => {
         setupEnabled();
         const task = makeTask({ status: 'archived' });
-        mockGetState.mockReturnValue({ tasks: [task] });
+        setStoreTasks([task]);
         mockGetCalendarSyncEntry.mockResolvedValue(
             { taskId: task.id, calendarEventId: 'evt-arch', calendarId: 'cal-1', platform: 'ios', lastSyncedAt: '' }
         );
@@ -318,7 +331,7 @@ describe('runFullCalendarSync — event removal', () => {
     it('removes a calendar event when dueDate is cleared', async () => {
         setupEnabled();
         const task = makeTask({ dueDate: null });
-        mockGetState.mockReturnValue({ tasks: [task] });
+        setStoreTasks([task]);
         mockGetCalendarSyncEntry.mockResolvedValue(
             { taskId: task.id, calendarEventId: 'evt-old', calendarId: 'cal-1', platform: 'ios', lastSyncedAt: '' }
         );
@@ -333,7 +346,7 @@ describe('runFullCalendarSync — event removal', () => {
     it('removes a calendar event when the task is soft-deleted', async () => {
         setupEnabled();
         const task = makeTask({ deletedAt: new Date().toISOString() });
-        mockGetState.mockReturnValue({ tasks: [task] });
+        setStoreTasks([task]);
         mockGetCalendarSyncEntry.mockResolvedValue(
             { taskId: task.id, calendarEventId: 'evt-del', calendarId: 'cal-1', platform: 'ios', lastSyncedAt: '' }
         );
@@ -348,7 +361,7 @@ describe('runFullCalendarSync — event removal', () => {
 describe('runFullCalendarSync — startup reconciliation', () => {
     it('removes stale events for tasks no longer in the store', async () => {
         setupEnabled();
-        mockGetState.mockReturnValue({ tasks: [] });
+        setStoreTasks([]);
         const ghostEntry = { taskId: 'ghost-task', calendarEventId: 'evt-ghost', calendarId: 'cal-1', platform: 'ios', lastSyncedAt: '' };
         mockGetAllCalendarSyncEntries.mockResolvedValue([ghostEntry]);
         mockGetCalendarSyncEntry.mockResolvedValue(ghostEntry);
@@ -362,7 +375,7 @@ describe('runFullCalendarSync — startup reconciliation', () => {
     it('removes stale events for tasks completed between sessions', async () => {
         setupEnabled();
         const task = makeTask({ status: 'done' });
-        mockGetState.mockReturnValue({ tasks: [task] });
+        setStoreTasks([task]);
         const staleEntry = { taskId: task.id, calendarEventId: 'evt-stale', calendarId: 'cal-1', platform: 'ios', lastSyncedAt: '' };
         mockGetAllCalendarSyncEntries.mockResolvedValue([staleEntry]);
         mockGetCalendarSyncEntry.mockResolvedValue(staleEntry);
@@ -375,7 +388,7 @@ describe('runFullCalendarSync — startup reconciliation', () => {
     it('does not touch events for active tasks with due dates', async () => {
         setupEnabled();
         const task = makeTask();
-        mockGetState.mockReturnValue({ tasks: [task] });
+        setStoreTasks([task]);
         const activeEntry = { taskId: task.id, calendarEventId: 'evt-active', calendarId: 'cal-1', platform: 'ios', lastSyncedAt: '' };
         mockGetCalendarSyncEntry.mockResolvedValue(activeEntry);
         mockGetAllCalendarSyncEntries.mockResolvedValue([activeEntry]);
