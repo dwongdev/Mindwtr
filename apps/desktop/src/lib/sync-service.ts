@@ -392,6 +392,7 @@ export class SyncService {
     private static syncInFlight: Promise<SyncRunResult> | null = null;
     private static syncQueued = false;
     private static syncQueueVersion = 0;
+    private static queuedSyncOptions: SyncRunOptions | null = null;
     private static syncStatus: {
         inFlight: boolean;
         queued: boolean;
@@ -427,7 +428,10 @@ export class SyncService {
         return Date.now();
     }
 
-    private static requestQueuedSyncRun() {
+    private static requestQueuedSyncRun(nextOptions?: SyncRunOptions, preferLatest = true) {
+        if (nextOptions && (preferLatest || !SyncService.queuedSyncOptions)) {
+            SyncService.queuedSyncOptions = nextOptions;
+        }
         SyncService.syncQueued = true;
         SyncService.syncQueueVersion += 1;
         SyncService.updateSyncStatus({ queued: true });
@@ -468,6 +472,7 @@ export class SyncService {
         SyncService.syncInFlight = null;
         SyncService.syncQueued = false;
         SyncService.syncQueueVersion = 0;
+        SyncService.queuedSyncOptions = null;
         SyncService.syncStatus = {
             inFlight: false,
             queued: false,
@@ -1514,7 +1519,7 @@ export class SyncService {
      */
     static async performSync(options: SyncRunOptions = {}): Promise<SyncRunResult> {
         if (SyncService.syncInFlight) {
-            SyncService.requestQueuedSyncRun();
+            SyncService.requestQueuedSyncRun(options);
             return SyncService.syncInFlight;
         }
         // Consume queued follow-up requests by snapshotting the version at cycle start.
@@ -1568,7 +1573,7 @@ export class SyncService {
         };
         const ensureLocalSnapshotFresh = () => {
             if (getStoreState().lastDataChangeAt > context.localSnapshotChangeAt) {
-                SyncService.requestQueuedSyncRun();
+                SyncService.requestQueuedSyncRun(options, false);
                 throw new LocalSyncAbort();
             }
         };
@@ -1757,7 +1762,9 @@ export class SyncService {
         });
 
         if (hasQueuedFollowUp) {
-            void SyncService.performSync(options)
+            const queuedOptions = SyncService.queuedSyncOptions ?? options;
+            SyncService.queuedSyncOptions = null;
+            void SyncService.performSync(queuedOptions)
                 .then((queuedResult) => {
                     if (!queuedResult.success) {
                         logSyncWarning('Queued sync failed', queuedResult.error);
@@ -1771,6 +1778,8 @@ export class SyncService {
                 .catch((error) => {
                     logSyncWarning('Queued sync crashed', error);
                 });
+        } else {
+            SyncService.queuedSyncOptions = null;
         }
 
         settleInFlight(result);

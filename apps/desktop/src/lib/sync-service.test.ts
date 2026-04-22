@@ -552,6 +552,50 @@ describe('SyncService orchestration', () => {
         expect(snapshots.some((status) => status.queued === true)).toBe(true);
     });
 
+    it('uses the latest queued sync options for the follow-up run', async () => {
+        const firstRun = createDeferred();
+        const backendSpy = vi.spyOn(SyncService as any, 'getSyncBackend');
+        let backendCalls = 0;
+        backendSpy.mockImplementation(async () => {
+            backendCalls += 1;
+            if (backendCalls === 1) {
+                await firstRun.promise;
+            }
+            return 'off';
+        });
+
+        const first = SyncService.performSync();
+        await waitForAssertion(() => {
+            expect(SyncService.getSyncStatus()).toMatchObject({
+                inFlight: true,
+                queued: false,
+            });
+        });
+        const second = SyncService.performSync({ backendOverride: 'cloud' });
+        const third = SyncService.performSync({ backendOverride: 'off' });
+        await waitForAssertion(() => {
+            expect(SyncService.getSyncStatus()).toMatchObject({
+                inFlight: true,
+                queued: true,
+            });
+        });
+        firstRun.resolve();
+
+        const [firstResult, secondResult, thirdResult] = await Promise.all([first, second, third]);
+        expect(firstResult.success).toBe(true);
+        expect(secondResult.success).toBe(true);
+        expect(thirdResult.success).toBe(true);
+        await waitForAssertion(() => {
+            expect(SyncService.getSyncStatus()).toMatchObject({
+                inFlight: false,
+                queued: false,
+                lastResult: 'success',
+            });
+        });
+
+        expect(backendCalls).toBe(1);
+    });
+
     it('runs a queued follow-up sync after an in-flight failure', async () => {
         const firstRun = createDeferred();
         const backendSpy = vi.spyOn(SyncService as any, 'getSyncBackend');
