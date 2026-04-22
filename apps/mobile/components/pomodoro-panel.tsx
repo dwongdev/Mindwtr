@@ -6,7 +6,7 @@ import {
   createPomodoroState,
   DEFAULT_POMODORO_DURATIONS,
   formatPomodoroClock,
-  POMODORO_PRESETS,
+  getPomodoroPresetOptions,
   type PomodoroDurations,
   resetPomodoroState,
   useTaskStore,
@@ -35,6 +35,7 @@ export function PomodoroPanel({
   const { t } = useLanguage();
   const tc = useThemeColors();
   const notificationsEnabled = useTaskStore((state) => state.settings.notificationsEnabled !== false);
+  const customDurations = useTaskStore((state) => state.settings.gtd?.pomodoro?.customDurations);
   const [durations, setDurations] = useState<PomodoroDurations>(DEFAULT_POMODORO_DURATIONS);
   const [timerState, setTimerState] = useState(() => createPomodoroState(DEFAULT_POMODORO_DURATIONS));
   const [selectedTaskId, setSelectedTaskId] = useState<string | undefined>(undefined);
@@ -156,6 +157,7 @@ export function PomodoroPanel({
     () => (selectedTaskId ? tasks.find((task) => task.id === selectedTaskId) : undefined),
     [selectedTaskId, tasks]
   );
+  const presetOptions = useMemo(() => getPomodoroPresetOptions(customDurations), [customDurations]);
 
   const cardTitleRaw = t('pomodoro.title');
   const cardTitle = cardTitleRaw.startsWith('pomodoro.') ? 'Pomodoro Focus' : cardTitleRaw;
@@ -285,7 +287,7 @@ export function PomodoroPanel({
       )}
 
       <View style={styles.presetRow}>
-        {POMODORO_PRESETS.map((preset) => {
+        {presetOptions.map((preset) => {
           const active = durations.focusMinutes === preset.focusMinutes && durations.breakMinutes === preset.breakMinutes;
           return (
             <Pressable

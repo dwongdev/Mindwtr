@@ -3,7 +3,7 @@ import {
     createPomodoroState,
     DEFAULT_POMODORO_DURATIONS,
     formatPomodoroClock,
-    POMODORO_PRESETS,
+    getPomodoroPresetOptions,
     PomodoroDurations,
     PomodoroState,
     resetPomodoroState,
@@ -76,6 +76,7 @@ let persistedSnapshot: PomodoroSnapshot = createInitialSnapshot();
 export function PomodoroPanel({ tasks }: PomodoroPanelProps) {
     const updateTask = useTaskStore((state) => state.updateTask);
     const notificationsEnabled = useTaskStore((state) => state.settings.notificationsEnabled !== false);
+    const customDurations = useTaskStore((state) => state.settings.gtd?.pomodoro?.customDurations);
     const { t } = useLanguage();
     const resolveText = useCallback((key: string, fallback: string) => {
         const value = t(key);
@@ -122,6 +123,7 @@ export function PomodoroPanel({ tasks }: PomodoroPanelProps) {
         () => (selectedTaskId ? tasks.find((task) => task.id === selectedTaskId) : undefined),
         [selectedTaskId, tasks]
     );
+    const presetOptions = useMemo(() => getPomodoroPresetOptions(customDurations), [customDurations]);
 
     const phaseLabelRaw = timerState.phase === 'focus' ? t('pomodoro.phaseFocus') : t('pomodoro.phaseBreak');
     const phaseLabel = phaseLabelRaw.startsWith('pomodoro.') ? (timerState.phase === 'focus' ? 'Focus session' : 'Break') : phaseLabelRaw;
@@ -230,7 +232,7 @@ export function PomodoroPanel({ tasks }: PomodoroPanelProps) {
             </header>
 
             <div className="flex flex-wrap gap-2">
-                {POMODORO_PRESETS.map((preset) => {
+                {presetOptions.map((preset) => {
                     const active = durations.focusMinutes === preset.focusMinutes && durations.breakMinutes === preset.breakMinutes;
                     return (
                         <button

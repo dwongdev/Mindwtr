@@ -1,9 +1,11 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+    createPomodoroCustomPreset,
     createPomodoroState,
     DEFAULT_POMODORO_DURATIONS,
     formatPomodoroClock,
+    getPomodoroPresetOptions,
     getPomodoroPhaseSeconds,
     sanitizePomodoroDurations,
     tickPomodoroState,
@@ -24,6 +26,21 @@ describe('pomodoro helpers', () => {
             isRunning: false,
             completedFocusSessions: 0,
         });
+    });
+
+    it('adds one custom preset when the saved duration differs from the built-in presets', () => {
+        expect(createPomodoroCustomPreset({ focusMinutes: 30, breakMinutes: 6 })).toEqual({
+            id: 'custom',
+            label: 'Custom 30/6',
+            focusMinutes: 30,
+            breakMinutes: 6,
+        });
+        expect(getPomodoroPresetOptions({ focusMinutes: 30, breakMinutes: 6 })).toHaveLength(4);
+    });
+
+    it('reuses built-in presets when custom durations match them', () => {
+        expect(createPomodoroCustomPreset({ focusMinutes: 25, breakMinutes: 5 })).toBeNull();
+        expect(getPomodoroPresetOptions({ focusMinutes: 25, breakMinutes: 5 })).toHaveLength(3);
     });
 
     it('switches from focus to break and increments completed session', () => {

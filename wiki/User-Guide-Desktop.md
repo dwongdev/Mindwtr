@@ -53,7 +53,7 @@ Your unified dashboard combining daily planning and next actions.
 **Features:**
 - **Context Filters**: Filter Next Actions by context (e.g., @home, @work) or tag.
 - **Top 3 Only**: Toggle to hide everything except your top 3 focus tasks (Zen Mode).
-- **Pomodoro (Optional)**: Enable in **Settings → GTD → Features → Pomodoro timer** to show a task-linked focus/break timer panel (15/3, 25/5, 50/10).
+- **Pomodoro (Optional)**: Enable in **Settings → GTD → Features → Pomodoro timer** to show a task-linked focus/break timer panel (15/3, 25/5, 50/10, plus one optional custom preset).
 
 ### 📁 Projects
 

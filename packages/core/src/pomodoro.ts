@@ -19,7 +19,7 @@ export interface PomodoroTickResult {
 }
 
 export interface PomodoroPreset extends PomodoroDurations {
-    id: 'quick' | 'classic' | 'deep';
+    id: 'quick' | 'classic' | 'deep' | 'custom';
     label: string;
 }
 
@@ -50,6 +50,30 @@ export function sanitizePomodoroDurations(value?: Partial<PomodoroDurations>): P
         focusMinutes: clampMinutes(value?.focusMinutes, DEFAULT_POMODORO_DURATIONS.focusMinutes),
         breakMinutes: clampMinutes(value?.breakMinutes, DEFAULT_POMODORO_DURATIONS.breakMinutes),
     };
+}
+
+export function createPomodoroCustomPreset(value?: Partial<PomodoroDurations>): PomodoroPreset | null {
+    if (!value || (value.focusMinutes === undefined && value.breakMinutes === undefined)) {
+        return null;
+    }
+
+    const durations = sanitizePomodoroDurations(value);
+    const matchesBuiltInPreset = POMODORO_PRESETS.some(
+        (preset) => preset.focusMinutes === durations.focusMinutes && preset.breakMinutes === durations.breakMinutes
+    );
+
+    if (matchesBuiltInPreset) return null;
+
+    return {
+        id: 'custom',
+        label: `Custom ${durations.focusMinutes}/${durations.breakMinutes}`,
+        ...durations,
+    };
+}
+
+export function getPomodoroPresetOptions(customDurations?: Partial<PomodoroDurations>): readonly PomodoroPreset[] {
+    const customPreset = createPomodoroCustomPreset(customDurations);
+    return customPreset ? [...POMODORO_PRESETS, customPreset] : POMODORO_PRESETS;
 }
 
 export function getPomodoroPhaseSeconds(phase: PomodoroPhase, durations: PomodoroDurations = DEFAULT_POMODORO_DURATIONS): number {

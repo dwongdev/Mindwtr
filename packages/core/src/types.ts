@@ -229,6 +229,12 @@ export interface AppData {
             weeklyReview?: {
                 includeContextStep?: boolean;
             };
+            pomodoro?: {
+                customDurations?: {
+                    focusMinutes?: number;
+                    breakMinutes?: number;
+                };
+            };
         };
         attachments?: {
             lastCleanupAt?: string;

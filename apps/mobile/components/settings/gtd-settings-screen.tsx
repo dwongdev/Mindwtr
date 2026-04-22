@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Modal, Pressable, ScrollView, StyleSheet, Switch, Text, TouchableOpacity, View } from 'react-native';
+import { Modal, Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -20,6 +20,7 @@ import {
 import { useThemeColors } from '@/hooks/use-theme-colors';
 import { logSettingsError } from '@/lib/settings-utils';
 import {
+    sanitizePomodoroDurations,
     translateText,
     type AppData,
     type TaskEditorFieldId,
@@ -79,6 +80,9 @@ export function GtdSettingsScreen({
     const prioritiesEnabled = settings.features?.priorities !== false;
     const timeEstimatesEnabled = settings.features?.timeEstimates !== false;
     const pomodoroEnabled = settings.features?.pomodoro === true;
+    const pomodoroCustomDurations = sanitizePomodoroDurations(settings.gtd?.pomodoro?.customDurations);
+    const [pomodoroFocusDraft, setPomodoroFocusDraft] = useState(String(pomodoroCustomDurations.focusMinutes));
+    const [pomodoroBreakDraft, setPomodoroBreakDraft] = useState(String(pomodoroCustomDurations.breakMinutes));
 
     useEffect(() => {
         if (screen !== 'gtd-task-editor') {
@@ -105,6 +109,11 @@ export function GtdSettingsScreen({
         settings.gtd?.taskEditor?.sectionOpen?.scheduling,
     ]);
 
+    useEffect(() => {
+        setPomodoroFocusDraft(String(pomodoroCustomDurations.focusMinutes));
+        setPomodoroBreakDraft(String(pomodoroCustomDurations.breakMinutes));
+    }, [pomodoroCustomDurations.breakMinutes, pomodoroCustomDurations.focusMinutes]);
+
     const updateFeatureFlags = (next: { priorities?: boolean; timeEstimates?: boolean; pomodoro?: boolean }) => {
         updateSettings({
             features: {
@@ -112,6 +121,30 @@ export function GtdSettingsScreen({
                 ...next,
             },
         }).catch(logSettingsError);
+    };
+
+    const savePomodoroCustomDurations = (nextDurations: { focusMinutes: number; breakMinutes: number }) => {
+        updateSettings({
+            gtd: {
+                ...(settings.gtd ?? {}),
+                pomodoro: {
+                    ...(settings.gtd?.pomodoro ?? {}),
+                    customDurations: nextDurations,
+                },
+            },
+        }).catch(logSettingsError);
+        return nextDurations;
+    };
+
+    const commitPomodoroMinutes = () => {
+        const focusValue = Number.parseInt(pomodoroFocusDraft, 10);
+        const breakValue = Number.parseInt(pomodoroBreakDraft, 10);
+        const nextDurations = savePomodoroCustomDurations(sanitizePomodoroDurations({
+            focusMinutes: Number.isFinite(focusValue) ? focusValue : pomodoroCustomDurations.focusMinutes,
+            breakMinutes: Number.isFinite(breakValue) ? breakValue : pomodoroCustomDurations.breakMinutes,
+        }));
+        setPomodoroFocusDraft(String(nextDurations.focusMinutes));
+        setPomodoroBreakDraft(String(nextDurations.breakMinutes));
     };
 
     const updateInboxProcessing = (partial: Partial<NonNullable<NonNullable<AppData['settings']['gtd']>['inboxProcessing']>>) => {
@@ -159,6 +192,25 @@ export function GtdSettingsScreen({
         const featurePomodoroDesc = featurePomodoroDescRaw === 'settings.featurePomodoroDesc'
             ? localize('Enable the optional Pomodoro panel in Focus view.', '在聚焦视图中启用可选的番茄钟面板。')
             : featurePomodoroDescRaw;
+        const pomodoroCustomPresetLabelRaw = t('settings.pomodoroCustomPreset');
+        const pomodoroCustomPresetLabel = pomodoroCustomPresetLabelRaw === 'settings.pomodoroCustomPreset'
+            ? localize('Custom preset', '自定义预设')
+            : pomodoroCustomPresetLabelRaw;
+        const pomodoroCustomPresetDescRaw = t('settings.pomodoroCustomPresetDesc');
+        const pomodoroCustomPresetDesc = pomodoroCustomPresetDescRaw === 'settings.pomodoroCustomPresetDesc'
+            ? localize(
+                'Add one extra focus/break preset. Matching a built-in preset keeps the built-in chips only.',
+                '添加一个额外的专注/休息预设。若与内置预设相同，将继续只显示内置选项。'
+            )
+            : pomodoroCustomPresetDescRaw;
+        const pomodoroFocusMinutesLabelRaw = t('settings.pomodoroFocusMinutes');
+        const pomodoroFocusMinutesLabel = pomodoroFocusMinutesLabelRaw === 'settings.pomodoroFocusMinutes'
+            ? localize('Focus minutes', '专注分钟')
+            : pomodoroFocusMinutesLabelRaw;
+        const pomodoroBreakMinutesLabelRaw = t('settings.pomodoroBreakMinutes');
+        const pomodoroBreakMinutesLabel = pomodoroBreakMinutesLabelRaw === 'settings.pomodoroBreakMinutes'
+            ? localize('Break minutes', '休息分钟')
+            : pomodoroBreakMinutesLabelRaw;
 
         return (
             <SafeAreaView style={[styles.container, { backgroundColor: tc.bg }]} edges={['bottom']}>
@@ -184,6 +236,36 @@ export function GtdSettingsScreen({
                                 trackColor={{ false: '#767577', true: '#3B82F6' }}
                             />
                         </View>
+                        {pomodoroEnabled && (
+                            <View style={[styles.settingRowColumn, { borderTopWidth: 1, borderTopColor: tc.border, gap: 12 }]}>
+                                <View style={styles.settingInfo}>
+                                    <Text style={[styles.settingLabel, { color: tc.text }]}>{pomodoroCustomPresetLabel}</Text>
+                                    <Text style={[styles.settingDescription, { color: tc.secondaryText }]}>{pomodoroCustomPresetDesc}</Text>
+                                </View>
+                                <View style={styles.inlineInputRow}>
+                                    <View style={styles.inlineInputGroup}>
+                                        <Text style={[styles.inlineInputLabel, { color: tc.secondaryText }]}>{pomodoroFocusMinutesLabel}</Text>
+                                        <TextInput
+                                            value={pomodoroFocusDraft}
+                                            onChangeText={setPomodoroFocusDraft}
+                                            onBlur={commitPomodoroMinutes}
+                                            keyboardType="number-pad"
+                                            style={[styles.textInput, styles.inlineTextInput, { borderColor: tc.border, color: tc.text }]}
+                                        />
+                                    </View>
+                                    <View style={styles.inlineInputGroup}>
+                                        <Text style={[styles.inlineInputLabel, { color: tc.secondaryText }]}>{pomodoroBreakMinutesLabel}</Text>
+                                        <TextInput
+                                            value={pomodoroBreakDraft}
+                                            onChangeText={setPomodoroBreakDraft}
+                                            onBlur={commitPomodoroMinutes}
+                                            keyboardType="number-pad"
+                                            style={[styles.textInput, styles.inlineTextInput, { borderColor: tc.border, color: tc.text }]}
+                                        />
+                                    </View>
+                                </View>
+                            </View>
+                        )}
                     </View>
 
                     <View style={[styles.menuCard, { backgroundColor: tc.cardBg }]}>

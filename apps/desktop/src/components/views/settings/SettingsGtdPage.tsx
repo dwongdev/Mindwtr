@@ -1,7 +1,7 @@
 import type { AppData, TaskEditorFieldId, TaskEditorSectionId } from '@mindwtr/core';
-import { translateText } from '@mindwtr/core';
+import { sanitizePomodoroDurations, translateText } from '@mindwtr/core';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { ChevronDown, ChevronRight } from 'lucide-react';
 import { cn } from '../../../lib/utils';
 import { reportError } from '../../../lib/report-error';
@@ -74,6 +74,10 @@ type Labels = {
     featureTimeEstimatesDesc: string;
     featurePomodoro: string;
     featurePomodoroDesc: string;
+    pomodoroCustomPreset: string;
+    pomodoroCustomPresetDesc: string;
+    pomodoroFocusMinutes: string;
+    pomodoroBreakMinutes: string;
     weeklyReviewConfig: string;
     weeklyReviewConfigDesc: string;
     weeklyReviewIncludeContextsStep: string;
@@ -160,6 +164,39 @@ export function SettingsGtdPage({
     const inboxScheduleEnabled = inboxProcessing.scheduleEnabled === true;
     const includeContextStep = safeSettings.gtd?.weeklyReview?.includeContextStep !== false;
     const pomodoroEnabled = safeSettings.features?.pomodoro === true;
+    const pomodoroCustomDurations = sanitizePomodoroDurations(safeSettings.gtd?.pomodoro?.customDurations);
+    const [pomodoroFocusDraft, setPomodoroFocusDraft] = useState(String(pomodoroCustomDurations.focusMinutes));
+    const [pomodoroBreakDraft, setPomodoroBreakDraft] = useState(String(pomodoroCustomDurations.breakMinutes));
+
+    useEffect(() => {
+        setPomodoroFocusDraft(String(pomodoroCustomDurations.focusMinutes));
+        setPomodoroBreakDraft(String(pomodoroCustomDurations.breakMinutes));
+    }, [pomodoroCustomDurations.breakMinutes, pomodoroCustomDurations.focusMinutes]);
+
+    const savePomodoroCustomDurations = (nextDurations: { focusMinutes: number; breakMinutes: number }) => {
+        updateSettings({
+            gtd: {
+                ...(safeSettings.gtd ?? {}),
+                pomodoro: {
+                    ...(safeSettings.gtd?.pomodoro ?? {}),
+                    customDurations: nextDurations,
+                },
+            },
+        }).then(showSaved).catch((error) => reportError('Failed to update Pomodoro durations', error));
+        return nextDurations;
+    };
+
+    const commitPomodoroMinutes = () => {
+        const focusValue = Number.parseInt(pomodoroFocusDraft, 10);
+        const breakValue = Number.parseInt(pomodoroBreakDraft, 10);
+        const nextDurations = savePomodoroCustomDurations(sanitizePomodoroDurations({
+            focusMinutes: Number.isFinite(focusValue) ? focusValue : pomodoroCustomDurations.focusMinutes,
+            breakMinutes: Number.isFinite(breakValue) ? breakValue : pomodoroCustomDurations.breakMinutes,
+        }));
+        setPomodoroFocusDraft(String(nextDurations.focusMinutes));
+        setPomodoroBreakDraft(String(nextDurations.breakMinutes));
+    };
+
     const fieldLabel = (fieldId: TaskEditorFieldId) => {
         switch (fieldId) {
             case 'status':
@@ -385,6 +422,52 @@ export function SettingsGtdPage({
                         />
                     </button>
                 </div>
+                {pomodoroEnabled && (
+                    <div className="p-4 space-y-3">
+                        <div>
+                            <div className="text-sm font-medium">{t.pomodoroCustomPreset}</div>
+                            <div className="text-xs text-muted-foreground mt-1">{t.pomodoroCustomPresetDesc}</div>
+                        </div>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                            <label className="space-y-1.5">
+                                <span className="text-xs font-medium text-muted-foreground">{t.pomodoroFocusMinutes}</span>
+                                <input
+                                    type="number"
+                                    min={1}
+                                    max={180}
+                                    inputMode="numeric"
+                                    value={pomodoroFocusDraft}
+                                    onChange={(event) => setPomodoroFocusDraft(event.target.value)}
+                                    onBlur={commitPomodoroMinutes}
+                                    onKeyDown={(event) => {
+                                        if (event.key === 'Enter') {
+                                            event.currentTarget.blur();
+                                        }
+                                    }}
+                                    className="w-full text-sm bg-muted/50 text-foreground border border-border rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary/40"
+                                />
+                            </label>
+                            <label className="space-y-1.5">
+                                <span className="text-xs font-medium text-muted-foreground">{t.pomodoroBreakMinutes}</span>
+                                <input
+                                    type="number"
+                                    min={1}
+                                    max={180}
+                                    inputMode="numeric"
+                                    value={pomodoroBreakDraft}
+                                    onChange={(event) => setPomodoroBreakDraft(event.target.value)}
+                                    onBlur={commitPomodoroMinutes}
+                                    onKeyDown={(event) => {
+                                        if (event.key === 'Enter') {
+                                            event.currentTarget.blur();
+                                        }
+                                    }}
+                                    className="w-full text-sm bg-muted/50 text-foreground border border-border rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary/40"
+                                />
+                            </label>
+                        </div>
+                    </div>
+                )}
             </div>
             <div className="bg-card border border-border rounded-lg divide-y divide-border">
                 <div className="p-4 space-y-3">

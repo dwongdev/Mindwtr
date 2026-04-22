@@ -221,7 +221,7 @@ Your primary dashboard for doing.
 - **Context filter** — Tap a context chip to filter the Next list.
 - **Swipe to Focus** — Swipe a task right to toggle "Focus" status (moves it to Today).
 - **Quick Status** — Tap the status badge to change status.
-- **Pomodoro (Optional)** — Enable in **Settings → GTD → Features → Pomodoro timer** to show a focus/break timer panel linked to your current task.
+- **Pomodoro (Optional)** — Enable in **Settings → GTD → Features → Pomodoro timer** to show a focus/break timer panel linked to your current task. You can also add one optional custom preset there.
 
 ---
 
