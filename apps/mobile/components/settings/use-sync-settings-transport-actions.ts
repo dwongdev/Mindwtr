@@ -113,6 +113,13 @@ export function useSyncSettingsTransportActions({
     const [dropboxConnected, setDropboxConnected] = useState(false);
     const [dropboxBusy, setDropboxBusy] = useState(false);
     const [cloudKitAccountStatus, setCloudKitAccountStatus] = useState<CloudKitAccountStatus>('unknown');
+    const formatText = useCallback((key: string, replacements: Record<string, string | number>) => {
+        let text = t(key);
+        Object.entries(replacements).forEach(([name, value]) => {
+            text = text.split(`{${name}}`).join(String(value));
+        });
+        return text;
+    }, [t]);
 
     const runDropboxConnectionTest = useCallback(async () => {
         let accessToken = await getValidDropboxAccessToken(dropboxAppKey);
@@ -648,16 +655,16 @@ export function useSyncSettingsTransportActions({
             const result = await performMobileSync(effectiveBackend === 'file' ? syncPath || undefined : undefined);
             if (result.skipped === 'offline' || isLikelyOfflineSyncError(result.error)) {
                 showToast({
-                    title: localize('Offline', '离线'),
-                    message: localize('No internet connection. Sync skipped.', '当前无网络连接，已跳过同步。'),
+                    title: t('common.offline'),
+                    message: t('settings.syncSkippedOffline'),
                     tone: 'warning',
                 });
                 return;
             }
             if (result.skipped === 'requeued') {
                 showToast({
-                    title: localize('Sync queued', '已重新排队'),
-                    message: localize('Local changes arrived during sync. A retry was queued automatically.', '同步期间检测到本地更改，已自动重新排队重试。'),
+                    title: t('settings.syncQueued'),
+                    message: t('settings.syncQueuedBody'),
                     tone: 'info',
                     durationMs: 4200,
                 });
@@ -673,24 +680,22 @@ export function useSyncSettingsTransportActions({
                 );
                 const warningDetails = [
                     maxResultClockSkewMs > CLOCK_SKEW_THRESHOLD_MS
-                        ? localize(
-                            `Large device clock skew detected (${formatClockSkew(maxResultClockSkewMs)}). Check time settings on each device.`,
-                            `检测到较大的设备时钟偏差（${formatClockSkew(maxResultClockSkewMs)}）。请检查各设备的时间设置。`
-                        )
+                        ? formatText('settings.syncClockSkewWarning', {
+                            skew: formatClockSkew(maxResultClockSkewMs),
+                        })
                         : null,
                     resultTimestampAdjustments > 0
-                        ? localize(
-                            `Adjusted ${resultTimestampAdjustments} future-dated timestamp${resultTimestampAdjustments === 1 ? '' : 's'} during sync.`,
-                            `同步期间已调整 ${resultTimestampAdjustments} 个未来时间戳。`
-                        )
+                        ? formatText('settings.syncAdjustedTimestamps', {
+                            count: resultTimestampAdjustments,
+                        })
                         : null,
                 ].filter(Boolean);
                 showToast({
-                    title: localize('Success', '成功'),
+                    title: t('common.success'),
                     message: [
                         conflictCount > 0 && !shouldSuppressDuplicateConflictNotice
-                            ? localize(`Sync completed with ${conflictCount} conflicts (resolved automatically).`, `同步完成，发现 ${conflictCount} 个冲突（已自动处理）。`)
-                            : localize('Sync completed!', '同步完成！'),
+                            ? formatText('settings.syncCompletedWithConflicts', { count: conflictCount })
+                            : t('settings.syncCompleted'),
                         ...warningDetails,
                     ].join('\n\n'),
                     tone: conflictCount > 0 || warningDetails.length > 0 ? 'warning' : 'success',
@@ -727,6 +732,7 @@ export function useSyncSettingsTransportActions({
         lastSyncStats,
         lastSyncStatus,
         localize,
+        formatText,
         resetSyncStatusForBackendSwitch,
         showSettingsErrorToast,
         showSettingsWarning,
