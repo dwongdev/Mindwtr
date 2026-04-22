@@ -76,6 +76,28 @@ export function useTaskEditState({
     const [aiModal, setAiModal] = React.useState<{ title: string; message?: string; actions: { label: string; variant?: 'primary' | 'secondary'; onPress: () => void }[] } | null>(null);
 
     React.useEffect(() => {
+        if (!visible) {
+            setEditedTaskState({});
+            baseTaskRef.current = null;
+            isDirtyRef.current = false;
+            setShowDescriptionPreview(false);
+            if (titleDebounceRef.current) {
+                clearTimeout(titleDebounceRef.current);
+                titleDebounceRef.current = null;
+            }
+            titleDraftRef.current = '';
+            setTitleDraft('');
+            descriptionDraftRef.current = '';
+            setDescriptionDraft('');
+            setContextInputDraft('');
+            setTagInputDraft('');
+            setIsContextInputFocused(false);
+            setIsTagInputFocused(false);
+            setEditTab(resolveInitialTaskEditTab(defaultTab, null));
+            setCustomWeekdays([]);
+            return;
+        }
+
         if (liveTask) {
             const recurrenceRule = getRecurrenceRuleValue(liveTask.recurrence);
             const recurrenceStrategy = getRecurrenceStrategyValue(liveTask.recurrence);
@@ -123,7 +145,7 @@ export function useTaskEditState({
                 setEditTab(resolveInitialTaskEditTab(defaultTab, normalizedTask));
                 resetCopilotStateRef.current();
             }
-        } else if (visible) {
+        } else {
             setEditedTaskState({});
             baseTaskRef.current = null;
             isDirtyRef.current = false;
