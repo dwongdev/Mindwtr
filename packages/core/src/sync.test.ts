@@ -1209,14 +1209,23 @@ describe('Sync Logic', () => {
             }
         });
 
-        it('prefers newer item when timestamps are within skew threshold', () => {
-            const local = mockAppData([createMockTask('1', '2023-01-02T00:00:00.000Z')]);
-            const incoming = mockAppData([createMockTask('1', '2023-01-02T00:04:00.000Z')]);
+        it('uses a deterministic winner for legacy records when timestamps are within skew threshold', () => {
+            const olderTask = {
+                ...createMockTask('1', '2023-01-02T00:00:00.000Z'),
+                title: 'Bravo',
+            } satisfies Task;
+            const newerTask = {
+                ...createMockTask('1', '2023-01-02T00:04:00.000Z'),
+                title: 'Alpha',
+            } satisfies Task;
 
-            const merged = mergeAppData(local, incoming);
+            const expectedWinner = chooseDeterministicWinner(olderTask, newerTask);
+            const forward = mergeAppData(mockAppData([olderTask]), mockAppData([newerTask]));
+            const reverse = mergeAppData(mockAppData([newerTask]), mockAppData([olderTask]));
 
-            expect(merged.tasks).toHaveLength(1);
-            expect(merged.tasks[0].updatedAt).toBe('2023-01-02T00:04:00.000Z');
+            expect(forward.tasks).toHaveLength(1);
+            expect(forward.tasks[0]).toEqual(reverse.tasks[0]);
+            expect(forward.tasks[0].title).toBe(expectedWinner.title);
         });
 
         it('treats empty updatedAt as older than a valid epoch timestamp', () => {

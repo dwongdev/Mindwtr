@@ -474,7 +474,7 @@ function mergeEntitiesWithStats<T extends MergeableEntity>(
                     });
                 }
             }
-        } else if (withinSkew && comparableUpdatedTimeDiff === 0) {
+        } else if (withinSkew) {
             winner = chooseDeterministicWinner(normalizedLocalItem, normalizedIncomingItem);
         }
         if (winner === normalizedIncomingItem) stats.resolvedUsingIncoming += 1;
