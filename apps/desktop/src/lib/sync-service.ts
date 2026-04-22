@@ -32,6 +32,8 @@ import {
     getInMemoryAppDataSnapshot,
     shouldRunAttachmentCleanup,
     createAbortableFetch,
+    getTranslationsSync,
+    isSupportedLanguage,
     type CloudProvider,
 } from '@mindwtr/core';
 import { isTauriRuntime } from './runtime';
@@ -133,7 +135,6 @@ const WEBDAV_READ_RETRY_OPTIONS = {
 };
 const ATTACHMENT_WARNING_TOAST_THRESHOLD = 2;
 const ATTACHMENT_WARNING_TOAST_COOLDOWN_MS = 10 * 60 * 1000;
-const ATTACHMENT_WARNING_TOAST_MESSAGE = 'Attachment sync is still failing. Files will retry in the background.';
 type SyncServiceDependencies = {
     isTauriRuntime: () => boolean;
     invoke: <T>(command: string, args?: Record<string, unknown>) => Promise<T>;
@@ -198,6 +199,15 @@ let syncServiceDependencies: SyncServiceDependencies = {
 
 const isTauriRuntimeEnv = () => syncServiceDependencies.isTauriRuntime();
 const getStoreState = () => syncServiceDependencies.getStoreState();
+const fallbackSyncTranslations = getTranslationsSync('en');
+
+const resolveSyncText = (key: string, fallback: string): string => {
+    const language = getStoreState().settings?.language;
+    const translations = language && isSupportedLanguage(language)
+        ? getTranslationsSync(language)
+        : fallbackSyncTranslations;
+    return translations[key] || fallbackSyncTranslations[key] || fallback;
+};
 
 const logSyncWarning = (message: string, error?: unknown) => {
     const extra = error
@@ -416,7 +426,11 @@ export class SyncService {
             if (!queuedResult.success) {
                 logSyncWarning('Queued sync failed', queuedResult.error);
                 try {
-                    useUiStore.getState().showToast(queuedResult.error || 'Queued sync failed.', 'error', 6000);
+                    useUiStore.getState().showToast(
+                        queuedResult.error || resolveSyncText('settings.queuedSyncFailed', 'Queued sync failed.'),
+                        'error',
+                        6000,
+                    );
                 } catch {
                     // UI store may be unavailable during shutdown/tests.
                 }
@@ -531,7 +545,14 @@ export class SyncService {
             }
             SyncService.lastAttachmentWarningToastAt = now;
             try {
-                useUiStore.getState().showToast(ATTACHMENT_WARNING_TOAST_MESSAGE, 'error', 6000);
+                useUiStore.getState().showToast(
+                    resolveSyncText(
+                        'settings.attachmentSyncRetryWarning',
+                        'Attachment sync is still failing. Files will retry in the background.',
+                    ),
+                    'error',
+                    6000,
+                );
             } catch {
                 // UI store may be unavailable during shutdown/tests.
             }

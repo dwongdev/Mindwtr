@@ -3,6 +3,7 @@ import { SyncService, type CloudProvider } from '../../../lib/sync-service';
 import { useUiStore } from '../../../store/ui-store';
 import { logError } from '../../../lib/app-log';
 import { markSettingsOpenTrace, measureSettingsOpenStep } from '../../../lib/settings-open-diagnostics';
+import { useLanguage } from '../../../contexts/language-context';
 import {
     addBreadcrumb,
     CLOCK_SKEW_THRESHOLD_MS,
@@ -74,6 +75,7 @@ export const useSyncSettings = ({
     const [isRestoringSnapshot, setIsRestoringSnapshot] = useState(false);
     const [transferAction, setTransferAction] = useState<null | 'export' | 'restore' | 'import'>(null);
     const showToast = useUiStore((state) => state.showToast);
+    const { t } = useLanguage();
 
     const formatSyncPathError = useCallback((message?: string): string => {
         const normalized = (message || '').toLowerCase();
@@ -91,6 +93,23 @@ export const useSyncSettings = ({
         const text = String(error || '').trim();
         return text || fallback;
     }, []);
+
+    const resolveText = useCallback((key: string, fallback: string): string => {
+        const translated = t(key);
+        return translated === key ? fallback : translated;
+    }, [t]);
+
+    const formatText = useCallback((
+        key: string,
+        fallback: string,
+        replacements: Record<string, string | number>,
+    ): string => {
+        let text = resolveText(key, fallback);
+        Object.entries(replacements).forEach(([name, value]) => {
+            text = text.split(`{{${name}}}`).join(String(value));
+        });
+        return text;
+    }, [resolveText]);
 
     useEffect(() => {
         markSettingsOpenTrace('sync-settings-effect');
@@ -619,7 +638,14 @@ export const useSyncSettings = ({
                 setSnapshots(await SyncService.listDataSnapshots());
             }
             const details = [
-                `Imported ${result.importedTaskCount} tasks into ${result.importedProjectCount} project(s).`,
+                formatText(
+                    'settings.importTodoistSummary',
+                    'Imported {{taskCount}} tasks into {{projectCount}} project(s).',
+                    {
+                        taskCount: result.importedTaskCount,
+                        projectCount: result.importedProjectCount,
+                    },
+                ),
                 result.importedChecklistItemCount > 0 ? `${result.importedChecklistItemCount} subtask(s) became checklist items.` : null,
                 snapshotName ? `Snapshot saved as ${snapshotName}.` : null,
                 ...(result.warnings.length > 0 ? ['', ...result.warnings] : []),
@@ -630,7 +656,7 @@ export const useSyncSettings = ({
         } finally {
             setTransferAction(null);
         }
-    }, [isTauri, requestConfirmation, showToast, toErrorMessage]);
+    }, [formatText, isTauri, requestConfirmation, showToast, toErrorMessage]);
 
     const handleImportDgt = useCallback(async () => {
         addBreadcrumb('transfer:restore');
@@ -672,7 +698,15 @@ export const useSyncSettings = ({
                 setSnapshots(await SyncService.listDataSnapshots());
             }
             const details = [
-                `Imported ${result.importedTaskCount} task(s), ${result.importedProjectCount} project(s), and ${result.importedAreaCount} area(s).`,
+                formatText(
+                    'settings.importDgtSummary',
+                    'Imported {{taskCount}} task(s), {{projectCount}} project(s), and {{areaCount}} area(s).',
+                    {
+                        taskCount: result.importedTaskCount,
+                        projectCount: result.importedProjectCount,
+                        areaCount: result.importedAreaCount,
+                    },
+                ),
                 result.importedChecklistItemCount > 0 ? `${result.importedChecklistItemCount} checklist item(s) were preserved.` : null,
                 snapshotName ? `Snapshot saved as ${snapshotName}.` : null,
                 ...(result.warnings.length > 0 ? ['', ...result.warnings] : []),
@@ -683,7 +717,7 @@ export const useSyncSettings = ({
         } finally {
             setTransferAction(null);
         }
-    }, [isTauri, requestConfirmation, showToast, toErrorMessage]);
+    }, [formatText, isTauri, requestConfirmation, showToast, toErrorMessage]);
 
     const handleImportOmniFocus = useCallback(async () => {
         addBreadcrumb('transfer:restore');
@@ -724,7 +758,14 @@ export const useSyncSettings = ({
                 setSnapshots(await SyncService.listDataSnapshots());
             }
             const details = [
-                `Imported ${result.importedTaskCount} task(s) and ${result.importedProjectCount} project(s).`,
+                formatText(
+                    'settings.importOmniFocusSummary',
+                    'Imported {{taskCount}} task(s) and {{projectCount}} project(s).',
+                    {
+                        taskCount: result.importedTaskCount,
+                        projectCount: result.importedProjectCount,
+                    },
+                ),
                 result.importedStandaloneTaskCount > 0 ? `${result.importedStandaloneTaskCount} task(s) stayed outside projects.` : null,
                 snapshotName ? `Snapshot saved as ${snapshotName}.` : null,
                 ...(result.warnings.length > 0 ? ['', ...result.warnings] : []),
@@ -735,7 +776,7 @@ export const useSyncSettings = ({
         } finally {
             setTransferAction(null);
         }
-    }, [isTauri, requestConfirmation, showToast, toErrorMessage]);
+    }, [formatText, isTauri, requestConfirmation, showToast, toErrorMessage]);
 
     return {
         syncPath,

@@ -219,7 +219,7 @@ export function ProjectsSidebar({
     const handleProjectDragEnd = useCallback((dndState: ReturnType<typeof buildProjectDndState>) => (event: DragEndEvent) => {
         const failProjectMove = (error: unknown) => {
             reportError('Failed to move project between areas', error);
-            showToast?.('Failed to move project', 'error');
+            showToast?.(t('projects.moveProjectFailed') || 'Failed to move project', 'error');
         };
         const { active, over } = event;
         if (!over || active.id === over.id) return;
