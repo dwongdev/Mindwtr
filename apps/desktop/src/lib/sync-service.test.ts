@@ -108,7 +108,10 @@ describe('SyncService testability hooks', () => {
             lastResultAt: null,
         });
         expect((SyncService as any).syncListeners.size).toBe(0);
-        expect((SyncService as any).syncQueued).toBe(false);
+        expect((SyncService as any).syncOrchestrator.getState()).toEqual({
+            inFlight: false,
+            queued: false,
+        });
         expect((SyncService as any).externalSyncTimer).toBeNull();
     });
 

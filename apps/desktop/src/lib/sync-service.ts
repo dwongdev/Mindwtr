@@ -26,6 +26,7 @@ import {
     CLOCK_SKEW_THRESHOLD_MS,
     appendSyncHistory,
     cloneAppData,
+    createSyncOrchestrator,
     formatSyncErrorMessage,
     LocalSyncAbort,
     getInMemoryAppDataSnapshot,
@@ -389,9 +390,6 @@ type SyncExecutionHelpers = {
 
 export class SyncService {
     private static didMigrate = false;
-    private static syncInFlight: Promise<SyncRunResult> | null = null;
-    private static syncQueued = false;
-    private static syncQueueVersion = 0;
     private static queuedSyncOptions: SyncRunOptions | null = null;
     private static syncStatus: {
         inFlight: boolean;
@@ -406,6 +404,28 @@ export class SyncService {
         lastResult: null,
         lastResultAt: null,
     };
+    private static readonly syncOrchestrator = createSyncOrchestrator<SyncRunOptions, SyncRunResult>({
+        runCycle: async (options) => SyncService.runSyncCycle(options),
+        onQueueStateChange: (queued) => {
+            SyncService.updateSyncStatus({ queued });
+        },
+        onDrained: () => {
+            SyncService.queuedSyncOptions = null;
+        },
+        onQueuedRunComplete: (queuedResult) => {
+            if (!queuedResult.success) {
+                logSyncWarning('Queued sync failed', queuedResult.error);
+                try {
+                    useUiStore.getState().showToast(queuedResult.error || 'Queued sync failed.', 'error', 6000);
+                } catch {
+                    // UI store may be unavailable during shutdown/tests.
+                }
+            }
+        },
+        onQueuedRunError: (error) => {
+            logSyncWarning('Queued sync crashed', error);
+        },
+    });
     private static syncListeners = new Set<(status: typeof SyncService.syncStatus) => void>();
     private static fileWatcherStop: (() => void) | null = null;
     private static fileWatcherPath: string | null = null;
@@ -432,9 +452,12 @@ export class SyncService {
         if (nextOptions && (preferLatest || !SyncService.queuedSyncOptions)) {
             SyncService.queuedSyncOptions = nextOptions;
         }
-        SyncService.syncQueued = true;
-        SyncService.syncQueueVersion += 1;
-        SyncService.updateSyncStatus({ queued: true });
+        const queuedOptions = SyncService.queuedSyncOptions ?? nextOptions;
+        if (queuedOptions) {
+            SyncService.syncOrchestrator.requestFollowUp(queuedOptions);
+            return;
+        }
+        SyncService.syncOrchestrator.requestFollowUp();
     }
 
     static getSyncStatus() {
@@ -469,9 +492,7 @@ export class SyncService {
     static async resetForTests(): Promise<void> {
         await SyncService.stopFileWatcher();
         SyncService.didMigrate = false;
-        SyncService.syncInFlight = null;
-        SyncService.syncQueued = false;
-        SyncService.syncQueueVersion = 0;
+        SyncService.syncOrchestrator.reset();
         SyncService.queuedSyncOptions = null;
         SyncService.syncStatus = {
             inFlight: false,
@@ -1518,24 +1539,14 @@ export class SyncService {
      * 4. Refresh Core Store
      */
     static async performSync(options: SyncRunOptions = {}): Promise<SyncRunResult> {
-        if (SyncService.syncInFlight) {
-            SyncService.requestQueuedSyncRun(options);
-            return SyncService.syncInFlight;
+        if (SyncService.syncOrchestrator.getState().inFlight) {
+            SyncService.queuedSyncOptions = options;
         }
-        // Consume queued follow-up requests by snapshotting the version at cycle start.
-        const cycleQueueVersion = SyncService.syncQueueVersion;
-        SyncService.syncQueued = false;
-        let inFlightSettled = false;
-        let resolveInFlight: ((value: SyncRunResult) => void) | null = null;
-        const inFlightPromise = new Promise<SyncRunResult>((resolve) => {
-            resolveInFlight = resolve;
-        });
-        const settleInFlight = (value: SyncRunResult) => {
-            if (inFlightSettled) return;
-            inFlightSettled = true;
-            resolveInFlight?.(value);
-        };
-        SyncService.syncInFlight = inFlightPromise;
+        return SyncService.syncOrchestrator.run(options);
+    }
+
+    private static async runSyncCycle(options: SyncRunOptions): Promise<SyncRunResult> {
+        SyncService.queuedSyncOptions = null;
         const context = SyncService.createSyncExecutionContext();
         const persistLocalDataWithTracking = async (data: AppData): Promise<void> => {
             if (isTauriRuntimeEnv()) {
@@ -1548,7 +1559,6 @@ export class SyncService {
 
         SyncService.updateSyncStatus({
             inFlight: true,
-            queued: false,
             step: context.step,
             lastResult: SyncService.syncStatus.lastResult,
             lastResultAt: SyncService.syncStatus.lastResultAt,
@@ -1739,18 +1749,14 @@ export class SyncService {
                 logSyncWarning('Failed to unsubscribe network listener after sync', error);
             }
             SyncService.finalizeSyncWriteIgnoreWindow();
-            SyncService.syncInFlight = null;
         }
         const skippedRequeue = result.skipped === 'requeued';
         if (!skippedRequeue) {
             SyncService.finalizeAttachmentWarningState(context, result);
         }
-        const hasQueuedFollowUp = SyncService.syncQueueVersion > cycleQueueVersion;
-        SyncService.syncQueued = hasQueuedFollowUp;
         SyncService.updateSyncStatus({
             inFlight: false,
             step: null,
-            queued: SyncService.syncQueued,
             lastResult: skippedRequeue
                 ? SyncService.syncStatus.lastResult
                 : result.success
@@ -1761,28 +1767,10 @@ export class SyncService {
                 : new Date().toISOString(),
         });
 
-        if (hasQueuedFollowUp) {
-            const queuedOptions = SyncService.queuedSyncOptions ?? options;
-            SyncService.queuedSyncOptions = null;
-            void SyncService.performSync(queuedOptions)
-                .then((queuedResult) => {
-                    if (!queuedResult.success) {
-                        logSyncWarning('Queued sync failed', queuedResult.error);
-                        try {
-                            useUiStore.getState().showToast(queuedResult.error || 'Queued sync failed.', 'error', 6000);
-                        } catch {
-                            // UI store may be unavailable during shutdown/tests.
-                        }
-                    }
-                })
-                .catch((error) => {
-                    logSyncWarning('Queued sync crashed', error);
-                });
-        } else {
+        if (!SyncService.syncOrchestrator.getState().queued) {
             SyncService.queuedSyncOptions = null;
         }
 
-        settleInFlight(result);
         return result;
     }
 }
