@@ -12,9 +12,11 @@ import {
 import {
     importDesktopDgtData,
     exportDesktopBackup,
+    importDesktopOmniFocusData,
     importDesktopTodoistData,
     inspectDesktopDgtImport,
     inspectDesktopBackup,
+    inspectDesktopOmniFocusImport,
     inspectDesktopTodoistImport,
     restoreDesktopBackup,
 } from '../../../lib/data-transfer';
@@ -594,7 +596,7 @@ export const useSyncSettings = ({
             const preview = parseResult.preview;
             const projectLines = preview.projects
                 .slice(0, 4)
-                .map((project) => `- ${project.name}: ${project.taskCount}`);
+                .map((project: { name: string; taskCount: number }) => `- ${project.name}: ${project.taskCount}`);
             if (preview.projects.length > 4) {
                 projectLines.push(`- ${preview.projects.length - 4} more project(s)...`);
             }
@@ -683,6 +685,58 @@ export const useSyncSettings = ({
         }
     }, [isTauri, requestConfirmation, showToast, toErrorMessage]);
 
+    const handleImportOmniFocus = useCallback(async () => {
+        addBreadcrumb('transfer:restore');
+        setTransferAction('import');
+        try {
+            const parseResult = await inspectDesktopOmniFocusImport();
+            if (!parseResult) return;
+            if (!parseResult.valid || !parseResult.preview || !parseResult.parsedData) {
+                showToast(parseResult.errors[0] || 'The selected file is not a supported OmniFocus CSV export.', 'error');
+                return;
+            }
+
+            const preview = parseResult.preview;
+            const projectLines = preview.projects
+                .slice(0, 4)
+                .map((project) => `- ${project.name}: ${project.taskCount}`);
+            if (preview.projects.length > 4) {
+                projectLines.push(`- ${preview.projects.length - 4} more project(s)...`);
+            }
+
+            const confirmed = await requestConfirmation({
+                title: 'Import OmniFocus data?',
+                message: [
+                    `Import ${preview.taskCount} task(s) from ${preview.fileName}?`,
+                    preview.projectCount > 0 ? `${preview.projectCount} project(s) will be created when needed.` : null,
+                    preview.standaloneTaskCount > 0
+                        ? `${preview.standaloneTaskCount} task(s) will stay outside projects so you can process them in Mindwtr.`
+                        : null,
+                    'Imported tasks keep OmniFocus notes, dates, tags, and contexts when supported.',
+                    ...(projectLines.length > 0 ? ['', ...projectLines] : []),
+                    ...(preview.warnings.length > 0 ? ['', ...preview.warnings] : []),
+                ].filter(Boolean).join('\n'),
+            });
+            if (!confirmed) return;
+
+            const { snapshotName, result } = await importDesktopOmniFocusData(parseResult.parsedData);
+            if (isTauri) {
+                setSnapshots(await SyncService.listDataSnapshots());
+            }
+            const details = [
+                `Imported ${result.importedTaskCount} task(s) and ${result.importedProjectCount} project(s).`,
+                result.importedStandaloneTaskCount > 0 ? `${result.importedStandaloneTaskCount} task(s) stayed outside projects.` : null,
+                snapshotName ? `Snapshot saved as ${snapshotName}.` : null,
+                ...(result.warnings.length > 0 ? ['', ...result.warnings] : []),
+            ].filter(Boolean).join('\n');
+            showToast(details, 'success', 8000);
+        } catch (error) {
+            showToast(toErrorMessage(error, 'Failed to import OmniFocus data.'), 'error');
+        } finally {
+            setTransferAction(null);
+        }
+    }, [isTauri, requestConfirmation, showToast, toErrorMessage]);
+
     return {
         syncPath,
         setSyncPath,
@@ -735,5 +789,6 @@ export const useSyncSettings = ({
         handleRestoreBackup,
         handleImportTodoist,
         handleImportDgt,
+        handleImportOmniFocus,
     };
 };

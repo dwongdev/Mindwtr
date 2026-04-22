@@ -81,6 +81,7 @@ type SyncBackupSectionProps = {
   formatRecoverySnapshotLabel: (fileName: string) => string;
   handleBackup: () => void;
   handleImportDgt: () => void;
+  handleImportOmniFocus: () => void;
   handleImportTodoist: () => void;
   handleRestoreBackup: () => void;
   handleRestoreRecoverySnapshot: (snapshotName: string) => void;
@@ -100,6 +101,7 @@ export function SyncBackupSection({
   formatRecoverySnapshotLabel,
   handleBackup,
   handleImportDgt,
+  handleImportOmniFocus,
   handleImportTodoist,
   handleRestoreBackup,
   handleRestoreRecoverySnapshot,
@@ -159,6 +161,19 @@ export function SyncBackupSection({
             <Text style={[styles.settingLabel, { color: tc.tint }]}>{localize('Import from DGT GTD', '从 DGT GTD 导入')}</Text>
             <Text style={[styles.settingDescription, { color: tc.secondaryText }]}>
               {localize('Import DGT GTD JSON or ZIP exports into Mindwtr areas, projects, and tasks.', '将 DGT GTD 的 JSON 或 ZIP 导出导入为 Mindwtr 的领域、项目和任务。')}
+            </Text>
+          </View>
+          {backupAction === 'import' && <ActivityIndicator size="small" color={tc.tint} />}
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.settingRow, { borderTopWidth: 1, borderTopColor: tc.border }]}
+          onPress={handleImportOmniFocus}
+          disabled={isSyncing || isBackupBusy}
+        >
+          <View style={styles.settingInfo}>
+            <Text style={[styles.settingLabel, { color: tc.tint }]}>{localize('Import from OmniFocus', '从 OmniFocus 导入')}</Text>
+            <Text style={[styles.settingDescription, { color: tc.secondaryText }]}>
+              {localize('Import OmniFocus CSV exports into Mindwtr projects and inbox tasks.', '将 OmniFocus 的 CSV 导出导入为 Mindwtr 项目和收集箱任务。')}
             </Text>
           </View>
           {backupAction === 'import' && <ActivityIndicator size="small" color={tc.tint} />}

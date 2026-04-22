@@ -603,6 +603,7 @@ export function SettingsView() {
     handleRestoreBackup,
     handleImportTodoist,
     handleImportDgt,
+    handleImportOmniFocus,
   } = useSyncSettings({
     appVersion: aboutPageProps.appVersion,
     isTauri,
@@ -874,6 +875,7 @@ export function SettingsView() {
           onRestoreBackup={handleRestoreBackup}
           onImportTodoist={handleImportTodoist}
           onImportDgt={handleImportDgt}
+          onImportOmniFocus={handleImportOmniFocus}
         />
       );
     }

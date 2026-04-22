@@ -346,6 +346,18 @@ Unsupported DGT repeat patterns are imported once and the original repeat text i
 
 See [[DGT GTD Import]].
 
+### Can I import from OmniFocus?
+
+Yes. Mindwtr can import OmniFocus CSV exports from **Settings → Data & Sync / Sync → Import from OmniFocus**.
+
+- OmniFocus projects become Mindwtr projects when needed
+- Standalone OmniFocus actions stay outside projects
+- Supported notes, tags, contexts, start dates, due dates, and completion state are preserved
+
+Planned dates and duration text are kept in the description when Mindwtr does not have a direct field for them.
+
+See [[OmniFocus Import]].
+
 ---
 
 ## Troubleshooting

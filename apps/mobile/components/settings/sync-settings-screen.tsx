@@ -254,6 +254,7 @@ export function SyncSettingsScreen() {
         handleBackup,
         handleClearLog,
         handleImportDgt,
+        handleImportOmniFocus,
         handleImportTodoist,
         handleRestoreBackup,
         handleRestoreRecoverySnapshot,
@@ -553,6 +554,7 @@ export function SyncSettingsScreen() {
                     formatRecoverySnapshotLabel={formatRecoverySnapshotLabel}
                     handleBackup={() => void handleBackup()}
                     handleImportDgt={() => void handleImportDgt()}
+                    handleImportOmniFocus={() => void handleImportOmniFocus()}
                     handleImportTodoist={() => void handleImportTodoist()}
                     handleRestoreBackup={() => void handleRestoreBackup()}
                     handleRestoreRecoverySnapshot={(snapshot) => void handleRestoreRecoverySnapshot(snapshot)}
