@@ -698,6 +698,7 @@ export const en: Record<string, string> = {
         'settings.lastSyncSuccess': 'Sync completed',
         'settings.lastSyncError': 'Sync failed',
         'settings.lastSyncConflict': 'Conflicts resolved',
+        'settings.syncConflictNotice': 'Sync conflict resolved with last-write-wins. Open Data & Sync to review the details.',
         'settings.webdavUrl': 'WebDAV URL',
         'settings.webdavUrlPlaceholder': 'https://example.com/remote.php/dav/files/<username>/mindwtr',
         'settings.webdavUsername': 'Username',

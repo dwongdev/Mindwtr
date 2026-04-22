@@ -89,6 +89,7 @@ export function Layout({ children, currentView, onViewChange }: LayoutProps) {
     const { t } = useLanguage();
     const isCollapsed = settings?.sidebarCollapsed ?? false;
     const isFocusMode = useUiStore((state) => state.isFocusMode);
+    const showToast = useUiStore((state) => state.showToast);
     const isObsidianEnabled = useObsidianStore((state) => state.config.enabled);
     const tOrFallback = (key: string, fallback: string) => {
         const value = t(key);
@@ -114,6 +115,7 @@ export function Layout({ children, currentView, onViewChange }: LayoutProps) {
     }, []);
     const [syncFreshness, setSyncFreshness] = useState(() => getSyncFreshnessBucket(lastSyncAt));
     const lastSyncAtRef = useRef(lastSyncAt);
+    const shownConflictToastKeyRef = useRef<string | null>(null);
     lastSyncAtRef.current = lastSyncAt;
     useEffect(() => {
         setSyncFreshness(getSyncFreshnessBucket(lastSyncAt));
@@ -123,10 +125,24 @@ export function Layout({ children, currentView, onViewChange }: LayoutProps) {
         return () => clearInterval(timer);
     }, [lastSyncAt, getSyncFreshnessBucket]);
 
+    const syncConflictNotice = tOrFallback(
+        'settings.syncConflictNotice',
+        'Sync conflict resolved with last-write-wins. Open Data & Sync to review the details.'
+    );
+    useEffect(() => {
+        if (lastSyncStatus !== 'conflict') return;
+        const toastKey = `${lastSyncAt ?? 'unknown'}:${lastSyncStatus}`;
+        if (shownConflictToastKeyRef.current === toastKey) return;
+        shownConflictToastKeyRef.current = toastKey;
+        showToast(syncConflictNotice, 'info', 6000);
+    }, [lastSyncAt, lastSyncStatus, showToast, syncConflictNotice]);
+
     const syncFreshnessDotClass = !isOnline
         ? 'bg-destructive'
         : lastSyncStatus === 'error'
             ? 'bg-orange-400'
+            : lastSyncStatus === 'conflict'
+                ? 'bg-amber-400'
             : syncFreshness === 'none'
                 ? 'bg-muted-foreground/40'
                 : syncFreshness === 'old'
@@ -139,6 +155,8 @@ export function Layout({ children, currentView, onViewChange }: LayoutProps) {
         ? (t('common.offline') || 'Offline')
         : lastSyncStatus === 'error' && lastSyncError
             ? `${tOrFallback('settings.lastSyncError', 'Sync failed')}: ${lastSyncError}\n${tOrFallback('settings.lastSync', 'Last sync')}: ${fullSyncTimestamp}`
+            : lastSyncStatus === 'conflict'
+                ? `${tOrFallback('settings.lastSyncConflict', 'Conflicts resolved')}\n${syncConflictNotice}\n${tOrFallback('settings.lastSync', 'Last sync')}: ${fullSyncTimestamp}`
             : `${tOrFallback('settings.lastSync', 'Last sync')}: ${fullSyncTimestamp}`;
     const formatCompactSyncTime = useCallback((iso: string) => {
         const date = new Date(iso);
