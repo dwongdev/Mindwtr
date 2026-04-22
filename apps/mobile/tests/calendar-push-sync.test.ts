@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 // ---------------------------------------------------------------------------
 // Hoisted mocks — must be set up before any imports that reference them
@@ -20,6 +20,7 @@ const {
     mockDeleteCalendarSyncEntry,
     mockGetAllCalendarSyncEntries,
     mockGetState,
+    mockSubscribe,
     mockLogInfo,
     mockLogWarn,
     mockLogError,
@@ -54,7 +55,8 @@ const {
     mockGetAllCalendarSyncEntries: vi.fn(async () => [] as Array<{
         taskId: string; calendarEventId: string; calendarId: string; platform: string; lastSyncedAt: string;
     }>),
-    mockGetState: vi.fn(() => ({ tasks: [] as unknown[] })),
+    mockGetState: vi.fn(() => ({ tasks: [] as unknown[], _allTasks: [] as unknown[] })),
+    mockSubscribe: vi.fn(() => () => {}),
     mockLogInfo: vi.fn(),
     mockLogWarn: vi.fn(),
     mockLogError: vi.fn(),
@@ -91,7 +93,7 @@ vi.mock('react-native', () => ({
 vi.mock('@mindwtr/core', () => ({
     useTaskStore: {
         getState: mockGetState,
-        subscribe: vi.fn(() => () => {}),
+        subscribe: mockSubscribe,
     },
     // Real implementation: parses YYYY-MM-DD as LOCAL midnight (not UTC).
     safeParseDate: (dateStr: string | null | undefined): Date | null => {
@@ -125,6 +127,8 @@ vi.mock('@/lib/app-log', () => ({
 import {
     ensureMindwtrCalendar,
     runFullCalendarSync,
+    startCalendarPushSync,
+    stopCalendarPushSync,
 } from '@/lib/calendar-push-sync';
 
 // ---------------------------------------------------------------------------
@@ -160,12 +164,18 @@ function setupEnabled(calendarId = 'cal-1') {
 
 beforeEach(() => {
     vi.clearAllMocks();
+    vi.useFakeTimers();
     mockPlatform.OS = 'ios';
     // Default: the stored calendar still exists
     mockGetCalendarsAsync.mockResolvedValue([{ id: 'cal-1', title: 'Mindwtr' }]);
     // Default: no prior sync entries
     mockGetCalendarSyncEntry.mockResolvedValue(null);
     mockGetAllCalendarSyncEntries.mockResolvedValue([]);
+});
+
+afterEach(() => {
+    stopCalendarPushSync();
+    vi.useRealTimers();
 });
 
 // ---------------------------------------------------------------------------
@@ -374,5 +384,65 @@ describe('runFullCalendarSync — startup reconciliation', () => {
 
         expect(mockDeleteEventAsync).not.toHaveBeenCalled();
         expect(mockUpdateEventAsync).toHaveBeenCalledOnce();
+    });
+});
+
+describe('startCalendarPushSync', () => {
+    it('keeps deleted tombstones in the debounced sync set until the partial sync runs', async () => {
+        setupEnabled();
+
+        const taskOne = makeTask({ id: 'task-1', title: 'First task', updatedAt: '2026-04-20T00:00:00.000Z' });
+        const taskTwo = makeTask({ id: 'task-2', title: 'Second task', updatedAt: '2026-04-20T00:00:00.000Z' });
+        const taskOneDeleted = {
+            ...taskOne,
+            deletedAt: '2026-04-20T01:00:00.000Z',
+            updatedAt: '2026-04-20T01:00:00.000Z',
+        };
+        const taskTwoUpdated = {
+            ...taskTwo,
+            updatedAt: '2026-04-20T02:00:00.000Z',
+            title: 'Second task updated',
+        };
+        let storeState = {
+            tasks: [taskOne, taskTwo],
+            _allTasks: [taskOne, taskTwo],
+        };
+
+        mockGetState.mockImplementation(() => storeState);
+        mockGetCalendarSyncEntry.mockImplementation(async (taskId: string) => {
+            if (taskId === 'task-1') {
+                return { taskId, calendarEventId: 'evt-1', calendarId: 'cal-1', platform: 'ios', lastSyncedAt: '' };
+            }
+            if (taskId === 'task-2') {
+                return { taskId, calendarEventId: 'evt-2', calendarId: 'cal-1', platform: 'ios', lastSyncedAt: '' };
+            }
+            return null;
+        });
+
+        startCalendarPushSync();
+        const listener = mockSubscribe.mock.calls[0]?.[0] as ((state: typeof storeState) => void) | undefined;
+        expect(listener).toBeTypeOf('function');
+        if (!listener) return;
+
+        storeState = {
+            tasks: [taskTwo],
+            _allTasks: [taskOneDeleted, taskTwo],
+        };
+        listener(storeState);
+
+        storeState = {
+            tasks: [taskTwoUpdated],
+            _allTasks: [taskOneDeleted, taskTwoUpdated],
+        };
+        listener(storeState);
+
+        await vi.advanceTimersByTimeAsync(2500);
+        await Promise.resolve();
+
+        expect(mockDeleteEventAsync).toHaveBeenCalledWith('evt-1');
+        expect(mockDeleteCalendarSyncEntry).toHaveBeenCalledWith('task-1', 'ios');
+        expect(mockUpdateEventAsync).toHaveBeenCalledWith('evt-2', expect.objectContaining({
+            title: 'Second task updated',
+        }));
     });
 });

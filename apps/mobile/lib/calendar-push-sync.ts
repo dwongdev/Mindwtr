@@ -300,12 +300,16 @@ export const runFullCalendarSync = async (): Promise<void> => {
 // MARK: - Debounced partial sync
 
 let syncDebounceTimer: ReturnType<typeof setTimeout> | null = null;
+let pendingSyncTaskIds = new Set<string>();
 
 export const scheduleSyncDebounced = (taskIds: string[]): void => {
+    taskIds.forEach((id) => pendingSyncTaskIds.add(id));
     if (syncDebounceTimer) clearTimeout(syncDebounceTimer);
     syncDebounceTimer = setTimeout(() => {
         syncDebounceTimer = null;
-        void runPartialCalendarSync(taskIds);
+        const idsToSync = Array.from(pendingSyncTaskIds);
+        pendingSyncTaskIds.clear();
+        void runPartialCalendarSync(idsToSync);
     }, SYNC_DEBOUNCE_MS);
 };
 
@@ -316,11 +320,11 @@ const runPartialCalendarSync = async (taskIds: string[]): Promise<void> => {
     const calendarId = await ensureMindwtrCalendar();
     if (!calendarId) return;
 
-    const { tasks } = useTaskStore.getState();
-    const targets = tasks.filter((t) => taskIds.includes(t.id));
+    const { _allTasks } = useTaskStore.getState();
+    const targets = _allTasks.filter((t) => taskIds.includes(t.id));
 
     // Also handle tasks that were removed from the store (deleted)
-    const storeIds = new Set(tasks.map((t) => t.id));
+    const storeIds = new Set(_allTasks.map((t) => t.id));
     const removedIds = taskIds.filter((id) => !storeIds.has(id));
 
     await Promise.allSettled([
@@ -341,15 +345,15 @@ export const startCalendarPushSync = (): (() => void) => {
     if (unsubscribeStore) return unsubscribeStore;
 
     let previousTaskMap = new Map(
-        useTaskStore.getState().tasks.map((t) => [t.id, t])
+        useTaskStore.getState()._allTasks.map((t) => [t.id, t])
     );
 
     unsubscribeStore = useTaskStore.subscribe((state) => {
         const changedIds: string[] = [];
-        const currentMap = new Map(state.tasks.map((t) => [t.id, t]));
+        const currentMap = new Map(state._allTasks.map((t) => [t.id, t]));
 
         // Changed or new tasks
-        for (const task of state.tasks) {
+        for (const task of state._allTasks) {
             const prev = previousTaskMap.get(task.id);
             if (
                 !prev ||
@@ -384,6 +388,7 @@ export const startCalendarPushSync = (): (() => void) => {
             clearTimeout(syncDebounceTimer);
             syncDebounceTimer = null;
         }
+        pendingSyncTaskIds.clear();
     };
 };
 
@@ -394,4 +399,5 @@ export const stopCalendarPushSync = (): void => {
         clearTimeout(syncDebounceTimer);
         syncDebounceTimer = null;
     }
+    pendingSyncTaskIds.clear();
 };
