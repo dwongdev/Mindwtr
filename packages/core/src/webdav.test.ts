@@ -138,4 +138,19 @@ describe('webdav http helpers', () => {
             ['https://example.com/remote.php/dav/files/user/mindwtr/attachments/doc.txt', 'PUT'],
         ]);
     });
+
+    it('caps parent MKCOL creation depth for pathological nested paths', async () => {
+        const nestedSegments = Array.from({ length: 40 }, (_, index) => `level-${index + 1}`).join('/');
+        const url = `https://example.com/remote.php/dav/files/user/mindwtr/${nestedSegments}/data.json`;
+        const fetcher = vi
+            .fn()
+            .mockResolvedValueOnce(makeResponse({ ok: false, status: 409, statusText: 'Conflict' }))
+            .mockImplementation(async () => makeResponse({ ok: false, status: 409, statusText: 'Conflict' }));
+
+        await expect(webdavPutJson(url, { ok: true }, { fetcher })).rejects.toThrow(
+            'WebDAV MKCOL failed (max depth exceeded)',
+        );
+
+        expect(fetcher.mock.calls.filter(([, init]) => init?.method === 'MKCOL')).toHaveLength(33);
+    });
 });

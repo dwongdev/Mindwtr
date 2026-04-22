@@ -18,6 +18,8 @@ export interface WebDavOptions {
     allowInsecureHttp?: boolean;
 }
 
+const MAX_WEBDAV_MKCOL_DEPTH = 32;
+
 function bytesToBase64(bytes: Uint8Array): string {
     const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
     let out = '';
@@ -116,24 +118,36 @@ const ensureWebdavCollectionExists = async (
     url: string,
     options: WebDavOptions = {},
 ): Promise<void> => {
-    let res = await createWebdavCollection(url, options);
-    if (res.ok || res.status === 405) {
-        return;
-    }
+    const pendingChildren: string[] = [];
+    let currentUrl = url;
 
-    if (res.status === 409) {
-        const parentUrl = getWebdavParentCollectionUrl(url);
-        if (!parentUrl || parentUrl === url) {
+    while (true) {
+        const res = await createWebdavCollection(currentUrl, options);
+        if (res.ok || res.status === 405) {
+            break;
+        }
+        if (res.status !== 409) {
             throw new Error(`WebDAV MKCOL failed (${res.status})`);
         }
-        await ensureWebdavCollectionExists(parentUrl, options);
-        res = await createWebdavCollection(url, options);
-        if (res.ok || res.status === 405) {
-            return;
+        if (pendingChildren.length >= MAX_WEBDAV_MKCOL_DEPTH) {
+            throw new Error('WebDAV MKCOL failed (max depth exceeded)');
         }
+        const parentUrl = getWebdavParentCollectionUrl(currentUrl);
+        if (!parentUrl || parentUrl === currentUrl) {
+            throw new Error(`WebDAV MKCOL failed (${res.status})`);
+        }
+        pendingChildren.push(currentUrl);
+        currentUrl = parentUrl;
     }
 
-    throw new Error(`WebDAV MKCOL failed (${res.status})`);
+    while (pendingChildren.length > 0) {
+        const childUrl = pendingChildren.pop()!;
+        const res = await createWebdavCollection(childUrl, options);
+        if (res.ok || res.status === 405) {
+            continue;
+        }
+        throw new Error(`WebDAV MKCOL failed (${res.status})`);
+    }
 };
 
 const ensureWebdavParentCollections = async (
