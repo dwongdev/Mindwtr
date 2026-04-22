@@ -968,7 +968,7 @@ export function TaskItemFieldRenderer({
                         aria-label={t('task.aria.contexts')}
                         value={editContexts}
                         onChange={(e) => setEditContexts(e.target.value)}
-                        placeholder="@home, @work"
+                        placeholder={t('taskEdit.contextsPlaceholder')}
                         className="text-xs bg-muted/50 border border-border rounded px-2 py-1 w-full text-foreground placeholder:text-muted-foreground"
                     />
                     <div className="flex flex-wrap gap-2 pt-1">
@@ -1011,7 +1011,7 @@ export function TaskItemFieldRenderer({
                         aria-label={t('task.aria.tags')}
                         value={editTags}
                         onChange={(e) => setEditTags(e.target.value)}
-                        placeholder="#urgent, #idea"
+                        placeholder={t('taskEdit.tagsPlaceholder')}
                         className="text-xs bg-muted/50 border border-border rounded px-2 py-1 w-full text-foreground placeholder:text-muted-foreground"
                     />
                     <div className="flex flex-wrap gap-2 pt-1">
