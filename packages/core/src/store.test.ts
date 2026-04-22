@@ -1582,6 +1582,23 @@ describe('TaskStore', () => {
             expect(useTaskStore.getState()._allTasks.find((item) => item.id === task.id)?.deletedAt).toBeUndefined();
         });
 
+        it('fails batch deletes when any task id is already tombstoned', async () => {
+            const { addTask, batchDeleteTasks, deleteTask } = useTaskStore.getState();
+            await addTask('Active Task', { status: 'next' });
+            await addTask('Deleted Task', { status: 'next' });
+            const activeTask = useTaskStore.getState()._allTasks.find((item) => item.title === 'Active Task')!;
+            const deletedTask = useTaskStore.getState()._allTasks.find((item) => item.title === 'Deleted Task')!;
+
+            await deleteTask(deletedTask.id);
+            const deletedTaskBeforeBatch = useTaskStore.getState()._allTasks.find((item) => item.id === deletedTask.id)!;
+
+            const result = await batchDeleteTasks([activeTask.id, deletedTask.id]);
+
+            expect(result).toEqual({ success: false, error: `Tasks not found: ${deletedTask.id}` });
+            expect(useTaskStore.getState()._allTasks.find((item) => item.id === activeTask.id)?.deletedAt).toBeUndefined();
+            expect(useTaskStore.getState()._allTasks.find((item) => item.id === deletedTask.id)).toEqual(deletedTaskBeforeBatch);
+        });
+
         it('preserves deleted project task section ids so a project can be restored intact', async () => {
             const { addProject, addSection, addTask, deleteProject, restoreProject } = useTaskStore.getState();
             const project = await addProject('Delete Project', '#333333');

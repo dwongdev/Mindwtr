@@ -886,7 +886,11 @@ export const createTaskActions = ({ set, get, getStorage, debouncedSave }: TaskA
     batchDeleteTasks: async (ids: string[]) => {
         if (ids.length === 0) return actionOk();
         const state = get();
-        const existingTaskIds = new Set(state._allTasks.map((task) => task.id));
+        const existingTaskIds = new Set(
+            state._allTasks
+                .filter((task) => !task.deletedAt)
+                .map((task) => task.id)
+        );
         const missingIds = ids.filter((id, index) => !existingTaskIds.has(id) && ids.indexOf(id) === index);
         if (missingIds.length > 0) {
             const message = `Tasks not found: ${missingIds.join(', ')}`;
