@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type KeyboardEvent, type ReactNode } from 'react';
-import { Maximize2, X } from 'lucide-react';
+import { X } from 'lucide-react';
 import {
     applyMarkdownToolbarAction,
     buildRRuleString,
@@ -24,16 +24,21 @@ import {
     type TimeEstimate,
 } from '@mindwtr/core';
 
-import { cn } from '../../lib/utils';
-import { ExpandedMarkdownEditor } from '../ExpandedMarkdownEditor';
-import { MarkdownFormatToolbar } from '../MarkdownFormatToolbar';
-import { MarkdownReferenceAutocompleteMenu, useMarkdownReferenceAutocomplete } from '../MarkdownReferenceAutocomplete';
-import { RichMarkdown } from '../RichMarkdown';
-import { WeekdaySelector } from './TaskForm/WeekdaySelector';
+import { useMarkdownReferenceAutocomplete } from '../MarkdownReferenceAutocomplete';
 import { AttachmentsField } from './TaskForm/AttachmentsField';
 import { ChecklistField } from './TaskForm/ChecklistField';
 import { normalizeDateInputValue } from './task-item-helpers';
-import { AutosizeTextarea } from '../ui/AutosizeTextarea';
+import { DescriptionField } from './fields/DescriptionField';
+import { RecurrenceField } from './fields/RecurrenceField';
+import {
+    AssignedToField,
+    ContextsField,
+    EnergyLevelField,
+    PriorityField,
+    StatusField,
+    TagsField,
+    TimeEstimateField,
+} from './fields/TaskMetadataFields';
 
 export type MonthlyRecurrenceInfo = {
     pattern: 'date' | 'custom';
@@ -369,102 +374,34 @@ export function TaskItemFieldRenderer({
     switch (fieldId) {
         case 'description':
             return (
-                <div className="flex flex-col gap-2">
-                    <div className="flex items-center justify-between">
-                        <label className="text-xs text-muted-foreground font-medium">{t('taskEdit.descriptionLabel')}</label>
-                        <div className="flex items-center gap-2">
-                            <button
-                                type="button"
-                                onClick={toggleDescriptionPreview}
-                                className="text-xs px-2 py-1 rounded bg-muted/50 hover:bg-muted transition-colors text-muted-foreground"
-                            >
-                                {showDescriptionPreview ? t('markdown.edit') : t('markdown.preview')}
-                            </button>
-                            <button
-                                type="button"
-                                onClick={() => setDescriptionExpanded(true)}
-                                className="rounded p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-                                aria-label={t('markdown.expand')}
-                            >
-                                <Maximize2 className="h-4 w-4" />
-                            </button>
-                        </div>
-                    </div>
-                    {showDescriptionPreview ? (
-                        <div className={cn("text-xs bg-muted/30 border border-border rounded px-2 py-2", isRtl && "text-right")} dir={resolvedDirection}>
-                            <RichMarkdown markdown={editDescription || ''} />
-                        </div>
-                    ) : (
-                        <div className="relative flex flex-col gap-2">
-                            <MarkdownFormatToolbar
-                                textareaRef={descriptionTextareaRef}
-                                t={t}
-                                canUndo={descriptionUndoDepth > 0}
-                                onUndo={handleDescriptionUndo}
-                                onApplyAction={handleDescriptionApplyAction}
-                            />
-                            <AutosizeTextarea
-                                ref={descriptionTextareaRef}
-                                aria-label={t('task.aria.description')}
-                                value={editDescription}
-                                onChange={(event) => {
-                                    applyDescriptionValue(event.target.value);
-                                    descriptionSelectionRef.current = {
-                                        start: event.currentTarget.selectionStart ?? event.currentTarget.value.length,
-                                        end: event.currentTarget.selectionEnd ?? event.currentTarget.value.length,
-                                    };
-                                }}
-                                onSelect={(event) => {
-                                    descriptionSelectionRef.current = {
-                                        start: event.currentTarget.selectionStart ?? event.currentTarget.value.length,
-                                        end: event.currentTarget.selectionEnd ?? event.currentTarget.value.length,
-                                    };
-                                }}
-                                onKeyDown={handleDescriptionKeyDown}
-                                minHeight={112}
-                                focusedMinHeight={208}
-                                maxHeight={480}
-                                className={cn(
-                                    "w-full text-sm leading-6 bg-muted/50 border border-border rounded px-3 py-2 resize-none transition-[border-color,box-shadow] focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary/40",
-                                    isRtl && "text-right"
-                                )}
-                                placeholder={t('taskEdit.descriptionPlaceholder')}
-                                dir={resolvedDirection}
-                            />
-                            <MarkdownReferenceAutocompleteMenu
-                                isOpen={descriptionAutocomplete.isOpen}
-                                suggestions={descriptionAutocomplete.suggestions}
-                                selectedIndex={descriptionAutocomplete.selectedIndex}
-                                setSelectedIndex={descriptionAutocomplete.setSelectedIndex}
-                                applySuggestion={descriptionAutocomplete.applySuggestion}
-                                menuRef={descriptionAutocomplete.menuRef}
-                                position={descriptionAutocomplete.position}
-                                t={t}
-                            />
-                        </div>
-                    )}
-                    <ExpandedMarkdownEditor
-                        isOpen={descriptionExpanded}
-                        onClose={() => setDescriptionExpanded(false)}
-                        value={editDescription}
-                        onChange={applyDescriptionValue}
-                        title={t('taskEdit.descriptionLabel')}
-                        headerTitle={task.title?.trim() || t('taskEdit.descriptionLabel')}
-                        placeholder={t('taskEdit.descriptionPlaceholder')}
-                        t={t}
-                        initialMode="edit"
-                        direction={resolvedDirection}
-                        selection={descriptionSelectionRef.current}
-                        canUndo={descriptionUndoDepth > 0}
-                        onUndo={handleDescriptionUndo}
-                        onApplyAction={handleDescriptionApplyAction}
-                        onSelectionChange={(selection) => {
-                            descriptionSelectionRef.current = selection;
-                        }}
-                        onEditorKeyDown={handleDescriptionKeyDown}
-                        currentTaskId={taskId}
-                    />
-                </div>
+                <DescriptionField
+                    t={t}
+                    taskTitle={task.title}
+                    taskId={taskId}
+                    showDescriptionPreview={showDescriptionPreview}
+                    editDescription={editDescription}
+                    isRtl={isRtl}
+                    resolvedDirection={resolvedDirection}
+                    descriptionExpanded={descriptionExpanded}
+                    descriptionUndoDepth={descriptionUndoDepth}
+                    descriptionTextareaRef={descriptionTextareaRef}
+                    descriptionSelection={descriptionSelectionRef.current}
+                    descriptionAutocomplete={descriptionAutocomplete}
+                    onTogglePreview={toggleDescriptionPreview}
+                    onExpand={() => setDescriptionExpanded(true)}
+                    onCloseExpanded={() => setDescriptionExpanded(false)}
+                    onDescriptionInput={(value, selection) => {
+                        applyDescriptionValue(value);
+                        descriptionSelectionRef.current = selection;
+                    }}
+                    onDescriptionChange={applyDescriptionValue}
+                    onSelectionChange={(selection) => {
+                        descriptionSelectionRef.current = selection;
+                    }}
+                    onUndo={handleDescriptionUndo}
+                    onApplyAction={handleDescriptionApplyAction}
+                    onKeyDown={handleDescriptionKeyDown}
+                />
             );
         case 'attachments':
             return (
@@ -652,399 +589,37 @@ export function TaskItemFieldRenderer({
                 });
             }
         case 'status':
-            return (
-                <div className="flex flex-col gap-1">
-                    <label className="text-xs text-muted-foreground font-medium">{t('taskEdit.statusLabel')}</label>
-                    <select
-                        value={editStatus}
-                        aria-label={t('task.aria.status')}
-                        onChange={(event) => setEditStatus(event.target.value as TaskStatus)}
-                        className="text-xs bg-muted/50 border border-border rounded px-2 py-1 text-foreground w-full max-w-[min(18rem,40vw)]"
-                    >
-                        <option value="inbox">{t('status.inbox')}</option>
-                        <option value="next">{t('status.next')}</option>
-                        <option value="waiting">{t('status.waiting')}</option>
-                        <option value="someday">{t('status.someday')}</option>
-                        {editStatus === 'reference' && (
-                            <option value="reference">{t('status.reference')}</option>
-                        )}
-                        <option value="done">{t('status.done')}</option>
-                        <option value="archived">{t('status.archived')}</option>
-                    </select>
-                </div>
-            );
+            return <StatusField t={t} value={editStatus} onChange={setEditStatus} />;
         case 'priority':
-            return (
-                <div className="flex flex-col gap-1">
-                    <label className="text-xs text-muted-foreground font-medium">{t('taskEdit.priorityLabel')}</label>
-                    <select
-                        value={editPriority}
-                        aria-label={t('taskEdit.priorityLabel')}
-                        onChange={(e) => setEditPriority(e.target.value as TaskPriority | '')}
-                        className="text-xs bg-muted/50 border border-border rounded px-2 py-1 text-foreground"
-                    >
-                        <option value="">{t('common.none')}</option>
-                        <option value="low">{t('priority.low')}</option>
-                        <option value="medium">{t('priority.medium')}</option>
-                        <option value="high">{t('priority.high')}</option>
-                        <option value="urgent">{t('priority.urgent')}</option>
-                    </select>
-                </div>
-            );
+            return <PriorityField t={t} value={editPriority} onChange={setEditPriority} />;
         case 'energyLevel':
-            return (
-                <div className="flex flex-col gap-1">
-                    <label className="text-xs text-muted-foreground font-medium">{t('taskEdit.energyLevel')}</label>
-                    <select
-                        value={editEnergyLevel}
-                        aria-label={t('taskEdit.energyLevel')}
-                        onChange={(e) => setEditEnergyLevel(e.target.value as TaskEnergyLevel | '')}
-                        className="text-xs bg-muted/50 border border-border rounded px-2 py-1 text-foreground"
-                    >
-                        <option value="">{t('common.none')}</option>
-                        <option value="low">{t('energyLevel.low')}</option>
-                        <option value="medium">{t('energyLevel.medium')}</option>
-                        <option value="high">{t('energyLevel.high')}</option>
-                    </select>
-                </div>
-            );
+            return <EnergyLevelField t={t} value={editEnergyLevel} onChange={setEditEnergyLevel} />;
         case 'assignedTo':
-            return (
-                <div className="flex flex-col gap-1">
-                    <label className="text-xs text-muted-foreground font-medium">{t('taskEdit.assignedTo')}</label>
-                    <input
-                        type="text"
-                        value={editAssignedTo}
-                        aria-label={t('taskEdit.assignedTo')}
-                        onChange={(event) => setEditAssignedTo(event.target.value)}
-                        placeholder={t('taskEdit.assignedToPlaceholder')}
-                        className="text-xs bg-muted/50 border border-border rounded px-2 py-1 text-foreground"
-                    />
-                </div>
-            );
+            return <AssignedToField t={t} value={editAssignedTo} onChange={setEditAssignedTo} />;
         case 'recurrence':
             return (
-                <div className="flex flex-col gap-1 w-full">
-                    <label className="text-xs text-muted-foreground font-medium">{t('taskEdit.recurrenceLabel')}</label>
-                    <select
-                        value={editRecurrence}
-                        aria-label={t('task.aria.recurrence')}
-                        onChange={(e) => {
-                            const value = e.target.value as RecurrenceRule | '';
-                            setEditRecurrence(value);
-                            if (value === 'daily') {
-                                if (!editRecurrenceRRule || parsedRecurrenceRRule.rule !== 'daily') {
-                                    setEditRecurrenceRRule(buildRRuleString('daily', undefined, 1, {
-                                        count: parsedRecurrenceRRule.count,
-                                        until: parsedRecurrenceRRule.until,
-                                    }));
-                                }
-                            }
-                            if (value === 'weekly') {
-                                if (!editRecurrenceRRule || parsedRecurrenceRRule.rule !== 'weekly') {
-                                    setEditRecurrenceRRule(buildRRuleString('weekly', undefined, undefined, {
-                                        count: parsedRecurrenceRRule.count,
-                                        until: parsedRecurrenceRRule.until,
-                                    }));
-                                }
-                            }
-                            if (value === 'monthly') {
-                                if (!editRecurrenceRRule || parsedRecurrenceRRule.rule !== 'monthly') {
-                                    setEditRecurrenceRRule(buildRRuleString('monthly', undefined, undefined, {
-                                        count: parsedRecurrenceRRule.count,
-                                        until: parsedRecurrenceRRule.until,
-                                    }));
-                                }
-                            }
-                            if (value === 'yearly') {
-                                if (!editRecurrenceRRule || parsedRecurrenceRRule.rule !== 'yearly') {
-                                    setEditRecurrenceRRule(buildRRuleString('yearly', undefined, undefined, {
-                                        count: parsedRecurrenceRRule.count,
-                                        until: parsedRecurrenceRRule.until,
-                                    }));
-                                }
-                            }
-
-                            if (!value) {
-                                setEditRecurrenceRRule('');
-                            }
-                        }}
-                        className="text-xs bg-muted/50 border border-border rounded px-2 py-1 w-full text-foreground"
-                    >
-                        <option value="">{t('recurrence.none')}</option>
-                        <option value="daily">{t('recurrence.daily')}</option>
-                        <option value="weekly">{t('recurrence.weekly')}</option>
-                        <option value="monthly">{t('recurrence.monthly')}</option>
-                        <option value="yearly">{t('recurrence.yearly')}</option>
-                    </select>
-                    {editRecurrence === 'daily' && (
-                        <div className="flex items-center gap-2 pt-1">
-                            <span className="text-[10px] text-muted-foreground">{t('recurrence.repeatEvery')}</span>
-                            <input
-                                type="number"
-                                min={1}
-                                max={365}
-                                value={Math.max(parsedRecurrenceRRule.interval ?? 1, 1)}
-                                onChange={(event) => {
-                                    const intervalValue = Number(event.target.valueAsNumber);
-                                    const safeInterval = Number.isFinite(intervalValue) && intervalValue > 0
-                                        ? Math.min(Math.round(intervalValue), 365)
-                                        : 1;
-                                    setEditRecurrenceRRule(buildRecurrenceRRule('daily', {
-                                        byDay: undefined,
-                                        byMonthDay: undefined,
-                                        interval: safeInterval,
-                                    }));
-                                }}
-                                className="w-20 text-xs bg-muted/50 border border-border rounded px-2 py-1 text-foreground"
-                            />
-                            <span className="text-[10px] text-muted-foreground">{t('recurrence.dayUnit')}</span>
-                        </div>
-                    )}
-                    {editRecurrence && (
-                        <label className="flex items-center gap-2 pt-1 text-[10px] text-muted-foreground">
-                            <input
-                                type="checkbox"
-                                checked={editRecurrenceStrategy === 'fluid'}
-                                onChange={(e) => setEditRecurrenceStrategy(e.target.checked ? 'fluid' : 'strict')}
-                                className="accent-primary"
-                            />
-                            {t('recurrence.afterCompletion')}
-                        </label>
-                    )}
-                    {editRecurrence === 'weekly' && (
-                        <div className="pt-1">
-                            <span className="text-[10px] text-muted-foreground">{t('recurrence.repeatOn')}</span>
-                            <WeekdaySelector
-                                value={editRecurrenceRRule || buildRRuleString('weekly', undefined, undefined, {
-                                    count: parsedRecurrenceRRule.count,
-                                    until: parsedRecurrenceRRule.until,
-                                })}
-                                onChange={(rrule) => {
-                                    const parsed = parseRRuleString(rrule);
-                                    setEditRecurrenceRRule(buildRRuleString('weekly', parsed.byDay, parsed.interval, {
-                                        count: parsedRecurrenceRRule.count,
-                                        until: parsedRecurrenceRRule.until,
-                                    }));
-                                }}
-                                className="pt-1"
-                            />
-                        </div>
-                    )}
-                    {editRecurrence && (
-                        <div className="flex items-center gap-2 pt-1 flex-wrap">
-                            <span className="text-[10px] text-muted-foreground">{t('recurrence.endsLabel')}</span>
-                            <select
-                                value={recurrenceEndMode}
-                                onChange={(event) => {
-                                    const value = event.target.value as 'never' | 'until' | 'count';
-                                    if (value === 'never') {
-                                        setEditRecurrenceRRule(buildRecurrenceRRule(editRecurrence, {
-                                            count: undefined,
-                                            until: undefined,
-                                        }));
-                                        return;
-                                    }
-                                    if (value === 'until') {
-                                        setEditRecurrenceRRule(buildRecurrenceRRule(editRecurrence, {
-                                            count: undefined,
-                                            until: recurrenceDefaultEndDate,
-                                        }));
-                                        return;
-                                    }
-                                    setEditRecurrenceRRule(buildRecurrenceRRule(editRecurrence, {
-                                        count: parsedRecurrenceRRule.count ?? 1,
-                                        until: undefined,
-                                    }));
-                                }}
-                                className="text-xs bg-muted/50 border border-border rounded px-2 py-1 text-foreground"
-                            >
-                                <option value="never">{t('recurrence.endsNever')}</option>
-                                <option value="until">{t('recurrence.endsOnDate')}</option>
-                                <option value="count">{t('recurrence.endsAfterCount')}</option>
-                            </select>
-                            {recurrenceEndMode === 'until' && (
-                                <input
-                                    type="date"
-                                    value={parsedRecurrenceRRule.until || recurrenceDefaultEndDate}
-                                    onChange={(event) => {
-                                        setEditRecurrenceRRule(buildRecurrenceRRule(editRecurrence, {
-                                            count: undefined,
-                                            until: event.target.value || recurrenceDefaultEndDate,
-                                        }));
-                                    }}
-                                    className="text-xs bg-muted/50 border border-border rounded px-2 py-1 text-foreground"
-                                />
-                            )}
-                            {recurrenceEndMode === 'count' && (
-                                <>
-                                    <input
-                                        type="number"
-                                        min={1}
-                                        max={999}
-                                        value={Math.max(parsedRecurrenceRRule.count ?? 1, 1)}
-                                        onChange={(event) => {
-                                            const countValue = Number(event.target.valueAsNumber);
-                                            const safeCount = Number.isFinite(countValue) && countValue > 0
-                                                ? Math.min(Math.round(countValue), 999)
-                                                : 1;
-                                            setEditRecurrenceRRule(buildRecurrenceRRule(editRecurrence, {
-                                                count: safeCount,
-                                                until: undefined,
-                                            }));
-                                        }}
-                                        className="w-20 text-xs bg-muted/50 border border-border rounded px-2 py-1 text-foreground"
-                                    />
-                                    <span className="text-[10px] text-muted-foreground">{t('recurrence.occurrenceUnit')}</span>
-                                </>
-                            )}
-                        </div>
-                    )}
-                    {editRecurrence === 'monthly' && (
-                        <div className="pt-1 space-y-2">
-                            <span className="text-[10px] text-muted-foreground">{t('recurrence.repeatOn')}</span>
-                            <div className="flex flex-wrap gap-2">
-                                <button
-                                    type="button"
-                                    onClick={() => setEditRecurrenceRRule(buildRRuleString('monthly', undefined, undefined, {
-                                        count: parsedRecurrenceRRule.count,
-                                        until: parsedRecurrenceRRule.until,
-                                    }))}
-                                    className={cn(
-                                        'text-[10px] px-2 py-1 rounded border transition-colors',
-                                        monthlyRecurrence.pattern === 'date'
-                                            ? 'bg-primary text-primary-foreground border-primary'
-                                            : 'bg-transparent text-muted-foreground border-border hover:bg-accent'
-                                    )}
-                                >
-                                    {t('recurrence.monthlyOnDay')}
-                                </button>
-                                <button
-                                    type="button"
-                                    onClick={openCustomRecurrence}
-                                    className={cn(
-                                        'text-[10px] px-2 py-1 rounded border transition-colors',
-                                        monthlyRecurrence.pattern === 'custom'
-                                            ? 'bg-primary text-primary-foreground border-primary'
-                                            : 'bg-transparent text-muted-foreground border-border hover:bg-accent'
-                                    )}
-                                >
-                                    {t('recurrence.custom')}
-                                </button>
-                            </div>
-                        </div>
-                    )}
-                </div>
+                <RecurrenceField
+                    t={t}
+                    editRecurrence={editRecurrence}
+                    editRecurrenceStrategy={editRecurrenceStrategy}
+                    editRecurrenceRRule={editRecurrenceRRule}
+                    monthlyRecurrence={monthlyRecurrence}
+                    parsedRecurrenceRRule={parsedRecurrenceRRule}
+                    recurrenceEndMode={recurrenceEndMode}
+                    recurrenceDefaultEndDate={recurrenceDefaultEndDate}
+                    onRecurrenceChange={setEditRecurrence}
+                    onRecurrenceStrategyChange={setEditRecurrenceStrategy}
+                    onRecurrenceRRuleChange={setEditRecurrenceRRule}
+                    openCustomRecurrence={openCustomRecurrence}
+                    buildRecurrenceRRule={buildRecurrenceRRule}
+                />
             );
         case 'timeEstimate':
-            return (
-                <div className="flex flex-col gap-1 w-full">
-                    <label className="text-xs text-muted-foreground font-medium">{t('taskEdit.timeEstimateLabel')}</label>
-                    <select
-                        value={editTimeEstimate}
-                        aria-label={t('task.aria.timeEstimate')}
-                        onChange={(e) => setEditTimeEstimate(e.target.value as TimeEstimate | '')}
-                        className="text-xs bg-muted/50 border border-border rounded px-2 py-1 w-full text-foreground"
-                    >
-                        <option value="">{t('common.none')}</option>
-                        <option value="5min">5m</option>
-                        <option value="10min">10m</option>
-                        <option value="15min">15m</option>
-                        <option value="30min">30m</option>
-                        <option value="1hr">1h</option>
-                        <option value="2hr">2h</option>
-                        <option value="3hr">3h</option>
-                        <option value="4hr">4h</option>
-                        <option value="4hr+">4h+</option>
-                    </select>
-                </div>
-            );
+            return <TimeEstimateField t={t} value={editTimeEstimate} onChange={setEditTimeEstimate} />;
         case 'contexts':
-            return (
-                <div className="flex flex-col gap-1 w-full">
-                    <label className="text-xs text-muted-foreground font-medium">{t('taskEdit.contextsLabel')}</label>
-                    <input
-                        type="text"
-                        aria-label={t('task.aria.contexts')}
-                        value={editContexts}
-                        onChange={(e) => setEditContexts(e.target.value)}
-                        placeholder={t('taskEdit.contextsPlaceholder')}
-                        className="text-xs bg-muted/50 border border-border rounded px-2 py-1 w-full text-foreground placeholder:text-muted-foreground"
-                    />
-                    <div className="flex flex-wrap gap-2 pt-1">
-                        {popularContextOptions.map(tag => {
-                            const currentTags = editContexts.split(',').map(t => t.trim()).filter(Boolean);
-                            const isActive = currentTags.includes(tag);
-                            return (
-                                <button
-                                    key={tag}
-                                    type="button"
-                                    onClick={() => {
-                                        let newTags;
-                                        if (isActive) {
-                                            newTags = currentTags.filter(t => t !== tag);
-                                        } else {
-                                            newTags = [...currentTags, tag];
-                                        }
-                                        setEditContexts(newTags.join(', '));
-                                    }}
-                                    className={cn(
-                                        "text-[10px] px-2 py-0.5 rounded-full border transition-colors",
-                                        isActive
-                                            ? "bg-primary/10 border-primary text-primary"
-                                            : "bg-transparent border-border text-muted-foreground hover:border-primary/50"
-                                    )}
-                                >
-                                    {tag}
-                                </button>
-                            );
-                        })}
-                    </div>
-                </div>
-            );
+            return <ContextsField t={t} value={editContexts} options={popularContextOptions} onChange={setEditContexts} />;
         case 'tags':
-            return (
-                <div className="flex flex-col gap-1 w-full">
-                    <label className="text-xs text-muted-foreground font-medium">{t('taskEdit.tagsLabel')}</label>
-                    <input
-                        type="text"
-                        aria-label={t('task.aria.tags')}
-                        value={editTags}
-                        onChange={(e) => setEditTags(e.target.value)}
-                        placeholder={t('taskEdit.tagsPlaceholder')}
-                        className="text-xs bg-muted/50 border border-border rounded px-2 py-1 w-full text-foreground placeholder:text-muted-foreground"
-                    />
-                    <div className="flex flex-wrap gap-2 pt-1">
-                        {popularTagOptions.map(tag => {
-                            const currentTags = editTags.split(',').map(t => t.trim()).filter(Boolean);
-                            const isActive = currentTags.includes(tag);
-                            return (
-                                <button
-                                    key={tag}
-                                    type="button"
-                                    onClick={() => {
-                                        let newTags;
-                                        if (isActive) {
-                                            newTags = currentTags.filter(t => t !== tag);
-                                        } else {
-                                            newTags = [...currentTags, tag];
-                                        }
-                                        setEditTags(newTags.join(', '));
-                                    }}
-                                    className={cn(
-                                        "text-[10px] px-2 py-0.5 rounded-full border transition-colors",
-                                        isActive
-                                            ? "bg-primary/10 border-primary text-primary"
-                                            : "bg-transparent border-border text-muted-foreground hover:border-primary/50"
-                                    )}
-                                >
-                                    {tag}
-                                </button>
-                            );
-                        })}
-                    </div>
-                </div>
-            );
+            return <TagsField t={t} value={editTags} options={popularTagOptions} onChange={setEditTags} />;
         case 'checklist':
             return (
                 <ChecklistField
