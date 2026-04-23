@@ -133,7 +133,7 @@ describe('Quick capture modal composition', () => {
     expect(modals[0]?.props.visible).toBe(true);
   });
 
-  it('hardens the main sheet modal for Android window rendering', () => {
+  it('uses a non-sliding Android modal to avoid ghosted sheet trails', () => {
     let tree!: ReturnType<typeof create>;
 
     act(() => {
@@ -177,6 +177,7 @@ describe('Quick capture modal composition', () => {
 
     const modal = tree.root.findByType(Modal);
     expect(modal.props.transparent).toBe(true);
+    expect(modal.props.animationType).toBe(Platform.OS === 'android' ? 'fade' : 'slide');
     expect(modal.props.hardwareAccelerated).toBe(Platform.OS === 'android');
     expect(modal.props.statusBarTranslucent).toBe(Platform.OS === 'android');
   });

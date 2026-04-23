@@ -78,7 +78,8 @@ export function QuickCaptureSheetBody({
     <Modal
       visible={visible}
       transparent
-      animationType="slide"
+      // Transparent slide modals leave ghost trails on some Android tablet GPUs.
+      animationType={Platform.OS === 'android' ? 'fade' : 'slide'}
       hardwareAccelerated={Platform.OS === 'android'}
       navigationBarTranslucent={Platform.OS === 'android'}
       statusBarTranslucent={Platform.OS === 'android'}
