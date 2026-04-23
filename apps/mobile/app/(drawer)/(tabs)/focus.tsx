@@ -15,6 +15,7 @@ import { SlidersHorizontal, X } from 'lucide-react-native';
 
 import {
   sortFocusNextActions,
+  translateWithFallback,
   useTaskStore,
   safeParseDate,
   safeParseDueDate,
@@ -127,8 +128,7 @@ export default function FocusScreen() {
     timeEstimatesEnabled,
   ]);
   const resolveText = useCallback((key: string, fallback: string) => {
-    const value = t(key);
-    return value === key ? fallback : value;
+    return translateWithFallback(t, key, fallback);
   }, [t]);
   const toggleToken = useCallback((token: string) => {
     setSelectedTokens((current) => (

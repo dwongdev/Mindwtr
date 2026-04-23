@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState, useRef, useCallback } from 'react';
 import { ErrorBoundary } from '../ErrorBoundary';
 import { addMonths, endOfMonth, endOfWeek, format, getMonth, getYear, isSameDay, isSameMonth, isToday, setMonth, setYear, startOfMonth, startOfWeek, subMonths, eachDayOfInterval } from 'date-fns';
-import { shallow, safeFormatDate, safeParseDate, safeParseDueDate, type ExternalCalendarEvent, type ExternalCalendarSubscription, useTaskStore, type Task, isTaskInActiveProject } from '@mindwtr/core';
+import { shallow, safeFormatDate, safeParseDate, safeParseDueDate, translateWithFallback, type ExternalCalendarEvent, type ExternalCalendarSubscription, useTaskStore, type Task, isTaskInActiveProject } from '@mindwtr/core';
 import { useLanguage } from '../../contexts/language-context';
 import { cn } from '../../lib/utils';
 import { reportError } from '../../lib/report-error';
@@ -32,8 +32,7 @@ export function CalendarView() {
     const { t, language } = useLanguage();
     const resolveText = useCallback(
         (key: string, fallback: string) => {
-            const value = t(key);
-            return value === key ? fallback : value;
+            return translateWithFallback(t, key, fallback);
         },
         [t]
     );

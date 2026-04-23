@@ -8,6 +8,7 @@ import {
     addBreadcrumb,
     CLOCK_SKEW_THRESHOLD_MS,
     getInMemoryAppDataSnapshot,
+    translateWithFallback,
     type SyncBackend,
 } from '@mindwtr/core';
 import {
@@ -95,8 +96,7 @@ export const useSyncSettings = ({
     }, []);
 
     const resolveText = useCallback((key: string, fallback: string): string => {
-        const translated = t(key);
-        return translated === key ? fallback : translated;
+        return translateWithFallback(t, key, fallback);
     }, [t]);
 
     const formatText = useCallback((

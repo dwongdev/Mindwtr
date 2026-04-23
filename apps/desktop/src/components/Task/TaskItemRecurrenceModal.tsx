@@ -1,5 +1,5 @@
 import { useId } from 'react';
-import type { RecurrenceWeekday } from '@mindwtr/core';
+import { translateWithFallback, type RecurrenceWeekday } from '@mindwtr/core';
 
 import { cn } from '../../lib/utils';
 
@@ -44,8 +44,7 @@ export function TaskItemRecurrenceModal({
     const weekdaySelectId = useId();
     const monthDayInputId = useId();
     const resolveText = (key: string, fallback: string) => {
-        const translated = t(key);
-        return translated === key ? fallback : translated;
+        return translateWithFallback(t, key, fallback);
     };
     const ordinalKey = customOrdinal === '-1'
         ? 'last'

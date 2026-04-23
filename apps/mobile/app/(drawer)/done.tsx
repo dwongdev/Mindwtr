@@ -1,5 +1,6 @@
 import { View, StyleSheet, Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { translateWithFallback } from '@mindwtr/core';
 
 import { TaskList } from '../../components/task-list';
 import { useThemeColors } from '@/hooks/use-theme-colors';
@@ -10,8 +11,7 @@ export default function DoneScreen() {
   const insets = useSafeAreaInsets();
   const { t } = useLanguage();
   const resolveText = (key: string, fallback: string) => {
-    const translated = t(key);
-    return translated && translated !== key ? translated : fallback;
+    return translateWithFallback(t, key, fallback);
   };
   const title = resolveText('nav.done', 'Done');
   const emptyText = resolveText('list.done', 'Done');

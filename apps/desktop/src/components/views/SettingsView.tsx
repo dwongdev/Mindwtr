@@ -23,6 +23,7 @@ import {
   resolveDateLocaleTag,
   DEFAULT_ANTHROPIC_THINKING_BUDGET,
   safeFormatDate,
+  translateWithFallback,
   useTaskStore,
   type AppData,
 } from "@mindwtr/core";
@@ -251,19 +252,13 @@ export function SettingsView() {
     enabled: true,
   });
   const selectSyncFolderTitle = useMemo(() => {
-    const key = "settings.selectSyncFolderTitle";
-    const translated = translate(key);
-    return translated === key ? "Select sync folder" : translated;
+    return translateWithFallback(translate, "settings.selectSyncFolderTitle", "Select sync folder");
   }, [translate]);
   const selectObsidianVaultTitle = useMemo(() => {
-    const key = "settings.selectObsidianVaultTitle";
-    const translated = translate(key);
-    return translated === key ? "Select Obsidian vault" : translated;
+    return translateWithFallback(translate, "settings.selectObsidianVaultTitle", "Select Obsidian vault");
   }, [translate]);
   const cancelLabel = useMemo(() => {
-    const key = "common.cancel";
-    const translated = translate(key);
-    return translated === key ? "Cancel" : translated;
+    return translateWithFallback(translate, "common.cancel", "Cancel");
   }, [translate]);
 
   // Heavy settings hooks are only needed when their page is active.

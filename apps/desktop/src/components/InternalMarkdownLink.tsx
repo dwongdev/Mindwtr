@@ -1,5 +1,5 @@
 import React from 'react';
-import { parseMarkdownReferenceHref, useTaskStore, shallow } from '@mindwtr/core';
+import { parseMarkdownReferenceHref, translateWithFallback, useTaskStore, shallow } from '@mindwtr/core';
 
 import { useLanguage } from '../contexts/language-context';
 import { dispatchNavigateEvent } from '../lib/navigation-events';
@@ -107,8 +107,7 @@ export function InternalMarkdownLink({ href, className, children }: InternalMark
         }
         const statusLabel = (() => {
             const key = `status.${project.status}` as const;
-            const translated = t(key);
-            return translated === key ? project.status : translated;
+            return translateWithFallback(t, key, project.status);
         })();
         return (
             <button
@@ -164,8 +163,7 @@ export function InternalMarkdownLink({ href, className, children }: InternalMark
 
     const statusLabel = (() => {
         const key = `status.${task.status}` as const;
-        const translated = t(key);
-        return translated === key ? task.status : translated;
+        return translateWithFallback(t, key, task.status);
     })();
     const currentTitle = task.title?.trim();
 

@@ -1,6 +1,6 @@
 import React, { memo, useState, useMemo, useDeferredValue, useEffect, useRef, useCallback } from 'react';
 import { useVirtualizer } from '@tanstack/react-virtual';
-import { shallow, useTaskStore, TaskPriority, TimeEstimate, DEFAULT_AREA_COLOR, sortTasksBy, parseQuickAdd, matchesHierarchicalToken, safeParseDate, isTaskInActiveProject, getWaitingPerson } from '@mindwtr/core';
+import { shallow, useTaskStore, TaskPriority, TimeEstimate, DEFAULT_AREA_COLOR, sortTasksBy, parseQuickAdd, matchesHierarchicalToken, safeParseDate, isTaskInActiveProject, getWaitingPerson, translateWithFallback as translateTextWithFallback } from '@mindwtr/core';
 import type { Task, TaskStatus } from '@mindwtr/core';
 import type { TaskSortBy } from '@mindwtr/core';
 import { ConfirmModal } from '../ConfirmModal';
@@ -104,8 +104,7 @@ export const ListView = memo(function ListView({ title, statusFilter }: ListView
     const resetListFilters = useUiStore((state) => state.resetListFilters);
     const showToast = useUiStore((state) => state.showToast);
     const translateWithFallback = useCallback((key: string, fallback: string) => {
-        const value = t(key);
-        return value === key ? fallback : value;
+        return translateTextWithFallback(t, key, fallback);
     }, [t]);
     const showListDetails = useUiStore((state) => state.listOptions.showDetails);
     const nextGroupBy = useUiStore((state) => state.listOptions.nextGroupBy);
@@ -414,8 +413,7 @@ export const ListView = memo(function ListView({ title, statusFilter }: ListView
         });
     }, [deferredFilterInputs, normalizedSearchQuery, showViewFilterInput]);
     const resolveText = useCallback((key: string, fallback: string) => {
-        const value = t(key);
-        return value === key ? fallback : value;
+        return translateTextWithFallback(t, key, fallback);
     }, [t]);
     const activeNextGroupBy: NextGroupBy = statusFilter === 'next' ? nextGroupBy : 'none';
     const isReferenceAreaGrouping = statusFilter === 'reference';

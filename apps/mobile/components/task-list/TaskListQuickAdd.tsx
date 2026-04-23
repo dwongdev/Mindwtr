@@ -1,4 +1,5 @@
 import { ActivityIndicator, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { translateWithFallback } from '@mindwtr/core';
 
 import { styles } from './task-list.styles';
 
@@ -68,8 +69,7 @@ export function TaskListQuickAdd({
   typeaheadOptions,
 }: TaskListQuickAddProps) {
   const resolveText = (key: string, fallback: string) => {
-    const translated = t(key);
-    return translated && translated !== key ? translated : fallback;
+    return translateWithFallback(t, key, fallback);
   };
   const addTaskLabel = resolveText('nav.addTask', 'Add Task');
   const inputLabel = title ? `${addTaskLabel}: ${title}` : resolveText('quickAdd.inputLabel', 'Task title');

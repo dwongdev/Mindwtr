@@ -11,7 +11,7 @@ import { ArchiveView } from './components/views/ArchiveView';
 import { TrashView } from './components/views/TrashView';
 import { AgendaView } from './components/views/AgendaView';
 import { SearchView } from './components/views/SearchView';
-import { addBreadcrumb, useTaskStore, configureDateFormatting, flushPendingSave, isSupportedLanguage } from '@mindwtr/core';
+import { addBreadcrumb, useTaskStore, configureDateFormatting, flushPendingSave, isSupportedLanguage, translateWithFallback } from '@mindwtr/core';
 import { GlobalSearch } from './components/GlobalSearch';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { useLanguage } from './contexts/language-context';
@@ -210,8 +210,7 @@ function App() {
     }, [language, settingsDateFormat, settingsLanguage, settingsTimeFormat]);
 
     const translateOrFallback = useCallback((key: string, fallback: string) => {
-        const value = t(key);
-        return value === key ? fallback : value;
+        return translateWithFallback(t, key, fallback);
     }, [t]);
 
     const hideToTray = useCallback(async () => {

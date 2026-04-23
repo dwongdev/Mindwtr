@@ -9,6 +9,7 @@ import {
     resetPomodoroState,
     Task,
     tickPomodoroState,
+    translateWithFallback,
     useTaskStore,
 } from '@mindwtr/core';
 import { Play, Pause, RotateCcw, TimerReset, CheckCircle2 } from 'lucide-react';
@@ -79,8 +80,7 @@ export function PomodoroPanel({ tasks }: PomodoroPanelProps) {
     const customDurations = useTaskStore((state) => state.settings.gtd?.pomodoro?.customDurations);
     const { t } = useLanguage();
     const resolveText = useCallback((key: string, fallback: string) => {
-        const value = t(key);
-        return value === key ? fallback : value;
+        return translateWithFallback(t, key, fallback);
     }, [t]);
     const [snapshot, setSnapshot] = useState<PomodoroSnapshot>(() => {
         persistedSnapshot = reconcileSnapshot(persistedSnapshot, Date.now());

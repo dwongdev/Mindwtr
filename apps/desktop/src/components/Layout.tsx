@@ -23,7 +23,7 @@ import {
     type LucideIcon,
 } from 'lucide-react';
 import { cn } from '../lib/utils';
-import { shallow, useTaskStore, safeParseDate, safeFormatDate } from '@mindwtr/core';
+import { shallow, useTaskStore, safeParseDate, safeFormatDate, translateWithFallback } from '@mindwtr/core';
 import { useLanguage } from '../contexts/language-context';
 import { useUiStore } from '../store/ui-store';
 import { useObsidianStore } from '../store/obsidian-store';
@@ -92,8 +92,7 @@ export function Layout({ children, currentView, onViewChange }: LayoutProps) {
     const showToast = useUiStore((state) => state.showToast);
     const isObsidianEnabled = useObsidianStore((state) => state.config.enabled);
     const tOrFallback = (key: string, fallback: string) => {
-        const value = t(key);
-        return value === key ? fallback : value;
+        return translateWithFallback(t, key, fallback);
     };
     const [syncStatus, setSyncStatus] = useState(() => SyncService.getSyncStatus());
     const [isOnline, setIsOnline] = useState(() => (typeof navigator !== 'undefined' ? navigator.onLine : true));
@@ -127,7 +126,7 @@ export function Layout({ children, currentView, onViewChange }: LayoutProps) {
 
     const syncConflictNotice = tOrFallback(
         'settings.syncConflictNotice',
-        'Sync conflict resolved with last-write-wins. Open Data & Sync to review the details.'
+        'Sync conflict resolved with last-write-wins. Open sync settings to review the details.'
     );
     useEffect(() => {
         if (lastSyncStatus !== 'conflict') return;
