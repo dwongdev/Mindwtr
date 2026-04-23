@@ -474,8 +474,19 @@ function mergeEntitiesWithStats<T extends MergeableEntity>(
                     });
                 }
             }
-        } else if (withinSkew) {
-            winner = chooseDeterministicWinner(normalizedLocalItem, normalizedIncomingItem);
+        } else {
+            const hasInvalidTimestamp = localUpdatedTime.raw < 0 || incomingUpdatedTime.raw < 0;
+            const requiresStrictTimestampOrdering = comparableUpdatedTimeDiff !== 0
+                && (hasInvalidTimestamp || localUpdatedTime.wasClamped || incomingUpdatedTime.wasClamped);
+            if (requiresStrictTimestampOrdering) {
+                winner = comparableUpdatedTimeDiff > 0 ? normalizedIncomingItem : normalizedLocalItem;
+            } else if (withinSkew) {
+                winner = chooseDeterministicWinner(normalizedLocalItem, normalizedIncomingItem);
+            } else if (comparableUpdatedTimeDiff !== 0) {
+                winner = comparableUpdatedTimeDiff > 0 ? normalizedIncomingItem : normalizedLocalItem;
+            } else {
+                winner = chooseDeterministicWinner(normalizedLocalItem, normalizedIncomingItem);
+            }
         }
         if (winner === normalizedIncomingItem) stats.resolvedUsingIncoming += 1;
         else stats.resolvedUsingLocal += 1;

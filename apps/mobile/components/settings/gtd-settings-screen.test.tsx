@@ -21,6 +21,10 @@ const storeState = {
 };
 
 vi.mock('@mindwtr/core', () => ({
+  sanitizePomodoroDurations: (value?: { focusMinutes?: number; breakMinutes?: number }) => ({
+    focusMinutes: Number.isFinite(value?.focusMinutes) ? Math.round(value!.focusMinutes!) : 25,
+    breakMinutes: Number.isFinite(value?.breakMinutes) ? Math.round(value!.breakMinutes!) : 5,
+  }),
   translateText: (value: string) => value,
   useTaskStore: () => storeState,
 }));
