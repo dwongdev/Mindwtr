@@ -78,6 +78,10 @@ type Labels = {
     pomodoroCustomPresetDesc: string;
     pomodoroFocusMinutes: string;
     pomodoroBreakMinutes: string;
+    pomodoroAutoStartBreaks: string;
+    pomodoroAutoStartBreaksDesc: string;
+    pomodoroAutoStartFocus: string;
+    pomodoroAutoStartFocusDesc: string;
     weeklyReviewConfig: string;
     weeklyReviewConfigDesc: string;
     weeklyReviewIncludeContextsStep: string;
@@ -165,6 +169,8 @@ export function SettingsGtdPage({
     const includeContextStep = safeSettings.gtd?.weeklyReview?.includeContextStep !== false;
     const pomodoroEnabled = safeSettings.features?.pomodoro === true;
     const pomodoroCustomDurations = sanitizePomodoroDurations(safeSettings.gtd?.pomodoro?.customDurations);
+    const pomodoroAutoStartBreaks = safeSettings.gtd?.pomodoro?.autoStartBreaks === true;
+    const pomodoroAutoStartFocus = safeSettings.gtd?.pomodoro?.autoStartFocus === true;
     const [pomodoroFocusDraft, setPomodoroFocusDraft] = useState(String(pomodoroCustomDurations.focusMinutes));
     const [pomodoroBreakDraft, setPomodoroBreakDraft] = useState(String(pomodoroCustomDurations.breakMinutes));
 
@@ -173,16 +179,20 @@ export function SettingsGtdPage({
         setPomodoroBreakDraft(String(pomodoroCustomDurations.breakMinutes));
     }, [pomodoroCustomDurations.breakMinutes, pomodoroCustomDurations.focusMinutes]);
 
-    const savePomodoroCustomDurations = (nextDurations: { focusMinutes: number; breakMinutes: number }) => {
+    const updatePomodoroSettings = (partial: Partial<NonNullable<NonNullable<AppData['settings']['gtd']>['pomodoro']>>) => {
         updateSettings({
             gtd: {
                 ...(safeSettings.gtd ?? {}),
                 pomodoro: {
                     ...(safeSettings.gtd?.pomodoro ?? {}),
-                    customDurations: nextDurations,
+                    ...partial,
                 },
             },
-        }).then(showSaved).catch((error) => reportError('Failed to update Pomodoro durations', error));
+        }).then(showSaved).catch((error) => reportError('Failed to update Pomodoro settings', error));
+    };
+
+    const savePomodoroCustomDurations = (nextDurations: { focusMinutes: number; breakMinutes: number }) => {
+        updatePomodoroSettings({ customDurations: nextDurations });
         return nextDurations;
     };
 
@@ -465,6 +475,54 @@ export function SettingsGtdPage({
                                     className="w-full text-sm bg-muted/50 text-foreground border border-border rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary/40"
                                 />
                             </label>
+                        </div>
+                        <div className="rounded-lg border border-border divide-y divide-border">
+                            <div className="p-3 flex items-center justify-between gap-6">
+                                <div className="min-w-0">
+                                    <div className="text-sm font-medium">{t.pomodoroAutoStartBreaks}</div>
+                                    <div className="text-xs text-muted-foreground mt-1">{t.pomodoroAutoStartBreaksDesc}</div>
+                                </div>
+                                <button
+                                    type="button"
+                                    role="switch"
+                                    aria-checked={pomodoroAutoStartBreaks}
+                                    onClick={() => updatePomodoroSettings({ autoStartBreaks: !pomodoroAutoStartBreaks })}
+                                    className={cn(
+                                        'relative inline-flex h-5 w-9 items-center rounded-full border transition-colors',
+                                        pomodoroAutoStartBreaks ? 'bg-primary border-primary' : 'bg-muted/50 border-border'
+                                    )}
+                                >
+                                    <span
+                                        className={cn(
+                                            'inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform',
+                                            pomodoroAutoStartBreaks ? 'translate-x-4' : 'translate-x-1'
+                                        )}
+                                    />
+                                </button>
+                            </div>
+                            <div className="p-3 flex items-center justify-between gap-6">
+                                <div className="min-w-0">
+                                    <div className="text-sm font-medium">{t.pomodoroAutoStartFocus}</div>
+                                    <div className="text-xs text-muted-foreground mt-1">{t.pomodoroAutoStartFocusDesc}</div>
+                                </div>
+                                <button
+                                    type="button"
+                                    role="switch"
+                                    aria-checked={pomodoroAutoStartFocus}
+                                    onClick={() => updatePomodoroSettings({ autoStartFocus: !pomodoroAutoStartFocus })}
+                                    className={cn(
+                                        'relative inline-flex h-5 w-9 items-center rounded-full border transition-colors',
+                                        pomodoroAutoStartFocus ? 'bg-primary border-primary' : 'bg-muted/50 border-border'
+                                    )}
+                                >
+                                    <span
+                                        className={cn(
+                                            'inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform',
+                                            pomodoroAutoStartFocus ? 'translate-x-4' : 'translate-x-1'
+                                        )}
+                                    />
+                                </button>
+                            </div>
                         </div>
                     </div>
                 )}

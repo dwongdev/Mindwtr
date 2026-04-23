@@ -7,7 +7,9 @@ import {
   DEFAULT_POMODORO_DURATIONS,
   formatPomodoroClock,
   getPomodoroPresetOptions,
+  type PomodoroAutoStartOptions,
   type PomodoroDurations,
+  type PomodoroEvent,
   resetPomodoroState,
   useTaskStore,
 } from '@mindwtr/core';
@@ -22,7 +24,6 @@ import {
   resolvePomodoroSession,
   serializePomodoroSession,
   startPomodoroSession,
-  type PomodoroEvent,
 } from '../lib/pomodoro-session';
 
 export function PomodoroPanel({
@@ -36,13 +37,20 @@ export function PomodoroPanel({
   const tc = useThemeColors();
   const notificationsEnabled = useTaskStore((state) => state.settings.notificationsEnabled !== false);
   const customDurations = useTaskStore((state) => state.settings.gtd?.pomodoro?.customDurations);
+  const autoStartBreaks = useTaskStore((state) => state.settings.gtd?.pomodoro?.autoStartBreaks === true);
+  const autoStartFocus = useTaskStore((state) => state.settings.gtd?.pomodoro?.autoStartFocus === true);
+  const autoStartOptions = useMemo<PomodoroAutoStartOptions>(
+    () => ({ autoStartBreaks, autoStartFocus }),
+    [autoStartBreaks, autoStartFocus]
+  );
+  const autoStartOptionsRef = useRef<PomodoroAutoStartOptions>(autoStartOptions);
   const [durations, setDurations] = useState<PomodoroDurations>(DEFAULT_POMODORO_DURATIONS);
   const [timerState, setTimerState] = useState(() => createPomodoroState(DEFAULT_POMODORO_DURATIONS));
   const [selectedTaskId, setSelectedTaskId] = useState<string | undefined>(undefined);
   const [phaseEndsAt, setPhaseEndsAt] = useState<string | undefined>(undefined);
-  const [lastEvent, setLastEvent] = useState<PomodoroEvent>(null);
+  const [lastEvent, setLastEvent] = useState<PomodoroEvent | null>(null);
   const [isHydratingSession, setIsHydratingSession] = useState(true);
-  const previousEventRef = useRef<PomodoroEvent>(null);
+  const previousEventRef = useRef<PomodoroEvent | null>(null);
   const hasHydratedRef = useRef(false);
   const persistedRemainingSeconds = timerState.isRunning && phaseEndsAt
     ? createPomodoroState(durations, timerState.phase, timerState.completedFocusSessions).remainingSeconds
@@ -73,6 +81,10 @@ export function PomodoroPanel({
   };
 
   useEffect(() => {
+    autoStartOptionsRef.current = autoStartOptions;
+  }, [autoStartOptions]);
+
+  useEffect(() => {
     if (tasks.length === 0) {
       setSelectedTaskId(undefined);
       return;
@@ -90,7 +102,7 @@ export function PomodoroPanel({
         if (!raw || cancelled) return;
         const parsed = JSON.parse(raw) as ReturnType<typeof serializePomodoroSession>;
         if (cancelled) return;
-        applyResolvedSession(resolvePomodoroSession(parsed), { emitEvent: false });
+        applyResolvedSession(resolvePomodoroSession(parsed, Date.now(), autoStartOptionsRef.current), { emitEvent: false });
       } catch (error) {
         void logWarn('Failed to restore pomodoro session', {
           scope: 'pomodoro',
@@ -148,10 +160,10 @@ export function PomodoroPanel({
         timerState,
         selectedTaskId,
         phaseEndsAt,
-      }));
+      }, Date.now(), autoStartOptions));
     }, 1000);
     return () => clearInterval(interval);
-  }, [durations, phaseEndsAt, selectedTaskId, timerState]);
+  }, [autoStartOptions, durations, phaseEndsAt, selectedTaskId, timerState]);
 
   const selectedTask = useMemo(
     () => (selectedTaskId ? tasks.find((task) => task.id === selectedTaskId) : undefined),
@@ -191,7 +203,7 @@ export function PomodoroPanel({
       timerState,
       selectedTaskId,
       phaseEndsAt,
-    });
+    }, Date.now(), autoStartOptions);
     applyResolvedSession({
       ...session,
       durations: nextDurations,
@@ -207,14 +219,14 @@ export function PomodoroPanel({
       timerState,
       selectedTaskId,
       phaseEndsAt,
-    });
+    }, Date.now(), autoStartOptions);
     if (session.lastEvent) {
       applyResolvedSession(session);
       return;
     }
     const next = session.timerState.isRunning
-      ? pausePomodoroSession(session)
-      : startPomodoroSession(session);
+      ? pausePomodoroSession(session, Date.now(), autoStartOptions)
+      : startPomodoroSession(session, Date.now(), autoStartOptions);
     applyResolvedSession(next);
   };
 
@@ -224,7 +236,7 @@ export function PomodoroPanel({
       timerState,
       selectedTaskId,
       phaseEndsAt,
-    });
+    }, Date.now(), autoStartOptions);
     applyResolvedSession({
       ...session,
       timerState: resetPomodoroState(session.timerState, session.durations, session.timerState.phase),
@@ -239,7 +251,7 @@ export function PomodoroPanel({
       timerState,
       selectedTaskId,
       phaseEndsAt,
-    });
+    }, Date.now(), autoStartOptions);
     applyResolvedSession({
       ...session,
       timerState: resetPomodoroState(

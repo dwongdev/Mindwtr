@@ -234,6 +234,8 @@ export interface AppData {
                     focusMinutes?: number;
                     breakMinutes?: number;
                 };
+                autoStartBreaks?: boolean;
+                autoStartFocus?: boolean;
             };
         };
         attachments?: {

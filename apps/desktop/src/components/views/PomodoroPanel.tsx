@@ -1,14 +1,16 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
+    advancePomodoroState,
     createPomodoroState,
     DEFAULT_POMODORO_DURATIONS,
     formatPomodoroClock,
     getPomodoroPresetOptions,
+    PomodoroAutoStartOptions,
     PomodoroDurations,
+    PomodoroEvent,
     PomodoroState,
     resetPomodoroState,
     Task,
-    tickPomodoroState,
     translateWithFallback,
     useTaskStore,
 } from '@mindwtr/core';
@@ -21,13 +23,11 @@ interface PomodoroPanelProps {
     tasks: Task[];
 }
 
-type PomodoroEvent = 'focus-finished' | 'break-finished' | null;
-
 type PomodoroSnapshot = {
     durations: PomodoroDurations;
     timerState: PomodoroState;
     selectedTaskId?: string;
-    lastEvent: PomodoroEvent;
+    lastEvent: PomodoroEvent | null;
     updatedAtMs: number;
 };
 
@@ -39,34 +39,21 @@ const createInitialSnapshot = (): PomodoroSnapshot => ({
     updatedAtMs: Date.now(),
 });
 
-const advancePomodoro = (
-    timerState: PomodoroState,
-    durations: PomodoroDurations,
-    elapsedSeconds: number
-): { timerState: PomodoroState; lastEvent: PomodoroEvent } => {
-    let nextState = timerState;
-    let lastEvent: PomodoroEvent = null;
-    for (let i = 0; i < elapsedSeconds; i += 1) {
-        const next = tickPomodoroState(nextState, durations);
-        nextState = next.state;
-        if (next.switchedPhase) {
-            lastEvent = next.completedFocusSession ? 'focus-finished' : 'break-finished';
-        }
-    }
-    return { timerState: nextState, lastEvent };
-};
-
-const reconcileSnapshot = (snapshot: PomodoroSnapshot, nowMs: number): PomodoroSnapshot => {
+const reconcileSnapshot = (
+    snapshot: PomodoroSnapshot,
+    nowMs: number,
+    autoStartOptions: PomodoroAutoStartOptions
+): PomodoroSnapshot => {
     if (!snapshot.timerState.isRunning) {
         return { ...snapshot, updatedAtMs: nowMs };
     }
     const elapsedSeconds = Math.floor((nowMs - snapshot.updatedAtMs) / 1000);
     if (elapsedSeconds <= 0) return snapshot;
-    const advanced = advancePomodoro(snapshot.timerState, snapshot.durations, elapsedSeconds);
+    const advanced = advancePomodoroState(snapshot.timerState, snapshot.durations, elapsedSeconds, autoStartOptions);
     const updatedAtMs = snapshot.updatedAtMs + elapsedSeconds * 1000;
     return {
         ...snapshot,
-        timerState: advanced.timerState,
+        timerState: advanced.state,
         lastEvent: advanced.lastEvent ?? snapshot.lastEvent,
         updatedAtMs,
     };
@@ -78,15 +65,21 @@ export function PomodoroPanel({ tasks }: PomodoroPanelProps) {
     const updateTask = useTaskStore((state) => state.updateTask);
     const notificationsEnabled = useTaskStore((state) => state.settings.notificationsEnabled !== false);
     const customDurations = useTaskStore((state) => state.settings.gtd?.pomodoro?.customDurations);
+    const autoStartBreaks = useTaskStore((state) => state.settings.gtd?.pomodoro?.autoStartBreaks === true);
+    const autoStartFocus = useTaskStore((state) => state.settings.gtd?.pomodoro?.autoStartFocus === true);
     const { t } = useLanguage();
+    const autoStartOptions = useMemo<PomodoroAutoStartOptions>(
+        () => ({ autoStartBreaks, autoStartFocus }),
+        [autoStartBreaks, autoStartFocus]
+    );
     const resolveText = useCallback((key: string, fallback: string) => {
         return translateWithFallback(t, key, fallback);
     }, [t]);
     const [snapshot, setSnapshot] = useState<PomodoroSnapshot>(() => {
-        persistedSnapshot = reconcileSnapshot(persistedSnapshot, Date.now());
+        persistedSnapshot = reconcileSnapshot(persistedSnapshot, Date.now(), autoStartOptions);
         return persistedSnapshot;
     });
-    const previousEventRef = useRef<PomodoroEvent>(snapshot.lastEvent);
+    const previousEventRef = useRef<PomodoroEvent | null>(snapshot.lastEvent);
 
     const commitSnapshot = useCallback((updater: (prev: PomodoroSnapshot) => PomodoroSnapshot) => {
         setSnapshot((prev) => {
@@ -109,10 +102,10 @@ export function PomodoroPanel({ tasks }: PomodoroPanelProps) {
     useEffect(() => {
         if (!snapshot.timerState.isRunning) return;
         const intervalId = window.setInterval(() => {
-            commitSnapshot((prev) => reconcileSnapshot(prev, Date.now()));
+            commitSnapshot((prev) => reconcileSnapshot(prev, Date.now(), autoStartOptions));
         }, 1000);
         return () => window.clearInterval(intervalId);
-    }, [commitSnapshot, snapshot.timerState.isRunning]);
+    }, [autoStartOptions, commitSnapshot, snapshot.timerState.isRunning]);
 
     const durations = snapshot.durations;
     const timerState = snapshot.timerState;
@@ -156,7 +149,7 @@ export function PomodoroPanel({ tasks }: PomodoroPanelProps) {
     const handleApplyPreset = (focusMinutes: number, breakMinutes: number) => {
         const nextDurations = { focusMinutes, breakMinutes };
         commitSnapshot((prev) => {
-            const reconciled = reconcileSnapshot(prev, Date.now());
+            const reconciled = reconcileSnapshot(prev, Date.now(), autoStartOptions);
             return {
                 ...reconciled,
                 durations: nextDurations,
@@ -169,7 +162,7 @@ export function PomodoroPanel({ tasks }: PomodoroPanelProps) {
 
     const handleToggleRun = () => {
         commitSnapshot((prev) => {
-            const reconciled = reconcileSnapshot(prev, Date.now());
+            const reconciled = reconcileSnapshot(prev, Date.now(), autoStartOptions);
             return {
                 ...reconciled,
                 timerState: { ...reconciled.timerState, isRunning: !reconciled.timerState.isRunning },
@@ -180,7 +173,7 @@ export function PomodoroPanel({ tasks }: PomodoroPanelProps) {
 
     const handleReset = () => {
         commitSnapshot((prev) => {
-            const reconciled = reconcileSnapshot(prev, Date.now());
+            const reconciled = reconcileSnapshot(prev, Date.now(), autoStartOptions);
             return {
                 ...reconciled,
                 timerState: resetPomodoroState(reconciled.timerState, reconciled.durations, reconciled.timerState.phase),
@@ -192,7 +185,7 @@ export function PomodoroPanel({ tasks }: PomodoroPanelProps) {
 
     const handleSwitchPhase = () => {
         commitSnapshot((prev) => {
-            const reconciled = reconcileSnapshot(prev, Date.now());
+            const reconciled = reconcileSnapshot(prev, Date.now(), autoStartOptions);
             return {
                 ...reconciled,
                 timerState: resetPomodoroState(

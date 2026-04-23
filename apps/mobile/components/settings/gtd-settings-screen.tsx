@@ -81,6 +81,8 @@ export function GtdSettingsScreen({
     const timeEstimatesEnabled = settings.features?.timeEstimates !== false;
     const pomodoroEnabled = settings.features?.pomodoro === true;
     const pomodoroCustomDurations = sanitizePomodoroDurations(settings.gtd?.pomodoro?.customDurations);
+    const pomodoroAutoStartBreaks = settings.gtd?.pomodoro?.autoStartBreaks === true;
+    const pomodoroAutoStartFocus = settings.gtd?.pomodoro?.autoStartFocus === true;
     const [pomodoroFocusDraft, setPomodoroFocusDraft] = useState(String(pomodoroCustomDurations.focusMinutes));
     const [pomodoroBreakDraft, setPomodoroBreakDraft] = useState(String(pomodoroCustomDurations.breakMinutes));
 
@@ -123,16 +125,22 @@ export function GtdSettingsScreen({
         }).catch(logSettingsError);
     };
 
-    const savePomodoroCustomDurations = (nextDurations: { focusMinutes: number; breakMinutes: number }) => {
+    const updatePomodoroSettings = (
+        partial: Partial<NonNullable<NonNullable<AppData['settings']['gtd']>['pomodoro']>>
+    ) => {
         updateSettings({
             gtd: {
                 ...(settings.gtd ?? {}),
                 pomodoro: {
                     ...(settings.gtd?.pomodoro ?? {}),
-                    customDurations: nextDurations,
+                    ...partial,
                 },
             },
         }).catch(logSettingsError);
+    };
+
+    const savePomodoroCustomDurations = (nextDurations: { focusMinutes: number; breakMinutes: number }) => {
+        updatePomodoroSettings({ customDurations: nextDurations });
         return nextDurations;
     };
 
@@ -211,6 +219,28 @@ export function GtdSettingsScreen({
         const pomodoroBreakMinutesLabel = pomodoroBreakMinutesLabelRaw === 'settings.pomodoroBreakMinutes'
             ? localize('Break minutes', '休息分钟')
             : pomodoroBreakMinutesLabelRaw;
+        const pomodoroAutoStartBreaksLabelRaw = t('settings.pomodoroAutoStartBreaks');
+        const pomodoroAutoStartBreaksLabel = pomodoroAutoStartBreaksLabelRaw === 'settings.pomodoroAutoStartBreaks'
+            ? localize('Auto-start breaks', '自动开始休息')
+            : pomodoroAutoStartBreaksLabelRaw;
+        const pomodoroAutoStartBreaksDescRaw = t('settings.pomodoroAutoStartBreaksDesc');
+        const pomodoroAutoStartBreaksDesc = pomodoroAutoStartBreaksDescRaw === 'settings.pomodoroAutoStartBreaksDesc'
+            ? localize(
+                'Start the break timer automatically when a focus session ends.',
+                '当专注阶段结束时，自动开始休息计时。'
+            )
+            : pomodoroAutoStartBreaksDescRaw;
+        const pomodoroAutoStartFocusLabelRaw = t('settings.pomodoroAutoStartFocus');
+        const pomodoroAutoStartFocusLabel = pomodoroAutoStartFocusLabelRaw === 'settings.pomodoroAutoStartFocus'
+            ? localize('Auto-start focus', '自动开始专注')
+            : pomodoroAutoStartFocusLabelRaw;
+        const pomodoroAutoStartFocusDescRaw = t('settings.pomodoroAutoStartFocusDesc');
+        const pomodoroAutoStartFocusDesc = pomodoroAutoStartFocusDescRaw === 'settings.pomodoroAutoStartFocusDesc'
+            ? localize(
+                'Start the next focus session automatically when a break ends.',
+                '当休息阶段结束时，自动开始下一轮专注计时。'
+            )
+            : pomodoroAutoStartFocusDescRaw;
 
         return (
             <SafeAreaView style={[styles.container, { backgroundColor: tc.bg }]} edges={['bottom']}>
@@ -261,6 +291,30 @@ export function GtdSettingsScreen({
                                             onBlur={commitPomodoroMinutes}
                                             keyboardType="number-pad"
                                             style={[styles.textInput, styles.inlineTextInput, { borderColor: tc.border, color: tc.text }]}
+                                        />
+                                    </View>
+                                </View>
+                                <View style={[styles.settingCard, { backgroundColor: tc.bg, borderWidth: 1, borderColor: tc.border }]}>
+                                    <View style={styles.settingRow}>
+                                        <View style={styles.settingInfo}>
+                                            <Text style={[styles.settingLabel, { color: tc.text }]}>{pomodoroAutoStartBreaksLabel}</Text>
+                                            <Text style={[styles.settingDescription, { color: tc.secondaryText }]}>{pomodoroAutoStartBreaksDesc}</Text>
+                                        </View>
+                                        <Switch
+                                            value={pomodoroAutoStartBreaks}
+                                            onValueChange={(value) => updatePomodoroSettings({ autoStartBreaks: value })}
+                                            trackColor={{ false: '#767577', true: '#3B82F6' }}
+                                        />
+                                    </View>
+                                    <View style={[styles.settingRow, { borderTopWidth: 1, borderTopColor: tc.border }]}>
+                                        <View style={styles.settingInfo}>
+                                            <Text style={[styles.settingLabel, { color: tc.text }]}>{pomodoroAutoStartFocusLabel}</Text>
+                                            <Text style={[styles.settingDescription, { color: tc.secondaryText }]}>{pomodoroAutoStartFocusDesc}</Text>
+                                        </View>
+                                        <Switch
+                                            value={pomodoroAutoStartFocus}
+                                            onValueChange={(value) => updatePomodoroSettings({ autoStartFocus: value })}
+                                            trackColor={{ false: '#767577', true: '#3B82F6' }}
                                         />
                                     </View>
                                 </View>
