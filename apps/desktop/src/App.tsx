@@ -41,6 +41,7 @@ import {
     applyDesktopTextSize,
     coerceDesktopTextSize,
 } from './lib/text-size';
+import { saveStoredFullscreen } from './lib/window-state';
 import { subscribeNavigateEvent } from './lib/navigation-events';
 import { useUiStore } from './store/ui-store';
 import { useObsidianStore } from './store/obsidian-store';
@@ -421,6 +422,43 @@ function App() {
             cancelled = true;
         };
     }, [windowDecorations]);
+
+    useEffect(() => {
+        if (!isTauriRuntime()) return;
+        let cancelled = false;
+        let unlistenResize: (() => void) | undefined;
+
+        const syncFullscreenState = async () => {
+            const { getCurrentWindow } = await import('@tauri-apps/api/window');
+            const isFullscreen = await getCurrentWindow().isFullscreen();
+            if (!cancelled) {
+                saveStoredFullscreen(isFullscreen, localStorage);
+            }
+        };
+
+        const setup = async () => {
+            const { getCurrentWindow } = await import('@tauri-apps/api/window');
+            const current = getCurrentWindow();
+            await syncFullscreenState();
+            const nextUnlisten = await current.onResized(() => {
+                void syncFullscreenState().catch((error) => {
+                    void logError(error, { scope: 'window', step: 'syncFullscreenState' });
+                });
+            });
+            if (cancelled) {
+                nextUnlisten();
+                return;
+            }
+            unlistenResize = nextUnlisten;
+        };
+
+        setup().catch((error) => void logError(error, { scope: 'window', step: 'setupFullscreenSync' }));
+
+        return () => {
+            cancelled = true;
+            if (unlistenResize) unlistenResize();
+        };
+    }, []);
 
     useEffect(() => {
         if (!isTauriRuntime()) return;
