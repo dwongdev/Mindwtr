@@ -1059,4 +1059,9 @@ export const deOverrides: Record<string, string> = {
         'settings.linuxUpdateHint': 'Unter Linux kann Mindwtr Aktualisierungen nicht automatisch installieren. Installieren Sie das Programm nach dem Herunterladen über Ihren Paketmanager (z. B. `yay -S mindwtr` oder `paru -S mindwtr`) oder direkt das heruntergeladene Paket.',
         'settings.saved': 'Einstellungen gespeichert',
         'settings.selectSyncFolderTitle': 'Synchronisations-Ordner auswählen',
+        'inbox.whoShouldDoIt': 'Wer sollte das tun?',
+        'settings.pomodoroCustomPreset': 'Benutzerdefinierte Vorgabe',
+        'settings.pomodoroCustomPresetDesc': 'Füge eine zusätzliche Fokus-/Pausenvorgabe hinzu. Wenn sie einer integrierten Vorgabe entspricht, bleiben nur die integrierten Optionen sichtbar.',
+        'settings.pomodoroFocusMinutes': 'Fokusminuten',
+        'settings.pomodoroBreakMinutes': 'Pausenminuten',
 };

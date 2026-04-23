@@ -16,18 +16,25 @@ import { trOverrides } from './locales/tr';
 import { zhHans } from './locales/zh-Hans';
 import { zhHant } from './locales/zh-Hant';
 
-const recurrenceEndKeys = [
+const requiredOverrideKeys = [
     'recurrence.endsLabel',
     'recurrence.endsNever',
     'recurrence.endsOnDate',
     'recurrence.endsAfterCount',
     'recurrence.occurrenceUnit',
+    'settings.pomodoroCustomPreset',
+    'settings.pomodoroCustomPresetDesc',
+    'settings.pomodoroFocusMinutes',
+    'settings.pomodoroBreakMinutes',
+    'inbox.whoShouldDoIt',
 ] as const;
 
-const locales: Record<string, Record<string, string>> = {
-    en,
+const fullParityLocales: Record<string, Record<string, string>> = {
     zh: zhHans,
     'zh-Hant': zhHant,
+};
+
+const overrideLocales: Record<string, Record<string, string>> = {
     ar: arOverrides,
     de: deOverrides,
     es: esOverrides,
@@ -44,9 +51,24 @@ const locales: Record<string, Record<string, string>> = {
 };
 
 describe('locale parity', () => {
-    it('defines recurrence end-condition copy for every shipped language', () => {
-        for (const [language, translations] of Object.entries(locales)) {
-            for (const key of recurrenceEndKeys) {
+    it('keeps full locale files in key parity with English', () => {
+        for (const [language, translations] of Object.entries(fullParityLocales)) {
+            for (const key of Object.keys(en)) {
+                expect(
+                    translations[key],
+                    `Missing ${key} in ${language}`
+                ).toBeTruthy();
+            }
+        }
+    });
+
+    it('defines required workflow copy for every shipped language', () => {
+        for (const [language, translations] of Object.entries({
+            en,
+            ...fullParityLocales,
+            ...overrideLocales,
+        })) {
+            for (const key of requiredOverrideKeys) {
                 expect(
                     translations[key],
                     `Missing ${key} in ${language}`

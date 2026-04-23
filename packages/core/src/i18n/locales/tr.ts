@@ -1007,4 +1007,9 @@ export const trOverrides: Record<string, string> = {
         'settings.linuxUpdateHint': 'On Linux, Mindwtr cannot auto-install updates. After İndiring, install via your package manager (e.g., yay -S mindwtr or paru -S mindwtr) or the İndired package.',
         'settings.saved': 'Ayarlar Kaydetd',
         'settings.selectSyncFolderTitle': 'Select Eşitleme folder',
+        'inbox.whoShouldDoIt': 'Bunu kim yapmalı?',
+        'settings.pomodoroCustomPreset': 'Özel hazır ayar',
+        'settings.pomodoroCustomPresetDesc': 'Bir ek odak/mola hazır ayarı ekleyin. Yerleşik bir hazır ayarla aynıysa yalnızca yerleşik seçenekler gösterilir.',
+        'settings.pomodoroFocusMinutes': 'Odak dakikası',
+        'settings.pomodoroBreakMinutes': 'Mola dakikası',
 };

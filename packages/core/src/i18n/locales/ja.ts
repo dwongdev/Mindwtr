@@ -1007,4 +1007,9 @@ export const jaOverrides: Record<string, string> = {
         'settings.linuxUpdateHint': 'On Linux, Mindwtr cannot auto-install updates. After ダウンロードing, install via your package manager (e.g., yay -S mindwtr or paru -S mindwtr) or the ダウンロードed package.',
         'settings.saved': '設定 保存d',
         'settings.selectSyncFolderTitle': 'Select 同期 folder',
+        'inbox.whoShouldDoIt': '誰がこれをやるべきですか？',
+        'settings.pomodoroCustomPreset': 'カスタムプリセット',
+        'settings.pomodoroCustomPresetDesc': '集中/休憩プリセットを1つ追加します。組み込みプリセットと同じ場合は、組み込みの選択肢のみ表示されます。',
+        'settings.pomodoroFocusMinutes': '集中時間（分）',
+        'settings.pomodoroBreakMinutes': '休憩時間（分）',
 };

@@ -66,7 +66,7 @@ export function createPomodoroCustomPreset(value?: Partial<PomodoroDurations>): 
 
     return {
         id: 'custom',
-        label: `Custom ${durations.focusMinutes}/${durations.breakMinutes}`,
+        label: `${durations.focusMinutes}/${durations.breakMinutes}`,
         ...durations,
     };
 }

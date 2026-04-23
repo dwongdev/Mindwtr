@@ -284,4 +284,9 @@ export const nlOverrides: Record<string, string> = {
         'settings.linuxUpdateHint': 'On Linux, Mindwtr cannot auto-install updates. After DownLaden, install via your package manager (e.g., yay -S mindwtr or paru -S mindwtr) or the Downloaded package.',
         'settings.saved': 'Instellingen Opslaand',
         'settings.selectSyncFolderTitle': 'Select Synchronisatie folder',
+        'inbox.whoShouldDoIt': 'Wie moet dit doen?',
+        'settings.pomodoroCustomPreset': 'Aangepaste preset',
+        'settings.pomodoroCustomPresetDesc': 'Voeg één extra focus-/pauzepreset toe. Als die overeenkomt met een ingebouwde preset, blijven alleen de ingebouwde opties zichtbaar.',
+        'settings.pomodoroFocusMinutes': 'Focusminuten',
+        'settings.pomodoroBreakMinutes': 'Pauzeminuten',
 };

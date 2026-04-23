@@ -780,7 +780,7 @@ export function InboxProcessingModal({ visible, onClose }: InboxProcessingModalP
 
                   <View style={[styles.singleSection, { borderBottomColor: tc.border }]}>
                     <Text style={[styles.stepQuestion, { color: tc.text }]}>
-                      {t('inbox.whatNext')}
+                      {t('inbox.whoShouldDoIt')}
                     </Text>
                     <View style={styles.buttonColumn}>
                       <TouchableOpacity

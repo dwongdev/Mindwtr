@@ -1007,4 +1007,9 @@ export const ruOverrides: Record<string, string> = {
         'settings.linuxUpdateHint': 'On Linux, Mindwtr cannot auto-install updates. After Скачатьing, install via your package manager (e.g., yay -S mindwtr or paru -S mindwtr) or the Скачатьed package.',
         'settings.saved': 'Настройки Сохранитьd',
         'settings.selectSyncFolderTitle': 'Select Синхронизация folder',
+        'inbox.whoShouldDoIt': 'Кто должен это сделать?',
+        'settings.pomodoroCustomPreset': 'Пользовательский пресет',
+        'settings.pomodoroCustomPresetDesc': 'Добавьте один дополнительный пресет для фокуса/перерыва. Если он совпадает со встроенным пресетом, будут показаны только встроенные варианты.',
+        'settings.pomodoroFocusMinutes': 'Минуты фокуса',
+        'settings.pomodoroBreakMinutes': 'Минуты перерыва',
 };

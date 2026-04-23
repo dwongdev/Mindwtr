@@ -1007,4 +1007,9 @@ export const koOverrides: Record<string, string> = {
         'settings.linuxUpdateHint': 'On Linux, Mindwtr cannot auto-install updates. After 다운로드ing, install via your package manager (e.g., yay -S mindwtr or paru -S mindwtr) or the 다운로드ed package.',
         'settings.saved': '설정 저장d',
         'settings.selectSyncFolderTitle': 'Select 동기화 folder',
+        'inbox.whoShouldDoIt': '누가 이 일을 해야 하나요?',
+        'settings.pomodoroCustomPreset': '사용자 지정 프리셋',
+        'settings.pomodoroCustomPresetDesc': '집중/휴식 프리셋을 하나 더 추가합니다. 기본 프리셋과 같으면 기본 옵션만 표시됩니다.',
+        'settings.pomodoroFocusMinutes': '집중 시간(분)',
+        'settings.pomodoroBreakMinutes': '휴식 시간(분)',
 };

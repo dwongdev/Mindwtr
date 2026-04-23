@@ -1007,4 +1007,9 @@ export const ptOverrides: Record<string, string> = {
         'settings.linuxUpdateHint': 'On Linux, Mindwtr cannot auto-install updates. After Baixaring, install via your package manager (e.g., yay -S mindwtr or paru -S mindwtr) or the Baixared package.',
         'settings.saved': 'Configurações Salvard',
         'settings.selectSyncFolderTitle': 'Select Sincronização folder',
+        'inbox.whoShouldDoIt': 'Quem deve fazer isso?',
+        'settings.pomodoroCustomPreset': 'Predefinição personalizada',
+        'settings.pomodoroCustomPresetDesc': 'Adicione uma predefinição extra de foco/pausa. Se ela coincidir com uma predefinição integrada, apenas as opções integradas continuarão visíveis.',
+        'settings.pomodoroFocusMinutes': 'Minutos de foco',
+        'settings.pomodoroBreakMinutes': 'Minutos de pausa',
 };

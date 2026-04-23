@@ -1007,4 +1007,9 @@ export const hiOverrides: Record<string, string> = {
         'settings.linuxUpdateHint': 'On Linux, Mindwtr cannot auto-install updates. After डाउनलोडing, install via your package manager (e.g., yay -S mindwtr or paru -S mindwtr) or the डाउनलोडed package.',
         'settings.saved': 'सेटिंग्स सहेजेंd',
         'settings.selectSyncFolderTitle': 'Select सिंक folder',
+        'inbox.whoShouldDoIt': 'इसे किसे करना चाहिए?',
+        'settings.pomodoroCustomPreset': 'कस्टम प्रीसेट',
+        'settings.pomodoroCustomPresetDesc': 'एक अतिरिक्त फोकस/ब्रेक प्रीसेट जोड़ें। यदि यह किसी बिल्ट-इन प्रीसेट से मेल खाता है, तो केवल बिल्ट-इन विकल्प ही दिखेंगे।',
+        'settings.pomodoroFocusMinutes': 'फोकस मिनट',
+        'settings.pomodoroBreakMinutes': 'ब्रेक मिनट',
 };

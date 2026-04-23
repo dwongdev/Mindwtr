@@ -1007,4 +1007,9 @@ export const arOverrides: Record<string, string> = {
         'settings.linuxUpdateHint': 'On Linux, Mindwtr cannot auto-install updates. After تنزيلing, install via your package manager (e.g., yay -S mindwtr or paru -S mindwtr) or the تنزيلed package.',
         'settings.saved': 'الإعدادات حفظd',
         'settings.selectSyncFolderTitle': 'Select مزامنة folder',
+        'inbox.whoShouldDoIt': 'من ينبغي أن يقوم بهذا؟',
+        'settings.pomodoroCustomPreset': 'إعداد مخصص',
+        'settings.pomodoroCustomPresetDesc': 'أضف إعداد تركيز/استراحة إضافيًا واحدًا. إذا طابق إعدادًا مدمجًا، فستظل الخيارات المدمجة فقط ظاهرة.',
+        'settings.pomodoroFocusMinutes': 'دقائق التركيز',
+        'settings.pomodoroBreakMinutes': 'دقائق الاستراحة',
 };

@@ -31,7 +31,7 @@ describe('pomodoro helpers', () => {
     it('adds one custom preset when the saved duration differs from the built-in presets', () => {
         expect(createPomodoroCustomPreset({ focusMinutes: 30, breakMinutes: 6 })).toEqual({
             id: 'custom',
-            label: 'Custom 30/6',
+            label: '30/6',
             focusMinutes: 30,
             breakMinutes: 6,
         });
