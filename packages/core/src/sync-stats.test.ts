@@ -222,6 +222,50 @@ describe('Sync Logic', () => {
                 isFocused: false,
             });
         });
+
+        it('does not count conflicts for null-vs-missing optional fields with matching revisions', () => {
+            const now = '2026-04-23T21:42:31.000Z';
+            const localTask = {
+                ...createMockTask('task-nullish', now),
+                rev: 3,
+                revBy: 'device-a',
+                assignedTo: null,
+                completedAt: null,
+                deletedAt: null,
+                description: null,
+                energyLevel: null,
+                location: null,
+                priority: null,
+                recurrence: null,
+                reviewAt: null,
+            } as unknown as Task;
+            const incomingTask = {
+                ...createMockTask('task-nullish', now),
+                rev: 3,
+                revBy: 'device-a',
+            } satisfies Task;
+
+            const localProject = {
+                ...createMockProject('project-nullish', now),
+                rev: 1,
+                revBy: 'device-a',
+                deletedAt: null,
+                supportNotes: null,
+            } as unknown as Project;
+            const incomingProject = {
+                ...createMockProject('project-nullish', now),
+                rev: 1,
+                revBy: 'device-a',
+            } satisfies Project;
+
+            const result = mergeAppDataWithStats(
+                mockAppData([localTask], [localProject]),
+                mockAppData([incomingTask], [incomingProject])
+            );
+
+            expect(result.stats.tasks.conflicts).toBe(0);
+            expect(result.stats.projects.conflicts).toBe(0);
+        });
     });
 
     describe('appendSyncHistory', () => {

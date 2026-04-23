@@ -89,7 +89,9 @@ export const toComparableValue = (value: unknown, options?: { includeIgnoredKeys
         for (const key of Object.keys(record).sort()) {
             if (!includeIgnoredKeys && CONTENT_DIFF_IGNORED_KEYS.has(key)) continue;
             if (!includeIgnoredKeys && key === 'uri' && record.kind === 'file') continue;
-            comparable[key] = toComparableValue(record[key], options);
+            const comparableValue = toComparableValue(record[key], options);
+            if (comparableValue === undefined || comparableValue === null) continue;
+            comparable[key] = comparableValue;
         }
         return comparable;
     }
