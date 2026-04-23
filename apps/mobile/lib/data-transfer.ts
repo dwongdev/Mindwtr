@@ -237,6 +237,9 @@ export const pickOmniFocusDocument = async (): Promise<TransferDocument | null> 
     pickDocument([
         'text/csv',
         'text/comma-separated-values',
+        'application/json',
+        'application/zip',
+        'application/x-zip-compressed',
         'application/octet-stream',
     ]);
 
@@ -409,6 +412,8 @@ export const importOmniFocusData = async (
             extra: {
                 operation: 'importOmniFocus',
                 source: 'omnifocus',
+                areas: String(result.importedAreaCount),
+                checklistItems: String(result.importedChecklistItemCount),
                 tasks: String(result.importedTaskCount),
                 projects: String(result.importedProjectCount),
                 standaloneTasks: String(result.importedStandaloneTaskCount),

@@ -176,6 +176,15 @@ export function useSyncSettingsBackupActions({
             preview.projectCount > 0
                 ? localize(`${preview.projectCount} project(s) will be created when needed.`, `${preview.projectCount} 个项目会在需要时创建。`)
                 : null,
+            preview.areaCount > 0
+                ? localize(`${preview.areaCount} area(s) will be created from OmniFocus folders when needed.`, `${preview.areaCount} 个领域会在需要时根据 OmniFocus 文件夹创建。`)
+                : null,
+            preview.checklistItemCount > 0
+                ? localize(
+                    `${preview.checklistItemCount} nested task(s) will become checklist items when possible.`,
+                    `${preview.checklistItemCount} 个嵌套任务会在可能时转换为清单项。`
+                )
+                : null,
             preview.standaloneTaskCount > 0
                 ? localize(
                     `${preview.standaloneTaskCount} task(s) will stay outside projects so you can process them in Mindwtr.`,
@@ -183,8 +192,8 @@ export function useSyncSettingsBackupActions({
                 )
                 : null,
             localize(
-                'Imported tasks keep OmniFocus notes, dates, tags, and contexts when supported.',
-                '导入后的任务会尽量保留 OmniFocus 的备注、日期、标签和情境。'
+                'Imported tasks keep OmniFocus notes, dates, tags, recurrence, and checklist children when supported.',
+                '导入后的任务会尽量保留 OmniFocus 的备注、日期、标签、重复规则和清单子项。'
             ),
             ...(projectLines.length > 0 ? ['', ...projectLines] : []),
             ...(preview.warnings.length > 0 ? ['', ...preview.warnings] : []),
@@ -339,6 +348,18 @@ export function useSyncSettingsBackupActions({
                     `Imported ${result.importedTaskCount} task(s) and ${result.importedProjectCount} project(s).`,
                     `已导入 ${result.importedTaskCount} 个任务和 ${result.importedProjectCount} 个项目。`
                 ),
+                result.importedAreaCount > 0
+                    ? localize(
+                        `${result.importedAreaCount} area(s) were created from OmniFocus folders.`,
+                        `已根据 OmniFocus 文件夹创建 ${result.importedAreaCount} 个领域。`
+                    )
+                    : null,
+                result.importedChecklistItemCount > 0
+                    ? localize(
+                        `${result.importedChecklistItemCount} nested task(s) became checklist items.`,
+                        `${result.importedChecklistItemCount} 个嵌套任务已转换为清单项。`
+                    )
+                    : null,
                 result.importedStandaloneTaskCount > 0
                     ? localize(
                         `${result.importedStandaloneTaskCount} task(s) stayed outside projects.`,
@@ -436,7 +457,7 @@ export function useSyncSettingsBackupActions({
             if (!parseResult.valid || !parseResult.preview || !parseResult.parsedData) {
                 showSettingsWarning(
                     localize('Import failed', '导入失败'),
-                    parseResult.errors[0] || localize('The selected file is not a supported OmniFocus CSV export.', '所选文件不是受支持的 OmniFocus CSV 导出文件。')
+                    parseResult.errors[0] || localize('The selected file is not a supported OmniFocus export.', '所选文件不是受支持的 OmniFocus 导出文件。')
                 );
                 return;
             }

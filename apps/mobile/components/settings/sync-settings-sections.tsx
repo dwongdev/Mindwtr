@@ -161,7 +161,7 @@ export function SyncBackupSection({
           <View style={styles.settingInfo}>
             <Text style={[styles.settingLabel, { color: tc.tint }]}>{localize('Import from OmniFocus', '从 OmniFocus 导入')}</Text>
             <Text style={[styles.settingDescription, { color: tc.secondaryText }]}>
-              {localize('Import OmniFocus CSV exports into Mindwtr projects and inbox tasks.', '将 OmniFocus 的 CSV 导出导入为 Mindwtr 项目和收集箱任务。')}
+              {localize('Import OmniFocus CSV, JSON, or ZIP exports into Mindwtr projects and inbox tasks.', '将 OmniFocus 的 CSV、JSON 或 ZIP 导出导入为 Mindwtr 项目和收集箱任务。')}
             </Text>
           </View>
           {backupAction === 'import' && <ActivityIndicator size="small" color={tc.tint} />}

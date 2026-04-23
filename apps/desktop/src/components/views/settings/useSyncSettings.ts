@@ -730,7 +730,7 @@ export const useSyncSettings = ({
             const parseResult = await inspectDesktopOmniFocusImport();
             if (!parseResult) return;
             if (!parseResult.valid || !parseResult.preview || !parseResult.parsedData) {
-                showToast(parseResult.errors[0] || 'The selected file is not a supported OmniFocus CSV export.', 'error');
+                showToast(parseResult.errors[0] || 'The selected file is not a supported OmniFocus export.', 'error');
                 return;
             }
 
@@ -747,10 +747,12 @@ export const useSyncSettings = ({
                 message: [
                     `Import ${preview.taskCount} task(s) from ${preview.fileName}?`,
                     preview.projectCount > 0 ? `${preview.projectCount} project(s) will be created when needed.` : null,
+                    preview.areaCount > 0 ? `${preview.areaCount} area(s) will be created from OmniFocus folders when needed.` : null,
+                    preview.checklistItemCount > 0 ? `${preview.checklistItemCount} nested task(s) will become checklist items when possible.` : null,
                     preview.standaloneTaskCount > 0
                         ? `${preview.standaloneTaskCount} task(s) will stay outside projects so you can process them in Mindwtr.`
                         : null,
-                    'Imported tasks keep OmniFocus notes, dates, tags, and contexts when supported.',
+                    'Imported tasks keep OmniFocus notes, dates, tags, recurrence, and checklist children when supported.',
                     ...(projectLines.length > 0 ? ['', ...projectLines] : []),
                     ...(preview.warnings.length > 0 ? ['', ...preview.warnings] : []),
                 ].filter(Boolean).join('\n'),
@@ -770,6 +772,8 @@ export const useSyncSettings = ({
                         projectCount: result.importedProjectCount,
                     },
                 ),
+                result.importedAreaCount > 0 ? `${result.importedAreaCount} area(s) were created from OmniFocus folders.` : null,
+                result.importedChecklistItemCount > 0 ? `${result.importedChecklistItemCount} nested task(s) became checklist items.` : null,
                 result.importedStandaloneTaskCount > 0 ? `${result.importedStandaloneTaskCount} task(s) stayed outside projects.` : null,
                 snapshotName ? `Snapshot saved as ${snapshotName}.` : null,
                 ...(result.warnings.length > 0 ? ['', ...result.warnings] : []),

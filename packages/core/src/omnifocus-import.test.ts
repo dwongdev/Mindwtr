@@ -1,3 +1,4 @@
+import { strToU8, zipSync } from 'fflate';
 import { describe, expect, it } from 'vitest';
 
 import { applyOmniFocusImport, parseOmniFocusImportSource } from './omnifocus-import';
@@ -15,6 +16,125 @@ const encodeUtf16Le = (value: string): Uint8Array => {
     }
     return buffer;
 };
+
+const buildOmniFocusJsonZip = (): Uint8Array => zipSync({
+    'OmniFocus.json': strToU8(JSON.stringify({
+        tasks: [
+            {
+                id: 'project-1',
+                name: 'Test project',
+                note: 'Root project note',
+                dueDate: null,
+                deferDate: null,
+                plannedDate: null,
+                flagged: false,
+                completed: false,
+                tagIds: ['tag-1'],
+                parentTaskId: null,
+                repetition: null,
+                projectId: 'project-1',
+                completionDate: null,
+            },
+            {
+                id: 'task-1',
+                name: 'Plan sprint',
+                note: 'Plan details',
+                dueDate: '2026-04-23T21:00:00.000Z',
+                deferDate: '2026-04-20',
+                plannedDate: '2026-04-22',
+                flagged: true,
+                completed: false,
+                tagIds: ['tag-1'],
+                parentTaskId: 'project-1',
+                repetition: {
+                    byDay: 'MO,WE',
+                    fromCompletion: true,
+                    interval: 2,
+                    unit: 'weekly',
+                },
+                projectId: 'project-1',
+                completionDate: null,
+            },
+            {
+                id: 'task-1a',
+                name: 'Confirm scope',
+                note: '',
+                dueDate: null,
+                deferDate: null,
+                plannedDate: null,
+                flagged: false,
+                completed: true,
+                tagIds: [],
+                parentTaskId: 'task-1',
+                repetition: null,
+                projectId: 'project-1',
+                completionDate: '2026-04-21T08:00:00.000Z',
+            },
+            {
+                id: 'task-1b',
+                name: 'Book room',
+                note: 'Need room',
+                dueDate: '2026-04-24',
+                deferDate: null,
+                plannedDate: null,
+                flagged: false,
+                completed: false,
+                tagIds: ['tag-1'],
+                parentTaskId: 'task-1',
+                repetition: null,
+                projectId: 'project-1',
+                completionDate: null,
+            },
+            {
+                id: 'task-1c',
+                name: 'Share agenda',
+                note: 'Email team',
+                dueDate: null,
+                deferDate: null,
+                plannedDate: null,
+                flagged: false,
+                completed: false,
+                tagIds: [],
+                parentTaskId: 'task-1b',
+                repetition: null,
+                projectId: 'project-1',
+                completionDate: null,
+            },
+            {
+                id: 'inbox-1',
+                name: 'Inbox capture',
+                note: '',
+                dueDate: null,
+                deferDate: null,
+                plannedDate: null,
+                flagged: false,
+                completed: false,
+                tagIds: [],
+                parentTaskId: null,
+                repetition: null,
+                projectId: null,
+                completionDate: null,
+            },
+        ],
+    })),
+    'metadata.json': strToU8(JSON.stringify({
+        projects: [
+            {
+                id: 'project-1',
+                name: 'Test project',
+                note: 'Metadata project note',
+                folderId: 'folder-1',
+                folderName: 'Work',
+                completed: false,
+                status: 'active',
+                creationDate: '2026-04-01T00:00:00.000Z',
+            },
+        ],
+        tags: [
+            { id: 'tag-1', name: 'Tag 1' },
+        ],
+    })),
+});
 
 describe('omnifocus import', () => {
     it('parses OmniFocus CSV rows into projects and tasks, preserving unmapped fields in notes', () => {
@@ -166,6 +286,131 @@ describe('omnifocus import', () => {
             tags: ['#phone'],
             contexts: ['@Calls'],
             description: 'Call contractor',
+        });
+    });
+
+    it('parses OmniFocus Omni Automation JSON ZIP exports into projects, checklist items, and recurring tasks', () => {
+        const result = parseOmniFocusImportSource({
+            fileName: 'omnifocus-json-export.zip',
+            bytes: buildOmniFocusJsonZip(),
+        });
+
+        expect(result.valid).toBe(true);
+        expect(result.errors).toEqual([]);
+        expect(result.preview).toMatchObject({
+            areaCount: 1,
+            checklistItemCount: 1,
+            fileName: 'omnifocus-json-export.zip',
+            projectCount: 1,
+            taskCount: 4,
+            standaloneTaskCount: 1,
+            projects: [{ name: 'Test project', taskCount: 3 }],
+        });
+        expect(result.warnings).toContain(
+            '2 nested OmniFocus tasks were flattened because Mindwtr cannot preserve their hierarchy directly.'
+        );
+
+        const parsed = result.parsedData;
+        expect(parsed?.areas[0]).toMatchObject({
+            name: 'Work',
+        });
+        expect(parsed?.projects[0]).toMatchObject({
+            areaSourceKey: 'omnifocus-area:folder-1',
+            name: 'Test project',
+            status: 'active',
+            tagIds: ['#tag 1'],
+        });
+        expect(parsed?.projects[0]?.supportNotes).toContain('Metadata project note');
+        expect(parsed?.projects[0]?.supportNotes).toContain('Root project note');
+
+        const parentTask = parsed?.tasks.find((task) => task.title === 'Plan sprint');
+        expect(parentTask).toMatchObject({
+            checklist: [{ title: 'Confirm scope', isCompleted: true }],
+            dueDate: '2026-04-23T21:00:00.000Z',
+            priority: 'high',
+            projectSourceKey: 'omnifocus-project:project-1',
+            recurrence: {
+                byDay: ['MO', 'WE'],
+                rrule: 'FREQ=WEEKLY;INTERVAL=2;BYDAY=MO,WE',
+                rule: 'weekly',
+                strategy: 'fluid',
+            },
+            startTime: '2026-04-20',
+            status: 'inbox',
+            tags: ['#tag 1'],
+        });
+        expect(parentTask?.description).toContain('Plan details');
+        expect(parentTask?.description).toContain('Planned date in OmniFocus: 2026-04-22');
+
+        const flattenedChild = parsed?.tasks.find((task) => task.title === 'Plan sprint -> Book room');
+        expect(flattenedChild).toMatchObject({
+            dueDate: '2026-04-24',
+            projectSourceKey: 'omnifocus-project:project-1',
+            tags: ['#tag 1'],
+        });
+        expect(flattenedChild?.description).toContain('Original OmniFocus hierarchy: Plan sprint');
+
+        const deepFlattenedChild = parsed?.tasks.find((task) => task.title === 'Plan sprint -> Book room -> Share agenda');
+        expect(deepFlattenedChild?.description).toContain('Original OmniFocus hierarchy: Plan sprint > Book room');
+    });
+
+    it('imports OmniFocus Omni Automation JSON ZIP exports into areas, projects, and checklist tasks', () => {
+        const parseResult = parseOmniFocusImportSource({
+            fileName: 'omnifocus-json-export.zip',
+            bytes: buildOmniFocusJsonZip(),
+        });
+        if (!parseResult.valid || !parseResult.parsedData) {
+            throw new Error('Expected OmniFocus JSON ZIP export to parse.');
+        }
+
+        const result = applyOmniFocusImport(
+            mockAppData([], [], []),
+            parseResult.parsedData,
+            { now: '2026-05-02T12:00:00.000Z' }
+        );
+
+        expect(result.importedAreaCount).toBe(1);
+        expect(result.importedChecklistItemCount).toBe(1);
+        expect(result.importedProjectCount).toBe(1);
+        expect(result.importedTaskCount).toBe(4);
+        expect(result.importedStandaloneTaskCount).toBe(1);
+
+        const importedArea = result.data.areas[0];
+        expect(importedArea).toMatchObject({
+            name: 'Work',
+        });
+
+        const importedProject = result.data.projects[0];
+        expect(importedProject).toMatchObject({
+            areaId: importedArea?.id,
+            status: 'active',
+            tagIds: ['#tag 1'],
+            title: 'Test project',
+        });
+
+        const checklistTask = result.data.tasks.find((task) => task.title === 'Plan sprint');
+        expect(checklistTask).toMatchObject({
+            checklist: [{ title: 'Confirm scope', isCompleted: true }],
+            dueDate: '2026-04-23T21:00:00.000Z',
+            priority: 'high',
+            projectId: importedProject?.id,
+            recurrence: {
+                byDay: ['MO', 'WE'],
+                rrule: 'FREQ=WEEKLY;INTERVAL=2;BYDAY=MO,WE',
+                rule: 'weekly',
+                strategy: 'fluid',
+            },
+            startTime: '2026-04-20',
+            tags: ['#tag 1'],
+            taskMode: 'list',
+        });
+
+        const flattenedTask = result.data.tasks.find((task) => task.title === 'Plan sprint -> Book room');
+        expect(flattenedTask?.description).toContain('Original OmniFocus hierarchy: Plan sprint');
+
+        const standaloneTask = result.data.tasks.find((task) => task.title === 'Inbox capture');
+        expect(standaloneTask).toMatchObject({
+            status: 'inbox',
         });
     });
 });

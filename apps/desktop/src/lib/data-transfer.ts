@@ -231,10 +231,10 @@ export const inspectDesktopDgtImport = async (): Promise<DgtImportParseResult | 
 
 export const inspectDesktopOmniFocusImport = async (): Promise<OmniFocusImportParseResult | null> => {
     const document = await pickTransferDocument({
-        accept: '.csv,text/csv,application/octet-stream',
-        extensions: ['csv'],
+        accept: '.csv,.json,.zip,text/csv,application/json,application/zip,application/octet-stream',
+        extensions: ['csv', 'json', 'zip'],
         mode: 'binary',
-        title: 'OmniFocus CSV Export',
+        title: 'OmniFocus Export',
     });
     if (!document) return null;
     return parseOmniFocusImportSource({
@@ -369,6 +369,8 @@ export const importDesktopOmniFocusData = async (
             extra: {
                 operation: 'importOmniFocus',
                 source: 'omnifocus',
+                areas: String(result.importedAreaCount),
+                checklistItems: String(result.importedChecklistItemCount),
                 tasks: String(result.importedTaskCount),
                 projects: String(result.importedProjectCount),
                 standaloneTasks: String(result.importedStandaloneTaskCount),
