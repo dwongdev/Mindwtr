@@ -1053,10 +1053,7 @@ export class SyncService {
                 throw new Error('Dropbox app key is not configured');
             }
             context.syncUrl = 'dropbox:///Apps/Mindwtr/data.json';
-            const fetcher = helpers.createFetchWithAbort((await getTauriFetch()) ?? fetch);
-            const remote = await helpers.runDropboxWithRetry((token) =>
-                downloadDropboxAppData(token, fetcher)
-            );
+            const remote = await SyncService.readDropboxRemoteData(context, helpers);
             context.dropboxDataRev = remote.rev;
             context.remoteDataForCompare = remote.data ?? null;
             return remote.data;
@@ -1067,6 +1064,41 @@ export class SyncService {
         const data = await tauriInvoke<AppData>('read_sync_file');
         context.remoteDataForCompare = data ?? null;
         return data;
+    }
+
+    private static async readDropboxRemoteData(
+        _context: SyncExecutionContext,
+        helpers: Pick<SyncExecutionHelpers, 'createFetchWithAbort' | 'runDropboxWithRetry'>
+    ): Promise<{ data: AppData | null; rev: string | null }> {
+        const nativeFetch = await getTauriFetch();
+        const browserFetcher = helpers.createFetchWithAbort(fetch);
+
+        if (!nativeFetch) {
+            return helpers.runDropboxWithRetry((token) => downloadDropboxAppData(token, browserFetcher));
+        }
+
+        const nativeFetcher = helpers.createFetchWithAbort(nativeFetch);
+        const nativeRemote = await helpers.runDropboxWithRetry((token) =>
+            downloadDropboxAppData(token, nativeFetcher)
+        );
+        if (nativeRemote.data !== null) {
+            return nativeRemote;
+        }
+
+        logSyncInfo('Retrying Dropbox remote read with browser fetch fallback');
+        try {
+            const browserRemote = await helpers.runDropboxWithRetry((token) =>
+                downloadDropboxAppData(token, browserFetcher)
+            );
+            if (browserRemote.data !== null) {
+                logSyncInfo('Recovered Dropbox remote read via browser fetch fallback');
+                return browserRemote;
+            }
+            return nativeRemote;
+        } catch (error) {
+            logSyncWarning('Dropbox browser fetch fallback failed', error);
+            return nativeRemote;
+        }
     }
 
     private static async prepareRemoteWriteData(
