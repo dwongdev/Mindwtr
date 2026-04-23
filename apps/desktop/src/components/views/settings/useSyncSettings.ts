@@ -69,6 +69,7 @@ export const useSyncSettings = ({
     const [dropboxConfigured, setDropboxConfigured] = useState(false);
     const [dropboxConnected, setDropboxConnected] = useState(false);
     const [dropboxBusy, setDropboxBusy] = useState(false);
+    const [dropboxAuthInProgress, setDropboxAuthInProgress] = useState(false);
     const [dropboxRedirectUri, setDropboxRedirectUri] = useState('http://127.0.0.1:53682/oauth/dropbox/callback');
     const [dropboxTestState, setDropboxTestState] = useState<DropboxTestState>('idle');
     const [snapshots, setSnapshots] = useState<string[]>([]);
@@ -338,6 +339,7 @@ export const useSyncSettings = ({
         setCloudProvider(provider);
         if (provider !== 'dropbox') {
             setDropboxTestState('idle');
+            setDropboxAuthInProgress(false);
         }
         await SyncService.setCloudProvider(provider);
         showSaved();
@@ -349,6 +351,7 @@ export const useSyncSettings = ({
             showToast('Dropbox app key is not configured in this build.', 'error');
             return;
         }
+        setDropboxAuthInProgress(true);
         setDropboxBusy(true);
         try {
             await SyncService.connectDropbox(appKey);
@@ -363,6 +366,7 @@ export const useSyncSettings = ({
             setSyncError(message);
             showToast(message, 'error');
         } finally {
+            setDropboxAuthInProgress(false);
             setDropboxBusy(false);
         }
     }, [dropboxAppKey, showSaved, showToast, toErrorMessage]);
@@ -808,6 +812,7 @@ export const useSyncSettings = ({
         dropboxConfigured,
         dropboxConnected,
         dropboxBusy,
+        dropboxAuthInProgress,
         dropboxRedirectUri,
         dropboxTestState,
         snapshots,

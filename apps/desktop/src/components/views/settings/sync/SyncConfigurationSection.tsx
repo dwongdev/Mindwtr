@@ -30,6 +30,7 @@ type SyncConfigurationSectionProps = Pick<
     | 'dropboxConfigured'
     | 'dropboxConnected'
     | 'dropboxBusy'
+    | 'dropboxAuthInProgress'
     | 'dropboxRedirectUri'
     | 'dropboxTestState'
     | 'onCloudUrlChange'
@@ -96,6 +97,7 @@ const ConnectionBadge = ({
 
 const renderDropboxPanel = ({
     dropboxBusy,
+    dropboxAuthInProgress,
     dropboxConfigured,
     dropboxConnected,
     dropboxRedirectUri,
@@ -107,6 +109,7 @@ const renderDropboxPanel = ({
 }: Pick<
     SyncConfigurationSectionProps,
     | 'dropboxBusy'
+    | 'dropboxAuthInProgress'
     | 'dropboxConfigured'
     | 'dropboxConnected'
     | 'dropboxRedirectUri'
@@ -120,9 +123,11 @@ const renderDropboxPanel = ({
         <div className="flex flex-col gap-2">
             <label className="text-sm font-medium">{t.dropboxAppKey}</label>
             <p className="text-xs text-muted-foreground">{t.dropboxAppKeyHint}</p>
-            <p className="text-xs text-muted-foreground">
-                {t.dropboxRedirectUri}: <span className="font-mono break-all">{dropboxRedirectUri}</span>
-            </p>
+            {dropboxAuthInProgress && dropboxRedirectUri.trim() && (
+                <p className="text-xs text-muted-foreground">
+                    {t.dropboxRedirectUri}: <span className="font-mono break-all">{dropboxRedirectUri}</span>
+                </p>
+            )}
             {!dropboxConfigured && (
                 <p className="text-xs text-destructive">
                     Dropbox app key is not configured in this build.
@@ -327,6 +332,7 @@ export function SyncConfigurationSection({
     cloudUrl,
     cloudUrlError,
     dropboxBusy,
+    dropboxAuthInProgress,
     dropboxConfigured,
     dropboxConnected,
     dropboxRedirectUri,
@@ -494,6 +500,7 @@ export function SyncConfigurationSection({
 
                         {syncBackend === 'cloud' && cloudProvider === 'dropbox' && renderDropboxPanel({
                             dropboxBusy,
+                            dropboxAuthInProgress,
                             dropboxConfigured,
                             dropboxConnected,
                             dropboxRedirectUri,

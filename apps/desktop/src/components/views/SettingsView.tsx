@@ -615,6 +615,7 @@ export function SettingsView() {
     dropboxConfigured,
     dropboxConnected,
     dropboxBusy,
+    dropboxAuthInProgress,
     dropboxRedirectUri,
     dropboxTestState,
     snapshots,
@@ -874,6 +875,7 @@ export function SettingsView() {
           dropboxConfigured={dropboxConfigured}
           dropboxConnected={dropboxConnected}
           dropboxBusy={dropboxBusy}
+          dropboxAuthInProgress={dropboxAuthInProgress}
           dropboxRedirectUri={dropboxRedirectUri}
           dropboxTestState={dropboxTestState}
           onCloudUrlChange={setCloudUrl}

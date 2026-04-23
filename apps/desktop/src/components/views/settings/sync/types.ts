@@ -132,6 +132,7 @@ export type SettingsSyncPageProps = {
     dropboxConfigured: boolean;
     dropboxConnected: boolean;
     dropboxBusy: boolean;
+    dropboxAuthInProgress: boolean;
     dropboxRedirectUri: string;
     dropboxTestState: DropboxTestState;
     onCloudUrlChange: (value: string) => void;
