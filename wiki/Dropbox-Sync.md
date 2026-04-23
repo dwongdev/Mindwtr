@@ -22,7 +22,7 @@ If Dropbox is disabled in your build, use [[Data and Sync]] (File Sync) or [[Clo
 
 ## User Setup (Official Builds)
 
-1. Open **Settings → Data & Sync**.
+1. Open **Settings → Sync**.
 2. Set **Sync backend** to **Cloud**.
 3. Set **Cloud provider** to **Dropbox**.
 4. Click/Tap **Connect Dropbox** and complete OAuth in your browser.

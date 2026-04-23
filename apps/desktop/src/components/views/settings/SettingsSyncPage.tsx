@@ -1,8 +1,5 @@
 import { SyncConfigurationSection } from './sync/SyncConfigurationSection';
 import { SyncStatusSection } from './sync/SyncStatusSection';
-import { DataTransferSection } from './sync/DataTransferSection';
-import { AttachmentsCleanupSection } from './sync/AttachmentsCleanupSection';
-import { DiagnosticsSection } from './sync/DiagnosticsSection';
 import type { SettingsSyncPageProps } from './sync/types';
 import { isValidHttpUrl } from './sync/sync-page-utils';
 
@@ -10,7 +7,6 @@ export function SettingsSyncPage(props: SettingsSyncPageProps) {
     const {
         cloudProvider,
         cloudUrl,
-        isTauri,
         syncBackend,
         syncPath,
         webdavUrl,
@@ -63,31 +59,6 @@ export function SettingsSyncPage(props: SettingsSyncPageProps) {
                 isRestoringSnapshot={props.isRestoringSnapshot}
                 onRestoreSnapshot={props.onRestoreSnapshot}
             />
-            <DataTransferSection
-                t={props.t}
-                transferAction={props.transferAction}
-                onExportBackup={props.onExportBackup}
-                onRestoreBackup={props.onRestoreBackup}
-                onImportTodoist={props.onImportTodoist}
-                onImportDgt={props.onImportDgt}
-                onImportOmniFocus={props.onImportOmniFocus}
-            />
-            <AttachmentsCleanupSection
-                t={props.t}
-                isTauri={isTauri}
-                attachmentsLastCleanupDisplay={props.attachmentsLastCleanupDisplay}
-                onRunAttachmentsCleanup={props.onRunAttachmentsCleanup}
-                isCleaningAttachments={props.isCleaningAttachments}
-            />
-            {isTauri && (
-                <DiagnosticsSection
-                    t={props.t}
-                    loggingEnabled={props.loggingEnabled}
-                    logPath={props.logPath}
-                    onToggleLogging={props.onToggleLogging}
-                    onClearLog={props.onClearLog}
-                />
-            )}
         </div>
     );
 }

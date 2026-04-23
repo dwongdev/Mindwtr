@@ -7,7 +7,7 @@ Mindwtr can import OmniFocus CSV exports so you can migrate without rebuilding y
 - an OmniFocus **CSV** export
 - an OmniFocus **CSV UTF-16** export
 
-Import is available on desktop and mobile from **Settings → Data & Sync / Sync → Import from OmniFocus**.
+Import is available on desktop and mobile from **Settings → Data → Import from OmniFocus**.
 
 ## How Mindwtr Maps OmniFocus Data
 

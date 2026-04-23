@@ -419,7 +419,7 @@ const mobileSyncOrchestrator = createSyncOrchestrator<string | undefined, Mobile
           logSyncInfo('Normalized file sync path to iOS file URI');
         }
         if (fileSyncPath.startsWith('file://') && IOS_TEMP_INBOX_PATH_PATTERN.test(decodeUriSafe(fileSyncPath))) {
-          throw new Error('Selected iOS sync file is in a temporary Inbox location and is read-only. Re-select a folder in Settings -> Data & Sync.');
+          throw new Error('Selected iOS sync file is in a temporary Inbox location and is read-only. Re-select a folder in Settings -> Sync.');
         }
         if (fileSyncPath.startsWith('content://')) {
           try {

@@ -102,7 +102,7 @@ export const formatSyncErrorMessage = (error: unknown, backend: SyncBackend): st
     const raw = sanitizeSyncErrorMessage(String(error));
     if (backend === 'file') {
         if (READONLY_ERROR_PATTERN.test(raw)) {
-            return 'Sync file is not writable. Re-select the sync folder in Settings -> Data & Sync, then sync again.';
+            return 'Sync file is not writable. Re-select the sync folder in Settings -> Sync, then sync again.';
         }
         return raw;
     }

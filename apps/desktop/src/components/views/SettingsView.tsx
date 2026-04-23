@@ -17,12 +17,14 @@ import {
   Link2,
   ListChecks,
   Monitor,
+  RefreshCw,
   Sparkles,
 } from "lucide-react";
 import {
   resolveDateLocaleTag,
   DEFAULT_ANTHROPIC_THINKING_BUDGET,
   safeFormatDate,
+  translateText,
   translateWithFallback,
   useTaskStore,
   type AppData,
@@ -61,6 +63,7 @@ type SettingsPage =
   | "manage"
   | "notifications"
   | "sync"
+  | "data"
   | "integrations"
   | "ai"
   | "about";
@@ -111,6 +114,13 @@ const SettingsSyncPage = lazy(
   wrapSettingsOpenImport("page-chunk:sync", () =>
     import("./settings/SettingsSyncPage").then((m) => ({
       default: m.SettingsSyncPage,
+    })),
+  ),
+);
+const SettingsDataPage = lazy(
+  wrapSettingsOpenImport("page-chunk:data", () =>
+    import("./settings/SettingsDataPage").then((m) => ({
+      default: m.SettingsDataPage,
     })),
   ),
 );
@@ -419,6 +429,10 @@ export function SettingsView() {
         return t.ai;
       case "sync":
         return t.sync;
+      case "data":
+        if (language === "zh") return "数据";
+        if (language === "zh-Hant") return "數據";
+        return translateText("Data", language);
       case "integrations":
         return t.integrations;
       case "about":
@@ -426,7 +440,7 @@ export function SettingsView() {
       default:
         return t.general;
     }
-  }, [page, t]);
+  }, [language, page, t]);
 
   const navItems = useMemo<
     Array<{
@@ -496,14 +510,39 @@ export function SettingsView() {
       },
       {
         id: "sync",
-        icon: Database,
+        icon: RefreshCw,
         label: t.sync,
         keywords: [
           "file sync",
           "WebDAV",
           "cloud",
           "sync now",
+          "sync history",
+          "recovery snapshots",
+          "dropbox",
+          "self-hosted",
+          "iCloud",
+          "settings sync",
+        ],
+      },
+      {
+        id: "data",
+        icon: Database,
+        label:
+          language === "zh"
+            ? "数据"
+            : language === "zh-Hant"
+              ? "數據"
+              : translateText("Data", language),
+        keywords: [
+          "backup",
+          "restore",
+          "import",
+          "Todoist",
+          "DGT GTD",
+          "OmniFocus",
           "attachments",
+          "cleanup",
           "diagnostics",
           "logging",
         ],
@@ -545,7 +584,7 @@ export function SettingsView() {
         keywords: ["version", "update", "license", "sponsor"],
       },
     ],
-    [hasUpdateBadge, t],
+    [hasUpdateBadge, language, t],
   );
 
   const {
@@ -871,6 +910,28 @@ export function SettingsView() {
           onImportTodoist={handleImportTodoist}
           onImportDgt={handleImportDgt}
           onImportOmniFocus={handleImportOmniFocus}
+        />
+      );
+    }
+
+    if (page === "data") {
+      return (
+        <SettingsDataPage
+          t={t}
+          isTauri={isTauri}
+          loggingEnabled={loggingEnabled}
+          logPath={logPath}
+          onToggleLogging={toggleLogging}
+          onClearLog={handleClearLog}
+          transferAction={transferAction}
+          onExportBackup={handleExportBackup}
+          onRestoreBackup={handleRestoreBackup}
+          onImportTodoist={handleImportTodoist}
+          onImportDgt={handleImportDgt}
+          onImportOmniFocus={handleImportOmniFocus}
+          attachmentsLastCleanupDisplay={attachmentsLastCleanupDisplay}
+          onRunAttachmentsCleanup={handleAttachmentsCleanup}
+          isCleaningAttachments={isCleaningAttachments}
         />
       );
     }

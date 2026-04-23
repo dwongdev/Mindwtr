@@ -115,7 +115,7 @@ describe('Layout sync conflict surface', () => {
         renderLayout();
 
         expect(showToast).toHaveBeenCalledWith(
-            'Sync conflict resolved with last-write-wins. Open Data & Sync to review the details.',
+            'Sync conflict resolved with last-write-wins. Open Settings → Sync to review the details.',
             'info',
             6000,
         );

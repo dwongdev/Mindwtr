@@ -302,7 +302,7 @@ export function useSyncSettingsTransportActions({
                 );
                 return;
             }
-            if (/temporary Inbox location|re-select a folder in Settings -> Data & Sync/i.test(message)) {
+            if (/temporary Inbox location|re-select a folder in Settings -> (?:Data & Sync|Sync)/i.test(message)) {
                 showSettingsWarning(
                     localize('Unsupported cloud provider on iOS', 'iOS 云端提供商暂不支持'),
                     localize(
@@ -706,12 +706,12 @@ export function useSyncSettingsTransportActions({
             }
         } catch (error) {
             const message = String(error);
-            if (/temporary Inbox location|re-select a folder in Settings -> Data & Sync|Cannot access the selected sync file/i.test(message)) {
+            if (/temporary Inbox location|re-select a folder in Settings -> (?:Data & Sync|Sync)|Cannot access the selected sync file/i.test(message)) {
                 showSettingsWarning(
                     localize('Unsupported cloud provider on iOS', 'iOS 云端提供商暂不支持'),
                     localize(
-                        'The selected file came from a temporary iOS Files copy. Providers like Google Drive and OneDrive are not reliable for file sync here yet. Please go to Settings → Data & Sync, choose iCloud Drive, or switch to WebDAV.',
-                        '当前选择的是 iOS“文件”提供的临时副本。Google Drive、OneDrive 等提供商暂不适合作为这里的文件同步目录。请前往「设置 → 数据与同步」，改选 iCloud Drive，或切换到 WebDAV。'
+                        'The selected file came from a temporary iOS Files copy. Providers like Google Drive and OneDrive are not reliable for file sync here yet. Please go to Settings → Sync, choose iCloud Drive, or switch to WebDAV.',
+                        '当前选择的是 iOS“文件”提供的临时副本。Google Drive、OneDrive 等提供商暂不适合作为这里的文件同步目录。请前往「设置 → 同步」，改选 iCloud Drive，或切换到 WebDAV。'
                     ),
                     5600
                 );
