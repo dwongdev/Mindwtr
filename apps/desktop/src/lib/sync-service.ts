@@ -1724,15 +1724,12 @@ export class SyncService {
                 await persistLocalDataWithTracking(mergedData);
             }
 
-            const syncStatus = syncResult.status;
-            const now = new Date().toISOString();
-            await SyncService.persistSuccessfulSyncStatus(syncStatus, now);
-
             // 7. Refresh UI Store
             setStep('refresh');
             await yieldToRenderer();
             ensureLocalSnapshotFresh();
             await getStoreState().fetchData({ silent: true });
+            SyncService.lastSuccessfulSyncLocalChangeAt = getStoreState().lastDataChangeAt;
 
             SyncService.setPendingExternalSyncChange(null);
 

@@ -664,7 +664,7 @@ describe('SyncService orchestration', () => {
         expect((SyncService as any).lastSuccessfulSyncLocalChangeAt).toBe(0);
     });
 
-    it('persists successful sync status before refreshing store data', async () => {
+    it('refreshes store data without overwriting synced settings after a successful sync', async () => {
         const callOrder: string[] = [];
         const storeState = {
             lastDataChangeAt: 0,
@@ -714,7 +714,8 @@ describe('SyncService orchestration', () => {
             const result = await SyncService.performSync();
 
             expect(result.success).toBe(true);
-            expect(callOrder).toEqual(['updateSettings', 'fetchData']);
+            expect(callOrder).toEqual(['fetchData']);
+            expect(storeState.updateSettings).not.toHaveBeenCalled();
         } finally {
             prepareSpy.mockRestore();
             preSyncSpy.mockRestore();
