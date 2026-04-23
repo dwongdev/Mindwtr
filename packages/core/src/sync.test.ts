@@ -1035,6 +1035,122 @@ describe('Sync Logic', () => {
             expect(result.stats.tasks.conflictIds).toContain('1');
         });
 
+        it('does not count conflict when only file attachment transport metadata differs', () => {
+            const localTask = {
+                ...createMockTask('1', '2023-01-02T00:05:00.000Z'),
+                rev: 7,
+                revBy: 'device-a',
+                attachments: [{
+                    id: 'att-1',
+                    kind: 'file',
+                    title: 'doc.txt',
+                    uri: '/local/doc.txt',
+                    localStatus: 'available',
+                    createdAt: '2023-01-01T00:00:00.000Z',
+                    updatedAt: '2023-01-02T00:00:00.000Z',
+                }],
+            } satisfies Task;
+            const incomingTask = {
+                ...createMockTask('1', '2023-01-02T00:05:00.000Z'),
+                rev: 7,
+                revBy: 'device-a',
+                attachments: [{
+                    id: 'att-1',
+                    kind: 'file',
+                    title: 'doc.txt',
+                    uri: '',
+                    cloudKey: 'attachments/att-1.txt',
+                    fileHash: 'hash-1',
+                    createdAt: '2023-01-01T00:00:00.000Z',
+                    updatedAt: '2023-01-02T00:00:00.000Z',
+                }],
+            } satisfies Task;
+
+            const result = mergeAppDataWithStats(mockAppData([localTask]), mockAppData([incomingTask]));
+            const attachment = result.data.tasks[0].attachments?.find((item) => item.id === 'att-1');
+
+            expect(result.data.tasks).toHaveLength(1);
+            expect(result.stats.tasks.conflicts).toBe(0);
+            expect(result.stats.tasks.conflictIds).toHaveLength(0);
+            expect(attachment?.uri).toBe('/local/doc.txt');
+            expect(attachment?.localStatus).toBe('available');
+            expect(attachment?.cloudKey).toBe('attachments/att-1.txt');
+            expect(attachment?.fileHash).toBe('hash-1');
+        });
+
+        it('does not count conflict when attachment order differs but content matches', () => {
+            const attachmentA: Attachment = {
+                id: 'att-a',
+                kind: 'file',
+                title: 'a.txt',
+                uri: '/tmp/a.txt',
+                localStatus: 'available',
+                createdAt: '2023-01-01T00:00:00.000Z',
+                updatedAt: '2023-01-02T00:00:00.000Z',
+            };
+            const attachmentB: Attachment = {
+                id: 'att-b',
+                kind: 'link',
+                title: 'Docs',
+                uri: 'https://example.com/docs',
+                createdAt: '2023-01-01T00:00:00.000Z',
+                updatedAt: '2023-01-02T00:00:00.000Z',
+            };
+            const localTask = {
+                ...createMockTask('1', '2023-01-02T00:05:00.000Z'),
+                rev: 7,
+                revBy: 'device-a',
+                attachments: [attachmentB, attachmentA],
+            } satisfies Task;
+            const incomingTask = {
+                ...createMockTask('1', '2023-01-02T00:05:00.000Z'),
+                rev: 7,
+                revBy: 'device-a',
+                attachments: [attachmentA, attachmentB],
+            } satisfies Task;
+
+            const result = mergeAppDataWithStats(mockAppData([localTask]), mockAppData([incomingTask]));
+
+            expect(result.data.tasks).toHaveLength(1);
+            expect(result.stats.tasks.conflicts).toBe(0);
+            expect(result.stats.tasks.conflictIds).toHaveLength(0);
+        });
+
+        it('counts conflict when link attachment content differs', () => {
+            const localTask = {
+                ...createMockTask('1', '2023-01-02T00:05:00.000Z'),
+                rev: 7,
+                revBy: 'device-a',
+                attachments: [{
+                    id: 'att-link',
+                    kind: 'link',
+                    title: 'Docs',
+                    uri: 'https://example.com/docs-a',
+                    createdAt: '2023-01-01T00:00:00.000Z',
+                    updatedAt: '2023-01-02T00:00:00.000Z',
+                }],
+            } satisfies Task;
+            const incomingTask = {
+                ...createMockTask('1', '2023-01-02T00:05:00.000Z'),
+                rev: 7,
+                revBy: 'device-a',
+                attachments: [{
+                    id: 'att-link',
+                    kind: 'link',
+                    title: 'Docs',
+                    uri: 'https://example.com/docs-b',
+                    createdAt: '2023-01-01T00:00:00.000Z',
+                    updatedAt: '2023-01-02T00:00:00.000Z',
+                }],
+            } satisfies Task;
+
+            const result = mergeAppDataWithStats(mockAppData([localTask]), mockAppData([incomingTask]));
+
+            expect(result.data.tasks).toHaveLength(1);
+            expect(result.stats.tasks.conflicts).toBe(1);
+            expect(result.stats.tasks.conflictIds).toContain('1');
+        });
+
         it('resolves equal revision/timestamp conflicts consistently across sync direction', () => {
             const localTask = {
                 ...createMockTask('1', '2023-01-02T00:05:00.000Z'),
