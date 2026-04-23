@@ -78,6 +78,7 @@ function buildHeaders(options: WebDavOptions): Record<string, string> {
 const WEBDAV_HTTPS_ERROR = 'WebDAV requires HTTPS for public URLs (HTTP allowed for localhost, private IPs, and local hostnames).';
 const WEBDAV_INSECURE_OPTIONS = { allowAndroidEmulatorInDev: true, allowLocalHostnames: true, allowPrivateIpRanges: true };
 const WEBDAV_TIMEOUT_ERROR = 'WebDAV request timed out';
+const WEBDAV_AUTOMKCOL_HEADER = 'X-NC-WebDAV-AutoMkcol';
 const UTF8_BOM = '\uFEFF';
 
 const assertWebdavUrl = (url: string, options: WebDavOptions): void => {
@@ -100,18 +101,65 @@ const getWebdavParentCollectionUrl = (url: string): string | null => {
     }
 };
 
+const normalizeWebdavCollectionUrl = (url: string): string => {
+    try {
+        const parsed = new URL(url);
+        parsed.pathname = `${parsed.pathname.replace(/\/+$/, '')}/`;
+        return parsed.toString();
+    } catch {
+        return `${url.replace(/\/+$/, '')}/`;
+    }
+};
+
 const createWebdavCollection = async (
     url: string,
     options: WebDavOptions,
 ): Promise<Response> => {
     const fetcher = options.fetcher ?? fetch;
     return fetchWithTimeout(
-        url,
+        normalizeWebdavCollectionUrl(url),
         { method: 'MKCOL', headers: buildHeaders(options) },
         options.timeoutMs ?? DEFAULT_TIMEOUT_MS,
         fetcher,
         WEBDAV_TIMEOUT_ERROR,
     );
+};
+
+const webdavCollectionExists = async (
+    url: string,
+    options: WebDavOptions,
+): Promise<boolean> => {
+    const fetcher = options.fetcher ?? fetch;
+    const res = await fetchWithTimeout(
+        normalizeWebdavCollectionUrl(url),
+        {
+            method: 'PROPFIND',
+            headers: {
+                Depth: '0',
+                ...buildHeaders(options),
+            },
+        },
+        options.timeoutMs ?? DEFAULT_TIMEOUT_MS,
+        fetcher,
+        WEBDAV_TIMEOUT_ERROR,
+    );
+
+    if (res.status === 404) return false;
+    if (res.ok || res.status === 405) return true;
+    const error = new Error(`WebDAV PROPFIND failed (${res.status})`);
+    (error as { status?: number }).status = res.status;
+    throw error;
+};
+
+const probeWebdavCollectionExists = async (
+    url: string,
+    options: WebDavOptions,
+): Promise<boolean> => {
+    try {
+        return await webdavCollectionExists(url, options);
+    } catch {
+        return false;
+    }
 };
 
 const ensureWebdavCollectionExists = async (
@@ -124,6 +172,9 @@ const ensureWebdavCollectionExists = async (
     while (true) {
         const res = await createWebdavCollection(currentUrl, options);
         if (res.ok || res.status === 405) {
+            break;
+        }
+        if (res.status === 409 && await probeWebdavCollectionExists(currentUrl, options)) {
             break;
         }
         if (res.status !== 409) {
@@ -144,6 +195,9 @@ const ensureWebdavCollectionExists = async (
         const childUrl = pendingChildren.pop()!;
         const res = await createWebdavCollection(childUrl, options);
         if (res.ok || res.status === 405) {
+            continue;
+        }
+        if (res.status === 409 && await probeWebdavCollectionExists(childUrl, options)) {
             continue;
         }
         throw new Error(`WebDAV MKCOL failed (${res.status})`);
@@ -203,6 +257,7 @@ export async function webdavPutJson(
     const fetcher = options.fetcher ?? fetch;
     const headers = buildHeaders(options);
     headers['Content-Type'] = headers['Content-Type'] || 'application/json';
+    headers[WEBDAV_AUTOMKCOL_HEADER] = headers[WEBDAV_AUTOMKCOL_HEADER] || '1';
 
     const payload = JSON.stringify(data, null, 2);
     const sendPut = async (): Promise<Response> => fetchWithTimeout(
@@ -251,6 +306,7 @@ export async function webdavPutFile(
     const buildRequest = (): { headers: Record<string, string>; body: BodyInit } => {
         const headers = buildHeaders(options);
         headers['Content-Type'] = contentType || 'application/octet-stream';
+        headers[WEBDAV_AUTOMKCOL_HEADER] = headers[WEBDAV_AUTOMKCOL_HEADER] || '1';
 
         const bodyBytes = new Uint8Array(payloadBytes);
         let body: BodyInit = bodyBytes;

@@ -99,6 +99,7 @@ describe('webdav http helpers', () => {
             .fn()
             .mockResolvedValueOnce(makeResponse({ ok: false, status: 409, statusText: 'Conflict', text: async () => 'Conflict' }))
             .mockResolvedValueOnce(makeResponse({ ok: false, status: 409, statusText: 'Conflict' }))
+            .mockResolvedValueOnce(makeResponse({ ok: false, status: 404, statusText: 'Not Found' }))
             .mockResolvedValueOnce(makeResponse({ ok: true, status: 201, statusText: 'Created' }))
             .mockResolvedValueOnce(makeResponse({ ok: true, status: 201, statusText: 'Created' }))
             .mockResolvedValueOnce(makeResponse({ ok: true, status: 201, statusText: 'Created' }));
@@ -107,11 +108,13 @@ describe('webdav http helpers', () => {
             webdavPutJson('https://example.com/remote.php/dav/files/user/mindwtr/nested/data.json', { ok: true }, { fetcher }),
         ).resolves.toBeUndefined();
 
+        expect(fetcher.mock.calls[0]?.[1]?.headers).toMatchObject({ 'X-NC-WebDAV-AutoMkcol': '1' });
         expect(fetcher.mock.calls.map(([url, init]) => [url, init?.method])).toEqual([
             ['https://example.com/remote.php/dav/files/user/mindwtr/nested/data.json', 'PUT'],
-            ['https://example.com/remote.php/dav/files/user/mindwtr/nested', 'MKCOL'],
-            ['https://example.com/remote.php/dav/files/user/mindwtr', 'MKCOL'],
-            ['https://example.com/remote.php/dav/files/user/mindwtr/nested', 'MKCOL'],
+            ['https://example.com/remote.php/dav/files/user/mindwtr/nested/', 'MKCOL'],
+            ['https://example.com/remote.php/dav/files/user/mindwtr/nested/', 'PROPFIND'],
+            ['https://example.com/remote.php/dav/files/user/mindwtr/', 'MKCOL'],
+            ['https://example.com/remote.php/dav/files/user/mindwtr/nested/', 'MKCOL'],
             ['https://example.com/remote.php/dav/files/user/mindwtr/nested/data.json', 'PUT'],
         ]);
     });
@@ -132,11 +135,40 @@ describe('webdav http helpers', () => {
             ),
         ).resolves.toBeUndefined();
 
+        expect(fetcher.mock.calls[0]?.[1]?.headers).toMatchObject({ 'X-NC-WebDAV-AutoMkcol': '1' });
         expect(fetcher.mock.calls.map(([url, init]) => [url, init?.method])).toEqual([
             ['https://example.com/remote.php/dav/files/user/mindwtr/attachments/doc.txt', 'PUT'],
-            ['https://example.com/remote.php/dav/files/user/mindwtr/attachments', 'MKCOL'],
+            ['https://example.com/remote.php/dav/files/user/mindwtr/attachments/', 'MKCOL'],
             ['https://example.com/remote.php/dav/files/user/mindwtr/attachments/doc.txt', 'PUT'],
         ]);
+    });
+
+    it('recovers when a WebDAV server reports 409 for MKCOL on an existing parent collection', async () => {
+        const fetcher = vi
+            .fn()
+            .mockResolvedValueOnce(makeResponse({ ok: false, status: 409, statusText: 'Conflict' }))
+            .mockResolvedValueOnce(makeResponse({ ok: false, status: 409, statusText: 'Conflict' }))
+            .mockResolvedValueOnce(makeResponse({ ok: false, status: 404, statusText: 'Not Found' }))
+            .mockResolvedValueOnce(makeResponse({ ok: false, status: 409, statusText: 'Conflict' }))
+            .mockResolvedValueOnce(makeResponse({ ok: true, status: 207, statusText: 'Multi-Status' }))
+            .mockResolvedValueOnce(makeResponse({ ok: true, status: 201, statusText: 'Created' }))
+            .mockResolvedValueOnce(makeResponse({ ok: true, status: 201, statusText: 'Created' }));
+
+        await expect(
+            webdavPutJson('https://example.com/remote.php/dav/files/user/mindwtr/data.json', { ok: true }, { fetcher }),
+        ).resolves.toBeUndefined();
+
+        expect(fetcher.mock.calls.map(([url, init]) => [url, init?.method])).toEqual([
+            ['https://example.com/remote.php/dav/files/user/mindwtr/data.json', 'PUT'],
+            ['https://example.com/remote.php/dav/files/user/mindwtr/', 'MKCOL'],
+            ['https://example.com/remote.php/dav/files/user/mindwtr/', 'PROPFIND'],
+            ['https://example.com/remote.php/dav/files/user/', 'MKCOL'],
+            ['https://example.com/remote.php/dav/files/user/', 'PROPFIND'],
+            ['https://example.com/remote.php/dav/files/user/mindwtr/', 'MKCOL'],
+            ['https://example.com/remote.php/dav/files/user/mindwtr/data.json', 'PUT'],
+        ]);
+        expect(fetcher.mock.calls[2]?.[1]?.headers).toMatchObject({ Depth: '0' });
+        expect(fetcher.mock.calls[4]?.[1]?.headers).toMatchObject({ Depth: '0' });
     });
 
     it('caps parent MKCOL creation depth for pathological nested paths', async () => {
