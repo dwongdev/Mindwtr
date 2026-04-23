@@ -15,6 +15,7 @@ import { TaskItemDisplay } from './Task/TaskItemDisplay';
 import { TaskItemEditorSurface } from './Task/TaskItemEditorSurface';
 import { TaskItemFieldRenderer } from './Task/TaskItemFieldRenderer';
 import { TaskItemOverlays } from './Task/TaskItemOverlays';
+import { TaskQuickActionMenu } from './Task/TaskQuickActionMenu';
 import {
     getRecurrenceRuleValue,
     getRecurrenceRRuleValue,
@@ -83,6 +84,7 @@ export const TaskItem = memo(function TaskItem({
 }: TaskItemProps) {
     const [isEditing, setIsEditing] = useState(false);
     const [autoFocusTitle, setAutoFocusTitle] = useState(false);
+    const [quickActionMenu, setQuickActionMenu] = useState<{ x: number; y: number } | null>(null);
     const modalEditorRef = useRef<HTMLDivElement | null>(null);
     const lastFocusedBeforeModalRef = useRef<HTMLElement | null>(null);
     const {
@@ -811,6 +813,16 @@ export const TaskItem = memo(function TaskItem({
         }
         handleDiscardChanges();
     }, [handleDiscardChanges, hasPendingEdits]);
+    const handleOpenQuickActionMenu = useCallback((event: React.MouseEvent<HTMLDivElement>) => {
+        if (selectionMode || isEditing) return;
+        event.preventDefault();
+        event.stopPropagation();
+        onSelect?.();
+        setQuickActionMenu({
+            x: event.clientX,
+            y: event.clientY,
+        });
+    }, [isEditing, onSelect, selectionMode]);
     useEffect(() => {
         if (!isEditing) return;
         const handleGlobalCancel = (event: Event) => {
@@ -910,6 +922,7 @@ export const TaskItem = memo(function TaskItem({
                     event.stopPropagation();
                     startEditing();
                 }}
+                onContextMenu={handleOpenQuickActionMenu}
                 className={cn(
                     "group rounded-lg hover:bg-muted/50 dark:hover:bg-muted/20 transition-colors animate-in fade-in slide-in-from-bottom-2",
                     isCompact ? "p-2.5" : "px-3 py-3",
@@ -982,6 +995,25 @@ export const TaskItem = memo(function TaskItem({
                     />
                 </div>
             </div>
+            {quickActionMenu && (
+                <TaskQuickActionMenu
+                    task={task}
+                    x={quickActionMenu.x}
+                    y={quickActionMenu.y}
+                    t={t}
+                    nativeDateInputLocale={nativeDateInputLocale}
+                    contextOptions={popularContextOptions}
+                    readOnly={effectiveReadOnly}
+                    onClose={() => setQuickActionMenu(null)}
+                    onDuplicate={() => {
+                        duplicateTask(task.id, false);
+                    }}
+                    onDelete={() => {
+                        setShowDeleteConfirm(true);
+                    }}
+                    onUpdateTask={(updates) => updateTask(task.id, updates)}
+                />
+            )}
             <TaskItemOverlays
                 applyCustomRecurrence={applyCustomRecurrence}
                 audioAttachment={audioAttachment}

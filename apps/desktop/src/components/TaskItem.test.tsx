@@ -102,6 +102,104 @@ describe('TaskItem', () => {
         expect(getByText(safeFormatDate('2026-03-20', 'P'))).toBeInTheDocument();
     });
 
+    it('opens the task quick actions menu on right-click', async () => {
+        const menuTask: Task = {
+            ...mockTask,
+            id: 'quick-actions-task',
+        };
+        const { container, getByRole, getByText, queryByRole } = render(
+            <LanguageProvider>
+                <TaskItem task={menuTask} />
+            </LanguageProvider>
+        );
+
+        const row = container.querySelector('[data-task-id="quick-actions-task"]');
+        expect(row).toBeTruthy();
+        act(() => {
+            fireEvent.contextMenu(row!);
+        });
+
+        expect(getByRole('button', { name: /due date/i })).toBeInTheDocument();
+        expect(getByRole('button', { name: /contexts/i })).toBeInTheDocument();
+        expect(getByRole('button', { name: /duplicate/i })).toBeInTheDocument();
+        expect(getByText('Delete')).toBeInTheDocument();
+
+        act(() => {
+            fireEvent.mouseDown(document.body);
+        });
+        await waitFor(() => {
+            expect(queryByRole('button', { name: /duplicate/i })).toBeNull();
+        });
+    });
+
+    it('updates due date from the task quick actions menu', async () => {
+        const quickDueTask: Task = {
+            ...mockTask,
+            id: 'quick-due-task',
+        };
+        act(() => {
+            useTaskStore.setState((state) => ({
+                ...state,
+                tasks: [quickDueTask],
+                _allTasks: [quickDueTask],
+                projects: [],
+                _allProjects: [],
+            }));
+        });
+
+        const { container, getByLabelText, getByRole } = render(
+            <LanguageProvider>
+                <TaskItem task={quickDueTask} />
+            </LanguageProvider>
+        );
+
+        const row = container.querySelector('[data-task-id="quick-due-task"]');
+        expect(row).toBeTruthy();
+        fireEvent.contextMenu(row!);
+        fireEvent.click(getByRole('button', { name: /due date/i }));
+        fireEvent.change(getByLabelText('Due Date'), { target: { value: '2026-05-01' } });
+        fireEvent.click(getByRole('button', { name: 'Save' }));
+
+        await waitFor(() => {
+            const updatedTask = useTaskStore.getState()._allTasks.find((task) => task.id === 'quick-due-task');
+            expect(updatedTask?.dueDate).toBe('2026-05-01');
+        });
+    });
+
+    it('updates contexts from the task quick actions menu', async () => {
+        const quickContextTask: Task = {
+            ...mockTask,
+            id: 'quick-context-task',
+        };
+        act(() => {
+            useTaskStore.setState((state) => ({
+                ...state,
+                tasks: [quickContextTask],
+                _allTasks: [quickContextTask],
+                projects: [],
+                _allProjects: [],
+            }));
+        });
+
+        const { container, getByLabelText, getByRole } = render(
+            <LanguageProvider>
+                <TaskItem task={quickContextTask} />
+            </LanguageProvider>
+        );
+
+        const row = container.querySelector('[data-task-id="quick-context-task"]');
+        expect(row).toBeTruthy();
+        fireEvent.contextMenu(row!);
+        fireEvent.click(getByRole('button', { name: /contexts/i }));
+        fireEvent.change(getByLabelText('Contexts'), { target: { value: '@office, @errands' } });
+        fireEvent.click(getByRole('button', { name: 'Save' }));
+
+        await waitFor(() => {
+            const updatedTask = useTaskStore.getState()._allTasks.find((task) => task.id === 'quick-context-task');
+            expect(updatedTask?.contexts).toEqual(['@office', '@errands']);
+        });
+    });
+
     it('applies inset ring style when selected to avoid clipped borders', () => {
         const { container } = render(
             <LanguageProvider>
