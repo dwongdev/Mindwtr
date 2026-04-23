@@ -1,3 +1,3 @@
-- Los grupos de proyectos en movil ahora coinciden con escritorio y la seccion Manage conserva mejor su estado expandido.
-- Editar en movil es mas fluido con bloques Markdown con codigo, cambios rapidos de campos y mejor cierre del teclado al capturar contenido compartido.
-- Calendario y sync son mas estables con mejor comportamiento para tareas con fecha, WebDAV local mas seguro y mejor coordinacion entre revision y recordatorios.
+- Las tareas recurrentes ya pueden terminar en una fecha o despues de un numero fijo de repeticiones, con texto actualizado en todos los idiomas.
+- Capturar y editar en movil es mas estable con envio desde Done en iOS, reinicio mas seguro del editor al cerrar y listas de verificacion que se mantienen sincronizadas.
+- Sync e importacion son mas fiables con importacion CSV de OmniFocus, creacion automatica de carpetas WebDAV, conservacion de borrados de calendario y mensajes de sync mas claros.

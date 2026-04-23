@@ -4,12 +4,9 @@ Canonical release notes live in [docs/release-notes/](docs/release-notes/README.
 
 This file intentionally stays as a short index so it does not drift from the per-release notes.
 
-## Upcoming
-
-- [v0.8.6 draft](docs/release-notes/0.8.6.md)
-
 ## Latest Releases
 
+- [v0.8.6](docs/release-notes/0.8.6.md)
 - [v0.8.5](docs/release-notes/0.8.5.md)
 - [v0.8.4](docs/release-notes/0.8.4.md)
 - [v0.8.3](docs/release-notes/0.8.3.md)
@@ -20,4 +17,4 @@ This file intentionally stays as a short index so it does not drift from the per
 
 ## Unreleased
 
-Incremental changes continue landing in git history and pull requests, but the next planned cut is tracked in the `v0.8.6` draft note above.
+Incremental changes continue landing in git history and pull requests until the next versioned release note is drafted.

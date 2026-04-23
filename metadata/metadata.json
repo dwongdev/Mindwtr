@@ -30,7 +30,7 @@
           "完全离线可用，无需互联网连接",
           "完全开源，安全透明"
         ],
-        "ReleaseNotes": "• 新增桌面端回顾排序与详情控制，并让项目侧栏缩放与宽度同步更稳定。\n• 桌面端现可内联预览图片附件，并在任务编辑中支持撤销操作。\n• 改进桌面端附件路径与 CloudKit 自动同步行为，减少同步与附件相关的粗糙边缘。\n• 同步刷新截图、演示链接与发布元数据，保持桌面发布说明与当前体验一致。",
+        "ReleaseNotes": "• 桌面端新增重复任务结束条件、自定义番茄钟时长，以及 OmniFocus CSV 导入。\n• 设置页现已拆分为更清晰的 Sync 与 Data 页面，改进了对话框无障碍，并在永久清空归档或回收站前加入确认。\n• 桌面端同步更稳定：冲突与状态提示更清晰，WebDAV 缺失目录会更安全地自动创建，排队重试也会沿用最新选项。",
         "Images": [
           {
             "FileName": "2026-01-27_22-59-40.png",
@@ -82,7 +82,7 @@
           "No internet connection required to function",
           "Open source and transparent"
         ],
-        "ReleaseNotes": "• Added desktop review sorting/details controls and made project sidebar resizing behave more smoothly.\n• Added inline image previews for desktop attachments and undo support in task editors.\n• Improved desktop attachment-path handling and CloudKit autosync reliability.\n• Refreshed screenshots, demo links, and store/release metadata to match the current desktop experience.",
+        "ReleaseNotes": "• Added recurrence end conditions, custom Pomodoro durations, and OmniFocus CSV import for desktop workflows.\n• Split Settings into clearer Sync and Data pages, improved dialog accessibility, and added confirmation before permanent archive or trash deletes.\n• Improved desktop sync with clearer conflict/status handling, safer WebDAV folder creation, and more reliable queued reruns.",
         "Images": [
           {
             "FileName": "2026-01-27_22-59-40.png",
@@ -130,7 +130,7 @@
           "No requiere conexión a internet para funcionar",
           "Código abierto y transparente"
         ],
-        "ReleaseNotes": "• Agregamos orden y control de detalles en la revision de escritorio, con un panel de proyectos que cambia de tamano con mas estabilidad.\n• El escritorio ahora puede previsualizar imagenes adjuntas en linea y admite deshacer dentro del editor de tareas.\n• Mejoramos el manejo de rutas de adjuntos y la fiabilidad del autosync con CloudKit en escritorio.\n• Tambien actualizamos capturas, enlaces de demo y metadatos de publicacion para reflejar mejor la experiencia actual.",
+        "ReleaseNotes": "• Agregamos condiciones de fin para recurrencia, duraciones personalizadas de pomodoro e importacion CSV de OmniFocus para flujos de escritorio.\n• Separamos Settings en paginas mas claras de Sync y Data, mejoramos la accesibilidad de dialogos y agregamos confirmacion antes de borrar archivo o papelera de forma permanente.\n• El sync de escritorio ahora muestra mejor conflictos y estado, crea carpetas WebDAV faltantes con mas seguridad y reaplica colas con opciones actualizadas.",
         "Images": [
           {
             "FileName": "2026-01-27_22-59-40.png",

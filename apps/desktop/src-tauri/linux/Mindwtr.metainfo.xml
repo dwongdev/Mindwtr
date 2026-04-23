@@ -71,6 +71,18 @@
   <url type="bugtracker">https://github.com/dongdongbh/Mindwtr/issues</url>
   <url type="vcs-browser">https://github.com/dongdongbh/Mindwtr</url>
   <releases>
+    <release version="0.8.6" date="2026-04-22">
+      <url type="details">https://github.com/dongdongbh/Mindwtr/releases/tag/v0.8.6</url>
+      <description translate="no">
+        <p>Mindwtr 0.8.6 improves desktop planning, sync handling, and Linux release polish.</p>
+        <ul>
+          <li>Added recurrence end conditions, custom Pomodoro durations, and OmniFocus CSV import for desktop workflows.</li>
+          <li>Split Settings into clearer Sync and Data pages, improved dialog accessibility, and added confirmation before permanent archive or trash deletes.</li>
+          <li>Made desktop sync steadier with clearer conflict and status feedback, safer WebDAV folder creation, and more reliable queued reruns.</li>
+          <li>Refreshed AppStream and Flathub screenshots plus desktop install documentation.</li>
+        </ul>
+      </description>
+    </release>
     <release version="0.8.5" date="2026-04-19">
       <url type="details">https://github.com/dongdongbh/Mindwtr/releases/tag/v0.8.5</url>
       <description translate="no">
