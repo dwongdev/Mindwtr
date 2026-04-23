@@ -363,6 +363,29 @@ export class SqliteAdapter {
                 await this.client.run(definition.sql);
             }
         }
+        const taskIndexes = [
+            'CREATE INDEX IF NOT EXISTS idx_tasks_status ON tasks(status)',
+            'CREATE INDEX IF NOT EXISTS idx_tasks_projectId ON tasks(projectId)',
+            'CREATE INDEX IF NOT EXISTS idx_tasks_deletedAt ON tasks(deletedAt)',
+            'CREATE INDEX IF NOT EXISTS idx_tasks_dueDate ON tasks(dueDate)',
+            'CREATE INDEX IF NOT EXISTS idx_tasks_startTime ON tasks(startTime)',
+            'CREATE INDEX IF NOT EXISTS idx_tasks_reviewAt ON tasks(reviewAt)',
+            'CREATE INDEX IF NOT EXISTS idx_tasks_completedAt ON tasks(completedAt)',
+            'CREATE INDEX IF NOT EXISTS idx_tasks_createdAt ON tasks(createdAt)',
+            'CREATE INDEX IF NOT EXISTS idx_tasks_updatedAt ON tasks(updatedAt)',
+            'CREATE INDEX IF NOT EXISTS idx_tasks_updatedAt_deletedAt ON tasks(updatedAt, deletedAt)',
+            'CREATE INDEX IF NOT EXISTS idx_tasks_status_deletedAt ON tasks(status, deletedAt)',
+            'CREATE INDEX IF NOT EXISTS idx_tasks_project_deletedAt ON tasks(projectId, deletedAt)',
+            'CREATE INDEX IF NOT EXISTS idx_tasks_project_status_deletedAt ON tasks(projectId, status, deletedAt)',
+            'CREATE INDEX IF NOT EXISTS idx_tasks_project_status_updatedAt ON tasks(projectId, status, updatedAt)',
+            'CREATE INDEX IF NOT EXISTS idx_tasks_projectId_orderNum ON tasks(projectId, orderNum)',
+            'CREATE INDEX IF NOT EXISTS idx_tasks_area_deletedAt ON tasks(areaId, deletedAt)',
+            'CREATE INDEX IF NOT EXISTS idx_tasks_area_id ON tasks(areaId)',
+            'CREATE INDEX IF NOT EXISTS idx_tasks_section_id ON tasks(sectionId)',
+        ];
+        for (const sql of taskIndexes) {
+            await this.client.run(sql);
+        }
         await this.client.run(
             'CREATE INDEX IF NOT EXISTS idx_sections_project_deletedAt ON sections(projectId, deletedAt)'
         );

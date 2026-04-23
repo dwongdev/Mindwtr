@@ -549,6 +549,11 @@ describeSqlite('SqliteAdapter', () => {
         expect(names).toContain('purgedAt');
         expect(names).toContain('rev');
         expect(names).toContain('revBy');
+        const taskIndexes = allSql<{ name: string }>(db, 'PRAGMA index_list(tasks)');
+        const taskIndexNames = new Set(taskIndexes.map((row) => row.name));
+        expect(taskIndexNames.has('idx_tasks_dueDate')).toBe(true);
+        expect(taskIndexNames.has('idx_tasks_status_deletedAt')).toBe(true);
+        expect(taskIndexNames.has('idx_tasks_project_deletedAt')).toBe(true);
 
         const projectColumns = allSql<{ name: string }>(db, 'PRAGMA table_info(projects)');
         const projectColumnNames = projectColumns.map((col) => col.name);
