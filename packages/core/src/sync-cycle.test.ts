@@ -403,7 +403,7 @@ describe('performSyncCycle', () => {
 
         expect(saved).not.toBeNull();
         expect(saved!.tasks.some((task) => task.id === 'old-purged')).toBe(false);
-        expect(saved!.tasks.some((task) => task.id === 'old-deleted')).toBe(true);
+        expect(saved!.tasks.some((task) => task.id === 'old-deleted')).toBe(false);
         expect(saved!.projects.some((project) => project.id === 'old-project')).toBe(false);
         expect(saved!.sections.some((section) => section.id === 'old-section')).toBe(false);
         expect(saved!.areas.some((area) => area.id === 'old-area')).toBe(false);
@@ -560,6 +560,7 @@ describe('performSyncCycle', () => {
         expect(localWrites[0].settings.pendingRemoteWriteRetryAt).toBeUndefined();
         expect(localWrites[0].settings.pendingRemoteWriteAttempts).toBeUndefined();
         expect(localWrites[1].settings.pendingRemoteWriteAt).toBe('2026-01-01T00:00:00.000Z');
+        expect(localWrites[1].settings.lastSyncStatus).toBe('error');
         expect(localWrites[1].settings.pendingRemoteWriteRetryAt).toBe('2026-01-01T00:00:05.000Z');
         expect(localWrites[1].settings.pendingRemoteWriteAttempts).toBe(1);
     });
@@ -665,6 +666,7 @@ describe('performSyncCycle', () => {
         expect(localWrites[0].settings.pendingRemoteWriteRetryAt).toBeUndefined();
         expect(localWrites[0].settings.pendingRemoteWriteAttempts).toBe(1);
         expect(localWrites[1].settings.pendingRemoteWriteAt).toBe('2025-12-31T23:59:59.000Z');
+        expect(localWrites[1].settings.lastSyncStatus).toBe('error');
         expect(localWrites[1].settings.pendingRemoteWriteRetryAt).toBe('2026-01-01T00:00:10.000Z');
         expect(localWrites[1].settings.pendingRemoteWriteAttempts).toBe(2);
     });

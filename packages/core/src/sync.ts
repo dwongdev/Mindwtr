@@ -392,7 +392,9 @@ function mergeEntitiesWithStats<T extends MergeableEntity>(
                         operationDiffMs: operationDiff,
                     };
                 }
-                const winner = preferLiveCandidate(localCandidate, incomingCandidate);
+                const winner = hasRevision
+                    ? preferLiveCandidate(localCandidate, incomingCandidate)
+                    : preferDeletedCandidate(localCandidate, incomingCandidate);
                 return {
                     winner,
                     preservedLiveInAmbiguousWindow: !winner.deletedAt,
@@ -633,14 +635,16 @@ export function mergeAppDataWithStats(local: AppData, incoming: AppData): MergeR
             if (winnerHasUri) {
                 uri = winnerUri || winner.uri;
                 localStatus = winner.localStatus || 'available';
-            } else if (winnerIsIncoming && localHasUri) {
-                uri = localUri || localAttachment.uri;
-                localStatus = localAttachment.localStatus || 'available';
-            } else if (!winnerIsIncoming && incomingHasUri) {
-                uri = incomingUri || incomingAttachment.uri;
-                localStatus = incomingAttachment.localStatus || 'available';
+            } else if (localHasUri || incomingHasUri) {
+                if (localHasUri) {
+                    uri = localUri || localAttachment.uri;
+                    localStatus = localAttachment.localStatus || 'available';
+                } else {
+                    uri = incomingUri || incomingAttachment.uri;
+                    localStatus = incomingAttachment.localStatus || 'available';
+                }
             } else {
-                uri = '';
+                uri = winnerUri || localUri || incomingUri || '';
                 localStatus = normalizeMissingFileStatus(localStatus, winner.deletedAt);
             }
             if ((localStatus === undefined || localStatus === null) && !!sanitizeMergedAttachmentUri(uri)) {
@@ -810,6 +814,7 @@ const withPendingRemoteWriteRetry = (data: AppData, nowIso: string): AppData => 
         ...data,
         settings: {
             ...data.settings,
+            lastSyncStatus: 'error',
             pendingRemoteWriteRetryAt: retryAt,
             pendingRemoteWriteAttempts: nextAttempts,
         },
