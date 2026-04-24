@@ -628,10 +628,22 @@ describeSqlite('SqliteAdapter', () => {
     it('creates composite indexes used by sync queries', async () => {
         await adapter.ensureSchema();
 
-        const indexes = allSql<{ name: string }>(db, 'PRAGMA index_list(tasks)');
-        const names = new Set(indexes.map((index) => index.name));
+        const taskIndexes = allSql<{ name: string }>(db, 'PRAGMA index_list(tasks)');
+        const projectIndexes = allSql<{ name: string }>(db, 'PRAGMA index_list(projects)');
+        const sectionIndexes = allSql<{ name: string }>(db, 'PRAGMA index_list(sections)');
+        const areaIndexes = allSql<{ name: string }>(db, 'PRAGMA index_list(areas)');
+        const names = new Set([
+            ...taskIndexes,
+            ...projectIndexes,
+            ...sectionIndexes,
+            ...areaIndexes,
+        ].map((index) => index.name));
 
         expect(names.has('idx_tasks_project_status_updatedAt')).toBe(true);
+        expect(names.has('idx_tasks_updatedAt_rev')).toBe(true);
+        expect(names.has('idx_projects_updatedAt_rev')).toBe(true);
+        expect(names.has('idx_sections_updatedAt_rev')).toBe(true);
+        expect(names.has('idx_areas_updatedAt_rev')).toBe(true);
         expect(names.has('idx_tasks_area_deletedAt')).toBe(true);
     });
 });
