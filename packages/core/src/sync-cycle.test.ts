@@ -124,7 +124,7 @@ describe('performSyncCycle', () => {
         expect(wroteRemote?.tasks[0]?.deletedAt).toBeUndefined();
     });
 
-    it('surfaces a clock skew warning when merge drift exceeds the threshold', async () => {
+    it('does not surface a clock skew warning for normal timestamp drift', async () => {
         const result = await performSyncCycle({
             readLocal: async () => mockAppData([
                 createMockTask('task-1', '2026-03-01T00:10:00.000Z'),
@@ -136,6 +136,26 @@ describe('performSyncCycle', () => {
             writeRemote: async () => undefined,
         });
 
+        expect(result.status).toBe('success');
+        expect(result.clockSkewWarning).toBeUndefined();
+        expect(result.stats.tasks.maxClockSkewMs).toBe(0);
+    });
+
+    it('surfaces a clock skew warning when conflicted merge drift exceeds the threshold', async () => {
+        const result = await performSyncCycle({
+            readLocal: async () => mockAppData([{
+                ...createMockTask('task-1', '2026-03-01T00:10:00.000Z'),
+                title: 'Local title',
+            }]),
+            readRemote: async () => mockAppData([{
+                ...createMockTask('task-1', '2026-03-01T00:00:00.000Z'),
+                title: 'Remote title',
+            }]),
+            writeLocal: async () => undefined,
+            writeRemote: async () => undefined,
+        });
+
+        expect(result.status).toBe('conflict');
         expect(result.clockSkewWarning).toEqual({
             skewMs: 10 * 60 * 1000,
             direction: 'local-ahead',

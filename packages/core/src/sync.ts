@@ -312,22 +312,17 @@ function mergeEntitiesWithStats<T extends MergeableEntity>(
         const localComparableSignature = toComparableSignature(comparableLocalItem);
         const incomingComparableSignature = toComparableSignature(comparableIncomingItem);
         const comparableContentMatches = localComparableSignature === incomingComparableSignature;
-        const revisionOnlyDrift = hasRevision
-            && revDiff !== 0
-            && localDeleted === incomingDeleted
-            && comparableContentMatches;
         const shouldCheckContentDiff = hasRevision
             ? revDiff === 0 && localDeleted === incomingDeleted
             : localDeleted === incomingDeleted;
         const contentDiff = shouldCheckContentDiff ? !comparableContentMatches : false;
-        const meaningfulRevisionDiff = hasRevision && revDiff !== 0 && !revisionOnlyDrift;
+        const unresolvedDeleteStateDiff = localDeleted !== incomingDeleted && (!hasRevision || revDiff === 0);
         const conflictReasons: ConflictReason[] = [];
-        if (localDeleted !== incomingDeleted) conflictReasons.push('deleteState');
-        if (meaningfulRevisionDiff) conflictReasons.push('revision');
+        if (unresolvedDeleteStateDiff) conflictReasons.push('deleteState');
         if (contentDiff) conflictReasons.push('content');
 
         const differs = hasRevision
-            ? meaningfulRevisionDiff || localDeleted !== incomingDeleted || contentDiff
+            ? unresolvedDeleteStateDiff || contentDiff
             : localDeleted !== incomingDeleted || contentDiff;
 
         if (differs) {
@@ -341,7 +336,7 @@ function mergeEntitiesWithStats<T extends MergeableEntity>(
 
         const safeTimeDiff = safeIncomingTime - safeLocalTime;
         const absoluteSkew = Math.abs(safeTimeDiff);
-        if (absoluteSkew > stats.maxClockSkewMs) {
+        if (differs && absoluteSkew > stats.maxClockSkewMs) {
             stats.maxClockSkewMs = absoluteSkew;
             stats.maxClockSkewDirection = safeTimeDiff >= 0 ? 'remote-ahead' : 'local-ahead';
         }

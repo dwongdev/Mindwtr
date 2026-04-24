@@ -31,7 +31,7 @@ describe('Sync Logic', () => {
             expect(result.stats.tasks.resolvedUsingLocal).toBeGreaterThan(0);
         });
 
-        it('captures conflict diagnostics for content and revision drift', () => {
+        it('captures conflict diagnostics for unresolved content drift only', () => {
             const now = '2026-03-16T00:00:00.000Z';
             const local = mockAppData([
                 {
@@ -64,19 +64,14 @@ describe('Sync Logic', () => {
 
             expect(result.stats.tasks.conflictReasonCounts).toEqual({
                 content: 1,
-                revision: 1,
             });
             expect(contentSample).toMatchObject({
                 reasons: ['content'],
                 winner: 'local',
                 diffKeys: ['title'],
             });
-            expect(revisionSample).toMatchObject({
-                reasons: ['revision'],
-                winner: 'local',
-                diffKeys: [],
-            });
-            expect(revisionSample?.localComparableHash).not.toBe(revisionSample?.incomingComparableHash);
+            expect(revisionSample).toBeUndefined();
+            expect(result.data.tasks.find((task) => task.id === 'revision-conflict')?.title).toBe('Local title');
         });
 
         it('does not count conflict when only timestamp differs for legacy items', () => {
@@ -86,8 +81,31 @@ describe('Sync Logic', () => {
             const result = mergeAppDataWithStats(local, incoming);
 
             expect(result.stats.tasks.conflicts).toBe(0);
-            expect(result.stats.tasks.maxClockSkewMs).toBe(29000);
+            expect(result.stats.tasks.maxClockSkewMs).toBe(0);
             expect(result.data.tasks[0].updatedAt).toBe('2026-02-22T22:30:40.000Z');
+        });
+
+        it('does not count normal revision-forward updates as conflicts or clock skew', () => {
+            const localTask = {
+                ...createMockTask('task-1', '2026-04-24T11:22:00.000Z'),
+                title: 'Before sync',
+                rev: 1,
+                revBy: 'desktop',
+            } satisfies Task;
+            const incomingTask = {
+                ...createMockTask('task-1', '2026-04-24T11:29:00.000Z'),
+                title: 'Edited on Android',
+                rev: 2,
+                revBy: 'android',
+            } satisfies Task;
+
+            const result = mergeAppDataWithStats(mockAppData([localTask]), mockAppData([incomingTask]));
+
+            expect(result.stats.tasks.conflicts).toBe(0);
+            expect(result.stats.tasks.conflictIds).toHaveLength(0);
+            expect(result.stats.tasks.maxClockSkewMs).toBe(0);
+            expect(result.data.tasks[0].title).toBe('Edited on Android');
+            expect(result.data.tasks[0].rev).toBe(2);
         });
 
         it('does not count conflicts for legacy order-field shape differences', () => {
