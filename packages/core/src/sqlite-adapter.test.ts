@@ -643,6 +643,7 @@ describeSqlite('SqliteAdapter', () => {
 
         expect(names.has('idx_tasks_project_status_updatedAt')).toBe(true);
         expect(names.has('idx_tasks_updatedAt_rev')).toBe(true);
+        expect(names.has('idx_projects_area_deletedAt')).toBe(true);
         expect(names.has('idx_projects_updatedAt_rev')).toBe(true);
         expect(names.has('idx_sections_updatedAt_rev')).toBe(true);
         expect(names.has('idx_areas_updatedAt_rev')).toBe(true);

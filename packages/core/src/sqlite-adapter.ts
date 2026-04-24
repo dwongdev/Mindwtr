@@ -422,6 +422,9 @@ export class SqliteAdapter {
             }
         }
         await this.client.run(
+            'CREATE INDEX IF NOT EXISTS idx_projects_area_deletedAt ON projects(areaId, deletedAt)'
+        );
+        await this.client.run(
             'CREATE INDEX IF NOT EXISTS idx_projects_area_order ON projects(areaId, orderNum)'
         );
         await this.client.run(

@@ -188,6 +188,7 @@ CREATE INDEX IF NOT EXISTS idx_tasks_area_id ON tasks(areaId);
 CREATE INDEX IF NOT EXISTS idx_tasks_section_id ON tasks(sectionId);
 CREATE INDEX IF NOT EXISTS idx_projects_status ON projects(status);
 CREATE INDEX IF NOT EXISTS idx_projects_areaId ON projects(areaId);
+CREATE INDEX IF NOT EXISTS idx_projects_area_deletedAt ON projects(areaId, deletedAt);
 CREATE INDEX IF NOT EXISTS idx_projects_area_order ON projects(areaId, orderNum);
 CREATE INDEX IF NOT EXISTS idx_projects_dueDate ON projects(dueDate);
 CREATE INDEX IF NOT EXISTS idx_projects_updatedAt_rev ON projects(updatedAt, rev);
