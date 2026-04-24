@@ -1020,6 +1020,48 @@ describe('cloud server api', () => {
         }
     });
 
+    test('serializes concurrent /v1/data merges without dropping records', async () => {
+        const iso = '2026-01-01T00:00:00.000Z';
+        const requests: Array<Promise<Response>> = [];
+        for (let i = 0; i < 20; i += 1) {
+            requests.push(fetch(`${baseUrl}/v1/data`, {
+                method: 'PUT',
+                headers: {
+                    ...authHeaders,
+                    'content-type': 'application/json',
+                },
+                body: JSON.stringify({
+                    tasks: [{
+                        id: `data-task-${i}`,
+                        title: `Data Task ${i}`,
+                        status: 'inbox',
+                        createdAt: iso,
+                        updatedAt: iso,
+                    }],
+                    projects: [],
+                    sections: [],
+                    areas: [],
+                    settings: {},
+                }),
+            }));
+        }
+
+        const responses = await Promise.all(requests);
+        for (const response of responses) {
+            expect(response.status).toBe(200);
+        }
+
+        const getResponse = await fetch(`${baseUrl}/v1/data`, {
+            headers: authHeaders,
+        });
+        expect(getResponse.status).toBe(200);
+        const data = await getResponse.json();
+        const taskIds = new Set((data.tasks as Array<{ id: string }>).map((task) => task.id));
+        for (let i = 0; i < 20; i += 1) {
+            expect(taskIds.has(`data-task-${i}`)).toBe(true);
+        }
+    });
+
     test('rate limits repeated unauthorized requests per client', async () => {
         let lastStatus = 0;
         for (let attempt = 0; attempt < 40; attempt += 1) {
