@@ -54,6 +54,8 @@ import {
 } from './time-estimate-filter-utils';
 import { useTaskListSelection } from './use-task-list-selection';
 
+const REMOVE_CLIPPED_SUBVIEWS_MIN_ITEMS = 15;
+
 export interface TaskListProps {
   statusFilter: TaskStatus | 'all';
   title: string;
@@ -844,7 +846,7 @@ function TaskListComponent({
           maxToRenderPerBatch={12}
           windowSize={5}
           updateCellsBatchingPeriod={50}
-          removeClippedSubviews={listItems.length >= 25}
+          removeClippedSubviews={listItems.length >= REMOVE_CLIPPED_SUBVIEWS_MIN_ITEMS}
           refreshControl={
             <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
           }
