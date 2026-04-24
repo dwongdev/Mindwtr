@@ -57,15 +57,10 @@ export function DailyReviewGuideModal({ onClose }: DailyReviewGuideModalProps) {
     const projectMap = useMemo(() => new Map(projects.map((project) => [project.id, project])), [projects]);
 
     const activeTasks = tasks.filter((task) => !task.deletedAt && task.status !== 'reference' && isTaskInActiveProject(task, projectMap));
-    const inboxTasks = useMemo(() => {
-        const now = new Date();
-        return activeTasks.filter((task) => {
-            if (task.status !== 'inbox') return false;
-            const start = safeParseDate(task.startTime);
-            if (start && start > now) return false;
-            return true;
-        });
-    }, [activeTasks]);
+    const inboxTasks = useMemo(
+        () => activeTasks.filter((task) => task.status === 'inbox'),
+        [activeTasks],
+    );
     const focusedTasks = activeTasks.filter((task) => task.isFocusedToday && task.status !== 'done');
     const waitingTasks = useMemo(
         () => sortTasksBy(activeTasks.filter((task) => task.status === 'waiting'), sortBy),

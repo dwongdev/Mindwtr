@@ -358,10 +358,6 @@ export const ListView = memo(function ListView({ title, statusFilter }: ListView
                     deferredFilterInputs.areaById
                 )) return false;
 
-                if (deferredFilterInputs.statusFilter === 'inbox') {
-                    const start = safeParseDate(t.startTime);
-                    if (start && start > now) return false;
-                }
                 if (deferredFilterInputs.statusFilter === 'next') {
                     const start = safeParseDate(t.startTime);
                     if (start && start > now) return false;

@@ -10,19 +10,18 @@ const addProject = vi.fn();
 const push = vi.fn();
 const clarifyTask = vi.fn();
 const mockSettings = { gtd: { inboxProcessing: {} }, ai: {} } as any;
+const baseInboxTask = {
+  id: 'inbox-1',
+  title: 'Inbox task',
+  description: 'Original description',
+  status: 'inbox',
+  contexts: ['@home'],
+  tags: ['#old'],
+  createdAt: '2025-01-01T00:00:00.000Z',
+  updatedAt: '2025-01-01T00:00:00.000Z',
+};
 const storeState = {
-  tasks: [
-    {
-      id: 'inbox-1',
-      title: 'Inbox task',
-      description: 'Original description',
-      status: 'inbox',
-      contexts: ['@home'],
-      tags: ['#old'],
-      createdAt: '2025-01-01T00:00:00.000Z',
-      updatedAt: '2025-01-01T00:00:00.000Z',
-    },
-  ],
+  tasks: [{ ...baseInboxTask }] as any[],
   projects: [] as any[],
   areas: [] as any[],
   settings: mockSettings,
@@ -115,6 +114,7 @@ describe('InboxProcessingModal', () => {
     mockSettings.features = undefined;
     mockSettings.gtd = { inboxProcessing: {}, taskEditor: undefined };
     mockSettings.ai = {};
+    storeState.tasks = [{ ...baseInboxTask }];
     storeState.projects = [];
     storeState.areas = [];
     updateTask.mockClear();
@@ -255,6 +255,82 @@ describe('InboxProcessingModal', () => {
     expect(root.findByProps({ children: 'inbox.refineTitle' })).toBeTruthy();
     expect(findNodesWithText(root, 'Inbox task')).toHaveLength(0);
     expect(findNodesWithText(root, 'Original description')).toHaveLength(0);
+  });
+
+  it('includes future-start inbox tasks in processing', () => {
+    storeState.tasks = [{
+      ...baseInboxTask,
+      startTime: '2999-01-01',
+    }];
+    const onClose = vi.fn();
+    let tree: ReturnType<typeof create>;
+
+    act(() => {
+      tree = create(<InboxProcessingModal visible onClose={onClose} />);
+    });
+
+    const root = tree!.root;
+
+    expect(root.findByProps({ children: 'inbox.refineTitle' })).toBeTruthy();
+    expect(onClose).not.toHaveBeenCalled();
+  });
+
+  it('moves Later items to next with a date-only start date', () => {
+    const onClose = vi.fn();
+    let tree: ReturnType<typeof create>;
+
+    act(() => {
+      tree = create(<InboxProcessingModal visible onClose={onClose} />);
+    });
+
+    const root = tree!.root;
+    const laterLabel = findNodeWithText(root, 'Later');
+    const laterButton = laterLabel.parent;
+
+    if (!laterButton) {
+      throw new Error('Later button not found');
+    }
+
+    act(() => {
+      laterButton.props.onPress();
+    });
+
+    const startValueLabel = root.findByProps({ children: 'common.notSet' });
+    const startButton = startValueLabel.parent;
+
+    if (!startButton) {
+      throw new Error('Start date button not found');
+    }
+
+    act(() => {
+      startButton.props.onPress();
+    });
+
+    const datePicker = root.findByType('DateTimePicker' as any);
+
+    act(() => {
+      datePicker.props.onChange({ type: 'set' }, new Date(2026, 2, 23, 12, 0, 0));
+    });
+
+    const nextTaskLabel = findNodeWithText(root, 'Next task →');
+    const nextTaskButton = nextTaskLabel.parent;
+
+    if (!nextTaskButton) {
+      throw new Error('Next task button not found');
+    }
+
+    act(() => {
+      nextTaskButton.props.onPress();
+    });
+
+    expect(updateTask).toHaveBeenCalledWith(
+      'inbox-1',
+      expect.objectContaining({
+        status: 'next',
+        startTime: '2026-03-23',
+      })
+    );
+    expect(onClose).toHaveBeenCalled();
   });
 
   it('saves the selected priority by default when priorities are not explicitly disabled', () => {

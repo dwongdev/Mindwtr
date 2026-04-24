@@ -23,7 +23,7 @@ import {
     type LucideIcon,
 } from 'lucide-react';
 import { cn } from '../lib/utils';
-import { shallow, useTaskStore, safeParseDate, safeFormatDate, translateWithFallback } from '@mindwtr/core';
+import { shallow, useTaskStore, safeFormatDate, translateWithFallback } from '@mindwtr/core';
 import { useLanguage } from '../contexts/language-context';
 import { useUiStore } from '../store/ui-store';
 import { useObsidianStore } from '../store/obsidian-store';
@@ -181,13 +181,10 @@ export function Layout({ children, currentView, onViewChange }: LayoutProps) {
     );
     const sortedAreas = useMemo(() => [...areas].sort((a, b) => a.order - b.order), [areas]);
     const inboxCount = useMemo(() => {
-        const now = Date.now();
         let count = 0;
         for (const task of tasks) {
             if (task.deletedAt) continue;
             if (task.status !== 'inbox') continue;
-            const start = safeParseDate(task.startTime);
-            if (start && start.getTime() > now) continue;
             if (!taskMatchesAreaFilter(task, resolvedAreaFilter, projectMap, areaById)) continue;
             count += 1;
         }

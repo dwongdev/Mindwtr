@@ -8,7 +8,6 @@ import {
   TimeEstimate,
   sortTasksBy,
   parseQuickAdd,
-  safeParseDate,
   getUsedTaskTokens,
   createAIProvider,
   type AIProviderId,
@@ -264,17 +263,12 @@ function TaskListComponent({
 
   // Memoize filtered and sorted tasks for performance
   const filteredTasks = useMemo(() => {
-    const now = new Date();
     const filtered = tasks.filter(t => {
       // Filter out soft-deleted tasks
       if (t.deletedAt) return false;
       if (statusFilter === 'all' && t.status === 'reference') return false;
       const matchesStatus = statusFilter === 'all' ? true : t.status === statusFilter;
       const matchesProject = projectId ? t.projectId === projectId : true;
-      if (statusFilter === 'inbox') {
-        const start = safeParseDate(t.startTime);
-        if (start && start > now) return false;
-      }
       if (showTimeEstimateFilters && !matchesSelectedTimeEstimates(t, selectedTimeEstimates)) return false;
       if (!taskMatchesAreaFilter(t, resolvedAreaFilter, projectById, areaById)) return false;
       return matchesStatus && matchesProject;

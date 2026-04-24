@@ -119,15 +119,10 @@ function DailyReviewFlow({ onClose }: { onClose: () => void }) {
         [tasks],
     );
 
-    const inboxTasks = useMemo(() => {
-        const now = new Date();
-        return activeTasks.filter((task) => {
-            if (task.status !== 'inbox') return false;
-            const start = safeParseDate(task.startTime);
-            if (start && start > now) return false;
-            return true;
-        });
-    }, [activeTasks]);
+    const inboxTasks = useMemo(
+        () => activeTasks.filter((task) => task.status === 'inbox'),
+        [activeTasks],
+    );
 
     const focusedTasks = useMemo(
         () => activeTasks.filter((task) => task.isFocusedToday && task.status !== 'done'),

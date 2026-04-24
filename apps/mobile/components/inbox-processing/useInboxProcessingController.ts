@@ -13,6 +13,7 @@ import {
   collectTaskTokenUsage,
   createAIProvider,
   safeParseDate,
+  tFallback,
   resolveAutoTextDirection,
   useTaskStore,
   type AIProviderId,
@@ -40,6 +41,13 @@ const MAX_TOKEN_SUGGESTIONS = 6;
 const PRIORITY_OPTIONS: TaskPriority[] = ['low', 'medium', 'high', 'urgent'];
 const ENERGY_LEVEL_OPTIONS: Array<NonNullable<Task['energyLevel']>> = ['low', 'medium', 'high'];
 
+const formatDateOnly = (date: Date): string => {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
 type InboxProcessingControllerParams = {
   visible: boolean;
   onClose: () => void;
@@ -58,7 +66,7 @@ export function useInboxProcessingController({
   const insets = useSafeAreaInsets();
 
   const [currentIndex, setCurrentIndex] = useState(0);
-  const [actionabilityChoice, setActionabilityChoice] = useState<'actionable' | 'trash' | 'someday' | 'reference'>('actionable');
+  const [actionabilityChoice, setActionabilityChoice] = useState<'actionable' | 'later' | 'trash' | 'someday' | 'reference'>('actionable');
   const [twoMinuteChoice, setTwoMinuteChoice] = useState<'yes' | 'no'>('no');
   const [executionChoice, setExecutionChoice] = useState<'defer' | 'delegate'>('defer');
   const [newContext, setNewContext] = useState('');
@@ -144,12 +152,9 @@ export function useInboxProcessingController({
   }, [selectedTimeEstimate, settings?.gtd?.timeEstimatePresets]);
 
   const inboxTasks = useMemo(() => {
-    const now = new Date();
     return tasks.filter((task) => {
       if (task.deletedAt) return false;
       if (task.status !== 'inbox') return false;
-      const start = safeParseDate(task.startTime);
-      if (start && start > now) return false;
       return true;
     });
   }, [tasks]);
@@ -413,6 +418,37 @@ export function useInboxProcessingController({
     moveToNext();
   }, [applyProcessingEdits, currentTask, deleteTask, moveToNext]);
 
+  const handleLaterMobile = useCallback(() => {
+    if (!currentTask) return;
+    if (!pendingStartDate) {
+      showToast({
+        title: t('common.notice'),
+        message: tFallback(t, 'process.laterStartRequired', 'Choose a start date for Later.'),
+        tone: 'warning',
+      });
+      return;
+    }
+    applyProcessingEdits({
+      status: 'next',
+      ...(showProjectField ? { projectId: selectedProjectId ?? undefined } : {}),
+      ...(showAreaField ? { areaId: selectedProjectId ? undefined : (selectedAreaId ?? undefined) } : {}),
+      startTime: formatDateOnly(pendingStartDate),
+    });
+    setPendingStartDate(null);
+    moveToNext();
+  }, [
+    applyProcessingEdits,
+    currentTask,
+    moveToNext,
+    pendingStartDate,
+    selectedAreaId,
+    selectedProjectId,
+    showAreaField,
+    showProjectField,
+    showToast,
+    t,
+  ]);
+
   const handleTwoMinYes = useCallback(() => {
     if (currentTask) {
       applyProcessingEdits({ status: 'done' });
@@ -616,6 +652,10 @@ export function useInboxProcessingController({
 
   const handleNextTask = useCallback(() => {
     if (!currentTask) return;
+    if (actionabilityChoice === 'later') {
+      handleLaterMobile();
+      return;
+    }
     if (actionabilityChoice === 'trash' || actionabilityChoice === 'someday' || actionabilityChoice === 'reference') {
       handleNotActionable(actionabilityChoice);
       return;
@@ -635,6 +675,7 @@ export function useInboxProcessingController({
     executionChoice,
     finalizeNextAction,
     handleConfirmWaitingMobile,
+    handleLaterMobile,
     handleNotActionable,
     handleTwoMinYes,
     selectedProjectId,

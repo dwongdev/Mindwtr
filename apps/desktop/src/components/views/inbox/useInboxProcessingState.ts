@@ -2,7 +2,6 @@ import { useCallback, useMemo, useState } from 'react';
 import {
     getFrequentTaskTokens,
     getRecentTaskTokens,
-    safeParseDate,
     type AppData,
     type Area,
     type Project,
@@ -160,8 +159,6 @@ export function useInboxProcessingState({
     const inboxCount = useMemo(() => (
         tasks.filter((task) => {
             if (task.status !== 'inbox' || task.deletedAt) return false;
-            const start = safeParseDate(task.startTime);
-            if (start && start > new Date()) return false;
             if (!matchesAreaFilter(task)) return false;
             return true;
         }).length

@@ -132,6 +132,8 @@ export function InboxProcessingModal({ visible, onClose }: InboxProcessingModalP
   } = useInboxProcessingController({ visible, onClose });
   const aiWorkingLabel = t('ai.working');
   const aiWorkingText = aiWorkingLabel === 'ai.working' ? 'Working...' : aiWorkingLabel;
+  const laterLabel = tFallback(t, 'process.later', 'Later');
+  const laterHint = tFallback(t, 'process.laterHint', 'Set a start date and move this to Next.');
 
   if (!visible) return null;
 
@@ -718,6 +720,17 @@ export function InboxProcessingModal({ visible, onClose }: InboxProcessingModalP
                       ✅ {t('inbox.yesActionable')}
                     </Text>
                   </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[
+                      styles.bigButton,
+                      actionabilityChoice === 'later' ? styles.buttonPrimary : { backgroundColor: tc.border },
+                    ]}
+                    onPress={() => setActionabilityChoice('later')}
+                  >
+                    <Text style={[styles.bigButtonText, actionabilityChoice !== 'later' && { color: tc.text }]}>
+                      🕒 {laterLabel}
+                    </Text>
+                  </TouchableOpacity>
                   <View style={styles.buttonRow}>
                     <TouchableOpacity
                       style={[styles.button, { backgroundColor: actionabilityChoice === 'trash' ? '#EF4444' : tc.border }]}
@@ -742,6 +755,23 @@ export function InboxProcessingModal({ visible, onClose }: InboxProcessingModalP
                   </View>
                 </View>
               </View>
+
+              {actionabilityChoice === 'later' && (
+                <View style={[styles.singleSection, { borderBottomColor: tc.border }]}>
+                  <Text style={[styles.stepQuestion, { color: tc.text }]}>
+                    {laterLabel}
+                  </Text>
+                  <Text style={[styles.stepHint, { color: tc.secondaryText }]}>
+                    {laterHint}
+                  </Text>
+                  {renderDateSelector(
+                    t('taskEdit.startDateLabel'),
+                    pendingStartDate,
+                    () => setShowStartDatePicker(true),
+                    () => setPendingStartDate(null),
+                  )}
+                </View>
+              )}
 
               {actionabilityChoice === 'actionable' && twoMinuteEnabled && (
                 <View style={[styles.singleSection, { borderBottomColor: tc.border }]}>
@@ -837,7 +867,7 @@ export function InboxProcessingModal({ visible, onClose }: InboxProcessingModalP
                 </>
               )}
 
-              {showStartDateField && showStartDatePicker && (
+              {(showStartDateField || actionabilityChoice === 'later') && showStartDatePicker && (
                 <DateTimePicker
                   value={pendingStartDate ?? new Date()}
                   mode="date"

@@ -249,6 +249,49 @@ describe('InboxProcessor', () => {
         expect(getByText('taskEdit.reviewDateLabel')).toBeTruthy();
     });
 
+    it('moves a task to next with a date-only start date from the guided Later shortcut', async () => {
+        const { getByRole, getByText, getByLabelText, updateTask } = renderInboxProcessor();
+
+        fireEvent.click(getByRole('button', { name: /process\.btn/i }));
+        fireEvent.click(getByText('process.refineNext'));
+        fireEvent.change(getByLabelText('taskEdit.startDateLabel'), {
+            target: { value: '2026-03-23' },
+        });
+        fireEvent.click(getByText('Later'));
+
+        await waitFor(() => {
+            expect(updateTask).toHaveBeenCalledWith(
+                'task-1',
+                expect.objectContaining({
+                    status: 'next',
+                    startTime: '2026-03-23',
+                }),
+            );
+        });
+    });
+
+    it('moves a task to next with a date-only start date from the quick Later outcome', async () => {
+        const { getByRole, getByText, getByLabelText, updateTask } = renderInboxProcessor();
+
+        fireEvent.click(getByRole('button', { name: /process\.btn/i }));
+        fireEvent.click(getByRole('button', { name: 'process.modeQuick' }));
+        fireEvent.click(getByText('Later'));
+        fireEvent.change(getByLabelText('taskEdit.startDateLabel'), {
+            target: { value: '2026-03-24' },
+        });
+        fireEvent.click(getByRole('button', { name: 'process.next' }));
+
+        await waitFor(() => {
+            expect(updateTask).toHaveBeenCalledWith(
+                'task-1',
+                expect.objectContaining({
+                    status: 'next',
+                    startTime: '2026-03-24',
+                }),
+            );
+        });
+    });
+
     it('hides organization fields when the task editor layout disables them', () => {
         const { getByRole, getByText, queryByLabelText } = renderInboxProcessor({
             gtd: {
