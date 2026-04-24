@@ -18,6 +18,11 @@ on:
         required: false
         type: string
         default: 'external_testing'
+      skip_screenshots:
+        description: Skip App Store screenshot upload
+        required: false
+        type: boolean
+        default: false
   workflow_dispatch:
     inputs:
       upload:
@@ -35,6 +40,11 @@ on:
         required: false
         type: string
         default: 'external_testing'
+      skip_screenshots:
+        description: Skip App Store screenshot upload
+        required: false
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -825,7 +835,7 @@ jobs:
           echo "FASTLANE_METADATA_PATH=$FASTLANE_METADATA_DIR" >> "$GITHUB_ENV"
 
       - name: Prepare Fastlane screenshots
-        if: ${{ inputs.upload }}
+        if: ${{ inputs.upload && !inputs.skip_screenshots }}
         run: |
           set -euo pipefail
           export FASTLANE_SCREENSHOTS_DIR="$RUNNER_TEMP/fastlane_screenshots"
@@ -838,6 +848,12 @@ jobs:
             echo "FASTLANE_SCREENSHOTS_PATH=" >> "$GITHUB_ENV"
             echo "SKIP_SCREENSHOTS_FOR_UPLOAD=true" >> "$GITHUB_ENV"
           fi
+
+      - name: Skip Fastlane screenshots
+        if: ${{ inputs.upload && inputs.skip_screenshots }}
+        run: |
+          echo "FASTLANE_SCREENSHOTS_PATH=" >> "$GITHUB_ENV"
+          echo "SKIP_SCREENSHOTS_FOR_UPLOAD=true" >> "$GITHUB_ENV"
 
       - name: Resolve App Store review submission flag
         if: ${{ inputs.upload }}
@@ -926,6 +942,10 @@ jobs:
             echo "::warning::Found existing iOS App Store submission in state ${ACTIVE_REVIEW_STATE:-unknown} (version ${ACTIVE_REVIEW_VERSION:-unknown}). Upload will continue for TestFlight using version ${APP_VERSION} with build ${APP_BUILD_NUMBER}, and review submission is disabled."
             echo "EFFECTIVE_SUBMIT_FOR_REVIEW=false" >> "$GITHUB_ENV"
             echo "ENABLE_TESTFLIGHT_EXTERNAL_RELEASE=true" >> "$GITHUB_ENV"
+            echo "SKIP_APP_VERSION_UPDATE_FOR_UPLOAD=true" >> "$GITHUB_ENV"
+            echo "SKIP_METADATA_FOR_UPLOAD=true" >> "$GITHUB_ENV"
+            echo "FASTLANE_SCREENSHOTS_PATH=" >> "$GITHUB_ENV"
+            echo "SKIP_SCREENSHOTS_FOR_UPLOAD=true" >> "$GITHUB_ENV"
             exit 0
           fi
 
