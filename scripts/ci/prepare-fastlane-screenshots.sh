@@ -93,6 +93,11 @@ render_screenshot() {
 
   read -r target_width target_height < <(resolve_target_dimensions "${label}" "${source_width}" "${source_height}")
 
+  if [ "${source_width}" -eq "${target_width}" ] && [ "${source_height}" -eq "${target_height}" ]; then
+    cp "${src_path}" "${dest_path}"
+    return
+  fi
+
   magick "${src_path}" \
     \( -clone 0 -resize "${target_width}x${target_height}^" -gravity center -extent "${target_width}x${target_height}" -blur 0x32 \) \
     \( -clone 0 -resize "${target_width}x${target_height}" \) \
