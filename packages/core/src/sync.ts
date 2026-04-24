@@ -34,6 +34,7 @@ import {
     toComparableValue,
 } from './sync-signatures';
 import { purgeExpiredTombstones } from './sync-tombstones';
+import { filterNotDeleted } from './soft-delete';
 
 export type {
     ClockSkewDirection,
@@ -51,6 +52,7 @@ export type {
 export { CLOCK_SKEW_THRESHOLD_MS } from './sync-types';
 export { normalizeAppData } from './sync-normalization';
 export { purgeExpiredTombstones } from './sync-tombstones';
+export { filterNotDeleted, type SoftDeletable } from './soft-delete';
 
 export const appendSyncHistory = (
     settings: AppData['settings'] | undefined,
@@ -553,7 +555,7 @@ function mergeAreas(local: SyncMergeArea[], incoming: SyncMergeArea[]): { merged
 }
 
 export function filterDeleted<T extends { deletedAt?: string }>(items: T[]): T[] {
-    return items.filter((item) => !item.deletedAt);
+    return filterNotDeleted(items);
 }
 
 const getClockSkewWarning = (stats: MergeResult['stats']): ClockSkewWarning | undefined => {

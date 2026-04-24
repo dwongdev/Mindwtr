@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { appendSyncHistory, filterDeleted, mergeAppDataWithStats } from './sync';
+import { appendSyncHistory, filterDeleted, filterNotDeleted, mergeAppDataWithStats } from './sync';
 import { createMockProject, createMockSection, createMockTask, mockAppData } from './sync-test-utils';
 import { AppData, Project, Section, Task } from './types';
 
@@ -345,6 +345,15 @@ describe('Sync Logic', () => {
 
             expect(filtered).toHaveLength(1);
             expect(filtered[0].id).toBe('1');
+        });
+
+        it('exposes filterNotDeleted as the correctly named helper', () => {
+            const tasks = [
+                createMockTask('1', '2023-01-01'),
+                createMockTask('2', '2023-01-01', '2023-01-01'),
+            ];
+
+            expect(filterNotDeleted(tasks).map((task) => task.id)).toEqual(['1']);
         });
     });
 });
