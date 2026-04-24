@@ -156,7 +156,7 @@ export interface Task {
     taskMode?: TaskMode; // 'list' for checklist-first tasks
     startTime?: string; // ISO date string
     dueDate?: string; // ISO date string
-    recurrence?: Recurrence | RecurrenceRule;
+    recurrence?: Recurrence | RecurrenceRule; // Legacy string inputs are normalized to Recurrence on load/store writes
     pushCount?: number; // Tracks how many times dueDate was pushed later
     tags: string[];
     contexts: string[]; // e.g., '@home', '@work'

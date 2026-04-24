@@ -10,6 +10,7 @@ export type CalendarSyncEntry = {
 import type { SearchProjectResult, SearchResults, SearchTaskResult, TaskQueryOptions } from './storage';
 import { SQLITE_BASE_SCHEMA, SQLITE_FTS_SCHEMA, SQLITE_INDEX_SCHEMA } from './sqlite-schema';
 import { normalizeTaskStatus } from './task-status';
+import { normalizeRecurrenceForLoad } from './recurrence';
 import { logWarn } from './logger';
 
 export interface SqliteClient {
@@ -599,10 +600,7 @@ export class SqliteAdapter {
             taskMode: row.taskMode as Task['taskMode'] | undefined,
             startTime: row.startTime as string | undefined,
             dueDate: row.dueDate as string | undefined,
-            recurrence: ((): Task['recurrence'] => {
-                const parsed = fromJson<Task['recurrence']>(row.recurrence, undefined);
-                return parsed && typeof parsed === 'object' ? parsed : undefined;
-            })(),
+            recurrence: normalizeRecurrenceForLoad(fromJson<unknown>(row.recurrence, null)),
             pushCount: row.pushCount === null || row.pushCount === undefined ? undefined : Number(row.pushCount),
             tags: toStringArray(fromJson<unknown>(row.tags, [])),
             contexts: toStringArray(fromJson<unknown>(row.contexts, [])),

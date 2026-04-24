@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { buildRRuleString, parseRRuleString, createNextRecurringTask } from './recurrence';
+import { buildRRuleString, parseRRuleString, createNextRecurringTask, normalizeRecurrenceForLoad } from './recurrence';
 import type { Task } from './types';
 
 describe('recurrence', () => {
@@ -26,6 +26,21 @@ describe('recurrence', () => {
         expect(parsed.byMonthDay).toEqual([15]);
         expect(parsed.count).toBe(4);
         expect(parsed.until).toBe('2025-06-15');
+    });
+
+    it('normalizes legacy recurrence values to object form', () => {
+        expect(normalizeRecurrenceForLoad('daily')).toEqual({ rule: 'daily' });
+        expect(normalizeRecurrenceForLoad('FREQ=WEEKLY;BYDAY=MO,WE;COUNT=4')).toEqual({
+            rule: 'weekly',
+            byDay: ['MO', 'WE'],
+            count: 4,
+            rrule: 'FREQ=WEEKLY;BYDAY=MO,WE;COUNT=4',
+        });
+        expect(normalizeRecurrenceForLoad({ rrule: 'FREQ=MONTHLY;BYDAY=1MO' })).toEqual({
+            rule: 'monthly',
+            byDay: ['1MO'],
+            rrule: 'FREQ=MONTHLY;BYDAY=1MO',
+        });
     });
 
     it('creates next instance using weekly BYDAY (strict)', () => {

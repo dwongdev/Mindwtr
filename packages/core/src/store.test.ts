@@ -1364,7 +1364,7 @@ describe('TaskStore', () => {
 
         const nextInstance = state._allTasks.find(t => t.id !== original.id)!;
         expect(nextInstance.status).toBe('next');
-        expect(nextInstance.recurrence).toBe('daily');
+        expect(nextInstance.recurrence).toEqual({ rule: 'daily' });
         expect(nextInstance.dueDate).toBe('2023-01-02T09:00');
     });
 

@@ -14,6 +14,7 @@ import {
 } from './store-helpers';
 import { logWarn } from './logger';
 import { generateUUID as uuidv4 } from './uuid';
+import { normalizeRecurrenceForLoad } from './recurrence';
 
 const stripAttachmentRemoteMetadata = (attachments: Task['attachments']): Task['attachments'] =>
     attachments?.map((attachment) => (
@@ -214,6 +215,12 @@ const normalizeTaskUpdateForStore = ({
     allTasks: Task[];
 }): Partial<Task> => {
     let adjustedUpdates = updates;
+    if (hasOwnField(updates, 'recurrence')) {
+        adjustedUpdates = {
+            ...adjustedUpdates,
+            recurrence: normalizeRecurrenceForLoad(updates.recurrence),
+        };
+    }
     const hasOrder = Object.prototype.hasOwnProperty.call(updates, 'order');
     const hasOrderNum = Object.prototype.hasOwnProperty.call(updates, 'orderNum');
     if (hasOrder || hasOrderNum) {
@@ -335,6 +342,7 @@ export const createTaskActions = ({ set, get, getStorage, debouncedSave }: TaskA
                 tags: initialProps?.tags ?? [],
                 contexts: initialProps?.contexts ?? [],
                 pushCount: initialProps?.pushCount ?? 0,
+                recurrence: normalizeRecurrenceForLoad(initialProps?.recurrence),
                 rev: 1,
                 revBy: deviceId,
                 createdAt: now,

@@ -228,6 +228,31 @@ describeSqlite('SqliteAdapter', () => {
         expect(area.revBy).toBe('device-desktop');
     });
 
+    it('normalizes legacy string recurrence values when loading tasks', async () => {
+        const now = new Date().toISOString();
+        await adapter.saveData({
+            tasks: [
+                {
+                    id: 'task-legacy-recurrence',
+                    title: 'Legacy recurring task',
+                    status: 'next',
+                    tags: [],
+                    contexts: [],
+                    recurrence: 'daily',
+                    createdAt: now,
+                    updatedAt: now,
+                },
+            ],
+            projects: [],
+            sections: [],
+            areas: [],
+            settings: {},
+        });
+
+        const loaded = await adapter.getData();
+        expect(loaded.tasks[0]?.recurrence).toEqual({ rule: 'daily' });
+    });
+
     it('saves and deletes linked area, project, section, and task records without foreign key failures', async () => {
         const now = new Date().toISOString();
         const linkedData: AppData = {

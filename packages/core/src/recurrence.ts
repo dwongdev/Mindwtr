@@ -123,6 +123,66 @@ export function parseRRuleString(rrule: string): ParsedRRule {
     };
 }
 
+export function normalizeRecurrenceForLoad(value: unknown): Recurrence | undefined {
+    if (!value) return undefined;
+
+    if (typeof value === 'string') {
+        const trimmed = value.trim();
+        if (!trimmed) return undefined;
+        if (isRecurrenceRule(trimmed)) return { rule: trimmed };
+        const parsed = parseRRuleString(trimmed);
+        return parsed.rule
+            ? {
+                rule: parsed.rule,
+                ...(parsed.byDay ? { byDay: parsed.byDay } : {}),
+                ...(parsed.count ? { count: parsed.count } : {}),
+                ...(parsed.until ? { until: parsed.until } : {}),
+                rrule: trimmed,
+            }
+            : undefined;
+    }
+
+    if (typeof value !== 'object' || Array.isArray(value)) return undefined;
+
+    const recurrence = value as Partial<Recurrence>;
+    const rrule = typeof recurrence.rrule === 'string' && recurrence.rrule.trim().length > 0
+        ? recurrence.rrule.trim()
+        : undefined;
+    const parsed = rrule ? parseRRuleString(rrule) : {};
+    const rule = isRecurrenceRule(recurrence.rule) ? recurrence.rule : parsed.rule;
+    if (!rule) return undefined;
+
+    const strategy = recurrence.strategy === 'fluid' || recurrence.strategy === 'strict'
+        ? recurrence.strategy
+        : undefined;
+    const explicitByDay = Array.isArray(recurrence.byDay)
+        ? normalizeWeekdays(recurrence.byDay)
+        : undefined;
+    const byDay = explicitByDay ?? parsed.byDay;
+    const count = typeof recurrence.count === 'number' && Number.isFinite(recurrence.count) && recurrence.count > 0
+        ? Math.round(recurrence.count)
+        : parsed.count;
+    const until = typeof recurrence.until === 'string' && recurrence.until.trim().length > 0
+        ? recurrence.until
+        : parsed.until;
+    const completedOccurrences =
+        typeof recurrence.completedOccurrences === 'number'
+        && Number.isFinite(recurrence.completedOccurrences)
+        && recurrence.completedOccurrences >= 0
+            ? Math.floor(recurrence.completedOccurrences)
+            : undefined;
+
+    return {
+        rule,
+        ...(strategy ? { strategy } : {}),
+        ...(byDay ? { byDay } : {}),
+        ...(count ? { count } : {}),
+        ...(until ? { until } : {}),
+        ...(completedOccurrences !== undefined ? { completedOccurrences } : {}),
+        ...(rrule ? { rrule } : {}),
+    };
+}
+
 const normalizeWeeklyByDay = (days?: RecurrenceByDay[] | null): RecurrenceWeekday[] | undefined => {
     const normalized = normalizeWeekdays(days as string[] | null);
     if (!normalized) return undefined;
