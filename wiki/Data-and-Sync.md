@@ -422,16 +422,19 @@ Standalone DGT tasks stay in Mindwtr without forcing them into new projects, so 
 
 See [[DGT GTD Import]] for details and supported mappings.
 
-### OmniFocus CSV Import
+### OmniFocus CSV / JSON / ZIP Import
 
-Mindwtr can import OmniFocus CSV exports from **Settings → Data → Import from OmniFocus**.
+Mindwtr can import OmniFocus exports from **Settings → Data → Import from OmniFocus**.
 
 - Supports OmniFocus **CSV** exports, including UTF-8 and UTF-16 CSV files
-- Creates Mindwtr projects from OmniFocus project rows or referenced project names
+- Supports Omni Automation / Shortcuts **JSON** exports and **ZIP** archives
+- Creates Mindwtr areas from OmniFocus folders when metadata is available
+- Creates Mindwtr projects from OmniFocus projects or referenced project names
 - Keeps standalone OmniFocus actions outside projects so you can organize them later
-- Preserves supported OmniFocus notes, tags, contexts, start dates, due dates, and completion state
+- Preserves supported OmniFocus notes, tags, defer dates, due dates, completion state, and recurrence from the JSON path
+- Converts simple nested tasks into checklist items when possible and flattens deeper hierarchy with the original path preserved
 
-OmniFocus planned dates and duration text are preserved in the imported task description when Mindwtr does not have a direct field for them.
+If recurrence or hierarchy fidelity matters, prefer the Omni Automation JSON / ZIP path over CSV. Planned dates and duration text are preserved in the imported description when Mindwtr does not have a direct field for them.
 
 See [[OmniFocus Import]] for details and supported mappings.
 
