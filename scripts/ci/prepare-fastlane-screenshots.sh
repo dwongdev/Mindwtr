@@ -94,8 +94,8 @@ render_screenshot() {
   read -r target_width target_height < <(resolve_target_dimensions "${label}" "${source_width}" "${source_height}")
 
   magick "${src_path}" \
-    \( +clone -resize "${target_width}x${target_height}^" -gravity center -extent "${target_width}x${target_height}" -blur 0x32 \) \
-    \( +clone -resize "${target_width}x${target_height}" \) \
+    \( -clone 0 -resize "${target_width}x${target_height}^" -gravity center -extent "${target_width}x${target_height}" -blur 0x32 \) \
+    \( -clone 0 -resize "${target_width}x${target_height}" \) \
     -delete 0 \
     -gravity center -compose over -composite \
     -strip -colorspace sRGB \
