@@ -1,5 +1,5 @@
 import React from 'react';
-import { Modal, Platform, TextInput } from 'react-native';
+import { FlatList, Modal, Platform, TextInput } from 'react-native';
 import { act, create } from 'react-test-renderer';
 import { describe, expect, it, vi } from 'vitest';
 
@@ -131,6 +131,9 @@ describe('Quick capture modal composition', () => {
     const modals = tree.root.findAllByType(Modal);
     expect(modals).toHaveLength(1);
     expect(modals[0]?.props.visible).toBe(true);
+    expect(modals[0]?.props.accessibilityViewIsModal).toBe(true);
+    expect(tree.root.findByType(FlatList).props.accessibilityRole).toBe('list');
+    expect(tree.root.findByProps({ accessibilityRole: 'header' }).props.children).toBe('taskEdit.contextsLabel');
   });
 
   it('uses a non-sliding Android modal to avoid ghosted sheet trails', () => {
