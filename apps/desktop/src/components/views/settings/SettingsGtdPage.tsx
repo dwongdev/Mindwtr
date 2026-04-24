@@ -1,10 +1,11 @@
 import type { AppData, TaskEditorFieldId, TaskEditorSectionId } from '@mindwtr/core';
 import { sanitizePomodoroDurations, translateText } from '@mindwtr/core';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { ChevronDown, ChevronRight } from 'lucide-react';
 import { cn } from '../../../lib/utils';
 import { reportError } from '../../../lib/report-error';
+import { useUiStore } from '../../../store/ui-store';
 import type { Language } from '../../../contexts/language-context';
 import {
     DEFAULT_TASK_EDITOR_ORDER,
@@ -110,6 +111,8 @@ export function SettingsGtdPage({
     const safeSettings = settings ?? ({} as AppData['settings']);
     const [inboxOpen, setInboxOpen] = useState(false);
     const [taskEditorOpen, setTaskEditorOpen] = useState(false);
+    const showToast = useUiStore((state) => state.showToast);
+    const pomodoroAutoStartNoticeShownRef = useRef(false);
     const autoArchiveOptions = [0, 1, 3, 7, 14, 30, 60];
     const formatArchiveLabel = (days: number) => {
         if (days <= 0) return t.autoArchiveNever;
@@ -179,7 +182,16 @@ export function SettingsGtdPage({
         setPomodoroBreakDraft(String(pomodoroCustomDurations.breakMinutes));
     }, [pomodoroCustomDurations.breakMinutes, pomodoroCustomDurations.focusMinutes]);
 
-    const updatePomodoroSettings = (partial: Partial<NonNullable<NonNullable<AppData['settings']['gtd']>['pomodoro']>>) => {
+    const showPomodoroAutoStartNotice = () => {
+        if (pomodoroAutoStartNoticeShownRef.current) return;
+        pomodoroAutoStartNoticeShownRef.current = true;
+        showToast('Pomodoro will now advance phases automatically.', 'info', 5000);
+    };
+
+    const updatePomodoroSettings = (
+        partial: Partial<NonNullable<NonNullable<AppData['settings']['gtd']>['pomodoro']>>,
+        options?: { showAutoStartNotice?: boolean }
+    ) => {
         updateSettings({
             gtd: {
                 ...(safeSettings.gtd ?? {}),
@@ -188,7 +200,12 @@ export function SettingsGtdPage({
                     ...partial,
                 },
             },
-        }).then(showSaved).catch((error) => reportError('Failed to update Pomodoro settings', error));
+        }).then(() => {
+            showSaved();
+            if (options?.showAutoStartNotice) {
+                showPomodoroAutoStartNotice();
+            }
+        }).catch((error) => reportError('Failed to update Pomodoro settings', error));
     };
 
     const savePomodoroCustomDurations = (nextDurations: { focusMinutes: number; breakMinutes: number }) => {
@@ -486,7 +503,10 @@ export function SettingsGtdPage({
                                     type="button"
                                     role="switch"
                                     aria-checked={pomodoroAutoStartBreaks}
-                                    onClick={() => updatePomodoroSettings({ autoStartBreaks: !pomodoroAutoStartBreaks })}
+                                    onClick={() => updatePomodoroSettings(
+                                        { autoStartBreaks: !pomodoroAutoStartBreaks },
+                                        { showAutoStartNotice: !pomodoroAutoStartBreaks }
+                                    )}
                                     className={cn(
                                         'relative inline-flex h-5 w-9 items-center rounded-full border transition-colors',
                                         pomodoroAutoStartBreaks ? 'bg-primary border-primary' : 'bg-muted/50 border-border'
@@ -509,7 +529,10 @@ export function SettingsGtdPage({
                                     type="button"
                                     role="switch"
                                     aria-checked={pomodoroAutoStartFocus}
-                                    onClick={() => updatePomodoroSettings({ autoStartFocus: !pomodoroAutoStartFocus })}
+                                    onClick={() => updatePomodoroSettings(
+                                        { autoStartFocus: !pomodoroAutoStartFocus },
+                                        { showAutoStartNotice: !pomodoroAutoStartFocus }
+                                    )}
                                     className={cn(
                                         'relative inline-flex h-5 w-9 items-center rounded-full border transition-colors',
                                         pomodoroAutoStartFocus ? 'bg-primary border-primary' : 'bg-muted/50 border-border'

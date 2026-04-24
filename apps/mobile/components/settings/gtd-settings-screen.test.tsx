@@ -1,11 +1,12 @@
 import React from 'react';
 import renderer from 'react-test-renderer';
-import { Modal } from 'react-native';
+import { Modal, Switch } from 'react-native';
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 
 import { GtdSettingsScreen } from './gtd-settings-screen';
 
 const updateSettings = vi.fn().mockResolvedValue(undefined);
+const showToast = vi.fn();
 
 const storeState = {
   settings: {
@@ -43,6 +44,13 @@ vi.mock('@/hooks/use-theme-colors', () => ({
     text: '#f8fafc',
     secondaryText: '#94a3b8',
     tint: '#3b82f6',
+  }),
+}));
+
+vi.mock('@/contexts/toast-context', () => ({
+  useToast: () => ({
+    dismissToast: vi.fn(),
+    showToast,
   }),
 }));
 
@@ -99,6 +107,7 @@ vi.mock('@/components/task-edit/task-edit-modal.utils', () => ({
 describe('GtdSettingsScreen task editor layout', () => {
   beforeEach(() => {
     updateSettings.mockClear();
+    showToast.mockClear();
     storeState.settings = {
       gtd: {
         taskEditor: {},
@@ -146,5 +155,52 @@ describe('GtdSettingsScreen task editor layout', () => {
     });
 
     expect(tree.root.findByType(Modal).props.visible).toBe(true);
+  });
+
+  it('shows one notice when enabling Pomodoro auto-start', async () => {
+    storeState.settings = {
+      features: {
+        priorities: true,
+        timeEstimates: true,
+        pomodoro: true,
+      },
+      gtd: {
+        pomodoro: {
+          autoStartBreaks: false,
+          autoStartFocus: false,
+        },
+        taskEditor: {},
+      },
+    };
+
+    let tree!: renderer.ReactTestRenderer;
+    renderer.act(() => {
+      tree = renderer.create(<GtdSettingsScreen onNavigate={vi.fn()} screen="gtd" />);
+    });
+
+    const autoStartSwitches = tree.root.findAllByType(Switch).filter((node) => node.props.value === false);
+    expect(autoStartSwitches).toHaveLength(2);
+
+    await renderer.act(async () => {
+      autoStartSwitches[0].props.onValueChange(true);
+      await Promise.resolve();
+    });
+
+    expect(updateSettings).toHaveBeenCalledWith(expect.objectContaining({
+      gtd: expect.objectContaining({
+        pomodoro: expect.objectContaining({ autoStartBreaks: true }),
+      }),
+    }));
+    expect(showToast).toHaveBeenCalledWith(expect.objectContaining({
+      message: 'Pomodoro will now advance phases automatically.',
+      tone: 'info',
+    }));
+
+    await renderer.act(async () => {
+      autoStartSwitches[1].props.onValueChange(true);
+      await Promise.resolve();
+    });
+
+    expect(showToast).toHaveBeenCalledTimes(1);
   });
 });

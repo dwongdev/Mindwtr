@@ -19,6 +19,7 @@ import {
 } from '@/components/task-edit/task-edit-modal.utils';
 import { useThemeColors } from '@/hooks/use-theme-colors';
 import { logSettingsError } from '@/lib/settings-utils';
+import { useToast } from '@/contexts/toast-context';
 import {
     sanitizePomodoroDurations,
     tFallback,
@@ -51,6 +52,7 @@ export function GtdSettingsScreen({
     const tc = useThemeColors();
     const insets = useSafeAreaInsets();
     const { isChineseLanguage, language, localize, t } = useSettingsLocalization();
+    const { showToast } = useToast();
     const { settings, updateSettings } = useTaskStore();
     const scrollContentStyle = useSettingsScrollContent();
     const [gtdInboxProcessingExpanded, setGtdInboxProcessingExpanded] = useState(false);
@@ -86,6 +88,7 @@ export function GtdSettingsScreen({
     const pomodoroAutoStartFocus = settings.gtd?.pomodoro?.autoStartFocus === true;
     const [pomodoroFocusDraft, setPomodoroFocusDraft] = useState(String(pomodoroCustomDurations.focusMinutes));
     const [pomodoroBreakDraft, setPomodoroBreakDraft] = useState(String(pomodoroCustomDurations.breakMinutes));
+    const pomodoroAutoStartNoticeShownRef = React.useRef(false);
 
     useEffect(() => {
         if (screen !== 'gtd-task-editor') {
@@ -126,8 +129,19 @@ export function GtdSettingsScreen({
         }).catch(logSettingsError);
     };
 
+    const showPomodoroAutoStartNotice = () => {
+        if (pomodoroAutoStartNoticeShownRef.current) return;
+        pomodoroAutoStartNoticeShownRef.current = true;
+        showToast({
+            message: localize('Pomodoro will now advance phases automatically.', '番茄钟现在会自动切换阶段。'),
+            tone: 'info',
+            durationMs: 5000,
+        });
+    };
+
     const updatePomodoroSettings = (
-        partial: Partial<NonNullable<NonNullable<AppData['settings']['gtd']>['pomodoro']>>
+        partial: Partial<NonNullable<NonNullable<AppData['settings']['gtd']>['pomodoro']>>,
+        options?: { showAutoStartNotice?: boolean }
     ) => {
         updateSettings({
             gtd: {
@@ -137,6 +151,10 @@ export function GtdSettingsScreen({
                     ...partial,
                 },
             },
+        }).then(() => {
+            if (options?.showAutoStartNotice) {
+                showPomodoroAutoStartNotice();
+            }
         }).catch(logSettingsError);
     };
 
@@ -303,7 +321,10 @@ export function GtdSettingsScreen({
                                         </View>
                                         <Switch
                                             value={pomodoroAutoStartBreaks}
-                                            onValueChange={(value) => updatePomodoroSettings({ autoStartBreaks: value })}
+                                            onValueChange={(value) => updatePomodoroSettings(
+                                                { autoStartBreaks: value },
+                                                { showAutoStartNotice: value && !pomodoroAutoStartBreaks }
+                                            )}
                                             trackColor={{ false: '#767577', true: '#3B82F6' }}
                                         />
                                     </View>
@@ -314,7 +335,10 @@ export function GtdSettingsScreen({
                                         </View>
                                         <Switch
                                             value={pomodoroAutoStartFocus}
-                                            onValueChange={(value) => updatePomodoroSettings({ autoStartFocus: value })}
+                                            onValueChange={(value) => updatePomodoroSettings(
+                                                { autoStartFocus: value },
+                                                { showAutoStartNotice: value && !pomodoroAutoStartFocus }
+                                            )}
                                             trackColor={{ false: '#767577', true: '#3B82F6' }}
                                         />
                                     </View>
