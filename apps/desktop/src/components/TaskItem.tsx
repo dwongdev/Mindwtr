@@ -905,6 +905,32 @@ export const TaskItem = memo(function TaskItem({
     );
 
     const selectAriaLabel = tFallback(t, 'task.select', 'Select task');
+    const displayActions = useMemo(() => ({
+        onToggleSelect,
+        onToggleView: () => toggleTaskExpanded(task.id),
+        onEdit: startEditing,
+        onDelete: () => setShowDeleteConfirm(true),
+        onDuplicate: () => duplicateTask(task.id, false),
+        onStatusChange: handleStatusChange,
+        onMoveToWaitingWithPrompt: handleMoveToWaitingWithPrompt,
+        onOpenProject: project ? handleOpenProject : undefined,
+        openAttachment,
+        onToggleChecklistItem: handleToggleChecklistItem,
+        focusToggle: effectiveFocusToggle,
+    }), [
+        duplicateTask,
+        effectiveFocusToggle,
+        handleMoveToWaitingWithPrompt,
+        handleOpenProject,
+        handleStatusChange,
+        handleToggleChecklistItem,
+        onToggleSelect,
+        openAttachment,
+        project,
+        startEditing,
+        task.id,
+        toggleTaskExpanded,
+    ]);
 
     return (
         <>
@@ -954,19 +980,7 @@ export const TaskItem = memo(function TaskItem({
                                 projectColor={projectColor}
                                 selectionMode={selectionMode}
                                 isViewOpen={isTaskExpanded}
-                                actions={{
-                                    onToggleSelect,
-                                    onToggleView: () => toggleTaskExpanded(task.id),
-                                    onEdit: startEditing,
-                                    onDelete: () => setShowDeleteConfirm(true),
-                                    onDuplicate: () => duplicateTask(task.id, false),
-                                    onStatusChange: handleStatusChange,
-                                    onMoveToWaitingWithPrompt: handleMoveToWaitingWithPrompt,
-                                    onOpenProject: project ? handleOpenProject : undefined,
-                                    openAttachment,
-                                    onToggleChecklistItem: handleToggleChecklistItem,
-                                    focusToggle: effectiveFocusToggle,
-                                }}
+                                actions={displayActions}
                                 visibleAttachments={visibleAttachments}
                                 recurrenceRule={recurrenceRule}
                                 recurrenceStrategy={recurrenceStrategy}

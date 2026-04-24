@@ -8,7 +8,7 @@ import { MetadataBadge } from '../ui/MetadataBadge';
 import { AttachmentProgressIndicator } from '../AttachmentProgressIndicator';
 import { RichMarkdown } from '../RichMarkdown';
 import type { KeyboardEvent, MouseEvent, ReactNode } from 'react';
-import { useEffect, useRef } from 'react';
+import { memo, useEffect, useRef } from 'react';
 import { isImageAttachment } from './task-item-attachment-utils';
 import { AttachmentImage } from './AttachmentImage';
 
@@ -78,7 +78,7 @@ const formatTimeEstimate = (estimate: string) => {
     return value;
 };
 
-export function TaskItemDisplay({
+export const TaskItemDisplay = memo(function TaskItemDisplay({
     task,
     language,
     project,
@@ -731,4 +731,4 @@ export function TaskItemDisplay({
             )}
         </div>
     );
-}
+});
