@@ -81,7 +81,10 @@ export const normalizeSectionForContentComparison = (section: Section): Record<s
 export const toComparableValue = (value: unknown, options?: { includeIgnoredKeys?: boolean }): unknown => {
     const includeIgnoredKeys = options?.includeIgnoredKeys === true;
     if (Array.isArray(value)) {
-        return value.map((item) => toComparableValue(item, options));
+        const comparableArray = value
+            .map((item) => toComparableValue(item, options))
+            .filter((item) => item !== undefined && item !== null);
+        return comparableArray.length > 0 ? comparableArray : undefined;
     }
     if (value && typeof value === 'object') {
         const record = value as Record<string, unknown>;
@@ -93,7 +96,11 @@ export const toComparableValue = (value: unknown, options?: { includeIgnoredKeys
             if (comparableValue === undefined || comparableValue === null) continue;
             comparable[key] = comparableValue;
         }
-        return comparable;
+        return Object.keys(comparable).length > 0 ? comparable : undefined;
+    }
+    if (typeof value === 'string') {
+        const trimmed = value.trim();
+        return trimmed.length > 0 ? trimmed : undefined;
     }
     return value;
 };

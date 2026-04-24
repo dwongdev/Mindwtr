@@ -266,6 +266,44 @@ describe('Sync Logic', () => {
             expect(result.stats.tasks.conflicts).toBe(0);
             expect(result.stats.projects.conflicts).toBe(0);
         });
+
+        it('does not count conflicts for blank optional fields or empty collections', () => {
+            const now = '2026-04-24T00:00:00.000Z';
+            const localTask = {
+                ...createMockTask('task-blank', now),
+                rev: 4,
+                revBy: 'device-a',
+                assignedTo: '   ',
+                checklist: [],
+                description: '',
+                sectionId: '',
+            } as unknown as Task;
+            const incomingTask = {
+                ...createMockTask('task-blank', now),
+                rev: 4,
+                revBy: 'device-a',
+            } satisfies Task;
+
+            const localSection = {
+                ...createMockSection('section-blank', 'project-blank', now),
+                rev: 2,
+                revBy: 'device-a',
+                description: '   ',
+            } as unknown as Section;
+            const incomingSection = {
+                ...createMockSection('section-blank', 'project-blank', now),
+                rev: 2,
+                revBy: 'device-a',
+            } satisfies Section;
+
+            const result = mergeAppDataWithStats(
+                mockAppData([localTask], [], [localSection]),
+                mockAppData([incomingTask], [], [incomingSection])
+            );
+
+            expect(result.stats.tasks.conflicts).toBe(0);
+            expect(result.stats.sections.conflicts).toBe(0);
+        });
     });
 
     describe('appendSyncHistory', () => {
