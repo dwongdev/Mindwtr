@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { appendSyncHistory, filterDeleted, filterNotDeleted, mergeAppDataWithStats } from './sync';
+import { appendSyncHistory, filterDeleted, mergeAppDataWithStats } from './sync';
+import { filterNotDeleted } from './sync-helpers';
 import { createMockProject, createMockSection, createMockTask, mockAppData } from './sync-test-utils';
 import { AppData, Project, Section, Task } from './types';
 

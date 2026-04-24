@@ -1,7 +1,7 @@
 import { createNextRecurringTask } from './recurrence';
 import { getUsedTaskTokens } from './task-token-usage';
 import { rescheduleTask } from './task-utils';
-import { filterNotDeleted } from './soft-delete';
+import { filterNotDeleted } from './sync-helpers';
 import type { AppData, Area, Project, Section, Task, TaskStatus } from './types';
 import { generateUUID as uuidv4 } from './uuid';
 import type { DerivedState, SaveBaseState } from './store-types';

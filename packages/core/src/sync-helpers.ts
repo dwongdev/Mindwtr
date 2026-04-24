@@ -2,6 +2,14 @@ import type { AppData, Attachment } from './types';
 
 const SYNC_FILE_NAME = 'data.json';
 
+export type SoftDeletable = {
+    deletedAt?: string | null;
+};
+
+export function filterNotDeleted<T extends SoftDeletable>(items: readonly T[]): T[] {
+    return items.filter((item) => !item.deletedAt);
+}
+
 export type PendingAttachmentUpload = {
     ownerType: 'task' | 'project';
     ownerId: string;

@@ -34,7 +34,7 @@ import {
     toComparableValue,
 } from './sync-signatures';
 import { purgeExpiredTombstones } from './sync-tombstones';
-import { filterNotDeleted } from './soft-delete';
+import { filterNotDeleted } from './sync-helpers';
 
 export type {
     ClockSkewDirection,
@@ -52,7 +52,6 @@ export type {
 export { CLOCK_SKEW_THRESHOLD_MS } from './sync-types';
 export { normalizeAppData } from './sync-normalization';
 export { purgeExpiredTombstones } from './sync-tombstones';
-export { filterNotDeleted, type SoftDeletable } from './soft-delete';
 
 export const appendSyncHistory = (
     settings: AppData['settings'] | undefined,
