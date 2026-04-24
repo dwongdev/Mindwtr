@@ -1062,6 +1062,63 @@ describe('cloud server api', () => {
         }
     });
 
+    test('serializes concurrent /v1/data edits to the same task with record-level merge rules', async () => {
+        const base = {
+            projects: [],
+            sections: [],
+            areas: [],
+            settings: {},
+        };
+        const taskA = {
+            id: 'shared-task',
+            title: 'foo',
+            status: 'inbox',
+            rev: 2,
+            revBy: 'client-a',
+            createdAt: '2026-01-01T00:00:00.000Z',
+            updatedAt: '2026-01-01T00:01:00.000Z',
+        };
+        const taskB = {
+            id: 'shared-task',
+            title: 'bar',
+            status: 'inbox',
+            rev: 3,
+            revBy: 'client-b',
+            createdAt: '2026-01-01T00:00:00.000Z',
+            updatedAt: '2026-01-01T00:02:00.000Z',
+        };
+
+        const responses = await Promise.all([taskA, taskB].map((task) =>
+            fetch(`${baseUrl}/v1/data`, {
+                method: 'PUT',
+                headers: {
+                    ...authHeaders,
+                    'content-type': 'application/json',
+                },
+                body: JSON.stringify({
+                    ...base,
+                    tasks: [task],
+                }),
+            })
+        ));
+
+        for (const response of responses) {
+            expect(response.status).toBe(200);
+        }
+
+        const getResponse = await fetch(`${baseUrl}/v1/data`, {
+            headers: authHeaders,
+        });
+        expect(getResponse.status).toBe(200);
+        const data = await getResponse.json();
+        const task = (data.tasks as Array<{ id: string; title: string; rev?: number; revBy?: string }>).find(
+            (candidate) => candidate.id === 'shared-task'
+        );
+        expect(task?.title).toBe('bar');
+        expect(task?.rev).toBe(3);
+        expect(task?.revBy).toBe('client-b');
+    });
+
     test('rate limits repeated unauthorized requests per client', async () => {
         let lastStatus = 0;
         for (let attempt = 0; attempt < 40; attempt += 1) {

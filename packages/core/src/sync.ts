@@ -814,6 +814,8 @@ const withPendingRemoteWriteRetry = (data: AppData, nowIso: string): AppData => 
         ...data,
         settings: {
             ...data.settings,
+            // This path only runs after the merged snapshot was saved locally and
+            // the remote write failed, so the UI should show an error until retry clears it.
             lastSyncStatus: 'error',
             pendingRemoteWriteRetryAt: retryAt,
             pendingRemoteWriteAttempts: nextAttempts,
