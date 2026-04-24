@@ -132,7 +132,7 @@ export interface Attachment {
     /** Optional hash (e.g., SHA-256) for integrity checks. */
     fileHash?: string;
     /**
-     * Local runtime status (not synced to remote).
+     * Local availability/transfer status. Persisted locally, but not synced to remote.
      * - available: File exists at `uri`
      * - missing: Metadata exists, file not found at `uri`
      * - uploading/downloading: Transfer in progress

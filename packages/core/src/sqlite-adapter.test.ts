@@ -134,6 +134,7 @@ describeSqlite('SqliteAdapter', () => {
                             uri: '/tmp/spec.pdf',
                             createdAt: now,
                             updatedAt: now,
+                            localStatus: 'available',
                         },
                     ],
                     createdAt: now,
@@ -204,6 +205,7 @@ describeSqlite('SqliteAdapter', () => {
         });
         expect(task.checklist?.[0]?.title).toBe('Outline');
         expect(task.attachments?.[0]?.title).toBe('spec.pdf');
+        expect(task.attachments?.[0]?.localStatus).toBe('available');
         expect(task.rev).toBe(5);
         expect(task.revBy).toBe('device-desktop');
 
