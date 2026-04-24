@@ -296,7 +296,7 @@ export async function startCloudServer(options: CloudServerOptions = {}): Promis
     }
     if (trustProxyHeaders) {
         logWarn('trusting proxy IP headers for auth failure rate limiting', {
-            hint: 'enable this only behind a trusted reverse proxy that overwrites forwarded IP headers',
+            hint: 'enable this only behind a trusted reverse proxy that overwrites forwarded IP headers; untrusted X-Forwarded-For values can spoof client IPs',
         });
     }
     if (!ensureWritableDir(dataDir)) {

@@ -95,7 +95,7 @@ Optional but useful:
 Operational guidance:
 
 - Keep proxy body limits aligned with `MINDWTR_CLOUD_MAX_BODY_BYTES` and `MINDWTR_CLOUD_MAX_ATTACHMENT_BYTES`.
-- If you enable `MINDWTR_CLOUD_TRUST_PROXY_HEADERS`, do so only behind a proxy that overwrites forwarded IP headers.
+- Leave `MINDWTR_CLOUD_TRUST_PROXY_HEADERS=false` unless your reverse proxy strips or overwrites all incoming forwarded IP headers. If clients can supply `X-Forwarded-For`, they can spoof auth-failure rate-limit identities.
 - If you rotate from `MINDWTR_CLOUD_TOKEN` to `MINDWTR_CLOUD_AUTH_TOKENS`, remember that token changes also change the namespace key.
 
 ## Docker Runbook
