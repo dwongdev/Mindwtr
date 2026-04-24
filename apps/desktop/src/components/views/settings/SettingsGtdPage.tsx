@@ -1,6 +1,7 @@
 import type { AppData, TaskEditorFieldId, TaskEditorSectionId } from '@mindwtr/core';
 import { sanitizePomodoroDurations, translateText } from '@mindwtr/core';
 
+import type { ReactNode } from 'react';
 import { useEffect, useRef, useState } from 'react';
 import { ChevronDown, ChevronRight } from 'lucide-react';
 import { cn } from '../../../lib/utils';
@@ -100,6 +101,47 @@ type SettingsGtdPageProps = {
     autoArchiveDays: number;
 };
 
+type SettingsDisclosureCardProps = {
+    title: string;
+    description?: string;
+    hint?: string;
+    open: boolean;
+    onToggle: () => void;
+    children: ReactNode;
+};
+
+function SettingsDisclosureCard({
+    title,
+    description,
+    hint,
+    open,
+    onToggle,
+    children,
+}: SettingsDisclosureCardProps) {
+    return (
+        <div className="bg-card border border-border rounded-lg">
+            <button
+                type="button"
+                onClick={onToggle}
+                aria-expanded={open}
+                className="w-full p-4 flex items-center justify-between gap-4 text-left"
+            >
+                <div className="min-w-0">
+                    <div className="text-sm font-medium">{title}</div>
+                    {description ? <div className="text-xs text-muted-foreground mt-1">{description}</div> : null}
+                    {hint ? <div className="text-xs text-muted-foreground">{hint}</div> : null}
+                </div>
+                {open ? <ChevronDown className="w-4 h-4 text-muted-foreground shrink-0" /> : <ChevronRight className="w-4 h-4 text-muted-foreground shrink-0" />}
+            </button>
+            {open ? (
+                <div className="border-t border-border divide-y divide-border">
+                    {children}
+                </div>
+            ) : null}
+        </div>
+    );
+}
+
 export function SettingsGtdPage({
     t,
     language,
@@ -109,6 +151,9 @@ export function SettingsGtdPage({
     autoArchiveDays,
 }: SettingsGtdPageProps) {
     const safeSettings = settings ?? ({} as AppData['settings']);
+    const [featuresOpen, setFeaturesOpen] = useState(false);
+    const [captureOpen, setCaptureOpen] = useState(false);
+    const [reviewOpen, setReviewOpen] = useState(false);
     const [inboxOpen, setInboxOpen] = useState(false);
     const [taskEditorOpen, setTaskEditorOpen] = useState(false);
     const showToast = useUiStore((state) => state.showToast);
@@ -414,11 +459,12 @@ export function SettingsGtdPage({
                     </div>
                 </div>
             </div>
-            <div className="bg-card border border-border rounded-lg divide-y divide-border">
-                <div className="p-4">
-                    <div className="text-sm font-medium">{t.features}</div>
-                    <div className="text-xs text-muted-foreground mt-1">{t.featuresDesc}</div>
-                </div>
+            <SettingsDisclosureCard
+                title={t.features}
+                description={t.featuresDesc}
+                open={featuresOpen}
+                onToggle={() => setFeaturesOpen((prev) => !prev)}
+            >
                 <div className="p-4 flex items-center justify-between gap-6">
                     <div className="min-w-0">
                         <div className="text-sm font-medium">{t.featurePomodoro}</div>
@@ -549,13 +595,14 @@ export function SettingsGtdPage({
                         </div>
                     </div>
                 )}
-            </div>
-            <div className="bg-card border border-border rounded-lg divide-y divide-border">
+            </SettingsDisclosureCard>
+            <SettingsDisclosureCard
+                title={t.captureDefault}
+                description={t.captureDefaultDesc}
+                open={captureOpen}
+                onToggle={() => setCaptureOpen((prev) => !prev)}
+            >
                 <div className="p-4 space-y-3">
-                    <div>
-                        <div className="text-sm font-medium">{t.captureDefault}</div>
-                        <div className="text-xs text-muted-foreground mt-1">{t.captureDefaultDesc}</div>
-                    </div>
                     <div className="inline-flex rounded-lg border border-border bg-muted/40 p-1">
                         <button
                             type="button"
@@ -629,14 +676,13 @@ export function SettingsGtdPage({
                         </button>
                     </div>
                 ) : null}
-            </div>
-            <div className="bg-card border border-border rounded-lg divide-y divide-border">
-                <div className="p-4 flex items-center justify-between gap-6">
-                    <div className="min-w-0">
-                        <div className="text-sm font-medium">{t.weeklyReviewConfig}</div>
-                        <div className="text-xs text-muted-foreground mt-1">{t.weeklyReviewConfigDesc}</div>
-                    </div>
-                </div>
+            </SettingsDisclosureCard>
+            <SettingsDisclosureCard
+                title={t.weeklyReviewConfig}
+                description={t.weeklyReviewConfigDesc}
+                open={reviewOpen}
+                onToggle={() => setReviewOpen((prev) => !prev)}
+            >
                 <div className="p-4 flex items-center justify-between gap-6">
                     <div className="min-w-0">
                         <div className="text-sm font-medium">{t.weeklyReviewIncludeContextsStep}</div>
@@ -660,7 +706,7 @@ export function SettingsGtdPage({
                         />
                     </button>
                 </div>
-            </div>
+            </SettingsDisclosureCard>
             <div className="bg-card border border-border rounded-lg">
                 <button
                     type="button"
