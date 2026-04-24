@@ -2,13 +2,19 @@ import React from 'react';
 import renderer from 'react-test-renderer';
 import { Modal, Switch } from 'react-native';
 import { describe, expect, it, vi, beforeEach } from 'vitest';
+import type { AppData } from '@mindwtr/core';
 
 import { GtdSettingsScreen } from './gtd-settings-screen';
 
 const updateSettings = vi.fn().mockResolvedValue(undefined);
 const showToast = vi.fn();
 
-const storeState = {
+type MockStoreState = {
+  settings: AppData['settings'];
+  updateSettings: typeof updateSettings;
+};
+
+const storeState: MockStoreState = {
   settings: {
     gtd: {
       taskEditor: {},
