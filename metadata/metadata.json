@@ -30,7 +30,7 @@
           "完全离线可用，无需互联网连接",
           "完全开源，安全透明"
         ],
-        "ReleaseNotes": "• 桌面端新增重复任务结束条件、自定义番茄钟时长，以及 OmniFocus CSV 导入。\n• 设置页现已拆分为更清晰的 Sync 与 Data 页面，改进了对话框无障碍，并在永久清空归档或回收站前加入确认。\n• 桌面端同步更稳定：冲突与状态提示更清晰，WebDAV 缺失目录会更安全地自动创建，排队重试也会沿用最新选项。",
+        "ReleaseNotes": "• 桌面端新增任务快速操作，可通过右键或 More 按钮快速设置到期日、上下文、复制或删除。\n• OmniFocus 导入现支持 JSON/ZIP 导出，可处理文件夹、清单子任务和受支持的重复规则。\n• 番茄钟可自动进入休息或下一轮专注，桌面端会恢复全屏状态，同步在 WebDAV、Dropbox 与冲突处理上更稳定。",
         "Images": [
           {
             "FileName": "2026-01-27_22-59-40.png",
@@ -82,7 +82,7 @@
           "No internet connection required to function",
           "Open source and transparent"
         ],
-        "ReleaseNotes": "• Added recurrence end conditions, custom Pomodoro durations, and OmniFocus CSV import for desktop workflows.\n• Split Settings into clearer Sync and Data pages, improved dialog accessibility, and added confirmation before permanent archive or trash deletes.\n• Improved desktop sync with clearer conflict/status handling, safer WebDAV folder creation, and more reliable queued reruns.",
+        "ReleaseNotes": "• Added task quick actions from right-click or the More button for due dates, contexts, duplicate, and delete.\n• OmniFocus import now handles JSON and ZIP exports with folders, checklist children, and repeat rules.\n• Pomodoro can auto-start breaks or the next focus session, fullscreen state is restored on startup, and desktop sync handles WebDAV, Dropbox, and conflict edge cases more reliably.",
         "Images": [
           {
             "FileName": "2026-01-27_22-59-40.png",
@@ -130,7 +130,7 @@
           "No requiere conexión a internet para funcionar",
           "Código abierto y transparente"
         ],
-        "ReleaseNotes": "• Agregamos condiciones de fin para recurrencia, duraciones personalizadas de pomodoro e importacion CSV de OmniFocus para flujos de escritorio.\n• Separamos Settings en paginas mas claras de Sync y Data, mejoramos la accesibilidad de dialogos y agregamos confirmacion antes de borrar archivo o papelera de forma permanente.\n• El sync de escritorio ahora muestra mejor conflictos y estado, crea carpetas WebDAV faltantes con mas seguridad y reaplica colas con opciones actualizadas.",
+        "ReleaseNotes": "• Agregamos acciones rapidas de tareas desde clic derecho o el boton More para fecha, contextos, duplicar y borrar.\n• La importacion de OmniFocus ahora maneja JSON y ZIP con carpetas, checklist y reglas de repeticion.\n• Pomodoro puede iniciar descansos o el siguiente foco automaticamente, se restaura pantalla completa al abrir y el sync de escritorio maneja mejor WebDAV, Dropbox y conflictos.",
         "Images": [
           {
             "FileName": "2026-01-27_22-59-40.png",

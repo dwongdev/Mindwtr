@@ -1,3 +1,4 @@
-- Las tareas recurrentes ya pueden terminar en una fecha o despues de un numero fijo de repeticiones, con texto actualizado en todos los idiomas.
-- Capturar y editar en movil es mas estable con envio desde Done en iOS, reinicio mas seguro del editor al cerrar y listas de verificacion que se mantienen sincronizadas.
-- Sync e importacion son mas fiables con importacion CSV de OmniFocus, creacion automatica de carpetas WebDAV, conservacion de borrados de calendario y mensajes de sync mas claros.
+- La importacion de OmniFocus acepta JSON y ZIP, con carpetas como areas, tareas anidadas como checklist y reglas de repeticion compatibles.
+- Pomodoro puede iniciar descansos o el siguiente foco automaticamente, y Focus muestra tareas listas para revisar.
+- Sync es mas estable con mejor manejo WebDAV, limpieza de tombstones/conflictos y comparacion de adjuntos.
+- Los selectores de captura rapida mejoran su accesibilidad y las listas medianas se desplazan con mas fluidez.

@@ -1,3 +1,4 @@
-- Recurring tasks can now end on a date or after a set number of occurrences, with updated translated copy across the app.
-- Mobile capture and editing are steadier with iOS keyboard Done submit, safer task-edit reset on close, and checklist updates that stay in sync.
-- Sync and import are more reliable with OmniFocus CSV import, automatic WebDAV folder creation, preserved calendar deletions, and clearer localized sync feedback.
+- OmniFocus import now accepts JSON and ZIP exports, including folders as areas, nested tasks as checklist items, and supported repeat rules.
+- Pomodoro can auto-start breaks or the next focus session, and Focus now includes review-due tasks.
+- Sync is sturdier with better WebDAV collection handling, tombstone/conflict cleanup, and attachment comparison fixes.
+- Quick capture pickers gain accessibility improvements and medium task lists scroll more smoothly.
