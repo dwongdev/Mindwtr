@@ -9,6 +9,7 @@ import {
     resolveAutoTextDirection,
     safeFormatDate,
     safeParseDate,
+    tFallback,
     type Attachment,
     type MarkdownSelection,
     type MarkdownToolbarActionId,
@@ -318,7 +319,7 @@ export function TaskItemFieldRenderer({
             descriptionTextareaRef.current?.setSelectionRange(next.selection.start, next.selection.end);
         });
     };
-    const clearText = t('common.clear') === 'common.clear' ? 'Clear' : t('common.clear');
+    const clearText = tFallback(t, 'common.clear', 'Clear');
     const dateInputClassName = 'min-w-0 flex-1 text-xs bg-muted/50 border border-border rounded px-2 py-1 text-foreground';
     const timeInputClassName = 'w-24 shrink-0 text-xs bg-muted/50 border border-border rounded px-2 py-1 text-foreground';
     const renderClearButton = (label: string, onClear: () => void, isVisible: boolean) => {

@@ -21,6 +21,7 @@ import { useThemeColors } from '@/hooks/use-theme-colors';
 import { logSettingsError } from '@/lib/settings-utils';
 import {
     sanitizePomodoroDurations,
+    tFallback,
     translateText,
     type AppData,
     type TaskEditorFieldId,
@@ -653,7 +654,7 @@ export function GtdSettingsScreen({
     const hideInEditorLabel = localize('Hide from editor', '在编辑器中隐藏');
     const moveUpLabel = localize('Move up', '上移');
     const moveDownLabel = localize('Move down', '下移');
-    const doneLabel = t('common.done') === 'common.done' ? localize('Done', '完成') : t('common.done');
+    const doneLabel = tFallback(t, 'common.done', localize('Done', '完成'));
 
     const fieldLabel = (fieldId: TaskEditorFieldId) => {
         switch (fieldId) {

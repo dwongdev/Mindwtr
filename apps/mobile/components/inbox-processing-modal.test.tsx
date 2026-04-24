@@ -42,6 +42,10 @@ vi.mock('@mindwtr/core', () => {
     resolveAutoTextDirection: vi.fn(() => 'ltr'),
     safeFormatDate: vi.fn(() => 'Jan 1, 2025'),
     safeParseDate: vi.fn((value?: string) => (value ? new Date(value) : null)),
+    tFallback: vi.fn((t: (key: string) => string, key: string, fallback: string) => {
+      const translated = t(key);
+      return translated && translated !== key ? translated : fallback;
+    }),
     useTaskStore: () => storeState,
     loadAIKey: vi.fn(),
   };

@@ -5,6 +5,7 @@ import {
     hasTimeComponent,
     safeFormatDate,
     safeParseDate,
+    tFallback,
     type StoreActionResult,
     type Task,
 } from '@mindwtr/core';
@@ -84,13 +85,13 @@ export function TaskQuickActionMenu({
     const [dueTimeDraft, setDueTimeDraft] = useState(initialDueDraft.time);
     const [contextsDraft, setContextsDraft] = useState(initialContextsDraft);
     const [savingPanel, setSavingPanel] = useState<Exclude<QuickPanelId, null> | null>(null);
-    const dueLabel = t('taskEdit.dueDateLabel') === 'taskEdit.dueDateLabel' ? 'Due Date' : t('taskEdit.dueDateLabel');
-    const contextsLabel = t('taskEdit.contextsLabel') === 'taskEdit.contextsLabel' ? 'Contexts' : t('taskEdit.contextsLabel');
-    const duplicateLabel = t('projects.duplicate') === 'projects.duplicate' ? 'Duplicate' : t('projects.duplicate');
-    const deleteLabel = t('common.delete') === 'common.delete' ? 'Delete' : t('common.delete');
-    const saveLabel = t('common.save') === 'common.save' ? 'Save' : t('common.save');
-    const cancelLabel = t('common.cancel') === 'common.cancel' ? 'Cancel' : t('common.cancel');
-    const clearLabel = t('common.clear') === 'common.clear' ? 'Clear' : t('common.clear');
+    const dueLabel = tFallback(t, 'taskEdit.dueDateLabel', 'Due Date');
+    const contextsLabel = tFallback(t, 'taskEdit.contextsLabel', 'Contexts');
+    const duplicateLabel = tFallback(t, 'projects.duplicate', 'Duplicate');
+    const deleteLabel = tFallback(t, 'common.delete', 'Delete');
+    const saveLabel = tFallback(t, 'common.save', 'Save');
+    const cancelLabel = tFallback(t, 'common.cancel', 'Cancel');
+    const clearLabel = tFallback(t, 'common.clear', 'Clear');
     const normalizedInitialContexts = parseTokenInput(initialContextsDraft);
     const normalizedDraftContexts = parseTokenInput(contextsDraft);
     const dueDraftChanged = dueDateDraft !== initialDueDraft.date || dueTimeDraft !== initialDueDraft.time;

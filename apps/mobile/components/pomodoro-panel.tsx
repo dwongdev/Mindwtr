@@ -11,6 +11,7 @@ import {
   type PomodoroDurations,
   type PomodoroEvent,
   resetPomodoroState,
+  tFallback,
   useTaskStore,
 } from '@mindwtr/core';
 
@@ -171,19 +172,21 @@ export function PomodoroPanel({
   );
   const presetOptions = useMemo(() => getPomodoroPresetOptions(customDurations), [customDurations]);
 
-  const cardTitleRaw = t('pomodoro.title');
-  const cardTitle = cardTitleRaw.startsWith('pomodoro.') ? 'Pomodoro Focus' : cardTitleRaw;
-  const subtitleRaw = t('pomodoro.subtitle');
-  const subtitle = subtitleRaw.startsWith('pomodoro.') ? 'Work one task at a time.' : subtitleRaw;
-  const focusDoneRaw = t('pomodoro.focusComplete');
-  const focusDoneLabel = focusDoneRaw.startsWith('pomodoro.') ? 'Focus session complete. Take a short break.' : focusDoneRaw;
-  const breakDoneRaw = t('pomodoro.breakComplete');
-  const breakDoneLabel = breakDoneRaw.startsWith('pomodoro.') ? 'Break complete. Ready for the next focus session.' : breakDoneRaw;
-  const phaseRaw = timerState.phase === 'focus' ? t('pomodoro.phaseFocus') : t('pomodoro.phaseBreak');
-  const phaseLabel = phaseRaw.startsWith('pomodoro.') ? (timerState.phase === 'focus' ? 'Focus session' : 'Break') : phaseRaw;
-  const noTaskRaw = t('pomodoro.noTask');
-  const noTaskLabel = noTaskRaw.startsWith('pomodoro.') ? 'No available focus task' : noTaskRaw;
-  const loadingLabel = t('common.loading') === 'common.loading' ? 'Loading...' : t('common.loading');
+  const cardTitle = tFallback(t, 'pomodoro.title', 'Pomodoro Focus');
+  const subtitle = tFallback(t, 'pomodoro.subtitle', 'Work one task at a time.');
+  const focusDoneLabel = tFallback(t, 'pomodoro.focusComplete', 'Focus session complete. Take a short break.');
+  const breakDoneLabel = tFallback(t, 'pomodoro.breakComplete', 'Break complete. Ready for the next focus session.');
+  const phaseLabel = timerState.phase === 'focus'
+    ? tFallback(t, 'pomodoro.phaseFocus', 'Focus session')
+    : tFallback(t, 'pomodoro.phaseBreak', 'Break');
+  const noTaskLabel = tFallback(t, 'pomodoro.noTask', 'No available focus task');
+  const loadingLabel = tFallback(t, 'common.loading', 'Loading...');
+  const sessionsDoneLabel = tFallback(t, 'pomodoro.sessionsDone', 'Focus sessions completed');
+  const pauseLabel = tFallback(t, 'common.pause', 'Pause');
+  const startLabel = tFallback(t, 'common.start', 'Start');
+  const resetLabel = tFallback(t, 'common.reset', 'Reset');
+  const switchLabel = tFallback(t, 'pomodoro.switchPhase', 'Switch');
+  const markDoneLabel = tFallback(t, 'pomodoro.markTaskDone', 'Done');
 
   useEffect(() => {
     const previous = previousEventRef.current;
@@ -324,8 +327,7 @@ export function PomodoroPanel({
       <View style={styles.timerBox}>
         <Text style={[styles.timerText, { color: tc.text }]}>{formatPomodoroClock(timerState.remainingSeconds)}</Text>
         <Text style={[styles.sessionText, { color: tc.secondaryText }]}>
-          {(t('pomodoro.sessionsDone') === 'pomodoro.sessionsDone' ? 'Focus sessions completed' : t('pomodoro.sessionsDone'))}
-          {`: ${timerState.completedFocusSessions}`}
+          {`${sessionsDoneLabel}: ${timerState.completedFocusSessions}`}
         </Text>
       </View>
 
@@ -375,9 +377,7 @@ export function PomodoroPanel({
           ]}
         >
           <Text style={[styles.actionPrimaryText, { color: tc.onTint }]}>
-            {timerState.isRunning
-              ? (t('common.pause') === 'common.pause' ? 'Pause' : t('common.pause'))
-              : (t('common.start') === 'common.start' ? 'Start' : t('common.start'))}
+            {timerState.isRunning ? pauseLabel : startLabel}
           </Text>
         </Pressable>
         <Pressable
@@ -386,7 +386,7 @@ export function PomodoroPanel({
           style={[styles.actionSecondary, { borderColor: tc.border, backgroundColor: tc.filterBg }]}
         >
           <Text style={[styles.actionSecondaryText, { color: tc.secondaryText }]}>
-            {t('common.reset') === 'common.reset' ? 'Reset' : t('common.reset')}
+            {resetLabel}
           </Text>
         </Pressable>
         <Pressable
@@ -395,7 +395,7 @@ export function PomodoroPanel({
           style={[styles.actionSecondary, { borderColor: tc.border, backgroundColor: tc.filterBg }]}
         >
           <Text style={[styles.actionSecondaryText, { color: tc.secondaryText }]}>
-            {t('pomodoro.switchPhase') === 'pomodoro.switchPhase' ? 'Switch' : t('pomodoro.switchPhase')}
+            {switchLabel}
           </Text>
         </Pressable>
         <Pressable
@@ -411,7 +411,7 @@ export function PomodoroPanel({
           ]}
         >
           <Text style={styles.actionDoneText}>
-            {t('pomodoro.markTaskDone') === 'pomodoro.markTaskDone' ? 'Done' : t('pomodoro.markTaskDone')}
+            {markDoneLabel}
           </Text>
         </Pressable>
       </View>

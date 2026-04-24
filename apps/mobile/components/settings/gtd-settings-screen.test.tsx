@@ -25,6 +25,10 @@ vi.mock('@mindwtr/core', () => ({
     focusMinutes: Number.isFinite(value?.focusMinutes) ? Math.round(value!.focusMinutes!) : 25,
     breakMinutes: Number.isFinite(value?.breakMinutes) ? Math.round(value!.breakMinutes!) : 5,
   }),
+  tFallback: (t: (key: string) => string, key: string, fallback: string) => {
+    const translated = t(key);
+    return translated && translated !== key ? translated : fallback;
+  },
   translateText: (value: string) => value,
   useTaskStore: () => storeState,
 }));

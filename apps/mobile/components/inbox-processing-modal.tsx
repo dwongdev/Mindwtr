@@ -11,7 +11,7 @@ import {
 } from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { X } from 'lucide-react-native';
-import { safeFormatDate } from '@mindwtr/core';
+import { safeFormatDate, tFallback } from '@mindwtr/core';
 
 import { AIResponseModal } from './ai-response-modal';
 import { styles } from './inbox-processing-modal.styles';
@@ -639,10 +639,7 @@ export function InboxProcessingModal({ visible, onClose }: InboxProcessingModalP
               onPress={handleSkipTask}
             >
               <Text style={styles.skipBtn}>
-                {(() => {
-                  const translated = t('inbox.skip');
-                  return translated === 'inbox.skip' ? 'Skip' : translated;
-                })()}
+                {tFallback(t, 'inbox.skip', 'Skip')}
               </Text>
             </TouchableOpacity>
           </View>
@@ -918,9 +915,7 @@ export function InboxProcessingModal({ visible, onClose }: InboxProcessingModalP
 
               <View style={[styles.singleSection, { borderBottomColor: tc.border }]}>
                 <Text style={[styles.stepHint, { color: tc.secondaryText }]}>
-                  {t('inbox.tapNextHint') === 'inbox.tapNextHint'
-                    ? 'Tap "Next task" at the bottom to apply your choices and move on.'
-                    : t('inbox.tapNextHint')}
+                  {tFallback(t, 'inbox.tapNextHint', 'Tap "Next task" at the bottom to apply your choices and move on.')}
                 </Text>
               </View>
             </ScrollView>
@@ -936,10 +931,7 @@ export function InboxProcessingModal({ visible, onClose }: InboxProcessingModalP
                 onPress={handleNextTask}
               >
                 <Text style={styles.bottomNextButtonText}>
-                  {(() => {
-                    const translated = t('inbox.nextTask');
-                    return translated === 'inbox.nextTask' ? 'Next task →' : translated;
-                  })()}
+                  {tFallback(t, 'inbox.nextTask', 'Next task →')}
                 </Text>
               </TouchableOpacity>
             </View>

@@ -118,24 +118,17 @@ export function PomodoroPanel({ tasks }: PomodoroPanelProps) {
     );
     const presetOptions = useMemo(() => getPomodoroPresetOptions(customDurations), [customDurations]);
 
-    const phaseLabelRaw = timerState.phase === 'focus' ? t('pomodoro.phaseFocus') : t('pomodoro.phaseBreak');
-    const phaseLabel = phaseLabelRaw.startsWith('pomodoro.') ? (timerState.phase === 'focus' ? 'Focus session' : 'Break') : phaseLabelRaw;
-    const cardTitleRaw = t('pomodoro.title');
-    const cardTitle = cardTitleRaw.startsWith('pomodoro.') ? 'Pomodoro Focus' : cardTitleRaw;
-    const subtitleRaw = t('pomodoro.subtitle');
-    const subtitle = subtitleRaw.startsWith('pomodoro.') ? 'Work one task at a time.' : subtitleRaw;
-    const sessionCountRaw = t('pomodoro.sessionsDone');
-    const sessionCountLabel = sessionCountRaw.startsWith('pomodoro.') ? 'Focus sessions completed' : sessionCountRaw;
-    const switchPhaseRaw = t('pomodoro.switchPhase');
-    const switchPhaseLabel = switchPhaseRaw.startsWith('pomodoro.') ? 'Switch phase' : switchPhaseRaw;
-    const markDoneRaw = t('pomodoro.markTaskDone');
-    const markDoneLabel = markDoneRaw.startsWith('pomodoro.') ? 'Mark done' : markDoneRaw;
-    const noTaskRaw = t('pomodoro.noTask');
-    const noTaskLabel = noTaskRaw.startsWith('pomodoro.') ? 'No available focus task' : noTaskRaw;
-    const focusDoneRaw = t('pomodoro.focusComplete');
-    const focusDoneLabel = focusDoneRaw.startsWith('pomodoro.') ? 'Focus session complete. Take a short break.' : focusDoneRaw;
-    const breakDoneRaw = t('pomodoro.breakComplete');
-    const breakDoneLabel = breakDoneRaw.startsWith('pomodoro.') ? 'Break complete. Ready for the next focus session.' : breakDoneRaw;
+    const phaseLabel = timerState.phase === 'focus'
+        ? resolveText('pomodoro.phaseFocus', 'Focus session')
+        : resolveText('pomodoro.phaseBreak', 'Break');
+    const cardTitle = resolveText('pomodoro.title', 'Pomodoro Focus');
+    const subtitle = resolveText('pomodoro.subtitle', 'Work one task at a time.');
+    const sessionCountLabel = resolveText('pomodoro.sessionsDone', 'Focus sessions completed');
+    const switchPhaseLabel = resolveText('pomodoro.switchPhase', 'Switch phase');
+    const markDoneLabel = resolveText('pomodoro.markTaskDone', 'Mark done');
+    const noTaskLabel = resolveText('pomodoro.noTask', 'No available focus task');
+    const focusDoneLabel = resolveText('pomodoro.focusComplete', 'Focus session complete. Take a short break.');
+    const breakDoneLabel = resolveText('pomodoro.breakComplete', 'Break complete. Ready for the next focus session.');
 
     useEffect(() => {
         const previous = previousEventRef.current;

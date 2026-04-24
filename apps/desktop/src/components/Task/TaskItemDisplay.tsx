@@ -1,6 +1,6 @@
 import { Calendar as CalendarIcon, Tag, Trash2, ArrowRight, Repeat, Check, Clock, Timer, Paperclip, RotateCcw, Copy, MapPin, Hourglass, BookOpen, PauseCircle, Star, Zap } from 'lucide-react';
 import type { Area, Attachment, Project, Task, TaskStatus, RecurrenceRule, RecurrenceStrategy, Language } from '@mindwtr/core';
-import { DEFAULT_AREA_COLOR, getChecklistProgress, getRecurrenceCountValue, getRecurrenceUntilValue, getTaskAgeLabel, getTaskStaleness, getTaskUrgency, hasTimeComponent, safeFormatDate, resolveTaskTextDirection } from '@mindwtr/core';
+import { DEFAULT_AREA_COLOR, getChecklistProgress, getRecurrenceCountValue, getRecurrenceUntilValue, getTaskAgeLabel, getTaskStaleness, getTaskUrgency, hasTimeComponent, safeFormatDate, resolveTaskTextDirection, tFallback } from '@mindwtr/core';
 import { cn } from '../../lib/utils';
 import { getAttachmentDisplayTitle } from '../../lib/attachment-utils';
 import { getContextColor } from '../../lib/context-color';
@@ -149,17 +149,9 @@ export function TaskItemDisplay({
     const resolvedDirection = resolveTaskTextDirection(task);
     const isRtl = resolvedDirection === 'rtl';
     const hoverHintText = showHoverHint
-        ? (() => {
-            const hint = t('task.hoverHint');
-            return hint === 'task.hoverHint'
-                ? 'Click to toggle details / Double-click to edit'
-                : hint;
-        })()
+        ? tFallback(t, 'task.hoverHint', 'Click to toggle details / Double-click to edit')
         : '';
-    const moveToWaitingWithDueLabel = (() => {
-        const label = t('task.moveToWaitingWithDue');
-        return label === 'task.moveToWaitingWithDue' ? 'Move to Waiting and set due date' : label;
-    })();
+    const moveToWaitingWithDueLabel = tFallback(t, 'task.moveToWaitingWithDue', 'Move to Waiting and set due date');
     const imageAttachments = visibleAttachments.filter((attachment) => {
         if (!isImageAttachment(attachment)) return false;
         if (!attachment.uri) return false;

@@ -16,6 +16,7 @@ import {
   DEFAULT_PROJECT_COLOR,
   getTranslationsSync,
   shallow,
+  tFallback,
 } from '@mindwtr/core';
 
 import { TaskEditModal } from './task-edit-modal';
@@ -330,7 +331,7 @@ function TaskListComponent({
         items.push({
           type: 'section',
           id: 'general',
-          title: t('settings.general') === 'settings.general' ? 'General' : t('settings.general'),
+          title: tFallback(t, 'settings.general', 'General'),
           count: generalTasks.length,
           muted: true,
         });

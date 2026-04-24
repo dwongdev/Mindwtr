@@ -7,3 +7,5 @@ export function translateWithFallback(t: TranslateFn, key: string, fallback: str
     const translated = t(key);
     return translated && translated !== key ? translated : fallback;
 }
+
+export const tFallback = translateWithFallback;

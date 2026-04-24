@@ -7,6 +7,7 @@ import {
     getLocalizedWeekdayLabels,
     Project,
     generateUUID,
+    tFallback,
 } from '@mindwtr/core';
 import { cn } from '../lib/utils';
 import { useLanguage } from '../contexts/language-context';
@@ -673,11 +674,7 @@ export const TaskItem = memo(function TaskItem({
         setSelectedProjectId(projectId);
         dispatchNavigateEvent('projects');
     }, [setHighlightTask, setSelectedProjectId, task.id]);
-    const undoLabel = useMemo(() => {
-        const translated = t('common.undo');
-        if (translated === 'common.undo') return 'Undo';
-        return translated;
-    }, [t]);
+    const undoLabel = useMemo(() => tFallback(t, 'common.undo', 'Undo'), [t]);
     const closeWaitingAssignmentPrompt = useCallback(() => {
         setShowWaitingAssignmentPrompt(false);
         setWaitingTransitionMode(null);
@@ -907,10 +904,7 @@ export const TaskItem = memo(function TaskItem({
         />
     );
 
-    const selectAriaLabel = (() => {
-        const label = t('task.select');
-        return label === 'task.select' ? 'Select task' : label;
-    })();
+    const selectAriaLabel = tFallback(t, 'task.select', 'Select task');
 
     return (
         <>
