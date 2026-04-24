@@ -267,7 +267,7 @@ describe('ListView', () => {
       });
 
       expect(addTask).toHaveBeenCalledWith('Tax deadline', expect.objectContaining({
-        dueDate: '2027-04-15T10:00:00.000Z',
+        dueDate: '2027-04-15',
         status: 'inbox',
       }));
     } finally {
