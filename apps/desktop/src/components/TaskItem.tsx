@@ -820,6 +820,17 @@ export const TaskItem = memo(function TaskItem({
             y: event.clientY,
         });
     }, [isEditing, onSelect, selectionMode]);
+    const handleOpenQuickActionButton = useCallback((event: React.MouseEvent<HTMLButtonElement>) => {
+        if (selectionMode || isEditing) return;
+        event.preventDefault();
+        event.stopPropagation();
+        onSelect?.();
+        const rect = event.currentTarget.getBoundingClientRect();
+        setQuickActionMenu({
+            x: rect.left,
+            y: rect.bottom + 4,
+        });
+    }, [isEditing, onSelect, selectionMode]);
     useEffect(() => {
         if (!isEditing) return;
         const handleGlobalCancel = (event: Event) => {
@@ -912,6 +923,7 @@ export const TaskItem = memo(function TaskItem({
         onDelete: () => setShowDeleteConfirm(true),
         onDuplicate: () => duplicateTask(task.id, false),
         onStatusChange: handleStatusChange,
+        onOpenQuickActions: handleOpenQuickActionButton,
         onMoveToWaitingWithPrompt: handleMoveToWaitingWithPrompt,
         onOpenProject: project ? handleOpenProject : undefined,
         openAttachment,
@@ -922,6 +934,7 @@ export const TaskItem = memo(function TaskItem({
         effectiveFocusToggle,
         handleMoveToWaitingWithPrompt,
         handleOpenProject,
+        handleOpenQuickActionButton,
         handleStatusChange,
         handleToggleChecklistItem,
         onToggleSelect,

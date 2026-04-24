@@ -1,4 +1,4 @@
-import { Calendar as CalendarIcon, Tag, Trash2, ArrowRight, Repeat, Check, Clock, Timer, Paperclip, RotateCcw, Copy, MapPin, Hourglass, BookOpen, PauseCircle, Star, Zap } from 'lucide-react';
+import { Calendar as CalendarIcon, Tag, Trash2, ArrowRight, Repeat, Check, Clock, Timer, Paperclip, RotateCcw, Copy, MapPin, Hourglass, BookOpen, PauseCircle, Star, Zap, MoreHorizontal } from 'lucide-react';
 import type { Area, Attachment, Project, Task, TaskStatus, RecurrenceRule, RecurrenceStrategy, Language } from '@mindwtr/core';
 import { DEFAULT_AREA_COLOR, getChecklistProgress, getRecurrenceCountValue, getRecurrenceUntilValue, getTaskAgeLabel, getTaskStaleness, getTaskUrgency, hasTimeComponent, safeFormatDate, resolveTaskTextDirection, tFallback } from '@mindwtr/core';
 import { cn } from '../../lib/utils';
@@ -19,6 +19,7 @@ interface TaskItemDisplayActions {
     onDelete: () => void;
     onDuplicate: () => void;
     onStatusChange: (status: TaskStatus) => void;
+    onOpenQuickActions?: (event: MouseEvent<HTMLButtonElement>) => void;
     onMoveToWaitingWithPrompt?: () => void;
     onOpenProject?: (projectId: string) => void;
     openAttachment: (attachment: Attachment) => void;
@@ -111,6 +112,7 @@ export const TaskItemDisplay = memo(function TaskItemDisplay({
         onDelete,
         onDuplicate,
         onStatusChange,
+        onOpenQuickActions,
         onMoveToWaitingWithPrompt,
         onOpenProject,
         openAttachment,
@@ -151,6 +153,7 @@ export const TaskItemDisplay = memo(function TaskItemDisplay({
     const hoverHintText = showHoverHint
         ? tFallback(t, 'task.hoverHint', 'Click to toggle details / Double-click to edit')
         : '';
+    const moreOptionsLabel = tFallback(t, 'taskEdit.moreOptions', 'More options');
     const moveToWaitingWithDueLabel = tFallback(t, 'task.moveToWaitingWithDue', 'Move to Waiting and set due date');
     const imageAttachments = visibleAttachments.filter((attachment) => {
         if (!isImageAttachment(attachment)) return false;
@@ -646,6 +649,17 @@ export const TaskItemDisplay = memo(function TaskItemDisplay({
                             )}
                         >
                             <Star className={cn("w-4 h-4", focusToggle.isFocused && "fill-current")} />
+                        </button>
+                    )}
+                    {onOpenQuickActions && (
+                        <button
+                            type="button"
+                            onClick={onOpenQuickActions}
+                            aria-label={moreOptionsLabel}
+                            title={moreOptionsLabel}
+                            className="opacity-0 group-hover:opacity-100 focus:opacity-100 transition-opacity text-muted-foreground hover:text-foreground p-1 rounded hover:bg-muted/50"
+                        >
+                            <MoreHorizontal className="w-4 h-4" />
                         </button>
                     )}
                     {readOnly ? (

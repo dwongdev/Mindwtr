@@ -92,6 +92,7 @@ export function TaskQuickActionMenu({
     const saveLabel = tFallback(t, 'common.save', 'Save');
     const cancelLabel = tFallback(t, 'common.cancel', 'Cancel');
     const clearLabel = tFallback(t, 'common.clear', 'Clear');
+    const moreOptionsLabel = tFallback(t, 'taskEdit.moreOptions', 'More options');
     const normalizedInitialContexts = parseTokenInput(initialContextsDraft);
     const normalizedDraftContexts = parseTokenInput(contextsDraft);
     const dueDraftChanged = dueDateDraft !== initialDueDraft.date || dueTimeDraft !== initialDueDraft.time;
@@ -254,6 +255,9 @@ export function TaskQuickActionMenu({
         <button
             ref={ref}
             type="button"
+            role="menuitem"
+            aria-pressed={showChevron ? active : undefined}
+            aria-expanded={showChevron ? active : undefined}
             onClick={onClick}
             className={cn(
                 'flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-sm transition-colors',
@@ -270,6 +274,8 @@ export function TaskQuickActionMenu({
         <>
                 <div
                     ref={menuRef}
+                    role="menu"
+                    aria-label={moreOptionsLabel}
                     className="fixed z-50 w-56 rounded-lg border border-border bg-popover p-1 text-popover-foreground shadow-xl"
                     style={{ top: menuPosition.top, left: menuPosition.left }}
                     onContextMenu={(event) => event.preventDefault()}
@@ -312,6 +318,8 @@ export function TaskQuickActionMenu({
             {activePanel && (
                 <div
                     ref={panelRef}
+                    role="dialog"
+                    aria-label={activePanel === 'dueDate' ? dueLabel : contextsLabel}
                     className="fixed z-50 w-[min(22rem,calc(100vw-1rem))] rounded-lg border border-border bg-popover p-3 text-popover-foreground shadow-xl"
                     style={{
                         top: panelPosition?.top ?? menuPosition.top,

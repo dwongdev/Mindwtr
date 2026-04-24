@@ -119,17 +119,35 @@ describe('TaskItem', () => {
             fireEvent.contextMenu(row!);
         });
 
-        expect(getByRole('button', { name: /due date/i })).toBeInTheDocument();
-        expect(getByRole('button', { name: /contexts/i })).toBeInTheDocument();
-        expect(getByRole('button', { name: /duplicate/i })).toBeInTheDocument();
+        expect(getByRole('menu', { name: /more options/i })).toBeInTheDocument();
+        expect(getByRole('menuitem', { name: /due date/i })).toBeInTheDocument();
+        expect(getByRole('menuitem', { name: /contexts/i })).toBeInTheDocument();
+        expect(getByRole('menuitem', { name: /duplicate/i })).toBeInTheDocument();
         expect(getByText('Delete')).toBeInTheDocument();
 
         act(() => {
             fireEvent.mouseDown(document.body);
         });
         await waitFor(() => {
-            expect(queryByRole('button', { name: /duplicate/i })).toBeNull();
+            expect(queryByRole('menuitem', { name: /duplicate/i })).toBeNull();
         });
+    });
+
+    it('opens the task quick actions menu from the visible affordance button', () => {
+        const menuTask: Task = {
+            ...mockTask,
+            id: 'quick-actions-button-task',
+        };
+        const { getByRole } = render(
+            <LanguageProvider>
+                <TaskItem task={menuTask} />
+            </LanguageProvider>
+        );
+
+        fireEvent.click(getByRole('button', { name: /more options/i }));
+
+        expect(getByRole('menu', { name: /more options/i })).toBeInTheDocument();
+        expect(getByRole('menuitem', { name: /duplicate/i })).toBeInTheDocument();
     });
 
     it('updates due date from the task quick actions menu', async () => {
@@ -156,8 +174,8 @@ describe('TaskItem', () => {
         const row = container.querySelector('[data-task-id="quick-due-task"]');
         expect(row).toBeTruthy();
         fireEvent.contextMenu(row!);
-        fireEvent.click(getByRole('button', { name: /due date/i }));
-        fireEvent.change(getByLabelText('Due Date'), { target: { value: '2026-05-01' } });
+        fireEvent.click(getByRole('menuitem', { name: /due date/i }));
+        fireEvent.change(getByLabelText('Due Date', { selector: 'input' }), { target: { value: '2026-05-01' } });
         fireEvent.click(getByRole('button', { name: 'Save' }));
 
         await waitFor(() => {
@@ -190,8 +208,8 @@ describe('TaskItem', () => {
         const row = container.querySelector('[data-task-id="quick-context-task"]');
         expect(row).toBeTruthy();
         fireEvent.contextMenu(row!);
-        fireEvent.click(getByRole('button', { name: /contexts/i }));
-        fireEvent.change(getByLabelText('Contexts'), { target: { value: '@office, @errands' } });
+        fireEvent.click(getByRole('menuitem', { name: /contexts/i }));
+        fireEvent.change(getByLabelText('Contexts', { selector: 'input' }), { target: { value: '@office, @errands' } });
         fireEvent.click(getByRole('button', { name: 'Save' }));
 
         await waitFor(() => {
