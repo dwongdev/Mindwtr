@@ -27,9 +27,9 @@ export const en: Record<string, string> = {
         'nav.sectionArchive': 'Archive',
 
         // Quick Add
-        'quickAdd.help': 'Quick add supports /start:<when>, /due:<when>, /review:<when>, /note:<text>, /next, /area:<name> or !Area, @context, #tag, +Project.',
+        'quickAdd.help': 'Quick add supports /start:<when>, /due:<when>, /review:<when>, /note:<text>, /next, /area:<name> or !Area, @context, #tag, +Project. Due dates stay date-only unless you include a time.',
         'quickAdd.example': 'Example: Call mom /start:tomorrow /due:tomorrow 5pm @phone #family',
-        'quickAdd.placeholder': 'Add a task… use @context +Project #tag /start:tomorrow /due:tomorrow',
+        'quickAdd.placeholder': 'Add a task… use @context +Project #tag /due:tomorrow or /due:tomorrow 5pm',
         'quickAdd.addAnother': 'Add another',
         'quickAdd.inputLabel': 'Task title',
         'quickAdd.inputHint': 'Type a task title, then press add or the return key.',
