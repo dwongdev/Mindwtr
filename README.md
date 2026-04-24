@@ -136,7 +136,7 @@ _Don't show me a cockpit when I just want to ride a bike._
 
 ### Productivity Features
 
-- 🔍 **Global Search** - Search operators (status:, context:, due:<=7d)
+- 🔍 **Global Search** - Search operators (status:, context:, assigned:, due:<=7d)
 - 📦 **Bulk Actions** - Multi-select, batch move/tag/delete
 - 📎 **Attachments** - Files and links on tasks
 - ✏️ **Markdown Notes** - Rich text descriptions with preview

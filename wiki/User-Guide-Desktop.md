@@ -170,18 +170,19 @@ Powerful search with operators to find anything instantly.
 
 #### Search Operators
 
-| Operator   | Example            | Description                   |
-| ---------- | ------------------ | ----------------------------- |
-| `status:`  | `status:next`      | Filter by task status         |
-| `-status:` | `-status:done`     | Exclude a status              |
-| `context:` | `context:@home`    | Filter by context             |
-| `tag:`     | `tag:#focused`     | Filter by tag                 |
-| `project:` | `project:HomeReno` | Filter by project name or ID  |
-| `due:`     | `due:today`        | Tasks due on date             |
-| `due:<=`   | `due:<=7d`         | Tasks due within 7 days       |
-| `start:`   | `start:>=tomorrow` | Tasks starting from date      |
-| `created:` | `created:>=30d`    | Tasks created in last 30 days |
-| `OR`       | `@home OR @work`   | Match either condition        |
+| Operator    | Example            | Description                   |
+| ----------- | ------------------ | ----------------------------- |
+| `status:`   | `status:next`      | Filter by task status         |
+| `-status:`  | `-status:done`     | Exclude a status              |
+| `context:`  | `context:@home`    | Filter by context             |
+| `tag:`      | `tag:#focused`     | Filter by tag                 |
+| `assigned:` | `assigned:Tom`     | Filter by delegated assignee  |
+| `project:`  | `project:HomeReno` | Filter by project name or ID  |
+| `due:`      | `due:today`        | Tasks due on date             |
+| `due:<=`    | `due:<=7d`         | Tasks due within 7 days       |
+| `start:`    | `start:>=tomorrow` | Tasks starting from date      |
+| `created:`  | `created:>=30d`    | Tasks created in last 30 days |
+| `OR`        | `@home OR @work`   | Match either condition        |
 
 **Date formats:** `today`, `tomorrow`, `7d` (7 days), `2w` (2 weeks), `1m` (1 month), `2025-01-15`
 

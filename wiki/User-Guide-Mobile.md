@@ -48,16 +48,17 @@ Tap the **search icon** in the header to open Global Search.
 
 Use operators for powerful filtering:
 
-| Operator   | Example            | Description             |
-| ---------- | ------------------ | ----------------------- |
-| `status:`  | `status:next`      | Filter by task status   |
-| `-status:` | `-status:done`     | Exclude a status        |
-| `context:` | `context:@home`    | Filter by context       |
-| `tag:`     | `tag:#focused`     | Filter by tag           |
-| `project:` | `project:HomeReno` | Filter by project       |
-| `due:`     | `due:today`        | Tasks due on date       |
-| `due:<=`   | `due:<=7d`         | Tasks due within 7 days |
-| `OR`       | `@home OR @work`   | Match either condition  |
+| Operator    | Example            | Description             |
+| ----------- | ------------------ | ----------------------- |
+| `status:`   | `status:next`      | Filter by task status   |
+| `-status:`  | `-status:done`     | Exclude a status        |
+| `context:`  | `context:@home`    | Filter by context       |
+| `tag:`      | `tag:#focused`     | Filter by tag           |
+| `assigned:` | `assigned:Tom`     | Filter by assignee      |
+| `project:`  | `project:HomeReno` | Filter by project       |
+| `due:`      | `due:today`        | Tasks due on date       |
+| `due:<=`    | `due:<=7d`         | Tasks due within 7 days |
+| `OR`        | `@home OR @work`   | Match either condition  |
 
 ### Saved Searches
 
