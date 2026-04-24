@@ -86,25 +86,34 @@ render_screenshot() {
   local target_height=""
 
   if ! read -r source_width source_height < <(read_dimensions "${src_path}"); then
-    echo "::warning::Unable to determine screenshot dimensions for ${src_path}; copying without resize."
-    cp "${src_path}" "${dest_path}"
-    return
+    echo "::error::Unable to determine screenshot dimensions for ${src_path}." >&2
+    exit 1
   fi
 
   read -r target_width target_height < <(resolve_target_dimensions "${label}" "${source_width}" "${source_height}")
 
   if [ "${source_width}" -eq "${target_width}" ] && [ "${source_height}" -eq "${target_height}" ]; then
     cp "${src_path}" "${dest_path}"
-    return
+  else
+    magick "${src_path}" \
+      \( -clone 0 -resize "${target_width}x${target_height}^" -gravity center -extent "${target_width}x${target_height}" -blur 0x32 \) \
+      \( -clone 0 -resize "${target_width}x${target_height}" \) \
+      -delete 0 \
+      -gravity center -compose over -composite \
+      -strip -colorspace sRGB \
+      "${dest_path}"
   fi
 
-  magick "${src_path}" \
-    \( -clone 0 -resize "${target_width}x${target_height}^" -gravity center -extent "${target_width}x${target_height}" -blur 0x32 \) \
-    \( -clone 0 -resize "${target_width}x${target_height}" \) \
-    -delete 0 \
-    -gravity center -compose over -composite \
-    -strip -colorspace sRGB \
-    "${dest_path}"
+  local rendered_width=""
+  local rendered_height=""
+  if ! read -r rendered_width rendered_height < <(read_dimensions "${dest_path}"); then
+    echo "::error::Unable to determine rendered screenshot dimensions for ${dest_path}." >&2
+    exit 1
+  fi
+  if [ "${rendered_width}" -ne "${target_width}" ] || [ "${rendered_height}" -ne "${target_height}" ]; then
+    echo "::error file=${dest_path}::Rendered ${label} screenshot is ${rendered_width}x${rendered_height}; expected ${target_width}x${target_height}." >&2
+    exit 1
+  fi
 }
 
 copy_group() {
