@@ -34,86 +34,72 @@ if [ "${#LOCALES[@]}" -eq 0 ]; then
 fi
 
 had_files=0
-warned_paths=$'\n'
 
-is_supported_ios_iphone_size() {
-  case "$1" in
-    1260x2736|2736x1260|1290x2796|2796x1290|1320x2868|2868x1320|1284x2778|2778x1284|1242x2688|2688x1242|1179x2556|2556x1179|1206x2622|2622x1206|1170x2532|2532x1170|1125x2436|2436x1125|1080x2340|2340x1080|1242x2208|2208x1242|750x1334|1334x750|640x1096|1096x640|640x1136|1136x640|640x920|920x640|640x960|960x640)
-      return 0
-      ;;
-    *)
-      return 1
-      ;;
-  esac
-}
-
-is_supported_ios_ipad_size() {
-  case "$1" in
-    2064x2752|2752x2064|2048x2732|2732x2048|1488x2266|2266x1488|1668x2420|2420x1668|1668x2388|2388x1668|1640x2360|2360x1640|1668x2224|2224x1668|1536x2008|2008x1536|1536x2048|2048x1536|768x1004|1004x768|768x1024|1024x768)
-      return 0
-      ;;
-    *)
-      return 1
-      ;;
-  esac
-}
-
-is_supported_macos_size() {
-  case "$1" in
-    1280x800|1440x900|2560x1600|2880x1800)
-      return 0
-      ;;
-    *)
-      return 1
-      ;;
-  esac
-}
-
-warn_if_unrecognized_dimensions() {
+read_dimensions() {
   local path="$1"
-  local label="$2"
   local info=""
-  local size=""
-
   info="$(file -b "${path}" 2>/dev/null || true)"
   if [[ "${info}" =~ ([0-9]+)\ x\ ([0-9]+) ]]; then
-    size="${BASH_REMATCH[1]}x${BASH_REMATCH[2]}"
+    printf '%s %s\n' "${BASH_REMATCH[1]}" "${BASH_REMATCH[2]}"
+    return 0
   fi
+  return 1
+}
 
-  if [ -z "${size}" ]; then
-    echo "::warning::Unable to determine screenshot dimensions for ${path}; App Store Connect may reject the asset."
-    return
-  fi
+resolve_target_dimensions() {
+  local label="$1"
+  local source_width="$2"
+  local source_height="$3"
 
   case "${PLATFORM}:${label}" in
     ios:iPhone)
-      if ! is_supported_ios_iphone_size "${size}"; then
-        case "${warned_paths}" in
-          *$'\n'"${path}"$'\n'*) return ;;
-        esac
-        warned_paths="${warned_paths}${path}"$'\n'
-        echo "::warning::${path} uses ${size}, which is not one of Apple's accepted iPhone App Store screenshot sizes."
+      if [ "${source_width}" -ge "${source_height}" ]; then
+        echo "2796 1290"
+      else
+        echo "1290 2796"
       fi
       ;;
     ios:iPad)
-      if ! is_supported_ios_ipad_size "${size}"; then
-        case "${warned_paths}" in
-          *$'\n'"${path}"$'\n'*) return ;;
-        esac
-        warned_paths="${warned_paths}${path}"$'\n'
-        echo "::warning::${path} uses ${size}, which is not one of Apple's accepted iPad App Store screenshot sizes."
+      if [ "${source_width}" -ge "${source_height}" ]; then
+        echo "2752 2064"
+      else
+        echo "2064 2752"
       fi
       ;;
     macos:macOS)
-      if ! is_supported_macos_size "${size}"; then
-        case "${warned_paths}" in
-          *$'\n'"${path}"$'\n'*) return ;;
-        esac
-        warned_paths="${warned_paths}${path}"$'\n'
-        echo "::warning::${path} uses ${size}, which is not one of Apple's accepted Mac App Store screenshot sizes."
-      fi
+      echo "1440 900"
+      ;;
+    *)
+      echo "Unsupported screenshot target: ${PLATFORM}:${label}" >&2
+      exit 1
       ;;
   esac
+}
+
+render_screenshot() {
+  local src_path="$1"
+  local dest_path="$2"
+  local label="$3"
+  local source_width=""
+  local source_height=""
+  local target_width=""
+  local target_height=""
+
+  if ! read -r source_width source_height < <(read_dimensions "${src_path}"); then
+    echo "::warning::Unable to determine screenshot dimensions for ${src_path}; copying without resize."
+    cp "${src_path}" "${dest_path}"
+    return
+  fi
+
+  read -r target_width target_height < <(resolve_target_dimensions "${label}" "${source_width}" "${source_height}")
+
+  magick "${src_path}" \
+    \( +clone -resize "${target_width}x${target_height}^" -gravity center -extent "${target_width}x${target_height}" -blur 0x32 \) \
+    \( +clone -resize "${target_width}x${target_height}" \) \
+    -delete 0 \
+    -gravity center -compose over -composite \
+    -strip -colorspace sRGB \
+    "${dest_path}"
 }
 
 copy_group() {
@@ -143,14 +129,11 @@ copy_group() {
   for file in "${files[@]}"; do
     local base_name
     local stem
-    local ext
     local ordinal
     base_name="$(basename "${file}")"
     stem="${base_name%.*}"
-    ext="${base_name##*.}"
-    warn_if_unrecognized_dimensions "${file}" "${label}"
     printf -v ordinal '%02d' "${index}"
-    cp "${file}" "${dest_dir}/${prefix}-${ordinal}-${stem}.${ext}"
+    render_screenshot "${file}" "${dest_dir}/${prefix}-${ordinal}-${stem}.png" "${label}"
     index=$((index + 1))
     had_files=1
   done
