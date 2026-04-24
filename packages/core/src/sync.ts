@@ -621,7 +621,6 @@ export function mergeAppDataWithStats(local: AppData, incoming: AppData): MergeR
                 return winner;
             }
 
-            const winnerIsIncoming = winner === incomingAttachment;
             const winnerHasUri = hasAvailableUri(winner);
             const localHasUri = hasAvailableUri(localAttachment);
             const incomingHasUri = hasAvailableUri(incomingAttachment);
