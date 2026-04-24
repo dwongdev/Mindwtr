@@ -18,6 +18,11 @@ on:
         required: false
         type: string
         default: 'external_testing'
+      skip_screenshots:
+        description: Skip App Store screenshot upload
+        required: false
+        type: boolean
+        default: false
   workflow_dispatch:
     inputs:
       upload:
@@ -35,6 +40,11 @@ on:
         required: false
         type: string
         default: 'external_testing'
+      skip_screenshots:
+        description: Skip App Store screenshot upload
+        required: false
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -512,7 +522,7 @@ jobs:
           echo "FASTLANE_METADATA_PATH=$FASTLANE_METADATA_DIR" >> "$GITHUB_ENV"
 
       - name: Prepare Fastlane screenshots
-        if: ${{ inputs.upload }}
+        if: ${{ inputs.upload && !inputs.skip_screenshots }}
         run: |
           set -euo pipefail
           export FASTLANE_SCREENSHOTS_DIR="$RUNNER_TEMP/fastlane_screenshots"
@@ -525,6 +535,12 @@ jobs:
             echo "FASTLANE_SCREENSHOTS_PATH=" >> "$GITHUB_ENV"
             echo "SKIP_SCREENSHOTS_FOR_UPLOAD=true" >> "$GITHUB_ENV"
           fi
+
+      - name: Skip Fastlane screenshots
+        if: ${{ inputs.upload && inputs.skip_screenshots }}
+        run: |
+          echo "FASTLANE_SCREENSHOTS_PATH=" >> "$GITHUB_ENV"
+          echo "SKIP_SCREENSHOTS_FOR_UPLOAD=true" >> "$GITHUB_ENV"
 
       - name: Resolve App Store review submission flag
         if: ${{ inputs.upload }}
