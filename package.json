@@ -71,6 +71,7 @@
     "mobile:ios": "bun run --filter mobile ios",
     "mobile:startup:bench": "bash apps/mobile/scripts/android_startup_benchmark.sh",
     "test:e2e": "playwright test",
+    "i18n:check": "bun run scripts/i18n-locale-parity.ts --check",
     "mindwtr:cli": "bun run scripts/mindwtr-cli.ts --",
     "mindwtr:api": "bun run scripts/mindwtr-api.ts --",
     "mindwtr:mcp": "bun run --filter mindwtr-mcp-server dev --",

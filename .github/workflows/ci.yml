@@ -43,6 +43,9 @@ jobs:
       - name: TypeScript check
         run: cd packages/core && bun run tsc --noEmit
 
+      - name: Locale parity check
+        run: bun run i18n:check
+
       - name: Run unit tests
         run: bun run --filter @mindwtr/core test -- --coverage
 
