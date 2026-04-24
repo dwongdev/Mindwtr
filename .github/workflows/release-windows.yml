@@ -333,13 +333,15 @@ jobs:
           MS_CLIENT_ID: ${{ secrets.MS_CLIENT_ID }}
           MS_CLIENT_SECRET: ${{ secrets.MS_CLIENT_SECRET }}
           MS_STORE_APP_ID: ${{ secrets.MS_STORE_APP_ID || '9N0V5B0B6FRX' }}
+          APP_VERSION: ${{ steps.version.outputs.version }}
+          MSIX_VERSION: ${{ steps.version.outputs.msix_version }}
         run: |
           Set-StrictMode -Version Latest
           $ErrorActionPreference = 'Stop'
 
-          $msixPath = (Resolve-Path "mindwtr_${{ steps.version.outputs.version }}_x64.msix").Path
+          $msixPath = (Resolve-Path "mindwtr_$($env:APP_VERSION)_x64.msix").Path
           $msixFileName = [System.IO.Path]::GetFileName($msixPath)
-          $msixVersion = "${{ steps.version.outputs.msix_version }}"
+          $msixVersion = $env:MSIX_VERSION
 
           $isStoreBusy = {
             param([string]$text)
