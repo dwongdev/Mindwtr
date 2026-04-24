@@ -8,9 +8,15 @@ from pathlib import Path
 DEFAULT_LANGUAGE = "en-US"
 ALLOWED_EXTENSIONS = {".png", ".jpg", ".jpeg"}
 TYPE_ALIASES = {
+    "phone": ("phoneScreenshots",),
+    "phones": ("phoneScreenshots",),
     "phonescreenshots": "phoneScreenshots",
     "phone-screenshots": "phoneScreenshots",
     "phone_screenshots": "phoneScreenshots",
+    "pad": ("sevenInchScreenshots", "tenInchScreenshots"),
+    "pads": ("sevenInchScreenshots", "tenInchScreenshots"),
+    "tablet": ("sevenInchScreenshots", "tenInchScreenshots"),
+    "tablets": ("sevenInchScreenshots", "tenInchScreenshots"),
     "seveninchscreenshots": "sevenInchScreenshots",
     "seven-inch-screenshots": "sevenInchScreenshots",
     "seven_inch_screenshots": "sevenInchScreenshots",
@@ -33,8 +39,13 @@ TYPE_ALIASES = {
 }
 
 
-def normalize_image_type(name: str) -> str | None:
-    return TYPE_ALIASES.get(name.strip().lower())
+def normalize_image_types(name: str) -> tuple[str, ...]:
+    image_types = TYPE_ALIASES.get(name.strip().lower())
+    if image_types is None:
+        return ()
+    if isinstance(image_types, str):
+        return (image_types,)
+    return image_types
 
 
 def image_files(path: Path) -> list[Path]:
@@ -67,9 +78,11 @@ def collect_assets(root: Path) -> list[dict[str, str]]:
         add_assets(assets, DEFAULT_LANGUAGE, "phoneScreenshots", direct_root_files)
 
     for child in sorted(path for path in root.iterdir() if path.is_dir()):
-        root_image_type = normalize_image_type(child.name)
-        if root_image_type:
-            add_assets(assets, DEFAULT_LANGUAGE, root_image_type, image_files(child))
+        root_image_types = normalize_image_types(child.name)
+        if root_image_types:
+            files = image_files(child)
+            for root_image_type in root_image_types:
+                add_assets(assets, DEFAULT_LANGUAGE, root_image_type, files)
             continue
 
         locale = child.name
@@ -78,9 +91,11 @@ def collect_assets(root: Path) -> list[dict[str, str]]:
             add_assets(assets, locale, "phoneScreenshots", locale_root_files)
 
         for grandchild in sorted(path for path in child.iterdir() if path.is_dir()):
-            image_type = normalize_image_type(grandchild.name)
-            if image_type:
-                add_assets(assets, locale, image_type, image_files(grandchild))
+            image_types = normalize_image_types(grandchild.name)
+            if image_types:
+                files = image_files(grandchild)
+                for image_type in image_types:
+                    add_assets(assets, locale, image_type, files)
 
     return assets
 
