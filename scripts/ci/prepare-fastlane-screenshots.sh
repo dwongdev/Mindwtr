@@ -22,11 +22,16 @@ fi
 rm -rf "${FASTLANE_SCREENSHOTS_DIR}"
 mkdir -p "${FASTLANE_SCREENSHOTS_DIR}"
 
-mapfile -t LOCALES < <(
-  find "${FASTLANE_METADATA_PATH}" -mindepth 1 -maxdepth 1 -type d -printf '%f\n' \
-    | sort \
-    | grep -Ev '^(review_information|trade_representative_contact_information)$' || true
-)
+LOCALES=()
+while IFS= read -r locale_path; do
+  locale_name="$(basename "${locale_path}")"
+  case "${locale_name}" in
+    review_information|trade_representative_contact_information)
+      continue
+      ;;
+  esac
+  LOCALES+=("${locale_name}")
+done < <(find "${FASTLANE_METADATA_PATH}" -mindepth 1 -maxdepth 1 -type d | sort)
 
 if [ "${#LOCALES[@]}" -eq 0 ]; then
   echo "No fastlane locales found under ${FASTLANE_METADATA_PATH}; skipping screenshot preparation." >&2
@@ -76,7 +81,7 @@ resolve_target_dimensions() {
   esac
 }
 
-render_screenshot() {
+copy_screenshot() {
   local src_path="$1"
   local dest_path="$2"
   local label="$3"
@@ -92,28 +97,12 @@ render_screenshot() {
 
   read -r target_width target_height < <(resolve_target_dimensions "${label}" "${source_width}" "${source_height}")
 
-  if [ "${source_width}" -eq "${target_width}" ] && [ "${source_height}" -eq "${target_height}" ]; then
-    cp "${src_path}" "${dest_path}"
-  else
-    magick "${src_path}" \
-      \( -clone 0 -resize "${target_width}x${target_height}^" -gravity center -extent "${target_width}x${target_height}" -blur 0x32 \) \
-      \( -clone 0 -resize "${target_width}x${target_height}" \) \
-      -delete 0 \
-      -gravity center -compose over -composite \
-      -strip -colorspace sRGB \
-      "${dest_path}"
+  if [ "${source_width}" -ne "${target_width}" ] || [ "${source_height}" -ne "${target_height}" ]; then
+    echo "::error file=${src_path}::${label} screenshot is ${source_width}x${source_height}; expected ${target_width}x${target_height}." >&2
+    exit 1
   fi
 
-  local rendered_width=""
-  local rendered_height=""
-  if ! read -r rendered_width rendered_height < <(read_dimensions "${dest_path}"); then
-    echo "::error::Unable to determine rendered screenshot dimensions for ${dest_path}." >&2
-    exit 1
-  fi
-  if [ "${rendered_width}" -ne "${target_width}" ] || [ "${rendered_height}" -ne "${target_height}" ]; then
-    echo "::error file=${dest_path}::Rendered ${label} screenshot is ${rendered_width}x${rendered_height}; expected ${target_width}x${target_height}." >&2
-    exit 1
-  fi
+  cp "${src_path}" "${dest_path}"
 }
 
 copy_group() {
@@ -127,7 +116,10 @@ copy_group() {
     return
   fi
 
-  mapfile -t files < <(
+  local files=()
+  while IFS= read -r file; do
+    files+=("${file}")
+  done < <(
     find "${src_dir}" -mindepth 1 -maxdepth 1 -type f \
       \( -iname '*.png' -o -iname '*.jpg' -o -iname '*.jpeg' \) \
       | sort
@@ -147,7 +139,7 @@ copy_group() {
     base_name="$(basename "${file}")"
     stem="${base_name%.*}"
     printf -v ordinal '%02d' "${index}"
-    render_screenshot "${file}" "${dest_dir}/${prefix}-${ordinal}-${stem}.png" "${label}"
+    copy_screenshot "${file}" "${dest_dir}/${prefix}-${ordinal}-${stem}.png" "${label}"
     index=$((index + 1))
     had_files=1
   done
