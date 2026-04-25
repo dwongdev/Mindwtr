@@ -1146,7 +1146,7 @@ export const startWhisperRealtimeCapture = async (
   });
 
   const audioStream = new whisperRealtime.AudioPcmStreamAdapter();
-  const enableRealtimeTranscript = Platform.OS !== 'android';
+  const enableRealtimeTranscript = true;
   const transcriptBySlice = new Map<number, string>();
   let completed = false;
   let hasActivated = false;
