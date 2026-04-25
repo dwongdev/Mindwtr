@@ -1,5 +1,5 @@
 import React from 'react';
-import { FlatList, Modal, Platform, TextInput } from 'react-native';
+import { FlatList, Modal, Platform, Text, TextInput } from 'react-native';
 import { act, create } from 'react-test-renderer';
 import { describe, expect, it, vi } from 'vitest';
 
@@ -183,6 +183,57 @@ describe('Quick capture modal composition', () => {
     expect(modal.props.animationType).toBe(Platform.OS === 'android' ? 'fade' : 'slide');
     expect(modal.props.hardwareAccelerated).toBe(Platform.OS === 'android');
     expect(modal.props.statusBarTranslucent).toBe(Platform.OS === 'android');
+  });
+
+  it('bounds compact sheet text scaling so tablet controls cannot overlap', () => {
+    let tree!: ReturnType<typeof create>;
+
+    act(() => {
+      tree = create(
+        <QuickCaptureSheetBody
+          addAnother={false}
+          areaLabel="No Area"
+          contextLabel="Very Long Context Label"
+          dueLabel="Due Date"
+          handleClose={vi.fn()}
+          handleSave={vi.fn()}
+          insetsBottom={0}
+          inputRef={{ current: null }}
+          onOpenAreaPicker={vi.fn()}
+          onOpenContextPicker={vi.fn()}
+          onOpenDueDatePicker={vi.fn()}
+          onOpenPriorityPicker={vi.fn()}
+          onOpenProjectPicker={vi.fn()}
+          onResetArea={vi.fn()}
+          onResetContexts={vi.fn()}
+          onResetDueDate={vi.fn()}
+          onResetPriority={vi.fn()}
+          onResetProject={vi.fn()}
+          onToggleAddAnother={vi.fn()}
+          onToggleRecording={vi.fn()}
+          onValueChange={vi.fn()}
+          prioritiesEnabled
+          priorityLabel="Priority"
+          projectLabel="Very Long Project Label"
+          recording={false}
+          recordingBusy={false}
+          recordingReady={false}
+          sheetMaxHeight={500}
+          t={(key) => key}
+          tc={tc}
+          value=""
+          visible
+        />
+      );
+    });
+
+    expect(tree.root.findByType(TextInput).props.maxFontSizeMultiplier).toBe(1.2);
+    expect(tree.root.findByType(TextInput).props.textAlignVertical).toBe('center');
+    const compactTexts = tree.root
+      .findAllByType(Text)
+      .filter((node) => typeof node.props.children === 'string');
+    expect(compactTexts.length).toBeGreaterThan(0);
+    expect(compactTexts.every((node) => node.props.maxFontSizeMultiplier === 1.2)).toBe(true);
   });
 
   it('submits the quick capture input from the keyboard Done action on iOS', () => {
