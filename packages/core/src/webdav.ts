@@ -162,6 +162,26 @@ const probeWebdavCollectionExists = async (
     }
 };
 
+const isWebdavMkcolConflictError = (error: unknown): boolean => (
+    error instanceof Error && error.message === 'WebDAV MKCOL failed (409)'
+);
+
+const ensureWebdavParentCollectionsBeforePut = async (
+    url: string,
+    options: WebDavOptions = {},
+): Promise<void> => {
+    try {
+        await ensureWebdavParentCollections(url, options);
+    } catch (error) {
+        // Some WebDAV servers report an ambiguous MKCOL 409 for an existing
+        // collection that cannot be verified with PROPFIND. Retry the PUT and
+        // let that final response decide whether the upload can proceed.
+        if (!isWebdavMkcolConflictError(error)) {
+            throw error;
+        }
+    }
+};
+
 const ensureWebdavCollectionExists = async (
     url: string,
     options: WebDavOptions = {},
@@ -274,7 +294,7 @@ export async function webdavPutJson(
 
     let res = await sendPut();
     if (!res.ok && (res.status === 404 || res.status === 409)) {
-        await ensureWebdavParentCollections(url, options);
+        await ensureWebdavParentCollectionsBeforePut(url, options);
         res = await sendPut();
     }
 
@@ -333,7 +353,7 @@ export async function webdavPutFile(
 
     let res = await sendPut();
     if (!res.ok && (res.status === 404 || res.status === 409)) {
-        await ensureWebdavParentCollections(url, options);
+        await ensureWebdavParentCollectionsBeforePut(url, options);
         res = await sendPut();
     }
 

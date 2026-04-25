@@ -171,6 +171,39 @@ describe('webdav http helpers', () => {
         expect(fetcher.mock.calls[4]?.[1]?.headers).toMatchObject({ Depth: '0' });
     });
 
+    it('retries a JSON PUT after an unverified MKCOL conflict', async () => {
+        const fetcher = vi
+            .fn()
+            .mockResolvedValueOnce(makeResponse({ ok: false, status: 409, statusText: 'Conflict', text: async () => 'Conflict' }))
+            .mockResolvedValueOnce(makeResponse({ ok: false, status: 409, statusText: 'Conflict' }))
+            .mockResolvedValueOnce(makeResponse({ ok: false, status: 403, statusText: 'Forbidden' }))
+            .mockResolvedValueOnce(makeResponse({ ok: true, status: 201, statusText: 'Created' }));
+
+        await expect(
+            webdavPutJson('https://example.com/mindwtr/data.json', { ok: true }, { fetcher }),
+        ).resolves.toBeUndefined();
+
+        expect(fetcher.mock.calls.map(([url, init]) => [url, init?.method])).toEqual([
+            ['https://example.com/mindwtr/data.json', 'PUT'],
+            ['https://example.com/mindwtr/', 'MKCOL'],
+            ['https://example.com/mindwtr/', 'PROPFIND'],
+            ['https://example.com/mindwtr/data.json', 'PUT'],
+        ]);
+    });
+
+    it('reports the final PUT failure after an unverified MKCOL conflict', async () => {
+        const fetcher = vi
+            .fn()
+            .mockResolvedValueOnce(makeResponse({ ok: false, status: 409, statusText: 'Conflict', text: async () => 'Conflict' }))
+            .mockResolvedValueOnce(makeResponse({ ok: false, status: 409, statusText: 'Conflict' }))
+            .mockResolvedValueOnce(makeResponse({ ok: false, status: 403, statusText: 'Forbidden' }))
+            .mockResolvedValueOnce(makeResponse({ ok: false, status: 409, statusText: 'Conflict', text: async () => 'Conflict' }));
+
+        await expect(
+            webdavPutJson('https://example.com/mindwtr/data.json', { ok: true }, { fetcher }),
+        ).rejects.toThrow('WebDAV PUT failed (409): Conflict');
+    });
+
     it('caps parent MKCOL creation depth for pathological nested paths', async () => {
         const nestedSegments = Array.from({ length: 40 }, (_, index) => `level-${index + 1}`).join('/');
         const url = `https://example.com/remote.php/dav/files/user/mindwtr/${nestedSegments}/data.json`;
