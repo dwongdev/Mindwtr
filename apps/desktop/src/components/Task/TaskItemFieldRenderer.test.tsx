@@ -65,6 +65,7 @@ const createData = (overrides: Partial<TaskItemFieldRendererData> = {}): TaskIte
     editTags: '',
     language: 'en',
     nativeDateInputLocale: 'en-US',
+    defaultScheduleTime: '',
     popularContextOptions: [],
     popularTagOptions: [],
     ...overrides,
@@ -180,6 +181,22 @@ describe('TaskItemFieldRenderer date clear buttons', () => {
 
         expect(getByLabelText('Due date')).toHaveAttribute('lang', 'en-CA-u-hc-h23-fw-mon');
         expect(getByLabelText('Due time')).toHaveAttribute('lang', 'en-CA-u-hc-h23-fw-mon');
+    });
+
+    it('applies the default schedule time when a due date is selected without an existing time', () => {
+        const handlers = createHandlers();
+
+        const { getByLabelText } = render(
+            <TaskItemFieldRenderer
+                fieldId="dueDate"
+                data={createData({ defaultScheduleTime: '09:00' })}
+                handlers={handlers}
+            />
+        );
+
+        fireEvent.change(getByLabelText('Due date'), { target: { value: '2026-04-19' } });
+
+        expect(handlers.setEditDueDate).toHaveBeenCalledWith('2026-04-19T09:00');
     });
 
     it('undoes markdown description edits with Ctrl+Z', async () => {

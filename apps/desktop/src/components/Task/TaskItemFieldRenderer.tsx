@@ -5,6 +5,7 @@ import {
     buildRRuleString,
     continueMarkdownOnEnter,
     hasTimeComponent,
+    normalizeClockTimeInput,
     parseRRuleString,
     resolveAutoTextDirection,
     safeFormatDate,
@@ -70,6 +71,7 @@ export type TaskItemFieldRendererData = {
     editTags: string;
     language: string;
     nativeDateInputLocale: string;
+    defaultScheduleTime: string;
     popularContextOptions: string[];
     popularTagOptions: string[];
 };
@@ -134,6 +136,7 @@ export function TaskItemFieldRenderer({
         editTags,
         language,
         nativeDateInputLocale,
+        defaultScheduleTime,
         popularContextOptions,
         popularTagOptions,
     } = data;
@@ -432,6 +435,10 @@ export function TaskItemFieldRenderer({
                         setEditStartTime(`${normalizedDate}T${timeValue}`);
                         return;
                     }
+                    if (defaultScheduleTime) {
+                        setEditStartTime(`${normalizedDate}T${defaultScheduleTime}`);
+                        return;
+                    }
                     setEditStartTime(normalizedDate);
                 };
                 const handleTimeChange = (value: string) => {
@@ -478,6 +485,10 @@ export function TaskItemFieldRenderer({
                         setEditDueDate(`${normalizedDate}T${timeValue}`);
                         return;
                     }
+                    if (defaultScheduleTime) {
+                        setEditDueDate(`${normalizedDate}T${defaultScheduleTime}`);
+                        return;
+                    }
                     setEditDueDate(normalizedDate);
                 };
                 const handleTimeChange = (value: string) => {
@@ -514,31 +525,6 @@ export function TaskItemFieldRenderer({
                 const parsed = editReviewAt ? safeParseDate(editReviewAt) : null;
                 const dateValue = parsed ? safeFormatDate(parsed, 'yyyy-MM-dd') : '';
                 const timeValue = hasTime && parsed ? safeFormatDate(parsed, 'HH:mm') : '';
-                const normalizeTimeInput = (value: string): string | null => {
-                    const trimmed = value.trim();
-                    if (!trimmed) return '';
-                    const compact = trimmed.replace(/\s+/g, '');
-                    let hours: number;
-                    let minutes: number;
-                    if (/^\d{1,2}:\d{2}$/.test(compact)) {
-                        const [h, m] = compact.split(':');
-                        hours = Number(h);
-                        minutes = Number(m);
-                    } else if (/^\d{3,4}$/.test(compact)) {
-                        if (compact.length === 3) {
-                            hours = Number(compact.slice(0, 1));
-                            minutes = Number(compact.slice(1));
-                        } else {
-                            hours = Number(compact.slice(0, 2));
-                            minutes = Number(compact.slice(2));
-                        }
-                    } else {
-                        return null;
-                    }
-                    if (!Number.isFinite(hours) || !Number.isFinite(minutes)) return null;
-                    if (hours < 0 || hours > 23 || minutes < 0 || minutes > 59) return null;
-                    return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
-                };
                 const handleDateChange = (value: string) => {
                     const normalizedDate = normalizeDateInputValue(value);
                     if (!normalizedDate) {
@@ -547,6 +533,10 @@ export function TaskItemFieldRenderer({
                     }
                     if (hasTime && timeValue) {
                         setEditReviewAt(`${normalizedDate}T${timeValue}`);
+                        return;
+                    }
+                    if (defaultScheduleTime) {
+                        setEditReviewAt(`${normalizedDate}T${defaultScheduleTime}`);
                         return;
                     }
                     setEditReviewAt(normalizedDate);
@@ -574,7 +564,7 @@ export function TaskItemFieldRenderer({
                             placeholder="HH:MM"
                             onChange={(event) => setReviewTimeDraft(event.target.value)}
                             onBlur={() => {
-                                const normalized = normalizeTimeInput(reviewTimeDraft);
+                                const normalized = normalizeClockTimeInput(reviewTimeDraft);
                                 if (normalized === null) {
                                     setReviewTimeDraft(timeValue);
                                     return;

@@ -342,18 +342,30 @@ export const mergeSettingsForSync = (
             weekStart: localSettings.weekStart,
             dateFormat: localSettings.dateFormat,
             timeFormat: localSettings.timeFormat,
+            defaultScheduleTime: localSettings.gtd?.defaultScheduleTime,
         },
         {
             language: incomingSettings.language,
             weekStart: incomingSettings.weekStart,
             dateFormat: incomingSettings.dateFormat,
             timeFormat: incomingSettings.timeFormat,
+            defaultScheduleTime: incomingSettings.gtd?.defaultScheduleTime,
         },
         (value) => {
             merged.language = value.language;
             merged.weekStart = value.weekStart;
             merged.dateFormat = value.dateFormat;
             merged.timeFormat = value.timeFormat;
+            if (value.defaultScheduleTime === undefined) {
+                if (merged.gtd) {
+                    delete merged.gtd.defaultScheduleTime;
+                }
+            } else {
+                merged.gtd = {
+                    ...(merged.gtd ?? {}),
+                    defaultScheduleTime: value.defaultScheduleTime,
+                };
+            }
         },
         (localValue, incomingValue, incomingWins) => mergeRecordFields(localValue, incomingValue, incomingWins)
     );

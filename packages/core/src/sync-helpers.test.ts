@@ -205,6 +205,25 @@ describe('sync-helpers sanitizeAppDataForRemote', () => {
         expect(sanitized.settings.sidebarCollapsed).toBeUndefined();
     });
 
+    it('includes the default schedule time with synced date/time preferences', () => {
+        const data = createData([]);
+        data.settings = {
+            syncPreferences: { language: true },
+            gtd: {
+                defaultScheduleTime: '09:30',
+                inboxProcessing: { scheduleEnabled: true },
+            },
+            language: 'en',
+            timeFormat: '24h',
+        };
+
+        const sanitized = sanitizeAppDataForRemote(data);
+
+        expect(sanitized.settings.gtd).toEqual({ defaultScheduleTime: '09:30' });
+        expect(sanitized.settings.language).toBe('en');
+        expect(sanitized.settings.timeFormat).toBe('24h');
+    });
+
     it('sanitizes file attachment URIs while preserving cloud metadata', () => {
         const data: AppData = {
             tasks: [

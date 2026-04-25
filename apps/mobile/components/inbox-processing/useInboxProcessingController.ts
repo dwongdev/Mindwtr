@@ -12,6 +12,9 @@ import {
   DEFAULT_PROJECT_COLOR,
   collectTaskTokenUsage,
   createAIProvider,
+  hasTimeComponent,
+  normalizeClockTimeInput,
+  safeFormatDate,
   safeParseDate,
   tFallback,
   resolveAutoTextDirection,
@@ -41,13 +44,6 @@ const MAX_TOKEN_SUGGESTIONS = 6;
 const PRIORITY_OPTIONS: TaskPriority[] = ['low', 'medium', 'high', 'urgent'];
 const ENERGY_LEVEL_OPTIONS: Array<NonNullable<Task['energyLevel']>> = ['low', 'medium', 'high'];
 
-const formatDateOnly = (date: Date): string => {
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, '0');
-  const day = String(date.getDate()).padStart(2, '0');
-  return `${year}-${month}-${day}`;
-};
-
 type InboxProcessingControllerParams = {
   visible: boolean;
   onClose: () => void;
@@ -73,6 +69,7 @@ export function useInboxProcessingController({
   const [skippedIds, setSkippedIds] = useState<Set<string>>(new Set());
   const [delegateWho, setDelegateWho] = useState('');
   const [delegateFollowUpDate, setDelegateFollowUpDate] = useState<Date | null>(null);
+  const [delegateFollowUpDateOnly, setDelegateFollowUpDateOnly] = useState(false);
   const [showDelegateDatePicker, setShowDelegateDatePicker] = useState(false);
   const [projectSearch, setProjectSearch] = useState('');
   const [processingTitle, setProcessingTitle] = useState('');
@@ -84,8 +81,11 @@ export function useInboxProcessingController({
   const [selectedAssignedTo, setSelectedAssignedTo] = useState('');
   const [selectedTimeEstimate, setSelectedTimeEstimate] = useState<TimeEstimate | undefined>(undefined);
   const [pendingStartDate, setPendingStartDate] = useState<Date | null>(null);
+  const [pendingStartDateOnly, setPendingStartDateOnly] = useState(false);
   const [pendingDueDate, setPendingDueDate] = useState<Date | null>(null);
+  const [pendingDueDateOnly, setPendingDueDateOnly] = useState(false);
   const [pendingReviewDate, setPendingReviewDate] = useState<Date | null>(null);
+  const [pendingReviewDateOnly, setPendingReviewDateOnly] = useState(false);
   const [showStartDatePicker, setShowStartDatePicker] = useState(false);
   const [showDueDatePicker, setShowDueDatePicker] = useState(false);
   const [showReviewDatePicker, setShowReviewDatePicker] = useState(false);
@@ -104,6 +104,7 @@ export function useInboxProcessingController({
   const projectFirst = inboxProcessing.projectFirst === true;
   const contextStepEnabled = inboxProcessing.contextStepEnabled !== false;
   const scheduleEnabled = inboxProcessing.scheduleEnabled === true;
+  const defaultScheduleTime = normalizeClockTimeInput(settings?.gtd?.defaultScheduleTime) || '';
   const referenceEnabled = true;
   const prioritiesEnabled = settings?.features?.priorities !== false;
   const timeEstimatesEnabled = settings?.features?.timeEstimates !== false;
@@ -282,6 +283,11 @@ export function useInboxProcessingController({
     && delegateWho.trim().length === 0
     && selectedAssignedTo.trim().length === 0;
 
+  const formatScheduledDateValue = useCallback((date: Date, forceDateOnly: boolean = false): string => {
+    const dateOnlyValue = safeFormatDate(date, 'yyyy-MM-dd');
+    return defaultScheduleTime && !forceDateOnly ? `${dateOnlyValue}T${defaultScheduleTime}` : dateOnlyValue;
+  }, [defaultScheduleTime]);
+
   const resetTitleFocus = useCallback(() => {
     setProcessingTitleFocused(false);
     titleInputRef.current?.blur?.();
@@ -298,13 +304,17 @@ export function useInboxProcessingController({
     setTwoMinuteChoice('no');
     setExecutionChoice('defer');
     setPendingStartDate(task?.startTime ? safeParseDate(task.startTime) : null);
+    setPendingStartDateOnly(Boolean(task?.startTime) && !hasTimeComponent(task?.startTime));
     setPendingDueDate(task?.dueDate ? safeParseDate(task.dueDate) : null);
+    setPendingDueDateOnly(Boolean(task?.dueDate) && !hasTimeComponent(task?.dueDate));
     setPendingReviewDate(task?.reviewAt ? safeParseDate(task.reviewAt) : null);
+    setPendingReviewDateOnly(Boolean(task?.reviewAt) && !hasTimeComponent(task?.reviewAt));
     setShowStartDatePicker(false);
     setShowDueDatePicker(false);
     setShowReviewDatePicker(false);
     setDelegateWho('');
     setDelegateFollowUpDate(null);
+    setDelegateFollowUpDateOnly(false);
     setShowDelegateDatePicker(false);
     setSelectedContexts(task?.contexts ?? []);
     setSelectedTags(task?.tags ?? []);
@@ -432,15 +442,17 @@ export function useInboxProcessingController({
       status: 'next',
       ...(showProjectField ? { projectId: selectedProjectId ?? undefined } : {}),
       ...(showAreaField ? { areaId: selectedProjectId ? undefined : (selectedAreaId ?? undefined) } : {}),
-      startTime: formatDateOnly(pendingStartDate),
+      startTime: formatScheduledDateValue(pendingStartDate, pendingStartDateOnly),
     });
     setPendingStartDate(null);
     moveToNext();
   }, [
     applyProcessingEdits,
     currentTask,
+    formatScheduledDateValue,
     moveToNext,
     pendingStartDate,
+    pendingStartDateOnly,
     selectedAreaId,
     selectedProjectId,
     showAreaField,
@@ -459,19 +471,23 @@ export function useInboxProcessingController({
   const buildScheduleUpdates = useCallback(() => {
     const updates: Partial<Task> = {};
     if (showStartDateField) {
-      updates.startTime = pendingStartDate ? pendingStartDate.toISOString() : undefined;
+      updates.startTime = pendingStartDate ? formatScheduledDateValue(pendingStartDate, pendingStartDateOnly) : undefined;
     }
     if (showDueDateField) {
-      updates.dueDate = pendingDueDate ? pendingDueDate.toISOString() : undefined;
+      updates.dueDate = pendingDueDate ? formatScheduledDateValue(pendingDueDate, pendingDueDateOnly) : undefined;
     }
     if (showReviewDateField) {
-      updates.reviewAt = pendingReviewDate ? pendingReviewDate.toISOString() : undefined;
+      updates.reviewAt = pendingReviewDate ? formatScheduledDateValue(pendingReviewDate, pendingReviewDateOnly) : undefined;
     }
     return updates;
   }, [
+    formatScheduledDateValue,
     pendingDueDate,
+    pendingDueDateOnly,
     pendingReviewDate,
+    pendingReviewDateOnly,
     pendingStartDate,
+    pendingStartDateOnly,
     showDueDateField,
     showReviewDateField,
     showStartDateField,
@@ -494,7 +510,7 @@ export function useInboxProcessingController({
         ...buildScheduleUpdates(),
       };
       if (delegateFollowUpDate) {
-        updates.reviewAt = delegateFollowUpDate.toISOString();
+        updates.reviewAt = formatScheduledDateValue(delegateFollowUpDate, delegateFollowUpDateOnly);
       }
       applyProcessingEdits(updates);
     }
@@ -506,7 +522,9 @@ export function useInboxProcessingController({
     buildScheduleUpdates,
     currentTask,
     delegateFollowUpDate,
+    delegateFollowUpDateOnly,
     delegateWho,
+    formatScheduledDateValue,
     moveToNext,
     selectedAreaId,
     selectedAssignedTo,
@@ -834,7 +852,9 @@ export function useInboxProcessingController({
     currentArea,
     currentProject,
     currentTask,
+    defaultScheduleTime,
     delegateFollowUpDate,
+    delegateFollowUpDateOnly,
     delegateWho,
     descriptionMaxHeight,
     displayDescription,
@@ -855,8 +875,11 @@ export function useInboxProcessingController({
     isDelegateConfirmationDisabled,
     newContext,
     pendingDueDate,
+    pendingDueDateOnly,
     pendingReviewDate,
+    pendingReviewDateOnly,
     pendingStartDate,
+    pendingStartDateOnly,
     processingDescription,
     processingScrollRef,
     processingTitle,
@@ -877,13 +900,17 @@ export function useInboxProcessingController({
     setSelectedAssignedTo,
     setActionabilityChoice,
     setDelegateFollowUpDate,
+    setDelegateFollowUpDateOnly,
     setDelegateWho,
     setExecutionChoice,
     setNewContext,
     setPendingDueDate,
+    setPendingDueDateOnly,
     setPendingReviewDate,
+    setPendingReviewDateOnly,
     setProjectSearch,
     setPendingStartDate,
+    setPendingStartDateOnly,
     setProcessingDescription,
     setProcessingTitle,
     setProcessingTitleFocused,

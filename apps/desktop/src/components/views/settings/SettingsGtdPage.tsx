@@ -1,5 +1,5 @@
 import type { AppData, TaskEditorFieldId, TaskEditorSectionId } from '@mindwtr/core';
-import { sanitizePomodoroDurations, translateText } from '@mindwtr/core';
+import { normalizeClockTimeInput, sanitizePomodoroDurations, translateText } from '@mindwtr/core';
 
 import type { ReactNode } from 'react';
 import { useEffect, useRef, useState } from 'react';
@@ -26,6 +26,8 @@ type Labels = {
     autoArchive: string;
     autoArchiveDesc: string;
     autoArchiveNever: string;
+    defaultScheduleTime: string;
+    defaultScheduleTimeDesc: string;
     inboxProcessing: string;
     inboxProcessingDesc: string;
     inboxDefaultMode: string;
@@ -215,17 +217,23 @@ export function SettingsGtdPage({
     const inboxContextStepEnabled = inboxProcessing.contextStepEnabled !== false;
     const inboxScheduleEnabled = inboxProcessing.scheduleEnabled === true;
     const includeContextStep = safeSettings.gtd?.weeklyReview?.includeContextStep !== false;
+    const defaultScheduleTime = normalizeClockTimeInput(safeSettings.gtd?.defaultScheduleTime) || '';
     const pomodoroEnabled = safeSettings.features?.pomodoro === true;
     const pomodoroCustomDurations = sanitizePomodoroDurations(safeSettings.gtd?.pomodoro?.customDurations);
     const pomodoroAutoStartBreaks = safeSettings.gtd?.pomodoro?.autoStartBreaks === true;
     const pomodoroAutoStartFocus = safeSettings.gtd?.pomodoro?.autoStartFocus === true;
     const [pomodoroFocusDraft, setPomodoroFocusDraft] = useState(String(pomodoroCustomDurations.focusMinutes));
     const [pomodoroBreakDraft, setPomodoroBreakDraft] = useState(String(pomodoroCustomDurations.breakMinutes));
+    const [defaultScheduleTimeDraft, setDefaultScheduleTimeDraft] = useState(defaultScheduleTime);
 
     useEffect(() => {
         setPomodoroFocusDraft(String(pomodoroCustomDurations.focusMinutes));
         setPomodoroBreakDraft(String(pomodoroCustomDurations.breakMinutes));
     }, [pomodoroCustomDurations.breakMinutes, pomodoroCustomDurations.focusMinutes]);
+
+    useEffect(() => {
+        setDefaultScheduleTimeDraft(defaultScheduleTime);
+    }, [defaultScheduleTime]);
 
     const showPomodoroAutoStartNotice = () => {
         if (pomodoroAutoStartNoticeShownRef.current) return;
@@ -256,6 +264,26 @@ export function SettingsGtdPage({
     const savePomodoroCustomDurations = (nextDurations: { focusMinutes: number; breakMinutes: number }) => {
         updatePomodoroSettings({ customDurations: nextDurations });
         return nextDurations;
+    };
+
+    const updateGtdSettings = (partial: Partial<NonNullable<AppData['settings']['gtd']>>) => {
+        updateSettings({
+            gtd: {
+                ...(safeSettings.gtd ?? {}),
+                ...partial,
+            },
+        }).then(showSaved).catch((error) => reportError('Failed to update GTD settings', error));
+    };
+
+    const commitDefaultScheduleTime = () => {
+        const normalized = normalizeClockTimeInput(defaultScheduleTimeDraft);
+        if (normalized === null) {
+            setDefaultScheduleTimeDraft(defaultScheduleTime);
+            return;
+        }
+        setDefaultScheduleTimeDraft(normalized);
+        if (normalized === defaultScheduleTime) return;
+        updateGtdSettings({ defaultScheduleTime: normalized });
     };
 
     const commitPomodoroMinutes = () => {
@@ -457,6 +485,27 @@ export function SettingsGtdPage({
                             ))}
                         </select>
                     </div>
+                </div>
+                <div className="p-4 flex items-center justify-between gap-6">
+                    <div className="min-w-0">
+                        <div className="text-sm font-medium">{t.defaultScheduleTime}</div>
+                        <div className="text-xs text-muted-foreground mt-1">{t.defaultScheduleTimeDesc}</div>
+                    </div>
+                    <input
+                        type="text"
+                        inputMode="numeric"
+                        aria-label={t.defaultScheduleTime}
+                        value={defaultScheduleTimeDraft}
+                        placeholder="HH:MM"
+                        onChange={(event) => setDefaultScheduleTimeDraft(event.target.value)}
+                        onBlur={commitDefaultScheduleTime}
+                        onKeyDown={(event) => {
+                            if (event.key === 'Enter') {
+                                event.currentTarget.blur();
+                            }
+                        }}
+                        className="w-24 shrink-0 text-sm bg-muted/50 text-foreground border border-border rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary/40"
+                    />
                 </div>
             </div>
             <SettingsDisclosureCard

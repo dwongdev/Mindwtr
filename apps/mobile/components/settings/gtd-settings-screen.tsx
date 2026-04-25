@@ -21,6 +21,7 @@ import { useThemeColors } from '@/hooks/use-theme-colors';
 import { logSettingsError } from '@/lib/settings-utils';
 import { useToast } from '@/contexts/toast-context';
 import {
+    normalizeClockTimeInput,
     sanitizePomodoroDurations,
     tFallback,
     translateText,
@@ -77,6 +78,7 @@ export function GtdSettingsScreen({
     const inboxContextStepEnabled = inboxProcessing.contextStepEnabled !== false;
     const inboxScheduleEnabled = inboxProcessing.scheduleEnabled === true;
     const includeContextStep = settings.gtd?.weeklyReview?.includeContextStep !== false;
+    const defaultScheduleTime = normalizeClockTimeInput(settings.gtd?.defaultScheduleTime) || '';
     const autoArchiveDays = Number.isFinite(settings.gtd?.autoArchiveDays)
         ? Math.max(0, Math.floor(settings.gtd?.autoArchiveDays as number))
         : 7;
@@ -88,6 +90,7 @@ export function GtdSettingsScreen({
     const pomodoroAutoStartFocus = settings.gtd?.pomodoro?.autoStartFocus === true;
     const [pomodoroFocusDraft, setPomodoroFocusDraft] = useState(String(pomodoroCustomDurations.focusMinutes));
     const [pomodoroBreakDraft, setPomodoroBreakDraft] = useState(String(pomodoroCustomDurations.breakMinutes));
+    const [defaultScheduleTimeDraft, setDefaultScheduleTimeDraft] = useState(defaultScheduleTime);
     const pomodoroAutoStartNoticeShownRef = React.useRef(false);
 
     useEffect(() => {
@@ -119,6 +122,10 @@ export function GtdSettingsScreen({
         setPomodoroFocusDraft(String(pomodoroCustomDurations.focusMinutes));
         setPomodoroBreakDraft(String(pomodoroCustomDurations.breakMinutes));
     }, [pomodoroCustomDurations.breakMinutes, pomodoroCustomDurations.focusMinutes]);
+
+    useEffect(() => {
+        setDefaultScheduleTimeDraft(defaultScheduleTime);
+    }, [defaultScheduleTime]);
 
     const updateFeatureFlags = (next: { priorities?: boolean; timeEstimates?: boolean; pomodoro?: boolean }) => {
         updateSettings({
@@ -156,6 +163,30 @@ export function GtdSettingsScreen({
                 showPomodoroAutoStartNotice();
             }
         }).catch(logSettingsError);
+    };
+
+    const updateGtdSettings = (partial: Partial<NonNullable<AppData['settings']['gtd']>>) => {
+        updateSettings({
+            gtd: {
+                ...(settings.gtd ?? {}),
+                ...partial,
+            },
+        }).catch(logSettingsError);
+    };
+
+    const commitDefaultScheduleTime = () => {
+        const normalized = normalizeClockTimeInput(defaultScheduleTimeDraft);
+        if (normalized === null) {
+            setDefaultScheduleTimeDraft(defaultScheduleTime);
+            showToast({
+                message: localize('Use HH:MM for the default schedule time.', '默认安排时间请使用 HH:MM。'),
+                tone: 'warning',
+            });
+            return;
+        }
+        setDefaultScheduleTimeDraft(normalized);
+        if (normalized === defaultScheduleTime) return;
+        updateGtdSettings({ defaultScheduleTime: normalized });
     };
 
     const savePomodoroCustomDurations = (nextDurations: { focusMinutes: number; breakMinutes: number }) => {
@@ -260,6 +291,15 @@ export function GtdSettingsScreen({
                 '当休息阶段结束时，自动开始下一轮专注计时。'
             )
             : pomodoroAutoStartFocusDescRaw;
+        const defaultScheduleTimeLabel = tFallback(t, 'settings.defaultScheduleTime', localize('Default schedule time', '默认安排时间'));
+        const defaultScheduleTimeDesc = tFallback(
+            t,
+            'settings.defaultScheduleTimeDesc',
+            localize(
+                'Optional. Pre-fills manual Start, Due, and Review time fields after you choose a date. Leave blank for date-only.',
+                '可选。选择日期后自动填入开始、截止和回顾时间。留空则保持仅日期。'
+            )
+        );
 
         return (
             <SafeAreaView style={[styles.container, { backgroundColor: tc.bg }]} edges={['bottom']}>
@@ -345,6 +385,24 @@ export function GtdSettingsScreen({
                                 </View>
                             </View>
                         )}
+                    </View>
+
+                    <View style={[styles.settingCard, { backgroundColor: tc.cardBg, marginTop: 12 }]}>
+                        <View style={styles.settingRow}>
+                            <View style={styles.settingInfo}>
+                                <Text style={[styles.settingLabel, { color: tc.text }]}>{defaultScheduleTimeLabel}</Text>
+                                <Text style={[styles.settingDescription, { color: tc.secondaryText }]}>{defaultScheduleTimeDesc}</Text>
+                            </View>
+                            <TextInput
+                                value={defaultScheduleTimeDraft}
+                                onChangeText={setDefaultScheduleTimeDraft}
+                                onBlur={commitDefaultScheduleTime}
+                                placeholder="HH:MM"
+                                placeholderTextColor={tc.secondaryText}
+                                keyboardType="numbers-and-punctuation"
+                                style={[styles.textInput, styles.inlineTextInput, { width: 96, marginTop: 0, borderColor: tc.border, color: tc.text }]}
+                            />
+                        </View>
                     </View>
 
                     <View style={[styles.menuCard, { backgroundColor: tc.cardBg }]}>

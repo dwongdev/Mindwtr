@@ -8,6 +8,7 @@ import {
     parseRRuleString,
     safeFormatDate,
     safeParseDate,
+    tFallback,
     type RecurrenceByDay,
     type RecurrenceRule,
     type RecurrenceStrategy,
@@ -160,6 +161,11 @@ export function TaskEditScheduleField({
             hour: '2-digit',
             minute: '2-digit',
         });
+    };
+    const dateOnlyLabel = tFallback(t, 'taskEdit.dateOnly', 'Date only');
+    const clearTimePart = (value?: string): string | undefined => {
+        const parsed = safeParseDate(value);
+        return parsed ? safeFormatDate(parsed, 'yyyy-MM-dd') : undefined;
     };
 
     switch (fieldId) {
@@ -474,6 +480,14 @@ export function TaskEditScheduleField({
                                     </Text>
                                 </TouchableOpacity>
                             )}
+                            {!!editedTask.startTime && hasTime && (
+                                <TouchableOpacity
+                                    style={[styles.clearDateBtn, { borderColor: tc.border, backgroundColor: tc.filterBg }]}
+                                    onPress={() => setEditedTask((prev) => ({ ...prev, startTime: clearTimePart(prev.startTime) }))}
+                                >
+                                    <Text style={[styles.clearDateText, { color: tc.secondaryText }]}>{dateOnlyLabel}</Text>
+                                </TouchableOpacity>
+                            )}
                             {!!editedTask.startTime && (
                                 <TouchableOpacity
                                     style={[styles.clearDateBtn, { borderColor: tc.border, backgroundColor: tc.filterBg }]}
@@ -513,6 +527,14 @@ export function TaskEditScheduleField({
                                     </Text>
                                 </TouchableOpacity>
                             )}
+                            {!!editedTask.dueDate && hasTime && (
+                                <TouchableOpacity
+                                    style={[styles.clearDateBtn, { borderColor: tc.border, backgroundColor: tc.filterBg }]}
+                                    onPress={() => setEditedTask((prev) => ({ ...prev, dueDate: clearTimePart(prev.dueDate) }))}
+                                >
+                                    <Text style={[styles.clearDateText, { color: tc.secondaryText }]}>{dateOnlyLabel}</Text>
+                                </TouchableOpacity>
+                            )}
                             {!!editedTask.dueDate && (
                                 <TouchableOpacity
                                     style={[styles.clearDateBtn, { borderColor: tc.border, backgroundColor: tc.filterBg }]}
@@ -527,7 +549,8 @@ export function TaskEditScheduleField({
                 </View>
             );
         }
-        case 'reviewAt':
+        case 'reviewAt': {
+            const hasTime = hasTimeComponent(editedTask.reviewAt);
             return (
                 <View style={styles.formGroup}>
                     <Text style={[styles.label, { color: tc.secondaryText }]}>{t('taskEdit.reviewDateLabel')}</Text>
@@ -536,8 +559,16 @@ export function TaskEditScheduleField({
                             style={[styles.dateBtn, styles.flex1, { backgroundColor: tc.inputBg, borderColor: tc.border }]}
                             onPress={() => openDatePicker('review')}
                         >
-                            <Text style={{ color: tc.text }}>{formatDate(editedTask.reviewAt)}</Text>
+                            <Text style={{ color: tc.text }}>{formatStartDateTime(editedTask.reviewAt)}</Text>
                         </TouchableOpacity>
+                        {!!editedTask.reviewAt && hasTime && (
+                            <TouchableOpacity
+                                style={[styles.clearDateBtn, { borderColor: tc.border, backgroundColor: tc.filterBg }]}
+                                onPress={() => setEditedTask((prev) => ({ ...prev, reviewAt: clearTimePart(prev.reviewAt) }))}
+                            >
+                                <Text style={[styles.clearDateText, { color: tc.secondaryText }]}>{dateOnlyLabel}</Text>
+                            </TouchableOpacity>
+                        )}
                         {!!editedTask.reviewAt && (
                             <TouchableOpacity
                                 style={[styles.clearDateBtn, { borderColor: tc.border, backgroundColor: tc.filterBg }]}
@@ -550,6 +581,7 @@ export function TaskEditScheduleField({
                     {renderInlineIOSDatePicker(['review'])}
                 </View>
             );
+        }
         default:
             return null;
     }

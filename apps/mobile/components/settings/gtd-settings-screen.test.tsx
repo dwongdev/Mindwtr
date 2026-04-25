@@ -1,6 +1,6 @@
 import React from 'react';
 import renderer from 'react-test-renderer';
-import { Modal, Switch } from 'react-native';
+import { Modal, Switch, TextInput } from 'react-native';
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 import type { AppData } from '@mindwtr/core';
 
@@ -28,6 +28,16 @@ const storeState: MockStoreState = {
 };
 
 vi.mock('@mindwtr/core', () => ({
+  normalizeClockTimeInput: (value?: string | null) => {
+    const trimmed = String(value ?? '').trim();
+    if (!trimmed) return '';
+    const match = /^(\d{1,2}):(\d{2})$/.exec(trimmed);
+    if (!match) return null;
+    const hour = Number(match[1]);
+    const minute = Number(match[2]);
+    if (hour < 0 || hour > 23 || minute < 0 || minute > 59) return null;
+    return `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`;
+  },
   sanitizePomodoroDurations: (value?: { focusMinutes?: number; breakMinutes?: number }) => ({
     focusMinutes: Number.isFinite(value?.focusMinutes) ? Math.round(value!.focusMinutes!) : 25,
     breakMinutes: Number.isFinite(value?.breakMinutes) ? Math.round(value!.breakMinutes!) : 5,
@@ -208,5 +218,30 @@ describe('GtdSettingsScreen task editor layout', () => {
     });
 
     expect(showToast).toHaveBeenCalledTimes(1);
+  });
+
+  it('saves the default schedule time from GTD settings', async () => {
+    let tree!: renderer.ReactTestRenderer;
+    renderer.act(() => {
+      tree = renderer.create(<GtdSettingsScreen onNavigate={vi.fn()} screen="gtd" />);
+    });
+
+    await renderer.act(async () => {
+      const scheduleTimeInput = tree.root.findAllByType(TextInput)[0];
+      scheduleTimeInput.props.onChangeText('9:30');
+      await Promise.resolve();
+    });
+
+    await renderer.act(async () => {
+      const scheduleTimeInput = tree.root.findAllByType(TextInput)[0];
+      scheduleTimeInput.props.onBlur();
+      await Promise.resolve();
+    });
+
+    expect(updateSettings).toHaveBeenCalledWith(expect.objectContaining({
+      gtd: expect.objectContaining({
+        defaultScheduleTime: '09:30',
+      }),
+    }));
   });
 });

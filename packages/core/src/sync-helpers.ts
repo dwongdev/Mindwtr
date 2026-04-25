@@ -154,6 +154,11 @@ export const sanitizeAppDataForRemote = (data: AppData): AppData => {
             next.weekStart = settings.weekStart;
             next.dateFormat = settings.dateFormat;
             next.timeFormat = settings.timeFormat;
+            if (settings.gtd?.defaultScheduleTime !== undefined) {
+                next.gtd = {
+                    defaultScheduleTime: settings.gtd.defaultScheduleTime,
+                };
+            }
         }
 
         if (prefs.externalCalendars === true) {

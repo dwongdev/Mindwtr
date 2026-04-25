@@ -7,6 +7,7 @@ import {
     getLocalizedWeekdayLabels,
     Project,
     generateUUID,
+    normalizeClockTimeInput,
     tFallback,
 } from '@mindwtr/core';
 import { cn } from '../lib/utils';
@@ -489,6 +490,7 @@ export const TaskItem = memo(function TaskItem({
         editTags,
         language,
         nativeDateInputLocale,
+        defaultScheduleTime: normalizeClockTimeInput(settings?.gtd?.defaultScheduleTime) || '',
         popularContextOptions,
         popularTagOptions,
     }), [
@@ -514,6 +516,7 @@ export const TaskItem = memo(function TaskItem({
         editTags,
         language,
         nativeDateInputLocale,
+        settings?.gtd?.defaultScheduleTime,
         popularContextOptions,
         popularTagOptions,
     ]);

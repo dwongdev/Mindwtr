@@ -216,6 +216,7 @@ export interface AppData {
             };
             autoArchiveDays?: number;
             defaultCaptureMethod?: 'text' | 'audio';
+            defaultScheduleTime?: string; // HH:mm, used to prefill manual scheduling fields.
             saveAudioAttachments?: boolean;
             inboxProcessing?: {
                 defaultMode?: InboxProcessingMode;

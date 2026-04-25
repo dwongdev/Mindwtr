@@ -18,6 +18,10 @@ describe('Sync Logic', () => {
             const local: AppData = {
                 ...mockAppData(),
                 settings: {
+                    gtd: {
+                        defaultScheduleTime: '08:00',
+                        inboxProcessing: { scheduleEnabled: true },
+                    },
                     language: 'en',
                     weekStart: 'monday',
                     dateFormat: 'yyyy-MM-dd',
@@ -32,6 +36,9 @@ describe('Sync Logic', () => {
             const incoming: AppData = {
                 ...mockAppData(),
                 settings: {
+                    gtd: {
+                        defaultScheduleTime: '09:30',
+                    },
                     language: 'es',
                     weekStart: 'monday',
                     timeFormat: '12h',
@@ -49,6 +56,8 @@ describe('Sync Logic', () => {
             expect(merged.settings.weekStart).toBe('monday');
             expect(merged.settings.dateFormat).toBe('yyyy-MM-dd');
             expect(merged.settings.timeFormat).toBe('12h');
+            expect(merged.settings.gtd?.defaultScheduleTime).toBe('09:30');
+            expect(merged.settings.gtd?.inboxProcessing?.scheduleEnabled).toBe(true);
         });
 
         it('merges language settings even when sync preferences are empty', () => {

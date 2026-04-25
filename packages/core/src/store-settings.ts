@@ -719,7 +719,11 @@ export const createSettingsActions = ({
                 markSyncUpdated('appearance');
             }
 
-            if ('language' in updates || 'weekStart' in updates || 'dateFormat' in updates || 'timeFormat' in updates) {
+            const defaultScheduleTimeUpdate = updates.gtd
+                ? Object.prototype.hasOwnProperty.call(updates.gtd, 'defaultScheduleTime')
+                : false;
+
+            if ('language' in updates || 'weekStart' in updates || 'dateFormat' in updates || 'timeFormat' in updates || defaultScheduleTimeUpdate) {
                 markSyncUpdated('language');
             }
 

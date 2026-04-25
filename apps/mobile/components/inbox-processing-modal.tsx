@@ -36,7 +36,9 @@ export function InboxProcessingModal({ visible, onClose }: InboxProcessingModalP
     currentArea,
     currentProject,
     currentTask,
+    defaultScheduleTime,
     delegateFollowUpDate,
+    delegateFollowUpDateOnly,
     delegateWho,
     executionChoice,
     filteredProjects,
@@ -54,8 +56,11 @@ export function InboxProcessingModal({ visible, onClose }: InboxProcessingModalP
     isDelegateConfirmationDisabled,
     newContext,
     pendingDueDate,
+    pendingDueDateOnly,
     pendingReviewDate,
+    pendingReviewDateOnly,
     pendingStartDate,
+    pendingStartDateOnly,
     processingDescription,
     processingScrollRef,
     processingTitle,
@@ -75,12 +80,16 @@ export function InboxProcessingModal({ visible, onClose }: InboxProcessingModalP
     setSelectedAssignedTo,
     setActionabilityChoice,
     setDelegateFollowUpDate,
+    setDelegateFollowUpDateOnly,
     setDelegateWho,
     setExecutionChoice,
     setNewContext,
     setPendingDueDate,
+    setPendingDueDateOnly,
     setPendingReviewDate,
+    setPendingReviewDateOnly,
     setPendingStartDate,
+    setPendingStartDateOnly,
     setProcessingDescription,
     setProcessingTitle,
     setProcessingTitleFocused,
@@ -134,6 +143,7 @@ export function InboxProcessingModal({ visible, onClose }: InboxProcessingModalP
   const aiWorkingText = aiWorkingLabel === 'ai.working' ? 'Working...' : aiWorkingLabel;
   const laterLabel = tFallback(t, 'process.later', 'Later');
   const laterHint = tFallback(t, 'process.laterHint', 'Set a start date and move this to Next.');
+  const dateOnlyLabel = tFallback(t, 'taskEdit.dateOnly', 'Date only');
 
   if (!visible) return null;
 
@@ -192,6 +202,11 @@ export function InboxProcessingModal({ visible, onClose }: InboxProcessingModalP
     value: Date | null,
     onOpen: () => void,
     onClear: () => void,
+    options: {
+      dateOnly?: boolean;
+      onDateOnly?: () => void;
+      onUseDefaultTime?: () => void;
+    } = {},
   ) => (
     <View style={styles.startDateRow}>
       <Text style={[styles.tokenSectionTitle, { color: tc.secondaryText }]}>{label}</Text>
@@ -210,6 +225,16 @@ export function InboxProcessingModal({ visible, onClose }: InboxProcessingModalP
             onPress={onClear}
           >
             <Text style={[styles.startDateClearText, { color: tc.secondaryText }]}>{t('common.clear')}</Text>
+          </TouchableOpacity>
+        )}
+        {value && defaultScheduleTime && options.onDateOnly && options.onUseDefaultTime && (
+          <TouchableOpacity
+            style={[styles.startDateClear, { borderColor: tc.border }]}
+            onPress={options.dateOnly ? options.onUseDefaultTime : options.onDateOnly}
+          >
+            <Text style={[styles.startDateClearText, { color: tc.secondaryText }]}>
+              {options.dateOnly ? defaultScheduleTime : dateOnlyLabel}
+            </Text>
           </TouchableOpacity>
         )}
       </View>
@@ -477,19 +502,43 @@ export function InboxProcessingModal({ visible, onClose }: InboxProcessingModalP
           t('taskEdit.startDateLabel'),
           pendingStartDate,
           () => setShowStartDatePicker(true),
-          () => setPendingStartDate(null),
+          () => {
+            setPendingStartDate(null);
+            setPendingStartDateOnly(false);
+          },
+          {
+            dateOnly: pendingStartDateOnly,
+            onDateOnly: () => setPendingStartDateOnly(true),
+            onUseDefaultTime: () => setPendingStartDateOnly(false),
+          },
         )}
         {showDueDateField && renderDateSelector(
           t('taskEdit.dueDateLabel'),
           pendingDueDate,
           () => setShowDueDatePicker(true),
-          () => setPendingDueDate(null),
+          () => {
+            setPendingDueDate(null);
+            setPendingDueDateOnly(false);
+          },
+          {
+            dateOnly: pendingDueDateOnly,
+            onDateOnly: () => setPendingDueDateOnly(true),
+            onUseDefaultTime: () => setPendingDueDateOnly(false),
+          },
         )}
         {showReviewDateField && renderDateSelector(
           t('taskEdit.reviewDateLabel'),
           pendingReviewDate,
           () => setShowReviewDatePicker(true),
-          () => setPendingReviewDate(null),
+          () => {
+            setPendingReviewDate(null);
+            setPendingReviewDateOnly(false);
+          },
+          {
+            dateOnly: pendingReviewDateOnly,
+            onDateOnly: () => setPendingReviewDateOnly(true),
+            onUseDefaultTime: () => setPendingReviewDateOnly(false),
+          },
         )}
       </View>
     );
@@ -768,7 +817,15 @@ export function InboxProcessingModal({ visible, onClose }: InboxProcessingModalP
                     t('taskEdit.startDateLabel'),
                     pendingStartDate,
                     () => setShowStartDatePicker(true),
-                    () => setPendingStartDate(null),
+                    () => {
+                      setPendingStartDate(null);
+                      setPendingStartDateOnly(false);
+                    },
+                    {
+                      dateOnly: pendingStartDateOnly,
+                      onDateOnly: () => setPendingStartDateOnly(true),
+                      onUseDefaultTime: () => setPendingStartDateOnly(false),
+                    },
                   )}
                 </View>
               )}
@@ -849,7 +906,15 @@ export function InboxProcessingModal({ visible, onClose }: InboxProcessingModalP
                         t('process.delegateFollowUpLabel'),
                         delegateFollowUpDate,
                         () => setShowDelegateDatePicker(true),
-                        () => setDelegateFollowUpDate(null),
+                        () => {
+                          setDelegateFollowUpDate(null);
+                          setDelegateFollowUpDateOnly(false);
+                        },
+                        {
+                          dateOnly: delegateFollowUpDateOnly,
+                          onDateOnly: () => setDelegateFollowUpDateOnly(true),
+                          onUseDefaultTime: () => setDelegateFollowUpDateOnly(false),
+                        },
                       )}
                       <TouchableOpacity
                         style={[styles.buttonSecondary, { borderColor: tc.border, backgroundColor: tc.cardBg }]}
@@ -882,6 +947,7 @@ export function InboxProcessingModal({ visible, onClose }: InboxProcessingModalP
                     const next = new Date(date);
                     next.setHours(9, 0, 0, 0);
                     setPendingStartDate(next);
+                    setPendingStartDateOnly(false);
                   }}
                 />
               )}
@@ -901,6 +967,7 @@ export function InboxProcessingModal({ visible, onClose }: InboxProcessingModalP
                     const next = new Date(date);
                     next.setHours(9, 0, 0, 0);
                     setPendingDueDate(next);
+                    setPendingDueDateOnly(false);
                   }}
                 />
               )}
@@ -920,6 +987,7 @@ export function InboxProcessingModal({ visible, onClose }: InboxProcessingModalP
                     const next = new Date(date);
                     next.setHours(9, 0, 0, 0);
                     setPendingReviewDate(next);
+                    setPendingReviewDateOnly(false);
                   }}
                 />
               )}
@@ -939,6 +1007,7 @@ export function InboxProcessingModal({ visible, onClose }: InboxProcessingModalP
                     const next = new Date(date);
                     next.setHours(9, 0, 0, 0);
                     setDelegateFollowUpDate(next);
+                    setDelegateFollowUpDateOnly(false);
                   }}
                 />
               )}
