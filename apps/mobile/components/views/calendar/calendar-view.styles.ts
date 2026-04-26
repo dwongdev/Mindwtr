@@ -469,6 +469,130 @@ export const styles = StyleSheet.create({
     padding: 12,
     gap: 12,
   },
+  weekHorizontal: {
+    flex: 1,
+  },
+  weekHorizontalContent: {
+    flexGrow: 1,
+  },
+  weekCanvas: {
+    flex: 1,
+  },
+  weekHeaderRow: {
+    flexDirection: 'row',
+    borderBottomWidth: 1,
+  },
+  weekTimeGutter: {
+    width: 56,
+    position: 'relative',
+  },
+  weekDayHeader: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 8,
+    borderLeftWidth: 1,
+  },
+  weekDayName: {
+    fontSize: 11,
+    fontWeight: '800',
+    textTransform: 'uppercase',
+  },
+  weekDayNumber: {
+    fontSize: 17,
+    fontWeight: '900',
+    marginTop: 2,
+  },
+  weekAllDayRow: {
+    flexDirection: 'row',
+    minHeight: 54,
+    borderBottomWidth: 1,
+  },
+  weekAllDayLabel: {
+    fontSize: 10,
+    fontWeight: '900',
+    textAlign: 'right',
+    paddingRight: 6,
+    paddingTop: 10,
+  },
+  weekAllDayCell: {
+    borderLeftWidth: 1,
+    padding: 5,
+    gap: 3,
+  },
+  weekAllDayItem: {
+    borderLeftWidth: 3,
+    borderRadius: 5,
+    paddingHorizontal: 5,
+    paddingVertical: 2,
+  },
+  weekAllDayText: {
+    fontSize: 10,
+    fontWeight: '800',
+  },
+  weekVertical: {
+    flex: 1,
+  },
+  weekVerticalContent: {
+    paddingBottom: 24,
+  },
+  weekGridRow: {
+    flexDirection: 'row',
+  },
+  weekHourLabel: {
+    position: 'absolute',
+    right: 6,
+    fontSize: 10,
+    fontWeight: '700',
+    transform: [{ translateY: -7 }],
+  },
+  weekDayColumn: {
+    position: 'relative',
+    borderLeftWidth: 1,
+  },
+  weekHourRule: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    height: 1,
+    opacity: 0.7,
+  },
+  weekNowLine: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    height: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    zIndex: 30,
+  },
+  weekBlock: {
+    position: 'absolute',
+    left: 4,
+    right: 4,
+    borderLeftWidth: 4,
+    borderRadius: 8,
+    paddingHorizontal: 7,
+    paddingVertical: 5,
+    overflow: 'hidden',
+  },
+  weekBlockTitle: {
+    fontSize: 12,
+    fontWeight: '800',
+  },
+  weekBlockTime: {
+    fontSize: 10,
+    marginTop: 1,
+  },
+  weekTaskBlockTitle: {
+    fontSize: 12,
+    fontWeight: '900',
+    color: '#FFFFFF',
+  },
+  weekTaskBlockTime: {
+    fontSize: 10,
+    marginTop: 1,
+    color: 'rgba(255,255,255,0.9)',
+  },
   scheduleScroll: {
     flex: 1,
   },

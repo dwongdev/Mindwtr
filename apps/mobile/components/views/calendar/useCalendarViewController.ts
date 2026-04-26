@@ -35,6 +35,14 @@ function getFirstDayOfMonth(year: number, month: number, weekStartIndex: number)
   return (day - weekStartIndex + 7) % 7;
 }
 
+function getWeekStart(date: Date, weekStartIndex: number): Date {
+  const start = new Date(date);
+  const diff = (start.getDay() - weekStartIndex + 7) % 7;
+  start.setDate(start.getDate() - diff);
+  start.setHours(0, 0, 0, 0);
+  return start;
+}
+
 function isSameDay(date1: Date, date2: Date): boolean {
   return (
     date1.getFullYear() === date2.getFullYear() &&
@@ -51,7 +59,7 @@ const DAY_START_HOUR = 8;
 const DAY_END_HOUR = 23;
 const PIXELS_PER_MINUTE = 1.4;
 const SNAP_MINUTES = 5;
-type CalendarViewMode = 'month' | 'day' | 'schedule';
+type CalendarViewMode = 'month' | 'day' | 'week' | 'schedule';
 
 const SOURCE_COLORS = ['#2563EB', '#7C3AED', '#DB2777', '#EA580C', '#059669', '#0891B2', '#4F46E5', '#65A30D'];
 
@@ -65,7 +73,7 @@ const sourceColorForId = (sourceId: string): string => {
 };
 
 const coerceCalendarViewMode = (value?: string | null): CalendarViewMode => (
-  value === 'day' || value === 'schedule' ? value : 'month'
+  value === 'day' || value === 'week' || value === 'schedule' ? value : 'month'
 );
 
 export function useCalendarViewController() {
@@ -112,7 +120,7 @@ export function useCalendarViewController() {
     void logError(error, { scope: 'calendar' });
   };
   const setViewMode = (nextMode: CalendarViewMode) => {
-    if (nextMode === 'day' && !selectedDate) {
+    if ((nextMode === 'day' || nextMode === 'week') && !selectedDate) {
       const nextDate = new Date();
       setSelectedDate(nextDate);
       setCurrentMonth(nextDate.getMonth());
@@ -141,6 +149,15 @@ export function useCalendarViewController() {
     const base = new Date(2021, 7, 1 + ((i + weekStartIndex) % 7));
     return base.toLocaleDateString(locale, { weekday: 'short' });
   });
+  const weekAnchor = selectedDate ?? new Date(currentYear, currentMonth, 1);
+  const weekStartDate = getWeekStart(weekAnchor, weekStartIndex);
+  const weekStartTime = weekStartDate.getTime();
+  const weekDays = Array.from({ length: 7 }, (_, index) => {
+    const date = new Date(weekStartDate);
+    date.setDate(weekStartDate.getDate() + index);
+    return date;
+  });
+  const weekLabel = `${weekDays[0].toLocaleDateString(locale, { month: 'short', day: 'numeric' })} - ${weekDays[6].toLocaleDateString(locale, { month: 'short', day: 'numeric' })}`;
 
   const visibleTasks = useMemo(() => (
     tasks.filter((task) => taskMatchesAreaFilter(task, resolvedAreaFilter, projectById, areaById))
@@ -252,8 +269,17 @@ export function useCalendarViewController() {
     setIsExternalLoading(true);
     setExternalError(null);
 
-    const rangeStart = new Date(currentYear, currentMonth, 1, 0, 0, 0, 0);
-    const rangeEnd = new Date(currentYear, currentMonth + 1, 0, 23, 59, 59, 999);
+    const rangeStart = viewMode === 'week'
+      ? new Date(weekStartDate)
+      : viewMode === 'schedule'
+        ? new Date(selectedDate ?? new Date(currentYear, currentMonth, 1))
+        : new Date(currentYear, currentMonth, 1, 0, 0, 0, 0);
+    rangeStart.setHours(0, 0, 0, 0);
+    const rangeEnd = viewMode === 'week'
+      ? new Date(weekStartDate.getFullYear(), weekStartDate.getMonth(), weekStartDate.getDate() + 6, 23, 59, 59, 999)
+      : viewMode === 'schedule'
+        ? new Date(rangeStart.getFullYear(), rangeStart.getMonth(), rangeStart.getDate() + 45, 23, 59, 59, 999)
+        : new Date(currentYear, currentMonth + 1, 0, 23, 59, 59, 999);
 
     fetchExternalCalendarEvents(rangeStart, rangeEnd)
       .then(({ calendars, events }) => {
@@ -275,7 +301,7 @@ export function useCalendarViewController() {
     return () => {
       cancelled = true;
     };
-  }, [currentYear, currentMonth]);
+  }, [currentYear, currentMonth, selectedDate, viewMode, weekStartTime]);
 
   const calendarNameById = useMemo(
     () => new Map(externalCalendars.map((calendar) => [calendar.id, calendar.name])),
@@ -613,5 +639,7 @@ export function useCalendarViewController() {
     toRgba,
     updateTask,
     viewMode,
+    weekDays,
+    weekLabel,
   };
 }
