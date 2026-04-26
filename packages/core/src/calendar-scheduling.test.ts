@@ -63,6 +63,62 @@ describe('calendar scheduling helpers', () => {
         expect(slot?.getMinutes()).toBe(30);
     });
 
+    it('clamps timed external events that started before the selected day', () => {
+        const slot = findFreeSlotForDay({
+            day: new Date(2026, 3, 26),
+            durationMinutes: 30,
+            events: [
+                event({
+                    start: '2026-04-25T22:00:00',
+                    end: '2026-04-26T08:45:00',
+                }),
+            ],
+            now: new Date(2026, 3, 25, 12, 0),
+            tasks: [],
+        });
+
+        expect(slot?.getHours()).toBe(8);
+        expect(slot?.getMinutes()).toBe(45);
+    });
+
+    it('returns null when external events fill the available workday', () => {
+        const slot = findFreeSlotForDay({
+            day: new Date(2026, 3, 26),
+            dayEndHour: 10,
+            dayStartHour: 8,
+            durationMinutes: 30,
+            events: [
+                event({
+                    start: '2026-04-26T08:00:00',
+                    end: '2026-04-26T10:00:00',
+                }),
+            ],
+            now: new Date(2026, 3, 25, 12, 0),
+            tasks: [],
+        });
+
+        expect(slot).toBeNull();
+    });
+
+    it('ignores all-day external events for free-slot detection', () => {
+        const slot = findFreeSlotForDay({
+            day: new Date(2026, 3, 26),
+            durationMinutes: 30,
+            events: [
+                event({
+                    allDay: true,
+                    start: '2026-04-26T00:00:00',
+                    end: '2026-04-27T00:00:00',
+                }),
+            ],
+            now: new Date(2026, 3, 25, 12, 0),
+            tasks: [],
+        });
+
+        expect(slot?.getHours()).toBe(8);
+        expect(slot?.getMinutes()).toBe(0);
+    });
+
     it('rounds today slots forward to the configured snap interval', () => {
         const slot = findFreeSlotForDay({
             day: new Date(2026, 3, 26),
@@ -97,5 +153,24 @@ describe('calendar scheduling helpers', () => {
             ...base,
             startTime: new Date(2026, 3, 26, 10, 30),
         })).toBe(false);
+    });
+
+    it('excludes the task being edited from slot collision checks', () => {
+        const base = {
+            day: new Date(2026, 3, 26),
+            durationMinutes: 30,
+            events: [],
+            startTime: new Date(2026, 3, 26, 10, 0),
+            tasks: [
+                task({
+                    id: 'task-1',
+                    startTime: '2026-04-26T10:00:00',
+                    timeEstimate: '30min',
+                }),
+            ],
+        };
+
+        expect(isSlotFreeForDay(base)).toBe(false);
+        expect(isSlotFreeForDay({ ...base, excludeTaskId: 'task-1' })).toBe(true);
     });
 });
