@@ -30,6 +30,8 @@ The same cloud service handles both:
 
 `PUT /v1/data` is merge-based, not a blind replacement. The server reads the current namespace snapshot, merges it with the uploaded snapshot using Mindwtr's normal revision-aware sync rules, validates the merged data, and then writes it back. A client that uploads an older or partial view should not expect to erase newer remote records simply by sending a full JSON payload.
 
+REST reference fields must point to live records. For example, creating or patching a project with an `areaId` whose area was soft-deleted returns `404 Area not found` rather than attaching the project to a tombstone.
+
 ## Environment Baseline
 
 Minimum production baseline:

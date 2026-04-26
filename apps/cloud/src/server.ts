@@ -80,6 +80,7 @@ import {
 
 const normalizeAttachmentContentType = (value: string | null): string => value?.split(';', 1)[0]?.trim().toLowerCase() || '';
 const SERVER_MERGE_TIMESTAMP_FUTURE_TOLERANCE_MS = 5 * 60 * 1000;
+// Relies on POSIX mtime; do not lower below 1 minute without auditing filesystem timestamp resolution and batching.
 const ORPHAN_ATTACHMENT_GC_GRACE_MS = 5 * 60 * 1000;
 
 const getBlockedAttachmentSignature = (bytes: Uint8Array): string | null => {

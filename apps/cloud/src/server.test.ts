@@ -6,6 +6,11 @@ import type { AppData } from '@mindwtr/core';
 import { corsOrigin, errorResponse } from './server-config';
 import { __cloudTestUtils, startCloudServer } from './server';
 
+const expireFileForOrphanGc = (path: string): void => {
+    const staleTime = new Date(Date.now() - 10 * 60 * 1000);
+    utimesSync(path, staleTime, staleTime);
+};
+
 describe('cloud server utils', () => {
     test('parses bearer token and hashes it', () => {
         const req = new Request('http://localhost/v1/data', {
@@ -521,6 +526,30 @@ describe('cloud server utils', () => {
 
         expect(__cloudTestUtils.resolveServerMergeTimestamp(data)).toBe('2026-01-02T00:00:00.000Z');
     });
+
+    test('caps server merge timestamp at five minutes beyond now', () => {
+        const startedAt = Date.now();
+        const iso = '2026-01-01T00:00:00.000Z';
+        const farFuture = new Date(startedAt + 365 * 24 * 60 * 60 * 1000).toISOString();
+        const data: AppData = {
+            tasks: [{
+                id: 'task-future',
+                title: 'Future task',
+                status: 'inbox',
+                createdAt: iso,
+                updatedAt: farFuture,
+            }],
+            projects: [],
+            sections: [],
+            areas: [],
+            settings: {},
+        };
+
+        const resolved = Date.parse(__cloudTestUtils.resolveServerMergeTimestamp(data));
+        expect(Number.isFinite(resolved)).toBe(true);
+        expect(resolved).toBeGreaterThanOrEqual(startedAt + 4 * 60 * 1000);
+        expect(resolved).toBeLessThanOrEqual(Date.now() + 5 * 60 * 1000 + 1000);
+    });
 });
 
 describe('cloud server api', () => {
@@ -1004,8 +1033,7 @@ describe('cloud server api', () => {
         expect(uploadReferenced.status).toBe(200);
         expect(uploadOrphan.status).toBe(200);
         const key = __cloudTestUtils.tokenToKey(integrationToken);
-        const staleTime = new Date('2025-01-01T00:00:00.000Z');
-        utimesSync(join(dataDir, key, 'attachments', orphanPath), staleTime, staleTime);
+        expireFileForOrphanGc(join(dataDir, key, 'attachments', orphanPath));
 
         const iso = '2026-01-01T00:00:00.000Z';
         const seedResponse = await fetch(`${baseUrl}/v1/data`, {
