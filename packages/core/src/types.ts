@@ -260,6 +260,9 @@ export interface AppData {
         syncPreferences?: SettingsSyncPreferences;
         syncPreferencesUpdatedAt?: SettingsSyncUpdatedAt;
         externalCalendars?: ExternalCalendarSubscription[];
+        calendar?: {
+            viewMode?: 'month' | 'day' | 'week' | 'schedule';
+        };
         keybindingStyle?: 'vim' | 'emacs';
         globalQuickAddShortcut?: string;
         window?: {

@@ -109,7 +109,7 @@ describe('CalendarView', () => {
             await Promise.resolve();
         });
 
-        expect(screen.getByText(/Launch window/)).toBeInTheDocument();
+        expect(screen.getAllByText(/Launch window/).length).toBeGreaterThan(0);
     });
 
     it('surfaces partial external calendar failures without dropping loaded events', async () => {

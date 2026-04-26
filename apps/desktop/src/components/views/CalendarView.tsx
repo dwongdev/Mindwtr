@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState, useRef, useCallback } from 'react';
 import { ErrorBoundary } from '../ErrorBoundary';
 import { addMonths, endOfMonth, endOfWeek, format, getMonth, getYear, isSameDay, isSameMonth, isToday, setMonth, setYear, startOfMonth, startOfWeek, subMonths, eachDayOfInterval } from 'date-fns';
+import { CalendarDays, Check, ChevronLeft, ChevronRight, Clock, MoreHorizontal, Plus, Search, X } from 'lucide-react';
 import { shallow, safeFormatDate, safeParseDate, safeParseDueDate, translateWithFallback, type ExternalCalendarEvent, type ExternalCalendarSubscription, useTaskStore, type Task, isTaskInActiveProject } from '@mindwtr/core';
 import { useLanguage } from '../../contexts/language-context';
 import { cn } from '../../lib/utils';
@@ -15,14 +16,54 @@ import { getCalendarMonthNames, getCalendarWeekdayHeaders, resolveCalendarLocale
 
 const dayKey = (date: Date) => format(date, 'yyyy-MM-dd');
 
+type CalendarCellItem =
+    | { id: string; kind: 'scheduled'; task: Task; start: Date | null; title: string }
+    | { id: string; kind: 'deadline'; task: Task; start: Date | null; title: string }
+    | { id: string; kind: 'event'; event: ExternalCalendarEvent; start: Date | null; title: string };
+
+const hashString = (value: string): number => {
+    let hash = 0;
+    for (let index = 0; index < value.length; index += 1) {
+        hash = ((hash << 5) - hash) + value.charCodeAt(index);
+        hash |= 0;
+    }
+    return Math.abs(hash);
+};
+
+const externalCalendarColor = (sourceId: string): string => {
+    const hue = hashString(sourceId || 'calendar') % 360;
+    return `hsl(${hue} 68% 48%)`;
+};
+
+const parseCalendarDateParam = (value: string | null): Date | null => {
+    if (!value) return null;
+    const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
+    if (!match) return null;
+    const next = new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]));
+    if (Number.isNaN(next.getTime())) return null;
+    return next;
+};
+
+const getInitialCalendarState = (fallback: Date): { currentMonth: Date; selectedDate: Date | null } => {
+    if (typeof window === 'undefined') {
+        return { currentMonth: fallback, selectedDate: null };
+    }
+    const params = new URLSearchParams(window.location.search);
+    const selectedDate = parseCalendarDateParam(params.get('calendarDate'));
+    const monthDate = parseCalendarDateParam(`${params.get('calendarMonth') ?? ''}-01`);
+    return {
+        currentMonth: selectedDate ?? monthDate ?? fallback,
+        selectedDate,
+    };
+};
+
 export function CalendarView() {
     const perf = usePerformanceMonitor('CalendarView');
-    const { tasks, areas, updateTask, deleteTask, settings, getDerivedState } = useTaskStore(
+    const { tasks, areas, updateTask, settings, getDerivedState } = useTaskStore(
         (state) => ({
             tasks: state.tasks,
             areas: state.areas,
             updateTask: state.updateTask,
-            deleteTask: state.deleteTask,
             settings: state.settings,
             getDerivedState: state.getDerivedState,
         }),
@@ -51,9 +92,10 @@ export function CalendarView() {
         }),
         [language, settings?.dateFormat]
     );
-    const today = new Date();
-    const [currentMonth, setCurrentMonth] = useState(today);
-    const [selectedDate, setSelectedDate] = useState<Date | null>(null);
+    const [initialCalendarState] = useState(() => getInitialCalendarState(new Date()));
+    const [currentMonth, setCurrentMonth] = useState(initialCalendarState.currentMonth);
+    const [selectedDate, setSelectedDate] = useState<Date | null>(initialCalendarState.selectedDate);
+    const [isMonthPickerOpen, setIsMonthPickerOpen] = useState(false);
     const [viewFilterQuery, setViewFilterQuery] = useState('');
     const [scheduleQuery, setScheduleQuery] = useState('');
     const [scheduleError, setScheduleError] = useState<string | null>(null);
@@ -73,6 +115,18 @@ export function CalendarView() {
         }, 0);
         return () => window.clearTimeout(timer);
     }, [perf.enabled]);
+
+    useEffect(() => {
+        if (typeof window === 'undefined') return;
+        const url = new URL(window.location.href);
+        url.searchParams.set('calendarMonth', format(currentMonth, 'yyyy-MM'));
+        if (selectedDate) {
+            url.searchParams.set('calendarDate', dayKey(selectedDate));
+        } else {
+            url.searchParams.delete('calendarDate');
+        }
+        window.history.replaceState(window.history.state, '', `${url.pathname}${url.search}${url.hash}`);
+    }, [currentMonth, selectedDate]);
 
     const calendarStart = startOfWeek(startOfMonth(currentMonth), { weekStartsOn });
     const calendarEnd = endOfWeek(endOfMonth(currentMonth), { weekStartsOn });
@@ -415,90 +469,172 @@ export function CalendarView() {
         [calendarLocale, weekStartsOn]
     );
     const currentYear = getYear(currentMonth);
+    const currentMonthLabel = format(currentMonth, 'MMMM yyyy');
     const yearOptions = useMemo(
         () => Array.from({ length: 11 }, (_, index) => currentYear - 5 + index),
         [currentYear]
     );
-    const handleMonthChange = (monthIndex: number) => {
-        setSelectedDate(null);
+    const resetSelectedDayState = () => {
         setScheduleQuery('');
         setScheduleError(null);
+        setEditingTimeTaskId(null);
+        setEditingTimeValue('');
+    };
+    const selectCalendarDate = (date: Date) => {
+        setSelectedDate(date);
+        if (!isSameMonth(date, currentMonth)) {
+            setCurrentMonth(date);
+        }
+    };
+    const handleMonthChange = (monthIndex: number) => {
+        setSelectedDate(null);
+        resetSelectedDayState();
         setCurrentMonth((prev) => setMonth(prev, monthIndex));
     };
     const handleYearChange = (yearValue: number) => {
         setSelectedDate(null);
-        setScheduleQuery('');
-        setScheduleError(null);
+        resetSelectedDayState();
         setCurrentMonth((prev) => setYear(prev, yearValue));
     };
     const handlePrevMonth = () => {
         setSelectedDate(null);
-        setScheduleQuery('');
-        setScheduleError(null);
+        resetSelectedDayState();
+        setIsMonthPickerOpen(false);
         setCurrentMonth((prev) => subMonths(prev, 1));
     };
     const handleNextMonth = () => {
         setSelectedDate(null);
-        setScheduleQuery('');
-        setScheduleError(null);
+        resetSelectedDayState();
+        setIsMonthPickerOpen(false);
         setCurrentMonth((prev) => addMonths(prev, 1));
     };
+    const handleToday = () => {
+        const nextToday = new Date();
+        setCurrentMonth(nextToday);
+        setSelectedDate(null);
+        resetSelectedDayState();
+        setIsMonthPickerOpen(false);
+    };
     const selectedExternalEvents = selectedDate ? getExternalEventsForDay(selectedDate) : [];
+    const selectedAllDayEvents = selectedExternalEvents.filter((event) => event.allDay);
+    const selectedTimedEvents = selectedExternalEvents.filter((event) => !event.allDay);
+    const selectedDeadlines = selectedDate ? getDeadlinesForDay(selectedDate) : [];
+    const selectedScheduled = selectedDate ? getScheduledForDay(selectedDate) : [];
+    const selectedTaskRows = [
+        ...selectedScheduled.map((task) => ({
+            id: `scheduled-${task.id}`,
+            kind: 'scheduled' as const,
+            task,
+            start: task.startTime ? safeParseDate(task.startTime) : null,
+        })),
+        ...selectedDeadlines
+            .filter((task) => !selectedScheduled.some((scheduledTask) => scheduledTask.id === task.id))
+            .map((task) => ({
+                id: `deadline-${task.id}`,
+                kind: 'deadline' as const,
+                task,
+                start: task.dueDate ? safeParseDueDate(task.dueDate) : null,
+            })),
+    ].sort((a, b) => {
+        const aTime = a.start?.getTime() ?? Number.MAX_SAFE_INTEGER;
+        const bTime = b.start?.getTime() ?? Number.MAX_SAFE_INTEGER;
+        if (aTime !== bTime) return aTime - bTime;
+        return a.task.title.localeCompare(b.task.title);
+    });
 
     return (
         <ErrorBoundary>
             <div className="space-y-6">
             <header className="flex flex-wrap items-center justify-between gap-4">
-                <h2 className="text-3xl font-bold tracking-tight">{t('nav.calendar')}</h2>
-                <div className="flex items-center gap-2">
+                <div className="space-y-1">
+                    <h2 className="text-3xl font-bold tracking-tight">{t('nav.calendar')}</h2>
+                    <p className="text-sm text-muted-foreground">
+                        {resolveText('calendar.tasksAndEvents', 'Tasks and external events by date')}
+                    </p>
+                </div>
+                <div className="flex flex-wrap items-center gap-2">
                     <button
                         type="button"
-                        onClick={handlePrevMonth}
-                        className="rounded border border-border bg-muted/50 p-2 text-muted-foreground hover:text-foreground hover:bg-muted focus:outline-none focus:ring-2 focus:ring-primary/40"
-                        aria-label={resolveText('calendar.prevMonth', 'Previous month')}
+                        onClick={handleToday}
+                        className="inline-flex h-9 items-center gap-2 rounded-md border border-border bg-card px-3 text-sm font-medium text-foreground hover:bg-muted focus:outline-none focus:ring-2 focus:ring-primary/40"
                     >
-                        ‹
+                        <CalendarDays className="h-4 w-4 text-primary" aria-hidden="true" />
+                        {resolveText('calendar.today', 'Today')}
                     </button>
-                    <div className="flex items-center gap-2 rounded border border-border bg-card px-3 py-1">
-                        <select
-                            className="bg-transparent text-sm focus:outline-none"
-                            value={getMonth(currentMonth)}
-                            onChange={(event) => handleMonthChange(Number(event.target.value))}
-                            aria-label={resolveText('calendar.month', 'Month')}
+                    <div className="flex items-center gap-1 rounded-md border border-border bg-card p-1">
+                        <button
+                            type="button"
+                            onClick={handlePrevMonth}
+                            className="inline-flex h-8 w-8 items-center justify-center rounded text-muted-foreground hover:bg-muted hover:text-foreground focus:outline-none focus:ring-2 focus:ring-primary/40"
+                            aria-label={resolveText('calendar.prevMonth', 'Previous month')}
+                            title={resolveText('calendar.prevMonth', 'Previous month')}
                         >
-                            {monthNames.map((label, index) => (
-                                <option key={label} value={index}>{label}</option>
-                            ))}
-                        </select>
-                        <select
-                            className="bg-transparent text-sm focus:outline-none"
-                            value={currentYear}
-                            onChange={(event) => handleYearChange(Number(event.target.value))}
-                            aria-label={resolveText('calendar.year', 'Year')}
+                            <ChevronLeft className="h-4 w-4" aria-hidden="true" />
+                        </button>
+                        <div className="relative">
+                            <button
+                                type="button"
+                                onClick={() => setIsMonthPickerOpen((open) => !open)}
+                                className="h-8 min-w-[11rem] rounded px-3 text-sm font-semibold hover:bg-muted focus:outline-none focus:ring-2 focus:ring-primary/40"
+                                aria-haspopup="dialog"
+                                aria-expanded={isMonthPickerOpen}
+                            >
+                                {currentMonthLabel}
+                            </button>
+                            {isMonthPickerOpen && (
+                                <div className="absolute right-0 top-10 z-20 w-64 rounded-lg border border-border bg-popover p-3 shadow-lg">
+                                    <div className="grid grid-cols-2 gap-2">
+                                        <label className="space-y-1 text-xs font-medium text-muted-foreground">
+                                            {resolveText('calendar.month', 'Month')}
+                                            <select
+                                                className="w-full rounded border border-border bg-background px-2 py-1.5 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30"
+                                                value={getMonth(currentMonth)}
+                                                onChange={(event) => handleMonthChange(Number(event.target.value))}
+                                                aria-label={resolveText('calendar.month', 'Month')}
+                                            >
+                                                {monthNames.map((label, index) => (
+                                                    <option key={label} value={index}>{label}</option>
+                                                ))}
+                                            </select>
+                                        </label>
+                                        <label className="space-y-1 text-xs font-medium text-muted-foreground">
+                                            {resolveText('calendar.year', 'Year')}
+                                            <select
+                                                className="w-full rounded border border-border bg-background px-2 py-1.5 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30"
+                                                value={currentYear}
+                                                onChange={(event) => handleYearChange(Number(event.target.value))}
+                                                aria-label={resolveText('calendar.year', 'Year')}
+                                            >
+                                                {yearOptions.map((year) => (
+                                                    <option key={year} value={year}>{year}</option>
+                                                ))}
+                                            </select>
+                                        </label>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                        <button
+                            type="button"
+                            onClick={handleNextMonth}
+                            className="inline-flex h-8 w-8 items-center justify-center rounded text-muted-foreground hover:bg-muted hover:text-foreground focus:outline-none focus:ring-2 focus:ring-primary/40"
+                            aria-label={resolveText('calendar.nextMonth', 'Next month')}
+                            title={resolveText('calendar.nextMonth', 'Next month')}
                         >
-                            {yearOptions.map((year) => (
-                                <option key={year} value={year}>{year}</option>
-                            ))}
-                        </select>
+                            <ChevronRight className="h-4 w-4" aria-hidden="true" />
+                        </button>
                     </div>
-                    <button
-                        type="button"
-                        onClick={handleNextMonth}
-                        className="rounded border border-border bg-muted/50 p-2 text-muted-foreground hover:text-foreground hover:bg-muted focus:outline-none focus:ring-2 focus:ring-primary/40"
-                        aria-label={resolveText('calendar.nextMonth', 'Next month')}
-                    >
-                        ›
-                    </button>
                 </div>
             </header>
-            <div className="mb-4">
+            <div className="relative mb-4">
+                <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" aria-hidden="true" />
                 <input
                     type="text"
                     data-view-filter-input
                     placeholder={t('common.search')}
                     value={viewFilterQuery}
                     onChange={(event) => setViewFilterQuery(event.target.value)}
-                    className="w-full text-sm px-3 py-2 rounded border border-border bg-background focus:outline-none focus:ring-2 focus:ring-primary/30"
+                    className="w-full rounded-md border border-border bg-background py-2 pl-9 pr-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
                 />
             </div>
 
@@ -519,8 +655,39 @@ export function CalendarView() {
                     {days.map((day, _dayIdx) => {
                         const deadlines = getDeadlinesForDay(day);
                         const scheduled = getScheduledForDay(day);
-                        const taskCount = new Set([...deadlines, ...scheduled].map((t) => t.id)).size;
-                        const eventCount = getExternalEventsForDay(day).length;
+                        const scheduledIds = new Set(scheduled.map((task) => task.id));
+                        const deadlineOnly = deadlines.filter((task) => !scheduledIds.has(task.id));
+                        const dayEvents = getExternalEventsForDay(day);
+                        const cellItems: CalendarCellItem[] = [
+                            ...scheduled.map((task) => ({
+                                id: `scheduled-${task.id}`,
+                                kind: 'scheduled' as const,
+                                task,
+                                start: task.startTime ? safeParseDate(task.startTime) : null,
+                                title: task.title,
+                            })),
+                            ...deadlineOnly.map((task) => ({
+                                id: `deadline-${task.id}`,
+                                kind: 'deadline' as const,
+                                task,
+                                start: task.dueDate ? safeParseDueDate(task.dueDate) : null,
+                                title: task.title,
+                            })),
+                            ...dayEvents.map((event) => ({
+                                id: `event-${event.id}`,
+                                kind: 'event' as const,
+                                event,
+                                start: safeParseDate(event.start),
+                                title: event.title,
+                            })),
+                        ].sort((a, b) => {
+                            const aTime = a.start?.getTime() ?? Number.MAX_SAFE_INTEGER;
+                            const bTime = b.start?.getTime() ?? Number.MAX_SAFE_INTEGER;
+                            if (aTime !== bTime) return aTime - bTime;
+                            return a.title.localeCompare(b.title);
+                        });
+                        const visibleItems = cellItems.slice(0, 3);
+                        const overflowCount = Math.max(0, cellItems.length - visibleItems.length);
                         const isSelected = selectedDate && isSameDay(day, selectedDate);
                         const todayMarkerStyle = isToday(day)
                             ? {
@@ -533,68 +700,83 @@ export function CalendarView() {
                             <div
                                 key={day.toString()}
                                 className={cn(
-                                    "group bg-card min-h-[120px] p-2 transition-colors hover:bg-accent/50 relative",
+                                    "group bg-card min-h-[128px] p-2 transition-colors hover:bg-accent/50 relative",
                                     !isSameMonth(day, currentMonth) && "bg-muted/50 text-muted-foreground",
-                                    isToday(day) && "bg-accent/20",
                                     isSelected && "ring-2 ring-primary"
                                 )}
-                                onClick={() => setSelectedDate(day)}
+                                onClick={() => selectCalendarDate(day)}
                             >
-                                <div className="flex justify-between items-start">
-                                    <div className={cn(
-                                        "text-sm font-medium w-6 h-6 flex items-center justify-center rounded-full mb-1",
-                                    )} style={todayMarkerStyle}>
-                                        <span className="tabular-nums leading-none">
-                                            {format(day, 'd')}
-                                        </span>
-                                    </div>
-                                    {(taskCount > 0 || eventCount > 0) && (
-                                        <div className="flex items-center gap-1">
-                                            {taskCount > 0 && (
-                                                <div className="text-[10px] px-1.5 rounded bg-primary/10 text-primary border border-primary/20">
-                                                    {taskCount}
-                                                </div>
-                                            )}
-                                            {eventCount > 0 && (
-                                                <div className="text-[10px] px-1.5 rounded bg-muted/60 text-muted-foreground border border-border">
-                                                    {eventCount}
-                                                </div>
-                                            )}
+                                <div className="mb-2 flex items-center justify-between gap-2">
+                                    <div className="flex min-w-0 items-center gap-1.5">
+                                        <div className="flex h-6 w-6 items-center justify-center rounded-full text-sm font-medium" style={todayMarkerStyle}>
+                                            <span className="tabular-nums leading-none">
+                                                {format(day, 'd')}
+                                            </span>
                                         </div>
-                                    )}
+                                        {isToday(day) && (
+                                            <span className="rounded-full bg-primary/10 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-normal text-primary">
+                                                {resolveText('calendar.today', 'Today')}
+                                            </span>
+                                        )}
+                                    </div>
+                                    {isSelected && <div className="h-2 w-2 rounded-full bg-primary" aria-hidden="true" />}
                                 </div>
 
                                 <div className="space-y-1">
-                                    {deadlines.map(task => (
-                                        <div
-                                            key={task.id}
-                                            data-task-id={task.id}
-                                            data-task-edit-trigger
-                                            className="text-xs truncate px-1.5 py-0.5 rounded bg-primary/10 text-primary border border-primary/20"
-                                            title={task.title}
-                                            onClick={(e) => {
-                                                e.stopPropagation();
-                                                openTaskFromCalendar(task);
-                                            }}
-                                        >
-                                            {task.title}
+                                    {visibleItems.map((item) => {
+                                        const timeLabel = item.start && (item.kind === 'scheduled' || (item.kind === 'event' && !item.event.allDay))
+                                            ? safeFormatDate(item.start, 'p')
+                                            : item.kind === 'event' && item.event.allDay
+                                                ? t('calendar.allDay')
+                                                : '';
+                                        const content = (
+                                            <>
+                                                {timeLabel && <span className="mr-1 text-[10px] opacity-75">{timeLabel}</span>}
+                                                <span>{item.title}</span>
+                                            </>
+                                        );
+
+                                        if (item.kind === 'event') {
+                                            return (
+                                                <div
+                                                    key={item.id}
+                                                    className="truncate rounded border-l-[3px] bg-muted/70 px-1.5 py-1 text-xs text-muted-foreground"
+                                                    style={{ borderLeftColor: externalCalendarColor(item.event.sourceId) }}
+                                                    title={item.title}
+                                                >
+                                                    {content}
+                                                </div>
+                                            );
+                                        }
+
+                                        const task = item.task;
+                                        return (
+                                            <button
+                                                key={item.id}
+                                                type="button"
+                                                data-task-id={task.id}
+                                                data-task-edit-trigger
+                                                className={cn(
+                                                    "block w-full truncate rounded px-1.5 py-1 text-left text-xs focus:outline-none focus:ring-2 focus:ring-primary/40",
+                                                    item.kind === 'scheduled'
+                                                        ? "bg-primary/10 text-primary"
+                                                        : "border-l-[3px] border-destructive/70 bg-background/60 text-foreground"
+                                                )}
+                                                title={task.title}
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    openTaskFromCalendar(task);
+                                                }}
+                                            >
+                                                {content}
+                                            </button>
+                                        );
+                                    })}
+                                    {overflowCount > 0 && (
+                                        <div className="px-1.5 pt-0.5 text-[11px] font-medium text-muted-foreground">
+                                            +{overflowCount} {resolveText('calendar.more', 'more')}
                                         </div>
-                                    ))}
-                                    {scheduled.slice(0, 2).map(task => (
-                                        <div
-                                            key={task.id}
-                                            data-task-id={task.id}
-                                            data-task-edit-trigger
-                                            className="text-xs truncate px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"
-                                            title={task.title}
-                                            onClick={(e) => {
-                                                e.stopPropagation();
-                                                openTaskFromCalendar(task);
-                                            }}
-                                        >
-                                            {task.title}
-                                        </div>
-                                    ))}
+                                    )}
                                 </div>
                             </div>
                         );
@@ -602,207 +784,243 @@ export function CalendarView() {
                 </div>
 
                 {selectedDate && (
-                    <div className="rounded-lg border border-border bg-card p-4 space-y-3">
-                        <div className="flex items-baseline justify-between gap-4">
-                            <div className="text-sm font-semibold">{format(selectedDate, 'PPPP')}</div>
-                            <div className="flex items-center gap-3">
+                    <div className="rounded-lg border border-border bg-card">
+                        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border px-4 py-3">
+                            <div>
+                                <div className="text-sm font-semibold">{format(selectedDate, 'PPPP')}</div>
+                                <div className="text-xs text-muted-foreground">
+                                    {selectedTaskRows.length + selectedExternalEvents.length} {resolveText('calendar.items', 'items')}
+                                </div>
+                            </div>
+                            <div className="flex items-center gap-2">
                                 <button
-                                    className="text-xs px-2 py-1 rounded bg-muted hover:bg-muted/80"
+                                    type="button"
+                                    className="inline-flex h-8 items-center gap-1.5 rounded-md bg-primary px-2.5 text-xs font-medium text-primary-foreground hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-primary/40"
                                     onClick={() => openQuickAddForDate(selectedDate)}
                                 >
+                                    <Plus className="h-3.5 w-3.5" aria-hidden="true" />
                                     {t('calendar.addTask')}
                                 </button>
                                 <button
-                                    className="text-xs text-muted-foreground hover:text-foreground"
+                                    type="button"
+                                    className="inline-flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground focus:outline-none focus:ring-2 focus:ring-primary/40"
                                     onClick={() => {
                                         setSelectedDate(null);
-                                        setScheduleQuery('');
-                                        setScheduleError(null);
+                                        resetSelectedDayState();
                                     }}
+                                    aria-label={t('common.close')}
+                                    title={t('common.close')}
                                 >
-                                    {t('common.close')}
+                                    <X className="h-4 w-4" aria-hidden="true" />
                                 </button>
                             </div>
                         </div>
 
-                    <div className="space-y-2">
-                        <input
-                            type="text"
-                            value={scheduleQuery}
-                            onChange={(e) => {
-                                setScheduleQuery(e.target.value);
-                                if (scheduleError) setScheduleError(null);
-                            }}
-                            placeholder={t('calendar.schedulePlaceholder')}
-                            className="w-full text-sm px-3 py-2 rounded border border-border bg-background focus:outline-none focus:ring-2 focus:ring-primary/30"
-                        />
-                        {scheduleError && (
-                            <div className="text-xs text-red-400">{scheduleError}</div>
-                        )}
-
-                        {scheduleCandidates.length > 0 && (
-                            <div className="space-y-1">
-                                <div className="text-xs text-muted-foreground">{t('calendar.scheduleResults')}</div>
-                                <div className="flex flex-wrap gap-2">
-                                    {scheduleCandidates.map((task) => (
-                                        <button
-                                            key={task.id}
-                                            className="text-xs px-2 py-1 rounded bg-muted hover:bg-muted/80"
-                                            onClick={() => scheduleTaskOnSelectedDate(task.id)}
-                                            title={task.title}
-                                        >
-                                            {task.title}
-                                        </button>
-                                    ))}
-                                </div>
-                            </div>
-                        )}
-                    </div>
-
-                    <div className="grid gap-4 md:grid-cols-3">
-                        <div className="space-y-2">
-                            <div className="text-xs font-medium text-muted-foreground">{t('calendar.events')}</div>
-                            <div className="space-y-1">
-                                {isExternalLoading && (
-                                    <div className="text-sm text-muted-foreground">Loading…</div>
-                                )}
-                                {selectedExternalEvents.map((event) => {
-                                    const start = safeParseDate(event.start);
-                                    const end = safeParseDate(event.end);
-                                    const timeLabel = event.allDay
-                                        ? t('calendar.allDay')
-                                        : start && end
-                                            ? `${safeFormatDate(start, 'p')}-${safeFormatDate(end, 'p')}`
-                                            : '';
-                                    const sourceLabel = calendarNameById.get(event.sourceId);
-                                    return (
-                                        <div key={event.id} className="text-sm truncate">
-                                            <span className="text-muted-foreground mr-2">{timeLabel}</span>
-                                            {event.title}
-                                            {sourceLabel ? ` (${sourceLabel})` : ''}
+                        <div className="grid gap-4 p-4 lg:grid-cols-[minmax(0,1fr)_18rem]">
+                            <div className="space-y-5">
+                                {selectedAllDayEvents.length > 0 && (
+                                    <section className="space-y-2">
+                                        <h3 className="text-xs font-semibold uppercase tracking-normal text-muted-foreground">{t('calendar.allDay')}</h3>
+                                        <div className="space-y-1">
+                                            {selectedAllDayEvents.map((event) => {
+                                                const sourceLabel = calendarNameById.get(event.sourceId);
+                                                return (
+                                                    <div
+                                                        key={event.id}
+                                                        className="flex items-center gap-3 rounded-md border-l-[3px] bg-muted/50 px-3 py-2 text-sm"
+                                                        style={{ borderLeftColor: externalCalendarColor(event.sourceId) }}
+                                                    >
+                                                        <span className="min-w-0 flex-1 truncate">{event.title}</span>
+                                                        {sourceLabel && <span className="truncate text-xs text-muted-foreground">{sourceLabel}</span>}
+                                                    </div>
+                                                );
+                                            })}
                                         </div>
-                                    );
-                                })}
-                                {!isExternalLoading && !externalError && selectedExternalEvents.length === 0 && (
-                                    <div className="text-sm text-muted-foreground">{t('calendar.noTasks')}</div>
+                                    </section>
                                 )}
-                            </div>
-                        </div>
-                        <div className="space-y-2">
-                            <div className="text-xs font-medium text-muted-foreground">{t('calendar.deadline')}</div>
-                            <div className="space-y-1">
-                                {getDeadlinesForDay(selectedDate).map((task) => (
-                                    <div key={task.id} className="flex items-center justify-between gap-2">
-                                        <button
-                                            type="button"
-                                            data-task-id={task.id}
-                                            data-task-edit-trigger
-                                            onClick={() => openTaskFromCalendar(task)}
-                                            className="min-w-0 flex-1 text-sm truncate text-left text-foreground hover:underline"
-                                        >
-                                            {task.title}
-                                        </button>
-                                        <button
-                                            type="button"
-                                            onClick={() => markTaskDone(task.id)}
-                                            className="text-xs px-2 py-1 rounded bg-emerald-500/15 text-emerald-700 hover:bg-emerald-500/25 dark:text-emerald-300"
-                                        >
-                                            {t('status.done')}
-                                        </button>
-                                    </div>
-                                ))}
-                                {getDeadlinesForDay(selectedDate).length === 0 && (
-                                    <div className="text-sm text-muted-foreground">{t('calendar.noTasks')}</div>
-                                )}
-                            </div>
-                        </div>
 
-                        <div className="space-y-2">
-                            <div className="text-xs font-medium text-muted-foreground">{t('review.startTime')}</div>
-                            <div className="space-y-1">
-                                {getScheduledForDay(selectedDate).map((task) => {
-                                    const start = safeParseDate(task.startTime);
-                                    if (!start) return null;
-                                    const durMs = timeEstimateToMinutes(task.timeEstimate) * 60 * 1000;
-                                    const end = new Date(start.getTime() + durMs);
-                                    const label = `${safeFormatDate(start, 'p')}-${safeFormatDate(end, 'p')}`;
-                                    return (
-                                        <div key={task.id} className="flex items-center justify-between gap-3">
+                                <section className="space-y-2">
+                                    <h3 className="text-xs font-semibold uppercase tracking-normal text-muted-foreground">{t('calendar.events')}</h3>
+                                    <div className="space-y-1">
+                                        {isExternalLoading && (
+                                            <div className="rounded-md bg-muted/40 px-3 py-2 text-sm text-muted-foreground">
+                                                {resolveText('common.loading', 'Loading...')}
+                                            </div>
+                                        )}
+                                        {selectedTimedEvents.map((event) => {
+                                            const start = safeParseDate(event.start);
+                                            const end = safeParseDate(event.end);
+                                            const timeLabel = start && end
+                                                ? `${safeFormatDate(start, 'p')}-${safeFormatDate(end, 'p')}`
+                                                : '';
+                                            const sourceLabel = calendarNameById.get(event.sourceId);
+                                            return (
+                                                <div
+                                                    key={event.id}
+                                                    className="flex items-center gap-3 rounded-md border-l-[3px] bg-muted/50 px-3 py-2 text-sm"
+                                                    style={{ borderLeftColor: externalCalendarColor(event.sourceId) }}
+                                                >
+                                                    <span className="w-28 shrink-0 text-xs font-medium text-muted-foreground">{timeLabel}</span>
+                                                    <span className="min-w-0 flex-1 truncate">{event.title}</span>
+                                                    {sourceLabel && <span className="truncate text-xs text-muted-foreground">{sourceLabel}</span>}
+                                                </div>
+                                            );
+                                        })}
+                                        {!isExternalLoading && selectedTimedEvents.length === 0 && (
+                                            <div className="rounded-md bg-muted/30 px-3 py-2 text-sm text-muted-foreground">
+                                                {t('calendar.noTasks')}
+                                            </div>
+                                        )}
+                                    </div>
+                                </section>
+
+                                <section className="space-y-2">
+                                    <h3 className="text-xs font-semibold uppercase tracking-normal text-muted-foreground">{resolveText('calendar.tasks', 'Tasks')}</h3>
+                                    <div className="space-y-1">
+                                        {selectedTaskRows.map(({ id, kind, task, start }) => {
+                                            const durationMinutes = timeEstimateToMinutes(task.timeEstimate);
+                                            const end = start && kind === 'scheduled'
+                                                ? new Date(start.getTime() + durationMinutes * 60 * 1000)
+                                                : null;
+                                            const timeLabel = start && end
+                                                ? `${safeFormatDate(start, 'p')}-${safeFormatDate(end, 'p')}`
+                                                : kind === 'deadline'
+                                                    ? t('calendar.deadline')
+                                                    : '';
+                                            const isEditing = editingTimeTaskId === task.id;
+
+                                            return (
+                                                <div
+                                                    key={id}
+                                                    data-task-id={task.id}
+                                                    className={cn(
+                                                        "group flex items-center gap-3 rounded-md px-3 py-2 text-sm transition-colors hover:bg-muted/50",
+                                                        kind === 'scheduled' ? "bg-primary/5" : "border-l-[3px] border-destructive/70 bg-background/60"
+                                                    )}
+                                                >
+                                                    <button
+                                                        type="button"
+                                                        data-task-edit-trigger
+                                                        onClick={() => openTaskFromCalendar(task)}
+                                                        className="min-w-0 flex-1 truncate text-left text-foreground focus:outline-none focus:underline"
+                                                    >
+                                                        <span className="mr-2 inline-flex w-28 items-center gap-1 text-xs font-medium text-muted-foreground">
+                                                            {kind === 'scheduled' && <Clock className="h-3 w-3" aria-hidden="true" />}
+                                                            {timeLabel}
+                                                        </span>
+                                                        {task.title}
+                                                    </button>
+                                                    {isEditing ? (
+                                                        <div className="flex shrink-0 items-center gap-1">
+                                                            <input
+                                                                type="time"
+                                                                value={editingTimeValue}
+                                                                onChange={(e) => setEditingTimeValue(e.target.value)}
+                                                                className="h-8 rounded border border-border bg-background px-2 text-xs"
+                                                            />
+                                                            <button
+                                                                type="button"
+                                                                className="h-8 rounded bg-primary px-2 text-xs text-primary-foreground"
+                                                                onClick={commitEditScheduledTime}
+                                                            >
+                                                                {t('common.save')}
+                                                            </button>
+                                                            <button
+                                                                type="button"
+                                                                className="h-8 rounded bg-muted px-2 text-xs hover:bg-muted/80"
+                                                                onClick={cancelEditScheduledTime}
+                                                            >
+                                                                {t('common.cancel')}
+                                                            </button>
+                                                        </div>
+                                                    ) : (
+                                                        <div className="flex shrink-0 items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100">
+                                                            <button
+                                                                type="button"
+                                                                className="inline-flex h-8 w-8 items-center justify-center rounded-md bg-emerald-500/15 text-emerald-700 hover:bg-emerald-500/25 dark:text-emerald-300"
+                                                                onClick={() => markTaskDone(task.id)}
+                                                                aria-label={t('status.done')}
+                                                                title={t('status.done')}
+                                                            >
+                                                                <Check className="h-3.5 w-3.5" aria-hidden="true" />
+                                                            </button>
+                                                            {kind === 'scheduled' && (
+                                                                <button
+                                                                    type="button"
+                                                                    className="inline-flex h-8 w-8 items-center justify-center rounded-md bg-muted text-muted-foreground hover:text-foreground"
+                                                                    onClick={() => beginEditScheduledTime(task.id)}
+                                                                    aria-label={t('common.edit')}
+                                                                    title={t('common.edit')}
+                                                                >
+                                                                    <MoreHorizontal className="h-4 w-4" aria-hidden="true" />
+                                                                </button>
+                                                            )}
+                                                            {kind === 'scheduled' && (
+                                                                <button
+                                                                    type="button"
+                                                                    className="h-8 rounded-md bg-muted px-2 text-xs text-muted-foreground hover:text-foreground"
+                                                                    onClick={() => updateTask(task.id, { startTime: undefined })
+                                                                        .catch((error) => reportError('Failed to clear scheduled time', error))}
+                                                                    title={t('calendar.unschedule')}
+                                                                >
+                                                                    {t('calendar.unschedule')}
+                                                                </button>
+                                                            )}
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            );
+                                        })}
+                                        {selectedTaskRows.length === 0 && (
+                                            <div className="rounded-md bg-muted/30 px-3 py-2 text-sm text-muted-foreground">
+                                                {t('calendar.noTasks')}
+                                            </div>
+                                        )}
+                                    </div>
+                                </section>
+                            </div>
+
+                            <aside className="space-y-3 rounded-lg border border-border bg-background/60 p-3">
+                                <div>
+                                    <div className="text-xs font-semibold uppercase tracking-normal text-muted-foreground">
+                                        {t('calendar.scheduleResults')}
+                                    </div>
+                                    <p className="mt-1 text-xs text-muted-foreground">
+                                        {resolveText('calendar.scheduleHelp', 'Find a next task and place it in the first open slot.')}
+                                    </p>
+                                </div>
+                                <input
+                                    type="text"
+                                    value={scheduleQuery}
+                                    onChange={(e) => {
+                                        setScheduleQuery(e.target.value);
+                                        if (scheduleError) setScheduleError(null);
+                                    }}
+                                    placeholder={t('calendar.schedulePlaceholder')}
+                                    className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
+                                />
+                                {scheduleError && (
+                                    <div className="text-xs text-red-400">{scheduleError}</div>
+                                )}
+                                {scheduleCandidates.length > 0 && (
+                                    <div className="space-y-1">
+                                        {scheduleCandidates.map((task) => (
                                             <button
+                                                key={task.id}
                                                 type="button"
-                                                data-task-id={task.id}
-                                                data-task-edit-trigger
-                                                onClick={() => openTaskFromCalendar(task)}
-                                                className="min-w-0 text-sm truncate text-left text-foreground hover:underline"
+                                                className="block w-full truncate rounded-md bg-muted px-2 py-1.5 text-left text-xs hover:bg-muted/80"
+                                                onClick={() => scheduleTaskOnSelectedDate(task.id)}
+                                                title={task.title}
                                             >
-                                                <span className="text-muted-foreground mr-2">{label}</span>
                                                 {task.title}
                                             </button>
-                                            <div className="flex items-center gap-2">
-                                                {editingTimeTaskId === task.id ? (
-                                                    <>
-                                                        <input
-                                                            type="time"
-                                                            value={editingTimeValue}
-                                                            onChange={(e) => setEditingTimeValue(e.target.value)}
-                                                            className="text-xs px-2 py-1 rounded border border-border bg-background"
-                                                        />
-                                                        <button
-                                                            className="text-xs px-2 py-1 rounded bg-primary text-primary-foreground"
-                                                            onClick={commitEditScheduledTime}
-                                                        >
-                                                            {t('common.save')}
-                                                        </button>
-                                                        <button
-                                                            className="text-xs px-2 py-1 rounded bg-muted hover:bg-muted/80"
-                                                            onClick={cancelEditScheduledTime}
-                                                        >
-                                                            {t('common.cancel')}
-                                                        </button>
-                                                    </>
-                                                ) : (
-                                                    <>
-                                                        <button
-                                                            className="text-xs px-2 py-1 rounded bg-emerald-500/15 text-emerald-700 hover:bg-emerald-500/25 dark:text-emerald-300"
-                                                            onClick={() => markTaskDone(task.id)}
-                                                        >
-                                                            {t('status.done')}
-                                                        </button>
-                                                        <button
-                                                            className="text-xs px-2 py-1 rounded bg-muted hover:bg-muted/80"
-                                                            onClick={() => beginEditScheduledTime(task.id)}
-                                                        >
-                                                            {t('common.edit')}
-                                                        </button>
-                                                        <button
-                                                            className="text-xs px-2 py-1 rounded bg-muted hover:bg-muted/80"
-                                                            onClick={() => updateTask(task.id, { startTime: undefined })
-                                                                .catch((error) => reportError('Failed to clear scheduled time', error))}
-                                                            title={t('calendar.unschedule')}
-                                                        >
-                                                            {t('calendar.unschedule')}
-                                                        </button>
-                                                        <button
-                                                            className="text-xs px-2 py-1 rounded bg-destructive text-destructive-foreground"
-                                                            onClick={() => deleteTask(task.id)
-                                                                .catch((error) => reportError('Failed to delete task', error))}
-                                                        >
-                                                            {t('common.delete')}
-                                                        </button>
-                                                    </>
-                                                )}
-                                            </div>
-                                        </div>
-                                    );
-                                })}
-                                {getScheduledForDay(selectedDate).length === 0 && (
-                                    <div className="text-sm text-muted-foreground">{t('calendar.noTasks')}</div>
+                                        ))}
+                                    </div>
                                 )}
-                            </div>
+                            </aside>
                         </div>
                     </div>
-                </div>
-            )}
+                )}
             {openTask && (
                 <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/50 p-4" role="dialog" aria-modal="true">
                     <div

@@ -6,19 +6,57 @@ export const styles = StyleSheet.create({
     backgroundColor: '#F9FAFB',
   },
   header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    gap: 8,
     paddingHorizontal: 16,
-    paddingVertical: 2,
+    paddingVertical: 8,
     backgroundColor: '#FFFFFF',
     borderBottomWidth: 1,
     borderBottomColor: '#E5E7EB',
+  },
+  headerTopRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    gap: 8,
+  },
+  monthTitleWrap: {
+    flex: 1,
+    minWidth: 0,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 4,
   },
   title: {
     fontSize: 17,
     fontWeight: 'bold',
     color: '#111827',
+  },
+  todayButton: {
+    borderWidth: 1,
+    borderRadius: 999,
+    paddingHorizontal: 10,
+    paddingVertical: 3,
+  },
+  todayButtonText: {
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  modeToggle: {
+    flexDirection: 'row',
+    borderWidth: 1,
+    borderRadius: 10,
+    padding: 2,
+    gap: 2,
+  },
+  modeToggleButton: {
+    flex: 1,
+    alignItems: 'center',
+    borderRadius: 8,
+    paddingVertical: 6,
+  },
+  modeToggleText: {
+    fontSize: 12,
+    fontWeight: '800',
   },
   navButton: {
     paddingVertical: 4,
@@ -34,11 +72,20 @@ export const styles = StyleSheet.create({
   },
   monthDetailsPane: {
     flexShrink: 0,
-    maxHeight: 300,
     borderTopWidth: 1,
     borderTopLeftRadius: 16,
     borderTopRightRadius: 16,
     overflow: 'hidden',
+  },
+  sheetHandleWrap: {
+    alignItems: 'center',
+    paddingTop: 8,
+    paddingBottom: 4,
+  },
+  sheetHandle: {
+    width: 42,
+    height: 4,
+    borderRadius: 999,
   },
   monthDetailsContent: {
     padding: 16,
@@ -164,6 +211,23 @@ export const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontWeight: '600',
   },
+  monthPreviewList: {
+    width: '100%',
+    gap: 2,
+    marginTop: 2,
+  },
+  monthPreviewItem: {
+    width: '100%',
+    borderLeftWidth: 2,
+    borderRadius: 4,
+    paddingHorizontal: 3,
+    paddingVertical: 1,
+  },
+  monthPreviewText: {
+    fontSize: 9,
+    lineHeight: 11,
+    fontWeight: '700',
+  },
   selectedDateSection: {
     backgroundColor: '#FFFFFF',
     margin: 16,
@@ -251,12 +315,10 @@ export const styles = StyleSheet.create({
     paddingVertical: 16,
   },
   dayModeHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    gap: 8,
     paddingHorizontal: 12,
-    paddingVertical: 10,
+    paddingVertical: 8,
     borderBottomWidth: 1,
-    gap: 10,
   },
   dayModeBack: {
     paddingVertical: 6,
@@ -267,10 +329,16 @@ export const styles = StyleSheet.create({
     fontWeight: '700',
   },
   dayModeTitle: {
-    flex: 1,
     textAlign: 'center',
     fontSize: 16,
     fontWeight: '800',
+  },
+  dayModeTitleWrap: {
+    flex: 1,
+    minWidth: 0,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 4,
   },
   dayModeNav: {
     flexDirection: 'row',
@@ -314,6 +382,26 @@ export const styles = StyleSheet.create({
   },
   timelineArea: {
     position: 'relative',
+  },
+  nowLine: {
+    position: 'absolute',
+    left: 50,
+    right: 12,
+    height: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    zIndex: 20,
+  },
+  nowDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: '#EF4444',
+  },
+  nowRule: {
+    flex: 1,
+    height: 2,
+    backgroundColor: '#EF4444',
   },
   hourLine: {
     position: 'absolute',
@@ -380,5 +468,33 @@ export const styles = StyleSheet.create({
     borderRadius: 12,
     padding: 12,
     gap: 12,
+  },
+  scheduleScroll: {
+    flex: 1,
+  },
+  scheduleContent: {
+    padding: 16,
+    gap: 18,
+    paddingBottom: 28,
+  },
+  scheduleSection: {
+    gap: 8,
+  },
+  scheduleDate: {
+    fontSize: 12,
+    fontWeight: '900',
+    textTransform: 'uppercase',
+    paddingHorizontal: 2,
+  },
+  scheduleItems: {
+    gap: 8,
+  },
+  scheduleItem: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 12,
+    borderRadius: 8,
+    borderLeftWidth: 3,
   },
 });

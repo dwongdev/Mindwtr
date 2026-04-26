@@ -1,4 +1,5 @@
-import { Pressable, Text, TextInput, View } from 'react-native';
+import { Pressable, Text, TextInput, useWindowDimensions, View } from 'react-native';
+import * as Haptics from 'expo-haptics';
 import { safeFormatDate, safeParseDate, type Task } from '@mindwtr/core';
 import { Gesture, GestureDetector, ScrollView } from 'react-native-gesture-handler';
 import Animated, { runOnJS, useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
@@ -26,11 +27,13 @@ export function CalendarView() {
     externalError,
     formatHourLabel,
     formatTimeRange,
+    getCalendarItemsForDate,
     getExternalEventsForDate,
     getScheduleSlotLabel,
     getTaskCountForDate,
     handleNextMonth,
     handlePrevMonth,
+    handleToday,
     isDark,
     isExternalLoading,
     isSameDay,
@@ -54,14 +57,17 @@ export function CalendarView() {
     selectedDateScheduled,
     selectedDateTimedEvents,
     selectedDayModeLabel,
+    selectedDayNowTop,
     selectedDayScheduledTasks,
     selectedDayStart,
     selectedDayEnd,
+    scheduleSections,
     setScheduleQuery,
     setSelectedDate,
     setTimelineScrollEnabled,
     setViewMode,
     shiftSelectedDate,
+    sourceColorForId,
     t,
     tc,
     timeEstimateToMinutes,
@@ -70,6 +76,62 @@ export function CalendarView() {
     toRgba,
     viewMode,
   } = useCalendarViewController();
+  const { height: screenHeight } = useWindowDimensions();
+  const bottomSheetSnap = useSharedValue(0.42);
+  const bottomSheetStart = useSharedValue(0.42);
+  const bottomSheetGesture = Gesture.Pan()
+    .onStart(() => {
+      bottomSheetStart.value = bottomSheetSnap.value;
+    })
+    .onUpdate((event) => {
+      const next = bottomSheetStart.value - (event.translationY / Math.max(screenHeight, 1));
+      bottomSheetSnap.value = Math.max(0.3, Math.min(0.9, next));
+    })
+    .onEnd(() => {
+      const snapPoints = [0.3, 0.6, 0.9];
+      let nearest = snapPoints[0];
+      let nearestDistance = Math.abs(bottomSheetSnap.value - nearest);
+      for (const snap of snapPoints) {
+        const distance = Math.abs(bottomSheetSnap.value - snap);
+        if (distance < nearestDistance) {
+          nearest = snap;
+          nearestDistance = distance;
+        }
+      }
+      bottomSheetSnap.value = withSpring(nearest);
+    });
+  const bottomSheetStyle = useAnimatedStyle(() => ({
+    height: Math.max(220, screenHeight * bottomSheetSnap.value),
+  }));
+
+  const triggerDragHaptic = () => {
+    Haptics.selectionAsync().catch(() => {});
+  };
+
+  const modeOptions = [
+    { value: 'month' as const, label: localize('Month', '月') },
+    { value: 'day' as const, label: localize('Day', '日') },
+    { value: 'schedule' as const, label: localize('Schedule', '日程') },
+  ];
+
+  const renderModeToggle = () => (
+    <View style={[styles.modeToggle, { backgroundColor: tc.inputBg, borderColor: tc.border }]}>
+      {modeOptions.map((option) => {
+        const active = viewMode === option.value;
+        return (
+          <Pressable
+            key={option.value}
+            onPress={() => setViewMode(option.value)}
+            style={[styles.modeToggleButton, active && { backgroundColor: tc.tint }]}
+          >
+            <Text style={[styles.modeToggleText, { color: active ? tc.onTint : tc.secondaryText }]}>
+              {option.label}
+            </Text>
+          </Pressable>
+        );
+      })}
+    </View>
+  );
 
   function ScheduledTaskBlock({
     task,
@@ -94,6 +156,7 @@ export function CalendarView() {
       .onStart(() => {
         scale.value = withSpring(1.02);
         zIndex.value = 50;
+        runOnJS(triggerDragHaptic)();
         runOnJS(setTimelineScrollEnabled)(false);
       })
       .onUpdate((event) => {
@@ -159,25 +222,28 @@ export function CalendarView() {
     return (
       <View style={[styles.container, { backgroundColor: tc.bg }]}>
         <View style={[styles.dayModeHeader, { backgroundColor: tc.cardBg, borderBottomColor: tc.border }]}>
-          <Pressable onPress={() => setViewMode('month')} style={styles.dayModeBack}>
-            <Text style={[styles.dayModeBackText, { color: tc.text }]}>
-              ‹ {localize('Month', '月')}
-            </Text>
-          </Pressable>
-          <Text style={[styles.dayModeTitle, { color: tc.text }]} numberOfLines={1}>
-            {selectedDayModeLabel}
-          </Text>
-          <View style={styles.dayModeNav}>
-            <Pressable onPress={() => openQuickAddForDate(selectedDate)} style={styles.dayNavButton}>
-              <Text style={[styles.dayNavText, { color: tc.text }]}>＋</Text>
+          <View style={styles.headerTopRow}>
+            <Pressable onPress={() => shiftSelectedDate(-1)} style={styles.navButton}>
+              <Text style={[styles.navButtonText, { color: tc.text }]}>‹</Text>
             </Pressable>
-            <Pressable onPress={() => shiftSelectedDate(-1)} style={styles.dayNavButton}>
-              <Text style={[styles.dayNavText, { color: tc.text }]}>‹</Text>
-            </Pressable>
-            <Pressable onPress={() => shiftSelectedDate(1)} style={styles.dayNavButton}>
-              <Text style={[styles.dayNavText, { color: tc.text }]}>›</Text>
-            </Pressable>
+            <View style={styles.dayModeTitleWrap}>
+              <Text style={[styles.dayModeTitle, { color: tc.text }]} numberOfLines={1}>
+                {selectedDayModeLabel}
+              </Text>
+              <Pressable onPress={handleToday} style={[styles.todayButton, { borderColor: tc.border }]}>
+                <Text style={[styles.todayButtonText, { color: tc.tint }]}>{localize('Today', '今天')}</Text>
+              </Pressable>
+            </View>
+            <View style={styles.dayModeNav}>
+              <Pressable onPress={() => openQuickAddForDate(selectedDate)} style={styles.dayNavButton}>
+                <Text style={[styles.dayNavText, { color: tc.text }]}>＋</Text>
+              </Pressable>
+              <Pressable onPress={() => shiftSelectedDate(1)} style={styles.navButton}>
+                <Text style={[styles.navButtonText, { color: tc.text }]}>›</Text>
+              </Pressable>
+            </View>
           </View>
+          {renderModeToggle()}
         </View>
 
         <ScrollView
@@ -209,6 +275,13 @@ export function CalendarView() {
                 );
               })}
 
+              {selectedDayNowTop != null && (
+                <View style={[styles.nowLine, { top: selectedDayNowTop }]}>
+                  <View style={styles.nowDot} />
+                  <View style={styles.nowRule} />
+                </View>
+              )}
+
               {selectedDateTimedEvents.map((event) => {
                 const start = safeParseDate(event.start);
                 const end = safeParseDate(event.end);
@@ -229,7 +302,7 @@ export function CalendarView() {
                         top,
                         height,
                         backgroundColor: toRgba(tc.secondaryText, isDark ? 0.35 : 0.18),
-                        borderColor: toRgba(tc.border, isDark ? 0.35 : 0.28),
+                        borderColor: sourceColorForId(event.sourceId),
                       },
                     ]}
                   >
@@ -343,18 +416,138 @@ export function CalendarView() {
     );
   }
 
+  if (viewMode === 'schedule') {
+    return (
+      <View style={[styles.container, { backgroundColor: tc.bg }]}>
+        <View style={[styles.header, { backgroundColor: tc.cardBg, borderBottomColor: tc.border }]}>
+          <View style={styles.headerTopRow}>
+            <Pressable onPress={handlePrevMonth} style={styles.navButton}>
+              <Text style={[styles.navButtonText, { color: tc.text }]}>‹</Text>
+            </Pressable>
+            <View style={styles.monthTitleWrap}>
+              <Text style={[styles.title, { color: tc.text }]}>{localize('Schedule', '日程')}</Text>
+              <Pressable onPress={handleToday} style={[styles.todayButton, { borderColor: tc.border }]}>
+                <Text style={[styles.todayButtonText, { color: tc.tint }]}>{localize('Today', '今天')}</Text>
+              </Pressable>
+            </View>
+            <Pressable onPress={handleNextMonth} style={styles.navButton}>
+              <Text style={[styles.navButtonText, { color: tc.text }]}>›</Text>
+            </Pressable>
+          </View>
+          {renderModeToggle()}
+        </View>
+
+        <ScrollView style={styles.scheduleScroll} contentContainerStyle={styles.scheduleContent}>
+          {scheduleSections.map((section) => (
+            <View key={section.id} style={styles.scheduleSection}>
+              <Text style={[styles.scheduleDate, { color: tc.secondaryText }]}>
+                {section.date.toLocaleDateString(locale, { weekday: 'short', month: 'short', day: 'numeric' })}
+                {isToday(section.date) ? ` · ${localize('Today', '今天')}` : ''}
+              </Text>
+              <View style={styles.scheduleItems}>
+                {section.items.map((item) => {
+                  if (item.kind === 'event') {
+                    const start = safeParseDate(item.event.start);
+                    const end = safeParseDate(item.event.end);
+                    const timeLabel = item.event.allDay
+                      ? t('calendar.allDay')
+                      : start && end
+                        ? `${safeFormatDate(start, 'p')}-${safeFormatDate(end, 'p')}`
+                        : '';
+                    const sourceName = calendarNameById.get(item.event.sourceId);
+                    return (
+                      <View
+                        key={item.id}
+                        style={[
+                          styles.scheduleItem,
+                          styles.eventItem,
+                          {
+                            backgroundColor: tc.inputBg,
+                            borderLeftColor: sourceColorForId(item.event.sourceId),
+                          },
+                        ]}
+                      >
+                        <View style={styles.taskItemMain}>
+                          <Text style={[styles.taskItemTitle, { color: tc.text }]} numberOfLines={1}>
+                            {item.title}
+                          </Text>
+                          <Text style={[styles.taskItemTime, { color: tc.secondaryText }]} numberOfLines={1}>
+                            {sourceName ? `${timeLabel} · ${sourceName}` : timeLabel}
+                          </Text>
+                        </View>
+                      </View>
+                    );
+                  }
+
+                  const start = item.task.startTime ? safeParseDate(item.task.startTime) : null;
+                  const timeLabel = start
+                    ? formatTimeRange(start, timeEstimateToMinutes(item.task.timeEstimate))
+                    : t('calendar.deadline');
+                  return (
+                    <Pressable
+                      key={item.id}
+                      style={[
+                        styles.scheduleItem,
+                        {
+                          backgroundColor: item.kind === 'scheduled' ? toRgba(tc.tint, isDark ? 0.2 : 0.12) : tc.inputBg,
+                          borderLeftColor: item.kind === 'scheduled' ? tc.tint : tc.danger,
+                        },
+                      ]}
+                      onPress={() => openTaskActions(item.task.id)}
+                    >
+                      <View style={styles.taskItemMain}>
+                        <Text style={[styles.taskItemTitle, { color: tc.text }]} numberOfLines={1}>
+                          {item.title}
+                        </Text>
+                        <Text style={[styles.taskItemTime, { color: tc.secondaryText }]}>
+                          {timeLabel}
+                        </Text>
+                      </View>
+                    </Pressable>
+                  );
+                })}
+              </View>
+            </View>
+          ))}
+          {scheduleSections.length === 0 && (
+            <Text style={[styles.noTasks, { color: tc.secondaryText }]}>{t('calendar.noTasks')}</Text>
+          )}
+        </ScrollView>
+
+        <TaskEditModal
+          visible={Boolean(editingTask)}
+          task={editingTask}
+          onClose={closeEditingTask}
+          onSave={saveEditingTask}
+          defaultTab="view"
+          onProjectNavigate={openProjectScreen}
+          onContextNavigate={openContextsScreen}
+          onTagNavigate={openContextsScreen}
+        />
+      </View>
+    );
+  }
+
   return (
     <View style={[styles.container, { backgroundColor: tc.bg }]}>
       <View style={[styles.header, { backgroundColor: tc.cardBg, borderBottomColor: tc.border }]}>
-        <Pressable onPress={handlePrevMonth} style={styles.navButton}>
-          <Text style={[styles.navButtonText, { color: tc.text }]}>‹</Text>
-        </Pressable>
-        <Text style={[styles.title, { color: tc.text }]}>
-          {monthLabel}
-        </Text>
-        <Pressable onPress={handleNextMonth} style={styles.navButton}>
-          <Text style={[styles.navButtonText, { color: tc.text }]}>›</Text>
-        </Pressable>
+        <View style={styles.headerTopRow}>
+          <Pressable onPress={handlePrevMonth} style={styles.navButton}>
+            <Text style={[styles.navButtonText, { color: tc.text }]}>‹</Text>
+          </Pressable>
+          <View style={styles.monthTitleWrap}>
+            <Text style={[styles.title, { color: tc.text }]} numberOfLines={1}>
+              {monthLabel}
+            </Text>
+            <Pressable onPress={handleToday} style={[styles.todayButton, { borderColor: tc.border }]}>
+              <Text style={[styles.todayButtonText, { color: tc.tint }]}>{localize('Today', '今天')}</Text>
+            </Pressable>
+          </View>
+          <Pressable onPress={handleNextMonth} style={styles.navButton}>
+            <Text style={[styles.navButtonText, { color: tc.text }]}>›</Text>
+          </Pressable>
+        </View>
+        {renderModeToggle()}
       </View>
 
       <View style={styles.monthCalendar}>
@@ -375,6 +568,8 @@ export function CalendarView() {
             const date = new Date(currentYear, currentMonth, day);
             const taskCount = getTaskCountForDate(date);
             const eventCount = getExternalEventsForDate(date).length;
+            const calendarItems = getCalendarItemsForDate(date);
+            const visibleItems = calendarItems.slice(0, calendarItems.length >= 6 ? 0 : 2);
             const isSelected = selectedDate && isSameDay(date, selectedDate);
             const todayCellBg = toRgba(tc.tint, isDark ? 0.12 : 0.08);
             const selectedCellBg = toRgba(tc.tint, isDark ? 0.2 : 0.16);
@@ -410,7 +605,41 @@ export function CalendarView() {
                     {day}
                   </Text>
                 </View>
-                {(taskCount > 0 || eventCount > 0) && (
+                {visibleItems.length > 0 && (
+                  <View style={styles.monthPreviewList}>
+                    {visibleItems.map((item) => {
+                      const isEvent = item.kind === 'event';
+                      return (
+                        <View
+                          key={item.id}
+                          style={[
+                            styles.monthPreviewItem,
+                            {
+                              backgroundColor: item.kind === 'scheduled'
+                                ? toRgba(tc.tint, isDark ? 0.24 : 0.14)
+                                : item.kind === 'deadline'
+                                  ? 'transparent'
+                                  : toRgba(tc.secondaryText, isDark ? 0.28 : 0.16),
+                              borderLeftColor: isEvent
+                                ? sourceColorForId(item.event.sourceId)
+                                : item.kind === 'deadline'
+                                  ? tc.danger
+                                  : tc.tint,
+                            },
+                          ]}
+                        >
+                          <Text
+                            style={[styles.monthPreviewText, { color: item.kind === 'scheduled' ? tc.tint : tc.text }]}
+                            numberOfLines={1}
+                          >
+                            {item.title}
+                          </Text>
+                        </View>
+                      );
+                    })}
+                  </View>
+                )}
+                {calendarItems.length >= 6 && (taskCount > 0 || eventCount > 0) && (
                   <View style={styles.indicatorRow}>
                     {taskCount > 0 && (
                       <View style={[styles.taskDot, { backgroundColor: tc.tint }]}>
@@ -431,7 +660,12 @@ export function CalendarView() {
       </View>
 
       {selectedDate && (
-        <View style={[styles.monthDetailsPane, { backgroundColor: tc.cardBg, borderTopColor: tc.border }]}>
+        <Animated.View style={[styles.monthDetailsPane, bottomSheetStyle, { backgroundColor: tc.cardBg, borderTopColor: tc.border }]}>
+          <GestureDetector gesture={bottomSheetGesture}>
+            <View style={styles.sheetHandleWrap}>
+              <View style={[styles.sheetHandle, { backgroundColor: tc.border }]} />
+            </View>
+          </GestureDetector>
           <ScrollView contentContainerStyle={styles.monthDetailsContent} keyboardShouldPersistTaps="handled">
             <View style={styles.monthDetailsHeader}>
               <Text style={[styles.selectedDateTitle, { color: tc.text }]}>
@@ -602,7 +836,7 @@ export function CalendarView() {
               )}
             </View>
           </ScrollView>
-        </View>
+        </Animated.View>
       )}
 
       <TaskEditModal

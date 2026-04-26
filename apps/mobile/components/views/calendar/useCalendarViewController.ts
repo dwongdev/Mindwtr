@@ -48,9 +48,25 @@ const DAY_START_HOUR = 8;
 const DAY_END_HOUR = 23;
 const PIXELS_PER_MINUTE = 1.4;
 const SNAP_MINUTES = 5;
+type CalendarViewMode = 'month' | 'day' | 'schedule';
+
+const SOURCE_COLORS = ['#2563EB', '#7C3AED', '#DB2777', '#EA580C', '#059669', '#0891B2', '#4F46E5', '#65A30D'];
+
+const sourceColorForId = (sourceId: string): string => {
+  let hash = 0;
+  for (let index = 0; index < sourceId.length; index += 1) {
+    hash = ((hash << 5) - hash) + sourceId.charCodeAt(index);
+    hash |= 0;
+  }
+  return SOURCE_COLORS[Math.abs(hash) % SOURCE_COLORS.length] ?? SOURCE_COLORS[0];
+};
+
+const coerceCalendarViewMode = (value?: string | null): CalendarViewMode => (
+  value === 'day' || value === 'schedule' ? value : 'month'
+);
 
 export function useCalendarViewController() {
-  const { tasks, projects, updateTask, deleteTask, settings } = useTaskStore();
+  const { tasks, projects, updateTask, deleteTask, updateSettings, settings } = useTaskStore();
   const { isDark } = useTheme();
   const { showToast } = useToast();
   const tc = useThemeColors();
@@ -78,7 +94,7 @@ export function useCalendarViewController() {
   const [currentMonth, setCurrentMonth] = useState(today.getMonth());
   const [currentYear, setCurrentYear] = useState(today.getFullYear());
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
-  const [viewMode, setViewMode] = useState<'month' | 'day'>('month');
+  const [viewMode, setViewModeState] = useState<CalendarViewMode>(() => coerceCalendarViewMode(settings?.calendar?.viewMode));
   const [scheduleQuery, setScheduleQuery] = useState('');
   const [externalCalendars, setExternalCalendars] = useState<ExternalCalendarSubscription[]>([]);
   const [externalEvents, setExternalEvents] = useState<ExternalCalendarEvent[]>([]);
@@ -91,6 +107,16 @@ export function useCalendarViewController() {
   const projectById = useMemo(() => new Map(projects.map((project) => [project.id, project])), [projects]);
   const logCalendarError = (error: unknown) => {
     void logError(error, { scope: 'calendar' });
+  };
+  const setViewMode = (nextMode: CalendarViewMode) => {
+    if (nextMode === 'day' && !selectedDate) {
+      const nextDate = new Date();
+      setSelectedDate(nextDate);
+      setCurrentMonth(nextDate.getMonth());
+      setCurrentYear(nextDate.getFullYear());
+    }
+    setViewModeState(nextMode);
+    updateSettings({ calendar: { viewMode: nextMode } }).catch(logCalendarError);
   };
 
   const weekStartIndex = settings?.weekStart === 'monday' ? 1 : 0;
@@ -148,6 +174,40 @@ export function useCalendarViewController() {
       const end = safeParseDate(event.end);
       if (!start || !end) return false;
       return start.getTime() < dayEnd.getTime() && end.getTime() > dayStart.getTime();
+    });
+  };
+
+  const getCalendarItemsForDate = (date: Date) => {
+    const scheduled = getScheduledForDate(date);
+    const scheduledIds = new Set(scheduled.map((task) => task.id));
+    const deadlines = getDeadlinesForDate(date).filter((task) => !scheduledIds.has(task.id));
+    return [
+      ...scheduled.map((task) => ({
+        id: `scheduled-${task.id}`,
+        kind: 'scheduled' as const,
+        title: task.title,
+        task,
+        start: task.startTime ? safeParseDate(task.startTime) : null,
+      })),
+      ...deadlines.map((task) => ({
+        id: `deadline-${task.id}`,
+        kind: 'deadline' as const,
+        title: task.title,
+        task,
+        start: task.dueDate ? safeParseDueDate(task.dueDate) : null,
+      })),
+      ...getExternalEventsForDate(date).map((event) => ({
+        id: `event-${event.id}`,
+        kind: 'event' as const,
+        title: event.title,
+        event,
+        start: safeParseDate(event.start),
+      })),
+    ].sort((a, b) => {
+      const aTime = a.start?.getTime() ?? Number.MAX_SAFE_INTEGER;
+      const bTime = b.start?.getTime() ?? Number.MAX_SAFE_INTEGER;
+      if (aTime !== bTime) return aTime - bTime;
+      return a.title.localeCompare(b.title);
     });
   };
 
@@ -378,6 +438,16 @@ export function useCalendarViewController() {
     setCurrentYear(next.getFullYear());
   };
 
+  const handleToday = () => {
+    const next = new Date();
+    setSelectedDate(next);
+    setCurrentMonth(next.getMonth());
+    setCurrentYear(next.getFullYear());
+    if (viewMode === 'day') {
+      setPendingScrollMinutes((next.getHours() * 60 + next.getMinutes()) - DAY_START_HOUR * 60);
+    }
+  };
+
   const formatHourLabel = (hour: number) => {
     const sample = new Date(2025, 0, 1, hour, 0, 0, 0);
     return safeFormatDate(sample, 'p');
@@ -518,6 +588,13 @@ export function useCalendarViewController() {
     () => selectedDateScheduled.filter((task) => !task.deletedAt && task.status !== 'done' && task.status !== 'reference'),
     [selectedDateScheduled],
   );
+  const selectedDayNowTop = useMemo(() => {
+    if (!selectedDate || !isToday(selectedDate)) return null;
+    const now = new Date();
+    const minutes = (now.getHours() - DAY_START_HOUR) * 60 + now.getMinutes();
+    if (minutes < 0 || minutes > selectedDayMinutes) return null;
+    return minutes * PIXELS_PER_MINUTE;
+  }, [selectedDate, selectedDayMinutes]);
   const selectedDateLongLabel = selectedDate
     ? selectedDate.toLocaleDateString(locale, {
         weekday: 'long',
@@ -527,8 +604,21 @@ export function useCalendarViewController() {
       })
     : '';
   const selectedDayModeLabel = selectedDate
-    ? selectedDate.toLocaleDateString(locale, { weekday: 'short', month: 'long', day: 'numeric' })
+    ? `${selectedDate.toLocaleDateString(locale, { weekday: 'short', month: 'long', day: 'numeric' })}${isToday(selectedDate) ? ` · ${localize('Today', '今天')}` : ''}`
     : '';
+  const scheduleSections = useMemo(() => {
+    const start = selectedDate ?? new Date(currentYear, currentMonth, 1);
+    const sections: Array<{ date: Date; id: string; items: ReturnType<typeof getCalendarItemsForDate> }> = [];
+    for (let offset = 0; offset < 45; offset += 1) {
+      const date = new Date(start);
+      date.setDate(start.getDate() + offset);
+      const items = getCalendarItemsForDate(date);
+      if (items.length === 0) continue;
+      sections.push({ id: `${date.getFullYear()}-${date.getMonth()}-${date.getDate()}`, date, items });
+      if (sections.length >= 18) break;
+    }
+    return sections;
+  }, [selectedDate, currentMonth, currentYear, visibleTasks, externalEvents]);
 
   const closeEditingTask = () => setEditingTask(null);
   const saveEditingTask = (taskId: string, updates: Partial<Task>) => updateTask(taskId, updates);
@@ -550,11 +640,13 @@ export function useCalendarViewController() {
     externalError,
     formatHourLabel,
     formatTimeRange,
+    getCalendarItemsForDate,
     getExternalEventsForDate,
     getScheduleSlotLabel,
     getTaskCountForDate,
     handleNextMonth,
     handlePrevMonth,
+    handleToday,
     isDark,
     isExternalLoading,
     isSameDay,
@@ -579,9 +671,11 @@ export function useCalendarViewController() {
     selectedDateTimedEvents,
     selectedDayMinutes,
     selectedDayModeLabel,
+    selectedDayNowTop,
     selectedDayScheduledTasks,
     selectedDayStart,
     selectedDayEnd,
+    scheduleSections,
     setCurrentMonth,
     setCurrentYear,
     setEditingTask,
@@ -591,6 +685,7 @@ export function useCalendarViewController() {
     setViewMode,
     shiftSelectedDate,
     showToast,
+    sourceColorForId,
     t,
     tc,
     timeEstimateToMinutes,
