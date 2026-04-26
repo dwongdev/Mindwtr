@@ -92,17 +92,24 @@ export const combineDateAndTime = (dateValue: string, timeValue: string): Date |
     if (!dateMatch || !timeMatch) return null;
     const hours = Number(timeMatch[1]);
     const minutes = Number(timeMatch[2]);
+    const year = Number(dateMatch[1]);
+    const month = Number(dateMatch[2]);
+    const day = Number(dateMatch[3]);
     if (hours < 0 || hours > 23 || minutes < 0 || minutes > 59) return null;
     const date = new Date(
-        Number(dateMatch[1]),
-        Number(dateMatch[2]) - 1,
-        Number(dateMatch[3]),
+        year,
+        month - 1,
+        day,
         hours,
         minutes,
         0,
         0,
     );
-    return Number.isNaN(date.getTime()) ? null : date;
+    if (Number.isNaN(date.getTime())) return null;
+    if (date.getFullYear() !== year || date.getMonth() !== month - 1 || date.getDate() !== day) {
+        return null;
+    }
+    return date;
 };
 
 export const normalizeDurationMinutes = (minutes: number): number => {
@@ -121,8 +128,14 @@ const parseCalendarDateParam = (value: string | null): Date | null => {
     if (!value) return null;
     const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
     if (!match) return null;
-    const next = new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]));
+    const year = Number(match[1]);
+    const month = Number(match[2]);
+    const day = Number(match[3]);
+    const next = new Date(year, month - 1, day);
     if (Number.isNaN(next.getTime())) return null;
+    if (next.getFullYear() !== year || next.getMonth() !== month - 1 || next.getDate() !== day) {
+        return null;
+    }
     return next;
 };
 

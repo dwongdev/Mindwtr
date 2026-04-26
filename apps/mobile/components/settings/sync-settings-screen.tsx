@@ -78,6 +78,7 @@ function SyncSettingsView({ mode }: { mode: SettingsScreenMode }) {
     const syncPreferences = settings.syncPreferences ?? {};
     const syncAppearanceEnabled = syncPreferences.appearance === true;
     const syncLanguageEnabled = syncPreferences.language === true;
+    const syncGtdEnabled = syncPreferences.gtd === true;
     const syncExternalCalendarsEnabled = syncPreferences.externalCalendars === true;
     const syncAiEnabled = syncPreferences.ai === true;
     const syncHistory = settings.lastSyncHistory ?? [];
@@ -551,6 +552,7 @@ function SyncSettingsView({ mode }: { mode: SettingsScreenMode }) {
                             syncAiEnabled={syncAiEnabled}
                             syncAppearanceEnabled={syncAppearanceEnabled}
                             syncExternalCalendarsEnabled={syncExternalCalendarsEnabled}
+                            syncGtdEnabled={syncGtdEnabled}
                             syncLanguageEnabled={syncLanguageEnabled}
                             syncOptionsOpen={syncOptionsOpen}
                             t={t}

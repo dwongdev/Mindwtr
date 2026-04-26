@@ -3,6 +3,7 @@ export * from './storage';
 export * from './store';
 export type { StoreActionResult, TaskStore } from './store-types';
 export * from './sync';
+export { repairMergedSyncReferences } from './sync-normalization';
 export * from './sync-helpers';
 export * from './sync-client-helpers';
 export * from './sync-runtime-utils';

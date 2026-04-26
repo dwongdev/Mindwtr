@@ -107,10 +107,9 @@ export const sanitizeAppDataForRemote = (data: AppData): AppData => {
         if (!attachments) return attachments;
         return attachments.map((attachment) => {
             if (attachment.kind !== 'file') return attachment;
-            const hasUri = hasNonEmptyValue(attachment.uri);
             const hasCloudKey = hasNonEmptyValue(attachment.cloudKey);
             if (!attachment.deletedAt) {
-                if ((ownerDeleted && !hasCloudKey) || (!hasUri && !hasCloudKey)) {
+                if ((ownerDeleted && !hasCloudKey) || (attachment.localStatus === 'missing' && !hasCloudKey)) {
                     const nowIso = new Date().toISOString();
                     const fallbackUpdatedAt = hasNonEmptyValue(attachment.updatedAt)
                         ? attachment.updatedAt
@@ -154,6 +153,9 @@ export const sanitizeAppDataForRemote = (data: AppData): AppData => {
             next.weekStart = settings.weekStart;
             next.dateFormat = settings.dateFormat;
             next.timeFormat = settings.timeFormat;
+        }
+
+        if (prefs.gtd === true) {
             if (settings.gtd?.defaultScheduleTime !== undefined) {
                 next.gtd = {
                     defaultScheduleTime: settings.gtd.defaultScheduleTime,

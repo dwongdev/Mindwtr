@@ -212,6 +212,10 @@ type MergeableEntity = {
     revBy?: string;
 };
 
+type MergeAppDataOptions = {
+    nowIso?: string;
+};
+
 function mergeEntitiesWithStats<T extends MergeableEntity>(
     local: T[],
     incoming: T[],
@@ -572,8 +576,8 @@ const getClockSkewWarning = (stats: MergeResult['stats']): ClockSkewWarning | un
     };
 };
 
-export function mergeAppDataWithStats(local: AppData, incoming: AppData): MergeResult {
-    const nowIso = new Date().toISOString();
+export function mergeAppDataWithStats(local: AppData, incoming: AppData, options: MergeAppDataOptions = {}): MergeResult {
+    const nowIso = isValidTimestamp(options.nowIso) ? options.nowIso : new Date().toISOString();
     const localNormalized = {
         ...local,
         tasks: (local.tasks || []).map((task) => normalizeRevisionMetadata(normalizeTaskForSyncMerge(task, nowIso))),
@@ -740,8 +744,8 @@ export function mergeAppDataWithStats(local: AppData, incoming: AppData): MergeR
     };
 }
 
-export function mergeAppData(local: AppData, incoming: AppData): AppData {
-    return mergeAppDataWithStats(local, incoming).data;
+export function mergeAppData(local: AppData, incoming: AppData, options: MergeAppDataOptions = {}): AppData {
+    return mergeAppDataWithStats(local, incoming, options).data;
 }
 
 const withPendingRemoteWriteFlag = (
@@ -887,7 +891,7 @@ export async function performSyncCycle(io: SyncCycleIO): Promise<SyncCycleResult
 
     io.onStep?.('merge');
     await yieldToUi();
-    const mergeResult = mergeAppDataWithStats(localData, remoteData);
+    const mergeResult = mergeAppDataWithStats(localData, remoteData, { nowIso });
     const conflictCount = (mergeResult.stats.tasks.conflicts || 0)
         + (mergeResult.stats.projects.conflicts || 0)
         + (mergeResult.stats.sections.conflicts || 0)

@@ -599,6 +599,7 @@ export const jaOverrides: Record<string, string> = {
         'settings.syncPreferencesDesc': 'デバイス間で同期を保つ設定を選択します。',
         'settings.syncPreferenceAppearance': '外観（テーマ）',
         'settings.syncPreferenceLanguage': '言語と日付の形式',
+        'settings.syncPreferenceGtd': 'スケジュールの既定値',
         'settings.syncPreferenceExternalCalendars': '外部カレンダーの URL',
         'settings.syncPreferenceAi': 'AI設定（モデル、プロバイダー）',
         'settings.syncPreferenceAiHint': 'API キーとローカル モデル パスは決して同期されません。',

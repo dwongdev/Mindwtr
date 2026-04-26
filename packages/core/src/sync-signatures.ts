@@ -105,28 +105,11 @@ export const toComparableValue = (value: unknown, options?: { includeIgnoredKeys
     return value;
 };
 
-const comparableSignatureCache = new WeakMap<object, string>();
-const deterministicSignatureCache = new WeakMap<object, string>();
-
 export const toComparableSignature = (value: unknown): string => {
-    if (value && typeof value === 'object') {
-        const cached = comparableSignatureCache.get(value);
-        if (cached) return cached;
-        const signature = JSON.stringify(toComparableValue(value));
-        comparableSignatureCache.set(value, signature);
-        return signature;
-    }
     return JSON.stringify(toComparableValue(value));
 };
 
 const toDeterministicSignature = (value: unknown): string => {
-    if (value && typeof value === 'object') {
-        const cached = deterministicSignatureCache.get(value);
-        if (cached) return cached;
-        const signature = JSON.stringify(toComparableValue(value, { includeIgnoredKeys: true }));
-        deterministicSignatureCache.set(value, signature);
-        return signature;
-    }
     return JSON.stringify(toComparableValue(value, { includeIgnoredKeys: true }));
 };
 

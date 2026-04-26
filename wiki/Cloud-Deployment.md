@@ -28,6 +28,8 @@ The same cloud service handles both:
 - Sync traffic under `/v1/data`
 - Task automation endpoints such as `/v1/tasks`, `/v1/projects`, and `/v1/search`
 
+`PUT /v1/data` is merge-based, not a blind replacement. The server reads the current namespace snapshot, merges it with the uploaded snapshot using Mindwtr's normal revision-aware sync rules, validates the merged data, and then writes it back. A client that uploads an older or partial view should not expect to erase newer remote records simply by sending a full JSON payload.
+
 ## Environment Baseline
 
 Minimum production baseline:
@@ -164,6 +166,19 @@ Restore:
 3. Start server.
 4. Check `GET /health` and run a client sync validation.
 
+## Attachment Cleanup
+
+When a user deletes an attachment, clients keep a `pendingRemoteDeletes` record until the backend delete succeeds. Those pending deletes are intentionally not aged out, because removing them before a successful remote delete can leave private files behind.
+
+Mindwtr Cloud also provides authenticated orphan cleanup for attachment files that are no longer referenced by the current `data.json` snapshot:
+
+```text
+POST /v1/attachments/orphans
+DELETE /v1/attachments/orphans
+```
+
+Run this after restore operations or as a periodic maintenance task if you want server-side cleanup of files that became unreachable outside the normal client delete flow. The endpoint scans the authenticated token namespace only and returns counts for scanned, kept, deleted, and failed file paths.
+
 ## Upgrade Procedure
 
 Safe rolling procedure:
@@ -205,6 +220,11 @@ Add host/container metrics:
 - disk free space on data volume
 - p95 request latency
 - non-2xx response rate
+
+Clock note:
+
+- The server participates in merge and repair on `PUT /v1/data`, so host clock drift can still affect request logs and rate-limit windows. Keep NTP or equivalent time sync enabled.
+- Merge repair timestamps are chosen from payload timestamps when available, which limits the effect of a drifting server clock on stored sync records.
 
 ## Failure Modes
 

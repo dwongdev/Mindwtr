@@ -23,7 +23,7 @@ export type RecurrenceByDay =
     | RecurrenceWeekday
     | `${'1' | '2' | '3' | '4' | '-1'}${RecurrenceWeekday}`;
 
-export type SettingsSyncGroup = 'appearance' | 'language' | 'externalCalendars' | 'ai';
+export type SettingsSyncGroup = 'appearance' | 'language' | 'gtd' | 'externalCalendars' | 'ai';
 
 export type SettingsSyncPreferences = Partial<Record<SettingsSyncGroup, boolean>>;
 
@@ -33,6 +33,7 @@ export interface Recurrence {
     rule: RecurrenceRule;
     strategy?: RecurrenceStrategy; // Defaults to 'strict'
     byDay?: RecurrenceByDay[]; // Explicit weekdays for weekly/monthly recurrences
+    weekStart?: RecurrenceWeekday; // RFC 5545 WKST for weekly interval anchoring
     count?: number; // Total occurrences in the series, including the current task
     until?: string; // ISO date/datetime when the series should stop
     completedOccurrences?: number; // Internal counter used to preserve COUNT across generated tasks

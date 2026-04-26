@@ -404,7 +404,7 @@ export function CalendarView() {
                                     const hour = DESKTOP_DAY_START_HOUR + index;
                                     return (
                                         <div key={hour} className="absolute right-2 -translate-y-2 text-[11px] text-muted-foreground" style={{ top: index * DESKTOP_HOUR_HEIGHT }}>
-                                            {safeFormatDate(new Date(2026, 0, 1, hour), 'p')}
+                                            {safeFormatDate(new Date(0, 0, 1, hour), 'p')}
                                         </div>
                                     );
                                 })}

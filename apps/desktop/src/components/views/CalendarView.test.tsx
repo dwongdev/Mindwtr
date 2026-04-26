@@ -4,6 +4,7 @@ import type { Task } from '@mindwtr/core';
 
 import { LanguageProvider } from '../../contexts/language-context';
 import { CalendarView } from './CalendarView';
+import { combineDateAndTime } from './calendar/useDesktopCalendarController';
 import { fetchExternalCalendarEvents } from '../../lib/external-calendar-events';
 
 const storeMocks = vi.hoisted(() => ({
@@ -128,6 +129,11 @@ describe('CalendarView', () => {
         const markerStyle = todayNumber.parentElement?.getAttribute('style') ?? '';
         expect(markerStyle).toContain('background-color: hsl(var(--primary));');
         expect(markerStyle).toContain('color: hsl(var(--primary-foreground));');
+    });
+
+    it('rejects rolled-over date values in calendar composer parsing', () => {
+        expect(combineDateAndTime('2026-02-30', '09:00')).toBeNull();
+        expect(combineDateAndTime('2026-02-28', '09:00')?.getDate()).toBe(28);
     });
 
     it('shows external events that span into the selected day', async () => {

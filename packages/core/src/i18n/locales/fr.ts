@@ -599,6 +599,7 @@ export const frOverrides: Record<string, string> = {
         'settings.syncPreferencesDesc': 'Choisissez les préférences qui restent synchronisées sur tous les appareils.',
         'settings.syncPreferenceAppearance': 'Apparence (thème)',
         'settings.syncPreferenceLanguage': 'Langue et format de date',
+        'settings.syncPreferenceGtd': 'Préférences de planification',
         'settings.syncPreferenceExternalCalendars': 'URL de calendrier externe',
         'settings.syncPreferenceAi': 'Paramètres de l\'IA (modèles, fournisseurs)',
         'settings.syncPreferenceAiHint': 'Les clés API et les chemins de modèle locaux ne sont jamais synchronisés.',

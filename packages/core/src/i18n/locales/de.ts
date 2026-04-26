@@ -629,6 +629,7 @@ export const deOverrides: Record<string, string> = {
         'settings.syncPreferencesDesc': 'Legen Sie fest, welche Einstellungen zwischen Geräten synchron bleiben.',
         'settings.syncPreferenceAppearance': 'Erscheinungsbild (Theme)',
         'settings.syncPreferenceLanguage': 'Sprache & Datumsformat',
+        'settings.syncPreferenceGtd': 'Planungs-Standards',
         'settings.syncPreferenceExternalCalendars': 'Externe Kalender-URLs',
         'settings.syncPreferenceAi': 'KI-Einstellungen (Modelle, Anbieter)',
         'settings.syncPreferenceAiHint': 'API-Schlüssel und lokale Modellpfade werden nie synchronisiert.',

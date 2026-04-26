@@ -599,6 +599,7 @@ export const arOverrides: Record<string, string> = {
         'settings.syncPreferencesDesc': 'اختر التفضيلات التي تظل متزامنة عبر الأجهزة.',
         'settings.syncPreferenceAppearance': 'المظهر (الموضوع)',
         'settings.syncPreferenceLanguage': 'تنسيق اللغة والتاريخ',
+        'settings.syncPreferenceGtd': 'الإعدادات الافتراضية للجدولة',
         'settings.syncPreferenceExternalCalendars': 'عناوين URL للتقويم الخارجي',
         'settings.syncPreferenceAi': 'إعدادات الذكاء الاصطناعي (النماذج، مقدمو الخدمة)',
         'settings.syncPreferenceAiHint': 'لا تتم مزامنة مفاتيح API ومسارات النماذج المحلية مطلقًا.',

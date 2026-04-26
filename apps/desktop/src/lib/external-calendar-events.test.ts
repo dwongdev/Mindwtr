@@ -30,8 +30,10 @@ const workIcs = [
 ].join('\n');
 
 describe('external calendar events', () => {
-    beforeEach(() => {
+    beforeEach(async () => {
         vi.clearAllMocks();
+        const { __externalCalendarEventsTestUtils } = await import('./external-calendar-events');
+        __externalCalendarEventsTestUtils.clearCache();
         getCalendarsMock.mockResolvedValue([]);
         fetchSystemCalendarEventsMock.mockResolvedValue({
             permission: 'unsupported',
@@ -62,6 +64,24 @@ describe('external calendar events', () => {
         expect(fetch).toHaveBeenCalledWith('https://calendar.example/work.ics', expect.anything());
         expect(result.calendars.map((calendar) => calendar.id)).toEqual(['work']);
         expect(result.events.map((event) => event.title)).toEqual(['Team Meeting']);
+    });
+
+    it('caches subscribed ICS calendars by month for adjacent visible ranges', async () => {
+        const { fetchExternalCalendarEvents } = await import('./external-calendar-events');
+        getCalendarsMock.mockResolvedValue([
+            { id: 'work', name: 'Work', url: 'https://calendar.example/work.ics', enabled: true },
+        ]);
+
+        await fetchExternalCalendarEvents(
+            new Date('2026-04-26T00:00:00.000Z'),
+            new Date('2026-04-27T00:00:00.000Z'),
+        );
+        await fetchExternalCalendarEvents(
+            new Date('2026-04-27T00:00:00.000Z'),
+            new Date('2026-04-28T00:00:00.000Z'),
+        );
+
+        expect(fetch).toHaveBeenCalledTimes(1);
     });
 
     it('filters system Mindwtr mirror calendars and prefixed pushed events', async () => {

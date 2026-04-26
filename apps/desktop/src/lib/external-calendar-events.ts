@@ -5,6 +5,22 @@ import { fetchSystemCalendarEvents } from './system-calendar';
 
 const MINDWTR_PUSHED_EVENT_PREFIX = 'Mindwtr: ';
 const MINDWTR_MIRROR_CALENDAR_NAMES = new Set(['mindwtr', 'mindwtr calendar', 'mindwtrcal']);
+const ICS_MONTH_CACHE_TTL_MS = 5 * 60 * 1000;
+const ICS_MONTH_CACHE_MAX_ENTRIES = 120;
+
+type IcsMonthCacheEntry = {
+    events: ExternalCalendarEvent[];
+    expiresAt: number;
+    lastAccessedAt: number;
+};
+
+type MonthRange = {
+    end: Date;
+    key: string;
+    start: Date;
+};
+
+const icsMonthCache = new Map<string, IcsMonthCacheEntry>();
 
 export const summarizeExternalCalendarWarnings = (warnings: string[]): string | null => {
     if (warnings.length === 0) return null;
@@ -14,6 +30,103 @@ export const summarizeExternalCalendarWarnings = (warnings: string[]): string | 
 
 function normalizeCalendarName(value: string | undefined): string {
     return (value ?? '').trim().toLowerCase().replace(/\s+/g, ' ');
+}
+
+function getMonthKey(date: Date): string {
+    return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+}
+
+function getVisibleMonthRanges(rangeStart: Date, rangeEnd: Date): MonthRange[] {
+    const ranges: MonthRange[] = [];
+    const cursor = new Date(rangeStart.getFullYear(), rangeStart.getMonth(), 1);
+    const inclusiveEnd = rangeEnd > rangeStart ? new Date(rangeEnd.getTime() - 1) : rangeStart;
+    const last = new Date(inclusiveEnd.getFullYear(), inclusiveEnd.getMonth(), 1);
+
+    while (cursor <= last) {
+        const start = new Date(cursor);
+        const end = new Date(cursor.getFullYear(), cursor.getMonth() + 1, 1);
+        ranges.push({ key: getMonthKey(start), start, end });
+        cursor.setMonth(cursor.getMonth() + 1);
+    }
+    return ranges;
+}
+
+function getIcsCacheKey(calendar: ExternalCalendarSubscription, monthKey: string): string {
+    return `${calendar.id}:${calendar.url}:${monthKey}`;
+}
+
+function pruneIcsMonthCache(): void {
+    while (icsMonthCache.size > ICS_MONTH_CACHE_MAX_ENTRIES) {
+        let oldestKey: string | null = null;
+        let oldestAccessedAt = Number.POSITIVE_INFINITY;
+        for (const [key, entry] of icsMonthCache.entries()) {
+            if (entry.lastAccessedAt < oldestAccessedAt) {
+                oldestAccessedAt = entry.lastAccessedAt;
+                oldestKey = key;
+            }
+        }
+        if (!oldestKey) return;
+        icsMonthCache.delete(oldestKey);
+    }
+}
+
+function eventOverlapsRange(event: ExternalCalendarEvent, rangeStart: Date, rangeEnd: Date): boolean {
+    const startMs = Date.parse(event.start);
+    const endMs = Date.parse(event.end);
+    if (!Number.isFinite(startMs) || !Number.isFinite(endMs)) return false;
+    return startMs < rangeEnd.getTime() && endMs > rangeStart.getTime();
+}
+
+function dedupeEvents(events: ExternalCalendarEvent[]): ExternalCalendarEvent[] {
+    const byKey = new Map<string, ExternalCalendarEvent>();
+    for (const event of events) {
+        byKey.set(`${event.sourceId}:${event.id}:${event.start}:${event.end}`, event);
+    }
+    return Array.from(byKey.values());
+}
+
+async function loadCachedIcsEventsForCalendar(
+    calendar: ExternalCalendarSubscription,
+    monthRanges: MonthRange[],
+    rangeStart: Date,
+    rangeEnd: Date,
+): Promise<ExternalCalendarEvent[]> {
+    const now = Date.now();
+    const events: ExternalCalendarEvent[] = [];
+    const missingRanges: MonthRange[] = [];
+
+    for (const monthRange of monthRanges) {
+        const cacheKey = getIcsCacheKey(calendar, monthRange.key);
+        const cached = icsMonthCache.get(cacheKey);
+        if (cached && cached.expiresAt > now) {
+            cached.lastAccessedAt = now;
+            events.push(...cached.events.filter((event) => eventOverlapsRange(event, rangeStart, rangeEnd)));
+            continue;
+        }
+        if (cached) icsMonthCache.delete(cacheKey);
+        missingRanges.push(monthRange);
+    }
+
+    if (missingRanges.length === 0) {
+        return events;
+    }
+
+    const text = await fetchTextWithTimeout(calendar.url, 15_000);
+    for (const monthRange of missingRanges) {
+        const parsed = parseIcs(text, {
+            sourceId: calendar.id,
+            rangeStart: monthRange.start,
+            rangeEnd: monthRange.end,
+        });
+        icsMonthCache.set(getIcsCacheKey(calendar, monthRange.key), {
+            events: parsed,
+            expiresAt: now + ICS_MONTH_CACHE_TTL_MS,
+            lastAccessedAt: now,
+        });
+        events.push(...parsed.filter((event) => eventOverlapsRange(event, rangeStart, rangeEnd)));
+    }
+    pruneIcsMonthCache();
+    return events;
 }
 
 export function isMindwtrMirrorCalendar(calendar: Pick<ExternalCalendarSubscription, 'name'>): boolean {
@@ -66,13 +179,11 @@ export async function fetchExternalCalendarEvents(
     const calendars = await ExternalCalendarService.getCalendars();
     const importableCalendars = calendars.filter((calendar) => !isMindwtrMirrorCalendar(calendar));
     const enabled = importableCalendars.filter((calendar) => calendar.enabled);
+    const monthRanges = getVisibleMonthRanges(rangeStart, rangeEnd);
 
     const [icsResults, systemResults] = await Promise.all([
         Promise.allSettled(
-            enabled.map(async (calendar) => {
-                const text = await fetchTextWithTimeout(calendar.url, 15_000);
-                return parseIcs(text, { sourceId: calendar.id, rangeStart, rangeEnd });
-            })
+            enabled.map((calendar) => loadCachedIcsEventsForCalendar(calendar, monthRanges, rangeStart, rangeEnd))
         ),
         fetchSystemCalendarEvents(rangeStart, rangeEnd),
     ]);
@@ -105,10 +216,15 @@ export async function fetchExternalCalendarEvents(
         mergedCalendars.push(systemCalendar);
     }
 
-    events.sort((a, b) => {
+    const dedupedEvents = dedupeEvents(events);
+    dedupedEvents.sort((a, b) => {
         if (a.start === b.start) return a.title.localeCompare(b.title);
         return a.start.localeCompare(b.start);
     });
 
-    return { calendars: mergedCalendars, events, warnings };
+    return { calendars: mergedCalendars, events: dedupedEvents, warnings };
 }
+
+export const __externalCalendarEventsTestUtils = {
+    clearCache: () => icsMonthCache.clear(),
+};

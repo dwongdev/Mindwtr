@@ -599,6 +599,7 @@ export const ptOverrides: Record<string, string> = {
         'settings.syncPreferencesDesc': 'Escolha quais preferências permanecem sincronizadas entre os dispositivos.',
         'settings.syncPreferenceAppearance': 'Aparência (tema)',
         'settings.syncPreferenceLanguage': 'Idioma e formato de data',
+        'settings.syncPreferenceGtd': 'Padrões de agendamento',
         'settings.syncPreferenceExternalCalendars': 'URLs de calendário externo',
         'settings.syncPreferenceAi': 'Configurações de IA (modelos, provedores)',
         'settings.syncPreferenceAiHint': 'As chaves de API e os caminhos do modelo local nunca são sincronizados.',

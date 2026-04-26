@@ -172,6 +172,7 @@ export function SyncStatusSection({
                         <div className="space-y-3">
                             {renderSyncToggle('appearance', t.syncPreferenceAppearance)}
                             {renderSyncToggle('language', t.syncPreferenceLanguage)}
+                            {renderSyncToggle('gtd', t.syncPreferenceGtd)}
                             {renderSyncToggle('externalCalendars', t.syncPreferenceExternalCalendars)}
                             {renderSyncToggle('ai', t.syncPreferenceAi, t.syncPreferenceAiHint)}
                         </div>

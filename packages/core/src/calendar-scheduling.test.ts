@@ -132,6 +132,25 @@ describe('calendar scheduling helpers', () => {
         expect(slot?.getMinutes()).toBe(10);
     });
 
+    it('rounds free slots after busy intervals forward to the configured snap interval', () => {
+        const slot = findFreeSlotForDay({
+            day: new Date(2026, 3, 26),
+            durationMinutes: 30,
+            events: [
+                event({
+                    start: '2026-04-26T08:00:00',
+                    end: '2026-04-26T10:07:00',
+                }),
+            ],
+            now: new Date(2026, 3, 25, 12, 0),
+            snapMinutes: 15,
+            tasks: [],
+        });
+
+        expect(slot?.getHours()).toBe(10);
+        expect(slot?.getMinutes()).toBe(15);
+    });
+
     it('checks candidate slots against blocking intervals', () => {
         const base = {
             day: new Date(2026, 3, 26),
@@ -153,6 +172,16 @@ describe('calendar scheduling helpers', () => {
             ...base,
             startTime: new Date(2026, 3, 26, 10, 30),
         })).toBe(false);
+    });
+
+    it('allows slots outside the visible calendar window when they do not overlap', () => {
+        expect(isSlotFreeForDay({
+            day: new Date(2026, 3, 26),
+            durationMinutes: 30,
+            events: [],
+            startTime: new Date(2026, 3, 26, 6, 30),
+            tasks: [],
+        })).toBe(true);
     });
 
     it('excludes the task being edited from slot collision checks', () => {

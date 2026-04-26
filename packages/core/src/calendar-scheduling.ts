@@ -155,7 +155,9 @@ export function findFreeSlotForDay(options: FindFreeSlotOptions): Date | null {
 
     for (const interval of intervals) {
         if (cursor + durationMs <= interval.start) return new Date(cursor);
-        if (cursor < interval.end) cursor = interval.end;
+        if (cursor < interval.end) {
+            cursor = ceilToMinutes(new Date(interval.end), snapMinutes).getTime();
+        }
     }
 
     if (cursor + durationMs <= dayEnd.getTime()) return new Date(cursor);
@@ -163,12 +165,14 @@ export function findFreeSlotForDay(options: FindFreeSlotOptions): Date | null {
 }
 
 export function isSlotFreeForDay(options: IsSlotFreeOptions): boolean {
-    const { dayEnd, dayStart } = getDayBounds(options.day, options);
     const startMs = options.startTime.getTime();
     const endMs = startMs + options.durationMinutes * 60 * 1000;
-    if (startMs < dayStart.getTime() || endMs > dayEnd.getTime()) return false;
 
     const overlaps = (aStart: number, aEnd: number, bStart: number, bEnd: number): boolean => aStart < bEnd && aEnd > bStart;
-    const intervals = collectBusyIntervals(options.day, options.events, options.tasks, options);
+    const intervals = collectBusyIntervals(options.day, options.events, options.tasks, {
+        ...options,
+        dayEndHour: 24,
+        dayStartHour: 0,
+    });
     return !intervals.some((interval) => overlaps(startMs, endMs, interval.start, interval.end));
 }

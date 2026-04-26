@@ -260,18 +260,20 @@ type SyncPreferencesCardProps = {
   syncAiEnabled: boolean;
   syncAppearanceEnabled: boolean;
   syncExternalCalendarsEnabled: boolean;
+  syncGtdEnabled: boolean;
   syncLanguageEnabled: boolean;
   syncOptionsOpen: boolean;
   t: Translate;
   tc: ThemeColors;
   toggleSyncOptionsOpen: () => void;
-  updateSyncPreferences: (partial: { ai?: boolean; appearance?: boolean; externalCalendars?: boolean; language?: boolean }) => void;
+  updateSyncPreferences: (partial: { ai?: boolean; appearance?: boolean; externalCalendars?: boolean; gtd?: boolean; language?: boolean }) => void;
 };
 
 export function SyncPreferencesCard({
   syncAiEnabled,
   syncAppearanceEnabled,
   syncExternalCalendarsEnabled,
+  syncGtdEnabled,
   syncLanguageEnabled,
   syncOptionsOpen,
   t,
@@ -307,6 +309,16 @@ export function SyncPreferencesCard({
             <Switch
               value={syncLanguageEnabled}
               onValueChange={(value) => updateSyncPreferences({ language: value })}
+              trackColor={{ false: '#767577', true: '#3B82F6' }}
+            />
+          </View>
+          <View style={[styles.settingRow, { borderTopWidth: 1, borderTopColor: tc.border }]}>
+            <View style={styles.settingInfo}>
+              <Text style={[styles.settingLabel, { color: tc.text }]}>{t('settings.syncPreferenceGtd')}</Text>
+            </View>
+            <Switch
+              value={syncGtdEnabled}
+              onValueChange={(value) => updateSyncPreferences({ gtd: value })}
               trackColor={{ false: '#767577', true: '#3B82F6' }}
             />
           </View>

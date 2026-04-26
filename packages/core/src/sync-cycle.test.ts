@@ -360,7 +360,7 @@ describe('performSyncCycle', () => {
         expect(saved!.areas.every((area) => area.revBy === undefined)).toBe(true);
     });
 
-    it('purges expired task tombstones and deleted attachment tombstones by default', async () => {
+    it('purges expired tombstones while retaining pending remote attachment deletes', async () => {
         let saved: AppData | null = null;
         const oldPurgedTask = {
             ...createMockTask('old-purged', '2025-06-01T00:00:00.000Z', '2025-06-01T00:00:00.000Z'),
@@ -431,6 +431,7 @@ describe('performSyncCycle', () => {
         expect(keptTask).toBeTruthy();
         expect(keptTask!.attachments).toBeUndefined();
         expect(saved!.settings.attachments?.pendingRemoteDeletes?.map((entry) => entry.cloudKey)).toEqual([
+            'attachments/stale.bin',
             'attachments/recent.bin',
         ]);
     });

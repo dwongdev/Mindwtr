@@ -242,10 +242,12 @@ describe('Sync Logic', () => {
                     'project-deleted',
                     '2024-01-02T00:00:00.000Z'
                 );
+                incomingSection.rev = 5;
                 const incomingTask: Task = {
                     ...createMockTask('task-stale', '2024-01-04T00:00:00.000Z'),
                     projectId: 'project-deleted',
                     sectionId: 'section-stale',
+                    rev: 2,
                 };
 
                 const merged = mergeAppData(local, mockAppData([incomingTask], [], [incomingSection]));
@@ -253,8 +255,12 @@ describe('Sync Logic', () => {
 
                 expect(repairedSection?.deletedAt).toBe('2026-02-01T00:00:00.000Z');
                 expect(repairedSection?.updatedAt).toBe('2026-02-01T00:00:00.000Z');
+                expect(repairedSection?.rev).toBe(6);
+                expect(repairedSection?.revBy).toBe('sync-repair');
                 expect(merged.tasks[0].projectId).toBeUndefined();
                 expect(merged.tasks[0].sectionId).toBeUndefined();
+                expect(merged.tasks[0].rev).toBe(3);
+                expect(merged.tasks[0].revBy).toBe('sync-repair');
             } finally {
                 vi.useRealTimers();
             }
@@ -276,10 +282,12 @@ describe('Sync Logic', () => {
                 const incomingProject: Project = {
                     ...createMockProject('project-1', '2024-01-04T00:00:00.000Z'),
                     areaId: 'area-deleted',
+                    rev: 4,
                 };
                 const incomingTask: Task = {
                     ...createMockTask('task-1', '2024-01-04T00:00:00.000Z'),
                     areaId: 'area-deleted',
+                    rev: 7,
                 };
 
                 const merged = mergeAppData(local, {
@@ -291,7 +299,11 @@ describe('Sync Logic', () => {
                 });
 
                 expect(merged.projects[0].areaId).toBeUndefined();
+                expect(merged.projects[0].rev).toBe(5);
+                expect(merged.projects[0].revBy).toBe('sync-repair');
                 expect(merged.tasks[0].areaId).toBeUndefined();
+                expect(merged.tasks[0].rev).toBe(8);
+                expect(merged.tasks[0].revBy).toBe('sync-repair');
             } finally {
                 vi.useRealTimers();
             }

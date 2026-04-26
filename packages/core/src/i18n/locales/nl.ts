@@ -154,6 +154,7 @@ export const nlOverrides: Record<string, string> = {
         'settings.syncPreferencesDesc': 'Kies welke voorkeuren tussen apparaten worden gesynchroniseerd.',
         'settings.syncPreferenceAppearance': 'Uiterlijk (thema)',
         'settings.syncPreferenceLanguage': 'Taal en datumformaat',
+        'settings.syncPreferenceGtd': 'Planningsstandaarden',
         'settings.syncPreferenceExternalCalendars': 'Externe kalender-URLs',
         'settings.syncPreferenceAi': 'AI-instellingen (modellen, providers)',
         'settings.syncPreferenceAiHint': 'API-sleutels en lokale modelpaden worden nooit gesynchroniseerd.',

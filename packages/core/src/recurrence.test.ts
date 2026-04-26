@@ -12,6 +12,14 @@ describe('recurrence', () => {
         expect(parsed.byDay).toEqual(['MO', 'WE']);
     });
 
+    it('parses and preserves weekly WKST rules', () => {
+        const parsed = parseRRuleString('FREQ=WEEKLY;INTERVAL=2;BYDAY=TU,TH;WKST=SU');
+        expect(parsed.weekStart).toBe('SU');
+
+        const rrule = buildRRuleString('weekly', ['TU', 'TH'], 2, { weekStart: 'SU' });
+        expect(rrule).toBe('FREQ=WEEKLY;INTERVAL=2;BYDAY=TU,TH;WKST=SU');
+    });
+
     it('builds and parses count and until options', () => {
         const rrule = buildRRuleString('monthly', undefined, 2, {
             byMonthDay: [15],
@@ -204,6 +212,41 @@ describe('recurrence', () => {
         expect(next?.dueDate).toBe('2025-01-20T10:00:00.000Z'); // Monday two weeks later
     });
 
+    it('uses Monday as the default weekly interval anchor per RFC 5545', () => {
+        const task: Task = {
+            id: 't5-rfc-week-start',
+            title: 'Every other Tue/Thu',
+            status: 'done',
+            tags: [],
+            contexts: [],
+            dueDate: '2025-01-05T10:00:00.000Z', // Sunday
+            recurrence: { rule: 'weekly', rrule: 'FREQ=WEEKLY;INTERVAL=2;BYDAY=TU,TH', strategy: 'strict' },
+            createdAt: '2025-01-01T00:00:00.000Z',
+            updatedAt: '2025-01-01T00:00:00.000Z',
+        };
+
+        const next = createNextRecurringTask(task, '2025-01-05T12:00:00.000Z', 'done');
+        expect(next?.dueDate).toBe('2025-01-14T10:00:00.000Z');
+    });
+
+    it('honors explicit weekly WKST when interval is greater than 1', () => {
+        const task: Task = {
+            id: 't5-wkst',
+            title: 'Every other Tue/Thu with Sunday week start',
+            status: 'done',
+            tags: [],
+            contexts: [],
+            dueDate: '2025-01-05T10:00:00.000Z', // Sunday
+            recurrence: { rule: 'weekly', rrule: 'FREQ=WEEKLY;INTERVAL=2;BYDAY=TU,TH;WKST=SU', strategy: 'strict' },
+            createdAt: '2025-01-01T00:00:00.000Z',
+            updatedAt: '2025-01-01T00:00:00.000Z',
+        };
+
+        const next = createNextRecurringTask(task, '2025-01-05T12:00:00.000Z', 'done');
+        expect(next?.dueDate).toBe('2025-01-07T10:00:00.000Z');
+        expect(typeof next?.recurrence === 'object' ? next.recurrence.rrule : undefined).toBe('FREQ=WEEKLY;INTERVAL=2;BYDAY=TU,TH;WKST=SU');
+    });
+
     it('advances startTime by monthly BYDAY interval when interval is greater than 1', () => {
         const task: Task = {
             id: 't5b',
@@ -238,6 +281,23 @@ describe('recurrence', () => {
 
         const next = createNextRecurringTask(task, '2025-01-01T12:00:00.000Z', 'done');
         expect(next?.dueDate).toBe('2025-01-06T09:00:00.000Z');
+    });
+
+    it('checks the current month for monthly BYDAY rules with interval greater than 1', () => {
+        const task: Task = {
+            id: 't6-interval-current-month',
+            title: 'Third Monday every two months',
+            status: 'done',
+            tags: [],
+            contexts: [],
+            dueDate: '2025-01-10T09:00:00.000Z',
+            recurrence: { rule: 'monthly', rrule: 'FREQ=MONTHLY;INTERVAL=2;BYDAY=3MO', strategy: 'strict' },
+            createdAt: '2025-01-01T00:00:00.000Z',
+            updatedAt: '2025-01-01T00:00:00.000Z',
+        };
+
+        const next = createNextRecurringTask(task, '2025-01-10T12:00:00.000Z', 'done');
+        expect(next?.dueDate).toBe('2025-01-20T09:00:00.000Z');
     });
 
     it('stops generating tasks after the configured count', () => {

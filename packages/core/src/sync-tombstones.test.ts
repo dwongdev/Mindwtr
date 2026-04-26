@@ -118,4 +118,28 @@ describe('purgeExpiredTombstones', () => {
         expect(result.data.sections.map((section) => section.id)).toEqual(['section-recent']);
         expect(result.data.areas.map((area) => area.id)).toEqual(['area-recent']);
     });
+
+    it('keeps pending remote attachment deletes until a successful remote delete removes them', () => {
+        const data: AppData = {
+            tasks: [],
+            projects: [],
+            sections: [],
+            areas: [],
+            settings: {
+                attachments: {
+                    pendingRemoteDeletes: [
+                        {
+                            cloudKey: 'attachments/private/photo.jpg',
+                            lastErrorAt: '2025-01-01T00:00:00.000Z',
+                        },
+                    ],
+                },
+            },
+        };
+
+        const result = purgeExpiredTombstones(data, nowIso);
+
+        expect(result.removedPendingRemoteDeletes).toBe(0);
+        expect(result.data.settings.attachments?.pendingRemoteDeletes).toEqual(data.settings.attachments?.pendingRemoteDeletes);
+    });
 });

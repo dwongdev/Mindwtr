@@ -697,6 +697,7 @@ export const en: Record<string, string> = {
         'settings.syncPreferencesDesc': 'Choose which preferences stay in sync across devices.',
         'settings.syncPreferenceAppearance': 'Appearance (theme)',
         'settings.syncPreferenceLanguage': 'Language & date/time format',
+        'settings.syncPreferenceGtd': 'Scheduling defaults',
         'settings.syncPreferenceExternalCalendars': 'External calendar URLs',
         'settings.syncPreferenceAi': 'AI settings (models, providers)',
         'settings.syncPreferenceAiHint': 'API keys and local model paths are never synced.',

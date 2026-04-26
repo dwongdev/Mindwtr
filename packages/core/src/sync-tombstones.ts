@@ -122,30 +122,6 @@ export const purgeExpiredTombstones = (
         }
         nextAreas.push(area);
     }
-    const previousPendingRemoteDeletes = data.settings.attachments?.pendingRemoteDeletes;
-    let removedPendingRemoteDeletes = 0;
-    const nextPendingRemoteDeletes = previousPendingRemoteDeletes?.filter((entry) => {
-        const lastErrorMs = parseTimestampOrInfinity(entry.lastErrorAt);
-        const expired = Number.isFinite(lastErrorMs) && lastErrorMs <= cutoffMs;
-        if (expired) {
-            removedPendingRemoteDeletes += 1;
-            return false;
-        }
-        return true;
-    });
-    const hasPendingChanged = removedPendingRemoteDeletes > 0;
-    const nextSettings = hasPendingChanged
-        ? {
-            ...data.settings,
-            attachments: {
-                ...data.settings.attachments,
-                pendingRemoteDeletes: nextPendingRemoteDeletes && nextPendingRemoteDeletes.length > 0
-                    ? nextPendingRemoteDeletes
-                    : undefined,
-            },
-        }
-        : data.settings;
-
     return {
         data: {
             ...data,
@@ -153,13 +129,13 @@ export const purgeExpiredTombstones = (
             projects: nextProjects,
             sections: nextSections,
             areas: nextAreas,
-            settings: nextSettings,
+            settings: data.settings,
         },
         removedTaskTombstones,
         removedProjectTombstones,
         removedSectionTombstones,
         removedAreaTombstones,
         removedAttachmentTombstones,
-        removedPendingRemoteDeletes,
+        removedPendingRemoteDeletes: 0,
     };
 };

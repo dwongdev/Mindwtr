@@ -14,7 +14,7 @@ describe('Sync Logic', () => {
             expect(merged.settings.theme).toBe('dark');
         });
 
-        it('merges synced language settings per field', () => {
+        it('merges synced language and GTD settings per field', () => {
             const local: AppData = {
                 ...mockAppData(),
                 settings: {
@@ -26,8 +26,9 @@ describe('Sync Logic', () => {
                     weekStart: 'monday',
                     dateFormat: 'yyyy-MM-dd',
                     timeFormat: '24h',
-                    syncPreferences: { language: true },
+                    syncPreferences: { gtd: true, language: true },
                     syncPreferencesUpdatedAt: {
+                        gtd: '2024-01-01T00:00:00.000Z',
                         preferences: '2024-01-01T00:00:00.000Z',
                         language: '2024-01-01T00:00:00.000Z',
                     },
@@ -42,8 +43,9 @@ describe('Sync Logic', () => {
                     language: 'es',
                     weekStart: 'monday',
                     timeFormat: '12h',
-                    syncPreferences: { language: true },
+                    syncPreferences: { gtd: true, language: true },
                     syncPreferencesUpdatedAt: {
+                        gtd: '2024-01-02T00:00:00.000Z',
                         preferences: '2024-01-02T00:00:00.000Z',
                         language: '2024-01-02T00:00:00.000Z',
                     },
@@ -58,6 +60,36 @@ describe('Sync Logic', () => {
             expect(merged.settings.timeFormat).toBe('12h');
             expect(merged.settings.gtd?.defaultScheduleTime).toBe('09:30');
             expect(merged.settings.gtd?.inboxProcessing?.scheduleEnabled).toBe(true);
+        });
+
+        it('does not sync default schedule time with the language group', () => {
+            const local: AppData = {
+                ...mockAppData(),
+                settings: {
+                    gtd: { defaultScheduleTime: '08:00' },
+                    language: 'en',
+                    syncPreferences: { language: true },
+                    syncPreferencesUpdatedAt: {
+                        language: '2024-01-01T00:00:00.000Z',
+                    },
+                },
+            };
+            const incoming: AppData = {
+                ...mockAppData(),
+                settings: {
+                    gtd: { defaultScheduleTime: '09:30' },
+                    language: 'es',
+                    syncPreferences: { language: true },
+                    syncPreferencesUpdatedAt: {
+                        language: '2024-01-02T00:00:00.000Z',
+                    },
+                },
+            };
+
+            const merged = mergeAppData(local, incoming);
+
+            expect(merged.settings.language).toBe('es');
+            expect(merged.settings.gtd?.defaultScheduleTime).toBe('08:00');
         });
 
         it('merges language settings even when sync preferences are empty', () => {
@@ -87,7 +119,7 @@ describe('Sync Logic', () => {
             expect(merged.settings.language).toBe('es');
         });
 
-        it('merges settings for disabled preference groups instead of dropping them', () => {
+        it('keeps local settings for disabled preference groups', () => {
             const local: AppData = {
                 ...mockAppData(),
                 settings: {
@@ -111,7 +143,31 @@ describe('Sync Logic', () => {
 
             const merged = mergeAppData(local, incoming);
 
-            expect(merged.settings.theme).toBe('light');
+            expect(merged.settings.theme).toBe('dark');
+        });
+
+        it('prevents incoming appearance from applying when the local device opted out', () => {
+            const local: AppData = {
+                ...mockAppData(),
+                settings: {
+                    theme: 'dark',
+                    syncPreferences: { appearance: false },
+                },
+            };
+            const incoming: AppData = {
+                ...mockAppData(),
+                settings: {
+                    theme: 'light',
+                    syncPreferences: { appearance: true },
+                    syncPreferencesUpdatedAt: {
+                        appearance: '2024-01-02T00:00:00.000Z',
+                    },
+                },
+            };
+
+            const merged = mergeAppData(local, incoming);
+
+            expect(merged.settings.theme).toBe('dark');
         });
 
         it('merges synced appearance settings including text size', () => {
