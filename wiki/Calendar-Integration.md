@@ -1,8 +1,9 @@
 # Calendar Integration (Hard + Soft Landscape)
 
-Mindwtr supports **view-only external calendars** so you can see hard events alongside your task schedule.
+Mindwtr supports calendar integration in two directions: reading external calendars into the planner, and pushing Mindwtr tasks out to a device calendar on mobile.
 
-- **Mobile (iOS/Android):** system calendars already exposed by the device, plus ICS subscription URLs
+- **Mobile (iOS/Android):** device calendars already exposed by the system, plus ICS subscription URLs
+- **Android mobile:** one-way push from Mindwtr tasks to a selected device calendar
 - **Desktop (macOS):** Apple Calendar via EventKit, plus ICS subscription URLs
 - **Desktop (Linux/Windows) and Web:** ICS subscription URLs
 
@@ -35,11 +36,11 @@ Mindwtr supports **view-only external calendars** so you can see hard events alo
 
 Supported today:
 
-| Platform | Supported calendar source | Notes |
+| Platform | Supported calendar feature | Notes |
 | --- | --- | --- |
-| iOS mobile | Device calendars | Read through the iOS calendar database after permission is granted. This includes accounts enabled in iOS Settings, such as iCloud, Google, Exchange, and Outlook. |
-| Android mobile | Device calendars exposed through Android's calendar provider | Google Calendar is the currently verified path. Other sync apps, including DAVx5, work only if they expose calendars through Android's calendar provider in a way Mindwtr can read. |
-| Android and iOS mobile | Direct ICS subscription URLs | The URL must return raw iCalendar data. |
+| Android mobile | Push Mindwtr tasks to a device calendar | Verified with Google Calendar on Android. Choose a Google-backed calendar target if you need events to appear in Google Calendar web. |
+| iOS/Android mobile | Read device calendars | Reads calendars already exposed by the device calendar database after permission is granted. |
+| iOS/Android mobile | Direct ICS subscription URLs | The URL must return raw iCalendar data. |
 | macOS desktop | Apple Calendar accounts | Read through macOS EventKit after permission is granted. This includes calendars synced into Apple Calendar, such as iCloud, Google, and Exchange. |
 | Desktop and Web | Direct ICS subscription URLs | The URL must return raw iCalendar data. |
 
@@ -53,10 +54,46 @@ Not supported today:
 - Calendar web page URLs, including public share pages that render HTML instead of raw `.ics` data.
 - Editing external calendar events from Mindwtr.
 - Syncing external calendar events through Mindwtr sync. External events are fetched and cached locally.
+- Two-way task/calendar sync. Pushed calendar events are generated from Mindwtr tasks.
+- Exporting recurring task rules as native recurring calendar events.
 
-### Mobile: System Calendar Integration
+### Mobile: Push Tasks to Calendar
 
-On mobile, Mindwtr reads calendars from the device calendar database:
+On Android, Mindwtr can push scheduled tasks and tasks with due dates into a selected device calendar:
+
+- Tasks with `startTime` become timed events. `timeEstimate` is used as the event duration when available.
+- Tasks with only `dueDate` become all-day events.
+- Completed, archived, or deleted tasks are removed from the pushed calendar.
+- If you choose a shared account calendar, event titles use a `Mindwtr:` prefix so they are distinguishable from normal calendar events.
+- If you choose a dedicated calendar named `Mindwtr`, Google Calendar can show Mindwtr items with that calendar's own color.
+
+Setup:
+
+1. Open **Settings → Calendar**
+2. Enable **Push tasks to calendar**
+3. Grant calendar permission
+4. Expand **Sync target**
+5. Choose where Mindwtr should write events
+
+Target choices:
+
+- **Dedicated account calendar**: best for Google Calendar. Create a calendar named `Mindwtr` in the same Google account, then select the target that says `Dedicated account calendar`.
+- **Shared account calendar**: writes into an existing Google/account calendar and prefixes titles with `Mindwtr:`.
+- **Dedicated local calendar**: stays on the Android device. Some calendar apps hide local calendars, and it will not appear on calendar.google.com.
+- **Shared local calendar**: writes to a local device calendar only.
+
+To use a separate Google-backed `Mindwtr` calendar:
+
+1. Open Google Calendar on the web.
+2. Create a new calendar named `Mindwtr` under the same Google account used on Android.
+3. On Android, open Google Calendar and refresh the account. Make sure Calendar sync is enabled in Android account settings.
+4. Return to Mindwtr **Settings → Calendar**, tap **Refresh calendars**, and select the `Mindwtr` target that shows your Google account.
+
+If the Google-backed `Mindwtr` calendar does not appear in Mindwtr yet, Android has not exposed it through the system calendar provider. Refresh Google Calendar, check Android account sync, then tap **Refresh calendars** in Mindwtr.
+
+### Mobile: Read Device Calendars
+
+On mobile, Mindwtr can read calendars from the device calendar database:
 
 - **Android:** via the Android calendar provider. If a sync app does not expose calendars through that provider, Mindwtr cannot see them.
 - **iOS:** via EventKit-backed system calendars, such as iCloud, Google, Exchange, and Outlook once enabled in iOS Settings.
@@ -64,11 +101,14 @@ On mobile, Mindwtr reads calendars from the device calendar database:
 Setup:
 
 1. Open **Settings → Calendar**
-2. Enable **System calendar**
+2. Enable **Device calendars**
 3. Grant calendar permission
-4. Choose which device calendars to display
+4. Expand **Device calendars**
+5. Choose which device calendars to display
 
 Mindwtr stays read-only and does not perform provider OAuth for calendar sources.
+
+Mindwtr hides its own pushed `Mindwtr` calendars from the read list to avoid importing duplicate copies of the events it created.
 
 ### macOS: Apple Calendar Integration
 
