@@ -25,6 +25,7 @@ export * from './date';
 export { isDueForReview } from './date';
 export * from './quick-add';
 export * from './area-filter';
+export * from './calendar-scheduling';
 export * from './schedule-utils';
 export * from './digest-utils';
 export * from './search';

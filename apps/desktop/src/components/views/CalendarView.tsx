@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState, useRef, useCallback } from 'react';
 import { ErrorBoundary } from '../ErrorBoundary';
 import { addMonths, endOfMonth, endOfWeek, format, getMonth, getYear, isSameDay, isSameMonth, isToday, setMonth, setYear, startOfMonth, startOfWeek, subMonths, eachDayOfInterval } from 'date-fns';
 import { CalendarDays, Check, ChevronLeft, ChevronRight, Clock, MoreHorizontal, Plus, Search, X } from 'lucide-react';
-import { shallow, safeFormatDate, safeParseDate, safeParseDueDate, translateWithFallback, type ExternalCalendarEvent, type ExternalCalendarSubscription, useTaskStore, type Task, isTaskInActiveProject } from '@mindwtr/core';
+import { findFreeSlotForDay as findCalendarFreeSlotForDay, isSlotFreeForDay as isCalendarSlotFreeForDay, shallow, safeFormatDate, safeParseDate, safeParseDueDate, timeEstimateToMinutes as resolveTimeEstimateToMinutes, translateWithFallback, type ExternalCalendarEvent, type ExternalCalendarSubscription, useTaskStore, type Task, isTaskInActiveProject } from '@mindwtr/core';
 import { useLanguage } from '../../contexts/language-context';
 import { cn } from '../../lib/utils';
 import { reportError } from '../../lib/report-error';
@@ -213,116 +213,34 @@ export function CalendarView() {
         [externalEventsByDay]
     );
 
-    const timeEstimateToMinutes = (estimate: any): number => {
-        if (!timeEstimatesEnabled) return 30;
-        switch (estimate) {
-            case '5min': return 5;
-            case '10min': return 10;
-            case '15min': return 15;
-            case '30min': return 30;
-            case '1hr': return 60;
-            case '2hr': return 120;
-            case '3hr': return 180;
-            case '4hr': return 240;
-            case '4hr+': return 240;
-            default: return 30;
-        }
-    };
+    const timeEstimateToMinutes = (estimate: Task['timeEstimate']): number => (
+        resolveTimeEstimateToMinutes(estimate, { enabled: timeEstimatesEnabled })
+    );
 
-    const ceilToMinutes = (date: Date, stepMinutes: number) => {
-        const stepMs = stepMinutes * 60 * 1000;
-        return new Date(Math.ceil(date.getTime() / stepMs) * stepMs);
-    };
+    const getSchedulingTasks = () => tasks.filter((task) => isCalendarTaskVisible(task));
 
-    const findFreeSlotForDay = (day: Date, durationMinutes: number, excludeTaskId?: string): Date | null => {
-        const dayStart = new Date(day);
-        dayStart.setHours(8, 0, 0, 0);
-        const dayEnd = new Date(day);
-        dayEnd.setHours(23, 0, 0, 0);
+    const findFreeSlotForDay = (day: Date, durationMinutes: number, excludeTaskId?: string): Date | null => (
+        findCalendarFreeSlotForDay({
+            day,
+            durationMinutes,
+            events: getExternalEventsForDay(day),
+            excludeTaskId,
+            tasks: getSchedulingTasks(),
+            timeEstimatesEnabled,
+        })
+    );
 
-        const isTodaySelected = isSameDay(day, new Date());
-        const earliest = ceilToMinutes(new Date(Math.max(dayStart.getTime(), isTodaySelected ? Date.now() : dayStart.getTime())), 5);
-
-        type Interval = { start: number; end: number };
-        const intervals: Interval[] = [];
-
-        for (const event of getExternalEventsForDay(day)) {
-            if (event.allDay) continue;
-            const start = safeParseDate(event.start);
-            const end = safeParseDate(event.end);
-            if (!start || !end) continue;
-            const s = Math.max(start.getTime(), dayStart.getTime());
-            const e = Math.min(end.getTime(), dayEnd.getTime());
-            if (e > s) intervals.push({ start: s, end: e });
-        }
-
-        for (const task of tasks) {
-            if (!isCalendarTaskVisible(task)) continue;
-            if (task.id === excludeTaskId) continue;
-            const start = task.startTime ? safeParseDate(task.startTime) : null;
-            if (!start) continue;
-            if (!isSameDay(start, day)) continue;
-            const durMs = timeEstimateToMinutes(task.timeEstimate) * 60 * 1000;
-            const s = Math.max(start.getTime(), dayStart.getTime());
-            const e = Math.min(start.getTime() + durMs, dayEnd.getTime());
-            if (e > s) intervals.push({ start: s, end: e });
-        }
-
-        intervals.sort((a, b) => a.start - b.start);
-        const merged: Interval[] = [];
-        for (const interval of intervals) {
-            const last = merged[merged.length - 1];
-            if (!last || interval.start > last.end) merged.push({ ...interval });
-            else last.end = Math.max(last.end, interval.end);
-        }
-
-        const durationMs = durationMinutes * 60 * 1000;
-        let cursor = Math.max(earliest.getTime(), dayStart.getTime());
-        for (const interval of merged) {
-            if (cursor + durationMs <= interval.start) return new Date(cursor);
-            if (cursor < interval.end) cursor = interval.end;
-        }
-
-        if (cursor + durationMs <= dayEnd.getTime()) return new Date(cursor);
-        return null;
-    };
-
-    const isSlotFreeForDay = (day: Date, startTime: Date, durationMinutes: number, excludeTaskId?: string) => {
-        const dayStart = new Date(day);
-        dayStart.setHours(8, 0, 0, 0);
-        const dayEnd = new Date(day);
-        dayEnd.setHours(23, 0, 0, 0);
-
-        const startMs = startTime.getTime();
-        const endMs = startMs + durationMinutes * 60 * 1000;
-        if (startMs < dayStart.getTime() || endMs > dayEnd.getTime()) return false;
-
-        const overlaps = (aStart: number, aEnd: number, bStart: number, bEnd: number) => aStart < bEnd && aEnd > bStart;
-
-        for (const event of getExternalEventsForDay(day)) {
-            if (event.allDay) continue;
-            const start = safeParseDate(event.start);
-            const end = safeParseDate(event.end);
-            if (!start || !end) continue;
-            const s = Math.max(start.getTime(), dayStart.getTime());
-            const e = Math.min(end.getTime(), dayEnd.getTime());
-            if (e > s && overlaps(startMs, endMs, s, e)) return false;
-        }
-
-        for (const task of tasks) {
-            if (!isCalendarTaskVisible(task)) continue;
-            if (task.id === excludeTaskId) continue;
-            const start = task.startTime ? safeParseDate(task.startTime) : null;
-            if (!start) continue;
-            if (!isSameDay(start, day)) continue;
-            const durMs = timeEstimateToMinutes(task.timeEstimate) * 60 * 1000;
-            const s = Math.max(start.getTime(), dayStart.getTime());
-            const e = Math.min(start.getTime() + durMs, dayEnd.getTime());
-            if (e > s && overlaps(startMs, endMs, s, e)) return false;
-        }
-
-        return true;
-    };
+    const isSlotFreeForDay = (day: Date, startTime: Date, durationMinutes: number, excludeTaskId?: string): boolean => (
+        isCalendarSlotFreeForDay({
+            day,
+            durationMinutes,
+            events: getExternalEventsForDay(day),
+            excludeTaskId,
+            startTime,
+            tasks: getSchedulingTasks(),
+            timeEstimatesEnabled,
+        })
+    );
 
     const calendarNameById = useMemo(() => new Map(externalCalendars.map((c) => [c.id, c.name])), [externalCalendars]);
 

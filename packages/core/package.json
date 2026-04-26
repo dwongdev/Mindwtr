@@ -26,6 +26,7 @@
     "./date": "./src/date.ts",
     "./quick-add": "./src/quick-add.ts",
     "./area-filter": "./src/area-filter.ts",
+    "./calendar-scheduling": "./src/calendar-scheduling.ts",
     "./schedule-utils": "./src/schedule-utils.ts",
     "./digest-utils": "./src/digest-utils.ts",
     "./search": "./src/search.ts",

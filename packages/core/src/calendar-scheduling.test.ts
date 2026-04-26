@@ -1,0 +1,95 @@
+import { describe, expect, it } from 'vitest';
+
+import { findFreeSlotForDay, isSlotFreeForDay, timeEstimateToMinutes } from './calendar-scheduling';
+import type { ExternalCalendarEvent, Task } from './index';
+
+const task = (overrides: Partial<Task>): Task => ({
+    id: 'task-1',
+    title: 'Task',
+    status: 'next',
+    tags: [],
+    contexts: [],
+    createdAt: '2026-04-26T00:00:00.000Z',
+    updatedAt: '2026-04-26T00:00:00.000Z',
+    ...overrides,
+});
+
+const event = (overrides: Partial<ExternalCalendarEvent>): ExternalCalendarEvent => ({
+    id: 'event-1',
+    sourceId: 'work',
+    title: 'Event',
+    start: '2026-04-26T09:00:00.000Z',
+    end: '2026-04-26T10:00:00.000Z',
+    allDay: false,
+    ...overrides,
+});
+
+describe('calendar scheduling helpers', () => {
+    it('maps Mindwtr time estimates to calendar minutes', () => {
+        expect(timeEstimateToMinutes('5min')).toBe(5);
+        expect(timeEstimateToMinutes('1hr')).toBe(60);
+        expect(timeEstimateToMinutes('4hr+')).toBe(240);
+        expect(timeEstimateToMinutes(undefined)).toBe(30);
+        expect(timeEstimateToMinutes('2hr', { enabled: false })).toBe(30);
+    });
+
+    it('finds the first open slot around external events and scheduled tasks', () => {
+        const slot = findFreeSlotForDay({
+            day: new Date(2026, 3, 26),
+            durationMinutes: 30,
+            events: [
+                event({
+                    start: '2026-04-26T08:00:00',
+                    end: '2026-04-26T09:00:00',
+                }),
+            ],
+            now: new Date(2026, 3, 25, 12, 0),
+            tasks: [
+                task({
+                    id: 'task-2',
+                    startTime: '2026-04-26T09:00:00',
+                    timeEstimate: '30min',
+                }),
+            ],
+        });
+
+        expect(slot?.getHours()).toBe(9);
+        expect(slot?.getMinutes()).toBe(30);
+    });
+
+    it('rounds today slots forward to the configured snap interval', () => {
+        const slot = findFreeSlotForDay({
+            day: new Date(2026, 3, 26),
+            durationMinutes: 30,
+            events: [],
+            now: new Date(2026, 3, 26, 8, 7),
+            tasks: [],
+        });
+
+        expect(slot?.getHours()).toBe(8);
+        expect(slot?.getMinutes()).toBe(10);
+    });
+
+    it('checks candidate slots against blocking intervals', () => {
+        const base = {
+            day: new Date(2026, 3, 26),
+            durationMinutes: 30,
+            events: [
+                event({
+                    start: '2026-04-26T10:00:00',
+                    end: '2026-04-26T11:00:00',
+                }),
+            ],
+            tasks: [],
+        };
+
+        expect(isSlotFreeForDay({
+            ...base,
+            startTime: new Date(2026, 3, 26, 9, 30),
+        })).toBe(true);
+        expect(isSlotFreeForDay({
+            ...base,
+            startTime: new Date(2026, 3, 26, 10, 30),
+        })).toBe(false);
+    });
+});
