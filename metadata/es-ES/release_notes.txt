@@ -1,4 +1,4 @@
-- La importacion de OmniFocus acepta JSON y ZIP, con carpetas como areas, tareas anidadas como checklist y reglas de repeticion compatibles.
-- Pomodoro puede iniciar descansos o el siguiente foco automaticamente, y Focus muestra tareas listas para revisar.
-- Sync es mas estable con mejor manejo WebDAV, limpieza de tombstones/conflictos y comparacion de adjuntos.
-- Los selectores de captura rapida mejoran su accesibilidad y las listas medianas se desplazan con mas fluidez.
+- El calendario suma vista semanal movil, mes renovado, programador de tareas y hora predeterminada.
+- La sincronizacion de calendario permite elegir destino y evita bucles con calendarios espejo de Mindwtr.
+- Inbox agrega Later, la busqueda filtra por responsable y los merges de sync/cloud son mas fiables.
+- Captura rapida mantiene el texto dentro del panel y voz a texto evita un crash realtime en Android.

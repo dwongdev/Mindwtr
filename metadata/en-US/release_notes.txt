@@ -1,4 +1,4 @@
-- OmniFocus import now accepts JSON and ZIP exports, including folders as areas, nested tasks as checklist items, and supported repeat rules.
-- Pomodoro can auto-start breaks or the next focus session, and Focus now includes review-due tasks.
-- Sync is sturdier with better WebDAV collection handling, tombstone/conflict cleanup, and attachment comparison fixes.
-- Quick capture pickers gain accessibility improvements and medium task lists scroll more smoothly.
+- Calendar planning adds a mobile week view, refreshed month flow, scheduled task composer, and default schedule time.
+- Calendar sync can choose a push target while Mindwtr mirror calendars are ignored to prevent duplicate planning loops.
+- Inbox gains a Later shortcut, search supports assignee filters, and sync/cloud merge handling is more reliable.
+- Quick capture text stays inside its sheet and speech-to-text avoids an Android realtime crash.
