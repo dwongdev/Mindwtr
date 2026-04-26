@@ -11,7 +11,7 @@ Mindwtr supports calendar integration in two directions: reading external calend
 
 - **Hard Landscape**: Meetings/classes from external calendars.
 - **Soft Landscape**: Mindwtr tasks scheduled with `startTime` and `timeEstimate`.
-- The calendar is a **planning surface**, not a capture surface.
+- The calendar is a **planning surface** for arranging existing tasks and creating scheduled tasks when the calendar context is the fastest place to do it.
 
 ## GTD Semantics
 
@@ -21,14 +21,35 @@ Mindwtr supports calendar integration in two directions: reading external calend
 
 ## Views
 
-- **Day view**: time grid with events + scheduled tasks.
+- **Day view**: time grid with scheduled tasks, deadlines, and external events.
+- **Week view**: seven-day planning grid for scanning the current work week.
 - **Month view**: overview with markers for deadlines, scheduled tasks, and events.
+- **Schedule view**: rolling 60-day list for upcoming deadlines, scheduled tasks, and external events.
+
+On desktop, the current calendar state is reflected in the URL:
+
+- `calendarView`: `day`, `week`, `month`, or `schedule`
+- `calendarDate`: the selected date, when a day is selected
+- `calendarMonth`: the visible calendar month
+
+This lets you bookmark or share a specific planning window, for example a week view for the current sprint or a schedule view for the next two months.
 
 ## Scheduling Workflow
 
-1. Pick an **existing** task.
-2. Assign a start time (and optionally use the time estimate).
-3. Adjust timing later from the task editor or day list.
+On desktop:
+
+1. Choose a date or open a time slot.
+2. Pick **New** to create a scheduled task, or **Existing** to schedule an unscheduled task.
+3. Set start and end times. Mindwtr checks the slot against scheduled tasks and visible external events.
+4. Save the task, or adjust timing later from the task editor, day view, or selected-day list.
+
+On mobile:
+
+1. Open **Calendar -> Schedule Tasks** from the day view.
+2. Select an existing task.
+3. Mindwtr finds the earliest free slot for that day, avoiding visible external events and scheduled tasks.
+
+Mindwtr uses `timeEstimate` as the default duration when available. If there is a conflict, choose another time or shorten the duration.
 
 ## External Calendars
 
@@ -56,6 +77,14 @@ Not supported today:
 - Syncing external calendar events through Mindwtr sync. External events are fetched and cached locally.
 - Two-way task/calendar sync. Pushed calendar events are generated from Mindwtr tasks.
 - Exporting recurring task rules as native recurring calendar events.
+
+### Visibility
+
+External calendar visibility is a local display preference:
+
+- Settings-synced external calendar subscriptions follow your sync settings.
+- The per-calendar show/hide state in the Calendar view is stored on the current device.
+- Hidden calendars are still available in Settings; they are just excluded from the visible planning surface and free-slot checks on that device.
 
 ### Mobile: Push Tasks to Calendar
 
@@ -158,6 +187,6 @@ That link acts like a password: only apps with the link can see events, while th
 
 ## Notes
 
-- Calendar does **not** create new tasks.
+- Desktop Calendar can create a new scheduled task from the in-calendar composer. Mobile scheduling currently works with existing tasks.
 - External calendars are **read-only** inside Mindwtr.
 - Recurring events with `RRULE:...;COUNT=...` stop after their original count. If you previously saw very old recurring events, re-import after updating to v0.4.9+.
