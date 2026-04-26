@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState, useRef, useCallback } from 'react';
 import { ErrorBoundary } from '../ErrorBoundary';
-import { addMonths, endOfMonth, endOfWeek, format, getMonth, getYear, isSameDay, isSameMonth, isToday, setMonth, setYear, startOfMonth, startOfWeek, subMonths, eachDayOfInterval } from 'date-fns';
+import { addDays, addMonths, addWeeks, endOfMonth, endOfWeek, format, getMonth, getYear, isSameDay, isSameMonth, isToday, setMonth, setYear, startOfMonth, startOfWeek, subDays, subMonths, subWeeks, eachDayOfInterval } from 'date-fns';
 import { CalendarDays, Check, ChevronLeft, ChevronRight, Clock, MoreHorizontal, Plus, Search, X } from 'lucide-react';
 import { findFreeSlotForDay as findCalendarFreeSlotForDay, isSlotFreeForDay as isCalendarSlotFreeForDay, shallow, safeFormatDate, safeParseDate, safeParseDueDate, timeEstimateToMinutes as resolveTimeEstimateToMinutes, translateWithFallback, type ExternalCalendarEvent, type ExternalCalendarSubscription, useTaskStore, type Task, isTaskInActiveProject } from '@mindwtr/core';
 import { useLanguage } from '../../contexts/language-context';
@@ -20,6 +20,17 @@ type CalendarCellItem =
     | { id: string; kind: 'scheduled'; task: Task; start: Date | null; title: string }
     | { id: string; kind: 'deadline'; task: Task; start: Date | null; title: string }
     | { id: string; kind: 'event'; event: ExternalCalendarEvent; start: Date | null; title: string };
+
+type CalendarViewMode = 'day' | 'week' | 'month' | 'schedule';
+
+type CalendarTimedItem =
+    | { durationMinutes: number; end: Date; id: string; kind: 'task'; start: Date; task: Task; title: string }
+    | { durationMinutes: number; end: Date; event: ExternalCalendarEvent; id: string; kind: 'event'; start: Date; title: string };
+
+const DESKTOP_DAY_START_HOUR = 8;
+const DESKTOP_DAY_END_HOUR = 23;
+const DESKTOP_HOUR_HEIGHT = 56;
+const DESKTOP_GRID_SNAP_MINUTES = 15;
 
 const hashString = (value: string): number => {
     let hash = 0;
@@ -44,9 +55,13 @@ const parseCalendarDateParam = (value: string | null): Date | null => {
     return next;
 };
 
-const getInitialCalendarState = (fallback: Date): { currentMonth: Date; selectedDate: Date | null } => {
+const parseCalendarViewMode = (value: string | null): CalendarViewMode => (
+    value === 'day' || value === 'week' || value === 'schedule' ? value : 'month'
+);
+
+const getInitialCalendarState = (fallback: Date): { currentMonth: Date; selectedDate: Date | null; viewMode: CalendarViewMode } => {
     if (typeof window === 'undefined') {
-        return { currentMonth: fallback, selectedDate: null };
+        return { currentMonth: fallback, selectedDate: null, viewMode: 'month' };
     }
     const params = new URLSearchParams(window.location.search);
     const selectedDate = parseCalendarDateParam(params.get('calendarDate'));
@@ -54,6 +69,7 @@ const getInitialCalendarState = (fallback: Date): { currentMonth: Date; selected
     return {
         currentMonth: selectedDate ?? monthDate ?? fallback,
         selectedDate,
+        viewMode: parseCalendarViewMode(params.get('calendarView')),
     };
 };
 
@@ -95,12 +111,23 @@ export function CalendarView() {
     const [initialCalendarState] = useState(() => getInitialCalendarState(new Date()));
     const [currentMonth, setCurrentMonth] = useState(initialCalendarState.currentMonth);
     const [selectedDate, setSelectedDate] = useState<Date | null>(initialCalendarState.selectedDate);
+    const [viewMode, setViewMode] = useState<CalendarViewMode>(initialCalendarState.viewMode);
     const [isMonthPickerOpen, setIsMonthPickerOpen] = useState(false);
     const [viewFilterQuery, setViewFilterQuery] = useState('');
     const [scheduleQuery, setScheduleQuery] = useState('');
     const [scheduleError, setScheduleError] = useState<string | null>(null);
     const [externalCalendars, setExternalCalendars] = useState<ExternalCalendarSubscription[]>([]);
     const [externalEvents, setExternalEvents] = useState<ExternalCalendarEvent[]>([]);
+    const [hiddenExternalCalendarIds, setHiddenExternalCalendarIds] = useState<Set<string>>(() => {
+        if (typeof window === 'undefined') return new Set();
+        try {
+            const raw = window.localStorage.getItem('mindwtr.calendar.hiddenExternalCalendars');
+            const parsed = raw ? JSON.parse(raw) : [];
+            return new Set(Array.isArray(parsed) ? parsed.filter((id) => typeof id === 'string') : []);
+        } catch {
+            return new Set();
+        }
+    });
     const [externalError, setExternalError] = useState<string | null>(null);
     const [isExternalLoading, setIsExternalLoading] = useState(false);
     const [editingTimeTaskId, setEditingTimeTaskId] = useState<string | null>(null);
@@ -125,8 +152,14 @@ export function CalendarView() {
         } else {
             url.searchParams.delete('calendarDate');
         }
+        url.searchParams.set('calendarView', viewMode);
         window.history.replaceState(window.history.state, '', `${url.pathname}${url.search}${url.hash}`);
-    }, [currentMonth, selectedDate]);
+    }, [currentMonth, selectedDate, viewMode]);
+
+    useEffect(() => {
+        if (typeof window === 'undefined') return;
+        window.localStorage.setItem('mindwtr.calendar.hiddenExternalCalendars', JSON.stringify([...hiddenExternalCalendarIds]));
+    }, [hiddenExternalCalendarIds]);
 
     const calendarStart = startOfWeek(startOfMonth(currentMonth), { weekStartsOn });
     const calendarEnd = endOfWeek(endOfMonth(currentMonth), { weekStartsOn });
@@ -134,6 +167,32 @@ export function CalendarView() {
         start: calendarStart,
         end: calendarEnd,
     });
+    const visibleRange = useMemo(() => {
+        if (viewMode === 'day') {
+            return { start: currentMonth, end: currentMonth };
+        }
+        if (viewMode === 'week') {
+            const start = startOfWeek(currentMonth, { weekStartsOn });
+            return { start, end: addDays(start, 6) };
+        }
+        if (viewMode === 'schedule') {
+            return { start: currentMonth, end: addDays(currentMonth, 60) };
+        }
+        return { start: startOfMonth(currentMonth), end: endOfMonth(currentMonth) };
+    }, [currentMonth, viewMode, weekStartsOn]);
+    const timelineDays = useMemo(
+        () => viewMode === 'day'
+            ? [currentMonth]
+            : eachDayOfInterval({
+                start: startOfWeek(currentMonth, { weekStartsOn }),
+                end: addDays(startOfWeek(currentMonth, { weekStartsOn }), 6),
+            }),
+        [currentMonth, viewMode, weekStartsOn]
+    );
+    const scheduleDays = useMemo(
+        () => eachDayOfInterval({ start: visibleRange.start, end: visibleRange.end }),
+        [visibleRange]
+    );
 
     const isCalendarTaskVisible = (task: Task) => {
         if (task.deletedAt) return false;
@@ -186,9 +245,14 @@ export function CalendarView() {
             .catch((error) => reportError('Failed to mark task done', error));
     }, [updateTask]);
 
+    const visibleExternalEvents = useMemo(
+        () => externalEvents.filter((event) => !hiddenExternalCalendarIds.has(event.sourceId)),
+        [externalEvents, hiddenExternalCalendarIds]
+    );
+
     const externalEventsByDay = useMemo(() => {
         const nextMap = new Map<string, ExternalCalendarEvent[]>();
-        for (const event of externalEvents) {
+        for (const event of visibleExternalEvents) {
             const start = safeParseDate(event.start);
             const end = safeParseDate(event.end);
             if (!start || !end) continue;
@@ -206,7 +270,7 @@ export function CalendarView() {
             }
         }
         return nextMap;
-    }, [externalEvents]);
+    }, [visibleExternalEvents]);
 
     const getExternalEventsForDay = useCallback(
         (date: Date) => externalEventsByDay.get(dayKey(date)) ?? [],
@@ -256,8 +320,10 @@ export function CalendarView() {
             setIsExternalLoading(true);
             setExternalError(null);
             try {
-                const rangeStart = startOfMonth(currentMonth);
-                const rangeEnd = endOfMonth(currentMonth);
+                const rangeStart = new Date(visibleRange.start);
+                rangeStart.setHours(0, 0, 0, 0);
+                const rangeEnd = new Date(visibleRange.end);
+                rangeEnd.setHours(23, 59, 59, 999);
                 const { calendars, events, warnings } = await fetchExternalCalendarEvents(rangeStart, rangeEnd);
                 if (cancelled) return;
                 setExternalCalendars(calendars);
@@ -283,7 +349,7 @@ export function CalendarView() {
         return () => {
             cancelled = true;
         };
-    }, [currentMonth]);
+    }, [visibleRange]);
 
     const scheduleCandidates = useMemo(() => {
         if (!selectedDate) return [];
@@ -377,6 +443,14 @@ export function CalendarView() {
         }));
     };
 
+    const openQuickAddForStart = (start: Date) => {
+        window.dispatchEvent(new CustomEvent('mindwtr:quick-add', {
+            detail: {
+                initialProps: { startTime: start.toISOString(), timeEstimate: '30min' },
+            },
+        }));
+    };
+
     const cancelEditScheduledTime = () => {
         setEditingTimeTaskId(null);
         setEditingTimeValue('');
@@ -387,7 +461,18 @@ export function CalendarView() {
         [calendarLocale, weekStartsOn]
     );
     const currentYear = getYear(currentMonth);
-    const currentMonthLabel = format(currentMonth, 'MMMM yyyy');
+    const currentMonthLabel = (() => {
+        if (viewMode === 'day') return format(currentMonth, 'EEEE, MMMM d, yyyy');
+        if (viewMode === 'week') {
+            const start = startOfWeek(currentMonth, { weekStartsOn });
+            const end = addDays(start, 6);
+            return `${format(start, 'MMM d')} - ${format(end, 'MMM d, yyyy')}`;
+        }
+        if (viewMode === 'schedule') {
+            return `${format(visibleRange.start, 'MMM d')} - ${format(visibleRange.end, 'MMM d, yyyy')}`;
+        }
+        return format(currentMonth, 'MMMM yyyy');
+    })();
     const yearOptions = useMemo(
         () => Array.from({ length: 11 }, (_, index) => currentYear - 5 + index),
         [currentYear]
@@ -418,13 +503,23 @@ export function CalendarView() {
         setSelectedDate(null);
         resetSelectedDayState();
         setIsMonthPickerOpen(false);
-        setCurrentMonth((prev) => subMonths(prev, 1));
+        setCurrentMonth((prev) => {
+            if (viewMode === 'day') return subDays(prev, 1);
+            if (viewMode === 'week') return subWeeks(prev, 1);
+            if (viewMode === 'schedule') return subWeeks(prev, 2);
+            return subMonths(prev, 1);
+        });
     };
     const handleNextMonth = () => {
         setSelectedDate(null);
         resetSelectedDayState();
         setIsMonthPickerOpen(false);
-        setCurrentMonth((prev) => addMonths(prev, 1));
+        setCurrentMonth((prev) => {
+            if (viewMode === 'day') return addDays(prev, 1);
+            if (viewMode === 'week') return addWeeks(prev, 1);
+            if (viewMode === 'schedule') return addWeeks(prev, 2);
+            return addMonths(prev, 1);
+        });
     };
     const handleToday = () => {
         const nextToday = new Date();
@@ -432,6 +527,21 @@ export function CalendarView() {
         setSelectedDate(null);
         resetSelectedDayState();
         setIsMonthPickerOpen(false);
+    };
+    const handleViewModeChange = (nextMode: CalendarViewMode) => {
+        setViewMode(nextMode);
+        if (nextMode !== 'month' && selectedDate) {
+            setCurrentMonth(selectedDate);
+        }
+        setIsMonthPickerOpen(false);
+    };
+    const toggleExternalCalendar = (calendarId: string) => {
+        setHiddenExternalCalendarIds((prev) => {
+            const next = new Set(prev);
+            if (next.has(calendarId)) next.delete(calendarId);
+            else next.add(calendarId);
+            return next;
+        });
     };
     const selectedExternalEvents = selectedDate ? getExternalEventsForDay(selectedDate) : [];
     const selectedAllDayEvents = selectedExternalEvents.filter((event) => event.allDay);
@@ -459,6 +569,172 @@ export function CalendarView() {
         if (aTime !== bTime) return aTime - bTime;
         return a.task.title.localeCompare(b.task.title);
     });
+    const getCalendarItemsForDate = (date: Date): CalendarCellItem[] => {
+        const scheduled = getScheduledForDay(date);
+        const scheduledIds = new Set(scheduled.map((task) => task.id));
+        const deadlineOnly = getDeadlinesForDay(date).filter((task) => !scheduledIds.has(task.id));
+        return [
+            ...scheduled.map((task) => ({
+                id: `scheduled-${task.id}`,
+                kind: 'scheduled' as const,
+                task,
+                start: task.startTime ? safeParseDate(task.startTime) : null,
+                title: task.title,
+            })),
+            ...deadlineOnly.map((task) => ({
+                id: `deadline-${task.id}`,
+                kind: 'deadline' as const,
+                task,
+                start: task.dueDate ? safeParseDueDate(task.dueDate) : null,
+                title: task.title,
+            })),
+            ...getExternalEventsForDay(date).map((event) => ({
+                id: `event-${event.id}`,
+                kind: 'event' as const,
+                event,
+                start: safeParseDate(event.start),
+                title: event.title,
+            })),
+        ].sort((a, b) => {
+            const aTime = a.start?.getTime() ?? Number.MAX_SAFE_INTEGER;
+            const bTime = b.start?.getTime() ?? Number.MAX_SAFE_INTEGER;
+            if (aTime !== bTime) return aTime - bTime;
+            return a.title.localeCompare(b.title);
+        });
+    };
+    const getAllDayItemsForDay = (date: Date) => {
+        const scheduledIds = new Set(getScheduledForDay(date).map((task) => task.id));
+        return [
+            ...getDeadlinesForDay(date)
+                .filter((task) => !scheduledIds.has(task.id))
+                .map((task) => ({ id: `deadline-${task.id}`, kind: 'deadline' as const, task, title: task.title })),
+            ...getExternalEventsForDay(date)
+                .filter((event) => event.allDay)
+                .map((event) => ({ id: `event-${event.id}`, kind: 'event' as const, event, title: event.title })),
+        ];
+    };
+    const getTimedItemsForDay = (date: Date): CalendarTimedItem[] => {
+        const dayStart = new Date(date);
+        dayStart.setHours(DESKTOP_DAY_START_HOUR, 0, 0, 0);
+        const dayEnd = new Date(date);
+        dayEnd.setHours(DESKTOP_DAY_END_HOUR, 0, 0, 0);
+        const items: CalendarTimedItem[] = [];
+
+        for (const task of getScheduledForDay(date)) {
+            const start = task.startTime ? safeParseDate(task.startTime) : null;
+            if (!start) continue;
+            const durationMinutes = timeEstimateToMinutes(task.timeEstimate);
+            items.push({
+                durationMinutes,
+                end: new Date(start.getTime() + durationMinutes * 60_000),
+                id: `task-${task.id}`,
+                kind: 'task',
+                start,
+                task,
+                title: task.title,
+            });
+        }
+
+        for (const event of getExternalEventsForDay(date)) {
+            if (event.allDay) continue;
+            const rawStart = safeParseDate(event.start);
+            const rawEnd = safeParseDate(event.end);
+            if (!rawStart || !rawEnd) continue;
+            const start = new Date(Math.max(rawStart.getTime(), dayStart.getTime()));
+            const end = new Date(Math.min(rawEnd.getTime(), dayEnd.getTime()));
+            if (end <= start) continue;
+            items.push({
+                durationMinutes: Math.max(1, Math.round((end.getTime() - start.getTime()) / 60_000)),
+                end,
+                event,
+                id: `event-${event.id}`,
+                kind: 'event',
+                start,
+                title: event.title,
+            });
+        }
+
+        return items.sort((a, b) => {
+            const startDelta = a.start.getTime() - b.start.getTime();
+            if (startDelta !== 0) return startDelta;
+            return b.durationMinutes - a.durationMinutes;
+        });
+    };
+    const layoutTimedItems = (date: Date) => {
+        const columnEnds: number[] = [];
+        const positioned = getTimedItemsForDay(date).map((item) => {
+            const startMs = item.start.getTime();
+            const column = columnEnds.findIndex((endMs) => endMs <= startMs);
+            const columnIndex = column >= 0 ? column : columnEnds.length;
+            columnEnds[columnIndex] = item.end.getTime();
+            return { ...item, columnIndex };
+        });
+        const columnCount = Math.max(1, columnEnds.length);
+        return positioned.map((item) => ({
+            ...item,
+            columnCount,
+            height: Math.max(24, item.durationMinutes / 60 * DESKTOP_HOUR_HEIGHT),
+            leftPercent: item.columnIndex * (100 / columnCount),
+            top: Math.max(0, ((item.start.getHours() - DESKTOP_DAY_START_HOUR) * 60 + item.start.getMinutes()) / 60 * DESKTOP_HOUR_HEIGHT),
+            widthPercent: 100 / columnCount,
+        }));
+    };
+
+    useEffect(() => {
+        const handleCalendarShortcut = (event: KeyboardEvent) => {
+            if (event.metaKey || event.ctrlKey || event.altKey) return;
+            const target = event.target;
+            if (target instanceof HTMLElement) {
+                const tag = target.tagName.toLowerCase();
+                if (tag === 'input' || tag === 'textarea' || tag === 'select' || target.isContentEditable) return;
+            }
+
+            const consume = () => {
+                event.preventDefault();
+                event.stopPropagation();
+            };
+
+            switch (event.key) {
+                case 't':
+                    consume();
+                    handleToday();
+                    break;
+                case 'd':
+                    consume();
+                    handleViewModeChange('day');
+                    break;
+                case 'w':
+                    consume();
+                    handleViewModeChange('week');
+                    break;
+                case 'm':
+                    consume();
+                    handleViewModeChange('month');
+                    break;
+                case 'a':
+                    consume();
+                    handleViewModeChange('schedule');
+                    break;
+                case 'ArrowLeft':
+                    consume();
+                    handlePrevMonth();
+                    break;
+                case 'ArrowRight':
+                    consume();
+                    handleNextMonth();
+                    break;
+                case 'n':
+                    consume();
+                    openQuickAddForDate(selectedDate ?? currentMonth);
+                    break;
+                default:
+                    break;
+            }
+        };
+
+        window.addEventListener('keydown', handleCalendarShortcut, true);
+        return () => window.removeEventListener('keydown', handleCalendarShortcut, true);
+    }, [currentMonth, selectedDate, viewMode]);
 
     return (
         <ErrorBoundary>
@@ -479,6 +755,28 @@ export function CalendarView() {
                         <CalendarDays className="h-4 w-4 text-primary" aria-hidden="true" />
                         {resolveText('calendar.today', 'Today')}
                     </button>
+                    <div className="inline-flex rounded-md border border-border bg-card p-1">
+                        {([
+                            ['day', resolveText('calendar.day', 'Day')],
+                            ['week', resolveText('calendar.week', 'Week')],
+                            ['month', resolveText('calendar.month', 'Month')],
+                            ['schedule', resolveText('calendar.schedule', 'Schedule')],
+                        ] as Array<[CalendarViewMode, string]>).map(([mode, label]) => (
+                            <button
+                                key={mode}
+                                type="button"
+                                onClick={() => handleViewModeChange(mode)}
+                                className={cn(
+                                    "h-7 rounded px-2.5 text-xs font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-primary/40",
+                                    viewMode === mode
+                                        ? "bg-primary text-primary-foreground"
+                                        : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                                )}
+                            >
+                                {label}
+                            </button>
+                        ))}
+                    </div>
                     <div className="flex items-center gap-1 rounded-md border border-border bg-card p-1">
                         <button
                             type="button"
@@ -562,7 +860,39 @@ export function CalendarView() {
                 </div>
             )}
 
+            {externalCalendars.length > 0 && (
+                <div className="flex flex-wrap items-center gap-2 rounded-lg border border-border bg-card/70 px-3 py-2">
+                    <span className="text-xs font-semibold uppercase tracking-normal text-muted-foreground">
+                        {resolveText('calendar.visibleCalendars', 'Calendars')}
+                    </span>
+                    {externalCalendars.map((calendar) => {
+                        const hidden = hiddenExternalCalendarIds.has(calendar.id);
+                        return (
+                            <button
+                                key={calendar.id}
+                                type="button"
+                                onClick={() => toggleExternalCalendar(calendar.id)}
+                                className={cn(
+                                    "inline-flex items-center gap-1.5 rounded-full border px-2 py-1 text-xs transition-colors focus:outline-none focus:ring-2 focus:ring-primary/40",
+                                    hidden
+                                        ? "border-border bg-muted/40 text-muted-foreground"
+                                        : "border-border bg-background text-foreground"
+                                )}
+                            >
+                                <span
+                                    className="h-2.5 w-2.5 rounded-full"
+                                    style={{ backgroundColor: hidden ? 'hsl(var(--muted-foreground))' : externalCalendarColor(calendar.id) }}
+                                    aria-hidden="true"
+                                />
+                                {calendar.name}
+                            </button>
+                        );
+                    })}
+                </div>
+            )}
+
             <div ref={calendarBodyRef} className="space-y-6">
+                {viewMode === 'month' && (
                 <div className="grid grid-cols-7 gap-px bg-border rounded-lg overflow-hidden shadow-sm">
                     {weekdayHeaders.map((day) => (
                         <div key={day} className="bg-card p-2 text-center text-sm font-medium text-muted-foreground">
@@ -700,6 +1030,232 @@ export function CalendarView() {
                         );
                     })}
                 </div>
+                )}
+
+                {(viewMode === 'day' || viewMode === 'week') && (
+                    <div className="overflow-hidden rounded-lg border border-border bg-card shadow-sm">
+                        <div
+                            className="grid border-b border-border bg-muted/40"
+                            style={{ gridTemplateColumns: `4rem repeat(${timelineDays.length}, minmax(0, 1fr))` }}
+                        >
+                            <div className="border-r border-border p-2 text-xs font-medium text-muted-foreground">
+                                {resolveText('calendar.time', 'Time')}
+                            </div>
+                            {timelineDays.map((day) => (
+                                <button
+                                    key={dayKey(day)}
+                                    type="button"
+                                    onClick={() => selectCalendarDate(day)}
+                                    className={cn(
+                                        "border-r border-border p-2 text-left last:border-r-0 hover:bg-muted focus:outline-none focus:ring-2 focus:ring-primary/40",
+                                        isToday(day) && "bg-primary/5"
+                                    )}
+                                >
+                                    <div className="text-xs font-medium text-muted-foreground">{format(day, 'EEE')}</div>
+                                    <div className={cn("mt-0.5 inline-flex h-7 min-w-7 items-center justify-center rounded-full px-2 text-sm font-semibold", isToday(day) && "bg-primary text-primary-foreground")}>
+                                        {format(day, 'd')}
+                                    </div>
+                                </button>
+                            ))}
+                        </div>
+
+                        <div
+                            className="grid border-b border-border"
+                            style={{ gridTemplateColumns: `4rem repeat(${timelineDays.length}, minmax(0, 1fr))` }}
+                        >
+                            <div className="border-r border-border p-2 text-xs font-medium text-muted-foreground">
+                                {t('calendar.allDay')}
+                            </div>
+                            {timelineDays.map((day) => {
+                                const allDayItems = getAllDayItemsForDay(day).slice(0, 4);
+                                return (
+                                    <div key={dayKey(day)} className="min-h-12 space-y-1 border-r border-border p-2 last:border-r-0">
+                                        {allDayItems.map((item) => {
+                                            if (item.kind === 'event') {
+                                                return (
+                                                    <div
+                                                        key={item.id}
+                                                        className="truncate rounded border-l-[3px] bg-muted/60 px-2 py-1 text-xs text-muted-foreground"
+                                                        style={{ borderLeftColor: externalCalendarColor(item.event.sourceId) }}
+                                                        title={item.title}
+                                                    >
+                                                        {item.title}
+                                                    </div>
+                                                );
+                                            }
+                                            return (
+                                                <button
+                                                    key={item.id}
+                                                    type="button"
+                                                    data-task-id={item.task.id}
+                                                    data-task-edit-trigger
+                                                    onClick={() => openTaskFromCalendar(item.task)}
+                                                    className="block w-full truncate rounded border-l-[3px] border-destructive/70 bg-background/70 px-2 py-1 text-left text-xs hover:bg-muted"
+                                                    title={item.title}
+                                                >
+                                                    {item.title}
+                                                </button>
+                                            );
+                                        })}
+                                    </div>
+                                );
+                            })}
+                        </div>
+
+                        <div className="grid" style={{ gridTemplateColumns: `4rem repeat(${timelineDays.length}, minmax(0, 1fr))` }}>
+                            <div className="relative border-r border-border bg-muted/20" style={{ height: (DESKTOP_DAY_END_HOUR - DESKTOP_DAY_START_HOUR) * DESKTOP_HOUR_HEIGHT }}>
+                                {Array.from({ length: DESKTOP_DAY_END_HOUR - DESKTOP_DAY_START_HOUR + 1 }, (_, index) => {
+                                    const hour = DESKTOP_DAY_START_HOUR + index;
+                                    return (
+                                        <div key={hour} className="absolute right-2 -translate-y-2 text-[11px] text-muted-foreground" style={{ top: index * DESKTOP_HOUR_HEIGHT }}>
+                                            {safeFormatDate(new Date(2026, 0, 1, hour), 'p')}
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                            {timelineDays.map((day) => {
+                                const now = new Date();
+                                const nowMinutes = (now.getHours() - DESKTOP_DAY_START_HOUR) * 60 + now.getMinutes();
+                                const nowTop = nowMinutes / 60 * DESKTOP_HOUR_HEIGHT;
+                                const showNow = isToday(day) && nowMinutes >= 0 && nowMinutes <= (DESKTOP_DAY_END_HOUR - DESKTOP_DAY_START_HOUR) * 60;
+                                return (
+                                    <div
+                                        key={dayKey(day)}
+                                        className={cn("relative border-r border-border last:border-r-0", isToday(day) && "bg-primary/5")}
+                                        style={{ height: (DESKTOP_DAY_END_HOUR - DESKTOP_DAY_START_HOUR) * DESKTOP_HOUR_HEIGHT }}
+                                        onClick={(event) => {
+                                            const rect = event.currentTarget.getBoundingClientRect();
+                                            const rawMinutes = ((event.clientY - rect.top) / DESKTOP_HOUR_HEIGHT) * 60;
+                                            const snapped = Math.round(rawMinutes / DESKTOP_GRID_SNAP_MINUTES) * DESKTOP_GRID_SNAP_MINUTES;
+                                            const maxMinutes = (DESKTOP_DAY_END_HOUR - DESKTOP_DAY_START_HOUR) * 60 - 30;
+                                            const clamped = Math.max(0, Math.min(maxMinutes, snapped));
+                                            const start = new Date(day);
+                                            start.setHours(DESKTOP_DAY_START_HOUR, clamped, 0, 0);
+                                            openQuickAddForStart(start);
+                                        }}
+                                    >
+                                        {Array.from({ length: DESKTOP_DAY_END_HOUR - DESKTOP_DAY_START_HOUR + 1 }, (_, index) => (
+                                            <div
+                                                key={index}
+                                                className="absolute left-0 right-0 border-t border-border/70"
+                                                style={{ top: index * DESKTOP_HOUR_HEIGHT }}
+                                            />
+                                        ))}
+                                        {showNow && (
+                                            <div className="absolute left-0 right-0 z-20 flex items-center" style={{ top: nowTop }}>
+                                                <span className="h-2 w-2 -translate-x-1 rounded-full bg-red-500" />
+                                                <span className="h-0.5 flex-1 bg-red-500" />
+                                            </div>
+                                        )}
+                                        {layoutTimedItems(day).map((item) => {
+                                            const timeLabel = `${safeFormatDate(item.start, 'p')}-${safeFormatDate(item.end, 'p')}`;
+                                            const commonStyle = {
+                                                height: item.height,
+                                                left: `calc(${item.leftPercent}% + 3px)`,
+                                                top: item.top,
+                                                width: `calc(${item.widthPercent}% - 6px)`,
+                                            };
+                                            if (item.kind === 'event') {
+                                                return (
+                                                    <div
+                                                        key={item.id}
+                                                        data-calendar-block
+                                                        className="absolute z-10 overflow-hidden rounded border-l-[4px] bg-muted/80 px-2 py-1 text-xs text-muted-foreground shadow-sm"
+                                                        style={{ ...commonStyle, borderLeftColor: externalCalendarColor(item.event.sourceId) }}
+                                                        title={`${item.title} ${timeLabel}`}
+                                                        onClick={(event) => event.stopPropagation()}
+                                                    >
+                                                        <div className="truncate font-medium text-foreground">{item.title}</div>
+                                                        <div className="truncate">{timeLabel}</div>
+                                                    </div>
+                                                );
+                                            }
+                                            return (
+                                                <button
+                                                    key={item.id}
+                                                    type="button"
+                                                    data-calendar-block
+                                                    data-task-id={item.task.id}
+                                                    data-task-edit-trigger
+                                                    className="absolute z-10 overflow-hidden rounded bg-primary px-2 py-1 text-left text-xs text-primary-foreground shadow-sm hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-primary/40"
+                                                    style={commonStyle}
+                                                    title={`${item.title} ${timeLabel}`}
+                                                    onClick={(event) => {
+                                                        event.stopPropagation();
+                                                        openTaskFromCalendar(item.task);
+                                                    }}
+                                                >
+                                                    <div className="truncate font-semibold">{item.title}</div>
+                                                    <div className="truncate opacity-90">{timeLabel}</div>
+                                                </button>
+                                            );
+                                        })}
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    </div>
+                )}
+
+                {viewMode === 'schedule' && (
+                    <div className="rounded-lg border border-border bg-card">
+                        <div className="border-b border-border px-4 py-3">
+                            <div className="text-sm font-semibold">{resolveText('calendar.schedule', 'Schedule')}</div>
+                            <div className="text-xs text-muted-foreground">{currentMonthLabel}</div>
+                        </div>
+                        <div className="divide-y divide-border">
+                            {scheduleDays.map((day) => {
+                                const items = getCalendarItemsForDate(day);
+                                if (items.length === 0) return null;
+                                return (
+                                    <section key={dayKey(day)} className="grid gap-3 px-4 py-3 md:grid-cols-[9rem_minmax(0,1fr)]">
+                                        <div>
+                                            <div className={cn("text-sm font-semibold", isToday(day) && "text-primary")}>{format(day, 'EEE, MMM d')}</div>
+                                            {isToday(day) && <div className="mt-1 text-xs font-medium text-primary">{resolveText('calendar.today', 'Today')}</div>}
+                                        </div>
+                                        <div className="space-y-1">
+                                            {items.map((item) => {
+                                                const timeLabel = item.start && (item.kind === 'scheduled' || (item.kind === 'event' && !item.event.allDay))
+                                                    ? safeFormatDate(item.start, 'p')
+                                                    : item.kind === 'event' && item.event.allDay
+                                                        ? t('calendar.allDay')
+                                                        : t('calendar.deadline');
+                                                if (item.kind === 'event') {
+                                                    return (
+                                                        <div
+                                                            key={item.id}
+                                                            className="flex items-center gap-3 rounded border-l-[3px] bg-muted/50 px-3 py-2 text-sm"
+                                                            style={{ borderLeftColor: externalCalendarColor(item.event.sourceId) }}
+                                                        >
+                                                            <span className="w-20 shrink-0 text-xs font-medium text-muted-foreground">{timeLabel}</span>
+                                                            <span className="min-w-0 flex-1 truncate">{item.title}</span>
+                                                        </div>
+                                                    );
+                                                }
+                                                return (
+                                                    <button
+                                                        key={item.id}
+                                                        type="button"
+                                                        data-task-id={item.task.id}
+                                                        data-task-edit-trigger
+                                                        onClick={() => openTaskFromCalendar(item.task)}
+                                                        className={cn(
+                                                            "flex w-full items-center gap-3 rounded px-3 py-2 text-left text-sm hover:bg-muted focus:outline-none focus:ring-2 focus:ring-primary/40",
+                                                            item.kind === 'scheduled' ? "bg-primary/10 text-primary" : "border-l-[3px] border-destructive/70 bg-background"
+                                                        )}
+                                                    >
+                                                        <span className="w-20 shrink-0 text-xs font-medium text-muted-foreground">{timeLabel}</span>
+                                                        <span className="min-w-0 flex-1 truncate text-foreground">{item.title}</span>
+                                                    </button>
+                                                );
+                                            })}
+                                        </div>
+                                    </section>
+                                );
+                            })}
+                        </div>
+                    </div>
+                )}
 
                 {selectedDate && (
                     <div className="rounded-lg border border-border bg-card">
