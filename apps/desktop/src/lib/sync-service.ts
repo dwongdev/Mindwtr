@@ -27,6 +27,7 @@ import {
     appendSyncHistory,
     cloneAppData,
     createSyncOrchestrator,
+    runPreSyncAttachmentPhase as runCorePreSyncAttachmentPhase,
     formatSyncErrorMessage,
     LocalSyncAbort,
     getInMemoryAppDataSnapshot,
@@ -948,28 +949,33 @@ export class SyncService {
         await yieldToRenderer();
         try {
             const localData = await readLocalDataForSync();
-            let preMutated = false;
-            if (context.backend === 'webdav' && context.webdavConfig?.url) {
-                helpers.ensureNetworkStillAvailable();
-                const baseUrl = getBaseSyncUrl(context.webdavConfig.url);
-                const syncedData = await syncAttachments(localData, context.webdavConfig, baseUrl, attachmentBackendDeps);
-                preMutated = syncedData !== null;
-                if (syncedData) {
-                    context.preSyncedLocalData = syncedData;
-                }
-            } else if (context.backend === 'file' && context.fileBaseDir) {
-                preMutated = await syncFileAttachments(localData, context.fileBaseDir, attachmentBackendDeps);
-            } else if (context.backend === 'cloud' && context.cloudProvider === 'selfhosted' && context.cloudConfig?.url) {
-                helpers.ensureNetworkStillAvailable();
-                const baseUrl = getCloudBaseUrl(context.cloudConfig.url);
-                preMutated = await syncCloudAttachments(localData, context.cloudConfig, baseUrl, attachmentBackendDeps);
-            } else if (context.backend === 'cloud' && context.cloudProvider === 'dropbox') {
-                helpers.ensureNetworkStillAvailable();
-                preMutated = await syncDropboxAttachments(localData, helpers.resolveDropboxAccessToken, attachmentBackendDeps);
-            }
+            const result = await runCorePreSyncAttachmentPhase({
+                backend: context.backend,
+                cloudProvider: context.cloudProvider,
+                data: localData,
+                ensureNetworkStillAvailable: helpers.ensureNetworkStillAvailable,
+                webdav: context.webdavConfig?.url
+                    ? async (data) => {
+                        const baseUrl = getBaseSyncUrl(context.webdavConfig!.url);
+                        return syncAttachments(data, context.webdavConfig!, baseUrl, attachmentBackendDeps);
+                    }
+                    : undefined,
+                file: context.fileBaseDir
+                    ? async (data) => syncFileAttachments(data, context.fileBaseDir, attachmentBackendDeps)
+                    : undefined,
+                selfHostedCloud: context.cloudProvider === 'selfhosted' && context.cloudConfig?.url
+                    ? async (data) => {
+                        const baseUrl = getCloudBaseUrl(context.cloudConfig!.url);
+                        return syncCloudAttachments(data, context.cloudConfig!, baseUrl, attachmentBackendDeps);
+                    }
+                    : undefined,
+                dropbox: context.cloudProvider === 'dropbox'
+                    ? async (data) => syncDropboxAttachments(data, helpers.resolveDropboxAccessToken, attachmentBackendDeps)
+                    : undefined,
+            });
 
-            if (preMutated) {
-                context.preSyncedLocalData = context.preSyncedLocalData ?? localData;
+            if (result.mutated) {
+                context.preSyncedLocalData = result.data ?? localData;
                 helpers.ensureLocalSnapshotFresh();
             }
         } catch (error) {

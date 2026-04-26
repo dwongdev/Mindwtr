@@ -1,7 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform } from 'react-native';
 import Constants from 'expo-constants';
-import { AppData, Attachment, MergeStats, createSyncOrchestrator, useTaskStore, webdavGetJson, webdavPutJson, cloudGetJson, cloudPutJson, flushPendingSave, performSyncCycle, findOrphanedAttachments, removeOrphanedAttachmentsFromData, removeAttachmentsByIdFromData, webdavDeleteFile, cloudDeleteFile, CLOCK_SKEW_THRESHOLD_MS, appendSyncHistory, withRetry, isRetryableWebdavReadError, isWebdavInvalidJsonError, normalizeWebdavUrl, normalizeCloudUrl, sanitizeAppDataForRemote, areSyncPayloadsEqual, assertNoPendingAttachmentUploads, findPendingAttachmentUploads, injectExternalCalendars as injectExternalCalendarsForSync, persistExternalCalendars as persistExternalCalendarsForSync, mergeAppData, cloneAppData, LocalSyncAbort, getInMemoryAppDataSnapshot, shouldRunAttachmentCleanup, createAbortableFetch, normalizeCloudProvider as normalizeCoreCloudProvider, CLOUD_PROVIDER_DROPBOX, CLOUD_PROVIDER_SELF_HOSTED, type CloudProvider } from '@mindwtr/core';
+import { AppData, Attachment, MergeStats, createSyncOrchestrator, runPreSyncAttachmentPhase, useTaskStore, webdavGetJson, webdavPutJson, cloudGetJson, cloudPutJson, flushPendingSave, performSyncCycle, findOrphanedAttachments, removeOrphanedAttachmentsFromData, removeAttachmentsByIdFromData, webdavDeleteFile, cloudDeleteFile, CLOCK_SKEW_THRESHOLD_MS, appendSyncHistory, withRetry, isRetryableWebdavReadError, isWebdavInvalidJsonError, normalizeWebdavUrl, normalizeCloudUrl, sanitizeAppDataForRemote, areSyncPayloadsEqual, assertNoPendingAttachmentUploads, findPendingAttachmentUploads, injectExternalCalendars as injectExternalCalendarsForSync, persistExternalCalendars as persistExternalCalendarsForSync, mergeAppData, cloneAppData, LocalSyncAbort, getInMemoryAppDataSnapshot, shouldRunAttachmentCleanup, createAbortableFetch, normalizeCloudProvider as normalizeCoreCloudProvider, CLOUD_PROVIDER_DROPBOX, CLOUD_PROVIDER_SELF_HOSTED, type CloudProvider } from '@mindwtr/core';
 import { mobileStorage } from './storage-adapter';
 import { logInfo, logSyncError, logWarn, sanitizeLogMessage } from './app-log';
 import { readSyncFile, resolveSyncFileUri, writeSyncFile } from './storage-file';
@@ -496,26 +496,38 @@ const mobileSyncOrchestrator = createSyncOrchestrator<string | undefined, Mobile
       try {
         const persistedData = await mobileStorage.getData();
         const localData = mergeAppData(persistedData, getInMemoryAppDataSnapshot());
-        let preMutated = false;
-        if (backend === 'webdav' && webdavConfig?.url) {
-          const baseSyncUrl = getBaseSyncUrl(webdavConfig.url);
-          preMutated = await syncWebdavAttachments(localData, webdavConfig, baseSyncUrl);
-        } else if (backend === 'cloud' && cloudProvider === CLOUD_PROVIDER_SELF_HOSTED && cloudConfig?.url) {
-          const baseSyncUrl = getCloudBaseUrl(cloudConfig.url);
-          preMutated = await syncCloudAttachments(localData, cloudConfig, baseSyncUrl);
-        } else if (backend === 'cloud' && cloudProvider === CLOUD_PROVIDER_DROPBOX) {
-          preMutated = await syncDropboxAttachments(localData, dropboxClientId, fetchWithAbort);
-        } else if (backend === 'file' && fileSyncPath) {
-          preMutated = await syncFileAttachments(localData, fileSyncPath);
-        }
-        if (preMutated) {
+        const preSyncResult = await runPreSyncAttachmentPhase({
+          backend,
+          cloudProvider,
+          data: localData,
+          ensureNetworkStillAvailable,
+          webdav: webdavConfig?.url
+            ? async (data) => {
+              const baseSyncUrl = getBaseSyncUrl(webdavConfig.url);
+              return syncWebdavAttachments(data, webdavConfig, baseSyncUrl);
+            }
+            : undefined,
+          selfHostedCloud: cloudProvider === CLOUD_PROVIDER_SELF_HOSTED && cloudConfig?.url
+            ? async (data) => {
+              const baseSyncUrl = getCloudBaseUrl(cloudConfig.url);
+              return syncCloudAttachments(data, cloudConfig, baseSyncUrl);
+            }
+            : undefined,
+          dropbox: cloudProvider === CLOUD_PROVIDER_DROPBOX
+            ? async (data) => syncDropboxAttachments(data, dropboxClientId, fetchWithAbort)
+            : undefined,
+          file: fileSyncPath
+            ? async (data) => syncFileAttachments(data, fileSyncPath)
+            : undefined,
+        });
+        if (preSyncResult.mutated) {
           // Capture pre-sync attachment mutations before stale-snapshot checks so we can persist them on abort.
-          preSyncedLocalData = localData;
+          preSyncedLocalData = preSyncResult.data ?? localData;
           ensureLocalSnapshotFresh();
         }
         logSyncInfo('Attachment pre-sync complete', {
           backend,
-          mutated: preMutated ? 'true' : 'false',
+          mutated: preSyncResult.mutated ? 'true' : 'false',
         });
       } catch (error) {
         if (error instanceof LocalSyncAbort) {
