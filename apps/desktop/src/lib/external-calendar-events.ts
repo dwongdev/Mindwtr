@@ -3,11 +3,31 @@ import { ExternalCalendarService } from './external-calendar-service';
 import { isTauriRuntime } from './runtime';
 import { fetchSystemCalendarEvents } from './system-calendar';
 
+const MINDWTR_PUSHED_EVENT_PREFIX = 'Mindwtr: ';
+const MINDWTR_MIRROR_CALENDAR_NAMES = new Set(['mindwtr', 'mindwtr calendar', 'mindwtrcal']);
+
 export const summarizeExternalCalendarWarnings = (warnings: string[]): string | null => {
     if (warnings.length === 0) return null;
     if (warnings.length === 1) return warnings[0];
     return `${warnings[0]} (+${warnings.length - 1} more)`;
 };
+
+function normalizeCalendarName(value: string | undefined): string {
+    return (value ?? '').trim().toLowerCase().replace(/\s+/g, ' ');
+}
+
+export function isMindwtrMirrorCalendar(calendar: Pick<ExternalCalendarSubscription, 'name'>): boolean {
+    return MINDWTR_MIRROR_CALENDAR_NAMES.has(normalizeCalendarName(calendar.name));
+}
+
+export function isMindwtrMirrorEvent(
+    event: Pick<ExternalCalendarEvent, 'sourceId' | 'title'>,
+    calendarById: Map<string, ExternalCalendarSubscription>,
+): boolean {
+    const sourceCalendar = calendarById.get(event.sourceId);
+    if (sourceCalendar && isMindwtrMirrorCalendar(sourceCalendar)) return true;
+    return event.title.trim().toLowerCase().startsWith(MINDWTR_PUSHED_EVENT_PREFIX.toLowerCase());
+}
 
 async function fetchTextWithTimeout(url: string, timeoutMs: number): Promise<string> {
     if (isTauriRuntime()) {
@@ -44,7 +64,8 @@ export async function fetchExternalCalendarEvents(
     warnings: string[];
 }> {
     const calendars = await ExternalCalendarService.getCalendars();
-    const enabled = calendars.filter((calendar) => calendar.enabled);
+    const importableCalendars = calendars.filter((calendar) => !isMindwtrMirrorCalendar(calendar));
+    const enabled = importableCalendars.filter((calendar) => calendar.enabled);
 
     const [icsResults, systemResults] = await Promise.all([
         Promise.allSettled(
@@ -56,7 +77,14 @@ export async function fetchExternalCalendarEvents(
         fetchSystemCalendarEvents(rangeStart, rangeEnd),
     ]);
 
-    const events: ExternalCalendarEvent[] = [...systemResults.events];
+    const calendarById = new Map<string, ExternalCalendarSubscription>();
+    for (const calendar of [...calendars, ...systemResults.calendars]) {
+        calendarById.set(calendar.id, calendar);
+    }
+    const systemCalendars = systemResults.calendars.filter((calendar) => !isMindwtrMirrorCalendar(calendar));
+
+    const events: ExternalCalendarEvent[] = systemResults.events
+        .filter((event) => !isMindwtrMirrorEvent(event, calendarById));
     const warnings: string[] = [];
     for (const [index, result] of icsResults.entries()) {
         if (result.status !== 'fulfilled') {
@@ -66,12 +94,12 @@ export async function fetchExternalCalendarEvents(
             warnings.push(`Failed to load "${label}": ${detail}`);
             continue;
         }
-        events.push(...result.value);
+        events.push(...result.value.filter((event) => !isMindwtrMirrorEvent(event, calendarById)));
     }
 
-    const mergedCalendars = [...calendars];
+    const mergedCalendars = [...importableCalendars];
     const existingIds = new Set(mergedCalendars.map((calendar) => calendar.id));
-    for (const systemCalendar of systemResults.calendars) {
+    for (const systemCalendar of systemCalendars) {
         if (existingIds.has(systemCalendar.id)) continue;
         existingIds.add(systemCalendar.id);
         mergedCalendars.push(systemCalendar);
