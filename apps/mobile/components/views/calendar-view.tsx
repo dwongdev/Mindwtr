@@ -1,8 +1,9 @@
-import { Pressable, Text, TextInput, useWindowDimensions, View } from 'react-native';
+import { Modal, Pressable, Text, TextInput, useWindowDimensions, View } from 'react-native';
 import * as Haptics from 'expo-haptics';
-import { safeFormatDate, safeParseDate, type Task } from '@mindwtr/core';
+import { CALENDAR_TIME_ESTIMATE_OPTIONS, safeFormatDate, safeParseDate, type Task } from '@mindwtr/core';
 import { Gesture, GestureDetector, ScrollView } from 'react-native-gesture-handler';
 import Animated, { runOnJS, useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { TaskEditModal } from '@/components/task-edit-modal';
 import { openContextsScreen, openProjectScreen } from '@/lib/task-meta-navigation';
@@ -16,7 +17,11 @@ export function CalendarView() {
     PIXELS_PER_MINUTE,
     SNAP_MINUTES,
     calendarDays,
+    calendarComposer,
+    calendarComposerCandidates,
+    calendarComposerSelectedTask,
     calendarNameById,
+    closeCalendarComposer,
     closeEditingTask,
     commitTaskDrag,
     currentMonth,
@@ -46,9 +51,11 @@ export function CalendarView() {
     openQuickAddForDate,
     openTaskActions,
     saveEditingTask,
+    saveCalendarComposer,
     scheduleQuery,
     scheduleTaskOnSelectedDate,
     searchCandidates,
+    selectCalendarComposerTask,
     selectedDate,
     selectedDateAllDayEvents,
     selectedDateDeadlines,
@@ -62,6 +69,12 @@ export function CalendarView() {
     selectedDayStart,
     selectedDayEnd,
     scheduleSections,
+    setCalendarComposerDuration,
+    setCalendarComposerEndTime,
+    setCalendarComposerMode,
+    setCalendarComposerQuery,
+    setCalendarComposerStartTime,
+    setCalendarComposerTitle,
     setScheduleQuery,
     setSelectedDate,
     setTimelineScrollEnabled,
@@ -79,6 +92,7 @@ export function CalendarView() {
     weekLabel,
   } = useCalendarViewController();
   const { height: screenHeight } = useWindowDimensions();
+  const insets = useSafeAreaInsets();
   const bottomSheetSnap = useSharedValue(0.42);
   const bottomSheetStart = useSharedValue(0.42);
   const bottomSheetGesture = Gesture.Pan()
@@ -116,6 +130,11 @@ export function CalendarView() {
     { value: 'week' as const, label: localize('Week', '周') },
     { value: 'schedule' as const, label: localize('Schedule', '日程') },
   ];
+  const formatDurationLabel = (minutes: number) => {
+    if (minutes < 60) return `${minutes}m`;
+    const hours = minutes / 60;
+    return Number.isInteger(hours) ? `${hours}h` : `${hours.toFixed(1)}h`;
+  };
 
   const renderModeToggle = () => (
     <View style={[styles.modeToggle, { backgroundColor: tc.inputBg, borderColor: tc.border }]}>
@@ -134,6 +153,193 @@ export function CalendarView() {
         );
       })}
     </View>
+  );
+
+  const renderCalendarComposer = () => (
+    <Modal
+      visible={Boolean(calendarComposer)}
+      transparent
+      animationType="fade"
+      onRequestClose={closeCalendarComposer}
+    >
+      <Pressable style={styles.composerBackdrop} onPress={closeCalendarComposer}>
+        {calendarComposer && (
+          <View
+            style={[
+              styles.calendarComposer,
+              {
+                backgroundColor: tc.cardBg,
+                borderColor: tc.border,
+                paddingBottom: Math.max(18, insets.bottom + 14),
+              },
+            ]}
+            onStartShouldSetResponder={() => true}
+          >
+            <View style={styles.composerHeader}>
+              <View style={styles.taskItemMain}>
+                <Text style={[styles.composerTitle, { color: tc.text }]}>
+                  {localize('Add to calendar', '添加到日历')}
+                </Text>
+                <Text style={[styles.composerDate, { color: tc.secondaryText }]}>
+                  {calendarComposer.date.toLocaleDateString(locale, { weekday: 'short', month: 'short', day: 'numeric' })}
+                </Text>
+              </View>
+              <Pressable onPress={closeCalendarComposer} style={styles.composerCloseButton}>
+                <Text style={[styles.composerCloseText, { color: tc.secondaryText }]}>×</Text>
+              </Pressable>
+            </View>
+
+            <View style={[styles.composerModeToggle, { backgroundColor: tc.inputBg, borderColor: tc.border }]}>
+              {[
+                { value: 'new' as const, label: localize('New task', '新任务') },
+                { value: 'existing' as const, label: localize('Existing task', '现有任务') },
+              ].map((option) => {
+                const active = calendarComposer.mode === option.value;
+                return (
+                  <Pressable
+                    key={option.value}
+                    onPress={() => setCalendarComposerMode(option.value)}
+                    style={[styles.composerModeButton, active && { backgroundColor: tc.tint }]}
+                  >
+                    <Text style={[styles.composerModeText, { color: active ? tc.onTint : tc.secondaryText }]}>
+                      {option.label}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+
+            {calendarComposer.mode === 'new' ? (
+              <TextInput
+                style={[styles.input, styles.composerInput, { backgroundColor: tc.inputBg, borderColor: tc.border, color: tc.text }]}
+                value={calendarComposer.title}
+                onChangeText={setCalendarComposerTitle}
+                placeholder={t('calendar.addTask')}
+                placeholderTextColor={tc.secondaryText}
+              />
+            ) : (
+              <View style={styles.composerSection}>
+                <TextInput
+                  style={[styles.input, styles.composerInput, { backgroundColor: tc.inputBg, borderColor: tc.border, color: tc.text }]}
+                  value={calendarComposer.query}
+                  onChangeText={setCalendarComposerQuery}
+                  placeholder={t('calendar.schedulePlaceholder')}
+                  placeholderTextColor={tc.secondaryText}
+                />
+                <ScrollView style={styles.composerResults} keyboardShouldPersistTaps="handled">
+                  {calendarComposerCandidates.map((task) => {
+                    const selected = task.id === calendarComposer.selectedTaskId;
+                    return (
+                      <Pressable
+                        key={task.id}
+                        onPress={() => selectCalendarComposerTask(task)}
+                        style={[
+                          styles.composerResultItem,
+                          {
+                            backgroundColor: selected ? toRgba(tc.tint, isDark ? 0.28 : 0.14) : tc.inputBg,
+                            borderLeftColor: selected ? tc.tint : tc.border,
+                          },
+                        ]}
+                      >
+                        <Text style={[styles.taskItemTitle, { color: selected ? tc.tint : tc.text }]} numberOfLines={1}>
+                          {task.title}
+                        </Text>
+                      </Pressable>
+                    );
+                  })}
+                  {calendarComposerCandidates.length === 0 && (
+                    <Text style={[styles.noTasks, { color: tc.secondaryText }]}>
+                      {localize('No matching tasks', '没有匹配的任务')}
+                    </Text>
+                  )}
+                </ScrollView>
+                {calendarComposerSelectedTask && (
+                  <Text style={[styles.composerSelectedTask, { color: tc.tint, backgroundColor: toRgba(tc.tint, isDark ? 0.22 : 0.12) }]} numberOfLines={1}>
+                    {calendarComposerSelectedTask.title}
+                  </Text>
+                )}
+              </View>
+            )}
+
+            <View style={styles.composerTimeRow}>
+              <View style={styles.composerTimeField}>
+                <Text style={[styles.composerLabel, { color: tc.secondaryText }]}>{localize('Start', '开始')}</Text>
+                <TextInput
+                  style={[styles.input, styles.composerTimeInput, { backgroundColor: tc.inputBg, borderColor: tc.border, color: tc.text }]}
+                  value={calendarComposer.startTimeValue}
+                  onChangeText={setCalendarComposerStartTime}
+                  placeholder="09:00"
+                  placeholderTextColor={tc.secondaryText}
+                  keyboardType="numbers-and-punctuation"
+                />
+              </View>
+              <View style={styles.composerTimeField}>
+                <Text style={[styles.composerLabel, { color: tc.secondaryText }]}>{localize('End', '结束')}</Text>
+                <TextInput
+                  style={[styles.input, styles.composerTimeInput, { backgroundColor: tc.inputBg, borderColor: tc.border, color: tc.text }]}
+                  value={calendarComposer.endTimeValue}
+                  onChangeText={setCalendarComposerEndTime}
+                  placeholder="09:30"
+                  placeholderTextColor={tc.secondaryText}
+                  keyboardType="numbers-and-punctuation"
+                />
+              </View>
+            </View>
+
+            <View style={styles.durationChips}>
+              {CALENDAR_TIME_ESTIMATE_OPTIONS.map((option) => {
+                const active = calendarComposer.durationMinutes === option.minutes;
+                return (
+                  <Pressable
+                    key={option.estimate}
+                    onPress={() => setCalendarComposerDuration(option.minutes)}
+                    style={[
+                      styles.durationChip,
+                      {
+                        backgroundColor: active ? tc.tint : tc.inputBg,
+                        borderColor: active ? tc.tint : tc.border,
+                      },
+                    ]}
+                  >
+                    <Text style={[styles.durationChipText, { color: active ? tc.onTint : tc.secondaryText }]}>
+                      {formatDurationLabel(option.minutes)}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+
+            {calendarComposer.error && (
+              <Text style={[styles.composerError, { color: tc.danger }]}>
+                {calendarComposer.error}
+              </Text>
+            )}
+
+            <View style={styles.composerActions}>
+              <Pressable
+                onPress={closeCalendarComposer}
+                style={[styles.composerCancelButton, { backgroundColor: tc.inputBg }]}
+              >
+                <Text style={[styles.composerActionText, { color: tc.text }]}>{t('common.cancel')}</Text>
+              </Pressable>
+              <Pressable
+                onPress={saveCalendarComposer}
+                disabled={calendarComposer.mode === 'new' ? !calendarComposer.title.trim() : !calendarComposer.selectedTaskId}
+                style={[
+                  styles.composerSaveButton,
+                  {
+                    backgroundColor: tc.tint,
+                    opacity: calendarComposer.mode === 'new' ? (calendarComposer.title.trim() ? 1 : 0.5) : (calendarComposer.selectedTaskId ? 1 : 0.5),
+                  },
+                ]}
+              >
+                <Text style={[styles.composerActionText, { color: tc.onTint }]}>{t('common.save')}</Text>
+              </Pressable>
+            </View>
+          </View>
+        )}
+      </Pressable>
+    </Modal>
   );
 
   function ScheduledTaskBlock({
@@ -405,6 +611,8 @@ export function CalendarView() {
           </View>
         </ScrollView>
 
+        {renderCalendarComposer()}
+
         <TaskEditModal
           visible={Boolean(editingTask)}
           task={editingTask}
@@ -606,6 +814,8 @@ export function CalendarView() {
           </View>
         </ScrollView>
 
+        {renderCalendarComposer()}
+
         <TaskEditModal
           visible={Boolean(editingTask)}
           task={editingTask}
@@ -717,6 +927,8 @@ export function CalendarView() {
             <Text style={[styles.noTasks, { color: tc.secondaryText }]}>{t('calendar.noTasks')}</Text>
           )}
         </ScrollView>
+
+        {renderCalendarComposer()}
 
         <TaskEditModal
           visible={Boolean(editingTask)}
@@ -1042,6 +1254,8 @@ export function CalendarView() {
           </ScrollView>
         </Animated.View>
       )}
+
+      {renderCalendarComposer()}
 
       <TaskEditModal
         visible={Boolean(editingTask)}

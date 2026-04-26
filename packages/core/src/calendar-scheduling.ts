@@ -5,6 +5,16 @@ import type { Task, TimeEstimate } from './types';
 export const DEFAULT_CALENDAR_DAY_START_HOUR = 8;
 export const DEFAULT_CALENDAR_DAY_END_HOUR = 23;
 export const DEFAULT_CALENDAR_SNAP_MINUTES = 5;
+export const CALENDAR_TIME_ESTIMATE_OPTIONS: Array<{ estimate: TimeEstimate; minutes: number }> = [
+    { estimate: '5min', minutes: 5 },
+    { estimate: '10min', minutes: 10 },
+    { estimate: '15min', minutes: 15 },
+    { estimate: '30min', minutes: 30 },
+    { estimate: '1hr', minutes: 60 },
+    { estimate: '2hr', minutes: 120 },
+    { estimate: '3hr', minutes: 180 },
+    { estimate: '4hr', minutes: 240 },
+];
 
 type SchedulingTask = Pick<Task, 'deletedAt' | 'id' | 'startTime' | 'status' | 'timeEstimate'>;
 type SchedulingEvent = Pick<ExternalCalendarEvent, 'allDay' | 'end' | 'start'>;
@@ -52,6 +62,15 @@ export function timeEstimateToMinutes(estimate: TimeEstimate | undefined, option
         default:
             return 30;
     }
+}
+
+export function minutesToTimeEstimate(minutes: number): TimeEstimate {
+    const normalized = Math.max(1, Math.round(minutes));
+    const exact = CALENDAR_TIME_ESTIMATE_OPTIONS.find((option) => option.minutes === normalized);
+    if (exact) return exact.estimate;
+
+    const nextLargest = CALENDAR_TIME_ESTIMATE_OPTIONS.find((option) => option.minutes >= normalized);
+    return nextLargest?.estimate ?? '4hr+';
 }
 
 const ceilToMinutes = (date: Date, stepMinutes: number): Date => {

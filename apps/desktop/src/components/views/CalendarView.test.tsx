@@ -8,6 +8,7 @@ import { fetchExternalCalendarEvents } from '../../lib/external-calendar-events'
 vi.mock('@mindwtr/core', async () => {
     const actual = await vi.importActual<typeof import('@mindwtr/core')>('@mindwtr/core');
     const taskStoreState = {
+        addTask: vi.fn(async () => ({ success: true, id: 'task-new' })),
         areas: [],
         deleteTask: vi.fn(async () => {}),
         getDerivedState: () => ({
@@ -109,6 +110,23 @@ describe('CalendarView', () => {
             await Promise.resolve();
         });
 
+        expect(screen.getAllByText(/Launch window/).length).toBeGreaterThan(0);
+
+        const searchInput = document.querySelector('[data-view-filter-input]') as HTMLInputElement;
+        await act(async () => {
+            fireEvent.change(searchInput, { target: { value: 'not-launch' } });
+            await Promise.resolve();
+        });
+
+        expect(screen.getByText('No matching calendar items in this view')).toBeInTheDocument();
+        expect(screen.queryByText(/Launch window/)).not.toBeInTheDocument();
+
+        await act(async () => {
+            fireEvent.change(searchInput, { target: { value: 'Launch' } });
+            await Promise.resolve();
+        });
+
+        expect(screen.getByText('1 matches in this view')).toBeInTheDocument();
         expect(screen.getAllByText(/Launch window/).length).toBeGreaterThan(0);
     });
 

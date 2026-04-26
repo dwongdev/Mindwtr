@@ -1,10 +1,12 @@
 import { Alert } from 'react-native';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
+  CALENDAR_TIME_ESTIMATE_OPTIONS,
   normalizeDateFormatSetting,
   resolveDateLocaleTag,
   findFreeSlotForDay as findCalendarFreeSlotForDay,
   isSlotFreeForDay as isCalendarSlotFreeForDay,
+  minutesToTimeEstimate,
   safeFormatDate,
   safeParseDate,
   safeParseDueDate,
@@ -24,7 +26,6 @@ import { taskMatchesAreaFilter } from '@/lib/area-filter';
 import { useLanguage } from '../../../contexts/language-context';
 import { fetchExternalCalendarEvents } from '../../../lib/external-calendar';
 import { logError } from '../../../lib/app-log';
-import { useQuickCapture } from '../../../contexts/quick-capture-context';
 
 function getDaysInMonth(year: number, month: number): number {
   return new Date(year, month + 1, 0).getDate();
@@ -60,6 +61,18 @@ const DAY_END_HOUR = 23;
 const PIXELS_PER_MINUTE = 1.4;
 const SNAP_MINUTES = 5;
 type CalendarViewMode = 'month' | 'day' | 'week' | 'schedule';
+type CalendarTaskComposerMode = 'new' | 'existing';
+type CalendarTaskComposerState = {
+  date: Date;
+  durationMinutes: number;
+  endTimeValue: string;
+  error: string | null;
+  mode: CalendarTaskComposerMode;
+  query: string;
+  selectedTaskId: string | null;
+  startTimeValue: string;
+  title: string;
+};
 
 const SOURCE_COLORS = ['#2563EB', '#7C3AED', '#DB2777', '#EA580C', '#059669', '#0891B2', '#4F46E5', '#65A30D'];
 
@@ -76,13 +89,36 @@ const coerceCalendarViewMode = (value?: string | null): CalendarViewMode => (
   value === 'day' || value === 'week' || value === 'schedule' ? value : 'month'
 );
 
+const addMinutesToDate = (date: Date, minutes: number): Date => new Date(date.getTime() + minutes * 60 * 1000);
+
+const formatTimeInputValue = (date: Date): string => (
+  `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`
+);
+
+const parseTimeOnDate = (date: Date, value: string): Date | null => {
+  const match = /^(\d{1,2}):(\d{2})$/.exec(value.trim());
+  if (!match) return null;
+  const hours = Number(match[1]);
+  const minutes = Number(match[2]);
+  if (!Number.isInteger(hours) || !Number.isInteger(minutes)) return null;
+  if (hours < 0 || hours > 23 || minutes < 0 || minutes > 59) return null;
+  const next = new Date(date);
+  next.setHours(hours, minutes, 0, 0);
+  return next;
+};
+
+const normalizeDurationMinutes = (minutes: number): number => {
+  const estimate = minutesToTimeEstimate(minutes);
+  return CALENDAR_TIME_ESTIMATE_OPTIONS.find((option) => option.estimate === estimate)?.minutes
+    ?? resolveTimeEstimateToMinutes(estimate);
+};
+
 export function useCalendarViewController() {
-  const { tasks, projects, updateTask, deleteTask, updateSettings, settings } = useTaskStore();
+  const { tasks, projects, addTask, updateTask, deleteTask, updateSettings, settings } = useTaskStore();
   const { isDark } = useTheme();
   const { showToast } = useToast();
   const tc = useThemeColors();
   const { t, language } = useLanguage();
-  const { openQuickCapture } = useQuickCapture();
   const { areaById, resolvedAreaFilter } = useMobileAreaFilter();
 
   const toRgba = (hex: string, alpha: number) => {
@@ -114,6 +150,7 @@ export function useCalendarViewController() {
   const timelineScrollRef = useRef<any>(null);
   const [pendingScrollMinutes, setPendingScrollMinutes] = useState<number | null>(null);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
+  const [calendarComposer, setCalendarComposer] = useState<CalendarTaskComposerState | null>(null);
 
   const projectById = useMemo(() => new Map(projects.map((project) => [project.id, project])), [projects]);
   const logCalendarError = (error: unknown) => {
@@ -162,6 +199,12 @@ export function useCalendarViewController() {
   const visibleTasks = useMemo(() => (
     tasks.filter((task) => taskMatchesAreaFilter(task, resolvedAreaFilter, projectById, areaById))
   ), [tasks, resolvedAreaFilter, projectById, areaById]);
+
+  const schedulableTasks = useMemo(() => (
+    visibleTasks
+      .filter((task) => !task.deletedAt && task.status !== 'done' && task.status !== 'archived' && task.status !== 'reference')
+      .sort((a, b) => a.title.localeCompare(b.title))
+  ), [visibleTasks]);
 
   const getDeadlinesForDate = (date: Date): Task[] => (
     visibleTasks.filter((task) => {
@@ -244,7 +287,7 @@ export function useCalendarViewController() {
       events: getExternalEventsForDate(day),
       excludeTaskId,
       snapMinutes: SNAP_MINUTES,
-      tasks: visibleTasks,
+      tasks: schedulableTasks,
       timeEstimatesEnabled,
     })
   );
@@ -259,7 +302,7 @@ export function useCalendarViewController() {
       excludeTaskId,
       snapMinutes: SNAP_MINUTES,
       startTime,
-      tasks: visibleTasks,
+      tasks: schedulableTasks,
       timeEstimatesEnabled,
     })
   );
@@ -310,25 +353,183 @@ export function useCalendarViewController() {
 
   const nextQuickScheduleCandidates = useMemo(() => {
     if (!selectedDate) return [];
-    return visibleTasks
-      .filter((task) => !task.deletedAt && task.status === 'next')
+    return schedulableTasks
+      .filter((task) => task.status === 'next')
       .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())
       .slice(0, 6);
-  }, [visibleTasks, selectedDate]);
+  }, [schedulableTasks, selectedDate]);
 
   const searchCandidates = useMemo(() => {
     if (!selectedDate) return [];
     const query = scheduleQuery.trim().toLowerCase();
     if (!query) return [];
-    return visibleTasks
-      .filter((task) => {
-        if (task.deletedAt) return false;
-        if (task.status === 'done' || task.status === 'reference') return false;
-        if (task.status === 'next') return false;
-        return task.title.toLowerCase().includes(query);
-      })
+    return schedulableTasks
+      .filter((task) => task.title.toLowerCase().includes(query))
       .slice(0, 8);
-  }, [visibleTasks, scheduleQuery, selectedDate]);
+  }, [schedulableTasks, scheduleQuery, selectedDate]);
+
+  const calendarComposerCandidates = useMemo(() => {
+    if (!calendarComposer || calendarComposer.mode !== 'existing') return [];
+    const query = calendarComposer.query.trim().toLowerCase();
+    return schedulableTasks
+      .filter((task) => !query || task.title.toLowerCase().includes(query))
+      .slice(0, 10);
+  }, [calendarComposer, schedulableTasks]);
+
+  const calendarComposerSelectedTask = calendarComposer?.selectedTaskId
+    ? tasks.find((task) => task.id === calendarComposer.selectedTaskId) ?? null
+    : null;
+
+  const openCalendarComposerAt = (start: Date, options?: { durationMinutes?: number; mode?: CalendarTaskComposerMode; taskId?: string }) => {
+    const selectedTask = options?.taskId ? tasks.find((task) => task.id === options.taskId) : null;
+    const durationMinutes = normalizeDurationMinutes(
+      options?.durationMinutes ?? (selectedTask ? timeEstimateToMinutes(selectedTask.timeEstimate) : 30)
+    );
+    setCalendarComposer({
+      date: start,
+      durationMinutes,
+      endTimeValue: formatTimeInputValue(addMinutesToDate(start, durationMinutes)),
+      error: null,
+      mode: options?.mode ?? 'new',
+      query: selectedTask?.title ?? '',
+      selectedTaskId: selectedTask?.id ?? null,
+      startTimeValue: formatTimeInputValue(start),
+      title: '',
+    });
+  };
+
+  const openCalendarComposerForDate = (date: Date, options?: { mode?: CalendarTaskComposerMode; taskId?: string }) => {
+    const selectedTask = options?.taskId ? tasks.find((task) => task.id === options.taskId) : null;
+    const durationMinutes = normalizeDurationMinutes(selectedTask ? timeEstimateToMinutes(selectedTask.timeEstimate) : 30);
+    const slot = findFreeSlotForDay(date, durationMinutes, selectedTask?.id);
+    const fallback = new Date(date);
+    fallback.setHours(DAY_START_HOUR, 0, 0, 0);
+    openCalendarComposerAt(slot ?? fallback, { durationMinutes, mode: options?.mode, taskId: selectedTask?.id });
+  };
+
+  const setCalendarComposerMode = (mode: CalendarTaskComposerMode) => {
+    setCalendarComposer((prev) => prev ? { ...prev, mode, error: null } : prev);
+  };
+
+  const setCalendarComposerTitle = (title: string) => {
+    setCalendarComposer((prev) => prev ? { ...prev, title, error: null } : prev);
+  };
+
+  const setCalendarComposerQuery = (query: string) => {
+    setCalendarComposer((prev) => prev ? { ...prev, query, selectedTaskId: null, error: null } : prev);
+  };
+
+  const selectCalendarComposerTask = (task: Task) => {
+    const durationMinutes = normalizeDurationMinutes(timeEstimateToMinutes(task.timeEstimate));
+    setCalendarComposer((prev) => {
+      if (!prev) return prev;
+      const start = parseTimeOnDate(prev.date, prev.startTimeValue) ?? prev.date;
+      return {
+        ...prev,
+        durationMinutes,
+        endTimeValue: formatTimeInputValue(addMinutesToDate(start, durationMinutes)),
+        error: null,
+        query: task.title,
+        selectedTaskId: task.id,
+      };
+    });
+  };
+
+  const setCalendarComposerStartTime = (value: string) => {
+    setCalendarComposer((prev) => {
+      if (!prev) return prev;
+      const start = parseTimeOnDate(prev.date, value);
+      return {
+        ...prev,
+        endTimeValue: start ? formatTimeInputValue(addMinutesToDate(start, prev.durationMinutes)) : prev.endTimeValue,
+        error: null,
+        startTimeValue: value,
+      };
+    });
+  };
+
+  const setCalendarComposerDuration = (durationMinutes: number) => {
+    setCalendarComposer((prev) => {
+      if (!prev) return prev;
+      const normalized = normalizeDurationMinutes(durationMinutes);
+      const start = parseTimeOnDate(prev.date, prev.startTimeValue) ?? prev.date;
+      return {
+        ...prev,
+        durationMinutes: normalized,
+        endTimeValue: formatTimeInputValue(addMinutesToDate(start, normalized)),
+        error: null,
+      };
+    });
+  };
+
+  const setCalendarComposerEndTime = (value: string) => {
+    setCalendarComposer((prev) => {
+      if (!prev) return prev;
+      const start = parseTimeOnDate(prev.date, prev.startTimeValue);
+      const end = parseTimeOnDate(prev.date, value);
+      if (!start || !end || end <= start) return { ...prev, endTimeValue: value, error: null };
+      const normalized = normalizeDurationMinutes((end.getTime() - start.getTime()) / 60_000);
+      return {
+        ...prev,
+        durationMinutes: normalized,
+        endTimeValue: formatTimeInputValue(addMinutesToDate(start, normalized)),
+        error: null,
+      };
+    });
+  };
+
+  const closeCalendarComposer = () => setCalendarComposer(null);
+
+  const saveCalendarComposer = async () => {
+    if (!calendarComposer) return;
+    const start = parseTimeOnDate(calendarComposer.date, calendarComposer.startTimeValue);
+    const end = parseTimeOnDate(calendarComposer.date, calendarComposer.endTimeValue);
+    if (!start || !end || end <= start) {
+      setCalendarComposer((prev) => prev ? { ...prev, error: localize('Choose a valid start and end time.', '请选择有效的开始和结束时间。') } : prev);
+      return;
+    }
+
+    const durationMinutes = normalizeDurationMinutes(calendarComposer.durationMinutes);
+    const selectedTaskId = calendarComposer.mode === 'existing' ? calendarComposer.selectedTaskId : null;
+    if (calendarComposer.mode === 'new' && !calendarComposer.title.trim()) {
+      setCalendarComposer((prev) => prev ? { ...prev, error: localize('Enter a task title.', '请输入任务标题。') } : prev);
+      return;
+    }
+    if (calendarComposer.mode === 'existing' && !selectedTaskId) {
+      setCalendarComposer((prev) => prev ? { ...prev, error: localize('Choose a task.', '请选择一个任务。') } : prev);
+      return;
+    }
+    if (!isSlotFreeForDay(start, start, durationMinutes, selectedTaskId ?? undefined)) {
+      setCalendarComposer((prev) => prev ? { ...prev, error: t('calendar.overlapWarning') } : prev);
+      return;
+    }
+
+    const updates = {
+      startTime: start.toISOString(),
+      timeEstimate: minutesToTimeEstimate(durationMinutes),
+    };
+    try {
+      if (selectedTaskId) {
+        await updateTask(selectedTaskId, updates);
+      } else {
+        const result = await addTask(calendarComposer.title.trim(), { status: 'next', ...updates });
+        if (!result.success) {
+          setCalendarComposer((prev) => prev ? { ...prev, error: result.error ?? localize('Could not save the task.', '无法保存任务。') } : prev);
+          return;
+        }
+      }
+      setCalendarComposer(null);
+      setScheduleQuery('');
+      setSelectedDate(start);
+      setCurrentMonth(start.getMonth());
+      setCurrentYear(start.getFullYear());
+      setPendingScrollMinutes((start.getHours() * 60 + start.getMinutes()) - DAY_START_HOUR * 60);
+      setViewMode('day');
+    } catch (error) {
+      logCalendarError(error);
+      setCalendarComposer((prev) => prev ? { ...prev, error: localize('Could not save the task.', '无法保存任务。') } : prev);
+    }
+  };
 
   const scheduleTaskOnSelectedDate = (taskId: string) => {
     if (!selectedDate) return;
@@ -347,19 +548,11 @@ export function useCalendarViewController() {
       return;
     }
 
-    updateTask(taskId, { startTime: slot.toISOString() }).catch(logCalendarError);
-    setScheduleQuery('');
-    setPendingScrollMinutes((slot.getHours() * 60 + slot.getMinutes()) - DAY_START_HOUR * 60);
-    setViewMode('day');
+    openCalendarComposerAt(slot, { durationMinutes, mode: 'existing', taskId });
   };
 
   const openQuickAddForDate = (date: Date) => {
-    const durationMinutes = 30;
-    const slot = findFreeSlotForDay(date, durationMinutes);
-    const fallback = new Date(date);
-    fallback.setHours(DAY_START_HOUR, 0, 0, 0);
-    const start = slot ?? fallback;
-    openQuickCapture({ initialProps: { startTime: start.toISOString() } });
+    openCalendarComposerForDate(date, { mode: 'new' });
   };
 
   useEffect(() => {
@@ -574,7 +767,11 @@ export function useCalendarViewController() {
     PIXELS_PER_MINUTE,
     SNAP_MINUTES,
     calendarDays,
+    calendarComposer,
+    calendarComposerCandidates,
+    calendarComposerSelectedTask,
     calendarNameById,
+    closeCalendarComposer,
     closeEditingTask,
     commitTaskDrag,
     currentMonth,
@@ -621,6 +818,14 @@ export function useCalendarViewController() {
     selectedDayStart,
     selectedDayEnd,
     scheduleSections,
+    saveCalendarComposer,
+    selectCalendarComposerTask,
+    setCalendarComposerDuration,
+    setCalendarComposerEndTime,
+    setCalendarComposerMode,
+    setCalendarComposerQuery,
+    setCalendarComposerStartTime,
+    setCalendarComposerTitle,
     setCurrentMonth,
     setCurrentYear,
     setEditingTask,

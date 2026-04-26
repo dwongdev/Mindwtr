@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { findFreeSlotForDay, isSlotFreeForDay, timeEstimateToMinutes } from './calendar-scheduling';
+import { findFreeSlotForDay, isSlotFreeForDay, minutesToTimeEstimate, timeEstimateToMinutes } from './calendar-scheduling';
 import type { ExternalCalendarEvent, Task } from './index';
 
 const task = (overrides: Partial<Task>): Task => ({
@@ -31,6 +31,12 @@ describe('calendar scheduling helpers', () => {
         expect(timeEstimateToMinutes('4hr+')).toBe(240);
         expect(timeEstimateToMinutes(undefined)).toBe(30);
         expect(timeEstimateToMinutes('2hr', { enabled: false })).toBe(30);
+    });
+
+    it('maps calendar minutes back to Mindwtr time estimates', () => {
+        expect(minutesToTimeEstimate(15)).toBe('15min');
+        expect(minutesToTimeEstimate(45)).toBe('1hr');
+        expect(minutesToTimeEstimate(241)).toBe('4hr+');
     });
 
     it('finds the first open slot around external events and scheduled tasks', () => {

@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState, useRef, useCallback } from 'react';
 import { ErrorBoundary } from '../ErrorBoundary';
 import { addDays, addMonths, addWeeks, endOfMonth, endOfWeek, format, getMonth, getYear, isSameDay, isSameMonth, isToday, setMonth, setYear, startOfMonth, startOfWeek, subDays, subMonths, subWeeks, eachDayOfInterval } from 'date-fns';
 import { CalendarDays, Check, ChevronLeft, ChevronRight, Clock, MoreHorizontal, Plus, Search, X } from 'lucide-react';
-import { findFreeSlotForDay as findCalendarFreeSlotForDay, isSlotFreeForDay as isCalendarSlotFreeForDay, shallow, safeFormatDate, safeParseDate, safeParseDueDate, timeEstimateToMinutes as resolveTimeEstimateToMinutes, translateWithFallback, type ExternalCalendarEvent, type ExternalCalendarSubscription, useTaskStore, type Task, isTaskInActiveProject } from '@mindwtr/core';
+import { CALENDAR_TIME_ESTIMATE_OPTIONS, findFreeSlotForDay as findCalendarFreeSlotForDay, isSlotFreeForDay as isCalendarSlotFreeForDay, minutesToTimeEstimate, shallow, safeFormatDate, safeParseDate, safeParseDueDate, timeEstimateToMinutes as resolveTimeEstimateToMinutes, translateWithFallback, type ExternalCalendarEvent, type ExternalCalendarSubscription, useTaskStore, type Task, isTaskInActiveProject } from '@mindwtr/core';
 import { useLanguage } from '../../contexts/language-context';
 import { cn } from '../../lib/utils';
 import { reportError } from '../../lib/report-error';
@@ -22,6 +22,18 @@ type CalendarCellItem =
     | { id: string; kind: 'event'; event: ExternalCalendarEvent; start: Date | null; title: string };
 
 type CalendarViewMode = 'day' | 'week' | 'month' | 'schedule';
+type CalendarTaskComposerMode = 'new' | 'existing';
+type CalendarTaskComposerState = {
+    durationMinutes: number;
+    endTimeValue: string;
+    error: string | null;
+    mode: CalendarTaskComposerMode;
+    query: string;
+    selectedTaskId: string | null;
+    startDateValue: string;
+    startTimeValue: string;
+    title: string;
+};
 
 type CalendarTimedItem =
     | { durationMinutes: number; end: Date; id: string; kind: 'task'; start: Date; task: Task; title: string }
@@ -44,6 +56,41 @@ const hashString = (value: string): number => {
 const externalCalendarColor = (sourceId: string): string => {
     const hue = hashString(sourceId || 'calendar') % 360;
     return `hsl(${hue} 68% 48%)`;
+};
+
+const formatDateInputValue = (date: Date): string => format(date, 'yyyy-MM-dd');
+const formatTimeInputValue = (date: Date): string => format(date, 'HH:mm');
+const addMinutesToDate = (date: Date, minutes: number): Date => new Date(date.getTime() + minutes * 60_000);
+
+const combineDateAndTime = (dateValue: string, timeValue: string): Date | null => {
+    const dateMatch = /^(\d{4})-(\d{2})-(\d{2})$/.exec(dateValue);
+    const timeMatch = /^(\d{2}):(\d{2})$/.exec(timeValue);
+    if (!dateMatch || !timeMatch) return null;
+    const hours = Number(timeMatch[1]);
+    const minutes = Number(timeMatch[2]);
+    if (hours < 0 || hours > 23 || minutes < 0 || minutes > 59) return null;
+    const date = new Date(
+        Number(dateMatch[1]),
+        Number(dateMatch[2]) - 1,
+        Number(dateMatch[3]),
+        hours,
+        minutes,
+        0,
+        0,
+    );
+    return Number.isNaN(date.getTime()) ? null : date;
+};
+
+const normalizeDurationMinutes = (minutes: number): number => {
+    const estimate = minutesToTimeEstimate(minutes);
+    return CALENDAR_TIME_ESTIMATE_OPTIONS.find((option) => option.estimate === estimate)?.minutes
+        ?? resolveTimeEstimateToMinutes(estimate);
+};
+
+const formatDurationLabel = (minutes: number): string => {
+    if (minutes < 60) return `${minutes}m`;
+    const hours = minutes / 60;
+    return Number.isInteger(hours) ? `${hours}h` : `${hours.toFixed(1)}h`;
 };
 
 const parseCalendarDateParam = (value: string | null): Date | null => {
@@ -75,8 +122,9 @@ const getInitialCalendarState = (fallback: Date): { currentMonth: Date; selected
 
 export function CalendarView() {
     const perf = usePerformanceMonitor('CalendarView');
-    const { tasks, areas, updateTask, settings, getDerivedState } = useTaskStore(
+    const { tasks, areas, addTask, updateTask, settings, getDerivedState } = useTaskStore(
         (state) => ({
+            addTask: state.addTask,
             tasks: state.tasks,
             areas: state.areas,
             updateTask: state.updateTask,
@@ -132,6 +180,7 @@ export function CalendarView() {
     const [isExternalLoading, setIsExternalLoading] = useState(false);
     const [editingTimeTaskId, setEditingTimeTaskId] = useState<string | null>(null);
     const [editingTimeValue, setEditingTimeValue] = useState<string>('');
+    const [taskComposer, setTaskComposer] = useState<CalendarTaskComposerState | null>(null);
     const calendarBodyRef = useRef<HTMLDivElement | null>(null);
     const normalizedViewFilterQuery = viewFilterQuery.trim().toLowerCase();
 
@@ -194,14 +243,19 @@ export function CalendarView() {
         [visibleRange]
     );
 
-    const isCalendarTaskVisible = (task: Task) => {
+    const isSchedulableTask = useCallback((task: Task) => {
         if (task.deletedAt) return false;
         if (task.status === 'done' || task.status === 'archived' || task.status === 'reference') return false;
         if (!isTaskInActiveProject(task, projectMap)) return false;
         if (!taskMatchesAreaFilter(task, resolvedAreaFilter, projectMap, areaById)) return false;
+        return true;
+    }, [projectMap, resolvedAreaFilter, areaById]);
+
+    const isCalendarTaskVisible = useCallback((task: Task) => {
+        if (!isSchedulableTask(task)) return false;
         if (normalizedViewFilterQuery && !task.title.toLowerCase().includes(normalizedViewFilterQuery)) return false;
         return true;
-    };
+    }, [isSchedulableTask, normalizedViewFilterQuery]);
 
     const calendarTaskData = useMemo(() => {
         const visibleTasks: Task[] = [];
@@ -230,7 +284,14 @@ export function CalendarView() {
             }
         }
         return { visibleTasks, deadlinesByDay, scheduledByDay };
-    }, [tasks, projectMap, resolvedAreaFilter, areaById, normalizedViewFilterQuery]);
+    }, [tasks, isCalendarTaskVisible]);
+
+    const schedulableTasks = useMemo(
+        () => tasks
+            .filter(isSchedulableTask)
+            .sort((a, b) => a.title.localeCompare(b.title)),
+        [tasks, isSchedulableTask]
+    );
 
     const getDeadlinesForDay = (date: Date) => calendarTaskData.deadlinesByDay.get(dayKey(date)) ?? [];
     const getScheduledForDay = (date: Date) => calendarTaskData.scheduledByDay.get(dayKey(date)) ?? [];
@@ -246,8 +307,14 @@ export function CalendarView() {
     }, [updateTask]);
 
     const visibleExternalEvents = useMemo(
-        () => externalEvents.filter((event) => !hiddenExternalCalendarIds.has(event.sourceId)),
-        [externalEvents, hiddenExternalCalendarIds]
+        () => externalEvents.filter((event) => {
+            if (hiddenExternalCalendarIds.has(event.sourceId)) return false;
+            if (!normalizedViewFilterQuery) return true;
+            const sourceName = externalCalendars.find((calendar) => calendar.id === event.sourceId)?.name ?? '';
+            return event.title.toLowerCase().includes(normalizedViewFilterQuery)
+                || sourceName.toLowerCase().includes(normalizedViewFilterQuery);
+        }),
+        [externalCalendars, externalEvents, hiddenExternalCalendarIds, normalizedViewFilterQuery]
     );
 
     const externalEventsByDay = useMemo(() => {
@@ -272,6 +339,33 @@ export function CalendarView() {
         return nextMap;
     }, [visibleExternalEvents]);
 
+    const visibleSearchMatchCount = useMemo(() => {
+        if (!normalizedViewFilterQuery) return null;
+        const rangeStart = new Date(visibleRange.start);
+        rangeStart.setHours(0, 0, 0, 0);
+        const rangeEnd = new Date(visibleRange.end);
+        rangeEnd.setHours(23, 59, 59, 999);
+        const startMs = rangeStart.getTime();
+        const endMs = rangeEnd.getTime();
+
+        const taskIds = new Set<string>();
+        for (const task of calendarTaskData.visibleTasks) {
+            const dueDate = task.dueDate ? safeParseDueDate(task.dueDate) : null;
+            const startTime = task.startTime ? safeParseDate(task.startTime) : null;
+            if (dueDate && dueDate.getTime() >= startMs && dueDate.getTime() <= endMs) taskIds.add(task.id);
+            if (startTime && startTime.getTime() >= startMs && startTime.getTime() <= endMs) taskIds.add(task.id);
+        }
+
+        const eventCount = visibleExternalEvents.filter((event) => {
+            const start = safeParseDate(event.start);
+            const end = safeParseDate(event.end);
+            if (!start || !end) return false;
+            return start.getTime() <= endMs && end.getTime() >= startMs;
+        }).length;
+
+        return taskIds.size + eventCount;
+    }, [calendarTaskData.visibleTasks, normalizedViewFilterQuery, visibleExternalEvents, visibleRange]);
+
     const getExternalEventsForDay = useCallback(
         (date: Date) => externalEventsByDay.get(dayKey(date)) ?? [],
         [externalEventsByDay]
@@ -281,7 +375,7 @@ export function CalendarView() {
         resolveTimeEstimateToMinutes(estimate, { enabled: timeEstimatesEnabled })
     );
 
-    const getSchedulingTasks = () => tasks.filter((task) => isCalendarTaskVisible(task));
+    const getSchedulingTasks = () => schedulableTasks;
 
     const findFreeSlotForDay = (day: Date, durationMinutes: number, excludeTaskId?: string): Date | null => (
         findCalendarFreeSlotForDay({
@@ -356,17 +450,30 @@ export function CalendarView() {
         const query = scheduleQuery.trim().toLowerCase();
         if (!query) return [];
 
-        return calendarTaskData.visibleTasks
+        return schedulableTasks
+            .filter((task) => task.title.toLowerCase().includes(query))
+            .slice(0, 12);
+    }, [schedulableTasks, scheduleQuery, selectedDate]);
+
+    const taskComposerCandidates = useMemo(() => {
+        if (!taskComposer || taskComposer.mode !== 'existing') return [];
+        const query = taskComposer.query.trim().toLowerCase();
+        return schedulableTasks
             .filter((task) => {
-                if (task.status !== 'next') return false;
+                if (!query) return true;
                 return task.title.toLowerCase().includes(query);
             })
-            .slice(0, 12);
-    }, [calendarTaskData.visibleTasks, scheduleQuery, selectedDate]);
+            .slice(0, 10);
+    }, [schedulableTasks, taskComposer]);
+
+    const selectedComposerTask = taskComposer?.selectedTaskId
+        ? tasks.find((task) => task.id === taskComposer.selectedTaskId) ?? null
+        : null;
 
     useEffect(() => {
         if (!selectedDate) return;
         const handleClickOutside = (event: MouseEvent) => {
+            if (taskComposer) return;
             const target = event.target as Node;
             if (!calendarBodyRef.current || calendarBodyRef.current.contains(target)) return;
             setSelectedDate(null);
@@ -375,7 +482,143 @@ export function CalendarView() {
         };
         document.addEventListener('mousedown', handleClickOutside);
         return () => document.removeEventListener('mousedown', handleClickOutside);
-    }, [selectedDate]);
+    }, [selectedDate, taskComposer]);
+
+    const openTaskComposerAt = (
+        start: Date,
+        options?: { durationMinutes?: number; mode?: CalendarTaskComposerMode; taskId?: string },
+    ) => {
+        const selectedTask = options?.taskId ? tasks.find((task) => task.id === options.taskId) : null;
+        const durationMinutes = normalizeDurationMinutes(
+            options?.durationMinutes ?? (selectedTask ? timeEstimateToMinutes(selectedTask.timeEstimate) : 30)
+        );
+        setTaskComposer({
+            durationMinutes,
+            endTimeValue: formatTimeInputValue(addMinutesToDate(start, durationMinutes)),
+            error: null,
+            mode: options?.mode ?? 'new',
+            query: selectedTask?.title ?? '',
+            selectedTaskId: selectedTask?.id ?? null,
+            startDateValue: formatDateInputValue(start),
+            startTimeValue: formatTimeInputValue(start),
+            title: '',
+        });
+    };
+
+    const openTaskComposerForDate = (
+        date: Date,
+        options?: { mode?: CalendarTaskComposerMode; taskId?: string },
+    ) => {
+        const selectedTask = options?.taskId ? tasks.find((task) => task.id === options.taskId) : null;
+        const durationMinutes = normalizeDurationMinutes(selectedTask ? timeEstimateToMinutes(selectedTask.timeEstimate) : 30);
+        const slot = findFreeSlotForDay(date, durationMinutes, selectedTask?.id);
+        const fallback = new Date(date);
+        fallback.setHours(DESKTOP_DAY_START_HOUR, 0, 0, 0);
+        openTaskComposerAt(slot ?? fallback, {
+            durationMinutes,
+            mode: options?.mode,
+            taskId: selectedTask?.id,
+        });
+    };
+
+    const updateTaskComposerStart = (updates: Partial<Pick<CalendarTaskComposerState, 'startDateValue' | 'startTimeValue'>>) => {
+        setTaskComposer((prev) => {
+            if (!prev) return prev;
+            const next = { ...prev, ...updates, error: null };
+            const start = combineDateAndTime(next.startDateValue, next.startTimeValue);
+            if (!start) return next;
+            return {
+                ...next,
+                endTimeValue: formatTimeInputValue(addMinutesToDate(start, next.durationMinutes)),
+            };
+        });
+    };
+
+    const updateTaskComposerDuration = (durationMinutes: number) => {
+        setTaskComposer((prev) => {
+            if (!prev) return prev;
+            const normalized = normalizeDurationMinutes(durationMinutes);
+            const start = combineDateAndTime(prev.startDateValue, prev.startTimeValue);
+            return {
+                ...prev,
+                durationMinutes: normalized,
+                endTimeValue: start ? formatTimeInputValue(addMinutesToDate(start, normalized)) : prev.endTimeValue,
+                error: null,
+            };
+        });
+    };
+
+    const updateTaskComposerEndTime = (endTimeValue: string) => {
+        setTaskComposer((prev) => {
+            if (!prev) return prev;
+            const start = combineDateAndTime(prev.startDateValue, prev.startTimeValue);
+            const end = combineDateAndTime(prev.startDateValue, endTimeValue);
+            if (!start || !end || end <= start) {
+                return { ...prev, endTimeValue, error: null };
+            }
+            const normalized = normalizeDurationMinutes((end.getTime() - start.getTime()) / 60_000);
+            return {
+                ...prev,
+                durationMinutes: normalized,
+                endTimeValue: formatTimeInputValue(addMinutesToDate(start, normalized)),
+                error: null,
+            };
+        });
+    };
+
+    const setTaskComposerMode = (mode: CalendarTaskComposerMode) => {
+        setTaskComposer((prev) => prev ? { ...prev, mode, error: null } : prev);
+    };
+
+    const saveTaskComposer = async () => {
+        if (!taskComposer) return;
+        const start = combineDateAndTime(taskComposer.startDateValue, taskComposer.startTimeValue);
+        const end = combineDateAndTime(taskComposer.startDateValue, taskComposer.endTimeValue);
+        if (!start || !end || end <= start) {
+            setTaskComposer((prev) => prev ? { ...prev, error: resolveText('calendar.invalidTimeRange', 'Choose a valid start and end time.') } : prev);
+            return;
+        }
+
+        const durationMinutes = normalizeDurationMinutes(taskComposer.durationMinutes);
+        const selectedTaskId = taskComposer.mode === 'existing' ? taskComposer.selectedTaskId : null;
+        if (taskComposer.mode === 'new' && !taskComposer.title.trim()) {
+            setTaskComposer((prev) => prev ? { ...prev, error: resolveText('calendar.taskTitleRequired', 'Enter a task title.') } : prev);
+            return;
+        }
+        if (taskComposer.mode === 'existing' && !selectedTaskId) {
+            setTaskComposer((prev) => prev ? { ...prev, error: resolveText('calendar.taskRequired', 'Choose a task.') } : prev);
+            return;
+        }
+        if (!isSlotFreeForDay(start, start, durationMinutes, selectedTaskId ?? undefined)) {
+            setTaskComposer((prev) => prev ? { ...prev, error: t('calendar.overlapWarning') } : prev);
+            return;
+        }
+
+        const updates = {
+            startTime: start.toISOString(),
+            timeEstimate: minutesToTimeEstimate(durationMinutes),
+        };
+
+        try {
+            if (selectedTaskId) {
+                await updateTask(selectedTaskId, updates);
+            } else {
+                const result = await addTask(taskComposer.title.trim(), { status: 'next', ...updates });
+                if (!result.success) {
+                    setTaskComposer((prev) => prev ? { ...prev, error: result.error ?? resolveText('calendar.saveFailed', 'Could not save the task.') } : prev);
+                    return;
+                }
+            }
+            setTaskComposer(null);
+            setScheduleQuery('');
+            setScheduleError(null);
+            setSelectedDate(start);
+            setCurrentMonth(start);
+        } catch (error) {
+            reportError('Failed to save calendar task', error);
+            setTaskComposer((prev) => prev ? { ...prev, error: resolveText('calendar.saveFailed', 'Could not save the task.') } : prev);
+        }
+    };
 
     const scheduleTaskOnSelectedDate = (taskId: string) => {
         if (!selectedDate) return;
@@ -389,9 +632,7 @@ export function CalendarView() {
             return;
         }
 
-        updateTask(taskId, { startTime: slot.toISOString() })
-            .catch((error) => reportError('Failed to update scheduled time', error));
-        setScheduleQuery('');
+        openTaskComposerAt(slot, { mode: 'existing', taskId });
         setScheduleError(null);
     };
 
@@ -431,24 +672,11 @@ export function CalendarView() {
     };
 
     const openQuickAddForDate = (date: Date) => {
-        const durationMinutes = 30;
-        const slot = findFreeSlotForDay(date, durationMinutes);
-        const fallback = new Date(date);
-        fallback.setHours(9, 0, 0, 0);
-        const start = slot ?? fallback;
-        window.dispatchEvent(new CustomEvent('mindwtr:quick-add', {
-            detail: {
-                initialProps: { startTime: start.toISOString() },
-            },
-        }));
+        openTaskComposerForDate(date, { mode: 'new' });
     };
 
     const openQuickAddForStart = (start: Date) => {
-        window.dispatchEvent(new CustomEvent('mindwtr:quick-add', {
-            detail: {
-                initialProps: { startTime: start.toISOString(), timeEstimate: '30min' },
-            },
-        }));
+        openTaskComposerAt(start, { durationMinutes: 30, mode: 'new' });
     };
 
     const cancelEditScheduledTime = () => {
@@ -852,6 +1080,13 @@ export function CalendarView() {
                     onChange={(event) => setViewFilterQuery(event.target.value)}
                     className="w-full rounded-md border border-border bg-background py-2 pl-9 pr-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
                 />
+                {visibleSearchMatchCount !== null && (
+                    <div className="mt-2 text-xs text-muted-foreground" aria-live="polite">
+                        {visibleSearchMatchCount > 0
+                            ? resolveText('calendar.searchMatches', `${visibleSearchMatchCount} matches in this view`).replace('{count}', String(visibleSearchMatchCount))
+                            : resolveText('calendar.noSearchMatches', 'No matching calendar items in this view')}
+                    </div>
+                )}
             </div>
 
             {externalError && (
@@ -1460,7 +1695,7 @@ export function CalendarView() {
                                         {t('calendar.scheduleResults')}
                                     </div>
                                     <p className="mt-1 text-xs text-muted-foreground">
-                                        {resolveText('calendar.scheduleHelp', 'Find a next task and place it in the first open slot.')}
+                                        {resolveText('calendar.scheduleHelp', 'Find a task and set its calendar time.')}
                                     </p>
                                 </div>
                                 <input
@@ -1520,6 +1755,208 @@ export function CalendarView() {
                             compactMetaEnabled={true}
                         />
                     </div>
+                </div>
+            )}
+            {taskComposer && (
+                <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/50 p-4" role="dialog" aria-modal="true">
+                    <div
+                        className="absolute inset-0"
+                        onClick={() => setTaskComposer(null)}
+                    />
+                    <form
+                        className="relative mt-[10vh] w-full max-w-xl overflow-hidden rounded-xl border border-border bg-popover text-popover-foreground shadow-2xl"
+                        onSubmit={(event) => {
+                            event.preventDefault();
+                            void saveTaskComposer();
+                        }}
+                    >
+                        <div className="flex items-center justify-between border-b border-border px-4 py-3">
+                            <div>
+                                <h3 className="text-base font-semibold">{resolveText('calendar.addToCalendar', 'Add to calendar')}</h3>
+                                <p className="text-xs text-muted-foreground">
+                                    {format(combineDateAndTime(taskComposer.startDateValue, taskComposer.startTimeValue) ?? new Date(), 'EEE, MMM d')}
+                                </p>
+                            </div>
+                            <button
+                                type="button"
+                                onClick={() => setTaskComposer(null)}
+                                className="inline-flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground"
+                                aria-label={t('common.close')}
+                            >
+                                <X className="h-4 w-4" aria-hidden="true" />
+                            </button>
+                        </div>
+                        <div className="space-y-4 p-4">
+                            <div className="inline-flex rounded-md border border-border bg-muted/40 p-1">
+                                <button
+                                    type="button"
+                                    onClick={() => setTaskComposerMode('new')}
+                                    className={cn(
+                                        "h-8 rounded px-3 text-xs font-medium transition-colors",
+                                        taskComposer.mode === 'new'
+                                            ? "bg-primary text-primary-foreground"
+                                            : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                                    )}
+                                >
+                                    {resolveText('calendar.newTask', 'New task')}
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => setTaskComposerMode('existing')}
+                                    className={cn(
+                                        "h-8 rounded px-3 text-xs font-medium transition-colors",
+                                        taskComposer.mode === 'existing'
+                                            ? "bg-primary text-primary-foreground"
+                                            : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                                    )}
+                                >
+                                    {resolveText('calendar.existingTask', 'Existing task')}
+                                </button>
+                            </div>
+
+                            {taskComposer.mode === 'new' ? (
+                                <label className="block space-y-1 text-sm font-medium">
+                                    {resolveText('calendar.taskTitle', 'Task title')}
+                                    <input
+                                        autoFocus
+                                        type="text"
+                                        value={taskComposer.title}
+                                        onChange={(event) => setTaskComposer((prev) => prev ? { ...prev, title: event.target.value, error: null } : prev)}
+                                        className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm font-normal focus:outline-none focus:ring-2 focus:ring-primary/30"
+                                        placeholder={t('calendar.addTask')}
+                                    />
+                                </label>
+                            ) : (
+                                <div className="space-y-2">
+                                    <label className="block space-y-1 text-sm font-medium">
+                                        {resolveText('calendar.findTask', 'Find task')}
+                                        <div className="relative">
+                                            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" aria-hidden="true" />
+                                            <input
+                                                autoFocus
+                                                type="text"
+                                                value={taskComposer.query}
+                                                onChange={(event) => setTaskComposer((prev) => prev ? { ...prev, query: event.target.value, selectedTaskId: null, error: null } : prev)}
+                                                className="w-full rounded-md border border-border bg-background py-2 pl-9 pr-3 text-sm font-normal focus:outline-none focus:ring-2 focus:ring-primary/30"
+                                                placeholder={t('calendar.schedulePlaceholder')}
+                                            />
+                                        </div>
+                                    </label>
+                                    <div className="max-h-44 space-y-1 overflow-y-auto rounded-md border border-border bg-background/60 p-1">
+                                        {taskComposerCandidates.map((task) => {
+                                            const selected = task.id === taskComposer.selectedTaskId;
+                                            return (
+                                                <button
+                                                    key={task.id}
+                                                    type="button"
+                                                    onClick={() => {
+                                                        const durationMinutes = normalizeDurationMinutes(timeEstimateToMinutes(task.timeEstimate));
+                                                        setTaskComposer((prev) => {
+                                                            if (!prev) return prev;
+                                                            const start = combineDateAndTime(prev.startDateValue, prev.startTimeValue);
+                                                            return {
+                                                                ...prev,
+                                                                durationMinutes,
+                                                                endTimeValue: start ? formatTimeInputValue(addMinutesToDate(start, durationMinutes)) : prev.endTimeValue,
+                                                                error: null,
+                                                                query: task.title,
+                                                                selectedTaskId: task.id,
+                                                            };
+                                                        });
+                                                    }}
+                                                    className={cn(
+                                                        "flex w-full items-center justify-between gap-2 rounded px-2 py-1.5 text-left text-sm",
+                                                        selected ? "bg-primary/10 text-primary" : "hover:bg-muted"
+                                                    )}
+                                                >
+                                                    <span className="min-w-0 flex-1 truncate">{task.title}</span>
+                                                    {selected && <Check className="h-4 w-4 shrink-0" aria-hidden="true" />}
+                                                </button>
+                                            );
+                                        })}
+                                        {taskComposerCandidates.length === 0 && (
+                                            <div className="px-2 py-3 text-sm text-muted-foreground">
+                                                {resolveText('calendar.noMatchingTasks', 'No matching tasks')}
+                                            </div>
+                                        )}
+                                    </div>
+                                    {selectedComposerTask && (
+                                        <div className="truncate rounded-md bg-primary/10 px-3 py-2 text-sm font-medium text-primary">
+                                            {selectedComposerTask.title}
+                                        </div>
+                                    )}
+                                </div>
+                            )}
+
+                            <div className="grid gap-3 sm:grid-cols-4">
+                                <label className="space-y-1 text-xs font-semibold uppercase tracking-normal text-muted-foreground">
+                                    {resolveText('calendar.date', 'Date')}
+                                    <input
+                                        type="date"
+                                        value={taskComposer.startDateValue}
+                                        onChange={(event) => updateTaskComposerStart({ startDateValue: event.target.value })}
+                                        className="h-10 w-full rounded-md border border-border bg-background px-2 text-sm font-normal text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30"
+                                    />
+                                </label>
+                                <label className="space-y-1 text-xs font-semibold uppercase tracking-normal text-muted-foreground">
+                                    {resolveText('calendar.start', 'Start')}
+                                    <input
+                                        type="time"
+                                        step={DESKTOP_GRID_SNAP_MINUTES * 60}
+                                        value={taskComposer.startTimeValue}
+                                        onChange={(event) => updateTaskComposerStart({ startTimeValue: event.target.value })}
+                                        className="h-10 w-full rounded-md border border-border bg-background px-2 text-sm font-normal text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30"
+                                    />
+                                </label>
+                                <label className="space-y-1 text-xs font-semibold uppercase tracking-normal text-muted-foreground">
+                                    {resolveText('calendar.end', 'End')}
+                                    <input
+                                        type="time"
+                                        step={DESKTOP_GRID_SNAP_MINUTES * 60}
+                                        value={taskComposer.endTimeValue}
+                                        onChange={(event) => updateTaskComposerEndTime(event.target.value)}
+                                        className="h-10 w-full rounded-md border border-border bg-background px-2 text-sm font-normal text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30"
+                                    />
+                                </label>
+                                <label className="space-y-1 text-xs font-semibold uppercase tracking-normal text-muted-foreground">
+                                    {resolveText('calendar.duration', 'Duration')}
+                                    <select
+                                        value={taskComposer.durationMinutes}
+                                        onChange={(event) => updateTaskComposerDuration(Number(event.target.value))}
+                                        className="h-10 w-full rounded-md border border-border bg-background px-2 text-sm font-normal text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30"
+                                    >
+                                        {CALENDAR_TIME_ESTIMATE_OPTIONS.map((option) => (
+                                            <option key={option.estimate} value={option.minutes}>
+                                                {formatDurationLabel(option.minutes)}
+                                            </option>
+                                        ))}
+                                    </select>
+                                </label>
+                            </div>
+
+                            {taskComposer.error && (
+                                <div className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+                                    {taskComposer.error}
+                                </div>
+                            )}
+                        </div>
+                        <div className="flex items-center justify-end gap-2 border-t border-border px-4 py-3">
+                            <button
+                                type="button"
+                                onClick={() => setTaskComposer(null)}
+                                className="h-9 rounded-md bg-muted px-3 text-sm font-medium hover:bg-muted/80"
+                            >
+                                {t('common.cancel')}
+                            </button>
+                            <button
+                                type="submit"
+                                disabled={taskComposer.mode === 'new' ? !taskComposer.title.trim() : !taskComposer.selectedTaskId}
+                                className="h-9 rounded-md bg-primary px-3 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50"
+                            >
+                                {t('common.save')}
+                            </button>
+                        </div>
+                    </form>
                 </div>
             )}
         </div>
