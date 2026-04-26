@@ -861,6 +861,19 @@ describe('cloud server api', () => {
         expect(getResponse.status).toBe(404);
     });
 
+    test('rejects unauthenticated attachment uploads before writing files', async () => {
+        const putResponse = await fetch(`${baseUrl}/v1/attachments/folder/unauth.bin`, {
+            method: 'PUT',
+            headers: {
+                'content-type': 'application/octet-stream',
+            },
+            body: new TextEncoder().encode('unauthenticated-bytes'),
+        });
+
+        expect(putResponse.status).toBe(401);
+        expect(readdirSync(dataDir)).toEqual([]);
+    });
+
     test('rejects attachment uploads with executable file signatures even when content-type is benign', async () => {
         const putResponse = await fetch(`${baseUrl}/v1/attachments/folder/file.png`, {
             method: 'PUT',
@@ -986,6 +999,27 @@ describe('cloud server api', () => {
             }),
         });
         expect(putResponse.status).toBe(200);
+
+        const secondGetResponse = await fetch(`${baseUrl}/v1/data`, {
+            headers: authHeaders,
+        });
+        expect(secondGetResponse.status).toBe(429);
+
+        const secondPutResponse = await fetch(`${baseUrl}/v1/data`, {
+            method: 'PUT',
+            headers: {
+                ...authHeaders,
+                'content-type': 'application/json',
+            },
+            body: JSON.stringify({
+                tasks: [],
+                projects: [],
+                sections: [],
+                areas: [],
+                settings: {},
+            }),
+        });
+        expect(secondPutResponse.status).toBe(429);
     });
 
     test('serializes concurrent task writes without dropping records', async () => {
