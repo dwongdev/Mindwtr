@@ -26,6 +26,7 @@ import { mergeSettingsForSync } from './sync-merge-settings';
 import {
     chooseDeterministicWinner,
     collectComparableDiffKeys,
+    createSyncSignatureMemo,
     hashComparableSignature,
     normalizeProjectForContentComparison,
     normalizeSectionForContentComparison,
@@ -49,7 +50,7 @@ export type {
     SyncHistoryEntry,
     SyncStep,
 } from './sync-types';
-export { CLOCK_SKEW_THRESHOLD_MS } from './sync-types';
+export { CLOCK_SKEW_THRESHOLD_MS, SYNC_REPAIR_REV_BY } from './sync-types';
 export { normalizeAppData } from './sync-normalization';
 export { purgeExpiredTombstones } from './sync-tombstones';
 
@@ -229,6 +230,7 @@ function mergeEntitiesWithStats<T extends MergeableEntity>(
 
     const stats = createEmptyEntityStats(local.length, incoming.length);
     const merged: T[] = [];
+    const signatureMemo = createSyncSignatureMemo();
     let invalidDeletedAtWarnings = 0;
     let ambiguousResurrectionWarnings = 0;
     const maxAllowedMergeTime = Date.now();
@@ -313,8 +315,8 @@ function mergeEntitiesWithStats<T extends MergeableEntity>(
         const revByDiff = localRevBy !== incomingRevBy;
         const comparableLocalItem = normalizeForComparison ? normalizeForComparison(normalizedLocalItem) : normalizedLocalItem;
         const comparableIncomingItem = normalizeForComparison ? normalizeForComparison(normalizedIncomingItem) : normalizedIncomingItem;
-        const localComparableSignature = toComparableSignature(comparableLocalItem);
-        const incomingComparableSignature = toComparableSignature(comparableIncomingItem);
+        const localComparableSignature = toComparableSignature(comparableLocalItem, signatureMemo);
+        const incomingComparableSignature = toComparableSignature(comparableIncomingItem, signatureMemo);
         const comparableContentMatches = localComparableSignature === incomingComparableSignature;
         const shouldCheckContentDiff = hasRevision
             ? revDiff === 0 && localDeleted === incomingDeleted
@@ -369,12 +371,12 @@ function mergeEntitiesWithStats<T extends MergeableEntity>(
         const preferDeletedCandidate = (left: T, right: T): T => {
             if (left.deletedAt && !right.deletedAt) return left;
             if (right.deletedAt && !left.deletedAt) return right;
-            return chooseDeterministicWinner(left, right);
+            return chooseDeterministicWinner(left, right, signatureMemo);
         };
         const preferLiveCandidate = (left: T, right: T): T => {
             if (left.deletedAt && !right.deletedAt) return right;
             if (right.deletedAt && !left.deletedAt) return left;
-            return chooseDeterministicWinner(left, right);
+            return chooseDeterministicWinner(left, right, signatureMemo);
         };
         const resolveDeleteVsLiveWinner = (
             localCandidate: T,
@@ -449,7 +451,7 @@ function mergeEntitiesWithStats<T extends MergeableEntity>(
             } else if (revByDiff && localRevBy && incomingRevBy) {
                 winner = incomingRevBy > localRevBy ? normalizedIncomingItem : normalizedLocalItem;
             } else {
-                winner = chooseDeterministicWinner(normalizedLocalItem, normalizedIncomingItem);
+                winner = chooseDeterministicWinner(normalizedLocalItem, normalizedIncomingItem, signatureMemo);
             }
         } else if (localDeleted !== incomingDeleted) {
             const resolution = resolveDeleteVsLiveWinner(normalizedLocalItem, normalizedIncomingItem);
@@ -483,11 +485,11 @@ function mergeEntitiesWithStats<T extends MergeableEntity>(
             if (requiresStrictTimestampOrdering) {
                 winner = comparableUpdatedTimeDiff > 0 ? normalizedIncomingItem : normalizedLocalItem;
             } else if (withinSkew) {
-                winner = chooseDeterministicWinner(normalizedLocalItem, normalizedIncomingItem);
+                winner = chooseDeterministicWinner(normalizedLocalItem, normalizedIncomingItem, signatureMemo);
             } else if (comparableUpdatedTimeDiff !== 0) {
                 winner = comparableUpdatedTimeDiff > 0 ? normalizedIncomingItem : normalizedLocalItem;
             } else {
-                winner = chooseDeterministicWinner(normalizedLocalItem, normalizedIncomingItem);
+                winner = chooseDeterministicWinner(normalizedLocalItem, normalizedIncomingItem, signatureMemo);
             }
         }
         if (winner === normalizedIncomingItem) stats.resolvedUsingIncoming += 1;

@@ -1,7 +1,8 @@
 import { afterEach, beforeEach, describe, expect, test } from 'bun:test';
-import { existsSync, mkdtempSync, mkdirSync, readFileSync, readdirSync, rmSync, symlinkSync, writeFileSync } from 'fs';
+import { existsSync, mkdtempSync, mkdirSync, readFileSync, readdirSync, rmSync, symlinkSync, utimesSync, writeFileSync } from 'fs';
 import { join } from 'path';
 import { tmpdir } from 'os';
+import type { AppData } from '@mindwtr/core';
 import { corsOrigin, errorResponse } from './server-config';
 import { __cloudTestUtils, startCloudServer } from './server';
 
@@ -501,6 +502,25 @@ describe('cloud server utils', () => {
 
         rmSync(dir, { recursive: true, force: true });
     });
+
+    test('resolves large server merge timestamp sets without spreading arguments', () => {
+        const iso = '2026-01-01T00:00:00.000Z';
+        const data: AppData = {
+            tasks: Array.from({ length: 60_000 }, (_, index) => ({
+                id: `task-${index}`,
+                title: `Task ${index}`,
+                status: 'inbox',
+                createdAt: iso,
+                updatedAt: index === 59_999 ? '2026-01-02T00:00:00.000Z' : iso,
+            })),
+            projects: [],
+            sections: [],
+            areas: [],
+            settings: {},
+        };
+
+        expect(__cloudTestUtils.resolveServerMergeTimestamp(data)).toBe('2026-01-02T00:00:00.000Z');
+    });
 });
 
 describe('cloud server api', () => {
@@ -750,6 +770,52 @@ describe('cloud server api', () => {
         expect((await areasList.json()).total).toBe(1);
     });
 
+    test('validates REST project, section, and area inputs consistently', async () => {
+        const longName = 'x'.repeat(501);
+        const reservedProject = await fetch(`${baseUrl}/v1/projects`, {
+            method: 'POST',
+            headers: {
+                ...authHeaders,
+                'content-type': 'application/json',
+            },
+            body: JSON.stringify({ title: 'Reserved', props: { id: 'override', rev: 99 } }),
+        });
+        expect(reservedProject.status).toBe(400);
+        expect((await reservedProject.json()).error).toContain('Unsupported project props');
+
+        const missingAreaProject = await fetch(`${baseUrl}/v1/projects`, {
+            method: 'POST',
+            headers: {
+                ...authHeaders,
+                'content-type': 'application/json',
+            },
+            body: JSON.stringify({ title: 'Dangling project', props: { areaId: 'missing-area' } }),
+        });
+        expect(missingAreaProject.status).toBe(404);
+
+        const longSection = await fetch(`${baseUrl}/v1/sections`, {
+            method: 'POST',
+            headers: {
+                ...authHeaders,
+                'content-type': 'application/json',
+            },
+            body: JSON.stringify({ projectId: 'missing-project', title: longName }),
+        });
+        expect(longSection.status).toBe(400);
+        expect((await longSection.json()).error).toContain('Section title too long');
+
+        const longArea = await fetch(`${baseUrl}/v1/areas`, {
+            method: 'POST',
+            headers: {
+                ...authHeaders,
+                'content-type': 'application/json',
+            },
+            body: JSON.stringify({ name: longName }),
+        });
+        expect(longArea.status).toBe(400);
+        expect((await longArea.json()).error).toContain('Area name too long');
+    });
+
     test('rejects invalid /v1/search pagination parameters', async () => {
         const response = await fetch(`${baseUrl}/v1/search?query=Alpha&limit=0`, {
             headers: authHeaders,
@@ -937,6 +1003,9 @@ describe('cloud server api', () => {
         });
         expect(uploadReferenced.status).toBe(200);
         expect(uploadOrphan.status).toBe(200);
+        const key = __cloudTestUtils.tokenToKey(integrationToken);
+        const staleTime = new Date('2025-01-01T00:00:00.000Z');
+        utimesSync(join(dataDir, key, 'attachments', orphanPath), staleTime, staleTime);
 
         const iso = '2026-01-01T00:00:00.000Z';
         const seedResponse = await fetch(`${baseUrl}/v1/data`, {
@@ -984,6 +1053,28 @@ describe('cloud server api', () => {
         const orphanGet = await fetch(`${baseUrl}/v1/attachments/${orphanPath}`, { headers: authHeaders });
         expect(referencedGet.status).toBe(200);
         expect(orphanGet.status).toBe(404);
+    });
+
+    test('does not garbage-collect fresh unreferenced attachment uploads', async () => {
+        const freshPath = 'folder/fresh-orphan.bin';
+        const uploadFresh = await fetch(`${baseUrl}/v1/attachments/${freshPath}`, {
+            method: 'PUT',
+            headers: authHeaders,
+            body: new TextEncoder().encode('fresh'),
+        });
+        expect(uploadFresh.status).toBe(200);
+
+        const gcResponse = await fetch(`${baseUrl}/v1/attachments/orphans`, {
+            method: 'POST',
+            headers: authHeaders,
+        });
+        expect(gcResponse.status).toBe(200);
+        const gcBody = await gcResponse.json();
+        expect(gcBody.deleted).toBe(0);
+        expect(gcBody.kept).toBe(1);
+
+        const freshGet = await fetch(`${baseUrl}/v1/attachments/${freshPath}`, { headers: authHeaders });
+        expect(freshGet.status).toBe(200);
     });
 
     test('does not garbage-collect through a symlinked attachment root', async () => {
@@ -1318,6 +1409,66 @@ describe('cloud server api', () => {
         const section = (body.sections as Array<{ id: string; deletedAt?: string; updatedAt: string }>).find((item) => item.id === 'section-stale');
         expect(section?.deletedAt).toBe(sectionAt);
         expect(section?.updatedAt).toBe(sectionAt);
+    });
+
+    test('clamps adversarial future payload timestamps for server-side repairs', async () => {
+        const deletedProjectAt = '2026-01-01T00:00:00.000Z';
+        const futureSectionAt = '2099-01-01T00:00:00.000Z';
+        const key = __cloudTestUtils.tokenToKey(integrationToken);
+        writeFileSync(join(dataDir, `${key}.json`), JSON.stringify({
+            tasks: [],
+            projects: [{
+                id: 'project-deleted',
+                title: 'Deleted project',
+                status: 'active',
+                createdAt: deletedProjectAt,
+                updatedAt: deletedProjectAt,
+                deletedAt: deletedProjectAt,
+            }],
+            sections: [],
+            areas: [],
+            settings: {},
+        }));
+
+        const startedAt = Date.now();
+        const putSection = await fetch(`${baseUrl}/v1/data`, {
+            method: 'PUT',
+            headers: {
+                ...authHeaders,
+                'content-type': 'application/json',
+            },
+            body: JSON.stringify({
+                tasks: [],
+                projects: [{
+                    id: 'project-deleted',
+                    title: 'Deleted project before delete',
+                    status: 'active',
+                    createdAt: '2025-12-31T00:00:00.000Z',
+                    updatedAt: '2025-12-31T00:00:00.000Z',
+                }],
+                sections: [{
+                    id: 'section-future',
+                    projectId: 'project-deleted',
+                    title: 'Future section',
+                    order: 0,
+                    createdAt: futureSectionAt,
+                    updatedAt: futureSectionAt,
+                }],
+                areas: [],
+                settings: {},
+            }),
+        });
+        expect(putSection.status).toBe(200);
+
+        const getResponse = await fetch(`${baseUrl}/v1/data`, { headers: authHeaders });
+        expect(getResponse.status).toBe(200);
+        const body = await getResponse.json();
+        const section = (body.sections as Array<{ id: string; deletedAt?: string; updatedAt: string }>).find((item) => item.id === 'section-future');
+        const repairedAt = Date.parse(section?.updatedAt ?? '');
+        expect(Number.isFinite(repairedAt)).toBe(true);
+        expect(section?.deletedAt).toBe(section?.updatedAt);
+        expect(section?.updatedAt).not.toBe(futureSectionAt);
+        expect(repairedAt).toBeLessThanOrEqual(startedAt + 5 * 60 * 1000 + 10_000);
     });
 
     test('serializes concurrent /v1/data edits to the same task with record-level merge rules', async () => {

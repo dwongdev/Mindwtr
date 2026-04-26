@@ -1,5 +1,6 @@
 import type { AppData, Area, Project, Task } from './types';
 import { normalizeTaskForLoad } from './task-status';
+import { SYNC_REPAIR_REV_BY } from './sync-types';
 
 export const normalizeAppData = (data: AppData): AppData => ({
     tasks: Array.isArray(data.tasks) ? data.tasks : [],
@@ -113,7 +114,6 @@ export const normalizeAreaForSyncMerge = (area: Area, nowIso: string): SyncMerge
 };
 
 const hasDeletedAt = (value: { deletedAt?: string } | undefined): boolean => Boolean(value?.deletedAt);
-const SYNC_REPAIR_REV_BY = 'sync-repair';
 
 const normalizeRepairRevision = (value?: number): number => (
     typeof value === 'number' && Number.isFinite(value) && Number.isInteger(value) && value >= 0 ? value : 0

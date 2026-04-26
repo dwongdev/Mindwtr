@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import Constants from 'expo-constants';
-import { Platform, ScrollView, Text, TouchableOpacity, View } from 'react-native';
+import { Alert, Platform, ScrollView, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import {
@@ -93,6 +93,7 @@ function SyncSettingsView({ mode }: { mode: SettingsScreenMode }) {
         ...(lastSyncStats?.projects.conflictIds ?? []),
     ].slice(0, 6);
     const loggingEnabled = settings.diagnostics?.loggingEnabled === true;
+    const pendingRemoteDeleteCount = settings.attachments?.pendingRemoteDeletes?.length ?? 0;
     const isBackupBusy = backupAction !== null;
     const backendOptions: ('off' | 'file' | 'webdav' | 'cloud')[] = ['off', 'file', 'webdav', 'cloud'];
     const showSettingsWarning = useCallback((title: string, message: string, durationMs = 4200) => {
@@ -140,6 +141,32 @@ function SyncSettingsView({ mode }: { mode: SettingsScreenMode }) {
     const updateSyncPreferences = (partial: Partial<NonNullable<typeof settings.syncPreferences>>) => {
         updateSettings({ syncPreferences: { ...syncPreferences, ...partial } }).catch(logSettingsError);
     };
+
+    const handleClearPendingRemoteDeletes = useCallback(() => {
+        if (pendingRemoteDeleteCount === 0) return;
+        Alert.alert(
+            localize('Clear pending attachment deletes?', '清除待处理的附件删除？'),
+            localize(
+                'Only clear these if you no longer want Mindwtr to delete those files from the old sync backend. This does not delete any files.',
+                '仅当你不再希望 Mindwtr 从旧同步后端删除这些文件时才清除。此操作不会删除任何文件。'
+            ),
+            [
+                { text: t('common.cancel'), style: 'cancel' },
+                {
+                    text: localize('Clear', '清除'),
+                    style: 'destructive',
+                    onPress: () => {
+                        updateSettings({
+                            attachments: {
+                                ...(settings.attachments ?? {}),
+                                pendingRemoteDeletes: undefined,
+                            },
+                        }).catch(logSettingsError);
+                    },
+                },
+            ],
+        );
+    }, [localize, pendingRemoteDeleteCount, settings.attachments, t, updateSettings]);
 
     const refreshRecoverySnapshots = useCallback(async () => {
         setIsLoadingRecoverySnapshots(true);
@@ -591,6 +618,28 @@ function SyncSettingsView({ mode }: { mode: SettingsScreenMode }) {
                             t={t}
                             tc={tc}
                         />
+
+                        <View style={[styles.settingCard, { backgroundColor: tc.cardBg, marginTop: 16 }]}>
+                            <View style={styles.settingRow}>
+                                <View style={styles.settingInfo}>
+                                    <Text style={[styles.settingLabel, { color: tc.text }]}>
+                                        {localize('Pending remote deletes', '待处理远程删除')}
+                                    </Text>
+                                    <Text style={[styles.settingDescription, { color: tc.secondaryText }]}>
+                                        {pendingRemoteDeleteCount}
+                                    </Text>
+                                </View>
+                                <TouchableOpacity
+                                    disabled={pendingRemoteDeleteCount === 0}
+                                    onPress={handleClearPendingRemoteDeletes}
+                                    style={{ opacity: pendingRemoteDeleteCount === 0 ? 0.45 : 1 }}
+                                >
+                                    <Text style={[styles.linkText, { color: pendingRemoteDeleteCount === 0 ? tc.secondaryText : tc.tint }]}>
+                                        {localize('Clear', '清除')}
+                                    </Text>
+                                </TouchableOpacity>
+                            </View>
+                        </View>
 
                         <SyncDiagnosticsCard
                             handleClearLog={() => void handleClearLog()}

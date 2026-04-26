@@ -18,6 +18,8 @@ type SettingsDataPageProps = Pick<
     | 'onImportDgt'
     | 'onImportOmniFocus'
     | 'attachmentsLastCleanupDisplay'
+    | 'pendingRemoteDeleteCount'
+    | 'onClearPendingRemoteDeletes'
     | 'onRunAttachmentsCleanup'
     | 'isCleaningAttachments'
 >;
@@ -38,6 +40,8 @@ export function SettingsDataPage(props: SettingsDataPageProps) {
                 t={props.t}
                 isTauri={props.isTauri}
                 attachmentsLastCleanupDisplay={props.attachmentsLastCleanupDisplay}
+                pendingRemoteDeleteCount={props.pendingRemoteDeleteCount}
+                onClearPendingRemoteDeletes={props.onClearPendingRemoteDeletes}
                 onRunAttachmentsCleanup={props.onRunAttachmentsCleanup}
                 isCleaningAttachments={props.isCleaningAttachments}
             />

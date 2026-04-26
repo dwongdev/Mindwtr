@@ -6,8 +6,41 @@ import { cn } from '../../../lib/utils';
 import { reportError } from '../../../lib/report-error';
 import type { DesktopCalendarController } from './useDesktopCalendarController';
 
+type CalendarSelectedDayPanelController = Pick<
+    DesktopCalendarController,
+    | 'beginEditScheduledTime'
+    | 'calendarNameById'
+    | 'cancelEditScheduledTime'
+    | 'commitEditScheduledTime'
+    | 'editingTimeTaskId'
+    | 'editingTimeValue'
+    | 'externalCalendarColor'
+    | 'isExternalLoading'
+    | 'markTaskDone'
+    | 'openQuickAddForDate'
+    | 'openTaskFromCalendar'
+    | 'resetSelectedDayState'
+    | 'resolveText'
+    | 'scheduleCandidates'
+    | 'scheduleError'
+    | 'scheduleQuery'
+    | 'scheduleTaskOnSelectedDate'
+    | 'selectedAllDayEvents'
+    | 'selectedDate'
+    | 'selectedExternalEvents'
+    | 'selectedTaskRows'
+    | 'selectedTimedEvents'
+    | 'setEditingTimeValue'
+    | 'setScheduleError'
+    | 'setScheduleQuery'
+    | 'setSelectedDate'
+    | 't'
+    | 'timeEstimateToMinutes'
+    | 'updateTask'
+>;
+
 type CalendarSelectedDayPanelProps = {
-    controller: DesktopCalendarController;
+    controller: CalendarSelectedDayPanelController;
 };
 
 export function CalendarSelectedDayPanel({ controller }: CalendarSelectedDayPanelProps) {

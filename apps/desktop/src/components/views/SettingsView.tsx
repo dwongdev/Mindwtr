@@ -214,6 +214,8 @@ export function SettingsView() {
     : 7;
   const loggingEnabled = settings?.diagnostics?.loggingEnabled === true;
   const attachmentsLastCleanupAt = settings?.attachments?.lastCleanupAt;
+  const pendingRemoteDeleteCount =
+    settings?.attachments?.pendingRemoteDeletes?.length ?? 0;
   const { requestConfirmation, confirmModal } = useConfirmDialog();
 
   const showSaved = useCallback(() => {
@@ -348,6 +350,33 @@ export function SettingsView() {
       setIsCleaningAttachments(false);
     }
   }, [isTauri]);
+
+  const handleClearPendingRemoteDeletes = useCallback(async () => {
+    if (pendingRemoteDeleteCount === 0) return;
+    const confirmed = await requestSettingsConfirmation({
+      title: t.attachmentsCleanupPendingDeletesConfirmTitle,
+      message: t.attachmentsCleanupPendingDeletesConfirm,
+    });
+    if (!confirmed) return;
+    await updateSettings({
+      attachments: {
+        ...(settings?.attachments ?? {}),
+        pendingRemoteDeletes: undefined,
+      },
+    })
+      .then(showSaved)
+      .catch((error) =>
+        reportError("Failed to clear pending attachment deletes", error),
+      );
+  }, [
+    pendingRemoteDeleteCount,
+    requestSettingsConfirmation,
+    settings?.attachments,
+    showSaved,
+    t.attachmentsCleanupPendingDeletesConfirm,
+    t.attachmentsCleanupPendingDeletesConfirmTitle,
+    updateSettings,
+  ]);
 
   const toggleLogging = async () => {
     const nextEnabled = !loggingEnabled;
@@ -900,6 +929,8 @@ export function SettingsView() {
           conflictCount={conflictCount}
           lastSyncError={settings?.lastSyncError}
           attachmentsLastCleanupDisplay={attachmentsLastCleanupDisplay}
+          pendingRemoteDeleteCount={pendingRemoteDeleteCount}
+          onClearPendingRemoteDeletes={handleClearPendingRemoteDeletes}
           onRunAttachmentsCleanup={handleAttachmentsCleanup}
           isCleaningAttachments={isCleaningAttachments}
           snapshots={snapshots}
@@ -932,6 +963,8 @@ export function SettingsView() {
           onImportDgt={handleImportDgt}
           onImportOmniFocus={handleImportOmniFocus}
           attachmentsLastCleanupDisplay={attachmentsLastCleanupDisplay}
+          pendingRemoteDeleteCount={pendingRemoteDeleteCount}
+          onClearPendingRemoteDeletes={handleClearPendingRemoteDeletes}
           onRunAttachmentsCleanup={handleAttachmentsCleanup}
           isCleaningAttachments={isCleaningAttachments}
         />

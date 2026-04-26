@@ -179,6 +179,8 @@ DELETE /v1/attachments/orphans
 
 Run this after restore operations or as a periodic maintenance task if you want server-side cleanup of files that became unreachable outside the normal client delete flow. The endpoint scans the authenticated token namespace only and returns counts for scanned, kept, deleted, and failed file paths.
 
+The cleanup skips attachment files modified in the last five minutes so an upload followed by a later `/v1/data` reference cannot be deleted by a concurrent maintenance run.
+
 ## Upgrade Procedure
 
 Safe rolling procedure:
@@ -224,7 +226,7 @@ Add host/container metrics:
 Clock note:
 
 - The server participates in merge and repair on `PUT /v1/data`, so host clock drift can still affect request logs and rate-limit windows. Keep NTP or equivalent time sync enabled.
-- Merge repair timestamps are chosen from payload timestamps when available, which limits the effect of a drifting server clock on stored sync records.
+- Merge repair timestamps are chosen from payload timestamps when available, capped at five minutes beyond the server clock. This limits the effect of a drifting server clock without letting far-future client timestamps poison stored sync records.
 
 ## Failure Modes
 

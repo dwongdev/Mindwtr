@@ -91,6 +91,10 @@ export type SettingsSyncLabels = {
     attachmentsCleanupDesc: string;
     attachmentsCleanupLastRun: string;
     attachmentsCleanupNever: string;
+    attachmentsCleanupPendingDeletes: string;
+    attachmentsCleanupPendingDeletesClear: string;
+    attachmentsCleanupPendingDeletesConfirm: string;
+    attachmentsCleanupPendingDeletesConfirmTitle: string;
     attachmentsCleanupRun: string;
     attachmentsCleanupRunning: string;
 };
@@ -156,6 +160,8 @@ export type SettingsSyncPageProps = {
     conflictCount: number;
     lastSyncError?: string;
     attachmentsLastCleanupDisplay: string;
+    pendingRemoteDeleteCount: number;
+    onClearPendingRemoteDeletes: () => Promise<void> | void;
     onRunAttachmentsCleanup: () => Promise<void> | void;
     isCleaningAttachments: boolean;
     snapshots: string[];

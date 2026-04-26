@@ -9,11 +9,44 @@ import {
     type DesktopCalendarController,
 } from './useDesktopCalendarController';
 
-type CalendarModalProps = {
-    controller: DesktopCalendarController;
+type CalendarOpenTaskModalController = Pick<
+    DesktopCalendarController,
+    | 'openProject'
+    | 'openTask'
+    | 'setOpenTaskId'
+    | 't'
+>;
+
+type CalendarTaskComposerModalController = Pick<
+    DesktopCalendarController,
+    | 'addMinutesToDate'
+    | 'combineDateAndTime'
+    | 'formatDurationLabel'
+    | 'formatTimeInputValue'
+    | 'normalizeDurationMinutes'
+    | 'resolveText'
+    | 'saveTaskComposer'
+    | 'selectedComposerTask'
+    | 'setTaskComposer'
+    | 'setTaskComposerMode'
+    | 'taskComposer'
+    | 'taskComposerCandidates'
+    | 'timeEstimateToMinutes'
+    | 't'
+    | 'updateTaskComposerDuration'
+    | 'updateTaskComposerEndTime'
+    | 'updateTaskComposerStart'
+>;
+
+type CalendarOpenTaskModalProps = {
+    controller: CalendarOpenTaskModalController;
 };
 
-export function CalendarOpenTaskModal({ controller }: CalendarModalProps) {
+type CalendarTaskComposerModalProps = {
+    controller: CalendarTaskComposerModalController;
+};
+
+export function CalendarOpenTaskModal({ controller }: CalendarOpenTaskModalProps) {
     const {
         openProject,
         openTask,
@@ -52,7 +85,7 @@ export function CalendarOpenTaskModal({ controller }: CalendarModalProps) {
     );
 }
 
-export function CalendarTaskComposerModal({ controller }: CalendarModalProps) {
+export function CalendarTaskComposerModal({ controller }: CalendarTaskComposerModalProps) {
     const {
         addMinutesToDate,
         combineDateAndTime,

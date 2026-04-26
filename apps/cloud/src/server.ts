@@ -79,6 +79,8 @@ import {
 } from './server-validation';
 
 const normalizeAttachmentContentType = (value: string | null): string => value?.split(';', 1)[0]?.trim().toLowerCase() || '';
+const SERVER_MERGE_TIMESTAMP_FUTURE_TOLERANCE_MS = 5 * 60 * 1000;
+const ORPHAN_ATTACHMENT_GC_GRACE_MS = 5 * 60 * 1000;
 
 const getBlockedAttachmentSignature = (bytes: Uint8Array): string | null => {
     if (bytes.length >= 2 && bytes[0] === 0x4d && bytes[1] === 0x5a) {
@@ -177,49 +179,54 @@ function finalizeCloudDataForWrite(data: AppData, nowIso: string): AppData | { e
     return repaired;
 }
 
-function addTimestampCandidate(candidates: number[], value: unknown): void {
-    if (typeof value !== 'string') return;
+function mergeTimestampCandidate(latest: number, value: unknown): number {
+    if (typeof value !== 'string') return latest;
     const parsed = Date.parse(value);
-    if (Number.isFinite(parsed)) candidates.push(parsed);
+    return Number.isFinite(parsed) && parsed > latest ? parsed : latest;
 }
 
-function collectDataTimestampCandidates(data: AppData, candidates: number[]): void {
+function collectLatestDataTimestamp(data: AppData, latest: number): number {
     for (const item of [...data.tasks, ...data.projects]) {
-        addTimestampCandidate(candidates, item.createdAt);
-        addTimestampCandidate(candidates, item.updatedAt);
-        addTimestampCandidate(candidates, item.deletedAt);
+        latest = mergeTimestampCandidate(latest, item.createdAt);
+        latest = mergeTimestampCandidate(latest, item.updatedAt);
+        latest = mergeTimestampCandidate(latest, item.deletedAt);
         const attachments = item.attachments ?? [];
         for (const attachment of attachments) {
-            addTimestampCandidate(candidates, attachment.createdAt);
-            addTimestampCandidate(candidates, attachment.updatedAt);
-            addTimestampCandidate(candidates, attachment.deletedAt);
+            latest = mergeTimestampCandidate(latest, attachment.createdAt);
+            latest = mergeTimestampCandidate(latest, attachment.updatedAt);
+            latest = mergeTimestampCandidate(latest, attachment.deletedAt);
         }
     }
     for (const item of data.sections) {
-        addTimestampCandidate(candidates, item.createdAt);
-        addTimestampCandidate(candidates, item.updatedAt);
-        addTimestampCandidate(candidates, item.deletedAt);
+        latest = mergeTimestampCandidate(latest, item.createdAt);
+        latest = mergeTimestampCandidate(latest, item.updatedAt);
+        latest = mergeTimestampCandidate(latest, item.deletedAt);
     }
     for (const item of data.areas) {
-        addTimestampCandidate(candidates, item.createdAt);
-        addTimestampCandidate(candidates, item.updatedAt);
-        addTimestampCandidate(candidates, item.deletedAt);
+        latest = mergeTimestampCandidate(latest, item.createdAt);
+        latest = mergeTimestampCandidate(latest, item.updatedAt);
+        latest = mergeTimestampCandidate(latest, item.deletedAt);
     }
-    addTimestampCandidate(candidates, data.settings.pendingRemoteWriteAt);
-    addTimestampCandidate(candidates, data.settings.lastSyncAt);
+    latest = mergeTimestampCandidate(latest, data.settings.pendingRemoteWriteAt);
+    latest = mergeTimestampCandidate(latest, data.settings.lastSyncAt);
     for (const value of Object.values(data.settings.syncPreferencesUpdatedAt ?? {})) {
-        addTimestampCandidate(candidates, value);
+        latest = mergeTimestampCandidate(latest, value);
     }
     for (const entry of data.settings.attachments?.pendingRemoteDeletes ?? []) {
-        addTimestampCandidate(candidates, entry.lastErrorAt);
+        latest = mergeTimestampCandidate(latest, entry.lastErrorAt);
     }
+    return latest;
 }
 
 function resolveServerMergeTimestamp(...dataSets: AppData[]): string {
-    const candidates: number[] = [];
-    dataSets.forEach((data) => collectDataTimestampCandidates(data, candidates));
-    const latest = candidates.length > 0 ? Math.max(...candidates) : NaN;
-    return Number.isFinite(latest) ? new Date(latest).toISOString() : new Date().toISOString();
+    let latest = Number.NEGATIVE_INFINITY;
+    dataSets.forEach((data) => {
+        latest = collectLatestDataTimestamp(data, latest);
+    });
+    const now = Date.now();
+    if (!Number.isFinite(latest)) return new Date(now).toISOString();
+    const ceiling = now + SERVER_MERGE_TIMESTAMP_FUTURE_TOLERANCE_MS;
+    return new Date(Math.min(latest, ceiling)).toISOString();
 }
 
 function collectReferencedAttachmentCloudKeys(data: AppData): Set<string> {
@@ -288,6 +295,10 @@ function garbageCollectOrphanAttachments(dataDir: string, key: string, data: App
                 kept += 1;
                 continue;
             }
+            if (stat.mtimeMs > Date.now() - ORPHAN_ATTACHMENT_GC_GRACE_MS) {
+                kept += 1;
+                continue;
+            }
             try {
                 unlinkSync(entryPath);
                 deleted += 1;
@@ -318,6 +329,7 @@ export const __cloudTestUtils = {
     validateTaskPatchProps,
     pickTaskList,
     readJsonBody,
+    resolveServerMergeTimestamp,
     writeData,
     normalizeAttachmentRelativePath,
     isPathWithinRoot,
@@ -762,12 +774,17 @@ export async function startCloudServer(options: CloudServerOptions = {}): Promis
                         const title = typeof bodyRecord.title === 'string' ? bodyRecord.title.trim() : '';
                         if (!title) return errorResponse('Missing project title');
                         if (title.length > MAX_TASK_TITLE_LENGTH) return errorResponse(`Project title too long (max ${MAX_TASK_TITLE_LENGTH} characters)`, 400);
+                        const props = validatedProps.props as Record<string, unknown>;
+                        if (props.areaId !== undefined && typeof props.areaId !== 'string') return errorResponse('Invalid area id', 400);
 
                         return await withWriteLock(key, async () => {
                             throwIfRequestAborted(requestAbortController.signal);
                             const data = loadAppData(filePath);
                             const nowIso = new Date().toISOString();
-                            const props = validatedProps.props as Record<string, unknown>;
+                            const areaId = typeof props.areaId === 'string' ? props.areaId.trim() : '';
+                            if (areaId && !data.areas.some((area) => area.id === areaId && !area.deletedAt)) {
+                                return errorResponse('Area not found', 404);
+                            }
                             const rawStatus = props.status;
                             const status = rawStatus === undefined ? 'active' : asProjectStatus(rawStatus);
                             if (!status) return errorResponse('Invalid project status', 400);
@@ -778,12 +795,14 @@ export async function startCloudServer(options: CloudServerOptions = {}): Promis
                                 color: rawColor,
                                 order: _order,
                                 tagIds: _tagIds,
+                                areaId: _areaId,
                                 ...restProps
                             } = props;
                             const project: Project = {
                                 id: generateUUID(),
                                 title,
                                 ...restProps,
+                                areaId: areaId || undefined,
                                 status,
                                 color: typeof rawColor === 'string' && rawColor.trim() ? rawColor : '#6B7280',
                                 order: typeof rawOrder === 'number' && Number.isFinite(rawOrder) ? rawOrder : nextOrder(data.projects),
@@ -829,18 +848,24 @@ export async function startCloudServer(options: CloudServerOptions = {}): Promis
                                 return errorResponse(`Project title too long (max ${MAX_TASK_TITLE_LENGTH} characters)`, 400);
                             }
                             if (updates.status !== undefined && !asProjectStatus(updates.status)) return errorResponse('Invalid project status', 400);
+                            if (updates.areaId !== undefined && typeof updates.areaId !== 'string') return errorResponse('Invalid area id', 400);
 
                             return await withWriteLock(key, async () => {
                                 throwIfRequestAborted(requestAbortController.signal);
                                 const data = loadAppData(filePath);
                                 const idx = data.projects.findIndex((item) => item.id === projectId && !item.deletedAt);
                                 if (idx < 0) return errorResponse('Project not found', 404);
+                                const areaId = typeof updates.areaId === 'string' ? updates.areaId.trim() : undefined;
+                                if (areaId && !data.areas.some((area) => area.id === areaId && !area.deletedAt)) {
+                                    return errorResponse('Area not found', 404);
+                                }
                                 const nowIso = new Date().toISOString();
                                 const existing = data.projects[idx];
                                 data.projects[idx] = {
                                     ...existing,
                                     ...updates,
                                     title: typeof updates.title === 'string' ? updates.title.trim() : existing.title,
+                                    areaId: areaId !== undefined ? areaId || undefined : existing.areaId,
                                     updatedAt: nowIso,
                                     rev: normalizeRevision(existing.rev) + 1,
                                     revBy: CLOUD_API_REV_BY,
@@ -907,6 +932,7 @@ export async function startCloudServer(options: CloudServerOptions = {}): Promis
                         const title = typeof bodyRecord.title === 'string' ? bodyRecord.title.trim() : '';
                         const projectId = typeof bodyRecord.projectId === 'string' ? bodyRecord.projectId.trim() : '';
                         if (!title) return errorResponse('Missing section title');
+                        if (title.length > MAX_TASK_TITLE_LENGTH) return errorResponse(`Section title too long (max ${MAX_TASK_TITLE_LENGTH} characters)`, 400);
                         if (!projectId) return errorResponse('Missing project id');
 
                         return await withWriteLock(key, async () => {
@@ -963,13 +989,18 @@ export async function startCloudServer(options: CloudServerOptions = {}): Promis
                             if (!validatedPatch.ok) return errorResponse(validatedPatch.error, 400);
                             const updates = validatedPatch.props;
                             if (typeof updates.title === 'string' && !updates.title.trim()) return errorResponse('Missing section title');
+                            if (typeof updates.title === 'string' && updates.title.length > MAX_TASK_TITLE_LENGTH) {
+                                return errorResponse(`Section title too long (max ${MAX_TASK_TITLE_LENGTH} characters)`, 400);
+                            }
+                            if (updates.projectId !== undefined && typeof updates.projectId !== 'string') return errorResponse('Invalid project id', 400);
 
                             return await withWriteLock(key, async () => {
                                 throwIfRequestAborted(requestAbortController.signal);
                                 const data = loadAppData(filePath);
                                 const idx = data.sections.findIndex((item) => item.id === sectionId && !item.deletedAt);
                                 if (idx < 0) return errorResponse('Section not found', 404);
-                                const projectId = updates.projectId ?? data.sections[idx].projectId;
+                                const projectId = typeof updates.projectId === 'string' ? updates.projectId.trim() : data.sections[idx].projectId;
+                                if (!projectId) return errorResponse('Missing project id');
                                 if (!data.projects.some((project) => project.id === projectId && !project.deletedAt)) {
                                     return errorResponse('Project not found', 404);
                                 }
@@ -978,6 +1009,7 @@ export async function startCloudServer(options: CloudServerOptions = {}): Promis
                                 data.sections[idx] = {
                                     ...existing,
                                     ...updates,
+                                    projectId,
                                     title: typeof updates.title === 'string' ? updates.title.trim() : existing.title,
                                     updatedAt: nowIso,
                                     rev: normalizeRevision(existing.rev) + 1,
@@ -1042,6 +1074,7 @@ export async function startCloudServer(options: CloudServerOptions = {}): Promis
                         if (!validatedProps.ok) return errorResponse(validatedProps.error, 400);
                         const name = typeof bodyRecord.name === 'string' ? bodyRecord.name.trim() : '';
                         if (!name) return errorResponse('Missing area name');
+                        if (name.length > MAX_TASK_TITLE_LENGTH) return errorResponse(`Area name too long (max ${MAX_TASK_TITLE_LENGTH} characters)`, 400);
 
                         return await withWriteLock(key, async () => {
                             throwIfRequestAborted(requestAbortController.signal);
@@ -1091,6 +1124,9 @@ export async function startCloudServer(options: CloudServerOptions = {}): Promis
                             if (!validatedPatch.ok) return errorResponse(validatedPatch.error, 400);
                             const updates = validatedPatch.props;
                             if (typeof updates.name === 'string' && !updates.name.trim()) return errorResponse('Missing area name');
+                            if (typeof updates.name === 'string' && updates.name.length > MAX_TASK_TITLE_LENGTH) {
+                                return errorResponse(`Area name too long (max ${MAX_TASK_TITLE_LENGTH} characters)`, 400);
+                            }
 
                             return await withWriteLock(key, async () => {
                                 throwIfRequestAborted(requestAbortController.signal);

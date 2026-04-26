@@ -1,5 +1,15 @@
 import type { Attachment, Project, Section, Task } from './types';
 
+export type SyncSignatureMemo = {
+    comparable: WeakMap<object, string>;
+    deterministic: WeakMap<object, string>;
+};
+
+export const createSyncSignatureMemo = (): SyncSignatureMemo => ({
+    comparable: new WeakMap<object, string>(),
+    deterministic: new WeakMap<object, string>(),
+});
+
 const CONTENT_DIFF_IGNORED_KEYS = new Set([
     'rev',
     'revBy',
@@ -105,12 +115,27 @@ export const toComparableValue = (value: unknown, options?: { includeIgnoredKeys
     return value;
 };
 
-export const toComparableSignature = (value: unknown): string => {
-    return JSON.stringify(toComparableValue(value));
+const toMemoizedSignature = (
+    value: unknown,
+    cache: WeakMap<object, string> | undefined,
+    options?: { includeIgnoredKeys?: boolean }
+): string => {
+    if (value && typeof value === 'object' && cache) {
+        const cached = cache.get(value);
+        if (cached !== undefined) return cached;
+        const signature = JSON.stringify(toComparableValue(value, options));
+        cache.set(value, signature);
+        return signature;
+    }
+    return JSON.stringify(toComparableValue(value, options));
 };
 
-const toDeterministicSignature = (value: unknown): string => {
-    return JSON.stringify(toComparableValue(value, { includeIgnoredKeys: true }));
+export const toComparableSignature = (value: unknown, memo?: SyncSignatureMemo): string => {
+    return toMemoizedSignature(value, memo?.comparable);
+};
+
+const toDeterministicSignature = (value: unknown, memo?: SyncSignatureMemo): string => {
+    return toMemoizedSignature(value, memo?.deterministic, { includeIgnoredKeys: true });
 };
 
 export const hashComparableSignature = (signature: string): string => {
@@ -180,12 +205,12 @@ export const collectComparableDiffKeys = (
     return diffKeys;
 };
 
-export const chooseDeterministicWinner = <T>(localItem: T, incomingItem: T): T => {
-    const localSignature = toComparableSignature(localItem);
-    const incomingSignature = toComparableSignature(incomingItem);
+export const chooseDeterministicWinner = <T>(localItem: T, incomingItem: T, memo?: SyncSignatureMemo): T => {
+    const localSignature = toComparableSignature(localItem, memo);
+    const incomingSignature = toComparableSignature(incomingItem, memo);
     if (localSignature === incomingSignature) {
-        const localFullSignature = toDeterministicSignature(localItem);
-        const incomingFullSignature = toDeterministicSignature(incomingItem);
+        const localFullSignature = toDeterministicSignature(localItem, memo);
+        const incomingFullSignature = toDeterministicSignature(incomingItem, memo);
         if (localFullSignature === incomingFullSignature) return incomingItem;
         return incomingFullSignature > localFullSignature ? incomingItem : localItem;
     }

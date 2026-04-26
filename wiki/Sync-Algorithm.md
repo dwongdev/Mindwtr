@@ -121,7 +121,7 @@ Operational consequences:
 
 - Pushing a full snapshot is not a forced overwrite. Existing remote records with higher revisions, newer operation times, or winning tombstones can survive the PUT.
 - Server-side reference repair can create cascade updates, such as tombstoning sections under deleted projects.
-- Repair timestamps are derived from payload timestamps when possible, not the server wall clock, to avoid amplifying clock drift from self-hosted servers.
+- Repair timestamps are derived from payload timestamps when possible, but capped at five minutes beyond the server wall clock. This avoids amplifying normal self-hosted clock drift while preventing far-future client timestamps from poisoning merged records.
 
 ## Retry Recovery
 
