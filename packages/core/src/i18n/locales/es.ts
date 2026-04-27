@@ -1147,4 +1147,6 @@ export const esOverrides: Record<string, string> = {
         'taskEdit.discardChanges': 'Discard unsaved changes?',
         'taskEdit.discardChangesDesc': 'Your changes will be lost if you leave now.',
         'taskEdit.energyLevel': 'Energy Level',
+        // English fallbacks keep shipped locale files in key parity.
+        'recurrence.weekUnit': 'week(s)',
 };

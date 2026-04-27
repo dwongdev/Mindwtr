@@ -1210,4 +1210,6 @@ export const itOverrides: Record<string, string> = {
         'settings.syncQueuedBody': 'Local changes arrived during sync. A retry was queued automatically.',
         'settings.syncSkippedOffline': 'No internet connection. Sync skipped.',
         'settings.webdavBrowserStorageWarning': 'WebDAV passwords are stored in browser storage. Use only on trusted devices.',
+        // English fallbacks keep shipped locale files in key parity.
+        'recurrence.weekUnit': 'week(s)',
 };

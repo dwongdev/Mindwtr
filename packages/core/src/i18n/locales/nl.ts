@@ -1148,4 +1148,6 @@ export const nlOverrides: Record<string, string> = {
         'waiting.title': 'Waiting For',
         'waiting.withDeadline': 'With Deadline',
         'widget.capture': 'Quick capture',
+        // English fallbacks keep shipped locale files in key parity.
+        'recurrence.weekUnit': 'week(s)',
 };
