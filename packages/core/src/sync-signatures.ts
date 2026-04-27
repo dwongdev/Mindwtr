@@ -61,8 +61,10 @@ export const normalizeTaskForContentComparison = (task: Task): Record<string, un
         contexts: normalizeOptionalArrayForComparison(task.contexts),
         checklist: normalizeOptionalArrayForComparison(task.checklist),
         // Attachment entities merge independently. Ignore file transport/runtime fields here
-        // so task conflicts only reflect meaningful task-level attachment changes.
-        attachments: normalizeAttachmentsForContentComparison(task.attachments),
+        // so task conflicts only reflect meaningful task-level attachment changes. Once
+        // the parent task is deleted, attachment tombstone cleanup should not keep
+        // surfacing as a user-visible task conflict.
+        attachments: task.deletedAt ? undefined : normalizeAttachmentsForContentComparison(task.attachments),
         isFocusedToday: task.isFocusedToday ? true : undefined,
         pushCount: task.pushCount === 0 ? undefined : task.pushCount,
     };
@@ -74,7 +76,7 @@ export const normalizeProjectForContentComparison = (project: Project): Record<s
     const comparable: Record<string, unknown> = {
         ...project,
         tagIds: normalizeOptionalArrayForComparison(project.tagIds),
-        attachments: normalizeAttachmentsForContentComparison(project.attachments),
+        attachments: project.deletedAt ? undefined : normalizeAttachmentsForContentComparison(project.attachments),
         isSequential: project.isSequential ? true : undefined,
         isFocused: project.isFocused ? true : undefined,
     };

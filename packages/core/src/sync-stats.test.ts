@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { appendSyncHistory, filterDeleted, mergeAppDataWithStats } from './sync';
 import { filterNotDeleted } from './sync-helpers';
 import { createMockProject, createMockSection, createMockTask, mockAppData } from './sync-test-utils';
-import { AppData, Project, Section, Task } from './types';
+import { AppData, Attachment, Project, Section, Task } from './types';
 
 describe('Sync Logic', () => {
     describe('mergeAppDataWithStats', () => {
@@ -322,6 +322,65 @@ describe('Sync Logic', () => {
 
             expect(result.stats.tasks.conflicts).toBe(0);
             expect(result.stats.sections.conflicts).toBe(0);
+        });
+
+        it('does not count deleted-parent attachment cleanup as task or project content conflicts', () => {
+            const deletedAt = '2026-04-27T13:29:30.105Z';
+            const localAttachment = {
+                id: 'attachment-1',
+                kind: 'file',
+                title: 'receipt.pdf',
+                uri: 'file:///data/user/0/app/files/receipt.pdf',
+                createdAt: deletedAt,
+                updatedAt: deletedAt,
+                deletedAt,
+                localStatus: 'available',
+            } satisfies Attachment;
+            const incomingAttachment = {
+                id: 'attachment-1',
+                kind: 'file',
+                title: 'receipt.pdf',
+                uri: '',
+                createdAt: deletedAt,
+                updatedAt: deletedAt,
+                cloudKey: 'attachments/receipt.pdf',
+                deletedAt,
+                localStatus: 'missing',
+            } satisfies Attachment;
+            const localTask = {
+                ...createMockTask('deleted-task', deletedAt, deletedAt),
+                rev: 3,
+                revBy: 'device-a',
+                attachments: [localAttachment],
+            } satisfies Task;
+            const incomingTask = {
+                ...createMockTask('deleted-task', deletedAt, deletedAt),
+                rev: 3,
+                revBy: 'device-a',
+                attachments: [incomingAttachment],
+            } satisfies Task;
+            const localProject = {
+                ...createMockProject('deleted-project', deletedAt, deletedAt),
+                rev: 2,
+                revBy: 'device-a',
+                attachments: [localAttachment],
+            } satisfies Project;
+            const incomingProject = {
+                ...createMockProject('deleted-project', deletedAt, deletedAt),
+                rev: 2,
+                revBy: 'device-a',
+                attachments: [incomingAttachment],
+            } satisfies Project;
+
+            const result = mergeAppDataWithStats(
+                mockAppData([localTask], [localProject]),
+                mockAppData([incomingTask], [incomingProject])
+            );
+
+            expect(result.stats.tasks.conflicts).toBe(0);
+            expect(result.stats.projects.conflicts).toBe(0);
+            expect(result.stats.tasks.conflictIds).toHaveLength(0);
+            expect(result.stats.projects.conflictIds).toHaveLength(0);
         });
     });
 
