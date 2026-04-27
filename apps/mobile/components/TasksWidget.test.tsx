@@ -63,6 +63,14 @@ describe('TasksWidget', () => {
         expect(taskItem?.props.style.fontSize).toBe(13);
     });
 
+    it('anchors quick capture below the task content area', () => {
+        const tree = buildTasksWidgetTree(basePayload) as WidgetElement;
+        const [content, button] = asWidgetChildren(tree.props.children);
+
+        expect(content?.props.style?.flex).toBe(1);
+        expect(button?.props.text).toBe('Quick capture');
+    });
+
     it('uses a compact layout for narrow Android widgets', () => {
         const tree = buildTasksWidgetTree(basePayload, { layoutMode: 'compact' }) as WidgetElement;
         const children = asWidgetChildren(tree.props.children);

@@ -93,6 +93,7 @@ export function buildTasksWidgetTree(
                 key: 'content',
                 style: {
                     width: 'match_parent',
+                    flex: 1,
                 },
             },
             ...contentChildren
