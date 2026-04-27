@@ -136,53 +136,66 @@ describe('Quick capture modal composition', () => {
     expect(tree.root.findByProps({ accessibilityRole: 'header' }).props.children).toBe('taskEdit.contextsLabel');
   });
 
-  it('uses a non-sliding Android modal to avoid ghosted sheet trails', () => {
+  it('disables Android modal animation to avoid ghosted sheet trails', () => {
     let tree!: ReturnType<typeof create>;
+    const originalPlatformOs = Platform.OS;
 
-    act(() => {
-      tree = create(
-        <QuickCaptureSheetBody
-          addAnother={false}
-          areaLabel="No Area"
-          contextLabel="Contexts"
-          dueLabel="Due Date"
-          handleClose={vi.fn()}
-          handleSave={vi.fn()}
-          insetsBottom={0}
-          inputRef={{ current: null }}
-          onOpenAreaPicker={vi.fn()}
-          onOpenContextPicker={vi.fn()}
-          onOpenDueDatePicker={vi.fn()}
-          onOpenPriorityPicker={vi.fn()}
-          onOpenProjectPicker={vi.fn()}
-          onResetArea={vi.fn()}
-          onResetContexts={vi.fn()}
-          onResetDueDate={vi.fn()}
-          onResetPriority={vi.fn()}
-          onResetProject={vi.fn()}
-          onToggleAddAnother={vi.fn()}
-          onToggleRecording={vi.fn()}
-          onValueChange={vi.fn()}
-          prioritiesEnabled
-          priorityLabel="Priority"
-          projectLabel="Project"
-          recording={false}
-          recordingBusy={false}
-          recordingReady={false}
-          sheetMaxHeight={500}
-          t={(key) => key}
-          tc={tc}
-          value=""
-          visible
-        />
-      );
+    Object.defineProperty(Platform, 'OS', {
+      configurable: true,
+      value: 'android',
     });
+
+    try {
+      act(() => {
+        tree = create(
+          <QuickCaptureSheetBody
+            addAnother={false}
+            areaLabel="No Area"
+            contextLabel="Contexts"
+            dueLabel="Due Date"
+            handleClose={vi.fn()}
+            handleSave={vi.fn()}
+            insetsBottom={0}
+            inputRef={{ current: null }}
+            onOpenAreaPicker={vi.fn()}
+            onOpenContextPicker={vi.fn()}
+            onOpenDueDatePicker={vi.fn()}
+            onOpenPriorityPicker={vi.fn()}
+            onOpenProjectPicker={vi.fn()}
+            onResetArea={vi.fn()}
+            onResetContexts={vi.fn()}
+            onResetDueDate={vi.fn()}
+            onResetPriority={vi.fn()}
+            onResetProject={vi.fn()}
+            onToggleAddAnother={vi.fn()}
+            onToggleRecording={vi.fn()}
+            onValueChange={vi.fn()}
+            prioritiesEnabled
+            priorityLabel="Priority"
+            projectLabel="Project"
+            recording={false}
+            recordingBusy={false}
+            recordingReady={false}
+            sheetMaxHeight={500}
+            t={(key) => key}
+            tc={tc}
+            value=""
+            visible
+          />
+        );
+      });
+    } finally {
+      Object.defineProperty(Platform, 'OS', {
+        configurable: true,
+        value: originalPlatformOs,
+      });
+    }
 
     const modal = tree.root.findByType(Modal);
     expect(modal.props.transparent).toBe(true);
-    expect(modal.props.animationType).toBe(Platform.OS === 'android' ? 'fade' : 'slide');
-    expect(modal.props.hardwareAccelerated).toBe(Platform.OS === 'android');
-    expect(modal.props.statusBarTranslucent).toBe(Platform.OS === 'android');
+    expect(modal.props.animationType).toBe('none');
+    expect(modal.props.hardwareAccelerated).toBe(true);
+    expect(modal.props.statusBarTranslucent).toBe(true);
   });
 
   it('bounds compact sheet text scaling so tablet controls cannot overlap', () => {
