@@ -2,8 +2,6 @@
 from __future__ import annotations
 
 import json
-import shutil
-import subprocess
 import sys
 from pathlib import Path
 
@@ -22,10 +20,10 @@ TYPE_ALIASES = {
     "phonescreenshots": "phoneScreenshots",
     "phone-screenshots": "phoneScreenshots",
     "phone_screenshots": "phoneScreenshots",
-    "pad": ("sevenInchScreenshots", "tenInchScreenshots"),
-    "pads": ("sevenInchScreenshots", "tenInchScreenshots"),
-    "tablet": ("sevenInchScreenshots", "tenInchScreenshots"),
-    "tablets": ("sevenInchScreenshots", "tenInchScreenshots"),
+    "pad": ("sevenInchScreenshots",),
+    "pads": ("sevenInchScreenshots",),
+    "tablet": ("sevenInchScreenshots",),
+    "tablets": ("sevenInchScreenshots",),
     "seveninchscreenshots": "sevenInchScreenshots",
     "seven-inch-screenshots": "sevenInchScreenshots",
     "seven_inch_screenshots": "sevenInchScreenshots",
@@ -65,42 +63,78 @@ def image_files(path: Path) -> list[Path]:
     )
 
 
-def imagemagick_resize_command() -> list[str] | None:
-    magick = shutil.which("magick")
-    if magick:
-        return [magick]
-    convert = shutil.which("convert")
-    if convert:
-        return [convert]
-    return None
+def png_dimensions(data: bytes) -> tuple[int, int] | None:
+    png_signature = b"\x89PNG\r\n\x1a\n"
+    if not data.startswith(png_signature):
+        return None
+    if len(data) < 24 or data[12:16] != b"IHDR":
+        return None
+    width = int.from_bytes(data[16:20], "big")
+    height = int.from_bytes(data[20:24], "big")
+    return width, height
 
 
-def imagemagick_identify_command() -> list[str] | None:
-    magick = shutil.which("magick")
-    if magick:
-        return [magick, "identify"]
-    identify = shutil.which("identify")
-    if identify:
-        return [identify]
+def jpeg_dimensions(data: bytes) -> tuple[int, int] | None:
+    if not data.startswith(b"\xff\xd8"):
+        return None
+
+    offset = 2
+    sof_markers = {
+        0xC0,
+        0xC1,
+        0xC2,
+        0xC3,
+        0xC5,
+        0xC6,
+        0xC7,
+        0xC9,
+        0xCA,
+        0xCB,
+        0xCD,
+        0xCE,
+        0xCF,
+    }
+
+    while offset < len(data):
+        while offset < len(data) and data[offset] != 0xFF:
+            offset += 1
+        while offset < len(data) and data[offset] == 0xFF:
+            offset += 1
+        if offset >= len(data):
+            return None
+
+        marker = data[offset]
+        offset += 1
+        if marker in {0x01, *range(0xD0, 0xD9)}:
+            continue
+        if marker in {0xD9, 0xDA}:
+            return None
+        if offset + 2 > len(data):
+            return None
+
+        segment_length = int.from_bytes(data[offset : offset + 2], "big")
+        if segment_length < 2:
+            return None
+        segment_start = offset + 2
+        segment_end = offset + segment_length
+        if segment_end > len(data):
+            return None
+
+        if marker in sof_markers:
+            if segment_start + 5 > segment_end:
+                return None
+            height = int.from_bytes(data[segment_start + 1 : segment_start + 3], "big")
+            width = int.from_bytes(data[segment_start + 3 : segment_start + 5], "big")
+            return width, height
+
+        offset = segment_end
+
     return None
 
 
 def image_dimensions(file: Path) -> tuple[int, int] | None:
-    command = imagemagick_identify_command()
-    if command is None:
-        raise RuntimeError("ImageMagick is required to inspect Google Play listing screenshots")
-
-    result = subprocess.run(
-        [*command, "-format", "%w %h", file.as_posix()],
-        check=True,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-        text=True,
-    )
-    parts = result.stdout.strip().split()
-    if len(parts) != 2:
-        return None
-    return int(parts[0]), int(parts[1])
+    data = file.read_bytes()
+    return png_dimensions(data) or jpeg_dimensions(data)
 
 
 def satisfies_google_play_constraints(dimensions: tuple[int, int], constraints: dict[str, float]) -> bool:
@@ -115,38 +149,9 @@ def satisfies_google_play_constraints(dimensions: tuple[int, int], constraints: 
     )
 
 
-def resize_geometry_preserving_aspect(dimensions: tuple[int, int], min_side: int) -> str:
-    width, height = dimensions
-    if width < height:
-        return f"{min_side}x"
-    if height < width:
-        return f"x{min_side}"
-    return f"{min_side}x{min_side}"
-
-
-def resize_image_preserving_aspect(source: Path, target: Path, dimensions: tuple[int, int], min_side: int) -> None:
-    command = imagemagick_resize_command()
-    if command is None:
-        raise RuntimeError("ImageMagick is required to resize Google Play listing screenshots")
-
-    target.parent.mkdir(parents=True, exist_ok=True)
-    subprocess.run(
-        [
-            *command,
-            source.as_posix(),
-            "-resize",
-            resize_geometry_preserving_aspect(dimensions, min_side),
-            target.as_posix(),
-        ],
-        check=True,
-    )
-
-
 def prepared_google_play_asset(
     file: Path,
-    language: str,
     image_type: str,
-    generated_dir: Path,
 ) -> Path | None:
     constraints = GOOGLE_PLAY_IMAGE_CONSTRAINTS.get(image_type)
     if constraints is None:
@@ -169,31 +174,11 @@ def prepared_google_play_asset(
         )
         return None
 
-    source_min_side = min(width, height)
-    source_max_side = max(width, height)
-    target_min_side = int(constraints["min_side"])
-    scaled_max_side = (source_max_side * target_min_side + source_min_side - 1) // source_min_side
-    if scaled_max_side > constraints["max_side"]:
-        print(
-            f"Skipping {file} for {image_type}: resizing the short side to "
-            f"{target_min_side}px would make the long side {scaled_max_side}px",
-            file=sys.stderr,
-        )
-        return None
-
-    target = generated_dir / language / image_type / file.name
-    resize_image_preserving_aspect(file, target, dimensions, target_min_side)
-    actual_dimensions = image_dimensions(target)
-    if actual_dimensions is None or not satisfies_google_play_constraints(actual_dimensions, constraints):
-        raise RuntimeError(
-            f"Resized {file} for {image_type} to invalid dimensions: {actual_dimensions}"
-        )
     print(
-        f"Resized Google Play listing asset {file} -> {target} "
-        f"({actual_dimensions[0]}x{actual_dimensions[1]}, aspect preserved)",
+        f"Skipping {file} for {image_type}: {width}x{height} outside Google Play limits",
         file=sys.stderr,
     )
-    return target
+    return None
 
 
 def add_assets(
@@ -201,10 +186,9 @@ def add_assets(
     language: str,
     image_type: str,
     files: list[Path],
-    generated_dir: Path,
 ) -> None:
     for file in files:
-        asset_path = prepared_google_play_asset(file, language, image_type, generated_dir)
+        asset_path = prepared_google_play_asset(file, image_type)
         if asset_path is None:
             continue
         assets.append(
@@ -216,7 +200,7 @@ def add_assets(
         )
 
 
-def collect_assets(root: Path, generated_dir: Path) -> list[dict[str, str]]:
+def collect_assets(root: Path) -> list[dict[str, str]]:
     if not root.is_dir():
         return []
 
@@ -224,27 +208,27 @@ def collect_assets(root: Path, generated_dir: Path) -> list[dict[str, str]]:
 
     direct_root_files = image_files(root)
     if direct_root_files:
-        add_assets(assets, DEFAULT_LANGUAGE, "phoneScreenshots", direct_root_files, generated_dir)
+        add_assets(assets, DEFAULT_LANGUAGE, "phoneScreenshots", direct_root_files)
 
     for child in sorted(path for path in root.iterdir() if path.is_dir()):
         root_image_types = normalize_image_types(child.name)
         if root_image_types:
             files = image_files(child)
             for root_image_type in root_image_types:
-                add_assets(assets, DEFAULT_LANGUAGE, root_image_type, files, generated_dir)
+                add_assets(assets, DEFAULT_LANGUAGE, root_image_type, files)
             continue
 
         locale = child.name
         locale_root_files = image_files(child)
         if locale_root_files:
-            add_assets(assets, locale, "phoneScreenshots", locale_root_files, generated_dir)
+            add_assets(assets, locale, "phoneScreenshots", locale_root_files)
 
         for grandchild in sorted(path for path in child.iterdir() if path.is_dir()):
             image_types = normalize_image_types(grandchild.name)
             if image_types:
                 files = image_files(grandchild)
                 for image_type in image_types:
-                    add_assets(assets, locale, image_type, files, generated_dir)
+                    add_assets(assets, locale, image_type, files)
 
     return assets
 
@@ -259,9 +243,7 @@ def main() -> int:
 
     source_dir = Path(sys.argv[1])
     output_path = Path(sys.argv[2])
-    generated_dir = output_path.parent / "play-listing-assets-resized"
-    shutil.rmtree(generated_dir, ignore_errors=True)
-    assets = collect_assets(source_dir, generated_dir)
+    assets = collect_assets(source_dir)
 
     output_path.parent.mkdir(parents=True, exist_ok=True)
     output_path.write_text(json.dumps(assets, indent=2) + "\n", encoding="utf-8")
