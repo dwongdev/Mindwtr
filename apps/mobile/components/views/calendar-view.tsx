@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { Modal, Pressable, Text, TextInput, useWindowDimensions, View } from 'react-native';
+import { Modal, Pressable, Text, TextInput, useWindowDimensions, View, type GestureResponderEvent } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import { CALENDAR_TIME_ESTIMATE_OPTIONS, safeFormatDate, safeParseDate, type Task } from '@mindwtr/core';
 import { Gesture, GestureDetector, ScrollView } from 'react-native-gesture-handler';
@@ -56,6 +56,7 @@ export function CalendarView() {
     monthLabel,
     nextQuickScheduleCandidates,
     openQuickAddForDate,
+    openQuickAddAtDateTime,
     openTaskActions,
     saveEditingTask,
     saveCalendarComposer,
@@ -461,6 +462,15 @@ export function CalendarView() {
   }
 
   if (viewMode === 'day' && selectedDate && selectedDayStart && selectedDayEnd) {
+    const handleDayTimelinePress = (event: GestureResponderEvent) => {
+      const dayMinutes = (DAY_END_HOUR - DAY_START_HOUR) * 60;
+      const defaultDurationMinutes = 30;
+      const rawMinutes = event.nativeEvent.locationY / PIXELS_PER_MINUTE;
+      const snappedMinutes = Math.round(rawMinutes / SNAP_MINUTES) * SNAP_MINUTES;
+      const clampedMinutes = Math.max(0, Math.min(dayMinutes - defaultDurationMinutes, snappedMinutes));
+      openQuickAddAtDateTime(new Date(selectedDayStart.getTime() + clampedMinutes * 60_000));
+    };
+
     return (
       <View style={[styles.container, { backgroundColor: tc.bg }]}>
         <View style={[styles.dayModeHeader, { backgroundColor: tc.cardBg, borderBottomColor: tc.border }]}>
@@ -506,11 +516,12 @@ export function CalendarView() {
 
           <View style={[styles.timelineCard, { backgroundColor: tc.cardBg, borderColor: tc.border }]}>
             <View style={[styles.timelineArea, { height: timelineHeight }]}>
+              <Pressable onPress={handleDayTimelinePress} style={styles.timelineTapTarget} />
               {Array.from({ length: DAY_END_HOUR - DAY_START_HOUR + 1 }, (_, idx) => {
                 const hour = DAY_START_HOUR + idx;
                 const top = idx * 60 * PIXELS_PER_MINUTE;
                 return (
-                  <View key={hour} style={[styles.hourLine, { top }]}>
+                  <View key={hour} pointerEvents="none" style={[styles.hourLine, { top }]}>
                     <Text style={[styles.hourLabel, { color: tc.secondaryText }]}>{formatHourLabel(hour)}</Text>
                     <View style={[styles.hourDivider, { backgroundColor: tc.border }]} />
                   </View>
@@ -518,7 +529,7 @@ export function CalendarView() {
               })}
 
               {selectedDayNowTop != null && (
-                <View style={[styles.nowLine, { top: selectedDayNowTop }]}>
+                <View pointerEvents="none" style={[styles.nowLine, { top: selectedDayNowTop }]}>
                   <View style={styles.nowDot} />
                   <View style={styles.nowRule} />
                 </View>
@@ -538,6 +549,7 @@ export function CalendarView() {
                 return (
                   <View
                     key={event.id}
+                    pointerEvents="none"
                     style={[
                       styles.eventBlock,
                       {

@@ -555,6 +555,10 @@ export function useCalendarViewController() {
     openCalendarComposerForDate(date, { mode: 'new' });
   };
 
+  const openQuickAddAtDateTime = (date: Date) => {
+    openCalendarComposerAt(date, { mode: 'new' });
+  };
+
   useEffect(() => {
     if (viewMode !== 'day') return;
     if (!selectedDate) return;
@@ -798,6 +802,7 @@ export function useCalendarViewController() {
     markTaskDone,
     monthLabel,
     nextQuickScheduleCandidates,
+    openQuickAddAtDateTime,
     openQuickAddForDate,
     openTaskActions,
     saveEditingTask,

@@ -389,6 +389,13 @@ export const styles = StyleSheet.create({
   timelineArea: {
     position: 'relative',
   },
+  timelineTapTarget: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    top: 0,
+    bottom: 0,
+  },
   nowLine: {
     position: 'absolute',
     left: 50,
