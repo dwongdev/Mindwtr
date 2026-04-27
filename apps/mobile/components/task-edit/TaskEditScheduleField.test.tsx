@@ -1,5 +1,5 @@
 import React from 'react';
-import { Text, TextInput, TouchableOpacity } from 'react-native';
+import { TextInput } from 'react-native';
 import renderer, { act } from 'react-test-renderer';
 import { describe, expect, it, vi } from 'vitest';
 
@@ -39,7 +39,6 @@ const t = (key: string) => ({
     'recurrence.none': 'None',
     'recurrence.weekly': 'Weekly',
     'recurrence.monthly': 'Monthly',
-    'recurrence.quarterly': 'Quarterly',
     'recurrence.repeatEvery': 'Repeat every',
     'recurrence.weekUnit': 'week(s)',
     'recurrence.monthUnit': 'month(s)',
@@ -50,7 +49,7 @@ const t = (key: string) => ({
 }[key] ?? key);
 
 describe('TaskEditScheduleField', () => {
-    it('offers quarterly recurrence as a monthly interval preset', () => {
+    it('updates monthly recurrence intervals without changing the monthly pattern', () => {
         const setEditedTask = vi.fn();
 
         let tree!: renderer.ReactTestRenderer;
@@ -72,10 +71,9 @@ describe('TaskEditScheduleField', () => {
                     recurrenceOptions: [
                         { value: '', label: 'None' },
                         { value: 'monthly', label: 'Monthly' },
-                        { value: 'quarterly', label: 'Quarterly' },
                     ],
-                    recurrenceRRuleValue: '',
-                    recurrenceRuleValue: '',
+                    recurrenceRRuleValue: 'FREQ=MONTHLY;BYMONTHDAY=15',
+                    recurrenceRuleValue: 'monthly',
                     recurrenceStrategyValue: 'strict',
                     recurrenceWeekdayButtons: [],
                     setCustomWeekdays: vi.fn(),
@@ -91,21 +89,27 @@ describe('TaskEditScheduleField', () => {
             );
         });
 
-        const quarterlyButton = tree.root
-            .findAllByType(TouchableOpacity)
-            .find((node) => node.findAllByType(Text).some((textNode) => textNode.props.children === 'Quarterly'));
+        const intervalInput = tree.root
+            .findAllByType(TextInput)
+            .find((node) => node.props.accessibilityHint === 'month(s)');
 
         act(() => {
-            quarterlyButton?.props.onPress();
+            intervalInput?.props.onChangeText('3');
         });
 
         const update = setEditedTask.mock.calls[0][0] as (previous: any) => any;
-        const next = update({});
+        const next = update({
+            recurrence: {
+                rule: 'monthly',
+                strategy: 'strict',
+                rrule: 'FREQ=MONTHLY;BYMONTHDAY=15',
+            },
+        });
 
         expect(next.recurrence).toMatchObject({
             rule: 'monthly',
             strategy: 'strict',
-            rrule: 'FREQ=MONTHLY;INTERVAL=3',
+            rrule: 'FREQ=MONTHLY;INTERVAL=3;BYMONTHDAY=15',
         });
     });
 

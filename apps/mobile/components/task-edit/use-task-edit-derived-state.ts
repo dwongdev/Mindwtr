@@ -5,6 +5,7 @@ import {
     safeParseDate,
     type AppData,
     type Project,
+    type RecurrenceRule,
     type RecurrenceWeekday,
     type Section,
     type Task,
@@ -26,7 +27,7 @@ import {
     STATUS_OPTIONS,
     TASK_EDITOR_FIXED_FIELDS,
 } from './task-edit-modal.utils';
-import type { PickerOption, RecurrenceOptionValue } from './TaskEditFieldRenderer.types';
+import type { PickerOption } from './TaskEditFieldRenderer.types';
 
 const DEFAULT_TIME_ESTIMATE_PRESETS: TimeEstimate[] = ['10min', '30min', '1hr', '2hr', '3hr', '4hr', '4hr+'];
 const ALL_TIME_ESTIMATES: TimeEstimate[] = ['5min', '10min', '15min', '30min', '1hr', '2hr', '3hr', '4hr', '4hr+'];
@@ -82,13 +83,12 @@ export function useTaskEditDerivedState({
         [projectFilterAreaId, projects]
     );
 
-    const recurrenceOptions: PickerOption<RecurrenceOptionValue>[] = useMemo(
+    const recurrenceOptions: PickerOption<RecurrenceRule>[] = useMemo(
         () => [
             { value: '', label: t('recurrence.none') },
             { value: 'daily', label: t('recurrence.daily') },
             { value: 'weekly', label: t('recurrence.weekly') },
             { value: 'monthly', label: t('recurrence.monthly') },
-            { value: 'quarterly', label: t('recurrence.quarterly') },
             { value: 'yearly', label: t('recurrence.yearly') },
         ],
         [t]
@@ -112,9 +112,8 @@ export function useTaskEditDerivedState({
         const hasLast = parsed.byDay?.some((day) => String(day).startsWith('-1'));
         const hasNth = parsed.byDay?.some((day) => /^[1-4]/.test(String(day)));
         const hasByMonthDay = parsed.byMonthDay && parsed.byMonthDay.length > 0;
-        const interval = parsed.interval && parsed.interval > 0 ? parsed.interval : 1;
         const isCustomDay = hasByMonthDay && parsed.byMonthDay?.[0] !== monthlyAnchorDate.getDate();
-        return hasNth || hasLast || interval > 1 || isCustomDay ? 'custom' : 'date';
+        return hasNth || hasLast || isCustomDay ? 'custom' : 'date';
     }, [monthlyAnchorDate, recurrenceRRuleValue, recurrenceRuleValue]);
 
     const formatTimeEstimateLabel = useCallback((value: TimeEstimate) => {

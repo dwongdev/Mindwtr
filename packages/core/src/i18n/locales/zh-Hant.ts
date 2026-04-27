@@ -228,7 +228,6 @@ export const zhHant: Record<string, string> = {
         'recurrence.daily': '每天',
         'recurrence.weekly': '每週',
         'recurrence.monthly': '每月',
-        'recurrence.quarterly': '每季',
         'recurrence.yearly': '每年',
         'recurrence.custom': '自定義…',
         'recurrence.customTitle': '自定義重複',

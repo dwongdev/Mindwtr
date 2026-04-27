@@ -1150,6 +1150,4 @@ export const nlOverrides: Record<string, string> = {
         'widget.capture': 'Quick capture',
         // English fallbacks keep shipped locale files in key parity.
         'recurrence.weekUnit': 'week(s)',
-        // English fallbacks keep shipped locale files in key parity.
-        'recurrence.quarterly': 'Quarterly',
 };

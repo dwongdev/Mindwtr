@@ -1212,6 +1212,4 @@ export const itOverrides: Record<string, string> = {
         'settings.webdavBrowserStorageWarning': 'WebDAV passwords are stored in browser storage. Use only on trusted devices.',
         // English fallbacks keep shipped locale files in key parity.
         'recurrence.weekUnit': 'week(s)',
-        // English fallbacks keep shipped locale files in key parity.
-        'recurrence.quarterly': 'Quarterly',
 };

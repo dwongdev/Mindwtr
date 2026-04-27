@@ -1149,6 +1149,4 @@ export const arOverrides: Record<string, string> = {
         'taskEdit.energyLevel': 'Energy Level',
         // English fallbacks keep shipped locale files in key parity.
         'recurrence.weekUnit': 'week(s)',
-        // English fallbacks keep shipped locale files in key parity.
-        'recurrence.quarterly': 'Quarterly',
 };

@@ -4,8 +4,6 @@ import { cn } from '../../../lib/utils';
 import { WeekdaySelector } from '../TaskForm/WeekdaySelector';
 import type { MonthlyRecurrenceInfo } from '../TaskItemFieldRenderer';
 
-type RecurrenceSelectValue = RecurrenceRule | 'quarterly' | '';
-
 type RecurrenceFieldProps = {
     t: (key: string) => string;
     editRecurrence: RecurrenceRule | '';
@@ -46,25 +44,14 @@ export function RecurrenceField({
     openCustomRecurrence,
     buildRecurrenceRRule,
 }: RecurrenceFieldProps) {
-    const isQuarterlyRecurrence = editRecurrence === 'monthly' && parsedRecurrenceRRule.interval === 3;
-    const recurrenceSelectValue: RecurrenceSelectValue = isQuarterlyRecurrence ? 'quarterly' : editRecurrence;
-
     return (
         <div className="flex flex-col gap-1 w-full">
             <label className="text-xs text-muted-foreground font-medium">{t('taskEdit.recurrenceLabel')}</label>
             <select
-                value={recurrenceSelectValue}
+                value={editRecurrence}
                 aria-label={t('task.aria.recurrence')}
                 onChange={(e) => {
-                    const value = e.target.value as RecurrenceSelectValue;
-                    if (value === 'quarterly') {
-                        onRecurrenceChange('monthly');
-                        onRecurrenceRRuleChange(buildRRuleString('monthly', undefined, 3, {
-                            count: parsedRecurrenceRRule.count,
-                            until: parsedRecurrenceRRule.until,
-                        }));
-                        return;
-                    }
+                    const value = e.target.value as RecurrenceRule | '';
                     onRecurrenceChange(value);
                     if (value === 'daily') {
                         if (!editRecurrenceRRule || parsedRecurrenceRRule.rule !== 'daily') {
@@ -109,7 +96,6 @@ export function RecurrenceField({
                 <option value="daily">{t('recurrence.daily')}</option>
                 <option value="weekly">{t('recurrence.weekly')}</option>
                 <option value="monthly">{t('recurrence.monthly')}</option>
-                <option value="quarterly">{t('recurrence.quarterly')}</option>
                 <option value="yearly">{t('recurrence.yearly')}</option>
             </select>
             {editRecurrence === 'daily' && (
@@ -261,13 +247,33 @@ export function RecurrenceField({
             )}
             {editRecurrence === 'monthly' && (
                 <div className="pt-1 space-y-2">
+                    <div className="flex items-center gap-2">
+                        <span className="text-[10px] text-muted-foreground">{t('recurrence.repeatEvery')}</span>
+                        <input
+                            type="number"
+                            min={1}
+                            max={120}
+                            value={Math.max(parsedRecurrenceRRule.interval ?? 1, 1)}
+                            onChange={(event) => {
+                                const intervalValue = Number(event.target.valueAsNumber);
+                                const safeInterval = Number.isFinite(intervalValue) && intervalValue > 0
+                                    ? Math.min(Math.round(intervalValue), 120)
+                                    : 1;
+                                onRecurrenceRRuleChange(buildRecurrenceRRule('monthly', {
+                                    interval: safeInterval,
+                                }));
+                            }}
+                            className="w-20 text-xs bg-muted/50 border border-border rounded px-2 py-1 text-foreground"
+                        />
+                        <span className="text-[10px] text-muted-foreground">{t('recurrence.monthUnit')}</span>
+                    </div>
                     <span className="text-[10px] text-muted-foreground">{t('recurrence.repeatOn')}</span>
                     <div className="flex flex-wrap gap-2">
                         <button
                             type="button"
-                            onClick={() => onRecurrenceRRuleChange(buildRRuleString('monthly', undefined, undefined, {
-                                count: parsedRecurrenceRRule.count,
-                                until: parsedRecurrenceRRule.until,
+                            onClick={() => onRecurrenceRRuleChange(buildRecurrenceRRule('monthly', {
+                                byDay: undefined,
+                                byMonthDay: undefined,
                             }))}
                             className={cn(
                                 'text-[10px] px-2 py-1 rounded border transition-colors',

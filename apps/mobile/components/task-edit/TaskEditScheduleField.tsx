@@ -16,7 +16,6 @@ import {
 
 import { buildRecurrenceValue } from './recurrence-utils';
 import type {
-    RecurrenceOptionValue,
     ShowDatePickerMode,
     TaskEditFieldRendererProps,
 } from './TaskEditFieldRenderer.types';
@@ -63,13 +62,9 @@ export function TaskEditScheduleField({
         { color: active ? '#fff' : tc.secondaryText },
     ]);
     const parsedRecurrenceRRule = parseRRuleString(recurrenceRRuleValue);
-    const isQuarterlyRecurrence = recurrenceRuleValue === 'monthly' && parsedRecurrenceRRule.interval === 3;
-    const isRecurrenceOptionActive = (value: RecurrenceOptionValue | '') => {
-        if (!value) return !recurrenceRuleValue;
-        if (value === 'quarterly') return isQuarterlyRecurrence;
-        if (value === 'monthly' && isQuarterlyRecurrence) return false;
-        return recurrenceRuleValue === value;
-    };
+    const monthlyInterval = recurrenceRuleValue === 'monthly' && parsedRecurrenceRRule.interval && parsedRecurrenceRRule.interval > 0
+        ? parsedRecurrenceRRule.interval
+        : 1;
     const recurrenceEndMode: 'never' | 'until' | 'count' = parsedRecurrenceRRule.count
         ? 'count'
         : parsedRecurrenceRRule.until
@@ -184,24 +179,15 @@ export function TaskEditScheduleField({
                         {recurrenceOptions.map((option) => (
                             <TouchableOpacity
                                 key={option.value || 'none'}
-                                style={getStatusChipStyle(isRecurrenceOptionActive(option.value))}
+                                style={getStatusChipStyle(
+                                    recurrenceRuleValue === option.value || (!option.value && !recurrenceRuleValue)
+                                )}
                                 onPress={() => {
                                     if (option.value !== 'weekly') {
                                         setCustomWeekdays([]);
                                     }
                                     if (!option.value) {
                                         setEditedTask((prev) => ({ ...prev, recurrence: undefined }));
-                                        return;
-                                    }
-                                    if (option.value === 'quarterly') {
-                                        setEditedTask((prev) => ({
-                                            ...prev,
-                                            recurrence: buildEditedRecurrence('monthly', {
-                                                byDay: undefined,
-                                                byMonthDay: undefined,
-                                                interval: 3,
-                                            }),
-                                        }));
                                         return;
                                     }
                                     if (option.value === 'daily') {
@@ -223,7 +209,9 @@ export function TaskEditScheduleField({
                                             recurrence: buildEditedRecurrence('monthly', {
                                                 byDay: undefined,
                                                 byMonthDay: undefined,
-                                                interval: undefined,
+                                                interval: parsedRecurrenceRRule.rule === 'monthly' && parsedRecurrenceRRule.interval && parsedRecurrenceRRule.interval > 0
+                                                    ? parsedRecurrenceRRule.interval
+                                                    : 1,
                                             }),
                                         }));
                                         return;
@@ -252,7 +240,9 @@ export function TaskEditScheduleField({
                                     }
                                 }}
                             >
-                                <Text style={getStatusTextStyle(isRecurrenceOptionActive(option.value))}>
+                                <Text style={getStatusTextStyle(
+                                    recurrenceRuleValue === option.value || (!option.value && !recurrenceRuleValue)
+                                )}>
                                     {option.label}
                                 </Text>
                             </TouchableOpacity>
@@ -343,33 +333,53 @@ export function TaskEditScheduleField({
                         </View>
                     )}
                     {recurrenceRuleValue === 'monthly' && (
-                        <View style={[styles.statusContainer, { marginTop: 8 }]}>
-                            <TouchableOpacity
-                                style={getStatusChipStyle(monthlyPattern === 'date')}
-                                onPress={() => {
-                                    setEditedTask((prev) => ({
-                                        ...prev,
-                                        recurrence: buildEditedRecurrence('monthly', {
-                                            byDay: undefined,
-                                            byMonthDay: undefined,
-                                            interval: undefined,
-                                        }),
-                                    }));
-                                }}
-                            >
-                                <Text style={getStatusTextStyle(monthlyPattern === 'date')}>
-                                    {t('recurrence.monthlyOnDay')}
-                                </Text>
-                            </TouchableOpacity>
-                            <TouchableOpacity
-                                style={getStatusChipStyle(monthlyPattern === 'custom')}
-                                onPress={openCustomRecurrence}
-                            >
-                                <Text style={getStatusTextStyle(monthlyPattern === 'custom')}>
-                                    {t('recurrence.custom')}
-                                </Text>
-                            </TouchableOpacity>
-                        </View>
+                        <>
+                            <View style={[styles.customRow, { marginTop: 8, borderColor: tc.border }]}>
+                                <Text style={[styles.modalLabel, { color: tc.secondaryText }]}>{t('recurrence.repeatEvery')}</Text>
+                                <TextInput
+                                    value={String(monthlyInterval)}
+                                    onChangeText={(value) => {
+                                        const parsed = Number.parseInt(value, 10);
+                                        const interval = Number.isFinite(parsed) && parsed > 0 ? Math.min(parsed, 120) : 1;
+                                        setEditedTask((prev) => ({
+                                            ...prev,
+                                            recurrence: buildEditedRecurrence('monthly', { interval }),
+                                        }));
+                                    }}
+                                    keyboardType="number-pad"
+                                    style={[styles.customInput, { backgroundColor: tc.inputBg, borderColor: tc.border, color: tc.text }]}
+                                    accessibilityLabel={t('recurrence.repeatEvery')}
+                                    accessibilityHint={t('recurrence.monthUnit')}
+                                />
+                                <Text style={[styles.modalLabel, { color: tc.secondaryText }]}>{t('recurrence.monthUnit')}</Text>
+                            </View>
+                            <View style={[styles.statusContainer, { marginTop: 8 }]}>
+                                <TouchableOpacity
+                                    style={getStatusChipStyle(monthlyPattern === 'date')}
+                                    onPress={() => {
+                                        setEditedTask((prev) => ({
+                                            ...prev,
+                                            recurrence: buildEditedRecurrence('monthly', {
+                                                byDay: undefined,
+                                                byMonthDay: undefined,
+                                            }),
+                                        }));
+                                    }}
+                                >
+                                    <Text style={getStatusTextStyle(monthlyPattern === 'date')}>
+                                        {t('recurrence.monthlyOnDay')}
+                                    </Text>
+                                </TouchableOpacity>
+                                <TouchableOpacity
+                                    style={getStatusChipStyle(monthlyPattern === 'custom')}
+                                    onPress={openCustomRecurrence}
+                                >
+                                    <Text style={getStatusTextStyle(monthlyPattern === 'custom')}>
+                                        {t('recurrence.custom')}
+                                    </Text>
+                                </TouchableOpacity>
+                            </View>
+                        </>
                     )}
                     {!!recurrenceRuleValue && (
                         <View style={{ marginTop: 8 }}>

@@ -228,7 +228,6 @@ export const zhHans: Record<string, string> = {
         'recurrence.daily': '每天',
         'recurrence.weekly': '每周',
         'recurrence.monthly': '每月',
-        'recurrence.quarterly': '每季度',
         'recurrence.yearly': '每年',
         'recurrence.custom': '自定义…',
         'recurrence.customTitle': '自定义重复',
