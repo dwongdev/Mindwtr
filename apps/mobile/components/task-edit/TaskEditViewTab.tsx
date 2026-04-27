@@ -1,7 +1,7 @@
 import React from 'react';
 import { Image, ScrollView, Text, TouchableOpacity, View } from 'react-native';
 import { CheckSquare, Square } from 'lucide-react-native';
-import { getAttachmentDisplayTitle, getRecurrenceCountValue, getRecurrenceUntilValue } from '@mindwtr/core';
+import { getAttachmentDisplayTitle, getRecurrenceCountValue, getRecurrenceUntilValue, parseRRuleString } from '@mindwtr/core';
 import type {
   Attachment,
   Area,
@@ -147,9 +147,15 @@ export function TaskEditViewTab({
   const recurrenceStrategy = getRecurrenceStrategyValue(mergedTask.recurrence);
   const recurrenceCount = getRecurrenceCountValue(mergedTask.recurrence);
   const recurrenceUntil = getRecurrenceUntilValue(mergedTask.recurrence);
+  const recurrenceInterval = mergedTask.recurrence && typeof mergedTask.recurrence === 'object' && mergedTask.recurrence.rrule
+    ? parseRRuleString(mergedTask.recurrence.rrule).interval
+    : undefined;
   const recurrenceParts = recurrenceRule
     ? [
         `${t(`recurrence.${recurrenceRule}`) || recurrenceRule}${recurrenceStrategy === 'fluid' ? ` · ${t('recurrence.afterCompletionShort')}` : ''}`,
+        recurrenceRule === 'weekly' && recurrenceInterval && recurrenceInterval > 1
+          ? `${t('recurrence.repeatEvery')} ${recurrenceInterval} ${t('recurrence.weekUnit')}`
+          : undefined,
         recurrenceUntil ? `${t('recurrence.endsOnDate')} ${formatDate(recurrenceUntil)}` : undefined,
         recurrenceCount ? `${t('recurrence.endsAfterCount')} ${recurrenceCount} ${t('recurrence.occurrenceUnit')}` : undefined,
       ].filter(Boolean)

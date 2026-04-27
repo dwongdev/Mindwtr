@@ -239,6 +239,7 @@ export const zhHans: Record<string, string> = {
         'recurrence.endsAfterCount': '共',
         'recurrence.occurrenceUnit': '次',
         'recurrence.dayUnit': '天',
+        'recurrence.weekUnit': '周',
         'recurrence.monthUnit': '个月',
         'recurrence.onLabel': '在',
         'recurrence.onDayOfMonth': '每月第{day}天',

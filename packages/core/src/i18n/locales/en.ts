@@ -275,6 +275,7 @@ export const en: Record<string, string> = {
         'recurrence.endsAfterCount': 'After',
         'recurrence.occurrenceUnit': 'occurrence(s)',
         'recurrence.dayUnit': 'day(s)',
+        'recurrence.weekUnit': 'week(s)',
         'recurrence.monthUnit': 'month(s)',
         'recurrence.onLabel': 'On',
         'recurrence.onDayOfMonth': 'Day {day}',

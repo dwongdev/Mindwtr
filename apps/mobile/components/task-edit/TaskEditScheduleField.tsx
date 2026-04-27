@@ -16,7 +16,6 @@ import {
 
 import { buildRecurrenceValue } from './recurrence-utils';
 import type {
-    MonthlyRecurrenceByDay,
     ShowDatePickerMode,
     TaskEditFieldRendererProps,
 } from './TaskEditFieldRenderer.types';
@@ -249,38 +248,63 @@ export function TaskEditScheduleField({
                         ))}
                     </View>
                     {recurrenceRuleValue === 'weekly' && (
-                        <View style={[styles.weekdayRow, { marginTop: 10 }]}>
-                            {recurrenceWeekdayButtons.map((day) => {
-                                const active = customWeekdays.includes(day.key);
-                                return (
-                                    <TouchableOpacity
-                                        key={day.key}
-                                        style={[
-                                            styles.weekdayButton,
-                                            {
-                                                borderColor: tc.border,
-                                                backgroundColor: active ? tc.filterBg : tc.cardBg,
-                                            },
-                                        ]}
-                                        onPress={() => {
-                                            const next = active
-                                                ? customWeekdays.filter((value) => value !== day.key)
-                                                : [...customWeekdays, day.key];
-                                            setCustomWeekdays(next);
-                                            setEditedTask((prev) => ({
-                                                ...prev,
-                                                recurrence: buildEditedRecurrence('weekly', {
-                                                    byDay: next,
-                                                    byMonthDay: undefined,
-                                                }),
-                                            }));
-                                        }}
-                                    >
-                                        <Text style={[styles.weekdayButtonText, { color: tc.text }]}>{day.label}</Text>
-                                    </TouchableOpacity>
-                                );
-                            })}
-                        </View>
+                        <>
+                            <View style={[styles.customRow, { marginTop: 8, borderColor: tc.border }]}>
+                                <Text style={[styles.modalLabel, { color: tc.secondaryText }]}>{t('recurrence.repeatEvery')}</Text>
+                                <TextInput
+                                    value={String(Math.max(parsedRecurrenceRRule.interval ?? 1, 1))}
+                                    onChangeText={(value) => {
+                                        const parsed = Number.parseInt(value, 10);
+                                        const interval = Number.isFinite(parsed) && parsed > 0 ? Math.min(parsed, 52) : 1;
+                                        setEditedTask((prev) => ({
+                                            ...prev,
+                                            recurrence: buildEditedRecurrence('weekly', {
+                                                ...(customWeekdays.length > 0 ? { byDay: customWeekdays } : {}),
+                                                byMonthDay: undefined,
+                                                interval,
+                                            }),
+                                        }));
+                                    }}
+                                    keyboardType="number-pad"
+                                    style={[styles.customInput, { backgroundColor: tc.inputBg, borderColor: tc.border, color: tc.text }]}
+                                    accessibilityLabel={t('recurrence.repeatEvery')}
+                                    accessibilityHint={t('recurrence.weekUnit')}
+                                />
+                                <Text style={[styles.modalLabel, { color: tc.secondaryText }]}>{t('recurrence.weekUnit')}</Text>
+                            </View>
+                            <View style={[styles.weekdayRow, { marginTop: 10 }]}>
+                                {recurrenceWeekdayButtons.map((day) => {
+                                    const active = customWeekdays.includes(day.key);
+                                    return (
+                                        <TouchableOpacity
+                                            key={day.key}
+                                            style={[
+                                                styles.weekdayButton,
+                                                {
+                                                    borderColor: tc.border,
+                                                    backgroundColor: active ? tc.filterBg : tc.cardBg,
+                                                },
+                                            ]}
+                                            onPress={() => {
+                                                const next = active
+                                                    ? customWeekdays.filter((value) => value !== day.key)
+                                                    : [...customWeekdays, day.key];
+                                                setCustomWeekdays(next);
+                                                setEditedTask((prev) => ({
+                                                    ...prev,
+                                                    recurrence: buildEditedRecurrence('weekly', {
+                                                        byDay: next,
+                                                        byMonthDay: undefined,
+                                                    }),
+                                                }));
+                                            }}
+                                        >
+                                            <Text style={[styles.weekdayButtonText, { color: tc.text }]}>{day.label}</Text>
+                                        </TouchableOpacity>
+                                    );
+                                })}
+                            </View>
+                        </>
                     )}
                     {recurrenceRuleValue === 'daily' && (
                         <View style={[styles.customRow, { marginTop: 8, borderColor: tc.border }]}>

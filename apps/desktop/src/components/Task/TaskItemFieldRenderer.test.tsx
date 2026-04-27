@@ -8,6 +8,7 @@ import {
     type TaskItemFieldRendererData,
     type TaskItemFieldRendererHandlers,
 } from './TaskItemFieldRenderer';
+import { LanguageProvider } from '../../contexts/language-context';
 
 const baseTask: Task = {
     id: 'task-1',
@@ -32,8 +33,27 @@ const t = (key: string) => {
         'task.aria.reviewDate': 'Review date',
         'task.aria.reviewTime': 'Review time',
         'task.aria.description': 'Description',
+        'task.aria.recurrence': 'Recurrence',
         'taskEdit.descriptionLabel': 'Description',
         'taskEdit.descriptionPlaceholder': 'Add notes...',
+        'taskEdit.recurrenceLabel': 'Recurrence',
+        'recurrence.none': 'None',
+        'recurrence.daily': 'Daily',
+        'recurrence.weekly': 'Weekly',
+        'recurrence.monthly': 'Monthly',
+        'recurrence.yearly': 'Yearly',
+        'recurrence.repeatEvery': 'Repeat every',
+        'recurrence.repeatOn': 'Repeat on',
+        'recurrence.dayUnit': 'day(s)',
+        'recurrence.weekUnit': 'week(s)',
+        'recurrence.afterCompletion': 'Repeat after completion',
+        'recurrence.endsLabel': 'Ends',
+        'recurrence.endsNever': 'Never',
+        'recurrence.endsOnDate': 'On date',
+        'recurrence.endsAfterCount': 'After',
+        'recurrence.occurrenceUnit': 'occurrence(s)',
+        'recurrence.monthlyOnDay': 'Monthly on same day',
+        'recurrence.custom': 'Custom...',
         'markdown.preview': 'Preview',
         'markdown.edit': 'Edit',
         'markdown.expand': 'Expand',
@@ -197,6 +217,32 @@ describe('TaskItemFieldRenderer date clear buttons', () => {
         fireEvent.change(getByLabelText('Due date'), { target: { value: '2026-04-19' } });
 
         expect(handlers.setEditDueDate).toHaveBeenCalledWith('2026-04-19T09:00');
+    });
+
+    it('updates weekly recurrence intervals without dropping selected weekdays', () => {
+        const handlers = createHandlers();
+        const { container, getByRole } = render(
+            <LanguageProvider>
+                <TaskItemFieldRenderer
+                    fieldId="recurrence"
+                    data={createData({
+                        editRecurrence: 'weekly',
+                        editRecurrenceRRule: 'FREQ=WEEKLY;INTERVAL=2;BYDAY=TU',
+                    })}
+                    handlers={handlers}
+                />
+            </LanguageProvider>
+        );
+        const input = container.querySelector('input[type="number"]') as HTMLInputElement | null;
+
+        expect(input).toBeTruthy();
+        fireEvent.change(input!, { target: { value: '4' } });
+
+        expect(handlers.setEditRecurrenceRRule).toHaveBeenCalledWith('FREQ=WEEKLY;INTERVAL=4;BYDAY=TU');
+
+        fireEvent.click(getByRole('button', { name: 'Wed' }));
+
+        expect(handlers.setEditRecurrenceRRule).toHaveBeenCalledWith('FREQ=WEEKLY;INTERVAL=2;BYDAY=TU,WE');
     });
 
     it('undoes markdown description edits with Ctrl+Z', async () => {
