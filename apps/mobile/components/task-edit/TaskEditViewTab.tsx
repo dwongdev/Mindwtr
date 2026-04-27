@@ -150,11 +150,15 @@ export function TaskEditViewTab({
   const recurrenceInterval = mergedTask.recurrence && typeof mergedTask.recurrence === 'object' && mergedTask.recurrence.rrule
     ? parseRRuleString(mergedTask.recurrence.rrule).interval
     : undefined;
+  const isQuarterlyRecurrence = recurrenceRule === 'monthly' && recurrenceInterval === 3;
   const recurrenceParts = recurrenceRule
     ? [
-        `${t(`recurrence.${recurrenceRule}`) || recurrenceRule}${recurrenceStrategy === 'fluid' ? ` · ${t('recurrence.afterCompletionShort')}` : ''}`,
+        `${isQuarterlyRecurrence ? t('recurrence.quarterly') : (t(`recurrence.${recurrenceRule}`) || recurrenceRule)}${recurrenceStrategy === 'fluid' ? ` · ${t('recurrence.afterCompletionShort')}` : ''}`,
         recurrenceRule === 'weekly' && recurrenceInterval && recurrenceInterval > 1
           ? `${t('recurrence.repeatEvery')} ${recurrenceInterval} ${t('recurrence.weekUnit')}`
+          : undefined,
+        recurrenceRule === 'monthly' && recurrenceInterval && recurrenceInterval > 1 && !isQuarterlyRecurrence
+          ? `${t('recurrence.repeatEvery')} ${recurrenceInterval} ${t('recurrence.monthUnit')}`
           : undefined,
         recurrenceUntil ? `${t('recurrence.endsOnDate')} ${formatDate(recurrenceUntil)}` : undefined,
         recurrenceCount ? `${t('recurrence.endsAfterCount')} ${recurrenceCount} ${t('recurrence.occurrenceUnit')}` : undefined,

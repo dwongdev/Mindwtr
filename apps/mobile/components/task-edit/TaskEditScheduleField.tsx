@@ -16,6 +16,7 @@ import {
 
 import { buildRecurrenceValue } from './recurrence-utils';
 import type {
+    RecurrenceOptionValue,
     ShowDatePickerMode,
     TaskEditFieldRendererProps,
 } from './TaskEditFieldRenderer.types';
@@ -62,6 +63,13 @@ export function TaskEditScheduleField({
         { color: active ? '#fff' : tc.secondaryText },
     ]);
     const parsedRecurrenceRRule = parseRRuleString(recurrenceRRuleValue);
+    const isQuarterlyRecurrence = recurrenceRuleValue === 'monthly' && parsedRecurrenceRRule.interval === 3;
+    const isRecurrenceOptionActive = (value: RecurrenceOptionValue | '') => {
+        if (!value) return !recurrenceRuleValue;
+        if (value === 'quarterly') return isQuarterlyRecurrence;
+        if (value === 'monthly' && isQuarterlyRecurrence) return false;
+        return recurrenceRuleValue === value;
+    };
     const recurrenceEndMode: 'never' | 'until' | 'count' = parsedRecurrenceRRule.count
         ? 'count'
         : parsedRecurrenceRRule.until
@@ -176,15 +184,24 @@ export function TaskEditScheduleField({
                         {recurrenceOptions.map((option) => (
                             <TouchableOpacity
                                 key={option.value || 'none'}
-                                style={getStatusChipStyle(
-                                    recurrenceRuleValue === option.value || (!option.value && !recurrenceRuleValue)
-                                )}
+                                style={getStatusChipStyle(isRecurrenceOptionActive(option.value))}
                                 onPress={() => {
                                     if (option.value !== 'weekly') {
                                         setCustomWeekdays([]);
                                     }
                                     if (!option.value) {
                                         setEditedTask((prev) => ({ ...prev, recurrence: undefined }));
+                                        return;
+                                    }
+                                    if (option.value === 'quarterly') {
+                                        setEditedTask((prev) => ({
+                                            ...prev,
+                                            recurrence: buildEditedRecurrence('monthly', {
+                                                byDay: undefined,
+                                                byMonthDay: undefined,
+                                                interval: 3,
+                                            }),
+                                        }));
                                         return;
                                     }
                                     if (option.value === 'daily') {
@@ -233,15 +250,9 @@ export function TaskEditScheduleField({
                                         }));
                                         return;
                                     }
-                                    setEditedTask((prev) => ({
-                                        ...prev,
-                                        recurrence: buildRecurrenceValue(option.value, recurrenceStrategyValue),
-                                    }));
                                 }}
                             >
-                                <Text style={getStatusTextStyle(
-                                    recurrenceRuleValue === option.value || (!option.value && !recurrenceRuleValue)
-                                )}>
+                                <Text style={getStatusTextStyle(isRecurrenceOptionActive(option.value))}>
                                     {option.label}
                                 </Text>
                             </TouchableOpacity>

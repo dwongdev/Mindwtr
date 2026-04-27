@@ -125,11 +125,15 @@ export const TaskItemDisplay = memo(function TaskItemDisplay({
     const recurrenceInterval = task.recurrence && typeof task.recurrence === 'object' && task.recurrence.rrule
         ? parseRRuleString(task.recurrence.rrule).interval
         : undefined;
+    const isQuarterlyRecurrence = recurrenceRule === 'monthly' && recurrenceInterval === 3;
     const recurrenceLabel = recurrenceRule
         ? [
-            `${t(`recurrence.${recurrenceRule}`)}${recurrenceStrategy === 'fluid' ? ` · ${t('recurrence.afterCompletionShort')}` : ''}`,
+            `${isQuarterlyRecurrence ? t('recurrence.quarterly') : t(`recurrence.${recurrenceRule}`)}${recurrenceStrategy === 'fluid' ? ` · ${t('recurrence.afterCompletionShort')}` : ''}`,
             recurrenceRule === 'weekly' && recurrenceInterval && recurrenceInterval > 1
                 ? `${t('recurrence.repeatEvery')} ${recurrenceInterval} ${t('recurrence.weekUnit')}`
+                : undefined,
+            recurrenceRule === 'monthly' && recurrenceInterval && recurrenceInterval > 1 && !isQuarterlyRecurrence
+                ? `${t('recurrence.repeatEvery')} ${recurrenceInterval} ${t('recurrence.monthUnit')}`
                 : undefined,
             recurrenceUntil ? `${t('recurrence.endsOnDate')} ${safeFormatDate(recurrenceUntil, 'P')}` : undefined,
             recurrenceCount ? `${t('recurrence.endsAfterCount')} ${recurrenceCount} ${t('recurrence.occurrenceUnit')}` : undefined,

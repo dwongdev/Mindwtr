@@ -41,6 +41,7 @@ const t = (key: string) => {
         'recurrence.daily': 'Daily',
         'recurrence.weekly': 'Weekly',
         'recurrence.monthly': 'Monthly',
+        'recurrence.quarterly': 'Quarterly',
         'recurrence.yearly': 'Yearly',
         'recurrence.repeatEvery': 'Repeat every',
         'recurrence.repeatOn': 'Repeat on',
@@ -243,6 +244,24 @@ describe('TaskItemFieldRenderer date clear buttons', () => {
         fireEvent.click(getByRole('button', { name: 'Wed' }));
 
         expect(handlers.setEditRecurrenceRRule).toHaveBeenCalledWith('FREQ=WEEKLY;INTERVAL=2;BYDAY=TU,WE');
+    });
+
+    it('maps quarterly recurrence to a three-month RRULE interval', () => {
+        const handlers = createHandlers();
+        const { getByLabelText } = render(
+            <LanguageProvider>
+                <TaskItemFieldRenderer
+                    fieldId="recurrence"
+                    data={createData()}
+                    handlers={handlers}
+                />
+            </LanguageProvider>
+        );
+
+        fireEvent.change(getByLabelText('Recurrence'), { target: { value: 'quarterly' } });
+
+        expect(handlers.setEditRecurrence).toHaveBeenCalledWith('monthly');
+        expect(handlers.setEditRecurrenceRRule).toHaveBeenCalledWith('FREQ=MONTHLY;INTERVAL=3');
     });
 
     it('undoes markdown description edits with Ctrl+Z', async () => {

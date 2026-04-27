@@ -264,6 +264,7 @@ export const en: Record<string, string> = {
         'recurrence.daily': 'Daily',
         'recurrence.weekly': 'Weekly',
         'recurrence.monthly': 'Monthly',
+        'recurrence.quarterly': 'Quarterly',
         'recurrence.yearly': 'Yearly',
         'recurrence.custom': 'Custom…',
         'recurrence.customTitle': 'Custom recurrence',

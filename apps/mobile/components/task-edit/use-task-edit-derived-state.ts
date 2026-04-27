@@ -2,11 +2,9 @@ import { useCallback, useMemo } from 'react';
 import {
     filterProjectsBySelectedArea,
     parseRRuleString,
-    RECURRENCE_RULES,
     safeParseDate,
     type AppData,
     type Project,
-    type RecurrenceRule,
     type RecurrenceWeekday,
     type Section,
     type Task,
@@ -28,6 +26,7 @@ import {
     STATUS_OPTIONS,
     TASK_EDITOR_FIXED_FIELDS,
 } from './task-edit-modal.utils';
+import type { PickerOption, RecurrenceOptionValue } from './TaskEditFieldRenderer.types';
 
 const DEFAULT_TIME_ESTIMATE_PRESETS: TimeEstimate[] = ['10min', '30min', '1hr', '2hr', '3hr', '4hr', '4hr+'];
 const ALL_TIME_ESTIMATES: TimeEstimate[] = ['5min', '10min', '15min', '30min', '1hr', '2hr', '3hr', '4hr', '4hr+'];
@@ -83,13 +82,14 @@ export function useTaskEditDerivedState({
         [projectFilterAreaId, projects]
     );
 
-    const recurrenceOptions: { value: RecurrenceRule | ''; label: string }[] = useMemo(
+    const recurrenceOptions: PickerOption<RecurrenceOptionValue>[] = useMemo(
         () => [
             { value: '', label: t('recurrence.none') },
-            ...RECURRENCE_RULES.map((rule) => ({
-                value: rule,
-                label: t(`recurrence.${rule}`),
-            })),
+            { value: 'daily', label: t('recurrence.daily') },
+            { value: 'weekly', label: t('recurrence.weekly') },
+            { value: 'monthly', label: t('recurrence.monthly') },
+            { value: 'quarterly', label: t('recurrence.quarterly') },
+            { value: 'yearly', label: t('recurrence.yearly') },
         ],
         [t]
     );

@@ -31,6 +31,8 @@ export type PickerOption<T extends string> = {
     label: string;
 };
 
+export type RecurrenceOptionValue = RecurrenceRule | 'quarterly';
+
 export type WeekdayButton = {
     key: RecurrenceWeekday;
     label: string;
@@ -83,7 +85,7 @@ export type TaskEditFieldRendererProps = {
     priorityOptions: TaskPriority[];
     projects: Project[];
     projectSections: Section[];
-    recurrenceOptions: PickerOption<RecurrenceRule>[];
+    recurrenceOptions: PickerOption<RecurrenceOptionValue>[];
     recurrenceRRuleValue: string;
     recurrenceRuleValue: RecurrenceRule | '';
     recurrenceStrategyValue: RecurrenceStrategy;

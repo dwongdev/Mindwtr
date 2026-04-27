@@ -1,5 +1,5 @@
 import React from 'react';
-import { TextInput } from 'react-native';
+import { Text, TextInput, TouchableOpacity } from 'react-native';
 import renderer, { act } from 'react-test-renderer';
 import { describe, expect, it, vi } from 'vitest';
 
@@ -38,8 +38,11 @@ const t = (key: string) => ({
     'taskEdit.recurrenceLabel': 'Recurrence',
     'recurrence.none': 'None',
     'recurrence.weekly': 'Weekly',
+    'recurrence.monthly': 'Monthly',
+    'recurrence.quarterly': 'Quarterly',
     'recurrence.repeatEvery': 'Repeat every',
     'recurrence.weekUnit': 'week(s)',
+    'recurrence.monthUnit': 'month(s)',
     'recurrence.endsLabel': 'Ends',
     'recurrence.endsNever': 'Never',
     'recurrence.endsOnDate': 'On date',
@@ -47,6 +50,65 @@ const t = (key: string) => ({
 }[key] ?? key);
 
 describe('TaskEditScheduleField', () => {
+    it('offers quarterly recurrence as a monthly interval preset', () => {
+        const setEditedTask = vi.fn();
+
+        let tree!: renderer.ReactTestRenderer;
+        act(() => {
+            tree = renderer.create(
+                <TaskEditScheduleField {...({
+                    customWeekdays: [],
+                    dailyInterval: 1,
+                    editedTask: {},
+                    fieldId: 'recurrence',
+                    formatDate: (value?: string) => value ?? '',
+                    formatDueDate: (value?: string) => value ?? '',
+                    getSafePickerDateValue: () => new Date('2026-04-01T00:00:00.000Z'),
+                    monthlyPattern: 'date',
+                    onDateChange: vi.fn(),
+                    openCustomRecurrence: vi.fn(),
+                    pendingDueDate: null,
+                    pendingStartDate: null,
+                    recurrenceOptions: [
+                        { value: '', label: 'None' },
+                        { value: 'monthly', label: 'Monthly' },
+                        { value: 'quarterly', label: 'Quarterly' },
+                    ],
+                    recurrenceRRuleValue: '',
+                    recurrenceRuleValue: '',
+                    recurrenceStrategyValue: 'strict',
+                    recurrenceWeekdayButtons: [],
+                    setCustomWeekdays: vi.fn(),
+                    setEditedTask,
+                    setShowDatePicker: vi.fn(),
+                    showDatePicker: null,
+                    styles,
+                    t,
+                    task: null,
+                    tc,
+                } as any)}
+                />
+            );
+        });
+
+        const quarterlyButton = tree.root
+            .findAllByType(TouchableOpacity)
+            .find((node) => node.findAllByType(Text).some((textNode) => textNode.props.children === 'Quarterly'));
+
+        act(() => {
+            quarterlyButton?.props.onPress();
+        });
+
+        const update = setEditedTask.mock.calls[0][0] as (previous: any) => any;
+        const next = update({});
+
+        expect(next.recurrence).toMatchObject({
+            rule: 'monthly',
+            strategy: 'strict',
+            rrule: 'FREQ=MONTHLY;INTERVAL=3',
+        });
+    });
+
     it('updates weekly recurrence intervals without dropping selected weekdays', () => {
         const setEditedTask = vi.fn();
 

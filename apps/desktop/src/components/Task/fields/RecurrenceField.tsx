@@ -4,6 +4,8 @@ import { cn } from '../../../lib/utils';
 import { WeekdaySelector } from '../TaskForm/WeekdaySelector';
 import type { MonthlyRecurrenceInfo } from '../TaskItemFieldRenderer';
 
+type RecurrenceSelectValue = RecurrenceRule | 'quarterly' | '';
+
 type RecurrenceFieldProps = {
     t: (key: string) => string;
     editRecurrence: RecurrenceRule | '';
@@ -44,14 +46,25 @@ export function RecurrenceField({
     openCustomRecurrence,
     buildRecurrenceRRule,
 }: RecurrenceFieldProps) {
+    const isQuarterlyRecurrence = editRecurrence === 'monthly' && parsedRecurrenceRRule.interval === 3;
+    const recurrenceSelectValue: RecurrenceSelectValue = isQuarterlyRecurrence ? 'quarterly' : editRecurrence;
+
     return (
         <div className="flex flex-col gap-1 w-full">
             <label className="text-xs text-muted-foreground font-medium">{t('taskEdit.recurrenceLabel')}</label>
             <select
-                value={editRecurrence}
+                value={recurrenceSelectValue}
                 aria-label={t('task.aria.recurrence')}
                 onChange={(e) => {
-                    const value = e.target.value as RecurrenceRule | '';
+                    const value = e.target.value as RecurrenceSelectValue;
+                    if (value === 'quarterly') {
+                        onRecurrenceChange('monthly');
+                        onRecurrenceRRuleChange(buildRRuleString('monthly', undefined, 3, {
+                            count: parsedRecurrenceRRule.count,
+                            until: parsedRecurrenceRRule.until,
+                        }));
+                        return;
+                    }
                     onRecurrenceChange(value);
                     if (value === 'daily') {
                         if (!editRecurrenceRRule || parsedRecurrenceRRule.rule !== 'daily') {
@@ -96,6 +109,7 @@ export function RecurrenceField({
                 <option value="daily">{t('recurrence.daily')}</option>
                 <option value="weekly">{t('recurrence.weekly')}</option>
                 <option value="monthly">{t('recurrence.monthly')}</option>
+                <option value="quarterly">{t('recurrence.quarterly')}</option>
                 <option value="yearly">{t('recurrence.yearly')}</option>
             </select>
             {editRecurrence === 'daily' && (
