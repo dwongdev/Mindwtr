@@ -12,6 +12,7 @@ const {
   mockAlarmSendNotification,
   mockAlarmScheduleAlarm,
   mockGetNextScheduledAt,
+  mockHasTimeComponent,
   mockPermissionsAndroidCheck,
   mockPermissionsAndroidRequest,
 } = vi.hoisted(() => ({
@@ -20,7 +21,7 @@ const {
   mockStoreSubscribe: vi.fn(() => () => undefined),
   mockStoreState: {
     settings: {} as Record<string, unknown>,
-    tasks: [] as Array<{ id: string; title: string; description?: string }>,
+    tasks: [] as Array<{ id: string; title: string; description?: string; reviewAt?: string }>,
     projects: [] as Array<Record<string, unknown>>,
   },
   mockAlarmDeleteAlarm: vi.fn(),
@@ -30,6 +31,7 @@ const {
   mockAlarmSendNotification: vi.fn(),
   mockAlarmScheduleAlarm: vi.fn(async () => ({ id: 99 })),
   mockGetNextScheduledAt: vi.fn<(...args: unknown[]) => Date | null>(() => null),
+  mockHasTimeComponent: vi.fn(() => false),
   mockPermissionsAndroidCheck: vi.fn(async () => true),
   mockPermissionsAndroidRequest: vi.fn(async () => 'granted'),
 }));
@@ -84,7 +86,7 @@ vi.mock('@mindwtr/core', () => ({
     'digest.weeklyReviewBody': 'Weekly review body',
     'review.projectsStep': 'Review project',
   })),
-  hasTimeComponent: vi.fn(() => false),
+  hasTimeComponent: mockHasTimeComponent,
   loadStoredLanguage: vi.fn(async () => 'en'),
   parseTimeOfDay: vi.fn((value: string | undefined, fallback: { hour: number; minute: number }) => {
     if (!value) return fallback;
@@ -130,6 +132,8 @@ describe('notification-service-local', () => {
     mockAlarmScheduleAlarm.mockResolvedValue({ id: 99 });
     mockGetNextScheduledAt.mockReset();
     mockGetNextScheduledAt.mockReturnValue(null);
+    mockHasTimeComponent.mockReset();
+    mockHasTimeComponent.mockReturnValue(false);
     mockPermissionsAndroidCheck.mockReset();
     mockPermissionsAndroidRequest.mockReset();
     mockPermissionsAndroidCheck.mockResolvedValue(true);
@@ -204,6 +208,35 @@ describe('notification-service-local', () => {
         title: 'Pay rent',
         use_big_text: true,
         vibrate: false,
+      })
+    );
+  });
+
+  it('marks task review date reminders so notification taps can open Review', async () => {
+    const reviewAt = new Date(Date.now() + 5 * 60 * 1000).toISOString();
+    mockStoreState.settings = {
+      notificationsEnabled: true,
+      reviewAtNotificationsEnabled: true,
+    };
+    mockStoreState.tasks = [
+      {
+        id: 'task-1',
+        title: 'Review proposal',
+        description: '',
+        reviewAt,
+      },
+    ];
+    mockHasTimeComponent.mockReturnValue(true);
+    mockGetNextScheduledAt.mockReturnValue(new Date(reviewAt));
+
+    await startLocalMobileNotifications();
+
+    expect(mockAlarmScheduleAlarm).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          kind: 'task-review',
+          taskId: 'task-1',
+        }),
       })
     );
   });

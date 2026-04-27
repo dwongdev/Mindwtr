@@ -265,25 +265,20 @@ function nextWeeklyTime(dayOfWeekSundayFirst: number, hour: number, minute: numb
 }
 
 function parseEventPayload(value: unknown): Record<string, string> | null {
-  const raw = (() => {
-    if (typeof value === 'string') return value;
-    if (value && typeof value === 'object') {
-      try {
-        return JSON.stringify(value);
-      } catch {
-        return null;
-      }
-    }
-    return null;
-  })();
-
-  if (!raw) return null;
+  const raw = typeof value === 'string' ? value : null;
   try {
-    const parsed = JSON.parse(raw) as unknown;
+    const parsed = raw ? JSON.parse(raw) as unknown : value;
     if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return null;
     const result: Record<string, string> = {};
     for (const [key, item] of Object.entries(parsed as Record<string, unknown>)) {
-      if (typeof item === 'string') {
+      if (key === 'data') {
+        const nested = parseEventPayload(item);
+        if (nested) {
+          for (const [nestedKey, nestedValue] of Object.entries(nested)) {
+            result[nestedKey] ??= nestedValue;
+          }
+        }
+      } else if (typeof item === 'string') {
         result[key] = item;
       } else if (item !== undefined && item !== null) {
         result[key] = String(item);
@@ -293,6 +288,10 @@ function parseEventPayload(value: unknown): Record<string, string> | null {
   } catch {
     return null;
   }
+}
+
+function isSameScheduleTime(left: Date | null, right: Date | null): boolean {
+  return Boolean(left && right && left.getTime() === right.getTime());
 }
 
 function attachNativeEventListeners(): void {
@@ -510,6 +509,10 @@ async function runRescheduleCycle(api: AlarmNotificationsApi): Promise<void> {
     for (const task of tasks) {
       const next = getNextScheduledAt(task, now, { includeReviewAt });
       if (!next || next.getTime() <= now.getTime()) continue;
+      const reviewAt = includeReviewAt && hasTimeComponent(task.reviewAt)
+        ? safeParseDate(task.reviewAt)
+        : null;
+      const kind = isSameScheduleTime(next, reviewAt) ? 'task-review' : 'task-reminder';
       const key = getTaskKey(task.id);
       activeKeys.add(key);
       await scheduleAlarmForKey(api, key, {
@@ -518,7 +521,7 @@ async function runRescheduleCycle(api: AlarmNotificationsApi): Promise<void> {
         fireAt: next,
         hasSnoozeAction: true,
         data: {
-          kind: 'task-reminder',
+          kind,
           taskId: task.id,
         },
       });
