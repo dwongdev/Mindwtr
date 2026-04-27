@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { Modal, Pressable, Text, TextInput, useWindowDimensions, View } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import { CALENDAR_TIME_ESTIMATE_OPTIONS, safeFormatDate, safeParseDate, type Task } from '@mindwtr/core';
@@ -9,6 +10,12 @@ import { TaskEditModal } from '@/components/task-edit-modal';
 import { openContextsScreen, openProjectScreen } from '@/lib/task-meta-navigation';
 import { styles } from './calendar/calendar-view.styles';
 import { useCalendarViewController } from './calendar/useCalendarViewController';
+
+const MONTH_DETAILS_COLLAPSED_SNAP = 0.26;
+const MONTH_DETAILS_MID_SNAP = 0.58;
+const MONTH_DETAILS_EXPANDED_SNAP = 0.9;
+const MONTH_DETAILS_HIDE_THRESHOLD = 0.2;
+const MONTH_DETAILS_MIN_HEIGHT = 176;
 
 export function CalendarView() {
   const {
@@ -93,18 +100,44 @@ export function CalendarView() {
   } = useCalendarViewController();
   const { height: screenHeight } = useWindowDimensions();
   const insets = useSafeAreaInsets();
-  const bottomSheetSnap = useSharedValue(0.42);
-  const bottomSheetStart = useSharedValue(0.42);
+  const collapsedSheetSnap = Math.max(
+    MONTH_DETAILS_COLLAPSED_SNAP,
+    Math.min(MONTH_DETAILS_MID_SNAP, MONTH_DETAILS_MIN_HEIGHT / Math.max(screenHeight, 1))
+  );
+  const bottomSheetSnap = useSharedValue(collapsedSheetSnap);
+  const bottomSheetStart = useSharedValue(collapsedSheetSnap);
+
+  const closeMonthDetailsPane = () => {
+    setSelectedDate(null);
+  };
+
+  useEffect(() => {
+    if (selectedDate) {
+      bottomSheetSnap.value = withSpring(collapsedSheetSnap);
+    }
+  }, [bottomSheetSnap, collapsedSheetSnap, selectedDate]);
+
   const bottomSheetGesture = Gesture.Pan()
+    .hitSlop({ bottom: 16, top: 12 })
     .onStart(() => {
       bottomSheetStart.value = bottomSheetSnap.value;
     })
     .onUpdate((event) => {
       const next = bottomSheetStart.value - (event.translationY / Math.max(screenHeight, 1));
-      bottomSheetSnap.value = Math.max(0.3, Math.min(0.9, next));
+      bottomSheetSnap.value = Math.max(0, Math.min(MONTH_DETAILS_EXPANDED_SNAP, next));
     })
-    .onEnd(() => {
-      const snapPoints = [0.3, 0.6, 0.9];
+    .onEnd((event) => {
+      const shouldHide = bottomSheetSnap.value <= MONTH_DETAILS_HIDE_THRESHOLD || event.velocityY > 900;
+      if (shouldHide) {
+        bottomSheetSnap.value = withSpring(0, undefined, (finished) => {
+          if (finished) {
+            runOnJS(closeMonthDetailsPane)();
+          }
+        });
+        return;
+      }
+
+      const snapPoints = [collapsedSheetSnap, MONTH_DETAILS_MID_SNAP, MONTH_DETAILS_EXPANDED_SNAP];
       let nearest = snapPoints[0];
       let nearestDistance = Math.abs(bottomSheetSnap.value - nearest);
       for (const snap of snapPoints) {
@@ -117,7 +150,7 @@ export function CalendarView() {
       bottomSheetSnap.value = withSpring(nearest);
     });
   const bottomSheetStyle = useAnimatedStyle(() => ({
-    height: Math.max(220, screenHeight * bottomSheetSnap.value),
+    height: screenHeight * bottomSheetSnap.value,
   }));
 
   const triggerDragHaptic = () => {
