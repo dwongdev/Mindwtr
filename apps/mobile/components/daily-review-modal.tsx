@@ -182,8 +182,8 @@ function DailyReviewFlow({ onClose }: { onClose: () => void }) {
 
     const steps: { id: DailyReviewStep; title: string; description: string }[] = [
         { id: 'today', title: t('dailyReview.todayStep'), description: t('dailyReview.todayDesc') },
-        { id: 'focus', title: t('dailyReview.focusStep'), description: t('dailyReview.focusDesc') },
         { id: 'inbox', title: t('dailyReview.inboxStep'), description: t('dailyReview.inboxDesc') },
+        { id: 'focus', title: t('dailyReview.focusStep'), description: t('dailyReview.focusDesc') },
         { id: 'waiting', title: t('dailyReview.waitingStep'), description: t('dailyReview.waitingDesc') },
         { id: 'complete', title: t('dailyReview.completeTitle'), description: t('dailyReview.completeDesc') },
     ];
