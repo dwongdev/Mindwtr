@@ -50,6 +50,7 @@ type AlarmNotificationsApi = {
 
 type LocalAlarmMapEntry = {
   id: AlarmId;
+  signature?: string;
 };
 
 type LocalAlarmMap = Record<string, LocalAlarmMapEntry>;
@@ -202,7 +203,13 @@ async function loadAlarmMapIfNeeded(): Promise<void> {
         if (!value || typeof value !== 'object') continue;
         const id = Number((value as LocalAlarmMapEntry).id);
         if (!Number.isFinite(id)) continue;
-        nextMap.set(key, { id: Math.floor(id) });
+        const signature = typeof (value as LocalAlarmMapEntry).signature === 'string'
+          ? (value as LocalAlarmMapEntry).signature
+          : undefined;
+        nextMap.set(key, { id: Math.floor(id), signature });
+        if (signature) {
+          configByKey.set(key, signature);
+        }
       }
       alarmMap = nextMap;
       loadedAlarmMap = true;
@@ -324,10 +331,19 @@ function attachNativeEventListeners(): void {
 }
 
 function buildAlarmConfigSignature(config: LocalAlarmConfig): string {
+  const repeatSchedule = (() => {
+    if (!config.repeatInterval) return config.fireAt.toISOString();
+    const hours = String(config.fireAt.getHours()).padStart(2, '0');
+    const minutes = String(config.fireAt.getMinutes()).padStart(2, '0');
+    if (config.repeatInterval === 'weekly') {
+      return `${config.repeatInterval}:${config.fireAt.getDay()}:${hours}:${minutes}`;
+    }
+    return `${config.repeatInterval}:${hours}:${minutes}`;
+  })();
   return JSON.stringify({
     title: config.title,
     message: config.message,
-    fireAt: config.fireAt.toISOString(),
+    fireAt: repeatSchedule,
     repeatInterval: config.repeatInterval ?? 'once',
     hasSnoozeAction: config.hasSnoozeAction === true,
     data: config.data ?? {},
@@ -366,9 +382,10 @@ async function cancelAlarmByKey(api: AlarmNotificationsApi, key: string): Promis
 
 async function scheduleAlarmForKey(api: AlarmNotificationsApi, key: string, config: LocalAlarmConfig): Promise<void> {
   const signature = buildAlarmConfigSignature(config);
-  const existingSignature = configByKey.get(key);
   const existingAlarm = alarmMap.get(key);
+  const existingSignature = configByKey.get(key) ?? existingAlarm?.signature;
   if (existingAlarm && existingSignature === signature) {
+    configByKey.set(key, signature);
     return;
   }
 
@@ -430,7 +447,7 @@ async function scheduleAlarmForKey(api: AlarmNotificationsApi, key: string, conf
     return;
   }
 
-  alarmMap.set(key, { id: scheduledId });
+  alarmMap.set(key, { id: scheduledId, signature });
   configByKey.set(key, signature);
 }
 

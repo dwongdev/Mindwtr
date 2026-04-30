@@ -261,6 +261,33 @@ describe('notification-service-local', () => {
     );
   });
 
+  it('does not reschedule unchanged persisted daily digest alarms on startup', async () => {
+    const signature = JSON.stringify({
+      title: 'Morning',
+      message: 'Morning body',
+      fireAt: 'daily:09:00',
+      repeatInterval: 'daily',
+      hasSnoozeAction: false,
+      data: { kind: 'daily-digest' },
+    });
+    mockAsyncStorageGetItem.mockResolvedValue(JSON.stringify({
+      'digest:morning': { id: 42, signature },
+    }));
+    mockStoreState.settings = {
+      notificationsEnabled: true,
+      dailyDigestMorningEnabled: true,
+      dailyDigestMorningTime: '09:00',
+    };
+
+    await startLocalMobileNotifications();
+
+    expect(mockAlarmScheduleAlarm).not.toHaveBeenCalled();
+    expect(__localNotificationTestUtils.getAlarmMapSnapshot().get('digest:morning')).toEqual({
+      id: 42,
+      signature,
+    });
+  });
+
   it('falls back to the title when sending an immediate notification without a message', async () => {
     await sendLocalMobileNotification('Focus session done');
 
