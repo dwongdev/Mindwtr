@@ -346,24 +346,9 @@ export const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: 4,
   },
-  dayModeNav: {
-    flexDirection: 'row',
-    gap: 8,
-  },
   dayNavButton: {
     paddingHorizontal: 10,
     paddingVertical: 6,
-  },
-  dayAddTaskButton: {
-    minHeight: 36,
-    justifyContent: 'center',
-    borderRadius: 999,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-  },
-  dayAddTaskText: {
-    fontSize: 12,
-    fontWeight: '900',
   },
   dayNavText: {
     fontSize: 22,

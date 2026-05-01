@@ -570,19 +570,9 @@ export function CalendarView() {
                 <Text style={[styles.todayButtonText, { color: tc.tint }]}>{localize('Today', '今天')}</Text>
               </Pressable>
             </View>
-            <View style={styles.dayModeNav}>
-              <Pressable
-                accessibilityLabel={localize('Add task', '添加任务')}
-                accessibilityRole="button"
-                onPress={() => openQuickAddForDate(selectedDate)}
-                style={[styles.dayAddTaskButton, { backgroundColor: toRgba(tc.tint, isDark ? 0.18 : 0.1) }]}
-              >
-                <Text style={[styles.dayAddTaskText, { color: tc.tint }]}>＋ {localize('Add', '添加')}</Text>
-              </Pressable>
-              <Pressable onPress={() => shiftSelectedDate(1)} style={styles.navButton}>
-                <Text style={[styles.navButtonText, { color: tc.text }]}>›</Text>
-              </Pressable>
-            </View>
+            <Pressable onPress={() => shiftSelectedDate(1)} style={styles.navButton}>
+              <Text style={[styles.navButtonText, { color: tc.text }]}>›</Text>
+            </Pressable>
           </View>
           {renderModeToggle()}
         </View>
