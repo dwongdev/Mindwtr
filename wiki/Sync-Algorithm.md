@@ -6,7 +6,7 @@ Mindwtr uses local-first synchronization with deterministic conflict handling.
 
 - Input A: local snapshot (`tasks`, `projects`, `sections`, `areas`, `settings`)
 - Input B: remote snapshot (same shape)
-- Output: merged snapshot + merge stats (`conflicts`, `clockSkew`, `timestampAdjustments`, `conflictIds`)
+- Output: merged snapshot + merge stats (`conflicts`, `clockSkew`, `timestampAdjustments`, `conflictIds`, `conflictReasonCounts`, `conflictSamples`, `timestampAdjustmentIds`)
 
 ## Snapshot-Based Transport
 
@@ -34,21 +34,26 @@ Revisit ADR 0008 only if snapshot files regularly exceed 5 MB, sync round-trips 
    - If revisions differ inside that 30-second window, the higher revision still wins.
 5. Invalid `deletedAt` falls back to `updatedAt` for conservative operation timing.
 6. Attachments are merged per attachment `id` with the same LWW rules.
-7. Settings merge by sync preferences:
+7. Areas use tombstones:
+   - Deleting an area cascades soft-delete timestamps to projects, sections, and tasks that belong to that area.
+   - Restoring an area restores the children from the same cascade. Children deleted independently at a different timestamp stay deleted.
+   - If an incoming snapshot references a missing or deleted area, sync repair clears the stale `areaId` reference and stamps a repair revision.
+   - Missing area order values are synthesized during merge and stamped with `revBy: "sync-repair"` so the repair is not repeatedly overwritten by peers.
+8. Settings merge by sync preferences:
    - Appearance/language/GTD scheduling/external calendars/AI can be merged independently.
    - Conflict resolution uses group-level timestamps (`appearance`, `language`, `gtd`, `externalCalendars`, `ai`).
    - Concurrent edits to different fields inside the same group can still collapse to the newer group update.
    - A local `syncPreferences` opt-out is bidirectional for that group: Mindwtr does not send that group to remote and does not accept incoming remote changes for it.
    - Secrets (API keys, local model paths) are never synced.
-8. Remote-write recovery is explicit:
+9. Remote-write recovery is explicit:
    - Local data is first written with `pendingRemoteWriteAt`.
    - Remote write clears the flag on success.
    - Failed remote writes schedule retries with exponential backoff from 5 seconds up to 5 minutes.
    - Device-local sync diagnostics stay local and are stripped before remote writes.
-9. Clock skew telemetry:
+10. Clock skew telemetry:
    - Merge stats record the largest observed skew.
    - Warnings surface when skew exceeds 5 minutes.
-10. Local edits during sync do not take a hard lock:
+11. Local edits during sync do not take a hard lock:
    - Desktop and mobile detect when local state changed during the sync write phase.
    - When that happens, the current cycle aborts and a fresh sync is queued rather than overwriting the newer local snapshot.
 
@@ -121,7 +126,7 @@ Operational consequences:
 
 - Pushing a full snapshot is not a forced overwrite. Existing remote records with higher revisions, newer operation times, or winning tombstones can survive the PUT.
 - Server-side reference repair can create cascade updates, such as tombstoning sections under deleted projects.
-- Repair timestamps are derived from payload timestamps when possible, but capped at five minutes beyond the server wall clock. This avoids amplifying normal self-hosted clock drift while preventing far-future client timestamps from poisoning merged records.
+- Server-generated repair timestamps use the server wall clock. This avoids letting a fast client clock advance server repair metadata.
 
 ## Retry Recovery
 
@@ -132,14 +137,17 @@ Operational consequences:
 ## Diagnostics You Can Inspect
 
 - Conflict count and IDs
+- Conflict reason counts and bounded conflict samples
 - Max clock skew observed
 - Timestamp normalization adjustments
+- IDs of records whose timestamps were normalized
 - Last sync status/history in Settings
 
 ## Related docs
 
 - [[Data and Sync]]
 - [[Cloud Sync]]
+- [[Cloud API]]
 - [[Diagnostics and Logs]]
 - [[Core API]]
 

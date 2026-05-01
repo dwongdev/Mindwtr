@@ -10,7 +10,7 @@
 
 *GTD 新手？可阅读 [15 分钟入门 GTD](https://hamberg.no/gtd)。*
 
-[立即安装](#安装) · [快速开始](https://github.com/dongdongbh/Mindwtr/wiki/Getting-Started) · [数据与同步](https://github.com/dongdongbh/Mindwtr/wiki/Data-and-Sync) · [云同步](https://github.com/dongdongbh/Mindwtr/wiki/Cloud-Sync) · [MCP 服务器](https://github.com/dongdongbh/Mindwtr/wiki/MCP-Server)
+[立即安装](#安装) · [快速开始](https://github.com/dongdongbh/Mindwtr/wiki/Getting-Started) · [数据与同步](https://github.com/dongdongbh/Mindwtr/wiki/Data-and-Sync) · [云端部署](https://github.com/dongdongbh/Mindwtr/wiki/Cloud-Deployment) · [MCP 服务器](https://github.com/dongdongbh/Mindwtr/wiki/MCP-Server)
 
 [![CI](https://github.com/dongdongbh/Mindwtr/actions/workflows/ci.yml/badge.svg)](https://github.com/dongdongbh/Mindwtr/actions/workflows/ci.yml)
 [![GitHub license](https://img.shields.io/github/license/dongdongbh/Mindwtr?color=brightgreen)](LICENSE)
@@ -358,8 +358,9 @@ Mindwtr 的发展离不开用户与贡献者的支持，感谢大家一起把它
 - 🚀 [快速开始](https://github.com/dongdongbh/Mindwtr/wiki/Getting-Started)
 - ❓ [FAQ](https://github.com/dongdongbh/Mindwtr/wiki/FAQ)
 - 🔄 [数据与同步](https://github.com/dongdongbh/Mindwtr/wiki/Data-and-Sync)
-- ☁️ [云同步](https://github.com/dongdongbh/Mindwtr/wiki/Cloud-Sync)
+- 🔗 [Markdown 链接](https://github.com/dongdongbh/Mindwtr/wiki/Markdown-Links)
 - 🛠️ [云端部署](https://github.com/dongdongbh/Mindwtr/wiki/Cloud-Deployment)
+- ☁️ [云端 API](https://github.com/dongdongbh/Mindwtr/wiki/Cloud-API)
 - 🧠 [MCP 服务器](https://github.com/dongdongbh/Mindwtr/wiki/MCP-Server)
 - 📝 [版本说明索引](docs/release-notes/README.md)
 
