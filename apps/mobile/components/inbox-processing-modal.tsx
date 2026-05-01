@@ -222,13 +222,13 @@ export function InboxProcessingModal({ visible, onClose }: InboxProcessingModalP
             </TouchableOpacity>
             <View style={styles.progressContainer}>
               <Text style={[styles.progressText, { color: tc.secondaryText }]}>
-                {formatProgressLabel(processedCount + 1, totalCount)}
+                {formatProgressLabel(processedCount, totalCount)}
               </Text>
               <View style={[styles.progressBar, { backgroundColor: tc.border }]}>
                 <View
                   style={[
                     styles.progressFill,
-                    { width: `${((processedCount + 1) / totalCount) * 100}%` },
+                    { width: totalCount > 0 ? `${(processedCount / totalCount) * 100}%` : '0%' },
                   ]}
                 />
               </View>

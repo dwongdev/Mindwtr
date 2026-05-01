@@ -9,6 +9,7 @@ import {
     type SyncCycleResult,
     type SyncHistoryEntry,
     CLOCK_SKEW_THRESHOLD_MS,
+    SYNC_REPAIR_REV_BY,
 } from './sync-types';
 import {
     isValidTimestamp,
@@ -544,10 +545,17 @@ function mergeAreas(local: SyncMergeArea[], incoming: SyncMergeArea[]): { merged
         return Math.max(maxOrder, order);
     }, -1) + 1;
     const merged: Area[] = result.merged.map((area) => {
-        const order = typeof area.order === 'number' && Number.isFinite(area.order)
-            ? area.order
-            : fallbackOrder;
-        const normalized: Area = { ...area, order };
+        if (typeof area.order === 'number' && Number.isFinite(area.order)) {
+            return { ...area, order: area.order };
+        }
+        const normalized: Area = {
+            ...area,
+            order: fallbackOrder,
+            rev: typeof area.rev === 'number' && Number.isFinite(area.rev)
+                ? Math.max(0, Math.floor(area.rev)) + 1
+                : 1,
+            revBy: SYNC_REPAIR_REV_BY,
+        };
         fallbackOrder += 1;
         return normalized;
     });
@@ -785,6 +793,10 @@ const clearPendingRemoteWriteFlag = (data: AppData): AppData => {
 
 const hasPendingRemoteWriteFlag = (data: AppData): boolean => isValidTimestamp(data.settings.pendingRemoteWriteAt);
 
+const isLocalSyncAbortError = (error: unknown): boolean => (
+    error instanceof Error && error.name === 'LocalSyncAbort'
+);
+
 const getPendingRemoteWriteAttemptCount = (data: AppData): number => {
     const attempts = data.settings.pendingRemoteWriteAttempts;
     if (typeof attempts !== 'number' || !Number.isFinite(attempts) || attempts < 0) {
@@ -1015,6 +1027,10 @@ export async function performSyncCycle(io: SyncCycleIO): Promise<SyncCycleResult
     try {
         await io.writeRemote(persistedFinalData);
     } catch (error) {
+        if (isLocalSyncAbortError(error)) {
+            await io.clearPendingRemoteWriteAfterLocalAbort?.(finalDataWithPendingRemoteWrite.settings.pendingRemoteWriteAt as string);
+            throw error;
+        }
         const localDataWithRetry = withPendingRemoteWriteRetry(finalDataWithPendingRemoteWrite, nowIso);
         io.onStep?.('write-local');
         await yieldToUi();

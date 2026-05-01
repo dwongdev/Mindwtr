@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { CLOCK_SKEW_THRESHOLD_MS, mergeAppData, mergeAppDataWithStats } from './sync';
+import { CLOCK_SKEW_THRESHOLD_MS, SYNC_REPAIR_REV_BY, mergeAppData, mergeAppDataWithStats } from './sync';
 import { chooseDeterministicWinner } from './sync-signatures';
 import { createMockArea, createMockProject, createMockSection, createMockTask, mockAppData } from './sync-test-utils';
 import { AppData, Task, Project, Attachment, Section, Area } from './types';
@@ -1252,6 +1252,24 @@ describe('Sync Logic', () => {
             const reverse = mergeAppData(mockAppData([incomingTask]), mockAppData([localTask]));
 
             expect(forward.tasks[0]).toEqual(reverse.tasks[0]);
+        });
+
+        it('stamps synthesized area order with a repair revision', () => {
+            const legacyArea = {
+                ...createMockArea('area-1', '2023-01-02T00:05:00.000Z'),
+                rev: 4,
+                revBy: 'device-a',
+            };
+            delete (legacyArea as Partial<Area>).order;
+
+            const merged = mergeAppData(
+                { ...mockAppData(), areas: [legacyArea] },
+                mockAppData()
+            );
+
+            expect(merged.areas[0].order).toBe(0);
+            expect(merged.areas[0].rev).toBe(5);
+            expect(merged.areas[0].revBy).toBe(SYNC_REPAIR_REV_BY);
         });
 
         it('prefers deletion when legacy delete-vs-live operation times are equal', () => {

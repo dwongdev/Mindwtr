@@ -139,7 +139,7 @@ describe('recurrence', () => {
 
         const next = createNextRecurringTask(task, '2025-01-05T14:00:00.000Z', 'done');
         expect(next?.dueDate).toBe('2025-01-04T09:00:00.000Z');
-        expect(next?.startTime).toBe('2025-01-04T09:00:00.000Z');
+        expect(next?.startTime).toBeUndefined();
     });
 
     it('respects daily interval for fluid recurrence', () => {
@@ -157,7 +157,7 @@ describe('recurrence', () => {
 
         const next = createNextRecurringTask(task, '2025-01-05T14:00:00.000Z', 'done');
         expect(next?.dueDate).toBe('2025-01-08T14:00:00.000Z');
-        expect(next?.startTime).toBe('2025-01-08T14:00:00.000Z');
+        expect(next?.startTime).toBeUndefined();
     });
 
     it('defers unscheduled fluid recurrence from completion date', () => {
@@ -390,6 +390,46 @@ describe('recurrence', () => {
         expect(next?.dueDate).toBe('2025-02-28');
     });
 
+    it('preserves the monthly anchor day across clamped hops', () => {
+        const task: Task = {
+            id: 't7-anchor',
+            title: 'Month end report',
+            status: 'done',
+            tags: [],
+            contexts: [],
+            dueDate: '2025-01-31',
+            recurrence: 'monthly',
+            createdAt: '2025-01-01T00:00:00.000Z',
+            updatedAt: '2025-01-01T00:00:00.000Z',
+        };
+
+        const february = createNextRecurringTask(task, '2025-01-31T12:00:00.000Z', 'done') as Task;
+        const march = createNextRecurringTask(february, '2025-02-28T12:00:00.000Z', 'done');
+
+        expect(february.dueDate).toBe('2025-02-28');
+        expect(march?.dueDate).toBe('2025-03-31');
+    });
+
+    it('preserves the quarterly anchor day across clamped hops', () => {
+        const task: Task = {
+            id: 't7-quarterly',
+            title: 'Quarter close',
+            status: 'done',
+            tags: [],
+            contexts: [],
+            dueDate: '2025-01-31',
+            recurrence: { rule: 'monthly', rrule: 'FREQ=MONTHLY;INTERVAL=3' },
+            createdAt: '2025-01-01T00:00:00.000Z',
+            updatedAt: '2025-01-01T00:00:00.000Z',
+        };
+
+        const april = createNextRecurringTask(task, '2025-01-31T12:00:00.000Z', 'done') as Task;
+        const july = createNextRecurringTask(april, '2025-04-30T12:00:00.000Z', 'done');
+
+        expect(april.dueDate).toBe('2025-04-30');
+        expect(july?.dueDate).toBe('2025-07-31');
+    });
+
     it('clamps yearly recurrence for leap-day tasks', () => {
         const task: Task = {
             id: 't8',
@@ -405,6 +445,27 @@ describe('recurrence', () => {
 
         const next = createNextRecurringTask(task, '2024-02-29T12:00:00.000Z', 'done');
         expect(next?.dueDate).toBe('2025-02-28');
+    });
+
+    it('preserves leap-day yearly anchors across non-leap years', () => {
+        const task: Task = {
+            id: 't8-anchor',
+            title: 'Leap day reminder',
+            status: 'done',
+            tags: [],
+            contexts: [],
+            dueDate: '2024-02-29',
+            recurrence: 'yearly',
+            createdAt: '2024-01-01T00:00:00.000Z',
+            updatedAt: '2024-01-01T00:00:00.000Z',
+        };
+
+        const year2025 = createNextRecurringTask(task, '2024-02-29T12:00:00.000Z', 'done') as Task;
+        const year2026 = createNextRecurringTask(year2025, '2025-02-28T12:00:00.000Z', 'done') as Task;
+        const year2027 = createNextRecurringTask(year2026, '2026-02-28T12:00:00.000Z', 'done') as Task;
+        const year2028 = createNextRecurringTask(year2027, '2027-02-28T12:00:00.000Z', 'done');
+
+        expect(year2028?.dueDate).toBe('2028-02-29');
     });
 
     it('preserves local time across a DST boundary (spring forward)', () => {

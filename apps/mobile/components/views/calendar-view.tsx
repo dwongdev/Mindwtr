@@ -32,7 +32,119 @@ type CalendarBodySwipeState = {
   startY: number;
   lastX: number;
   lastY: number;
+  isSwipe: boolean;
 };
+
+type ScheduledTaskBlockProps = {
+  DAY_END_HOUR: number;
+  DAY_START_HOUR: number;
+  PIXELS_PER_MINUTE: number;
+  SNAP_MINUTES: number;
+  commitTaskDrag: (taskId: string, dayStartMs: number, startMinutes: number, durationMinutes: number) => void;
+  dayStartMs: number;
+  durationMinutes: number;
+  formatTimeRange: (start: Date, durationMinutes: number) => string;
+  height: number;
+  isDark: boolean;
+  openTaskActions: (taskId: string) => void;
+  setTimelineScrollEnabled: (enabled: boolean) => void;
+  task: Task;
+  tc: ReturnType<typeof useCalendarViewController>['tc'];
+  toRgba: (hex: string, alpha: number) => string;
+  top: number;
+  triggerDragHaptic: () => void;
+};
+
+function ScheduledTaskBlock({
+  DAY_END_HOUR,
+  DAY_START_HOUR,
+  PIXELS_PER_MINUTE,
+  SNAP_MINUTES,
+  commitTaskDrag,
+  dayStartMs,
+  durationMinutes,
+  formatTimeRange,
+  height,
+  isDark,
+  openTaskActions,
+  setTimelineScrollEnabled,
+  task,
+  tc,
+  toRgba,
+  top,
+  triggerDragHaptic,
+}: ScheduledTaskBlockProps) {
+  const translateY = useSharedValue(0);
+  const scale = useSharedValue(1);
+  const zIndex = useSharedValue(1);
+  const taskId = task.id;
+
+  const panGesture = Gesture.Pan()
+    .activateAfterLongPress(140)
+    .onStart(() => {
+      scale.value = withSpring(1.02);
+      zIndex.value = 50;
+      runOnJS(triggerDragHaptic)();
+      runOnJS(setTimelineScrollEnabled)(false);
+    })
+    .onUpdate((event) => {
+      translateY.value = event.translationY;
+    })
+    .onEnd((event) => {
+      const dayMinutes = (DAY_END_HOUR - DAY_START_HOUR) * 60;
+      const startMinutes = Math.round((top + event.translationY) / PIXELS_PER_MINUTE / SNAP_MINUTES) * SNAP_MINUTES;
+      const clampedMinutes = Math.max(0, Math.min(dayMinutes - durationMinutes, startMinutes));
+      runOnJS(commitTaskDrag)(taskId, dayStartMs, clampedMinutes, durationMinutes);
+      translateY.value = withSpring(0);
+      scale.value = withSpring(1);
+      zIndex.value = 1;
+    })
+    .onFinalize(() => {
+      runOnJS(setTimelineScrollEnabled)(true);
+    });
+
+  const tapGesture = Gesture.Tap().onEnd(() => {
+    runOnJS(openTaskActions)(taskId);
+  });
+
+  const animatedStyle = useAnimatedStyle(() => ({
+    transform: [{ translateY: translateY.value }, { scale: scale.value }],
+    zIndex: zIndex.value,
+  }));
+
+  const start = task.startTime ? safeParseDate(task.startTime) : null;
+  const label = start ? formatTimeRange(start, durationMinutes) : '';
+  const compact = height < 48;
+  const showTime = height >= 44;
+
+  return (
+    <GestureDetector gesture={Gesture.Race(panGesture, tapGesture)}>
+      <Animated.View
+        style={[
+          styles.taskBlock,
+          {
+            top,
+            height,
+            paddingVertical: compact ? 2 : 8,
+            justifyContent: compact ? 'center' : undefined,
+            backgroundColor: isDark ? toRgba(tc.tint, 0.85) : tc.tint,
+            borderColor: toRgba(tc.tint, isDark ? 0.6 : 0.3),
+          },
+          animatedStyle,
+        ]}
+      >
+        <Text style={[styles.taskBlockTitle, compact && styles.taskBlockTitleCompact]} numberOfLines={compact ? 1 : 2}>
+          {task.title}
+        </Text>
+        {showTime && (
+          <Text style={styles.taskBlockTime} numberOfLines={1}>
+            {label}
+          </Text>
+        )}
+      </Animated.View>
+    </GestureDetector>
+  );
+}
 
 export function CalendarView() {
   const {
@@ -127,6 +239,7 @@ export function CalendarView() {
   const bottomSheetSnap = useSharedValue(collapsedSheetSnap);
   const bottomSheetStart = useSharedValue(collapsedSheetSnap);
   const bodySwipeRef = useRef<CalendarBodySwipeState | null>(null);
+  const suppressMonthDayPressUntilRef = useRef(0);
 
   const closeMonthDetailsPane = () => {
     setSelectedDate(null);
@@ -184,6 +297,7 @@ export function CalendarView() {
       startY: point.y,
       lastX: point.x,
       lastY: point.y,
+      isSwipe: false,
     };
   };
 
@@ -211,6 +325,14 @@ export function CalendarView() {
     const touch = touches[0];
     state.lastX = touch.pageX;
     state.lastY = touch.pageY;
+    const dx = state.lastX - state.startX;
+    const dy = state.lastY - state.startY;
+    const horizontalEnough = Math.abs(dx) >= NAVIGATION_SWIPE_DISTANCE * 0.6;
+    const verticalDrift = Math.abs(dy);
+    if (horizontalEnough && verticalDrift <= BODY_SWIPE_VERTICAL_TOLERANCE && verticalDrift <= Math.abs(dx) * 0.75) {
+      state.isSwipe = true;
+      suppressMonthDayPressUntilRef.current = Date.now() + 350;
+    }
   };
 
   const handleMonthCalendarTouchEnd = (event: GestureResponderEvent) => {
@@ -233,6 +355,7 @@ export function CalendarView() {
       return;
     }
 
+    suppressMonthDayPressUntilRef.current = Date.now() + 350;
     const direction = dx < 0 ? 1 : -1;
     if (direction === -1) handlePrevMonth();
     else handleNextMonth();
@@ -240,6 +363,11 @@ export function CalendarView() {
 
   const handleMonthCalendarTouchCancel = () => {
     bodySwipeRef.current = null;
+  };
+
+  const handleMonthDayPress = (date: Date) => {
+    if (Date.now() < suppressMonthDayPressUntilRef.current) return;
+    setSelectedDate(date);
   };
 
   const modeOptions = [
@@ -291,7 +419,7 @@ export function CalendarView() {
                 paddingBottom: Math.max(18, insets.bottom + 14),
               },
             ]}
-            onStartShouldSetResponder={() => true}
+            onTouchEnd={(event) => event.stopPropagation()}
           >
             <View style={styles.composerHeader}>
               <View style={styles.taskItemMain}>
@@ -460,91 +588,6 @@ export function CalendarView() {
     </Modal>
   );
 
-  function ScheduledTaskBlock({
-    task,
-    dayStartMs,
-    durationMinutes,
-    height,
-    top,
-  }: {
-    task: Task;
-    dayStartMs: number;
-    durationMinutes: number;
-    height: number;
-    top: number;
-  }) {
-    const translateY = useSharedValue(0);
-    const scale = useSharedValue(1);
-    const zIndex = useSharedValue(1);
-    const taskId = task.id;
-
-    const panGesture = Gesture.Pan()
-      .activateAfterLongPress(140)
-      .onStart(() => {
-        scale.value = withSpring(1.02);
-        zIndex.value = 50;
-        runOnJS(triggerDragHaptic)();
-        runOnJS(setTimelineScrollEnabled)(false);
-      })
-      .onUpdate((event) => {
-        translateY.value = event.translationY;
-      })
-      .onEnd((event) => {
-        const dayMinutes = (DAY_END_HOUR - DAY_START_HOUR) * 60;
-        const startMinutes = Math.round((top + event.translationY) / PIXELS_PER_MINUTE / SNAP_MINUTES) * SNAP_MINUTES;
-        const clampedMinutes = Math.max(0, Math.min(dayMinutes - durationMinutes, startMinutes));
-        runOnJS(commitTaskDrag)(taskId, dayStartMs, clampedMinutes, durationMinutes);
-        translateY.value = withSpring(0);
-        scale.value = withSpring(1);
-        zIndex.value = 1;
-      })
-      .onFinalize(() => {
-        runOnJS(setTimelineScrollEnabled)(true);
-      });
-
-    const tapGesture = Gesture.Tap().onEnd(() => {
-      runOnJS(openTaskActions)(taskId);
-    });
-
-    const animatedStyle = useAnimatedStyle(() => ({
-      transform: [{ translateY: translateY.value }, { scale: scale.value }],
-      zIndex: zIndex.value,
-    }));
-
-    const start = task.startTime ? safeParseDate(task.startTime) : null;
-    const label = start ? formatTimeRange(start, durationMinutes) : '';
-    const compact = height < 48;
-    const showTime = height >= 44;
-
-    return (
-      <GestureDetector gesture={Gesture.Race(panGesture, tapGesture)}>
-        <Animated.View
-          style={[
-            styles.taskBlock,
-            {
-              top,
-              height,
-              paddingVertical: compact ? 2 : 8,
-              justifyContent: compact ? 'center' : undefined,
-              backgroundColor: isDark ? toRgba(tc.tint, 0.85) : tc.tint,
-              borderColor: toRgba(tc.tint, isDark ? 0.6 : 0.3),
-            },
-            animatedStyle,
-          ]}
-        >
-          <Text style={[styles.taskBlockTitle, compact && styles.taskBlockTitleCompact]} numberOfLines={compact ? 1 : 2}>
-            {task.title}
-          </Text>
-          {showTime && (
-            <Text style={styles.taskBlockTime} numberOfLines={1}>
-              {label}
-            </Text>
-          )}
-        </Animated.View>
-      </GestureDetector>
-    );
-  }
-
   if (viewMode === 'day' && selectedDate && selectedDayStart && selectedDayEnd) {
     const handleDayTimelinePress = (event: GestureResponderEvent) => {
       const dayMinutes = (DAY_END_HOUR - DAY_START_HOUR) * 60;
@@ -698,11 +741,23 @@ export function CalendarView() {
                 return (
                   <ScheduledTaskBlock
                     key={task.id}
+                    DAY_END_HOUR={DAY_END_HOUR}
+                    DAY_START_HOUR={DAY_START_HOUR}
+                    PIXELS_PER_MINUTE={PIXELS_PER_MINUTE}
+                    SNAP_MINUTES={SNAP_MINUTES}
+                    commitTaskDrag={commitTaskDrag}
                     task={task}
                     dayStartMs={selectedDayStart.getTime()}
                     top={top}
                     height={height}
                     durationMinutes={durationMinutes}
+                    formatTimeRange={formatTimeRange}
+                    isDark={isDark}
+                    openTaskActions={openTaskActions}
+                    setTimelineScrollEnabled={setTimelineScrollEnabled}
+                    tc={tc}
+                    toRgba={toRgba}
+                    triggerDragHaptic={triggerDragHaptic}
                   />
                 );
               })}
@@ -1201,6 +1256,7 @@ export function CalendarView() {
             const eventCount = getExternalEventsForDate(date).length;
             const calendarItems = getCalendarItemsForDate(date);
             const visibleItems = calendarItems.slice(0, calendarItems.length >= 6 ? 0 : 2);
+            const showOverflowIndicator = calendarItems.length > visibleItems.length;
             const isSelected = selectedDate && isSameDay(date, selectedDate);
             const todayCellBg = toRgba(tc.tint, isDark ? 0.12 : 0.08);
             const selectedCellBg = toRgba(tc.tint, isDark ? 0.2 : 0.16);
@@ -1214,7 +1270,7 @@ export function CalendarView() {
                   isToday(date) && { backgroundColor: todayCellBg },
                   isSelected && { backgroundColor: selectedCellBg },
                 ]}
-                onPress={() => setSelectedDate(date)}
+                onPress={() => handleMonthDayPress(date)}
               >
                 <View
                   style={[
@@ -1270,7 +1326,7 @@ export function CalendarView() {
                     })}
                   </View>
                 )}
-                {calendarItems.length >= 6 && (taskCount > 0 || eventCount > 0) && (
+                {showOverflowIndicator && (taskCount > 0 || eventCount > 0) && (
                   <View style={styles.indicatorRow}>
                     {taskCount > 0 && (
                       <View style={[styles.taskDot, { backgroundColor: tc.tint }]}>

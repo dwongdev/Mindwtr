@@ -54,6 +54,8 @@ export function InboxContextSection({
     : showTagsField && !showContextsField
       ? '#deep-work'
       : t('inbox.addContextPlaceholder');
+  const suggestedContextsLabel = `${t('copilot.suggested')} ${t('nav.contexts').toLowerCase()}`;
+  const suggestedTagsLabel = `${t('copilot.suggested')} ${t('taskEdit.tagsLabel').toLowerCase()}`;
 
   return (
     <View style={[styles.singleSection, { borderBottomColor: tc.border }]}>
@@ -62,32 +64,32 @@ export function InboxContextSection({
         {showContextsField && showTagsField ? ` ${t('inbox.selectMultipleHint')}` : ''}
       </Text>
       {showContextsField && selectedContexts.length > 0 && (
-        <View style={[styles.selectedContextsContainer, { backgroundColor: '#3B82F620' }]}>
-          <Text style={{ fontSize: 12, color: '#3B82F6', marginBottom: 4 }}>{t('inbox.selectedLabel')}</Text>
+        <View style={[styles.selectedContextsContainer, { backgroundColor: tc.filterBg }]}>
+          <Text style={{ fontSize: 12, color: tc.tint, marginBottom: 4 }}>{t('inbox.selectedLabel')}</Text>
           <View style={styles.selectedTokensRow}>
             {selectedContexts.map((ctx) => (
               <TouchableOpacity
                 key={ctx}
                 onPress={() => toggleContext(ctx)}
-                style={[styles.selectedTokenChip, styles.selectedContextChip]}
+                style={[styles.selectedTokenChip, styles.selectedContextChip, { backgroundColor: tc.tint }]}
               >
-                <Text style={styles.selectedTokenText}>{ctx} x</Text>
+                <Text style={[styles.selectedTokenText, { color: tc.onTint }]}>{ctx} x</Text>
               </TouchableOpacity>
             ))}
           </View>
         </View>
       )}
       {showTagsField && selectedTags.length > 0 && (
-        <View style={[styles.selectedContextsContainer, { backgroundColor: '#8B5CF620' }]}>
-          <Text style={{ fontSize: 12, color: '#8B5CF6', marginBottom: 4 }}>{t('taskEdit.tagsLabel')}</Text>
+        <View style={[styles.selectedContextsContainer, { backgroundColor: tc.filterBg }]}>
+          <Text style={{ fontSize: 12, color: tc.tint, marginBottom: 4 }}>{t('taskEdit.tagsLabel')}</Text>
           <View style={styles.selectedTokensRow}>
             {selectedTags.map((tag) => (
               <TouchableOpacity
                 key={tag}
                 onPress={() => toggleTag(tag)}
-                style={[styles.selectedTokenChip, styles.selectedTagChip]}
+                style={[styles.selectedTokenChip, styles.selectedTagChip, { backgroundColor: tc.tint }]}
               >
-                <Text style={styles.selectedTokenText}>{tag} x</Text>
+                <Text style={[styles.selectedTokenText, { color: tc.onTint }]}>{tag} x</Text>
               </TouchableOpacity>
             ))}
           </View>
@@ -125,7 +127,7 @@ export function InboxContextSection({
       )}
       {showContextsField && visibleContextCopilotSuggestions.length > 0 && (
         <View style={[styles.tokenSuggestionsContainer, { backgroundColor: tc.cardBg, borderColor: tc.border }]}>
-          <Text style={[styles.tokenSectionTitle, { color: tc.secondaryText }]}>Suggested contexts</Text>
+          <Text style={[styles.tokenSectionTitle, { color: tc.secondaryText }]}>{suggestedContextsLabel}</Text>
           <View style={styles.tokenChipWrap}>
             {visibleContextCopilotSuggestions.map((token) => (
               <TouchableOpacity
@@ -141,7 +143,7 @@ export function InboxContextSection({
       )}
       {showTagsField && visibleTagCopilotSuggestions.length > 0 && (
         <View style={[styles.tokenSuggestionsContainer, { backgroundColor: tc.cardBg, borderColor: tc.border }]}>
-          <Text style={[styles.tokenSectionTitle, { color: tc.secondaryText }]}>Suggested tags</Text>
+          <Text style={[styles.tokenSectionTitle, { color: tc.secondaryText }]}>{suggestedTagsLabel}</Text>
           <View style={styles.tokenChipWrap}>
             {visibleTagCopilotSuggestions.map((token) => (
               <TouchableOpacity

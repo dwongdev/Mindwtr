@@ -37,6 +37,10 @@ export interface Recurrence {
     count?: number; // Total occurrences in the series, including the current task
     until?: string; // ISO date/datetime when the series should stop
     completedOccurrences?: number; // Internal counter used to preserve COUNT across generated tasks
+    anchorDay?: number; // Original day-of-month anchor for clamped monthly/yearly recurrences
+    startAnchorDay?: number; // Field-specific anchor for startTime when it differs from dueDate
+    dueAnchorDay?: number; // Field-specific anchor for dueDate
+    reviewAnchorDay?: number; // Field-specific anchor for reviewAt
     rrule?: string; // Optional RFC 5545 fragment (e.g. FREQ=WEEKLY;BYDAY=MO,WE)
 }
 

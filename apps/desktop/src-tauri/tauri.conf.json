@@ -22,7 +22,7 @@
       }
     ],
     "security": {
-      "csp": null
+      "csp": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' asset: http://asset.localhost data: blob: file:; media-src 'self' asset: http://asset.localhost data: blob: file:; font-src 'self' data:; connect-src 'self' ipc: http://ipc.localhost http://localhost:* ws://localhost:* https:; object-src 'none'; frame-src 'none'; base-uri 'self'; form-action 'self'"
     }
   },
   "bundle": {
@@ -54,7 +54,7 @@
   },
   "plugins": {
     "shell": {
-      "open": "^(mailto:[^\\s]+|tel:[^\\s]+|https?://[^\\s]+|obsidian://[^\\s]+|file:///.+|/[^\\s]+|[A-Za-z]:\\\\.+)$"
+      "open": "^(mailto:[^\\s]+|tel:[^\\s]+|https?://[^\\s]+|obsidian://[^\\s]+)$"
     }
   }
 }
