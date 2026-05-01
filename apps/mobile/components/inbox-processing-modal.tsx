@@ -29,6 +29,7 @@ export function InboxProcessingModal({ visible, onClose }: InboxProcessingModalP
     aiModal,
     applyTokenSuggestion,
     areaById,
+    assignedToSuggestions,
     closeAIModal,
     contextCopilotSuggestions,
     currentArea,
@@ -38,6 +39,7 @@ export function InboxProcessingModal({ visible, onClose }: InboxProcessingModalP
     delegateFollowUpDate,
     delegateFollowUpDateOnly,
     delegateWho,
+    delegateWhoSuggestions,
     executionChoice,
     filteredProjects,
     formatProgressLabel,
@@ -335,6 +337,7 @@ export function InboxProcessingModal({ visible, onClose }: InboxProcessingModalP
                     showAssignedToField={showAssignedToField}
                     selectedAssignedTo={selectedAssignedTo}
                     setSelectedAssignedTo={setSelectedAssignedTo}
+                    assignedToSuggestions={assignedToSuggestions}
                     PRIORITY_OPTIONS={PRIORITY_OPTIONS}
                     ENERGY_LEVEL_OPTIONS={ENERGY_LEVEL_OPTIONS}
                     timeEstimateOptions={timeEstimateOptions}
@@ -346,6 +349,7 @@ export function InboxProcessingModal({ visible, onClose }: InboxProcessingModalP
                     setExecutionChoice={setExecutionChoice}
                     delegateWho={delegateWho}
                     setDelegateWho={setDelegateWho}
+                    delegateWhoSuggestions={delegateWhoSuggestions}
                     showReviewDateField={showReviewDateField}
                     delegateFollowUpDate={delegateFollowUpDate}
                     setDelegateFollowUpDate={setDelegateFollowUpDate}

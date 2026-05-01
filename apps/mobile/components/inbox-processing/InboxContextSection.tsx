@@ -46,6 +46,9 @@ export function InboxContextSection({
   const visibleTokenSuggestions = tokenSuggestions.filter((token) => (
     token.startsWith('#') ? showTagsField : showContextsField
   ));
+  const visibleTokenSuggestionSet = new Set(visibleTokenSuggestions);
+  const visibleContextCopilotSuggestions = contextCopilotSuggestions.filter((token) => !visibleTokenSuggestionSet.has(token));
+  const visibleTagCopilotSuggestions = tagCopilotSuggestions.filter((token) => !visibleTokenSuggestionSet.has(token));
   const tokenPlaceholder = showContextsField && !showTagsField
     ? '@home'
     : showTagsField && !showContextsField
@@ -120,11 +123,11 @@ export function InboxContextSection({
           ))}
         </View>
       )}
-      {showContextsField && contextCopilotSuggestions.length > 0 && (
+      {showContextsField && visibleContextCopilotSuggestions.length > 0 && (
         <View style={[styles.tokenSuggestionsContainer, { backgroundColor: tc.cardBg, borderColor: tc.border }]}>
           <Text style={[styles.tokenSectionTitle, { color: tc.secondaryText }]}>Suggested contexts</Text>
           <View style={styles.tokenChipWrap}>
-            {contextCopilotSuggestions.map((token) => (
+            {visibleContextCopilotSuggestions.map((token) => (
               <TouchableOpacity
                 key={`ctx-${token}`}
                 style={[styles.suggestionChip, { borderColor: tc.border, backgroundColor: tc.filterBg }]}
@@ -136,11 +139,11 @@ export function InboxContextSection({
           </View>
         </View>
       )}
-      {showTagsField && tagCopilotSuggestions.length > 0 && (
+      {showTagsField && visibleTagCopilotSuggestions.length > 0 && (
         <View style={[styles.tokenSuggestionsContainer, { backgroundColor: tc.cardBg, borderColor: tc.border }]}>
           <Text style={[styles.tokenSectionTitle, { color: tc.secondaryText }]}>Suggested tags</Text>
           <View style={styles.tokenChipWrap}>
-            {tagCopilotSuggestions.map((token) => (
+            {visibleTagCopilotSuggestions.map((token) => (
               <TouchableOpacity
                 key={`tag-${token}`}
                 style={[styles.suggestionChip, { borderColor: tc.border, backgroundColor: tc.filterBg }]}
