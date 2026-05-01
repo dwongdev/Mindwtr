@@ -1,5 +1,6 @@
 import { BackHandler, View, Text, ScrollView, Pressable, StyleSheet, TouchableOpacity, Modal, TextInput, Share } from 'react-native';
 import { useRouter } from 'expo-router';
+import { useFocusEffect } from '@react-navigation/native';
 import { useTaskStore, sortTasksBy, type Task, type TaskStatus, type TaskSortBy } from '@mindwtr/core';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTheme } from '../../contexts/theme-context';
@@ -10,10 +11,12 @@ import { taskMatchesAreaFilter } from '@/lib/area-filter';
 import { openContextsScreen, openProjectScreen } from '@/lib/task-meta-navigation';
 import { ReviewModal } from '../../components/review-modal';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { ChevronDown, ChevronRight } from 'lucide-react-native';
 import { logError } from '../../lib/app-log';
 
 import { TaskEditModal } from '@/components/task-edit-modal';
 import { SwipeableTaskItem } from '@/components/swipeable-task-item';
+import { buildReviewTaskGroups } from '@/components/review/review-task-groups';
 
 const STATUS_OPTIONS: TaskStatus[] = ['inbox', 'next', 'waiting', 'someday', 'done'];
 
@@ -31,6 +34,8 @@ export default function ReviewScreen() {
   const [tagModalVisible, setTagModalVisible] = useState(false);
   const [tagInput, setTagInput] = useState('');
   const [moveModalVisible, setMoveModalVisible] = useState(false);
+  const [expandedAreaIds, setExpandedAreaIds] = useState<Set<string>>(new Set());
+  const [expandedReviewProjectIds, setExpandedReviewProjectIds] = useState<Set<string>>(new Set());
 
   const tc = useThemeColors();
   const insets = useSafeAreaInsets();
@@ -59,6 +64,14 @@ export default function ReviewScreen() {
   useEffect(() => {
     exitSelectionMode();
   }, [filterStatus, exitSelectionMode]);
+
+  useFocusEffect(
+    useCallback(() => {
+      setExpandedAreaIds(new Set());
+      setExpandedReviewProjectIds(new Set());
+      return undefined;
+    }, []),
+  );
 
   useEffect(() => {
     const handleBackPress = () => {
@@ -153,60 +166,44 @@ export default function ReviewScreen() {
   const sortedTasks = sortTasksBy(filteredTasks, sortBy);
   const noAreaLabel = t('review.noArea');
   const singleActionsLabel = t('review.singleActions');
+  const translateOr = useCallback((key: string, fallback: string) => {
+    const value = t(key);
+    return value && value !== key ? value : fallback;
+  }, [t]);
+  const unassignedLabel = translateOr('review.unassigned', 'Unassigned');
+  const projectsLabel = translateOr('review.projectsLabel', 'projects');
+  const needsActionLabel = translateOr('review.needsActionSummary', 'needs action');
+  const withoutAreaLabel = translateOr('review.withoutArea', 'without an area');
+  const activeTasksLabel = translateOr('review.activeTasks', 'active tasks');
   const reviewTaskGroups = useMemo(() => {
-    const groups = new Map<string, {
-      color: string;
-      order: number;
-      projectGroups: Map<string, {
-        hasNextAction: boolean;
-        id: string;
-        order: number;
-        projectId?: string;
-        tasks: Task[];
-        title: string;
-      }>;
-      taskCount: number;
-      title: string;
-    }>();
-
-    sortedTasks.forEach((task) => {
-      const project = task.projectId ? projectById.get(task.projectId) : undefined;
-      const areaId = project?.areaId || task.areaId;
-      const area = areaId ? areaById.get(areaId) : undefined;
-      const areaKey = areaId ? `area:${areaId}` : 'area:none';
-      const areaGroup = groups.get(areaKey) ?? {
-        color: area?.color || project?.color || tc.tint,
-        order: areaId ? areaOrderById.get(areaId) ?? Number.MAX_SAFE_INTEGER - 1 : Number.MAX_SAFE_INTEGER,
-        projectGroups: new Map(),
-        taskCount: 0,
-        title: area?.name || project?.areaTitle || noAreaLabel,
-      };
-      const projectKey = project ? `project:${project.id}` : `single:${areaKey}`;
-      const projectGroup = areaGroup.projectGroups.get(projectKey) ?? {
-        hasNextAction: false,
-        id: projectKey,
-        order: project ? project.order : Number.MAX_SAFE_INTEGER,
-        projectId: project?.id,
-        tasks: [],
-        title: project?.title || singleActionsLabel,
-      };
-      projectGroup.tasks.push(task);
-      projectGroup.hasNextAction = projectGroup.hasNextAction || task.status === 'next';
-      areaGroup.projectGroups.set(projectKey, projectGroup);
-      areaGroup.taskCount += 1;
-      groups.set(areaKey, areaGroup);
+    return buildReviewTaskGroups({
+      areaById,
+      areaOrderById,
+      noAreaLabel: unassignedLabel || noAreaLabel,
+      projectById,
+      singleActionsLabel,
+      sortedTasks,
+      tintColor: tc.tint,
     });
+  }, [areaById, areaOrderById, noAreaLabel, projectById, singleActionsLabel, sortedTasks, tc.tint, unassignedLabel]);
 
-    return Array.from(groups.entries())
-      .map(([id, group]) => ({
-        ...group,
-        id,
-        projectGroups: Array.from(group.projectGroups.values()).sort((a, b) => (
-          (a.order - b.order) || a.title.localeCompare(b.title)
-        )),
-      }))
-      .sort((a, b) => (a.order - b.order) || a.title.localeCompare(b.title));
-  }, [areaById, areaOrderById, noAreaLabel, projectById, singleActionsLabel, sortedTasks, tc.tint]);
+  const toggleAreaExpanded = useCallback((areaId: string) => {
+    setExpandedAreaIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(areaId)) next.delete(areaId);
+      else next.add(areaId);
+      return next;
+    });
+  }, []);
+
+  const toggleReviewProjectExpanded = useCallback((projectGroupId: string) => {
+    setExpandedReviewProjectIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(projectGroupId)) next.delete(projectGroupId);
+      else next.add(projectGroupId);
+      return next;
+    });
+  }, []);
 
   const renderReviewTaskItem = (task: Task) => (
     <SwipeableTaskItem
@@ -336,58 +333,127 @@ export default function ReviewScreen() {
 
       <ScrollView style={styles.taskList} contentContainerStyle={{ paddingBottom: 16 + insets.bottom }}>
         {filterStatus === 'all' ? (
-          reviewTaskGroups.map((areaGroup) => (
-            <View key={areaGroup.id} style={styles.reviewAreaSection}>
-              <View style={styles.reviewAreaHeader}>
-                <View style={styles.reviewAreaTitleRow}>
-                  <View style={[styles.reviewAreaDot, { backgroundColor: areaGroup.color }]} />
-                  <Text style={[styles.reviewAreaTitle, { color: tc.text }]} numberOfLines={1}>
-                    {areaGroup.title}
-                  </Text>
-                </View>
-                <Text style={[styles.reviewAreaCount, { color: tc.secondaryText }]}>
-                  {areaGroup.taskCount} {t('common.tasks')}
-                </Text>
-              </View>
-              {areaGroup.projectGroups.map((projectGroup) => (
-                <View key={projectGroup.id} style={[styles.reviewProjectGroup, { borderLeftColor: areaGroup.color }]}>
-                  <TouchableOpacity
-                    activeOpacity={projectGroup.projectId ? 0.7 : 1}
-                    disabled={!projectGroup.projectId}
-                    onPress={() => {
-                      if (projectGroup.projectId) openProjectScreen(projectGroup.projectId);
-                    }}
-                    style={styles.reviewProjectHeader}
-                  >
-                    <View style={styles.reviewProjectTitleRow}>
-                      <Text style={[styles.reviewProjectTitle, { color: tc.text }]} numberOfLines={1}>
-                        {projectGroup.title}
+          reviewTaskGroups.map((areaGroup) => {
+            const areaExpanded = expandedAreaIds.has(areaGroup.id);
+            const taskSummary = areaGroup.isUnassigned
+              ? `${areaGroup.taskCount} ${t('common.tasks')} ${withoutAreaLabel}`
+              : `${areaGroup.taskCount} ${t('common.tasks')}`;
+            return (
+              <View key={areaGroup.id} style={styles.reviewAreaSection}>
+                <Pressable
+                  style={[
+                    styles.reviewAreaHeader,
+                    {
+                      backgroundColor: tc.cardBg,
+                      borderColor: tc.border,
+                      borderLeftColor: areaGroup.color,
+                    },
+                  ]}
+                  onPress={() => toggleAreaExpanded(areaGroup.id)}
+                >
+                  <View style={styles.reviewAreaHeaderMain}>
+                    <View style={[styles.reviewAreaDot, { backgroundColor: areaGroup.color }]} />
+                    <View style={styles.reviewAreaTextBlock}>
+                      <Text style={[styles.reviewAreaTitle, { color: tc.text }]} numberOfLines={1}>
+                        {areaGroup.title}
                       </Text>
-                      {projectGroup.projectId ? (
-                        <View style={[
-                          styles.reviewStatusBadge,
-                          { backgroundColor: projectGroup.hasNextAction ? '#10B98120' : '#EF444420' },
-                        ]}>
-                          <Text style={[
-                            styles.reviewStatusText,
-                            { color: projectGroup.hasNextAction ? '#10B981' : '#EF4444' },
-                          ]} numberOfLines={1}>
-                            {projectGroup.hasNextAction ? t('review.hasNextAction') : t('review.needsAction')}
+                      <View style={styles.reviewAreaSummaryRow}>
+                        {areaGroup.projectCount > 0 && (
+                          <View style={[styles.reviewSummaryPill, { backgroundColor: tc.filterBg }]}>
+                            <Text style={[styles.reviewSummaryPillText, { color: tc.secondaryText }]}>
+                              {areaGroup.projectCount} {projectsLabel}
+                            </Text>
+                          </View>
+                        )}
+                        {areaGroup.needsActionCount > 0 && (
+                          <View style={[styles.reviewSummaryPill, styles.reviewNeedsSummaryPill]}>
+                            <Text style={[styles.reviewSummaryPillText, styles.reviewNeedsSummaryText]}>
+                              {areaGroup.needsActionCount} {needsActionLabel}
+                            </Text>
+                          </View>
+                        )}
+                        <View style={[styles.reviewSummaryPill, { backgroundColor: tc.filterBg }]}>
+                          <Text style={[styles.reviewSummaryPillText, { color: tc.secondaryText }]}>
+                            {taskSummary}
                           </Text>
                         </View>
-                      ) : null}
+                      </View>
                     </View>
-                    <Text style={[styles.reviewProjectCount, { color: tc.secondaryText }]}>
-                      {projectGroup.tasks.length}
-                    </Text>
-                  </TouchableOpacity>
-                  <View style={styles.reviewGroupedTasks}>
-                    {projectGroup.tasks.map(renderReviewTaskItem)}
                   </View>
-                </View>
-              ))}
-            </View>
-          ))
+                  {areaExpanded
+                    ? <ChevronDown size={20} color={tc.secondaryText} strokeWidth={2.4} />
+                    : <ChevronRight size={20} color={tc.secondaryText} strokeWidth={2.4} />}
+                </Pressable>
+
+                {areaExpanded && (
+                  <View style={styles.reviewAreaBody}>
+                    {areaGroup.projectGroups.map((projectGroup) => {
+                      const projectExpanded = expandedReviewProjectIds.has(projectGroup.id);
+                      return (
+                        <View key={projectGroup.id} style={[styles.reviewProjectGroup, { borderLeftColor: areaGroup.color }]}>
+                          <Pressable
+                            style={[
+                              styles.reviewProjectHeader,
+                              {
+                                backgroundColor: tc.filterBg,
+                                borderColor: tc.border,
+                              },
+                            ]}
+                            onPress={() => toggleReviewProjectExpanded(projectGroup.id)}
+                          >
+                            <View style={styles.reviewProjectHeaderTop}>
+                              <View style={styles.reviewProjectTitleRow}>
+                                <Text style={[styles.reviewProjectTitle, { color: tc.text }]} numberOfLines={1}>
+                                  {projectGroup.title}
+                                </Text>
+                                {projectGroup.projectId ? (
+                                  <View style={[
+                                    styles.reviewStatusBadge,
+                                    { backgroundColor: projectGroup.hasNextAction ? '#10B98120' : '#EF444420' },
+                                  ]}>
+                                    <Text style={[
+                                      styles.reviewStatusText,
+                                      { color: projectGroup.hasNextAction ? '#10B981' : '#EF4444' },
+                                    ]} numberOfLines={1}>
+                                      {projectGroup.hasNextAction ? t('review.hasNextAction') : t('review.needsAction')}
+                                    </Text>
+                                  </View>
+                                ) : (
+                                  <View style={[styles.reviewSingleActionsBadge, { backgroundColor: tc.cardBg }]}>
+                                    <Text style={[styles.reviewSingleActionsText, { color: tc.secondaryText }]}>
+                                      {singleActionsLabel}
+                                    </Text>
+                                  </View>
+                                )}
+                              </View>
+                              <Text style={[styles.reviewProjectCount, { color: tc.secondaryText }]}>
+                                {projectGroup.tasks.length}
+                              </Text>
+                            </View>
+                            <View style={styles.reviewProjectMetaRow}>
+                              <Text style={[styles.reviewProjectMetaText, { color: tc.secondaryText }]} numberOfLines={1}>
+                                {projectGroup.isSingleActions
+                                  ? `${projectGroup.tasks.length} ${t('common.tasks')}`
+                                  : `${projectGroup.tasks.length} ${activeTasksLabel}`}
+                              </Text>
+                              {projectExpanded
+                                ? <ChevronDown size={16} color={tc.secondaryText} strokeWidth={2.3} />
+                                : <ChevronRight size={16} color={tc.secondaryText} strokeWidth={2.3} />}
+                            </View>
+                          </Pressable>
+                          {projectExpanded && (
+                            <View style={styles.reviewGroupedTasks}>
+                              {projectGroup.tasks.map(renderReviewTaskItem)}
+                            </View>
+                          )}
+                        </View>
+                      );
+                    })}
+                  </View>
+                )}
+              </View>
+            );
+          })
         ) : (
           sortedTasks.map(renderReviewTaskItem)
         )}
@@ -540,49 +606,83 @@ const styles = StyleSheet.create({
     padding: 16,
   },
   reviewAreaSection: {
-    marginBottom: 18,
+    marginBottom: 12,
   },
   reviewAreaHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    gap: 10,
-    marginBottom: 8,
-    paddingHorizontal: 2,
+    gap: 12,
+    borderWidth: 1,
+    borderLeftWidth: 4,
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 12,
   },
-  reviewAreaTitleRow: {
+  reviewAreaHeaderMain: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
     flex: 1,
+    minWidth: 0,
+  },
+  reviewAreaTextBlock: {
+    flex: 1,
+    minWidth: 0,
+    gap: 8,
   },
   reviewAreaDot: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    marginRight: 10,
   },
   reviewAreaTitle: {
-    fontSize: 13,
+    fontSize: 16,
     fontWeight: '800',
     textTransform: 'uppercase',
     flexShrink: 1,
   },
-  reviewAreaCount: {
-    fontSize: 12,
-    fontWeight: '600',
+  reviewAreaSummaryRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+  },
+  reviewSummaryPill: {
+    borderRadius: 999,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+  },
+  reviewSummaryPillText: {
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  reviewNeedsSummaryPill: {
+    backgroundColor: '#EF444420',
+  },
+  reviewNeedsSummaryText: {
+    color: '#EF4444',
+  },
+  reviewAreaBody: {
+    marginTop: 10,
   },
   reviewProjectGroup: {
-    borderLeftWidth: 2,
-    marginLeft: 4,
-    marginBottom: 12,
+    borderLeftWidth: 3,
+    marginLeft: 14,
+    marginBottom: 10,
     paddingLeft: 10,
   },
   reviewProjectHeader: {
+    borderWidth: 1,
+    borderRadius: 10,
+    paddingHorizontal: 10,
+    paddingVertical: 10,
+    gap: 6,
+  },
+  reviewProjectHeaderTop: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     gap: 8,
-    paddingVertical: 4,
   },
   reviewProjectTitleRow: {
     flexDirection: 'row',
@@ -602,6 +702,17 @@ const styles = StyleSheet.create({
     minWidth: 20,
     textAlign: 'right',
   },
+  reviewProjectMetaRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 8,
+  },
+  reviewProjectMetaText: {
+    fontSize: 12,
+    fontWeight: '600',
+    flex: 1,
+  },
   reviewStatusBadge: {
     borderRadius: 999,
     paddingHorizontal: 7,
@@ -612,7 +723,17 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     maxWidth: 120,
   },
+  reviewSingleActionsBadge: {
+    borderRadius: 999,
+    paddingHorizontal: 7,
+    paddingVertical: 3,
+  },
+  reviewSingleActionsText: {
+    fontSize: 11,
+    fontWeight: '700',
+  },
   reviewGroupedTasks: {
+    marginTop: 8,
     gap: 8,
   },
   emptyState: {
