@@ -1,5 +1,16 @@
-import { useEffect } from 'react';
-import { Modal, Pressable, Text, TextInput, useWindowDimensions, View, type GestureResponderEvent } from 'react-native';
+import { useEffect, useRef } from 'react';
+import {
+  Modal,
+  Pressable,
+  Text,
+  TextInput,
+  useWindowDimensions,
+  View,
+  type GestureResponderEvent,
+  type NativeScrollEvent,
+  type NativeSyntheticEvent,
+  type NativeTouchEvent,
+} from 'react-native';
 import * as Haptics from 'expo-haptics';
 import { CALENDAR_TIME_ESTIMATE_OPTIONS, safeFormatDate, safeParseDate, type Task } from '@mindwtr/core';
 import { Gesture, GestureDetector, ScrollView } from 'react-native-gesture-handler';
@@ -18,6 +29,20 @@ const MONTH_DETAILS_HIDE_THRESHOLD = 0.2;
 const MONTH_DETAILS_MIN_HEIGHT = 176;
 const NAVIGATION_SWIPE_DISTANCE = 56;
 const NAVIGATION_SWIPE_VELOCITY = 500;
+const BODY_SWIPE_VERTICAL_TOLERANCE = 32;
+const WEEK_BODY_EDGE_TOLERANCE = 18;
+const CALENDAR_VIEW_ORDER = ['month', 'day', 'week', 'schedule'] as const;
+
+type CalendarViewSwipeMode = typeof CALENDAR_VIEW_ORDER[number];
+type CalendarBodySwipeState = {
+  kind: 'period' | 'view';
+  startX: number;
+  startY: number;
+  lastX: number;
+  lastY: number;
+  canNavigateNext: boolean;
+  canNavigatePrevious: boolean;
+};
 
 export function CalendarView() {
   const {
@@ -111,6 +136,8 @@ export function CalendarView() {
   );
   const bottomSheetSnap = useSharedValue(collapsedSheetSnap);
   const bottomSheetStart = useSharedValue(collapsedSheetSnap);
+  const bodySwipeRef = useRef<CalendarBodySwipeState | null>(null);
+  const weekScrollMetricsRef = useRef({ offsetX: 0, viewportWidth: 0, contentWidth: 0 });
 
   const closeMonthDetailsPane = () => {
     setSelectedDate(null);
@@ -162,6 +189,45 @@ export function CalendarView() {
     Haptics.selectionAsync().catch(() => {});
   };
 
+  const getTouchCentroid = (touches: readonly NativeTouchEvent[]) => {
+    if (touches.length === 0) return null;
+    const total = touches.reduce(
+      (acc, touch) => ({ x: acc.x + touch.pageX, y: acc.y + touch.pageY }),
+      { x: 0, y: 0 }
+    );
+    return { x: total.x / touches.length, y: total.y / touches.length };
+  };
+
+  const getBodyPeriodNavigationAvailability = () => {
+    if (viewMode !== 'week') {
+      return { canNavigateNext: true, canNavigatePrevious: true };
+    }
+
+    const { contentWidth, offsetX, viewportWidth } = weekScrollMetricsRef.current;
+    if (contentWidth <= 0 || viewportWidth <= 0) {
+      return { canNavigateNext: false, canNavigatePrevious: false };
+    }
+
+    const maxOffset = Math.max(0, contentWidth - viewportWidth);
+    return {
+      canNavigatePrevious: offsetX <= WEEK_BODY_EDGE_TOLERANCE,
+      canNavigateNext: offsetX >= maxOffset - WEEK_BODY_EDGE_TOLERANCE,
+    };
+  };
+
+  const startCalendarBodySwipe = (kind: CalendarBodySwipeState['kind'], point: { x: number; y: number }) => {
+    const { canNavigateNext, canNavigatePrevious } = getBodyPeriodNavigationAvailability();
+    bodySwipeRef.current = {
+      kind,
+      startX: point.x,
+      startY: point.y,
+      lastX: point.x,
+      lastY: point.y,
+      canNavigateNext,
+      canNavigatePrevious,
+    };
+  };
+
   const navigateCalendarPeriod = (direction: -1 | 1) => {
     if (viewMode === 'month') {
       if (direction === -1) handlePrevMonth();
@@ -179,7 +245,96 @@ export function CalendarView() {
     }
   };
 
+  const switchCalendarView = (direction: -1 | 1) => {
+    const currentIndex = CALENDAR_VIEW_ORDER.indexOf(viewMode as CalendarViewSwipeMode);
+    if (currentIndex < 0) return;
+    const nextIndex = Math.max(0, Math.min(CALENDAR_VIEW_ORDER.length - 1, currentIndex + direction));
+    if (nextIndex !== currentIndex) {
+      setViewMode(CALENDAR_VIEW_ORDER[nextIndex]);
+    }
+  };
+
+  const navigateCalendarPeriodFromBody = (direction: -1 | 1, state: CalendarBodySwipeState) => {
+    const canNavigate = direction === -1 ? state.canNavigatePrevious : state.canNavigateNext;
+    if (!canNavigate) return;
+    navigateCalendarPeriod(direction);
+  };
+
+  const handleCalendarBodyTouchStart = (event: GestureResponderEvent) => {
+    const { touches } = event.nativeEvent;
+    if (touches.length === 2) {
+      const point = getTouchCentroid(touches);
+      if (point) startCalendarBodySwipe('view', point);
+      return;
+    }
+
+    if (touches.length === 1) {
+      const touch = touches[0];
+      startCalendarBodySwipe('period', { x: touch.pageX, y: touch.pageY });
+      return;
+    }
+
+    bodySwipeRef.current = null;
+  };
+
+  const handleCalendarBodyTouchMove = (event: GestureResponderEvent) => {
+    const { touches } = event.nativeEvent;
+    if (touches.length >= 2) {
+      const point = getTouchCentroid(touches);
+      if (!point) return;
+
+      const state = bodySwipeRef.current;
+      if (!state || state.kind !== 'view') {
+        startCalendarBodySwipe('view', point);
+        return;
+      }
+
+      state.lastX = point.x;
+      state.lastY = point.y;
+      return;
+    }
+
+    const state = bodySwipeRef.current;
+    if (!state || state.kind !== 'period' || touches.length !== 1) return;
+
+    const touch = touches[0];
+    state.lastX = touch.pageX;
+    state.lastY = touch.pageY;
+  };
+
+  const handleCalendarBodyTouchEnd = (event: GestureResponderEvent) => {
+    const state = bodySwipeRef.current;
+    if (!state) return;
+
+    if (state.kind === 'period') {
+      const touch = event.nativeEvent.changedTouches[0];
+      if (touch) {
+        state.lastX = touch.pageX;
+        state.lastY = touch.pageY;
+      }
+    }
+
+    bodySwipeRef.current = null;
+
+    const dx = state.lastX - state.startX;
+    const dy = state.lastY - state.startY;
+    const horizontalEnough = Math.abs(dx) >= NAVIGATION_SWIPE_DISTANCE;
+    const verticalDrift = Math.abs(dy);
+    if (!horizontalEnough || verticalDrift > BODY_SWIPE_VERTICAL_TOLERANCE || verticalDrift > Math.abs(dx) * 0.75) {
+      return;
+    }
+
+    const direction = dx < 0 ? 1 : -1;
+    if (state.kind === 'view') switchCalendarView(direction);
+    else navigateCalendarPeriodFromBody(direction, state);
+  };
+
+  const handleCalendarBodyTouchCancel = () => {
+    bodySwipeRef.current = null;
+  };
+
   const calendarNavigationGesture = Gesture.Pan()
+    .maxPointers(1)
     .activeOffsetX([-40, 40])
     .failOffsetY([-18, 18])
     .onEnd((event) => {
@@ -540,6 +695,10 @@ export function CalendarView() {
           ref={timelineScrollRef}
           style={styles.dayScroll}
           contentContainerStyle={styles.dayScrollContent}
+          onTouchStart={handleCalendarBodyTouchStart}
+          onTouchMove={handleCalendarBodyTouchMove}
+          onTouchEnd={handleCalendarBodyTouchEnd}
+          onTouchCancel={handleCalendarBodyTouchCancel}
         >
           {selectedDateAllDayEvents.length > 0 && (
             <View style={[styles.allDayCard, { backgroundColor: tc.cardBg, borderColor: tc.border }]}>
@@ -771,7 +930,25 @@ export function CalendarView() {
           </View>
         </GestureDetector>
 
-        <ScrollView horizontal style={styles.weekHorizontal} contentContainerStyle={styles.weekHorizontalContent}>
+        <ScrollView
+          horizontal
+          style={styles.weekHorizontal}
+          contentContainerStyle={styles.weekHorizontalContent}
+          onContentSizeChange={(contentWidth) => {
+            weekScrollMetricsRef.current.contentWidth = contentWidth;
+          }}
+          onLayout={(event) => {
+            weekScrollMetricsRef.current.viewportWidth = event.nativeEvent.layout.width;
+          }}
+          onScroll={(event: NativeSyntheticEvent<NativeScrollEvent>) => {
+            weekScrollMetricsRef.current.offsetX = event.nativeEvent.contentOffset.x;
+          }}
+          onTouchStart={handleCalendarBodyTouchStart}
+          onTouchMove={handleCalendarBodyTouchMove}
+          onTouchEnd={handleCalendarBodyTouchEnd}
+          onTouchCancel={handleCalendarBodyTouchCancel}
+          scrollEventThrottle={16}
+        >
           <View style={[styles.weekCanvas, { width: 56 + weekColumnWidth * weekDays.length }]}>
             <View style={[styles.weekHeaderRow, { borderBottomColor: tc.border }]}>
               <View style={styles.weekTimeGutter} />
@@ -998,7 +1175,14 @@ export function CalendarView() {
           {renderModeToggle()}
         </View>
 
-        <ScrollView style={styles.scheduleScroll} contentContainerStyle={styles.scheduleContent}>
+        <ScrollView
+          style={styles.scheduleScroll}
+          contentContainerStyle={styles.scheduleContent}
+          onTouchStart={handleCalendarBodyTouchStart}
+          onTouchMove={handleCalendarBodyTouchMove}
+          onTouchEnd={handleCalendarBodyTouchEnd}
+          onTouchCancel={handleCalendarBodyTouchCancel}
+        >
           {scheduleSections.map((section) => (
             <View key={section.id} style={styles.scheduleSection}>
               <Text style={[styles.scheduleDate, { color: tc.secondaryText }]}>
@@ -1131,7 +1315,13 @@ export function CalendarView() {
         </View>
       </GestureDetector>
 
-      <View style={styles.monthCalendar}>
+      <View
+        style={styles.monthCalendar}
+        onTouchStart={handleCalendarBodyTouchStart}
+        onTouchMove={handleCalendarBodyTouchMove}
+        onTouchEnd={handleCalendarBodyTouchEnd}
+        onTouchCancel={handleCalendarBodyTouchCancel}
+      >
         <View style={[styles.dayHeaders, { backgroundColor: tc.cardBg, borderBottomColor: tc.border }]}>
           {dayNames.map((day) => (
             <View key={day} style={styles.dayHeader}>
