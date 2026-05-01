@@ -7,9 +7,6 @@ import {
   useWindowDimensions,
   View,
   type GestureResponderEvent,
-  type NativeScrollEvent,
-  type NativeSyntheticEvent,
-  type NativeTouchEvent,
 } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import { CALENDAR_TIME_ESTIMATE_OPTIONS, safeFormatDate, safeParseDate, type Task } from '@mindwtr/core';
@@ -28,20 +25,13 @@ const MONTH_DETAILS_EXPANDED_SNAP = 0.9;
 const MONTH_DETAILS_HIDE_THRESHOLD = 0.2;
 const MONTH_DETAILS_MIN_HEIGHT = 176;
 const NAVIGATION_SWIPE_DISTANCE = 56;
-const NAVIGATION_SWIPE_VELOCITY = 500;
 const BODY_SWIPE_VERTICAL_TOLERANCE = 32;
-const WEEK_BODY_EDGE_TOLERANCE = 18;
-const CALENDAR_VIEW_ORDER = ['month', 'day', 'week', 'schedule'] as const;
 
-type CalendarViewSwipeMode = typeof CALENDAR_VIEW_ORDER[number];
 type CalendarBodySwipeState = {
-  kind: 'period' | 'view';
   startX: number;
   startY: number;
   lastX: number;
   lastY: number;
-  canNavigateNext: boolean;
-  canNavigatePrevious: boolean;
 };
 
 export function CalendarView() {
@@ -137,7 +127,6 @@ export function CalendarView() {
   const bottomSheetSnap = useSharedValue(collapsedSheetSnap);
   const bottomSheetStart = useSharedValue(collapsedSheetSnap);
   const bodySwipeRef = useRef<CalendarBodySwipeState | null>(null);
-  const weekScrollMetricsRef = useRef({ offsetX: 0, viewportWidth: 0, contentWidth: 0 });
 
   const closeMonthDetailsPane = () => {
     setSelectedDate(null);
@@ -189,129 +178,49 @@ export function CalendarView() {
     Haptics.selectionAsync().catch(() => {});
   };
 
-  const getTouchCentroid = (touches: readonly NativeTouchEvent[]) => {
-    if (touches.length === 0) return null;
-    const total = touches.reduce(
-      (acc, touch) => ({ x: acc.x + touch.pageX, y: acc.y + touch.pageY }),
-      { x: 0, y: 0 }
-    );
-    return { x: total.x / touches.length, y: total.y / touches.length };
-  };
-
-  const getBodyPeriodNavigationAvailability = () => {
-    if (viewMode !== 'week') {
-      return { canNavigateNext: true, canNavigatePrevious: true };
-    }
-
-    const { contentWidth, offsetX, viewportWidth } = weekScrollMetricsRef.current;
-    if (contentWidth <= 0 || viewportWidth <= 0) {
-      return { canNavigateNext: false, canNavigatePrevious: false };
-    }
-
-    const maxOffset = Math.max(0, contentWidth - viewportWidth);
-    return {
-      canNavigatePrevious: offsetX <= WEEK_BODY_EDGE_TOLERANCE,
-      canNavigateNext: offsetX >= maxOffset - WEEK_BODY_EDGE_TOLERANCE,
-    };
-  };
-
-  const startCalendarBodySwipe = (kind: CalendarBodySwipeState['kind'], point: { x: number; y: number }) => {
-    const { canNavigateNext, canNavigatePrevious } = getBodyPeriodNavigationAvailability();
+  const startMonthCalendarSwipe = (point: { x: number; y: number }) => {
     bodySwipeRef.current = {
-      kind,
       startX: point.x,
       startY: point.y,
       lastX: point.x,
       lastY: point.y,
-      canNavigateNext,
-      canNavigatePrevious,
     };
   };
 
-  const navigateCalendarPeriod = (direction: -1 | 1) => {
-    if (viewMode === 'month') {
-      if (direction === -1) handlePrevMonth();
-      else handleNextMonth();
-      return;
-    }
-
-    if (viewMode === 'week') {
-      shiftSelectedDate(direction * 7);
-      return;
-    }
-
-    if (viewMode === 'day') {
-      shiftSelectedDate(direction);
-    }
-  };
-
-  const switchCalendarView = (direction: -1 | 1) => {
-    const currentIndex = CALENDAR_VIEW_ORDER.indexOf(viewMode as CalendarViewSwipeMode);
-    if (currentIndex < 0) return;
-    const nextIndex = Math.max(0, Math.min(CALENDAR_VIEW_ORDER.length - 1, currentIndex + direction));
-    if (nextIndex !== currentIndex) {
-      setViewMode(CALENDAR_VIEW_ORDER[nextIndex]);
-    }
-  };
-
-  const navigateCalendarPeriodFromBody = (direction: -1 | 1, state: CalendarBodySwipeState) => {
-    const canNavigate = direction === -1 ? state.canNavigatePrevious : state.canNavigateNext;
-    if (!canNavigate) return;
-    navigateCalendarPeriod(direction);
-  };
-
-  const handleCalendarBodyTouchStart = (event: GestureResponderEvent) => {
+  const handleMonthCalendarTouchStart = (event: GestureResponderEvent) => {
     const { touches } = event.nativeEvent;
-    if (touches.length === 2) {
-      const point = getTouchCentroid(touches);
-      if (point) startCalendarBodySwipe('view', point);
+    if (touches.length !== 1) {
+      bodySwipeRef.current = null;
       return;
     }
 
-    if (touches.length === 1) {
-      const touch = touches[0];
-      startCalendarBodySwipe('period', { x: touch.pageX, y: touch.pageY });
-      return;
-    }
-
-    bodySwipeRef.current = null;
+    const touch = touches[0];
+    startMonthCalendarSwipe({ x: touch.pageX, y: touch.pageY });
   };
 
-  const handleCalendarBodyTouchMove = (event: GestureResponderEvent) => {
+  const handleMonthCalendarTouchMove = (event: GestureResponderEvent) => {
     const { touches } = event.nativeEvent;
-    if (touches.length >= 2) {
-      const point = getTouchCentroid(touches);
-      if (!point) return;
-
-      const state = bodySwipeRef.current;
-      if (!state || state.kind !== 'view') {
-        startCalendarBodySwipe('view', point);
-        return;
-      }
-
-      state.lastX = point.x;
-      state.lastY = point.y;
+    if (touches.length !== 1) {
+      bodySwipeRef.current = null;
       return;
     }
 
     const state = bodySwipeRef.current;
-    if (!state || state.kind !== 'period' || touches.length !== 1) return;
+    if (!state) return;
 
     const touch = touches[0];
     state.lastX = touch.pageX;
     state.lastY = touch.pageY;
   };
 
-  const handleCalendarBodyTouchEnd = (event: GestureResponderEvent) => {
+  const handleMonthCalendarTouchEnd = (event: GestureResponderEvent) => {
     const state = bodySwipeRef.current;
     if (!state) return;
 
-    if (state.kind === 'period') {
-      const touch = event.nativeEvent.changedTouches[0];
-      if (touch) {
-        state.lastX = touch.pageX;
-        state.lastY = touch.pageY;
-      }
+    const touch = event.nativeEvent.changedTouches[0];
+    if (touch) {
+      state.lastX = touch.pageX;
+      state.lastY = touch.pageY;
     }
 
     bodySwipeRef.current = null;
@@ -325,24 +234,13 @@ export function CalendarView() {
     }
 
     const direction = dx < 0 ? 1 : -1;
-    if (state.kind === 'view') switchCalendarView(direction);
-    else navigateCalendarPeriodFromBody(direction, state);
+    if (direction === -1) handlePrevMonth();
+    else handleNextMonth();
   };
 
-  const handleCalendarBodyTouchCancel = () => {
+  const handleMonthCalendarTouchCancel = () => {
     bodySwipeRef.current = null;
   };
-
-  const calendarNavigationGesture = Gesture.Pan()
-    .maxPointers(1)
-    .activeOffsetX([-40, 40])
-    .failOffsetY([-18, 18])
-    .onEnd((event) => {
-      const enoughDistance = Math.abs(event.translationX) >= NAVIGATION_SWIPE_DISTANCE;
-      const enoughVelocity = Math.abs(event.velocityX) >= NAVIGATION_SWIPE_VELOCITY;
-      if (!enoughDistance && !enoughVelocity) return;
-      runOnJS(navigateCalendarPeriod)(event.translationX < 0 ? 1 : -1);
-    });
 
   const modeOptions = [
     { value: 'month' as const, label: localize('Month', '月') },
@@ -659,46 +557,40 @@ export function CalendarView() {
 
     return (
       <View style={[styles.container, { backgroundColor: tc.bg }]}>
-        <GestureDetector gesture={calendarNavigationGesture}>
-          <View style={[styles.dayModeHeader, { backgroundColor: tc.cardBg, borderBottomColor: tc.border }]}>
-            <View style={styles.headerTopRow}>
-              <Pressable onPress={() => shiftSelectedDate(-1)} style={styles.navButton}>
-                <Text style={[styles.navButtonText, { color: tc.text }]}>‹</Text>
+        <View style={[styles.dayModeHeader, { backgroundColor: tc.cardBg, borderBottomColor: tc.border }]}>
+          <View style={styles.headerTopRow}>
+            <Pressable onPress={() => shiftSelectedDate(-1)} style={styles.navButton}>
+              <Text style={[styles.navButtonText, { color: tc.text }]}>‹</Text>
+            </Pressable>
+            <View style={styles.dayModeTitleWrap}>
+              <Text style={[styles.dayModeTitle, { color: tc.text }]} numberOfLines={1}>
+                {selectedDayModeLabel}
+              </Text>
+              <Pressable onPress={handleToday} style={[styles.todayButton, { borderColor: tc.border }]}>
+                <Text style={[styles.todayButtonText, { color: tc.tint }]}>{localize('Today', '今天')}</Text>
               </Pressable>
-              <View style={styles.dayModeTitleWrap}>
-                <Text style={[styles.dayModeTitle, { color: tc.text }]} numberOfLines={1}>
-                  {selectedDayModeLabel}
-                </Text>
-                <Pressable onPress={handleToday} style={[styles.todayButton, { borderColor: tc.border }]}>
-                  <Text style={[styles.todayButtonText, { color: tc.tint }]}>{localize('Today', '今天')}</Text>
-                </Pressable>
-              </View>
-              <View style={styles.dayModeNav}>
-                <Pressable
-                  accessibilityLabel={localize('Add task', '添加任务')}
-                  accessibilityRole="button"
-                  onPress={() => openQuickAddForDate(selectedDate)}
-                  style={[styles.dayAddTaskButton, { backgroundColor: toRgba(tc.tint, isDark ? 0.18 : 0.1) }]}
-                >
-                  <Text style={[styles.dayAddTaskText, { color: tc.tint }]}>＋ {localize('Add', '添加')}</Text>
-                </Pressable>
-                <Pressable onPress={() => shiftSelectedDate(1)} style={styles.navButton}>
-                  <Text style={[styles.navButtonText, { color: tc.text }]}>›</Text>
-                </Pressable>
-              </View>
             </View>
-            {renderModeToggle()}
+            <View style={styles.dayModeNav}>
+              <Pressable
+                accessibilityLabel={localize('Add task', '添加任务')}
+                accessibilityRole="button"
+                onPress={() => openQuickAddForDate(selectedDate)}
+                style={[styles.dayAddTaskButton, { backgroundColor: toRgba(tc.tint, isDark ? 0.18 : 0.1) }]}
+              >
+                <Text style={[styles.dayAddTaskText, { color: tc.tint }]}>＋ {localize('Add', '添加')}</Text>
+              </Pressable>
+              <Pressable onPress={() => shiftSelectedDate(1)} style={styles.navButton}>
+                <Text style={[styles.navButtonText, { color: tc.text }]}>›</Text>
+              </Pressable>
+            </View>
           </View>
-        </GestureDetector>
+          {renderModeToggle()}
+        </View>
 
         <ScrollView
           ref={timelineScrollRef}
           style={styles.dayScroll}
           contentContainerStyle={styles.dayScrollContent}
-          onTouchStart={handleCalendarBodyTouchStart}
-          onTouchMove={handleCalendarBodyTouchMove}
-          onTouchEnd={handleCalendarBodyTouchEnd}
-          onTouchCancel={handleCalendarBodyTouchCancel}
         >
           {selectedDateAllDayEvents.length > 0 && (
             <View style={[styles.allDayCard, { backgroundColor: tc.cardBg, borderColor: tc.border }]}>
@@ -908,46 +800,30 @@ export function CalendarView() {
     const weekColumnWidth = 150;
     return (
       <View style={[styles.container, { backgroundColor: tc.bg }]}>
-        <GestureDetector gesture={calendarNavigationGesture}>
-          <View style={[styles.header, { backgroundColor: tc.cardBg, borderBottomColor: tc.border }]}>
-            <View style={styles.headerTopRow}>
-              <Pressable onPress={() => shiftSelectedDate(-7)} style={styles.navButton}>
-                <Text style={[styles.navButtonText, { color: tc.text }]}>‹</Text>
-              </Pressable>
-              <View style={styles.monthTitleWrap}>
-                <Text style={[styles.title, { color: tc.text }]} numberOfLines={1}>
-                  {weekLabel}
-                </Text>
-                <Pressable onPress={handleToday} style={[styles.todayButton, { borderColor: tc.border }]}>
-                  <Text style={[styles.todayButtonText, { color: tc.tint }]}>{localize('Today', '今天')}</Text>
-                </Pressable>
-              </View>
-              <Pressable onPress={() => shiftSelectedDate(7)} style={styles.navButton}>
-                <Text style={[styles.navButtonText, { color: tc.text }]}>›</Text>
+        <View style={[styles.header, { backgroundColor: tc.cardBg, borderBottomColor: tc.border }]}>
+          <View style={styles.headerTopRow}>
+            <Pressable onPress={() => shiftSelectedDate(-7)} style={styles.navButton}>
+              <Text style={[styles.navButtonText, { color: tc.text }]}>‹</Text>
+            </Pressable>
+            <View style={styles.monthTitleWrap}>
+              <Text style={[styles.title, { color: tc.text }]} numberOfLines={1}>
+                {weekLabel}
+              </Text>
+              <Pressable onPress={handleToday} style={[styles.todayButton, { borderColor: tc.border }]}>
+                <Text style={[styles.todayButtonText, { color: tc.tint }]}>{localize('Today', '今天')}</Text>
               </Pressable>
             </View>
-            {renderModeToggle()}
+            <Pressable onPress={() => shiftSelectedDate(7)} style={styles.navButton}>
+              <Text style={[styles.navButtonText, { color: tc.text }]}>›</Text>
+            </Pressable>
           </View>
-        </GestureDetector>
+          {renderModeToggle()}
+        </View>
 
         <ScrollView
           horizontal
           style={styles.weekHorizontal}
           contentContainerStyle={styles.weekHorizontalContent}
-          onContentSizeChange={(contentWidth) => {
-            weekScrollMetricsRef.current.contentWidth = contentWidth;
-          }}
-          onLayout={(event) => {
-            weekScrollMetricsRef.current.viewportWidth = event.nativeEvent.layout.width;
-          }}
-          onScroll={(event: NativeSyntheticEvent<NativeScrollEvent>) => {
-            weekScrollMetricsRef.current.offsetX = event.nativeEvent.contentOffset.x;
-          }}
-          onTouchStart={handleCalendarBodyTouchStart}
-          onTouchMove={handleCalendarBodyTouchMove}
-          onTouchEnd={handleCalendarBodyTouchEnd}
-          onTouchCancel={handleCalendarBodyTouchCancel}
-          scrollEventThrottle={16}
         >
           <View style={[styles.weekCanvas, { width: 56 + weekColumnWidth * weekDays.length }]}>
             <View style={[styles.weekHeaderRow, { borderBottomColor: tc.border }]}>
@@ -1178,10 +1054,6 @@ export function CalendarView() {
         <ScrollView
           style={styles.scheduleScroll}
           contentContainerStyle={styles.scheduleContent}
-          onTouchStart={handleCalendarBodyTouchStart}
-          onTouchMove={handleCalendarBodyTouchMove}
-          onTouchEnd={handleCalendarBodyTouchEnd}
-          onTouchCancel={handleCalendarBodyTouchCancel}
         >
           {scheduleSections.map((section) => (
             <View key={section.id} style={styles.scheduleSection}>
@@ -1293,34 +1165,32 @@ export function CalendarView() {
 
   return (
     <View style={[styles.container, { backgroundColor: tc.bg }]}>
-      <GestureDetector gesture={calendarNavigationGesture}>
-        <View style={[styles.header, { backgroundColor: tc.cardBg, borderBottomColor: tc.border }]}>
-          <View style={styles.headerTopRow}>
-            <Pressable onPress={handlePrevMonth} style={styles.navButton}>
-              <Text style={[styles.navButtonText, { color: tc.text }]}>‹</Text>
-            </Pressable>
-            <View style={styles.monthTitleWrap}>
-              <Text style={[styles.title, { color: tc.text }]} numberOfLines={1}>
-                {monthLabel}
-              </Text>
-              <Pressable onPress={handleToday} style={[styles.todayButton, { borderColor: tc.border }]}>
-                <Text style={[styles.todayButtonText, { color: tc.tint }]}>{localize('Today', '今天')}</Text>
-              </Pressable>
-            </View>
-            <Pressable onPress={handleNextMonth} style={styles.navButton}>
-              <Text style={[styles.navButtonText, { color: tc.text }]}>›</Text>
+      <View style={[styles.header, { backgroundColor: tc.cardBg, borderBottomColor: tc.border }]}>
+        <View style={styles.headerTopRow}>
+          <Pressable onPress={handlePrevMonth} style={styles.navButton}>
+            <Text style={[styles.navButtonText, { color: tc.text }]}>‹</Text>
+          </Pressable>
+          <View style={styles.monthTitleWrap}>
+            <Text style={[styles.title, { color: tc.text }]} numberOfLines={1}>
+              {monthLabel}
+            </Text>
+            <Pressable onPress={handleToday} style={[styles.todayButton, { borderColor: tc.border }]}>
+              <Text style={[styles.todayButtonText, { color: tc.tint }]}>{localize('Today', '今天')}</Text>
             </Pressable>
           </View>
-          {renderModeToggle()}
+          <Pressable onPress={handleNextMonth} style={styles.navButton}>
+            <Text style={[styles.navButtonText, { color: tc.text }]}>›</Text>
+          </Pressable>
         </View>
-      </GestureDetector>
+        {renderModeToggle()}
+      </View>
 
       <View
         style={styles.monthCalendar}
-        onTouchStart={handleCalendarBodyTouchStart}
-        onTouchMove={handleCalendarBodyTouchMove}
-        onTouchEnd={handleCalendarBodyTouchEnd}
-        onTouchCancel={handleCalendarBodyTouchCancel}
+        onTouchStart={handleMonthCalendarTouchStart}
+        onTouchMove={handleMonthCalendarTouchMove}
+        onTouchEnd={handleMonthCalendarTouchEnd}
+        onTouchCancel={handleMonthCalendarTouchCancel}
       >
         <View style={[styles.dayHeaders, { backgroundColor: tc.cardBg, borderBottomColor: tc.border }]}>
           {dayNames.map((day) => (
