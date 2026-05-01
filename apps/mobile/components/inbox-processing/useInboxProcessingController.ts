@@ -172,9 +172,10 @@ export function useInboxProcessingController({
   const totalCount = inboxTasks.length;
   const processedCount = totalCount - processingQueue.length + currentIndex;
   const formatProgressLabel = useCallback((current: number, total: number) => {
-    if (total <= 0) return 'Task 0 of 0';
-    return `Task ${Math.max(0, current)} of ${total}`;
-  }, []);
+    const taskLabel = t('common.tasks');
+    if (total <= 0) return `0/0 ${taskLabel}`;
+    return `${Math.max(0, current)}/${total} ${taskLabel}`;
+  }, [t]);
 
   const resolvedTitleDirection = useMemo(() => {
     if (!currentTask) return 'ltr';

@@ -42,6 +42,7 @@ interface TaskItemDisplayProps {
     projectColor?: string;
     selectionMode: boolean;
     isViewOpen: boolean;
+    quickActionsOpen?: boolean;
     actions: TaskItemDisplayActions;
     visibleAttachments: Attachment[];
     recurrenceRule: RecurrenceRule | '';
@@ -87,6 +88,7 @@ export const TaskItemDisplay = memo(function TaskItemDisplay({
     projectColor,
     selectionMode,
     isViewOpen,
+    quickActionsOpen = false,
     actions,
     visibleAttachments,
     recurrenceRule,
@@ -664,6 +666,9 @@ export const TaskItemDisplay = memo(function TaskItemDisplay({
                         <button
                             type="button"
                             onClick={onOpenQuickActions}
+                            data-task-quick-actions-trigger
+                            aria-haspopup="dialog"
+                            aria-expanded={quickActionsOpen}
                             aria-label={moreOptionsLabel}
                             title={moreOptionsLabel}
                             className="opacity-0 group-hover:opacity-100 focus:opacity-100 transition-opacity text-muted-foreground hover:text-foreground p-1 rounded hover:bg-muted/50"

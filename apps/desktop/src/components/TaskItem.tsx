@@ -87,6 +87,8 @@ export const TaskItem = memo(function TaskItem({
     const [isEditing, setIsEditing] = useState(false);
     const [autoFocusTitle, setAutoFocusTitle] = useState(false);
     const [quickActionMenu, setQuickActionMenu] = useState<{ x: number; y: number } | null>(null);
+    const taskRootRef = useRef<HTMLDivElement | null>(null);
+    const quickActionReturnFocusRef = useRef<HTMLElement | null>(null);
     const modalEditorRef = useRef<HTMLDivElement | null>(null);
     const lastFocusedBeforeModalRef = useRef<HTMLElement | null>(null);
     const {
@@ -819,6 +821,8 @@ export const TaskItem = memo(function TaskItem({
         event.preventDefault();
         event.stopPropagation();
         onSelect?.();
+        quickActionReturnFocusRef.current = event.currentTarget.querySelector<HTMLElement>('[data-task-quick-actions-trigger]')
+            ?? event.currentTarget;
         setQuickActionMenu({
             x: event.clientX,
             y: event.clientY,
@@ -829,12 +833,20 @@ export const TaskItem = memo(function TaskItem({
         event.preventDefault();
         event.stopPropagation();
         onSelect?.();
+        quickActionReturnFocusRef.current = event.currentTarget;
         const rect = event.currentTarget.getBoundingClientRect();
         setQuickActionMenu({
             x: rect.left,
             y: rect.bottom + 4,
         });
     }, [isEditing, onSelect, selectionMode]);
+    const handleCloseQuickActionMenu = useCallback(() => {
+        setQuickActionMenu(null);
+        window.setTimeout(() => {
+            quickActionReturnFocusRef.current?.focus();
+            quickActionReturnFocusRef.current = null;
+        }, 0);
+    }, []);
     useEffect(() => {
         if (!isEditing) return;
         const handleGlobalCancel = (event: Event) => {
@@ -952,7 +964,9 @@ export const TaskItem = memo(function TaskItem({
     return (
         <>
             <div
+                ref={taskRootRef}
                 data-task-id={task.id}
+                tabIndex={-1}
                 onClickCapture={onSelect ? () => onSelect?.() : undefined}
                 onDoubleClick={(event) => {
                     if (!enableDoubleClickEdit || selectionMode || effectiveReadOnly || isEditing) return;
@@ -997,6 +1011,7 @@ export const TaskItem = memo(function TaskItem({
                                 projectColor={projectColor}
                                 selectionMode={selectionMode}
                                 isViewOpen={isTaskExpanded}
+                                quickActionsOpen={Boolean(quickActionMenu)}
                                 actions={displayActions}
                                 visibleAttachments={visibleAttachments}
                                 recurrenceRule={recurrenceRule}
@@ -1030,7 +1045,7 @@ export const TaskItem = memo(function TaskItem({
                     contextOptions={popularContextOptions}
                     areas={areas}
                     readOnly={effectiveReadOnly}
-                    onClose={() => setQuickActionMenu(null)}
+                    onClose={handleCloseQuickActionMenu}
                     onDuplicate={() => {
                         duplicateTask(task.id, false);
                     }}

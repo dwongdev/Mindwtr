@@ -330,7 +330,7 @@ export function TaskQuickActionMenu({
             ref={ref}
             type="button"
             role="menuitem"
-            aria-pressed={showChevron ? active : undefined}
+            aria-haspopup={showChevron ? 'dialog' : undefined}
             aria-expanded={showChevron ? active : undefined}
             onClick={onClick}
             className={cn(

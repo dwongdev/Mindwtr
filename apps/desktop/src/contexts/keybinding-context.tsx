@@ -23,6 +23,7 @@ export interface TaskListScope {
     selectFirst: () => void;
     selectLast: () => void;
     editSelected: () => void;
+    openQuickActions?: () => void;
     toggleDoneSelected: () => void;
     deleteSelected: () => void;
     focusAddInput?: () => void;
@@ -347,6 +348,15 @@ export function KeybindingProvider({
         editTrigger.click();
     }, [pickFallbackTaskElement]);
 
+    const fallbackOpenQuickActionsSelected = useCallback(() => {
+        const selectedElement = pickFallbackTaskElement();
+        if (!selectedElement) return;
+        const trigger = selectedElement.querySelector<HTMLElement>('[data-task-quick-actions-trigger]');
+        if (!trigger) return;
+        trigger.focus();
+        trigger.click();
+    }, [pickFallbackTaskElement]);
+
     const fallbackToggleDoneSelected = useCallback(() => {
         const selectedElement = pickFallbackTaskElement();
         const selectedTaskId = selectedElement?.dataset.taskId;
@@ -376,12 +386,14 @@ export function KeybindingProvider({
         selectFirst: fallbackSelectFirst,
         selectLast: fallbackSelectLast,
         editSelected: fallbackEditSelected,
+        openQuickActions: fallbackOpenQuickActionsSelected,
         toggleDoneSelected: fallbackToggleDoneSelected,
         deleteSelected: fallbackDeleteSelected,
         focusAddInput: focusFallbackFilterInput,
     }), [
         fallbackDeleteSelected,
         fallbackEditSelected,
+        fallbackOpenQuickActionsSelected,
         fallbackSelectFirst,
         fallbackSelectLast,
         fallbackSelectNext,
@@ -522,6 +534,10 @@ export function KeybindingProvider({
                     e.preventDefault();
                     scope?.editSelected();
                     break;
+                case '.':
+                    e.preventDefault();
+                    scope?.openQuickActions?.();
+                    break;
                 case 'x':
                     e.preventDefault();
                     scope?.toggleDoneSelected();
@@ -583,6 +599,10 @@ export function KeybindingProvider({
                     case 'e':
                         e.preventDefault();
                         scope?.editSelected();
+                        break;
+                    case '.':
+                        e.preventDefault();
+                        scope?.openQuickActions?.();
                         break;
                     case 't':
                         e.preventDefault();
