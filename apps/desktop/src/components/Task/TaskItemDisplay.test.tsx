@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { act, fireEvent, render } from '@testing-library/react';
 import type { Task } from '@mindwtr/core';
 import { useTaskStore } from '@mindwtr/core';
@@ -23,6 +23,10 @@ describe('TaskItemDisplay', () => {
         act(() => {
             useTaskStore.setState(initialTaskState, true);
         });
+    });
+
+    afterEach(() => {
+        vi.unstubAllGlobals();
     });
 
     it('renders task age in Chinese when language is zh', () => {
@@ -175,6 +179,46 @@ describe('TaskItemDisplay', () => {
         );
 
         expect(getByRole('button', { name: 'Referenced task' })).toBeInTheDocument();
+    });
+
+    it('opens external URL notes from expanded task details', () => {
+        const open = vi.fn(() => ({}));
+        vi.stubGlobal('open', open);
+
+        const { getByRole } = render(
+            <LanguageProvider>
+                <TaskItemDisplay
+                    task={{
+                        ...baseTask,
+                        description: 'https://example.com',
+                    }}
+                    language="en"
+                    selectionMode={false}
+                    isViewOpen
+                    actions={{
+                        onToggleView: vi.fn(),
+                        onEdit: vi.fn(),
+                        onDelete: vi.fn(),
+                        onDuplicate: vi.fn(),
+                        onStatusChange: vi.fn(),
+                        openAttachment: vi.fn(),
+                    }}
+                    visibleAttachments={[]}
+                    recurrenceRule=""
+                    recurrenceStrategy="strict"
+                    prioritiesEnabled={false}
+                    timeEstimatesEnabled={false}
+                    isStagnant={false}
+                    showQuickDone={false}
+                    readOnly={false}
+                    t={(key: string) => key}
+                />
+            </LanguageProvider>
+        );
+
+        fireEvent.click(getByRole('link', { name: 'https://example.com' }));
+
+        expect(open).toHaveBeenCalledWith('https://example.com', '_blank', 'noopener,noreferrer');
     });
 
     it('renders inline image attachment previews in expanded details', () => {
