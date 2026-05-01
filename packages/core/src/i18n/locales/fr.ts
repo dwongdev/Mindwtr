@@ -1149,4 +1149,12 @@ export const frOverrides: Record<string, string> = {
         'taskEdit.energyLevel': 'Energy Level',
         // English fallbacks keep shipped locale files in key parity.
         'recurrence.weekUnit': 'week(s)',
+        // English fallbacks keep shipped locale files in key parity.
+        'dailyReview.focusSelected': 'focused',
+        'review.noArea': 'No area',
+        'review.singleActions': 'Single actions',
+        'settings.dailyReviewConfig': 'Daily review flow',
+        'settings.dailyReviewConfigDesc': 'Configure the lightweight daily reset.',
+        'settings.dailyReviewIncludeFocusStep': 'Include Focus step',
+        'settings.dailyReviewIncludeFocusStepDesc': 'Show the optional step for marking today’s focus tasks.',
 };
