@@ -16,6 +16,8 @@ const MONTH_DETAILS_MID_SNAP = 0.58;
 const MONTH_DETAILS_EXPANDED_SNAP = 0.9;
 const MONTH_DETAILS_HIDE_THRESHOLD = 0.2;
 const MONTH_DETAILS_MIN_HEIGHT = 176;
+const NAVIGATION_SWIPE_DISTANCE = 56;
+const NAVIGATION_SWIPE_VELOCITY = 500;
 
 export function CalendarView() {
   const {
@@ -48,6 +50,7 @@ export function CalendarView() {
     handleToday,
     isDark,
     isExternalLoading,
+    isExternalEventOpenable,
     isSameDay,
     isToday,
     locale,
@@ -57,6 +60,7 @@ export function CalendarView() {
     nextQuickScheduleCandidates,
     openQuickAddForDate,
     openQuickAddAtDateTime,
+    openExternalEvent,
     openTaskActions,
     saveEditingTask,
     saveCalendarComposer,
@@ -158,6 +162,33 @@ export function CalendarView() {
     Haptics.selectionAsync().catch(() => {});
   };
 
+  const navigateCalendarPeriod = (direction: -1 | 1) => {
+    if (viewMode === 'month') {
+      if (direction === -1) handlePrevMonth();
+      else handleNextMonth();
+      return;
+    }
+
+    if (viewMode === 'week') {
+      shiftSelectedDate(direction * 7);
+      return;
+    }
+
+    if (viewMode === 'day') {
+      shiftSelectedDate(direction);
+    }
+  };
+
+  const calendarNavigationGesture = Gesture.Pan()
+    .activeOffsetX([-40, 40])
+    .failOffsetY([-18, 18])
+    .onEnd((event) => {
+      const enoughDistance = Math.abs(event.translationX) >= NAVIGATION_SWIPE_DISTANCE;
+      const enoughVelocity = Math.abs(event.velocityX) >= NAVIGATION_SWIPE_VELOCITY;
+      if (!enoughDistance && !enoughVelocity) return;
+      runOnJS(navigateCalendarPeriod)(event.translationX < 0 ? 1 : -1);
+    });
+
   const modeOptions = [
     { value: 'month' as const, label: localize('Month', '月') },
     { value: 'day' as const, label: localize('Day', '日') },
@@ -212,7 +243,7 @@ export function CalendarView() {
             <View style={styles.composerHeader}>
               <View style={styles.taskItemMain}>
                 <Text style={[styles.composerTitle, { color: tc.text }]}>
-                  {localize('Add to calendar', '添加到日历')}
+                  {localize('Schedule task', '安排任务')}
                 </Text>
                 <Text style={[styles.composerDate, { color: tc.secondaryText }]}>
                   {calendarComposer.date.toLocaleDateString(locale, { weekday: 'short', month: 'short', day: 'numeric' })}
@@ -473,30 +504,37 @@ export function CalendarView() {
 
     return (
       <View style={[styles.container, { backgroundColor: tc.bg }]}>
-        <View style={[styles.dayModeHeader, { backgroundColor: tc.cardBg, borderBottomColor: tc.border }]}>
-          <View style={styles.headerTopRow}>
-            <Pressable onPress={() => shiftSelectedDate(-1)} style={styles.navButton}>
-              <Text style={[styles.navButtonText, { color: tc.text }]}>‹</Text>
-            </Pressable>
-            <View style={styles.dayModeTitleWrap}>
-              <Text style={[styles.dayModeTitle, { color: tc.text }]} numberOfLines={1}>
-                {selectedDayModeLabel}
-              </Text>
-              <Pressable onPress={handleToday} style={[styles.todayButton, { borderColor: tc.border }]}>
-                <Text style={[styles.todayButtonText, { color: tc.tint }]}>{localize('Today', '今天')}</Text>
+        <GestureDetector gesture={calendarNavigationGesture}>
+          <View style={[styles.dayModeHeader, { backgroundColor: tc.cardBg, borderBottomColor: tc.border }]}>
+            <View style={styles.headerTopRow}>
+              <Pressable onPress={() => shiftSelectedDate(-1)} style={styles.navButton}>
+                <Text style={[styles.navButtonText, { color: tc.text }]}>‹</Text>
               </Pressable>
+              <View style={styles.dayModeTitleWrap}>
+                <Text style={[styles.dayModeTitle, { color: tc.text }]} numberOfLines={1}>
+                  {selectedDayModeLabel}
+                </Text>
+                <Pressable onPress={handleToday} style={[styles.todayButton, { borderColor: tc.border }]}>
+                  <Text style={[styles.todayButtonText, { color: tc.tint }]}>{localize('Today', '今天')}</Text>
+                </Pressable>
+              </View>
+              <View style={styles.dayModeNav}>
+                <Pressable
+                  accessibilityLabel={localize('Add task', '添加任务')}
+                  accessibilityRole="button"
+                  onPress={() => openQuickAddForDate(selectedDate)}
+                  style={[styles.dayAddTaskButton, { backgroundColor: toRgba(tc.tint, isDark ? 0.18 : 0.1) }]}
+                >
+                  <Text style={[styles.dayAddTaskText, { color: tc.tint }]}>＋ {localize('Add', '添加')}</Text>
+                </Pressable>
+                <Pressable onPress={() => shiftSelectedDate(1)} style={styles.navButton}>
+                  <Text style={[styles.navButtonText, { color: tc.text }]}>›</Text>
+                </Pressable>
+              </View>
             </View>
-            <View style={styles.dayModeNav}>
-              <Pressable onPress={() => openQuickAddForDate(selectedDate)} style={styles.dayNavButton}>
-                <Text style={[styles.dayNavText, { color: tc.text }]}>＋</Text>
-              </Pressable>
-              <Pressable onPress={() => shiftSelectedDate(1)} style={styles.navButton}>
-                <Text style={[styles.navButtonText, { color: tc.text }]}>›</Text>
-              </Pressable>
-            </View>
+            {renderModeToggle()}
           </View>
-          {renderModeToggle()}
-        </View>
+        </GestureDetector>
 
         <ScrollView
           ref={timelineScrollRef}
@@ -506,11 +544,25 @@ export function CalendarView() {
           {selectedDateAllDayEvents.length > 0 && (
             <View style={[styles.allDayCard, { backgroundColor: tc.cardBg, borderColor: tc.border }]}>
               <Text style={[styles.sectionLabel, { color: tc.secondaryText }]}>{t('calendar.allDay')}</Text>
-              {selectedDateAllDayEvents.slice(0, 6).map((event) => (
-                <Text key={event.id} style={[styles.allDayItem, { color: tc.text }]} numberOfLines={1}>
-                  {event.title}
-                </Text>
-              ))}
+              {selectedDateAllDayEvents.slice(0, 6).map((event) => {
+                const eventTitle = (
+                  <Text style={[styles.allDayItem, { color: tc.text }]} numberOfLines={1}>
+                    {event.title}
+                  </Text>
+                );
+                if (isExternalEventOpenable(event)) {
+                  return (
+                    <Pressable key={event.id} onPress={() => openExternalEvent(event)} style={styles.allDayPressable}>
+                      {eventTitle}
+                    </Pressable>
+                  );
+                }
+                return (
+                  <View key={event.id} pointerEvents="none">
+                    {eventTitle}
+                  </View>
+                );
+              })}
             </View>
           )}
 
@@ -546,26 +598,47 @@ export function CalendarView() {
                 const top = Math.max(0, startMinutes) * PIXELS_PER_MINUTE;
                 const height = Math.max(16, (endMinutes - startMinutes) * PIXELS_PER_MINUTE);
                 const timeLabel = formatTimeRange(clampedStart, Math.max(1, Math.round(endMinutes - startMinutes)));
-                return (
-                  <View
-                    key={event.id}
-                    pointerEvents="none"
-                    style={[
-                      styles.eventBlock,
-                      {
-                        top,
-                        height,
-                        backgroundColor: toRgba(tc.secondaryText, isDark ? 0.35 : 0.18),
-                        borderColor: sourceColorForId(event.sourceId),
-                      },
-                    ]}
-                  >
+                const openable = isExternalEventOpenable(event);
+                const eventStyle = [
+                  styles.eventBlock,
+                  {
+                    top,
+                    height,
+                    backgroundColor: toRgba(tc.secondaryText, isDark ? 0.35 : 0.18),
+                    borderColor: sourceColorForId(event.sourceId),
+                  },
+                ];
+                const eventContent = (
+                  <>
                     <Text style={[styles.eventBlockTitle, { color: tc.text }]} numberOfLines={1}>
                       {event.title}
                     </Text>
                     <Text style={[styles.eventBlockTime, { color: tc.secondaryText }]} numberOfLines={1}>
                       {timeLabel}
                     </Text>
+                  </>
+                );
+                if (openable) {
+                  return (
+                    <Pressable
+                      key={event.id}
+                      onPress={(pressEvent) => {
+                        pressEvent.stopPropagation();
+                        openExternalEvent(event);
+                      }}
+                      style={eventStyle}
+                    >
+                      {eventContent}
+                    </Pressable>
+                  );
+                }
+                return (
+                  <View
+                    key={event.id}
+                    pointerEvents="none"
+                    style={eventStyle}
+                  >
+                    {eventContent}
                   </View>
                 );
               })}
@@ -676,25 +749,27 @@ export function CalendarView() {
     const weekColumnWidth = 150;
     return (
       <View style={[styles.container, { backgroundColor: tc.bg }]}>
-        <View style={[styles.header, { backgroundColor: tc.cardBg, borderBottomColor: tc.border }]}>
-          <View style={styles.headerTopRow}>
-            <Pressable onPress={() => shiftSelectedDate(-7)} style={styles.navButton}>
-              <Text style={[styles.navButtonText, { color: tc.text }]}>‹</Text>
-            </Pressable>
-            <View style={styles.monthTitleWrap}>
-              <Text style={[styles.title, { color: tc.text }]} numberOfLines={1}>
-                {weekLabel}
-              </Text>
-              <Pressable onPress={handleToday} style={[styles.todayButton, { borderColor: tc.border }]}>
-                <Text style={[styles.todayButtonText, { color: tc.tint }]}>{localize('Today', '今天')}</Text>
+        <GestureDetector gesture={calendarNavigationGesture}>
+          <View style={[styles.header, { backgroundColor: tc.cardBg, borderBottomColor: tc.border }]}>
+            <View style={styles.headerTopRow}>
+              <Pressable onPress={() => shiftSelectedDate(-7)} style={styles.navButton}>
+                <Text style={[styles.navButtonText, { color: tc.text }]}>‹</Text>
+              </Pressable>
+              <View style={styles.monthTitleWrap}>
+                <Text style={[styles.title, { color: tc.text }]} numberOfLines={1}>
+                  {weekLabel}
+                </Text>
+                <Pressable onPress={handleToday} style={[styles.todayButton, { borderColor: tc.border }]}>
+                  <Text style={[styles.todayButtonText, { color: tc.tint }]}>{localize('Today', '今天')}</Text>
+                </Pressable>
+              </View>
+              <Pressable onPress={() => shiftSelectedDate(7)} style={styles.navButton}>
+                <Text style={[styles.navButtonText, { color: tc.text }]}>›</Text>
               </Pressable>
             </View>
-            <Pressable onPress={() => shiftSelectedDate(7)} style={styles.navButton}>
-              <Text style={[styles.navButtonText, { color: tc.text }]}>›</Text>
-            </Pressable>
+            {renderModeToggle()}
           </View>
-          {renderModeToggle()}
-        </View>
+        </GestureDetector>
 
         <ScrollView horizontal style={styles.weekHorizontal} contentContainerStyle={styles.weekHorizontalContent}>
           <View style={[styles.weekCanvas, { width: 56 + weekColumnWidth * weekDays.length }]}>
@@ -731,11 +806,16 @@ export function CalendarView() {
                   <View key={`all-${day.toISOString()}`} style={[styles.weekAllDayCell, { width: weekColumnWidth, borderLeftColor: tc.border }]}>
                     {allDayItems.map((item) => {
                       const isEvent = item.kind === 'event';
+                      const openable = isEvent && isExternalEventOpenable(item.event);
                       return (
                         <Pressable
                           key={item.id}
-                          disabled={isEvent}
-                          onPress={() => item.kind !== 'event' && openTaskActions(item.task.id)}
+                          disabled={isEvent && !openable}
+                          onPress={(pressEvent) => {
+                            pressEvent.stopPropagation();
+                            if (item.kind === 'event') openExternalEvent(item.event);
+                            else openTaskActions(item.task.id);
+                          }}
                           style={[
                             styles.weekAllDayItem,
                             {
@@ -801,23 +881,45 @@ export function CalendarView() {
                           const displayEnd = new Date(Math.min(end.getTime(), clampedEnd.getTime()));
                           const top = ((displayStart.getHours() - DAY_START_HOUR) * 60 + displayStart.getMinutes()) * PIXELS_PER_MINUTE;
                           const height = Math.max(24, ((displayEnd.getTime() - displayStart.getTime()) / 60_000) * PIXELS_PER_MINUTE);
-                          return (
-                            <View
-                              key={item.id}
-                              style={[
-                                styles.weekBlock,
-                                {
-                                  top,
-                                  height,
-                                  backgroundColor: toRgba(tc.secondaryText, isDark ? 0.32 : 0.16),
-                                  borderLeftColor: sourceColorForId(item.event.sourceId),
-                                },
-                              ]}
-                            >
+                          const openable = isExternalEventOpenable(item.event);
+                          const eventStyle = [
+                            styles.weekBlock,
+                            {
+                              top,
+                              height,
+                              backgroundColor: toRgba(tc.secondaryText, isDark ? 0.32 : 0.16),
+                              borderLeftColor: sourceColorForId(item.event.sourceId),
+                            },
+                          ];
+                          const eventContent = (
+                            <>
                               <Text style={[styles.weekBlockTitle, { color: tc.text }]} numberOfLines={1}>{item.title}</Text>
                               <Text style={[styles.weekBlockTime, { color: tc.secondaryText }]} numberOfLines={1}>
                                 {`${safeFormatDate(displayStart, 'p')}-${safeFormatDate(displayEnd, 'p')}`}
                               </Text>
+                            </>
+                          );
+                          if (openable) {
+                            return (
+                              <Pressable
+                                key={item.id}
+                                onPress={(pressEvent) => {
+                                  pressEvent.stopPropagation();
+                                  openExternalEvent(item.event);
+                                }}
+                                style={eventStyle}
+                              >
+                                {eventContent}
+                              </Pressable>
+                            );
+                          }
+                          return (
+                            <View
+                              key={item.id}
+                              pointerEvents="none"
+                              style={eventStyle}
+                            >
+                              {eventContent}
                             </View>
                           );
                         }
@@ -914,26 +1016,42 @@ export function CalendarView() {
                         ? `${safeFormatDate(start, 'p')}-${safeFormatDate(end, 'p')}`
                         : '';
                     const sourceName = calendarNameById.get(item.event.sourceId);
+                    const openable = isExternalEventOpenable(item.event);
+                    const eventStyle = [
+                      styles.scheduleItem,
+                      styles.eventItem,
+                      {
+                        backgroundColor: tc.inputBg,
+                        borderLeftColor: sourceColorForId(item.event.sourceId),
+                      },
+                    ];
+                    const eventContent = (
+                      <View style={styles.taskItemMain}>
+                        <Text style={[styles.taskItemTitle, { color: tc.text }]} numberOfLines={1}>
+                          {item.title}
+                        </Text>
+                        <Text style={[styles.taskItemTime, { color: tc.secondaryText }]} numberOfLines={1}>
+                          {sourceName ? `${timeLabel} · ${sourceName}` : timeLabel}
+                        </Text>
+                      </View>
+                    );
+                    if (openable) {
+                      return (
+                        <Pressable
+                          key={item.id}
+                          onPress={() => openExternalEvent(item.event)}
+                          style={eventStyle}
+                        >
+                          {eventContent}
+                        </Pressable>
+                      );
+                    }
                     return (
                       <View
                         key={item.id}
-                        style={[
-                          styles.scheduleItem,
-                          styles.eventItem,
-                          {
-                            backgroundColor: tc.inputBg,
-                            borderLeftColor: sourceColorForId(item.event.sourceId),
-                          },
-                        ]}
+                        style={eventStyle}
                       >
-                        <View style={styles.taskItemMain}>
-                          <Text style={[styles.taskItemTitle, { color: tc.text }]} numberOfLines={1}>
-                            {item.title}
-                          </Text>
-                          <Text style={[styles.taskItemTime, { color: tc.secondaryText }]} numberOfLines={1}>
-                            {sourceName ? `${timeLabel} · ${sourceName}` : timeLabel}
-                          </Text>
-                        </View>
+                        {eventContent}
                       </View>
                     );
                   }
@@ -991,25 +1109,27 @@ export function CalendarView() {
 
   return (
     <View style={[styles.container, { backgroundColor: tc.bg }]}>
-      <View style={[styles.header, { backgroundColor: tc.cardBg, borderBottomColor: tc.border }]}>
-        <View style={styles.headerTopRow}>
-          <Pressable onPress={handlePrevMonth} style={styles.navButton}>
-            <Text style={[styles.navButtonText, { color: tc.text }]}>‹</Text>
-          </Pressable>
-          <View style={styles.monthTitleWrap}>
-            <Text style={[styles.title, { color: tc.text }]} numberOfLines={1}>
-              {monthLabel}
-            </Text>
-            <Pressable onPress={handleToday} style={[styles.todayButton, { borderColor: tc.border }]}>
-              <Text style={[styles.todayButtonText, { color: tc.tint }]}>{localize('Today', '今天')}</Text>
+      <GestureDetector gesture={calendarNavigationGesture}>
+        <View style={[styles.header, { backgroundColor: tc.cardBg, borderBottomColor: tc.border }]}>
+          <View style={styles.headerTopRow}>
+            <Pressable onPress={handlePrevMonth} style={styles.navButton}>
+              <Text style={[styles.navButtonText, { color: tc.text }]}>‹</Text>
+            </Pressable>
+            <View style={styles.monthTitleWrap}>
+              <Text style={[styles.title, { color: tc.text }]} numberOfLines={1}>
+                {monthLabel}
+              </Text>
+              <Pressable onPress={handleToday} style={[styles.todayButton, { borderColor: tc.border }]}>
+                <Text style={[styles.todayButtonText, { color: tc.tint }]}>{localize('Today', '今天')}</Text>
+              </Pressable>
+            </View>
+            <Pressable onPress={handleNextMonth} style={styles.navButton}>
+              <Text style={[styles.navButtonText, { color: tc.text }]}>›</Text>
             </Pressable>
           </View>
-          <Pressable onPress={handleNextMonth} style={styles.navButton}>
-            <Text style={[styles.navButtonText, { color: tc.text }]}>›</Text>
-          </Pressable>
+          {renderModeToggle()}
         </View>
-        {renderModeToggle()}
-      </View>
+      </GestureDetector>
 
       <View style={styles.monthCalendar}>
         <View style={[styles.dayHeaders, { backgroundColor: tc.cardBg, borderBottomColor: tc.border }]}>
@@ -1123,7 +1243,12 @@ export function CalendarView() {
       {selectedDate && (
         <Animated.View style={[styles.monthDetailsPane, bottomSheetStyle, { backgroundColor: tc.cardBg, borderTopColor: tc.border }]}>
           <GestureDetector gesture={bottomSheetGesture}>
-            <View style={styles.sheetHandleWrap}>
+            <View
+              accessibilityHint={localize('Swipe up or down to resize the day details panel.', '上下滑动以调整当天详情面板大小。')}
+              accessibilityLabel={localize('Day details panel handle', '当天详情面板把手')}
+              accessibilityRole="adjustable"
+              style={styles.sheetHandleWrap}
+            >
               <View style={[styles.sheetHandle, { backgroundColor: tc.border }]} />
             </View>
           </GestureDetector>
@@ -1211,25 +1336,47 @@ export function CalendarView() {
                       {externalError}
                     </Text>
                   )}
-                  {selectedDateExternalEvents.map((event) => (
-                    <View
-                      key={event.id}
-                      style={[styles.taskItem, styles.eventItem, { backgroundColor: tc.inputBg, borderLeftColor: tc.secondaryText }]}
-                    >
-                      <Text style={[styles.taskItemTitle, { color: tc.text }]} numberOfLines={1}>
-                        {event.title}
-                        {calendarNameById.get(event.sourceId) ? ` (${calendarNameById.get(event.sourceId)})` : ''}
-                      </Text>
-                      <Text style={[styles.taskItemTime, { color: tc.secondaryText }]}>
-                        {event.allDay ? t('calendar.allDay') : (() => {
-                          const start = safeParseDate(event.start);
-                          const end = safeParseDate(event.end);
-                          if (!start || !end) return '';
-                          return `${safeFormatDate(start, 'p')}-${safeFormatDate(end, 'p')}`;
-                        })()}
-                      </Text>
-                    </View>
-                  ))}
+                  {selectedDateExternalEvents.map((event) => {
+                    const openable = isExternalEventOpenable(event);
+                    const eventStyle = [styles.taskItem, styles.eventItem, { backgroundColor: tc.inputBg, borderLeftColor: sourceColorForId(event.sourceId) }];
+                    const eventContent = (
+                      <>
+                        <View style={styles.taskItemMain}>
+                          <Text style={[styles.taskItemTitle, { color: tc.text }]} numberOfLines={1}>
+                            {event.title}
+                            {calendarNameById.get(event.sourceId) ? ` (${calendarNameById.get(event.sourceId)})` : ''}
+                          </Text>
+                          <Text style={[styles.taskItemTime, { color: tc.secondaryText }]}>
+                            {event.allDay ? t('calendar.allDay') : (() => {
+                              const start = safeParseDate(event.start);
+                              const end = safeParseDate(event.end);
+                              if (!start || !end) return '';
+                              return `${safeFormatDate(start, 'p')}-${safeFormatDate(end, 'p')}`;
+                            })()}
+                          </Text>
+                        </View>
+                      </>
+                    );
+                    if (openable) {
+                      return (
+                        <Pressable
+                          key={event.id}
+                          onPress={() => openExternalEvent(event)}
+                          style={eventStyle}
+                        >
+                          {eventContent}
+                        </Pressable>
+                      );
+                    }
+                    return (
+                      <View
+                        key={event.id}
+                        style={eventStyle}
+                      >
+                        {eventContent}
+                      </View>
+                    );
+                  })}
                 </View>
               )}
 

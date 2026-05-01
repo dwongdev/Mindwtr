@@ -354,6 +354,17 @@ export const styles = StyleSheet.create({
     paddingHorizontal: 10,
     paddingVertical: 6,
   },
+  dayAddTaskButton: {
+    minHeight: 36,
+    justifyContent: 'center',
+    borderRadius: 999,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+  },
+  dayAddTaskText: {
+    fontSize: 12,
+    fontWeight: '900',
+  },
   dayNavText: {
     fontSize: 22,
     fontWeight: '800',
@@ -380,6 +391,9 @@ export const styles = StyleSheet.create({
   allDayItem: {
     fontSize: 13,
     paddingVertical: 2,
+  },
+  allDayPressable: {
+    borderRadius: 6,
   },
   timelineCard: {
     borderWidth: 1,

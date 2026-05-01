@@ -24,7 +24,7 @@ import { useThemeColors } from '@/hooks/use-theme-colors';
 import { useMobileAreaFilter } from '@/hooks/use-mobile-area-filter';
 import { taskMatchesAreaFilter } from '@/lib/area-filter';
 import { useLanguage } from '../../../contexts/language-context';
-import { fetchExternalCalendarEvents } from '../../../lib/external-calendar';
+import { canOpenExternalCalendarEvent, fetchExternalCalendarEvents, openExternalCalendarEvent } from '../../../lib/external-calendar';
 import { logError } from '../../../lib/app-log';
 
 function getDaysInMonth(year: number, month: number): number {
@@ -670,6 +670,38 @@ export function useCalendarViewController() {
     Alert.alert(task.title, undefined, buttons, { cancelable: true });
   };
 
+  const openExternalEvent = (event: ExternalCalendarEvent) => {
+    if (!canOpenExternalCalendarEvent(event)) {
+      showToast({
+        title: localize('Cannot open event', '无法打开日程'),
+        message: localize('Only device calendar events can be opened in the calendar app.', '只有设备日历事件可以在日历应用中打开。'),
+        tone: 'info',
+        durationMs: 3600,
+      });
+      return;
+    }
+
+    openExternalCalendarEvent(event)
+      .then((opened) => {
+        if (opened) return;
+        showToast({
+          title: localize('Cannot open event', '无法打开日程'),
+          message: localize('This calendar app does not support opening the event.', '该日历应用不支持打开此日程。'),
+          tone: 'info',
+          durationMs: 3600,
+        });
+      })
+      .catch((error) => {
+        logCalendarError(error);
+        showToast({
+          title: localize('Cannot open event', '无法打开日程'),
+          message: localize('Open the event from your calendar app instead.', '请改从你的日历应用打开该日程。'),
+          tone: 'warning',
+          durationMs: 4200,
+        });
+      });
+  };
+
   const handlePrevMonth = () => {
     if (currentMonth === 0) {
       setCurrentMonth(11);
@@ -795,6 +827,7 @@ export function useCalendarViewController() {
     handleToday,
     isDark,
     isExternalLoading,
+    isExternalEventOpenable: canOpenExternalCalendarEvent,
     isSameDay,
     isToday,
     locale,
@@ -804,6 +837,7 @@ export function useCalendarViewController() {
     nextQuickScheduleCandidates,
     openQuickAddAtDateTime,
     openQuickAddForDate,
+    openExternalEvent,
     openTaskActions,
     saveEditingTask,
     scheduleQuery,
