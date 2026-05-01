@@ -1,4 +1,4 @@
-import { buildSaveSnapshot, ensureDeviceId, normalizeRevision, selectVisibleTasks } from '../store-helpers';
+import { buildSaveSnapshot, ensureDeviceId, getNextDataChangeAt, normalizeRevision, selectVisibleTasks } from '../store-helpers';
 import { logWarn } from '../logger';
 import { clearDerivedCache } from '../store-settings';
 import { generateUUID as uuidv4 } from '../uuid';
@@ -59,7 +59,7 @@ export const createAreaActions = ({
             return {
                 areas: newVisibleAreas,
                 _allAreas: newAllAreas,
-                lastDataChangeAt: changeAt,
+                lastDataChangeAt: getNextDataChangeAt(state.lastDataChangeAt, changeAt),
                 ...(deviceState.updated ? { settings: deviceState.settings } : {}),
             };
         });
@@ -143,7 +143,7 @@ export const createAreaActions = ({
                         _allAreas: newAllAreas,
                         projects: newVisibleProjects,
                         _allProjects: newAllProjects,
-                        lastDataChangeAt: Date.now(),
+                        lastDataChangeAt: getNextDataChangeAt(state.lastDataChangeAt),
                         ...(deviceState.updated ? { settings: deviceState.settings } : {}),
                     };
                 }
@@ -196,7 +196,7 @@ export const createAreaActions = ({
                         _allProjects: newAllProjects,
                     }
                     : {}),
-                lastDataChangeAt: changeAt,
+                lastDataChangeAt: getNextDataChangeAt(state.lastDataChangeAt, changeAt),
                 ...(deviceState.updated ? { settings: deviceState.settings } : {}),
             };
         });
@@ -285,7 +285,7 @@ export const createAreaActions = ({
                 _allProjects: newAllProjects,
                 tasks: newVisibleTasks,
                 _allTasks: newAllTasks,
-                lastDataChangeAt: changeAt,
+                lastDataChangeAt: getNextDataChangeAt(state.lastDataChangeAt, changeAt),
                 ...(deviceState.updated ? { settings: deviceState.settings } : {}),
             };
         });
@@ -342,7 +342,7 @@ export const createAreaActions = ({
             return {
                 areas: newVisibleAreas,
                 _allAreas: newAllAreas,
-                lastDataChangeAt: changeAt,
+                lastDataChangeAt: getNextDataChangeAt(state.lastDataChangeAt, changeAt),
                 ...(deviceState.updated ? { settings: deviceState.settings } : {}),
             };
         });
@@ -394,7 +394,7 @@ export const createAreaActions = ({
             return {
                 areas: newVisibleAreas,
                 _allAreas: newAllAreas,
-                lastDataChangeAt: Date.now(),
+                lastDataChangeAt: getNextDataChangeAt(state.lastDataChangeAt),
                 ...(deviceState.updated ? { settings: deviceState.settings } : {}),
             };
         });

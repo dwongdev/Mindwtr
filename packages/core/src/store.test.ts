@@ -59,6 +59,7 @@ describe('TaskStore', () => {
             _allProjects: [],
             _allSections: [],
             _allAreas: [],
+            lastDataChangeAt: 0,
         });
         vi.useFakeTimers();
     });
@@ -632,6 +633,59 @@ describe('TaskStore', () => {
         const saveCalls = (mockStorage.saveData as unknown as { mock: { calls: any[][] } }).mock.calls;
         const lastSaved = saveCalls[saveCalls.length - 1]?.[0];
         expect(lastSaved?.tasks?.[0]?.title).toBe('Edited during sync');
+    });
+
+    it('does not overwrite same-millisecond task completions made during an in-flight fetch', async () => {
+        const fixedNow = new Date('2026-03-22T10:00:00.000Z').getTime();
+        vi.setSystemTime(fixedNow);
+        const persistedData = {
+            tasks: [
+                {
+                    id: 'task-1',
+                    title: 'Complete during sync',
+                    status: 'next',
+                    tags: [],
+                    contexts: [],
+                    createdAt: '2026-03-22T09:00:00.000Z',
+                    updatedAt: '2026-03-22T09:00:00.000Z',
+                },
+            ],
+            projects: [],
+            sections: [],
+            areas: [],
+            settings: {},
+        };
+        let resolveFetch: ((value: typeof persistedData) => void) | null = null;
+        mockStorage.getData = vi.fn()
+            .mockResolvedValueOnce(persistedData)
+            .mockImplementationOnce(
+                () =>
+                    new Promise<typeof persistedData>((resolve) => {
+                        resolveFetch = resolve;
+                    })
+            );
+
+        await useTaskStore.getState().fetchData({ silent: true });
+        useTaskStore.setState({ lastDataChangeAt: fixedNow });
+
+        const slowFetch = useTaskStore.getState().fetchData({ silent: true });
+        await waitForExpectation(() => {
+            expect(mockStorage.getData).toHaveBeenCalledTimes(2);
+        });
+
+        await useTaskStore.getState().updateTask('task-1', { status: 'done' });
+        expect(useTaskStore.getState().lastDataChangeAt).toBeGreaterThan(fixedNow);
+        resolveFetch?.(persistedData);
+        await slowFetch;
+        await flushPendingSave();
+
+        const currentTask = useTaskStore.getState()._allTasks.find((task) => task.id === 'task-1');
+        expect(currentTask?.status).toBe('done');
+        expect(currentTask?.completedAt).toBe('2026-03-22T10:00:00.000Z');
+
+        const saveCalls = (mockStorage.saveData as unknown as { mock: { calls: any[][] } }).mock.calls;
+        const lastSaved = saveCalls[saveCalls.length - 1]?.[0];
+        expect(lastSaved?.tasks?.[0]?.status).toBe('done');
     });
 
     it('purges expired tombstones during fetch even without sync', async () => {
