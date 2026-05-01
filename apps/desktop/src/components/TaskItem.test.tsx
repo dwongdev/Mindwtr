@@ -1,8 +1,8 @@
 import { Profiler } from 'react';
 import { beforeEach, describe, it, expect, vi } from 'vitest';
-import { act, render, fireEvent, waitFor } from '@testing-library/react';
+import { act, render, fireEvent, waitFor, within } from '@testing-library/react';
 import { TaskItem } from '../components/TaskItem';
-import { Project, Task, configureDateFormatting, safeFormatDate, useTaskStore } from '@mindwtr/core';
+import { Area, Project, Task, configureDateFormatting, safeFormatDate, useTaskStore } from '@mindwtr/core';
 import { LanguageProvider } from '../contexts/language-context';
 import { useUiStore } from '../store/ui-store';
 
@@ -121,6 +121,8 @@ describe('TaskItem', () => {
 
         expect(getByRole('menu', { name: /more options/i })).toBeInTheDocument();
         expect(getByRole('menuitem', { name: /due date/i })).toBeInTheDocument();
+        expect(getByRole('menuitem', { name: /review date/i })).toBeInTheDocument();
+        expect(getByRole('menuitem', { name: /area/i })).toBeInTheDocument();
         expect(getByRole('menuitem', { name: /contexts/i })).toBeInTheDocument();
         expect(getByRole('menuitem', { name: /duplicate/i })).toBeInTheDocument();
         expect(getByText('Delete')).toBeInTheDocument();
@@ -181,6 +183,86 @@ describe('TaskItem', () => {
         await waitFor(() => {
             const updatedTask = useTaskStore.getState()._allTasks.find((task) => task.id === 'quick-due-task');
             expect(updatedTask?.dueDate).toBe('2026-05-01');
+        });
+    });
+
+    it('updates review date from the task quick actions menu', async () => {
+        const quickReviewTask: Task = {
+            ...mockTask,
+            id: 'quick-review-task',
+        };
+        act(() => {
+            useTaskStore.setState((state) => ({
+                ...state,
+                tasks: [quickReviewTask],
+                _allTasks: [quickReviewTask],
+                projects: [],
+                _allProjects: [],
+            }));
+        });
+
+        const { container, getByLabelText, getByRole } = render(
+            <LanguageProvider>
+                <TaskItem task={quickReviewTask} />
+            </LanguageProvider>
+        );
+
+        const row = container.querySelector('[data-task-id="quick-review-task"]');
+        expect(row).toBeTruthy();
+        fireEvent.contextMenu(row!);
+        fireEvent.click(getByRole('menuitem', { name: /review date/i }));
+        fireEvent.change(getByLabelText('Review Date', { selector: 'input' }), { target: { value: '2026-05-03' } });
+        fireEvent.click(getByRole('button', { name: 'Save' }));
+
+        await waitFor(() => {
+            const updatedTask = useTaskStore.getState()._allTasks.find((task) => task.id === 'quick-review-task');
+            expect(updatedTask?.reviewAt).toBe('2026-05-03');
+        });
+    });
+
+    it('updates area from the task quick actions menu', async () => {
+        const quickAreaTask: Task = {
+            ...mockTask,
+            id: 'quick-area-task',
+        };
+        const workArea: Area = {
+            id: 'area-work',
+            name: 'Work',
+            color: '#3b82f6',
+            order: 0,
+            createdAt: '2026-05-01T00:00:00.000Z',
+            updatedAt: '2026-05-01T00:00:00.000Z',
+        };
+        act(() => {
+            useTaskStore.setState((state) => ({
+                ...state,
+                tasks: [quickAreaTask],
+                _allTasks: [quickAreaTask],
+                projects: [],
+                _allProjects: [],
+                areas: [workArea],
+                _allAreas: [workArea],
+            }));
+        });
+
+        const { container, getByRole } = render(
+            <LanguageProvider>
+                <TaskItem task={quickAreaTask} />
+            </LanguageProvider>
+        );
+
+        const row = container.querySelector('[data-task-id="quick-area-task"]');
+        expect(row).toBeTruthy();
+        fireEvent.contextMenu(row!);
+        fireEvent.click(getByRole('menuitem', { name: /area/i }));
+        const areaDialog = getByRole('dialog', { name: 'Area' });
+        fireEvent.click(within(areaDialog).getByRole('button', { name: 'No Area' }));
+        fireEvent.click(within(areaDialog).getByRole('option', { name: 'Work' }));
+        fireEvent.click(within(areaDialog).getByRole('button', { name: 'Save' }));
+
+        await waitFor(() => {
+            const updatedTask = useTaskStore.getState()._allTasks.find((task) => task.id === 'quick-area-task');
+            expect(updatedTask?.areaId).toBe('area-work');
         });
     });
 

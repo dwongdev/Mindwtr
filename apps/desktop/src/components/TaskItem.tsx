@@ -115,6 +115,7 @@ export const TaskItem = memo(function TaskItem({
         task,
         propProject,
         isEditing,
+        hasQuickActionMenu: Boolean(quickActionMenu),
     });
     const {
         setProjectView,
@@ -1027,6 +1028,7 @@ export const TaskItem = memo(function TaskItem({
                     t={t}
                     nativeDateInputLocale={nativeDateInputLocale}
                     contextOptions={popularContextOptions}
+                    areas={areas}
                     readOnly={effectiveReadOnly}
                     onClose={() => setQuickActionMenu(null)}
                     onDuplicate={() => {
@@ -1035,6 +1037,7 @@ export const TaskItem = memo(function TaskItem({
                     onDelete={() => {
                         setShowDeleteConfirm(true);
                     }}
+                    onCreateArea={handleCreateArea}
                     onUpdateTask={(updates) => updateTask(task.id, updates)}
                 />
             )}
