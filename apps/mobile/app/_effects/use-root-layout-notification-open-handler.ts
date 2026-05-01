@@ -45,7 +45,7 @@ export function useRootLayoutNotificationOpenHandler({
         const kind = typeof payload?.kind === 'string' ? payload.kind : undefined;
         if (isReviewReminderKind(kind)) {
             router.push({
-                pathname: '/review',
+                pathname: '/review-tab',
                 params: {
                     openToken,
                     ...(taskId ? { taskId } : {}),

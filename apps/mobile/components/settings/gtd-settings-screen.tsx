@@ -78,6 +78,7 @@ export function GtdSettingsScreen({
     const inboxContextStepEnabled = inboxProcessing.contextStepEnabled !== false;
     const inboxScheduleEnabled = inboxProcessing.scheduleEnabled === true;
     const includeContextStep = settings.gtd?.weeklyReview?.includeContextStep !== false;
+    const includeDailyFocusStep = settings.gtd?.dailyReview?.includeFocusStep !== false;
     const defaultScheduleTime = normalizeClockTimeInput(settings.gtd?.defaultScheduleTime) || '';
     const autoArchiveDays = Number.isFinite(settings.gtd?.autoArchiveDays)
         ? Math.max(0, Math.floor(settings.gtd?.autoArchiveDays as number))
@@ -223,6 +224,18 @@ export function GtdSettingsScreen({
                 ...(settings.gtd ?? {}),
                 weeklyReview: {
                     ...(settings.gtd?.weeklyReview ?? {}),
+                    ...partial,
+                },
+            },
+        }).catch(logSettingsError);
+    };
+
+    const updateDailyReviewConfig = (partial: NonNullable<NonNullable<AppData['settings']['gtd']>['dailyReview']>) => {
+        updateSettings({
+            gtd: {
+                ...(settings.gtd ?? {}),
+                dailyReview: {
+                    ...(settings.gtd?.dailyReview ?? {}),
                     ...partial,
                 },
             },
@@ -480,6 +493,28 @@ export function GtdSettingsScreen({
                                 />
                             </View>
                         ) : null}
+                    </View>
+
+                    <View style={[styles.settingCard, { backgroundColor: tc.cardBg, marginTop: 12 }]}>
+                        <View style={styles.settingRow}>
+                            <View style={styles.settingInfo}>
+                                <Text style={[styles.settingLabel, { color: tc.text }]}>{t('settings.dailyReviewConfig')}</Text>
+                                <Text style={[styles.settingDescription, { color: tc.secondaryText }]}>{t('settings.dailyReviewConfigDesc')}</Text>
+                            </View>
+                        </View>
+                        <View style={[styles.settingRow, { borderTopWidth: 1, borderTopColor: tc.border }]}>
+                            <View style={styles.settingInfo}>
+                                <Text style={[styles.settingLabel, { color: tc.text }]}>{t('settings.dailyReviewIncludeFocusStep')}</Text>
+                                <Text style={[styles.settingDescription, { color: tc.secondaryText }]}>
+                                    {t('settings.dailyReviewIncludeFocusStepDesc')}
+                                </Text>
+                            </View>
+                            <Switch
+                                value={includeDailyFocusStep}
+                                onValueChange={(value) => updateDailyReviewConfig({ includeFocusStep: value })}
+                                trackColor={{ false: '#767577', true: '#3B82F6' }}
+                            />
+                        </View>
                     </View>
 
                     <View style={[styles.settingCard, { backgroundColor: tc.cardBg, marginTop: 12 }]}>

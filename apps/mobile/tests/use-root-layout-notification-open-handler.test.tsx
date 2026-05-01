@@ -112,11 +112,11 @@ describe('useRootLayoutNotificationOpenHandler', () => {
 
     expect(setHighlightTask).not.toHaveBeenCalled();
     expect(router.push).toHaveBeenNthCalledWith(1, {
-      pathname: '/review',
+      pathname: '/review-tab',
       params: { openToken: 'review-task-1', taskId: 'task-1' },
     });
     expect(router.push).toHaveBeenNthCalledWith(2, {
-      pathname: '/review',
+      pathname: '/review-tab',
       params: { openToken: 'review-project-1', projectId: 'project-1' },
     });
   });

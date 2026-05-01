@@ -231,6 +231,9 @@ export interface AppData {
             weeklyReview?: {
                 includeContextStep?: boolean;
             };
+            dailyReview?: {
+                includeFocusStep?: boolean;
+            };
             pomodoro?: {
                 customDurations?: {
                     focusMinutes?: number;
