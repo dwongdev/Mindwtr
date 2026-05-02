@@ -2,6 +2,8 @@ import { Alert } from 'react-native';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   CALENDAR_TIME_ESTIMATE_OPTIONS,
+  DEFAULT_CALENDAR_DAY_END_HOUR,
+  DEFAULT_CALENDAR_DAY_START_HOUR,
   normalizeDateFormatSetting,
   resolveDateLocaleTag,
   findFreeSlotForDay as findCalendarFreeSlotForDay,
@@ -63,8 +65,8 @@ function isToday(date: Date): boolean {
   return isSameDay(date, new Date());
 }
 
-const DAY_START_HOUR = 8;
-const DAY_END_HOUR = 23;
+const DAY_START_HOUR = 0;
+const DAY_END_HOUR = 24;
 const PIXELS_PER_MINUTE = 1.4;
 const SNAP_MINUTES = 5;
 type CalendarTaskComposerMode = 'new' | 'existing';
@@ -176,6 +178,7 @@ export function useCalendarViewController() {
   const [nowTick, setNowTick] = useState(() => Date.now());
   const timelineScrollRef = useRef<any>(null);
   const [pendingScrollMinutes, setPendingScrollMinutes] = useState<number | null>(null);
+  const lastDefaultTimelineScrollKeyRef = useRef('');
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [calendarComposer, setCalendarComposer] = useState<CalendarTaskComposerState | null>(null);
 
@@ -268,6 +271,11 @@ export function useCalendarViewController() {
   const weekLabel = useMemo(() => (
     `${weekDays[0].toLocaleDateString(locale, { month: 'short', day: 'numeric' })} - ${weekDays[6].toLocaleDateString(locale, { month: 'short', day: 'numeric' })}`
   ), [locale, weekDays]);
+  const defaultTimelineScrollKey = useMemo(() => {
+    if (viewMode === 'day' && selectedDate) return `day:${calendarDateKey(selectedDate)}`;
+    if (viewMode === 'week') return `week:${weekStartTime}`;
+    return '';
+  }, [selectedDate, viewMode, weekStartTime]);
 
   const areaVisibleTasks = useMemo(() => (
     tasks.filter((task) => taskMatchesAreaFilter(task, resolvedAreaFilter, projectById, areaById))
@@ -382,8 +390,8 @@ export function useCalendarViewController() {
   const findFreeSlotForDay = (day: Date, durationMinutes: number, excludeTaskId?: string): Date | null => (
     findCalendarFreeSlotForDay({
       day,
-      dayEndHour: DAY_END_HOUR,
-      dayStartHour: DAY_START_HOUR,
+      dayEndHour: DEFAULT_CALENDAR_DAY_END_HOUR,
+      dayStartHour: DEFAULT_CALENDAR_DAY_START_HOUR,
       durationMinutes,
       events: getExternalEventsForDate(day),
       excludeTaskId,
@@ -513,7 +521,7 @@ export function useCalendarViewController() {
     const durationMinutes = normalizeDurationMinutes(selectedTask ? timeEstimateToMinutes(selectedTask.timeEstimate) : 30);
     const slot = findFreeSlotForDay(date, durationMinutes, selectedTask?.id);
     const fallback = new Date(date);
-    fallback.setHours(DAY_START_HOUR, 0, 0, 0);
+    fallback.setHours(DEFAULT_CALENDAR_DAY_START_HOUR, 0, 0, 0);
     openCalendarComposerAt(slot ?? fallback, { durationMinutes, mode: options?.mode, taskId: selectedTask?.id });
   };
 
@@ -670,16 +678,27 @@ export function useCalendarViewController() {
   };
 
   useEffect(() => {
-    if (viewMode !== 'day') return;
-    if (!selectedDate) return;
+    if (viewMode !== 'day' && viewMode !== 'week') return;
+    if (viewMode === 'day' && !selectedDate) return;
     if (pendingScrollMinutes == null) return;
 
-    const y = Math.max(0, pendingScrollMinutes * PIXELS_PER_MINUTE - 120);
-    requestAnimationFrame(() => {
+    const y = Math.max(0, pendingScrollMinutes * PIXELS_PER_MINUTE - 180);
+    const frame = requestAnimationFrame(() => {
       timelineScrollRef.current?.scrollTo({ y, animated: true });
       setPendingScrollMinutes(null);
     });
+    return () => cancelAnimationFrame(frame);
   }, [viewMode, selectedDate, pendingScrollMinutes]);
+
+  useEffect(() => {
+    if (!defaultTimelineScrollKey) return;
+    if (lastDefaultTimelineScrollKeyRef.current === defaultTimelineScrollKey) return;
+    lastDefaultTimelineScrollKeyRef.current = defaultTimelineScrollKey;
+    if (pendingScrollMinutes != null) return;
+
+    const now = new Date();
+    setPendingScrollMinutes((now.getHours() * 60 + now.getMinutes()) - DAY_START_HOUR * 60);
+  }, [defaultTimelineScrollKey, pendingScrollMinutes]);
 
   const shiftSelectedDate = (daysDelta: number) => {
     if (!selectedDate) return;
@@ -695,7 +714,7 @@ export function useCalendarViewController() {
     setSelectedDate(next);
     setCurrentMonth(next.getMonth());
     setCurrentYear(next.getFullYear());
-    if (viewMode === 'day') {
+    if (viewMode === 'day' || viewMode === 'week') {
       setPendingScrollMinutes((next.getHours() * 60 + next.getMinutes()) - DAY_START_HOUR * 60);
     }
   };

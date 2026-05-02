@@ -255,6 +255,7 @@ export function CalendarView() {
   const bodySwipeRef = useRef<CalendarBodySwipeState | null>(null);
   const suppressMonthDayPressUntilRef = useRef(0);
   const weekHorizontalScrollRef = useRef<any>(null);
+  const scheduleScrollRef = useRef<any>(null);
   const lastWeekAutoScrollKeyRef = useRef<string | null>(null);
   const [weekDensityTrackWidth, setWeekDensityTrackWidth] = useState(0);
   const weekAvailableColumnWidth = Math.max(1, screenWidth - WEEK_TIME_GUTTER_WIDTH);
@@ -267,6 +268,13 @@ export function CalendarView() {
   const closeMonthDetailsPane = () => {
     setSelectedDate(null);
   };
+
+  const handleScheduleToday = useCallback(() => {
+    handleToday();
+    requestAnimationFrame(() => {
+      scheduleScrollRef.current?.scrollTo({ y: 0, animated: true });
+    });
+  }, [handleToday]);
 
   useEffect(() => {
     if (selectedDate) {
@@ -1010,6 +1018,7 @@ export function CalendarView() {
             </View>
 
             <ScrollView
+              ref={timelineScrollRef}
               nestedScrollEnabled
               style={styles.weekVertical}
               contentContainerStyle={styles.weekVerticalContent}
@@ -1216,23 +1225,18 @@ export function CalendarView() {
       <View style={[styles.container, { backgroundColor: tc.bg }]}>
         <View style={[styles.header, { backgroundColor: tc.cardBg, borderBottomColor: tc.border }]}>
           <View style={styles.headerTopRow}>
-            <Pressable onPress={handlePrevMonth} style={styles.navButton}>
-              <Text style={[styles.navButtonText, { color: tc.text }]}>‹</Text>
-            </Pressable>
             <View style={styles.monthTitleWrap}>
               <Text style={[styles.title, { color: tc.text }]}>{localize('Schedule', '日程')}</Text>
-              <Pressable onPress={handleToday} style={[styles.todayButton, { borderColor: tc.border }]}>
+              <Pressable onPress={handleScheduleToday} style={[styles.todayButton, { borderColor: tc.border }]}>
                 <Text style={[styles.todayButtonText, { color: tc.tint }]}>{localize('Today', '今天')}</Text>
               </Pressable>
             </View>
-            <Pressable onPress={handleNextMonth} style={styles.navButton}>
-              <Text style={[styles.navButtonText, { color: tc.text }]}>›</Text>
-            </Pressable>
           </View>
           {renderModeToggle()}
         </View>
 
         <ScrollView
+          ref={scheduleScrollRef}
           style={styles.scheduleScroll}
           contentContainerStyle={styles.scheduleContent}
         >
