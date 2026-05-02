@@ -119,11 +119,14 @@ const normalizeRepairRevision = (value?: number): number => (
     typeof value === 'number' && Number.isFinite(value) && Number.isInteger(value) && value >= 0 ? value : 0
 );
 
-const withRepairRevision = <T extends { rev?: number; revBy?: string }>(item: T): T => ({
-    ...item,
-    rev: normalizeRepairRevision(item.rev) + 1,
-    revBy: SYNC_REPAIR_REV_BY,
-});
+const withRepairRevision = <T extends { rev?: number; revBy?: string }>(item: T): T => {
+    const rev = normalizeRepairRevision(item.rev);
+    return {
+        ...item,
+        rev: item.revBy === SYNC_REPAIR_REV_BY ? rev : rev + 1,
+        revBy: SYNC_REPAIR_REV_BY,
+    };
+};
 
 export const repairMergedSyncReferences = (data: AppData, nowIso: string): AppData => {
     const liveAreaIds = new Set(

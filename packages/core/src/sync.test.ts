@@ -309,6 +309,43 @@ describe('Sync Logic', () => {
             }
         });
 
+        it('does not keep incrementing repair revisions for already repaired stale area references', () => {
+            vi.useFakeTimers();
+            vi.setSystemTime(new Date('2026-02-03T00:00:00.000Z'));
+            try {
+                const local: AppData = {
+                    tasks: [],
+                    projects: [],
+                    sections: [],
+                    areas: [
+                        createMockArea('area-deleted', '2024-01-03T00:00:00.000Z', '2024-01-03T00:00:00.000Z'),
+                    ],
+                    settings: {},
+                };
+                const incomingTask: Task = {
+                    ...createMockTask('task-repaired-stale-area', '2024-01-04T00:00:00.000Z'),
+                    areaId: 'area-deleted',
+                    rev: 8,
+                    revBy: 'sync-repair',
+                };
+
+                const merged = mergeAppData(local, {
+                    tasks: [incomingTask],
+                    projects: [],
+                    sections: [],
+                    areas: [],
+                    settings: {},
+                });
+
+                expect(merged.tasks[0].areaId).toBeUndefined();
+                expect(merged.tasks[0].rev).toBe(8);
+                expect(merged.tasks[0].revBy).toBe('sync-repair');
+                expect(merged.tasks[0].updatedAt).toBe('2026-02-03T00:00:00.000Z');
+            } finally {
+                vi.useRealTimers();
+            }
+        });
+
         it('marks attachment as available when local URI exists without localStatus', () => {
             const localAttachment: Attachment = {
                 id: 'att-available',

@@ -126,7 +126,7 @@ const parseMergeTimestamp = (value: unknown, maxAllowedMs?: number): MergeTimest
     return { raw: parsed, safe: parsed, wasClamped: false };
 };
 
-const attachmentTraversalSegmentCache = new Map<string, boolean>();
+const attachmentTraversalSegmentSafetyCache = new Map<string, boolean>();
 
 const getMergeTimestampComparison = (
     localTime: MergeTimestampInfo,
@@ -145,7 +145,7 @@ const getMergeTimestampComparison = (
 };
 
 const containsAttachmentTraversalSegment = (value: string): boolean => {
-    const cached = attachmentTraversalSegmentCache.get(value);
+    const cached = attachmentTraversalSegmentSafetyCache.get(value);
     if (cached !== undefined) {
         return cached;
     }
@@ -190,10 +190,10 @@ const containsAttachmentTraversalSegment = (value: string): boolean => {
     }
 
     const hasTraversalSegment = Array.from(candidates).some((candidate) => ATTACHMENT_TRAVERSAL_SEGMENT_PATTERN.test(candidate));
-    if (attachmentTraversalSegmentCache.size >= ATTACHMENT_TRAVERSAL_SEGMENT_CACHE_LIMIT) {
-        attachmentTraversalSegmentCache.clear();
+    if (attachmentTraversalSegmentSafetyCache.size >= ATTACHMENT_TRAVERSAL_SEGMENT_CACHE_LIMIT) {
+        attachmentTraversalSegmentSafetyCache.clear();
     }
-    attachmentTraversalSegmentCache.set(value, hasTraversalSegment);
+    attachmentTraversalSegmentSafetyCache.set(value, hasTraversalSegment);
     return hasTraversalSegment;
 };
 

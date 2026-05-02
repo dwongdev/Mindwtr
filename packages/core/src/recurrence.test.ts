@@ -160,6 +160,29 @@ describe('recurrence', () => {
         expect(next?.startTime).toBeUndefined();
     });
 
+    it('uses completion date for fluid weekly BYDAY recurrence', () => {
+        const task: Task = {
+            id: 't2c-weekly-byday-fluid',
+            title: 'Strength training',
+            status: 'done',
+            tags: [],
+            contexts: [],
+            dueDate: '2025-01-06T09:00:00.000Z',
+            recurrence: {
+                rule: 'weekly',
+                strategy: 'fluid',
+                rrule: 'FREQ=WEEKLY;BYDAY=MO,WE',
+            },
+            createdAt: '2025-01-01T00:00:00.000Z',
+            updatedAt: '2025-01-01T00:00:00.000Z',
+        };
+
+        const next = createNextRecurringTask(task, '2025-01-10T14:00:00.000Z', 'done');
+
+        expect(next?.dueDate).toBe('2025-01-13T14:00:00.000Z');
+        expect(next?.startTime).toBeUndefined();
+    });
+
     it('defers unscheduled fluid recurrence from completion date', () => {
         const task: Task = {
             id: 't2d',
@@ -328,6 +351,35 @@ describe('recurrence', () => {
         });
 
         const final = createNextRecurringTask(next as Task, '2025-01-03T12:00:00.000Z', 'done');
+        expect(final).toBeNull();
+    });
+
+    it('treats RRULE COUNT without completedOccurrences as a total series count', () => {
+        const task: Task = {
+            id: 't6-rrule-count-unseeded',
+            title: 'Two-time reminder',
+            status: 'done',
+            tags: [],
+            contexts: [],
+            dueDate: '2025-01-01',
+            recurrence: {
+                rule: 'daily',
+                strategy: 'strict',
+                rrule: 'FREQ=DAILY;COUNT=2',
+            },
+            createdAt: '2025-01-01T00:00:00.000Z',
+            updatedAt: '2025-01-01T00:00:00.000Z',
+        };
+
+        const next = createNextRecurringTask(task, '2025-01-01T12:00:00.000Z', 'done');
+        expect(next?.dueDate).toBe('2025-01-02');
+        expect(next?.recurrence).toMatchObject({
+            count: 2,
+            completedOccurrences: 1,
+            rrule: 'FREQ=DAILY;COUNT=2',
+        });
+
+        const final = createNextRecurringTask(next as Task, '2025-01-02T12:00:00.000Z', 'done');
         expect(final).toBeNull();
     });
 
