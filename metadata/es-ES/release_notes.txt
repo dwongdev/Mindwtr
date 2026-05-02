@@ -1,5 +1,5 @@
-- El calendario suma vista semanal movil, mes renovado, programador de tareas y hora predeterminada.
-- La sincronizacion de calendario permite elegir destino y evita bucles con calendarios espejo de Mindwtr.
-- Los avisos de Review ahora abren Review directamente.
-- Inbox agrega Later, la busqueda filtra por responsable y los merges de sync/cloud son mas fiables.
-- Captura rapida mantiene el texto dentro del panel y voz a texto evita un crash realtime en Android.
+- Review es mas claro con grupos plegables, acciones simples y Daily Review que empieza por Inbox.
+- El calendario mejora gestos, semana, detalles de eventos y quick add diario.
+- La edicion sugiere metadatos para organizar tareas.
+- Recurrence suma intervalos semanales, repeticion trimestral y reparacion mensual mas segura.
+- Sync conserva ediciones durante refrescos y evita falsos saltos offline.
