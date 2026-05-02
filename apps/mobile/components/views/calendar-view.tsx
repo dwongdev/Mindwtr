@@ -1,5 +1,6 @@
-import { useEffect, useRef } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
+  type LayoutChangeEvent,
   Modal,
   Pressable,
   Text,
@@ -17,7 +18,12 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { TaskEditModal } from '@/components/task-edit-modal';
 import { openContextsScreen, openProjectScreen } from '@/lib/task-meta-navigation';
 import { styles } from './calendar/calendar-view.styles';
-import { getCalendarWeekInitialVisibleDayIndex } from './calendar/calendar-view-mode';
+import {
+  CALENDAR_WEEK_VISIBLE_DAYS_MAX,
+  CALENDAR_WEEK_VISIBLE_DAYS_MIN,
+  getCalendarWeekColumnWidth,
+  getCalendarWeekInitialScrollX,
+} from './calendar/calendar-view-mode';
 import { useCalendarViewController } from './calendar/useCalendarViewController';
 
 const MONTH_DETAILS_COLLAPSED_SNAP = 0.26;
@@ -28,7 +34,10 @@ const MONTH_DETAILS_MIN_HEIGHT = 176;
 const NAVIGATION_SWIPE_DISTANCE = 56;
 const BODY_SWIPE_VERTICAL_TOLERANCE = 32;
 const WEEK_TIME_GUTTER_WIDTH = 56;
-const WEEK_COLUMN_WIDTH = 150;
+const WEEK_DENSITY_VALUES = Array.from(
+  { length: CALENDAR_WEEK_VISIBLE_DAYS_MAX - CALENDAR_WEEK_VISIBLE_DAYS_MIN + 1 },
+  (_, index) => CALENDAR_WEEK_VISIBLE_DAYS_MIN + index
+);
 
 type CalendarBodySwipeState = {
   startX: number;
@@ -159,6 +168,7 @@ export function CalendarView() {
     calendarComposer,
     calendarComposerCandidates,
     calendarComposerSelectedTask,
+    calendarWeekVisibleDays,
     calendarNameById,
     closeCalendarComposer,
     closeEditingTask,
@@ -217,6 +227,7 @@ export function CalendarView() {
     setCalendarComposerQuery,
     setCalendarComposerStartTime,
     setCalendarComposerTitle,
+    setCalendarWeekVisibleDays,
     setScheduleQuery,
     setSelectedDate,
     setTimelineScrollEnabled,
@@ -233,7 +244,7 @@ export function CalendarView() {
     weekDays,
     weekLabel,
   } = useCalendarViewController();
-  const { height: screenHeight } = useWindowDimensions();
+  const { height: screenHeight, width: screenWidth } = useWindowDimensions();
   const insets = useSafeAreaInsets();
   const collapsedSheetSnap = Math.max(
     MONTH_DETAILS_COLLAPSED_SNAP,
@@ -245,6 +256,13 @@ export function CalendarView() {
   const suppressMonthDayPressUntilRef = useRef(0);
   const weekHorizontalScrollRef = useRef<any>(null);
   const lastWeekAutoScrollKeyRef = useRef<string | null>(null);
+  const [weekDensityTrackWidth, setWeekDensityTrackWidth] = useState(0);
+  const weekAvailableColumnWidth = Math.max(1, screenWidth - WEEK_TIME_GUTTER_WIDTH);
+  const weekColumnWidth = getCalendarWeekColumnWidth(weekAvailableColumnWidth, calendarWeekVisibleDays);
+  const compactWeekColumns = weekColumnWidth < 86;
+  const ultraCompactWeekColumns = weekColumnWidth < 58;
+  const weekDensityProgress = (calendarWeekVisibleDays - CALENDAR_WEEK_VISIBLE_DAYS_MIN)
+    / (CALENDAR_WEEK_VISIBLE_DAYS_MAX - CALENDAR_WEEK_VISIBLE_DAYS_MIN);
 
   const closeMonthDetailsPane = () => {
     setSelectedDate(null);
@@ -264,18 +282,48 @@ export function CalendarView() {
 
     const weekStartTime = weekDays[0]?.getTime() ?? 0;
     const selectedTime = selectedDate?.getTime() ?? 0;
-    const autoScrollKey = `${weekStartTime}:${selectedTime}`;
+    const autoScrollKey = `${weekStartTime}:${selectedTime}:${calendarWeekVisibleDays}:${weekColumnWidth}`;
     if (lastWeekAutoScrollKeyRef.current === autoScrollKey) return;
     lastWeekAutoScrollKeyRef.current = autoScrollKey;
 
-    const dayIndex = getCalendarWeekInitialVisibleDayIndex(weekDays, selectedDate);
+    const x = getCalendarWeekInitialScrollX({
+      columnWidth: weekColumnWidth,
+      selectedDate,
+      visibleDays: calendarWeekVisibleDays,
+      weekDays,
+    });
     requestAnimationFrame(() => {
       weekHorizontalScrollRef.current?.scrollTo({
-        x: Math.max(0, dayIndex * WEEK_COLUMN_WIDTH),
+        x,
         animated: false,
       });
     });
-  }, [selectedDate, viewMode, weekDays]);
+  }, [calendarWeekVisibleDays, selectedDate, viewMode, weekColumnWidth, weekDays]);
+
+  const updateWeekDensityFromTrack = useCallback((x: number) => {
+    if (weekDensityTrackWidth <= 0) return;
+    const ratio = Math.max(0, Math.min(1, x / weekDensityTrackWidth));
+    const nextVisibleDays = Math.round(
+      CALENDAR_WEEK_VISIBLE_DAYS_MIN
+      + ratio * (CALENDAR_WEEK_VISIBLE_DAYS_MAX - CALENDAR_WEEK_VISIBLE_DAYS_MIN)
+    );
+    setCalendarWeekVisibleDays(nextVisibleDays);
+  }, [setCalendarWeekVisibleDays, weekDensityTrackWidth]);
+
+  const handleWeekDensityTrackLayout = useCallback((event: LayoutChangeEvent) => {
+    setWeekDensityTrackWidth(event.nativeEvent.layout.width);
+  }, []);
+
+  const weekDensityGesture = useMemo(() => (
+    Gesture.Pan()
+      .minDistance(0)
+      .onStart((event) => {
+        runOnJS(updateWeekDensityFromTrack)(event.x);
+      })
+      .onUpdate((event) => {
+        runOnJS(updateWeekDensityFromTrack)(event.x);
+      })
+  ), [updateWeekDensityFromTrack]);
 
   const bottomSheetGesture = Gesture.Pan()
     .hitSlop({ bottom: 16, top: 12 })
@@ -897,7 +945,7 @@ export function CalendarView() {
           style={styles.weekHorizontal}
           contentContainerStyle={styles.weekHorizontalContent}
         >
-          <View style={[styles.weekCanvas, { width: WEEK_TIME_GUTTER_WIDTH + WEEK_COLUMN_WIDTH * weekDays.length }]}>
+          <View style={[styles.weekCanvas, { width: WEEK_TIME_GUTTER_WIDTH + weekColumnWidth * weekDays.length }]}>
             <View style={[styles.weekHeaderRow, { borderBottomColor: tc.border }]}>
               <View style={styles.weekTimeGutter} />
               {weekDays.map((day) => (
@@ -907,12 +955,12 @@ export function CalendarView() {
                     setSelectedDate(day);
                     setViewMode('day');
                   }}
-                  style={[styles.weekDayHeader, { width: WEEK_COLUMN_WIDTH, borderLeftColor: tc.border }, isToday(day) && { backgroundColor: toRgba(tc.tint, isDark ? 0.2 : 0.1) }]}
+                  style={[styles.weekDayHeader, { width: weekColumnWidth, borderLeftColor: tc.border }, isToday(day) && { backgroundColor: toRgba(tc.tint, isDark ? 0.2 : 0.1) }]}
                 >
-                  <Text style={[styles.weekDayName, { color: tc.secondaryText }]}>
+                  <Text style={[styles.weekDayName, compactWeekColumns && styles.weekDayNameCompact, { color: tc.secondaryText }]}>
                     {day.toLocaleDateString(locale, { weekday: 'short' })}
                   </Text>
-                  <Text style={[styles.weekDayNumber, { color: isToday(day) ? tc.tint : tc.text }]}>
+                  <Text style={[styles.weekDayNumber, compactWeekColumns && styles.weekDayNumberCompact, { color: isToday(day) ? tc.tint : tc.text }]}>
                     {day.getDate()}
                   </Text>
                 </Pressable>
@@ -928,7 +976,7 @@ export function CalendarView() {
                   .filter((item) => item.kind === 'deadline' || (item.kind === 'event' && item.event.allDay))
                   .slice(0, 3);
                 return (
-                  <View key={`all-${day.toISOString()}`} style={[styles.weekAllDayCell, { width: WEEK_COLUMN_WIDTH, borderLeftColor: tc.border }]}>
+                  <View key={`all-${day.toISOString()}`} style={[styles.weekAllDayCell, compactWeekColumns && styles.weekAllDayCellCompact, { width: weekColumnWidth, borderLeftColor: tc.border }]}>
                     {allDayItems.map((item) => {
                       const isEvent = item.kind === 'event';
                       const openable = isEvent && isExternalEventOpenable(item.event);
@@ -943,13 +991,14 @@ export function CalendarView() {
                           }}
                           style={[
                             styles.weekAllDayItem,
+                            compactWeekColumns && styles.weekAllDayItemCompact,
                             {
                               backgroundColor: isEvent ? toRgba(tc.secondaryText, isDark ? 0.28 : 0.14) : tc.inputBg,
                               borderLeftColor: isEvent ? sourceColorForId(item.event.sourceId) : tc.danger,
                             },
                           ]}
                         >
-                          <Text style={[styles.weekAllDayText, { color: tc.text }]} numberOfLines={1}>
+                          <Text style={[styles.weekAllDayText, compactWeekColumns && styles.weekAllDayTextCompact, { color: tc.text }]} numberOfLines={1}>
                             {item.title}
                           </Text>
                         </Pressable>
@@ -986,7 +1035,7 @@ export function CalendarView() {
                     <Pressable
                       key={`grid-${day.toISOString()}`}
                       onPress={() => openQuickAddForDate(day)}
-                      style={[styles.weekDayColumn, { width: WEEK_COLUMN_WIDTH, height: timelineHeight, borderLeftColor: tc.border }, isToday(day) && { backgroundColor: toRgba(tc.tint, isDark ? 0.1 : 0.05) }]}
+                      style={[styles.weekDayColumn, { width: weekColumnWidth, height: timelineHeight, borderLeftColor: tc.border }, isToday(day) && { backgroundColor: toRgba(tc.tint, isDark ? 0.1 : 0.05) }]}
                     >
                       {Array.from({ length: DAY_END_HOUR - DAY_START_HOUR + 1 }, (_, idx) => (
                         <View key={idx} style={[styles.weekHourRule, { top: idx * 60 * PIXELS_PER_MINUTE, backgroundColor: tc.border }]} />
@@ -1013,6 +1062,8 @@ export function CalendarView() {
                           const openable = isExternalEventOpenable(item.event);
                           const eventStyle = [
                             styles.weekBlock,
+                            compactWeekColumns && styles.weekBlockCompact,
+                            ultraCompactWeekColumns && styles.weekBlockUltraCompact,
                             {
                               top,
                               height,
@@ -1022,10 +1073,12 @@ export function CalendarView() {
                           ];
                           const eventContent = (
                             <>
-                              <Text style={[styles.weekBlockTitle, { color: tc.text }]} numberOfLines={1}>{item.title}</Text>
-                              <Text style={[styles.weekBlockTime, { color: tc.secondaryText }]} numberOfLines={1}>
-                                {`${safeFormatDate(displayStart, 'p')}-${safeFormatDate(displayEnd, 'p')}`}
-                              </Text>
+                              <Text style={[styles.weekBlockTitle, compactWeekColumns && styles.weekBlockTitleCompact, { color: tc.text }]} numberOfLines={compactWeekColumns ? 2 : 1}>{item.title}</Text>
+                              {!compactWeekColumns && (
+                                <Text style={[styles.weekBlockTime, { color: tc.secondaryText }]} numberOfLines={1}>
+                                  {`${safeFormatDate(displayStart, 'p')}-${safeFormatDate(displayEnd, 'p')}`}
+                                </Text>
+                              )}
                             </>
                           );
                           if (openable) {
@@ -1067,6 +1120,8 @@ export function CalendarView() {
                             }}
                             style={[
                               styles.weekBlock,
+                              compactWeekColumns && styles.weekBlockCompact,
+                              ultraCompactWeekColumns && styles.weekBlockUltraCompact,
                               {
                                 top,
                                 height,
@@ -1075,10 +1130,12 @@ export function CalendarView() {
                               },
                             ]}
                           >
-                            <Text style={styles.weekTaskBlockTitle} numberOfLines={1}>{item.title}</Text>
-                            <Text style={styles.weekTaskBlockTime} numberOfLines={1}>
-                              {formatTimeRange(start, durationMinutes)}
-                            </Text>
+                            <Text style={[styles.weekTaskBlockTitle, compactWeekColumns && styles.weekTaskBlockTitleCompact]} numberOfLines={compactWeekColumns ? 2 : 1}>{item.title}</Text>
+                            {!compactWeekColumns && (
+                              <Text style={styles.weekTaskBlockTime} numberOfLines={1}>
+                                {formatTimeRange(start, durationMinutes)}
+                              </Text>
+                            )}
                           </Pressable>
                         );
                       })}
@@ -1089,6 +1146,54 @@ export function CalendarView() {
             </ScrollView>
           </View>
         </ScrollView>
+
+        <View style={[styles.weekDensityBar, { backgroundColor: tc.cardBg, borderTopColor: tc.border, paddingBottom: Math.max(12, insets.bottom + 8) }]}>
+          <View style={styles.weekDensityHeader}>
+            <Text style={[styles.weekDensityLabel, { color: tc.secondaryText }]}>
+              {localize('Visible days', '可见天数')}
+            </Text>
+            <Text style={[styles.weekDensityValue, { color: tc.text }]}>
+              {calendarWeekVisibleDays === 1
+                ? localize('1 day', '1 天')
+                : localize(`${calendarWeekVisibleDays} days`, `${calendarWeekVisibleDays} 天`)}
+            </Text>
+          </View>
+          <GestureDetector gesture={weekDensityGesture}>
+            <View
+              onLayout={handleWeekDensityTrackLayout}
+              style={[styles.weekDensityTrack, { backgroundColor: tc.border }]}
+            >
+              <View style={[styles.weekDensityTrackFill, { width: `${weekDensityProgress * 100}%`, backgroundColor: tc.tint }]} />
+              <View
+                style={[
+                  styles.weekDensityThumb,
+                  {
+                    backgroundColor: tc.tint,
+                    borderColor: tc.cardBg,
+                    left: `${weekDensityProgress * 100}%`,
+                  },
+                ]}
+              />
+            </View>
+          </GestureDetector>
+          <View style={styles.weekDensityTicks}>
+            {WEEK_DENSITY_VALUES.map((value) => {
+              const active = value === calendarWeekVisibleDays;
+              return (
+                <Pressable
+                  key={value}
+                  onPress={() => setCalendarWeekVisibleDays(value)}
+                  hitSlop={8}
+                  style={styles.weekDensityTick}
+                >
+                  <Text style={[styles.weekDensityTickText, { color: active ? tc.tint : tc.secondaryText }]}>
+                    {value}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </View>
+        </View>
 
         {renderCalendarComposer()}
 

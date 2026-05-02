@@ -270,6 +270,7 @@ export interface AppData {
         externalCalendars?: ExternalCalendarSubscription[];
         calendar?: {
             viewMode?: 'month' | 'day' | 'week' | 'schedule';
+            weekVisibleDays?: number;
         };
         keybindingStyle?: 'vim' | 'emacs';
         globalQuickAddShortcut?: string;

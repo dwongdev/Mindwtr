@@ -1,7 +1,11 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  CALENDAR_WEEK_COLUMN_WIDTH_DEFAULT,
+  coerceCalendarWeekVisibleDays,
   coerceCalendarViewMode,
+  getCalendarWeekColumnWidth,
+  getCalendarWeekInitialScrollX,
   getCalendarWeekInitialVisibleDayIndex,
   getInitialCalendarSelectedDate,
   needsCalendarSelectedDate,
@@ -42,5 +46,35 @@ describe('calendar view mode helpers', () => {
 
     expect(getCalendarWeekInitialVisibleDayIndex(weekDays, null, new Date(2026, 4, 2, 12))).toBe(5);
     expect(getCalendarWeekInitialVisibleDayIndex(weekDays, null, new Date(2026, 4, 10, 12))).toBe(0);
+  });
+
+  it('coerces visible week day counts into the supported density range', () => {
+    expect(coerceCalendarWeekVisibleDays(undefined)).toBe(2);
+    expect(coerceCalendarWeekVisibleDays(1)).toBe(2);
+    expect(coerceCalendarWeekVisibleDays(4.4)).toBe(4);
+    expect(coerceCalendarWeekVisibleDays(8)).toBe(7);
+  });
+
+  it('sizes week columns from the requested visible day density', () => {
+    expect(getCalendarWeekColumnWidth(304, 2)).toBe(CALENDAR_WEEK_COLUMN_WIDTH_DEFAULT);
+    expect(getCalendarWeekColumnWidth(304, 4)).toBe(76);
+    expect(getCalendarWeekColumnWidth(280, 7)).toBe(40);
+  });
+
+  it('keeps full-week density anchored at the start of the week', () => {
+    const weekDays = Array.from({ length: 7 }, (_, index) => new Date(2026, 3, 27 + index));
+
+    expect(getCalendarWeekInitialScrollX({
+      columnWidth: 100,
+      selectedDate: new Date(2026, 4, 1, 12),
+      visibleDays: 3,
+      weekDays,
+    })).toBe(400);
+    expect(getCalendarWeekInitialScrollX({
+      columnWidth: 43,
+      selectedDate: new Date(2026, 4, 1, 12),
+      visibleDays: 7,
+      weekDays,
+    })).toBe(0);
   });
 });

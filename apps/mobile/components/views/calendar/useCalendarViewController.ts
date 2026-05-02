@@ -27,6 +27,7 @@ import { useLanguage } from '../../../contexts/language-context';
 import { canOpenExternalCalendarEvent, fetchExternalCalendarEvents, openExternalCalendarEvent } from '../../../lib/external-calendar';
 import { logError } from '../../../lib/app-log';
 import {
+  coerceCalendarWeekVisibleDays,
   coerceCalendarViewMode,
   getInitialCalendarSelectedDate,
   needsCalendarSelectedDate,
@@ -159,6 +160,7 @@ export function useCalendarViewController() {
   const timeEstimatesEnabled = useTaskStore((state) => state.settings?.features?.timeEstimates !== false);
   const today = new Date();
   const initialViewMode = coerceCalendarViewMode(settings?.calendar?.viewMode);
+  const calendarWeekVisibleDays = coerceCalendarWeekVisibleDays(settings?.calendar?.weekVisibleDays);
   const [currentMonth, setCurrentMonth] = useState(today.getMonth());
   const [currentYear, setCurrentYear] = useState(today.getFullYear());
   const [selectedDate, setSelectedDate] = useState<Date | null>(() => getInitialCalendarSelectedDate(initialViewMode, today));
@@ -199,7 +201,14 @@ export function useCalendarViewController() {
     ensureSelectedDateForViewMode(nextMode);
     pendingViewModeSaveRef.current = nextMode;
     setViewModeState(nextMode);
-    updateSettings({ calendar: { viewMode: nextMode } })
+    updateSettings({ calendar: { ...settings?.calendar, viewMode: nextMode } })
+      .catch(logCalendarError);
+  };
+
+  const setCalendarWeekVisibleDays = (visibleDays: number) => {
+    const nextVisibleDays = coerceCalendarWeekVisibleDays(visibleDays);
+    if (nextVisibleDays === calendarWeekVisibleDays) return;
+    updateSettings({ calendar: { ...settings?.calendar, weekVisibleDays: nextVisibleDays } })
       .catch(logCalendarError);
   };
 
@@ -903,6 +912,7 @@ export function useCalendarViewController() {
     calendarComposer,
     calendarComposerCandidates,
     calendarComposerSelectedTask,
+    calendarWeekVisibleDays,
     calendarNameById,
     closeCalendarComposer,
     closeEditingTask,
@@ -962,6 +972,7 @@ export function useCalendarViewController() {
     setCalendarComposerQuery,
     setCalendarComposerStartTime,
     setCalendarComposerTitle,
+    setCalendarWeekVisibleDays,
     setCurrentMonth,
     setCurrentYear,
     setEditingTask,

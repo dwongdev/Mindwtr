@@ -1,5 +1,11 @@
 export type CalendarViewMode = 'month' | 'day' | 'week' | 'schedule';
 
+export const CALENDAR_WEEK_VISIBLE_DAYS_MIN = 2;
+export const CALENDAR_WEEK_VISIBLE_DAYS_MAX = 7;
+export const CALENDAR_WEEK_VISIBLE_DAYS_DEFAULT = 2;
+export const CALENDAR_WEEK_COLUMN_WIDTH_DEFAULT = 150;
+export const CALENDAR_WEEK_COLUMN_WIDTH_MIN = 40;
+
 export const coerceCalendarViewMode = (value?: string | null): CalendarViewMode => (
   value === 'day' || value === 'week' || value === 'schedule' ? value : 'month'
 );
@@ -32,4 +38,42 @@ export const getCalendarWeekInitialVisibleDayIndex = (
 
   const todayIndex = weekDays.findIndex((day) => isSameCalendarDay(day, today));
   return Math.max(0, todayIndex);
+};
+
+export const coerceCalendarWeekVisibleDays = (value?: number | null): number => {
+  if (!Number.isFinite(value)) return CALENDAR_WEEK_VISIBLE_DAYS_DEFAULT;
+  return Math.max(
+    CALENDAR_WEEK_VISIBLE_DAYS_MIN,
+    Math.min(CALENDAR_WEEK_VISIBLE_DAYS_MAX, Math.round(value as number))
+  );
+};
+
+export const getCalendarWeekColumnWidth = (
+  availableWidth: number,
+  visibleDays?: number | null,
+): number => {
+  const resolvedVisibleDays = coerceCalendarWeekVisibleDays(visibleDays);
+  const width = Number.isFinite(availableWidth) && availableWidth > 0
+    ? availableWidth / resolvedVisibleDays
+    : CALENDAR_WEEK_COLUMN_WIDTH_DEFAULT;
+  return Math.max(
+    CALENDAR_WEEK_COLUMN_WIDTH_MIN,
+    Math.min(CALENDAR_WEEK_COLUMN_WIDTH_DEFAULT, width)
+  );
+};
+
+export const getCalendarWeekInitialScrollX = ({
+  columnWidth,
+  selectedDate,
+  visibleDays,
+  weekDays,
+}: {
+  columnWidth: number;
+  selectedDate: Date | null;
+  visibleDays: number;
+  weekDays: Date[];
+}): number => {
+  if (coerceCalendarWeekVisibleDays(visibleDays) >= weekDays.length) return 0;
+  const dayIndex = getCalendarWeekInitialVisibleDayIndex(weekDays, selectedDate);
+  return Math.max(0, dayIndex * Math.max(0, columnWidth));
 };
