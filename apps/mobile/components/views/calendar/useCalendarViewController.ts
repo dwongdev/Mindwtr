@@ -251,12 +251,14 @@ export function useCalendarViewController() {
     getWeekStart(selectedDate ?? new Date(currentYear, currentMonth, 1), weekStartIndex)
   ), [currentMonth, currentYear, selectedDate, weekStartIndex]);
   const weekStartTime = weekStartDate.getTime();
-  const weekDays = Array.from({ length: 7 }, (_, index) => {
-    const date = new Date(weekStartDate);
-    date.setDate(weekStartDate.getDate() + index);
+  const weekDays = useMemo(() => Array.from({ length: 7 }, (_, index) => {
+    const date = new Date(weekStartTime);
+    date.setDate(date.getDate() + index);
     return date;
-  });
-  const weekLabel = `${weekDays[0].toLocaleDateString(locale, { month: 'short', day: 'numeric' })} - ${weekDays[6].toLocaleDateString(locale, { month: 'short', day: 'numeric' })}`;
+  }), [weekStartTime]);
+  const weekLabel = useMemo(() => (
+    `${weekDays[0].toLocaleDateString(locale, { month: 'short', day: 'numeric' })} - ${weekDays[6].toLocaleDateString(locale, { month: 'short', day: 'numeric' })}`
+  ), [locale, weekDays]);
 
   const visibleTasks = useMemo(() => (
     tasks.filter((task) => taskMatchesAreaFilter(task, resolvedAreaFilter, projectById, areaById))

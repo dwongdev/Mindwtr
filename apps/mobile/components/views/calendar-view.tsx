@@ -17,6 +17,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { TaskEditModal } from '@/components/task-edit-modal';
 import { openContextsScreen, openProjectScreen } from '@/lib/task-meta-navigation';
 import { styles } from './calendar/calendar-view.styles';
+import { getCalendarWeekInitialVisibleDayIndex } from './calendar/calendar-view-mode';
 import { useCalendarViewController } from './calendar/useCalendarViewController';
 
 const MONTH_DETAILS_COLLAPSED_SNAP = 0.26;
@@ -26,6 +27,8 @@ const MONTH_DETAILS_HIDE_THRESHOLD = 0.2;
 const MONTH_DETAILS_MIN_HEIGHT = 176;
 const NAVIGATION_SWIPE_DISTANCE = 56;
 const BODY_SWIPE_VERTICAL_TOLERANCE = 32;
+const WEEK_TIME_GUTTER_WIDTH = 56;
+const WEEK_COLUMN_WIDTH = 150;
 
 type CalendarBodySwipeState = {
   startX: number;
@@ -240,6 +243,8 @@ export function CalendarView() {
   const bottomSheetStart = useSharedValue(collapsedSheetSnap);
   const bodySwipeRef = useRef<CalendarBodySwipeState | null>(null);
   const suppressMonthDayPressUntilRef = useRef(0);
+  const weekHorizontalScrollRef = useRef<any>(null);
+  const lastWeekAutoScrollKeyRef = useRef<string | null>(null);
 
   const closeMonthDetailsPane = () => {
     setSelectedDate(null);
@@ -250,6 +255,27 @@ export function CalendarView() {
       bottomSheetSnap.value = withSpring(collapsedSheetSnap);
     }
   }, [bottomSheetSnap, collapsedSheetSnap, selectedDate]);
+
+  useEffect(() => {
+    if (viewMode !== 'week') {
+      lastWeekAutoScrollKeyRef.current = null;
+      return;
+    }
+
+    const weekStartTime = weekDays[0]?.getTime() ?? 0;
+    const selectedTime = selectedDate?.getTime() ?? 0;
+    const autoScrollKey = `${weekStartTime}:${selectedTime}`;
+    if (lastWeekAutoScrollKeyRef.current === autoScrollKey) return;
+    lastWeekAutoScrollKeyRef.current = autoScrollKey;
+
+    const dayIndex = getCalendarWeekInitialVisibleDayIndex(weekDays, selectedDate);
+    requestAnimationFrame(() => {
+      weekHorizontalScrollRef.current?.scrollTo({
+        x: Math.max(0, dayIndex * WEEK_COLUMN_WIDTH),
+        animated: false,
+      });
+    });
+  }, [selectedDate, viewMode, weekDays]);
 
   const bottomSheetGesture = Gesture.Pan()
     .hitSlop({ bottom: 16, top: 12 })
@@ -842,7 +868,6 @@ export function CalendarView() {
   }
 
   if (viewMode === 'week') {
-    const weekColumnWidth = 150;
     return (
       <View style={[styles.container, { backgroundColor: tc.bg }]}>
         <View style={[styles.header, { backgroundColor: tc.cardBg, borderBottomColor: tc.border }]}>
@@ -866,12 +891,13 @@ export function CalendarView() {
         </View>
 
         <ScrollView
+          ref={weekHorizontalScrollRef}
           horizontal
           nestedScrollEnabled
           style={styles.weekHorizontal}
           contentContainerStyle={styles.weekHorizontalContent}
         >
-          <View style={[styles.weekCanvas, { width: 56 + weekColumnWidth * weekDays.length }]}>
+          <View style={[styles.weekCanvas, { width: WEEK_TIME_GUTTER_WIDTH + WEEK_COLUMN_WIDTH * weekDays.length }]}>
             <View style={[styles.weekHeaderRow, { borderBottomColor: tc.border }]}>
               <View style={styles.weekTimeGutter} />
               {weekDays.map((day) => (
@@ -881,7 +907,7 @@ export function CalendarView() {
                     setSelectedDate(day);
                     setViewMode('day');
                   }}
-                  style={[styles.weekDayHeader, { width: weekColumnWidth, borderLeftColor: tc.border }, isToday(day) && { backgroundColor: toRgba(tc.tint, isDark ? 0.2 : 0.1) }]}
+                  style={[styles.weekDayHeader, { width: WEEK_COLUMN_WIDTH, borderLeftColor: tc.border }, isToday(day) && { backgroundColor: toRgba(tc.tint, isDark ? 0.2 : 0.1) }]}
                 >
                   <Text style={[styles.weekDayName, { color: tc.secondaryText }]}>
                     {day.toLocaleDateString(locale, { weekday: 'short' })}
@@ -902,7 +928,7 @@ export function CalendarView() {
                   .filter((item) => item.kind === 'deadline' || (item.kind === 'event' && item.event.allDay))
                   .slice(0, 3);
                 return (
-                  <View key={`all-${day.toISOString()}`} style={[styles.weekAllDayCell, { width: weekColumnWidth, borderLeftColor: tc.border }]}>
+                  <View key={`all-${day.toISOString()}`} style={[styles.weekAllDayCell, { width: WEEK_COLUMN_WIDTH, borderLeftColor: tc.border }]}>
                     {allDayItems.map((item) => {
                       const isEvent = item.kind === 'event';
                       const openable = isEvent && isExternalEventOpenable(item.event);
@@ -960,7 +986,7 @@ export function CalendarView() {
                     <Pressable
                       key={`grid-${day.toISOString()}`}
                       onPress={() => openQuickAddForDate(day)}
-                      style={[styles.weekDayColumn, { width: weekColumnWidth, height: timelineHeight, borderLeftColor: tc.border }, isToday(day) && { backgroundColor: toRgba(tc.tint, isDark ? 0.1 : 0.05) }]}
+                      style={[styles.weekDayColumn, { width: WEEK_COLUMN_WIDTH, height: timelineHeight, borderLeftColor: tc.border }, isToday(day) && { backgroundColor: toRgba(tc.tint, isDark ? 0.1 : 0.05) }]}
                     >
                       {Array.from({ length: DAY_END_HOUR - DAY_START_HOUR + 1 }, (_, idx) => (
                         <View key={idx} style={[styles.weekHourRule, { top: idx * 60 * PIXELS_PER_MINUTE, backgroundColor: tc.border }]} />
