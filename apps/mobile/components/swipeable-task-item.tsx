@@ -78,12 +78,14 @@ export function SwipeableTaskItem({
         areas,
         focusedCount,
         timeEstimatesEnabled,
+        showTaskAge,
     } = useTaskStore((state) => ({
         updateTask: state.updateTask,
         projects: state.projects,
         areas: state.areas,
         focusedCount: state.getDerivedState().focusedCount,
         timeEstimatesEnabled: state.settings?.features?.timeEstimates !== false,
+        showTaskAge: state.settings?.appearance?.showTaskAge === true,
     }), shallow);
     const canShowFocusToggle = showFocusToggle
         && task.status !== 'done'
@@ -279,6 +281,7 @@ export function SwipeableTaskItem({
             projects={projects}
             selectionMode={selectionMode}
             showChecklist={showChecklist}
+            showTaskAge={showTaskAge}
             t={t}
             task={{
                 ...task,

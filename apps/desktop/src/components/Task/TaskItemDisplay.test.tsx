@@ -52,6 +52,7 @@ describe('TaskItemDisplay', () => {
                     timeEstimatesEnabled={false}
                     isStagnant={false}
                     showQuickDone={false}
+                    showTaskAge
                     readOnly={false}
                     t={(key: string) => key}
                 />
@@ -59,6 +60,38 @@ describe('TaskItemDisplay', () => {
         );
 
         expect(getByText('2周前')).toBeInTheDocument();
+    });
+
+    it('hides task age by default', () => {
+        const { queryByText } = render(
+            <LanguageProvider>
+                <TaskItemDisplay
+                    task={baseTask}
+                    language="zh"
+                    selectionMode={false}
+                    isViewOpen={false}
+                    actions={{
+                        onToggleView: vi.fn(),
+                        onEdit: vi.fn(),
+                        onDelete: vi.fn(),
+                        onDuplicate: vi.fn(),
+                        onStatusChange: vi.fn(),
+                        openAttachment: vi.fn(),
+                    }}
+                    visibleAttachments={[]}
+                    recurrenceRule=""
+                    recurrenceStrategy="strict"
+                    prioritiesEnabled={false}
+                    timeEstimatesEnabled={false}
+                    isStagnant={false}
+                    showQuickDone={false}
+                    readOnly={false}
+                    t={(key: string) => key}
+                />
+            </LanguageProvider>
+        );
+
+        expect(queryByText('2周前')).not.toBeInTheDocument();
     });
 
     it('only renders the task description when the row is expanded', () => {

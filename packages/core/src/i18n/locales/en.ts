@@ -699,7 +699,7 @@ export const en: Record<string, string> = {
         'settings.syncOffDesc': 'Turn sync back on anytime from this screen.',
         'settings.syncPreferences': 'Settings sync options',
         'settings.syncPreferencesDesc': 'Choose which preferences stay in sync across devices.',
-        'settings.syncPreferenceAppearance': 'Appearance (theme)',
+        'settings.syncPreferenceAppearance': 'Appearance (theme, task age)',
         'settings.syncPreferenceLanguage': 'Language & date/time format',
         'settings.syncPreferenceGtd': 'Scheduling defaults',
         'settings.syncPreferenceExternalCalendars': 'External calendar URLs',

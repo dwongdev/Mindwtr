@@ -639,7 +639,7 @@ export const zhHans: Record<string, string> = {
         'settings.syncOffDesc': '您可以随时在此页面重新开启同步。',
         'settings.syncPreferences': '设置同步选项',
         'settings.syncPreferencesDesc': '选择要在设备间同步的偏好设置。',
-        'settings.syncPreferenceAppearance': '外观（主题）',
+        'settings.syncPreferenceAppearance': '外观（主题、任务年龄）',
         'settings.syncPreferenceLanguage': '语言与日期格式',
         'settings.syncPreferenceGtd': '日程默认值',
         'settings.syncPreferenceExternalCalendars': '外部日历 URL',

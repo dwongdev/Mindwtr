@@ -58,6 +58,7 @@ interface TaskItemDisplayProps {
     dense?: boolean;
     actionsOverlay?: boolean;
     dragHandle?: ReactNode;
+    showTaskAge?: boolean;
     showHoverHint?: boolean;
     t: (key: string) => string;
 }
@@ -104,6 +105,7 @@ export const TaskItemDisplay = memo(function TaskItemDisplay({
     dense = false,
     actionsOverlay = false,
     dragHandle,
+    showTaskAge = false,
     showHoverHint = true,
     t,
 }: TaskItemDisplayProps) {
@@ -142,7 +144,7 @@ export const TaskItemDisplay = memo(function TaskItemDisplay({
         : '';
     const ageLabel = getTaskAgeLabel(task.createdAt, language);
     const showCompactMeta = compactMetaEnabled && !isViewOpen;
-    const showAgeBadge = task.status !== 'done' && Boolean(ageLabel);
+    const showAgeBadge = showTaskAge && task.status !== 'done' && Boolean(ageLabel);
     const hasMetadata = Boolean(
         project
         || area

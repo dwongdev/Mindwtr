@@ -235,6 +235,7 @@ export const TaskItem = memo(function TaskItem({
     const prioritiesEnabled = settings?.features?.priorities !== false;
     const timeEstimatesEnabled = settings?.features?.timeEstimates !== false;
     const undoNotificationsEnabled = settings?.undoNotificationsEnabled !== false;
+    const showTaskAge = settings?.appearance?.showTaskAge === true;
     const isCompact = settings?.appearance?.density === 'compact';
     const isHighlighted = highlightTaskId === task.id;
     const recurrenceRule = getRecurrenceRuleValue(task.recurrence);
@@ -1027,6 +1028,7 @@ export const TaskItem = memo(function TaskItem({
                                 dense={isCompact}
                                 actionsOverlay={actionsOverlay}
                                 dragHandle={dragHandle}
+                                showTaskAge={showTaskAge}
                                 showHoverHint={showHoverHint}
                                 t={t}
                             />

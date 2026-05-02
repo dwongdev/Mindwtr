@@ -643,7 +643,7 @@ export const zhHant: Record<string, string> = {
         'settings.syncOffDesc': '您可以隨時在此頁面重新開啟同步。',
         'settings.syncPreferences': '設置同步選項',
         'settings.syncPreferencesDesc': '選擇要在設備間同步的偏好設置。',
-        'settings.syncPreferenceAppearance': '外觀（主題）',
+        'settings.syncPreferenceAppearance': '外觀（主題、任務年齡）',
         'settings.syncPreferenceLanguage': '語言與日期格式',
         'settings.syncPreferenceGtd': '排程預設值',
         'settings.syncPreferenceExternalCalendars': '外部日曆 URL',
