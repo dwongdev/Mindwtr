@@ -34,7 +34,7 @@ import {
 
 import type { SettingsScreen } from './settings.constants';
 import { useSettingsLocalization, useSettingsScrollContent } from './settings.hooks';
-import { MenuItem, SettingsTopBar, SubHeader } from './settings.shell';
+import { SettingsTopBar, SubHeader } from './settings.shell';
 import { styles } from './settings.styles';
 
 type GtdScreen =
@@ -175,6 +175,10 @@ export function GtdSettingsScreen({
         }).catch(logSettingsError);
     };
 
+    const updateDefaultCaptureMethod = (method: 'text' | 'audio') => {
+        updateGtdSettings({ defaultCaptureMethod: method });
+    };
+
     const commitDefaultScheduleTime = () => {
         const normalized = normalizeClockTimeInput(defaultScheduleTimeDraft);
         if (normalized === null) {
@@ -313,6 +317,10 @@ export function GtdSettingsScreen({
                 '可选。选择日期后自动填入开始、截止和回顾时间。留空则保持仅日期。'
             )
         );
+        const captureMethodOptions: { id: 'text' | 'audio'; label: string; icon: keyof typeof Ionicons.glyphMap }[] = [
+            { id: 'text', label: t('settings.captureDefaultText'), icon: 'text-outline' },
+            { id: 'audio', label: t('settings.captureDefaultAudio'), icon: 'mic-outline' },
+        ];
 
         return (
             <SafeAreaView style={[styles.container, { backgroundColor: tc.bg }]} edges={['bottom']}>
@@ -413,17 +421,46 @@ export function GtdSettingsScreen({
                                 placeholder={localize('HH:MM', 'HH:MM')}
                                 placeholderTextColor={tc.secondaryText}
                                 keyboardType="numbers-and-punctuation"
-                                style={[styles.textInput, styles.inlineTextInput, { width: 96, marginTop: 0, borderColor: tc.border, color: tc.text }]}
+                                style={[
+                                    styles.textInput,
+                                    styles.inlineTextInput,
+                                    styles.gtdTimeInput,
+                                    { backgroundColor: tc.bg, borderColor: tc.border, color: tc.text },
+                                ]}
                             />
                         </View>
-                    </View>
-
-                    <View style={[styles.menuCard, { backgroundColor: tc.cardBg }]}>
                         {timeEstimatesEnabled && (
-                            <MenuItem title={t('settings.timeEstimatePresets')} onPress={() => onNavigate('gtd-time-estimates')} />
+                            <TouchableOpacity
+                                style={[styles.gtdNavigationRow, { borderTopColor: tc.border }]}
+                                onPress={() => onNavigate('gtd-time-estimates')}
+                                activeOpacity={0.75}
+                            >
+                                <Text style={[styles.settingLabel, styles.gtdNavigationLabel, { color: tc.text }]}>
+                                    {t('settings.timeEstimatePresets')}
+                                </Text>
+                                <Ionicons name="chevron-forward" size={18} color={tc.secondaryText} />
+                            </TouchableOpacity>
                         )}
-                        <MenuItem title={t('settings.autoArchive')} onPress={() => onNavigate('gtd-archive')} />
-                        <MenuItem title={t('settings.taskEditorLayout')} onPress={() => onNavigate('gtd-task-editor')} />
+                        <TouchableOpacity
+                            style={[styles.gtdNavigationRow, { borderTopColor: tc.border }]}
+                            onPress={() => onNavigate('gtd-archive')}
+                            activeOpacity={0.75}
+                        >
+                            <Text style={[styles.settingLabel, styles.gtdNavigationLabel, { color: tc.text }]}>
+                                {t('settings.autoArchive')}
+                            </Text>
+                            <Ionicons name="chevron-forward" size={18} color={tc.secondaryText} />
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                            style={[styles.gtdNavigationRow, { borderTopColor: tc.border }]}
+                            onPress={() => onNavigate('gtd-task-editor')}
+                            activeOpacity={0.75}
+                        >
+                            <Text style={[styles.settingLabel, styles.gtdNavigationLabel, { color: tc.text }]}>
+                                {t('settings.taskEditorLayout')}
+                            </Text>
+                            <Ionicons name="chevron-forward" size={18} color={tc.secondaryText} />
+                        </TouchableOpacity>
                     </View>
 
                     <View style={[styles.settingCard, { backgroundColor: tc.cardBg, marginTop: 12 }]}>
@@ -434,43 +471,35 @@ export function GtdSettingsScreen({
                             </View>
                         </View>
                         <View style={{ paddingHorizontal: 16, paddingBottom: 12 }}>
-                            <View style={styles.backendToggle}>
-                                <TouchableOpacity
-                                    style={[
-                                        styles.backendOption,
-                                        { borderColor: tc.border, backgroundColor: defaultCaptureMethod === 'text' ? tc.filterBg : 'transparent' },
-                                    ]}
-                                    onPress={() => {
-                                        updateSettings({
-                                            gtd: {
-                                                ...(settings.gtd ?? {}),
-                                                defaultCaptureMethod: 'text',
-                                            },
-                                        }).catch(logSettingsError);
-                                    }}
-                                >
-                                    <Text style={[styles.backendOptionText, { color: defaultCaptureMethod === 'text' ? tc.tint : tc.secondaryText }]}>
-                                        {t('settings.captureDefaultText')}
-                                    </Text>
-                                </TouchableOpacity>
-                                <TouchableOpacity
-                                    style={[
-                                        styles.backendOption,
-                                        { borderColor: tc.border, backgroundColor: defaultCaptureMethod === 'audio' ? tc.filterBg : 'transparent' },
-                                    ]}
-                                    onPress={() => {
-                                        updateSettings({
-                                            gtd: {
-                                                ...(settings.gtd ?? {}),
-                                                defaultCaptureMethod: 'audio',
-                                            },
-                                        }).catch(logSettingsError);
-                                    }}
-                                >
-                                    <Text style={[styles.backendOptionText, { color: defaultCaptureMethod === 'audio' ? tc.tint : tc.secondaryText }]}>
-                                        {t('settings.captureDefaultAudio')}
-                                    </Text>
-                                </TouchableOpacity>
+                            <View style={[styles.gtdSegmentedControl, { backgroundColor: tc.bg, borderColor: tc.border }]}>
+                                {captureMethodOptions.map((option) => {
+                                    const selected = defaultCaptureMethod === option.id;
+                                    return (
+                                        <TouchableOpacity
+                                            key={option.id}
+                                            accessibilityRole="button"
+                                            accessibilityState={{ selected }}
+                                            style={[
+                                                styles.gtdSegmentedOption,
+                                                { backgroundColor: selected ? tc.filterBg : 'transparent' },
+                                            ]}
+                                            onPress={() => updateDefaultCaptureMethod(option.id)}
+                                            activeOpacity={0.8}
+                                        >
+                                            <Ionicons
+                                                name={option.icon}
+                                                size={16}
+                                                color={selected ? tc.tint : tc.secondaryText}
+                                            />
+                                            <Text
+                                                style={[styles.gtdSegmentedOptionText, { color: selected ? tc.tint : tc.secondaryText }]}
+                                                numberOfLines={1}
+                                            >
+                                                {option.label}
+                                            </Text>
+                                        </TouchableOpacity>
+                                    );
+                                })}
                             </View>
                         </View>
                         {defaultCaptureMethod === 'audio' ? (
@@ -515,10 +544,7 @@ export function GtdSettingsScreen({
                                 trackColor={{ false: '#767577', true: '#3B82F6' }}
                             />
                         </View>
-                    </View>
-
-                    <View style={[styles.settingCard, { backgroundColor: tc.cardBg, marginTop: 12 }]}>
-                        <View style={styles.settingRow}>
+                        <View style={[styles.settingRow, { borderTopWidth: 1, borderTopColor: tc.border }]}>
                             <View style={styles.settingInfo}>
                                 <Text style={[styles.settingLabel, { color: tc.text }]}>{t('settings.weeklyReviewConfig')}</Text>
                                 <Text style={[styles.settingDescription, { color: tc.secondaryText }]}>{t('settings.weeklyReviewConfigDesc')}</Text>
@@ -540,21 +566,23 @@ export function GtdSettingsScreen({
                     </View>
 
                     <View style={[styles.settingCard, { backgroundColor: tc.cardBg, marginTop: 12 }]}>
-                        <View style={styles.settingRow}>
-                            <TouchableOpacity
-                                style={styles.settingInfo}
-                                onPress={() => setGtdInboxProcessingExpanded((prev) => !prev)}
-                                activeOpacity={0.7}
-                            >
+                        <TouchableOpacity
+                            style={styles.settingRow}
+                            accessibilityRole="button"
+                            accessibilityState={{ expanded: gtdInboxProcessingExpanded }}
+                            onPress={() => setGtdInboxProcessingExpanded((prev) => !prev)}
+                            activeOpacity={0.75}
+                        >
+                            <View style={styles.settingInfo}>
                                 <Text style={[styles.settingLabel, { color: tc.text }]}>{t('settings.inboxProcessing')}</Text>
                                 <Text style={[styles.settingDescription, { color: tc.secondaryText }]}>{t('settings.inboxProcessingDesc')}</Text>
-                            </TouchableOpacity>
-                            <TouchableOpacity onPress={() => setGtdInboxProcessingExpanded((prev) => !prev)} activeOpacity={0.7}>
-                                <Text style={[styles.settingDescription, { color: tc.secondaryText }]}>
-                                    {gtdInboxProcessingExpanded ? '▾' : '▸'}
-                                </Text>
-                            </TouchableOpacity>
-                        </View>
+                            </View>
+                            <Ionicons
+                                name={gtdInboxProcessingExpanded ? 'chevron-up' : 'chevron-down'}
+                                size={18}
+                                color={tc.secondaryText}
+                            />
+                        </TouchableOpacity>
                         {gtdInboxProcessingExpanded && (
                             <>
                                 <View style={[styles.settingRow, { borderTopWidth: 1, borderTopColor: tc.border }]}>
