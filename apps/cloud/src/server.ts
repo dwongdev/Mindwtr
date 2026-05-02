@@ -45,6 +45,7 @@ import {
     normalizeRevision,
     parseArgs,
     parsePagination,
+    preflightResponse,
     RATE_LIMIT_MAX_KEYS,
     UUID_PATTERN,
 } from './server-config';
@@ -516,7 +517,7 @@ export async function startCloudServer(options: CloudServerOptions = {}): Promis
             }, requestTimeoutMs);
             try {
                 throwIfRequestAborted(requestAbortController.signal);
-                if (req.method === 'OPTIONS') return jsonResponse({ ok: true });
+                if (req.method === 'OPTIONS') return preflightResponse();
 
                 const url = new URL(req.url);
                 const pathname = url.pathname.replace(/\/+$/, '') || '/';

@@ -3,7 +3,7 @@ import { existsSync, mkdtempSync, mkdirSync, readFileSync, readdirSync, rmSync, 
 import { join } from 'path';
 import { tmpdir } from 'os';
 import type { AppData } from '@mindwtr/core';
-import { corsOrigin, errorResponse } from './server-config';
+import { corsOrigin, errorResponse, preflightResponse } from './server-config';
 import { __cloudTestUtils, startCloudServer } from './server';
 
 const expireFileForOrphanGc = (path: string): void => {
@@ -194,6 +194,16 @@ describe('cloud server utils', () => {
         expect(response.headers.get('Access-Control-Allow-Origin')).toBe(corsOrigin);
         expect(response.headers.get('Access-Control-Allow-Headers')).toBe('Authorization, Content-Type');
         expect(response.headers.get('Access-Control-Allow-Methods')).toBe('GET,PUT,POST,PATCH,DELETE,OPTIONS');
+    });
+
+    test('returns no-content CORS preflight responses', async () => {
+        const response = preflightResponse();
+
+        expect(response.status).toBe(204);
+        expect(response.headers.get('Access-Control-Allow-Origin')).toBe(corsOrigin);
+        expect(response.headers.get('Access-Control-Allow-Headers')).toBe('Authorization, Content-Type');
+        expect(response.headers.get('Access-Control-Allow-Methods')).toBe('GET,PUT,POST,PATCH,DELETE,OPTIONS');
+        expect(await response.text()).toBe('');
     });
 
     test('includes a request id in internal server error responses', async () => {
@@ -660,6 +670,23 @@ describe('cloud server api', () => {
         }
         dataDir = '';
         baseUrl = '';
+    });
+
+    test('handles CORS preflight without requiring auth or returning JSON', async () => {
+        const response = await fetch(`${baseUrl}/v1/tasks`, {
+            method: 'OPTIONS',
+            headers: {
+                Origin: corsOrigin,
+                'Access-Control-Request-Method': 'POST',
+                'Access-Control-Request-Headers': 'Authorization, Content-Type',
+            },
+        });
+
+        expect(response.status).toBe(204);
+        expect(response.headers.get('Access-Control-Allow-Origin')).toBe(corsOrigin);
+        expect(response.headers.get('Access-Control-Allow-Headers')).toBe('Authorization, Content-Type');
+        expect(response.headers.get('Access-Control-Allow-Methods')).toBe('GET,PUT,POST,PATCH,DELETE,OPTIONS');
+        expect(await response.text()).toBe('');
     });
 
     test('supports task CRUD and soft delete flow', async () => {
