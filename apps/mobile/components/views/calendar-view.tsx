@@ -867,6 +867,7 @@ export function CalendarView() {
 
         <ScrollView
           horizontal
+          nestedScrollEnabled
           style={styles.weekHorizontal}
           contentContainerStyle={styles.weekHorizontalContent}
         >
@@ -933,7 +934,11 @@ export function CalendarView() {
               })}
             </View>
 
-            <ScrollView style={styles.weekVertical} contentContainerStyle={styles.weekVerticalContent}>
+            <ScrollView
+              nestedScrollEnabled
+              style={styles.weekVertical}
+              contentContainerStyle={styles.weekVerticalContent}
+            >
               <View style={styles.weekGridRow}>
                 <View style={[styles.weekTimeGutter, { height: timelineHeight }]}>
                   {Array.from({ length: DAY_END_HOUR - DAY_START_HOUR + 1 }, (_, idx) => {

@@ -410,7 +410,7 @@ export function GtdSettingsScreen({
                                 value={defaultScheduleTimeDraft}
                                 onChangeText={setDefaultScheduleTimeDraft}
                                 onBlur={commitDefaultScheduleTime}
-                                placeholder="HH:MM"
+                                placeholder={localize('HH:MM', 'HH:MM')}
                                 placeholderTextColor={tc.secondaryText}
                                 keyboardType="numbers-and-punctuation"
                                 style={[styles.textInput, styles.inlineTextInput, { width: 96, marginTop: 0, borderColor: tc.border, color: tc.text }]}
