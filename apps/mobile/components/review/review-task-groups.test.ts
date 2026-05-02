@@ -54,11 +54,13 @@ describe('buildReviewTaskGroups', () => {
         task('next', 'Project next action', { projectId: activeProject.id, status: 'next' }),
         task('waiting', 'Project waiting task', { projectId: stuckProject.id, status: 'waiting' }),
       ],
-      tintColor: '#3b82f6',
+      fallbackAreaColor: '#3b82f6',
+      unassignedAreaColor: '#f59e0b',
     });
 
     expect(groups.map((group) => group.title)).toEqual(['Unassigned', 'Work']);
     expect(groups[0]).toMatchObject({
+      color: '#f59e0b',
       isUnassigned: true,
       projectCount: 0,
       taskCount: 1,

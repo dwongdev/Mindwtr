@@ -1,7 +1,7 @@
 import { BackHandler, View, Text, ScrollView, Pressable, StyleSheet, TouchableOpacity, Modal, TextInput, Share } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useFocusEffect } from '@react-navigation/native';
-import { useTaskStore, sortTasksBy, type Task, type TaskStatus, type TaskSortBy } from '@mindwtr/core';
+import { DEFAULT_AREA_COLOR, useTaskStore, sortTasksBy, type Task, type TaskStatus, type TaskSortBy } from '@mindwtr/core';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTheme } from '../../contexts/theme-context';
 import { useLanguage } from '../../contexts/language-context';
@@ -11,12 +11,15 @@ import { taskMatchesAreaFilter } from '@/lib/area-filter';
 import { openContextsScreen, openProjectScreen } from '@/lib/task-meta-navigation';
 import { ReviewModal } from '../../components/review-modal';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { ChevronDown, ChevronRight } from 'lucide-react-native';
+import { ChevronDown, ChevronRight, ChevronsDown, ChevronsUp } from 'lucide-react-native';
 import { logError } from '../../lib/app-log';
 
 import { TaskEditModal } from '@/components/task-edit-modal';
 import { SwipeableTaskItem } from '@/components/swipeable-task-item';
 import { buildReviewTaskGroups } from '@/components/review/review-task-groups';
+
+const HAS_NEXT_ACTION_COLOR = '#10B981';
+const NEEDS_ACTION_COLOR = '#F59E0B';
 
 export default function ReviewScreen() {
   const router = useRouter();
@@ -173,17 +176,35 @@ export default function ReviewScreen() {
   const withoutAreaLabel = translateOr('review.withoutArea', 'without an area');
   const activeTasksLabel = translateOr('review.activeTasks', 'active tasks');
   const startReviewLabel = translateOr('review.startReview', 'Start Review');
+  const expandAreasLabel = translateOr('review.expandAreas', 'Expand areas');
+  const expandEverythingLabel = translateOr('review.expandEverything', 'Expand projects');
+  const collapseEverythingLabel = translateOr('review.collapseEverything', 'Collapse all');
+  const unassignedAreaColor = settings?.appearance?.unassignedAreaColor || DEFAULT_AREA_COLOR;
   const reviewTaskGroups = useMemo(() => {
     return buildReviewTaskGroups({
       areaById,
       areaOrderById,
+      fallbackAreaColor: tc.tint,
       noAreaLabel: unassignedLabel || noAreaLabel,
       projectById,
       singleActionsLabel,
       sortedTasks,
-      tintColor: tc.tint,
+      unassignedAreaColor,
     });
-  }, [areaById, areaOrderById, noAreaLabel, projectById, singleActionsLabel, sortedTasks, tc.tint, unassignedLabel]);
+  }, [areaById, areaOrderById, noAreaLabel, projectById, singleActionsLabel, sortedTasks, tc.tint, unassignedAreaColor, unassignedLabel]);
+
+  const areaGroupIds = useMemo(() => reviewTaskGroups.map((group) => group.id), [reviewTaskGroups]);
+  const projectGroupIds = useMemo(
+    () => reviewTaskGroups.flatMap((group) => group.projectGroups.map((projectGroup) => projectGroup.id)),
+    [reviewTaskGroups],
+  );
+  const allAreasExpanded = areaGroupIds.length > 0 && areaGroupIds.every((areaId) => expandedAreaIds.has(areaId));
+  const allProjectsExpanded = projectGroupIds.length > 0 && projectGroupIds.every((projectId) => expandedReviewProjectIds.has(projectId));
+  const expansionControlLabel = !allAreasExpanded
+    ? expandAreasLabel
+    : allProjectsExpanded
+      ? collapseEverythingLabel
+      : expandEverythingLabel;
 
   const toggleAreaExpanded = useCallback((areaId: string) => {
     setExpandedAreaIds((prev) => {
@@ -193,6 +214,22 @@ export default function ReviewScreen() {
       return next;
     });
   }, []);
+
+  const cycleReviewExpansion = useCallback(() => {
+    if (!areaGroupIds.length) return;
+    if (!allAreasExpanded) {
+      setExpandedAreaIds(new Set(areaGroupIds));
+      setExpandedReviewProjectIds(new Set());
+      return;
+    }
+    if (!allProjectsExpanded) {
+      setExpandedAreaIds(new Set(areaGroupIds));
+      setExpandedReviewProjectIds(new Set(projectGroupIds));
+      return;
+    }
+    setExpandedAreaIds(new Set());
+    setExpandedReviewProjectIds(new Set());
+  }, [allAreasExpanded, allProjectsExpanded, areaGroupIds, projectGroupIds]);
 
   const toggleReviewProjectExpanded = useCallback((projectGroupId: string) => {
     setExpandedReviewProjectIds((prev) => {
@@ -229,6 +266,26 @@ export default function ReviewScreen() {
     <View style={[styles.container, { backgroundColor: tc.bg }]}>
       {!selectionMode && (
         <View style={[styles.reviewActionBar, { backgroundColor: tc.cardBg, borderBottomColor: tc.border }]}>
+          <TouchableOpacity
+            accessibilityRole="button"
+            accessibilityLabel={expansionControlLabel}
+            accessibilityState={{ disabled: areaGroupIds.length === 0 }}
+            style={[
+              styles.reviewExpansionButton,
+              {
+                backgroundColor: tc.filterBg,
+                borderColor: tc.border,
+                opacity: areaGroupIds.length > 0 ? 1 : 0.45,
+              },
+            ]}
+            onPress={cycleReviewExpansion}
+            disabled={areaGroupIds.length === 0}
+            activeOpacity={0.75}
+          >
+            {allAreasExpanded && allProjectsExpanded
+              ? <ChevronsUp size={20} color={tc.secondaryText} strokeWidth={2.4} />
+              : <ChevronsDown size={20} color={tc.secondaryText} strokeWidth={2.4} />}
+          </TouchableOpacity>
           <TouchableOpacity
             style={[styles.startReviewButton, { backgroundColor: tc.tint }]}
             onPress={() => setReviewPickerVisible(true)}
@@ -361,11 +418,11 @@ export default function ReviewScreen() {
                               {projectGroup.projectId ? (
                                 <View style={[
                                   styles.reviewStatusBadge,
-                                  { backgroundColor: projectGroup.hasNextAction ? '#10B98120' : '#EF444420' },
+                                  { backgroundColor: projectGroup.hasNextAction ? `${HAS_NEXT_ACTION_COLOR}20` : `${NEEDS_ACTION_COLOR}20` },
                                 ]}>
                                   <Text style={[
                                     styles.reviewStatusText,
-                                    { color: projectGroup.hasNextAction ? '#10B981' : '#EF4444' },
+                                    { color: projectGroup.hasNextAction ? HAS_NEXT_ACTION_COLOR : NEEDS_ACTION_COLOR },
                                   ]} numberOfLines={1}>
                                     {projectGroup.hasNextAction ? t('review.hasNextAction') : t('review.needsAction')}
                                   </Text>
@@ -569,10 +626,20 @@ const styles = StyleSheet.create({
     backgroundColor: '#F9FAFB',
   },
   reviewActionBar: {
-    alignItems: 'flex-end',
+    alignItems: 'center',
     borderBottomWidth: 1,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
     paddingHorizontal: 16,
     paddingVertical: 10,
+  },
+  reviewExpansionButton: {
+    alignItems: 'center',
+    borderRadius: 10,
+    borderWidth: 1,
+    height: 42,
+    justifyContent: 'center',
+    width: 42,
   },
   startReviewButton: {
     alignItems: 'center',
@@ -643,10 +710,10 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   reviewNeedsSummaryPill: {
-    backgroundColor: '#EF444420',
+    backgroundColor: `${NEEDS_ACTION_COLOR}20`,
   },
   reviewNeedsSummaryText: {
-    color: '#EF4444',
+    color: NEEDS_ACTION_COLOR,
   },
   reviewAreaBody: {
     marginTop: 10,

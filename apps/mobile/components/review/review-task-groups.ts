@@ -29,7 +29,8 @@ type BuildReviewTaskGroupsParams = {
   projectById: Map<string, Project>;
   singleActionsLabel: string;
   sortedTasks: Task[];
-  tintColor: string;
+  fallbackAreaColor: string;
+  unassignedAreaColor: string;
 };
 
 const UNASSIGNED_AREA_ORDER = -1;
@@ -42,7 +43,8 @@ export function buildReviewTaskGroups({
   projectById,
   singleActionsLabel,
   sortedTasks,
-  tintColor,
+  fallbackAreaColor,
+  unassignedAreaColor,
 }: BuildReviewTaskGroupsParams): ReviewAreaTaskGroup[] {
   const groups = new Map<string, Omit<ReviewAreaTaskGroup, 'needsActionCount' | 'projectCount' | 'projectGroups'> & {
     projectGroups: Map<string, ReviewProjectTaskGroup>;
@@ -55,7 +57,7 @@ export function buildReviewTaskGroups({
     const isUnassigned = !areaId;
     const areaKey = areaId ? `area:${areaId}` : 'area:none';
     const areaGroup = groups.get(areaKey) ?? {
-      color: area?.color || project?.color || tintColor,
+      color: isUnassigned ? unassignedAreaColor : (area?.color || project?.color || fallbackAreaColor),
       id: areaKey,
       isUnassigned,
       order: areaId ? (areaOrderById.get(areaId) ?? Number.MAX_SAFE_INTEGER - 1) : UNASSIGNED_AREA_ORDER,

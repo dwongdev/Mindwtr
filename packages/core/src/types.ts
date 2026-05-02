@@ -260,6 +260,7 @@ export interface AppData {
             density?: 'comfortable' | 'compact';
             textSize?: 'default' | 'large' | 'extra-large';
             showTaskAge?: boolean;
+            unassignedAreaColor?: string;
         };
         theme?: 'light' | 'dark' | 'system' | 'eink' | 'nord' | 'sepia' | 'material3-light' | 'material3-dark' | 'oled';
         language?: 'en' | 'zh' | 'zh-Hant' | 'es' | 'hi' | 'ar' | 'de' | 'ru' | 'ja' | 'fr' | 'pt' | 'pl' | 'ko' | 'it' | 'tr' | 'nl' | 'system';
