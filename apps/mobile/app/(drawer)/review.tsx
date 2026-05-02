@@ -18,17 +18,15 @@ import { TaskEditModal } from '@/components/task-edit-modal';
 import { SwipeableTaskItem } from '@/components/swipeable-task-item';
 import { buildReviewTaskGroups } from '@/components/review/review-task-groups';
 
-const STATUS_OPTIONS: TaskStatus[] = ['inbox', 'next', 'waiting', 'someday', 'done'];
-
 export default function ReviewScreen() {
   const router = useRouter();
   const { tasks, projects, updateTask, deleteTask, batchMoveTasks, batchDeleteTasks, batchUpdateTasks, settings } = useTaskStore();
   const { isDark } = useTheme();
   const { t } = useLanguage();
-  const [filterStatus, setFilterStatus] = useState<TaskStatus | 'all'>('all');
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [showReviewModal, setShowReviewModal] = useState(false);
+  const [reviewPickerVisible, setReviewPickerVisible] = useState(false);
   const [selectionMode, setSelectionMode] = useState(false);
   const [multiSelectedIds, setMultiSelectedIds] = useState<Set<string>>(new Set());
   const [tagModalVisible, setTagModalVisible] = useState(false);
@@ -62,8 +60,10 @@ export default function ReviewScreen() {
   }, []);
 
   useEffect(() => {
-    exitSelectionMode();
-  }, [filterStatus, exitSelectionMode]);
+    if (selectionMode && multiSelectedIds.size === 0) {
+      setSelectionMode(false);
+    }
+  }, [selectionMode, multiSelectedIds]);
 
   useFocusEffect(
     useCallback(() => {
@@ -75,7 +75,7 @@ export default function ReviewScreen() {
 
   useEffect(() => {
     const handleBackPress = () => {
-      if (isModalVisible || tagModalVisible || moveModalVisible || showReviewModal) {
+      if (isModalVisible || tagModalVisible || moveModalVisible || showReviewModal || reviewPickerVisible) {
         return false;
       }
       if (!selectionMode) return false;
@@ -85,7 +85,7 @@ export default function ReviewScreen() {
 
     const subscription = BackHandler.addEventListener('hardwareBackPress', handleBackPress);
     return () => subscription.remove();
-  }, [selectionMode, exitSelectionMode, isModalVisible, tagModalVisible, moveModalVisible, showReviewModal]);
+  }, [selectionMode, exitSelectionMode, isModalVisible, tagModalVisible, moveModalVisible, showReviewModal, reviewPickerVisible]);
 
   const toggleMultiSelect = useCallback((taskId: string) => {
     if (!selectionMode) setSelectionMode(true);
@@ -152,18 +152,15 @@ export default function ReviewScreen() {
 
   const bulkStatuses: TaskStatus[] = ['inbox', 'next', 'waiting', 'someday', 'reference', 'done'];
 
-  // Filter out deleted tasks first, then apply status filter
+  // Filter out deleted and reference tasks before building the review overview.
   const activeTasks = tasks.filter((task) => (
     !task.deletedAt
     && task.status !== 'reference'
     && taskMatchesAreaFilter(task, resolvedAreaFilter, projectById, areaById)
   ));
-  const filteredTasks = activeTasks.filter((task) =>
-    filterStatus === 'all' ? true : task.status === filterStatus
-  );
 
   const sortBy = (settings?.taskSortBy ?? 'default') as TaskSortBy;
-  const sortedTasks = sortTasksBy(filteredTasks, sortBy);
+  const sortedTasks = sortTasksBy(activeTasks, sortBy);
   const noAreaLabel = t('review.noArea');
   const singleActionsLabel = t('review.singleActions');
   const translateOr = useCallback((key: string, fallback: string) => {
@@ -175,6 +172,7 @@ export default function ReviewScreen() {
   const needsActionLabel = translateOr('review.needsActionSummary', 'needs action');
   const withoutAreaLabel = translateOr('review.withoutArea', 'without an area');
   const activeTasksLabel = translateOr('review.activeTasks', 'active tasks');
+  const startReviewLabel = translateOr('review.startReview', 'Start Review');
   const reviewTaskGroups = useMemo(() => {
     return buildReviewTaskGroups({
       areaById,
@@ -218,6 +216,7 @@ export default function ReviewScreen() {
       selectionMode={selectionMode}
       isMultiSelected={multiSelectedIds.has(task.id)}
       onToggleSelect={() => toggleMultiSelect(task.id)}
+      onLongPressAction={() => toggleMultiSelect(task.id)}
       onStatusChange={(status) => updateTask(task.id, { status: status as TaskStatus })}
       onDelete={() => deleteTask(task.id)}
       onProjectPress={openProjectScreen}
@@ -228,76 +227,30 @@ export default function ReviewScreen() {
 
   return (
     <View style={[styles.container, { backgroundColor: tc.bg }]}>
-      <View style={[styles.toolbar, { backgroundColor: tc.cardBg, borderBottomColor: tc.border }]}>
-        <TouchableOpacity
-          style={[
-            styles.selectButton,
-            { borderColor: tc.border, backgroundColor: selectionMode ? tc.filterBg : 'transparent' }
-          ]}
-          onPress={() => (selectionMode ? exitSelectionMode() : setSelectionMode(true))}
-        >
-          <Text style={[styles.selectButtonText, { color: tc.text }]}>
-            {selectionMode ? t('bulk.exitSelect') : t('bulk.select')}
-          </Text>
-        </TouchableOpacity>
-
-        <View style={styles.headerButtonsRow}>
+      {!selectionMode && (
+        <View style={[styles.reviewActionBar, { backgroundColor: tc.cardBg, borderBottomColor: tc.border }]}>
           <TouchableOpacity
-            style={[styles.guideButton, { borderColor: tc.border, backgroundColor: tc.filterBg }]}
-            onPress={() => router.push('/daily-review')}
+            style={[styles.startReviewButton, { backgroundColor: tc.tint }]}
+            onPress={() => setReviewPickerVisible(true)}
+            activeOpacity={0.85}
           >
-            <Text
-              style={[styles.guideButtonText, { color: tc.text }]}
-              numberOfLines={1}
-              ellipsizeMode="tail"
-            >
-              {t('dailyReview.title')}
-            </Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.guideButtonPrimary, { backgroundColor: tc.tint }]}
-            onPress={() => setShowReviewModal(true)}
-          >
-            <Text style={styles.guideButtonPrimaryText} numberOfLines={1} ellipsizeMode="tail">
-              {t('review.openGuide')}
+            <Text style={styles.startReviewButtonText} numberOfLines={1} ellipsizeMode="tail">
+              {startReviewLabel}
             </Text>
           </TouchableOpacity>
         </View>
-      </View>
-
-      <ScrollView horizontal style={[styles.filterBar, { backgroundColor: tc.cardBg, borderBottomColor: tc.border }]} showsHorizontalScrollIndicator={false}>
-        <Pressable
-          style={[
-            styles.filterButton,
-            { backgroundColor: filterStatus === 'all' ? tc.tint : tc.filterBg },
-          ]}
-          onPress={() => setFilterStatus('all')}
-        >
-          <Text style={[styles.filterText, { color: filterStatus === 'all' ? '#FFFFFF' : tc.secondaryText }]}>
-            {t('common.all')} ({activeTasks.length})
-          </Text>
-        </Pressable>
-        {STATUS_OPTIONS.map((status) => (
-          <Pressable
-            key={status}
-            style={[
-              styles.filterButton,
-              { backgroundColor: filterStatus === status ? tc.tint : tc.filterBg },
-            ]}
-            onPress={() => setFilterStatus(status)}
-          >
-            <Text style={[styles.filterText, { color: filterStatus === status ? '#FFFFFF' : tc.secondaryText }]}>
-              {t(`status.${status}`)} ({activeTasks.filter((t) => t.status === status).length})
-            </Text>
-          </Pressable>
-        ))}
-      </ScrollView>
+      )}
 
       {selectionMode && (
         <View style={[styles.bulkBar, { backgroundColor: tc.cardBg, borderBottomColor: tc.border }]}>
-          <Text style={[styles.bulkCount, { color: tc.secondaryText }]}>
-            {selectedIdsArray.length} {t('bulk.selected')}
-          </Text>
+          <View style={styles.bulkHeaderRow}>
+            <Text style={[styles.bulkCount, { color: tc.secondaryText }]}>
+              {selectedIdsArray.length} {t('bulk.selected')}
+            </Text>
+            <TouchableOpacity onPress={exitSelectionMode} style={styles.bulkCancelButton}>
+              <Text style={[styles.bulkCancelText, { color: tc.tint }]}>{t('common.cancel')}</Text>
+            </TouchableOpacity>
+          </View>
           <View style={styles.bulkActions}>
             <TouchableOpacity
               onPress={() => setMoveModalVisible(true)}
@@ -332,137 +285,177 @@ export default function ReviewScreen() {
       )}
 
       <ScrollView style={styles.taskList} contentContainerStyle={{ paddingBottom: 16 + insets.bottom }}>
-        {filterStatus === 'all' ? (
-          reviewTaskGroups.map((areaGroup) => {
-            const areaExpanded = expandedAreaIds.has(areaGroup.id);
-            const taskSummary = areaGroup.isUnassigned
-              ? `${areaGroup.taskCount} ${t('common.tasks')} ${withoutAreaLabel}`
-              : `${areaGroup.taskCount} ${t('common.tasks')}`;
-            return (
-              <View key={areaGroup.id} style={styles.reviewAreaSection}>
-                <Pressable
-                  style={[
-                    styles.reviewAreaHeader,
-                    {
-                      backgroundColor: tc.cardBg,
-                      borderColor: tc.border,
-                      borderLeftColor: areaGroup.color,
-                    },
-                  ]}
-                  onPress={() => toggleAreaExpanded(areaGroup.id)}
-                >
-                  <View style={styles.reviewAreaHeaderMain}>
-                    <View style={[styles.reviewAreaDot, { backgroundColor: areaGroup.color }]} />
-                    <View style={styles.reviewAreaTextBlock}>
-                      <Text style={[styles.reviewAreaTitle, { color: tc.text }]} numberOfLines={1}>
-                        {areaGroup.title}
-                      </Text>
-                      <View style={styles.reviewAreaSummaryRow}>
-                        {areaGroup.projectCount > 0 && (
-                          <View style={[styles.reviewSummaryPill, { backgroundColor: tc.filterBg }]}>
-                            <Text style={[styles.reviewSummaryPillText, { color: tc.secondaryText }]}>
-                              {areaGroup.projectCount} {projectsLabel}
-                            </Text>
-                          </View>
-                        )}
-                        {areaGroup.needsActionCount > 0 && (
-                          <View style={[styles.reviewSummaryPill, styles.reviewNeedsSummaryPill]}>
-                            <Text style={[styles.reviewSummaryPillText, styles.reviewNeedsSummaryText]}>
-                              {areaGroup.needsActionCount} {needsActionLabel}
-                            </Text>
-                          </View>
-                        )}
+        {reviewTaskGroups.map((areaGroup) => {
+          const areaExpanded = expandedAreaIds.has(areaGroup.id);
+          const taskSummary = areaGroup.isUnassigned
+            ? `${areaGroup.taskCount} ${t('common.tasks')} ${withoutAreaLabel}`
+            : `${areaGroup.taskCount} ${t('common.tasks')}`;
+          return (
+            <View key={areaGroup.id} style={styles.reviewAreaSection}>
+              <Pressable
+                style={[
+                  styles.reviewAreaHeader,
+                  {
+                    backgroundColor: tc.cardBg,
+                    borderColor: tc.border,
+                    borderLeftColor: areaGroup.color,
+                  },
+                ]}
+                onPress={() => toggleAreaExpanded(areaGroup.id)}
+              >
+                <View style={styles.reviewAreaHeaderMain}>
+                  <View style={[styles.reviewAreaDot, { backgroundColor: areaGroup.color }]} />
+                  <View style={styles.reviewAreaTextBlock}>
+                    <Text style={[styles.reviewAreaTitle, { color: tc.text }]} numberOfLines={1}>
+                      {areaGroup.title}
+                    </Text>
+                    <View style={styles.reviewAreaSummaryRow}>
+                      {areaGroup.projectCount > 0 && (
                         <View style={[styles.reviewSummaryPill, { backgroundColor: tc.filterBg }]}>
                           <Text style={[styles.reviewSummaryPillText, { color: tc.secondaryText }]}>
-                            {taskSummary}
+                            {areaGroup.projectCount} {projectsLabel}
                           </Text>
                         </View>
+                      )}
+                      {areaGroup.needsActionCount > 0 && (
+                        <View style={[styles.reviewSummaryPill, styles.reviewNeedsSummaryPill]}>
+                          <Text style={[styles.reviewSummaryPillText, styles.reviewNeedsSummaryText]}>
+                            {areaGroup.needsActionCount} {needsActionLabel}
+                          </Text>
+                        </View>
+                      )}
+                      <View style={[styles.reviewSummaryPill, { backgroundColor: tc.filterBg }]}>
+                        <Text style={[styles.reviewSummaryPillText, { color: tc.secondaryText }]}>
+                          {taskSummary}
+                        </Text>
                       </View>
                     </View>
                   </View>
-                  {areaExpanded
-                    ? <ChevronDown size={20} color={tc.secondaryText} strokeWidth={2.4} />
-                    : <ChevronRight size={20} color={tc.secondaryText} strokeWidth={2.4} />}
-                </Pressable>
+                </View>
+                {areaExpanded
+                  ? <ChevronDown size={20} color={tc.secondaryText} strokeWidth={2.4} />
+                  : <ChevronRight size={20} color={tc.secondaryText} strokeWidth={2.4} />}
+              </Pressable>
 
-                {areaExpanded && (
-                  <View style={styles.reviewAreaBody}>
-                    {areaGroup.projectGroups.map((projectGroup) => {
-                      const projectExpanded = expandedReviewProjectIds.has(projectGroup.id);
-                      return (
-                        <View key={projectGroup.id} style={[styles.reviewProjectGroup, { borderLeftColor: areaGroup.color }]}>
-                          <Pressable
-                            style={[
-                              styles.reviewProjectHeader,
-                              {
-                                backgroundColor: tc.filterBg,
-                                borderColor: tc.border,
-                              },
-                            ]}
-                            onPress={() => toggleReviewProjectExpanded(projectGroup.id)}
-                          >
-                            <View style={styles.reviewProjectHeaderTop}>
-                              <View style={styles.reviewProjectTitleRow}>
-                                <Text style={[styles.reviewProjectTitle, { color: tc.text }]} numberOfLines={1}>
-                                  {projectGroup.title}
-                                </Text>
-                                {projectGroup.projectId ? (
-                                  <View style={[
-                                    styles.reviewStatusBadge,
-                                    { backgroundColor: projectGroup.hasNextAction ? '#10B98120' : '#EF444420' },
-                                  ]}>
-                                    <Text style={[
-                                      styles.reviewStatusText,
-                                      { color: projectGroup.hasNextAction ? '#10B981' : '#EF4444' },
-                                    ]} numberOfLines={1}>
-                                      {projectGroup.hasNextAction ? t('review.hasNextAction') : t('review.needsAction')}
-                                    </Text>
-                                  </View>
-                                ) : (
-                                  <View style={[styles.reviewSingleActionsBadge, { backgroundColor: tc.cardBg }]}>
-                                    <Text style={[styles.reviewSingleActionsText, { color: tc.secondaryText }]}>
-                                      {singleActionsLabel}
-                                    </Text>
-                                  </View>
-                                )}
-                              </View>
-                              <Text style={[styles.reviewProjectCount, { color: tc.secondaryText }]}>
-                                {projectGroup.tasks.length}
+              {areaExpanded && (
+                <View style={styles.reviewAreaBody}>
+                  {areaGroup.projectGroups.map((projectGroup) => {
+                    const projectExpanded = expandedReviewProjectIds.has(projectGroup.id);
+                    return (
+                      <View key={projectGroup.id} style={[styles.reviewProjectGroup, { borderLeftColor: areaGroup.color }]}>
+                        <Pressable
+                          style={[
+                            styles.reviewProjectHeader,
+                            {
+                              backgroundColor: tc.filterBg,
+                              borderColor: tc.border,
+                            },
+                          ]}
+                          onPress={() => toggleReviewProjectExpanded(projectGroup.id)}
+                        >
+                          <View style={styles.reviewProjectHeaderTop}>
+                            <View style={styles.reviewProjectTitleRow}>
+                              <Text style={[styles.reviewProjectTitle, { color: tc.text }]} numberOfLines={1}>
+                                {projectGroup.title}
                               </Text>
+                              {projectGroup.projectId ? (
+                                <View style={[
+                                  styles.reviewStatusBadge,
+                                  { backgroundColor: projectGroup.hasNextAction ? '#10B98120' : '#EF444420' },
+                                ]}>
+                                  <Text style={[
+                                    styles.reviewStatusText,
+                                    { color: projectGroup.hasNextAction ? '#10B981' : '#EF4444' },
+                                  ]} numberOfLines={1}>
+                                    {projectGroup.hasNextAction ? t('review.hasNextAction') : t('review.needsAction')}
+                                  </Text>
+                                </View>
+                              ) : (
+                                <View style={[styles.reviewSingleActionsBadge, { backgroundColor: tc.cardBg }]}>
+                                  <Text style={[styles.reviewSingleActionsText, { color: tc.secondaryText }]}>
+                                    {singleActionsLabel}
+                                  </Text>
+                                </View>
+                              )}
                             </View>
-                            <View style={styles.reviewProjectMetaRow}>
-                              <Text style={[styles.reviewProjectMetaText, { color: tc.secondaryText }]} numberOfLines={1}>
-                                {projectGroup.isSingleActions
-                                  ? `${projectGroup.tasks.length} ${t('common.tasks')}`
-                                  : `${projectGroup.tasks.length} ${activeTasksLabel}`}
-                              </Text>
-                              {projectExpanded
-                                ? <ChevronDown size={16} color={tc.secondaryText} strokeWidth={2.3} />
-                                : <ChevronRight size={16} color={tc.secondaryText} strokeWidth={2.3} />}
-                            </View>
-                          </Pressable>
-                          {projectExpanded && (
-                            <View style={styles.reviewGroupedTasks}>
-                              {projectGroup.tasks.map(renderReviewTaskItem)}
-                            </View>
-                          )}
-                        </View>
-                      );
-                    })}
-                  </View>
-                )}
-              </View>
-            );
-          })
-        ) : (
-          sortedTasks.map(renderReviewTaskItem)
-        )}
+                            <Text style={[styles.reviewProjectCount, { color: tc.secondaryText }]}>
+                              {projectGroup.tasks.length}
+                            </Text>
+                          </View>
+                          <View style={styles.reviewProjectMetaRow}>
+                            <Text style={[styles.reviewProjectMetaText, { color: tc.secondaryText }]} numberOfLines={1}>
+                              {projectGroup.isSingleActions
+                                ? `${projectGroup.tasks.length} ${t('common.tasks')}`
+                                : `${projectGroup.tasks.length} ${activeTasksLabel}`}
+                            </Text>
+                            {projectExpanded
+                              ? <ChevronDown size={16} color={tc.secondaryText} strokeWidth={2.3} />
+                              : <ChevronRight size={16} color={tc.secondaryText} strokeWidth={2.3} />}
+                          </View>
+                        </Pressable>
+                        {projectExpanded && (
+                          <View style={styles.reviewGroupedTasks}>
+                            {projectGroup.tasks.map(renderReviewTaskItem)}
+                          </View>
+                        )}
+                      </View>
+                    );
+                  })}
+                </View>
+              )}
+            </View>
+          );
+        })}
         {sortedTasks.length === 0 && (
           <View style={styles.emptyState}>
             <Text style={[styles.emptyText, { color: tc.secondaryText }]}>{t('review.noTasks')}</Text>
           </View>
         )}
       </ScrollView>
+
+      <Modal
+        visible={reviewPickerVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setReviewPickerVisible(false)}
+      >
+        <Pressable style={styles.modalOverlay} onPress={() => setReviewPickerVisible(false)}>
+          <Pressable
+            style={[styles.modalCard, { backgroundColor: tc.cardBg }]}
+            onPress={(e) => e.stopPropagation()}
+          >
+            <Text style={[styles.modalTitle, { color: tc.text }]}>{startReviewLabel}</Text>
+            <TouchableOpacity
+              style={[styles.reviewPickerOption, { backgroundColor: tc.filterBg, borderColor: tc.border }]}
+              onPress={() => {
+                setReviewPickerVisible(false);
+                router.push('/daily-review');
+              }}
+            >
+              <Text style={[styles.reviewPickerOptionText, { color: tc.text }]}>{t('dailyReview.title')}</Text>
+              <ChevronRight size={18} color={tc.secondaryText} strokeWidth={2.4} />
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.reviewPickerOption, { backgroundColor: tc.filterBg, borderColor: tc.border }]}
+              onPress={() => {
+                setReviewPickerVisible(false);
+                setShowReviewModal(true);
+              }}
+            >
+              <Text style={[styles.reviewPickerOptionText, { color: tc.text }]}>{t('review.openGuide')}</Text>
+              <ChevronRight size={18} color={tc.secondaryText} strokeWidth={2.4} />
+            </TouchableOpacity>
+            <View style={styles.modalButtons}>
+              <TouchableOpacity
+                onPress={() => setReviewPickerVisible(false)}
+                style={styles.modalButton}
+              >
+                <Text style={[styles.modalButtonText, { color: tc.secondaryText }]}>{t('common.cancel')}</Text>
+              </TouchableOpacity>
+            </View>
+          </Pressable>
+        </Pressable>
+      </Modal>
 
       <Modal
         visible={moveModalVisible}
@@ -575,31 +568,24 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#F9FAFB',
   },
-  toolbar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingTop: 12,
-    paddingBottom: 10,
+  reviewActionBar: {
+    alignItems: 'flex-end',
     borderBottomWidth: 1,
-    gap: 10,
-  },
-  filterBar: {
     paddingHorizontal: 16,
     paddingVertical: 10,
-    borderBottomWidth: 1,
-    maxHeight: 56,
   },
-  filterButton: {
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 18,
-    marginRight: 8,
+  startReviewButton: {
+    alignItems: 'center',
+    borderRadius: 10,
+    justifyContent: 'center',
+    minWidth: 152,
+    minHeight: 42,
+    paddingHorizontal: 16,
   },
-  filterText: {
-    fontSize: 14,
-    fontWeight: '500',
+  startReviewButtonText: {
+    color: '#FFFFFF',
+    fontSize: 15,
+    fontWeight: '800',
   },
   taskList: {
     flex: 1,
@@ -744,53 +730,29 @@ const styles = StyleSheet.create({
     fontSize: 16,
     textAlign: 'center',
   },
-  guideButton: {
-    borderWidth: 1,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 18,
-  },
-  guideButtonText: {
-    fontSize: 14,
-    fontWeight: '700',
-  },
-  guideButtonPrimary: {
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 18,
-  },
-  guideButtonPrimaryText: {
-    color: '#FFFFFF',
-    fontSize: 14,
-    fontWeight: '700',
-  },
-  headerButtonsRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    flexWrap: 'wrap',
-    justifyContent: 'flex-end',
-    flexShrink: 1,
-  },
-  selectButton: {
-    borderWidth: 1,
-    borderRadius: 18,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-  },
-  selectButtonText: {
-    fontSize: 14,
-    fontWeight: '600',
-  },
   bulkBar: {
     borderBottomWidth: 1,
     paddingHorizontal: 12,
     paddingVertical: 8,
     gap: 8,
   },
+  bulkHeaderRow: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: 12,
+  },
   bulkCount: {
     fontSize: 12,
     fontWeight: '600',
+  },
+  bulkCancelButton: {
+    paddingHorizontal: 6,
+    paddingVertical: 4,
+  },
+  bulkCancelText: {
+    fontSize: 12,
+    fontWeight: '700',
   },
   bulkMoveRow: {
     gap: 6,
@@ -851,6 +813,21 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '700',
     textAlign: 'center',
+  },
+  reviewPickerOption: {
+    alignItems: 'center',
+    borderRadius: 10,
+    borderWidth: 1,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    minHeight: 48,
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+  },
+  reviewPickerOptionText: {
+    flex: 1,
+    fontSize: 15,
+    fontWeight: '700',
   },
   modalInput: {
     borderWidth: 1,
