@@ -1,7 +1,7 @@
 import React, { useMemo, useState, useCallback } from 'react';
 import { View, Text, FlatList, StyleSheet, RefreshControl, TouchableOpacity, Alert } from 'react-native';
 import { useLocalSearchParams, router } from 'expo-router';
-import { useTaskStore, filterTasksBySearch, sortTasksBy, type Task, type TaskStatus, type TaskSortBy } from '@mindwtr/core';
+import { useTaskStore, filterTasksBySearch, shouldShowTaskForStart, sortTasksBy, translateWithFallback, type Task, type TaskStatus, type TaskSortBy } from '@mindwtr/core';
 import { SwipeableTaskItem } from '@/components/swipeable-task-item';
 import { TaskEditModal } from '@/components/task-edit-modal';
 import { useLanguage } from '@/contexts/language-context';
@@ -28,19 +28,24 @@ export default function SavedSearchScreen() {
   const savedSearch = settings?.savedSearches?.find(s => s.id === id);
   const query = savedSearch?.query || '';
   const sortBy = (settings?.taskSortBy ?? 'default') as TaskSortBy;
+  const [showFutureTasks, setShowFutureTasks] = useState(false);
 
   const filteredTasks = useMemo(() => {
     if (!query) return [];
     const projectMap = new Map(projects.map((project) => [project.id, project]));
     return sortTasksBy(
-      filterTasksBySearch(tasks, projects, query).filter((task) => taskMatchesAreaFilter(task, resolvedAreaFilter, projectMap, areaById)),
+      filterTasksBySearch(tasks, projects, query).filter((task) => (
+        shouldShowTaskForStart(task, { showFutureStarts: showFutureTasks })
+        && taskMatchesAreaFilter(task, resolvedAreaFilter, projectMap, areaById)
+      )),
       sortBy,
     );
-  }, [tasks, projects, query, sortBy, resolvedAreaFilter, areaById]);
+  }, [tasks, projects, query, sortBy, resolvedAreaFilter, areaById, showFutureTasks]);
 
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const futureTasksLabel = translateWithFallback(t, 'filters.showFutureTasks', 'Show future tasks');
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
@@ -105,6 +110,23 @@ export default function SavedSearchScreen() {
               </Text>
             ) : null}
           </View>
+          <TouchableOpacity
+            onPress={() => setShowFutureTasks((prev) => !prev)}
+            style={[
+              styles.futureButton,
+              {
+                borderColor: showFutureTasks ? tc.tint : tc.border,
+                backgroundColor: showFutureTasks ? tc.cardBg : 'transparent',
+              },
+            ]}
+            accessibilityLabel={futureTasksLabel}
+            accessibilityRole="button"
+            accessibilityState={{ selected: showFutureTasks }}
+          >
+            <Text style={[styles.futureButtonText, { color: showFutureTasks ? tc.tint : tc.secondaryText }]} numberOfLines={1}>
+              {futureTasksLabel}
+            </Text>
+          </TouchableOpacity>
           {savedSearch && (
             <TouchableOpacity
               onPress={handleDeleteSearch}
@@ -199,6 +221,18 @@ const styles = StyleSheet.create({
   deleteButton: {
     padding: 8,
     marginLeft: 8,
+  },
+  futureButton: {
+    maxWidth: 132,
+    borderWidth: 1,
+    borderRadius: 8,
+    paddingHorizontal: 8,
+    paddingVertical: 6,
+    marginLeft: 8,
+  },
+  futureButtonText: {
+    fontSize: 12,
+    fontWeight: '700',
   },
   listContent: {
     padding: 16,

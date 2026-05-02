@@ -17,6 +17,8 @@ import {
   matchesHierarchicalToken,
   buildBulkTaskTokenUpdates,
   collectBulkTaskTokens,
+  shouldShowTaskForStart,
+  tFallback,
   type Task,
   type TaskSortBy,
   type TaskStatus,
@@ -60,6 +62,7 @@ export function ContextsView() {
   const [searchQuery, setSearchQuery] = useState('');
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [selectionMode, setSelectionMode] = useState(false);
+  const [showFutureTasks, setShowFutureTasks] = useState(false);
   const [multiSelectedIds, setMultiSelectedIds] = useState<Set<string>>(new Set());
   const [bulkActionLoading, setBulkActionLoading] = useState(false);
   const [bulkActionLabel, setBulkActionLabel] = useState('');
@@ -86,6 +89,7 @@ export function ContextsView() {
   const contextSourceTasks = tasks.filter((task) => (
     !task.deletedAt
     && task.status !== 'archived'
+    && shouldShowTaskForStart(task, { showFutureStarts: showFutureTasks })
     && taskMatchesAreaFilter(task, resolvedAreaFilter, projectById, areaById)
   ));
   const allContexts = getUsedTaskTokens(
@@ -422,6 +426,23 @@ export function ContextsView() {
               </Text>
             </View>
             <TouchableOpacity
+              onPress={() => setShowFutureTasks((prev) => !prev)}
+              style={[
+                styles.selectButton,
+                {
+                  borderColor: showFutureTasks ? tc.tint : tc.border,
+                  backgroundColor: showFutureTasks ? tc.filterBg : 'transparent',
+                },
+              ]}
+            >
+              <Text
+                style={[styles.selectButtonText, { color: showFutureTasks ? tc.tint : tc.text }]}
+                numberOfLines={1}
+              >
+                {tFallback(t, 'filters.showFutureTasks', 'Show future tasks')}
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
               onPress={() => (selectionMode ? exitSelectionMode() : setSelectionMode(true))}
               style={[
                 styles.selectButton,
@@ -704,6 +725,7 @@ const styles = StyleSheet.create({
   selectButton: {
     borderWidth: 1,
     borderRadius: 999,
+    maxWidth: 164,
     paddingHorizontal: 12,
     paddingVertical: 8,
   },

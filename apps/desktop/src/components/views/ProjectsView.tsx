@@ -9,7 +9,7 @@ import {
     type PointerEvent as ReactPointerEvent,
 } from 'react';
 import { ErrorBoundary } from '../ErrorBoundary';
-import { tFallback, useTaskStore, Task, type Project } from '@mindwtr/core';
+import { shouldShowTaskForStart, tFallback, useTaskStore, Task, type Project } from '@mindwtr/core';
 import { useLanguage } from '../../contexts/language-context';
 import { PromptModal } from '../PromptModal';
 import { ProjectsSidebar } from './projects/ProjectsSidebar';
@@ -111,6 +111,7 @@ export function ProjectsView() {
     );
     const [isCreating, setIsCreating] = useState(false);
     const [newProjectTitle, setNewProjectTitle] = useState('');
+    const [showFutureTasks, setShowFutureTasks] = useState(false);
     const [showDeferredProjects, setShowDeferredProjects] = useState(false);
     const [showArchivedProjects, setShowArchivedProjects] = useState(false);
     const [collapsedAreas, setCollapsedAreas] = useState<Record<string, boolean>>(loadCollapsedAreas);
@@ -338,6 +339,7 @@ export function ProjectsView() {
                 && task.status !== 'done'
                 && task.status !== 'reference'
                 && task.status !== 'archived'
+                && shouldShowTaskForStart(task, { showFutureStarts: showFutureTasks })
             ) {
                 if (map[task.projectId]) {
                     map[task.projectId].push(task);
@@ -347,7 +349,7 @@ export function ProjectsView() {
         return {
             tasksByProject: map,
         };
-    }, [projects, tasks]);
+    }, [projects, tasks, showFutureTasks]);
 
     const tagOptions = useMemo(() => {
         const visibleProjects = projects.filter(p => !p.deletedAt);
@@ -552,9 +554,11 @@ export function ProjectsView() {
                         selectedProjectId={selectedProjectId}
                         setHighlightTask={setHighlightTask}
                         setSelectedProjectId={setSelectedProjectId}
+                        showFutureTasks={showFutureTasks}
                         showToast={showToast}
                         sortedAreas={sortedAreas}
                         t={t}
+                        onToggleFutureTasks={() => setShowFutureTasks((prev) => !prev)}
                         updateProject={updateProject}
                         updateSection={updateSection}
                         updateTask={updateTask}

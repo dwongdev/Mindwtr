@@ -15,6 +15,7 @@ import { SlidersHorizontal, X } from 'lucide-react-native';
 
 import {
   sortFocusNextActions,
+  shouldShowTaskForStart,
   translateWithFallback,
   useTaskStore,
   isDueForReview,
@@ -66,6 +67,7 @@ export default function FocusScreen() {
   const [selectedPriorities, setSelectedPriorities] = useState<TaskPriority[]>([]);
   const [selectedEnergyLevels, setSelectedEnergyLevels] = useState<TaskEnergyLevel[]>([]);
   const [selectedTimeEstimates, setSelectedTimeEstimates] = useState<TimeEstimate[]>([]);
+  const [showFutureTasks, setShowFutureTasks] = useState(false);
   const [expandedSections, setExpandedSections] = useState({
     focus: true,
     schedule: true,
@@ -90,8 +92,9 @@ export default function FocusScreen() {
       !task.deletedAt
       && task.status !== 'done'
       && task.status !== 'reference'
+      && shouldShowTaskForStart(task, { showFutureStarts: showFutureTasks })
     ))
-  ), [visibleTasks]);
+  ), [visibleTasks, showFutureTasks]);
   const tokenOptions = useMemo(() => getFocusTokenOptions(activeTasks), [activeTasks]);
   const activeProjectIds = useMemo(() => (
     new Set(activeTasks.map((task) => task.projectId).filter((projectId): projectId is string => Boolean(projectId)))
@@ -262,10 +265,6 @@ export default function FocusScreen() {
     const { focusedTasks: allFocusedTasks, otherTasks: nonFocusedTasks } = splitFocusedTasks(filteredActiveTasks);
     const focusedItems = allFocusedTasks.slice(0, 3);
 
-    const isPlannedForFuture = (task: Task) => {
-      const start = safeParseDate(task.startTime);
-      return Boolean(start && start > endOfToday);
-    };
     const isSequentialBlocked = (task: Task) => {
       if (!task.projectId) return false;
       if (!sequentialProjectIds.has(task.projectId)) return false;
@@ -289,7 +288,6 @@ export default function FocusScreen() {
 
     const nextItems = nonFocusedTasks.filter((task) => {
       if (task.status !== 'next') return false;
-      if (isPlannedForFuture(task)) return false;
       if (isSequentialBlocked(task)) return false;
       return !scheduleIds.has(task.id);
     });
@@ -369,7 +367,7 @@ export default function FocusScreen() {
     + selectedTimeEstimates.length
   );
   const activeFilterChips = useMemo(() => {
-    const chips: Array<{ id: string; label: string; onPress: () => void }> = [];
+    const chips: { id: string; label: string; onPress: () => void }[] = [];
     selectedTokens.forEach((token) => {
       chips.push({
         id: `token:${token}`,
@@ -515,28 +513,48 @@ export default function FocusScreen() {
               <Text style={[styles.dateText, { color: tc.secondaryText }]}>
                 {format(new Date(), 'PPPP')}
               </Text>
-              <Pressable
-                accessibilityLabel={resolveText('filters.label', 'Filters')}
-                accessibilityRole="button"
-                onPress={() => setFiltersVisible(true)}
-                style={({ pressed }) => [
-                  styles.filterButton,
-                  {
-                    borderColor: hasFilters ? tc.tint : tc.border,
-                    backgroundColor: hasFilters ? tc.filterBg : 'transparent',
-                    opacity: pressed ? 0.78 : 1,
-                  },
-                ]}
-              >
-                <SlidersHorizontal size={16} color={hasFilters ? tc.tint : tc.secondaryText} />
-                {hasFilters ? (
-                  <View style={[styles.filterBadge, { backgroundColor: tc.tint }]}>
-                    <Text style={[styles.filterBadgeText, { color: tc.onTint }]}>
-                      {activeFilterCount}
-                    </Text>
-                  </View>
-                ) : null}
-              </Pressable>
+              <View style={styles.headerActions}>
+                <Pressable
+                  accessibilityLabel={resolveText('filters.showFutureTasks', 'Show future tasks')}
+                  accessibilityRole="button"
+                  accessibilityState={{ selected: showFutureTasks }}
+                  onPress={() => setShowFutureTasks((prev) => !prev)}
+                  style={({ pressed }) => [
+                    styles.futureToggleButton,
+                    {
+                      borderColor: showFutureTasks ? tc.tint : tc.border,
+                      backgroundColor: showFutureTasks ? tc.filterBg : 'transparent',
+                      opacity: pressed ? 0.78 : 1,
+                    },
+                  ]}
+                >
+                  <Text style={[styles.futureToggleText, { color: showFutureTasks ? tc.tint : tc.secondaryText }]} numberOfLines={1}>
+                    {resolveText('filters.showFutureTasks', 'Show future tasks')}
+                  </Text>
+                </Pressable>
+                <Pressable
+                  accessibilityLabel={resolveText('filters.label', 'Filters')}
+                  accessibilityRole="button"
+                  onPress={() => setFiltersVisible(true)}
+                  style={({ pressed }) => [
+                    styles.filterButton,
+                    {
+                      borderColor: hasFilters ? tc.tint : tc.border,
+                      backgroundColor: hasFilters ? tc.filterBg : 'transparent',
+                      opacity: pressed ? 0.78 : 1,
+                    },
+                  ]}
+                >
+                  <SlidersHorizontal size={16} color={hasFilters ? tc.tint : tc.secondaryText} />
+                  {hasFilters ? (
+                    <View style={[styles.filterBadge, { backgroundColor: tc.tint }]}>
+                      <Text style={[styles.filterBadgeText, { color: tc.onTint }]}>
+                        {activeFilterCount}
+                      </Text>
+                    </View>
+                  ) : null}
+                </Pressable>
+              </View>
             </View>
             {hasFilters ? (
               <ScrollView
@@ -720,6 +738,11 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     gap: 12,
   },
+  headerActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
   activeChipsScroller: {
     marginTop: 8,
     marginHorizontal: -4,
@@ -752,6 +775,19 @@ const styles = StyleSheet.create({
     fontSize: 10,
     fontWeight: '700',
   },
+  futureToggleButton: {
+    minHeight: 36,
+    maxWidth: 156,
+    borderWidth: 1,
+    borderRadius: 18,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    justifyContent: 'center',
+  },
+  futureToggleText: {
+    fontSize: 12,
+    fontWeight: '700',
+  },
   filterChip: {
     borderWidth: 1,
     borderRadius: 16,
@@ -772,6 +808,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   dateText: {
+    flex: 1,
     fontSize: 12,
     fontWeight: '600',
     textTransform: 'uppercase',

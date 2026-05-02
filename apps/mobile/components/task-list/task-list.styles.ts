@@ -36,6 +36,10 @@ export const styles = StyleSheet.create({
     gap: 10,
   },
   headerAccessoryRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'flex-end',
+    gap: 8,
     paddingHorizontal: 16,
     paddingTop: 12,
     paddingBottom: 6,
@@ -57,6 +61,16 @@ export const styles = StyleSheet.create({
     paddingVertical: 4,
   },
   selectButtonText: {
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  futureToggleButton: {
+    borderWidth: 1,
+    borderRadius: 6,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+  },
+  futureToggleText: {
     fontSize: 12,
     fontWeight: '600',
   },

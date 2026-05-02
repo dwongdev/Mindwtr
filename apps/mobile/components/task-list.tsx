@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react';
-import { View, FlatList, TouchableOpacity, Text, RefreshControl, ActivityIndicator, Keyboard } from 'react-native';
+import { View, FlatList, Text, RefreshControl, Keyboard } from 'react-native';
 import { router } from 'expo-router';
 import {
   useTaskStore,
@@ -15,6 +15,7 @@ import {
   DEFAULT_PROJECT_COLOR,
   getTranslationsSync,
   shallow,
+  shouldShowTaskForStart,
   tFallback,
 } from '@mindwtr/core';
 
@@ -72,6 +73,7 @@ export interface TaskListProps {
   enableCopilot?: boolean;
   defaultEditTab?: 'task' | 'view';
   contentPaddingBottom?: number;
+  showFutureTaskToggle?: boolean;
 }
 
 // ... inside TaskList component
@@ -92,6 +94,7 @@ function TaskListComponent({
   enableCopilot = true,
   defaultEditTab,
   contentPaddingBottom,
+  showFutureTaskToggle,
 }: TaskListProps) {
   const { isDark } = useTheme();
   const { t, language } = useLanguage();
@@ -145,6 +148,7 @@ function TaskListComponent({
   const [refreshing, setRefreshing] = useState(false);
   const [sortModalVisible, setSortModalVisible] = useState(false);
   const [selectedTimeEstimates, setSelectedTimeEstimates] = useState<TimeEstimate[]>([]);
+  const [showFutureTasks, setShowFutureTasks] = useState(false);
   const [inputSelection, setInputSelection] = useState<{ start: number; end: number }>({ start: 0, end: 0 });
   const [typeaheadOpen, setTypeaheadOpen] = useState(false);
   const [typeaheadIndex, setTypeaheadIndex] = useState(0);
@@ -243,6 +247,8 @@ function TaskListComponent({
   const keyRequired = isAIKeyRequired(settings);
   const timeEstimatesEnabled = settings?.features?.timeEstimates !== false;
   const showTimeEstimateFilters = showTimeEstimateFiltersProp && timeEstimatesEnabled && statusFilter !== 'inbox';
+  const showFutureTaskVisibilityToggle = showFutureTaskToggle ?? Boolean(projectId);
+  const futureTaskToggleLabel = tFallback(t, 'filters.showFutureTasks', 'Show future tasks');
   const projectById = useMemo(() => new Map(projects.map((project) => [project.id, project])), [projects]);
   const hasActiveTimeEstimateFilters = showTimeEstimateFilters && selectedTimeEstimates.length > 0;
   const { areaById, resolvedAreaFilter, selectedAreaIdForNewTasks } = useMobileAreaFilter();
@@ -269,12 +275,13 @@ function TaskListComponent({
       if (statusFilter === 'all' && t.status === 'reference') return false;
       const matchesStatus = statusFilter === 'all' ? true : t.status === statusFilter;
       const matchesProject = projectId ? t.projectId === projectId : true;
+      if (showFutureTaskVisibilityToggle && !shouldShowTaskForStart(t, { showFutureStarts: showFutureTasks })) return false;
       if (showTimeEstimateFilters && !matchesSelectedTimeEstimates(t, selectedTimeEstimates)) return false;
       if (!taskMatchesAreaFilter(t, resolvedAreaFilter, projectById, areaById)) return false;
       return matchesStatus && matchesProject;
     });
     return filtered;
-  }, [tasks, statusFilter, projectId, selectedTimeEstimates, showTimeEstimateFilters, resolvedAreaFilter, projectById, areaById]);
+  }, [tasks, statusFilter, projectId, selectedTimeEstimates, showTimeEstimateFilters, resolvedAreaFilter, projectById, areaById, showFutureTaskVisibilityToggle, showFutureTasks]);
 
   const orderedTasks = useMemo(() => {
     return sortTasksBy(filteredTasks, sortBy);
@@ -737,11 +744,15 @@ function TaskListComponent({
         enableBulkActions={enableBulkActions}
         hasActiveTimeEstimateFilters={hasActiveTimeEstimateFilters}
         headerAccessory={headerAccessory}
+        futureTaskToggleLabel={futureTaskToggleLabel}
         onOpenSort={() => setSortModalVisible(true)}
+        onToggleFutureTasks={() => setShowFutureTasks((prev) => !prev)}
         onToggleSelectionMode={() => (selectionMode ? exitSelectionMode() : setSelectionMode(true))}
         selectedTimeEstimates={selectedTimeEstimates}
         selectionMode={selectionMode}
         setTimeEstimates={() => setSelectedTimeEstimates([])}
+        showFutureTaskToggle={showFutureTaskVisibilityToggle}
+        showFutureTasks={showFutureTasks}
         showHeader={showHeader}
         showSort={showSort}
         showTimeEstimateFilters={showTimeEstimateFilters}

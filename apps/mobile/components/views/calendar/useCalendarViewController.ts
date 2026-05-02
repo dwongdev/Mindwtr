@@ -10,6 +10,7 @@ import {
   safeFormatDate,
   safeParseDate,
   safeParseDueDate,
+  shouldShowTaskForStart,
   timeEstimateToMinutes as resolveTimeEstimateToMinutes,
   translateText,
   type ExternalCalendarEvent,
@@ -169,6 +170,7 @@ export function useCalendarViewController() {
   const selectedDateRef = useRef<Date | null>(selectedDate);
   const viewModeRef = useRef<CalendarViewMode>(viewMode);
   const [scheduleQuery, setScheduleQuery] = useState('');
+  const [showFutureTasks, setShowFutureTasks] = useState(false);
   const [externalCalendars, setExternalCalendars] = useState<ExternalCalendarSubscription[]>([]);
   const [externalEvents, setExternalEvents] = useState<ExternalCalendarEvent[]>([]);
   const [externalError, setExternalError] = useState<string | null>(null);
@@ -269,15 +271,23 @@ export function useCalendarViewController() {
     `${weekDays[0].toLocaleDateString(locale, { month: 'short', day: 'numeric' })} - ${weekDays[6].toLocaleDateString(locale, { month: 'short', day: 'numeric' })}`
   ), [locale, weekDays]);
 
-  const visibleTasks = useMemo(() => (
+  const areaVisibleTasks = useMemo(() => (
     tasks.filter((task) => taskMatchesAreaFilter(task, resolvedAreaFilter, projectById, areaById))
   ), [tasks, resolvedAreaFilter, projectById, areaById]);
 
+  const visibleTasks = useMemo(() => (
+    areaVisibleTasks.filter((task) => shouldShowTaskForStart(task, { showFutureStarts: showFutureTasks }))
+  ), [areaVisibleTasks, showFutureTasks]);
+
   const schedulableTasks = useMemo(() => (
-    visibleTasks
+    areaVisibleTasks
       .filter((task) => !task.deletedAt && task.status !== 'done' && task.status !== 'archived' && task.status !== 'reference')
       .sort((a, b) => a.title.localeCompare(b.title))
-  ), [visibleTasks]);
+  ), [areaVisibleTasks]);
+
+  const visibleSchedulableTasks = useMemo(() => (
+    schedulableTasks.filter((task) => shouldShowTaskForStart(task, { showFutureStarts: showFutureTasks }))
+  ), [schedulableTasks, showFutureTasks]);
 
   const scheduledTasksByDate = useMemo(() => {
     const map = new Map<string, Task[]>();
@@ -459,28 +469,28 @@ export function useCalendarViewController() {
 
   const nextQuickScheduleCandidates = useMemo(() => {
     if (!selectedDate) return [];
-    return schedulableTasks
+    return visibleSchedulableTasks
       .filter((task) => task.status === 'next')
       .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())
       .slice(0, 6);
-  }, [schedulableTasks, selectedDate]);
+  }, [selectedDate, visibleSchedulableTasks]);
 
   const searchCandidates = useMemo(() => {
     if (!selectedDate) return [];
     const query = scheduleQuery.trim().toLowerCase();
     if (!query) return [];
-    return schedulableTasks
+    return visibleSchedulableTasks
       .filter((task) => task.title.toLowerCase().includes(query))
       .slice(0, 8);
-  }, [schedulableTasks, scheduleQuery, selectedDate]);
+  }, [scheduleQuery, selectedDate, visibleSchedulableTasks]);
 
   const calendarComposerCandidates = useMemo(() => {
     if (!calendarComposer || calendarComposer.mode !== 'existing') return [];
     const query = calendarComposer.query.trim().toLowerCase();
-    return schedulableTasks
+    return visibleSchedulableTasks
       .filter((task) => !query || task.title.toLowerCase().includes(query))
       .slice(0, 10);
-  }, [calendarComposer, schedulableTasks]);
+  }, [calendarComposer, visibleSchedulableTasks]);
 
   const calendarComposerSelectedTask = calendarComposer?.selectedTaskId
     ? tasks.find((task) => task.id === calendarComposer.selectedTaskId) ?? null
@@ -639,7 +649,7 @@ export function useCalendarViewController() {
 
   const scheduleTaskOnSelectedDate = (taskId: string) => {
     if (!selectedDate) return;
-    const task = visibleTasks.find((item) => item.id === taskId);
+    const task = schedulableTasks.find((item) => item.id === taskId);
     if (!task) return;
 
     const durationMinutes = timeEstimateToMinutes(task.timeEstimate);
@@ -978,10 +988,12 @@ export function useCalendarViewController() {
     setEditingTask,
     setScheduleQuery,
     setSelectedDate,
+    setShowFutureTasks,
     setTimelineScrollEnabled,
     setViewMode,
     shiftSelectedDate,
     showToast,
+    showFutureTasks,
     sourceColorForId,
     t,
     tc,

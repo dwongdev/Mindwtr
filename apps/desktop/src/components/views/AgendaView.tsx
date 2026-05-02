@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useState } from 'react';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { ErrorBoundary } from '../ErrorBoundary';
-import { shallow, useTaskStore, TaskPriority, TimeEstimate, getUsedTaskTokens, matchesHierarchicalToken, safeParseDate, safeParseDueDate, isDueForReview, isTaskInActiveProject, sortFocusNextActions, translateWithFallback } from '@mindwtr/core';
+import { shallow, useTaskStore, TaskPriority, TimeEstimate, getUsedTaskTokens, matchesHierarchicalToken, safeParseDate, safeParseDueDate, isDueForReview, isTaskInActiveProject, shouldShowTaskForStart, sortFocusNextActions, translateWithFallback } from '@mindwtr/core';
 import type { Task, TaskEnergyLevel } from '@mindwtr/core';
 import { useLanguage } from '../../contexts/language-context';
 import { cn } from '../../lib/utils';
@@ -180,6 +180,7 @@ export function AgendaView() {
     const [selectedProjects, setSelectedProjects] = useState<string[]>([]);
     const [searchQuery, setSearchQuery] = useState('');
     const [filtersOpen, setFiltersOpen] = useState(false);
+    const [showFutureTasks, setShowFutureTasks] = useState(false);
     const [top3Only, setTop3Only] = useState(false);
     const [expandedSections, setExpandedSections] = useState({
         schedule: true,
@@ -211,6 +212,7 @@ export function AgendaView() {
             !t.deletedAt
             && t.status !== 'done'
             && t.status !== 'reference'
+            && shouldShowTaskForStart(t, { showFutureStarts: showFutureTasks })
             && isTaskInActiveProject(t, projectMap)
             && taskMatchesAreaFilter(t, resolvedAreaFilter, projectMap, areaById)
         );
@@ -218,7 +220,7 @@ export function AgendaView() {
             activeTasks: active,
             allTokens: getUsedTaskTokens(active, (task) => [...(task.contexts || []), ...(task.tags || [])]),
         };
-    }, [tasks, projectMap, resolvedAreaFilter, areaById]);
+    }, [tasks, projectMap, resolvedAreaFilter, areaById, showFutureTasks]);
     const priorityOptions: TaskPriority[] = ['low', 'medium', 'high', 'urgent'];
     const energyLevelOptions: TaskEnergyLevel[] = ['low', 'medium', 'high'];
     const timeEstimateOptions: TimeEstimate[] = ['5min', '10min', '15min', '30min', '1hr', '2hr', '3hr', '4hr', '4hr+'];
@@ -347,6 +349,7 @@ export function AgendaView() {
             .filter((task) => {
                 if (task.deletedAt) return false;
                 if (task.status === 'done' || task.status === 'archived' || task.status === 'reference') return false;
+                if (!shouldShowTaskForStart(task, { showFutureStarts: showFutureTasks, now })) return false;
                 if (!isDueForReview(task.reviewAt, now)) return false;
                 if (task.projectId) {
                     const project = projectMap.get(task.projectId);
@@ -359,7 +362,7 @@ export function AgendaView() {
             })
             .filter(matchesFilters);
         return { filteredActiveTasks: filtered, reviewDueCandidates: reviewDue };
-    }, [activeTasks, tasks, projectMap, matchesFilters, matchesSearchQuery, resolvedAreaFilter, areaById]);
+    }, [activeTasks, tasks, projectMap, matchesFilters, matchesSearchQuery, resolvedAreaFilter, areaById, showFutureTasks]);
 
     const reviewDueProjects = useMemo(() => {
         const now = new Date();
@@ -448,10 +451,6 @@ export function AgendaView() {
         const now = new Date();
         const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0);
         const endOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
-        const isDeferred = (task: Task) => {
-            const start = safeParseDate(task.startTime);
-            return Boolean(start && start > endOfToday);
-        };
         const priorityRank: Record<TaskPriority, number> = {
             low: 1,
             medium: 2,
@@ -522,7 +521,6 @@ export function AgendaView() {
         const scheduleIds = new Set(schedule.map((task) => task.id));
         const nextActions = filteredActiveTasks.filter((task) => {
             if (task.status !== 'next' || task.isFocusedToday) return false;
-            if (isDeferred(task)) return false;
             if (isSequentialBlocked(task)) return false;
             return !scheduleIds.has(task.id);
         });
@@ -675,8 +673,10 @@ export function AgendaView() {
                 nextGroupBy={nextGroupBy}
                 onChangeGroupBy={(value) => setListOptions({ nextGroupBy: value })}
                 onToggleDetails={handleToggleDetails}
+                onToggleFutureTasks={() => setShowFutureTasks((prev) => !prev)}
                 onToggleTop3={() => setTop3Only((prev) => !prev)}
                 resolveText={resolveText}
+                showFutureTasks={showFutureTasks}
                 showListDetails={showListDetails}
                 t={t}
                 top3Only={top3Only}

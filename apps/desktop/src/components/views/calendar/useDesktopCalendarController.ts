@@ -26,6 +26,7 @@ import {
     safeParseDate,
     safeParseDueDate,
     shallow,
+    shouldShowTaskForStart,
     timeEstimateToMinutes as resolveTimeEstimateToMinutes,
     translateWithFallback,
     type ExternalCalendarEvent,
@@ -238,6 +239,7 @@ export function useDesktopCalendarController() {
     const [viewMode, setViewMode] = useState<CalendarViewMode>(initialCalendarState.viewMode);
     const [isMonthPickerOpen, setIsMonthPickerOpen] = useState(false);
     const [viewFilterQuery, setViewFilterQuery] = useState('');
+    const [showFutureTasks, setShowFutureTasks] = useState(false);
     const [scheduleQuery, setScheduleQuery] = useState('');
     const [scheduleError, setScheduleError] = useState<string | null>(null);
     const [externalCalendars, setExternalCalendars] = useState<ExternalCalendarSubscription[]>([]);
@@ -328,9 +330,10 @@ export function useDesktopCalendarController() {
 
     const isCalendarTaskVisible = useCallback((task: Task) => {
         if (!isSchedulableTask(task)) return false;
+        if (!shouldShowTaskForStart(task, { showFutureStarts: showFutureTasks })) return false;
         if (normalizedViewFilterQuery && !task.title.toLowerCase().includes(normalizedViewFilterQuery)) return false;
         return true;
-    }, [isSchedulableTask, normalizedViewFilterQuery]);
+    }, [isSchedulableTask, normalizedViewFilterQuery, showFutureTasks]);
 
     const calendarTaskData = useMemo(() => {
         const visibleTasks: Task[] = [];
@@ -1100,9 +1103,11 @@ export function useDesktopCalendarController() {
         setScheduleError,
         setScheduleQuery,
         setSelectedDate,
+        setShowFutureTasks,
         setTaskComposer,
         setTaskComposerMode,
         setViewFilterQuery,
+        showFutureTasks,
         taskComposer,
         taskComposerCandidates,
         timeEstimateToMinutes,

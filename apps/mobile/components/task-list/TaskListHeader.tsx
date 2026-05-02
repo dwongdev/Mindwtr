@@ -20,11 +20,15 @@ type TaskListHeaderProps = {
   enableBulkActions: boolean;
   hasActiveTimeEstimateFilters: boolean;
   headerAccessory?: React.ReactNode;
+  futureTaskToggleLabel: string;
   onOpenSort: () => void;
+  onToggleFutureTasks: () => void;
   onToggleSelectionMode: () => void;
   selectedTimeEstimates: TimeEstimate[];
   selectionMode: boolean;
   setTimeEstimates: () => void;
+  showFutureTaskToggle: boolean;
+  showFutureTasks: boolean;
   showHeader: boolean;
   showSort: boolean;
   showTimeEstimateFilters: boolean;
@@ -40,11 +44,15 @@ export function TaskListHeader({
   enableBulkActions,
   hasActiveTimeEstimateFilters,
   headerAccessory,
+  futureTaskToggleLabel,
   onOpenSort,
+  onToggleFutureTasks,
   onToggleSelectionMode,
   selectedTimeEstimates,
   selectionMode,
   setTimeEstimates,
+  showFutureTaskToggle,
+  showFutureTasks,
   showHeader,
   showSort,
   showTimeEstimateFilters,
@@ -54,6 +62,26 @@ export function TaskListHeader({
   title,
   toggleTimeEstimate,
 }: TaskListHeaderProps) {
+  const futureTaskToggle = showFutureTaskToggle ? (
+    <TouchableOpacity
+      onPress={onToggleFutureTasks}
+      style={[
+        styles.futureToggleButton,
+        {
+          borderColor: showFutureTasks ? themeColors.tint : themeColors.border,
+          backgroundColor: showFutureTasks ? themeColors.filterBg : 'transparent',
+        },
+      ]}
+      accessibilityRole="button"
+      accessibilityLabel={futureTaskToggleLabel}
+      accessibilityState={{ selected: showFutureTasks }}
+    >
+      <Text style={[styles.futureToggleText, { color: showFutureTasks ? themeColors.tint : themeColors.secondaryText }]}>
+        {futureTaskToggleLabel}
+      </Text>
+    </TouchableOpacity>
+  ) : null;
+
   return (
     <>
       {showHeader ? (
@@ -79,6 +107,7 @@ export function TaskListHeader({
                 </Text>
               </TouchableOpacity>
             )}
+            {futureTaskToggle}
             {headerAccessory}
             {enableBulkActions && (
               <TouchableOpacity
@@ -97,8 +126,11 @@ export function TaskListHeader({
             )}
           </View>
         </View>
-      ) : headerAccessory ? (
-        <View style={styles.headerAccessoryRow}>{headerAccessory}</View>
+      ) : headerAccessory || futureTaskToggle ? (
+        <View style={styles.headerAccessoryRow}>
+          {headerAccessory}
+          {futureTaskToggle}
+        </View>
       ) : null}
 
       {showTimeEstimateFilters && (

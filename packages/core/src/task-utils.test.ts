@@ -1,5 +1,15 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { sortTasks, sortFocusNextActions, getStatusColor, getTaskAgeLabel, rescheduleTask, extractWaitingPerson, getWaitingPerson } from './task-utils';
+import {
+    sortTasks,
+    sortFocusNextActions,
+    getStatusColor,
+    getTaskAgeLabel,
+    rescheduleTask,
+    extractWaitingPerson,
+    getWaitingPerson,
+    isTaskFutureStart,
+    shouldShowTaskForStart,
+} from './task-utils';
 import { Task } from './types';
 
 describe('task-utils', () => {
@@ -211,6 +221,25 @@ describe('task-utils', () => {
 
         it('returns null when no waiting person is available', () => {
             expect(getWaitingPerson({ description: 'No delegation info here' })).toBeNull();
+        });
+    });
+
+    describe('task start visibility', () => {
+        const now = new Date(2026, 4, 2, 10, 0, 0, 0);
+
+        it('does not treat tasks starting later today as future-start tasks', () => {
+            expect(isTaskFutureStart({ startTime: new Date(2026, 4, 2, 22, 0, 0, 0).toISOString() }, now)).toBe(false);
+        });
+
+        it('treats tasks starting after today as future-start tasks', () => {
+            expect(isTaskFutureStart({ startTime: new Date(2026, 4, 3, 0, 0, 0, 0).toISOString() }, now)).toBe(true);
+        });
+
+        it('hides future-start tasks unless the view opts into showing them', () => {
+            const task = { startTime: new Date(2026, 4, 3, 0, 0, 0, 0).toISOString() };
+
+            expect(shouldShowTaskForStart(task, { now })).toBe(false);
+            expect(shouldShowTaskForStart(task, { now, showFutureStarts: true })).toBe(true);
         });
     });
 });

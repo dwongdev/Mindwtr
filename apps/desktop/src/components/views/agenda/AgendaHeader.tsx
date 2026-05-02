@@ -1,4 +1,4 @@
-import { Calendar, ChevronDown, List } from 'lucide-react';
+import { Calendar, CalendarClock, ChevronDown, List } from 'lucide-react';
 
 import { cn } from '../../../lib/utils';
 import type { NextGroupBy } from '../list/next-grouping';
@@ -8,8 +8,10 @@ type AgendaHeaderProps = {
     nextGroupBy: NextGroupBy;
     onChangeGroupBy: (value: NextGroupBy) => void;
     onToggleDetails: () => void;
+    onToggleFutureTasks: () => void;
     onToggleTop3: () => void;
     resolveText: (key: string, fallback: string) => string;
+    showFutureTasks: boolean;
     showListDetails: boolean;
     t: (key: string) => string;
     top3Only: boolean;
@@ -20,8 +22,10 @@ export function AgendaHeader({
     nextGroupBy,
     onChangeGroupBy,
     onToggleDetails,
+    onToggleFutureTasks,
     onToggleTop3,
     resolveText,
+    showFutureTasks,
     showListDetails,
     t,
     top3Only,
@@ -49,6 +53,21 @@ export function AgendaHeader({
                     )}
                 >
                     {t('agenda.top3Only')}
+                </button>
+                <button
+                    type="button"
+                    onClick={onToggleFutureTasks}
+                    aria-pressed={showFutureTasks}
+                    className={cn(
+                        'inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs transition-colors',
+                        showFutureTasks
+                            ? 'border-primary bg-primary/10 text-primary'
+                            : 'border-border bg-muted/50 text-muted-foreground hover:bg-muted hover:text-foreground',
+                    )}
+                    title={resolveText('filters.showFutureTasks', 'Show future tasks')}
+                >
+                    <CalendarClock className="h-3.5 w-3.5" />
+                    {resolveText('filters.showFutureTasks', 'Show future tasks')}
                 </button>
                 <button
                     type="button"

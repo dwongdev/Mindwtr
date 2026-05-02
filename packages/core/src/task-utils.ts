@@ -33,6 +33,11 @@ const TASK_PRIORITY_SORT_RANK: Record<TaskPriority, number> = {
 
 export const FOCUS_NEXT_DUE_SOON_WINDOW_DAYS = 30;
 
+type TaskStartVisibilityOptions = {
+    now?: Date;
+    showFutureStarts?: boolean;
+};
+
 const safeTime = (value: string | undefined, fallback: number): number => {
     if (!value) return fallback;
     const parsed = Date.parse(value);
@@ -98,6 +103,30 @@ export function getWaitingPerson(task: Pick<Task, 'assignedTo' | 'description'>)
     const assignedTo = task.assignedTo?.trim();
     if (assignedTo) return assignedTo;
     return extractWaitingPerson(task.description);
+}
+
+export function isTaskFutureStart(task: Pick<Task, 'startTime'>, now: Date = new Date()): boolean {
+    const start = safeParseDate(task.startTime);
+    if (!start) return false;
+
+    const endOfToday = new Date(
+        now.getFullYear(),
+        now.getMonth(),
+        now.getDate(),
+        23,
+        59,
+        59,
+        999,
+    );
+    return start > endOfToday;
+}
+
+export function shouldShowTaskForStart(
+    task: Pick<Task, 'startTime'>,
+    options: TaskStartVisibilityOptions = {},
+): boolean {
+    if (options.showFutureStarts === true) return true;
+    return !isTaskFutureStart(task, options.now);
 }
 
 /**
