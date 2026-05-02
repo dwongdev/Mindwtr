@@ -4,7 +4,7 @@ The Mindwtr mobile app is built with React Native and Expo. Android is fully sup
 
 ## Overview
 
-The mobile app uses tab navigation for main views and a drawer for additional views.
+The mobile app uses bottom tabs for core flows and a Menu page for additional views.
 
 ---
 
@@ -22,8 +22,9 @@ The mobile app uses tab navigation for main views and a drawer for additional vi
 | -------------- | ------------------------------------ |
 | 📥 **Inbox**    | Capture and process incoming items   |
 | 🎯 **Focus**    | Daily dashboard and next actions     |
-| 📁 **Projects** | Multi-step outcomes                  |
-| ☰ **Menu**     | Access Board, Review, Calendar, etc. |
+| ➕ **Quick Capture** | Add a task or audio note quickly |
+| 📝 **Review**  | Daily + weekly review                |
+| ☰ **Menu**     | Access Projects, Board, Calendar, etc. |
 
 ### Menu Tab
  
@@ -31,11 +32,14 @@ Tap the **Menu** tab to access additional views:
  
  - 📋 **Board** — Kanban board view
  - 🗓️ **Calendar** — Time-based view
- - 📝 **Review** — Daily + weekly review
+ - 📁 **Projects** — Multi-step outcomes
  - 🏷️ **Contexts** — Filter by context
  - ⏳ **Waiting For** — Delegated items
  - 💭 **Someday/Maybe** — Future ideas
+ - 📚 **Reference** — Reference material
+ - ✅ **Done** — Completed tasks
  - 📦 **Archived** — Archived tasks
+ - 🗑️ **Trash** — Deleted tasks
  - ⚙️ **Settings** — App preferences
 
 ---
@@ -67,7 +71,7 @@ Save frequently used searches:
 1. Enter your search query
 2. Tap **"Save Search"**
 3. Name your search
-4. Access from the drawer under **Saved Searches**
+4. Access from **Menu → Saved Searches**
 
 **To delete:** Open the saved search, tap the trash icon in the header.
 
@@ -153,7 +157,7 @@ Capture tasks using your voice with AI-powered transcription.
 
 ### Setup
 
-1. Go to **Settings → AI Assistant** (in the Settings tab).
+1. Go to **Menu → Settings → AI Assistant**.
 2. Enable **Speech to Text**.
 3. Choose a **Provider**:
    - **OpenAI / Gemini**: Cloud-based (requires API key).
@@ -341,6 +345,8 @@ Subscribe to external calendars to see events alongside your tasks:
 ## Projects
 
 Manage multi-step outcomes.
+
+Open Projects from **Menu → Projects**.
 
 ### Project List
 

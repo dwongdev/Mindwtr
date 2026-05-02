@@ -137,7 +137,7 @@ Create projects for multi-step outcomes:
 ### Starting the Review
 
 - **Desktop:** Go to Weekly Review in sidebar
-- **Mobile:** Tap Review tab or access from drawer
+- **Mobile:** Tap the Review tab in the bottom bar
 
 ### The Steps
 
