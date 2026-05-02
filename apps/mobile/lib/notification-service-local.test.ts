@@ -202,12 +202,18 @@ describe('notification-service-local', () => {
         auto_cancel: true,
         channel: 'mindwtr_reminders_v2',
         has_button: true,
+        has_complete_action: true,
         loop_sound: false,
         message: 'Pay rent',
         play_sound: true,
         title: 'Pay rent',
         use_big_text: true,
         vibrate: false,
+        data: expect.objectContaining({
+          kind: 'task-reminder',
+          notificationActionComplete: 'true',
+          taskId: 'task-1',
+        }),
       })
     );
   });
@@ -237,6 +243,7 @@ describe('notification-service-local', () => {
           kind: 'task-review',
           taskId: 'task-1',
         }),
+        has_complete_action: false,
       })
     );
   });

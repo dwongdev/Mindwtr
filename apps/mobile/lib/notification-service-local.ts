@@ -61,6 +61,7 @@ type LocalAlarmConfig = {
   fireAt: Date;
   repeatInterval?: 'daily' | 'weekly';
   hasSnoozeAction?: boolean;
+  hasCompleteAction?: boolean;
   data?: Record<string, string>;
 };
 
@@ -314,7 +315,7 @@ function attachNativeEventListeners(): void {
     try {
       notificationOpenHandler({
         notificationId: data.alarmKey || data.id,
-        actionIdentifier: 'open',
+        actionIdentifier: data.actionIdentifier || 'open',
         taskId: data.taskId,
         projectId: data.projectId,
         kind: data.kind,
@@ -346,6 +347,7 @@ function buildAlarmConfigSignature(config: LocalAlarmConfig): string {
     fireAt: repeatSchedule,
     repeatInterval: config.repeatInterval ?? 'once',
     hasSnoozeAction: config.hasSnoozeAction === true,
+    ...(config.hasCompleteAction === true ? { hasCompleteAction: true } : {}),
     data: config.data ?? {},
   });
 }
@@ -401,7 +403,8 @@ async function scheduleAlarmForKey(api: AlarmNotificationsApi, key: string, conf
     auto_cancel: true,
     small_icon: LOCAL_SMALL_ICON,
     color: LOCAL_NOTIFICATION_COLOR,
-    has_button: config.hasSnoozeAction === true,
+    has_button: config.hasSnoozeAction === true || config.hasCompleteAction === true,
+    has_complete_action: config.hasCompleteAction === true,
     loop_sound: false,
     play_sound: true,
     schedule_type: config.repeatInterval ? 'repeat' : 'once',
@@ -412,6 +415,7 @@ async function scheduleAlarmForKey(api: AlarmNotificationsApi, key: string, conf
     data: {
       ...(config.data ?? {}),
       alarmKey: key,
+      ...(config.hasCompleteAction === true ? { notificationActionComplete: 'true' } : {}),
     },
   };
 
@@ -537,6 +541,7 @@ async function runRescheduleCycle(api: AlarmNotificationsApi): Promise<void> {
         message: task.description || '',
         fireAt: next,
         hasSnoozeAction: true,
+        hasCompleteAction: kind === 'task-reminder',
         data: {
           kind,
           taskId: task.id,

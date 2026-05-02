@@ -26,23 +26,42 @@ export function useRootLayoutNotificationOpenHandler({
 }: UseRootLayoutNotificationOpenHandlerParams) {
     const pendingPayloadRef = useRef<{
         notificationId?: string;
+        actionIdentifier?: string;
         taskId?: string;
         projectId?: string;
         kind?: string;
     } | null>(null);
+    const handledCompleteActionsRef = useRef(new Set<string>());
     const normalizedPathname = useMemo(() => String(pathname || '').trim(), [pathname]);
     const canNavigate = appReady && normalizedPathname.length > 0 && normalizedPathname !== '/';
 
     const routeNotificationOpen = useCallback((payload: {
         notificationId?: string;
+        actionIdentifier?: string;
         taskId?: string;
         projectId?: string;
         kind?: string;
     }) => {
         const openToken = typeof payload?.notificationId === 'string' ? payload.notificationId : String(Date.now());
+        const actionIdentifier = typeof payload?.actionIdentifier === 'string' ? payload.actionIdentifier : undefined;
         const taskId = typeof payload?.taskId === 'string' ? payload.taskId : undefined;
         const projectId = typeof payload?.projectId === 'string' ? payload.projectId : undefined;
         const kind = typeof payload?.kind === 'string' ? payload.kind : undefined;
+        const normalizedAction = String(actionIdentifier || '').trim().toLowerCase();
+        if (normalizedAction === 'dismiss' || normalizedAction === 'dismiss_action' || normalizedAction === 'snooze' || normalizedAction === 'snooze_action') {
+            return;
+        }
+        if ((normalizedAction === 'complete' || normalizedAction === 'complete_action') && taskId) {
+            const actionKey = `${openToken}:${taskId}:complete`;
+            if (handledCompleteActionsRef.current.has(actionKey)) return;
+            handledCompleteActionsRef.current.add(actionKey);
+
+            const state = useTaskStore.getState();
+            const task = state._tasksById?.get(taskId) ?? state.tasks?.find((item) => item.id === taskId);
+            if (!task || task.deletedAt || task.status === 'done' || task.status === 'archived' || task.status === 'reference') return;
+            state.updateTask(taskId, { status: 'done', isFocusedToday: false }).catch(() => undefined);
+            return;
+        }
         if (isReviewReminderKind(kind)) {
             router.push({
                 pathname: '/review-tab',
@@ -74,6 +93,7 @@ export function useRootLayoutNotificationOpenHandler({
 
     const handleNotificationOpen = useCallback((payload: {
         notificationId?: string;
+        actionIdentifier?: string;
         taskId?: string;
         projectId?: string;
         kind?: string;
