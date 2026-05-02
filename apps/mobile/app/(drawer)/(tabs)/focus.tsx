@@ -67,7 +67,6 @@ export default function FocusScreen() {
   const [selectedPriorities, setSelectedPriorities] = useState<TaskPriority[]>([]);
   const [selectedEnergyLevels, setSelectedEnergyLevels] = useState<TaskEnergyLevel[]>([]);
   const [selectedTimeEstimates, setSelectedTimeEstimates] = useState<TimeEstimate[]>([]);
-  const [showFutureTasks, setShowFutureTasks] = useState(false);
   const [expandedSections, setExpandedSections] = useState({
     focus: true,
     schedule: true,
@@ -92,9 +91,9 @@ export default function FocusScreen() {
       !task.deletedAt
       && task.status !== 'done'
       && task.status !== 'reference'
-      && shouldShowTaskForStart(task, { showFutureStarts: showFutureTasks })
+      && shouldShowTaskForStart(task, { showFutureStarts: false })
     ))
-  ), [visibleTasks, showFutureTasks]);
+  ), [visibleTasks]);
   const tokenOptions = useMemo(() => getFocusTokenOptions(activeTasks), [activeTasks]);
   const activeProjectIds = useMemo(() => (
     new Set(activeTasks.map((task) => task.projectId).filter((projectId): projectId is string => Boolean(projectId)))
@@ -515,24 +514,6 @@ export default function FocusScreen() {
               </Text>
               <View style={styles.headerActions}>
                 <Pressable
-                  accessibilityLabel={resolveText('filters.showFutureTasks', 'Show future tasks')}
-                  accessibilityRole="button"
-                  accessibilityState={{ selected: showFutureTasks }}
-                  onPress={() => setShowFutureTasks((prev) => !prev)}
-                  style={({ pressed }) => [
-                    styles.futureToggleButton,
-                    {
-                      borderColor: showFutureTasks ? tc.tint : tc.border,
-                      backgroundColor: showFutureTasks ? tc.filterBg : 'transparent',
-                      opacity: pressed ? 0.78 : 1,
-                    },
-                  ]}
-                >
-                  <Text style={[styles.futureToggleText, { color: showFutureTasks ? tc.tint : tc.secondaryText }]} numberOfLines={1}>
-                    {resolveText('filters.showFutureTasks', 'Show future tasks')}
-                  </Text>
-                </Pressable>
-                <Pressable
                   accessibilityLabel={resolveText('filters.label', 'Filters')}
                   accessibilityRole="button"
                   onPress={() => setFiltersVisible(true)}
@@ -773,19 +754,6 @@ const styles = StyleSheet.create({
   },
   filterBadgeText: {
     fontSize: 10,
-    fontWeight: '700',
-  },
-  futureToggleButton: {
-    minHeight: 36,
-    maxWidth: 156,
-    borderWidth: 1,
-    borderRadius: 18,
-    paddingHorizontal: 10,
-    paddingVertical: 8,
-    justifyContent: 'center',
-  },
-  futureToggleText: {
-    fontSize: 12,
     fontWeight: '700',
   },
   filterChip: {

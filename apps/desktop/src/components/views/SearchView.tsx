@@ -1,6 +1,6 @@
 import { useMemo, useCallback, useEffect, useState, useRef, type UIEvent } from 'react';
 import { ErrorBoundary } from '../ErrorBoundary';
-import { shallow, useTaskStore, filterTasksBySearch, shouldShowTaskForStart, sortTasksBy, tFallback, TaskStatus } from '@mindwtr/core';
+import { shallow, useTaskStore, filterTasksBySearch, sortTasksBy, TaskStatus } from '@mindwtr/core';
 import type { TaskSortBy } from '@mindwtr/core';
 import { useLanguage } from '../../contexts/language-context';
 import { Trash2 } from 'lucide-react';
@@ -50,7 +50,6 @@ export function SearchView({ savedSearchId, onDelete }: SearchViewProps) {
     const [contextPromptOpen, setContextPromptOpen] = useState(false);
     const [contextPromptMode, setContextPromptMode] = useState<'add' | 'remove'>('add');
     const [contextPromptIds, setContextPromptIds] = useState<string[]>([]);
-    const [showFutureTasks, setShowFutureTasks] = useState(false);
     const listScrollRef = useRef<HTMLDivElement>(null);
     const rowHeightsRef = useRef<Map<string, number>>(new Map());
     const [measureVersion, setMeasureVersion] = useState(0);
@@ -99,12 +98,11 @@ export function SearchView({ savedSearchId, onDelete }: SearchViewProps) {
         if (!query) return [];
         return sortTasksBy(
             filterTasksBySearch(tasks, projects, query).filter((task) =>
-                shouldShowTaskForStart(task, { showFutureStarts: showFutureTasks }) &&
                 taskMatchesAreaFilter(task, resolvedAreaFilter, projectMapById, areaById)
             ),
             sortBy
         );
-    }, [tasks, projects, query, sortBy, resolvedAreaFilter, projectMapById, areaById, showFutureTasks]);
+    }, [tasks, projects, query, sortBy, resolvedAreaFilter, projectMapById, areaById]);
     const shouldVirtualize = filteredTasks.length > LIST_VIRTUALIZATION_THRESHOLD;
     const handleVirtualRowMeasure = useCallback((id: string, height: number) => {
         if (rowHeightsRef.current.get(id) === height) return;
@@ -211,18 +209,6 @@ export function SearchView({ savedSearchId, onDelete }: SearchViewProps) {
                 </div>
                 {savedSearch && (
                     <div className="flex items-center gap-2">
-                        <button
-                            onClick={() => setShowFutureTasks((prev) => !prev)}
-                            aria-pressed={showFutureTasks}
-                            className={cn(
-                                "text-xs px-3 py-1 rounded-md border transition-colors",
-                                showFutureTasks
-                                    ? "bg-primary/10 text-primary border-primary"
-                                    : "bg-muted/50 text-muted-foreground border-border hover:bg-muted hover:text-foreground"
-                            )}
-                        >
-                            {tFallback(t, 'filters.showFutureTasks', 'Show future tasks')}
-                        </button>
                         <button
                             onClick={() => {
                                 if (selectionMode) exitSelectionMode();

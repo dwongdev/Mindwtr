@@ -466,6 +466,7 @@ export const nlOverrides: Record<string, string> = {
         'filters.clear': 'Clear',
         'filters.contexts': 'Contexts & tags',
         'filters.hide': 'Hide',
+        'filters.hideFutureTasks': 'Toekomstige taken verbergen',
         'filters.label': 'Filters',
         'filters.noMatch': 'No tasks match these filters.',
         'filters.priority': 'Priority',

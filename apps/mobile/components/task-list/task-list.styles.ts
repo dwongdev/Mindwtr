@@ -64,16 +64,6 @@ export const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '600',
   },
-  futureToggleButton: {
-    borderWidth: 1,
-    borderRadius: 6,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-  },
-  futureToggleText: {
-    fontSize: 12,
-    fontWeight: '600',
-  },
   bulkBar: {
     borderBottomWidth: 1,
     paddingHorizontal: 12,

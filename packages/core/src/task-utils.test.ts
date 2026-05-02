@@ -235,11 +235,11 @@ describe('task-utils', () => {
             expect(isTaskFutureStart({ startTime: new Date(2026, 4, 3, 0, 0, 0, 0).toISOString() }, now)).toBe(true);
         });
 
-        it('hides future-start tasks unless the view opts into showing them', () => {
+        it('shows future-start tasks unless the view opts into hiding them', () => {
             const task = { startTime: new Date(2026, 4, 3, 0, 0, 0, 0).toISOString() };
 
-            expect(shouldShowTaskForStart(task, { now })).toBe(false);
-            expect(shouldShowTaskForStart(task, { now, showFutureStarts: true })).toBe(true);
+            expect(shouldShowTaskForStart(task, { now })).toBe(true);
+            expect(shouldShowTaskForStart(task, { now, showFutureStarts: false })).toBe(false);
         });
     });
 });

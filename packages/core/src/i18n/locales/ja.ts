@@ -298,6 +298,7 @@ export const jaOverrides: Record<string, string> = {
         'filters.clear': 'クリア',
         'filters.show': '見せる',
         'filters.hide': '隠れる',
+        'filters.hideFutureTasks': '今後のタスクを非表示',
         'filters.contexts': 'コンテキストとタグ',
         'filters.priority': '優先度',
         'filters.timeEstimate': '所要時間の目安',

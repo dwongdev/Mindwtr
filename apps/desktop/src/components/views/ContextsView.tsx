@@ -10,8 +10,6 @@ import {
     getUsedTaskTokens,
     buildBulkTaskTokenUpdates,
     collectBulkTaskTokens,
-    shouldShowTaskForStart,
-    tFallback,
 } from '@mindwtr/core';
 import { Tag, Filter } from 'lucide-react';
 import { TokenPickerModal } from '../TokenPickerModal';
@@ -57,7 +55,6 @@ export function ContextsView() {
     const NO_CONTEXT_TOKEN = '__no_context__';
     const [statusFilter, setStatusFilter] = useState<TaskStatus | 'all'>('all');
     const [searchQuery, setSearchQuery] = useState('');
-    const [showFutureTasks, setShowFutureTasks] = useState(false);
     const [selectionMode, setSelectionMode] = useState(false);
     const [multiSelectedIds, setMultiSelectedIds] = useState<Set<string>>(new Set());
     const [bulkTokenPicker, setBulkTokenPicker] = useState<BulkTokenPickerState>(null);
@@ -105,7 +102,6 @@ export function ContextsView() {
     const projectMap = useMemo(() => new Map(projects.map((project) => [project.id, project])), [projects]);
     const activeTasks = tasks.filter(t =>
         !t.deletedAt
-        && shouldShowTaskForStart(t, { showFutureStarts: showFutureTasks })
         && isTaskInActiveProject(t, projectMap)
         && taskMatchesAreaFilter(t, resolvedAreaFilter, projectMap, areaById)
     );
@@ -429,19 +425,6 @@ export function ContextsView() {
                                         )}
                                     >
                                         {selectionMode ? t('bulk.exitSelect') : t('bulk.select')}
-                                    </button>
-                                    <button
-                                        type="button"
-                                        onClick={() => setShowFutureTasks((prev) => !prev)}
-                                        aria-pressed={showFutureTasks}
-                                        className={cn(
-                                            'rounded-md border px-3 py-1 text-xs transition-colors',
-                                            showFutureTasks
-                                                ? 'border-primary bg-primary/10 text-primary'
-                                                : 'border-border bg-muted/50 text-muted-foreground hover:bg-muted hover:text-foreground'
-                                        )}
-                                    >
-                                        {tFallback(t, 'filters.showFutureTasks', 'Show future tasks')}
                                     </button>
                                 </div>
                             </div>

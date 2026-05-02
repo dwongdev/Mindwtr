@@ -298,6 +298,7 @@ export const ruOverrides: Record<string, string> = {
         'filters.clear': 'Прозрачный',
         'filters.show': 'Показывать',
         'filters.hide': 'Скрывать',
+        'filters.hideFutureTasks': 'Скрыть будущие задачи',
         'filters.contexts': 'Контексты и теги',
         'filters.priority': 'Приоритет',
         'filters.timeEstimate': 'Оценка времени',

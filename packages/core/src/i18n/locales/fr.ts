@@ -298,6 +298,7 @@ export const frOverrides: Record<string, string> = {
         'filters.clear': 'Clair',
         'filters.show': 'Montrer',
         'filters.hide': 'Cacher',
+        'filters.hideFutureTasks': 'Masquer les tâches futures',
         'filters.contexts': 'Contextes et balises',
         'filters.priority': 'Priorité',
         'filters.timeEstimate': 'Estimation du temps',

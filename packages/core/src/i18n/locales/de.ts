@@ -321,6 +321,7 @@ export const deOverrides: Record<string, string> = {
         'filters.clear': 'Leeren',
         'filters.show': 'Anzeigen',
         'filters.hide': 'Verstecken',
+        'filters.hideFutureTasks': 'Zukünftige Aufgaben ausblenden',
         'filters.contexts': 'Kontexte & Schlagwörter',
         'filters.priority': 'Prioritäten',
         'filters.timeEstimate': 'Zeitabschätzung',

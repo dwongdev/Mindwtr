@@ -1,5 +1,5 @@
 import { format, getMonth, isSameDay, isSameMonth, isToday } from 'date-fns';
-import { CalendarClock, CalendarDays, ChevronLeft, ChevronRight, Search } from 'lucide-react';
+import { CalendarDays, ChevronLeft, ChevronRight, Search } from 'lucide-react';
 import { safeFormatDate } from '@mindwtr/core';
 
 import { ErrorBoundary } from '../ErrorBoundary';
@@ -46,9 +46,7 @@ export function CalendarView() {
         selectCalendarDate,
         selectedDate,
         setIsMonthPickerOpen,
-        setShowFutureTasks,
         setViewFilterQuery,
-        showFutureTasks,
         timelineDays,
         t,
         toggleExternalCalendar,
@@ -178,20 +176,6 @@ export function CalendarView() {
                             className="w-full rounded-md border border-border bg-background py-2 pl-9 pr-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
                         />
                     </div>
-                    <button
-                        type="button"
-                        onClick={() => setShowFutureTasks((prev) => !prev)}
-                        aria-pressed={showFutureTasks}
-                        className={cn(
-                            'inline-flex h-9 items-center justify-center gap-2 rounded-md border px-3 text-xs transition-colors',
-                            showFutureTasks
-                                ? 'border-primary bg-primary/10 text-primary'
-                                : 'border-border bg-muted/50 text-muted-foreground hover:bg-muted hover:text-foreground',
-                        )}
-                    >
-                        <CalendarClock className="h-3.5 w-3.5" />
-                        {resolveText('filters.showFutureTasks', 'Show future tasks')}
-                    </button>
                 </div>
                 {visibleSearchMatchCount !== null && (
                     <div className="mt-2 text-xs text-muted-foreground" aria-live="polite">

@@ -230,11 +230,9 @@ export function CalendarView() {
     setCalendarWeekVisibleDays,
     setScheduleQuery,
     setSelectedDate,
-    setShowFutureTasks,
     setTimelineScrollEnabled,
     setViewMode,
     shiftSelectedDate,
-    showFutureTasks,
     sourceColorForId,
     t,
     tc,
@@ -477,26 +475,6 @@ export function CalendarView() {
     </View>
   );
 
-  const renderFutureTaskToggle = () => (
-    <Pressable
-      onPress={() => setShowFutureTasks((prev) => !prev)}
-      style={[
-        styles.futureToggle,
-        {
-          backgroundColor: showFutureTasks ? tc.filterBg : 'transparent',
-          borderColor: showFutureTasks ? tc.tint : tc.border,
-        },
-      ]}
-      accessibilityRole="button"
-      accessibilityLabel={localize('Show future tasks', '显示未来任务')}
-      accessibilityState={{ selected: showFutureTasks }}
-    >
-      <Text style={[styles.futureToggleText, { color: showFutureTasks ? tc.tint : tc.secondaryText }]} numberOfLines={1}>
-        {localize('Show future tasks', '显示未来任务')}
-      </Text>
-    </Pressable>
-  );
-
   const renderCalendarComposer = () => (
     <Modal
       visible={Boolean(calendarComposer)}
@@ -714,7 +692,6 @@ export function CalendarView() {
             </Pressable>
           </View>
           {renderModeToggle()}
-          {renderFutureTaskToggle()}
         </View>
 
         <ScrollView
@@ -959,7 +936,6 @@ export function CalendarView() {
             </Pressable>
           </View>
           {renderModeToggle()}
-          {renderFutureTaskToggle()}
         </View>
 
         <ScrollView
@@ -1254,7 +1230,6 @@ export function CalendarView() {
             </Pressable>
           </View>
           {renderModeToggle()}
-          {renderFutureTaskToggle()}
         </View>
 
         <ScrollView
@@ -1389,7 +1364,6 @@ export function CalendarView() {
           </Pressable>
         </View>
         {renderModeToggle()}
-        {renderFutureTaskToggle()}
       </View>
 
       <View

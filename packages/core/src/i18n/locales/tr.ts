@@ -298,6 +298,7 @@ export const trOverrides: Record<string, string> = {
         'filters.clear': 'Temizlemek',
         'filters.show': 'Göstermek',
         'filters.hide': 'Saklamak',
+        'filters.hideFutureTasks': 'Gelecek görevleri gizle',
         'filters.contexts': 'Bağlamlar ve etiketler',
         'filters.priority': 'Öncelik',
         'filters.timeEstimate': 'Zaman tahmini',

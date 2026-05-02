@@ -125,7 +125,7 @@ export function shouldShowTaskForStart(
     task: Pick<Task, 'startTime'>,
     options: TaskStartVisibilityOptions = {},
 ): boolean {
-    if (options.showFutureStarts === true) return true;
+    if (options.showFutureStarts !== false) return true;
     return !isTaskFutureStart(task, options.now);
 }
 

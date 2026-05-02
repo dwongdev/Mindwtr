@@ -10,7 +10,6 @@ import {
   safeFormatDate,
   safeParseDate,
   safeParseDueDate,
-  shouldShowTaskForStart,
   timeEstimateToMinutes as resolveTimeEstimateToMinutes,
   translateText,
   type ExternalCalendarEvent,
@@ -170,7 +169,6 @@ export function useCalendarViewController() {
   const selectedDateRef = useRef<Date | null>(selectedDate);
   const viewModeRef = useRef<CalendarViewMode>(viewMode);
   const [scheduleQuery, setScheduleQuery] = useState('');
-  const [showFutureTasks, setShowFutureTasks] = useState(false);
   const [externalCalendars, setExternalCalendars] = useState<ExternalCalendarSubscription[]>([]);
   const [externalEvents, setExternalEvents] = useState<ExternalCalendarEvent[]>([]);
   const [externalError, setExternalError] = useState<string | null>(null);
@@ -275,9 +273,7 @@ export function useCalendarViewController() {
     tasks.filter((task) => taskMatchesAreaFilter(task, resolvedAreaFilter, projectById, areaById))
   ), [tasks, resolvedAreaFilter, projectById, areaById]);
 
-  const visibleTasks = useMemo(() => (
-    areaVisibleTasks.filter((task) => shouldShowTaskForStart(task, { showFutureStarts: showFutureTasks }))
-  ), [areaVisibleTasks, showFutureTasks]);
+  const visibleTasks = areaVisibleTasks;
 
   const schedulableTasks = useMemo(() => (
     areaVisibleTasks
@@ -285,9 +281,7 @@ export function useCalendarViewController() {
       .sort((a, b) => a.title.localeCompare(b.title))
   ), [areaVisibleTasks]);
 
-  const visibleSchedulableTasks = useMemo(() => (
-    schedulableTasks.filter((task) => shouldShowTaskForStart(task, { showFutureStarts: showFutureTasks }))
-  ), [schedulableTasks, showFutureTasks]);
+  const visibleSchedulableTasks = schedulableTasks;
 
   const scheduledTasksByDate = useMemo(() => {
     const map = new Map<string, Task[]>();
@@ -988,12 +982,10 @@ export function useCalendarViewController() {
     setEditingTask,
     setScheduleQuery,
     setSelectedDate,
-    setShowFutureTasks,
     setTimelineScrollEnabled,
     setViewMode,
     shiftSelectedDate,
     showToast,
-    showFutureTasks,
     sourceColorForId,
     t,
     tc,

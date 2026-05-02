@@ -180,7 +180,6 @@ export function AgendaView() {
     const [selectedProjects, setSelectedProjects] = useState<string[]>([]);
     const [searchQuery, setSearchQuery] = useState('');
     const [filtersOpen, setFiltersOpen] = useState(false);
-    const [showFutureTasks, setShowFutureTasks] = useState(false);
     const [top3Only, setTop3Only] = useState(false);
     const [expandedSections, setExpandedSections] = useState({
         schedule: true,
@@ -212,7 +211,7 @@ export function AgendaView() {
             !t.deletedAt
             && t.status !== 'done'
             && t.status !== 'reference'
-            && shouldShowTaskForStart(t, { showFutureStarts: showFutureTasks })
+            && shouldShowTaskForStart(t, { showFutureStarts: false })
             && isTaskInActiveProject(t, projectMap)
             && taskMatchesAreaFilter(t, resolvedAreaFilter, projectMap, areaById)
         );
@@ -220,7 +219,7 @@ export function AgendaView() {
             activeTasks: active,
             allTokens: getUsedTaskTokens(active, (task) => [...(task.contexts || []), ...(task.tags || [])]),
         };
-    }, [tasks, projectMap, resolvedAreaFilter, areaById, showFutureTasks]);
+    }, [tasks, projectMap, resolvedAreaFilter, areaById]);
     const priorityOptions: TaskPriority[] = ['low', 'medium', 'high', 'urgent'];
     const energyLevelOptions: TaskEnergyLevel[] = ['low', 'medium', 'high'];
     const timeEstimateOptions: TimeEstimate[] = ['5min', '10min', '15min', '30min', '1hr', '2hr', '3hr', '4hr', '4hr+'];
@@ -349,7 +348,7 @@ export function AgendaView() {
             .filter((task) => {
                 if (task.deletedAt) return false;
                 if (task.status === 'done' || task.status === 'archived' || task.status === 'reference') return false;
-                if (!shouldShowTaskForStart(task, { showFutureStarts: showFutureTasks, now })) return false;
+                if (!shouldShowTaskForStart(task, { showFutureStarts: false, now })) return false;
                 if (!isDueForReview(task.reviewAt, now)) return false;
                 if (task.projectId) {
                     const project = projectMap.get(task.projectId);
@@ -362,7 +361,7 @@ export function AgendaView() {
             })
             .filter(matchesFilters);
         return { filteredActiveTasks: filtered, reviewDueCandidates: reviewDue };
-    }, [activeTasks, tasks, projectMap, matchesFilters, matchesSearchQuery, resolvedAreaFilter, areaById, showFutureTasks]);
+    }, [activeTasks, tasks, projectMap, matchesFilters, matchesSearchQuery, resolvedAreaFilter, areaById]);
 
     const reviewDueProjects = useMemo(() => {
         const now = new Date();
@@ -673,10 +672,8 @@ export function AgendaView() {
                 nextGroupBy={nextGroupBy}
                 onChangeGroupBy={(value) => setListOptions({ nextGroupBy: value })}
                 onToggleDetails={handleToggleDetails}
-                onToggleFutureTasks={() => setShowFutureTasks((prev) => !prev)}
                 onToggleTop3={() => setTop3Only((prev) => !prev)}
                 resolveText={resolveText}
-                showFutureTasks={showFutureTasks}
                 showListDetails={showListDetails}
                 t={t}
                 top3Only={top3Only}

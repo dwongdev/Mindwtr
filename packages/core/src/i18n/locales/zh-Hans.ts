@@ -308,6 +308,7 @@ export const zhHans: Record<string, string> = {
         'filters.clear': '清除',
         'filters.show': '显示',
         'filters.hide': '隐藏',
+        'filters.hideFutureTasks': '隐藏未来任务',
         'filters.contexts': '情境与标签',
         'filters.priority': '优先级',
         'filters.timeEstimate': '时间预估',

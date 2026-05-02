@@ -353,6 +353,7 @@ export const en: Record<string, string> = {
         'filters.clear': 'Clear',
         'filters.show': 'Show',
         'filters.hide': 'Hide',
+        'filters.hideFutureTasks': 'Hide future tasks',
         'filters.contexts': 'Contexts & tags',
         'filters.priority': 'Priority',
         'filters.timeEstimate': 'Time estimate',

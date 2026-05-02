@@ -298,6 +298,7 @@ export const ptOverrides: Record<string, string> = {
         'filters.clear': 'Claro',
         'filters.show': 'Mostrar',
         'filters.hide': 'Esconder',
+        'filters.hideFutureTasks': 'Ocultar tarefas futuras',
         'filters.contexts': 'Contextos e tags',
         'filters.priority': 'Prioridade',
         'filters.timeEstimate': 'Estimativa de tempo',

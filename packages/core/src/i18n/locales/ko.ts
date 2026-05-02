@@ -298,6 +298,7 @@ export const koOverrides: Record<string, string> = {
         'filters.clear': '분명한',
         'filters.show': '보여주다',
         'filters.hide': '숨다',
+        'filters.hideFutureTasks': '향후 작업 숨기기',
         'filters.contexts': '컨텍스트 및 태그',
         'filters.priority': '우선 사항',
         'filters.timeEstimate': '예상 시간',

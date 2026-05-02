@@ -308,6 +308,7 @@ export const zhHant: Record<string, string> = {
         'filters.clear': '清除',
         'filters.show': '顯示',
         'filters.hide': '隱藏',
+        'filters.hideFutureTasks': '隱藏未來任務',
         'filters.contexts': '情境與標籤',
         'filters.priority': '優先級',
         'filters.timeEstimate': '時間預估',

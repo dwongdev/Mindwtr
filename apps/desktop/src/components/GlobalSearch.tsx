@@ -35,6 +35,7 @@ export function GlobalSearch({ onNavigate }: GlobalSearchProps) {
     const [savePromptDefault, setSavePromptDefault] = useState('');
     const [includeCompleted, setIncludeCompleted] = useState(false);
     const [includeReference, setIncludeReference] = useState(true);
+    const [hideFutureTasks, setHideFutureTasks] = useState(false);
     const [filtersOpen, setFiltersOpen] = useState(false);
     const [selectedStatuses, setSelectedStatuses] = useState<TaskStatus[]>([]);
     const [selectedArea, setSelectedArea] = useState<string>('all');
@@ -103,6 +104,7 @@ export function GlobalSearch({ onNavigate }: GlobalSearchProps) {
             setShowSavePrompt(false);
             setIncludeCompleted(false);
             setIncludeReference(true);
+            setHideFutureTasks(false);
             setFiltersOpen(false);
             setSelectedStatuses([]);
             const initialArea = globalAreaFilter === AREA_FILTER_ALL
@@ -173,6 +175,10 @@ export function GlobalSearch({ onNavigate }: GlobalSearchProps) {
     const includeReferenceText = includeReferenceLabel === 'search.includeReference'
         ? 'Include Reference tasks'
         : includeReferenceLabel;
+    const hideFutureTasksLabel = t('filters.hideFutureTasks');
+    const hideFutureTasksText = hideFutureTasksLabel === 'filters.hideFutureTasks'
+        ? 'Hide future tasks'
+        : hideFutureTasksLabel;
     const { totalResults, results, isTruncated } = useMemo(() => computeGlobalSearchResults({
         query,
         tasks: _allTasks,
@@ -181,6 +187,7 @@ export function GlobalSearch({ onNavigate }: GlobalSearchProps) {
         globalAreaFilter,
         includeCompleted,
         includeReference,
+        hideFutureTasks,
         selectedStatuses,
         selectedArea,
         selectedTokens,
@@ -196,6 +203,7 @@ export function GlobalSearch({ onNavigate }: GlobalSearchProps) {
         globalAreaFilter,
         includeCompleted,
         includeReference,
+        hideFutureTasks,
         selectedStatuses,
         selectedArea,
         selectedTokens,
@@ -360,6 +368,13 @@ export function GlobalSearch({ onNavigate }: GlobalSearchProps) {
             key: 'includeReference',
             label: includeReferenceText,
             onRemove: () => setIncludeReference(false),
+        });
+    }
+    if (hideFutureTasks) {
+        activeChips.push({
+            key: 'hideFutureTasks',
+            label: hideFutureTasksText,
+            onRemove: () => setHideFutureTasks(false),
         });
     }
 
@@ -557,6 +572,19 @@ export function GlobalSearch({ onNavigate }: GlobalSearchProps) {
                             </button>
                             <button
                                 type="button"
+                                aria-pressed={hideFutureTasks}
+                                onClick={() => setHideFutureTasks((prev) => !prev)}
+                                className={cn(
+                                    "px-2 py-1 rounded-full border text-xs transition-colors",
+                                    hideFutureTasks
+                                        ? "bg-primary/15 text-primary border-primary/40"
+                                        : "bg-muted/40 text-muted-foreground border-border hover:bg-muted/60"
+                                )}
+                            >
+                                {hideFutureTasksText}
+                            </button>
+                            <button
+                                type="button"
                                 onClick={() => {
                                     setSelectedStatuses([]);
                                     setSelectedArea('all');
@@ -565,6 +593,7 @@ export function GlobalSearch({ onNavigate }: GlobalSearchProps) {
                                     setScope('all');
                                     setIncludeCompleted(false);
                                     setIncludeReference(true);
+                                    setHideFutureTasks(false);
                                 }}
                                 className="text-xs text-muted-foreground hover:text-foreground"
                             >

@@ -37,7 +37,7 @@ export default function SearchScreen() {
     const [filtersOpen, setFiltersOpen] = useState(false);
     const [includeCompleted, setIncludeCompleted] = useState(false);
     const [includeReference, setIncludeReference] = useState(true);
-    const [showFutureTasks, setShowFutureTasks] = useState(false);
+    const [hideFutureTasks, setHideFutureTasks] = useState(false);
     const [selectedStatuses, setSelectedStatuses] = useState<TaskStatus[]>([]);
     const [selectedArea, setSelectedArea] = useState<'all' | 'none' | string>('all');
     const [selectedTokens, setSelectedTokens] = useState<string[]>([]);
@@ -154,7 +154,7 @@ export default function SearchScreen() {
             if (!includeCompleted && (task.status === 'done' || task.status === 'archived')) return false;
             if (!includeReference && task.status === 'reference') return false;
         }
-        if (!shouldShowTaskForStart(task, { showFutureStarts: showFutureTasks })) return false;
+        if (!shouldShowTaskForStart(task, { showFutureStarts: !hideFutureTasks })) return false;
         if (scope === 'project_tasks' && !task.projectId) return false;
         if (!matchesTaskArea(task)) return false;
         if (!matchesTokens(task)) return false;
@@ -277,6 +277,7 @@ export default function SearchScreen() {
         setScope('all');
         setIncludeCompleted(false);
         setIncludeReference(true);
+        setHideFutureTasks(false);
     };
     const hasActiveFilters = (
         selectedStatuses.length > 0
@@ -286,6 +287,7 @@ export default function SearchScreen() {
         || scope !== 'all'
         || includeCompleted
         || !includeReference
+        || hideFutureTasks
     );
     const activeChips: { key: string; label: string; onPress: () => void }[] = [];
     selectedStatuses.forEach((status) => {
@@ -333,6 +335,14 @@ export default function SearchScreen() {
             onPress: () => setIncludeCompleted(false),
         });
     }
+    const hideFutureTasksLabel = translateWithFallback(t, 'filters.hideFutureTasks', 'Hide future tasks');
+    if (hideFutureTasks) {
+        activeChips.push({
+            key: 'hideFutureTasks',
+            label: hideFutureTasksLabel,
+            onPress: () => setHideFutureTasks(false),
+        });
+    }
 
     const renderChip = (label: string, selected: boolean, onPress: () => void) => (
         <TouchableOpacity
@@ -357,7 +367,6 @@ export default function SearchScreen() {
         </TouchableOpacity>
     );
     const filtersActive = filtersOpen || hasActiveFilters;
-    const futureTasksLabel = translateWithFallback(t, 'filters.showFutureTasks', 'Show future tasks');
     const searchPlaceholderRaw = t('search.placeholder');
     const searchPlaceholder = searchPlaceholderRaw === 'search.placeholder'
       ? t('common.search')
@@ -381,23 +390,6 @@ export default function SearchScreen() {
                         <X size={20} color={tc.secondaryText} />
                     </TouchableOpacity>
                 )}
-                <TouchableOpacity
-                    onPress={() => setShowFutureTasks((prev) => !prev)}
-                    style={[
-                        styles.futureButton,
-                        {
-                            borderColor: showFutureTasks ? tc.tint : tc.border,
-                            backgroundColor: showFutureTasks ? tc.filterBg : 'transparent',
-                        },
-                    ]}
-                    accessibilityRole="button"
-                    accessibilityLabel={futureTasksLabel}
-                    accessibilityState={{ selected: showFutureTasks }}
-                >
-                    <Text style={[styles.futureButtonText, { color: showFutureTasks ? tc.tint : tc.secondaryText }]} numberOfLines={1}>
-                        {futureTasksLabel}
-                    </Text>
-                </TouchableOpacity>
                 <TouchableOpacity
                     onPress={() => setFiltersOpen((prev) => !prev)}
                     style={[
@@ -517,6 +509,11 @@ export default function SearchScreen() {
                                 includeReference,
                                 () => setIncludeReference((prev) => !prev)
                             )}
+                            {renderChip(
+                                hideFutureTasksLabel,
+                                hideFutureTasks,
+                                () => setHideFutureTasks((prev) => !prev)
+                            )}
                         </View>
                     </ScrollView>
                 </View>
@@ -631,18 +628,6 @@ const styles = StyleSheet.create({
         borderRadius: 8,
         padding: 6,
         marginLeft: 2,
-    },
-    futureButton: {
-        maxWidth: 132,
-        borderWidth: 1,
-        borderRadius: 8,
-        paddingHorizontal: 8,
-        paddingVertical: 6,
-        marginLeft: 2,
-    },
-    futureButtonText: {
-        fontSize: 12,
-        fontWeight: '700',
     },
     helpText: {
         fontSize: 12,

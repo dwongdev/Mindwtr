@@ -298,6 +298,7 @@ export const arOverrides: Record<string, string> = {
         'filters.clear': 'واضح',
         'filters.show': 'يعرض',
         'filters.hide': 'يخفي',
+        'filters.hideFutureTasks': 'إخفاء المهام المستقبلية',
         'filters.contexts': 'السياقات والعلامات',
         'filters.priority': 'أولوية',
         'filters.timeEstimate': 'تقدير الوقت',

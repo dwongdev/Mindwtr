@@ -8,12 +8,10 @@ import {
     type StoreActionResult,
     generateUUID,
     parseQuickAdd,
-    shouldShowTaskForStart,
-    tFallback,
 } from '@mindwtr/core';
 import { DndContext, PointerSensor, MeasuringStrategy, useSensor, useSensors, type DragEndEvent } from '@dnd-kit/core';
 import { SortableContext, verticalListSortingStrategy, arrayMove } from '@dnd-kit/sortable';
-import { CalendarClock, ChevronDown, ChevronRight, FileText, Folder, Pencil, Plus, Trash2 } from 'lucide-react';
+import { ChevronDown, ChevronRight, FileText, Folder, Pencil, Plus, Trash2 } from 'lucide-react';
 
 import { PromptModal } from '../../PromptModal';
 import { TaskItem } from '../../TaskItem';
@@ -81,11 +79,9 @@ type ProjectWorkspaceProps = {
     selectedProjectId: string | null;
     setHighlightTask: (taskId: string | null) => void;
     setSelectedProjectId: (taskId: string | null) => void;
-    showFutureTasks: boolean;
     showToast: ShowToast;
     sortedAreas: Area[];
     t: (key: string) => string;
-    onToggleFutureTasks: () => void;
     updateProject: (
         projectId: string,
         updates: Partial<Project>,
@@ -126,11 +122,9 @@ export function ProjectWorkspace({
     selectedProjectId,
     setHighlightTask,
     setSelectedProjectId,
-    showFutureTasks,
     showToast,
     sortedAreas,
     t,
-    onToggleFutureTasks,
     updateProject,
     updateSection,
     updateTask,
@@ -210,11 +204,10 @@ export function ProjectWorkspace({
         if (!selectedProjectId) return [];
         return allTasks.filter((task) => {
             if (task.deletedAt || task.projectId !== selectedProjectId) return false;
-            if (!shouldShowTaskForStart(task, { showFutureStarts: showFutureTasks })) return false;
             if (normalizedSearchQuery && !task.title.toLowerCase().includes(normalizedSearchQuery)) return false;
             return true;
         });
-    }, [allTasks, normalizedSearchQuery, selectedProjectId, showFutureTasks]);
+    }, [allTasks, normalizedSearchQuery, selectedProjectId]);
 
     const projectTasks = useMemo(
         () => projectAllTasks.filter((task) => task.status !== 'done' && task.status !== 'reference' && task.status !== 'archived'),
@@ -737,20 +730,6 @@ export function ProjectWorkspace({
                                 onChange={(event) => setSearchQuery(event.target.value)}
                                 className="min-w-0 flex-1 rounded border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
                             />
-                            <button
-                                type="button"
-                                onClick={onToggleFutureTasks}
-                                aria-pressed={showFutureTasks}
-                                className={cn(
-                                    'inline-flex h-9 items-center justify-center gap-2 rounded-md border px-3 text-xs transition-colors',
-                                    showFutureTasks
-                                        ? 'border-primary bg-primary/10 text-primary'
-                                        : 'border-border bg-muted/50 text-muted-foreground hover:bg-muted hover:text-foreground',
-                                )}
-                            >
-                                <CalendarClock className="h-3.5 w-3.5" />
-                                {tFallback(t, 'filters.showFutureTasks', 'Show future tasks')}
-                            </button>
                         </div>
                     </div>
                     {selectedProject ? (

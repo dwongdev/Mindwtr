@@ -58,18 +58,6 @@ export const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '800',
   },
-  futureToggle: {
-    alignSelf: 'flex-end',
-    maxWidth: 180,
-    borderWidth: 1,
-    borderRadius: 999,
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-  },
-  futureToggleText: {
-    fontSize: 12,
-    fontWeight: '800',
-  },
   navButton: {
     paddingVertical: 4,
     paddingHorizontal: 10,

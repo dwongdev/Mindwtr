@@ -298,6 +298,7 @@ export const hiOverrides: Record<string, string> = {
         'filters.clear': 'स्पष्ट',
         'filters.show': 'दिखाओ',
         'filters.hide': 'छिपाना',
+        'filters.hideFutureTasks': 'भविष्य के कार्य छिपाएं',
         'filters.contexts': 'संदर्भ और टैग',
         'filters.priority': 'प्राथमिकता',
         'filters.timeEstimate': 'समय का अनुमान',

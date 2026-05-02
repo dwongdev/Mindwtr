@@ -2,6 +2,7 @@ import {
     matchesHierarchicalToken,
     safeParseDueDate,
     searchAll,
+    shouldShowTaskForStart,
     type Project,
     type SearchProjectResult,
     type SearchResults,
@@ -22,6 +23,7 @@ type ComputeGlobalSearchResultsInput = {
     globalAreaFilter: string;
     includeCompleted: boolean;
     includeReference: boolean;
+    hideFutureTasks: boolean;
     selectedStatuses: TaskStatus[];
     selectedArea: string;
     selectedTokens: string[];
@@ -71,6 +73,7 @@ export const computeGlobalSearchResults = ({
     globalAreaFilter,
     includeCompleted,
     includeReference,
+    hideFutureTasks,
     selectedStatuses,
     selectedArea,
     selectedTokens,
@@ -130,6 +133,7 @@ export const computeGlobalSearchResults = ({
             if (!includeCompleted && ['done', 'archived'].includes(task.status)) return false;
             if (!includeReference && task.status === 'reference') return false;
         }
+        if (!shouldShowTaskForStart(task, { showFutureStarts: !hideFutureTasks })) return false;
         if (scope === 'project_tasks' && !task.projectId) return false;
         if (!matchesTaskArea(task)) return false;
         if (!matchesTokens(task)) return false;
