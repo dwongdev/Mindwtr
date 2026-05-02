@@ -51,6 +51,43 @@ describe('TaskItem', () => {
         expect(getByDisplayValue('Test Task')).toBeInTheDocument();
     });
 
+    it('shows a delete action while editing inbox tasks', async () => {
+        const { getAllByRole, getByRole, findByRole } = render(
+            <LanguageProvider>
+                <TaskItem task={mockTask} />
+            </LanguageProvider>
+        );
+        await act(async () => {
+            fireEvent.click(getAllByRole('button', { name: /edit/i })[0]);
+        });
+        const deleteButton = await findByRole('button', { name: /^delete$/i });
+
+        await act(async () => {
+            fireEvent.click(deleteButton);
+        });
+
+        expect(getByRole('dialog', { name: /^delete$/i })).toBeInTheDocument();
+    });
+
+    it('does not show the edit-mode delete action for non-inbox tasks', async () => {
+        const nextTask: Task = {
+            ...mockTask,
+            id: 'next-edit-task',
+            status: 'next',
+        };
+        const { getAllByRole, getByDisplayValue, queryByRole } = render(
+            <LanguageProvider>
+                <TaskItem task={nextTask} />
+            </LanguageProvider>
+        );
+        await act(async () => {
+            fireEvent.click(getAllByRole('button', { name: /edit/i })[0]);
+        });
+        await waitFor(() => expect(getByDisplayValue('Test Task')).toBeInTheDocument());
+
+        expect(queryByRole('button', { name: /^delete$/i })).not.toBeInTheDocument();
+    });
+
     it('enters edit mode when task title is double-clicked', () => {
         const { getByRole, getByDisplayValue } = render(
             <LanguageProvider>

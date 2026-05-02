@@ -927,6 +927,7 @@ export const TaskItem = memo(function TaskItem({
             language={language}
             inputContexts={allContexts}
             onDuplicateTask={() => duplicateTask(task.id, false)}
+            onDeleteTask={task.status === 'inbox' ? () => setShowDeleteConfirm(true) : undefined}
             onCancel={handleEditorCancel}
             onSubmit={handleSubmit}
         />
