@@ -4,6 +4,7 @@ import {
   CALENDAR_WEEK_COLUMN_WIDTH_DEFAULT,
   coerceCalendarWeekVisibleDays,
   coerceCalendarViewMode,
+  getCalendarNavigationSwipeDirection,
   getCalendarWeekColumnWidth,
   getCalendarWeekInitialScrollX,
   getCalendarWeekInitialVisibleDayIndex,
@@ -76,5 +77,17 @@ describe('calendar view mode helpers', () => {
       visibleDays: 7,
       weekDays,
     })).toBe(0);
+  });
+
+  it('recognizes deliberate horizontal calendar navigation swipes', () => {
+    expect(getCalendarNavigationSwipeDirection({ translationX: -72, translationY: 8 })).toBe(1);
+    expect(getCalendarNavigationSwipeDirection({ translationX: 72, translationY: 8 })).toBe(-1);
+    expect(getCalendarNavigationSwipeDirection({ translationX: -28, translationY: 4, velocityX: -640 })).toBe(1);
+  });
+
+  it('ignores taps and mostly vertical drags as calendar navigation', () => {
+    expect(getCalendarNavigationSwipeDirection({ translationX: -18, translationY: 2 })).toBeNull();
+    expect(getCalendarNavigationSwipeDirection({ translationX: -72, translationY: 48 })).toBeNull();
+    expect(getCalendarNavigationSwipeDirection({ translationX: -44, translationY: 40, velocityX: -900 })).toBeNull();
   });
 });

@@ -21,6 +21,7 @@ import { styles } from './calendar/calendar-view.styles';
 import {
   CALENDAR_WEEK_VISIBLE_DAYS_MAX,
   CALENDAR_WEEK_VISIBLE_DAYS_MIN,
+  getCalendarNavigationSwipeDirection,
   getCalendarWeekColumnWidth,
   getCalendarWeekInitialScrollX,
 } from './calendar/calendar-view-mode';
@@ -31,21 +32,11 @@ const MONTH_DETAILS_MID_SNAP = 0.58;
 const MONTH_DETAILS_EXPANDED_SNAP = 0.9;
 const MONTH_DETAILS_HIDE_THRESHOLD = 0.2;
 const MONTH_DETAILS_MIN_HEIGHT = 176;
-const NAVIGATION_SWIPE_DISTANCE = 56;
-const BODY_SWIPE_VERTICAL_TOLERANCE = 32;
 const WEEK_TIME_GUTTER_WIDTH = 56;
 const WEEK_DENSITY_VALUES = Array.from(
   { length: CALENDAR_WEEK_VISIBLE_DAYS_MAX - CALENDAR_WEEK_VISIBLE_DAYS_MIN + 1 },
   (_, index) => CALENDAR_WEEK_VISIBLE_DAYS_MIN + index
 );
-
-type CalendarBodySwipeState = {
-  startX: number;
-  startY: number;
-  lastX: number;
-  lastY: number;
-  isSwipe: boolean;
-};
 
 type ScheduledTaskBlockProps = {
   DAY_END_HOUR: number;
@@ -190,7 +181,6 @@ export function CalendarView() {
     handleToday,
     isDark,
     isExternalLoading,
-    isExternalEventOpenable,
     isSameDay,
     isToday,
     locale,
@@ -252,7 +242,6 @@ export function CalendarView() {
   );
   const bottomSheetSnap = useSharedValue(collapsedSheetSnap);
   const bottomSheetStart = useSharedValue(collapsedSheetSnap);
-  const bodySwipeRef = useRef<CalendarBodySwipeState | null>(null);
   const suppressMonthDayPressUntilRef = useRef(0);
   const weekHorizontalScrollRef = useRef<any>(null);
   const scheduleScrollRef = useRef<any>(null);
@@ -373,79 +362,23 @@ export function CalendarView() {
     Haptics.selectionAsync().catch(() => {});
   };
 
-  const startMonthCalendarSwipe = (point: { x: number; y: number }) => {
-    bodySwipeRef.current = {
-      startX: point.x,
-      startY: point.y,
-      lastX: point.x,
-      lastY: point.y,
-      isSwipe: false,
-    };
-  };
-
-  const handleMonthCalendarTouchStart = (event: GestureResponderEvent) => {
-    const { touches } = event.nativeEvent;
-    if (touches.length !== 1) {
-      bodySwipeRef.current = null;
-      return;
-    }
-
-    const touch = touches[0];
-    startMonthCalendarSwipe({ x: touch.pageX, y: touch.pageY });
-  };
-
-  const handleMonthCalendarTouchMove = (event: GestureResponderEvent) => {
-    const { touches } = event.nativeEvent;
-    if (touches.length !== 1) {
-      bodySwipeRef.current = null;
-      return;
-    }
-
-    const state = bodySwipeRef.current;
-    if (!state) return;
-
-    const touch = touches[0];
-    state.lastX = touch.pageX;
-    state.lastY = touch.pageY;
-    const dx = state.lastX - state.startX;
-    const dy = state.lastY - state.startY;
-    const horizontalEnough = Math.abs(dx) >= NAVIGATION_SWIPE_DISTANCE * 0.6;
-    const verticalDrift = Math.abs(dy);
-    if (horizontalEnough && verticalDrift <= BODY_SWIPE_VERTICAL_TOLERANCE && verticalDrift <= Math.abs(dx) * 0.75) {
-      state.isSwipe = true;
-      suppressMonthDayPressUntilRef.current = Date.now() + 350;
-    }
-  };
-
-  const handleMonthCalendarTouchEnd = (event: GestureResponderEvent) => {
-    const state = bodySwipeRef.current;
-    if (!state) return;
-
-    const touch = event.nativeEvent.changedTouches[0];
-    if (touch) {
-      state.lastX = touch.pageX;
-      state.lastY = touch.pageY;
-    }
-
-    bodySwipeRef.current = null;
-
-    const dx = state.lastX - state.startX;
-    const dy = state.lastY - state.startY;
-    const horizontalEnough = Math.abs(dx) >= NAVIGATION_SWIPE_DISTANCE;
-    const verticalDrift = Math.abs(dy);
-    if (!horizontalEnough || verticalDrift > BODY_SWIPE_VERTICAL_TOLERANCE || verticalDrift > Math.abs(dx) * 0.75) {
-      return;
-    }
+  const handleMonthNavigationSwipe = useCallback((translationX: number, translationY: number, velocityX: number) => {
+    const direction = getCalendarNavigationSwipeDirection({ translationX, translationY, velocityX });
+    if (!direction) return;
 
     suppressMonthDayPressUntilRef.current = Date.now() + 350;
-    const direction = dx < 0 ? 1 : -1;
     if (direction === -1) handlePrevMonth();
     else handleNextMonth();
-  };
+  }, [handleNextMonth, handlePrevMonth]);
 
-  const handleMonthCalendarTouchCancel = () => {
-    bodySwipeRef.current = null;
-  };
+  const monthNavigationGesture = useMemo(() => (
+    Gesture.Pan()
+      .maxPointers(1)
+      .activeOffsetX([-24, 24])
+      .onEnd((event) => {
+        runOnJS(handleMonthNavigationSwipe)(event.translationX, event.translationY, event.velocityX);
+      })
+  ), [handleMonthNavigationSwipe]);
 
   const handleMonthDayPress = (date: Date) => {
     if (Date.now() < suppressMonthDayPressUntilRef.current) return;
@@ -711,22 +644,12 @@ export function CalendarView() {
             <View style={[styles.allDayCard, { backgroundColor: tc.cardBg, borderColor: tc.border }]}>
               <Text style={[styles.sectionLabel, { color: tc.secondaryText }]}>{t('calendar.allDay')}</Text>
               {selectedDateAllDayEvents.slice(0, 6).map((event) => {
-                const eventTitle = (
-                  <Text style={[styles.allDayItem, { color: tc.text }]} numberOfLines={1}>
-                    {event.title}
-                  </Text>
-                );
-                if (isExternalEventOpenable(event)) {
-                  return (
-                    <Pressable key={event.id} onPress={() => openExternalEvent(event)} style={styles.allDayPressable}>
-                      {eventTitle}
-                    </Pressable>
-                  );
-                }
                 return (
-                  <View key={event.id} pointerEvents="none">
-                    {eventTitle}
-                  </View>
+                  <Pressable key={event.id} onPress={() => openExternalEvent(event)} style={styles.allDayPressable}>
+                    <Text style={[styles.allDayItem, { color: tc.text }]} numberOfLines={1}>
+                      {event.title}
+                    </Text>
+                  </Pressable>
                 );
               })}
             </View>
@@ -764,7 +687,6 @@ export function CalendarView() {
                 const top = Math.max(0, startMinutes) * PIXELS_PER_MINUTE;
                 const height = Math.max(16, (endMinutes - startMinutes) * PIXELS_PER_MINUTE);
                 const timeLabel = formatTimeRange(clampedStart, Math.max(1, Math.round(endMinutes - startMinutes)));
-                const openable = isExternalEventOpenable(event);
                 const eventStyle = [
                   styles.eventBlock,
                   {
@@ -784,28 +706,17 @@ export function CalendarView() {
                     </Text>
                   </>
                 );
-                if (openable) {
-                  return (
-                    <Pressable
-                      key={event.id}
-                      onPress={(pressEvent) => {
-                        pressEvent.stopPropagation();
-                        openExternalEvent(event);
-                      }}
-                      style={eventStyle}
-                    >
-                      {eventContent}
-                    </Pressable>
-                  );
-                }
                 return (
-                  <View
+                  <Pressable
                     key={event.id}
-                    pointerEvents="none"
+                    onPress={(pressEvent) => {
+                      pressEvent.stopPropagation();
+                      openExternalEvent(event);
+                    }}
                     style={eventStyle}
                   >
                     {eventContent}
-                  </View>
+                  </Pressable>
                 );
               })}
 
@@ -987,11 +898,9 @@ export function CalendarView() {
                   <View key={`all-${day.toISOString()}`} style={[styles.weekAllDayCell, compactWeekColumns && styles.weekAllDayCellCompact, { width: weekColumnWidth, borderLeftColor: tc.border }]}>
                     {allDayItems.map((item) => {
                       const isEvent = item.kind === 'event';
-                      const openable = isEvent && isExternalEventOpenable(item.event);
                       return (
                         <Pressable
                           key={item.id}
-                          disabled={isEvent && !openable}
                           onPress={(pressEvent) => {
                             pressEvent.stopPropagation();
                             if (item.kind === 'event') openExternalEvent(item.event);
@@ -1068,7 +977,6 @@ export function CalendarView() {
                           const displayEnd = new Date(Math.min(end.getTime(), clampedEnd.getTime()));
                           const top = ((displayStart.getHours() - DAY_START_HOUR) * 60 + displayStart.getMinutes()) * PIXELS_PER_MINUTE;
                           const height = Math.max(24, ((displayEnd.getTime() - displayStart.getTime()) / 60_000) * PIXELS_PER_MINUTE);
-                          const openable = isExternalEventOpenable(item.event);
                           const eventStyle = [
                             styles.weekBlock,
                             compactWeekColumns && styles.weekBlockCompact,
@@ -1090,28 +998,17 @@ export function CalendarView() {
                               )}
                             </>
                           );
-                          if (openable) {
-                            return (
-                              <Pressable
-                                key={item.id}
-                                onPress={(pressEvent) => {
-                                  pressEvent.stopPropagation();
-                                  openExternalEvent(item.event);
-                                }}
-                                style={eventStyle}
-                              >
-                                {eventContent}
-                              </Pressable>
-                            );
-                          }
                           return (
-                            <View
+                            <Pressable
                               key={item.id}
-                              pointerEvents="none"
+                              onPress={(pressEvent) => {
+                                pressEvent.stopPropagation();
+                                openExternalEvent(item.event);
+                              }}
                               style={eventStyle}
                             >
                               {eventContent}
-                            </View>
+                            </Pressable>
                           );
                         }
 
@@ -1253,11 +1150,10 @@ export function CalendarView() {
                     const end = safeParseDate(item.event.end);
                     const timeLabel = item.event.allDay
                       ? t('calendar.allDay')
-                      : start && end
-                        ? `${safeFormatDate(start, 'p')}-${safeFormatDate(end, 'p')}`
-                        : '';
+                        : start && end
+                          ? `${safeFormatDate(start, 'p')}-${safeFormatDate(end, 'p')}`
+                          : '';
                     const sourceName = calendarNameById.get(item.event.sourceId);
-                    const openable = isExternalEventOpenable(item.event);
                     const eventStyle = [
                       styles.scheduleItem,
                       styles.eventItem,
@@ -1276,24 +1172,14 @@ export function CalendarView() {
                         </Text>
                       </View>
                     );
-                    if (openable) {
-                      return (
-                        <Pressable
-                          key={item.id}
-                          onPress={() => openExternalEvent(item.event)}
-                          style={eventStyle}
-                        >
-                          {eventContent}
-                        </Pressable>
-                      );
-                    }
                     return (
-                      <View
+                      <Pressable
                         key={item.id}
+                        onPress={() => openExternalEvent(item.event)}
                         style={eventStyle}
                       >
                         {eventContent}
-                      </View>
+                      </Pressable>
                     );
                   }
 
@@ -1370,121 +1256,117 @@ export function CalendarView() {
         {renderModeToggle()}
       </View>
 
-      <View
-        style={styles.monthCalendar}
-        onTouchStart={handleMonthCalendarTouchStart}
-        onTouchMove={handleMonthCalendarTouchMove}
-        onTouchEnd={handleMonthCalendarTouchEnd}
-        onTouchCancel={handleMonthCalendarTouchCancel}
-      >
-        <View style={[styles.dayHeaders, { backgroundColor: tc.cardBg, borderBottomColor: tc.border }]}>
-          {dayNames.map((day) => (
-            <View key={day} style={styles.dayHeader}>
-              <Text style={[styles.dayHeaderText, { color: tc.secondaryText }]}>{day}</Text>
-            </View>
-          ))}
-        </View>
+      <GestureDetector gesture={monthNavigationGesture}>
+        <View style={styles.monthCalendar}>
+          <View style={[styles.dayHeaders, { backgroundColor: tc.cardBg, borderBottomColor: tc.border }]}>
+            {dayNames.map((day) => (
+              <View key={day} style={styles.dayHeader}>
+                <Text style={[styles.dayHeaderText, { color: tc.secondaryText }]}>{day}</Text>
+              </View>
+            ))}
+          </View>
 
-        <View style={[styles.calendarGrid, selectedDate && styles.calendarGridCompact]}>
-          {calendarDays.map((day, index) => {
-            if (day === null) {
-              return <View key={`empty-${index}`} style={[styles.dayCell, selectedDate && styles.dayCellCompact]} />;
-            }
+          <View style={[styles.calendarGrid, selectedDate && styles.calendarGridCompact]}>
+            {calendarDays.map((day, index) => {
+              if (day === null) {
+                return <View key={`empty-${index}`} style={[styles.dayCell, selectedDate && styles.dayCellCompact]} />;
+              }
 
-            const date = new Date(currentYear, currentMonth, day);
-            const taskCount = getTaskCountForDate(date);
-            const eventCount = getExternalEventsForDate(date).length;
-            const calendarItems = getCalendarItemsForDate(date);
-            const visibleItems = calendarItems.slice(0, calendarItems.length >= 6 ? 0 : 2);
-            const showOverflowIndicator = calendarItems.length > visibleItems.length;
-            const isSelected = selectedDate && isSameDay(date, selectedDate);
-            const todayCellBg = toRgba(tc.tint, isDark ? 0.12 : 0.08);
-            const selectedCellBg = toRgba(tc.tint, isDark ? 0.2 : 0.16);
+              const date = new Date(currentYear, currentMonth, day);
+              const taskCount = getTaskCountForDate(date);
+              const eventCount = getExternalEventsForDate(date).length;
+              const calendarItems = getCalendarItemsForDate(date);
+              const visibleItems = calendarItems.slice(0, calendarItems.length >= 6 ? 0 : 2);
+              const showOverflowIndicator = calendarItems.length > visibleItems.length;
+              const isSelected = selectedDate && isSameDay(date, selectedDate);
+              const todayCellBg = toRgba(tc.tint, isDark ? 0.12 : 0.08);
+              const selectedCellBg = toRgba(tc.tint, isDark ? 0.2 : 0.16);
 
-            return (
-              <Pressable
-                key={day}
-                style={[
-                  styles.dayCell,
-                  selectedDate && styles.dayCellCompact,
-                  isToday(date) && { backgroundColor: todayCellBg },
-                  isSelected && { backgroundColor: selectedCellBg },
-                ]}
-                onPress={() => handleMonthDayPress(date)}
-              >
-                <View
+              return (
+                <Pressable
+                  key={day}
                   style={[
-                    styles.dayNumber,
-                    selectedDate && styles.dayNumberCompact,
-                    isToday(date) && styles.todayNumber,
-                    isToday(date) && { backgroundColor: tc.tint },
+                    styles.dayCell,
+                    selectedDate && styles.dayCellCompact,
+                    isToday(date) && { backgroundColor: todayCellBg },
+                    isSelected && { backgroundColor: selectedCellBg },
                   ]}
+                  onPress={() => handleMonthDayPress(date)}
                 >
-                  <Text
+                  <View
                     style={[
-                      styles.dayText,
-                      selectedDate && styles.dayTextCompact,
-                      { color: tc.text },
-                      isToday(date) && styles.todayText,
-                      isToday(date) && { color: tc.onTint },
+                      styles.dayNumber,
+                      selectedDate && styles.dayNumberCompact,
+                      isToday(date) && styles.todayNumber,
+                      isToday(date) && { backgroundColor: tc.tint },
                     ]}
                   >
-                    {day}
-                  </Text>
-                </View>
-                {visibleItems.length > 0 && (
-                  <View style={styles.monthPreviewList}>
-                    {visibleItems.map((item) => {
-                      const isEvent = item.kind === 'event';
-                      return (
-                        <View
-                          key={item.id}
-                          style={[
-                            styles.monthPreviewItem,
-                            {
-                              backgroundColor: item.kind === 'scheduled'
-                                ? toRgba(tc.tint, isDark ? 0.24 : 0.14)
-                                : item.kind === 'deadline'
-                                  ? 'transparent'
-                                  : toRgba(tc.secondaryText, isDark ? 0.28 : 0.16),
-                              borderLeftColor: isEvent
-                                ? sourceColorForId(item.event.sourceId)
-                                : item.kind === 'deadline'
-                                  ? tc.danger
-                                  : tc.tint,
-                            },
-                          ]}
-                        >
-                          <Text
-                            style={[styles.monthPreviewText, { color: item.kind === 'scheduled' ? tc.tint : tc.text }]}
-                            numberOfLines={1}
+                    <Text
+                      style={[
+                        styles.dayText,
+                        selectedDate && styles.dayTextCompact,
+                        { color: tc.text },
+                        isToday(date) && styles.todayText,
+                        isToday(date) && { color: tc.onTint },
+                      ]}
+                    >
+                      {day}
+                    </Text>
+                  </View>
+                  {visibleItems.length > 0 && (
+                    <View style={styles.monthPreviewList}>
+                      {visibleItems.map((item) => {
+                        const isEvent = item.kind === 'event';
+                        return (
+                          <View
+                            key={item.id}
+                            style={[
+                              styles.monthPreviewItem,
+                              {
+                                backgroundColor: item.kind === 'scheduled'
+                                  ? toRgba(tc.tint, isDark ? 0.24 : 0.14)
+                                  : item.kind === 'deadline'
+                                    ? 'transparent'
+                                    : toRgba(tc.secondaryText, isDark ? 0.28 : 0.16),
+                                borderLeftColor: isEvent
+                                  ? sourceColorForId(item.event.sourceId)
+                                  : item.kind === 'deadline'
+                                    ? tc.danger
+                                    : tc.tint,
+                              },
+                            ]}
                           >
-                            {item.title}
-                          </Text>
+                            <Text
+                              style={[styles.monthPreviewText, { color: item.kind === 'scheduled' ? tc.tint : tc.text }]}
+                              numberOfLines={1}
+                            >
+                              {item.title}
+                            </Text>
+                          </View>
+                        );
+                      })}
+                    </View>
+                  )}
+                  {showOverflowIndicator && (taskCount > 0 || eventCount > 0) && (
+                    <View style={styles.indicatorRow}>
+                      {taskCount > 0 && (
+                        <View style={[styles.taskDot, { backgroundColor: tc.tint }]}>
+                          <Text style={[styles.taskDotText, { color: tc.onTint }]}>{taskCount}</Text>
                         </View>
-                      );
-                    })}
-                  </View>
-                )}
-                {showOverflowIndicator && (taskCount > 0 || eventCount > 0) && (
-                  <View style={styles.indicatorRow}>
-                    {taskCount > 0 && (
-                      <View style={[styles.taskDot, { backgroundColor: tc.tint }]}>
-                        <Text style={[styles.taskDotText, { color: tc.onTint }]}>{taskCount}</Text>
-                      </View>
-                    )}
-                    {eventCount > 0 && (
-                      <View style={[styles.eventDot, { backgroundColor: tc.secondaryText }]}>
-                        <Text style={[styles.eventDotText, { color: tc.bg }]}>{eventCount}</Text>
-                      </View>
-                    )}
-                  </View>
-                )}
-              </Pressable>
-            );
-          })}
+                      )}
+                      {eventCount > 0 && (
+                        <View style={[styles.eventDot, { backgroundColor: tc.secondaryText }]}>
+                          <Text style={[styles.eventDotText, { color: tc.bg }]}>{eventCount}</Text>
+                        </View>
+                      )}
+                    </View>
+                  )}
+                </Pressable>
+              );
+            })}
+          </View>
         </View>
-      </View>
+      </GestureDetector>
 
       {selectedDate && (
         <Animated.View style={[styles.monthDetailsPane, bottomSheetStyle, { backgroundColor: tc.cardBg, borderTopColor: tc.border }]}>
@@ -1583,7 +1465,6 @@ export function CalendarView() {
                     </Text>
                   )}
                   {selectedDateExternalEvents.map((event) => {
-                    const openable = isExternalEventOpenable(event);
                     const eventStyle = [styles.taskItem, styles.eventItem, { backgroundColor: tc.inputBg, borderLeftColor: sourceColorForId(event.sourceId) }];
                     const eventContent = (
                       <>
@@ -1603,24 +1484,14 @@ export function CalendarView() {
                         </View>
                       </>
                     );
-                    if (openable) {
-                      return (
-                        <Pressable
-                          key={event.id}
-                          onPress={() => openExternalEvent(event)}
-                          style={eventStyle}
-                        >
-                          {eventContent}
-                        </Pressable>
-                      );
-                    }
                     return (
-                      <View
+                      <Pressable
                         key={event.id}
+                        onPress={() => openExternalEvent(event)}
                         style={eventStyle}
                       >
                         {eventContent}
-                      </View>
+                      </Pressable>
                     );
                   })}
                 </View>
