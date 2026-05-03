@@ -16,6 +16,7 @@ import { SlidersHorizontal, X } from 'lucide-react-native';
 import {
   sortFocusNextActions,
   shouldShowTaskForStart,
+  getSequentialFirstTaskIds,
   translateWithFallback,
   useTaskStore,
   isDueForReview,
@@ -90,6 +91,7 @@ export default function FocusScreen() {
     visibleTasks.filter((task) => (
       !task.deletedAt
       && task.status !== 'done'
+      && task.status !== 'archived'
       && task.status !== 'reference'
       && shouldShowTaskForStart(task, { showFutureStarts: false })
     ))
@@ -221,41 +223,10 @@ export default function FocusScreen() {
     return new Set(visibleProjects.filter((project) => project.isSequential).map((project) => project.id));
   }, [visibleProjects]);
 
-  const sequentialFirstTaskIds = useMemo(() => {
-    if (sequentialProjectIds.size === 0) return new Set<string>();
-    const tasksByProject = new Map<string, Task[]>();
-    filteredActiveTasks.forEach((task) => {
-      if (!task.projectId) return;
-      if (!sequentialProjectIds.has(task.projectId)) return;
-      const list = tasksByProject.get(task.projectId) ?? [];
-      list.push(task);
-      tasksByProject.set(task.projectId, list);
-    });
-
-    const firstIds = new Set<string>();
-    tasksByProject.forEach((projectTasks) => {
-      const hasOrder = projectTasks.some((task) => Number.isFinite(task.order) || Number.isFinite(task.orderNum));
-      let firstId: string | null = null;
-      let bestKey = Number.POSITIVE_INFINITY;
-      projectTasks.forEach((task) => {
-        const taskOrder = Number.isFinite(task.order)
-          ? (task.order as number)
-          : Number.isFinite(task.orderNum)
-            ? (task.orderNum as number)
-            : Number.POSITIVE_INFINITY;
-        const key = hasOrder
-          ? taskOrder
-          : (safeParseDate(task.createdAt)?.getTime() ?? Number.POSITIVE_INFINITY);
-        if (!firstId || key < bestKey) {
-          firstId = task.id;
-          bestKey = key;
-        }
-      });
-      if (firstId) firstIds.add(firstId);
-    });
-
-    return firstIds;
-  }, [filteredActiveTasks, sequentialProjectIds]);
+  const sequentialFirstTaskIds = useMemo(
+    () => getSequentialFirstTaskIds(activeTasks, sequentialProjectIds),
+    [activeTasks, sequentialProjectIds],
+  );
 
   const { focusedTasks, schedule, nextActions, reviewDue } = useMemo(() => {
     const now = new Date();

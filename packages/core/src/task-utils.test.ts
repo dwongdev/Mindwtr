@@ -6,6 +6,7 @@ import {
     getTaskAgeLabel,
     rescheduleTask,
     extractWaitingPerson,
+    getSequentialFirstTaskIds,
     getWaitingPerson,
     isTaskFutureStart,
     shouldShowTaskForStart,
@@ -240,6 +241,27 @@ describe('task-utils', () => {
 
             expect(shouldShowTaskForStart(task, { now })).toBe(true);
             expect(shouldShowTaskForStart(task, { now, showFutureStarts: false })).toBe(false);
+        });
+    });
+
+    describe('getSequentialFirstTaskIds', () => {
+        it('returns the first active task per sequential project by order', () => {
+            const firstTaskIds = getSequentialFirstTaskIds([
+                { id: 'p1-second', projectId: 'p1', order: 2, orderNum: undefined, createdAt: '2026-04-02T00:00:00.000Z' },
+                { id: 'p1-first', projectId: 'p1', order: 1, orderNum: undefined, createdAt: '2026-04-03T00:00:00.000Z' },
+                { id: 'p2-first', projectId: 'p2', order: undefined, orderNum: undefined, createdAt: '2026-04-04T00:00:00.000Z' },
+            ], new Set(['p1']));
+
+            expect([...firstTaskIds]).toEqual(['p1-first']);
+        });
+
+        it('falls back to created time when a sequential project has no order values', () => {
+            const firstTaskIds = getSequentialFirstTaskIds([
+                { id: 'newer', projectId: 'p1', order: undefined, orderNum: undefined, createdAt: '2026-04-02T00:00:00.000Z' },
+                { id: 'older', projectId: 'p1', order: undefined, orderNum: undefined, createdAt: '2026-04-01T00:00:00.000Z' },
+            ], new Set(['p1']));
+
+            expect([...firstTaskIds]).toEqual(['older']);
         });
     });
 });

@@ -212,21 +212,23 @@ Tap **Process Inbox** to start the clarify workflow:
 
 ## Focus
 
-Your primary dashboard for doing.
+Your primary dashboard for doing. Focus is an Engage dashboard, not a full inventory of every task with status `next`.
 
 ### Sections
 
 | Section      | Content                                                                 |
 | ------------ | ----------------------------------------------------------------------- |
 | **Today**    | Tasks focused for today, due today/overdue, or starting today           |
-| **Next**     | Context-filtered actionable tasks ready to be picked up                 |
+| **Next**     | Available next actions that are not blocked or deferred                 |
+
+Focus hides future-start tasks and later tasks in sequential projects so the list stays limited to what you can act on now. Use **Contexts**, **Projects**, or **Search** when you want to inspect the broader task inventory.
 
 ### Features
 
 - **Context filter** — Tap a context chip to filter the Next list.
 - **Swipe to Focus** — Swipe a task right to toggle "Focus" status (moves it to Today).
 - **Quick Status** — Tap the status badge to change status.
-- **Pomodoro (Optional)** — Enable in **Settings → GTD → Features → Pomodoro timer** to show a focus/break timer panel linked to your current task. You can also add one optional custom preset there.
+- **Pomodoro (Optional)** — Enable in **Settings → GTD → Features → Pomodoro timer** to show a focus/break timer panel linked to a selected **Timer task**. The panel's **Mark task done** button completes that selected task.
 
 ---
 
@@ -371,8 +373,8 @@ Open Projects from **Menu → Projects**.
 
 | Mode           | Behavior                                             |
 | -------------- | ---------------------------------------------------- |
-| **Sequential** | Only the first incomplete task shows in the Next Actions list |
-| **Parallel**   | All project tasks show in the Next Actions list               |
+| **Sequential** | Only the first available project task appears in Focus |
+| **Parallel**   | All available project tasks can appear in Focus        |
 
 ---
 

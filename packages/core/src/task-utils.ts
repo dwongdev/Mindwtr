@@ -129,6 +129,46 @@ export function shouldShowTaskForStart(
     return !isTaskFutureStart(task, options.now);
 }
 
+export function getSequentialFirstTaskIds<T extends Pick<Task, 'createdAt' | 'id' | 'order' | 'orderNum' | 'projectId'>>(
+    tasks: T[],
+    sequentialProjectIds: ReadonlySet<string>,
+): Set<string> {
+    const tasksByProject = new Map<string, T[]>();
+    for (const task of tasks) {
+        if (!task.projectId) continue;
+        if (!sequentialProjectIds.has(task.projectId)) continue;
+        const list = tasksByProject.get(task.projectId) ?? [];
+        list.push(task);
+        tasksByProject.set(task.projectId, list);
+    }
+
+    const firstTaskIds = new Set<string>();
+    tasksByProject.forEach((tasksForProject) => {
+        const hasOrder = tasksForProject.some((task) => Number.isFinite(task.order) || Number.isFinite(task.orderNum));
+        let firstTaskId: string | null = null;
+        let bestKey = Number.POSITIVE_INFINITY;
+
+        tasksForProject.forEach((task) => {
+            const taskOrder = Number.isFinite(task.order)
+                ? (task.order as number)
+                : Number.isFinite(task.orderNum)
+                    ? (task.orderNum as number)
+                    : Number.POSITIVE_INFINITY;
+            const key = hasOrder
+                ? taskOrder
+                : (safeParseDate(task.createdAt)?.getTime() ?? Number.POSITIVE_INFINITY);
+            if (!firstTaskId || key < bestKey) {
+                firstTaskId = task.id;
+                bestKey = key;
+            }
+        });
+
+        if (firstTaskId) firstTaskIds.add(firstTaskId);
+    });
+
+    return firstTaskIds;
+}
+
 /**
  * Sort tasks by status, due date, and creation time.
  * Order: inbox → next → waiting → someday → reference → done → archived

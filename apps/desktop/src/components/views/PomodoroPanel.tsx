@@ -125,8 +125,9 @@ export function PomodoroPanel({ tasks }: PomodoroPanelProps) {
     const subtitle = resolveText('pomodoro.subtitle', 'Work one task at a time.');
     const sessionCountLabel = resolveText('pomodoro.sessionsDone', 'Focus sessions completed');
     const switchPhaseLabel = resolveText('pomodoro.switchPhase', 'Switch phase');
-    const markDoneLabel = resolveText('pomodoro.markTaskDone', 'Mark done');
+    const markDoneLabel = resolveText('pomodoro.markTaskDone', 'Mark task done');
     const noTaskLabel = resolveText('pomodoro.noTask', 'No available focus task');
+    const selectedTaskLabel = resolveText('pomodoro.selectedTask', 'Timer task');
     const focusDoneLabel = resolveText('pomodoro.focusComplete', 'Focus session complete. Take a short break.');
     const breakDoneLabel = resolveText('pomodoro.breakComplete', 'Break complete. Ready for the next focus session.');
 
@@ -247,7 +248,7 @@ export function PomodoroPanel({ tasks }: PomodoroPanelProps) {
 
             <div className="space-y-2">
                 <label className="text-xs text-muted-foreground">
-                    {resolveText('taskEdit.title', 'Task')}
+                    {selectedTaskLabel}
                 </label>
                 <select
                     className="w-full text-sm px-3 py-2 rounded border border-border bg-background focus:outline-none focus:ring-2 focus:ring-primary/30"
@@ -308,6 +309,7 @@ export function PomodoroPanel({ tasks }: PomodoroPanelProps) {
                         void handleMarkTaskDone();
                     }}
                     disabled={!selectedTask}
+                    title={markDoneLabel}
                     className={cn(
                         'inline-flex items-center gap-1.5 text-xs px-3 py-2 rounded border transition-colors',
                         selectedTask

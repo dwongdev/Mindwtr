@@ -186,7 +186,8 @@ export function PomodoroPanel({
   const startLabel = tFallback(t, 'common.start', 'Start');
   const resetLabel = tFallback(t, 'common.reset', 'Reset');
   const switchLabel = tFallback(t, 'pomodoro.switchPhase', 'Switch');
-  const markDoneLabel = tFallback(t, 'pomodoro.markTaskDone', 'Done');
+  const markDoneLabel = tFallback(t, 'pomodoro.markTaskDone', 'Mark task done');
+  const selectedTaskLabel = tFallback(t, 'pomodoro.selectedTask', 'Timer task');
 
   useEffect(() => {
     const previous = previousEventRef.current;
@@ -331,37 +332,42 @@ export function PomodoroPanel({
         </Text>
       </View>
 
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.taskChipRow}>
-        {tasks.length === 0 ? (
-          <View style={[styles.emptyTaskChip, { borderColor: tc.border, backgroundColor: tc.filterBg }]}>
-            <Text style={[styles.emptyTaskChipText, { color: tc.secondaryText }]}>{noTaskLabel}</Text>
-          </View>
-        ) : (
-          tasks.map((task) => {
-            const selected = task.id === selectedTaskId;
-            return (
-              <Pressable
-                key={task.id}
-                onPress={() => setSelectedTaskId(task.id)}
-                style={[
-                  styles.taskChip,
-                  {
-                    borderColor: selected ? tc.tint : tc.border,
-                    backgroundColor: selected ? tc.tint : tc.filterBg,
-                  },
-                ]}
-              >
-                <Text
-                  style={[styles.taskChipText, { color: selected ? tc.onTint : tc.text }]}
-                  numberOfLines={1}
+      <View style={styles.taskPickerSection}>
+        <Text style={[styles.taskPickerLabel, { color: tc.secondaryText }]}>{selectedTaskLabel}</Text>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.taskChipRow}>
+          {tasks.length === 0 ? (
+            <View style={[styles.emptyTaskChip, { borderColor: tc.border, backgroundColor: tc.filterBg }]}>
+              <Text style={[styles.emptyTaskChipText, { color: tc.secondaryText }]}>{noTaskLabel}</Text>
+            </View>
+          ) : (
+            tasks.map((task) => {
+              const selected = task.id === selectedTaskId;
+              return (
+                <Pressable
+                  key={task.id}
+                  accessibilityRole="button"
+                  accessibilityState={{ selected }}
+                  onPress={() => setSelectedTaskId(task.id)}
+                  style={[
+                    styles.taskChip,
+                    {
+                      borderColor: selected ? tc.tint : tc.border,
+                      backgroundColor: selected ? tc.tint : tc.filterBg,
+                    },
+                  ]}
                 >
-                  {task.title}
-                </Text>
-              </Pressable>
-            );
-          })
-        )}
-      </ScrollView>
+                  <Text
+                    style={[styles.taskChipText, { color: selected ? tc.onTint : tc.text }]}
+                    numberOfLines={1}
+                  >
+                    {task.title}
+                  </Text>
+                </Pressable>
+              );
+            })
+          )}
+        </ScrollView>
+      </View>
 
       <View style={styles.actionRow}>
         <Pressable
@@ -399,6 +405,8 @@ export function PomodoroPanel({
           </Text>
         </Pressable>
         <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={markDoneLabel}
           onPress={handleMarkDone}
           disabled={!selectedTask || isHydratingSession}
           style={[
@@ -502,6 +510,14 @@ const styles = StyleSheet.create({
   taskChipRow: {
     gap: 8,
     paddingRight: 12,
+  },
+  taskPickerSection: {
+    gap: 6,
+  },
+  taskPickerLabel: {
+    fontSize: 11,
+    fontWeight: '700',
+    textTransform: 'uppercase',
   },
   taskChip: {
     maxWidth: 220,
