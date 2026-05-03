@@ -188,6 +188,8 @@ export function PomodoroPanel({
   const switchLabel = tFallback(t, 'pomodoro.switchPhase', 'Switch');
   const markDoneLabel = tFallback(t, 'pomodoro.markTaskDone', 'Mark task done');
   const selectedTaskLabel = tFallback(t, 'pomodoro.selectedTask', 'Timer task');
+  const timerControlsLabel = tFallback(t, 'pomodoro.timerControls', 'Timer');
+  const taskUpdateLabel = tFallback(t, 'pomodoro.taskUpdate', 'Task update');
 
   useEffect(() => {
     const previous = previousEventRef.current;
@@ -369,59 +371,67 @@ export function PomodoroPanel({
         </ScrollView>
       </View>
 
-      <View style={styles.actionRow}>
-        <Pressable
-          onPress={handleToggleRun}
-          disabled={!selectedTask || isHydratingSession}
-          style={[
-            styles.actionPrimary,
-            {
-              opacity: selectedTask && !isHydratingSession ? 1 : 0.5,
-              backgroundColor: tc.tint,
-              borderColor: tc.tint,
-            },
-          ]}
-        >
-          <Text style={[styles.actionPrimaryText, { color: tc.onTint }]}>
-            {timerState.isRunning ? pauseLabel : startLabel}
-          </Text>
-        </Pressable>
-        <Pressable
-          onPress={handleReset}
-          disabled={isHydratingSession}
-          style={[styles.actionSecondary, { borderColor: tc.border, backgroundColor: tc.filterBg }]}
-        >
-          <Text style={[styles.actionSecondaryText, { color: tc.secondaryText }]}>
-            {resetLabel}
-          </Text>
-        </Pressable>
-        <Pressable
-          onPress={handleSwitchPhase}
-          disabled={isHydratingSession}
-          style={[styles.actionSecondary, { borderColor: tc.border, backgroundColor: tc.filterBg }]}
-        >
-          <Text style={[styles.actionSecondaryText, { color: tc.secondaryText }]}>
-            {switchLabel}
-          </Text>
-        </Pressable>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel={markDoneLabel}
-          onPress={handleMarkDone}
-          disabled={!selectedTask || isHydratingSession}
-          style={[
-            styles.actionDone,
-            {
-              opacity: selectedTask && !isHydratingSession ? 1 : 0.5,
-              borderColor: '#059669',
-              backgroundColor: '#059669',
-            },
-          ]}
-        >
-          <Text style={styles.actionDoneText}>
-            {markDoneLabel}
-          </Text>
-        </Pressable>
+      <View style={styles.actionGroups}>
+        <View style={styles.timerActionGroup}>
+          <Text style={[styles.actionGroupLabel, { color: tc.secondaryText }]}>{timerControlsLabel}</Text>
+          <View style={styles.timerActionRow}>
+            <Pressable
+              onPress={handleToggleRun}
+              disabled={!selectedTask || isHydratingSession}
+              style={[
+                styles.actionPrimary,
+                {
+                  opacity: selectedTask && !isHydratingSession ? 1 : 0.5,
+                  backgroundColor: tc.tint,
+                  borderColor: tc.tint,
+                },
+              ]}
+            >
+              <Text style={[styles.actionPrimaryText, { color: tc.onTint }]}>
+                {timerState.isRunning ? pauseLabel : startLabel}
+              </Text>
+            </Pressable>
+            <Pressable
+              onPress={handleReset}
+              disabled={isHydratingSession}
+              style={[styles.actionSecondary, { borderColor: tc.border, backgroundColor: tc.filterBg }]}
+            >
+              <Text style={[styles.actionSecondaryText, { color: tc.secondaryText }]}>
+                {resetLabel}
+              </Text>
+            </Pressable>
+            <Pressable
+              onPress={handleSwitchPhase}
+              disabled={isHydratingSession}
+              style={[styles.actionSecondary, { borderColor: tc.border, backgroundColor: tc.filterBg }]}
+            >
+              <Text style={[styles.actionSecondaryText, { color: tc.secondaryText }]}>
+                {switchLabel}
+              </Text>
+            </Pressable>
+          </View>
+        </View>
+        <View style={styles.taskActionGroup}>
+          <Text style={[styles.actionGroupLabel, { color: tc.secondaryText }]}>{taskUpdateLabel}</Text>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={markDoneLabel}
+            onPress={handleMarkDone}
+            disabled={!selectedTask || isHydratingSession}
+            style={[
+              styles.actionDone,
+              {
+                opacity: selectedTask && !isHydratingSession ? 1 : 0.5,
+                borderColor: tc.success,
+                backgroundColor: `${tc.success}18`,
+              },
+            ]}
+          >
+            <Text style={[styles.actionDoneText, { color: tc.success }]}>
+              {markDoneLabel}
+            </Text>
+          </Pressable>
+        </View>
       </View>
 
       {lastEvent && (
@@ -540,7 +550,28 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '600',
   },
-  actionRow: {
+  actionGroups: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    alignItems: 'flex-start',
+    gap: 12,
+  },
+  timerActionGroup: {
+    flexGrow: 1,
+    flexShrink: 1,
+    minWidth: 220,
+    gap: 6,
+  },
+  taskActionGroup: {
+    minWidth: 140,
+    gap: 6,
+  },
+  actionGroupLabel: {
+    fontSize: 11,
+    fontWeight: '700',
+    textTransform: 'uppercase',
+  },
+  timerActionRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: 8,
@@ -568,13 +599,13 @@ const styles = StyleSheet.create({
   actionDone: {
     borderWidth: 1,
     borderRadius: 10,
+    alignItems: 'center',
     paddingHorizontal: 12,
     paddingVertical: 8,
   },
   actionDoneText: {
     fontSize: 12,
     fontWeight: '700',
-    color: '#FFFFFF',
   },
   eventText: {
     fontSize: 12,

@@ -31,10 +31,8 @@ By default, this feature is **off** to keep Focus minimal and distraction-free.
 - When a break ends, it switches back to focus.
 
 Controls:
-- **Start/Pause**
-- **Reset**
-- **Switch phase**
-- **Mark task done** (completes the selected Timer task)
+- **Timer**: Start/Pause, Reset, and Switch phase
+- **Task update**: Mark task done, which completes the selected Timer task
 
 The task picker is not just a label. It controls which task the Pomodoro panel is currently attached to. Timer controls affect the timer, while **Mark task done** mutates the selected task by moving it to Done and removing it from today's focus.
 

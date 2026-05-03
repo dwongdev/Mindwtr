@@ -128,6 +128,8 @@ export function PomodoroPanel({ tasks }: PomodoroPanelProps) {
     const markDoneLabel = resolveText('pomodoro.markTaskDone', 'Mark task done');
     const noTaskLabel = resolveText('pomodoro.noTask', 'No available focus task');
     const selectedTaskLabel = resolveText('pomodoro.selectedTask', 'Timer task');
+    const timerControlsLabel = resolveText('pomodoro.timerControls', 'Timer');
+    const taskUpdateLabel = resolveText('pomodoro.taskUpdate', 'Task update');
     const focusDoneLabel = resolveText('pomodoro.focusComplete', 'Focus session complete. Take a short break.');
     const breakDoneLabel = resolveText('pomodoro.breakComplete', 'Break complete. Ready for the next focus session.');
 
@@ -270,56 +272,64 @@ export function PomodoroPanel({ tasks }: PomodoroPanelProps) {
                 </select>
             </div>
 
-            <div className="flex flex-wrap gap-2">
-                <button
-                    type="button"
-                    onClick={handleToggleRun}
-                    disabled={!selectedTask}
-                    className={cn(
-                        'inline-flex items-center gap-1.5 text-xs px-3 py-2 rounded border transition-colors',
-                        selectedTask
-                            ? 'bg-primary text-primary-foreground border-primary hover:opacity-90'
-                            : 'bg-muted text-muted-foreground border-border cursor-not-allowed opacity-60'
-                    )}
-                >
-                    {timerState.isRunning ? <Pause className="w-3.5 h-3.5" /> : <Play className="w-3.5 h-3.5" />}
-                    {timerState.isRunning
-                        ? resolveText('common.pause', 'Pause')
-                        : resolveText('common.start', 'Start')}
-                </button>
-                <button
-                    type="button"
-                    onClick={handleReset}
-                    className="inline-flex items-center gap-1.5 text-xs px-3 py-2 rounded border border-border bg-muted/50 text-muted-foreground hover:bg-muted transition-colors"
-                >
-                    <RotateCcw className="w-3.5 h-3.5" />
-                    {resolveText('common.reset', 'Reset')}
-                </button>
-                <button
-                    type="button"
-                    onClick={handleSwitchPhase}
-                    className="inline-flex items-center gap-1.5 text-xs px-3 py-2 rounded border border-border bg-muted/50 text-muted-foreground hover:bg-muted transition-colors"
-                >
-                    <TimerReset className="w-3.5 h-3.5" />
-                    {switchPhaseLabel}
-                </button>
-                <button
-                    type="button"
-                    onClick={() => {
-                        void handleMarkTaskDone();
-                    }}
-                    disabled={!selectedTask}
-                    title={markDoneLabel}
-                    className={cn(
-                        'inline-flex items-center gap-1.5 text-xs px-3 py-2 rounded border transition-colors',
-                        selectedTask
-                            ? 'bg-emerald-600 text-white border-emerald-600 hover:bg-emerald-500'
-                            : 'bg-muted text-muted-foreground border-border cursor-not-allowed opacity-60'
-                    )}
-                >
-                    <CheckCircle2 className="w-3.5 h-3.5" />
-                    {markDoneLabel}
-                </button>
+            <div className="flex flex-wrap items-start justify-between gap-3">
+                <div className="space-y-1.5">
+                    <div className="text-[11px] font-semibold uppercase text-muted-foreground">{timerControlsLabel}</div>
+                    <div className="flex flex-wrap gap-2">
+                        <button
+                            type="button"
+                            onClick={handleToggleRun}
+                            disabled={!selectedTask}
+                            className={cn(
+                                'inline-flex items-center gap-1.5 text-xs px-3 py-2 rounded border transition-colors',
+                                selectedTask
+                                    ? 'bg-primary text-primary-foreground border-primary hover:opacity-90'
+                                    : 'bg-muted text-muted-foreground border-border cursor-not-allowed opacity-60'
+                            )}
+                        >
+                            {timerState.isRunning ? <Pause className="w-3.5 h-3.5" /> : <Play className="w-3.5 h-3.5" />}
+                            {timerState.isRunning
+                                ? resolveText('common.pause', 'Pause')
+                                : resolveText('common.start', 'Start')}
+                        </button>
+                        <button
+                            type="button"
+                            onClick={handleReset}
+                            className="inline-flex items-center gap-1.5 text-xs px-3 py-2 rounded border border-border bg-muted/50 text-muted-foreground hover:bg-muted transition-colors"
+                        >
+                            <RotateCcw className="w-3.5 h-3.5" />
+                            {resolveText('common.reset', 'Reset')}
+                        </button>
+                        <button
+                            type="button"
+                            onClick={handleSwitchPhase}
+                            className="inline-flex items-center gap-1.5 text-xs px-3 py-2 rounded border border-border bg-muted/50 text-muted-foreground hover:bg-muted transition-colors"
+                        >
+                            <TimerReset className="w-3.5 h-3.5" />
+                            {switchPhaseLabel}
+                        </button>
+                    </div>
+                </div>
+                <div className="space-y-1.5 sm:ml-auto">
+                    <div className="text-[11px] font-semibold uppercase text-muted-foreground sm:text-right">{taskUpdateLabel}</div>
+                    <button
+                        type="button"
+                        onClick={() => {
+                            void handleMarkTaskDone();
+                        }}
+                        disabled={!selectedTask}
+                        title={markDoneLabel}
+                        className={cn(
+                            'inline-flex items-center gap-1.5 text-xs px-3 py-2 rounded border transition-colors',
+                            selectedTask
+                                ? 'bg-emerald-50 text-emerald-700 border-emerald-500 hover:bg-emerald-100 dark:bg-emerald-950/20 dark:text-emerald-300 dark:border-emerald-700 dark:hover:bg-emerald-900/30'
+                                : 'bg-muted text-muted-foreground border-border cursor-not-allowed opacity-60'
+                        )}
+                    >
+                        <CheckCircle2 className="w-3.5 h-3.5" />
+                        {markDoneLabel}
+                    </button>
+                </div>
             </div>
 
             {lastEvent && (
