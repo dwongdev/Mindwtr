@@ -879,6 +879,8 @@ export const en: Record<string, string> = {
         'settings.pomodoroCustomPresetDesc': 'Add one extra focus/break preset. Matching a built-in preset keeps the built-in chips only.',
         'settings.pomodoroFocusMinutes': 'Focus minutes',
         'settings.pomodoroBreakMinutes': 'Break minutes',
+        'settings.pomodoroLinkTask': 'Link timer to task',
+        'settings.pomodoroLinkTaskDesc': 'Show the Timer task picker and Task done action in Focus.',
         'settings.resetToDefault': 'Reset to default',
         'settings.taskEditorLayout': 'Task editor layout',
         'settings.taskEditorLayoutDesc': 'Choose which fields appear when editing a task.',

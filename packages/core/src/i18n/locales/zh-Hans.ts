@@ -812,6 +812,8 @@ export const zhHans: Record<string, string> = {
         'settings.pomodoroCustomPresetDesc': '添加一个额外的专注/休息预设。若与内置预设相同，将继续只显示内置选项。',
         'settings.pomodoroFocusMinutes': '专注分钟',
         'settings.pomodoroBreakMinutes': '休息分钟',
+        'settings.pomodoroLinkTask': '将计时器关联到任务',
+        'settings.pomodoroLinkTaskDesc': '在聚焦中显示计时任务选择器和完成任务操作。',
         'settings.resetToDefault': '恢复默认',
         'settings.taskEditorLayout': '任务编辑布局',
         'settings.taskEditorLayoutDesc': '选择编辑任务时显示哪些字段。',

@@ -194,8 +194,9 @@ describe('GtdSettingsScreen task editor layout', () => {
       tree = renderer.create(<GtdSettingsScreen onNavigate={vi.fn()} screen="gtd" />);
     });
 
-    const autoStartSwitches = tree.root.findAllByType(Switch).filter((node) => node.props.value === false);
-    expect(autoStartSwitches).toHaveLength(2);
+    const disabledPomodoroSwitches = tree.root.findAllByType(Switch).filter((node) => node.props.value === false);
+    expect(disabledPomodoroSwitches).toHaveLength(3);
+    const autoStartSwitches = disabledPomodoroSwitches.slice(1);
 
     await renderer.act(async () => {
       autoStartSwitches[0].props.onValueChange(true);

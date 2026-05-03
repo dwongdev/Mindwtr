@@ -65,6 +65,7 @@ export function PomodoroPanel({ tasks }: PomodoroPanelProps) {
     const updateTask = useTaskStore((state) => state.updateTask);
     const notificationsEnabled = useTaskStore((state) => state.settings.notificationsEnabled !== false);
     const customDurations = useTaskStore((state) => state.settings.gtd?.pomodoro?.customDurations);
+    const linkTaskEnabled = useTaskStore((state) => state.settings.gtd?.pomodoro?.linkTask === true);
     const autoStartBreaks = useTaskStore((state) => state.settings.gtd?.pomodoro?.autoStartBreaks === true);
     const autoStartFocus = useTaskStore((state) => state.settings.gtd?.pomodoro?.autoStartFocus === true);
     const { t } = useLanguage();
@@ -90,14 +91,15 @@ export function PomodoroPanel({ tasks }: PomodoroPanelProps) {
     }, []);
 
     useEffect(() => {
-        if (tasks.length === 0) {
+        if (!linkTaskEnabled) {
             if (!snapshot.selectedTaskId) return;
             commitSnapshot((prev) => ({ ...prev, selectedTaskId: undefined }));
             return;
         }
+        if (!snapshot.selectedTaskId) return;
         if (snapshot.selectedTaskId && tasks.some((task) => task.id === snapshot.selectedTaskId)) return;
-        commitSnapshot((prev) => ({ ...prev, selectedTaskId: tasks[0].id }));
-    }, [commitSnapshot, snapshot.selectedTaskId, tasks]);
+        commitSnapshot((prev) => ({ ...prev, selectedTaskId: undefined }));
+    }, [commitSnapshot, linkTaskEnabled, snapshot.selectedTaskId, tasks]);
 
     useEffect(() => {
         if (!snapshot.timerState.isRunning) return;
@@ -113,8 +115,8 @@ export function PomodoroPanel({ tasks }: PomodoroPanelProps) {
     const lastEvent = snapshot.lastEvent;
 
     const selectedTask = useMemo(
-        () => (selectedTaskId ? tasks.find((task) => task.id === selectedTaskId) : undefined),
-        [selectedTaskId, tasks]
+        () => (linkTaskEnabled && selectedTaskId ? tasks.find((task) => task.id === selectedTaskId) : undefined),
+        [linkTaskEnabled, selectedTaskId, tasks]
     );
     const presetOptions = useMemo(() => getPomodoroPresetOptions(customDurations), [customDurations]);
 
@@ -130,6 +132,7 @@ export function PomodoroPanel({ tasks }: PomodoroPanelProps) {
     const selectedTaskLabel = resolveText('pomodoro.selectedTask', 'Timer task');
     const timerControlsLabel = resolveText('pomodoro.timerControls', 'Timer');
     const taskUpdateLabel = resolveText('pomodoro.taskUpdate', 'Task update');
+    const timerOnlyLabel = resolveText('pomodoro.timerOnly', 'Timer only');
     const focusDoneLabel = resolveText('pomodoro.focusComplete', 'Focus session complete. Take a short break.');
     const breakDoneLabel = resolveText('pomodoro.breakComplete', 'Break complete. Ready for the next focus session.');
 
@@ -248,29 +251,28 @@ export function PomodoroPanel({ tasks }: PomodoroPanelProps) {
                 </p>
             </div>
 
-            <div className="space-y-2">
-                <label className="text-xs text-muted-foreground">
-                    {selectedTaskLabel}
-                </label>
-                <select
-                    className="w-full text-sm px-3 py-2 rounded border border-border bg-background focus:outline-none focus:ring-2 focus:ring-primary/30"
-                    value={selectedTaskId ?? ''}
-                    onChange={(event) => {
-                        const nextId = event.target.value || undefined;
-                        commitSnapshot((prev) => ({ ...prev, selectedTaskId: nextId }));
-                    }}
-                >
-                    {tasks.length === 0 ? (
-                        <option value="">{noTaskLabel}</option>
-                    ) : (
-                        tasks.map((task) => (
+            {linkTaskEnabled && (
+                <div className="space-y-2">
+                    <label className="text-xs text-muted-foreground">
+                        {selectedTaskLabel}
+                    </label>
+                    <select
+                        className="w-full text-sm px-3 py-2 rounded border border-border bg-background focus:outline-none focus:ring-2 focus:ring-primary/30"
+                        value={selectedTaskId ?? ''}
+                        onChange={(event) => {
+                            const nextId = event.target.value || undefined;
+                            commitSnapshot((prev) => ({ ...prev, selectedTaskId: nextId }));
+                        }}
+                    >
+                        <option value="">{tasks.length === 0 ? noTaskLabel : timerOnlyLabel}</option>
+                        {tasks.map((task) => (
                             <option key={task.id} value={task.id}>
                                 {task.title}
                             </option>
-                        ))
-                    )}
-                </select>
-            </div>
+                        ))}
+                    </select>
+                </div>
+            )}
 
             <div className="flex flex-wrap items-start justify-between gap-3">
                 <div className="space-y-1.5">
@@ -279,12 +281,9 @@ export function PomodoroPanel({ tasks }: PomodoroPanelProps) {
                         <button
                             type="button"
                             onClick={handleToggleRun}
-                            disabled={!selectedTask}
                             className={cn(
                                 'inline-flex items-center gap-1.5 text-xs px-3 py-2 rounded border transition-colors',
-                                selectedTask
-                                    ? 'bg-primary text-primary-foreground border-primary hover:opacity-90'
-                                    : 'bg-muted text-muted-foreground border-border cursor-not-allowed opacity-60'
+                                'bg-primary text-primary-foreground border-primary hover:opacity-90'
                             )}
                         >
                             {timerState.isRunning ? <Pause className="w-3.5 h-3.5" /> : <Play className="w-3.5 h-3.5" />}
@@ -310,26 +309,28 @@ export function PomodoroPanel({ tasks }: PomodoroPanelProps) {
                         </button>
                     </div>
                 </div>
-                <div className="space-y-1.5 sm:ml-auto">
-                    <div className="text-[11px] font-semibold uppercase text-muted-foreground sm:text-right">{taskUpdateLabel}</div>
-                    <button
-                        type="button"
-                        onClick={() => {
-                            void handleMarkTaskDone();
-                        }}
-                        disabled={!selectedTask}
-                        title={markDoneLabel}
-                        className={cn(
-                            'inline-flex items-center gap-1.5 text-xs px-3 py-2 rounded border transition-colors',
-                            selectedTask
-                                ? 'bg-emerald-50 text-emerald-700 border-emerald-500 hover:bg-emerald-100 dark:bg-emerald-950/20 dark:text-emerald-300 dark:border-emerald-700 dark:hover:bg-emerald-900/30'
-                                : 'bg-muted text-muted-foreground border-border cursor-not-allowed opacity-60'
-                        )}
-                    >
-                        <CheckCircle2 className="w-3.5 h-3.5" />
-                        {markDoneLabel}
-                    </button>
-                </div>
+                {linkTaskEnabled && selectedTask && (
+                    <div className="space-y-1.5 sm:ml-auto">
+                        <div className="text-[11px] font-semibold uppercase text-muted-foreground sm:text-right">{taskUpdateLabel}</div>
+                        <button
+                            type="button"
+                            onClick={() => {
+                                void handleMarkTaskDone();
+                            }}
+                            disabled={!selectedTask}
+                            title={markDoneLabel}
+                            className={cn(
+                                'inline-flex items-center gap-1.5 text-xs px-3 py-2 rounded border transition-colors',
+                                selectedTask
+                                    ? 'bg-emerald-50 text-emerald-700 border-emerald-500 hover:bg-emerald-100 dark:bg-emerald-950/20 dark:text-emerald-300 dark:border-emerald-700 dark:hover:bg-emerald-900/30'
+                                    : 'bg-muted text-muted-foreground border-border cursor-not-allowed opacity-60'
+                            )}
+                        >
+                            <CheckCircle2 className="w-3.5 h-3.5" />
+                            {markDoneLabel}
+                        </button>
+                    </div>
+                )}
             </div>
 
             {lastEvent && (

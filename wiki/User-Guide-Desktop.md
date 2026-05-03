@@ -55,7 +55,7 @@ Focus hides future-start tasks and later tasks in sequential projects. Use **Con
 **Features:**
 - **Context Filters**: Filter Next Actions by context (e.g., @home, @work) or tag.
 - **Top 3 Only**: Toggle to hide everything except your top 3 focus tasks (Zen Mode).
-- **Pomodoro (Optional)**: Enable in **Settings → GTD → Features → Pomodoro timer** to show a task-linked focus/break timer panel (15/3, 25/5, 50/10, plus one optional custom preset). The panel's task picker selects the Timer task, and **Mark task done** completes that selected task.
+- **Pomodoro (Optional)**: Enable in **Settings → GTD → Features → Pomodoro timer** to show a focus/break timer panel (15/3, 25/5, 50/10, plus one optional custom preset). Leave it as **Timer only**, or turn on **Link timer to task** to show the Timer task picker and **Mark task done** action.
 
 ### 📁 Projects
 

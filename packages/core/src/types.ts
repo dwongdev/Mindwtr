@@ -243,6 +243,7 @@ export interface AppData {
                     focusMinutes?: number;
                     breakMinutes?: number;
                 };
+                linkTask?: boolean;
                 autoStartBreaks?: boolean;
                 autoStartFocus?: boolean;
             };

@@ -87,6 +87,7 @@ export function GtdSettingsScreen({
     const timeEstimatesEnabled = settings.features?.timeEstimates !== false;
     const pomodoroEnabled = settings.features?.pomodoro === true;
     const pomodoroCustomDurations = sanitizePomodoroDurations(settings.gtd?.pomodoro?.customDurations);
+    const pomodoroLinkTask = settings.gtd?.pomodoro?.linkTask === true;
     const pomodoroAutoStartBreaks = settings.gtd?.pomodoro?.autoStartBreaks === true;
     const pomodoroAutoStartFocus = settings.gtd?.pomodoro?.autoStartFocus === true;
     const [pomodoroFocusDraft, setPomodoroFocusDraft] = useState(String(pomodoroCustomDurations.focusMinutes));
@@ -286,6 +287,19 @@ export function GtdSettingsScreen({
         const pomodoroBreakMinutesLabel = pomodoroBreakMinutesLabelRaw === 'settings.pomodoroBreakMinutes'
             ? localize('Break minutes', '休息分钟')
             : pomodoroBreakMinutesLabelRaw;
+        const pomodoroLinkTaskLabel = tFallback(
+            t,
+            'settings.pomodoroLinkTask',
+            localize('Link timer to task', '将计时器关联到任务')
+        );
+        const pomodoroLinkTaskDesc = tFallback(
+            t,
+            'settings.pomodoroLinkTaskDesc',
+            localize(
+                'Show the Timer task picker and Task done action in Focus.',
+                '在聚焦中显示计时任务选择器和完成任务操作。'
+            )
+        );
         const pomodoroAutoStartBreaksLabelRaw = t('settings.pomodoroAutoStartBreaks');
         const pomodoroAutoStartBreaksLabel = pomodoroAutoStartBreaksLabelRaw === 'settings.pomodoroAutoStartBreaks'
             ? localize('Auto-start breaks', '自动开始休息')
@@ -376,6 +390,17 @@ export function GtdSettingsScreen({
                                 </View>
                                 <View style={[styles.settingCard, { backgroundColor: tc.bg, borderWidth: 1, borderColor: tc.border }]}>
                                     <View style={styles.settingRow}>
+                                        <View style={styles.settingInfo}>
+                                            <Text style={[styles.settingLabel, { color: tc.text }]}>{pomodoroLinkTaskLabel}</Text>
+                                            <Text style={[styles.settingDescription, { color: tc.secondaryText }]}>{pomodoroLinkTaskDesc}</Text>
+                                        </View>
+                                        <Switch
+                                            value={pomodoroLinkTask}
+                                            onValueChange={(value) => updatePomodoroSettings({ linkTask: value })}
+                                            trackColor={{ false: '#767577', true: '#3B82F6' }}
+                                        />
+                                    </View>
+                                    <View style={[styles.settingRow, { borderTopWidth: 1, borderTopColor: tc.border }]}>
                                         <View style={styles.settingInfo}>
                                             <Text style={[styles.settingLabel, { color: tc.text }]}>{pomodoroAutoStartBreaksLabel}</Text>
                                             <Text style={[styles.settingDescription, { color: tc.secondaryText }]}>{pomodoroAutoStartBreaksDesc}</Text>
