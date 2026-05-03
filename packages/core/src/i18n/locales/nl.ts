@@ -1159,4 +1159,7 @@ export const nlOverrides: Record<string, string> = {
         'settings.dailyReviewConfigDesc': 'Configure the lightweight daily reset.',
         'settings.dailyReviewIncludeFocusStep': 'Include Focus step',
         'settings.dailyReviewIncludeFocusStepDesc': 'Show the optional step for marking today’s focus tasks.',
+        // English fallbacks keep shipped locale files in key parity.
+        'settings.pomodoroLinkTask': 'Link timer to task',
+        'settings.pomodoroLinkTaskDesc': 'Show the Timer task picker and Task done action in Focus.',
 };
