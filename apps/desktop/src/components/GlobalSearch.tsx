@@ -16,7 +16,6 @@ import { useLanguage } from '../contexts/language-context';
 import { cn } from '../lib/utils';
 import { PromptModal } from './PromptModal';
 import { useUiStore } from '../store/ui-store';
-import { AREA_FILTER_ALL, AREA_FILTER_NONE, resolveAreaFilter } from '../lib/area-filter';
 import { computeGlobalSearchResults, type DuePreset, type GlobalSearchScope } from './global-search-filtering';
 import { resolveTaskNavigationView } from '../lib/task-navigation';
 
@@ -64,15 +63,10 @@ export function GlobalSearch({ onNavigate }: GlobalSearchProps) {
     const setProjectView = useUiStore((state) => state.setProjectView);
     const { t } = useLanguage();
 
-    const globalAreaFilter = useMemo(
-        () => resolveAreaFilter(settings?.filters?.areaId, areas),
-        [settings?.filters?.areaId, areas],
-    );
-
     // Toggle search with Cmd+K / Ctrl+K
     useEffect(() => {
         isOpenRef.current = isOpen;
-    }, [isOpen, globalAreaFilter]);
+    }, [isOpen]);
 
     useEffect(() => {
         const handleKeyDown = (e: KeyboardEvent) => {
@@ -107,12 +101,7 @@ export function GlobalSearch({ onNavigate }: GlobalSearchProps) {
             setHideFutureTasks(false);
             setFiltersOpen(false);
             setSelectedStatuses([]);
-            const initialArea = globalAreaFilter === AREA_FILTER_ALL
-                ? 'all'
-                : globalAreaFilter === AREA_FILTER_NONE
-                    ? 'none'
-                    : globalAreaFilter;
-            setSelectedArea(initialArea);
+            setSelectedArea('all');
             setSelectedTokens([]);
             setDuePreset('any');
             setScope('all');
@@ -184,7 +173,6 @@ export function GlobalSearch({ onNavigate }: GlobalSearchProps) {
         tasks: _allTasks,
         projects,
         areas,
-        globalAreaFilter,
         includeCompleted,
         includeReference,
         hideFutureTasks,
@@ -200,7 +188,6 @@ export function GlobalSearch({ onNavigate }: GlobalSearchProps) {
         _allTasks,
         projects,
         areas,
-        globalAreaFilter,
         includeCompleted,
         includeReference,
         hideFutureTasks,

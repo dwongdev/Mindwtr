@@ -10,7 +10,6 @@ import {
     type Task,
     type TaskStatus,
 } from '@mindwtr/core';
-import { AREA_FILTER_ALL, AREA_FILTER_NONE } from '../lib/area-filter';
 
 export type GlobalSearchScope = 'all' | 'projects' | 'tasks' | 'project_tasks';
 export type DuePreset = 'any' | 'none' | 'overdue' | 'today' | 'tomorrow' | 'this_week' | 'next_week';
@@ -20,7 +19,6 @@ type ComputeGlobalSearchResultsInput = {
     tasks: Task[];
     projects: Project[];
     areas: Array<{ id: string }>;
-    globalAreaFilter: string;
     includeCompleted: boolean;
     includeReference: boolean;
     hideFutureTasks: boolean;
@@ -70,7 +68,6 @@ export const computeGlobalSearchResults = ({
     tasks,
     projects,
     areas,
-    globalAreaFilter,
     includeCompleted,
     includeReference,
     hideFutureTasks,
@@ -94,16 +91,8 @@ export const computeGlobalSearchResults = ({
     const projectById = new Map(projects.map((project) => [project.id, project]));
     const areaById = new Map(areas.map((area) => [area.id, area]));
 
-    const matchesGlobalArea = (areaId?: string | null) => {
-        const normalized = areaId && areaById.has(areaId) ? areaId : null;
-        if (globalAreaFilter === AREA_FILTER_ALL) return true;
-        if (globalAreaFilter === AREA_FILTER_NONE) return !normalized;
-        return normalized === globalAreaFilter;
-    };
-
     const matchesArea = (areaId?: string | null) => {
         const normalized = areaId && areaById.has(areaId) ? areaId : null;
-        if (!matchesGlobalArea(normalized)) return false;
         if (selectedArea === 'all') return true;
         if (selectedArea === 'none') return !normalized;
         return normalized === selectedArea;
