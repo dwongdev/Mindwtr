@@ -711,7 +711,7 @@ export const zhHans: Record<string, string> = {
         'settings.aiProvider': '服务商',
         'settings.aiModel': '模型',
         'settings.aiBaseUrl': '自定义 OpenAI 兼容基础 URL',
-        'settings.aiBaseUrlHint': '官方 OpenAI 请留空。若使用本地或第三方 OpenAI 兼容接口，例如 Ollama、LM Studio、GLM 或 vLLM，请在这里填写。',
+        'settings.aiBaseUrlHint': '官方 OpenAI 请留空。若使用本地或第三方 OpenAI 兼容接口，例如 llama.cpp、Ollama、LM Studio、GLM 或 vLLM，请在这里填写。',
         'settings.aiBaseUrlPlaceholder': 'http://localhost:11434/v1',
         'settings.aiApiKey': 'API 密钥',
         'settings.aiApiKeyHint': '仅保存在本机，不会同步。官方 OpenAI 必须填写密钥。自定义 OpenAI 兼容端点也可能需要密钥；仅当该端点允许匿名访问时才可留空。',

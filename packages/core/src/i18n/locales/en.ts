@@ -780,7 +780,7 @@ export const en: Record<string, string> = {
         'settings.aiProvider': 'Provider',
         'settings.aiModel': 'Model',
         'settings.aiBaseUrl': 'Custom OpenAI-compatible base URL',
-        'settings.aiBaseUrlHint': 'Leave blank for official OpenAI. Set this for local or third-party OpenAI-compatible APIs such as Ollama, LM Studio, GLM, or vLLM.',
+        'settings.aiBaseUrlHint': 'Leave blank for official OpenAI. Set this for local or third-party OpenAI-compatible APIs such as llama.cpp, Ollama, LM Studio, GLM, or vLLM.',
         'settings.aiBaseUrlPlaceholder': 'http://localhost:11434/v1',
         'settings.aiApiKey': 'API key',
         'settings.aiApiKeyHint': 'Stored locally on this device. Never synced. Official OpenAI requires a key. Custom OpenAI-compatible endpoints may also require one; leave it blank only if your endpoint allows unauthenticated requests.',

@@ -19,6 +19,18 @@ describe('ai-config endpoint mapping', () => {
         expect(config.endpoint).toBe('http://localhost:11434/v1/chat/completions');
     });
 
+    it('maps llama.cpp OpenAI-compatible base URL to chat completions endpoint', () => {
+        const config = buildAIConfig(
+            createSettings({
+                provider: 'openai',
+                model: 'llama-3.2',
+                baseUrl: 'http://localhost:8080/v1',
+            }),
+            '',
+        );
+        expect(config.endpoint).toBe('http://localhost:8080/v1/chat/completions');
+    });
+
     it('keeps chat completions endpoint unchanged', () => {
         const config = buildAIConfig(
             createSettings({
