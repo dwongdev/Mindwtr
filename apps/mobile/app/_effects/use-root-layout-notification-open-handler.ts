@@ -19,6 +19,14 @@ function isReviewReminderKind(kind: string | undefined): boolean {
     return kind === 'task-review' || kind === 'project-review';
 }
 
+function isWeeklyReviewOpen(kind: string | undefined, notificationId: string): boolean {
+    return kind === 'weekly-review' || notificationId === 'digest:weekly-review';
+}
+
+function isDailyReviewOpen(kind: string | undefined, notificationId: string): boolean {
+    return kind === 'daily-digest' || notificationId === 'digest:morning' || notificationId === 'digest:evening';
+}
+
 export function useRootLayoutNotificationOpenHandler({
     appReady,
     pathname,
@@ -82,11 +90,11 @@ export function useRootLayoutNotificationOpenHandler({
             router.push({ pathname: '/projects-screen', params: { projectId } });
             return;
         }
-        if (kind === 'daily-digest') {
+        if (isDailyReviewOpen(kind, openToken)) {
             router.push({ pathname: '/daily-review', params: { openToken } });
             return;
         }
-        if (kind === 'weekly-review') {
+        if (isWeeklyReviewOpen(kind, openToken)) {
             router.push({ pathname: '/weekly-review', params: { openToken } });
         }
     }, [router]);

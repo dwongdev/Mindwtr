@@ -149,6 +149,30 @@ describe('useRootLayoutNotificationOpenHandler', () => {
     });
   });
 
+  it('routes Android review alarm opens when only the alarm key is present', () => {
+    const router = { push: vi.fn() };
+
+    act(() => {
+      create(<TestHarness router={router} />);
+    });
+
+    const handler = setNotificationOpenHandler.mock.calls[0]?.[0];
+
+    act(() => {
+      handler({ notificationId: 'digest:evening' });
+      handler({ notificationId: 'digest:weekly-review' });
+    });
+
+    expect(router.push).toHaveBeenNthCalledWith(1, {
+      pathname: '/daily-review',
+      params: { openToken: 'digest:evening' },
+    });
+    expect(router.push).toHaveBeenNthCalledWith(2, {
+      pathname: '/weekly-review',
+      params: { openToken: 'digest:weekly-review' },
+    });
+  });
+
   it('waits for startup navigation to leave the root path before replaying a pending open', async () => {
     const router = { push: vi.fn() };
     consumePendingNotificationOpenPayload.mockResolvedValue({
