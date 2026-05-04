@@ -1394,6 +1394,39 @@ describe('Sync Logic', () => {
             });
         });
 
+        it('summarizes elided discarded-conflict warnings', () => {
+            const logs: LogPayload[] = [];
+            setLogger((payload) => {
+                logs.push(payload);
+            });
+
+            try {
+                const localTasks = Array.from({ length: 6 }, (_, index) =>
+                    createMockTask(
+                        `task-delete-wins-${index}`,
+                        '2026-04-01T00:01:00.000Z',
+                        '2026-04-01T00:01:00.000Z'
+                    )
+                );
+                const incomingTasks = Array.from({ length: 6 }, (_, index) => ({
+                    ...createMockTask(`task-delete-wins-${index}`, '2026-04-01T00:00:00.000Z'),
+                    title: `Edited elsewhere ${index}`,
+                }));
+
+                mergeAppDataWithStats(mockAppData(localTasks), mockAppData(incomingTasks));
+            } finally {
+                setLogger(consoleLogger);
+            }
+
+            expect(logs.filter((entry) => entry.message === 'syncConflictDiscarded')).toHaveLength(5);
+            const summary = logs.find((entry) => entry.message === 'syncConflictDiscardedSummary');
+            expect(summary?.context).toMatchObject({
+                entityType: 'task',
+                total: 6,
+                elided: 1,
+            });
+        });
+
         it('prefers deletion when legacy delete-vs-live operation times are equal', () => {
             const local = mockAppData([
                 createMockTask('1', '2023-01-02T00:00:00.000Z', '2023-01-02T00:05:00.000Z'),

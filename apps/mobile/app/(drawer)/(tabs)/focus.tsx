@@ -56,7 +56,7 @@ function filterSelectionStable<T>(current: T[], predicate: (item: T) => boolean)
 
 export default function FocusScreen() {
   const { taskId, openToken } = useLocalSearchParams<{ taskId?: string; openToken?: string }>();
-  const { tasks, projects, settings, updateTask, deleteTask, highlightTaskId, setHighlightTask } = useTaskStore();
+  const { tasks, projects, settings, updateTask, deleteTask, updateSettings, highlightTaskId, setHighlightTask } = useTaskStore();
   const { isDark } = useTheme();
   const { t } = useLanguage();
   const tc = useThemeColors();
@@ -68,7 +68,7 @@ export default function FocusScreen() {
   const [selectedPriorities, setSelectedPriorities] = useState<TaskPriority[]>([]);
   const [selectedEnergyLevels, setSelectedEnergyLevels] = useState<TaskEnergyLevel[]>([]);
   const [selectedTimeEstimates, setSelectedTimeEstimates] = useState<TimeEstimate[]>([]);
-  const [showFutureStarts, setShowFutureStarts] = useState(false);
+  const showFutureStarts = settings?.appearance?.showFutureStarts === true;
   const [expandedSections, setExpandedSections] = useState({
     focus: true,
     schedule: true,
@@ -142,6 +142,24 @@ export default function FocusScreen() {
   const resolveText = useCallback((key: string, fallback: string) => {
     return translateWithFallback(t, key, fallback);
   }, [t]);
+  const toggleFutureStarts = useCallback(() => {
+    void updateSettings({
+      appearance: {
+        ...(settings.appearance ?? {}),
+        showFutureStarts: !showFutureStarts,
+      },
+    }).catch(() => undefined);
+  }, [settings.appearance, showFutureStarts, updateSettings]);
+  const formatFutureStartNotice = useCallback((count: number, shown: boolean) => {
+    const template = shown
+      ? (count === 1
+        ? resolveText('agenda.futureStartsShownOne', '1 future-start task shown')
+        : resolveText('agenda.futureStartsShownMany', '{count} future-start tasks shown'))
+      : (count === 1
+        ? resolveText('agenda.futureStartsHiddenOne', '1 task hidden (future start)')
+        : resolveText('agenda.futureStartsHiddenMany', '{count} tasks hidden (future start)'));
+    return template.replace('{count}', String(count));
+  }, [resolveText]);
   const toggleToken = useCallback((token: string) => {
     setSelectedTokens((current) => (
       current.includes(token) ? current.filter((item) => item !== token) : [...current, token]
@@ -532,17 +550,17 @@ export default function FocusScreen() {
             {hiddenFutureStartCount > 0 ? (
               <View style={[styles.futureStartNotice, { borderColor: tc.border, backgroundColor: tc.cardBg }]}>
                 <Text style={[styles.futureStartText, { color: tc.secondaryText }]}>
-                  {showFutureStarts
-                    ? `${hiddenFutureStartCount} future-start tasks shown`
-                    : `${hiddenFutureStartCount} tasks hidden (future start)`}
+                  {formatFutureStartNotice(hiddenFutureStartCount, showFutureStarts)}
                 </Text>
                 <TouchableOpacity
                   accessibilityRole="button"
-                  onPress={() => setShowFutureStarts((current) => !current)}
+                  onPress={toggleFutureStarts}
                   style={styles.futureStartButton}
                 >
                   <Text style={[styles.futureStartButtonText, { color: tc.tint }]}>
-                    {showFutureStarts ? resolveText('common.hide', 'Hide') : resolveText('common.show', 'Show')}
+                    {showFutureStarts
+                      ? resolveText('agenda.hideFutureStarts', 'Hide')
+                      : resolveText('agenda.showFutureStarts', 'Show')}
                   </Text>
                 </TouchableOpacity>
               </View>

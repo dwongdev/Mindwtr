@@ -1,5 +1,5 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
-import { shallow, useTaskStore } from '@mindwtr/core';
+import { shallow, translateWithFallback, useTaskStore } from '@mindwtr/core';
 import { useLanguage } from './language-context';
 import { KeybindingHelpModal } from '../components/KeybindingHelpModal';
 import { isTauriRuntime } from '../lib/runtime';
@@ -151,6 +151,10 @@ export function KeybindingProvider({
     const undoLabel = useMemo(() => {
         const value = t('common.undo');
         return value && value !== 'common.undo' ? value : 'Undo';
+    }, [t]);
+    const formatTaskMarkedDoneMessage = useCallback((title: string) => {
+        return translateWithFallback(t, 'task.markedDone', '{title} marked Done')
+            .replace('{title}', title);
     }, [t]);
     const sortedAreas = useMemo(
         () => [...areas].sort((a, b) => a.order - b.order),
@@ -377,7 +381,7 @@ export function KeybindingProvider({
                 }
                 if (settings.undoNotificationsEnabled === false || nextStatus !== 'done' || previousStatus === 'done') return;
                 showToast(
-                    `${task.title} marked Done`,
+                    formatTaskMarkedDoneMessage(task.title),
                     'info',
                     5000,
                     {
@@ -389,7 +393,7 @@ export function KeybindingProvider({
                 );
             })
             .catch((error) => reportError('Failed to change task status', error));
-    }, [pickFallbackTaskElement, settings.undoNotificationsEnabled, showToast, undoLabel]);
+    }, [formatTaskMarkedDoneMessage, pickFallbackTaskElement, settings.undoNotificationsEnabled, showToast, undoLabel]);
 
     const fallbackDeleteSelected = useCallback(() => {
         const selectedElement = pickFallbackTaskElement();
@@ -402,8 +406,8 @@ export function KeybindingProvider({
                     throw new Error(result.error || 'Failed to delete task');
                 }
                 if (settings.undoNotificationsEnabled === false) return;
-                const deletedMessageRaw = t('task.aria.delete');
-                const deletedMessage = deletedMessageRaw && deletedMessageRaw !== 'task.aria.delete'
+                const deletedMessageRaw = t('list.taskDeleted');
+                const deletedMessage = deletedMessageRaw && deletedMessageRaw !== 'list.taskDeleted'
                     ? deletedMessageRaw
                     : 'Task deleted';
                 showToast(

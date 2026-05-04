@@ -56,7 +56,7 @@ export function SyncActivityIndicator() {
                 {
                     top: insets.top + 10,
                     backgroundColor: tc.cardBg,
-                    borderColor: hasSyncError ? '#EF4444' : tc.border,
+                    borderColor: hasSyncError ? tc.danger : tc.border,
                 },
             ]}
         >

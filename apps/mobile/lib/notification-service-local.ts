@@ -85,9 +85,12 @@ const LOCAL_WEEKLY_REVIEW_KEY = 'digest:weekly-review';
 const LOCAL_TASK_KEY_PREFIX = 'task:';
 const LOCAL_PROJECT_KEY_PREFIX = 'project:';
 const MAX_DUPLICATE_ALARM_RETRIES = 59;
-const MAX_PENDING_ONE_SHOT_REMINDER_ALARMS = 60;
+const MAX_PENDING_ONE_SHOT_REMINDER_ALARMS_IOS = 60;
+const MAX_PENDING_ONE_SHOT_REMINDER_ALARMS_ANDROID = 200;
 const ALARM_SCHEDULE_BATCH_SIZE = 10;
 const ONE_SHOT_TOP_UP_DELAY_MS = 5_000;
+const MAX_SETTIMEOUT_DELAY_MS = 24 * 60 * 60 * 1000;
+const NOTIFICATION_EVENT_RESCHEDULE_DEBOUNCE_MS = 250;
 
 let started = false;
 let alarmApi: AlarmNotificationsApi | null = null;
@@ -97,6 +100,7 @@ let openSubscription: NativeEmitterSubscription | null = null;
 let dismissSubscription: NativeEmitterSubscription | null = null;
 let rescheduleTimer: ReturnType<typeof setTimeout> | null = null;
 let oneShotTopUpTimer: ReturnType<typeof setTimeout> | null = null;
+let notificationEventRescheduleTimer: ReturnType<typeof setTimeout> | null = null;
 let rescheduleQueue: Promise<void> = Promise.resolve();
 let alarmMap = new Map<string, LocalAlarmMapEntry>();
 let loadedAlarmMap = false;
@@ -131,6 +135,7 @@ function resetRuntimeState(): void {
   notificationOpenHandler = null;
   alarmMapLoadPromise = null;
   clearOneShotTopUpTimer();
+  clearNotificationEventRescheduleTimer();
 }
 
 function clearRescheduleTimer(): void {
@@ -143,6 +148,18 @@ function clearOneShotTopUpTimer(): void {
   if (!oneShotTopUpTimer) return;
   clearTimeout(oneShotTopUpTimer);
   oneShotTopUpTimer = null;
+}
+
+function clearNotificationEventRescheduleTimer(): void {
+  if (!notificationEventRescheduleTimer) return;
+  clearTimeout(notificationEventRescheduleTimer);
+  notificationEventRescheduleTimer = null;
+}
+
+function getMaxPendingOneShotReminderAlarms(): number {
+  return Platform.OS === 'ios'
+    ? MAX_PENDING_ONE_SHOT_REMINDER_ALARMS_IOS
+    : MAX_PENDING_ONE_SHOT_REMINDER_ALARMS_ANDROID;
 }
 
 async function getAndroidNotificationPermissionStatus(): Promise<NotificationPermissionResult> {
@@ -339,7 +356,7 @@ function attachNativeEventListeners(): void {
     const data = parseEventPayload(payload);
     if (!data) return;
     if (alarmApi && (data.taskId || data.projectId)) {
-      enqueueReschedule(alarmApi);
+      enqueueNotificationEventReschedule(alarmApi);
     }
     if (!notificationOpenHandler) return;
     try {
@@ -359,7 +376,7 @@ function attachNativeEventListeners(): void {
   dismissSubscription = emitter.addListener('OnNotificationDismissed', (payload: unknown) => {
     const data = parseEventPayload(payload);
     if (alarmApi && data && (data.taskId || data.projectId)) {
-      enqueueReschedule(alarmApi);
+      enqueueNotificationEventReschedule(alarmApi);
     }
   });
 }
@@ -509,7 +526,8 @@ function scheduleOneShotTopUp(api: AlarmNotificationsApi, reminders: OneShotRemi
   const nextFireAtMs = reminders[0]?.fireAtMs;
   if (!Number.isFinite(nextFireAtMs)) return;
 
-  const delayMs = Math.max(ONE_SHOT_TOP_UP_DELAY_MS, nextFireAtMs - nowMs + ONE_SHOT_TOP_UP_DELAY_MS);
+  const rawDelayMs = Math.max(ONE_SHOT_TOP_UP_DELAY_MS, nextFireAtMs - nowMs + ONE_SHOT_TOP_UP_DELAY_MS);
+  const delayMs = Math.min(MAX_SETTIMEOUT_DELAY_MS, rawDelayMs);
   oneShotTopUpTimer = setTimeout(() => {
     oneShotTopUpTimer = null;
     enqueueReschedule(api);
@@ -643,7 +661,7 @@ async function runRescheduleCycle(api: AlarmNotificationsApi): Promise<void> {
   }
 
   oneShotReminders.sort((left, right) => left.fireAtMs - right.fireAtMs);
-  const cappedOneShotReminders = oneShotReminders.slice(0, MAX_PENDING_ONE_SHOT_REMINDER_ALARMS);
+  const cappedOneShotReminders = oneShotReminders.slice(0, getMaxPendingOneShotReminderAlarms());
   for (const reminder of cappedOneShotReminders) {
     activeKeys.add(reminder.key);
   }
@@ -661,6 +679,14 @@ function enqueueReschedule(api: AlarmNotificationsApi): void {
       await runRescheduleCycle(api);
     })
     .catch((error) => logNotificationError('Failed to reschedule local notifications', error));
+}
+
+function enqueueNotificationEventReschedule(api: AlarmNotificationsApi): void {
+  clearNotificationEventRescheduleTimer();
+  notificationEventRescheduleTimer = setTimeout(() => {
+    notificationEventRescheduleTimer = null;
+    enqueueReschedule(api);
+  }, NOTIFICATION_EVENT_RESCHEDULE_DEBOUNCE_MS);
 }
 
 export function setLocalNotificationOpenHandler(handler: NotificationOpenHandler | null): void {
@@ -787,6 +813,7 @@ export async function startLocalMobileNotifications(): Promise<void> {
 
 export async function stopLocalMobileNotifications(): Promise<void> {
   clearRescheduleTimer();
+  clearNotificationEventRescheduleTimer();
 
   storeSubscription?.();
   storeSubscription = null;

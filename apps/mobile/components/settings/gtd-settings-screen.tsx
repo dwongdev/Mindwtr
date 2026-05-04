@@ -865,6 +865,10 @@ export function GtdSettingsScreen({
         );
     }
 
+    if (screen !== 'gtd-task-editor') {
+        throw new Error(`Unhandled GTD settings screen: ${screen}`);
+    }
+
     const featureHiddenFields = new Set<TaskEditorFieldId>();
     if (!prioritiesEnabled) featureHiddenFields.add('priority');
     if (!timeEstimatesEnabled) featureHiddenFields.add('timeEstimate');

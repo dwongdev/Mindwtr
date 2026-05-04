@@ -565,6 +565,18 @@ function mergeEntitiesWithStats<T extends MergeableEntity>(
         merged.push(normalizeTimestamps(mergedItem));
     }
 
+    if (discardedLiveConflictWarnings > 5) {
+        logWarn('syncConflictDiscardedSummary', {
+            scope: 'sync',
+            category: 'sync',
+            context: {
+                entityType,
+                total: discardedLiveConflictWarnings,
+                elided: discardedLiveConflictWarnings - 5,
+            },
+        });
+    }
+
     stats.mergedTotal = merged.length;
 
     return { merged, stats };

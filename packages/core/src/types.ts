@@ -261,6 +261,7 @@ export interface AppData {
             density?: 'comfortable' | 'compact';
             textSize?: 'default' | 'large' | 'extra-large';
             showTaskAge?: boolean;
+            showFutureStarts?: boolean;
             unassignedAreaColor?: string;
         };
         theme?: 'light' | 'dark' | 'system' | 'eink' | 'nord' | 'sepia' | 'material3-light' | 'material3-dark' | 'oled';

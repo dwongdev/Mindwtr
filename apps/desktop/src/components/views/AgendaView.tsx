@@ -152,12 +152,13 @@ function AgendaTaskList({
 
 export function AgendaView() {
     const perf = usePerformanceMonitor('AgendaView');
-    const { tasks, projects, areas, updateTask, settings, highlightTaskId, setHighlightTask } = useTaskStore(
+    const { tasks, projects, areas, updateTask, updateSettings, settings, highlightTaskId, setHighlightTask } = useTaskStore(
         (state) => ({
             tasks: state.tasks,
             projects: state.projects,
             areas: state.areas,
             updateTask: state.updateTask,
+            updateSettings: state.updateSettings,
             settings: state.settings,
             highlightTaskId: state.highlightTaskId,
             setHighlightTask: state.setHighlightTask,
@@ -181,7 +182,7 @@ export function AgendaView() {
     const [searchQuery, setSearchQuery] = useState('');
     const [filtersOpen, setFiltersOpen] = useState(false);
     const [top3Only, setTop3Only] = useState(false);
-    const [showFutureStarts, setShowFutureStarts] = useState(false);
+    const showFutureStarts = settings?.appearance?.showFutureStarts === true;
     const [expandedSections, setExpandedSections] = useState({
         schedule: true,
         nextActions: true,
@@ -288,6 +289,24 @@ export function AgendaView() {
     const resolveText = useCallback((key: string, fallback: string) => {
         return translateWithFallback(t, key, fallback);
     }, [t]);
+    const toggleFutureStarts = useCallback(() => {
+        void updateSettings({
+            appearance: {
+                ...(settings.appearance ?? {}),
+                showFutureStarts: !showFutureStarts,
+            },
+        }).catch(() => undefined);
+    }, [settings.appearance, showFutureStarts, updateSettings]);
+    const formatFutureStartNotice = useCallback((count: number, shown: boolean) => {
+        const template = shown
+            ? (count === 1
+                ? resolveText('agenda.futureStartsShownOne', '1 future-start task shown')
+                : resolveText('agenda.futureStartsShownMany', '{count} future-start tasks shown'))
+            : (count === 1
+                ? resolveText('agenda.futureStartsHiddenOne', '1 task hidden (future start)')
+                : resolveText('agenda.futureStartsHiddenMany', '{count} tasks hidden (future start)'));
+        return template.replace('{count}', String(count));
+    }, [resolveText]);
     const activeFilterChips = useMemo<AgendaActiveFilterChip[]>(() => {
         const chips: AgendaActiveFilterChip[] = [];
         selectedTokens.forEach((token) => {
@@ -692,16 +711,16 @@ export function AgendaView() {
             {hiddenFutureStartCount > 0 && (
                 <div className="flex items-center justify-between gap-3 rounded-md border border-border bg-muted/25 px-3 py-2 text-sm">
                     <span className="text-muted-foreground">
-                        {showFutureStarts
-                            ? `${hiddenFutureStartCount} future-start tasks shown`
-                            : `${hiddenFutureStartCount} tasks hidden (future start)`}
+                        {formatFutureStartNotice(hiddenFutureStartCount, showFutureStarts)}
                     </span>
                     <button
                         type="button"
                         className="text-sm font-medium text-primary hover:text-primary/80"
-                        onClick={() => setShowFutureStarts((current) => !current)}
+                        onClick={toggleFutureStarts}
                     >
-                        {showFutureStarts ? 'Hide' : 'Show'}
+                        {showFutureStarts
+                            ? resolveText('agenda.hideFutureStarts', 'Hide')
+                            : resolveText('agenda.showFutureStarts', 'Show')}
                     </button>
                 </div>
             )}

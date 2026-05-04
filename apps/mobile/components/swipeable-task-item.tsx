@@ -212,7 +212,13 @@ export function SwipeableTaskItem({
                     onPress: () => {
                         void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning).catch(() => undefined);
                         cancelPendingChecklist();
-                        void Promise.resolve(onDelete())
+                        let deletePromise: Promise<unknown>;
+                        try {
+                            deletePromise = Promise.resolve(onDelete());
+                        } catch (error) {
+                            deletePromise = Promise.reject(error);
+                        }
+                        void deletePromise
                             .then(() => {
                                 if (!undoNotificationsEnabled) return;
                                 showToast({
