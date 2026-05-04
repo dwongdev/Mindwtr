@@ -218,6 +218,40 @@ describe('notification-service-local', () => {
     );
   });
 
+  it('only schedules the next 60 upcoming task reminders', async () => {
+    const baseTime = new Date('2026-03-04T12:00:00.000Z');
+    vi.useFakeTimers();
+    vi.setSystemTime(baseTime);
+
+    try {
+      mockStoreState.tasks = Array.from({ length: 65 }, (_, index) => ({
+        id: `task-${index}`,
+        title: `Task ${index}`,
+        description: '',
+      })).reverse();
+      mockGetNextScheduledAt.mockImplementation((task) => {
+        const id = String((task as { id: string }).id);
+        const index = Number(id.replace('task-', ''));
+        return new Date(baseTime.getTime() + (index + 1) * 60_000);
+      });
+
+      await startLocalMobileNotifications();
+
+      const scheduledTaskIds = new Set(
+        mockAlarmScheduleAlarm.mock.calls
+          .map(([details]) => (details as { data?: { taskId?: string } }).data?.taskId)
+          .filter((taskId): taskId is string => typeof taskId === 'string')
+      );
+
+      expect(scheduledTaskIds.size).toBe(60);
+      expect(scheduledTaskIds.has('task-0')).toBe(true);
+      expect(scheduledTaskIds.has('task-59')).toBe(true);
+      expect(scheduledTaskIds.has('task-60')).toBe(false);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it('passes separate start and due reminder preferences into task scheduling', async () => {
     mockStoreState.settings = {
       notificationsEnabled: true,

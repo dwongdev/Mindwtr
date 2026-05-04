@@ -85,6 +85,9 @@ const LOCAL_WEEKLY_REVIEW_KEY = 'digest:weekly-review';
 const LOCAL_TASK_KEY_PREFIX = 'task:';
 const LOCAL_PROJECT_KEY_PREFIX = 'project:';
 const MAX_DUPLICATE_ALARM_RETRIES = 59;
+const MAX_PENDING_ONE_SHOT_REMINDER_ALARMS = 60;
+const ALARM_SCHEDULE_BATCH_SIZE = 10;
+const ONE_SHOT_TOP_UP_DELAY_MS = 5_000;
 
 let started = false;
 let alarmApi: AlarmNotificationsApi | null = null;
@@ -93,11 +96,21 @@ let storeSubscription: (() => void) | null = null;
 let openSubscription: NativeEmitterSubscription | null = null;
 let dismissSubscription: NativeEmitterSubscription | null = null;
 let rescheduleTimer: ReturnType<typeof setTimeout> | null = null;
+let oneShotTopUpTimer: ReturnType<typeof setTimeout> | null = null;
 let rescheduleQueue: Promise<void> = Promise.resolve();
 let alarmMap = new Map<string, LocalAlarmMapEntry>();
 let loadedAlarmMap = false;
 let alarmMapLoadPromise: Promise<void> | null = null;
 const configByKey = new Map<string, string>();
+
+type AlarmScheduleRequest = {
+  key: string;
+  config: LocalAlarmConfig;
+};
+
+type OneShotReminderRequest = AlarmScheduleRequest & {
+  fireAtMs: number;
+};
 
 const logNotificationError = (message: string, error?: unknown) => {
   const extra = error ? { error: error instanceof Error ? error.message : String(error) } : undefined;
@@ -117,12 +130,19 @@ function resetRuntimeState(): void {
   rescheduleQueue = Promise.resolve();
   notificationOpenHandler = null;
   alarmMapLoadPromise = null;
+  clearOneShotTopUpTimer();
 }
 
 function clearRescheduleTimer(): void {
   if (!rescheduleTimer) return;
   clearTimeout(rescheduleTimer);
   rescheduleTimer = null;
+}
+
+function clearOneShotTopUpTimer(): void {
+  if (!oneShotTopUpTimer) return;
+  clearTimeout(oneShotTopUpTimer);
+  oneShotTopUpTimer = null;
 }
 
 async function getAndroidNotificationPermissionStatus(): Promise<NotificationPermissionResult> {
@@ -317,7 +337,11 @@ function attachNativeEventListeners(): void {
   openSubscription?.remove();
   openSubscription = emitter.addListener('OnNotificationOpened', (payload: unknown) => {
     const data = parseEventPayload(payload);
-    if (!data || !notificationOpenHandler) return;
+    if (!data) return;
+    if (alarmApi && (data.taskId || data.projectId)) {
+      enqueueReschedule(alarmApi);
+    }
+    if (!notificationOpenHandler) return;
     try {
       notificationOpenHandler({
         notificationId: data.alarmKey || data.id,
@@ -332,8 +356,11 @@ function attachNativeEventListeners(): void {
   });
 
   dismissSubscription?.remove();
-  dismissSubscription = emitter.addListener('OnNotificationDismissed', () => {
-    // No-op: kept for symmetry and possible future cleanup hooks.
+  dismissSubscription = emitter.addListener('OnNotificationDismissed', (payload: unknown) => {
+    const data = parseEventPayload(payload);
+    if (alarmApi && data && (data.taskId || data.projectId)) {
+      enqueueReschedule(alarmApi);
+    }
   });
 }
 
@@ -461,11 +488,32 @@ async function scheduleAlarmForKey(api: AlarmNotificationsApi, key: string, conf
   configByKey.set(key, signature);
 }
 
+async function scheduleAlarmRequests(api: AlarmNotificationsApi, requests: AlarmScheduleRequest[]): Promise<void> {
+  for (let index = 0; index < requests.length; index += ALARM_SCHEDULE_BATCH_SIZE) {
+    const batch = requests.slice(index, index + ALARM_SCHEDULE_BATCH_SIZE);
+    await Promise.all(batch.map((request) => scheduleAlarmForKey(api, request.key, request.config)));
+  }
+}
+
 async function cancelInactiveKeys(api: AlarmNotificationsApi, activeKeys: Set<string>): Promise<void> {
   for (const key of Array.from(alarmMap.keys())) {
     if (activeKeys.has(key)) continue;
     await cancelAlarmByKey(api, key);
   }
+}
+
+function scheduleOneShotTopUp(api: AlarmNotificationsApi, reminders: OneShotReminderRequest[], nowMs: number): void {
+  clearOneShotTopUpTimer();
+  if (reminders.length === 0) return;
+
+  const nextFireAtMs = reminders[0]?.fireAtMs;
+  if (!Number.isFinite(nextFireAtMs)) return;
+
+  const delayMs = Math.max(ONE_SHOT_TOP_UP_DELAY_MS, nextFireAtMs - nowMs + ONE_SHOT_TOP_UP_DELAY_MS);
+  oneShotTopUpTimer = setTimeout(() => {
+    oneShotTopUpTimer = null;
+    enqueueReschedule(api);
+  }, delayMs);
 }
 
 async function runRescheduleCycle(api: AlarmNotificationsApi): Promise<void> {
@@ -479,6 +527,7 @@ async function runRescheduleCycle(api: AlarmNotificationsApi): Promise<void> {
   const weeklyReviewEnabled = isWeeklyReviewReminderEnabled(settings);
 
   if (!hasActiveMobileNotificationFeature(settings)) {
+    clearOneShotTopUpTimer();
     for (const key of Array.from(alarmMap.keys())) {
       await cancelAlarmByKey(api, key);
     }
@@ -532,27 +581,33 @@ async function runRescheduleCycle(api: AlarmNotificationsApi): Promise<void> {
   }
 
   const now = new Date();
+  const nowMs = now.getTime();
   const includeReviewAt = taskRemindersEnabled && settings.reviewAtNotificationsEnabled !== false;
+  const oneShotReminders: OneShotReminderRequest[] = [];
 
   if (taskRemindersEnabled) {
     for (const task of tasks) {
       const next = getNextScheduledAt(task, now, { includeStartTime, includeDueDate, includeReviewAt });
-      if (!next || next.getTime() <= now.getTime()) continue;
+      const fireAtMs = next?.getTime() ?? NaN;
+      if (!next || fireAtMs <= nowMs) continue;
       const reviewAt = includeReviewAt && hasTimeComponent(task.reviewAt)
         ? safeParseDate(task.reviewAt)
         : null;
       const kind = isSameScheduleTime(next, reviewAt) ? 'task-review' : 'task-reminder';
       const key = getTaskKey(task.id);
-      activeKeys.add(key);
-      await scheduleAlarmForKey(api, key, {
-        title: task.title,
-        message: task.description || '',
-        fireAt: next,
-        hasSnoozeAction: true,
-        hasCompleteAction: kind === 'task-reminder',
-        data: {
-          kind,
-          taskId: task.id,
+      oneShotReminders.push({
+        key,
+        fireAtMs,
+        config: {
+          title: task.title,
+          message: task.description || '',
+          fireAt: next,
+          hasSnoozeAction: true,
+          hasCompleteAction: kind === 'task-reminder',
+          data: {
+            kind,
+            taskId: task.id,
+          },
         },
       });
     }
@@ -568,20 +623,32 @@ async function runRescheduleCycle(api: AlarmNotificationsApi): Promise<void> {
       if (!hasTimeComponent(project.reviewAt)) {
         reviewAt.setHours(9, 0, 0, 0);
       }
-      if (reviewAt.getTime() <= now.getTime()) continue;
+      const fireAtMs = reviewAt.getTime();
+      if (fireAtMs <= nowMs) continue;
       const key = getProjectKey(project.id);
-      activeKeys.add(key);
-      await scheduleAlarmForKey(api, key, {
-        title: project.title,
-        message: reviewLabel,
-        fireAt: reviewAt,
-        data: {
-          kind: 'project-review',
-          projectId: project.id,
+      oneShotReminders.push({
+        key,
+        fireAtMs,
+        config: {
+          title: project.title,
+          message: reviewLabel,
+          fireAt: reviewAt,
+          data: {
+            kind: 'project-review',
+            projectId: project.id,
+          },
         },
       });
     }
   }
+
+  oneShotReminders.sort((left, right) => left.fireAtMs - right.fireAtMs);
+  const cappedOneShotReminders = oneShotReminders.slice(0, MAX_PENDING_ONE_SHOT_REMINDER_ALARMS);
+  for (const reminder of cappedOneShotReminders) {
+    activeKeys.add(reminder.key);
+  }
+  await scheduleAlarmRequests(api, cappedOneShotReminders);
+  scheduleOneShotTopUp(api, cappedOneShotReminders, nowMs);
 
   await cancelInactiveKeys(api, activeKeys);
   await saveAlarmMap();
