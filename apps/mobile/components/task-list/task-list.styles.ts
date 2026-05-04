@@ -273,6 +273,70 @@ export const styles = StyleSheet.create({
   staticItem: {
     marginBottom: 0,
   },
+  projectReorderModeBar: {
+    minHeight: 44,
+    paddingHorizontal: 16,
+    paddingVertical: 6,
+    borderBottomWidth: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 12,
+  },
+  projectReorderTitle: {
+    flex: 1,
+    minWidth: 0,
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  projectReorderModeButton: {
+    minHeight: 36,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderWidth: 1,
+    borderRadius: 8,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  projectReorderModeButtonText: {
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  projectReorderIconButton: {
+    width: 44,
+    height: 44,
+    borderWidth: 1,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  projectDragGroup: {
+    paddingHorizontal: 12,
+  },
+  projectDragList: {
+    overflow: 'visible',
+  },
+  projectDragTaskRow: {
+    flexDirection: 'row',
+    alignItems: 'stretch',
+    gap: 8,
+  },
+  projectDragTaskRowActive: {
+    opacity: 0.92,
+  },
+  projectDragTaskContent: {
+    flex: 1,
+    minWidth: 0,
+  },
+  projectDragHandle: {
+    width: 44,
+    marginBottom: 8,
+    minHeight: 72,
+    borderWidth: 1,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   listContent: {
     padding: 12,
   },

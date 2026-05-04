@@ -1,6 +1,8 @@
 import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react';
-import { View, FlatList, Text, RefreshControl, Keyboard } from 'react-native';
+import { View, FlatList, Text, RefreshControl, Keyboard, TouchableOpacity, useWindowDimensions } from 'react-native';
 import { router } from 'expo-router';
+import { GripVertical, MoveVertical } from 'lucide-react-native';
+import { NestableDraggableFlatList, ScaleDecorator, type DragEndParams, type RenderItemParams } from 'react-native-draggable-flatlist';
 import {
   useTaskStore,
   Task,
@@ -51,6 +53,11 @@ import { styles } from './task-list/task-list.styles';
 import {
   matchesSelectedTimeEstimates,
 } from './time-estimate-filter-utils';
+import {
+  buildProjectTaskReorderGroups,
+  type ProjectTaskReorderGroup,
+  sortProjectTasksByOrder,
+} from './task-list-utils';
 import { useTaskListSelection } from './use-task-list-selection';
 
 const REMOVE_CLIPPED_SUBVIEWS_MIN_ITEMS = 15;
@@ -72,6 +79,9 @@ export interface TaskListProps {
   enableCopilot?: boolean;
   defaultEditTab?: 'task' | 'view';
   contentPaddingBottom?: number;
+  enableProjectReorder?: boolean;
+  projectReorderMode?: boolean;
+  onProjectReorderModeChange?: (active: boolean) => void;
 }
 
 // ... inside TaskList component
@@ -92,10 +102,14 @@ function TaskListComponent({
   enableCopilot = true,
   defaultEditTab,
   contentPaddingBottom,
+  enableProjectReorder = false,
+  projectReorderMode: projectReorderModeProp,
+  onProjectReorderModeChange,
 }: TaskListProps) {
   const { isDark } = useTheme();
   const { t, language } = useLanguage();
   const { showToast } = useToast();
+  const { width: windowWidth } = useWindowDimensions();
   const {
     tasks,
     projects,
@@ -110,6 +124,7 @@ function TaskListComponent({
     batchMoveTasks,
     batchDeleteTasks,
     batchUpdateTasks,
+    reorderProjectTasks,
     settings,
     updateSettings,
     highlightTaskId,
@@ -128,6 +143,7 @@ function TaskListComponent({
     batchMoveTasks: state.batchMoveTasks,
     batchDeleteTasks: state.batchDeleteTasks,
     batchUpdateTasks: state.batchUpdateTasks,
+    reorderProjectTasks: state.reorderProjectTasks,
     settings: state.settings,
     updateSettings: state.updateSettings,
     highlightTaskId: state.highlightTaskId,
@@ -144,6 +160,7 @@ function TaskListComponent({
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [sortModalVisible, setSortModalVisible] = useState(false);
+  const [internalProjectReorderMode, setInternalProjectReorderMode] = useState(false);
   const [selectedTimeEstimates, setSelectedTimeEstimates] = useState<TimeEstimate[]>([]);
   const [inputSelection, setInputSelection] = useState<{ start: number; end: number }>({ start: 0, end: 0 });
   const [typeaheadOpen, setTypeaheadOpen] = useState(false);
@@ -238,6 +255,8 @@ function TaskListComponent({
   });
 
   const sortBy = (settings?.taskSortBy ?? 'default') as TaskSortBy;
+  const canUseProjectReorder = Boolean(enableProjectReorder && projectId);
+  const projectReorderMode = projectReorderModeProp ?? internalProjectReorderMode;
   const aiEnabled = settings?.ai?.enabled === true;
   const aiProvider = (settings?.ai?.provider ?? 'openai') as AIProviderId;
   const keyRequired = isAIKeyRequired(settings);
@@ -252,6 +271,32 @@ function TaskListComponent({
       setSelectedTimeEstimates([]);
     }
   }, [selectedTimeEstimates.length, showTimeEstimateFilters]);
+
+  const lastProjectIdRef = useRef(projectId);
+  const setProjectReorderMode = useCallback((active: boolean) => {
+    if (projectReorderModeProp === undefined) {
+      setInternalProjectReorderMode(active);
+    }
+    onProjectReorderModeChange?.(active);
+  }, [onProjectReorderModeChange, projectReorderModeProp]);
+
+  useEffect(() => {
+    if (lastProjectIdRef.current === projectId) return;
+    lastProjectIdRef.current = projectId;
+    setProjectReorderMode(false);
+  }, [projectId, setProjectReorderMode]);
+
+  useEffect(() => {
+    if (!canUseProjectReorder && projectReorderMode) {
+      setProjectReorderMode(false);
+    }
+  }, [canUseProjectReorder, projectReorderMode, setProjectReorderMode]);
+
+  useEffect(() => {
+    if (projectReorderMode && selectionMode) {
+      exitSelectionMode();
+    }
+  }, [exitSelectionMode, projectReorderMode, selectionMode]);
 
   const toggleTimeEstimate = useCallback((estimate: TimeEstimate) => {
     setSelectedTimeEstimates((prev) => (
@@ -277,8 +322,11 @@ function TaskListComponent({
   }, [tasks, statusFilter, projectId, selectedTimeEstimates, showTimeEstimateFilters, resolvedAreaFilter, projectById, areaById]);
 
   const orderedTasks = useMemo(() => {
+    if (projectId && enableProjectReorder) {
+      return sortProjectTasksByOrder(filteredTasks);
+    }
     return sortTasksBy(filteredTasks, sortBy);
-  }, [filteredTasks, sortBy]);
+  }, [enableProjectReorder, filteredTasks, projectId, sortBy]);
 
   const projectSections = useMemo(() => {
     if (!projectId) return [];
@@ -294,7 +342,7 @@ function TaskListComponent({
 
   type ListItem =
     | { type: 'section'; id: string; title: string; count: number; muted?: boolean }
-    | { type: 'task'; task: Task };
+    | { type: 'task'; task: Task; reorderSectionId?: string | null };
 
   const LIST_CONTENT_VERTICAL_PADDING = 12;
   const ESTIMATED_SECTION_HEIGHT = 32;
@@ -345,7 +393,7 @@ function TaskListComponent({
 
     const shouldGroup = Boolean(projectId) && (projectSections.length > 0 || orderedTasks.some((task) => task.sectionId));
     if (!shouldGroup) {
-      return orderedTasks.map((task) => ({ type: 'task', task }));
+      return orderedTasks.map((task) => ({ type: 'task', task, reorderSectionId: projectId ? undefined : task.sectionId }));
     }
     const sectionIds = new Set(projectSections.map((section) => section.id));
     const tasksBySection = new Map<string, Task[]>();
@@ -365,9 +413,10 @@ function TaskListComponent({
       const tasksForSection = tasksBySection.get(section.id) ?? [];
       if (tasksForSection.length === 0) return;
       items.push({ type: 'section', id: section.id, title: section.title, count: tasksForSection.length });
-      tasksForSection.forEach((task) => items.push({ type: 'task', task }));
+      tasksForSection.forEach((task) => items.push({ type: 'task', task, reorderSectionId: section.id }));
     });
     if (unsectioned.length > 0) {
+      const reorderSectionId = projectSections.length > 0 ? null : undefined;
       items.push({
         type: 'section',
         id: 'no-section',
@@ -375,7 +424,7 @@ function TaskListComponent({
         count: unsectioned.length,
         muted: true,
       });
-      unsectioned.forEach((task) => items.push({ type: 'task', task }));
+      unsectioned.forEach((task) => items.push({ type: 'task', task, reorderSectionId }));
     }
     return items;
   }, [areas, orderedTasks, projectById, projectId, projectSections, statusFilter, t]);
@@ -417,6 +466,42 @@ function TaskListComponent({
       offset: LIST_CONTENT_VERTICAL_PADDING + (ESTIMATED_TASK_HEIGHT * index),
     };
   }, [itemLayouts]);
+
+  const projectReorderGroups = useMemo<ProjectTaskReorderGroup<Task>[]>(() => {
+    if (!canUseProjectReorder) return [];
+    return buildProjectTaskReorderGroups<Task>(listItems);
+  }, [canUseProjectReorder, listItems]);
+  const hasProjectReorderTasks = projectReorderGroups.some((group) => group.tasks.length > 0);
+  const projectDragHitSlop = useMemo(() => ({
+    bottom: 0,
+    left: -Math.max(windowWidth - 96, 0),
+    right: 0,
+    top: 0,
+  }), [windowWidth]);
+
+  const handleToggleProjectReorderMode = useCallback(() => {
+    if (!canUseProjectReorder) return;
+    exitSelectionMode();
+    setProjectReorderMode(!projectReorderMode);
+  }, [canUseProjectReorder, exitSelectionMode, projectReorderMode, setProjectReorderMode]);
+
+  const handleProjectTaskDragEnd = useCallback((
+    sectionId: string | null | undefined,
+    params: DragEndParams<Task>,
+  ) => {
+    if (!projectId) return;
+    if (params.from === params.to) return;
+    const orderedIds = params.data.map((task) => task.id);
+
+    void Promise.resolve(reorderProjectTasks(projectId, orderedIds, sectionId)).catch((error) => {
+      void logError(error, { scope: 'project', extra: { message: 'Failed to reorder project tasks' } });
+      showToast({
+        title: t('common.notice'),
+        message: tFallback(t, 'projects.taskReorderFailed', 'Failed to reorder tasks.'),
+        tone: 'error',
+      });
+    });
+  }, [projectId, reorderProjectTasks, showToast, t]);
 
   const contextOptions = useMemo(() => {
     return getUsedTaskTokens(tasks, (task) => task.contexts, { prefix: '@' });
@@ -707,6 +792,54 @@ function TaskListComponent({
     projectId,
   ]);
 
+  const renderProjectReorderTask = useCallback(({ drag, isActive, item }: RenderItemParams<Task>) => (
+    <ScaleDecorator activeScale={1.02}>
+      <View style={[styles.projectDragTaskRow, isActive && styles.projectDragTaskRowActive]}>
+        <View style={styles.projectDragTaskContent}>
+          <ErrorBoundary>
+            <SwipeableTaskItem
+              task={item}
+              isDark={isDark}
+              tc={themeColorsMemo}
+              onPress={() => undefined}
+              selectionMode={false}
+              isMultiSelected={false}
+              onStatusChange={(status) => { void updateTask(item.id, { status: status as TaskStatus }); }}
+              onDelete={() => { void deleteTask(item.id); }}
+              isHighlighted={item.id === highlightTaskId}
+              hideStatusBadge
+              disableSwipe
+              interactionDisabled
+              hideChecklistProgress={hideChecklistProgressForList}
+            />
+          </ErrorBoundary>
+        </View>
+        <TouchableOpacity
+          accessibilityLabel={`${tFallback(t, 'board.dragTask', 'Drag task')}: ${item.title}`}
+          accessibilityRole="button"
+          activeOpacity={0.85}
+          disabled={isActive}
+          onPressIn={drag}
+          style={[
+            styles.projectDragHandle,
+            { backgroundColor: themeColorsMemo.filterBg, borderColor: themeColorsMemo.border },
+          ]}
+          testID={`project-task-drag-handle-${item.id}`}
+        >
+          <GripVertical size={20} color={themeColorsMemo.secondaryText} />
+        </TouchableOpacity>
+      </View>
+    </ScaleDecorator>
+  ), [
+    deleteTask,
+    hideChecklistProgressForList,
+    highlightTaskId,
+    isDark,
+    t,
+    themeColorsMemo,
+    updateTask,
+  ]);
+
   const renderListItem = useCallback(({ item }: { item: ListItem }) => {
     const itemKey = getListItemKey(item);
     if (item.type === 'section') {
@@ -730,6 +863,49 @@ function TaskListComponent({
       </View>
     );
   }, [getListItemKey, registerItemHeight, renderTask, themeColorsMemo.secondaryText, themeColorsMemo.text]);
+
+  const renderProjectReorderGroup = useCallback((group: ProjectTaskReorderGroup<Task>) => (
+    <View key={group.id} style={styles.projectDragGroup}>
+      {group.title ? (
+        <View style={styles.sectionHeader}>
+          <Text style={[styles.sectionTitle, { color: group.muted ? themeColorsMemo.secondaryText : themeColorsMemo.text }]}>
+            {group.title}
+          </Text>
+          <Text style={[styles.sectionCount, { color: themeColorsMemo.secondaryText }]}>
+            {group.tasks.length}
+          </Text>
+        </View>
+      ) : null}
+      <NestableDraggableFlatList
+        data={group.tasks}
+        keyExtractor={(task) => task.id}
+        renderItem={renderProjectReorderTask}
+        onDragEnd={(params) => handleProjectTaskDragEnd(group.sectionId, params)}
+        activationDistance={2}
+        autoscrollThreshold={80}
+        autoscrollSpeed={120}
+        dragItemOverflow
+        dragHitSlop={projectDragHitSlop}
+        style={styles.projectDragList}
+      />
+    </View>
+  ), [handleProjectTaskDragEnd, projectDragHitSlop, renderProjectReorderTask, themeColorsMemo.secondaryText, themeColorsMemo.text]);
+
+  const projectReorderToggle = canUseProjectReorder && hasProjectReorderTasks && !projectReorderMode ? (
+    <TouchableOpacity
+      accessibilityLabel={tFallback(t, 'projects.reorderTasks', 'Order')}
+      accessibilityRole="button"
+      onPress={handleToggleProjectReorderMode}
+      style={[
+        styles.projectReorderIconButton,
+        { backgroundColor: themeColorsMemo.filterBg, borderColor: themeColorsMemo.border },
+      ]}
+      testID="project-task-reorder-toggle"
+    >
+      <MoveVertical size={20} color={themeColorsMemo.secondaryText} />
+    </TouchableOpacity>
+  ) : null;
+
   return (
     <View style={[styles.container, { backgroundColor: themeColorsMemo.bg }]}>
       <TaskListHeader
@@ -752,7 +928,7 @@ function TaskListComponent({
         toggleTimeEstimate={toggleTimeEstimate}
       />
 
-      {enableBulkActions && selectionMode && (
+      {enableBulkActions && selectionMode && !projectReorderMode && (
         <TaskListBulkBar
           bulkActionLabel={bulkActionLabel}
           bulkActionLoading={bulkActionLoading}
@@ -766,7 +942,37 @@ function TaskListComponent({
         />
       )}
 
-      {allowAdd && (
+      {canUseProjectReorder && hasProjectReorderTasks && projectReorderMode && (
+        <View style={[styles.projectReorderModeBar, { backgroundColor: themeColorsMemo.cardBg, borderBottomColor: themeColorsMemo.border }]}>
+          <Text style={[styles.projectReorderTitle, { color: themeColorsMemo.text }]}>
+            {tFallback(t, 'projects.taskOrder', 'Task order')}
+          </Text>
+          <TouchableOpacity
+            accessibilityLabel={projectReorderMode
+              ? t('common.done')
+              : tFallback(t, 'projects.reorderTasks', 'Order tasks')}
+            accessibilityRole="button"
+            onPress={handleToggleProjectReorderMode}
+            style={[
+              styles.projectReorderModeButton,
+              {
+                backgroundColor: themeColorsMemo.tint,
+                borderColor: themeColorsMemo.tint,
+              },
+            ]}
+            testID="project-task-reorder-toggle"
+          >
+            <Text style={[
+              styles.projectReorderModeButtonText,
+              { color: themeColorsMemo.onTint },
+            ]}>
+              {t('common.done')}
+            </Text>
+          </TouchableOpacity>
+        </View>
+      )}
+
+      {allowAdd && !projectReorderMode && (
         <TaskListQuickAdd
           aiEnabled={aiEnabled}
           applyTypeaheadOption={applyTypeaheadOption}
@@ -800,6 +1006,7 @@ function TaskListComponent({
           t={t}
           themeColors={themeColorsMemo}
           title={title}
+          trailingAccessory={projectReorderToggle}
           trigger={trigger}
           typeaheadIndex={typeaheadIndex}
           typeaheadOpen={typeaheadOpen}
@@ -807,7 +1014,11 @@ function TaskListComponent({
         />
       )}
 
-      {staticList ? (
+      {projectReorderMode && canUseProjectReorder ? (
+        <View style={styles.staticList}>
+          {projectReorderGroups.map(renderProjectReorderGroup)}
+        </View>
+      ) : staticList ? (
         <View style={styles.staticList}>
           {listItems.length === 0 ? (
             <ListEmptyState

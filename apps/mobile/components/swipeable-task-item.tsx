@@ -1,6 +1,6 @@
 import { Text, Pressable, Alert } from 'react-native';
 import { Swipeable } from 'react-native-gesture-handler';
-import { useTaskStore, getStatusColor, hasTimeComponent, safeFormatDate, safeParseDueDate, shallow } from '@mindwtr/core';
+import { useTaskStore, getStatusColor, hasTimeComponent, safeFormatDate, safeParseDueDate, shallow, tFallback } from '@mindwtr/core';
 import type { Task, TaskStatus } from '@mindwtr/core';
 import { useLanguage } from '../contexts/language-context';
 import React, { useRef, useState } from 'react';
@@ -32,6 +32,7 @@ export interface SwipeableTaskItemProps {
     showFocusToggle?: boolean;
     hideStatusBadge?: boolean;
     disableSwipe?: boolean;
+    interactionDisabled?: boolean;
     hideChecklistProgress?: boolean;
     onProjectPress?: (projectId: string) => void;
     onContextPress?: (context: string) => void;
@@ -63,6 +64,7 @@ export function SwipeableTaskItem({
     showFocusToggle = false,
     hideStatusBadge = false,
     disableSwipe = false,
+    interactionDisabled = false,
     hideChecklistProgress = false,
     onProjectPress,
     onContextPress,
@@ -142,7 +144,9 @@ export function SwipeableTaskItem({
     };
 
     const leftAction = getLeftAction();
-    const swipeAccessibilityHint = selectionMode || disableSwipe
+    const swipeAccessibilityHint = interactionDisabled
+        ? tFallback(t, 'projects.taskOrder', 'Task order')
+        : selectionMode || disableSwipe
         ? 'Double tap to edit task details. Additional actions are available in the accessibility actions menu.'
         : `Double tap to edit task details. Swipe right to ${leftAction.label.toLowerCase()} and swipe left to delete. Additional actions are available in the accessibility actions menu.`;
 
@@ -192,6 +196,7 @@ export function SwipeableTaskItem({
     ].filter(Boolean).join('. ');
 
     const handlePress = () => {
+        if (interactionDisabled) return;
         if (Date.now() < ignorePressUntil.current) return;
         if (selectionMode && onToggleSelect) {
             onToggleSelect();
@@ -239,6 +244,7 @@ export function SwipeableTaskItem({
     };
 
     const handleLongPress = () => {
+        if (interactionDisabled) return;
         ignorePressUntil.current = Date.now() + 500;
         // Note: onDragStart is handled by the drag handle directly, not here
         if (onLongPressAction) {
@@ -248,7 +254,7 @@ export function SwipeableTaskItem({
         if (onToggleSelect) onToggleSelect();
     };
 
-    const accessibilityActions = [
+    const accessibilityActions = interactionDisabled ? [] : [
         { name: 'activate', label: t('common.edit') || 'Edit' },
         ...(!selectionMode
             ? [
@@ -288,6 +294,7 @@ export function SwipeableTaskItem({
             isDark={isDark}
             isHighlighted={isHighlighted}
             isMultiSelected={isMultiSelected}
+            interactionDisabled={interactionDisabled}
             language={language}
             localChecklist={localChecklist}
             onAccessibilityAction={handleAccessibilityAction}
@@ -315,7 +322,7 @@ export function SwipeableTaskItem({
 
     return (
         <>
-            {disableSwipe ? (
+            {disableSwipe || interactionDisabled ? (
                 content
             ) : (
                 <Swipeable

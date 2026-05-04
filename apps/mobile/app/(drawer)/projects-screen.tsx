@@ -465,8 +465,8 @@ export default function ProjectsScreen() {
   const modalHeaderStyle = [styles.modalHeader, {
     borderBottomColor: tc.border,
     backgroundColor: tc.cardBg,
-    paddingTop: Math.max(insets.top, 10),
-    paddingBottom: 10,
+    paddingTop: Platform.OS === 'ios' ? Math.max(insets.top, 10) : 10,
+    paddingBottom: 8,
   }];
 
   return (
@@ -595,7 +595,7 @@ export default function ProjectsScreen() {
         handleSelectedProjectNotesUndo={handleSelectedProjectNotesUndo}
         handleSetProjectStatus={handleSetProjectStatus}
         isSelectedProjectNotesFocused={isSelectedProjectNotesFocused}
-        modalHeaderStyle={modalHeaderStyle as Array<Record<string, unknown>>}
+        modalHeaderStyle={modalHeaderStyle as Record<string, unknown>[]}
         notesExpanded={notesExpanded}
         notesFullscreen={notesFullscreen}
         onCloseNotesFullscreen={() => setNotesFullscreen(false)}

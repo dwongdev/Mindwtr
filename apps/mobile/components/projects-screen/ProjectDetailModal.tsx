@@ -9,6 +9,8 @@ import {
 } from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { Ionicons } from '@expo/vector-icons';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { NestableScrollContainer } from 'react-native-draggable-flatlist';
 import {
     type Attachment,
     getAttachmentDisplayTitle,
@@ -42,7 +44,7 @@ type ProjectDetailModalProps = {
     handleSelectedProjectNotesUndo: () => MarkdownSelection | undefined;
     handleSetProjectStatus: (status: Project['status']) => void;
     isSelectedProjectNotesFocused: boolean;
-    modalHeaderStyle: Array<Record<string, unknown>>;
+    modalHeaderStyle: Record<string, unknown>[];
     notesExpanded: boolean;
     notesFullscreen: boolean;
     onCloseNotesFullscreen: () => void;
@@ -82,6 +84,38 @@ type ProjectDetailModalProps = {
     tc: ThemeColors;
     updateProject: (id: string, updates: Partial<Project>) => void;
 };
+
+function ProjectDetailScrollFrame({
+    children,
+    reorderMode,
+}: {
+    children: React.ReactNode;
+    reorderMode: boolean;
+}) {
+    const scrollProps = {
+        style: { flex: 1 },
+        contentContainerStyle: styles.projectDetailScroll,
+        keyboardShouldPersistTaps: 'always' as const,
+    };
+
+    if (reorderMode) {
+        return (
+            <NestableScrollContainer {...scrollProps}>
+                {children}
+            </NestableScrollContainer>
+        );
+    }
+
+    return (
+        <ScrollView
+            {...scrollProps}
+            directionalLockEnabled
+            nestedScrollEnabled
+        >
+            {children}
+        </ScrollView>
+    );
+}
 
 export function ProjectDetailModal({
     addProjectFileAttachment,
@@ -136,6 +170,12 @@ export function ProjectDetailModal({
     tc,
     updateProject,
 }: ProjectDetailModalProps) {
+    const [projectTaskReorderMode, setProjectTaskReorderMode] = React.useState(false);
+
+    React.useEffect(() => {
+        setProjectTaskReorderMode(false);
+    }, [overlayVisible, selectedProject?.id]);
+
     return (
         <Modal
             visible={overlayVisible}
@@ -144,57 +184,58 @@ export function ProjectDetailModal({
             allowSwipeDismissal
             onRequestClose={closeProjectDetail}
         >
-            <KeyboardAccessoryHost>
-                <SafeAreaView style={{ flex: 1, backgroundColor: tc.bg }} edges={['left', 'right', 'bottom']}>
-                    {selectedProject ? (
-                        <>
-                            <View style={modalHeaderStyle}>
-                                <TouchableOpacity
-                                    onPress={closeProjectDetail}
-                                    style={styles.backButton}
-                                    hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-                                >
-                                    <Text style={[styles.backButtonText, { color: tc.tint }]}>{t('common.back') || 'Back'}</Text>
-                                </TouchableOpacity>
-                                <TextInput
-                                    style={[styles.modalTitle, { color: tc.text, marginLeft: 8, flex: 1 }]}
-                                    value={selectedProject.title}
-                                    onChangeText={(text) => onSetSelectedProject({ ...selectedProject, title: text })}
-                                    onSubmitEditing={() => {
-                                        const title = selectedProject.title.trim();
-                                        if (!title) return;
-                                        updateProject(selectedProject.id, { title });
-                                        onSetSelectedProject({ ...selectedProject, title });
-                                    }}
-                                    onEndEditing={() => {
-                                        const title = selectedProject.title.trim();
-                                        if (!title) return;
-                                        updateProject(selectedProject.id, { title });
-                                        onSetSelectedProject({ ...selectedProject, title });
-                                    }}
-                                    returnKeyType="done"
-                                />
-                                <TouchableOpacity
-                                    onPress={() => {
-                                        updateProject(selectedProject.id, { isSequential: !selectedProject.isSequential });
-                                        onSetSelectedProject({ ...selectedProject, isSequential: !selectedProject.isSequential });
-                                    }}
-                                    style={[
-                                        styles.sequentialToggle,
-                                        selectedProject.isSequential && styles.sequentialToggleActive,
-                                    ]}
-                                >
-                                    <Text
+            <GestureHandlerRootView style={{ flex: 1 }}>
+                <KeyboardAccessoryHost>
+                    <SafeAreaView style={{ flex: 1, backgroundColor: tc.bg }} edges={['left', 'right', 'bottom']}>
+                        {selectedProject ? (
+                            <>
+                                <View style={modalHeaderStyle}>
+                                    <TouchableOpacity
+                                        onPress={closeProjectDetail}
+                                        style={styles.backButton}
+                                        hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                                    >
+                                        <Text style={[styles.backButtonText, { color: tc.tint }]}>{t('common.back') || 'Back'}</Text>
+                                    </TouchableOpacity>
+                                    <TextInput
+                                        style={[styles.modalTitle, { color: tc.text, marginLeft: 8, flex: 1 }]}
+                                        value={selectedProject.title}
+                                        onChangeText={(text) => onSetSelectedProject({ ...selectedProject, title: text })}
+                                        onSubmitEditing={() => {
+                                            const title = selectedProject.title.trim();
+                                            if (!title) return;
+                                            updateProject(selectedProject.id, { title });
+                                            onSetSelectedProject({ ...selectedProject, title });
+                                        }}
+                                        onEndEditing={() => {
+                                            const title = selectedProject.title.trim();
+                                            if (!title) return;
+                                            updateProject(selectedProject.id, { title });
+                                            onSetSelectedProject({ ...selectedProject, title });
+                                        }}
+                                        returnKeyType="done"
+                                    />
+                                    <TouchableOpacity
+                                        onPress={() => {
+                                            updateProject(selectedProject.id, { isSequential: !selectedProject.isSequential });
+                                            onSetSelectedProject({ ...selectedProject, isSequential: !selectedProject.isSequential });
+                                        }}
                                         style={[
-                                            styles.sequentialToggleText,
-                                            selectedProject.isSequential && styles.sequentialToggleTextActive,
+                                            styles.sequentialToggle,
+                                            selectedProject.isSequential && styles.sequentialToggleActive,
                                         ]}
                                     >
-                                        {selectedProject.isSequential ? '📋 Seq' : '⏸ Par'}
-                                    </Text>
-                                </TouchableOpacity>
-                            </View>
-                            <ScrollView style={{ flex: 1 }} contentContainerStyle={styles.projectDetailScroll} keyboardShouldPersistTaps="always">
+                                        <Text
+                                            style={[
+                                                styles.sequentialToggleText,
+                                                selectedProject.isSequential && styles.sequentialToggleTextActive,
+                                            ]}
+                                        >
+                                            {selectedProject.isSequential ? '📋 Seq' : '⏸ Par'}
+                                        </Text>
+                                    </TouchableOpacity>
+                                </View>
+                                <ProjectDetailScrollFrame reorderMode={projectTaskReorderMode}>
                                 <View style={[styles.statusBlock, { backgroundColor: tc.cardBg, borderBottomColor: tc.border }]}>
                                     <View style={styles.statusActionsRow}>
                                         <Text style={[styles.statusLabel, { color: tc.secondaryText }]}>{t('projects.statusLabel')}</Text>
@@ -544,30 +585,34 @@ export function ProjectDetailModal({
                                     staticList
                                     enableBulkActions
                                     showSort={false}
+                                    enableProjectReorder
+                                    projectReorderMode={projectTaskReorderMode}
+                                    onProjectReorderModeChange={setProjectTaskReorderMode}
                                 />
-                            </ScrollView>
-                            <ExpandedMarkdownEditor
-                                isOpen={notesFullscreen}
-                                onClose={onCloseNotesFullscreen}
-                                value={selectedProjectNotes}
-                                onChange={handleSelectedProjectNotesChange}
-                                onCommit={commitSelectedProjectNotes}
-                                title={t('project.notes')}
-                                headerTitle={selectedProject.title || t('project.notes')}
-                                placeholder={t('projects.notesPlaceholder')}
-                                t={t}
-                                initialMode="edit"
-                                direction={selectedProjectNotesDirection}
-                                selection={selectedProjectNotesSelection}
-                                onSelectionChange={handleSelectedProjectNotesSelectionChange}
-                                canUndo={selectedProjectNotesUndoDepth > 0}
-                                onUndo={handleSelectedProjectNotesUndo}
-                                onApplyAction={handleSelectedProjectNotesApplyAction}
-                            />
-                        </>
-                    ) : null}
-                </SafeAreaView>
-            </KeyboardAccessoryHost>
+                                </ProjectDetailScrollFrame>
+                                <ExpandedMarkdownEditor
+                                    isOpen={notesFullscreen}
+                                    onClose={onCloseNotesFullscreen}
+                                    value={selectedProjectNotes}
+                                    onChange={handleSelectedProjectNotesChange}
+                                    onCommit={commitSelectedProjectNotes}
+                                    title={t('project.notes')}
+                                    headerTitle={selectedProject.title || t('project.notes')}
+                                    placeholder={t('projects.notesPlaceholder')}
+                                    t={t}
+                                    initialMode="edit"
+                                    direction={selectedProjectNotesDirection}
+                                    selection={selectedProjectNotesSelection}
+                                    onSelectionChange={handleSelectedProjectNotesSelectionChange}
+                                    canUndo={selectedProjectNotesUndoDepth > 0}
+                                    onUndo={handleSelectedProjectNotesUndo}
+                                    onApplyAction={handleSelectedProjectNotesApplyAction}
+                                />
+                            </>
+                        ) : null}
+                    </SafeAreaView>
+                </KeyboardAccessoryHost>
+            </GestureHandlerRootView>
         </Modal>
     );
 }

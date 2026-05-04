@@ -27,6 +27,7 @@ interface SwipeableTaskItemContentProps {
     isMultiSelected: boolean;
     language: string;
     localChecklist: Task['checklist'];
+    interactionDisabled?: boolean;
     onAccessibilityAction: (event: { nativeEvent: { actionName: string } }) => void;
     onContextPress?: (context: string) => void;
     onLongPress: () => void;
@@ -60,6 +61,7 @@ export function SwipeableTaskItemContent({
     isDark,
     isHighlighted,
     isMultiSelected,
+    interactionDisabled = false,
     language,
     localChecklist,
     onAccessibilityAction,
@@ -274,9 +276,11 @@ export function SwipeableTaskItemContent({
             onPress={onPress}
             onLongPress={onLongPress}
             delayLongPress={300}
+            disabled={interactionDisabled}
             accessibilityLabel={accessibilityLabel}
             accessibilityHint={accessibilityHint}
             accessibilityRole="button"
+            accessibilityState={interactionDisabled ? { disabled: true } : undefined}
             accessibilityActions={accessibilityActions}
             onAccessibilityAction={onAccessibilityAction}
         >

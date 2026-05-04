@@ -243,7 +243,7 @@ export const projectsScreenStyles = StyleSheet.create({
         flexDirection: 'row',
         alignItems: 'center',
         paddingHorizontal: 16,
-        paddingVertical: 10,
+        paddingVertical: 8,
         gap: 8,
     },
     statusLabel: {
@@ -329,9 +329,9 @@ export const projectsScreenStyles = StyleSheet.create({
         borderRadius: 10,
         borderWidth: 1,
         paddingHorizontal: 12,
-        paddingVertical: 10,
-        marginTop: 8,
-        marginBottom: 12,
+        paddingVertical: 8,
+        marginTop: 6,
+        marginBottom: 8,
     },
     detailsToggleButton: {
         flexDirection: 'row',
