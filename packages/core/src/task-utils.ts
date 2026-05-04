@@ -3,7 +3,7 @@
  */
 
 import { Task, TaskStatus, TaskSortBy, TaskPriority, Project, AppData } from './types';
-import { safeParseDate, safeParseDueDate } from './date';
+import { isDueForReview, safeParseDate, safeParseDueDate } from './date';
 import { TASK_STATUS_ORDER } from './task-status';
 import type { Language } from './i18n/i18n-types';
 
@@ -36,6 +36,10 @@ export const FOCUS_NEXT_DUE_SOON_WINDOW_DAYS = 30;
 type TaskStartVisibilityOptions = {
     now?: Date;
     showFutureStarts?: boolean;
+};
+
+type FocusSequentialOptions = {
+    now?: Date;
 };
 
 const safeTime = (value: string | undefined, fallback: number): number => {
@@ -167,6 +171,29 @@ export function getSequentialFirstTaskIds<T extends Pick<Task, 'createdAt' | 'id
     });
 
     return firstTaskIds;
+}
+
+export function isFocusSequentialCandidate(
+    task: Pick<Task, 'isFocusedToday' | 'reviewAt' | 'status'>,
+    options: FocusSequentialOptions = {},
+): boolean {
+    if (task.isFocusedToday === true) return true;
+    if (task.status === 'next') return true;
+    return isDueForReview(task.reviewAt, options.now);
+}
+
+export function getFocusSequentialFirstTaskIds<
+    T extends Pick<Task, 'createdAt' | 'id' | 'isFocusedToday' | 'order' | 'orderNum' | 'projectId' | 'reviewAt' | 'status'>
+>(
+    tasks: T[],
+    sequentialProjectIds: ReadonlySet<string>,
+    options: FocusSequentialOptions = {},
+): Set<string> {
+    const now = options.now ?? new Date();
+    return getSequentialFirstTaskIds(
+        tasks.filter((task) => isFocusSequentialCandidate(task, { now })),
+        sequentialProjectIds,
+    );
 }
 
 /**

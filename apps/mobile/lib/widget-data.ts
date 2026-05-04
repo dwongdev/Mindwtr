@@ -6,6 +6,7 @@ import {
     safeParseDueDate,
     SUPPORTED_LANGUAGES,
     getTranslationsSync,
+    getSequentialFirstTaskIds,
     loadTranslations,
     sortTasksBy,
 } from '@mindwtr/core';
@@ -63,47 +64,6 @@ const TASK_SORT_OPTIONS: TaskSortBy[] = ['default', 'due', 'start', 'review', 't
 const resolveWidgetTaskSort = (data: AppData): TaskSortBy => {
     const sortBy = data.settings?.taskSortBy;
     return TASK_SORT_OPTIONS.includes(sortBy as TaskSortBy) ? (sortBy as TaskSortBy) : 'default';
-};
-
-const buildSequentialFirstTaskIds = (
-    tasks: AppData['tasks'],
-    sequentialProjectIds: Set<string>
-): Set<string> => {
-    if (sequentialProjectIds.size === 0) return new Set<string>();
-
-    const tasksByProject = new Map<string, AppData['tasks']>();
-    tasks.forEach((task) => {
-        if (!task.projectId) return;
-        if (!sequentialProjectIds.has(task.projectId)) return;
-        const list = tasksByProject.get(task.projectId) ?? [];
-        list.push(task);
-        tasksByProject.set(task.projectId, list);
-    });
-
-    const firstIds = new Set<string>();
-    tasksByProject.forEach((projectTasks) => {
-        const hasOrder = projectTasks.some((task) => Number.isFinite(task.order) || Number.isFinite(task.orderNum));
-        let firstId: string | null = null;
-        let bestKey = Number.POSITIVE_INFINITY;
-
-        projectTasks.forEach((task) => {
-            const orderKey = Number.isFinite(task.order)
-                ? (task.order as number)
-                : Number.isFinite(task.orderNum)
-                    ? (task.orderNum as number)
-                    : Number.POSITIVE_INFINITY;
-            const createdKey = safeParseDate(task.createdAt)?.getTime() ?? Number.POSITIVE_INFINITY;
-            const key = hasOrder ? orderKey : createdKey;
-            if (!firstId || key < bestKey) {
-                firstId = task.id;
-                bestKey = key;
-            }
-        });
-
-        if (firstId) firstIds.add(firstId);
-    });
-
-    return firstIds;
 };
 
 export function resolveWidgetLanguage(saved: string | null, setting?: string): Language {
@@ -186,20 +146,11 @@ export function buildWidgetPayload(
         return true;
     });
 
-    const sequentialFirstTaskIds = buildSequentialFirstTaskIds(activeTasks, sequentialProjectIds);
-    const isSequentialBlocked = (task: AppData['tasks'][number]) => {
-        if (!task.projectId) return false;
-        if (!sequentialProjectIds.has(task.projectId)) return false;
-        return !sequentialFirstTaskIds.has(task.id);
-    };
     const isPlannedForFuture = (task: AppData['tasks'][number]) => {
         const start = safeParseDate(task.startTime);
         return Boolean(start && start > endOfToday);
     };
-
-    const scheduleTasks = activeTasks.filter((task) => {
-        if (task.status !== 'next') return false;
-        if (isSequentialBlocked(task)) return false;
+    const isScheduleCandidate = (task: AppData['tasks'][number]) => {
         const due = safeParseDueDate(task.dueDate);
         const start = safeParseDate(task.startTime);
         const startsToday = Boolean(
@@ -208,6 +159,25 @@ export function buildWidgetPayload(
             && start <= endOfToday
         );
         return Boolean(due && due <= endOfToday) || startsToday;
+    };
+
+    const sequentialFirstTaskIds = getSequentialFirstTaskIds(
+        activeTasks.filter((task) => (
+            task.status === 'next'
+            && (!isPlannedForFuture(task) || isScheduleCandidate(task))
+        )),
+        sequentialProjectIds,
+    );
+    const isSequentialBlocked = (task: AppData['tasks'][number]) => {
+        if (!task.projectId) return false;
+        if (!sequentialProjectIds.has(task.projectId)) return false;
+        return !sequentialFirstTaskIds.has(task.id);
+    };
+
+    const scheduleTasks = activeTasks.filter((task) => {
+        if (task.status !== 'next') return false;
+        if (isSequentialBlocked(task)) return false;
+        return isScheduleCandidate(task);
     });
 
     const scheduleTaskIds = new Set(scheduleTasks.map((task) => task.id));

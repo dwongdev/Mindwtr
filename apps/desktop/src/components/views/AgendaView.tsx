@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useState } from 'react';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { ErrorBoundary } from '../ErrorBoundary';
-import { shallow, useTaskStore, TaskPriority, TimeEstimate, getUsedTaskTokens, getSequentialFirstTaskIds, matchesHierarchicalToken, safeParseDate, safeParseDueDate, isDueForReview, isTaskInActiveProject, shouldShowTaskForStart, sortFocusNextActions, translateWithFallback } from '@mindwtr/core';
+import { shallow, useTaskStore, TaskPriority, TimeEstimate, getUsedTaskTokens, getFocusSequentialFirstTaskIds, matchesHierarchicalToken, safeParseDate, safeParseDueDate, isDueForReview, isTaskInActiveProject, shouldShowTaskForStart, sortFocusNextActions, translateWithFallback } from '@mindwtr/core';
 import type { Task, TaskEnergyLevel } from '@mindwtr/core';
 import { useLanguage } from '../../contexts/language-context';
 import { cn } from '../../lib/utils';
@@ -494,7 +494,7 @@ export function AgendaView() {
                 return aCreated - bCreated;
             });
         };
-        const sequentialFirstTasks = getSequentialFirstTaskIds(activeTasks, sequentialProjectIds);
+        const sequentialFirstTasks = getFocusSequentialFirstTaskIds(activeTasks, sequentialProjectIds, { now });
         const isSequentialBlocked = (task: Task) => {
             if (!task.projectId) return false;
             if (!sequentialProjectIds.has(task.projectId)) return false;

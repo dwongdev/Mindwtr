@@ -17,6 +17,18 @@ const makeTask = (id: string, overrides: Partial<Task> = {}): Task => ({
   ...overrides,
 });
 
+const makeProject = (id: string, overrides: Record<string, unknown> = {}) => ({
+  id,
+  title: `Project ${id}`,
+  status: 'active',
+  color: '#3b82f6',
+  order: 0,
+  tagIds: [],
+  createdAt: '2026-04-01T00:00:00.000Z',
+  updatedAt: '2026-04-01T00:00:00.000Z',
+  ...overrides,
+});
+
 const storeState: {
   tasks: Task[];
   projects: unknown[];
@@ -45,6 +57,7 @@ beforeEach(() => {
     makeTask('focus-task', { isFocusedToday: true, dueDate: '2000-01-01' }),
     makeTask('next-task'),
   ];
+  storeState.projects = [];
   storeState.settings = { appearance: {}, features: {} };
   storeState.updateSettings.mockClear();
   storeState.highlightTaskId = null;
@@ -267,6 +280,34 @@ describe('FocusScreen', () => {
     expect(reviewDueButton.props.accessibilityState).toEqual({ expanded: false });
     expect(tree.root.findAllByType(SwipeableTaskItem)).toHaveLength(0);
     expect(() => tree.root.findByProps({ children: 'All clear' })).toThrow();
+  });
+
+  it('does not let earlier non-Focus tasks hide the next task in a sequential project', () => {
+    storeState.projects = [makeProject('project-1', { isSequential: true })];
+    storeState.tasks = [
+      makeTask('inbox-before', {
+        status: 'inbox',
+        projectId: 'project-1',
+        order: 0,
+        orderNum: 0,
+      }),
+      makeTask('available-next', {
+        status: 'next',
+        projectId: 'project-1',
+        order: 1,
+        orderNum: 1,
+      }),
+    ];
+
+    let tree!: ReturnType<typeof create>;
+
+    act(() => {
+      tree = create(<FocusScreen />);
+    });
+
+    expect(
+      tree.root.findAllByType(SwipeableTaskItem).map((node) => node.props.task.id),
+    ).toEqual(['available-next']);
   });
 
 });

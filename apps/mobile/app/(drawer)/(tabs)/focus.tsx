@@ -16,7 +16,7 @@ import { SlidersHorizontal, X } from 'lucide-react-native';
 import {
   sortFocusNextActions,
   shouldShowTaskForStart,
-  getSequentialFirstTaskIds,
+  getFocusSequentialFirstTaskIds,
   translateWithFallback,
   useTaskStore,
   isDueForReview,
@@ -247,17 +247,13 @@ export default function FocusScreen() {
     return new Set(visibleProjects.filter((project) => project.isSequential).map((project) => project.id));
   }, [visibleProjects]);
 
-  const sequentialFirstTaskIds = useMemo(
-    () => getSequentialFirstTaskIds(activeTasks, sequentialProjectIds),
-    [activeTasks, sequentialProjectIds],
-  );
-
   const { focusedTasks, schedule, nextActions, reviewDue } = useMemo(() => {
     const now = new Date();
     const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0);
     const endOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
     const { focusedTasks: allFocusedTasks, otherTasks: nonFocusedTasks } = splitFocusedTasks(filteredActiveTasks);
     const focusedItems = allFocusedTasks.slice(0, 3);
+    const sequentialFirstTaskIds = getFocusSequentialFirstTaskIds(activeTasks, sequentialProjectIds, { now });
 
     const isSequentialBlocked = (task: Task) => {
       if (!task.projectId) return false;
@@ -304,7 +300,7 @@ export default function FocusScreen() {
       }),
       reviewDue: reviewDueItems,
     };
-  }, [filteredActiveTasks, prioritiesEnabled, sequentialProjectIds, sequentialFirstTaskIds]);
+  }, [activeTasks, filteredActiveTasks, prioritiesEnabled, sequentialProjectIds]);
 
   const sections = useMemo(() => {
     const nextSections = [];

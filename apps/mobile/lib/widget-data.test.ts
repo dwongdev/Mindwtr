@@ -117,6 +117,56 @@ describe('widget-data', () => {
         expect(payload.items.map((item) => item.id)).toEqual(['next-due', 'next-now']);
     });
 
+    it('does not let earlier non-widget tasks block a sequential project next task', () => {
+        const now = new Date().toISOString();
+        const data: AppData = {
+            ...baseData,
+            projects: [
+                {
+                    id: 'project-1',
+                    title: 'Sequential project',
+                    status: 'active',
+                    isSequential: true,
+                    color: '#123456',
+                    order: 0,
+                    tagIds: [],
+                    createdAt: now,
+                    updatedAt: now,
+                },
+            ],
+            tasks: [
+                {
+                    id: 'inbox-before',
+                    title: 'Inbox before',
+                    status: 'inbox',
+                    projectId: 'project-1',
+                    order: 0,
+                    orderNum: 0,
+                    tags: [],
+                    contexts: [],
+                    createdAt: now,
+                    updatedAt: now,
+                },
+                {
+                    id: 'available-next',
+                    title: 'Available next',
+                    status: 'next',
+                    projectId: 'project-1',
+                    order: 1,
+                    orderNum: 1,
+                    tags: [],
+                    contexts: [],
+                    createdAt: now,
+                    updatedAt: now,
+                },
+            ],
+        };
+
+        const payload = buildWidgetPayload(data, 'en');
+
+        expect(payload.items.map((item) => item.id)).toEqual(['available-next']);
+    });
+
     it('keeps future-start tasks out of the widget payload even when focused', () => {
         const created = new Date().toISOString();
         const future = '2999-01-01T09:00:00.000Z';

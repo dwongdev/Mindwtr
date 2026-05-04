@@ -6,6 +6,7 @@ import {
     getTaskAgeLabel,
     rescheduleTask,
     extractWaitingPerson,
+    getFocusSequentialFirstTaskIds,
     getSequentialFirstTaskIds,
     getWaitingPerson,
     isTaskFutureStart,
@@ -262,6 +263,35 @@ describe('task-utils', () => {
             ], new Set(['p1']));
 
             expect([...firstTaskIds]).toEqual(['older']);
+        });
+    });
+
+    describe('getFocusSequentialFirstTaskIds', () => {
+        const now = new Date('2026-04-05T12:00:00.000Z');
+
+        it('skips earlier non-Focus tasks when picking the first sequential candidate', () => {
+            const firstTaskIds = getFocusSequentialFirstTaskIds([
+                { id: 'inbox-before', projectId: 'p1', status: 'inbox', order: 0, orderNum: undefined, createdAt: '2026-04-01T00:00:00.000Z' },
+                { id: 'waiting-before', projectId: 'p1', status: 'waiting', order: 1, orderNum: undefined, createdAt: '2026-04-02T00:00:00.000Z' },
+                { id: 'next-visible', projectId: 'p1', status: 'next', order: 2, orderNum: undefined, createdAt: '2026-04-03T00:00:00.000Z' },
+            ], new Set(['p1']), { now });
+
+            expect([...firstTaskIds]).toEqual(['next-visible']);
+        });
+
+        it('keeps review-due and today-focus tasks in the sequential candidate set', () => {
+            const reviewFirstIds = getFocusSequentialFirstTaskIds([
+                { id: 'waiting-review', projectId: 'p1', status: 'waiting', reviewAt: '2026-04-04T00:00:00.000Z', order: 0, orderNum: undefined, createdAt: '2026-04-01T00:00:00.000Z' },
+                { id: 'next-after-review', projectId: 'p1', status: 'next', order: 1, orderNum: undefined, createdAt: '2026-04-02T00:00:00.000Z' },
+            ], new Set(['p1']), { now });
+
+            const focusedFirstIds = getFocusSequentialFirstTaskIds([
+                { id: 'focused-waiting', projectId: 'p2', status: 'waiting', isFocusedToday: true, order: 0, orderNum: undefined, createdAt: '2026-04-01T00:00:00.000Z' },
+                { id: 'next-after-focused', projectId: 'p2', status: 'next', order: 1, orderNum: undefined, createdAt: '2026-04-02T00:00:00.000Z' },
+            ], new Set(['p2']), { now });
+
+            expect([...reviewFirstIds]).toEqual(['waiting-review']);
+            expect([...focusedFirstIds]).toEqual(['focused-waiting']);
         });
     });
 });

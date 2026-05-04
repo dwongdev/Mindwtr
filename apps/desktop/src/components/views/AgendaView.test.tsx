@@ -137,6 +137,61 @@ describe('AgendaView', () => {
         expect(queryByText('Start today inbox task')).not.toBeInTheDocument();
     });
 
+    it('does not let earlier non-Focus tasks hide the next task in a sequential project', () => {
+        const project = {
+            id: 'project-1',
+            title: 'Sequential project',
+            status: 'active' as const,
+            isSequential: true,
+            color: '#123456',
+            order: 0,
+            tagIds: [],
+            createdAt: nowIso,
+            updatedAt: nowIso,
+        };
+        const inboxBefore: Task = {
+            id: 'inbox-before',
+            title: 'Inbox before',
+            status: 'inbox',
+            projectId: project.id,
+            order: 0,
+            orderNum: 0,
+            tags: [],
+            contexts: [],
+            createdAt: nowIso,
+            updatedAt: nowIso,
+        };
+        const availableNext: Task = {
+            id: 'available-next',
+            title: 'Available next',
+            status: 'next',
+            projectId: project.id,
+            order: 1,
+            orderNum: 1,
+            tags: [],
+            contexts: [],
+            createdAt: nowIso,
+            updatedAt: nowIso,
+        };
+
+        useTaskStore.setState({
+            tasks: [inboxBefore, availableNext],
+            _allTasks: [inboxBefore, availableNext],
+            projects: [project],
+            _allProjects: [project],
+            areas: [],
+            _allAreas: [],
+            settings: {},
+            highlightTaskId: null,
+        });
+
+        const { getByRole, getByText, queryByText } = renderAgenda();
+
+        expect(getByRole('heading', { name: /next actions/i })).toBeInTheDocument();
+        expect(getByText('Available next')).toBeInTheDocument();
+        expect(queryByText('Inbox before')).not.toBeInTheDocument();
+    });
+
     it('shows next tasks with start time today in Today section (not Next Actions)', () => {
         const now = new Date();
         const startToday = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 9, 0, 0, 0).toISOString();
