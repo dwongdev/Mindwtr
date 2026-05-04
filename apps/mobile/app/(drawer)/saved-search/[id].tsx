@@ -85,8 +85,8 @@ export default function SavedSearchScreen() {
         setEditingTask(item);
         setIsModalVisible(true);
       }}
-      onStatusChange={(status) => updateTask(item.id, { status: status as TaskStatus })}
-      onDelete={() => deleteTask(item.id)}
+      onStatusChange={(status) => { void updateTask(item.id, { status: status as TaskStatus }); }}
+      onDelete={() => { void deleteTask(item.id); }}
       onProjectPress={openProjectScreen}
       onContextPress={openContextsScreen}
       onTagPress={openContextsScreen}

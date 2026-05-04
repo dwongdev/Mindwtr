@@ -664,6 +664,10 @@ export const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '800',
   },
+  weekDensityHint: {
+    fontSize: 12,
+    lineHeight: 16,
+  },
   weekDensityTrack: {
     height: 4,
     borderRadius: 999,

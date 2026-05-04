@@ -114,7 +114,7 @@ _Don't show me a cockpit when I just want to ride a bike._
 
 ### GTD Workflow
 
-- **Capture** - Quick add tasks from anywhere (global hotkey, tray, share sheet, voice)
+- **Capture** - Quick add tasks from anywhere (global hotkey popup, tray, share sheet, voice)
 - **Clarify** - Guided inbox processing with 2-minute rule
 - **Organize** - Projects, sections, contexts, and status lists
 - **Reflect** - Weekly review wizard with reminders
@@ -129,14 +129,14 @@ _Don't show me a cockpit when I just want to ride a bike._
 - 🏷️ **Contexts** - Slash-delimited contexts with parent matching (@work/meetings)
 - ⏳ **Waiting For** - Delegated items
 - 💭 **Someday/Maybe** - Deferred ideas
-- 📅 **Calendar** - Time-based planning
+- 📅 **Calendar** - Time-based planning with adjustable mobile week density
 - 📋 **Board** - Kanban-style drag-and-drop
 - 📝 **Review** - Daily + weekly review workflows
 - 📦 **Archived** - Hidden history, searchable when needed
 
 ### Productivity Features
 
-- 🔍 **Global Search** - Search operators (status:, context:, assigned:, due:<=7d)
+- 🔍 **Global Search** - Search all areas globally with operators (status:, context:, assigned:, due:<=7d)
 - 📦 **Bulk Actions** - Multi-select, batch move/tag/delete
 - 📎 **Attachments** - Files and links on tasks
 - ✏️ **Markdown Notes** - Rich text descriptions with preview
@@ -147,7 +147,7 @@ _Don't show me a cockpit when I just want to ride a bike._
 - ✅ **Audio Capture** - Quick voice capture with automatic transcription and task creation
 - 🧭 **Copilot Suggestions** - Optional context/tag/time hints while typing
 - 🍅 **Pomodoro Focus (Optional)** - 15/3, 25/5, 50/10 timer panel in Focus view with one optional custom preset
-- 🔔 **Notifications** - Due date reminders with snooze
+- 🔔 **Notifications** - Separate start and due reminders with snooze
 - 📊 **Daily Digest** - Morning briefing + evening review
 - 📅 **Weekly Review** - Customizable weekly reminder
 

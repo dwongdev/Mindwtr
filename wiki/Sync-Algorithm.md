@@ -6,7 +6,7 @@ Mindwtr uses local-first synchronization with deterministic conflict handling.
 
 - Input A: local snapshot (`tasks`, `projects`, `sections`, `areas`, `settings`)
 - Input B: remote snapshot (same shape)
-- Output: merged snapshot + merge stats (`conflicts`, `clockSkew`, `timestampAdjustments`, `conflictIds`, `conflictReasonCounts`, `conflictSamples`, `timestampAdjustmentIds`)
+- Output: merged snapshot + merge stats (`conflicts`, `clockSkew`, `timestampAdjustments`, `conflictIds`, `conflictReasonCounts`, `conflictSamples`, `timestampAdjustmentIds`) plus bounded sync diagnostics logs.
 
 ## Snapshot-Based Transport
 
@@ -32,12 +32,14 @@ Revisit ADR 0008 only if snapshot files regularly exceed 5 MB, sync round-trips 
    - Live-vs-deleted conflicts choose newer operation time.
    - If the delete-vs-live operation times are within 30 seconds of each other, Mindwtr preserves the live item instead of immediately letting the tombstone win.
    - If revisions differ inside that 30-second window, the higher revision still wins.
+   - When a delete wins over a live edit, Mindwtr emits a bounded `syncConflictDiscarded` diagnostic entry with entity type, ID, operation timing, and revision metadata.
 5. Invalid `deletedAt` falls back to `updatedAt` for conservative operation timing.
 6. Attachments are merged per attachment `id` with the same LWW rules.
 7. Areas use tombstones:
    - Deleting an area cascades soft-delete timestamps to projects, sections, and tasks that belong to that area.
    - Restoring an area restores the children from the same cascade. Children deleted independently at a different timestamp stay deleted.
    - If an incoming snapshot references a missing or deleted area, sync repair clears the stale `areaId` reference and stamps a repair revision.
+   - Sync repair also runs on tombstones, so deleted projects/tasks do not keep stale area links if they are later restored.
    - Missing area order values are synthesized during merge and stamped with `revBy: "sync-repair"` so the repair is not repeatedly overwritten by peers.
 8. Settings merge by sync preferences:
    - Appearance/language/GTD scheduling/external calendars/AI can be merged independently.
@@ -49,6 +51,7 @@ Revisit ADR 0008 only if snapshot files regularly exceed 5 MB, sync round-trips 
    - Local data is first written with `pendingRemoteWriteAt`.
    - Remote write clears the flag on success.
    - Failed remote writes schedule retries with exponential backoff from 5 seconds up to 5 minutes.
+   - After 12 failed remote-write retries, Mindwtr marks sync as `error` and surfaces the backend failure instead of retrying forever.
    - Device-local sync diagnostics stay local and are stripped before remote writes.
 10. Clock skew telemetry:
    - Merge stats record the largest observed skew.
@@ -113,6 +116,7 @@ record sync history and diagnostics
 - Metadata merge runs before file transfer reconciliation.
 - Winner attachment URI/local status is preserved when usable.
 - If winner has no usable local URI, merge can fall back to the other side URI/status.
+- Attachment delete-vs-live races use the same merge and `syncConflictDiscarded` diagnostics as tasks/projects, so a deleted attachment winning over a concurrent metadata edit is visible in diagnostics.
 - Missing local files are handled later by attachment sync/download.
 - `settings.attachments.pendingRemoteDeletes` records remote files that still need deletion after a local attachment delete.
 - Pending remote deletes are retained until the remote delete succeeds. They are not purged by age, because dropping them before success can leave deleted files orphaned on the backend.
@@ -133,6 +137,13 @@ Operational consequences:
 - A failed remote write does not silently discard the just-merged local state.
 - `pendingRemoteWriteAt`, `pendingRemoteWriteRetryAt`, and `pendingRemoteWriteAttempts` are stored locally.
 - The next sync pauses until the retry window expires, then retries using the preserved local snapshot plus any newer local edits.
+- After 12 retry attempts, sync status changes to `error`. The preserved local snapshot remains local and the status UI should direct the user to check backend connectivity or credentials.
+
+## Tombstone Purge Bound
+
+Tombstones protect deletes only while they are retained. The current retention policy is bounded by `tombstoneRetentionDays`.
+
+Operationally, a device that has been offline longer than the retention window can reintroduce records whose delete tombstones were already purged on other devices. Mindwtr treats this as the documented consistency bound for snapshot sync. Users should sync long-offline devices before relying on old local data, and future protocol work should reject snapshots whose last successful sync predates the purge horizon if stricter guarantees are needed.
 
 ## Diagnostics You Can Inspect
 
@@ -141,6 +152,7 @@ Operational consequences:
 - Max clock skew observed
 - Timestamp normalization adjustments
 - IDs of records whose timestamps were normalized
+- `syncConflictDiscarded` entries for delete-vs-live conflicts where the live side was discarded
 - Last sync status/history in Settings
 
 ## Related docs

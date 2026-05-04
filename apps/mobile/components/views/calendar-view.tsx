@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
+  type AccessibilityActionEvent,
   type LayoutChangeEvent,
   Modal,
   Pressable,
@@ -321,6 +322,16 @@ export function CalendarView() {
         runOnJS(updateWeekDensityFromTrack)(event.x);
       })
   ), [updateWeekDensityFromTrack]);
+
+  const handleWeekDensityAccessibilityAction = useCallback((event: AccessibilityActionEvent) => {
+    if (event.nativeEvent.actionName === 'increment') {
+      setCalendarWeekVisibleDays(Math.min(CALENDAR_WEEK_VISIBLE_DAYS_MAX, calendarWeekVisibleDays + 1));
+      return;
+    }
+    if (event.nativeEvent.actionName === 'decrement') {
+      setCalendarWeekVisibleDays(Math.max(CALENDAR_WEEK_VISIBLE_DAYS_MIN, calendarWeekVisibleDays - 1));
+    }
+  }, [calendarWeekVisibleDays, setCalendarWeekVisibleDays]);
 
   const bottomSheetGesture = Gesture.Pan()
     .hitSlop({ bottom: 16, top: 12 })
@@ -1064,9 +1075,29 @@ export function CalendarView() {
                 : localize(`${calendarWeekVisibleDays} days`, `${calendarWeekVisibleDays} 天`)}
             </Text>
           </View>
+          <Text style={[styles.weekDensityHint, { color: tc.secondaryText }]}>
+            {localize('2 keeps day columns wider; 7 shows the full week.', '2 天显示更宽的日期列；7 天显示完整一周。')}
+          </Text>
           <GestureDetector gesture={weekDensityGesture}>
             <View
               onLayout={handleWeekDensityTrackLayout}
+              accessible
+              accessibilityRole="adjustable"
+              accessibilityLabel={localize('Visible week days', '可见周视图天数')}
+              accessibilityHint={localize('Swipe up or down to show more or fewer days.', '上下滑动以显示更多或更少天数。')}
+              accessibilityValue={{
+                min: CALENDAR_WEEK_VISIBLE_DAYS_MIN,
+                max: CALENDAR_WEEK_VISIBLE_DAYS_MAX,
+                now: calendarWeekVisibleDays,
+                text: calendarWeekVisibleDays === 1
+                  ? localize('1 day', '1 天')
+                  : localize(`${calendarWeekVisibleDays} days`, `${calendarWeekVisibleDays} 天`),
+              }}
+              accessibilityActions={[
+                { name: 'increment', label: localize('Show more days', '显示更多天数') },
+                { name: 'decrement', label: localize('Show fewer days', '显示更少天数') },
+              ]}
+              onAccessibilityAction={handleWeekDensityAccessibilityAction}
               style={[styles.weekDensityTrack, { backgroundColor: tc.border }]}
             >
               <View style={[styles.weekDensityTrackFill, { width: `${weekDensityProgress * 100}%`, backgroundColor: tc.tint }]} />
@@ -1089,6 +1120,11 @@ export function CalendarView() {
                 <Pressable
                   key={value}
                   onPress={() => setCalendarWeekVisibleDays(value)}
+                  accessibilityRole="button"
+                  accessibilityLabel={value === 1
+                    ? localize('Show 1 visible day', '显示 1 天')
+                    : localize(`Show ${value} visible days`, `显示 ${value} 天`)}
+                  accessibilityState={{ selected: active }}
                   hitSlop={8}
                   style={styles.weekDensityTick}
                 >

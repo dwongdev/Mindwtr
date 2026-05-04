@@ -681,8 +681,8 @@ function TaskListComponent({
         selectionMode={enableBulkActions ? selectionMode : false}
         isMultiSelected={enableBulkActions && multiSelectedIds.has(item.id)}
         onToggleSelect={enableBulkActions ? () => toggleMultiSelect(item.id) : undefined}
-        onStatusChange={(status) => updateTask(item.id, { status: status as TaskStatus })}
-        onDelete={() => deleteTask(item.id)}
+        onStatusChange={(status) => { void updateTask(item.id, { status: status as TaskStatus }); }}
+        onDelete={() => { void deleteTask(item.id); }}
         isHighlighted={item.id === highlightTaskId}
         hideStatusBadge={hideStatusBadgeForList}
         hideChecklistProgress={hideChecklistProgressForList}

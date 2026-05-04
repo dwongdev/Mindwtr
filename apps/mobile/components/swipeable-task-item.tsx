@@ -220,7 +220,7 @@ export function SwipeableTaskItem({
                                     message: t('list.taskDeleted') || 'Task deleted',
                                     tone: 'info',
                                     actionLabel: t('common.undo') || 'Undo',
-                                    onAction: () => restoreTask(task.id),
+                                    onAction: () => { void restoreTask(task.id); },
                                     durationMs: 5200,
                                 });
                             })

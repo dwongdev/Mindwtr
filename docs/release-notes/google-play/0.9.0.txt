@@ -1,0 +1,9 @@
+<en-US>
+Focus and scheduling are clearer: future-start tasks stay hidden by default with a visible show option, Pomodoro task linking is optional, start and due reminders are split, notification rescheduling is capped for performance, and mobile week density explains its 2-7 day scale. Sync now surfaces stalled writes and delete-vs-edit diagnostics.
+</en-US>
+<zh-CN>
+聚焦与日程更清晰：未来开始的任务默认隐藏并提供显示入口，番茄钟任务关联可选，开始提醒与截止提醒分开，通知重排限制在最近提醒以提升性能，移动端周视图密度说明 2-7 天范围。同步现在会显示失败写入和删除/编辑冲突诊断。
+</zh-CN>
+<es-ES>
+Focus y agenda son mas claros: tareas con inicio futuro quedan ocultas por defecto con opcion para mostrarlas, Pomodoro puede vincular tareas de forma opcional, avisos de inicio y vencimiento van separados, el reprogramado de notificaciones se limita para rendimiento y la densidad semanal movil explica su escala 2-7. Sync muestra escrituras atascadas y diagnosticos delete-vs-edit.
+</es-ES>

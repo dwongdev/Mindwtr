@@ -148,6 +148,10 @@ export function KeybindingProvider({
         }),
         [isMac, isWindows, settings.globalQuickAddShortcut]
     );
+    const undoLabel = useMemo(() => {
+        const value = t('common.undo');
+        return value && value !== 'common.undo' ? value : 'Undo';
+    }, [t]);
     const sortedAreas = useMemo(
         () => [...areas].sort((a, b) => a.order - b.order),
         [areas],
@@ -365,19 +369,60 @@ export function KeybindingProvider({
         const task = state.tasks.find((item) => item.id === selectedTaskId);
         if (!task) return;
         const nextStatus = task.status === 'done' ? 'inbox' : 'done';
-        void state.moveTask(task.id, nextStatus);
-    }, [pickFallbackTaskElement]);
+        const previousStatus = task.status;
+        void state.moveTask(task.id, nextStatus)
+            .then((result) => {
+                if (!result.success) {
+                    throw new Error(result.error || 'Failed to change task status');
+                }
+                if (settings.undoNotificationsEnabled === false || nextStatus !== 'done' || previousStatus === 'done') return;
+                showToast(
+                    `${task.title} marked Done`,
+                    'info',
+                    5000,
+                    {
+                        label: undoLabel,
+                        onClick: () => {
+                            void state.moveTask(task.id, previousStatus);
+                        },
+                    }
+                );
+            })
+            .catch((error) => reportError('Failed to change task status', error));
+    }, [pickFallbackTaskElement, settings.undoNotificationsEnabled, showToast, undoLabel]);
 
     const fallbackDeleteSelected = useCallback(() => {
         const selectedElement = pickFallbackTaskElement();
         const selectedTaskId = selectedElement?.dataset.taskId;
         if (!selectedTaskId) return;
         const state = useTaskStore.getState();
-        void state.deleteTask(selectedTaskId);
+        void state.deleteTask(selectedTaskId)
+            .then((result) => {
+                if (!result.success) {
+                    throw new Error(result.error || 'Failed to delete task');
+                }
+                if (settings.undoNotificationsEnabled === false) return;
+                const deletedMessageRaw = t('task.aria.delete');
+                const deletedMessage = deletedMessageRaw && deletedMessageRaw !== 'task.aria.delete'
+                    ? deletedMessageRaw
+                    : 'Task deleted';
+                showToast(
+                    deletedMessage,
+                    'info',
+                    5000,
+                    {
+                        label: undoLabel,
+                        onClick: () => {
+                            void state.restoreTask(selectedTaskId);
+                        },
+                    }
+                );
+            })
+            .catch((error) => reportError('Failed to delete task', error));
         if (fallbackSelectedTaskIdRef.current === selectedTaskId) {
             fallbackSelectedTaskIdRef.current = null;
         }
-    }, [pickFallbackTaskElement]);
+    }, [pickFallbackTaskElement, settings.undoNotificationsEnabled, showToast, t, undoLabel]);
 
     const fallbackTaskListScope = useMemo<TaskListScope>(() => ({
         kind: 'taskList',

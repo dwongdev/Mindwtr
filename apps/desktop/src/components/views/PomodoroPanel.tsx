@@ -256,6 +256,7 @@ export function PomodoroPanel({ tasks }: PomodoroPanelProps) {
                     </label>
                     <select
                         className="w-full text-sm px-3 py-2 rounded border border-border bg-background focus:outline-none focus:ring-2 focus:ring-primary/30"
+                        aria-label={selectedTaskLabel}
                         value={selectedTaskId ?? ''}
                         onChange={(event) => {
                             const nextId = event.target.value || undefined;

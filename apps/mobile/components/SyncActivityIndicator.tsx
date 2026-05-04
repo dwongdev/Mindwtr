@@ -50,7 +50,7 @@ export function SyncActivityIndicator() {
             accessibilityLabel={copy.accessibilityLabel}
             accessibilityRole="button"
             hitSlop={8}
-            onPress={() => router.push('/settings')}
+            onPress={() => router.push({ pathname: '/settings', params: { settingsScreen: 'sync' } })}
             style={[
                 styles.badge,
                 {

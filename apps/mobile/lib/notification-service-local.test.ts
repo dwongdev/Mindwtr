@@ -237,9 +237,12 @@ describe('notification-service-local', () => {
 
       await startLocalMobileNotifications();
 
+      const alarmScheduleCalls = mockAlarmScheduleAlarm.mock.calls as unknown as Array<[
+        { data?: { taskId?: string } },
+      ]>;
       const scheduledTaskIds = new Set(
-        mockAlarmScheduleAlarm.mock.calls
-          .map(([details]) => (details as { data?: { taskId?: string } }).data?.taskId)
+        alarmScheduleCalls
+          .map(([details]) => details.data?.taskId)
           .filter((taskId): taskId is string => typeof taskId === 'string')
       );
 

@@ -242,8 +242,8 @@ function DailyReviewFlow({ onClose }: { onClose: () => void }) {
                     isDark={isDark}
                     tc={tc}
                     onPress={() => openTask(task)}
-                    onStatusChange={(status) => updateTask(task.id, { status: status as TaskStatus })}
-                    onDelete={() => deleteTask(task.id)}
+                    onStatusChange={(status) => { void updateTask(task.id, { status: status as TaskStatus }); }}
+                    onDelete={() => { void deleteTask(task.id); }}
                     showFocusToggle={options?.showFocusToggle}
                     hideStatusBadge={options?.hideStatusBadge}
                     onProjectPress={handleNavigateToProject}

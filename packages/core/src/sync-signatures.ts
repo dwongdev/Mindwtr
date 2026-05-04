@@ -90,7 +90,11 @@ export const normalizeSectionForContentComparison = (section: Section): Record<s
     isCollapsed: section.isCollapsed ? true : undefined,
 });
 
-export const normalizeAreaForContentComparison = (area: Area): Record<string, unknown> => ({
+type AreaContentComparisonInput = Omit<Area, 'order'> & {
+    order?: number;
+};
+
+export const normalizeAreaForContentComparison = (area: AreaContentComparisonInput): Record<string, unknown> => ({
     ...area,
 });
 

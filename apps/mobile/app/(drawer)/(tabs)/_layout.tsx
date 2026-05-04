@@ -9,6 +9,7 @@ import { useCallback, useRef, useState } from 'react';
 import { HapticTab } from '@/components/haptic-tab';
 import { MobileAreaSwitcher } from '@/components/mobile-area-switcher';
 import { MobileHeaderSyncBar } from '@/components/mobile-header-sync-bar';
+import { SyncActivityIndicator } from '@/components/SyncActivityIndicator';
 import { useMobileAreaFilter } from '@/hooks/use-mobile-area-filter';
 import { useMobileSyncBadge } from '@/hooks/use-mobile-sync-badge';
 import { useThemeColors } from '@/hooks/use-theme-colors';
@@ -390,6 +391,7 @@ export default function TabLayout() {
         }}
       />
     </Tabs>
+    <SyncActivityIndicator />
     <QuickCaptureSheet
       visible={captureState.visible}
       initialValue={captureState.initialValue}

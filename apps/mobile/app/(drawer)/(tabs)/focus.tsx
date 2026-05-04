@@ -456,8 +456,8 @@ export default function FocusScreen() {
         isDark={isDark}
         tc={tc}
         onPress={() => onEdit(item)}
-        onStatusChange={(status) => updateTask(item.id, { status: status as TaskStatus })}
-        onDelete={() => deleteTask(item.id)}
+        onStatusChange={(status) => { void updateTask(item.id, { status: status as TaskStatus }); }}
+        onDelete={() => { void deleteTask(item.id); }}
         isHighlighted={item.id === highlightTaskId}
         showFocusToggle
         hideStatusBadge
