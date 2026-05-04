@@ -1,5 +1,3 @@
-- Review es mas claro con grupos plegables, acciones simples y Daily Review que empieza por Inbox.
-- El calendario mejora gestos, semana, detalles de eventos y quick add diario.
-- La edicion sugiere metadatos para organizar tareas.
-- Recurrence suma intervalos semanales, repeticion trimestral y reparacion mensual mas segura.
-- Sync conserva ediciones durante refrescos y evita falsos saltos offline.
+- Focus y agenda son mas claros con tareas futuras ocultas, Pomodoro opcional por tarea, avisos de inicio y vencimiento separados, y densidad semanal ajustable.
+- Sync mantiene visibles los errores, deshacer eliminacion es mas estable y los ajustes se leen mejor.
+- Busqueda, captura, Review, contextos y gestos de calendario son mas fluidos.

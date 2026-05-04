@@ -1,5 +1,3 @@
-- Review is easier to use with collapsible groups, cleaner actions, and Inbox-first daily review.
-- Calendar gestures, week scrolling, event details, and day timeline quick add are smoother.
-- Task editing adds metadata suggestions for organization fields.
-- Recurrence gains weekly intervals, quarterly repeats, and safer monthly repair.
-- Sync preserves edits during refresh and avoids false offline skips.
+- Focus and scheduling are clearer with hidden future-start tasks, optional Pomodoro task linking, split start and due reminders, and adjustable week density.
+- Sync errors stay visible, delete undo is steadier, and settings are easier to scan.
+- Search, capture, review controls, context selection, and calendar gestures are smoother.

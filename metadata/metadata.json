@@ -30,7 +30,7 @@
           "完全离线可用，无需互联网连接",
           "完全开源，安全透明"
         ],
-        "ReleaseNotes": "• 桌面 Review 操作更顺畅，并新增 Review 和 Area 快捷操作。\n• 任务详情链接可正确打开。\n• 重复任务支持每周间隔、季度重复和更安全的月度修复。\n• 同步刷新时会保留正在编辑的内容，本地自动化会更好地处理 Areas 和项目 ID。",
+        "ReleaseNotes": "• 全局快速添加会在独立弹窗中打开。\n• 搜索覆盖所有领域，大型资料库中也更稳定。\n• 聚焦和番茄钟控制更清晰，支持可选任务关联，并默认隐藏未来开始任务。\n• 同步诊断和 SQLite 清理更稳定。",
         "Images": [
           {
             "FileName": "2026-01-27_22-59-40.png",
@@ -82,7 +82,7 @@
           "No internet connection required to function",
           "Open source and transparent"
         ],
-        "ReleaseNotes": "• Desktop Review interactions are smoother, with new Review and Area quick actions.\n• Task detail links now open correctly.\n• Recurrence gains weekly intervals, quarterly repeats, and safer monthly repair.\n• Sync preserves edits during refresh, and local automation handles Areas and project IDs more reliably.",
+        "ReleaseNotes": "• Global quick add opens in a focused popup.\n• Search now covers all areas and stays responsive on large libraries.\n• Focus and Pomodoro controls are clearer with optional task linking and hidden future-start tasks by default.\n• Sync diagnostics and SQLite cleanup are steadier.",
         "Images": [
           {
             "FileName": "2026-01-27_22-59-40.png",
@@ -130,7 +130,7 @@
           "No requiere conexión a internet para funcionar",
           "Código abierto y transparente"
         ],
-        "ReleaseNotes": "• Review en escritorio es mas fluido, con acciones rapidas de Review y Area.\n• Los enlaces de detalle de tareas se abren correctamente.\n• Recurrence suma intervalos semanales, repeticion trimestral y reparacion mensual mas segura.\n• Sync conserva ediciones durante refrescos y la automatizacion local maneja mejor Areas e IDs de proyectos.",
+        "ReleaseNotes": "• Quick add global se abre en una ventana enfocada.\n• La busqueda cubre todas las areas y sigue rapida en bibliotecas grandes.\n• Focus y Pomodoro son mas claros, con vinculacion opcional de tareas y tareas futuras ocultas por defecto.\n• Sync y limpieza SQLite son mas estables.",
         "Images": [
           {
             "FileName": "2026-01-27_22-59-40.png",
