@@ -218,6 +218,34 @@ describe('notification-service-local', () => {
     );
   });
 
+  it('passes separate start and due reminder preferences into task scheduling', async () => {
+    mockStoreState.settings = {
+      notificationsEnabled: true,
+      startDateNotificationsEnabled: false,
+      dueDateNotificationsEnabled: true,
+    };
+    mockStoreState.tasks = [
+      {
+        id: 'task-1',
+        title: 'Pay rent',
+        description: '',
+      },
+    ];
+    mockGetNextScheduledAt.mockReturnValue(new Date(Date.now() + 5 * 60 * 1000));
+
+    await startLocalMobileNotifications();
+
+    expect(mockGetNextScheduledAt).toHaveBeenCalledWith(
+      expect.objectContaining({ id: 'task-1' }),
+      expect.any(Date),
+      expect.objectContaining({
+        includeStartTime: false,
+        includeDueDate: true,
+        includeReviewAt: true,
+      })
+    );
+  });
+
   it('marks task review date reminders so notification taps can open Review', async () => {
     const reviewAt = new Date(Date.now() + 5 * 60 * 1000).toISOString();
     mockStoreState.settings = {

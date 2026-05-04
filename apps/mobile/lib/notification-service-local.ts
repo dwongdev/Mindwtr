@@ -13,7 +13,13 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { NativeEventEmitter, NativeModules, PermissionsAndroid, Platform } from 'react-native';
 
 import { logWarn } from './app-log';
-import { areTaskRemindersEnabled, hasActiveMobileNotificationFeature, isWeeklyReviewReminderEnabled } from './mobile-notification-settings';
+import {
+  areDueDateRemindersEnabled,
+  areStartDateRemindersEnabled,
+  areTaskRemindersEnabled,
+  hasActiveMobileNotificationFeature,
+  isWeeklyReviewReminderEnabled,
+} from './mobile-notification-settings';
 import { getDuplicateAlarmRetryFireAt } from './notification-service-local-utils';
 
 type NotificationOpenPayload = {
@@ -468,6 +474,8 @@ async function runRescheduleCycle(api: AlarmNotificationsApi): Promise<void> {
   const { settings, tasks, projects } = useTaskStore.getState();
   const activeKeys = new Set<string>();
   const taskRemindersEnabled = areTaskRemindersEnabled(settings);
+  const includeStartTime = areStartDateRemindersEnabled(settings);
+  const includeDueDate = areDueDateRemindersEnabled(settings);
   const weeklyReviewEnabled = isWeeklyReviewReminderEnabled(settings);
 
   if (!hasActiveMobileNotificationFeature(settings)) {
@@ -528,7 +536,7 @@ async function runRescheduleCycle(api: AlarmNotificationsApi): Promise<void> {
 
   if (taskRemindersEnabled) {
     for (const task of tasks) {
-      const next = getNextScheduledAt(task, now, { includeReviewAt });
+      const next = getNextScheduledAt(task, now, { includeStartTime, includeDueDate, includeReviewAt });
       if (!next || next.getTime() <= now.getTime()) continue;
       const reviewAt = includeReviewAt && hasTimeComponent(task.reviewAt)
         ? safeParseDate(task.reviewAt)

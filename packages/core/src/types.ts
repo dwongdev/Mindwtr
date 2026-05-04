@@ -284,6 +284,8 @@ export interface AppData {
         };
         notificationsEnabled?: boolean;
         undoNotificationsEnabled?: boolean;
+        startDateNotificationsEnabled?: boolean;
+        dueDateNotificationsEnabled?: boolean;
         reviewAtNotificationsEnabled?: boolean;
         dailyDigestMorningEnabled?: boolean;
         dailyDigestMorningTime?: string; // HH:mm
