@@ -63,6 +63,8 @@ type Labels = {
     closeBehaviorAsk: string;
     closeBehaviorTray: string;
     closeBehaviorQuit: string;
+    launchAtStartup: string;
+    launchAtStartupDesc: string;
     showTray: string;
     showTrayDesc: string;
 };
@@ -101,6 +103,10 @@ export type SettingsMainPageProps = {
     showCloseBehavior?: boolean;
     closeBehavior?: 'ask' | 'tray' | 'quit';
     onCloseBehaviorChange?: (behavior: 'ask' | 'tray' | 'quit') => void;
+    showLaunchAtStartup?: boolean;
+    launchAtStartupEnabled?: boolean;
+    launchAtStartupLoading?: boolean;
+    onLaunchAtStartupChange?: (enabled: boolean) => void;
     showTrayToggle?: boolean;
     trayVisible?: boolean;
     onTrayVisibleChange?: (visible: boolean) => void;
@@ -137,14 +143,26 @@ function SettingsCard({ children }: { children: React.ReactNode }) {
     );
 }
 
-function Toggle({ enabled, onChange }: { enabled: boolean; onChange: () => void }) {
+function Toggle({
+    disabled = false,
+    enabled,
+    label,
+    onChange,
+}: {
+    disabled?: boolean;
+    enabled: boolean;
+    label: string;
+    onChange: () => void;
+}) {
     return (
         <button
             type="button"
+            disabled={disabled}
+            aria-label={label}
             onClick={onChange}
             className={`inline-flex h-[22px] w-10 items-center rounded-full transition-colors ${
                 enabled ? 'bg-primary' : 'bg-muted'
-            }`}
+            } ${disabled ? 'cursor-not-allowed opacity-60' : ''}`}
             aria-pressed={enabled}
         >
             <span
@@ -188,11 +206,15 @@ export function SettingsMainPage({
     showCloseBehavior = false,
     closeBehavior = 'ask',
     onCloseBehaviorChange,
+    showLaunchAtStartup = false,
+    launchAtStartupEnabled = false,
+    launchAtStartupLoading = false,
+    onLaunchAtStartupChange,
     showTrayToggle = false,
     trayVisible = true,
     onTrayVisibleChange,
 }: SettingsMainPageProps) {
-    const hasWindowSection = showWindowDecorations || showCloseBehavior || showTrayToggle;
+    const hasWindowSection = showWindowDecorations || showCloseBehavior || showLaunchAtStartup || showTrayToggle;
     const isMac = typeof navigator !== 'undefined' && /mac/i.test(navigator.platform);
     const isWindows = typeof navigator !== 'undefined' && /win/i.test(navigator.userAgent);
     const globalQuickAddOptions = getGlobalQuickAddShortcutOptions({
@@ -246,6 +268,7 @@ export function SettingsMainPage({
                 <SettingsRow title={t.showTaskAge} description={t.showTaskAgeDesc}>
                     <Toggle
                         enabled={showTaskAge}
+                        label={t.showTaskAge}
                         onChange={() => onShowTaskAgeChange(!showTaskAge)}
                     />
                 </SettingsRow>
@@ -363,6 +386,7 @@ export function SettingsMainPage({
                 <SettingsRow title={t.undoNotifications} description={t.undoNotificationsDesc}>
                     <Toggle
                         enabled={undoNotificationsEnabled}
+                        label={t.undoNotifications}
                         onChange={() => onUndoNotificationsChange(!undoNotificationsEnabled)}
                     />
                 </SettingsRow>
@@ -377,6 +401,7 @@ export function SettingsMainPage({
                             <SettingsRow title={t.windowDecorations} description={t.windowDecorationsDesc}>
                                 <Toggle
                                     enabled={windowDecorationsEnabled}
+                                    label={t.windowDecorations}
                                     onChange={() => onWindowDecorationsChange?.(!windowDecorationsEnabled)}
                                 />
                             </SettingsRow>
@@ -398,7 +423,18 @@ export function SettingsMainPage({
                             <SettingsRow title={t.showTray} description={t.showTrayDesc}>
                                 <Toggle
                                     enabled={trayVisible}
+                                    label={t.showTray}
                                     onChange={() => onTrayVisibleChange?.(!trayVisible)}
+                                />
+                            </SettingsRow>
+                        )}
+                        {showLaunchAtStartup && (
+                            <SettingsRow title={t.launchAtStartup} description={t.launchAtStartupDesc}>
+                                <Toggle
+                                    disabled={launchAtStartupLoading}
+                                    enabled={launchAtStartupEnabled}
+                                    label={t.launchAtStartup}
+                                    onChange={() => onLaunchAtStartupChange?.(!launchAtStartupEnabled)}
                                 />
                             </SettingsRow>
                         )}

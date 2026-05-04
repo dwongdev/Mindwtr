@@ -41,6 +41,7 @@ use time::OffsetDateTime;
 use whisper_rs::{FullParams, SamplingStrategy, WhisperContext, WhisperContextParameters};
 
 mod audio;
+mod autostart;
 mod config;
 mod install;
 mod logging;
@@ -53,6 +54,7 @@ mod sync;
 mod ui;
 
 use audio::{start_audio_recording, stop_audio_recording, transcribe_whisper};
+use autostart::{get_launch_at_startup_enabled, set_launch_at_startup_enabled};
 use config::{
     check_obsidian_vault_marker, get_ai_key, get_cloud_config, get_external_calendars,
     get_obsidian_config, get_sync_backend, get_webdav_config, get_webdav_password, set_ai_key,
@@ -559,6 +561,11 @@ pub fn run() {
         .plugin(tauri_plugin_http::init())
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_notification::init())
+        .plugin(
+            tauri_plugin_autostart::Builder::new()
+                .app_name("Mindwtr")
+                .build(),
+        )
         .plugin(tauri_plugin_global_shortcut::Builder::new().build());
     #[cfg(target_os = "macos")]
     let builder = builder
@@ -858,6 +865,8 @@ pub fn run() {
             set_global_quick_add_shortcut,
             is_windows_store_install,
             get_install_source,
+            get_launch_at_startup_enabled,
+            set_launch_at_startup_enabled,
             quit_app
         ])
         .run(tauri::generate_context!())

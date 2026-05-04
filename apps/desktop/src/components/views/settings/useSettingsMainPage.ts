@@ -9,6 +9,10 @@ import {
 
 import type { Language } from '../../../contexts/language-context';
 import type { GlobalQuickAddShortcutSetting } from '../../../lib/global-quick-add-shortcut';
+import {
+    getLaunchAtStartupEnabled,
+    setLaunchAtStartupEnabled as setSystemLaunchAtStartupEnabled,
+} from '../../../lib/launch-at-startup';
 import { reportError } from '../../../lib/report-error';
 import {
     THEME_STORAGE_KEY,
@@ -55,6 +59,10 @@ export function useSettingsMainPage({
     updateSettings,
 }: UseSettingsMainPageOptions): MainPageProps {
     const [themeMode, setThemeMode] = useState<DesktopThemeMode>('system');
+    const [launchAtStartupEnabled, setLaunchAtStartupEnabledState] = useState(
+        settings?.window?.launchAtStartup === true,
+    );
+    const [launchAtStartupLoading, setLaunchAtStartupLoading] = useState(false);
 
     const densityMode = (
         settings?.appearance?.density === 'compact' ? 'compact' : 'comfortable'
@@ -94,6 +102,27 @@ export function useSettingsMainPage({
             .then(({ setTheme }) => setTheme(tauriTheme))
             .catch((error) => reportError('Failed to set theme', error));
     }, [isTauri, themeMode]);
+
+    useEffect(() => {
+        if (!isTauri || isFlatpak) return;
+        let cancelled = false;
+        getLaunchAtStartupEnabled()
+            .then((enabled) => {
+                if (cancelled) return;
+                setLaunchAtStartupEnabledState(enabled);
+                if ((settings?.window?.launchAtStartup === true) === enabled) return;
+                return updateSettings({
+                    window: {
+                        ...(settings?.window ?? {}),
+                        launchAtStartup: enabled,
+                    },
+                });
+            })
+            .catch((error) => reportError('Failed to read launch at startup setting', error));
+        return () => {
+            cancelled = true;
+        };
+    }, [isFlatpak, isTauri, settings?.window, updateSettings]);
 
     const onThemeChange = useCallback((mode: DesktopThemeMode) => {
         localStorage.setItem(THEME_STORAGE_KEY, mode);
@@ -211,6 +240,30 @@ export function useSettingsMainPage({
             );
     }, [settings?.window, showSaved, updateSettings]);
 
+    const onLaunchAtStartupChange = useCallback((enabled: boolean) => {
+        if (!isTauri) return;
+        setLaunchAtStartupLoading(true);
+        setSystemLaunchAtStartupEnabled(enabled)
+            .then((actualEnabled) => {
+                setLaunchAtStartupEnabledState(actualEnabled);
+                return updateSettings({
+                    window: {
+                        ...(settings?.window ?? {}),
+                        launchAtStartup: actualEnabled,
+                    },
+                });
+            })
+            .then(() => flushPendingSave())
+            .then(showSaved)
+            .catch((error) => {
+                reportError('Failed to update launch at startup setting', error);
+                void getLaunchAtStartupEnabled()
+                    .then(setLaunchAtStartupEnabledState)
+                    .catch(() => undefined);
+            })
+            .finally(() => setLaunchAtStartupLoading(false));
+    }, [isTauri, settings?.window, showSaved, updateSettings]);
+
     const onKeybindingStyleChange = useCallback((style: 'vim' | 'emacs') => {
         setKeybindingStyle(style);
         showSaved();
@@ -236,12 +289,15 @@ export function useSettingsMainPage({
         globalQuickAddShortcut,
         keybindingStyle,
         language,
+        launchAtStartupEnabled,
+        launchAtStartupLoading,
         onCloseBehaviorChange,
         onDateFormatChange,
         onDensityChange,
         onGlobalQuickAddShortcutChange,
         onKeybindingStyleChange,
         onLanguageChange,
+        onLaunchAtStartupChange,
         onOpenHelp: openHelp,
         onShowTaskAgeChange,
         onTextSizeChange,
@@ -252,6 +308,7 @@ export function useSettingsMainPage({
         onWeekStartChange,
         onWindowDecorationsChange,
         showCloseBehavior: isTauri && !isFlatpak,
+        showLaunchAtStartup: isTauri && !isFlatpak,
         showTaskAge,
         showTrayToggle: isTauri && !isFlatpak,
         showWindowDecorations: isLinux,

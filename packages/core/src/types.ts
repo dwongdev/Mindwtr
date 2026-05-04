@@ -281,6 +281,7 @@ export interface AppData {
         window?: {
             decorations?: boolean;
             closeBehavior?: 'ask' | 'tray' | 'quit';
+            launchAtStartup?: boolean;
             showTray?: boolean;
         };
         notificationsEnabled?: boolean;
