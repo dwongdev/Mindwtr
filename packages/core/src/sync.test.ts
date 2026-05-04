@@ -1,5 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import { CLOCK_SKEW_THRESHOLD_MS, SYNC_REPAIR_REV_BY, mergeAppData, mergeAppDataWithStats } from './sync';
+import { consoleLogger, setLogger, type LogPayload } from './logger';
 import { chooseDeterministicWinner } from './sync-signatures';
 import { createMockArea, createMockProject, createMockSection, createMockTask, mockAppData } from './sync-test-utils';
 import { AppData, Task, Project, Attachment, Section, Area } from './types';
@@ -1307,6 +1308,90 @@ describe('Sync Logic', () => {
             expect(merged.areas[0].order).toBe(0);
             expect(merged.areas[0].rev).toBe(5);
             expect(merged.areas[0].revBy).toBe(SYNC_REPAIR_REV_BY);
+        });
+
+        it('repairs deleted project and task area references before restore', () => {
+            const nowIso = '2026-04-01T00:00:00.000Z';
+            const oldIso = '2026-03-31T00:00:00.000Z';
+            const deletedProject = {
+                ...createMockProject('project-1', oldIso, oldIso),
+                areaId: 'area-live',
+                areaTitle: 'Old title',
+                rev: 2,
+                revBy: 'device-a',
+            } satisfies Project;
+            const deletedTask = {
+                ...createMockTask('task-1', oldIso, oldIso),
+                areaId: 'area-deleted',
+                rev: 2,
+                revBy: 'device-a',
+            } satisfies Task;
+            const liveArea = {
+                ...createMockArea('area-live', oldIso),
+                name: 'Renamed area',
+            } satisfies Area;
+            const deletedArea = createMockArea('area-deleted', oldIso, oldIso);
+
+            const merged = mergeAppData(
+                {
+                    ...mockAppData([deletedTask], [deletedProject]),
+                    areas: [liveArea, deletedArea],
+                },
+                mockAppData(),
+                { nowIso }
+            );
+
+            expect(merged.projects[0]).toMatchObject({
+                areaId: 'area-live',
+                areaTitle: 'Renamed area',
+                rev: 3,
+                revBy: SYNC_REPAIR_REV_BY,
+                updatedAt: nowIso,
+                deletedAt: oldIso,
+            });
+            expect(merged.tasks[0]).toMatchObject({
+                areaId: undefined,
+                rev: 3,
+                revBy: SYNC_REPAIR_REV_BY,
+                updatedAt: nowIso,
+                deletedAt: oldIso,
+            });
+        });
+
+        it('logs a structured warning when a delete wins over a live edit', () => {
+            const logs: LogPayload[] = [];
+            setLogger((payload) => {
+                logs.push(payload);
+            });
+
+            try {
+                const result = mergeAppDataWithStats(
+                    mockAppData([
+                        createMockTask(
+                            'task-delete-wins',
+                            '2026-04-01T00:01:00.000Z',
+                            '2026-04-01T00:01:00.000Z'
+                        ),
+                    ]),
+                    mockAppData([{
+                        ...createMockTask('task-delete-wins', '2026-04-01T00:00:00.000Z'),
+                        title: 'Edited elsewhere',
+                    }])
+                );
+
+                expect(result.data.tasks[0].deletedAt).toBe('2026-04-01T00:01:00.000Z');
+            } finally {
+                setLogger(consoleLogger);
+            }
+
+            const discardedLog = logs.find((entry) => entry.message === 'syncConflictDiscarded');
+            expect(discardedLog?.context).toMatchObject({
+                entityType: 'task',
+                id: 'task-delete-wins',
+                discardedSide: 'incoming',
+                winnerSide: 'local',
+                reason: 'deleteState',
+            });
         });
 
         it('prefers deletion when legacy delete-vs-live operation times are equal', () => {

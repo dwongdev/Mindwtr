@@ -29,6 +29,7 @@ import {
     collectComparableDiffKeys,
     createSyncSignatureMemo,
     hashComparableSignature,
+    normalizeAreaForContentComparison,
     normalizeProjectForContentComparison,
     normalizeSectionForContentComparison,
     normalizeTaskForContentComparison,
@@ -100,6 +101,7 @@ const CONFLICT_DIFF_KEY_LIMIT = 8;
 const DELETE_VS_LIVE_AMBIGUOUS_WINDOW_MS = 30 * 1000;
 const PENDING_REMOTE_WRITE_RETRY_BASE_MS = 5 * 1000;
 const PENDING_REMOTE_WRITE_RETRY_MAX_MS = 5 * 60 * 1000;
+const PENDING_REMOTE_WRITE_MAX_ATTEMPTS = 12;
 const ATTACHMENT_URI_DECODE_LIMIT = 32;
 const ATTACHMENT_TRAVERSAL_SEGMENT_PATTERN = /(^|[\\/])\.\.([\\/]|$)/;
 const ATTACHMENT_TRAVERSAL_SEGMENT_CACHE_LIMIT = 1024;
@@ -234,6 +236,7 @@ function mergeEntitiesWithStats<T extends MergeableEntity>(
     const signatureMemo = createSyncSignatureMemo();
     let invalidDeletedAtWarnings = 0;
     let ambiguousResurrectionWarnings = 0;
+    let discardedLiveConflictWarnings = 0;
     const maxAllowedMergeTime = Date.now();
     const recoverCreatedAtFromCounterpart = (item: T, counterpart?: T): string | undefined => {
         if (!counterpart?.createdAt) return undefined;
@@ -327,6 +330,7 @@ function mergeEntitiesWithStats<T extends MergeableEntity>(
         const conflictReasons: ConflictReason[] = [];
         if (unresolvedDeleteStateDiff) conflictReasons.push('deleteState');
         if (contentDiff) conflictReasons.push('content');
+        let deleteVsLiveOperationDiffMs: number | undefined;
 
         const differs = hasRevision
             ? unresolvedDeleteStateDiff || contentDiff
@@ -421,6 +425,7 @@ function mergeEntitiesWithStats<T extends MergeableEntity>(
             if (localDeleted !== incomingDeleted) {
                 const resolution = resolveDeleteVsLiveWinner(normalizedLocalItem, normalizedIncomingItem);
                 winner = resolution.winner;
+                deleteVsLiveOperationDiffMs = resolution.operationDiffMs;
                 if (resolution.preservedLiveInAmbiguousWindow) {
                     ambiguousResurrectionWarnings += 1;
                     if (ambiguousResurrectionWarnings <= 5) {
@@ -457,6 +462,7 @@ function mergeEntitiesWithStats<T extends MergeableEntity>(
         } else if (localDeleted !== incomingDeleted) {
             const resolution = resolveDeleteVsLiveWinner(normalizedLocalItem, normalizedIncomingItem);
             winner = resolution.winner;
+            deleteVsLiveOperationDiffMs = resolution.operationDiffMs;
             if (resolution.preservedLiveInAmbiguousWindow) {
                 ambiguousResurrectionWarnings += 1;
                 if (ambiguousResurrectionWarnings <= 5) {
@@ -500,6 +506,32 @@ function mergeEntitiesWithStats<T extends MergeableEntity>(
             stats.deletionsWon += 1;
         }
 
+        if (localDeleted !== incomingDeleted && winner.deletedAt) {
+            discardedLiveConflictWarnings += 1;
+            if (discardedLiveConflictWarnings <= 5) {
+                logWarn('syncConflictDiscarded', {
+                    scope: 'sync',
+                    category: 'sync',
+                    context: {
+                        entityType,
+                        id,
+                        discardedSide: localDeleted ? 'incoming' : 'local',
+                        winnerSide: winner === normalizedIncomingItem ? 'incoming' : 'local',
+                        reason: 'deleteState',
+                        operationDiffMs: deleteVsLiveOperationDiffMs,
+                        localDeletedAt: normalizedLocalItem.deletedAt,
+                        incomingDeletedAt: normalizedIncomingItem.deletedAt,
+                        localUpdatedAt: normalizedLocalItem.updatedAt,
+                        incomingUpdatedAt: normalizedIncomingItem.updatedAt,
+                        localRev,
+                        incomingRev,
+                        localRevBy: localRevBy || undefined,
+                        incomingRevBy: incomingRevBy || undefined,
+                    },
+                });
+            }
+        }
+
         if (differs && (stats.conflictSamples?.length || 0) < CONFLICT_SAMPLE_LIMIT) {
             const comparableLocalValue = contentDiff ? toComparableValue(comparableLocalItem) : undefined;
             const comparableIncomingValue = contentDiff ? toComparableValue(comparableIncomingItem) : undefined;
@@ -539,7 +571,7 @@ function mergeEntitiesWithStats<T extends MergeableEntity>(
 }
 
 function mergeAreas(local: SyncMergeArea[], incoming: SyncMergeArea[]): { merged: Area[]; stats: EntityMergeStats } {
-    const result = mergeEntitiesWithStats(local, incoming, undefined, undefined, 'area');
+    const result = mergeEntitiesWithStats(local, incoming, undefined, normalizeAreaForContentComparison, 'area');
     let fallbackOrder = result.merged.reduce((maxOrder, area) => {
         const order = typeof area.order === 'number' && Number.isFinite(area.order) ? area.order : -1;
         return Math.max(maxOrder, order);
@@ -813,8 +845,16 @@ const getPendingRemoteWriteBlockedMs = (data: AppData, nowIso: string): number =
     return Math.max(0, retryAtMs - nowMs);
 };
 
-const withPendingRemoteWriteRetry = (data: AppData, nowIso: string): AppData => {
-    const nextAttempts = getPendingRemoteWriteAttemptCount(data) + 1;
+const getSyncErrorMessage = (error: unknown): string | undefined => {
+    if (error instanceof Error && error.message.trim()) return error.message.trim();
+    if (typeof error === 'string' && error.trim()) return error.trim();
+    return undefined;
+};
+
+const withPendingRemoteWriteRetry = (data: AppData, nowIso: string, error?: unknown): AppData => {
+    const rawNextAttempts = getPendingRemoteWriteAttemptCount(data) + 1;
+    const nextAttempts = Math.min(rawNextAttempts, PENDING_REMOTE_WRITE_MAX_ATTEMPTS);
+    const reachedAttemptCeiling = rawNextAttempts >= PENDING_REMOTE_WRITE_MAX_ATTEMPTS;
     const backoffMs = Math.min(
         PENDING_REMOTE_WRITE_RETRY_MAX_MS,
         PENDING_REMOTE_WRITE_RETRY_BASE_MS * (2 ** Math.max(0, nextAttempts - 1))
@@ -830,6 +870,9 @@ const withPendingRemoteWriteRetry = (data: AppData, nowIso: string): AppData => 
             // This path only runs after the merged snapshot was saved locally and
             // the remote write failed, so the UI should show an error until retry clears it.
             lastSyncStatus: 'error',
+            lastSyncError: reachedAttemptCeiling
+                ? `Remote write failed after ${PENDING_REMOTE_WRITE_MAX_ATTEMPTS} attempts. Check your sync backend, then sync again.`
+                : getSyncErrorMessage(error) ?? 'Remote write failed. Retrying in the background.',
             pendingRemoteWriteRetryAt: retryAt,
             pendingRemoteWriteAttempts: nextAttempts,
         },
@@ -1031,7 +1074,7 @@ export async function performSyncCycle(io: SyncCycleIO): Promise<SyncCycleResult
             await io.clearPendingRemoteWriteAfterLocalAbort?.(finalDataWithPendingRemoteWrite.settings.pendingRemoteWriteAt as string);
             throw error;
         }
-        const localDataWithRetry = withPendingRemoteWriteRetry(finalDataWithPendingRemoteWrite, nowIso);
+        const localDataWithRetry = withPendingRemoteWriteRetry(finalDataWithPendingRemoteWrite, nowIso, error);
         io.onStep?.('write-local');
         await yieldToUi();
         await io.writeLocal(localDataWithRetry);

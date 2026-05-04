@@ -1,4 +1,4 @@
-import type { Attachment, Project, Section, Task } from './types';
+import type { Area, Attachment, Project, Section, Task } from './types';
 
 export type SyncSignatureMemo = {
     comparable: WeakMap<object, string>;
@@ -88,6 +88,10 @@ export const normalizeProjectForContentComparison = (project: Project): Record<s
 export const normalizeSectionForContentComparison = (section: Section): Record<string, unknown> => ({
     ...section,
     isCollapsed: section.isCollapsed ? true : undefined,
+});
+
+export const normalizeAreaForContentComparison = (area: Area): Record<string, unknown> => ({
+    ...area,
 });
 
 export const toComparableValue = (value: unknown, options?: { includeIgnoredKeys?: boolean }): unknown => {

@@ -129,10 +129,10 @@ const withRepairRevision = <T extends { rev?: number; revBy?: string }>(item: T)
 };
 
 export const repairMergedSyncReferences = (data: AppData, nowIso: string): AppData => {
-    const liveAreaIds = new Set(
+    const liveAreasById = new Map(
         data.areas
             .filter((area) => !hasDeletedAt(area))
-            .map((area) => area.id)
+            .map((area) => [area.id, area] as const)
     );
     const deletedAreaIds = new Set(
         data.areas
@@ -141,9 +141,8 @@ export const repairMergedSyncReferences = (data: AppData, nowIso: string): AppDa
     );
 
     const repairedProjects = data.projects.map((project) => {
-        if (hasDeletedAt(project)) return project;
         const areaId = normalizeOptionalString(project.areaId);
-        if (!areaId || liveAreaIds.has(areaId)) {
+        if (!areaId) {
             return areaId === project.areaId && project.areaTitle === normalizeOptionalString(project.areaTitle)
                 ? project
                 : {
@@ -151,6 +150,19 @@ export const repairMergedSyncReferences = (data: AppData, nowIso: string): AppDa
                     areaId,
                     areaTitle: normalizeOptionalString(project.areaTitle),
                 };
+        }
+        const liveArea = liveAreasById.get(areaId);
+        if (liveArea) {
+            const areaTitle = normalizeOptionalString(liveArea.name);
+            if (areaId === project.areaId && project.areaTitle === areaTitle) {
+                return project;
+            }
+            return {
+                ...withRepairRevision(project),
+                areaId,
+                areaTitle,
+                updatedAt: nowIso,
+            };
         }
         return {
             ...withRepairRevision(project),
@@ -189,7 +201,6 @@ export const repairMergedSyncReferences = (data: AppData, nowIso: string): AppDa
     );
 
     const repairedTasks = data.tasks.map((task) => {
-        if (hasDeletedAt(task)) return task;
         const originalProjectId = normalizeOptionalString(task.projectId);
         const originalSectionId = normalizeOptionalString(task.sectionId);
         const originalAreaId = normalizeOptionalString(task.areaId);
