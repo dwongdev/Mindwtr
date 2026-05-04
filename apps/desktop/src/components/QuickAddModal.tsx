@@ -24,6 +24,11 @@ import { encodeWav, resampleAudio } from '../lib/audio-utils';
 import { getPreferredDesktopAudioCaptureBackend } from '../lib/audio-capture-backend';
 import { processAudioCapture, type SpeechToTextResult } from '../lib/speech-to-text';
 import { DEFAULT_WHISPER_MODEL } from '../lib/speech-models';
+import {
+    QUICK_ADD_NATIVE_TARGET_MAIN,
+    QUICK_ADD_NATIVE_TARGET_WINDOW,
+    shouldHandleQuickAddNativeEvent,
+} from '../lib/quick-add-native-event';
 import { TaskInput } from './Task/TaskInput';
 import { AreaSelector } from './ui/AreaSelector';
 import { AREA_FILTER_ALL, AREA_FILTER_NONE, resolveAreaFilter } from '../lib/area-filter';
@@ -97,12 +102,13 @@ export function QuickAddModal({ standaloneWindow = false }: QuickAddModalProps) 
         if (!isTauriRuntime()) return;
 
         let unlisten: (() => void) | undefined;
+        const nativeTarget = standaloneWindow ? QUICK_ADD_NATIVE_TARGET_WINDOW : QUICK_ADD_NATIVE_TARGET_MAIN;
         const openFromTauri = async () => {
             await refreshStandaloneData().catch((error) => reportError('Failed to refresh quick add data', error));
             setIsOpen(true);
             try {
                 const { invoke } = await import('@tauri-apps/api/core');
-                await invoke<boolean>('consume_quick_add_pending');
+                await invoke<boolean>('consume_quick_add_pending', { target: nativeTarget });
             } catch (e) {
                 reportError('Failed to open quick add', e);
             }
@@ -114,11 +120,12 @@ export function QuickAddModal({ standaloneWindow = false }: QuickAddModalProps) 
                 import('@tauri-apps/api/core'),
             ]);
 
-            unlisten = await listen('quick-add', () => {
+            unlisten = await listen('quick-add', (event) => {
+                if (!shouldHandleQuickAddNativeEvent(event.payload, nativeTarget)) return;
                 openFromTauri().catch((error) => reportError('Failed to open quick add', error));
             });
 
-            const pending = await invoke<boolean>('consume_quick_add_pending');
+            const pending = await invoke<boolean>('consume_quick_add_pending', { target: nativeTarget });
             if (pending) {
                 await refreshStandaloneData().catch((error) => reportError('Failed to refresh quick add data', error));
                 setIsOpen(true);
@@ -130,7 +137,7 @@ export function QuickAddModal({ standaloneWindow = false }: QuickAddModalProps) 
         return () => {
             if (unlisten) unlisten();
         };
-    }, [refreshStandaloneData]);
+    }, [refreshStandaloneData, standaloneWindow]);
 
     useEffect(() => {
         type QuickAddDetail = { initialProps?: Partial<Task>; initialValue?: string; captureMode?: 'text' | 'audio' };

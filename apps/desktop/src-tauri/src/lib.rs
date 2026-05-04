@@ -141,6 +141,8 @@ const DROPBOX_DEFAULT_TOKEN_LIFETIME_SECS: i64 = 4 * 60 * 60;
 const QUICK_ADD_CLI_FLAG: &str = "--quick-add";
 const QUICK_ADD_WINDOW_LABEL: &str = "quick-add";
 const QUICK_ADD_WINDOW_URL: &str = "index.html?quickAddWindow=1";
+const QUICK_ADD_TARGET_MAIN: &str = "main";
+const QUICK_ADD_TARGET_WINDOW: &str = "quick-add-window";
 const GLOBAL_QUICK_ADD_SHORTCUT_DEFAULT: &str = "Control+Alt+M";
 const GLOBAL_QUICK_ADD_SHORTCUT_ALTERNATE_N: &str = "Control+Alt+N";
 const GLOBAL_QUICK_ADD_SHORTCUT_ALTERNATE_Q: &str = "Control+Alt+Q";
@@ -485,7 +487,7 @@ struct TaskQueryOptions {
     include_archived: Option<bool>,
 }
 
-struct QuickAddPending(AtomicBool);
+struct QuickAddPending(Mutex<Option<String>>);
 struct CloseRequestHandled(AtomicBool);
 struct GlobalQuickAddShortcutState(Mutex<Option<String>>);
 
@@ -521,6 +523,12 @@ struct GlobalQuickAddShortcutApplyResult {
     warning: Option<String>,
 }
 
+#[derive(Clone, Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct QuickAddEventPayload {
+    target: String,
+}
+
 fn default_global_quick_add_shortcut() -> &'static str {
     #[cfg(target_os = "windows")]
     {
@@ -553,7 +561,7 @@ pub fn run() {
                 show_main(app);
             }
         }))
-        .manage(QuickAddPending(AtomicBool::new(false)))
+        .manage(QuickAddPending(Mutex::new(None)))
         .manage(CloseRequestHandled(AtomicBool::new(false)))
         .manage(GlobalQuickAddShortcutState(Mutex::new(None)))
         .plugin(tauri_plugin_dialog::init())

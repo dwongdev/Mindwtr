@@ -1,8 +1,22 @@
 use crate::*;
 
 #[tauri::command]
-pub(crate) fn consume_quick_add_pending(state: tauri::State<'_, QuickAddPending>) -> bool {
-    state.0.swap(false, Ordering::SeqCst)
+pub(crate) fn consume_quick_add_pending(
+    state: tauri::State<'_, QuickAddPending>,
+    target: Option<String>,
+) -> bool {
+    let requested_target = target.as_deref();
+    let Ok(mut pending_target) = state.0.lock() else {
+        return false;
+    };
+    let Some(current_target) = pending_target.as_deref() else {
+        return false;
+    };
+    if requested_target.is_some_and(|target| target != current_target) {
+        return false;
+    }
+    *pending_target = None;
+    true
 }
 
 #[tauri::command]
@@ -122,13 +136,16 @@ pub(crate) fn show_main(app: &tauri::AppHandle) {
 
 pub(crate) fn show_main_and_emit(app: &tauri::AppHandle) {
     show_main(app);
-    app.state::<QuickAddPending>()
-        .0
-        .store(true, Ordering::SeqCst);
+    if let Ok(mut pending_target) = app.state::<QuickAddPending>().0.lock() {
+        *pending_target = Some(QUICK_ADD_TARGET_MAIN.to_string());
+    }
+    let payload = QuickAddEventPayload {
+        target: QUICK_ADD_TARGET_MAIN.to_string(),
+    };
     if let Some(window) = app.get_webview_window("main") {
-        let _ = window.emit("quick-add", ());
+        let _ = window.emit("quick-add", payload);
     } else {
-        let _ = app.emit("quick-add", ());
+        let _ = app.emit("quick-add", payload);
     }
 }
 
@@ -156,16 +173,19 @@ pub(crate) fn create_quick_add_window(app: &tauri::AppHandle) -> Result<(), Stri
 }
 
 pub(crate) fn show_quick_add_window(app: &tauri::AppHandle) {
-    app.state::<QuickAddPending>()
-        .0
-        .store(true, Ordering::SeqCst);
+    if let Ok(mut pending_target) = app.state::<QuickAddPending>().0.lock() {
+        *pending_target = Some(QUICK_ADD_TARGET_WINDOW.to_string());
+    }
 
     if let Some(window) = app.get_webview_window(QUICK_ADD_WINDOW_LABEL) {
         let _ = window.set_skip_taskbar(true);
         let _ = window.unminimize();
         let _ = window.show();
         let _ = window.set_focus();
-        let _ = window.emit("quick-add", ());
+        let payload = QuickAddEventPayload {
+            target: QUICK_ADD_TARGET_WINDOW.to_string(),
+        };
+        let _ = window.emit("quick-add", payload);
         return;
     }
 
