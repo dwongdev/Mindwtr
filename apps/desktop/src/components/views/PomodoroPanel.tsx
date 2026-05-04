@@ -92,8 +92,6 @@ export function PomodoroPanel({ tasks }: PomodoroPanelProps) {
 
     useEffect(() => {
         if (!linkTaskEnabled) {
-            if (!snapshot.selectedTaskId) return;
-            commitSnapshot((prev) => ({ ...prev, selectedTaskId: undefined }));
             return;
         }
         if (!snapshot.selectedTaskId) return;

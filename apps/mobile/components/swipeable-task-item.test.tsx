@@ -5,13 +5,16 @@ import { Alert } from 'react-native';
 
 import { SwipeableTaskItem } from './swipeable-task-item';
 
-const { updateTask, getChecklistProgress, getTaskAgeLabel, getTaskStaleness, storeState } = vi.hoisted(() => ({
+const { updateTask, restoreTask, showToast, getChecklistProgress, getTaskAgeLabel, getTaskStaleness, storeState } = vi.hoisted(() => ({
   updateTask: vi.fn(),
+  restoreTask: vi.fn(),
+  showToast: vi.fn(),
   getChecklistProgress: vi.fn((_value: any): any => null),
   getTaskAgeLabel: vi.fn(() => '3 weeks old'),
   getTaskStaleness: vi.fn(() => 'stale'),
   storeState: {
     updateTask: vi.fn(),
+    restoreTask: vi.fn(),
     projects: [] as any[],
     areas: [] as any[],
     settings: { features: {}, appearance: {} },
@@ -26,6 +29,7 @@ const hapticsMocks = vi.hoisted(() => ({
 
 vi.mock('@mindwtr/core', () => {
   storeState.updateTask = updateTask;
+  storeState.restoreTask = restoreTask;
   const useTaskStore = Object.assign(
     (selector?: (state: typeof storeState) => unknown) =>
       selector ? selector(storeState) : storeState,
@@ -56,6 +60,9 @@ vi.mock('../contexts/language-context', () => ({
         'common.cancel': 'Cancel',
         'common.delete': 'Delete',
         'common.edit': 'Edit',
+        'common.notice': 'Notice',
+        'common.undo': 'Undo',
+        'list.taskDeleted': 'Task deleted',
         'status.inbox': 'Inbox',
         'status.next': 'Next',
         'task.aria.delete': 'Delete task',
@@ -85,7 +92,7 @@ vi.mock('expo-haptics', () => ({
 
 vi.mock('../contexts/toast-context', () => ({
   useToast: () => ({
-    showToast: vi.fn(),
+    showToast,
     dismissToast: vi.fn(),
   }),
 }));
@@ -119,7 +126,7 @@ describe('SwipeableTaskItem', () => {
     getChecklistProgress.mockReturnValue(null);
   });
 
-  it('confirms deletion before invoking onDelete', () => {
+  it('confirms deletion before invoking onDelete', async () => {
     const alertSpy = vi.spyOn(Alert, 'alert');
     const onDelete = vi.fn();
 
@@ -173,12 +180,18 @@ describe('SwipeableTaskItem', () => {
     const destructiveAction = alertButtons.find((button) => button.text === 'Delete');
     expect(destructiveAction?.onPress).toBeTypeOf('function');
 
-    renderer.act(() => {
+    await renderer.act(async () => {
       destructiveAction?.onPress?.();
+      await Promise.resolve();
     });
 
     expect(onDelete).toHaveBeenCalledTimes(1);
     expect(hapticsMocks.notificationAsync).toHaveBeenCalledWith('warning');
+    expect(showToast).toHaveBeenCalledWith(expect.objectContaining({
+      message: 'Task deleted',
+      actionLabel: 'Undo',
+      onAction: expect.any(Function),
+    }));
   });
 
   it('navigates from project, context, and tag meta labels', () => {

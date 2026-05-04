@@ -20,7 +20,7 @@ export interface SwipeableTaskItemProps {
     tc: ThemeColors;
     onPress: () => void;
     onStatusChange: (status: TaskStatus) => void;
-    onDelete: () => void;
+    onDelete: () => void | Promise<void>;
     onLongPressAction?: () => void;
     /** Hide context tags (useful when viewing a specific context) */
     hideContexts?: boolean;
@@ -74,18 +74,22 @@ export function SwipeableTaskItem({
     const { showToast } = useToast();
     const {
         updateTask,
+        restoreTask,
         projects,
         areas,
         focusedCount,
         timeEstimatesEnabled,
         showTaskAge,
+        undoNotificationsEnabled,
     } = useTaskStore((state) => ({
         updateTask: state.updateTask,
+        restoreTask: state.restoreTask,
         projects: state.projects,
         areas: state.areas,
         focusedCount: state.getDerivedState().focusedCount,
         timeEstimatesEnabled: state.settings?.features?.timeEstimates !== false,
         showTaskAge: state.settings?.appearance?.showTaskAge === true,
+        undoNotificationsEnabled: state.settings?.undoNotificationsEnabled !== false,
     }), shallow);
     const canShowFocusToggle = showFocusToggle
         && task.status !== 'done'
@@ -208,7 +212,19 @@ export function SwipeableTaskItem({
                     onPress: () => {
                         void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning).catch(() => undefined);
                         cancelPendingChecklist();
-                        onDelete();
+                        void Promise.resolve(onDelete())
+                            .then(() => {
+                                if (!undoNotificationsEnabled) return;
+                                showToast({
+                                    title: t('common.notice') || 'Notice',
+                                    message: t('list.taskDeleted') || 'Task deleted',
+                                    tone: 'info',
+                                    actionLabel: t('common.undo') || 'Undo',
+                                    onAction: () => restoreTask(task.id),
+                                    durationMs: 5200,
+                                });
+                            })
+                            .catch(() => undefined);
                     },
                 },
             ],

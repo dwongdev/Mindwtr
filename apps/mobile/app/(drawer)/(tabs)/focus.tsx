@@ -68,6 +68,7 @@ export default function FocusScreen() {
   const [selectedPriorities, setSelectedPriorities] = useState<TaskPriority[]>([]);
   const [selectedEnergyLevels, setSelectedEnergyLevels] = useState<TaskEnergyLevel[]>([]);
   const [selectedTimeEstimates, setSelectedTimeEstimates] = useState<TimeEstimate[]>([]);
+  const [showFutureStarts, setShowFutureStarts] = useState(false);
   const [expandedSections, setExpandedSections] = useState({
     focus: true,
     schedule: true,
@@ -87,15 +88,20 @@ export default function FocusScreen() {
   const visibleTasks = useMemo(() => (
     tasks.filter((task) => taskMatchesAreaFilter(task, resolvedAreaFilter, projectById, areaById))
   ), [tasks, resolvedAreaFilter, projectById, areaById]);
-  const activeTasks = useMemo(() => (
+  const baseActiveTasks = useMemo(() => (
     visibleTasks.filter((task) => (
       !task.deletedAt
       && task.status !== 'done'
       && task.status !== 'archived'
       && task.status !== 'reference'
-      && shouldShowTaskForStart(task, { showFutureStarts: false })
     ))
   ), [visibleTasks]);
+  const activeTasks = useMemo(() => (
+    baseActiveTasks.filter((task) => shouldShowTaskForStart(task, { showFutureStarts }))
+  ), [baseActiveTasks, showFutureStarts]);
+  const hiddenFutureStartCount = useMemo(() => (
+    baseActiveTasks.filter((task) => !shouldShowTaskForStart(task, { showFutureStarts: false })).length
+  ), [baseActiveTasks]);
   const tokenOptions = useMemo(() => getFocusTokenOptions(activeTasks), [activeTasks]);
   const activeProjectIds = useMemo(() => (
     new Set(activeTasks.map((task) => task.projectId).filter((projectId): projectId is string => Boolean(projectId)))
@@ -523,6 +529,24 @@ export default function FocusScreen() {
                 </TouchableOpacity>
               </ScrollView>
             ) : null}
+            {hiddenFutureStartCount > 0 ? (
+              <View style={[styles.futureStartNotice, { borderColor: tc.border, backgroundColor: tc.cardBg }]}>
+                <Text style={[styles.futureStartText, { color: tc.secondaryText }]}>
+                  {showFutureStarts
+                    ? `${hiddenFutureStartCount} future-start tasks shown`
+                    : `${hiddenFutureStartCount} tasks hidden (future start)`}
+                </Text>
+                <TouchableOpacity
+                  accessibilityRole="button"
+                  onPress={() => setShowFutureStarts((current) => !current)}
+                  style={styles.futureStartButton}
+                >
+                  <Text style={[styles.futureStartButtonText, { color: tc.tint }]}>
+                    {showFutureStarts ? resolveText('common.hide', 'Hide') : resolveText('common.show', 'Show')}
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            ) : null}
           </View>
         )}
         renderSectionHeader={({ section }) => (
@@ -745,6 +769,31 @@ const styles = StyleSheet.create({
   clearFiltersText: {
     fontSize: 12,
     fontWeight: '600',
+  },
+  futureStartNotice: {
+    marginTop: 12,
+    borderWidth: 1,
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 9,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 12,
+  },
+  futureStartText: {
+    flex: 1,
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  futureStartButton: {
+    minHeight: 30,
+    justifyContent: 'center',
+    paddingHorizontal: 4,
+  },
+  futureStartButtonText: {
+    fontSize: 13,
+    fontWeight: '700',
   },
   dateText: {
     flex: 1,

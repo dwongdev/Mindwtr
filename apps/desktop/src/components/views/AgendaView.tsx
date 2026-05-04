@@ -181,6 +181,7 @@ export function AgendaView() {
     const [searchQuery, setSearchQuery] = useState('');
     const [filtersOpen, setFiltersOpen] = useState(false);
     const [top3Only, setTop3Only] = useState(false);
+    const [showFutureStarts, setShowFutureStarts] = useState(false);
     const [expandedSections, setExpandedSections] = useState({
         schedule: true,
         nextActions: true,
@@ -206,21 +207,25 @@ export function AgendaView() {
     }, [perf.enabled]);
 
     // Filter active tasks
-    const { activeTasks, allTokens } = useMemo(() => {
-        const active = tasks.filter(t =>
+    const baseActiveTasks = useMemo(() => (
+        tasks.filter(t =>
             !t.deletedAt
             && t.status !== 'done'
             && t.status !== 'archived'
             && t.status !== 'reference'
-            && shouldShowTaskForStart(t, { showFutureStarts: false })
             && isTaskInActiveProject(t, projectMap)
             && taskMatchesAreaFilter(t, resolvedAreaFilter, projectMap, areaById)
-        );
+        )
+    ), [tasks, projectMap, resolvedAreaFilter, areaById]);
+
+    const { activeTasks, allTokens, hiddenFutureStartCount } = useMemo(() => {
+        const active = baseActiveTasks.filter((task) => shouldShowTaskForStart(task, { showFutureStarts }));
         return {
             activeTasks: active,
             allTokens: getUsedTaskTokens(active, (task) => [...(task.contexts || []), ...(task.tags || [])]),
+            hiddenFutureStartCount: baseActiveTasks.filter((task) => !shouldShowTaskForStart(task, { showFutureStarts: false })).length,
         };
-    }, [tasks, projectMap, resolvedAreaFilter, areaById]);
+    }, [baseActiveTasks, showFutureStarts]);
     const priorityOptions: TaskPriority[] = ['low', 'medium', 'high', 'urgent'];
     const energyLevelOptions: TaskEnergyLevel[] = ['low', 'medium', 'high'];
     const timeEstimateOptions: TimeEstimate[] = ['5min', '10min', '15min', '30min', '1hr', '2hr', '3hr', '4hr', '4hr+'];
@@ -349,7 +354,7 @@ export function AgendaView() {
             .filter((task) => {
                 if (task.deletedAt) return false;
                 if (task.status === 'done' || task.status === 'archived' || task.status === 'reference') return false;
-                if (!shouldShowTaskForStart(task, { showFutureStarts: false, now })) return false;
+                if (!shouldShowTaskForStart(task, { showFutureStarts, now })) return false;
                 if (!isDueForReview(task.reviewAt, now)) return false;
                 if (task.projectId) {
                     const project = projectMap.get(task.projectId);
@@ -362,7 +367,7 @@ export function AgendaView() {
             })
             .filter(matchesFilters);
         return { filteredActiveTasks: filtered, reviewDueCandidates: reviewDue };
-    }, [activeTasks, tasks, projectMap, matchesFilters, matchesSearchQuery, resolvedAreaFilter, areaById]);
+    }, [activeTasks, tasks, projectMap, matchesFilters, matchesSearchQuery, resolvedAreaFilter, areaById, showFutureStarts]);
 
     const reviewDueProjects = useMemo(() => {
         const now = new Date();
@@ -683,6 +688,23 @@ export function AgendaView() {
                 timeEstimateOptions={timeEstimateOptions}
                 timeEstimatesEnabled={timeEstimatesEnabled}
             />
+
+            {hiddenFutureStartCount > 0 && (
+                <div className="flex items-center justify-between gap-3 rounded-md border border-border bg-muted/25 px-3 py-2 text-sm">
+                    <span className="text-muted-foreground">
+                        {showFutureStarts
+                            ? `${hiddenFutureStartCount} future-start tasks shown`
+                            : `${hiddenFutureStartCount} tasks hidden (future start)`}
+                    </span>
+                    <button
+                        type="button"
+                        className="text-sm font-medium text-primary hover:text-primary/80"
+                        onClick={() => setShowFutureStarts((current) => !current)}
+                    >
+                        {showFutureStarts ? 'Hide' : 'Show'}
+                    </button>
+                </div>
+            )}
 
             {top3Only ? (
                 <div className="space-y-4">

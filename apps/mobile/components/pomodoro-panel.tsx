@@ -89,7 +89,6 @@ export function PomodoroPanel({
 
   useEffect(() => {
     if (!linkTaskEnabled) {
-      setSelectedTaskId(undefined);
       setIsTaskPickerOpen(false);
       return;
     }

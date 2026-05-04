@@ -90,6 +90,7 @@ function TaskEditModalInner({
         addSection,
         addArea,
         deleteTask,
+        restoreTask,
     } = useTaskStore();
     const { t, language } = useLanguage();
     const tc = useThemeColors();
@@ -536,6 +537,7 @@ function TaskEditModalInner({
         recurrenceRRuleValue,
         recurrenceStrategyValue,
         resetTaskChecklist,
+        restoreTask,
         sections,
         setAiModal,
         setEditedTask,
