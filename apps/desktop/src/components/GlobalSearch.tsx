@@ -168,7 +168,7 @@ export function GlobalSearch({ onNavigate }: GlobalSearchProps) {
     const hideFutureTasksText = hideFutureTasksLabel === 'filters.hideFutureTasks'
         ? 'Hide future tasks'
         : hideFutureTasksLabel;
-    const { totalResults, results, isTruncated } = useMemo(() => computeGlobalSearchResults({
+    const { totalResultsLabel, results, isTruncated } = useMemo(() => computeGlobalSearchResults({
         query,
         tasks: _allTasks,
         projects,
@@ -595,7 +595,7 @@ export function GlobalSearch({ onNavigate }: GlobalSearchProps) {
                         <div className="px-3 pb-2 text-xs text-muted-foreground">
                             {t('search.showingFirst')
                                 .replace('{shown}', String(results.length))
-                                .replace('{total}', String(totalResults))}
+                                .replace('{total}', totalResultsLabel)}
                         </div>
                     )}
                     {ftsLoading && trimmedQuery !== '' && (

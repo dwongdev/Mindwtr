@@ -75,4 +75,31 @@ describe('computeGlobalSearchResults', () => {
             'task-project',
         ]);
     });
+
+    it('surfaces source result limits in the truncation label', () => {
+        const result = computeGlobalSearchResults({
+            query: 'needle',
+            tasks: [task('task-work', 'Needle work task')],
+            projects: [],
+            areas: [],
+            includeCompleted: false,
+            includeReference: true,
+            hideFutureTasks: false,
+            selectedStatuses: [],
+            selectedArea: 'all',
+            selectedTokens: [],
+            duePreset: 'any',
+            scope: 'all',
+            weekStart: 'sunday',
+            ftsResults: {
+                tasks: [task('task-fts', 'Needle fts task')],
+                projects: [],
+                limited: true,
+                limit: 200,
+            },
+        });
+
+        expect(result.isTruncated).toBe(true);
+        expect(result.totalResultsLabel).toBe('200+');
+    });
 });

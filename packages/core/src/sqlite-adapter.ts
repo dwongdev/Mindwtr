@@ -7,7 +7,7 @@ export type CalendarSyncEntry = {
     platform: string;
     lastSyncedAt: string;
 };
-import type { SearchProjectResult, SearchResults, SearchTaskResult, TaskQueryOptions } from './storage';
+import { SEARCH_RESULT_LIMIT, type SearchProjectResult, type SearchResults, type SearchTaskResult, type TaskQueryOptions } from './storage';
 import { SQLITE_BASE_SCHEMA, SQLITE_FTS_SCHEMA, SQLITE_INDEX_SCHEMA } from './sqlite-schema';
 import { normalizeTaskStatus } from './task-status';
 import { normalizeRecurrenceForLoad } from './recurrence';
@@ -811,16 +811,19 @@ export class SqliteAdapter {
         const ftsQuery = tokens.map((token) => `${token}*`).join(' ');
         const runSearch = async (): Promise<SearchResults> => {
             const taskRows = await this.client.all<Record<string, unknown>>(
-                `SELECT ${SEARCH_TASK_SELECT} FROM tasks_fts f JOIN tasks t ON f.id = t.id WHERE tasks_fts MATCH ? AND t.deletedAt IS NULL`,
-                [ftsQuery]
+                `SELECT ${SEARCH_TASK_SELECT} FROM tasks_fts f JOIN tasks t ON f.id = t.id WHERE tasks_fts MATCH ? AND t.deletedAt IS NULL LIMIT ?`,
+                [ftsQuery, SEARCH_RESULT_LIMIT + 1]
             );
             const projectRows = await this.client.all<Record<string, unknown>>(
-                `SELECT ${SEARCH_PROJECT_SELECT} FROM projects_fts f JOIN projects p ON f.id = p.id WHERE projects_fts MATCH ? AND p.deletedAt IS NULL`,
-                [ftsQuery]
+                `SELECT ${SEARCH_PROJECT_SELECT} FROM projects_fts f JOIN projects p ON f.id = p.id WHERE projects_fts MATCH ? AND p.deletedAt IS NULL LIMIT ?`,
+                [ftsQuery, SEARCH_RESULT_LIMIT + 1]
             );
+            const limited = taskRows.length > SEARCH_RESULT_LIMIT || projectRows.length > SEARCH_RESULT_LIMIT;
             return {
-                tasks: taskRows.map((row) => this.mapSearchTaskRow(row)),
-                projects: projectRows.map((row) => this.mapSearchProjectRow(row)),
+                tasks: taskRows.slice(0, SEARCH_RESULT_LIMIT).map((row) => this.mapSearchTaskRow(row)),
+                projects: projectRows.slice(0, SEARCH_RESULT_LIMIT).map((row) => this.mapSearchProjectRow(row)),
+                limited: limited || undefined,
+                limit: limited ? SEARCH_RESULT_LIMIT : undefined,
             };
         };
 

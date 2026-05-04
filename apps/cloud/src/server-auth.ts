@@ -79,8 +79,6 @@ export function getAuthFailureRateKey(
         trustProxyHeaders?: boolean;
         trustedProxyIps?: Set<string> | null;
         requestIpAddress?: string | null;
-        token?: string | null;
-        authHeader?: string | null;
     } = {},
 ): string {
     const trustedProxyIp = normalizeRateLimitIdentity(getClientIp(req, {
@@ -97,6 +95,13 @@ export function getAuthFailureRateKey(
         return `auth-failure:ip:${requestIpAddress}`;
     }
 
+    return 'auth-failure:ip:unknown';
+}
+
+export function getAuthFailureTokenRateKey(options: {
+    token?: string | null;
+    authHeader?: string | null;
+} = {}): string | null {
     const token = normalizeRateLimitIdentity(options.token);
     if (token) {
         return `auth-failure:token:${tokenToKey(token)}`;
@@ -107,7 +112,7 @@ export function getAuthFailureRateKey(
         return `auth-failure:header:${tokenToKey(authHeader)}`;
     }
 
-    return 'auth-failure:unknown';
+    return null;
 }
 
 export function parseAllowedAuthTokens(rawValue?: string): Set<string> | null {

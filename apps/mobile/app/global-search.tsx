@@ -96,6 +96,8 @@ export default function SearchScreen() {
     ? ftsResults
     : fallbackResults;
   const { tasks: taskResults, projects: projectResults } = effectiveResults;
+    const sourceLimited = effectiveResults.limited === true;
+    const sourceLimit = effectiveResults.limit ?? 200;
     const hasStatusFilter = selectedStatuses.length > 0;
     const projectById = useMemo(() => new Map(projects.map((project) => [project.id, project])), [projects]);
     const matchesArea = (areaId?: string | null) => {
@@ -169,11 +171,12 @@ export default function SearchScreen() {
     const scopedProjects = scope === 'tasks' || scope === 'project_tasks' ? [] : filteredProjects;
     const scopedTasks = scope === 'projects' ? [] : filteredTasks;
     const totalResults = scopedProjects.length + scopedTasks.length;
+    const totalResultsLabel = sourceLimited ? `${sourceLimit}+` : String(totalResults);
     const results = trimmedQuery === '' ? [] : [
         ...scopedProjects.map(p => ({ type: 'project' as const, item: p })),
         ...scopedTasks.map(t => ({ type: 'task' as const, item: t })),
     ].slice(0, 50);
-    const isTruncated = totalResults > results.length;
+    const isTruncated = totalResults > results.length || sourceLimited;
 
     const savedSearches = settings?.savedSearches || [];
     const canSave = trimmedQuery.length > 0;
@@ -522,7 +525,7 @@ export default function SearchScreen() {
                 <Text style={[styles.helpText, { color: tc.secondaryText }]}>
                     {t('search.showingFirst')
                         .replace('{shown}', String(results.length))
-                        .replace('{total}', String(totalResults))}
+                        .replace('{total}', totalResultsLabel)}
                 </Text>
             )}
             {ftsLoading && trimmedQuery !== '' && (

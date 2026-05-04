@@ -139,14 +139,18 @@ export const computeGlobalSearchResults = ({
     const scopedProjects = scope === 'tasks' || scope === 'project_tasks' ? [] : filteredProjects;
     const scopedTasks = scope === 'projects' ? [] : filteredTasks;
     const totalResults = scopedProjects.length + scopedTasks.length;
+    const sourceLimited = effectiveResults.limited === true;
+    const sourceLimit = effectiveResults.limit ?? 200;
     const results = trimmedQuery === '' ? [] : [
         ...scopedProjects.map((project) => ({ type: 'project' as const, item: project })),
         ...scopedTasks.map((task) => ({ type: 'task' as const, item: task })),
     ].slice(0, 50);
+    const isTruncated = totalResults > results.length || sourceLimited;
 
     return {
         totalResults,
+        totalResultsLabel: sourceLimited ? `${sourceLimit}+` : String(totalResults),
         results,
-        isTruncated: totalResults > results.length,
+        isTruncated,
     };
 };

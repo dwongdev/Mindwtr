@@ -148,35 +148,39 @@ describe('cloud server utils', () => {
             trustProxyHeaders: true,
             trustedProxyIps: new Set(['127.0.0.1']),
             requestIpAddress: '127.0.0.1',
-            token,
         })).toBe('auth-failure:ip:203.0.113.10');
 
         expect(__cloudTestUtils.getAuthFailureRateKey(req, {
             trustProxyHeaders: true,
             trustedProxyIps: new Set(['10.0.0.1']),
             requestIpAddress: '127.0.0.1',
-            token,
         })).toBe('auth-failure:ip:127.0.0.1');
 
         expect(__cloudTestUtils.getAuthFailureRateKey(req, {
             trustProxyHeaders: false,
             requestIpAddress: '127.0.0.1',
-            token,
         })).toBe('auth-failure:ip:127.0.0.1');
 
         expect(__cloudTestUtils.getAuthFailureRateKey(req, {
             trustProxyHeaders: false,
-            requestIpAddress: null,
-            token,
-        })).toBe(`auth-failure:token:${__cloudTestUtils.tokenToKey(token)}`);
-
-        expect(__cloudTestUtils.getAuthFailureRateKey(new Request('http://localhost/v1/data', {
-            headers: {
-                authorization: 'Bearer malformed',
-            },
+            requestIpAddress: '127.0.0.1',
+        })).toBe(__cloudTestUtils.getAuthFailureRateKey(new Request('http://localhost/v1/data', {
+            headers: { authorization: 'Bearer another-invalid-token-1234567890' },
         }), {
             trustProxyHeaders: false,
+            requestIpAddress: '127.0.0.1',
+        }));
+
+        expect(__cloudTestUtils.getAuthFailureRateKey(req, {
+            trustProxyHeaders: false,
             requestIpAddress: null,
+        })).toBe('auth-failure:ip:unknown');
+
+        expect(__cloudTestUtils.getAuthFailureTokenRateKey({ token })).toBe(
+            `auth-failure:token:${__cloudTestUtils.tokenToKey(token)}`
+        );
+
+        expect(__cloudTestUtils.getAuthFailureTokenRateKey({
             authHeader: 'Bearer malformed',
         })).toBe(`auth-failure:header:${__cloudTestUtils.tokenToKey('Bearer malformed')}`);
     });

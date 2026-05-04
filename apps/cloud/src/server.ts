@@ -20,6 +20,7 @@ import {
 } from '@mindwtr/core';
 import {
     getAuthFailureRateKey,
+    getAuthFailureTokenRateKey,
     getClientIp,
     getToken,
     isAuthorizedToken,
@@ -305,6 +306,7 @@ export const __cloudTestUtils = {
     isAuthorizedToken,
     getClientIp,
     getAuthFailureRateKey,
+    getAuthFailureTokenRateKey,
     toRateLimitRoute,
     validateAppData,
     asStatus,
@@ -453,12 +455,19 @@ export async function startCloudServer(options: CloudServerOptions = {}): Promis
             trustProxyHeaders,
             trustedProxyIps,
             requestIpAddress: requestIp,
-            token,
-            authHeader: req.headers.get('authorization'),
         });
-        const authRateLimitResponse = checkRateLimit(authRateKey, AUTH_FAILURE_RATE_MAX);
-        if (authRateLimitResponse) {
-            return authRateLimitResponse;
+        const authRateLimitKeys = [
+            authRateKey,
+            getAuthFailureTokenRateKey({
+                token,
+                authHeader: req.headers.get('authorization'),
+            }),
+        ].filter((key): key is string => Boolean(key));
+        for (const key of authRateLimitKeys) {
+            const authRateLimitResponse = checkRateLimit(key, AUTH_FAILURE_RATE_MAX);
+            if (authRateLimitResponse) {
+                return authRateLimitResponse;
+            }
         }
         return errorResponse('Unauthorized', 401);
     };

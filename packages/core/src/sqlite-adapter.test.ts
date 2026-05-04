@@ -418,10 +418,14 @@ describeSqlite('SqliteAdapter', () => {
 
         expect(allMock).toHaveBeenCalledTimes(2);
         expect(allMock.mock.calls[0]?.[0]).toContain('SELECT t.id AS id');
+        expect(allMock.mock.calls[0]?.[0]).toContain('LIMIT ?');
+        expect(allMock.mock.calls[0]?.[1]).toEqual(['Searchable*', 201]);
         expect(allMock.mock.calls[0]?.[0]).not.toContain('t.attachments');
         expect(allMock.mock.calls[0]?.[0]).not.toContain('t.description');
         expect(allMock.mock.calls[0]?.[0]).not.toContain("t.status != 'archived'");
         expect(allMock.mock.calls[1]?.[0]).toContain('SELECT p.id AS id');
+        expect(allMock.mock.calls[1]?.[0]).toContain('LIMIT ?');
+        expect(allMock.mock.calls[1]?.[1]).toEqual(['Searchable*', 201]);
         expect(allMock.mock.calls[1]?.[0]).not.toContain('p.supportNotes');
 
         expect(results.tasks).toHaveLength(1);
