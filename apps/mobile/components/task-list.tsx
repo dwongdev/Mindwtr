@@ -472,6 +472,8 @@ function TaskListComponent({
     return buildProjectTaskReorderGroups<Task>(listItems);
   }, [canUseProjectReorder, listItems]);
   const hasProjectReorderTasks = projectReorderGroups.some((group) => group.tasks.length > 0);
+  // Keep the draggable pan handler on the handle strip so vertical scrolling still works.
+  // DraggableFlatList gesture props: https://github.com/computerjazz/react-native-draggable-flatlist#props
   const projectDragHitSlop = useMemo(() => ({
     bottom: 0,
     left: -Math.max(windowWidth - 96, 0),

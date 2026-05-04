@@ -99,6 +99,8 @@ function ProjectDetailScrollFrame({
     };
 
     if (reorderMode) {
+        // Reorder mode needs the nested draggable wrapper required by the library:
+        // https://github.com/computerjazz/react-native-draggable-flatlist#nesting-draggableflatlists
         return (
             <NestableScrollContainer {...scrollProps}>
                 {children}
@@ -107,6 +109,7 @@ function ProjectDetailScrollFrame({
     }
 
     return (
+        // Normal mode stays on a plain ScrollView so Swipeable rows keep horizontal gestures.
         <ScrollView
             {...scrollProps}
             directionalLockEnabled
@@ -184,6 +187,8 @@ export function ProjectDetailModal({
             allowSwipeDismissal
             onRequestClose={closeProjectDetail}
         >
+            {/* Android Modal content needs its own gesture root; the screen root does not cover Modal.
+                https://docs.swmansion.com/react-native-gesture-handler/docs/fundamentals/installation/#android */}
             <GestureHandlerRootView style={{ flex: 1 }}>
                 <KeyboardAccessoryHost>
                     <SafeAreaView style={{ flex: 1, backgroundColor: tc.bg }} edges={['left', 'right', 'bottom']}>
