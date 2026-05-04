@@ -650,3 +650,46 @@ describeSqlite('SqliteAdapter', () => {
         expect(names.has('idx_tasks_area_deletedAt')).toBe(true);
     });
 });
+
+describe('SqliteAdapter saveData pruning', () => {
+    it('batches temp id table inserts and uses unique temp names', async () => {
+        const run = vi.fn().mockResolvedValue(undefined);
+        const client: SqliteClient = {
+            run,
+            get: vi.fn().mockResolvedValue(undefined),
+            all: vi.fn().mockResolvedValue([]),
+            exec: vi.fn().mockResolvedValue(undefined),
+        };
+        const lightweightAdapter = new SqliteAdapter(client);
+        (lightweightAdapter as unknown as { ensureSchema: () => Promise<void> }).ensureSchema = async () => {};
+
+        const now = '2026-03-04T12:00:00.000Z';
+        const data: AppData = {
+            tasks: [],
+            projects: [],
+            sections: [],
+            areas: Array.from({ length: 1201 }, (_, index) => ({
+                id: `area-${index}`,
+                name: `Area ${index}`,
+                order: index,
+                createdAt: now,
+                updatedAt: now,
+            })),
+            settings: {},
+        };
+
+        await lightweightAdapter.saveData(data);
+
+        const tempCreateCalls = run.mock.calls
+            .map(([sql]) => String(sql))
+            .filter((sql) => sql.startsWith('CREATE TEMP TABLE temp_'));
+        const tempNames = tempCreateCalls.map((sql) => sql.match(/CREATE TEMP TABLE (temp_[a-z0-9_]+)/)?.[1]);
+        expect(new Set(tempNames).size).toBe(4);
+
+        const tempAreaInsertCalls = run.mock.calls.filter(([sql]) =>
+            String(sql).startsWith('INSERT OR IGNORE INTO temp_areas_ids_')
+        );
+        expect(tempAreaInsertCalls).toHaveLength(3);
+        expect(tempAreaInsertCalls.map(([, params]) => (params as unknown[]).length)).toEqual([500, 500, 201]);
+    });
+});
