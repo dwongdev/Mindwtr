@@ -116,9 +116,10 @@ To use a separate Google-backed `Mindwtr` calendar:
 1. Open Google Calendar on the web.
 2. Create a new calendar named `Mindwtr` under the same Google account used on Android.
 3. On Android, open Google Calendar and refresh the account. Make sure Calendar sync is enabled in Android account settings.
-4. Return to Mindwtr **Settings → Calendar**, tap **Refresh calendars**, and select the `Mindwtr` target that shows your Google account.
+4. In the Google Calendar Android app, enable **Share Google Calendar data with other apps** so Android exposes Google calendars to Mindwtr.
+5. Return to Mindwtr **Settings → Calendar**, tap **Refresh calendars**, and select the `Mindwtr` target that shows your Google account.
 
-If the Google-backed `Mindwtr` calendar does not appear in Mindwtr yet, Android has not exposed it through the system calendar provider. Refresh Google Calendar, check Android account sync, then tap **Refresh calendars** in Mindwtr.
+If the Google-backed `Mindwtr` calendar does not appear in Mindwtr yet, Android has not exposed it through the system calendar provider. Refresh Google Calendar, check Android account sync, enable **Share Google Calendar data with other apps** in Google Calendar, then tap **Refresh calendars** in Mindwtr.
 
 ### Mobile: Read Device Calendars
 
