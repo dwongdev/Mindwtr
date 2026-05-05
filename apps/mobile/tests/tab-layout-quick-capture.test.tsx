@@ -135,6 +135,10 @@ const getAddTaskButton = (tree: ReturnType<typeof create>) => {
   return button;
 };
 
+const getQuickCaptureSheets = (tree: ReturnType<typeof create>) => (
+  tree.root.findAll((node) => String(node.type) === 'QuickCaptureSheet')
+);
+
 describe('mobile tab quick capture', () => {
   it('unmounts the quick capture sheet after close so the next plus tap gets a fresh modal', () => {
     let tree!: ReturnType<typeof create>;
@@ -143,13 +147,13 @@ describe('mobile tab quick capture', () => {
       tree = create(<TabLayout />);
     });
 
-    expect(tree.root.findAllByType('QuickCaptureSheet')).toHaveLength(0);
+    expect(getQuickCaptureSheets(tree)).toHaveLength(0);
 
     act(() => {
       getAddTaskButton(tree).props.onPress();
     });
 
-    let sheets = tree.root.findAllByType('QuickCaptureSheet');
+    let sheets = getQuickCaptureSheets(tree);
     expect(sheets).toHaveLength(1);
     expect(sheets[0]?.props.visible).toBe(true);
 
@@ -157,13 +161,13 @@ describe('mobile tab quick capture', () => {
       sheets[0]?.props.onClose();
     });
 
-    expect(tree.root.findAllByType('QuickCaptureSheet')).toHaveLength(0);
+    expect(getQuickCaptureSheets(tree)).toHaveLength(0);
 
     act(() => {
       getAddTaskButton(tree).props.onPress();
     });
 
-    sheets = tree.root.findAllByType('QuickCaptureSheet');
+    sheets = getQuickCaptureSheets(tree);
     expect(sheets).toHaveLength(1);
     expect(sheets[0]?.props.visible).toBe(true);
   });
