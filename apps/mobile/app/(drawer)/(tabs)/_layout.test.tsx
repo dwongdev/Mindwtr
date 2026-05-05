@@ -6,6 +6,12 @@ import { describe, expect, it, vi } from 'vitest';
 import TabLayout from './_layout';
 
 vi.mock('expo-router', () => {
+  function LinkMock({ children }: { children: React.ReactNode }) {
+    return <>{children}</>;
+  }
+  function TabsScreenMock() {
+    return null;
+  }
   const Tabs = ({ children, tabBar }: any) => React.createElement(
     'Tabs',
     null,
@@ -35,9 +41,9 @@ vi.mock('expo-router', () => {
     }),
     children,
   );
-  Tabs.Screen = () => null;
+  Tabs.Screen = TabsScreenMock;
   return {
-    Link: ({ children }: { children: React.ReactNode }) => <>{children}</>,
+    Link: LinkMock,
     Tabs,
   };
 });

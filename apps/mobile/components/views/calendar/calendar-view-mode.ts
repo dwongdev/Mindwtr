@@ -65,10 +65,7 @@ export const getCalendarWeekColumnWidth = (
   const width = Number.isFinite(availableWidth) && availableWidth > 0
     ? availableWidth / resolvedVisibleDays
     : CALENDAR_WEEK_COLUMN_WIDTH_DEFAULT;
-  return Math.max(
-    CALENDAR_WEEK_COLUMN_WIDTH_MIN,
-    Math.min(CALENDAR_WEEK_COLUMN_WIDTH_DEFAULT, width)
-  );
+  return Math.max(CALENDAR_WEEK_COLUMN_WIDTH_MIN, width);
 };
 
 export const getCalendarWeekInitialScrollX = ({

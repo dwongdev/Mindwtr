@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
 import {
-  CALENDAR_WEEK_COLUMN_WIDTH_DEFAULT,
   coerceCalendarWeekVisibleDays,
   coerceCalendarViewMode,
   getCalendarNavigationSwipeDirection,
@@ -57,7 +56,8 @@ describe('calendar view mode helpers', () => {
   });
 
   it('sizes week columns from the requested visible day density', () => {
-    expect(getCalendarWeekColumnWidth(304, 2)).toBe(CALENDAR_WEEK_COLUMN_WIDTH_DEFAULT);
+    expect(getCalendarWeekColumnWidth(304, 2)).toBe(152);
+    expect(getCalendarWeekColumnWidth(480, 2)).toBe(240);
     expect(getCalendarWeekColumnWidth(304, 4)).toBe(76);
     expect(getCalendarWeekColumnWidth(280, 7)).toBe(40);
   });

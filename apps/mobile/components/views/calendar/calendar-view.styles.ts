@@ -357,6 +357,9 @@ export const styles = StyleSheet.create({
   dayScroll: {
     flex: 1,
   },
+  daySwipeArea: {
+    flex: 1,
+  },
   dayScrollContent: {
     padding: 16,
     gap: 12,
@@ -672,6 +675,7 @@ export const styles = StyleSheet.create({
     height: 4,
     borderRadius: 999,
     justifyContent: 'center',
+    marginHorizontal: 16,
   },
   weekDensityTrackFill: {
     position: 'absolute',

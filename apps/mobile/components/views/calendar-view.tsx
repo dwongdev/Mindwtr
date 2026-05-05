@@ -38,6 +38,16 @@ const WEEK_DENSITY_VALUES = Array.from(
   { length: CALENDAR_WEEK_VISIBLE_DAYS_MAX - CALENDAR_WEEK_VISIBLE_DAYS_MIN + 1 },
   (_, index) => CALENDAR_WEEK_VISIBLE_DAYS_MIN + index
 );
+const CALENDAR_NAVIGATION_CAPTURE_DISTANCE = 18;
+
+type CalendarNavigationMode = 'month' | 'day';
+type CalendarNavigationSwipeState = {
+  lastX: number;
+  lastY: number;
+  mode: CalendarNavigationMode;
+  startX: number;
+  startY: number;
+};
 
 type ScheduledTaskBlockProps = {
   DAY_END_HOUR: number;
@@ -243,6 +253,7 @@ export function CalendarView() {
   );
   const bottomSheetSnap = useSharedValue(collapsedSheetSnap);
   const bottomSheetStart = useSharedValue(collapsedSheetSnap);
+  const navigationSwipeRef = useRef<CalendarNavigationSwipeState | null>(null);
   const suppressMonthDayPressUntilRef = useRef(0);
   const weekHorizontalScrollRef = useRef<any>(null);
   const scheduleScrollRef = useRef<any>(null);
@@ -373,23 +384,92 @@ export function CalendarView() {
     Haptics.selectionAsync().catch(() => {});
   };
 
-  const handleMonthNavigationSwipe = useCallback((translationX: number, translationY: number, velocityX: number) => {
-    const direction = getCalendarNavigationSwipeDirection({ translationX, translationY, velocityX });
+  const startCalendarNavigationSwipe = useCallback((mode: CalendarNavigationMode, event: GestureResponderEvent) => {
+    const touch = event.nativeEvent.touches[0];
+    if (event.nativeEvent.touches.length !== 1 || !touch) {
+      navigationSwipeRef.current = null;
+      return false;
+    }
+    navigationSwipeRef.current = {
+      lastX: touch.pageX,
+      lastY: touch.pageY,
+      mode,
+      startX: touch.pageX,
+      startY: touch.pageY,
+    };
+    return false;
+  }, []);
+
+  const updateCalendarNavigationSwipe = useCallback((event: GestureResponderEvent) => {
+    const state = navigationSwipeRef.current;
+    const touch = event.nativeEvent.touches[0];
+    if (!state || event.nativeEvent.touches.length !== 1 || !touch) {
+      navigationSwipeRef.current = null;
+      return null;
+    }
+    state.lastX = touch.pageX;
+    state.lastY = touch.pageY;
+    return state;
+  }, []);
+
+  const shouldCaptureCalendarNavigationSwipe = useCallback((event: GestureResponderEvent) => {
+    const state = updateCalendarNavigationSwipe(event);
+    if (!state) return false;
+    const translationX = state.lastX - state.startX;
+    const translationY = state.lastY - state.startY;
+    const horizontalDistance = Math.abs(translationX);
+    const verticalDrift = Math.abs(translationY);
+    return (
+      horizontalDistance >= CALENDAR_NAVIGATION_CAPTURE_DISTANCE
+      && verticalDrift <= 32
+      && verticalDrift <= horizontalDistance * 0.75
+    );
+  }, [updateCalendarNavigationSwipe]);
+
+  const finishCalendarNavigationSwipe = useCallback((event: GestureResponderEvent) => {
+    const state = navigationSwipeRef.current;
+    if (!state) return;
+    const touch = event.nativeEvent.changedTouches[0];
+    if (touch) {
+      state.lastX = touch.pageX;
+      state.lastY = touch.pageY;
+    }
+    navigationSwipeRef.current = null;
+
+    const direction = getCalendarNavigationSwipeDirection({
+      translationX: state.lastX - state.startX,
+      translationY: state.lastY - state.startY,
+    });
     if (!direction) return;
 
-    suppressMonthDayPressUntilRef.current = Date.now() + 350;
-    if (direction === -1) handlePrevMonth();
-    else handleNextMonth();
-  }, [handleNextMonth, handlePrevMonth]);
+    if (state.mode === 'month') {
+      suppressMonthDayPressUntilRef.current = Date.now() + 350;
+      if (direction === -1) handlePrevMonth();
+      else handleNextMonth();
+      return;
+    }
 
-  const monthNavigationGesture = useMemo(() => (
-    Gesture.Pan()
-      .maxPointers(1)
-      .activeOffsetX([-24, 24])
-      .onEnd((event) => {
-        runOnJS(handleMonthNavigationSwipe)(event.translationX, event.translationY, event.velocityX);
-      })
-  ), [handleMonthNavigationSwipe]);
+    shiftSelectedDate(direction);
+  }, [handleNextMonth, handlePrevMonth, shiftSelectedDate]);
+
+  const cancelCalendarNavigationSwipe = useCallback(() => {
+    navigationSwipeRef.current = null;
+  }, []);
+
+  const getCalendarNavigationResponder = useCallback((mode: CalendarNavigationMode) => ({
+    onMoveShouldSetResponderCapture: shouldCaptureCalendarNavigationSwipe,
+    onResponderMove: updateCalendarNavigationSwipe,
+    onResponderRelease: finishCalendarNavigationSwipe,
+    onResponderTerminate: cancelCalendarNavigationSwipe,
+    onResponderTerminationRequest: () => false,
+    onStartShouldSetResponderCapture: (event: GestureResponderEvent) => startCalendarNavigationSwipe(mode, event),
+  }), [
+    cancelCalendarNavigationSwipe,
+    finishCalendarNavigationSwipe,
+    shouldCaptureCalendarNavigationSwipe,
+    startCalendarNavigationSwipe,
+    updateCalendarNavigationSwipe,
+  ]);
 
   const handleMonthDayPress = (date: Date) => {
     if (Date.now() < suppressMonthDayPressUntilRef.current) return;
@@ -646,188 +726,190 @@ export function CalendarView() {
           {renderModeToggle()}
         </View>
 
-        <ScrollView
-          ref={timelineScrollRef}
-          style={styles.dayScroll}
-          contentContainerStyle={styles.dayScrollContent}
-        >
-          {selectedDateAllDayEvents.length > 0 && (
-            <View style={[styles.allDayCard, { backgroundColor: tc.cardBg, borderColor: tc.border }]}>
-              <Text style={[styles.sectionLabel, { color: tc.secondaryText }]}>{t('calendar.allDay')}</Text>
-              {selectedDateAllDayEvents.slice(0, 6).map((event) => {
-                return (
-                  <Pressable key={event.id} onPress={() => openExternalEvent(event)} style={styles.allDayPressable}>
-                    <Text style={[styles.allDayItem, { color: tc.text }]} numberOfLines={1}>
-                      {event.title}
-                    </Text>
-                  </Pressable>
-                );
-              })}
-            </View>
-          )}
+        <View style={styles.daySwipeArea} {...getCalendarNavigationResponder('day')}>
+          <ScrollView
+            ref={timelineScrollRef}
+            style={styles.dayScroll}
+            contentContainerStyle={styles.dayScrollContent}
+          >
+            {selectedDateAllDayEvents.length > 0 && (
+              <View style={[styles.allDayCard, { backgroundColor: tc.cardBg, borderColor: tc.border }]}>
+                <Text style={[styles.sectionLabel, { color: tc.secondaryText }]}>{t('calendar.allDay')}</Text>
+                {selectedDateAllDayEvents.slice(0, 6).map((event) => {
+                  return (
+                    <Pressable key={event.id} onPress={() => openExternalEvent(event)} style={styles.allDayPressable}>
+                      <Text style={[styles.allDayItem, { color: tc.text }]} numberOfLines={1}>
+                        {event.title}
+                      </Text>
+                    </Pressable>
+                  );
+                })}
+              </View>
+            )}
 
-          <View style={[styles.timelineCard, { backgroundColor: tc.cardBg, borderColor: tc.border }]}>
-            <View style={[styles.timelineArea, { height: timelineHeight }]}>
-              <Pressable onPress={handleDayTimelinePress} style={styles.timelineTapTarget} />
-              {Array.from({ length: DAY_END_HOUR - DAY_START_HOUR + 1 }, (_, idx) => {
-                const hour = DAY_START_HOUR + idx;
-                const top = idx * 60 * PIXELS_PER_MINUTE;
-                return (
-                  <View key={hour} pointerEvents="none" style={[styles.hourLine, { top }]}>
-                    <Text style={[styles.hourLabel, { color: tc.secondaryText }]}>{formatHourLabel(hour)}</Text>
-                    <View style={[styles.hourDivider, { backgroundColor: tc.border }]} />
+            <View style={[styles.timelineCard, { backgroundColor: tc.cardBg, borderColor: tc.border }]}>
+              <View style={[styles.timelineArea, { height: timelineHeight }]}>
+                <Pressable onPress={handleDayTimelinePress} style={styles.timelineTapTarget} />
+                {Array.from({ length: DAY_END_HOUR - DAY_START_HOUR + 1 }, (_, idx) => {
+                  const hour = DAY_START_HOUR + idx;
+                  const top = idx * 60 * PIXELS_PER_MINUTE;
+                  return (
+                    <View key={hour} pointerEvents="none" style={[styles.hourLine, { top }]}>
+                      <Text style={[styles.hourLabel, { color: tc.secondaryText }]}>{formatHourLabel(hour)}</Text>
+                      <View style={[styles.hourDivider, { backgroundColor: tc.border }]} />
+                    </View>
+                  );
+                })}
+
+                {selectedDayNowTop != null && (
+                  <View pointerEvents="none" style={[styles.nowLine, { top: selectedDayNowTop }]}>
+                    <View style={styles.nowDot} />
+                    <View style={styles.nowRule} />
                   </View>
-                );
-              })}
+                )}
 
-              {selectedDayNowTop != null && (
-                <View pointerEvents="none" style={[styles.nowLine, { top: selectedDayNowTop }]}>
-                  <View style={styles.nowDot} />
-                  <View style={styles.nowRule} />
+                {selectedDateTimedEvents.map((event) => {
+                  const start = safeParseDate(event.start);
+                  const end = safeParseDate(event.end);
+                  if (!start || !end) return null;
+                  const clampedStart = new Date(Math.max(start.getTime(), selectedDayStart.getTime()));
+                  const clampedEnd = new Date(Math.min(end.getTime(), selectedDayEnd.getTime()));
+                  const startMinutes = (clampedStart.getTime() - selectedDayStart.getTime()) / 60_000;
+                  const endMinutes = (clampedEnd.getTime() - selectedDayStart.getTime()) / 60_000;
+                  const top = Math.max(0, startMinutes) * PIXELS_PER_MINUTE;
+                  const height = Math.max(16, (endMinutes - startMinutes) * PIXELS_PER_MINUTE);
+                  const timeLabel = formatTimeRange(clampedStart, Math.max(1, Math.round(endMinutes - startMinutes)));
+                  const eventStyle = [
+                    styles.eventBlock,
+                    {
+                      top,
+                      height,
+                      backgroundColor: toRgba(tc.secondaryText, isDark ? 0.35 : 0.18),
+                      borderColor: sourceColorForId(event.sourceId),
+                    },
+                  ];
+                  const eventContent = (
+                    <>
+                      <Text style={[styles.eventBlockTitle, { color: tc.text }]} numberOfLines={1}>
+                        {event.title}
+                      </Text>
+                      <Text style={[styles.eventBlockTime, { color: tc.secondaryText }]} numberOfLines={1}>
+                        {timeLabel}
+                      </Text>
+                    </>
+                  );
+                  return (
+                    <Pressable
+                      key={event.id}
+                      onPress={(pressEvent) => {
+                        pressEvent.stopPropagation();
+                        openExternalEvent(event);
+                      }}
+                      style={eventStyle}
+                    >
+                      {eventContent}
+                    </Pressable>
+                  );
+                })}
+
+                {selectedDayScheduledTasks.map((task) => {
+                  const start = task.startTime ? safeParseDate(task.startTime) : null;
+                  if (!start) return null;
+                  const durationMinutes = timeEstimateToMinutes(task.timeEstimate);
+                  const end = new Date(start.getTime() + durationMinutes * 60 * 1000);
+                  const clampedStart = new Date(Math.max(start.getTime(), selectedDayStart.getTime()));
+                  const clampedEnd = new Date(Math.min(end.getTime(), selectedDayEnd.getTime()));
+                  const startMinutes = (clampedStart.getTime() - selectedDayStart.getTime()) / 60_000;
+                  const endMinutes = (clampedEnd.getTime() - selectedDayStart.getTime()) / 60_000;
+                  const top = Math.max(0, startMinutes) * PIXELS_PER_MINUTE;
+                  const height = Math.max(24, (endMinutes - startMinutes) * PIXELS_PER_MINUTE);
+                  return (
+                    <ScheduledTaskBlock
+                      key={task.id}
+                      DAY_END_HOUR={DAY_END_HOUR}
+                      DAY_START_HOUR={DAY_START_HOUR}
+                      PIXELS_PER_MINUTE={PIXELS_PER_MINUTE}
+                      SNAP_MINUTES={SNAP_MINUTES}
+                      commitTaskDrag={commitTaskDrag}
+                      task={task}
+                      dayStartMs={selectedDayStart.getTime()}
+                      top={top}
+                      height={height}
+                      durationMinutes={durationMinutes}
+                      formatTimeRange={formatTimeRange}
+                      isDark={isDark}
+                      openTaskActions={openTaskActions}
+                      setTimelineScrollEnabled={setTimelineScrollEnabled}
+                      tc={tc}
+                      toRgba={toRgba}
+                      triggerDragHaptic={triggerDragHaptic}
+                    />
+                  );
+                })}
+              </View>
+            </View>
+
+            <View style={[styles.dayScheduleCard, { backgroundColor: tc.cardBg, borderColor: tc.border }]}>
+              {nextQuickScheduleCandidates.length > 0 && (
+                <View style={styles.scheduleResults}>
+                  <Text style={[styles.scheduleResultsTitle, { color: tc.secondaryText }]}>{t('nav.next')}</Text>
+                  {nextQuickScheduleCandidates.map((task) => {
+                    const slotLabel = getScheduleSlotLabel(selectedDate, task);
+                    return (
+                      <Pressable
+                        key={task.id}
+                        style={[styles.taskItem, { backgroundColor: tc.inputBg, borderLeftColor: tc.tint }]}
+                        onPress={() => scheduleTaskOnSelectedDate(task.id)}
+                      >
+                        <Text style={[styles.taskItemTitle, { color: tc.text }]} numberOfLines={1}>
+                          {task.title}
+                        </Text>
+                        <Text style={[styles.taskItemTime, { color: tc.secondaryText }]}>
+                          {slotLabel ? `${t('calendar.scheduleAction')} · ${slotLabel}` : t('calendar.scheduleAction')}
+                        </Text>
+                      </Pressable>
+                    );
+                  })}
                 </View>
               )}
 
-              {selectedDateTimedEvents.map((event) => {
-                const start = safeParseDate(event.start);
-                const end = safeParseDate(event.end);
-                if (!start || !end) return null;
-                const clampedStart = new Date(Math.max(start.getTime(), selectedDayStart.getTime()));
-                const clampedEnd = new Date(Math.min(end.getTime(), selectedDayEnd.getTime()));
-                const startMinutes = (clampedStart.getTime() - selectedDayStart.getTime()) / 60_000;
-                const endMinutes = (clampedEnd.getTime() - selectedDayStart.getTime()) / 60_000;
-                const top = Math.max(0, startMinutes) * PIXELS_PER_MINUTE;
-                const height = Math.max(16, (endMinutes - startMinutes) * PIXELS_PER_MINUTE);
-                const timeLabel = formatTimeRange(clampedStart, Math.max(1, Math.round(endMinutes - startMinutes)));
-                const eventStyle = [
-                  styles.eventBlock,
-                  {
-                    top,
-                    height,
-                    backgroundColor: toRgba(tc.secondaryText, isDark ? 0.35 : 0.18),
-                    borderColor: sourceColorForId(event.sourceId),
-                  },
-                ];
-                const eventContent = (
-                  <>
-                    <Text style={[styles.eventBlockTitle, { color: tc.text }]} numberOfLines={1}>
-                      {event.title}
-                    </Text>
-                    <Text style={[styles.eventBlockTime, { color: tc.secondaryText }]} numberOfLines={1}>
-                      {timeLabel}
-                    </Text>
-                  </>
-                );
-                return (
-                  <Pressable
-                    key={event.id}
-                    onPress={(pressEvent) => {
-                      pressEvent.stopPropagation();
-                      openExternalEvent(event);
-                    }}
-                    style={eventStyle}
-                  >
-                    {eventContent}
-                  </Pressable>
-                );
-              })}
-
-              {selectedDayScheduledTasks.map((task) => {
-                const start = task.startTime ? safeParseDate(task.startTime) : null;
-                if (!start) return null;
-                const durationMinutes = timeEstimateToMinutes(task.timeEstimate);
-                const end = new Date(start.getTime() + durationMinutes * 60 * 1000);
-                const clampedStart = new Date(Math.max(start.getTime(), selectedDayStart.getTime()));
-                const clampedEnd = new Date(Math.min(end.getTime(), selectedDayEnd.getTime()));
-                const startMinutes = (clampedStart.getTime() - selectedDayStart.getTime()) / 60_000;
-                const endMinutes = (clampedEnd.getTime() - selectedDayStart.getTime()) / 60_000;
-                const top = Math.max(0, startMinutes) * PIXELS_PER_MINUTE;
-                const height = Math.max(24, (endMinutes - startMinutes) * PIXELS_PER_MINUTE);
-                return (
-                  <ScheduledTaskBlock
-                    key={task.id}
-                    DAY_END_HOUR={DAY_END_HOUR}
-                    DAY_START_HOUR={DAY_START_HOUR}
-                    PIXELS_PER_MINUTE={PIXELS_PER_MINUTE}
-                    SNAP_MINUTES={SNAP_MINUTES}
-                    commitTaskDrag={commitTaskDrag}
-                    task={task}
-                    dayStartMs={selectedDayStart.getTime()}
-                    top={top}
-                    height={height}
-                    durationMinutes={durationMinutes}
-                    formatTimeRange={formatTimeRange}
-                    isDark={isDark}
-                    openTaskActions={openTaskActions}
-                    setTimelineScrollEnabled={setTimelineScrollEnabled}
-                    tc={tc}
-                    toRgba={toRgba}
-                    triggerDragHaptic={triggerDragHaptic}
-                  />
-                );
-              })}
-            </View>
-          </View>
-
-          <View style={[styles.dayScheduleCard, { backgroundColor: tc.cardBg, borderColor: tc.border }]}>
-            {nextQuickScheduleCandidates.length > 0 && (
-              <View style={styles.scheduleResults}>
-                <Text style={[styles.scheduleResultsTitle, { color: tc.secondaryText }]}>{t('nav.next')}</Text>
-                {nextQuickScheduleCandidates.map((task) => {
-                  const slotLabel = getScheduleSlotLabel(selectedDate, task);
-                  return (
-                    <Pressable
-                      key={task.id}
-                      style={[styles.taskItem, { backgroundColor: tc.inputBg, borderLeftColor: tc.tint }]}
-                      onPress={() => scheduleTaskOnSelectedDate(task.id)}
-                    >
-                      <Text style={[styles.taskItemTitle, { color: tc.text }]} numberOfLines={1}>
-                        {task.title}
-                      </Text>
-                      <Text style={[styles.taskItemTime, { color: tc.secondaryText }]}>
-                        {slotLabel ? `${t('calendar.scheduleAction')} · ${slotLabel}` : t('calendar.scheduleAction')}
-                      </Text>
-                    </Pressable>
-                  );
-                })}
+              <View style={styles.addTaskForm}>
+                <TextInput
+                  style={[styles.input, { backgroundColor: tc.inputBg, borderColor: tc.border, color: tc.text }]}
+                  value={scheduleQuery}
+                  onChangeText={setScheduleQuery}
+                  placeholder={t('calendar.schedulePlaceholder')}
+                  placeholderTextColor={tc.secondaryText}
+                />
               </View>
-            )}
 
-            <View style={styles.addTaskForm}>
-              <TextInput
-                style={[styles.input, { backgroundColor: tc.inputBg, borderColor: tc.border, color: tc.text }]}
-                value={scheduleQuery}
-                onChangeText={setScheduleQuery}
-                placeholder={t('calendar.schedulePlaceholder')}
-                placeholderTextColor={tc.secondaryText}
-              />
+              {searchCandidates.length > 0 && (
+                <View style={styles.scheduleResults}>
+                  <Text style={[styles.scheduleResultsTitle, { color: tc.secondaryText }]}>
+                    {t('calendar.scheduleResults')}
+                  </Text>
+                  {searchCandidates.map((task) => {
+                    const slotLabel = getScheduleSlotLabel(selectedDate, task);
+                    return (
+                      <Pressable
+                        key={task.id}
+                        style={[styles.taskItem, { backgroundColor: tc.inputBg, borderLeftColor: tc.tint }]}
+                        onPress={() => scheduleTaskOnSelectedDate(task.id)}
+                      >
+                        <Text style={[styles.taskItemTitle, { color: tc.text }]} numberOfLines={1}>
+                          {task.title}
+                        </Text>
+                        <Text style={[styles.taskItemTime, { color: tc.secondaryText }]}>
+                          {slotLabel ? `${t('calendar.scheduleAction')} · ${slotLabel}` : t('calendar.scheduleAction')}
+                        </Text>
+                      </Pressable>
+                    );
+                  })}
+                </View>
+              )}
             </View>
-
-            {searchCandidates.length > 0 && (
-              <View style={styles.scheduleResults}>
-                <Text style={[styles.scheduleResultsTitle, { color: tc.secondaryText }]}>
-                  {t('calendar.scheduleResults')}
-                </Text>
-                {searchCandidates.map((task) => {
-                  const slotLabel = getScheduleSlotLabel(selectedDate, task);
-                  return (
-                    <Pressable
-                      key={task.id}
-                      style={[styles.taskItem, { backgroundColor: tc.inputBg, borderLeftColor: tc.tint }]}
-                      onPress={() => scheduleTaskOnSelectedDate(task.id)}
-                    >
-                      <Text style={[styles.taskItemTitle, { color: tc.text }]} numberOfLines={1}>
-                        {task.title}
-                      </Text>
-                      <Text style={[styles.taskItemTime, { color: tc.secondaryText }]}>
-                        {slotLabel ? `${t('calendar.scheduleAction')} · ${slotLabel}` : t('calendar.scheduleAction')}
-                      </Text>
-                    </Pressable>
-                  );
-                })}
-              </View>
-            )}
-          </View>
-        </ScrollView>
+          </ScrollView>
+        </View>
 
         {renderCalendarComposer()}
 
@@ -1065,19 +1147,6 @@ export function CalendarView() {
         </ScrollView>
 
         <View style={[styles.weekDensityBar, { backgroundColor: tc.cardBg, borderTopColor: tc.border, paddingBottom: Math.max(12, insets.bottom + 8) }]}>
-          <View style={styles.weekDensityHeader}>
-            <Text style={[styles.weekDensityLabel, { color: tc.secondaryText }]}>
-              {localize('Visible days', '可见天数')}
-            </Text>
-            <Text style={[styles.weekDensityValue, { color: tc.text }]}>
-              {calendarWeekVisibleDays === 1
-                ? localize('1 day', '1 天')
-                : localize(`${calendarWeekVisibleDays} days`, `${calendarWeekVisibleDays} 天`)}
-            </Text>
-          </View>
-          <Text style={[styles.weekDensityHint, { color: tc.secondaryText }]}>
-            {localize('2 keeps day columns wider; 7 shows the full week.', '2 天显示更宽的日期列；7 天显示完整一周。')}
-          </Text>
           <GestureDetector gesture={weekDensityGesture}>
             <View
               onLayout={handleWeekDensityTrackLayout}
@@ -1292,8 +1361,7 @@ export function CalendarView() {
         {renderModeToggle()}
       </View>
 
-      <GestureDetector gesture={monthNavigationGesture}>
-        <View style={styles.monthCalendar}>
+      <View style={styles.monthCalendar} {...getCalendarNavigationResponder('month')}>
           <View style={[styles.dayHeaders, { backgroundColor: tc.cardBg, borderBottomColor: tc.border }]}>
             {dayNames.map((day) => (
               <View key={day} style={styles.dayHeader}>
@@ -1401,8 +1469,7 @@ export function CalendarView() {
               );
             })}
           </View>
-        </View>
-      </GestureDetector>
+      </View>
 
       {selectedDate && (
         <Animated.View style={[styles.monthDetailsPane, bottomSheetStyle, { backgroundColor: tc.cardBg, borderTopColor: tc.border }]}>
