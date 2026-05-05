@@ -259,7 +259,7 @@ export function CalendarView() {
   const scheduleScrollRef = useRef<any>(null);
   const lastWeekAutoScrollKeyRef = useRef<string | null>(null);
   const [weekDensityTrackWidth, setWeekDensityTrackWidth] = useState(0);
-  const weekAvailableColumnWidth = Math.max(1, screenWidth - WEEK_TIME_GUTTER_WIDTH);
+  const weekAvailableColumnWidth = Math.max(1, screenWidth);
   const weekColumnWidth = getCalendarWeekColumnWidth(weekAvailableColumnWidth, calendarWeekVisibleDays);
   const compactWeekColumns = weekColumnWidth < 86;
   const ultraCompactWeekColumns = weekColumnWidth < 58;
@@ -297,6 +297,7 @@ export function CalendarView() {
 
     const x = getCalendarWeekInitialScrollX({
       columnWidth: weekColumnWidth,
+      leadingInset: WEEK_TIME_GUTTER_WIDTH,
       selectedDate,
       visibleDays: calendarWeekVisibleDays,
       weekDays,

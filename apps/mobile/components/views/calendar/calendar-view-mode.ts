@@ -70,18 +70,22 @@ export const getCalendarWeekColumnWidth = (
 
 export const getCalendarWeekInitialScrollX = ({
   columnWidth,
+  leadingInset = 0,
   selectedDate,
   visibleDays,
   weekDays,
 }: {
   columnWidth: number;
+  leadingInset?: number;
   selectedDate: Date | null;
   visibleDays: number;
   weekDays: Date[];
 }): number => {
-  if (coerceCalendarWeekVisibleDays(visibleDays) >= weekDays.length) return 0;
+  const resolvedVisibleDays = coerceCalendarWeekVisibleDays(visibleDays);
   const dayIndex = getCalendarWeekInitialVisibleDayIndex(weekDays, selectedDate);
-  return Math.max(0, dayIndex * Math.max(0, columnWidth));
+  const maxStartIndex = Math.max(0, weekDays.length - resolvedVisibleDays);
+  const startIndex = Math.min(dayIndex, maxStartIndex);
+  return Math.max(0, leadingInset) + startIndex * Math.max(0, columnWidth);
 };
 
 export const getCalendarNavigationSwipeDirection = ({

@@ -79,6 +79,32 @@ describe('calendar view mode helpers', () => {
     })).toBe(0);
   });
 
+  it('accounts for the week gutter when aligning visible day columns', () => {
+    const weekDays = Array.from({ length: 7 }, (_, index) => new Date(2026, 4, 3 + index));
+
+    expect(getCalendarWeekInitialScrollX({
+      columnWidth: 100,
+      leadingInset: 56,
+      selectedDate: new Date(2026, 4, 5, 12),
+      visibleDays: 2,
+      weekDays,
+    })).toBe(256);
+    expect(getCalendarWeekInitialScrollX({
+      columnWidth: 80,
+      leadingInset: 56,
+      selectedDate: new Date(2026, 4, 8, 12),
+      visibleDays: 5,
+      weekDays,
+    })).toBe(216);
+    expect(getCalendarWeekInitialScrollX({
+      columnWidth: 56,
+      leadingInset: 56,
+      selectedDate: new Date(2026, 4, 5, 12),
+      visibleDays: 7,
+      weekDays,
+    })).toBe(56);
+  });
+
   it('recognizes deliberate horizontal calendar navigation swipes', () => {
     expect(getCalendarNavigationSwipeDirection({ translationX: -72, translationY: 8 })).toBe(1);
     expect(getCalendarNavigationSwipeDirection({ translationX: 72, translationY: 8 })).toBe(-1);

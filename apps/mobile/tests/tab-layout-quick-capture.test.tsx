@@ -3,7 +3,7 @@ import { TouchableOpacity } from 'react-native';
 import { act, create } from 'react-test-renderer';
 import { describe, expect, it, vi } from 'vitest';
 
-import TabLayout from './_layout';
+import TabLayout from '../app/(drawer)/(tabs)/_layout';
 
 vi.mock('expo-router', () => {
   function LinkMock({ children }: { children: React.ReactNode }) {
@@ -105,7 +105,7 @@ vi.mock('@/hooks/use-theme-colors', () => ({
   }),
 }));
 
-vi.mock('../../../contexts/language-context', () => ({
+vi.mock('../contexts/language-context', () => ({
   useLanguage: () => ({
     t: (key: string) => ({
       'nav.addTask': 'Add task',
@@ -119,7 +119,7 @@ vi.mock('../../../contexts/language-context', () => ({
   }),
 }));
 
-vi.mock('../../../contexts/quick-capture-context', () => ({
+vi.mock('../contexts/quick-capture-context', () => ({
   QuickCaptureProvider: ({ children }: { children: React.ReactNode }) => <>{children}</>,
 }));
 
