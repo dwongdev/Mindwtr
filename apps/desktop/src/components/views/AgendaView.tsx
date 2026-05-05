@@ -220,11 +220,12 @@ export function AgendaView() {
     ), [tasks, projectMap, resolvedAreaFilter, areaById]);
 
     const { activeTasks, allTokens, hiddenFutureStartCount } = useMemo(() => {
-        const active = baseActiveTasks.filter((task) => shouldShowTaskForStart(task, { showFutureStarts }));
+        const now = new Date();
+        const active = baseActiveTasks.filter((task) => shouldShowTaskForStart(task, { showFutureStarts, now }));
         return {
             activeTasks: active,
             allTokens: getUsedTaskTokens(active, (task) => [...(task.contexts || []), ...(task.tags || [])]),
-            hiddenFutureStartCount: baseActiveTasks.filter((task) => !shouldShowTaskForStart(task, { showFutureStarts: false })).length,
+            hiddenFutureStartCount: baseActiveTasks.filter((task) => !shouldShowTaskForStart(task, { showFutureStarts: false, now })).length,
         };
     }, [baseActiveTasks, showFutureStarts]);
     const priorityOptions: TaskPriority[] = ['low', 'medium', 'high', 'urgent'];

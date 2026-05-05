@@ -224,6 +224,38 @@ describe('AgendaView', () => {
         expect(queryByRole('heading', { name: /next actions/i })).not.toBeInTheDocument();
     });
 
+    it('hides future-start next actions in Focus by default', () => {
+        vi.useFakeTimers();
+        vi.setSystemTime(new Date('2026-02-28T12:00:00.000Z'));
+
+        const futureStartTask: Task = {
+            id: 'future-start-next-task',
+            title: 'Future start next task',
+            status: 'next',
+            startTime: '2026-03-03T09:00:00.000Z',
+            tags: [],
+            contexts: [],
+            createdAt: nowIso,
+            updatedAt: nowIso,
+        };
+
+        useTaskStore.setState({
+            tasks: [futureStartTask],
+            _allTasks: [futureStartTask],
+            projects: [],
+            _allProjects: [],
+            areas: [],
+            _allAreas: [],
+            settings: {},
+            highlightTaskId: null,
+        });
+
+        const { getByText, queryByText } = renderAgenda();
+
+        expect(queryByText('Future start next task')).not.toBeInTheDocument();
+        expect(getByText('1 task hidden (future start)')).toBeInTheDocument();
+    });
+
     it('shows due-soon next actions before undated tasks and sinks far-future due tasks', () => {
         vi.useFakeTimers();
         const now = new Date('2026-02-28T12:00:00.000Z');
