@@ -4,7 +4,7 @@ import type { BottomTabBarProps } from '@react-navigation/bottom-tabs';
 import { Search, Inbox, ArrowRightCircle, ClipboardCheck, Folder, Menu, Mic, Plus } from 'lucide-react-native';
 import { Platform, StyleSheet, TouchableOpacity, View, type ViewStyle } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useCallback, useRef, useState } from 'react';
+import React, { useCallback, useRef, useState } from 'react';
 
 import { HapticTab } from '@/components/haptic-tab';
 import { MobileAreaSwitcher } from '@/components/mobile-area-switcher';
@@ -184,11 +184,13 @@ export default function TabLayout() {
   const iconLift = Platform.OS === 'android' ? 4 : 0;
   const [captureState, setCaptureState] = useState<{
     visible: boolean;
+    instanceKey: number;
     initialValue?: string;
     initialProps?: Partial<Task> | null;
     autoRecord?: boolean;
   }>({
     visible: false,
+    instanceKey: 0,
     initialValue: '',
     initialProps: null,
     autoRecord: false,
@@ -205,16 +207,23 @@ export default function TabLayout() {
   }, [selectedAreaIdForNewTasks]);
 
   const openQuickCapture = useCallback((options?: { initialValue?: string; initialProps?: Partial<Task>; autoRecord?: boolean }) => {
-    setCaptureState({
+    setCaptureState((prev) => ({
       visible: true,
+      instanceKey: prev.instanceKey + 1,
       initialValue: options?.initialValue ?? '',
       initialProps: withSelectedArea(options?.initialProps) ?? null,
       autoRecord: options?.autoRecord ?? false,
-    });
+    }));
   }, [withSelectedArea]);
 
   const closeQuickCapture = useCallback(() => {
-    setCaptureState({ visible: false, initialValue: '', initialProps: null, autoRecord: false });
+    setCaptureState((prev) => ({
+      visible: false,
+      instanceKey: prev.instanceKey,
+      initialValue: '',
+      initialProps: null,
+      autoRecord: false,
+    }));
   }, []);
 
   const iconTint = tc.tabIconSelected;
@@ -392,13 +401,16 @@ export default function TabLayout() {
       />
     </Tabs>
     <SyncActivityIndicator />
-    <QuickCaptureSheet
-      visible={captureState.visible}
-      initialValue={captureState.initialValue}
-      initialProps={captureState.initialProps ?? undefined}
-      autoRecord={captureState.autoRecord}
-      onClose={closeQuickCapture}
-    />
+    {captureState.visible && (
+      <QuickCaptureSheet
+        key={captureState.instanceKey}
+        visible
+        initialValue={captureState.initialValue}
+        initialProps={captureState.initialProps ?? undefined}
+        autoRecord={captureState.autoRecord}
+        onClose={closeQuickCapture}
+      />
+    )}
     </QuickCaptureProvider>
   );
 }
