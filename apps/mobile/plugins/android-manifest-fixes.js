@@ -32,6 +32,9 @@ module.exports = function withAndroidManifestFixes(config) {
       application.$ = {};
     }
     application.$['android:resizeableActivity'] = 'true';
+    // WebDAV sync allows HTTP only for localhost, private IPs, and local hostnames in app code.
+    // Android still needs cleartext enabled at the manifest level for those private endpoints.
+    application.$['android:usesCleartextTraffic'] = 'true';
 
     const existingSupportsScreens = manifest.manifest['supports-screens']?.[0]?.$ ?? {};
     manifest.manifest['supports-screens'] = [
