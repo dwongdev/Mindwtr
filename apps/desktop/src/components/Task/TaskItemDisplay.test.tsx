@@ -94,6 +94,86 @@ describe('TaskItemDisplay', () => {
         expect(queryByText('2周前')).not.toBeInTheDocument();
     });
 
+    it('keeps board overlay tags in the metadata row instead of the absolute action controls', () => {
+        const taggedTask: Task = {
+            ...baseTask,
+            tags: ['#board-tag'],
+        };
+
+        const { getByText, queryByText } = render(
+            <LanguageProvider>
+                <TaskItemDisplay
+                    task={taggedTask}
+                    language="en"
+                    selectionMode={false}
+                    isViewOpen={false}
+                    actions={{
+                        onToggleView: vi.fn(),
+                        onEdit: vi.fn(),
+                        onDelete: vi.fn(),
+                        onDuplicate: vi.fn(),
+                        onStatusChange: vi.fn(),
+                        openAttachment: vi.fn(),
+                    }}
+                    visibleAttachments={[]}
+                    recurrenceRule=""
+                    recurrenceStrategy="strict"
+                    prioritiesEnabled={false}
+                    timeEstimatesEnabled={false}
+                    isStagnant={false}
+                    showQuickDone={false}
+                    showStatusSelect={false}
+                    readOnly={false}
+                    actionsOverlay
+                    t={(key: string) => key}
+                />
+            </LanguageProvider>
+        );
+
+        expect(getByText('#board-tag')).toBeInTheDocument();
+        expect(queryByText('board-tag')).not.toBeInTheDocument();
+    });
+
+    it('keeps the condensed tag summary for non-overlay task rows', () => {
+        const taggedTask: Task = {
+            ...baseTask,
+            tags: ['#list-tag'],
+        };
+
+        const { getByText, queryByText } = render(
+            <LanguageProvider>
+                <TaskItemDisplay
+                    task={taggedTask}
+                    language="en"
+                    selectionMode={false}
+                    isViewOpen={false}
+                    actions={{
+                        onToggleView: vi.fn(),
+                        onEdit: vi.fn(),
+                        onDelete: vi.fn(),
+                        onDuplicate: vi.fn(),
+                        onStatusChange: vi.fn(),
+                        openAttachment: vi.fn(),
+                    }}
+                    visibleAttachments={[]}
+                    recurrenceRule=""
+                    recurrenceStrategy="strict"
+                    prioritiesEnabled={false}
+                    timeEstimatesEnabled={false}
+                    isStagnant={false}
+                    showQuickDone={false}
+                    showStatusSelect={false}
+                    readOnly={false}
+                    compactMetaEnabled={false}
+                    t={(key: string) => key}
+                />
+            </LanguageProvider>
+        );
+
+        expect(getByText('list-tag')).toBeInTheDocument();
+        expect(queryByText('#list-tag')).not.toBeInTheDocument();
+    });
+
     it('only renders the task description when the row is expanded', () => {
         const taskWithDescription: Task = {
             ...baseTask,

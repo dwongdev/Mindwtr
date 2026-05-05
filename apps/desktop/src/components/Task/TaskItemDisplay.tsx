@@ -380,6 +380,7 @@ export const TaskItemDisplay = memo(function TaskItemDisplay({
     const overlayDragHandle = actionsOverlay && !!dragHandle;
     const overlayQuickDone = actionsOverlay && showQuickDoneButton;
     const inlineLeftControls = !actionsOverlay && (showQuickDoneButton || dragHandle);
+    const showActionTags = !actionsOverlay && !isViewOpen && task.tags.length > 0;
 
     return (
         <div className={cn("flex-1 min-w-0 flex items-start gap-3", actionsOverlay && "relative")}>
@@ -619,7 +620,7 @@ export const TaskItemDisplay = memo(function TaskItemDisplay({
                     )}
                     onPointerDown={(e) => e.stopPropagation()}
                 >
-                    {!isViewOpen && task.tags.length > 0 && (
+                    {showActionTags && (
                         <div className="flex items-center gap-1 max-w-[240px] overflow-hidden">
                             {task.tags.slice(0, 2).map((tag) => (
                                 <MetadataBadge
