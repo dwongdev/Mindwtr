@@ -31,6 +31,9 @@ These changes are intended for the next patch release after `v0.9.0`.
 - Added visible cleartext-sync and sync-state warnings in the desktop sidebar.
 - Added Undo for project deletion on desktop and mobile.
 - Localized the mobile sync activity indicator copy.
+- Guarded desktop quick-add against near-simultaneous open requests.
+- Replaced the mobile quick-capture remount workaround with explicit open-request state.
+- Surfaced delete-vs-live conflict details in user-visible sync history.
 
 ### Performance
 
@@ -38,6 +41,15 @@ These changes are intended for the next patch release after `v0.9.0`.
 - Added validated stable sync signature caching for cloned entity revisions.
 - Split desktop ListView store selectors so data, settings, and actions subscribe independently.
 
+### Changed
+
+- Shared the MCP/core serialized async queue helper.
+- Shared calendar composer time helpers through core.
+- Replaced core root wildcard exports with explicit named exports.
+- Added an actionable mobile inbox empty state and mobile tips discovery for gestures and app shortcuts.
+- Consolidated overlapping deployment and GTD wiki pages.
+
 ### Tests
 
 - Added a browser-level Playwright color-contrast pass for the desktop app.
+- Added mobile quick-capture lifecycle and modal accessibility coverage.
