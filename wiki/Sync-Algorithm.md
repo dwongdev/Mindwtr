@@ -2,6 +2,8 @@
 
 Mindwtr uses local-first synchronization with deterministic conflict handling.
 
+This page is the technical merge reference for maintainers and debugging. For user-facing backend setup, recovery steps, and operational guidance, see [[Data and Sync]].
+
 ## Inputs and Outputs
 
 - Input A: local snapshot (`tasks`, `projects`, `sections`, `areas`, `settings`)
@@ -30,9 +32,11 @@ Revisit ADR 0008 only if snapshot files regularly exceed 5 MB, sync round-trips 
 4. Soft-deletes use operation time:
    - Operation time = `max(updatedAt, deletedAt)` for tombstones.
    - Live-vs-deleted conflicts choose newer operation time.
-   - If the delete-vs-live operation times are within 30 seconds of each other, Mindwtr preserves the live item instead of immediately letting the tombstone win.
+   - If the delete-vs-live operation times are within 30 seconds of each other and the revision numbers tie, Mindwtr preserves the live item instead of immediately letting the tombstone win. This is the deliberate ambiguous-window rule that can make a just-deleted task reappear after a concurrent edit on another device.
    - If revisions differ inside that 30-second window, the higher revision still wins.
+   - Legacy records without revision metadata prefer the tombstone inside that same window.
    - When a delete wins over a live edit, Mindwtr emits a bounded `syncConflictDiscarded` diagnostic entry with entity type, ID, operation timing, and revision metadata.
+   - When the ambiguous-window live item is preserved, Mindwtr emits a bounded `Preserved live item during ambiguous delete-vs-live merge` diagnostic entry and stores conflict metadata in sync history/settings.
 5. Invalid `deletedAt` falls back to `updatedAt` for conservative operation timing.
 6. Attachments are merged per attachment `id` with the same LWW rules.
 7. Areas use tombstones:
@@ -97,7 +101,8 @@ record sync history and diagnostics
 
 - Local: task `t1` edited at `10:00:05`, still live
 - Remote: task `t1` deleted at `10:00:20`
-- Result: live item wins because the operations are only 15 seconds apart, which falls inside the ambiguity window
+- Both records have the same revision number
+- Result: live item wins because the operations are only 15 seconds apart and the revision metadata ties inside the ambiguity window
 
 ### Example 2: Equal Revision and Timestamp
 

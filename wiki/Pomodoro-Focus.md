@@ -30,7 +30,7 @@ By default, this feature is **off** to keep Focus minimal and distraction-free.
 - When a focus session ends, Mindwtr switches to break and pauses so you can start intentionally.
 - When a break ends, it switches back to focus.
 
-Task linking is off by default. Turn on **Settings → GTD → Pomodoro timer → Link timer to task** when you want the Timer task picker and **Mark task done** action in Focus.
+Task linking is optional and off by default. Turn on **Settings → GTD → Pomodoro timer → Link timer to task** when you want the Timer task picker and **Mark task done** action in Focus.
 
 Controls:
 - **Timer**: Start/Pause, Reset, and Switch phase

@@ -8,6 +8,8 @@ Current desktop and mobile builds split settings into two pages:
 - **Settings → Sync** for backend setup, sync options, history, and recovery snapshots
 - **Settings → Data** for backup/restore/import, attachment cleanup, and diagnostics
 
+This page is the user-facing setup and recovery guide. For maintainer-level merge rules and diagnostics fields, see [[Sync Algorithm]].
+
 For desktop vault import and note deep links, see [[Obsidian Integration]].
 
 ---
@@ -71,6 +73,16 @@ Mindwtr directly supports five sync backends:
 - **Best for multi-device:** WebDAV or Mindwtr Cloud (self-hosted). The app controls the sync cycle and merges per item.
 - **File Sync (Syncthing/Dropbox/etc.):** works, but **conflicts are file-level** because `data.json` is a single file.
 - **Best practices for File Sync:** avoid editing on two devices at the same time, and wait for sync to finish before opening the app on another device. If conflicts appear, keep the newest `data.json` and delete the `data.json.sync-conflict-*` copies.
+
+## Conflict Recovery
+
+Mindwtr normally resolves item conflicts automatically. If a task you deleted comes back after syncing, the most common cause is a concurrent edit on another device inside the delete-vs-live ambiguity window. When revision numbers tie and operation times are within 30 seconds, Mindwtr preserves the live edit so it does not silently discard work.
+
+What to do:
+1. Open **Settings → Sync** and check the latest sync status/history for conflicts.
+2. If the returned task is still unwanted, delete it again after all devices have finished syncing.
+3. If both devices still disagree, sync each device manually one at a time, then keep the version you want and delete/restore once more.
+4. If you need to recover older data, use **Settings → Data** or **Settings → Sync → Recovery snapshots** before making more edits.
 
 ### 1. Native iCloud / CloudKit Sync (Apple-only)
 
