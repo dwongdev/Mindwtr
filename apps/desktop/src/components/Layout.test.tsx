@@ -6,6 +6,7 @@ import { LanguageProvider } from '../contexts/language-context';
 import { KeybindingProvider } from '../contexts/keybinding-context';
 import { useUiStore } from '../store/ui-store';
 import { useObsidianStore } from '../store/obsidian-store';
+import { SyncService } from '../lib/sync-service';
 import { Layout } from './Layout';
 
 const initialTaskState = useTaskStore.getState();
@@ -119,5 +120,26 @@ describe('Layout sync conflict surface', () => {
             'info',
             6000,
         );
+    });
+});
+
+describe('Layout sync security warning', () => {
+    it('shows a cleartext HTTP banner for WebDAV sync', async () => {
+        const backendSpy = vi.spyOn(SyncService, 'getSyncBackend').mockResolvedValue('webdav');
+        const webdavSpy = vi.spyOn(SyncService, 'getWebDavConfig').mockResolvedValue({
+            url: 'http://192.168.1.50/dav',
+            username: '',
+            hasPassword: false,
+            allowInsecureHttp: true,
+        });
+
+        try {
+            const { findByText } = renderLayout();
+
+            expect(await findByText(/WebDAV sync is using HTTP/)).toBeInTheDocument();
+        } finally {
+            backendSpy.mockRestore();
+            webdavSpy.mockRestore();
+        }
     });
 });

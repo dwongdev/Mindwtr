@@ -20,6 +20,7 @@ import {
     Clock3,
     RefreshCw,
     BookOpen,
+    AlertTriangle,
     type LucideIcon,
 } from 'lucide-react';
 import { cn } from '../lib/utils';
@@ -96,6 +97,7 @@ export function Layout({ children, currentView, onViewChange }: LayoutProps) {
     };
     const [syncStatus, setSyncStatus] = useState(() => SyncService.getSyncStatus());
     const [isOnline, setIsOnline] = useState(() => (typeof navigator !== 'undefined' ? navigator.onLine : true));
+    const [cleartextSyncWarning, setCleartextSyncWarning] = useState<string | null>(null);
     const searchShortcutHint = useMemo(() => (
         typeof navigator !== 'undefined' && /mac/i.test(navigator.platform) ? '⌘K' : 'Ctrl+K'
     ), []);
@@ -323,6 +325,51 @@ export function Layout({ children, currentView, onViewChange }: LayoutProps) {
     useEffect(() => {
         return SyncService.subscribeSyncStatus(setSyncStatus);
     }, []);
+
+    const refreshCleartextSyncWarning = useCallback(async () => {
+        try {
+            const backend = await SyncService.getSyncBackend();
+            if (backend === 'webdav') {
+                const config = await SyncService.getWebDavConfig({ silent: true });
+                setCleartextSyncWarning(config.url.trim().toLowerCase().startsWith('http://')
+                    ? tOrFallback(
+                        'settings.cleartextSyncWarningWebdav',
+                        'WebDAV sync is using HTTP. Only local or private-network endpoints are allowed; data is not encrypted.'
+                    )
+                    : null);
+                return;
+            }
+            if (backend === 'cloud' && await SyncService.getCloudProvider() === 'selfhosted') {
+                const config = await SyncService.getCloudConfig({ silent: true });
+                setCleartextSyncWarning(config.url.trim().toLowerCase().startsWith('http://')
+                    ? tOrFallback(
+                        'settings.cleartextSyncWarningCloud',
+                        'Self-hosted sync is using HTTP. Only local or private-network endpoints are allowed; data is not encrypted.'
+                    )
+                    : null);
+                return;
+            }
+            setCleartextSyncWarning(null);
+        } catch {
+            setCleartextSyncWarning(null);
+        }
+    }, [t]);
+
+    useEffect(() => {
+        void refreshCleartextSyncWarning();
+        const handleStorage = () => void refreshCleartextSyncWarning();
+        const handleFocus = () => void refreshCleartextSyncWarning();
+        window.addEventListener('storage', handleStorage);
+        window.addEventListener('focus', handleFocus);
+        const timer = setInterval(() => {
+            void refreshCleartextSyncWarning();
+        }, 30_000);
+        return () => {
+            window.removeEventListener('storage', handleStorage);
+            window.removeEventListener('focus', handleFocus);
+            clearInterval(timer);
+        };
+    }, [refreshCleartextSyncWarning]);
 
     const handleAreaFilterChange = (value: string) => {
         updateSettings({ filters: { ...(settings?.filters ?? {}), areaId: value } })
@@ -562,6 +609,16 @@ export function Layout({ children, currentView, onViewChange }: LayoutProps) {
                             >
                                 {dismissText}
                             </button>
+                        </div>
+                    )}
+                    {cleartextSyncWarning && (
+                        <div
+                            role="status"
+                            aria-live="polite"
+                            className="mb-4 flex items-start gap-3 rounded-md border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-sm text-amber-900 dark:text-amber-100"
+                        >
+                            <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-500" aria-hidden="true" />
+                            <span>{cleartextSyncWarning}</span>
                         </div>
                     )}
                     {children}
