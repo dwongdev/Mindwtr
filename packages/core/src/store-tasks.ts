@@ -10,6 +10,8 @@ import {
     getReferenceTaskFieldClears,
     isTaskVisible,
     nextRevision,
+    replaceEntityInArray,
+    replaceEntityInMap,
     reserveNextProjectOrder,
     updateVisibleTasks,
 } from './store-helpers';
@@ -437,12 +439,11 @@ export const createTaskActions = ({ set, get, getStorage, debouncedSave }: TaskA
                 now
             );
 
-            const updatedAllTasksBase = state._allTasks.map((task) =>
-                task.id === id ? updatedTask : task
-            );
+            const updatedAllTasksBase = replaceEntityInArray(state._allTasks, id, updatedTask);
             const updatedAllTasks = nextRecurringTask
                 ? [...updatedAllTasksBase, nextRecurringTask]
                 : updatedAllTasksBase;
+            const updatedTasksById = replaceEntityInMap(state._tasksById, updatedTask);
 
             let updatedVisibleTasks = updateVisibleTasks(state.tasks, oldTask, updatedTask);
             if (nextRecurringTask) {
@@ -455,6 +456,9 @@ export const createTaskActions = ({ set, get, getStorage, debouncedSave }: TaskA
             return {
                 tasks: updatedVisibleTasks,
                 _allTasks: updatedAllTasks,
+                _tasksById: nextRecurringTask
+                    ? replaceEntityInMap(updatedTasksById, nextRecurringTask)
+                    : updatedTasksById,
                 lastDataChangeAt: getNextDataChangeAt(state.lastDataChangeAt, changeAt),
                 ...(deviceState.updated ? { settings: deviceState.settings } : {}),
             };
@@ -490,9 +494,7 @@ export const createTaskActions = ({ set, get, getStorage, debouncedSave }: TaskA
                 revBy: deviceState.deviceId,
             };
             // Update in full data (set tombstone)
-            const newAllTasks = state._allTasks.map((task) =>
-                task.id === id ? updatedTask : task
-            );
+            const newAllTasks = replaceEntityInArray(state._allTasks, id, updatedTask);
             // Filter for UI state (hide deleted)
             const newVisibleTasks = updateVisibleTasks(state.tasks, oldTask, updatedTask);
             snapshot = buildSaveSnapshot(state, {
@@ -502,6 +504,7 @@ export const createTaskActions = ({ set, get, getStorage, debouncedSave }: TaskA
             return {
                 tasks: newVisibleTasks,
                 _allTasks: newAllTasks,
+                _tasksById: replaceEntityInMap(state._tasksById, updatedTask),
                 lastDataChangeAt: getNextDataChangeAt(state.lastDataChangeAt, changeAt),
                 ...(deviceState.updated ? { settings: deviceState.settings } : {}),
             };
@@ -535,9 +538,7 @@ export const createTaskActions = ({ set, get, getStorage, debouncedSave }: TaskA
                 rev: nextRevision(oldTask.rev),
                 revBy: deviceState.deviceId,
             };
-            const newAllTasks = state._allTasks.map((task) =>
-                task.id === id ? updatedTask : task
-            );
+            const newAllTasks = replaceEntityInArray(state._allTasks, id, updatedTask);
             const newVisibleTasks = updateVisibleTasks(state.tasks, oldTask, updatedTask);
             snapshot = buildSaveSnapshot(state, {
                 tasks: newAllTasks,
@@ -546,6 +547,7 @@ export const createTaskActions = ({ set, get, getStorage, debouncedSave }: TaskA
             return {
                 tasks: newVisibleTasks,
                 _allTasks: newAllTasks,
+                _tasksById: replaceEntityInMap(state._tasksById, updatedTask),
                 lastDataChangeAt: getNextDataChangeAt(state.lastDataChangeAt, changeAt),
                 ...(deviceState.updated ? { settings: deviceState.settings } : {}),
             };
@@ -580,9 +582,7 @@ export const createTaskActions = ({ set, get, getStorage, debouncedSave }: TaskA
                 rev: nextRevision(oldTask.rev),
                 revBy: deviceState.deviceId,
             };
-            const newAllTasks = state._allTasks.map((task) =>
-                task.id === id ? updatedTask : task
-            );
+            const newAllTasks = replaceEntityInArray(state._allTasks, id, updatedTask);
             const newVisibleTasks = updateVisibleTasks(state.tasks, oldTask, updatedTask);
             snapshot = buildSaveSnapshot(state, {
                 tasks: newAllTasks,
@@ -591,6 +591,7 @@ export const createTaskActions = ({ set, get, getStorage, debouncedSave }: TaskA
             return {
                 tasks: newVisibleTasks,
                 _allTasks: newAllTasks,
+                _tasksById: replaceEntityInMap(state._tasksById, updatedTask),
                 lastDataChangeAt: getNextDataChangeAt(state.lastDataChangeAt, changeAt),
                 ...(deviceState.updated ? { settings: deviceState.settings } : {}),
             };
@@ -751,7 +752,7 @@ export const createTaskActions = ({ set, get, getStorage, debouncedSave }: TaskA
                 revBy: deviceState.deviceId,
             };
 
-            const newAllTasks = state._allTasks.map((task) => (task.id === id ? updatedTask : task));
+            const newAllTasks = replaceEntityInArray(state._allTasks, id, updatedTask);
             const newVisibleTasks = updateVisibleTasks(state.tasks, sourceTask, updatedTask);
             snapshot = buildSaveSnapshot(state, {
                 tasks: newAllTasks,
@@ -760,6 +761,7 @@ export const createTaskActions = ({ set, get, getStorage, debouncedSave }: TaskA
             return {
                 tasks: newVisibleTasks,
                 _allTasks: newAllTasks,
+                _tasksById: replaceEntityInMap(state._tasksById, updatedTask),
                 lastDataChangeAt: getNextDataChangeAt(state.lastDataChangeAt, changeAt),
                 ...(deviceState.updated ? { settings: deviceState.settings } : {}),
             };

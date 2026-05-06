@@ -146,6 +146,25 @@ export const selectVisibleAreas = (areas: Area[]): Area[] =>
 export const buildEntityMap = <T extends EntityWithId>(items: readonly T[]): Map<string, T> =>
     new Map(items.map((item) => [item.id, item] as const));
 
+export const replaceEntityInArray = <T extends EntityWithId>(items: readonly T[], id: string, nextItem: T): T[] => {
+    const index = items.findIndex((item) => item.id === id);
+    if (index < 0) return items as T[];
+    if (items[index] === nextItem) return items as T[];
+    const nextItems = items.slice();
+    nextItems[index] = nextItem;
+    return nextItems;
+};
+
+export const replaceEntityInMap = <T extends EntityWithId>(
+    itemsById: Map<string, T>,
+    nextItem: T
+): Map<string, T> => {
+    if (itemsById.get(nextItem.id) === nextItem) return itemsById;
+    const nextItemsById = new Map(itemsById);
+    nextItemsById.set(nextItem.id, nextItem);
+    return nextItemsById;
+};
+
 export const reuseArrayIfShallowEqual = <T>(previous: T[], next: T[]): T[] => (
     previous.length === next.length && previous.every((item, index) => item === next[index])
         ? previous
@@ -193,10 +212,14 @@ export const updateVisibleTasks = (visible: Task[], previous?: Task | null, next
     const isVisible = isTaskVisible(next);
     const visibleNext = next && isVisible ? toVisibleTask(next) : next;
     if (wasVisible && isVisible && next) {
-        return visible.map((task) => (task.id === visibleNext!.id ? visibleNext! : task));
+        return replaceEntityInArray(visible, visibleNext!.id, visibleNext!);
     }
     if (wasVisible && !isVisible && previous) {
-        return visible.filter((task) => task.id !== previous.id);
+        const index = visible.findIndex((task) => task.id === previous.id);
+        if (index < 0) return visible;
+        const nextVisible = visible.slice();
+        nextVisible.splice(index, 1);
+        return nextVisible;
     }
     if (!wasVisible && isVisible && next) {
         return [...visible, visibleNext!];

@@ -261,7 +261,7 @@ const normalizeEntityCollectionUpdate = <T extends { id: string }>(
         resolvedAll = currentAll;
     }
 
-    const resolvedMap = source === 'map' && nextMapRaw instanceof Map
+    const resolvedMap = mapChanged && nextMapRaw instanceof Map
         ? nextMapRaw
         : resolvedAll === currentAll
             ? currentMap

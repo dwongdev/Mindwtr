@@ -4,6 +4,8 @@ import {
     getNextProjectOrder,
     hasSameEntityIdentity,
     reconcileEntityCollection,
+    replaceEntityInArray,
+    replaceEntityInMap,
     reserveNextProjectOrder,
     reuseArrayIfShallowEqual,
 } from './store-helpers';
@@ -45,6 +47,30 @@ describe('entity collection helpers', () => {
         const next = [previous[0], changed];
 
         expect(reuseArrayIfShallowEqual(previous, next)).toBe(next);
+    });
+
+    it('patches one array slot while preserving unchanged refs', () => {
+        const first = createTask('t1');
+        const second = createTask('t2');
+        const changed = createTask('t2', 'project-1', 0, { updatedAt: '2026-01-02T00:00:00.000Z' });
+
+        const next = replaceEntityInArray([first, second], second.id, changed);
+
+        expect(next).toEqual([first, changed]);
+        expect(next[0]).toBe(first);
+    });
+
+    it('patches one map entry while preserving unchanged values', () => {
+        const first = createTask('t1');
+        const second = createTask('t2');
+        const changed = createTask('t2', 'project-1', 0, { updatedAt: '2026-01-02T00:00:00.000Z' });
+        const previous = buildEntityMap([first, second]);
+
+        const next = replaceEntityInMap(previous, changed);
+
+        expect(next).not.toBe(previous);
+        expect(next.get(first.id)).toBe(first);
+        expect(next.get(second.id)).toBe(changed);
     });
 
     it('compares entity identity only through sync-tracked fields', () => {
