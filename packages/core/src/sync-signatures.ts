@@ -1,13 +1,22 @@
 import type { Area, Attachment, Project, Section, Task } from './types';
 
+type StableSignatureCacheEntry = {
+    validation: string;
+    signature: string;
+};
+
 export type SyncSignatureMemo = {
     comparable: WeakMap<object, string>;
     deterministic: WeakMap<object, string>;
+    comparableByRevision: Map<string, StableSignatureCacheEntry>;
+    deterministicByRevision: Map<string, StableSignatureCacheEntry>;
 };
 
 export const createSyncSignatureMemo = (): SyncSignatureMemo => ({
     comparable: new WeakMap<object, string>(),
     deterministic: new WeakMap<object, string>(),
+    comparableByRevision: new Map<string, StableSignatureCacheEntry>(),
+    deterministicByRevision: new Map<string, StableSignatureCacheEntry>(),
 });
 
 const CONTENT_DIFF_IGNORED_KEYS = new Set([
@@ -100,6 +109,59 @@ export const normalizeAreaForContentComparison = (area: AreaContentComparisonInp
     order: undefined,
 });
 
+const STABLE_SIGNATURE_CACHE_LIMIT = 5000;
+
+const toStableRevisionCacheKey = (
+    value: unknown,
+    signatureKind: 'comparable' | 'deterministic'
+): string | undefined => {
+    if (!value || typeof value !== 'object' || Array.isArray(value)) return undefined;
+    const record = value as Record<string, unknown>;
+    if (typeof record.id !== 'string' || record.id.length === 0) return undefined;
+    if (typeof record.rev !== 'number' || !Number.isFinite(record.rev)) return undefined;
+
+    const updatedAt = typeof record.updatedAt === 'string' ? record.updatedAt : '';
+    const deletedAt = typeof record.deletedAt === 'string' ? record.deletedAt : '';
+    const purgedAt = typeof record.purgedAt === 'string' ? record.purgedAt : '';
+    const revBy = typeof record.revBy === 'string' ? record.revBy : '';
+    return [
+        signatureKind,
+        record.id,
+        record.rev,
+        updatedAt,
+        deletedAt,
+        purgedAt,
+        revBy,
+    ].join('\0');
+};
+
+const readStableSignatureCache = (
+    cache: Map<string, StableSignatureCacheEntry> | undefined,
+    key: string | undefined,
+    validation: string
+): string | undefined => {
+    if (!cache || !key) return undefined;
+    const cached = cache.get(key);
+    if (cached === undefined || cached.validation !== validation) return undefined;
+    cache.delete(key);
+    cache.set(key, cached);
+    return cached.signature;
+};
+
+const writeStableSignatureCache = (
+    cache: Map<string, StableSignatureCacheEntry> | undefined,
+    key: string | undefined,
+    validation: string,
+    signature: string
+) => {
+    if (!cache || !key) return;
+    if (!cache.has(key) && cache.size >= STABLE_SIGNATURE_CACHE_LIMIT) {
+        const oldestKey = cache.keys().next().value;
+        if (oldestKey !== undefined) cache.delete(oldestKey);
+    }
+    cache.set(key, { validation, signature });
+};
+
 export const toComparableValue = (value: unknown, options?: { includeIgnoredKeys?: boolean }): unknown => {
     const includeIgnoredKeys = options?.includeIgnoredKeys === true;
     if (Array.isArray(value)) {
@@ -130,24 +192,34 @@ export const toComparableValue = (value: unknown, options?: { includeIgnoredKeys
 const toMemoizedSignature = (
     value: unknown,
     cache: WeakMap<object, string> | undefined,
+    stableCache: Map<string, StableSignatureCacheEntry> | undefined,
+    signatureKind: 'comparable' | 'deterministic',
     options?: { includeIgnoredKeys?: boolean }
 ): string => {
     if (value && typeof value === 'object' && cache) {
         const cached = cache.get(value);
         if (cached !== undefined) return cached;
+        const stableCacheKey = toStableRevisionCacheKey(value, signatureKind);
+        const stableCacheValidation = stableCacheKey ? JSON.stringify(value) : '';
+        const stableCached = readStableSignatureCache(stableCache, stableCacheKey, stableCacheValidation);
+        if (stableCached !== undefined) {
+            cache.set(value, stableCached);
+            return stableCached;
+        }
         const signature = JSON.stringify(toComparableValue(value, options));
         cache.set(value, signature);
+        writeStableSignatureCache(stableCache, stableCacheKey, stableCacheValidation, signature);
         return signature;
     }
     return JSON.stringify(toComparableValue(value, options));
 };
 
 export const toComparableSignature = (value: unknown, memo?: SyncSignatureMemo): string => {
-    return toMemoizedSignature(value, memo?.comparable);
+    return toMemoizedSignature(value, memo?.comparable, memo?.comparableByRevision, 'comparable');
 };
 
 const toDeterministicSignature = (value: unknown, memo?: SyncSignatureMemo): string => {
-    return toMemoizedSignature(value, memo?.deterministic, { includeIgnoredKeys: true });
+    return toMemoizedSignature(value, memo?.deterministic, memo?.deterministicByRevision, 'deterministic', { includeIgnoredKeys: true });
 };
 
 export const hashComparableSignature = (signature: string): string => {

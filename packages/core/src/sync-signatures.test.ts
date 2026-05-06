@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { normalizeAreaForContentComparison, toComparableSignature } from './sync-signatures';
+import { createSyncSignatureMemo, normalizeAreaForContentComparison, toComparableSignature } from './sync-signatures';
 import type { Area } from './types';
 
 const area = (updates: Partial<Area> = {}): Area => ({
@@ -24,5 +24,48 @@ describe('sync signatures', () => {
         }));
 
         expect(toComparableSignature(local)).toBe(toComparableSignature(incoming));
+    });
+
+    it('reuses comparable signatures across cloned entity references with matching revision metadata', () => {
+        const memo = createSyncSignatureMemo();
+        const first = normalizeAreaForContentComparison(area({
+            rev: 3,
+            revBy: 'device-a',
+        }));
+        const clone = { ...first };
+
+        expect(toComparableSignature(first, memo)).toBe(toComparableSignature(clone, memo));
+        expect(memo.comparableByRevision.size).toBe(1);
+    });
+
+    it('does not reuse stable signatures when revision metadata advances', () => {
+        const memo = createSyncSignatureMemo();
+        const original = normalizeAreaForContentComparison(area({
+            rev: 3,
+            name: 'Work',
+        }));
+        const changed = normalizeAreaForContentComparison(area({
+            rev: 3,
+            updatedAt: '2026-01-01T00:01:00.000Z',
+            name: 'Personal',
+        }));
+
+        expect(toComparableSignature(original, memo)).not.toBe(toComparableSignature(changed, memo));
+        expect(memo.comparableByRevision.size).toBe(2);
+    });
+
+    it('validates stable cache entries before reusing matching revision metadata', () => {
+        const memo = createSyncSignatureMemo();
+        const original = normalizeAreaForContentComparison(area({
+            rev: 3,
+            name: 'Work',
+        }));
+        const changed = normalizeAreaForContentComparison(area({
+            rev: 3,
+            name: 'Personal',
+        }));
+
+        expect(toComparableSignature(original, memo)).not.toBe(toComparableSignature(changed, memo));
+        expect(memo.comparableByRevision.size).toBe(1);
     });
 });
