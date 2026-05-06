@@ -109,7 +109,50 @@ Operational guidance:
 
 ## Docker Runbook
 
-Example `docker-compose.yml` service:
+For a local HTTP-only smoke test, use `docker/compose.yaml`.
+
+For desktop or mobile clients on real device URLs, use the HTTPS stack:
+
+```bash
+cp docker/.env.https.example docker/.env.https.local
+```
+
+Edit `docker/.env.https.local`:
+
+```dotenv
+MINDWTR_CLOUD_DOMAIN=mindwtr.example.com
+MINDWTR_CLOUD_AUTH_TOKENS=your_long_random_token
+MINDWTR_CLOUD_CORS_ORIGIN=https://mindwtr.example.com
+MINDWTR_CADDYFILE=Caddyfile.https
+```
+
+Start the stack:
+
+```bash
+docker compose --env-file docker/.env.https.local -f docker/compose.https.yaml up -d
+```
+
+Set Mindwtr's Self-Hosted URL to the base URL, for example `https://mindwtr.example.com`. Mindwtr appends `/v1/data` automatically.
+
+Use `Caddyfile.local-https` for LAN-only hostnames with Caddy's internal CA:
+
+```dotenv
+MINDWTR_CLOUD_DOMAIN=mindwtr.home.arpa
+MINDWTR_CLOUD_CORS_ORIGIN=https://mindwtr.home.arpa
+MINDWTR_CADDYFILE=Caddyfile.local-https
+```
+
+Every device must trust Caddy's local root certificate before a client will accept this certificate. Public certificates are usually simpler for mobile clients.
+
+After the LAN-only stack starts, export the local root certificate:
+
+```bash
+docker compose --env-file docker/.env.https.local -f docker/compose.https.yaml cp caddy:/data/caddy/pki/authorities/local/root.crt ./mindwtr-caddy-root.crt
+```
+
+Install that certificate as a trusted root on each device that will sync to this hostname.
+
+Minimal cloud service shape:
 
 ```yaml
 services:
@@ -145,6 +188,23 @@ At proxy layer:
 - Forward `Authorization` header unchanged.
 - Set request timeout high enough for large attachment uploads.
 - Restrict access by IP/VPN if possible.
+
+Example Caddyfile:
+
+```caddyfile
+mindwtr.example.com {
+  reverse_proxy mindwtr-cloud:8787
+}
+```
+
+For LAN-only internal certificates:
+
+```caddyfile
+mindwtr.home.arpa {
+  tls internal
+  reverse_proxy mindwtr-cloud:8787
+}
+```
 
 Example nginx snippets:
 
