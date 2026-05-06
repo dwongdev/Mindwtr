@@ -2,6 +2,7 @@ import { describe, it, expect, vi } from 'vitest';
 import { CLOCK_SKEW_THRESHOLD_MS, SYNC_REPAIR_REV_BY, mergeAppData, mergeAppDataWithStats } from './sync';
 import { consoleLogger, setLogger, type LogPayload } from './logger';
 import { chooseDeterministicWinner } from './sync-signatures';
+import { MAX_SYNC_REVISION } from './sync-revision';
 import { createMockArea, createMockProject, createMockSection, createMockTask, mockAppData } from './sync-test-utils';
 import { AppData, Task, Project, Attachment, Section, Area } from './types';
 
@@ -1329,6 +1330,32 @@ describe('Sync Logic', () => {
             expect(merged.areas[0].order).toBe(0);
             expect(merged.areas[0].rev).toBe(5);
             expect(merged.areas[0].revBy).toBe(SYNC_REPAIR_REV_BY);
+        });
+
+        it('caps synthesized area repair revisions at the safe maximum', () => {
+            const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+            try {
+                const legacyArea = {
+                    ...createMockArea('area-1', '2023-01-02T00:05:00.000Z'),
+                    rev: MAX_SYNC_REVISION,
+                    revBy: 'device-a',
+                };
+                delete (legacyArea as Partial<Area>).order;
+
+                const merged = mergeAppData(
+                    { ...mockAppData(), areas: [legacyArea] },
+                    mockAppData()
+                );
+
+                expect(merged.areas[0].order).toBe(0);
+                expect(merged.areas[0].rev).toBe(MAX_SYNC_REVISION);
+                expect(merged.areas[0].revBy).toBe(SYNC_REPAIR_REV_BY);
+                expect(warnSpy.mock.calls.some(([message]) => (
+                    message === 'Sync revision reached safe maximum; preserving capped revision'
+                ))).toBe(true);
+            } finally {
+                warnSpy.mockRestore();
+            }
         });
 
         it('repairs deleted project and task area references before restore', () => {

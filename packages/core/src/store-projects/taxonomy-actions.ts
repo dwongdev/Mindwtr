@@ -1,4 +1,4 @@
-import { buildSaveSnapshot, ensureDeviceId, getNextDataChangeAt, normalizeRevision, normalizeTagId, selectVisibleTasks } from '../store-helpers';
+import { buildSaveSnapshot, ensureDeviceId, getNextDataChangeAt, nextRevision, normalizeTagId, selectVisibleTasks } from '../store-helpers';
 import type { ProjectActionContext, TaxonomyActions } from './shared';
 import { dedupeTagValuesLastWins, formatTagIdPreservingCase } from './shared';
 
@@ -22,7 +22,7 @@ export const createTaxonomyActions = ({
                     ...task,
                     tags: filtered,
                     updatedAt: now,
-                    rev: normalizeRevision(task.rev) + 1,
+                    rev: nextRevision(task.rev),
                     revBy: deviceState.deviceId,
                 };
             });
@@ -35,7 +35,7 @@ export const createTaxonomyActions = ({
                     ...project,
                     tagIds: filtered,
                     updatedAt: now,
-                    rev: normalizeRevision(project.rev) + 1,
+                    rev: nextRevision(project.rev),
                     revBy: deviceState.deviceId,
                 };
             });
@@ -83,7 +83,7 @@ export const createTaxonomyActions = ({
                     ...task,
                     tags: dedupeTagValuesLastWins(newTags, nextTagId),
                     updatedAt: now,
-                    rev: normalizeRevision(task.rev) + 1,
+                    rev: nextRevision(task.rev),
                     revBy: deviceState.deviceId,
                 };
             });
@@ -98,7 +98,7 @@ export const createTaxonomyActions = ({
                     ...project,
                     tagIds: dedupeTagValuesLastWins(newTagIds, nextTagId),
                     updatedAt: now,
-                    rev: normalizeRevision(project.rev) + 1,
+                    rev: nextRevision(project.rev),
                     revBy: deviceState.deviceId,
                 };
             });
@@ -141,7 +141,7 @@ export const createTaxonomyActions = ({
                     ...task,
                     contexts: filtered,
                     updatedAt: now,
-                    rev: normalizeRevision(task.rev) + 1,
+                    rev: nextRevision(task.rev),
                     revBy: deviceState.deviceId,
                 };
             });
@@ -191,7 +191,7 @@ export const createTaxonomyActions = ({
                     ...task,
                     contexts: unique,
                     updatedAt: now,
-                    rev: normalizeRevision(task.rev) + 1,
+                    rev: nextRevision(task.rev),
                     revBy: deviceState.deviceId,
                 };
             });

@@ -2,7 +2,7 @@ import {
     buildSaveSnapshot,
     ensureDeviceId,
     getNextDataChangeAt,
-    normalizeRevision,
+    nextRevision,
     selectVisibleTasks,
     toVisibleTask,
 } from '../store-helpers';
@@ -115,7 +115,7 @@ export const createProjectCoreActions = ({
                             completedAt: task.completedAt || now,
                             isFocusedToday: false,
                             updatedAt: now,
-                            rev: normalizeRevision(task.rev) + 1,
+                            rev: nextRevision(task.rev),
                             revBy: deviceState.deviceId,
                         };
                     }
@@ -127,7 +127,7 @@ export const createProjectCoreActions = ({
                             ...section,
                             deletedAt: now,
                             updatedAt: now,
-                            rev: normalizeRevision(section.rev) + 1,
+                            rev: nextRevision(section.rev),
                             revBy: deviceState.deviceId,
                         };
                     }
@@ -159,7 +159,7 @@ export const createProjectCoreActions = ({
                         ...project,
                         ...finalProjectUpdates,
                         updatedAt: now,
-                        rev: normalizeRevision(project.rev) + 1,
+                        rev: nextRevision(project.rev),
                         revBy: deviceState.deviceId,
                     }
                     : project
@@ -222,7 +222,7 @@ export const createProjectCoreActions = ({
                         ...project,
                         deletedAt: now,
                         updatedAt: now,
-                        rev: normalizeRevision(project.rev) + 1,
+                        rev: nextRevision(project.rev),
                         revBy: deviceState.deviceId,
                     }
                     : project
@@ -233,7 +233,7 @@ export const createProjectCoreActions = ({
                         ...section,
                         deletedAt: now,
                         updatedAt: now,
-                        rev: normalizeRevision(section.rev) + 1,
+                        rev: nextRevision(section.rev),
                         revBy: deviceState.deviceId,
                     }
                     : section
@@ -244,7 +244,7 @@ export const createProjectCoreActions = ({
                         ...task,
                         deletedAt: now,
                         updatedAt: now,
-                        rev: normalizeRevision(task.rev) + 1,
+                        rev: nextRevision(task.rev),
                         revBy: deviceState.deviceId,
                     }
                     : task
@@ -315,7 +315,7 @@ export const createProjectCoreActions = ({
                         : restoredArea.name)
                     : undefined,
                 updatedAt: now,
-                rev: normalizeRevision(target.rev) + 1,
+                rev: nextRevision(target.rev),
                 revBy: deviceState.deviceId,
             };
             const newAllProjects = state._allProjects.map((project) =>
@@ -327,7 +327,7 @@ export const createProjectCoreActions = ({
                         ...section,
                         deletedAt: undefined,
                         updatedAt: now,
-                        rev: normalizeRevision(section.rev) + 1,
+                        rev: nextRevision(section.rev),
                         revBy: deviceState.deviceId,
                     }
                     : section
@@ -347,7 +347,7 @@ export const createProjectCoreActions = ({
                             ? task.sectionId
                             : undefined,
                         updatedAt: now,
-                        rev: normalizeRevision(task.rev) + 1,
+                        rev: nextRevision(task.rev),
                         revBy: deviceState.deviceId,
                     }
                     : task
@@ -531,7 +531,7 @@ export const createProjectCoreActions = ({
                         ...p,
                         isFocused: !p.isFocused,
                         updatedAt: now,
-                        rev: normalizeRevision(p.rev) + 1,
+                        rev: nextRevision(p.rev),
                         revBy: deviceState.deviceId,
                     }
                     : p

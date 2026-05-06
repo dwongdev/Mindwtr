@@ -2,9 +2,12 @@ import { createNextRecurringTask } from './recurrence';
 import { getUsedTaskTokens } from './task-token-usage';
 import { rescheduleTask } from './task-utils';
 import { filterNotDeleted } from './sync-helpers';
+import { normalizeRevision } from './sync-revision';
 import type { AppData, Area, Project, Section, Task, TaskStatus } from './types';
 import { generateUUID as uuidv4 } from './uuid';
 import type { DerivedState, SaveBaseState } from './store-types';
+
+export { MAX_SYNC_REVISION, normalizeRevision, nextRevision } from './sync-revision';
 
 type EntityWithId = { id: string };
 type EntityWithRevision = EntityWithId & {
@@ -19,8 +22,6 @@ let projectOrderCacheRef: Task[] | null = null;
 let projectOrderCacheValue: Map<string, number> | null = null;
 let reservedProjectOrdersRef: Task[] | null = null;
 let reservedProjectOrdersValue: Map<string, number> | null = null;
-
-export const normalizeRevision = (value?: number): number => (typeof value === 'number' && Number.isFinite(value) ? value : 0);
 
 export const getNextDataChangeAt = (previous: number, now = Date.now()): number => (
     Math.max(now, previous + 1)

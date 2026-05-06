@@ -13,7 +13,7 @@ import {
     ensureDeviceId,
     getNextDataChangeAt,
     normalizeAiSettingsForSync,
-    normalizeRevision,
+    nextRevision,
     reconcileEntityCollection,
     reuseArrayIfShallowEqual,
     selectVisibleAreas,
@@ -251,7 +251,7 @@ export const createSettingsActions = ({
                     ...task,
                     status: 'next',
                     updatedAt: nowIso,
-                    rev: normalizeRevision(task.rev) + 1,
+                    rev: nextRevision(task.rev),
                     revBy: nextSettings.deviceId,
                 };
             });
@@ -280,7 +280,7 @@ export const createSettingsActions = ({
                         completedAt: Number.isFinite(completedAt) ? task.completedAt : task.updatedAt || nowIso,
                         isFocusedToday: false,
                         updatedAt: nowIso,
-                        rev: normalizeRevision(task.rev) + 1,
+                        rev: nextRevision(task.rev),
                         revBy: nextSettings.deviceId,
                     };
                 });
@@ -487,7 +487,7 @@ export const createSettingsActions = ({
                         completedAt: task.completedAt || nowIso,
                         isFocusedToday: false,
                         updatedAt: nowIso,
-                        rev: normalizeRevision(task.rev) + 1,
+                        rev: nextRevision(task.rev),
                         revBy: nextSettings.deviceId,
                     };
                 });
@@ -499,7 +499,7 @@ export const createSettingsActions = ({
                         ...section,
                         deletedAt: nowIso,
                         updatedAt: nowIso,
-                        rev: normalizeRevision(section.rev) + 1,
+                        rev: nextRevision(section.rev),
                         revBy: nextSettings.deviceId,
                     };
                 });
@@ -517,7 +517,7 @@ export const createSettingsActions = ({
                     ...project,
                     areaId: undefined,
                     updatedAt: nowIso,
-                    rev: normalizeRevision(project.rev) + 1,
+                    rev: nextRevision(project.rev),
                     revBy: nextSettings.deviceId,
                 };
             });
@@ -533,7 +533,7 @@ export const createSettingsActions = ({
                     ...section,
                     deletedAt: nowIso,
                     updatedAt: nowIso,
-                    rev: normalizeRevision(section.rev) + 1,
+                    rev: nextRevision(section.rev),
                     revBy: nextSettings.deviceId,
                 };
             });
@@ -574,7 +574,7 @@ export const createSettingsActions = ({
                 return {
                     ...nextTask,
                     updatedAt: nowIso,
-                    rev: normalizeRevision(task.rev) + 1,
+                    rev: nextRevision(task.rev),
                     revBy: nextSettings.deviceId,
                 };
             });
@@ -772,7 +772,7 @@ export const createSettingsActions = ({
                             isFocusedToday: false,
                             updatedAt: nowIso,
                             completedAt: Number.isFinite(completedAt) ? task.completedAt : task.updatedAt || nowIso,
-                            rev: normalizeRevision(task.rev) + 1,
+                            rev: nextRevision(task.rev),
                             revBy: deviceState.deviceId,
                         };
                     });

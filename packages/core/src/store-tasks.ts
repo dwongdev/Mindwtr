@@ -9,7 +9,7 @@ import {
     getTaskOrder,
     getReferenceTaskFieldClears,
     isTaskVisible,
-    normalizeRevision,
+    nextRevision,
     reserveNextProjectOrder,
     updateVisibleTasks,
 } from './store-helpers';
@@ -426,14 +426,14 @@ export const createTaskActions = ({ set, get, getStorage, debouncedSave }: TaskA
                 return state;
             }
             const deviceState = ensureDeviceId(state.settings);
-            const nextRevision = {
-                rev: normalizeRevision(oldTask.rev) + 1,
+            const revisionPatch = {
+                rev: nextRevision(oldTask.rev),
                 revBy: deviceState.deviceId,
             };
 
             const { updatedTask, nextRecurringTask } = applyTaskUpdates(
                 oldTask,
-                { ...preparedUpdates.updates, ...nextRevision },
+                { ...preparedUpdates.updates, ...revisionPatch },
                 now
             );
 
@@ -486,7 +486,7 @@ export const createTaskActions = ({ set, get, getStorage, debouncedSave }: TaskA
                 ...oldTask,
                 deletedAt: now,
                 updatedAt: now,
-                rev: normalizeRevision(oldTask.rev) + 1,
+                rev: nextRevision(oldTask.rev),
                 revBy: deviceState.deviceId,
             };
             // Update in full data (set tombstone)
@@ -532,7 +532,7 @@ export const createTaskActions = ({ set, get, getStorage, debouncedSave }: TaskA
                 deletedAt: undefined,
                 purgedAt: undefined,
                 updatedAt: now,
-                rev: normalizeRevision(oldTask.rev) + 1,
+                rev: nextRevision(oldTask.rev),
                 revBy: deviceState.deviceId,
             };
             const newAllTasks = state._allTasks.map((task) =>
@@ -577,7 +577,7 @@ export const createTaskActions = ({ set, get, getStorage, debouncedSave }: TaskA
                 purgedAt: now,
                 attachments: stripAttachmentRemoteMetadata(oldTask.attachments),
                 updatedAt: now,
-                rev: normalizeRevision(oldTask.rev) + 1,
+                rev: nextRevision(oldTask.rev),
                 revBy: deviceState.deviceId,
             };
             const newAllTasks = state._allTasks.map((task) =>
@@ -619,7 +619,7 @@ export const createTaskActions = ({ set, get, getStorage, debouncedSave }: TaskA
                     purgedAt: now,
                     attachments: stripAttachmentRemoteMetadata(task.attachments),
                     updatedAt: now,
-                    rev: normalizeRevision(task.rev) + 1,
+                    rev: nextRevision(task.rev),
                     revBy: deviceState.deviceId,
                 };
             });
@@ -747,7 +747,7 @@ export const createTaskActions = ({ set, get, getStorage, debouncedSave }: TaskA
                 completedAt: wasDone ? undefined : sourceTask.completedAt,
                 isFocusedToday: wasDone ? false : sourceTask.isFocusedToday,
                 updatedAt: now,
-                rev: normalizeRevision(sourceTask.rev) + 1,
+                rev: nextRevision(sourceTask.rev),
                 revBy: deviceState.deviceId,
             };
 
@@ -850,7 +850,7 @@ export const createTaskActions = ({ set, get, getStorage, debouncedSave }: TaskA
                     task,
                     {
                         ...adjustedUpdates,
-                        rev: normalizeRevision(task.rev) + 1,
+                        rev: nextRevision(task.rev),
                         revBy: deviceState.deviceId,
                     },
                     now
@@ -919,7 +919,7 @@ export const createTaskActions = ({ set, get, getStorage, debouncedSave }: TaskA
                     ...task,
                     deletedAt: now,
                     updatedAt: now,
-                    rev: normalizeRevision(task.rev) + 1,
+                    rev: nextRevision(task.rev),
                     revBy: deviceState.deviceId,
                 };
                 newVisibleTasks = updateVisibleTasks(newVisibleTasks, task, updatedTask);

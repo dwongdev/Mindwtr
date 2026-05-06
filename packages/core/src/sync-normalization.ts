@@ -1,6 +1,7 @@
 import type { AppData, Area, Project, Task } from './types';
 import { normalizeTaskForLoad } from './task-status';
 import { SYNC_REPAIR_REV_BY } from './sync-types';
+import { isValidRevision, nextRevision, normalizeRevision } from './sync-revision';
 
 export const normalizeAppData = (data: AppData): AppData => ({
     tasks: Array.isArray(data.tasks) ? data.tasks : [],
@@ -33,13 +34,10 @@ type RevisionMetadata = {
 export const normalizeRevisionMetadata = <T extends RevisionMetadata>(item: T): T => {
     const normalized = { ...item };
     const rawRev = normalized.rev;
-    if (
-        typeof rawRev !== 'number'
-        || !Number.isFinite(rawRev)
-        || !Number.isInteger(rawRev)
-        || rawRev < 0
-    ) {
+    if (!isValidRevision(rawRev)) {
         delete normalized.rev;
+    } else {
+        normalized.rev = normalizeRevision(rawRev);
     }
     const rawRevBy = normalized.revBy;
     if (typeof rawRevBy === 'string') {
@@ -115,15 +113,13 @@ export const normalizeAreaForSyncMerge = (area: Area, nowIso: string): SyncMerge
 
 const hasDeletedAt = (value: { deletedAt?: string } | undefined): boolean => Boolean(value?.deletedAt);
 
-const normalizeRepairRevision = (value?: number): number => (
-    typeof value === 'number' && Number.isFinite(value) && Number.isInteger(value) && value >= 0 ? value : 0
-);
+const normalizeRepairRevision = (value?: number): number => normalizeRevision(value);
 
 const withRepairRevision = <T extends { rev?: number; revBy?: string }>(item: T): T => {
     const rev = normalizeRepairRevision(item.rev);
     return {
         ...item,
-        rev: item.revBy === SYNC_REPAIR_REV_BY ? rev : rev + 1,
+        rev: item.revBy === SYNC_REPAIR_REV_BY ? rev : nextRevision(item.rev),
         revBy: SYNC_REPAIR_REV_BY,
     };
 };

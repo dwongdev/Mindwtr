@@ -1,4 +1,4 @@
-import { buildSaveSnapshot, ensureDeviceId, getNextDataChangeAt, normalizeRevision, selectVisibleTasks } from '../store-helpers';
+import { buildSaveSnapshot, ensureDeviceId, getNextDataChangeAt, nextRevision, selectVisibleTasks } from '../store-helpers';
 import { logWarn } from '../logger';
 import { clearDerivedCache } from '../store-settings';
 import { generateUUID as uuidv4 } from '../uuid';
@@ -114,7 +114,7 @@ export const createAreaActions = ({
                         ...updates,
                         name: trimmedName,
                         updatedAt: now,
-                        rev: normalizeRevision(existing.rev) + 1,
+                        rev: nextRevision(existing.rev),
                         revBy: deviceState.deviceId,
                     };
                     const newAllAreas = allAreas
@@ -128,7 +128,7 @@ export const createAreaActions = ({
                             areaId: existing.id,
                             color: mergedArea.color ?? project.color,
                             updatedAt: now,
-                            rev: normalizeRevision(project.rev) + 1,
+                            rev: nextRevision(project.rev),
                             revBy: deviceState.deviceId,
                         };
                     });
@@ -164,7 +164,7 @@ export const createAreaActions = ({
                         ...project,
                         color: nextAreaColor,
                         updatedAt: now,
-                        rev: normalizeRevision(project.rev) + 1,
+                        rev: nextRevision(project.rev),
                         revBy: deviceState.deviceId,
                     };
                 });
@@ -177,7 +177,7 @@ export const createAreaActions = ({
                         name: nextName,
                         order: nextOrder,
                         updatedAt: now,
-                        rev: normalizeRevision(a.rev) + 1,
+                        rev: nextRevision(a.rev),
                         revBy: deviceState.deviceId,
                     }
                     : a))
@@ -241,7 +241,7 @@ export const createAreaActions = ({
                             ...item,
                             deletedAt: now,
                             updatedAt: now,
-                            rev: normalizeRevision(item.rev) + 1,
+                            rev: nextRevision(item.rev),
                             revBy: deviceState.deviceId,
                         }
                         : item
@@ -258,7 +258,7 @@ export const createAreaActions = ({
                     ...project,
                     deletedAt: now,
                     updatedAt: now,
-                    rev: normalizeRevision(project.rev) + 1,
+                    rev: nextRevision(project.rev),
                     revBy: deviceState.deviceId,
                 };
             });
@@ -268,7 +268,7 @@ export const createAreaActions = ({
                     ...section,
                     deletedAt: now,
                     updatedAt: now,
-                    rev: normalizeRevision(section.rev) + 1,
+                    rev: nextRevision(section.rev),
                     revBy: deviceState.deviceId,
                 };
             });
@@ -280,7 +280,7 @@ export const createAreaActions = ({
                     ...task,
                     deletedAt: now,
                     updatedAt: now,
-                    rev: normalizeRevision(task.rev) + 1,
+                    rev: nextRevision(task.rev),
                     revBy: deviceState.deviceId,
                 };
             });
@@ -348,7 +348,7 @@ export const createAreaActions = ({
                             ...item,
                             deletedAt: undefined,
                             updatedAt: now,
-                            rev: normalizeRevision(item.rev) + 1,
+                            rev: nextRevision(item.rev),
                             revBy: deviceState.deviceId,
                         }
                         : item
@@ -364,7 +364,7 @@ export const createAreaActions = ({
                             ? project.areaTitle
                             : restoredArea?.name,
                         updatedAt: now,
-                        rev: normalizeRevision(project.rev) + 1,
+                        rev: nextRevision(project.rev),
                         revBy: deviceState.deviceId,
                     }
                     : project
@@ -380,7 +380,7 @@ export const createAreaActions = ({
                         ...section,
                         deletedAt: undefined,
                         updatedAt: now,
-                        rev: normalizeRevision(section.rev) + 1,
+                        rev: nextRevision(section.rev),
                         revBy: deviceState.deviceId,
                     }
                     : section
@@ -401,7 +401,7 @@ export const createAreaActions = ({
                         ? task.sectionId
                         : undefined,
                     updatedAt: now,
-                    rev: normalizeRevision(task.rev) + 1,
+                    rev: nextRevision(task.rev),
                     revBy: deviceState.deviceId,
                 };
             });
@@ -467,7 +467,7 @@ export const createAreaActions = ({
 
             const newVisibleAreas = [...reordered, ...remaining].map((area) => ({
                 ...area,
-                rev: normalizeRevision(area.rev) + 1,
+                rev: nextRevision(area.rev),
                 revBy: deviceState.deviceId,
             }));
             const newAllAreas = [...newVisibleAreas, ...deletedAreas];

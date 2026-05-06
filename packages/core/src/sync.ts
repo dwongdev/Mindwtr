@@ -38,6 +38,7 @@ import {
 } from './sync-signatures';
 import { purgeExpiredTombstones } from './sync-tombstones';
 import { filterNotDeleted } from './sync-helpers';
+import { nextRevision } from './sync-revision';
 
 export type {
     ClockSkewDirection,
@@ -596,9 +597,7 @@ function mergeAreas(local: SyncMergeArea[], incoming: SyncMergeArea[]): { merged
         const normalized: Area = {
             ...area,
             order: fallbackOrder,
-            rev: typeof area.rev === 'number' && Number.isFinite(area.rev)
-                ? Math.max(0, Math.floor(area.rev)) + 1
-                : 1,
+            rev: nextRevision(area.rev),
             revBy: SYNC_REPAIR_REV_BY,
         };
         fallbackOrder += 1;
