@@ -6,7 +6,10 @@ import {
     addBreadcrumb,
     CLOCK_SKEW_THRESHOLD_MS,
     cloudGetJson,
+    isConnectionAllowed,
+    normalizeCloudUrl,
     normalizeWebdavUrl,
+    SYNC_LOCAL_INSECURE_URL_OPTIONS,
     webdavGetJson,
     type AppData,
 } from '@mindwtr/core';
@@ -21,7 +24,7 @@ import {
     isDropboxConnected,
 } from '@/lib/dropbox-auth';
 import { performMobileSync } from '@/lib/sync-service';
-import { MOBILE_WEBDAV_REQUEST_OPTIONS } from '@/lib/webdav-request-options';
+import { getMobileCloudRequestOptions, getMobileWebDavRequestOptions } from '@/lib/webdav-request-options';
 import {
     getSyncConflictCount,
     getSyncMaxClockSkewMs,
@@ -34,12 +37,14 @@ import { testDropboxAccess } from '@/lib/dropbox-sync';
 import { formatClockSkew, formatError, isDropboxUnauthorizedError, logSettingsError } from '@/lib/settings-utils';
 import {
     CLOUD_PROVIDER_KEY,
+    CLOUD_ALLOW_INSECURE_HTTP_KEY,
     CLOUD_TOKEN_KEY,
     CLOUD_URL_KEY,
     SYNC_BACKEND_KEY,
     SYNC_PATH_BOOKMARK_KEY,
     SYNC_PATH_KEY,
     WEBDAV_PASSWORD_KEY,
+    WEBDAV_ALLOW_INSECURE_HTTP_KEY,
     WEBDAV_URL_KEY,
     WEBDAV_USERNAME_KEY,
 } from '@/lib/sync-constants';
@@ -56,6 +61,18 @@ type SyncActionOptions = {
     cloud?: SelfHostedSyncSettings;
     cloudProvider?: CloudProvider;
     webdav?: WebDavSyncSettings;
+};
+
+const serializeBool = (value: boolean): string => (value ? 'true' : 'false');
+
+const isManualInsecureOverride = (url: string, allowInsecureHttp: boolean): boolean => {
+    if (!allowInsecureHttp) return false;
+    try {
+        if (new URL(url).protocol !== 'http:') return false;
+    } catch {
+        return false;
+    }
+    return !isConnectionAllowed(url, SYNC_LOCAL_INSECURE_URL_OPTIONS);
 };
 
 type ToastFn = (options: {
@@ -107,8 +124,10 @@ export function useSyncSettingsTransportActions({
     const [webdavUrl, setWebdavUrl] = useState('');
     const [webdavUsername, setWebdavUsername] = useState('');
     const [webdavPassword, setWebdavPassword] = useState('');
+    const [webdavAllowInsecureHttp, setWebdavAllowInsecureHttp] = useState(false);
     const [cloudUrl, setCloudUrl] = useState('');
     const [cloudToken, setCloudToken] = useState('');
+    const [cloudAllowInsecureHttp, setCloudAllowInsecureHttp] = useState(false);
     const [cloudProvider, setCloudProvider] = useState<CloudProvider>('selfhosted');
     const [dropboxConnected, setDropboxConnected] = useState(false);
     const [dropboxBusy, setDropboxBusy] = useState(false);
@@ -134,6 +153,43 @@ export function useSyncSettingsTransportActions({
         }
     }, [dropboxAppKey]);
 
+    const validateSyncHttpUrl = useCallback((url: string, allowInsecureHttp: boolean, label: 'WebDAV' | 'self-hosted'): boolean => {
+        if (!url || !isValidHttpUrl(url)) {
+            showSettingsWarning(
+                localize('Invalid URL', '地址无效'),
+                label === 'WebDAV'
+                    ? localize('Please enter a valid WebDAV URL (http/https).', '请输入有效的 WebDAV 地址（http/https）。')
+                    : localize('Please enter a valid self-hosted URL (http/https).', '请输入有效的自托管地址（http/https）。')
+            );
+            return false;
+        }
+        if (!isConnectionAllowed(url, {
+            ...SYNC_LOCAL_INSECURE_URL_OPTIONS,
+            allowInsecureHttp,
+        })) {
+            showSettingsWarning(
+                localize('HTTPS required', '需要 HTTPS'),
+                localize(
+                    'Public HTTP sync URLs are blocked. Use HTTPS, or enable insecure HTTP only for a trusted private network.',
+                    '公共 HTTP 同步地址已被阻止。请使用 HTTPS，或仅在可信私有网络中启用不安全 HTTP。'
+                ),
+                6500
+            );
+            return false;
+        }
+        if (isManualInsecureOverride(url, allowInsecureHttp)) {
+            showSettingsWarning(
+                localize('Insecure HTTP enabled', '已启用不安全 HTTP'),
+                localize(
+                    'Only use this on trusted networks. Sync data will be sent unencrypted.',
+                    '请仅在可信网络中使用。同步数据将以未加密方式发送。'
+                ),
+                6500
+            );
+        }
+        return true;
+    }, [localize, showSettingsWarning]);
+
     useEffect(() => {
         let cancelled = false;
 
@@ -143,8 +199,10 @@ export function useSyncSettingsTransportActions({
             WEBDAV_URL_KEY,
             WEBDAV_USERNAME_KEY,
             WEBDAV_PASSWORD_KEY,
+            WEBDAV_ALLOW_INSECURE_HTTP_KEY,
             CLOUD_URL_KEY,
             CLOUD_TOKEN_KEY,
+            CLOUD_ALLOW_INSECURE_HTTP_KEY,
             CLOUD_PROVIDER_KEY,
         ]).then((entries) => {
             if (cancelled) return;
@@ -155,16 +213,20 @@ export function useSyncSettingsTransportActions({
             const storedWebDavUrl = entryMap.get(WEBDAV_URL_KEY);
             const storedWebDavUsername = entryMap.get(WEBDAV_USERNAME_KEY);
             const storedWebDavPassword = entryMap.get(WEBDAV_PASSWORD_KEY);
+            const storedWebDavAllowInsecureHttp = entryMap.get(WEBDAV_ALLOW_INSECURE_HTTP_KEY);
             const storedCloudUrl = entryMap.get(CLOUD_URL_KEY);
             const storedCloudToken = entryMap.get(CLOUD_TOKEN_KEY);
+            const storedCloudAllowInsecureHttp = entryMap.get(CLOUD_ALLOW_INSECURE_HTTP_KEY);
             const storedCloudProvider = entryMap.get(CLOUD_PROVIDER_KEY);
 
             setSyncPath(path || null);
             setWebdavUrl(storedWebDavUrl || '');
             setWebdavUsername(storedWebDavUsername || '');
             setWebdavPassword(storedWebDavPassword || '');
+            setWebdavAllowInsecureHttp(storedWebDavAllowInsecureHttp === 'true');
             setCloudUrl(storedCloudUrl || '');
             setCloudToken(storedCloudToken || '');
+            setCloudAllowInsecureHttp(storedCloudAllowInsecureHttp === 'true');
 
             const resolvedBackend = storedBackend === 'webdav'
                 || storedBackend === 'cloud'
@@ -478,8 +540,7 @@ export function useSyncSettingsTransportActions({
 
     const handleSaveWebDavSettings = useCallback(async (nextSettings: WebDavSyncSettings) => {
         const trimmedUrl = nextSettings.url.trim();
-        if (!trimmedUrl || !isValidHttpUrl(trimmedUrl)) {
-            showSettingsWarning(localize('Invalid URL', '地址无效'), localize('Please enter a valid WebDAV URL (http/https).', '请输入有效的 WebDAV 地址（http/https）。'));
+        if (!validateSyncHttpUrl(trimmedUrl, nextSettings.allowInsecureHttp, 'WebDAV')) {
             return;
         }
         const trimmedUsername = nextSettings.username.trim();
@@ -489,10 +550,12 @@ export function useSyncSettingsTransportActions({
                 [WEBDAV_URL_KEY, trimmedUrl],
                 [WEBDAV_USERNAME_KEY, trimmedUsername],
                 [WEBDAV_PASSWORD_KEY, nextSettings.password],
+                [WEBDAV_ALLOW_INSECURE_HTTP_KEY, serializeBool(nextSettings.allowInsecureHttp)],
             ]);
             setWebdavUrl(trimmedUrl);
             setWebdavUsername(trimmedUsername);
             setWebdavPassword(nextSettings.password);
+            setWebdavAllowInsecureHttp(nextSettings.allowInsecureHttp);
             setSyncBackend('webdav');
             resetSyncStatusForBackendSwitch();
             showToast({
@@ -510,15 +573,14 @@ export function useSyncSettingsTransportActions({
         localize,
         resetSyncStatusForBackendSwitch,
         showSettingsErrorToast,
-        showSettingsWarning,
         showToast,
         t,
+        validateSyncHttpUrl,
     ]);
 
     const handleSaveSelfHostedSettings = useCallback(async (nextSettings: SelfHostedSyncSettings) => {
         const trimmedUrl = nextSettings.url.trim();
-        if (!trimmedUrl || !isValidHttpUrl(trimmedUrl)) {
-            showSettingsWarning(localize('Invalid URL', '地址无效'), localize('Please enter a valid self-hosted URL (http/https).', '请输入有效的自托管地址（http/https）。'));
+        if (!validateSyncHttpUrl(trimmedUrl, nextSettings.allowInsecureHttp, 'self-hosted')) {
             return;
         }
         try {
@@ -527,9 +589,11 @@ export function useSyncSettingsTransportActions({
                 [CLOUD_PROVIDER_KEY, 'selfhosted'],
                 [CLOUD_URL_KEY, trimmedUrl],
                 [CLOUD_TOKEN_KEY, nextSettings.token],
+                [CLOUD_ALLOW_INSECURE_HTTP_KEY, serializeBool(nextSettings.allowInsecureHttp)],
             ]);
             setCloudUrl(trimmedUrl);
             setCloudToken(nextSettings.token);
+            setCloudAllowInsecureHttp(nextSettings.allowInsecureHttp);
             setCloudProvider('selfhosted');
             setSyncBackend('cloud');
             resetSyncStatusForBackendSwitch();
@@ -548,9 +612,9 @@ export function useSyncSettingsTransportActions({
         localize,
         resetSyncStatusForBackendSwitch,
         showSettingsErrorToast,
-        showSettingsWarning,
         showToast,
         t,
+        validateSyncHttpUrl,
     ]);
 
     const handleSync = useCallback(async (options?: SyncActionOptions) => {
@@ -560,9 +624,18 @@ export function useSyncSettingsTransportActions({
             const previousLastSyncStatus = lastSyncStatus;
             const previousLastSyncStats = lastSyncStats ?? null;
             const effectiveBackend = options?.backend ?? syncBackend;
-            const effectiveCloud = options?.cloud ?? { token: cloudToken, url: cloudUrl };
+            const effectiveCloud = options?.cloud ?? {
+                allowInsecureHttp: cloudAllowInsecureHttp,
+                token: cloudToken,
+                url: cloudUrl,
+            };
             const effectiveCloudProvider = options?.cloudProvider ?? cloudProvider;
-            const effectiveWebdav = options?.webdav ?? { password: webdavPassword, url: webdavUrl, username: webdavUsername };
+            const effectiveWebdav = options?.webdav ?? {
+                allowInsecureHttp: webdavAllowInsecureHttp,
+                password: webdavPassword,
+                url: webdavUrl,
+                username: webdavUsername,
+            };
 
             if (effectiveBackend === 'off') return;
             if (effectiveBackend === 'webdav') {
@@ -571,8 +644,7 @@ export function useSyncSettingsTransportActions({
                     showSettingsWarning(localize('Notice', '提示'), localize('Please set a WebDAV URL first', '请先设置 WebDAV 地址'));
                     return;
                 }
-                if (!isValidHttpUrl(trimmedWebDavUrl)) {
-                    showSettingsWarning(localize('Invalid URL', '地址无效'), localize('Please enter a valid WebDAV URL (http/https).', '请输入有效的 WebDAV 地址（http/https）。'));
+                if (!validateSyncHttpUrl(trimmedWebDavUrl, effectiveWebdav.allowInsecureHttp, 'WebDAV')) {
                     return;
                 }
                 const trimmedWebDavUsername = effectiveWebdav.username.trim();
@@ -581,10 +653,12 @@ export function useSyncSettingsTransportActions({
                     [WEBDAV_URL_KEY, trimmedWebDavUrl],
                     [WEBDAV_USERNAME_KEY, trimmedWebDavUsername],
                     [WEBDAV_PASSWORD_KEY, effectiveWebdav.password],
+                    [WEBDAV_ALLOW_INSECURE_HTTP_KEY, serializeBool(effectiveWebdav.allowInsecureHttp)],
                 ]);
                 setWebdavUrl(trimmedWebDavUrl);
                 setWebdavUsername(trimmedWebDavUsername);
                 setWebdavPassword(effectiveWebdav.password);
+                setWebdavAllowInsecureHttp(effectiveWebdav.allowInsecureHttp);
                 setSyncBackend('webdav');
             } else if (effectiveBackend === 'cloudkit') {
                 const accountStatus = await getCloudKitAccountStatus();
@@ -627,8 +701,7 @@ export function useSyncSettingsTransportActions({
                         showSettingsWarning(localize('Notice', '提示'), localize('Please set a self-hosted URL first', '请先设置自托管地址'));
                         return;
                     }
-                    if (!isValidHttpUrl(trimmedCloudUrl)) {
-                        showSettingsWarning(localize('Invalid URL', '地址无效'), localize('Please enter a valid self-hosted URL (http/https).', '请输入有效的自托管地址（http/https）。'));
+                    if (!validateSyncHttpUrl(trimmedCloudUrl, effectiveCloud.allowInsecureHttp, 'self-hosted')) {
                         return;
                     }
                     await AsyncStorage.multiSet([
@@ -636,9 +709,11 @@ export function useSyncSettingsTransportActions({
                         [CLOUD_PROVIDER_KEY, 'selfhosted'],
                         [CLOUD_URL_KEY, trimmedCloudUrl],
                         [CLOUD_TOKEN_KEY, effectiveCloud.token],
+                        [CLOUD_ALLOW_INSECURE_HTTP_KEY, serializeBool(effectiveCloud.allowInsecureHttp)],
                     ]);
                     setCloudUrl(trimmedCloudUrl);
                     setCloudToken(effectiveCloud.token);
+                    setCloudAllowInsecureHttp(effectiveCloud.allowInsecureHttp);
                     setCloudProvider('selfhosted');
                     setSyncBackend('cloud');
                 }
@@ -722,6 +797,7 @@ export function useSyncSettingsTransportActions({
             setIsSyncing(false);
         }
     }, [
+        cloudAllowInsecureHttp,
         cloudProvider,
         cloudToken,
         cloudUrl,
@@ -739,6 +815,8 @@ export function useSyncSettingsTransportActions({
         showToast,
         syncBackend,
         syncPath,
+        validateSyncHttpUrl,
+        webdavAllowInsecureHttp,
         webdavPassword,
         webdavUrl,
         webdavUsername,
@@ -746,18 +824,26 @@ export function useSyncSettingsTransportActions({
 
     const handleTestConnection = useCallback(async (backend: 'webdav' | 'cloud', options?: Omit<SyncActionOptions, 'backend'>) => {
         setIsTestingConnection(true);
-        const effectiveCloud = options?.cloud ?? { token: cloudToken, url: cloudUrl };
+        const effectiveCloud = options?.cloud ?? {
+            allowInsecureHttp: cloudAllowInsecureHttp,
+            token: cloudToken,
+            url: cloudUrl,
+        };
         const effectiveCloudProvider = options?.cloudProvider ?? cloudProvider;
-        const effectiveWebdav = options?.webdav ?? { password: webdavPassword, url: webdavUrl, username: webdavUsername };
+        const effectiveWebdav = options?.webdav ?? {
+            allowInsecureHttp: webdavAllowInsecureHttp,
+            password: webdavPassword,
+            url: webdavUrl,
+            username: webdavUsername,
+        };
         try {
             if (backend === 'webdav') {
                 const trimmedWebDavUrl = effectiveWebdav.url.trim();
-                if (!trimmedWebDavUrl || !isValidHttpUrl(trimmedWebDavUrl)) {
-                    showSettingsWarning(localize('Invalid URL', '地址无效'), localize('Please enter a valid WebDAV URL (http/https).', '请输入有效的 WebDAV 地址（http/https）。'));
+                if (!validateSyncHttpUrl(trimmedWebDavUrl, effectiveWebdav.allowInsecureHttp, 'WebDAV')) {
                     return;
                 }
                 await webdavGetJson<unknown>(normalizeWebdavUrl(trimmedWebDavUrl), {
-                    ...MOBILE_WEBDAV_REQUEST_OPTIONS,
+                    ...getMobileWebDavRequestOptions(effectiveWebdav.allowInsecureHttp),
                     username: effectiveWebdav.username.trim(),
                     password: effectiveWebdav.password,
                     timeoutMs: 10_000,
@@ -786,11 +872,11 @@ export function useSyncSettingsTransportActions({
             }
 
             const trimmedCloudUrl = effectiveCloud.url.trim();
-            if (!trimmedCloudUrl || !isValidHttpUrl(trimmedCloudUrl)) {
-                showSettingsWarning(localize('Invalid URL', '地址无效'), localize('Please enter a valid self-hosted URL (http/https).', '请输入有效的自托管地址（http/https）。'));
+            if (!validateSyncHttpUrl(trimmedCloudUrl, effectiveCloud.allowInsecureHttp, 'self-hosted')) {
                 return;
             }
-            await cloudGetJson<unknown>(trimmedCloudUrl.replace(/\/+$/, ''), {
+            await cloudGetJson<unknown>(normalizeCloudUrl(trimmedCloudUrl), {
+                ...getMobileCloudRequestOptions(effectiveCloud.allowInsecureHttp),
                 token: effectiveCloud.token,
                 timeoutMs: 10_000,
             });
@@ -817,6 +903,7 @@ export function useSyncSettingsTransportActions({
             setIsTestingConnection(false);
         }
     }, [
+        cloudAllowInsecureHttp,
         cloudProvider,
         cloudToken,
         cloudUrl,
@@ -826,6 +913,8 @@ export function useSyncSettingsTransportActions({
         showSettingsErrorToast,
         showSettingsWarning,
         showToast,
+        validateSyncHttpUrl,
+        webdavAllowInsecureHttp,
         webdavPassword,
         webdavUrl,
         webdavUsername,
@@ -833,6 +922,7 @@ export function useSyncSettingsTransportActions({
 
     return {
         cloudKitAccountStatus,
+        cloudAllowInsecureHttp,
         cloudProvider,
         cloudToken,
         cloudUrl,
@@ -852,6 +942,7 @@ export function useSyncSettingsTransportActions({
         isTestingConnection,
         syncBackend,
         syncPath,
+        webdavAllowInsecureHttp,
         webdavPassword,
         webdavUrl,
         webdavUsername,

@@ -9,10 +9,12 @@ import {
 import { DropboxUnauthorizedError } from './dropbox-sync';
 import {
   CLOUD_TOKEN_KEY,
+  CLOUD_ALLOW_INSECURE_HTTP_KEY,
   CLOUD_URL_KEY,
   WEBDAV_PASSWORD_KEY,
   WEBDAV_URL_KEY,
   WEBDAV_USERNAME_KEY,
+  WEBDAV_ALLOW_INSECURE_HTTP_KEY,
 } from './sync-constants';
 import { logInfo, logWarn, sanitizeLogMessage } from './app-log';
 import { isLikelyFilePath } from './sync-service-utils';
@@ -282,8 +284,8 @@ export const getCloudBaseUrl = (fullUrl: string): string => {
   return trimmed;
 };
 
-export type WebDavConfig = { url: string; username: string; password: string };
-export type CloudConfig = { url: string; token: string };
+export type WebDavConfig = { url: string; username: string; password: string; allowInsecureHttp?: boolean };
+export type CloudConfig = { url: string; token: string; allowInsecureHttp?: boolean };
 export type ResolvedSyncDir =
   | { type: 'file'; dirUri: string; attachmentsDirUri: string }
   | { type: 'saf'; dirUri: string; attachmentsDirUri: string };
@@ -340,6 +342,7 @@ export const loadWebDavConfig = async (): Promise<WebDavConfig | null> => {
     url,
     username: (await AsyncStorage.getItem(WEBDAV_USERNAME_KEY)) || '',
     password: (await AsyncStorage.getItem(WEBDAV_PASSWORD_KEY)) || '',
+    allowInsecureHttp: (await AsyncStorage.getItem(WEBDAV_ALLOW_INSECURE_HTTP_KEY)) === 'true',
   };
 };
 
@@ -349,6 +352,7 @@ export const loadCloudConfig = async (): Promise<CloudConfig | null> => {
   return {
     url,
     token: (await AsyncStorage.getItem(CLOUD_TOKEN_KEY)) || '',
+    allowInsecureHttp: (await AsyncStorage.getItem(CLOUD_ALLOW_INSECURE_HTTP_KEY)) === 'true',
   };
 };
 

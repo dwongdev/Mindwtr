@@ -640,6 +640,8 @@ export function SettingsView() {
     webdavPassword,
     setWebdavPassword,
     webdavHasPassword,
+    webdavAllowInsecureHttp,
+    setWebdavAllowInsecureHttp,
     isSavingWebDav,
     isTestingWebDav,
     webdavTestState,
@@ -647,6 +649,8 @@ export function SettingsView() {
     setCloudUrl,
     cloudToken,
     setCloudToken,
+    cloudAllowInsecureHttp,
+    setCloudAllowInsecureHttp,
     cloudProvider,
     dropboxAppKey,
     dropboxConfigured,
@@ -899,16 +903,19 @@ export function SettingsView() {
           webdavUsername={webdavUsername}
           webdavPassword={webdavPassword}
           webdavHasPassword={webdavHasPassword}
+          webdavAllowInsecureHttp={webdavAllowInsecureHttp}
           isSavingWebDav={isSavingWebDav}
           isTestingWebDav={isTestingWebDav}
           webdavTestState={webdavTestState}
           onWebdavUrlChange={setWebdavUrl}
           onWebdavUsernameChange={setWebdavUsername}
           onWebdavPasswordChange={setWebdavPassword}
+          onWebdavAllowInsecureHttpChange={setWebdavAllowInsecureHttp}
           onSaveWebDav={handleSaveWebDav}
           onTestWebDavConnection={handleTestWebDavConnection}
           cloudUrl={cloudUrl}
           cloudToken={cloudToken}
+          cloudAllowInsecureHttp={cloudAllowInsecureHttp}
           cloudProvider={cloudProvider}
           dropboxAppKey={dropboxAppKey}
           dropboxConfigured={dropboxConfigured}
@@ -919,6 +926,7 @@ export function SettingsView() {
           dropboxTestState={dropboxTestState}
           onCloudUrlChange={setCloudUrl}
           onCloudTokenChange={setCloudToken}
+          onCloudAllowInsecureHttpChange={setCloudAllowInsecureHttp}
           onCloudProviderChange={handleSetCloudProvider}
           onSaveCloud={handleSaveCloud}
           onConnectDropbox={handleConnectDropbox}

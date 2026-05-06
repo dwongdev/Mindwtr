@@ -1,9 +1,10 @@
 import {
     DEFAULT_TIMEOUT_MS,
-    assertSecureUrl,
+    assertConnectionAllowed,
     concatChunks,
     createProgressStream,
     fetchWithTimeout,
+    SYNC_LOCAL_INSECURE_URL_OPTIONS,
     toArrayBuffer,
     toUint8Array,
 } from './http-utils';
@@ -76,14 +77,15 @@ function buildHeaders(options: WebDavOptions): Record<string, string> {
 }
 
 const WEBDAV_HTTPS_ERROR = 'WebDAV requires HTTPS for public URLs (HTTP allowed for localhost, private IPs, and local hostnames).';
-const WEBDAV_INSECURE_OPTIONS = { allowAndroidEmulatorInDev: true, allowLocalHostnames: true, allowPrivateIpRanges: true };
 const WEBDAV_TIMEOUT_ERROR = 'WebDAV request timed out';
 const WEBDAV_AUTOMKCOL_HEADER = 'X-NC-WebDAV-AutoMkcol';
 const UTF8_BOM = '\uFEFF';
 
 const assertWebdavUrl = (url: string, options: WebDavOptions): void => {
-    if (options.allowInsecureHttp) return;
-    assertSecureUrl(url, WEBDAV_HTTPS_ERROR, WEBDAV_INSECURE_OPTIONS);
+    assertConnectionAllowed(url, WEBDAV_HTTPS_ERROR, {
+        ...SYNC_LOCAL_INSECURE_URL_OPTIONS,
+        allowInsecureHttp: options.allowInsecureHttp,
+    });
 };
 
 const getWebdavParentCollectionUrl = (url: string): string | null => {

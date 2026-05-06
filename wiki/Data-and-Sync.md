@@ -170,6 +170,8 @@ Sync directly to a WebDAV server:
 
 Mindwtr now creates missing parent folders automatically before the first `PUT`, so you can point it at a new empty folder without manually pre-creating every level.
 
+WebDAV uses HTTPS for public URLs. Plain HTTP is allowed automatically for local/private targets such as `localhost`, `127.0.0.1`, `10.x.x.x`, `172.16.x.x` through `172.31.x.x`, `192.168.x.x`, loopback/private IPv6 addresses, `*.local`, and `*.home.arpa`. For trusted-network names that are not detected automatically, enable **Allow insecure connections (HTTP)** in Sync settings; data will be sent unencrypted.
+
 ### 4. Mindwtr Cloud (Self-Hosted)
 
 For advanced users, Mindwtr includes a simple sync server (`apps/cloud`) that can be self-hosted.
@@ -182,9 +184,9 @@ For advanced users, Mindwtr includes a simple sync server (`apps/cloud`) that ca
 
 Important client note:
 
-- **HTTPS is required for Mindwtr Cloud on normal device URLs.** `http://localhost` is allowed for local development, but a LAN URL such as `http://192.168.x.x` is not supported for Cloud sync clients.
-- If you are self-hosting on your local network, put the cloud server behind HTTPS with a reverse proxy such as `caddy`, `nginx`, or `traefik`.
-- If you specifically need plain HTTP on a private LAN, use **WebDAV** instead. Mindwtr allows HTTP for WebDAV on localhost/private IP ranges.
+- **HTTPS is required for public Mindwtr Cloud URLs.** Plain HTTP is allowed automatically for local/private targets such as `localhost`, `127.0.0.1`, `10.x.x.x`, `172.16.x.x` through `172.31.x.x`, `192.168.x.x`, loopback/private IPv6 addresses, `*.local`, and `*.home.arpa`.
+- If you are exposing Cloud outside a trusted LAN, put the server behind HTTPS with a reverse proxy such as `caddy`, `nginx`, or `traefik`.
+- For custom DNS, VPN, Tailscale, ZeroTier, or other trusted-network names that are not detected automatically, enable **Allow insecure connections (HTTP)** in Sync settings. Only use this on trusted networks because data is sent unencrypted.
 
 ### 5. Dropbox OAuth Sync
 

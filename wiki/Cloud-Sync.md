@@ -18,8 +18,8 @@ Mindwtr's self-hosted cloud backend is a small sync server under `apps/cloud`. I
 - `/v1/data` is the canonical sync contract; task, project, area, section, search, and attachment routes are optional convenience APIs.
 - Attachment APIs live under `/v1/attachments/...`.
 - Deploy it behind HTTPS and treat the bearer token like a password.
-- For normal device access, Mindwtr Cloud requires HTTPS. A local-network URL like `http://192.168.x.x` will not work in the mobile/desktop clients.
-- `http://localhost` is only intended for local development. If you need plain HTTP on a private LAN, use WebDAV instead.
+- HTTPS is required for public URLs. HTTP is accepted only for local/private targets such as `localhost`, `127.0.0.1`, `10.x.x.x`, `172.16.x.x` through `172.31.x.x`, `192.168.x.x`, loopback/private IPv6 addresses, `*.local`, and `*.home.arpa`.
+- For custom DNS, VPN, Tailscale, ZeroTier, or other trusted-network names that are not detected automatically, enable **Allow insecure connections (HTTP)** in Sync settings. Only use this on trusted networks because data is sent unencrypted.
 
 Keep this page only as a redirect for older links and bookmarks.
 

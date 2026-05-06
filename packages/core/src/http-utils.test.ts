@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { fetchWithTimeout, isAllowedInsecureUrl } from './http-utils';
+import {
+    fetchWithTimeout,
+    isAllowedInsecureUrl,
+    isConnectionAllowed,
+    SYNC_LOCAL_INSECURE_URL_OPTIONS,
+} from './http-utils';
 
 describe('isAllowedInsecureUrl', () => {
     it('allows HTTPS URLs', () => {
@@ -28,6 +33,8 @@ describe('isAllowedInsecureUrl', () => {
         expect(isAllowedInsecureUrl('http://192.168.1.50/data.json', options)).toBe(true);
         expect(isAllowedInsecureUrl('http://100.64.0.1/data.json', options)).toBe(true);
         expect(isAllowedInsecureUrl('http://100.127.255.255/data.json', options)).toBe(true);
+        expect(isAllowedInsecureUrl('http://[fd00::1]/data.json', options)).toBe(true);
+        expect(isAllowedInsecureUrl('http://[fe80::1]/data.json', options)).toBe(true);
     });
 
     it('allows clearly local hostnames when enabled', () => {
@@ -49,6 +56,21 @@ describe('isAllowedInsecureUrl', () => {
     it('preserves Android emulator override behavior', () => {
         expect(isAllowedInsecureUrl('http://10.0.2.2/data.json')).toBe(false);
         expect(isAllowedInsecureUrl('http://10.0.2.2/data.json', { allowAndroidEmulator: true })).toBe(true);
+    });
+});
+
+describe('isConnectionAllowed', () => {
+    it('allows local sync HTTP targets without a manual override', () => {
+        expect(isConnectionAllowed('http://192.168.1.50/data.json', SYNC_LOCAL_INSECURE_URL_OPTIONS)).toBe(true);
+        expect(isConnectionAllowed('http://nas.local/data.json', SYNC_LOCAL_INSECURE_URL_OPTIONS)).toBe(true);
+    });
+
+    it('requires HTTPS for public HTTP unless manually overridden', () => {
+        expect(isConnectionAllowed('http://example.com/data.json', SYNC_LOCAL_INSECURE_URL_OPTIONS)).toBe(false);
+        expect(isConnectionAllowed('http://example.com/data.json', {
+            ...SYNC_LOCAL_INSECURE_URL_OPTIONS,
+            allowInsecureHttp: true,
+        })).toBe(true);
     });
 });
 

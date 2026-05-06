@@ -67,10 +67,14 @@ pub(crate) fn read_config_toml(path: &Path) -> AppConfigToml {
             config.webdav_username = parse_toml_string_value(value);
         } else if key == "webdav_password" {
             config.webdav_password = parse_toml_string_value(value);
+        } else if key == "webdav_allow_insecure_http" {
+            config.webdav_allow_insecure_http = parse_toml_string_value(value);
         } else if key == "cloud_url" {
             config.cloud_url = parse_toml_string_value(value);
         } else if key == "cloud_token" {
             config.cloud_token = parse_toml_string_value(value);
+        } else if key == "cloud_allow_insecure_http" {
+            config.cloud_allow_insecure_http = parse_toml_string_value(value);
         } else if key == "dropbox_tokens" {
             config.dropbox_tokens = parse_toml_string_value(value);
         } else if key == "obsidian_config" {
@@ -143,6 +147,12 @@ fn write_config_toml_with_header(
             serialize_toml_string_value(webdav_password)
         ));
     }
+    if let Some(webdav_allow_insecure_http) = &config.webdav_allow_insecure_http {
+        lines.push(format!(
+            "webdav_allow_insecure_http = {}",
+            serialize_toml_string_value(webdav_allow_insecure_http)
+        ));
+    }
     if let Some(cloud_url) = &config.cloud_url {
         lines.push(format!(
             "cloud_url = {}",
@@ -153,6 +163,12 @@ fn write_config_toml_with_header(
         lines.push(format!(
             "cloud_token = {}",
             serialize_toml_string_value(cloud_token)
+        ));
+    }
+    if let Some(cloud_allow_insecure_http) = &config.cloud_allow_insecure_http {
+        lines.push(format!(
+            "cloud_allow_insecure_http = {}",
+            serialize_toml_string_value(cloud_allow_insecure_http)
         ));
     }
     if let Some(dropbox_tokens) = &config.dropbox_tokens {
@@ -214,11 +230,17 @@ fn merge_config(base: &mut AppConfigToml, overrides: AppConfigToml) {
     if overrides.webdav_password.is_some() {
         base.webdav_password = overrides.webdav_password;
     }
+    if overrides.webdav_allow_insecure_http.is_some() {
+        base.webdav_allow_insecure_http = overrides.webdav_allow_insecure_http;
+    }
     if overrides.cloud_url.is_some() {
         base.cloud_url = overrides.cloud_url;
     }
     if overrides.cloud_token.is_some() {
         base.cloud_token = overrides.cloud_token;
+    }
+    if overrides.cloud_allow_insecure_http.is_some() {
+        base.cloud_allow_insecure_http = overrides.cloud_allow_insecure_http;
     }
     if overrides.dropbox_tokens.is_some() {
         base.dropbox_tokens = overrides.dropbox_tokens;
@@ -296,8 +318,10 @@ fn config_has_values(config: &AppConfigToml) -> bool {
         || config.webdav_url.is_some()
         || config.webdav_username.is_some()
         || config.webdav_password.is_some()
+        || config.webdav_allow_insecure_http.is_some()
         || config.cloud_url.is_some()
         || config.cloud_token.is_some()
+        || config.cloud_allow_insecure_http.is_some()
         || config.dropbox_tokens.is_some()
         || config.obsidian_config.is_some()
         || config.external_calendars.is_some()
@@ -662,7 +686,8 @@ pub(crate) fn get_webdav_config(app: tauri::AppHandle) -> Result<Value, String> 
     Ok(serde_json::json!({
         "url": config.webdav_url.unwrap_or_default(),
         "username": config.webdav_username.unwrap_or_default(),
-        "hasPassword": password.is_some()
+        "hasPassword": password.is_some(),
+        "allowInsecureHttp": config.webdav_allow_insecure_http.as_deref() == Some("true")
     }))
 }
 
@@ -672,6 +697,7 @@ pub(crate) fn set_webdav_config(
     url: String,
     username: String,
     password: String,
+    allow_insecure_http: Option<bool>,
 ) -> Result<bool, String> {
     let url = url.trim().to_string();
     let config_path = get_config_path(&app);
@@ -681,10 +707,16 @@ pub(crate) fn set_webdav_config(
         config.webdav_url = None;
         config.webdav_username = None;
         config.webdav_password = None;
+        config.webdav_allow_insecure_http = None;
         let _ = set_keyring_secret(&app, KEYRING_WEB_DAV_PASSWORD, None);
     } else {
         config.webdav_url = Some(url);
         config.webdav_username = Some(username.trim().to_string());
+        config.webdav_allow_insecure_http = Some(if allow_insecure_http.unwrap_or(false) {
+            "true".to_string()
+        } else {
+            "false".to_string()
+        });
         if !password.trim().is_empty() {
             let next_password = password.trim().to_string();
             match set_keyring_secret(&app, KEYRING_WEB_DAV_PASSWORD, Some(next_password.clone())) {
@@ -735,7 +767,8 @@ pub(crate) fn get_cloud_config(app: tauri::AppHandle) -> Result<Value, String> {
     }
     Ok(serde_json::json!({
         "url": config.cloud_url.unwrap_or_default(),
-        "token": token.unwrap_or_default()
+        "token": token.unwrap_or_default(),
+        "allowInsecureHttp": config.cloud_allow_insecure_http.as_deref() == Some("true")
     }))
 }
 
@@ -744,6 +777,7 @@ pub(crate) fn set_cloud_config(
     app: tauri::AppHandle,
     url: String,
     token: String,
+    allow_insecure_http: Option<bool>,
 ) -> Result<bool, String> {
     let url = url.trim().to_string();
     let config_path = get_config_path(&app);
@@ -760,9 +794,15 @@ pub(crate) fn set_cloud_config(
     if url.is_empty() {
         config.cloud_url = None;
         config.cloud_token = None;
+        config.cloud_allow_insecure_http = None;
         let _ = set_keyring_secret(&app, KEYRING_CLOUD_TOKEN, None);
     } else {
         config.cloud_url = Some(url);
+        config.cloud_allow_insecure_http = Some(if allow_insecure_http.unwrap_or(false) {
+            "true".to_string()
+        } else {
+            "false".to_string()
+        });
         match set_keyring_secret(&app, KEYRING_CLOUD_TOKEN, next_token.clone()) {
             Ok(_) => {
                 config.cloud_token = None;

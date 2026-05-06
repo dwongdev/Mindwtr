@@ -2,6 +2,7 @@
 import { readFileSync, writeFileSync } from 'fs';
 import { join } from 'path';
 import { en } from '../packages/core/src/i18n/locales/en';
+import { acceptedLocaleFallbacks } from '../packages/core/src/i18n/locale-fallbacks';
 
 type Dictionary = Record<string, string>;
 
@@ -72,7 +73,8 @@ for (const target of LOCALES) {
     const moduleExports = await import(modulePath);
     const dictionary = resolveDictionary(moduleExports);
     const localeKeys = new Set(Object.keys(dictionary));
-    const missingKeys = englishKeys.filter((key) => !localeKeys.has(key));
+    const acceptedFallbacks = new Set(acceptedLocaleFallbacks[target.locale] ?? []);
+    const missingKeys = englishKeys.filter((key) => !localeKeys.has(key) && !acceptedFallbacks.has(key));
     if (missingKeys.length === 0) {
         console.log(`${target.locale}: ok`);
         continue;

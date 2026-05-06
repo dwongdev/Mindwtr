@@ -10,9 +10,10 @@ This page is an operations-focused companion to [[Cloud Sync]]. It covers how to
 
 Client compatibility note:
 
-- Mindwtr Cloud clients require **HTTPS** for normal device URLs.
-- `http://localhost` is allowed for development, but `http://192.168.x.x` or other private-LAN HTTP URLs are not accepted by the Cloud sync client.
-- If you want LAN-only deployment, add TLS at the reverse proxy layer. If you need plain HTTP on a private LAN, use WebDAV instead.
+- Mindwtr Cloud clients require **HTTPS** for public URLs.
+- HTTP is accepted only for local/private targets such as `localhost`, `127.0.0.1`, `10.x.x.x`, `172.16.x.x` through `172.31.x.x`, `192.168.x.x`, loopback/private IPv6 addresses, `*.local`, and `*.home.arpa`.
+- For custom DNS, VPN, Tailscale, ZeroTier, or other trusted-network names that are not detected automatically, enable **Allow insecure connections (HTTP)** in Sync settings. Only use this on trusted networks because data is sent unencrypted.
+- For public access, add TLS at the reverse proxy layer.
 
 ## Deployment Topology
 
@@ -111,7 +112,7 @@ Operational guidance:
 
 For a local HTTP-only smoke test, use `docker/compose.yaml`.
 
-For desktop or mobile clients on real device URLs, use the HTTPS stack:
+For public desktop or mobile client URLs, use the HTTPS stack:
 
 ```bash
 cp docker/.env.https.example docker/.env.https.local

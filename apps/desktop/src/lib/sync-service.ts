@@ -631,11 +631,11 @@ export class SyncService {
         return readWebDavConfig(getSyncConfigDeps(), options);
     }
 
-    static async setWebDavConfig(config: { url: string; username?: string; password?: string }): Promise<void> {
+    static async setWebDavConfig(config: { url: string; username?: string; password?: string; allowInsecureHttp?: boolean }): Promise<void> {
         return writeWebDavConfig(config, getSyncConfigDeps());
     }
 
-    static async testWebDavConnection(config: { url: string; username?: string; password?: string; hasPassword?: boolean }): Promise<void> {
+    static async testWebDavConnection(config: { url: string; username?: string; password?: string; hasPassword?: boolean; allowInsecureHttp?: boolean }): Promise<void> {
         const normalizedUrl = normalizeWebdavUrl(config.url.trim());
         if (!normalizedUrl) {
             throw new Error('WebDAV URL not configured');
@@ -648,6 +648,7 @@ export class SyncService {
             hasPassword: config.hasPassword,
         });
         await webdavGetJson<unknown>(normalizedUrl, {
+            allowInsecureHttp: config.allowInsecureHttp,
             username: config.username?.trim(),
             password,
             timeoutMs: 10_000,
@@ -659,7 +660,7 @@ export class SyncService {
         return readCloudConfig(getSyncConfigDeps(), options);
     }
 
-    static async setCloudConfig(config: { url: string; token?: string }): Promise<void> {
+    static async setCloudConfig(config: { url: string; token?: string; allowInsecureHttp?: boolean }): Promise<void> {
         return writeCloudConfig(config, getSyncConfigDeps());
     }
 
@@ -1021,6 +1022,7 @@ export class SyncService {
                 const fetcher = helpers.createFetchWithAbort((await getTauriFetch()) ?? fetch);
                 const data = await withRetry(
                     () => webdavGetJson<AppData>(normalizedUrl, {
+                        allowInsecureHttp: webdavConfig.allowInsecureHttp,
                         username: webdavConfig.username,
                         password: webdavConfig.password || '',
                         fetcher,
@@ -1049,6 +1051,7 @@ export class SyncService {
                 context.syncUrl = normalizedUrl;
                 const fetcher = helpers.createFetchWithAbort((await getTauriFetch()) ?? fetch);
                 const data = await cloudGetJson<AppData>(normalizedUrl, {
+                    allowInsecureHttp: context.cloudConfig.allowInsecureHttp,
                     token: context.cloudConfig.token,
                     fetcher,
                 });
@@ -1187,13 +1190,19 @@ export class SyncService {
                 context.webdavRemoteCorrupted = false;
                 return;
             }
-            const { url, username, password } = await SyncService.getWebDavConfig();
+            const config = await SyncService.getWebDavConfig();
+            const { url, username, password } = config;
             const normalizedUrl = normalizeWebdavUrl(url);
             const fetcher = helpers.createFetchWithAbort((await getTauriFetch()) ?? fetch);
             if (context.webdavRemoteCorrupted) {
                 logSyncInfo('Repairing corrupted WebDAV data.json with current merged data');
             }
-            await webdavPutJson(normalizedUrl, sanitized, { username, password: password || '', fetcher });
+            await webdavPutJson(normalizedUrl, sanitized, {
+                allowInsecureHttp: config.allowInsecureHttp,
+                username,
+                password: password || '',
+                fetcher,
+            });
             context.remoteDataForCompare = sanitized;
             context.webdavRemoteCorrupted = false;
             return;
@@ -1201,10 +1210,15 @@ export class SyncService {
 
         if (context.backend === 'cloud') {
             if (context.cloudProvider === 'selfhosted') {
-                const { url, token } = context.cloudConfig ?? await SyncService.getCloudConfig();
+                const config = context.cloudConfig ?? await SyncService.getCloudConfig();
+                const { url, token } = config;
                 const normalizedUrl = normalizeCloudUrl(url);
                 const fetcher = helpers.createFetchWithAbort((await getTauriFetch()) ?? fetch);
-                await cloudPutJson(normalizedUrl, sanitized, { token, fetcher });
+                await cloudPutJson(normalizedUrl, sanitized, {
+                    allowInsecureHttp: config.allowInsecureHttp,
+                    token,
+                    fetcher,
+                });
                 context.remoteDataForCompare = sanitized;
                 return;
             }

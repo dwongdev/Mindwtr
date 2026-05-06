@@ -1,11 +1,21 @@
-type InsecureUrlOptions = {
+export type InsecureUrlOptions = {
     allowAndroidEmulator?: boolean;
     allowAndroidEmulatorInDev?: boolean;
     allowLocalHostnames?: boolean;
     allowPrivateIpRanges?: boolean;
 };
 
+export type ConnectionAllowedOptions = InsecureUrlOptions & {
+    allowInsecureHttp?: boolean;
+};
+
 export const DEFAULT_TIMEOUT_MS = 30_000;
+
+export const SYNC_LOCAL_INSECURE_URL_OPTIONS: InsecureUrlOptions = {
+    allowAndroidEmulatorInDev: true,
+    allowLocalHostnames: true,
+    allowPrivateIpRanges: true,
+};
 
 type Ipv4Octets = [number, number, number, number];
 
@@ -38,6 +48,14 @@ const isLikelyLocalHostname = (host: string): boolean => {
     return /^[a-z0-9-]+$/i.test(host);
 };
 
+const isPrivateIpv6Host = (host: string): boolean => {
+    const normalized = host.toLowerCase();
+    return normalized === '::1'
+        || normalized.startsWith('fc')
+        || normalized.startsWith('fd')
+        || normalized.startsWith('fe80:');
+};
+
 export const isAllowedInsecureUrl = (rawUrl: string, options: InsecureUrlOptions = {}): boolean => {
     try {
         const parsed = new URL(rawUrl);
@@ -56,6 +74,7 @@ export const isAllowedInsecureUrl = (rawUrl: string, options: InsecureUrlOptions
             if (first === 192 && second === 168) return true;
             if (first === 100 && second >= 64 && second <= 127) return true;
         }
+        if (options.allowPrivateIpRanges && host.includes(':') && isPrivateIpv6Host(host)) return true;
         if (options.allowLocalHostnames && !ipv4 && isLikelyLocalHostname(host)) return true;
         if (host === '10.0.2.2') {
             if (options.allowAndroidEmulator) return true;
@@ -71,11 +90,25 @@ export const isAllowedInsecureUrl = (rawUrl: string, options: InsecureUrlOptions
     }
 };
 
-export const assertSecureUrl = (url: string, message: string, options?: InsecureUrlOptions) => {
-    if (!isAllowedInsecureUrl(url, options)) {
+export const isConnectionAllowed = (rawUrl: string, options: ConnectionAllowedOptions = {}): boolean => {
+    if (options.allowInsecureHttp) {
+        try {
+            const parsed = new URL(rawUrl);
+            return parsed.protocol === 'http:' || parsed.protocol === 'https:';
+        } catch {
+            return false;
+        }
+    }
+    return isAllowedInsecureUrl(rawUrl, options);
+};
+
+export const assertConnectionAllowed = (url: string, message: string, options?: ConnectionAllowedOptions) => {
+    if (!isConnectionAllowed(url, options)) {
         throw new Error(message);
     }
 };
+
+export const assertSecureUrl = assertConnectionAllowed;
 
 export const toUint8Array = async (
     data: ArrayBuffer | Uint8Array | Blob

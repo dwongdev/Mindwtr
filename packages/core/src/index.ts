@@ -36,6 +36,7 @@ export * from './obsidian-parser';
 export * from './tasknotes-parser';
 export * from './webdav';
 export * from './cloud';
+export * from './http-utils';
 export * from './retry-utils';
 export * from './attachment-hash';
 export * from './attachment-link-utils';

@@ -18,7 +18,7 @@ Then open:
 - Self-Hosted URL for local testing: `http://localhost:8787`
 - REST API base URL: `http://localhost:8787/v1`
 
-This HTTP compose file is best for local testing. Mindwtr desktop and mobile clients accept `http://localhost`, but normal device URLs should use HTTPS.
+This HTTP compose file is best for local testing. Mindwtr desktop and mobile clients accept HTTP for localhost, private IPs, and local hostnames. Public URLs should use HTTPS.
 
 ## HTTPS quick start (Cloud + Caddy)
 

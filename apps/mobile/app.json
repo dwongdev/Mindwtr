@@ -16,6 +16,9 @@
         "NSMicrophoneUsageDescription": "Mindwtr uses the microphone to capture voice notes.",
         "ITSAppUsesNonExemptEncryption": false,
         "LSSupportsOpeningDocumentsInPlace": true,
+        "NSAppTransportSecurity": {
+          "NSAllowsLocalNetworking": true
+        },
         "UIFileSharingEnabled": true
       },
       "buildNumber": "4"

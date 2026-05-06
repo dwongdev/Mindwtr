@@ -23,6 +23,16 @@ const mocked = vi.hoisted(() => ({
         setItem: vi.fn(),
     },
     cloudGetJson: vi.fn(),
+    isConnectionAllowed: vi.fn((url: string, options?: { allowInsecureHttp?: boolean }) => {
+        if (options?.allowInsecureHttp) return true;
+        try {
+            const parsed = new URL(url);
+            return parsed.protocol === 'https:' || parsed.hostname === 'nas.local';
+        } catch {
+            return false;
+        }
+    }),
+    normalizeCloudUrl: vi.fn((url: string) => `${url.replace(/\/+$/, '')}/v1/data`),
     normalizeWebdavUrl: vi.fn((url: string) => {
         const trimmed = url.replace(/\/+$/, '');
         return trimmed.toLowerCase().endsWith('/data.json') || trimmed.toLowerCase().endsWith('.json')
@@ -44,7 +54,10 @@ vi.mock('@mindwtr/core', () => ({
     addBreadcrumb: mocked.addBreadcrumb,
     CLOCK_SKEW_THRESHOLD_MS: 60_000,
     cloudGetJson: mocked.cloudGetJson,
+    isConnectionAllowed: mocked.isConnectionAllowed,
+    normalizeCloudUrl: mocked.normalizeCloudUrl,
     normalizeWebdavUrl: mocked.normalizeWebdavUrl,
+    SYNC_LOCAL_INSECURE_URL_OPTIONS: { allowLocalHostnames: true, allowPrivateIpRanges: true },
     webdavGetJson: mocked.webdavGetJson,
 }));
 
@@ -228,6 +241,7 @@ describe('useSyncSettingsTransportActions', () => {
         await act(async () => {
             await latestHookResult?.handleTestConnection('webdav', {
                 webdav: {
+                    allowInsecureHttp: false,
                     password: 'secret',
                     url: 'http://nas.local/remote.php/dav/files/alice/mindwtr/',
                     username: 'alice',
@@ -239,12 +253,12 @@ describe('useSyncSettingsTransportActions', () => {
         expect(mocked.webdavGetJson).toHaveBeenCalledWith(
             'http://nas.local/remote.php/dav/files/alice/mindwtr/data.json',
             expect.objectContaining({
-                allowInsecureHttp: true,
                 password: 'secret',
                 timeoutMs: 10_000,
                 username: 'alice',
             }),
         );
+        expect(mocked.webdavGetJson.mock.calls[0][1]).not.toMatchObject({ allowInsecureHttp: true });
         expect(mocked.showToast).toHaveBeenCalledWith(expect.objectContaining({
             message: 'WebDAV endpoint is reachable.',
             title: 'Connection OK',

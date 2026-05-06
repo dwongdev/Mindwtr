@@ -297,6 +297,7 @@ function SyncSettingsView({ mode }: { mode: SettingsScreenMode }) {
     });
     const {
         cloudKitAccountStatus,
+        cloudAllowInsecureHttp,
         cloudProvider,
         cloudToken,
         cloudUrl,
@@ -317,6 +318,7 @@ function SyncSettingsView({ mode }: { mode: SettingsScreenMode }) {
         syncBackend,
         syncPath,
         webdavPassword,
+        webdavAllowInsecureHttp,
         webdavUrl,
         webdavUsername,
     } = useSyncSettingsTransportActions({
@@ -461,6 +463,7 @@ function SyncSettingsView({ mode }: { mode: SettingsScreenMode }) {
 
                         {syncBackend === 'webdav' && (
                             <SyncWebDavBackendPanel
+                                initialAllowInsecureHttp={webdavAllowInsecureHttp}
                                 initialPassword={webdavPassword}
                                 initialUrl={webdavUrl}
                                 initialUsername={webdavUsername}
@@ -543,6 +546,7 @@ function SyncSettingsView({ mode }: { mode: SettingsScreenMode }) {
                                     />
                                 ) : cloudProvider === 'selfhosted' || isFossBuild ? (
                                     <SyncSelfHostedBackendPanel
+                                        initialAllowInsecureHttp={cloudAllowInsecureHttp}
                                         initialToken={cloudToken}
                                         initialUrl={cloudUrl}
                                         isSyncing={isSyncing}

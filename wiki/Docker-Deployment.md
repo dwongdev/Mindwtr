@@ -35,13 +35,15 @@ The easiest way to get started locally is using the `compose.yaml` file included
    - **Self-Hosted URL for local testing:** `http://localhost:8787`
    - **REST API Base URL:** `http://localhost:8787/v1`
 
-This default compose file is HTTP-only and intended for local testing. Mindwtr desktop and mobile clients accept `http://localhost`, but normal device URLs such as NAS or private-LAN addresses should use HTTPS.
+This default compose file is HTTP-only and intended for local testing. Mindwtr desktop and mobile clients accept HTTP for local/private targets such as `localhost`, `127.0.0.1`, `10.x.x.x`, `172.16.x.x` through `172.31.x.x`, `192.168.x.x`, loopback/private IPv6 addresses, `*.local`, and `*.home.arpa`.
+
+For public URLs, use HTTPS. For custom DNS, VPN, Tailscale, ZeroTier, or other trusted-network names that are not detected automatically, enable **Allow insecure connections (HTTP)** in Sync settings. Only use this on trusted networks because data is sent unencrypted.
 
 ---
 
 ## HTTPS Setup with Caddy
 
-For real desktop or mobile sync, use the Caddy-backed compose file:
+For public desktop or mobile sync, use the Caddy-backed compose file:
 
 ```bash
 cp docker/.env.https.example docker/.env.https.local
@@ -138,6 +140,8 @@ To connect your Mindwtr clients (Desktop or Mobile) to this self-hosted cloud:
    ```
    *Mindwtr will automatically append `/v1/data` to this URL.*
 4. Enter the **same token** you configured in `MINDWTR_CLOUD_AUTH_TOKENS`.
+
+For private LAN HTTP, use a local/private address such as `http://192.168.1.20:8787`. For public URLs, use the Caddy HTTPS setup above.
 
 ### Task Automation API
 

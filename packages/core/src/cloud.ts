@@ -1,9 +1,10 @@
 import {
     DEFAULT_TIMEOUT_MS,
-    assertSecureUrl,
+    assertConnectionAllowed,
     concatChunks,
     createProgressStream,
     fetchWithTimeout,
+    SYNC_LOCAL_INSECURE_URL_OPTIONS,
     toArrayBuffer,
     toUint8Array,
 } from './http-utils';
@@ -14,6 +15,7 @@ export interface CloudOptions {
     timeoutMs?: number;
     fetcher?: typeof fetch;
     onProgress?: (loaded: number, total: number) => void;
+    allowInsecureHttp?: boolean;
 }
 
 function buildHeaders(options: CloudOptions): Record<string, string> {
@@ -24,15 +26,22 @@ function buildHeaders(options: CloudOptions): Record<string, string> {
     return headers;
 }
 
-const CLOUD_HTTPS_ERROR = 'Cloud sync requires HTTPS (except localhost).';
-const CLOUD_INSECURE_OPTIONS = { allowAndroidEmulator: true };
+const CLOUD_HTTPS_ERROR = 'Cloud sync requires HTTPS for public URLs (HTTP allowed for localhost, private IPs, and local hostnames).';
 const CLOUD_TIMEOUT_ERROR = 'Cloud request timed out';
+
+const assertCloudUrl = (url: string, options: CloudOptions): void => {
+    assertConnectionAllowed(url, CLOUD_HTTPS_ERROR, {
+        ...SYNC_LOCAL_INSECURE_URL_OPTIONS,
+        allowAndroidEmulator: true,
+        allowInsecureHttp: options.allowInsecureHttp,
+    });
+};
 
 export async function cloudGetJson<T>(
     url: string,
     options: CloudOptions = {},
 ): Promise<T | null> {
-    assertSecureUrl(url, CLOUD_HTTPS_ERROR, CLOUD_INSECURE_OPTIONS);
+    assertCloudUrl(url, options);
     const fetcher = options.fetcher ?? fetch;
     const res = await fetchWithTimeout(
         url,
@@ -63,7 +72,7 @@ export async function cloudPutJson(
     data: unknown,
     options: CloudOptions = {},
 ): Promise<void> {
-    assertSecureUrl(url, CLOUD_HTTPS_ERROR, CLOUD_INSECURE_OPTIONS);
+    assertCloudUrl(url, options);
     const fetcher = options.fetcher ?? fetch;
     const headers = buildHeaders(options);
     headers['Content-Type'] = headers['Content-Type'] || 'application/json';
@@ -71,9 +80,9 @@ export async function cloudPutJson(
     const res = await fetchWithTimeout(
         url,
         {
-        method: 'PUT',
-        headers,
-        body: JSON.stringify(data, null, 2),
+            method: 'PUT',
+            headers,
+            body: JSON.stringify(data, null, 2),
         },
         options.timeoutMs ?? DEFAULT_TIMEOUT_MS,
         fetcher,
@@ -91,7 +100,7 @@ export async function cloudPutFile(
     contentType: string,
     options: CloudOptions = {},
 ): Promise<void> {
-    assertSecureUrl(url, CLOUD_HTTPS_ERROR, CLOUD_INSECURE_OPTIONS);
+    assertCloudUrl(url, options);
     const fetcher = options.fetcher ?? fetch;
     const headers = buildHeaders(options);
     headers['Content-Type'] = contentType || 'application/octet-stream';
@@ -127,7 +136,7 @@ export async function cloudGetFile(
     url: string,
     options: CloudOptions = {},
 ): Promise<ArrayBuffer> {
-    assertSecureUrl(url, CLOUD_HTTPS_ERROR, CLOUD_INSECURE_OPTIONS);
+    assertCloudUrl(url, options);
     const fetcher = options.fetcher ?? fetch;
     const res = await fetchWithTimeout(
         url,
@@ -170,7 +179,7 @@ export async function cloudDeleteFile(
     url: string,
     options: CloudOptions = {},
 ): Promise<void> {
-    assertSecureUrl(url, CLOUD_HTTPS_ERROR, CLOUD_INSECURE_OPTIONS);
+    assertCloudUrl(url, options);
     const fetcher = options.fetcher ?? fetch;
     const res = await fetchWithTimeout(
         url,

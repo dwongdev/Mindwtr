@@ -27,13 +27,15 @@ import {
   WEBDAV_URL_KEY,
   WEBDAV_USERNAME_KEY,
   WEBDAV_PASSWORD_KEY,
+  WEBDAV_ALLOW_INSECURE_HTTP_KEY,
   CLOUD_URL_KEY,
   CLOUD_TOKEN_KEY,
   CLOUD_PROVIDER_KEY,
+  CLOUD_ALLOW_INSECURE_HTTP_KEY,
   SYNC_PATH_BOOKMARK_KEY,
   DROPBOX_LAST_REV_KEY,
 } from './sync-constants';
-import { MOBILE_WEBDAV_REQUEST_OPTIONS } from './webdav-request-options';
+import { getMobileCloudRequestOptions, getMobileWebDavRequestOptions } from './webdav-request-options';
 
 const DEFAULT_SYNC_TIMEOUT_MS = 30_000;
 const WEBDAV_RETRY_OPTIONS = { maxAttempts: 5, baseDelayMs: 2000, maxDelayMs: 30_000 };
@@ -49,6 +51,8 @@ type MobileSyncActivityState = 'idle' | 'syncing';
 type MobileSyncActivityListener = (state: MobileSyncActivityState) => void;
 type MobileSyncSkipReason = 'offline' | 'requeued';
 type MobileSyncResult = { success: boolean; stats?: MergeStats; error?: string; skipped?: MobileSyncSkipReason };
+type MobileWebDavSyncConfig = { url: string; username: string; password: string; allowInsecureHttp?: boolean };
+type MobileCloudSyncConfig = { url: string; token: string; allowInsecureHttp?: boolean };
 const isFossBuild = (() => {
   const extra = Constants.expoConfig?.extra as { isFossBuild?: unknown } | undefined;
   return extra?.isFossBuild === true || extra?.isFossBuild === 'true';
@@ -419,8 +423,8 @@ const mobileSyncOrchestrator = createSyncOrchestrator<string | undefined, Mobile
           logSyncWarning('Failed to subscribe to network state during sync', error);
         }
       }
-      let webdavConfig: { url: string; username: string; password: string } | null = null;
-      let cloudConfig: { url: string; token: string } | null = null;
+      let webdavConfig: MobileWebDavSyncConfig | null = null;
+      let cloudConfig: MobileCloudSyncConfig | null = null;
       let cloudProvider: CloudProvider = CLOUD_PROVIDER_SELF_HOSTED;
       let dropboxClientId = '';
       let dropboxLastRev: string | null = null;
@@ -470,7 +474,8 @@ const mobileSyncOrchestrator = createSyncOrchestrator<string | undefined, Mobile
         syncUrl = normalizeWebdavUrl(url);
         const username = (await getCachedConfigValue(WEBDAV_USERNAME_KEY)) ?? '';
         const password = (await getCachedConfigValue(WEBDAV_PASSWORD_KEY)) ?? '';
-        webdavConfig = { url: syncUrl, username, password };
+        const allowInsecureHttp = (await getCachedConfigValue(WEBDAV_ALLOW_INSECURE_HTTP_KEY)) === 'true';
+        webdavConfig = { url: syncUrl, username, password, allowInsecureHttp };
       }
       if (backend === 'cloud') {
         const storedCloudProvider = (await getCachedConfigValue(CLOUD_PROVIDER_KEY))?.trim() ?? null;
@@ -490,7 +495,8 @@ const mobileSyncOrchestrator = createSyncOrchestrator<string | undefined, Mobile
           if (!url) throw new Error('Self-hosted URL not configured');
           syncUrl = normalizeCloudUrl(url);
           const token = (await getCachedConfigValue(CLOUD_TOKEN_KEY))?.trim() ?? '';
-          cloudConfig = { url: syncUrl, token };
+          const allowInsecureHttp = (await getCachedConfigValue(CLOUD_ALLOW_INSECURE_HTTP_KEY)) === 'true';
+          cloudConfig = { url: syncUrl, token, allowInsecureHttp };
         }
       }
       const runDropboxOperation = async <T,>(
@@ -570,7 +576,7 @@ const mobileSyncOrchestrator = createSyncOrchestrator<string | undefined, Mobile
             const data = await withRetry(
               () =>
                 webdavGetJson<AppData>(webdavConfig.url, {
-                  ...MOBILE_WEBDAV_REQUEST_OPTIONS,
+                  ...getMobileWebDavRequestOptions(webdavConfig.allowInsecureHttp),
                   username: webdavConfig.username,
                   password: webdavConfig.password,
                   timeoutMs: DEFAULT_SYNC_TIMEOUT_MS,
@@ -594,6 +600,7 @@ const mobileSyncOrchestrator = createSyncOrchestrator<string | undefined, Mobile
         }
         if (backend === 'cloud' && cloudConfig?.url) {
           const data = await cloudGetJson<AppData>(cloudConfig.url, {
+            ...getMobileCloudRequestOptions(cloudConfig.allowInsecureHttp),
             token: cloudConfig.token,
             timeoutMs: DEFAULT_SYNC_TIMEOUT_MS,
             fetcher: fetchWithAbort,
@@ -686,7 +693,7 @@ const mobileSyncOrchestrator = createSyncOrchestrator<string | undefined, Mobile
             await withRetry(
               () =>
                 webdavPutJson(webdavConfig.url, sanitized, {
-                  ...MOBILE_WEBDAV_REQUEST_OPTIONS,
+                  ...getMobileWebDavRequestOptions(webdavConfig.allowInsecureHttp),
                   username: webdavConfig.username,
                   password: webdavConfig.password,
                   timeoutMs: DEFAULT_SYNC_TIMEOUT_MS,
@@ -729,6 +736,7 @@ const mobileSyncOrchestrator = createSyncOrchestrator<string | undefined, Mobile
           }
           if (!cloudConfig?.url) throw new Error('Self-hosted URL not configured');
           await cloudPutJson(cloudConfig.url, sanitized, {
+            ...getMobileCloudRequestOptions(cloudConfig.allowInsecureHttp),
             token: cloudConfig.token,
             timeoutMs: DEFAULT_SYNC_TIMEOUT_MS,
             fetcher: fetchWithAbort,
@@ -832,8 +840,8 @@ const mobileSyncOrchestrator = createSyncOrchestrator<string | undefined, Mobile
       ensureLocalSnapshotFresh();
       await persistExternalCalendars(mergedData);
 
-      const webdavConfigValue = webdavConfig as { url: string; username: string; password: string } | null;
-      const cloudConfigValue = cloudConfig as { url: string; token: string } | null;
+      const webdavConfigValue = webdavConfig as MobileWebDavSyncConfig | null;
+      const cloudConfigValue = cloudConfig as MobileCloudSyncConfig | null;
       const applyAttachmentSyncMutation = async (
         syncAttachments: (candidateData: AppData) => Promise<boolean>
       ): Promise<void> => {
@@ -930,7 +938,7 @@ const mobileSyncOrchestrator = createSyncOrchestrator<string | undefined, Mobile
                 if (isWebdavBackend && webdavConfigValue) {
                   const baseSyncUrl = getBaseSyncUrl(webdavConfigValue.url);
                   await webdavDeleteFile(`${baseSyncUrl}/${attachment.cloudKey}`, {
-                    ...MOBILE_WEBDAV_REQUEST_OPTIONS,
+                    ...getMobileWebDavRequestOptions(webdavConfigValue.allowInsecureHttp),
                     username: webdavConfigValue.username,
                     password: webdavConfigValue.password,
                     timeoutMs: DEFAULT_SYNC_TIMEOUT_MS,
@@ -939,6 +947,7 @@ const mobileSyncOrchestrator = createSyncOrchestrator<string | undefined, Mobile
                 } else if (isCloudBackend && cloudConfigValue) {
                   const baseSyncUrl = getCloudBaseUrl(cloudConfigValue.url);
                   await cloudDeleteFile(`${baseSyncUrl}/${attachment.cloudKey}`, {
+                    ...getMobileCloudRequestOptions(cloudConfigValue.allowInsecureHttp),
                     token: cloudConfigValue.token,
                     timeoutMs: DEFAULT_SYNC_TIMEOUT_MS,
                     fetcher: fetchWithAbort,

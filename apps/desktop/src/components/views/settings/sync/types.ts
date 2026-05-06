@@ -47,6 +47,8 @@ export type SettingsSyncLabels = {
     testConnection: string;
     webdavTestHint: string;
     webdavTestAccessibility: string;
+    allowInsecureHttp: string;
+    allowInsecureHttpHint: string;
     cloudUrl: string;
     cloudHint: string;
     cloudToken: string;
@@ -122,16 +124,19 @@ export type SettingsSyncPageProps = {
     webdavUsername: string;
     webdavPassword: string;
     webdavHasPassword: boolean;
+    webdavAllowInsecureHttp: boolean;
     isSavingWebDav: boolean;
     isTestingWebDav: boolean;
     webdavTestState: 'idle' | 'success' | 'error';
     onWebdavUrlChange: (value: string) => void;
     onWebdavUsernameChange: (value: string) => void;
     onWebdavPasswordChange: (value: string) => void;
+    onWebdavAllowInsecureHttpChange: (value: boolean) => void;
     onSaveWebDav: () => Promise<void> | void;
     onTestWebDavConnection: () => Promise<void> | void;
     cloudUrl: string;
     cloudToken: string;
+    cloudAllowInsecureHttp: boolean;
     cloudProvider: CloudProvider;
     dropboxAppKey: string;
     dropboxConfigured: boolean;
@@ -142,6 +147,7 @@ export type SettingsSyncPageProps = {
     dropboxTestState: DropboxTestState;
     onCloudUrlChange: (value: string) => void;
     onCloudTokenChange: (value: string) => void;
+    onCloudAllowInsecureHttpChange: (value: boolean) => void;
     onCloudProviderChange: (provider: CloudProvider) => void;
     onSaveCloud: () => Promise<void> | void;
     onConnectDropbox: () => Promise<void> | void;

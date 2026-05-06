@@ -675,6 +675,8 @@ export const zhHans: Record<string, string> = {
         'settings.webdavPassword': '密码',
         'settings.webdavSave': '保存 WebDAV',
         'settings.webdavHint': '请填写同步文件夹地址，Mindwtr 会在其中存放 data.json。',
+        'settings.allowInsecureHttp': '允许不安全连接（HTTP）',
+        'settings.allowInsecureHttpHint': '请仅在可信网络中使用。数据将以未加密方式传输。',
         'settings.webdavBrowserStorageWarning': 'Web 提示：WebDAV 密码会保存在浏览器本地存储中，请仅在可信设备使用。',
         'settings.cloudUrl': '自托管地址',
         'settings.cloudUrlPlaceholder': 'https://example.com',

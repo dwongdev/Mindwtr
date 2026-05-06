@@ -213,6 +213,7 @@ export const cleanupOrphanedAttachments = async (
             if (backend === 'webdav' && webdavConfig?.url) {
                 const baseUrl = getBaseSyncUrl(webdavConfig.url);
                 await webdavDeleteFile(`${baseUrl}/${target.cloudKey}`, {
+                    allowInsecureHttp: webdavConfig.allowInsecureHttp,
                     username: webdavConfig.username,
                     password: webdavPassword,
                     fetcher,
@@ -220,6 +221,7 @@ export const cleanupOrphanedAttachments = async (
             } else if (backend === 'cloud' && cloudProvider === 'selfhosted' && cloudConfig?.url) {
                 const baseUrl = getCloudBaseUrl(cloudConfig.url);
                 await cloudDeleteFile(`${baseUrl}/${target.cloudKey}`, {
+                    allowInsecureHttp: cloudConfig.allowInsecureHttp,
                     token: cloudConfig.token,
                     fetcher,
                 });
