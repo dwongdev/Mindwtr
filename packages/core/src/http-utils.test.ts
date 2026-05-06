@@ -65,12 +65,12 @@ describe('isConnectionAllowed', () => {
         expect(isConnectionAllowed('http://nas.local/data.json', SYNC_LOCAL_INSECURE_URL_OPTIONS)).toBe(true);
     });
 
-    it('requires HTTPS for public HTTP unless manually overridden', () => {
+    it('blocks public HTTP even when manually overridden', () => {
         expect(isConnectionAllowed('http://example.com/data.json', SYNC_LOCAL_INSECURE_URL_OPTIONS)).toBe(false);
         expect(isConnectionAllowed('http://example.com/data.json', {
             ...SYNC_LOCAL_INSECURE_URL_OPTIONS,
             allowInsecureHttp: true,
-        })).toBe(true);
+        })).toBe(false);
     });
 });
 

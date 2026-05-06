@@ -46,7 +46,7 @@ describe('webdav http helpers', () => {
         expect(fetcher).not.toHaveBeenCalled();
     });
 
-    it('allows explicit insecure HTTP overrides for public targets', async () => {
+    it('rejects explicit insecure HTTP overrides for public targets', async () => {
         const fetcher = vi.fn(
             async () =>
                 ({
@@ -62,8 +62,8 @@ describe('webdav http helpers', () => {
                 fetcher,
                 allowInsecureHttp: true,
             }),
-        ).resolves.toBeNull();
-        expect(fetcher).toHaveBeenCalledOnce();
+        ).rejects.toThrow('WebDAV requires HTTPS for public URLs');
+        expect(fetcher).not.toHaveBeenCalled();
     });
 
     it('treats empty successful body as missing remote data', async () => {

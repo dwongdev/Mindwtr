@@ -43,7 +43,7 @@ describe('cloud sync http helpers', () => {
         await expect(cloudGetJson('http://192.168.1.50:8787/v1/data', { fetcher })).resolves.toBeNull();
     });
 
-    it('blocks public HTTP targets unless manually overridden', async () => {
+    it('blocks public HTTP targets even when manually overridden', async () => {
         const fetcher = vi.fn(async () => ({ ok: false, status: 404, statusText: 'Not Found', text: async () => '' } as Response));
         await expect(cloudGetJson('http://example.com/v1/data', { fetcher })).rejects.toThrow(
             'Cloud sync requires HTTPS for public URLs',
@@ -51,7 +51,8 @@ describe('cloud sync http helpers', () => {
         await expect(cloudGetJson('http://example.com/v1/data', {
             fetcher,
             allowInsecureHttp: true,
-        })).resolves.toBeNull();
+        })).rejects.toThrow('Cloud sync requires HTTPS for public URLs');
+        expect(fetcher).not.toHaveBeenCalled();
     });
 
     it('sends auth and content type on put json', async () => {

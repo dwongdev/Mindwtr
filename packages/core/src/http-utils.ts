@@ -91,14 +91,6 @@ export const isAllowedInsecureUrl = (rawUrl: string, options: InsecureUrlOptions
 };
 
 export const isConnectionAllowed = (rawUrl: string, options: ConnectionAllowedOptions = {}): boolean => {
-    if (options.allowInsecureHttp) {
-        try {
-            const parsed = new URL(rawUrl);
-            return parsed.protocol === 'http:' || parsed.protocol === 'https:';
-        } catch {
-            return false;
-        }
-    }
     return isAllowedInsecureUrl(rawUrl, options);
 };
 

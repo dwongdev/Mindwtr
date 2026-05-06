@@ -742,7 +742,7 @@ export const en: Record<string, string> = {
         'settings.webdavSave': 'Save WebDAV',
         'settings.webdavHint': 'Point to a folder. Mindwtr stores data.json inside it.',
         'settings.allowInsecureHttp': 'Allow insecure connections (HTTP)',
-        'settings.allowInsecureHttpHint': 'Only use this on trusted networks. Data will be sent unencrypted.',
+        'settings.allowInsecureHttpHint': 'Only local or private-network HTTP is allowed. Data will be sent unencrypted.',
         'settings.webdavBrowserStorageWarning': 'WebDAV passwords are stored in browser storage. Use only on trusted devices.',
         'settings.cloudUrl': 'Self-hosted URL',
         'settings.cloudUrlPlaceholder': 'https://example.com',

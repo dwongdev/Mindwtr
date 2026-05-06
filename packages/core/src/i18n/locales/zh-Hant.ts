@@ -680,7 +680,7 @@ export const zhHant: Record<string, string> = {
         'settings.webdavSave': '保存 WebDAV',
         'settings.webdavHint': '請填寫同步文件夾地址，Mindwtr 會在其中存放 data.json。',
         'settings.allowInsecureHttp': '允許不安全連接（HTTP）',
-        'settings.allowInsecureHttpHint': '請僅在可信網絡中使用。資料將以未加密方式傳輸。',
+        'settings.allowInsecureHttpHint': '僅允許本機或私人網絡 HTTP。資料將以未加密方式傳輸。',
         'settings.webdavBrowserStorageWarning': 'Web 提示：WebDAV 密碼會保存在瀏覽器本地儲存中，請僅在可信設備使用。',
         'settings.cloudUrl': '自託管地址',
         'settings.cloudUrlPlaceholder': 'https://example.com',
