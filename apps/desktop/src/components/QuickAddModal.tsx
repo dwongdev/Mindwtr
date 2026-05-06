@@ -40,6 +40,12 @@ type QuickAddModalProps = {
     standaloneWindow?: boolean;
 };
 
+type QuickAddOpenDetail = {
+    initialProps?: Partial<Task>;
+    initialValue?: string;
+    captureMode?: 'text' | 'audio';
+};
+
 export function QuickAddModal({ standaloneWindow = false }: QuickAddModalProps) {
     const getDerivedState = useTaskStore((state) => state.getDerivedState);
     const { addTask, addProject, projects, areas, settings } = useTaskStore(
@@ -78,6 +84,8 @@ export function QuickAddModal({ standaloneWindow = false }: QuickAddModalProps) 
     const audioProcessorRef = useRef<ScriptProcessorNode | null>(null);
     const audioChunksRef = useRef<Float32Array[]>([]);
     const inputSampleRateRef = useRef<number>(16_000);
+    const isOpenRef = useRef(false);
+    const openRequestInFlightRef = useRef(false);
     const sortedAreas = useMemo(() => [...areas].sort((a, b) => a.order - b.order), [areas]);
     const resolvedAreaFilter = useMemo(
         () => resolveAreaFilter(settings?.filters?.areaId, areas),
@@ -99,13 +107,36 @@ export function QuickAddModal({ standaloneWindow = false }: QuickAddModalProps) 
     }, [standaloneWindow]);
 
     useEffect(() => {
+        isOpenRef.current = isOpen;
+        if (!isOpen) {
+            openRequestInFlightRef.current = false;
+        }
+    }, [isOpen]);
+
+    const openQuickAdd = useCallback(async (detail?: QuickAddOpenDetail) => {
+        if (isOpenRef.current || openRequestInFlightRef.current) return false;
+        openRequestInFlightRef.current = true;
+        try {
+            await refreshStandaloneData().catch((error) => reportError('Failed to refresh quick add data', error));
+            setInitialProps(detail?.initialProps ?? null);
+            setValue(detail?.initialValue ?? '');
+            setForcedCaptureMode(detail?.captureMode ?? null);
+            isOpenRef.current = true;
+            setIsOpen(true);
+            return true;
+        } catch (error) {
+            openRequestInFlightRef.current = false;
+            throw error;
+        }
+    }, [refreshStandaloneData]);
+
+    useEffect(() => {
         if (!isTauriRuntime()) return;
 
         let unlisten: (() => void) | undefined;
         const nativeTarget = standaloneWindow ? QUICK_ADD_NATIVE_TARGET_WINDOW : QUICK_ADD_NATIVE_TARGET_MAIN;
         const openFromTauri = async () => {
-            await refreshStandaloneData().catch((error) => reportError('Failed to refresh quick add data', error));
-            setIsOpen(true);
+            await openQuickAdd();
             try {
                 const { invoke } = await import('@tauri-apps/api/core');
                 await invoke<boolean>('consume_quick_add_pending', { target: nativeTarget });
@@ -127,8 +158,7 @@ export function QuickAddModal({ standaloneWindow = false }: QuickAddModalProps) 
 
             const pending = await invoke<boolean>('consume_quick_add_pending', { target: nativeTarget });
             if (pending) {
-                await refreshStandaloneData().catch((error) => reportError('Failed to refresh quick add data', error));
-                setIsOpen(true);
+                await openQuickAdd();
             }
         };
 
@@ -137,24 +167,16 @@ export function QuickAddModal({ standaloneWindow = false }: QuickAddModalProps) 
         return () => {
             if (unlisten) unlisten();
         };
-    }, [refreshStandaloneData, standaloneWindow]);
+    }, [openQuickAdd, standaloneWindow]);
 
     useEffect(() => {
-        type QuickAddDetail = { initialProps?: Partial<Task>; initialValue?: string; captureMode?: 'text' | 'audio' };
         const handler: EventListener = (event) => {
-            const detail = (event as CustomEvent<QuickAddDetail>).detail;
-            const open = async () => {
-                await refreshStandaloneData().catch((error) => reportError('Failed to refresh quick add data', error));
-                setInitialProps(detail?.initialProps ?? null);
-                setValue(detail?.initialValue ?? '');
-                setForcedCaptureMode(detail?.captureMode ?? null);
-                setIsOpen(true);
-            };
-            open().catch((error) => reportError('Failed to open quick add', error));
+            const detail = (event as CustomEvent<QuickAddOpenDetail>).detail;
+            openQuickAdd(detail).catch((error) => reportError('Failed to open quick add', error));
         };
         window.addEventListener('mindwtr:quick-add', handler);
         return () => window.removeEventListener('mindwtr:quick-add', handler);
-    }, [refreshStandaloneData]);
+    }, [openQuickAdd]);
 
     useEffect(() => {
         if (!isOpen) return;
@@ -219,6 +241,8 @@ export function QuickAddModal({ standaloneWindow = false }: QuickAddModalProps) 
     }, [standaloneWindow]);
 
     const close = useCallback(() => {
+        isOpenRef.current = false;
+        openRequestInFlightRef.current = false;
         setIsOpen(false);
         setInitialProps(null);
         setValue('');
