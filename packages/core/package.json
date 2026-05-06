@@ -35,6 +35,7 @@
     "./webdav": "./src/webdav.ts",
     "./cloud": "./src/cloud.ts",
     "./retry-utils": "./src/retry-utils.ts",
+    "./async-queue": "./src/async-queue.ts",
     "./attachment-hash": "./src/attachment-hash.ts",
     "./attachment-validation": "./src/attachment-validation.ts",
     "./attachment-progress": "./src/attachment-progress.ts",

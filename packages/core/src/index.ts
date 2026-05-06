@@ -38,6 +38,7 @@ export * from './webdav';
 export * from './cloud';
 export * from './http-utils';
 export * from './retry-utils';
+export * from './async-queue';
 export * from './attachment-hash';
 export * from './attachment-link-utils';
 export * from './attachment-validation';
