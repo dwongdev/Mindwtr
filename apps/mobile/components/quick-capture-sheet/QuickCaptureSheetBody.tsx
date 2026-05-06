@@ -85,6 +85,7 @@ export function QuickCaptureSheetBody({
       hardwareAccelerated={Platform.OS === 'android'}
       navigationBarTranslucent={Platform.OS === 'android'}
       statusBarTranslucent={Platform.OS === 'android'}
+      accessibilityViewIsModal
       onRequestClose={handleClose}
     >
       <View style={styles.modalRoot} accessibilityViewIsModal>

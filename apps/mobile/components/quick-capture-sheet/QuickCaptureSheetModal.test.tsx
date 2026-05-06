@@ -196,6 +196,7 @@ describe('Quick capture modal composition', () => {
     expect(modal.props.animationType).toBe('none');
     expect(modal.props.hardwareAccelerated).toBe(true);
     expect(modal.props.statusBarTranslucent).toBe(true);
+    expect(modal.props.accessibilityViewIsModal).toBe(true);
   });
 
   it('bounds compact sheet text scaling so tablet controls cannot overlap', () => {
