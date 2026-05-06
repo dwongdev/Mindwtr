@@ -68,6 +68,7 @@ beforeEach(() => {
 afterEach(() => {
     cleanup();
     resetStores();
+    vi.useRealTimers();
     vi.clearAllMocks();
 });
 
@@ -96,6 +97,25 @@ describe('Layout Obsidian nav visibility', () => {
 });
 
 describe('Layout sync conflict surface', () => {
+    it('shows sync freshness as visible text', () => {
+        vi.useFakeTimers();
+        vi.setSystemTime(new Date('2026-04-22T12:10:00.000Z'));
+        act(() => {
+            useTaskStore.setState((state) => ({
+                ...state,
+                settings: {
+                    ...state.settings,
+                    lastSyncAt: '2026-04-22T12:05:00.000Z',
+                    lastSyncStatus: 'success',
+                },
+            }));
+        });
+
+        const { getByText } = renderLayout();
+
+        expect(getByText('Fresh')).toBeInTheDocument();
+    });
+
     it('shows a toast when a new sync conflict status is present', () => {
         const showToast = vi.fn();
         act(() => {

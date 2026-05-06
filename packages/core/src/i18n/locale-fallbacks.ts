@@ -3,6 +3,10 @@ const insecureHttpFallbacks = [
     'settings.allowInsecureHttpHint',
     'settings.cleartextSyncWarningWebdav',
     'settings.cleartextSyncWarningCloud',
+    'settings.syncStatusFresh',
+    'settings.syncStatusStale',
+    'settings.syncStatusOld',
+    'settings.syncStatusNever',
 ] as const;
 
 export const acceptedLocaleFallbacks: Partial<Record<string, readonly string[]>> = {

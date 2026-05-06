@@ -159,6 +159,35 @@ export function Layout({ children, currentView, onViewChange }: LayoutProps) {
             : lastSyncStatus === 'conflict'
                 ? `${tOrFallback('settings.lastSyncConflict', 'Conflicts resolved')}\n${syncConflictNotice}\n${tOrFallback('settings.lastSync', 'Last sync')}: ${fullSyncTimestamp}`
             : `${tOrFallback('settings.lastSync', 'Last sync')}: ${fullSyncTimestamp}`;
+    const syncStatusLabel = syncStatus.inFlight
+        ? tOrFallback('settings.syncing', 'Syncing...')
+        : !isOnline
+            ? tOrFallback('common.offline', 'Offline')
+            : lastSyncStatus === 'error'
+                ? tOrFallback('settings.lastSyncError', 'Sync failed')
+                : lastSyncStatus === 'conflict'
+                    ? tOrFallback('settings.lastSyncConflict', 'Conflicts resolved')
+                    : syncFreshness === 'old'
+                        ? tOrFallback('settings.syncStatusOld', 'Old')
+                        : syncFreshness === 'stale'
+                            ? tOrFallback('settings.syncStatusStale', 'Stale')
+                            : syncFreshness === 'fresh'
+                                ? tOrFallback('settings.syncStatusFresh', 'Fresh')
+                                : tOrFallback('settings.syncStatusNever', 'Not synced');
+    const syncStatusLabelClass = !isOnline || lastSyncStatus === 'error' || syncFreshness === 'old'
+        ? 'text-destructive'
+        : lastSyncStatus === 'conflict' || syncFreshness === 'stale'
+            ? 'text-amber-600 dark:text-amber-300'
+            : syncFreshness === 'fresh'
+                ? 'text-emerald-600 dark:text-emerald-300'
+                : 'text-muted-foreground';
+    const SyncStatusIcon = syncStatus.inFlight
+        ? RefreshCw
+        : !isOnline || lastSyncStatus === 'error' || lastSyncStatus === 'conflict' || syncFreshness === 'stale' || syncFreshness === 'old'
+            ? AlertTriangle
+            : syncFreshness === 'fresh'
+                ? CheckCircle2
+                : Clock3;
     const formatCompactSyncTime = useCallback((iso: string) => {
         const date = new Date(iso);
         if (Number.isNaN(date.getTime())) return iso;
@@ -168,11 +197,9 @@ export function Layout({ children, currentView, onViewChange }: LayoutProps) {
             hour12: false,
         }).format(date);
     }, []);
-    const compactSyncLabel = syncStatus.inFlight
-        ? tOrFallback('settings.syncing', 'Syncing...')
-        : lastSyncAt
-            ? `${tOrFallback('settings.lastSync', 'Last sync')}: ${formatCompactSyncTime(lastSyncAt)}`
-            : tOrFallback('settings.lastSyncNever', 'Never');
+    const compactSyncTimeLabel = lastSyncAt
+        ? formatCompactSyncTime(lastSyncAt)
+        : tOrFallback('settings.lastSyncNever', 'Never');
     const dismissLabel = t('common.dismiss');
     const dismissText = dismissLabel && dismissLabel !== 'common.dismiss' ? dismissLabel : 'Dismiss';
     const areaById = useMemo(() => new Map(areas.map((area) => [area.id, area])), [areas]);
@@ -561,8 +588,9 @@ export function Layout({ children, currentView, onViewChange }: LayoutProps) {
                                     aria-live="polite"
                                     aria-label={syncTooltip}
                                 >
-                                    <RefreshCw className={cn("w-3.5 h-3.5", syncStatus.inFlight && "animate-spin")} />
-                                    <span>{compactSyncLabel}</span>
+                                    <SyncStatusIcon className={cn("w-3.5 h-3.5", syncStatusLabelClass, syncStatus.inFlight && "animate-spin")} />
+                                    <span className={cn("font-medium", syncStatusLabelClass)}>{syncStatusLabel}</span>
+                                    <span className="text-muted-foreground/80">{compactSyncTimeLabel}</span>
                                     <span
                                         className={cn("w-2 h-2 rounded-full shrink-0", syncFreshnessDotClass)}
                                         title={syncTooltip}
