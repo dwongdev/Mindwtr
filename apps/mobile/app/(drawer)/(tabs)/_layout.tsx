@@ -183,13 +183,13 @@ export default function TabLayout() {
   const iconLift = Platform.OS === 'android' ? 4 : 0;
   const [captureState, setCaptureState] = useState<{
     visible: boolean;
-    instanceKey: number;
+    openRequestId: number;
     initialValue?: string;
     initialProps?: Partial<Task> | null;
     autoRecord?: boolean;
   }>({
     visible: false,
-    instanceKey: 0,
+    openRequestId: 0,
     initialValue: '',
     initialProps: null,
     autoRecord: false,
@@ -208,7 +208,7 @@ export default function TabLayout() {
   const openQuickCapture = useCallback((options?: { initialValue?: string; initialProps?: Partial<Task>; autoRecord?: boolean }) => {
     setCaptureState((prev) => ({
       visible: true,
-      instanceKey: prev.instanceKey + 1,
+      openRequestId: prev.openRequestId + 1,
       initialValue: options?.initialValue ?? '',
       initialProps: withSelectedArea(options?.initialProps) ?? null,
       autoRecord: options?.autoRecord ?? false,
@@ -218,7 +218,7 @@ export default function TabLayout() {
   const closeQuickCapture = useCallback(() => {
     setCaptureState((prev) => ({
       visible: false,
-      instanceKey: prev.instanceKey,
+      openRequestId: prev.openRequestId,
       initialValue: '',
       initialProps: null,
       autoRecord: false,
@@ -401,8 +401,8 @@ export default function TabLayout() {
     </Tabs>
     {captureState.visible && (
       <QuickCaptureSheet
-        key={captureState.instanceKey}
         visible
+        openRequestId={captureState.openRequestId}
         initialValue={captureState.initialValue}
         initialProps={captureState.initialProps ?? undefined}
         autoRecord={captureState.autoRecord}

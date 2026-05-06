@@ -167,4 +167,28 @@ describe('mobile tab quick capture', () => {
     expect(sheets).toHaveLength(1);
     expect(sheets[0]?.props.visible).toBe(true);
   });
+
+  it('increments the open request id without key-remounting the sheet', () => {
+    let tree!: ReturnType<typeof create>;
+
+    act(() => {
+      tree = create(<TabLayout />);
+    });
+
+    act(() => {
+      getAddTaskButton(tree).props.onPress();
+    });
+
+    let sheets = getQuickCaptureSheets(tree);
+    expect(sheets).toHaveLength(1);
+    expect(sheets[0]?.props.openRequestId).toBe(1);
+
+    act(() => {
+      getAddTaskButton(tree).props.onPress();
+    });
+
+    sheets = getQuickCaptureSheets(tree);
+    expect(sheets).toHaveLength(1);
+    expect(sheets[0]?.props.openRequestId).toBe(2);
+  });
 });

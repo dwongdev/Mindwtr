@@ -44,12 +44,14 @@ const logCaptureError = (message: string, error?: unknown) => {
 
 export function QuickCaptureSheet({
   visible,
+  openRequestId,
   onClose,
   initialProps,
   initialValue,
   autoRecord,
 }: {
   visible: boolean;
+  openRequestId?: number;
   onClose: () => void;
   initialProps?: Partial<Task>;
   initialValue?: string;
@@ -190,8 +192,7 @@ export function QuickCaptureSheet({
     return projects.some((project) => project.title.toLowerCase() === query);
   }, [projectQuery, projects]);
 
-  useEffect(() => {
-    if (!visible) return;
+  const resetDraftState = useCallback(() => {
     setValue(initialValue ?? '');
     setDueDate(initialProps?.dueDate ? safeParseDate(initialProps.dueDate) : null);
     setStartTime(initialProps?.startTime ? safeParseDate(initialProps.startTime) : null);
@@ -203,13 +204,28 @@ export function QuickCaptureSheet({
       )
     );
     setContextTags(initialContextTokens);
+    setContextQuery('');
+    setShowContextPicker(false);
     setProjectId(initialProps?.projectId ?? null);
     setSelectedAreaId(initialProps?.projectId ? null : (initialProps?.areaId ?? selectedAreaIdForNewTasks ?? null));
+    setProjectQuery('');
+    setShowProjectPicker(false);
+    setShowAreaPicker(false);
     setPriority((initialProps?.priority as TaskPriority) ?? null);
+    setShowPriorityPicker(false);
+    setShowDatePicker(false);
+    setStartPickerMode(null);
+    setPendingStartDate(null);
+    setAddAnother(false);
+  }, [initialProps, initialValue, selectedAreaIdForNewTasks]);
+
+  useEffect(() => {
+    if (!visible) return;
+    resetDraftState();
     if (autoRecord) return;
     const handle = setTimeout(() => inputRef.current?.focus(), 120);
     return () => clearTimeout(handle);
-  }, [autoRecord, visible, initialProps, initialValue, selectedAreaIdForNewTasks]);
+  }, [autoRecord, openRequestId, resetDraftState, visible]);
 
   useEffect(() => {
     if (prioritiesEnabled) return;
@@ -284,6 +300,7 @@ export function QuickCaptureSheet({
     setShowDatePicker(false);
     setStartPickerMode(null);
     setPendingStartDate(null);
+    setAddAnother(false);
   }, [selectedAreaIdForNewTasks]);
 
   const finalizeClose = useCallback(() => {
