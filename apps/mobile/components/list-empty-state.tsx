@@ -1,5 +1,5 @@
 import React from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
 export interface ListEmptyStateProps {
   message: string;
@@ -8,6 +8,8 @@ export interface ListEmptyStateProps {
   borderColor: string;
   textColor: string;
   mutedTextColor?: string;
+  actionLabel?: string;
+  onAction?: () => void;
 }
 
 export function ListEmptyState({
@@ -17,6 +19,8 @@ export function ListEmptyState({
   borderColor,
   textColor,
   mutedTextColor,
+  actionLabel,
+  onAction,
 }: ListEmptyStateProps) {
   const accessibilityLabel = hint ? `${message}. ${hint}` : message;
   return (
@@ -39,6 +43,18 @@ export function ListEmptyState({
         >
           {hint}
         </Text>
+      ) : null}
+      {actionLabel && onAction ? (
+        <TouchableOpacity
+          style={[styles.action, { borderColor: textColor }]}
+          accessibilityRole="button"
+          accessibilityLabel={actionLabel}
+          onPress={onAction}
+        >
+          <Text style={[styles.actionText, { color: textColor }]}>
+            {actionLabel}
+          </Text>
+        </TouchableOpacity>
       ) : null}
     </View>
   );
@@ -63,5 +79,17 @@ const styles = StyleSheet.create({
     fontWeight: '400',
     textAlign: 'center',
     opacity: 0.8,
+  },
+  action: {
+    marginTop: 16,
+    paddingHorizontal: 16,
+    paddingVertical: 9,
+    borderRadius: 999,
+    borderWidth: 1,
+  },
+  actionText: {
+    fontSize: 13,
+    fontWeight: '700',
+    textAlign: 'center',
   },
 });

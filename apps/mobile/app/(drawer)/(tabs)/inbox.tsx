@@ -10,11 +10,13 @@ import { useLanguage } from '../../../contexts/language-context';
 import { useThemeColors } from '@/hooks/use-theme-colors';
 import { useMobileAreaFilter } from '@/hooks/use-mobile-area-filter';
 import { taskMatchesAreaFilter } from '@/lib/area-filter';
+import { useQuickCapture } from '../../../contexts/quick-capture-context';
 
 export default function InboxScreen() {
   const { tasks, projects, settings } = useTaskStore();
   const { t } = useLanguage();
   const tc = useThemeColors();
+  const { openQuickCapture } = useQuickCapture();
   const [showProcessing, setShowProcessing] = useState(false);
   const { areaById, resolvedAreaFilter } = useMobileAreaFilter();
   const projectById = useMemo(() => new Map(projects.map((project) => [project.id, project])), [projects]);
@@ -32,6 +34,9 @@ export default function InboxScreen() {
   const emptyHint = defaultCaptureMethod === 'audio'
     ? t('inbox.emptyAddHintVoice')
     : t('inbox.emptyAddHint');
+  const emptyActionLabel = defaultCaptureMethod === 'audio'
+    ? t('quickAdd.audioCaptureLabel')
+    : t('nav.addTask');
 
   const processButton = inboxTasks.length > 0 ? (
     <TouchableOpacity
@@ -57,7 +62,10 @@ export default function InboxScreen() {
         showSort={false}
         allowAdd={false}
         showQuickAddHelp={false}
-        emptyText={emptyHint}
+        emptyText={t('inbox.empty')}
+        emptyHint={emptyHint}
+        emptyActionLabel={emptyActionLabel}
+        onEmptyAction={() => openQuickCapture({ autoRecord: defaultCaptureMethod === 'audio' })}
         headerAccessory={processButton}
         defaultEditTab="task"
       />

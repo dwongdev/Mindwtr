@@ -1175,4 +1175,12 @@ export const jaOverrides: Record<string, string> = {
         // English fallbacks keep shipped locale files in key parity.
         'settings.pomodoroLinkTask': 'Link timer to task',
         'settings.pomodoroLinkTaskDesc': 'Show the Timer task picker and Task done action in Focus.',
+        // English fallbacks keep shipped locale files in key parity.
+        'mobileHelp.appShortcuts': 'Long-press the app icon for Add task, Focus, and Calendar shortcuts.',
+        'mobileHelp.gesturesTitle': 'Gestures',
+        'mobileHelp.longPressCapture': 'Long-press + to use the alternate capture mode.',
+        'mobileHelp.shortcutsTitle': 'Shortcuts',
+        'mobileHelp.swipeLeft': 'Swipe left to delete, restore, or send it back.',
+        'mobileHelp.swipeRight': 'Swipe right on a task to move it forward.',
+        'mobileHelp.title': 'Mobile tips',
 };

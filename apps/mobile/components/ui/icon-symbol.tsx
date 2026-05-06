@@ -26,6 +26,7 @@ const MAPPING = {
   'archivebox.fill': 'archive',
   'trash.fill': 'trash',
   'gearshape.fill': 'settings',
+  'questionmark.circle.fill': 'help-circle',
 } as const;
 
 /**

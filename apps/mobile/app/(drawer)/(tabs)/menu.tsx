@@ -1,6 +1,7 @@
-import { View, Text, StyleSheet, Pressable, ScrollView } from 'react-native';
+import { useMemo, useState } from 'react';
+import { Modal, View, Text, StyleSheet, Pressable, ScrollView } from 'react-native';
 import { useRouter } from 'expo-router';
-import { useTaskStore } from '@mindwtr/core';
+import { tFallback, useTaskStore } from '@mindwtr/core';
 
 import { useLanguage } from '../../../contexts/language-context';
 import { useThemeColors } from '@/hooks/use-theme-colors';
@@ -47,6 +48,7 @@ export default function MenuScreen() {
   const { t } = useLanguage();
   const tc = useThemeColors();
   const { settings } = useTaskStore();
+  const [showTips, setShowTips] = useState(false);
 
   const savedSearches = settings?.savedSearches ?? [];
   const iconColors = {
@@ -61,8 +63,18 @@ export default function MenuScreen() {
     archived: '#64748B',
     trash: '#EF4444',
     settings: '#64748B',
+    help: '#0EA5E9',
     saved: '#4F8CF7',
   };
+  const tips = useMemo(() => ({
+    title: tFallback(t, 'mobileHelp.title', 'Mobile tips'),
+    gesturesTitle: tFallback(t, 'mobileHelp.gesturesTitle', 'Gestures'),
+    swipeRight: tFallback(t, 'mobileHelp.swipeRight', 'Swipe right on a task to move it forward.'),
+    swipeLeft: tFallback(t, 'mobileHelp.swipeLeft', 'Swipe left to delete, restore, or send it back.'),
+    longPressCapture: tFallback(t, 'mobileHelp.longPressCapture', 'Long-press + to use the alternate capture mode.'),
+    shortcutsTitle: tFallback(t, 'mobileHelp.shortcutsTitle', 'Shortcuts'),
+    appShortcuts: tFallback(t, 'mobileHelp.appShortcuts', 'Long-press the app icon for Add task, Focus, and Calendar shortcuts.'),
+  }), [t]);
 
   return (
     <ScrollView style={[styles.container, { backgroundColor: tc.bg }]} contentContainerStyle={defaultListContentStyle}>
@@ -78,7 +90,8 @@ export default function MenuScreen() {
         <MenuRow label={t('nav.done')} icon="checkmark.circle.fill" iconColor={iconColors.done} tc={tc} onPress={() => router.push('/done' as never)} />
         <MenuRow label={t('nav.archived')} icon="archivebox.fill" iconColor={iconColors.archived} tc={tc} onPress={() => router.push('/archived')} />
         <MenuRow label={t('nav.trash')} icon="trash.fill" iconColor={iconColors.trash} tc={tc} onPress={() => router.push('/trash')} />
-        <MenuRow label={t('nav.settings')} icon="gearshape.fill" iconColor={iconColors.settings} tc={tc} onPress={() => router.push('/settings')} isLast />
+        <MenuRow label={t('nav.settings')} icon="gearshape.fill" iconColor={iconColors.settings} tc={tc} onPress={() => router.push('/settings')} />
+        <MenuRow label={tips.title} icon="questionmark.circle.fill" iconColor={iconColors.help} tc={tc} onPress={() => setShowTips(true)} isLast />
       </View>
 
       {savedSearches.length > 0 && (
@@ -99,6 +112,37 @@ export default function MenuScreen() {
           </View>
         </>
       )}
+      <Modal
+        visible={showTips}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowTips(false)}
+      >
+        <Pressable style={styles.modalOverlay} onPress={() => setShowTips(false)}>
+          <Pressable
+            style={[styles.tipsCard, { backgroundColor: tc.cardBg, borderColor: tc.border }]}
+            accessibilityRole="summary"
+          >
+            <View style={styles.tipsHeader}>
+              <Text style={[styles.tipsTitle, { color: tc.text }]}>{tips.title}</Text>
+              <Pressable
+                onPress={() => setShowTips(false)}
+                accessibilityRole="button"
+                accessibilityLabel={t('common.close')}
+                hitSlop={10}
+              >
+                <Text style={[styles.closeText, { color: tc.secondaryText }]}>{t('common.close')}</Text>
+              </Pressable>
+            </View>
+            <Text style={[styles.tipsSectionTitle, { color: tc.text }]}>{tips.gesturesTitle}</Text>
+            <Text style={[styles.tipText, { color: tc.secondaryText }]}>{tips.swipeRight}</Text>
+            <Text style={[styles.tipText, { color: tc.secondaryText }]}>{tips.swipeLeft}</Text>
+            <Text style={[styles.tipText, { color: tc.secondaryText }]}>{tips.longPressCapture}</Text>
+            <Text style={[styles.tipsSectionTitle, { color: tc.text }]}>{tips.shortcutsTitle}</Text>
+            <Text style={[styles.tipText, { color: tc.secondaryText }]}>{tips.appShortcuts}</Text>
+          </Pressable>
+        </Pressable>
+      </Modal>
     </ScrollView>
   );
 }
@@ -130,5 +174,42 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '600',
     flexShrink: 1,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.36)',
+    justifyContent: 'center',
+    paddingHorizontal: 24,
+  },
+  tipsCard: {
+    borderRadius: 18,
+    borderWidth: 1,
+    padding: 18,
+  },
+  tipsHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 12,
+    marginBottom: 14,
+  },
+  tipsTitle: {
+    fontSize: 18,
+    fontWeight: '800',
+  },
+  closeText: {
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  tipsSectionTitle: {
+    fontSize: 13,
+    fontWeight: '800',
+    marginTop: 8,
+    marginBottom: 6,
+  },
+  tipText: {
+    fontSize: 14,
+    lineHeight: 20,
+    marginBottom: 7,
   },
 });

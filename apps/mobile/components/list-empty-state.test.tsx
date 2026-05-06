@@ -10,6 +10,8 @@ vi.mock('react-native', () => ({
     React.createElement('div', props, props.children),
   Text: ({ accessibilityRole, accessibilityLiveRegion, ...props }: any) =>
     React.createElement('span', props, props.children),
+  TouchableOpacity: ({ accessibilityRole, accessibilityLabel, onPress, ...props }: any) =>
+    React.createElement('button', { ...props, 'aria-label': accessibilityLabel, onClick: onPress }, props.children),
 }));
 
 describe('ListEmptyState', () => {
@@ -24,5 +26,20 @@ describe('ListEmptyState', () => {
     );
 
     expect(html).toContain('No tasks yet');
+  });
+
+  it('renders an optional empty-state action', () => {
+    const html = renderToStaticMarkup(
+      <ListEmptyState
+        message="No tasks yet"
+        backgroundColor="#111111"
+        borderColor="#222222"
+        textColor="#ffffff"
+        actionLabel="Add task"
+        onAction={vi.fn()}
+      />
+    );
+
+    expect(html).toContain('Add task');
   });
 });
