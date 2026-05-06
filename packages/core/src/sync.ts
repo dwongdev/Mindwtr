@@ -107,6 +107,8 @@ const ATTACHMENT_URI_DECODE_LIMIT = 32;
 const ATTACHMENT_TRAVERSAL_SEGMENT_PATTERN = /(^|[\\/])\.\.([\\/]|$)/;
 const ATTACHMENT_TRAVERSAL_SEGMENT_CACHE_LIMIT = 1024;
 
+let syncCycleMutex: Promise<void> = Promise.resolve();
+
 type ComparisonNormalizer<T> = (item: T) => unknown;
 
 type MergeTimestampInfo = {
@@ -891,7 +893,25 @@ const withPendingRemoteWriteRetry = (data: AppData, nowIso: string, error?: unkn
     };
 };
 
-export async function performSyncCycle(io: SyncCycleIO): Promise<SyncCycleResult> {
+const runWithSyncCycleMutex = async <Result>(operation: () => Promise<Result>): Promise<Result> => {
+    const previous = syncCycleMutex;
+    let release!: () => void;
+    const current = new Promise<void>((resolve) => {
+        release = resolve;
+    });
+    syncCycleMutex = current;
+    await previous.catch(() => undefined);
+    try {
+        return await operation();
+    } finally {
+        release();
+        if (syncCycleMutex === current) {
+            syncCycleMutex = Promise.resolve();
+        }
+    }
+};
+
+async function performSyncCycleUnlocked(io: SyncCycleIO): Promise<SyncCycleResult> {
     const nowIso = io.now ? io.now() : new Date().toISOString();
     const yieldToUi = async () => {
         if (typeof io.yieldToUi === 'function') {
@@ -1103,4 +1123,8 @@ export async function performSyncCycle(io: SyncCycleIO): Promise<SyncCycleResult
         status: nextSyncStatus,
         clockSkewWarning: mergeResult.clockSkewWarning,
     };
+}
+
+export async function performSyncCycle(io: SyncCycleIO): Promise<SyncCycleResult> {
+    return runWithSyncCycleMutex(() => performSyncCycleUnlocked(io));
 }

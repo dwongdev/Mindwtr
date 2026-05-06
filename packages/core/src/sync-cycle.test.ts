@@ -26,6 +26,54 @@ describe('performSyncCycle', () => {
         expect(result.stats.tasks.conflicts).toBe(1);
     });
 
+    it('serializes concurrent sync cycles across the read-write window', async () => {
+        const steps: string[] = [];
+        let releaseFirstWriteLocal!: () => void;
+        let unblockFirstWriteLocal!: () => void;
+        const firstWriteLocalBlock = new Promise<void>((resolve) => {
+            unblockFirstWriteLocal = resolve;
+        });
+        let firstWriteLocalResolved = false;
+        const firstWriteLocalEntered = new Promise<void>((resolve) => {
+            releaseFirstWriteLocal = resolve;
+        });
+
+        const makeIo = (label: 'first' | 'second') => ({
+            readLocal: async () => {
+                steps.push(`${label}:readLocal`);
+                return mockAppData();
+            },
+            readRemote: async () => {
+                steps.push(`${label}:readRemote`);
+                return mockAppData();
+            },
+            writeLocal: async () => {
+                steps.push(`${label}:writeLocal`);
+                if (label === 'first' && !firstWriteLocalResolved) {
+                    firstWriteLocalResolved = true;
+                    releaseFirstWriteLocal();
+                    await firstWriteLocalBlock;
+                }
+            },
+            writeRemote: async () => {
+                steps.push(`${label}:writeRemote`);
+            },
+        });
+
+        const first = performSyncCycle(makeIo('first'));
+        await firstWriteLocalEntered;
+
+        const second = performSyncCycle(makeIo('second'));
+        await Promise.resolve();
+
+        expect(steps).not.toContain('second:readLocal');
+
+        unblockFirstWriteLocal();
+        await Promise.all([first, second]);
+
+        expect(steps.indexOf('second:readLocal')).toBeGreaterThan(steps.lastIndexOf('first:writeLocal'));
+    });
+
     it('returns success when only order-field shape differs', async () => {
         const now = '2026-03-01T00:00:00.000Z';
         const localTask = {
