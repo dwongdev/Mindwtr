@@ -511,6 +511,23 @@ describe('cloud server utils', () => {
         rmSync(sandbox, { recursive: true, force: true });
     });
 
+    test('does not create attachment roots through a symlinked namespace', () => {
+        const sandbox = mkdtempSync(join(tmpdir(), 'mindwtr-cloud-attachment-root-'));
+        const dataDirForTest = join(sandbox, 'data');
+        const outside = join(sandbox, 'outside');
+        const key = 'namespace-key';
+        mkdirSync(dataDirForTest, { recursive: true });
+        mkdirSync(outside, { recursive: true });
+        symlinkSync(outside, join(dataDirForTest, key), 'dir');
+
+        const resolvedPath = __cloudTestUtils.resolveAttachmentPath(dataDirForTest, key, 'folder/file.bin');
+
+        expect(resolvedPath).toBeNull();
+        expect(existsSync(join(outside, 'attachments'))).toBe(false);
+
+        rmSync(sandbox, { recursive: true, force: true });
+    });
+
     test('write lock runner executes each queued write once, even after a failure', async () => {
         const withWriteLock = __cloudTestUtils.createWriteLockRunner();
         let failingCalls = 0;
@@ -1350,7 +1367,7 @@ describe('cloud server api', () => {
         const symlinkedParent = join(attachmentRoot, 'folder');
         symlinkSync(outsideDir, symlinkedParent);
 
-        const putResponse = await fetch(`${baseUrl}/v1/attachments/folder/file.bin`, {
+        const putResponse = await fetch(`${baseUrl}/v1/attachments/folder/nested/file.bin`, {
             method: 'PUT',
             headers: authHeaders,
             body: new TextEncoder().encode('attacker-data'),
@@ -1358,6 +1375,7 @@ describe('cloud server api', () => {
 
         expect(putResponse.status).toBe(400);
         expect(existsSync(join(outsideDir, 'file.bin'))).toBe(false);
+        expect(existsSync(join(outsideDir, 'nested'))).toBe(false);
 
         rmSync(outsideDir, { recursive: true, force: true });
     });

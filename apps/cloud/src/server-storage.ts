@@ -112,6 +112,51 @@ function isPathWithinRoot(pathValue: string, rootPath: string): boolean {
 
 export { isPathWithinRoot };
 
+function isFsErrorWithCode(error: unknown, code: string): boolean {
+    return typeof error === 'object'
+        && error !== null
+        && 'code' in error
+        && (error as { code?: unknown }).code === code;
+}
+
+function ensureDirectoryWithinRoot(rootRealPath: string, targetDir: string): boolean {
+    if (!isPathWithinRoot(targetDir, rootRealPath)) return false;
+    const rel = relative(rootRealPath, targetDir);
+    if (!rel || rel === '.') return true;
+    const segments = rel.split(/[\\/]+/).filter(Boolean);
+    let currentPath = rootRealPath;
+
+    for (const segment of segments) {
+        currentPath = join(currentPath, segment);
+        try {
+            const stat = lstatSync(currentPath);
+            if (stat.isSymbolicLink() || !stat.isDirectory()) return false;
+        } catch (error) {
+            if (!isFsErrorWithCode(error, 'ENOENT')) return false;
+            try {
+                mkdirSync(currentPath, { mode: 0o700 });
+            } catch (mkdirError) {
+                if (!isFsErrorWithCode(mkdirError, 'EEXIST')) return false;
+            }
+            try {
+                const stat = lstatSync(currentPath);
+                if (stat.isSymbolicLink() || !stat.isDirectory()) return false;
+            } catch {
+                return false;
+            }
+        }
+
+        try {
+            const currentRealPath = realpathSync(currentPath);
+            if (!isPathWithinRoot(currentRealPath, rootRealPath)) return false;
+        } catch {
+            return false;
+        }
+    }
+
+    return true;
+}
+
 export function normalizeAttachmentRelativePath(rawPath: string): string | null {
     const decoded = decodeAttachmentPath(rawPath);
     if (!decoded) return null;
@@ -135,9 +180,13 @@ export function resolveAttachmentPath(
 ): { rootRealPath: string; filePath: string } | null {
     const relativePath = normalizeAttachmentRelativePath(rawPath);
     if (!relativePath) return null;
-    const rootDir = resolve(join(dataDir, key, 'attachments'));
-    mkdirSync(rootDir, { recursive: true });
+    const dataRoot = resolve(dataDir);
+    mkdirSync(dataRoot, { recursive: true });
+    const dataRootRealPath = realpathSync(dataRoot);
+    const rootDir = resolve(join(dataRootRealPath, key, 'attachments'));
+    if (!ensureDirectoryWithinRoot(dataRootRealPath, rootDir)) return null;
     const rootRealPath = realpathSync(rootDir);
+    if (!isPathWithinRoot(rootRealPath, dataRootRealPath)) return null;
     const filePath = resolve(join(rootRealPath, relativePath));
     if (!isPathWithinRoot(filePath, rootRealPath)) return null;
     return { rootRealPath, filePath };
@@ -163,11 +212,9 @@ export function pathContainsSymlink(rootRealPath: string, targetPath: string): b
 }
 
 export function writeAttachmentFileSafely(rootRealPath: string, filePath: string, body: Uint8Array): boolean {
-    mkdirSync(dirname(filePath), { recursive: true });
     const parentPath = dirname(filePath);
-    if (pathContainsSymlink(rootRealPath, parentPath)) {
-        return false;
-    }
+    if (!ensureDirectoryWithinRoot(rootRealPath, parentPath)) return false;
+    if (pathContainsSymlink(rootRealPath, parentPath)) return false;
     const parentRealPath = realpathSync(parentPath);
     if (!isPathWithinRoot(parentRealPath, rootRealPath)) {
         return false;

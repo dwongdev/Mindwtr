@@ -316,6 +316,7 @@ export const __cloudTestUtils = {
     readJsonBody,
     resolveServerMergeTimestamp,
     writeData,
+    resolveAttachmentPath,
     normalizeAttachmentRelativePath,
     isPathWithinRoot,
     pathContainsSymlink,
