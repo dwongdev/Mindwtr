@@ -7,6 +7,9 @@ const insecureHttpFallbacks = [
     'settings.syncStatusStale',
     'settings.syncStatusOld',
     'settings.syncStatusNever',
+    'projects.deleted',
+    'projects.deleteFailed',
+    'projects.restoreFailed',
 ] as const;
 
 export const acceptedLocaleFallbacks: Partial<Record<string, readonly string[]>> = {

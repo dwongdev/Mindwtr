@@ -43,7 +43,12 @@ const projectTaskDndMeasuring = {
     },
 } as const;
 
-type ShowToast = (message: string, tone?: 'success' | 'error' | 'info') => void;
+type ShowToast = (
+    message: string,
+    tone?: 'success' | 'error' | 'info',
+    durationMs?: number,
+    action?: { label: string; onClick: () => void }
+) => void;
 
 type ProjectWorkspaceProps = {
     addProject: (
@@ -74,6 +79,7 @@ type ProjectWorkspaceProps = {
         sectionId?: string | null,
     ) => Promise<unknown> | unknown;
     requestConfirmation: (options: ConfirmationRequestOptions) => Promise<boolean>;
+    restoreProject: (projectId: string) => Promise<StoreActionResult | void> | StoreActionResult | void;
     sections: Section[];
     selectedProject: Project | undefined;
     selectedProjectId: string | null;
@@ -82,6 +88,7 @@ type ProjectWorkspaceProps = {
     showToast: ShowToast;
     sortedAreas: Area[];
     t: (key: string) => string;
+    undoNotificationsEnabled: boolean;
     updateProject: (
         projectId: string,
         updates: Partial<Project>,
@@ -117,6 +124,7 @@ export function ProjectWorkspace({
     projects,
     reorderProjectTasks,
     requestConfirmation,
+    restoreProject,
     sections,
     selectedProject,
     selectedProjectId,
@@ -125,6 +133,7 @@ export function ProjectWorkspace({
     showToast,
     sortedAreas,
     t,
+    undoNotificationsEnabled,
     updateProject,
     updateSection,
     updateTask,
@@ -143,6 +152,10 @@ export function ProjectWorkspace({
     const [projectTaskTitle, setProjectTaskTitle] = useState('');
     const [projectDetailsExpanded, setProjectDetailsExpanded] = useState(false);
     const [isProjectDeleting, setIsProjectDeleting] = useState(false);
+    const resolveText = useCallback((key: string, fallback: string) => {
+        const value = t(key);
+        return value && value !== key ? value : fallback;
+    }, [t]);
 
     const {
         handleAddSection,
@@ -619,6 +632,8 @@ export function ProjectWorkspace({
 
     const handleDeleteProject = async () => {
         if (!selectedProject) return;
+        const projectId = selectedProject.id;
+        const projectTitle = selectedProject.title;
         try {
             const confirmed = await requestConfirmation({
                 title: t('common.delete') || 'Delete',
@@ -629,15 +644,33 @@ export function ProjectWorkspace({
             if (confirmed) {
                 setIsProjectDeleting(true);
                 try {
-                    await Promise.resolve(deleteProject(selectedProject.id));
+                    await Promise.resolve(deleteProject(projectId));
                     setSelectedProjectId(null);
+                    if (undoNotificationsEnabled) {
+                        showToast(
+                            resolveText('projects.deleted', 'Project moved to Trash'),
+                            'info',
+                            6000,
+                            {
+                                label: resolveText('common.undo', 'Undo'),
+                                onClick: () => {
+                                    void Promise.resolve(restoreProject(projectId))
+                                        .then(() => setSelectedProjectId(projectId))
+                                        .catch((error) => {
+                                            reportError('Failed to restore project', error);
+                                            showToast(resolveText('projects.restoreFailed', 'Failed to restore project'), 'error');
+                                        });
+                                },
+                            },
+                        );
+                    }
                 } finally {
                     setIsProjectDeleting(false);
                 }
             }
         } catch (error) {
             reportError('Failed to delete project', error);
-            showToast(t('projects.deleteFailed') || 'Failed to delete project', 'error');
+            showToast(resolveText('projects.deleteFailed', `Failed to delete ${projectTitle || 'project'}`), 'error');
             setIsProjectDeleting(false);
         }
     };

@@ -32,7 +32,7 @@ import { AREA_FILTER_ALL, AREA_FILTER_NONE } from '@/lib/area-filter';
 import { openContextsScreen, openProjectScreen } from '@/lib/task-meta-navigation';
 
 export default function ProjectsScreen() {
-  const { projects, tasks, addProject, updateProject, deleteProject, toggleProjectFocus, addArea, updateArea, deleteArea, reorderAreas, updateTask, setHighlightTask } = useTaskStore();
+  const { projects, tasks, addProject, updateProject, deleteProject, restoreProject, toggleProjectFocus, addArea, updateArea, deleteArea, reorderAreas, updateTask, setHighlightTask, settings } = useTaskStore();
   const { t, language } = useLanguage();
   const { showToast } = useToast();
   const tc = useThemeColors();
@@ -77,6 +77,11 @@ export default function ProjectsScreen() {
     if (!error) return;
     void logError(error, { scope: 'project', extra: { message } });
   }, []);
+  const resolveText = useCallback((key: string, fallback: string) => {
+    const value = t(key);
+    return value && value !== key ? value : fallback;
+  }, [t]);
+  const undoNotificationsEnabled = settings?.undoNotificationsEnabled !== false;
   const [showTagFilter, setShowTagFilter] = useState(false);
   const [tagDraft, setTagDraft] = useState('');
   const windowHeight = Dimensions.get('window').height;
@@ -244,6 +249,50 @@ export default function ProjectsScreen() {
     setSelectedProject({ ...selectedProject, tagIds: next });
   };
 
+  const handleDeleteProject = useCallback((projectIdToDelete: string) => {
+    void Promise.resolve(deleteProject(projectIdToDelete))
+      .then(() => {
+        if (selectedProject?.id === projectIdToDelete) {
+          setSelectedProject(null);
+        }
+        if (!undoNotificationsEnabled) return;
+        showToast({
+          title: resolveText('common.notice', 'Notice'),
+          message: resolveText('projects.deleted', 'Project moved to Trash'),
+          tone: 'info',
+          actionLabel: resolveText('common.undo', 'Undo'),
+          onAction: () => {
+            void Promise.resolve(restoreProject(projectIdToDelete))
+              .catch((error) => {
+                logProjectError('Failed to restore project', error);
+                showToast({
+                  title: resolveText('common.notice', 'Notice'),
+                  message: resolveText('projects.restoreFailed', 'Failed to restore project'),
+                  tone: 'error',
+                });
+              });
+          },
+          durationMs: 5200,
+        });
+      })
+      .catch((error) => {
+        logProjectError('Failed to delete project', error);
+        showToast({
+          title: resolveText('common.notice', 'Notice'),
+          message: resolveText('projects.deleteFailed', 'Failed to delete project'),
+          tone: 'error',
+        });
+      });
+  }, [
+    deleteProject,
+    logProjectError,
+    resolveText,
+    restoreProject,
+    selectedProject?.id,
+    showToast,
+    undoNotificationsEnabled,
+  ]);
+
   const renderProjectItem = (project: Project) => {
     return (
       <ProjectRow
@@ -254,7 +303,7 @@ export default function ProjectsScreen() {
         focusedCount={focusedCount}
         statusPalette={statusPalette}
         t={t}
-        onDeleteProject={deleteProject}
+        onDeleteProject={handleDeleteProject}
         onOpenProject={openProject}
         onToggleProjectFocus={toggleProjectFocus}
       />

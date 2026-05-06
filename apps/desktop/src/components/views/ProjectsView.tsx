@@ -82,6 +82,7 @@ export function ProjectsView() {
         addProject,
         updateProject,
         deleteProject,
+        restoreProject,
         duplicateProject,
         updateTask,
         addSection,
@@ -547,6 +548,7 @@ export function ProjectsView() {
                         projects={projects}
                         reorderProjectTasks={reorderProjectTasks}
                         requestConfirmation={requestConfirmation}
+                        restoreProject={restoreProject}
                         sections={sections}
                         selectedProject={selectedProject}
                         selectedProjectId={selectedProjectId}
@@ -555,6 +557,7 @@ export function ProjectsView() {
                         showToast={showToast}
                         sortedAreas={sortedAreas}
                         t={t}
+                        undoNotificationsEnabled={settings?.undoNotificationsEnabled !== false}
                         updateProject={updateProject}
                         updateSection={updateSection}
                         updateTask={updateTask}

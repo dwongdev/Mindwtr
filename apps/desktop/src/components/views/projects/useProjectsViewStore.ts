@@ -16,6 +16,7 @@ export const useProjectsViewStore = () =>
             addProject: state.addProject,
             updateProject: state.updateProject,
             deleteProject: state.deleteProject,
+            restoreProject: state.restoreProject,
             duplicateProject: state.duplicateProject,
             updateTask: state.updateTask,
             addSection: state.addSection,
