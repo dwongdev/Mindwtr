@@ -12,8 +12,8 @@ Client compatibility note:
 
 - Mindwtr Cloud clients require **HTTPS** for public URLs.
 - HTTP is accepted only for local/private targets such as `localhost`, `127.0.0.1`, `10.x.x.x`, `172.16.x.x` through `172.31.x.x`, `192.168.x.x`, loopback/private IPv6 addresses, `*.local`, and `*.home.arpa`.
-- For custom DNS, VPN, Tailscale, ZeroTier, or other trusted-network names that are not detected automatically, enable **Allow insecure connections (HTTP)** in Sync settings. Only use this on trusted networks because data is sent unencrypted.
-- For public access, add TLS at the reverse proxy layer.
+- For custom DNS, VPN, Tailscale, ZeroTier, or other names that are not recognized as local/private, add TLS at the reverse proxy layer.
+- The **Allow insecure connections (HTTP)** setting is for trusted local/private endpoints only; it is not a public HTTP override.
 
 ## Deployment Topology
 
@@ -109,6 +109,8 @@ Operational guidance:
 - Avoid `MINDWTR_CLOUD_ALLOW_ANY_TOKEN=true` for public deployments. It is capped by `MINDWTR_CLOUD_ANY_TOKEN_MAX_NAMESPACES`, but fixed token allowlists are still the production model.
 
 ## Docker Runbook
+
+Start with [[Docker Deployment]] for the supported Compose entry points. This section is the operations checklist for running the same cloud container in production-like environments.
 
 For a local HTTP-only smoke test, use `docker/compose.yaml`.
 

@@ -35,9 +35,9 @@ The easiest way to get started locally is using the `compose.yaml` file included
    - **Self-Hosted URL for local testing:** `http://localhost:8787`
    - **REST API Base URL:** `http://localhost:8787/v1`
 
-This default compose file is HTTP-only and intended for local testing. Mindwtr desktop and mobile clients accept HTTP for local/private targets such as `localhost`, `127.0.0.1`, `10.x.x.x`, `172.16.x.x` through `172.31.x.x`, `192.168.x.x`, loopback/private IPv6 addresses, `*.local`, and `*.home.arpa`.
+This default compose file is HTTP-only and intended for local/private testing. Mindwtr desktop and mobile clients accept HTTP only for recognized local/private targets such as `localhost`, `127.0.0.1`, `10.x.x.x`, `172.16.x.x` through `172.31.x.x`, `192.168.x.x`, loopback/private IPv6 addresses, `*.local`, and `*.home.arpa`.
 
-For public URLs, use HTTPS. For custom DNS, VPN, Tailscale, ZeroTier, or other trusted-network names that are not detected automatically, enable **Allow insecure connections (HTTP)** in Sync settings. Only use this on trusted networks because data is sent unencrypted.
+For public URLs, custom DNS names, VPN hostnames, Tailscale, ZeroTier, or any name that is not recognized as local/private, use HTTPS. The **Allow insecure connections (HTTP)** setting is a compatibility setting for trusted local/private endpoints; it is not a public HTTP override.
 
 ---
 

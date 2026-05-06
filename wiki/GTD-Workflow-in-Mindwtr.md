@@ -21,6 +21,21 @@ Mindwtr maps directly to GTD concepts:
 
 ---
 
+## Patterns
+
+Use these patterns to keep the system light:
+
+- Write next actions as visible physical steps: "Call insurance" beats "Handle insurance."
+- Keep project support material in project notes. Do not flood Focus with future actions that cannot be done yet.
+- Break large tasks into chunks or time boxes, such as "Spend 30 minutes sorting photos."
+- Use contexts for tools, places, energy, and people: `@phone`, `@errands`, `#focused`, `@Alex`.
+- Put delegated work in Waiting For with a follow-up date or person context.
+- Keep the calendar for hard landscape: appointments, deadlines, and time-specific commitments.
+- During Weekly Review, promote future project notes into real next actions when they become available.
+- Choose one next action per project for a lean system, or multiple only when they are truly parallel.
+
+---
+
 ## 1. Capture (Inbox)
 
 ### Quick Capture
@@ -258,6 +273,5 @@ Set up recurring tasks for habits:
 ## See Also
 
 - [[GTD Overview]]
-- [[GTD Best Practices]]
 - [[Contexts and Tags]]
 - [[Weekly Review]]

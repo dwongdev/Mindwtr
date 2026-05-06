@@ -20,7 +20,7 @@
 
 **GTD Methodology**
 * [[GTD Overview]]
-* [[GTD Best Practices]]
+* [[GTD Workflow in Mindwtr]]
 * [[GTD Workflow in Mindwtr]]
 * [[Contexts and Tags]]
 * [[Daily Review]]

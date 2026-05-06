@@ -23,6 +23,7 @@ Release automation and version metadata are centered in:
 ## Standard Release Flow
 
 1. Make sure `main` is in the intended release state and commit any pre-release work first.
+   - If the previous version is already released, put follow-up fixes under `Unreleased` in `CHANGELOG.md` and target the next patch version, for example `v0.9.1` after `v0.9.0`.
 2. Bump the version with:
 
 ```bash

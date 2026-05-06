@@ -1,23 +1,24 @@
 # Deployment Guide
 
-This page links production-oriented deployment docs for each target.
+Use this as a routing page for production-oriented deployment docs. The Docker docs are the entry point for self-hosted backend deployment; the cloud docs are the operations reference.
 
-## Desktop
+## App Targets
 
 - [[Desktop Installation]]
 - [[Web App PWA]]
-
-## Mobile
-
 - [[Mobile Installation]]
 
-## Self-hosted sync/backend
+## Self-Hosted Sync And API
 
-- [[Cloud Sync]]
-- [[Docker Deployment]]
-- [[Local API]]
+- Start here: [[Docker Deployment]]
+- Operations reference: [[Cloud Deployment]]
+- User-facing sync setup: [[Cloud Sync]]
+- REST/API reference: [[Cloud API]] and [[Local API]]
 
-## Release references
+Mindwtr requires HTTPS for public sync/API URLs. HTTP is accepted only for recognized local/private endpoints; use the HTTPS Docker stack for custom hostnames and public access.
 
+## Release References
+
+- [[Release Process]]
 - GitHub releases: https://github.com/dongdongbh/Mindwtr/releases
 - Repository workflows: https://github.com/dongdongbh/Mindwtr/tree/main/.github/workflows

@@ -42,7 +42,7 @@ Mindwtr is **simple by default and powerful when needed**. We focus on reducing 
 
 ### GTD Methodology
 - [[GTD Overview]] — Introduction to Getting Things Done
-- [[GTD Best Practices]] — Master the GTD methodology
+- [[GTD Workflow in Mindwtr]] — Master the GTD methodology
 - [[GTD Workflow in Mindwtr]] — How to implement GTD with this app
 - [[Contexts and Tags]] — Location and energy-based contexts
 - [[Weekly Review]] — Step-by-step review process
