@@ -795,6 +795,27 @@ describe('Sync Logic', () => {
             expect(merged.tasks[0].updatedAt).toBe('2023-01-02T00:03:00.000Z');
         });
 
+        it('uses the later updatedAt for tombstone operation time when it is newer than deletedAt', () => {
+            const deletedTask = {
+                ...createMockTask('1', '2023-01-02T00:02:00.000Z', '2023-01-02T00:00:00.000Z'),
+                rev: 7,
+                revBy: 'device-a',
+            } satisfies Task;
+            const liveTask = {
+                ...createMockTask('1', '2023-01-02T00:01:00.000Z'),
+                rev: 7,
+                revBy: 'device-b',
+            } satisfies Task;
+
+            const forward = mergeAppData(mockAppData([deletedTask]), mockAppData([liveTask]));
+            const reverse = mergeAppData(mockAppData([liveTask]), mockAppData([deletedTask]));
+
+            expect(forward.tasks).toHaveLength(1);
+            expect(forward.tasks[0]).toEqual(reverse.tasks[0]);
+            expect(forward.tasks[0].deletedAt).toBe('2023-01-02T00:00:00.000Z');
+            expect(forward.tasks[0].updatedAt).toBe('2023-01-02T00:02:00.000Z');
+        });
+
         it('uses higher revisions to break ambiguous delete-vs-live conflicts', () => {
             const localTask = {
                 ...createMockTask('1', '2023-01-02T00:00:00.100Z', '2023-01-02T00:00:00.100Z'),
@@ -1473,7 +1494,7 @@ describe('Sync Logic', () => {
             expect(merged.stats.tasks.invalidTimestamps).toBe(1);
         });
 
-        it('uses deletedAt as delete operation time when deciding delete-vs-live beyond skew window', () => {
+        it('uses max(updatedAt, deletedAt) as delete operation time beyond skew window', () => {
             const local = mockAppData([
                 createMockTask('1', '2023-01-02T00:12:00.000Z', '2023-01-02T00:05:00.000Z'),
             ]);
@@ -1484,8 +1505,8 @@ describe('Sync Logic', () => {
             const merged = mergeAppData(local, incoming);
 
             expect(merged.tasks).toHaveLength(1);
-            expect(merged.tasks[0].deletedAt).toBeUndefined();
-            expect(merged.tasks[0].updatedAt).toBe('2023-01-02T00:11:00.000Z');
+            expect(merged.tasks[0].deletedAt).toBe('2023-01-02T00:05:00.000Z');
+            expect(merged.tasks[0].updatedAt).toBe('2023-01-02T00:12:00.000Z');
         });
 
         it('clamps far-future timestamps during merge conflict evaluation', () => {

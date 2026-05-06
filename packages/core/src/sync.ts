@@ -370,7 +370,8 @@ function mergeEntitiesWithStats<T extends MergeableEntity>(
                 return safeUpdatedTime;
             }
 
-            return deletedTimeRaw > maxAllowedMergeTime ? maxAllowedMergeTime : deletedTimeRaw;
+            const safeDeletedTime = deletedTimeRaw > maxAllowedMergeTime ? maxAllowedMergeTime : deletedTimeRaw;
+            return Math.max(safeUpdatedTime, safeDeletedTime);
         };
         let winner = comparableUpdatedTimeDiff > 0 ? normalizedIncomingItem : normalizedLocalItem;
         const preferDeletedCandidate = (left: T, right: T): T => {
