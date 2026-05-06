@@ -18,12 +18,15 @@ import {
     subWeeks,
 } from 'date-fns';
 import {
-    CALENDAR_TIME_ESTIMATE_OPTIONS,
     DEFAULT_CALENDAR_DAY_START_HOUR,
+    addCalendarMinutes,
+    formatCalendarDurationLabel,
+    formatCalendarTimeInputValue,
     findFreeSlotForDay as findCalendarFreeSlotForDay,
     isSlotFreeForDay as isCalendarSlotFreeForDay,
     isTaskInActiveProject,
     minutesToTimeEstimate,
+    normalizeCalendarDurationMinutes,
     safeParseDate,
     safeParseDueDate,
     shallow,
@@ -84,8 +87,8 @@ export const externalCalendarColor = (sourceId: string): string => {
 };
 
 export const formatDateInputValue = (date: Date): string => format(date, 'yyyy-MM-dd');
-export const formatTimeInputValue = (date: Date): string => format(date, 'HH:mm');
-export const addMinutesToDate = (date: Date, minutes: number): Date => new Date(date.getTime() + minutes * 60_000);
+export const formatTimeInputValue = formatCalendarTimeInputValue;
+export const addMinutesToDate = addCalendarMinutes;
 
 export const combineDateAndTime = (dateValue: string, timeValue: string): Date | null => {
     const dateMatch = /^(\d{4})-(\d{2})-(\d{2})$/.exec(dateValue);
@@ -113,17 +116,8 @@ export const combineDateAndTime = (dateValue: string, timeValue: string): Date |
     return date;
 };
 
-export const normalizeDurationMinutes = (minutes: number): number => {
-    const estimate = minutesToTimeEstimate(minutes);
-    return CALENDAR_TIME_ESTIMATE_OPTIONS.find((option) => option.estimate === estimate)?.minutes
-        ?? resolveTimeEstimateToMinutes(estimate);
-};
-
-export const formatDurationLabel = (minutes: number): string => {
-    if (minutes < 60) return `${minutes}m`;
-    const hours = minutes / 60;
-    return Number.isInteger(hours) ? `${hours}h` : `${hours.toFixed(1)}h`;
-};
+export const normalizeDurationMinutes = normalizeCalendarDurationMinutes;
+export const formatDurationLabel = formatCalendarDurationLabel;
 
 const parseCalendarDateParam = (value: string | null): Date | null => {
     if (!value) return null;

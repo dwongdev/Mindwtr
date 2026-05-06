@@ -1,6 +1,16 @@
 import { describe, expect, it } from 'vitest';
 
-import { findFreeSlotForDay, isSlotFreeForDay, minutesToTimeEstimate, timeEstimateToMinutes } from './calendar-scheduling';
+import {
+    addCalendarMinutes,
+    findFreeSlotForDay,
+    formatCalendarDurationLabel,
+    formatCalendarTimeInputValue,
+    isSlotFreeForDay,
+    minutesToTimeEstimate,
+    normalizeCalendarDurationMinutes,
+    parseCalendarTimeOnDate,
+    timeEstimateToMinutes,
+} from './calendar-scheduling';
 import type { ExternalCalendarEvent, Task } from './index';
 
 const task = (overrides: Partial<Task>): Task => ({
@@ -37,6 +47,30 @@ describe('calendar scheduling helpers', () => {
         expect(minutesToTimeEstimate(15)).toBe('15min');
         expect(minutesToTimeEstimate(45)).toBe('1hr');
         expect(minutesToTimeEstimate(241)).toBe('4hr+');
+    });
+
+    it('normalizes arbitrary calendar durations to supported estimate buckets', () => {
+        expect(normalizeCalendarDurationMinutes(44)).toBe(60);
+        expect(normalizeCalendarDurationMinutes(241)).toBe(240);
+    });
+
+    it('formats and parses calendar time inputs on a given day', () => {
+        const base = new Date(2026, 3, 26, 8, 5);
+        expect(formatCalendarTimeInputValue(base)).toBe('08:05');
+        expect(addCalendarMinutes(base, 35).getHours()).toBe(8);
+        expect(addCalendarMinutes(base, 35).getMinutes()).toBe(40);
+
+        const parsed = parseCalendarTimeOnDate(base, '9:30');
+        expect(parsed?.getFullYear()).toBe(2026);
+        expect(parsed?.getHours()).toBe(9);
+        expect(parsed?.getMinutes()).toBe(30);
+        expect(parseCalendarTimeOnDate(base, '24:00')).toBeNull();
+    });
+
+    it('formats duration labels', () => {
+        expect(formatCalendarDurationLabel(30)).toBe('30m');
+        expect(formatCalendarDurationLabel(90)).toBe('1.5h');
+        expect(formatCalendarDurationLabel(120)).toBe('2h');
     });
 
     it('finds the first open slot around external events and scheduled tasks', () => {

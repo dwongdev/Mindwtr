@@ -73,6 +73,38 @@ export function minutesToTimeEstimate(minutes: number): TimeEstimate {
     return nextLargest?.estimate ?? '4hr+';
 }
 
+export function normalizeCalendarDurationMinutes(minutes: number): number {
+    const estimate = minutesToTimeEstimate(minutes);
+    return CALENDAR_TIME_ESTIMATE_OPTIONS.find((option) => option.estimate === estimate)?.minutes
+        ?? timeEstimateToMinutes(estimate);
+}
+
+export function addCalendarMinutes(date: Date, minutes: number): Date {
+    return new Date(date.getTime() + minutes * 60_000);
+}
+
+export function formatCalendarTimeInputValue(date: Date): string {
+    return `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
+}
+
+export function parseCalendarTimeOnDate(date: Date, value: string): Date | null {
+    const match = /^(\d{1,2}):(\d{2})$/.exec(value.trim());
+    if (!match) return null;
+    const hours = Number(match[1]);
+    const minutes = Number(match[2]);
+    if (!Number.isInteger(hours) || !Number.isInteger(minutes)) return null;
+    if (hours < 0 || hours > 23 || minutes < 0 || minutes > 59) return null;
+    const next = new Date(date);
+    next.setHours(hours, minutes, 0, 0);
+    return next;
+}
+
+export function formatCalendarDurationLabel(minutes: number): string {
+    if (minutes < 60) return `${minutes}m`;
+    const hours = minutes / 60;
+    return Number.isInteger(hours) ? `${hours}h` : `${hours.toFixed(1)}h`;
+}
+
 const ceilToMinutes = (date: Date, stepMinutes: number): Date => {
     const stepMs = stepMinutes * 60 * 1000;
     return new Date(Math.ceil(date.getTime() / stepMs) * stepMs);

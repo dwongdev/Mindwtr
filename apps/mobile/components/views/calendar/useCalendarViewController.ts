@@ -1,14 +1,17 @@
 import { Alert } from 'react-native';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
-  CALENDAR_TIME_ESTIMATE_OPTIONS,
   DEFAULT_CALENDAR_DAY_END_HOUR,
   DEFAULT_CALENDAR_DAY_START_HOUR,
+  addCalendarMinutes,
+  formatCalendarTimeInputValue,
   normalizeDateFormatSetting,
   resolveDateLocaleTag,
   findFreeSlotForDay as findCalendarFreeSlotForDay,
   isSlotFreeForDay as isCalendarSlotFreeForDay,
   minutesToTimeEstimate,
+  normalizeCalendarDurationMinutes,
+  parseCalendarTimeOnDate,
   safeFormatDate,
   safeParseDate,
   safeParseDueDate,
@@ -98,23 +101,9 @@ const sourceColorForId = (sourceId: string): string => {
   return color;
 };
 
-const addMinutesToDate = (date: Date, minutes: number): Date => new Date(date.getTime() + minutes * 60 * 1000);
-
-const formatTimeInputValue = (date: Date): string => (
-  `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`
-);
-
-const parseTimeOnDate = (date: Date, value: string): Date | null => {
-  const match = /^(\d{1,2}):(\d{2})$/.exec(value.trim());
-  if (!match) return null;
-  const hours = Number(match[1]);
-  const minutes = Number(match[2]);
-  if (!Number.isInteger(hours) || !Number.isInteger(minutes)) return null;
-  if (hours < 0 || hours > 23 || minutes < 0 || minutes > 59) return null;
-  const next = new Date(date);
-  next.setHours(hours, minutes, 0, 0);
-  return next;
-};
+const addMinutesToDate = addCalendarMinutes;
+const formatTimeInputValue = formatCalendarTimeInputValue;
+const parseTimeOnDate = parseCalendarTimeOnDate;
 
 const calendarDateKey = (date: Date): string => (
   `${date.getFullYear()}-${date.getMonth()}-${date.getDate()}`
@@ -130,11 +119,7 @@ const addMapItem = <T,>(map: Map<string, T[]>, date: Date, item: T) => {
   map.set(key, [item]);
 };
 
-const normalizeDurationMinutes = (minutes: number): number => {
-  const estimate = minutesToTimeEstimate(minutes);
-  return CALENDAR_TIME_ESTIMATE_OPTIONS.find((option) => option.estimate === estimate)?.minutes
-    ?? resolveTimeEstimateToMinutes(estimate);
-};
+const normalizeDurationMinutes = normalizeCalendarDurationMinutes;
 
 export function useCalendarViewController() {
   const { tasks, projects, addTask, updateTask, deleteTask, updateSettings, settings } = useTaskStore();
