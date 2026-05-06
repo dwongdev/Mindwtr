@@ -453,7 +453,7 @@ export function Layout({ children, currentView, onViewChange }: LayoutProps) {
                     {!isCollapsed && (
                         <>
                             <span className="flex-1 text-left">{t('search.placeholder') || 'Search...'}</span>
-                            <span className="text-xs opacity-50">{searchShortcutHint}</span>
+                            <span className="text-xs text-muted-foreground">{searchShortcutHint}</span>
                         </>
                     )}
                 </button>
@@ -473,7 +473,7 @@ export function Layout({ children, currentView, onViewChange }: LayoutProps) {
                                     className={cn(
                                         "w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:ring-inset",
                                         currentView === `savedSearch:${search.id}`
-                                            ? "bg-primary/10 text-primary"
+                                            ? "bg-primary/5 text-primary"
                                             : "hover:bg-accent text-muted-foreground",
                                         isCollapsed && "justify-center px-2"
                                     )}
@@ -519,7 +519,7 @@ export function Layout({ children, currentView, onViewChange }: LayoutProps) {
                                         className={cn(
                                             "w-full flex items-center rounded-lg text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:ring-inset",
                                             currentView === item.id
-                                                ? "bg-primary/10 text-primary"
+                                                ? "bg-primary/5 text-primary"
                                                 : "hover:bg-accent text-muted-foreground",
                                             isCollapsed ? "justify-center px-2 py-2.5" : "justify-between px-3 py-2.5"
                                         )}
@@ -570,7 +570,7 @@ export function Layout({ children, currentView, onViewChange }: LayoutProps) {
                                 "w-full rounded-md border transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:ring-inset text-xs font-medium h-9 px-3 flex items-center",
                                 isCollapsed ? "justify-center" : "justify-between",
                                 currentView === 'settings'
-                                    ? "border-primary/50 bg-primary/10 text-primary"
+                                    ? "border-primary/50 bg-primary/5 text-primary"
                                     : "border-border bg-muted/40 hover:bg-accent text-muted-foreground"
                             )}
                             aria-current={currentView === 'settings' ? 'page' : undefined}
@@ -590,7 +590,7 @@ export function Layout({ children, currentView, onViewChange }: LayoutProps) {
                                 >
                                     <SyncStatusIcon className={cn("w-3.5 h-3.5", syncStatusLabelClass, syncStatus.inFlight && "animate-spin")} />
                                     <span className={cn("font-medium", syncStatusLabelClass)}>{syncStatusLabel}</span>
-                                    <span className="text-muted-foreground/80">{compactSyncTimeLabel}</span>
+                                    <span className="text-muted-foreground">{compactSyncTimeLabel}</span>
                                     <span
                                         className={cn("w-2 h-2 rounded-full shrink-0", syncFreshnessDotClass)}
                                         title={syncTooltip}
