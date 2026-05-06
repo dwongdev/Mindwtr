@@ -7,6 +7,8 @@ const insecureHttpFallbacks = [
     'settings.syncStatusStale',
     'settings.syncStatusOld',
     'settings.syncStatusNever',
+    'settings.syncingAccessibility',
+    'settings.syncIssueAccessibility',
     'projects.deleted',
     'projects.deleteFailed',
     'projects.restoreFailed',

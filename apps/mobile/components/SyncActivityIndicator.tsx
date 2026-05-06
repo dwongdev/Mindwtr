@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useTaskStore } from '@mindwtr/core';
+import { tFallback, useTaskStore } from '@mindwtr/core';
 
 import { useLanguage } from '../contexts/language-context';
 import { useThemeColors } from '../hooks/use-theme-colors';
@@ -12,7 +12,7 @@ export function SyncActivityIndicator() {
     const router = useRouter();
     const insets = useSafeAreaInsets();
     const tc = useThemeColors();
-    const { language } = useLanguage();
+    const { t } = useLanguage();
     const pendingRemoteWriteAt = useTaskStore((state) => state.settings?.pendingRemoteWriteAt);
     const lastSyncStatus = useTaskStore((state) => state.settings?.lastSyncStatus);
     const lastSyncError = useTaskStore((state) => state.settings?.lastSyncError);
@@ -23,22 +23,25 @@ export function SyncActivityIndicator() {
     }, []);
 
     const copy = useMemo(() => {
-        const isChinese = language === 'zh' || language === 'zh-Hant';
         if (lastSyncStatus === 'error') {
             return {
-                label: isChinese ? '同步异常' : 'Sync issue',
-                accessibilityLabel: isChinese
-                    ? '同步出现问题。点按可打开设置查看同步详情。'
-                    : 'Sync needs attention. Tap to open settings for sync details.',
+                label: tFallback(t, 'settings.lastSyncError', 'Sync failed'),
+                accessibilityLabel: tFallback(
+                    t,
+                    'settings.syncIssueAccessibility',
+                    'Sync needs attention. Tap to open settings for sync details.'
+                ),
             };
         }
         return {
-            label: isChinese ? '同步中' : 'Syncing',
-            accessibilityLabel: isChinese
-                ? '同步进行中。点按可打开设置查看同步详情。'
-                : 'Sync in progress. Tap to open settings for sync details.',
+            label: tFallback(t, 'settings.syncing', 'Syncing'),
+            accessibilityLabel: tFallback(
+                t,
+                'settings.syncingAccessibility',
+                'Sync in progress. Tap to open settings for sync details.'
+            ),
         };
-    }, [language, lastSyncStatus]);
+    }, [lastSyncStatus, t]);
 
     const hasSyncError = lastSyncStatus === 'error';
     if (activityState !== 'syncing' && !pendingRemoteWriteAt && !hasSyncError) {

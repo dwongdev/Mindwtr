@@ -671,6 +671,8 @@ export const zhHant: Record<string, string> = {
         'settings.syncFailureGeneric': '請檢查「設定 → 同步」後再試。',
         'settings.syncSkippedOffline': '當前無網絡連接，已跳過同步。',
         'settings.syncQueuedBody': '同步期間檢測到本地更改，已自動重新排隊重試。',
+        'settings.syncingAccessibility': '同步進行中。點按可打開設定查看同步詳情。',
+        'settings.syncIssueAccessibility': '同步需要處理。點按可打開設定查看同步詳情。',
         'settings.syncCompleted': '同步完成！',
         'settings.syncCompletedWithConflicts': '同步完成，發現 {count} 個衝突（已自動處理）。',
         'settings.syncClockSkewWarning': '檢測到較大的設備時鐘偏差（{skew}）。請檢查各設備的時間設定。',

@@ -667,6 +667,8 @@ export const zhHans: Record<string, string> = {
         'settings.syncFailureGeneric': '请检查“设置 → 同步”后重试。',
         'settings.syncSkippedOffline': '当前无网络连接，已跳过同步。',
         'settings.syncQueuedBody': '同步期间检测到本地更改，已自动重新排队重试。',
+        'settings.syncingAccessibility': '同步进行中。点按可打开设置查看同步详情。',
+        'settings.syncIssueAccessibility': '同步需要处理。点按可打开设置查看同步详情。',
         'settings.syncCompleted': '同步完成！',
         'settings.syncCompletedWithConflicts': '同步完成，发现 {count} 个冲突（已自动处理）。',
         'settings.syncClockSkewWarning': '检测到较大的设备时钟偏差（{skew}）。请检查各设备的时间设置。',

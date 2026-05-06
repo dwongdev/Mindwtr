@@ -728,6 +728,8 @@ export const en: Record<string, string> = {
         'settings.syncBadgeSyncing': 'Sync in progress',
         'settings.syncBadgeHealthy': 'Sync healthy',
         'settings.syncBadgeWarning': 'Sync needs attention',
+        'settings.syncingAccessibility': 'Sync in progress. Tap to open settings for sync details.',
+        'settings.syncIssueAccessibility': 'Sync needs attention. Tap to open settings for sync details.',
         'settings.syncFailureOffline': 'Check your internet connection and try again.',
         'settings.syncFailureAuth': 'Re-authenticate or review your sync credentials in Settings → Sync.',
         'settings.syncFailurePermission': 'Re-select the sync file or folder, or grant access again in Settings → Sync.',
