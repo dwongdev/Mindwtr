@@ -5,6 +5,7 @@ import {
     type ConflictReason,
     type EntityMergeStats,
     type MergeResult,
+    type MergeStats,
     type SyncCycleIO,
     type SyncCycleResult,
     type SyncHistoryEntry,
@@ -73,6 +74,18 @@ export const appendSyncHistory = (
         });
     }
     return next.slice(0, Math.max(1, limit));
+};
+
+const buildSyncHistoryDetails = (stats: MergeStats): string | undefined => {
+    const deleteVsLiveConflicts = [
+        stats.tasks,
+        stats.projects,
+        stats.sections,
+        stats.areas,
+    ].reduce((total, entityStats) => total + (entityStats.conflictReasonCounts?.deleteState ?? 0), 0);
+    if (deleteVsLiveConflicts <= 0) return undefined;
+    const itemLabel = deleteVsLiveConflicts === 1 ? 'item' : 'items';
+    return `Delete-vs-live conflict on ${deleteVsLiveConflicts} ${itemLabel}; live edits can be preserved when delete and edit times are ambiguous.`;
 };
 
 function createEmptyEntityStats(localTotal: number, incomingTotal: number): EntityMergeStats {
@@ -1021,7 +1034,7 @@ async function performSyncCycleUnlocked(io: SyncCycleIO): Promise<SyncCycleResul
         conflictIds,
         maxClockSkewMs,
         timestampAdjustments,
-        details: io.historyContext?.details,
+        details: io.historyContext?.details ?? buildSyncHistoryDetails(mergeResult.stats),
     };
     const nextHistory = appendSyncHistory(mergeResult.data.settings, historyEntry);
     const nextMergedData: AppData = {

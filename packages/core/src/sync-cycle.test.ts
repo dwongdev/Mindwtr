@@ -170,6 +170,9 @@ describe('performSyncCycle', () => {
         expect(result.data.tasks[0].deletedAt).toBeUndefined();
         expect(wroteLocal?.tasks[0]?.deletedAt).toBeUndefined();
         expect(wroteRemote?.tasks[0]?.deletedAt).toBeUndefined();
+        expect(result.data.settings.lastSyncHistory?.[0]?.details).toBe(
+            'Delete-vs-live conflict on 1 item; live edits can be preserved when delete and edit times are ambiguous.'
+        );
     });
 
     it('does not surface a clock skew warning for normal timestamp drift', async () => {
