@@ -76,10 +76,6 @@ vi.mock('@/components/mobile-header-sync-bar', () => ({
   MobileHeaderSyncBar: () => React.createElement('MobileHeaderSyncBar'),
 }));
 
-vi.mock('@/components/SyncActivityIndicator', () => ({
-  SyncActivityIndicator: () => React.createElement('SyncActivityIndicator'),
-}));
-
 vi.mock('@/components/quick-capture-sheet', () => ({
   QuickCaptureSheet: (props: any) => React.createElement('QuickCaptureSheet', props),
 }));
