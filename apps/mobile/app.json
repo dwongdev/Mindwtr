@@ -19,7 +19,13 @@
         "NSAppTransportSecurity": {
           "NSAllowsLocalNetworking": true
         },
-        "UIFileSharingEnabled": true
+        "UIFileSharingEnabled": true,
+        "UIBackgroundModes": [
+          "processing"
+        ],
+        "BGTaskSchedulerPermittedIdentifiers": [
+          "com.expo.modules.backgroundtask.processing"
+        ]
       },
       "buildNumber": "4"
     },

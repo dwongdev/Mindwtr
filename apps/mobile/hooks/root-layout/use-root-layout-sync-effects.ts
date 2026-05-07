@@ -8,6 +8,7 @@ import type { ToastOptions } from '@/contexts/toast-context';
 import { getNotificationPermissionStatus, startMobileNotifications, stopMobileNotifications } from '@/lib/notification-service';
 import { getCalendarPushEnabled, runFullCalendarSync, startCalendarPushSync, stopCalendarPushSync } from '@/lib/calendar-push-sync';
 import { abortMobileSync, performMobileSync } from '@/lib/sync-service';
+import { syncMobileBackgroundSyncRegistration } from '@/lib/background-sync-task';
 import { classifySyncFailure, coerceSupportedBackend, isLikelyOfflineSyncError, resolveBackend, type SyncBackend } from '@/lib/sync-service-utils';
 import { SYNC_BACKEND_KEY } from '@/lib/sync-constants';
 import { isCloudKitAvailable, subscribeToCloudKitChanges } from '@/lib/cloudkit-sync';
@@ -109,6 +110,10 @@ const supportsNativeICloudSync = (): boolean =>
 
 const logAppError = (error: unknown) => {
     void logError(error, { scope: 'app' });
+};
+
+const reconcileBackgroundSyncTask = () => {
+    void syncMobileBackgroundSyncRegistration().catch(logAppError);
 };
 
 export function useRootLayoutSyncEffects({
@@ -269,6 +274,7 @@ export function useRootLayoutSyncEffects({
 
     useEffect(() => {
         void refreshSyncCadence().catch(logAppError);
+        reconcileBackgroundSyncTask();
         const unsubscribe = useTaskStore.subscribe((state, prevState) => {
             if (state.lastDataChangeAt === prevState.lastDataChangeAt) return;
             const cadence = syncCadenceRef.current;
@@ -301,6 +307,7 @@ export function useRootLayoutSyncEffects({
             const wasInactiveOrBackground = previousState === 'inactive' || previousState === 'background';
             const nextInactiveOrBackground = nextAppState === 'inactive' || nextAppState === 'background';
             if (wasInactiveOrBackground && nextAppState === 'active') {
+                reconcileBackgroundSyncTask();
                 if (backgroundSyncPending.current) {
                     backgroundSyncPending.current = false;
                     requestSync(0);
@@ -351,6 +358,7 @@ export function useRootLayoutSyncEffects({
                 }
             }
             if (previousState === 'active' && nextInactiveOrBackground) {
+                reconcileBackgroundSyncTask();
                 if (syncDebounceTimer.current) {
                     clearTimeout(syncDebounceTimer.current);
                     syncDebounceTimer.current = null;

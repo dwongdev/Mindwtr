@@ -8,7 +8,7 @@ import { readSyncFile, resolveSyncFileUri, writeSyncFile } from './storage-file'
 import { resolveSyncPathBookmark } from './sync-path-bookmarks';
 import { getBaseSyncUrl, getCloudBaseUrl, syncCloudAttachments, syncDropboxAttachments, syncFileAttachments, syncWebdavAttachments, cleanupAttachmentTempFiles } from './attachment-sync';
 import { getExternalCalendars, saveExternalCalendars } from './external-calendar';
-import { forceRefreshDropboxAccessToken, getValidDropboxAccessToken } from './dropbox-auth';
+import { forceRefreshDropboxAccessToken, getValidDropboxAccessToken, isDropboxConnected } from './dropbox-auth';
 import {
   DropboxConflictError,
   DropboxUnauthorizedError,
@@ -243,9 +243,10 @@ export async function getMobileSyncConfigurationStatus(): Promise<{ backend: Syn
 
   const cloudProvider = resolveCloudProvider((await readConfigValue(CLOUD_PROVIDER_KEY, false))?.trim() ?? null);
   if (cloudProvider === CLOUD_PROVIDER_DROPBOX) {
+    const dropboxConnected = await isDropboxConnected().catch(() => false);
     return {
       backend,
-      configured: DROPBOX_SYNC_ENABLED && getDropboxAppKey().length > 0,
+      configured: DROPBOX_SYNC_ENABLED && getDropboxAppKey().length > 0 && dropboxConnected,
     };
   }
 

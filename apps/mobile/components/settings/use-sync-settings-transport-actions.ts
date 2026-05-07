@@ -24,6 +24,7 @@ import {
     isDropboxConnected,
 } from '@/lib/dropbox-auth';
 import { performMobileSync } from '@/lib/sync-service';
+import { syncMobileBackgroundSyncRegistration } from '@/lib/background-sync-task';
 import { getMobileCloudRequestOptions, getMobileWebDavRequestOptions } from '@/lib/webdav-request-options';
 import {
     getSyncConflictCount,
@@ -64,6 +65,10 @@ type SyncActionOptions = {
 };
 
 const serializeBool = (value: boolean): string => (value ? 'true' : 'false');
+
+const reconcileBackgroundSyncRegistration = () => {
+    void syncMobileBackgroundSyncRegistration().catch(logSettingsError);
+};
 
 const isManualInsecureOverride = (url: string, allowInsecureHttp: boolean): boolean => {
     if (!allowInsecureHttp) return false;
@@ -256,6 +261,7 @@ export function useSyncSettingsTransportActions({
             if (!supportsNativeICloudSync && storedCloudProvider === 'cloudkit') {
                 AsyncStorage.setItem(CLOUD_PROVIDER_KEY, 'selfhosted').catch(logSettingsError);
             }
+            reconcileBackgroundSyncRegistration();
         }).catch(logSettingsError);
 
         return () => {
@@ -306,7 +312,9 @@ export function useSyncSettingsTransportActions({
         const nextBackend = backend === 'cloud'
             ? (cloudProvider === 'cloudkit' ? 'cloudkit' : 'cloud')
             : backend;
-        AsyncStorage.setItem(SYNC_BACKEND_KEY, nextBackend).catch(logSettingsError);
+        AsyncStorage.setItem(SYNC_BACKEND_KEY, nextBackend)
+            .then(reconcileBackgroundSyncRegistration)
+            .catch(logSettingsError);
         addBreadcrumb(`settings:syncBackend:${nextBackend}`);
         setSyncBackend(nextBackend);
         resetSyncStatusForBackendSwitch();
@@ -322,7 +330,7 @@ export function useSyncSettingsTransportActions({
         AsyncStorage.multiSet([
             [CLOUD_PROVIDER_KEY, provider],
             [SYNC_BACKEND_KEY, nextBackend],
-        ]).catch(logSettingsError);
+        ]).then(reconcileBackgroundSyncRegistration).catch(logSettingsError);
         resetSyncStatusForBackendSwitch();
     }, [dropboxConfigured, resetSyncStatusForBackendSwitch, supportsNativeICloudSync]);
 
@@ -346,6 +354,7 @@ export function useSyncSettingsTransportActions({
             addBreadcrumb('settings:syncBackend:file');
             setSyncBackend('file');
             resetSyncStatusForBackendSwitch();
+            reconcileBackgroundSyncRegistration();
             showToast({
                 title: localize('Success', '成功'),
                 message: localize('Sync folder set successfully', '同步文件夹已设置'),
@@ -433,6 +442,7 @@ export function useSyncSettingsTransportActions({
             setSyncBackend('cloud');
             setDropboxConnected(true);
             resetSyncStatusForBackendSwitch();
+            reconcileBackgroundSyncRegistration();
             showToast({
                 title: localize('Success', '成功'),
                 message: localize('Connected to Dropbox.', '已连接 Dropbox。'),
@@ -474,6 +484,7 @@ export function useSyncSettingsTransportActions({
             await disconnectDropbox(dropboxAppKey);
             setDropboxConnected(false);
             resetSyncStatusForBackendSwitch();
+            reconcileBackgroundSyncRegistration();
             showToast({
                 title: localize('Disconnected', '已断开'),
                 message: localize('Dropbox connection removed.', '已移除 Dropbox 连接。'),
@@ -558,6 +569,7 @@ export function useSyncSettingsTransportActions({
             setWebdavAllowInsecureHttp(nextSettings.allowInsecureHttp);
             setSyncBackend('webdav');
             resetSyncStatusForBackendSwitch();
+            reconcileBackgroundSyncRegistration();
             showToast({
                 title: localize('Success', '成功'),
                 message: t('settings.webdavSave'),
@@ -597,6 +609,7 @@ export function useSyncSettingsTransportActions({
             setCloudProvider('selfhosted');
             setSyncBackend('cloud');
             resetSyncStatusForBackendSwitch();
+            reconcileBackgroundSyncRegistration();
             showToast({
                 title: localize('Success', '成功'),
                 message: t('settings.cloudSave'),
@@ -727,6 +740,7 @@ export function useSyncSettingsTransportActions({
             }
 
             resetSyncStatusForBackendSwitch();
+            reconcileBackgroundSyncRegistration();
             const result = await performMobileSync(effectiveBackend === 'file' ? syncPath || undefined : undefined);
             if (result.skipped === 'offline' || isLikelyOfflineSyncError(result.error)) {
                 showToast({

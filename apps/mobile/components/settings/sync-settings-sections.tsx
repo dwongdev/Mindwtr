@@ -76,6 +76,41 @@ export function SyncLastStatusCard({
   );
 }
 
+type BackgroundSyncInfoCardProps = {
+  isRemoteBackend: boolean;
+  localize: Localize;
+  tc: ThemeColors;
+};
+
+export function BackgroundSyncInfoCard({
+  isRemoteBackend,
+  localize,
+  tc,
+}: BackgroundSyncInfoCardProps) {
+  return (
+    <View style={[styles.settingCard, { backgroundColor: tc.cardBg, marginTop: 16 }]}>
+      <View style={styles.settingRow}>
+        <View style={styles.settingInfo}>
+          <Text style={[styles.settingLabel, { color: tc.text }]}>
+            {localize('Background sync', '后台同步')}
+          </Text>
+          <Text style={[styles.settingDescription, { color: tc.secondaryText }]}>
+            {isRemoteBackend
+              ? localize(
+                'Mindwtr asks the system to sync about every 15 minutes when network and battery conditions allow. iOS may wait longer; Android battery optimization can delay background work.',
+                'Mindwtr 会在网络和电量条件允许时请求系统约每 15 分钟同步一次。iOS 可能等待更久；Android 电池优化可能延迟后台任务。'
+              )
+              : localize(
+                'Scheduled background sync is available for WebDAV, self-hosted cloud, Dropbox, and iCloud. File sync still runs from foreground and manual sync.',
+                '定时后台同步适用于 WebDAV、自托管云端、Dropbox 和 iCloud。文件同步仍通过前台和手动同步运行。'
+              )}
+          </Text>
+        </View>
+      </View>
+    </View>
+  );
+}
+
 type SyncBackupSectionProps = {
   backupAction: null | 'export' | 'restore' | 'import' | 'snapshot';
   handleBackup: () => void;

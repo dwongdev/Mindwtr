@@ -33,6 +33,7 @@ import { SyncCloudKitBackendPanel } from './sync-settings-cloudkit-panel';
 import { SyncDropboxBackendPanel } from './sync-settings-dropbox-panel';
 import { SyncFileBackendPanel } from './sync-settings-file-panel';
 import {
+    BackgroundSyncInfoCard,
     RecoverySnapshotsCard,
     SyncBackupSection,
     SyncDiagnosticsCard,
@@ -338,6 +339,7 @@ function SyncSettingsView({ mode }: { mode: SettingsScreenMode }) {
         supportsNativeICloudSync,
         t,
     });
+    const isScheduledBackgroundSyncBackend = syncBackend === 'webdav' || syncBackend === 'cloud' || syncBackend === 'cloudkit';
     const cloudKitStatusDetails = getCloudKitStatusDetails(cloudKitAccountStatus);
     const isCloudSyncSelected = syncBackend === 'cloud' || syncBackend === 'cloudkit';
     const dataLabel = React.useMemo(() => {
@@ -590,6 +592,12 @@ function SyncSettingsView({ mode }: { mode: SettingsScreenMode }) {
                             tc={tc}
                             toggleSyncOptionsOpen={() => setSyncOptionsOpen((prev) => !prev)}
                             updateSyncPreferences={updateSyncPreferences}
+                        />
+
+                        <BackgroundSyncInfoCard
+                            isRemoteBackend={isScheduledBackgroundSyncBackend}
+                            localize={localize}
+                            tc={tc}
                         />
 
                         <RecoverySnapshotsCard

@@ -201,6 +201,11 @@ export function SyncStatusSection({
                     </div>
                 )}
 
+                <div className="pt-2 text-xs text-muted-foreground">
+                    <div className="font-medium text-foreground">{t.backgroundSync}</div>
+                    <p>{t.backgroundSyncDesc}</p>
+                </div>
+
                 <div className="pt-3 text-xs text-muted-foreground space-y-1">
                     <div>
                         {t.lastSync}: {lastSyncDisplay}

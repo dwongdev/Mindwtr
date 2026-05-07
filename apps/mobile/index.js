@@ -1,4 +1,5 @@
 require('./polyfills');
+require('./lib/background-sync-task');
 const startupProfiler = require('./lib/startup-profiler');
 startupProfiler?.markStartupPhase?.('js.index.polyfills_loaded');
 const skipWidgetHandlerInit = process.env.EXPO_PUBLIC_SKIP_WIDGET_HANDLER_INIT === '1';

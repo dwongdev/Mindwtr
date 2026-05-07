@@ -40,6 +40,7 @@ const mocked = vi.hoisted(() => ({
             : `${trimmed}/data.json`;
     }),
     resetSyncStatusForBackendSwitch: vi.fn(),
+    syncMobileBackgroundSyncRegistration: vi.fn(),
     showSettingsErrorToast: vi.fn(),
     showSettingsWarning: vi.fn(),
     showToast: vi.fn(),
@@ -83,6 +84,10 @@ vi.mock('@/lib/dropbox-auth', () => ({
 
 vi.mock('@/lib/sync-service', () => ({
     performMobileSync: vi.fn(),
+}));
+
+vi.mock('@/lib/background-sync-task', () => ({
+    syncMobileBackgroundSyncRegistration: mocked.syncMobileBackgroundSyncRegistration,
 }));
 
 vi.mock('@/lib/sync-service-utils', () => ({
@@ -163,6 +168,8 @@ beforeEach(() => {
     mocked.cloudGetJson.mockReset();
     mocked.normalizeWebdavUrl.mockClear();
     mocked.resetSyncStatusForBackendSwitch.mockReset();
+    mocked.syncMobileBackgroundSyncRegistration.mockReset();
+    mocked.syncMobileBackgroundSyncRegistration.mockResolvedValue({ action: 'unchanged' });
     mocked.showSettingsErrorToast.mockReset();
     mocked.showSettingsWarning.mockReset();
     mocked.showToast.mockReset();

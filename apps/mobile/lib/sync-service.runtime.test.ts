@@ -50,6 +50,7 @@ const externalCalendarMocks = vi.hoisted(() => ({
 const dropboxAuthMocks = vi.hoisted(() => ({
   forceRefreshDropboxAccessToken: vi.fn(),
   getValidDropboxAccessToken: vi.fn(),
+  isDropboxConnected: vi.fn(),
 }));
 
 const dropboxSyncMocks = vi.hoisted(() => ({
@@ -153,6 +154,7 @@ vi.mock('./external-calendar', () => ({
 vi.mock('./dropbox-auth', () => ({
   forceRefreshDropboxAccessToken: dropboxAuthMocks.forceRefreshDropboxAccessToken,
   getValidDropboxAccessToken: dropboxAuthMocks.getValidDropboxAccessToken,
+  isDropboxConnected: dropboxAuthMocks.isDropboxConnected,
 }));
 
 vi.mock('./dropbox-sync', () => ({
@@ -256,6 +258,7 @@ describe('mobile sync-service runtime', () => {
 
     dropboxAuthMocks.forceRefreshDropboxAccessToken.mockResolvedValue('token');
     dropboxAuthMocks.getValidDropboxAccessToken.mockResolvedValue('token');
+    dropboxAuthMocks.isDropboxConnected.mockResolvedValue(false);
 
     logMocks.logSyncError.mockResolvedValue(null);
 
