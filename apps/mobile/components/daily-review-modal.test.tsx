@@ -23,8 +23,10 @@ const storeState: any = {
 };
 
 vi.mock('@mindwtr/core', () => ({
+  formatFocusTaskLimitText: (template: string, limit: number) => template.replace('{{count}}', String(limit)),
   useTaskStore: () => storeState,
   isDueForReview: () => false,
+  normalizeFocusTaskLimit: (value?: number) => value ?? 3,
   safeFormatDate: () => '2026-03-15',
   safeParseDate: () => null,
   safeParseDueDate: () => null,

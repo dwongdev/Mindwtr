@@ -205,12 +205,13 @@ describe('sync-helpers sanitizeAppDataForRemote', () => {
         expect(sanitized.settings.sidebarCollapsed).toBeUndefined();
     });
 
-    it('includes the default schedule time with synced GTD preferences', () => {
+    it('includes synced GTD preferences', () => {
         const data = createData([]);
         data.settings = {
             syncPreferences: { gtd: true, language: true },
             gtd: {
                 defaultScheduleTime: '09:30',
+                focusTaskLimit: 5,
                 inboxProcessing: { scheduleEnabled: true },
             },
             language: 'en',
@@ -219,7 +220,7 @@ describe('sync-helpers sanitizeAppDataForRemote', () => {
 
         const sanitized = sanitizeAppDataForRemote(data);
 
-        expect(sanitized.settings.gtd).toEqual({ defaultScheduleTime: '09:30' });
+        expect(sanitized.settings.gtd).toEqual({ defaultScheduleTime: '09:30', focusTaskLimit: 5 });
         expect(sanitized.settings.language).toBe('en');
         expect(sanitized.settings.timeFormat).toBe('24h');
     });

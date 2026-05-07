@@ -1,5 +1,11 @@
 import type { AppData, TaskEditorFieldId, TaskEditorSectionId } from '@mindwtr/core';
-import { normalizeClockTimeInput, sanitizePomodoroDurations, translateText } from '@mindwtr/core';
+import {
+    FOCUS_TASK_LIMIT_OPTIONS,
+    normalizeClockTimeInput,
+    normalizeFocusTaskLimit,
+    sanitizePomodoroDurations,
+    translateText,
+} from '@mindwtr/core';
 
 import type { ReactNode } from 'react';
 import { useEffect, useRef, useState } from 'react';
@@ -28,6 +34,8 @@ type Labels = {
     autoArchiveNever: string;
     defaultScheduleTime: string;
     defaultScheduleTimeDesc: string;
+    focusTaskLimit: string;
+    focusTaskLimitDesc: string;
     inboxProcessing: string;
     inboxProcessingDesc: string;
     inboxDefaultMode: string;
@@ -220,6 +228,7 @@ export function SettingsGtdPage({
     const inboxScheduleEnabled = inboxProcessing.scheduleEnabled === true;
     const includeContextStep = safeSettings.gtd?.weeklyReview?.includeContextStep !== false;
     const defaultScheduleTime = normalizeClockTimeInput(safeSettings.gtd?.defaultScheduleTime) || '';
+    const focusTaskLimit = normalizeFocusTaskLimit(safeSettings.gtd?.focusTaskLimit);
     const pomodoroEnabled = safeSettings.features?.pomodoro === true;
     const pomodoroCustomDurations = sanitizePomodoroDurations(safeSettings.gtd?.pomodoro?.customDurations);
     const pomodoroLinkTask = safeSettings.gtd?.pomodoro?.linkTask === true;
@@ -509,6 +518,35 @@ export function SettingsGtdPage({
                         }}
                         className="w-24 shrink-0 text-sm bg-muted/50 text-foreground border border-border rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary/40"
                     />
+                </div>
+                <div className="p-4 flex items-center justify-between gap-6">
+                    <div className="min-w-0">
+                        <div className="text-sm font-medium">{t.focusTaskLimit}</div>
+                        <div className="text-xs text-muted-foreground mt-1">{t.focusTaskLimitDesc}</div>
+                    </div>
+                    <div className="flex items-center gap-1 rounded-lg border border-border bg-muted/40 p-1 shrink-0">
+                        {FOCUS_TASK_LIMIT_OPTIONS.map((option) => {
+                            const selected = focusTaskLimit === option;
+                            return (
+                                <button
+                                    key={option}
+                                    type="button"
+                                    aria-pressed={selected}
+                                    onClick={() => {
+                                        updateGtdSettings({ focusTaskLimit: option });
+                                    }}
+                                    className={cn(
+                                        'min-w-9 rounded-md px-2.5 py-1.5 text-sm font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-primary/40',
+                                        selected
+                                            ? 'bg-background text-foreground shadow-sm'
+                                            : 'text-muted-foreground hover:text-foreground hover:bg-background/60'
+                                    )}
+                                >
+                                    {option}
+                                </button>
+                            );
+                        })}
+                    </div>
                 </div>
             </div>
             <SettingsDisclosureCard

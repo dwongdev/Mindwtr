@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useState } from 'react';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { ErrorBoundary } from '../ErrorBoundary';
-import { shallow, useTaskStore, TaskPriority, TimeEstimate, getUsedTaskTokens, getFocusSequentialFirstTaskIds, matchesHierarchicalToken, safeParseDate, safeParseDueDate, isDueForReview, isTaskInActiveProject, shouldShowTaskForStart, sortFocusNextActions, translateWithFallback } from '@mindwtr/core';
+import { shallow, useTaskStore, TaskPriority, TimeEstimate, formatFocusTaskLimitText, getUsedTaskTokens, getFocusSequentialFirstTaskIds, matchesHierarchicalToken, normalizeFocusTaskLimit, safeParseDate, safeParseDueDate, isDueForReview, isTaskInActiveProject, shouldShowTaskForStart, sortFocusNextActions, translateWithFallback } from '@mindwtr/core';
 import type { Task, TaskEnergyLevel } from '@mindwtr/core';
 import { useLanguage } from '../../contexts/language-context';
 import { cn } from '../../lib/utils';
@@ -191,6 +191,7 @@ export function AgendaView() {
     const prioritiesEnabled = settings?.features?.priorities !== false;
     const timeEstimatesEnabled = settings?.features?.timeEstimates !== false;
     const pomodoroEnabled = settings?.features?.pomodoro === true;
+    const focusTaskLimit = normalizeFocusTaskLimit(settings?.gtd?.focusTaskLimit);
     const activePriorities = prioritiesEnabled ? selectedPriorities : [];
     const activeTimeEstimates = timeEstimatesEnabled ? selectedTimeEstimates : [];
     const areaById = useMemo(() => new Map(areas.map((area) => [area.id, area])), [areas]);
@@ -465,10 +466,10 @@ export function AgendaView() {
         const timer = window.setTimeout(() => setHighlightTask(null), 4000);
         return () => window.clearTimeout(timer);
     }, [highlightTaskId, setHighlightTask]);
-    // Today's Focus: tasks marked as isFocusedToday (max 3)
+    // Today's Focus: tasks marked as isFocusedToday.
     const focusedTasks = useMemo(() =>
-        filteredActiveTasks.filter(t => t.isFocusedToday).slice(0, 3),
-        [filteredActiveTasks]
+        filteredActiveTasks.filter(t => t.isFocusedToday).slice(0, focusTaskLimit),
+        [filteredActiveTasks, focusTaskLimit]
     );
 
     // Categorize tasks
@@ -604,7 +605,7 @@ export function AgendaView() {
 
         if (task.isFocusedToday) {
             updateTask(taskId, { isFocusedToday: false });
-        } else if (focusedCount < 3) {
+        } else if (focusedCount < focusTaskLimit) {
             updateTask(taskId, {
                 isFocusedToday: true,
                 ...(task.status !== 'next' ? { status: 'next' as const } : {}),
@@ -614,11 +615,11 @@ export function AgendaView() {
 
     const buildFocusToggle = useCallback((task: Task) => {
         const isFocused = Boolean(task.isFocusedToday);
-        const canToggle = isFocused || focusedCount < 3;
+        const canToggle = isFocused || focusedCount < focusTaskLimit;
         const title = isFocused
             ? t('agenda.removeFromFocus')
-            : focusedCount >= 3
-                ? t('agenda.maxFocusItems')
+            : focusedCount >= focusTaskLimit
+                ? formatFocusTaskLimitText(t('agenda.maxFocusItems'), focusTaskLimit)
                 : t('agenda.addToFocus');
         return {
             isFocused,
@@ -628,7 +629,7 @@ export function AgendaView() {
             ariaLabel: title,
             alwaysVisible: true,
         };
-    }, [focusedCount, handleToggleFocus, t]);
+    }, [focusTaskLimit, focusedCount, handleToggleFocus, t]);
 
     const toggleSection = useCallback((sectionKey: keyof typeof expandedSections) => {
         setExpandedSections((current) => ({
@@ -764,7 +765,7 @@ export function AgendaView() {
                                 <Star className="w-5 h-5 text-yellow-500 fill-yellow-500 dark:text-amber-300 dark:fill-amber-300" />
                                 {t('agenda.todaysFocus')}
                                 <span className="text-sm font-normal text-slate-600 dark:text-amber-200">
-                                    ({focusedCount}/3)
+                                    ({focusedCount}/{focusTaskLimit})
                                 </span>
                             </h3>
 

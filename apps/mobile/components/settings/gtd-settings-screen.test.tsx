@@ -28,6 +28,7 @@ const storeState: MockStoreState = {
 };
 
 vi.mock('@mindwtr/core', () => ({
+  FOCUS_TASK_LIMIT_OPTIONS: [3, 5, 10],
   normalizeClockTimeInput: (value?: string | null) => {
     const trimmed = String(value ?? '').trim();
     if (!trimmed) return '';
@@ -38,6 +39,7 @@ vi.mock('@mindwtr/core', () => ({
     if (hour < 0 || hour > 23 || minute < 0 || minute > 59) return null;
     return `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`;
   },
+  normalizeFocusTaskLimit: (value?: number) => value ?? 3,
   sanitizePomodoroDurations: (value?: { focusMinutes?: number; breakMinutes?: number }) => ({
     focusMinutes: Number.isFinite(value?.focusMinutes) ? Math.round(value!.focusMinutes!) : 25,
     breakMinutes: Number.isFinite(value?.breakMinutes) ? Math.round(value!.breakMinutes!) : 5,

@@ -17,6 +17,7 @@ import {
   sortFocusNextActions,
   shouldShowTaskForStart,
   getFocusSequentialFirstTaskIds,
+  normalizeFocusTaskLimit,
   translateWithFallback,
   useTaskStore,
   isDueForReview,
@@ -80,6 +81,7 @@ export default function FocusScreen() {
   const pomodoroEnabled = settings?.features?.pomodoro === true;
   const prioritiesEnabled = settings?.features?.priorities !== false;
   const timeEstimatesEnabled = settings?.features?.timeEstimates !== false;
+  const focusTaskLimit = normalizeFocusTaskLimit(settings?.gtd?.focusTaskLimit);
   const { areaById, resolvedAreaFilter } = useMobileAreaFilter();
   const projectById = useMemo(() => new Map(projects.map((project) => [project.id, project])), [projects]);
   const visibleProjects = useMemo(() => (
@@ -252,7 +254,7 @@ export default function FocusScreen() {
     const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0);
     const endOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
     const { focusedTasks: allFocusedTasks, otherTasks: nonFocusedTasks } = splitFocusedTasks(filteredActiveTasks);
-    const focusedItems = allFocusedTasks.slice(0, 3);
+    const focusedItems = allFocusedTasks.slice(0, focusTaskLimit);
     const sequentialFirstTaskIds = getFocusSequentialFirstTaskIds(activeTasks, sequentialProjectIds, { now });
 
     const isSequentialBlocked = (task: Task) => {
@@ -300,7 +302,7 @@ export default function FocusScreen() {
       }),
       reviewDue: reviewDueItems,
     };
-  }, [activeTasks, filteredActiveTasks, prioritiesEnabled, sequentialProjectIds]);
+  }, [activeTasks, filteredActiveTasks, focusTaskLimit, prioritiesEnabled, sequentialProjectIds]);
 
   const sections = useMemo(() => {
     const nextSections = [];

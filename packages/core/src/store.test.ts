@@ -253,6 +253,27 @@ describe('TaskStore', () => {
         expect(mockStorage.saveData).not.toHaveBeenCalled();
     });
 
+    it('uses the configured today focus limit when promoting tasks', async () => {
+        const { addTask, updateSettings, updateTask } = useTaskStore.getState();
+        await updateSettings({ gtd: { focusTaskLimit: 5 } });
+
+        const taskIds: string[] = [];
+        for (const title of ['Focused 1', 'Focused 2', 'Focused 3', 'Focused 4', 'Focused 5', 'Focused 6']) {
+            const result = await addTask(title, { status: 'next' });
+            expect(result.success).toBe(true);
+            if (result.id) taskIds.push(result.id);
+        }
+
+        for (const taskId of taskIds.slice(0, 5)) {
+            const result = await updateTask(taskId, { isFocusedToday: true });
+            expect(result).toEqual({ success: true });
+        }
+        const sixthResult = await updateTask(taskIds[5], { isFocusedToday: true });
+
+        expect(sixthResult).toEqual({ success: false, error: 'Maximum of 5 focused tasks allowed' });
+        expect(useTaskStore.getState().getDerivedState().focusedCount).toBe(5);
+    });
+
     it('prefers the renamed tag when deduplicating normalized tag collisions', async () => {
         const { addProject, addTask, renameTag } = useTaskStore.getState();
 

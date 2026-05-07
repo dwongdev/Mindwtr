@@ -286,6 +286,15 @@ export {
 } from './project-utils';
 
 export {
+    DEFAULT_FOCUS_TASK_LIMIT,
+    FOCUS_TASK_LIMIT_OPTIONS,
+    MAX_FOCUS_TASK_LIMIT,
+    MIN_FOCUS_TASK_LIMIT,
+    formatFocusTaskLimitText,
+    normalizeFocusTaskLimit,
+} from './focus-utils';
+
+export {
     generateUUID,
 } from './uuid';
 

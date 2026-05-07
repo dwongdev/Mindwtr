@@ -2,7 +2,9 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ArrowRight, Calendar, Check, CheckSquare, ChevronLeft, Star, X, type LucideIcon } from 'lucide-react';
 import {
     getUsedTaskTokens,
+    formatFocusTaskLimitText,
     isDueForReview,
+    normalizeFocusTaskLimit,
     safeFormatDate,
     safeParseDate,
     safeParseDueDate,
@@ -61,6 +63,7 @@ export function DailyReviewGuideModal({ onClose }: DailyReviewGuideModalProps) {
     const today = useMemo(() => new Date(), []);
     const startOfToday = useMemo(() => new Date(today.getFullYear(), today.getMonth(), today.getDate()), [today]);
     const sortBy = (settings?.taskSortBy ?? 'default') as TaskSortBy;
+    const focusTaskLimit = normalizeFocusTaskLimit(settings?.gtd?.focusTaskLimit);
 
     const projectMap = useMemo(() => new Map(projects.map((project) => [project.id, project])), [projects]);
 
@@ -311,7 +314,7 @@ export function DailyReviewGuideModal({ onClose }: DailyReviewGuideModalProps) {
         if (focusCandidates.length === 0) {
             return (
                 <div className="text-center py-12 text-muted-foreground">
-                    <p>{t('agenda.focusHint')}</p>
+                    <p>{formatFocusTaskLimitText(t('agenda.focusHint'), focusTaskLimit)}</p>
                 </div>
             );
         }
@@ -320,7 +323,7 @@ export function DailyReviewGuideModal({ onClose }: DailyReviewGuideModalProps) {
             <div className="space-y-2">
                 {focusCandidates.slice(0, 10).map((task) => {
                     const project = task.projectId ? projectMap.get(task.projectId) : null;
-                    const canFocus = task.isFocusedToday || focusedCount < 3;
+                    const canFocus = task.isFocusedToday || focusedCount < focusTaskLimit;
                     return (
                         <div
                             key={task.id}
@@ -359,7 +362,7 @@ export function DailyReviewGuideModal({ onClose }: DailyReviewGuideModalProps) {
                                 onClick={() => {
                                     if (task.isFocusedToday) {
                                         updateTask(task.id, { isFocusedToday: false });
-                                    } else if (focusedCount < 3) {
+                                    } else if (focusedCount < focusTaskLimit) {
                                         updateTask(task.id, { isFocusedToday: true });
                                     }
                                 }}
@@ -373,7 +376,11 @@ export function DailyReviewGuideModal({ onClose }: DailyReviewGuideModalProps) {
                                             : "border-border text-muted-foreground/50 cursor-not-allowed"
                                 )}
                                 aria-label={task.isFocusedToday ? t('agenda.removeFromFocus') : t('agenda.addToFocus')}
-                                title={task.isFocusedToday ? t('agenda.removeFromFocus') : focusedCount >= 3 ? t('agenda.maxFocusItems') : t('agenda.addToFocus')}
+                                title={task.isFocusedToday
+                                    ? t('agenda.removeFromFocus')
+                                    : focusedCount >= focusTaskLimit
+                                        ? formatFocusTaskLimitText(t('agenda.maxFocusItems'), focusTaskLimit)
+                                        : t('agenda.addToFocus')}
                             >
                                 <Star className={cn("w-4 h-4", task.isFocusedToday && "fill-current")} />
                             </button>

@@ -9,6 +9,8 @@ const insecureHttpFallbacks = [
     'settings.syncStatusNever',
     'settings.syncingAccessibility',
     'settings.syncIssueAccessibility',
+    'settings.focusTaskLimit',
+    'settings.focusTaskLimitDesc',
     'projects.deleted',
     'projects.deleteFailed',
     'projects.restoreFailed',

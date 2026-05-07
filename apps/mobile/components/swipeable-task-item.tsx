@@ -1,6 +1,16 @@
 import { Text, Pressable, Alert } from 'react-native';
 import { Swipeable } from 'react-native-gesture-handler';
-import { useTaskStore, getStatusColor, hasTimeComponent, safeFormatDate, safeParseDueDate, shallow, tFallback } from '@mindwtr/core';
+import {
+    formatFocusTaskLimitText,
+    getStatusColor,
+    hasTimeComponent,
+    normalizeFocusTaskLimit,
+    safeFormatDate,
+    safeParseDueDate,
+    shallow,
+    tFallback,
+    useTaskStore,
+} from '@mindwtr/core';
 import type { Task, TaskStatus } from '@mindwtr/core';
 import { useLanguage } from '../contexts/language-context';
 import React, { useRef, useState } from 'react';
@@ -80,6 +90,7 @@ export function SwipeableTaskItem({
         projects,
         areas,
         focusedCount,
+        focusTaskLimit,
         timeEstimatesEnabled,
         showTaskAge,
         undoNotificationsEnabled,
@@ -89,6 +100,7 @@ export function SwipeableTaskItem({
         projects: state.projects,
         areas: state.areas,
         focusedCount: state.getDerivedState().focusedCount,
+        focusTaskLimit: normalizeFocusTaskLimit(state.settings?.gtd?.focusTaskLimit),
         timeEstimatesEnabled: state.settings?.features?.timeEstimates !== false,
         showTaskAge: state.settings?.appearance?.showTaskAge === true,
         undoNotificationsEnabled: state.settings?.undoNotificationsEnabled !== false,
@@ -113,10 +125,13 @@ export function SwipeableTaskItem({
             updateTask(task.id, { isFocusedToday: false });
             return;
         }
-        if (focusedCount >= 3) {
+        if (focusedCount >= focusTaskLimit) {
             showToast({
                 title: t('digest.focus') || 'Focus',
-                message: t('agenda.maxFocusItems') || 'Max 3 focus items.',
+                message: formatFocusTaskLimitText(
+                    tFallback(t, 'agenda.maxFocusItems', 'Max {{count}} focus items.'),
+                    focusTaskLimit
+                ),
                 tone: 'warning',
             });
             return;

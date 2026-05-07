@@ -14,6 +14,7 @@ import {
     STT_PROVIDER_VALUE_SET,
 } from './settings-options';
 import { isNonEmptyString, isObjectRecord, isValidTimestamp } from './sync-normalization';
+import { MAX_FOCUS_TASK_LIMIT, MIN_FOCUS_TASK_LIMIT, normalizeFocusTaskLimit } from './focus-utils';
 
 const parseSyncTimestamp = (value?: string): number => {
     if (!value) return NaN;
@@ -270,6 +271,26 @@ export const sanitizeMergedSettingsForSync = (
         }
     }
 
+    if (next.gtd !== undefined && !isObjectRecord(next.gtd)) {
+        next.gtd = localSettings.gtd ? cloneSettingValue(localSettings.gtd) : undefined;
+    } else if (next.gtd?.focusTaskLimit !== undefined) {
+        const rawLimit = next.gtd.focusTaskLimit;
+        if (typeof rawLimit !== 'number' || !Number.isFinite(rawLimit) || rawLimit < MIN_FOCUS_TASK_LIMIT || rawLimit > MAX_FOCUS_TASK_LIMIT) {
+            next.gtd = {
+                ...next.gtd,
+                focusTaskLimit: localSettings.gtd?.focusTaskLimit,
+            };
+            if (next.gtd.focusTaskLimit === undefined) {
+                delete next.gtd.focusTaskLimit;
+            }
+        } else {
+            next.gtd = {
+                ...next.gtd,
+                focusTaskLimit: normalizeFocusTaskLimit(rawLimit),
+            };
+        }
+    }
+
     next.syncPreferences = sanitizeSyncPreferences(next.syncPreferences, localSettings.syncPreferences);
     next.syncPreferencesUpdatedAt = sanitizeSyncPreferencesUpdatedAt(
         next.syncPreferencesUpdatedAt,
@@ -389,20 +410,30 @@ export const mergeSettingsForSync = (
         'gtd',
         {
             defaultScheduleTime: localSettings.gtd?.defaultScheduleTime,
+            focusTaskLimit: localSettings.gtd?.focusTaskLimit,
         },
         {
             defaultScheduleTime: incomingSettings.gtd?.defaultScheduleTime,
+            focusTaskLimit: incomingSettings.gtd?.focusTaskLimit,
         },
         (value) => {
+            const nextGtd = { ...(merged.gtd ?? {}) };
             if (value.defaultScheduleTime === undefined) {
+                delete nextGtd.defaultScheduleTime;
+            } else {
+                nextGtd.defaultScheduleTime = value.defaultScheduleTime;
+            }
+            if (value.focusTaskLimit === undefined) {
+                delete nextGtd.focusTaskLimit;
+            } else {
+                nextGtd.focusTaskLimit = value.focusTaskLimit;
+            }
+            if (Object.keys(nextGtd).length === 0) {
                 if (merged.gtd) {
-                    delete merged.gtd.defaultScheduleTime;
+                    delete merged.gtd;
                 }
             } else {
-                merged.gtd = {
-                    ...(merged.gtd ?? {}),
-                    defaultScheduleTime: value.defaultScheduleTime,
-                };
+                merged.gtd = nextGtd;
             }
         },
         (localValue, incomingValue, incomingWins) => mergeRecordFields(localValue, incomingValue, incomingWins)

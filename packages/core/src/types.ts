@@ -173,7 +173,7 @@ export interface Task {
     projectId?: string;
     sectionId?: string;
     areaId?: string;
-    isFocusedToday?: boolean; // Marked as today's priority (Top 3 focus)
+    isFocusedToday?: boolean; // Marked as today's focus list.
     timeEstimate?: TimeEstimate; // Estimated time to complete
     reviewAt?: string; // Tickler/review date (ISO string). If set, task is due for review at/after this time.
     completedAt?: string; // ISO timestamp when task was last completed/archived.
@@ -221,6 +221,7 @@ export interface AppData {
             };
             autoArchiveDays?: number;
             defaultCaptureMethod?: 'text' | 'audio';
+            focusTaskLimit?: number;
             defaultScheduleTime?: string; // HH:mm, used to prefill manual scheduling fields.
             saveAudioAttachments?: boolean;
             inboxProcessing?: {

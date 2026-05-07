@@ -4,10 +4,12 @@ import {
     Task,
     TaskStatus,
     TaskEditorFieldId,
+    formatFocusTaskLimitText,
     getLocalizedWeekdayLabels,
     Project,
     generateUUID,
     normalizeClockTimeInput,
+    normalizeFocusTaskLimit,
     tFallback,
 } from '@mindwtr/core';
 import { cn } from '../lib/utils';
@@ -237,6 +239,7 @@ export const TaskItem = memo(function TaskItem({
     const undoNotificationsEnabled = settings?.undoNotificationsEnabled !== false;
     const showTaskAge = settings?.appearance?.showTaskAge === true;
     const isCompact = settings?.appearance?.density === 'compact';
+    const focusTaskLimit = normalizeFocusTaskLimit(settings?.gtd?.focusTaskLimit);
     const isHighlighted = highlightTaskId === task.id;
     const recurrenceRule = getRecurrenceRuleValue(task.recurrence);
     const recurrenceStrategy = getRecurrenceStrategyValue(task.recurrence);
@@ -246,17 +249,17 @@ export const TaskItem = memo(function TaskItem({
         if (effectiveReadOnly) return undefined;
         if (task.status === 'done' || task.status === 'reference' || task.status === 'archived') return undefined;
         const isFocused = Boolean(task.isFocusedToday);
-        const canToggle = isFocused || focusedCount < 3;
+        const canToggle = isFocused || focusedCount < focusTaskLimit;
         const removeLabel = t('agenda.removeFromFocus');
         const addLabel = t('agenda.addToFocus');
-        const maxLabel = t('agenda.maxFocusItems');
+        const maxLabel = formatFocusTaskLimitText(t('agenda.maxFocusItems'), focusTaskLimit);
         return {
             isFocused,
             canToggle,
             onToggle: () => {
                 if (isFocused) {
                     updateTask(task.id, { isFocusedToday: false });
-                } else if (focusedCount < 3) {
+                } else if (focusedCount < focusTaskLimit) {
                     const updates: Partial<Task> = {
                         isFocusedToday: true,
                         ...(task.status !== 'next' ? { status: 'next' } : {}),
@@ -267,7 +270,7 @@ export const TaskItem = memo(function TaskItem({
             title: isFocused ? removeLabel : (canToggle ? addLabel : maxLabel),
             ariaLabel: isFocused ? removeLabel : addLabel,
         };
-    }, [effectiveReadOnly, focusedCount, task.id, task.isFocusedToday, task.status, t, updateTask]);
+    }, [effectiveReadOnly, focusTaskLimit, focusedCount, task.id, task.isFocusedToday, task.status, t, updateTask]);
     const effectiveFocusToggle = focusToggle ?? defaultFocusToggle;
     const handleToggleChecklistItem = useCallback((index: number) => {
         if (effectiveReadOnly) return;

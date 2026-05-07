@@ -20,6 +20,7 @@ describe('Sync Logic', () => {
                 settings: {
                     gtd: {
                         defaultScheduleTime: '08:00',
+                        focusTaskLimit: 3,
                         inboxProcessing: { scheduleEnabled: true },
                     },
                     language: 'en',
@@ -39,6 +40,7 @@ describe('Sync Logic', () => {
                 settings: {
                     gtd: {
                         defaultScheduleTime: '09:30',
+                        focusTaskLimit: 5,
                     },
                     language: 'es',
                     weekStart: 'monday',
@@ -59,6 +61,7 @@ describe('Sync Logic', () => {
             expect(merged.settings.dateFormat).toBe('yyyy-MM-dd');
             expect(merged.settings.timeFormat).toBe('12h');
             expect(merged.settings.gtd?.defaultScheduleTime).toBe('09:30');
+            expect(merged.settings.gtd?.focusTaskLimit).toBe(5);
             expect(merged.settings.gtd?.inboxProcessing?.scheduleEnabled).toBe(true);
         });
 

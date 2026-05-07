@@ -40,12 +40,14 @@ vi.mock('@mindwtr/core', () => {
 
   return {
     useTaskStore,
+    formatFocusTaskLimitText: (template: string, limit: number) => template.replace('{{count}}', String(limit)),
     shallow: (value: unknown) => value,
     getChecklistProgress,
     getTaskAgeLabel,
     getTaskStaleness,
     getStatusColor: () => ({ bg: '#111111', border: '#222222', text: '#333333' }),
     hasTimeComponent: () => false,
+    normalizeFocusTaskLimit: (value?: number) => value ?? 3,
     safeFormatDate: () => '',
     safeParseDueDate: () => null,
     resolveTaskTextDirection: () => 'ltr',

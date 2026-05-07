@@ -20,6 +20,7 @@ import {
 import { logWarn } from './logger';
 import { generateUUID as uuidv4 } from './uuid';
 import { normalizeRecurrenceForLoad } from './recurrence';
+import { normalizeFocusTaskLimit } from './focus-utils';
 
 const stripAttachmentRemoteMetadata = (attachments: Task['attachments']): Task['attachments'] =>
     attachments?.map((attachment) => (
@@ -58,7 +59,6 @@ type TaskActionContext = {
 
 const actionOk = (extra?: Omit<StoreActionResult, 'success'>): StoreActionResult => ({ success: true, ...extra });
 const actionFail = (error: string): StoreActionResult => ({ success: false, error });
-const MAX_FOCUS_TASKS = 3;
 const hasOwnField = (value: object, field: PropertyKey): boolean => Object.prototype.hasOwnProperty.call(value, field);
 const normalizeOptionalReferenceId = (value: unknown): string | undefined => (
     typeof value === 'string' && value.trim().length > 0 ? value.trim() : undefined
@@ -414,11 +414,12 @@ export const createTaskActions = ({ set, get, getStorage, debouncedSave }: TaskA
         }
         const isPromotingTaskFocus = preparedUpdates.updates.isFocusedToday === true && existingTask.isFocusedToday !== true;
         if (isPromotingTaskFocus) {
+            const focusTaskLimit = normalizeFocusTaskLimit(currentState.settings.gtd?.focusTaskLimit);
             const focusedCount = currentState._allTasks.filter(
                 (task) => task.isFocusedToday === true && !task.deletedAt
             ).length;
-            if (focusedCount >= MAX_FOCUS_TASKS) {
-                const message = `Maximum of ${MAX_FOCUS_TASKS} focused tasks allowed`;
+            if (focusedCount >= focusTaskLimit) {
+                const message = `Maximum of ${focusTaskLimit} focused tasks allowed`;
                 set({ error: message });
                 return actionFail(message);
             }

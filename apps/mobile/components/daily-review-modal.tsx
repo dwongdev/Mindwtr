@@ -6,8 +6,10 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import { X, Calendar as CalendarIcon, Target, Inbox, Clock, Sparkles, Star, CheckCircle2, Play } from 'lucide-react-native';
 
 import {
+    formatFocusTaskLimitText,
     useTaskStore,
     isDueForReview,
+    normalizeFocusTaskLimit,
     safeFormatDate,
     safeParseDate,
     safeParseDueDate,
@@ -56,6 +58,7 @@ function DailyReviewFlow({ onClose }: { onClose: () => void }) {
 
     const sortBy = (settings?.taskSortBy ?? 'default') as TaskSortBy;
     const includeFocusStep = settings.gtd?.dailyReview?.includeFocusStep !== false;
+    const focusTaskLimit = normalizeFocusTaskLimit(settings.gtd?.focusTaskLimit);
 
     const today = useMemo(() => new Date(), []);
     const tomorrow = useMemo(() => {
@@ -345,7 +348,9 @@ function DailyReviewFlow({ onClose }: { onClose: () => void }) {
                         {focusCandidates.length === 0 ? (
                             <View style={styles.emptyState}>
                                 <Star size={48} color={tc.secondaryText} strokeWidth={1.5} style={styles.emptyIcon} />
-                                <Text style={[styles.emptyText, { color: tc.secondaryText }]}>{t('agenda.focusHint')}</Text>
+                                <Text style={[styles.emptyText, { color: tc.secondaryText }]}>
+                                    {formatFocusTaskLimitText(t('agenda.focusHint'), focusTaskLimit)}
+                                </Text>
                             </View>
                         ) : (
                             renderTaskList(focusCandidates.slice(0, 8), { showFocusToggle: true, hideStatusBadge: true })

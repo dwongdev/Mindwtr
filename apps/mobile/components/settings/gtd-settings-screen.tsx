@@ -21,7 +21,9 @@ import { useThemeColors } from '@/hooks/use-theme-colors';
 import { logSettingsError } from '@/lib/settings-utils';
 import { useToast } from '@/contexts/toast-context';
 import {
+    FOCUS_TASK_LIMIT_OPTIONS,
     normalizeClockTimeInput,
+    normalizeFocusTaskLimit,
     sanitizePomodoroDurations,
     tFallback,
     translateText,
@@ -83,6 +85,7 @@ export function GtdSettingsScreen({
     const includeContextStep = settings.gtd?.weeklyReview?.includeContextStep !== false;
     const includeDailyFocusStep = settings.gtd?.dailyReview?.includeFocusStep !== false;
     const defaultScheduleTime = normalizeClockTimeInput(settings.gtd?.defaultScheduleTime) || '';
+    const focusTaskLimit = normalizeFocusTaskLimit(settings.gtd?.focusTaskLimit);
     const autoArchiveDays = Number.isFinite(settings.gtd?.autoArchiveDays)
         ? Math.max(0, Math.floor(settings.gtd?.autoArchiveDays as number))
         : 7;
@@ -334,6 +337,12 @@ export function GtdSettingsScreen({
             '可选。选择日期后自动填入开始、截止和回顾时间。留空则保持仅日期。'
         )
     );
+    const focusTaskLimitLabel = tFallback(t, 'settings.focusTaskLimit', localize("Today's focus limit", '今日焦点上限'));
+    const focusTaskLimitDesc = tFallback(
+        t,
+        'settings.focusTaskLimitDesc',
+        localize("Maximum tasks you can star for today's focus.", '每天可加星加入今日焦点的最大任务数。')
+    );
     const captureSettingsTitle = tFallback(t, 'settings.captureSettings', localize('Capture defaults', '收集默认值'));
     const reviewSettingsTitle = tFallback(t, 'settings.reviewSettings', localize('Review steps', '回顾步骤'));
     const inboxSettingsTitle = tFallback(t, 'settings.inboxProcessing', localize('Inbox processing', '收件箱处理'));
@@ -422,6 +431,37 @@ export function GtdSettingsScreen({
                                     { backgroundColor: tc.bg, borderColor: tc.border, color: tc.text },
                                 ]}
                             />
+                        </View>
+                        <View style={[styles.settingRowColumn, { borderTopWidth: 1, borderTopColor: tc.border, gap: 12 }]}>
+                            <View>
+                                <Text style={[styles.settingLabel, { color: tc.text }]}>{focusTaskLimitLabel}</Text>
+                                <Text style={[styles.settingDescription, { color: tc.secondaryText }]}>{focusTaskLimitDesc}</Text>
+                            </View>
+                            <View style={[styles.gtdSegmentedControl, { backgroundColor: tc.bg, borderColor: tc.border }]}>
+                                {FOCUS_TASK_LIMIT_OPTIONS.map((option) => {
+                                    const selected = focusTaskLimit === option;
+                                    return (
+                                        <TouchableOpacity
+                                            key={option}
+                                            accessibilityRole="button"
+                                            accessibilityState={{ selected }}
+                                            style={[
+                                                styles.gtdSegmentedOption,
+                                                { backgroundColor: selected ? tc.filterBg : 'transparent' },
+                                            ]}
+                                            onPress={() => updateGtdSettings({ focusTaskLimit: option })}
+                                            activeOpacity={0.8}
+                                        >
+                                            <Text
+                                                style={[styles.gtdSegmentedOptionText, { color: selected ? tc.tint : tc.secondaryText }]}
+                                                numberOfLines={1}
+                                            >
+                                                {option}
+                                            </Text>
+                                        </TouchableOpacity>
+                                    );
+                                })}
+                            </View>
                         </View>
                         {timeEstimatesEnabled && renderGtdNavigationRow(
                             t('settings.timeEstimatePresets'),
