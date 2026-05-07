@@ -197,7 +197,7 @@ export function parsePagination(searchParams: URLSearchParams): { limit: number;
 const applyCorsHeaders = (headers: Headers): Headers => {
     headers.set('Access-Control-Allow-Origin', corsOrigin);
     headers.set('Access-Control-Allow-Headers', 'Authorization, Content-Type');
-    headers.set('Access-Control-Allow-Methods', 'GET,PUT,POST,PATCH,DELETE,OPTIONS');
+    headers.set('Access-Control-Allow-Methods', 'GET,HEAD,PUT,POST,PATCH,DELETE,OPTIONS');
     return headers;
 };
 

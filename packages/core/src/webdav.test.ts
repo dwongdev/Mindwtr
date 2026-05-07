@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { webdavGetJson, webdavPutFile, webdavPutJson } from './webdav';
+import { webdavGetJson, webdavHeadFile, webdavPutFile, webdavPutJson } from './webdav';
 
 const makeResponse = (overrides: Partial<Response> & { status: number; ok: boolean }): Response => ({
     statusText: '',
@@ -92,6 +92,33 @@ describe('webdav http helpers', () => {
         );
 
         await expect(webdavGetJson<{ ok: boolean }>('https://example.com/data.json', { fetcher })).resolves.toEqual({ ok: true });
+    });
+
+    it('reads HEAD metadata for fast sync checks', async () => {
+        const fetcher = vi.fn(
+            async () =>
+                ({
+                    ok: true,
+                    status: 200,
+                    statusText: 'OK',
+                    headers: {
+                        get: (name: string) => ({
+                            etag: '"rev-1"',
+                            'last-modified': 'Thu, 07 May 2026 10:00:00 GMT',
+                            'content-length': '42',
+                        }[name.toLowerCase()] ?? null),
+                    },
+                    text: async () => '',
+                }) as unknown as Response,
+        );
+
+        await expect(webdavHeadFile('https://example.com/data.json', { fetcher })).resolves.toMatchObject({
+            exists: true,
+            fingerprint: 'webdav:v1:etag="rev-1":mtime=Thu, 07 May 2026 10:00:00 GMT:len=42',
+            etag: '"rev-1"',
+            contentLength: '42',
+        });
+        expect(fetcher.mock.calls[0]?.[1]?.method).toBe('HEAD');
     });
 
     it('creates missing parent collections before retrying a JSON PUT', async () => {

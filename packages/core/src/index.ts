@@ -90,6 +90,8 @@ export {
 export {
     areSyncPayloadsEqual,
     assertNoPendingAttachmentUploads,
+    computeStableValueFingerprint,
+    computeSyncPayloadFingerprint,
     filterNotDeleted,
     findPendingAttachmentUploads,
     injectExternalCalendars,
@@ -97,6 +99,7 @@ export {
     normalizeWebdavUrl,
     persistExternalCalendars,
     sanitizeAppDataForRemote,
+    toStableSyncJson,
 } from './sync-helpers';
 export type {
     PendingAttachmentUpload,
@@ -455,11 +458,14 @@ export {
     webdavFileExists,
     webdavGetFile,
     webdavGetJson,
+    webdavHeadFile,
     webdavMakeDirectory,
     webdavPutFile,
     webdavPutJson,
+    buildHttpRemoteFileFingerprint,
 } from './webdav';
 export type {
+    RemoteFileMetadata,
     WebDavOptions,
 } from './webdav';
 
@@ -467,6 +473,7 @@ export {
     cloudDeleteFile,
     cloudGetFile,
     cloudGetJson,
+    cloudHeadJson,
     cloudPutFile,
     cloudPutJson,
 } from './cloud';

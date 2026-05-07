@@ -5,8 +5,10 @@ import {
     useTaskStore,
     MergeStats,
     webdavGetJson,
+    webdavHeadFile,
     webdavPutJson,
     cloudGetJson,
+    cloudHeadJson,
     cloudPutJson,
     flushPendingSave,
     performSyncCycle,
@@ -15,6 +17,8 @@ import {
     normalizeWebdavUrl,
     normalizeCloudUrl,
     sanitizeAppDataForRemote,
+    computeStableValueFingerprint,
+    computeSyncPayloadFingerprint,
     areSyncPayloadsEqual,
     assertNoPendingAttachmentUploads,
     findPendingAttachmentUploads,
@@ -86,6 +90,7 @@ import {
     downloadDropboxAppData,
     DropboxConflictError,
     DropboxUnauthorizedError,
+    getDropboxAppDataMetadata,
     testDropboxAccess,
     uploadDropboxAppData,
 } from './dropbox-sync';
@@ -136,6 +141,7 @@ const WEBDAV_READ_RETRY_OPTIONS = {
 };
 const ATTACHMENT_WARNING_TOAST_THRESHOLD = 2;
 const ATTACHMENT_WARNING_TOAST_COOLDOWN_MS = 10 * 60 * 1000;
+const FAST_SYNC_STATE_KEY = 'mindwtr-fast-sync-state-v1';
 type SyncServiceDependencies = {
     isTauriRuntime: () => boolean;
     invoke: <T>(command: string, args?: Record<string, unknown>) => Promise<T>;
@@ -359,7 +365,7 @@ type SyncRunResult = {
     success: boolean;
     stats?: MergeStats;
     error?: string;
-    skipped?: 'requeued';
+    skipped?: 'requeued' | 'unchanged';
 };
 
 type SyncRunOptions = {
@@ -387,6 +393,13 @@ type SyncExecutionContext = {
     syncPath: string;
     fileBaseDir: string;
     hadAttachmentWarning: boolean;
+};
+
+type FastSyncState = {
+    scope: string;
+    localFingerprint: string;
+    remoteFingerprint: string;
+    checkedAt: string;
 };
 
 type SyncExecutionHelpers = {
@@ -530,6 +543,7 @@ export class SyncService {
         SyncService.externalSyncChangeListeners.clear();
         SyncService.consecutiveAttachmentWarningRuns = 0;
         SyncService.lastAttachmentWarningToastAt = 0;
+        SyncService.clearFastSyncState();
         clearAttachmentSyncState();
         clearAttachmentValidationFailures();
     }
@@ -853,6 +867,208 @@ export class SyncService {
             fileBaseDir: '',
             hadAttachmentWarning: false,
         };
+    }
+
+    private static readFastSyncState(scope: string): FastSyncState | null {
+        if (typeof localStorage === 'undefined') return null;
+        try {
+            const raw = localStorage.getItem(FAST_SYNC_STATE_KEY);
+            if (!raw) return null;
+            const parsed = JSON.parse(raw) as Partial<FastSyncState>;
+            if (
+                parsed.scope !== scope
+                || typeof parsed.localFingerprint !== 'string'
+                || typeof parsed.remoteFingerprint !== 'string'
+            ) {
+                return null;
+            }
+            return parsed as FastSyncState;
+        } catch {
+            return null;
+        }
+    }
+
+    private static writeFastSyncState(state: FastSyncState): void {
+        if (typeof localStorage === 'undefined') return;
+        try {
+            localStorage.setItem(FAST_SYNC_STATE_KEY, JSON.stringify(state));
+        } catch (error) {
+            logSyncWarning('Failed to cache sync fast-check state', error);
+        }
+    }
+
+    private static clearFastSyncState(): void {
+        if (typeof localStorage === 'undefined') return;
+        try {
+            localStorage.removeItem(FAST_SYNC_STATE_KEY);
+        } catch {
+            // Best-effort local cache cleanup.
+        }
+    }
+
+    private static buildFastSyncScope(context: SyncExecutionContext): string | null {
+        if (context.backend === 'webdav' && context.webdavConfig?.url) {
+            return computeStableValueFingerprint({
+                backend: 'webdav',
+                url: normalizeWebdavUrl(context.webdavConfig.url),
+                username: context.webdavConfig.username || '',
+            });
+        }
+        if (context.backend === 'cloud' && context.cloudProvider === 'selfhosted' && context.cloudConfig?.url) {
+            return computeStableValueFingerprint({
+                backend: 'cloud',
+                provider: 'selfhosted',
+                url: normalizeCloudUrl(context.cloudConfig.url),
+                token: context.cloudConfig.token || '',
+            });
+        }
+        if (context.backend === 'cloud' && context.cloudProvider === 'dropbox' && context.dropboxAppKey) {
+            return computeStableValueFingerprint({
+                backend: 'cloud',
+                provider: 'dropbox',
+                appKey: context.dropboxAppKey,
+                path: '/data.json',
+            });
+        }
+        return null;
+    }
+
+    private static hasPendingSyncSideEffects(data: AppData): boolean {
+        return Boolean(data.settings.pendingRemoteWriteAt)
+            || findPendingAttachmentUploads(data).length > 0
+            || Boolean(data.settings.attachments?.pendingRemoteDeletes?.length);
+    }
+
+    private static async readRemoteFingerprintForFastCheck(
+        context: SyncExecutionContext,
+        helpers: Pick<SyncExecutionHelpers, 'createFetchWithAbort' | 'ensureNetworkStillAvailable' | 'runDropboxWithRetry'>
+    ): Promise<string | null> {
+        helpers.ensureNetworkStillAvailable();
+        if (context.backend === 'webdav') {
+            if (!context.webdavConfig?.url) return null;
+            const normalizedUrl = normalizeWebdavUrl(context.webdavConfig.url);
+            context.syncUrl = normalizedUrl;
+            const password = await resolveWebdavPassword(context.webdavConfig);
+            const fetcher = helpers.createFetchWithAbort((await getTauriFetch()) ?? fetch);
+            const metadata = await webdavHeadFile(normalizedUrl, {
+                allowInsecureHttp: context.webdavConfig.allowInsecureHttp,
+                username: context.webdavConfig.username,
+                password,
+                fetcher,
+            });
+            if (!metadata.exists) return null;
+            return metadata.fingerprint;
+        }
+        if (context.backend === 'cloud' && context.cloudProvider === 'selfhosted') {
+            if (!context.cloudConfig?.url) return null;
+            const normalizedUrl = normalizeCloudUrl(context.cloudConfig.url);
+            context.syncUrl = normalizedUrl;
+            const fetcher = helpers.createFetchWithAbort((await getTauriFetch()) ?? fetch);
+            const metadata = await cloudHeadJson(normalizedUrl, {
+                allowInsecureHttp: context.cloudConfig.allowInsecureHttp,
+                token: context.cloudConfig.token,
+                fetcher,
+            });
+            if (!metadata.exists) return null;
+            return metadata.fingerprint;
+        }
+        if (context.backend === 'cloud' && context.cloudProvider === 'dropbox') {
+            const fetcher = helpers.createFetchWithAbort((await getTauriFetch()) ?? fetch);
+            const metadata = await helpers.runDropboxWithRetry((token) =>
+                getDropboxAppDataMetadata(token, fetcher)
+            );
+            context.dropboxDataRev = metadata.rev;
+            return metadata.rev ? `dropbox:v1:rev=${metadata.rev}` : null;
+        }
+        return null;
+    }
+
+    private static async persistUnchangedSyncStatus(
+        context: SyncExecutionContext,
+        state: FastSyncState
+    ): Promise<void> {
+        const now = new Date().toISOString();
+        SyncService.writeFastSyncState({ ...state, checkedAt: now });
+        SyncService.lastSuccessfulSyncLocalChangeAt = getStoreState().lastDataChangeAt;
+        SyncService.setPendingExternalSyncChange(null);
+        getStoreState().setError(null);
+        try {
+            await getStoreState().updateSettings({
+                lastSyncAt: now,
+                lastSyncStatus: 'success',
+                lastSyncError: undefined,
+            });
+        } catch (error) {
+            logSyncWarning('Failed to persist unchanged sync status', error);
+        }
+        logSyncInfo('Sync fast check found no changes', { backend: context.backend });
+    }
+
+    private static async trySkipUnchangedSync(
+        context: SyncExecutionContext,
+        helpers: Pick<
+            SyncExecutionHelpers,
+            'setStep' | 'createFetchWithAbort' | 'ensureNetworkStillAvailable' | 'ensureLocalSnapshotFresh' | 'runDropboxWithRetry'
+        >
+    ): Promise<SyncRunResult | null> {
+        const scope = SyncService.buildFastSyncScope(context);
+        if (!scope) return null;
+
+        helpers.setStep('fast-check');
+        await yieldToRenderer();
+        const localData = await SyncService.readLocalDataForSyncCycle(context);
+        helpers.ensureLocalSnapshotFresh();
+        if (SyncService.hasPendingSyncSideEffects(localData)) return null;
+
+        const localFingerprint = computeSyncPayloadFingerprint(localData);
+        const cached = SyncService.readFastSyncState(scope);
+        if (!cached || cached.localFingerprint !== localFingerprint) return null;
+
+        let remoteFingerprint: string | null = null;
+        try {
+            remoteFingerprint = await SyncService.readRemoteFingerprintForFastCheck(context, helpers);
+        } catch (error) {
+            logSyncWarning('Sync fast check failed; falling back to full sync', error);
+            return null;
+        }
+        if (!remoteFingerprint || remoteFingerprint !== cached.remoteFingerprint) return null;
+
+        await SyncService.persistUnchangedSyncStatus(context, {
+            scope,
+            localFingerprint,
+            remoteFingerprint,
+            checkedAt: cached.checkedAt,
+        });
+        return { success: true, skipped: 'unchanged' };
+    }
+
+    private static async recordFastSyncState(
+        context: SyncExecutionContext,
+        data: AppData,
+        helpers: Pick<SyncExecutionHelpers, 'createFetchWithAbort' | 'ensureNetworkStillAvailable' | 'runDropboxWithRetry'>
+    ): Promise<void> {
+        const scope = SyncService.buildFastSyncScope(context);
+        if (!scope || SyncService.hasPendingSyncSideEffects(data)) return;
+        if (getStoreState().lastDataChangeAt > context.localSnapshotChangeAt) return;
+
+        let remoteFingerprint: string | null = null;
+        if (context.backend === 'cloud' && context.cloudProvider === 'dropbox' && context.dropboxDataRev) {
+            remoteFingerprint = `dropbox:v1:rev=${context.dropboxDataRev}`;
+        } else {
+            try {
+                remoteFingerprint = await SyncService.readRemoteFingerprintForFastCheck(context, helpers);
+            } catch (error) {
+                logSyncWarning('Failed to refresh sync fast-check state', error);
+                return;
+            }
+        }
+        if (!remoteFingerprint) return;
+        SyncService.writeFastSyncState({
+            scope,
+            localFingerprint: computeSyncPayloadFingerprint(data),
+            remoteFingerprint,
+            checkedAt: new Date().toISOString(),
+        });
     }
 
     private static async persistPreSyncedLocalDataIfNeeded(
@@ -1703,6 +1919,11 @@ export class SyncService {
                 await syncServiceDependencies.ensureCloudKitReady();
             }
 
+            const unchangedResult = await SyncService.trySkipUnchangedSync(context, helpers);
+            if (unchangedResult) {
+                return unchangedResult;
+            }
+
             const syncResult = await syncServiceDependencies.performSyncCycle({
                 readLocal: () => SyncService.readLocalDataForSyncCycle(context),
                 readRemote: () => SyncService.readRemoteDataByBackend(context, helpers),
@@ -1756,6 +1977,8 @@ export class SyncService {
                 mergedData = await cleanupOrphanedAttachments(mergedData, context.backend, getAttachmentCleanupDeps());
                 await persistLocalDataWithTracking(mergedData);
             }
+
+            await SyncService.recordFastSyncState(context, mergedData, helpers);
 
             // 7. Refresh UI Store
             setStep('refresh');

@@ -218,6 +218,31 @@ const normalizeForSyncComparison = (value: unknown): unknown => {
 export const areSyncPayloadsEqual = (left: AppData, right: AppData): boolean =>
     JSON.stringify(normalizeForSyncComparison(left)) === JSON.stringify(normalizeForSyncComparison(right));
 
+export const toStableSyncJson = (value: unknown): string =>
+    JSON.stringify(normalizeForSyncComparison(value));
+
+const hashStableSyncJson = (value: string): string => {
+    let left = 0x811c9dc5;
+    let right = 0x9e3779b9;
+    for (let index = 0; index < value.length; index += 1) {
+        const code = value.charCodeAt(index);
+        left ^= code;
+        left = Math.imul(left, 0x01000193);
+        right ^= code + index;
+        right = Math.imul(right, 0x85ebca6b);
+        right ^= right >>> 13;
+    }
+    return `${(left >>> 0).toString(16).padStart(8, '0')}${(right >>> 0).toString(16).padStart(8, '0')}`;
+};
+
+export const computeStableValueFingerprint = (value: unknown): string => {
+    const json = toStableSyncJson(value);
+    return `stable-v1:${json.length}:${hashStableSyncJson(json)}`;
+};
+
+export const computeSyncPayloadFingerprint = (data: AppData): string =>
+    computeStableValueFingerprint(sanitizeAppDataForRemote(data));
+
 type ExternalCalendarProvider = {
     load: () => Promise<AppData['settings']['externalCalendars'] | undefined>;
     save: (calendars: AppData['settings']['externalCalendars'] | undefined) => Promise<void>;

@@ -1,5 +1,6 @@
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { Platform } from 'react-native';
+import { computeStableValueFingerprint, computeSyncPayloadFingerprint } from '@mindwtr/core';
 
 const emptyData = {
   tasks: [],
@@ -56,6 +57,7 @@ const dropboxAuthMocks = vi.hoisted(() => ({
 const dropboxSyncMocks = vi.hoisted(() => ({
   deleteDropboxFile: vi.fn(),
   downloadDropboxAppData: vi.fn(),
+  getDropboxAppDataMetadata: vi.fn(),
   uploadDropboxAppData: vi.fn(),
 }));
 
@@ -87,8 +89,10 @@ const storeStateRef = vi.hoisted(() => ({
 
 const coreMocks = vi.hoisted(() => ({
   webdavGetJson: vi.fn(),
+  webdavHeadFile: vi.fn(),
   webdavPutJson: vi.fn(),
   cloudGetJson: vi.fn(),
+  cloudHeadJson: vi.fn(),
   cloudPutJson: vi.fn(),
   withRetry: vi.fn(),
   flushPendingSave: vi.fn(),
@@ -162,6 +166,7 @@ vi.mock('./dropbox-sync', () => ({
   DropboxUnauthorizedError: class DropboxUnauthorizedError extends Error {},
   deleteDropboxFile: dropboxSyncMocks.deleteDropboxFile,
   downloadDropboxAppData: dropboxSyncMocks.downloadDropboxAppData,
+  getDropboxAppDataMetadata: dropboxSyncMocks.getDropboxAppDataMetadata,
   uploadDropboxAppData: dropboxSyncMocks.uploadDropboxAppData,
 }));
 
@@ -187,8 +192,10 @@ vi.mock('@mindwtr/core', async () => {
   return {
     ...actual,
     webdavGetJson: coreMocks.webdavGetJson,
+    webdavHeadFile: coreMocks.webdavHeadFile,
     webdavPutJson: coreMocks.webdavPutJson,
     cloudGetJson: coreMocks.cloudGetJson,
+    cloudHeadJson: coreMocks.cloudHeadJson,
     cloudPutJson: coreMocks.cloudPutJson,
     withRetry: coreMocks.withRetry,
     flushPendingSave: coreMocks.flushPendingSave,
@@ -264,6 +271,8 @@ describe('mobile sync-service runtime', () => {
 
     coreMocks.flushPendingSave.mockResolvedValue(undefined);
     coreMocks.withRetry.mockImplementation(async (operation: () => Promise<unknown>) => await operation());
+    coreMocks.webdavHeadFile.mockResolvedValue({ exists: true, fingerprint: 'webdav:v1:etag="initial":mtime=:len=2' });
+    coreMocks.cloudHeadJson.mockResolvedValue({ exists: true, fingerprint: 'cloud:v1:etag="initial":mtime=:len=2' });
     coreMocks.getInMemoryAppDataSnapshot.mockReturnValue(emptyData);
     coreMocks.useTaskStoreGetState.mockImplementation(() => storeStateRef.current);
     coreMocks.performSyncCycle.mockImplementation(async (io: any) => {
@@ -329,6 +338,48 @@ describe('mobile sync-service runtime', () => {
     expect(coreMocks.performSyncCycle).toHaveBeenCalledTimes(1);
     expect(coreMocks.webdavGetJson).toHaveBeenCalledTimes(1);
     expect(logMocks.logSyncError).not.toHaveBeenCalled();
+  });
+
+  it('skips the full WebDAV merge when local and remote fingerprints are unchanged', async () => {
+    const remoteFingerprint = 'webdav:v1:etag="fast":mtime=:len=2';
+    const scope = computeStableValueFingerprint({
+      backend: 'webdav',
+      url: 'https://sync.example.com/data.json',
+      username: 'user',
+    });
+    asyncStorageMocks.getItem.mockImplementation(async (key: string) => {
+      const values: Record<string, string | null> = {
+        '@mindwtr_sync_backend': 'webdav',
+        '@mindwtr_webdav_url': 'https://sync.example.com/data.json',
+        '@mindwtr_webdav_username': 'user',
+        '@mindwtr_webdav_password': 'pass',
+        '@mindwtr_fast_sync_state_v1': JSON.stringify({
+          scope,
+          localFingerprint: computeSyncPayloadFingerprint(emptyData),
+          remoteFingerprint,
+          checkedAt: '2026-05-07T00:00:00.000Z',
+        }),
+      };
+      return values[key] ?? null;
+    });
+    coreMocks.webdavHeadFile.mockResolvedValue({
+      exists: true,
+      fingerprint: remoteFingerprint,
+      etag: '"fast"',
+      lastModified: null,
+      contentLength: '2',
+    });
+
+    const result = await syncServiceModule.performMobileSync();
+
+    expect(result).toEqual({ success: true, skipped: 'unchanged' });
+    expect(coreMocks.performSyncCycle).not.toHaveBeenCalled();
+    expect(coreMocks.webdavGetJson).not.toHaveBeenCalled();
+    expect(coreMocks.webdavHeadFile).toHaveBeenCalledTimes(1);
+    expect(storeStateRef.current.updateSettings).toHaveBeenCalledWith(expect.objectContaining({
+      lastSyncStatus: 'success',
+      lastSyncError: undefined,
+    }));
   });
 
   it('reports Dropbox as unavailable in FOSS builds instead of falling through to self-hosted config', async () => {

@@ -1,5 +1,6 @@
 #!/usr/bin/env bun
 import { existsSync, lstatSync, mkdirSync, readFileSync, readdirSync, realpathSync, rmdirSync, unlinkSync } from 'fs';
+import { createHash } from 'crypto';
 import { join, relative } from 'path';
 import {
     applyTaskUpdates,
@@ -119,6 +120,29 @@ const createInternalServerErrorResponse = (message: string, requestId: string): 
         { status: 500, headers: { 'X-Request-Id': requestId } },
     )
 );
+
+const dataMetadataResponse = (filePath: string): Response => {
+    const stat = lstatSync(filePath);
+    const hash = createHash('sha256').update(readFileSync(filePath)).digest('hex');
+    const headers = new Headers({
+        'Access-Control-Allow-Origin': corsOrigin,
+        'Access-Control-Allow-Headers': 'Authorization, Content-Type',
+        'Access-Control-Allow-Methods': 'GET,HEAD,PUT,POST,PATCH,DELETE,OPTIONS',
+        'Content-Length': String(stat.size),
+        'ETag': `"sha256-${hash}"`,
+        'Last-Modified': stat.mtime.toUTCString(),
+    });
+    return new Response(null, { status: 200, headers });
+};
+
+const emptyCorsResponse = (status: number): Response => {
+    const headers = new Headers({
+        'Access-Control-Allow-Origin': corsOrigin,
+        'Access-Control-Allow-Headers': 'Authorization, Content-Type',
+        'Access-Control-Allow-Methods': 'GET,HEAD,PUT,POST,PATCH,DELETE,OPTIONS',
+    });
+    return new Response(null, { status, headers });
+};
 
 const IS_MAIN_MODULE = typeof Bun !== 'undefined' && (import.meta as ImportMeta & { main?: boolean }).main === true;
 
@@ -1263,6 +1287,14 @@ export async function startCloudServer(options: CloudServerOptions = {}): Promis
                     const dataRateLimitResponse = checkRateLimit(dataRateKey, maxPerWindow);
                     if (dataRateLimitResponse) return dataRateLimitResponse;
                     const filePath = join(dataDir, `${key}.json`);
+
+                    if (req.method === 'HEAD') {
+                        return await withWriteLock(key, async () => {
+                            throwIfRequestAborted(requestAbortController.signal);
+                            if (!existsSync(filePath)) return emptyCorsResponse(404);
+                            return dataMetadataResponse(filePath);
+                        });
+                    }
 
                     if (req.method === 'GET') {
                         return await withWriteLock(key, async () => {

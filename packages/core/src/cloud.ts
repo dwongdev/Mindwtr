@@ -8,6 +8,7 @@ import {
     toArrayBuffer,
     toUint8Array,
 } from './http-utils';
+import { buildHttpRemoteFileFingerprint, type RemoteFileMetadata } from './webdav';
 
 export interface CloudOptions {
     token?: string;
@@ -65,6 +66,48 @@ export async function cloudGetJson<T>(
     } catch (error) {
         throw new Error(`Cloud GET failed: invalid JSON (${(error as Error).message})`);
     }
+}
+
+export async function cloudHeadJson(
+    url: string,
+    options: CloudOptions = {},
+): Promise<RemoteFileMetadata> {
+    assertCloudUrl(url, options);
+    const fetcher = options.fetcher ?? fetch;
+    const res = await fetchWithTimeout(
+        url,
+        {
+            method: 'HEAD',
+            headers: buildHeaders(options),
+        },
+        options.timeoutMs ?? DEFAULT_TIMEOUT_MS,
+        fetcher,
+        CLOUD_TIMEOUT_ERROR,
+    );
+
+    if (res.status === 404) {
+        return {
+            exists: false,
+            fingerprint: null,
+            etag: null,
+            lastModified: null,
+            contentLength: null,
+        };
+    }
+    if (!res.ok) {
+        throw new Error(`Cloud HEAD failed (${res.status}): ${res.statusText}`);
+    }
+
+    const etag = res.headers.get('etag');
+    const lastModified = res.headers.get('last-modified');
+    const contentLength = res.headers.get('content-length');
+    return {
+        exists: true,
+        fingerprint: buildHttpRemoteFileFingerprint('cloud', { etag, lastModified, contentLength }),
+        etag,
+        lastModified,
+        contentLength,
+    };
 }
 
 export async function cloudPutJson(

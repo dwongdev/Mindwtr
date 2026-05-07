@@ -19,6 +19,14 @@ export interface WebDavOptions {
     allowInsecureHttp?: boolean;
 }
 
+export type RemoteFileMetadata = {
+    exists: boolean;
+    fingerprint: string | null;
+    etag: string | null;
+    lastModified: string | null;
+    contentLength: string | null;
+};
+
 const MAX_WEBDAV_MKCOL_DEPTH = 32;
 
 function bytesToBase64(bytes: Uint8Array): string {
@@ -86,6 +94,30 @@ const assertWebdavUrl = (url: string, options: WebDavOptions): void => {
         ...SYNC_LOCAL_INSECURE_URL_OPTIONS,
         allowInsecureHttp: options.allowInsecureHttp,
     });
+};
+
+export const buildHttpRemoteFileFingerprint = (
+    source: string,
+    metadata: Pick<RemoteFileMetadata, 'etag' | 'lastModified' | 'contentLength'>
+): string | null => {
+    const etag = metadata.etag?.trim() || '';
+    const lastModified = metadata.lastModified?.trim() || '';
+    const contentLength = metadata.contentLength?.trim() || '';
+    if (!etag && !lastModified) return null;
+    return `${source}:v1:etag=${etag}:mtime=${lastModified}:len=${contentLength}`;
+};
+
+const metadataFromHeaders = (source: string, headers: Headers): RemoteFileMetadata => {
+    const etag = headers.get('etag');
+    const lastModified = headers.get('last-modified');
+    const contentLength = headers.get('content-length');
+    return {
+        exists: true,
+        fingerprint: buildHttpRemoteFileFingerprint(source, { etag, lastModified, contentLength }),
+        etag,
+        lastModified,
+        contentLength,
+    };
 };
 
 const getWebdavParentCollectionUrl = (url: string): string | null => {
@@ -388,6 +420,37 @@ export async function webdavFileExists(
         throw error;
     }
     return true;
+}
+
+export async function webdavHeadFile(
+    url: string,
+    options: WebDavOptions = {}
+): Promise<RemoteFileMetadata> {
+    assertWebdavUrl(url, options);
+    const fetcher = options.fetcher ?? fetch;
+    const res = await fetchWithTimeout(
+        url,
+        { method: 'HEAD', headers: buildHeaders(options) },
+        options.timeoutMs ?? DEFAULT_TIMEOUT_MS,
+        fetcher,
+        WEBDAV_TIMEOUT_ERROR,
+    );
+
+    if (res.status === 404) {
+        return {
+            exists: false,
+            fingerprint: null,
+            etag: null,
+            lastModified: null,
+            contentLength: null,
+        };
+    }
+    if (!res.ok) {
+        const error = new Error(`WebDAV HEAD failed (${res.status})`);
+        (error as { status?: number }).status = res.status;
+        throw error;
+    }
+    return metadataFromHeaders('webdav', res.headers);
 }
 
 export async function webdavGetFile(

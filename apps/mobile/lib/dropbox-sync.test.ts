@@ -6,6 +6,7 @@ import {
     DropboxUnauthorizedError,
     downloadDropboxAppData,
     downloadDropboxFile,
+    getDropboxAppDataMetadata,
     testDropboxAccess,
     uploadDropboxAppData,
     uploadDropboxFile,
@@ -80,6 +81,18 @@ describe('dropbox-sync', () => {
     it('accepts 409 metadata response as valid auth for first sync', async () => {
         const fetcher = async () => buildResponse(409, '{"error_summary":"path/not_found/.."}');
         await expect(testDropboxAccess('token', fetcher as typeof fetch)).resolves.toBeUndefined();
+    });
+
+    it('reads metadata rev without downloading app data', async () => {
+        let requestInit: RequestInit | undefined;
+        const fetcher = async (_input: RequestInfo | URL, init?: RequestInit) => {
+            requestInit = init;
+            return buildResponse(200, '{"rev":"rev-fast"}');
+        };
+
+        await expect(getDropboxAppDataMetadata('token', fetcher as typeof fetch)).resolves.toEqual({ rev: 'rev-fast' });
+        expect(requestInit?.method).toBe('POST');
+        expect(JSON.parse(String(requestInit?.body))).toMatchObject({ path: '/data.json' });
     });
 
     it('throws DropboxFileNotFoundError when attachment download returns 409', async () => {

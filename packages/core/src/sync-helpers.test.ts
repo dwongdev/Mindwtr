@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
     areSyncPayloadsEqual,
     assertNoPendingAttachmentUploads,
+    computeSyncPayloadFingerprint,
     findPendingAttachmentUploads,
     normalizeCloudUrl,
     sanitizeAppDataForRemote,
@@ -395,5 +396,39 @@ describe('sync-helpers areSyncPayloadsEqual', () => {
         };
 
         expect(areSyncPayloadsEqual(left, right)).toBe(false);
+    });
+});
+
+describe('sync-helpers computeSyncPayloadFingerprint', () => {
+    it('ignores device-local sync status fields', () => {
+        const left: AppData = {
+            tasks: [],
+            projects: [],
+            sections: [],
+            areas: [],
+            settings: {
+                lastSyncAt: '2026-04-01T00:00:00.000Z',
+                lastSyncStatus: 'success',
+                lastSyncError: undefined,
+            },
+        };
+        const right: AppData = {
+            ...left,
+            settings: {
+                lastSyncAt: '2026-04-02T00:00:00.000Z',
+                lastSyncStatus: 'error',
+                lastSyncError: 'temporary network error',
+            },
+        };
+
+        expect(computeSyncPayloadFingerprint(left)).toBe(computeSyncPayloadFingerprint(right));
+    });
+
+    it('changes when sync-eligible content changes', () => {
+        const left = createData([]);
+        const right = createData([]);
+        right.tasks[0].title = 'Changed';
+
+        expect(computeSyncPayloadFingerprint(left)).not.toBe(computeSyncPayloadFingerprint(right));
     });
 });

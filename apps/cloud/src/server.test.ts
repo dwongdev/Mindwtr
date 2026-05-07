@@ -197,7 +197,7 @@ describe('cloud server utils', () => {
         expect(response.headers.get('Content-Type')).toBe('application/json; charset=utf-8');
         expect(response.headers.get('Access-Control-Allow-Origin')).toBe(corsOrigin);
         expect(response.headers.get('Access-Control-Allow-Headers')).toBe('Authorization, Content-Type');
-        expect(response.headers.get('Access-Control-Allow-Methods')).toBe('GET,PUT,POST,PATCH,DELETE,OPTIONS');
+        expect(response.headers.get('Access-Control-Allow-Methods')).toBe('GET,HEAD,PUT,POST,PATCH,DELETE,OPTIONS');
     });
 
     test('returns no-content CORS preflight responses', async () => {
@@ -206,7 +206,7 @@ describe('cloud server utils', () => {
         expect(response.status).toBe(204);
         expect(response.headers.get('Access-Control-Allow-Origin')).toBe(corsOrigin);
         expect(response.headers.get('Access-Control-Allow-Headers')).toBe('Authorization, Content-Type');
-        expect(response.headers.get('Access-Control-Allow-Methods')).toBe('GET,PUT,POST,PATCH,DELETE,OPTIONS');
+        expect(response.headers.get('Access-Control-Allow-Methods')).toBe('GET,HEAD,PUT,POST,PATCH,DELETE,OPTIONS');
         expect(await response.text()).toBe('');
     });
 
@@ -706,7 +706,36 @@ describe('cloud server api', () => {
         expect(response.status).toBe(204);
         expect(response.headers.get('Access-Control-Allow-Origin')).toBe(corsOrigin);
         expect(response.headers.get('Access-Control-Allow-Headers')).toBe('Authorization, Content-Type');
-        expect(response.headers.get('Access-Control-Allow-Methods')).toBe('GET,PUT,POST,PATCH,DELETE,OPTIONS');
+        expect(response.headers.get('Access-Control-Allow-Methods')).toBe('GET,HEAD,PUT,POST,PATCH,DELETE,OPTIONS');
+        expect(await response.text()).toBe('');
+    });
+
+    test('returns data metadata for HEAD /v1/data without a body', async () => {
+        const seedResponse = await fetch(`${baseUrl}/v1/data`, {
+            method: 'PUT',
+            headers: {
+                ...authHeaders,
+                'content-type': 'application/json',
+            },
+            body: JSON.stringify({
+                tasks: [],
+                projects: [],
+                sections: [],
+                areas: [],
+                settings: {},
+            }),
+        });
+        expect(seedResponse.status).toBe(200);
+
+        const response = await fetch(`${baseUrl}/v1/data`, {
+            method: 'HEAD',
+            headers: authHeaders,
+        });
+
+        expect(response.status).toBe(200);
+        expect(response.headers.get('etag')).toMatch(/^"sha256-/);
+        expect(response.headers.get('last-modified')).toBeTruthy();
+        expect(Number(response.headers.get('content-length'))).toBeGreaterThan(0);
         expect(await response.text()).toBe('');
     });
 

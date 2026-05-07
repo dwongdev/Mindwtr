@@ -1,7 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform } from 'react-native';
 import Constants from 'expo-constants';
-import { AppData, Attachment, MergeStats, createSyncOrchestrator, runPreSyncAttachmentPhase, useTaskStore, webdavGetJson, webdavPutJson, cloudGetJson, cloudPutJson, flushPendingSave, performSyncCycle, findOrphanedAttachments, removeOrphanedAttachmentsFromData, removeAttachmentsByIdFromData, webdavDeleteFile, cloudDeleteFile, CLOCK_SKEW_THRESHOLD_MS, appendSyncHistory, withRetry, isRetryableWebdavReadError, isWebdavInvalidJsonError, normalizeWebdavUrl, normalizeCloudUrl, sanitizeAppDataForRemote, areSyncPayloadsEqual, assertNoPendingAttachmentUploads, findPendingAttachmentUploads, injectExternalCalendars as injectExternalCalendarsForSync, persistExternalCalendars as persistExternalCalendarsForSync, mergeAppData, cloneAppData, LocalSyncAbort, getInMemoryAppDataSnapshot, shouldRunAttachmentCleanup, createAbortableFetch, normalizeCloudProvider as normalizeCoreCloudProvider, CLOUD_PROVIDER_DROPBOX, CLOUD_PROVIDER_SELF_HOSTED, type CloudProvider } from '@mindwtr/core';
+import { AppData, Attachment, MergeStats, createSyncOrchestrator, runPreSyncAttachmentPhase, useTaskStore, webdavGetJson, webdavHeadFile, webdavPutJson, cloudGetJson, cloudHeadJson, cloudPutJson, flushPendingSave, performSyncCycle, findOrphanedAttachments, removeOrphanedAttachmentsFromData, removeAttachmentsByIdFromData, webdavDeleteFile, cloudDeleteFile, CLOCK_SKEW_THRESHOLD_MS, appendSyncHistory, withRetry, isRetryableWebdavReadError, isWebdavInvalidJsonError, normalizeWebdavUrl, normalizeCloudUrl, sanitizeAppDataForRemote, computeStableValueFingerprint, computeSyncPayloadFingerprint, areSyncPayloadsEqual, assertNoPendingAttachmentUploads, findPendingAttachmentUploads, injectExternalCalendars as injectExternalCalendarsForSync, persistExternalCalendars as persistExternalCalendarsForSync, mergeAppData, cloneAppData, LocalSyncAbort, getInMemoryAppDataSnapshot, shouldRunAttachmentCleanup, createAbortableFetch, normalizeCloudProvider as normalizeCoreCloudProvider, CLOUD_PROVIDER_DROPBOX, CLOUD_PROVIDER_SELF_HOSTED, type CloudProvider } from '@mindwtr/core';
 import { mobileStorage } from './storage-adapter';
 import { logInfo, logSyncError, logWarn, sanitizeLogMessage } from './app-log';
 import { readSyncFile, resolveSyncFileUri, writeSyncFile } from './storage-file';
@@ -14,6 +14,7 @@ import {
   DropboxUnauthorizedError,
   deleteDropboxFile,
   downloadDropboxAppData,
+  getDropboxAppDataMetadata,
   uploadDropboxAppData,
 } from './dropbox-sync';
 import * as FileSystem from './file-system';
@@ -44,15 +45,22 @@ const CLEANUP_INTERVAL_MS = 24 * 60 * 60 * 1000;
 const ATTACHMENT_CLEANUP_BATCH_LIMIT = 25;
 const SYNC_CONFIG_CACHE_TTL_MS = 30_000;
 const SYNC_FILE_NAME = 'data.json';
+const FAST_SYNC_STATE_KEY = '@mindwtr_fast_sync_state_v1';
 const syncConfigCache = new Map<string, { value: string | null; readAt: number }>();
 const IOS_TEMP_INBOX_PATH_PATTERN = /\/tmp\/[^/]*-Inbox\//i;
 const INVALID_CONFIG_CHAR_PATTERN = /[\u0000-\u001F\u007F]/;
 type MobileSyncActivityState = 'idle' | 'syncing';
 type MobileSyncActivityListener = (state: MobileSyncActivityState) => void;
-type MobileSyncSkipReason = 'offline' | 'requeued';
+type MobileSyncSkipReason = 'offline' | 'requeued' | 'unchanged';
 type MobileSyncResult = { success: boolean; stats?: MergeStats; error?: string; skipped?: MobileSyncSkipReason };
 type MobileWebDavSyncConfig = { url: string; username: string; password: string; allowInsecureHttp?: boolean };
 type MobileCloudSyncConfig = { url: string; token: string; allowInsecureHttp?: boolean };
+type FastSyncState = {
+  scope: string;
+  localFingerprint: string;
+  remoteFingerprint: string;
+  checkedAt: string;
+};
 const isFossBuild = (() => {
   const extra = Constants.expoConfig?.extra as { isFossBuild?: unknown } | undefined;
   return extra?.isFossBuild === true || extra?.isFossBuild === 'true';
@@ -138,6 +146,71 @@ const injectExternalCalendars = async (data: AppData): Promise<AppData> =>
 
 const persistExternalCalendars = async (data: AppData): Promise<void> =>
   persistExternalCalendarsForSync(data, externalCalendarProvider);
+
+const readFastSyncState = async (scope: string): Promise<FastSyncState | null> => {
+  try {
+    const raw = await AsyncStorage.getItem(FAST_SYNC_STATE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as Partial<FastSyncState>;
+    if (
+      parsed.scope !== scope
+      || typeof parsed.localFingerprint !== 'string'
+      || typeof parsed.remoteFingerprint !== 'string'
+    ) {
+      return null;
+    }
+    return parsed as FastSyncState;
+  } catch {
+    return null;
+  }
+};
+
+const writeFastSyncState = async (state: FastSyncState): Promise<void> => {
+  try {
+    await AsyncStorage.setItem(FAST_SYNC_STATE_KEY, JSON.stringify(state));
+  } catch (error) {
+    logSyncWarning('Failed to cache sync fast-check state', error);
+  }
+};
+
+const buildFastSyncScope = (options: {
+  backend: SyncBackend;
+  webdavConfig: MobileWebDavSyncConfig | null;
+  cloudProvider: CloudProvider;
+  cloudConfig: MobileCloudSyncConfig | null;
+  dropboxClientId: string;
+}): string | null => {
+  if (options.backend === 'webdav' && options.webdavConfig?.url) {
+    return computeStableValueFingerprint({
+      backend: 'webdav',
+      url: normalizeWebdavUrl(options.webdavConfig.url),
+      username: options.webdavConfig.username || '',
+    });
+  }
+  if (options.backend === 'cloud' && options.cloudProvider === CLOUD_PROVIDER_SELF_HOSTED && options.cloudConfig?.url) {
+    return computeStableValueFingerprint({
+      backend: 'cloud',
+      provider: CLOUD_PROVIDER_SELF_HOSTED,
+      url: normalizeCloudUrl(options.cloudConfig.url),
+      token: options.cloudConfig.token || '',
+    });
+  }
+  if (options.backend === 'cloud' && options.cloudProvider === CLOUD_PROVIDER_DROPBOX && options.dropboxClientId) {
+    return computeStableValueFingerprint({
+      backend: 'cloud',
+      provider: CLOUD_PROVIDER_DROPBOX,
+      appKey: options.dropboxClientId,
+      path: '/data.json',
+    });
+  }
+  return null;
+};
+
+const hasPendingSyncSideEffects = (data: AppData): boolean => (
+  Boolean(data.settings.pendingRemoteWriteAt)
+  || findPendingAttachmentUploads(data).length > 0
+  || Boolean(data.settings.attachments?.pendingRemoteDeletes?.length)
+);
 
 let mobileSyncActivityState: MobileSyncActivityState = 'idle';
 const mobileSyncActivityListeners = new Set<MobileSyncActivityListener>();
@@ -755,16 +828,139 @@ const mobileSyncOrchestrator = createSyncOrchestrator<string | undefined, Mobile
         remoteDataForCompare = sanitized;
       };
 
+      const readLocalDataForSyncCycle = async (): Promise<AppData> => {
+        const inMemorySnapshot = getInMemoryAppDataSnapshot();
+        const baseData = preSyncedLocalData
+          ? mergeAppData(preSyncedLocalData, inMemorySnapshot)
+          : mergeAppData(await mobileStorage.getData(), inMemorySnapshot);
+        const data = await injectExternalCalendars(baseData);
+        localSnapshotChangeAt = useTaskStore.getState().lastDataChangeAt;
+        return data;
+      };
+
+      const readRemoteFingerprintForFastCheck = async (): Promise<string | null> => {
+        await ensureNetworkStillAvailable();
+        if (backend === 'webdav' && webdavConfig?.url) {
+          ensureWebdavSyncNotRateLimited();
+          try {
+            const metadata = await withRetry(
+              () =>
+                webdavHeadFile(webdavConfig.url, {
+                  ...getMobileWebDavRequestOptions(webdavConfig.allowInsecureHttp),
+                  username: webdavConfig.username,
+                  password: webdavConfig.password,
+                  timeoutMs: DEFAULT_SYNC_TIMEOUT_MS,
+                  fetcher: fetchWithAbort,
+                }),
+              WEBDAV_READ_RETRY_OPTIONS
+            );
+            if (!metadata?.exists) return null;
+            return metadata.fingerprint;
+          } catch (error) {
+            handleWebdavRateLimit(error);
+            throw error;
+          }
+        }
+        if (backend === 'cloud' && cloudProvider === CLOUD_PROVIDER_SELF_HOSTED && cloudConfig?.url) {
+          const metadata = await cloudHeadJson(cloudConfig.url, {
+            ...getMobileCloudRequestOptions(cloudConfig.allowInsecureHttp),
+            token: cloudConfig.token,
+            timeoutMs: DEFAULT_SYNC_TIMEOUT_MS,
+            fetcher: fetchWithAbort,
+          });
+          if (!metadata?.exists) return null;
+          return metadata.fingerprint;
+        }
+        if (backend === 'cloud' && cloudProvider === CLOUD_PROVIDER_DROPBOX) {
+          const metadata = await runDropboxOperation((accessToken) =>
+            getDropboxAppDataMetadata(accessToken, fetchWithAbort)
+          );
+          dropboxLastRev = metadata.rev;
+          return metadata.rev ? `dropbox:v1:rev=${metadata.rev}` : null;
+        }
+        return null;
+      };
+
+      const fastSyncScope = buildFastSyncScope({
+        backend,
+        webdavConfig,
+        cloudProvider,
+        cloudConfig,
+        dropboxClientId,
+      });
+
+      const trySkipUnchangedSync = async (): Promise<MobileSyncResult | null> => {
+        if (!fastSyncScope) return null;
+        step = 'fast-check';
+        logSyncInfo('Sync step', { step });
+        const localDataForFastCheck = await readLocalDataForSyncCycle();
+        ensureLocalSnapshotFresh();
+        if (hasPendingSyncSideEffects(localDataForFastCheck)) return null;
+
+        const localFingerprint = computeSyncPayloadFingerprint(localDataForFastCheck);
+        const cached = await readFastSyncState(fastSyncScope);
+        if (!cached || cached.localFingerprint !== localFingerprint) return null;
+
+        let remoteFingerprint: string | null = null;
+        try {
+          remoteFingerprint = await readRemoteFingerprintForFastCheck();
+        } catch (error) {
+          logSyncWarning('Sync fast check failed; falling back to full sync', error);
+          return null;
+        }
+        if (!remoteFingerprint || remoteFingerprint !== cached.remoteFingerprint) return null;
+
+        const now = new Date().toISOString();
+        await writeFastSyncState({
+          scope: fastSyncScope,
+          localFingerprint,
+          remoteFingerprint,
+          checkedAt: now,
+        });
+        useTaskStore.getState().setError(null);
+        try {
+          await useTaskStore.getState().updateSettings({
+            lastSyncAt: now,
+            lastSyncStatus: 'success',
+            lastSyncError: undefined,
+          });
+        } catch (error) {
+          logSyncWarning('[Mobile] Failed to persist unchanged sync status', error);
+        }
+        logSyncInfo('Sync fast check found no changes', { backend });
+        return { success: true, skipped: 'unchanged' };
+      };
+
+      const recordFastSyncState = async (data: AppData): Promise<void> => {
+        if (!fastSyncScope || hasPendingSyncSideEffects(data)) return;
+        if (useTaskStore.getState().lastDataChangeAt > localSnapshotChangeAt) return;
+        let remoteFingerprint: string | null = null;
+        if (backend === 'cloud' && cloudProvider === CLOUD_PROVIDER_DROPBOX && dropboxLastRev) {
+          remoteFingerprint = `dropbox:v1:rev=${dropboxLastRev}`;
+        } else {
+          try {
+            remoteFingerprint = await readRemoteFingerprintForFastCheck();
+          } catch (error) {
+            logSyncWarning('Failed to refresh sync fast-check state', error);
+            return;
+          }
+        }
+        if (!remoteFingerprint) return;
+        await writeFastSyncState({
+          scope: fastSyncScope,
+          localFingerprint: computeSyncPayloadFingerprint(data),
+          remoteFingerprint,
+          checkedAt: new Date().toISOString(),
+        });
+      };
+
+      const unchangedResult = await trySkipUnchangedSync();
+      if (unchangedResult) {
+        return unchangedResult;
+      }
+
       const syncResult = await performSyncCycle({
-        readLocal: async () => {
-          const inMemorySnapshot = getInMemoryAppDataSnapshot();
-          const baseData = preSyncedLocalData
-            ? mergeAppData(preSyncedLocalData, inMemorySnapshot)
-            : mergeAppData(await mobileStorage.getData(), inMemorySnapshot);
-          const data = await injectExternalCalendars(baseData);
-          localSnapshotChangeAt = useTaskStore.getState().lastDataChangeAt;
-          return data;
-        },
+        readLocal: readLocalDataForSyncCycle,
         readRemote: readRemoteDataByBackend,
         writeLocal: async (data) => {
           ensureLocalSnapshotFresh();
@@ -986,6 +1182,8 @@ const mobileSyncOrchestrator = createSyncOrchestrator<string | undefined, Mobile
         await mobileStorage.saveData(mergedData);
         wroteLocal = true;
       }
+
+      await recordFastSyncState(mergedData);
 
       step = 'refresh';
       ensureLocalSnapshotFresh();
