@@ -42,7 +42,6 @@ Mindwtr is **simple by default and powerful when needed**. We focus on reducing 
 
 ### GTD Methodology
 - [[GTD Overview]] — Introduction to Getting Things Done
-- [[GTD Workflow in Mindwtr]] — Master the GTD methodology
 - [[GTD Workflow in Mindwtr]] — How to implement GTD with this app
 - [[Contexts and Tags]] — Location and energy-based contexts
 - [[Weekly Review]] — Step-by-step review process
@@ -70,7 +69,8 @@ Mindwtr is **simple by default and powerful when needed**. We focus on reducing 
 - [[Architecture]] — Technical architecture and design
 - [[Core API]] — `@mindwtr/core` package documentation
 - [[MCP Server]] — Local MCP server setup and tool usage
-- [[Deployment Guide]] — Platform deployment entry points
+- [[Docker Deployment]] — Self-hosted deployment entry point
+- [[Cloud Deployment]] — Operations reference for self-hosted sync
 - [[Performance Guide]] — Performance-focused implementation notes
 - [[Testing Strategy]] — Test layers, release gates, and manual smoke checks
 - [Release Notes (Repository)](https://github.com/dongdongbh/Mindwtr/tree/main/docs/release-notes) — Version-by-version release notes

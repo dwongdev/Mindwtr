@@ -135,5 +135,6 @@ If a bad release is detected:
 ## Related
 
 - [[Developer Guide]]
-- [[Deployment Guide]]
+- [[Docker Deployment]]
+- [[Cloud Deployment]]
 - [Repository release notes](https://github.com/dongdongbh/Mindwtr/tree/main/docs/release-notes)

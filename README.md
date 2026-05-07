@@ -103,7 +103,7 @@ _Don't show me a cockpit when I just want to ride a bike._
 - GTD workflow end-to-end: Capture, Clarify, Organize, Reflect, Engage.
 - Focus view combines time-based agenda with next actions.
 - Local-first data model with native iCloud / CloudKit sync on supported Apple builds, plus file sync, WebDAV, Dropbox, and self-hosted cloud options.
-- Projects support sections and areas for larger multi-step planning.
+- Projects support sections, areas, and reorderable project task order for larger multi-step planning.
 - Obsidian vault import with note deep links on desktop.
 - Optional AI copilot (BYOK + local/self-hosted compatible models).
 - Cross-platform apps for desktop and mobile, plus PWA.
@@ -125,7 +125,7 @@ _Don't show me a cockpit when I just want to ride a bike._
 
 - 📥 **Inbox** - Capture zone with processing wizard
 - 🎯 **Focus** - Agenda (time-based) + Next Actions in one view
-- 📁 **Projects** - Multi-step outcomes with sections and areas
+- 📁 **Projects** - Multi-step outcomes with sections, areas, and manual task ordering
 - 🏷️ **Contexts** - Slash-delimited contexts with parent matching (@work/meetings)
 - ⏳ **Waiting For** - Delegated items
 - 💭 **Someday/Maybe** - Deferred ideas
@@ -172,7 +172,7 @@ _Don't show me a cockpit when I just want to ride a bike._
 ### Cross-Platform
 
 - 🖥️ **Desktop** - Tauri v2 (macOS, Linux, Windows)
-- 📱 **Mobile** - React Native/Expo (iOS via App Store/TestFlight, Android)
+- 📱 **Mobile** - React Native/Expo (iOS via App Store/TestFlight, Android) with in-app tips for gestures and app shortcuts
 - 📲 **Android Widget** - Home screen focus/next widget
 - ⌨️ **Keyboard Shortcuts** - Vim and Emacs presets
 - 🎨 **Themes** - Light/Dark

@@ -18,6 +18,8 @@ This folder contains small, focused decision documents that explain **why** we m
 - [ADR 0012: Area soft-delete cascade](0012-area-soft-delete-cascade.md)
 - [ADR 0013: Split start and due reminders](0013-start-due-reminder-split.md)
 - [ADR 0014: Shared sync orchestration ports](0014-sync-orchestration-ports.md)
+- [ADR 0015: Cap sync revisions at a safe integer ceiling](0015-sync-revision-cap.md)
+- [ADR 0016: Serialize sync cycles around the merge/write window](0016-sync-cycle-serialization.md)
 
 ## Template
 

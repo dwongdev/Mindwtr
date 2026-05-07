@@ -35,6 +35,11 @@ These changes are intended for the next patch release after `v0.9.0`.
 - Replaced the mobile quick-capture remount workaround with explicit open-request state.
 - Surfaced delete-vs-live conflict details in user-visible sync history.
 - Removed noisy mobile Android bundle warnings from root-layout hook files, `whisper.rn` resolution, and legacy layout animation setup.
+- Kept task lookup maps aligned during batch task updates, batch deletes, and trash purges.
+- Guarded mobile quick-capture saves against duplicate rapid taps.
+- Aggregated desktop cleartext-sync warnings into a single banner.
+- Added modal accessibility metadata to the mobile tips dialog.
+- Warned when sync revisions approach the safe cap.
 
 ### Performance
 
@@ -49,8 +54,11 @@ These changes are intended for the next patch release after `v0.9.0`.
 - Replaced core root wildcard exports with explicit named exports.
 - Added an actionable mobile inbox empty state and mobile tips discovery for gestures and app shortcuts.
 - Consolidated overlapping deployment and GTD wiki pages.
+- Added ADRs for sync revision caps and serialized sync cycles.
+- Updated README feature notes for mobile tips and project task ordering.
 
 ### Tests
 
 - Added a browser-level Playwright color-contrast pass for the desktop app.
 - Added mobile quick-capture lifecycle and modal accessibility coverage.
+- Added regression coverage for batch task lookup alignment and duplicate quick-capture saves.
