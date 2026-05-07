@@ -24,7 +24,7 @@ import {
     type LucideIcon,
 } from 'lucide-react';
 import { cn } from '../lib/utils';
-import { shallow, useTaskStore, safeFormatDate, translateWithFallback } from '@mindwtr/core';
+import { shallow, useTaskStore, safeFormatDate, tFallback } from '@mindwtr/core';
 import { useLanguage } from '../contexts/language-context';
 import { useUiStore } from '../store/ui-store';
 import { useObsidianStore } from '../store/obsidian-store';
@@ -92,9 +92,6 @@ export function Layout({ children, currentView, onViewChange }: LayoutProps) {
     const isFocusMode = useUiStore((state) => state.isFocusMode);
     const showToast = useUiStore((state) => state.showToast);
     const isObsidianEnabled = useObsidianStore((state) => state.config.enabled);
-    const tOrFallback = (key: string, fallback: string) => {
-        return translateWithFallback(t, key, fallback);
-    };
     const [syncStatus, setSyncStatus] = useState(() => SyncService.getSyncStatus());
     const [isOnline, setIsOnline] = useState(() => (typeof navigator !== 'undefined' ? navigator.onLine : true));
     const [cleartextSyncWarning, setCleartextSyncWarning] = useState<string | null>(null);
@@ -126,7 +123,7 @@ export function Layout({ children, currentView, onViewChange }: LayoutProps) {
         return () => clearInterval(timer);
     }, [lastSyncAt, getSyncFreshnessBucket]);
 
-    const syncConflictNotice = tOrFallback(
+    const syncConflictNotice = tFallback(t,
         'settings.syncConflictNotice',
         'Sync conflict resolved with last-write-wins. Open sync settings to review the details.'
     );
@@ -155,25 +152,25 @@ export function Layout({ children, currentView, onViewChange }: LayoutProps) {
     const syncTooltip = !isOnline
         ? (t('common.offline') || 'Offline')
         : lastSyncStatus === 'error' && lastSyncError
-            ? `${tOrFallback('settings.lastSyncError', 'Sync failed')}: ${lastSyncError}\n${tOrFallback('settings.lastSync', 'Last sync')}: ${fullSyncTimestamp}`
+            ? `${tFallback(t, 'settings.lastSyncError', 'Sync failed')}: ${lastSyncError}\n${tFallback(t, 'settings.lastSync', 'Last sync')}: ${fullSyncTimestamp}`
             : lastSyncStatus === 'conflict'
-                ? `${tOrFallback('settings.lastSyncConflict', 'Conflicts resolved')}\n${syncConflictNotice}\n${tOrFallback('settings.lastSync', 'Last sync')}: ${fullSyncTimestamp}`
-            : `${tOrFallback('settings.lastSync', 'Last sync')}: ${fullSyncTimestamp}`;
+                ? `${tFallback(t, 'settings.lastSyncConflict', 'Conflicts resolved')}\n${syncConflictNotice}\n${tFallback(t, 'settings.lastSync', 'Last sync')}: ${fullSyncTimestamp}`
+            : `${tFallback(t, 'settings.lastSync', 'Last sync')}: ${fullSyncTimestamp}`;
     const syncStatusLabel = syncStatus.inFlight
-        ? tOrFallback('settings.syncing', 'Syncing...')
+        ? tFallback(t, 'settings.syncing', 'Syncing...')
         : !isOnline
-            ? tOrFallback('common.offline', 'Offline')
+            ? tFallback(t, 'common.offline', 'Offline')
             : lastSyncStatus === 'error'
-                ? tOrFallback('settings.lastSyncError', 'Sync failed')
+                ? tFallback(t, 'settings.lastSyncError', 'Sync failed')
                 : lastSyncStatus === 'conflict'
-                    ? tOrFallback('settings.lastSyncConflict', 'Conflicts resolved')
+                    ? tFallback(t, 'settings.lastSyncConflict', 'Conflicts resolved')
                     : syncFreshness === 'old'
-                        ? tOrFallback('settings.syncStatusOld', 'Old')
+                        ? tFallback(t, 'settings.syncStatusOld', 'Old')
                         : syncFreshness === 'stale'
-                            ? tOrFallback('settings.syncStatusStale', 'Stale')
+                            ? tFallback(t, 'settings.syncStatusStale', 'Stale')
                             : syncFreshness === 'fresh'
-                                ? tOrFallback('settings.syncStatusFresh', 'Fresh')
-                                : tOrFallback('settings.syncStatusNever', 'Not synced');
+                                ? tFallback(t, 'settings.syncStatusFresh', 'Fresh')
+                                : tFallback(t, 'settings.syncStatusNever', 'Not synced');
     const syncStatusLabelClass = !isOnline || lastSyncStatus === 'error' || syncFreshness === 'old'
         ? 'text-destructive'
         : lastSyncStatus === 'conflict' || syncFreshness === 'stale'
@@ -199,7 +196,7 @@ export function Layout({ children, currentView, onViewChange }: LayoutProps) {
     }, []);
     const compactSyncTimeLabel = lastSyncAt
         ? formatCompactSyncTime(lastSyncAt)
-        : tOrFallback('settings.lastSyncNever', 'Never');
+        : tFallback(t, 'settings.lastSyncNever', 'Never');
     const dismissLabel = t('common.dismiss');
     const dismissText = dismissLabel && dismissLabel !== 'common.dismiss' ? dismissLabel : 'Dismiss';
     const areaById = useMemo(() => new Map(areas.map((area) => [area.id, area])), [areas]);
@@ -354,32 +351,31 @@ export function Layout({ children, currentView, onViewChange }: LayoutProps) {
     }, []);
 
     const refreshCleartextSyncWarning = useCallback(async () => {
-        try {
-            const backend = await SyncService.getSyncBackend();
-            if (backend === 'webdav') {
+        const warnings = await Promise.all([
+            (async () => {
                 const config = await SyncService.getWebDavConfig({ silent: true });
-                setCleartextSyncWarning(config.url.trim().toLowerCase().startsWith('http://')
-                    ? tOrFallback(
+                if (config.url.trim().toLowerCase().startsWith('http://')) {
+                    return tFallback(t,
                         'settings.cleartextSyncWarningWebdav',
                         'WebDAV sync is using HTTP. Only local or private-network endpoints are allowed; data is not encrypted.'
-                    )
-                    : null);
-                return;
-            }
-            if (backend === 'cloud' && await SyncService.getCloudProvider() === 'selfhosted') {
+                    );
+                }
+                return null;
+            })().catch(() => undefined),
+            (async () => {
+                if (await SyncService.getCloudProvider() !== 'selfhosted') return null;
                 const config = await SyncService.getCloudConfig({ silent: true });
-                setCleartextSyncWarning(config.url.trim().toLowerCase().startsWith('http://')
-                    ? tOrFallback(
+                if (config.url.trim().toLowerCase().startsWith('http://')) {
+                    return tFallback(t,
                         'settings.cleartextSyncWarningCloud',
                         'Self-hosted sync is using HTTP. Only local or private-network endpoints are allowed; data is not encrypted.'
-                    )
-                    : null);
-                return;
-            }
-            setCleartextSyncWarning(null);
-        } catch {
-            setCleartextSyncWarning(null);
-        }
+                    );
+                }
+                return null;
+            })().catch(() => undefined),
+        ]);
+        const visibleWarnings = warnings.filter((warning): warning is string => Boolean(warning));
+        setCleartextSyncWarning(visibleWarnings.length > 0 ? visibleWarnings.join(' ') : null);
     }, [t]);
 
     useEffect(() => {
@@ -410,7 +406,7 @@ export function Layout({ children, currentView, onViewChange }: LayoutProps) {
                 href="#main-content"
                 className="sr-only focus:not-sr-only focus:absolute focus:top-2 focus:left-2 focus:z-50 focus:px-3 focus:py-2 focus:rounded-md focus:bg-primary focus:text-primary-foreground"
             >
-                {tOrFallback('accessibility.skipToContent', 'Skip to content')}
+                {tFallback(t, 'accessibility.skipToContent', 'Skip to content')}
             </a>
             {/* Sidebar */}
             {!isFocusMode && (
@@ -524,11 +520,11 @@ export function Layout({ children, currentView, onViewChange }: LayoutProps) {
                                             isCollapsed ? "justify-center px-2 py-2.5" : "justify-between px-3 py-2.5"
                                         )}
                                         aria-current={currentView === item.id ? 'page' : undefined}
-                                    title={item.labelKey ? tOrFallback(item.labelKey, item.fallbackLabel ?? item.id) : (item.fallbackLabel ?? item.id)}
+                                    title={item.labelKey ? tFallback(t, item.labelKey, item.fallbackLabel ?? item.id) : (item.fallbackLabel ?? item.id)}
                                     >
                                         <div className={cn("flex items-center gap-3", isCollapsed && "gap-0")}>
                                             <item.icon className={cn("w-4 h-4", currentView === item.id && "text-primary")} />
-                                            {!isCollapsed && (item.labelKey ? tOrFallback(item.labelKey, item.fallbackLabel ?? item.id) : (item.fallbackLabel ?? item.id))}
+                                            {!isCollapsed && (item.labelKey ? tFallback(t, item.labelKey, item.fallbackLabel ?? item.id) : (item.fallbackLabel ?? item.id))}
                                         </div>
                                         {!isCollapsed && item.count !== undefined && item.count > 0 && (
                                             <span className={cn(
@@ -611,7 +607,7 @@ export function Layout({ children, currentView, onViewChange }: LayoutProps) {
                 data-main-content
                 tabIndex={-1}
                 role="main"
-                aria-label={tOrFallback('accessibility.mainContent', 'Main content')}
+                aria-label={tFallback(t, 'accessibility.mainContent', 'Main content')}
             >
                 <div className={cn(
                     "mx-auto p-8 h-full",
