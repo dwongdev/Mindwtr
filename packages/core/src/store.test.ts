@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
 import { addDays } from 'date-fns';
 import { safeParseDate } from './date';
 import { useTaskStore, flushPendingSave, setStorageAdapter } from './store';
+import { buildEntityMap } from './store-helpers';
 import type { StorageAdapter } from './storage';
 import type { Task } from './types';
 
@@ -59,6 +60,10 @@ describe('TaskStore', () => {
             _allProjects: [],
             _allSections: [],
             _allAreas: [],
+            _tasksById: new Map(),
+            _projectsById: new Map(),
+            _sectionsById: new Map(),
+            _areasById: new Map(),
             lastDataChangeAt: 0,
         });
         vi.useFakeTimers();
@@ -1054,6 +1059,28 @@ describe('TaskStore', () => {
         expect(useTaskStore.getState()._allTasks).toEqual([alreadyPurgedTask]);
     });
 
+    it('keeps the task lookup aligned when purging deleted tasks', async () => {
+        const visibleTask = createStoreTask('visible-task');
+        const deletedTask = createStoreTask('deleted-task', {
+            deletedAt: '2026-04-01T00:00:00.000Z',
+        });
+
+        useTaskStore.setState({
+            tasks: [visibleTask],
+            _allTasks: [visibleTask, deletedTask],
+            _tasksById: buildEntityMap([visibleTask, deletedTask]),
+        });
+        const previousMap = useTaskStore.getState()._tasksById;
+
+        await useTaskStore.getState().purgeDeletedTasks();
+
+        const state = useTaskStore.getState();
+        const purgedTask = state._allTasks.find((task) => task.id === deletedTask.id);
+        expect(purgedTask?.purgedAt).toBeTruthy();
+        expect(state._tasksById).not.toBe(previousMap);
+        expect(state._tasksById.get(deletedTask.id)).toBe(purgedTask);
+    });
+
     it('should coalesce saves and allow immediate flush', async () => {
         const { addTask } = useTaskStore.getState();
 
@@ -1682,6 +1709,32 @@ describe('TaskStore', () => {
             expect(result).toEqual({ success: false, error: `Tasks not found: ${deletedTask.id}` });
             expect(useTaskStore.getState()._allTasks.find((item) => item.id === activeTask.id)?.deletedAt).toBeUndefined();
             expect(useTaskStore.getState()._allTasks.find((item) => item.id === deletedTask.id)).toEqual(deletedTaskBeforeBatch);
+        });
+
+        it('keeps the task lookup aligned after batch updates and deletes', async () => {
+            const { addTask, batchDeleteTasks, batchUpdateTasks } = useTaskStore.getState();
+            await addTask('First Task', { status: 'next' });
+            await addTask('Second Task', { status: 'next' });
+            const firstTask = useTaskStore.getState()._allTasks.find((item) => item.title === 'First Task')!;
+            const secondTask = useTaskStore.getState()._allTasks.find((item) => item.title === 'Second Task')!;
+
+            await batchUpdateTasks([
+                { id: firstTask.id, updates: { title: 'Updated First Task' } },
+            ]);
+            let state = useTaskStore.getState();
+            const updatedFirstTask = state._allTasks.find((item) => item.id === firstTask.id)!;
+            expect(state._tasksById.get(firstTask.id)).toBe(updatedFirstTask);
+            expect(state._tasksById.get(firstTask.id)?.title).toBe('Updated First Task');
+
+            await batchDeleteTasks([firstTask.id, secondTask.id]);
+
+            state = useTaskStore.getState();
+            const deletedFirstTask = state._allTasks.find((item) => item.id === firstTask.id)!;
+            const deletedSecondTask = state._allTasks.find((item) => item.id === secondTask.id)!;
+            expect(deletedFirstTask.deletedAt).toBeTruthy();
+            expect(deletedSecondTask.deletedAt).toBeTruthy();
+            expect(state._tasksById.get(firstTask.id)).toBe(deletedFirstTask);
+            expect(state._tasksById.get(secondTask.id)).toBe(deletedSecondTask);
         });
 
         it('preserves deleted project task section ids so a project can be restored intact', async () => {

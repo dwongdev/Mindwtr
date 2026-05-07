@@ -155,6 +155,23 @@ export const replaceEntityInArray = <T extends EntityWithId>(items: readonly T[]
     return nextItems;
 };
 
+export const replaceEntitiesInArray = <T extends EntityWithId>(
+    items: readonly T[],
+    nextItems: readonly T[]
+): T[] => {
+    if (nextItems.length === 0) return items as T[];
+    const replacementsById = new Map(nextItems.map((item) => [item.id, item] as const));
+    let patchedItems: T[] | null = null;
+    for (let index = 0; index < items.length; index += 1) {
+        const currentItem = items[index];
+        const nextItem = replacementsById.get(currentItem.id);
+        if (!nextItem || nextItem === currentItem) continue;
+        if (!patchedItems) patchedItems = items.slice();
+        patchedItems[index] = nextItem;
+    }
+    return patchedItems ?? items as T[];
+};
+
 export const replaceEntityInMap = <T extends EntityWithId>(
     itemsById: Map<string, T>,
     nextItem: T
@@ -163,6 +180,20 @@ export const replaceEntityInMap = <T extends EntityWithId>(
     const nextItemsById = new Map(itemsById);
     nextItemsById.set(nextItem.id, nextItem);
     return nextItemsById;
+};
+
+export const replaceEntitiesInMap = <T extends EntityWithId>(
+    itemsById: Map<string, T>,
+    nextItems: readonly T[]
+): Map<string, T> => {
+    if (nextItems.length === 0) return itemsById;
+    let nextItemsById: Map<string, T> | null = null;
+    for (const nextItem of nextItems) {
+        if (itemsById.get(nextItem.id) === nextItem) continue;
+        if (!nextItemsById) nextItemsById = new Map(itemsById);
+        nextItemsById.set(nextItem.id, nextItem);
+    }
+    return nextItemsById ?? itemsById;
 };
 
 export const reuseArrayIfShallowEqual = <T>(previous: T[], next: T[]): T[] => (

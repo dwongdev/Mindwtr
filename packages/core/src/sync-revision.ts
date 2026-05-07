@@ -1,6 +1,7 @@
 import { logWarn } from './logger';
 
 export const MAX_SYNC_REVISION = 2_147_483_647;
+export const SYNC_REVISION_WARNING_THRESHOLD = Math.floor(MAX_SYNC_REVISION * 0.9);
 
 type RevisionCoercion = {
     revision: number;
@@ -52,5 +53,18 @@ export const nextRevision = (value?: unknown): number => {
         });
         return MAX_SYNC_REVISION;
     }
-    return coerced.revision + 1;
+    const next = coerced.revision + 1;
+    if (next >= SYNC_REVISION_WARNING_THRESHOLD) {
+        logWarn('Sync revision approaching safe maximum', {
+            scope: 'sync',
+            category: 'sync',
+            context: {
+                rev: coerced.raw,
+                nextRev: next,
+                warningThresholdRev: SYNC_REVISION_WARNING_THRESHOLD,
+                maxRev: MAX_SYNC_REVISION,
+            },
+        });
+    }
+    return next;
 };

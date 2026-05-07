@@ -4,6 +4,8 @@ import {
     getNextProjectOrder,
     hasSameEntityIdentity,
     reconcileEntityCollection,
+    replaceEntitiesInArray,
+    replaceEntitiesInMap,
     replaceEntityInArray,
     replaceEntityInMap,
     reserveNextProjectOrder,
@@ -71,6 +73,35 @@ describe('entity collection helpers', () => {
         expect(next).not.toBe(previous);
         expect(next.get(first.id)).toBe(first);
         expect(next.get(second.id)).toBe(changed);
+    });
+
+    it('patches multiple array slots while preserving unchanged refs', () => {
+        const first = createTask('t1');
+        const second = createTask('t2');
+        const third = createTask('t3');
+        const changedFirst = createTask('t1', 'project-1', 0, { updatedAt: '2026-01-02T00:00:00.000Z' });
+        const changedThird = createTask('t3', 'project-1', 0, { updatedAt: '2026-01-03T00:00:00.000Z' });
+
+        const next = replaceEntitiesInArray([first, second, third], [changedFirst, changedThird]);
+
+        expect(next).toEqual([changedFirst, second, changedThird]);
+        expect(next[1]).toBe(second);
+    });
+
+    it('patches multiple map entries while preserving unchanged values', () => {
+        const first = createTask('t1');
+        const second = createTask('t2');
+        const third = createTask('t3');
+        const changedFirst = createTask('t1', 'project-1', 0, { updatedAt: '2026-01-02T00:00:00.000Z' });
+        const changedThird = createTask('t3', 'project-1', 0, { updatedAt: '2026-01-03T00:00:00.000Z' });
+        const previous = buildEntityMap([first, second, third]);
+
+        const next = replaceEntitiesInMap(previous, [changedFirst, changedThird]);
+
+        expect(next).not.toBe(previous);
+        expect(next.get(first.id)).toBe(changedFirst);
+        expect(next.get(second.id)).toBe(second);
+        expect(next.get(third.id)).toBe(changedThird);
     });
 
     it('compares entity identity only through sync-tracked fields', () => {
