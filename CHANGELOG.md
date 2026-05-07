@@ -34,6 +34,7 @@ These changes are intended for the next patch release after `v0.9.0`.
 - Guarded desktop quick-add against near-simultaneous open requests.
 - Replaced the mobile quick-capture remount workaround with explicit open-request state.
 - Surfaced delete-vs-live conflict details in user-visible sync history.
+- Removed noisy mobile Android bundle warnings from root-layout hook files, `whisper.rn` resolution, and legacy layout animation setup.
 
 ### Performance
 

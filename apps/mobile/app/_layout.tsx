@@ -29,10 +29,10 @@ import { ErrorBoundary } from '../components/ErrorBoundary';
 import { logError, logInfo, logWarn, setupGlobalErrorLogging } from '../lib/app-log';
 import { useMobileAreaFilter } from '../hooks/use-mobile-area-filter';
 import { useThemeColors } from '../hooks/use-theme-colors';
-import { useRootLayoutExternalCapture } from './_effects/use-root-layout-external-capture';
-import { useRootLayoutNotificationOpenHandler } from './_effects/use-root-layout-notification-open-handler';
-import { useRootLayoutStartup } from './_effects/use-root-layout-startup';
-import { useRootLayoutSyncEffects } from './_effects/use-root-layout-sync-effects';
+import { useRootLayoutExternalCapture } from '@/hooks/root-layout/use-root-layout-external-capture';
+import { useRootLayoutNotificationOpenHandler } from '@/hooks/root-layout/use-root-layout-notification-open-handler';
+import { useRootLayoutStartup } from '@/hooks/root-layout/use-root-layout-startup';
+import { useRootLayoutSyncEffects } from '@/hooks/root-layout/use-root-layout-sync-effects';
 
 let coreLoggerBridgeInstalled = false;
 

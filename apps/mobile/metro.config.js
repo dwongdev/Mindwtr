@@ -13,6 +13,9 @@ const projectReactNativeRoot = path.resolve(projectNodeModulesRoot, 'react-nativ
 const zustandRoot = fs.existsSync(path.resolve(projectNodeModulesRoot, 'zustand'))
     ? path.resolve(projectNodeModulesRoot, 'zustand')
     : path.resolve(coreNodeModulesRoot, 'zustand');
+const whisperRnRoot = fs.existsSync(path.resolve(projectNodeModulesRoot, 'whisper.rn'))
+    ? path.resolve(projectNodeModulesRoot, 'whisper.rn')
+    : path.resolve(workspaceNodeModulesRoot, 'whisper.rn');
 const resolveFromProjectNodeModules = (moduleName) => {
     try {
         return require.resolve(moduleName, {
@@ -21,6 +24,11 @@ const resolveFromProjectNodeModules = (moduleName) => {
     } catch {
         return null;
     }
+};
+
+const resolveWhisperRnPath = (relativePath) => {
+    const fullPath = path.resolve(whisperRnRoot, relativePath);
+    return fs.existsSync(fullPath) ? fullPath : null;
 };
 
 const config = getDefaultConfig(projectRoot);
@@ -77,6 +85,48 @@ config.resolver.resolveRequest = (context, moduleName, platform) => {
         if (fs.existsSync(helperRelativePath)) {
             return {
                 filePath: helperRelativePath,
+                type: 'sourceFile',
+            };
+        }
+    }
+
+    if (
+        moduleName === 'whisper.rn'
+        || moduleName === 'whisper.rn/index'
+        || moduleName === 'whisper.rn/src/index'
+    ) {
+        const resolved = resolveWhisperRnPath('src/index.ts')
+            || resolveWhisperRnPath('lib/commonjs/index.js');
+        if (resolved) {
+            return {
+                filePath: resolved,
+                type: 'sourceFile',
+            };
+        }
+    }
+
+    if (
+        moduleName === 'whisper.rn/realtime-transcription'
+        || moduleName === 'whisper.rn/realtime-transcription/index'
+        || moduleName === 'whisper.rn/realtime-transcription/index.js'
+    ) {
+        const resolved = resolveWhisperRnPath('lib/commonjs/realtime-transcription/index.js');
+        if (resolved) {
+            return {
+                filePath: resolved,
+                type: 'sourceFile',
+            };
+        }
+    }
+
+    if (
+        moduleName === 'whisper.rn/realtime-transcription/adapters/AudioPcmStreamAdapter'
+        || moduleName === 'whisper.rn/realtime-transcription/adapters/AudioPcmStreamAdapter.js'
+    ) {
+        const resolved = resolveWhisperRnPath('lib/commonjs/realtime-transcription/adapters/AudioPcmStreamAdapter.js');
+        if (resolved) {
+            return {
+                filePath: resolved,
                 type: 'sourceFile',
             };
         }

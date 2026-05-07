@@ -151,17 +151,10 @@ const getWhisperModule = () => {
         whisperModuleCache = mod;
         return mod;
       } catch (rootError) {
-        try {
-          // eslint-disable-next-line @typescript-eslint/no-var-requires
-          const mod = require('whisper.rn/index') as WhisperModule;
-          whisperModuleCache = mod;
-          return mod;
-        } catch (finalError) {
-          const errors = [sourceError, rootError, finalError]
-            .map((value) => (value instanceof Error ? value.message : String(value)))
-            .join(' | ');
-          throw new Error(`Whisper module unavailable: ${errors}`);
-        }
+        const errors = [sourceError, rootError]
+          .map((value) => (value instanceof Error ? value.message : String(value)))
+          .join(' | ');
+        throw new Error(`Whisper module unavailable: ${errors}`);
       }
     }
   } catch (error) {

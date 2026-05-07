@@ -2,7 +2,7 @@ import React, { useEffect } from 'react';
 import { act, create, type ReactTestRenderer } from 'react-test-renderer';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { useRootLayoutStartup } from '@/app/_effects/use-root-layout-startup';
+import { useRootLayoutStartup } from '@/hooks/root-layout/use-root-layout-startup';
 
 const {
   alert,

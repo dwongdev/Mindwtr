@@ -2,7 +2,7 @@ import React from 'react';
 import { act, create } from 'react-test-renderer';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { useRootLayoutNotificationOpenHandler } from '@/app/_effects/use-root-layout-notification-open-handler';
+import { useRootLayoutNotificationOpenHandler } from '@/hooks/root-layout/use-root-layout-notification-open-handler';
 
 type PendingNotificationOpenPayload = {
   actionIdentifier?: string;
