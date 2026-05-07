@@ -19,6 +19,11 @@ export const SYNC_LOCAL_INSECURE_URL_OPTIONS: InsecureUrlOptions = {
 
 type Ipv4Octets = [number, number, number, number];
 
+type UrlSecurityParts = {
+    hostname: string;
+    protocol: string;
+};
+
 export const isAbortError = (error: unknown): boolean => {
     if (typeof error !== 'object' || error === null || !('name' in error)) return false;
     const name = (error as { name?: unknown }).name;
@@ -36,6 +41,43 @@ const parseIpv4Host = (host: string): Ipv4Octets | null => {
         octets.push(value);
     }
     return [octets[0], octets[1], octets[2], octets[3]];
+};
+
+const extractHostnameFromAuthority = (authority: string): string => {
+    const atIndex = authority.lastIndexOf('@');
+    const hostPort = atIndex >= 0 ? authority.slice(atIndex + 1) : authority;
+    if (hostPort.startsWith('[')) {
+        const endBracket = hostPort.indexOf(']');
+        return endBracket > 0 ? hostPort.slice(1, endBracket).toLowerCase() : '';
+    }
+    return (hostPort.split(':')[0] ?? '').toLowerCase();
+};
+
+const parseUrlSecurityParts = (rawUrl: string): UrlSecurityParts | null => {
+    const trimmed = rawUrl.trim();
+    if (!trimmed) return null;
+
+    let protocol = '';
+    let hostname = '';
+    try {
+        const parsed = new URL(trimmed);
+        protocol = String(parsed.protocol || '').toLowerCase();
+        hostname = typeof parsed.hostname === 'string' ? parsed.hostname.toLowerCase() : '';
+    } catch {
+        // Fall back below. Some React Native URL shims parse the protocol but
+        // do not expose hostname for plain local HTTP names.
+    }
+
+    const authorityMatch = trimmed.match(/^([a-z][a-z0-9.+-]*:)?\/\/([^/?#]*)/i);
+    if (!protocol && authorityMatch?.[1]) {
+        protocol = authorityMatch[1].toLowerCase();
+    }
+    if (!hostname && authorityMatch) {
+        hostname = extractHostnameFromAuthority(authorityMatch[2] ?? '');
+    }
+
+    if ((protocol === 'http:' || protocol === 'https:') && !hostname) return null;
+    return protocol ? { hostname, protocol } : null;
 };
 
 const isLikelyLocalHostname = (host: string): boolean => {
@@ -57,37 +99,35 @@ const isPrivateIpv6Host = (host: string): boolean => {
 };
 
 export const isAllowedInsecureUrl = (rawUrl: string, options: InsecureUrlOptions = {}): boolean => {
-    try {
-        const parsed = new URL(rawUrl);
-        if (parsed.protocol === 'https:') return true;
-        if (parsed.protocol !== 'http:') return false;
-        const rawHost = parsed.hostname.toLowerCase();
-        const host =
-            rawHost.startsWith('[') && rawHost.endsWith(']') ? rawHost.slice(1, -1) : rawHost;
-        if (host === 'localhost' || host === '::1') return true;
-        const ipv4 = parseIpv4Host(host);
-        if (ipv4 && ipv4[0] === 127) return true;
-        if (options.allowPrivateIpRanges && ipv4) {
-            const [first, second] = ipv4;
-            if (first === 10) return true;
-            if (first === 172 && second >= 16 && second <= 31) return true;
-            if (first === 192 && second === 168) return true;
-            if (first === 100 && second >= 64 && second <= 127) return true;
-        }
-        if (options.allowPrivateIpRanges && host.includes(':') && isPrivateIpv6Host(host)) return true;
-        if (options.allowLocalHostnames && !ipv4 && isLikelyLocalHostname(host)) return true;
-        if (host === '10.0.2.2') {
-            if (options.allowAndroidEmulator) return true;
-            if (options.allowAndroidEmulatorInDev) {
-                const isDev =
-                    typeof globalThis !== 'undefined' && (globalThis as { __DEV__?: boolean }).__DEV__ === true;
-                return isDev;
-            }
-        }
-        return false;
-    } catch {
-        return false;
+    const parsed = parseUrlSecurityParts(rawUrl);
+    if (!parsed) return false;
+    if (parsed.protocol === 'https:') return true;
+    if (parsed.protocol !== 'http:') return false;
+    const host =
+        parsed.hostname.startsWith('[') && parsed.hostname.endsWith(']')
+            ? parsed.hostname.slice(1, -1)
+            : parsed.hostname;
+    if (host === 'localhost' || host === '::1') return true;
+    const ipv4 = parseIpv4Host(host);
+    if (ipv4 && ipv4[0] === 127) return true;
+    if (options.allowPrivateIpRanges && ipv4) {
+        const [first, second] = ipv4;
+        if (first === 10) return true;
+        if (first === 172 && second >= 16 && second <= 31) return true;
+        if (first === 192 && second === 168) return true;
+        if (first === 100 && second >= 64 && second <= 127) return true;
     }
+    if (options.allowPrivateIpRanges && host.includes(':') && isPrivateIpv6Host(host)) return true;
+    if (options.allowLocalHostnames && !ipv4 && isLikelyLocalHostname(host)) return true;
+    if (host === '10.0.2.2') {
+        if (options.allowAndroidEmulator) return true;
+        if (options.allowAndroidEmulatorInDev) {
+            const isDev =
+                typeof globalThis !== 'undefined' && (globalThis as { __DEV__?: boolean }).__DEV__ === true;
+            return isDev;
+        }
+    }
+    return false;
 };
 
 export const isConnectionAllowed = (rawUrl: string, options: ConnectionAllowedOptions = {}): boolean => {

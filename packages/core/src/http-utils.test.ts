@@ -11,6 +11,11 @@ describe('isAllowedInsecureUrl', () => {
         expect(isAllowedInsecureUrl('https://example.com/data.json')).toBe(true);
     });
 
+    it('rejects HTTP(S) URLs without a hostname', () => {
+        expect(isAllowedInsecureUrl('https://')).toBe(false);
+        expect(isAllowedInsecureUrl('http:///data.json')).toBe(false);
+    });
+
     it('allows loopback hosts for HTTP', () => {
         expect(isAllowedInsecureUrl('http://localhost/data.json')).toBe(true);
         expect(isAllowedInsecureUrl('http://127.0.0.1/data.json')).toBe(true);
@@ -40,6 +45,7 @@ describe('isAllowedInsecureUrl', () => {
     it('allows clearly local hostnames when enabled', () => {
         const options = { allowLocalHostnames: true };
         expect(isAllowedInsecureUrl('http://nas/data.json', options)).toBe(true);
+        expect(isAllowedInsecureUrl('http://omvnas/webdav/alice/mindwtr', options)).toBe(true);
         expect(isAllowedInsecureUrl('http://nas.local/data.json', options)).toBe(true);
         expect(isAllowedInsecureUrl('http://router.home.arpa/data.json', options)).toBe(true);
         expect(isAllowedInsecureUrl('http://example.com/data.json', options)).toBe(false);
@@ -62,6 +68,7 @@ describe('isAllowedInsecureUrl', () => {
 describe('isConnectionAllowed', () => {
     it('allows local sync HTTP targets without a manual override', () => {
         expect(isConnectionAllowed('http://192.168.1.50/data.json', SYNC_LOCAL_INSECURE_URL_OPTIONS)).toBe(true);
+        expect(isConnectionAllowed('http://omvnas/webdav/alice/mindwtr', SYNC_LOCAL_INSECURE_URL_OPTIONS)).toBe(true);
         expect(isConnectionAllowed('http://nas.local/data.json', SYNC_LOCAL_INSECURE_URL_OPTIONS)).toBe(true);
     });
 
@@ -71,6 +78,30 @@ describe('isConnectionAllowed', () => {
             ...SYNC_LOCAL_INSECURE_URL_OPTIONS,
             allowInsecureHttp: true,
         })).toBe(false);
+    });
+
+    it('falls back to raw host parsing when URL lacks hostname support', () => {
+        const originalUrl = globalThis.URL;
+
+        class ProtocolOnlyURL {
+            hostname = undefined;
+            protocol: string;
+
+            constructor(value: string) {
+                const match = value.match(/^([a-z][a-z0-9.+-]*:)/i);
+                if (!match) throw new TypeError('Invalid URL');
+                this.protocol = match[1].toLowerCase();
+            }
+        }
+
+        globalThis.URL = ProtocolOnlyURL as unknown as typeof URL;
+        try {
+            expect(isConnectionAllowed('http://omvnas/webdav/alice/mindwtr', SYNC_LOCAL_INSECURE_URL_OPTIONS)).toBe(true);
+            expect(isConnectionAllowed('http://192.168.1.50/data.json', SYNC_LOCAL_INSECURE_URL_OPTIONS)).toBe(true);
+            expect(isConnectionAllowed('http://example.com/data.json', SYNC_LOCAL_INSECURE_URL_OPTIONS)).toBe(false);
+        } finally {
+            globalThis.URL = originalUrl;
+        }
     });
 });
 
