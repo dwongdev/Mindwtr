@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Keyboard,
   Platform,
@@ -65,6 +65,7 @@ export function QuickCaptureSheet({
   const { height: windowHeight } = useWindowDimensions();
   const inputRef = useRef<TextInput>(null);
   const contextInputRef = useRef<TextInput>(null);
+  const isSavingRef = useRef(false);
   const prioritiesEnabled = settings?.features?.priorities !== false;
   const { selectedAreaIdForNewTasks } = useMobileAreaFilter();
 
@@ -337,27 +338,33 @@ export function QuickCaptureSheet({
 
   const handleSave = useCallback(async () => {
     if (!value.trim()) return;
-    const { title, props, invalidDateCommands } = await buildTaskProps(value.trim());
-    if (invalidDateCommands && invalidDateCommands.length > 0) {
-      showToast({
-        title: t('common.notice'),
-        message: `${t('quickAdd.invalidDateCommand')}: ${invalidDateCommands.join(', ')}`,
-        tone: 'warning',
-        durationMs: 4200,
-      });
-      return;
+    if (isSavingRef.current) return;
+    isSavingRef.current = true;
+    try {
+      const { title, props, invalidDateCommands } = await buildTaskProps(value.trim());
+      if (invalidDateCommands && invalidDateCommands.length > 0) {
+        showToast({
+          title: t('common.notice'),
+          message: `${t('quickAdd.invalidDateCommand')}: ${invalidDateCommands.join(', ')}`,
+          tone: 'warning',
+          durationMs: 4200,
+        });
+        return;
+      }
+      if (!title.trim()) return;
+
+      await addTask(title, props);
+
+      if (addAnother) {
+        setValue('');
+        setTimeout(() => inputRef.current?.focus(), 80);
+        return;
+      }
+
+      finalizeClose();
+    } finally {
+      isSavingRef.current = false;
     }
-    if (!title.trim()) return;
-
-    await addTask(title, props);
-
-    if (addAnother) {
-      setValue('');
-      setTimeout(() => inputRef.current?.focus(), 80);
-      return;
-    }
-
-    finalizeClose();
   }, [addAnother, addTask, buildTaskProps, finalizeClose, showToast, t, value]);
 
   const selectedProject = projectId ? projects.find((project) => project.id === projectId) : null;

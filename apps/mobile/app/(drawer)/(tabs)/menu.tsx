@@ -116,6 +116,7 @@ export default function MenuScreen() {
         visible={showTips}
         transparent
         animationType="fade"
+        accessibilityViewIsModal
         onRequestClose={() => setShowTips(false)}
       >
         <Pressable style={styles.modalOverlay} onPress={() => setShowTips(false)}>
