@@ -71,6 +71,19 @@
   <url type="bugtracker">https://github.com/dongdongbh/Mindwtr/issues</url>
   <url type="vcs-browser">https://github.com/dongdongbh/Mindwtr</url>
   <releases>
+    <release version="0.9.1" date="2026-05-07">
+      <url type="details">https://github.com/dongdongbh/Mindwtr/releases/tag/v0.9.1</url>
+      <description translate="no">
+        <p>Mindwtr 0.9.1 improves desktop startup control, sync safety, and Linux desktop reliability.</p>
+        <ul>
+          <li>Added a launch-at-startup setting for desktop builds.</li>
+          <li>Made sync safer with serialized cycles, capped revision increments, and clearer delete-vs-live history details.</li>
+          <li>Surfaced and aggregated cleartext sync warnings while keeping local and private HTTP sync targets available.</li>
+          <li>Improved project delete undo, global quick-add open guards, and board tag layout.</li>
+          <li>Improved desktop responsiveness with split list selectors and stable sync signature caching.</li>
+        </ul>
+      </description>
+    </release>
     <release version="0.9.0" date="2026-05-04">
       <url type="details">https://github.com/dongdongbh/Mindwtr/releases/tag/v0.9.0</url>
       <description translate="no">

@@ -6,6 +6,7 @@ This file intentionally stays as a short index so it does not drift from the per
 
 ## Latest Releases
 
+- [v0.9.1](docs/release-notes/0.9.1.md)
 - [v0.9.0](docs/release-notes/0.9.0.md)
 - [v0.8.9](docs/release-notes/0.8.9.md)
 - [v0.8.8](docs/release-notes/0.8.8.md)
@@ -16,49 +17,3 @@ This file intentionally stays as a short index so it does not drift from the per
 - [v0.8.3](docs/release-notes/0.8.3.md)
 - [v0.8.2](docs/release-notes/0.8.2.md)
 - [Full release notes index](docs/release-notes/README.md)
-
-## Unreleased (v0.9.1)
-
-These changes are intended for the next patch release after `v0.9.0`.
-
-### Fixed
-
-- Hardened sync conflict handling for tombstones whose `updatedAt` is newer than `deletedAt`.
-- Serialized concurrent sync cycles so manual and scheduled sync cannot interleave their read/merge/write windows.
-- Capped sync revision increments at the safe 32-bit ceiling.
-- Blocked public cleartext HTTP sync endpoints while still allowing local/private HTTP targets.
-- Hardened Mindwtr Cloud attachment path creation against symlink traversal races.
-- Added visible cleartext-sync and sync-state warnings in the desktop sidebar.
-- Added Undo for project deletion on desktop and mobile.
-- Localized the mobile sync activity indicator copy.
-- Guarded desktop quick-add against near-simultaneous open requests.
-- Replaced the mobile quick-capture remount workaround with explicit open-request state.
-- Surfaced delete-vs-live conflict details in user-visible sync history.
-- Removed noisy mobile Android bundle warnings from root-layout hook files, `whisper.rn` resolution, and legacy layout animation setup.
-- Kept task lookup maps aligned during batch task updates, batch deletes, and trash purges.
-- Guarded mobile quick-capture saves against duplicate rapid taps.
-- Aggregated desktop cleartext-sync warnings into a single banner.
-- Added modal accessibility metadata to the mobile tips dialog.
-- Warned when sync revisions approach the safe cap.
-
-### Performance
-
-- Patched hot task-store mutations by ID instead of rebuilding full task arrays for single-task updates.
-- Added validated stable sync signature caching for cloned entity revisions.
-- Split desktop ListView store selectors so data, settings, and actions subscribe independently.
-
-### Changed
-
-- Shared the MCP/core serialized async queue helper.
-- Shared calendar composer time helpers through core.
-- Replaced core root wildcard exports with explicit named exports.
-- Added an actionable mobile inbox empty state and mobile tips discovery for gestures and app shortcuts.
-- Consolidated overlapping deployment and GTD wiki pages.
-- Added ADRs for sync revision caps and serialized sync cycles.
-- Updated README feature notes for mobile tips and project task ordering.
-
-### Tests
-
-- Added a browser-level Playwright color-contrast pass for the desktop app.
-- Added mobile quick-capture lifecycle and modal accessibility coverage.
-- Added regression coverage for batch task lookup alignment and duplicate quick-capture saves.

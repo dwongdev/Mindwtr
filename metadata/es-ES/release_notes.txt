@@ -1,3 +1,3 @@
-- Focus y agenda son mas claros con tareas futuras ocultas, Pomodoro opcional por tarea, avisos de inicio y vencimiento separados, y densidad semanal ajustable.
-- Sync mantiene visibles los errores, deshacer eliminacion es mas estable y los ajustes se leen mejor.
-- Busqueda, captura, Review, contextos y gestos de calendario son mas fluidos.
+- Sync es mas estable con mejor manejo de conflictos, ejecuciones serializadas e historial mas claro.
+- Quick capture evita guardados duplicados, Projects permite reordenar tareas y Inbox muestra mejor las rutas de captura.
+- Gestos de calendario, disponibilidad de Focus y deshacer eliminacion de proyectos son mas fluidos.
