@@ -281,4 +281,25 @@ describe('CalendarView', () => {
         }));
         expect(storeMocks.taskStoreState.addTask).not.toHaveBeenCalled();
     });
+
+    it('shows only tasks with explicit start times on the calendar', async () => {
+        storeMocks.taskStoreState.tasks = [
+            makeTask({
+                id: 'task-date-only',
+                title: 'Date-only start',
+                startTime: '2026-04-04',
+            }),
+            makeTask({
+                id: 'task-timed',
+                title: 'Timed start',
+                startTime: '2026-04-04T09:00:00',
+            }),
+        ];
+
+        renderCalendar();
+        await flushCalendarEffects();
+
+        expect(screen.queryByText('Date-only start')).not.toBeInTheDocument();
+        expect(screen.getByText('Timed start')).toBeInTheDocument();
+    });
 });

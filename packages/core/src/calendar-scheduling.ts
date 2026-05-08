@@ -1,4 +1,4 @@
-import { safeParseDate } from './date';
+import { hasTimeComponent, safeParseDate } from './date';
 import type { ExternalCalendarEvent } from './ics';
 import type { Task, TimeEstimate } from './types';
 
@@ -155,6 +155,7 @@ const collectBusyIntervals = (
 
     for (const task of tasks) {
         if (!taskBlocksScheduling(task, options?.excludeTaskId)) continue;
+        if (!hasTimeComponent(task.startTime)) continue;
         const start = safeParseDate(task.startTime);
         if (!start || !isSameLocalDay(start, day)) continue;
         const durationMs = timeEstimateToMinutes(task.timeEstimate, { enabled: options?.timeEstimatesEnabled }) * 60 * 1000;

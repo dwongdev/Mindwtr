@@ -8,6 +8,7 @@ import {
   normalizeDateFormatSetting,
   resolveDateLocaleTag,
   findFreeSlotForDay as findCalendarFreeSlotForDay,
+  hasTimeComponent,
   isSlotFreeForDay as isCalendarSlotFreeForDay,
   minutesToTimeEstimate,
   normalizeCalendarDurationMinutes,
@@ -280,6 +281,7 @@ export function useCalendarViewController() {
     const map = new Map<string, Task[]>();
     for (const task of visibleTasks) {
       if (!task.startTime) continue;
+      if (!hasTimeComponent(task.startTime)) continue;
       const startTime = safeParseDate(task.startTime);
       if (startTime) addMapItem(map, startTime, task);
     }

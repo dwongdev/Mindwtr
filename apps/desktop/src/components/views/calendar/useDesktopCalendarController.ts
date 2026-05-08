@@ -25,6 +25,7 @@ import {
     findFreeSlotForDay as findCalendarFreeSlotForDay,
     isSlotFreeForDay as isCalendarSlotFreeForDay,
     isTaskInActiveProject,
+    hasTimeComponent,
     minutesToTimeEstimate,
     normalizeCalendarDurationMinutes,
     safeParseDate,
@@ -344,6 +345,7 @@ export function useDesktopCalendarController() {
                 }
             }
             if (task.startTime) {
+                if (!hasTimeComponent(task.startTime)) continue;
                 const startTime = safeParseDate(task.startTime);
                 if (startTime) {
                     const startKey = dayKey(startTime);
@@ -421,7 +423,14 @@ export function useDesktopCalendarController() {
             const dueDate = task.dueDate ? safeParseDueDate(task.dueDate) : null;
             const startTime = task.startTime ? safeParseDate(task.startTime) : null;
             if (dueDate && dueDate.getTime() >= startMs && dueDate.getTime() <= endMs) taskIds.add(task.id);
-            if (startTime && startTime.getTime() >= startMs && startTime.getTime() <= endMs) taskIds.add(task.id);
+            if (
+                hasTimeComponent(task.startTime)
+                && startTime
+                && startTime.getTime() >= startMs
+                && startTime.getTime() <= endMs
+            ) {
+                taskIds.add(task.id);
+            }
         }
 
         const eventCount = visibleExternalEvents.filter((event) => {

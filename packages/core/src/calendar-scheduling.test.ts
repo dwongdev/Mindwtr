@@ -153,6 +153,25 @@ describe('calendar scheduling helpers', () => {
         expect(slot?.getMinutes()).toBe(0);
     });
 
+    it('ignores date-only task starts for free-slot detection', () => {
+        const slot = findFreeSlotForDay({
+            day: new Date(2026, 3, 26),
+            durationMinutes: 30,
+            events: [],
+            now: new Date(2026, 3, 25, 12, 0),
+            tasks: [
+                task({
+                    id: 'task-date-only',
+                    startTime: '2026-04-26',
+                    timeEstimate: '4hr',
+                }),
+            ],
+        });
+
+        expect(slot?.getHours()).toBe(8);
+        expect(slot?.getMinutes()).toBe(0);
+    });
+
     it('rounds today slots forward to the configured snap interval', () => {
         const slot = findFreeSlotForDay({
             day: new Date(2026, 3, 26),
@@ -235,5 +254,21 @@ describe('calendar scheduling helpers', () => {
 
         expect(isSlotFreeForDay(base)).toBe(false);
         expect(isSlotFreeForDay({ ...base, excludeTaskId: 'task-1' })).toBe(true);
+    });
+
+    it('does not treat date-only task starts as timed collisions', () => {
+        expect(isSlotFreeForDay({
+            day: new Date(2026, 3, 26),
+            durationMinutes: 30,
+            events: [],
+            startTime: new Date(2026, 3, 26, 8, 0),
+            tasks: [
+                task({
+                    id: 'task-date-only',
+                    startTime: '2026-04-26',
+                    timeEstimate: '4hr',
+                }),
+            ],
+        })).toBe(true);
     });
 });
