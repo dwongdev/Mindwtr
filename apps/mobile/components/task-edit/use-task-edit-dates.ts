@@ -195,7 +195,7 @@ export function useTaskEditDates({
         if (!dateStr) return t('common.notSet');
         const parsed = safeParseDate(dateStr);
         if (!parsed) return t('common.notSet');
-        return parsed.toLocaleDateString();
+        return safeFormatDate(parsed, 'P', t('common.notSet')) || t('common.notSet');
     }, [t]);
 
     const formatDueDate = React.useCallback((dateStr?: string) => {
@@ -203,14 +203,7 @@ export function useTaskEditDates({
         const parsed = safeParseDueDate(dateStr);
         if (!parsed) return t('common.notSet');
         const hasTime = hasTimeComponent(dateStr);
-        if (!hasTime) return parsed.toLocaleDateString();
-        return parsed.toLocaleString(undefined, {
-            year: 'numeric',
-            month: 'numeric',
-            day: 'numeric',
-            hour: '2-digit',
-            minute: '2-digit',
-        });
+        return safeFormatDate(parsed, hasTime ? 'P p' : 'P', t('common.notSet')) || t('common.notSet');
     }, [t]);
 
     const getSafePickerDateValue = React.useCallback((dateStr?: string) => {

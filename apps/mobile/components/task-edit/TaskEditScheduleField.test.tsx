@@ -1,7 +1,8 @@
 import React from 'react';
-import { TextInput } from 'react-native';
+import { Text, TextInput } from 'react-native';
 import renderer, { act } from 'react-test-renderer';
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import { configureDateFormatting } from '@mindwtr/core';
 
 import { TaskEditScheduleField } from './TaskEditScheduleField';
 
@@ -48,7 +49,52 @@ const t = (key: string) => ({
     'recurrence.endsAfterCount': 'After',
 }[key] ?? key);
 
+afterEach(() => {
+    configureDateFormatting({ language: 'en', dateFormat: 'system', timeFormat: 'system', systemLocale: 'en-US' });
+});
+
 describe('TaskEditScheduleField', () => {
+    it('formats start dates with the configured app date and time format', () => {
+        configureDateFormatting({ language: 'en', dateFormat: 'ymd', timeFormat: '24h', systemLocale: 'en-US' });
+
+        let tree!: renderer.ReactTestRenderer;
+        act(() => {
+            tree = renderer.create(
+                <TaskEditScheduleField {...({
+                    customWeekdays: [],
+                    dailyInterval: 1,
+                    editedTask: { startTime: '2026-04-28T09:20:00' },
+                    fieldId: 'startTime',
+                    formatDate: (value?: string) => value ?? '',
+                    formatDueDate: (value?: string) => value ?? '',
+                    getSafePickerDateValue: () => new Date('2026-04-28T09:20:00'),
+                    monthlyPattern: 'date',
+                    onDateChange: vi.fn(),
+                    openCustomRecurrence: vi.fn(),
+                    pendingDueDate: null,
+                    pendingStartDate: null,
+                    recurrenceOptions: [],
+                    recurrenceRRuleValue: '',
+                    recurrenceRuleValue: '',
+                    recurrenceStrategyValue: 'strict',
+                    recurrenceWeekdayButtons: [],
+                    setCustomWeekdays: vi.fn(),
+                    setEditedTask: vi.fn(),
+                    setShowDatePicker: vi.fn(),
+                    showDatePicker: null,
+                    styles,
+                    t,
+                    task: null,
+                    tc,
+                } as any)}
+                />
+            );
+        });
+
+        const textValues = tree.root.findAllByType(Text).map((node) => node.props.children);
+        expect(textValues).toContain('2026-04-28 09:20');
+    });
+
     it('updates monthly recurrence intervals without changing the monthly pattern', () => {
         const setEditedTask = vi.fn();
 

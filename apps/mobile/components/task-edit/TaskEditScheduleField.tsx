@@ -153,16 +153,11 @@ export function TaskEditScheduleField({
         if (!dateStr) return t('common.notSet');
         const parsed = safeParseDate(dateStr);
         if (!parsed) return t('common.notSet');
-        if (!hasTimeComponent(dateStr)) {
-            return parsed.toLocaleDateString();
-        }
-        return parsed.toLocaleString(undefined, {
-            year: 'numeric',
-            month: 'numeric',
-            day: 'numeric',
-            hour: '2-digit',
-            minute: '2-digit',
-        });
+        return safeFormatDate(
+            parsed,
+            hasTimeComponent(dateStr) ? 'P p' : 'P',
+            t('common.notSet')
+        ) || t('common.notSet');
     };
     const dateOnlyLabel = tFallback(t, 'taskEdit.dateOnly', 'Date only');
     const clearTimePart = (value?: string): string | undefined => {
