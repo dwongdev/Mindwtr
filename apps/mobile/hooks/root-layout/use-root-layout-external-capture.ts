@@ -1,15 +1,15 @@
 import { useCallback, useEffect, useRef } from 'react';
 
-import {
-    DEFAULT_PROJECT_COLOR,
-    useTaskStore,
-} from '@mindwtr/core';
+import type { Task } from '@mindwtr/core';
 
 import type { ToastOptions } from '@/contexts/toast-context';
 import { logError, logWarn } from '@/lib/app-log';
 import {
+    isOpenFeatureUrl,
     isShortcutCaptureUrl,
+    parseOpenFeatureUrl,
     parseShortcutCaptureUrl,
+    resolveOpenFeaturePath,
     type ShortcutCapturePayload,
 } from '@/lib/capture-deeplink';
 
@@ -59,39 +59,32 @@ export function useRootLayoutExternalCapture({
     shareWebUrl,
     showToast,
 }: UseRootLayoutExternalCaptureParams) {
-    const lastHandledCaptureUrl = useRef<string | null>(null);
+    const lastHandledUrl = useRef<string | null>(null);
 
-    const captureFromShortcut = useCallback(async (payload: ShortcutCapturePayload) => {
-        const store = useTaskStore.getState();
-        const requestedProject = String(payload.project || '').trim();
-        let projectId: string | undefined;
-        if (requestedProject) {
-            const existing = store.projects.find(
-                (project) =>
-                    !project.deletedAt &&
-                    project.status !== 'archived' &&
-                    project.title.trim().toLowerCase() === requestedProject.toLowerCase()
-            );
-            if (existing) {
-                projectId = existing.id;
-            } else {
-                const created = await store.addProject(requestedProject, DEFAULT_PROJECT_COLOR);
-                projectId = created?.id;
-            }
-        }
-
+    const openCaptureConfirmation = useCallback((payload: ShortcutCapturePayload) => {
         const tags = normalizeShortcutTags(payload.tags);
-        await store.addTask(payload.title, {
+        const initialProps: Partial<Task> = {
             status: 'inbox',
             ...(payload.note ? { description: payload.note } : {}),
-            ...(projectId ? { projectId } : {}),
             ...(tags.length > 0 ? { tags } : {}),
-        });
+        };
+        const params: Record<string, string> = {
+            initialValue: encodeURIComponent(payload.title),
+        };
+        if (Object.keys(initialProps).length > 1) {
+            params.initialProps = encodeURIComponent(JSON.stringify(initialProps));
+        }
 
         if (router.canGoBack()) {
-            router.push('/inbox');
+            router.push({
+                pathname: '/capture-modal',
+                params,
+            });
         } else {
-            router.replace('/inbox');
+            router.replace({
+                pathname: '/capture-modal',
+                params,
+            });
         }
     }, [router]);
 
@@ -124,11 +117,24 @@ export function useRootLayoutExternalCapture({
     useEffect(() => {
         if (!dataReady) return;
         if (!incomingUrl) return;
-        if (lastHandledCaptureUrl.current === incomingUrl) return;
+        if (lastHandledUrl.current === incomingUrl) return;
+
+        const featurePayload = parseOpenFeatureUrl(incomingUrl);
+        if (featurePayload) {
+            lastHandledUrl.current = incomingUrl;
+            router.replace(resolveOpenFeaturePath(featurePayload.feature));
+            return;
+        }
+        if (isOpenFeatureUrl(incomingUrl)) {
+            lastHandledUrl.current = incomingUrl;
+            router.replace('/inbox');
+            return;
+        }
+
         const payload = parseShortcutCaptureUrl(incomingUrl);
         if (!payload) {
             if (!isShortcutCaptureUrl(incomingUrl)) return;
-            lastHandledCaptureUrl.current = incomingUrl;
+            lastHandledUrl.current = incomingUrl;
             void logWarn('Invalid shortcut capture URL', {
                 scope: 'shortcuts',
                 extra: { url: incomingUrl },
@@ -144,10 +150,12 @@ export function useRootLayoutExternalCapture({
             return;
         }
 
-        lastHandledCaptureUrl.current = incomingUrl;
-        void captureFromShortcut(payload).catch((error) => {
-            lastHandledCaptureUrl.current = null;
+        lastHandledUrl.current = incomingUrl;
+        try {
+            openCaptureConfirmation(payload);
+        } catch (error) {
+            lastHandledUrl.current = null;
             void logError(error, { scope: 'shortcuts', extra: { url: incomingUrl } });
-        });
-    }, [captureFromShortcut, dataReady, incomingUrl, localize, showToast]);
+        }
+    }, [dataReady, incomingUrl, localize, openCaptureConfirmation, router, showToast]);
 }

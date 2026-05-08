@@ -19,16 +19,33 @@ import {
 } from '@mindwtr/core';
 import { useThemeColors } from '@/hooks/use-theme-colors';
 import { useLanguage } from '../contexts/language-context';
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Search, X, Folder, CheckCircle, ChevronRight, SlidersHorizontal } from 'lucide-react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+
+const firstSearchParam = (value: string | string[] | undefined): string => {
+    if (Array.isArray(value)) return value[0] ?? '';
+    return typeof value === 'string' ? value : '';
+};
+
+const decodeSearchParam = (value: string | string[] | undefined): string => {
+    const raw = firstSearchParam(value);
+    if (!raw) return '';
+    try {
+        return decodeURIComponent(raw);
+    } catch {
+        return raw;
+    }
+};
 
 export default function SearchScreen() {
     const { _allTasks, projects, areas, settings, updateSettings, setHighlightTask } = useTaskStore();
     const tc = useThemeColors();
     const { t } = useLanguage();
     const router = useRouter();
-  const [query, setQuery] = useState('');
+  const params = useLocalSearchParams<{ q?: string }>();
+  const requestedQuery = decodeSearchParam(params.q);
+  const [query, setQuery] = useState(requestedQuery);
   const [ftsResults, setFtsResults] = useState<SearchResults | null>(null);
   const [ftsLoading, setFtsLoading] = useState(false);
   const [debouncedQuery, setDebouncedQuery] = useState('');
@@ -49,6 +66,10 @@ export default function SearchScreen() {
         // Auto-focus after mounting
         setTimeout(() => inputRef.current?.focus(), 100);
     }, []);
+
+    useEffect(() => {
+        setQuery(requestedQuery);
+    }, [requestedQuery]);
 
     const placeholderColor = tc.secondaryText;
 

@@ -5,11 +5,14 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import CaptureScreen from '@/app/capture-modal';
 
-const { routerMocks, storeState } = vi.hoisted(() => ({
+const { routerMocks, routeParams, storeState } = vi.hoisted(() => ({
   routerMocks: {
     back: vi.fn(),
     canGoBack: vi.fn(),
     replace: vi.fn(),
+  },
+  routeParams: {
+    current: { text: encodeURIComponent('Shared text') } as Record<string, string>,
   },
   storeState: {
     addTask: vi.fn(),
@@ -21,7 +24,7 @@ const { routerMocks, storeState } = vi.hoisted(() => ({
 }));
 
 vi.mock('expo-router', () => ({
-  useLocalSearchParams: () => ({ text: encodeURIComponent('Shared text') }),
+  useLocalSearchParams: () => routeParams.current,
   useRouter: () => routerMocks,
 }));
 
@@ -47,6 +50,8 @@ vi.mock('@/contexts/language-context', () => ({
         'copilot.applyHint': 'Tap to apply',
         'copilot.applied': 'Applied',
         'quickAdd.help': 'Help text',
+        'taskEdit.descriptionLabel': 'Description',
+        'taskEdit.descriptionPlaceholder': 'Add notes...',
       }[key] ?? key),
   }),
 }));
@@ -83,6 +88,7 @@ describe('CaptureScreen', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     routerMocks.canGoBack.mockReturnValue(false);
+    routeParams.current = { text: encodeURIComponent('Shared text') };
   });
 
   it('returns to inbox when cancelling without a back stack', () => {
@@ -156,5 +162,34 @@ describe('CaptureScreen', () => {
     });
 
     expect(dismissSpy).toHaveBeenCalledTimes(1);
+  });
+
+  it('saves App Action capture details from initial props after confirmation', () => {
+    routeParams.current = {
+      initialValue: encodeURIComponent('Call dentist'),
+      initialProps: encodeURIComponent(JSON.stringify({
+        description: 'Tomorrow morning',
+        tags: ['#phone'],
+      })),
+    };
+
+    let tree!: ReturnType<typeof create>;
+
+    act(() => {
+      tree = create(<CaptureScreen />);
+    });
+
+    const saveButton = tree.root.findAllByType(TouchableOpacity)[2];
+
+    act(() => {
+      saveButton.props.onPress();
+    });
+
+    expect(storeState.addTask).toHaveBeenCalledWith('Call dentist', {
+      status: 'inbox',
+      description: 'Tomorrow morning',
+      tags: ['#phone'],
+    });
+    expect(routerMocks.replace).toHaveBeenCalledWith('/inbox');
   });
 });

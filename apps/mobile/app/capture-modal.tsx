@@ -18,15 +18,56 @@ import { useLanguage } from '../contexts/language-context';
 import { buildCopilotConfig, isAIKeyRequired, loadAIKey } from '../lib/ai-config';
 import { logError } from '../lib/app-log';
 
+type CaptureSearchParams = {
+  initialProps?: string;
+  initialValue?: string;
+  text?: string;
+  title?: string;
+};
+
+const firstSearchParam = (value: string | string[] | undefined): string => {
+  if (Array.isArray(value)) return value[0] ?? '';
+  return typeof value === 'string' ? value : '';
+};
+
+const decodeSearchParam = (value: string | string[] | undefined): string => {
+  const raw = firstSearchParam(value);
+  if (!raw) return '';
+  try {
+    return decodeURIComponent(raw);
+  } catch {
+    return raw;
+  }
+};
+
+const parseInitialPropsParam = (value: string | string[] | undefined): Partial<Task> => {
+  const decoded = decodeSearchParam(value);
+  if (!decoded) return {};
+  try {
+    const parsed = JSON.parse(decoded);
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return {};
+    return parsed as Partial<Task>;
+  } catch {
+    return {};
+  }
+};
+
 export default function CaptureScreen() {
-  const params = useLocalSearchParams<{ text?: string }>();
+  const params = useLocalSearchParams<CaptureSearchParams>();
   const router = useRouter();
   const { addTask, projects, tasks, settings, areas } = useTaskStore();
   const tc = useThemeColors();
   const { showToast } = useToast();
   const { t } = useLanguage();
-  const initialText = typeof params.text === 'string' ? decodeURIComponent(params.text) : '';
+  const initialText = (
+    decodeSearchParam(params.initialValue)
+    || decodeSearchParam(params.text)
+    || decodeSearchParam(params.title)
+  );
+  const initialProps = React.useMemo(() => parseInitialPropsParam(params.initialProps), [params.initialProps]);
+  const initialDescription = String(initialProps.description ?? '');
   const [value, setValue] = useState(initialText);
+  const [descriptionValue, setDescriptionValue] = useState(initialDescription);
   const [copilotSuggestion, setCopilotSuggestion] = useState<{ context?: string; timeEstimate?: TimeEstimate; tags?: string[] } | null>(null);
   const [copilotApplied, setCopilotApplied] = useState(false);
   const [aiKey, setAiKey] = useState('');
@@ -44,10 +85,9 @@ export default function CaptureScreen() {
   }, []);
 
   useEffect(() => {
-    if (typeof params.text === 'string') {
-      setValue(decodeURIComponent(params.text));
-    }
-  }, [params.text]);
+    setValue(initialText);
+    setDescriptionValue(initialDescription);
+  }, [initialDescription, initialText]);
 
   useEffect(() => {
     const showListener = Keyboard.addListener('keyboardDidShow', () => setKeyboardVisible(true));
@@ -183,23 +223,30 @@ export default function CaptureScreen() {
     const shouldApplyDetectedDate = Boolean(detectedDate?.date && !props.dueDate);
     const finalTitle = shouldApplyDetectedDate && detectedDate ? detectedDate.titleWithoutDate : (title || value);
     if (!finalTitle.trim()) return;
-    const initialProps: Partial<Task> = { status: 'inbox', ...props };
-    if (!props.status) initialProps.status = 'inbox';
+    const taskProps: Partial<Task> = { status: 'inbox', ...initialProps, ...props };
+    if (!taskProps.status) taskProps.status = 'inbox';
     if (shouldApplyDetectedDate && detectedDate) {
-      initialProps.dueDate = detectedDate.date;
+      taskProps.dueDate = detectedDate.date;
+    }
+    const description = descriptionValue.trim();
+    const parsedDescription = typeof taskProps.description === 'string' ? taskProps.description.trim() : '';
+    if (description) {
+      taskProps.description = parsedDescription && parsedDescription !== description
+        ? `${description}\n${parsedDescription}`
+        : description;
     }
     if (copilotContext) {
-      const nextContexts = Array.from(new Set([...(initialProps.contexts ?? []), copilotContext]));
-      initialProps.contexts = nextContexts;
+      const nextContexts = Array.from(new Set([...(taskProps.contexts ?? []), copilotContext]));
+      taskProps.contexts = nextContexts;
     }
-    if (timeEstimatesEnabled && copilotEstimate && !initialProps.timeEstimate) {
-      initialProps.timeEstimate = copilotEstimate;
+    if (timeEstimatesEnabled && copilotEstimate && !taskProps.timeEstimate) {
+      taskProps.timeEstimate = copilotEstimate;
     }
     if (copilotTags.length) {
-      const nextTags = Array.from(new Set([...(initialProps.tags ?? []), ...copilotTags]));
-      initialProps.tags = nextTags;
+      const nextTags = Array.from(new Set([...(taskProps.tags ?? []), ...copilotTags]));
+      taskProps.tags = nextTags;
     }
-    addTask(finalTitle, initialProps);
+    addTask(finalTitle, taskProps);
     router.replace('/inbox');
   };
 
@@ -246,6 +293,19 @@ export default function CaptureScreen() {
             returnKeyType="done"
             multiline
           />
+          {(initialDescription.trim().length > 0 || descriptionValue.trim().length > 0) && (
+            <View style={styles.fieldGroup}>
+              <Text style={[styles.fieldLabel, { color: tc.secondaryText }]}>{t('taskEdit.descriptionLabel')}</Text>
+              <TextInput
+                style={[styles.descriptionInput, { backgroundColor: tc.inputBg, borderColor: tc.border, color: tc.text }]}
+                placeholder={t('taskEdit.descriptionPlaceholder')}
+                placeholderTextColor={placeholderColor}
+                value={descriptionValue}
+                onChangeText={setDescriptionValue}
+                multiline
+              />
+            </View>
+          )}
           {copilotSuggestion && !copilotApplied && (
             <TouchableOpacity
               style={[styles.copilotPill, { borderColor: tc.border, backgroundColor: tc.inputBg }]}
@@ -355,6 +415,21 @@ const styles = StyleSheet.create({
   },
   help: {
     fontSize: 12,
+  },
+  fieldGroup: {
+    gap: 6,
+  },
+  fieldLabel: {
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  descriptionInput: {
+    borderWidth: 1,
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    fontSize: 15,
+    minHeight: 70,
   },
   copilotPill: {
     borderWidth: 1,

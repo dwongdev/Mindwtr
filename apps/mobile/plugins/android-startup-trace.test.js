@@ -31,13 +31,21 @@ class MainActivity : ReactActivity() {
     const output = patchMainActivity(input);
 
     expect(output).toContain('import android.content.Intent');
+    expect(output).toContain('import android.net.Uri');
     expect(output).toContain('import com.facebook.react.ReactApplication');
     expect(output).toContain('import com.facebook.react.modules.core.DeviceEventManagerModule');
     expect(output).toContain('import org.json.JSONObject');
     expect(output).toContain('import tech.dongdongbh.mindwtr.notificationopenintents.NotificationOpenPayloadStore');
+    expect(output).toContain('normalizeCreateNoteIntent(intent)');
+    expect(output).toContain('com.google.android.gms.actions.CREATE_NOTE');
+    expect(output).toContain('com.google.android.gms.actions.extra.NAME');
+    expect(output).toContain('com.google.android.gms.actions.extra.TEXT');
+    expect(output).toContain('.scheme("mindwtr")');
+    expect(output).toContain('.path("capture")');
     expect(output).toContain('cacheNotificationOpenPayload(intent)');
     expect(output).toContain('NotificationOpenPayloadStore.cache(payload)');
     expect(output).toContain('override fun onNewIntent(intent: Intent)');
+    expect(output).toContain('normalizeCreateNoteIntent(intent)\n    super.onNewIntent(intent)');
     expect(output).toContain('copyNestedData(extras.get("data"))');
     expect(output).toContain('value != JSONObject.NULL');
     expect(output).toContain('emit("OnNotificationOpened", JSONObject(payload).toString())');
@@ -144,7 +152,10 @@ class MainActivity : ReactActivity() {
     const output = patchMainActivity(input);
 
     expect(output).toContain('import tech.dongdongbh.mindwtr.notificationopenintents.NotificationOpenPayloadStore');
+    expect(output).toContain('import android.net.Uri');
+    expect(output).toContain('private fun normalizeCreateNoteIntent(intent: Intent?)');
     expect(output).toContain('override fun onNewIntent(intent: Intent)');
+    expect(output).toContain('normalizeCreateNoteIntent(intent)\n    super.onNewIntent(intent)');
     expect(output).not.toContain('fun consumePendingNotificationOpenPayload()');
     expect(output).not.toContain('override fun onNewIntent(intent: Intent?)');
     expect(output).not.toContain('pendingNotificationOpenPayload = LinkedHashMap(payload)');

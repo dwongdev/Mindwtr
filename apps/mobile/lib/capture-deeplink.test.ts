@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { isShortcutCaptureUrl, parseShortcutCaptureUrl } from './capture-deeplink';
+import {
+    isOpenFeatureUrl,
+    isShortcutCaptureUrl,
+    parseOpenFeatureUrl,
+    parseShortcutCaptureUrl,
+    resolveOpenFeaturePath,
+} from './capture-deeplink';
 
 describe('capture-deeplink', () => {
     it('parses capture URLs with title, note, project, and tags', () => {
@@ -36,10 +42,26 @@ describe('capture-deeplink', () => {
         });
     });
 
+    it('accepts App Actions create-thing parameter names', () => {
+        expect(parseShortcutCaptureUrl('mindwtr:///capture?name=Call%20dentist&description=Tomorrow')).toEqual({
+            title: 'Call dentist',
+            note: 'Tomorrow',
+            tags: [],
+        });
+    });
+
     it('detects capture routes even when the payload is invalid', () => {
         expect(isShortcutCaptureUrl('mindwtr://capture?title=')).toBe(true);
         expect(isShortcutCaptureUrl('mindwtr:///capture?note=Missing%20title')).toBe(true);
         expect(isShortcutCaptureUrl('mindwtr://focus')).toBe(false);
         expect(isShortcutCaptureUrl('https://mindwtr.app/capture?title=Test')).toBe(false);
+    });
+
+    it('parses and resolves App Actions open-feature URLs', () => {
+        expect(isOpenFeatureUrl('mindwtr:///open-feature?feature=focus')).toBe(true);
+        expect(parseOpenFeatureUrl('mindwtr:///open-feature?feature=waiting')).toEqual({ feature: 'waiting' });
+        expect(resolveOpenFeaturePath('today')).toBe('/focus');
+        expect(resolveOpenFeaturePath('someday')).toBe('/someday');
+        expect(resolveOpenFeaturePath('unknown')).toBe('/inbox');
     });
 });

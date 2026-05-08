@@ -70,6 +70,33 @@ const notificationCacheFunction = `  private fun cacheNotificationOpenPayload(in
     return payload
   }`;
 
+const createNoteIntentFunction = `  private fun normalizeCreateNoteIntent(intent: Intent?) {
+    if (intent?.action != "com.google.android.gms.actions.CREATE_NOTE") return
+
+    val rawTitle = intent.getStringExtra("com.google.android.gms.actions.extra.NAME")?.trim().orEmpty()
+    val rawText = (
+      intent.getStringExtra("com.google.android.gms.actions.extra.TEXT")
+        ?: intent.getStringExtra(Intent.EXTRA_TEXT)
+    )?.trim().orEmpty()
+    val title = when {
+      rawTitle.isNotBlank() -> rawTitle
+      rawText.isNotBlank() -> rawText
+      else -> return
+    }
+
+    val builder = Uri.Builder()
+      .scheme("mindwtr")
+      .path("capture")
+      .appendQueryParameter("title", title)
+      .appendQueryParameter("source", "create_note")
+    if (rawText.isNotBlank() && rawText != title) {
+      builder.appendQueryParameter("note", rawText)
+    }
+
+    intent.action = Intent.ACTION_VIEW
+    intent.data = builder.build()
+  }`;
+
 const patchMainApplication = (source) => {
   let next = source;
 
@@ -145,6 +172,13 @@ const patchMainActivity = (source) => {
     );
   }
 
+  if (!next.includes('import android.net.Uri')) {
+    next = next.replace(
+      'import android.content.Intent\n',
+      'import android.content.Intent\nimport android.net.Uri\n'
+    );
+  }
+
   if (!next.includes('import com.facebook.react.ReactApplication')) {
     next = next.replace(
       'import com.facebook.react.ReactActivity\n',
@@ -190,11 +224,19 @@ const patchMainActivity = (source) => {
     );
   }
 
+  if (!next.includes('normalizeCreateNoteIntent(intent)')) {
+    next = next.replace(
+      '    startupMark("native.main_activity.on_create:start")\n',
+      '    startupMark("native.main_activity.on_create:start")\n    normalizeCreateNoteIntent(intent)\n'
+    );
+  }
+
   if (!next.includes('override fun onNewIntent(intent: Intent)')) {
     next = next.replace(
       '\n  override fun getMainComponentName(): String = "main"\n',
       `
   override fun onNewIntent(intent: Intent) {
+    normalizeCreateNoteIntent(intent)
     super.onNewIntent(intent)
     setIntent(intent)
     val payload = cacheNotificationOpenPayload(intent) ?: return
@@ -202,6 +244,13 @@ const patchMainActivity = (source) => {
   }
 
   override fun getMainComponentName(): String = "main"\n`
+    );
+  }
+
+  if (!next.includes('normalizeCreateNoteIntent(intent)\n    super.onNewIntent(intent)')) {
+    next = next.replace(
+      '  override fun onNewIntent(intent: Intent) {\n    super.onNewIntent(intent)',
+      '  override fun onNewIntent(intent: Intent) {\n    normalizeCreateNoteIntent(intent)\n    super.onNewIntent(intent)'
     );
   }
 
@@ -219,6 +268,8 @@ const patchMainActivity = (source) => {
     next = next.replace(
       '\n}\n',
       `
+${createNoteIntentFunction}
+
 ${notificationCacheFunction}
 
   private fun emitNotificationOpenPayload(payload: Map<String, String>) {
@@ -230,6 +281,16 @@ ${notificationCacheFunction}
   }
 }
 `
+    );
+  }
+
+  if (
+    next.includes('private fun cacheNotificationOpenPayload(intent: Intent?)')
+    && !next.includes('private fun normalizeCreateNoteIntent(intent: Intent?)')
+  ) {
+    next = next.replace(
+      '\n  private fun cacheNotificationOpenPayload(intent: Intent?)',
+      `\n${createNoteIntentFunction}\n\n  private fun cacheNotificationOpenPayload(intent: Intent?)`
     );
   }
 
