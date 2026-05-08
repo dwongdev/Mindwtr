@@ -106,9 +106,11 @@ describe('calendar view mode helpers', () => {
   });
 
   it('recognizes deliberate horizontal calendar navigation swipes', () => {
+    expect(getCalendarNavigationSwipeDirection({ translationX: -44, translationY: 8 })).toBe(1);
+    expect(getCalendarNavigationSwipeDirection({ translationX: 44, translationY: 8 })).toBe(-1);
     expect(getCalendarNavigationSwipeDirection({ translationX: -72, translationY: 8 })).toBe(1);
     expect(getCalendarNavigationSwipeDirection({ translationX: 72, translationY: 8 })).toBe(-1);
-    expect(getCalendarNavigationSwipeDirection({ translationX: -28, translationY: 4, velocityX: -640 })).toBe(1);
+    expect(getCalendarNavigationSwipeDirection({ translationX: -22, translationY: 4, velocityX: -520 })).toBe(1);
   });
 
   it('ignores taps and mostly vertical drags as calendar navigation', () => {

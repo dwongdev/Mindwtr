@@ -3,6 +3,8 @@ import {
   type AccessibilityActionEvent,
   type LayoutChangeEvent,
   Modal,
+  PanResponder,
+  type PanResponderGestureState,
   Pressable,
   Text,
   TextInput,
@@ -22,6 +24,7 @@ import { styles } from './calendar/calendar-view.styles';
 import {
   CALENDAR_WEEK_VISIBLE_DAYS_MAX,
   CALENDAR_WEEK_VISIBLE_DAYS_MIN,
+  CALENDAR_NAVIGATION_SWIPE_VERTICAL_TOLERANCE,
   getCalendarNavigationSwipeDirection,
   getCalendarWeekColumnWidth,
   getCalendarWeekInitialScrollX,
@@ -38,16 +41,10 @@ const WEEK_DENSITY_VALUES = Array.from(
   { length: CALENDAR_WEEK_VISIBLE_DAYS_MAX - CALENDAR_WEEK_VISIBLE_DAYS_MIN + 1 },
   (_, index) => CALENDAR_WEEK_VISIBLE_DAYS_MIN + index
 );
-const CALENDAR_NAVIGATION_CAPTURE_DISTANCE = 18;
+const CALENDAR_NAVIGATION_CAPTURE_DISTANCE = 12;
+const CALENDAR_NAVIGATION_FEEDBACK_DISTANCE = 52;
 
 type CalendarNavigationMode = 'month' | 'day';
-type CalendarNavigationSwipeState = {
-  lastX: number;
-  lastY: number;
-  mode: CalendarNavigationMode;
-  startX: number;
-  startY: number;
-};
 
 type ScheduledTaskBlockProps = {
   DAY_END_HOUR: number;
@@ -253,7 +250,7 @@ export function CalendarView() {
   );
   const bottomSheetSnap = useSharedValue(collapsedSheetSnap);
   const bottomSheetStart = useSharedValue(collapsedSheetSnap);
-  const navigationSwipeRef = useRef<CalendarNavigationSwipeState | null>(null);
+  const navigationSwipeOffsetX = useSharedValue(0);
   const suppressMonthDayPressUntilRef = useRef(0);
   const weekHorizontalScrollRef = useRef<any>(null);
   const scheduleScrollRef = useRef<any>(null);
@@ -380,70 +377,53 @@ export function CalendarView() {
   const bottomSheetStyle = useAnimatedStyle(() => ({
     height: screenHeight * bottomSheetSnap.value,
   }));
+  const calendarNavigationSwipeStyle = useAnimatedStyle(() => ({
+    transform: [{ translateX: navigationSwipeOffsetX.value }],
+  }));
 
-  const triggerDragHaptic = () => {
+  const triggerDragHaptic = useCallback(() => {
     Haptics.selectionAsync().catch(() => {});
-  };
-
-  const startCalendarNavigationSwipe = useCallback((mode: CalendarNavigationMode, event: GestureResponderEvent) => {
-    const touch = event.nativeEvent.touches[0];
-    if (event.nativeEvent.touches.length !== 1 || !touch) {
-      navigationSwipeRef.current = null;
-      return false;
-    }
-    navigationSwipeRef.current = {
-      lastX: touch.pageX,
-      lastY: touch.pageY,
-      mode,
-      startX: touch.pageX,
-      startY: touch.pageY,
-    };
-    return false;
   }, []);
 
-  const updateCalendarNavigationSwipe = useCallback((event: GestureResponderEvent) => {
-    const state = navigationSwipeRef.current;
-    const touch = event.nativeEvent.touches[0];
-    if (!state || event.nativeEvent.touches.length !== 1 || !touch) {
-      navigationSwipeRef.current = null;
-      return null;
-    }
-    state.lastX = touch.pageX;
-    state.lastY = touch.pageY;
-    return state;
-  }, []);
-
-  const shouldCaptureCalendarNavigationSwipe = useCallback((event: GestureResponderEvent) => {
-    const state = updateCalendarNavigationSwipe(event);
-    if (!state) return false;
-    const translationX = state.lastX - state.startX;
-    const translationY = state.lastY - state.startY;
+  const shouldCaptureCalendarNavigationSwipe = useCallback((_event: GestureResponderEvent, gestureState: PanResponderGestureState) => {
+    const translationX = gestureState.dx;
+    const translationY = gestureState.dy;
     const horizontalDistance = Math.abs(translationX);
     const verticalDrift = Math.abs(translationY);
     return (
       horizontalDistance >= CALENDAR_NAVIGATION_CAPTURE_DISTANCE
-      && verticalDrift <= 32
-      && verticalDrift <= horizontalDistance * 0.75
+      && verticalDrift <= CALENDAR_NAVIGATION_SWIPE_VERTICAL_TOLERANCE
+      && verticalDrift <= horizontalDistance * 0.85
     );
-  }, [updateCalendarNavigationSwipe]);
+  }, []);
 
-  const finishCalendarNavigationSwipe = useCallback((event: GestureResponderEvent) => {
-    const state = navigationSwipeRef.current;
-    if (!state) return;
-    const touch = event.nativeEvent.changedTouches[0];
-    if (touch) {
-      state.lastX = touch.pageX;
-      state.lastY = touch.pageY;
-    }
-    navigationSwipeRef.current = null;
+  const updateCalendarNavigationSwipeFeedback = useCallback((gestureState: PanResponderGestureState) => {
+    const clamped = Math.max(
+      -CALENDAR_NAVIGATION_FEEDBACK_DISTANCE,
+      Math.min(CALENDAR_NAVIGATION_FEEDBACK_DISTANCE, gestureState.dx * 0.45)
+    );
+    navigationSwipeOffsetX.value = clamped;
+  }, [navigationSwipeOffsetX]);
 
+  const finishCalendarNavigationSwipe = useCallback((mode: CalendarNavigationMode, gestureState: PanResponderGestureState) => {
+    const velocityX = Math.abs(gestureState.vx) < 20 ? gestureState.vx * 1000 : gestureState.vx;
     const direction = getCalendarNavigationSwipeDirection({
-      translationX: state.lastX - state.startX,
-      translationY: state.lastY - state.startY,
+      translationX: gestureState.dx,
+      translationY: gestureState.dy,
+      velocityX,
     });
-    if (!direction) return;
+    if (!direction) {
+      navigationSwipeOffsetX.value = withSpring(0);
+      return;
+    }
 
-    if (state.mode === 'month') {
+    triggerDragHaptic();
+    navigationSwipeOffsetX.value = direction === 1
+      ? Math.min(screenWidth * 0.18, CALENDAR_NAVIGATION_FEEDBACK_DISTANCE)
+      : -Math.min(screenWidth * 0.18, CALENDAR_NAVIGATION_FEEDBACK_DISTANCE);
+    navigationSwipeOffsetX.value = withSpring(0);
+
+    if (mode === 'month') {
       suppressMonthDayPressUntilRef.current = Date.now() + 350;
       if (direction === -1) handlePrevMonth();
       else handleNextMonth();
@@ -451,26 +431,37 @@ export function CalendarView() {
     }
 
     shiftSelectedDate(direction);
-  }, [handleNextMonth, handlePrevMonth, shiftSelectedDate]);
+  }, [handleNextMonth, handlePrevMonth, navigationSwipeOffsetX, screenWidth, shiftSelectedDate, triggerDragHaptic]);
 
   const cancelCalendarNavigationSwipe = useCallback(() => {
-    navigationSwipeRef.current = null;
-  }, []);
+    navigationSwipeOffsetX.value = withSpring(0);
+  }, [navigationSwipeOffsetX]);
 
-  const getCalendarNavigationResponder = useCallback((mode: CalendarNavigationMode) => ({
-    onMoveShouldSetResponderCapture: shouldCaptureCalendarNavigationSwipe,
-    onResponderMove: updateCalendarNavigationSwipe,
-    onResponderRelease: finishCalendarNavigationSwipe,
-    onResponderTerminate: cancelCalendarNavigationSwipe,
-    onResponderTerminationRequest: () => false,
-    onStartShouldSetResponderCapture: (event: GestureResponderEvent) => startCalendarNavigationSwipe(mode, event),
-  }), [
+  const createCalendarNavigationResponder = useCallback((mode: CalendarNavigationMode) => (
+    PanResponder.create({
+      onMoveShouldSetPanResponder: shouldCaptureCalendarNavigationSwipe,
+      onMoveShouldSetPanResponderCapture: shouldCaptureCalendarNavigationSwipe,
+      onPanResponderMove: (_event, gestureState) => updateCalendarNavigationSwipeFeedback(gestureState),
+      onPanResponderRelease: (_event, gestureState) => finishCalendarNavigationSwipe(mode, gestureState),
+      onPanResponderTerminate: cancelCalendarNavigationSwipe,
+      onPanResponderTerminationRequest: () => false,
+      onShouldBlockNativeResponder: () => true,
+      onStartShouldSetPanResponder: () => false,
+    })
+  ), [
     cancelCalendarNavigationSwipe,
     finishCalendarNavigationSwipe,
     shouldCaptureCalendarNavigationSwipe,
-    startCalendarNavigationSwipe,
-    updateCalendarNavigationSwipe,
+    updateCalendarNavigationSwipeFeedback,
   ]);
+  const monthNavigationResponder = useMemo(
+    () => createCalendarNavigationResponder('month'),
+    [createCalendarNavigationResponder]
+  );
+  const dayNavigationResponder = useMemo(
+    () => createCalendarNavigationResponder('day'),
+    [createCalendarNavigationResponder]
+  );
 
   const handleMonthDayPress = (date: Date) => {
     if (Date.now() < suppressMonthDayPressUntilRef.current) return;
@@ -727,12 +718,13 @@ export function CalendarView() {
           {renderModeToggle()}
         </View>
 
-        <View style={styles.daySwipeArea} {...getCalendarNavigationResponder('day')}>
-          <ScrollView
-            ref={timelineScrollRef}
-            style={styles.dayScroll}
-            contentContainerStyle={styles.dayScrollContent}
-          >
+        <View style={styles.daySwipeArea} {...dayNavigationResponder.panHandlers}>
+          <Animated.View style={[styles.calendarNavigationContent, calendarNavigationSwipeStyle]}>
+            <ScrollView
+              ref={timelineScrollRef}
+              style={styles.dayScroll}
+              contentContainerStyle={styles.dayScrollContent}
+            >
             {selectedDateAllDayEvents.length > 0 && (
               <View style={[styles.allDayCard, { backgroundColor: tc.cardBg, borderColor: tc.border }]}>
                 <Text style={[styles.sectionLabel, { color: tc.secondaryText }]}>{t('calendar.allDay')}</Text>
@@ -909,7 +901,8 @@ export function CalendarView() {
                 </View>
               )}
             </View>
-          </ScrollView>
+            </ScrollView>
+          </Animated.View>
         </View>
 
         {renderCalendarComposer()}
@@ -1362,7 +1355,8 @@ export function CalendarView() {
         {renderModeToggle()}
       </View>
 
-      <View style={styles.monthCalendar} {...getCalendarNavigationResponder('month')}>
+      <View style={styles.monthCalendar} {...monthNavigationResponder.panHandlers}>
+        <Animated.View style={calendarNavigationSwipeStyle}>
           <View style={[styles.dayHeaders, { backgroundColor: tc.cardBg, borderBottomColor: tc.border }]}>
             {dayNames.map((day) => (
               <View key={day} style={styles.dayHeader}>
@@ -1470,6 +1464,7 @@ export function CalendarView() {
               );
             })}
           </View>
+        </Animated.View>
       </View>
 
       {selectedDate && (

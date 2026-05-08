@@ -70,6 +70,9 @@ export const styles = StyleSheet.create({
   monthCalendar: {
     flexShrink: 0,
   },
+  calendarNavigationContent: {
+    flex: 1,
+  },
   monthDetailsPane: {
     position: 'absolute',
     left: 0,
