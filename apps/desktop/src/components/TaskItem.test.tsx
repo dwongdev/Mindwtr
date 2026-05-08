@@ -348,6 +348,18 @@ describe('TaskItem', () => {
         expect(root?.className).toContain('ring-inset');
     });
 
+    it('shows the selected row treatment while keyboard focus is inside the task card', () => {
+        const { container } = render(
+            <LanguageProvider>
+                <TaskItem task={mockTask} />
+            </LanguageProvider>
+        );
+        const root = container.querySelector('[data-task-id="1"]');
+        expect(root).toBeTruthy();
+        expect(root?.className).toContain('focus-within:ring-2');
+        expect(root?.className).toContain('focus-within:bg-primary/5');
+    });
+
     it('includes archived in the task status selector', () => {
         const { getByLabelText } = render(
             <LanguageProvider>
