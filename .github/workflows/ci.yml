@@ -49,6 +49,13 @@ jobs:
       - name: Store image asset check
         run: bash scripts/ci/validate-store-image-assets.sh
 
+      - name: Google Play listing metadata check
+        run: |
+          python3 scripts/ci/prepare-google-play-listing-metadata.test.py
+          python3 scripts/ci/prepare-google-play-listing-metadata.py \
+            metadata \
+            /tmp/mindwtr-play-listing-metadata.json
+
       - name: Run unit tests
         run: bun run --filter @mindwtr/core test -- --coverage
 
