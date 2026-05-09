@@ -980,6 +980,7 @@ export const en: Record<string, string> = {
         'common.less': 'Less',
         'common.loading': 'Loading...',
         'common.offline': 'Offline',
+        'common.notice': 'Notice',
         'common.success': 'Success',
         'errorBoundary.title': 'Something went wrong',
         'errorBoundary.message': 'The app encountered an unexpected error.',

@@ -1,4 +1,5 @@
-const insecureHttpFallbacks = [
+const acceptedOverrideFallbacks = [
+    'common.notice',
     'settings.allowInsecureHttp',
     'settings.allowInsecureHttpHint',
     'settings.cleartextSyncWarningWebdav',
@@ -17,17 +18,17 @@ const insecureHttpFallbacks = [
 ] as const;
 
 export const acceptedLocaleFallbacks: Partial<Record<string, readonly string[]>> = {
-    ar: insecureHttpFallbacks,
-    de: insecureHttpFallbacks,
-    es: insecureHttpFallbacks,
-    fr: insecureHttpFallbacks,
-    hi: insecureHttpFallbacks,
-    it: insecureHttpFallbacks,
-    ja: insecureHttpFallbacks,
-    ko: insecureHttpFallbacks,
-    nl: insecureHttpFallbacks,
-    pl: insecureHttpFallbacks,
-    pt: insecureHttpFallbacks,
-    ru: insecureHttpFallbacks,
-    tr: insecureHttpFallbacks,
+    ar: acceptedOverrideFallbacks,
+    de: acceptedOverrideFallbacks,
+    es: acceptedOverrideFallbacks,
+    fr: acceptedOverrideFallbacks,
+    hi: acceptedOverrideFallbacks,
+    it: acceptedOverrideFallbacks,
+    ja: acceptedOverrideFallbacks,
+    ko: acceptedOverrideFallbacks,
+    nl: acceptedOverrideFallbacks,
+    pl: acceptedOverrideFallbacks,
+    pt: acceptedOverrideFallbacks,
+    ru: acceptedOverrideFallbacks,
+    tr: acceptedOverrideFallbacks,
 };

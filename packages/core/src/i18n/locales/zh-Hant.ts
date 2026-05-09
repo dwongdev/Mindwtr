@@ -901,6 +901,7 @@ export const zhHant: Record<string, string> = {
         'common.less': '收起',
         'common.loading': '加載中...',
         'common.offline': '離線',
+        'common.notice': '提示',
         'common.success': '成功',
         'errorBoundary.title': 'Something went wrong',
         'errorBoundary.message': 'The app encountered an unexpected error.',
