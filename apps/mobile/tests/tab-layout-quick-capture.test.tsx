@@ -1,9 +1,11 @@
 import React from 'react';
 import { TouchableOpacity } from 'react-native';
 import { act, create } from 'react-test-renderer';
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import TabLayout from '../app/(drawer)/(tabs)/_layout';
+
+const mockRouterPush = vi.hoisted(() => vi.fn());
 
 vi.mock('expo-router', () => {
   function LinkMock({ children }: { children: React.ReactNode }) {
@@ -32,7 +34,7 @@ vi.mock('expo-router', () => {
         'focus-key': { options: {} },
         'capture-key': { options: {} },
         'review-key': { options: {} },
-        'menu-key': { options: {} },
+        'menu-key': { options: { title: 'Menu', tabBarAccessibilityLabel: 'Menu' } },
       },
       navigation: {
         emit: vi.fn(() => ({ defaultPrevented: false })),
@@ -45,6 +47,7 @@ vi.mock('expo-router', () => {
   return {
     Link: LinkMock,
     Tabs,
+    useRouter: () => ({ push: mockRouterPush }),
   };
 });
 
@@ -55,6 +58,10 @@ vi.mock('@react-navigation/native', () => ({
 }));
 
 vi.mock('@mindwtr/core', () => ({
+  tFallback: (t: (key: string) => string, key: string, fallback: string) => {
+    const translated = t(key);
+    return translated && translated !== key ? translated : fallback;
+  },
   useTaskStore: () => ({
     settings: {
       gtd: {
@@ -66,6 +73,10 @@ vi.mock('@mindwtr/core', () => ({
 
 vi.mock('@/components/haptic-tab', () => ({
   HapticTab: (props: any) => React.createElement('HapticTab', props, props.children),
+}));
+
+vi.mock('@/components/ui/icon-symbol', () => ({
+  IconSymbol: (props: any) => React.createElement('IconSymbol', props, props.children),
 }));
 
 vi.mock('@/components/mobile-area-switcher', () => ({
@@ -93,7 +104,9 @@ vi.mock('@/hooks/use-theme-colors', () => ({
     bg: '#0f172a',
     border: '#334155',
     cardBg: '#111827',
+    filterBg: '#1f2937',
     onTint: '#ffffff',
+    secondaryText: '#94a3b8',
     tabIconDefault: '#94a3b8',
     tabIconSelected: '#f8fafc',
     text: '#f8fafc',
@@ -105,12 +118,25 @@ vi.mock('../contexts/language-context', () => ({
   useLanguage: () => ({
     t: (key: string) => ({
       'nav.addTask': 'Add task',
+      'nav.archived': 'Archived',
+      'nav.board': 'Board View',
+      'nav.calendar': 'Calendar',
+      'nav.contexts': 'Contexts',
+      'nav.done': 'Done',
+      'nav.projects': 'Projects',
+      'nav.reference': 'Reference',
+      'nav.settings': 'Settings',
+      'nav.someday': 'Someday',
+      'nav.trash': 'Trash',
+      'nav.waiting': 'Waiting For',
       'quickAdd.audioCaptureLabel': 'Audio capture',
       'search.title': 'Search',
+      'search.savedSearches': 'Saved searches',
       'tab.inbox': 'Inbox',
       'tab.menu': 'Menu',
       'tab.next': 'Next',
       'tab.review': 'Review',
+      'common.close': 'Close',
     }[key] ?? key),
   }),
 }));
@@ -131,11 +157,88 @@ const getAddTaskButton = (tree: ReturnType<typeof create>) => {
   return button;
 };
 
+const getMenuButton = (tree: ReturnType<typeof create>) => {
+  const button = tree.root.findAllByType(TouchableOpacity).find(
+    (node) => node.props.accessibilityLabel === 'Menu'
+  );
+  if (!button) throw new Error('Menu button not found');
+  return button;
+};
+
 const getQuickCaptureSheets = (tree: ReturnType<typeof create>) => (
   tree.root.findAll((node) => String(node.type) === 'QuickCaptureSheet')
 );
 
+const getMoreSheetButtons = (tree: ReturnType<typeof create>, label: string) => (
+  tree.root.findAll((node) => (
+    node.props.accessibilityLabel === label
+    && node.props.accessibilityRole === 'button'
+    && typeof node.props.onPress === 'function'
+  ))
+);
+
+const getMoreSheetButtonIconName = (tree: ReturnType<typeof create>, label: string) => {
+  const button = getMoreSheetButtons(tree, label)[0];
+  if (!button) throw new Error(`${label} button not found`);
+  const icon = button.findAll((node) => String(node.type) === 'IconSymbol')[0];
+  if (!icon) throw new Error(`${label} icon not found`);
+  return icon.props.name;
+};
+
+const moreDestinationLabels = [
+  'Trash',
+  'Archived',
+  'Done',
+  'Reference',
+  'Settings',
+  'Waiting For',
+  'Board View',
+  'Projects',
+  'Someday',
+  'Contexts',
+  'Calendar',
+];
+
+const hasHiddenAccessibilityAncestor = (node: any) => {
+  let parent = node.parent;
+  while (parent) {
+    if (
+      parent.props?.accessibilityElementsHidden
+      || parent.props?.importantForAccessibility === 'no-hide-descendants'
+    ) {
+      return true;
+    }
+    parent = parent.parent;
+  }
+  return false;
+};
+
+const getVisibleMoreDestinationLabels = (tree: ReturnType<typeof create>) => (
+  tree.root
+    .findAll((node) => (
+      String(node.type) === 'Pressable'
+      && node.props.accessibilityRole === 'button'
+      && typeof node.props.onPress === 'function'
+      && moreDestinationLabels.includes(node.props.accessibilityLabel)
+      && !hasHiddenAccessibilityAncestor(node)
+    ))
+    .map((node) => node.props.accessibilityLabel)
+);
+
+const getMoreSheetMenu = (tree: ReturnType<typeof create>) => {
+  const menu = tree.root.findAll((node) => (
+    String(node.type) === 'Animated.View'
+    && node.props.accessibilityRole === 'menu'
+  ))[0];
+  if (!menu) throw new Error('More sheet menu not found');
+  return menu;
+};
+
 describe('mobile tab quick capture', () => {
+  beforeEach(() => {
+    mockRouterPush.mockClear();
+  });
+
   it('unmounts the quick capture sheet after close so the next plus tap gets a fresh modal', () => {
     let tree!: ReturnType<typeof create>;
 
@@ -190,5 +293,80 @@ describe('mobile tab quick capture', () => {
     sheets = getQuickCaptureSheets(tree);
     expect(sheets).toHaveLength(1);
     expect(sheets[0]?.props.openRequestId).toBe(2);
+  });
+
+  it('opens the More sheet from the menu tab and navigates from its original calendar icon', () => {
+    let tree!: ReturnType<typeof create>;
+
+    act(() => {
+      tree = create(<TabLayout />);
+    });
+
+    expect(getMoreSheetButtons(tree, 'Calendar')).toHaveLength(0);
+
+    act(() => {
+      getMenuButton(tree).props.onPress();
+    });
+
+    expect(getVisibleMoreDestinationLabels(tree)).toEqual(moreDestinationLabels);
+    expect(getMoreSheetButtonIconName(tree, 'Board View')).toBe('square.grid.2x2.fill');
+    expect(getMoreSheetButtonIconName(tree, 'Someday')).toBe('arrow.up.circle.fill');
+
+    const calendarButtons = getMoreSheetButtons(tree, 'Calendar');
+    expect(calendarButtons.length).toBeGreaterThan(0);
+
+    act(() => {
+      calendarButtons[0]?.props.onPress();
+    });
+
+    expect(mockRouterPush).toHaveBeenCalledWith('/calendar');
+    expect(getMoreSheetButtons(tree, 'Calendar')).toHaveLength(0);
+  });
+
+  it('closes the More sheet from the menu tab toggle and a downward swipe', () => {
+    let tree!: ReturnType<typeof create>;
+
+    act(() => {
+      tree = create(<TabLayout />);
+    });
+
+    act(() => {
+      getMenuButton(tree).props.onPress();
+    });
+    expect(getVisibleMoreDestinationLabels(tree)).toEqual(moreDestinationLabels);
+
+    act(() => {
+      getMenuButton(tree).props.onPress();
+    });
+    expect(getVisibleMoreDestinationLabels(tree)).toHaveLength(0);
+
+    act(() => {
+      getMenuButton(tree).props.onPress();
+    });
+    const menu = getMoreSheetMenu(tree);
+    expect(menu.props.onMoveShouldSetResponder?.({}, { dx: 2, dy: 12 })).toBe(true);
+
+    act(() => {
+      menu.props.onResponderRelease?.({}, { dx: 4, dy: 24, vy: 0.2 });
+    });
+    expect(getVisibleMoreDestinationLabels(tree)).toHaveLength(0);
+  });
+
+  it('dismisses the full More sheet on a long downward swipe', () => {
+    let tree!: ReturnType<typeof create>;
+
+    act(() => {
+      tree = create(<TabLayout />);
+    });
+
+    act(() => {
+      getMenuButton(tree).props.onPress();
+    });
+    expect(getVisibleMoreDestinationLabels(tree)).toEqual(moreDestinationLabels);
+
+    act(() => {
+      getMoreSheetMenu(tree).props.onResponderRelease?.({}, { dx: 4, dy: 240, vy: 0.2 });
+    });
+    expect(getVisibleMoreDestinationLabels(tree)).toHaveLength(0);
   });
 });

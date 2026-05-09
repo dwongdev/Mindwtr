@@ -1,12 +1,13 @@
-import { Link, Tabs } from 'expo-router';
+import { Link, Tabs, useRouter } from 'expo-router';
 import { CommonActions } from '@react-navigation/native';
 import type { BottomTabBarProps } from '@react-navigation/bottom-tabs';
 import { Search, Inbox, ArrowRightCircle, ClipboardCheck, Folder, Menu, Mic, Plus } from 'lucide-react-native';
-import { Platform, StyleSheet, TouchableOpacity, View, type ViewStyle } from 'react-native';
+import { Animated, Dimensions, PanResponder, Platform, Pressable, ScrollView, StyleSheet, Text, TouchableOpacity, View, type ViewStyle } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import React, { useCallback, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { HapticTab } from '@/components/haptic-tab';
+import { IconSymbol } from '@/components/ui/icon-symbol';
 import { MobileAreaSwitcher } from '@/components/mobile-area-switcher';
 import { MobileHeaderSyncBar } from '@/components/mobile-header-sync-bar';
 import { useMobileAreaFilter } from '@/hooks/use-mobile-area-filter';
@@ -15,7 +16,306 @@ import { useThemeColors } from '@/hooks/use-theme-colors';
 import { useLanguage } from '../../../contexts/language-context';
 import { QuickCaptureSheet } from '@/components/quick-capture-sheet';
 import { QuickCaptureProvider } from '../../../contexts/quick-capture-context';
-import { useTaskStore, type Task } from '@mindwtr/core';
+import { useTaskStore, type SavedSearch, type Task } from '@mindwtr/core';
+
+type IconSymbolName = Parameters<typeof IconSymbol>[0]['name'];
+type Translate = (key: string) => string;
+
+type MoreDestination = {
+  id: string;
+  label: string;
+  displayLabel?: string;
+  icon: IconSymbolName;
+  iconColor: string;
+  route?: string;
+  onPress?: () => void;
+};
+
+function compactSlashLabel(label: string) {
+  return label.split('/')[0]?.trim() || label;
+}
+
+function MoreSheetTile({
+  item,
+  onNavigate,
+  tc,
+}: {
+  item: MoreDestination;
+  onNavigate: (route: string) => void;
+  tc: ReturnType<typeof useThemeColors>;
+}) {
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={item.label}
+      onPress={() => {
+        if (item.route) {
+          onNavigate(item.route);
+          return;
+        }
+        item.onPress?.();
+      }}
+      style={({ pressed }) => [
+        styles.moreTile,
+        {
+          backgroundColor: pressed ? tc.filterBg : tc.cardBg,
+          borderColor: tc.border,
+        },
+      ]}
+    >
+      <View style={[styles.moreTileIcon, { backgroundColor: tc.filterBg }]}>
+        <IconSymbol name={item.icon} size={24} color={item.iconColor} />
+      </View>
+      <Text style={[styles.moreTileLabel, { color: tc.text }]} numberOfLines={1}>
+        {item.displayLabel ?? item.label}
+      </Text>
+    </Pressable>
+  );
+}
+
+function MoreSheetCompactItem({
+  itemStyle,
+  item,
+  onNavigate,
+  tc,
+}: {
+  itemStyle?: ViewStyle;
+  item: MoreDestination;
+  onNavigate: (route: string) => void;
+  tc: ReturnType<typeof useThemeColors>;
+}) {
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={item.label}
+      onPress={() => {
+        if (item.route) {
+          onNavigate(item.route);
+          return;
+        }
+        item.onPress?.();
+      }}
+      style={({ pressed }) => [
+        styles.moreCompactItem,
+        itemStyle,
+        { backgroundColor: pressed ? tc.filterBg : 'transparent' },
+      ]}
+    >
+      <View style={styles.moreCompactIcon}>
+        <IconSymbol name={item.icon} size={18} color={item.iconColor} />
+      </View>
+      <Text style={[styles.moreCompactLabel, { color: tc.secondaryText }]} numberOfLines={1}>
+        {item.displayLabel ?? item.label}
+      </Text>
+    </Pressable>
+  );
+}
+
+function MoreNavigationSheet({
+  closeRequestId,
+  onClose,
+  onNavigate,
+  savedSearches,
+  t,
+  tabBarHeight,
+  tc,
+  visible,
+}: {
+  closeRequestId: number;
+  onClose: () => void;
+  onNavigate: (route: string) => void;
+  savedSearches: SavedSearch[];
+  t: Translate;
+  tabBarHeight: number;
+  tc: ReturnType<typeof useThemeColors>;
+  visible: boolean;
+}) {
+  const sheetTranslateY = useRef(new Animated.Value(Dimensions.get('window').height)).current;
+  const lastCloseRequestIdRef = useRef(closeRequestId);
+  const hiddenTranslateY = Dimensions.get('window').height;
+  const iconColors = {
+    board: '#4F8CF7',
+    calendar: '#35B8B1',
+    projects: '#10B981',
+    contexts: '#8B5CF6',
+    waiting: '#F2B705',
+    someday: '#6366F1',
+    reference: '#0EA5E9',
+    done: '#22C55E',
+    archived: '#64748B',
+    trash: '#EF4444',
+    settings: '#64748B',
+    saved: '#4F8CF7',
+  };
+
+  const animateClosed = useCallback(() => {
+    Animated.timing(sheetTranslateY, {
+      toValue: hiddenTranslateY,
+      duration: 180,
+      useNativeDriver: true,
+    }).start(() => {
+      onClose();
+    });
+  }, [hiddenTranslateY, onClose, sheetTranslateY]);
+  const animateOpen = useCallback(() => {
+    sheetTranslateY.setValue(hiddenTranslateY);
+    Animated.timing(sheetTranslateY, {
+      toValue: 0,
+      duration: 220,
+      useNativeDriver: true,
+    }).start();
+  }, [hiddenTranslateY, sheetTranslateY]);
+  const restoreOpenPosition = useCallback(() => {
+    Animated.timing(sheetTranslateY, {
+      toValue: 0,
+      duration: 140,
+      useNativeDriver: true,
+    }).start();
+  }, [sheetTranslateY]);
+  const closeSheet = useCallback(() => {
+    animateClosed();
+  }, [animateClosed]);
+  const sheetPanResponder = useMemo(() => PanResponder.create({
+    onMoveShouldSetPanResponder: (_event, gestureState) => (
+      gestureState.dy > 8
+      && gestureState.dy > Math.abs(gestureState.dx)
+    ),
+    onPanResponderMove: (_event, gestureState) => {
+      sheetTranslateY.setValue(Math.max(0, gestureState.dy));
+    },
+    onPanResponderRelease: (_event, gestureState) => {
+      if (gestureState.dy > 8 || gestureState.vy > 0.25) {
+        closeSheet();
+        return;
+      }
+      restoreOpenPosition();
+    },
+    onPanResponderTerminate: (_event, gestureState) => {
+      if (gestureState.dy > 8 || gestureState.vy > 0.25) {
+        closeSheet();
+        return;
+      }
+      restoreOpenPosition();
+    },
+  }), [closeSheet, restoreOpenPosition, sheetTranslateY]);
+
+  useEffect(() => {
+    if (visible) animateOpen();
+  }, [animateOpen, visible]);
+
+  useEffect(() => {
+    if (lastCloseRequestIdRef.current === closeRequestId) return;
+    lastCloseRequestIdRef.current = closeRequestId;
+    if (visible) animateClosed();
+  }, [animateClosed, closeRequestId, visible]);
+
+  if (!visible) return null;
+
+  const primaryItems: MoreDestination[] = [
+    { id: 'waiting', label: t('nav.waiting'), icon: 'pause.circle.fill', iconColor: iconColors.waiting, route: '/waiting' },
+    { id: 'board', label: t('nav.board'), icon: 'square.grid.2x2.fill', iconColor: iconColors.board, route: '/board' },
+    { id: 'projects', label: t('nav.projects'), icon: 'folder.fill', iconColor: iconColors.projects, route: '/projects-screen' },
+    {
+      id: 'someday',
+      label: t('nav.someday'),
+      displayLabel: compactSlashLabel(t('nav.someday')),
+      icon: 'arrow.up.circle.fill',
+      iconColor: iconColors.someday,
+      route: '/someday',
+    },
+    { id: 'contexts', label: t('nav.contexts'), icon: 'circle', iconColor: iconColors.contexts, route: '/contexts' },
+    { id: 'calendar', label: t('nav.calendar'), icon: 'calendar', iconColor: iconColors.calendar, route: '/calendar' },
+  ];
+  const secondaryItems: MoreDestination[] = [
+    { id: 'trash', label: t('nav.trash'), icon: 'trash.fill', iconColor: iconColors.trash, route: '/trash' },
+    { id: 'archived', label: t('nav.archived'), icon: 'archivebox.fill', iconColor: iconColors.archived, route: '/archived' },
+    { id: 'done', label: t('nav.done'), icon: 'checkmark.circle.fill', iconColor: iconColors.done, route: '/done' },
+    { id: 'reference', label: t('nav.reference'), displayLabel: 'Refer', icon: 'book.closed.fill', iconColor: iconColors.reference, route: '/reference' },
+    { id: 'settings', label: t('nav.settings'), icon: 'gearshape.fill', iconColor: iconColors.settings, route: '/settings' },
+  ];
+
+  return (
+    <>
+      <View pointerEvents="box-none" style={[styles.moreOverlayContainer, { bottom: tabBarHeight }]}>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={t('common.close')}
+          style={styles.moreBackdrop}
+          onPress={closeSheet}
+        />
+        <Animated.View
+          accessibilityRole="menu"
+          style={[
+            styles.moreSheet,
+            {
+              backgroundColor: tc.cardBg,
+              borderColor: tc.border,
+              bottom: 0,
+              transform: [{ translateY: sheetTranslateY }],
+            },
+          ]}
+          {...sheetPanResponder.panHandlers}
+        >
+          <View style={[styles.moreSheetHandle, { backgroundColor: tc.border }]} />
+          <ScrollView
+            showsVerticalScrollIndicator={false}
+            contentContainerStyle={styles.moreSheetContent}
+          >
+            <View style={styles.moreUtilityRow}>
+              {secondaryItems.map((item) => (
+                <MoreSheetCompactItem
+                  key={item.id}
+                  item={item}
+                  itemStyle={styles.moreUtilityRowItem}
+                  onNavigate={onNavigate}
+                  tc={tc}
+                />
+              ))}
+            </View>
+
+            {savedSearches.length > 0 ? (
+              <View style={styles.moreSavedSection}>
+                <Text style={[styles.moreSectionTitle, { color: tc.secondaryText }]}>
+                  {t('search.savedSearches')}
+                </Text>
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  contentContainerStyle={styles.moreUtilityStripContent}
+                >
+                  {savedSearches.map((search) => (
+                    <MoreSheetCompactItem
+                      key={search.id}
+                      item={{
+                        id: search.id,
+                        label: search.name,
+                        icon: 'tray.fill',
+                        iconColor: iconColors.saved,
+                        route: `/saved-search/${search.id}`,
+                      }}
+                      itemStyle={styles.moreUtilityScrollItem}
+                      onNavigate={onNavigate}
+                      tc={tc}
+                    />
+                  ))}
+                </ScrollView>
+              </View>
+            ) : null}
+
+            <View style={[styles.moreDivider, { backgroundColor: tc.border }]} />
+
+            <View style={styles.morePrimaryGrid}>
+              {primaryItems.map((item) => (
+                <MoreSheetTile key={item.id} item={item} onNavigate={onNavigate} tc={tc} />
+              ))}
+            </View>
+          </ScrollView>
+        </Animated.View>
+      </View>
+
+    </>
+  );
+}
 
 function NativeTabBar({
   state,
@@ -30,8 +330,11 @@ function NativeTabBar({
   tabItemTopOffset,
   iconLift,
   openQuickCapture,
+  closeMoreSheet,
+  toggleMoreSheet,
   defaultAutoRecord,
   menuSyncIndicatorColor,
+  moreSheetVisible,
 }: BottomTabBarProps & {
   iconTint: string;
   inactiveTint: string;
@@ -42,8 +345,11 @@ function NativeTabBar({
   tabItemTopOffset: number;
   iconLift: number;
   openQuickCapture: (options?: { initialValue?: string; initialProps?: Partial<Task>; autoRecord?: boolean }) => void;
+  closeMoreSheet: () => void;
+  toggleMoreSheet: () => void;
   defaultAutoRecord: boolean;
   menuSyncIndicatorColor?: string;
+  moreSheetVisible: boolean;
 }) {
   const longPressRef = useRef(false);
   const visibleTabNames = new Set(['inbox', 'focus', 'capture', 'review-tab', 'menu']);
@@ -76,10 +382,12 @@ function NativeTabBar({
                   longPressRef.current = false;
                   return;
                 }
+                if (moreSheetVisible) closeMoreSheet();
                 openQuickCapture({ autoRecord: defaultAutoRecord });
               }}
               onLongPress={() => {
                 longPressRef.current = true;
+                if (moreSheetVisible) closeMoreSheet();
                 openQuickCapture({ autoRecord: !defaultAutoRecord });
                 setTimeout(() => {
                   longPressRef.current = false;
@@ -104,13 +412,21 @@ function NativeTabBar({
           );
         }
 
+        const active = route.name === 'menu' ? moreSheetVisible : focused;
+
         const onPress = () => {
           const event = navigation.emit({
             type: 'tabPress',
             target: route.key,
             canPreventDefault: true,
           });
-          if (focused || event.defaultPrevented) return;
+          if (event.defaultPrevented) return;
+          if (route.name === 'menu') {
+            toggleMoreSheet();
+            return;
+          }
+          if (moreSheetVisible) closeMoreSheet();
+          if (focused) return;
           navigation.dispatch({
             ...CommonActions.navigate(route),
             target: state.key,
@@ -122,17 +438,17 @@ function NativeTabBar({
         };
 
         const tabIcon = options.tabBarIcon?.({
-          focused,
-          color: focused ? iconTint : inactiveTint,
-          size: focused ? 26 : 24,
+          focused: active,
+          color: active ? iconTint : inactiveTint,
+          size: active ? 26 : 24,
         });
 
         return (
           <TouchableOpacity
             key={route.key}
             accessibilityRole="button"
-            accessibilityState={focused ? { selected: true } : {}}
-            accessibilityLabel={options.tabBarAccessibilityLabel}
+            accessibilityState={route.name === 'menu' ? { expanded: moreSheetVisible } : focused ? { selected: true } : {}}
+            accessibilityLabel={options.tabBarAccessibilityLabel ?? options.title}
             testID={options.tabBarButtonTestID}
             onPress={onPress}
             onLongPress={onLongPress}
@@ -168,6 +484,7 @@ function NativeTabBar({
 export default function TabLayout() {
   const tc = useThemeColors();
   const { t } = useLanguage();
+  const router = useRouter();
   const insets = useSafeAreaInsets();
   const { settings } = useTaskStore();
   const androidNavInset = Platform.OS === 'android' && insets.bottom >= 20
@@ -194,6 +511,8 @@ export default function TabLayout() {
     initialProps: null,
     autoRecord: false,
   });
+  const [moreSheetVisible, setMoreSheetVisible] = useState(false);
+  const [moreSheetCloseRequestId, setMoreSheetCloseRequestId] = useState(0);
   const longPressRef = useRef(false);
   const { selectedAreaIdForNewTasks } = useMobileAreaFilter();
 
@@ -224,6 +543,18 @@ export default function TabLayout() {
       autoRecord: false,
     }));
   }, []);
+  const closeMoreSheet = useCallback(() => setMoreSheetVisible(false), []);
+  const toggleMoreSheet = useCallback(() => {
+    if (moreSheetVisible) {
+      setMoreSheetCloseRequestId((prev) => prev + 1);
+      return;
+    }
+    setMoreSheetVisible(true);
+  }, [moreSheetVisible]);
+  const navigateFromMoreSheet = useCallback((route: string) => {
+    setMoreSheetVisible(false);
+    router.push(route as never);
+  }, [router]);
 
   const iconTint = tc.tabIconSelected;
   const inactiveTint = tc.tabIconDefault;
@@ -248,8 +579,11 @@ export default function TabLayout() {
             tabItemTopOffset={tabItemTopOffset}
             iconLift={iconLift}
             openQuickCapture={openQuickCapture}
+            closeMoreSheet={closeMoreSheet}
+            toggleMoreSheet={toggleMoreSheet}
             defaultAutoRecord={defaultAutoRecord}
             menuSyncIndicatorColor={syncBadgeColor}
+            moreSheetVisible={moreSheetVisible}
           />
         )}
         screenOptions={({ route }) => ({
@@ -409,6 +743,16 @@ export default function TabLayout() {
         onClose={closeQuickCapture}
       />
     )}
+    <MoreNavigationSheet
+      closeRequestId={moreSheetCloseRequestId}
+      onClose={closeMoreSheet}
+      onNavigate={navigateFromMoreSheet}
+      savedSearches={settings?.savedSearches ?? []}
+      t={t}
+      tabBarHeight={tabBarHeight}
+      tc={tc}
+      visible={moreSheetVisible}
+    />
     </QuickCaptureProvider>
   );
 }
@@ -460,5 +804,121 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     shadowOffset: { width: 0, height: 3 },
     elevation: 4,
+  },
+  moreOverlayContainer: {
+    ...StyleSheet.absoluteFillObject,
+    zIndex: 20,
+    elevation: 20,
+    overflow: 'hidden',
+  },
+  moreBackdrop: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0, 0, 0, 0.36)',
+  },
+  moreSheet: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderBottomWidth: 0,
+    maxHeight: '82%',
+    paddingTop: 10,
+    paddingHorizontal: 18,
+    paddingBottom: 16,
+  },
+  moreSheetHandle: {
+    alignSelf: 'center',
+    width: 44,
+    height: 5,
+    borderRadius: 3,
+    marginBottom: 18,
+  },
+  moreSheetContent: {
+    paddingBottom: 8,
+  },
+  morePrimaryGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 10,
+  },
+  moreTile: {
+    borderRadius: 8,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexBasis: '31%',
+    flexGrow: 1,
+    minHeight: 86,
+    paddingHorizontal: 8,
+    paddingVertical: 12,
+  },
+  moreTileIcon: {
+    width: 44,
+    height: 44,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 8,
+  },
+  moreTileLabel: {
+    fontSize: 12,
+    fontWeight: '700',
+    lineHeight: 15,
+    minHeight: 15,
+    textAlign: 'center',
+  },
+  moreDivider: {
+    height: StyleSheet.hairlineWidth,
+    marginVertical: 12,
+  },
+  moreUtilityRow: {
+    flexDirection: 'row',
+    gap: 4,
+  },
+  moreUtilityStripContent: {
+    flexDirection: 'row',
+    gap: 10,
+    paddingRight: 2,
+  },
+  moreCompactItem: {
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: 48,
+    paddingHorizontal: 2,
+    paddingVertical: 4,
+  },
+  moreUtilityRowItem: {
+    flex: 1,
+    minWidth: 0,
+  },
+  moreUtilityScrollItem: {
+    width: 76,
+  },
+  moreCompactIcon: {
+    opacity: 0.64,
+  },
+  moreCompactLabel: {
+    fontSize: 10,
+    fontWeight: '700',
+    lineHeight: 12,
+    marginTop: 4,
+    minHeight: 24,
+    textAlign: 'center',
+  },
+  moreSavedSection: {
+    marginTop: 18,
+  },
+  moreSectionTitle: {
+    fontSize: 12,
+    fontWeight: '800',
+    marginBottom: 8,
+    textTransform: 'uppercase',
   },
 });
