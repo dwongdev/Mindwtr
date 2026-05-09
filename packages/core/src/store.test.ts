@@ -448,6 +448,26 @@ describe('TaskStore', () => {
         expect(state.lastDataChangeAt).toBe(new Date('2026-03-21T12:00:00.000Z').getTime());
     });
 
+    it('tracks saved filter changes as synced local data mutations', async () => {
+        vi.setSystemTime(new Date('2026-03-21T12:00:00.000Z'));
+
+        await useTaskStore.getState().updateSettings({
+            savedFilters: [{
+                id: 'filter-1',
+                name: 'Desk',
+                view: 'focus',
+                criteria: { contexts: ['@desk'] },
+                createdAt: '2026-03-21T12:00:00.000Z',
+                updatedAt: '2026-03-21T12:00:00.000Z',
+            }],
+        });
+
+        const state = useTaskStore.getState();
+        expect(state.settings.savedFilters?.[0]?.name).toBe('Desk');
+        expect(state.settings.syncPreferencesUpdatedAt?.savedFilters).toBe('2026-03-21T12:00:00.000Z');
+        expect(state.lastDataChangeAt).toBe(new Date('2026-03-21T12:00:00.000Z').getTime());
+    });
+
     it('does not treat sync bookkeeping updates as local data mutations', async () => {
         useTaskStore.setState({ lastDataChangeAt: 123 });
 

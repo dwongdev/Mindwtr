@@ -1,4 +1,5 @@
 import type { AppData, Attachment } from './types';
+import { normalizeSavedFilters } from './saved-filters';
 
 const SYNC_FILE_NAME = 'data.json';
 
@@ -162,6 +163,10 @@ export const sanitizeAppDataForRemote = (data: AppData): AppData => {
                     ...(settings.gtd.focusTaskLimit !== undefined ? { focusTaskLimit: settings.gtd.focusTaskLimit } : {}),
                 };
             }
+        }
+
+        if (prefs.savedFilters === true) {
+            next.savedFilters = normalizeSavedFilters(settings.savedFilters);
         }
 
         if (prefs.externalCalendars === true) {

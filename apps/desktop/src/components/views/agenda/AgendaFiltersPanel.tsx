@@ -1,5 +1,5 @@
 import type { TaskEnergyLevel, TaskPriority, TimeEstimate } from '@mindwtr/core';
-import { Filter } from 'lucide-react';
+import { Filter, Save } from 'lucide-react';
 
 import { cn } from '../../../lib/utils';
 
@@ -20,7 +20,9 @@ type AgendaFiltersPanelProps = {
     activeFilterChips: AgendaActiveFilterChip[];
     energyLevelOptions: TaskEnergyLevel[];
     formatEstimate: (estimate: TimeEstimate) => string;
+    canSaveFilter: boolean;
     hasFilters: boolean;
+    onSaveFilter: () => void;
     onClearFilters: () => void;
     onSearchChange: (value: string) => void;
     onToggleEnergy: (energyLevel: TaskEnergyLevel) => void;
@@ -33,6 +35,7 @@ type AgendaFiltersPanelProps = {
     projectOptions: AgendaProjectFilterOption[];
     priorityOptions: TaskPriority[];
     searchQuery: string;
+    saveFilterLabel: string;
     selectedEnergyLevels: TaskEnergyLevel[];
     selectedProjects: string[];
     selectedPriorities: TaskPriority[];
@@ -50,9 +53,11 @@ export function AgendaFiltersPanel({
     activeFilterChips,
     energyLevelOptions,
     formatEstimate,
+    canSaveFilter,
     hasFilters,
     onClearFilters,
     onSearchChange,
+    onSaveFilter,
     onToggleEnergy,
     onToggleFiltersOpen,
     onToggleProject,
@@ -63,6 +68,7 @@ export function AgendaFiltersPanel({
     projectOptions,
     priorityOptions,
     searchQuery,
+    saveFilterLabel,
     selectedEnergyLevels,
     selectedProjects,
     selectedPriorities,
@@ -82,6 +88,16 @@ export function AgendaFiltersPanel({
                     {t('filters.label')}
                 </div>
                 <div className="flex items-center gap-2">
+                    {canSaveFilter && (
+                        <button
+                            type="button"
+                            onClick={onSaveFilter}
+                            className="inline-flex items-center gap-1.5 rounded-full border border-border bg-muted/50 px-2.5 py-1 text-xs text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                        >
+                            <Save className="h-3.5 w-3.5" aria-hidden="true" />
+                            {saveFilterLabel}
+                        </button>
+                    )}
                     {hasFilters && (
                         <button
                             type="button"

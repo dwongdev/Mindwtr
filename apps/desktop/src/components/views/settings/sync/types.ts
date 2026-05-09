@@ -32,6 +32,7 @@ export type SettingsSyncLabels = {
     syncPreferenceAppearance: string;
     syncPreferenceLanguage: string;
     syncPreferenceGtd: string;
+    syncPreferenceSavedFilters: string;
     syncPreferenceExternalCalendars: string;
     syncPreferenceAi: string;
     syncPreferenceAiHint: string;

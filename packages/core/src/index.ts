@@ -12,11 +12,17 @@ export type {
     RecurrenceRule,
     RecurrenceStrategy,
     RecurrenceWeekday,
+    DateRange,
+    FilterCriteria,
+    FilterPriority,
+    SavedFilter,
+    SavedFilterView,
     SavedSearch,
     Section,
     SettingsSyncGroup,
     SettingsSyncPreferences,
     SettingsSyncUpdatedAt,
+    SortField,
     Task,
     TaskEditorFieldId,
     TaskEditorSectionId,
@@ -383,6 +389,17 @@ export type {
     SearchQuery,
     SearchTerm,
 } from './search';
+
+export {
+    applyFilter,
+    hasActiveFilterCriteria,
+    normalizeDateRange,
+    normalizeFilterCriteria,
+    normalizeSavedFilter,
+    normalizeSavedFilters,
+    SAVED_FILTER_NO_PROJECT_ID,
+    taskMatchesFilterCriteria,
+} from './saved-filters';
 
 export {
     matchesHierarchicalToken,

@@ -173,6 +173,7 @@ export function SyncStatusSection({
                             {renderSyncToggle('appearance', t.syncPreferenceAppearance)}
                             {renderSyncToggle('language', t.syncPreferenceLanguage)}
                             {renderSyncToggle('gtd', t.syncPreferenceGtd)}
+                            {renderSyncToggle('savedFilters', t.syncPreferenceSavedFilters)}
                             {renderSyncToggle('externalCalendars', t.syncPreferenceExternalCalendars)}
                             {renderSyncToggle('ai', t.syncPreferenceAi, t.syncPreferenceAiHint)}
                         </div>

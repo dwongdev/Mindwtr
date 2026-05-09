@@ -1,4 +1,4 @@
-export const SQLITE_SCHEMA_VERSION = 3;
+export const SQLITE_SCHEMA_VERSION = 4;
 
 export const SQLITE_BASE_SCHEMA = `
 PRAGMA journal_mode = WAL;
@@ -91,6 +91,18 @@ CREATE TABLE IF NOT EXISTS sections (
 CREATE TABLE IF NOT EXISTS settings (
   id INTEGER PRIMARY KEY CHECK (id = 1),
   data TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS saved_filters (
+  id TEXT PRIMARY KEY,
+  name TEXT NOT NULL,
+  icon TEXT,
+  view TEXT NOT NULL,
+  criteria TEXT NOT NULL,
+  sortBy TEXT,
+  sortOrder TEXT,
+  createdAt TEXT NOT NULL,
+  updatedAt TEXT NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS schema_migrations (
@@ -194,6 +206,7 @@ CREATE INDEX IF NOT EXISTS idx_projects_dueDate ON projects(dueDate);
 CREATE INDEX IF NOT EXISTS idx_projects_updatedAt_rev ON projects(updatedAt, rev);
 CREATE INDEX IF NOT EXISTS idx_sections_updatedAt_rev ON sections(updatedAt, rev);
 CREATE INDEX IF NOT EXISTS idx_areas_updatedAt_rev ON areas(updatedAt, rev);
+CREATE INDEX IF NOT EXISTS idx_saved_filters_view ON saved_filters(view);
 `;
 
 export const SQLITE_FTS_SCHEMA = `

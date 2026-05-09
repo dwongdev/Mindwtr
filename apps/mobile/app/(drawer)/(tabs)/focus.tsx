@@ -8,16 +8,22 @@ import {
   ScrollView,
   Modal,
   TouchableOpacity,
+  TextInput,
+  Alert,
 } from 'react-native';
 import { format } from 'date-fns';
 import { useLocalSearchParams } from 'expo-router';
-import { SlidersHorizontal, X } from 'lucide-react-native';
+import { BookmarkPlus, Plus, SlidersHorizontal, X } from 'lucide-react-native';
 
 import {
+  applyFilter,
   sortFocusNextActions,
   shouldShowTaskForStart,
   getFocusSequentialFirstTaskIds,
+  generateUUID,
+  hasActiveFilterCriteria,
   normalizeFocusTaskLimit,
+  SAVED_FILTER_NO_PROJECT_ID,
   translateWithFallback,
   useTaskStore,
   isDueForReview,
@@ -28,6 +34,8 @@ import {
   type TaskPriority,
   type TaskEnergyLevel,
   type TimeEstimate,
+  type FilterCriteria,
+  type SavedFilter,
 } from '@mindwtr/core';
 import { SwipeableTaskItem } from '@/components/swipeable-task-item';
 import { useThemeColors } from '@/hooks/use-theme-colors';
@@ -38,9 +46,7 @@ import { PomodoroPanel } from '@/components/pomodoro-panel';
 import {
   formatFocusTimeEstimateLabel,
   getFocusTokenOptions,
-  NO_PROJECT_FILTER_ID,
   splitFocusedTasks,
-  taskMatchesFocusFilters,
 } from '@/lib/focus-screen-utils';
 import { useMobileAreaFilter } from '@/hooks/use-mobile-area-filter';
 import { projectMatchesAreaFilter, taskMatchesAreaFilter } from '@/lib/area-filter';
@@ -48,11 +54,57 @@ import { openContextsScreen, openProjectScreen } from '@/lib/task-meta-navigatio
 
 const PRIORITY_OPTIONS: TaskPriority[] = ['low', 'medium', 'high', 'urgent'];
 const ENERGY_LEVEL_OPTIONS: TaskEnergyLevel[] = ['low', 'medium', 'high'];
+const ALL_TIME_ESTIMATE_OPTIONS: TimeEstimate[] = ['5min', '10min', '15min', '30min', '1hr', '2hr', '3hr', '4hr', '4hr+'];
 const DEFAULT_TIME_ESTIMATE_PRESETS: TimeEstimate[] = ['10min', '30min', '1hr', '2hr', '3hr', '4hr', '4hr+'];
+const NO_PROJECT_FILTER_ID = SAVED_FILTER_NO_PROJECT_ID;
 
 function filterSelectionStable<T>(current: T[], predicate: (item: T) => boolean): T[] {
   const next = current.filter(predicate);
   return next.length === current.length && next.every((item, index) => item === current[index]) ? current : next;
+}
+
+function buildFocusFilterCriteria({
+  energyLevels,
+  priorities,
+  projects,
+  timeEstimates,
+  tokens,
+}: {
+  energyLevels: TaskEnergyLevel[];
+  priorities: TaskPriority[];
+  projects: string[];
+  timeEstimates: TimeEstimate[];
+  tokens: string[];
+}): FilterCriteria {
+  const contexts = tokens.filter((token) => token.trim().startsWith('@'));
+  const tags = tokens.filter((token) => token.trim().startsWith('#'));
+  return {
+    ...(contexts.length > 0 ? { contexts } : {}),
+    ...(tags.length > 0 ? { tags } : {}),
+    ...(projects.length > 0 ? { projects } : {}),
+    ...(priorities.length > 0 ? { priority: priorities } : {}),
+    ...(energyLevels.length > 0 ? { energy: energyLevels } : {}),
+    ...(timeEstimates.length > 0 ? { timeEstimates } : {}),
+  };
+}
+
+function countFilterCriteria(criteria: FilterCriteria): number {
+  return (
+    (criteria.contexts?.length ?? 0)
+    + (criteria.tags?.length ?? 0)
+    + (criteria.projects?.length ?? 0)
+    + (criteria.areas?.length ?? 0)
+    + (criteria.priority?.length ?? 0)
+    + (criteria.energy?.length ?? 0)
+    + (criteria.statuses?.length ?? 0)
+    + (criteria.assignedTo?.length ?? 0)
+    + (criteria.timeEstimates?.length ?? 0)
+    + (criteria.dueDateRange ? 1 : 0)
+    + (criteria.startDateRange ? 1 : 0)
+    + (criteria.timeEstimateRange ? 1 : 0)
+    + (criteria.hasDescription !== undefined ? 1 : 0)
+    + (criteria.isStarred !== undefined ? 1 : 0)
+  );
 }
 
 export default function FocusScreen() {
@@ -69,6 +121,9 @@ export default function FocusScreen() {
   const [selectedPriorities, setSelectedPriorities] = useState<TaskPriority[]>([]);
   const [selectedEnergyLevels, setSelectedEnergyLevels] = useState<TaskEnergyLevel[]>([]);
   const [selectedTimeEstimates, setSelectedTimeEstimates] = useState<TimeEstimate[]>([]);
+  const [activeSavedFilterId, setActiveSavedFilterId] = useState<string | null>(null);
+  const [saveFilterDialogVisible, setSaveFilterDialogVisible] = useState(false);
+  const [saveFilterName, setSaveFilterName] = useState('');
   const showFutureStarts = settings?.appearance?.showFutureStarts === true;
   const [expandedSections, setExpandedSections] = useState({
     focus: true,
@@ -123,16 +178,21 @@ export default function FocusScreen() {
     const saved = settings?.gtd?.timeEstimatePresets;
     return saved?.length ? saved : DEFAULT_TIME_ESTIMATE_PRESETS;
   }, [settings?.gtd?.timeEstimatePresets]);
-  const filteredActiveTasks = useMemo(() => (
-    activeTasks.filter((task) => taskMatchesFocusFilters(task, {
-      tokens: selectedTokens,
-      projects: selectedProjects,
-      priorities: prioritiesEnabled ? selectedPriorities : [],
-      energyLevels: selectedEnergyLevels,
-      timeEstimates: timeEstimatesEnabled ? selectedTimeEstimates : [],
-    }))
-  ), [
-    activeTasks,
+  const savedFocusFilters = useMemo(
+    () => (settings?.savedFilters ?? []).filter((filter) => filter.view === 'focus'),
+    [settings?.savedFilters],
+  );
+  const activeSavedFilter = useMemo(
+    () => savedFocusFilters.find((filter) => filter.id === activeSavedFilterId) ?? null,
+    [activeSavedFilterId, savedFocusFilters],
+  );
+  const currentFilterCriteria = useMemo(() => buildFocusFilterCriteria({
+    tokens: selectedTokens,
+    projects: selectedProjects,
+    priorities: prioritiesEnabled ? selectedPriorities : [],
+    energyLevels: selectedEnergyLevels,
+    timeEstimates: timeEstimatesEnabled ? selectedTimeEstimates : [],
+  }), [
     prioritiesEnabled,
     selectedEnergyLevels,
     selectedPriorities,
@@ -140,6 +200,21 @@ export default function FocusScreen() {
     selectedTimeEstimates,
     selectedTokens,
     timeEstimatesEnabled,
+  ]);
+  const rawEffectiveFilterCriteria = activeSavedFilter?.criteria ?? currentFilterCriteria;
+  const effectiveFilterCriteria = useMemo<FilterCriteria>(() => ({
+    ...rawEffectiveFilterCriteria,
+    ...(prioritiesEnabled ? {} : { priority: undefined }),
+    ...(timeEstimatesEnabled ? {} : { timeEstimates: undefined, timeEstimateRange: undefined }),
+  }), [prioritiesEnabled, rawEffectiveFilterCriteria, timeEstimatesEnabled]);
+  const hasCurrentFilterCriteria = hasActiveFilterCriteria(currentFilterCriteria);
+  const hasFilters = hasActiveFilterCriteria(effectiveFilterCriteria);
+  const filteredActiveTasks = useMemo(() => (
+    applyFilter(activeTasks, effectiveFilterCriteria, { projects })
+  ), [
+    activeTasks,
+    effectiveFilterCriteria,
+    projects,
   ]);
   const resolveText = useCallback((key: string, fallback: string) => {
     return translateWithFallback(t, key, fallback);
@@ -162,38 +237,107 @@ export default function FocusScreen() {
         : resolveText('agenda.futureStartsHiddenMany', '{count} tasks hidden (future start)'));
     return template.replace('{count}', String(count));
   }, [resolveText]);
+  useEffect(() => {
+    if (activeSavedFilterId && !activeSavedFilter) {
+      setActiveSavedFilterId(null);
+    }
+  }, [activeSavedFilter, activeSavedFilterId]);
   const toggleToken = useCallback((token: string) => {
+    setActiveSavedFilterId(null);
     setSelectedTokens((current) => (
       current.includes(token) ? current.filter((item) => item !== token) : [...current, token]
     ));
   }, []);
   const toggleProject = useCallback((projectId: string) => {
+    setActiveSavedFilterId(null);
     setSelectedProjects((current) => (
       current.includes(projectId) ? current.filter((item) => item !== projectId) : [...current, projectId]
     ));
   }, []);
   const togglePriority = useCallback((priority: TaskPriority) => {
+    setActiveSavedFilterId(null);
     setSelectedPriorities((current) => (
       current.includes(priority) ? current.filter((item) => item !== priority) : [...current, priority]
     ));
   }, []);
   const toggleEnergyLevel = useCallback((energyLevel: TaskEnergyLevel) => {
+    setActiveSavedFilterId(null);
     setSelectedEnergyLevels((current) => (
       current.includes(energyLevel) ? current.filter((item) => item !== energyLevel) : [...current, energyLevel]
     ));
   }, []);
   const toggleTimeEstimate = useCallback((estimate: TimeEstimate) => {
+    setActiveSavedFilterId(null);
     setSelectedTimeEstimates((current) => (
       current.includes(estimate) ? current.filter((item) => item !== estimate) : [...current, estimate]
     ));
   }, []);
   const clearFilters = useCallback(() => {
+    setActiveSavedFilterId(null);
     setSelectedTokens([]);
     setSelectedProjects([]);
     setSelectedPriorities([]);
     setSelectedEnergyLevels([]);
     setSelectedTimeEstimates([]);
   }, []);
+  const applySavedFocusFilter = useCallback((filter: SavedFilter) => {
+    const criteria = filter.criteria ?? {};
+    const prioritySet = new Set<TaskPriority>(PRIORITY_OPTIONS);
+    const energySet = new Set<TaskEnergyLevel>(ENERGY_LEVEL_OPTIONS);
+    const estimateSet = new Set<TimeEstimate>(ALL_TIME_ESTIMATE_OPTIONS);
+    setSelectedTokens([...(criteria.contexts ?? []), ...(criteria.tags ?? [])]);
+    setSelectedProjects(criteria.projects ?? []);
+    setSelectedPriorities((criteria.priority ?? []).filter((priority): priority is TaskPriority => (
+      priority !== 'none' && prioritySet.has(priority)
+    )));
+    setSelectedEnergyLevels((criteria.energy ?? []).filter((energy): energy is TaskEnergyLevel => energySet.has(energy)));
+    setSelectedTimeEstimates((criteria.timeEstimates ?? []).filter((estimate): estimate is TimeEstimate => estimateSet.has(estimate)));
+    setActiveSavedFilterId(filter.id);
+    setFiltersVisible(false);
+  }, []);
+  const saveCurrentFilter = useCallback(() => {
+    const trimmedName = saveFilterName.trim();
+    if (!trimmedName || !hasCurrentFilterCriteria) return;
+    const nowIso = new Date().toISOString();
+    const nextFilter: SavedFilter = {
+      id: generateUUID(),
+      name: trimmedName,
+      view: 'focus',
+      criteria: currentFilterCriteria,
+      createdAt: nowIso,
+      updatedAt: nowIso,
+    };
+    updateSettings({
+      savedFilters: [...(settings?.savedFilters ?? []), nextFilter],
+    }).then(() => {
+      setActiveSavedFilterId(nextFilter.id);
+      setSaveFilterDialogVisible(false);
+      setFiltersVisible(false);
+    }).catch(() => undefined);
+  }, [currentFilterCriteria, hasCurrentFilterCriteria, saveFilterName, settings?.savedFilters, updateSettings]);
+  const deleteSavedFilter = useCallback((filter: SavedFilter) => {
+    const nextFilters = (settings?.savedFilters ?? []).filter((item) => item.id !== filter.id);
+    updateSettings({ savedFilters: nextFilters }).then(() => {
+      if (activeSavedFilterId === filter.id) {
+        setActiveSavedFilterId(null);
+      }
+    }).catch(() => undefined);
+  }, [activeSavedFilterId, settings?.savedFilters, updateSettings]);
+  const confirmDeleteSavedFilter = useCallback((filter: SavedFilter) => {
+    Alert.alert(
+      resolveText('savedFilters.deleteTitle', 'Delete saved filter?'),
+      filter.name,
+      [
+        { text: resolveText('common.cancel', 'Cancel'), style: 'cancel' },
+        {
+          text: resolveText('common.delete', 'Delete'),
+          style: 'destructive',
+          onPress: () => deleteSavedFilter(filter),
+        },
+      ],
+      { cancelable: true },
+    );
+  }, [deleteSavedFilter, resolveText]);
 
   useEffect(() => {
     if (!taskId || typeof taskId !== 'string') return;
@@ -344,20 +488,7 @@ export default function FocusScreen() {
     return nextSections;
   }, [expandedSections.focus, expandedSections.next, expandedSections.reviewDue, expandedSections.schedule, focusedTasks, schedule, nextActions, reviewDue, t]);
   const hasTasks = focusedTasks.length > 0 || schedule.length > 0 || nextActions.length > 0 || reviewDue.length > 0;
-  const hasFilters = (
-    selectedTokens.length > 0
-    || selectedProjects.length > 0
-    || selectedPriorities.length > 0
-    || selectedEnergyLevels.length > 0
-    || selectedTimeEstimates.length > 0
-  );
-  const activeFilterCount = (
-    selectedTokens.length
-    + selectedProjects.length
-    + selectedPriorities.length
-    + selectedEnergyLevels.length
-    + selectedTimeEstimates.length
-  );
+  const activeFilterCount = countFilterCriteria(effectiveFilterCriteria);
   const activeFilterChips = useMemo(() => {
     const chips: { id: string; label: string; onPress: () => void }[] = [];
     selectedTokens.forEach((token) => {
@@ -421,6 +552,12 @@ export default function FocusScreen() {
     toggleTimeEstimate,
     toggleToken,
   ]);
+  const openSaveFilterDialog = useCallback(() => {
+    const defaultName = activeFilterChips.slice(0, 3).map((chip) => chip.label).join(' + ')
+      || resolveText('savedFilters.defaultName', 'Focus filter');
+    setSaveFilterName(defaultName);
+    setSaveFilterDialogVisible(true);
+  }, [activeFilterChips, resolveText]);
   const emptyTitle = hasFilters ? resolveText('filters.noMatch', 'No tasks match these filters.') : t('agenda.allClear');
   const emptySubtitle = hasFilters ? resolveText('filters.label', 'Filters') : t('agenda.noTasks');
   const pomodoroTasks = useMemo(() => {
@@ -450,6 +587,8 @@ export default function FocusScreen() {
   const renderFilterChip = useCallback((label: string, selected: boolean, onPress: () => void) => (
     <TouchableOpacity
       key={label}
+      accessibilityRole="button"
+      accessibilityState={{ selected }}
       onPress={onPress}
       style={[
         styles.filterChip,
@@ -530,6 +669,83 @@ export default function FocusScreen() {
                 </Pressable>
               </View>
             </View>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.savedFiltersRow}
+              style={styles.savedFiltersScroller}
+            >
+              <TouchableOpacity
+                accessibilityRole="button"
+                accessibilityState={{ selected: !hasFilters }}
+                onPress={clearFilters}
+                style={[
+                  styles.savedFilterChip,
+                  {
+                    borderColor: !hasFilters ? tc.tint : tc.border,
+                    backgroundColor: !hasFilters ? tc.tint : tc.filterBg,
+                  },
+                ]}
+              >
+                <Text style={[styles.savedFilterChipText, { color: !hasFilters ? tc.onTint : tc.text }]}>
+                  {resolveText('common.all', 'All')}
+                </Text>
+              </TouchableOpacity>
+              {savedFocusFilters.map((filter) => {
+                const selected = activeSavedFilterId === filter.id;
+                return (
+                  <View key={filter.id} style={styles.savedFilterChipGroup}>
+                    <TouchableOpacity
+                      accessibilityRole="button"
+                      accessibilityState={{ selected }}
+                      onPress={() => applySavedFocusFilter(filter)}
+                      style={[
+                        styles.savedFilterChip,
+                        selected ? styles.savedFilterChipAttached : null,
+                        {
+                          borderColor: selected ? tc.tint : tc.border,
+                          backgroundColor: selected ? tc.tint : tc.filterBg,
+                        },
+                      ]}
+                    >
+                      <Text
+                        style={[styles.savedFilterChipText, { color: selected ? tc.onTint : tc.text }]}
+                        numberOfLines={1}
+                      >
+                        {filter.icon ? `${filter.icon} ` : ''}{filter.name}
+                      </Text>
+                    </TouchableOpacity>
+                    {selected ? (
+                      <TouchableOpacity
+                        accessibilityRole="button"
+                        accessibilityLabel={`${resolveText('common.delete', 'Delete')} ${resolveText('savedFilters.label', 'saved filter')} ${filter.name}`}
+                        onPress={() => confirmDeleteSavedFilter(filter)}
+                        style={[
+                          styles.savedFilterDeleteChip,
+                          { borderColor: tc.tint, backgroundColor: tc.tint },
+                        ]}
+                      >
+                        <X size={14} color={tc.onTint} />
+                      </TouchableOpacity>
+                    ) : null}
+                  </View>
+                );
+              })}
+              <TouchableOpacity
+                accessibilityRole="button"
+                accessibilityLabel={resolveText('savedFilters.new', 'New saved filter')}
+                onPress={() => {
+                  setActiveSavedFilterId(null);
+                  setFiltersVisible(true);
+                }}
+                style={[
+                  styles.savedFilterAddChip,
+                  { borderColor: tc.border, backgroundColor: tc.filterBg },
+                ]}
+              >
+                <Plus size={16} color={tc.secondaryText} />
+              </TouchableOpacity>
+            </ScrollView>
             {hasFilters ? (
               <ScrollView
                 horizontal
@@ -610,14 +826,31 @@ export default function FocusScreen() {
                 {resolveText('filters.label', 'Filters')}
               </Text>
               <View style={styles.sheetHeaderActions}>
+                {hasCurrentFilterCriteria && activeSavedFilterId === null ? (
+                  <TouchableOpacity
+                    accessibilityRole="button"
+                    onPress={openSaveFilterDialog}
+                    style={styles.sheetSaveButton}
+                  >
+                    <BookmarkPlus size={16} color={tc.tint} />
+                    <Text style={[styles.sheetTextButtonText, { color: tc.tint }]}>
+                      {resolveText('savedFilters.save', 'Save')}
+                    </Text>
+                  </TouchableOpacity>
+                ) : null}
                 {hasFilters ? (
-                  <TouchableOpacity onPress={clearFilters} style={styles.sheetTextButton}>
+                  <TouchableOpacity accessibilityRole="button" onPress={clearFilters} style={styles.sheetTextButton}>
                     <Text style={[styles.sheetTextButtonText, { color: tc.tint }]}>
                       {resolveText('filters.clear', 'Clear')}
                     </Text>
                   </TouchableOpacity>
                 ) : null}
-                <TouchableOpacity onPress={() => setFiltersVisible(false)} style={styles.sheetIconButton}>
+                <TouchableOpacity
+                  accessibilityRole="button"
+                  accessibilityLabel={resolveText('common.close', 'Close')}
+                  onPress={() => setFiltersVisible(false)}
+                  style={styles.sheetIconButton}
+                >
                   <X size={18} color={tc.secondaryText} />
                 </TouchableOpacity>
               </View>
@@ -698,6 +931,61 @@ export default function FocusScreen() {
           </View>
         </View>
       </Modal>
+      <Modal
+        animationType="fade"
+        transparent
+        visible={saveFilterDialogVisible}
+        onRequestClose={() => setSaveFilterDialogVisible(false)}
+      >
+        <View style={styles.dialogRoot}>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={resolveText('common.cancel', 'Cancel')}
+            onPress={() => setSaveFilterDialogVisible(false)}
+            style={styles.sheetBackdrop}
+          />
+          <View style={[styles.dialog, { backgroundColor: tc.cardBg, borderColor: tc.border }]}>
+            <Text style={[styles.dialogTitle, { color: tc.text }]}>
+              {resolveText('savedFilters.saveTitle', 'Save filter')}
+            </Text>
+            <TextInput
+              autoFocus
+              value={saveFilterName}
+              onChangeText={setSaveFilterName}
+              placeholder={resolveText('savedFilters.namePlaceholder', 'Filter name')}
+              placeholderTextColor={tc.secondaryText}
+              style={[styles.dialogInput, { borderColor: tc.border, color: tc.text, backgroundColor: tc.bg }]}
+              returnKeyType="done"
+              onSubmitEditing={saveCurrentFilter}
+            />
+            <View style={styles.dialogActions}>
+              <TouchableOpacity
+                accessibilityRole="button"
+                onPress={() => setSaveFilterDialogVisible(false)}
+                style={styles.dialogButton}
+              >
+                <Text style={[styles.dialogButtonText, { color: tc.secondaryText }]}>
+                  {resolveText('common.cancel', 'Cancel')}
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                accessibilityRole="button"
+                onPress={saveCurrentFilter}
+                disabled={!saveFilterName.trim()}
+                style={[
+                  styles.dialogButton,
+                  styles.dialogPrimaryButton,
+                  { backgroundColor: saveFilterName.trim() ? tc.tint : tc.filterBg },
+                ]}
+              >
+                <Text style={[styles.dialogButtonText, { color: saveFilterName.trim() ? tc.onTint : tc.secondaryText }]}>
+                  {resolveText('common.save', 'Save')}
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
       <TaskEditModal
         visible={isModalVisible}
         task={editingTask}
@@ -734,6 +1022,54 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
+  },
+  savedFiltersScroller: {
+    marginTop: 10,
+    marginHorizontal: -4,
+  },
+  savedFiltersRow: {
+    alignItems: 'center',
+    gap: 8,
+    paddingHorizontal: 4,
+  },
+  savedFilterChipGroup: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  savedFilterChip: {
+    maxWidth: 180,
+    minHeight: 32,
+    borderWidth: 1,
+    borderRadius: 16,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    justifyContent: 'center',
+  },
+  savedFilterChipAttached: {
+    borderTopRightRadius: 0,
+    borderBottomRightRadius: 0,
+  },
+  savedFilterChipText: {
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  savedFilterDeleteChip: {
+    width: 32,
+    height: 32,
+    borderWidth: 1,
+    borderLeftWidth: 0,
+    borderTopRightRadius: 16,
+    borderBottomRightRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  savedFilterAddChip: {
+    width: 32,
+    height: 32,
+    borderWidth: 1,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   activeChipsScroller: {
     marginTop: 8,
@@ -899,6 +1235,14 @@ const styles = StyleSheet.create({
     paddingHorizontal: 6,
     paddingVertical: 6,
   },
+  sheetSaveButton: {
+    minHeight: 32,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 6,
+    paddingVertical: 6,
+  },
   sheetTextButtonText: {
     fontSize: 13,
     fontWeight: '600',
@@ -927,5 +1271,50 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: 8,
+  },
+  dialogRoot: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 24,
+  },
+  dialog: {
+    width: '100%',
+    borderWidth: 1,
+    borderRadius: 14,
+    padding: 16,
+  },
+  dialogTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    marginBottom: 12,
+  },
+  dialogInput: {
+    minHeight: 44,
+    borderWidth: 1,
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    fontSize: 15,
+  },
+  dialogActions: {
+    marginTop: 14,
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    gap: 10,
+  },
+  dialogButton: {
+    minHeight: 38,
+    minWidth: 72,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 8,
+    paddingHorizontal: 12,
+  },
+  dialogPrimaryButton: {
+    paddingHorizontal: 14,
+  },
+  dialogButtonText: {
+    fontSize: 14,
+    fontWeight: '700',
   },
 });

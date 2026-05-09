@@ -29,6 +29,7 @@
     "./calendar-scheduling": "./src/calendar-scheduling.ts",
     "./schedule-utils": "./src/schedule-utils.ts",
     "./digest-utils": "./src/digest-utils.ts",
+    "./saved-filters": "./src/saved-filters.ts",
     "./search": "./src/search.ts",
     "./hierarchy-utils": "./src/hierarchy-utils.ts",
     "./markdown": "./src/markdown.ts",

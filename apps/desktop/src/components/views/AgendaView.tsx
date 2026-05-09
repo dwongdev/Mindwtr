@@ -1,12 +1,12 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useState } from 'react';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { ErrorBoundary } from '../ErrorBoundary';
-import { shallow, useTaskStore, TaskPriority, TimeEstimate, formatFocusTaskLimitText, getUsedTaskTokens, getFocusSequentialFirstTaskIds, matchesHierarchicalToken, normalizeFocusTaskLimit, safeParseDate, safeParseDueDate, isDueForReview, isTaskInActiveProject, shouldShowTaskForStart, sortFocusNextActions, translateWithFallback } from '@mindwtr/core';
-import type { Task, TaskEnergyLevel } from '@mindwtr/core';
+import { shallow, useTaskStore, TaskPriority, TimeEstimate, applyFilter, formatFocusTaskLimitText, generateUUID, getUsedTaskTokens, getFocusSequentialFirstTaskIds, hasActiveFilterCriteria, normalizeFocusTaskLimit, safeParseDate, safeParseDueDate, isDueForReview, isTaskInActiveProject, SAVED_FILTER_NO_PROJECT_ID, shouldShowTaskForStart, sortFocusNextActions, translateWithFallback } from '@mindwtr/core';
+import type { FilterCriteria, SavedFilter, Task, TaskEnergyLevel } from '@mindwtr/core';
 import { useLanguage } from '../../contexts/language-context';
 import { cn } from '../../lib/utils';
 import { useUiStore } from '../../store/ui-store';
-import { Clock, Star, ArrowRight, Folder, CheckCircle2 } from 'lucide-react';
+import { Clock, Star, ArrowRight, Folder, CheckCircle2, Plus, X } from 'lucide-react';
 import { usePerformanceMonitor } from '../../hooks/usePerformanceMonitor';
 import { checkBudget } from '../../config/performanceBudgets';
 import { projectMatchesAreaFilter, resolveAreaFilter, taskMatchesAreaFilter } from '../../lib/area-filter';
@@ -16,9 +16,11 @@ import { AgendaHeader } from './agenda/AgendaHeader';
 import { AgendaCollapsibleSection, AgendaProjectSection } from './agenda/AgendaSections';
 import { StoreTaskItem } from './list/StoreTaskItem';
 import { groupTasksByArea, groupTasksByContext, groupTasksByProject, type TaskGroup } from './list/next-grouping';
+import { PromptModal } from '../PromptModal';
+import { ConfirmModal } from '../ConfirmModal';
 
 const AGENDA_VIRTUALIZATION_THRESHOLD = 25;
-const NO_PROJECT_FILTER_ID = '__no_project__';
+const NO_PROJECT_FILTER_ID = SAVED_FILTER_NO_PROJECT_ID;
 
 function getAgendaScrollElement(containerElement: HTMLDivElement | null): HTMLElement | null {
     if (containerElement) {
@@ -33,6 +35,36 @@ function getAgendaScrollMargin(containerElement: HTMLDivElement, scrollElement: 
     const containerRect = containerElement.getBoundingClientRect();
     const scrollRect = scrollElement.getBoundingClientRect();
     return containerRect.top - scrollRect.top + scrollElement.scrollTop;
+}
+
+function buildFocusFilterCriteria({
+    priorities,
+    energyLevels,
+    projects,
+    timeEstimates,
+    tokens,
+}: {
+    energyLevels: TaskEnergyLevel[];
+    priorities: TaskPriority[];
+    projects: string[];
+    timeEstimates: TimeEstimate[];
+    tokens: string[];
+}): FilterCriteria {
+    const contexts = tokens.filter((token) => token.trim().startsWith('@'));
+    const tags = tokens.filter((token) => token.trim().startsWith('#'));
+    return {
+        ...(contexts.length > 0 ? { contexts } : {}),
+        ...(tags.length > 0 ? { tags } : {}),
+        ...(projects.length > 0 ? { projects } : {}),
+        ...(priorities.length > 0 ? { priority: priorities } : {}),
+        ...(energyLevels.length > 0 ? { energy: energyLevels } : {}),
+        ...(timeEstimates.length > 0 ? { timeEstimates } : {}),
+    };
+}
+
+function getSavedFilterDefaultName(chips: AgendaActiveFilterChip[], fallback: string): string {
+    const label = chips.slice(0, 3).map((chip) => chip.label).join(' + ');
+    return label || fallback;
 }
 
 function AgendaTaskList({
@@ -181,6 +213,9 @@ export function AgendaView() {
     const [selectedProjects, setSelectedProjects] = useState<string[]>([]);
     const [searchQuery, setSearchQuery] = useState('');
     const [filtersOpen, setFiltersOpen] = useState(false);
+    const [activeSavedFilterId, setActiveSavedFilterId] = useState<string | null>(null);
+    const [saveFilterPromptOpen, setSaveFilterPromptOpen] = useState(false);
+    const [filterPendingDelete, setFilterPendingDelete] = useState<SavedFilter | null>(null);
     const [top3Only, setTop3Only] = useState(false);
     const showFutureStarts = settings?.appearance?.showFutureStarts === true;
     const [expandedSections, setExpandedSections] = useState({
@@ -262,27 +297,29 @@ export function AgendaView() {
         if (estimate.endsWith('hr')) return estimate.replace('hr', 'h');
         return estimate;
     };
-    const matchesFilters = useCallback((task: Task) => {
-        const taskTokens = [...(task.contexts || []), ...(task.tags || [])];
-        if (selectedTokens.length > 0) {
-            const matchesAll = selectedTokens.every((token) =>
-                taskTokens.some((taskToken) => matchesHierarchicalToken(token, taskToken))
-            );
-            if (!matchesAll) return false;
-        }
-        if (selectedProjects.length > 0) {
-            const matchesProject = selectedProjects.some((selectedProjectId) => (
-                selectedProjectId === NO_PROJECT_FILTER_ID
-                    ? !task.projectId
-                    : task.projectId === selectedProjectId
-            ));
-            if (!matchesProject) return false;
-        }
-        if (activePriorities.length > 0 && (!task.priority || !activePriorities.includes(task.priority))) return false;
-        if (selectedEnergyLevels.length > 0 && (!task.energyLevel || !selectedEnergyLevels.includes(task.energyLevel))) return false;
-        if (activeTimeEstimates.length > 0 && (!task.timeEstimate || !activeTimeEstimates.includes(task.timeEstimate))) return false;
-        return true;
-    }, [selectedProjects, selectedTokens, activePriorities, selectedEnergyLevels, activeTimeEstimates]);
+    const savedFocusFilters = useMemo(
+        () => (settings?.savedFilters ?? []).filter((filter) => filter.view === 'focus'),
+        [settings?.savedFilters],
+    );
+    const activeSavedFilter = useMemo(
+        () => savedFocusFilters.find((filter) => filter.id === activeSavedFilterId) ?? null,
+        [activeSavedFilterId, savedFocusFilters],
+    );
+    const currentFilterCriteria = useMemo(() => buildFocusFilterCriteria({
+        tokens: selectedTokens,
+        projects: selectedProjects,
+        priorities: activePriorities,
+        energyLevels: selectedEnergyLevels,
+        timeEstimates: activeTimeEstimates,
+    }), [activePriorities, activeTimeEstimates, selectedEnergyLevels, selectedProjects, selectedTokens]);
+    const rawEffectiveFilterCriteria = activeSavedFilter?.criteria ?? currentFilterCriteria;
+    const effectiveFilterCriteria = useMemo<FilterCriteria>(() => ({
+        ...rawEffectiveFilterCriteria,
+        ...(prioritiesEnabled ? {} : { priority: undefined }),
+        ...(timeEstimatesEnabled ? {} : { timeEstimates: undefined, timeEstimateRange: undefined }),
+    }), [prioritiesEnabled, rawEffectiveFilterCriteria, timeEstimatesEnabled]);
+    const hasCurrentFilterCriteria = hasActiveFilterCriteria(currentFilterCriteria);
+    const hasFilters = hasActiveFilterCriteria(effectiveFilterCriteria);
     const normalizedSearchQuery = searchQuery.trim().toLowerCase();
     const matchesSearchQuery = useCallback((title: string) => {
         if (!normalizedSearchQuery) return true;
@@ -364,14 +401,16 @@ export function AgendaView() {
         selectedTokens,
         t,
     ]);
+    const saveFilterDefaultName = useMemo(
+        () => getSavedFilterDefaultName(activeFilterChips, resolveText('savedFilters.defaultName', 'Focus filter')),
+        [activeFilterChips, resolveText],
+    );
 
     const { filteredActiveTasks, reviewDueCandidates } = useMemo(() => {
         const now = new Date();
-        const filtered = activeTasks.filter((task) =>
-            matchesFilters(task)
-            && matchesSearchQuery(task.title)
-        );
-        const reviewDue = tasks
+        const filtered = applyFilter(activeTasks, effectiveFilterCriteria, { projects, now })
+            .filter((task) => matchesSearchQuery(task.title));
+        const reviewDueBase = tasks
             .filter((task) => {
                 if (task.deletedAt) return false;
                 if (task.status === 'done' || task.status === 'archived' || task.status === 'reference') return false;
@@ -385,10 +424,10 @@ export function AgendaView() {
                 if (!taskMatchesAreaFilter(task, resolvedAreaFilter, projectMap, areaById)) return false;
                 if (!matchesSearchQuery(task.title)) return false;
                 return true;
-            })
-            .filter(matchesFilters);
+            });
+        const reviewDue = applyFilter(reviewDueBase, effectiveFilterCriteria, { projects, now });
         return { filteredActiveTasks: filtered, reviewDueCandidates: reviewDue };
-    }, [activeTasks, tasks, projectMap, matchesFilters, matchesSearchQuery, resolvedAreaFilter, areaById, showFutureStarts]);
+    }, [activeTasks, effectiveFilterCriteria, matchesSearchQuery, projects, tasks, projectMap, resolvedAreaFilter, areaById, showFutureStarts]);
 
     const reviewDueProjects = useMemo(() => {
         const now = new Date();
@@ -407,47 +446,100 @@ export function AgendaView() {
                 return a.title.localeCompare(b.title);
             });
     }, [projects, matchesSearchQuery, resolvedAreaFilter, areaById]);
-    const hasFilters = (
-        selectedTokens.length > 0
-        || selectedProjects.length > 0
-        || activePriorities.length > 0
-        || selectedEnergyLevels.length > 0
-        || activeTimeEstimates.length > 0
-    );
     const hasTaskFilters = hasFilters || Boolean(normalizedSearchQuery);
     const showFiltersPanel = filtersOpen;
+    useEffect(() => {
+        if (activeSavedFilterId && !activeSavedFilter) {
+            setActiveSavedFilterId(null);
+        }
+    }, [activeSavedFilter, activeSavedFilterId]);
     const toggleTokenFilter = (token: string) => {
+        setActiveSavedFilterId(null);
         setSelectedTokens((prev) =>
             prev.includes(token) ? prev.filter((item) => item !== token) : [...prev, token]
         );
     };
     const togglePriorityFilter = (priority: TaskPriority) => {
+        setActiveSavedFilterId(null);
         setSelectedPriorities((prev) =>
             prev.includes(priority) ? prev.filter((item) => item !== priority) : [...prev, priority]
         );
     };
     const toggleProjectFilter = (projectId: string) => {
+        setActiveSavedFilterId(null);
         setSelectedProjects((prev) =>
             prev.includes(projectId) ? prev.filter((item) => item !== projectId) : [...prev, projectId]
         );
     };
     const toggleEnergyFilter = (energyLevel: TaskEnergyLevel) => {
+        setActiveSavedFilterId(null);
         setSelectedEnergyLevels((prev) =>
             prev.includes(energyLevel) ? prev.filter((item) => item !== energyLevel) : [...prev, energyLevel]
         );
     };
     const toggleTimeFilter = (estimate: TimeEstimate) => {
+        setActiveSavedFilterId(null);
         setSelectedTimeEstimates((prev) =>
             prev.includes(estimate) ? prev.filter((item) => item !== estimate) : [...prev, estimate]
         );
     };
     const clearFilters = () => {
+        setActiveSavedFilterId(null);
         setSelectedTokens([]);
         setSelectedProjects([]);
         setSelectedPriorities([]);
         setSelectedEnergyLevels([]);
         setSelectedTimeEstimates([]);
     };
+    const clearAllFilters = () => {
+        clearFilters();
+        setSearchQuery('');
+    };
+    const applySavedFocusFilter = useCallback((filter: SavedFilter) => {
+        const criteria = filter.criteria ?? {};
+        const prioritySet = new Set<TaskPriority>(priorityOptions);
+        const energySet = new Set<TaskEnergyLevel>(energyLevelOptions);
+        const estimateSet = new Set<TimeEstimate>(timeEstimateOptions);
+        setSelectedTokens([...(criteria.contexts ?? []), ...(criteria.tags ?? [])]);
+        setSelectedProjects(criteria.projects ?? []);
+        setSelectedPriorities((criteria.priority ?? []).filter((priority): priority is TaskPriority => (
+            priority !== 'none' && prioritySet.has(priority)
+        )));
+        setSelectedEnergyLevels((criteria.energy ?? []).filter((energy): energy is TaskEnergyLevel => energySet.has(energy)));
+        setSelectedTimeEstimates((criteria.timeEstimates ?? []).filter((estimate): estimate is TimeEstimate => estimateSet.has(estimate)));
+        setActiveSavedFilterId(filter.id);
+        setFiltersOpen(false);
+    }, [energyLevelOptions, priorityOptions, timeEstimateOptions]);
+    const handleSaveFilterConfirm = useCallback((name: string) => {
+        const trimmedName = name.trim();
+        if (!trimmedName || !hasCurrentFilterCriteria) return;
+        const nowIso = new Date().toISOString();
+        const nextFilter: SavedFilter = {
+            id: generateUUID(),
+            name: trimmedName,
+            view: 'focus',
+            criteria: currentFilterCriteria,
+            createdAt: nowIso,
+            updatedAt: nowIso,
+        };
+        void updateSettings({
+            savedFilters: [...(settings?.savedFilters ?? []), nextFilter],
+        }).then(() => {
+            setSaveFilterPromptOpen(false);
+            setActiveSavedFilterId(nextFilter.id);
+        }).catch(() => undefined);
+    }, [currentFilterCriteria, hasCurrentFilterCriteria, settings?.savedFilters, updateSettings]);
+    const handleDeleteSavedFilterConfirm = useCallback(() => {
+        if (!filterPendingDelete) return;
+        const deleteId = filterPendingDelete.id;
+        const nextFilters = (settings?.savedFilters ?? []).filter((filter) => filter.id !== deleteId);
+        void updateSettings({ savedFilters: nextFilters }).then(() => {
+            if (activeSavedFilterId === deleteId) {
+                setActiveSavedFilterId(null);
+            }
+            setFilterPendingDelete(null);
+        }).catch(() => undefined);
+    }, [activeSavedFilterId, filterPendingDelete, settings?.savedFilters, updateSettings]);
     useEffect(() => {
         if (!prioritiesEnabled && selectedPriorities.length > 0) {
             setSelectedPriorities([]);
@@ -678,15 +770,78 @@ export function AgendaView() {
                 top3Only={top3Only}
             />
 
+            <div className="flex items-center gap-2 overflow-x-auto pb-1">
+                <button
+                    type="button"
+                    onClick={clearAllFilters}
+                    aria-pressed={!hasTaskFilters}
+                    className={cn(
+                        'shrink-0 rounded-full border px-3 py-1.5 text-xs font-medium transition-colors',
+                        !hasTaskFilters
+                            ? 'border-primary bg-primary text-primary-foreground'
+                            : 'border-border bg-muted/50 text-muted-foreground hover:bg-muted hover:text-foreground',
+                    )}
+                >
+                    {resolveText('common.all', 'All')}
+                </button>
+                {savedFocusFilters.map((filter) => {
+                    const isActive = activeSavedFilterId === filter.id;
+                    return (
+                        <div key={filter.id} className="inline-flex shrink-0 items-center">
+                            <button
+                                type="button"
+                                onClick={() => applySavedFocusFilter(filter)}
+                                aria-pressed={isActive}
+                                className={cn(
+                                    'inline-flex max-w-[220px] shrink-0 items-center gap-1.5 border px-3 py-1.5 text-xs font-medium transition-colors',
+                                    isActive ? 'rounded-l-full rounded-r-none' : 'rounded-full',
+                                    isActive
+                                        ? 'border-primary bg-primary text-primary-foreground'
+                                        : 'border-border bg-muted/50 text-muted-foreground hover:bg-muted hover:text-foreground',
+                                )}
+                            >
+                                {filter.icon && <span aria-hidden="true">{filter.icon}</span>}
+                                <span className="truncate">{filter.name}</span>
+                            </button>
+                            {isActive && (
+                                <button
+                                    type="button"
+                                    onClick={() => setFilterPendingDelete(filter)}
+                                    aria-label={`${resolveText('common.delete', 'Delete')} ${resolveText('savedFilters.label', 'saved filter')} ${filter.name}`}
+                                    title={`${resolveText('common.delete', 'Delete')} ${filter.name}`}
+                                    className="inline-flex h-[30px] w-7 shrink-0 items-center justify-center rounded-l-none rounded-r-full border border-l-0 border-primary bg-primary text-primary-foreground transition-colors hover:bg-primary/90"
+                                >
+                                    <X className="h-3.5 w-3.5" aria-hidden="true" />
+                                </button>
+                            )}
+                        </div>
+                    );
+                })}
+                <button
+                    type="button"
+                    onClick={() => {
+                        setActiveSavedFilterId(null);
+                        setFiltersOpen(true);
+                    }}
+                    className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-border bg-muted/50 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                    aria-label={resolveText('savedFilters.new', 'New saved filter')}
+                    title={resolveText('savedFilters.new', 'New saved filter')}
+                >
+                    <Plus className="h-3.5 w-3.5" aria-hidden="true" />
+                </button>
+            </div>
+
             {pomodoroEnabled && <PomodoroPanel tasks={pomodoroTasks} />}
 
             <AgendaFiltersPanel
                 allTokens={allTokens}
                 activeFilterChips={activeFilterChips}
+                canSaveFilter={hasCurrentFilterCriteria && activeSavedFilterId === null}
                 energyLevelOptions={energyLevelOptions}
                 formatEstimate={formatEstimate}
                 hasFilters={hasFilters}
                 onClearFilters={clearFilters}
+                onSaveFilter={() => setSaveFilterPromptOpen(true)}
                 onSearchChange={setSearchQuery}
                 onToggleEnergy={toggleEnergyFilter}
                 onToggleFiltersOpen={() => setFiltersOpen((prev) => !prev)}
@@ -698,6 +853,7 @@ export function AgendaView() {
                 projectOptions={projectOptions}
                 priorityOptions={priorityOptions}
                 searchQuery={searchQuery}
+                saveFilterLabel={resolveText('savedFilters.save', 'Save')}
                 selectedEnergyLevels={selectedEnergyLevels}
                 selectedProjects={selectedProjects}
                 selectedPriorities={selectedPriorities}
@@ -900,6 +1056,26 @@ export function AgendaView() {
                     <p className="text-sm">{hasTaskFilters ? t('filters.noMatch') : t('agenda.noTasks')}</p>
                 </div>
             )}
+            <PromptModal
+                isOpen={saveFilterPromptOpen}
+                title={resolveText('savedFilters.saveTitle', 'Save filter')}
+                description={resolveText('savedFilters.saveDescription', 'Name this Focus filter.')}
+                placeholder={resolveText('savedFilters.namePlaceholder', 'Filter name')}
+                defaultValue={saveFilterDefaultName}
+                confirmLabel={resolveText('common.save', 'Save')}
+                cancelLabel={t('common.cancel')}
+                onConfirm={handleSaveFilterConfirm}
+                onCancel={() => setSaveFilterPromptOpen(false)}
+            />
+            <ConfirmModal
+                isOpen={Boolean(filterPendingDelete)}
+                title={resolveText('savedFilters.deleteTitle', 'Delete saved filter?')}
+                description={filterPendingDelete?.name}
+                confirmLabel={resolveText('common.delete', 'Delete')}
+                cancelLabel={t('common.cancel')}
+                onConfirm={handleDeleteSavedFilterConfirm}
+                onCancel={() => setFilterPendingDelete(null)}
+            />
             </div>
         </ErrorBoundary>
     );

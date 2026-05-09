@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 import React from 'react';
 import { ActivityIndicator, Switch, Text, TouchableOpacity, View } from 'react-native';
+import { translateWithFallback } from '@mindwtr/core';
 
 import type { ThemeColors } from '@/hooks/use-theme-colors';
 
@@ -297,11 +298,12 @@ type SyncPreferencesCardProps = {
   syncExternalCalendarsEnabled: boolean;
   syncGtdEnabled: boolean;
   syncLanguageEnabled: boolean;
+  syncSavedFiltersEnabled: boolean;
   syncOptionsOpen: boolean;
   t: Translate;
   tc: ThemeColors;
   toggleSyncOptionsOpen: () => void;
-  updateSyncPreferences: (partial: { ai?: boolean; appearance?: boolean; externalCalendars?: boolean; gtd?: boolean; language?: boolean }) => void;
+  updateSyncPreferences: (partial: { ai?: boolean; appearance?: boolean; externalCalendars?: boolean; gtd?: boolean; language?: boolean; savedFilters?: boolean }) => void;
 };
 
 export function SyncPreferencesCard({
@@ -310,6 +312,7 @@ export function SyncPreferencesCard({
   syncExternalCalendarsEnabled,
   syncGtdEnabled,
   syncLanguageEnabled,
+  syncSavedFiltersEnabled,
   syncOptionsOpen,
   t,
   tc,
@@ -354,6 +357,18 @@ export function SyncPreferencesCard({
             <Switch
               value={syncGtdEnabled}
               onValueChange={(value) => updateSyncPreferences({ gtd: value })}
+              trackColor={{ false: '#767577', true: '#3B82F6' }}
+            />
+          </View>
+          <View style={[styles.settingRow, { borderTopWidth: 1, borderTopColor: tc.border }]}>
+            <View style={styles.settingInfo}>
+              <Text style={[styles.settingLabel, { color: tc.text }]}>
+                {translateWithFallback(t, 'settings.syncPreferenceSavedFilters', 'Saved filters')}
+              </Text>
+            </View>
+            <Switch
+              value={syncSavedFiltersEnabled}
+              onValueChange={(value) => updateSyncPreferences({ savedFilters: value })}
               trackColor={{ false: '#767577', true: '#3B82F6' }}
             />
           </View>

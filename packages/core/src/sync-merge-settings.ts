@@ -15,6 +15,7 @@ import {
 } from './settings-options';
 import { isNonEmptyString, isObjectRecord, isValidTimestamp } from './sync-normalization';
 import { MAX_FOCUS_TASK_LIMIT, MIN_FOCUS_TASK_LIMIT, normalizeFocusTaskLimit } from './focus-utils';
+import { normalizeSavedFilters } from './saved-filters';
 
 const parseSyncTimestamp = (value?: string): number => {
     if (!value) return NaN;
@@ -48,7 +49,7 @@ const sanitizeAiForSync = (
     return sanitized;
 };
 
-const SETTINGS_SYNC_GROUP_KEYS: SettingsSyncGroup[] = ['appearance', 'language', 'gtd', 'externalCalendars', 'ai'];
+const SETTINGS_SYNC_GROUP_KEYS: SettingsSyncGroup[] = ['appearance', 'language', 'gtd', 'externalCalendars', 'ai', 'savedFilters'];
 const SETTINGS_SYNC_UPDATED_AT_KEYS: Array<SettingsSyncGroup | 'preferences'> = ['preferences', ...SETTINGS_SYNC_GROUP_KEYS];
 
 const cloneSettingValue = <T>(value: T): T => {
@@ -298,6 +299,9 @@ export const sanitizeMergedSettingsForSync = (
     );
     next.externalCalendars = sanitizeExternalCalendars(next.externalCalendars, localSettings.externalCalendars);
     next.ai = sanitizeAiSettings(next.ai, localSettings.ai);
+    if (next.savedFilters !== undefined) {
+        next.savedFilters = normalizeSavedFilters(next.savedFilters);
+    }
 
     return next;
 };
@@ -446,6 +450,16 @@ export const mergeSettingsForSync = (
         (value) => {
             merged.externalCalendars = value;
         }
+    );
+
+    mergeGroup(
+        'savedFilters',
+        localSettings.savedFilters,
+        incomingSettings.savedFilters,
+        (value) => {
+            merged.savedFilters = normalizeSavedFilters(value);
+        },
+        (localValue, incomingValue, incomingWins) => chooseGroupFieldValue(localValue, incomingValue, incomingWins)
     );
 
     mergeGroup(

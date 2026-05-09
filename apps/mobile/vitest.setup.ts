@@ -151,6 +151,7 @@ vi.mock('lucide-react-native', () => {
     'ArrowRightCircle',
     'ArrowUp',
     'AtSign',
+    'BookmarkPlus',
     'Calendar',
     'CalendarDays',
     'Check',

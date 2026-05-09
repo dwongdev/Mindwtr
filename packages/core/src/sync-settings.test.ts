@@ -265,6 +265,90 @@ describe('Sync Logic', () => {
             expect(merged.settings.externalCalendars?.[0]?.name).toBe('Team');
         });
 
+        it('syncs saved filters as their own preference group', () => {
+            const localFilter = {
+                id: 'filter-local',
+                name: 'Local Desk',
+                view: 'focus' as const,
+                criteria: { contexts: ['@desk'] },
+                createdAt: '2024-01-01T00:00:00.000Z',
+                updatedAt: '2024-01-01T00:00:00.000Z',
+            };
+            const incomingFilter = {
+                id: 'filter-incoming',
+                name: 'Incoming Week',
+                view: 'focus' as const,
+                criteria: { dueDateRange: { preset: 'this_week' as const } },
+                createdAt: '2024-01-02T00:00:00.000Z',
+                updatedAt: '2024-01-02T00:00:00.000Z',
+            };
+            const local: AppData = {
+                ...mockAppData(),
+                settings: {
+                    savedFilters: [localFilter],
+                    syncPreferences: { savedFilters: true },
+                    syncPreferencesUpdatedAt: {
+                        savedFilters: '2024-01-01T00:00:00.000Z',
+                    },
+                },
+            };
+            const incoming: AppData = {
+                ...mockAppData(),
+                settings: {
+                    savedFilters: [incomingFilter],
+                    syncPreferences: { savedFilters: true },
+                    syncPreferencesUpdatedAt: {
+                        savedFilters: '2024-01-02T00:00:00.000Z',
+                    },
+                },
+            };
+
+            const merged = mergeAppData(local, incoming);
+
+            expect(merged.settings.savedFilters).toEqual([incomingFilter]);
+            expect(merged.settings.savedFilters).not.toBe(incoming.settings.savedFilters);
+        });
+
+        it('keeps local saved filters when the local device opted out', () => {
+            const localFilter = {
+                id: 'filter-local',
+                name: 'Local',
+                view: 'focus' as const,
+                criteria: { tags: ['#local'] },
+                createdAt: '2024-01-01T00:00:00.000Z',
+                updatedAt: '2024-01-01T00:00:00.000Z',
+            };
+            const incomingFilter = {
+                id: 'filter-incoming',
+                name: 'Incoming',
+                view: 'focus' as const,
+                criteria: { tags: ['#incoming'] },
+                createdAt: '2024-01-02T00:00:00.000Z',
+                updatedAt: '2024-01-02T00:00:00.000Z',
+            };
+            const local: AppData = {
+                ...mockAppData(),
+                settings: {
+                    savedFilters: [localFilter],
+                    syncPreferences: { savedFilters: false },
+                },
+            };
+            const incoming: AppData = {
+                ...mockAppData(),
+                settings: {
+                    savedFilters: [incomingFilter],
+                    syncPreferences: { savedFilters: true },
+                    syncPreferencesUpdatedAt: {
+                        savedFilters: '2024-01-02T00:00:00.000Z',
+                    },
+                },
+            };
+
+            const merged = mergeAppData(local, incoming);
+
+            expect(merged.settings.savedFilters).toEqual([localFilter]);
+        });
+
         it('falls back to local values when incoming synced settings are malformed', () => {
             const local: AppData = {
                 ...mockAppData(),

@@ -1,6 +1,7 @@
 import {
     getUsedTaskTokens,
     matchesHierarchicalToken,
+    SAVED_FILTER_NO_PROJECT_ID,
     type Task,
     type TaskEnergyLevel,
     type TaskPriority,
@@ -26,7 +27,7 @@ export function splitFocusedTasks<T extends Pick<Task, 'isFocusedToday'>>(tasks:
     return { focusedTasks, otherTasks };
 }
 
-export const NO_PROJECT_FILTER_ID = '__no_project__';
+export const NO_PROJECT_FILTER_ID = SAVED_FILTER_NO_PROJECT_ID;
 
 export type FocusTaskFilters = {
     tokens: string[];

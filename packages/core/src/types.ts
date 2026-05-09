@@ -23,7 +23,7 @@ export type RecurrenceByDay =
     | RecurrenceWeekday
     | `${'1' | '2' | '3' | '4' | '-1'}${RecurrenceWeekday}`;
 
-export type SettingsSyncGroup = 'appearance' | 'language' | 'gtd' | 'externalCalendars' | 'ai';
+export type SettingsSyncGroup = 'appearance' | 'language' | 'gtd' | 'externalCalendars' | 'ai' | 'savedFilters';
 
 export type SettingsSyncPreferences = Partial<Record<SettingsSyncGroup, boolean>>;
 
@@ -195,6 +195,51 @@ export interface SavedSearch {
     groupBy?: string;
 }
 
+export type SavedFilterView = 'focus' | 'next' | 'waiting' | 'someday' | 'contexts' | 'all';
+
+export type SortField =
+    | TaskSortBy
+    | 'priority'
+    | 'energy'
+    | 'timeEstimate'
+    | 'project'
+    | 'updated';
+
+export type FilterPriority = 'none' | TaskPriority;
+
+export type DateRange =
+    | { preset: 'today' | 'this_week' | 'this_month' | 'overdue' | 'no_date' }
+    | { from?: string; to?: string };
+
+export interface FilterCriteria {
+    contexts?: string[];
+    areas?: string[];
+    projects?: string[];
+    tags?: string[];
+    energy?: TaskEnergyLevel[];
+    priority?: FilterPriority[];
+    dueDateRange?: DateRange;
+    startDateRange?: DateRange;
+    statuses?: TaskStatus[];
+    assignedTo?: string[];
+    timeEstimateRange?: { min?: number; max?: number };
+    timeEstimates?: TimeEstimate[];
+    hasDescription?: boolean;
+    isStarred?: boolean;
+}
+
+export interface SavedFilter {
+    id: string;
+    name: string;
+    icon?: string;
+    view: SavedFilterView;
+    criteria: FilterCriteria;
+    sortBy?: SortField;
+    sortOrder?: 'asc' | 'desc';
+    createdAt: string;
+    updatedAt: string;
+}
+
 export interface PendingRemoteAttachmentDelete {
     cloudKey: string;
     title?: string;
@@ -317,6 +362,7 @@ export interface AppData {
             };
         };
         savedSearches?: SavedSearch[];
+        savedFilters?: SavedFilter[];
         sidebarCollapsed?: boolean;
         taskSortBy?: TaskSortBy;
         lastSyncAt?: string;

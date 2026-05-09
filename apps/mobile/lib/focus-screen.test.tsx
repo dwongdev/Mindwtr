@@ -1,4 +1,5 @@
 import React from 'react';
+import { Alert, TextInput } from 'react-native';
 import { act, create } from 'react-test-renderer';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Task } from '@mindwtr/core';
@@ -98,12 +99,16 @@ vi.mock('../contexts/language-context', () => ({
   useLanguage: () => ({
     t: (key: string) =>
       ({
+        'common.all': 'All',
         'agenda.todaysFocus': "Today's Focus",
         'focus.schedule': 'Today',
         'focus.nextActions': 'Next Actions',
         'agenda.reviewDue': 'Review Due',
         'agenda.allClear': 'All clear',
         'agenda.noTasks': 'No tasks',
+        'energyLevel.high': 'High energy',
+        'filters.label': 'Filters',
+        'savedFilters.save': 'Save',
       }[key] ?? key),
   }),
 }));
@@ -154,6 +159,32 @@ vi.mock('@/lib/task-meta-navigation', () => ({
   openContextsScreen: vi.fn(),
   openProjectScreen: vi.fn(),
 }));
+
+function textContent(node: any): string {
+  return node.children
+    .map((child: any) => (typeof child === 'string' ? child : textContent(child)))
+    .join('');
+}
+
+function findButtonByText(tree: ReturnType<typeof create>, text: string, options: { last?: boolean } = {}) {
+  const matches = tree.root.findAll((node) =>
+    node.props.accessibilityRole === 'button'
+    && typeof node.props.onPress === 'function'
+    && textContent(node).includes(text)
+  );
+  if (matches.length === 0) {
+    throw new Error(`No button found with text: ${text}`);
+  }
+  return options.last ? matches[matches.length - 1] : matches[0];
+}
+
+function findButtonByLabel(tree: ReturnType<typeof create>, label: string) {
+  return tree.root.find((node) =>
+    node.props.accessibilityRole === 'button'
+    && node.props.accessibilityLabel === label
+    && typeof node.props.onPress === 'function'
+  );
+}
 
 describe('FocusScreen', () => {
   it('renders starred tasks in a dedicated Today\'s Focus section', () => {
@@ -308,6 +339,131 @@ describe('FocusScreen', () => {
     expect(
       tree.root.findAllByType(SwipeableTaskItem).map((node) => node.props.task.id),
     ).toEqual(['available-next']);
+  });
+
+  it('applies and clears saved Focus filters from the chip row', () => {
+    storeState.settings = {
+      appearance: {},
+      features: {},
+      savedFilters: [{
+        id: 'filter-desk',
+        name: 'Desk',
+        view: 'focus',
+        criteria: { contexts: ['@desk'] },
+        createdAt: '2026-04-01T00:00:00.000Z',
+        updatedAt: '2026-04-01T00:00:00.000Z',
+      }],
+    } as any;
+    storeState.tasks = [
+      makeTask('desk-task', { title: 'Desk task', contexts: ['@desk'] }),
+      makeTask('phone-task', { title: 'Phone task', contexts: ['@phone'] }),
+    ];
+
+    let tree!: ReturnType<typeof create>;
+
+    act(() => {
+      tree = create(<FocusScreen />);
+    });
+
+    act(() => {
+      findButtonByText(tree, 'Desk').props.onPress();
+    });
+
+    expect(
+      tree.root.findAllByType(SwipeableTaskItem).map((node) => node.props.task.id),
+    ).toEqual(['desk-task']);
+
+    act(() => {
+      findButtonByText(tree, 'All').props.onPress();
+    });
+
+    expect(
+      tree.root.findAllByType(SwipeableTaskItem).map((node) => node.props.task.id),
+    ).toEqual(['desk-task', 'phone-task']);
+  });
+
+  it('deletes the active saved Focus filter from the chip row', async () => {
+    const alertSpy = vi.spyOn(Alert, 'alert').mockImplementation((_title, _message, buttons) => {
+      buttons?.find((button) => button.style === 'destructive')?.onPress?.();
+    });
+    storeState.updateSettings.mockResolvedValue(undefined);
+    storeState.settings = {
+      appearance: {},
+      features: {},
+      savedFilters: [{
+        id: 'filter-desk',
+        name: 'Desk',
+        view: 'focus',
+        criteria: { contexts: ['@desk'] },
+        createdAt: '2026-04-01T00:00:00.000Z',
+        updatedAt: '2026-04-01T00:00:00.000Z',
+      }],
+    } as any;
+    storeState.tasks = [
+      makeTask('desk-task', { title: 'Desk task', contexts: ['@desk'] }),
+    ];
+
+    let tree!: ReturnType<typeof create>;
+
+    act(() => {
+      tree = create(<FocusScreen />);
+    });
+
+    act(() => {
+      findButtonByText(tree, 'Desk').props.onPress();
+    });
+    await act(async () => {
+      findButtonByLabel(tree, 'Delete saved filter Desk').props.onPress();
+    });
+
+    expect(alertSpy).toHaveBeenCalled();
+    expect(storeState.updateSettings).toHaveBeenCalledWith({ savedFilters: [] });
+
+    alertSpy.mockRestore();
+  });
+
+  it('saves the current Focus filter from the existing filter sheet', async () => {
+    storeState.updateSettings.mockResolvedValue(undefined);
+    storeState.tasks = [
+      makeTask('low-energy-task', { energyLevel: 'low' }),
+      makeTask('high-energy-task', { energyLevel: 'high' }),
+    ];
+
+    let tree!: ReturnType<typeof create>;
+
+    act(() => {
+      tree = create(<FocusScreen />);
+    });
+
+    const filterButton = tree.root.find((node) =>
+      node.props.accessibilityLabel === 'Filters' && typeof node.props.onPress === 'function'
+    );
+
+    act(() => {
+      filterButton.props.onPress();
+    });
+    act(() => {
+      findButtonByText(tree, 'High energy').props.onPress();
+    });
+    act(() => {
+      findButtonByText(tree, 'Save', { last: true }).props.onPress();
+    });
+
+    const input = tree.root.findByType(TextInput);
+    await act(async () => {
+      input.props.onChangeText('High energy preset');
+    });
+    await act(async () => {
+      findButtonByText(tree, 'Save', { last: true }).props.onPress();
+    });
+
+    expect(storeState.updateSettings).toHaveBeenCalledWith({
+      savedFilters: [expect.objectContaining({
+        name: 'High energy preset',
+        view: 'focus',
+        criteria: { energy: ['high'] },
+      })],
+    });
   });
 
 });

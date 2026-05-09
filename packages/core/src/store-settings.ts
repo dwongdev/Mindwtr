@@ -736,6 +736,10 @@ export const createSettingsActions = ({
                 markSyncUpdated('externalCalendars');
             }
 
+            if ('savedFilters' in updates) {
+                markSyncUpdated('savedFilters');
+            }
+
             if ('ai' in updates) {
                 const prevAi = normalizeAiSettingsForSync(deviceState.settings.ai);
                 const nextAi = normalizeAiSettingsForSync(nextSettings.ai);

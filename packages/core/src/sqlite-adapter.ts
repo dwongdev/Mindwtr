@@ -1,4 +1,4 @@
-import type { AppData, Area, Attachment, Project, Task, Section } from './types';
+import type { AppData, Area, Attachment, Project, SavedFilter, Task, Section } from './types';
 
 export type CalendarSyncEntry = {
     taskId: string;
@@ -12,6 +12,7 @@ import { SQLITE_BASE_SCHEMA, SQLITE_FTS_SCHEMA, SQLITE_INDEX_SCHEMA } from './sq
 import { normalizeTaskStatus } from './task-status';
 import { normalizeRecurrenceForLoad } from './recurrence';
 import { logWarn } from './logger';
+import { normalizeSavedFilter, normalizeSavedFilters } from './saved-filters';
 
 export interface SqliteClient {
     run(sql: string, params?: unknown[]): Promise<void>;
@@ -75,7 +76,7 @@ const isRecord = (value: unknown): value is Record<string, unknown> =>
 
 let tempIdTableCounter = 0;
 
-const createTempIdTableName = (table: 'tasks' | 'projects' | 'sections' | 'areas'): string => {
+const createTempIdTableName = (table: 'tasks' | 'projects' | 'sections' | 'areas' | 'saved_filters'): string => {
     tempIdTableCounter = (tempIdTableCounter + 1) % Number.MAX_SAFE_INTEGER;
     const timestamp = Date.now().toString(36);
     const random = Math.random().toString(36).slice(2, 10) || '0';
@@ -251,6 +252,7 @@ export class SqliteAdapter {
         await this.ensureProjectColumns();
         await this.ensureSectionColumns();
         await this.ensureAreaColumns();
+        await this.ensureSavedFilterTable();
         if (this.client.exec) {
             await this.client.exec(SQLITE_FTS_SCHEMA);
             await this.client.exec(SQLITE_INDEX_SCHEMA);
@@ -488,6 +490,23 @@ export class SqliteAdapter {
         }
     }
 
+    private async ensureSavedFilterTable() {
+        await this.client.run(`
+            CREATE TABLE IF NOT EXISTS saved_filters (
+              id TEXT PRIMARY KEY,
+              name TEXT NOT NULL,
+              icon TEXT,
+              view TEXT NOT NULL,
+              criteria TEXT NOT NULL,
+              sortBy TEXT,
+              sortOrder TEXT,
+              createdAt TEXT NOT NULL,
+              updatedAt TEXT NOT NULL
+            )
+        `);
+        await this.client.run('CREATE INDEX IF NOT EXISTS idx_saved_filters_view ON saved_filters(view)');
+    }
+
     private async ensureFtsPopulated(forceRebuild = false) {
         try {
             const totals = await this.client.get<{
@@ -717,14 +736,29 @@ export class SqliteAdapter {
         };
     }
 
+    private mapSavedFilterRow(row: Record<string, unknown>): SavedFilter | null {
+        return normalizeSavedFilter({
+            id: row.id,
+            name: row.name,
+            icon: row.icon,
+            view: row.view,
+            criteria: fromJson<unknown>(row.criteria, {}),
+            sortBy: row.sortBy,
+            sortOrder: row.sortOrder,
+            createdAt: row.createdAt,
+            updatedAt: row.updatedAt,
+        });
+    }
+
     async getData(): Promise<AppData> {
         await this.ensureSchema();
-        const [tasksRows, projectsRows, sectionsRows, areasRows, settingsRow] = await Promise.all([
+        const [tasksRows, projectsRows, sectionsRows, areasRows, settingsRow, savedFilterRows] = await Promise.all([
             this.loadAllRows('tasks'),
             this.loadAllRows('projects'),
             this.loadAllRows('sections'),
             this.loadAllRows('areas'),
             this.client.get<Record<string, unknown>>('SELECT data FROM settings WHERE id = 1'),
+            this.client.all<Record<string, unknown>>('SELECT * FROM saved_filters ORDER BY createdAt, name'),
         ]);
 
         const tasks: Task[] = tasksRows.map((row) => this.mapTaskRow(row));
@@ -756,6 +790,14 @@ export class SqliteAdapter {
         });
 
         const settings = settingsRow?.data ? fromJson<AppData['settings']>(settingsRow.data, {}) : {};
+        const savedFiltersFromTable = savedFilterRows
+            .map((row) => this.mapSavedFilterRow(row))
+            .filter((item): item is SavedFilter => Boolean(item));
+        if (!Array.isArray(settings.savedFilters) && savedFiltersFromTable.length > 0) {
+            settings.savedFilters = savedFiltersFromTable;
+        } else if (Array.isArray(settings.savedFilters)) {
+            settings.savedFilters = normalizeSavedFilters(settings.savedFilters);
+        }
 
         return { tasks, projects, sections, areas, settings };
     }
@@ -878,7 +920,7 @@ export class SqliteAdapter {
                 }
             };
 
-            const syncIds = async (table: 'tasks' | 'projects' | 'sections' | 'areas', ids: string[]) => {
+            const syncIds = async (table: 'tasks' | 'projects' | 'sections' | 'areas' | 'saved_filters', ids: string[]) => {
                 const tempTable = createTempIdTableName(table);
                 try {
                     await this.client.run(`CREATE TEMP TABLE ${tempTable} (id TEXT PRIMARY KEY)`);
@@ -1159,9 +1201,53 @@ export class SqliteAdapter {
             await syncIds('projects', data.projects.map((project) => project.id));
             await syncIds('areas', data.areas.map((area) => area.id));
 
+            const rawSavedFilters = data.settings?.savedFilters;
+            const savedFilters = normalizeSavedFilters(rawSavedFilters);
+            await upsertBatch(
+                'saved_filters',
+                [
+                    'id',
+                    'name',
+                    'icon',
+                    'view',
+                    'criteria',
+                    'sortBy',
+                    'sortOrder',
+                    'createdAt',
+                    'updatedAt',
+                ],
+                savedFilters.map((filter) => [
+                    filter.id,
+                    filter.name,
+                    filter.icon ?? null,
+                    filter.view,
+                    toJson(filter.criteria),
+                    filter.sortBy ?? null,
+                    filter.sortOrder ?? null,
+                    filter.createdAt,
+                    filter.updatedAt,
+                ]),
+                `name=excluded.name,
+                 icon=excluded.icon,
+                 view=excluded.view,
+                 criteria=excluded.criteria,
+                 sortBy=excluded.sortBy,
+                 sortOrder=excluded.sortOrder,
+                 createdAt=excluded.createdAt,
+                 updatedAt=excluded.updatedAt`,
+            );
+            await syncIds('saved_filters', savedFilters.map((filter) => filter.id));
+
+            const settingsForSave = { ...(data.settings ?? {}) };
+            if (Array.isArray(rawSavedFilters)) {
+                settingsForSave.savedFilters = savedFilters;
+            } else {
+                delete settingsForSave.savedFilters;
+            }
+
             await this.client.run(
                 'INSERT INTO settings (id, data) VALUES (1, ?) ON CONFLICT(id) DO UPDATE SET data=excluded.data',
-                [toJson(data.settings ?? {})]
+                [toJson(settingsForSave)]
             );
 
             await this.client.run('COMMIT');

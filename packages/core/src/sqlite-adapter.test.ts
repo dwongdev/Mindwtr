@@ -181,6 +181,16 @@ describeSqlite('SqliteAdapter', () => {
             ],
             settings: {
                 gtd: { autoArchiveDays: 7 },
+                savedFilters: [
+                    {
+                        id: 'filter-1',
+                        name: 'Desk focus',
+                        view: 'focus',
+                        criteria: { contexts: ['@desk'], priority: ['high'] },
+                        createdAt: now,
+                        updatedAt: now,
+                    },
+                ],
             },
         };
 
@@ -192,6 +202,13 @@ describeSqlite('SqliteAdapter', () => {
         expect(loaded.sections).toHaveLength(1);
         expect(loaded.areas).toHaveLength(1);
         expect(loaded.settings.gtd?.autoArchiveDays).toBe(7);
+        expect(loaded.settings.savedFilters?.[0]).toMatchObject({
+            id: 'filter-1',
+            name: 'Desk focus',
+            view: 'focus',
+            criteria: { contexts: ['@desk'], priority: ['high'] },
+        });
+        expect(allSql(db, 'SELECT id, view FROM saved_filters')).toEqual([{ id: 'filter-1', view: 'focus' }]);
 
         const task = loaded.tasks[0];
         expect(task.title).toBe('Write docs');
@@ -607,6 +624,22 @@ describeSqlite('SqliteAdapter', () => {
         expect(areaColumnNames).toContain('revBy');
         expect(areaColumns.find((col) => col.name === 'createdAt')?.notnull).toBe(1);
         expect(areaColumns.find((col) => col.name === 'updatedAt')?.notnull).toBe(1);
+
+        const savedFilterColumns = allSql<{ name: string }>(db, 'PRAGMA table_info(saved_filters)');
+        const savedFilterColumnNames = savedFilterColumns.map((col) => col.name);
+        expect(savedFilterColumnNames).toEqual([
+            'id',
+            'name',
+            'icon',
+            'view',
+            'criteria',
+            'sortBy',
+            'sortOrder',
+            'createdAt',
+            'updatedAt',
+        ]);
+        const savedFilterIndexes = allSql<{ name: string }>(db, 'PRAGMA index_list(saved_filters)');
+        expect(savedFilterIndexes.map((row) => row.name)).toContain('idx_saved_filters_view');
     });
 
     it('rejects invalid task status values at the database layer', async () => {
@@ -688,7 +721,7 @@ describe('SqliteAdapter saveData pruning', () => {
             .map(([sql]) => String(sql))
             .filter((sql) => sql.startsWith('CREATE TEMP TABLE temp_'));
         const tempNames = tempCreateCalls.map((sql) => sql.match(/CREATE TEMP TABLE (temp_[a-z0-9_]+)/)?.[1]);
-        expect(new Set(tempNames).size).toBe(4);
+        expect(new Set(tempNames).size).toBe(5);
 
         const tempAreaInsertCalls = run.mock.calls.filter(([sql]) =>
             String(sql).startsWith('INSERT OR IGNORE INTO temp_areas_ids_')

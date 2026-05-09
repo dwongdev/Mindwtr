@@ -143,12 +143,14 @@ describe('sync-helpers sanitizeAppDataForRemote', () => {
                     appearance: true,
                     language: false,
                     externalCalendars: true,
+                    savedFilters: true,
                     ai: true,
                 },
                 syncPreferencesUpdatedAt: {
                     appearance: now,
                     language: now,
                     externalCalendars: now,
+                    savedFilters: now,
                     ai: now,
                     preferences: now,
                 },
@@ -161,6 +163,14 @@ describe('sync-helpers sanitizeAppDataForRemote', () => {
                 dateFormat: 'yyyy-MM-dd',
                 timeFormat: '24h',
                 externalCalendars: [{ id: 'cal-1', name: 'Work', url: 'https://example.com/work.ics', enabled: true }],
+                savedFilters: [{
+                    id: 'filter-1',
+                    name: 'Desk',
+                    view: 'focus',
+                    criteria: { contexts: ['@desk'] },
+                    createdAt: now,
+                    updatedAt: now,
+                }],
                 ai: {
                     enabled: true,
                     provider: 'openai',
@@ -182,6 +192,7 @@ describe('sync-helpers sanitizeAppDataForRemote', () => {
         expect(sanitized.settings.appearance).toEqual({ density: 'compact', textSize: 'large' });
         expect(sanitized.settings.keybindingStyle).toBe('emacs');
         expect(sanitized.settings.externalCalendars).toEqual(data.settings.externalCalendars);
+        expect(sanitized.settings.savedFilters).toEqual(data.settings.savedFilters);
 
         expect(sanitized.settings.language).toBeUndefined();
         expect(sanitized.settings.weekStart).toBeUndefined();
