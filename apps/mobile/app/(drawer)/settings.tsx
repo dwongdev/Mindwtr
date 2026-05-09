@@ -1,6 +1,18 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useLocalSearchParams, useRouter } from 'expo-router';
+import {
+    Bell,
+    CalendarDays,
+    Database,
+    Info,
+    Layers,
+    ListChecks,
+    Monitor,
+    RefreshCw,
+    Settings2,
+    Sparkles,
+} from 'lucide-react-native';
 import { ScrollView, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -28,7 +40,7 @@ import { useSettingsLocalization, useSettingsScrollContent } from '@/components/
 export default function SettingsPage() {
     const router = useRouter();
     const tc = useThemeColors();
-    const { language, t } = useSettingsLocalization();
+    const { language, localize, t } = useSettingsLocalization();
     const scrollContentStyle = useSettingsScrollContent();
     const { settingsScreen } = useLocalSearchParams<{ settingsScreen?: string | string[] }>();
     const { syncBadgeAccessibilityLabel, syncBadgeColor } = useMobileSyncBadge();
@@ -50,6 +62,21 @@ export default function SettingsPage() {
         if (language === 'zh-Hant') return '數據';
         return translateText('Data', language);
     }, [language]);
+    const menuDescriptions = useMemo(
+        () => ({
+            general: localize('Appearance, language, display', '外观、语言、显示'),
+            gtd: localize('Capture, review, task editor', '收集、回顾、任务编辑器'),
+            manage: localize('Areas, contexts, tags', '领域、情境、标签'),
+            notifications: localize('Reminders, daily digest', '提醒、每日摘要'),
+            sync: localize('WebDAV, Dropbox, iCloud', 'WebDAV、Dropbox、iCloud'),
+            data: localize('Backup, restore, import', '备份、恢复、导入'),
+            advanced: localize('AI assistant, calendar', 'AI 助手、日历'),
+            about: localize('Version, licenses, links', '版本、许可证、链接'),
+            ai: localize('Models, providers, speech', '模型、服务商、语音'),
+            calendar: localize('External calendars and events', '外部日历和日程'),
+        }),
+        [localize],
+    );
 
     const pushSettingsScreen = (nextScreen: SettingsScreen) => {
         if (nextScreen === 'main') {
@@ -111,8 +138,19 @@ export default function SettingsPage() {
                 <SubHeader title={t('settings.advanced')} />
                 <ScrollView style={styles.scrollView} contentContainerStyle={scrollContentStyle}>
                     <View style={[styles.menuCard, { backgroundColor: tc.cardBg }]}>
-                        <MenuItem title={t('settings.ai')} onPress={() => pushSettingsScreen('ai')} />
-                        <MenuItem title={t('settings.calendar')} onPress={() => pushSettingsScreen('calendar')} />
+                        <MenuItem
+                            title={t('settings.ai')}
+                            description={menuDescriptions.ai}
+                            icon={Sparkles}
+                            onPress={() => pushSettingsScreen('ai')}
+                        />
+                        <MenuItem
+                            title={t('settings.calendar')}
+                            description={menuDescriptions.calendar}
+                            icon={CalendarDays}
+                            isLast
+                            onPress={() => pushSettingsScreen('calendar')}
+                        />
                     </View>
                 </ScrollView>
             </SafeAreaView>
@@ -123,21 +161,69 @@ export default function SettingsPage() {
         <SafeAreaView style={[styles.container, { backgroundColor: tc.bg }]} edges={['bottom']}>
             <SettingsTopBar />
             <ScrollView style={styles.scrollView} contentContainerStyle={scrollContentStyle}>
-                <View style={[styles.menuCard, { backgroundColor: tc.cardBg, marginTop: 16 }]}>
-                    <MenuItem title={t('settings.general')} onPress={() => pushSettingsScreen('general')} />
-                    <MenuItem title={t('settings.gtd')} onPress={() => pushSettingsScreen('gtd')} />
-                    <MenuItem title={t('settings.manage')} onPress={() => pushSettingsScreen('manage')} />
-                    <MenuItem title={t('settings.notifications')} onPress={() => pushSettingsScreen('notifications')} />
-                    <MenuItem
-                        title={t('settings.sync')}
-                        onPress={() => pushSettingsScreen('sync')}
-                        showIndicator={Boolean(syncBadgeColor)}
-                        indicatorColor={syncBadgeColor}
-                        indicatorAccessibilityLabel={syncBadgeAccessibilityLabel}
-                    />
-                    <MenuItem title={dataLabel} onPress={() => pushSettingsScreen('data')} />
-                    <MenuItem title={t('settings.advanced')} onPress={() => pushSettingsScreen('advanced')} />
-                    <MenuItem title={t('settings.about')} onPress={() => pushSettingsScreen('about')} showIndicator={hasUpdateBadge} />
+                <View style={styles.menuGroupStack}>
+                    <View style={[styles.menuCard, { backgroundColor: tc.cardBg }]}>
+                        <MenuItem
+                            title={t('settings.general')}
+                            description={menuDescriptions.general}
+                            icon={Monitor}
+                            onPress={() => pushSettingsScreen('general')}
+                        />
+                        <MenuItem
+                            title={t('settings.gtd')}
+                            description={menuDescriptions.gtd}
+                            icon={ListChecks}
+                            onPress={() => pushSettingsScreen('gtd')}
+                        />
+                        <MenuItem
+                            title={t('settings.manage')}
+                            description={menuDescriptions.manage}
+                            icon={Layers}
+                            onPress={() => pushSettingsScreen('manage')}
+                        />
+                        <MenuItem
+                            title={t('settings.notifications')}
+                            description={menuDescriptions.notifications}
+                            icon={Bell}
+                            isLast
+                            onPress={() => pushSettingsScreen('notifications')}
+                        />
+                    </View>
+                    <View style={[styles.menuCard, { backgroundColor: tc.cardBg }]}>
+                        <MenuItem
+                            title={t('settings.sync')}
+                            description={menuDescriptions.sync}
+                            icon={RefreshCw}
+                            onPress={() => pushSettingsScreen('sync')}
+                            showIndicator={Boolean(syncBadgeColor)}
+                            indicatorColor={syncBadgeColor}
+                            indicatorAccessibilityLabel={syncBadgeAccessibilityLabel}
+                        />
+                        <MenuItem
+                            title={dataLabel}
+                            description={menuDescriptions.data}
+                            icon={Database}
+                            isLast
+                            onPress={() => pushSettingsScreen('data')}
+                        />
+                    </View>
+                    <View style={[styles.menuCard, { backgroundColor: tc.cardBg }]}>
+                        <MenuItem
+                            title={t('settings.advanced')}
+                            description={menuDescriptions.advanced}
+                            icon={Settings2}
+                            onPress={() => pushSettingsScreen('advanced')}
+                        />
+                        <MenuItem
+                            title={t('settings.about')}
+                            description={menuDescriptions.about}
+                            icon={Info}
+                            isLast
+                            onPress={() => pushSettingsScreen('about')}
+                            showIndicator={hasUpdateBadge}
+                            indicatorAccessibilityLabel={hasUpdateBadge ? t('settings.updateAvailable') : undefined}
+                        />
+                    </View>
                 </View>
             </ScrollView>
         </SafeAreaView>
