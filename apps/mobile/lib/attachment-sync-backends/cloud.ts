@@ -1,5 +1,5 @@
 import type { AppData } from '@mindwtr/core';
-import { cloudDeleteFile, cloudPutFile, validateAttachmentForUpload } from '@mindwtr/core';
+import { cloudDeleteFile, cloudPutFile, isAbortError, validateAttachmentForUpload, type Attachment } from '@mindwtr/core';
 import { logAttachmentWarn } from '../attachment-sync-utils';
 import {
   buildCloudKey,
@@ -20,6 +20,30 @@ import { uploadCloudFileWithFileSystem } from './common';
 
 export type CloudAttachmentSyncOptions = {
   assertCurrent?: () => void;
+  signal?: AbortSignal;
+};
+
+type PendingCloudUploadMutation = {
+  attachment: Attachment;
+  cloudKey: string;
+  fileSize?: number;
+  totalBytes: number;
+  uploadUrl: string;
+};
+
+const createAbortError = (): Error => {
+  const error = new Error('Attachment upload aborted');
+  error.name = 'AbortError';
+  return error;
+};
+
+const assertNotAborted = (signal?: AbortSignal): void => {
+  if (!signal?.aborted) return;
+  throw createAbortError();
+};
+
+const isAbortLikeError = (error: unknown, signal?: AbortSignal): boolean => {
+  return Boolean(signal?.aborted) || isAbortError(error);
 };
 
 export const syncCloudAttachments = async (
@@ -33,6 +57,23 @@ export const syncCloudAttachments = async (
   const attachmentsById = collectAttachments(appData);
 
   let didMutate = false;
+  const pendingUploadMutations: PendingCloudUploadMutation[] = [];
+
+  const cleanupUploadedCloudFile = async (uploadUrl: string, title: string) => {
+    try {
+      await cloudDeleteFile(uploadUrl, { token: cloudConfig.token });
+    } catch (deleteError) {
+      logAttachmentWarn(`Failed to clean up aborted attachment upload ${title}`, deleteError);
+    }
+  };
+
+  const cleanupPendingUploadMutations = async () => {
+    for (const pending of pendingUploadMutations) {
+      await cleanupUploadedCloudFile(pending.uploadUrl, pending.attachment.title);
+    }
+    pendingUploadMutations.length = 0;
+  };
+
   for (const attachment of attachmentsById.values()) {
     if (attachment.kind !== 'file') continue;
     if (attachment.deletedAt) continue;
@@ -50,7 +91,9 @@ export const syncCloudAttachments = async (
     if (!attachment.cloudKey && hasLocalPath && existsLocally && !isHttp) {
       let localReadFailed = false;
       let shouldPropagateError = false;
+      let uploadUrlForCleanup: string | null = null;
       try {
+        assertNotAborted(options.signal);
         try {
           options.assertCurrent?.();
         } catch (error) {
@@ -78,15 +121,18 @@ export const syncCloudAttachments = async (
         reportProgress(attachment.id, 'upload', 0, totalBytes, 'active');
         const cloudKey = buildCloudKey(attachment);
         const uploadUrl = `${baseSyncUrl}/${cloudKey}`;
+        uploadUrlForCleanup = uploadUrl;
         const uploadedWithFileSystem = await uploadCloudFileWithFileSystem(
           uploadUrl,
           uri,
           attachment.mimeType || DEFAULT_CONTENT_TYPE,
           cloudConfig.token,
           (loaded, total) => reportProgress(attachment.id, 'upload', loaded, total, 'active'),
-          totalBytes
+          totalBytes,
+          options.signal
         );
         if (!uploadedWithFileSystem) {
+          assertNotAborted(options.signal);
           let uploadBytes = fileData;
           if (!uploadBytes) {
             const readResult = await readAttachmentBytesForUpload(uri);
@@ -101,29 +147,31 @@ export const syncCloudAttachments = async (
             uploadUrl,
             buffer,
             attachment.mimeType || DEFAULT_CONTENT_TYPE,
-            { token: cloudConfig.token }
+            options.signal
+              ? { token: cloudConfig.token, signal: options.signal }
+              : { token: cloudConfig.token }
           );
         }
         try {
           options.assertCurrent?.();
         } catch (error) {
           shouldPropagateError = true;
-          try {
-            await cloudDeleteFile(uploadUrl, { token: cloudConfig.token });
-          } catch (deleteError) {
-            logAttachmentWarn(`Failed to clean up aborted attachment upload ${attachment.title}`, deleteError);
-          }
           throw error;
         }
-        attachment.cloudKey = cloudKey;
-        if (!Number.isFinite(attachment.size ?? NaN) && Number.isFinite(fileSize ?? NaN)) {
-          attachment.size = Number(fileSize);
-        }
-        attachment.localStatus = 'available';
-        didMutate = true;
-        reportProgress(attachment.id, 'upload', totalBytes, totalBytes, 'completed');
+        pendingUploadMutations.push({
+          attachment,
+          cloudKey,
+          fileSize: Number.isFinite(fileSize ?? NaN) ? Number(fileSize) : undefined,
+          totalBytes,
+          uploadUrl,
+        });
+        uploadUrlForCleanup = null;
       } catch (error) {
-        if (shouldPropagateError) {
+        if (shouldPropagateError || isAbortLikeError(error, options.signal)) {
+          if (uploadUrlForCleanup) {
+            await cleanupUploadedCloudFile(uploadUrlForCleanup, attachment.title);
+          }
+          await cleanupPendingUploadMutations();
           throw error;
         }
         if (localReadFailed) {
@@ -143,6 +191,16 @@ export const syncCloudAttachments = async (
         logAttachmentWarn(`Failed to upload attachment ${attachment.title}`, error);
       }
     }
+  }
+
+  for (const pending of pendingUploadMutations) {
+    pending.attachment.cloudKey = pending.cloudKey;
+    if (!Number.isFinite(pending.attachment.size ?? NaN) && Number.isFinite(pending.fileSize ?? NaN)) {
+      pending.attachment.size = Number(pending.fileSize);
+    }
+    pending.attachment.localStatus = 'available';
+    didMutate = true;
+    reportProgress(pending.attachment.id, 'upload', pending.totalBytes, pending.totalBytes, 'completed');
   }
 
   return didMutate;

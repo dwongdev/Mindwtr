@@ -618,6 +618,7 @@ const mobileSyncOrchestrator = createSyncOrchestrator<string | undefined, Mobile
               const baseSyncUrl = getCloudBaseUrl(cloudConfig.url);
               return syncCloudAttachments(data, cloudConfig, baseSyncUrl, {
                 assertCurrent: ensureLocalSnapshotFresh,
+                signal: requestAbortController.signal,
               });
             }
             : undefined,
@@ -734,6 +735,7 @@ const mobileSyncOrchestrator = createSyncOrchestrator<string | undefined, Mobile
           const baseSyncUrl = getCloudBaseUrl(cloudConfig.url);
           await syncCloudAttachments(data, cloudConfig, baseSyncUrl, {
             assertCurrent: ensureLocalSnapshotFresh,
+            signal: requestAbortController.signal,
           });
         } else if (backend === 'cloud' && cloudProvider === CLOUD_PROVIDER_DROPBOX) {
           await ensureNetworkStillAvailable();
@@ -1075,6 +1077,7 @@ const mobileSyncOrchestrator = createSyncOrchestrator<string | undefined, Mobile
         await applyAttachmentSyncMutation((candidateData) =>
           syncCloudAttachments(candidateData, cloudConfigValue, baseSyncUrl, {
             assertCurrent: ensureLocalSnapshotFresh,
+            signal: requestAbortController.signal,
           })
         );
       }

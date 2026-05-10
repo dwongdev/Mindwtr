@@ -329,4 +329,131 @@ describe('attachment sync', () => {
     );
     expect(appData.tasks[0].attachments?.[0]?.cloudKey).toBeUndefined();
   });
+
+  it('propagates abort signals into cloud attachment uploads', async () => {
+    fileSystemMock.getInfoAsync.mockResolvedValue({ exists: true, size: 3 });
+    fileSystemMock.readAsStringAsync.mockResolvedValue('AQID');
+    const core = await import('@mindwtr/core');
+    const abortController = new AbortController();
+    const uploadError = new Error('Upload aborted by sync lifecycle');
+    const appData: AppData = {
+      tasks: [
+        {
+          id: 'task-1',
+          title: 'Task',
+          status: 'inbox',
+          tags: [],
+          contexts: [],
+          attachments: [
+            {
+              id: 'mid-upload',
+              kind: 'file' as const,
+              title: 'mid-upload.txt',
+              uri: 'file://document/attachments/mid-upload.txt',
+              localStatus: 'available' as const,
+              createdAt: '2026-04-18T10:00:00.000Z',
+              updatedAt: '2026-04-18T10:00:00.000Z',
+            },
+          ],
+          createdAt: '2026-04-18T10:00:00.000Z',
+          updatedAt: '2026-04-18T10:00:00.000Z',
+        },
+      ],
+      projects: [],
+      sections: [],
+      areas: [],
+      settings: {},
+    };
+
+    vi.mocked(core.cloudPutFile).mockImplementationOnce(async (_url, _data, _contentType, options) => {
+      expect(options?.signal).toBe(abortController.signal);
+      abortController.abort();
+      throw uploadError;
+    });
+
+    const { syncCloudAttachments } = await import('./attachment-sync');
+
+    await expect(syncCloudAttachments(
+      appData,
+      { url: 'https://cloud.example/v1/data', token: 'token' },
+      'https://cloud.example/v1',
+      { signal: abortController.signal }
+    )).rejects.toBe(uploadError);
+
+    expect(core.cloudDeleteFile).toHaveBeenCalledWith(
+      'https://cloud.example/v1/attachments/mid-upload.txt',
+      { token: 'token' }
+    );
+    expect(appData.tasks[0].attachments?.[0]?.cloudKey).toBeUndefined();
+  });
+
+  it('does not leave partial cloud metadata when a later attachment aborts the batch', async () => {
+    fileSystemMock.getInfoAsync.mockResolvedValue({ exists: true, size: 3 });
+    fileSystemMock.readAsStringAsync.mockResolvedValue('AQID');
+    const core = await import('@mindwtr/core');
+    const abortError = new Error('Local changes detected during sync');
+    let assertCalls = 0;
+    const appData: AppData = {
+      tasks: [
+        {
+          id: 'task-1',
+          title: 'Task',
+          status: 'inbox',
+          tags: [],
+          contexts: [],
+          attachments: [
+            {
+              id: 'first',
+              kind: 'file' as const,
+              title: 'first.txt',
+              uri: 'file://document/attachments/first.txt',
+              localStatus: 'available' as const,
+              createdAt: '2026-04-18T10:00:00.000Z',
+              updatedAt: '2026-04-18T10:00:00.000Z',
+            },
+            {
+              id: 'second',
+              kind: 'file' as const,
+              title: 'second.txt',
+              uri: 'file://document/attachments/second.txt',
+              localStatus: 'available' as const,
+              createdAt: '2026-04-18T10:00:00.000Z',
+              updatedAt: '2026-04-18T10:00:00.000Z',
+            },
+          ],
+          createdAt: '2026-04-18T10:00:00.000Z',
+          updatedAt: '2026-04-18T10:00:00.000Z',
+        },
+      ],
+      projects: [],
+      sections: [],
+      areas: [],
+      settings: {},
+    };
+
+    const { syncCloudAttachments } = await import('./attachment-sync');
+
+    await expect(syncCloudAttachments(
+      appData,
+      { url: 'https://cloud.example/v1/data', token: 'token' },
+      'https://cloud.example/v1',
+      {
+        assertCurrent: () => {
+          assertCalls += 1;
+          if (assertCalls > 3) throw abortError;
+        },
+      }
+    )).rejects.toBe(abortError);
+
+    expect(appData.tasks[0].attachments?.[0]?.cloudKey).toBeUndefined();
+    expect(appData.tasks[0].attachments?.[1]?.cloudKey).toBeUndefined();
+    expect(core.cloudDeleteFile).toHaveBeenCalledWith(
+      'https://cloud.example/v1/attachments/second.txt',
+      { token: 'token' }
+    );
+    expect(core.cloudDeleteFile).toHaveBeenCalledWith(
+      'https://cloud.example/v1/attachments/first.txt',
+      { token: 'token' }
+    );
+  });
 });

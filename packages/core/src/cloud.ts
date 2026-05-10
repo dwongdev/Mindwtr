@@ -13,6 +13,7 @@ import { buildHttpRemoteFileFingerprint, type RemoteFileMetadata } from './webda
 export interface CloudOptions {
     token?: string;
     headers?: Record<string, string>;
+    signal?: AbortSignal;
     timeoutMs?: number;
     fetcher?: typeof fetch;
     onProgress?: (loaded: number, total: number) => void;
@@ -49,6 +50,7 @@ export async function cloudGetJson<T>(
         {
             method: 'GET',
             headers: buildHeaders(options),
+            signal: options.signal,
         },
         options.timeoutMs ?? DEFAULT_TIMEOUT_MS,
         fetcher,
@@ -79,6 +81,7 @@ export async function cloudHeadJson(
         {
             method: 'HEAD',
             headers: buildHeaders(options),
+            signal: options.signal,
         },
         options.timeoutMs ?? DEFAULT_TIMEOUT_MS,
         fetcher,
@@ -126,6 +129,7 @@ export async function cloudPutJson(
             method: 'PUT',
             headers,
             body: JSON.stringify(data, null, 2),
+            signal: options.signal,
         },
         options.timeoutMs ?? DEFAULT_TIMEOUT_MS,
         fetcher,
@@ -164,6 +168,7 @@ export async function cloudPutFile(
             method: 'PUT',
             headers,
             body,
+            signal: options.signal,
         },
         options.timeoutMs ?? DEFAULT_TIMEOUT_MS,
         fetcher,
@@ -186,6 +191,7 @@ export async function cloudGetFile(
         {
             method: 'GET',
             headers: buildHeaders(options),
+            signal: options.signal,
         },
         options.timeoutMs ?? DEFAULT_TIMEOUT_MS,
         fetcher,
@@ -229,6 +235,7 @@ export async function cloudDeleteFile(
         {
             method: 'DELETE',
             headers: buildHeaders(options),
+            signal: options.signal,
         },
         options.timeoutMs ?? DEFAULT_TIMEOUT_MS,
         fetcher,
