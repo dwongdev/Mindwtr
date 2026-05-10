@@ -718,7 +718,12 @@ describe('AgendaView', () => {
         fireEvent.click(getByRole('button', { name: /^Delete$/i }));
 
         await waitFor(() => {
-            expect(useTaskStore.getState().settings.savedFilters).toEqual([]);
+            expect(useTaskStore.getState().settings.savedFilters).toEqual([
+                expect.objectContaining({
+                    id: 'filter-1',
+                    deletedAt: expect.any(String),
+                }),
+            ]);
         });
         expect(queryByRole('button', { name: 'Desk' })).not.toBeInTheDocument();
     });

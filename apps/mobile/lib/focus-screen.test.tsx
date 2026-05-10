@@ -417,7 +417,14 @@ describe('FocusScreen', () => {
     });
 
     expect(alertSpy).toHaveBeenCalled();
-    expect(storeState.updateSettings).toHaveBeenCalledWith({ savedFilters: [] });
+    expect(storeState.updateSettings).toHaveBeenCalledWith({
+      savedFilters: [
+        expect.objectContaining({
+          id: 'filter-1',
+          deletedAt: expect.any(String),
+        }),
+      ],
+    });
 
     alertSpy.mockRestore();
   });

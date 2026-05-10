@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useState } from 'react';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { ErrorBoundary } from '../ErrorBoundary';
-import { shallow, useTaskStore, TaskPriority, TimeEstimate, applyFilter, buildAdvancedFilterCriteriaChips, formatFocusTaskLimitText, generateUUID, getUsedTaskTokens, getFocusSequentialFirstTaskIds, hasActiveFilterCriteria, normalizeFocusTaskLimit, safeParseDate, safeParseDueDate, isDueForReview, isTaskInActiveProject, SAVED_FILTER_NO_PROJECT_ID, shouldShowTaskForStart, sortFocusNextActions, translateWithFallback } from '@mindwtr/core';
+import { shallow, useTaskStore, TaskPriority, TimeEstimate, applyFilter, buildAdvancedFilterCriteriaChips, formatFocusTaskLimitText, generateUUID, getUsedTaskTokens, getFocusSequentialFirstTaskIds, hasActiveFilterCriteria, markSavedFilterDeleted, normalizeFocusTaskLimit, safeParseDate, safeParseDueDate, isDueForReview, isTaskInActiveProject, SAVED_FILTER_NO_PROJECT_ID, shouldShowTaskForStart, sortFocusNextActions, translateWithFallback } from '@mindwtr/core';
 import type { FilterCriteria, SavedFilter, Task, TaskEnergyLevel } from '@mindwtr/core';
 import { useLanguage } from '../../contexts/language-context';
 import { cn } from '../../lib/utils';
@@ -298,7 +298,7 @@ export function AgendaView() {
         return estimate;
     };
     const savedFocusFilters = useMemo(
-        () => (settings?.savedFilters ?? []).filter((filter) => filter.view === 'focus'),
+        () => (settings?.savedFilters ?? []).filter((filter) => filter.view === 'focus' && !filter.deletedAt),
         [settings?.savedFilters],
     );
     const activeSavedFilter = useMemo(
@@ -545,7 +545,7 @@ export function AgendaView() {
     const handleDeleteSavedFilterConfirm = useCallback(() => {
         if (!filterPendingDelete) return;
         const deleteId = filterPendingDelete.id;
-        const nextFilters = (settings?.savedFilters ?? []).filter((filter) => filter.id !== deleteId);
+        const nextFilters = markSavedFilterDeleted(settings?.savedFilters, deleteId);
         void updateSettings({ savedFilters: nextFilters }).then(() => {
             if (activeSavedFilterId === deleteId) {
                 setActiveSavedFilterId(null);

@@ -189,6 +189,7 @@ describeSqlite('SqliteAdapter', () => {
                         criteria: { contexts: ['@desk'], priority: ['high'] },
                         createdAt: now,
                         updatedAt: now,
+                        deletedAt: '2026-05-03T00:00:00.000Z',
                     },
                 ],
             },
@@ -207,8 +208,13 @@ describeSqlite('SqliteAdapter', () => {
             name: 'Desk focus',
             view: 'focus',
             criteria: { contexts: ['@desk'], priority: ['high'] },
+            deletedAt: '2026-05-03T00:00:00.000Z',
         });
-        expect(allSql(db, 'SELECT id, view FROM saved_filters')).toEqual([{ id: 'filter-1', view: 'focus' }]);
+        expect(allSql(db, 'SELECT id, view, deletedAt FROM saved_filters')).toEqual([{
+            id: 'filter-1',
+            view: 'focus',
+            deletedAt: '2026-05-03T00:00:00.000Z',
+        }]);
 
         const task = loaded.tasks[0];
         expect(task.title).toBe('Write docs');
@@ -637,6 +643,7 @@ describeSqlite('SqliteAdapter', () => {
             'sortOrder',
             'createdAt',
             'updatedAt',
+            'deletedAt',
         ]);
         const savedFilterIndexes = allSql<{ name: string }>(db, 'PRAGMA index_list(saved_filters)');
         expect(savedFilterIndexes.map((row) => row.name)).toContain('idx_saved_filters_view');

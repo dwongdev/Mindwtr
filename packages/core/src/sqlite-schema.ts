@@ -102,7 +102,8 @@ CREATE TABLE IF NOT EXISTS saved_filters (
   sortBy TEXT,
   sortOrder TEXT,
   createdAt TEXT NOT NULL,
-  updatedAt TEXT NOT NULL
+  updatedAt TEXT NOT NULL,
+  deletedAt TEXT
 );
 
 CREATE TABLE IF NOT EXISTS schema_migrations (

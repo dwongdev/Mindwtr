@@ -352,6 +352,50 @@ describe('Sync Logic', () => {
             expect(merged.settings.savedFilters).toEqual([incomingFilter]);
         });
 
+        it('keeps saved filter tombstones from resurrecting older copies', () => {
+            const deletedFilter = {
+                id: 'filter-shared',
+                name: 'Desk',
+                view: 'focus' as const,
+                criteria: { contexts: ['@desk'] },
+                createdAt: '2024-01-01T00:00:00.000Z',
+                updatedAt: '2024-01-05T00:00:00.000Z',
+                deletedAt: '2024-01-05T00:00:00.000Z',
+            };
+            const staleActiveFilter = {
+                id: 'filter-shared',
+                name: 'Desk',
+                view: 'focus' as const,
+                criteria: { contexts: ['@desk'] },
+                createdAt: '2024-01-01T00:00:00.000Z',
+                updatedAt: '2024-01-02T00:00:00.000Z',
+            };
+            const local: AppData = {
+                ...mockAppData(),
+                settings: {
+                    savedFilters: [deletedFilter],
+                    syncPreferences: { savedFilters: true },
+                    syncPreferencesUpdatedAt: {
+                        savedFilters: '2024-01-05T00:00:00.000Z',
+                    },
+                },
+            };
+            const incoming: AppData = {
+                ...mockAppData(),
+                settings: {
+                    savedFilters: [staleActiveFilter],
+                    syncPreferences: { savedFilters: true },
+                    syncPreferencesUpdatedAt: {
+                        savedFilters: '2024-01-06T00:00:00.000Z',
+                    },
+                },
+            };
+
+            const merged = mergeAppData(local, incoming);
+
+            expect(merged.settings.savedFilters).toEqual([deletedFilter]);
+        });
+
         it('keeps local saved filters when the local device opted out', () => {
             const localFilter = {
                 id: 'filter-local',

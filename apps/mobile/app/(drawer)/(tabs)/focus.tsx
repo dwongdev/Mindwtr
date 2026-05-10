@@ -22,6 +22,7 @@ import {
   getFocusSequentialFirstTaskIds,
   generateUUID,
   hasActiveFilterCriteria,
+  markSavedFilterDeleted,
   normalizeFocusTaskLimit,
   SAVED_FILTER_NO_PROJECT_ID,
   translateWithFallback,
@@ -186,7 +187,7 @@ export default function FocusScreen() {
     return saved?.length ? saved : DEFAULT_TIME_ESTIMATE_PRESETS;
   }, [settings?.gtd?.timeEstimatePresets]);
   const savedFocusFilters = useMemo(
-    () => (settings?.savedFilters ?? []).filter((filter) => filter.view === 'focus'),
+    () => (settings?.savedFilters ?? []).filter((filter) => filter.view === 'focus' && !filter.deletedAt),
     [settings?.savedFilters],
   );
   const activeSavedFilter = useMemo(
@@ -323,7 +324,7 @@ export default function FocusScreen() {
     }).catch(() => undefined);
   }, [currentFilterCriteria, hasCurrentFilterCriteria, saveFilterName, settings?.savedFilters, updateSettings]);
   const deleteSavedFilter = useCallback((filter: SavedFilter) => {
-    const nextFilters = (settings?.savedFilters ?? []).filter((item) => item.id !== filter.id);
+    const nextFilters = markSavedFilterDeleted(settings?.savedFilters, filter.id);
     updateSettings({ savedFilters: nextFilters }).then(() => {
       if (activeSavedFilterId === filter.id) {
         setActiveSavedFilterId(null);

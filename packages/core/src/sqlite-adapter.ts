@@ -501,9 +501,14 @@ export class SqliteAdapter {
               sortBy TEXT,
               sortOrder TEXT,
               createdAt TEXT NOT NULL,
-              updatedAt TEXT NOT NULL
+              updatedAt TEXT NOT NULL,
+              deletedAt TEXT
             )
         `);
+        const columns = await this.client.all<{ name?: string }>('PRAGMA table_info(saved_filters)');
+        if (!new Set(columns.map((column) => column.name)).has('deletedAt')) {
+            await this.client.run('ALTER TABLE saved_filters ADD COLUMN deletedAt TEXT');
+        }
         await this.client.run('CREATE INDEX IF NOT EXISTS idx_saved_filters_view ON saved_filters(view)');
     }
 
@@ -747,6 +752,7 @@ export class SqliteAdapter {
             sortOrder: row.sortOrder,
             createdAt: row.createdAt,
             updatedAt: row.updatedAt,
+            deletedAt: row.deletedAt,
         });
     }
 
@@ -1215,6 +1221,7 @@ export class SqliteAdapter {
                     'sortOrder',
                     'createdAt',
                     'updatedAt',
+                    'deletedAt',
                 ],
                 savedFilters.map((filter) => [
                     filter.id,
@@ -1226,6 +1233,7 @@ export class SqliteAdapter {
                     filter.sortOrder ?? null,
                     filter.createdAt,
                     filter.updatedAt,
+                    filter.deletedAt ?? null,
                 ]),
                 `name=excluded.name,
                  icon=excluded.icon,
@@ -1234,7 +1242,8 @@ export class SqliteAdapter {
                  sortBy=excluded.sortBy,
                  sortOrder=excluded.sortOrder,
                  createdAt=excluded.createdAt,
-                 updatedAt=excluded.updatedAt`,
+                 updatedAt=excluded.updatedAt,
+                 deletedAt=excluded.deletedAt`,
             );
             await syncIds('saved_filters', savedFilters.map((filter) => filter.id));
 

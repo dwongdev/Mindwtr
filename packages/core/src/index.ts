@@ -398,6 +398,7 @@ export {
     normalizeFilterCriteria,
     normalizeSavedFilter,
     normalizeSavedFilters,
+    markSavedFilterDeleted,
     SAVED_FILTER_NO_PROJECT_ID,
     taskMatchesFilterCriteria,
 } from './saved-filters';

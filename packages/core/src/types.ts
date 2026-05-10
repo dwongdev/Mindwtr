@@ -238,6 +238,7 @@ export interface SavedFilter {
     sortOrder?: 'asc' | 'desc';
     createdAt: string;
     updatedAt: string;
+    deletedAt?: string;
 }
 
 export interface PendingRemoteAttachmentDelete {

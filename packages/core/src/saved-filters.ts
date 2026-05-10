@@ -348,6 +348,7 @@ export function normalizeSavedFilter(value: unknown): SavedFilter | null {
         : undefined;
     const sortOrder = value.sortOrder === 'asc' || value.sortOrder === 'desc' ? value.sortOrder : undefined;
     const icon = typeof value.icon === 'string' && value.icon.trim() ? value.icon.trim() : undefined;
+    const deletedAt = typeof value.deletedAt === 'string' && value.deletedAt.trim() ? value.deletedAt.trim() : undefined;
 
     return {
         id: value.id.trim(),
@@ -359,6 +360,7 @@ export function normalizeSavedFilter(value: unknown): SavedFilter | null {
         ...(sortOrder ? { sortOrder } : {}),
         createdAt,
         updatedAt,
+        ...(deletedAt ? { deletedAt } : {}),
     };
 }
 
@@ -375,4 +377,16 @@ export function normalizeSavedFilters(value: unknown): SavedFilter[] {
         if (Number.isFinite(createdDiff) && createdDiff !== 0) return createdDiff;
         return a.name.localeCompare(b.name);
     });
+}
+
+export function markSavedFilterDeleted(
+    filters: readonly SavedFilter[] | undefined,
+    filterId: string,
+    deletedAt: string = new Date().toISOString(),
+): SavedFilter[] {
+    return normalizeSavedFilters(filters).map((filter) => (
+        filter.id === filterId
+            ? { ...filter, updatedAt: deletedAt, deletedAt }
+            : filter
+    ));
 }

@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import {
     applyFilter,
     hasActiveFilterCriteria,
+    markSavedFilterDeleted,
     normalizeSavedFilters,
     SAVED_FILTER_NO_PROJECT_ID,
 } from './saved-filters';
@@ -93,6 +94,7 @@ describe('saved filters', () => {
                 },
                 createdAt: '2026-05-02T00:00:00.000Z',
                 updatedAt: '2026-05-02T00:00:00.000Z',
+                deletedAt: '2026-05-03T00:00:00.000Z',
             },
             { id: '', name: 'Invalid', view: 'focus', criteria: {} },
         ]);
@@ -105,7 +107,29 @@ describe('saved filters', () => {
                 contexts: ['@desk'],
                 priority: ['high'],
             },
+            deletedAt: '2026-05-03T00:00:00.000Z',
         });
         expect(hasActiveFilterCriteria(filters[0]?.criteria)).toBe(true);
+    });
+
+    it('marks saved filters as tombstones instead of removing them', () => {
+        const filters = markSavedFilterDeleted([
+            {
+                id: 'filter-1',
+                name: 'Desk',
+                view: 'focus',
+                criteria: { contexts: ['@desk'] },
+                createdAt: '2026-05-02T00:00:00.000Z',
+                updatedAt: '2026-05-02T00:00:00.000Z',
+            },
+        ], 'filter-1', '2026-05-03T00:00:00.000Z');
+
+        expect(filters).toEqual([
+            expect.objectContaining({
+                id: 'filter-1',
+                updatedAt: '2026-05-03T00:00:00.000Z',
+                deletedAt: '2026-05-03T00:00:00.000Z',
+            }),
+        ]);
     });
 });
