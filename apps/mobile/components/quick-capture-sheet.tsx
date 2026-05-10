@@ -9,6 +9,7 @@ import {
 import {
   DEFAULT_PROJECT_COLOR,
   getUsedTaskTokens,
+  hasTimeComponent,
   parseQuickAdd,
   safeFormatDate,
   safeParseDate,
@@ -86,8 +87,10 @@ export function QuickCaptureSheet({
 
   const [value, setValue] = useState('');
   const [dueDate, setDueDate] = useState<Date | null>(null);
+  const [dueDateHasTime, setDueDateHasTime] = useState(false);
   const [startTime, setStartTime] = useState<Date | null>(null);
   const [showDatePicker, setShowDatePicker] = useState(false);
+  const [showDueTimePicker, setShowDueTimePicker] = useState(false);
   const [startPickerMode, setStartPickerMode] = useState<'date' | 'time' | null>(null);
   const [pendingStartDate, setPendingStartDate] = useState<Date | null>(null);
   const [contextTags, setContextTags] = useState<string[]>([]);
@@ -196,6 +199,7 @@ export function QuickCaptureSheet({
   const resetDraftState = useCallback(() => {
     setValue(initialValue ?? '');
     setDueDate(initialProps?.dueDate ? safeParseDate(initialProps.dueDate) : null);
+    setDueDateHasTime(Boolean(initialProps?.dueDate && hasTimeComponent(initialProps.dueDate)));
     setStartTime(initialProps?.startTime ? safeParseDate(initialProps.startTime) : null);
     const initialContextTokens = Array.from(
       new Set(
@@ -215,6 +219,7 @@ export function QuickCaptureSheet({
     setPriority((initialProps?.priority as TaskPriority) ?? null);
     setShowPriorityPicker(false);
     setShowDatePicker(false);
+    setShowDueTimePicker(false);
     setStartPickerMode(null);
     setPendingStartDate(null);
     setAddAnother(false);
@@ -280,16 +285,17 @@ export function QuickCaptureSheet({
     if (prioritiesEnabled && priority) initialPropsMerged.priority = priority;
     if (dueDate) {
       const dateOnly = safeFormatDate(dueDate, 'yyyy-MM-dd');
-      if (dateOnly) initialPropsMerged.dueDate = dateOnly;
+      if (dateOnly) initialPropsMerged.dueDate = dueDateHasTime ? dueDate.toISOString() : dateOnly;
     }
     if (startTime) initialPropsMerged.startTime = startTime.toISOString();
 
     return { title: finalTitle, props: initialPropsMerged, invalidDateCommands };
-  }, [addProject, areas, contextTags, dueDate, initialProps, prioritiesEnabled, priority, projectId, projects, selectedAreaId, startTime, value]);
+  }, [addProject, areas, contextTags, dueDate, dueDateHasTime, initialProps, prioritiesEnabled, priority, projectId, projects, selectedAreaId, startTime, value]);
 
   const resetState = useCallback(() => {
     setValue('');
     setDueDate(null);
+    setDueDateHasTime(false);
     setStartTime(null);
     setContextTags([]);
     setContextQuery('');
@@ -302,6 +308,7 @@ export function QuickCaptureSheet({
     setShowAreaPicker(false);
     setShowPriorityPicker(false);
     setShowDatePicker(false);
+    setShowDueTimePicker(false);
     setStartPickerMode(null);
     setPendingStartDate(null);
     setAddAnother(false);
@@ -371,7 +378,8 @@ export function QuickCaptureSheet({
   }, [addAnother, addTask, buildTaskProps, finalizeClose, showToast, t, value]);
 
   const selectedProject = projectId ? projects.find((project) => project.id === projectId) : null;
-  const dueLabel = dueDate ? safeFormatDate(dueDate, 'P') : t('taskEdit.dueDateLabel');
+  const dueLabel = dueDate ? safeFormatDate(dueDate, dueDateHasTime ? 'Pp' : 'P') : t('taskEdit.dueDateLabel');
+  const dueTimeLabel = dueDate && dueDateHasTime ? safeFormatDate(dueDate, 'p') : t('calendar.changeTime');
   const contextLabel = contextTags.length === 0
     ? t('taskEdit.contextsLabel')
     : `${contextTags[0].replace(/^@+/, '')}${contextTags.length > 1 ? ` +${contextTags.length - 1}` : ''}`;
@@ -385,12 +393,25 @@ export function QuickCaptureSheet({
   const openDueDatePicker = useCallback(() => {
     inputRef.current?.blur();
     Keyboard.dismiss();
+    setShowDueTimePicker(false);
     if (Platform.OS === 'ios') {
       setTimeout(() => setShowDatePicker(true), 120);
       return;
     }
     setShowDatePicker(true);
   }, []);
+
+  const openDueTimePicker = useCallback(() => {
+    if (!dueDate) return;
+    inputRef.current?.blur();
+    Keyboard.dismiss();
+    setShowDatePicker(false);
+    if (Platform.OS === 'ios') {
+      setTimeout(() => setShowDueTimePicker(true), 120);
+      return;
+    }
+    setShowDueTimePicker(true);
+  }, [dueDate]);
 
   const handleDueDateChange = useCallback((event: { type: string }, selectedDate?: Date) => {
     if (event.type === 'dismissed') {
@@ -400,7 +421,49 @@ export function QuickCaptureSheet({
     if (Platform.OS !== 'ios') {
       setShowDatePicker(false);
     }
-    if (selectedDate) setDueDate(selectedDate);
+    if (selectedDate) {
+      const next = new Date(selectedDate);
+      if (dueDateHasTime && dueDate) {
+        next.setHours(dueDate.getHours(), dueDate.getMinutes(), 0, 0);
+      } else {
+        next.setHours(0, 0, 0, 0);
+      }
+      setDueDate(next);
+    }
+  }, [dueDate, dueDateHasTime]);
+
+  const handleDueTimeChange = useCallback((event: { type: string }, selectedDate?: Date) => {
+    if (event.type === 'dismissed') {
+      setShowDueTimePicker(false);
+      return;
+    }
+    if (!selectedDate) return;
+    if (Platform.OS !== 'ios') {
+      setShowDueTimePicker(false);
+    }
+    const base = dueDate ?? new Date();
+    const combined = new Date(base);
+    combined.setHours(selectedDate.getHours(), selectedDate.getMinutes(), 0, 0);
+    setDueDate(combined);
+    setDueDateHasTime(true);
+  }, [dueDate]);
+
+  const resetDueDate = useCallback(() => {
+    setDueDate(null);
+    setDueDateHasTime(false);
+    setShowDatePicker(false);
+    setShowDueTimePicker(false);
+  }, []);
+
+  const resetDueTime = useCallback(() => {
+    setDueDateHasTime(false);
+    setShowDueTimePicker(false);
+    setDueDate((prev) => {
+      if (!prev) return prev;
+      const next = new Date(prev);
+      next.setHours(0, 0, 0, 0);
+      return next;
+    });
   }, []);
 
   const handleStartTimeChange = useCallback((event: { type: string }, selectedDate?: Date) => {
@@ -488,6 +551,7 @@ export function QuickCaptureSheet({
         areaLabel={areaLabel}
         contextLabel={contextLabel}
         dueLabel={dueLabel}
+        dueTimeLabel={dueTimeLabel}
         handleClose={handleClose}
         handleSave={() => {
           void handleSave();
@@ -497,11 +561,13 @@ export function QuickCaptureSheet({
         onOpenAreaPicker={() => setShowAreaPicker(true)}
         onOpenContextPicker={() => setShowContextPicker(true)}
         onOpenDueDatePicker={openDueDatePicker}
+        onOpenDueTimePicker={openDueTimePicker}
         onOpenPriorityPicker={() => setShowPriorityPicker(true)}
         onOpenProjectPicker={() => setShowProjectPicker(true)}
         onResetArea={() => setSelectedAreaId(null)}
         onResetContexts={handleClearContexts}
-        onResetDueDate={() => setDueDate(null)}
+        onResetDueDate={resetDueDate}
+        onResetDueTime={resetDueTime}
         onResetPriority={() => setPriority(null)}
         onResetProject={() => {
           setProjectId(null);
@@ -517,6 +583,7 @@ export function QuickCaptureSheet({
         recordingBusy={recordingBusy}
         recordingReady={recordingReady}
         sheetMaxHeight={sheetMaxHeight}
+        showDueTime={Boolean(dueDate)}
         t={t}
         tc={tc}
         value={value}
@@ -540,6 +607,7 @@ export function QuickCaptureSheet({
         onCloseProjectPicker={() => setShowProjectPicker(false)}
         onContextQueryChange={setContextQuery}
         onDueDateChange={handleDueDateChange}
+        onDueTimeChange={handleDueTimeChange}
         onProjectQueryChange={setProjectQuery}
         onRemoveContext={handleRemoveContext}
         onSelectArea={handleSelectArea}
@@ -560,6 +628,7 @@ export function QuickCaptureSheet({
         showAreaPicker={showAreaPicker}
         showContextPicker={showContextPicker}
         showDatePicker={showDatePicker}
+        showDueTimePicker={showDueTimePicker}
         showPriorityPicker={showPriorityPicker}
         showProjectPicker={showProjectPicker}
         startPickerMode={startPickerMode}

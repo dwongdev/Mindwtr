@@ -12,14 +12,18 @@ const showToast = vi.fn();
 vi.mock('@mindwtr/core', () => ({
   DEFAULT_PROJECT_COLOR: '#3B82F6',
   getUsedTaskTokens: () => [],
+  hasTimeComponent: (value?: string | null) => Boolean(value && /[T\s]\d{2}:\d{2}/.test(value)),
   parseQuickAdd: (input: string) => ({
     title: input,
     props: {},
     invalidDateCommands: [],
   }),
   safeFormatDate: (value: Date | string, formatStr: string) => {
-    if (formatStr !== 'yyyy-MM-dd') return '';
     const date = value instanceof Date ? value : new Date(value);
+    if (formatStr === 'p') {
+      return `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
+    }
+    if (formatStr !== 'yyyy-MM-dd') return '';
     return [
       date.getFullYear(),
       String(date.getMonth() + 1).padStart(2, '0'),
@@ -188,6 +192,52 @@ describe('QuickCaptureSheet save handling', () => {
     expect(addTask).toHaveBeenCalledTimes(1);
     expect(addTask).toHaveBeenCalledWith('Plan the day', expect.objectContaining({
       dueDate: '2026-05-10',
+      status: 'inbox',
+    }));
+  });
+
+  it('saves picker due times only after the user explicitly selects one', async () => {
+    addTask.mockResolvedValue({ success: true, id: 'task-1' });
+
+    let tree!: ReturnType<typeof create>;
+    await act(async () => {
+      tree = create(
+        <QuickCaptureSheet
+          visible
+          openRequestId={1}
+          initialValue="Call the office"
+          onClose={vi.fn()}
+        />
+      );
+      await Promise.resolve();
+    });
+
+    const pickers = tree.root.findAll((node) => String(node.type) === 'QuickCaptureSheetPickers')[0];
+    if (!pickers) throw new Error('QuickCaptureSheetPickers not found');
+
+    await act(async () => {
+      pickers.props.onDueDateChange({ type: 'set' }, new Date(2026, 4, 10, 14, 37, 0, 0));
+      await Promise.resolve();
+    });
+
+    const refreshedPickers = tree.root.findAll((node) => String(node.type) === 'QuickCaptureSheetPickers')[0];
+    if (!refreshedPickers) throw new Error('QuickCaptureSheetPickers not found');
+    await act(async () => {
+      refreshedPickers.props.onDueTimeChange({ type: 'set' }, new Date(2026, 4, 10, 16, 15, 0, 0));
+      await Promise.resolve();
+    });
+
+    const body = tree.root.findAll((node) => String(node.type) === 'QuickCaptureSheetBody')[0];
+    if (!body) throw new Error('QuickCaptureSheetBody not found');
+
+    await act(async () => {
+      body.props.handleSave();
+      await Promise.resolve();
+    });
+
+    expect(addTask).toHaveBeenCalledTimes(1);
+    expect(addTask).toHaveBeenCalledWith('Call the office', expect.objectContaining({
+      dueDate: new Date(2026, 4, 10, 16, 15, 0, 0).toISOString(),
       status: 'inbox',
     }));
   });

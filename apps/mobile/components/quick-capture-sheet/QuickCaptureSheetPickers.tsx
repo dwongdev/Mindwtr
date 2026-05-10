@@ -38,12 +38,14 @@ interface QuickCaptureSheetPickersProps {
   showAreaPicker: boolean;
   showContextPicker: boolean;
   showDatePicker: boolean;
+  showDueTimePicker: boolean;
   showPriorityPicker: boolean;
   showProjectPicker: boolean;
   startPickerMode: 'date' | 'time' | null;
   startTime: Date | null;
   dueDate: Date | null;
   onDueDateChange: (event: { type: string }, selectedDate?: Date) => void;
+  onDueTimeChange: (event: { type: string }, selectedDate?: Date) => void;
   onStartTimeChange: (event: { type: string }, selectedDate?: Date) => void;
   t: (key: string) => string;
   tc: ThemeColors;
@@ -67,6 +69,7 @@ export function QuickCaptureSheetPickers({
   onClearContexts,
   onContextQueryChange,
   onDueDateChange,
+  onDueTimeChange,
   onProjectQueryChange,
   onRemoveContext,
   onSelectArea,
@@ -85,6 +88,7 @@ export function QuickCaptureSheetPickers({
   showAreaPicker,
   showContextPicker,
   showDatePicker,
+  showDueTimePicker,
   showPriorityPicker,
   showProjectPicker,
   startPickerMode,
@@ -100,6 +104,15 @@ export function QuickCaptureSheetPickers({
           mode="date"
           display={Platform.OS === 'ios' ? 'inline' : 'default'}
           onChange={onDueDateChange}
+        />
+      )}
+
+      {showDueTimePicker && (
+        <DateTimePicker
+          value={dueDate ?? new Date()}
+          mode="time"
+          display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+          onChange={onDueTimeChange}
         />
       )}
 

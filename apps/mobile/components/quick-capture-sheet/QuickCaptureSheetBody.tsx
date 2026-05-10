@@ -1,7 +1,7 @@
 import React from 'react';
 import type { RefObject } from 'react';
 import { KeyboardAvoidingView, Modal, Platform, Pressable, Switch, Text, TextInput, TouchableOpacity, View } from 'react-native';
-import { AtSign, CalendarDays, Flag, Folder, Mic, Square, X } from 'lucide-react-native';
+import { AtSign, CalendarDays, Clock, Flag, Folder, Mic, Square, X } from 'lucide-react-native';
 import type { ThemeColors } from '@/hooks/use-theme-colors';
 import { styles } from './quick-capture-sheet.styles';
 
@@ -12,6 +12,7 @@ interface QuickCaptureSheetBodyProps {
   areaLabel: string;
   contextLabel: string;
   dueLabel: string;
+  dueTimeLabel: string;
   handleClose: () => void;
   handleSave: () => void;
   insetsBottom: number;
@@ -19,11 +20,13 @@ interface QuickCaptureSheetBodyProps {
   onOpenAreaPicker: () => void;
   onOpenContextPicker: () => void;
   onOpenDueDatePicker: () => void;
+  onOpenDueTimePicker: () => void;
   onOpenPriorityPicker: () => void;
   onOpenProjectPicker: () => void;
   onResetArea: () => void;
   onResetContexts: () => void;
   onResetDueDate: () => void;
+  onResetDueTime: () => void;
   onResetPriority: () => void;
   onResetProject: () => void;
   onToggleAddAnother: (value: boolean) => void;
@@ -36,6 +39,7 @@ interface QuickCaptureSheetBodyProps {
   recordingBusy: boolean;
   recordingReady: boolean;
   sheetMaxHeight: number;
+  showDueTime: boolean;
   t: (key: string) => string;
   tc: ThemeColors;
   value: string;
@@ -47,6 +51,7 @@ export function QuickCaptureSheetBody({
   areaLabel,
   contextLabel,
   dueLabel,
+  dueTimeLabel,
   handleClose,
   handleSave,
   insetsBottom,
@@ -54,11 +59,13 @@ export function QuickCaptureSheetBody({
   onOpenAreaPicker,
   onOpenContextPicker,
   onOpenDueDatePicker,
+  onOpenDueTimePicker,
   onOpenPriorityPicker,
   onOpenProjectPicker,
   onResetArea,
   onResetContexts,
   onResetDueDate,
+  onResetDueTime,
   onResetPriority,
   onResetProject,
   onToggleAddAnother,
@@ -71,6 +78,7 @@ export function QuickCaptureSheetBody({
   recordingBusy,
   recordingReady,
   sheetMaxHeight,
+  showDueTime,
   t,
   tc,
   value,
@@ -194,6 +202,26 @@ export function QuickCaptureSheetBody({
                   {dueLabel}
                 </Text>
               </TouchableOpacity>
+
+              {showDueTime && (
+                <TouchableOpacity
+                  style={[styles.optionChip, { backgroundColor: tc.filterBg, borderColor: tc.border }]}
+                  onPress={onOpenDueTimePicker}
+                  onLongPress={onResetDueTime}
+                  accessibilityRole="button"
+                  accessibilityLabel={`${t('task.aria.dueTime')}: ${dueTimeLabel}`}
+                >
+                  <Clock size={16} color={tc.text} />
+                  <Text
+                    style={[styles.optionText, { color: tc.text }]}
+                    numberOfLines={1}
+                    ellipsizeMode="tail"
+                    maxFontSizeMultiplier={COMPACT_TEXT_MAX_SCALE}
+                  >
+                    {dueTimeLabel}
+                  </Text>
+                </TouchableOpacity>
+              )}
 
               <TouchableOpacity
                 style={[styles.optionChip, { backgroundColor: tc.filterBg, borderColor: tc.border }]}
