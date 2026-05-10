@@ -127,6 +127,50 @@ describe('sync normalization', () => {
         ]));
     });
 
+    it('does not let one-sided revBy metadata decide equal-revision conflicts', () => {
+        const updatedAt = '2026-01-01T00:00:00.000Z';
+        const local = mockAppData([{
+            ...createMockTask('task-1', updatedAt),
+            title: 'zz local deterministic winner',
+            rev: 7,
+        }]);
+        const incoming = mockAppData([{
+            ...createMockTask('task-1', updatedAt),
+            title: 'aa incoming has revBy',
+            rev: 7,
+            revBy: 'device-z',
+        }]);
+
+        const forward = mergeAppDataWithStats(local, incoming, { nowIso: NOW });
+        const reverse = mergeAppDataWithStats(incoming, local, { nowIso: NOW });
+
+        expect(forward.data.tasks[0].title).toBe('zz local deterministic winner');
+        expect(reverse.data.tasks[0].title).toBe('zz local deterministic winner');
+        expect(forward.stats.tasks.conflictReasonCounts?.content).toBe(1);
+    });
+
+    it('uses deterministic ordering when timestamps and revision metadata both match', () => {
+        const updatedAt = '2026-01-01T00:00:00.000Z';
+        const left = mockAppData([{
+            ...createMockTask('task-1', updatedAt),
+            title: 'aa lower signature',
+            rev: 8,
+            revBy: 'device-a',
+        }]);
+        const right = mockAppData([{
+            ...createMockTask('task-1', updatedAt),
+            title: 'zz higher signature',
+            rev: 8,
+            revBy: 'device-a',
+        }]);
+
+        const forward = mergeAppDataWithStats(left, right, { nowIso: NOW });
+        const reverse = mergeAppDataWithStats(right, left, { nowIso: NOW });
+
+        expect(forward.data.tasks[0].title).toBe('zz higher signature');
+        expect(reverse.data.tasks[0].title).toBe('zz higher signature');
+    });
+
     it('keeps normalize merge normalize round trips idempotent', () => {
         const local = normalizeForMerge(mockAppData([
             {
@@ -248,5 +292,41 @@ describe('sync normalization', () => {
         } finally {
             nowSpy.mockRestore();
         }
+    });
+
+    it('does not report clock skew at the warning boundary', () => {
+        const localUpdatedAt = '2026-01-01T00:00:00.000Z';
+        const incomingUpdatedAt = new Date(Date.parse(localUpdatedAt) + CLOCK_SKEW_THRESHOLD_MS).toISOString();
+        const result = mergeAppDataWithStats(
+            mockAppData([{ ...createMockTask('task-1', localUpdatedAt), title: 'Local title' }]),
+            mockAppData([{ ...createMockTask('task-1', incomingUpdatedAt), title: 'Incoming title' }]),
+            { nowIso: NOW },
+        );
+
+        expect(result.stats.tasks.maxClockSkewMs).toBe(CLOCK_SKEW_THRESHOLD_MS);
+        expect(result.clockSkewWarning).toBeUndefined();
+    });
+
+    it('preserves a live undelete when it is newer than a remote tombstone', () => {
+        const deleted = {
+            ...createMockTask('task-1', '2026-01-01T00:00:00.000Z', '2026-01-01T00:00:00.000Z'),
+            title: 'Deleted copy',
+        };
+        const undeleted = {
+            ...createMockTask('task-1', '2026-01-01T00:02:00.000Z'),
+            title: 'Restored copy',
+        };
+
+        const forward = mergeAppData(mockAppData([deleted]), mockAppData([undeleted]), { nowIso: NOW });
+        const reverse = mergeAppData(mockAppData([undeleted]), mockAppData([deleted]), { nowIso: NOW });
+
+        expect(forward.tasks[0]).toMatchObject({
+            title: 'Restored copy',
+            deletedAt: undefined,
+        });
+        expect(reverse.tasks[0]).toMatchObject({
+            title: 'Restored copy',
+            deletedAt: undefined,
+        });
     });
 });
