@@ -26,6 +26,10 @@ vi.mock('@/hooks/use-theme-colors', () => ({
   }),
 }));
 
+vi.mock('@/contexts/language-context', () => ({
+  useLanguage: () => ({ t: (key: string) => ({ 'common.ok': 'OK' }[key] ?? key) }),
+}));
+
 describe('ThemedAlertProvider', () => {
   let tree: ReturnType<typeof create> | null = null;
 
@@ -70,6 +74,32 @@ describe('ThemedAlertProvider', () => {
     });
 
     expect(onDelete).toHaveBeenCalledTimes(1);
+    expect(rendered.root.findAllByType(Modal)).toHaveLength(0);
+  });
+
+  it('treats Android back as the only visible action for non-cancelable default alerts', () => {
+    let rendered!: ReturnType<typeof create>;
+
+    act(() => {
+      rendered = create(
+        <ThemedAlertProvider>
+          <Text>Screen</Text>
+        </ThemedAlertProvider>
+      );
+      tree = rendered;
+    });
+
+    act(() => {
+      Alert.alert('Notice', 'Sync finished.', undefined, { cancelable: false });
+    });
+
+    const modal = rendered.root.findByType(Modal);
+    expect(modal.props.visible).toBe(true);
+
+    act(() => {
+      modal.props.onRequestClose();
+    });
+
     expect(rendered.root.findAllByType(Modal)).toHaveLength(0);
   });
 });

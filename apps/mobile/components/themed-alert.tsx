@@ -84,13 +84,28 @@ function ThemedAlertModal({
     onDismiss();
   };
 
+  const handleRequestClose = () => {
+    if (canDismiss) {
+      onDismiss();
+      return;
+    }
+    const cancelButton = request.buttons.find((button) => button.style === 'cancel');
+    if (cancelButton) {
+      onButtonPress(cancelButton);
+      return;
+    }
+    if (request.buttons.length === 1) {
+      onButtonPress(request.buttons[0]);
+    }
+  };
+
   return (
     <Modal
       visible
       transparent
       animationType="fade"
       accessibilityViewIsModal
-      onRequestClose={handleDismiss}
+      onRequestClose={handleRequestClose}
     >
       <Pressable
         style={styles.overlay}
