@@ -278,7 +278,10 @@ export function QuickCaptureSheet({
       initialPropsMerged.contexts = Array.from(new Set([...(initialPropsMerged.contexts ?? []), ...contextTags]));
     }
     if (prioritiesEnabled && priority) initialPropsMerged.priority = priority;
-    if (dueDate) initialPropsMerged.dueDate = dueDate.toISOString();
+    if (dueDate) {
+      const dateOnly = safeFormatDate(dueDate, 'yyyy-MM-dd');
+      if (dateOnly) initialPropsMerged.dueDate = dateOnly;
+    }
     if (startTime) initialPropsMerged.startTime = startTime.toISOString();
 
     return { title: finalTitle, props: initialPropsMerged, invalidDateCommands };

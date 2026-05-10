@@ -17,7 +17,15 @@ vi.mock('@mindwtr/core', () => ({
     props: {},
     invalidDateCommands: [],
   }),
-  safeFormatDate: () => '',
+  safeFormatDate: (value: Date | string, formatStr: string) => {
+    if (formatStr !== 'yyyy-MM-dd') return '';
+    const date = value instanceof Date ? value : new Date(value);
+    return [
+      date.getFullYear(),
+      String(date.getMonth() + 1).padStart(2, '0'),
+      String(date.getDate()).padStart(2, '0'),
+    ].join('-');
+  },
   safeParseDate: () => null,
   useTaskStore: () => ({
     addTask,
@@ -143,5 +151,44 @@ describe('QuickCaptureSheet save handling', () => {
       resolveAddTask?.({ success: true, id: 'task-1' });
       await Promise.resolve();
     });
+  });
+
+  it('saves picker due dates as date-only values', async () => {
+    addTask.mockResolvedValue({ success: true, id: 'task-1' });
+
+    let tree!: ReturnType<typeof create>;
+    await act(async () => {
+      tree = create(
+        <QuickCaptureSheet
+          visible
+          openRequestId={1}
+          initialValue="Plan the day"
+          onClose={vi.fn()}
+        />
+      );
+      await Promise.resolve();
+    });
+
+    const pickers = tree.root.findAll((node) => String(node.type) === 'QuickCaptureSheetPickers')[0];
+    if (!pickers) throw new Error('QuickCaptureSheetPickers not found');
+
+    await act(async () => {
+      pickers.props.onDueDateChange({ type: 'set' }, new Date(2026, 4, 10, 14, 37, 0, 0));
+      await Promise.resolve();
+    });
+
+    const body = tree.root.findAll((node) => String(node.type) === 'QuickCaptureSheetBody')[0];
+    if (!body) throw new Error('QuickCaptureSheetBody not found');
+
+    await act(async () => {
+      body.props.handleSave();
+      await Promise.resolve();
+    });
+
+    expect(addTask).toHaveBeenCalledTimes(1);
+    expect(addTask).toHaveBeenCalledWith('Plan the day', expect.objectContaining({
+      dueDate: '2026-05-10',
+      status: 'inbox',
+    }));
   });
 });
