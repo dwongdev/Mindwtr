@@ -292,6 +292,42 @@ jobs:
           path: apps/mobile/coverage
           if-no-files-found: ignore
 
+  cloud-mcp:
+    runs-on: ubuntu-latest
+    name: Cloud and MCP Servers
+    timeout-minutes: 20
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version-file: ".bun-version"
+
+      - name: Cache Bun dependencies
+        uses: actions/cache@9255dc7a253b0ccc959486e2bca901246202afeb # v5.0.1
+        with:
+          path: ~/.bun/install/cache
+          key: ${{ runner.os }}-bun-${{ hashFiles('bun.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-bun-
+
+      - name: Install dependencies
+        run: bun install
+
+      - name: Cloud TypeScript check
+        run: bun run --filter mindwtr-cloud typecheck
+
+      - name: MCP TypeScript check
+        run: bun run --filter mindwtr-mcp-server typecheck
+
+      - name: Cloud tests
+        run: bun run --filter mindwtr-cloud test
+
+      - name: MCP tests
+        run: bun run --filter mindwtr-mcp-server test
+
   e2e:
     runs-on: ubuntu-latest
     name: E2E (Web)

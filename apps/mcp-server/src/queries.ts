@@ -6,7 +6,10 @@ import {
   type Area as CoreArea,
   type Project as CoreProject,
   type Task as CoreTask,
+  type TaskEnergyLevel as CoreTaskEnergyLevel,
+  type TaskPriority as CoreTaskPriority,
   type TaskStatus as CoreTaskStatus,
+  type TimeEstimate as CoreTimeEstimate,
 } from '@mindwtr/core';
 import type { DbClient } from './db.js';
 import { parseJson } from './db.js';
@@ -72,10 +75,10 @@ export type AddTaskInput = {
   contexts?: string[];
   tags?: string[];
   description?: string;
-  priority?: string;
-  energyLevel?: string;
+  priority?: CoreTaskPriority;
+  energyLevel?: CoreTaskEnergyLevel;
   assignedTo?: string;
-  timeEstimate?: string;
+  timeEstimate?: CoreTimeEstimate;
 };
 
 export type CompleteTaskInput = { id: string };
@@ -576,10 +579,10 @@ export type UpdateTaskInput = {
   contexts?: string[] | null;
   tags?: string[] | null;
   description?: string | null;
-  priority?: string | null;
-  energyLevel?: string | null;
+  priority?: CoreTaskPriority | null;
+  energyLevel?: CoreTaskEnergyLevel | null;
   assignedTo?: string | null;
-  timeEstimate?: string | null;
+  timeEstimate?: CoreTimeEstimate | null;
   reviewAt?: string | null;
   isFocusedToday?: boolean;
 };

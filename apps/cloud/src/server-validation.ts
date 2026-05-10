@@ -34,7 +34,7 @@ function isValidIsoTimestamp(value: unknown): boolean {
 
 export function validateAppData(
     value: unknown
-): { ok: true; data: Record<string, unknown> } | { ok: false; error: string } {
+): { ok: true; data: AppData } | { ok: false; error: string } {
     if (!isRecord(value)) return { ok: false, error: 'Invalid data: expected an object' };
     const tasks = value.tasks;
     const projects = value.projects;
@@ -239,7 +239,7 @@ export function validateAppData(
         }
     }
 
-    return { ok: true, data: value };
+    return { ok: true, data: value as unknown as AppData };
 }
 
 export function asStatus(value: unknown): TaskStatus | null {
@@ -369,7 +369,8 @@ export function pickTaskList(
     if (!opts.includeCompleted) tasks = tasks.filter((t) => t.status !== 'done' && t.status !== 'archived');
     if (opts.status) tasks = tasks.filter((t) => t.status === opts.status);
     if (opts.query && opts.query.trim()) {
-        tasks = searchAll(tasks, filterNotDeleted(data.projects), opts.query).tasks;
+        const matchingTaskIds = new Set(searchAll(tasks, filterNotDeleted(data.projects), opts.query).tasks.map((task) => task.id));
+        tasks = tasks.filter((task) => matchingTaskIds.has(task.id));
     }
     return tasks;
 }

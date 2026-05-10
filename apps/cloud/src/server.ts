@@ -179,7 +179,24 @@ const emptyCorsResponse = (status: number): Response => {
     return new Response(null, { status, headers });
 };
 
-const IS_MAIN_MODULE = typeof Bun !== 'undefined' && (import.meta as ImportMeta & { main?: boolean }).main === true;
+type BunServer = {
+    port: number;
+    stop?: (closeIdleConnections?: boolean) => void | Promise<void>;
+};
+
+type BunRuntime = {
+    serve: (options: {
+        hostname: string;
+        port: number;
+        fetch: (req: Request) => Response | Promise<Response>;
+    }) => BunServer;
+};
+
+const getBunRuntime = (): BunRuntime | undefined => (
+    (globalThis as typeof globalThis & { Bun?: BunRuntime }).Bun
+);
+
+const IS_MAIN_MODULE = !!getBunRuntime() && (import.meta as ImportMeta & { main?: boolean }).main === true;
 
 type RateLimitState = {
     count: number;
@@ -577,10 +594,15 @@ export async function startCloudServer(options: CloudServerOptions = {}): Promis
     }
     logInfo(`listening on http://${host}:${port}`);
 
-    const server = Bun.serve({
+    const bunRuntime = getBunRuntime();
+    if (!bunRuntime) {
+        throw new Error('Mindwtr Cloud requires the Bun runtime.');
+    }
+
+    const server = bunRuntime.serve({
         hostname: host,
         port,
-        async fetch(req) {
+        async fetch(req: Request) {
             const requestId = generateRequestId();
             const requestAbortController = new AbortController();
             const requestTimeout = setTimeout(() => {
@@ -1370,7 +1392,7 @@ export async function startCloudServer(options: CloudServerOptions = {}): Promis
                         return await withWriteLock(key, async () => {
                             throwIfRequestAborted(requestAbortController.signal);
                             const existingData = loadAppData(filePath);
-                            const incomingData = validated.data as AppData;
+                            const incomingData = validated.data;
                             const mergedData = mergeAppData(existingData, incomingData, {
                                 nowIso: resolveServerMergeTimestamp(existingData, incomingData),
                             });
@@ -1453,6 +1475,7 @@ export async function startCloudServer(options: CloudServerOptions = {}): Promis
                                 id: 'attachment-upload',
                                 kind: 'file',
                                 title: pathname,
+                                uri: '',
                                 createdAt: '1970-01-01T00:00:00.000Z',
                                 updatedAt: '1970-01-01T00:00:00.000Z',
                                 mimeType: contentType,
