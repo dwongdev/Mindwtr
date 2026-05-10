@@ -111,6 +111,10 @@ const cloneSettingValue = <T>(value: T): T => {
     return value;
 };
 
+const setContainsValue = <T extends string>(set: ReadonlySet<T>, value: unknown): value is T => (
+    typeof value === 'string' && set.has(value as T)
+);
+
 const sanitizeSyncPreferences = (
     value: AppData['settings']['syncPreferences'] | undefined,
     fallback: AppData['settings']['syncPreferences'] | undefined
@@ -262,7 +266,7 @@ export const sanitizeMergedSettingsForSync = (
         const fallbackAppearance = localSettings.appearance ? cloneSettingValue(localSettings.appearance) : {};
         let didSanitizeAppearance = false;
 
-        if (next.appearance.density !== undefined && !SETTINGS_DENSITY_VALUE_SET.has(next.appearance.density as any)) {
+        if (next.appearance.density !== undefined && !setContainsValue(SETTINGS_DENSITY_VALUE_SET, next.appearance.density)) {
             next.appearance = {
                 ...fallbackAppearance,
                 ...next.appearance,
@@ -274,7 +278,7 @@ export const sanitizeMergedSettingsForSync = (
         if (
             sanitizedAppearance
             && sanitizedAppearance.textSize !== undefined
-            && !SETTINGS_TEXT_SIZE_VALUE_SET.has(sanitizedAppearance.textSize as any)
+            && !setContainsValue(SETTINGS_TEXT_SIZE_VALUE_SET, sanitizedAppearance.textSize)
         ) {
             next.appearance = {
                 ...fallbackAppearance,
