@@ -564,6 +564,47 @@ describe('cloud server utils', () => {
         rmSync(dir, { recursive: true, force: true });
     });
 
+    test('caches parsed app data for unchanged data files without leaking caller mutations', () => {
+        const dir = mkdtempSync(join(tmpdir(), 'mindwtr-cloud-load-cache-'));
+        const filePath = join(dir, 'data.json');
+        const iso = '2026-01-01T00:00:00.000Z';
+        const data: AppData = {
+            tasks: [{
+                id: 'task-1',
+                title: 'Cached',
+                status: 'inbox',
+                createdAt: iso,
+                updatedAt: iso,
+            }],
+            projects: [],
+            sections: [],
+            areas: [],
+            settings: {},
+        };
+
+        try {
+            __cloudTestUtils.clearDataCaches();
+            writeFileSync(filePath, JSON.stringify(data));
+
+            const first = __cloudTestUtils.loadAppData(filePath);
+            first.tasks.push({
+                id: 'caller-mutation',
+                title: 'Caller mutation',
+                status: 'inbox',
+                createdAt: iso,
+                updatedAt: iso,
+            });
+
+            const second = __cloudTestUtils.loadAppData(filePath);
+
+            expect(__cloudTestUtils.getParsedDataCacheSize()).toBe(1);
+            expect(second.tasks.map((task) => task.id)).toEqual(['task-1']);
+        } finally {
+            __cloudTestUtils.clearDataCaches();
+            rmSync(dir, { recursive: true, force: true });
+        }
+    });
+
     test('uses server time for merge repair timestamps without spreading large payloads', () => {
         const startedAt = Date.now();
         const iso = '2026-01-01T00:00:00.000Z';

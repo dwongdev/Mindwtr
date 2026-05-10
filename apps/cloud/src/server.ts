@@ -58,7 +58,7 @@ import {
     isBodyReadError,
     isPathWithinRoot,
     isRequestAbortError,
-    loadAppData,
+    loadAppData as loadAppDataFromStorage,
     normalizeAttachmentRelativePath,
     pathContainsSymlink,
     readData,
@@ -110,6 +110,12 @@ type DataFileIdentity = {
 
 const validatedDataCache = new Map<string, DataFileIdentity>();
 
+type ParsedDataCacheEntry = DataFileIdentity & {
+    data: AppData;
+};
+
+const parsedDataCache = new Map<string, ParsedDataCacheEntry>();
+
 const getDataFileIdentity = (filePath: string): DataFileIdentity | null => {
     try {
         const stat = lstatSync(filePath);
@@ -136,6 +142,29 @@ const sameDataFileIdentity = (left: DataFileIdentity | undefined, right: DataFil
 const isTrustedValidatedDataFile = (filePath: string): boolean => (
     sameDataFileIdentity(validatedDataCache.get(filePath), getDataFileIdentity(filePath))
 );
+
+const cloneAppData = (data: AppData): AppData => structuredClone(data) as AppData;
+
+const rememberParsedDataFile = (filePath: string, data: AppData): void => {
+    const identity = getDataFileIdentity(filePath);
+    if (identity) {
+        parsedDataCache.set(filePath, { ...identity, data });
+    } else {
+        parsedDataCache.delete(filePath);
+    }
+};
+
+const loadAppData = (filePath: string): AppData => {
+    const identity = getDataFileIdentity(filePath);
+    const cached = parsedDataCache.get(filePath);
+    if (cached && sameDataFileIdentity(cached, identity)) {
+        return cloneAppData(cached.data);
+    }
+
+    const data = loadAppDataFromStorage(filePath);
+    rememberParsedDataFile(filePath, data);
+    return cloneAppData(data);
+};
 
 const rememberValidatedDataFile = (filePath: string): void => {
     const identity = getDataFileIdentity(filePath);
@@ -259,8 +288,14 @@ const loadExistingDataForMerge = (filePath: string, key: string): AppData | { er
     return validateStoredAppData(filePath, key, rawData);
 };
 
-const writeCloudData = (filePath: string, data: unknown): void => {
-    writeData(filePath, data);
+const writeCloudData = (filePath: string, data: AppData): void => {
+    try {
+        writeData(filePath, data);
+    } catch (error) {
+        parsedDataCache.delete(filePath);
+        throw error;
+    }
+    rememberParsedDataFile(filePath, data);
     rememberValidatedDataFile(filePath);
 };
 
@@ -474,6 +509,7 @@ export const __cloudTestUtils = {
     validateTaskCreationProps,
     validateTaskPatchProps,
     pickTaskList,
+    loadAppData,
     readJsonBody,
     resolveServerMergeTimestamp,
     writeData,
@@ -484,7 +520,13 @@ export const __cloudTestUtils = {
     createWriteLockRunner,
     createInternalServerErrorResponse,
     dataMetadataResponse,
+    clearDataCaches: () => {
+        dataMetadataCache.clear();
+        parsedDataCache.clear();
+        validatedDataCache.clear();
+    },
     getDataMetadataCacheSize: () => dataMetadataCache.size,
+    getParsedDataCacheSize: () => parsedDataCache.size,
     getValidatedDataCacheSize: () => validatedDataCache.size,
 };
 
