@@ -1125,12 +1125,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: 4,
   },
   filterButton: {
-    minWidth: 40,
-    minHeight: 36,
+    minWidth: 44,
+    minHeight: 44,
     borderWidth: 1,
-    borderRadius: 18,
+    borderRadius: 22,
     paddingHorizontal: 10,
-    paddingVertical: 8,
+    paddingVertical: 10,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
@@ -1149,9 +1149,11 @@ const styles = StyleSheet.create({
   },
   filterChip: {
     borderWidth: 1,
-    borderRadius: 16,
+    borderRadius: 22,
     paddingHorizontal: 10,
-    paddingVertical: 6,
+    paddingVertical: 10,
+    minHeight: 44,
+    justifyContent: 'center',
   },
   filterChipText: {
     fontSize: 12,
@@ -1159,8 +1161,8 @@ const styles = StyleSheet.create({
   },
   clearFiltersButton: {
     justifyContent: 'center',
-    paddingHorizontal: 4,
-    minHeight: 32,
+    paddingHorizontal: 8,
+    minHeight: 44,
   },
   clearFiltersText: {
     fontSize: 12,
@@ -1183,9 +1185,9 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   futureStartButton: {
-    minHeight: 30,
+    minHeight: 44,
     justifyContent: 'center',
-    paddingHorizontal: 4,
+    paddingHorizontal: 8,
   },
   futureStartButtonText: {
     fontSize: 13,

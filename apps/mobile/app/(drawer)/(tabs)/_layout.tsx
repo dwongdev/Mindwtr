@@ -791,7 +791,10 @@ const styles = StyleSheet.create({
     opacity: 0.85,
   },
   headerIconButton: {
-    padding: 4,
+    minWidth: 44,
+    minHeight: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   captureButton: {
     flex: 1,
@@ -799,9 +802,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   captureButtonInner: {
-    width: 48,
-    height: 34,
-    borderRadius: 10,
+    width: 52,
+    height: 44,
+    borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
     marginTop: -4,
