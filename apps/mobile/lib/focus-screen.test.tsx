@@ -420,7 +420,7 @@ describe('FocusScreen', () => {
     expect(storeState.updateSettings).toHaveBeenCalledWith({
       savedFilters: [
         expect.objectContaining({
-          id: 'filter-1',
+          id: 'filter-desk',
           deletedAt: expect.any(String),
         }),
       ],

@@ -720,7 +720,7 @@ describe('AgendaView', () => {
         await waitFor(() => {
             expect(useTaskStore.getState().settings.savedFilters).toEqual([
                 expect.objectContaining({
-                    id: 'filter-1',
+                    id: 'filter-desk',
                     deletedAt: expect.any(String),
                 }),
             ]);
