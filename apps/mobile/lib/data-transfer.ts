@@ -5,29 +5,35 @@ import { Directory, File, Paths } from 'expo-file-system';
 import { Platform } from 'react-native';
 import {
     addBreadcrumb,
-    applyDgtImport,
-    applyOmniFocusImport,
-    applyTodoistImport,
     createBackupFileName,
-    parseDgtImportSource,
     flushPendingSave,
-    parseOmniFocusImportSource,
-    parseTodoistImportSource,
     serializeBackupData,
-    type OmniFocusImportExecutionResult,
-    type OmniFocusImportParseResult,
-    type ParsedOmniFocusImportData,
-    type DgtImportExecutionResult,
-    type DgtImportParseResult,
-    type ParsedDgtImportData,
     type AppData,
     type BackupValidation,
-    type TodoistImportExecutionResult,
-    type TodoistImportParseResult,
-    type ParsedTodoistProject,
     validateBackupJson,
     useTaskStore,
 } from '@mindwtr/core';
+import {
+    applyDgtImport,
+    parseDgtImportSource,
+    type DgtImportExecutionResult,
+    type DgtImportParseResult,
+    type ParsedDgtImportData,
+} from '@mindwtr/core/dgt-import';
+import {
+    applyOmniFocusImport,
+    parseOmniFocusImportSource,
+    type OmniFocusImportExecutionResult,
+    type OmniFocusImportParseResult,
+    type ParsedOmniFocusImportData,
+} from '@mindwtr/core/omnifocus-import';
+import {
+    applyTodoistImport,
+    parseTodoistImportSource,
+    type ParsedTodoistProject,
+    type TodoistImportExecutionResult,
+    type TodoistImportParseResult,
+} from '@mindwtr/core/todoist-import';
 
 import { logError, logInfo } from './app-log';
 import { mobileStorage } from './storage-adapter';
