@@ -38,7 +38,7 @@ import { useSettingsLocalization, useSettingsScrollContent } from '@/components/
 export default function SettingsPage() {
     const router = useRouter();
     const tc = useThemeColors();
-    const { localize, t } = useSettingsLocalization();
+    const { t } = useSettingsLocalization();
     const scrollContentStyle = useSettingsScrollContent();
     const { settingsScreen } = useLocalSearchParams<{ settingsScreen?: string | string[] }>();
     const { syncBadgeAccessibilityLabel, syncBadgeColor } = useMobileSyncBadge();
@@ -58,18 +58,18 @@ export default function SettingsPage() {
     const dataLabel = t('settings.data');
     const menuDescriptions = useMemo(
         () => ({
-            general: localize('Appearance, language, display', '外观、语言、显示'),
-            gtd: localize('Capture, review, task editor', '收集、回顾、任务编辑器'),
-            manage: localize('Areas, contexts, tags', '领域、情境、标签'),
-            notifications: localize('Reminders, daily digest', '提醒、每日摘要'),
-            sync: localize('WebDAV, Dropbox, iCloud', 'WebDAV、Dropbox、iCloud'),
-            data: localize('Backup, restore, import', '备份、恢复、导入'),
-            advanced: localize('AI assistant, calendar', 'AI 助手、日历'),
-            about: localize('Version, licenses, links', '版本、许可证、链接'),
-            ai: localize('Models, providers, speech', '模型、服务商、语音'),
-            calendar: localize('External calendars and events', '外部日历和日程'),
+            general: t('settings.menuDesc.general'),
+            gtd: t('settings.menuDesc.gtd'),
+            manage: t('settings.menuDesc.manage'),
+            notifications: t('settings.menuDesc.notifications'),
+            sync: t('settings.menuDesc.sync'),
+            data: t('settings.menuDesc.data'),
+            advanced: t('settings.menuDesc.advanced'),
+            about: t('settings.menuDesc.about'),
+            ai: t('settings.menuDesc.ai'),
+            calendar: t('settings.menuDesc.calendar'),
         }),
-        [localize],
+        [t],
     );
 
     const pushSettingsScreen = (nextScreen: SettingsScreen) => {
