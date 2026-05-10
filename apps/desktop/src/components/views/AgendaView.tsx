@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useState } from 'react';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { ErrorBoundary } from '../ErrorBoundary';
-import { shallow, useTaskStore, TaskPriority, TimeEstimate, applyFilter, buildAdvancedFilterCriteriaChips, formatFocusTaskLimitText, generateUUID, getUsedTaskTokens, getFocusSequentialFirstTaskIds, hasActiveFilterCriteria, markSavedFilterDeleted, normalizeFocusTaskLimit, safeParseDate, safeParseDueDate, isDueForReview, isTaskInActiveProject, SAVED_FILTER_NO_PROJECT_ID, shouldShowTaskForStart, sortFocusNextActions, translateWithFallback } from '@mindwtr/core';
+import { shallow, useTaskStore, TaskPriority, TimeEstimate, applyFilter, buildAdvancedFilterCriteriaChips, removeAdvancedFilterCriteriaChip, formatFocusTaskLimitText, generateUUID, getUsedTaskTokens, getFocusSequentialFirstTaskIds, hasActiveFilterCriteria, markSavedFilterDeleted, normalizeFocusTaskLimit, safeParseDate, safeParseDueDate, isDueForReview, isTaskInActiveProject, SAVED_FILTER_NO_PROJECT_ID, shouldShowTaskForStart, sortFocusNextActions, translateWithFallback } from '@mindwtr/core';
 import type { FilterCriteria, SavedFilter, Task, TaskEnergyLevel } from '@mindwtr/core';
 import { useLanguage } from '../../contexts/language-context';
 import { cn } from '../../lib/utils';
@@ -346,6 +346,19 @@ export function AgendaView() {
                 : resolveText('agenda.futureStartsHiddenMany', '{count} tasks hidden (future start)'));
         return template.replace('{count}', String(count));
     }, [resolveText]);
+    const removeAdvancedSavedFilterCriterion = useCallback((chipId: string) => {
+        if (!activeSavedFilter) return;
+        const nextCriteria = removeAdvancedFilterCriteriaChip(activeSavedFilter.criteria, chipId);
+        if (nextCriteria === activeSavedFilter.criteria) return;
+
+        const nowIso = new Date().toISOString();
+        const nextFilters = (settings?.savedFilters ?? []).map((filter) => (
+            filter.id === activeSavedFilter.id
+                ? { ...filter, criteria: nextCriteria, updatedAt: nowIso }
+                : filter
+        ));
+        void updateSettings({ savedFilters: nextFilters }).catch(() => undefined);
+    }, [activeSavedFilter, settings?.savedFilters, updateSettings]);
     const activeFilterChips = useMemo<AgendaActiveFilterChip[]>(() => {
         const chips: AgendaActiveFilterChip[] = [];
         selectedTokens.forEach((token) => {
@@ -397,6 +410,8 @@ export function AgendaView() {
                 id: `advanced:${chip.id}`,
                 label: chip.label,
                 dotColor: chip.color,
+                isAdvanced: true,
+                onRemove: () => removeAdvancedSavedFilterCriterion(chip.id),
             })));
         }
         return chips;
@@ -408,6 +423,7 @@ export function AgendaView() {
         effectiveFilterCriteria,
         formatEstimate,
         projectMap,
+        removeAdvancedSavedFilterCriterion,
         resolveText,
         selectedEnergyLevels,
         selectedProjects,

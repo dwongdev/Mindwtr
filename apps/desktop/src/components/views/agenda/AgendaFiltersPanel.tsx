@@ -1,5 +1,5 @@
 import type { TaskEnergyLevel, TaskPriority, TimeEstimate } from '@mindwtr/core';
-import { Filter, Save } from 'lucide-react';
+import { Filter, Save, X } from 'lucide-react';
 
 import { cn } from '../../../lib/utils';
 
@@ -13,6 +13,8 @@ export type AgendaActiveFilterChip = {
     id: string;
     label: string;
     dotColor?: string;
+    isAdvanced?: boolean;
+    onRemove?: () => void;
 };
 
 type AgendaFiltersPanelProps = {
@@ -130,7 +132,12 @@ export function AgendaFiltersPanel({
                     {activeFilterChips.map((chip) => (
                         <span
                             key={chip.id}
-                            className="inline-flex items-center gap-2 rounded-full bg-muted px-3 py-1.5 text-xs font-medium text-muted-foreground"
+                            className={cn(
+                                'inline-flex min-h-8 items-center gap-2 rounded-full px-3 py-1.5 text-xs font-medium',
+                                chip.isAdvanced
+                                    ? 'border border-dashed border-primary/50 bg-muted/40 text-primary'
+                                    : 'bg-muted text-muted-foreground',
+                            )}
                         >
                             {chip.dotColor && (
                                 <span
@@ -140,6 +147,16 @@ export function AgendaFiltersPanel({
                                 />
                             )}
                             {chip.label}
+                            {chip.onRemove && (
+                                <button
+                                    type="button"
+                                    onClick={chip.onRemove}
+                                    aria-label={`${t('common.delete')} ${chip.label}`}
+                                    className="-mr-1 inline-flex h-5 w-5 items-center justify-center rounded-full text-current transition-colors hover:bg-background/80"
+                                >
+                                    <X className="h-3 w-3" aria-hidden="true" />
+                                </button>
+                            )}
                         </span>
                     ))}
                 </div>

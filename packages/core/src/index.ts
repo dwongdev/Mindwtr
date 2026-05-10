@@ -404,6 +404,7 @@ export {
 } from './saved-filters';
 export {
     buildAdvancedFilterCriteriaChips,
+    removeAdvancedFilterCriteriaChip,
 } from './saved-filter-labels';
 export type {
     SavedFilterCriteriaChip,

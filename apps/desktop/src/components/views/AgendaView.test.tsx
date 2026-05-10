@@ -728,6 +728,58 @@ describe('AgendaView', () => {
         expect(queryByRole('button', { name: 'Desk' })).not.toBeInTheDocument();
     });
 
+    it('removes advanced synced criteria from the active saved Focus filter', async () => {
+        const deskTask: Task = {
+            id: 'desk-task',
+            title: 'Desk task',
+            status: 'next',
+            contexts: ['@desk'],
+            tags: [],
+            createdAt: nowIso,
+            updatedAt: nowIso,
+        };
+
+        useTaskStore.setState({
+            tasks: [deskTask],
+            _allTasks: [deskTask],
+            projects: [],
+            _allProjects: [],
+            areas: [],
+            _allAreas: [],
+            settings: {
+                savedFilters: [{
+                    id: 'filter-desk',
+                    name: 'Desk',
+                    view: 'focus',
+                    criteria: {
+                        contexts: ['@desk'],
+                        dueDateRange: { preset: 'this_week' },
+                        hasDescription: true,
+                    },
+                    createdAt: nowIso,
+                    updatedAt: nowIso,
+                }],
+            },
+            highlightTaskId: null,
+        });
+
+        const { getByRole } = renderAgenda();
+
+        fireEvent.click(getByRole('button', { name: 'Desk' }));
+        fireEvent.click(getByRole('button', { name: 'Delete Due Date: This week' }));
+
+        await waitFor(() => {
+            expect(useTaskStore.getState().settings.savedFilters?.[0]).toMatchObject({
+                id: 'filter-desk',
+                criteria: {
+                    contexts: ['@desk'],
+                    hasDescription: true,
+                },
+                updatedAt: expect.any(String),
+            });
+        });
+    });
+
     it('saves the current Focus filter from existing controls', async () => {
         const lowEnergyTask: Task = {
             id: 'low-energy-task',

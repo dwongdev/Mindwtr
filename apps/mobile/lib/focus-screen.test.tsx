@@ -178,12 +178,16 @@ function findButtonByText(tree: ReturnType<typeof create>, text: string, options
   return options.last ? matches[matches.length - 1] : matches[0];
 }
 
-function findButtonByLabel(tree: ReturnType<typeof create>, label: string) {
-  return tree.root.find((node) =>
+function findButtonByLabel(tree: ReturnType<typeof create>, label: string, options: { last?: boolean } = {}) {
+  const matches = tree.root.findAll((node) =>
     node.props.accessibilityRole === 'button'
     && node.props.accessibilityLabel === label
     && typeof node.props.onPress === 'function'
   );
+  if (matches.length === 0) {
+    throw new Error(`No button found with label: ${label}`);
+  }
+  return options.last ? matches[matches.length - 1] : matches[0];
 }
 
 describe('FocusScreen', () => {
@@ -427,6 +431,53 @@ describe('FocusScreen', () => {
     });
 
     alertSpy.mockRestore();
+  });
+
+  it('removes advanced synced criteria from the active saved Focus filter', async () => {
+    storeState.updateSettings.mockResolvedValue(undefined);
+    storeState.settings = {
+      appearance: {},
+      features: {},
+      savedFilters: [{
+        id: 'filter-desk',
+        name: 'Desk',
+        view: 'focus',
+        criteria: {
+          contexts: ['@desk'],
+          dueDateRange: { preset: 'this_week' },
+          hasDescription: true,
+        },
+        createdAt: '2026-04-01T00:00:00.000Z',
+        updatedAt: '2026-04-01T00:00:00.000Z',
+      }],
+    } as any;
+    storeState.tasks = [
+      makeTask('desk-task', { title: 'Desk task', contexts: ['@desk'] }),
+    ];
+
+    let tree!: ReturnType<typeof create>;
+
+    act(() => {
+      tree = create(<FocusScreen />);
+    });
+
+    act(() => {
+      findButtonByText(tree, 'Desk').props.onPress();
+    });
+    await act(async () => {
+      findButtonByLabel(tree, 'Delete Due Date: This week').props.onPress();
+    });
+
+    expect(storeState.updateSettings).toHaveBeenCalledWith({
+      savedFilters: [expect.objectContaining({
+        id: 'filter-desk',
+        criteria: {
+          contexts: ['@desk'],
+          hasDescription: true,
+        },
+        updatedAt: expect.any(String),
+      })],
+    });
   });
 
   it('saves the current Focus filter from the existing filter sheet', async () => {

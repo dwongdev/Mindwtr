@@ -17,6 +17,7 @@ import { BookmarkPlus, Plus, SlidersHorizontal, X } from 'lucide-react-native';
 import {
   applyFilter,
   buildAdvancedFilterCriteriaChips,
+  removeAdvancedFilterCriteriaChip,
   sortFocusNextActions,
   shouldShowTaskForStart,
   getFocusSequentialFirstTaskIds,
@@ -64,6 +65,7 @@ type FocusFilterChip = {
   id: string;
   label: string;
   onPress?: () => void;
+  variant?: 'advanced';
 };
 
 function filterSelectionStable<T>(current: T[], predicate: (item: T) => boolean): T[] {
@@ -346,6 +348,19 @@ export default function FocusScreen() {
       { cancelable: true },
     );
   }, [deleteSavedFilter, resolveText]);
+  const removeAdvancedSavedFilterCriterion = useCallback((chipId: string) => {
+    if (!activeSavedFilter) return;
+    const nextCriteria = removeAdvancedFilterCriteriaChip(activeSavedFilter.criteria, chipId);
+    if (nextCriteria === activeSavedFilter.criteria) return;
+
+    const nowIso = new Date().toISOString();
+    const nextFilters = (settings?.savedFilters ?? []).map((filter) => (
+      filter.id === activeSavedFilter.id
+        ? { ...filter, criteria: nextCriteria, updatedAt: nowIso }
+        : filter
+    ));
+    updateSettings({ savedFilters: nextFilters }).catch(() => undefined);
+  }, [activeSavedFilter, settings?.savedFilters, updateSettings]);
 
   useEffect(() => {
     if (!taskId || typeof taskId !== 'string') return;
@@ -504,8 +519,10 @@ export default function FocusScreen() {
     }).map((chip) => ({
       id: `advanced:${chip.id}`,
       label: chip.label,
+      onPress: () => removeAdvancedSavedFilterCriterion(chip.id),
+      variant: 'advanced',
     }));
-  }, [activeSavedFilter, areaById, effectiveFilterCriteria, resolveText]);
+  }, [activeSavedFilter, areaById, effectiveFilterCriteria, removeAdvancedSavedFilterCriterion, resolveText]);
   const activeFilterChips = useMemo(() => {
     const chips: FocusFilterChip[] = [];
     selectedTokens.forEach((token) => {
@@ -603,16 +620,19 @@ export default function FocusScreen() {
       [sectionType]: !current[sectionType],
     }));
   }, []);
-  const renderFilterChip = useCallback((label: string, selected: boolean, onPress?: () => void, key = label) => {
+  const renderFilterChip = useCallback((label: string, selected: boolean, onPress?: () => void, key = label, variant?: FocusFilterChip['variant']) => {
+    const isAdvanced = variant === 'advanced';
     const chipStyle = [
       styles.filterChip,
+      isAdvanced ? styles.filterChipAdvanced : null,
       {
-        backgroundColor: selected ? tc.tint : tc.filterBg,
-        borderColor: selected ? tc.tint : tc.border,
+        backgroundColor: isAdvanced ? tc.filterBg : selected ? tc.tint : tc.filterBg,
+        borderColor: isAdvanced ? tc.tint : selected ? tc.tint : tc.border,
       },
     ];
+    const textColor = isAdvanced ? tc.tint : selected ? tc.onTint : tc.text;
     const chipText = (
-      <Text style={[styles.filterChipText, { color: selected ? tc.onTint : tc.text }]}>
+      <Text style={[styles.filterChipText, { color: textColor }]}>
         {label}
       </Text>
     );
@@ -628,15 +648,17 @@ export default function FocusScreen() {
     return (
       <TouchableOpacity
         key={key}
+        accessibilityLabel={isAdvanced ? `${resolveText('common.delete', 'Delete')} ${label}` : undefined}
         accessibilityRole="button"
         accessibilityState={{ selected }}
         onPress={onPress}
         style={chipStyle}
       >
         {chipText}
+        {isAdvanced ? <X size={12} color={textColor} /> : null}
       </TouchableOpacity>
     );
-  }, [tc.border, tc.filterBg, tc.onTint, tc.text, tc.tint]);
+  }, [resolveText, tc.border, tc.filterBg, tc.onTint, tc.text, tc.tint]);
 
   const renderItem = ({ item }: { item: Task }) => (
     <View style={styles.itemWrapper}>
@@ -787,7 +809,7 @@ export default function FocusScreen() {
                 contentContainerStyle={styles.activeChipsRow}
                 style={styles.activeChipsScroller}
               >
-                {activeFilterChips.map((chip) => renderFilterChip(chip.label, true, chip.onPress, chip.id))}
+                {activeFilterChips.map((chip) => renderFilterChip(chip.label, true, chip.onPress, chip.id, chip.variant))}
                 <TouchableOpacity onPress={clearFilters} style={styles.clearFiltersButton}>
                   <Text style={[styles.clearFiltersText, { color: tc.secondaryText }]}>
                     {resolveText('filters.clear', 'Clear')}
@@ -900,7 +922,7 @@ export default function FocusScreen() {
                     {resolveText('filters.active', 'Active filters')}
                   </Text>
                   <View style={styles.sheetChipRow}>
-                    {activeFilterChips.map((chip) => renderFilterChip(chip.label, true, chip.onPress, chip.id))}
+                    {activeFilterChips.map((chip) => renderFilterChip(chip.label, true, chip.onPress, chip.id, chip.variant))}
                   </View>
                 </>
               ) : null}
@@ -1153,7 +1175,13 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     paddingVertical: 10,
     minHeight: 44,
+    flexDirection: 'row',
+    alignItems: 'center',
     justifyContent: 'center',
+    gap: 6,
+  },
+  filterChipAdvanced: {
+    borderStyle: 'dashed',
   },
   filterChipText: {
     fontSize: 12,

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { buildAdvancedFilterCriteriaChips } from './saved-filter-labels';
+import { buildAdvancedFilterCriteriaChips, removeAdvancedFilterCriteriaChip } from './saved-filter-labels';
 
 describe('saved filter labels', () => {
     it('builds visible chips for criteria that are not editable in the basic filter UI', () => {
@@ -47,5 +47,52 @@ describe('saved filter labels', () => {
             'Start Date: After 2026-05-11',
             'Time estimate: >= 2h',
         ]);
+    });
+
+    it('removes advanced criteria by chip id without touching basic filters', () => {
+        const criteria = {
+            contexts: ['@desk'],
+            areas: ['area-1', 'area-2'],
+            statuses: ['waiting' as const, 'next' as const],
+            assignedTo: ['Alex', 'Sam'],
+            dueDateRange: { preset: 'this_week' as const },
+            startDateRange: { from: '2026-05-11' },
+            timeEstimateRange: { min: 30 },
+            hasDescription: true,
+            isStarred: false,
+        };
+
+        expect(removeAdvancedFilterCriteriaChip(criteria, 'area:area-1')).toEqual({
+            ...criteria,
+            areas: ['area-2'],
+        });
+        expect(removeAdvancedFilterCriteriaChip(criteria, 'status:waiting')).toEqual({
+            ...criteria,
+            statuses: ['next'],
+        });
+        expect(removeAdvancedFilterCriteriaChip(criteria, 'assigned:Alex')).toEqual({
+            ...criteria,
+            assignedTo: ['Sam'],
+        });
+        expect(removeAdvancedFilterCriteriaChip(criteria, 'dueDateRange')).toEqual({
+            contexts: ['@desk'],
+            areas: ['area-1', 'area-2'],
+            statuses: ['waiting', 'next'],
+            assignedTo: ['Alex', 'Sam'],
+            startDateRange: { from: '2026-05-11' },
+            timeEstimateRange: { min: 30 },
+            hasDescription: true,
+            isStarred: false,
+        });
+        expect(removeAdvancedFilterCriteriaChip(criteria, 'unknown')).toBe(criteria);
+    });
+
+    it('drops advanced list criteria when the last list item is removed', () => {
+        expect(removeAdvancedFilterCriteriaChip({
+            contexts: ['@desk'],
+            areas: ['area-1'],
+        }, 'area:area-1')).toEqual({
+            contexts: ['@desk'],
+        });
     });
 });

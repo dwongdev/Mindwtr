@@ -15,6 +15,10 @@ export type SavedFilterCriteriaChipOptions = {
     translate?: (key: string) => string;
 };
 
+const AREA_CHIP_PREFIX = 'area:';
+const STATUS_CHIP_PREFIX = 'status:';
+const ASSIGNED_CHIP_PREFIX = 'assigned:';
+
 const DATE_RANGE_PRESET_LABELS: Record<string, string> = {
     today: 'Today',
     this_week: 'This week',
@@ -142,4 +146,63 @@ export function buildAdvancedFilterCriteriaChips(
     }
 
     return chips;
+}
+
+function removeListItem<T extends string>(values: T[] | undefined, target: string): T[] | undefined {
+    if (!values) return undefined;
+    const next = values.filter((value) => value !== target);
+    return next.length > 0 ? next : undefined;
+}
+
+export function removeAdvancedFilterCriteriaChip(criteria: FilterCriteria, chipId: string): FilterCriteria {
+    if (chipId.startsWith(AREA_CHIP_PREFIX)) {
+        const next = { ...criteria };
+        const areas = removeListItem(criteria.areas, chipId.slice(AREA_CHIP_PREFIX.length));
+        if (areas) next.areas = areas;
+        else delete next.areas;
+        return next;
+    }
+
+    if (chipId.startsWith(STATUS_CHIP_PREFIX)) {
+        const next = { ...criteria };
+        const statuses = removeListItem(criteria.statuses, chipId.slice(STATUS_CHIP_PREFIX.length));
+        if (statuses) next.statuses = statuses;
+        else delete next.statuses;
+        return next;
+    }
+
+    if (chipId.startsWith(ASSIGNED_CHIP_PREFIX)) {
+        const next = { ...criteria };
+        const assignedTo = removeListItem(criteria.assignedTo, chipId.slice(ASSIGNED_CHIP_PREFIX.length));
+        if (assignedTo) next.assignedTo = assignedTo;
+        else delete next.assignedTo;
+        return next;
+    }
+
+    if (chipId === 'dueDateRange') {
+        const { dueDateRange: _removed, ...next } = criteria;
+        return next;
+    }
+
+    if (chipId === 'startDateRange') {
+        const { startDateRange: _removed, ...next } = criteria;
+        return next;
+    }
+
+    if (chipId === 'timeEstimateRange') {
+        const { timeEstimateRange: _removed, ...next } = criteria;
+        return next;
+    }
+
+    if (chipId === 'hasDescription') {
+        const { hasDescription: _removed, ...next } = criteria;
+        return next;
+    }
+
+    if (chipId === 'isStarred') {
+        const { isStarred: _removed, ...next } = criteria;
+        return next;
+    }
+
+    return criteria;
 }
