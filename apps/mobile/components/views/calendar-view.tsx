@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   type AccessibilityActionEvent,
+  FlatList,
   type LayoutChangeEvent,
   Modal,
   PanResponder,
@@ -270,7 +271,12 @@ export function CalendarView() {
   const handleScheduleToday = useCallback(() => {
     handleToday();
     requestAnimationFrame(() => {
-      scheduleScrollRef.current?.scrollTo({ y: 0, animated: true });
+      const scheduleList = scheduleScrollRef.current;
+      if (typeof scheduleList?.scrollToOffset === 'function') {
+        scheduleList.scrollToOffset({ offset: 0, animated: true });
+        return;
+      }
+      scheduleList?.scrollTo?.({ y: 0, animated: true });
     });
   }, [handleToday]);
 
@@ -1234,13 +1240,14 @@ export function CalendarView() {
           {renderModeToggle()}
         </View>
 
-        <ScrollView
+        <FlatList
           ref={scheduleScrollRef}
+          data={scheduleSections}
           style={styles.scheduleScroll}
           contentContainerStyle={styles.scheduleContent}
-        >
-          {scheduleSections.map((section) => (
-            <View key={section.id} style={styles.scheduleSection}>
+          keyExtractor={(section) => section.id}
+          renderItem={({ item: section }) => (
+            <View style={styles.scheduleSection}>
               <Text style={[styles.scheduleDate, { color: tc.secondaryText }]}>
                 {section.date.toLocaleDateString(locale, { weekday: 'short', month: 'short', day: 'numeric' })}
                 {isToday(section.date) ? ` · ${localize('Today', '今天')}` : ''}
@@ -1314,11 +1321,12 @@ export function CalendarView() {
                 })}
               </View>
             </View>
-          ))}
-          {scheduleSections.length === 0 && (
+          )}
+          ListEmptyComponent={(
             <Text style={[styles.noTasks, { color: tc.secondaryText }]}>{t('calendar.noTasks')}</Text>
           )}
-        </ScrollView>
+          removeClippedSubviews
+        />
 
         {renderCalendarComposer()}
 
