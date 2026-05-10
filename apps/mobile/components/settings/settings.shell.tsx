@@ -100,8 +100,7 @@ export function SettingsTopBar({ title }: { title?: string } = {}) {
     const tc = useThemeColors();
     const insets = useSafeAreaInsets();
     const canGoBack = router.canGoBack();
-    const backLabel = t('common.back');
-    const backText = backLabel && backLabel !== 'common.back' ? backLabel : 'Back';
+    const backText = t('common.back');
 
     return (
         <View
