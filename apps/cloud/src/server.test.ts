@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, test } from 'bun:test';
 import { existsSync, mkdtempSync, mkdirSync, readFileSync, readdirSync, rmSync, symlinkSync, utimesSync, writeFileSync } from 'fs';
 import { join } from 'path';
 import { tmpdir } from 'os';
-import type { AppData } from '@mindwtr/core';
+import type { AppData, Task } from '@mindwtr/core';
 import { corsOrigin, errorResponse, preflightResponse } from './server-config';
 import { __cloudTestUtils, startCloudServer } from './server';
 
@@ -10,6 +10,15 @@ const expireFileForOrphanGc = (path: string): void => {
     const staleTime = new Date(Date.now() - 10 * 60 * 1000);
     utimesSync(path, staleTime, staleTime);
 };
+
+const makeTestTask = (overrides: Pick<Task, 'id' | 'title'> & Partial<Task>): Task => ({
+    status: 'inbox',
+    tags: [],
+    contexts: [],
+    createdAt: '2026-01-01T00:00:00.000Z',
+    updatedAt: '2026-01-01T00:00:00.000Z',
+    ...overrides,
+});
 
 describe('cloud server utils', () => {
     test('parses bearer token and hashes it', () => {
@@ -569,13 +578,12 @@ describe('cloud server utils', () => {
         const filePath = join(dir, 'data.json');
         const iso = '2026-01-01T00:00:00.000Z';
         const data: AppData = {
-            tasks: [{
+            tasks: [makeTestTask({
                 id: 'task-1',
                 title: 'Cached',
-                status: 'inbox',
                 createdAt: iso,
                 updatedAt: iso,
-            }],
+            })],
             projects: [],
             sections: [],
             areas: [],
@@ -587,13 +595,12 @@ describe('cloud server utils', () => {
             writeFileSync(filePath, JSON.stringify(data));
 
             const first = __cloudTestUtils.loadAppData(filePath);
-            first.tasks.push({
+            first.tasks.push(makeTestTask({
                 id: 'caller-mutation',
                 title: 'Caller mutation',
-                status: 'inbox',
                 createdAt: iso,
                 updatedAt: iso,
-            });
+            }));
 
             const second = __cloudTestUtils.loadAppData(filePath);
 
@@ -610,13 +617,12 @@ describe('cloud server utils', () => {
         const filePath = join(dir, 'data.json');
         const iso = '2026-01-01T00:00:00.000Z';
         const data: AppData = {
-            tasks: [{
+            tasks: [makeTestTask({
                 id: 'task-1',
                 title: 'Written',
-                status: 'inbox',
                 createdAt: iso,
                 updatedAt: iso,
-            }],
+            })],
             projects: [],
             sections: [],
             areas: [],
@@ -626,13 +632,12 @@ describe('cloud server utils', () => {
         try {
             __cloudTestUtils.clearDataCaches();
             __cloudTestUtils.writeCloudData(filePath, data);
-            data.tasks.push({
+            data.tasks.push(makeTestTask({
                 id: 'caller-mutation',
                 title: 'Caller mutation',
-                status: 'inbox',
                 createdAt: iso,
                 updatedAt: iso,
-            });
+            }));
 
             const loaded = __cloudTestUtils.loadAppData(filePath);
 
@@ -654,13 +659,12 @@ describe('cloud server utils', () => {
             for (let index = 0; index < maxEntries + 3; index += 1) {
                 const filePath = join(dir, `data-${index}.json`);
                 __cloudTestUtils.writeCloudData(filePath, {
-                    tasks: [{
+                    tasks: [makeTestTask({
                         id: `task-${index}`,
                         title: `Task ${index}`,
-                        status: 'inbox',
                         createdAt: iso,
                         updatedAt: iso,
-                    }],
+                    })],
                     projects: [],
                     sections: [],
                     areas: [],
@@ -679,10 +683,9 @@ describe('cloud server utils', () => {
         const startedAt = Date.now();
         const iso = '2026-01-01T00:00:00.000Z';
         const data: AppData = {
-            tasks: Array.from({ length: 60_000 }, (_, index) => ({
+            tasks: Array.from({ length: 60_000 }, (_, index) => makeTestTask({
                 id: `task-${index}`,
                 title: `Task ${index}`,
-                status: 'inbox',
                 createdAt: iso,
                 updatedAt: index === 59_999 ? '2026-01-02T00:00:00.000Z' : iso,
             })),
@@ -703,13 +706,12 @@ describe('cloud server utils', () => {
         const iso = '2026-01-01T00:00:00.000Z';
         const farFuture = new Date(startedAt + 365 * 24 * 60 * 60 * 1000).toISOString();
         const data: AppData = {
-            tasks: [{
+            tasks: [makeTestTask({
                 id: 'task-future',
                 title: 'Future task',
-                status: 'inbox',
                 createdAt: iso,
                 updatedAt: farFuture,
-            }],
+            })],
             projects: [],
             sections: [],
             areas: [],
