@@ -29,6 +29,7 @@ import {
     chooseDeterministicWinner,
     collectComparableDiffKeys,
     createSyncSignatureMemo,
+    type SyncSignatureMemo,
     hashComparableSignature,
     normalizeAreaForContentComparison,
     normalizeProjectForContentComparison,
@@ -242,6 +243,7 @@ function mergeEntitiesWithStats<T extends MergeableEntity>(
     mergeConflict?: (localItem: T, incomingItem: T, winner: T) => T,
     normalizeForComparison?: ComparisonNormalizer<T>,
     entityType: string = 'entity',
+    signatureMemo: SyncSignatureMemo = createSyncSignatureMemo(),
 ): { merged: T[]; stats: EntityMergeStats } {
     const localMap = new Map<string, T>(local.map((item) => [item.id, item]));
     const incomingMap = new Map<string, T>(incoming.map((item) => [item.id, item]));
@@ -249,7 +251,6 @@ function mergeEntitiesWithStats<T extends MergeableEntity>(
 
     const stats = createEmptyEntityStats(local.length, incoming.length);
     const merged: T[] = [];
-    const signatureMemo = createSyncSignatureMemo();
     let invalidDeletedAtWarnings = 0;
     let ambiguousResurrectionWarnings = 0;
     let discardedLiveConflictWarnings = 0;
@@ -599,8 +600,12 @@ function mergeEntitiesWithStats<T extends MergeableEntity>(
     return { merged, stats };
 }
 
-function mergeAreas(local: SyncMergeArea[], incoming: SyncMergeArea[]): { merged: Area[]; stats: EntityMergeStats } {
-    const result = mergeEntitiesWithStats(local, incoming, undefined, normalizeAreaForContentComparison, 'area');
+function mergeAreas(
+    local: SyncMergeArea[],
+    incoming: SyncMergeArea[],
+    signatureMemo: SyncSignatureMemo = createSyncSignatureMemo(),
+): { merged: Area[]; stats: EntityMergeStats } {
+    const result = mergeEntitiesWithStats(local, incoming, undefined, normalizeAreaForContentComparison, 'area', signatureMemo);
     let fallbackOrder = result.merged.reduce((maxOrder, area) => {
         const order = typeof area.order === 'number' && Number.isFinite(area.order) ? area.order : -1;
         return Math.max(maxOrder, order);
@@ -647,6 +652,7 @@ const getClockSkewWarning = (stats: MergeResult['stats']): ClockSkewWarning | un
 
 export function mergeAppDataWithStats(local: AppData, incoming: AppData, options: MergeAppDataOptions = {}): MergeResult {
     const nowIso = isValidTimestamp(options.nowIso) ? options.nowIso : new Date().toISOString();
+    const signatureMemo = createSyncSignatureMemo();
     const localNormalized = {
         ...local,
         tasks: (local.tasks || []).map((task) => normalizeRevisionMetadata(normalizeTaskForSyncMerge(task, nowIso))),
@@ -730,7 +736,7 @@ export function mergeAppDataWithStats(local: AppData, incoming: AppData, options
                 uri,
                 localStatus,
             };
-        }, undefined, 'attachment').merged;
+        }, undefined, 'attachment', signatureMemo).merged;
 
         const normalized = merged.map((attachment) => {
             if (attachment.kind !== 'file') return attachment;
@@ -769,7 +775,8 @@ export function mergeAppDataWithStats(local: AppData, incoming: AppData, options
             return { ...winner, attachments };
         },
         normalizeTaskForContentComparison,
-        'task'
+        'task',
+        signatureMemo
     );
 
     const projectsResult = mergeEntitiesWithStats(
@@ -780,7 +787,8 @@ export function mergeAppDataWithStats(local: AppData, incoming: AppData, options
             return { ...winner, attachments };
         },
         normalizeProjectForContentComparison,
-        'project'
+        'project',
+        signatureMemo
     );
 
     const sectionsResult = mergeEntitiesWithStats(
@@ -788,10 +796,11 @@ export function mergeAppDataWithStats(local: AppData, incoming: AppData, options
         incomingNormalized.sections,
         undefined,
         normalizeSectionForContentComparison,
-        'section'
+        'section',
+        signatureMemo
     );
 
-    const areasResult = mergeAreas(localNormalized.areas, incomingNormalized.areas);
+    const areasResult = mergeAreas(localNormalized.areas, incomingNormalized.areas, signatureMemo);
 
     const stats = {
         tasks: tasksResult.stats,
