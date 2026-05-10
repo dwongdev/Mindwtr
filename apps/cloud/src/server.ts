@@ -1,6 +1,5 @@
 #!/usr/bin/env bun
 import { existsSync, lstatSync, mkdirSync, readFileSync, readdirSync, realpathSync, rmdirSync, unlinkSync, type Stats } from 'fs';
-import { createHash } from 'crypto';
 import { join, relative } from 'path';
 import {
     applyTaskUpdates,
@@ -93,7 +92,7 @@ const PARSED_DATA_CACHE_MAX_ENTRIES = 64;
 
 type DataMetadataCacheEntry = {
     ctimeMs: number;
-    hash: string;
+    etag: string;
     ino: number;
     lastModified: string;
     mtimeMs: number;
@@ -240,6 +239,16 @@ const createInternalServerErrorResponse = (message: string, requestId: string): 
     )
 );
 
+const formatStatEtagPart = (value: number): string => {
+    if (!Number.isFinite(value)) return '0';
+    return Math.max(0, Math.trunc(value)).toString(36);
+};
+
+const buildDataMetadataEtag = (stat: Stats): string => (
+    `W/"mindwtr-${formatStatEtagPart(stat.ino)}-${formatStatEtagPart(stat.size)}`
+    + `-${formatStatEtagPart(stat.mtimeMs)}-${formatStatEtagPart(stat.ctimeMs)}"`
+);
+
 const getDataMetadata = (filePath: string, stat: Stats): DataMetadataCacheEntry => {
     const cached = dataMetadataCache.get(filePath);
     if (
@@ -254,7 +263,7 @@ const getDataMetadata = (filePath: string, stat: Stats): DataMetadataCacheEntry 
 
     const entry: DataMetadataCacheEntry = {
         ctimeMs: stat.ctimeMs,
-        hash: createHash('sha256').update(readFileSync(filePath)).digest('hex'),
+        etag: buildDataMetadataEtag(stat),
         ino: stat.ino,
         lastModified: stat.mtime.toUTCString(),
         mtimeMs: stat.mtimeMs,
@@ -272,7 +281,7 @@ const dataMetadataResponse = (filePath: string): Response => {
         'Access-Control-Allow-Headers': 'Authorization, Content-Type',
         'Access-Control-Allow-Methods': 'GET,HEAD,PUT,POST,PATCH,DELETE,OPTIONS',
         'Content-Length': String(metadata.size),
-        'ETag': `"sha256-${metadata.hash}"`,
+        'ETag': metadata.etag,
         'Last-Modified': metadata.lastModified,
     });
     return new Response(null, { status: 200, headers });

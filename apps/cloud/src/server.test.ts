@@ -846,13 +846,13 @@ describe('cloud server api', () => {
         });
 
         expect(response.status).toBe(200);
-        expect(response.headers.get('etag')).toMatch(/^"sha256-/);
+        expect(response.headers.get('etag')).toMatch(/^W\/"mindwtr-/);
         expect(response.headers.get('last-modified')).toBeTruthy();
         expect(Number(response.headers.get('content-length'))).toBeGreaterThan(0);
         expect(await response.text()).toBe('');
     });
 
-    test('caches unchanged data metadata hashes by file stats', () => {
+    test('caches unchanged stat-based data metadata by file stats', () => {
         const tempDir = mkdtempSync(join(tmpdir(), 'mindwtr-cloud-head-cache-'));
         const filePath = join(tempDir, 'data.json');
         try {
@@ -861,6 +861,7 @@ describe('cloud server api', () => {
             const second = __cloudTestUtils.dataMetadataResponse(filePath);
 
             expect(second.headers.get('etag')).toBe(first.headers.get('etag'));
+            expect(first.headers.get('etag')).toMatch(/^W\/"mindwtr-/);
             expect(__cloudTestUtils.getDataMetadataCacheSize()).toBeGreaterThan(0);
         } finally {
             rmSync(tempDir, { recursive: true, force: true });
