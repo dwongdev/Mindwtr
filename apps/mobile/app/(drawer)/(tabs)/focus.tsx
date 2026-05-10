@@ -210,7 +210,7 @@ export default function FocusScreen() {
   const hasCurrentFilterCriteria = hasActiveFilterCriteria(currentFilterCriteria);
   const hasFilters = hasActiveFilterCriteria(effectiveFilterCriteria);
   const filteredActiveTasks = useMemo(() => (
-    applyFilter(activeTasks, effectiveFilterCriteria, { projects })
+    applyFilter(activeTasks, effectiveFilterCriteria, { projects, tokenMatchMode: 'all' })
   ), [
     activeTasks,
     effectiveFilterCriteria,
@@ -398,7 +398,6 @@ export default function FocusScreen() {
     const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0);
     const endOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
     const { focusedTasks: allFocusedTasks, otherTasks: nonFocusedTasks } = splitFocusedTasks(filteredActiveTasks);
-    const focusedItems = allFocusedTasks.slice(0, focusTaskLimit);
     const sequentialFirstTaskIds = getFocusSequentialFirstTaskIds(activeTasks, sequentialProjectIds, { now });
 
     const isSequentialBlocked = (task: Task) => {
@@ -438,7 +437,7 @@ export default function FocusScreen() {
       });
 
     return {
-      focusedTasks: focusedItems,
+      focusedTasks: allFocusedTasks,
       schedule: scheduleItems,
       nextActions: sortFocusNextActions(nextItems, {
         now,
@@ -446,7 +445,7 @@ export default function FocusScreen() {
       }),
       reviewDue: reviewDueItems,
     };
-  }, [activeTasks, filteredActiveTasks, focusTaskLimit, prioritiesEnabled, sequentialProjectIds]);
+  }, [activeTasks, filteredActiveTasks, prioritiesEnabled, sequentialProjectIds]);
 
   const sections = useMemo(() => {
     const nextSections = [];

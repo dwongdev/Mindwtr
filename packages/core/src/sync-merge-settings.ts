@@ -1,4 +1,4 @@
-import type { AppData, SettingsSyncGroup } from './types';
+import type { AppData, SavedFilter, SettingsSyncGroup } from './types';
 import {
     AI_PROVIDER_VALUE_SET,
     AI_REASONING_EFFORT_VALUE_SET,
@@ -29,6 +29,44 @@ const isIncomingNewer = (localAt?: string, incomingAt?: string): boolean => {
     if (!Number.isFinite(incomingTime)) return false;
     if (!Number.isFinite(localTime)) return true;
     return incomingTime > localTime;
+};
+
+const chooseSavedFilter = (localFilter: SavedFilter, incomingFilter: SavedFilter, incomingWins: boolean): SavedFilter => {
+    const localUpdatedAt = parseSyncTimestamp(localFilter.updatedAt);
+    const incomingUpdatedAt = parseSyncTimestamp(incomingFilter.updatedAt);
+    if (Number.isFinite(incomingUpdatedAt) && !Number.isFinite(localUpdatedAt)) return incomingFilter;
+    if (!Number.isFinite(incomingUpdatedAt) && Number.isFinite(localUpdatedAt)) return localFilter;
+    if (Number.isFinite(incomingUpdatedAt) && Number.isFinite(localUpdatedAt)) {
+        if (incomingUpdatedAt > localUpdatedAt) return incomingFilter;
+        if (localUpdatedAt > incomingUpdatedAt) return localFilter;
+    }
+    return incomingWins ? incomingFilter : localFilter;
+};
+
+const mergeSavedFiltersById = (
+    localValue: AppData['settings']['savedFilters'],
+    incomingValue: AppData['settings']['savedFilters'],
+    incomingWins: boolean
+): AppData['settings']['savedFilters'] => {
+    const localFilters = normalizeSavedFilters(localValue);
+    const incomingFilters = normalizeSavedFilters(incomingValue);
+    const incomingById = new Map(incomingFilters.map((filter) => [filter.id, filter]));
+    const mergedById = new Map<string, SavedFilter>();
+
+    for (const localFilter of localFilters) {
+        const incomingFilter = incomingById.get(localFilter.id);
+        mergedById.set(
+            localFilter.id,
+            incomingFilter ? chooseSavedFilter(localFilter, incomingFilter, incomingWins) : localFilter
+        );
+    }
+    for (const incomingFilter of incomingFilters) {
+        if (!mergedById.has(incomingFilter.id)) {
+            mergedById.set(incomingFilter.id, incomingFilter);
+        }
+    }
+
+    return normalizeSavedFilters(Array.from(mergedById.values()));
 };
 
 const sanitizeAiForSync = (
@@ -459,7 +497,7 @@ export const mergeSettingsForSync = (
         (value) => {
             merged.savedFilters = normalizeSavedFilters(value);
         },
-        (localValue, incomingValue, incomingWins) => chooseGroupFieldValue(localValue, incomingValue, incomingWins)
+        (localValue, incomingValue, incomingWins) => mergeSavedFiltersById(localValue, incomingValue, incomingWins)
     );
 
     mergeGroup(

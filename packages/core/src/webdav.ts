@@ -103,7 +103,7 @@ export const buildHttpRemoteFileFingerprint = (
     const etag = metadata.etag?.trim() || '';
     const lastModified = metadata.lastModified?.trim() || '';
     const contentLength = metadata.contentLength?.trim() || '';
-    if (!etag && !lastModified) return null;
+    if (!etag) return null;
     return `${source}:v1:etag=${etag}:mtime=${lastModified}:len=${contentLength}`;
 };
 

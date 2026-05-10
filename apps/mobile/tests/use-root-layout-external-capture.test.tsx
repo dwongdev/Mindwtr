@@ -55,7 +55,7 @@ describe('useRootLayoutExternalCapture', () => {
     act(() => {
       create(
         <TestHarness
-          incomingUrl="mindwtr:///capture?title=Call%20dentist&note=Tomorrow&tags=phone"
+          incomingUrl="mindwtr:///capture?title=Call%20dentist&note=Tomorrow&tags=phone&project=Home"
           router={router}
           showToast={showToast}
         />
@@ -67,11 +67,11 @@ describe('useRootLayoutExternalCapture', () => {
       params: {
         initialValue: 'Call%20dentist',
         initialProps: expect.any(String),
+        project: 'Home',
       },
     });
     const params = router.replace.mock.calls[0][0].params;
     expect(JSON.parse(decodeURIComponent(params.initialProps))).toEqual({
-      status: 'inbox',
       description: 'Tomorrow',
       tags: ['#phone'],
     });

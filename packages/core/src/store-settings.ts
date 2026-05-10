@@ -723,12 +723,15 @@ export const createSettingsActions = ({
             const defaultScheduleTimeUpdate = updates.gtd
                 ? Object.prototype.hasOwnProperty.call(updates.gtd, 'defaultScheduleTime')
                 : false;
+            const focusTaskLimitUpdate = updates.gtd
+                ? Object.prototype.hasOwnProperty.call(updates.gtd, 'focusTaskLimit')
+                : false;
 
             if ('language' in updates || 'weekStart' in updates || 'dateFormat' in updates || 'timeFormat' in updates) {
                 markSyncUpdated('language');
             }
 
-            if (defaultScheduleTimeUpdate) {
+            if (defaultScheduleTimeUpdate || focusTaskLimitUpdate) {
                 markSyncUpdated('gtd');
             }
 

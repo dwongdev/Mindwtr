@@ -36,6 +36,20 @@ describe('saved filters', () => {
         expect(filtered.map((item) => item.id)).toEqual(['desk-high']);
     });
 
+    it('can require every selected token for Focus chip filters', () => {
+        const tasks = [
+            task({ id: 'desk-phone', contexts: ['@desk', '@phone'] }),
+            task({ id: 'desk', contexts: ['@desk'] }),
+            task({ id: 'phone', contexts: ['@phone'] }),
+        ];
+
+        const filtered = applyFilter(tasks, {
+            contexts: ['@desk', '@phone'],
+        }, { tokenMatchMode: 'all' });
+
+        expect(filtered.map((item) => item.id)).toEqual(['desk-phone']);
+    });
+
     it('supports due date presets and no-project filters', () => {
         const now = new Date('2026-05-09T12:00:00.000Z');
         const tasks = [

@@ -33,6 +33,7 @@ export const SAVED_FILTER_NO_PROJECT_ID = '__no_project__';
 type ApplyFilterOptions = {
     now?: Date;
     projects?: Project[];
+    tokenMatchMode?: 'any' | 'all';
     weekStartsOn?: 0 | 1 | 2 | 3 | 4 | 5 | 6;
 };
 
@@ -182,6 +183,24 @@ const matchesAnyToken = (selected: readonly string[] | undefined, actual: readon
     );
 };
 
+const matchesAllTokens = (selected: readonly string[] | undefined, actual: readonly string[] | undefined): boolean => {
+    if (!selected || selected.length === 0) return true;
+    const actualValues = actual ?? [];
+    return selected.every((selectedToken) =>
+        actualValues.some((actualToken) => matchesHierarchicalToken(selectedToken, actualToken))
+    );
+};
+
+const matchesTokens = (
+    selected: readonly string[] | undefined,
+    actual: readonly string[] | undefined,
+    mode: ApplyFilterOptions['tokenMatchMode'] = 'any'
+): boolean => (
+    mode === 'all'
+        ? matchesAllTokens(selected, actual)
+        : matchesAnyToken(selected, actual)
+);
+
 const matchesDateRange = (
     value: string | undefined,
     range: DateRange | undefined,
@@ -271,11 +290,12 @@ export function taskMatchesFilterCriteria(
     const normalized = normalizeFilterCriteria(criteria);
     const projectById = options.projects ? new Map(options.projects.map((project) => [project.id, project])) : undefined;
     const now = options.now ?? new Date();
+    const tokenMatchMode = options.tokenMatchMode ?? 'any';
     const weekStartsOn = options.weekStartsOn ?? 1;
 
     if (normalized.statuses?.length && !normalized.statuses.includes(task.status)) return false;
-    if (!matchesAnyToken(normalized.contexts, task.contexts)) return false;
-    if (!matchesAnyToken(normalized.tags, task.tags)) return false;
+    if (!matchesTokens(normalized.contexts, task.contexts, tokenMatchMode)) return false;
+    if (!matchesTokens(normalized.tags, task.tags, tokenMatchMode)) return false;
 
     if (normalized.areas?.length) {
         const projectAreaId = task.projectId ? projectById?.get(task.projectId)?.areaId : undefined;

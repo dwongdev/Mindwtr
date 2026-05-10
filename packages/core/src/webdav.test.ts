@@ -121,6 +121,32 @@ describe('webdav http helpers', () => {
         expect(fetcher.mock.calls[0]?.[1]?.method).toBe('HEAD');
     });
 
+    it('does not build a fast-sync fingerprint from last-modified and length without an ETag', async () => {
+        const fetcher = vi.fn(
+            async () =>
+                ({
+                    ok: true,
+                    status: 200,
+                    statusText: 'OK',
+                    headers: {
+                        get: (name: string) => ({
+                            'last-modified': 'Thu, 07 May 2026 10:00:00 GMT',
+                            'content-length': '42',
+                        }[name.toLowerCase()] ?? null),
+                    },
+                    text: async () => '',
+                }) as unknown as Response,
+        );
+
+        await expect(webdavHeadFile('https://example.com/data.json', { fetcher })).resolves.toMatchObject({
+            exists: true,
+            fingerprint: null,
+            etag: null,
+            lastModified: 'Thu, 07 May 2026 10:00:00 GMT',
+            contentLength: '42',
+        });
+    });
+
     it('creates missing parent collections before retrying a JSON PUT', async () => {
         const fetcher = vi
             .fn()

@@ -64,15 +64,17 @@ export function useRootLayoutExternalCapture({
     const openCaptureConfirmation = useCallback((payload: ShortcutCapturePayload) => {
         const tags = normalizeShortcutTags(payload.tags);
         const initialProps: Partial<Task> = {
-            status: 'inbox',
             ...(payload.note ? { description: payload.note } : {}),
             ...(tags.length > 0 ? { tags } : {}),
         };
         const params: Record<string, string> = {
             initialValue: encodeURIComponent(payload.title),
         };
-        if (Object.keys(initialProps).length > 1) {
+        if (Object.keys(initialProps).length > 0) {
             params.initialProps = encodeURIComponent(JSON.stringify(initialProps));
+        }
+        if (payload.project) {
+            params.project = encodeURIComponent(payload.project);
         }
 
         if (router.canGoBack()) {

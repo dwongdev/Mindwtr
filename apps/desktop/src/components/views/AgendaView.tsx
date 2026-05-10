@@ -408,7 +408,7 @@ export function AgendaView() {
 
     const { filteredActiveTasks, reviewDueCandidates } = useMemo(() => {
         const now = new Date();
-        const filtered = applyFilter(activeTasks, effectiveFilterCriteria, { projects, now })
+        const filtered = applyFilter(activeTasks, effectiveFilterCriteria, { projects, now, tokenMatchMode: 'all' })
             .filter((task) => matchesSearchQuery(task.title));
         const reviewDueBase = tasks
             .filter((task) => {
@@ -425,7 +425,7 @@ export function AgendaView() {
                 if (!matchesSearchQuery(task.title)) return false;
                 return true;
             });
-        const reviewDue = applyFilter(reviewDueBase, effectiveFilterCriteria, { projects, now });
+        const reviewDue = applyFilter(reviewDueBase, effectiveFilterCriteria, { projects, now, tokenMatchMode: 'all' });
         return { filteredActiveTasks: filtered, reviewDueCandidates: reviewDue };
     }, [activeTasks, effectiveFilterCriteria, matchesSearchQuery, projects, tasks, projectMap, resolvedAreaFilter, areaById, showFutureStarts]);
 
@@ -560,8 +560,8 @@ export function AgendaView() {
     }, [highlightTaskId, setHighlightTask]);
     // Today's Focus: tasks marked as isFocusedToday.
     const focusedTasks = useMemo(() =>
-        filteredActiveTasks.filter(t => t.isFocusedToday).slice(0, focusTaskLimit),
-        [filteredActiveTasks, focusTaskLimit]
+        filteredActiveTasks.filter(t => t.isFocusedToday),
+        [filteredActiveTasks]
     );
 
     // Categorize tasks

@@ -274,6 +274,14 @@ describe('TaskStore', () => {
         expect(useTaskStore.getState().getDerivedState().focusedCount).toBe(5);
     });
 
+    it('stamps the GTD sync time when the focus limit changes', async () => {
+        vi.setSystemTime(new Date('2026-03-21T12:00:00.000Z'));
+
+        await useTaskStore.getState().updateSettings({ gtd: { focusTaskLimit: 5 } });
+
+        expect(useTaskStore.getState().settings.syncPreferencesUpdatedAt?.gtd).toBe('2026-03-21T12:00:00.000Z');
+    });
+
     it('prefers the renamed tag when deduplicating normalized tag collisions', async () => {
         const { addProject, addTask, renameTag } = useTaskStore.getState();
 

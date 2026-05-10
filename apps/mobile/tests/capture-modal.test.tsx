@@ -15,6 +15,7 @@ const { routerMocks, routeParams, storeState } = vi.hoisted(() => ({
     current: { text: encodeURIComponent('Shared text') } as Record<string, string>,
   },
   storeState: {
+    addProject: vi.fn(),
     addTask: vi.fn(),
     projects: [] as any[],
     tasks: [] as any[],
@@ -30,6 +31,7 @@ vi.mock('expo-router', () => ({
 
 vi.mock('@mindwtr/core', () => ({
   createAIProvider: vi.fn(),
+  DEFAULT_PROJECT_COLOR: '#94a3b8',
   getUsedTaskTokens: vi.fn(() => []),
   parseQuickAdd: vi.fn((value: string) => ({ title: value, props: {}, invalidDateCommands: [] })),
   useTaskStore: () => storeState,
@@ -89,6 +91,9 @@ describe('CaptureScreen', () => {
     vi.clearAllMocks();
     routerMocks.canGoBack.mockReturnValue(false);
     routeParams.current = { text: encodeURIComponent('Shared text') };
+    storeState.addProject.mockResolvedValue(null);
+    storeState.projects = [];
+    storeState.areas = [];
   });
 
   it('returns to inbox when cancelling without a back stack', () => {
@@ -164,7 +169,7 @@ describe('CaptureScreen', () => {
     expect(dismissSpy).toHaveBeenCalledTimes(1);
   });
 
-  it('saves App Action capture details from initial props after confirmation', () => {
+  it('saves App Action capture details from initial props after confirmation', async () => {
     routeParams.current = {
       initialValue: encodeURIComponent('Call dentist'),
       initialProps: encodeURIComponent(JSON.stringify({
@@ -181,8 +186,8 @@ describe('CaptureScreen', () => {
 
     const saveButton = tree.root.findAllByType(TouchableOpacity)[2];
 
-    act(() => {
-      saveButton.props.onPress();
+    await act(async () => {
+      await saveButton.props.onPress();
     });
 
     expect(storeState.addTask).toHaveBeenCalledWith('Call dentist', {
@@ -191,5 +196,62 @@ describe('CaptureScreen', () => {
       tags: ['#phone'],
     });
     expect(routerMocks.replace).toHaveBeenCalledWith('/inbox');
+  });
+
+  it('ignores unsupported URL-controlled initial props', async () => {
+    routeParams.current = {
+      initialValue: encodeURIComponent('Visible task'),
+      initialProps: encodeURIComponent(JSON.stringify({
+        description: 'Keep this',
+        tags: ['phone'],
+        status: 'archived',
+        deletedAt: '2026-05-09T12:00:00.000Z',
+        attachments: [{ id: 'attachment-1' }],
+      })),
+    };
+
+    let tree!: ReturnType<typeof create>;
+
+    act(() => {
+      tree = create(<CaptureScreen />);
+    });
+
+    const saveButton = tree.root.findAllByType(TouchableOpacity)[2];
+
+    await act(async () => {
+      await saveButton.props.onPress();
+    });
+
+    expect(storeState.addTask).toHaveBeenCalledWith('Visible task', {
+      status: 'inbox',
+      description: 'Keep this',
+      tags: ['#phone'],
+    });
+  });
+
+  it('resolves project names supplied by shortcut capture links', async () => {
+    routeParams.current = {
+      initialValue: encodeURIComponent('Call dentist'),
+      project: encodeURIComponent('Health'),
+    };
+    storeState.addProject.mockResolvedValue({ id: 'project-health', title: 'Health' });
+
+    let tree!: ReturnType<typeof create>;
+
+    act(() => {
+      tree = create(<CaptureScreen />);
+    });
+
+    const saveButton = tree.root.findAllByType(TouchableOpacity)[2];
+
+    await act(async () => {
+      await saveButton.props.onPress();
+    });
+
+    expect(storeState.addProject).toHaveBeenCalledWith('Health', '#94a3b8');
+    expect(storeState.addTask).toHaveBeenCalledWith('Call dentist', {
+      status: 'inbox',
+      projectId: 'project-health',
+    });
   });
 });

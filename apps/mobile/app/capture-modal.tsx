@@ -11,7 +11,7 @@ import {
   View,
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { createAIProvider, getUsedTaskTokens, parseQuickAdd, type Task, type TimeEstimate, type AIProviderId, useTaskStore } from '@mindwtr/core';
+import { createAIProvider, DEFAULT_PROJECT_COLOR, getUsedTaskTokens, parseQuickAdd, type Task, type TimeEstimate, type AIProviderId, useTaskStore } from '@mindwtr/core';
 import { useThemeColors } from '@/hooks/use-theme-colors';
 import { useToast } from '@/contexts/toast-context';
 import { useLanguage } from '../contexts/language-context';
@@ -21,6 +21,7 @@ import { logError } from '../lib/app-log';
 type CaptureSearchParams = {
   initialProps?: string;
   initialValue?: string;
+  project?: string;
   text?: string;
   title?: string;
 };
@@ -40,22 +41,70 @@ const decodeSearchParam = (value: string | string[] | undefined): string => {
   }
 };
 
-const parseInitialPropsParam = (value: string | string[] | undefined): Partial<Task> => {
+const parseInitialPropsJson = (value: string | string[] | undefined): Record<string, unknown> => {
   const decoded = decodeSearchParam(value);
   if (!decoded) return {};
   try {
     const parsed = JSON.parse(decoded);
     if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return {};
-    return parsed as Partial<Task>;
+    return parsed as Record<string, unknown>;
   } catch {
     return {};
   }
 };
 
+const normalizeInitialTokenList = (value: unknown, prefix?: '@' | '#'): string[] | undefined => {
+  if (!Array.isArray(value)) return undefined;
+  const seen = new Set<string>();
+  const next: string[] = [];
+  value.forEach((item) => {
+    if (typeof item !== 'string') return;
+    const trimmed = item.trim();
+    if (!trimmed) return;
+    const normalized = prefix && !trimmed.startsWith(prefix) ? `${prefix}${trimmed}` : trimmed;
+    const key = normalized.toLowerCase();
+    if (seen.has(key)) return;
+    seen.add(key);
+    next.push(normalized);
+  });
+  return next.length > 0 ? next : undefined;
+};
+
+const sanitizeInitialPropsParam = (
+  value: string | string[] | undefined,
+  projects: Array<{ id: string; deletedAt?: string | null }>,
+  areas: Array<{ id: string; deletedAt?: string | null }>,
+): Partial<Task> => {
+  const parsed = parseInitialPropsJson(value);
+  const next: Partial<Task> = {};
+
+  if (typeof parsed.description === 'string' && parsed.description.trim()) {
+    next.description = parsed.description;
+  }
+
+  const tags = normalizeInitialTokenList(parsed.tags, '#');
+  if (tags) next.tags = tags;
+
+  const contexts = normalizeInitialTokenList(parsed.contexts, '@');
+  if (contexts) next.contexts = contexts;
+
+  const projectId = typeof parsed.projectId === 'string' ? parsed.projectId.trim() : '';
+  if (projectId && projects.some((project) => project.id === projectId && !project.deletedAt)) {
+    next.projectId = projectId;
+  }
+
+  const areaId = typeof parsed.areaId === 'string' ? parsed.areaId.trim() : '';
+  if (!next.projectId && areaId && areas.some((area) => area.id === areaId && !area.deletedAt)) {
+    next.areaId = areaId;
+  }
+
+  return next;
+};
+
 export default function CaptureScreen() {
   const params = useLocalSearchParams<CaptureSearchParams>();
   const router = useRouter();
-  const { addTask, projects, tasks, settings, areas } = useTaskStore();
+  const { addProject, addTask, projects, tasks, settings, areas } = useTaskStore();
   const tc = useThemeColors();
   const { showToast } = useToast();
   const { t } = useLanguage();
@@ -64,8 +113,12 @@ export default function CaptureScreen() {
     || decodeSearchParam(params.text)
     || decodeSearchParam(params.title)
   );
-  const initialProps = React.useMemo(() => parseInitialPropsParam(params.initialProps), [params.initialProps]);
+  const initialProps = React.useMemo(
+    () => sanitizeInitialPropsParam(params.initialProps, projects, areas),
+    [areas, params.initialProps, projects]
+  );
   const initialDescription = String(initialProps.description ?? '');
+  const initialProjectTitle = decodeSearchParam(params.project).trim();
   const [value, setValue] = useState(initialText);
   const [descriptionValue, setDescriptionValue] = useState(initialDescription);
   const [copilotSuggestion, setCopilotSuggestion] = useState<{ context?: string; timeEstimate?: TimeEstimate; tags?: string[] } | null>(null);
@@ -208,9 +261,9 @@ export default function CaptureScreen() {
     }
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!value.trim()) return;
-    const { title, props, invalidDateCommands, detectedDate } = parseQuickAdd(value, projects, new Date(), areas);
+    const { title, props, projectTitle, invalidDateCommands, detectedDate } = parseQuickAdd(value, projects, new Date(), areas);
     if (invalidDateCommands && invalidDateCommands.length > 0) {
       showToast({
         title: t('common.notice'),
@@ -227,6 +280,26 @@ export default function CaptureScreen() {
     if (!taskProps.status) taskProps.status = 'inbox';
     if (shouldApplyDetectedDate && detectedDate) {
       taskProps.dueDate = detectedDate.date;
+    }
+    const requestedProjectTitle = !taskProps.projectId ? (projectTitle || initialProjectTitle) : '';
+    if (requestedProjectTitle) {
+      const matchedProject = projects.find((project) => (
+        !project.deletedAt
+        && (
+          project.id === requestedProjectTitle
+          || project.title.toLowerCase() === requestedProjectTitle.toLowerCase()
+        )
+      ));
+      if (matchedProject) {
+        taskProps.projectId = matchedProject.id;
+      } else {
+        const created = await addProject(requestedProjectTitle, DEFAULT_PROJECT_COLOR);
+        if (!created) return;
+        taskProps.projectId = created.id;
+      }
+    }
+    if (taskProps.projectId) {
+      taskProps.areaId = undefined;
     }
     const description = descriptionValue.trim();
     const parsedDescription = typeof taskProps.description === 'string' ? taskProps.description.trim() : '';
@@ -246,7 +319,7 @@ export default function CaptureScreen() {
       const nextTags = Array.from(new Set([...(taskProps.tags ?? []), ...copilotTags]));
       taskProps.tags = nextTags;
     }
-    addTask(finalTitle, taskProps);
+    await addTask(finalTitle, taskProps);
     router.replace('/inbox');
   };
 

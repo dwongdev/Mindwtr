@@ -265,7 +265,7 @@ describe('Sync Logic', () => {
             expect(merged.settings.externalCalendars?.[0]?.name).toBe('Team');
         });
 
-        it('syncs saved filters as their own preference group', () => {
+        it('merges saved filters by id when their sync group is enabled', () => {
             const localFilter = {
                 id: 'filter-local',
                 name: 'Local Desk',
@@ -305,8 +305,51 @@ describe('Sync Logic', () => {
 
             const merged = mergeAppData(local, incoming);
 
-            expect(merged.settings.savedFilters).toEqual([incomingFilter]);
+            expect(merged.settings.savedFilters).toEqual([localFilter, incomingFilter]);
             expect(merged.settings.savedFilters).not.toBe(incoming.settings.savedFilters);
+        });
+
+        it('keeps the newer saved filter when the same id changed on both devices', () => {
+            const localFilter = {
+                id: 'filter-shared',
+                name: 'Local Name',
+                view: 'focus' as const,
+                criteria: { contexts: ['@desk'] },
+                createdAt: '2024-01-01T00:00:00.000Z',
+                updatedAt: '2024-01-03T00:00:00.000Z',
+            };
+            const incomingFilter = {
+                id: 'filter-shared',
+                name: 'Incoming Name',
+                view: 'focus' as const,
+                criteria: { tags: ['#incoming'] },
+                createdAt: '2024-01-01T00:00:00.000Z',
+                updatedAt: '2024-01-04T00:00:00.000Z',
+            };
+            const local: AppData = {
+                ...mockAppData(),
+                settings: {
+                    savedFilters: [localFilter],
+                    syncPreferences: { savedFilters: true },
+                    syncPreferencesUpdatedAt: {
+                        savedFilters: '2024-01-03T00:00:00.000Z',
+                    },
+                },
+            };
+            const incoming: AppData = {
+                ...mockAppData(),
+                settings: {
+                    savedFilters: [incomingFilter],
+                    syncPreferences: { savedFilters: true },
+                    syncPreferencesUpdatedAt: {
+                        savedFilters: '2024-01-04T00:00:00.000Z',
+                    },
+                },
+            };
+
+            const merged = mergeAppData(local, incoming);
+
+            expect(merged.settings.savedFilters).toEqual([incomingFilter]);
         });
 
         it('keeps local saved filters when the local device opted out', () => {
