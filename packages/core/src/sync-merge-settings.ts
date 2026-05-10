@@ -262,7 +262,7 @@ export const sanitizeMergedSettingsForSync = (
         const fallbackAppearance = localSettings.appearance ? cloneSettingValue(localSettings.appearance) : {};
         let didSanitizeAppearance = false;
 
-        if (next.appearance.density !== undefined && !SETTINGS_DENSITY_VALUE_SET.has(next.appearance.density)) {
+        if (next.appearance.density !== undefined && !SETTINGS_DENSITY_VALUE_SET.has(next.appearance.density as any)) {
             next.appearance = {
                 ...fallbackAppearance,
                 ...next.appearance,
@@ -274,7 +274,7 @@ export const sanitizeMergedSettingsForSync = (
         if (
             sanitizedAppearance
             && sanitizedAppearance.textSize !== undefined
-            && !SETTINGS_TEXT_SIZE_VALUE_SET.has(sanitizedAppearance.textSize)
+            && !SETTINGS_TEXT_SIZE_VALUE_SET.has(sanitizedAppearance.textSize as any)
         ) {
             next.appearance = {
                 ...fallbackAppearance,
