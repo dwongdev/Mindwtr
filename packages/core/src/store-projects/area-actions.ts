@@ -64,13 +64,25 @@ export const createAreaActions = ({
             };
         });
         if (existingAreaId) {
-            if (shouldRestoreDeletedArea || (initialProps && Object.keys(initialProps).length > 0)) {
+            if (shouldRestoreDeletedArea) {
+                const restoreResult = await get().restoreArea(existingAreaId);
+                if (!restoreResult.success) {
+                    set({ error: 'Failed to restore area' });
+                    return null;
+                }
+            }
+            const restoredArea = get()._allAreas.find((area) => area.id === existingAreaId);
+            const shouldUpdateExistingArea = Boolean(
+                (initialProps && Object.keys(initialProps).length > 0)
+                || (shouldRestoreDeletedArea && restoredArea?.name !== trimmedName)
+            );
+            if (shouldUpdateExistingArea) {
                 const result = await get().updateArea(existingAreaId, {
                     ...(initialProps ?? {}),
                     ...(shouldRestoreDeletedArea ? { deletedAt: undefined, name: trimmedName } : {}),
                 });
                 if (!result.success) {
-                    set({ error: shouldRestoreDeletedArea ? 'Failed to restore area' : 'Failed to update area' });
+                    set({ error: 'Failed to update area' });
                     return null;
                 }
             }

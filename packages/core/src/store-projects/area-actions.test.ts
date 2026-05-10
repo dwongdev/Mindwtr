@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { flushPendingSave, resetForTests, setStorageAdapter, useTaskStore } from '../store';
 import type { StorageAdapter } from '../storage';
+import { mergeAppData } from '../sync';
 import type { AppData } from '../types';
 
 const BASE_NOW = '2026-04-01T12:00:00.000Z';
@@ -136,15 +137,61 @@ describe('area actions', () => {
         expect(state._allProjects.find((project) => project.id === deletedProject.id)?.deletedAt).toBe(projectDeletedAt);
     });
 
-    it('reuses a deleted area tombstone when adding an area with the same name', async () => {
-        const { addArea, deleteArea } = useTaskStore.getState();
+    it('keeps newer area tombstones from being resurrected by older live sync data', () => {
+        const deletedAt = '2026-04-01T12:10:00.000Z';
+        const deletedArea = {
+            id: 'area-work',
+            name: 'Work',
+            order: 0,
+            createdAt: '2026-04-01T12:00:00.000Z',
+            updatedAt: deletedAt,
+            deletedAt,
+            rev: 2,
+            revBy: 'device-a',
+        };
+        const olderLiveArea = {
+            ...deletedArea,
+            updatedAt: '2026-04-01T12:05:00.000Z',
+            deletedAt: undefined,
+            rev: 1,
+            revBy: 'device-b',
+        };
+
+        const merged = mergeAppData(
+            { tasks: [], projects: [], sections: [], areas: [deletedArea], settings: {} },
+            { tasks: [], projects: [], sections: [], areas: [olderLiveArea], settings: {} }
+        );
+
+        expect(merged.areas).toHaveLength(1);
+        expect(merged.areas[0]).toMatchObject({
+            id: deletedArea.id,
+            updatedAt: deletedAt,
+            deletedAt,
+            rev: 2,
+            revBy: 'device-a',
+        });
+    });
+
+    it('reuses a deleted area tombstone and restores its cascade-deleted children', async () => {
+        const { addArea, addProject, addSection, addTask, deleteArea } = useTaskStore.getState();
         const area = await addArea('Work');
         expect(area).not.toBeNull();
         if (!area) return;
+        const project = await addProject('Launch', '#3b82f6', { areaId: area.id });
+        expect(project).not.toBeNull();
+        if (!project) return;
+        const section = await addSection(project.id, 'Planning');
+        expect(section).not.toBeNull();
+        if (!section) return;
+        const areaTask = await addTask('Area task', { areaId: area.id, status: 'next' });
+        const projectTask = await addTask('Project task', { projectId: project.id, sectionId: section.id, status: 'next' });
+        expect(areaTask.success).toBe(true);
+        expect(projectTask.success).toBe(true);
+        if (!areaTask.success || !projectTask.success) return;
 
         await deleteArea(area.id);
         vi.setSystemTime(new Date('2026-04-01T12:15:00.000Z'));
-        const restored = await addArea(' work ');
+        const restored = await addArea(' work ', { color: '#ef4444' });
 
         expect(restored?.id).toBe(area.id);
         const state = useTaskStore.getState();
@@ -156,6 +203,20 @@ describe('area actions', () => {
             deletedAt: undefined,
             updatedAt: '2026-04-01T12:15:00.000Z',
         });
+        expect(state.projects.find((item) => item.id === project.id)).toMatchObject({
+            deletedAt: undefined,
+            color: '#ef4444',
+        });
+        expect(state.sections.find((item) => item.id === section.id)?.deletedAt).toBeUndefined();
+        expect(state.tasks.find((task) => task.id === areaTask.id)?.deletedAt).toBeUndefined();
+        expect(state.tasks.find((task) => task.id === projectTask.id)?.deletedAt).toBeUndefined();
+
+        await flushPendingSave();
+        const saved = latestSavedData();
+        expect(saved.projects.find((item) => item.id === project.id)?.deletedAt).toBeUndefined();
+        expect(saved.sections.find((item) => item.id === section.id)?.deletedAt).toBeUndefined();
+        expect(saved.tasks.find((task) => task.id === areaTask.id)?.deletedAt).toBeUndefined();
+        expect(saved.tasks.find((task) => task.id === projectTask.id)?.deletedAt).toBeUndefined();
     });
 
     it('keeps deleted area tombstones when reordering active areas', async () => {

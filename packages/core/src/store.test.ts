@@ -1395,16 +1395,18 @@ describe('TaskStore', () => {
 
         await deleteArea(area.id);
 
-        const originalUpdateArea = useTaskStore.getState().updateArea;
+        const originalRestoreArea = useTaskStore.getState().restoreArea;
         useTaskStore.setState({
-            updateArea: async () => ({ success: false, error: 'Failed to restore area' }),
+            restoreArea: async () => ({ success: false, error: 'Failed to restore area' }),
         });
 
-        const restored = await useTaskStore.getState().addArea('Work');
-        expect(restored).toBeNull();
-        expect(useTaskStore.getState().error).toBe('Failed to restore area');
-
-        useTaskStore.setState({ updateArea: originalUpdateArea });
+        try {
+            const restored = await useTaskStore.getState().addArea('Work');
+            expect(restored).toBeNull();
+            expect(useTaskStore.getState().error).toBe('Failed to restore area');
+        } finally {
+            useTaskStore.setState({ restoreArea: originalRestoreArea });
+        }
     });
 
     it('returns action failure when updateArea targets a missing area', async () => {
