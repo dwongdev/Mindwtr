@@ -605,6 +605,76 @@ describe('cloud server utils', () => {
         }
     });
 
+    test('does not cache write caller object references', () => {
+        const dir = mkdtempSync(join(tmpdir(), 'mindwtr-cloud-write-cache-'));
+        const filePath = join(dir, 'data.json');
+        const iso = '2026-01-01T00:00:00.000Z';
+        const data: AppData = {
+            tasks: [{
+                id: 'task-1',
+                title: 'Written',
+                status: 'inbox',
+                createdAt: iso,
+                updatedAt: iso,
+            }],
+            projects: [],
+            sections: [],
+            areas: [],
+            settings: {},
+        };
+
+        try {
+            __cloudTestUtils.clearDataCaches();
+            __cloudTestUtils.writeCloudData(filePath, data);
+            data.tasks.push({
+                id: 'caller-mutation',
+                title: 'Caller mutation',
+                status: 'inbox',
+                createdAt: iso,
+                updatedAt: iso,
+            });
+
+            const loaded = __cloudTestUtils.loadAppData(filePath);
+
+            expect(__cloudTestUtils.getParsedDataCacheSize()).toBe(1);
+            expect(loaded.tasks.map((task) => task.id)).toEqual(['task-1']);
+        } finally {
+            __cloudTestUtils.clearDataCaches();
+            rmSync(dir, { recursive: true, force: true });
+        }
+    });
+
+    test('bounds parsed app data cache entries', () => {
+        const dir = mkdtempSync(join(tmpdir(), 'mindwtr-cloud-cache-bound-'));
+        const iso = '2026-01-01T00:00:00.000Z';
+
+        try {
+            __cloudTestUtils.clearDataCaches();
+            const maxEntries = __cloudTestUtils.getParsedDataCacheMaxEntries();
+            for (let index = 0; index < maxEntries + 3; index += 1) {
+                const filePath = join(dir, `data-${index}.json`);
+                __cloudTestUtils.writeCloudData(filePath, {
+                    tasks: [{
+                        id: `task-${index}`,
+                        title: `Task ${index}`,
+                        status: 'inbox',
+                        createdAt: iso,
+                        updatedAt: iso,
+                    }],
+                    projects: [],
+                    sections: [],
+                    areas: [],
+                    settings: {},
+                });
+            }
+
+            expect(__cloudTestUtils.getParsedDataCacheSize()).toBe(maxEntries);
+        } finally {
+            __cloudTestUtils.clearDataCaches();
+            rmSync(dir, { recursive: true, force: true });
+        }
+    });
+
     test('uses server time for merge repair timestamps without spreading large payloads', () => {
         const startedAt = Date.now();
         const iso = '2026-01-01T00:00:00.000Z';

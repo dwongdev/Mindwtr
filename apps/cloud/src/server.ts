@@ -89,6 +89,7 @@ const TOKEN_NAMESPACE_FILE_PATTERN = /^([a-f0-9]{64})\.json$/;
 const TOKEN_NAMESPACE_DIR_PATTERN = /^[a-f0-9]{64}$/;
 // Relies on POSIX mtime; do not lower below 1 minute without auditing filesystem timestamp resolution and batching.
 const ORPHAN_ATTACHMENT_GC_GRACE_MS = 5 * 60 * 1000;
+const PARSED_DATA_CACHE_MAX_ENTRIES = 64;
 
 type DataMetadataCacheEntry = {
     ctimeMs: number;
@@ -145,10 +146,37 @@ const isTrustedValidatedDataFile = (filePath: string): boolean => (
 
 const cloneAppData = (data: AppData): AppData => structuredClone(data) as AppData;
 
+const tryCloneAppData = (data: AppData, context: string): AppData | null => {
+    try {
+        return cloneAppData(data);
+    } catch (error) {
+        logWarn('Failed to clone cloud app data cache entry', {
+            context,
+            error: error instanceof Error ? error.message : String(error),
+        });
+        return null;
+    }
+};
+
+const trimParsedDataCache = (): void => {
+    while (parsedDataCache.size > PARSED_DATA_CACHE_MAX_ENTRIES) {
+        const oldestKey = parsedDataCache.keys().next().value as string | undefined;
+        if (!oldestKey) return;
+        parsedDataCache.delete(oldestKey);
+    }
+};
+
 const rememberParsedDataFile = (filePath: string, data: AppData): void => {
     const identity = getDataFileIdentity(filePath);
     if (identity) {
-        parsedDataCache.set(filePath, { ...identity, data });
+        const cachedData = tryCloneAppData(data, 'rememberParsedDataFile');
+        if (!cachedData) {
+            parsedDataCache.delete(filePath);
+            return;
+        }
+        parsedDataCache.delete(filePath);
+        parsedDataCache.set(filePath, { ...identity, data: cachedData });
+        trimParsedDataCache();
     } else {
         parsedDataCache.delete(filePath);
     }
@@ -158,12 +186,18 @@ const loadAppData = (filePath: string): AppData => {
     const identity = getDataFileIdentity(filePath);
     const cached = parsedDataCache.get(filePath);
     if (cached && sameDataFileIdentity(cached, identity)) {
-        return cloneAppData(cached.data);
+        const data = tryCloneAppData(cached.data, 'loadAppData.cacheHit');
+        if (data) {
+            parsedDataCache.delete(filePath);
+            parsedDataCache.set(filePath, cached);
+            return data;
+        }
+        parsedDataCache.delete(filePath);
     }
 
     const data = loadAppDataFromStorage(filePath);
     rememberParsedDataFile(filePath, data);
-    return cloneAppData(data);
+    return data;
 };
 
 const rememberValidatedDataFile = (filePath: string): void => {
@@ -513,6 +547,7 @@ export const __cloudTestUtils = {
     readJsonBody,
     resolveServerMergeTimestamp,
     writeData,
+    writeCloudData,
     resolveAttachmentPath,
     normalizeAttachmentRelativePath,
     isPathWithinRoot,
@@ -526,6 +561,7 @@ export const __cloudTestUtils = {
         validatedDataCache.clear();
     },
     getDataMetadataCacheSize: () => dataMetadataCache.size,
+    getParsedDataCacheMaxEntries: () => PARSED_DATA_CACHE_MAX_ENTRIES,
     getParsedDataCacheSize: () => parsedDataCache.size,
     getValidatedDataCacheSize: () => validatedDataCache.size,
 };
