@@ -254,7 +254,6 @@ jobs:
 
       - name: Expo Doctor check
         run: cd apps/mobile && bunx expo-doctor
-        continue-on-error: true
 
       - name: Mobile tests
         run: bun run --filter mobile test -- --coverage
