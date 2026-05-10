@@ -15,6 +15,7 @@ function DrawerHeader({
   tintColor,
   backgroundColor,
   borderColor,
+  backAccessibilityLabel,
 }: {
   title: string;
   canGoBack: boolean;
@@ -22,6 +23,7 @@ function DrawerHeader({
   tintColor: string;
   backgroundColor: string;
   borderColor: string;
+  backAccessibilityLabel: string;
 }) {
   const insets = useSafeAreaInsets();
   return (
@@ -38,7 +40,7 @@ function DrawerHeader({
     >
       <Pressable
         accessibilityRole="button"
-        accessibilityLabel="Back"
+        accessibilityLabel={backAccessibilityLabel}
         disabled={!canGoBack}
         hitSlop={8}
         onPress={onBack}
@@ -58,6 +60,8 @@ function DrawerHeader({
 export default function AppLayout() {
   const tc = useThemeColors();
   const { t } = useLanguage();
+  const backLabel = t('common.back');
+  const backAccessibilityLabel = backLabel && backLabel !== 'common.back' ? backLabel : 'Back';
 
   return (
     <Stack
@@ -74,6 +78,7 @@ export default function AppLayout() {
             }}
             tintColor={tc.text}
             title={getHeaderTitle(options, route.name)}
+            backAccessibilityLabel={backAccessibilityLabel}
           />
         ),
       }}
