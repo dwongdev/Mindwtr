@@ -560,9 +560,7 @@ const runPartialCalendarSync = async (taskIds: string[]): Promise<void> => {
 
 let unsubscribeStore: (() => void) | null = null;
 
-const getCalendarSyncTaskMap = (state: ReturnType<typeof useTaskStore.getState>) => (
-    state._tasksById || new Map(state._allTasks.map((task) => [task.id, task]))
-);
+const buildCalendarSyncTaskMap = (tasks: Task[]) => new Map(tasks.map((task) => [task.id, task]));
 
 /**
  * Starts watching the task store for changes and syncing due-date tasks to
@@ -571,44 +569,45 @@ const getCalendarSyncTaskMap = (state: ReturnType<typeof useTaskStore.getState>)
 export const startCalendarPushSync = (): (() => void) => {
     if (unsubscribeStore) return unsubscribeStore;
 
-    let previousTaskMap = getCalendarSyncTaskMap(useTaskStore.getState());
+    let previousTaskMap = buildCalendarSyncTaskMap(useTaskStore.getState()._allTasks);
 
-    unsubscribeStore = useTaskStore.subscribe((state, previousState) => {
-        if (previousState && state._allTasks === previousState._allTasks) return;
+    unsubscribeStore = useTaskStore.subscribe(
+        (state) => state._allTasks,
+        (currentTasks) => {
+            const changedIds: string[] = [];
+            const currentMap = buildCalendarSyncTaskMap(currentTasks);
 
-        const changedIds: string[] = [];
-        const currentMap = getCalendarSyncTaskMap(state);
+            // Changed or new tasks
+            for (const task of currentTasks) {
+                const prev = previousTaskMap.get(task.id);
+                if (
+                    !prev ||
+                    prev.updatedAt !== task.updatedAt ||
+                    prev.startTime !== task.startTime ||
+                    prev.dueDate !== task.dueDate ||
+                    prev.deletedAt !== task.deletedAt ||
+                    prev.status !== task.status ||
+                    prev.title !== task.title ||
+                    prev.timeEstimate !== task.timeEstimate
+                ) {
+                    changedIds.push(task.id);
+                }
+            }
 
-        // Changed or new tasks
-        for (const task of state._allTasks) {
-            const prev = previousTaskMap.get(task.id);
-            if (
-                !prev ||
-                prev.updatedAt !== task.updatedAt ||
-                prev.startTime !== task.startTime ||
-                prev.dueDate !== task.dueDate ||
-                prev.deletedAt !== task.deletedAt ||
-                prev.status !== task.status ||
-                prev.title !== task.title ||
-                prev.timeEstimate !== task.timeEstimate
-            ) {
-                changedIds.push(task.id);
+            // Tasks removed from store entirely
+            for (const id of previousTaskMap.keys()) {
+                if (!currentMap.has(id)) {
+                    changedIds.push(id);
+                }
+            }
+
+            previousTaskMap = currentMap;
+
+            if (changedIds.length > 0) {
+                scheduleSyncDebounced(changedIds);
             }
         }
-
-        // Tasks removed from store entirely
-        for (const id of previousTaskMap.keys()) {
-            if (!currentMap.has(id)) {
-                changedIds.push(id);
-            }
-        }
-
-        previousTaskMap = currentMap;
-
-        if (changedIds.length > 0) {
-            scheduleSyncDebounced(changedIds);
-        }
-    });
+    );
 
     return () => {
         unsubscribeStore?.();

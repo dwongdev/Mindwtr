@@ -65,7 +65,10 @@ const {
     mockDeleteCalendarSyncEntry: vi.fn<(taskId: string, platform: string) => Promise<void>>(async () => {}),
     mockGetAllCalendarSyncEntries: vi.fn<(platform: string) => Promise<MockCalendarSyncEntry[]>>(async () => []),
     mockGetState: vi.fn<() => MockCalendarStoreState>(() => ({ tasks: [], _allTasks: [] })),
-    mockSubscribe: vi.fn<(listener: (state: MockCalendarStoreState) => void) => () => void>(() => () => {}),
+    mockSubscribe: vi.fn((
+        _selectorOrListener: ((state: MockCalendarStoreState) => unknown) | ((state: MockCalendarStoreState) => void),
+        _listener?: (selected: unknown) => void
+    ) => () => {}),
     mockLogInfo: vi.fn(),
     mockLogWarn: vi.fn(),
     mockLogError: vi.fn(),
@@ -735,23 +738,25 @@ describe('startCalendarPushSync', () => {
         });
 
         startCalendarPushSync();
-        const listener = mockSubscribe.mock.calls[0]?.[0] as ((state: typeof storeState) => void) | undefined;
+        const selector = mockSubscribe.mock.calls[0]?.[0] as ((state: typeof storeState) => unknown) | undefined;
+        const listener = mockSubscribe.mock.calls[0]?.[1] as ((tasks: typeof storeState._allTasks) => void) | undefined;
+        expect(selector).toBeTypeOf('function');
         expect(listener).toBeTypeOf('function');
-        if (!listener) return;
+        if (!selector || !listener) return;
 
         storeState = {
             tasks: [taskTwo],
             _allTasks: [taskOneDeleted, taskTwo],
             _tasksById: makeTaskMap([taskOneDeleted, taskTwo]),
         };
-        listener(storeState);
+        listener(selector(storeState) as typeof storeState._allTasks);
 
         storeState = {
             tasks: [taskTwoUpdated],
             _allTasks: [taskOneDeleted, taskTwoUpdated],
             _tasksById: makeTaskMap([taskOneDeleted, taskTwoUpdated]),
         };
-        listener(storeState);
+        listener(selector(storeState) as typeof storeState._allTasks);
 
         await vi.advanceTimersByTimeAsync(2500);
         await Promise.resolve();

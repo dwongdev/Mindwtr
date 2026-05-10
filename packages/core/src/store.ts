@@ -1,5 +1,6 @@
 import { createWithEqualityFn } from 'zustand/traditional';
 import { useShallow } from 'zustand/react/shallow';
+import { subscribeWithSelector } from 'zustand/middleware';
 export { shallow } from 'zustand/shallow';
 
 import type { AppData } from './types';
@@ -466,7 +467,7 @@ export const flushPendingSave = async (): Promise<void> => {
     }
 };
 
-export const useTaskStore = createWithEqualityFn<TaskStore>()((rawSet, get) => {
+export const useTaskStore = createWithEqualityFn<TaskStore>()(subscribeWithSelector((rawSet, get) => {
     const set: typeof rawSet = (partial) => rawSet((state) => {
         const nextState = typeof partial === 'function' ? partial(state) : partial;
         return prepareStoreStateUpdate(state, nextState) as Partial<TaskStore> | TaskStore;
@@ -516,7 +517,7 @@ export const useTaskStore = createWithEqualityFn<TaskStore>()((rawSet, get) => {
             debouncedSave,
         }),
     };
-});
+}));
 
 const originalSetState = useTaskStore.setState;
 // Zustand callers outside our action creators can still use setState directly.
