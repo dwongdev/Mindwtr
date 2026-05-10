@@ -121,7 +121,7 @@ describe('webdav http helpers', () => {
         expect(fetcher.mock.calls[0]?.[1]?.method).toBe('HEAD');
     });
 
-    it('does not build a fast-sync fingerprint from last-modified and length without an ETag', async () => {
+    it('falls back to last-modified and length for ETag-less fast sync checks', async () => {
         const fetcher = vi.fn(
             async () =>
                 ({
@@ -140,7 +140,7 @@ describe('webdav http helpers', () => {
 
         await expect(webdavHeadFile('https://example.com/data.json', { fetcher })).resolves.toMatchObject({
             exists: true,
-            fingerprint: null,
+            fingerprint: 'webdav:v1:mtime=Thu, 07 May 2026 10:00:00 GMT:len=42',
             etag: null,
             lastModified: 'Thu, 07 May 2026 10:00:00 GMT',
             contentLength: '42',

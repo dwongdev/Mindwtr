@@ -103,8 +103,13 @@ export const buildHttpRemoteFileFingerprint = (
     const etag = metadata.etag?.trim() || '';
     const lastModified = metadata.lastModified?.trim() || '';
     const contentLength = metadata.contentLength?.trim() || '';
-    if (!etag) return null;
-    return `${source}:v1:etag=${etag}:mtime=${lastModified}:len=${contentLength}`;
+    if (etag) {
+        return `${source}:v1:etag=${etag}:mtime=${lastModified}:len=${contentLength}`;
+    }
+    if (lastModified && contentLength) {
+        return `${source}:v1:mtime=${lastModified}:len=${contentLength}`;
+    }
+    return null;
 };
 
 const metadataFromHeaders = (source: string, headers: Headers): RemoteFileMetadata => {
