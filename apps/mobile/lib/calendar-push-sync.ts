@@ -560,6 +560,10 @@ const runPartialCalendarSync = async (taskIds: string[]): Promise<void> => {
 
 let unsubscribeStore: (() => void) | null = null;
 
+const getCalendarSyncTaskMap = (state: ReturnType<typeof useTaskStore.getState>) => (
+    state._tasksById || new Map(state._allTasks.map((task) => [task.id, task]))
+);
+
 /**
  * Starts watching the task store for changes and syncing due-date tasks to
  * the device calendar. Returns an unsubscribe function.
@@ -567,15 +571,13 @@ let unsubscribeStore: (() => void) | null = null;
 export const startCalendarPushSync = (): (() => void) => {
     if (unsubscribeStore) return unsubscribeStore;
 
-    let previousTaskMap = new Map(
-        useTaskStore.getState()._allTasks.map((t) => [t.id, t])
-    );
+    let previousTaskMap = getCalendarSyncTaskMap(useTaskStore.getState());
 
     unsubscribeStore = useTaskStore.subscribe((state, previousState) => {
-        if (state._allTasks === previousState._allTasks) return;
+        if (previousState && state._allTasks === previousState._allTasks) return;
 
         const changedIds: string[] = [];
-        const currentMap = new Map(state._allTasks.map((t) => [t.id, t]));
+        const currentMap = getCalendarSyncTaskMap(state);
 
         // Changed or new tasks
         for (const task of state._allTasks) {

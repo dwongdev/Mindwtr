@@ -716,9 +716,11 @@ describe('startCalendarPushSync', () => {
             title: 'Second task updated',
             timeEstimate: '1hr',
         };
+        const makeTaskMap = (items: ReturnType<typeof makeTask>[]) => new Map(items.map((task) => [task.id, task]));
         let storeState = {
             tasks: [taskOne, taskTwo],
             _allTasks: [taskOne, taskTwo],
+            _tasksById: makeTaskMap([taskOne, taskTwo]),
         };
 
         mockGetState.mockImplementation(() => storeState);
@@ -740,12 +742,14 @@ describe('startCalendarPushSync', () => {
         storeState = {
             tasks: [taskTwo],
             _allTasks: [taskOneDeleted, taskTwo],
+            _tasksById: makeTaskMap([taskOneDeleted, taskTwo]),
         };
         listener(storeState);
 
         storeState = {
             tasks: [taskTwoUpdated],
             _allTasks: [taskOneDeleted, taskTwoUpdated],
+            _tasksById: makeTaskMap([taskOneDeleted, taskTwoUpdated]),
         };
         listener(storeState);
 
