@@ -1,0 +1,51 @@
+import { describe, expect, it } from 'vitest';
+
+import { buildAdvancedFilterCriteriaChips } from './saved-filter-labels';
+
+describe('saved filter labels', () => {
+    it('builds visible chips for criteria that are not editable in the basic filter UI', () => {
+        const chips = buildAdvancedFilterCriteriaChips({
+            areas: ['area-1'],
+            statuses: ['waiting'],
+            assignedTo: ['Alex'],
+            dueDateRange: { preset: 'this_week' },
+            startDateRange: { from: '2026-05-10', to: '2026-05-12' },
+            timeEstimateRange: { min: 30, max: 90 },
+            hasDescription: true,
+            isStarred: false,
+        }, {
+            formatDate: (value) => `date:${value}`,
+            getAreaColor: (areaId) => (areaId === 'area-1' ? '#ff8800' : undefined),
+            getAreaLabel: (areaId) => (areaId === 'area-1' ? 'Work' : undefined),
+            resolveText: (_key, fallback) => fallback,
+        });
+
+        expect(chips).toEqual([
+            { id: 'area:area-1', label: 'Area: Work', color: '#ff8800' },
+            { id: 'status:waiting', label: 'Status: Waiting' },
+            { id: 'assigned:Alex', label: 'Assigned To: Alex' },
+            { id: 'dueDateRange', label: 'Due Date: This week' },
+            { id: 'startDateRange', label: 'Start Date: date:2026-05-10 - date:2026-05-12' },
+            { id: 'timeEstimateRange', label: 'Time estimate: 30m - 1h 30m' },
+            { id: 'hasDescription', label: 'Has description' },
+            { id: 'isStarred', label: 'Not starred' },
+        ]);
+    });
+
+    it('falls back to bounded date and time labels', () => {
+        const chips = buildAdvancedFilterCriteriaChips({
+            dueDateRange: { to: '2026-05-10' },
+            startDateRange: { from: '2026-05-11' },
+            timeEstimateRange: { min: 120 },
+        }, {
+            formatDate: (value) => value,
+            resolveText: (_key, fallback) => fallback,
+        });
+
+        expect(chips.map((chip) => chip.label)).toEqual([
+            'Due Date: Before 2026-05-10',
+            'Start Date: After 2026-05-11',
+            'Time estimate: >= 2h',
+        ]);
+    });
+});

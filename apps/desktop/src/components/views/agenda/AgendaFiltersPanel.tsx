@@ -125,7 +125,7 @@ export function AgendaFiltersPanel({
                 onChange={(event) => onSearchChange(event.target.value)}
                 className="w-full rounded border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
             />
-            {!showFiltersPanel && activeFilterChips.length > 0 && (
+            {activeFilterChips.length > 0 && (
                 <div className="flex flex-wrap gap-2">
                     {activeFilterChips.map((chip) => (
                         <span

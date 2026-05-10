@@ -16,6 +16,7 @@ import { BookmarkPlus, Plus, SlidersHorizontal, X } from 'lucide-react-native';
 
 import {
   applyFilter,
+  buildAdvancedFilterCriteriaChips,
   sortFocusNextActions,
   shouldShowTaskForStart,
   getFocusSequentialFirstTaskIds,
@@ -57,6 +58,12 @@ const ENERGY_LEVEL_OPTIONS: TaskEnergyLevel[] = ['low', 'medium', 'high'];
 const ALL_TIME_ESTIMATE_OPTIONS: TimeEstimate[] = ['5min', '10min', '15min', '30min', '1hr', '2hr', '3hr', '4hr', '4hr+'];
 const DEFAULT_TIME_ESTIMATE_PRESETS: TimeEstimate[] = ['10min', '30min', '1hr', '2hr', '3hr', '4hr', '4hr+'];
 const NO_PROJECT_FILTER_ID = SAVED_FILTER_NO_PROJECT_ID;
+
+type FocusFilterChip = {
+  id: string;
+  label: string;
+  onPress?: () => void;
+};
 
 function filterSelectionStable<T>(current: T[], predicate: (item: T) => boolean): T[] {
   const next = current.filter(predicate);
@@ -488,8 +495,18 @@ export default function FocusScreen() {
   }, [expandedSections.focus, expandedSections.next, expandedSections.reviewDue, expandedSections.schedule, focusedTasks, schedule, nextActions, reviewDue, t]);
   const hasTasks = focusedTasks.length > 0 || schedule.length > 0 || nextActions.length > 0 || reviewDue.length > 0;
   const activeFilterCount = countFilterCriteria(effectiveFilterCriteria);
+  const advancedFilterChips = useMemo<FocusFilterChip[]>(() => {
+    if (!activeSavedFilter) return [];
+    return buildAdvancedFilterCriteriaChips(effectiveFilterCriteria, {
+      getAreaLabel: (areaId) => areaById.get(areaId)?.name,
+      resolveText,
+    }).map((chip) => ({
+      id: `advanced:${chip.id}`,
+      label: chip.label,
+    }));
+  }, [activeSavedFilter, areaById, effectiveFilterCriteria, resolveText]);
   const activeFilterChips = useMemo(() => {
-    const chips: { id: string; label: string; onPress: () => void }[] = [];
+    const chips: FocusFilterChip[] = [];
     selectedTokens.forEach((token) => {
       chips.push({
         id: `token:${token}`,
@@ -535,8 +552,10 @@ export default function FocusScreen() {
         onPress: () => toggleTimeEstimate(estimate),
       });
     });
+    chips.push(...advancedFilterChips);
     return chips;
   }, [
+    advancedFilterChips,
     projectById,
     resolveText,
     selectedEnergyLevels,
@@ -583,25 +602,40 @@ export default function FocusScreen() {
       [sectionType]: !current[sectionType],
     }));
   }, []);
-  const renderFilterChip = useCallback((label: string, selected: boolean, onPress: () => void) => (
-    <TouchableOpacity
-      key={label}
-      accessibilityRole="button"
-      accessibilityState={{ selected }}
-      onPress={onPress}
-      style={[
-        styles.filterChip,
-        {
-          backgroundColor: selected ? tc.tint : tc.filterBg,
-          borderColor: selected ? tc.tint : tc.border,
-        },
-      ]}
-    >
+  const renderFilterChip = useCallback((label: string, selected: boolean, onPress?: () => void, key = label) => {
+    const chipStyle = [
+      styles.filterChip,
+      {
+        backgroundColor: selected ? tc.tint : tc.filterBg,
+        borderColor: selected ? tc.tint : tc.border,
+      },
+    ];
+    const chipText = (
       <Text style={[styles.filterChipText, { color: selected ? tc.onTint : tc.text }]}>
         {label}
       </Text>
-    </TouchableOpacity>
-  ), [tc.border, tc.filterBg, tc.onTint, tc.text, tc.tint]);
+    );
+
+    if (!onPress) {
+      return (
+        <View key={key} style={chipStyle}>
+          {chipText}
+        </View>
+      );
+    }
+
+    return (
+      <TouchableOpacity
+        key={key}
+        accessibilityRole="button"
+        accessibilityState={{ selected }}
+        onPress={onPress}
+        style={chipStyle}
+      >
+        {chipText}
+      </TouchableOpacity>
+    );
+  }, [tc.border, tc.filterBg, tc.onTint, tc.text, tc.tint]);
 
   const renderItem = ({ item }: { item: Task }) => (
     <View style={styles.itemWrapper}>
@@ -752,7 +786,7 @@ export default function FocusScreen() {
                 contentContainerStyle={styles.activeChipsRow}
                 style={styles.activeChipsScroller}
               >
-                {activeFilterChips.map((chip) => renderFilterChip(chip.label, true, chip.onPress))}
+                {activeFilterChips.map((chip) => renderFilterChip(chip.label, true, chip.onPress, chip.id))}
                 <TouchableOpacity onPress={clearFilters} style={styles.clearFiltersButton}>
                   <Text style={[styles.clearFiltersText, { color: tc.secondaryText }]}>
                     {resolveText('filters.clear', 'Clear')}
@@ -859,6 +893,16 @@ export default function FocusScreen() {
               contentContainerStyle={styles.sheetContent}
               showsVerticalScrollIndicator={false}
             >
+              {activeFilterChips.length > 0 ? (
+                <>
+                  <Text style={[styles.sheetSectionLabel, { color: tc.secondaryText }]}>
+                    {resolveText('filters.active', 'Active filters')}
+                  </Text>
+                  <View style={styles.sheetChipRow}>
+                    {activeFilterChips.map((chip) => renderFilterChip(chip.label, true, chip.onPress, chip.id))}
+                  </View>
+                </>
+              ) : null}
               {tokenOptions.length > 0 ? (
                 <>
                   <Text style={[styles.sheetSectionLabel, { color: tc.secondaryText }]}>

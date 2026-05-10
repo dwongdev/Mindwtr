@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useState } from 'react';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { ErrorBoundary } from '../ErrorBoundary';
-import { shallow, useTaskStore, TaskPriority, TimeEstimate, applyFilter, formatFocusTaskLimitText, generateUUID, getUsedTaskTokens, getFocusSequentialFirstTaskIds, hasActiveFilterCriteria, normalizeFocusTaskLimit, safeParseDate, safeParseDueDate, isDueForReview, isTaskInActiveProject, SAVED_FILTER_NO_PROJECT_ID, shouldShowTaskForStart, sortFocusNextActions, translateWithFallback } from '@mindwtr/core';
+import { shallow, useTaskStore, TaskPriority, TimeEstimate, applyFilter, buildAdvancedFilterCriteriaChips, formatFocusTaskLimitText, generateUUID, getUsedTaskTokens, getFocusSequentialFirstTaskIds, hasActiveFilterCriteria, normalizeFocusTaskLimit, safeParseDate, safeParseDueDate, isDueForReview, isTaskInActiveProject, SAVED_FILTER_NO_PROJECT_ID, shouldShowTaskForStart, sortFocusNextActions, translateWithFallback } from '@mindwtr/core';
 import type { FilterCriteria, SavedFilter, Task, TaskEnergyLevel } from '@mindwtr/core';
 import { useLanguage } from '../../contexts/language-context';
 import { cn } from '../../lib/utils';
@@ -388,11 +388,24 @@ export function AgendaView() {
                 label: formatEstimate(estimate),
             });
         });
+        if (activeSavedFilter) {
+            chips.push(...buildAdvancedFilterCriteriaChips(effectiveFilterCriteria, {
+                getAreaColor: (areaId) => areaById.get(areaId)?.color,
+                getAreaLabel: (areaId) => areaById.get(areaId)?.name,
+                resolveText,
+            }).map((chip) => ({
+                id: `advanced:${chip.id}`,
+                label: chip.label,
+                dotColor: chip.color,
+            })));
+        }
         return chips;
     }, [
+        activeSavedFilter,
         activePriorities,
         activeTimeEstimates,
         areaById,
+        effectiveFilterCriteria,
         formatEstimate,
         projectMap,
         resolveText,

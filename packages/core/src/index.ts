@@ -401,6 +401,13 @@ export {
     SAVED_FILTER_NO_PROJECT_ID,
     taskMatchesFilterCriteria,
 } from './saved-filters';
+export {
+    buildAdvancedFilterCriteriaChips,
+} from './saved-filter-labels';
+export type {
+    SavedFilterCriteriaChip,
+    SavedFilterCriteriaChipOptions,
+} from './saved-filter-labels';
 
 export {
     matchesHierarchicalToken,

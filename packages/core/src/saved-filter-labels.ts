@@ -1,0 +1,145 @@
+import { safeFormatDate } from './date';
+import type { FilterCriteria } from './types';
+
+export type SavedFilterCriteriaChip = {
+    id: string;
+    label: string;
+    color?: string;
+};
+
+export type SavedFilterCriteriaChipOptions = {
+    formatDate?: (value: string) => string;
+    getAreaColor?: (areaId: string) => string | undefined;
+    getAreaLabel?: (areaId: string) => string | undefined;
+    resolveText?: (key: string, fallback: string) => string;
+    translate?: (key: string) => string;
+};
+
+const DATE_RANGE_PRESET_LABELS: Record<string, string> = {
+    today: 'Today',
+    this_week: 'This week',
+    this_month: 'This month',
+    overdue: 'Overdue',
+    no_date: 'No date',
+};
+
+function titleCase(value: string): string {
+    return value
+        .split(/[-_\s]+/)
+        .filter(Boolean)
+        .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+        .join(' ');
+}
+
+function resolveText(options: SavedFilterCriteriaChipOptions, key: string, fallback: string): string {
+    if (options.resolveText) return options.resolveText(key, fallback);
+    const translated = options.translate?.(key);
+    return translated && translated !== key ? translated : fallback;
+}
+
+function formatDateValue(value: string, options: SavedFilterCriteriaChipOptions): string {
+    return options.formatDate?.(value) ?? safeFormatDate(value, 'P', value);
+}
+
+function formatDateRange(
+    label: string,
+    range: FilterCriteria['dueDateRange'],
+    options: SavedFilterCriteriaChipOptions,
+): string | null {
+    if (!range) return null;
+    if ('preset' in range) {
+        const fallback = DATE_RANGE_PRESET_LABELS[range.preset] ?? titleCase(range.preset);
+        return `${label}: ${resolveText(options, `filters.datePreset.${range.preset}`, fallback)}`;
+    }
+
+    const from = range.from ? formatDateValue(range.from, options) : '';
+    const to = range.to ? formatDateValue(range.to, options) : '';
+    if (from && to) return `${label}: ${from} - ${to}`;
+    if (from) return `${label}: ${resolveText(options, 'filters.after', 'After')} ${from}`;
+    if (to) return `${label}: ${resolveText(options, 'filters.before', 'Before')} ${to}`;
+    return null;
+}
+
+function formatMinutes(minutes: number): string {
+    if (!Number.isFinite(minutes)) return '';
+    if (minutes < 60) return `${minutes}m`;
+    const hours = Math.floor(minutes / 60);
+    const remainder = minutes % 60;
+    return remainder === 0 ? `${hours}h` : `${hours}h ${remainder}m`;
+}
+
+function formatTimeEstimateRange(
+    range: FilterCriteria['timeEstimateRange'],
+    options: SavedFilterCriteriaChipOptions,
+): string | null {
+    if (!range) return null;
+    const label = resolveText(options, 'filters.timeEstimate', 'Time estimate');
+    const min = typeof range.min === 'number' ? formatMinutes(range.min) : '';
+    const max = typeof range.max === 'number' ? formatMinutes(range.max) : '';
+    if (min && max) return `${label}: ${min} - ${max}`;
+    if (min) return `${label}: >= ${min}`;
+    if (max) return `${label}: <= ${max}`;
+    return null;
+}
+
+export function buildAdvancedFilterCriteriaChips(
+    criteria: FilterCriteria,
+    options: SavedFilterCriteriaChipOptions = {},
+): SavedFilterCriteriaChip[] {
+    const chips: SavedFilterCriteriaChip[] = [];
+    const areaLabel = resolveText(options, 'taskEdit.areaLabel', 'Area');
+    criteria.areas?.forEach((areaId) => {
+        chips.push({
+            id: `area:${areaId}`,
+            label: `${areaLabel}: ${options.getAreaLabel?.(areaId) ?? areaId}`,
+            color: options.getAreaColor?.(areaId),
+        });
+    });
+
+    const statusLabel = resolveText(options, 'taskEdit.statusLabel', 'Status');
+    criteria.statuses?.forEach((status) => {
+        chips.push({
+            id: `status:${status}`,
+            label: `${statusLabel}: ${resolveText(options, `status.${status}`, titleCase(status))}`,
+        });
+    });
+
+    const assignedLabel = resolveText(options, 'taskEdit.assignedTo', 'Assigned To');
+    criteria.assignedTo?.forEach((assignee) => {
+        chips.push({
+            id: `assigned:${assignee}`,
+            label: `${assignedLabel}: ${assignee}`,
+        });
+    });
+
+    const dueDateLabel = resolveText(options, 'taskEdit.dueDateLabel', 'Due Date');
+    const dueDateRange = formatDateRange(dueDateLabel, criteria.dueDateRange, options);
+    if (dueDateRange) chips.push({ id: 'dueDateRange', label: dueDateRange });
+
+    const startDateLabel = resolveText(options, 'taskEdit.startDateLabel', 'Start Date');
+    const startDateRange = formatDateRange(startDateLabel, criteria.startDateRange, options);
+    if (startDateRange) chips.push({ id: 'startDateRange', label: startDateRange });
+
+    const timeEstimateRange = formatTimeEstimateRange(criteria.timeEstimateRange, options);
+    if (timeEstimateRange) chips.push({ id: 'timeEstimateRange', label: timeEstimateRange });
+
+    if (criteria.hasDescription !== undefined) {
+        chips.push({
+            id: 'hasDescription',
+            label: criteria.hasDescription
+                ? resolveText(options, 'filters.hasDescription', 'Has description')
+                : resolveText(options, 'filters.noDescription', 'No description'),
+        });
+    }
+
+    if (criteria.isStarred !== undefined) {
+        chips.push({
+            id: 'isStarred',
+            label: criteria.isStarred
+                ? resolveText(options, 'filters.starred', 'Starred')
+                : resolveText(options, 'filters.notStarred', 'Not starred'),
+        });
+    }
+
+    return chips;
+}
