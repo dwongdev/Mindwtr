@@ -11,7 +11,6 @@ import {
   TextInput,
   Alert,
 } from 'react-native';
-import { format } from 'date-fns';
 import { useLocalSearchParams } from 'expo-router';
 import { BookmarkPlus, Plus, SlidersHorizontal, X } from 'lucide-react-native';
 
@@ -27,6 +26,7 @@ import {
   translateWithFallback,
   useTaskStore,
   isDueForReview,
+  safeFormatDate,
   safeParseDate,
   safeParseDueDate,
   type Task,
@@ -641,7 +641,7 @@ export default function FocusScreen() {
             )}
             <View style={styles.headerTopRow}>
               <Text style={[styles.dateText, { color: tc.secondaryText }]}>
-                {format(new Date(), 'PPPP')}
+                {safeFormatDate(new Date(), 'PPPP')}
               </Text>
               <View style={styles.headerActions}>
                 <Pressable

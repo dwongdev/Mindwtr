@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-import { existsSync, lstatSync, mkdirSync, readFileSync, readdirSync, realpathSync, rmdirSync, unlinkSync } from 'fs';
+import { existsSync, lstatSync, mkdirSync, readFileSync, readdirSync, realpathSync, rmdirSync, unlinkSync, type Stats } from 'fs';
 import { createHash } from 'crypto';
 import { join, relative } from 'path';
 import {
@@ -90,6 +90,17 @@ const TOKEN_NAMESPACE_DIR_PATTERN = /^[a-f0-9]{64}$/;
 // Relies on POSIX mtime; do not lower below 1 minute without auditing filesystem timestamp resolution and batching.
 const ORPHAN_ATTACHMENT_GC_GRACE_MS = 5 * 60 * 1000;
 
+type DataMetadataCacheEntry = {
+    ctimeMs: number;
+    hash: string;
+    ino: number;
+    lastModified: string;
+    mtimeMs: number;
+    size: number;
+};
+
+const dataMetadataCache = new Map<string, DataMetadataCacheEntry>();
+
 const getBlockedAttachmentSignature = (bytes: Uint8Array): string | null => {
     if (bytes.length >= 2 && bytes[0] === 0x4d && bytes[1] === 0x5a) {
         return 'windows-pe';
@@ -121,16 +132,40 @@ const createInternalServerErrorResponse = (message: string, requestId: string): 
     )
 );
 
+const getDataMetadata = (filePath: string, stat: Stats): DataMetadataCacheEntry => {
+    const cached = dataMetadataCache.get(filePath);
+    if (
+        cached
+        && cached.size === stat.size
+        && cached.mtimeMs === stat.mtimeMs
+        && cached.ctimeMs === stat.ctimeMs
+        && cached.ino === stat.ino
+    ) {
+        return cached;
+    }
+
+    const entry: DataMetadataCacheEntry = {
+        ctimeMs: stat.ctimeMs,
+        hash: createHash('sha256').update(readFileSync(filePath)).digest('hex'),
+        ino: stat.ino,
+        lastModified: stat.mtime.toUTCString(),
+        mtimeMs: stat.mtimeMs,
+        size: stat.size,
+    };
+    dataMetadataCache.set(filePath, entry);
+    return entry;
+};
+
 const dataMetadataResponse = (filePath: string): Response => {
     const stat = lstatSync(filePath);
-    const hash = createHash('sha256').update(readFileSync(filePath)).digest('hex');
+    const metadata = getDataMetadata(filePath, stat);
     const headers = new Headers({
         'Access-Control-Allow-Origin': corsOrigin,
         'Access-Control-Allow-Headers': 'Authorization, Content-Type',
         'Access-Control-Allow-Methods': 'GET,HEAD,PUT,POST,PATCH,DELETE,OPTIONS',
-        'Content-Length': String(stat.size),
-        'ETag': `"sha256-${hash}"`,
-        'Last-Modified': stat.mtime.toUTCString(),
+        'Content-Length': String(metadata.size),
+        'ETag': `"sha256-${metadata.hash}"`,
+        'Last-Modified': metadata.lastModified,
     });
     return new Response(null, { status: 200, headers });
 };
@@ -346,6 +381,8 @@ export const __cloudTestUtils = {
     pathContainsSymlink,
     createWriteLockRunner,
     createInternalServerErrorResponse,
+    dataMetadataResponse,
+    getDataMetadataCacheSize: () => dataMetadataCache.size,
 };
 
 type CloudServerOptions = {

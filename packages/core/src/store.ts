@@ -176,6 +176,13 @@ const scheduleErrorAutoClear = (error: string | null) => {
     }, ERROR_AUTO_CLEAR_MS);
 };
 
+export const resetForTests = () => {
+    if (errorAutoClearTimer) {
+        clearTimeout(errorAutoClearTimer);
+        errorAutoClearTimer = null;
+    }
+};
+
 type EntityCollectionConfig = {
     allKey: '_allTasks' | '_allProjects' | '_allSections' | '_allAreas';
     visibleKey: 'tasks' | 'projects' | 'sections' | 'areas';

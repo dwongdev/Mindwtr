@@ -333,6 +333,8 @@ function NativeTabBar({
   closeMoreSheet,
   toggleMoreSheet,
   defaultAutoRecord,
+  addTaskAccessibilityLabel,
+  audioCaptureAccessibilityLabel,
   menuSyncIndicatorColor,
   moreSheetVisible,
 }: BottomTabBarProps & {
@@ -348,6 +350,8 @@ function NativeTabBar({
   closeMoreSheet: () => void;
   toggleMoreSheet: () => void;
   defaultAutoRecord: boolean;
+  addTaskAccessibilityLabel: string;
+  audioCaptureAccessibilityLabel: string;
   menuSyncIndicatorColor?: string;
   moreSheetVisible: boolean;
 }) {
@@ -394,7 +398,7 @@ function NativeTabBar({
                 }, 400);
               }}
               accessibilityRole="button"
-              accessibilityLabel={defaultAutoRecord ? 'Audio capture' : 'Add task'}
+              accessibilityLabel={defaultAutoRecord ? audioCaptureAccessibilityLabel : addTaskAccessibilityLabel}
               hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
               style={[
                 styles.nativeTabItem,
@@ -582,6 +586,8 @@ export default function TabLayout() {
             closeMoreSheet={closeMoreSheet}
             toggleMoreSheet={toggleMoreSheet}
             defaultAutoRecord={defaultAutoRecord}
+            addTaskAccessibilityLabel={t('nav.addTask')}
+            audioCaptureAccessibilityLabel={t('quickAdd.audioCaptureLabel')}
             menuSyncIndicatorColor={syncBadgeColor}
             moreSheetVisible={moreSheetVisible}
           />

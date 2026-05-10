@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
 import { addDays } from 'date-fns';
 import { safeParseDate } from './date';
-import { useTaskStore, flushPendingSave, setStorageAdapter } from './store';
+import { useTaskStore, flushPendingSave, resetForTests, setStorageAdapter } from './store';
 import { buildEntityMap } from './store-helpers';
 import type { StorageAdapter } from './storage';
 import type { Task } from './types';
@@ -71,6 +71,7 @@ describe('TaskStore', () => {
 
     afterEach(async () => {
         await flushPendingSave();
+        resetForTests();
         vi.useRealTimers();
         vi.restoreAllMocks();
     });

@@ -389,7 +389,7 @@ export const createTaskActions = ({ set, get, getStorage, debouncedSave }: TaskA
         const changeAt = Date.now();
         const now = new Date().toISOString();
         const currentState = get();
-        const existingTask = currentState._allTasks.find((task) => task.id === id);
+        const existingTask = currentState._tasksById.get(id);
         if (!existingTask) {
             const message = 'Task not found';
             logWarn('updateTask skipped: task not found', {
@@ -426,7 +426,7 @@ export const createTaskActions = ({ set, get, getStorage, debouncedSave }: TaskA
         }
         let snapshot: AppData | null = null;
         set((state) => {
-            const oldTask = state._allTasks.find((t) => t.id === id);
+            const oldTask = state._tasksById.get(id);
             if (!oldTask) {
                 return state;
             }
@@ -483,7 +483,7 @@ export const createTaskActions = ({ set, get, getStorage, debouncedSave }: TaskA
         let snapshot: AppData | null = null;
         let missingTask = false;
         set((state) => {
-            const oldTask = state._allTasks.find((task) => task.id === id);
+            const oldTask = state._tasksById.get(id);
             if (!oldTask) {
                 missingTask = true;
                 return state;
@@ -527,7 +527,7 @@ export const createTaskActions = ({ set, get, getStorage, debouncedSave }: TaskA
         let snapshot: AppData | null = null;
         let missingTask = false;
         set((state) => {
-            const oldTask = state._allTasks.find((task) => task.id === id);
+            const oldTask = state._tasksById.get(id);
             if (!oldTask) {
                 missingTask = true;
                 return state;
@@ -570,7 +570,7 @@ export const createTaskActions = ({ set, get, getStorage, debouncedSave }: TaskA
         let snapshot: AppData | null = null;
         let missingTask = false;
         set((state) => {
-            const oldTask = state._allTasks.find((task) => task.id === id);
+            const oldTask = state._tasksById.get(id);
             if (!oldTask) {
                 missingTask = true;
                 return state;
@@ -657,7 +657,11 @@ export const createTaskActions = ({ set, get, getStorage, debouncedSave }: TaskA
         let snapshot: AppData | null = null;
         let missingTask = false;
         set((state) => {
-            const sourceTask = state._allTasks.find((task) => task.id === id && !task.deletedAt);
+            const sourceTask = state._tasksById.get(id);
+            if (sourceTask?.deletedAt) {
+                missingTask = true;
+                return state;
+            }
             if (!sourceTask) {
                 missingTask = true;
                 return state;
@@ -731,8 +735,8 @@ export const createTaskActions = ({ set, get, getStorage, debouncedSave }: TaskA
         let snapshot: AppData | null = null;
         let missingTask = false;
         set((state) => {
-            const sourceTask = state._allTasks.find((task) => task.id === id && !task.deletedAt);
-            if (!sourceTask || !sourceTask.checklist || sourceTask.checklist.length === 0) {
+            const sourceTask = state._tasksById.get(id);
+            if (!sourceTask || sourceTask.deletedAt || !sourceTask.checklist || sourceTask.checklist.length === 0) {
                 missingTask = true;
                 return state;
             }

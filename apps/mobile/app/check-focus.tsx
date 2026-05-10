@@ -4,10 +4,12 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { generateUUID, useTaskStore } from '@mindwtr/core';
 import { Check, ArrowLeft, Trash2, Plus } from 'lucide-react-native';
+import { useLanguage } from '../contexts/language-context';
 
 export default function FocusChecklistPage() {
     const { id } = useLocalSearchParams();
     const router = useRouter();
+    const { t } = useLanguage();
     const { tasks, updateTask } = useTaskStore();
     const [task, setTask] = useState(tasks.find(t => t.id === id));
 
@@ -103,7 +105,7 @@ export default function FocusChecklistPage() {
                                 style={[styles.input, item.isCompleted && styles.inputCompleted]}
                                 value={item.title}
                                 onChangeText={(text) => handleUpdateItem(index, text)}
-                                placeholder="Item name"
+                                placeholder={t('taskEdit.itemNamePlaceholder')}
                                 multiline
                             />
 

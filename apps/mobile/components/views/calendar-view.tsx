@@ -15,7 +15,7 @@ import {
 import * as Haptics from 'expo-haptics';
 import { CALENDAR_TIME_ESTIMATE_OPTIONS, safeFormatDate, safeParseDate, type Task } from '@mindwtr/core';
 import { Gesture, GestureDetector, ScrollView } from 'react-native-gesture-handler';
-import Animated, { runOnJS, useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
+import Animated, { runOnJS, useAnimatedStyle, useSharedValue, withSequence, withSpring, withTiming } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { TaskEditModal } from '@/components/task-edit-modal';
@@ -418,10 +418,13 @@ export function CalendarView() {
     }
 
     triggerDragHaptic();
-    navigationSwipeOffsetX.value = direction === 1
+    const snapOffset = direction === 1
       ? Math.min(screenWidth * 0.18, CALENDAR_NAVIGATION_FEEDBACK_DISTANCE)
       : -Math.min(screenWidth * 0.18, CALENDAR_NAVIGATION_FEEDBACK_DISTANCE);
-    navigationSwipeOffsetX.value = withSpring(0);
+    navigationSwipeOffsetX.value = withSequence(
+      withTiming(snapOffset, { duration: 70 }),
+      withSpring(0)
+    );
 
     if (mode === 'month') {
       suppressMonthDayPressUntilRef.current = Date.now() + 350;

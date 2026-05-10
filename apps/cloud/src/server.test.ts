@@ -739,6 +739,21 @@ describe('cloud server api', () => {
         expect(await response.text()).toBe('');
     });
 
+    test('caches unchanged data metadata hashes by file stats', () => {
+        const tempDir = mkdtempSync(join(tmpdir(), 'mindwtr-cloud-head-cache-'));
+        const filePath = join(tempDir, 'data.json');
+        try {
+            writeFileSync(filePath, JSON.stringify({ version: 1 }));
+            const first = __cloudTestUtils.dataMetadataResponse(filePath);
+            const second = __cloudTestUtils.dataMetadataResponse(filePath);
+
+            expect(second.headers.get('etag')).toBe(first.headers.get('etag'));
+            expect(__cloudTestUtils.getDataMetadataCacheSize()).toBeGreaterThan(0);
+        } finally {
+            rmSync(tempDir, { recursive: true, force: true });
+        }
+    });
+
     test('supports task CRUD and soft delete flow', async () => {
         const createResponse = await fetch(`${baseUrl}/v1/tasks`, {
             method: 'POST',

@@ -51,6 +51,7 @@ export {
     applyTaskUpdates,
     flushPendingSave,
     getStorageAdapter,
+    resetForTests,
     setStorageAdapter,
     shallow,
     useProjectById,

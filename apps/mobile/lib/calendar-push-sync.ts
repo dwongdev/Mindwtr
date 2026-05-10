@@ -542,12 +542,13 @@ const runPartialCalendarSync = async (taskIds: string[]): Promise<void> => {
     const target = await resolveCalendarPushTarget();
     if (!target) return;
 
-    const { _allTasks } = useTaskStore.getState();
-    const targets = _allTasks.filter((t) => taskIds.includes(t.id));
+    const { _tasksById } = useTaskStore.getState();
+    const targets = taskIds
+        .map((id) => _tasksById.get(id))
+        .filter((task): task is Task => !!task);
 
-    // Also handle tasks that were removed from the store (deleted)
-    const storeIds = new Set(_allTasks.map((t) => t.id));
-    const removedIds = taskIds.filter((id) => !storeIds.has(id));
+    // Also handle tasks that were removed from the store entirely.
+    const removedIds = taskIds.filter((id) => !_tasksById.has(id));
 
     await Promise.allSettled([
         ...targets.map((t) => syncTaskToCalendar(t, target)),
@@ -570,7 +571,9 @@ export const startCalendarPushSync = (): (() => void) => {
         useTaskStore.getState()._allTasks.map((t) => [t.id, t])
     );
 
-    unsubscribeStore = useTaskStore.subscribe((state) => {
+    unsubscribeStore = useTaskStore.subscribe((state, previousState) => {
+        if (state._allTasks === previousState._allTasks) return;
+
         const changedIds: string[] = [];
         const currentMap = new Map(state._allTasks.map((t) => [t.id, t]));
 

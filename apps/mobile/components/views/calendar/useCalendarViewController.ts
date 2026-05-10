@@ -16,6 +16,7 @@ import {
   safeFormatDate,
   safeParseDate,
   safeParseDueDate,
+  shallow,
   timeEstimateToMinutes as resolveTimeEstimateToMinutes,
   translateText,
   type ExternalCalendarEvent,
@@ -123,7 +124,15 @@ const addMapItem = <T,>(map: Map<string, T[]>, date: Date, item: T) => {
 const normalizeDurationMinutes = normalizeCalendarDurationMinutes;
 
 export function useCalendarViewController() {
-  const { tasks, projects, addTask, updateTask, deleteTask, updateSettings, settings } = useTaskStore();
+  const { tasks, projects, addTask, updateTask, deleteTask, updateSettings, settings } = useTaskStore((state) => ({
+    tasks: state.tasks,
+    projects: state.projects,
+    addTask: state.addTask,
+    updateTask: state.updateTask,
+    deleteTask: state.deleteTask,
+    updateSettings: state.updateSettings,
+    settings: state.settings,
+  }), shallow);
   const { isDark } = useTheme();
   const { showToast } = useToast();
   const tc = useThemeColors();
@@ -145,7 +154,7 @@ export function useCalendarViewController() {
   const localize = (enText: string, zhText?: string) =>
     (language === 'zh' || language === 'zh-Hant') && zhText ? zhText : translateText(enText, language);
 
-  const timeEstimatesEnabled = useTaskStore((state) => state.settings?.features?.timeEstimates !== false);
+  const timeEstimatesEnabled = settings?.features?.timeEstimates !== false;
   const today = new Date();
   const initialViewMode = coerceCalendarViewMode(settings?.calendar?.viewMode);
   const calendarWeekVisibleDays = coerceCalendarWeekVisibleDays(settings?.calendar?.weekVisibleDays);
