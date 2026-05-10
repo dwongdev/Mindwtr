@@ -36,7 +36,7 @@ import { maskCalendarUrl } from '@/lib/settings-utils';
 import { useThemeColors } from '@/hooks/use-theme-colors';
 
 import { useSettingsLocalization, useSettingsScrollContent } from './settings.hooks';
-import { SettingsTopBar, SubHeader } from './settings.shell';
+import { SettingsTopBar } from './settings.shell';
 import { styles } from './settings.styles';
 
 type CollapsibleSettingHeaderProps = {
@@ -440,8 +440,7 @@ export function CalendarSettingsScreen() {
 
     return (
         <SafeAreaView style={[styles.container, { backgroundColor: tc.bg }]} edges={['bottom']}>
-            <SettingsTopBar />
-            <SubHeader title={t('settings.calendar')} />
+            <SettingsTopBar title={t('settings.calendar')} />
             <ScrollView style={styles.scrollView} contentContainerStyle={scrollContentStyle}>
                 {/* Push tasks to calendar */}
                 <View style={[styles.settingCard, { backgroundColor: tc.cardBg, marginBottom: 16 }]}>

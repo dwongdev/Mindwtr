@@ -44,7 +44,7 @@ import { SyncSelfHostedBackendPanel } from './sync-settings-selfhosted-panel';
 import { SyncWebDavBackendPanel } from './sync-settings-webdav-panel';
 import { useSyncSettingsBackupActions } from './use-sync-settings-backup-actions';
 import { useSyncSettingsTransportActions, type CloudKitAccountStatus } from './use-sync-settings-transport-actions';
-import { SettingsTopBar, SubHeader } from './settings.shell';
+import { SettingsTopBar } from './settings.shell';
 import { styles } from './settings.styles';
 
 type SettingsScreenMode = 'sync' | 'data';
@@ -382,8 +382,7 @@ function SyncSettingsView({ mode }: { mode: SettingsScreenMode }) {
 
     return (
         <SafeAreaView style={[styles.container, { backgroundColor: tc.bg }]} edges={['bottom']}>
-            <SettingsTopBar />
-            <SubHeader title={mode === 'sync' ? t('settings.sync') : dataLabel} />
+            <SettingsTopBar title={mode === 'sync' ? t('settings.sync') : dataLabel} />
             <ScrollView style={styles.scrollView} contentContainerStyle={scrollContentStyle}>
                 {mode === 'sync' ? (
                     <>

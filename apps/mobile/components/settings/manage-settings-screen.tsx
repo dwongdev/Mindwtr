@@ -9,7 +9,7 @@ import { AREA_PRESET_COLORS, DEFAULT_AREA_COLOR, type Area, useTaskStore } from 
 import { useThemeColors } from '@/hooks/use-theme-colors';
 
 import { useSettingsLocalization, useSettingsScrollContent } from './settings.hooks';
-import { SettingsTopBar, SubHeader } from './settings.shell';
+import { SettingsTopBar } from './settings.shell';
 import { styles } from './settings.styles';
 
 type ManageSectionKey = 'areas' | 'contexts' | 'tags';
@@ -274,8 +274,7 @@ export function ManageSettingsScreen() {
 
     return (
         <SafeAreaView style={[styles.container, { backgroundColor: tc.bg }]} edges={['bottom']}>
-            <SettingsTopBar />
-            <SubHeader title={t('settings.manage')} />
+            <SettingsTopBar title={t('settings.manage')} />
             <ScrollView style={styles.scrollView} contentContainerStyle={scrollContentStyle}>
                 <CollapsibleSection
                     testID="manage-section-toggle-areas"

@@ -94,7 +94,7 @@ export function MenuItem({
     );
 }
 
-export function SettingsTopBar() {
+export function SettingsTopBar({ title }: { title?: string } = {}) {
     const router = useRouter();
     const { t } = useLanguage();
     const tc = useThemeColors();
@@ -128,7 +128,7 @@ export function SettingsTopBar() {
                 <Ionicons color={tc.text} name="chevron-back" size={24} />
             </Pressable>
             <Text style={[styles.topBarTitle, { color: tc.text }]} numberOfLines={1}>
-                {t('settings.title')}
+                {title ?? t('settings.title')}
             </Text>
             <View style={styles.topBarBackButton} />
         </View>

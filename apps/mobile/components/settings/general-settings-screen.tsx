@@ -10,7 +10,7 @@ import { useThemeColors } from '@/hooks/use-theme-colors';
 
 import { LANGUAGES } from './settings.constants';
 import { useSettingsLocalization, useSettingsScrollContent } from './settings.hooks';
-import { SettingsTopBar, SubHeader } from './settings.shell';
+import { SettingsTopBar } from './settings.shell';
 import { styles } from './settings.styles';
 
 export function GeneralSettingsScreen() {
@@ -62,8 +62,7 @@ export function GeneralSettingsScreen() {
 
     return (
         <SafeAreaView style={[styles.container, { backgroundColor: tc.bg }]} edges={['bottom']}>
-            <SettingsTopBar />
-            <SubHeader title={t('settings.general')} />
+            <SettingsTopBar title={t('settings.general')} />
             <ScrollView style={styles.scrollView} contentContainerStyle={scrollContentStyle}>
                 <Text style={[styles.sectionTitle, { color: tc.secondaryText }]}>{t('settings.appearance')}</Text>
                 <View style={[styles.settingCard, { backgroundColor: tc.cardBg }]}>

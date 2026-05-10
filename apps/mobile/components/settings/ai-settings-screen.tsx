@@ -35,7 +35,7 @@ import {
     WHISPER_MODELS,
 } from './settings.constants';
 import { useSettingsLocalization, useSettingsScrollContent } from './settings.hooks';
-import { SettingsTopBar, SubHeader } from './settings.shell';
+import { SettingsTopBar } from './settings.shell';
 import { styles } from './settings.styles';
 
 export function AISettingsScreen() {
@@ -584,8 +584,7 @@ export function AISettingsScreen() {
 
     return (
         <SafeAreaView style={[styles.container, { backgroundColor: tc.bg }]} edges={['bottom']}>
-            <SettingsTopBar />
-            <SubHeader title={t('settings.ai')} />
+            <SettingsTopBar title={t('settings.ai')} />
             <KeyboardAvoidingView
                 behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
                 keyboardVerticalOffset={Platform.OS === 'ios' ? 80 : 0}

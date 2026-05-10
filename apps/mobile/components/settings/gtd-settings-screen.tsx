@@ -36,7 +36,7 @@ import {
 
 import type { SettingsScreen } from './settings.constants';
 import { useSettingsLocalization, useSettingsScrollContent } from './settings.hooks';
-import { SettingsTopBar, SubHeader } from './settings.shell';
+import { SettingsTopBar } from './settings.shell';
 import { styles } from './settings.styles';
 
 type GtdScreen =
@@ -381,8 +381,7 @@ export function GtdSettingsScreen({
     if (screen === 'gtd') {
         return (
             <SafeAreaView style={[styles.container, { backgroundColor: tc.bg }]} edges={['bottom']}>
-                <SettingsTopBar />
-                <SubHeader title={t('settings.gtd')} />
+                <SettingsTopBar title={t('settings.gtd')} />
                 <ScrollView style={styles.scrollView} contentContainerStyle={scrollContentStyle}>
                     <Text style={[styles.description, { color: tc.secondaryText }]}>{t('settings.gtdDesc')}</Text>
                     <View style={[styles.settingCard, { backgroundColor: tc.cardBg, marginBottom: 12 }]}>
@@ -514,8 +513,7 @@ export function GtdSettingsScreen({
     if (screen === 'gtd-pomodoro') {
         return (
             <SafeAreaView style={[styles.container, { backgroundColor: tc.bg }]} edges={['bottom']}>
-                <SettingsTopBar />
-                <SubHeader title={pomodoroSettingsLabel} />
+                <SettingsTopBar title={pomodoroSettingsLabel} />
                 <ScrollView style={styles.scrollView} contentContainerStyle={scrollContentStyle}>
                     <Text style={[styles.description, { color: tc.secondaryText }]}>{featurePomodoroDesc}</Text>
                     {!pomodoroEnabled ? (
@@ -610,8 +608,7 @@ export function GtdSettingsScreen({
     if (screen === 'gtd-capture') {
         return (
             <SafeAreaView style={[styles.container, { backgroundColor: tc.bg }]} edges={['bottom']}>
-                <SettingsTopBar />
-                <SubHeader title={captureSettingsTitle} />
+                <SettingsTopBar title={captureSettingsTitle} />
                 <ScrollView style={styles.scrollView} contentContainerStyle={scrollContentStyle}>
                     <Text style={[styles.description, { color: tc.secondaryText }]}>{t('settings.captureDefaultDesc')}</Text>
                     <View style={[styles.settingCard, { backgroundColor: tc.cardBg }]}>
@@ -682,8 +679,7 @@ export function GtdSettingsScreen({
     if (screen === 'gtd-review') {
         return (
             <SafeAreaView style={[styles.container, { backgroundColor: tc.bg }]} edges={['bottom']}>
-                <SettingsTopBar />
-                <SubHeader title={reviewSettingsTitle} />
+                <SettingsTopBar title={reviewSettingsTitle} />
                 <ScrollView style={styles.scrollView} contentContainerStyle={scrollContentStyle}>
                     <Text style={[styles.description, { color: tc.secondaryText }]}>
                         {localize('Choose which optional steps appear in daily and weekly review.', '选择每日和每周回顾中显示的可选步骤。')}
@@ -736,8 +732,7 @@ export function GtdSettingsScreen({
     if (screen === 'gtd-inbox') {
         return (
             <SafeAreaView style={[styles.container, { backgroundColor: tc.bg }]} edges={['bottom']}>
-                <SettingsTopBar />
-                <SubHeader title={inboxSettingsTitle} />
+                <SettingsTopBar title={inboxSettingsTitle} />
                 <ScrollView style={styles.scrollView} contentContainerStyle={scrollContentStyle}>
                     <Text style={[styles.description, { color: tc.secondaryText }]}>{t('settings.inboxProcessingDesc')}</Text>
                     <View style={[styles.settingCard, { backgroundColor: tc.cardBg }]}>
@@ -796,8 +791,7 @@ export function GtdSettingsScreen({
 
         return (
             <SafeAreaView style={[styles.container, { backgroundColor: tc.bg }]} edges={['bottom']}>
-                <SettingsTopBar />
-                <SubHeader title={t('settings.autoArchive')} />
+                <SettingsTopBar title={t('settings.autoArchive')} />
                 <ScrollView style={styles.scrollView} contentContainerStyle={scrollContentStyle}>
                     <Text style={[styles.description, { color: tc.secondaryText }]}>{t('settings.autoArchiveDesc')}</Text>
                     <View style={[styles.settingCard, { backgroundColor: tc.cardBg }]}>
@@ -831,8 +825,7 @@ export function GtdSettingsScreen({
         if (!timeEstimatesEnabled) {
             return (
                 <SafeAreaView style={[styles.container, { backgroundColor: tc.bg }]} edges={['bottom']}>
-                    <SettingsTopBar />
-                    <SubHeader title={t('settings.timeEstimatePresets')} />
+                    <SettingsTopBar title={t('settings.timeEstimatePresets')} />
                     <ScrollView style={styles.scrollView} contentContainerStyle={scrollContentStyle}>
                         <Text style={[styles.description, { color: tc.secondaryText }]}>{t('settings.timeEstimatePresetsDisabled')}</Text>
                         <TouchableOpacity
@@ -873,8 +866,7 @@ export function GtdSettingsScreen({
 
         return (
             <SafeAreaView style={[styles.container, { backgroundColor: tc.bg }]} edges={['bottom']}>
-                <SettingsTopBar />
-                <SubHeader title={t('settings.timeEstimatePresets')} />
+                <SettingsTopBar title={t('settings.timeEstimatePresets')} />
                 <ScrollView style={styles.scrollView} contentContainerStyle={scrollContentStyle}>
                     <Text style={[styles.description, { color: tc.secondaryText }]}>{t('settings.timeEstimatePresetsDesc')}</Text>
                     <View style={[styles.settingCard, { backgroundColor: tc.cardBg }]}>
@@ -1166,8 +1158,7 @@ export function GtdSettingsScreen({
 
     return (
         <SafeAreaView style={[styles.container, { backgroundColor: tc.bg }]} edges={['bottom']}>
-            <SettingsTopBar />
-            <SubHeader title={t('settings.taskEditorLayout')} />
+            <SettingsTopBar title={t('settings.taskEditorLayout')} />
             <ScrollView style={styles.scrollView} contentContainerStyle={scrollContentStyle}>
                 <Text style={[styles.description, { color: tc.secondaryText }]}>{t('settings.taskEditorLayoutDesc')}</Text>
                 <Text style={[styles.description, { color: tc.secondaryText, marginTop: -6 }]}>{taskEditorHelperText}</Text>

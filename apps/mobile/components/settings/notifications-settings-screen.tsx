@@ -15,7 +15,7 @@ import { requestNotificationPermission, startMobileNotifications } from '@/lib/n
 import { useThemeColors } from '@/hooks/use-theme-colors';
 
 import { useSettingsLocalization, useSettingsScrollContent } from './settings.hooks';
-import { SettingsTopBar, SubHeader } from './settings.shell';
+import { SettingsTopBar } from './settings.shell';
 import { styles } from './settings.styles';
 
 export function NotificationsSettingsScreen() {
@@ -136,8 +136,7 @@ export function NotificationsSettingsScreen() {
 
     return (
         <SafeAreaView style={[styles.container, { backgroundColor: tc.bg }]} edges={['bottom']}>
-            <SettingsTopBar />
-            <SubHeader title={t('settings.notifications')} />
+            <SettingsTopBar title={t('settings.notifications')} />
             <ScrollView style={styles.scrollView} contentContainerStyle={scrollContentStyle}>
                 <View style={[styles.settingCard, { backgroundColor: tc.cardBg }]}>
                     <View style={styles.settingRow}>

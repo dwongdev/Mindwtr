@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, Alert, Linking, Platform, ScrollView, Text, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Alert, Image, Linking, Platform, ScrollView, Text, TouchableOpacity, View } from 'react-native';
 import Constants from 'expo-constants';
 import * as Application from 'expo-application';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -18,8 +18,10 @@ import {
     UPDATE_BADGE_LATEST_KEY,
 } from './settings.constants';
 import { useSettingsLocalization, useSettingsScrollContent } from './settings.hooks';
-import { SettingsTopBar, SubHeader } from './settings.shell';
+import { SettingsTopBar } from './settings.shell';
 import { styles } from './settings.styles';
+
+const appIconSource = require('../../assets/images/icon.png');
 
 export function AboutSettingsScreen({
     onUpdateBadgeChange,
@@ -34,6 +36,7 @@ export function AboutSettingsScreen({
     const isFossBuild = extraConfig?.isFossBuild === true || extraConfig?.isFossBuild === 'true';
     const isExpoGo = Constants.appOwnership === 'expo';
     const currentVersion = Constants.expoConfig?.version || '0.0.0';
+    const appName = Constants.expoConfig?.name || Application.applicationName || 'Mindwtr';
     const [isCheckingUpdate, setIsCheckingUpdate] = useState(false);
     const [androidInstallerSource, setAndroidInstallerSource] = useState<'play-store' | 'sideload' | 'unknown'>(
         Platform.OS === 'android' ? 'unknown' : 'play-store'
@@ -69,11 +72,13 @@ export function AboutSettingsScreen({
     const openLink = (url: string) => Linking.openURL(url);
     const GITHUB_RELEASES_API = 'https://api.github.com/repos/dongdongbh/Mindwtr/releases/latest';
     const GITHUB_RELEASES_URL = 'https://github.com/dongdongbh/Mindwtr/releases/latest';
-    const PLAY_STORE_URL = 'https://play.google.com/store/apps/details?id=tech.dongdongbh.mindwtr';
-    const PLAY_STORE_MARKET_URL = 'market://details?id=tech.dongdongbh.mindwtr';
-    const APP_STORE_BUNDLE_ID = Constants.expoConfig?.ios?.bundleIdentifier || 'tech.dongdongbh.mindwtr';
+    const ANDROID_PACKAGE_NAME = Constants.expoConfig?.android?.package || Application.applicationId || 'tech.dongdongbh.mindwtr';
+    const PLAY_STORE_URL = `https://play.google.com/store/apps/details?id=${ANDROID_PACKAGE_NAME}`;
+    const PLAY_STORE_MARKET_URL = `market://details?id=${ANDROID_PACKAGE_NAME}`;
+    const APP_STORE_BUNDLE_ID = Constants.expoConfig?.ios?.bundleIdentifier || Application.applicationId || 'tech.dongdongbh.mindwtr';
     const APP_STORE_LOOKUP_URL = `https://itunes.apple.com/lookup?bundleId=${encodeURIComponent(APP_STORE_BUNDLE_ID)}&country=US`;
     const APP_STORE_LOOKUP_FALLBACK_URL = `https://itunes.apple.com/lookup?bundleId=${encodeURIComponent(APP_STORE_BUNDLE_ID)}`;
+    const canRateInStore = !isFossBuild && (Platform.OS === 'android' || Platform.OS === 'ios');
 
     type AndroidComparableVersionResult =
         | { source: 'play-store'; updateAvailable: boolean; availableVersionCode: number | null }
@@ -334,18 +339,75 @@ export function AboutSettingsScreen({
         }
     };
 
+    const handleRateApp = async () => {
+        try {
+            if (Platform.OS === 'android') {
+                try {
+                    await Linking.openURL(PLAY_STORE_MARKET_URL);
+                } catch {
+                    await Linking.openURL(PLAY_STORE_URL);
+                }
+                return;
+            }
+
+            if (Platform.OS === 'ios') {
+                const { trackViewUrl } = await fetchLatestAppStoreInfo();
+                const trackIdMatch = trackViewUrl?.match(/\/id(\d+)/i);
+                const reviewDeepLink = trackIdMatch?.[1]
+                    ? `itms-apps://itunes.apple.com/app/id${trackIdMatch[1]}?action=write-review`
+                    : null;
+                const canOpenReview = reviewDeepLink ? await Linking.canOpenURL(reviewDeepLink) : false;
+                const targetUrl = canOpenReview ? reviewDeepLink : trackViewUrl;
+                if (!targetUrl) throw new Error('App Store listing unavailable');
+                await Linking.openURL(targetUrl);
+            }
+        } catch (error) {
+            logSettingsWarn('Failed to open app store rating page', error);
+            showToast({
+                title: localize('Store unavailable', '商店暂不可用'),
+                message: localize('Could not open the app store rating page. Please try again later.', '无法打开应用商店评分页面，请稍后重试。'),
+                tone: 'warning',
+            });
+        }
+    };
+
     return (
         <SafeAreaView style={[styles.container, { backgroundColor: tc.bg }]} edges={['bottom']}>
-            <SettingsTopBar />
-            <SubHeader title={t('settings.about')} />
+            <SettingsTopBar title={t('settings.about')} />
             <ScrollView style={styles.scrollView} contentContainerStyle={scrollContentStyle}>
                 <View style={[styles.settingCard, { backgroundColor: tc.cardBg }]}>
-                    <View style={styles.settingRow}>
-                        <Text style={[styles.settingLabel, { color: tc.text }]}>{t('settings.version')}</Text>
-                        <Text style={[styles.settingValue, { color: tc.secondaryText }]}>
-                            {Constants.expoConfig?.version ?? '0.1.0'}
+                    <View style={[styles.aboutAppHeader, { borderBottomColor: tc.border }]}>
+                        <Image source={appIconSource} style={styles.aboutAppIcon} resizeMode="cover" />
+                        <Text style={[styles.aboutAppName, { color: tc.text }]} numberOfLines={1}>
+                            {appName}
+                        </Text>
+                        <Text style={[styles.aboutAppVersion, { color: tc.secondaryText }]} numberOfLines={1}>
+                            v{currentVersion}
                         </Text>
                     </View>
+                    {!isFossBuild && (
+                        <TouchableOpacity
+                            style={styles.settingRow}
+                            onPress={() => void handleCheckUpdates()}
+                            disabled={isCheckingUpdate}
+                        >
+                            <Text style={[styles.settingLabel, { color: tc.text }]}>{t('settings.checkForUpdates')}</Text>
+                            {isCheckingUpdate ? (
+                                <ActivityIndicator size="small" color="#3B82F6" />
+                            ) : (
+                                <Text style={styles.linkText}>{localize('Tap to check', '点击检查')}</Text>
+                            )}
+                        </TouchableOpacity>
+                    )}
+                    {canRateInStore && (
+                        <TouchableOpacity
+                            style={[styles.settingRow, { borderTopWidth: 1, borderTopColor: tc.border }]}
+                            onPress={() => void handleRateApp()}
+                        >
+                            <Text style={[styles.settingLabel, { color: tc.text }]}>{localize('Rate our app', '给应用评分')}</Text>
+                            <Text style={styles.linkText}>{Platform.OS === 'ios' ? 'App Store' : 'Google Play'}</Text>
+                        </TouchableOpacity>
+                    )}
                     <TouchableOpacity
                         style={[styles.settingRow, { borderTopWidth: 1, borderTopColor: tc.border }]}
                         onPress={() => openLink('https://github.com/dongdongbh/Mindwtr/wiki')}
@@ -378,20 +440,6 @@ export function AboutSettingsScreen({
                         <Text style={[styles.settingLabel, { color: tc.text }]}>{t('settings.license')}</Text>
                         <Text style={[styles.settingValue, { color: tc.secondaryText }]}>AGPL-3.0</Text>
                     </View>
-                    {!isFossBuild && (
-                        <TouchableOpacity
-                            style={[styles.settingRow, { borderTopWidth: 1, borderTopColor: tc.border }]}
-                            onPress={() => void handleCheckUpdates()}
-                            disabled={isCheckingUpdate}
-                        >
-                            <Text style={[styles.settingLabel, { color: tc.text }]}>{t('settings.checkForUpdates')}</Text>
-                            {isCheckingUpdate ? (
-                                <ActivityIndicator size="small" color="#3B82F6" />
-                            ) : (
-                                <Text style={styles.linkText}>{localize('Tap to check', '点击检查')}</Text>
-                            )}
-                        </TouchableOpacity>
-                    )}
                 </View>
             </ScrollView>
         </SafeAreaView>

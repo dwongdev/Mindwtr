@@ -28,7 +28,7 @@ import { GeneralSettingsScreen } from '@/components/settings/general-settings-sc
 import { GtdSettingsScreen } from '@/components/settings/gtd-settings-screen';
 import { ManageSettingsScreen } from '@/components/settings/manage-settings-screen';
 import { NotificationsSettingsScreen } from '@/components/settings/notifications-settings-screen';
-import { MenuItem, SettingsTopBar, SubHeader } from '@/components/settings/settings.shell';
+import { MenuItem, SettingsTopBar } from '@/components/settings/settings.shell';
 import { styles } from '@/components/settings/settings.styles';
 import {
     SETTINGS_SCREEN_SET,
@@ -134,8 +134,7 @@ export default function SettingsPage() {
     if (currentScreen === 'advanced') {
         return (
             <SafeAreaView style={[styles.container, { backgroundColor: tc.bg }]} edges={['bottom']}>
-                <SettingsTopBar />
-                <SubHeader title={t('settings.advanced')} />
+                <SettingsTopBar title={t('settings.advanced')} />
                 <ScrollView style={styles.scrollView} contentContainerStyle={scrollContentStyle}>
                     <View style={[styles.menuCard, { backgroundColor: tc.cardBg }]}>
                         <MenuItem
