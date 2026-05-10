@@ -16,7 +16,7 @@ import { updateMobileWidgetFromStore } from '@/lib/widget-service';
 import { hasActiveMobileNotificationFeature } from '@/lib/mobile-notification-settings';
 import { logError, logWarn } from '@/lib/app-log';
 
-type Localize = (english: string, chinese: string) => string;
+type Localize = (english: string, chinese: string, traditionalChinese?: string) => string;
 
 type UseRootLayoutSyncEffectsParams = {
     localize: Localize;
@@ -66,37 +66,44 @@ const AUTO_SYNC_CADENCE_OFF: AutoSyncCadence = {
 };
 
 const buildSyncUiCopy = (localize: Localize): SyncUiCopy => ({
-    syncIssueTitle: localize('Sync issue', '同步异常'),
+    syncIssueTitle: localize('Sync issue', '同步异常', '同步異常'),
     syncIssueGenericMessage: localize(
         'Background sync failed. Open Settings → Sync to review the connection and retry.',
-        '后台同步失败。请打开“设置 → 同步”检查连接并重试。'
+        '后台同步失败。请打开“设置 → 同步”检查连接并重试。',
+        '背景同步失敗。請打開「設置 → 同步」檢查連線並重試。'
     ),
     syncIssueAuthMessage: localize(
         'Background sync needs updated credentials. Open Settings → Sync to re-authenticate and retry.',
-        '后台同步需要更新凭据。请打开“设置 → 同步”重新验证并重试。'
+        '后台同步需要更新凭据。请打开“设置 → 同步”重新验证并重试。',
+        '背景同步需要更新憑證。請打開「設置 → 同步」重新驗證並重試。'
     ),
     syncIssuePermissionMessage: localize(
         'Background sync cannot write to the selected file or folder. Re-select the sync location in Settings → Sync.',
-        '后台同步无法写入当前选择的文件或文件夹。请在“设置 → 同步”中重新选择同步位置。'
+        '后台同步无法写入当前选择的文件或文件夹。请在“设置 → 同步”中重新选择同步位置。',
+        '背景同步無法寫入目前選擇的檔案或資料夾。請在「設置 → 同步」中重新選擇同步位置。'
     ),
     syncIssueRateLimitedMessage: localize(
         'Background sync is being rate limited. Mindwtr will retry shortly; review Settings → Sync if it keeps happening.',
-        '后台同步正在被限流。Mindwtr 将稍后重试；如果持续发生，请检查“设置 → 同步”。'
+        '后台同步正在被限流。Mindwtr 将稍后重试；如果持续发生，请检查“设置 → 同步”。',
+        '背景同步正受到速率限制。Mindwtr 會稍後重試；如果持續發生，請檢查「設置 → 同步」。'
     ),
     syncIssueMisconfiguredMessage: localize(
         'Background sync is missing required sync settings. Open Settings → Sync to finish setup.',
-        '后台同步缺少必要的同步设置。请打开“设置 → 同步”完成配置。'
+        '后台同步缺少必要的同步设置。请打开“设置 → 同步”完成配置。',
+        '背景同步缺少必要的同步設置。請打開「設置 → 同步」完成配置。'
     ),
     syncIssueConflictMessage: localize(
         'Background sync hit a sync conflict or stale remote state. Open Settings → Sync to review and retry.',
-        '后台同步遇到冲突或远端状态已过期。请打开“设置 → 同步”检查后重试。'
+        '后台同步遇到冲突或远端状态已过期。请打开“设置 → 同步”检查后重试。',
+        '背景同步遇到同步衝突或遠端狀態已過期。請打開「設置 → 同步」檢查後重試。'
     ),
-    notificationsDisabledTitle: localize('Notifications disabled', '通知已禁用'),
+    notificationsDisabledTitle: localize('Notifications disabled', '通知已禁用', '通知已停用'),
     notificationsDisabledMessage: localize(
         'Mindwtr can no longer schedule reminders until notification access is restored.',
-        '在恢复通知权限之前，Mindwtr 无法继续安排提醒。'
+        '在恢复通知权限之前，Mindwtr 无法继续安排提醒。',
+        '在恢復通知權限之前，Mindwtr 無法繼續安排提醒。'
     ),
-    openActionLabel: localize('Open', '打开'),
+    openActionLabel: localize('Open', '打开', '打開'),
 });
 
 const getCadenceForBackend = (backend: SyncBackend): AutoSyncCadence => {

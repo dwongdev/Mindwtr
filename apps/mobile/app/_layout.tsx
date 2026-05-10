@@ -159,9 +159,11 @@ function RootLayoutContentInner() {
   const firstRenderLogged = useRef(false);
   const { selectedAreaIdForNewTasks } = useMobileAreaFilter();
 
-  const localize = useCallback((english: string, chinese: string) => (
-    language.startsWith('zh') ? chinese : english
-  ), [language]);
+  const localize = useCallback((english: string, chinese: string, traditionalChinese?: string) => {
+    if (language === 'zh-Hant') return traditionalChinese ?? chinese;
+    if (language === 'zh') return chinese;
+    return english;
+  }, [language]);
 
   const buildQuickCaptureInitialProps = useCallback((initialProps?: QuickCaptureOptions['initialProps']) => {
     const nextInitialProps = initialProps ? { ...initialProps } : {};
