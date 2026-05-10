@@ -101,6 +101,51 @@ type DataMetadataCacheEntry = {
 
 const dataMetadataCache = new Map<string, DataMetadataCacheEntry>();
 
+type DataFileIdentity = {
+    ctimeMs: number;
+    ino: number;
+    mtimeMs: number;
+    size: number;
+};
+
+const validatedDataCache = new Map<string, DataFileIdentity>();
+
+const getDataFileIdentity = (filePath: string): DataFileIdentity | null => {
+    try {
+        const stat = lstatSync(filePath);
+        return {
+            ctimeMs: stat.ctimeMs,
+            ino: stat.ino,
+            mtimeMs: stat.mtimeMs,
+            size: stat.size,
+        };
+    } catch {
+        return null;
+    }
+};
+
+const sameDataFileIdentity = (left: DataFileIdentity | undefined, right: DataFileIdentity | null): boolean => (
+    !!left
+    && !!right
+    && left.size === right.size
+    && left.mtimeMs === right.mtimeMs
+    && left.ctimeMs === right.ctimeMs
+    && left.ino === right.ino
+);
+
+const isTrustedValidatedDataFile = (filePath: string): boolean => (
+    sameDataFileIdentity(validatedDataCache.get(filePath), getDataFileIdentity(filePath))
+);
+
+const rememberValidatedDataFile = (filePath: string): void => {
+    const identity = getDataFileIdentity(filePath);
+    if (identity) {
+        validatedDataCache.set(filePath, identity);
+    } else {
+        validatedDataCache.delete(filePath);
+    }
+};
+
 const getBlockedAttachmentSignature = (bytes: Uint8Array): string | null => {
     if (bytes.length >= 2 && bytes[0] === 0x4d && bytes[1] === 0x5a) {
         return 'windows-pe';
@@ -177,6 +222,46 @@ const emptyCorsResponse = (status: number): Response => {
         'Access-Control-Allow-Methods': 'GET,HEAD,PUT,POST,PATCH,DELETE,OPTIONS',
     });
     return new Response(null, { status, headers });
+};
+
+const normalizeStoredAppData = (data: AppData): AppData => ({
+    tasks: Array.isArray(data.tasks) ? data.tasks : [],
+    projects: Array.isArray(data.projects) ? data.projects : [],
+    sections: Array.isArray(data.sections) ? data.sections : [],
+    areas: Array.isArray(data.areas) ? data.areas : [],
+    settings: isRecord(data.settings) ? data.settings : {},
+});
+
+const validateStoredAppData = (
+    filePath: string,
+    key: string,
+    rawData: unknown,
+): AppData | { error: Response } => {
+    if (isTrustedValidatedDataFile(filePath)) {
+        return normalizeStoredAppData(rawData as AppData);
+    }
+    const validated = validateAppData(rawData);
+    if (!validated.ok) {
+        logWarn('Stored cloud data failed validation', { key, error: validated.error });
+        return { error: errorResponse('Stored data failed validation', 500) };
+    }
+    rememberValidatedDataFile(filePath);
+    return normalizeStoredAppData(validated.data);
+};
+
+const loadExistingDataForMerge = (filePath: string, key: string): AppData | { error: Response } => {
+    if (!existsSync(filePath)) return { tasks: [], projects: [], sections: [], areas: [], settings: {} };
+    const rawData = readData(filePath);
+    if (!rawData) {
+        logWarn('Stored cloud data failed validation', { key, error: 'Invalid JSON' });
+        return { error: errorResponse('Stored data failed validation', 500) };
+    }
+    return validateStoredAppData(filePath, key, rawData);
+};
+
+const writeCloudData = (filePath: string, data: unknown): void => {
+    writeData(filePath, data);
+    rememberValidatedDataFile(filePath);
 };
 
 type BunServer = {
@@ -400,6 +485,7 @@ export const __cloudTestUtils = {
     createInternalServerErrorResponse,
     dataMetadataResponse,
     getDataMetadataCacheSize: () => dataMetadataCache.size,
+    getValidatedDataCacheSize: () => validatedDataCache.size,
 };
 
 type CloudServerOptions = {
@@ -740,7 +826,7 @@ export async function startCloudServer(options: CloudServerOptions = {}): Promis
 
                             data.tasks.push(task);
                             throwIfRequestAborted(requestAbortController.signal);
-                            writeData(filePath, data);
+                            writeCloudData(filePath, data);
                             return jsonResponse({ task }, { status: 201 });
                         });
                     }
@@ -772,7 +858,7 @@ export async function startCloudServer(options: CloudServerOptions = {}): Promis
                             data.tasks[idx] = updatedTask;
                             if (nextRecurringTask) data.tasks.push(nextRecurringTask);
                             throwIfRequestAborted(requestAbortController.signal);
-                            writeData(filePath, data);
+                            writeCloudData(filePath, data);
                             return jsonResponse({ task: updatedTask });
                         });
                     }
@@ -830,7 +916,7 @@ export async function startCloudServer(options: CloudServerOptions = {}): Promis
                                 data.tasks[idx] = updatedTask;
                                 if (nextRecurringTask) data.tasks.push(nextRecurringTask);
                                 throwIfRequestAborted(requestAbortController.signal);
-                                writeData(filePath, data);
+                                writeCloudData(filePath, data);
                                 return jsonResponse({ task: updatedTask });
                             });
                         }
@@ -852,7 +938,7 @@ export async function startCloudServer(options: CloudServerOptions = {}): Promis
                                     revBy: CLOUD_API_REV_BY,
                                 };
                                 throwIfRequestAborted(requestAbortController.signal);
-                                writeData(filePath, data);
+                                writeCloudData(filePath, data);
                                 return jsonResponse({ ok: true });
                             });
                         }
@@ -930,7 +1016,7 @@ export async function startCloudServer(options: CloudServerOptions = {}): Promis
                             const finalized = finalizeCloudDataForWrite(data, nowIso);
                             if ('error' in finalized) return finalized.error;
                             throwIfRequestAborted(requestAbortController.signal);
-                            writeData(filePath, finalized);
+                            writeCloudData(filePath, finalized);
                             return jsonResponse({ project }, { status: 201 });
                         });
                     }
@@ -991,7 +1077,7 @@ export async function startCloudServer(options: CloudServerOptions = {}): Promis
                                 };
                                 const finalized = finalizeCloudDataForWrite(data, nowIso);
                                 if ('error' in finalized) return finalized.error;
-                                writeData(filePath, finalized);
+                                writeCloudData(filePath, finalized);
                                 const project = finalized.projects.find((item) => item.id === projectId);
                                 return jsonResponse({ project });
                             });
@@ -1014,7 +1100,7 @@ export async function startCloudServer(options: CloudServerOptions = {}): Promis
                                 };
                                 const finalized = finalizeCloudDataForWrite(data, nowIso);
                                 if ('error' in finalized) return finalized.error;
-                                writeData(filePath, finalized);
+                                writeCloudData(filePath, finalized);
                                 return jsonResponse({ ok: true });
                             });
                         }
@@ -1080,7 +1166,7 @@ export async function startCloudServer(options: CloudServerOptions = {}): Promis
                             data.sections.push(section);
                             const finalized = finalizeCloudDataForWrite(data, nowIso);
                             if ('error' in finalized) return finalized.error;
-                            writeData(filePath, finalized);
+                            writeCloudData(filePath, finalized);
                             return jsonResponse({ section }, { status: 201 });
                         });
                     }
@@ -1136,7 +1222,7 @@ export async function startCloudServer(options: CloudServerOptions = {}): Promis
                                 };
                                 const finalized = finalizeCloudDataForWrite(data, nowIso);
                                 if ('error' in finalized) return finalized.error;
-                                writeData(filePath, finalized);
+                                writeCloudData(filePath, finalized);
                                 const section = finalized.sections.find((item) => item.id === sectionId);
                                 return jsonResponse({ section });
                             });
@@ -1159,7 +1245,7 @@ export async function startCloudServer(options: CloudServerOptions = {}): Promis
                                 };
                                 const finalized = finalizeCloudDataForWrite(data, nowIso);
                                 if ('error' in finalized) return finalized.error;
-                                writeData(filePath, finalized);
+                                writeCloudData(filePath, finalized);
                                 return jsonResponse({ ok: true });
                             });
                         }
@@ -1215,7 +1301,7 @@ export async function startCloudServer(options: CloudServerOptions = {}): Promis
                             data.areas.push(area);
                             const finalized = finalizeCloudDataForWrite(data, nowIso);
                             if ('error' in finalized) return finalized.error;
-                            writeData(filePath, finalized);
+                            writeCloudData(filePath, finalized);
                             return jsonResponse({ area }, { status: 201 });
                         });
                     }
@@ -1264,7 +1350,7 @@ export async function startCloudServer(options: CloudServerOptions = {}): Promis
                                 };
                                 const finalized = finalizeCloudDataForWrite(data, nowIso);
                                 if ('error' in finalized) return finalized.error;
-                                writeData(filePath, finalized);
+                                writeCloudData(filePath, finalized);
                                 const area = finalized.areas.find((item) => item.id === areaId);
                                 return jsonResponse({ area });
                             });
@@ -1287,7 +1373,7 @@ export async function startCloudServer(options: CloudServerOptions = {}): Promis
                                 };
                                 const finalized = finalizeCloudDataForWrite(data, nowIso);
                                 if ('error' in finalized) return finalized.error;
-                                writeData(filePath, finalized);
+                                writeCloudData(filePath, finalized);
                                 return jsonResponse({ ok: true });
                             });
                         }
@@ -1363,17 +1449,14 @@ export async function startCloudServer(options: CloudServerOptions = {}): Promis
                                 if (namespaceResponse) return namespaceResponse;
                                 const emptyData: AppData = { tasks: [], projects: [], sections: [], areas: [], settings: {} };
                                 throwIfRequestAborted(requestAbortController.signal);
-                                if (!existsSync(filePath)) writeData(filePath, emptyData);
+                                if (!existsSync(filePath)) writeCloudData(filePath, emptyData);
                                 return jsonResponse(emptyData);
                             }
                             const data = readData(filePath);
                             if (!data) return errorResponse('Failed to read data', 500);
-                            const validated = validateAppData(data);
-                            if (!validated.ok) {
-                                logWarn('Stored cloud data failed validation', { key, error: validated.error });
-                                return errorResponse('Stored data failed validation', 500);
-                            }
-                            return jsonResponse(validated.data);
+                            const validated = validateStoredAppData(filePath, key, data);
+                            if ('error' in validated) return validated.error;
+                            return jsonResponse(validated);
                         });
                     }
 
@@ -1391,18 +1474,15 @@ export async function startCloudServer(options: CloudServerOptions = {}): Promis
                         if (!validated.ok) return errorResponse(validated.error, 400);
                         return await withWriteLock(key, async () => {
                             throwIfRequestAborted(requestAbortController.signal);
-                            const existingData = loadAppData(filePath);
+                            const existingDataResult = loadExistingDataForMerge(filePath, key);
+                            if ('error' in existingDataResult) return existingDataResult.error;
+                            const existingData = existingDataResult;
                             const incomingData = validated.data;
                             const mergedData = mergeAppData(existingData, incomingData, {
                                 nowIso: resolveServerMergeTimestamp(existingData, incomingData),
                             });
-                            const validatedMerged = validateAppData(mergedData);
-                            if (!validatedMerged.ok) {
-                                logWarn('Merged cloud data failed validation', { key, error: validatedMerged.error });
-                                return errorResponse('Merged data failed validation', 500);
-                            }
                             throwIfRequestAborted(requestAbortController.signal);
-                            writeData(filePath, validatedMerged.data);
+                            writeCloudData(filePath, mergedData);
                             return jsonResponse({ ok: true });
                         });
                     }

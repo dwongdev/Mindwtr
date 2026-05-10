@@ -1871,7 +1871,7 @@ describe('cloud server api', () => {
 
         expect(response.status).toBe(500);
         const body = await response.json();
-        expect(body.error).toBe('Merged data failed validation');
+        expect(body.error).toBe('Stored data failed validation');
 
         const persisted = JSON.parse(readFileSync(filePath, 'utf8'));
         expect((persisted.tasks as Array<{ id: string }>).some((task) => task.id === 'valid-task')).toBe(false);
