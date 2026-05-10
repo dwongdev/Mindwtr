@@ -66,7 +66,7 @@ Use operators for powerful filtering:
 
 ### Saved Searches
 
-Save frequently used searches:
+Saved Searches are shortcuts for reusable search queries.
 
 1. Enter your search query
 2. Tap **"Save Search"**
@@ -74,6 +74,8 @@ Save frequently used searches:
 4. Access from **Menu → Saved Searches**
 
 **To delete:** Open the saved search, tap the trash icon in the header.
+
+Saved Searches are separate from **Saved Filters** in Focus. Focus filters save criteria such as projects, contexts, tags, priority, energy, and time estimates for the Focus view.
 
 ---
 
@@ -106,6 +108,18 @@ Add the Mindwtr widget to your home screen for quick access:
 2. Select **Widgets**
 3. Find and add the **Mindwtr** widget
 4. Tap the widget to open quick capture or view focus items
+
+### Android Quick Settings Tile
+
+On Android, add the Mindwtr capture tile to Quick Settings for one-swipe Inbox capture:
+
+1. Open Android Quick Settings edit mode.
+2. Add the **Mindwtr** tile.
+3. Tap the tile to open Quick Capture.
+
+### Android Voice App Actions
+
+Android builds expose a capture action to supported assistants, including Gemini/Assistant surfaces that route through Android App Actions. Voice-created captures open Mindwtr's confirmation flow so you can review the title and note before saving.
 
 ### URL Scheme Quick Capture (iOS Shortcuts / Android Automations)
 
@@ -367,6 +381,7 @@ Open Projects from **Menu → Projects**.
 - Add **Project tags** for filtering
 - Set sequential or parallel mode
 - Set review date
+- Reorder project tasks with the drag handle when custom ordering is enabled
 - Complete or archive the project
 
 ### Sequential vs Parallel
@@ -522,7 +537,10 @@ See [[Data and Sync]] for sync setup.
 - **Last sync status** — View when data was last synced
 - **Sync history** — Collapsed by default; tap to expand recent entries
 - **Export Backup** — Save data to a file
-- **Settings sync options** — Choose which preferences sync across devices (theme, language/date format, external calendar URLs, AI settings). API keys and local model paths are never synced.
+- **Settings sync options** — Choose which preferences sync across devices (theme, language/date format, GTD defaults, external calendar URLs, AI settings, and Saved Filters). API keys and local model paths are never synced.
+
+**GTD Options:**
+- **Focus task limit** — Choose how many tasks can be marked for Today's Focus.
 
 ### Advanced
 

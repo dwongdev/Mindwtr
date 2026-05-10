@@ -109,14 +109,14 @@ Mindwtr is **simple by default and powerful when needed**. We focus on reducing 
 | :--- | :---: | :---: |
 | **Core GTD Views** | ✅ | ✅ |
 | **Inbox & Capture** | ✅ (Global Hotkey) | ✅ (Share Sheet, Widget) |
-| **Focus View** | ✅ (Top 3 + available Next) | ✅ (Zen Mode) |
+| **Focus View** | ✅ (configurable focus limit + available Next) | ✅ (Zen Mode) |
 | **Projects** | ✅ | ✅ |
 | **Areas of Focus** | ✅ | ✅ |
 | **Contexts & Tags** | ✅ | ✅ |
 | **Board View (Kanban)** | ✅ | ✅ |
 | **Calendar View** | ✅ | ✅ |
 | **Weekly Review** | ✅ | ✅ |
-| **Focus/Zen Mode** | ✅ (Sidebar toggle + Top 3) | ✅ (Zen toggle) |
+| **Focus/Zen Mode** | ✅ (Sidebar toggle + focus limit) | ✅ (Zen toggle) |
 | **Pomodoro Focus** | ✅ (Optional in Focus) | ✅ (Optional in Focus) |
 | **Notifications** | ✅ | ✅ |
 | **Widgets** | ❌ | ✅ (Android) |

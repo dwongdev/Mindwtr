@@ -1,6 +1,6 @@
 # Cloud API
 
-Mindwtr Cloud exposes a small bearer-token API for sync, task automation, and attachment transfer. It is designed for self-hosted deployments and uses the same token namespace as Cloud Sync.
+Mindwtr Cloud exposes a small bearer-token API for sync, task automation, and attachment transfer. It is designed for self-hosted deployments and uses the same token namespace as the self-hosted cloud backend.
 
 ## Authentication
 
@@ -116,5 +116,5 @@ The orphan cleanup endpoint scans the namespace for files no longer referenced b
 ## Related Pages
 
 - [[Cloud Deployment]]
-- [[Cloud Sync]]
+- [[Cloud Deployment]]
 - [[Sync Algorithm]]

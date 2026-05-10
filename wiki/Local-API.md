@@ -208,4 +208,4 @@ bun mindwtr:cli -- projects
 ## See Also
 
 - [[Developer Guide]]
-- [[Cloud Sync]]
+- [[Cloud API]]

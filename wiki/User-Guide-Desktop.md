@@ -44,7 +44,7 @@ Your capture zone. All new tasks land here before processing.
 
 Your unified dashboard for daily engagement. Focus is not a full inventory of every task with status `next`; it narrows the list to work that is available now.
 
-- **Today's Focus** — Up to 3 starred priority tasks for deep work.
+- **Today's Focus** — Starred priority tasks for deep work, up to your configured Focus limit.
 - **Overdue** — Past due items.
 - **Due Today** — Tasks due today.
 - **Next Actions** — Ready tasks without due dates, filtered by context.
@@ -54,7 +54,7 @@ Focus hides future-start tasks and later tasks in sequential projects. Use **Con
 
 **Features:**
 - **Context Filters**: Filter Next Actions by context (e.g., @home, @work) or tag.
-- **Top 3 Only**: Toggle to hide everything except your top 3 focus tasks (Zen Mode).
+- **Zen Mode**: Toggle to hide everything except Today's Focus tasks.
 - **Pomodoro (Optional)**: Enable in **Settings → GTD → Features → Pomodoro timer** to show a focus/break timer panel (15/3, 25/5, 50/10, plus one optional custom preset). Leave it as **Timer only**, or turn on **Link timer to task** to show the Timer task picker and **Mark task done** action.
 
 ### 📁 Projects
@@ -190,7 +190,7 @@ Powerful search with operators to find anything instantly.
 
 #### Saved Searches
 
-Save frequently used searches for quick access:
+Saved Searches are shortcuts for reusable search queries:
 
 1. Enter your search query with operators
 2. Click **"Save Search"** button
@@ -198,6 +198,8 @@ Save frequently used searches for quick access:
 4. Access from the **Saved Searches** section in the sidebar
 
 **To delete a saved search:** Open the saved search, then click the trash icon.
+
+Saved Searches are separate from **Saved Filters** in Focus. Focus Saved Filters sync as filter criteria and are edited from the Focus filter controls.
 
 ---
 
@@ -426,6 +428,7 @@ Access Settings from the sidebar.
 - **Appearance**: Light, Dark, or System
 - **Language**: English, Chinese (Simplified), Chinese (Traditional), Spanish, Hindi, Arabic, German, Russian, Japanese, French, Portuguese, Polish, Korean, Italian, Turkish
 - **Keyboard Shortcuts**: Vim or Emacs preset
+- **Launch at Startup**: Start Mindwtr automatically when you sign in
 
 ### Notifications
 
@@ -443,6 +446,7 @@ Access Settings from the sidebar.
 
 ### GTD
 - **Auto-Archive** — Automatically move completed tasks to the Archive after a set number of days (default: 7 days)
+- **Focus task limit** — Choose how many tasks can be marked for Today's Focus
 - **Features** — Optional signals you can enable when needed:
   - **Priorities** — Show a priority flag on tasks
   - **Time Estimates** — Add a duration field for time blocking
@@ -460,7 +464,7 @@ Access Settings from the sidebar.
 - **WebDAV** — Sync to a WebDAV server (Nextcloud, ownCloud, etc.)
 
 **Settings sync options:**
-- Choose which preferences sync across devices (theme, language/date format, external calendar URLs, AI settings)
+- Choose which preferences sync across devices (theme, language/date format, GTD defaults, external calendar URLs, AI settings, Saved Filters)
 - API keys and local model paths are never synced
 
 **Sync status:**

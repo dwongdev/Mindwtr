@@ -44,7 +44,7 @@ The task picker controls which task, if any, the Pomodoro panel is attached to. 
 
 The **Focus** view is not a 1:1 copy of the full Next Actions list. It is an Engage dashboard:
 
-- **Today's Focus**: up to 3 tasks you explicitly marked for today
+- **Today's Focus**: tasks you explicitly marked for today, up to your configured Focus limit
 - **Today**: next tasks due today, overdue, or starting today
 - **Next Actions**: currently available next tasks
 - **Review Due**: waiting/tickler items that need attention

@@ -46,8 +46,8 @@ Revisit ADR 0008 only if snapshot files regularly exceed 5 MB, sync round-trips 
    - Sync repair also runs on tombstones, so deleted projects/tasks do not keep stale area links if they are later restored.
    - Missing area order values are synthesized during merge and stamped with `revBy: "sync-repair"` so the repair is not repeatedly overwritten by peers.
 8. Settings merge by sync preferences:
-   - Appearance/language/GTD scheduling/external calendars/AI can be merged independently.
-   - Conflict resolution uses group-level timestamps (`appearance`, `language`, `gtd`, `externalCalendars`, `ai`).
+   - Appearance/language/GTD scheduling/external calendars/AI/saved filters can be merged independently.
+   - Conflict resolution uses group-level timestamps (`appearance`, `language`, `gtd`, `externalCalendars`, `ai`, `savedFilters`).
    - Concurrent edits to different fields inside the same group can still collapse to the newer group update.
    - A local `syncPreferences` opt-out is bidirectional for that group: Mindwtr does not send that group to remote and does not accept incoming remote changes for it.
    - Secrets (API keys, local model paths) are never synced.
@@ -137,6 +137,18 @@ Operational consequences:
 - Server-side reference repair can create cascade updates, such as tombstoning sections under deleted projects.
 - Server-generated repair timestamps use the server wall clock. This avoids letting a fast client clock advance server repair metadata.
 
+## Fast Unchanged Check
+
+Cloud clients can issue `HEAD /v1/data` before downloading a full snapshot. The server returns `ETag`, `Last-Modified`, and `Content-Length` metadata without a response body. Clients compare that metadata with the last successful sync and skip the full `GET /v1/data` path when the remote namespace is unchanged.
+
+The server caches the SHA-256 ETag by file stat metadata so repeated unchanged `HEAD` checks do not re-hash the whole snapshot.
+
+## Scheduled Background Sync
+
+Mobile background sync is scheduled with a conservative minimum interval of 15 minutes. The background task lazy-loads importer/sync code only when needed, then runs the same snapshot merge and remote-write retry logic described above.
+
+Background sync is opportunistic: the OS can delay or skip a run, so manual sync and foreground sync remain the reliable recovery paths when connectivity or credentials have changed.
+
 ## Retry Recovery
 
 - A failed remote write does not silently discard the just-merged local state.
@@ -163,8 +175,8 @@ Operationally, a device that has been offline longer than the retention window c
 ## Related docs
 
 - [[Data and Sync]]
-- [[Cloud Sync]]
 - [[Cloud API]]
+- [[Cloud Deployment]]
 - [[Diagnostics and Logs]]
 - [[Core API]]
 

@@ -229,8 +229,10 @@ Mindwtr can sync select preferences across devices. Configure in **Settings → 
 Available options include:
 - **Appearance** (theme)
 - **Language & date format**
+- **GTD preferences** (default schedule time and Focus task limit)
 - **External calendar URLs** (ICS subscriptions)
 - **AI settings** (models/providers)
+- **Saved Filters** (Focus filter presets)
 
 > API keys and local model paths are never synced.
 > Settings conflict resolution is group-based. If two devices edit different fields in the same settings group at nearly the same time, the newer group update can overwrite the older one.

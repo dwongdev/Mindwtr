@@ -1,6 +1,6 @@
 # Cloud Deployment
 
-This page is an operations-focused companion to [[Cloud Sync]]. It covers how to run the `apps/cloud` server reliably in production-like self-hosted environments.
+This page covers how to run the `apps/cloud` server reliably in production-like self-hosted environments.
 
 ## Scope
 
@@ -307,7 +307,7 @@ Clock note:
 
 ## Related Pages
 
-- [[Cloud Sync]]
+- [[Cloud API]]
 - [[Cloud API]]
 - [[Data and Sync]]
 - [[Docker Deployment]]

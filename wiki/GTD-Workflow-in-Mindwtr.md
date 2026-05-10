@@ -202,7 +202,7 @@ Focus is not a full inventory view. It hides future-start tasks and later tasks 
 
 ### Today's Focus
 
-Star up to 3 tasks as today's priorities:
+Star tasks as today's priorities up to your configured Focus limit:
 - **Desktop:** Click the star icon
 - **Mobile:** Tap the star badge
 
@@ -213,7 +213,7 @@ Star up to 3 tasks as today's priorities:
 ### Morning
 
 1. Open **Focus** view to see today's priorities
-2. Set up to 3 focus tasks for the day
+2. Set focus tasks for the day up to your configured Focus limit
 3. Start working on the first one (mark as Focus)
 
 ### Throughout the Day

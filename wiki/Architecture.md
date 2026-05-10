@@ -198,8 +198,11 @@ apps/mobile/
 │   ├── (drawer)/         # Drawer navigation
 │   │   ├── (tabs)/       # Tab navigation
 │   │   │   ├── inbox.tsx
-│   │   │   ├── next.tsx
-│   │   │   └── ...
+│   │   │   ├── focus.tsx
+│   │   │   ├── capture.tsx
+│   │   │   ├── projects.tsx
+│   │   │   ├── review-tab.tsx
+│   │   │   └── menu.tsx
 │   │   ├── projects-screen.tsx
 │   │   └── settings.tsx
 │   └── _layout.tsx       # Root layout
@@ -305,7 +308,7 @@ Data synchronization relies on revision-aware last-write-wins with deterministic
     - If delete-vs-live operations land within the 30-second ambiguity window, Mindwtr preserves the live item instead of eagerly deleting it.
 3. **Conflicts**:
     - Metadata-level conflicts are resolved automatically.
-    - Settings merge by sync groups (`appearance`, `language`, `externalCalendars`, `ai`) rather than one giant object timestamp.
+    - Settings merge by sync groups (`appearance`, `language`, `gtd`, `externalCalendars`, `ai`, `savedFilters`) rather than one giant object timestamp.
     - Large clock skew warnings fire when merge drift exceeds the current 5-minute threshold.
 
 ### Sync Cycle
