@@ -57,11 +57,11 @@ jobs:
             /tmp/mindwtr-play-listing-metadata.json
 
       - name: Run unit tests
-        run: bun run --filter @mindwtr/core test -- --coverage
+        run: bun run --filter @mindwtr/core test -- --coverage --coverage.thresholds.lines=70
 
       - name: Core coverage summary
         if: always()
-        run: node scripts/ci/write-coverage-summary.js "Core Coverage" packages/core/coverage/coverage-summary.json
+        run: node scripts/ci/write-coverage-summary.js "Core Coverage" packages/core/coverage/coverage-summary.json --min-lines=70
 
       - name: Upload core coverage artifact
         if: always()
@@ -161,11 +161,11 @@ jobs:
         run: cd apps/desktop && bun run tsc --noEmit
 
       - name: Run tests
-        run: bun run --filter mindwtr test -- --coverage
+        run: bun run --filter mindwtr test -- --coverage --coverage.thresholds.lines=70
 
       - name: Desktop coverage summary
         if: always()
-        run: node scripts/ci/write-coverage-summary.js "Desktop Coverage" apps/desktop/coverage/coverage-summary.json
+        run: node scripts/ci/write-coverage-summary.js "Desktop Coverage" apps/desktop/coverage/coverage-summary.json --min-lines=70
 
       - name: Upload desktop coverage artifact
         if: always()
@@ -214,11 +214,11 @@ jobs:
         run: cd apps/mobile && bunx expo-doctor
 
       - name: Mobile tests
-        run: bun run --filter mobile test -- --coverage
+        run: bun run --filter mobile test -- --coverage --coverage.thresholds.lines=70
 
       - name: Mobile coverage summary
         if: always()
-        run: node scripts/ci/write-coverage-summary.js "Mobile Coverage" apps/mobile/coverage/coverage-summary.json
+        run: node scripts/ci/write-coverage-summary.js "Mobile Coverage" apps/mobile/coverage/coverage-summary.json --min-lines=70
 
       - name: Upload mobile coverage artifact
         if: always()
