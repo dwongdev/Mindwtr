@@ -676,6 +676,7 @@ export {
 } from './sqlite-schema';
 
 export {
+    mapSqliteTaskRow,
     SqliteAdapter,
 } from './sqlite-adapter';
 export type {

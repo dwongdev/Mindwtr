@@ -150,6 +150,46 @@ const toAttachments = (value: unknown): Attachment[] | undefined => {
     return cleaned.length > 0 ? cleaned : undefined;
 };
 
+export function mapSqliteTaskRow(row: Record<string, unknown>): Task {
+    const orderNumRaw = row.orderNum;
+    const order = orderNumRaw === null || orderNumRaw === undefined ? undefined : Number(orderNumRaw);
+    return {
+        id: String(row.id),
+        title: String(row.title ?? ''),
+        status: normalizeTaskStatus(row.status),
+        priority: row.priority as Task['priority'] | undefined,
+        energyLevel: row.energyLevel as Task['energyLevel'] | undefined,
+        assignedTo: row.assignedTo as string | undefined,
+        taskMode: row.taskMode as Task['taskMode'] | undefined,
+        startTime: row.startTime as string | undefined,
+        dueDate: row.dueDate as string | undefined,
+        recurrence: normalizeRecurrenceForLoad(fromJson<unknown>(row.recurrence, null)),
+        pushCount: row.pushCount === null || row.pushCount === undefined ? undefined : Number(row.pushCount),
+        tags: toStringArray(fromJson<unknown>(row.tags, [])),
+        contexts: toStringArray(fromJson<unknown>(row.contexts, [])),
+        checklist: toChecklist(fromJson<unknown>(row.checklist, undefined)),
+        description: row.description as string | undefined,
+        textDirection: row.textDirection as Task['textDirection'] | undefined,
+        attachments: toAttachments(fromJson<unknown>(row.attachments, undefined)),
+        location: row.location as string | undefined,
+        projectId: row.projectId as string | undefined,
+        sectionId: row.sectionId as string | undefined,
+        areaId: row.areaId as string | undefined,
+        order,
+        orderNum: order,
+        isFocusedToday: fromBool(row.isFocusedToday),
+        timeEstimate: row.timeEstimate as Task['timeEstimate'] | undefined,
+        reviewAt: row.reviewAt as string | undefined,
+        completedAt: row.completedAt as string | undefined,
+        rev: row.rev === null || row.rev === undefined ? undefined : Number(row.rev),
+        revBy: row.revBy as string | undefined,
+        createdAt: String(row.createdAt ?? ''),
+        updatedAt: String(row.updatedAt ?? ''),
+        deletedAt: row.deletedAt as string | undefined,
+        purgedAt: row.purgedAt as string | undefined,
+    };
+}
+
 export class SqliteAdapter {
     private client: SqliteClient;
     private schemaReadyPromise: Promise<void> | null = null;
@@ -635,43 +675,7 @@ export class SqliteAdapter {
     }
 
     private mapTaskRow(row: Record<string, unknown>): Task {
-        const orderNumRaw = row.orderNum;
-        const order = orderNumRaw === null || orderNumRaw === undefined ? undefined : Number(orderNumRaw);
-        return {
-            id: String(row.id),
-            title: String(row.title ?? ''),
-            status: normalizeTaskStatus(row.status),
-            priority: row.priority as Task['priority'] | undefined,
-            energyLevel: row.energyLevel as Task['energyLevel'] | undefined,
-            assignedTo: row.assignedTo as string | undefined,
-            taskMode: row.taskMode as Task['taskMode'] | undefined,
-            startTime: row.startTime as string | undefined,
-            dueDate: row.dueDate as string | undefined,
-            recurrence: normalizeRecurrenceForLoad(fromJson<unknown>(row.recurrence, null)),
-            pushCount: row.pushCount === null || row.pushCount === undefined ? undefined : Number(row.pushCount),
-            tags: toStringArray(fromJson<unknown>(row.tags, [])),
-            contexts: toStringArray(fromJson<unknown>(row.contexts, [])),
-            checklist: toChecklist(fromJson<unknown>(row.checklist, undefined)),
-            description: row.description as string | undefined,
-            textDirection: row.textDirection as Task['textDirection'] | undefined,
-            attachments: toAttachments(fromJson<unknown>(row.attachments, undefined)),
-            location: row.location as string | undefined,
-            projectId: row.projectId as string | undefined,
-            sectionId: row.sectionId as string | undefined,
-            areaId: row.areaId as string | undefined,
-            order,
-            orderNum: order,
-            isFocusedToday: fromBool(row.isFocusedToday),
-            timeEstimate: row.timeEstimate as Task['timeEstimate'] | undefined,
-            reviewAt: row.reviewAt as string | undefined,
-            completedAt: row.completedAt as string | undefined,
-            rev: row.rev === null || row.rev === undefined ? undefined : Number(row.rev),
-            revBy: row.revBy as string | undefined,
-            createdAt: String(row.createdAt ?? ''),
-            updatedAt: String(row.updatedAt ?? ''),
-            deletedAt: row.deletedAt as string | undefined,
-            purgedAt: row.purgedAt as string | undefined,
-        };
+        return mapSqliteTaskRow(row);
     }
 
     private mapProjectRow(row: Record<string, unknown>): Project {

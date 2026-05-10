@@ -1,7 +1,7 @@
 import {
   DEFAULT_PROJECT_COLOR,
+  mapSqliteTaskRow,
   TASK_STATUS_SET,
-  normalizeTaskStatus as normalizeCoreTaskStatus,
   parseQuickAdd as parseQuickAddCore,
   type Area as CoreArea,
   type Project as CoreProject,
@@ -20,10 +20,6 @@ export type Task = CoreTask;
 export type Project = CoreProject & { orderNum?: number };
 export type Area = CoreArea;
 export type ProjectRef = Pick<CoreProject, 'id' | 'title'>;
-
-const normalizeTaskStatus = (value: string): TaskStatus => {
-  return normalizeCoreTaskStatus(value);
-};
 
 const parseTaskStatusInput = (value: unknown): TaskStatus | undefined => {
   if (value === undefined || value === null) return undefined;
@@ -86,8 +82,8 @@ export type CompleteTaskInput = { id: string };
 export type TaskRow = Task;
 
 // MCP writes go through the core-backed adapter, but reads are intentionally
-// kept as direct SQL so list/search tools stay fast and read-only. Keep this
-// projection and mapTaskRow in sync with packages/core/src/sqlite-adapter.ts
+// kept as direct SQL so list/search tools stay fast and read-only. Row mapping
+// is delegated to core; keep this projection in sync with core SQLite columns
 // whenever task columns are added or renamed.
 const BASE_TASK_COLUMNS = [
   'id',
@@ -172,38 +168,14 @@ const buildTasksFtsQuery = (search: string): string | null => {
 };
 
 function mapTaskRow(row: any): TaskRow {
+  const task = mapSqliteTaskRow(row);
   return {
-    id: row.id as string,
-    title: row.title as string,
-    status: normalizeTaskStatus(row.status as string),
-    priority: row.priority ?? undefined,
-    energyLevel: row.energyLevel ?? undefined,
-    assignedTo: row.assignedTo ?? undefined,
-    taskMode: row.taskMode ?? undefined,
-    startTime: row.startTime ?? undefined,
-    dueDate: row.dueDate ?? undefined,
-    recurrence: parseJson(row.recurrence, undefined),
-    pushCount: row.pushCount ?? undefined,
-    tags: parseJson(row.tags, []),
-    contexts: parseJson(row.contexts, []),
-    checklist: parseJson(row.checklist, []),
-    description: row.description ?? undefined,
-    textDirection: row.textDirection ?? undefined,
-    attachments: parseJson(row.attachments, []),
-    location: row.location ?? undefined,
-    projectId: row.projectId ?? undefined,
-    sectionId: row.sectionId ?? undefined,
-    areaId: row.areaId ?? undefined,
-    order: row.orderNum ?? undefined,
-    orderNum: row.orderNum ?? undefined,
-    isFocusedToday: row.isFocusedToday === 1,
-    timeEstimate: row.timeEstimate ?? undefined,
-    reviewAt: row.reviewAt ?? undefined,
-    completedAt: row.completedAt ?? undefined,
-    createdAt: row.createdAt as string,
-    updatedAt: row.updatedAt as string,
-    deletedAt: row.deletedAt ?? undefined,
-    purgedAt: row.purgedAt ?? undefined,
+    ...task,
+    tags: task.tags ?? [],
+    contexts: task.contexts ?? [],
+    checklist: task.checklist ?? [],
+    attachments: task.attachments ?? [],
+    orderNum: task.orderNum ?? task.order,
   };
 }
 
