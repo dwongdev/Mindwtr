@@ -61,28 +61,7 @@ jobs:
 
       - name: Core coverage summary
         if: always()
-        run: |
-          node <<'NODE'
-          const fs = require('fs');
-          const path = 'packages/core/coverage/coverage-summary.json';
-          if (!fs.existsSync(path)) {
-            console.log(`No coverage summary found at ${path}`);
-            process.exit(0);
-          }
-          const total = JSON.parse(fs.readFileSync(path, 'utf8')).total;
-          const lines = [
-            '### Core Coverage',
-            '',
-            '| Metric | Percent | Covered / Total |',
-            '| --- | ---: | ---: |',
-            `| Lines | ${total.lines.pct}% | ${total.lines.covered} / ${total.lines.total} |`,
-            `| Statements | ${total.statements.pct}% | ${total.statements.covered} / ${total.statements.total} |`,
-            `| Functions | ${total.functions.pct}% | ${total.functions.covered} / ${total.functions.total} |`,
-            `| Branches | ${total.branches.pct}% | ${total.branches.covered} / ${total.branches.total} |`,
-            '',
-          ];
-          fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, `${lines.join('\n')}\n`);
-          NODE
+        run: node scripts/ci/write-coverage-summary.js "Core Coverage" packages/core/coverage/coverage-summary.json
 
       - name: Upload core coverage artifact
         if: always()
@@ -186,28 +165,7 @@ jobs:
 
       - name: Desktop coverage summary
         if: always()
-        run: |
-          node <<'NODE'
-          const fs = require('fs');
-          const path = 'apps/desktop/coverage/coverage-summary.json';
-          if (!fs.existsSync(path)) {
-            console.log(`No coverage summary found at ${path}`);
-            process.exit(0);
-          }
-          const total = JSON.parse(fs.readFileSync(path, 'utf8')).total;
-          const lines = [
-            '### Desktop Coverage',
-            '',
-            '| Metric | Percent | Covered / Total |',
-            '| --- | ---: | ---: |',
-            `| Lines | ${total.lines.pct}% | ${total.lines.covered} / ${total.lines.total} |`,
-            `| Statements | ${total.statements.pct}% | ${total.statements.covered} / ${total.statements.total} |`,
-            `| Functions | ${total.functions.pct}% | ${total.functions.covered} / ${total.functions.total} |`,
-            `| Branches | ${total.branches.pct}% | ${total.branches.covered} / ${total.branches.total} |`,
-            '',
-          ];
-          fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, `${lines.join('\n')}\n`);
-          NODE
+        run: node scripts/ci/write-coverage-summary.js "Desktop Coverage" apps/desktop/coverage/coverage-summary.json
 
       - name: Upload desktop coverage artifact
         if: always()
@@ -260,28 +218,7 @@ jobs:
 
       - name: Mobile coverage summary
         if: always()
-        run: |
-          node <<'NODE'
-          const fs = require('fs');
-          const path = 'apps/mobile/coverage/coverage-summary.json';
-          if (!fs.existsSync(path)) {
-            console.log(`No coverage summary found at ${path}`);
-            process.exit(0);
-          }
-          const total = JSON.parse(fs.readFileSync(path, 'utf8')).total;
-          const lines = [
-            '### Mobile Coverage',
-            '',
-            '| Metric | Percent | Covered / Total |',
-            '| --- | ---: | ---: |',
-            `| Lines | ${total.lines.pct}% | ${total.lines.covered} / ${total.lines.total} |`,
-            `| Statements | ${total.statements.pct}% | ${total.statements.covered} / ${total.statements.total} |`,
-            `| Functions | ${total.functions.pct}% | ${total.functions.covered} / ${total.functions.total} |`,
-            `| Branches | ${total.branches.pct}% | ${total.branches.covered} / ${total.branches.total} |`,
-            '',
-          ];
-          fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, `${lines.join('\n')}\n`);
-          NODE
+        run: node scripts/ci/write-coverage-summary.js "Mobile Coverage" apps/mobile/coverage/coverage-summary.json
 
       - name: Upload mobile coverage artifact
         if: always()
