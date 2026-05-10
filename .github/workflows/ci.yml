@@ -346,3 +346,9 @@ jobs:
 
       - name: Check for lint errors (mobile)
         run: cd apps/mobile && bun run lint
+
+      - name: Check for lint errors (cloud)
+        run: bun run --filter mindwtr-cloud lint
+
+      - name: Check for lint errors (mcp)
+        run: bun run --filter mindwtr-mcp-server lint

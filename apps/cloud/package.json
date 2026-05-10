@@ -6,6 +6,7 @@
   "type": "module",
   "scripts": {
     "dev": "bun run src/server.ts",
+    "lint": "eslint -c ../../eslint.node.config.mjs . --max-warnings 0",
     "start": "bun run src/server.ts",
     "typecheck": "tsc --noEmit",
     "test": "bun test"
