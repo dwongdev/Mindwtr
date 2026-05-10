@@ -55,19 +55,19 @@ export default function SettingsPage() {
         if (!rawScreen) return 'main';
         return SETTINGS_SCREEN_SET[rawScreen as SettingsScreen] ? (rawScreen as SettingsScreen) : 'main';
     }, [settingsScreen]);
-    const dataLabel = useMemo(() => localize('Data', '数据', '數據'), [localize]);
+    const dataLabel = useMemo(() => localize('Data', '数据'), [localize]);
     const menuDescriptions = useMemo(
         () => ({
-            general: localize('Appearance, language, display', '外观、语言、显示', '外觀、語言、顯示'),
-            gtd: localize('Capture, review, task editor', '收集、回顾、任务编辑器', '收集、回顧、任務編輯器'),
-            manage: localize('Areas, contexts, tags', '领域、情境、标签', '領域、情境、標籤'),
-            notifications: localize('Reminders, daily digest', '提醒、每日摘要', '提醒、每日摘要'),
+            general: localize('Appearance, language, display', '外观、语言、显示'),
+            gtd: localize('Capture, review, task editor', '收集、回顾、任务编辑器'),
+            manage: localize('Areas, contexts, tags', '领域、情境、标签'),
+            notifications: localize('Reminders, daily digest', '提醒、每日摘要'),
             sync: localize('WebDAV, Dropbox, iCloud', 'WebDAV、Dropbox、iCloud'),
-            data: localize('Backup, restore, import', '备份、恢复、导入', '備份、還原、匯入'),
-            advanced: localize('AI assistant, calendar', 'AI 助手、日历', 'AI 助手、日曆'),
-            about: localize('Version, licenses, links', '版本、许可证、链接', '版本、授權、連結'),
-            ai: localize('Models, providers, speech', '模型、服务商、语音', '模型、服務商、語音'),
-            calendar: localize('External calendars and events', '外部日历和日程', '外部日曆和日程'),
+            data: localize('Backup, restore, import', '备份、恢复、导入'),
+            advanced: localize('AI assistant, calendar', 'AI 助手、日历'),
+            about: localize('Version, licenses, links', '版本、许可证、链接'),
+            ai: localize('Models, providers, speech', '模型、服务商、语音'),
+            calendar: localize('External calendars and events', '外部日历和日程'),
         }),
         [localize],
     );

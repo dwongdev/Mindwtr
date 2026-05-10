@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Alert, Modal, Pressable, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
 import { useThemeColors } from '@/hooks/use-theme-colors';
+import { useLanguage } from '@/contexts/language-context';
 
 type NativeAlert = typeof Alert.alert;
 type ThemedAlertButton = NonNullable<Parameters<NativeAlert>[2]>[number];
@@ -24,7 +25,7 @@ let nextAlertId = 0;
 const getAlertTarget = () => Alert as unknown as { alert: NativeAlert };
 
 const normalizeButtons = (buttons?: ThemedAlertButton[]): ThemedAlertButton[] => (
-  buttons && buttons.length > 0 ? buttons : [{ text: 'OK' }]
+  buttons && buttons.length > 0 ? buttons : [{} as ThemedAlertButton]
 );
 
 const getOptionsConfig = (options?: ThemedAlertOptions): { cancelable?: boolean; onDismiss?: () => void } => (
@@ -72,9 +73,11 @@ function ThemedAlertModal({
   onDismiss: () => void;
 }) {
   const tc = useThemeColors();
+  const { t } = useLanguage();
   const options = getOptionsConfig(request.options);
   const canDismiss = options.cancelable !== false;
   const horizontalActions = request.buttons.length <= 2;
+  const defaultButtonText = t('common.ok');
 
   const handleDismiss = () => {
     if (!canDismiss) return;
@@ -119,7 +122,7 @@ function ThemedAlertModal({
 
               return (
                 <TouchableOpacity
-                  key={`${button.text ?? 'action'}-${index}`}
+                  key={`${button.text ?? defaultButtonText}-${index}`}
                   style={[
                     styles.actionButton,
                     horizontalActions && styles.actionButtonHorizontal,
@@ -131,7 +134,7 @@ function ThemedAlertModal({
                   accessibilityRole="button"
                   onPress={() => onButtonPress(button)}
                 >
-                  <Text style={[styles.actionText, { color }]}>{button.text ?? 'OK'}</Text>
+                  <Text style={[styles.actionText, { color }]}>{button.text ?? defaultButtonText}</Text>
                 </TouchableOpacity>
               );
             })}

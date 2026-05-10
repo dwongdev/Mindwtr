@@ -28,7 +28,7 @@ function TestHarness({
     dataReady: true,
     hasShareIntent: false,
     incomingUrl,
-    localize: (english) => english,
+    resolveText: (_key: string, fallback: string) => fallback,
     resetShareIntent: vi.fn(),
     router,
     shareText: null,

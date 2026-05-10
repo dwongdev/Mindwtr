@@ -151,8 +151,7 @@ export function useCalendarViewController() {
     return `rgba(${r}, ${g}, ${b}, ${alpha})`;
   };
 
-  const localize = (enText: string, zhText?: string, zhHantText?: string) => {
-    if (language === 'zh-Hant' && (zhHantText || zhText)) return zhHantText ?? zhText ?? enText;
+  const localize = (enText: string, zhText?: string) => {
     if (language === 'zh' && zhText) return zhText;
     return translateText(enText, language);
   };
@@ -602,18 +601,18 @@ export function useCalendarViewController() {
     const start = parseTimeOnDate(calendarComposer.date, calendarComposer.startTimeValue);
     const end = parseTimeOnDate(calendarComposer.date, calendarComposer.endTimeValue);
     if (!start || !end || end <= start) {
-      setCalendarComposer((prev) => prev ? { ...prev, error: localize('Choose a valid start and end time.', '请选择有效的开始和结束时间。', '請選擇有效的開始和結束時間。') } : prev);
+      setCalendarComposer((prev) => prev ? { ...prev, error: t('calendar.invalidTimeRange') } : prev);
       return;
     }
 
     const durationMinutes = normalizeDurationMinutes(calendarComposer.durationMinutes);
     const selectedTaskId = calendarComposer.mode === 'existing' ? calendarComposer.selectedTaskId : null;
     if (calendarComposer.mode === 'new' && !calendarComposer.title.trim()) {
-      setCalendarComposer((prev) => prev ? { ...prev, error: localize('Enter a task title.', '请输入任务标题。', '請輸入任務標題。') } : prev);
+      setCalendarComposer((prev) => prev ? { ...prev, error: t('calendar.enterTaskTitle') } : prev);
       return;
     }
     if (calendarComposer.mode === 'existing' && !selectedTaskId) {
-      setCalendarComposer((prev) => prev ? { ...prev, error: localize('Choose a task.', '请选择一个任务。', '請選擇一個任務。') } : prev);
+      setCalendarComposer((prev) => prev ? { ...prev, error: t('calendar.chooseTask') } : prev);
       return;
     }
     if (!isSlotFreeForDay(start, start, durationMinutes, selectedTaskId ?? undefined)) {
@@ -631,7 +630,7 @@ export function useCalendarViewController() {
       } else {
         const result = await addTask(calendarComposer.title.trim(), { status: 'next', ...updates });
         if (!result.success) {
-          setCalendarComposer((prev) => prev ? { ...prev, error: result.error ?? localize('Could not save the task.', '无法保存任务。', '無法保存任務。') } : prev);
+          setCalendarComposer((prev) => prev ? { ...prev, error: result.error ?? t('calendar.saveTaskFailed') } : prev);
           return;
         }
       }
@@ -644,7 +643,7 @@ export function useCalendarViewController() {
       setViewMode('day');
     } catch (error) {
       logCalendarError(error);
-      setCalendarComposer((prev) => prev ? { ...prev, error: localize('Could not save the task.', '无法保存任务。', '無法保存任務。') } : prev);
+      setCalendarComposer((prev) => prev ? { ...prev, error: t('calendar.saveTaskFailed') } : prev);
     }
   };
 
@@ -657,8 +656,8 @@ export function useCalendarViewController() {
     const slot = findFreeSlotForDay(selectedDate, durationMinutes, taskId);
     if (!slot) {
       showToast({
-        title: localize('No free time', '没有空闲时间', '沒有空閒時間'),
-        message: localize('There is not enough free time on this day to schedule the task.', '这一天没有足够的空闲时间来安排该任务。', '這一天沒有足夠的空閒時間來安排該任務。'),
+        title: t('calendar.noFreeTimeTitle'),
+        message: t('calendar.noFreeTime'),
         tone: 'info',
         durationMs: 4200,
       });
@@ -742,8 +741,8 @@ export function useCalendarViewController() {
     const ok = isSlotFreeForDay(day, nextStart, durationMinutes, taskId);
     if (!ok) {
       showToast({
-        title: localize('Time conflict', '时间冲突', '時間衝突'),
-        message: localize('That time overlaps with an event. Please choose a free slot.', '该时间段与日程冲突，请选择空闲时间。', '該時段與日程衝突，請選擇空閒時間。'),
+        title: t('calendar.timeConflictTitle'),
+        message: t('calendar.overlapWarning'),
         tone: 'warning',
         durationMs: 4200,
       });
@@ -801,8 +800,8 @@ export function useCalendarViewController() {
   const openExternalEvent = (event: ExternalCalendarEvent) => {
     if (!canOpenExternalCalendarEvent(event)) {
       showToast({
-        title: localize('Cannot open event', '无法打开日程', '無法打開日程'),
-        message: localize('Only device calendar events can be opened in the calendar app.', '只有设备日历事件可以在日历应用中打开。', '只有裝置日曆事件可以在日曆應用中打開。'),
+        title: t('calendar.cannotOpenEventTitle'),
+        message: t('calendar.openDeviceEventOnly'),
         tone: 'info',
         durationMs: 3600,
       });
@@ -813,8 +812,8 @@ export function useCalendarViewController() {
       .then((opened) => {
         if (opened) return;
         showToast({
-          title: localize('Cannot open event', '无法打开日程', '無法打開日程'),
-          message: localize('This calendar app does not support opening the event.', '该日历应用不支持打开此日程。', '該日曆應用不支援打開此日程。'),
+          title: t('calendar.cannotOpenEventTitle'),
+          message: t('calendar.openUnsupported'),
           tone: 'info',
           durationMs: 3600,
         });
@@ -822,8 +821,8 @@ export function useCalendarViewController() {
       .catch((error) => {
         logCalendarError(error);
         showToast({
-          title: localize('Cannot open event', '无法打开日程', '無法打開日程'),
-          message: localize('Open the event from your calendar app instead.', '请改从你的日历应用打开该日程。', '請改從你的日曆應用打開該日程。'),
+          title: t('calendar.cannotOpenEventTitle'),
+          message: t('calendar.openFromCalendarApp'),
           tone: 'warning',
           durationMs: 4200,
         });
@@ -906,7 +905,7 @@ export function useCalendarViewController() {
       })
     : '';
   const selectedDayModeLabel = selectedDate
-    ? `${selectedDate.toLocaleDateString(locale, { weekday: 'short', month: 'long', day: 'numeric' })}${isToday(selectedDate) ? ` · ${localize('Today', '今天', '今天')}` : ''}`
+    ? `${selectedDate.toLocaleDateString(locale, { weekday: 'short', month: 'long', day: 'numeric' })}${isToday(selectedDate) ? ` · ${t('filters.datePreset.today')}` : ''}`
     : '';
   const scheduleSections = useMemo(() => {
     const start = selectedDate ?? new Date(currentYear, currentMonth, 1);

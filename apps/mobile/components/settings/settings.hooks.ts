@@ -11,12 +11,11 @@ export function useSettingsLocalization() {
     const { language, t, setLanguage } = useLanguage();
     const isChineseLanguage = language === 'zh' || language === 'zh-Hant';
     const localize = useMemo(
-        () => (enText: string, zhText?: string, zhHantText?: string) => {
-            if (language === 'zh-Hant' && (zhHantText || zhText)) return zhHantText ?? zhText ?? enText;
+        () => (enText: string, zhText?: string) => {
             if (language === 'zh' && zhText) return zhText;
             return translateText(enText, language);
         },
-        [isChineseLanguage, language],
+        [language],
     );
 
     return {

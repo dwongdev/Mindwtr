@@ -21,6 +21,7 @@ import {
   isSupportedLanguage,
   setStorageAdapter,
   setLogger,
+  translateWithFallback,
   useTaskStore,
 } from '@mindwtr/core';
 import { mobileStorage } from '../lib/storage-adapter';
@@ -145,7 +146,7 @@ function RootLayoutContentInner() {
   const incomingUrl = Linking.useURL();
   const { isDark, isReady: themeReady } = useTheme();
   const tc = useThemeColors();
-  const { language, setLanguage, isReady: languageReady } = useLanguage();
+  const { language, setLanguage, isReady: languageReady, t } = useLanguage();
   const { showToast } = useToast();
   const { hasShareIntent, shareIntent, resetShareIntent } = useShareIntentContext();
   const extraConfig = Constants.expoConfig?.extra as MobileExtraConfig | undefined;
@@ -159,11 +160,9 @@ function RootLayoutContentInner() {
   const firstRenderLogged = useRef(false);
   const { selectedAreaIdForNewTasks } = useMobileAreaFilter();
 
-  const localize = useCallback((english: string, chinese: string, traditionalChinese?: string) => {
-    if (language === 'zh-Hant') return traditionalChinese ?? chinese;
-    if (language === 'zh') return chinese;
-    return english;
-  }, [language]);
+  const resolveText = useCallback((key: string, fallback: string) => (
+    translateWithFallback(t, key, fallback)
+  ), [t]);
 
   const buildQuickCaptureInitialProps = useCallback((initialProps?: QuickCaptureOptions['initialProps']) => {
     const nextInitialProps = initialProps ? { ...initialProps } : {};
@@ -182,7 +181,7 @@ function RootLayoutContentInner() {
   }, [router]);
 
   const { requestSync } = useRootLayoutSyncEffects({
-    localize,
+    resolveText,
     openNotificationsSettings,
     openSyncSettings,
     showToast,
@@ -207,7 +206,7 @@ function RootLayoutContentInner() {
     dataReady,
     hasShareIntent,
     incomingUrl,
-    localize,
+    resolveText,
     resetShareIntent,
     router,
     shareText: shareIntent?.text,

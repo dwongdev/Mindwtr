@@ -13,7 +13,7 @@ import {
     type ShortcutCapturePayload,
 } from '@/lib/capture-deeplink';
 
-type Localize = (english: string, chinese: string, traditionalChinese?: string) => string;
+type ResolveText = (key: string, fallback: string) => string;
 
 type RouterLike = {
     canGoBack: () => boolean;
@@ -25,7 +25,7 @@ type UseRootLayoutExternalCaptureParams = {
     dataReady: boolean;
     hasShareIntent: boolean;
     incomingUrl: string | null;
-    localize: Localize;
+    resolveText: ResolveText;
     resetShareIntent: () => void;
     router: RouterLike;
     shareText?: string | null;
@@ -52,7 +52,7 @@ export function useRootLayoutExternalCapture({
     dataReady,
     hasShareIntent,
     incomingUrl,
-    localize,
+    resolveText,
     resetShareIntent,
     router,
     shareText,
@@ -105,17 +105,13 @@ export function useRootLayoutExternalCapture({
         } else {
             void logError(new Error('Share intent payload missing text'), { scope: 'share-intent' });
             showToast({
-                title: localize('Share unavailable', '分享不可用', '分享不可用'),
-                message: localize(
-                    'Mindwtr could not read text or a URL from the shared item.',
-                    'Mindwtr 无法从分享内容中读取文本或链接。',
-                    'Mindwtr 無法從分享內容中讀取文字或連結。'
-                ),
+                title: resolveText('share.unavailable', 'Share unavailable'),
+                message: resolveText('share.readFailed', 'Mindwtr could not read text or a URL from the shared item.'),
                 tone: 'warning',
             });
         }
         resetShareIntent();
-    }, [hasShareIntent, localize, resetShareIntent, router, shareText, shareWebUrl, showToast]);
+    }, [hasShareIntent, resolveText, resetShareIntent, router, shareText, shareWebUrl, showToast]);
 
     useEffect(() => {
         if (!dataReady) return;
@@ -143,12 +139,8 @@ export function useRootLayoutExternalCapture({
                 extra: { url: incomingUrl },
             });
             showToast({
-                title: localize('Capture shortcut unavailable', '快捷捕获不可用', '快捷捕獲不可用'),
-                message: localize(
-                    'Mindwtr could not read a task title from that shortcut link.',
-                    'Mindwtr 无法从该快捷方式链接中读取任务标题。',
-                    'Mindwtr 無法從該快捷方式連結中讀取任務標題。'
-                ),
+                title: resolveText('shortcuts.captureUnavailable', 'Capture shortcut unavailable'),
+                message: resolveText('shortcuts.missingTitle', 'Mindwtr could not read a task title from that shortcut link.'),
                 tone: 'warning',
             });
             return;
@@ -161,5 +153,5 @@ export function useRootLayoutExternalCapture({
             lastHandledUrl.current = null;
             void logError(error, { scope: 'shortcuts', extra: { url: incomingUrl } });
         }
-    }, [dataReady, incomingUrl, localize, openCaptureConfirmation, router, showToast]);
+    }, [dataReady, incomingUrl, resolveText, openCaptureConfirmation, router, showToast]);
 }

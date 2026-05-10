@@ -186,7 +186,7 @@ export function useInboxProcessingController({
     writingDirection: resolvedTitleDirection,
     textAlign: resolvedTitleDirection === 'rtl' ? 'right' : 'left',
   }), [resolvedTitleDirection]);
-  const openSettingsLabel = language.startsWith('zh') ? '打开' : 'Open';
+  const openSettingsLabel = t('common.open');
   const headerStyle = useMemo(
     () => [styles.processingHeader, {
       borderBottomColor: tc.border,
