@@ -174,6 +174,7 @@ export const ruOverrides: Record<string, string> = {
         'attachments.download': 'Скачать',
         'attachments.missing': 'Отсутствует файл',
         'attachments.remove': 'Удалять',
+        'attachments.transferProgress': 'Ход передачи вложения',
         'attachments.linkPlaceholder': 'https://example.com',
         'attachments.linkInputHint': 'Совет: вставьте URL-адрес или используйте «Заголовок | URL-адрес».',
         'attachments.fileNotSupported': 'Вложения файлов поддерживаются только в настольном приложении.',

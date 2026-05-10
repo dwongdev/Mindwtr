@@ -174,6 +174,7 @@ export const ptOverrides: Record<string, string> = {
         'attachments.download': 'Download',
         'attachments.missing': 'Arquivo ausente',
         'attachments.remove': 'Remover',
+        'attachments.transferProgress': 'Progresso da transferência do anexo',
         'attachments.linkPlaceholder': 'https://example.com',
         'attachments.linkInputHint': 'Dica: cole uma URL ou use "Título | URL".',
         'attachments.fileNotSupported': 'Anexos de arquivo são suportados apenas no aplicativo de desktop.',

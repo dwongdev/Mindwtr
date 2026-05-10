@@ -174,6 +174,7 @@ export const esOverrides: Record<string, string> = {
         'attachments.download': 'Descargar',
         'attachments.missing': 'Missing file',
         'attachments.remove': 'Borrar',
+        'attachments.transferProgress': 'Progreso de transferencia del adjunto',
         'attachments.linkPlaceholder': 'https://ejemplo.com',
         'attachments.linkInputHint': 'Consejo: pega una URL o usa "Título | URL".',
         'attachments.fileNotSupported': 'Los archivos adjuntos solo están soportados en la app de escritorio.',

@@ -180,6 +180,7 @@ export const zhHant: Record<string, string> = {
         'attachments.download': '下載',
         'attachments.missing': '文件缺失',
         'attachments.remove': '移除',
+        'attachments.transferProgress': '附件傳輸進度',
         'attachments.linkPlaceholder': 'https://example.com',
         'attachments.linkInputHint': '提示：可直接粘貼鏈接，或使用“標題 | 鏈接”。',
         'attachments.fileNotSupported': '文件附件僅在桌面應用中支持。',

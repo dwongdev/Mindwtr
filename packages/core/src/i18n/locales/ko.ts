@@ -174,6 +174,7 @@ export const koOverrides: Record<string, string> = {
         'attachments.download': '다운로드',
         'attachments.missing': '누락된 파일',
         'attachments.remove': '제거하다',
+        'attachments.transferProgress': '첨부 파일 전송 진행률',
         'attachments.linkPlaceholder': 'https://example.com',
         'attachments.linkInputHint': '팁: URL을 붙여넣거나 "제목 | URL"을 사용하세요.',
         'attachments.fileNotSupported': '파일 첨부는 데스크톱 앱에서만 지원됩니다.',

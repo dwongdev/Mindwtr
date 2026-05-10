@@ -174,6 +174,7 @@ export const frOverrides: Record<string, string> = {
         'attachments.download': 'Télécharger',
         'attachments.missing': 'Fichier manquant',
         'attachments.remove': 'Retirer',
+        'attachments.transferProgress': 'Progression du transfert de la pièce jointe',
         'attachments.linkPlaceholder': 'https://exemple.com',
         'attachments.linkInputHint': 'Astuce : collez une URL ou utilisez "Titre | URL".',
         'attachments.fileNotSupported': 'Les pièces jointes ne sont prises en charge que dans l\'application de bureau.',

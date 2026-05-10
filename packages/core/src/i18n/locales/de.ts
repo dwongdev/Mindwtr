@@ -193,6 +193,7 @@ export const deOverrides: Record<string, string> = {
         'attachments.download': 'Herunterladen',
         'attachments.missing': 'Fehlende Datei',
         'attachments.remove': 'Entfernen',
+        'attachments.transferProgress': 'Fortschritt der Anhangsübertragung',
         'attachments.linkPlaceholder': 'https://beispiel.com',
         'attachments.linkInputHint': 'Tipp: eine URL einfügen, oder "Titel | URL" benutzen.',
         'attachments.fileNotSupported': 'Dateianhänge werden nur in der Desktop-App unterstützt.',

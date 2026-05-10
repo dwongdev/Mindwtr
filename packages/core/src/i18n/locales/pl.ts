@@ -174,6 +174,7 @@ export const plOverrides: Record<string, string> = {
         'attachments.download': 'Pobierz',
         'attachments.missing': 'Brakujący plik',
         'attachments.remove': 'Usuń',
+        'attachments.transferProgress': 'Postęp przesyłania załącznika',
         'attachments.linkPlaceholder': 'https://example.com',
         'attachments.linkInputHint': 'Wskazówka: wklej URL lub użyj „Tytuł | URL”.',
         'attachments.fileNotSupported': 'Załączniki plików są obsługiwane tylko w aplikacji komputerowej.',

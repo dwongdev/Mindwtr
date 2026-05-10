@@ -174,6 +174,7 @@ export const trOverrides: Record<string, string> = {
         'attachments.download': 'İndirmek',
         'attachments.missing': 'Eksik dosya',
         'attachments.remove': 'Kaldırmak',
+        'attachments.transferProgress': 'Ek aktarım ilerlemesi',
         'attachments.linkPlaceholder': 'https://örnek.com',
         'attachments.linkInputHint': 'İpucu: Bir URL yapıştırın veya "Başlık | URL"yi kullanın.',
         'attachments.fileNotSupported': 'Dosya ekleri yalnızca masaüstü uygulamasında desteklenir.',

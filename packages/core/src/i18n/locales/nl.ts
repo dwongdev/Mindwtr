@@ -357,6 +357,7 @@ export const nlOverrides: Record<string, string> = {
         'attachments.photoUnavailableBody': 'Rebuild the app to enable photo attachments.',
         'attachments.photoUnavailableTitle': 'Photo picker unavailable',
         'attachments.remove': 'Remove',
+        'attachments.transferProgress': 'Voortgang bijlageoverdracht',
         'attachments.retryTranscription': 'Re-transcribe',
         'attachments.title': 'Attachments',
         'attachments.transcribing': 'Transcribing...',

@@ -213,6 +213,7 @@ export const itOverrides: Record<string, string> = {
         'attachments.download': 'Scarica',
         'attachments.missing': 'File mancante',
         'attachments.remove': 'Rimuovi',
+        'attachments.transferProgress': 'Avanzamento trasferimento allegato',
         'attachments.linkPlaceholder': 'https://esempio.com',
         'attachments.linkInputHint': 'Suggerimento: incolla un URL, oppure usa "Titolo | URL".',
         'attachments.fileNotSupported': 'Gli allegati file sono supportati solo nell\'app desktop.',

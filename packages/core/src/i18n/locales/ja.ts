@@ -174,6 +174,7 @@ export const jaOverrides: Record<string, string> = {
         'attachments.download': 'ダウンロード',
         'attachments.missing': 'ファイルがありません',
         'attachments.remove': '取り除く',
+        'attachments.transferProgress': '添付ファイル転送の進行状況',
         'attachments.linkPlaceholder': 'https://example.com',
         'attachments.linkInputHint': 'ヒント: URL を貼り付けるか、「タイトル | URL」を使用します。',
         'attachments.fileNotSupported': 'ファイルの添付はデスクトップ アプリでのみサポートされます。',

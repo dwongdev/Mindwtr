@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { AttachmentProgress, globalProgressTracker } from '@mindwtr/core';
 import { useThemeColors } from '@/hooks/use-theme-colors';
+import { useLanguage } from '../contexts/language-context';
 
 type AttachmentProgressIndicatorProps = {
   attachmentId: string;
@@ -9,6 +10,7 @@ type AttachmentProgressIndicatorProps = {
 
 export function AttachmentProgressIndicator({ attachmentId }: AttachmentProgressIndicatorProps) {
   const tc = useThemeColors();
+  const { t } = useLanguage();
   const [progress, setProgress] = useState<AttachmentProgress | null>(null);
 
   useEffect(() => {
@@ -26,13 +28,13 @@ export function AttachmentProgressIndicator({ attachmentId }: AttachmentProgress
     <View style={styles.container}>
       <View
         accessible
-        accessibilityLabel="Attachment transfer progress"
+        accessibilityLabel={t('attachments.transferProgress')}
         accessibilityRole="progressbar"
         accessibilityValue={{
           min: 0,
           max: 100,
           now: percentage ?? undefined,
-          text: percentage !== null ? `${percentage}% complete` : 'Transfer in progress',
+          text: percentage !== null ? `${percentage}%` : t('attachments.transferProgress'),
         }}
         style={[styles.track, { backgroundColor: tc.border }]}
       >

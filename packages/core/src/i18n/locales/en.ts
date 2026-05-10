@@ -214,6 +214,7 @@ export const en: Record<string, string> = {
         'attachments.download': 'Download',
         'attachments.missing': 'Missing file',
         'attachments.remove': 'Remove',
+        'attachments.transferProgress': 'Attachment transfer progress',
         'attachments.linkPlaceholder': 'https://example.com',
         'attachments.linkInputHint': 'Tip: paste a URL, or use "Title | URL".',
         'attachments.fileNotSupported': 'File attachments are only supported in the desktop app.',

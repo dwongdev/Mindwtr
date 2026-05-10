@@ -174,6 +174,7 @@ export const hiOverrides: Record<string, string> = {
         'attachments.download': 'डाउनलोड करना',
         'attachments.missing': 'गुम फ़ाइल',
         'attachments.remove': 'निकालना',
+        'attachments.transferProgress': 'अटैचमेंट ट्रांसफ़र प्रगति',
         'attachments.linkPlaceholder': 'https://example.com',
         'attachments.linkInputHint': 'युक्ति: एक यूआरएल पेस्ट करें, या "शीर्षक | यूआरएल" का उपयोग करें।',
         'attachments.fileNotSupported': 'फ़ाइल अनुलग्नक केवल डेस्कटॉप ऐप में समर्थित हैं।',

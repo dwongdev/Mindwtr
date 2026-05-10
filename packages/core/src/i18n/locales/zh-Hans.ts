@@ -180,6 +180,7 @@ export const zhHans: Record<string, string> = {
         'attachments.download': '下载',
         'attachments.missing': '文件缺失',
         'attachments.remove': '移除',
+        'attachments.transferProgress': '附件传输进度',
         'attachments.linkPlaceholder': 'https://example.com',
         'attachments.linkInputHint': '提示：可直接粘贴链接，或使用“标题 | 链接”。',
         'attachments.fileNotSupported': '文件附件仅在桌面应用中支持。',

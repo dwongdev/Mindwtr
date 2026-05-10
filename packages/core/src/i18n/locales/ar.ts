@@ -174,6 +174,7 @@ export const arOverrides: Record<string, string> = {
         'attachments.download': 'تحميل',
         'attachments.missing': 'ملف مفقود',
         'attachments.remove': 'يزيل',
+        'attachments.transferProgress': 'تقدم نقل المرفق',
         'attachments.linkPlaceholder': 'https://example.com',
         'attachments.linkInputHint': 'نصيحة: الصق عنوان URL، أو استخدم "العنوان | URL".',
         'attachments.fileNotSupported': 'مرفقات الملفات مدعومة فقط في تطبيق سطح المكتب.',
