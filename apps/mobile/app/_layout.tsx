@@ -33,6 +33,7 @@ import { useRootLayoutExternalCapture } from '@/hooks/root-layout/use-root-layou
 import { useRootLayoutNotificationOpenHandler } from '@/hooks/root-layout/use-root-layout-notification-open-handler';
 import { useRootLayoutStartup } from '@/hooks/root-layout/use-root-layout-startup';
 import { useRootLayoutSyncEffects } from '@/hooks/root-layout/use-root-layout-sync-effects';
+import { ThemedAlertProvider } from '@/components/themed-alert';
 
 let coreLoggerBridgeInstalled = false;
 
@@ -130,7 +131,9 @@ function RootLayoutContent() {
   return (
     <GestureHandlerRootView style={{ flex: 1, backgroundColor: tc.bg }}>
       <ToastProvider>
-        <RootLayoutContentInner />
+        <ThemedAlertProvider>
+          <RootLayoutContentInner />
+        </ThemedAlertProvider>
       </ToastProvider>
     </GestureHandlerRootView>
   );
