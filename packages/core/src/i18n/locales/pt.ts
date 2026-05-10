@@ -609,6 +609,7 @@ export const ptOverrides: Record<string, string> = {
         'settings.material3Theme': 'Tema Material 3',
         'settings.material3ThemeDesc': 'Use tokens de cores do Material 3 no Android',
         'settings.selectLang': 'Selecione seu idioma preferido',
+        'settings.data': 'Dados',
         'settings.dataSync': 'Dados e sincronização',
         'settings.dataDesc': 'Importe ou exporte seus dados para sincronizar com outros dispositivos.',
         'settings.calendar': 'Calendário externo',

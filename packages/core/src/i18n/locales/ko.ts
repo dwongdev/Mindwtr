@@ -609,6 +609,7 @@ export const koOverrides: Record<string, string> = {
         'settings.material3Theme': '자료 3 테마',
         'settings.material3ThemeDesc': 'Android에서 Material 3 색상 토큰 사용',
         'settings.selectLang': '선호하는 언어를 선택하세요',
+        'settings.data': '데이터',
         'settings.dataSync': '데이터 및 동기화',
         'settings.dataDesc': '데이터를 가져오거나 내보내 다른 장치와 동기화하세요.',
         'settings.calendar': '외부 캘린더',

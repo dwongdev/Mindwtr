@@ -4,7 +4,6 @@ import { Alert, Platform, ScrollView, Text, TouchableOpacity, View } from 'react
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import {
-    translateText,
     useTaskStore,
 } from '@mindwtr/core';
 
@@ -52,7 +51,7 @@ type SettingsScreenMode = 'sync' | 'data';
 function SyncSettingsView({ mode }: { mode: SettingsScreenMode }) {
     const tc = useThemeColors();
     const { showToast } = useToast();
-    const { language, localize, t } = useSettingsLocalization();
+    const { localize, t } = useSettingsLocalization();
     const scrollContentStyle = useSettingsScrollContent();
     const {
         tasks,
@@ -343,11 +342,7 @@ function SyncSettingsView({ mode }: { mode: SettingsScreenMode }) {
     const isScheduledBackgroundSyncBackend = syncBackend === 'webdav' || syncBackend === 'cloud' || syncBackend === 'cloudkit';
     const cloudKitStatusDetails = getCloudKitStatusDetails(cloudKitAccountStatus);
     const isCloudSyncSelected = syncBackend === 'cloud' || syncBackend === 'cloudkit';
-    const dataLabel = React.useMemo(() => {
-        if (language === 'zh') return '数据';
-        if (language === 'zh-Hant') return '數據';
-        return translateText('Data', language);
-    }, [language]);
+    const dataLabel = t('settings.data');
 
     useEffect(() => {
         void refreshSyncBadgeConfig();

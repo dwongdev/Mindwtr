@@ -136,6 +136,7 @@ export const nlOverrides: Record<string, string> = {
         'settings.taskEditorDefaultOpen': 'Secties standaard openen',
         'settings.ai': 'AI-assistent',
         'settings.advanced': 'Geavanceerd',
+        'settings.data': 'Data',
         'settings.dataSync': 'Data en synchronisatie',
         'settings.dataDesc': 'Importeer of exporteer je gegevens om te synchroniseren met andere apparaten.',
         'settings.calendar': 'Externe kalender',

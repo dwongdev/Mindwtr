@@ -609,6 +609,7 @@ export const hiOverrides: Record<string, string> = {
         'settings.material3Theme': 'सामग्री 3 थीम',
         'settings.material3ThemeDesc': 'एंड्रॉइड पर सामग्री 3 रंग टोकन का उपयोग करें',
         'settings.selectLang': 'अपनी पसंदीदा भाषा चुनें',
+        'settings.data': 'डेटा',
         'settings.dataSync': 'डेटा और सिंक',
         'settings.dataDesc': 'अन्य डिवाइस के साथ सिंक करने के लिए अपना डेटा आयात या निर्यात करें।',
         'settings.calendar': 'बाहरी कैलेंडर',

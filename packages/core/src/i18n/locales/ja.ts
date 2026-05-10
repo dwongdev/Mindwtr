@@ -609,6 +609,7 @@ export const jaOverrides: Record<string, string> = {
         'settings.material3Theme': '資料3のテーマ',
         'settings.material3ThemeDesc': 'Android でマテリアル 3 色のトークンを使用する',
         'settings.selectLang': '希望の言語を選択してください',
+        'settings.data': 'データ',
         'settings.dataSync': 'データと同期',
         'settings.dataDesc': 'データをインポートまたはエクスポートして、他のデバイスと同期します。',
         'settings.calendar': '外部カレンダー',

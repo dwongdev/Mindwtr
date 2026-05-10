@@ -609,6 +609,7 @@ export const trOverrides: Record<string, string> = {
         'settings.material3Theme': 'Malzeme 3 Teması',
         'settings.material3ThemeDesc': 'Android\'de Material 3 renk belirteçlerini kullanma',
         'settings.selectLang': 'Tercih ettiğiniz dili seçin',
+        'settings.data': 'Veri',
         'settings.dataSync': 'Veri ve Senkronizasyon',
         'settings.dataDesc': 'Diğer cihazlarla senkronize etmek için verilerinizi içe veya dışa aktarın.',
         'settings.calendar': 'Harici Takvim',

@@ -639,6 +639,7 @@ export const deOverrides: Record<string, string> = {
         'settings.material3Theme': 'Material 3-Design',
         'settings.material3ThemeDesc': 'Material-3-Farben auf Android verwenden',
         'settings.selectLang': 'Bevorzugte Sprache auswählen',
+        'settings.data': 'Daten',
         'settings.dataSync': 'Daten & Synchronisierung',
         'settings.dataDesc': 'Daten importieren oder exportieren, um Geräte zu synchronisieren.',
         'settings.calendar': 'Externer Kalender',

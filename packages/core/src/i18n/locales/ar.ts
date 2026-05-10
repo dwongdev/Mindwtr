@@ -609,6 +609,7 @@ export const arOverrides: Record<string, string> = {
         'settings.material3Theme': 'موضوع المادة 3',
         'settings.material3ThemeDesc': 'استخدم رموز الألوان الخاصة بـ Material 3 على Android',
         'settings.selectLang': 'اختر لغتك المفضلة',
+        'settings.data': 'البيانات',
         'settings.dataSync': 'البيانات والمزامنة',
         'settings.dataDesc': 'قم باستيراد أو تصدير بياناتك لمزامنتها مع الأجهزة الأخرى.',
         'settings.calendar': 'التقويم الخارجي',

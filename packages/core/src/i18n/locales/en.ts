@@ -714,6 +714,7 @@ export const en: Record<string, string> = {
         'settings.material3Theme': 'Material 3 Theme',
         'settings.material3ThemeDesc': 'Use Material 3 color tokens on Android',
         'settings.selectLang': 'Select your preferred language',
+        'settings.data': 'Data',
         'settings.dataSync': 'Data & Sync',
         'settings.dataDesc': 'Import or export your data to sync with other devices.',
         'settings.calendar': 'External Calendar',

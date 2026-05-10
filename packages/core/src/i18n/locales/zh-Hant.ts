@@ -655,6 +655,7 @@ export const zhHant: Record<string, string> = {
         'settings.material3Theme': 'Material 3 主題',
         'settings.material3ThemeDesc': '在 Android 上使用 Material 3 配色',
         'settings.selectLang': '選擇您的首選語言',
+        'settings.data': '數據',
         'settings.dataSync': '數據與同步',
         'settings.dataDesc': '導入或導出數據以與其他設備同步。',
         'settings.calendar': '外部日曆',

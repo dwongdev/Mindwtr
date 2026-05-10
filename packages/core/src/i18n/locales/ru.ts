@@ -609,6 +609,7 @@ export const ruOverrides: Record<string, string> = {
         'settings.material3Theme': 'Материал 3 Тема',
         'settings.material3ThemeDesc': 'Используйте жетоны цвета Material 3 на Android',
         'settings.selectLang': 'Выберите предпочитаемый язык',
+        'settings.data': 'Данные',
         'settings.dataSync': 'Данные и синхронизация',
         'settings.dataDesc': 'Импортируйте или экспортируйте свои данные для синхронизации с другими устройствами.',
         'settings.calendar': 'Внешний календарь',

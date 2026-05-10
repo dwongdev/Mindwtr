@@ -609,6 +609,7 @@ export const plOverrides: Record<string, string> = {
         'settings.material3Theme': 'Motyw Material 3',
         'settings.material3ThemeDesc': 'Używaj kolorów Material 3 na Androidzie',
         'settings.selectLang': 'Wybierz preferowany język',
+        'settings.data': 'Dane',
         'settings.dataSync': 'Dane i synchronizacja',
         'settings.dataDesc': 'Importuj lub eksportuj dane, aby synchronizować je z innymi urządzeniami.',
         'settings.calendar': 'Kalendarz zewnętrzny',

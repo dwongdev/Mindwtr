@@ -55,7 +55,7 @@ export default function SettingsPage() {
         if (!rawScreen) return 'main';
         return SETTINGS_SCREEN_SET[rawScreen as SettingsScreen] ? (rawScreen as SettingsScreen) : 'main';
     }, [settingsScreen]);
-    const dataLabel = useMemo(() => localize('Data', '数据'), [localize]);
+    const dataLabel = t('settings.data');
     const menuDescriptions = useMemo(
         () => ({
             general: localize('Appearance, language, display', '外观、语言、显示'),
