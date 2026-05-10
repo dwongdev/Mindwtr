@@ -858,14 +858,16 @@ export class SqliteAdapter {
         }
         const ftsQuery = tokens.map((token) => `${token}*`).join(' ');
         const runSearch = async (): Promise<SearchResults> => {
-            const taskRows = await this.client.all<Record<string, unknown>>(
-                `SELECT ${SEARCH_TASK_SELECT} FROM tasks_fts f JOIN tasks t ON f.id = t.id WHERE tasks_fts MATCH ? AND t.deletedAt IS NULL LIMIT ?`,
-                [ftsQuery, SEARCH_RESULT_LIMIT + 1]
-            );
-            const projectRows = await this.client.all<Record<string, unknown>>(
-                `SELECT ${SEARCH_PROJECT_SELECT} FROM projects_fts f JOIN projects p ON f.id = p.id WHERE projects_fts MATCH ? AND p.deletedAt IS NULL LIMIT ?`,
-                [ftsQuery, SEARCH_RESULT_LIMIT + 1]
-            );
+            const [taskRows, projectRows] = await Promise.all([
+                this.client.all<Record<string, unknown>>(
+                    `SELECT ${SEARCH_TASK_SELECT} FROM tasks_fts f JOIN tasks t ON f.id = t.id WHERE tasks_fts MATCH ? AND t.deletedAt IS NULL ORDER BY bm25(tasks_fts) LIMIT ?`,
+                    [ftsQuery, SEARCH_RESULT_LIMIT + 1]
+                ),
+                this.client.all<Record<string, unknown>>(
+                    `SELECT ${SEARCH_PROJECT_SELECT} FROM projects_fts f JOIN projects p ON f.id = p.id WHERE projects_fts MATCH ? AND p.deletedAt IS NULL ORDER BY bm25(projects_fts) LIMIT ?`,
+                    [ftsQuery, SEARCH_RESULT_LIMIT + 1]
+                ),
+            ]);
             const limited = taskRows.length > SEARCH_RESULT_LIMIT || projectRows.length > SEARCH_RESULT_LIMIT;
             return {
                 tasks: taskRows.slice(0, SEARCH_RESULT_LIMIT).map((row) => this.mapSearchTaskRow(row)),
