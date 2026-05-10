@@ -75,7 +75,7 @@ function CollapsibleSection({
 
 export function ManageSettingsScreen() {
     const tc = useThemeColors();
-    const { localize, t } = useSettingsLocalization();
+    const { t } = useSettingsLocalization();
     const scrollContentStyle = useSettingsScrollContent();
     const areas = useTaskStore((state) => state.areas);
     const settings = useTaskStore((state) => state.settings);
@@ -129,22 +129,21 @@ export function ManageSettingsScreen() {
         AsyncStorage.setItem(MANAGE_OPEN_SECTIONS_STORAGE_KEY, JSON.stringify(openSections)).catch(() => {});
     }, [openSections]);
 
-    const localize2 = (en: string, zh: string) => localize(en, zh);
     const resolveText = (key: string, fallback: string) => {
         const value = t(key);
         return value && value !== key ? value : fallback;
     };
     const unassignedAreaLabel = resolveText('review.unassigned', 'Unassigned');
-    const unassignedAreaColorLabel = localize2('Unassigned color', '未分配颜色');
-    const unassignedAreaDescription = localize2('Used for tasks and projects without an area.', '用于没有领域的任务和项目。');
+    const unassignedAreaColorLabel = t('settings.unassignedAreaColor');
+    const unassignedAreaDescription = t('settings.unassignedAreaColorDesc');
     const unassignedAreaColor = settings.appearance?.unassignedAreaColor || DEFAULT_AREA_COLOR;
     const confirmDelete = (label: string, onConfirm: () => void) => {
         Alert.alert(
-            localize2('Delete', '删除'),
-            localize2(`Delete "${label}"?`, `删除"${label}"？`),
+            t('common.delete'),
+            t('settings.deleteNamed').replace('{{name}}', label),
             [
-                { text: localize2('Cancel', '取消'), style: 'cancel' },
-                { text: localize2('Delete', '删除'), style: 'destructive', onPress: onConfirm },
+                { text: t('common.cancel'), style: 'cancel' },
+                { text: t('common.delete'), style: 'destructive', onPress: onConfirm },
             ],
         );
     };
@@ -306,7 +305,7 @@ export function ManageSettingsScreen() {
                     {allContexts.length === 0 && (
                         <View style={styles.settingRow}>
                             <Text style={[styles.settingDescription, { color: tc.secondaryText }]}>
-                                {localize2('No contexts', '无情境')}
+                                {t('contexts.empty')}
                             </Text>
                         </View>
                     )}
@@ -322,7 +321,7 @@ export function ManageSettingsScreen() {
 
                 <CollapsibleSection
                     testID="manage-section-toggle-tags"
-                    title={localize2('Tags', '标签')}
+                    title={t('tags.title')}
                     count={allTags.length}
                     open={openSections.tags}
                     onToggle={() => setOpenSections((current) => ({ ...current, tags: !current.tags }))}
@@ -356,10 +355,10 @@ export function ManageSettingsScreen() {
                     >
                         <Text style={[styles.pickerTitle, { color: tc.text }]}>
                             {editorTarget?.type === 'area'
-                                ? localize2('Edit area', '编辑领域')
+                                ? t('areas.edit')
                                 : editorTarget?.type === 'unassignedArea'
                                     ? unassignedAreaColorLabel
-                                : localize2('Rename', '重命名')}
+                                : t('common.rename')}
                         </Text>
                         {editorTarget?.type !== 'unassignedArea' ? (
                             <TextInput
@@ -368,7 +367,7 @@ export function ManageSettingsScreen() {
                                 placeholder={
                                     editorTarget?.type === 'area'
                                         ? t('projects.areaLabel')
-                                        : localize2('Name', '名称')
+                                        : t('common.name')
                                 }
                                 placeholderTextColor={tc.secondaryText}
                                 style={[
@@ -410,7 +409,7 @@ export function ManageSettingsScreen() {
                                 style={[styles.manageEditorButton, { borderColor: tc.border }]}
                             >
                                 <Text style={[styles.manageEditorButtonText, { color: tc.secondaryText }]}>
-                                    {localize2('Cancel', '取消')}
+                                    {t('common.cancel')}
                                 </Text>
                             </TouchableOpacity>
                             <TouchableOpacity
@@ -426,7 +425,7 @@ export function ManageSettingsScreen() {
                                 ]}
                             >
                                 <Text style={[styles.manageEditorButtonText, styles.manageEditorButtonPrimaryText]}>
-                                    {localize2('Save', '保存')}
+                                    {t('common.save')}
                                 </Text>
                             </TouchableOpacity>
                         </View>
