@@ -616,7 +616,9 @@ const mobileSyncOrchestrator = createSyncOrchestrator<string | undefined, Mobile
           selfHostedCloud: cloudProvider === CLOUD_PROVIDER_SELF_HOSTED && cloudConfig?.url
             ? async (data) => {
               const baseSyncUrl = getCloudBaseUrl(cloudConfig.url);
-              return syncCloudAttachments(data, cloudConfig, baseSyncUrl);
+              return syncCloudAttachments(data, cloudConfig, baseSyncUrl, {
+                assertCurrent: ensureLocalSnapshotFresh,
+              });
             }
             : undefined,
           dropbox: cloudProvider === CLOUD_PROVIDER_DROPBOX
@@ -730,7 +732,9 @@ const mobileSyncOrchestrator = createSyncOrchestrator<string | undefined, Mobile
         } else if (backend === 'cloud' && cloudProvider === CLOUD_PROVIDER_SELF_HOSTED && cloudConfig?.url) {
           await ensureNetworkStillAvailable();
           const baseSyncUrl = getCloudBaseUrl(cloudConfig.url);
-          await syncCloudAttachments(data, cloudConfig, baseSyncUrl);
+          await syncCloudAttachments(data, cloudConfig, baseSyncUrl, {
+            assertCurrent: ensureLocalSnapshotFresh,
+          });
         } else if (backend === 'cloud' && cloudProvider === CLOUD_PROVIDER_DROPBOX) {
           await ensureNetworkStillAvailable();
           await syncDropboxAttachments(data, dropboxClientId, fetchWithAbort);
@@ -1069,7 +1073,9 @@ const mobileSyncOrchestrator = createSyncOrchestrator<string | undefined, Mobile
         await ensureNetworkStillAvailable();
         const baseSyncUrl = getCloudBaseUrl(cloudConfigValue.url);
         await applyAttachmentSyncMutation((candidateData) =>
-          syncCloudAttachments(candidateData, cloudConfigValue, baseSyncUrl)
+          syncCloudAttachments(candidateData, cloudConfigValue, baseSyncUrl, {
+            assertCurrent: ensureLocalSnapshotFresh,
+          })
         );
       }
 

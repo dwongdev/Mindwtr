@@ -39,6 +39,7 @@ vi.mock('@react-native-async-storage/async-storage', () => ({
 vi.mock('@mindwtr/core', () => ({
   validateAttachmentForUpload: vi.fn().mockResolvedValue({ valid: true }),
   cloudGetFile: vi.fn(),
+  cloudDeleteFile: vi.fn(),
   cloudPutFile: vi.fn(),
   computeSha256Hex: vi.fn().mockResolvedValue(null),
   globalProgressTracker: {
@@ -265,5 +266,67 @@ describe('attachment sync', () => {
       'AQID',
       { encoding: 'base64' }
     );
+  });
+
+  it('cleans up a cloud upload when local data changes before metadata is stamped', async () => {
+    fileSystemMock.getInfoAsync.mockResolvedValue({ exists: true, size: 3 });
+    fileSystemMock.readAsStringAsync.mockResolvedValue('AQID');
+    const core = await import('@mindwtr/core');
+    const abortError = new Error('Local changes detected during sync');
+    let assertCalls = 0;
+    const appData: AppData = {
+      tasks: [
+        {
+          id: 'task-1',
+          title: 'Task',
+          status: 'inbox',
+          tags: [],
+          contexts: [],
+          attachments: [
+            {
+              id: 'race',
+              kind: 'file' as const,
+              title: 'race.txt',
+              uri: 'file://document/attachments/race.txt',
+              localStatus: 'available' as const,
+              createdAt: '2026-04-18T10:00:00.000Z',
+              updatedAt: '2026-04-18T10:00:00.000Z',
+            },
+          ],
+          createdAt: '2026-04-18T10:00:00.000Z',
+          updatedAt: '2026-04-18T10:00:00.000Z',
+        },
+      ],
+      projects: [],
+      sections: [],
+      areas: [],
+      settings: {},
+    };
+
+    const { syncCloudAttachments } = await import('./attachment-sync');
+
+    await expect(syncCloudAttachments(
+      appData,
+      { url: 'https://cloud.example/v1/data', token: 'token' },
+      'https://cloud.example/v1',
+      {
+        assertCurrent: () => {
+          assertCalls += 1;
+          if (assertCalls > 1) throw abortError;
+        },
+      }
+    )).rejects.toBe(abortError);
+
+    expect(core.cloudPutFile).toHaveBeenCalledWith(
+      'https://cloud.example/v1/attachments/race.txt',
+      expect.any(ArrayBuffer),
+      'application/octet-stream',
+      { token: 'token' }
+    );
+    expect(core.cloudDeleteFile).toHaveBeenCalledWith(
+      'https://cloud.example/v1/attachments/race.txt',
+      { token: 'token' }
+    );
+    expect(appData.tasks[0].attachments?.[0]?.cloudKey).toBeUndefined();
   });
 });

@@ -1,5 +1,5 @@
 import type { AppData } from '@mindwtr/core';
-import { cloudPutFile, validateAttachmentForUpload } from '@mindwtr/core';
+import { cloudDeleteFile, cloudPutFile, validateAttachmentForUpload } from '@mindwtr/core';
 import { logAttachmentWarn } from '../attachment-sync-utils';
 import {
   buildCloudKey,
@@ -18,10 +18,15 @@ import {
 } from '../attachment-sync-utils';
 import { uploadCloudFileWithFileSystem } from './common';
 
+export type CloudAttachmentSyncOptions = {
+  assertCurrent?: () => void;
+};
+
 export const syncCloudAttachments = async (
   appData: AppData,
   cloudConfig: CloudConfig,
-  baseSyncUrl: string
+  baseSyncUrl: string,
+  options: CloudAttachmentSyncOptions = {}
 ): Promise<boolean> => {
   await getAttachmentsDir();
 
@@ -44,7 +49,14 @@ export const syncCloudAttachments = async (
 
     if (!attachment.cloudKey && hasLocalPath && existsLocally && !isHttp) {
       let localReadFailed = false;
+      let shouldPropagateError = false;
       try {
+        try {
+          options.assertCurrent?.();
+        } catch (error) {
+          shouldPropagateError = true;
+          throw error;
+        }
         let fileSize = await getAttachmentByteSize(attachment, uri);
         let fileData: Uint8Array | null = null;
         if (!Number.isFinite(fileSize ?? NaN)) {
@@ -92,6 +104,17 @@ export const syncCloudAttachments = async (
             { token: cloudConfig.token }
           );
         }
+        try {
+          options.assertCurrent?.();
+        } catch (error) {
+          shouldPropagateError = true;
+          try {
+            await cloudDeleteFile(uploadUrl, { token: cloudConfig.token });
+          } catch (deleteError) {
+            logAttachmentWarn(`Failed to clean up aborted attachment upload ${attachment.title}`, deleteError);
+          }
+          throw error;
+        }
         attachment.cloudKey = cloudKey;
         if (!Number.isFinite(attachment.size ?? NaN) && Number.isFinite(fileSize ?? NaN)) {
           attachment.size = Number(fileSize);
@@ -100,6 +123,9 @@ export const syncCloudAttachments = async (
         didMutate = true;
         reportProgress(attachment.id, 'upload', totalBytes, totalBytes, 'completed');
       } catch (error) {
+        if (shouldPropagateError) {
+          throw error;
+        }
         if (localReadFailed) {
           if (markAttachmentUnrecoverable(attachment)) {
             didMutate = true;
