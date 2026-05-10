@@ -174,6 +174,9 @@ export const syncCloudAttachments = async (
           await cleanupPendingUploadMutations();
           throw error;
         }
+        if (uploadUrlForCleanup && !localReadFailed) {
+          await cleanupUploadedCloudFile(uploadUrlForCleanup, attachment.title);
+        }
         if (localReadFailed) {
           if (markAttachmentUnrecoverable(attachment)) {
             didMutate = true;

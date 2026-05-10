@@ -41,6 +41,7 @@ vi.mock('@mindwtr/core', () => ({
   cloudGetFile: vi.fn(),
   cloudDeleteFile: vi.fn(),
   cloudPutFile: vi.fn(),
+  isAbortError: vi.fn().mockReturnValue(false),
   computeSha256Hex: vi.fn().mockResolvedValue(null),
   globalProgressTracker: {
     updateProgress: vi.fn(),
@@ -452,6 +453,73 @@ describe('attachment sync', () => {
       { token: 'token' }
     );
     expect(core.cloudDeleteFile).toHaveBeenCalledWith(
+      'https://cloud.example/v1/attachments/first.txt',
+      { token: 'token' }
+    );
+  });
+
+  it('cleans up uncertain cloud uploads after a network failure without dropping earlier successful metadata', async () => {
+    fileSystemMock.getInfoAsync.mockResolvedValue({ exists: true, size: 3 });
+    fileSystemMock.readAsStringAsync.mockResolvedValue('AQID');
+    const core = await import('@mindwtr/core');
+    const networkError = new Error('network flap');
+    const appData: AppData = {
+      tasks: [
+        {
+          id: 'task-1',
+          title: 'Task',
+          status: 'inbox',
+          tags: [],
+          contexts: [],
+          attachments: [
+            {
+              id: 'first',
+              kind: 'file' as const,
+              title: 'first.txt',
+              uri: 'file://document/attachments/first.txt',
+              localStatus: 'available' as const,
+              createdAt: '2026-04-18T10:00:00.000Z',
+              updatedAt: '2026-04-18T10:00:00.000Z',
+            },
+            {
+              id: 'second',
+              kind: 'file' as const,
+              title: 'second.txt',
+              uri: 'file://document/attachments/second.txt',
+              localStatus: 'available' as const,
+              createdAt: '2026-04-18T10:00:00.000Z',
+              updatedAt: '2026-04-18T10:00:00.000Z',
+            },
+          ],
+          createdAt: '2026-04-18T10:00:00.000Z',
+          updatedAt: '2026-04-18T10:00:00.000Z',
+        },
+      ],
+      projects: [],
+      sections: [],
+      areas: [],
+      settings: {},
+    };
+    vi.mocked(core.cloudPutFile)
+      .mockResolvedValueOnce(undefined)
+      .mockRejectedValueOnce(networkError);
+
+    const { syncCloudAttachments } = await import('./attachment-sync');
+
+    const didMutate = await syncCloudAttachments(
+      appData,
+      { url: 'https://cloud.example/v1/data', token: 'token' },
+      'https://cloud.example/v1'
+    );
+
+    expect(didMutate).toBe(true);
+    expect(appData.tasks[0].attachments?.[0]?.cloudKey).toBe('attachments/first.txt');
+    expect(appData.tasks[0].attachments?.[1]?.cloudKey).toBeUndefined();
+    expect(core.cloudDeleteFile).toHaveBeenCalledWith(
+      'https://cloud.example/v1/attachments/second.txt',
+      { token: 'token' }
+    );
+    expect(core.cloudDeleteFile).not.toHaveBeenCalledWith(
       'https://cloud.example/v1/attachments/first.txt',
       { token: 'token' }
     );
