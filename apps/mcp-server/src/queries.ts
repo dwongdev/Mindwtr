@@ -85,6 +85,10 @@ export type CompleteTaskInput = { id: string };
 
 export type TaskRow = Task;
 
+// MCP writes go through the core-backed adapter, but reads are intentionally
+// kept as direct SQL so list/search tools stay fast and read-only. Keep this
+// projection and mapTaskRow in sync with packages/core/src/sqlite-adapter.ts
+// whenever task columns are added or renamed.
 const BASE_TASK_COLUMNS = [
   'id',
   'title',
