@@ -644,6 +644,9 @@ const mobileSyncOrchestrator = createSyncOrchestrator<string | undefined, Mobile
         if (error instanceof LocalSyncAbort) {
           throw error;
         }
+        if (requestAbortController.signal.aborted) {
+          throw error;
+        }
         logSyncWarning('Attachment pre-sync warning; continuing sync merge', error);
       }
 

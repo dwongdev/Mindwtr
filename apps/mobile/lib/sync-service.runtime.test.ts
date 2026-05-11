@@ -1,6 +1,6 @@
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { Platform } from 'react-native';
-import { computeStableValueFingerprint, computeSyncPayloadFingerprint } from '@mindwtr/core';
+import { computeStableValueFingerprint, computeSyncPayloadFingerprint, type AppData } from '@mindwtr/core';
 
 const emptyData = {
   tasks: [],
@@ -658,5 +658,78 @@ describe('mobile sync-service runtime', () => {
 
     expect(states[0]).toBe('idle');
     expect(states.at(-1)).toBe('idle');
+  });
+
+  it('stops cloud attachment pre-sync when the app lifecycle aborts the sync', async () => {
+    const dataWithAttachment: AppData = {
+      tasks: [
+        {
+          id: 'task-attachment',
+          title: 'Attachment task',
+          status: 'inbox',
+          tags: [],
+          contexts: [],
+          createdAt: '2026-05-01T00:00:00.000Z',
+          updatedAt: '2026-05-01T00:00:00.000Z',
+          attachments: [
+            {
+              id: 'att-lifecycle',
+              kind: 'file',
+              title: 'large.txt',
+              uri: 'file://document/attachments/large.txt',
+              localStatus: 'available',
+              createdAt: '2026-05-01T00:00:00.000Z',
+              updatedAt: '2026-05-01T00:00:00.000Z',
+            },
+          ],
+        },
+      ],
+      projects: [],
+      sections: [],
+      areas: [],
+      settings: {},
+    };
+    let uploadSignal: AbortSignal | undefined;
+    let releaseUploadStart!: () => void;
+    const uploadStarted = new Promise<void>((resolve) => {
+      releaseUploadStart = resolve;
+    });
+
+    asyncStorageMocks.getItem.mockImplementation(async (key: string) => {
+      const values: Record<string, string | null> = {
+        '@mindwtr_sync_backend': 'cloud',
+        '@mindwtr_cloud_provider': 'selfhosted',
+        '@mindwtr_cloud_url': 'https://cloud.example/v1/data',
+        '@mindwtr_cloud_token': 'token',
+      };
+      return values[key] ?? null;
+    });
+    storageMocks.getData.mockResolvedValue(dataWithAttachment);
+    coreMocks.getInMemoryAppDataSnapshot.mockReturnValue(dataWithAttachment);
+    coreMocks.cloudGetJson.mockResolvedValue(emptyData);
+    attachmentSyncMocks.syncCloudAttachments.mockImplementation(async (_data, _config, _baseUrl, options) => {
+      uploadSignal = options?.signal;
+      releaseUploadStart();
+      await new Promise((_resolve, reject) => {
+        options?.signal?.addEventListener('abort', () => reject(new Error('Upload aborted by lifecycle')), { once: true });
+      });
+      return false;
+    });
+
+    const syncPromise = syncServiceModule.performMobileSync();
+    await uploadStarted;
+
+    expect(uploadSignal?.aborted).toBe(false);
+    expect(syncServiceModule.abortMobileSync()).toBe(true);
+
+    const result = await syncPromise;
+
+    expect(uploadSignal?.aborted).toBe(true);
+    expect(result).toEqual({ success: true });
+    expect(coreMocks.cloudGetJson).not.toHaveBeenCalled();
+    expect(logMocks.logInfo).toHaveBeenCalledWith(
+      'Sync aborted by app lifecycle transition',
+      expect.objectContaining({ scope: 'sync' }),
+    );
   });
 });
