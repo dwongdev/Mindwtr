@@ -5,7 +5,7 @@ const fs = require('fs');
 const [title, lcovPath, ...args] = process.argv.slice(2);
 
 if (!title || !lcovPath) {
-  console.error('Usage: write-lcov-summary.js <title> <lcov.info> [--min-lines=<percent>] [--include-prefix=<prefix>]');
+  console.error('Usage: write-lcov-summary.js <title> <lcov.info> [--min-lines=<percent>] [--min-functions=<percent>] [--min-branches=<percent>] [--include-prefix=<prefix>]');
   process.exit(2);
 }
 
@@ -15,13 +15,21 @@ const getArgValue = (name, fallback) => {
 };
 
 const minLinesRaw = getArgValue('--min-lines', process.env.COVERAGE_MIN_LINES || '70');
+const minFunctionsRaw = getArgValue('--min-functions', process.env.COVERAGE_MIN_FUNCTIONS || '50');
+const minBranchesRaw = getArgValue('--min-branches', process.env.COVERAGE_MIN_BRANCHES || '');
 const includePrefix = getArgValue('--include-prefix', '');
-const minLines = Number(minLinesRaw);
+const parseThreshold = (label, raw) => {
+  const value = Number(raw);
+  if (!Number.isFinite(value) || value < 0 || value > 100) {
+    console.error(`Invalid ${label} coverage threshold: ${raw}`);
+    process.exit(2);
+  }
+  return value;
+};
 
-if (!Number.isFinite(minLines) || minLines < 0 || minLines > 100) {
-  console.error(`Invalid line coverage threshold: ${minLinesRaw}`);
-  process.exit(2);
-}
+const minLines = parseThreshold('line', minLinesRaw);
+const minFunctions = parseThreshold('function', minFunctionsRaw);
+const minBranches = minBranchesRaw === '' ? null : parseThreshold('branch', minBranchesRaw);
 
 if (!fs.existsSync(lcovPath)) {
   console.error(`LCOV report missing at ${lcovPath}`);
@@ -37,6 +45,10 @@ const shouldIncludeFile = (filePath) => {
 const records = fs.readFileSync(lcovPath, 'utf8').split('end_of_record');
 let coveredLines = 0;
 let totalLines = 0;
+let coveredFunctions = 0;
+let totalFunctions = 0;
+let coveredBranches = 0;
+let totalBranches = 0;
 let includedFiles = 0;
 
 for (const record of records) {
@@ -63,6 +75,13 @@ for (const record of records) {
     totalLines += fileLineTotal;
     coveredLines += fileLineCovered;
   }
+
+  for (const line of lines) {
+    if (line.startsWith('FNF:')) totalFunctions += Number(line.slice('FNF:'.length)) || 0;
+    if (line.startsWith('FNH:')) coveredFunctions += Number(line.slice('FNH:'.length)) || 0;
+    if (line.startsWith('BRF:')) totalBranches += Number(line.slice('BRF:'.length)) || 0;
+    if (line.startsWith('BRH:')) coveredBranches += Number(line.slice('BRH:'.length)) || 0;
+  }
 }
 
 if (totalLines === 0) {
@@ -71,15 +90,19 @@ if (totalLines === 0) {
 }
 
 const linePct = Number(((coveredLines / totalLines) * 100).toFixed(2));
+const functionPct = totalFunctions === 0 ? 100 : Number(((coveredFunctions / totalFunctions) * 100).toFixed(2));
+const branchPct = totalBranches === 0 ? 100 : Number(((coveredBranches / totalBranches) * 100).toFixed(2));
 const lines = [
   `### ${title}`,
   '',
   '| Metric | Percent | Covered / Total |',
   '| --- | ---: | ---: |',
   `| Lines | ${linePct}% | ${coveredLines} / ${totalLines} |`,
+  `| Functions | ${functionPct}% | ${coveredFunctions} / ${totalFunctions} |`,
+  ...(minBranches == null ? [] : [`| Branches | ${branchPct}% | ${coveredBranches} / ${totalBranches} |`]),
   `| Files | ${includedFiles} | ${includedFiles} |`,
   '',
-  `Minimum line coverage: ${minLines}%`,
+  `Minimum coverage: lines ${minLines}%, functions ${minFunctions}%${minBranches == null ? '' : `, branches ${minBranches}%`}`,
   '',
 ];
 
@@ -91,5 +114,20 @@ if (process.env.GITHUB_STEP_SUMMARY) {
 
 if (linePct < minLines) {
   console.error(`${title} line coverage ${linePct}% is below required ${minLines}%`);
+  process.exit(1);
+}
+
+if (functionPct < minFunctions) {
+  console.error(`${title} function coverage ${functionPct}% is below required ${minFunctions}%`);
+  process.exit(1);
+}
+
+if (minBranches != null && totalBranches === 0) {
+  console.error(`${title} branch coverage threshold was requested, but ${lcovPath} does not include branch data`);
+  process.exit(1);
+}
+
+if (minBranches != null && branchPct < minBranches) {
+  console.error(`${title} branch coverage ${branchPct}% is below required ${minBranches}%`);
   process.exit(1);
 }

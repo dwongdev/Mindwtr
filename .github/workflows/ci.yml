@@ -57,11 +57,11 @@ jobs:
             /tmp/mindwtr-play-listing-metadata.json
 
       - name: Run unit tests
-        run: bun run --filter @mindwtr/core test -- --coverage --coverage.thresholds.lines=70
+        run: bun run --filter @mindwtr/core test -- --coverage --coverage.thresholds.lines=70 --coverage.thresholds.statements=70 --coverage.thresholds.functions=50 --coverage.thresholds.branches=50
 
       - name: Core coverage summary
         if: always()
-        run: node scripts/ci/write-coverage-summary.js "Core Coverage" packages/core/coverage/coverage-summary.json --min-lines=70
+        run: node scripts/ci/write-coverage-summary.js "Core Coverage" packages/core/coverage/coverage-summary.json --min-lines=70 --min-statements=70 --min-functions=50 --min-branches=50
 
       - name: Upload core coverage artifact
         if: always()
@@ -155,11 +155,11 @@ jobs:
         run: cd apps/desktop && bun run tsc --noEmit
 
       - name: Run tests
-        run: bun run --filter mindwtr test -- --coverage --coverage.thresholds.lines=70
+        run: bun run --filter mindwtr test -- --coverage --coverage.thresholds.lines=70 --coverage.thresholds.statements=70 --coverage.thresholds.functions=50 --coverage.thresholds.branches=50
 
       - name: Desktop coverage summary
         if: always()
-        run: node scripts/ci/write-coverage-summary.js "Desktop Coverage" apps/desktop/coverage/coverage-summary.json --min-lines=70
+        run: node scripts/ci/write-coverage-summary.js "Desktop Coverage" apps/desktop/coverage/coverage-summary.json --min-lines=70 --min-statements=70 --min-functions=50 --min-branches=50
 
       - name: Upload desktop coverage artifact
         if: always()
@@ -208,11 +208,11 @@ jobs:
         run: cd apps/mobile && bunx expo-doctor
 
       - name: Mobile tests
-        run: bun run --filter mobile test -- --coverage --coverage.thresholds.lines=70
+        run: bun run --filter mobile test -- --coverage --coverage.thresholds.lines=70 --coverage.thresholds.statements=70 --coverage.thresholds.functions=50 --coverage.thresholds.branches=50
 
       - name: Mobile coverage summary
         if: always()
-        run: node scripts/ci/write-coverage-summary.js "Mobile Coverage" apps/mobile/coverage/coverage-summary.json --min-lines=70
+        run: node scripts/ci/write-coverage-summary.js "Mobile Coverage" apps/mobile/coverage/coverage-summary.json --min-lines=70 --min-statements=70 --min-functions=50 --min-branches=50
 
       - name: Upload mobile coverage artifact
         if: always()
@@ -257,7 +257,7 @@ jobs:
 
       - name: Cloud coverage summary
         if: always()
-        run: node scripts/ci/write-lcov-summary.js "Cloud Coverage" apps/cloud/coverage/lcov.info --include-prefix=src/ --min-lines=70
+        run: node scripts/ci/write-lcov-summary.js "Cloud Coverage" apps/cloud/coverage/lcov.info --include-prefix=src/ --min-lines=70 --min-functions=50
 
       - name: Upload cloud coverage artifact
         if: always()
@@ -272,7 +272,7 @@ jobs:
 
       - name: MCP coverage summary
         if: always()
-        run: node scripts/ci/write-lcov-summary.js "MCP Coverage" apps/mcp-server/coverage/lcov.info --include-prefix=src/ --min-lines=70
+        run: node scripts/ci/write-lcov-summary.js "MCP Coverage" apps/mcp-server/coverage/lcov.info --include-prefix=src/ --min-lines=70 --min-functions=50
 
       - name: Upload MCP coverage artifact
         if: always()
