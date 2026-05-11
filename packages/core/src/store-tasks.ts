@@ -415,9 +415,7 @@ export const createTaskActions = ({ set, get, getStorage, debouncedSave }: TaskA
         const isPromotingTaskFocus = preparedUpdates.updates.isFocusedToday === true && existingTask.isFocusedToday !== true;
         if (isPromotingTaskFocus) {
             const focusTaskLimit = normalizeFocusTaskLimit(currentState.settings.gtd?.focusTaskLimit);
-            const focusedCount = currentState._allTasks.filter(
-                (task) => task.isFocusedToday === true && !task.deletedAt
-            ).length;
+            const focusedCount = currentState.getDerivedState().focusedCount;
             if (focusedCount >= focusTaskLimit) {
                 const message = `Maximum of ${focusTaskLimit} focused tasks allowed`;
                 set({ error: message });
