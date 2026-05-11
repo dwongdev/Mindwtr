@@ -5,7 +5,7 @@ const fs = require('fs');
 const [title, lcovPath, ...args] = process.argv.slice(2);
 
 if (!title || !lcovPath) {
-  console.error('Usage: write-lcov-summary.js <title> <lcov.info> [--min-lines=<percent>] [--min-functions=<percent>] [--min-branches=<percent>] [--include-prefix=<prefix>]');
+  console.error('Usage: write-lcov-summary.js <title> <lcov.info> [--min-lines=<percent>] [--min-statements=<percent>] [--min-functions=<percent>] [--min-branches=<percent>] [--include-prefix=<prefix>]');
   process.exit(2);
 }
 
@@ -15,6 +15,7 @@ const getArgValue = (name, fallback) => {
 };
 
 const minLinesRaw = getArgValue('--min-lines', process.env.COVERAGE_MIN_LINES || '70');
+const minStatementsRaw = getArgValue('--min-statements', process.env.COVERAGE_MIN_STATEMENTS || '');
 const minFunctionsRaw = getArgValue('--min-functions', process.env.COVERAGE_MIN_FUNCTIONS || '50');
 const minBranchesRaw = getArgValue('--min-branches', process.env.COVERAGE_MIN_BRANCHES || '');
 const includePrefix = getArgValue('--include-prefix', '');
@@ -28,6 +29,7 @@ const parseThreshold = (label, raw) => {
 };
 
 const minLines = parseThreshold('line', minLinesRaw);
+const minStatements = minStatementsRaw === '' ? null : parseThreshold('statement', minStatementsRaw);
 const minFunctions = parseThreshold('function', minFunctionsRaw);
 const minBranches = minBranchesRaw === '' ? null : parseThreshold('branch', minBranchesRaw);
 
@@ -90,6 +92,7 @@ if (totalLines === 0) {
 }
 
 const linePct = Number(((coveredLines / totalLines) * 100).toFixed(2));
+const statementPct = linePct;
 const functionPct = totalFunctions === 0 ? 100 : Number(((coveredFunctions / totalFunctions) * 100).toFixed(2));
 const branchPct = totalBranches === 0 ? 100 : Number(((coveredBranches / totalBranches) * 100).toFixed(2));
 const lines = [
@@ -98,11 +101,12 @@ const lines = [
   '| Metric | Percent | Covered / Total |',
   '| --- | ---: | ---: |',
   `| Lines | ${linePct}% | ${coveredLines} / ${totalLines} |`,
+  ...(minStatements == null ? [] : [`| Statements (LCOV line proxy) | ${statementPct}% | ${coveredLines} / ${totalLines} |`]),
   `| Functions | ${functionPct}% | ${coveredFunctions} / ${totalFunctions} |`,
   ...(minBranches == null ? [] : [`| Branches | ${branchPct}% | ${coveredBranches} / ${totalBranches} |`]),
   `| Files | ${includedFiles} | ${includedFiles} |`,
   '',
-  `Minimum coverage: lines ${minLines}%, functions ${minFunctions}%${minBranches == null ? '' : `, branches ${minBranches}%`}`,
+  `Minimum coverage: lines ${minLines}%${minStatements == null ? '' : `, statements ${minStatements}% (LCOV line proxy)`}, functions ${minFunctions}%${minBranches == null ? '' : `, branches ${minBranches}%`}`,
   '',
 ];
 
@@ -114,6 +118,11 @@ if (process.env.GITHUB_STEP_SUMMARY) {
 
 if (linePct < minLines) {
   console.error(`${title} line coverage ${linePct}% is below required ${minLines}%`);
+  process.exit(1);
+}
+
+if (minStatements != null && statementPct < minStatements) {
+  console.error(`${title} statement coverage ${statementPct}% is below required ${minStatements}% (LCOV line proxy)`);
   process.exit(1);
 }
 
