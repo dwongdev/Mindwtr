@@ -253,10 +253,34 @@ jobs:
         run: bun run --filter mindwtr-mcp-server typecheck
 
       - name: Cloud tests
-        run: bun run --filter mindwtr-cloud test
+        run: bun run --filter mindwtr-cloud test:coverage
+
+      - name: Cloud coverage summary
+        if: always()
+        run: node scripts/ci/write-lcov-summary.js "Cloud Coverage" apps/cloud/coverage/lcov.info --include-prefix=src/ --min-lines=70
+
+      - name: Upload cloud coverage artifact
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        with:
+          name: cloud-coverage
+          path: apps/cloud/coverage
+          if-no-files-found: ignore
 
       - name: MCP tests
-        run: bun run --filter mindwtr-mcp-server test
+        run: bun run --filter mindwtr-mcp-server test:coverage
+
+      - name: MCP coverage summary
+        if: always()
+        run: node scripts/ci/write-lcov-summary.js "MCP Coverage" apps/mcp-server/coverage/lcov.info --include-prefix=src/ --min-lines=70
+
+      - name: Upload MCP coverage artifact
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        with:
+          name: mcp-coverage
+          path: apps/mcp-server/coverage
+          if-no-files-found: ignore
 
   e2e:
     runs-on: ubuntu-latest

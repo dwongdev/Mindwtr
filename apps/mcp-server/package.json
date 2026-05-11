@@ -14,7 +14,8 @@
     "lint": "eslint -c ../../eslint.node.config.mjs . --max-warnings 0",
     "typecheck": "tsc --noEmit",
     "start": "node dist/index.js",
-    "test": "bun test"
+    "test": "bun test",
+    "test:coverage": "bun test --coverage --coverage-reporter=lcov"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.29.0",
