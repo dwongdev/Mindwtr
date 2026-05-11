@@ -434,6 +434,9 @@ describe('FocusScreen', () => {
   });
 
   it('removes advanced synced criteria from the active saved Focus filter', async () => {
+    const alertSpy = vi.spyOn(Alert, 'alert').mockImplementation((_title, _message, buttons) => {
+      buttons?.find((button) => button.style === 'destructive')?.onPress?.();
+    });
     storeState.updateSettings.mockResolvedValue(undefined);
     storeState.settings = {
       appearance: {},
@@ -468,6 +471,7 @@ describe('FocusScreen', () => {
       findButtonByLabel(tree, 'Delete Due Date: This week').props.onPress();
     });
 
+    expect(alertSpy).toHaveBeenCalled();
     expect(storeState.updateSettings).toHaveBeenCalledWith({
       savedFilters: [expect.objectContaining({
         id: 'filter-desk',
@@ -478,6 +482,8 @@ describe('FocusScreen', () => {
         updatedAt: expect.any(String),
       })],
     });
+
+    alertSpy.mockRestore();
   });
 
   it('saves the current Focus filter from the existing filter sheet', async () => {
