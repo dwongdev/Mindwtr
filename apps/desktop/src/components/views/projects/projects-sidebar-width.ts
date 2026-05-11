@@ -1,8 +1,10 @@
 const PROJECTS_SIDEBAR_WIDTH_STORAGE_KEY = 'mindwtr:projects:sidebarWidth';
 export const PROJECTS_SIDEBAR_DEFAULT_WIDTH = 304;
 export const PROJECTS_SIDEBAR_MIN_WIDTH = 240;
-export const PROJECTS_SIDEBAR_MAX_WIDTH = 520;
+export const PROJECTS_SIDEBAR_COMPACT_MAX_WIDTH = 520;
+export const PROJECTS_SIDEBAR_MAX_WIDTH = 840;
 export const PROJECTS_WORKSPACE_MIN_WIDTH = 380;
+const PROJECTS_SIDEBAR_WIDE_WIDTH_RATIO = 0.32;
 
 type StorageLike = Pick<Storage, 'getItem' | 'setItem'>;
 
@@ -17,10 +19,16 @@ export function getProjectsSidebarMaxWidth(containerWidth?: number) {
         return PROJECTS_SIDEBAR_MAX_WIDTH;
     }
 
-    const maxWidth = Math.floor(containerWidth) - PROJECTS_WORKSPACE_MIN_WIDTH;
+    const resolvedContainerWidth = Math.floor(containerWidth);
+    const workspaceLimitedWidth = resolvedContainerWidth - PROJECTS_WORKSPACE_MIN_WIDTH;
+    const adaptiveMaxWidth = Math.max(
+        PROJECTS_SIDEBAR_COMPACT_MAX_WIDTH,
+        Math.floor(resolvedContainerWidth * PROJECTS_SIDEBAR_WIDE_WIDTH_RATIO),
+    );
+
     return Math.max(
         PROJECTS_SIDEBAR_MIN_WIDTH,
-        Math.min(PROJECTS_SIDEBAR_MAX_WIDTH, maxWidth),
+        Math.min(PROJECTS_SIDEBAR_MAX_WIDTH, adaptiveMaxWidth, workspaceLimitedWidth),
     );
 }
 

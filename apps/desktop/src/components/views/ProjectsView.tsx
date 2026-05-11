@@ -31,7 +31,6 @@ import { useProjectsViewStore } from './projects/useProjectsViewStore';
 import { splitProjectsForSidebar } from './projects/project-sidebar-grouping';
 import {
     PROJECTS_SIDEBAR_DEFAULT_WIDTH,
-    PROJECTS_SIDEBAR_MAX_WIDTH,
     PROJECTS_SIDEBAR_MIN_WIDTH,
     clampProjectsSidebarWidth,
     getProjectsSidebarMaxWidth,
@@ -208,9 +207,14 @@ export function ProjectsView() {
         return Math.min(desiredMaxWidth, availableProjectsWidth);
     }, [availableProjectsWidth, getProjectsBaseMaxWidth, sidebarWidth]);
 
+    const sidebarMaxWidth = useMemo(
+        () => getProjectsSidebarMaxWidth(availableProjectsWidth ?? projectsLayoutMaxWidth),
+        [availableProjectsWidth, projectsLayoutMaxWidth],
+    );
+
     const clampSidebarWidth = useCallback(
-        (width: number) => clampProjectsSidebarWidth(width, projectsLayoutMaxWidth),
-        [projectsLayoutMaxWidth],
+        (width: number) => clampProjectsSidebarWidth(width, availableProjectsWidth ?? projectsLayoutMaxWidth),
+        [availableProjectsWidth, projectsLayoutMaxWidth],
     );
 
     useEffect(() => {
@@ -327,12 +331,12 @@ export function ProjectsView() {
                 break;
             case 'End':
                 event.preventDefault();
-                setSidebarWidth(clampSidebarWidth(getProjectsSidebarMaxWidth(projectsLayoutMaxWidth)));
+                setSidebarWidth(clampSidebarWidth(sidebarMaxWidth));
                 break;
             default:
                 break;
         }
-    }, [clampSidebarWidth, projectsLayoutMaxWidth]);
+    }, [clampSidebarWidth, sidebarMaxWidth]);
 
     const handleDuplicateProject = useCallback(async (projectId: string) => {
         try {
@@ -569,19 +573,27 @@ export function ProjectsView() {
                             aria-label={resizeSidebarLabel}
                             aria-orientation="vertical"
                             aria-valuemin={PROJECTS_SIDEBAR_MIN_WIDTH}
-                            aria-valuemax={PROJECTS_SIDEBAR_MAX_WIDTH}
+                            aria-valuemax={sidebarMaxWidth}
                             aria-valuenow={sidebarWidth}
                             title={resizeSidebarLabel}
                             tabIndex={0}
                             onPointerDown={handleSidebarResizePointerDown}
                             onKeyDown={handleSidebarResizeKeyDown}
-                            className="absolute -right-3 top-0 z-10 flex h-full w-6 items-center justify-center cursor-col-resize touch-none rounded-full outline-none focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+                            className="group absolute -right-3 bottom-0 top-0 z-10 flex w-6 items-start justify-center cursor-col-resize touch-none rounded-full pt-20 outline-none focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:ring-offset-2 focus-visible:ring-offset-background"
                         >
                             <span
-                                className={`h-16 w-1 rounded-full transition-colors ${
+                                aria-hidden="true"
+                                className={`absolute inset-y-0 left-1/2 w-px -translate-x-1/2 transition-colors ${
+                                    isSidebarResizing
+                                        ? 'bg-primary/40'
+                                        : 'bg-border/45 group-hover:bg-primary/25'
+                                }`}
+                            />
+                            <span
+                                className={`relative h-16 w-1 rounded-full transition-colors ${
                                     isSidebarResizing
                                         ? 'bg-primary/70'
-                                        : 'bg-border/70 hover:bg-primary/45'
+                                        : 'bg-border/80 group-hover:bg-primary/45'
                                 }`}
                             />
                         </div>
