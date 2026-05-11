@@ -230,6 +230,7 @@ export type {
 } from './contexts';
 
 export {
+    formatI18nTemplate,
     tFallback,
     translateText,
     translateWithFallback,

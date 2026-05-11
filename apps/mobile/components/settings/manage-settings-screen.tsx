@@ -4,7 +4,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { AREA_PRESET_COLORS, DEFAULT_AREA_COLOR, type Area, useTaskStore } from '@mindwtr/core';
+import { AREA_PRESET_COLORS, DEFAULT_AREA_COLOR, formatI18nTemplate, type Area, useTaskStore } from '@mindwtr/core';
 
 import { useThemeColors } from '@/hooks/use-theme-colors';
 
@@ -140,7 +140,7 @@ export function ManageSettingsScreen() {
     const confirmDelete = (label: string, onConfirm: () => void) => {
         Alert.alert(
             t('common.delete'),
-            t('settings.deleteNamed').replace('{{name}}', label),
+            formatI18nTemplate(t('settings.deleteNamed'), { name: label }),
             [
                 { text: t('common.cancel'), style: 'cancel' },
                 { text: t('common.delete'), style: 'destructive', onPress: onConfirm },
