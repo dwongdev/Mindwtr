@@ -29,6 +29,7 @@ const LOCALES: LocaleTarget[] = [
     { locale: 'zh-Hans', path: 'packages/core/src/i18n/locales/zh-Hans.ts', fullParity: true },
     { locale: 'zh-Hant', path: 'packages/core/src/i18n/locales/zh-Hant.ts', fullParity: true },
 ];
+const NON_LATIN_PARTIAL_LOCALES = new Set(['ar', 'hi', 'ja', 'ko', 'ru']);
 
 const args = new Set(process.argv.slice(2));
 const shouldFix = args.has('--fix');
@@ -74,20 +75,24 @@ for (const target of LOCALES) {
     const unknownKeys = Object.keys(dictionary).filter((key) => !englishKeySet.has(key));
     const mirroredEnglishKeys = Object.keys(dictionary)
         .filter((key) => dictionary[key] === en[key] && hasTranslatableEnglishText(en[key]));
+    const mixedEnglishKeys = !target.fullParity && NON_LATIN_PARTIAL_LOCALES.has(target.locale)
+        ? Object.keys(dictionary).filter((key) => hasTranslatableEnglishText(dictionary[key]))
+        : [];
     const missingKeys = target.fullParity
         ? englishKeys.filter((key) => !localeKeys.has(key))
         : [];
-    const fixableKeys = new Set([...unknownKeys, ...mirroredEnglishKeys]);
+    const fixableKeys = new Set([...unknownKeys, ...mirroredEnglishKeys, ...mixedEnglishKeys]);
 
-    if (missingKeys.length === 0 && unknownKeys.length === 0 && mirroredEnglishKeys.length === 0) {
+    if (missingKeys.length === 0 && unknownKeys.length === 0 && mirroredEnglishKeys.length === 0 && mixedEnglishKeys.length === 0) {
         console.log(`${target.locale}: ok`);
         continue;
     }
 
-    problemCount += missingKeys.length + unknownKeys.length + mirroredEnglishKeys.length;
+    problemCount += missingKeys.length + unknownKeys.length + mirroredEnglishKeys.length + mixedEnglishKeys.length;
     if (missingKeys.length > 0) console.log(`${target.locale}: missing ${missingKeys.length} keys`);
     if (unknownKeys.length > 0) console.log(`${target.locale}: unknown ${unknownKeys.length} keys`);
     if (mirroredEnglishKeys.length > 0) console.log(`${target.locale}: mirrored English ${mirroredEnglishKeys.length} keys`);
+    if (mixedEnglishKeys.length > 0) console.log(`${target.locale}: mixed English ${mixedEnglishKeys.length} keys`);
     if (shouldFix) {
         if (missingKeys.length > 0) {
             console.log(`${target.locale}: missing full-parity translations require manual translation`);
@@ -101,6 +106,7 @@ for (const target of LOCALES) {
             ['missing', missingKeys],
             ['unknown', unknownKeys],
             ['mirrored', mirroredEnglishKeys],
+            ['mixed English', mixedEnglishKeys],
         ] as const) {
             for (const key of keys.slice(0, 20)) {
                 console.log(`  - ${label}: ${key}`);

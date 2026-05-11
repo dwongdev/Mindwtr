@@ -38,6 +38,14 @@ const overrideLocales: Record<string, Record<string, string>> = {
     tr: trOverrides,
 };
 
+const nonLatinOverrideLocales: Record<string, Record<string, string>> = {
+    ar: arOverrides,
+    hi: hiOverrides,
+    ja: jaOverrides,
+    ko: koOverrides,
+    ru: ruOverrides,
+};
+
 const shippedLocales: Record<string, Record<string, string>> = {
     ...fullParityLocales,
     ...overrideLocales,
@@ -68,6 +76,15 @@ describe('locale parity', () => {
                 translations[key] === en[key] && hasTranslatableEnglishText(en[key])
             ));
             expect(placeholders, `Verbatim English placeholders in ${language}`).toEqual([]);
+        }
+    });
+
+    it('does not ship mixed English fragments in non-Latin partial locales', () => {
+        for (const [language, translations] of Object.entries(nonLatinOverrideLocales)) {
+            const mixedEnglish = Object.keys(translations).filter((key) => (
+                hasTranslatableEnglishText(translations[key])
+            ));
+            expect(mixedEnglish, `Mixed English fragments in ${language}`).toEqual([]);
         }
     });
 });
