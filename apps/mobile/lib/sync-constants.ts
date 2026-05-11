@@ -5,6 +5,7 @@ export const WEBDAV_URL_KEY = '@mindwtr_webdav_url';
 export const WEBDAV_USERNAME_KEY = '@mindwtr_webdav_username';
 export const WEBDAV_PASSWORD_KEY = '@mindwtr_webdav_password';
 export const WEBDAV_ALLOW_INSECURE_HTTP_KEY = '@mindwtr_webdav_allow_insecure_http';
+export const WEBDAV_ALLOW_WEAK_FINGERPRINT_KEY = '@mindwtr_webdav_allow_weak_fingerprint';
 export const CLOUD_URL_KEY = '@mindwtr_cloud_url';
 export const CLOUD_TOKEN_KEY = '@mindwtr_cloud_token';
 export const CLOUD_PROVIDER_KEY = '@mindwtr_cloud_provider';

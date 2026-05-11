@@ -8,6 +8,7 @@ export const WEBDAV_URL_KEY = 'mindwtr-webdav-url';
 export const WEBDAV_USERNAME_KEY = 'mindwtr-webdav-username';
 export const WEBDAV_PASSWORD_KEY = 'mindwtr-webdav-password';
 export const WEBDAV_ALLOW_INSECURE_HTTP_KEY = 'mindwtr-webdav-allow-insecure-http';
+export const WEBDAV_ALLOW_WEAK_FINGERPRINT_KEY = 'mindwtr-webdav-allow-weak-fingerprint';
 export const CLOUD_URL_KEY = 'mindwtr-cloud-url';
 export const CLOUD_TOKEN_KEY = 'mindwtr-cloud-token';
 export const CLOUD_ALLOW_INSECURE_HTTP_KEY = 'mindwtr-cloud-allow-insecure-http';
@@ -40,13 +41,15 @@ export const getWebDavConfigLocal = (): WebDavConfig => {
         password: '',
         hasPassword: false,
         allowInsecureHttp: localStorage.getItem(WEBDAV_ALLOW_INSECURE_HTTP_KEY) === 'true',
+        allowWeakFingerprint: localStorage.getItem(WEBDAV_ALLOW_WEAK_FINGERPRINT_KEY) !== 'false',
     };
 };
 
-const setWebDavConfigLocal = (config: { url: string; username?: string; password?: string; allowInsecureHttp?: boolean }) => {
+const setWebDavConfigLocal = (config: { url: string; username?: string; password?: string; allowInsecureHttp?: boolean; allowWeakFingerprint?: boolean }) => {
     localStorage.setItem(WEBDAV_URL_KEY, config.url);
     localStorage.setItem(WEBDAV_USERNAME_KEY, config.username || '');
     localStorage.setItem(WEBDAV_ALLOW_INSECURE_HTTP_KEY, config.allowInsecureHttp === true ? 'true' : 'false');
+    localStorage.setItem(WEBDAV_ALLOW_WEAK_FINGERPRINT_KEY, config.allowWeakFingerprint === false ? 'false' : 'true');
 };
 
 export const getCloudConfigLocal = (): CloudConfig => {
@@ -128,12 +131,12 @@ export async function readWebDavConfig(
         if (!options?.silent) {
             deps.reportError('Failed to get WebDAV config', error);
         }
-        return { url: '', username: '', hasPassword: false, allowInsecureHttp: false };
+        return { url: '', username: '', hasPassword: false, allowInsecureHttp: false, allowWeakFingerprint: true };
     }
 }
 
 export async function writeWebDavConfig(
-    config: { url: string; username?: string; password?: string; allowInsecureHttp?: boolean },
+    config: { url: string; username?: string; password?: string; allowInsecureHttp?: boolean; allowWeakFingerprint?: boolean },
     deps: ConfigDeps,
 ): Promise<void> {
     if (!deps.isTauriRuntimeEnv()) {
@@ -146,6 +149,7 @@ export async function writeWebDavConfig(
             username: config.username || '',
             password: config.password || '',
             allowInsecureHttp: config.allowInsecureHttp === true,
+            allowWeakFingerprint: config.allowWeakFingerprint,
         });
     } catch (error) {
         deps.reportError('Failed to set WebDAV config', error);

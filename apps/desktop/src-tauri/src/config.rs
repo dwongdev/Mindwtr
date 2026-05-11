@@ -69,6 +69,8 @@ pub(crate) fn read_config_toml(path: &Path) -> AppConfigToml {
             config.webdav_password = parse_toml_string_value(value);
         } else if key == "webdav_allow_insecure_http" {
             config.webdav_allow_insecure_http = parse_toml_string_value(value);
+        } else if key == "webdav_allow_weak_fingerprint" {
+            config.webdav_allow_weak_fingerprint = parse_toml_string_value(value);
         } else if key == "cloud_url" {
             config.cloud_url = parse_toml_string_value(value);
         } else if key == "cloud_token" {
@@ -153,6 +155,12 @@ fn write_config_toml_with_header(
             serialize_toml_string_value(webdav_allow_insecure_http)
         ));
     }
+    if let Some(webdav_allow_weak_fingerprint) = &config.webdav_allow_weak_fingerprint {
+        lines.push(format!(
+            "webdav_allow_weak_fingerprint = {}",
+            serialize_toml_string_value(webdav_allow_weak_fingerprint)
+        ));
+    }
     if let Some(cloud_url) = &config.cloud_url {
         lines.push(format!(
             "cloud_url = {}",
@@ -232,6 +240,9 @@ fn merge_config(base: &mut AppConfigToml, overrides: AppConfigToml) {
     }
     if overrides.webdav_allow_insecure_http.is_some() {
         base.webdav_allow_insecure_http = overrides.webdav_allow_insecure_http;
+    }
+    if overrides.webdav_allow_weak_fingerprint.is_some() {
+        base.webdav_allow_weak_fingerprint = overrides.webdav_allow_weak_fingerprint;
     }
     if overrides.cloud_url.is_some() {
         base.cloud_url = overrides.cloud_url;
@@ -319,6 +330,7 @@ fn config_has_values(config: &AppConfigToml) -> bool {
         || config.webdav_username.is_some()
         || config.webdav_password.is_some()
         || config.webdav_allow_insecure_http.is_some()
+        || config.webdav_allow_weak_fingerprint.is_some()
         || config.cloud_url.is_some()
         || config.cloud_token.is_some()
         || config.cloud_allow_insecure_http.is_some()
@@ -687,7 +699,8 @@ pub(crate) fn get_webdav_config(app: tauri::AppHandle) -> Result<Value, String> 
         "url": config.webdav_url.unwrap_or_default(),
         "username": config.webdav_username.unwrap_or_default(),
         "hasPassword": password.is_some(),
-        "allowInsecureHttp": config.webdav_allow_insecure_http.as_deref() == Some("true")
+        "allowInsecureHttp": config.webdav_allow_insecure_http.as_deref() == Some("true"),
+        "allowWeakFingerprint": config.webdav_allow_weak_fingerprint.as_deref() != Some("false")
     }))
 }
 
@@ -698,6 +711,7 @@ pub(crate) fn set_webdav_config(
     username: String,
     password: String,
     allow_insecure_http: Option<bool>,
+    allow_weak_fingerprint: Option<bool>,
 ) -> Result<bool, String> {
     let url = url.trim().to_string();
     let config_path = get_config_path(&app);
@@ -708,6 +722,7 @@ pub(crate) fn set_webdav_config(
         config.webdav_username = None;
         config.webdav_password = None;
         config.webdav_allow_insecure_http = None;
+        config.webdav_allow_weak_fingerprint = None;
         let _ = set_keyring_secret(&app, KEYRING_WEB_DAV_PASSWORD, None);
     } else {
         config.webdav_url = Some(url);
@@ -717,6 +732,13 @@ pub(crate) fn set_webdav_config(
         } else {
             "false".to_string()
         });
+        if let Some(allow_weak_fingerprint) = allow_weak_fingerprint {
+            config.webdav_allow_weak_fingerprint = Some(if allow_weak_fingerprint {
+                "true".to_string()
+            } else {
+                "false".to_string()
+            });
+        }
         if !password.trim().is_empty() {
             let next_password = password.trim().to_string();
             match set_keyring_secret(&app, KEYRING_WEB_DAV_PASSWORD, Some(next_password.clone())) {

@@ -50,6 +50,7 @@ export type WebDavConfig = {
     password?: string;
     hasPassword?: boolean;
     allowInsecureHttp?: boolean;
+    allowWeakFingerprint?: boolean;
 };
 export type CloudConfig = { url: string; token: string; allowInsecureHttp?: boolean };
 

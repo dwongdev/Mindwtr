@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { webdavGetJson, webdavHeadFile, webdavPutFile, webdavPutJson } from './webdav';
+import { consoleLogger, setLogger, type LogPayload } from './logger';
 
 const makeResponse = (overrides: Partial<Response> & { status: number; ok: boolean }): Response => ({
     statusText: '',
@@ -121,7 +122,42 @@ describe('webdav http helpers', () => {
         expect(fetcher.mock.calls[0]?.[1]?.method).toBe('HEAD');
     });
 
-    it('falls back to last-modified and length for ETag-less fast sync checks', async () => {
+    it('falls back to last-modified and length for ETag-less fast sync checks with a warning', async () => {
+        const fetcher = vi.fn(
+            async () =>
+                ({
+                    ok: true,
+                    status: 200,
+                    statusText: 'OK',
+                    headers: {
+                        get: (name: string) => ({
+                            'last-modified': 'Thu, 07 May 2026 10:00:00 GMT',
+                            'content-length': '42',
+                        }[name.toLowerCase()] ?? null),
+                    },
+                    text: async () => '',
+                }) as unknown as Response,
+        );
+        const logs: LogPayload[] = [];
+        setLogger((payload) => logs.push(payload));
+
+        try {
+            await expect(webdavHeadFile('https://example.com/data.json', { fetcher })).resolves.toMatchObject({
+                exists: true,
+                fingerprint: 'webdav:v1:mtime=Thu, 07 May 2026 10:00:00 GMT:len=42',
+                etag: null,
+                lastModified: 'Thu, 07 May 2026 10:00:00 GMT',
+                contentLength: '42',
+            });
+            await webdavHeadFile('https://example.com/data.json', { fetcher });
+        } finally {
+            setLogger(consoleLogger);
+        }
+
+        expect(logs.filter((entry) => entry.level === 'warn' && entry.message.includes('did not provide ETag'))).toHaveLength(1);
+    });
+
+    it('can disable weak ETag-less fast sync fingerprints', async () => {
         const fetcher = vi.fn(
             async () =>
                 ({
@@ -138,9 +174,9 @@ describe('webdav http helpers', () => {
                 }) as unknown as Response,
         );
 
-        await expect(webdavHeadFile('https://example.com/data.json', { fetcher })).resolves.toMatchObject({
+        await expect(webdavHeadFile('https://example.com/data.json', { fetcher, allowWeakFingerprint: false })).resolves.toMatchObject({
             exists: true,
-            fingerprint: 'webdav:v1:mtime=Thu, 07 May 2026 10:00:00 GMT:len=42',
+            fingerprint: null,
             etag: null,
             lastModified: 'Thu, 07 May 2026 10:00:00 GMT',
             contentLength: '42',

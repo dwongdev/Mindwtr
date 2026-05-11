@@ -29,6 +29,7 @@ import {
   WEBDAV_USERNAME_KEY,
   WEBDAV_PASSWORD_KEY,
   WEBDAV_ALLOW_INSECURE_HTTP_KEY,
+  WEBDAV_ALLOW_WEAK_FINGERPRINT_KEY,
   CLOUD_URL_KEY,
   CLOUD_TOKEN_KEY,
   CLOUD_PROVIDER_KEY,
@@ -53,7 +54,7 @@ type MobileSyncActivityState = 'idle' | 'syncing';
 type MobileSyncActivityListener = (state: MobileSyncActivityState) => void;
 type MobileSyncSkipReason = 'offline' | 'requeued' | 'unchanged';
 type MobileSyncResult = { success: boolean; stats?: MergeStats; error?: string; skipped?: MobileSyncSkipReason };
-type MobileWebDavSyncConfig = { url: string; username: string; password: string; allowInsecureHttp?: boolean };
+type MobileWebDavSyncConfig = { url: string; username: string; password: string; allowInsecureHttp?: boolean; allowWeakFingerprint?: boolean };
 type MobileCloudSyncConfig = { url: string; token: string; allowInsecureHttp?: boolean };
 type FastSyncState = {
   scope: string;
@@ -549,7 +550,8 @@ const mobileSyncOrchestrator = createSyncOrchestrator<string | undefined, Mobile
         const username = (await getCachedConfigValue(WEBDAV_USERNAME_KEY)) ?? '';
         const password = (await getCachedConfigValue(WEBDAV_PASSWORD_KEY)) ?? '';
         const allowInsecureHttp = (await getCachedConfigValue(WEBDAV_ALLOW_INSECURE_HTTP_KEY)) === 'true';
-        webdavConfig = { url: syncUrl, username, password, allowInsecureHttp };
+        const allowWeakFingerprint = (await getCachedConfigValue(WEBDAV_ALLOW_WEAK_FINGERPRINT_KEY)) !== 'false';
+        webdavConfig = { url: syncUrl, username, password, allowInsecureHttp, allowWeakFingerprint };
       }
       if (backend === 'cloud') {
         const storedCloudProvider = (await getCachedConfigValue(CLOUD_PROVIDER_KEY))?.trim() ?? null;
@@ -658,6 +660,7 @@ const mobileSyncOrchestrator = createSyncOrchestrator<string | undefined, Mobile
                   password: webdavConfig.password,
                   timeoutMs: DEFAULT_SYNC_TIMEOUT_MS,
                   fetcher: fetchWithAbort,
+                  allowWeakFingerprint: webdavConfig.allowWeakFingerprint,
                 }),
               WEBDAV_READ_RETRY_OPTIONS
             );

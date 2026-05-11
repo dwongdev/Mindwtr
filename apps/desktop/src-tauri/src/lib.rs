@@ -345,6 +345,7 @@ struct AppConfigToml {
     webdav_username: Option<String>,
     webdav_password: Option<String>,
     webdav_allow_insecure_http: Option<String>,
+    webdav_allow_weak_fingerprint: Option<String>,
     cloud_url: Option<String>,
     cloud_token: Option<String>,
     cloud_allow_insecure_http: Option<String>,

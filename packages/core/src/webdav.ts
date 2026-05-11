@@ -8,6 +8,7 @@ import {
     toArrayBuffer,
     toUint8Array,
 } from './http-utils';
+import { logWarn } from './logger';
 
 export interface WebDavOptions {
     username?: string;
@@ -17,6 +18,7 @@ export interface WebDavOptions {
     fetcher?: typeof fetch;
     onProgress?: (loaded: number, total: number) => void;
     allowInsecureHttp?: boolean;
+    allowWeakFingerprint?: boolean;
 }
 
 export type RemoteFileMetadata = {
@@ -88,6 +90,12 @@ const WEBDAV_HTTPS_ERROR = 'WebDAV requires HTTPS for public URLs (HTTP allowed 
 const WEBDAV_TIMEOUT_ERROR = 'WebDAV request timed out';
 const WEBDAV_AUTOMKCOL_HEADER = 'X-NC-WebDAV-AutoMkcol';
 const UTF8_BOM = '\uFEFF';
+const warnedWeakFingerprintSources = new Set<string>();
+
+type HttpRemoteFileFingerprintOptions = {
+    allowWeakFingerprint?: boolean;
+    warnOnWeakFingerprint?: boolean;
+};
 
 const assertWebdavUrl = (url: string, options: WebDavOptions): void => {
     assertConnectionAllowed(url, WEBDAV_HTTPS_ERROR, {
@@ -98,7 +106,8 @@ const assertWebdavUrl = (url: string, options: WebDavOptions): void => {
 
 export const buildHttpRemoteFileFingerprint = (
     source: string,
-    metadata: Pick<RemoteFileMetadata, 'etag' | 'lastModified' | 'contentLength'>
+    metadata: Pick<RemoteFileMetadata, 'etag' | 'lastModified' | 'contentLength'>,
+    options: HttpRemoteFileFingerprintOptions = {},
 ): string | null => {
     const etag = metadata.etag?.trim() || '';
     const lastModified = metadata.lastModified?.trim() || '';
@@ -107,18 +116,30 @@ export const buildHttpRemoteFileFingerprint = (
         return `${source}:v1:etag=${etag}:mtime=${lastModified}:len=${contentLength}`;
     }
     if (lastModified && contentLength) {
+        if (options.allowWeakFingerprint === false) {
+            return null;
+        }
+        const shouldWarn = options.warnOnWeakFingerprint ?? source === 'webdav';
+        if (shouldWarn && !warnedWeakFingerprintSources.has(source)) {
+            warnedWeakFingerprintSources.add(source);
+            logWarn('WebDAV server did not provide ETag; using Last-Modified and Content-Length for fast sync fingerprint', {
+                scope: 'sync',
+                category: 'network',
+                context: { source },
+            });
+        }
         return `${source}:v1:mtime=${lastModified}:len=${contentLength}`;
     }
     return null;
 };
 
-const metadataFromHeaders = (source: string, headers: Headers): RemoteFileMetadata => {
+const metadataFromHeaders = (source: string, headers: Headers, options: HttpRemoteFileFingerprintOptions = {}): RemoteFileMetadata => {
     const etag = headers.get('etag');
     const lastModified = headers.get('last-modified');
     const contentLength = headers.get('content-length');
     return {
         exists: true,
-        fingerprint: buildHttpRemoteFileFingerprint(source, { etag, lastModified, contentLength }),
+        fingerprint: buildHttpRemoteFileFingerprint(source, { etag, lastModified, contentLength }, options),
         etag,
         lastModified,
         contentLength,
@@ -455,7 +476,10 @@ export async function webdavHeadFile(
         (error as { status?: number }).status = res.status;
         throw error;
     }
-    return metadataFromHeaders('webdav', res.headers);
+    return metadataFromHeaders('webdav', res.headers, {
+        allowWeakFingerprint: options.allowWeakFingerprint,
+        warnOnWeakFingerprint: true,
+    });
 }
 
 export async function webdavGetFile(

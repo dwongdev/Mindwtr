@@ -645,7 +645,7 @@ export class SyncService {
         return readWebDavConfig(getSyncConfigDeps(), options);
     }
 
-    static async setWebDavConfig(config: { url: string; username?: string; password?: string; allowInsecureHttp?: boolean }): Promise<void> {
+    static async setWebDavConfig(config: { url: string; username?: string; password?: string; allowInsecureHttp?: boolean; allowWeakFingerprint?: boolean }): Promise<void> {
         return writeWebDavConfig(config, getSyncConfigDeps());
     }
 
@@ -952,6 +952,7 @@ export class SyncService {
             const fetcher = helpers.createFetchWithAbort((await getTauriFetch()) ?? fetch);
             const metadata = await webdavHeadFile(normalizedUrl, {
                 allowInsecureHttp: context.webdavConfig.allowInsecureHttp,
+                allowWeakFingerprint: context.webdavConfig.allowWeakFingerprint,
                 username: context.webdavConfig.username,
                 password,
                 fetcher,
