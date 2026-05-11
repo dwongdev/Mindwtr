@@ -16,6 +16,7 @@ export interface WebDavOptions {
     headers?: Record<string, string>;
     timeoutMs?: number;
     fetcher?: typeof fetch;
+    signal?: AbortSignal;
     onProgress?: (loaded: number, total: number) => void;
     allowInsecureHttp?: boolean;
     allowWeakFingerprint?: boolean;
@@ -364,6 +365,7 @@ export async function webdavPutJson(
             method: 'PUT',
             headers,
             body: payload,
+            signal: options.signal,
         },
         options.timeoutMs ?? DEFAULT_TIMEOUT_MS,
         fetcher,
@@ -422,7 +424,7 @@ export async function webdavPutFile(
         const { headers, body } = buildRequest();
         return fetchWithTimeout(
             url,
-            { method: 'PUT', headers, body },
+            { method: 'PUT', headers, body, signal: options.signal },
             options.timeoutMs ?? DEFAULT_TIMEOUT_MS,
             fetcher,
             WEBDAV_TIMEOUT_ERROR,
@@ -450,7 +452,7 @@ export async function webdavFileExists(
     const fetcher = options.fetcher ?? fetch;
     const res = await fetchWithTimeout(
         url,
-        { method: 'HEAD', headers: buildHeaders(options) },
+        { method: 'HEAD', headers: buildHeaders(options), signal: options.signal },
         options.timeoutMs ?? DEFAULT_TIMEOUT_MS,
         fetcher,
         WEBDAV_TIMEOUT_ERROR,
@@ -474,7 +476,7 @@ export async function webdavHeadFile(
     const fetcher = options.fetcher ?? fetch;
     const res = await fetchWithTimeout(
         url,
-        { method: 'HEAD', headers: buildHeaders(options) },
+        { method: 'HEAD', headers: buildHeaders(options), signal: options.signal },
         options.timeoutMs ?? DEFAULT_TIMEOUT_MS,
         fetcher,
         WEBDAV_TIMEOUT_ERROR,
@@ -509,7 +511,7 @@ export async function webdavGetFile(
     const fetcher = options.fetcher ?? fetch;
     const res = await fetchWithTimeout(
         url,
-        { method: 'GET', headers: buildHeaders(options) },
+        { method: 'GET', headers: buildHeaders(options), signal: options.signal },
         options.timeoutMs ?? DEFAULT_TIMEOUT_MS,
         fetcher,
         WEBDAV_TIMEOUT_ERROR,

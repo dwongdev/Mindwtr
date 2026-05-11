@@ -212,7 +212,10 @@ describe('attachment sync', () => {
     const attachmentsDirUri = 'content://com.android.externalstorage.documents/tree/primary%3ADocuments%2FMindwtr%20Backup/document/primary%3ADocuments%2FMindwtr%20Backup%2Fattachments/';
     const createdRemoteFileUri = `${attachmentsDirUri}upload-me.jpg`;
 
-    fileSystemMock.getInfoAsync.mockResolvedValue({ exists: true, size: 3 });
+    fileSystemMock.getInfoAsync.mockImplementation(async (uri: string) => ({
+      exists: uri === 'file://document/attachments/upload-me.jpg',
+      size: uri === 'file://document/attachments/upload-me.jpg' ? 3 : 0,
+    }));
     fileSystemMock.readAsStringAsync.mockResolvedValue('AQID');
     fileSystemMock.StorageAccessFramework.readDirectoryAsync.mockImplementation(async (uri: string) => {
       if (uri === attachmentsDirUri) {
@@ -271,6 +274,119 @@ describe('attachment sync', () => {
       createdRemoteFileUri,
       'AQID',
       { encoding: 'base64' }
+    );
+  });
+
+  it('aborts file attachment sync before writing stale bytes', async () => {
+    const syncFileUri = 'content://com.android.externalstorage.documents/tree/primary%3ADocuments%2FMindwtr%20Backup/document/primary%3ADocuments%2FMindwtr%20Backup%2Fdata.json';
+    const attachmentsDirUri = 'content://com.android.externalstorage.documents/tree/primary%3ADocuments%2FMindwtr%20Backup/document/primary%3ADocuments%2FMindwtr%20Backup%2Fattachments/';
+    const controller = new AbortController();
+
+    fileSystemMock.getInfoAsync.mockResolvedValue({ exists: true, size: 3 });
+    fileSystemMock.StorageAccessFramework.readDirectoryAsync.mockImplementation(async (uri: string) => {
+      if (uri === attachmentsDirUri) {
+        return [];
+      }
+      if (uri.includes('primary%3ADocuments%2FMindwtr%20Backup')) {
+        return [attachmentsDirUri];
+      }
+      return [];
+    });
+    fileSystemMock.readAsStringAsync.mockImplementation(async () => {
+      controller.abort('File attachment sync cancelled');
+      return 'AQID';
+    });
+
+    const { syncFileAttachments } = await import('./attachment-sync');
+    const appData: AppData = {
+      tasks: [
+        {
+          id: 'task-1',
+          title: 'Task',
+          status: 'inbox',
+          tags: [],
+          contexts: [],
+          attachments: [
+            {
+              id: 'upload-me',
+              kind: 'file',
+              title: 'photo.jpg',
+              uri: 'file://document/attachments/upload-me.jpg',
+              localStatus: 'available',
+              createdAt: '2026-04-18T10:00:00.000Z',
+              updatedAt: '2026-04-18T10:00:00.000Z',
+            },
+          ],
+          createdAt: '2026-04-18T10:00:00.000Z',
+          updatedAt: '2026-04-18T10:00:00.000Z',
+        },
+      ],
+      projects: [],
+      sections: [],
+      areas: [],
+      settings: {},
+    };
+
+    await expect(syncFileAttachments(appData, syncFileUri, controller.signal)).rejects.toMatchObject({
+      name: 'AbortError',
+      message: 'File attachment sync cancelled',
+    });
+    expect(fileSystemMock.StorageAccessFramework.writeAsStringAsync).not.toHaveBeenCalled();
+  });
+
+  it('passes abort signals through WebDAV attachment transfers', async () => {
+    fileSystemMock.getInfoAsync.mockResolvedValue({ exists: true, size: 3 });
+    fileSystemMock.readAsStringAsync.mockResolvedValue('AQID');
+    const core = await import('@mindwtr/core');
+    vi.mocked(core.webdavPutFile).mockResolvedValue(undefined);
+    vi.mocked(core.webdavFileExists).mockResolvedValue(false);
+
+    const controller = new AbortController();
+    const { syncWebdavAttachments } = await import('./attachment-sync');
+    const appData: AppData = {
+      tasks: [
+        {
+          id: 'task-1',
+          title: 'Task',
+          status: 'inbox',
+          tags: [],
+          contexts: [],
+          attachments: [
+            {
+              id: 'webdav-upload',
+              kind: 'file',
+              title: 'photo.jpg',
+              uri: 'file://document/attachments/webdav-upload.jpg',
+              localStatus: 'available',
+              createdAt: '2026-04-18T10:00:00.000Z',
+              updatedAt: '2026-04-18T10:00:00.000Z',
+            },
+          ],
+          createdAt: '2026-04-18T10:00:00.000Z',
+          updatedAt: '2026-04-18T10:00:00.000Z',
+        },
+      ],
+      projects: [],
+      sections: [],
+      areas: [],
+      settings: {},
+    };
+
+    await syncWebdavAttachments(
+      appData,
+      { url: 'https://example.com/data.json', username: 'u', password: 'p' },
+      'https://example.com',
+      controller.signal
+    );
+
+    expect(core.webdavMakeDirectory).toHaveBeenCalledWith('https://example.com/attachments', expect.objectContaining({
+      signal: controller.signal,
+    }));
+    expect(core.webdavPutFile).toHaveBeenCalledWith(
+      'https://example.com/attachments/webdav-upload.jpg',
+      expect.any(ArrayBuffer),
+      'application/octet-stream',
+      expect.objectContaining({ signal: controller.signal })
     );
   });
 

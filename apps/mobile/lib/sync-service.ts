@@ -612,7 +612,7 @@ const mobileSyncOrchestrator = createSyncOrchestrator<string | undefined, Mobile
           webdav: webdavConfig?.url
             ? async (data) => {
               const baseSyncUrl = getBaseSyncUrl(webdavConfig.url);
-              return syncWebdavAttachments(data, webdavConfig, baseSyncUrl);
+              return syncWebdavAttachments(data, webdavConfig, baseSyncUrl, requestAbortController.signal);
             }
             : undefined,
           selfHostedCloud: cloudProvider === CLOUD_PROVIDER_SELF_HOSTED && cloudConfig?.url
@@ -630,7 +630,7 @@ const mobileSyncOrchestrator = createSyncOrchestrator<string | undefined, Mobile
             })
             : undefined,
           file: fileSyncPath
-            ? async (data) => syncFileAttachments(data, fileSyncPath)
+            ? async (data) => syncFileAttachments(data, fileSyncPath, requestAbortController.signal)
             : undefined,
         });
         if (preSyncResult.mutated) {
@@ -737,7 +737,7 @@ const mobileSyncOrchestrator = createSyncOrchestrator<string | undefined, Mobile
         if (backend === 'webdav' && webdavConfig?.url) {
           await ensureNetworkStillAvailable();
           const baseSyncUrl = getBaseSyncUrl(webdavConfig.url);
-          await syncWebdavAttachments(data, webdavConfig, baseSyncUrl);
+          await syncWebdavAttachments(data, webdavConfig, baseSyncUrl, requestAbortController.signal);
         } else if (backend === 'cloud' && cloudProvider === CLOUD_PROVIDER_SELF_HOSTED && cloudConfig?.url) {
           await ensureNetworkStillAvailable();
           const baseSyncUrl = getCloudBaseUrl(cloudConfig.url);
@@ -751,7 +751,7 @@ const mobileSyncOrchestrator = createSyncOrchestrator<string | undefined, Mobile
             signal: requestAbortController.signal,
           });
         } else if (backend === 'file' && fileSyncPath) {
-          await syncFileAttachments(data, fileSyncPath);
+          await syncFileAttachments(data, fileSyncPath, requestAbortController.signal);
         }
 
         const remainingUploads = findPendingAttachmentUploads(data);
@@ -1074,7 +1074,7 @@ const mobileSyncOrchestrator = createSyncOrchestrator<string | undefined, Mobile
         await ensureNetworkStillAvailable();
         const baseSyncUrl = getBaseSyncUrl(webdavConfigValue.url);
         await applyAttachmentSyncMutation((candidateData) =>
-          syncWebdavAttachments(candidateData, webdavConfigValue, baseSyncUrl)
+          syncWebdavAttachments(candidateData, webdavConfigValue, baseSyncUrl, requestAbortController.signal)
         );
       }
 
@@ -1109,7 +1109,7 @@ const mobileSyncOrchestrator = createSyncOrchestrator<string | undefined, Mobile
         logSyncInfo('Sync step', { step });
         ensureLocalSnapshotFresh();
         await applyAttachmentSyncMutation((candidateData) =>
-          syncFileAttachments(candidateData, fileSyncPath)
+          syncFileAttachments(candidateData, fileSyncPath, requestAbortController.signal)
         );
       }
 
