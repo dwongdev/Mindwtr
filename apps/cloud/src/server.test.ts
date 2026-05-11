@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, test } from 'bun:test';
+import { afterEach, beforeEach, describe, expect, spyOn, test } from 'bun:test';
 import { existsSync, mkdtempSync, mkdirSync, readFileSync, readdirSync, rmSync, symlinkSync, utimesSync, writeFileSync } from 'fs';
 import { join } from 'path';
 import { tmpdir } from 'os';
@@ -966,6 +966,42 @@ describe('cloud server api', () => {
         const getBody = await getResponse.text();
         expect(response.headers.get('content-length')).toBe(String(new TextEncoder().encode(getBody).byteLength));
         expect(await response.text()).toBe('');
+    });
+
+    test('serves trusted GET /v1/data cache hits without reparsing JSON', async () => {
+        const seedResponse = await fetch(`${baseUrl}/v1/data`, {
+            method: 'PUT',
+            headers: {
+                ...authHeaders,
+                'content-type': 'application/json',
+            },
+            body: JSON.stringify({
+                tasks: [makeTestTask({
+                    id: 'task-trusted-get',
+                    title: 'Trusted GET',
+                })],
+                projects: [],
+                sections: [],
+                areas: [],
+                settings: {},
+            }),
+        });
+        expect(seedResponse.status).toBe(200);
+
+        const key = __cloudTestUtils.tokenToKey(integrationToken);
+        const filePath = join(dataDir, `${key}.json`);
+        expect(__cloudTestUtils.isTrustedValidatedDataFile(filePath)).toBe(true);
+
+        const parseSpy = spyOn(JSON, 'parse').mockImplementation(() => {
+            throw new Error('trusted GET should not parse JSON');
+        });
+        try {
+            const response = await fetch(`${baseUrl}/v1/data`, { headers: authHeaders });
+            expect(response.status).toBe(200);
+            expect(await response.text()).toContain('Trusted GET');
+        } finally {
+            parseSpy.mockRestore();
+        }
     });
 
     test('caches unchanged stat-based data metadata by file stats', () => {

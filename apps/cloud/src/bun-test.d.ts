@@ -25,11 +25,17 @@ declare module 'bun:test' {
         (actual: () => unknown): Matchers<unknown>;
     }
 
+    interface Spy {
+        mockImplementation(fn: (...args: unknown[]) => unknown): Spy;
+        mockRestore(): void;
+    }
+
     export const describe: (name: string, callback: TestCallback) => void;
     export const test: (name: string, callback: TestCallback) => void;
     export const beforeEach: (callback: TestCallback) => void;
     export const afterEach: (callback: TestCallback) => void;
     export const expect: Expect;
+    export const spyOn: (object: object, method: string) => Spy;
 }
 
 type RequestDuplex = 'half';

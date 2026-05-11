@@ -1359,9 +1359,16 @@ export async function startCloudServer(options: CloudServerOptions = {}): Promis
                                 return jsonResponse(emptyData);
                             }
                             let rawData: Uint8Array;
-                            let data: unknown;
                             try {
                                 rawData = readFileSync(filePath);
+                            } catch {
+                                return errorResponse('Failed to read data', 500);
+                            }
+                            if (isTrustedValidatedDataFile(filePath)) {
+                                return jsonFileResponse(rawData);
+                            }
+                            let data: unknown;
+                            try {
                                 const rawText = new TextDecoder('utf-8', { fatal: true }).decode(rawData);
                                 data = JSON.parse(rawText);
                             } catch {
