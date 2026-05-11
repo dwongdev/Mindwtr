@@ -523,7 +523,7 @@ export function ProjectsView() {
             <div className="h-full px-4 py-3">
                 <div
                     ref={projectsLayoutRef}
-                    className="mx-auto flex h-full w-full min-w-0 gap-5 xl:gap-6"
+                    className="flex h-full w-full min-w-0 gap-5 xl:gap-6"
                     style={{ maxWidth: `${projectsLayoutMaxWidth}px` }}
                 >
                     <div className="relative min-h-0 flex-none" style={{ width: `${sidebarWidth}px` }}>
