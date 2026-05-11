@@ -21,6 +21,7 @@ import {
   shallow,
   timeEstimateToMinutes as resolveTimeEstimateToMinutes,
   translateText,
+  type CalendarSettings,
   type ExternalCalendarEvent,
   type ExternalCalendarSubscription,
   type Task,
@@ -169,9 +170,10 @@ export function useCalendarViewController() {
   };
 
   const timeEstimatesEnabled = settings?.features?.timeEstimates !== false;
+  const calendarSettings: CalendarSettings | undefined = settings?.calendar;
   const today = new Date();
-  const initialViewMode = coerceCalendarViewMode(settings?.calendar?.viewMode);
-  const calendarWeekVisibleDays = coerceCalendarWeekVisibleDays(settings?.calendar?.weekVisibleDays);
+  const initialViewMode = coerceCalendarViewMode(calendarSettings?.viewMode);
+  const calendarWeekVisibleDays = coerceCalendarWeekVisibleDays(calendarSettings?.weekVisibleDays);
   const [currentMonth, setCurrentMonth] = useState(today.getMonth());
   const [currentYear, setCurrentYear] = useState(today.getFullYear());
   const [selectedDate, setSelectedDate] = useState<Date | null>(() => getInitialCalendarSelectedDate(initialViewMode, today));
@@ -217,14 +219,14 @@ export function useCalendarViewController() {
     ensureSelectedDateForViewMode(nextMode);
     pendingViewModeSaveRef.current = nextMode;
     setViewModeState(nextMode);
-    updateSettings({ calendar: { ...settings?.calendar, viewMode: nextMode } })
+    updateSettings({ calendar: { ...calendarSettings, viewMode: nextMode } })
       .catch(logCalendarError);
   };
 
   const setCalendarWeekVisibleDays = (visibleDays: number) => {
     const nextVisibleDays = coerceCalendarWeekVisibleDays(visibleDays);
     if (nextVisibleDays === calendarWeekVisibleDays) return;
-    updateSettings({ calendar: { ...settings?.calendar, weekVisibleDays: nextVisibleDays } })
+    updateSettings({ calendar: { ...calendarSettings, weekVisibleDays: nextVisibleDays } })
       .catch(logCalendarError);
   };
 
@@ -238,7 +240,7 @@ export function useCalendarViewController() {
   }, []);
 
   useEffect(() => {
-    const storedViewMode = settings?.calendar?.viewMode;
+    const storedViewMode = calendarSettings?.viewMode;
     if (!storedViewMode) return;
     const nextMode = coerceCalendarViewMode(storedViewMode);
     if (pendingViewModeSaveRef.current) {
@@ -251,7 +253,7 @@ export function useCalendarViewController() {
     if (viewModeRef.current === nextMode) return;
     setViewModeState(nextMode);
     ensureSelectedDateForViewMode(nextMode);
-  }, [ensureSelectedDateForViewMode, settings?.calendar?.viewMode]);
+  }, [calendarSettings?.viewMode, ensureSelectedDateForViewMode]);
 
   const weekStartIndex = settings?.weekStart === 'monday' ? 1 : 0;
   const daysInMonth = getDaysInMonth(currentYear, currentMonth);

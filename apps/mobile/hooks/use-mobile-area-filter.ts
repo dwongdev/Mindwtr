@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo } from 'react';
-import { useTaskStore } from '@mindwtr/core';
+import { type FilterSettings, useTaskStore } from '@mindwtr/core';
 
 import { AREA_FILTER_ALL, AREA_FILTER_NONE, resolveAreaFilter, type AreaFilterValue } from '../lib/area-filter';
 
@@ -9,6 +9,7 @@ export function useMobileAreaFilter() {
   const areas = useTaskStore((state) => state.areas);
   const settings = useTaskStore((state) => state.settings);
   const updateSettings = useTaskStore((state) => state.updateSettings);
+  const filterSettings: FilterSettings | undefined = settings?.filters;
 
   const sortedAreas = useMemo(() => (
     [...areas]
@@ -25,25 +26,25 @@ export function useMobileAreaFilter() {
   );
 
   const resolvedAreaFilter = useMemo(
-    () => resolveAreaFilter(settings?.filters?.areaId, sortedAreas),
-    [settings?.filters?.areaId, sortedAreas],
+    () => resolveAreaFilter(filterSettings?.areaId, sortedAreas),
+    [filterSettings?.areaId, sortedAreas],
   );
   const didResetDeletedAreaFilter = useMemo(() => {
-    const savedAreaFilter = settings?.filters?.areaId;
+    const savedAreaFilter = filterSettings?.areaId;
     if (!savedAreaFilter || savedAreaFilter === AREA_FILTER_ALL || savedAreaFilter === AREA_FILTER_NONE) {
       return false;
     }
     return !sortedAreas.some((area) => area.id === savedAreaFilter);
-  }, [settings?.filters?.areaId, sortedAreas]);
+  }, [filterSettings?.areaId, sortedAreas]);
 
   useEffect(() => {
-    const staleAreaFilter = settings?.filters?.areaId;
+    const staleAreaFilter = filterSettings?.areaId;
     if (!didResetDeletedAreaFilter || !staleAreaFilter) return;
     if (staleAreaFilterResetInFlight === staleAreaFilter) return;
     staleAreaFilterResetInFlight = staleAreaFilter;
     void updateSettings({
       filters: {
-        ...(settings?.filters ?? {}),
+        ...(filterSettings ?? {}),
         areaId: AREA_FILTER_ALL,
       },
     }).finally(() => {
@@ -51,16 +52,16 @@ export function useMobileAreaFilter() {
         staleAreaFilterResetInFlight = null;
       }
     });
-  }, [didResetDeletedAreaFilter, settings?.filters, updateSettings]);
+  }, [didResetDeletedAreaFilter, filterSettings, updateSettings]);
 
   const setAreaFilter = useCallback((value: AreaFilterValue) => {
     void updateSettings({
       filters: {
-        ...(settings?.filters ?? {}),
+        ...(filterSettings ?? {}),
         areaId: value,
       },
     });
-  }, [settings?.filters, updateSettings]);
+  }, [filterSettings, updateSettings]);
 
   const selectedAreaIdForNewTasks = useMemo(() => (
     resolvedAreaFilter !== AREA_FILTER_ALL && resolvedAreaFilter !== AREA_FILTER_NONE

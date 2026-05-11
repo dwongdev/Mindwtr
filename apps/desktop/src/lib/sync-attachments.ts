@@ -3,11 +3,11 @@ import {
     Attachment,
     computeSha256Hex,
     globalProgressTracker,
-    type PendingRemoteAttachmentDelete,
+    type AttachmentSettings,
 } from '@mindwtr/core';
 import { createCooperativeYield, stripFileScheme } from './sync-service-utils';
 
-type PendingRemoteAttachmentDeleteEntry = PendingRemoteAttachmentDelete;
+type PendingRemoteAttachmentDeleteEntry = NonNullable<AttachmentSettings['pendingRemoteDeletes']>[number];
 
 export const normalizePendingRemoteDeletes = (
     value: unknown

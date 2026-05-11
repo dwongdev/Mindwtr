@@ -1,6 +1,6 @@
-import type { AppData } from '@mindwtr/core';
+import type { NotificationSettings } from '@mindwtr/core';
 
-type MobileSettings = AppData['settings'];
+type MobileSettings = NotificationSettings;
 
 export function areTaskRemindersEnabled(settings: MobileSettings): boolean {
   return settings.notificationsEnabled !== false;

@@ -4,7 +4,7 @@ import { purgeExpiredTombstones } from './sync';
 import { markCoreStartupPhase, measureCoreStartupPhase } from './startup-profiler';
 import { normalizeTaskForLoad } from './task-status';
 import type { StorageAdapter } from './storage';
-import type { AppData, Area, Project, TaskEditorFieldId } from './types';
+import type { AppData, Area, MigrationSettings, Project, TaskEditorFieldId } from './types';
 import type { DerivedCache, TaskStore } from './store-types';
 import {
     buildSaveSnapshot,
@@ -182,13 +182,13 @@ export const createSettingsActions = ({
                 rawSections.length === 0 &&
                 rawAreas.length === 0 &&
                 Object.keys(settings).length === 0;
-            const migrations = settings.migrations ?? {};
+            const migrations: MigrationSettings = settings.migrations ?? {};
             const shouldRunMigrations = (migrations.version ?? 0) < MIGRATION_VERSION;
             const lastAutoArchiveAt = safeParseDate(migrations.lastAutoArchiveAt)?.getTime() ?? 0;
             const shouldRunAutoArchive = Date.now() - lastAutoArchiveAt > AUTO_ARCHIVE_INTERVAL_MS;
             const lastTombstoneCleanupAt = safeParseDate(migrations.lastTombstoneCleanupAt)?.getTime() ?? 0;
             const shouldRunTombstoneCleanup = Date.now() - lastTombstoneCleanupAt > TOMBSTONE_CLEANUP_INTERVAL_MS;
-            const nextMigrationState = { ...migrations };
+            const nextMigrationState: MigrationSettings = { ...migrations };
             let didSettingsUpdate = false;
 
             if (shouldRunMigrations) {

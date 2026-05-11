@@ -4,7 +4,10 @@ import {
     flushPendingSave,
     normalizeDateFormatSetting,
     normalizeTimeFormatSetting,
+    type AppearanceSettings,
     type AppData,
+    type NotificationSettings,
+    type WindowSettings,
 } from '@mindwtr/core';
 
 import type { Language } from '../../../contexts/language-context';
@@ -58,24 +61,27 @@ export function useSettingsMainPage({
     showSaved,
     updateSettings,
 }: UseSettingsMainPageOptions): MainPageProps {
+    const appearanceSettings: AppearanceSettings | undefined = settings?.appearance;
+    const notificationSettings: NotificationSettings = settings ?? {};
+    const windowSettings: WindowSettings | undefined = settings?.window;
     const [themeMode, setThemeMode] = useState<DesktopThemeMode>('system');
     const [launchAtStartupEnabled, setLaunchAtStartupEnabledState] = useState(
-        settings?.window?.launchAtStartup === true,
+        windowSettings?.launchAtStartup === true,
     );
     const [launchAtStartupLoading, setLaunchAtStartupLoading] = useState(false);
 
     const densityMode = (
-        settings?.appearance?.density === 'compact' ? 'compact' : 'comfortable'
+        appearanceSettings?.density === 'compact' ? 'compact' : 'comfortable'
     ) as MainPageProps['densityMode'];
-    const textSizeMode = coerceDesktopTextSize(settings?.appearance?.textSize);
-    const showTaskAge = settings?.appearance?.showTaskAge === true;
+    const textSizeMode = coerceDesktopTextSize(appearanceSettings?.textSize);
+    const showTaskAge = appearanceSettings?.showTaskAge === true;
     const dateFormat = normalizeDateFormatSetting(settings?.dateFormat);
     const timeFormat = normalizeTimeFormatSetting(settings?.timeFormat);
-    const undoNotificationsEnabled = settings?.undoNotificationsEnabled !== false;
+    const undoNotificationsEnabled = notificationSettings.undoNotificationsEnabled !== false;
     const weekStart = settings?.weekStart === 'monday' ? 'monday' : 'sunday';
-    const windowDecorationsEnabled = settings?.window?.decorations !== false;
-    const closeBehavior = settings?.window?.closeBehavior ?? 'ask';
-    const trayVisible = settings?.window?.showTray !== false;
+    const windowDecorationsEnabled = windowSettings?.decorations !== false;
+    const closeBehavior = windowSettings?.closeBehavior ?? 'ask';
+    const trayVisible = windowSettings?.showTray !== false;
 
     useEffect(() => {
         const savedTheme = coerceDesktopThemeMode(
