@@ -456,7 +456,14 @@ const mobileSyncOrchestrator = createSyncOrchestrator<string | undefined, Mobile
     activeMobileSyncAbortReason = null;
     const fetchWithAbort = createAbortableFetch(fetch, { baseSignal: requestAbortController.signal });
     const ensureLocalSnapshotFresh = () => {
-      if (useTaskStore.getState().lastDataChangeAt > localSnapshotChangeAt) {
+      const currentChangeAt = useTaskStore.getState().lastDataChangeAt;
+      if (currentChangeAt > localSnapshotChangeAt) {
+        logSyncInfo('Sync detected local data changes during cycle; queued follow-up', {
+          backend,
+          step,
+          snapshotChangeAt: String(localSnapshotChangeAt),
+          currentChangeAt: String(currentChangeAt),
+        });
         requestFollowUp(syncPathOverride);
         throw new LocalSyncAbort();
       }
@@ -1233,6 +1240,11 @@ const mobileSyncOrchestrator = createSyncOrchestrator<string | undefined, Mobile
           await mobileStorage.saveData(reconciledData);
           wroteLocal = true;
         }
+        logSyncInfo('Sync requeued after local data changed', {
+          backend,
+          step,
+          wroteLocal: String(wroteLocal),
+        });
         return buildRequeuedSkipResult();
       }
       const likelyOfflineRequestError = isLikelyOfflineSyncError(error);

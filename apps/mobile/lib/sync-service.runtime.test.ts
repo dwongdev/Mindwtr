@@ -471,6 +471,27 @@ describe('mobile sync-service runtime', () => {
     expect(result).toEqual({ success: true, skipped: 'requeued' });
     expect(storeStateRef.current.updateSettings).not.toHaveBeenCalled();
     expect(logMocks.logSyncError).not.toHaveBeenCalled();
+    expect(logMocks.logInfo).toHaveBeenCalledWith(
+      'Sync detected local data changes during cycle; queued follow-up',
+      expect.objectContaining({
+        scope: 'sync',
+        extra: expect.objectContaining({
+          backend: 'webdav',
+          snapshotChangeAt: '1',
+          currentChangeAt: '2',
+        }),
+      }),
+    );
+    expect(logMocks.logInfo).toHaveBeenCalledWith(
+      'Sync requeued after local data changed',
+      expect.objectContaining({
+        scope: 'sync',
+        extra: expect.objectContaining({
+          backend: 'webdav',
+          wroteLocal: 'false',
+        }),
+      }),
+    );
   });
 
   it('skips WebDAV writes when remote data only differs by device-local sync history', async () => {

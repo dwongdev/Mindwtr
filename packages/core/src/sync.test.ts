@@ -1475,6 +1475,51 @@ describe('Sync Logic', () => {
             });
         });
 
+        it('logs task status resolutions when revision order makes one side win', () => {
+            const logs: LogPayload[] = [];
+            setLogger((payload) => {
+                logs.push(payload);
+            });
+
+            try {
+                const localTask = {
+                    ...createMockTask('task-status-resolution', '2026-05-11T20:00:00.000Z'),
+                    status: 'done',
+                    completedAt: '2026-05-11T20:00:00.000Z',
+                    rev: 2,
+                    revBy: 'android-device',
+                } satisfies Task;
+                const incomingTask = {
+                    ...createMockTask('task-status-resolution', '2026-05-11T19:59:00.000Z'),
+                    status: 'next',
+                    rev: 3,
+                    revBy: 'desktop-device',
+                } satisfies Task;
+
+                const result = mergeAppDataWithStats(mockAppData([localTask]), mockAppData([incomingTask]));
+
+                expect(result.data.tasks[0].status).toBe('next');
+                expect(result.stats.tasks.conflicts).toBe(0);
+            } finally {
+                setLogger(consoleLogger);
+            }
+
+            const statusLog = logs.find((entry) => entry.message === 'syncTaskStatusResolution');
+            expect(statusLog?.context).toMatchObject({
+                id: 'task-status-resolution',
+                winnerSide: 'incoming',
+                resolutionReason: 'revision',
+                countedConflict: false,
+                localStatus: 'done',
+                incomingStatus: 'next',
+                localCompletedAt: '2026-05-11T20:00:00.000Z',
+                localRev: 2,
+                incomingRev: 3,
+                localRevBy: 'android-device',
+                incomingRevBy: 'desktop-device',
+            });
+        });
+
         it('prefers deletion when legacy delete-vs-live operation times are equal', () => {
             const local = mockAppData([
                 createMockTask('1', '2023-01-02T00:00:00.000Z', '2023-01-02T00:05:00.000Z'),

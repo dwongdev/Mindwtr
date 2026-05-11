@@ -254,7 +254,12 @@ function mergeEntitiesWithStats<T extends MergeableEntity>(
     let invalidDeletedAtWarnings = 0;
     let ambiguousResurrectionWarnings = 0;
     let discardedLiveConflictWarnings = 0;
+    let taskStatusResolutionWarnings = 0;
     const maxAllowedMergeTime = Date.now();
+    const getStringField = (item: T, field: string): string | undefined => {
+        const value = (item as Record<string, unknown>)[field];
+        return typeof value === 'string' && value.trim().length > 0 ? value : undefined;
+    };
     const recoverCreatedAtFromCounterpart = (item: T, counterpart?: T): string | undefined => {
         if (!counterpart?.createdAt) return undefined;
         const updatedTime = new Date(item.updatedAt).getTime();
@@ -520,6 +525,46 @@ function mergeEntitiesWithStats<T extends MergeableEntity>(
         if (winner === normalizedIncomingItem) stats.resolvedUsingIncoming += 1;
         else stats.resolvedUsingLocal += 1;
 
+        if (entityType === 'task') {
+            const localStatus = getStringField(normalizedLocalItem, 'status');
+            const incomingStatus = getStringField(normalizedIncomingItem, 'status');
+            if (localStatus && incomingStatus && localStatus !== incomingStatus) {
+                taskStatusResolutionWarnings += 1;
+                if (taskStatusResolutionWarnings <= 10) {
+                    const winnerSide = winner === normalizedIncomingItem ? 'incoming' : 'local';
+                    const resolutionReason = localDeleted !== incomingDeleted
+                        ? 'deleteState'
+                        : hasRevision && revDiff !== 0
+                            ? 'revision'
+                            : comparableUpdatedTimeDiff !== 0
+                                ? 'timestamp'
+                                : revByDiff && localRevBy && incomingRevBy
+                                    ? 'revBy'
+                                    : 'deterministic';
+                    logWarn('syncTaskStatusResolution', {
+                        scope: 'sync',
+                        category: 'sync',
+                        context: {
+                            id,
+                            winnerSide,
+                            resolutionReason,
+                            countedConflict: differs,
+                            localStatus,
+                            incomingStatus,
+                            localCompletedAt: getStringField(normalizedLocalItem, 'completedAt'),
+                            incomingCompletedAt: getStringField(normalizedIncomingItem, 'completedAt'),
+                            localUpdatedAt: normalizedLocalItem.updatedAt,
+                            incomingUpdatedAt: normalizedIncomingItem.updatedAt,
+                            localRev,
+                            incomingRev,
+                            localRevBy: localRevBy || undefined,
+                            incomingRevBy: incomingRevBy || undefined,
+                        },
+                    });
+                }
+            }
+        }
+
         if (winner.deletedAt && (!normalizedLocalItem.deletedAt || !normalizedIncomingItem.deletedAt || differs)) {
             stats.deletionsWon += 1;
         }
@@ -591,6 +636,17 @@ function mergeEntitiesWithStats<T extends MergeableEntity>(
                 entityType,
                 total: discardedLiveConflictWarnings,
                 elided: discardedLiveConflictWarnings - 5,
+            },
+        });
+    }
+    if (taskStatusResolutionWarnings > 10) {
+        logWarn('syncTaskStatusResolutionSummary', {
+            scope: 'sync',
+            category: 'sync',
+            context: {
+                entityType,
+                total: taskStatusResolutionWarnings,
+                elided: taskStatusResolutionWarnings - 10,
             },
         });
     }
