@@ -144,7 +144,7 @@ export function AISettingsScreen() {
         const title = tr('settings.aiMobile.enableAiFeatures');
         const message = isFossBuild && provider === 'openai'
             ? tr('settings.aiMobile.toUseAiAssistantYourTaskTextAndOptionalNotes')
-            : tr('settings.aiMobile.toUseAiAssistantYourTaskTextAndOptionalNotes2', { value1: providerLabel, value2: policyUrl });
+            : tr('settings.aiMobile.aiAssistantPrivacyPromptForProvider', { provider: providerLabel, privacyUrl: policyUrl });
 
         return await new Promise<boolean>((resolve) => {
             let settled = false;
@@ -484,12 +484,12 @@ export function AISettingsScreen() {
                     const conflictInfo = safePathInfo(targetFile.uri);
                     if (conflictInfo?.exists && conflictInfo.isDirectory) {
                         if (!isWhisperTargetPath(targetFile.uri, fileName)) {
-                            throw new Error(tr('settings.aiMobile.offlineModelPathIsNotSafeToModifyValue', { value1: targetFile.uri }));
+                            throw new Error(tr('settings.aiMobile.offlineModelPathIsUnsafe', { path: targetFile.uri }));
                         }
                     }
                     const postCleanupInfo = safePathInfo(targetFile.uri);
                     if (postCleanupInfo?.exists && postCleanupInfo.isDirectory) {
-                        throw new Error(tr('settings.aiMobile.offlineModelPathIsAFolderValuePleaseRemoveIt', { value1: targetFile.uri }));
+                        throw new Error(tr('settings.aiMobile.offlineModelPathIsFolder', { path: targetFile.uri }));
                     }
                     const existingInfo = safePathInfo(targetFile.uri);
                     if (existingInfo?.exists && existingInfo.isDirectory === false) {

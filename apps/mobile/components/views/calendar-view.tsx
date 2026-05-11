@@ -1172,7 +1172,7 @@ export function CalendarView() {
                 now: calendarWeekVisibleDays,
                 text: calendarWeekVisibleDays === 1
                   ? tr('calendar.mobile.1Day')
-                  : tr('calendar.mobile.valueDays', { value1: calendarWeekVisibleDays }),
+                  : tr('calendar.mobile.visibleDayCount', { dayCount: calendarWeekVisibleDays }),
               }}
               accessibilityActions={[
                 { name: 'increment', label: tr('calendar.mobile.showMoreDays') },
@@ -1204,7 +1204,7 @@ export function CalendarView() {
                   accessibilityRole="button"
                   accessibilityLabel={value === 1
                     ? tr('calendar.mobile.show1VisibleDay')
-                    : tr('calendar.mobile.showValueVisibleDays', { value1: value })}
+                    : tr('calendar.mobile.showVisibleDayCount', { dayCount: value })}
                   accessibilityState={{ selected: active }}
                   hitSlop={8}
                   style={styles.weekDensityTick}

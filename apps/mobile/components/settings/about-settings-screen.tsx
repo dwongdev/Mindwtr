@@ -239,7 +239,7 @@ export function AboutSettingsScreen({
                 if (hasUpdate) {
                     const updateMessage = result.source === 'play-store'
                         ? tr('settings.aboutMobile.updateIsAvailableOnGooglePlayOpenAppListingNow')
-                        : tr('settings.aboutMobile.vValueVValueGooglePlayCheckWasUnavailableBut', { value1: currentVersion, value2: result.version });
+                        : tr('settings.aboutMobile.googlePlayUpdateAvailableWithVersions', { currentVersion, latestVersion: result.version });
                     Alert.alert(tr('settings.updateAvailable'), updateMessage, [
                         { text: tr('settings.later'), style: 'cancel' },
                         { text: tr('attachments.open'), onPress: () => Linking.openURL(targetUrl) },
@@ -270,7 +270,7 @@ export function AboutSettingsScreen({
                 if (hasUpdate) {
                     Alert.alert(
                         tr('settings.updateAvailable'),
-                        tr('settings.aboutMobile.vValueVValueUpdateIsAvailableOnTheApp', { value1: currentVersion, value2: latestVersion }),
+                        tr('settings.aboutMobile.appStoreUpdateAvailableWithVersions', { currentVersion, latestVersion }),
                         [
                             { text: tr('settings.later'), style: 'cancel' },
                             ...(targetUrl ? [{ text: tr('attachments.open'), onPress: () => Linking.openURL(targetUrl) }] : []),

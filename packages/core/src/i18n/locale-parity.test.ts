@@ -46,6 +46,22 @@ const nonLatinOverrideLocales: Record<string, Record<string, string>> = {
     ru: ruOverrides,
 };
 
+const overrideLocaleCoverageFloors: Record<string, number> = {
+    ar: 69,
+    de: 71,
+    es: 64,
+    fr: 70,
+    hi: 69,
+    it: 77,
+    ja: 69,
+    ko: 68,
+    nl: 22,
+    pl: 71,
+    pt: 71,
+    ru: 69,
+    tr: 72,
+};
+
 const shippedLocales: Record<string, Record<string, string>> = {
     ...fullParityLocales,
     ...overrideLocales,
@@ -58,6 +74,16 @@ describe('locale parity', () => {
         for (const [language, translations] of Object.entries(fullParityLocales)) {
             const missing = englishKeys.filter((key) => !translations[key]);
             expect(missing, `Missing translations in ${language}`).toEqual([]);
+        }
+    });
+
+    it('keeps partial override locale coverage from silently regressing', () => {
+        const englishKeyCount = Object.keys(en).length;
+
+        for (const [language, translations] of Object.entries(overrideLocales)) {
+            const floor = overrideLocaleCoverageFloors[language];
+            const coverage = (Object.keys(translations).length / englishKeyCount) * 100;
+            expect(coverage, `${language} override coverage`).toBeGreaterThanOrEqual(floor);
         }
     });
 
@@ -77,6 +103,16 @@ describe('locale parity', () => {
             ));
             expect(placeholders, `Verbatim English placeholders in ${language}`).toEqual([]);
         }
+    });
+
+    it('uses named interpolation slots in English source strings', () => {
+        const positionalPlaceholders = Object.keys(en).filter((key) => /\{\{\s*value\d+\s*\}\}/.test(en[key]));
+        expect(positionalPlaceholders).toEqual([]);
+    });
+
+    it('keeps generated placeholder fragments out of source key names', () => {
+        const generatedKeys = Object.keys(en).filter((key) => /(?:vValue|ValueValue|Value\d)/.test(key));
+        expect(generatedKeys).toEqual([]);
     });
 
     it('does not ship mixed English fragments in non-Latin partial locales', () => {

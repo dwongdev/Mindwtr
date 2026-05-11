@@ -83,11 +83,11 @@ export function useSyncSettingsBackupActions({
     const buildBackupSummary = useCallback((validation: Awaited<ReturnType<typeof inspectBackupDocument>>) => {
         const details = [
             validation.metadata?.backupAt
-                ? tr('settings.backupMobile.backupDateValue', { value1: new Date(validation.metadata.backupAt).toLocaleString() })
+                ? tr('settings.backupMobile.backupDateLabel', { backupDate: new Date(validation.metadata.backupAt).toLocaleString() })
                 : validation.metadata?.fileName
-                    ? tr('settings.backupMobile.fileValue', { value1: validation.metadata.fileName })
+                    ? tr('settings.backupMobile.fileLabel', { fileName: validation.metadata.fileName })
                     : null,
-            tr('settings.backupMobile.containsValueTasksAndValueProjects', { value1: validation.metadata?.taskCount ?? 0, value2: validation.metadata?.projectCount ?? 0 }),
+            tr('settings.backupMobile.backupPreviewCounts', { taskCount: validation.metadata?.taskCount ?? 0, projectCount: validation.metadata?.projectCount ?? 0 }),
             tr('settings.backupMobile.thisWillReplaceAllCurrentLocalDataARecoverySnapshot'),
             ...(validation.warnings.length > 0 ? ['', ...validation.warnings] : []),
         ].filter(Boolean);
@@ -99,15 +99,15 @@ export function useSyncSettingsBackupActions({
             .slice(0, 4)
             .map((project) => `• ${project.name}: ${project.taskCount}`);
         if (preview.projects.length > 4) {
-            projectLines.push(tr('settings.backupMobile.valueMoreProjectS', { value1: preview.projects.length - 4 }));
+            projectLines.push(tr('settings.backupMobile.moreProjects', { projectCount: preview.projects.length - 4 }));
         }
         const details = [
-            tr('settings.backupMobile.importValueTasksFromValueTodoistProjectS', { value1: preview.taskCount, value2: preview.projectCount }),
+            tr('settings.backupMobile.importTodoistTasksFromProjects', { taskCount: preview.taskCount, projectCount: preview.projectCount }),
             preview.sectionCount > 0
-                ? tr('settings.backupMobile.valueSectionSWillBePreserved', { value1: preview.sectionCount })
+                ? tr('settings.backupMobile.sectionsWillBePreserved', { sectionCount: preview.sectionCount })
                 : null,
             preview.checklistItemCount > 0
-                ? tr('settings.backupMobile.valueSubtaskSWillBecomeChecklistItems', { value1: preview.checklistItemCount })
+                ? tr('settings.backupMobile.subtasksWillBecomeChecklistItems', { subtaskCount: preview.checklistItemCount })
                 : null,
             tr('settings.backupMobile.importedTasksStayInInboxSoYouCanProcessThem'),
             ...(projectLines.length > 0 ? ['', ...projectLines] : []),
@@ -121,21 +121,21 @@ export function useSyncSettingsBackupActions({
             .slice(0, 4)
             .map((project) => `• ${project.areaName ? `${project.areaName} / ` : ''}${project.name}: ${project.taskCount}`);
         if (preview.projects.length > 4) {
-            projectLines.push(tr('settings.backupMobile.valueMoreProjectS', { value1: preview.projects.length - 4 }));
+            projectLines.push(tr('settings.backupMobile.moreProjects', { projectCount: preview.projects.length - 4 }));
         }
         const details = [
-            tr('settings.backupMobile.importValueTasksFromValue', { value1: preview.taskCount, value2: preview.fileName }),
+            tr('settings.backupMobile.importTasksFromFile', { taskCount: preview.taskCount, fileName: preview.fileName }),
             preview.areaCount > 0
-                ? tr('settings.backupMobile.valueAreaSWillBeCreatedFromDgtFolders', { value1: preview.areaCount })
+                ? tr('settings.backupMobile.dgtAreasWillBeCreated', { areaCount: preview.areaCount })
                 : null,
             preview.projectCount > 0
-                ? tr('settings.backupMobile.valueProjectSWillBeCreated', { value1: preview.projectCount })
+                ? tr('settings.backupMobile.projectsWillBeCreated', { projectCount: preview.projectCount })
                 : null,
             preview.checklistItemCount > 0
-                ? tr('settings.backupMobile.valueChecklistItemSWillBePreserved', { value1: preview.checklistItemCount })
+                ? tr('settings.backupMobile.checklistItemsWillBePreserved', { checklistItemCount: preview.checklistItemCount })
                 : null,
             preview.standaloneTaskCount > 0
-                ? tr('settings.backupMobile.valueTaskSWillStayOutsideProjectsSoYouCan', { value1: preview.standaloneTaskCount })
+                ? tr('settings.backupMobile.tasksWillStayOutsideProjects', { taskCount: preview.standaloneTaskCount })
                 : null,
             ...(projectLines.length > 0 ? ['', ...projectLines] : []),
             ...(preview.warnings.length > 0 ? ['', ...preview.warnings] : []),
@@ -148,21 +148,21 @@ export function useSyncSettingsBackupActions({
             .slice(0, 4)
             .map((project) => `• ${project.name}: ${project.taskCount}`);
         if (preview.projects.length > 4) {
-            projectLines.push(tr('settings.backupMobile.valueMoreProjectS', { value1: preview.projects.length - 4 }));
+            projectLines.push(tr('settings.backupMobile.moreProjects', { projectCount: preview.projects.length - 4 }));
         }
         const details = [
-            tr('settings.backupMobile.importValueTaskSFromValue', { value1: preview.taskCount, value2: preview.fileName }),
+            tr('settings.backupMobile.importTaskCountFromFile', { taskCount: preview.taskCount, fileName: preview.fileName }),
             preview.projectCount > 0
-                ? tr('settings.backupMobile.valueProjectSWillBeCreatedWhenNeeded', { value1: preview.projectCount })
+                ? tr('settings.backupMobile.projectsWillBeCreatedWhenNeeded', { projectCount: preview.projectCount })
                 : null,
             preview.areaCount > 0
-                ? tr('settings.backupMobile.valueAreaSWillBeCreatedFromOmnifocusFoldersWhen', { value1: preview.areaCount })
+                ? tr('settings.backupMobile.omnifocusAreasWillBeCreated', { areaCount: preview.areaCount })
                 : null,
             preview.checklistItemCount > 0
-                ? tr('settings.backupMobile.valueNestedTaskSWillBecomeChecklistItemsWhenPossible', { value1: preview.checklistItemCount })
+                ? tr('settings.backupMobile.nestedTasksWillBecomeChecklistItems', { taskCount: preview.checklistItemCount })
                 : null,
             preview.standaloneTaskCount > 0
-                ? tr('settings.backupMobile.valueTaskSWillStayOutsideProjectsSoYouCan', { value1: preview.standaloneTaskCount })
+                ? tr('settings.backupMobile.tasksWillStayOutsideProjects', { taskCount: preview.standaloneTaskCount })
                 : null,
             tr('settings.backupMobile.importedTasksKeepOmnifocusNotesDatesTagsRecurrenceAndChecklist'),
             ...(projectLines.length > 0 ? ['', ...projectLines] : []),
@@ -191,7 +191,7 @@ export function useSyncSettingsBackupActions({
             await refreshRecoverySnapshots();
             showToast({
                 title: tr('settings.backupMobile.restoreComplete'),
-                message: tr('settings.backupMobile.backupRestoredSuccessfullyRecoverySnapshotSavedAsValue', { value1: snapshotName }),
+                message: tr('settings.backupMobile.backupRestoredWithSnapshot', { snapshotName }),
                 tone: 'success',
                 durationMs: 5000,
             });
@@ -245,11 +245,11 @@ export function useSyncSettingsBackupActions({
             const { snapshotName, result } = await importTodoistData(parsedProjects);
             await refreshRecoverySnapshots();
             const details = [
-                tr('settings.backupMobile.importedValueTasksIntoValueProjectS', { value1: result.importedTaskCount, value2: result.importedProjectCount }),
+                tr('settings.backupMobile.importedTodoistTasksIntoProjects', { taskCount: result.importedTaskCount, projectCount: result.importedProjectCount }),
                 result.importedChecklistItemCount > 0
-                    ? tr('settings.backupMobile.valueSubtaskSBecameChecklistItems', { value1: result.importedChecklistItemCount })
+                    ? tr('settings.backupMobile.subtasksBecameChecklistItems', { subtaskCount: result.importedChecklistItemCount })
                     : null,
-                tr('settings.backupMobile.recoverySnapshotSavedAsValue', { value1: snapshotName }),
+                tr('settings.backupMobile.recoverySnapshotSaved', { snapshotName }),
                 ...(result.warnings.length > 0 ? ['', ...result.warnings] : []),
             ].filter(Boolean);
             showToast({
@@ -272,11 +272,11 @@ export function useSyncSettingsBackupActions({
             const { snapshotName, result } = await importDgtData(parsedData);
             await refreshRecoverySnapshots();
             const details = [
-                tr('settings.backupMobile.importedValueTaskSValueProjectSAndValueArea', { value1: result.importedTaskCount, value2: result.importedProjectCount, value3: result.importedAreaCount }),
+                tr('settings.backupMobile.importedTaskProjectAreaCounts', { taskCount: result.importedTaskCount, projectCount: result.importedProjectCount, areaCount: result.importedAreaCount }),
                 result.importedChecklistItemCount > 0
-                    ? tr('settings.backupMobile.valueChecklistItemSWerePreserved', { value1: result.importedChecklistItemCount })
+                    ? tr('settings.backupMobile.checklistItemsPreserved', { checklistItemCount: result.importedChecklistItemCount })
                     : null,
-                tr('settings.backupMobile.recoverySnapshotSavedAsValue', { value1: snapshotName }),
+                tr('settings.backupMobile.recoverySnapshotSaved', { snapshotName }),
                 ...(result.warnings.length > 0 ? ['', ...result.warnings] : []),
             ].filter(Boolean);
             showToast({
@@ -299,17 +299,17 @@ export function useSyncSettingsBackupActions({
             const { snapshotName, result } = await importOmniFocusData(parsedData);
             await refreshRecoverySnapshots();
             const details = [
-                tr('settings.backupMobile.importedValueTaskSAndValueProjectS', { value1: result.importedTaskCount, value2: result.importedProjectCount }),
+                tr('settings.backupMobile.importedTaskProjectCounts', { taskCount: result.importedTaskCount, projectCount: result.importedProjectCount }),
                 result.importedAreaCount > 0
-                    ? tr('settings.backupMobile.valueAreaSWereCreatedFromOmnifocusFolders', { value1: result.importedAreaCount })
+                    ? tr('settings.backupMobile.omnifocusAreasCreated', { areaCount: result.importedAreaCount })
                     : null,
                 result.importedChecklistItemCount > 0
-                    ? tr('settings.backupMobile.valueNestedTaskSBecameChecklistItems', { value1: result.importedChecklistItemCount })
+                    ? tr('settings.backupMobile.nestedTasksBecameChecklistItems', { taskCount: result.importedChecklistItemCount })
                     : null,
                 result.importedStandaloneTaskCount > 0
-                    ? tr('settings.backupMobile.valueTaskSStayedOutsideProjects', { value1: result.importedStandaloneTaskCount })
+                    ? tr('settings.backupMobile.tasksStayedOutsideProjects', { taskCount: result.importedStandaloneTaskCount })
                     : null,
-                tr('settings.backupMobile.recoverySnapshotSavedAsValue', { value1: snapshotName }),
+                tr('settings.backupMobile.recoverySnapshotSaved', { snapshotName }),
                 ...(result.warnings.length > 0 ? ['', ...result.warnings] : []),
             ].filter(Boolean);
             showToast({
@@ -427,7 +427,7 @@ export function useSyncSettingsBackupActions({
     const handleRestoreRecoverySnapshot = useCallback(async (snapshotName: string) => {
         Alert.alert(
             tr('settings.backupMobile.restoreRecoverySnapshot'),
-            tr('settings.backupMobile.restoreValueThisWillReplaceCurrentLocalData', { value1: formatRecoverySnapshotLabel(snapshotName) }),
+            tr('settings.backupMobile.restoreSnapshotReplaceLocalData', { snapshotName: formatRecoverySnapshotLabel(snapshotName) }),
             [
                 { text: tr('common.cancel'), style: 'cancel' },
                 {

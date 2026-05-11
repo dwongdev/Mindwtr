@@ -91,7 +91,7 @@ export function AiSettingsAssistantCard({
                         <View style={styles.settingInfo}>
                             <Text style={[styles.settingLabel, { color: tc.text }]}>{t('settings.aiEnable')}</Text>
                             <Text style={[styles.settingDescription, { color: tc.secondaryText }]}>
-                                {tr('settings.aiMobile.whenEnabledTaskTextIsSentDirectlyToValueUsing', { value1: getAIProviderLabel(aiProvider) })}
+                                {tr('settings.aiMobile.taskTextSentToProvider', { provider: getAIProviderLabel(aiProvider) })}
                             </Text>
                         </View>
                         <Switch
