@@ -174,6 +174,7 @@ export function ProjectDetailModal({
     updateProject,
 }: ProjectDetailModalProps) {
     const [projectTaskReorderMode, setProjectTaskReorderMode] = React.useState(false);
+    const safeAreaEdges = getProjectDetailModalSafeAreaEdges(presentationStyle);
 
     React.useEffect(() => {
         setProjectTaskReorderMode(false);
@@ -191,7 +192,7 @@ export function ProjectDetailModal({
                 https://docs.swmansion.com/react-native-gesture-handler/docs/fundamentals/installation/#android */}
             <GestureHandlerRootView style={{ flex: 1 }}>
                 <KeyboardAccessoryHost>
-                    <SafeAreaView style={{ flex: 1, backgroundColor: tc.bg }} edges={['left', 'right', 'bottom']}>
+                    <SafeAreaView style={{ flex: 1, backgroundColor: tc.bg }} edges={safeAreaEdges}>
                         {selectedProject ? (
                             <>
                                 <View style={modalHeaderStyle}>
@@ -620,4 +621,10 @@ export function ProjectDetailModal({
             </GestureHandlerRootView>
         </Modal>
     );
+}
+
+export function getProjectDetailModalSafeAreaEdges(presentationStyle: ProjectDetailModalProps['presentationStyle']) {
+    return presentationStyle === 'fullScreen'
+        ? ['top', 'left', 'right', 'bottom'] as const
+        : ['left', 'right', 'bottom'] as const;
 }
