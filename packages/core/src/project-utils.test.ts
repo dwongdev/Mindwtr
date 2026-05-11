@@ -5,6 +5,7 @@ import {
     filterProjectsBySelectedArea,
     getProjectsByArea,
     getProjectsByTag,
+    isSelectableProjectForTaskAssignment,
 } from './project-utils';
 import type { Project, Task } from './types';
 
@@ -38,8 +39,22 @@ describe('project-utils', () => {
     });
 
     it('filters project picker choices by selected area', () => {
-        expect(filterProjectsBySelectedArea(projects).map((p) => p.id)).toEqual(['p1', 'p2', 'p3', 'p4']);
-        expect(filterProjectsBySelectedArea(projects, 'a1').map((p) => p.id)).toEqual(['p1', 'p2']);
+        const pickerProjects: Project[] = [
+            ...projects,
+            { id: 'p6', title: 'Archived', status: 'archived', tagIds: [], areaId: 'a1', createdAt: '', updatedAt: '' },
+            { id: 'p7', title: 'Completed', status: 'completed' as Project['status'], tagIds: [], areaId: 'a1', createdAt: '', updatedAt: '' },
+        ];
+        expect(filterProjectsBySelectedArea(pickerProjects).map((p) => p.id)).toEqual(['p1', 'p2', 'p3', 'p4']);
+        expect(filterProjectsBySelectedArea(pickerProjects, 'a1').map((p) => p.id)).toEqual(['p1', 'p2']);
+    });
+
+    it('marks archived and legacy completed projects as unavailable for task assignment', () => {
+        const archivedProject: Project = { id: 'p6', title: 'Archived', status: 'archived', tagIds: [], areaId: 'a1', createdAt: '', updatedAt: '' };
+        const completedProject: Project = { id: 'p7', title: 'Completed', status: 'completed' as Project['status'], tagIds: [], areaId: 'a1', createdAt: '', updatedAt: '' };
+        expect(isSelectableProjectForTaskAssignment(projects[0])).toBe(true);
+        expect(isSelectableProjectForTaskAssignment(projects[4])).toBe(false);
+        expect(isSelectableProjectForTaskAssignment(archivedProject)).toBe(false);
+        expect(isSelectableProjectForTaskAssignment(completedProject)).toBe(false);
     });
 
     it('filters projects by tag', () => {

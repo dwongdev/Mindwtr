@@ -5,6 +5,7 @@ import {
     DEFAULT_PROJECT_COLOR,
     buildTaskUpdatesFromSpeechResult,
     generateUUID,
+    isSelectableProjectForTaskAssignment,
     normalizeLinkAttachmentInput,
     translateWithFallback,
     useTaskStore,
@@ -384,7 +385,9 @@ export function useTaskEditAttachments({
             if (suggestedProjectTitle && !existing.projectId) {
                 const match = currentProjects.find((project) => project.title.toLowerCase() === suggestedProjectTitle.toLowerCase());
                 if (match) {
-                    updates.projectId = match.id;
+                    if (isSelectableProjectForTaskAssignment(match)) {
+                        updates.projectId = match.id;
+                    }
                 } else {
                     const created = await addProjectNow(suggestedProjectTitle, DEFAULT_PROJECT_COLOR);
                     if (!created) {

@@ -1,5 +1,10 @@
 import type { Project, Task } from './types';
 
+export function isSelectableProjectForTaskAssignment(project: Project): boolean {
+    const status = String(project.status);
+    return !project.deletedAt && status !== 'archived' && status !== 'completed';
+}
+
 export function isTaskInActiveProject(
     task: Task,
     projectLookup: Map<string, Project> | Record<string, Project>
@@ -34,7 +39,7 @@ export function getProjectsByArea(projects: Project[], areaId: string): Project[
 
 export function filterProjectsBySelectedArea(projects: Project[], selectedAreaId?: string): Project[] {
     return projects.filter((project) => {
-        if (project.deletedAt) return false;
+        if (!isSelectableProjectForTaskAssignment(project)) return false;
         if (!selectedAreaId) return true;
         return project.areaId === selectedAreaId;
     });

@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from 'vitest';
 import renderer, { act } from 'react-test-renderer';
 
 import { TaskEditAreaPicker } from './TaskEditAreaPicker';
+import { TaskEditProjectPicker } from './TaskEditProjectPicker';
 import { TaskEditSectionPicker } from './TaskEditSectionPicker';
 
 (globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
@@ -87,5 +88,57 @@ describe('Task edit pickers', () => {
         );
 
         expect(emptyMessage).toBeTruthy();
+    });
+
+    it('hides archived and legacy completed projects from task assignment choices', () => {
+        let tree: renderer.ReactTestRenderer;
+        act(() => {
+            tree = renderer.create(
+                <TaskEditProjectPicker
+                    visible
+                    projects={[
+                        {
+                            id: 'project-active',
+                            title: 'Active Project',
+                            status: 'active',
+                            color: '#3b82f6',
+                            order: 0,
+                            tagIds: [],
+                            createdAt: '2025-01-01T00:00:00.000Z',
+                            updatedAt: '2025-01-01T00:00:00.000Z',
+                        },
+                        {
+                            id: 'project-archived',
+                            title: 'Archived Project',
+                            status: 'archived',
+                            color: '#64748b',
+                            order: 1,
+                            tagIds: [],
+                            createdAt: '2025-01-01T00:00:00.000Z',
+                            updatedAt: '2025-01-01T00:00:00.000Z',
+                        },
+                        {
+                            id: 'project-completed',
+                            title: 'Completed Project',
+                            status: 'completed' as any,
+                            color: '#64748b',
+                            order: 2,
+                            tagIds: [],
+                            createdAt: '2025-01-01T00:00:00.000Z',
+                            updatedAt: '2025-01-01T00:00:00.000Z',
+                        },
+                    ]}
+                    tc={tc as any}
+                    t={(key) => key}
+                    onClose={vi.fn()}
+                    onSelectProject={vi.fn()}
+                    onCreateProject={vi.fn().mockResolvedValue(null)}
+                />
+            );
+        });
+
+        expect(tree!.root.findByProps({ accessibilityLabel: 'Active Project' })).toBeTruthy();
+        expect(tree!.root.findAll((node) => node.props.accessibilityLabel === 'Archived Project')).toHaveLength(0);
+        expect(tree!.root.findAll((node) => node.props.accessibilityLabel === 'Completed Project')).toHaveLength(0);
     });
 });

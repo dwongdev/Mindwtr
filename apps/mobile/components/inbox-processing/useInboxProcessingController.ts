@@ -13,6 +13,7 @@ import {
   collectTaskTokenUsage,
   createAIProvider,
   hasTimeComponent,
+  isSelectableProjectForTaskAssignment,
   normalizeClockTimeInput,
   safeFormatDate,
   safeParseDate,
@@ -276,9 +277,10 @@ export function useInboxProcessingController({
   }, [selectedTags, suggestionTerms, tagSuggestionPool]);
 
   const filteredProjects = useMemo(() => {
-    if (!projectSearch.trim()) return projects;
+    const selectableProjects = projects.filter(isSelectableProjectForTaskAssignment);
+    if (!projectSearch.trim()) return selectableProjects;
     const query = projectSearch.trim().toLowerCase();
-    return projects.filter((project) => project.title.toLowerCase().includes(query));
+    return selectableProjects.filter((project) => project.title.toLowerCase().includes(query));
   }, [projects, projectSearch]);
 
   const hasExactProjectMatch = useMemo(() => {
@@ -644,6 +646,7 @@ export function useInboxProcessingController({
     if (!title) return;
     const existing = projects.find((project) => project.title.toLowerCase() === title.toLowerCase());
     if (existing) {
+      if (!isSelectableProjectForTaskAssignment(existing)) return;
       selectProjectEarly(existing.id);
       return;
     }

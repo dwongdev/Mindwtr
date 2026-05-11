@@ -64,6 +64,9 @@ vi.mock('@mindwtr/core', () => {
       clarifyTask,
     })),
     hasTimeComponent: vi.fn((value?: string | null) => Boolean(value && /[T\s]\d{2}:\d{2}/.test(value))),
+    isSelectableProjectForTaskAssignment: vi.fn((project: any) => (
+      !project.deletedAt && project.status !== 'archived' && project.status !== 'completed'
+    )),
     normalizeClockTimeInput: vi.fn((value?: string | null) => {
       const trimmed = String(value ?? '').trim();
       if (!trimmed) return '';

@@ -13,6 +13,9 @@ vi.mock('@mindwtr/core', () => ({
   DEFAULT_PROJECT_COLOR: '#3B82F6',
   getUsedTaskTokens: () => [],
   hasTimeComponent: (value?: string | null) => Boolean(value && /[T\s]\d{2}:\d{2}/.test(value)),
+  isSelectableProjectForTaskAssignment: (project: any) => (
+    !project.deletedAt && project.status !== 'archived' && project.status !== 'completed'
+  ),
   parseQuickAdd: (input: string) => ({
     title: input,
     props: {},

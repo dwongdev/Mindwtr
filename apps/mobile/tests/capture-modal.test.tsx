@@ -33,6 +33,9 @@ vi.mock('@mindwtr/core', () => ({
   createAIProvider: vi.fn(),
   DEFAULT_PROJECT_COLOR: '#94a3b8',
   getUsedTaskTokens: vi.fn(() => []),
+  isSelectableProjectForTaskAssignment: vi.fn((project: any) => (
+    !project.deletedAt && project.status !== 'archived' && project.status !== 'completed'
+  )),
   parseQuickAdd: vi.fn((value: string) => ({ title: value, props: {}, invalidDateCommands: [] })),
   useTaskStore: () => storeState,
 }));

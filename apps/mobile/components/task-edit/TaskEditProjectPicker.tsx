@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Modal, Pressable, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
-import type { Project } from '@mindwtr/core';
+import { isSelectableProjectForTaskAssignment, type Project } from '@mindwtr/core';
 import type { ThemeColors } from '@/hooks/use-theme-colors';
 import { styles } from './task-edit-modal.styles';
 import { logError } from '../../lib/app-log';
@@ -38,7 +38,7 @@ export function TaskEditProjectPicker({
 
     const activeProjects = useMemo(() => {
         return projects
-            .filter((project) => !project.deletedAt)
+            .filter(isSelectableProjectForTaskAssignment)
             .sort((a, b) => {
                 const orderA = Number.isFinite(a.order) ? a.order : 0;
                 const orderB = Number.isFinite(b.order) ? b.order : 0;
@@ -73,10 +73,10 @@ export function TaskEditProjectPicker({
         if (!title) return;
         if (hasExactProjectMatch) {
             const matched = allActiveProjects.find((project) => project.title.toLowerCase() === normalizedProjectQuery);
-            if (matched) {
+            if (matched && isSelectableProjectForTaskAssignment(matched)) {
                 onSelectProject(matched.id);
+                onClose();
             }
-            onClose();
             return;
         }
         try {

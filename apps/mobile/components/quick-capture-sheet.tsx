@@ -10,6 +10,7 @@ import {
   DEFAULT_PROJECT_COLOR,
   getUsedTaskTokens,
   hasTimeComponent,
+  isSelectableProjectForTaskAssignment,
   parseQuickAdd,
   safeFormatDate,
   safeParseDate,
@@ -104,9 +105,14 @@ export function QuickCaptureSheet({
   const [priority, setPriority] = useState<TaskPriority | null>(null);
   const [showPriorityPicker, setShowPriorityPicker] = useState(false);
   const [addAnother, setAddAnother] = useState(false);
+  const projectsRef = useRef(projects);
+
+  useEffect(() => {
+    projectsRef.current = projects;
+  }, [projects]);
 
   const filteredProjects = useMemo(() => {
-    const visibleProjects = projects.filter((project) => !project.deletedAt);
+    const visibleProjects = projects.filter(isSelectableProjectForTaskAssignment);
     const areaFilteredProjects = selectedAreaId
       ? visibleProjects.filter((project) => project.areaId === selectedAreaId)
       : visibleProjects;
@@ -174,6 +180,7 @@ export function QuickCaptureSheet({
     if (!title) return;
     const match = projects.find((project) => project.title.toLowerCase() === title.toLowerCase());
     if (match) {
+      if (!isSelectableProjectForTaskAssignment(match)) return;
       setProjectId(match.id);
       setSelectedAreaId(null);
       setShowProjectPicker(false);
@@ -211,8 +218,14 @@ export function QuickCaptureSheet({
     setContextTags(initialContextTokens);
     setContextQuery('');
     setShowContextPicker(false);
-    setProjectId(initialProps?.projectId ?? null);
-    setSelectedAreaId(initialProps?.projectId ? null : (initialProps?.areaId ?? selectedAreaIdForNewTasks ?? null));
+    const currentProjects = projectsRef.current;
+    const initialProjectId = initialProps?.projectId && currentProjects.some((project) => (
+      project.id === initialProps.projectId && isSelectableProjectForTaskAssignment(project)
+    ))
+      ? initialProps.projectId
+      : null;
+    setProjectId(initialProjectId);
+    setSelectedAreaId(initialProjectId ? null : (initialProps?.areaId ?? selectedAreaIdForNewTasks ?? null));
     setProjectQuery('');
     setShowProjectPicker(false);
     setShowAreaPicker(false);
@@ -257,12 +270,24 @@ export function QuickCaptureSheet({
       const parsed = parseQuickAdd(trimmed, projects, new Date(), areas);
       finalTitle = parsed.title || trimmed;
       parsedProps = parsed.props;
+      if (
+        parsedProps.projectId
+        && !projects.some((project) => project.id === parsedProps.projectId && isSelectableProjectForTaskAssignment(project))
+      ) {
+        delete parsedProps.projectId;
+      }
       projectTitle = parsed.projectTitle;
       invalidDateCommands = parsed.invalidDateCommands;
       detectedDate = parsed.detectedDate;
     }
 
     const initialPropsMerged: Partial<Task> = { status: 'inbox', ...initialProps, ...parsedProps, ...extraProps };
+    if (
+      initialPropsMerged.projectId
+      && !projects.some((project) => project.id === initialPropsMerged.projectId && isSelectableProjectForTaskAssignment(project))
+    ) {
+      delete initialPropsMerged.projectId;
+    }
     if (!initialPropsMerged.status) initialPropsMerged.status = 'inbox';
     const shouldApplyDetectedDate = Boolean(detectedDate?.date && !initialPropsMerged.dueDate && !dueDate);
     if (shouldApplyDetectedDate && detectedDate) {
@@ -271,6 +296,10 @@ export function QuickCaptureSheet({
     }
 
     if (!initialPropsMerged.projectId && projectTitle) {
+      const existingProject = projects.find((project) => project.title.toLowerCase() === projectTitle.toLowerCase());
+      if (existingProject && !isSelectableProjectForTaskAssignment(existingProject)) {
+        return { title: finalTitle, props: initialPropsMerged, invalidDateCommands };
+      }
       const created = await addProject(projectTitle, DEFAULT_PROJECT_COLOR);
       if (!created) return { title: finalTitle, props: initialPropsMerged, invalidDateCommands };
       initialPropsMerged.projectId = created.id;

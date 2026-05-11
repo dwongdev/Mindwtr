@@ -308,6 +308,7 @@ export {
     filterProjectsNeedingNextAction,
     getProjectsByArea,
     getProjectsByTag,
+    isSelectableProjectForTaskAssignment,
     isTaskInActiveProject,
     projectHasNextAction,
 } from './project-utils';

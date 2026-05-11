@@ -11,7 +11,18 @@ import {
   View,
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { createAIProvider, DEFAULT_PROJECT_COLOR, getUsedTaskTokens, parseQuickAdd, type Task, type TimeEstimate, type AIProviderId, useTaskStore } from '@mindwtr/core';
+import {
+  createAIProvider,
+  DEFAULT_PROJECT_COLOR,
+  getUsedTaskTokens,
+  isSelectableProjectForTaskAssignment,
+  parseQuickAdd,
+  type AIProviderId,
+  type Project,
+  type Task,
+  type TimeEstimate,
+  useTaskStore,
+} from '@mindwtr/core';
 import { useThemeColors } from '@/hooks/use-theme-colors';
 import { useToast } from '@/contexts/toast-context';
 import { useLanguage } from '../contexts/language-context';
@@ -72,7 +83,7 @@ const normalizeInitialTokenList = (value: unknown, prefix?: '@' | '#'): string[]
 
 const sanitizeInitialPropsParam = (
   value: string | string[] | undefined,
-  projects: Array<{ id: string; deletedAt?: string | null }>,
+  projects: Project[],
   areas: Array<{ id: string; deletedAt?: string | null }>,
 ): Partial<Task> => {
   const parsed = parseInitialPropsJson(value);
@@ -89,7 +100,7 @@ const sanitizeInitialPropsParam = (
   if (contexts) next.contexts = contexts;
 
   const projectId = typeof parsed.projectId === 'string' ? parsed.projectId.trim() : '';
-  if (projectId && projects.some((project) => project.id === projectId && !project.deletedAt)) {
+  if (projectId && projects.some((project) => project.id === projectId && isSelectableProjectForTaskAssignment(project))) {
     next.projectId = projectId;
   }
 
@@ -264,6 +275,12 @@ export default function CaptureScreen() {
   const handleSave = async () => {
     if (!value.trim()) return;
     const { title, props, projectTitle, invalidDateCommands, detectedDate } = parseQuickAdd(value, projects, new Date(), areas);
+    if (
+      props.projectId
+      && !projects.some((project) => project.id === props.projectId && isSelectableProjectForTaskAssignment(project))
+    ) {
+      delete props.projectId;
+    }
     if (invalidDateCommands && invalidDateCommands.length > 0) {
       showToast({
         title: t('common.notice'),
@@ -283,19 +300,30 @@ export default function CaptureScreen() {
     }
     const requestedProjectTitle = !taskProps.projectId ? (projectTitle || initialProjectTitle) : '';
     if (requestedProjectTitle) {
-      const matchedProject = projects.find((project) => (
-        !project.deletedAt
-        && (
+      const inactiveProject = projects.find((project) => (
+        (
           project.id === requestedProjectTitle
           || project.title.toLowerCase() === requestedProjectTitle.toLowerCase()
         )
+        && !isSelectableProjectForTaskAssignment(project)
       ));
-      if (matchedProject) {
-        taskProps.projectId = matchedProject.id;
+      if (inactiveProject) {
+        taskProps.projectId = undefined;
       } else {
-        const created = await addProject(requestedProjectTitle, DEFAULT_PROJECT_COLOR);
-        if (!created) return;
-        taskProps.projectId = created.id;
+        const matchedProject = projects.find((project) => (
+          isSelectableProjectForTaskAssignment(project)
+          && (
+            project.id === requestedProjectTitle
+            || project.title.toLowerCase() === requestedProjectTitle.toLowerCase()
+          )
+        ));
+        if (matchedProject) {
+          taskProps.projectId = matchedProject.id;
+        } else {
+          const created = await addProject(requestedProjectTitle, DEFAULT_PROJECT_COLOR);
+          if (!created) return;
+          taskProps.projectId = created.id;
+        }
       }
     }
     if (taskProps.projectId) {

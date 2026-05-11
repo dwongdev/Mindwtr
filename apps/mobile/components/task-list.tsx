@@ -18,6 +18,7 @@ import {
   getTranslationsSync,
   shallow,
   tFallback,
+  isSelectableProjectForTaskAssignment,
 } from '@mindwtr/core';
 
 import { TaskEditModal } from './task-edit-modal';
@@ -546,7 +547,9 @@ function TaskListComponent({
     if (!trigger) return [];
     const query = trigger.query.trim().toLowerCase();
     if (trigger.type === 'project') {
-      const matches = projects.filter((project) => project.title.toLowerCase().includes(query));
+      const matches = projects
+        .filter(isSelectableProjectForTaskAssignment)
+        .filter((project) => project.title.toLowerCase().includes(query));
       const hasExact = query.length > 0 && projects.some((project) => project.title.toLowerCase() === query);
       const result: Option[] = [];
       if (!hasExact && query.length > 0) {
@@ -690,9 +693,20 @@ function TaskListComponent({
     if (!finalTitle.trim()) return;
 
     const initialProps: Partial<Task> = { projectId, status: defaultStatus, ...props };
+    if (
+      initialProps.projectId
+      && !projects.some((project) => project.id === initialProps.projectId && isSelectableProjectForTaskAssignment(project))
+    ) {
+      delete initialProps.projectId;
+    }
     if (!props.status) initialProps.status = defaultStatus;
     if (!props.projectId && projectId) initialProps.projectId = projectId;
     if (!initialProps.projectId && projectTitle) {
+      const inactiveProject = projects.find((project) => (
+        project.title.toLowerCase() === projectTitle.toLowerCase()
+        && !isSelectableProjectForTaskAssignment(project)
+      ));
+      if (inactiveProject) return;
       const created = await addProject(projectTitle, DEFAULT_PROJECT_COLOR);
       if (!created) return;
       initialProps.projectId = created.id;

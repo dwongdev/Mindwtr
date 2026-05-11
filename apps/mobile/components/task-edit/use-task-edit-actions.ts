@@ -19,6 +19,7 @@ import {
     parseQuickAdd,
     DEFAULT_PROJECT_COLOR,
     getUsedTaskTokens,
+    isSelectableProjectForTaskAssignment,
 } from '@mindwtr/core';
 
 import type { AIResponseAction } from '../ai-response-modal';
@@ -192,18 +193,32 @@ export function useTaskEditActions({
             });
             return;
         }
+        if (
+            parsedProps.projectId
+            && !projects.some((project) => project.id === parsedProps.projectId && isSelectableProjectForTaskAssignment(project))
+        ) {
+            delete parsedProps.projectId;
+        }
 
         const existingProjectId = editedTask.projectId ?? task?.projectId;
         const hasProjectCommand = Boolean(parsedProps.projectId || projectTitle);
         let resolvedProjectId = parsedProps.projectId;
         if (!resolvedProjectId && projectTitle) {
             try {
-                const created = await addProject(
-                    projectTitle,
-                    DEFAULT_PROJECT_COLOR,
-                    projectFilterAreaId ? { areaId: projectFilterAreaId } : undefined,
-                );
-                resolvedProjectId = created?.id;
+                const inactiveProject = projects.find((project) => (
+                    project.title.toLowerCase() === projectTitle.toLowerCase()
+                    && !isSelectableProjectForTaskAssignment(project)
+                ));
+                if (inactiveProject) {
+                    resolvedProjectId = undefined;
+                } else {
+                    const created = await addProject(
+                        projectTitle,
+                        DEFAULT_PROJECT_COLOR,
+                        projectFilterAreaId ? { areaId: projectFilterAreaId } : undefined,
+                    );
+                    resolvedProjectId = created?.id;
+                }
             } catch (error) {
                 logTaskError('Failed to create project from quick add', error);
             }
