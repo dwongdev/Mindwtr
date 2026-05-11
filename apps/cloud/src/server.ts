@@ -309,15 +309,21 @@ const dataMetadataResponse = (filePath: string): Response => {
     return new Response(null, { status: 200, headers });
 };
 
-const jsonFileResponse = (body: string): Response => {
+const jsonFileResponse = (body: string | Uint8Array): Response => {
+    const contentLength = typeof body === 'string'
+        ? new TextEncoder().encode(body).byteLength
+        : body.byteLength;
+    const responseBody = typeof body === 'string'
+        ? body
+        : body.buffer.slice(body.byteOffset, body.byteOffset + body.byteLength) as ArrayBuffer;
     const headers = new Headers({
         'Access-Control-Allow-Origin': corsOrigin,
         'Access-Control-Allow-Headers': 'Authorization, Content-Type',
         'Access-Control-Allow-Methods': 'GET,HEAD,PUT,POST,PATCH,DELETE,OPTIONS',
-        'Content-Length': String(new TextEncoder().encode(body).byteLength),
+        'Content-Length': String(contentLength),
         'Content-Type': 'application/json; charset=utf-8',
     });
-    return new Response(body, { status: 200, headers });
+    return new Response(responseBody, { status: 200, headers });
 };
 
 const emptyCorsResponse = (status: number): Response => {
@@ -1578,11 +1584,12 @@ export async function startCloudServer(options: CloudServerOptions = {}): Promis
                                 if (!existsSync(filePath)) writeCloudData(filePath, emptyData);
                                 return jsonResponse(emptyData);
                             }
-                            let rawData: string;
+                            let rawData: Uint8Array;
                             let data: unknown;
                             try {
-                                rawData = readFileSync(filePath, 'utf8');
-                                data = JSON.parse(rawData);
+                                rawData = readFileSync(filePath);
+                                const rawText = new TextDecoder('utf-8', { fatal: true }).decode(rawData);
+                                data = JSON.parse(rawText);
                             } catch {
                                 return errorResponse('Failed to read data', 500);
                             }

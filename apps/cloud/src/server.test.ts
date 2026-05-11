@@ -934,7 +934,16 @@ describe('cloud server api', () => {
             },
             body: JSON.stringify({
                 tasks: [],
-                projects: [],
+                projects: [{
+                    id: 'project-multibyte',
+                    title: '多字节项目',
+                    status: 'active',
+                    color: '#2563EB',
+                    order: 0,
+                    tagIds: [],
+                    createdAt: '2026-01-01T00:00:00.000Z',
+                    updatedAt: '2026-01-01T00:00:00.000Z',
+                }],
                 sections: [],
                 areas: [],
                 settings: {},
