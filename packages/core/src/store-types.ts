@@ -145,6 +145,7 @@ export type DerivedState = {
     allTags: string[];
     sequentialProjectIds: Set<string>;
     focusedCount: number;
+    focusedProjectCount: number;
 };
 
 export type DerivedCache = {

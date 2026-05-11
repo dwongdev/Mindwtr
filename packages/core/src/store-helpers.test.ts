@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import {
     buildEntityMap,
+    computeProjectDerivedState,
+    computeTaskDerivedState,
     getNextProjectOrder,
     hasSameEntityIdentity,
     reconcileEntityCollection,
@@ -11,7 +13,7 @@ import {
     reserveNextProjectOrder,
     reuseArrayIfShallowEqual,
 } from './store-helpers';
-import type { Task } from './types';
+import type { Project, Task } from './types';
 
 const createTask = (
     id: string,
@@ -26,6 +28,20 @@ const createTask = (
     contexts: [],
     projectId,
     orderNum,
+    createdAt: '2026-01-01T00:00:00.000Z',
+    updatedAt: '2026-01-01T00:00:00.000Z',
+    rev: 1,
+    revBy: 'device-a',
+    ...overrides,
+});
+
+const createProject = (id: string, overrides: Partial<Project> = {}): Project => ({
+    id,
+    title: `Project ${id}`,
+    status: 'active',
+    color: '#2563EB',
+    order: 0,
+    tagIds: [],
     createdAt: '2026-01-01T00:00:00.000Z',
     updatedAt: '2026-01-01T00:00:00.000Z',
     rev: 1,
@@ -230,5 +246,36 @@ describe('getNextProjectOrder', () => {
 
         const refreshedTasks = tasks.map((task) => ({ ...task }));
         expect(reserveNextProjectOrder('project-1', refreshedTasks)).toBe(2);
+    });
+});
+
+describe('derived store state helpers', () => {
+    it('counts only active focused-today tasks toward the focus limit', () => {
+        const derived = computeTaskDerivedState([
+            createTask('active-focused', 'project-1', 0, { status: 'next', isFocusedToday: true }),
+            createTask('done-focused', 'project-1', 1, { status: 'done', isFocusedToday: true }),
+            createTask('reference-focused', 'project-1', 2, { status: 'reference', isFocusedToday: true }),
+            createTask('deleted-focused', 'project-1', 3, {
+                status: 'next',
+                isFocusedToday: true,
+                deletedAt: '2026-01-02T00:00:00.000Z',
+            }),
+        ]);
+
+        expect(derived.focusedCount).toBe(1);
+    });
+
+    it('derives focused project count while ignoring tombstones', () => {
+        const derived = computeProjectDerivedState([
+            createProject('focused-a', { isFocused: true }),
+            createProject('focused-b', { isFocused: true, status: 'archived' }),
+            createProject('deleted-focused', {
+                isFocused: true,
+                deletedAt: '2026-01-02T00:00:00.000Z',
+            }),
+            createProject('plain'),
+        ]);
+
+        expect(derived.focusedProjectCount).toBe(2);
     });
 });

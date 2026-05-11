@@ -14,6 +14,7 @@ import { actionFail, actionOk } from './shared';
 
 export const createProjectCoreActions = ({
     set,
+    get,
     debouncedSave,
 }: ProjectActionContext): ProjectCoreActions => ({
     addProject: async (title: string, color: string, initialProps?: Partial<Project>) => {
@@ -518,7 +519,7 @@ export const createProjectCoreActions = ({
             if (project.status !== 'active' && !project.isFocused) return state;
             const deviceState = ensureDeviceId(state.settings);
 
-            const focusedCount = allProjects.filter(p => p.isFocused && !p.deletedAt).length;
+            const focusedCount = get().getDerivedState().focusedProjectCount;
             const isCurrentlyFocused = project.isFocused;
 
             if (!isCurrentlyFocused && focusedCount >= 5) {

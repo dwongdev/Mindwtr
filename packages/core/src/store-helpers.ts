@@ -314,22 +314,28 @@ export const computeDerivedState = (tasks: Task[], projects: Project[]): Derived
 export const computeProjectDerivedState = (
     projects: Iterable<Project>,
     projectMap?: Map<string, Project>
-): Pick<DerivedState, 'projectMap' | 'sequentialProjectIds'> => {
+): Pick<DerivedState, 'projectMap' | 'sequentialProjectIds' | 'focusedProjectCount'> => {
     const resolvedProjectMap = projectMap ?? new Map<string, Project>();
     const sequentialProjectIds = new Set<string>();
+    let focusedProjectCount = 0;
 
     for (const project of projects) {
         if (!projectMap) {
             resolvedProjectMap.set(project.id, project);
         }
-        if (project.isSequential && !project.deletedAt) {
+        if (project.deletedAt) continue;
+        if (project.isSequential) {
             sequentialProjectIds.add(project.id);
+        }
+        if (project.isFocused) {
+            focusedProjectCount += 1;
         }
     }
 
     return {
         projectMap: resolvedProjectMap,
         sequentialProjectIds,
+        focusedProjectCount,
     };
 };
 

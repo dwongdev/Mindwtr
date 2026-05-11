@@ -854,6 +854,7 @@ export const createSettingsActions = ({
                 ? {
                     projectMap: previous.projectMap,
                     sequentialProjectIds: previous.sequentialProjectIds,
+                    focusedProjectCount: previous.focusedProjectCount,
                 }
                 : computeProjectDerivedState(state._allProjects, state._projectsById);
         const derived = {
