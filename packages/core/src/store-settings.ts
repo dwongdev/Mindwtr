@@ -592,12 +592,16 @@ export const createSettingsActions = ({
                 );
                 allTasks = cleanup.data.tasks;
                 allProjects = cleanup.data.projects;
+                allSections = cleanup.data.sections;
+                allAreas = cleanup.data.areas;
+                nextSettings = cleanup.data.settings;
                 if (
                     cleanup.removedTaskTombstones > 0
                     || cleanup.removedProjectTombstones > 0
                     || cleanup.removedSectionTombstones > 0
                     || cleanup.removedAreaTombstones > 0
                     || cleanup.removedAttachmentTombstones > 0
+                    || cleanup.removedSavedFilterTombstones > 0
                 ) {
                     didTombstoneCleanup = true;
                     logWarn('Purged expired tombstones during data fetch', {
@@ -609,6 +613,7 @@ export const createSettingsActions = ({
                             removedSectionTombstones: cleanup.removedSectionTombstones,
                             removedAreaTombstones: cleanup.removedAreaTombstones,
                             removedAttachmentTombstones: cleanup.removedAttachmentTombstones,
+                            removedSavedFilterTombstones: cleanup.removedSavedFilterTombstones,
                         },
                     });
                 }

@@ -16,6 +16,8 @@ import {
 import { isNonEmptyString, isObjectRecord, isValidTimestamp } from './sync-normalization';
 import { MAX_FOCUS_TASK_LIMIT, MIN_FOCUS_TASK_LIMIT, normalizeFocusTaskLimit } from './focus-utils';
 import { normalizeSavedFilters } from './saved-filters';
+import { chooseDeterministicWinner } from './sync-signatures';
+import { CLOCK_SKEW_THRESHOLD_MS } from './sync-types';
 
 const parseSyncTimestamp = (value?: string): number => {
     if (!value) return NaN;
@@ -31,14 +33,46 @@ const isIncomingNewer = (localAt?: string, incomingAt?: string): boolean => {
     return incomingTime > localTime;
 };
 
+const getSavedFilterOperationTime = (filter: SavedFilter): number => {
+    const updatedAt = parseSyncTimestamp(filter.updatedAt);
+    const deletedAt = parseSyncTimestamp(filter.deletedAt);
+    if (!Number.isFinite(deletedAt)) return updatedAt;
+    if (!Number.isFinite(updatedAt)) return deletedAt;
+    return Math.max(updatedAt, deletedAt);
+};
+
+const chooseDeletedSavedFilter = (localFilter: SavedFilter, incomingFilter: SavedFilter): SavedFilter => {
+    if (localFilter.deletedAt && !incomingFilter.deletedAt) return localFilter;
+    if (incomingFilter.deletedAt && !localFilter.deletedAt) return incomingFilter;
+    return chooseDeterministicWinner(localFilter, incomingFilter);
+};
+
 const chooseSavedFilter = (localFilter: SavedFilter, incomingFilter: SavedFilter, incomingWins: boolean): SavedFilter => {
+    const localDeleted = !!localFilter.deletedAt;
+    const incomingDeleted = !!incomingFilter.deletedAt;
+    if (localDeleted !== incomingDeleted) {
+        const localOperationTime = getSavedFilterOperationTime(localFilter);
+        const incomingOperationTime = getSavedFilterOperationTime(incomingFilter);
+        if (Number.isFinite(localOperationTime) && Number.isFinite(incomingOperationTime)) {
+            const operationDiff = incomingOperationTime - localOperationTime;
+            if (Math.abs(operationDiff) <= CLOCK_SKEW_THRESHOLD_MS) {
+                return chooseDeletedSavedFilter(localFilter, incomingFilter);
+            }
+            return operationDiff > 0 ? incomingFilter : localFilter;
+        }
+        return chooseDeletedSavedFilter(localFilter, incomingFilter);
+    }
+
     const localUpdatedAt = parseSyncTimestamp(localFilter.updatedAt);
     const incomingUpdatedAt = parseSyncTimestamp(incomingFilter.updatedAt);
     if (Number.isFinite(incomingUpdatedAt) && !Number.isFinite(localUpdatedAt)) return incomingFilter;
     if (!Number.isFinite(incomingUpdatedAt) && Number.isFinite(localUpdatedAt)) return localFilter;
     if (Number.isFinite(incomingUpdatedAt) && Number.isFinite(localUpdatedAt)) {
-        if (incomingUpdatedAt > localUpdatedAt) return incomingFilter;
-        if (localUpdatedAt > incomingUpdatedAt) return localFilter;
+        const updatedAtDiff = incomingUpdatedAt - localUpdatedAt;
+        if (Math.abs(updatedAtDiff) > CLOCK_SKEW_THRESHOLD_MS) {
+            return updatedAtDiff > 0 ? incomingFilter : localFilter;
+        }
+        return chooseDeterministicWinner(localFilter, incomingFilter);
     }
     return incomingWins ? incomingFilter : localFilter;
 };

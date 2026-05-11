@@ -142,4 +142,48 @@ describe('purgeExpiredTombstones', () => {
         expect(result.removedPendingRemoteDeletes).toBe(0);
         expect(result.data.settings.attachments?.pendingRemoteDeletes).toEqual(data.settings.attachments?.pendingRemoteDeletes);
     });
+
+    it('purges expired saved filter tombstones from settings', () => {
+        const data: AppData = {
+            tasks: [],
+            projects: [],
+            sections: [],
+            areas: [],
+            settings: {
+                savedFilters: [
+                    {
+                        id: 'filter-old',
+                        name: 'Old filter tombstone',
+                        view: 'focus',
+                        criteria: { tags: ['#old'] },
+                        createdAt: '2025-01-01T00:00:00.000Z',
+                        updatedAt: '2025-01-01T00:00:00.000Z',
+                        deletedAt: '2025-01-01T00:00:00.000Z',
+                    },
+                    {
+                        id: 'filter-recent',
+                        name: 'Recent filter tombstone',
+                        view: 'focus',
+                        criteria: { tags: ['#recent'] },
+                        createdAt: '2026-03-20T00:00:00.000Z',
+                        updatedAt: '2026-03-20T00:00:00.000Z',
+                        deletedAt: '2026-03-20T00:00:00.000Z',
+                    },
+                    {
+                        id: 'filter-active',
+                        name: 'Active filter',
+                        view: 'focus',
+                        criteria: { tags: ['#active'] },
+                        createdAt: '2026-03-20T00:00:00.000Z',
+                        updatedAt: '2026-03-20T00:00:00.000Z',
+                    },
+                ],
+            },
+        };
+
+        const result = purgeExpiredTombstones(data, nowIso);
+
+        expect(result.removedSavedFilterTombstones).toBe(1);
+        expect(result.data.settings.savedFilters?.map((filter) => filter.id)).toEqual(['filter-recent', 'filter-active']);
+    });
 });

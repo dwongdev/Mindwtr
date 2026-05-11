@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { mergeAppData } from './sync';
+import { CLOCK_SKEW_THRESHOLD_MS, mergeAppData } from './sync';
 import { createMockArea, mockAppData } from './sync-test-utils';
 import { AppData } from './types';
 
@@ -387,6 +387,52 @@ describe('Sync Logic', () => {
                     syncPreferences: { savedFilters: true },
                     syncPreferencesUpdatedAt: {
                         savedFilters: '2024-01-06T00:00:00.000Z',
+                    },
+                },
+            };
+
+            const merged = mergeAppData(local, incoming);
+
+            expect(merged.settings.savedFilters).toEqual([deletedFilter]);
+        });
+
+        it('keeps saved filter tombstones when a live copy is only slightly newer', () => {
+            const deletedAt = '2024-01-05T00:00:00.000Z';
+            const liveUpdatedAt = new Date(Date.parse(deletedAt) + CLOCK_SKEW_THRESHOLD_MS - 1).toISOString();
+            const deletedFilter = {
+                id: 'filter-shared',
+                name: 'Desk',
+                view: 'focus' as const,
+                criteria: { contexts: ['@desk'] },
+                createdAt: '2024-01-01T00:00:00.000Z',
+                updatedAt: deletedAt,
+                deletedAt,
+            };
+            const slightlyNewerActiveFilter = {
+                id: 'filter-shared',
+                name: 'Desk active',
+                view: 'focus' as const,
+                criteria: { contexts: ['@desk'], tags: ['#active'] },
+                createdAt: '2024-01-01T00:00:00.000Z',
+                updatedAt: liveUpdatedAt,
+            };
+            const local: AppData = {
+                ...mockAppData(),
+                settings: {
+                    savedFilters: [deletedFilter],
+                    syncPreferences: { savedFilters: true },
+                    syncPreferencesUpdatedAt: {
+                        savedFilters: deletedAt,
+                    },
+                },
+            };
+            const incoming: AppData = {
+                ...mockAppData(),
+                settings: {
+                    savedFilters: [slightlyNewerActiveFilter],
+                    syncPreferences: { savedFilters: true },
+                    syncPreferencesUpdatedAt: {
+                        savedFilters: liveUpdatedAt,
                     },
                 },
             };
