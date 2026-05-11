@@ -92,7 +92,6 @@ interface UiState {
     toggleTaskExpanded: (taskId: string) => void;
     boardFilters: {
         selectedProjectIds: string[];
-        open: boolean;
     };
     setBoardFilters: (partial: Partial<UiState['boardFilters']>) => void;
     projectView: {
@@ -185,7 +184,6 @@ export const useUiStore = createWithEqualityFn<UiState>()((set) => ({
         }),
     boardFilters: {
         selectedProjectIds: [],
-        open: false,
     },
     setBoardFilters: (partial) =>
         set((state) => ({ boardFilters: { ...state.boardFilters, ...partial } })),

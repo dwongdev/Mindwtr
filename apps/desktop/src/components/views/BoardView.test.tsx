@@ -40,7 +40,7 @@ describe('BoardView', () => {
             settings: {},
         });
         useUiStore.setState({
-            boardFilters: { selectedProjectIds: [], open: false },
+            boardFilters: { selectedProjectIds: [] },
         });
     });
 
