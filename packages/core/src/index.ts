@@ -242,6 +242,7 @@ export type {
 
 export {
     formatI18nTemplate,
+    getI18nKeyForEnglishText,
     tFallback,
     translateText,
     translateWithFallback,

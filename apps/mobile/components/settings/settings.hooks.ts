@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { translateText } from '@mindwtr/core';
+import { getI18nKeyForEnglishText, translateText } from '@mindwtr/core';
 
 import { useLanguage } from '@/contexts/language-context';
 
@@ -12,10 +12,15 @@ export function useSettingsLocalization() {
     const isChineseLanguage = language === 'zh' || language === 'zh-Hant';
     const localize = useMemo(
         () => (enText: string, zhText?: string) => {
+            const key = getI18nKeyForEnglishText(enText);
+            if (key) {
+                const translated = t(key);
+                if (translated && translated !== key) return translated;
+            }
             if (language === 'zh' && zhText) return zhText;
             return translateText(enText, language);
         },
-        [language],
+        [language, t],
     );
 
     return {

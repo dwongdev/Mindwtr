@@ -1,7 +1,21 @@
 export type { Language } from './i18n-types';
 export { translateText } from './i18n-translate';
+import { en } from './locales/en';
 
 export type TranslateFn = (key: string) => string;
+
+let englishTextToKey: Map<string, string> | null = null;
+
+export function getI18nKeyForEnglishText(text: string): string | undefined {
+    if (!englishTextToKey) {
+        englishTextToKey = new Map();
+        for (const [key, value] of Object.entries(en)) {
+            if (englishTextToKey.has(value)) continue;
+            englishTextToKey.set(value, key);
+        }
+    }
+    return englishTextToKey.get(text);
+}
 
 export function translateWithFallback(t: TranslateFn, key: string, fallback: string): string {
     const translated = t(key);
