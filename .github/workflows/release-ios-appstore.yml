@@ -838,6 +838,14 @@ jobs:
         if: ${{ inputs.upload && !inputs.skip_screenshots }}
         run: |
           set -euo pipefail
+          SHOULD_UPLOAD_SCREENSHOTS="$(scripts/ci/should-upload-fastlane-screenshots.sh apps/mobile/screenshots)"
+          if [ "${SHOULD_UPLOAD_SCREENSHOTS}" != "true" ]; then
+            echo "No iOS screenshot changes detected since the previous release tag; skipping App Store screenshot upload."
+            echo "FASTLANE_SCREENSHOTS_PATH=" >> "$GITHUB_ENV"
+            echo "SKIP_SCREENSHOTS_FOR_UPLOAD=true" >> "$GITHUB_ENV"
+            exit 0
+          fi
+
           export FASTLANE_SCREENSHOTS_DIR="$RUNNER_TEMP/fastlane_screenshots"
           bash scripts/ci/prepare-fastlane-screenshots.sh ios apps/mobile/screenshots
           if find "$FASTLANE_SCREENSHOTS_DIR" -mindepth 2 -type f | grep -q .; then
