@@ -30,6 +30,20 @@ export const getInitialCalendarSelectedDate = (
   needsCalendarSelectedDate(viewMode) ? new Date(today) : null
 );
 
+export const getCalendarTimelineDefaultScrollKey = ({
+  selectedDate,
+  viewMode,
+  weekStartTime,
+}: {
+  selectedDate: Date | null;
+  viewMode: CalendarViewMode;
+  weekStartTime: number;
+}): string => {
+  if (viewMode === 'day') return selectedDate ? 'day' : '';
+  if (viewMode === 'week') return `week:${weekStartTime}`;
+  return '';
+};
+
 const isSameCalendarDay = (date: Date, otherDate: Date): boolean => (
   date.getFullYear() === otherDate.getFullYear() &&
   date.getMonth() === otherDate.getMonth() &&

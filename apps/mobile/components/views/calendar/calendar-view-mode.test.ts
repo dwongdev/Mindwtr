@@ -4,6 +4,7 @@ import {
   coerceCalendarWeekVisibleDays,
   coerceCalendarViewMode,
   getCalendarNavigationSwipeDirection,
+  getCalendarTimelineDefaultScrollKey,
   getCalendarWeekColumnWidth,
   getCalendarWeekInitialScrollX,
   getCalendarWeekInitialVisibleDayIndex,
@@ -33,6 +34,37 @@ describe('calendar view mode helpers', () => {
     expect(getInitialCalendarSelectedDate('day', today)?.toISOString()).toBe('2026-05-01T12:00:00.000Z');
     expect(getInitialCalendarSelectedDate('week', today)?.toISOString()).toBe('2026-05-01T12:00:00.000Z');
     expect(getInitialCalendarSelectedDate('month', today)).toBeNull();
+  });
+
+  it('does not reset the day timeline default scroll when the selected date changes', () => {
+    expect(getCalendarTimelineDefaultScrollKey({
+      selectedDate: new Date(2026, 4, 1, 12),
+      viewMode: 'day',
+      weekStartTime: 0,
+    })).toBe('day');
+    expect(getCalendarTimelineDefaultScrollKey({
+      selectedDate: new Date(2026, 4, 2, 12),
+      viewMode: 'day',
+      weekStartTime: 0,
+    })).toBe('day');
+    expect(getCalendarTimelineDefaultScrollKey({
+      selectedDate: null,
+      viewMode: 'day',
+      weekStartTime: 0,
+    })).toBe('');
+  });
+
+  it('keeps week timeline default scroll keyed by the visible week', () => {
+    expect(getCalendarTimelineDefaultScrollKey({
+      selectedDate: new Date(2026, 4, 1, 12),
+      viewMode: 'week',
+      weekStartTime: 123,
+    })).toBe('week:123');
+    expect(getCalendarTimelineDefaultScrollKey({
+      selectedDate: null,
+      viewMode: 'month',
+      weekStartTime: 123,
+    })).toBe('');
   });
 
   it('chooses the selected day as the initial visible week column', () => {

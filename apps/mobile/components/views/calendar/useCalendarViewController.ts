@@ -37,6 +37,7 @@ import { logError } from '../../../lib/app-log';
 import {
   coerceCalendarWeekVisibleDays,
   coerceCalendarViewMode,
+  getCalendarTimelineDefaultScrollKey,
   getInitialCalendarSelectedDate,
   needsCalendarSelectedDate,
   type CalendarViewMode,
@@ -274,11 +275,11 @@ export function useCalendarViewController() {
   const weekLabel = useMemo(() => (
     `${weekDays[0].toLocaleDateString(locale, { month: 'short', day: 'numeric' })} - ${weekDays[6].toLocaleDateString(locale, { month: 'short', day: 'numeric' })}`
   ), [locale, weekDays]);
-  const defaultTimelineScrollKey = useMemo(() => {
-    if (viewMode === 'day' && selectedDate) return `day:${calendarDateKey(selectedDate)}`;
-    if (viewMode === 'week') return `week:${weekStartTime}`;
-    return '';
-  }, [selectedDate, viewMode, weekStartTime]);
+  const defaultTimelineScrollKey = useMemo(() => getCalendarTimelineDefaultScrollKey({
+    selectedDate,
+    viewMode,
+    weekStartTime,
+  }), [selectedDate, viewMode, weekStartTime]);
 
   const areaVisibleTasks = useMemo(() => (
     tasks.filter((task) => taskMatchesAreaFilter(task, resolvedAreaFilter, projectById, areaById))
@@ -695,7 +696,10 @@ export function useCalendarViewController() {
   }, [viewMode, selectedDate, pendingScrollMinutes]);
 
   useEffect(() => {
-    if (!defaultTimelineScrollKey) return;
+    if (!defaultTimelineScrollKey) {
+      lastDefaultTimelineScrollKeyRef.current = '';
+      return;
+    }
     if (lastDefaultTimelineScrollKeyRef.current === defaultTimelineScrollKey) return;
     lastDefaultTimelineScrollKeyRef.current = defaultTimelineScrollKey;
     if (pendingScrollMinutes != null) return;
