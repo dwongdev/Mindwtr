@@ -275,6 +275,29 @@ describe('TaskStore', () => {
         expect(useTaskStore.getState().getDerivedState().focusedCount).toBe(5);
     });
 
+    it('allows new focus promotion after focused tasks are completed or moved to reference', async () => {
+        const { addTask, updateTask } = useTaskStore.getState();
+
+        const taskIds: string[] = [];
+        for (const title of ['Focused 1', 'Focused 2', 'Focused 3', 'Next active']) {
+            const result = await addTask(title, { status: 'next' });
+            expect(result.success).toBe(true);
+            if (result.id) taskIds.push(result.id);
+        }
+
+        for (const taskId of taskIds.slice(0, 3)) {
+            await expect(updateTask(taskId, { isFocusedToday: true })).resolves.toEqual({ success: true });
+        }
+        await expect(updateTask(taskIds[0], { status: 'done' })).resolves.toEqual({ success: true });
+        await expect(updateTask(taskIds[1], { status: 'reference' })).resolves.toEqual({ success: true });
+
+        const result = await updateTask(taskIds[3], { isFocusedToday: true });
+
+        expect(result).toEqual({ success: true });
+        expect(useTaskStore.getState().getDerivedState().focusedCount).toBe(2);
+        expect(useTaskStore.getState()._tasksById.get(taskIds[3])?.isFocusedToday).toBe(true);
+    });
+
     it('stamps the GTD sync time when the focus limit changes', async () => {
         vi.setSystemTime(new Date('2026-03-21T12:00:00.000Z'));
 
