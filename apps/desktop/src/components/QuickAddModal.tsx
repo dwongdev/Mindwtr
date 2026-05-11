@@ -86,6 +86,7 @@ export function QuickAddModal({ standaloneWindow = false }: QuickAddModalProps) 
     const inputSampleRateRef = useRef<number>(16_000);
     const isOpenRef = useRef(false);
     const openRequestInFlightRef = useRef(false);
+    const standaloneDataRefreshRef = useRef<Promise<void> | null>(null);
     const sortedAreas = useMemo(() => [...areas].sort((a, b) => a.order - b.order), [areas]);
     const resolvedAreaFilter = useMemo(
         () => resolveAreaFilter(settings?.filters?.areaId, areas),
@@ -103,7 +104,14 @@ export function QuickAddModal({ standaloneWindow = false }: QuickAddModalProps) 
 
     const refreshStandaloneData = useCallback(async () => {
         if (!standaloneWindow) return;
-        await useTaskStore.getState().fetchData({ silent: true });
+        if (!standaloneDataRefreshRef.current) {
+            standaloneDataRefreshRef.current = useTaskStore.getState()
+                .fetchData({ silent: true })
+                .finally(() => {
+                    standaloneDataRefreshRef.current = null;
+                });
+        }
+        await standaloneDataRefreshRef.current;
     }, [standaloneWindow]);
 
     useEffect(() => {
@@ -117,12 +125,14 @@ export function QuickAddModal({ standaloneWindow = false }: QuickAddModalProps) 
         if (isOpenRef.current || openRequestInFlightRef.current) return false;
         openRequestInFlightRef.current = true;
         try {
-            await refreshStandaloneData().catch((error) => reportError('Failed to refresh quick add data', error));
             setInitialProps(detail?.initialProps ?? null);
             setValue(detail?.initialValue ?? '');
             setForcedCaptureMode(detail?.captureMode ?? null);
             isOpenRef.current = true;
             setIsOpen(true);
+            if (standaloneWindow) {
+                void refreshStandaloneData().catch((error) => reportError('Failed to refresh quick add data', error));
+            }
             return true;
         } catch (error) {
             openRequestInFlightRef.current = false;

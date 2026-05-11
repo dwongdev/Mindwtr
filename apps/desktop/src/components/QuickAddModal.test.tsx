@@ -1,17 +1,26 @@
-import { beforeEach, describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { act, render, screen } from '@testing-library/react';
 import { useTaskStore } from '@mindwtr/core';
+import type { ComponentProps } from 'react';
 
 import { LanguageProvider } from '../contexts/language-context';
 import { QuickAddModal } from './QuickAddModal';
 
 const initialTaskState = useTaskStore.getState();
 
-const renderQuickAddModal = () => render(
+const renderQuickAddModal = (props?: ComponentProps<typeof QuickAddModal>) => render(
     <LanguageProvider>
-        <QuickAddModal />
+        <QuickAddModal {...props} />
     </LanguageProvider>
 );
+
+const createDeferred = () => {
+    let resolve!: () => void;
+    const promise = new Promise<void>((done) => {
+        resolve = done;
+    });
+    return { promise, resolve };
+};
 
 beforeEach(() => {
     act(() => {
@@ -51,5 +60,34 @@ describe('QuickAddModal', () => {
 
         expect(screen.getAllByRole('dialog')).toHaveLength(1);
         expect(screen.getByPlaceholderText('Add Task')).toHaveValue('First capture');
+    });
+
+    it('opens the standalone quick add window before data refresh resolves', async () => {
+        const deferred = createDeferred();
+        const fetchData = vi.fn(() => deferred.promise) as unknown as typeof initialTaskState.fetchData;
+        act(() => {
+            useTaskStore.setState((state) => ({
+                ...state,
+                fetchData,
+            }));
+        });
+
+        renderQuickAddModal({ standaloneWindow: true });
+
+        await act(async () => {
+            window.dispatchEvent(new CustomEvent('mindwtr:quick-add', {
+                detail: { initialValue: 'Fast capture' },
+            }));
+            await Promise.resolve();
+        });
+
+        expect(fetchData).toHaveBeenCalledTimes(1);
+        expect(screen.getByRole('dialog')).toBeInTheDocument();
+        expect(screen.getByPlaceholderText('Add Task')).toHaveValue('Fast capture');
+
+        await act(async () => {
+            deferred.resolve();
+            await deferred.promise;
+        });
     });
 });
