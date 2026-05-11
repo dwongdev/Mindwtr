@@ -8,6 +8,7 @@ import {
   normalizeDateFormatSetting,
   resolveDateLocaleTag,
   findFreeSlotForDay as findCalendarFreeSlotForDay,
+  getI18nKeyForEnglishText,
   hasTimeComponent,
   isSlotFreeForDay as isCalendarSlotFreeForDay,
   minutesToTimeEstimate,
@@ -152,6 +153,11 @@ export function useCalendarViewController() {
   };
 
   const localize = (enText: string, zhText?: string) => {
+    const key = getI18nKeyForEnglishText(enText);
+    if (key) {
+      const translated = t(key);
+      if (translated && translated !== key) return translated;
+    }
     if (language === 'zh' && zhText) return zhText;
     return translateText(enText, language);
   };
