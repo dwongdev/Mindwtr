@@ -180,7 +180,7 @@ describe('webdav http helpers', () => {
         setLogger((payload) => logs.push(payload));
 
         try {
-            await webdavHeadFile('https://example.com/alice/data.json', { fetcher });
+            await webdavHeadFile('https://EXAMPLE.com/alice/data.json/', { fetcher });
             await webdavHeadFile('https://example.com/alice/data.json', { fetcher });
             await webdavHeadFile('https://example.com/bob/data.json', { fetcher });
         } finally {

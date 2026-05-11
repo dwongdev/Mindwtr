@@ -355,6 +355,7 @@ export const computeTaskDerivedState = (
         const list = activeTasksByStatus.get(task.status) ?? [];
         list.push(task);
         activeTasksByStatus.set(task.status, list);
+        // Done/reference tasks keep their historical focus flag but should not consume today's focus limit.
         if (task.isFocusedToday && task.status !== 'done' && task.status !== 'reference') {
             focusedCount += 1;
         }

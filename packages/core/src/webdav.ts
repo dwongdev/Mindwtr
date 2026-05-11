@@ -155,9 +155,12 @@ const getWebdavWeakFingerprintWarningKey = (url: string): string => {
         parsed.username = '';
         parsed.password = '';
         parsed.hash = '';
+        parsed.protocol = parsed.protocol.toLowerCase();
+        parsed.hostname = parsed.hostname.toLowerCase();
+        parsed.pathname = parsed.pathname.replace(/\/+$/, '') || '/';
         return `webdav:${parsed.origin}${parsed.pathname}${parsed.search}`;
     } catch {
-        return `webdav:${url}`;
+        return `webdav:${url.trim().replace(/\/+$/, '').toLowerCase()}`;
     }
 };
 
