@@ -88,7 +88,23 @@ export function formatCalendarTimeInputValue(date: Date): string {
 }
 
 export function parseCalendarTimeOnDate(date: Date, value: string): Date | null {
-    const match = /^(\d{1,2}):(\d{2})$/.exec(value.trim());
+    const trimmed = value.trim();
+    const twelveHourMatch = /^(\d{1,2})(?::(\d{2}))?\s*([ap])\.?m\.?$/i.exec(trimmed);
+    if (twelveHourMatch) {
+        const hour12 = Number(twelveHourMatch[1]);
+        const minutes = twelveHourMatch[2] === undefined ? 0 : Number(twelveHourMatch[2]);
+        if (!Number.isInteger(hour12) || !Number.isInteger(minutes)) return null;
+        if (hour12 < 1 || hour12 > 12 || minutes < 0 || minutes > 59) return null;
+        const period = twelveHourMatch[3].toLowerCase();
+        const hours = period === 'p'
+            ? (hour12 === 12 ? 12 : hour12 + 12)
+            : (hour12 === 12 ? 0 : hour12);
+        const next = new Date(date);
+        next.setHours(hours, minutes, 0, 0);
+        return next;
+    }
+
+    const match = /^(\d{1,2}):(\d{2})$/.exec(trimmed);
     if (!match) return null;
     const hours = Number(match[1]);
     const minutes = Number(match[2]);

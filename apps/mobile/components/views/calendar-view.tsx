@@ -265,6 +265,8 @@ export function CalendarView() {
   const ultraCompactWeekColumns = weekColumnWidth < 58;
   const weekDensityProgress = (calendarWeekVisibleDays - CALENDAR_WEEK_VISIBLE_DAYS_MIN)
     / (CALENDAR_WEEK_VISIBLE_DAYS_MAX - CALENDAR_WEEK_VISIBLE_DAYS_MIN);
+  const composerStartTimePlaceholder = safeFormatDate(new Date(2000, 0, 1, 9, 0), 'p', '09:00');
+  const composerEndTimePlaceholder = safeFormatDate(new Date(2000, 0, 1, 9, 30), 'p', '09:30');
 
   const closeMonthDetailsPane = () => {
     setSelectedDate(null);
@@ -623,7 +625,7 @@ export function CalendarView() {
                   style={[styles.input, styles.composerTimeInput, { backgroundColor: tc.inputBg, borderColor: tc.border, color: tc.text }]}
                   value={calendarComposer.startTimeValue}
                   onChangeText={setCalendarComposerStartTime}
-                  placeholder="09:00"
+                  placeholder={composerStartTimePlaceholder}
                   placeholderTextColor={tc.secondaryText}
                   keyboardType="numbers-and-punctuation"
                 />
@@ -634,7 +636,7 @@ export function CalendarView() {
                   style={[styles.input, styles.composerTimeInput, { backgroundColor: tc.inputBg, borderColor: tc.border, color: tc.text }]}
                   value={calendarComposer.endTimeValue}
                   onChangeText={setCalendarComposerEndTime}
-                  placeholder="09:30"
+                  placeholder={composerEndTimePlaceholder}
                   placeholderTextColor={tc.secondaryText}
                   keyboardType="numbers-and-punctuation"
                 />

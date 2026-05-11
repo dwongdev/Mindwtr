@@ -64,7 +64,12 @@ describe('calendar scheduling helpers', () => {
         expect(parsed?.getFullYear()).toBe(2026);
         expect(parsed?.getHours()).toBe(9);
         expect(parsed?.getMinutes()).toBe(30);
+        expect(parseCalendarTimeOnDate(base, '9:30 AM')?.getHours()).toBe(9);
+        expect(parseCalendarTimeOnDate(base, '9 PM')?.getHours()).toBe(21);
+        expect(parseCalendarTimeOnDate(base, '12:15 am')?.getHours()).toBe(0);
+        expect(parseCalendarTimeOnDate(base, '12:15 pm')?.getHours()).toBe(12);
         expect(parseCalendarTimeOnDate(base, '24:00')).toBeNull();
+        expect(parseCalendarTimeOnDate(base, '13:00 PM')).toBeNull();
     });
 
     it('formats duration labels', () => {
