@@ -38,6 +38,47 @@ const overrideLocales: Record<string, Record<string, string>> = {
     tr: trOverrides,
 };
 
+const reviewedFallbackRegressionKeys = [
+    'calendar.invalidTimeRange',
+    'calendar.enterTaskTitle',
+    'calendar.chooseTask',
+    'calendar.saveTaskFailed',
+    'calendar.noFreeTimeTitle',
+    'calendar.timeConflictTitle',
+    'calendar.cannotOpenEventTitle',
+    'calendar.openDeviceEventOnly',
+    'calendar.openUnsupported',
+    'calendar.openFromCalendarApp',
+    'share.unavailable',
+    'share.readFailed',
+    'shortcuts.captureUnavailable',
+    'shortcuts.missingTitle',
+    'settings.menuDesc.general',
+    'settings.menuDesc.gtd',
+    'settings.menuDesc.manage',
+    'settings.menuDesc.notifications',
+    'settings.menuDesc.sync',
+    'settings.menuDesc.data',
+    'settings.menuDesc.advanced',
+    'settings.menuDesc.about',
+    'settings.menuDesc.ai',
+    'settings.menuDesc.calendar',
+    'settings.notificationsDisabled',
+    'settings.notificationsDisabledMessage',
+    'settings.startDateNotifications',
+    'settings.startDateNotificationsDesc',
+    'settings.dueDateNotifications',
+    'settings.dueDateNotificationsDesc',
+    'common.rename',
+    'common.name',
+    'settings.deleteNamed',
+    'settings.unassignedAreaColor',
+    'settings.unassignedAreaColorDesc',
+    'contexts.empty',
+    'tags.title',
+    'areas.edit',
+] as const;
+
 describe('locale parity', () => {
     it('keeps every shipped locale in key parity with English or an explicit fallback allowlist', () => {
         const englishKeys = Object.keys(en);
@@ -54,6 +95,13 @@ describe('locale parity', () => {
             const staleFallbacks = Array.from(acceptedFallbacks)
                 .filter((key) => translations[key] || !englishKeys.includes(key));
             expect(staleFallbacks, `Stale accepted fallbacks in ${language}`).toEqual([]);
+        }
+    });
+
+    it('does not hide reviewed fallback keys behind verbatim English placeholders', () => {
+        for (const [language, translations] of Object.entries(overrideLocales)) {
+            const placeholders = reviewedFallbackRegressionKeys.filter((key) => translations[key] === en[key]);
+            expect(placeholders, `Verbatim English placeholders in ${language}`).toEqual([]);
         }
     });
 
