@@ -679,6 +679,108 @@ describe('cloud server utils', () => {
         }
     });
 
+    test('promotes parsed app data cache hits before eviction', () => {
+        const dir = mkdtempSync(join(tmpdir(), 'mindwtr-cloud-cache-lru-'));
+        const iso = '2026-01-01T00:00:00.000Z';
+
+        try {
+            __cloudTestUtils.clearDataCaches();
+            const maxEntries = __cloudTestUtils.getParsedDataCacheMaxEntries();
+            const filePaths: string[] = [];
+            for (let index = 0; index < maxEntries; index += 1) {
+                const filePath = join(dir, `data-${index}.json`);
+                filePaths.push(filePath);
+                __cloudTestUtils.writeCloudData(filePath, {
+                    tasks: [makeTestTask({
+                        id: `task-${index}`,
+                        title: `Task ${index}`,
+                        createdAt: iso,
+                        updatedAt: iso,
+                    })],
+                    projects: [],
+                    sections: [],
+                    areas: [],
+                    settings: {},
+                });
+            }
+
+            __cloudTestUtils.loadAppData(filePaths[0]!);
+            __cloudTestUtils.writeCloudData(join(dir, 'data-extra.json'), {
+                tasks: [makeTestTask({
+                    id: 'task-extra',
+                    title: 'Task extra',
+                    createdAt: iso,
+                    updatedAt: iso,
+                })],
+                projects: [],
+                sections: [],
+                areas: [],
+                settings: {},
+            });
+
+            expect(__cloudTestUtils.hasParsedDataCacheEntry(filePaths[0]!)).toBe(true);
+            expect(__cloudTestUtils.hasParsedDataCacheEntry(filePaths[1]!)).toBe(false);
+        } finally {
+            __cloudTestUtils.clearDataCaches();
+            rmSync(dir, { recursive: true, force: true });
+        }
+    });
+
+    test('bounds validated data and metadata cache entries with LRU promotion', () => {
+        const dir = mkdtempSync(join(tmpdir(), 'mindwtr-cloud-cache-bound-all-'));
+        const iso = '2026-01-01T00:00:00.000Z';
+
+        try {
+            __cloudTestUtils.clearDataCaches();
+            const maxEntries = __cloudTestUtils.getDataCacheMaxEntries();
+            const filePaths: string[] = [];
+            for (let index = 0; index < maxEntries; index += 1) {
+                const filePath = join(dir, `data-${index}.json`);
+                filePaths.push(filePath);
+                __cloudTestUtils.writeCloudData(filePath, {
+                    tasks: [makeTestTask({
+                        id: `task-${index}`,
+                        title: `Task ${index}`,
+                        createdAt: iso,
+                        updatedAt: iso,
+                    })],
+                    projects: [],
+                    sections: [],
+                    areas: [],
+                    settings: {},
+                });
+                __cloudTestUtils.dataMetadataResponse(filePath);
+            }
+
+            expect(__cloudTestUtils.isTrustedValidatedDataFile(filePaths[0]!)).toBe(true);
+            __cloudTestUtils.dataMetadataResponse(filePaths[0]!);
+            const extraPath = join(dir, 'data-extra.json');
+            __cloudTestUtils.writeCloudData(extraPath, {
+                tasks: [makeTestTask({
+                    id: 'task-extra',
+                    title: 'Task extra',
+                    createdAt: iso,
+                    updatedAt: iso,
+                })],
+                projects: [],
+                sections: [],
+                areas: [],
+                settings: {},
+            });
+            __cloudTestUtils.dataMetadataResponse(extraPath);
+
+            expect(__cloudTestUtils.getValidatedDataCacheSize()).toBe(maxEntries);
+            expect(__cloudTestUtils.getDataMetadataCacheSize()).toBe(maxEntries);
+            expect(__cloudTestUtils.hasValidatedDataCacheEntry(filePaths[0]!)).toBe(true);
+            expect(__cloudTestUtils.hasValidatedDataCacheEntry(filePaths[1]!)).toBe(false);
+            expect(__cloudTestUtils.hasDataMetadataCacheEntry(filePaths[0]!)).toBe(true);
+            expect(__cloudTestUtils.hasDataMetadataCacheEntry(filePaths[1]!)).toBe(false);
+        } finally {
+            __cloudTestUtils.clearDataCaches();
+            rmSync(dir, { recursive: true, force: true });
+        }
+    });
+
     test('uses server time for merge repair timestamps without spreading large payloads', () => {
         const startedAt = Date.now();
         const iso = '2026-01-01T00:00:00.000Z';

@@ -88,7 +88,8 @@ const TOKEN_NAMESPACE_FILE_PATTERN = /^([a-f0-9]{64})\.json$/;
 const TOKEN_NAMESPACE_DIR_PATTERN = /^[a-f0-9]{64}$/;
 // Relies on POSIX mtime; do not lower below 1 minute without auditing filesystem timestamp resolution and batching.
 const ORPHAN_ATTACHMENT_GC_GRACE_MS = 5 * 60 * 1000;
-const PARSED_DATA_CACHE_MAX_ENTRIES = 64;
+const DATA_CACHE_MAX_ENTRIES = 64;
+const PARSED_DATA_CACHE_MAX_ENTRIES = DATA_CACHE_MAX_ENTRIES;
 
 type DataMetadataCacheEntry = {
     ctimeMs: number;
@@ -139,9 +140,30 @@ const sameDataFileIdentity = (left: DataFileIdentity | undefined, right: DataFil
     && left.ino === right.ino
 );
 
-const isTrustedValidatedDataFile = (filePath: string): boolean => (
-    sameDataFileIdentity(validatedDataCache.get(filePath), getDataFileIdentity(filePath))
-);
+const trimDataCache = <T>(cache: Map<string, T>, maxEntries: number = DATA_CACHE_MAX_ENTRIES): void => {
+    while (cache.size > maxEntries) {
+        const oldestKey = cache.keys().next().value as string | undefined;
+        if (!oldestKey) return;
+        cache.delete(oldestKey);
+    }
+};
+
+const promoteCacheEntry = <T>(cache: Map<string, T>, key: string, entry: T): void => {
+    cache.delete(key);
+    cache.set(key, entry);
+};
+
+const isTrustedValidatedDataFile = (filePath: string): boolean => {
+    const cached = validatedDataCache.get(filePath);
+    if (cached && sameDataFileIdentity(cached, getDataFileIdentity(filePath))) {
+        promoteCacheEntry(validatedDataCache, filePath, cached);
+        return true;
+    }
+    if (cached) {
+        validatedDataCache.delete(filePath);
+    }
+    return false;
+};
 
 const cloneAppData = (data: AppData): AppData => structuredClone(data) as AppData;
 
@@ -157,14 +179,6 @@ const tryCloneAppData = (data: AppData, context: string): AppData | null => {
     }
 };
 
-const trimParsedDataCache = (): void => {
-    while (parsedDataCache.size > PARSED_DATA_CACHE_MAX_ENTRIES) {
-        const oldestKey = parsedDataCache.keys().next().value as string | undefined;
-        if (!oldestKey) return;
-        parsedDataCache.delete(oldestKey);
-    }
-};
-
 const rememberParsedDataFile = (filePath: string, data: AppData): void => {
     const identity = getDataFileIdentity(filePath);
     if (identity) {
@@ -173,9 +187,8 @@ const rememberParsedDataFile = (filePath: string, data: AppData): void => {
             parsedDataCache.delete(filePath);
             return;
         }
-        parsedDataCache.delete(filePath);
-        parsedDataCache.set(filePath, { ...identity, data: cachedData });
-        trimParsedDataCache();
+        promoteCacheEntry(parsedDataCache, filePath, { ...identity, data: cachedData });
+        trimDataCache(parsedDataCache);
     } else {
         parsedDataCache.delete(filePath);
     }
@@ -187,8 +200,7 @@ const loadAppData = (filePath: string): AppData => {
     if (cached && sameDataFileIdentity(cached, identity)) {
         const data = tryCloneAppData(cached.data, 'loadAppData.cacheHit');
         if (data) {
-            parsedDataCache.delete(filePath);
-            parsedDataCache.set(filePath, cached);
+            promoteCacheEntry(parsedDataCache, filePath, cached);
             return data;
         }
         parsedDataCache.delete(filePath);
@@ -202,7 +214,8 @@ const loadAppData = (filePath: string): AppData => {
 const rememberValidatedDataFile = (filePath: string): void => {
     const identity = getDataFileIdentity(filePath);
     if (identity) {
-        validatedDataCache.set(filePath, identity);
+        promoteCacheEntry(validatedDataCache, filePath, identity);
+        trimDataCache(validatedDataCache);
     } else {
         validatedDataCache.delete(filePath);
     }
@@ -258,7 +271,11 @@ const getDataMetadata = (filePath: string, stat: Stats): DataMetadataCacheEntry 
         && cached.ctimeMs === stat.ctimeMs
         && cached.ino === stat.ino
     ) {
+        promoteCacheEntry(dataMetadataCache, filePath, cached);
         return cached;
+    }
+    if (cached) {
+        dataMetadataCache.delete(filePath);
     }
 
     const entry: DataMetadataCacheEntry = {
@@ -269,7 +286,8 @@ const getDataMetadata = (filePath: string, stat: Stats): DataMetadataCacheEntry 
         mtimeMs: stat.mtimeMs,
         size: stat.size,
     };
-    dataMetadataCache.set(filePath, entry);
+    promoteCacheEntry(dataMetadataCache, filePath, entry);
+    trimDataCache(dataMetadataCache);
     return entry;
 };
 
@@ -569,9 +587,15 @@ export const __cloudTestUtils = {
         parsedDataCache.clear();
         validatedDataCache.clear();
     },
+    getDataCacheMaxEntries: () => DATA_CACHE_MAX_ENTRIES,
     getDataMetadataCacheSize: () => dataMetadataCache.size,
+    hasDataMetadataCacheEntry: (filePath: string) => dataMetadataCache.has(filePath),
     getParsedDataCacheMaxEntries: () => PARSED_DATA_CACHE_MAX_ENTRIES,
     getParsedDataCacheSize: () => parsedDataCache.size,
+    hasParsedDataCacheEntry: (filePath: string) => parsedDataCache.has(filePath),
+    isTrustedValidatedDataFile,
+    rememberValidatedDataFile,
+    hasValidatedDataCacheEntry: (filePath: string) => validatedDataCache.has(filePath),
     getValidatedDataCacheSize: () => validatedDataCache.size,
 };
 
