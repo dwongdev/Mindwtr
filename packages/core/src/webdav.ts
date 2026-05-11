@@ -95,6 +95,7 @@ const warnedWeakFingerprintSources = new Set<string>();
 type HttpRemoteFileFingerprintOptions = {
     allowWeakFingerprint?: boolean;
     warnOnWeakFingerprint?: boolean;
+    warnOnceKey?: string;
 };
 
 const assertWebdavUrl = (url: string, options: WebDavOptions): void => {
@@ -120,12 +121,13 @@ export const buildHttpRemoteFileFingerprint = (
             return null;
         }
         const shouldWarn = options.warnOnWeakFingerprint ?? source === 'webdav';
-        if (shouldWarn && !warnedWeakFingerprintSources.has(source)) {
-            warnedWeakFingerprintSources.add(source);
+        const warnOnceKey = options.warnOnceKey ?? source;
+        if (shouldWarn && !warnedWeakFingerprintSources.has(warnOnceKey)) {
+            warnedWeakFingerprintSources.add(warnOnceKey);
             logWarn('WebDAV server did not provide ETag; using Last-Modified and Content-Length for fast sync fingerprint', {
                 scope: 'sync',
                 category: 'network',
-                context: { source },
+                context: { source, warnOnceKey },
             });
         }
         return `${source}:v1:mtime=${lastModified}:len=${contentLength}`;
@@ -144,6 +146,22 @@ const metadataFromHeaders = (source: string, headers: Headers, options: HttpRemo
         lastModified,
         contentLength,
     };
+};
+
+const getWebdavWeakFingerprintWarningKey = (url: string): string => {
+    try {
+        const parsed = new URL(url);
+        parsed.username = '';
+        parsed.password = '';
+        parsed.hash = '';
+        return `webdav:${parsed.origin}${parsed.pathname}${parsed.search}`;
+    } catch {
+        return `webdav:${url}`;
+    }
+};
+
+export const __webdavTestUtils = {
+    resetWeakFingerprintWarnings: () => warnedWeakFingerprintSources.clear(),
 };
 
 const getWebdavParentCollectionUrl = (url: string): string | null => {
@@ -478,6 +496,7 @@ export async function webdavHeadFile(
     }
     return metadataFromHeaders('webdav', res.headers, {
         allowWeakFingerprint: options.allowWeakFingerprint,
+        warnOnceKey: getWebdavWeakFingerprintWarningKey(url),
         warnOnWeakFingerprint: true,
     });
 }
