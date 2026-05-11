@@ -2,7 +2,7 @@ Mindwtr (pronounced "mind water") is a privacy-focused, local-first task manager
 
 Unlike most productivity apps that store your life on a remote server, Mindwtr keeps your data 100% on your device. You own your data, not us. There are no logins, no tracking, and no monthly subscriptions—just a clean, powerful tool to help you reach mind like water.
 
-🚀 KEY FEATURES:
+KEY FEATURES:
 
 • Zero Friction Capture: Instantly get thoughts out of your head and into your Inbox.
 • GTD Workflow: Built-in workflow to Clarify, Organize, and Reflect on your tasks.
@@ -11,7 +11,7 @@ Unlike most productivity apps that store your life on a remote server, Mindwtr k
 • Weekly Review Wizard: A guided process to review your week and plan ahead, ensuring nothing slips through the cracks.
 • Offline First: Works perfectly without an internet connection. Your data never leaves your phone unless you choose to sync it yourself.
 
-🔒 PRIVACY BY DESIGN:
+PRIVACY BY DESIGN:
 
 • No Accounts Required: Start using the app immediately.
 • No Cloud Server: We do not see, store, or sell your data.

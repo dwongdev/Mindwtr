@@ -56,6 +56,11 @@ jobs:
             metadata \
             /tmp/mindwtr-play-listing-metadata.json
 
+      - name: App Store listing metadata check
+        run: |
+          python3 scripts/ci/validate-fastlane-metadata.test.py
+          FASTLANE_METADATA_DIR=/tmp/mindwtr-fastlane-metadata scripts/ci/prepare-fastlane-metadata.sh
+
       - name: Run unit tests
         run: bun run --filter @mindwtr/core test -- --coverage --coverage.thresholds.lines=70 --coverage.thresholds.statements=70 --coverage.thresholds.functions=50 --coverage.thresholds.branches=50
 
