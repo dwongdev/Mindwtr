@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { CLOCK_SKEW_THRESHOLD_MS, mergeAppData } from './sync';
+import { DELETE_VS_LIVE_AMBIGUOUS_WINDOW_MS, mergeAppData } from './sync';
 import { createMockArea, mockAppData } from './sync-test-utils';
 import { AppData } from './types';
 
@@ -398,7 +398,7 @@ describe('Sync Logic', () => {
 
         it('keeps saved filter tombstones when a live copy is only slightly newer', () => {
             const deletedAt = '2024-01-05T00:00:00.000Z';
-            const liveUpdatedAt = new Date(Date.parse(deletedAt) + CLOCK_SKEW_THRESHOLD_MS - 1).toISOString();
+            const liveUpdatedAt = new Date(Date.parse(deletedAt) + DELETE_VS_LIVE_AMBIGUOUS_WINDOW_MS - 1).toISOString();
             const deletedFilter = {
                 id: 'filter-shared',
                 name: 'Desk',
@@ -440,6 +440,98 @@ describe('Sync Logic', () => {
             const merged = mergeAppData(local, incoming);
 
             expect(merged.settings.savedFilters).toEqual([deletedFilter]);
+        });
+
+        it('lets a live saved filter edit win outside the delete ambiguity window', () => {
+            const deletedAt = '2024-01-05T00:00:00.000Z';
+            const liveUpdatedAt = new Date(Date.parse(deletedAt) + DELETE_VS_LIVE_AMBIGUOUS_WINDOW_MS + 1).toISOString();
+            const deletedFilter = {
+                id: 'filter-shared',
+                name: 'Desk',
+                view: 'focus' as const,
+                criteria: { contexts: ['@desk'] },
+                createdAt: '2024-01-01T00:00:00.000Z',
+                updatedAt: deletedAt,
+                deletedAt,
+            };
+            const newerActiveFilter = {
+                id: 'filter-shared',
+                name: 'Desk active',
+                view: 'focus' as const,
+                criteria: { contexts: ['@desk'], tags: ['#active'] },
+                createdAt: '2024-01-01T00:00:00.000Z',
+                updatedAt: liveUpdatedAt,
+            };
+            const local: AppData = {
+                ...mockAppData(),
+                settings: {
+                    savedFilters: [deletedFilter],
+                    syncPreferences: { savedFilters: true },
+                    syncPreferencesUpdatedAt: {
+                        savedFilters: deletedAt,
+                    },
+                },
+            };
+            const incoming: AppData = {
+                ...mockAppData(),
+                settings: {
+                    savedFilters: [newerActiveFilter],
+                    syncPreferences: { savedFilters: true },
+                    syncPreferencesUpdatedAt: {
+                        savedFilters: liveUpdatedAt,
+                    },
+                },
+            };
+
+            const merged = mergeAppData(local, incoming);
+
+            expect(merged.settings.savedFilters).toEqual([newerActiveFilter]);
+        });
+
+        it('chooses the same saved filter winner when update timestamps tie', () => {
+            const updatedAt = '2024-01-05T00:00:00.000Z';
+            const localFilter = {
+                id: 'filter-shared',
+                name: 'Desk',
+                view: 'focus' as const,
+                criteria: { contexts: ['@desk'] },
+                createdAt: '2024-01-01T00:00:00.000Z',
+                updatedAt,
+            };
+            const incomingFilter = {
+                id: 'filter-shared',
+                name: 'Desk active',
+                view: 'focus' as const,
+                criteria: { contexts: ['@desk'], tags: ['#active'] },
+                createdAt: '2024-01-01T00:00:00.000Z',
+                updatedAt,
+            };
+            const local: AppData = {
+                ...mockAppData(),
+                settings: {
+                    savedFilters: [localFilter],
+                    syncPreferences: { savedFilters: true },
+                    syncPreferencesUpdatedAt: {
+                        savedFilters: updatedAt,
+                    },
+                },
+            };
+            const incoming: AppData = {
+                ...mockAppData(),
+                settings: {
+                    savedFilters: [incomingFilter],
+                    syncPreferences: { savedFilters: true },
+                    syncPreferencesUpdatedAt: {
+                        savedFilters: updatedAt,
+                    },
+                },
+            };
+
+            const forward = mergeAppData(local, incoming);
+            const reverse = mergeAppData(incoming, local);
+
+            expect(forward.settings.savedFilters).toEqual(reverse.settings.savedFilters);
+            expect(forward.settings.savedFilters).toEqual([expect.objectContaining({ id: 'filter-shared' })]);
         });
 
         it('keeps local saved filters when the local device opted out', () => {

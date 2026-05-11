@@ -10,6 +10,7 @@ import {
     type SyncCycleResult,
     type SyncHistoryEntry,
     CLOCK_SKEW_THRESHOLD_MS,
+    DELETE_VS_LIVE_AMBIGUOUS_WINDOW_MS,
     SYNC_REPAIR_REV_BY,
 } from './sync-types';
 import {
@@ -55,7 +56,7 @@ export type {
     SyncHistoryEntry,
     SyncStep,
 } from './sync-types';
-export { CLOCK_SKEW_THRESHOLD_MS, SYNC_REPAIR_REV_BY } from './sync-types';
+export { CLOCK_SKEW_THRESHOLD_MS, DELETE_VS_LIVE_AMBIGUOUS_WINDOW_MS, SYNC_REPAIR_REV_BY } from './sync-types';
 export { normalizeAppData } from './sync-normalization';
 export { purgeExpiredTombstones } from './sync-tombstones';
 
@@ -113,7 +114,6 @@ function createEmptyEntityStats(localTotal: number, incomingTotal: number): Enti
 
 const CONFLICT_SAMPLE_LIMIT = 5;
 const CONFLICT_DIFF_KEY_LIMIT = 8;
-const DELETE_VS_LIVE_AMBIGUOUS_WINDOW_MS = 30 * 1000;
 const PENDING_REMOTE_WRITE_RETRY_BASE_MS = 5 * 1000;
 const PENDING_REMOTE_WRITE_RETRY_MAX_MS = 5 * 60 * 1000;
 const PENDING_REMOTE_WRITE_MAX_ATTEMPTS = 12;

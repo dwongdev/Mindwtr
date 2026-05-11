@@ -77,6 +77,10 @@ export type SyncHistoryEntry = {
 // Log clock skew warnings if conflicted merges show >5 minutes drift.
 export const CLOCK_SKEW_THRESHOLD_MS = 5 * 60 * 1000;
 
+// Delete-vs-live conflicts are treated as ambiguous only within a short window;
+// outside it, the later user operation wins.
+export const DELETE_VS_LIVE_AMBIGUOUS_WINDOW_MS = 30 * 1000;
+
 // Reserved revBy marker for deterministic reference repairs. Multiple devices may
 // independently stamp this value; equal-repair ties intentionally fall through to
 // content-signature convergence.

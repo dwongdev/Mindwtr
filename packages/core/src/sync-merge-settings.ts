@@ -17,7 +17,7 @@ import { isNonEmptyString, isObjectRecord, isValidTimestamp } from './sync-norma
 import { MAX_FOCUS_TASK_LIMIT, MIN_FOCUS_TASK_LIMIT, normalizeFocusTaskLimit } from './focus-utils';
 import { normalizeSavedFilters } from './saved-filters';
 import { chooseDeterministicWinner } from './sync-signatures';
-import { CLOCK_SKEW_THRESHOLD_MS } from './sync-types';
+import { CLOCK_SKEW_THRESHOLD_MS, DELETE_VS_LIVE_AMBIGUOUS_WINDOW_MS } from './sync-types';
 
 const parseSyncTimestamp = (value?: string): number => {
     if (!value) return NaN;
@@ -55,7 +55,7 @@ const chooseSavedFilter = (localFilter: SavedFilter, incomingFilter: SavedFilter
         const incomingOperationTime = getSavedFilterOperationTime(incomingFilter);
         if (Number.isFinite(localOperationTime) && Number.isFinite(incomingOperationTime)) {
             const operationDiff = incomingOperationTime - localOperationTime;
-            if (Math.abs(operationDiff) <= CLOCK_SKEW_THRESHOLD_MS) {
+            if (Math.abs(operationDiff) <= DELETE_VS_LIVE_AMBIGUOUS_WINDOW_MS) {
                 return chooseDeletedSavedFilter(localFilter, incomingFilter);
             }
             return operationDiff > 0 ? incomingFilter : localFilter;
