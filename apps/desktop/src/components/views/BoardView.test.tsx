@@ -32,6 +32,7 @@ const renderWithProviders = () => {
 
 describe('BoardView', () => {
     beforeEach(() => {
+        window.localStorage.clear();
         useTaskStore.setState({
             tasks: [],
             projects: [],

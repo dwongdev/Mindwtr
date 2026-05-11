@@ -200,9 +200,10 @@ export function AgendaView() {
     const getDerivedState = useTaskStore((state) => state.getDerivedState);
     const { projectMap, sequentialProjectIds } = getDerivedState();
     const { t } = useLanguage();
-    const { showListDetails, nextGroupBy, setListOptions, collapseAllTaskDetails } = useUiStore((state) => ({
+    const { showListDetails, nextGroupBy, top3Only, setListOptions, collapseAllTaskDetails } = useUiStore((state) => ({
         showListDetails: state.listOptions.showDetails,
         nextGroupBy: state.listOptions.nextGroupBy,
+        top3Only: state.listOptions.focusTop3Only,
         setListOptions: state.setListOptions,
         collapseAllTaskDetails: state.collapseAllTaskDetails,
     }));
@@ -216,7 +217,6 @@ export function AgendaView() {
     const [activeSavedFilterId, setActiveSavedFilterId] = useState<string | null>(null);
     const [saveFilterPromptOpen, setSaveFilterPromptOpen] = useState(false);
     const [filterPendingDelete, setFilterPendingDelete] = useState<SavedFilter | null>(null);
-    const [top3Only, setTop3Only] = useState(false);
     const showFutureStarts = settings?.appearance?.showFutureStarts === true;
     const [expandedSections, setExpandedSections] = useState({
         schedule: true,
@@ -792,7 +792,7 @@ export function AgendaView() {
                 nextGroupBy={nextGroupBy}
                 onChangeGroupBy={(value) => setListOptions({ nextGroupBy: value })}
                 onToggleDetails={handleToggleDetails}
-                onToggleTop3={() => setTop3Only((prev) => !prev)}
+                onToggleTop3={() => setListOptions({ focusTop3Only: !top3Only })}
                 resolveText={resolveText}
                 showListDetails={showListDetails}
                 t={t}
@@ -935,7 +935,7 @@ export function AgendaView() {
                     {remainingCount > 0 && (
                         <button
                             type="button"
-                            onClick={() => setTop3Only(false)}
+                            onClick={() => setListOptions({ focusTop3Only: false })}
                             className="text-xs px-3 py-2 rounded bg-muted/50 text-muted-foreground hover:bg-muted transition-colors"
                         >
                             {t('agenda.showMore').replace('{{count}}', `${remainingCount}`)}

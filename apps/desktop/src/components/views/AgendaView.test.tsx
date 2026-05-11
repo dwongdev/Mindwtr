@@ -43,6 +43,7 @@ describe('AgendaView', () => {
             listOptions: {
                 showDetails: false,
                 nextGroupBy: 'none',
+                focusTop3Only: false,
             },
             expandedTaskIds: {},
         });

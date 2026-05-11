@@ -39,11 +39,44 @@ import {
     saveProjectsSidebarWidth,
 } from './projects/projects-sidebar-width';
 import { useConfirmDialog } from '../../hooks/useConfirmDialog';
+import { usePersistedViewState } from '../../hooks/usePersistedViewState';
 
 const COLLAPSED_AREAS_STORAGE_KEY = 'mindwtr:projects:collapsedAreas';
+const PROJECTS_VIEW_STATE_STORAGE_KEY = 'mindwtr:view:projects:v1';
 const PROJECTS_VIEW_DEFAULT_MAX_WIDTH = 1344;
 const PROJECTS_VIEW_2XL_MAX_WIDTH = 1408;
 const PROJECTS_VIEW_2XL_BREAKPOINT = 1536;
+const ALL_TAGS = '__all__';
+const NO_TAGS = '__none__';
+
+type ProjectsPersistedViewState = {
+    showDeferredProjects: boolean;
+    showArchivedProjects: boolean;
+    selectedTag: string;
+};
+
+const DEFAULT_PROJECTS_VIEW_STATE: ProjectsPersistedViewState = {
+    showDeferredProjects: false,
+    showArchivedProjects: false,
+    selectedTag: ALL_TAGS,
+};
+
+function sanitizeProjectsViewState(value: unknown, fallback: ProjectsPersistedViewState): ProjectsPersistedViewState {
+    const parsed = value && typeof value === 'object' && !Array.isArray(value)
+        ? value as Partial<ProjectsPersistedViewState>
+        : {};
+    return {
+        showDeferredProjects: typeof parsed.showDeferredProjects === 'boolean'
+            ? parsed.showDeferredProjects
+            : fallback.showDeferredProjects,
+        showArchivedProjects: typeof parsed.showArchivedProjects === 'boolean'
+            ? parsed.showArchivedProjects
+            : fallback.showArchivedProjects,
+        selectedTag: typeof parsed.selectedTag === 'string' && parsed.selectedTag.trim()
+            ? parsed.selectedTag
+            : fallback.selectedTag,
+    };
+}
 
 function loadCollapsedAreas(): Record<string, boolean> {
     if (typeof window === 'undefined') return {};
@@ -112,8 +145,14 @@ export function ProjectsView() {
     );
     const [isCreating, setIsCreating] = useState(false);
     const [newProjectTitle, setNewProjectTitle] = useState('');
-    const [showDeferredProjects, setShowDeferredProjects] = useState(false);
-    const [showArchivedProjects, setShowArchivedProjects] = useState(false);
+    const [persistedViewState, setPersistedViewState] = usePersistedViewState(
+        PROJECTS_VIEW_STATE_STORAGE_KEY,
+        DEFAULT_PROJECTS_VIEW_STATE,
+        sanitizeProjectsViewState
+    );
+    const showDeferredProjects = persistedViewState.showDeferredProjects;
+    const showArchivedProjects = persistedViewState.showArchivedProjects;
+    const selectedTag = persistedViewState.selectedTag;
     const [collapsedAreas, setCollapsedAreas] = useState<Record<string, boolean>>(loadCollapsedAreas);
     useEffect(() => { saveCollapsedAreas(collapsedAreas); }, [collapsedAreas]);
     const projectsLayoutRef = useRef<HTMLDivElement | null>(null);
@@ -131,9 +170,24 @@ export function ProjectsView() {
     const [isAreaCreating, setIsAreaCreating] = useState(false);
     const ALL_AREAS = AREA_FILTER_ALL;
     const NO_AREA = AREA_FILTER_NONE;
-    const ALL_TAGS = '__all__';
-    const NO_TAGS = '__none__';
-    const [selectedTag, setSelectedTag] = useState(ALL_TAGS);
+    const setShowDeferredProjects = useCallback((value: boolean | ((current: boolean) => boolean)) => {
+        setPersistedViewState((current) => ({
+            ...current,
+            showDeferredProjects: typeof value === 'function' ? value(current.showDeferredProjects) : value,
+        }));
+    }, [setPersistedViewState]);
+    const setShowArchivedProjects = useCallback((value: boolean | ((current: boolean) => boolean)) => {
+        setPersistedViewState((current) => ({
+            ...current,
+            showArchivedProjects: typeof value === 'function' ? value(current.showArchivedProjects) : value,
+        }));
+    }, [setPersistedViewState]);
+    const setSelectedTag = useCallback((value: string) => {
+        setPersistedViewState((current) => ({
+            ...current,
+            selectedTag: value,
+        }));
+    }, [setPersistedViewState]);
 
     const getProjectsBaseMaxWidth = useCallback(() => {
         if (typeof window === 'undefined') return PROJECTS_VIEW_DEFAULT_MAX_WIDTH;
@@ -367,6 +421,11 @@ export function ProjectsView() {
             hasNoTags,
         };
     }, [projects]);
+
+    useEffect(() => {
+        if (selectedTag === ALL_TAGS || selectedTag === NO_TAGS || tagOptions.list.includes(selectedTag)) return;
+        setSelectedTag(ALL_TAGS);
+    }, [selectedTag, tagOptions.list, setSelectedTag]);
 
     const { groupedActiveProjects, groupedDeferredProjects, groupedArchivedProjects } = useMemo(() => {
         const visibleProjects = projects.filter(p => !p.deletedAt);

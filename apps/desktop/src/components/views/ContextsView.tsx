@@ -29,11 +29,41 @@ import {
     useVirtualList,
 } from './list/useVirtualList';
 import { StoreTaskItem } from './list/StoreTaskItem';
+import { usePersistedViewState } from '../../hooks/usePersistedViewState';
 
 type BulkTokenPickerState = {
     field: 'tags' | 'contexts';
     action: 'add' | 'remove';
 } | null;
+
+const CONTEXTS_VIEW_STATE_STORAGE_KEY = 'mindwtr:view:contexts:v1';
+const NO_CONTEXT_TOKEN = '__no_context__';
+const CONTEXT_STATUS_VALUES: Array<TaskStatus | 'all'> = ['all', 'inbox', 'next', 'waiting', 'someday', 'reference', 'done'];
+
+type ContextsPersistedViewState = {
+    selectedContext: string | null;
+    statusFilter: TaskStatus | 'all';
+};
+
+const DEFAULT_CONTEXTS_VIEW_STATE: ContextsPersistedViewState = {
+    selectedContext: null,
+    statusFilter: 'all',
+};
+
+function sanitizeContextsViewState(value: unknown, fallback: ContextsPersistedViewState): ContextsPersistedViewState {
+    const parsed = value && typeof value === 'object' && !Array.isArray(value)
+        ? value as Partial<ContextsPersistedViewState>
+        : {};
+    const selectedContext = typeof parsed.selectedContext === 'string' && parsed.selectedContext.trim()
+        ? parsed.selectedContext
+        : null;
+    return {
+        selectedContext,
+        statusFilter: CONTEXT_STATUS_VALUES.includes(parsed.statusFilter as TaskStatus | 'all')
+            ? parsed.statusFilter as TaskStatus | 'all'
+            : fallback.statusFilter,
+    };
+}
 
 export function ContextsView() {
     const perf = usePerformanceMonitor('ContextsView');
@@ -51,9 +81,13 @@ export function ContextsView() {
     const batchDeleteTasks = useTaskStore((state) => state.batchDeleteTasks);
     const batchUpdateTasks = useTaskStore((state) => state.batchUpdateTasks);
     const { t } = useLanguage();
-    const [selectedContext, setSelectedContext] = useState<string | null>(null);
-    const NO_CONTEXT_TOKEN = '__no_context__';
-    const [statusFilter, setStatusFilter] = useState<TaskStatus | 'all'>('all');
+    const [persistedViewState, setPersistedViewState] = usePersistedViewState(
+        CONTEXTS_VIEW_STATE_STORAGE_KEY,
+        DEFAULT_CONTEXTS_VIEW_STATE,
+        sanitizeContextsViewState
+    );
+    const selectedContext = persistedViewState.selectedContext;
+    const statusFilter = persistedViewState.statusFilter;
     const [searchQuery, setSearchQuery] = useState('');
     const [selectionMode, setSelectionMode] = useState(false);
     const [multiSelectedIds, setMultiSelectedIds] = useState<Set<string>>(new Set());
@@ -65,6 +99,18 @@ export function ContextsView() {
     const [listScrollTop, setListScrollTop] = useState(0);
     const [listHeight, setListHeight] = useState(0);
     const { requestConfirmation, confirmModal } = useConfirmDialog();
+    const setSelectedContext = useCallback((value: string | null) => {
+        setPersistedViewState((current) => ({
+            ...current,
+            selectedContext: value,
+        }));
+    }, [setPersistedViewState]);
+    const setStatusFilter = useCallback((value: TaskStatus | 'all') => {
+        setPersistedViewState((current) => ({
+            ...current,
+            statusFilter: value,
+        }));
+    }, [setPersistedViewState]);
     const areaById = useMemo(() => new Map(areas.map((area) => [area.id, area])), [areas]);
     const resolvedAreaFilter = useMemo(
         () => resolveAreaFilter(settings?.filters?.areaId, areas),
@@ -114,6 +160,11 @@ export function ContextsView() {
     const allContexts = Array.from(new Set(
         scopedTasks.flatMap(t => [...(t.contexts || []), ...(t.tags || [])])
     )).sort();
+
+    useEffect(() => {
+        if (!selectedContext || selectedContext === NO_CONTEXT_TOKEN || allContexts.includes(selectedContext)) return;
+        setSelectedContext(null);
+    }, [allContexts, selectedContext, setSelectedContext]);
 
     const matchesSelected = (task: typeof activeTasks[number], context: string) => {
         const tokens = [...(task.contexts || []), ...(task.tags || [])];

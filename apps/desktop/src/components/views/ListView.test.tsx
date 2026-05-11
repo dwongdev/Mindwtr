@@ -73,6 +73,7 @@ describe('ListView', () => {
       listOptions: {
         showDetails: false,
         nextGroupBy: 'none',
+        focusTop3Only: false,
       },
       projectView: {
         selectedProjectId: null,
