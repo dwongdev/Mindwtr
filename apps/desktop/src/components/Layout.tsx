@@ -135,7 +135,9 @@ export function Layout({ children, currentView, onViewChange }: LayoutProps) {
         showToast(syncConflictNotice, 'info', 6000);
     }, [lastSyncAt, lastSyncStatus, showToast, syncConflictNotice]);
 
-    const syncFreshnessDotClass = !isOnline
+    const syncFreshnessDotClass = syncStatus.inFlight
+        ? 'bg-emerald-400'
+        : !isOnline
         ? 'bg-destructive'
         : lastSyncStatus === 'error'
             ? 'bg-orange-400'
@@ -171,7 +173,9 @@ export function Layout({ children, currentView, onViewChange }: LayoutProps) {
                             : syncFreshness === 'fresh'
                                 ? tFallback(t, 'settings.syncStatusFresh', 'Fresh')
                                 : tFallback(t, 'settings.syncStatusNever', 'Not synced');
-    const syncStatusLabelClass = !isOnline || lastSyncStatus === 'error' || syncFreshness === 'old'
+    const syncStatusLabelClass = syncStatus.inFlight
+        ? 'text-emerald-600 dark:text-emerald-300'
+        : !isOnline || lastSyncStatus === 'error' || syncFreshness === 'old'
         ? 'text-destructive'
         : lastSyncStatus === 'conflict' || syncFreshness === 'stale'
             ? 'text-amber-600 dark:text-amber-300'
@@ -558,41 +562,63 @@ export function Layout({ children, currentView, onViewChange }: LayoutProps) {
                             />
                         </div>
                     )}
-                    <div className="border-t border-border" />
+                    <div className="border-t border-border/70" />
                     <div className="px-2 pb-2 pt-2">
                         <button
                             onClick={() => onViewChange('settings')}
                             className={cn(
-                                "w-full rounded-md border transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:ring-inset text-xs font-medium h-9 px-3 flex items-center",
-                                isCollapsed ? "justify-center" : "justify-between",
+                                "group relative w-full rounded-xl border text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:ring-inset",
+                                isCollapsed ? "flex h-10 items-center justify-center px-0" : "px-3 py-2.5",
                                 currentView === 'settings'
                                     ? "border-primary/50 bg-primary/5 text-primary"
-                                    : "border-border bg-muted/40 hover:bg-accent text-muted-foreground"
+                                    : "border-border/80 bg-muted/25 text-muted-foreground hover:border-primary/30 hover:bg-accent/70 hover:text-accent-foreground"
                             )}
                             aria-current={currentView === 'settings' ? 'page' : undefined}
                             title={!isCollapsed ? `${t('nav.settings')} • ${syncTooltip}` : t('nav.settings')}
                             aria-label={isCollapsed ? `${t('nav.settings')}. ${syncTooltip}` : t('nav.settings')}
                         >
-                            <span className="inline-flex items-center gap-2">
-                                <Settings className="w-4 h-4" />
-                                {!isCollapsed && <span>{t('nav.settings')}</span>}
+                            <span className={cn(
+                                "flex min-w-0 items-center",
+                                isCollapsed ? "justify-center" : "justify-between gap-3"
+                            )}>
+                                <span className="inline-flex min-w-0 items-center gap-2 text-sm font-medium">
+                                    <Settings className="h-4 w-4 shrink-0" />
+                                    {!isCollapsed && <span className="truncate">{t('nav.settings')}</span>}
+                                </span>
+                                {!isCollapsed && (
+                                    <span
+                                        className={cn(
+                                            "h-2 w-2 shrink-0 rounded-full shadow-[0_0_0_3px_hsl(var(--background))]",
+                                            syncFreshnessDotClass,
+                                            syncStatus.inFlight && "animate-pulse"
+                                        )}
+                                        title={syncTooltip}
+                                        aria-hidden="true"
+                                    />
+                                )}
                             </span>
                             {!isCollapsed && (
                                 <span
-                                    className="inline-flex items-center gap-2 text-[11px]"
+                                    className="mt-1.5 flex min-w-0 items-center gap-1.5 pl-6 text-[11px] leading-none"
                                     role="status"
                                     aria-live="polite"
                                     aria-label={syncTooltip}
                                 >
-                                    <SyncStatusIcon className={cn("w-3.5 h-3.5", syncStatusLabelClass, syncStatus.inFlight && "animate-spin")} />
-                                    <span className={cn("font-medium", syncStatusLabelClass)}>{syncStatusLabel}</span>
-                                    <span className="text-muted-foreground">{compactSyncTimeLabel}</span>
-                                    <span
-                                        className={cn("w-2 h-2 rounded-full shrink-0", syncFreshnessDotClass)}
-                                        title={syncTooltip}
-                                        aria-hidden="true"
-                                    />
+                                    <SyncStatusIcon className={cn("h-3.5 w-3.5 shrink-0", syncStatusLabelClass, syncStatus.inFlight && "animate-spin")} />
+                                    <span className={cn("min-w-0 truncate font-medium", syncStatusLabelClass)}>{syncStatusLabel}</span>
+                                    <span className="ml-auto shrink-0 tabular-nums text-muted-foreground">{compactSyncTimeLabel}</span>
                                 </span>
+                            )}
+                            {isCollapsed && (
+                                <span
+                                    className={cn(
+                                        "absolute right-1.5 top-1.5 h-2 w-2 rounded-full ring-2 ring-card",
+                                        syncFreshnessDotClass,
+                                        syncStatus.inFlight && "animate-pulse"
+                                    )}
+                                    title={syncTooltip}
+                                    aria-hidden="true"
+                                />
                             )}
                         </button>
                     </div>
