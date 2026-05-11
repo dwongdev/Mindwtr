@@ -950,7 +950,12 @@ describe('cloud server api', () => {
         expect(response.status).toBe(200);
         expect(response.headers.get('etag')).toMatch(/^W\/"mindwtr-/);
         expect(response.headers.get('last-modified')).toBeTruthy();
-        expect(Number(response.headers.get('content-length'))).toBeGreaterThan(0);
+        const getResponse = await fetch(`${baseUrl}/v1/data`, {
+            method: 'GET',
+            headers: authHeaders,
+        });
+        const getBody = await getResponse.text();
+        expect(response.headers.get('content-length')).toBe(String(new TextEncoder().encode(getBody).byteLength));
         expect(await response.text()).toBe('');
     });
 

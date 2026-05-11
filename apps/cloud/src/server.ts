@@ -309,6 +309,17 @@ const dataMetadataResponse = (filePath: string): Response => {
     return new Response(null, { status: 200, headers });
 };
 
+const jsonFileResponse = (body: string): Response => {
+    const headers = new Headers({
+        'Access-Control-Allow-Origin': corsOrigin,
+        'Access-Control-Allow-Headers': 'Authorization, Content-Type',
+        'Access-Control-Allow-Methods': 'GET,HEAD,PUT,POST,PATCH,DELETE,OPTIONS',
+        'Content-Length': String(new TextEncoder().encode(body).byteLength),
+        'Content-Type': 'application/json; charset=utf-8',
+    });
+    return new Response(body, { status: 200, headers });
+};
+
 const emptyCorsResponse = (status: number): Response => {
     const headers = new Headers({
         'Access-Control-Allow-Origin': corsOrigin,
@@ -1567,11 +1578,17 @@ export async function startCloudServer(options: CloudServerOptions = {}): Promis
                                 if (!existsSync(filePath)) writeCloudData(filePath, emptyData);
                                 return jsonResponse(emptyData);
                             }
-                            const data = readData(filePath);
-                            if (!data) return errorResponse('Failed to read data', 500);
+                            let rawData: string;
+                            let data: unknown;
+                            try {
+                                rawData = readFileSync(filePath, 'utf8');
+                                data = JSON.parse(rawData);
+                            } catch {
+                                return errorResponse('Failed to read data', 500);
+                            }
                             const validated = validateStoredAppData(filePath, key, data);
                             if ('error' in validated) return validated.error;
-                            return jsonResponse(validated);
+                            return jsonFileResponse(rawData);
                         });
                     }
 
