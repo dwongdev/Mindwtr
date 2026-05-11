@@ -577,7 +577,7 @@ export function Layout({ children, currentView, onViewChange }: LayoutProps) {
                                 {!isCollapsed && (
                                     <span
                                         className={cn(
-                                            "inline-flex min-w-0 items-center gap-1.5 pl-6 text-[11px] leading-none text-muted-foreground/80",
+                                            "inline-flex min-w-0 items-center gap-1.5 pl-6 text-[11px] leading-none text-muted-foreground",
                                             (!isOnline || lastSyncStatus === 'error' || lastSyncStatus === 'conflict' || syncFreshness === 'old' || syncFreshness === 'stale') && "text-foreground"
                                         )}
                                         title={syncTooltip}
@@ -596,10 +596,10 @@ export function Layout({ children, currentView, onViewChange }: LayoutProps) {
                                         <span className={cn("min-w-0 truncate", syncStatusLabelClass)}>
                                             {syncStatusLabel}
                                         </span>
-                                        <span className="shrink-0 text-muted-foreground/70" aria-hidden="true">
+                                        <span className="shrink-0 text-muted-foreground" aria-hidden="true">
                                             ·
                                         </span>
-                                        <span className="shrink-0 tabular-nums text-muted-foreground/70">
+                                        <span className="shrink-0 tabular-nums text-muted-foreground">
                                             {compactSyncTimeLabel}
                                         </span>
                                     </span>
