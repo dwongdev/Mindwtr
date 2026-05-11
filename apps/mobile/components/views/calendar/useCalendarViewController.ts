@@ -1,4 +1,4 @@
-import { Alert } from 'react-native';
+import { Alert, type LayoutChangeEvent, type NativeScrollEvent, type NativeSyntheticEvent } from 'react-native';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   DEFAULT_CALENDAR_DAY_END_HOUR,
@@ -37,7 +37,9 @@ import { logError } from '../../../lib/app-log';
 import {
   coerceCalendarWeekVisibleDays,
   coerceCalendarViewMode,
+  getCalendarTimelineAnchorMinutes,
   getCalendarTimelineDefaultScrollKey,
+  getCalendarTimelineScrollYForMinutes,
   getInitialCalendarSelectedDate,
   needsCalendarSelectedDate,
   type CalendarViewMode,
@@ -75,6 +77,7 @@ function isToday(date: Date): boolean {
 const DAY_START_HOUR = 0;
 const DAY_END_HOUR = 24;
 const PIXELS_PER_MINUTE = 1.4;
+const DAY_TIMELINE_MINUTES = (DAY_END_HOUR - DAY_START_HOUR) * 60;
 const SNAP_MINUTES = 5;
 type CalendarTaskComposerMode = 'new' | 'existing';
 type CalendarTaskComposerState = {
@@ -181,6 +184,10 @@ export function useCalendarViewController() {
   const [isExternalLoading, setIsExternalLoading] = useState(false);
   const [nowTick, setNowTick] = useState(() => Date.now());
   const timelineScrollRef = useRef<any>(null);
+  const timelineScrollOffsetRef = useRef(0);
+  const timelineContentTopRef = useRef(0);
+  const timelineAnchorMinutesRef = useRef<number | null>(null);
+  const lastDayTimelineRestoreKeyRef = useRef('');
   const [pendingScrollMinutes, setPendingScrollMinutes] = useState<number | null>(null);
   const lastDefaultTimelineScrollKeyRef = useRef('');
   const [editingTask, setEditingTask] = useState<Task | null>(null);
@@ -682,18 +689,66 @@ export function useCalendarViewController() {
     openCalendarComposerAt(date, { mode: 'new' });
   };
 
+  const selectedDayKey = selectedDate
+    ? `${selectedDate.getFullYear()}-${selectedDate.getMonth()}-${selectedDate.getDate()}`
+    : '';
+
+  const getTimelineScrollY = useCallback((minutes: number) => getCalendarTimelineScrollYForMinutes({
+    contentTop: viewModeRef.current === 'day' ? timelineContentTopRef.current : 0,
+    minutes,
+    pixelsPerMinute: PIXELS_PER_MINUTE,
+  }), []);
+
+  const rememberTimelineScrollY = useCallback((scrollY: number) => {
+    timelineScrollOffsetRef.current = Math.max(0, scrollY);
+    timelineAnchorMinutesRef.current = getCalendarTimelineAnchorMinutes({
+      contentTop: viewModeRef.current === 'day' ? timelineContentTopRef.current : 0,
+      dayMinutes: DAY_TIMELINE_MINUTES,
+      pixelsPerMinute: PIXELS_PER_MINUTE,
+      scrollY: timelineScrollOffsetRef.current,
+    });
+  }, []);
+
+  const scrollTimelineToMinutes = useCallback((minutes: number, animated: boolean) => {
+    const y = getTimelineScrollY(minutes);
+    rememberTimelineScrollY(y);
+    timelineScrollRef.current?.scrollTo({ y, animated });
+  }, [getTimelineScrollY, rememberTimelineScrollY]);
+
+  const handleTimelineScroll = useCallback((event: NativeSyntheticEvent<NativeScrollEvent>) => {
+    rememberTimelineScrollY(event.nativeEvent.contentOffset.y);
+  }, [rememberTimelineScrollY]);
+
+  const handleTimelineContentLayout = useCallback((event: LayoutChangeEvent) => {
+    timelineContentTopRef.current = event.nativeEvent.layout.y;
+  }, []);
+
   useEffect(() => {
     if (viewMode !== 'day' && viewMode !== 'week') return;
     if (viewMode === 'day' && !selectedDate) return;
     if (pendingScrollMinutes == null) return;
 
-    const y = Math.max(0, pendingScrollMinutes * PIXELS_PER_MINUTE - 180);
     const frame = requestAnimationFrame(() => {
-      timelineScrollRef.current?.scrollTo({ y, animated: true });
+      scrollTimelineToMinutes(pendingScrollMinutes, true);
       setPendingScrollMinutes(null);
     });
     return () => cancelAnimationFrame(frame);
-  }, [viewMode, selectedDate, pendingScrollMinutes]);
+  }, [pendingScrollMinutes, scrollTimelineToMinutes, selectedDate, viewMode]);
+
+  useEffect(() => {
+    if (viewMode !== 'day' || !selectedDate || pendingScrollMinutes != null) return;
+    if (lastDefaultTimelineScrollKeyRef.current !== 'day') return;
+    if (lastDayTimelineRestoreKeyRef.current === selectedDayKey) return;
+
+    lastDayTimelineRestoreKeyRef.current = selectedDayKey;
+    const minutes = timelineAnchorMinutesRef.current;
+    if (minutes == null) return;
+
+    const frame = requestAnimationFrame(() => {
+      scrollTimelineToMinutes(minutes, false);
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [pendingScrollMinutes, scrollTimelineToMinutes, selectedDate, selectedDayKey, viewMode]);
 
   useEffect(() => {
     if (!defaultTimelineScrollKey) {
@@ -893,7 +948,7 @@ export function useCalendarViewController() {
     dayEnd.setHours(DAY_END_HOUR, 0, 0, 0);
     return dayEnd;
   }, [selectedDate]);
-  const selectedDayMinutes = (DAY_END_HOUR - DAY_START_HOUR) * 60;
+  const selectedDayMinutes = DAY_TIMELINE_MINUTES;
   const timelineHeight = selectedDayMinutes * PIXELS_PER_MINUTE;
   const selectedDayScheduledTasks = useMemo(
     () => selectedDateScheduled.filter((task) => !task.deletedAt && task.status !== 'done' && task.status !== 'reference'),
@@ -962,6 +1017,8 @@ export function useCalendarViewController() {
     getTaskCountForDate,
     handleNextMonth,
     handlePrevMonth,
+    handleTimelineContentLayout,
+    handleTimelineScroll,
     handleToday,
     isDark,
     isExternalLoading,

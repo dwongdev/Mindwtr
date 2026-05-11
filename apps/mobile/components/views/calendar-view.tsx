@@ -187,6 +187,8 @@ export function CalendarView() {
     getTaskCountForDate,
     handleNextMonth,
     handlePrevMonth,
+    handleTimelineContentLayout,
+    handleTimelineScroll,
     handleToday,
     isDark,
     isExternalLoading,
@@ -733,6 +735,8 @@ export function CalendarView() {
               ref={timelineScrollRef}
               style={styles.dayScroll}
               contentContainerStyle={styles.dayScrollContent}
+              onScroll={handleTimelineScroll}
+              scrollEventThrottle={16}
             >
             {selectedDateAllDayEvents.length > 0 && (
               <View style={[styles.allDayCard, { backgroundColor: tc.cardBg, borderColor: tc.border }]}>
@@ -749,7 +753,10 @@ export function CalendarView() {
               </View>
             )}
 
-            <View style={[styles.timelineCard, { backgroundColor: tc.cardBg, borderColor: tc.border }]}>
+            <View
+              onLayout={handleTimelineContentLayout}
+              style={[styles.timelineCard, { backgroundColor: tc.cardBg, borderColor: tc.border }]}
+            >
               <View style={[styles.timelineArea, { height: timelineHeight }]}>
                 <Pressable onPress={handleDayTimelinePress} style={styles.timelineTapTarget} />
                 {Array.from({ length: DAY_END_HOUR - DAY_START_HOUR + 1 }, (_, idx) => {

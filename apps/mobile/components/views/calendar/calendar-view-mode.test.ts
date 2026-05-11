@@ -3,8 +3,10 @@ import { describe, expect, it } from 'vitest';
 import {
   coerceCalendarWeekVisibleDays,
   coerceCalendarViewMode,
+  getCalendarTimelineAnchorMinutes,
   getCalendarNavigationSwipeDirection,
   getCalendarTimelineDefaultScrollKey,
+  getCalendarTimelineScrollYForMinutes,
   getCalendarWeekColumnWidth,
   getCalendarWeekInitialScrollX,
   getCalendarWeekInitialVisibleDayIndex,
@@ -65,6 +67,33 @@ describe('calendar view mode helpers', () => {
       viewMode: 'month',
       weekStartTime: 123,
     })).toBe('');
+  });
+
+  it('computes day timeline scroll positions relative to timeline content', () => {
+    expect(getCalendarTimelineScrollYForMinutes({
+      contentTop: 64,
+      minutes: 360,
+      pixelsPerMinute: 2,
+    })).toBe(604);
+    expect(getCalendarTimelineAnchorMinutes({
+      contentTop: 64,
+      dayMinutes: 900,
+      pixelsPerMinute: 2,
+      scrollY: 604,
+    })).toBe(360);
+  });
+
+  it('clamps timeline anchor minutes inside the visible day', () => {
+    expect(getCalendarTimelineAnchorMinutes({
+      dayMinutes: 900,
+      pixelsPerMinute: 2,
+      scrollY: -500,
+    })).toBe(0);
+    expect(getCalendarTimelineAnchorMinutes({
+      dayMinutes: 900,
+      pixelsPerMinute: 2,
+      scrollY: 10_000,
+    })).toBe(900);
   });
 
   it('chooses the selected day as the initial visible week column', () => {

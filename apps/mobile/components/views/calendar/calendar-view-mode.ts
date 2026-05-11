@@ -8,6 +8,7 @@ export const CALENDAR_WEEK_COLUMN_WIDTH_MIN = 40;
 export const CALENDAR_NAVIGATION_SWIPE_DISTANCE = 40;
 export const CALENDAR_NAVIGATION_SWIPE_VELOCITY = 420;
 export const CALENDAR_NAVIGATION_SWIPE_VERTICAL_TOLERANCE = 44;
+export const CALENDAR_TIMELINE_SCROLL_ANCHOR_Y = 180;
 
 type CalendarNavigationSwipeInput = {
   translationX: number;
@@ -42,6 +43,38 @@ export const getCalendarTimelineDefaultScrollKey = ({
   if (viewMode === 'day') return selectedDate ? 'day' : '';
   if (viewMode === 'week') return `week:${weekStartTime}`;
   return '';
+};
+
+export const getCalendarTimelineScrollYForMinutes = ({
+  anchorY = CALENDAR_TIMELINE_SCROLL_ANCHOR_Y,
+  contentTop = 0,
+  minutes,
+  pixelsPerMinute,
+}: {
+  anchorY?: number;
+  contentTop?: number;
+  minutes: number;
+  pixelsPerMinute: number;
+}): number => (
+  Math.max(0, contentTop + minutes * pixelsPerMinute - anchorY)
+);
+
+export const getCalendarTimelineAnchorMinutes = ({
+  anchorY = CALENDAR_TIMELINE_SCROLL_ANCHOR_Y,
+  contentTop = 0,
+  dayMinutes,
+  pixelsPerMinute,
+  scrollY,
+}: {
+  anchorY?: number;
+  contentTop?: number;
+  dayMinutes: number;
+  pixelsPerMinute: number;
+  scrollY: number;
+}): number => {
+  const rawMinutes = (scrollY - contentTop + anchorY) / pixelsPerMinute;
+  if (!Number.isFinite(rawMinutes)) return 0;
+  return Math.max(0, Math.min(dayMinutes, rawMinutes));
 };
 
 const isSameCalendarDay = (date: Date, otherDate: Date): boolean => (
