@@ -1,37 +1,47 @@
 import React from 'react';
 import { act, create } from 'react-test-renderer';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { DailyReviewScreen } from './daily-review-modal';
 import { SwipeableTaskItem } from './swipeable-task-item';
+import { fetchExternalCalendarEvents } from '../lib/external-calendar';
+
+const defaultTasks = [
+  {
+    id: 'task-1',
+    title: 'Focus me',
+    status: 'next',
+    contexts: [],
+    tags: [],
+    createdAt: '2026-03-01T00:00:00.000Z',
+    updatedAt: '2026-03-01T00:00:00.000Z',
+  },
+];
 
 const storeState: any = {
-  tasks: [
-    {
-      id: 'task-1',
-      title: 'Focus me',
-      status: 'next',
-      contexts: [],
-      tags: [],
-      createdAt: '2026-03-01T00:00:00.000Z',
-      updatedAt: '2026-03-01T00:00:00.000Z',
-    },
-  ],
+  tasks: [...defaultTasks],
   settings: {},
   updateTask: vi.fn(),
   deleteTask: vi.fn(),
 };
 
-vi.mock('@mindwtr/core', () => ({
-  formatFocusTaskLimitText: (template: string, limit: number) => template.replace('{{count}}', String(limit)),
-  useTaskStore: () => storeState,
-  isDueForReview: () => false,
-  normalizeFocusTaskLimit: (value?: number) => value ?? 3,
-  safeFormatDate: () => '2026-03-15',
-  safeParseDate: () => null,
-  safeParseDueDate: () => null,
-  sortTasksBy: (tasks: unknown[]) => tasks,
-}));
+vi.mock('@mindwtr/core', () => {
+  const parseDate = (value?: string | Date | null) => {
+    if (!value) return null;
+    const date = value instanceof Date ? value : new Date(value);
+    return Number.isNaN(date.getTime()) ? null : date;
+  };
+  return {
+    formatFocusTaskLimitText: (template: string, limit: number) => template.replace('{{count}}', String(limit)),
+    useTaskStore: () => storeState,
+    isDueForReview: () => false,
+    normalizeFocusTaskLimit: (value?: number) => value ?? 3,
+    safeFormatDate: () => '2026-03-15',
+    safeParseDate: parseDate,
+    safeParseDueDate: parseDate,
+    sortTasksBy: (tasks: unknown[]) => tasks,
+  };
+});
 
 vi.mock('../contexts/theme-context', () => ({
   useTheme: () => ({ isDark: false }),
@@ -122,10 +132,27 @@ vi.mock('react-native-gesture-handler', () => ({
   GestureHandlerRootView: (props: any) => React.createElement('GestureHandlerRootView', props, props.children),
 }));
 
+const flattenText = (value: unknown): string => {
+  if (typeof value === 'string' || typeof value === 'number') return String(value);
+  if (Array.isArray(value)) return value.map((item) => flattenText(item)).join('');
+  return '';
+};
+
+const getAllText = (tree: ReturnType<typeof create>) => tree.root.findAll((node) => Boolean(node.props?.children))
+  .map((node) => flattenText(node.props.children))
+  .join('\n');
+
 describe('DailyReviewScreen', () => {
   beforeEach(() => {
-    storeState.settings = {};
     vi.clearAllMocks();
+    vi.mocked(fetchExternalCalendarEvents).mockReset();
+    storeState.tasks = defaultTasks.map((task) => ({ ...task }));
+    storeState.settings = {};
+    vi.mocked(fetchExternalCalendarEvents).mockResolvedValue({ calendars: [], events: [] });
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
   });
 
   it('shows the focus toggle on task rows during the focus step', async () => {
@@ -169,11 +196,6 @@ describe('DailyReviewScreen', () => {
       tree = create(<DailyReviewScreen onClose={vi.fn()} />);
     });
 
-    const flattenText = (value: unknown): string => {
-      if (typeof value === 'string' || typeof value === 'number') return String(value);
-      if (Array.isArray(value)) return value.map((item) => flattenText(item)).join('');
-      return '';
-    };
     const pressNextStep = async () => {
       const nextStepLabel = tree.root.findByProps({ children: 'Next Step' });
       const nextStepButton = nextStepLabel.parent;
@@ -188,10 +210,59 @@ describe('DailyReviewScreen', () => {
     await pressNextStep();
     await pressNextStep();
 
-    const allText = tree.root.findAll((node) => Boolean(node.props?.children))
-      .map((node) => flattenText(node.props.children))
-      .join('\n');
+    const allText = getAllText(tree);
     expect(allText).toContain('Waiting');
     expect(allText).not.toContain("Today's Focus");
+  });
+
+  it('collapses calendar events without hiding today tasks', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date(2026, 2, 15, 10, 0, 0));
+    storeState.tasks = [
+      {
+        id: 'task-due-today',
+        title: 'Submit receipts',
+        status: 'next',
+        contexts: [],
+        tags: [],
+        dueDate: new Date(2026, 2, 15, 12, 0, 0).toISOString(),
+        createdAt: '2026-03-01T00:00:00.000Z',
+        updatedAt: '2026-03-01T00:00:00.000Z',
+      },
+    ];
+    vi.mocked(fetchExternalCalendarEvents).mockResolvedValueOnce({
+      events: [
+        {
+          id: 'event-1',
+          sourceId: 'local',
+          title: 'Long calendar block',
+          start: new Date(2026, 2, 15, 9, 0, 0).toISOString(),
+          end: new Date(2026, 2, 15, 9, 30, 0).toISOString(),
+          allDay: false,
+        },
+      ],
+      calendars: [],
+    });
+
+    let tree!: ReturnType<typeof create>;
+    await act(async () => {
+      tree = create(<DailyReviewScreen onClose={vi.fn()} />);
+    });
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    expect(getAllText(tree)).toContain('Long calendar block');
+
+    const calendarToggle = tree.root.find((node) =>
+      node.props?.accessibilityLabel === 'Events' &&
+      node.props?.accessibilityState?.expanded === true
+    );
+    await act(async () => {
+      calendarToggle.props.onPress();
+    });
+
+    expect(getAllText(tree)).not.toContain('Long calendar block');
+    expect(tree.root.findAllByType(SwipeableTaskItem)).toHaveLength(1);
   });
 });

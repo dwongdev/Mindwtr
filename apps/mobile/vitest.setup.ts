@@ -160,6 +160,7 @@ vi.mock('lucide-react-native', () => {
     'CheckCircle2',
     'CheckSquare',
     'ChevronDown',
+    'ChevronUp',
     'ChevronRight',
     'Clock',
     'Database',

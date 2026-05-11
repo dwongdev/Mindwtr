@@ -3,7 +3,7 @@ import { View, Text, Modal, TouchableOpacity, ScrollView, StyleSheet, Platform }
 import { router } from 'expo-router';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
-import { X, Calendar as CalendarIcon, Target, Inbox, Clock, Sparkles, Star, CheckCircle2, Play } from 'lucide-react-native';
+import { X, Calendar as CalendarIcon, Target, Inbox, Clock, Sparkles, Star, CheckCircle2, Play, ChevronDown, ChevronUp } from 'lucide-react-native';
 
 import {
     formatFocusTaskLimitText,
@@ -55,6 +55,7 @@ function DailyReviewFlow({ onClose }: { onClose: () => void }) {
     const [externalEvents, setExternalEvents] = useState<ExternalCalendarEvent[]>([]);
     const [externalLoading, setExternalLoading] = useState(false);
     const [externalError, setExternalError] = useState<string | null>(null);
+    const [calendarExpanded, setCalendarExpanded] = useState(true);
 
     const sortBy = (settings?.taskSortBy ?? 'default') as TaskSortBy;
     const includeFocusStep = settings.gtd?.dailyReview?.includeFocusStep !== false;
@@ -295,6 +296,7 @@ function DailyReviewFlow({ onClose }: { onClose: () => void }) {
             case 'today': {
                 const topTasks = [...overdueTasks, ...dueTodayTasks].slice(0, 8);
                 const totalToday = overdueTasks.length + dueTodayTasks.length;
+                const calendarEventCount = todayEvents.length + tomorrowEvents.length;
                 return (
                     <View style={styles.stepContent}>
                         <View style={styles.stepTitleRow}>
@@ -307,19 +309,48 @@ function DailyReviewFlow({ onClose }: { onClose: () => void }) {
                             </Text>
                             <Text style={[styles.guideText, { color: tc.secondaryText }]}>{t('dailyReview.todayDesc')}</Text>
                         </View>
-                        <View style={styles.calendarGrid}>
-                            <View style={[styles.calendarCard, { backgroundColor: tc.cardBg, borderColor: tc.border }]}>
-                                <Text style={[styles.calendarCardTitle, { color: tc.secondaryText }]}>
-                                    {safeFormatDate(today, 'P')} · {t('calendar.events')}
-                                </Text>
-                                {renderExternalEventList(todayEvents)}
-                            </View>
-                            <View style={[styles.calendarCard, { backgroundColor: tc.cardBg, borderColor: tc.border }]}>
-                                <Text style={[styles.calendarCardTitle, { color: tc.secondaryText }]}>
-                                    {safeFormatDate(tomorrow, 'P')} · {t('calendar.events')}
-                                </Text>
-                                {renderExternalEventList(tomorrowEvents)}
-                            </View>
+                        <View style={styles.calendarSection}>
+                            <TouchableOpacity
+                                style={[styles.calendarToggleButton, { backgroundColor: tc.cardBg, borderColor: tc.border }]}
+                                onPress={() => setCalendarExpanded((expanded) => !expanded)}
+                                activeOpacity={0.75}
+                                accessibilityRole="button"
+                                accessibilityState={{ expanded: calendarExpanded }}
+                                accessibilityLabel={t('calendar.events')}
+                            >
+                                <View style={styles.calendarToggleTitle}>
+                                    <CalendarIcon size={16} color={tc.secondaryText} strokeWidth={2} />
+                                    <Text style={[styles.calendarToggleText, { color: tc.text }]}>
+                                        {t('calendar.events')}
+                                    </Text>
+                                    <View style={[styles.calendarCountBadge, { backgroundColor: tc.filterBg }]}>
+                                        <Text style={[styles.calendarCountText, { color: tc.secondaryText }]}>
+                                            {calendarEventCount}
+                                        </Text>
+                                    </View>
+                                </View>
+                                {calendarExpanded ? (
+                                    <ChevronUp size={18} color={tc.secondaryText} strokeWidth={2} />
+                                ) : (
+                                    <ChevronDown size={18} color={tc.secondaryText} strokeWidth={2} />
+                                )}
+                            </TouchableOpacity>
+                            {calendarExpanded && (
+                                <View style={styles.calendarGrid}>
+                                    <View style={[styles.calendarCard, { backgroundColor: tc.cardBg, borderColor: tc.border }]}>
+                                        <Text style={[styles.calendarCardTitle, { color: tc.secondaryText }]}>
+                                            {safeFormatDate(today, 'P')} · {t('calendar.events')}
+                                        </Text>
+                                        {renderExternalEventList(todayEvents)}
+                                    </View>
+                                    <View style={[styles.calendarCard, { backgroundColor: tc.cardBg, borderColor: tc.border }]}>
+                                        <Text style={[styles.calendarCardTitle, { color: tc.secondaryText }]}>
+                                            {safeFormatDate(tomorrow, 'P')} · {t('calendar.events')}
+                                        </Text>
+                                        {renderExternalEventList(tomorrowEvents)}
+                                    </View>
+                                </View>
+                            )}
                         </View>
                         {topTasks.length === 0 ? (
                             <View style={styles.emptyState}>
@@ -637,6 +668,44 @@ const styles = StyleSheet.create({
     },
     calendarGrid: {
         gap: 10,
+    },
+    calendarSection: {
+        gap: 10,
+    },
+    calendarToggleButton: {
+        minHeight: 44,
+        borderWidth: 1,
+        borderRadius: 12,
+        paddingHorizontal: 12,
+        paddingVertical: 10,
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        gap: 12,
+    },
+    calendarToggleTitle: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 8,
+        flex: 1,
+        minWidth: 0,
+    },
+    calendarToggleText: {
+        fontSize: 13,
+        fontWeight: '700',
+        flexShrink: 1,
+    },
+    calendarCountBadge: {
+        minWidth: 28,
+        height: 24,
+        borderRadius: 999,
+        alignItems: 'center',
+        justifyContent: 'center',
+        paddingHorizontal: 8,
+    },
+    calendarCountText: {
+        fontSize: 12,
+        fontWeight: '700',
     },
     calendarCard: {
         borderWidth: 1,
