@@ -23,6 +23,7 @@ export default function DoneScreen() {
       <TaskList
         statusFilter="done"
         title={title}
+        showHeader={false}
         emptyText={emptyText}
         emptyHint={emptyHint}
         allowAdd={false}

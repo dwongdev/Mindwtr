@@ -23,6 +23,7 @@ export default function ReferenceScreen() {
       <TaskList
         statusFilter="reference"
         title={title}
+        showHeader={false}
         emptyText={emptyText}
         emptyHint={emptyHint}
         allowAdd={false}
