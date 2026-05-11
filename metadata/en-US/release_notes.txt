@@ -1,3 +1,3 @@
-- Sync is steadier with safer conflict handling, serialized sync runs, and clearer history details.
-- Quick capture resists duplicate saves, Projects can reorder tasks, and Inbox tips make capture paths easier to discover.
-- Calendar gestures, Focus availability, and project delete undo are smoother.
+- Mobile navigation, Focus, Settings, Review, and capture screens were refreshed.
+- Capture confirmations now use Mindwtr-themed dialogs, with safer deep-link and audio handling.
+- Sync is steadier with saved filter sync, focus limit sync, safer attachment cancellation, and iCloud cancellation handling.

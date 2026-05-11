@@ -71,6 +71,19 @@
   <url type="bugtracker">https://github.com/dongdongbh/Mindwtr/issues</url>
   <url type="vcs-browser">https://github.com/dongdongbh/Mindwtr</url>
   <releases>
+    <release version="0.9.2" date="2026-05-11">
+      <url type="details">https://github.com/dongdongbh/Mindwtr/releases/tag/v0.9.2</url>
+      <description translate="no">
+        <p>Mindwtr 0.9.2 improves desktop view persistence, saved-filter sync, and sync reliability for Linux desktop builds.</p>
+        <ul>
+          <li>Remembered desktop view and filter options and restored saved filters during startup.</li>
+          <li>Added saved-filter sync and merge support with local storage for saved filter data.</li>
+          <li>Made sync more reliable with clearer WebDAV weak-fingerprint warnings and stricter cloud data byte checks.</li>
+          <li>Improved quick-add refresh behavior, sidebar sync status, focused project counts, and stale board filter state.</li>
+          <li>Strengthened desktop, cloud, and MCP coverage gates used by the release workflow.</li>
+        </ul>
+      </description>
+    </release>
     <release version="0.9.1" date="2026-05-07">
       <url type="details">https://github.com/dongdongbh/Mindwtr/releases/tag/v0.9.1</url>
       <description translate="no">

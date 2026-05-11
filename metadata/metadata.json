@@ -30,7 +30,7 @@
           "完全离线可用，无需互联网连接",
           "完全开源，安全透明"
         ],
-        "ReleaseNotes": "• 同步会串行执行，冲突处理和历史记录更清楚。\n• 新增开机启动设置。\n• 全局快速添加、项目删除撤销、看板标签布局和大型列表性能更稳定。",
+        "ReleaseNotes": "• 桌面视图会保留更多筛选和视图选项，并更可靠地恢复已保存筛选。\n• 同步支持已保存筛选合并，WebDAV 指纹提醒更清楚，云端数据检查更安全。\n• 快速添加、侧边栏同步状态、项目计数和看板筛选状态更稳定。",
         "Images": [
           {
             "FileName": "2026-01-27_22-59-40.png",
@@ -82,7 +82,7 @@
           "No internet connection required to function",
           "Open source and transparent"
         ],
-        "ReleaseNotes": "• Sync is steadier with serialized runs, safer conflict handling, clearer history details, and visible cleartext warnings.\n• Launch at startup is now available from desktop settings.\n• Global quick add, project delete undo, board tags, and large-list performance are smoother.",
+        "ReleaseNotes": "• Desktop views now preserve more filter and view options and restore saved filters more reliably.\n• Sync is steadier with saved filter merge support, clearer WebDAV fingerprint warnings, and safer cloud data checks.\n• Quick add, sidebar sync status, project counts, and stale board filter state were refined.",
         "Images": [
           {
             "FileName": "2026-01-27_22-59-40.png",
@@ -130,7 +130,7 @@
           "No requiere conexión a internet para funcionar",
           "Código abierto y transparente"
         ],
-        "ReleaseNotes": "• Sync es mas estable con ejecuciones serializadas, mejor manejo de conflictos, historial mas claro y avisos visibles.\n• Inicio automatico ya esta disponible en los ajustes de escritorio.\n• Quick add global, deshacer eliminacion de proyectos, etiquetas del tablero y listas grandes son mas fluidos.",
+        "ReleaseNotes": "• Las vistas de escritorio conservan mas opciones de filtro y vista, y restauran mejor los filtros guardados.\n• Sync es mas estable con fusion de filtros guardados, avisos WebDAV mas claros y comprobaciones cloud mas seguras.\n• Quick add, estado de sync en la barra lateral, conteos de proyectos y filtros del tablero fueron refinados.",
         "Images": [
           {
             "FileName": "2026-01-27_22-59-40.png",
