@@ -361,6 +361,21 @@ export default function FocusScreen() {
     ));
     updateSettings({ savedFilters: nextFilters }).catch(() => undefined);
   }, [activeSavedFilter, settings?.savedFilters, updateSettings]);
+  const confirmRemoveAdvancedSavedFilterCriterion = useCallback((chipId: string, label: string) => {
+    Alert.alert(
+      resolveText('common.delete', 'Delete'),
+      label,
+      [
+        { text: resolveText('common.cancel', 'Cancel'), style: 'cancel' },
+        {
+          text: resolveText('common.delete', 'Delete'),
+          style: 'destructive',
+          onPress: () => removeAdvancedSavedFilterCriterion(chipId),
+        },
+      ],
+      { cancelable: true },
+    );
+  }, [removeAdvancedSavedFilterCriterion, resolveText]);
 
   useEffect(() => {
     if (!taskId || typeof taskId !== 'string') return;
@@ -519,10 +534,10 @@ export default function FocusScreen() {
     }).map((chip) => ({
       id: `advanced:${chip.id}`,
       label: chip.label,
-      onPress: () => removeAdvancedSavedFilterCriterion(chip.id),
+      onPress: () => confirmRemoveAdvancedSavedFilterCriterion(chip.id, chip.label),
       variant: 'advanced',
     }));
-  }, [activeSavedFilter, areaById, effectiveFilterCriteria, removeAdvancedSavedFilterCriterion, resolveText]);
+  }, [activeSavedFilter, areaById, confirmRemoveAdvancedSavedFilterCriterion, effectiveFilterCriteria, resolveText]);
   const activeFilterChips = useMemo(() => {
     const chips: FocusFilterChip[] = [];
     selectedTokens.forEach((token) => {
@@ -645,17 +660,32 @@ export default function FocusScreen() {
       );
     }
 
+    if (isAdvanced) {
+      return (
+        <View key={key} style={chipStyle}>
+          {chipText}
+          <TouchableOpacity
+            accessibilityLabel={`${resolveText('common.delete', 'Delete')} ${label}`}
+            accessibilityRole="button"
+            hitSlop={8}
+            onPress={onPress}
+            style={styles.filterChipAction}
+          >
+            <X size={16} color={textColor} />
+          </TouchableOpacity>
+        </View>
+      );
+    }
+
     return (
       <TouchableOpacity
         key={key}
-        accessibilityLabel={isAdvanced ? `${resolveText('common.delete', 'Delete')} ${label}` : undefined}
         accessibilityRole="button"
         accessibilityState={{ selected }}
         onPress={onPress}
         style={chipStyle}
       >
         {chipText}
-        {isAdvanced ? <X size={12} color={textColor} /> : null}
       </TouchableOpacity>
     );
   }, [resolveText, tc.border, tc.filterBg, tc.onTint, tc.text, tc.tint]);
@@ -1104,11 +1134,11 @@ const styles = StyleSheet.create({
   },
   savedFilterChip: {
     maxWidth: 180,
-    minHeight: 32,
+    minHeight: 44,
     borderWidth: 1,
-    borderRadius: 16,
+    borderRadius: 22,
     paddingHorizontal: 12,
-    paddingVertical: 7,
+    paddingVertical: 10,
     justifyContent: 'center',
   },
   savedFilterChipAttached: {
@@ -1120,20 +1150,20 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   savedFilterDeleteChip: {
-    width: 32,
-    height: 32,
+    width: 44,
+    height: 44,
     borderWidth: 1,
     borderLeftWidth: 0,
-    borderTopRightRadius: 16,
-    borderBottomRightRadius: 16,
+    borderTopRightRadius: 22,
+    borderBottomRightRadius: 22,
     alignItems: 'center',
     justifyContent: 'center',
   },
   savedFilterAddChip: {
-    width: 32,
-    height: 32,
+    width: 44,
+    height: 44,
     borderWidth: 1,
-    borderRadius: 16,
+    borderRadius: 22,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -1182,6 +1212,12 @@ const styles = StyleSheet.create({
   },
   filterChipAdvanced: {
     borderStyle: 'dashed',
+  },
+  filterChipAction: {
+    width: 28,
+    height: 28,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   filterChipText: {
     fontSize: 12,
@@ -1306,25 +1342,27 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   sheetTextButton: {
-    paddingHorizontal: 6,
-    paddingVertical: 6,
+    minHeight: 44,
+    justifyContent: 'center',
+    paddingHorizontal: 10,
+    paddingVertical: 8,
   },
   sheetSaveButton: {
-    minHeight: 32,
+    minHeight: 44,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    paddingHorizontal: 6,
-    paddingVertical: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
   },
   sheetTextButtonText: {
     fontSize: 13,
     fontWeight: '600',
   },
   sheetIconButton: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -1377,7 +1415,7 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   dialogButton: {
-    minHeight: 38,
+    minHeight: 44,
     minWidth: 72,
     alignItems: 'center',
     justifyContent: 'center',
