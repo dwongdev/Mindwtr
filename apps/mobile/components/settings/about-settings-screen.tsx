@@ -30,7 +30,7 @@ export function AboutSettingsScreen({
 }) {
     const tc = useThemeColors();
     const { showToast } = useToast();
-    const { localize, t } = useSettingsLocalization();
+    const { tr, t } = useSettingsLocalization();
     const scrollContentStyle = useSettingsScrollContent();
     const extraConfig = Constants.expoConfig?.extra as MobileExtraConfig | undefined;
     const isFossBuild = extraConfig?.isFossBuild === true || extraConfig?.isFossBuild === 'true';
@@ -217,11 +217,8 @@ export function AboutSettingsScreen({
     const handleCheckUpdates = async () => {
         if (isFossBuild) {
             showToast({
-                title: localize('Updates are managed by your distribution source', '更新由发行渠道管理'),
-                message: localize(
-                    'In-app update checks are disabled in this FOSS build. Please update from your repository or package source.',
-                    '此 FOSS 版本已禁用应用内更新检查。请通过你的软件源或包管理渠道更新。'
-                ),
+                title: tr('settings.aboutMobile.updatesAreManagedByYourDistributionSource'),
+                message: tr('settings.aboutMobile.inAppUpdateChecksAreDisabledInThisFossBuild'),
                 tone: 'info',
                 durationMs: 4800,
             });
@@ -241,28 +238,19 @@ export function AboutSettingsScreen({
                     : compareVersions(result.version, currentVersion) > 0;
                 if (hasUpdate) {
                     const updateMessage = result.source === 'play-store'
-                        ? localize(
-                            'Update is available on Google Play. Open app listing now?',
-                            'Google Play 已提供更新，是否立即打开应用页面？'
-                        )
-                        : localize(
-                            `v${currentVersion} → v${result.version}\n\nGoogle Play check was unavailable, but a newer GitHub release is available. Play rollout may lag. Open app listing now?`,
-                            `v${currentVersion} → v${result.version}\n\nGoogle Play 检查暂时不可用，但 GitHub 已有更新，Play 商店可能会延迟推送。是否立即打开应用页面？`
-                        );
-                    Alert.alert(localize('Update Available', '有可用更新'), updateMessage, [
-                        { text: localize('Later', '稍后'), style: 'cancel' },
-                        { text: localize('Open', '打开'), onPress: () => Linking.openURL(targetUrl) },
+                        ? tr('settings.aboutMobile.updateIsAvailableOnGooglePlayOpenAppListingNow')
+                        : tr('settings.aboutMobile.vValueVValueGooglePlayCheckWasUnavailableBut', { value1: currentVersion, value2: result.version });
+                    Alert.alert(tr('settings.updateAvailable'), updateMessage, [
+                        { text: tr('settings.later'), style: 'cancel' },
+                        { text: tr('attachments.open'), onPress: () => Linking.openURL(targetUrl) },
                     ]);
                     await persistUpdateBadge(true, result.source === 'github-release' ? result.version : undefined);
                 } else {
                     const upToDateMessage = result.source === 'play-store'
-                        ? localize('You are using the latest Google Play version!', '您正在使用 Google Play 最新版本！')
-                        : localize(
-                            'Google Play check was unavailable, but your version matches the latest GitHub release.',
-                            'Google Play 检查暂时不可用，但当前版本与 GitHub 最新发布一致。'
-                        );
+                        ? tr('settings.aboutMobile.youAreUsingTheLatestGooglePlayVersion')
+                        : tr('settings.aboutMobile.googlePlayCheckWasUnavailableButYourVersionMatchesThe');
                     showToast({
-                        title: localize('Up to Date', '已是最新'),
+                        title: tr('settings.aboutMobile.upToDate'),
                         message: upToDateMessage,
                         tone: 'success',
                     });
@@ -281,21 +269,18 @@ export function AboutSettingsScreen({
 
                 if (hasUpdate) {
                     Alert.alert(
-                        localize('Update Available', '有可用更新'),
-                        localize(
-                            `v${currentVersion} → v${latestVersion}\n\nUpdate is available on the App Store. Open app listing now?`,
-                            `v${currentVersion} → v${latestVersion}\n\nApp Store 已提供更新，是否立即打开应用页面？`
-                        ),
+                        tr('settings.updateAvailable'),
+                        tr('settings.aboutMobile.vValueVValueUpdateIsAvailableOnTheApp', { value1: currentVersion, value2: latestVersion }),
                         [
-                            { text: localize('Later', '稍后'), style: 'cancel' },
-                            ...(targetUrl ? [{ text: localize('Open', '打开'), onPress: () => Linking.openURL(targetUrl) }] : []),
+                            { text: tr('settings.later'), style: 'cancel' },
+                            ...(targetUrl ? [{ text: tr('attachments.open'), onPress: () => Linking.openURL(targetUrl) }] : []),
                         ]
                     );
                     await persistUpdateBadge(true, latestVersion);
                 } else {
                     showToast({
-                        title: localize('Up to Date', '已是最新'),
-                        message: localize('You are using the latest App Store version!', '您正在使用 App Store 最新版本！'),
+                        title: tr('settings.aboutMobile.upToDate'),
+                        message: tr('settings.aboutMobile.youAreUsingTheLatestAppStoreVersion'),
                         tone: 'success',
                     });
                     await persistUpdateBadge(false);
@@ -309,20 +294,20 @@ export function AboutSettingsScreen({
 
             if (hasUpdate) {
                 const downloadUrl = release.html_url || GITHUB_RELEASES_URL;
-                const changelog = release.body || localize('No changelog available', '暂无更新日志');
+                const changelog = release.body || tr('settings.noChangelog');
                 Alert.alert(
-                    localize('Update Available', '有可用更新'),
-                    `v${currentVersion} → v${latestVersion}\n\n${localize('Changelog', '更新日志')}:\n${changelog.substring(0, 500)}${changelog.length > 500 ? '...' : ''}`,
+                    tr('settings.updateAvailable'),
+                    `v${currentVersion} → v${latestVersion}\n\n${tr('settings.changelog')}:\n${changelog.substring(0, 500)}${changelog.length > 500 ? '...' : ''}`,
                     [
-                        { text: localize('Later', '稍后'), style: 'cancel' },
-                        { text: localize('Download', '下载'), onPress: () => Linking.openURL(downloadUrl) },
+                        { text: tr('settings.later'), style: 'cancel' },
+                        { text: tr('attachments.download'), onPress: () => Linking.openURL(downloadUrl) },
                     ]
                 );
                 await persistUpdateBadge(true, latestVersion);
             } else {
                 showToast({
-                    title: localize('Up to Date', '已是最新'),
-                    message: localize('You are using the latest version!', '您正在使用最新版本！'),
+                    title: tr('settings.aboutMobile.upToDate'),
+                    message: tr('settings.upToDate'),
                     tone: 'success',
                 });
                 await persistUpdateBadge(false);
@@ -330,8 +315,8 @@ export function AboutSettingsScreen({
         } catch (error) {
             logSettingsError('Update check failed:', error);
             showToast({
-                title: localize('Error', '错误'),
-                message: localize('Failed to check for updates', '检查更新失败'),
+                title: tr('settings.syncMobile.error'),
+                message: tr('settings.checkFailed'),
                 tone: 'warning',
             });
         } finally {
@@ -364,8 +349,8 @@ export function AboutSettingsScreen({
         } catch (error) {
             logSettingsWarn('Failed to open app store rating page', error);
             showToast({
-                title: localize('Store unavailable', '商店暂不可用'),
-                message: localize('Could not open the app store rating page. Please try again later.', '无法打开应用商店评分页面，请稍后重试。'),
+                title: tr('settings.aboutMobile.storeUnavailable'),
+                message: tr('settings.aboutMobile.couldNotOpenTheAppStoreRatingPagePleaseTry'),
                 tone: 'warning',
             });
         }
@@ -395,7 +380,7 @@ export function AboutSettingsScreen({
                             {isCheckingUpdate ? (
                                 <ActivityIndicator size="small" color="#3B82F6" />
                             ) : (
-                                <Text style={styles.linkText}>{localize('Tap to check', '点击检查')}</Text>
+                                <Text style={styles.linkText}>{tr('settings.aboutMobile.tapToCheck')}</Text>
                             )}
                         </TouchableOpacity>
                     )}
@@ -404,7 +389,7 @@ export function AboutSettingsScreen({
                             style={[styles.settingRow, { borderTopWidth: 1, borderTopColor: tc.border }]}
                             onPress={() => void handleRateApp()}
                         >
-                            <Text style={[styles.settingLabel, { color: tc.text }]}>{localize('Rate our app', '给应用评分')}</Text>
+                            <Text style={[styles.settingLabel, { color: tc.text }]}>{tr('settings.aboutMobile.rateOurApp')}</Text>
                             <Text style={styles.linkText}>{Platform.OS === 'ios' ? 'App Store' : 'Google Play'}</Text>
                         </TouchableOpacity>
                     )}

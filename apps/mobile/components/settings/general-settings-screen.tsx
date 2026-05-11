@@ -15,7 +15,7 @@ import { styles } from './settings.styles';
 
 export function GeneralSettingsScreen() {
     const { themeMode, setThemeMode } = useTheme();
-    const { language, localize, setLanguage, t } = useSettingsLocalization();
+    const { language, tr, setLanguage, t } = useSettingsLocalization();
     const { settings, updateSettings } = useTaskStore();
     const tc = useThemeColors();
     const scrollContentStyle = useSettingsScrollContent();
@@ -76,13 +76,10 @@ export function GeneralSettingsScreen() {
                     <View style={[styles.settingRow, { borderTopWidth: 1, borderTopColor: tc.border }]}>
                         <View style={styles.settingInfo}>
                             <Text style={[styles.settingLabel, { color: tc.text }]}>
-                                {localize('Show task age', '显示任务年龄')}
+                                {tr('settings.mobile.showTaskAge')}
                             </Text>
                             <Text style={[styles.settingDescription, { color: tc.secondaryText }]}>
-                                {localize(
-                                    'Display how long ago a task was created in task metadata.',
-                                    '在任务元数据中显示任务创建距今多久。'
-                                )}
+                                {tr('settings.mobile.displayHowLongAgoATaskWasCreatedInTask')}
                             </Text>
                         </View>
                         <Switch

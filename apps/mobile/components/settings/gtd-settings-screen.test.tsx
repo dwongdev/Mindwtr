@@ -81,7 +81,10 @@ vi.mock('./settings.hooks', () => ({
   useSettingsLocalization: () => ({
     isChineseLanguage: false,
     language: 'en',
-    localize: (en: string) => en,
+    tr: (key: string) =>
+      ({
+        'settings.gtdMobile.pomodoroWillNowAdvancePhasesAutomatically': 'Pomodoro will now advance phases automatically.',
+      }[key] ?? key),
     t: (key: string) =>
       ({
         'settings.taskEditorLayout': 'Task editor layout',

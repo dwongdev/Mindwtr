@@ -51,7 +51,7 @@ type SettingsScreenMode = 'sync' | 'data';
 function SyncSettingsView({ mode }: { mode: SettingsScreenMode }) {
     const tc = useThemeColors();
     const { showToast } = useToast();
-    const { localize, t } = useSettingsLocalization();
+    const { tr, t } = useSettingsLocalization();
     const scrollContentStyle = useSettingsScrollContent();
     const {
         tasks,
@@ -146,15 +146,12 @@ function SyncSettingsView({ mode }: { mode: SettingsScreenMode }) {
     const handleClearPendingRemoteDeletes = useCallback(() => {
         if (pendingRemoteDeleteCount === 0) return;
         Alert.alert(
-            localize('Clear pending attachment deletes?', '清除待处理的附件删除？'),
-            localize(
-                'Only clear these if you no longer want Mindwtr to delete those files from the old sync backend. This does not delete any files.',
-                '仅当你不再希望 Mindwtr 从旧同步后端删除这些文件时才清除。此操作不会删除任何文件。'
-            ),
+            tr('settings.syncMobile.clearPendingAttachmentDeletes'),
+            tr('settings.syncMobile.onlyClearTheseIfYouNoLongerWantMindwtrTo'),
             [
                 { text: t('common.cancel'), style: 'cancel' },
                 {
-                    text: localize('Clear', '清除'),
+                    text: tr('filters.clear'),
                     style: 'destructive',
                     onPress: () => {
                         updateSettings({
@@ -167,7 +164,7 @@ function SyncSettingsView({ mode }: { mode: SettingsScreenMode }) {
                 },
             ],
         );
-    }, [localize, pendingRemoteDeleteCount, settings.attachments, t, updateSettings]);
+    }, [tr, pendingRemoteDeleteCount, settings.attachments, t, updateSettings]);
 
     const refreshRecoverySnapshots = useCallback(async () => {
         setIsLoadingRecoverySnapshots(true);
@@ -223,52 +220,37 @@ function SyncSettingsView({ mode }: { mode: SettingsScreenMode }) {
         switch (status) {
             case 'available':
                 return {
-                    label: localize('Signed in to iCloud', '已登录 iCloud'),
-                    helpText: localize(
-                        'Syncs your tasks, projects, and areas across Apple devices using CloudKit. No Mindwtr account setup is required. Tap "Sync now" to force an immediate merge.',
-                        '通过 CloudKit 在 Apple 设备间同步任务、项目和领域。无需额外注册 Mindwtr 账号。点击“立即同步”可手动触发一次合并。'
-                    ),
+                    label: tr('settings.syncMobile.signedInToIcloud'),
+                    helpText: tr('settings.syncMobile.syncsYourTasksProjectsAndAreasAcrossAppleDevicesUsing'),
                     syncEnabled: true,
                 };
             case 'noAccount':
                 return {
-                    label: localize('iCloud sign-in required', '需要登录 iCloud'),
-                    helpText: localize(
-                        'This device is not signed into iCloud. Open iOS Settings, sign into your Apple Account, enable iCloud for Mindwtr, then come back and tap "Sync now".',
-                        '这台设备尚未登录 iCloud。请打开 iOS“设置”，登录 Apple 账户并为 Mindwtr 启用 iCloud，然后返回这里点击“立即同步”。'
-                    ),
+                    label: tr('settings.syncMobile.icloudSignInRequired'),
+                    helpText: tr('settings.syncMobile.thisDeviceIsNotSignedIntoIcloudOpenIosSettings'),
                     syncEnabled: false,
                 };
             case 'restricted':
                 return {
-                    label: localize('iCloud restricted', 'iCloud 已受限'),
-                    helpText: localize(
-                        'CloudKit is restricted on this device. Check Screen Time, MDM, or iCloud restrictions, then try again.',
-                        '这台设备上的 CloudKit 已被限制。请检查屏幕使用时间、设备管理或 iCloud 限制后再试。'
-                    ),
+                    label: tr('settings.syncMobile.icloudRestricted'),
+                    helpText: tr('settings.syncMobile.cloudkitIsRestrictedOnThisDeviceCheckScreenTimeMdm'),
                     syncEnabled: false,
                 };
             case 'temporarilyUnavailable':
                 return {
-                    label: localize('iCloud temporarily unavailable', 'iCloud 暂时不可用'),
-                    helpText: localize(
-                        'iCloud is temporarily unavailable. Wait a moment, then tap "Sync now" again.',
-                        'iCloud 当前暂时不可用。请稍后再点击“立即同步”。'
-                    ),
+                    label: tr('settings.syncMobile.icloudTemporarilyUnavailable'),
+                    helpText: tr('settings.syncMobile.icloudIsTemporarilyUnavailableWaitAMomentThenTapSync'),
                     syncEnabled: false,
                 };
             case 'unknown':
             default:
                 return {
-                    label: localize('iCloud status unavailable', 'iCloud 状态未知'),
-                    helpText: localize(
-                        'Syncs your tasks, projects, and areas across Apple devices using CloudKit. If sync does not start, verify that iCloud is enabled for this device and app, then tap "Sync now".',
-                        '通过 CloudKit 在 Apple 设备间同步任务、项目和领域。如果同步没有开始，请确认此设备和该应用已启用 iCloud，然后点击“立即同步”。'
-                    ),
+                    label: tr('settings.syncMobile.icloudStatusUnavailable'),
+                    helpText: tr('settings.syncMobile.syncsYourTasksProjectsAndAreasAcrossAppleDevicesUsing2'),
                     syncEnabled: true,
                 };
         }
-    }, [localize]);
+    }, [tr]);
 
     const {
         formatRecoverySnapshotLabel,
@@ -283,7 +265,7 @@ function SyncSettingsView({ mode }: { mode: SettingsScreenMode }) {
         toggleDebugLogging,
     } = useSyncSettingsBackupActions({
         areas,
-        localize,
+        tr,
         projects,
         refreshRecoverySnapshots,
         sections,
@@ -331,7 +313,7 @@ function SyncSettingsView({ mode }: { mode: SettingsScreenMode }) {
         isFossBuild,
         lastSyncStats,
         lastSyncStatus: settings.lastSyncStatus,
-        localize,
+        tr,
         resetSyncStatusForBackendSwitch,
         showSettingsErrorToast,
         showSettingsWarning,
@@ -449,7 +431,7 @@ function SyncSettingsView({ mode }: { mode: SettingsScreenMode }) {
                             <SyncFileBackendPanel
                                 isSyncing={isSyncing}
                                 lastSyncCard={lastSyncCard}
-                                localize={localize}
+                                tr={tr}
                                 onSelectFolder={() => void handleSetSyncPath()}
                                 onSync={() => void handleSync({ backend: 'file' })}
                                 syncPath={syncPath}
@@ -535,7 +517,7 @@ function SyncSettingsView({ mode }: { mode: SettingsScreenMode }) {
                                         isSyncEnabled={cloudKitStatusDetails.syncEnabled}
                                         isSyncing={isSyncing}
                                         lastSyncCard={lastSyncCard}
-                                        localize={localize}
+                                        tr={tr}
                                         onSync={() => void handleSync({ backend: 'cloudkit', cloudProvider: 'cloudkit' })}
                                         statusLabel={cloudKitStatusDetails.label}
                                         t={t}
@@ -564,7 +546,7 @@ function SyncSettingsView({ mode }: { mode: SettingsScreenMode }) {
                                         isSyncing={isSyncing}
                                         isTestingConnection={isTestingConnection}
                                         lastSyncCard={lastSyncCard}
-                                        localize={localize}
+                                        tr={tr}
                                         onConnectToggle={() => void (dropboxConnected ? handleDisconnectDropbox() : handleConnectDropbox())}
                                         onSync={() => void handleSync({ backend: 'cloud', cloudProvider: 'dropbox' })}
                                         onTestConnection={() => void handleTestDropboxConnection()}
@@ -592,7 +574,7 @@ function SyncSettingsView({ mode }: { mode: SettingsScreenMode }) {
 
                         <BackgroundSyncInfoCard
                             isRemoteBackend={isScheduledBackgroundSyncBackend}
-                            localize={localize}
+                            tr={tr}
                             tc={tc}
                         />
 
@@ -603,7 +585,7 @@ function SyncSettingsView({ mode }: { mode: SettingsScreenMode }) {
                             isBackupBusy={isBackupBusy}
                             isLoadingRecoverySnapshots={isLoadingRecoverySnapshots}
                             isSyncing={isSyncing}
-                            localize={localize}
+                            tr={tr}
                             recoverySnapshots={recoverySnapshots}
                             recoverySnapshotsOpen={recoverySnapshotsOpen}
                             setRecoverySnapshotsOpen={setRecoverySnapshotsOpen}
@@ -622,7 +604,7 @@ function SyncSettingsView({ mode }: { mode: SettingsScreenMode }) {
                             handleRestoreBackup={() => void handleRestoreBackup()}
                             isBackupBusy={isBackupBusy}
                             isSyncing={isSyncing}
-                            localize={localize}
+                            tr={tr}
                             t={t}
                             tc={tc}
                         />
@@ -631,7 +613,7 @@ function SyncSettingsView({ mode }: { mode: SettingsScreenMode }) {
                             <View style={styles.settingRow}>
                                 <View style={styles.settingInfo}>
                                     <Text style={[styles.settingLabel, { color: tc.text }]}>
-                                        {localize('Pending remote deletes', '待处理远程删除')}
+                                        {tr('settings.syncMobile.pendingRemoteDeletes')}
                                     </Text>
                                     <Text style={[styles.settingDescription, { color: tc.secondaryText }]}>
                                         {pendingRemoteDeleteCount}
@@ -643,7 +625,7 @@ function SyncSettingsView({ mode }: { mode: SettingsScreenMode }) {
                                     style={{ opacity: pendingRemoteDeleteCount === 0 ? 0.45 : 1 }}
                                 >
                                     <Text style={[styles.linkText, { color: pendingRemoteDeleteCount === 0 ? tc.secondaryText : tc.tint }]}>
-                                        {localize('Clear', '清除')}
+                                        {tr('filters.clear')}
                                     </Text>
                                 </TouchableOpacity>
                             </View>

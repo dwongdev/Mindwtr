@@ -1,24 +1,27 @@
 import { useMemo } from 'react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { getI18nKeyForEnglishText, translateText } from '@mindwtr/core';
+import { formatI18nTemplate, getEnglishI18nValue, translateText } from '@mindwtr/core';
 
 import { useLanguage } from '@/contexts/language-context';
 
 import { styles } from './settings.styles';
 
+type I18nTemplateValues = Record<string, string | number | boolean | null | undefined>;
+
 export function useSettingsLocalization() {
     const { language, t, setLanguage } = useLanguage();
     const isChineseLanguage = language === 'zh' || language === 'zh-Hant';
-    const localize = useMemo(
-        () => (enText: string, zhText?: string) => {
-            const key = getI18nKeyForEnglishText(enText);
-            if (key) {
-                const translated = t(key);
-                if (translated && translated !== key) return translated;
-            }
-            if (language === 'zh' && zhText) return zhText;
-            return translateText(enText, language);
+    const tr = useMemo(
+        () => (key: string, values?: I18nTemplateValues) => {
+            const english = getEnglishI18nValue(key);
+            const translated = t(key);
+            const template = english && translated === english
+                ? translateText(english, language)
+                : translated && translated !== key
+                    ? translated
+                    : english ?? key;
+            return values ? formatI18nTemplate(template, values) : template;
         },
         [language, t],
     );
@@ -26,9 +29,9 @@ export function useSettingsLocalization() {
     return {
         isChineseLanguage,
         language,
-        localize,
         setLanguage,
         t,
+        tr,
     };
 }
 

@@ -8,7 +8,7 @@ import type { ThemeColors } from '@/hooks/use-theme-colors';
 import { styles } from './settings.styles';
 
 type Translate = (key: string) => string;
-type Localize = (english: string, chinese: string) => string;
+type SettingsTranslator = (key: string, values?: Record<string, string | number | boolean | null | undefined>) => string;
 
 type SyncLastStatusCardProps = {
   conflictCount: number;
@@ -79,13 +79,13 @@ export function SyncLastStatusCard({
 
 type BackgroundSyncInfoCardProps = {
   isRemoteBackend: boolean;
-  localize: Localize;
+  tr: SettingsTranslator;
   tc: ThemeColors;
 };
 
 export function BackgroundSyncInfoCard({
   isRemoteBackend,
-  localize,
+  tr,
   tc,
 }: BackgroundSyncInfoCardProps) {
   return (
@@ -93,18 +93,12 @@ export function BackgroundSyncInfoCard({
       <View style={styles.settingRow}>
         <View style={styles.settingInfo}>
           <Text style={[styles.settingLabel, { color: tc.text }]}>
-            {localize('Background sync', '后台同步')}
+            {tr('settings.syncMobile.backgroundSync')}
           </Text>
           <Text style={[styles.settingDescription, { color: tc.secondaryText }]}>
             {isRemoteBackend
-              ? localize(
-                'Mindwtr asks the system to sync about every 15 minutes when network and battery conditions allow. iOS may wait longer; Android battery optimization can delay background work.',
-                'Mindwtr 会在网络和电量条件允许时请求系统约每 15 分钟同步一次。iOS 可能等待更久；Android 电池优化可能延迟后台任务。'
-              )
-              : localize(
-                'Scheduled background sync is available for WebDAV, self-hosted cloud, Dropbox, and iCloud. File sync still runs from foreground and manual sync.',
-                '定时后台同步适用于 WebDAV、自托管云端、Dropbox 和 iCloud。文件同步仍通过前台和手动同步运行。'
-              )}
+              ? tr('settings.syncMobile.mindwtrAsksTheSystemToSyncAboutEvery15Minutes')
+              : tr('settings.syncMobile.scheduledBackgroundSyncIsAvailableForWebdavSelfHostedCloud')}
           </Text>
         </View>
       </View>
@@ -121,7 +115,7 @@ type SyncBackupSectionProps = {
   handleRestoreBackup: () => void;
   isBackupBusy: boolean;
   isSyncing: boolean;
-  localize: Localize;
+  tr: SettingsTranslator;
   t: Translate;
   tc: ThemeColors;
 };
@@ -135,7 +129,7 @@ export function SyncBackupSection({
   handleRestoreBackup,
   isBackupBusy,
   isSyncing,
-  localize,
+  tr,
   t,
   tc,
 }: SyncBackupSectionProps) {
@@ -156,9 +150,9 @@ export function SyncBackupSection({
           disabled={isSyncing || isBackupBusy}
         >
           <View style={styles.settingInfo}>
-            <Text style={[styles.settingLabel, { color: tc.tint }]}>{localize('Restore Backup', '恢复备份')}</Text>
+            <Text style={[styles.settingLabel, { color: tc.tint }]}>{tr('settings.syncMobile.restoreBackup')}</Text>
             <Text style={[styles.settingDescription, { color: tc.secondaryText }]}>
-              {localize('Replace local data from a backup JSON file.', '从备份 JSON 文件替换本地数据。')}
+              {tr('settings.syncMobile.replaceLocalDataFromABackupJsonFile')}
             </Text>
           </View>
           {backupAction === 'restore' && <ActivityIndicator size="small" color={tc.tint} />}
@@ -169,9 +163,9 @@ export function SyncBackupSection({
           disabled={isSyncing || isBackupBusy}
         >
           <View style={styles.settingInfo}>
-            <Text style={[styles.settingLabel, { color: tc.tint }]}>{localize('Import from Todoist', '从 Todoist 导入')}</Text>
+            <Text style={[styles.settingLabel, { color: tc.tint }]}>{tr('settings.syncMobile.importFromTodoist')}</Text>
             <Text style={[styles.settingDescription, { color: tc.secondaryText }]}>
-              {localize('Import Todoist CSV or ZIP exports into Mindwtr projects.', '将 Todoist 的 CSV 或 ZIP 导出导入为 Mindwtr 项目。')}
+              {tr('settings.syncMobile.importTodoistCsvOrZipExportsIntoMindwtrProjects')}
             </Text>
           </View>
           {backupAction === 'import' && <ActivityIndicator size="small" color={tc.tint} />}
@@ -182,9 +176,9 @@ export function SyncBackupSection({
           disabled={isSyncing || isBackupBusy}
         >
           <View style={styles.settingInfo}>
-            <Text style={[styles.settingLabel, { color: tc.tint }]}>{localize('Import from DGT GTD', '从 DGT GTD 导入')}</Text>
+            <Text style={[styles.settingLabel, { color: tc.tint }]}>{tr('settings.syncMobile.importFromDgtGtd')}</Text>
             <Text style={[styles.settingDescription, { color: tc.secondaryText }]}>
-              {localize('Import DGT GTD JSON or ZIP exports into Mindwtr areas, projects, and tasks.', '将 DGT GTD 的 JSON 或 ZIP 导出导入为 Mindwtr 的领域、项目和任务。')}
+              {tr('settings.syncMobile.importDgtGtdJsonOrZipExportsIntoMindwtrAreas')}
             </Text>
           </View>
           {backupAction === 'import' && <ActivityIndicator size="small" color={tc.tint} />}
@@ -195,9 +189,9 @@ export function SyncBackupSection({
           disabled={isSyncing || isBackupBusy}
         >
           <View style={styles.settingInfo}>
-            <Text style={[styles.settingLabel, { color: tc.tint }]}>{localize('Import from OmniFocus', '从 OmniFocus 导入')}</Text>
+            <Text style={[styles.settingLabel, { color: tc.tint }]}>{tr('settings.syncMobile.importFromOmnifocus')}</Text>
             <Text style={[styles.settingDescription, { color: tc.secondaryText }]}>
-              {localize('Import OmniFocus CSV, JSON, or ZIP exports into Mindwtr projects and inbox tasks.', '将 OmniFocus 的 CSV、JSON 或 ZIP 导出导入为 Mindwtr 项目和收集箱任务。')}
+              {tr('settings.syncMobile.importOmnifocusCsvJsonOrZipExportsIntoMindwtrProjects')}
             </Text>
           </View>
           {backupAction === 'import' && <ActivityIndicator size="small" color={tc.tint} />}
@@ -214,7 +208,7 @@ type RecoverySnapshotsCardProps = {
   isBackupBusy: boolean;
   isLoadingRecoverySnapshots: boolean;
   isSyncing: boolean;
-  localize: Localize;
+  tr: SettingsTranslator;
   recoverySnapshots: string[];
   recoverySnapshotsOpen: boolean;
   setRecoverySnapshotsOpen: (open: boolean) => void;
@@ -229,7 +223,7 @@ export function RecoverySnapshotsCard({
   isBackupBusy,
   isLoadingRecoverySnapshots,
   isSyncing,
-  localize,
+  tr,
   recoverySnapshots,
   recoverySnapshotsOpen,
   setRecoverySnapshotsOpen,
@@ -242,7 +236,7 @@ export function RecoverySnapshotsCard({
         <View style={styles.settingInfo}>
           <Text style={[styles.settingLabel, { color: tc.text }]}>{t('settings.recoverySnapshots')}</Text>
           <Text style={[styles.settingDescription, { color: tc.secondaryText }]}>
-            {localize('Saved automatically before restore and import operations.', '在恢复和导入之前自动保存。')}
+            {tr('settings.syncMobile.savedAutomaticallyBeforeRestoreAndImportOperations')}
           </Text>
         </View>
         <Text style={[styles.chevron, { color: tc.secondaryText }]}>{recoverySnapshotsOpen ? '▾' : '▸'}</Text>

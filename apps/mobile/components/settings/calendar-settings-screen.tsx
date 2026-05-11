@@ -79,7 +79,7 @@ function CollapsibleSettingHeader({
 export function CalendarSettingsScreen() {
     const tc = useThemeColors();
     const { showToast } = useToast();
-    const { isChineseLanguage, localize, t } = useSettingsLocalization();
+    const { isChineseLanguage, tr, t } = useSettingsLocalization();
     const { settings, updateSettings } = useTaskStore();
     const scrollContentStyle = useSettingsScrollContent();
     const [externalCalendars, setExternalCalendars] = useState<ExternalCalendarSubscription[]>([]);
@@ -113,15 +113,15 @@ export function CalendarSettingsScreen() {
         } catch (error) {
             console.error(error);
             showToast({
-                title: localize('Error', '错误'),
-                message: localize('Failed to load writable calendars', '加载可写日历失败'),
+                title: tr('settings.syncMobile.error'),
+                message: tr('settings.calendarMobile.failedToLoadWritableCalendars'),
                 tone: 'warning',
                 durationMs: 4200,
             });
         } finally {
             setIsCalendarPushTargetLoading(false);
         }
-    }, [localize, showToast]);
+    }, [tr, showToast]);
 
     useEffect(() => {
         void (async () => {
@@ -147,8 +147,8 @@ export function CalendarSettingsScreen() {
             if (!granted) {
                 setCalendarPushPermission('denied');
                 showToast({
-                    title: localize('Permission Required', '需要权限'),
-                    message: localize('Calendar access is required to push tasks to your calendar.', '需要日历访问权限才能将任务推送到您的日历。'),
+                    title: tr('settings.calendarMobile.permissionRequired'),
+                    message: tr('settings.calendarMobile.calendarAccessIsRequiredToPushTasksToYourCalendar'),
                     tone: 'warning',
                     durationMs: 4200,
                 });
@@ -166,8 +166,8 @@ export function CalendarSettingsScreen() {
             setCalendarPushEnabledState(false);
             stopCalendarPushSync();
             showToast({
-                title: localize('Calendar sync disabled', '日历同步已禁用'),
-                message: localize('Tasks will no longer be pushed to your calendar. Existing events were kept.', '任务将不再推送到您的日历。已创建的日程已保留。'),
+                title: tr('settings.calendarMobile.calendarSyncDisabled'),
+                message: tr('settings.calendarMobile.tasksWillNoLongerBePushedToYourCalendarExisting'),
                 tone: 'info',
                 durationMs: 4200,
             });
@@ -182,8 +182,8 @@ export function CalendarSettingsScreen() {
             void runFullCalendarSync();
         }
         showToast({
-            title: localize('Calendar target updated', '日历目标已更新'),
-            message: localize('Due-date tasks will be written to the selected calendar.', '带截止日期的任务将写入所选日历。'),
+            title: tr('settings.calendarMobile.calendarTargetUpdated'),
+            message: tr('settings.calendarMobile.dueDateTasksWillBeWrittenToTheSelectedCalendar'),
             tone: 'success',
             durationMs: 3200,
         });
@@ -197,8 +197,8 @@ export function CalendarSettingsScreen() {
         stopCalendarPushSync();
         await deleteMindwtrCalendar();
         showToast({
-            title: localize('Calendar deleted', '日历已删除'),
-            message: localize('The Mindwtr calendar and all its events have been removed.', 'Mindwtr 日历及其所有日程已删除。'),
+            title: tr('settings.calendarMobile.calendarDeleted'),
+            message: tr('settings.calendarMobile.theMindwtrCalendarAndAllItsEventsHaveBeenRemoved'),
             tone: 'success',
             durationMs: 3500,
         });
@@ -244,15 +244,15 @@ export function CalendarSettingsScreen() {
         } catch (error) {
             console.error(error);
             showToast({
-                title: localize('Error', '错误'),
-                message: localize('Failed to load device calendar settings', '加载系统日历设置失败'),
+                title: tr('settings.syncMobile.error'),
+                message: tr('settings.calendarMobile.failedToLoadDeviceCalendarSettings'),
                 tone: 'warning',
                 durationMs: 4200,
             });
         } finally {
             setIsSystemCalendarLoading(false);
         }
-    }, [localize, showToast]);
+    }, [tr, showToast]);
 
     useEffect(() => {
         void loadSystemCalendarState();
@@ -275,8 +275,8 @@ export function CalendarSettingsScreen() {
             } catch (error) {
                 console.error(error);
                 showToast({
-                    title: localize('Error', '错误'),
-                    message: localize('Failed to load saved calendars', '加载已保存的日历失败'),
+                    title: tr('settings.syncMobile.error'),
+                    message: tr('settings.calendarMobile.failedToLoadSavedCalendars'),
                     tone: 'warning',
                     durationMs: 4200,
                 });
@@ -286,7 +286,7 @@ export function CalendarSettingsScreen() {
         return () => {
             cancelled = true;
         };
-    }, [localize, settings.externalCalendars, showToast]);
+    }, [tr, settings.externalCalendars, showToast]);
 
     const persistSystemCalendarState = async (next: {
         enabled?: boolean;
@@ -334,7 +334,7 @@ export function CalendarSettingsScreen() {
         const url = newCalendarUrl.trim();
         if (!url) return;
 
-        const name = (newCalendarName.trim() || localize('Calendar', '日历')).trim();
+        const name = (newCalendarName.trim() || tr('nav.calendar')).trim();
         const next: ExternalCalendarSubscription[] = [...externalCalendars, { id: generateUUID(), name, url, enabled: true }];
 
         setExternalCalendars(next);
@@ -365,15 +365,15 @@ export function CalendarSettingsScreen() {
             const rangeEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
             const { events } = await fetchExternalCalendarEvents(rangeStart, rangeEnd);
             showToast({
-                title: localize('Success', '成功'),
+                title: tr('common.success'),
                 message: isChineseLanguage ? `已加载 ${events.length} 个日程` : `Loaded ${events.length} events`,
                 tone: 'success',
             });
         } catch (error) {
             console.error(error);
             showToast({
-                title: localize('Error', '错误'),
-                message: localize('Failed to load events', '加载失败'),
+                title: tr('settings.syncMobile.error'),
+                message: tr('settings.calendarMobile.failedToLoadEvents'),
                 tone: 'warning',
             });
         }
@@ -395,17 +395,17 @@ export function CalendarSettingsScreen() {
     const getCalendarPushTargetDescription = (calendar: CalendarPushTargetCalendar): string => {
         const kind = calendar.isMindwtrDedicated
             ? calendar.isLocalOnly
-                ? localize('Dedicated local calendar', '专用本地日历')
-                : localize('Dedicated account calendar', '专用账户日历')
+                ? tr('settings.calendarMobile.dedicatedLocalCalendar')
+                : tr('settings.calendarMobile.dedicatedAccountCalendar')
             : calendar.isLocalOnly
-                ? localize('Shared local calendar', '共享本地日历')
-                : localize('Shared account calendar', '共享账户日历');
+                ? tr('settings.calendarMobile.sharedLocalCalendar')
+                : tr('settings.calendarMobile.sharedAccountCalendar');
         return calendar.sourceName ? `${kind} · ${calendar.sourceName}` : kind;
     };
     const defaultLocalTargetOption = {
         id: null as string | null,
-        name: localize('Mindwtr calendar', 'Mindwtr 日历'),
-        description: localize('Dedicated local calendar', '专用本地日历'),
+        name: tr('settings.calendarMobile.mindwtrCalendar'),
+        description: tr('settings.calendarMobile.dedicatedLocalCalendar'),
         color: '#3B82F6',
     };
     const calendarPushTargetOptions: Array<{
@@ -445,11 +445,8 @@ export function CalendarSettingsScreen() {
                 {/* Push tasks to calendar */}
                 <View style={[styles.settingCard, { backgroundColor: tc.cardBg, marginBottom: 16 }]}>
                     <CollapsibleSettingHeader
-                        title={localize('Push tasks to calendar', '将任务推送到日历')}
-                        description={localize(
-                            'Scheduled tasks and tasks with due dates are added to your selected device calendar.',
-                            '已安排的任务和带截止日期的任务会添加到所选设备日历中。'
-                        )}
+                        title={tr('settings.calendarMobile.pushTasksToCalendar')}
+                        description={tr('settings.calendarMobile.scheduledTasksAndTasksWithDueDatesAreAddedTo')}
                         open={calendarPushOpen}
                         onToggle={() => setCalendarPushOpen((open) => !open)}
                         textColor={tc.text}
@@ -466,10 +463,7 @@ export function CalendarSettingsScreen() {
                     {calendarPushOpen && calendarPushEnabled && calendarPushPermission === 'denied' && (
                         <View style={{ marginTop: 12, paddingTop: 12, borderTopWidth: 1, borderTopColor: tc.border }}>
                             <Text style={[styles.settingDescription, { color: tc.secondaryText }]}>
-                                {localize(
-                                    'Calendar access was denied. Please grant access in Settings.',
-                                    '日历访问被拒绝。请在设置中授予访问权限。'
-                                )}
+                                {tr('settings.calendarMobile.calendarAccessWasDeniedPleaseGrantAccessInSettings')}
                             </Text>
                         </View>
                     )}
@@ -478,28 +472,19 @@ export function CalendarSettingsScreen() {
                         <View style={{ borderTopWidth: 1, borderTopColor: tc.border }}>
                             <View style={styles.settingRowColumn}>
                                 <Text style={[styles.settingLabel, { color: tc.text }]}>
-                                    {localize('Sync target', '同步目标')}
+                                    {tr('settings.calendarMobile.syncTarget')}
                                 </Text>
                             <Text style={[styles.settingDescription, { color: tc.secondaryText }]}>
-                                {localize(
-                                    'Choose an account calendar if your calendar app hides local calendars.',
-                                    '如果日历应用隐藏本地日历，请选择账户日历。'
-                                )}
+                                {tr('settings.calendarMobile.chooseAnAccountCalendarIfYourCalendarAppHidesLocal')}
                             </Text>
                             {selectedLocalCalendarForPush && (
                                 <Text style={[styles.settingDescription, { color: tc.secondaryText, marginTop: 8 }]}>
-                                    {localize(
-                                        'Local calendar targets stay on this device. Use a Google account calendar target if you need Google Calendar web sync.',
-                                        '本地日历目标只保存在此设备。如需同步到 Google 日历网页端，请选择 Google 账户日历。'
-                                    )}
+                                    {tr('settings.calendarMobile.localCalendarTargetsStayOnThisDeviceUseAGoogle')}
                                 </Text>
                             )}
                             {selectedSharedAccountCalendarForPush && (
                                 <Text style={[styles.settingDescription, { color: tc.secondaryText, marginTop: 8 }]}>
-                                    {localize(
-                                        'For a separate color in Google Calendar, select a dedicated account calendar named Mindwtr. Shared calendars still use a Mindwtr title prefix.',
-                                        '如需在 Google 日历中使用单独颜色，请选择名为 Mindwtr 的专用账户日历。共享日历仍会使用 Mindwtr 标题前缀。'
-                                    )}
+                                    {tr('settings.calendarMobile.forASeparateColorInGoogleCalendarSelectADedicated')}
                                 </Text>
                             )}
                         </View>
@@ -552,13 +537,10 @@ export function CalendarSettingsScreen() {
                             >
                                 <View style={styles.settingInfo}>
                                     <Text style={[styles.settingLabel, { color: tc.text }]}>
-                                        {localize('Refresh calendars', '刷新日历')}
+                                        {tr('settings.calendarMobile.refreshCalendars')}
                                     </Text>
                                     <Text style={[styles.settingDescription, { color: tc.secondaryText }]}>
-                                        {localize(
-                                            'Reload the list after adding a calendar in Google Calendar.',
-                                            '在 Google 日历中添加日历后重新加载列表。'
-                                        )}
+                                        {tr('settings.calendarMobile.reloadTheListAfterAddingACalendarInGoogleCalendar')}
                                     </Text>
                                 </View>
                                 <Ionicons color={tc.tint} name="refresh-outline" size={20} />
@@ -570,13 +552,10 @@ export function CalendarSettingsScreen() {
                             >
                                 <View style={styles.settingInfo}>
                                     <Text style={[styles.settingLabel, { color: '#EF4444' }]}>
-                                        {localize('Delete Mindwtr calendar', '删除 Mindwtr 日历')}
+                                        {tr('settings.calendarMobile.deleteMindwtrCalendar')}
                                     </Text>
                                     <Text style={[styles.settingDescription, { color: tc.secondaryText }]}>
-                                        {localize(
-                                            'Remove the dedicated calendar and its pushed events from this device.',
-                                            '从此设备移除专用日历及已推送的日程。'
-                                        )}
+                                        {tr('settings.calendarMobile.removeTheDedicatedCalendarAndItsPushedEventsFromThis')}
                                     </Text>
                                 </View>
                                 <Ionicons color="#EF4444" name="trash-outline" size={20} />
@@ -659,7 +638,7 @@ export function CalendarSettingsScreen() {
                 </View>
 
                 <Text style={[styles.sectionTitle, { color: tc.secondaryText, marginTop: 16 }]}>
-                    {localize('ICS subscriptions', 'ICS 订阅')}
+                    {tr('settings.calendarMobile.icsSubscriptions')}
                 </Text>
                 <Text style={[styles.description, { color: tc.secondaryText }]}>{t('settings.calendarDesc')}</Text>
 
@@ -668,7 +647,7 @@ export function CalendarSettingsScreen() {
                         <Text style={[styles.settingLabel, { color: tc.text }]}>{t('settings.externalCalendarName')}</Text>
                         <TextInput
                             style={[styles.textInput, { borderColor: tc.border, color: tc.text }]}
-                            placeholder={localize('Optional', '可选')}
+                            placeholder={tr('settings.calendarMobile.optional')}
                             placeholderTextColor={tc.secondaryText}
                             value={newCalendarName}
                             onChangeText={setNewCalendarName}
@@ -703,7 +682,7 @@ export function CalendarSettingsScreen() {
                                 style={[styles.backendOption, { borderColor: tc.border, backgroundColor: tc.filterBg }]}
                                 onPress={() => void handleTestFetch()}
                             >
-                                <Text style={[styles.backendOptionText, { color: tc.text }]}>{localize('Test', '测试')}</Text>
+                                <Text style={[styles.backendOptionText, { color: tc.text }]}>{tr('settings.calendarMobile.test')}</Text>
                             </TouchableOpacity>
                         </View>
                     </View>

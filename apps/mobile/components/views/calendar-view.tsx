@@ -195,7 +195,7 @@ export function CalendarView() {
     isSameDay,
     isToday,
     locale,
-    localize,
+    tr,
     markTaskDone,
     monthLabel,
     nextQuickScheduleCandidates,
@@ -480,10 +480,10 @@ export function CalendarView() {
   };
 
   const modeOptions = [
-    { value: 'month' as const, label: localize('Month', '月') },
-    { value: 'day' as const, label: localize('Day', '日') },
-    { value: 'week' as const, label: localize('Week', '周') },
-    { value: 'schedule' as const, label: localize('Schedule', '日程') },
+    { value: 'month' as const, label: tr('calendar.mobile.month') },
+    { value: 'day' as const, label: tr('calendar.mobile.day') },
+    { value: 'week' as const, label: tr('calendar.mobile.week') },
+    { value: 'schedule' as const, label: tr('calendar.scheduleResults') },
   ];
   const formatDurationLabel = (minutes: number) => {
     if (minutes < 60) return `${minutes}m`;
@@ -533,7 +533,7 @@ export function CalendarView() {
             <View style={styles.composerHeader}>
               <View style={styles.taskItemMain}>
                 <Text style={[styles.composerTitle, { color: tc.text }]}>
-                  {localize('Schedule task', '安排任务')}
+                  {tr('calendar.mobile.scheduleTask')}
                 </Text>
                 <Text style={[styles.composerDate, { color: tc.secondaryText }]}>
                   {calendarComposer.date.toLocaleDateString(locale, { weekday: 'short', month: 'short', day: 'numeric' })}
@@ -546,8 +546,8 @@ export function CalendarView() {
 
             <View style={[styles.composerModeToggle, { backgroundColor: tc.inputBg, borderColor: tc.border }]}>
               {[
-                { value: 'new' as const, label: localize('New task', '新任务') },
-                { value: 'existing' as const, label: localize('Existing task', '现有任务') },
+                { value: 'new' as const, label: tr('calendar.mobile.newTask') },
+                { value: 'existing' as const, label: tr('calendar.mobile.existingTask') },
               ].map((option) => {
                 const active = calendarComposer.mode === option.value;
                 return (
@@ -604,7 +604,7 @@ export function CalendarView() {
                   })}
                   {calendarComposerCandidates.length === 0 && (
                     <Text style={[styles.noTasks, { color: tc.secondaryText }]}>
-                      {localize('No matching tasks', '没有匹配的任务')}
+                      {tr('calendar.mobile.noMatchingTasks')}
                     </Text>
                   )}
                 </ScrollView>
@@ -618,7 +618,7 @@ export function CalendarView() {
 
             <View style={styles.composerTimeRow}>
               <View style={styles.composerTimeField}>
-                <Text style={[styles.composerLabel, { color: tc.secondaryText }]}>{localize('Start', '开始')}</Text>
+                <Text style={[styles.composerLabel, { color: tc.secondaryText }]}>{tr('taskEdit.start')}</Text>
                 <TextInput
                   style={[styles.input, styles.composerTimeInput, { backgroundColor: tc.inputBg, borderColor: tc.border, color: tc.text }]}
                   value={calendarComposer.startTimeValue}
@@ -629,7 +629,7 @@ export function CalendarView() {
                 />
               </View>
               <View style={styles.composerTimeField}>
-                <Text style={[styles.composerLabel, { color: tc.secondaryText }]}>{localize('End', '结束')}</Text>
+                <Text style={[styles.composerLabel, { color: tc.secondaryText }]}>{tr('calendar.mobile.end')}</Text>
                 <TextInput
                   style={[styles.input, styles.composerTimeInput, { backgroundColor: tc.inputBg, borderColor: tc.border, color: tc.text }]}
                   value={calendarComposer.endTimeValue}
@@ -719,7 +719,7 @@ export function CalendarView() {
                 {selectedDayModeLabel}
               </Text>
               <Pressable onPress={handleToday} style={[styles.todayButton, { borderColor: tc.border }]}>
-                <Text style={[styles.todayButtonText, { color: tc.tint }]}>{localize('Today', '今天')}</Text>
+                <Text style={[styles.todayButtonText, { color: tc.tint }]}>{tr('filters.datePreset.today')}</Text>
               </Pressable>
             </View>
             <Pressable onPress={() => shiftSelectedDate(1)} style={styles.navButton}>
@@ -950,7 +950,7 @@ export function CalendarView() {
                 {weekLabel}
               </Text>
               <Pressable onPress={handleToday} style={[styles.todayButton, { borderColor: tc.border }]}>
-                <Text style={[styles.todayButtonText, { color: tc.tint }]}>{localize('Today', '今天')}</Text>
+                <Text style={[styles.todayButtonText, { color: tc.tint }]}>{tr('filters.datePreset.today')}</Text>
               </Pressable>
             </View>
             <Pressable onPress={() => shiftSelectedDate(7)} style={styles.navButton}>
@@ -1162,19 +1162,19 @@ export function CalendarView() {
               onLayout={handleWeekDensityTrackLayout}
               accessible
               accessibilityRole="adjustable"
-              accessibilityLabel={localize('Visible week days', '可见周视图天数')}
-              accessibilityHint={localize('Swipe up or down to show more or fewer days.', '上下滑动以显示更多或更少天数。')}
+              accessibilityLabel={tr('calendar.mobile.visibleWeekDays')}
+              accessibilityHint={tr('calendar.mobile.swipeUpOrDownToShowMoreOrFewerDays')}
               accessibilityValue={{
                 min: CALENDAR_WEEK_VISIBLE_DAYS_MIN,
                 max: CALENDAR_WEEK_VISIBLE_DAYS_MAX,
                 now: calendarWeekVisibleDays,
                 text: calendarWeekVisibleDays === 1
-                  ? localize('1 day', '1 天')
-                  : localize(`${calendarWeekVisibleDays} days`, `${calendarWeekVisibleDays} 天`),
+                  ? tr('calendar.mobile.1Day')
+                  : tr('calendar.mobile.valueDays', { value1: calendarWeekVisibleDays }),
               }}
               accessibilityActions={[
-                { name: 'increment', label: localize('Show more days', '显示更多天数') },
-                { name: 'decrement', label: localize('Show fewer days', '显示更少天数') },
+                { name: 'increment', label: tr('calendar.mobile.showMoreDays') },
+                { name: 'decrement', label: tr('calendar.mobile.showFewerDays') },
               ]}
               onAccessibilityAction={handleWeekDensityAccessibilityAction}
               style={[styles.weekDensityTrack, { backgroundColor: tc.border }]}
@@ -1201,8 +1201,8 @@ export function CalendarView() {
                   onPress={() => setCalendarWeekVisibleDays(value)}
                   accessibilityRole="button"
                   accessibilityLabel={value === 1
-                    ? localize('Show 1 visible day', '显示 1 天')
-                    : localize(`Show ${value} visible days`, `显示 ${value} 天`)}
+                    ? tr('calendar.mobile.show1VisibleDay')
+                    : tr('calendar.mobile.showValueVisibleDays', { value1: value })}
                   accessibilityState={{ selected: active }}
                   hitSlop={8}
                   style={styles.weekDensityTick}
@@ -1238,9 +1238,9 @@ export function CalendarView() {
         <View style={[styles.header, { backgroundColor: tc.cardBg, borderBottomColor: tc.border }]}>
           <View style={styles.headerTopRow}>
             <View style={styles.monthTitleWrap}>
-              <Text style={[styles.title, { color: tc.text }]}>{localize('Schedule', '日程')}</Text>
+              <Text style={[styles.title, { color: tc.text }]}>{tr('calendar.scheduleResults')}</Text>
               <Pressable onPress={handleScheduleToday} style={[styles.todayButton, { borderColor: tc.border }]}>
-                <Text style={[styles.todayButtonText, { color: tc.tint }]}>{localize('Today', '今天')}</Text>
+                <Text style={[styles.todayButtonText, { color: tc.tint }]}>{tr('filters.datePreset.today')}</Text>
               </Pressable>
             </View>
           </View>
@@ -1257,7 +1257,7 @@ export function CalendarView() {
             <View style={styles.scheduleSection}>
               <Text style={[styles.scheduleDate, { color: tc.secondaryText }]}>
                 {section.date.toLocaleDateString(locale, { weekday: 'short', month: 'short', day: 'numeric' })}
-                {isToday(section.date) ? ` · ${localize('Today', '今天')}` : ''}
+                {isToday(section.date) ? ` · ${tr('filters.datePreset.today')}` : ''}
               </Text>
               <View style={styles.scheduleItems}>
                 {section.items.map((item) => {
@@ -1363,7 +1363,7 @@ export function CalendarView() {
               {monthLabel}
             </Text>
             <Pressable onPress={handleToday} style={[styles.todayButton, { borderColor: tc.border }]}>
-              <Text style={[styles.todayButtonText, { color: tc.tint }]}>{localize('Today', '今天')}</Text>
+              <Text style={[styles.todayButtonText, { color: tc.tint }]}>{tr('filters.datePreset.today')}</Text>
             </Pressable>
           </View>
           <Pressable onPress={handleNextMonth} style={styles.navButton}>
@@ -1489,8 +1489,8 @@ export function CalendarView() {
         <Animated.View style={[styles.monthDetailsPane, bottomSheetStyle, { backgroundColor: tc.cardBg, borderTopColor: tc.border }]}>
           <GestureDetector gesture={bottomSheetGesture}>
             <View
-              accessibilityHint={localize('Swipe up or down to resize the day details panel.', '上下滑动以调整当天详情面板大小。')}
-              accessibilityLabel={localize('Day details panel handle', '当天详情面板把手')}
+              accessibilityHint={tr('calendar.mobile.swipeUpOrDownToResizeTheDayDetailsPanel')}
+              accessibilityLabel={tr('calendar.mobile.dayDetailsPanelHandle')}
               accessibilityRole="adjustable"
               style={styles.sheetHandleWrap}
             >
@@ -1573,7 +1573,7 @@ export function CalendarView() {
                   </Text>
                   {isExternalLoading && (
                     <Text style={[styles.taskItemTime, { color: tc.secondaryText }]}>
-                      {localize('Loading…', '加载中…')}
+                      {tr('calendar.mobile.loading')}
                     </Text>
                   )}
                   {externalError && (

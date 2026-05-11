@@ -17,6 +17,10 @@ export function getI18nKeyForEnglishText(text: string): string | undefined {
     return englishTextToKey.get(text);
 }
 
+export function getEnglishI18nValue(key: string): string | undefined {
+    return en[key];
+}
+
 export function translateWithFallback(t: TranslateFn, key: string, fallback: string): string {
     const translated = t(key);
     return translated && translated !== key ? translated : fallback;

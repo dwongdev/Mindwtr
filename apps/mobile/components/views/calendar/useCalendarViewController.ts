@@ -5,10 +5,11 @@ import {
   DEFAULT_CALENDAR_DAY_START_HOUR,
   addCalendarMinutes,
   formatCalendarTimeInputValue,
+  formatI18nTemplate,
   normalizeDateFormatSetting,
   resolveDateLocaleTag,
   findFreeSlotForDay as findCalendarFreeSlotForDay,
-  getI18nKeyForEnglishText,
+  getEnglishI18nValue,
   hasTimeComponent,
   isSlotFreeForDay as isCalendarSlotFreeForDay,
   minutesToTimeEstimate,
@@ -156,14 +157,15 @@ export function useCalendarViewController() {
     return `rgba(${r}, ${g}, ${b}, ${alpha})`;
   };
 
-  const localize = (enText: string, zhText?: string) => {
-    const key = getI18nKeyForEnglishText(enText);
-    if (key) {
-      const translated = t(key);
-      if (translated && translated !== key) return translated;
-    }
-    if (language === 'zh' && zhText) return zhText;
-    return translateText(enText, language);
+  const tr = (key: string, values?: Record<string, string | number | boolean | null | undefined>) => {
+    const english = getEnglishI18nValue(key);
+    const translated = t(key);
+    const template = english && translated === english
+      ? translateText(english, language)
+      : translated && translated !== key
+        ? translated
+        : english ?? key;
+    return values ? formatI18nTemplate(template, values) : template;
   };
 
   const timeEstimatesEnabled = settings?.features?.timeEstimates !== false;
@@ -1026,10 +1028,10 @@ export function useCalendarViewController() {
     isSameDay,
     isToday,
     locale,
-    localize,
     markTaskDone,
     monthLabel,
     nextQuickScheduleCandidates,
+    tr,
     openQuickAddAtDateTime,
     openQuickAddForDate,
     openExternalEvent,

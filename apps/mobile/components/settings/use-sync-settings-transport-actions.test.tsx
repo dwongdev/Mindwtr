@@ -136,7 +136,11 @@ function Harness({
         isFossBuild: false,
         lastSyncStats: null,
         lastSyncStatus: 'idle',
-        localize: (english) => english,
+        tr: (key: string) =>
+            ({
+                'settings.syncMobile.connectionOk': 'Connection OK',
+                'settings.syncMobile.webdavEndpointIsReachable': 'WebDAV endpoint is reachable.',
+            }[key] ?? key),
         resetSyncStatusForBackendSwitch: mocked.resetSyncStatusForBackendSwitch,
         showSettingsErrorToast: mocked.showSettingsErrorToast,
         showSettingsWarning: mocked.showSettingsWarning,

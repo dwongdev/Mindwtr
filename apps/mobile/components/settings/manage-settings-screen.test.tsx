@@ -63,7 +63,7 @@ vi.mock('react-native-safe-area-context', () => ({
 
 vi.mock('./settings.hooks', () => ({
   useSettingsLocalization: () => ({
-    localize: (en: string) => en,
+    tr: (key: string) => key,
     t: (key: string) =>
       ({
         'settings.manage': 'Manage',

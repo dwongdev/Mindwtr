@@ -41,7 +41,7 @@ import { styles } from './settings.styles';
 export function AISettingsScreen() {
     const tc = useThemeColors();
     const { showToast } = useToast();
-    const { localize, t } = useSettingsLocalization();
+    const { tr, t } = useSettingsLocalization();
     const scrollContentStyleWithKeyboard = useSettingsScrollContent(140);
     const { settings, updateSettings } = useTaskStore();
     const extraConfig = Constants.expoConfig?.extra as MobileExtraConfig | undefined;
@@ -92,7 +92,7 @@ export function AISettingsScreen() {
 
     const getAIProviderLabel = (provider: AIProviderId): string => (
         isFossBuild && provider === 'openai'
-            ? localize('Local / Custom (OpenAI-compatible)', '本地 / 自定义（OpenAI 兼容）')
+            ? tr('settings.aiMobile.localCustomOpenaiCompatible')
             : provider === 'openai'
                 ? t('settings.aiProviderOpenAI')
                 : provider === 'gemini'
@@ -141,16 +141,10 @@ export function AISettingsScreen() {
 
         const providerLabel = getAIProviderLabel(provider);
         const policyUrl = getAIProviderPolicyUrl(provider);
-        const title = localize('Enable AI features?', '启用 AI 功能？');
+        const title = tr('settings.aiMobile.enableAiFeatures');
         const message = isFossBuild && provider === 'openai'
-            ? localize(
-                'To use AI assistant, your task text and optional notes will be sent directly to your configured OpenAI-compatible endpoint (for example, a local or self-hosted LLM server) using your API key. Mindwtr does not collect this data. Do you want to continue?',
-                '要使用 AI 助手，任务文本和可选备注会通过你的 API Key 直接发送到你配置的 OpenAI 兼容端点（例如本地或自托管 LLM 服务）。Mindwtr 不会收集这些数据。是否继续？'
-            )
-            : localize(
-                `To use AI assistant, your task text and optional notes will be sent directly to ${providerLabel} using your API key. Mindwtr does not collect this data. Provider privacy policy: ${policyUrl}. Do you want to continue?`,
-                `要使用 AI 助手，任务文本和可选备注会通过你的 API Key 直接发送到 ${providerLabel}。Mindwtr 不会收集这些数据。服务商隐私政策：${policyUrl}。是否继续？`
-            );
+            ? tr('settings.aiMobile.toUseAiAssistantYourTaskTextAndOptionalNotes')
+            : tr('settings.aiMobile.toUseAiAssistantYourTaskTextAndOptionalNotes2', { value1: providerLabel, value2: policyUrl });
 
         return await new Promise<boolean>((resolve) => {
             let settled = false;
@@ -164,12 +158,12 @@ export function AISettingsScreen() {
                 message,
                 [
                     {
-                        text: localize('Cancel', '取消'),
+                        text: tr('common.cancel'),
                         style: 'cancel',
                         onPress: () => finish(false),
                     },
                     {
-                        text: localize('Agree', '同意'),
+                        text: tr('settings.aiConsentAgree'),
                         onPress: () => {
                             void saveAIProviderConsent(provider);
                             finish(true);
@@ -455,10 +449,7 @@ export function AISettingsScreen() {
     const handleDownloadWhisperModel = async () => {
         if (!selectedWhisperModel) return;
         if (isExpoGo) {
-            const message = localize(
-                'Whisper downloads require a dev build or production build (not Expo Go).',
-                'Whisper 下载需要开发版或正式版构建（Expo Go 不支持）。'
-            );
+            const message = tr('settings.aiMobile.whisperDownloadsRequireADevBuildOrProductionBuildNot');
             setWhisperDownloadError(message);
             setWhisperDownloadState('error');
             showToast({
@@ -493,18 +484,12 @@ export function AISettingsScreen() {
                     const conflictInfo = safePathInfo(targetFile.uri);
                     if (conflictInfo?.exists && conflictInfo.isDirectory) {
                         if (!isWhisperTargetPath(targetFile.uri, fileName)) {
-                            throw new Error(localize(
-                                `Offline model path is not safe to modify (${targetFile.uri}).`,
-                                `离线模型路径不安全，无法自动处理（${targetFile.uri}）。`
-                            ));
+                            throw new Error(tr('settings.aiMobile.offlineModelPathIsNotSafeToModifyValue', { value1: targetFile.uri }));
                         }
                     }
                     const postCleanupInfo = safePathInfo(targetFile.uri);
                     if (postCleanupInfo?.exists && postCleanupInfo.isDirectory) {
-                        throw new Error(localize(
-                            `Offline model path is a folder (${targetFile.uri}). Please remove it and try again.`,
-                            `离线模型路径是文件夹（${targetFile.uri}），请删除后重试。`
-                        ));
+                        throw new Error(tr('settings.aiMobile.offlineModelPathIsAFolderValuePleaseRemoveIt', { value1: targetFile.uri }));
                     }
                     const existingInfo = safePathInfo(targetFile.uri);
                     if (existingInfo?.exists && existingInfo.isDirectory === false) {
@@ -524,10 +509,7 @@ export function AISettingsScreen() {
                         const file = await File.downloadFileAsync(url, targetFile, { idempotent: true });
                         updateSpeechSettings({ offlineModelPath: file.uri, model: selectedWhisperModel.id });
                     } catch (downloadError) {
-                        const fallbackMessage = localize(
-                            'Download failed. Please retry on Wi-Fi. Large models cannot be buffered into memory.',
-                            '下载失败。请在 Wi-Fi 下重试。大型模型无法加载到内存。'
-                        );
+                        const fallbackMessage = tr('settings.aiMobile.downloadFailedPleaseRetryOnWiFiLargeModelsCannot');
                         throw new Error(downloadError instanceof Error
                             ? `${fallbackMessage}\n${downloadError.message}`
                             : fallbackMessage);
@@ -610,7 +592,7 @@ export function AISettingsScreen() {
                         anthropicThinkingEnabled={anthropicThinkingEnabled}
                         getAIProviderLabel={getAIProviderLabel}
                         isFossBuild={isFossBuild}
-                        localize={localize}
+                        tr={tr}
                         onAiApiKeyChange={handleAiApiKeyChange}
                         onAiBaseUrlChange={(value) => updateAISettings({ baseUrl: value })}
                         onAiCopilotModelChange={(value) => updateAISettings({ copilotModel: value })}
@@ -629,7 +611,7 @@ export function AISettingsScreen() {
                     <AiSettingsSpeechCard
                         isExpoGo={isExpoGo}
                         isFossBuild={isFossBuild}
-                        localize={localize}
+                        tr={tr}
                         onDeleteWhisperModel={handleDeleteWhisperModel}
                         onDownloadWhisperModel={() => void handleDownloadWhisperModel()}
                         onOpenModelPicker={() => setModelPicker('speech')}

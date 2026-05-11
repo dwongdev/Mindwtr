@@ -62,7 +62,7 @@ export function GtdSettingsScreen({
 }) {
     const tc = useThemeColors();
     const insets = useSafeAreaInsets();
-    const { isChineseLanguage, language, localize, t } = useSettingsLocalization();
+    const { isChineseLanguage, language, tr, t } = useSettingsLocalization();
     const { showToast } = useToast();
     const { settings, updateSettings } = useTaskStore();
     const scrollContentStyle = useSettingsScrollContent();
@@ -152,7 +152,7 @@ export function GtdSettingsScreen({
         if (pomodoroAutoStartNoticeShownRef.current) return;
         pomodoroAutoStartNoticeShownRef.current = true;
         showToast({
-            message: localize('Pomodoro will now advance phases automatically.', '番茄钟现在会自动切换阶段。'),
+            message: tr('settings.gtdMobile.pomodoroWillNowAdvancePhasesAutomatically'),
             tone: 'info',
             durationMs: 5000,
         });
@@ -195,7 +195,7 @@ export function GtdSettingsScreen({
         if (normalized === null) {
             setDefaultScheduleTimeDraft(defaultScheduleTime);
             showToast({
-                message: localize('Use HH:MM for the default schedule time.', '默认安排时间请使用 HH:MM。'),
+                message: tr('settings.gtdMobile.useHhMmForTheDefaultScheduleTime'),
                 tone: 'warning',
             });
             return;
@@ -272,84 +272,69 @@ export function GtdSettingsScreen({
     const featurePomodoroLabelRaw = t('settings.featurePomodoro');
     const featurePomodoroDescRaw = t('settings.featurePomodoroDesc');
     const featurePomodoroLabel = featurePomodoroLabelRaw === 'settings.featurePomodoro'
-        ? localize('Pomodoro timer', '番茄钟')
+        ? tr('settings.featurePomodoro')
         : featurePomodoroLabelRaw;
     const featurePomodoroDesc = featurePomodoroDescRaw === 'settings.featurePomodoroDesc'
-        ? localize('Enable the optional Pomodoro panel in Focus view.', '在聚焦视图中启用可选的番茄钟面板。')
+        ? tr('settings.featurePomodoroDesc')
         : featurePomodoroDescRaw;
-    const pomodoroSettingsLabel = tFallback(t, 'settings.pomodoroSettings', localize('Pomodoro settings', '番茄钟设置'));
+    const pomodoroSettingsLabel = tFallback(t, 'settings.pomodoroSettings', tr('settings.gtdMobile.pomodoroSettings'));
     const pomodoroCustomPresetLabelRaw = t('settings.pomodoroCustomPreset');
     const pomodoroCustomPresetLabel = pomodoroCustomPresetLabelRaw === 'settings.pomodoroCustomPreset'
-        ? localize('Custom preset', '自定义预设')
+        ? tr('settings.pomodoroCustomPreset')
         : pomodoroCustomPresetLabelRaw;
     const pomodoroCustomPresetDescRaw = t('settings.pomodoroCustomPresetDesc');
     const pomodoroCustomPresetDesc = pomodoroCustomPresetDescRaw === 'settings.pomodoroCustomPresetDesc'
-        ? localize(
-            'Add one extra focus/break preset. Matching a built-in preset keeps the built-in chips only.',
-            '添加一个额外的专注/休息预设。若与内置预设相同，将继续只显示内置选项。'
-        )
+        ? tr('settings.pomodoroCustomPresetDesc')
         : pomodoroCustomPresetDescRaw;
     const pomodoroFocusMinutesLabelRaw = t('settings.pomodoroFocusMinutes');
     const pomodoroFocusMinutesLabel = pomodoroFocusMinutesLabelRaw === 'settings.pomodoroFocusMinutes'
-        ? localize('Focus minutes', '专注分钟')
+        ? tr('settings.pomodoroFocusMinutes')
         : pomodoroFocusMinutesLabelRaw;
     const pomodoroBreakMinutesLabelRaw = t('settings.pomodoroBreakMinutes');
     const pomodoroBreakMinutesLabel = pomodoroBreakMinutesLabelRaw === 'settings.pomodoroBreakMinutes'
-        ? localize('Break minutes', '休息分钟')
+        ? tr('settings.pomodoroBreakMinutes')
         : pomodoroBreakMinutesLabelRaw;
     const pomodoroLinkTaskLabel = tFallback(
         t,
         'settings.pomodoroLinkTask',
-        localize('Link timer to task', '将计时器关联到任务')
+        tr('settings.pomodoroLinkTask')
     );
     const pomodoroLinkTaskDesc = tFallback(
         t,
         'settings.pomodoroLinkTaskDesc',
-        localize(
-            'Show the Timer task picker and Task done action in Focus.',
-            '在聚焦中显示计时任务选择器和完成任务操作。'
-        )
+        tr('settings.pomodoroLinkTaskDesc')
     );
     const pomodoroAutoStartBreaksLabelRaw = t('settings.pomodoroAutoStartBreaks');
     const pomodoroAutoStartBreaksLabel = pomodoroAutoStartBreaksLabelRaw === 'settings.pomodoroAutoStartBreaks'
-        ? localize('Auto-start breaks', '自动开始休息')
+        ? tr('settings.gtdMobile.autoStartBreaks')
         : pomodoroAutoStartBreaksLabelRaw;
     const pomodoroAutoStartBreaksDescRaw = t('settings.pomodoroAutoStartBreaksDesc');
     const pomodoroAutoStartBreaksDesc = pomodoroAutoStartBreaksDescRaw === 'settings.pomodoroAutoStartBreaksDesc'
-        ? localize(
-            'Start the break timer automatically when a focus session ends.',
-            '当专注阶段结束时，自动开始休息计时。'
-        )
+        ? tr('settings.gtdMobile.startTheBreakTimerAutomaticallyWhenAFocusSessionEnds')
         : pomodoroAutoStartBreaksDescRaw;
     const pomodoroAutoStartFocusLabelRaw = t('settings.pomodoroAutoStartFocus');
     const pomodoroAutoStartFocusLabel = pomodoroAutoStartFocusLabelRaw === 'settings.pomodoroAutoStartFocus'
-        ? localize('Auto-start focus', '自动开始专注')
+        ? tr('settings.gtdMobile.autoStartFocus')
         : pomodoroAutoStartFocusLabelRaw;
     const pomodoroAutoStartFocusDescRaw = t('settings.pomodoroAutoStartFocusDesc');
     const pomodoroAutoStartFocusDesc = pomodoroAutoStartFocusDescRaw === 'settings.pomodoroAutoStartFocusDesc'
-        ? localize(
-            'Start the next focus session automatically when a break ends.',
-            '当休息阶段结束时，自动开始下一轮专注计时。'
-        )
+        ? tr('settings.gtdMobile.startTheNextFocusSessionAutomaticallyWhenABreakEnds')
         : pomodoroAutoStartFocusDescRaw;
-    const defaultScheduleTimeLabel = tFallback(t, 'settings.defaultScheduleTime', localize('Default schedule time', '默认安排时间'));
+    const defaultScheduleTimeLabel = tFallback(t, 'settings.defaultScheduleTime', tr('settings.gtdMobile.defaultScheduleTime'));
     const defaultScheduleTimeDesc = tFallback(
         t,
         'settings.defaultScheduleTimeDesc',
-        localize(
-            'Optional. Pre-fills manual Start, Due, and Review time fields after you choose a date. Leave blank for date-only.',
-            '可选。选择日期后自动填入开始、截止和回顾时间。留空则保持仅日期。'
-        )
+        tr('settings.gtdMobile.optionalPreFillsManualStartDueAndReviewTimeFields')
     );
-    const focusTaskLimitLabel = tFallback(t, 'settings.focusTaskLimit', localize("Today's focus limit", '今日焦点上限'));
+    const focusTaskLimitLabel = tFallback(t, 'settings.focusTaskLimit', tr('settings.focusTaskLimit'));
     const focusTaskLimitDesc = tFallback(
         t,
         'settings.focusTaskLimitDesc',
-        localize("Maximum tasks you can star for today's focus.", '每天可加星加入今日焦点的最大任务数。')
+        tr('settings.focusTaskLimitDesc')
     );
-    const captureSettingsTitle = tFallback(t, 'settings.captureSettings', localize('Capture defaults', '收集默认值'));
-    const reviewSettingsTitle = tFallback(t, 'settings.reviewSettings', localize('Review steps', '回顾步骤'));
-    const inboxSettingsTitle = tFallback(t, 'settings.inboxProcessing', localize('Inbox processing', '收件箱处理'));
+    const captureSettingsTitle = tFallback(t, 'settings.captureSettings', tr('settings.gtdMobile.captureDefaults'));
+    const reviewSettingsTitle = tFallback(t, 'settings.reviewSettings', tr('settings.gtdMobile.reviewSteps'));
+    const inboxSettingsTitle = tFallback(t, 'settings.inboxProcessing', tr('settings.inboxProcessing'));
     const captureMethodOptions: { id: 'text' | 'audio'; label: string; icon: keyof typeof Ionicons.glyphMap }[] = [
         { id: 'text', label: t('settings.captureDefaultText'), icon: 'text-outline' },
         { id: 'audio', label: t('settings.captureDefaultAudio'), icon: 'mic-outline' },
@@ -408,7 +393,7 @@ export function GtdSettingsScreen({
                         </View>
                         {pomodoroEnabled && renderGtdNavigationRow(
                             pomodoroSettingsLabel,
-                            localize('Custom preset, task linking, and auto-start behavior.', '自定义预设、任务关联和自动开始行为。'),
+                            tr('settings.gtdMobile.customPresetTaskLinkingAndAutoStartBehavior'),
                             'gtd-pomodoro',
                             { testID: 'gtd-nav-pomodoro' }
                         )}
@@ -424,7 +409,7 @@ export function GtdSettingsScreen({
                                 value={defaultScheduleTimeDraft}
                                 onChangeText={setDefaultScheduleTimeDraft}
                                 onBlur={commitDefaultScheduleTime}
-                                placeholder={localize('HH:MM', 'HH:MM')}
+                                placeholder={tr('settings.gtdMobile.hhMm')}
                                 placeholderTextColor={tc.secondaryText}
                                 keyboardType="numbers-and-punctuation"
                                 style={[
@@ -498,7 +483,7 @@ export function GtdSettingsScreen({
                     <View style={[styles.settingCard, { backgroundColor: tc.cardBg, marginTop: 12 }]}>
                         {renderGtdNavigationRow(
                             reviewSettingsTitle,
-                            localize('Choose which optional steps appear in daily and weekly review.', '选择每日和每周回顾中显示的可选步骤。'),
+                            tr('settings.gtdMobile.chooseWhichOptionalStepsAppearInDailyAndWeeklyReview'),
                             'gtd-review',
                             { first: true, testID: 'gtd-nav-review' }
                         )}
@@ -686,7 +671,7 @@ export function GtdSettingsScreen({
                 <SettingsTopBar title={reviewSettingsTitle} />
                 <ScrollView style={styles.scrollView} contentContainerStyle={scrollContentStyle}>
                     <Text style={[styles.description, { color: tc.secondaryText }]}>
-                        {localize('Choose which optional steps appear in daily and weekly review.', '选择每日和每周回顾中显示的可选步骤。')}
+                        {tr('settings.gtdMobile.chooseWhichOptionalStepsAppearInDailyAndWeeklyReview')}
                     </Text>
                     <View style={[styles.settingCard, { backgroundColor: tc.cardBg }]}>
                         <View style={styles.settingRow}>
@@ -926,9 +911,9 @@ export function GtdSettingsScreen({
         ? 'Open sections by default'
         : taskEditorDefaultOpenLabel;
     const taskEditorPresetOptions: { id: Exclude<TaskEditorPresetId, 'custom'>; label: string }[] = [
-        { id: 'simple', label: localize('Simple', '简洁') },
-        { id: 'standard', label: localize('Standard', '标准') },
-        { id: 'full', label: localize('Full', '完整') },
+        { id: 'simple', label: tr('settings.gtdMobile.simple') },
+        { id: 'standard', label: tr('settings.gtdMobile.standard') },
+        { id: 'full', label: tr('settings.gtdMobile.full') },
     ];
     const activeTaskEditorPreset = resolveTaskEditorPresetId({
         order: taskEditorOrder,
@@ -937,23 +922,17 @@ export function GtdSettingsScreen({
         sectionOpen: settings.gtd?.taskEditor?.sectionOpen,
         featureHiddenFields,
     });
-    const taskEditorHelperText = localize(
-        'Choose a preset, then open a section to fine-tune fields.',
-        '先选择一个预设，再展开分组微调字段。'
-    );
-    const taskEditorCustomLabel = localize('Current layout: Custom', '当前布局：自定义');
-    const taskEditorPresetLabel = localize('Presets', '预设');
-    const taskEditorMoveSectionLabel = localize('Move to section', '移动到分组');
-    const taskEditorOrderLabel = localize('Order within section', '调整分组内顺序');
-    const taskEditorKeepOpenLabel = localize(
-        'Start task editing with this section expanded.',
-        '编辑任务时默认展开此分组。'
-    );
-    const showInEditorLabel = localize('Show in editor', '在编辑器中显示');
-    const hideInEditorLabel = localize('Hide from editor', '在编辑器中隐藏');
-    const moveUpLabel = localize('Move up', '上移');
-    const moveDownLabel = localize('Move down', '下移');
-    const doneLabel = tFallback(t, 'common.done', localize('Done', '完成'));
+    const taskEditorHelperText = tr('settings.gtdMobile.chooseAPresetThenOpenASectionToFineTune');
+    const taskEditorCustomLabel = tr('settings.gtdMobile.currentLayoutCustom');
+    const taskEditorPresetLabel = tr('settings.gtdMobile.presets');
+    const taskEditorMoveSectionLabel = tr('settings.gtdMobile.moveToSection');
+    const taskEditorOrderLabel = tr('settings.gtdMobile.orderWithinSection');
+    const taskEditorKeepOpenLabel = tr('settings.gtdMobile.startTaskEditingWithThisSectionExpanded');
+    const showInEditorLabel = tr('settings.gtdMobile.showInEditor');
+    const hideInEditorLabel = tr('settings.gtdMobile.hideFromEditor');
+    const moveUpLabel = tr('projects.moveUp');
+    const moveDownLabel = tr('projects.moveDown');
+    const doneLabel = tFallback(t, 'common.done', tr('nav.done'));
 
     const fieldLabel = (fieldId: TaskEditorFieldId) => {
         switch (fieldId) {

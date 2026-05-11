@@ -245,6 +245,7 @@ export type {
 
 export {
     formatI18nTemplate,
+    getEnglishI18nValue,
     getI18nKeyForEnglishText,
     tFallback,
     translateText,
