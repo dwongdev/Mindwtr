@@ -26,6 +26,7 @@ import {
   CALENDAR_WEEK_VISIBLE_DAYS_MAX,
   CALENDAR_WEEK_VISIBLE_DAYS_MIN,
   CALENDAR_NAVIGATION_SWIPE_VERTICAL_TOLERANCE,
+  CALENDAR_NAVIGATION_SWIPE_VERTICAL_RATIO,
   getCalendarNavigationSwipeDirection,
   getCalendarWeekColumnWidth,
   getCalendarWeekInitialScrollX,
@@ -42,8 +43,8 @@ const WEEK_DENSITY_VALUES = Array.from(
   { length: CALENDAR_WEEK_VISIBLE_DAYS_MAX - CALENDAR_WEEK_VISIBLE_DAYS_MIN + 1 },
   (_, index) => CALENDAR_WEEK_VISIBLE_DAYS_MIN + index
 );
-const CALENDAR_NAVIGATION_CAPTURE_DISTANCE = 12;
-const CALENDAR_NAVIGATION_FEEDBACK_DISTANCE = 52;
+const CALENDAR_NAVIGATION_CAPTURE_DISTANCE = 8;
+const CALENDAR_NAVIGATION_FEEDBACK_DISTANCE = 72;
 
 type CalendarNavigationMode = 'month' | 'day';
 
@@ -403,14 +404,14 @@ export function CalendarView() {
     return (
       horizontalDistance >= CALENDAR_NAVIGATION_CAPTURE_DISTANCE
       && verticalDrift <= CALENDAR_NAVIGATION_SWIPE_VERTICAL_TOLERANCE
-      && verticalDrift <= horizontalDistance * 0.85
+      && verticalDrift <= horizontalDistance * CALENDAR_NAVIGATION_SWIPE_VERTICAL_RATIO
     );
   }, []);
 
   const updateCalendarNavigationSwipeFeedback = useCallback((gestureState: PanResponderGestureState) => {
     const clamped = Math.max(
       -CALENDAR_NAVIGATION_FEEDBACK_DISTANCE,
-      Math.min(CALENDAR_NAVIGATION_FEEDBACK_DISTANCE, gestureState.dx * 0.45)
+      Math.min(CALENDAR_NAVIGATION_FEEDBACK_DISTANCE, gestureState.dx * 0.7)
     );
     navigationSwipeOffsetX.value = clamped;
   }, [navigationSwipeOffsetX]);

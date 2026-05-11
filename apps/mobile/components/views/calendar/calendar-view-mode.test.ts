@@ -167,16 +167,17 @@ describe('calendar view mode helpers', () => {
   });
 
   it('recognizes deliberate horizontal calendar navigation swipes', () => {
-    expect(getCalendarNavigationSwipeDirection({ translationX: -44, translationY: 8 })).toBe(1);
-    expect(getCalendarNavigationSwipeDirection({ translationX: 44, translationY: 8 })).toBe(-1);
+    expect(getCalendarNavigationSwipeDirection({ translationX: -30, translationY: 8 })).toBe(1);
+    expect(getCalendarNavigationSwipeDirection({ translationX: 30, translationY: 8 })).toBe(-1);
     expect(getCalendarNavigationSwipeDirection({ translationX: -72, translationY: 8 })).toBe(1);
     expect(getCalendarNavigationSwipeDirection({ translationX: 72, translationY: 8 })).toBe(-1);
-    expect(getCalendarNavigationSwipeDirection({ translationX: -22, translationY: 4, velocityX: -520 })).toBe(1);
+    expect(getCalendarNavigationSwipeDirection({ translationX: -14, translationY: 4, velocityX: -320 })).toBe(1);
+    expect(getCalendarNavigationSwipeDirection({ translationX: -32, translationY: 28 })).toBe(1);
   });
 
   it('ignores taps and mostly vertical drags as calendar navigation', () => {
     expect(getCalendarNavigationSwipeDirection({ translationX: -18, translationY: 2 })).toBeNull();
-    expect(getCalendarNavigationSwipeDirection({ translationX: -72, translationY: 48 })).toBeNull();
-    expect(getCalendarNavigationSwipeDirection({ translationX: -44, translationY: 40, velocityX: -900 })).toBeNull();
+    expect(getCalendarNavigationSwipeDirection({ translationX: -72, translationY: 76 })).toBeNull();
+    expect(getCalendarNavigationSwipeDirection({ translationX: -30, translationY: 34, velocityX: -900 })).toBeNull();
   });
 });

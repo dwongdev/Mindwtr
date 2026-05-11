@@ -5,9 +5,11 @@ export const CALENDAR_WEEK_VISIBLE_DAYS_MAX = 7;
 export const CALENDAR_WEEK_VISIBLE_DAYS_DEFAULT = 2;
 export const CALENDAR_WEEK_COLUMN_WIDTH_DEFAULT = 150;
 export const CALENDAR_WEEK_COLUMN_WIDTH_MIN = 40;
-export const CALENDAR_NAVIGATION_SWIPE_DISTANCE = 40;
-export const CALENDAR_NAVIGATION_SWIPE_VELOCITY = 420;
-export const CALENDAR_NAVIGATION_SWIPE_VERTICAL_TOLERANCE = 44;
+export const CALENDAR_NAVIGATION_SWIPE_DISTANCE = 28;
+export const CALENDAR_NAVIGATION_SWIPE_VELOCITY = 260;
+export const CALENDAR_NAVIGATION_SWIPE_VELOCITY_DISTANCE = 12;
+export const CALENDAR_NAVIGATION_SWIPE_VERTICAL_TOLERANCE = 56;
+export const CALENDAR_NAVIGATION_SWIPE_VERTICAL_RATIO = 1;
 export const CALENDAR_TIMELINE_SCROLL_ANCHOR_Y = 180;
 
 type CalendarNavigationSwipeInput = {
@@ -144,14 +146,14 @@ export const getCalendarNavigationSwipeDirection = ({
   const verticalDrift = Math.abs(translationY);
   if (
     verticalDrift > CALENDAR_NAVIGATION_SWIPE_VERTICAL_TOLERANCE
-    || verticalDrift > horizontalDistance * 0.75
+    || verticalDrift > horizontalDistance * CALENDAR_NAVIGATION_SWIPE_VERTICAL_RATIO
   ) {
     return null;
   }
 
   const hasEnoughDistance = horizontalDistance >= CALENDAR_NAVIGATION_SWIPE_DISTANCE;
   const hasEnoughVelocity = (
-    horizontalDistance >= CALENDAR_NAVIGATION_SWIPE_DISTANCE * 0.45
+    horizontalDistance >= CALENDAR_NAVIGATION_SWIPE_VELOCITY_DISTANCE
     && Math.abs(velocityX) >= CALENDAR_NAVIGATION_SWIPE_VELOCITY
   );
   if (!hasEnoughDistance && !hasEnoughVelocity) return null;
