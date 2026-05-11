@@ -127,7 +127,7 @@ const defaultReviewLabels: ReviewLabels = {
     moreItems: 'more items',
 };
 
-const reviewLabelTranslationKeys: Partial<Record<ReviewLabelKey, string>> = {
+const reviewLabelTranslationKeys: Record<ReviewLabelKey, string> = {
     weeklyReview: 'settings.weeklyReview',
     inbox: 'nav.inbox',
     ai: 'review.aiStep',
@@ -141,6 +141,7 @@ const reviewLabelTranslationKeys: Partial<Record<ReviewLabelKey, string>> = {
     timeForDesc: 'review.timeForDesc',
     startReview: 'review.startReview',
     inboxDesc: 'review.inboxStep',
+    inboxGuide: 'review.inboxGuide',
     itemsInInbox: 'review.inboxZeroDesc',
     inboxEmpty: 'review.inboxEmpty',
     aiDesc: 'review.aiStepDesc',
@@ -154,13 +155,17 @@ const reviewLabelTranslationKeys: Partial<Record<ReviewLabelKey, string>> = {
     aiActionKeep: 'review.aiAction.keep',
     loading: 'common.loading',
     calendarDesc: 'review.calendarStepDesc',
+    calendarEmpty: 'review.calendarEmpty',
     calendarUpcoming: 'review.upcoming14',
+    calendarTasks: 'review.calendarTasks',
+    calendarTasksEmpty: 'review.calendarTasksEmpty',
     dueLabel: 'taskEdit.dueDateLabel',
     startLabel: 'taskEdit.startDateLabel',
     allDay: 'calendar.allDay',
     more: 'common.more',
     less: 'common.less',
     addTask: 'nav.addTask',
+    addTaskPlaceholder: 'review.addTaskPlaceholder',
     cancel: 'common.cancel',
     add: 'common.add',
     waitingDesc: 'review.waitingStepDesc',
@@ -177,9 +182,12 @@ const reviewLabelTranslationKeys: Partial<Record<ReviewLabelKey, string>> = {
     reviewComplete: 'review.complete',
     completeDesc: 'review.completeDesc',
     finish: 'review.finish',
+    next: 'review.next',
     back: 'review.back',
     hasNext: 'review.hasNextAction',
     needsAction: 'review.needsAction',
+    activeTasks: 'review.activeTasks',
+    moreItems: 'review.moreItems',
 };
 
 const translateReviewLabel = (

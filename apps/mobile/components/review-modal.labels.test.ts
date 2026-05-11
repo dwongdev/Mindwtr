@@ -19,7 +19,27 @@ describe('review modal labels', () => {
         expect(labels.waiting).toBe('等待中');
     });
 
-    it('falls back to English defaults when no typed key exists', () => {
+    it('routes every modal label through a typed i18n key', () => {
+        const keys: string[] = [];
+        const labels = getReviewLabels((key) => {
+            keys.push(key);
+            return `translated:${key}`;
+        });
+
+        expect(Object.values(labels).every((label) => label.startsWith('translated:'))).toBe(true);
+        expect(keys).toEqual(expect.arrayContaining([
+            'review.inboxGuide',
+            'review.calendarEmpty',
+            'review.calendarTasks',
+            'review.calendarTasksEmpty',
+            'review.addTaskPlaceholder',
+            'review.next',
+            'review.activeTasks',
+            'review.moreItems',
+        ]));
+    });
+
+    it('falls back to English defaults when a typed translation is missing', () => {
         const labels = getReviewLabels((key) => key);
 
         expect(labels.calendarTasks).toBe('Mindwtr tasks (next 7 days)');
