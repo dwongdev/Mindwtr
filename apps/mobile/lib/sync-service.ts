@@ -595,7 +595,7 @@ const mobileSyncOrchestrator = createSyncOrchestrator<string | undefined, Mobile
         }
         step = 'cloudkit_setup';
         logSyncInfo('Sync step', { step });
-        await ensureCloudKitReady();
+        await ensureCloudKitReady({ signal: requestAbortController.signal });
       }
 
       // Pre-sync local attachments so cloudKeys exist before writing remote data.
@@ -707,7 +707,7 @@ const mobileSyncOrchestrator = createSyncOrchestrator<string | undefined, Mobile
           return data;
         }
         if (backend === 'cloudkit') {
-          const data = await readRemoteCloudKit();
+          const data = await readRemoteCloudKit({ signal: requestAbortController.signal });
           remoteDataForCompare = data ?? null;
           return data;
         }
@@ -831,7 +831,7 @@ const mobileSyncOrchestrator = createSyncOrchestrator<string | undefined, Mobile
           return;
         }
         if (backend === 'cloudkit') {
-          await writeRemoteCloudKit(sanitized as AppData);
+          await writeRemoteCloudKit(sanitized as AppData, { signal: requestAbortController.signal });
           remoteDataForCompare = sanitized;
           return;
         }
