@@ -117,6 +117,10 @@ type ParsedDataCacheEntry = DataFileIdentity & {
 
 const parsedDataCache = new Map<string, ParsedDataCacheEntry>();
 
+// The app-data caches are process-local and are valid only when callers respect
+// the cloud write lock. Cross-process deployments are still safe because every
+// cache hit is rechecked against the file's stat identity after atomic rename;
+// uncoordinated writers can defeat that invariant and are unsupported.
 const getDataFileIdentity = (filePath: string): DataFileIdentity | null => {
     try {
         const stat = lstatSync(filePath);

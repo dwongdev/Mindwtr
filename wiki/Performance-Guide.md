@@ -38,6 +38,8 @@ When a screen feels slow, use this order:
 - Keep `keyExtractor` stable and avoid index keys.
 - Avoid inline anonymous renderers in deeply nested item trees.
 
+Calendar-specific rule: virtualize unbounded result sets, not fixed calendar scaffolding. The mobile Schedule view can grow with every visible task/event and should stay on `FlatList`; day and week timelines are bounded by the visible hour grid, and month cells are bounded by calendar weeks, so `ScrollView` is acceptable there as long as task/event rows are pre-filtered outside the render loop.
+
 ## Sync Performance Guidance
 
 1. Validate payload shape before merge to fail fast.
