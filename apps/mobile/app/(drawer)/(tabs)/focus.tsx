@@ -436,7 +436,7 @@ export default function FocusScreen() {
     const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0);
     const endOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
     const { focusedTasks: allFocusedTasks, otherTasks: nonFocusedTasks } = splitFocusedTasks(filteredActiveTasks);
-    const sequentialFirstTaskIds = getFocusSequentialFirstTaskIds(activeTasks, sequentialProjectIds, { now });
+    const sequentialFirstTaskIds = getFocusSequentialFirstTaskIds(baseActiveTasks, sequentialProjectIds, { now });
 
     const isSequentialBlocked = (task: Task) => {
       if (!task.projectId) return false;
@@ -483,7 +483,7 @@ export default function FocusScreen() {
       }),
       reviewDue: reviewDueItems,
     };
-  }, [activeTasks, filteredActiveTasks, prioritiesEnabled, sequentialProjectIds]);
+  }, [baseActiveTasks, filteredActiveTasks, prioritiesEnabled, sequentialProjectIds]);
 
   const sections = useMemo(() => {
     const nextSections = [];

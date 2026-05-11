@@ -617,7 +617,7 @@ export function AgendaView() {
                 return aCreated - bCreated;
             });
         };
-        const sequentialFirstTasks = getFocusSequentialFirstTaskIds(activeTasks, sequentialProjectIds, { now });
+        const sequentialFirstTasks = getFocusSequentialFirstTaskIds(baseActiveTasks, sequentialProjectIds, { now });
         const isSequentialBlocked = (task: Task) => {
             if (!task.projectId) return false;
             if (!sequentialProjectIds.has(task.projectId)) return false;
@@ -661,7 +661,7 @@ export function AgendaView() {
             }),
             reviewDue: sortWith(reviewDue, (task) => safeParseDate(task.reviewAt)?.getTime() ?? Number.POSITIVE_INFINITY),
         };
-    }, [activeTasks, filteredActiveTasks, reviewDueCandidates, prioritiesEnabled, sequentialProjectIds]);
+    }, [baseActiveTasks, filteredActiveTasks, reviewDueCandidates, prioritiesEnabled, sequentialProjectIds]);
     const nextActionGroups = useMemo(() => {
         if (nextGroupBy === 'none') return [] as TaskGroup[];
         if (nextGroupBy === 'area') {

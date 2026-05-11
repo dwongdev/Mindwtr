@@ -345,6 +345,39 @@ describe('FocusScreen', () => {
     ).toEqual(['available-next']);
   });
 
+  it('does not show later sequential actions when the first action has a hidden future start', () => {
+    storeState.projects = [makeProject('project-1', { isSequential: true })];
+    storeState.settings = {
+      appearance: { showFutureStarts: false },
+      features: {},
+    };
+    storeState.tasks = [
+      makeTask('future-first', {
+        status: 'next',
+        projectId: 'project-1',
+        order: 0,
+        orderNum: 0,
+        startTime: '2099-05-03T09:00:00.000Z',
+      }),
+      makeTask('following-next', {
+        status: 'next',
+        projectId: 'project-1',
+        order: 1,
+        orderNum: 1,
+      }),
+    ];
+
+    let tree!: ReturnType<typeof create>;
+
+    act(() => {
+      tree = create(<FocusScreen />);
+    });
+
+    expect(
+      tree.root.findAllByType(SwipeableTaskItem).map((node) => node.props.task.id),
+    ).toEqual([]);
+  });
+
   it('applies and clears saved Focus filters from the chip row', () => {
     storeState.settings = {
       appearance: {},

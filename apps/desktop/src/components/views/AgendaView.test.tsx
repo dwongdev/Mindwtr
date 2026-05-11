@@ -257,6 +257,65 @@ describe('AgendaView', () => {
         expect(getByText('1 task hidden (future start)')).toBeInTheDocument();
     });
 
+    it('does not show later sequential actions when the first action has a hidden future start', () => {
+        vi.useFakeTimers();
+        vi.setSystemTime(new Date('2026-02-28T12:00:00.000Z'));
+
+        const project = {
+            id: 'project-1',
+            title: 'Sequential project',
+            status: 'active' as const,
+            isSequential: true,
+            color: '#123456',
+            order: 0,
+            tagIds: [],
+            createdAt: nowIso,
+            updatedAt: nowIso,
+        };
+        const futureFirst: Task = {
+            id: 'future-first',
+            title: 'Future first',
+            status: 'next',
+            projectId: project.id,
+            order: 0,
+            orderNum: 0,
+            startTime: '2026-03-03T09:00:00.000Z',
+            tags: [],
+            contexts: [],
+            createdAt: nowIso,
+            updatedAt: nowIso,
+        };
+        const followingNext: Task = {
+            id: 'following-next',
+            title: 'Following next',
+            status: 'next',
+            projectId: project.id,
+            order: 1,
+            orderNum: 1,
+            tags: [],
+            contexts: [],
+            createdAt: nowIso,
+            updatedAt: nowIso,
+        };
+
+        useTaskStore.setState({
+            tasks: [futureFirst, followingNext],
+            _allTasks: [futureFirst, followingNext],
+            projects: [project],
+            _allProjects: [project],
+            areas: [],
+            _allAreas: [],
+            settings: { appearance: { showFutureStarts: false } },
+            highlightTaskId: null,
+        });
+
+        const { getByText, queryByText } = renderAgenda();
+
+        expect(queryByText('Future first')).not.toBeInTheDocument();
+        expect(queryByText('Following next')).not.toBeInTheDocument();
+        expect(getByText('1 task hidden (future start)')).toBeInTheDocument();
+    });
+
     it('shows due-soon next actions before undated tasks and sinks far-future due tasks', () => {
         vi.useFakeTimers();
         const now = new Date('2026-02-28T12:00:00.000Z');
