@@ -255,13 +255,7 @@ export type AppLanguage = 'en' | 'zh' | 'zh-Hant' | 'es' | 'hi' | 'ar' | 'de' | 
 
 export interface GtdSettings {
     timeEstimatePresets?: TimeEstimate[];
-    taskEditor?: {
-        order?: TaskEditorFieldId[];
-        hidden?: TaskEditorFieldId[];
-        sections?: Partial<Record<TaskEditorFieldId, TaskEditorSectionId>>;
-        sectionOpen?: Partial<Record<TaskEditorSectionId, boolean>>;
-        defaultsVersion?: number;
-    };
+    taskEditor?: TaskEditorSettings;
     autoArchiveDays?: number;
     defaultCaptureMethod?: 'text' | 'audio';
     focusTaskLimit?: number;
@@ -291,6 +285,14 @@ export interface GtdSettings {
         autoStartBreaks?: boolean;
         autoStartFocus?: boolean;
     };
+}
+
+export interface TaskEditorSettings {
+    order?: TaskEditorFieldId[];
+    hidden?: TaskEditorFieldId[];
+    sections?: Partial<Record<TaskEditorFieldId, TaskEditorSectionId>>;
+    sectionOpen?: Partial<Record<TaskEditorSectionId, boolean>>;
+    defaultsVersion?: number;
 }
 
 export interface AttachmentSettings {
@@ -348,15 +350,17 @@ export interface AiSettings {
     reasoningEffort?: 'low' | 'medium' | 'high';
     thinkingBudget?: number;
     copilotModel?: string;
-    speechToText?: {
-        enabled?: boolean;
-        provider?: 'openai' | 'gemini' | 'whisper';
-        model?: string;
-        language?: string;
-        mode?: 'smart_parse' | 'transcribe_only';
-        fieldStrategy?: 'smart' | 'title_only' | 'description_only';
-        offlineModelPath?: string;
-    };
+    speechToText?: SpeechToTextSettings;
+}
+
+export interface SpeechToTextSettings {
+    enabled?: boolean;
+    provider?: 'openai' | 'gemini' | 'whisper';
+    model?: string;
+    language?: string;
+    mode?: 'smart_parse' | 'transcribe_only';
+    fieldStrategy?: 'smart' | 'title_only' | 'description_only';
+    offlineModelPath?: string;
 }
 
 export interface DiagnosticsSettings {

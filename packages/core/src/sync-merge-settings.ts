@@ -1,4 +1,4 @@
-import type { AppData, SavedFilter, SettingsSyncGroup } from './types';
+import type { AiSettings, AppData, SavedFilter, SettingsSyncGroup, SettingsSyncPreferences } from './types';
 import {
     AI_PROVIDER_VALUE_SET,
     AI_REASONING_EFFORT_VALUE_SET,
@@ -104,11 +104,11 @@ const mergeSavedFiltersById = (
 };
 
 const sanitizeAiForSync = (
-    ai: AppData['settings']['ai'] | undefined,
-    localAi?: AppData['settings']['ai']
-): AppData['settings']['ai'] | undefined => {
+    ai: AiSettings | undefined,
+    localAi?: AiSettings
+): AiSettings | undefined => {
     if (!ai) return ai;
-    const sanitized: AppData['settings']['ai'] = {
+    const sanitized: AiSettings = {
         ...ai,
         apiKey: undefined,
     };
@@ -150,12 +150,12 @@ const setContainsValue = <T extends string>(set: ReadonlySet<T>, value: unknown)
 );
 
 const sanitizeSyncPreferences = (
-    value: AppData['settings']['syncPreferences'] | undefined,
-    fallback: AppData['settings']['syncPreferences'] | undefined
-): AppData['settings']['syncPreferences'] | undefined => {
+    value: SettingsSyncPreferences | undefined,
+    fallback: SettingsSyncPreferences | undefined
+): SettingsSyncPreferences | undefined => {
     if (value === undefined) return fallback ? cloneSettingValue(fallback) : undefined;
     if (!isObjectRecord(value)) return fallback ? cloneSettingValue(fallback) : undefined;
-    const next: NonNullable<AppData['settings']['syncPreferences']> = {};
+    const next: SettingsSyncPreferences = {};
     for (const key of SETTINGS_SYNC_GROUP_KEYS) {
         const candidate = (value as Record<string, unknown>)[key];
         if (typeof candidate === 'boolean') {
@@ -212,14 +212,12 @@ const sanitizeExternalCalendars = (
 };
 
 const sanitizeAiSettings = (
-    value: AppData['settings']['ai'] | undefined,
-    fallback: AppData['settings']['ai'] | undefined
-): AppData['settings']['ai'] | undefined => {
+    value: AiSettings | undefined,
+    fallback: AiSettings | undefined
+): AiSettings | undefined => {
     if (value === undefined) return fallback ? sanitizeAiForSync(cloneSettingValue(fallback), fallback) : undefined;
     if (!isObjectRecord(value)) return fallback ? sanitizeAiForSync(cloneSettingValue(fallback), fallback) : undefined;
-    const next: NonNullable<AppData['settings']['ai']> = cloneSettingValue(
-        value as NonNullable<AppData['settings']['ai']>
-    );
+    const next: AiSettings = cloneSettingValue(value as AiSettings);
     if (next.enabled !== undefined && typeof next.enabled !== 'boolean') {
         next.enabled = fallback?.enabled;
     }
@@ -248,7 +246,7 @@ const sanitizeAiSettings = (
         if (next.speechToText.enabled !== undefined && typeof next.speechToText.enabled !== 'boolean') {
             next.speechToText.enabled = speechFallback?.enabled;
         }
-        if (next.speechToText.provider !== undefined && !STT_PROVIDER_VALUE_SET.has(next.speechToText.provider)) {
+        if (next.speechToText.provider !== undefined && !setContainsValue(STT_PROVIDER_VALUE_SET, next.speechToText.provider)) {
             next.speechToText.provider = speechFallback?.provider;
         }
         if (next.speechToText.model !== undefined && !isNonEmptyString(next.speechToText.model)) {
@@ -257,12 +255,12 @@ const sanitizeAiSettings = (
         if (next.speechToText.language !== undefined && !isNonEmptyString(next.speechToText.language)) {
             next.speechToText.language = speechFallback?.language;
         }
-        if (next.speechToText.mode !== undefined && !STT_MODE_VALUE_SET.has(next.speechToText.mode)) {
+        if (next.speechToText.mode !== undefined && !setContainsValue(STT_MODE_VALUE_SET, next.speechToText.mode)) {
             next.speechToText.mode = speechFallback?.mode;
         }
         if (
             next.speechToText.fieldStrategy !== undefined
-            && !STT_FIELD_STRATEGY_VALUE_SET.has(next.speechToText.fieldStrategy)
+            && !setContainsValue(STT_FIELD_STRATEGY_VALUE_SET, next.speechToText.fieldStrategy)
         ) {
             next.speechToText.fieldStrategy = speechFallback?.fieldStrategy;
         }

@@ -27,7 +27,7 @@ import {
     sanitizePomodoroDurations,
     tFallback,
     translateText,
-    type AppData,
+    type FeatureSettings,
     type GtdSettings,
     type TaskEditorFieldId,
     type TaskEditorSectionId,
@@ -1018,7 +1018,7 @@ export function GtdSettingsScreen({
             sections?: Partial<Record<TaskEditorFieldId, TaskEditorSectionId>>;
             sectionOpen?: Partial<Record<TaskEditorSectionId, boolean>>;
         },
-        nextFeatures?: AppData['settings']['features']
+        nextFeatures?: FeatureSettings
     ) => {
         updateSettings({
             ...(nextFeatures ? { features: nextFeatures } : null),

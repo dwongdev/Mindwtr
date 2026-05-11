@@ -1,5 +1,6 @@
 export type {
     AppData,
+    AppSettings,
     AiSettings,
     AppearanceSettings,
     Area,
@@ -34,6 +35,7 @@ export type {
     SettingsSyncUpdatedAt,
     SortField,
     Task,
+    TaskEditorSettings,
     TaskEditorFieldId,
     TaskEditorSectionId,
     TaskEnergyLevel,
@@ -44,6 +46,7 @@ export type {
     TextDirection,
     TimeEstimate,
     WindowSettings,
+    SpeechToTextSettings,
 } from './types';
 
 export {

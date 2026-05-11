@@ -11,7 +11,7 @@ import {
     normalizeWebdavUrl,
     SYNC_LOCAL_INSECURE_URL_OPTIONS,
     webdavGetJson,
-    type AppData,
+    type AppSettings,
 } from '@mindwtr/core';
 
 import { pickAndParseSyncFolder } from '@/lib/storage-file';
@@ -94,8 +94,8 @@ type UseSyncSettingsTransportActionsParams = {
     getSyncFailureToastMessage: (error: unknown) => string;
     isExpoGo: boolean;
     isFossBuild: boolean;
-    lastSyncStats: AppData['settings']['lastSyncStats'] | null | undefined;
-    lastSyncStatus: AppData['settings']['lastSyncStatus'] | undefined;
+    lastSyncStats: AppSettings['lastSyncStats'] | null | undefined;
+    lastSyncStatus: AppSettings['lastSyncStatus'] | undefined;
     localize: (english: string, chinese: string) => string;
     resetSyncStatusForBackendSwitch: () => void;
     showSettingsErrorToast: (title: string, message: string, durationMs?: number) => void;

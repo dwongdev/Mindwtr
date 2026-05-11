@@ -1,4 +1,4 @@
-import type { AppData, SyncBackend } from '@mindwtr/core';
+import type { AppSettings, SettingsSyncPreferences, SyncBackend } from '@mindwtr/core';
 
 export type SettingsSyncLabels = {
     dataTransfer: string;
@@ -106,7 +106,7 @@ export type SettingsSyncLabels = {
 
 export type CloudProvider = 'selfhosted' | 'dropbox';
 export type DropboxTestState = 'idle' | 'success' | 'error';
-export type SyncPreferences = NonNullable<AppData['settings']['syncPreferences']>;
+export type SyncPreferences = SettingsSyncPreferences;
 
 export type SettingsSyncPageProps = {
     t: SettingsSyncLabels;
@@ -117,7 +117,7 @@ export type SettingsSyncPageProps = {
     onClearLog: () => void;
     syncBackend: SyncBackend;
     onSetSyncBackend: (backend: SyncBackend) => void;
-    syncPreferences: AppData['settings']['syncPreferences'] | undefined;
+    syncPreferences: AppSettings['syncPreferences'] | undefined;
     onUpdateSyncPreferences: (updates: Partial<SyncPreferences>) => Promise<void> | void;
     syncPath: string;
     onSyncPathChange: (value: string) => void;
@@ -163,9 +163,9 @@ export type SettingsSyncPageProps = {
     syncLastResultAt: string | null;
     syncError: string | null;
     lastSyncDisplay: string;
-    lastSyncStatus: AppData['settings']['lastSyncStatus'];
-    lastSyncStats: AppData['settings']['lastSyncStats'] | null;
-    lastSyncHistory: AppData['settings']['lastSyncHistory'] | null;
+    lastSyncStatus: AppSettings['lastSyncStatus'];
+    lastSyncStats: AppSettings['lastSyncStats'] | null;
+    lastSyncHistory: AppSettings['lastSyncHistory'] | null;
     conflictCount: number;
     lastSyncError?: string;
     attachmentsLastCleanupDisplay: string;

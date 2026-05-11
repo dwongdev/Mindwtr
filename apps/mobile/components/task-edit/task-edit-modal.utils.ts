@@ -1,5 +1,5 @@
 import { Dimensions } from 'react-native';
-import { type AppData, type TaskEditorFieldId, type TaskEditorSectionId, type TaskStatus } from '@mindwtr/core';
+import { type TaskEditorFieldId, type TaskEditorSectionId, type TaskEditorSettings, type TaskStatus } from '@mindwtr/core';
 import { logError, logWarn } from '../../lib/app-log';
 
 export const STATUS_OPTIONS: TaskStatus[] = ['inbox', 'next', 'waiting', 'someday', 'reference', 'done'];
@@ -160,8 +160,6 @@ export const DEFAULT_TASK_EDITOR_SECTION_OPEN: Record<TaskEditorSectionId, boole
     details: true,
 };
 
-type TaskEditorSettings = NonNullable<NonNullable<AppData['settings']['gtd']>['taskEditor']> | undefined;
-
 const isTaskEditorSectionId = (value: unknown): value is TaskEditorSectionId =>
     value === 'basic' || value === 'scheduling' || value === 'organization' || value === 'details';
 
@@ -169,7 +167,7 @@ export const isTaskEditorSectionableField = (fieldId: TaskEditorFieldId): boolea
     TASK_EDITOR_SECTIONABLE_FIELDS.includes(fieldId);
 
 export const getTaskEditorSectionAssignments = (
-    taskEditor: TaskEditorSettings
+    taskEditor: TaskEditorSettings | undefined
 ): Record<TaskEditorFieldId, TaskEditorSectionId> => {
     const savedSections = taskEditor?.sections ?? {};
     const next = { ...DEFAULT_TASK_EDITOR_SECTION_BY_FIELD };
@@ -182,7 +180,7 @@ export const getTaskEditorSectionAssignments = (
 };
 
 export const getTaskEditorSectionOpenDefaults = (
-    taskEditor: TaskEditorSettings
+    taskEditor: TaskEditorSettings | undefined
 ): Record<TaskEditorSectionId, boolean> => {
     const savedSectionOpen = taskEditor?.sectionOpen ?? {};
     return {

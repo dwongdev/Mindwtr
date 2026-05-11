@@ -1,4 +1,4 @@
-import type { AppData } from '@mindwtr/core';
+import type { AppSettings } from '@mindwtr/core';
 
 export type MobileSyncActivityState = 'idle' | 'syncing';
 export type MobileSyncBadgeState = 'hidden' | 'syncing' | 'healthy' | 'attention';
@@ -12,9 +12,9 @@ export const MOBILE_SYNC_BADGE_COLORS: Record<Exclude<MobileSyncBadgeState, 'hid
 export function resolveMobileSyncBadgeState(params: {
     configured: boolean;
     activityState: MobileSyncActivityState;
-    pendingRemoteWriteAt?: AppData['settings']['pendingRemoteWriteAt'];
-    lastSyncStatus?: AppData['settings']['lastSyncStatus'];
-    lastSyncAt?: AppData['settings']['lastSyncAt'];
+    pendingRemoteWriteAt?: AppSettings['pendingRemoteWriteAt'];
+    lastSyncStatus?: AppSettings['lastSyncStatus'];
+    lastSyncAt?: AppSettings['lastSyncAt'];
 }): MobileSyncBadgeState {
     const {
         configured,

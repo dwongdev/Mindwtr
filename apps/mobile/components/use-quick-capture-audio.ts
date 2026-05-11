@@ -7,8 +7,9 @@ import {
   buildTaskUpdatesFromSpeechResult,
   generateUUID,
   safeFormatDate,
-  type AppData,
+  type AppSettings,
   type Attachment,
+  type SpeechToTextSettings,
   type Task,
   useTaskStore,
 } from '@mindwtr/core';
@@ -24,7 +25,7 @@ import {
 } from '../lib/speech-to-text';
 import { getCaptureFileExtension, getCaptureMimeType } from './quick-capture-sheet.utils';
 
-type SpeechSettings = NonNullable<NonNullable<NonNullable<AppData['settings']>['ai']>['speechToText']>;
+type SpeechSettings = SpeechToTextSettings;
 type BuildTaskPropsResult = {
   title: string;
   props: Partial<Task>;
@@ -49,7 +50,7 @@ type UseQuickCaptureAudioParams = {
   initialAttachments?: Attachment[];
   onError: (message: string, error?: unknown) => void;
   onWarn: (message: string, error?: unknown) => void;
-  settings: AppData['settings'];
+  settings: AppSettings;
   t: (key: string) => string;
   updateSpeechSettings: (next: Partial<SpeechSettings>) => void;
   visible: boolean;

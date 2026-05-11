@@ -1,6 +1,7 @@
 
 import {
     AppData,
+    AppSettings,
     Attachment,
     useTaskStore,
     MergeStats,
@@ -254,7 +255,7 @@ const buildConflictDiagnosticsLogExtra = (stats: MergeStats): Record<string, str
 
 const externalCalendarProvider = {
     load: () => syncServiceDependencies.getExternalCalendars(),
-    save: (calendars: AppData['settings']['externalCalendars'] | undefined) =>
+    save: (calendars: AppSettings['externalCalendars'] | undefined) =>
         syncServiceDependencies.setExternalCalendars(calendars ?? []),
     onWarn: (message: string, error?: unknown) => logSyncWarning(message, error),
 };
@@ -824,7 +825,7 @@ export class SyncService {
     }
 
     private static async persistSuccessfulSyncStatus(
-        syncStatus: NonNullable<AppData['settings']['lastSyncStatus']>,
+        syncStatus: NonNullable<AppSettings['lastSyncStatus']>,
         now: string,
         lastSyncHistory?: ReturnType<typeof appendSyncHistory>
     ): Promise<boolean> {

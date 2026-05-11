@@ -3,7 +3,7 @@ import { getUsedTaskTokens } from './task-token-usage';
 import { rescheduleTask } from './task-utils';
 import { filterNotDeleted } from './sync-helpers';
 import { normalizeRevision } from './sync-revision';
-import type { AppData, Area, Project, Section, Task, TaskStatus } from './types';
+import type { AiSettings, AppData, Area, Project, Section, Task, TaskStatus } from './types';
 import { generateUUID as uuidv4 } from './uuid';
 import type { DerivedState, SaveBaseState } from './store-types';
 
@@ -399,7 +399,7 @@ export const stripSensitiveSettings = (settings: AppData['settings']): AppData['
     };
 };
 
-export const normalizeAiSettingsForSync = (ai?: AppData['settings']['ai']): AppData['settings']['ai'] | undefined => {
+export const normalizeAiSettingsForSync = (ai?: AiSettings): AiSettings | undefined => {
     if (!ai) return ai;
     const { apiKey, ...rest } = ai;
     if (!rest.speechToText) return rest;

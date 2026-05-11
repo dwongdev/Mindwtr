@@ -1,4 +1,4 @@
-import type { AppData, GtdSettings, TaskEditorFieldId, TaskEditorSectionId } from '@mindwtr/core';
+import type { AppSettings, FeatureSettings, GtdSettings, TaskEditorFieldId, TaskEditorSectionId } from '@mindwtr/core';
 import {
     FOCUS_TASK_LIMIT_OPTIONS,
     normalizeClockTimeInput,
@@ -110,8 +110,8 @@ type InboxProcessingSettings = NonNullable<GtdSettings['inboxProcessing']>;
 type SettingsGtdPageProps = {
     t: Labels;
     language: Language;
-    settings?: AppData['settings'];
-    updateSettings: (updates: Partial<AppData['settings']>) => Promise<void>;
+    settings?: AppSettings;
+    updateSettings: (updates: Partial<AppSettings>) => Promise<void>;
     showSaved: () => void;
     autoArchiveDays: number;
 };
@@ -165,7 +165,7 @@ export function SettingsGtdPage({
     showSaved,
     autoArchiveDays,
 }: SettingsGtdPageProps) {
-    const safeSettings = settings ?? ({} as AppData['settings']);
+    const safeSettings = settings ?? ({} as AppSettings);
     const [featuresOpen, setFeaturesOpen] = useState(false);
     const [captureOpen, setCaptureOpen] = useState(false);
     const [reviewOpen, setReviewOpen] = useState(false);
@@ -359,7 +359,7 @@ export function SettingsGtdPage({
             sections?: Partial<Record<TaskEditorFieldId, TaskEditorSectionId>>;
             sectionOpen?: Partial<Record<TaskEditorSectionId, boolean>>;
         },
-        nextFeatures?: AppData['settings']['features']
+        nextFeatures?: FeatureSettings
     ) => {
         updateSettings({
             ...(nextFeatures ? { features: nextFeatures } : null),

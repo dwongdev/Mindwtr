@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { buildAIConfig, buildCopilotConfig } from './ai-config';
-import type { AppData } from './types';
+import type { AiSettings, AppSettings } from './types';
 
-const createSettings = (ai: AppData['settings']['ai']): AppData['settings'] => ({
+const createSettings = (ai: AiSettings): AppSettings => ({
     ai,
 });
 

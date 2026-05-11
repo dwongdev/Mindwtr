@@ -1,6 +1,7 @@
 import {
     type AppData,
     type Attachment,
+    type PendingRemoteAttachmentDelete,
     cloudDeleteFile,
     findDeletedAttachmentsForFileCleanup,
     findOrphanedAttachments,
@@ -37,9 +38,7 @@ export type AttachmentCleanupDeps = {
     resolveWebdavPassword: (config: WebDavConfig) => Promise<string>;
 };
 
-type PendingRemoteAttachmentDeleteEntry = NonNullable<
-    NonNullable<AppData['settings']['attachments']>['pendingRemoteDeletes']
->[number];
+type PendingRemoteAttachmentDeleteEntry = PendingRemoteAttachmentDelete;
 
 const LOCAL_ATTACHMENTS_DIR = `mindwtr/${ATTACHMENTS_DIR_NAME}`;
 const SYNC_FILE_NAME = 'data.json';
