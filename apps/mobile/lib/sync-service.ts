@@ -625,7 +625,9 @@ const mobileSyncOrchestrator = createSyncOrchestrator<string | undefined, Mobile
             }
             : undefined,
           dropbox: cloudProvider === CLOUD_PROVIDER_DROPBOX
-            ? async (data) => syncDropboxAttachments(data, dropboxClientId, fetchWithAbort)
+            ? async (data) => syncDropboxAttachments(data, dropboxClientId, fetchWithAbort, {
+              signal: requestAbortController.signal,
+            })
             : undefined,
           file: fileSyncPath
             ? async (data) => syncFileAttachments(data, fileSyncPath)
@@ -745,7 +747,9 @@ const mobileSyncOrchestrator = createSyncOrchestrator<string | undefined, Mobile
           });
         } else if (backend === 'cloud' && cloudProvider === CLOUD_PROVIDER_DROPBOX) {
           await ensureNetworkStillAvailable();
-          await syncDropboxAttachments(data, dropboxClientId, fetchWithAbort);
+          await syncDropboxAttachments(data, dropboxClientId, fetchWithAbort, {
+            signal: requestAbortController.signal,
+          });
         } else if (backend === 'file' && fileSyncPath) {
           await syncFileAttachments(data, fileSyncPath);
         }
@@ -1094,7 +1098,9 @@ const mobileSyncOrchestrator = createSyncOrchestrator<string | undefined, Mobile
         ensureLocalSnapshotFresh();
         await ensureNetworkStillAvailable();
         await applyAttachmentSyncMutation((candidateData) =>
-          syncDropboxAttachments(candidateData, dropboxClientId, fetchWithAbort)
+          syncDropboxAttachments(candidateData, dropboxClientId, fetchWithAbort, {
+            signal: requestAbortController.signal,
+          })
         );
       }
 

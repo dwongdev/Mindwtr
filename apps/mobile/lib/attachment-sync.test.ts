@@ -68,6 +68,11 @@ vi.mock('./dropbox-sync', () => ({
   uploadDropboxFile: vi.fn(),
 }));
 
+vi.mock('./dropbox-auth', () => ({
+  forceRefreshDropboxAccessToken: vi.fn().mockResolvedValue('dropbox-token'),
+  getValidDropboxAccessToken: vi.fn().mockResolvedValue('dropbox-token'),
+}));
+
 vi.mock('./app-log', () => ({
   logInfo: vi.fn(),
   logWarn: vi.fn(),
@@ -385,6 +390,58 @@ describe('attachment sync', () => {
       'https://cloud.example/v1/attachments/mid-upload.txt',
       { token: 'token' }
     );
+    expect(appData.tasks[0].attachments?.[0]?.cloudKey).toBeUndefined();
+  });
+
+  it('propagates abort signals from Dropbox attachment uploads', async () => {
+    fileSystemMock.getInfoAsync.mockResolvedValue({ exists: true, size: 3 });
+    fileSystemMock.readAsStringAsync.mockResolvedValue('AQID');
+    const dropbox = await import('./dropbox-sync');
+    const abortController = new AbortController();
+    const uploadError = new Error('Dropbox upload aborted by sync lifecycle');
+    const appData: AppData = {
+      tasks: [
+        {
+          id: 'task-1',
+          title: 'Task',
+          status: 'inbox',
+          tags: [],
+          contexts: [],
+          attachments: [
+            {
+              id: 'dropbox-mid-upload',
+              kind: 'file' as const,
+              title: 'dropbox-mid-upload.txt',
+              uri: 'file://document/attachments/dropbox-mid-upload.txt',
+              localStatus: 'available' as const,
+              createdAt: '2026-04-18T10:00:00.000Z',
+              updatedAt: '2026-04-18T10:00:00.000Z',
+            },
+          ],
+          createdAt: '2026-04-18T10:00:00.000Z',
+          updatedAt: '2026-04-18T10:00:00.000Z',
+        },
+      ],
+      projects: [],
+      sections: [],
+      areas: [],
+      settings: {},
+    };
+
+    vi.mocked(dropbox.uploadDropboxFile).mockImplementationOnce(async () => {
+      abortController.abort();
+      throw uploadError;
+    });
+
+    const { syncDropboxAttachments } = await import('./attachment-sync');
+
+    await expect(syncDropboxAttachments(
+      appData,
+      'dropbox-client-id',
+      fetch,
+      { signal: abortController.signal }
+    )).rejects.toBe(uploadError);
+
     expect(appData.tasks[0].attachments?.[0]?.cloudKey).toBeUndefined();
   });
 
