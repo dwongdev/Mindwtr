@@ -166,6 +166,24 @@ describe('fetchWithTimeout', () => {
         )).rejects.toThrow('Sync cancelled');
     });
 
+    it('falls back to a cancellation message for non-Error abort reasons', async () => {
+        const controller = new AbortController();
+        controller.abort({ name: 'AbortError', message: 'Native cancellation' });
+
+        await expect(fetchWithTimeout(
+            'https://example.com/data.json',
+            { signal: controller.signal },
+            1_000,
+            async (_input, init) => {
+                expect((init?.signal as AbortSignal | undefined)?.aborted).toBe(true);
+                const error = new Error('Fetch aborted');
+                error.name = 'AbortError';
+                throw error;
+            },
+            'Request timed out',
+        )).rejects.toThrow('Request cancelled');
+    });
+
     it('reports timeout when its own timer aborts the request', async () => {
         await expect(fetchWithTimeout(
             'https://example.com/data.json',
