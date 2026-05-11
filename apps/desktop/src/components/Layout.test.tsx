@@ -113,7 +113,7 @@ describe('Layout sync conflict surface', () => {
 
         const { getByText } = renderLayout();
 
-        expect(getByText('Fresh')).toBeInTheDocument();
+        expect(getByText('Synced')).toBeInTheDocument();
     });
 
     it('shows a toast when a new sync conflict status is present', () => {

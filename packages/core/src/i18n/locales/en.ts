@@ -771,7 +771,7 @@ export const en: Record<string, string> = {
         'settings.lastSyncSuccess': 'Sync completed',
         'settings.lastSyncError': 'Sync failed',
         'settings.lastSyncConflict': 'Conflicts resolved',
-        'settings.syncStatusFresh': 'Fresh',
+        'settings.syncStatusFresh': 'Synced',
         'settings.syncStatusStale': 'Stale',
         'settings.syncStatusOld': 'Old',
         'settings.syncStatusNever': 'Not synced',

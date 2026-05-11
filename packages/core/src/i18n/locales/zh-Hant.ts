@@ -725,7 +725,7 @@ export const zhHant: Record<string, string> = {
         'settings.syncCompletedWithConflicts': '同步完成，發現 {count} 個衝突（已自動處理）。',
         'settings.syncClockSkewWarning': '檢測到較大的設備時鐘偏差（{skew}）。請檢查各設備的時間設定。',
         'settings.syncAdjustedTimestamps': '同步期間已調整 {count} 個未來時間戳。',
-        'settings.syncStatusFresh': '新近',
+        'settings.syncStatusFresh': '已同步',
         'settings.syncStatusStale': '較舊',
         'settings.syncStatusOld': '過舊',
         'settings.syncStatusNever': '未同步',
