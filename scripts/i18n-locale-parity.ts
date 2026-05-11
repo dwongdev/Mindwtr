@@ -2,13 +2,14 @@
 import { readFileSync, writeFileSync } from 'fs';
 import { join } from 'path';
 import { en } from '../packages/core/src/i18n/locales/en';
-import { acceptedLocaleFallbacks } from '../packages/core/src/i18n/locale-fallbacks';
+import { hasTranslatableEnglishText } from '../packages/core/src/i18n/locale-quality';
 
 type Dictionary = Record<string, string>;
 
 type LocaleTarget = {
     locale: string;
     path: string;
+    fullParity?: boolean;
 };
 
 const LOCALES: LocaleTarget[] = [
@@ -25,8 +26,8 @@ const LOCALES: LocaleTarget[] = [
     { locale: 'pt', path: 'packages/core/src/i18n/locales/pt.ts' },
     { locale: 'ru', path: 'packages/core/src/i18n/locales/ru.ts' },
     { locale: 'tr', path: 'packages/core/src/i18n/locales/tr.ts' },
-    { locale: 'zh-Hans', path: 'packages/core/src/i18n/locales/zh-Hans.ts' },
-    { locale: 'zh-Hant', path: 'packages/core/src/i18n/locales/zh-Hant.ts' },
+    { locale: 'zh-Hans', path: 'packages/core/src/i18n/locales/zh-Hans.ts', fullParity: true },
+    { locale: 'zh-Hant', path: 'packages/core/src/i18n/locales/zh-Hant.ts', fullParity: true },
 ];
 
 const args = new Set(process.argv.slice(2));
@@ -43,59 +44,75 @@ function resolveDictionary(moduleExports: Record<string, unknown>): Dictionary {
     throw new Error('Could not find a locale dictionary export.');
 }
 
-const quote = (value: string): string => (
-    `'${value
-        .replace(/\\/g, '\\\\')
-        .replace(/'/g, '\\\'')
-        .replace(/\n/g, '\\n')}'`
-);
-
-function appendMissingKeys(filePath: string, missingKeys: string[]) {
+function removeKeys(filePath: string, keys: Set<string>) {
+    const entryPattern = /^\s*'([^']+)':\s*/;
     const source = readFileSync(filePath, 'utf8');
-    const insertionPoint = source.lastIndexOf('};');
-    if (insertionPoint < 0) {
-        throw new Error(`Could not find dictionary end marker in ${filePath}`);
+    const nextLines: string[] = [];
+    for (const line of source.split('\n')) {
+        const match = line.match(entryPattern);
+        if (match && keys.has(match[1])) {
+            if (nextLines.at(-1)?.trim() === '// English fallbacks keep shipped locale files in key parity.') {
+                nextLines.pop();
+            }
+            continue;
+        }
+        nextLines.push(line);
     }
-    const lines = [
-        '        // English fallbacks keep shipped locale files in key parity.',
-        ...missingKeys.map((key) => `        ${quote(key)}: ${quote(en[key])},`),
-    ];
-    const prefix = source.slice(0, insertionPoint).replace(/\s*$/, '\n');
-    const suffix = source.slice(insertionPoint);
-    writeFileSync(filePath, `${prefix}${lines.join('\n')}\n${suffix}`);
+    writeFileSync(filePath, nextLines.join('\n'));
 }
 
 const englishKeys = Object.keys(en).sort();
-let missingCount = 0;
+const englishKeySet = new Set(englishKeys);
+let problemCount = 0;
 
 for (const target of LOCALES) {
     const modulePath = join('..', target.path);
     const moduleExports = await import(modulePath);
     const dictionary = resolveDictionary(moduleExports);
     const localeKeys = new Set(Object.keys(dictionary));
-    const acceptedFallbacks = new Set(acceptedLocaleFallbacks[target.locale] ?? []);
-    const missingKeys = englishKeys.filter((key) => !localeKeys.has(key) && !acceptedFallbacks.has(key));
-    if (missingKeys.length === 0) {
+
+    const unknownKeys = Object.keys(dictionary).filter((key) => !englishKeySet.has(key));
+    const mirroredEnglishKeys = Object.keys(dictionary)
+        .filter((key) => dictionary[key] === en[key] && hasTranslatableEnglishText(en[key]));
+    const missingKeys = target.fullParity
+        ? englishKeys.filter((key) => !localeKeys.has(key))
+        : [];
+    const fixableKeys = new Set([...unknownKeys, ...mirroredEnglishKeys]);
+
+    if (missingKeys.length === 0 && unknownKeys.length === 0 && mirroredEnglishKeys.length === 0) {
         console.log(`${target.locale}: ok`);
         continue;
     }
 
-    missingCount += missingKeys.length;
-    console.log(`${target.locale}: missing ${missingKeys.length} keys`);
+    problemCount += missingKeys.length + unknownKeys.length + mirroredEnglishKeys.length;
+    if (missingKeys.length > 0) console.log(`${target.locale}: missing ${missingKeys.length} keys`);
+    if (unknownKeys.length > 0) console.log(`${target.locale}: unknown ${unknownKeys.length} keys`);
+    if (mirroredEnglishKeys.length > 0) console.log(`${target.locale}: mirrored English ${mirroredEnglishKeys.length} keys`);
     if (shouldFix) {
-        appendMissingKeys(target.path, missingKeys);
-        console.log(`${target.locale}: added English fallback entries`);
-    } else if (shouldCheck) {
-        for (const key of missingKeys.slice(0, 20)) {
-            console.log(`  - ${key}`);
+        if (missingKeys.length > 0) {
+            console.log(`${target.locale}: missing full-parity translations require manual translation`);
         }
-        if (missingKeys.length > 20) {
-            console.log(`  ...and ${missingKeys.length - 20} more`);
+        if (fixableKeys.size > 0) {
+            removeKeys(target.path, fixableKeys);
+            console.log(`${target.locale}: removed stale override entries`);
+        }
+    } else if (shouldCheck) {
+        for (const [label, keys] of [
+            ['missing', missingKeys],
+            ['unknown', unknownKeys],
+            ['mirrored', mirroredEnglishKeys],
+        ] as const) {
+            for (const key of keys.slice(0, 20)) {
+                console.log(`  - ${label}: ${key}`);
+            }
+            if (keys.length > 20) {
+                console.log(`  ...and ${keys.length - 20} more ${label}`);
+            }
         }
     }
 }
 
-if (missingCount > 0 && shouldCheck && !shouldFix) {
-    console.error(`Locale parity failed: ${missingCount} missing keys. Run bun run scripts/i18n-locale-parity.ts --fix to add explicit fallbacks.`);
+if (problemCount > 0 && shouldCheck && !shouldFix) {
+    console.error(`Locale parity failed: ${problemCount} problems. Run bun run scripts/i18n-locale-parity.ts --fix to remove stale override entries.`);
     process.exit(1);
 }

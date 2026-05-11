@@ -246,6 +246,7 @@ export const en: Record<string, string> = {
         'task.select': 'Select task',
         'task.aria.delete': 'Delete task',
         'task.deleteConfirmBody': 'Move this task to Trash?',
+        'task.moveToWaitingWithDue': 'Move to Waiting and set due date',
         'task.aria.status': 'Task status',
         'task.aria.description': 'Task description',
         'task.aria.startDate': 'Start date',
