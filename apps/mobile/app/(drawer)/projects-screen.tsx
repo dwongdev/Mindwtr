@@ -32,7 +32,7 @@ import { AREA_FILTER_ALL, AREA_FILTER_NONE } from '@/lib/area-filter';
 import { openContextsScreen, openProjectScreen } from '@/lib/task-meta-navigation';
 
 export default function ProjectsScreen() {
-  const { projects, tasks, addProject, updateProject, deleteProject, restoreProject, toggleProjectFocus, addArea, updateArea, deleteArea, reorderAreas, updateTask, setHighlightTask, settings } = useTaskStore();
+  const { projects, tasks, addProject, updateProject, deleteProject, restoreProject, toggleProjectFocus, addArea, updateArea, deleteArea, reorderAreas, updateTask, setHighlightTask, settings, getDerivedState } = useTaskStore();
   const { t, language } = useLanguage();
   const { showToast } = useToast();
   const tc = useThemeColors();
@@ -116,6 +116,7 @@ export default function ProjectsScreen() {
     selectedAreaFilter,
     allTagsValue: ALL_TAGS,
     noTagsValue: NO_TAGS,
+    focusedProjectCount: getDerivedState().focusedProjectCount,
     t,
   });
   const {

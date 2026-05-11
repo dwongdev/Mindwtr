@@ -29,6 +29,7 @@ export const useProjectsViewStore = () =>
             setHighlightTask: state.setHighlightTask,
             settings: state.settings,
             getDerivedState: state.getDerivedState,
+            focusedProjectCount: state.getDerivedState().focusedProjectCount,
         }),
         shallow
     );

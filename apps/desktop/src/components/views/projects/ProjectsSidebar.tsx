@@ -63,6 +63,7 @@ interface ProjectsSidebarProps {
     getProjectColor: (project: Project) => string;
     tasksByProject: TasksByProject;
     projects: Project[];
+    focusedProjectCount: number;
     toggleProjectFocus: (projectId: string) => void;
     updateProject: (projectId: string, updates: Partial<Project>) => Promise<StoreActionResult> | void;
     reorderProjects: (projectIds: string[], areaId?: string) => Promise<void> | void;
@@ -100,7 +101,7 @@ export function ProjectsSidebar({
     onSelectProject,
     getProjectColor,
     tasksByProject,
-    projects,
+    focusedProjectCount,
     toggleProjectFocus,
     updateProject,
     reorderProjects,
@@ -113,7 +114,7 @@ export function ProjectsSidebar({
         }),
     );
 
-    const focusedCount = useMemo(() => projects.filter((project) => project.isFocused).length, [projects]);
+    const focusedCount = focusedProjectCount;
     const [contextMenu, setContextMenu] = useState<{ projectId: string; x: number; y: number } | null>(null);
     const contextMenuRef = useRef<HTMLDivElement | null>(null);
     const pendingProjectSelectionRef = useRef<{ projectId: string; timeoutId: number } | null>(null);

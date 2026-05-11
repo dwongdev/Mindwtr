@@ -75,6 +75,7 @@ type UseProjectFilteringParams = {
     selectedAreaFilter: AreaFilterValue;
     allTagsValue: string;
     noTagsValue: string;
+    focusedProjectCount: number;
     t: (key: string) => string;
 };
 
@@ -87,12 +88,10 @@ export function useProjectFiltering({
     selectedAreaFilter,
     allTagsValue,
     noTagsValue,
+    focusedProjectCount,
     t,
 }: UseProjectFilteringParams) {
-    const focusedCount = useMemo(
-        () => projects.filter((project) => project.isFocused).length,
-        [projects],
-    );
+    const focusedCount = focusedProjectCount;
 
     const areaUsage = useMemo(() => {
         const counts = new Map<string, number>();

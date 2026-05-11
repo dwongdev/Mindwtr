@@ -128,6 +128,7 @@ export function ProjectsView() {
         setHighlightTask,
         settings,
         getDerivedState,
+        focusedProjectCount,
     } = useProjectsViewStore();
     const { allContexts, allTags } = getDerivedState();
     const allTokens = useMemo(
@@ -552,6 +553,7 @@ export function ProjectsView() {
                                 getProjectColor={getProjectColorForTask}
                                 tasksByProject={tasksByProject}
                                 projects={projects}
+                                focusedProjectCount={focusedProjectCount}
                                 toggleProjectFocus={toggleProjectFocus}
                                 updateProject={updateProject}
                                 reorderProjects={reorderProjects}
