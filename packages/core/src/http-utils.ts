@@ -30,6 +30,19 @@ export const isAbortError = (error: unknown): boolean => {
     return name === 'AbortError';
 };
 
+const createAbortError = (message: string): Error => {
+    const error = new Error(message);
+    error.name = 'AbortError';
+    return error;
+};
+
+const getAbortSignalReason = (signal: AbortSignal, fallbackMessage: string): Error => {
+    const reason = (signal as AbortSignal & { reason?: unknown }).reason;
+    if (reason instanceof Error) return reason;
+    if (typeof reason === 'string' && reason.trim()) return createAbortError(reason);
+    return createAbortError(fallbackMessage);
+};
+
 const parseIpv4Host = (host: string): Ipv4Octets | null => {
     const parts = host.split('.');
     if (parts.length !== 4) return null;
@@ -197,15 +210,23 @@ export const fetchWithTimeout = async (
     timeoutMessage: string,
 ): Promise<Response> => {
     const abortController = typeof AbortController === 'function' ? new AbortController() : null;
-    const timeoutId = abortController ? setTimeout(() => abortController.abort(), timeoutMs) : null;
+    let didTimeout = false;
+    const timeoutId = abortController
+        ? setTimeout(() => {
+            didTimeout = true;
+            abortController.abort(createAbortError(timeoutMessage));
+        }, timeoutMs)
+        : null;
 
     const signal = abortController ? abortController.signal : init.signal;
     const externalSignal = init.signal;
     if (abortController && externalSignal) {
         if (externalSignal.aborted) {
-            abortController.abort();
+            abortController.abort(getAbortSignalReason(externalSignal, 'Request cancelled'));
         } else {
-            externalSignal.addEventListener('abort', () => abortController.abort(), { once: true });
+            externalSignal.addEventListener('abort', () => {
+                abortController.abort(getAbortSignalReason(externalSignal, 'Request cancelled'));
+            }, { once: true });
         }
     }
 
@@ -220,6 +241,12 @@ export const fetchWithTimeout = async (
         return await fetcher(url, requestInit);
     } catch (error) {
         if (isAbortError(error)) {
+            if (didTimeout) {
+                throw new Error(timeoutMessage);
+            }
+            if (externalSignal?.aborted) {
+                throw getAbortSignalReason(externalSignal, 'Request cancelled');
+            }
             throw new Error(timeoutMessage);
         }
         throw error;

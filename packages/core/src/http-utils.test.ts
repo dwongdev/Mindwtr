@@ -145,4 +145,44 @@ describe('fetchWithTimeout', () => {
 
         expect(receivedInit?.duplex).toBeUndefined();
     });
+
+    it('preserves caller abort reasons instead of reporting a timeout', async () => {
+        const controller = new AbortController();
+        const reason = new Error('Sync cancelled');
+        reason.name = 'AbortError';
+        controller.abort(reason);
+
+        await expect(fetchWithTimeout(
+            'https://example.com/data.json',
+            { signal: controller.signal },
+            1_000,
+            async (_input, init) => {
+                expect((init?.signal as AbortSignal | undefined)?.aborted).toBe(true);
+                const error = new Error('Fetch aborted');
+                error.name = 'AbortError';
+                throw error;
+            },
+            'Request timed out',
+        )).rejects.toThrow('Sync cancelled');
+    });
+
+    it('reports timeout when its own timer aborts the request', async () => {
+        await expect(fetchWithTimeout(
+            'https://example.com/data.json',
+            {},
+            1,
+            async (_input, init) => {
+                const signal = init?.signal as AbortSignal | undefined;
+                await new Promise((_resolve, reject) => {
+                    signal?.addEventListener('abort', () => {
+                        const error = new Error('Fetch aborted');
+                        error.name = 'AbortError';
+                        reject(error);
+                    }, { once: true });
+                });
+                return new Response(null, { status: 200 });
+            },
+            'Request timed out',
+        )).rejects.toThrow('Request timed out');
+    });
 });
