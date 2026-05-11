@@ -424,9 +424,11 @@ export function ProjectsView() {
     }, [projects]);
 
     useEffect(() => {
+        // Keep persisted tag selections through the empty startup frame; reset only after we have a real tag inventory.
+        if (tagOptions.list.length === 0 && !tagOptions.hasNoTags) return;
         if (selectedTag === ALL_TAGS || selectedTag === NO_TAGS || tagOptions.list.includes(selectedTag)) return;
         setSelectedTag(ALL_TAGS);
-    }, [selectedTag, tagOptions.list, setSelectedTag]);
+    }, [selectedTag, tagOptions.hasNoTags, tagOptions.list, setSelectedTag]);
 
     const { groupedActiveProjects, groupedDeferredProjects, groupedArchivedProjects } = useMemo(() => {
         const visibleProjects = projects.filter(p => !p.deletedAt);

@@ -162,6 +162,8 @@ export function ContextsView() {
     )).sort();
 
     useEffect(() => {
+        // Keep persisted context selections through the empty startup frame; reset only after active tasks expose tokens.
+        if (allContexts.length === 0) return;
         if (!selectedContext || selectedContext === NO_CONTEXT_TOKEN || allContexts.includes(selectedContext)) return;
         setSelectedContext(null);
     }, [allContexts, selectedContext, setSelectedContext]);

@@ -740,6 +740,7 @@ export function useCalendarViewController() {
   }, [pendingScrollMinutes, scrollTimelineToMinutes, selectedDate, viewMode]);
 
   useEffect(() => {
+    // Runs after persisted view-mode/date restore above so day switches keep the user's previous timeline anchor.
     if (viewMode !== 'day' || !selectedDate || pendingScrollMinutes != null) return;
     if (lastDefaultTimelineScrollKeyRef.current !== 'day') return;
     if (lastDayTimelineRestoreKeyRef.current === selectedDayKey) return;
