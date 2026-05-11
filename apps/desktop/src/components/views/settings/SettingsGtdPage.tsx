@@ -1,4 +1,4 @@
-import type { AppData, TaskEditorFieldId, TaskEditorSectionId } from '@mindwtr/core';
+import type { AppData, GtdSettings, TaskEditorFieldId, TaskEditorSectionId } from '@mindwtr/core';
 import {
     FOCUS_TASK_LIMIT_OPTIONS,
     normalizeClockTimeInput,
@@ -103,6 +103,9 @@ type Labels = {
     visible: string;
     hidden: string;
 };
+
+type PomodoroSettings = NonNullable<GtdSettings['pomodoro']>;
+type InboxProcessingSettings = NonNullable<GtdSettings['inboxProcessing']>;
 
 type SettingsGtdPageProps = {
     t: Labels;
@@ -254,7 +257,7 @@ export function SettingsGtdPage({
     };
 
     const updatePomodoroSettings = (
-        partial: Partial<NonNullable<NonNullable<AppData['settings']['gtd']>['pomodoro']>>,
+        partial: Partial<PomodoroSettings>,
         options?: { showAutoStartNotice?: boolean }
     ) => {
         updateSettings({
@@ -278,7 +281,7 @@ export function SettingsGtdPage({
         return nextDurations;
     };
 
-    const updateGtdSettings = (partial: Partial<NonNullable<AppData['settings']['gtd']>>) => {
+    const updateGtdSettings = (partial: Partial<GtdSettings>) => {
         updateSettings({
             gtd: {
                 ...(safeSettings.gtd ?? {}),
@@ -385,7 +388,7 @@ export function SettingsGtdPage({
         }
         saveTaskEditor({ order: taskEditorOrder, hidden: Array.from(nextHidden) }, nextFeatures);
     };
-    const updateInboxProcessing = (partial: Partial<NonNullable<AppData['settings']['gtd']>['inboxProcessing']>) => {
+    const updateInboxProcessing = (partial: Partial<InboxProcessingSettings>) => {
         updateSettings({
             gtd: {
                 ...(safeSettings.gtd ?? {}),
@@ -396,7 +399,7 @@ export function SettingsGtdPage({
             },
         }).then(showSaved).catch((error) => reportError('Failed to update inbox processing settings', error));
     };
-    const updateWeeklyReviewConfig = (partial: NonNullable<AppData['settings']['gtd']>['weeklyReview']) => {
+    const updateWeeklyReviewConfig = (partial: GtdSettings['weeklyReview']) => {
         updateSettings({
             gtd: {
                 ...(safeSettings.gtd ?? {}),

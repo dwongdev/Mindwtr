@@ -1,15 +1,15 @@
 import { SUPPORTED_LANGUAGES } from './i18n/i18n-constants';
 import type { AIProviderId, AIReasoningEffort } from './ai/types';
-import type { AppData } from './types';
+import type { AiSettings, AppearanceSettings, AppData } from './types';
 
 type ThemeValue = NonNullable<AppData['settings']['theme']>;
 type LanguageValue = NonNullable<AppData['settings']['language']>;
 type WeekStartValue = NonNullable<AppData['settings']['weekStart']>;
 type TimeFormatValue = NonNullable<AppData['settings']['timeFormat']>;
 type KeybindingStyleValue = NonNullable<AppData['settings']['keybindingStyle']>;
-type DensityValue = NonNullable<NonNullable<AppData['settings']['appearance']>['density']>;
-type TextSizeValue = NonNullable<NonNullable<AppData['settings']['appearance']>['textSize']>;
-type SpeechToTextSettings = NonNullable<NonNullable<AppData['settings']['ai']>['speechToText']>;
+type DensityValue = NonNullable<AppearanceSettings['density']>;
+type TextSizeValue = NonNullable<AppearanceSettings['textSize']>;
+type SpeechToTextSettings = NonNullable<AiSettings['speechToText']>;
 type SpeechToTextProviderValue = NonNullable<SpeechToTextSettings['provider']>;
 type SpeechToTextModeValue = NonNullable<SpeechToTextSettings['mode']>;
 type SpeechToTextFieldStrategyValue = NonNullable<SpeechToTextSettings['fieldStrategy']>;

@@ -28,6 +28,7 @@ import {
     tFallback,
     translateText,
     type AppData,
+    type GtdSettings,
     type TaskEditorFieldId,
     type TaskEditorSectionId,
     type TimeEstimate,
@@ -48,6 +49,9 @@ type GtdScreen =
     | 'gtd-review'
     | 'gtd-time-estimates'
     | 'gtd-task-editor';
+
+type PomodoroSettings = NonNullable<GtdSettings['pomodoro']>;
+type InboxProcessingSettings = NonNullable<GtdSettings['inboxProcessing']>;
 
 export function GtdSettingsScreen({
     onNavigate,
@@ -155,7 +159,7 @@ export function GtdSettingsScreen({
     };
 
     const updatePomodoroSettings = (
-        partial: Partial<NonNullable<NonNullable<AppData['settings']['gtd']>['pomodoro']>>,
+        partial: Partial<PomodoroSettings>,
         options?: { showAutoStartNotice?: boolean }
     ) => {
         updateSettings({
@@ -173,7 +177,7 @@ export function GtdSettingsScreen({
         }).catch(logSettingsError);
     };
 
-    const updateGtdSettings = (partial: Partial<NonNullable<AppData['settings']['gtd']>>) => {
+    const updateGtdSettings = (partial: Partial<GtdSettings>) => {
         updateSettings({
             gtd: {
                 ...(settings.gtd ?? {}),
@@ -217,7 +221,7 @@ export function GtdSettingsScreen({
         setPomodoroBreakDraft(String(nextDurations.breakMinutes));
     };
 
-    const updateInboxProcessing = (partial: Partial<NonNullable<NonNullable<AppData['settings']['gtd']>['inboxProcessing']>>) => {
+    const updateInboxProcessing = (partial: Partial<InboxProcessingSettings>) => {
         updateSettings({
             gtd: {
                 ...(settings.gtd ?? {}),
@@ -229,7 +233,7 @@ export function GtdSettingsScreen({
         }).catch(logSettingsError);
     };
 
-    const updateWeeklyReviewConfig = (partial: NonNullable<NonNullable<AppData['settings']['gtd']>['weeklyReview']>) => {
+    const updateWeeklyReviewConfig = (partial: GtdSettings['weeklyReview']) => {
         updateSettings({
             gtd: {
                 ...(settings.gtd ?? {}),
@@ -241,7 +245,7 @@ export function GtdSettingsScreen({
         }).catch(logSettingsError);
     };
 
-    const updateDailyReviewConfig = (partial: NonNullable<NonNullable<AppData['settings']['gtd']>['dailyReview']>) => {
+    const updateDailyReviewConfig = (partial: GtdSettings['dailyReview']) => {
         updateSettings({
             gtd: {
                 ...(settings.gtd ?? {}),

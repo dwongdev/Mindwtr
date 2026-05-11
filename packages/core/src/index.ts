@@ -1,12 +1,22 @@
 export type {
     AppData,
+    AiSettings,
+    AppearanceSettings,
     Area,
     Attachment,
     AttachmentKind,
+    AttachmentSettings,
+    CalendarSettings,
     ChecklistItem,
+    DiagnosticsSettings,
+    FeatureSettings,
     InboxProcessingMode,
+    FilterSettings,
     PendingRemoteAttachmentDelete,
     Project,
+    GtdSettings,
+    MigrationSettings,
+    NotificationSettings,
     Recurrence,
     RecurrenceByDay,
     RecurrenceRule,
@@ -33,6 +43,7 @@ export type {
     TaskStatus,
     TextDirection,
     TimeEstimate,
+    WindowSettings,
 } from './types';
 
 export {
