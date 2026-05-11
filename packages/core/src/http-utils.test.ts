@@ -184,6 +184,47 @@ describe('fetchWithTimeout', () => {
         )).rejects.toThrow('Request cancelled');
     });
 
+    it('preserves DOMException abort reasons', async () => {
+        const controller = new AbortController();
+        controller.abort(new DOMException('Native cancellation', 'AbortError'));
+
+        await expect(fetchWithTimeout(
+            'https://example.com/data.json',
+            { signal: controller.signal },
+            1_000,
+            async (_input, init) => {
+                expect((init?.signal as AbortSignal | undefined)?.aborted).toBe(true);
+                const error = new Error('Fetch aborted');
+                error.name = 'AbortError';
+                throw error;
+            },
+            'Request timed out',
+        )).rejects.toThrow('Native cancellation');
+    });
+
+    it.each([
+        ['blank string', ' '],
+        ['number', 42],
+        ['null', null],
+        ['symbol', Symbol('abort')],
+    ])('falls back to a cancellation message for %s abort reasons', async (_label, reason) => {
+        const controller = new AbortController();
+        controller.abort(reason);
+
+        await expect(fetchWithTimeout(
+            'https://example.com/data.json',
+            { signal: controller.signal },
+            1_000,
+            async (_input, init) => {
+                expect((init?.signal as AbortSignal | undefined)?.aborted).toBe(true);
+                const error = new Error('Fetch aborted');
+                error.name = 'AbortError';
+                throw error;
+            },
+            'Request timed out',
+        )).rejects.toThrow('Request cancelled');
+    });
+
     it('reports timeout when its own timer aborts the request', async () => {
         await expect(fetchWithTimeout(
             'https://example.com/data.json',
