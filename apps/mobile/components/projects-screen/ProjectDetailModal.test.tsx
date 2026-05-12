@@ -1,8 +1,13 @@
 import { describe, expect, it, vi } from 'vitest';
+import type { Project } from '@mindwtr/core';
 
 vi.mock('@react-native-community/datetimepicker', () => ({
     __esModule: true,
     default: () => null,
+}));
+
+vi.mock('@expo/vector-icons', () => ({
+    Ionicons: () => null,
 }));
 
 vi.mock('react-native-safe-area-context', () => ({
@@ -45,7 +50,18 @@ vi.mock('../../components/AttachmentProgressIndicator', () => ({
     AttachmentProgressIndicator: () => null,
 }));
 
-import { getProjectDetailModalSafeAreaEdges } from './ProjectDetailModal';
+import { getProjectDetailModalSafeAreaEdges, getProjectDetailTaskListOptions } from './ProjectDetailModal';
+
+const project = (status: Project['status']): Project => ({
+    id: 'project-1',
+    title: 'Launch',
+    status,
+    color: '#3b82f6',
+    order: 0,
+    tagIds: [],
+    createdAt: '2026-05-12T00:00:00.000Z',
+    updatedAt: '2026-05-12T00:00:00.000Z',
+});
 
 describe('ProjectDetailModal safe area handling', () => {
     it('reserves the top inset for Android full-screen release modals', () => {
@@ -54,5 +70,23 @@ describe('ProjectDetailModal safe area handling', () => {
 
     it('preserves the existing page-sheet header spacing path', () => {
         expect(getProjectDetailModalSafeAreaEdges('pageSheet')).toEqual(['left', 'right', 'bottom']);
+    });
+});
+
+describe('ProjectDetailModal archived projects', () => {
+    it('shows archived task data without quick-add or reorder controls', () => {
+        expect(getProjectDetailTaskListOptions(project('archived'))).toEqual({
+            allowAdd: false,
+            enableProjectReorder: false,
+            includeArchived: true,
+        });
+    });
+
+    it('keeps normal task controls for non-archived projects', () => {
+        expect(getProjectDetailTaskListOptions(project('active'))).toEqual({
+            allowAdd: true,
+            enableProjectReorder: true,
+            includeArchived: false,
+        });
     });
 });

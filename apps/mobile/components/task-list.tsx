@@ -85,6 +85,7 @@ export interface TaskListProps {
   enableProjectReorder?: boolean;
   projectReorderMode?: boolean;
   onProjectReorderModeChange?: (active: boolean) => void;
+  includeArchived?: boolean;
 }
 
 // ... inside TaskList component
@@ -110,6 +111,7 @@ function TaskListComponent({
   enableProjectReorder = false,
   projectReorderMode: projectReorderModeProp,
   onProjectReorderModeChange,
+  includeArchived = false,
 }: TaskListProps) {
   const { isDark } = useTheme();
   const { t, language } = useLanguage();
@@ -135,7 +137,7 @@ function TaskListComponent({
     highlightTaskId,
     setHighlightTask,
   } = useTaskStore((state) => ({
-    tasks: state.tasks,
+    tasks: includeArchived ? state._allTasks : state.tasks,
     projects: state.projects,
     sections: state.sections,
     areas: state.areas,

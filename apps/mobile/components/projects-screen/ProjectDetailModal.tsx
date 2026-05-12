@@ -175,6 +175,7 @@ export function ProjectDetailModal({
 }: ProjectDetailModalProps) {
     const [projectTaskReorderMode, setProjectTaskReorderMode] = React.useState(false);
     const safeAreaEdges = getProjectDetailModalSafeAreaEdges(presentationStyle);
+    const taskListOptions = getProjectDetailTaskListOptions(selectedProject);
 
     React.useEffect(() => {
         setProjectTaskReorderMode(false);
@@ -587,11 +588,12 @@ export function ProjectDetailModal({
                                     showHeader={false}
                                     showTimeEstimateFilters={false}
                                     projectId={selectedProject.id}
-                                    allowAdd
+                                    allowAdd={taskListOptions.allowAdd}
                                     staticList
                                     enableBulkActions
                                     showSort={false}
-                                    enableProjectReorder
+                                    enableProjectReorder={taskListOptions.enableProjectReorder}
+                                    includeArchived={taskListOptions.includeArchived}
                                     projectReorderMode={projectTaskReorderMode}
                                     onProjectReorderModeChange={setProjectTaskReorderMode}
                                 />
@@ -627,4 +629,13 @@ export function getProjectDetailModalSafeAreaEdges(presentationStyle: ProjectDet
     return presentationStyle === 'fullScreen'
         ? ['top', 'left', 'right', 'bottom'] as const
         : ['left', 'right', 'bottom'] as const;
+}
+
+export function getProjectDetailTaskListOptions(selectedProject: Project | null) {
+    const isArchived = selectedProject?.status === 'archived';
+    return {
+        allowAdd: !isArchived,
+        enableProjectReorder: !isArchived,
+        includeArchived: isArchived,
+    };
 }

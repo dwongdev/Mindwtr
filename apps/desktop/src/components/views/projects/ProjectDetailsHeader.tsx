@@ -6,6 +6,7 @@ type ProjectProgress = {
     total: number;
     doneCount: number;
     remainingCount: number;
+    isArchived?: boolean;
 };
 
 type ProjectDetailsHeaderProps = {
@@ -52,8 +53,15 @@ export function ProjectDetailsHeader({
     t,
 }: ProjectDetailsHeaderProps) {
     const completedRatio = projectProgress && projectProgress.total > 0
-        ? Math.round((projectProgress.doneCount / projectProgress.total) * 100)
+        ? projectProgress.isArchived
+            ? 100
+            : Math.round((projectProgress.doneCount / projectProgress.total) * 100)
         : 0;
+    const progressText = projectProgress?.isArchived && projectProgress.total > 0
+        ? `${projectProgress.total} ${tFallback(t, 'status.archived', 'Archived')}`
+        : projectProgress && projectProgress.total > 0
+            ? `${projectProgress.doneCount}/${projectProgress.total} ${t('status.done')} • ${projectProgress.remainingCount} ${t('process.remaining')}`
+            : t('projects.noActiveTasks');
     const detailsLabel = tFallback(t, 'taskEdit.details', 'Details');
     const dueDateValue = dueDate ? safeParseDate(dueDate) : null;
     const reviewDate = reviewAt ? safeParseDate(reviewAt) : null;
@@ -117,9 +125,7 @@ export function ProjectDetailsHeader({
                         {projectProgress ? (
                             <div className="space-y-1.5">
                                 <div className="text-xs text-muted-foreground">
-                                    {projectProgress.total > 0
-                                        ? `${projectProgress.doneCount}/${projectProgress.total} ${t('status.done')} • ${projectProgress.remainingCount} ${t('process.remaining')}`
-                                        : t('projects.noActiveTasks')}
+                                    {progressText}
                                 </div>
                                 {projectProgress.total > 0 && (
                                     <div className="h-1.5 rounded-full bg-muted overflow-hidden">

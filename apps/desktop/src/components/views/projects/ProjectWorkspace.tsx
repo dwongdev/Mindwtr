@@ -103,6 +103,14 @@ type ProjectWorkspaceProps = {
     ) => Promise<StoreActionResult | void> | StoreActionResult | void;
 };
 
+export function shouldShowProjectWorkspaceTask(task: Task, project?: Project): boolean {
+    if (!project) return false;
+    if (task.deletedAt || task.projectId !== project.id) return false;
+    if (task.status === 'reference') return false;
+    if (project.status === 'archived') return task.status === 'archived';
+    return task.status !== 'done' && task.status !== 'archived';
+}
+
 export function ProjectWorkspace({
     addProject,
     addSection,
@@ -152,6 +160,7 @@ export function ProjectWorkspace({
     const [projectTaskTitle, setProjectTaskTitle] = useState('');
     const [projectDetailsExpanded, setProjectDetailsExpanded] = useState(false);
     const [isProjectDeleting, setIsProjectDeleting] = useState(false);
+    const isArchivedProject = selectedProject?.status === 'archived';
     const resolveText = useCallback((key: string, fallback: string) => {
         const value = t(key);
         return value && value !== key ? value : fallback;
@@ -223,8 +232,8 @@ export function ProjectWorkspace({
     }, [allTasks, normalizedSearchQuery, selectedProjectId]);
 
     const projectTasks = useMemo(
-        () => projectAllTasks.filter((task) => task.status !== 'done' && task.status !== 'reference' && task.status !== 'archived'),
-        [projectAllTasks],
+        () => projectAllTasks.filter((task) => shouldShowProjectWorkspaceTask(task, selectedProject)),
+        [projectAllTasks, selectedProject],
     );
 
     const sortProjectTasks = useCallback((items: Task[]) => {
@@ -586,6 +595,15 @@ export function ProjectWorkspace({
     const visibleAttachments = (selectedProject?.attachments || []).filter((attachment) => !attachment.deletedAt);
     const projectProgress = useMemo(() => {
         if (!selectedProjectId) return null;
+        if (isArchivedProject) {
+            const archivedCount = projectAllTasks.filter((task) => task.status === 'archived').length;
+            return {
+                doneCount: archivedCount,
+                remainingCount: 0,
+                total: archivedCount,
+                isArchived: true,
+            };
+        }
         const doneCount = projectAllTasks.filter((task) => task.status === 'done').length;
         const remainingCount = projectTasks.length;
         return {
@@ -593,7 +611,7 @@ export function ProjectWorkspace({
             remainingCount,
             total: doneCount + remainingCount,
         };
-    }, [projectAllTasks, projectTasks, selectedProjectId]);
+    }, [isArchivedProject, projectAllTasks, projectTasks, selectedProjectId]);
 
     const handleCommitProjectTitle = () => {
         if (!selectedProject) return;
@@ -850,49 +868,53 @@ export function ProjectWorkspace({
                             )}
 
                             <section className="border-t border-border/50 py-5">
-                                <form
-                                    onSubmit={async (event) => {
-                                        event.preventDefault();
-                                        if (!projectTaskTitle.trim()) return;
-                                        await handleAddTaskForProject(projectTaskTitle);
-                                        setProjectTaskTitle('');
-                                    }}
-                                    className="mb-4 flex gap-2"
-                                >
-                                    <TaskInput
-                                        value={projectTaskTitle}
-                                        projects={projects}
-                                        contexts={allTokens}
-                                        areas={areas}
-                                        onCreateProject={async (title) => {
-                                            const created = await addProject(title, DEFAULT_AREA_COLOR);
-                                            return created?.id ?? null;
+                                {!isArchivedProject && (
+                                    <form
+                                        onSubmit={async (event) => {
+                                            event.preventDefault();
+                                            if (!projectTaskTitle.trim()) return;
+                                            await handleAddTaskForProject(projectTaskTitle);
+                                            setProjectTaskTitle('');
                                         }}
-                                        onChange={(next) => setProjectTaskTitle(next)}
-                                        placeholder={t('projects.addTaskPlaceholder')}
-                                        containerClassName="flex-1"
-                                        className="h-9 w-full rounded-md border border-border bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
-                                    />
-                                    <button
-                                        type="submit"
-                                        className="h-9 whitespace-nowrap rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
+                                        className="mb-4 flex gap-2"
                                     >
-                                        {t('projects.addTask')}
-                                    </button>
-                                </form>
+                                        <TaskInput
+                                            value={projectTaskTitle}
+                                            projects={projects}
+                                            contexts={allTokens}
+                                            areas={areas}
+                                            onCreateProject={async (title) => {
+                                                const created = await addProject(title, DEFAULT_AREA_COLOR);
+                                                return created?.id ?? null;
+                                            }}
+                                            onChange={(next) => setProjectTaskTitle(next)}
+                                            placeholder={t('projects.addTaskPlaceholder')}
+                                            containerClassName="flex-1"
+                                            className="h-9 w-full rounded-md border border-border bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
+                                        />
+                                        <button
+                                            type="submit"
+                                            className="h-9 whitespace-nowrap rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
+                                        >
+                                            {t('projects.addTask')}
+                                        </button>
+                                    </form>
+                                )}
                                 <div className="mb-3 flex items-center justify-between">
                                     <div className="text-xs uppercase tracking-wider text-muted-foreground">
                                         {t('projects.sectionsLabel')}
                                     </div>
-                                    <button
-                                        type="button"
-                                        onClick={handleAddSection}
-                                        aria-label={t('projects.addSection')}
-                                        className="inline-flex items-center gap-2 rounded-md border border-border bg-background px-2.5 py-1.5 text-xs transition-colors hover:bg-muted/40"
-                                    >
-                                        <Plus className="h-3.5 w-3.5" />
-                                        {t('projects.addSection')}
-                                    </button>
+                                    {!isArchivedProject && (
+                                        <button
+                                            type="button"
+                                            onClick={handleAddSection}
+                                            aria-label={t('projects.addSection')}
+                                            className="inline-flex items-center gap-2 rounded-md border border-border bg-background px-2.5 py-1.5 text-xs transition-colors hover:bg-muted/40"
+                                        >
+                                            <Plus className="h-3.5 w-3.5" />
+                                            {t('projects.addSection')}
+                                        </button>
+                                    )}
                                 </div>
                                 {tasksContent}
                             </section>
