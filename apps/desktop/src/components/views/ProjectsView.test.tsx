@@ -235,16 +235,16 @@ describe('ProjectsView', () => {
 
         expect(sidebar).not.toBeNull();
         expect(layout).not.toBeNull();
-        expect(separator).toHaveAttribute('aria-valuemax', '1280');
+        expect(separator).toHaveAttribute('aria-valuemax', '1920');
         expect(layout).not.toHaveClass('mx-auto');
 
         fireEvent.keyDown(separator, { key: 'End' });
 
         await waitFor(() => {
-            expect(sidebar).toHaveStyle({ width: '1280px' });
+            expect(sidebar).toHaveStyle({ width: '1920px' });
         });
         await waitFor(() => {
-            expect(layout).toHaveStyle({ maxWidth: '2384px' });
+            expect(layout).toHaveStyle({ maxWidth: '3024px' });
         });
 
         if (originalClientWidthDescriptor) {
