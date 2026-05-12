@@ -27,6 +27,7 @@ import {
 } from '@/lib/sync-service-utils';
 
 import { MobileExtraConfig } from './settings.constants';
+import { AppleRemindersImportSection } from './apple-reminders-import-section';
 import { useSettingsLocalization, useSettingsScrollContent } from './settings.hooks';
 import { SyncCloudKitBackendPanel } from './sync-settings-cloudkit-panel';
 import { SyncDropboxBackendPanel } from './sync-settings-dropbox-panel';
@@ -59,6 +60,7 @@ function SyncSettingsView({ mode }: { mode: SettingsScreenMode }) {
         sections,
         areas,
         settings,
+        addTask,
         updateSettings,
     } = useTaskStore();
     const extraConfig = Constants.expoConfig?.extra as MobileExtraConfig | undefined;
@@ -606,6 +608,14 @@ function SyncSettingsView({ mode }: { mode: SettingsScreenMode }) {
                             isSyncing={isSyncing}
                             tr={tr}
                             t={t}
+                            tc={tc}
+                        />
+
+                        <AppleRemindersImportSection
+                            addTask={addTask}
+                            disabled={isBackupBusy || isSyncing}
+                            showToast={showToast}
+                            tr={tr}
                             tc={tc}
                         />
 

@@ -139,6 +139,21 @@ declare module 'expo-calendar' {
     location?: string;
   }
 
+  export interface Reminder {
+    id?: string;
+    calendarId?: string;
+    title?: string;
+    notes?: string;
+    completed?: boolean;
+    completionDate?: string | Date;
+    creationDate?: string | Date;
+    dueDate?: string | Date;
+    lastModifiedDate?: string | Date;
+    startDate?: string | Date;
+    timeZone?: string;
+    url?: string;
+  }
+
   export type CalendarDialogParams = {
     id: string;
     instanceStartDate?: string | Date;
@@ -191,8 +206,11 @@ declare module 'expo-calendar' {
 
   export function getCalendarPermissionsAsync(): Promise<{ status: PermissionStatus }>;
   export function requestCalendarPermissionsAsync(): Promise<{ status: PermissionStatus }>;
+  export function getRemindersPermissionsAsync(): Promise<{ status: PermissionStatus }>;
+  export function requestRemindersPermissionsAsync(): Promise<{ status: PermissionStatus }>;
   export function getCalendarsAsync(entityType?: string): Promise<Calendar[]>;
   export function getEventsAsync(calendarIds: string[], startDate: Date, endDate: Date): Promise<Event[]>;
+  export function getRemindersAsync(calendarIds: (string | null)[], status: string | null, startDate: Date | null, endDate: Date | null): Promise<Reminder[]>;
   export function getSourcesAsync(): Promise<Source[]>;
 
   // Write APIs

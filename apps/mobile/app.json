@@ -130,7 +130,8 @@
       [
         "expo-calendar",
         {
-          "calendarPermission": "Mindwtr needs calendar access to show your events alongside tasks."
+          "calendarPermission": "Mindwtr needs calendar access to show your events alongside tasks.",
+          "remindersPermission": "Mindwtr needs reminders access to import your chosen Apple Reminders capture list into Inbox."
         }
       ],
       "expo-secure-store",
