@@ -29,6 +29,18 @@ const workIcs = [
     'END:VCALENDAR',
 ].join('\n');
 
+const yearlyHolidayIcs = [
+    'BEGIN:VCALENDAR',
+    'VERSION:2.0',
+    'BEGIN:VEVENT',
+    'UID:holiday-1',
+    'SUMMARY:New Years Day',
+    'DTSTART;VALUE=DATE:20250101',
+    'RRULE:FREQ=YEARLY;COUNT=5',
+    'END:VEVENT',
+    'END:VCALENDAR',
+].join('\n');
+
 describe('external calendar events', () => {
     beforeEach(async () => {
         vi.clearAllMocks();
@@ -82,6 +94,23 @@ describe('external calendar events', () => {
         );
 
         expect(fetch).toHaveBeenCalledTimes(1);
+    });
+
+    it('loads yearly recurring subscribed ICS events in the visible desktop range', async () => {
+        const { fetchExternalCalendarEvents } = await import('./external-calendar-events');
+        getCalendarsMock.mockResolvedValue([
+            { id: 'holiday', name: 'US Holidays', url: 'https://calendar.example/holidays.ics', enabled: true },
+        ]);
+        vi.mocked(fetch).mockResolvedValue(new Response(yearlyHolidayIcs, { status: 200 }));
+
+        const result = await fetchExternalCalendarEvents(
+            new Date('2026-01-01T00:00:00.000Z'),
+            new Date('2026-01-02T00:00:00.000Z'),
+        );
+
+        expect(result.warnings).toEqual([]);
+        expect(result.events.map((event) => event.title)).toEqual(['New Years Day']);
+        expect(result.events[0].start.slice(0, 10)).toBe('2026-01-01');
     });
 
     it('filters system Mindwtr mirror calendars and prefixed pushed events', async () => {
