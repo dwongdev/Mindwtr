@@ -23,9 +23,14 @@ const baseTask: Task = {
 const t = (key: string) => {
     const labels: Record<string, string> = {
         'common.clear': 'Clear',
+        'common.none': 'None',
+        'task.aria.status': 'Task status',
         'taskEdit.startDateLabel': 'Start Date',
         'taskEdit.dueDateLabel': 'Due Date',
         'taskEdit.reviewDateLabel': 'Review Date',
+        'taskEdit.statusLabel': 'Status',
+        'taskEdit.priorityLabel': 'Priority',
+        'taskEdit.energyLevel': 'Energy Level',
         'task.aria.startDate': 'Start date',
         'task.aria.startTime': 'Start time',
         'task.aria.dueDate': 'Due date',
@@ -54,6 +59,20 @@ const t = (key: string) => {
         'recurrence.occurrenceUnit': 'occurrence(s)',
         'recurrence.monthlyOnDay': 'Monthly on same day',
         'recurrence.custom': 'Custom...',
+        'status.inbox': 'Inbox',
+        'status.next': 'Next',
+        'status.waiting': 'Waiting',
+        'status.someday': 'Someday',
+        'status.reference': 'Reference',
+        'status.done': 'Done',
+        'status.archived': 'Archived',
+        'priority.low': 'Low',
+        'priority.medium': 'Medium',
+        'priority.high': 'High',
+        'priority.urgent': 'Urgent',
+        'energyLevel.low': 'Low energy',
+        'energyLevel.medium': 'Medium energy',
+        'energyLevel.high': 'High energy',
         'markdown.preview': 'Preview',
         'markdown.edit': 'Edit',
         'markdown.expand': 'Expand',
@@ -236,6 +255,67 @@ describe('TaskItemFieldRenderer date clear buttons', () => {
         expect(chipsRow).toHaveClass('w-full');
         expect(chipsRow).toHaveClass('flex-wrap');
         expect(chipsRow).not.toHaveClass('max-w-[min(22rem,100%)]');
+    });
+
+    it('renders status choices as pills and keeps archived available', () => {
+        const handlers = createHandlers();
+
+        const { getByRole, queryByRole } = render(
+            <TaskItemFieldRenderer
+                fieldId="status"
+                data={createData()}
+                handlers={handlers}
+            />
+        );
+
+        expect(queryByRole('combobox', { name: 'Task status' })).toBeNull();
+        expect(getByRole('group', { name: 'Task status' })).toBeInTheDocument();
+        expect(getByRole('button', { name: 'Inbox' })).toHaveAttribute('aria-pressed', 'true');
+        expect(getByRole('button', { name: 'Archived' })).toBeInTheDocument();
+
+        fireEvent.click(getByRole('button', { name: 'Waiting' }));
+
+        expect(handlers.setEditStatus).toHaveBeenCalledWith('waiting');
+    });
+
+    it('renders priority choices as pills including None', () => {
+        const handlers = createHandlers();
+
+        const { getByRole, queryByRole } = render(
+            <TaskItemFieldRenderer
+                fieldId="priority"
+                data={createData({ editPriority: 'low' })}
+                handlers={handlers}
+            />
+        );
+
+        expect(queryByRole('combobox', { name: 'Priority' })).toBeNull();
+        expect(getByRole('group', { name: 'Priority' })).toBeInTheDocument();
+        expect(getByRole('button', { name: 'Low' })).toHaveAttribute('aria-pressed', 'true');
+
+        fireEvent.click(getByRole('button', { name: 'None' }));
+
+        expect(handlers.setEditPriority).toHaveBeenCalledWith('');
+    });
+
+    it('renders energy level choices as pills including None', () => {
+        const handlers = createHandlers();
+
+        const { getByRole, queryByRole } = render(
+            <TaskItemFieldRenderer
+                fieldId="energyLevel"
+                data={createData({ editEnergyLevel: 'medium' })}
+                handlers={handlers}
+            />
+        );
+
+        expect(queryByRole('combobox', { name: 'Energy Level' })).toBeNull();
+        expect(getByRole('group', { name: 'Energy Level' })).toBeInTheDocument();
+        expect(getByRole('button', { name: 'Medium energy' })).toHaveAttribute('aria-pressed', 'true');
+
+        fireEvent.click(getByRole('button', { name: 'High energy' }));
+
+        expect(handlers.setEditEnergyLevel).toHaveBeenCalledWith('high');
     });
 
     it('updates weekly recurrence intervals without dropping selected weekdays', () => {
