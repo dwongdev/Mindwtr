@@ -1,24 +1,29 @@
+import React, { useEffect, useRef, useMemo, useCallback, useState } from 'react';
 import { View, Text, FlatList, Pressable, StyleSheet, Alert } from 'react-native';
 import { useTaskStore } from '@mindwtr/core';
 import type { Task } from '@mindwtr/core';
 import { useLanguage } from '../../contexts/language-context';
 
 import { useMobileAreaFilter } from '@/hooks/use-mobile-area-filter';
-import { useThemeColors, ThemeColors } from '@/hooks/use-theme-colors';
+import { useThemeColors } from '@/hooks/use-theme-colors';
+import type { ThemeColors } from '@/hooks/use-theme-colors';
 import { taskMatchesAreaFilter } from '@/lib/area-filter';
+import { openContextsScreen, openProjectScreen } from '@/lib/task-meta-navigation';
+import { TaskEditModal } from '@/components/task-edit-modal';
 import { Swipeable, GestureHandlerRootView } from 'react-native-gesture-handler';
 import { Archive } from 'lucide-react-native';
-import { useEffect, useRef, useMemo, useCallback } from 'react';
 
 function ArchivedTaskItem({
     task,
     tc,
+    onOpen,
     onRestore,
     onDelete,
     isHighlighted
 }: {
     task: Task;
     tc: ThemeColors;
+    onOpen: () => void;
     onRestore: () => void;
     onDelete: () => void;
     isHighlighted?: boolean;
@@ -57,11 +62,17 @@ function ArchivedTaskItem({
             overshootLeft={false}
             overshootRight={false}
         >
-            <View style={[
-                styles.taskItem,
-                { backgroundColor: tc.taskItemBg },
-                isHighlighted && { borderWidth: 2, borderColor: tc.tint }
-            ]}>
+            <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={`Open archived task details: ${task.title}`}
+                onPress={onOpen}
+                style={({ pressed }) => [
+                    styles.taskItem,
+                    { backgroundColor: tc.taskItemBg },
+                    pressed && styles.taskItemPressed,
+                    isHighlighted && { borderWidth: 2, borderColor: tc.tint },
+                ]}
+            >
                 <View style={styles.taskContent}>
                     <Text style={[styles.taskTitle, { color: tc.secondaryText }]} numberOfLines={2}>
                         {task.title}
@@ -76,7 +87,7 @@ function ArchivedTaskItem({
                     </Text>
                 </View>
                 <View style={[styles.statusIndicator, { backgroundColor: '#6B7280' }]} />
-            </View>
+            </Pressable>
         </Swipeable>
     );
 }
@@ -84,6 +95,7 @@ function ArchivedTaskItem({
 export default function ArchivedScreen() {
     const { _allTasks, projects, updateTask, purgeTask, highlightTaskId, setHighlightTask } = useTaskStore();
     const { t } = useLanguage();
+    const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
 
     const tc = useThemeColors();
     const { areaById, resolvedAreaFilter } = useMobileAreaFilter();
@@ -99,6 +111,10 @@ export default function ArchivedScreen() {
             && taskMatchesAreaFilter(task, resolvedAreaFilter, projectById, areaById)
         )),
         [_allTasks, resolvedAreaFilter, projectById, areaById],
+    );
+    const selectedTask = useMemo(
+        () => selectedTaskId ? _allTasks.find((task) => task.id === selectedTaskId && !task.deletedAt) ?? null : null,
+        [_allTasks, selectedTaskId],
     );
 
     const highlightTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -116,6 +132,21 @@ export default function ArchivedScreen() {
             }
         };
     }, [highlightTaskId, setHighlightTask]);
+
+    useEffect(() => {
+        if (selectedTaskId && !selectedTask) {
+            setSelectedTaskId(null);
+        }
+    }, [selectedTask, selectedTaskId]);
+
+    const handleOpenTask = useCallback((taskId: string) => {
+        setSelectedTaskId(taskId);
+    }, []);
+
+    const handleSaveTask = useCallback((taskId: string, updates: Partial<Task>) => {
+        updateTask(taskId, updates);
+        setSelectedTaskId(null);
+    }, [updateTask]);
 
     const handleRestore = useCallback((taskId: string) => {
         updateTask(taskId, { status: 'inbox' });
@@ -140,11 +171,12 @@ export default function ArchivedScreen() {
         <ArchivedTaskItem
             task={item}
             tc={tc}
+            onOpen={() => handleOpenTask(item.id)}
             onRestore={() => handleRestore(item.id)}
             onDelete={() => handleDelete(item.id)}
             isHighlighted={item.id === highlightTaskId}
         />
-    ), [tc, handleDelete, handleRestore, highlightTaskId]);
+    ), [tc, handleDelete, handleOpenTask, handleRestore, highlightTaskId]);
 
     return (
         <GestureHandlerRootView style={{ flex: 1 }}>
@@ -184,6 +216,16 @@ export default function ArchivedScreen() {
                         </View>
                     }
                 />
+                <TaskEditModal
+                    visible={Boolean(selectedTask)}
+                    task={selectedTask}
+                    onClose={() => setSelectedTaskId(null)}
+                    onSave={handleSaveTask}
+                    defaultTab="view"
+                    onProjectNavigate={openProjectScreen}
+                    onContextNavigate={openContextsScreen}
+                    onTagNavigate={openContextsScreen}
+                />
             </View>
         </GestureHandlerRootView>
     );
@@ -221,6 +263,9 @@ const styles = StyleSheet.create({
         shadowOpacity: 0.1,
         shadowRadius: 2,
         elevation: 2,
+    },
+    taskItemPressed: {
+        opacity: 0.85,
     },
     taskContent: {
         flex: 1,
