@@ -3,6 +3,7 @@ import type { RefObject } from 'react';
 import { KeyboardAvoidingView, Modal, Platform, Pressable, Switch, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { AtSign, CalendarDays, Clock, Flag, Folder, Mic, Square, X } from 'lucide-react-native';
 import type { ThemeColors } from '@/hooks/use-theme-colors';
+import { QuickDateChips } from '../QuickDateChips';
 import { styles } from './quick-capture-sheet.styles';
 
 const COMPACT_TEXT_MAX_SCALE = 1.2;
@@ -12,6 +13,7 @@ interface QuickCaptureSheetBodyProps {
   areaLabel: string;
   contextLabel: string;
   dueLabel: string;
+  dueDate: Date | null;
   dueTimeLabel: string;
   handleClose: () => void;
   handleSave: () => void;
@@ -23,6 +25,7 @@ interface QuickCaptureSheetBodyProps {
   onOpenDueTimePicker: () => void;
   onOpenPriorityPicker: () => void;
   onOpenProjectPicker: () => void;
+  onQuickDueDateSelect: (date: Date | null) => void;
   onResetArea: () => void;
   onResetContexts: () => void;
   onResetDueDate: () => void;
@@ -50,6 +53,7 @@ export function QuickCaptureSheetBody({
   addAnother,
   areaLabel,
   contextLabel,
+  dueDate,
   dueLabel,
   dueTimeLabel,
   handleClose,
@@ -62,6 +66,7 @@ export function QuickCaptureSheetBody({
   onOpenDueTimePicker,
   onOpenPriorityPicker,
   onOpenProjectPicker,
+  onQuickDueDateSelect,
   onResetArea,
   onResetContexts,
   onResetDueDate,
@@ -296,6 +301,13 @@ export function QuickCaptureSheetBody({
                 </TouchableOpacity>
               )}
             </View>
+
+            <QuickDateChips
+              t={t}
+              tc={tc}
+              selectedDate={dueDate}
+              onSelect={(date) => onQuickDueDateSelect(date)}
+            />
 
             <View style={styles.footerRow}>
               <View style={styles.toggleRow}>

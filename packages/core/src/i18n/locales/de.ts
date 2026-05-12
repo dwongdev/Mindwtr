@@ -41,6 +41,12 @@ export const deOverrides: Record<string, string> = {
         'quickAdd.audioErrorTitle': 'Aufnahme fehlgeschlagen',
         'quickAdd.audioErrorBody': 'Wir konnten nichts aufnehmen. Bitte versuchen Sie es nochmals.',
         'quickAdd.invalidDateCommand': 'Ungültiger Datumsbefehl',
+        'quickDate.today': 'Heute',
+        'quickDate.tomorrow': 'Morgen',
+        'quickDate.in3Days': '+3 Tage',
+        'quickDate.nextWeek': 'Nächste Woche',
+        'quickDate.nextMonth': 'Nächster Monat',
+        'quickDate.noDate': 'Kein Datum',
         
          // Checklist
         'checklist.progress': 'Fortschritt der Checkliste',

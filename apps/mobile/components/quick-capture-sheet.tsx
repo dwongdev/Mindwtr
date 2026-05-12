@@ -495,6 +495,22 @@ export function QuickCaptureSheet({
     });
   }, []);
 
+  const handleQuickDueDateSelect = useCallback((date: Date | null) => {
+    if (!date) {
+      resetDueDate();
+      return;
+    }
+    const next = new Date(date);
+    if (dueDateHasTime && dueDate) {
+      next.setHours(dueDate.getHours(), dueDate.getMinutes(), 0, 0);
+    } else {
+      next.setHours(0, 0, 0, 0);
+    }
+    setDueDate(next);
+    setShowDatePicker(false);
+    setShowDueTimePicker(false);
+  }, [dueDate, dueDateHasTime, resetDueDate]);
+
   const handleStartTimeChange = useCallback((event: { type: string }, selectedDate?: Date) => {
     if (event.type === 'dismissed') {
       setStartPickerMode(null);
@@ -579,6 +595,7 @@ export function QuickCaptureSheet({
         addAnother={addAnother}
         areaLabel={areaLabel}
         contextLabel={contextLabel}
+        dueDate={dueDate}
         dueLabel={dueLabel}
         dueTimeLabel={dueTimeLabel}
         handleClose={handleClose}
@@ -593,6 +610,7 @@ export function QuickCaptureSheet({
         onOpenDueTimePicker={openDueTimePicker}
         onOpenPriorityPicker={() => setShowPriorityPicker(true)}
         onOpenProjectPicker={() => setShowProjectPicker(true)}
+        onQuickDueDateSelect={handleQuickDueDateSelect}
         onResetArea={() => setSelectedAreaId(null)}
         onResetContexts={handleClearContexts}
         onResetDueDate={resetDueDate}

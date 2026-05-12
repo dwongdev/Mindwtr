@@ -17,6 +17,7 @@ import { Button } from '../ui/Button';
 import { AreaSelector } from '../ui/AreaSelector';
 import { normalizeDateInputValue } from './task-item-helpers';
 import { ContextsField } from './fields/TaskMetadataFields';
+import { QuickDateChips } from '../QuickDateChips';
 
 const VIEWPORT_MARGIN_PX = 8;
 const PANEL_GAP_PX = 8;
@@ -430,6 +431,18 @@ export function TaskQuickActionMenu({
                         <div className="space-y-3">
                             <div className="space-y-1">
                                 <label className="text-xs font-medium text-muted-foreground">{dueLabel}</label>
+                                <QuickDateChips
+                                    t={t}
+                                    selectedDate={safeParseDate(dueDateDraft)}
+                                    onSelect={(date) => {
+                                        if (!date) {
+                                            setDueDateDraft('');
+                                            setDueTimeDraft('');
+                                            return;
+                                        }
+                                        setDueDateDraft(safeFormatDate(date, 'yyyy-MM-dd'));
+                                    }}
+                                />
                                 <div className="flex items-center gap-2">
                                     <input
                                         type="date"
@@ -493,6 +506,18 @@ export function TaskQuickActionMenu({
                         <div className="space-y-3">
                             <div className="space-y-1">
                                 <label className="text-xs font-medium text-muted-foreground">{reviewLabel}</label>
+                                <QuickDateChips
+                                    t={t}
+                                    selectedDate={safeParseDate(reviewDateDraft)}
+                                    onSelect={(date) => {
+                                        if (!date) {
+                                            setReviewDateDraft('');
+                                            setReviewTimeDraft('');
+                                            return;
+                                        }
+                                        setReviewDateDraft(safeFormatDate(date, 'yyyy-MM-dd'));
+                                    }}
+                                />
                                 <div className="flex items-center gap-2">
                                     <input
                                         type="date"

@@ -1,9 +1,11 @@
-import { format, isValid, parseISO, setDefaultOptions, type Locale } from 'date-fns';
+import { addDays, addMonths, format, isSameDay, isValid, parseISO, setDefaultOptions, startOfDay, startOfMonth, type Locale } from 'date-fns';
 import { ar, de, enGB, enUS, es, fr, hi, it, ja, ko, nl, pl, ptBR, ru, tr, zhCN, zhTW } from 'date-fns/locale';
 import type { Language } from './i18n/i18n-types';
 
 export type DateFormatSetting = 'system' | 'dmy' | 'mdy' | 'ymd';
 export type TimeFormatSetting = 'system' | '12h' | '24h';
+export const QUICK_DATE_PRESETS = ['today', 'tomorrow', 'in_3_days', 'next_week', 'next_month', 'no_date'] as const;
+export type QuickDatePreset = typeof QUICK_DATE_PRESETS[number];
 
 const DEFAULT_LOCALE = enUS;
 const DMY_EN_REGIONS = new Set(['GB', 'IE', 'AU', 'NZ', 'ZA']);
@@ -153,6 +155,37 @@ export function normalizeClockTimeInput(value?: string | null): string | null {
     if (!Number.isFinite(hours) || !Number.isFinite(minutes)) return null;
     if (hours < 0 || hours > 23 || minutes < 0 || minutes > 59) return null;
     return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
+}
+
+export function getQuickDate(preset: QuickDatePreset, now: Date = new Date()): Date | null {
+    const today = startOfDay(now);
+    switch (preset) {
+        case 'today':
+            return today;
+        case 'tomorrow':
+            return addDays(today, 1);
+        case 'in_3_days':
+            return addDays(today, 3);
+        case 'next_week': {
+            const dayOfWeek = today.getDay();
+            const daysUntilNextMonday = ((8 - dayOfWeek) % 7) || 7;
+            return addDays(today, daysUntilNextMonday);
+        }
+        case 'next_month':
+            return startOfMonth(addMonths(today, 1));
+        case 'no_date':
+            return null;
+    }
+}
+
+export function isQuickDatePresetSelected(
+    preset: QuickDatePreset,
+    selectedDate: Date | null | undefined,
+    now: Date = new Date()
+): boolean {
+    if (!selectedDate || preset === 'no_date') return false;
+    const presetDate = getQuickDate(preset, now);
+    return presetDate ? isSameDay(selectedDate, presetDate) : false;
 }
 
 export function resolveDateLocaleTag(params: {

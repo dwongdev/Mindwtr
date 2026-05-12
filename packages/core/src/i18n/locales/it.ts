@@ -39,6 +39,12 @@ export const itOverrides: Record<string, string> = {
         'quickAdd.audioErrorTitle': 'Registrazione non riuscita',
         'quickAdd.audioErrorBody': 'Non è stato possibile registrare l\'audio. Riprova.',
         'quickAdd.invalidDateCommand': 'Comando data non valido',
+        'quickDate.today': 'Oggi',
+        'quickDate.tomorrow': 'Domani',
+        'quickDate.in3Days': '+3 giorni',
+        'quickDate.nextWeek': 'Prossima settimana',
+        'quickDate.nextMonth': 'Prossimo mese',
+        'quickDate.noDate': 'Nessuna data',
 
         // Checklist
         'checklist.progress': 'Avanzamento checklist',

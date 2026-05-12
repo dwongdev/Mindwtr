@@ -46,6 +46,7 @@ export type TaskEditFieldRendererProps = {
     areas: Area[];
     assignedToSuggestions: string[];
     availableStatusOptions: TaskStatus[];
+    applyQuickDate: (mode: 'start' | 'due' | 'review', selectedDate: Date | null) => void;
     commitContextDraft: () => void;
     commitTagDraft: () => void;
     contextInputDraft: string;

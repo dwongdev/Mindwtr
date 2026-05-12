@@ -334,6 +334,7 @@ function TaskEditModalInner({
     }, [activeProjectId]);
 
     const {
+        applyQuickDate,
         formatDate,
         formatDueDate,
         getSafePickerDateValue,
@@ -587,6 +588,7 @@ function TaskEditModalInner({
         handleDescriptionUndo: descriptionEditor.handleDescriptionUndo,
         handleDescriptionApplyAction: descriptionEditor.handleDescriptionApplyAction,
         applyDescriptionResult: descriptionEditor.applyDescriptionResult,
+        applyQuickDate,
         openDescriptionExpandedEditor: descriptionEditor.openDescriptionExpandedEditor,
         downloadAttachment,
         editedTask,

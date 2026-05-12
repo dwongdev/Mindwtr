@@ -328,11 +328,14 @@ export {
 
 export {
     configureDateFormatting,
+    getQuickDate,
     hasTimeComponent,
     isDueForReview,
+    isQuickDatePresetSelected,
     normalizeClockTimeInput,
     normalizeDateFormatSetting,
     normalizeTimeFormatSetting,
+    QUICK_DATE_PRESETS,
     resolveDateLocaleTag,
     safeFormatDate,
     safeParseDate,
@@ -340,6 +343,7 @@ export {
 } from './date';
 export type {
     DateFormatSetting,
+    QuickDatePreset,
     TimeFormatSetting,
 } from './date';
 

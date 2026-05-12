@@ -2,14 +2,17 @@ import React from 'react';
 import { Text, TouchableOpacity, View } from 'react-native';
 import { safeFormatDate } from '@mindwtr/core';
 
+import { QuickDateChips } from '../QuickDateChips';
 import { styles } from '../inbox-processing-modal.styles';
 import type { ThemeColors } from '@/hooks/use-theme-colors';
 
 type Props = {
+  t: (key: string) => string;
   label: string;
   value: Date | null;
   onOpen: () => void;
   onClear: () => void;
+  onQuickDateSelect?: (date: Date | null) => void;
   dateOnly?: boolean;
   onDateOnly?: () => void;
   onUseDefaultTime?: () => void;
@@ -21,10 +24,12 @@ type Props = {
 };
 
 export function InboxDateSelectorRow({
+  t,
   label,
   value,
   onOpen,
   onClear,
+  onQuickDateSelect,
   dateOnly,
   onDateOnly,
   onUseDefaultTime,
@@ -65,6 +70,14 @@ export function InboxDateSelectorRow({
           </TouchableOpacity>
         )}
       </View>
+      {onQuickDateSelect ? (
+        <QuickDateChips
+          t={t}
+          tc={tc}
+          selectedDate={value}
+          onSelect={(date) => onQuickDateSelect(date)}
+        />
+      ) : null}
     </View>
   );
 }

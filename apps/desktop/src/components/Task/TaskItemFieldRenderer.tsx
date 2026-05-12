@@ -41,6 +41,7 @@ import {
     TagsField,
     TimeEstimateField,
 } from './fields/TaskMetadataFields';
+import { QuickDateChips } from '../QuickDateChips';
 
 export type MonthlyRecurrenceInfo = {
     pattern: 'date' | 'custom';
@@ -345,6 +346,7 @@ export function TaskItemFieldRenderer({
         label,
         dateAriaLabel,
         dateValue,
+        selectedDate,
         onDateChange,
         timeInput,
         onClear,
@@ -353,6 +355,7 @@ export function TaskItemFieldRenderer({
         label: string;
         dateAriaLabel: string;
         dateValue: string;
+        selectedDate: Date | null;
         onDateChange: (value: string) => void;
         timeInput: ReactNode;
         onClear: () => void;
@@ -372,6 +375,18 @@ export function TaskItemFieldRenderer({
                 {timeInput}
                 {renderClearButton(label, onClear, hasValue)}
             </div>
+            <QuickDateChips
+                t={t}
+                selectedDate={selectedDate}
+                onSelect={(date) => {
+                    if (!date) {
+                        onClear();
+                        return;
+                    }
+                    onDateChange(safeFormatDate(date, 'yyyy-MM-dd'));
+                }}
+                className="max-w-[min(22rem,100%)]"
+            />
         </div>
     );
 
@@ -454,6 +469,7 @@ export function TaskItemFieldRenderer({
                     label: t('taskEdit.startDateLabel'),
                     dateAriaLabel: t('task.aria.startDate'),
                     dateValue,
+                    selectedDate: parsed,
                     onDateChange: handleDateChange,
                     timeInput: (
                         <input
@@ -504,6 +520,7 @@ export function TaskItemFieldRenderer({
                     label: t('taskEdit.dueDateLabel'),
                     dateAriaLabel: t('task.aria.dueDate'),
                     dateValue,
+                    selectedDate: parsed,
                     onDateChange: handleDateChange,
                     timeInput: (
                         <input
@@ -554,6 +571,7 @@ export function TaskItemFieldRenderer({
                     label: t('taskEdit.reviewDateLabel'),
                     dateAriaLabel: t('task.aria.reviewDate'),
                     dateValue,
+                    selectedDate: parsed,
                     onDateChange: handleDateChange,
                     timeInput: (
                         <input

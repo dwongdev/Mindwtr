@@ -102,10 +102,12 @@ export function InboxActionabilitySection({
           <Text style={[styles.stepQuestion, { color: tc.text }]}>{laterLabel}</Text>
           <Text style={[styles.stepHint, { color: tc.secondaryText }]}>{laterHint}</Text>
           <InboxDateSelectorRow
+            t={t}
             label={t('taskEdit.startDateLabel')}
             value={pendingStartDate}
             onOpen={() => setShowStartDatePicker(true)}
             onClear={() => { setPendingStartDate(null); setPendingStartDateOnly(false); }}
+            onQuickDateSelect={(date) => { setPendingStartDate(date); setPendingStartDateOnly(false); }}
             dateOnly={pendingStartDateOnly}
             onDateOnly={() => setPendingStartDateOnly(true)}
             onUseDefaultTime={() => setPendingStartDateOnly(false)}

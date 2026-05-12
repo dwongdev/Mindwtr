@@ -14,6 +14,7 @@ import {
     type RecurrenceStrategy,
 } from '@mindwtr/core';
 
+import { QuickDateChips } from '../QuickDateChips';
 import { buildRecurrenceValue } from './recurrence-utils';
 import type {
     ShowDatePickerMode,
@@ -27,6 +28,7 @@ type TaskEditScheduleFieldProps = TaskEditFieldRendererProps & {
 };
 
 export function TaskEditScheduleField({
+    applyQuickDate,
     customWeekdays,
     dailyInterval,
     editedTask,
@@ -149,6 +151,17 @@ export function TaskEditScheduleField({
             </View>
         );
     };
+    const renderQuickDateChips = (
+        mode: 'start' | 'due' | 'review',
+        selectedDate: Date | null
+    ) => (
+        <QuickDateChips
+            t={t}
+            tc={tc}
+            selectedDate={selectedDate}
+            onSelect={(date) => applyQuickDate(mode, date)}
+        />
+    );
     const formatStartDateTime = (dateStr?: string) => {
         if (!dateStr) return t('common.notSet');
         const parsed = safeParseDate(dateStr);
@@ -537,6 +550,7 @@ export function TaskEditScheduleField({
                                 </TouchableOpacity>
                             )}
                         </View>
+                        {renderQuickDateChips('start', parsed)}
                         {renderInlineIOSDatePicker(['start', 'start-time'])}
                     </View>
                 </View>
@@ -584,41 +598,46 @@ export function TaskEditScheduleField({
                                 </TouchableOpacity>
                             )}
                         </View>
+                        {renderQuickDateChips('due', parsed)}
                         {renderInlineIOSDatePicker(['due', 'due-time'])}
                     </View>
                 </View>
             );
         }
         case 'reviewAt': {
+            const parsed = editedTask.reviewAt ? safeParseDate(editedTask.reviewAt) : null;
             const hasTime = hasTimeComponent(editedTask.reviewAt);
             return (
                 <View style={styles.formGroup}>
                     <Text style={[styles.label, { color: tc.secondaryText }]}>{t('taskEdit.reviewDateLabel')}</Text>
-                    <View style={styles.dateRow}>
-                        <TouchableOpacity
-                            style={[styles.dateBtn, styles.flex1, { backgroundColor: tc.inputBg, borderColor: tc.border }]}
-                            onPress={() => openDatePicker('review')}
-                        >
-                            <Text style={{ color: tc.text }}>{formatStartDateTime(editedTask.reviewAt)}</Text>
-                        </TouchableOpacity>
-                        {!!editedTask.reviewAt && hasTime && (
+                    <View>
+                        <View style={styles.dateRow}>
                             <TouchableOpacity
-                                style={[styles.clearDateBtn, { borderColor: tc.border, backgroundColor: tc.filterBg }]}
-                                onPress={() => setEditedTask((prev) => ({ ...prev, reviewAt: clearTimePart(prev.reviewAt) }))}
+                                style={[styles.dateBtn, styles.flex1, { backgroundColor: tc.inputBg, borderColor: tc.border }]}
+                                onPress={() => openDatePicker('review')}
                             >
-                                <Text style={[styles.clearDateText, { color: tc.secondaryText }]}>{dateOnlyLabel}</Text>
+                                <Text style={{ color: tc.text }}>{formatStartDateTime(editedTask.reviewAt)}</Text>
                             </TouchableOpacity>
-                        )}
-                        {!!editedTask.reviewAt && (
-                            <TouchableOpacity
-                                style={[styles.clearDateBtn, { borderColor: tc.border, backgroundColor: tc.filterBg }]}
-                                onPress={() => setEditedTask((prev) => ({ ...prev, reviewAt: undefined }))}
-                            >
-                                <Text style={[styles.clearDateText, { color: tc.secondaryText }]}>{t('common.clear')}</Text>
-                            </TouchableOpacity>
-                        )}
+                            {!!editedTask.reviewAt && hasTime && (
+                                <TouchableOpacity
+                                    style={[styles.clearDateBtn, { borderColor: tc.border, backgroundColor: tc.filterBg }]}
+                                    onPress={() => setEditedTask((prev) => ({ ...prev, reviewAt: clearTimePart(prev.reviewAt) }))}
+                                >
+                                    <Text style={[styles.clearDateText, { color: tc.secondaryText }]}>{dateOnlyLabel}</Text>
+                                </TouchableOpacity>
+                            )}
+                            {!!editedTask.reviewAt && (
+                                <TouchableOpacity
+                                    style={[styles.clearDateBtn, { borderColor: tc.border, backgroundColor: tc.filterBg }]}
+                                    onPress={() => setEditedTask((prev) => ({ ...prev, reviewAt: undefined }))}
+                                >
+                                    <Text style={[styles.clearDateText, { color: tc.secondaryText }]}>{t('common.clear')}</Text>
+                                </TouchableOpacity>
+                            )}
+                        </View>
+                        {renderQuickDateChips('review', parsed)}
+                        {renderInlineIOSDatePicker(['review'])}
                     </View>
-                    {renderInlineIOSDatePicker(['review'])}
                 </View>
             );
         }

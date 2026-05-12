@@ -1,5 +1,5 @@
 import { ArrowRight, BookOpen, CheckCircle, ClipboardList, Clock, Trash2, User, X } from 'lucide-react';
-import { DEFAULT_PROJECT_COLOR, tFallback, type Area, type Project, type Task, type TaskPriority, type TimeEstimate } from '@mindwtr/core';
+import { DEFAULT_PROJECT_COLOR, safeFormatDate, safeParseDate, tFallback, type Area, type Project, type Task, type TaskPriority, type TimeEstimate } from '@mindwtr/core';
 
 import { cn } from '../lib/utils';
 import {
@@ -8,6 +8,7 @@ import {
     type InboxProcessingScheduleFieldsControls,
 } from './InboxProcessingScheduleFields';
 import { ProjectSelector } from './ui/ProjectSelector';
+import { QuickDateChips } from './QuickDateChips';
 
 type QuickActionabilityChoice = 'actionable' | 'later' | 'trash' | 'someday' | 'reference';
 type QuickTwoMinuteChoice = 'yes' | 'no';
@@ -451,6 +452,11 @@ export function InboxProcessingQuickPanel({
                         </div>
                         <div className="space-y-1">
                             <label className="text-[11px] text-muted-foreground font-medium">{t('process.delegateFollowUpLabel')}</label>
+                            <QuickDateChips
+                                t={t}
+                                selectedDate={safeParseDate(delegateFollowUp)}
+                                onSelect={(date) => setDelegateFollowUp(date ? safeFormatDate(date, 'yyyy-MM-dd') : '')}
+                            />
                             <input
                                 type="date"
                                 aria-label={t('process.delegateFollowUpLabel')}

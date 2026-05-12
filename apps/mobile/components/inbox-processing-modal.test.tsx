@@ -64,6 +64,27 @@ vi.mock('@mindwtr/core', () => {
       clarifyTask,
     })),
     hasTimeComponent: vi.fn((value?: string | null) => Boolean(value && /[T\s]\d{2}:\d{2}/.test(value))),
+    QUICK_DATE_PRESETS: ['today', 'tomorrow', 'in_3_days', 'next_week', 'next_month', 'no_date'],
+    getQuickDate: vi.fn((preset: string) => {
+      const today = new Date(2025, 0, 1);
+      switch (preset) {
+        case 'today':
+          return today;
+        case 'tomorrow':
+          return new Date(2025, 0, 2);
+        case 'in_3_days':
+          return new Date(2025, 0, 4);
+        case 'next_week':
+          return new Date(2025, 0, 6);
+        case 'next_month':
+          return new Date(2025, 1, 1);
+        case 'no_date':
+          return null;
+        default:
+          return null;
+      }
+    }),
+    isQuickDatePresetSelected: vi.fn(() => false),
     isSelectableProjectForTaskAssignment: vi.fn((project: any) => (
       !project.deletedAt && project.status !== 'archived' && project.status !== 'completed'
     )),

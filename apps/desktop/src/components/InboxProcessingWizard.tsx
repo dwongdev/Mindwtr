@@ -1,6 +1,6 @@
 import { memo } from 'react';
 import { ArrowRight, BookOpen, CheckCircle, ChevronLeft, ClipboardList, Clock, Trash2, User, X } from 'lucide-react';
-import { DEFAULT_PROJECT_COLOR, tFallback, type Area, type Project, type Task, type TaskPriority, type TimeEstimate } from '@mindwtr/core';
+import { DEFAULT_PROJECT_COLOR, safeFormatDate, safeParseDate, tFallback, type Area, type Project, type Task, type TaskPriority, type TimeEstimate } from '@mindwtr/core';
 
 import { cn } from '../lib/utils';
 import {
@@ -9,6 +9,7 @@ import {
     type InboxProcessingScheduleFieldsControls,
 } from './InboxProcessingScheduleFields';
 import { ProjectSelector } from './ui/ProjectSelector';
+import { QuickDateChips } from './QuickDateChips';
 
 export type ProcessingStep = 'refine' | 'actionable' | 'projectcheck' | 'twomin' | 'decide' | 'context' | 'project' | 'delegate';
 
@@ -552,6 +553,11 @@ export const InboxProcessingWizard = memo(function InboxProcessingWizard({
                     </div>
                     <div className="space-y-2">
                         <label className="text-xs text-muted-foreground font-medium">{t('process.delegateFollowUpLabel')}</label>
+                        <QuickDateChips
+                            t={t}
+                            selectedDate={safeParseDate(delegateFollowUp)}
+                            onSelect={(date) => setDelegateFollowUp(date ? safeFormatDate(date, 'yyyy-MM-dd') : '')}
+                        />
                         <input
                             type="date"
                             value={delegateFollowUp}

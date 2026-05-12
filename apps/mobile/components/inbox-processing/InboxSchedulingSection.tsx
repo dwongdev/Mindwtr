@@ -59,6 +59,7 @@ export function InboxSchedulingSection({
   if (!show) return null;
 
   const sharedRowProps = {
+    t,
     tc,
     defaultScheduleTime,
     dateOnlyLabel,
@@ -78,6 +79,7 @@ export function InboxSchedulingSection({
           value={pendingStartDate}
           onOpen={() => setShowStartDatePicker(true)}
           onClear={() => { setPendingStartDate(null); setPendingStartDateOnly(false); }}
+          onQuickDateSelect={(date) => { setPendingStartDate(date); setPendingStartDateOnly(false); }}
           dateOnly={pendingStartDateOnly}
           onDateOnly={() => setPendingStartDateOnly(true)}
           onUseDefaultTime={() => setPendingStartDateOnly(false)}
@@ -90,6 +92,7 @@ export function InboxSchedulingSection({
           value={pendingDueDate}
           onOpen={() => setShowDueDatePicker(true)}
           onClear={() => { setPendingDueDate(null); setPendingDueDateOnly(false); }}
+          onQuickDateSelect={(date) => { setPendingDueDate(date); setPendingDueDateOnly(false); }}
           dateOnly={pendingDueDateOnly}
           onDateOnly={() => setPendingDueDateOnly(true)}
           onUseDefaultTime={() => setPendingDueDateOnly(false)}
@@ -102,6 +105,7 @@ export function InboxSchedulingSection({
           value={pendingReviewDate}
           onOpen={() => setShowReviewDatePicker(true)}
           onClear={() => { setPendingReviewDate(null); setPendingReviewDateOnly(false); }}
+          onQuickDateSelect={(date) => { setPendingReviewDate(date); setPendingReviewDateOnly(false); }}
           dateOnly={pendingReviewDateOnly}
           onDateOnly={() => setPendingReviewDateOnly(true)}
           onUseDefaultTime={() => setPendingReviewDateOnly(false)}

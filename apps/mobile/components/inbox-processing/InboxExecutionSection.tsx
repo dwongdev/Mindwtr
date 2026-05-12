@@ -88,10 +88,12 @@ export function InboxExecutionSection({
           <InboxSuggestionList suggestions={delegateWhoSuggestions} onSelect={setDelegateWho} tc={tc} />
           {!showReviewDateField && (
             <InboxDateSelectorRow
+              t={t}
               label={t('process.delegateFollowUpLabel')}
               value={delegateFollowUpDate}
               onOpen={() => setShowDelegateDatePicker(true)}
               onClear={() => { setDelegateFollowUpDate(null); setDelegateFollowUpDateOnly(false); }}
+              onQuickDateSelect={(date) => { setDelegateFollowUpDate(date); setDelegateFollowUpDateOnly(false); }}
               dateOnly={delegateFollowUpDateOnly}
               onDateOnly={() => setDelegateFollowUpDateOnly(true)}
               onUseDefaultTime={() => setDelegateFollowUpDateOnly(false)}

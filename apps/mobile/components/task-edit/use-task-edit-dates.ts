@@ -6,6 +6,8 @@ import { buildRRuleString, hasTimeComponent, parseRRuleString, safeFormatDate, s
 import type { SetEditedTask } from './use-task-edit-state';
 import { buildRecurrenceValue } from './recurrence-utils';
 
+type TaskEditDatePickerMode = 'start' | 'start-time' | 'due' | 'due-time' | 'review' | 'recurrence-end';
+
 type UseTaskEditDatesParams = {
     editedTask: Partial<Task>;
     pendingDueDate: Date | null;
@@ -80,19 +82,11 @@ export function useTaskEditDates({
         });
     }, [setEditedTask]);
 
-    const onDateChange = React.useCallback((event: DateTimePickerEvent, selectedDate?: Date) => {
-        const currentMode = showDatePicker;
-        if (!currentMode) return;
-
-        if (event.type === 'dismissed') {
-            if (currentMode === 'start-time') setPendingStartDate(null);
-            if (currentMode === 'due-time') setPendingDueDate(null);
-            setShowDatePicker(null);
-            return;
-        }
-
-        if (!selectedDate) return;
-
+    const applySelectedDate = React.useCallback((
+        currentMode: TaskEditDatePickerMode,
+        selectedDate: Date,
+        closePicker: boolean
+    ) => {
         if (currentMode === 'start') {
             const dateOnly = safeFormatDate(selectedDate, 'yyyy-MM-dd');
             const existing = editedTask.startTime && hasTimeComponent(editedTask.startTime)
@@ -111,7 +105,7 @@ export function useTaskEditDates({
                 setPendingStartDate(new Date(selectedDate));
                 setEditedTask((prev) => ({ ...prev, startTime: dateOnly }));
             }
-            if (Platform.OS === 'android') setShowDatePicker(null);
+            if (closePicker) setShowDatePicker(null);
             return;
         }
 
@@ -121,7 +115,7 @@ export function useTaskEditDates({
             combined.setHours(selectedDate.getHours(), selectedDate.getMinutes(), 0, 0);
             setEditedTask((prev) => ({ ...prev, startTime: combined.toISOString() }));
             setPendingStartDate(null);
-            if (Platform.OS === 'android') setShowDatePicker(null);
+            if (closePicker) setShowDatePicker(null);
             return;
         }
 
@@ -138,13 +132,13 @@ export function useTaskEditDates({
             } else {
                 setEditedTask((prev) => ({ ...prev, reviewAt: dateOnly }));
             }
-            if (Platform.OS === 'android') setShowDatePicker(null);
+            if (closePicker) setShowDatePicker(null);
             return;
         }
 
         if (currentMode === 'recurrence-end') {
             updateRecurrenceEndDate(safeFormatDate(selectedDate, 'yyyy-MM-dd'));
-            if (Platform.OS === 'android') setShowDatePicker(null);
+            if (closePicker) setShowDatePicker(null);
             return;
         }
 
@@ -166,7 +160,7 @@ export function useTaskEditDates({
                 setPendingDueDate(new Date(selectedDate));
                 setEditedTask((prev) => ({ ...prev, dueDate: dateOnly }));
             }
-            if (Platform.OS === 'android') setShowDatePicker(null);
+            if (closePicker) setShowDatePicker(null);
             return;
         }
 
@@ -175,7 +169,7 @@ export function useTaskEditDates({
         combined.setHours(selectedDate.getHours(), selectedDate.getMinutes(), 0, 0);
         setEditedTask((prev) => ({ ...prev, dueDate: combined.toISOString() }));
         setPendingDueDate(null);
-        if (Platform.OS === 'android') setShowDatePicker(null);
+        if (closePicker) setShowDatePicker(null);
     }, [
         editedTask.dueDate,
         editedTask.reviewAt,
@@ -187,8 +181,55 @@ export function useTaskEditDates({
         setPendingDueDate,
         setPendingStartDate,
         setShowDatePicker,
-        showDatePicker,
         updateRecurrenceEndDate,
+    ]);
+
+    const applyQuickDate = React.useCallback((
+        mode: Extract<TaskEditDatePickerMode, 'start' | 'due' | 'review'>,
+        selectedDate: Date | null
+    ) => {
+        if (!selectedDate) {
+            if (mode === 'start') {
+                setPendingStartDate(null);
+                setEditedTask((prev) => ({ ...prev, startTime: undefined }));
+            } else if (mode === 'due') {
+                setPendingDueDate(null);
+                setEditedTask((prev) => ({ ...prev, dueDate: undefined }));
+            } else {
+                setEditedTask((prev) => ({ ...prev, reviewAt: undefined }));
+            }
+            setShowDatePicker(null);
+            return;
+        }
+
+        applySelectedDate(mode, selectedDate, true);
+    }, [
+        applySelectedDate,
+        setEditedTask,
+        setPendingDueDate,
+        setPendingStartDate,
+        setShowDatePicker,
+    ]);
+
+    const onDateChange = React.useCallback((event: DateTimePickerEvent, selectedDate?: Date) => {
+        const currentMode = showDatePicker;
+        if (!currentMode) return;
+
+        if (event.type === 'dismissed') {
+            if (currentMode === 'start-time') setPendingStartDate(null);
+            if (currentMode === 'due-time') setPendingDueDate(null);
+            setShowDatePicker(null);
+            return;
+        }
+
+        if (!selectedDate) return;
+        applySelectedDate(currentMode, selectedDate, Platform.OS === 'android');
+    }, [
+        applySelectedDate,
+        setPendingDueDate,
+        setPendingStartDate,
+        setShowDatePicker,
+        showDatePicker,
     ]);
 
     const formatDate = React.useCallback((dateStr?: string) => {
@@ -214,6 +255,7 @@ export function useTaskEditDates({
     }, []);
 
     return {
+        applyQuickDate,
         formatDate,
         formatDueDate,
         getSafePickerDateValue,

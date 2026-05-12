@@ -1,7 +1,8 @@
 import { X } from 'lucide-react';
-import { tFallback } from '@mindwtr/core';
+import { safeFormatDate, safeParseDate, tFallback } from '@mindwtr/core';
 
 import { cn } from '../lib/utils';
+import { QuickDateChips } from './QuickDateChips';
 
 export type InboxProcessingScheduleFieldControl = {
     date: string;
@@ -112,6 +113,17 @@ export function InboxProcessingScheduleFields({
                                 <span aria-hidden="true" className="h-8 w-8 shrink-0" />
                             )}
                         </div>
+                        <QuickDateChips
+                            t={t}
+                            selectedDate={safeParseDate(field.date)}
+                            onSelect={(date) => {
+                                if (!date) {
+                                    field.onClear();
+                                    return;
+                                }
+                                field.onDateChange(safeFormatDate(date, 'yyyy-MM-dd'));
+                            }}
+                        />
                     </div>
                 );
             })}
