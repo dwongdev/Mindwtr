@@ -5,13 +5,16 @@ import { Alert } from 'react-native';
 
 import { SwipeableTaskItem } from './swipeable-task-item';
 
-const { updateTask, restoreTask, showToast, getChecklistProgress, getTaskAgeLabel, getTaskStaleness, storeState } = vi.hoisted(() => ({
+const { updateTask, restoreTask, showToast, getChecklistProgress, getTaskAgeLabel, getTaskStaleness, safeFormatDate, storeState } = vi.hoisted(() => ({
   updateTask: vi.fn(),
   restoreTask: vi.fn(),
   showToast: vi.fn(),
   getChecklistProgress: vi.fn((_value: any): any => null),
   getTaskAgeLabel: vi.fn(() => '3 weeks old'),
   getTaskStaleness: vi.fn(() => 'stale'),
+  safeFormatDate: vi.fn((_value: unknown, formatStr: string) => (
+    formatStr === 'Pp' ? 'May 12, 2026, 8:30 AM' : ''
+  )),
   storeState: {
     updateTask: vi.fn(),
     restoreTask: vi.fn(),
@@ -48,7 +51,7 @@ vi.mock('@mindwtr/core', () => {
     getStatusColor: () => ({ bg: '#111111', border: '#222222', text: '#333333' }),
     hasTimeComponent: () => false,
     normalizeFocusTaskLimit: (value?: number) => value ?? 3,
-    safeFormatDate: () => '',
+    safeFormatDate,
     safeParseDueDate: () => null,
     resolveTaskTextDirection: () => 'ltr',
   };
@@ -65,7 +68,9 @@ vi.mock('../contexts/language-context', () => ({
         'common.notice': 'Notice',
         'common.undo': 'Undo',
         'list.taskDeleted': 'Task deleted',
+        'list.done': 'Completed',
         'status.inbox': 'Inbox',
+        'status.done': 'Done',
         'status.next': 'Next',
         'task.aria.delete': 'Delete task',
         'task.deleteConfirmBody': 'Move this task to Trash?',
@@ -126,6 +131,9 @@ describe('SwipeableTaskItem', () => {
     getTaskAgeLabel.mockReturnValue('3 weeks old');
     getTaskStaleness.mockReturnValue('stale');
     getChecklistProgress.mockReturnValue(null);
+    safeFormatDate.mockImplementation((_value: unknown, formatStr: string) => (
+      formatStr === 'Pp' ? 'May 12, 2026, 8:30 AM' : ''
+    ));
   });
 
   it('confirms deletion before invoking onDelete', async () => {
@@ -314,6 +322,38 @@ describe('SwipeableTaskItem', () => {
     });
 
     expect(hasText(tree, '3 weeks old')).toBe(true);
+  });
+
+  it('shows the completion date and time for completed tasks', () => {
+    let tree!: renderer.ReactTestRenderer;
+    renderer.act(() => {
+      tree = renderer.create(
+        <SwipeableTaskItem
+          task={{
+            id: 'task-1',
+            title: 'File receipts',
+            status: 'done',
+            completedAt: '2026-05-12T08:30:00.000Z',
+            createdAt: '2026-05-01T08:30:00.000Z',
+            updatedAt: '2026-05-12T08:30:00.000Z',
+          } as any}
+          isDark={false}
+          tc={{
+            taskItemBg: '#111111',
+            border: '#222222',
+            text: '#ffffff',
+            secondaryText: '#999999',
+            tint: '#3b82f6',
+            warning: '#f59e0b',
+          } as any}
+          onPress={vi.fn()}
+          onStatusChange={vi.fn()}
+          onDelete={vi.fn()}
+        />
+      );
+    });
+
+    expect(hasText(tree, 'Completed: May 12, 2026, 8:30 AM')).toBe(true);
   });
 
   it('announces swipe directions and triggers haptics for status actions', () => {

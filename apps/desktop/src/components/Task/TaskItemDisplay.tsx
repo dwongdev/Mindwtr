@@ -145,9 +145,16 @@ export const TaskItemDisplay = memo(function TaskItemDisplay({
     const ageLabel = getTaskAgeLabel(task.createdAt, language);
     const showCompactMeta = compactMetaEnabled && !isViewOpen;
     const showAgeBadge = showTaskAge && task.status !== 'done' && Boolean(ageLabel);
+    const completionTimestamp = task.status === 'done' || task.status === 'archived'
+        ? task.completedAt || task.updatedAt
+        : undefined;
+    const completionLabel = completionTimestamp
+        ? safeFormatDate(completionTimestamp, 'Pp', completionTimestamp)
+        : '';
     const hasMetadata = Boolean(
         project
         || area
+        || completionLabel
         || task.startTime
         || task.dueDate
         || task.location
@@ -258,6 +265,16 @@ export const TaskItemDisplay = memo(function TaskItemDisplay({
         && task.status !== 'done'
         && task.status !== 'archived'
         && task.status !== 'reference';
+    const renderCompletionMetadataBadge = () => {
+        if (!completionLabel) return null;
+        return (
+            <MetadataBadge
+                variant="info"
+                icon={Check}
+                label={`${tFallback(t, 'list.done', 'Completed')}: ${completionLabel}`}
+            />
+        );
+    };
     const renderMetadataRow = (className?: string) => (
         <div className={cn("flex flex-wrap items-center text-xs", className)}>
             {renderProjectBadge()}
@@ -268,6 +285,7 @@ export const TaskItemDisplay = memo(function TaskItemDisplay({
                     dotColor={area.color || DEFAULT_AREA_COLOR}
                 />
             )}
+            {renderCompletionMetadataBadge()}
             {task.startTime && (
                 <MetadataBadge
                     variant="info"
@@ -488,6 +506,15 @@ export const TaskItemDisplay = memo(function TaskItemDisplay({
                         dense ? "mt-0.5" : "mt-1",
                         (overlayDragHandle || overlayQuickDone) && "pl-12"
                     ))}
+                    {!showCompactMeta && completionLabel && (
+                        <div className={cn(
+                            "flex flex-wrap items-center gap-2 text-xs text-muted-foreground",
+                            dense ? "mt-0.5" : "mt-1",
+                            (overlayDragHandle || overlayQuickDone) && "pl-12"
+                        )}>
+                            {renderCompletionMetadataBadge()}
+                        </div>
+                    )}
 
                     {isViewOpen && (
                         <div onClick={(e) => e.stopPropagation()}>

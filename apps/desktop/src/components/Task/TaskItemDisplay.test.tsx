@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { act, fireEvent, render } from '@testing-library/react';
 import type { Task } from '@mindwtr/core';
-import { useTaskStore } from '@mindwtr/core';
+import { safeFormatDate, useTaskStore } from '@mindwtr/core';
 
 import { LanguageProvider } from '../../contexts/language-context';
 import { TaskItemDisplay } from './TaskItemDisplay';
@@ -92,6 +92,48 @@ describe('TaskItemDisplay', () => {
         );
 
         expect(queryByText('2周前')).not.toBeInTheDocument();
+    });
+
+    it('shows the completion date and time for completed tasks when compact details are off', () => {
+        const completedTask: Task = {
+            ...baseTask,
+            title: 'Completed task',
+            status: 'done',
+            completedAt: '2026-05-12T08:30:00.000Z',
+            updatedAt: '2026-05-12T08:30:00.000Z',
+        };
+        const completionLabel = safeFormatDate(completedTask.completedAt, 'Pp');
+
+        const { getByText } = render(
+            <LanguageProvider>
+                <TaskItemDisplay
+                    task={completedTask}
+                    language="en"
+                    selectionMode={false}
+                    isViewOpen={false}
+                    actions={{
+                        onToggleView: vi.fn(),
+                        onEdit: vi.fn(),
+                        onDelete: vi.fn(),
+                        onDuplicate: vi.fn(),
+                        onStatusChange: vi.fn(),
+                        openAttachment: vi.fn(),
+                    }}
+                    visibleAttachments={[]}
+                    recurrenceRule=""
+                    recurrenceStrategy="strict"
+                    prioritiesEnabled={false}
+                    timeEstimatesEnabled={false}
+                    isStagnant={false}
+                    showQuickDone={false}
+                    compactMetaEnabled={false}
+                    readOnly={false}
+                    t={(key: string) => key}
+                />
+            </LanguageProvider>
+        );
+
+        expect(getByText(`Completed: ${completionLabel}`)).toBeInTheDocument();
     });
 
     it('keeps board overlay tags in the metadata row instead of the absolute action controls', () => {

@@ -114,6 +114,12 @@ export function SwipeableTaskItemContent({
         const hasTime = hasTimeComponent(task.dueDate);
         return safeFormatDate(due, hasTime ? 'Pp' : 'P');
     })();
+    const completionLabel = (() => {
+        if (task.status !== 'done' && task.status !== 'archived') return null;
+        const completionTimestamp = task.completedAt || task.updatedAt;
+        if (!completionTimestamp) return null;
+        return safeFormatDate(completionTimestamp, 'Pp', completionTimestamp);
+    })();
     const staleness = getTaskStaleness(task.createdAt);
     const ageLabel = getTaskAgeLabel(task.createdAt, language as Language);
     const showAge = showTaskAge
@@ -235,6 +241,15 @@ export function SwipeableTaskItemContent({
                 ),
             }),
             'tag'
+        );
+    }
+
+    if (completionLabel) {
+        addMetaPart(
+            <Text key="completed" style={[styles.metaText, { color: tc.secondaryText }]}>
+                {`${t('list.done') || 'Completed'}: ${completionLabel}`}
+            </Text>,
+            'completed'
         );
     }
 

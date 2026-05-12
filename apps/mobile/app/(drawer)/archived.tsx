@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useMemo, useCallback, useState } from 'react';
 import { View, Text, FlatList, Pressable, StyleSheet, Alert } from 'react-native';
-import { useTaskStore } from '@mindwtr/core';
+import { safeFormatDate, useTaskStore } from '@mindwtr/core';
 import type { Task } from '@mindwtr/core';
 import { useLanguage } from '../../contexts/language-context';
 
@@ -19,6 +19,7 @@ function ArchivedTaskItem({
     onOpen,
     onRestore,
     onDelete,
+    completedLabel,
     isHighlighted
 }: {
     task: Task;
@@ -26,9 +27,14 @@ function ArchivedTaskItem({
     onOpen: () => void;
     onRestore: () => void;
     onDelete: () => void;
+    completedLabel: string;
     isHighlighted?: boolean;
 }) {
     const swipeableRef = useRef<Swipeable>(null);
+    const completionTimestamp = task.completedAt || task.updatedAt;
+    const completionDateLabel = completionTimestamp
+        ? safeFormatDate(completionTimestamp, 'Pp', completionTimestamp)
+        : 'Unknown';
 
     const renderLeftActions = () => (
         <Pressable
@@ -83,7 +89,7 @@ function ArchivedTaskItem({
                         </Text>
                     )}
                     <Text style={[styles.archivedDate, { color: tc.secondaryText }]}>
-                        Completed: {(task.completedAt || task.updatedAt) ? new Date(task.completedAt || task.updatedAt!).toLocaleDateString() : 'Unknown'}
+                        {completedLabel}: {completionDateLabel}
                     </Text>
                 </View>
                 <View style={[styles.statusIndicator, { backgroundColor: '#6B7280' }]} />
@@ -174,6 +180,7 @@ export default function ArchivedScreen() {
             onOpen={() => handleOpenTask(item.id)}
             onRestore={() => handleRestore(item.id)}
             onDelete={() => handleDelete(item.id)}
+            completedLabel={t('list.done') || 'Completed'}
             isHighlighted={item.id === highlightTaskId}
         />
     ), [tc, handleDelete, handleOpenTask, handleRestore, highlightTaskId]);

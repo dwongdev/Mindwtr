@@ -45,6 +45,7 @@ vi.mock('react-native', async () => {
 
 vi.mock('@mindwtr/core', () => ({
   useTaskStore: () => mocks.storeState,
+  safeFormatDate: vi.fn(() => 'May 12, 2026, 8:30 AM'),
 }));
 
 vi.mock('../../contexts/language-context', () => ({
@@ -53,6 +54,7 @@ vi.mock('../../contexts/language-context', () => ({
       'archived.empty': 'No archived tasks',
       'archived.emptyHint': 'Archived tasks appear here',
       'common.tasks': 'tasks',
+      'list.done': 'Completed',
     }[key] ?? key),
   }),
 }));
@@ -108,6 +110,13 @@ vi.mock('lucide-react-native', () => ({
 
 describe('ArchivedScreen', () => {
   const taskEditModalType = 'TaskEditModal' as unknown as React.ElementType;
+  const flattenText = (value: unknown): string => {
+    if (typeof value === 'string' || typeof value === 'number') return String(value);
+    if (Array.isArray(value)) return value.map((item) => flattenText(item)).join('');
+    return '';
+  };
+  const hasText = (tree: renderer.ReactTestRenderer, text: string) =>
+    tree.root.findAll((node) => flattenText(node.props?.children).includes(text)).length > 0;
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -135,6 +144,7 @@ describe('ArchivedScreen', () => {
     let modal = tree.root.findByType(taskEditModalType);
     expect(modal.props.visible).toBe(false);
     expect(modal.props.defaultTab).toBe('view');
+    expect(hasText(tree, 'Completed: May 12, 2026, 8:30 AM')).toBe(true);
 
     const row = tree.root.find(
       (node) => node.props.accessibilityLabel === 'Open archived task details: Archived task',
