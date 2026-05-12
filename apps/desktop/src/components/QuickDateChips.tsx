@@ -22,6 +22,7 @@ type QuickDateChipsProps = {
     selectedDate?: Date | null;
     onSelect: (date: Date | null, preset: QuickDatePreset) => void;
     className?: string;
+    wrap?: boolean;
 };
 
 export function QuickDateChips({
@@ -29,11 +30,16 @@ export function QuickDateChips({
     selectedDate,
     onSelect,
     className,
+    wrap = false,
 }: QuickDateChipsProps) {
     const now = new Date();
 
     return (
-        <div className={cn('flex max-w-full gap-1.5 overflow-x-auto pb-1', className)}>
+        <div className={cn(
+            'flex max-w-full gap-1.5 pb-1',
+            wrap ? 'flex-wrap overflow-visible' : 'overflow-x-auto',
+            className,
+        )}>
             {QUICK_DATE_PRESETS.map((preset) => {
                 const labelConfig = QUICK_DATE_LABELS[preset];
                 const label = tFallback(t, labelConfig.key, labelConfig.fallback);

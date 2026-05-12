@@ -219,6 +219,25 @@ describe('TaskItemFieldRenderer date clear buttons', () => {
         expect(handlers.setEditDueDate).toHaveBeenCalledWith('2026-04-19T09:00');
     });
 
+    it('lets quick date shortcuts use the full date field width', () => {
+        const handlers = createHandlers();
+
+        const { getByRole } = render(
+            <TaskItemFieldRenderer
+                fieldId="dueDate"
+                data={createData()}
+                handlers={handlers}
+            />
+        );
+
+        const nextMonthButton = getByRole('button', { name: 'Next month' });
+        const chipsRow = nextMonthButton.parentElement;
+
+        expect(chipsRow).toHaveClass('w-full');
+        expect(chipsRow).toHaveClass('flex-wrap');
+        expect(chipsRow).not.toHaveClass('max-w-[min(22rem,100%)]');
+    });
+
     it('updates weekly recurrence intervals without dropping selected weekdays', () => {
         const handlers = createHandlers();
         const { container, getByRole } = render(

@@ -378,6 +378,7 @@ export function TaskItemFieldRenderer({
             <QuickDateChips
                 t={t}
                 selectedDate={selectedDate}
+                wrap
                 onSelect={(date) => {
                     if (!date) {
                         onClear();
@@ -385,7 +386,7 @@ export function TaskItemFieldRenderer({
                     }
                     onDateChange(safeFormatDate(date, 'yyyy-MM-dd'));
                 }}
-                className="max-w-[min(22rem,100%)]"
+                className="w-full"
             />
         </div>
     );
