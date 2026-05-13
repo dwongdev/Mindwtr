@@ -60,6 +60,9 @@ const ENERGY_LEVEL_OPTIONS: TaskEnergyLevel[] = ['low', 'medium', 'high'];
 const ALL_TIME_ESTIMATE_OPTIONS: TimeEstimate[] = ['5min', '10min', '15min', '30min', '1hr', '2hr', '3hr', '4hr', '4hr+'];
 const DEFAULT_TIME_ESTIMATE_PRESETS: TimeEstimate[] = ['10min', '30min', '1hr', '2hr', '3hr', '4hr', '4hr+'];
 const NO_PROJECT_FILTER_ID = SAVED_FILTER_NO_PROJECT_ID;
+const FOCUS_LIST_INITIAL_RENDER_COUNT = 12;
+const FOCUS_LIST_BATCH_RENDER_COUNT = 12;
+const FOCUS_LIST_WINDOW_SIZE = 5;
 
 type FocusFilterChip = {
   id: string;
@@ -715,6 +718,9 @@ export default function FocusScreen() {
         sections={sections}
         keyExtractor={(item) => item.id}
         stickySectionHeadersEnabled={false}
+        initialNumToRender={FOCUS_LIST_INITIAL_RENDER_COUNT}
+        maxToRenderPerBatch={FOCUS_LIST_BATCH_RENDER_COUNT}
+        windowSize={FOCUS_LIST_WINDOW_SIZE}
         contentContainerStyle={[
           styles.listContent,
         ]}

@@ -1,5 +1,5 @@
 import React from 'react';
-import { Alert, TextInput } from 'react-native';
+import { Alert, SectionList, TextInput } from 'react-native';
 import { act, create } from 'react-test-renderer';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Task } from '@mindwtr/core';
@@ -213,6 +213,19 @@ describe('FocusScreen', () => {
         node.props.accessibilityLabel === "Today's Focus" && typeof node.props.onPress === 'function'
       )
     ).not.toThrow();
+  });
+
+  it('bounds SectionList rendering for larger Focus lists', () => {
+    let tree!: ReturnType<typeof create>;
+
+    act(() => {
+      tree = create(<FocusScreen />);
+    });
+
+    const list = tree.root.findByType(SectionList);
+    expect(list.props.initialNumToRender).toBe(12);
+    expect(list.props.maxToRenderPerBatch).toBe(12);
+    expect(list.props.windowSize).toBe(5);
   });
 
   it('keeps Today\'s Focus visible when collapsing Next Actions', () => {
