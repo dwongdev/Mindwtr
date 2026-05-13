@@ -46,6 +46,18 @@ const isObjectRecord = (value: unknown): value is Record<string, unknown> => (
     typeof value === 'object' && value !== null && !Array.isArray(value)
 );
 
+const toAppDataShape = (value: unknown): AppData | null => {
+    if (!isObjectRecord(value)) return null;
+    if (!Array.isArray(value.tasks) || !Array.isArray(value.projects)) return null;
+    return {
+        tasks: value.tasks as AppData['tasks'],
+        projects: value.projects as AppData['projects'],
+        sections: Array.isArray(value.sections) ? value.sections as AppData['sections'] : [],
+        areas: Array.isArray(value.areas) ? value.areas as AppData['areas'] : [],
+        settings: (isObjectRecord(value.settings) ? value.settings : {}) as AppData['settings'],
+    };
+};
+
 export function createRequestAbortError(message: string, status = 408): RequestAbortError {
     const error = new Error(message) as RequestAbortError;
     error.name = 'RequestAbortError';
@@ -258,10 +270,10 @@ export function writeAttachmentFileSafely(rootRealPath: string, filePath: string
     }
 }
 
-export function readData(filePath: string): unknown | null {
+export function readData(filePath: string): AppData | null {
     try {
         const raw = readFileSync(filePath, 'utf8');
-        return JSON.parse(raw);
+        return toAppDataShape(JSON.parse(raw));
     } catch {
         return null;
     }
@@ -269,7 +281,7 @@ export function readData(filePath: string): unknown | null {
 
 export function loadAppData(filePath: string): AppData {
     const raw = readData(filePath);
-    if (!raw || typeof raw !== 'object') return { ...DEFAULT_DATA };
+    if (!raw) return { ...DEFAULT_DATA };
     const record = raw as Record<string, unknown>;
     const nowIso = new Date().toISOString();
     const normalizedAreas = Array.isArray(record.areas)
