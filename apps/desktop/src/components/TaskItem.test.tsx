@@ -467,6 +467,120 @@ describe('TaskItem', () => {
         });
     });
 
+    it('prompts for a new next action after completing the last next project task', async () => {
+        const projectTask: Task = {
+            ...mockTask,
+            id: 'project-last-next',
+            title: 'Finish current step',
+            status: 'next',
+            projectId: 'project-1',
+        };
+        const project: Project = {
+            id: 'project-1',
+            title: 'Launch plan',
+            status: 'active',
+            color: '#3b82f6',
+            order: 0,
+            tagIds: [],
+            createdAt: projectTask.createdAt,
+            updatedAt: projectTask.updatedAt,
+        };
+        act(() => {
+            useTaskStore.setState((state) => ({
+                ...state,
+                tasks: [projectTask],
+                _allTasks: [projectTask],
+                projects: [project],
+                _allProjects: [project],
+                sections: [],
+                _allSections: [],
+                areas: [],
+                _allAreas: [],
+            }));
+        });
+
+        const { getByPlaceholderText, getByRole } = render(
+            <LanguageProvider>
+                <TaskItem task={projectTask} />
+            </LanguageProvider>
+        );
+
+        fireEvent.click(getByRole('button', { name: 'Done' }));
+
+        await waitFor(() => {
+            expect(getByRole('dialog', { name: /what's the next action/i })).toBeInTheDocument();
+        });
+        fireEvent.change(getByPlaceholderText('New next action...'), { target: { value: 'Call Alex' } });
+        fireEvent.click(getByRole('button', { name: 'Add next action' }));
+
+        await waitFor(() => {
+            const createdTask = useTaskStore.getState()._allTasks.find((task) => task.title === 'Call Alex');
+            expect(createdTask).toMatchObject({
+                status: 'next',
+                projectId: 'project-1',
+            });
+        });
+    });
+
+    it('can promote an existing project task from the next-action prompt', async () => {
+        const projectTask: Task = {
+            ...mockTask,
+            id: 'project-complete-next',
+            title: 'Finish current step',
+            status: 'next',
+            projectId: 'project-1',
+        };
+        const candidateTask: Task = {
+            ...mockTask,
+            id: 'project-candidate',
+            title: 'Draft follow-up',
+            status: 'someday',
+            projectId: 'project-1',
+            order: 2,
+        };
+        const project: Project = {
+            id: 'project-1',
+            title: 'Launch plan',
+            status: 'active',
+            color: '#3b82f6',
+            order: 0,
+            tagIds: [],
+            createdAt: projectTask.createdAt,
+            updatedAt: projectTask.updatedAt,
+        };
+        act(() => {
+            useTaskStore.setState((state) => ({
+                ...state,
+                tasks: [projectTask, candidateTask],
+                _allTasks: [projectTask, candidateTask],
+                projects: [project],
+                _allProjects: [project],
+                sections: [],
+                _allSections: [],
+                areas: [],
+                _allAreas: [],
+            }));
+        });
+
+        const { getByRole } = render(
+            <LanguageProvider>
+                <TaskItem task={projectTask} />
+            </LanguageProvider>
+        );
+
+        fireEvent.click(getByRole('button', { name: 'Done' }));
+
+        await waitFor(() => {
+            expect(getByRole('button', { name: /draft follow-up/i })).toBeInTheDocument();
+        });
+        fireEvent.click(getByRole('button', { name: /draft follow-up/i }));
+
+        await waitFor(() => {
+            const promotedTask = useTaskStore.getState()._allTasks.find((task) => task.id === 'project-candidate');
+            expect(promotedTask?.status).toBe('next');
+        });
+    });
+
     it('shows today focus toggle outside focus view for active tasks', () => {
         const { getByRole } = render(
             <LanguageProvider>

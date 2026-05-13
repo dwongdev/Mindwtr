@@ -27,6 +27,7 @@ export const useTaskItemStoreState = ({ task, propProject, isEditing, hasQuickAc
                 : undefined;
 
             return {
+            addTask: state.addTask,
             updateTask: state.updateTask,
             deleteTask: state.deleteTask,
             moveTask: state.moveTask,

@@ -6,12 +6,14 @@ import {
     TaskEditorFieldId,
     type TaskEditorPresentation,
     formatFocusTaskLimitText,
+    getProjectNextActionPromptData,
     getLocalizedWeekdayLabels,
     Project,
     generateUUID,
     normalizeClockTimeInput,
     normalizeFocusTaskLimit,
     tFallback,
+    useTaskStore,
 } from '@mindwtr/core';
 import { cn } from '../lib/utils';
 import { useLanguage } from '../contexts/language-context';
@@ -20,6 +22,7 @@ import { TaskItemDisplay } from './Task/TaskItemDisplay';
 import { TaskItemEditorSurface } from './Task/TaskItemEditorSurface';
 import { TaskItemFieldRenderer } from './Task/TaskItemFieldRenderer';
 import { TaskItemOverlays } from './Task/TaskItemOverlays';
+import { ProjectNextActionPrompt } from './Task/ProjectNextActionPrompt';
 import { TaskQuickActionMenu } from './Task/TaskQuickActionMenu';
 import {
     getRecurrenceRuleValue,
@@ -67,6 +70,13 @@ interface TaskItemProps {
     editorPresentation?: TaskEditorPresentation;
 }
 
+type ProjectNextActionPromptState = {
+    candidates: Task[];
+    projectId: string;
+    projectTitle: string;
+    sectionId?: string;
+};
+
 export const TaskItem = memo(function TaskItem({
     task,
     project: propProject,
@@ -97,6 +107,7 @@ export const TaskItem = memo(function TaskItem({
     const {
         updateTask,
         deleteTask,
+        addTask,
         moveTask,
         projects,
         sections,
@@ -234,6 +245,8 @@ export const TaskItem = memo(function TaskItem({
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
     const [showWaitingAssignmentPrompt, setShowWaitingAssignmentPrompt] = useState(false);
     const [showWaitingDuePrompt, setShowWaitingDuePrompt] = useState(false);
+    const [projectNextActionPrompt, setProjectNextActionPrompt] = useState<ProjectNextActionPromptState | null>(null);
+    const [projectNextActionTitle, setProjectNextActionTitle] = useState('');
     const [waitingTransitionMode, setWaitingTransitionMode] = useState<'status-change' | 'status-and-due' | null>(null);
     const prioritiesEnabled = settings?.features?.priorities !== false;
     const timeEstimatesEnabled = settings?.features?.timeEstimates !== false;
@@ -686,6 +699,56 @@ export const TaskItem = memo(function TaskItem({
         dispatchNavigateEvent('projects');
     }, [setHighlightTask, setSelectedProjectId, task.id]);
     const undoLabel = useMemo(() => tFallback(t, 'common.undo', 'Undo'), [t]);
+    const closeProjectNextActionPrompt = useCallback(() => {
+        setProjectNextActionPrompt(null);
+        setProjectNextActionTitle('');
+    }, []);
+    const openProjectNextActionPromptIfNeeded = useCallback((completedTaskId: string) => {
+        const storeState = useTaskStore.getState();
+        const completedTask = storeState._tasksById.get(completedTaskId)
+            ?? storeState._allTasks.find((candidate) => candidate.id === completedTaskId)
+            ?? { ...task, status: 'done' as TaskStatus };
+        const promptData = getProjectNextActionPromptData(
+            completedTask,
+            storeState._allTasks,
+            storeState._allProjects,
+        );
+        if (!promptData) return;
+        setProjectNextActionTitle('');
+        setProjectNextActionPrompt({
+            candidates: promptData.candidates,
+            projectId: promptData.project.id,
+            projectTitle: promptData.project.title,
+            sectionId: completedTask.sectionId,
+        });
+    }, [task]);
+    const handlePromoteProjectNextAction = useCallback((nextTaskId: string) => {
+        void moveTask(nextTaskId, 'next')
+            .then((result) => {
+                if (!result.success) {
+                    throw new Error(result.error || 'Failed to choose next action');
+                }
+                closeProjectNextActionPrompt();
+            })
+            .catch((error) => reportError('Failed to choose project next action', error));
+    }, [closeProjectNextActionPrompt, moveTask]);
+    const handleAddProjectNextAction = useCallback(() => {
+        if (!projectNextActionPrompt) return;
+        const title = projectNextActionTitle.trim();
+        if (!title) return;
+        void addTask(title, {
+            status: 'next',
+            projectId: projectNextActionPrompt.projectId,
+            sectionId: projectNextActionPrompt.sectionId,
+        })
+            .then((result) => {
+                if (!result.success) {
+                    throw new Error(result.error || 'Failed to add next action');
+                }
+                closeProjectNextActionPrompt();
+            })
+            .catch((error) => reportError('Failed to add project next action', error));
+    }, [addTask, closeProjectNextActionPrompt, projectNextActionPrompt, projectNextActionTitle]);
     const closeWaitingAssignmentPrompt = useCallback(() => {
         setShowWaitingAssignmentPrompt(false);
         setWaitingTransitionMode(null);
@@ -726,21 +789,36 @@ export const TaskItem = memo(function TaskItem({
                 if (!result.success) {
                     throw new Error(result.error || 'Failed to change task status');
                 }
-                if (!undoNotificationsEnabled || nextStatus !== 'done' || previousStatus === 'done') return;
-                showToast(
-                    `${task.title} marked Done`,
-                    'info',
-                    5000,
-                    {
-                        label: undoLabel,
-                        onClick: () => {
-                            void moveTask(task.id, previousStatus);
-                        },
+                if (nextStatus === 'done' && previousStatus !== 'done') {
+                    if (undoNotificationsEnabled) {
+                        showToast(
+                            `${task.title} marked Done`,
+                            'info',
+                            5000,
+                            {
+                                label: undoLabel,
+                                onClick: () => {
+                                    closeProjectNextActionPrompt();
+                                    void moveTask(task.id, previousStatus);
+                                },
+                            }
+                        );
                     }
-                );
+                    openProjectNextActionPromptIfNeeded(task.id);
+                }
             })
             .catch((error) => reportError('Failed to change task status', error));
-    }, [moveTask, showToast, task.id, task.status, task.title, undoLabel, undoNotificationsEnabled]);
+    }, [
+        closeProjectNextActionPrompt,
+        moveTask,
+        openProjectNextActionPromptIfNeeded,
+        showToast,
+        task.id,
+        task.status,
+        task.title,
+        undoLabel,
+        undoNotificationsEnabled,
+    ]);
     const hasPendingEdits = useCallback(() => {
         if (editTitle !== task.title) return true;
         if (editDescription !== (task.description || '')) return true;
@@ -1065,6 +1143,19 @@ export const TaskItem = memo(function TaskItem({
                     }}
                     onCreateArea={handleCreateArea}
                     onUpdateTask={(updates) => updateTask(task.id, updates)}
+                />
+            )}
+            {projectNextActionPrompt && (
+                <ProjectNextActionPrompt
+                    isOpen={Boolean(projectNextActionPrompt)}
+                    candidates={projectNextActionPrompt.candidates}
+                    projectTitle={projectNextActionPrompt.projectTitle}
+                    newTitle={projectNextActionTitle}
+                    onAddTask={handleAddProjectNextAction}
+                    onCancel={closeProjectNextActionPrompt}
+                    onChooseTask={handlePromoteProjectNextAction}
+                    onNewTitleChange={setProjectNextActionTitle}
+                    t={t}
                 />
             )}
             <TaskItemOverlays

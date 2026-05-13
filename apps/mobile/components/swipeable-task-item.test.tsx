@@ -5,7 +5,8 @@ import { Alert } from 'react-native';
 
 import { SwipeableTaskItem } from './swipeable-task-item';
 
-const { updateTask, restoreTask, showToast, getChecklistProgress, getTaskAgeLabel, getTaskStaleness, safeFormatDate, storeState } = vi.hoisted(() => ({
+const { addTask, updateTask, restoreTask, showToast, getChecklistProgress, getTaskAgeLabel, getTaskStaleness, safeFormatDate, storeState } = vi.hoisted(() => ({
+  addTask: vi.fn(),
   updateTask: vi.fn(),
   restoreTask: vi.fn(),
   showToast: vi.fn(),
@@ -16,14 +17,17 @@ const { updateTask, restoreTask, showToast, getChecklistProgress, getTaskAgeLabe
     formatStr === 'Pp' ? 'May 12, 2026, 8:30 AM' : ''
   )),
   storeState: {
+    addTask: vi.fn(),
     updateTask: vi.fn(),
     restoreTask: vi.fn(),
     projects: [] as any[],
+    _allProjects: [] as any[],
     areas: [] as any[],
     settings: { features: {}, appearance: {} },
     getDerivedState: () => ({ focusedCount: 0 }),
     tasks: [] as any[],
     _allTasks: [] as any[],
+    _tasksById: new Map<string, any>(),
   },
 }));
 const hapticsMocks = vi.hoisted(() => ({
@@ -31,6 +35,7 @@ const hapticsMocks = vi.hoisted(() => ({
 }));
 
 vi.mock('@mindwtr/core', () => {
+  storeState.addTask = addTask;
   storeState.updateTask = updateTask;
   storeState.restoreTask = restoreTask;
   const useTaskStore = Object.assign(
@@ -43,6 +48,30 @@ vi.mock('@mindwtr/core', () => {
 
   return {
     useTaskStore,
+    getProjectNextActionPromptData: (completedTask: any, tasks: any[], projects: any[]) => {
+      if (!completedTask?.projectId || completedTask.status !== 'done') return null;
+      const project = projects.find((candidate) => candidate.id === completedTask.projectId);
+      if (!project || project.deletedAt || project.status !== 'active') return null;
+      const hasNext = tasks.some((candidate) => (
+        candidate.id !== completedTask.id
+        && candidate.projectId === project.id
+        && !candidate.deletedAt
+        && candidate.status === 'next'
+      ));
+      if (hasNext) return null;
+      return {
+        project,
+        candidates: tasks.filter((candidate) => (
+          candidate.id !== completedTask.id
+          && candidate.projectId === project.id
+          && !candidate.deletedAt
+          && candidate.status !== 'next'
+          && candidate.status !== 'done'
+          && candidate.status !== 'archived'
+          && candidate.status !== 'reference'
+        )),
+      };
+    },
     formatFocusTaskLimitText: (template: string, limit: number) => template.replace('{{count}}', String(limit)),
     shallow: (value: unknown) => value,
     getChecklistProgress,
@@ -53,6 +82,10 @@ vi.mock('@mindwtr/core', () => {
     normalizeFocusTaskLimit: (value?: number) => value ?? 3,
     safeFormatDate,
     safeParseDueDate: () => null,
+    tFallback: (t: (key: string) => string, key: string, fallback: string) => {
+      const value = t(key);
+      return value && value !== key ? value : fallback;
+    },
     resolveTaskTextDirection: () => 'ltr',
   };
 });
@@ -64,14 +97,23 @@ vi.mock('../contexts/language-context', () => ({
       ({
         'common.cancel': 'Cancel',
         'common.delete': 'Delete',
+        'common.done': 'Done',
         'common.edit': 'Edit',
         'common.notice': 'Notice',
+        'common.skip': 'Skip',
         'common.undo': 'Undo',
         'list.taskDeleted': 'Task deleted',
         'list.done': 'Completed',
         'status.inbox': 'Inbox',
         'status.done': 'Done',
         'status.next': 'Next',
+        'status.someday': 'Someday',
+        'projects.nextActionPromptTitle': "What's the next action?",
+        'projects.nextActionPromptDesc': 'Choose or add the next action for {{project}}.',
+        'projects.nextActionPromptChooseExisting': 'Choose an existing task',
+        'projects.nextActionPromptAddNew': 'Add a new next action',
+        'projects.nextActionPromptPlaceholder': 'New next action...',
+        'projects.nextActionPromptAddButton': 'Add next action',
         'task.aria.delete': 'Delete task',
         'task.deleteConfirmBody': 'Move this task to Trash?',
       }[key] ?? key),
@@ -124,10 +166,14 @@ describe('SwipeableTaskItem', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     storeState.projects = [];
+    storeState._allProjects = [];
     storeState.areas = [];
     storeState.settings = { features: {}, appearance: {} };
     storeState.tasks = [];
     storeState._allTasks = [];
+    storeState._tasksById = new Map();
+    addTask.mockResolvedValue({ success: true, id: 'created-task' });
+    updateTask.mockResolvedValue({ success: true });
     getTaskAgeLabel.mockReturnValue('3 weeks old');
     getTaskStaleness.mockReturnValue('stale');
     getChecklistProgress.mockReturnValue(null);
@@ -398,6 +444,144 @@ describe('SwipeableTaskItem', () => {
 
     expect(onStatusChange).toHaveBeenCalledWith('next');
     expect(hapticsMocks.notificationAsync).toHaveBeenCalledWith('success');
+  });
+
+  it('prompts for the project next action after completing the last next task', async () => {
+    const project = { id: 'project-1', title: 'Launch plan', status: 'active' };
+    const task = {
+      id: 'task-1',
+      title: 'Finish current step',
+      status: 'next',
+      projectId: 'project-1',
+      createdAt: '2026-01-01T00:00:00.000Z',
+      updatedAt: '2026-01-01T00:00:00.000Z',
+    } as any;
+    const candidate = {
+      id: 'task-2',
+      title: 'Draft follow-up',
+      status: 'someday',
+      projectId: 'project-1',
+      createdAt: '2026-01-02T00:00:00.000Z',
+      updatedAt: '2026-01-02T00:00:00.000Z',
+    } as any;
+    storeState.projects = [project];
+    storeState._allProjects = [project];
+    storeState._allTasks = [task, candidate];
+    storeState._tasksById = new Map([[task.id, task], [candidate.id, candidate]]);
+    const onStatusChange = vi.fn((status: string) => {
+      const updatedTask = { ...task, status };
+      storeState._allTasks = [updatedTask, candidate];
+      storeState._tasksById = new Map([[updatedTask.id, updatedTask], [candidate.id, candidate]]);
+    });
+
+    let tree!: renderer.ReactTestRenderer;
+    renderer.act(() => {
+      tree = renderer.create(
+        <SwipeableTaskItem
+          task={task}
+          isDark={false}
+          tc={{
+            taskItemBg: '#111111',
+            border: '#222222',
+            text: '#ffffff',
+            secondaryText: '#999999',
+            tint: '#3b82f6',
+            onTint: '#ffffff',
+            inputBg: '#222222',
+            filterBg: '#333333',
+            warning: '#f59e0b',
+          } as any}
+          onPress={vi.fn()}
+          onStatusChange={onStatusChange}
+          onDelete={vi.fn()}
+        />
+      );
+    });
+
+    const doneAction = tree.root.find((node) => node.props.accessibilityLabel === 'Done action' && typeof node.props.onPress === 'function');
+    await renderer.act(async () => {
+      doneAction.props.onPress();
+      await Promise.resolve();
+    });
+
+    expect(hasText(tree, "What's the next action?")).toBe(true);
+    expect(hasText(tree, 'Draft follow-up')).toBe(true);
+
+    const candidateAction = tree.root.find((node) => node.props.accessibilityLabel === 'Draft follow-up' && typeof node.props.onPress === 'function');
+    await renderer.act(async () => {
+      candidateAction.props.onPress();
+      await Promise.resolve();
+    });
+
+    expect(updateTask).toHaveBeenCalledWith('task-2', { status: 'next' });
+  });
+
+  it('can add a new project next action from the completion prompt', async () => {
+    const project = { id: 'project-1', title: 'Launch plan', status: 'active' };
+    const task = {
+      id: 'task-1',
+      title: 'Finish current step',
+      status: 'next',
+      projectId: 'project-1',
+      createdAt: '2026-01-01T00:00:00.000Z',
+      updatedAt: '2026-01-01T00:00:00.000Z',
+    } as any;
+    storeState.projects = [project];
+    storeState._allProjects = [project];
+    storeState._allTasks = [task];
+    storeState._tasksById = new Map([[task.id, task]]);
+    const onStatusChange = vi.fn((status: string) => {
+      const updatedTask = { ...task, status };
+      storeState._allTasks = [updatedTask];
+      storeState._tasksById = new Map([[updatedTask.id, updatedTask]]);
+    });
+
+    let tree!: renderer.ReactTestRenderer;
+    renderer.act(() => {
+      tree = renderer.create(
+        <SwipeableTaskItem
+          task={task}
+          isDark={false}
+          tc={{
+            taskItemBg: '#111111',
+            border: '#222222',
+            text: '#ffffff',
+            secondaryText: '#999999',
+            tint: '#3b82f6',
+            onTint: '#ffffff',
+            inputBg: '#222222',
+            filterBg: '#333333',
+            warning: '#f59e0b',
+          } as any}
+          onPress={vi.fn()}
+          onStatusChange={onStatusChange}
+          onDelete={vi.fn()}
+        />
+      );
+    });
+
+    const doneAction = tree.root.find((node) => node.props.accessibilityLabel === 'Done action' && typeof node.props.onPress === 'function');
+    await renderer.act(async () => {
+      doneAction.props.onPress();
+      await Promise.resolve();
+    });
+
+    const input = tree.root.find((node) => node.props.accessibilityLabel === 'Add a new next action');
+    renderer.act(() => {
+      input.props.onChangeText('Call Alex');
+    });
+
+    const addButton = tree.root.find((node) => node.props.accessibilityLabel === 'Add next action' && typeof node.props.onPress === 'function');
+    await renderer.act(async () => {
+      addButton.props.onPress();
+      await Promise.resolve();
+    });
+
+    expect(addTask).toHaveBeenCalledWith('Call Alex', {
+      status: 'next',
+      projectId: 'project-1',
+      sectionId: undefined,
+    });
   });
 
   it('cancels pending checklist flushes when deleting a task', () => {

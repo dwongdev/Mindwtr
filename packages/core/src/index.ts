@@ -307,11 +307,14 @@ export {
 export {
     filterProjectsBySelectedArea,
     filterProjectsNeedingNextAction,
+    getProjectNextActionCandidates,
+    getProjectNextActionPromptData,
     getProjectsByArea,
     getProjectsByTag,
     isSelectableProjectForTaskAssignment,
     isTaskInActiveProject,
     projectHasNextAction,
+    shouldPromptForProjectNextAction,
 } from './project-utils';
 
 export {

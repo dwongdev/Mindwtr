@@ -2,6 +2,7 @@ import { Text, Pressable, Alert } from 'react-native';
 import { Swipeable } from 'react-native-gesture-handler';
 import {
     formatFocusTaskLimitText,
+    getProjectNextActionPromptData,
     getStatusColor,
     hasTimeComponent,
     normalizeFocusTaskLimit,
@@ -13,12 +14,13 @@ import {
 } from '@mindwtr/core';
 import type { Task, TaskStatus } from '@mindwtr/core';
 import { useLanguage } from '../contexts/language-context';
-import React, { useRef, useState } from 'react';
+import React, { useCallback, useRef, useState } from 'react';
 import { ArrowRight, Check, RotateCcw, Trash2 } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 import { ThemeColors } from '../hooks/use-theme-colors';
 import { useToast } from '../contexts/toast-context';
 import { SwipeableTaskItemContent } from './swipeable-task-item/SwipeableTaskItemContent';
+import { ProjectNextActionPromptModal } from './swipeable-task-item/ProjectNextActionPromptModal';
 import { SwipeableTaskItemStatusMenu } from './swipeable-task-item/SwipeableTaskItemStatusMenu';
 import { styles } from './swipeable-task-item/swipeable-task-item.styles';
 import { useSwipeableChecklist } from './swipeable-task-item/useSwipeableChecklist';
@@ -29,7 +31,7 @@ export interface SwipeableTaskItemProps {
     /** Theme colors object from useThemeColors hook */
     tc: ThemeColors;
     onPress: () => void;
-    onStatusChange: (status: TaskStatus) => void;
+    onStatusChange: (status: TaskStatus) => void | Promise<unknown>;
     onDelete: () => void | Promise<void>;
     onLongPressAction?: () => void;
     /** Hide context tags (useful when viewing a specific context) */
@@ -48,6 +50,13 @@ export interface SwipeableTaskItemProps {
     onContextPress?: (context: string) => void;
     onTagPress?: (tag: string) => void;
 }
+
+type ProjectNextActionPromptState = {
+    candidates: Task[];
+    projectId: string;
+    projectTitle: string;
+    sectionId?: string;
+};
 
 /**
  * A swipeable task item with context-aware left swipe actions:
@@ -85,6 +94,7 @@ export function SwipeableTaskItem({
     const { t, language } = useLanguage();
     const { showToast } = useToast();
     const {
+        addTask,
         updateTask,
         restoreTask,
         projects,
@@ -95,6 +105,7 @@ export function SwipeableTaskItem({
         showTaskAge,
         undoNotificationsEnabled,
     } = useTaskStore((state) => ({
+        addTask: state.addTask,
         updateTask: state.updateTask,
         restoreTask: state.restoreTask,
         projects: state.projects,
@@ -118,6 +129,74 @@ export function SwipeableTaskItem({
         toggleChecklistItem,
     } = useSwipeableChecklist(task, updateTask);
     const [showStatusMenu, setShowStatusMenu] = useState(false);
+    const [projectNextActionPrompt, setProjectNextActionPrompt] = useState<ProjectNextActionPromptState | null>(null);
+    const [projectNextActionTitle, setProjectNextActionTitle] = useState('');
+
+    const closeProjectNextActionPrompt = useCallback(() => {
+        setProjectNextActionPrompt(null);
+        setProjectNextActionTitle('');
+    }, []);
+
+    const openProjectNextActionPromptIfNeeded = useCallback((completedTaskId: string) => {
+        const storeState = useTaskStore.getState();
+        const taskLookup = storeState._tasksById instanceof Map ? storeState._tasksById : null;
+        const allTasks = Array.isArray(storeState._allTasks) ? storeState._allTasks : storeState.tasks;
+        const allProjects = Array.isArray(storeState._allProjects) ? storeState._allProjects : storeState.projects;
+        const completedTask = taskLookup?.get(completedTaskId)
+            ?? allTasks.find((candidate) => candidate.id === completedTaskId)
+            ?? { ...task, status: 'done' as TaskStatus };
+        const promptData = getProjectNextActionPromptData(completedTask, allTasks, allProjects);
+        if (!promptData) return;
+        setProjectNextActionTitle('');
+        setProjectNextActionPrompt({
+            candidates: promptData.candidates,
+            projectId: promptData.project.id,
+            projectTitle: promptData.project.title,
+            sectionId: completedTask.sectionId,
+        });
+    }, [task]);
+
+    const handleStatusChange = useCallback((status: TaskStatus) => {
+        let result: void | Promise<unknown>;
+        try {
+            result = onStatusChange(status);
+        } catch {
+            return;
+        }
+        if (status !== 'done' || task.status === 'done') return;
+        void Promise.resolve(result)
+            .then(() => openProjectNextActionPromptIfNeeded(task.id))
+            .catch(() => undefined);
+    }, [onStatusChange, openProjectNextActionPromptIfNeeded, task.id, task.status]);
+
+    const handlePromoteProjectNextAction = useCallback((nextTaskId: string) => {
+        void Promise.resolve(updateTask(nextTaskId, { status: 'next' }))
+            .then((result) => {
+                if (result && !result.success) {
+                    throw new Error(result.error || 'Failed to choose next action');
+                }
+                closeProjectNextActionPrompt();
+            })
+            .catch(() => undefined);
+    }, [closeProjectNextActionPrompt, updateTask]);
+
+    const handleAddProjectNextAction = useCallback(() => {
+        if (!projectNextActionPrompt) return;
+        const title = projectNextActionTitle.trim();
+        if (!title) return;
+        void Promise.resolve(addTask(title, {
+            status: 'next',
+            projectId: projectNextActionPrompt.projectId,
+            sectionId: projectNextActionPrompt.sectionId,
+        }))
+            .then((result) => {
+                if (result && !result.success) {
+                    throw new Error(result.error || 'Failed to add next action');
+                }
+                closeProjectNextActionPrompt();
+            })
+            .catch(() => undefined);
+    }, [addTask, closeProjectNextActionPrompt, projectNextActionPrompt, projectNextActionTitle]);
 
     const toggleFocus = () => {
         if (selectionMode) return;
@@ -173,7 +252,7 @@ export function SwipeableTaskItem({
                 onPress={() => {
                     swipeableRef.current?.close();
                     void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => undefined);
-                    onStatusChange(leftAction.action);
+                    handleStatusChange(leftAction.action);
                 }}
                 accessibilityLabel={`${leftAction.label} action`}
                 accessibilityRole="button"
@@ -287,7 +366,7 @@ export function SwipeableTaskItem({
         }
         if (selectionMode) return;
         if (actionName === 'changeStatus') {
-            onStatusChange(leftAction.action);
+            handleStatusChange(leftAction.action);
             return;
         }
         if (actionName === 'delete') {
@@ -355,11 +434,25 @@ export function SwipeableTaskItem({
             <SwipeableTaskItemStatusMenu
                 visible={showStatusMenu}
                 onClose={() => setShowStatusMenu(false)}
-                onStatusChange={onStatusChange}
+                onStatusChange={handleStatusChange}
                 taskStatus={task.status}
                 tc={tc}
                 t={t}
             />
+            {projectNextActionPrompt ? (
+                <ProjectNextActionPromptModal
+                    visible={Boolean(projectNextActionPrompt)}
+                    candidates={projectNextActionPrompt.candidates}
+                    projectTitle={projectNextActionPrompt.projectTitle}
+                    newTitle={projectNextActionTitle}
+                    tc={tc}
+                    t={t}
+                    onAddTask={handleAddProjectNextAction}
+                    onCancel={closeProjectNextActionPrompt}
+                    onChooseTask={handlePromoteProjectNextAction}
+                    onNewTitleChange={setProjectNextActionTitle}
+                />
+            ) : null}
         </>
     );
 }

@@ -510,6 +510,12 @@ export const en: Record<string, string> = {
         'projects.parallelTooltip': 'Parallel: All tasks show in Next Actions',
         'projects.reviewAtHint': 'Tickler date to revisit this project.',
         'projects.noNextAction': 'No next action',
+        'projects.nextActionPromptTitle': "What's the next action?",
+        'projects.nextActionPromptDesc': 'Choose or add the next action for {{project}}.',
+        'projects.nextActionPromptChooseExisting': 'Choose an existing task',
+        'projects.nextActionPromptAddNew': 'Add a new next action',
+        'projects.nextActionPromptPlaceholder': 'New next action...',
+        'projects.nextActionPromptAddButton': 'Add next action',
 
         // Review Steps
         'review.title': 'Review',
