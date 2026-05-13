@@ -9,7 +9,7 @@ import {
     writeFileSync,
 } from 'fs';
 import { basename, dirname, join, relative, resolve, sep } from 'path';
-import type { AppData, Task } from '@mindwtr/core';
+import type { AppData } from '@mindwtr/core';
 import {
     ATTACHMENT_PATH_ALLOWLIST,
     CLOUD_DATA_LOCK_REFRESH_MS,
@@ -282,30 +282,24 @@ export function readData(filePath: string): AppData | null {
 export function loadAppData(filePath: string): AppData {
     const raw = readData(filePath);
     if (!raw) return { ...DEFAULT_DATA };
-    const record = raw as Record<string, unknown>;
     const nowIso = new Date().toISOString();
-    const normalizedAreas = Array.isArray(record.areas)
-        ? (record.areas as unknown[]).map((area) => {
-            if (!isObjectRecord(area)) return area;
-            const createdAt = typeof area.createdAt === 'string' && area.createdAt.trim().length > 0
-                ? area.createdAt
-                : (typeof area.updatedAt === 'string' && area.updatedAt.trim().length > 0 ? area.updatedAt : nowIso);
+    const normalizedAreas = raw.areas.map((area) => {
+        if (!isObjectRecord(area)) return area;
+        const createdAt = typeof area.createdAt === 'string' && area.createdAt.trim().length > 0
+            ? area.createdAt
+            : (typeof area.updatedAt === 'string' && area.updatedAt.trim().length > 0 ? area.updatedAt : nowIso);
             const updatedAt = typeof area.updatedAt === 'string' && area.updatedAt.trim().length > 0
                 ? area.updatedAt
                 : createdAt;
             return {
                 ...area,
-                createdAt,
-                updatedAt,
-            };
-        })
-        : [];
+            createdAt,
+            updatedAt,
+        };
+    }) as AppData['areas'];
     return {
-        tasks: Array.isArray(record.tasks) ? (record.tasks as Task[]) : [],
-        projects: Array.isArray(record.projects) ? (record.projects as any) : [],
-        sections: Array.isArray(record.sections) ? (record.sections as any) : [],
-        areas: normalizedAreas as any,
-        settings: typeof record.settings === 'object' && record.settings ? (record.settings as any) : {},
+        ...raw,
+        areas: normalizedAreas,
     };
 }
 
