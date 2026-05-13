@@ -5,7 +5,7 @@ import {
     applyTaskUpdates,
     filterNotDeleted,
     generateUUID,
-    mergeAppData,
+    mergeAppDataWithStats,
     parseQuickAdd,
     repairMergedSyncReferences,
     searchAll,
@@ -1398,12 +1398,16 @@ export async function startCloudServer(options: CloudServerOptions = {}): Promis
                             if ('error' in existingDataResult) return existingDataResult.error;
                             const existingData = existingDataResult;
                             const incomingData = validated.data;
-                            const mergedData = mergeAppData(existingData, incomingData, {
+                            const mergeResult = mergeAppDataWithStats(existingData, incomingData, {
                                 nowIso: resolveServerMergeTimestamp(existingData, incomingData),
                             });
                             throwIfRequestAborted(requestAbortController.signal);
-                            writeCloudData(filePath, mergedData);
-                            return jsonResponse({ ok: true });
+                            writeCloudData(filePath, mergeResult.data);
+                            return jsonResponse({
+                                ok: true,
+                                stats: mergeResult.stats,
+                                clockSkewWarning: mergeResult.clockSkewWarning ?? null,
+                            });
                         });
                     }
                 }

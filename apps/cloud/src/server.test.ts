@@ -2079,6 +2079,14 @@ describe('cloud server api', () => {
             }),
         });
         expect(firstPut.status).toBe(200);
+        const firstPutBody = await firstPut.json();
+        expect(firstPutBody.ok).toBe(true);
+        expect(firstPutBody.stats.tasks.localTotal).toBe(0);
+        expect(firstPutBody.stats.tasks.incomingTotal).toBe(1);
+        expect(firstPutBody.stats.tasks.incomingOnly).toBe(1);
+        expect(firstPutBody.stats.tasks.mergedTotal).toBe(1);
+        expect(firstPutBody.stats.tasks.conflicts).toBe(0);
+        expect(firstPutBody.clockSkewWarning).toBeNull();
 
         const secondPut = await fetch(`${baseUrl}/v1/data`, {
             method: 'PUT',
@@ -2092,6 +2100,14 @@ describe('cloud server api', () => {
             }),
         });
         expect(secondPut.status).toBe(200);
+        const secondPutBody = await secondPut.json();
+        expect(secondPutBody.ok).toBe(true);
+        expect(secondPutBody.stats.tasks.localTotal).toBe(1);
+        expect(secondPutBody.stats.tasks.incomingTotal).toBe(1);
+        expect(secondPutBody.stats.tasks.localOnly).toBe(1);
+        expect(secondPutBody.stats.tasks.incomingOnly).toBe(1);
+        expect(secondPutBody.stats.tasks.mergedTotal).toBe(2);
+        expect(secondPutBody.stats.tasks.conflicts).toBe(0);
 
         const getResponse = await fetch(`${baseUrl}/v1/data`, {
             headers: authHeaders,
