@@ -1,6 +1,13 @@
 import { describe, expect, it } from 'vitest';
-import { createSyncSignatureMemo, normalizeAreaForContentComparison, toComparableSignature } from './sync-signatures';
-import type { Area } from './types';
+import {
+    chooseDeterministicWinner,
+    createSyncSignatureMemo,
+    normalizeAreaForContentComparison,
+    normalizeSectionForContentComparison,
+    normalizeTaskForContentComparison,
+    toComparableSignature,
+} from './sync-signatures';
+import type { Area, Section, Task } from './types';
 
 const area = (updates: Partial<Area> = {}): Area => ({
     id: 'area-1',
@@ -8,6 +15,31 @@ const area = (updates: Partial<Area> = {}): Area => ({
     order: 0,
     createdAt: '2026-01-01T00:00:00.000Z',
     updatedAt: '2026-01-01T00:00:00.000Z',
+    ...updates,
+});
+
+const task = (updates: Partial<Task> = {}): Task => ({
+    id: 'task-1',
+    title: 'Task',
+    status: 'next',
+    tags: [],
+    contexts: [],
+    createdAt: '2026-01-01T00:00:00.000Z',
+    updatedAt: '2026-01-01T00:00:00.000Z',
+    rev: 2,
+    revBy: 'device-a',
+    ...updates,
+});
+
+const section = (updates: Partial<Section> = {}): Section => ({
+    id: 'section-1',
+    projectId: 'project-1',
+    title: 'Section',
+    order: 0,
+    createdAt: '2026-01-01T00:00:00.000Z',
+    updatedAt: '2026-01-01T00:00:00.000Z',
+    rev: 2,
+    revBy: 'device-a',
     ...updates,
 });
 
@@ -67,5 +99,36 @@ describe('sync signatures', () => {
 
         expect(toComparableSignature(original, memo)).not.toBe(toComparableSignature(changed, memo));
         expect(memo.comparableByRevision.size).toBe(1);
+    });
+
+    it('ignores project archive task sidecars in comparable and deterministic signatures', () => {
+        const local = normalizeTaskForContentComparison(task({
+            projectArchivedAt: '2099-01-01T00:00:00.000Z',
+            statusBeforeProjectArchive: 'next',
+            completedAtBeforeProjectArchive: '2098-01-01T00:00:00.000Z',
+            isFocusedTodayBeforeProjectArchive: true,
+        }));
+        const incoming = normalizeTaskForContentComparison(task({
+            projectArchivedAt: '2026-01-01T00:00:00.000Z',
+            statusBeforeProjectArchive: 'waiting',
+            completedAtBeforeProjectArchive: null,
+            isFocusedTodayBeforeProjectArchive: false,
+        }));
+
+        expect(toComparableSignature(local)).toBe(toComparableSignature(incoming));
+        expect(chooseDeterministicWinner(local, incoming)).toBe(incoming);
+    });
+
+    it('ignores project archive section sidecars in comparable signatures', () => {
+        const local = normalizeSectionForContentComparison(section({
+            projectArchivedAt: '2099-01-01T00:00:00.000Z',
+            deletedAtBeforeProjectArchive: null,
+        }));
+        const incoming = normalizeSectionForContentComparison(section({
+            projectArchivedAt: '2026-01-01T00:00:00.000Z',
+            deletedAtBeforeProjectArchive: '2025-12-31T00:00:00.000Z',
+        }));
+
+        expect(toComparableSignature(local)).toBe(toComparableSignature(incoming));
     });
 });

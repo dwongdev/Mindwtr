@@ -30,6 +30,14 @@ const CONTENT_DIFF_IGNORED_KEYS = new Set([
     'orderNum',
 ]);
 
+const SIGNATURE_OPAQUE_KEYS = new Set([
+    'statusBeforeProjectArchive',
+    'completedAtBeforeProjectArchive',
+    'isFocusedTodayBeforeProjectArchive',
+    'deletedAtBeforeProjectArchive',
+    'projectArchivedAt',
+]);
+
 const normalizeOptionalArrayForComparison = <T>(value: T[] | undefined): T[] | undefined =>
     Array.isArray(value) && value.length > 0 ? value : undefined;
 
@@ -174,6 +182,7 @@ export const toComparableValue = (value: unknown, options?: { includeIgnoredKeys
         const record = value as Record<string, unknown>;
         const comparable: Record<string, unknown> = {};
         for (const key of Object.keys(record).sort()) {
+            if (SIGNATURE_OPAQUE_KEYS.has(key)) continue;
             if (!includeIgnoredKeys && CONTENT_DIFF_IGNORED_KEYS.has(key)) continue;
             if (!includeIgnoredKeys && key === 'uri' && record.kind === 'file') continue;
             const comparableValue = toComparableValue(record[key], options);

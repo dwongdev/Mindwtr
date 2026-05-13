@@ -39,30 +39,34 @@ Revisit ADR 0008 only if snapshot files regularly exceed 5 MB, sync round-trips 
    - When the ambiguous-window live item is preserved, Mindwtr emits a bounded `Preserved live item during ambiguous delete-vs-live merge` diagnostic entry and stores conflict metadata in sync history/settings.
 5. Invalid `deletedAt` falls back to `updatedAt` for conservative operation timing.
 6. Attachments are merged per attachment `id` with the same LWW rules.
-7. Areas use tombstones:
+7. Project archive restore metadata is opaque sync metadata:
+   - Archiving a project records temporary restore metadata on tasks and sections that the archive action changed.
+   - This metadata is ignored by comparable and deterministic sync signatures, so archive bookkeeping alone does not create a content conflict or deterministic winner.
+   - Unarchive restores only records that still match the archive-generated change. Tasks that were deleted, manually changed, or moved to a different project are preserved as-is and may retain the opaque metadata until the record is next rewritten by a real user or sync change.
+8. Areas use tombstones:
    - Deleting an area cascades soft-delete timestamps to projects, sections, and tasks that belong to that area.
    - Restoring an area restores the children from the same cascade. Children deleted independently at a different timestamp stay deleted.
    - If an incoming snapshot references a missing or deleted area, sync repair clears the stale `areaId` reference and stamps a repair revision.
    - Sync repair also runs on tombstones, so deleted projects/tasks do not keep stale area links if they are later restored.
    - Missing area order values are synthesized during merge and stamped with `revBy: "sync-repair"` so the repair is not repeatedly overwritten by peers.
-8. Settings merge by sync preferences:
+9. Settings merge by sync preferences:
    - Appearance/language/GTD scheduling/external calendars/AI/saved filters can be merged independently.
    - Conflict resolution uses group-level timestamps (`appearance`, `language`, `gtd`, `externalCalendars`, `ai`, `savedFilters`).
    - Concurrent edits to different fields inside the same group can still collapse to the newer group update.
    - A local `syncPreferences` opt-out is bidirectional for that group: Mindwtr does not send that group to remote and does not accept incoming remote changes for it.
    - Secrets (API keys, local model paths) are never synced.
-9. Remote-write recovery is explicit:
+10. Remote-write recovery is explicit:
    - Local data is first written with `pendingRemoteWriteAt`.
    - Remote write clears the flag on success.
    - Failed remote writes schedule retries with exponential backoff from 5 seconds up to 5 minutes.
    - After 12 failed remote-write retries, Mindwtr marks sync as `error` and surfaces the backend failure instead of retrying forever.
    - Device-local sync diagnostics stay local and are stripped before remote writes.
-10. Clock skew telemetry:
+11. Clock skew telemetry:
    - Merge stats record the largest observed skew.
    - Warnings surface when skew exceeds 5 minutes.
    - Future `updatedAt` values are clamped to the merge-time clock for comparison and counted in `futureTimestampClamps`.
    - If both sides of the same record are future-clamped, Mindwtr emits a bounded `Both merge candidates had future updatedAt timestamps clamped` diagnostic with the record ID and clamp time.
-11. Local edits during sync do not take a hard lock:
+12. Local edits during sync do not take a hard lock:
    - Desktop and mobile detect when local state changed during the sync write phase.
    - When that happens, the current cycle aborts and a fresh sync is queued rather than overwriting the newer local snapshot.
 
