@@ -188,6 +188,24 @@ export const restoreTaskFromProjectArchive = (task: Task, restoredAt: string, de
     };
 };
 
+const hasTaskProjectArchiveMetadata = (task: Task): boolean => (
+    task.projectArchivedAt !== undefined
+    || task.statusBeforeProjectArchive !== undefined
+    || task.completedAtBeforeProjectArchive !== undefined
+    || task.isFocusedTodayBeforeProjectArchive !== undefined
+);
+
+export const clearDeletedTaskProjectArchiveMetadata = (task: Task): Task => {
+    if (!task.deletedAt || !hasTaskProjectArchiveMetadata(task)) return task;
+    return {
+        ...task,
+        statusBeforeProjectArchive: undefined,
+        completedAtBeforeProjectArchive: undefined,
+        isFocusedTodayBeforeProjectArchive: undefined,
+        projectArchivedAt: undefined,
+    };
+};
+
 export const archiveSectionForProjectArchive = (section: Section, archivedAt: string, deviceId?: string): Section => ({
     ...section,
     deletedAt: archivedAt,

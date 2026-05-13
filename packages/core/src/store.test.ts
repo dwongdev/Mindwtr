@@ -794,6 +794,51 @@ describe('TaskStore', () => {
         expect((mockStorage.saveData as unknown as { mock: { calls: any[][] } }).mock.calls.length).toBeGreaterThan(0);
     });
 
+    it('clears project archive metadata from deleted task tombstones during fetch', async () => {
+        const archivedAt = '2026-05-10T00:00:00.000Z';
+        mockStorage.getData = vi.fn().mockResolvedValue({
+            tasks: [
+                {
+                    id: 't-deleted-archive',
+                    title: 'Deleted archive tombstone',
+                    status: 'done',
+                    tags: [],
+                    contexts: [],
+                    createdAt: '2026-05-01T00:00:00.000Z',
+                    updatedAt: archivedAt,
+                    deletedAt: '2026-05-11T00:00:00.000Z',
+                    completedAt: archivedAt,
+                    statusBeforeProjectArchive: 'next',
+                    completedAtBeforeProjectArchive: null,
+                    isFocusedTodayBeforeProjectArchive: false,
+                    projectArchivedAt: archivedAt,
+                    rev: 4,
+                    revBy: 'device-a',
+                },
+            ],
+            projects: [],
+            sections: [],
+            areas: [],
+            settings: {},
+        });
+
+        await useTaskStore.getState().fetchData({ silent: true });
+        await flushPendingSave();
+
+        const task = useTaskStore.getState()._allTasks[0];
+        expect(task.statusBeforeProjectArchive).toBeUndefined();
+        expect(task.completedAtBeforeProjectArchive).toBeUndefined();
+        expect(task.isFocusedTodayBeforeProjectArchive).toBeUndefined();
+        expect(task.projectArchivedAt).toBeUndefined();
+        expect(task.rev).toBe(4);
+        expect(task.updatedAt).toBe(archivedAt);
+
+        const saveCalls = (mockStorage.saveData as unknown as { mock: { calls: any[][] } }).mock.calls;
+        const lastSaved = saveCalls[saveCalls.length - 1]?.[0];
+        expect(lastSaved?.tasks?.[0]?.projectArchivedAt).toBeUndefined();
+        expect(lastSaved?.tasks?.[0]?.statusBeforeProjectArchive).toBeUndefined();
+    });
+
     it('promotes scheduled tasks to next when scheduled date is reached', async () => {
         vi.spyOn(Date, 'now').mockReturnValue(new Date('2026-02-14T10:00:00.000Z').getTime());
         mockStorage.getData = vi.fn().mockResolvedValue({

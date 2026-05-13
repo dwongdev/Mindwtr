@@ -9,6 +9,7 @@ import type { DerivedCache, TaskStore } from './store-types';
 import {
     buildSaveSnapshot,
     archiveSectionForProjectArchive,
+    clearDeletedTaskProjectArchiveMetadata,
     completeTaskForProjectArchive,
     computeProjectDerivedState,
     computeTaskDerivedState,
@@ -243,7 +244,16 @@ export const createSettingsActions = ({
                 didSettingsUpdate = true;
             }
 
-            let allTasks = rawTasks.map((task) => normalizeTaskForLoad(task, nowIso));
+            let didClearDeletedProjectArchiveMetadata = false;
+            let allTasks = rawTasks
+                .map((task) => normalizeTaskForLoad(task, nowIso))
+                .map((task) => {
+                    const nextTask = clearDeletedTaskProjectArchiveMetadata(task);
+                    if (nextTask !== task) {
+                        didClearDeletedProjectArchiveMetadata = true;
+                    }
+                    return nextTask;
+                });
             const nowMs = Date.now();
             let didPromoteScheduled = false;
             allTasks = allTasks.map((task) => {
@@ -642,6 +652,7 @@ export const createSettingsActions = ({
                                 || didPromoteScheduled
                                 || didCompleteTasksForArchivedProjects
                                 || didArchiveSectionsForArchivedProjects
+                                || didClearDeletedProjectArchiveMetadata
                                 || didRepairEntityReferences
                                 || didTombstoneCleanup
                                 ? getNextDataChangeAt(state.lastDataChangeAt)
@@ -667,6 +678,7 @@ export const createSettingsActions = ({
                 || didPromoteScheduled
                 || didCompleteTasksForArchivedProjects
                 || didArchiveSectionsForArchivedProjects
+                || didClearDeletedProjectArchiveMetadata
                 || didRepairEntityReferences
                 || didTombstoneCleanup
                 || didAreaMigration

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
     buildEntityMap,
+    clearDeletedTaskProjectArchiveMetadata,
     computeProjectDerivedState,
     computeTaskDerivedState,
     getNextProjectOrder,
@@ -269,6 +270,33 @@ describe('project archive restore helpers', () => {
         });
 
         expect(restoreTaskFromProjectArchive(task, '2026-01-06T00:00:00.000Z', 'device-b')).toBe(task);
+    });
+
+    it('clears project-archive metadata from deleted task tombstones without bumping sync identity', () => {
+        const archivedAt = '2026-01-05T00:00:00.000Z';
+        const task = createTask('deleted-task', 'project-1', 0, {
+            status: 'done',
+            completedAt: archivedAt,
+            deletedAt: '2026-01-05T12:00:00.000Z',
+            statusBeforeProjectArchive: 'next',
+            completedAtBeforeProjectArchive: null,
+            isFocusedTodayBeforeProjectArchive: false,
+            projectArchivedAt: archivedAt,
+            rev: 4,
+            updatedAt: archivedAt,
+        });
+
+        const cleaned = clearDeletedTaskProjectArchiveMetadata(task);
+
+        expect(cleaned).not.toBe(task);
+        expect(cleaned.deletedAt).toBe(task.deletedAt);
+        expect(cleaned.updatedAt).toBe(task.updatedAt);
+        expect(cleaned.rev).toBe(task.rev);
+        expect(cleaned.revBy).toBe(task.revBy);
+        expect(cleaned.statusBeforeProjectArchive).toBeUndefined();
+        expect(cleaned.completedAtBeforeProjectArchive).toBeUndefined();
+        expect(cleaned.isFocusedTodayBeforeProjectArchive).toBeUndefined();
+        expect(cleaned.projectArchivedAt).toBeUndefined();
     });
 
     it('does not rewrite manually changed project-archive task snapshots', () => {
