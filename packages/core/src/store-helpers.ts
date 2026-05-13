@@ -169,11 +169,15 @@ export const restoreTaskFromProjectArchive = (task: Task, restoredAt: string, de
         Boolean(archivedAt) &&
         task.completedAt === archivedAt;
 
+    if (!shouldRestore) {
+        return task;
+    }
+
     return {
         ...task,
-        status: shouldRestore ? previousStatus! : task.status,
-        completedAt: shouldRestore ? task.completedAtBeforeProjectArchive ?? undefined : task.completedAt,
-        isFocusedToday: shouldRestore ? task.isFocusedTodayBeforeProjectArchive ?? false : task.isFocusedToday,
+        status: previousStatus!,
+        completedAt: task.completedAtBeforeProjectArchive ?? undefined,
+        isFocusedToday: task.isFocusedTodayBeforeProjectArchive ?? false,
         statusBeforeProjectArchive: undefined,
         completedAtBeforeProjectArchive: undefined,
         isFocusedTodayBeforeProjectArchive: undefined,
@@ -201,9 +205,13 @@ export const restoreSectionFromProjectArchive = (section: Section, restoredAt: s
         section.deletedAt === archivedAt &&
         section.deletedAtBeforeProjectArchive === null;
 
+    if (!shouldRestore) {
+        return section;
+    }
+
     return {
         ...section,
-        deletedAt: shouldRestore ? undefined : section.deletedAt,
+        deletedAt: undefined,
         deletedAtBeforeProjectArchive: undefined,
         projectArchivedAt: undefined,
         updatedAt: restoredAt,

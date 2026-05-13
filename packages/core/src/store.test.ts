@@ -1554,6 +1554,35 @@ describe('TaskStore', () => {
         expect(projectSections[0].projectArchivedAt).toBeUndefined();
     });
 
+    it('does not rewrite a project-archived task that moved before unarchive', async () => {
+        const { addProject, addTask, updateProject, updateTask } = useTaskStore.getState();
+        const sourceProject = await addProject('Source Project', '#123456');
+        const targetProject = await addProject('Target Project', '#654321');
+        expect(sourceProject).not.toBeNull();
+        expect(targetProject).not.toBeNull();
+        if (!sourceProject || !targetProject) return;
+
+        await addTask('Moved Task', { status: 'next', projectId: sourceProject.id });
+        const taskId = useTaskStore.getState()._allTasks[0].id;
+
+        await updateProject(sourceProject.id, { status: 'archived' });
+        const archivedTask = useTaskStore.getState()._tasksById.get(taskId);
+        expect(archivedTask?.projectArchivedAt).toBeTruthy();
+
+        await updateTask(taskId, { projectId: targetProject.id });
+        const movedTask = useTaskStore.getState()._tasksById.get(taskId);
+        expect(movedTask?.projectId).toBe(targetProject.id);
+
+        await updateProject(sourceProject.id, { status: 'active' });
+        const afterUnarchive = useTaskStore.getState()._tasksById.get(taskId);
+
+        expect(afterUnarchive).toBe(movedTask);
+        expect(afterUnarchive?.projectId).toBe(targetProject.id);
+        expect(afterUnarchive?.projectArchivedAt).toBe(movedTask?.projectArchivedAt);
+        expect(afterUnarchive?.rev).toBe(movedTask?.rev);
+        expect(afterUnarchive?.updatedAt).toBe(movedTask?.updatedAt);
+    });
+
     it('sets error when updateProject targets a missing project', async () => {
         const { updateProject } = useTaskStore.getState();
         const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => undefined);

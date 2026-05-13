@@ -11,9 +11,11 @@ import {
     replaceEntityInArray,
     replaceEntityInMap,
     reserveNextProjectOrder,
+    restoreSectionFromProjectArchive,
+    restoreTaskFromProjectArchive,
     reuseArrayIfShallowEqual,
 } from './store-helpers';
-import type { Project, Task } from './types';
+import type { Project, Section, Task } from './types';
 
 const createTask = (
     id: string,
@@ -42,6 +44,23 @@ const createProject = (id: string, overrides: Partial<Project> = {}): Project =>
     color: '#2563EB',
     order: 0,
     tagIds: [],
+    createdAt: '2026-01-01T00:00:00.000Z',
+    updatedAt: '2026-01-01T00:00:00.000Z',
+    rev: 1,
+    revBy: 'device-a',
+    ...overrides,
+});
+
+const createSection = (
+    id: string,
+    projectId = 'project-1',
+    order = 0,
+    overrides: Partial<Section> = {}
+): Section => ({
+    id,
+    projectId,
+    title: `Section ${id}`,
+    order,
     createdAt: '2026-01-01T00:00:00.000Z',
     updatedAt: '2026-01-01T00:00:00.000Z',
     rev: 1,
@@ -202,6 +221,98 @@ describe('entity collection helpers', () => {
         expect(result.byId.get(first.id)).toBe(first);
         expect(result.byId.get(second.id)).toBe(second);
         expect(result.byId.get(third.id)).toBe(third);
+    });
+});
+
+describe('project archive restore helpers', () => {
+    it('restores reversible task archive metadata and bumps sync identity', () => {
+        const archivedAt = '2026-01-05T00:00:00.000Z';
+        const restoredAt = '2026-01-06T00:00:00.000Z';
+        const task = createTask('restore-task', 'project-1', 0, {
+            status: 'done',
+            completedAt: archivedAt,
+            isFocusedToday: false,
+            statusBeforeProjectArchive: 'next',
+            completedAtBeforeProjectArchive: '2026-01-03T00:00:00.000Z',
+            isFocusedTodayBeforeProjectArchive: true,
+            projectArchivedAt: archivedAt,
+            rev: 4,
+        });
+
+        const restored = restoreTaskFromProjectArchive(task, restoredAt, 'device-b');
+
+        expect(restored).not.toBe(task);
+        expect(restored.status).toBe('next');
+        expect(restored.completedAt).toBe('2026-01-03T00:00:00.000Z');
+        expect(restored.isFocusedToday).toBe(true);
+        expect(restored.statusBeforeProjectArchive).toBeUndefined();
+        expect(restored.completedAtBeforeProjectArchive).toBeUndefined();
+        expect(restored.isFocusedTodayBeforeProjectArchive).toBeUndefined();
+        expect(restored.projectArchivedAt).toBeUndefined();
+        expect(restored.updatedAt).toBe(restoredAt);
+        expect(restored.rev).toBe(5);
+        expect(restored.revBy).toBe('device-b');
+    });
+
+    it('does not rewrite deleted project-archive task snapshots', () => {
+        const archivedAt = '2026-01-05T00:00:00.000Z';
+        const task = createTask('deleted-task', 'project-1', 0, {
+            status: 'done',
+            completedAt: archivedAt,
+            deletedAt: '2026-01-05T12:00:00.000Z',
+            statusBeforeProjectArchive: 'next',
+            completedAtBeforeProjectArchive: null,
+            isFocusedTodayBeforeProjectArchive: false,
+            projectArchivedAt: archivedAt,
+            rev: 4,
+            updatedAt: archivedAt,
+        });
+
+        expect(restoreTaskFromProjectArchive(task, '2026-01-06T00:00:00.000Z', 'device-b')).toBe(task);
+    });
+
+    it('does not rewrite manually changed project-archive task snapshots', () => {
+        const archivedAt = '2026-01-05T00:00:00.000Z';
+        const task = createTask('changed-task', 'project-1', 0, {
+            status: 'done',
+            completedAt: '2026-01-05T12:00:00.000Z',
+            statusBeforeProjectArchive: 'waiting',
+            completedAtBeforeProjectArchive: null,
+            isFocusedTodayBeforeProjectArchive: false,
+            projectArchivedAt: archivedAt,
+            rev: 4,
+            updatedAt: '2026-01-05T12:00:00.000Z',
+        });
+
+        expect(restoreTaskFromProjectArchive(task, '2026-01-06T00:00:00.000Z', 'device-b')).toBe(task);
+    });
+
+    it('restores only sections hidden by project archive', () => {
+        const archivedAt = '2026-01-05T00:00:00.000Z';
+        const restoredAt = '2026-01-06T00:00:00.000Z';
+        const hiddenSection = createSection('restore-section', 'project-1', 0, {
+            deletedAt: archivedAt,
+            deletedAtBeforeProjectArchive: null,
+            projectArchivedAt: archivedAt,
+            rev: 7,
+        });
+        const preDeletedSection = createSection('deleted-section', 'project-1', 1, {
+            deletedAt: '2026-01-04T00:00:00.000Z',
+            deletedAtBeforeProjectArchive: '2026-01-04T00:00:00.000Z',
+            projectArchivedAt: archivedAt,
+            rev: 7,
+        });
+
+        const restored = restoreSectionFromProjectArchive(hiddenSection, restoredAt, 'device-b');
+
+        expect(restored).not.toBe(hiddenSection);
+        expect(restored.deletedAt).toBeUndefined();
+        expect(restored.deletedAtBeforeProjectArchive).toBeUndefined();
+        expect(restored.projectArchivedAt).toBeUndefined();
+        expect(restored.updatedAt).toBe(restoredAt);
+        expect(restored.rev).toBe(8);
+        expect(restored.revBy).toBe('device-b');
+        expect(restoreSectionFromProjectArchive(preDeletedSection, restoredAt, 'device-b')).toBe(preDeletedSection);
     });
 });
 
