@@ -235,6 +235,7 @@ export function useRootLayoutStartup({
                                 osMajor: getMobileOsMajor(),
                                 locale: getDeviceLocale(),
                                 storage: AsyncStorage,
+                                fetcher: fetch,
                             });
                         });
                     } catch {

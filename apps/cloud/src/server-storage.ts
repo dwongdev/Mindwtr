@@ -258,7 +258,7 @@ export function writeAttachmentFileSafely(rootRealPath: string, filePath: string
     }
 }
 
-export function readData(filePath: string): any | null {
+export function readData(filePath: string): unknown | null {
     try {
         const raw = readFileSync(filePath, 'utf8');
         return JSON.parse(raw);

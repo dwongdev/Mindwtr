@@ -18,7 +18,7 @@ export type SendDailyHeartbeatOptions = {
     storageKey?: string;
     enabled?: boolean;
     timeoutMs?: number;
-    fetcher?: HeartbeatFetch;
+    fetcher: HeartbeatFetch;
     now?: () => Date;
 };
 
@@ -73,7 +73,7 @@ export async function sendDailyHeartbeat(options: SendDailyHeartbeatOptions): Pr
         const lastSentDay = await storage.getItem(storageKey);
         if (lastSentDay === today) return false;
 
-        const fetcher: HeartbeatFetch = options.fetcher ?? (globalThis.fetch as HeartbeatFetch);
+        const fetcher = options.fetcher;
         if (typeof fetcher !== 'function') return false;
 
         const timeoutMs = Number.isFinite(options.timeoutMs) ? Math.max(500, options.timeoutMs as number) : 5_000;
