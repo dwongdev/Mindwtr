@@ -1,3 +1,3 @@
-- Mobile navigation, Focus, Settings, Review, and capture screens were refreshed.
-- Capture confirmations now use Mindwtr-themed dialogs, with safer deep-link and audio handling.
-- Sync is steadier with saved filter sync, focus limit sync, safer attachment cancellation, and iCloud cancellation handling.
+- Added Apple Reminders import for incomplete reminders.
+- Task editing is faster with clearer controls and quick date shortcuts.
+- Archived task details, Focus lists, calendar recurrences, and project unarchive behavior are more reliable.

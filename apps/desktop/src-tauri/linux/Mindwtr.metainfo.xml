@@ -71,6 +71,19 @@
   <url type="bugtracker">https://github.com/dongdongbh/Mindwtr/issues</url>
   <url type="vcs-browser">https://github.com/dongdongbh/Mindwtr</url>
   <releases>
+    <release version="0.9.3" date="2026-05-13">
+      <url type="details">https://github.com/dongdongbh/Mindwtr/releases/tag/v0.9.3</url>
+      <description translate="no">
+        <p>Mindwtr 0.9.3 improves desktop task editing, project navigation, calendar recurrence handling, and sync diagnostics.</p>
+        <ul>
+          <li>Added faster task editing with attribute pills, quick date shortcuts, and Start Date quick actions.</li>
+          <li>Added clear Agenda empty and error states so filtered desktop views no longer appear blank.</li>
+          <li>Improved project sidebar sizing, wrapping, archived-project visibility, and context/tag filter grouping.</li>
+          <li>Made project archive and unarchive safer by preserving task and section state across sync.</li>
+          <li>Expanded yearly calendar recurrence support and surfaced clearer timestamp-clamp sync diagnostics.</li>
+        </ul>
+      </description>
+    </release>
     <release version="0.9.2" date="2026-05-11">
       <url type="details">https://github.com/dongdongbh/Mindwtr/releases/tag/v0.9.2</url>
       <description translate="no">
