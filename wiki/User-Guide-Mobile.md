@@ -240,6 +240,7 @@ Focus hides future-start tasks and later tasks in sequential projects so the lis
 ### Features
 
 - **Context filter** — Tap a context chip to filter the Next list.
+- **Saved Filters** — Save reusable Focus criteria such as projects, contexts, tags, priority, energy level, and time estimates.
 - **Swipe to Focus** — Swipe a task right to toggle "Focus" status (moves it to Today).
 - **Quick Status** — Tap the status badge to change status.
 - **Pomodoro (Optional)** — Enable in **Settings → GTD → Features → Pomodoro timer** to show a compact focus/break timer. Leave it as **Timer only**, or turn on **Link timer to task** to show the Timer task picker and **Mark task done** action.
@@ -537,6 +538,7 @@ See [[Data and Sync]] for sync setup.
 - **Last sync status** — View when data was last synced
 - **Sync history** — Collapsed by default; tap to expand recent entries
 - **Export Backup** — Save data to a file
+- **Apple Reminders import** — Choose a Reminders list and import incomplete reminders into Inbox. Imported reminders remain in Apple Reminders, and already imported, completed, or untitled reminders are skipped.
 - **Settings sync options** — Choose which preferences sync across devices (theme, language/date format, GTD defaults, external calendar URLs, AI settings, and Saved Filters). API keys and local model paths are never synced.
 
 **GTD Options:**

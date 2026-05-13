@@ -190,4 +190,7 @@ That link acts like a password: only apps with the link can see events, while th
 
 - Desktop Calendar can create a new scheduled task from the in-calendar composer. Mobile scheduling currently works with existing tasks.
 - External calendars are **read-only** inside Mindwtr.
+- ICS recurring events support `FREQ=DAILY`, `WEEKLY`, `MONTHLY`, and `YEARLY`, including `INTERVAL`, `COUNT`, `UNTIL`, `BYDAY`, `BYMONTH`, and `BYMONTHDAY` for the patterns Mindwtr can expand into the visible range.
+- Yearly all-day events and yearly rules such as `FREQ=YEARLY;COUNT=...` or `FREQ=YEARLY;BYMONTH=1;BYDAY=3MO` are expanded in the visible calendar window.
+- Exception dates and recurrence overrides such as `EXDATE`, `RDATE`, and `RECURRENCE-ID` are not expanded today.
 - Recurring events with `RRULE:...;COUNT=...` stop after their original count. If you previously saw very old recurring events, re-import after updating to v0.4.9+.

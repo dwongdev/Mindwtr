@@ -53,7 +53,9 @@ Your unified dashboard for daily engagement. Focus is not a full inventory of ev
 Focus hides future-start tasks and later tasks in sequential projects. Use **Contexts**, **Projects**, or **Search** when you need to inspect broader task inventory.
 
 **Features:**
-- **Context Filters**: Filter Next Actions by context (e.g., @home, @work) or tag.
+- **Context Filters**: Filter Next Actions by context (e.g., @home, @work) or tag. The filter picker groups contexts and tags so long metadata lists stay scannable.
+- **Group by Context**: Use the list grouping control to group Next Actions by primary context, with context-less tasks collected under **No context**.
+- **Saved Filters**: Save reusable Focus criteria such as projects, contexts, tags, priority, energy level, and time estimates.
 - **Zen Mode**: Toggle to hide everything except Today's Focus tasks.
 - **Pomodoro (Optional)**: Enable in **Settings → GTD → Features → Pomodoro timer** to show a focus/break timer panel (15/3, 25/5, 50/10, plus one optional custom preset). Leave it as **Timer only**, or turn on **Link timer to task** to show the Timer task picker and **Mark task done** action.
 
@@ -156,6 +158,9 @@ Use checklists as templates:
 - Click a task to open a **read-only view** of all details.
 - Press **Edit** (or `e`) to switch to edit mode.
 - The editor starts minimal. Use **More options** to reveal advanced fields.
+- Status, Priority, and Energy Level use pill controls instead of dropdowns for faster keyboard and pointer selection.
+- Date fields include quick chips for **Today**, **Tomorrow**, **+3 days**, **Next week**, **Next month**, and **No date**.
+- In **Settings → GTD → Task Editor Layout**, choose whether the desktop editor opens as the inline side peek or a centered pop-up.
 
 ---
 
@@ -453,6 +458,7 @@ Access Settings from the sidebar.
 - **Inbox Processing** — Keep guided inbox processing for teaching GTD, or switch the default to **Quick** mode for a compact one-screen flow
   - Choose whether to show the 2-minute shortcut, ask for project early, include contexts/tags, allow scheduling, and offer reference during processing
 - **Task Editor Layout** — Choose which fields are shown by default, move fields between sections, and reorder them
+  - Choose the editor opening style: **Side peek** for inline edits or **Pop-up** for focused editing
   - You can move fields like **Due Date** into **Scheduling** and choose which sections expand by default
 - **Manage** — Maintain your reusable metadata from one place
   - Edit **Areas**, **Contexts**, and **Tags** without hunting through individual tasks
