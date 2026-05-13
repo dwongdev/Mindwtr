@@ -695,6 +695,7 @@ export const esOverrides: Record<string, string> = {
         'digest.reviewDue': 'Toca revisar',
         'digest.noItems': 'No hay elementos urgentes para hoy.',
         'common.tasks': 'tareas',
+        'common.days': 'días',
         'common.cancel': 'Cancelar',
         'common.save': 'Guardar',
         'common.delete': 'Eliminar',

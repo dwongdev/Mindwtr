@@ -793,6 +793,7 @@ export const plOverrides: Record<string, string> = {
         'digest.reviewDue': 'Do przeglądu',
         'digest.noItems': 'Dzisiaj nie ma żadnych pilnych spraw.',
         'common.tasks': 'zadania',
+        'common.days': 'dni',
         'common.cancel': 'Anuluj',
         'common.save': 'Zapisz',
         'common.delete': 'Usuń',

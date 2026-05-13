@@ -786,6 +786,7 @@ export const frOverrides: Record<string, string> = {
         'digest.reviewDue': 'Examen dû',
         'digest.noItems': 'Pas d\'articles urgents aujourd\'hui.',
         'common.tasks': 'tâches',
+        'common.days': 'jours',
         'common.cancel': 'Annuler',
         'common.save': 'Sauvegarder',
         'common.delete': 'Supprimer',

@@ -796,6 +796,7 @@ export const ptOverrides: Record<string, string> = {
         'digest.reviewDue': 'Revisão vencida',
         'digest.noItems': 'Não há itens urgentes hoje.',
         'common.tasks': 'tarefas',
+        'common.days': 'dias',
         'common.cancel': 'Cancelar',
         'common.save': 'Salvar',
         'common.delete': 'Excluir',

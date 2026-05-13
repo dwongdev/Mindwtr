@@ -32,6 +32,7 @@ type Labels = {
     autoArchive: string;
     autoArchiveDesc: string;
     autoArchiveNever: string;
+    autoArchiveDayUnit: string;
     defaultScheduleTime: string;
     defaultScheduleTimeDesc: string;
     focusTaskLimit: string;
@@ -182,26 +183,7 @@ export function SettingsGtdPage({
     const autoArchiveOptions = [0, 1, 3, 7, 14, 30, 60];
     const formatArchiveLabel = (days: number) => {
         if (days <= 0) return t.autoArchiveNever;
-        const dayLabelMap: Record<Language, string> = {
-            en: 'days',
-            zh: '天',
-            'zh-Hant': '天',
-            es: 'días',
-            hi: 'दिन',
-            ar: 'أيام',
-            de: translateText('days', 'de'),
-            ru: translateText('days', 'ru'),
-            ja: translateText('days', 'ja'),
-            fr: translateText('days', 'fr'),
-            pt: translateText('days', 'pt'),
-            pl: translateText('days', 'pl'),
-            nl: translateText('days', 'nl'),
-            ko: translateText('days', 'ko'),
-            it: translateText('days', 'it'),
-            tr: translateText('days', 'tr'),
-        };
-        const label = dayLabelMap[language] ?? 'days';
-        return `${days} ${label}`;
+        return `${days} ${t.autoArchiveDayUnit}`;
     };
     const featureHiddenFields = new Set<TaskEditorFieldId>();
     if (safeSettings.features?.priorities === false) {

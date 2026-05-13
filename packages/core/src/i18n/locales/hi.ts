@@ -795,6 +795,7 @@ export const hiOverrides: Record<string, string> = {
         'digest.reviewDue': 'समीक्षा देय',
         'digest.noItems': 'आज कोई जरूरी सामान नहीं.',
         'common.tasks': 'कार्य',
+        'common.days': 'दिन',
         'common.cancel': 'रद्द करना',
         'common.save': 'बचाना',
         'common.delete': 'मिटाना',

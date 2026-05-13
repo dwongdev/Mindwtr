@@ -924,6 +924,7 @@ export const zhHans: Record<string, string> = {
         'digest.reviewDue': '待回顾',
         'digest.noItems': '今天没有紧急事项。',
         'common.tasks': '个任务',
+        'common.days': '天',
         'common.cancel': '取消',
         'common.discard': '放弃',
         'common.save': '保存',

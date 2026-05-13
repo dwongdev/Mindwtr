@@ -1007,6 +1007,7 @@ export const en: Record<string, string> = {
 
         // Common
         'common.tasks': 'tasks',
+        'common.days': 'days',
         'common.cancel': 'Cancel',
         'common.discard': 'Discard',
         'common.save': 'Save',

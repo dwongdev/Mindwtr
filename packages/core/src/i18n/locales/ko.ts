@@ -787,6 +787,7 @@ export const koOverrides: Record<string, string> = {
         'digest.reviewDue': '검토 기한',
         'digest.noItems': '오늘은 급한 물건이 없습니다.',
         'common.tasks': '작업',
+        'common.days': '일',
         'common.cancel': '취소',
         'common.save': '구하다',
         'common.delete': '삭제',

@@ -790,6 +790,7 @@ export const arOverrides: Record<string, string> = {
         'digest.reviewDue': 'المراجعة مستحقة',
         'digest.noItems': 'لا توجد عناصر عاجلة اليوم.',
         'common.tasks': 'المهام',
+        'common.days': 'أيام',
         'common.cancel': 'يلغي',
         'common.save': 'يحفظ',
         'common.delete': 'يمسح',

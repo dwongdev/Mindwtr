@@ -792,6 +792,7 @@ export const jaOverrides: Record<string, string> = {
         'digest.reviewDue': 'レビュー期限',
         'digest.noItems': '今日は急ぎの品はありません。',
         'common.tasks': 'タスク',
+        'common.days': '日',
         'common.cancel': 'キャンセル',
         'common.save': '保存',
         'common.delete': '消去',

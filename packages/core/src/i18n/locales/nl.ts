@@ -182,6 +182,7 @@ export const nlOverrides: Record<string, string> = {
         'areas.edit': 'Gebied bewerken',
         'common.search': 'Zoeken',
         'common.done': 'Klaar',
+        'common.days': 'dagen',
         'common.undo': 'Ongedaan maken',
         'settings.density': 'Dikte',
         'settings.densityDesc': 'Pas de lijstafstand aan om meer items op het scherm weer te geven.',
