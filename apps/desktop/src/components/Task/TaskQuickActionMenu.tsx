@@ -22,8 +22,6 @@ import { QuickDateChips } from '../QuickDateChips';
 const VIEWPORT_MARGIN_PX = 8;
 const PANEL_GAP_PX = 8;
 const MENU_WIDTH_PX = 224;
-const MENU_HEIGHT_EDITABLE_PX = 274;
-const MENU_HEIGHT_READ_ONLY_PX = 88;
 
 type QuickPanelId = 'startTime' | 'dueDate' | 'reviewAt' | 'area' | 'contexts' | null;
 
@@ -89,6 +87,7 @@ export function TaskQuickActionMenu({
     const contextsButtonRef = useRef<HTMLButtonElement | null>(null);
     const [activePanel, setActivePanel] = useState<QuickPanelId>(null);
     const [panelPosition, setPanelPosition] = useState<{ left: number; top: number } | null>(null);
+    const [menuSize, setMenuSize] = useState({ width: MENU_WIDTH_PX, height: 1 });
     const initialStartDraft = getDueDateDraft(task.startTime);
     const initialDueDraft = getDueDateDraft(task.dueDate);
     const initialReviewDraft = getDueDateDraft(task.reviewAt);
@@ -185,14 +184,29 @@ export function TaskQuickActionMenu({
         left: clamp(
             x,
             VIEWPORT_MARGIN_PX,
-            window.innerWidth - MENU_WIDTH_PX - VIEWPORT_MARGIN_PX,
+            window.innerWidth - menuSize.width - VIEWPORT_MARGIN_PX,
         ),
         top: clamp(
             y,
             VIEWPORT_MARGIN_PX,
-            window.innerHeight - (readOnly ? MENU_HEIGHT_READ_ONLY_PX : MENU_HEIGHT_EDITABLE_PX) - VIEWPORT_MARGIN_PX,
+            window.innerHeight - menuSize.height - VIEWPORT_MARGIN_PX,
         ),
     };
+
+    useLayoutEffect(() => {
+        const menu = menuRef.current;
+        if (!menu) return;
+        const rect = menu.getBoundingClientRect();
+        const nextSize = {
+            width: Math.ceil(rect.width) || MENU_WIDTH_PX,
+            height: Math.ceil(rect.height) || 1,
+        };
+        setMenuSize((current) => (
+            current.width === nextSize.width && current.height === nextSize.height
+                ? current
+                : nextSize
+        ));
+    }, [canEditArea, readOnly]);
 
     useLayoutEffect(() => {
         if (!activePanel) {
