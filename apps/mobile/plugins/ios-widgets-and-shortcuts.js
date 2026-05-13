@@ -11,8 +11,10 @@ const {
 
 const TARGET_NAME = 'MindwtrWidgets';
 const WIDGETS_FOLDER = 'widgets-ios';
+const APP_INTENTS_FOLDER = 'ios-app-intents';
 const APP_GROUP = 'group.tech.dongdongbh.mindwtr';
 const SHORTCUT_URL_KEY = 'url';
+const SIRI_CAPTURE_SHORTCUTS_PROVIDER = 'MindwtrSiriCaptureShortcuts';
 const SHORTCUT_ITEMS = [
   {
     UIApplicationShortcutItemType: 'tech.dongdongbh.mindwtr.add_task',
@@ -98,6 +100,34 @@ const collectWidgetFiles = (targetDir) => {
   return widgetFiles;
 };
 
+const collectSwiftFiles = (targetDir) => {
+  if (!fs.existsSync(targetDir)) return [];
+  return fs.readdirSync(targetDir, { withFileTypes: true })
+    .filter((entry) => entry.isFile() && entry.name.endsWith('.swift'))
+    .map((entry) => entry.name)
+    .sort();
+};
+
+const ensureSourceFileInTarget = (xcodeProject, { filePath, groupKey, targetUuid }) => {
+  if (!filePath || !groupKey || !targetUuid) return false;
+  if (xcodeProject.hasFile(filePath)) return false;
+  xcodeProject.addSourceFile(filePath, { target: targetUuid }, groupKey);
+  return true;
+};
+
+const addSiriShortcutsRegistrationToAppDelegate = (contents) => {
+  const registrationCall = `${SIRI_CAPTURE_SHORTCUTS_PROVIDER}.updateAppShortcutParameters()`;
+  if (contents.includes(registrationCall)) return contents;
+
+  const bindLine = '    bindReactNativeFactory(factory)\n';
+  if (!contents.includes(bindLine)) return contents;
+
+  return contents.replace(
+    bindLine,
+    `${bindLine}\n    if #available(iOS 16.0, *) {\n      ${registrationCall}\n    }\n`
+  );
+};
+
 const addQuickActionsToInfoPlist = (config) =>
   withInfoPlist(config, (cfg) => {
     cfg.modResults.UIApplicationShortcutItems = SHORTCUT_ITEMS;
@@ -123,42 +153,83 @@ const addAppDelegateShortcutHandling = (config) =>
       if (!fs.existsSync(appDelegatePath)) return cfg;
 
       let contents = fs.readFileSync(appDelegatePath, 'utf8');
-      if (contents.includes('handleHomeScreenQuickAction')) return cfg;
+      const hasQuickActionHandling = contents.includes('handleHomeScreenQuickAction');
 
-      const classHeader = 'public class AppDelegate: ExpoAppDelegate {';
-      if (contents.includes(classHeader)) {
-        const quickActionMapLiteral = buildShortcutTypeToUrlMapLiteral();
-        contents = contents.replace(
-          classHeader,
-          `${classHeader}\n  private let quickActionTypeToUrl: [String: String] = [\n${quickActionMapLiteral}\n  ]\n  private let quickActionUrlUserInfoKey = "${SHORTCUT_URL_KEY}"`
-        );
-      }
+      if (!hasQuickActionHandling) {
+        const classHeader = 'public class AppDelegate: ExpoAppDelegate {';
+        if (contents.includes(classHeader)) {
+          const quickActionMapLiteral = buildShortcutTypeToUrlMapLiteral();
+          contents = contents.replace(
+            classHeader,
+            `${classHeader}\n  private let quickActionTypeToUrl: [String: String] = [\n${quickActionMapLiteral}\n  ]\n  private let quickActionUrlUserInfoKey = "${SHORTCUT_URL_KEY}"`
+          );
+        }
 
-      const returnLine = '    return super.application(application, didFinishLaunchingWithOptions: launchOptions)';
-      if (contents.includes(returnLine)) {
-        contents = contents.replace(
-          returnLine,
-          `    let launchHandled = super.application(application, didFinishLaunchingWithOptions: launchOptions)\n    if let shortcutItem = launchOptions?[.shortcutItem] as? UIApplicationShortcutItem {\n      _ = handleHomeScreenQuickAction(shortcutItem, application: application)\n    }\n    return launchHandled`
-        );
-      }
+        const returnLine = '    return super.application(application, didFinishLaunchingWithOptions: launchOptions)';
+        if (contents.includes(returnLine)) {
+          contents = contents.replace(
+            returnLine,
+            `    let launchHandled = super.application(application, didFinishLaunchingWithOptions: launchOptions)\n    if let shortcutItem = launchOptions?[.shortcutItem] as? UIApplicationShortcutItem {\n      _ = handleHomeScreenQuickAction(shortcutItem, application: application)\n    }\n    return launchHandled`
+          );
+        }
 
-      const marker = '\n\nclass ReactNativeDelegate: ExpoReactNativeFactoryDelegate {';
-      const quickActionHandlers = `  public override func application(\n    _ application: UIApplication,\n    performActionFor shortcutItem: UIApplicationShortcutItem,\n    completionHandler: @escaping (Bool) -> Void\n  ) {\n    completionHandler(handleHomeScreenQuickAction(shortcutItem, application: application))\n  }\n\n  private func handleHomeScreenQuickAction(\n    _ shortcutItem: UIApplicationShortcutItem,\n    application: UIApplication\n  ) -> Bool {\n    guard let destinationUrl = quickActionUrl(shortcutItem) else {\n      return false\n    }\n\n    // Give React Native routing a brief moment to initialize on cold launch.\n    DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {\n      _ = RCTLinkingManager.application(application, open: destinationUrl, options: [:])\n      application.open(destinationUrl, options: [:], completionHandler: nil)\n    }\n    return true\n  }\n\n  private func quickActionUrl(_ shortcutItem: UIApplicationShortcutItem) -> URL? {\n    if let userInfo = shortcutItem.userInfo,\n       let rawUrl = userInfo[quickActionUrlUserInfoKey] as? String,\n       let parsedUrl = URL(string: rawUrl) {\n      return parsedUrl\n    }\n    if let mappedUrl = quickActionTypeToUrl[shortcutItem.type] {\n      return URL(string: mappedUrl)\n    }\n    return nil\n  }`;
-      const markerIndex = contents.indexOf(marker);
-      if (markerIndex !== -1) {
-        const beforeMarker = contents.slice(0, markerIndex);
-        const appDelegateCloseIndex = beforeMarker.lastIndexOf('\n}');
-        if (appDelegateCloseIndex !== -1) {
-          contents = `${contents.slice(0, appDelegateCloseIndex)}\n\n${quickActionHandlers}\n${contents.slice(appDelegateCloseIndex)}`;
-        } else {
-          contents = contents.replace(marker, `\n\n${quickActionHandlers}\n${marker}`);
+        const marker = '\n\nclass ReactNativeDelegate: ExpoReactNativeFactoryDelegate {';
+        const quickActionHandlers = `  public override func application(\n    _ application: UIApplication,\n    performActionFor shortcutItem: UIApplicationShortcutItem,\n    completionHandler: @escaping (Bool) -> Void\n  ) {\n    completionHandler(handleHomeScreenQuickAction(shortcutItem, application: application))\n  }\n\n  private func handleHomeScreenQuickAction(\n    _ shortcutItem: UIApplicationShortcutItem,\n    application: UIApplication\n  ) -> Bool {\n    guard let destinationUrl = quickActionUrl(shortcutItem) else {\n      return false\n    }\n\n    // Give React Native routing a brief moment to initialize on cold launch.\n    DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {\n      _ = RCTLinkingManager.application(application, open: destinationUrl, options: [:])\n      application.open(destinationUrl, options: [:], completionHandler: nil)\n    }\n    return true\n  }\n\n  private func quickActionUrl(_ shortcutItem: UIApplicationShortcutItem) -> URL? {\n    if let userInfo = shortcutItem.userInfo,\n       let rawUrl = userInfo[quickActionUrlUserInfoKey] as? String,\n       let parsedUrl = URL(string: rawUrl) {\n      return parsedUrl\n    }\n    if let mappedUrl = quickActionTypeToUrl[shortcutItem.type] {\n      return URL(string: mappedUrl)\n    }\n    return nil\n  }`;
+        const markerIndex = contents.indexOf(marker);
+        if (markerIndex !== -1) {
+          const beforeMarker = contents.slice(0, markerIndex);
+          const appDelegateCloseIndex = beforeMarker.lastIndexOf('\n}');
+          if (appDelegateCloseIndex !== -1) {
+            contents = `${contents.slice(0, appDelegateCloseIndex)}\n\n${quickActionHandlers}\n${contents.slice(appDelegateCloseIndex)}`;
+          } else {
+            contents = contents.replace(marker, `\n\n${quickActionHandlers}\n${marker}`);
+          }
         }
       }
 
+      contents = addSiriShortcutsRegistrationToAppDelegate(contents);
       fs.writeFileSync(appDelegatePath, contents);
       return cfg;
     },
   ]);
+
+const addAppIntentSourcesToMainTarget = (config) =>
+  withXcodeProject(config, (cfg) => {
+    const xcodeProject = cfg.modResults;
+    const platformProjectRoot = cfg.modRequest.platformProjectRoot;
+    const projectRoot = cfg.modRequest.projectRoot;
+    const appName = IOSConfig.XcodeUtils.sanitizedName(cfg.name);
+    const sourceDir = path.join(projectRoot, APP_INTENTS_FOLDER);
+    const targetDir = path.join(platformProjectRoot, appName);
+
+    if (!fs.existsSync(sourceDir)) {
+      throw new Error(`[ios-widgets-and-shortcuts] Missing app intents template folder: ${sourceDir}`);
+    }
+
+    copyRecursive(sourceDir, targetDir);
+
+    const swiftFiles = collectSwiftFiles(sourceDir);
+    if (swiftFiles.length === 0) return cfg;
+
+    const mainTargetUuid = xcodeProject.getFirstTarget().uuid;
+    const mainGroupKey =
+      xcodeProject.findPBXGroupKey({ name: appName })
+      || xcodeProject.findPBXGroupKey({ path: appName });
+
+    if (!mainGroupKey) {
+      throw new Error(`[ios-widgets-and-shortcuts] Could not find main iOS group: ${appName}`);
+    }
+
+    for (const fileName of swiftFiles) {
+      ensureSourceFileInTarget(xcodeProject, {
+        filePath: `${appName}/${fileName}`,
+        groupKey: mainGroupKey,
+        targetUuid: mainTargetUuid,
+      });
+    }
+
+    return cfg;
+  });
 
 const addWidgetTargetToXcode = (config) =>
   withXcodeProject(config, (cfg) => {
@@ -347,7 +418,7 @@ const ensureWidgetTargetInPodfile = (config) =>
     },
   ]);
 
-module.exports = function withIosWidgetsAndShortcuts(config) {
+function withIosWidgetsAndShortcuts(config) {
   const targetName = TARGET_NAME;
   const bundleIdentifier = `${config.ios?.bundleIdentifier || 'tech.dongdongbh.mindwtr'}.${TARGET_NAME}`;
   const appExtensions =
@@ -386,7 +457,17 @@ module.exports = function withIosWidgetsAndShortcuts(config) {
     addQuickActionsToInfoPlist,
     addAppGroupEntitlement,
     addAppDelegateShortcutHandling,
+    addAppIntentSourcesToMainTarget,
     addWidgetTargetToXcode,
     ensureWidgetTargetInPodfile,
   ]);
+}
+
+module.exports = withIosWidgetsAndShortcuts;
+module.exports.__testables = {
+  APP_INTENTS_FOLDER,
+  SIRI_CAPTURE_SHORTCUTS_PROVIDER,
+  addSiriShortcutsRegistrationToAppDelegate,
+  collectSwiftFiles,
+  ensureSourceFileInTarget,
 };
