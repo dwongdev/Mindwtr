@@ -207,6 +207,7 @@ const sendDesktopHeartbeat = async (): Promise<void> => {
             osMajor: getDesktopOsMajor(platform),
             locale: getDesktopLocale(),
             storage: localStorage,
+            fetcher: fetch,
         });
     } catch (error) {
         void logWarn('Desktop analytics heartbeat failed', {
