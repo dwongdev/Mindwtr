@@ -6,7 +6,7 @@ import type { FilterCriteria, SavedFilter, Task, TaskEnergyLevel } from '@mindwt
 import { useLanguage } from '../../contexts/language-context';
 import { cn } from '../../lib/utils';
 import { useUiStore } from '../../store/ui-store';
-import { Clock, Star, ArrowRight, Folder, CheckCircle2, Plus, X } from 'lucide-react';
+import { AlertCircle, Clock, Star, ArrowRight, Folder, CheckCircle2, Plus, X } from 'lucide-react';
 import { usePerformanceMonitor } from '../../hooks/usePerformanceMonitor';
 import { checkBudget } from '../../config/performanceBudgets';
 import { projectMatchesAreaFilter, resolveAreaFilter, taskMatchesAreaFilter } from '../../lib/area-filter';
@@ -185,13 +185,14 @@ function AgendaTaskList({
 
 export function AgendaView() {
     const perf = usePerformanceMonitor('AgendaView');
-    const { projects, areas, updateTask, updateSettings, settings, highlightTaskId, setHighlightTask } = useTaskStore(
+    const { projects, areas, updateTask, updateSettings, settings, error, highlightTaskId, setHighlightTask } = useTaskStore(
         (state) => ({
             projects: state.projects,
             areas: state.areas,
             updateTask: state.updateTask,
             updateSettings: state.updateSettings,
             settings: state.settings,
+            error: state.error,
             highlightTaskId: state.highlightTaskId,
             setHighlightTask: state.setHighlightTask,
         }),
@@ -751,8 +752,12 @@ export function AgendaView() {
         }));
     }, []);
 
-    const visibleActive = filteredActiveTasks.length;
     const nextActionsCount = sections.nextActions.length;
+    const hasAgendaContent = focusedTasks.length > 0
+        || sections.schedule.length > 0
+        || sections.nextActions.length > 0
+        || sections.reviewDue.length > 0
+        || reviewDueProjects.length > 0;
     const pomodoroTasks = useMemo(() => {
         const ordered = [
             ...focusedTasks,
@@ -886,6 +891,19 @@ export function AgendaView() {
                 timeEstimateOptions={timeEstimateOptions}
                 timeEstimatesEnabled={timeEstimatesEnabled}
             />
+
+            {error && (
+                <div
+                    role="alert"
+                    className="flex items-start gap-3 rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive"
+                >
+                    <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
+                    <div className="min-w-0">
+                        <p className="font-medium">{resolveText('errorBoundary.title', 'Something went wrong')}</p>
+                        <p className="break-words text-destructive/90">{error}</p>
+                    </div>
+                </div>
+            )}
 
             {hiddenFutureStartCount > 0 && (
                 <div className="flex items-center justify-between gap-3 rounded-md border border-border bg-muted/25 px-3 py-2 text-sm">
@@ -1070,7 +1088,7 @@ export function AgendaView() {
                 </>
             )}
 
-            {visibleActive === 0 && (
+            {!top3Only && !hasAgendaContent && (
                 <div className="text-center py-12 text-muted-foreground flex flex-col items-center gap-2">
                     <CheckCircle2 className="w-10 h-10 text-emerald-500/80" aria-hidden="true" strokeWidth={1.5} />
                     <p className="text-lg font-medium text-foreground">{t('agenda.allClear')}</p>

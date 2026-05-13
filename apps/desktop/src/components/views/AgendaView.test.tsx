@@ -37,6 +37,7 @@ describe('AgendaView', () => {
             areas: [],
             _allAreas: [],
             settings: {},
+            error: null,
             highlightTaskId: null,
         });
         useUiStore.setState({
@@ -136,6 +137,36 @@ describe('AgendaView', () => {
 
         expect(queryByRole('heading', { name: /today/i })).not.toBeInTheDocument();
         expect(queryByText('Start today inbox task')).not.toBeInTheDocument();
+    });
+
+    it('shows an empty state when active tasks do not produce agenda sections', () => {
+        const inboxTask: Task = {
+            id: 'inbox-task',
+            title: 'Inbox only task',
+            status: 'inbox',
+            tags: [],
+            contexts: [],
+            createdAt: nowIso,
+            updatedAt: nowIso,
+        };
+
+        useTaskStore.setState({
+            tasks: [inboxTask],
+            _allTasks: [inboxTask],
+            projects: [],
+            _allProjects: [],
+            areas: [],
+            _allAreas: [],
+            settings: {},
+            error: null,
+            highlightTaskId: null,
+        });
+
+        const { getByText, queryByText } = renderAgenda();
+
+        expect(getByText('All Clear!')).toBeInTheDocument();
+        expect(getByText('Nothing on deck. Pick a next action to focus on.')).toBeInTheDocument();
+        expect(queryByText('Inbox only task')).not.toBeInTheDocument();
     });
 
     it('does not let earlier non-Focus tasks hide the next task in a sequential project', () => {
@@ -685,6 +716,51 @@ describe('AgendaView', () => {
 
         expect(getByText('High energy task')).toBeInTheDocument();
         expect(queryByText('Low energy task')).not.toBeInTheDocument();
+    });
+
+    it('shows an empty state when filters match no visible focus tasks', () => {
+        const lowEnergyTask: Task = {
+            id: 'low-energy-task',
+            title: 'Low energy task',
+            status: 'next',
+            energyLevel: 'low',
+            contexts: [],
+            tags: [],
+            createdAt: nowIso,
+            updatedAt: nowIso,
+        };
+
+        useTaskStore.setState({
+            tasks: [lowEnergyTask],
+            _allTasks: [lowEnergyTask],
+            projects: [],
+            _allProjects: [],
+            areas: [],
+            _allAreas: [],
+            settings: {},
+            error: null,
+            highlightTaskId: null,
+        });
+
+        const { getByRole, getByText, queryByText } = renderAgenda();
+
+        fireEvent.click(getByRole('button', { name: /^Show$/i }));
+        fireEvent.click(getByRole('button', { name: 'High energy' }));
+
+        expect(queryByText('Low energy task')).not.toBeInTheDocument();
+        expect(getByText('No tasks match these filters.')).toBeInTheDocument();
+    });
+
+    it('shows store errors inside the Agenda surface', () => {
+        useTaskStore.setState({
+            error: 'Storage request timed out. Try again.',
+        });
+
+        const { getByRole, getByText } = renderAgenda();
+
+        expect(getByRole('alert')).toBeInTheDocument();
+        expect(getByText('Something went wrong')).toBeInTheDocument();
+        expect(getByText('Storage request timed out. Try again.')).toBeInTheDocument();
     });
 
     it('applies and clears saved Focus filters from the chip row', () => {
