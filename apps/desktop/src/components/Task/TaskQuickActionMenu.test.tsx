@@ -61,10 +61,12 @@ describe('TaskQuickActionMenu', () => {
     it('opens one panel at a time and exposes dialog state without pressed state', () => {
         renderMenu();
 
+        expect(screen.getByRole('menu', { name: /more options/i })).toBeInTheDocument();
         const dueButton = screen.getByRole('menuitem', { name: /due date/i });
         expect(dueButton).toHaveAttribute('aria-haspopup', 'dialog');
         expect(dueButton).toHaveAttribute('aria-expanded', 'false');
         expect(dueButton).not.toHaveAttribute('aria-pressed');
+        expect(dueButton).toHaveClass('focus-visible:ring-2');
 
         fireEvent.click(dueButton);
 

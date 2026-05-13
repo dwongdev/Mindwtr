@@ -335,7 +335,7 @@ export function TaskQuickActionMenu({
             aria-expanded={showChevron ? active : undefined}
             onClick={onClick}
             className={cn(
-                'flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-sm transition-colors',
+                'flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-sm transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40',
                 active ? 'bg-muted text-foreground' : 'text-foreground hover:bg-muted',
             )}
         >
@@ -473,7 +473,7 @@ export function TaskQuickActionMenu({
                                             setDueDateDraft('');
                                             setDueTimeDraft('');
                                         }}
-                                        className="shrink-0 rounded p-2 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                                        className="shrink-0 rounded p-2 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
                                         aria-label={`${clearLabel} ${dueLabel}`}
                                     >
                                         <X className="h-4 w-4" />
@@ -548,7 +548,7 @@ export function TaskQuickActionMenu({
                                             setReviewDateDraft('');
                                             setReviewTimeDraft('');
                                         }}
-                                        className="shrink-0 rounded p-2 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                                        className="shrink-0 rounded p-2 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
                                         aria-label={`${clearLabel} ${reviewLabel}`}
                                     >
                                         <X className="h-4 w-4" />

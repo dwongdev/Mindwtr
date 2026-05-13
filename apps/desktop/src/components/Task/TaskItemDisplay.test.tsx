@@ -336,6 +336,43 @@ describe('TaskItemDisplay', () => {
         expect(getByRole('button', { name: 'Referenced task' })).toBeInTheDocument();
     });
 
+    it('exposes the quick actions trigger as a menu popup', () => {
+        const { getByRole } = render(
+            <LanguageProvider>
+                <TaskItemDisplay
+                    task={baseTask}
+                    language="en"
+                    selectionMode={false}
+                    isViewOpen={false}
+                    quickActionsOpen={false}
+                    actions={{
+                        onToggleView: vi.fn(),
+                        onEdit: vi.fn(),
+                        onDelete: vi.fn(),
+                        onDuplicate: vi.fn(),
+                        onStatusChange: vi.fn(),
+                        onOpenQuickActions: vi.fn(),
+                        openAttachment: vi.fn(),
+                    }}
+                    visibleAttachments={[]}
+                    recurrenceRule=""
+                    recurrenceStrategy="strict"
+                    prioritiesEnabled={false}
+                    timeEstimatesEnabled={false}
+                    isStagnant={false}
+                    showQuickDone={false}
+                    readOnly={false}
+                    t={(key: string) => key}
+                />
+            </LanguageProvider>
+        );
+
+        const trigger = getByRole('button', { name: 'More options' });
+        expect(trigger).toHaveAttribute('aria-haspopup', 'menu');
+        expect(trigger).toHaveAttribute('aria-expanded', 'false');
+        expect(trigger).toHaveClass('focus-visible:ring-2');
+    });
+
     it('opens external URL notes from expanded task details', () => {
         const open = vi.fn(() => ({}));
         vi.stubGlobal('open', open);

@@ -697,11 +697,11 @@ export const TaskItemDisplay = memo(function TaskItemDisplay({
                             type="button"
                             onClick={onOpenQuickActions}
                             data-task-quick-actions-trigger
-                            aria-haspopup="dialog"
+                            aria-haspopup="menu"
                             aria-expanded={quickActionsOpen}
                             aria-label={moreOptionsLabel}
                             title={moreOptionsLabel}
-                            className="opacity-0 group-hover:opacity-100 focus:opacity-100 transition-opacity text-muted-foreground hover:text-foreground p-1 rounded hover:bg-muted/50"
+                            className="opacity-0 group-hover:opacity-100 focus:opacity-100 transition-opacity text-muted-foreground hover:text-foreground p-1 rounded hover:bg-muted/50 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
                         >
                             <MoreHorizontal className="w-4 h-4" />
                         </button>
@@ -713,7 +713,7 @@ export const TaskItemDisplay = memo(function TaskItemDisplay({
                                 onClick={onDuplicate}
                                 aria-label={t('taskEdit.duplicateTask')}
                                 title={t('taskEdit.duplicateTask')}
-                                className="opacity-0 group-hover:opacity-100 focus:opacity-100 transition-opacity text-muted-foreground hover:text-foreground p-1 rounded hover:bg-muted/50"
+                                className="opacity-0 group-hover:opacity-100 focus:opacity-100 transition-opacity text-muted-foreground hover:text-foreground p-1 rounded hover:bg-muted/50 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
                             >
                                 <Copy className="w-4 h-4" />
                             </button>
@@ -722,14 +722,14 @@ export const TaskItemDisplay = memo(function TaskItemDisplay({
                                 onClick={() => onStatusChange('next')}
                                 aria-label={t('waiting.moveToNext')}
                                 title={t('waiting.moveToNext')}
-                                className="opacity-0 group-hover:opacity-100 focus:opacity-100 transition-opacity text-muted-foreground hover:text-foreground p-1 rounded hover:bg-muted/50"
+                                className="opacity-0 group-hover:opacity-100 focus:opacity-100 transition-opacity text-muted-foreground hover:text-foreground p-1 rounded hover:bg-muted/50 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
                             >
                                 <RotateCcw className="w-4 h-4" />
                             </button>
                             <button
                                 onClick={onDelete}
                                 aria-label={t('task.aria.delete')}
-                                className="opacity-0 group-hover:opacity-100 focus:opacity-100 transition-opacity text-muted-foreground hover:text-muted-foreground/70 p-1 rounded hover:bg-muted/50"
+                                className="opacity-0 group-hover:opacity-100 focus:opacity-100 transition-opacity text-muted-foreground hover:text-muted-foreground/70 p-1 rounded hover:bg-muted/50 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
                             >
                                 <Trash2 className="w-4 h-4" />
                             </button>
@@ -742,7 +742,7 @@ export const TaskItemDisplay = memo(function TaskItemDisplay({
                                     onClick={() => onStatusChange('reference')}
                                     aria-label={t('task.convertToReference')}
                                     title={t('task.convertToReference')}
-                                    className="opacity-0 group-hover:opacity-100 focus:opacity-100 transition-opacity text-muted-foreground hover:text-foreground p-1 rounded hover:bg-muted/50"
+                                    className="opacity-0 group-hover:opacity-100 focus:opacity-100 transition-opacity text-muted-foreground hover:text-foreground p-1 rounded hover:bg-muted/50 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
                                 >
                                     <BookOpen className="w-4 h-4" />
                                 </button>
@@ -753,7 +753,7 @@ export const TaskItemDisplay = memo(function TaskItemDisplay({
                                     onClick={onMoveToWaitingWithPrompt}
                                     aria-label={moveToWaitingWithDueLabel}
                                     title={moveToWaitingWithDueLabel}
-                                    className="opacity-0 group-hover:opacity-100 focus:opacity-100 transition-opacity text-muted-foreground hover:text-foreground p-1 rounded hover:bg-muted/50"
+                                    className="opacity-0 group-hover:opacity-100 focus:opacity-100 transition-opacity text-muted-foreground hover:text-foreground p-1 rounded hover:bg-muted/50 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
                                 >
                                     <PauseCircle className="w-4 h-4" />
                                 </button>
@@ -779,7 +779,7 @@ export const TaskItemDisplay = memo(function TaskItemDisplay({
                             <button
                                 onClick={onDelete}
                                 aria-label={t('task.aria.delete')}
-                                className="opacity-0 group-hover:opacity-100 focus:opacity-100 transition-opacity text-muted-foreground hover:text-muted-foreground/70 p-1 rounded hover:bg-muted/50"
+                                className="opacity-0 group-hover:opacity-100 focus:opacity-100 transition-opacity text-muted-foreground hover:text-muted-foreground/70 p-1 rounded hover:bg-muted/50 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
                             >
                                 <Trash2 className="w-4 h-4" />
                             </button>
