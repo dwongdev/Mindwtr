@@ -37,14 +37,17 @@ import {
     loadProjectsSidebarWidth,
     saveProjectsSidebarWidth,
 } from './projects/projects-sidebar-width';
+import {
+    PROJECTS_SIDEBAR_KEYBOARD_STEP,
+    PROJECTS_VIEW_DEFAULT_MAX_WIDTH,
+    PROJECTS_VIEW_WIDE_BREAKPOINT,
+    PROJECTS_VIEW_WIDE_MAX_WIDTH,
+} from '../../constants/layout';
 import { useConfirmDialog } from '../../hooks/useConfirmDialog';
 import { usePersistedViewState } from '../../hooks/usePersistedViewState';
 
 const COLLAPSED_AREAS_STORAGE_KEY = 'mindwtr:projects:collapsedAreas';
 const PROJECTS_VIEW_STATE_STORAGE_KEY = 'mindwtr:view:projects:v1';
-const PROJECTS_VIEW_DEFAULT_MAX_WIDTH = 1344;
-const PROJECTS_VIEW_2XL_MAX_WIDTH = 1408;
-const PROJECTS_VIEW_2XL_BREAKPOINT = 1536;
 const ALL_TAGS = '__all__';
 const NO_TAGS = '__none__';
 
@@ -191,8 +194,8 @@ export function ProjectsView() {
 
     const getProjectsBaseMaxWidth = useCallback(() => {
         if (typeof window === 'undefined') return PROJECTS_VIEW_DEFAULT_MAX_WIDTH;
-        return window.innerWidth >= PROJECTS_VIEW_2XL_BREAKPOINT
-            ? PROJECTS_VIEW_2XL_MAX_WIDTH
+        return window.innerWidth >= PROJECTS_VIEW_WIDE_BREAKPOINT
+            ? PROJECTS_VIEW_WIDE_MAX_WIDTH
             : PROJECTS_VIEW_DEFAULT_MAX_WIDTH;
     }, []);
 
@@ -319,11 +322,11 @@ export function ProjectsView() {
         switch (event.key) {
             case 'ArrowLeft':
                 event.preventDefault();
-                setSidebarWidth((current) => clampSidebarWidth(current - 24));
+                setSidebarWidth((current) => clampSidebarWidth(current - PROJECTS_SIDEBAR_KEYBOARD_STEP));
                 break;
             case 'ArrowRight':
                 event.preventDefault();
-                setSidebarWidth((current) => clampSidebarWidth(current + 24));
+                setSidebarWidth((current) => clampSidebarWidth(current + PROJECTS_SIDEBAR_KEYBOARD_STEP));
                 break;
             case 'Home':
                 event.preventDefault();
