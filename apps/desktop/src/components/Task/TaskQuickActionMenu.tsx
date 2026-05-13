@@ -22,10 +22,10 @@ import { QuickDateChips } from '../QuickDateChips';
 const VIEWPORT_MARGIN_PX = 8;
 const PANEL_GAP_PX = 8;
 const MENU_WIDTH_PX = 224;
-const MENU_HEIGHT_EDITABLE_PX = 238;
+const MENU_HEIGHT_EDITABLE_PX = 274;
 const MENU_HEIGHT_READ_ONLY_PX = 88;
 
-type QuickPanelId = 'dueDate' | 'reviewAt' | 'area' | 'contexts' | null;
+type QuickPanelId = 'startTime' | 'dueDate' | 'reviewAt' | 'area' | 'contexts' | null;
 
 interface TaskQuickActionMenuProps {
     task: Task;
@@ -82,16 +82,20 @@ export function TaskQuickActionMenu({
 }: TaskQuickActionMenuProps) {
     const menuRef = useRef<HTMLDivElement | null>(null);
     const panelRef = useRef<HTMLDivElement | null>(null);
+    const startButtonRef = useRef<HTMLButtonElement | null>(null);
     const dueButtonRef = useRef<HTMLButtonElement | null>(null);
     const reviewButtonRef = useRef<HTMLButtonElement | null>(null);
     const areaButtonRef = useRef<HTMLButtonElement | null>(null);
     const contextsButtonRef = useRef<HTMLButtonElement | null>(null);
     const [activePanel, setActivePanel] = useState<QuickPanelId>(null);
     const [panelPosition, setPanelPosition] = useState<{ left: number; top: number } | null>(null);
+    const initialStartDraft = getDueDateDraft(task.startTime);
     const initialDueDraft = getDueDateDraft(task.dueDate);
     const initialReviewDraft = getDueDateDraft(task.reviewAt);
     const initialAreaDraft = task.areaId || '';
     const initialContextsDraft = task.contexts?.join(', ') || '';
+    const [startDateDraft, setStartDateDraft] = useState(initialStartDraft.date);
+    const [startTimeDraft, setStartTimeDraft] = useState(initialStartDraft.time);
     const [dueDateDraft, setDueDateDraft] = useState(initialDueDraft.date);
     const [dueTimeDraft, setDueTimeDraft] = useState(initialDueDraft.time);
     const [reviewDateDraft, setReviewDateDraft] = useState(initialReviewDraft.date);
@@ -99,6 +103,7 @@ export function TaskQuickActionMenu({
     const [areaDraft, setAreaDraft] = useState(initialAreaDraft);
     const [contextsDraft, setContextsDraft] = useState(initialContextsDraft);
     const [savingPanel, setSavingPanel] = useState<Exclude<QuickPanelId, null> | null>(null);
+    const startLabel = tFallback(t, 'taskEdit.startDateLabel', 'Start Date');
     const dueLabel = tFallback(t, 'taskEdit.dueDateLabel', 'Due Date');
     const reviewLabel = tFallback(t, 'taskEdit.reviewDateLabel', 'Review Date');
     const areaLabel = tFallback(t, 'taskEdit.areaLabel', 'Area');
@@ -116,24 +121,29 @@ export function TaskQuickActionMenu({
     const canEditArea = !task.projectId;
     const normalizedInitialContexts = parseTokenInput(initialContextsDraft);
     const normalizedDraftContexts = parseTokenInput(contextsDraft);
+    const startDraftChanged = startDateDraft !== initialStartDraft.date || startTimeDraft !== initialStartDraft.time;
     const dueDraftChanged = dueDateDraft !== initialDueDraft.date || dueTimeDraft !== initialDueDraft.time;
     const reviewDraftChanged = reviewDateDraft !== initialReviewDraft.date || reviewTimeDraft !== initialReviewDraft.time;
     const areaDraftChanged = areaDraft !== initialAreaDraft;
     const contextsDraftChanged = normalizedDraftContexts.join('\u0000') !== normalizedInitialContexts.join('\u0000');
 
     useEffect(() => {
+        const nextStartDraft = getDueDateDraft(task.startTime);
         const nextDueDraft = getDueDateDraft(task.dueDate);
         const nextReviewDraft = getDueDateDraft(task.reviewAt);
+        setStartDateDraft(nextStartDraft.date);
+        setStartTimeDraft(nextStartDraft.time);
         setDueDateDraft(nextDueDraft.date);
         setDueTimeDraft(nextDueDraft.time);
         setReviewDateDraft(nextReviewDraft.date);
         setReviewTimeDraft(nextReviewDraft.time);
         setAreaDraft(task.areaId || '');
         setContextsDraft(task.contexts?.join(', ') || '');
-    }, [task.areaId, task.contexts, task.dueDate, task.id, task.reviewAt]);
+    }, [task.areaId, task.contexts, task.dueDate, task.id, task.reviewAt, task.startTime]);
 
     useEffect(() => {
-        const focusTarget = dueButtonRef.current
+        const focusTarget = startButtonRef.current
+            ?? dueButtonRef.current
             ?? reviewButtonRef.current
             ?? areaButtonRef.current
             ?? contextsButtonRef.current
@@ -189,13 +199,15 @@ export function TaskQuickActionMenu({
             setPanelPosition(null);
             return;
         }
-        const anchor = activePanel === 'dueDate'
-            ? dueButtonRef.current
-            : activePanel === 'reviewAt'
-                ? reviewButtonRef.current
-                : activePanel === 'area'
-                    ? areaButtonRef.current
-                    : contextsButtonRef.current;
+        const anchor = activePanel === 'startTime'
+            ? startButtonRef.current
+            : activePanel === 'dueDate'
+                ? dueButtonRef.current
+                : activePanel === 'reviewAt'
+                    ? reviewButtonRef.current
+                    : activePanel === 'area'
+                        ? areaButtonRef.current
+                        : contextsButtonRef.current;
         const panel = panelRef.current;
         if (!anchor || !panel) return;
         const anchorRect = anchor.getBoundingClientRect();
@@ -228,7 +240,11 @@ export function TaskQuickActionMenu({
             return;
         }
         setPanelPosition(null);
-        if (panelId === 'dueDate') {
+        if (panelId === 'startTime') {
+            const nextStartDraft = getDueDateDraft(task.startTime);
+            setStartDateDraft(nextStartDraft.date);
+            setStartTimeDraft(nextStartDraft.time);
+        } else if (panelId === 'dueDate') {
             const nextDueDraft = getDueDateDraft(task.dueDate);
             setDueDateDraft(nextDueDraft.date);
             setDueTimeDraft(nextDueDraft.time);
@@ -242,6 +258,25 @@ export function TaskQuickActionMenu({
             setContextsDraft(task.contexts?.join(', ') || '');
         }
         setActivePanel(panelId);
+    };
+
+    const handleStartDateSave = async () => {
+        setSavingPanel('startTime');
+        try {
+            const normalizedDate = normalizeDateInputValue(startDateDraft);
+            const nextStartTime = normalizedDate
+                ? (startTimeDraft ? `${normalizedDate}T${startTimeDraft}` : normalizedDate)
+                : undefined;
+            const result = await onUpdateTask({ startTime: nextStartTime });
+            if (!result.success) {
+                throw new Error(result.error || 'Failed to update task start date');
+            }
+            onClose();
+        } catch (error) {
+            reportError('Failed to update task start date from quick actions', error);
+        } finally {
+            setSavingPanel(null);
+        }
     };
 
     const handleDueDateSave = async () => {
@@ -356,6 +391,14 @@ export function TaskQuickActionMenu({
                     onContextMenu={(event) => event.preventDefault()}
                 >
                 {!readOnly && renderMenuAction({
+                    ref: startButtonRef,
+                    icon: <Calendar className="h-4 w-4" />,
+                    label: `${startLabel}…`,
+                    active: activePanel === 'startTime',
+                    onClick: () => openPanel('startTime'),
+                    showChevron: true,
+                })}
+                {!readOnly && renderMenuAction({
                     ref: dueButtonRef,
                     icon: <Calendar className="h-4 w-4" />,
                     label: `${dueLabel}…`,
@@ -411,15 +454,17 @@ export function TaskQuickActionMenu({
                     ref={panelRef}
                     role="dialog"
                     aria-label={
-                        activePanel === 'dueDate'
-                            ? dueLabel
-                            : activePanel === 'reviewAt'
+                        activePanel === 'startTime'
+                            ? startLabel
+                            : activePanel === 'dueDate'
+                                ? dueLabel
+                                : activePanel === 'reviewAt'
                                 ? reviewLabel
                                 : activePanel === 'area'
                                     ? areaLabel
                                     : contextsLabel
                     }
-                    className="fixed z-50 w-[min(22rem,calc(100vw-1rem))] rounded-lg border border-border bg-popover p-3 text-popover-foreground shadow-xl"
+                    className="fixed z-50 w-[min(30rem,calc(100vw-1rem))] rounded-lg border border-border bg-popover p-3 text-popover-foreground shadow-xl"
                     style={{
                         top: panelPosition?.top ?? menuPosition.top,
                         left: panelPosition?.left ?? (menuPosition.left + 188),
@@ -427,13 +472,90 @@ export function TaskQuickActionMenu({
                     }}
                     onContextMenu={(event) => event.preventDefault()}
                 >
-                    {activePanel === 'dueDate' ? (
+                    {activePanel === 'startTime' ? (
+                        <div className="space-y-3">
+                            <div className="space-y-1">
+                                <label className="text-xs font-medium text-muted-foreground">{startLabel}</label>
+                                <QuickDateChips
+                                    t={t}
+                                    selectedDate={safeParseDate(startDateDraft)}
+                                    wrap
+                                    onSelect={(date) => {
+                                        if (!date) {
+                                            setStartDateDraft('');
+                                            setStartTimeDraft('');
+                                            return;
+                                        }
+                                        setStartDateDraft(safeFormatDate(date, 'yyyy-MM-dd'));
+                                    }}
+                                />
+                                <div className="flex items-center gap-2">
+                                    <input
+                                        type="date"
+                                        lang={nativeDateInputLocale}
+                                        aria-label={startLabel}
+                                        value={startDateDraft}
+                                        onChange={(event) => {
+                                            const nextValue = normalizeDateInputValue(event.target.value);
+                                            setStartDateDraft(nextValue);
+                                            if (!nextValue) {
+                                                setStartTimeDraft('');
+                                            }
+                                        }}
+                                        className="flex-1 rounded border border-border bg-muted/50 px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/40"
+                                    />
+                                    <input
+                                        type="time"
+                                        lang={nativeDateInputLocale}
+                                        aria-label={t('task.aria.startTime')}
+                                        value={startTimeDraft}
+                                        disabled={!startDateDraft}
+                                        onChange={(event) => setStartTimeDraft(event.target.value)}
+                                        className="w-24 shrink-0 rounded border border-border bg-muted/50 px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/40 disabled:cursor-not-allowed disabled:opacity-50"
+                                    />
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            setStartDateDraft('');
+                                            setStartTimeDraft('');
+                                        }}
+                                        className="shrink-0 rounded p-2 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+                                        aria-label={`${clearLabel} ${startLabel}`}
+                                    >
+                                        <X className="h-4 w-4" />
+                                    </button>
+                                </div>
+                            </div>
+                            <div className="flex items-center justify-end gap-2">
+                                <Button
+                                    variant="secondary"
+                                    size="sm"
+                                    onClick={() => {
+                                        setStartDateDraft(initialStartDraft.date);
+                                        setStartTimeDraft(initialStartDraft.time);
+                                        setActivePanel(null);
+                                    }}
+                                >
+                                    {cancelLabel}
+                                </Button>
+                                <Button
+                                    size="sm"
+                                    onClick={handleStartDateSave}
+                                    loading={savingPanel === 'startTime'}
+                                    disabled={!startDraftChanged}
+                                >
+                                    {saveLabel}
+                                </Button>
+                            </div>
+                        </div>
+                    ) : activePanel === 'dueDate' ? (
                         <div className="space-y-3">
                             <div className="space-y-1">
                                 <label className="text-xs font-medium text-muted-foreground">{dueLabel}</label>
                                 <QuickDateChips
                                     t={t}
                                     selectedDate={safeParseDate(dueDateDraft)}
+                                    wrap
                                     onSelect={(date) => {
                                         if (!date) {
                                             setDueDateDraft('');
@@ -509,6 +631,7 @@ export function TaskQuickActionMenu({
                                 <QuickDateChips
                                     t={t}
                                     selectedDate={safeParseDate(reviewDateDraft)}
+                                    wrap
                                     onSelect={(date) => {
                                         if (!date) {
                                             setReviewDateDraft('');
