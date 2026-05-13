@@ -8,7 +8,7 @@ This page is the technical merge reference for maintainers and debugging. For us
 
 - Input A: local snapshot (`tasks`, `projects`, `sections`, `areas`, `settings`)
 - Input B: remote snapshot (same shape)
-- Output: merged snapshot + merge stats (`conflicts`, `clockSkew`, `timestampAdjustments`, `conflictIds`, `conflictReasonCounts`, `conflictSamples`, `timestampAdjustmentIds`) plus bounded sync diagnostics logs.
+- Output: merged snapshot + merge stats (`conflicts`, `clockSkew`, `timestampAdjustments`, `futureTimestampClamps`, `conflictIds`, `conflictReasonCounts`, `conflictSamples`, `timestampAdjustmentIds`, `futureTimestampClampIds`) plus bounded sync diagnostics logs.
 
 ## Snapshot-Based Transport
 
@@ -60,6 +60,8 @@ Revisit ADR 0008 only if snapshot files regularly exceed 5 MB, sync round-trips 
 10. Clock skew telemetry:
    - Merge stats record the largest observed skew.
    - Warnings surface when skew exceeds 5 minutes.
+   - Future `updatedAt` values are clamped to the merge-time clock for comparison and counted in `futureTimestampClamps`.
+   - If both sides of the same record are future-clamped, Mindwtr emits a bounded `Both merge candidates had future updatedAt timestamps clamped` diagnostic with the record ID and clamp time.
 11. Local edits during sync do not take a hard lock:
    - Desktop and mobile detect when local state changed during the sync write phase.
    - When that happens, the current cycle aborts and a fresh sync is queued rather than overwriting the newer local snapshot.
@@ -136,6 +138,7 @@ Operational consequences:
 - Pushing a full snapshot is not a forced overwrite. Existing remote records with higher revisions, newer operation times, or winning tombstones can survive the PUT.
 - Server-side reference repair can create cascade updates, such as tombstoning sections under deleted projects.
 - Server-generated repair timestamps use the server wall clock. This avoids letting a fast client clock advance server repair metadata.
+- Successful `PUT /v1/data` responses include `{ ok: true, stats, clockSkewWarning }` so clients and tests can inspect the merge outcome used by the server.
 
 ## Fast Unchanged Check
 
@@ -169,6 +172,7 @@ Operationally, a device that has been offline longer than the retention window c
 - Max clock skew observed
 - Timestamp normalization adjustments
 - IDs of records whose timestamps were normalized
+- Future timestamp clamp counts and IDs
 - `syncConflictDiscarded` entries for delete-vs-live conflicts where the live side was discarded
 - Last sync status/history in Settings
 

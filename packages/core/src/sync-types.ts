@@ -16,6 +16,8 @@ export interface EntityMergeStats {
     invalidTimestamps: number;
     timestampAdjustments: number;
     timestampAdjustmentIds: string[];
+    futureTimestampClamps: number;
+    futureTimestampClampIds: string[];
     conflictReasonCounts?: Partial<Record<ConflictReason, number>>;
     conflictSamples?: MergeConflictSample[];
 }

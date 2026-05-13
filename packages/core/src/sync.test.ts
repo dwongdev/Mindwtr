@@ -1593,6 +1593,8 @@ describe('Sync Logic', () => {
 
                 const result = mergeAppDataWithStats(local, incoming);
                 expect(result.stats.tasks.maxClockSkewMs).toBeLessThanOrEqual(CLOCK_SKEW_THRESHOLD_MS);
+                expect(result.stats.tasks.futureTimestampClamps).toBe(1);
+                expect(result.stats.tasks.futureTimestampClampIds).toEqual(['1']);
             } finally {
                 nowSpy.mockRestore();
             }
@@ -1600,6 +1602,7 @@ describe('Sync Logic', () => {
 
         it('preserves relative ordering when both timestamps are clamped in the future', () => {
             const nowSpy = vi.spyOn(Date, 'now').mockReturnValue(new Date('2026-01-01T00:00:00.000Z').getTime());
+            const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
             try {
                 const localTask = {
                     ...createMockTask('1', '2099-01-01T00:00:00.000Z'),
@@ -1610,12 +1613,29 @@ describe('Sync Logic', () => {
                     title: 'aa newer future',
                 } satisfies Task;
 
-                const merged = mergeAppData(mockAppData([localTask]), mockAppData([incomingTask]));
+                const result = mergeAppDataWithStats(mockAppData([localTask]), mockAppData([incomingTask]));
+                const merged = result.data;
 
                 expect(merged.tasks).toHaveLength(1);
                 expect(merged.tasks[0].title).toBe('aa newer future');
                 expect(merged.tasks[0].updatedAt).toBe('2099-01-02T00:00:00.000Z');
+                expect(result.stats.tasks.futureTimestampClamps).toBe(2);
+                expect(result.stats.tasks.futureTimestampClampIds).toEqual(['1']);
+
+                const warningCall = warnSpy.mock.calls.find(([message]) => (
+                    message === 'Both merge candidates had future updatedAt timestamps clamped'
+                ));
+                expect(warningCall).toBeTruthy();
+                const [, warningMeta] = warningCall ?? [];
+                expect(parseLoggedContext(warningMeta?.context)).toMatchObject({
+                    entityType: 'task',
+                    id: '1',
+                    localUpdatedAt: '2099-01-01T00:00:00.000Z',
+                    incomingUpdatedAt: '2099-01-02T00:00:00.000Z',
+                    clampTime: '2026-01-01T00:00:00.000Z',
+                });
             } finally {
+                warnSpy.mockRestore();
                 nowSpy.mockRestore();
             }
         });

@@ -85,9 +85,22 @@ const buildSyncHistoryDetails = (stats: MergeStats): string | undefined => {
         stats.sections,
         stats.areas,
     ].reduce((total, entityStats) => total + (entityStats.conflictReasonCounts?.deleteState ?? 0), 0);
-    if (deleteVsLiveConflicts <= 0) return undefined;
-    const itemLabel = deleteVsLiveConflicts === 1 ? 'item' : 'items';
-    return `Delete-vs-live conflict on ${deleteVsLiveConflicts} ${itemLabel}; live edits can be preserved when delete and edit times are ambiguous.`;
+    const futureTimestampClamps = [
+        stats.tasks,
+        stats.projects,
+        stats.sections,
+        stats.areas,
+    ].reduce((total, entityStats) => total + (entityStats.futureTimestampClamps || 0), 0);
+    const details: string[] = [];
+    if (deleteVsLiveConflicts > 0) {
+        const itemLabel = deleteVsLiveConflicts === 1 ? 'item' : 'items';
+        details.push(`Delete-vs-live conflict on ${deleteVsLiveConflicts} ${itemLabel}; live edits can be preserved when delete and edit times are ambiguous.`);
+    }
+    if (futureTimestampClamps > 0) {
+        const itemLabel = futureTimestampClamps === 1 ? 'timestamp' : 'timestamps';
+        details.push(`Future sync timestamp clamp on ${futureTimestampClamps} ${itemLabel}; check device clocks if this repeats.`);
+    }
+    return details.length > 0 ? details.join(' ') : undefined;
 };
 
 function createEmptyEntityStats(localTotal: number, incomingTotal: number): EntityMergeStats {
@@ -107,6 +120,8 @@ function createEmptyEntityStats(localTotal: number, incomingTotal: number): Enti
         invalidTimestamps: 0,
         timestampAdjustments: 0,
         timestampAdjustmentIds: [],
+        futureTimestampClamps: 0,
+        futureTimestampClampIds: [],
         conflictReasonCounts: {},
         conflictSamples: [],
     };
@@ -255,6 +270,7 @@ function mergeEntitiesWithStats<T extends MergeableEntity>(
     let ambiguousResurrectionWarnings = 0;
     let discardedLiveConflictWarnings = 0;
     let taskStatusResolutionWarnings = 0;
+    let futureTimestampClampWarnings = 0;
     const maxAllowedMergeTime = Date.now();
     const getStringField = (item: T, field: string): string | undefined => {
         const value = (item as Record<string, unknown>)[field];
@@ -323,6 +339,26 @@ function mergeEntitiesWithStats<T extends MergeableEntity>(
         const normalizedIncomingItem = normalizeTimestamps(incomingItem, localItem);
         const localUpdatedTime = parseMergeTimestamp(normalizedLocalItem.updatedAt, maxAllowedMergeTime);
         const incomingUpdatedTime = parseMergeTimestamp(normalizedIncomingItem.updatedAt, maxAllowedMergeTime);
+        if (localUpdatedTime.wasClamped || incomingUpdatedTime.wasClamped) {
+            stats.futureTimestampClamps += Number(localUpdatedTime.wasClamped) + Number(incomingUpdatedTime.wasClamped);
+            if (stats.futureTimestampClampIds.length < 20) stats.futureTimestampClampIds.push(id);
+            if (localUpdatedTime.wasClamped && incomingUpdatedTime.wasClamped) {
+                futureTimestampClampWarnings += 1;
+                if (futureTimestampClampWarnings <= 5) {
+                    logWarn('Both merge candidates had future updatedAt timestamps clamped', {
+                        scope: 'sync',
+                        category: 'sync',
+                        context: {
+                            entityType,
+                            id,
+                            localUpdatedAt: normalizedLocalItem.updatedAt,
+                            incomingUpdatedAt: normalizedIncomingItem.updatedAt,
+                            clampTime: new Date(maxAllowedMergeTime).toISOString(),
+                        },
+                    });
+                }
+            }
+        }
         const safeLocalTime = localUpdatedTime.safe;
         const safeIncomingTime = incomingUpdatedTime.safe;
         const comparableUpdatedTimeDiff = getMergeTimestampComparison(localUpdatedTime, incomingUpdatedTime);

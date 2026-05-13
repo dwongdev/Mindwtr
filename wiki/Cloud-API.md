@@ -29,7 +29,7 @@ PUT /v1/data
 
 `GET /v1/data` returns the authenticated namespace snapshot. If the namespace does not exist and writes are allowed, the server creates an empty snapshot.
 
-`PUT /v1/data` validates the uploaded `AppData`, merges it with the existing namespace using the core sync algorithm, validates the merged result, and writes it back. It is not a forced overwrite.
+`PUT /v1/data` validates the uploaded `AppData`, merges it with the existing namespace using the core sync algorithm, validates the merged result, and writes it back. It is not a forced overwrite. A successful response returns `{ ok: true, stats, clockSkewWarning }`, where `stats` is the same merge-stats shape used by local sync diagnostics.
 
 ## Tasks
 

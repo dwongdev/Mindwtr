@@ -31,6 +31,8 @@ describe('mobile sync-service test utils', () => {
     maxClockSkewMs: 0,
     timestampAdjustments: 0,
     timestampAdjustmentIds: [],
+    futureTimestampClamps: 0,
+    futureTimestampClampIds: [],
     invalidTimestamps: 0,
     conflictReasonCounts: {},
     conflictSamples: [],

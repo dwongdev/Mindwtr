@@ -359,7 +359,7 @@ bun run --filter mindwtr-cloud dev -- --port 8787
 | `GET`  | `/health`  | Health check   |
 | `HEAD` | `/v1/data` | Get snapshot metadata |
 | `GET`  | `/v1/data` | Get user data  |
-| `PUT`  | `/v1/data` | Save user data |
+| `PUT`  | `/v1/data` | Merge and save user data; returns merge stats |
 | `GET`, `POST` | `/v1/tasks` | List or create tasks |
 | `GET`, `PATCH`, `DELETE` | `/v1/tasks/:id` | Read, update, or soft-delete a task |
 | `POST` | `/v1/tasks/:id/complete` | Mark a task done |
