@@ -2,7 +2,7 @@ import { createNextRecurringTask } from './recurrence';
 import { getUsedTaskTokens } from './task-token-usage';
 import { rescheduleTask } from './task-utils';
 import { filterNotDeleted } from './sync-helpers';
-import { normalizeRevision } from './sync-revision';
+import { nextRevision, normalizeRevision } from './sync-revision';
 import type { AiSettings, AppData, Area, Project, Section, Task, TaskStatus } from './types';
 import { generateUUID as uuidv4 } from './uuid';
 import type { DerivedState, SaveBaseState } from './store-types';
@@ -142,6 +142,75 @@ export const selectVisibleSections = (sections: Section[]): Section[] =>
 
 export const selectVisibleAreas = (areas: Area[]): Area[] =>
     filterNotDeleted(areas);
+
+export const completeTaskForProjectArchive = (task: Task, archivedAt: string, deviceId?: string): Task => ({
+    ...task,
+    status: 'done',
+    completedAt: archivedAt,
+    isFocusedToday: false,
+    statusBeforeProjectArchive: task.status,
+    completedAtBeforeProjectArchive: task.completedAt ?? null,
+    isFocusedTodayBeforeProjectArchive: task.isFocusedToday ?? null,
+    projectArchivedAt: archivedAt,
+    updatedAt: archivedAt,
+    rev: nextRevision(task.rev),
+    revBy: deviceId,
+});
+
+export const restoreTaskFromProjectArchive = (task: Task, restoredAt: string, deviceId?: string): Task => {
+    const previousStatus = task.statusBeforeProjectArchive;
+    const archivedAt = task.projectArchivedAt;
+    const shouldRestore =
+        !task.deletedAt &&
+        Boolean(previousStatus) &&
+        previousStatus !== 'done' &&
+        previousStatus !== 'archived' &&
+        task.status === 'done' &&
+        Boolean(archivedAt) &&
+        task.completedAt === archivedAt;
+
+    return {
+        ...task,
+        status: shouldRestore ? previousStatus! : task.status,
+        completedAt: shouldRestore ? task.completedAtBeforeProjectArchive ?? undefined : task.completedAt,
+        isFocusedToday: shouldRestore ? task.isFocusedTodayBeforeProjectArchive ?? false : task.isFocusedToday,
+        statusBeforeProjectArchive: undefined,
+        completedAtBeforeProjectArchive: undefined,
+        isFocusedTodayBeforeProjectArchive: undefined,
+        projectArchivedAt: undefined,
+        updatedAt: restoredAt,
+        rev: nextRevision(task.rev),
+        revBy: deviceId,
+    };
+};
+
+export const archiveSectionForProjectArchive = (section: Section, archivedAt: string, deviceId?: string): Section => ({
+    ...section,
+    deletedAt: archivedAt,
+    deletedAtBeforeProjectArchive: section.deletedAt ?? null,
+    projectArchivedAt: archivedAt,
+    updatedAt: archivedAt,
+    rev: nextRevision(section.rev),
+    revBy: deviceId,
+});
+
+export const restoreSectionFromProjectArchive = (section: Section, restoredAt: string, deviceId?: string): Section => {
+    const archivedAt = section.projectArchivedAt;
+    const shouldRestore =
+        Boolean(archivedAt) &&
+        section.deletedAt === archivedAt &&
+        section.deletedAtBeforeProjectArchive === null;
+
+    return {
+        ...section,
+        deletedAt: shouldRestore ? undefined : section.deletedAt,
+        deletedAtBeforeProjectArchive: undefined,
+        projectArchivedAt: undefined,
+        updatedAt: restoredAt,
+        rev: nextRevision(section.rev),
+        revBy: deviceId,
+    };
+};
 
 export const buildEntityMap = <T extends EntityWithId>(items: readonly T[]): Map<string, T> =>
     new Map(items.map((item) => [item.id, item] as const));

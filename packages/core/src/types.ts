@@ -103,6 +103,8 @@ export interface Section {
     createdAt: string;
     updatedAt: string;
     deletedAt?: string; // Soft-delete: if set, this item is considered deleted
+    deletedAtBeforeProjectArchive?: string | null; // Original deletion timestamp when project archive hid this section.
+    projectArchivedAt?: string; // Archive timestamp used to identify reversible project-archive mutations.
 }
 
 export interface Area {
@@ -178,6 +180,10 @@ export interface Task {
     timeEstimate?: TimeEstimate; // Estimated time to complete
     reviewAt?: string; // Tickler/review date (ISO string). If set, task is due for review at/after this time.
     completedAt?: string; // ISO timestamp when task was last completed/archived.
+    statusBeforeProjectArchive?: TaskStatus; // Original status when a project archive auto-completed this task.
+    completedAtBeforeProjectArchive?: string | null; // Original completion timestamp before project archive auto-completion.
+    isFocusedTodayBeforeProjectArchive?: boolean | null; // Original focus flag before project archive auto-completion.
+    projectArchivedAt?: string; // Archive timestamp used to identify reversible project-archive mutations.
     rev?: number; // Monotonic revision counter for sync conflict resolution
     revBy?: string; // Device identifier that issued the revision
     createdAt: string;

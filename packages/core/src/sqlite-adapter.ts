@@ -48,6 +48,12 @@ const fromJson = <T>(value: unknown, fallback: T): T => {
 
 const toBool = (value?: boolean) => (value ? 1 : 0);
 const fromBool = (value: unknown) => Boolean(value);
+const toNullableBool = (value?: boolean | null) => value === null || value === undefined ? null : toBool(value);
+const fromNullableBool = (value: unknown): boolean | null | undefined => {
+    if (value === null) return null;
+    if (value === undefined) return undefined;
+    return Boolean(value);
+};
 const READ_PAGE_SIZE = 1000;
 const FTS_LOCK_TTL_MS = 5 * 60 * 1000;
 const FTS_LOCK_REFRESH_INTERVAL_MS = Math.max(15_000, Math.floor(FTS_LOCK_TTL_MS / 3));
@@ -181,6 +187,10 @@ export function mapSqliteTaskRow(row: Record<string, unknown>): Task {
         timeEstimate: row.timeEstimate as Task['timeEstimate'] | undefined,
         reviewAt: row.reviewAt as string | undefined,
         completedAt: row.completedAt as string | undefined,
+        statusBeforeProjectArchive: row.statusBeforeProjectArchive as Task['statusBeforeProjectArchive'] | undefined,
+        completedAtBeforeProjectArchive: row.completedAtBeforeProjectArchive as string | null | undefined,
+        isFocusedTodayBeforeProjectArchive: fromNullableBool(row.isFocusedTodayBeforeProjectArchive),
+        projectArchivedAt: row.projectArchivedAt as string | undefined,
         rev: row.rev === null || row.rev === undefined ? undefined : Number(row.rev),
         revBy: row.revBy as string | undefined,
         createdAt: String(row.createdAt ?? ''),
@@ -404,6 +414,10 @@ export class SqliteAdapter {
             { name: 'timeEstimate', sql: 'ALTER TABLE tasks ADD COLUMN timeEstimate TEXT' },
             { name: 'reviewAt', sql: 'ALTER TABLE tasks ADD COLUMN reviewAt TEXT' },
             { name: 'completedAt', sql: 'ALTER TABLE tasks ADD COLUMN completedAt TEXT' },
+            { name: 'statusBeforeProjectArchive', sql: 'ALTER TABLE tasks ADD COLUMN statusBeforeProjectArchive TEXT' },
+            { name: 'completedAtBeforeProjectArchive', sql: 'ALTER TABLE tasks ADD COLUMN completedAtBeforeProjectArchive TEXT' },
+            { name: 'isFocusedTodayBeforeProjectArchive', sql: 'ALTER TABLE tasks ADD COLUMN isFocusedTodayBeforeProjectArchive INTEGER' },
+            { name: 'projectArchivedAt', sql: 'ALTER TABLE tasks ADD COLUMN projectArchivedAt TEXT' },
             { name: 'rev', sql: 'ALTER TABLE tasks ADD COLUMN rev INTEGER' },
             { name: 'revBy', sql: 'ALTER TABLE tasks ADD COLUMN revBy TEXT' },
             { name: 'createdAt', sql: 'ALTER TABLE tasks ADD COLUMN createdAt TEXT' },
@@ -499,6 +513,8 @@ export class SqliteAdapter {
             { name: 'createdAt', sql: 'ALTER TABLE sections ADD COLUMN createdAt TEXT' },
             { name: 'updatedAt', sql: 'ALTER TABLE sections ADD COLUMN updatedAt TEXT' },
             { name: 'deletedAt', sql: 'ALTER TABLE sections ADD COLUMN deletedAt TEXT' },
+            { name: 'deletedAtBeforeProjectArchive', sql: 'ALTER TABLE sections ADD COLUMN deletedAtBeforeProjectArchive TEXT' },
+            { name: 'projectArchivedAt', sql: 'ALTER TABLE sections ADD COLUMN projectArchivedAt TEXT' },
         ];
         for (const definition of definitions) {
             if (!names.has(definition.name)) {
@@ -742,6 +758,8 @@ export class SqliteAdapter {
             createdAt: String(row.createdAt ?? ''),
             updatedAt: String(row.updatedAt ?? ''),
             deletedAt: row.deletedAt as string | undefined,
+            deletedAtBeforeProjectArchive: row.deletedAtBeforeProjectArchive as string | null | undefined,
+            projectArchivedAt: row.projectArchivedAt as string | undefined,
         };
     }
 
@@ -1076,6 +1094,8 @@ export class SqliteAdapter {
                     'createdAt',
                     'updatedAt',
                     'deletedAt',
+                    'deletedAtBeforeProjectArchive',
+                    'projectArchivedAt',
                 ],
                 data.sections.map((section) => [
                     section.id,
@@ -1089,6 +1109,8 @@ export class SqliteAdapter {
                     section.createdAt,
                     section.updatedAt,
                     section.deletedAt ?? null,
+                    section.deletedAtBeforeProjectArchive ?? null,
+                    section.projectArchivedAt ?? null,
                 ]),
                 `projectId=excluded.projectId,
                  title=excluded.title,
@@ -1099,7 +1121,9 @@ export class SqliteAdapter {
                  revBy=excluded.revBy,
                  createdAt=excluded.createdAt,
                  updatedAt=excluded.updatedAt,
-                 deletedAt=excluded.deletedAt`,
+                 deletedAt=excluded.deletedAt,
+                 deletedAtBeforeProjectArchive=excluded.deletedAtBeforeProjectArchive,
+                 projectArchivedAt=excluded.projectArchivedAt`,
             );
 
             await upsertBatch(
@@ -1131,6 +1155,10 @@ export class SqliteAdapter {
                     'timeEstimate',
                     'reviewAt',
                     'completedAt',
+                    'statusBeforeProjectArchive',
+                    'completedAtBeforeProjectArchive',
+                    'isFocusedTodayBeforeProjectArchive',
+                    'projectArchivedAt',
                     'rev',
                     'revBy',
                     'createdAt',
@@ -1167,6 +1195,10 @@ export class SqliteAdapter {
                         task.timeEstimate ?? null,
                         task.reviewAt ?? null,
                         task.completedAt ?? null,
+                        task.statusBeforeProjectArchive ?? null,
+                        task.completedAtBeforeProjectArchive ?? null,
+                        toNullableBool(task.isFocusedTodayBeforeProjectArchive),
+                        task.projectArchivedAt ?? null,
                         task.rev ?? null,
                         task.revBy ?? null,
                         task.createdAt,
@@ -1200,6 +1232,10 @@ export class SqliteAdapter {
                  timeEstimate=excluded.timeEstimate,
                  reviewAt=excluded.reviewAt,
                  completedAt=excluded.completedAt,
+                 statusBeforeProjectArchive=excluded.statusBeforeProjectArchive,
+                 completedAtBeforeProjectArchive=excluded.completedAtBeforeProjectArchive,
+                 isFocusedTodayBeforeProjectArchive=excluded.isFocusedTodayBeforeProjectArchive,
+                 projectArchivedAt=excluded.projectArchivedAt,
                  rev=excluded.rev,
                  revBy=excluded.revBy,
                  createdAt=excluded.createdAt,

@@ -8,6 +8,8 @@ import type { AppData, Area, MigrationSettings, Project, TaskEditorFieldId } fro
 import type { DerivedCache, TaskStore } from './store-types';
 import {
     buildSaveSnapshot,
+    archiveSectionForProjectArchive,
+    completeTaskForProjectArchive,
     computeProjectDerivedState,
     computeTaskDerivedState,
     ensureDeviceId,
@@ -481,27 +483,13 @@ export const createSettingsActions = ({
                     if (task.deletedAt || task.status === 'done' || task.status === 'archived') return task;
                     if (!task.projectId || !archivedProjectIds.has(task.projectId)) return task;
                     didCompleteTasksForArchivedProjects = true;
-                    return {
-                        ...task,
-                        status: 'done',
-                        completedAt: nowIso,
-                        isFocusedToday: false,
-                        updatedAt: nowIso,
-                        rev: nextRevision(task.rev),
-                        revBy: nextSettings.deviceId,
-                    };
+                    return completeTaskForProjectArchive(task, nowIso, nextSettings.deviceId);
                 });
                 allSections = allSections.map((section) => {
                     if (section.deletedAt) return section;
                     if (!archivedProjectIds.has(section.projectId)) return section;
                     didArchiveSectionsForArchivedProjects = true;
-                    return {
-                        ...section,
-                        deletedAt: nowIso,
-                        updatedAt: nowIso,
-                        rev: nextRevision(section.rev),
-                        revBy: nextSettings.deviceId,
-                    };
+                    return archiveSectionForProjectArchive(section, nowIso, nextSettings.deviceId);
                 });
             }
             let didRepairEntityReferences = false;

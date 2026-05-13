@@ -1,8 +1,12 @@
 import {
     buildSaveSnapshot,
+    archiveSectionForProjectArchive,
+    completeTaskForProjectArchive,
     ensureDeviceId,
     getNextDataChangeAt,
     nextRevision,
+    restoreSectionFromProjectArchive,
+    restoreTaskFromProjectArchive,
     selectVisibleTasks,
     toVisibleTask,
 } from '../store-helpers';
@@ -103,37 +107,31 @@ export const createProjectCoreActions = ({
             let newAllSections = state._allSections;
 
             if (statusChanged && incomingStatus === 'archived') {
-                const taskStatus: TaskStatus = 'done';
                 newAllTasks = newAllTasks.map(task => {
                     if (
                         task.projectId === id &&
                         !task.deletedAt &&
-                        task.status !== taskStatus &&
+                        task.status !== 'done' &&
                         task.status !== 'archived'
                     ) {
-                        return {
-                            ...task,
-                            status: taskStatus,
-                            completedAt: now,
-                            isFocusedToday: false,
-                            updatedAt: now,
-                            rev: nextRevision(task.rev),
-                            revBy: deviceState.deviceId,
-                        };
+                        return completeTaskForProjectArchive(task, now, deviceState.deviceId);
                     }
                     return task;
                 });
                 newAllSections = newAllSections.map((section) => {
                     if (section.projectId === id && !section.deletedAt) {
-                        return {
-                            ...section,
-                            deletedAt: now,
-                            updatedAt: now,
-                            rev: nextRevision(section.rev),
-                            revBy: deviceState.deviceId,
-                        };
+                        return archiveSectionForProjectArchive(section, now, deviceState.deviceId);
                     }
                     return section;
+                });
+            } else if (statusChanged && oldProject.status === 'archived' && incomingStatus !== 'archived') {
+                newAllTasks = newAllTasks.map((task) => {
+                    if (task.projectId !== id || !task.projectArchivedAt) return task;
+                    return restoreTaskFromProjectArchive(task, now, deviceState.deviceId);
+                });
+                newAllSections = newAllSections.map((section) => {
+                    if (section.projectId !== id || !section.projectArchivedAt) return section;
+                    return restoreSectionFromProjectArchive(section, now, deviceState.deviceId);
                 });
             }
 

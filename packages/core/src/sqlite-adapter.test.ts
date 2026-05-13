@@ -109,12 +109,18 @@ describeSqlite('SqliteAdapter', () => {
 
     it('round-trips tasks, projects, areas, and settings', async () => {
         const now = new Date().toISOString();
+        const archivedAt = '2026-05-12T09:00:00.000Z';
         const data: AppData = {
             tasks: [
                 {
                     id: 'task-1',
                     title: 'Write docs',
-                    status: 'next',
+                    status: 'done',
+                    completedAt: archivedAt,
+                    statusBeforeProjectArchive: 'next',
+                    completedAtBeforeProjectArchive: null,
+                    isFocusedTodayBeforeProjectArchive: true,
+                    projectArchivedAt: archivedAt,
                     rev: 5,
                     revBy: 'device-desktop',
                     tags: ['#docs', '#writing'],
@@ -168,6 +174,9 @@ describeSqlite('SqliteAdapter', () => {
                     revBy: 'device-desktop',
                     createdAt: now,
                     updatedAt: now,
+                    deletedAt: archivedAt,
+                    deletedAtBeforeProjectArchive: null,
+                    projectArchivedAt: archivedAt,
                 },
             ],
             areas: [
@@ -229,6 +238,11 @@ describeSqlite('SqliteAdapter', () => {
         expect(task.checklist?.[0]?.title).toBe('Outline');
         expect(task.attachments?.[0]?.title).toBe('spec.pdf');
         expect(task.attachments?.[0]?.localStatus).toBe('available');
+        expect(task.completedAt).toBe(archivedAt);
+        expect(task.statusBeforeProjectArchive).toBe('next');
+        expect(task.completedAtBeforeProjectArchive).toBeNull();
+        expect(task.isFocusedTodayBeforeProjectArchive).toBe(true);
+        expect(task.projectArchivedAt).toBe(archivedAt);
         expect(task.rev).toBe(5);
         expect(task.revBy).toBe('device-desktop');
 
@@ -243,6 +257,9 @@ describeSqlite('SqliteAdapter', () => {
 
         const section = loaded.sections[0];
         expect(section.title).toBe('Milestones');
+        expect(section.deletedAt).toBe(archivedAt);
+        expect(section.deletedAtBeforeProjectArchive).toBeNull();
+        expect(section.projectArchivedAt).toBe(archivedAt);
         expect(section.rev).toBe(2);
         expect(section.revBy).toBe('device-desktop');
 

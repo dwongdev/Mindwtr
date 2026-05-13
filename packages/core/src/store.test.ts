@@ -1501,10 +1501,57 @@ describe('TaskStore', () => {
         const projectSections = useTaskStore.getState()._allSections.filter((item) => item.projectId === project.id);
         expect(projectTasks).toHaveLength(4);
         expect(projectTasks.filter((task) => task.status === 'done')).toHaveLength(3);
+        expect(projectTasks.find((task) => task.title === 'Task 1')?.statusBeforeProjectArchive).toBe('next');
+        expect(projectTasks.find((task) => task.title === 'Task 2')?.statusBeforeProjectArchive).toBe('waiting');
         expect(projectTasks.find((task) => task.title === 'Already Done')?.completedAt).toBe('2026-03-20T10:00:00.000Z');
+        expect(projectTasks.find((task) => task.title === 'Already Done')?.statusBeforeProjectArchive).toBeUndefined();
         expect(projectTasks.find((task) => task.title === 'Already Archived')?.status).toBe('archived');
         expect(projectSections).toHaveLength(1);
         expect(projectSections[0].deletedAt).toBeTruthy();
+        expect(projectSections[0].deletedAtBeforeProjectArchive).toBeNull();
+    });
+
+    it('should restore project-archived task and section state when unarchiving', async () => {
+        const { addProject, addTask, addSection, updateProject } = useTaskStore.getState();
+        addProject('Reversible Archive Project', '#123456');
+
+        const project = useTaskStore.getState().projects[0];
+        addTask('Next Task', {
+            status: 'next',
+            projectId: project.id,
+            completedAt: '2026-03-18T10:00:00.000Z',
+            isFocusedToday: true,
+        });
+        addTask('Waiting Task', { status: 'waiting', projectId: project.id });
+        addTask('Already Done', {
+            status: 'done',
+            completedAt: '2026-03-20T10:00:00.000Z',
+            projectId: project.id,
+        });
+        const section = await addSection(project.id, 'Section 1');
+        expect(section).not.toBeNull();
+
+        await updateProject(project.id, { status: 'archived' });
+        await updateProject(project.id, { status: 'active' });
+
+        const projectTasks = useTaskStore.getState()._allTasks.filter(t => t.projectId === project.id && !t.deletedAt);
+        const nextTask = projectTasks.find((task) => task.title === 'Next Task');
+        const waitingTask = projectTasks.find((task) => task.title === 'Waiting Task');
+        const doneTask = projectTasks.find((task) => task.title === 'Already Done');
+        const projectSections = useTaskStore.getState()._allSections.filter((item) => item.projectId === project.id);
+
+        expect(nextTask?.status).toBe('next');
+        expect(nextTask?.completedAt).toBe('2026-03-18T10:00:00.000Z');
+        expect(nextTask?.isFocusedToday).toBe(true);
+        expect(nextTask?.statusBeforeProjectArchive).toBeUndefined();
+        expect(nextTask?.projectArchivedAt).toBeUndefined();
+        expect(waitingTask?.status).toBe('waiting');
+        expect(waitingTask?.completedAt).toBeUndefined();
+        expect(doneTask?.status).toBe('done');
+        expect(doneTask?.completedAt).toBe('2026-03-20T10:00:00.000Z');
+        expect(projectSections[0].deletedAt).toBeUndefined();
+        expect(projectSections[0].deletedAtBeforeProjectArchive).toBeUndefined();
+        expect(projectSections[0].projectArchivedAt).toBeUndefined();
     });
 
     it('sets error when updateProject targets a missing project', async () => {

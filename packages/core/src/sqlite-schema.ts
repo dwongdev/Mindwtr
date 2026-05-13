@@ -1,4 +1,4 @@
-export const SQLITE_SCHEMA_VERSION = 4;
+export const SQLITE_SCHEMA_VERSION = 5;
 
 export const SQLITE_BASE_SCHEMA = `
 PRAGMA journal_mode = WAL;
@@ -31,6 +31,10 @@ CREATE TABLE IF NOT EXISTS tasks (
   timeEstimate TEXT,
   reviewAt TEXT,
   completedAt TEXT,
+  statusBeforeProjectArchive TEXT,
+  completedAtBeforeProjectArchive TEXT,
+  isFocusedTodayBeforeProjectArchive INTEGER,
+  projectArchivedAt TEXT,
   rev INTEGER,
   revBy TEXT,
   createdAt TEXT NOT NULL,
@@ -71,7 +75,9 @@ CREATE TABLE IF NOT EXISTS areas (
   revBy TEXT,
   createdAt TEXT NOT NULL,
   updatedAt TEXT NOT NULL,
-  deletedAt TEXT
+  deletedAt TEXT,
+  deletedAtBeforeProjectArchive TEXT,
+  projectArchivedAt TEXT
 );
 
 CREATE TABLE IF NOT EXISTS sections (
