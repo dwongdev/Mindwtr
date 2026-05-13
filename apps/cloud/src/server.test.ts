@@ -1849,6 +1849,69 @@ describe('cloud server api', () => {
         }
     });
 
+    test('serializes concurrent /v1/data read-merge-write cycles against existing data', async () => {
+        const iso = '2026-01-01T00:00:00.000Z';
+        const key = __cloudTestUtils.tokenToKey(integrationToken);
+        writeFileSync(join(dataDir, `${key}.json`), JSON.stringify({
+            tasks: [makeTestTask({
+                id: 'seed-task',
+                title: 'Seed Task',
+                rev: 1,
+                revBy: 'seed-device',
+                createdAt: iso,
+                updatedAt: iso,
+            })],
+            projects: [],
+            sections: [],
+            areas: [],
+            settings: {},
+        }));
+
+        const putTask = (id: string, title: string) => fetch(`${baseUrl}/v1/data`, {
+            method: 'PUT',
+            headers: {
+                ...authHeaders,
+                'content-type': 'application/json',
+            },
+            body: JSON.stringify({
+                tasks: [makeTestTask({
+                    id,
+                    title,
+                    rev: 2,
+                    revBy: id,
+                    createdAt: iso,
+                    updatedAt: '2026-01-01T00:01:00.000Z',
+                })],
+                projects: [],
+                sections: [],
+                areas: [],
+                settings: {},
+            }),
+        });
+
+        const responses = await Promise.all([
+            putTask('client-a-task', 'Client A Task'),
+            putTask('client-b-task', 'Client B Task'),
+        ]);
+
+        for (const response of responses) {
+            expect(response.status).toBe(200);
+            const body = await response.json();
+            expect(body.ok).toBe(true);
+            expect(body.stats).toBeTruthy();
+        }
+
+        const getResponse = await fetch(`${baseUrl}/v1/data`, {
+            headers: authHeaders,
+        });
+        expect(getResponse.status).toBe(200);
+        const data = await getResponse.json();
+        const taskIds = new Set((data.tasks as Array<{ id: string }>).map((task) => task.id));
+        expect(taskIds.has('seed-task')).toBe(true);
+        expect(taskIds.has('client-a-task')).toBe(true);
+        expect(taskIds.has('client-b-task')).toBe(true);
+    });
+
     test('uses server timestamps for server-side merge repairs', async () => {
         const deletedProjectAt = '2026-01-01T00:00:00.000Z';
         const sectionAt = '2026-01-02T00:00:00.000Z';
