@@ -65,6 +65,7 @@ export type TaskEditorFieldId =
     | 'checklist';
 
 export type TaskEditorSectionId = 'basic' | 'scheduling' | 'organization' | 'details';
+export type TaskEditorPresentation = 'inline' | 'modal';
 
 export type InboxProcessingMode = 'guided' | 'quick';
 
@@ -292,6 +293,7 @@ export interface TaskEditorSettings {
     hidden?: TaskEditorFieldId[];
     sections?: Partial<Record<TaskEditorFieldId, TaskEditorSectionId>>;
     sectionOpen?: Partial<Record<TaskEditorSectionId, boolean>>;
+    presentation?: TaskEditorPresentation;
     defaultsVersion?: number;
 }
 

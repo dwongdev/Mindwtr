@@ -37,6 +37,7 @@ export type {
     Task,
     TaskEditorSettings,
     TaskEditorFieldId,
+    TaskEditorPresentation,
     TaskEditorSectionId,
     TaskEnergyLevel,
     TaskMode,

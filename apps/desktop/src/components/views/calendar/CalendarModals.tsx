@@ -79,6 +79,7 @@ export function CalendarOpenTaskModal({ controller }: CalendarOpenTaskModalProps
                     showQuickDone={false}
                     readOnly={false}
                     compactMetaEnabled={true}
+                    editorPresentation="inline"
                 />
             </div>
         </div>

@@ -1,4 +1,4 @@
-import type { AppSettings, FeatureSettings, GtdSettings, TaskEditorFieldId, TaskEditorSectionId } from '@mindwtr/core';
+import type { AppSettings, FeatureSettings, GtdSettings, TaskEditorFieldId, TaskEditorPresentation, TaskEditorSectionId } from '@mindwtr/core';
 import {
     FOCUS_TASK_LIMIT_OPTIONS,
     normalizeClockTimeInput,
@@ -58,6 +58,12 @@ type Labels = {
     taskEditorLayout: string;
     taskEditorLayoutDesc: string;
     taskEditorLayoutHint: string;
+    taskEditorPresentation: string;
+    taskEditorPresentationDesc: string;
+    taskEditorPresentationInline: string;
+    taskEditorPresentationInlineDesc: string;
+    taskEditorPresentationModal: string;
+    taskEditorPresentationModalDesc: string;
     taskEditorLayoutReset: string;
     taskEditorSection: string;
     taskEditorDefaultOpen: string;
@@ -219,6 +225,9 @@ export function SettingsGtdPage({
     const hiddenSet = new Set(savedHidden);
     const taskEditorSections = getTaskEditorSectionAssignments(safeSettings.gtd?.taskEditor);
     const taskEditorSectionOpen = getTaskEditorSectionOpenDefaults(safeSettings.gtd?.taskEditor);
+    const taskEditorPresentation: TaskEditorPresentation = safeSettings.gtd?.taskEditor?.presentation === 'modal'
+        ? 'modal'
+        : 'inline';
     const defaultCaptureMethod = safeSettings.gtd?.defaultCaptureMethod ?? 'text';
     const saveAudioAttachments = safeSettings.gtd?.saveAudioAttachments !== false;
     const speechEnabled = safeSettings.ai?.speechToText?.enabled === true;
@@ -358,6 +367,7 @@ export function SettingsGtdPage({
             hidden?: TaskEditorFieldId[];
             sections?: Partial<Record<TaskEditorFieldId, TaskEditorSectionId>>;
             sectionOpen?: Partial<Record<TaskEditorSectionId, boolean>>;
+            presentation?: TaskEditorPresentation;
         },
         nextFeatures?: FeatureSettings
     ) => {
@@ -445,6 +455,10 @@ export function SettingsGtdPage({
             nextSectionOpen[sectionId] = isOpen;
         }
         saveTaskEditor({ sectionOpen: nextSectionOpen });
+    };
+    const updateTaskEditorPresentation = (presentation: TaskEditorPresentation) => {
+        if (presentation === taskEditorPresentation) return;
+        saveTaskEditor({ presentation });
     };
 
     const taskEditorSectionLabel = (sectionId: TaskEditorSectionId) => {
@@ -995,6 +1009,50 @@ export function SettingsGtdPage({
                     {taskEditorOpen ? <ChevronDown className="w-4 h-4 text-muted-foreground shrink-0" /> : <ChevronRight className="w-4 h-4 text-muted-foreground shrink-0" />}
                 </button>
                 {taskEditorOpen && <div className="p-4 space-y-4">
+                    <div className="rounded-md border border-border bg-muted/20 p-3">
+                        <div className="mb-3">
+                            <div className="text-sm font-medium">{t.taskEditorPresentation}</div>
+                            <div className="text-xs text-muted-foreground mt-1">{t.taskEditorPresentationDesc}</div>
+                        </div>
+                        <div className="grid gap-2 sm:grid-cols-2">
+                            {([
+                                {
+                                    value: 'inline',
+                                    label: t.taskEditorPresentationInline,
+                                    description: t.taskEditorPresentationInlineDesc,
+                                },
+                                {
+                                    value: 'modal',
+                                    label: t.taskEditorPresentationModal,
+                                    description: t.taskEditorPresentationModalDesc,
+                                },
+                            ] as const).map((option) => {
+                                const selected = taskEditorPresentation === option.value;
+                                return (
+                                    <button
+                                        key={option.value}
+                                        type="button"
+                                        aria-pressed={selected}
+                                        onClick={() => updateTaskEditorPresentation(option.value)}
+                                        className={cn(
+                                            'rounded-md border px-3 py-2 text-left transition-colors',
+                                            selected
+                                                ? 'border-primary bg-primary/10 text-primary'
+                                                : 'border-border bg-background text-foreground hover:bg-muted/50'
+                                        )}
+                                    >
+                                        <div className="text-sm font-medium">{option.label}</div>
+                                        <div className={cn(
+                                            'mt-1 text-xs',
+                                            selected ? 'text-primary/80' : 'text-muted-foreground'
+                                        )}>
+                                            {option.description}
+                                        </div>
+                                    </button>
+                                );
+                            })}
+                        </div>
+                    </div>
                     <div className="flex justify-end">
                         <button
                             type="button"

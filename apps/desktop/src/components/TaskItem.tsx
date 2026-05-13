@@ -4,6 +4,7 @@ import {
     Task,
     TaskStatus,
     TaskEditorFieldId,
+    type TaskEditorPresentation,
     formatFocusTaskLimitText,
     getLocalizedWeekdayLabels,
     Project,
@@ -63,7 +64,7 @@ interface TaskItemProps {
     compactMetaEnabled?: boolean;
     enableDoubleClickEdit?: boolean;
     showHoverHint?: boolean;
-    editorPresentation?: 'inline' | 'modal';
+    editorPresentation?: TaskEditorPresentation;
 }
 
 export const TaskItem = memo(function TaskItem({
@@ -84,7 +85,7 @@ export const TaskItem = memo(function TaskItem({
     compactMetaEnabled = true,
     enableDoubleClickEdit = false,
     showHoverHint = true,
-    editorPresentation = 'inline',
+    editorPresentation,
 }: TaskItemProps) {
     const [isEditing, setIsEditing] = useState(false);
     const [autoFocusTitle, setAutoFocusTitle] = useState(false);
@@ -783,7 +784,10 @@ export const TaskItem = memo(function TaskItem({
         editReviewAt,
         task,
     ]);
-    const isModalEditor = editorPresentation === 'modal';
+    const taskEditorPresentationSetting = settings?.gtd?.taskEditor?.presentation;
+    const resolvedEditorPresentation: TaskEditorPresentation = editorPresentation
+        ?? (taskEditorPresentationSetting === 'modal' ? 'modal' : 'inline');
+    const isModalEditor = resolvedEditorPresentation === 'modal';
     const getModalFocusableElements = useCallback((): HTMLElement[] => {
         const root = modalEditorRef.current;
         if (!root) return [];

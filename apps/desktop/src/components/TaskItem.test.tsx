@@ -51,6 +51,33 @@ describe('TaskItem', () => {
         expect(getByDisplayValue('Test Task')).toBeInTheDocument();
     });
 
+    it('opens the editor in a modal when the setting uses pop-up presentation', async () => {
+        act(() => {
+            useTaskStore.setState({
+                settings: {
+                    gtd: {
+                        taskEditor: {
+                            presentation: 'modal',
+                        },
+                    },
+                },
+            });
+        });
+
+        const { getAllByRole, getByRole, getByDisplayValue } = render(
+            <LanguageProvider>
+                <TaskItem task={mockTask} />
+            </LanguageProvider>
+        );
+
+        await act(async () => {
+            fireEvent.click(getAllByRole('button', { name: /edit/i })[0]);
+        });
+
+        expect(getByRole('dialog', { name: /edit task/i })).toBeInTheDocument();
+        expect(getByDisplayValue('Test Task')).toBeInTheDocument();
+    });
+
     it('shows a delete action while editing inbox tasks', async () => {
         const { getAllByRole, getByRole, findByRole } = render(
             <LanguageProvider>
