@@ -21,6 +21,7 @@ import { ConfirmModal } from '../ConfirmModal';
 
 const AGENDA_VIRTUALIZATION_THRESHOLD = 25;
 const NO_PROJECT_FILTER_ID = SAVED_FILTER_NO_PROJECT_ID;
+const AGENDA_ACTIVE_STATUSES: Task['status'][] = ['inbox', 'next', 'waiting', 'someday'];
 
 function getAgendaScrollElement(containerElement: HTMLDivElement | null): HTMLElement | null {
     if (containerElement) {
@@ -184,9 +185,8 @@ function AgendaTaskList({
 
 export function AgendaView() {
     const perf = usePerformanceMonitor('AgendaView');
-    const { tasks, projects, areas, updateTask, updateSettings, settings, highlightTaskId, setHighlightTask } = useTaskStore(
+    const { projects, areas, updateTask, updateSettings, settings, highlightTaskId, setHighlightTask } = useTaskStore(
         (state) => ({
-            tasks: state.tasks,
             projects: state.projects,
             areas: state.areas,
             updateTask: state.updateTask,
@@ -198,7 +198,7 @@ export function AgendaView() {
         shallow
     );
     const getDerivedState = useTaskStore((state) => state.getDerivedState);
-    const { projectMap, sequentialProjectIds } = getDerivedState();
+    const { activeTasksByStatus, projectMap, sequentialProjectIds, tasksById } = getDerivedState();
     const { t } = useLanguage();
     const { showListDetails, nextGroupBy, top3Only, setListOptions, collapseAllTaskDetails } = useUiStore((state) => ({
         showListDetails: state.listOptions.showDetails,
@@ -243,17 +243,17 @@ export function AgendaView() {
         return () => window.clearTimeout(timer);
     }, [perf.enabled]);
 
+    const derivedActiveTasks = useMemo(() => (
+        AGENDA_ACTIVE_STATUSES.flatMap((status) => activeTasksByStatus.get(status) ?? [])
+    ), [activeTasksByStatus]);
+
     // Filter active tasks
     const baseActiveTasks = useMemo(() => (
-        tasks.filter(t =>
-            !t.deletedAt
-            && t.status !== 'done'
-            && t.status !== 'archived'
-            && t.status !== 'reference'
-            && isTaskInActiveProject(t, projectMap)
+        derivedActiveTasks.filter(t =>
+            isTaskInActiveProject(t, projectMap)
             && taskMatchesAreaFilter(t, resolvedAreaFilter, projectMap, areaById)
         )
-    ), [tasks, projectMap, resolvedAreaFilter, areaById]);
+    ), [derivedActiveTasks, projectMap, resolvedAreaFilter, areaById]);
 
     const { activeTasks, allTokens, hiddenFutureStartCount } = useMemo(() => {
         const now = new Date();
@@ -439,24 +439,16 @@ export function AgendaView() {
         const now = new Date();
         const filtered = applyFilter(activeTasks, effectiveFilterCriteria, { projects, now, tokenMatchMode: 'all' })
             .filter((task) => matchesSearchQuery(task.title));
-        const reviewDueBase = tasks
+        const reviewDueBase = baseActiveTasks
             .filter((task) => {
-                if (task.deletedAt) return false;
-                if (task.status === 'done' || task.status === 'archived' || task.status === 'reference') return false;
                 if (!shouldShowTaskForStart(task, { showFutureStarts, now })) return false;
                 if (!isDueForReview(task.reviewAt, now)) return false;
-                if (task.projectId) {
-                    const project = projectMap.get(task.projectId);
-                    if (project?.deletedAt) return false;
-                    if (project?.status === 'archived') return false;
-                }
-                if (!taskMatchesAreaFilter(task, resolvedAreaFilter, projectMap, areaById)) return false;
                 if (!matchesSearchQuery(task.title)) return false;
                 return true;
             });
         const reviewDue = applyFilter(reviewDueBase, effectiveFilterCriteria, { projects, now, tokenMatchMode: 'all' });
         return { filteredActiveTasks: filtered, reviewDueCandidates: reviewDue };
-    }, [activeTasks, effectiveFilterCriteria, matchesSearchQuery, projects, tasks, projectMap, resolvedAreaFilter, areaById, showFutureStarts]);
+    }, [activeTasks, baseActiveTasks, effectiveFilterCriteria, matchesSearchQuery, projects, showFutureStarts]);
 
     const reviewDueProjects = useMemo(() => {
         const now = new Date();
@@ -720,8 +712,8 @@ export function AgendaView() {
         };
     }, [sections, prioritiesEnabled]);
 
-    const handleToggleFocus = (taskId: string) => {
-        const task = tasks.find(t => t.id === taskId);
+    const handleToggleFocus = useCallback((taskId: string) => {
+        const task = tasksById.get(taskId);
         if (!task) return;
 
         if (task.isFocusedToday) {
@@ -732,7 +724,7 @@ export function AgendaView() {
                 ...(task.status !== 'next' ? { status: 'next' as const } : {}),
             });
         }
-    };
+    }, [focusTaskLimit, focusedCount, tasksById, updateTask]);
 
     const buildFocusToggle = useCallback((task: Task) => {
         const isFocused = Boolean(task.isFocusedToday);
