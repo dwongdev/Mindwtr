@@ -401,7 +401,7 @@ export const plOverrides: Record<string, string> = {
         'projects.archive': 'Archiwizuj',
         'projects.reactivate': 'Aktywuj ponownie',
         'projects.completeConfirm': 'Czy oznaczyć ten projekt jako ukończony i zakończyć wszystkie jego zadania?',
-        'projects.archiveConfirm': 'Czy zarchiwizować ten projekt wraz ze wszystkimi jego zadaniami?',
+        'projects.archiveConfirm': 'Czy zarchiwizować ten projekt i oznaczyć jego nieukończone zadania jako wykonane?',
         'projects.sequential': 'Sekwencyjny',
         'projects.parallel': 'Równoległy',
         'projects.sequentialTooltip': 'Sekwencyjnie: w Następnych działaniach pojawia się tylko pierwsze zadanie',

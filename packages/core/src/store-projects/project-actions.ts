@@ -103,17 +103,18 @@ export const createProjectCoreActions = ({
             let newAllSections = state._allSections;
 
             if (statusChanged && incomingStatus === 'archived') {
-                const taskStatus: TaskStatus = 'archived';
+                const taskStatus: TaskStatus = 'done';
                 newAllTasks = newAllTasks.map(task => {
                     if (
                         task.projectId === id &&
                         !task.deletedAt &&
-                        task.status !== taskStatus
+                        task.status !== taskStatus &&
+                        task.status !== 'archived'
                     ) {
                         return {
                             ...task,
                             status: taskStatus,
-                            completedAt: task.completedAt || now,
+                            completedAt: now,
                             isFocusedToday: false,
                             updatedAt: now,
                             rev: nextRevision(task.rev),

@@ -428,7 +428,7 @@ export const deOverrides: Record<string, string> = {
         'projects.archive': 'Archiv',
         'projects.reactivate': 'Reaktivieren',
         'projects.completeConfirm': 'Dieses Projekt als abgeschlossen und alle seine Aufgaben als erledigt markieren?',
-        'projects.archiveConfirm': 'Dieses Projekt und alle seine Aufgaben archivieren?',
+        'projects.archiveConfirm': 'Dieses Projekt archivieren und seine offenen Aufgaben als erledigt markieren?',
         'projects.sequential': 'Sequenziell',
         'projects.sequentialTooltip': 'Sequenziell: Nur die erste Aufgabe wird in den Nächste Aktionen angezeigt',
         'projects.parallelTooltip': 'Parallel: Alle Aufgaben werden in den Nächste Aktionen angezeigt',

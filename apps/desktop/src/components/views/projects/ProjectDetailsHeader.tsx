@@ -58,7 +58,7 @@ export function ProjectDetailsHeader({
             : Math.round((projectProgress.doneCount / projectProgress.total) * 100)
         : 0;
     const progressText = projectProgress?.isArchived && projectProgress.total > 0
-        ? `${projectProgress.total} ${tFallback(t, 'status.archived', 'Archived')}`
+        ? `${projectProgress.total} ${tFallback(t, 'list.done', 'Completed')}`
         : projectProgress && projectProgress.total > 0
             ? `${projectProgress.doneCount}/${projectProgress.total} ${t('status.done')} • ${projectProgress.remainingCount} ${t('process.remaining')}`
             : t('projects.noActiveTasks');

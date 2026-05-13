@@ -469,7 +469,7 @@ export const createSettingsActions = ({
                     });
                 }
             }
-            let didArchiveTasksForArchivedProjects = false;
+            let didCompleteTasksForArchivedProjects = false;
             let didArchiveSectionsForArchivedProjects = false;
             const archivedProjectIds = new Set(
                 allProjects
@@ -478,13 +478,13 @@ export const createSettingsActions = ({
             );
             if (archivedProjectIds.size > 0) {
                 allTasks = allTasks.map((task) => {
-                    if (task.deletedAt || task.status === 'archived') return task;
+                    if (task.deletedAt || task.status === 'done' || task.status === 'archived') return task;
                     if (!task.projectId || !archivedProjectIds.has(task.projectId)) return task;
-                    didArchiveTasksForArchivedProjects = true;
+                    didCompleteTasksForArchivedProjects = true;
                     return {
                         ...task,
-                        status: 'archived',
-                        completedAt: task.completedAt || nowIso,
+                        status: 'done',
+                        completedAt: nowIso,
                         isFocusedToday: false,
                         updatedAt: nowIso,
                         rev: nextRevision(task.rev),
@@ -652,7 +652,7 @@ export const createSettingsActions = ({
                         lastDataChangeAt:
                             didAutoArchive
                                 || didPromoteScheduled
-                                || didArchiveTasksForArchivedProjects
+                                || didCompleteTasksForArchivedProjects
                                 || didArchiveSectionsForArchivedProjects
                                 || didRepairEntityReferences
                                 || didTombstoneCleanup
@@ -677,7 +677,7 @@ export const createSettingsActions = ({
             if (
                 didAutoArchive
                 || didPromoteScheduled
-                || didArchiveTasksForArchivedProjects
+                || didCompleteTasksForArchivedProjects
                 || didArchiveSectionsForArchivedProjects
                 || didRepairEntityReferences
                 || didTombstoneCleanup

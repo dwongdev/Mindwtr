@@ -340,7 +340,7 @@ export const esOverrides: Record<string, string> = {
         'projects.archive': 'Archivar',
         'projects.reactivate': 'Reactivar',
         'projects.completeConfirm': '¿Marcar este proyecto y todas sus tareas como completados?',
-        'projects.archiveConfirm': '¿Archivar este proyecto y todas sus tareas?',
+        'projects.archiveConfirm': '¿Archivar este proyecto y marcar sus tareas pendientes como hechas?',
         'projects.sequential': 'Secuencial',
         'projects.parallel': 'Paralelo',
         'projects.sequentialTooltip': 'Secuencial: solo la primera tarea se muestra en Siguientes acciones',

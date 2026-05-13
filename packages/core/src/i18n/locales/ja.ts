@@ -398,7 +398,7 @@ export const jaOverrides: Record<string, string> = {
         'projects.archive': 'アーカイブ',
         'projects.reactivate': '再アクティブ化',
         'projects.completeConfirm': 'このプロジェクトを完了としてマークし、すべてのタスクを完了しますか?',
-        'projects.archiveConfirm': 'このプロジェクトをアーカイブして、そのすべてのタスクをアーカイブしますか?',
+        'projects.archiveConfirm': 'このプロジェクトをアーカイブし、未完了のタスクを完了としてマークしますか?',
         'projects.sequential': '一連',
         'projects.parallel': '平行',
         'projects.sequentialTooltip': '順次: 最初のタスクのみが「次のアクション」に表示されます',

@@ -398,7 +398,7 @@ export const arOverrides: Record<string, string> = {
         'projects.archive': 'أرشيف',
         'projects.reactivate': 'إعادة التنشيط',
         'projects.completeConfirm': 'هل يعتبر هذا المشروع مكتملاً وأنهى جميع مهامه؟',
-        'projects.archiveConfirm': 'أرشفة هذا المشروع وأرشفة كافة مهامه؟',
+        'projects.archiveConfirm': 'هل تريد أرشفة هذا المشروع وتمييز مهامه غير المكتملة كمنجزة؟',
         'projects.sequential': 'تسلسلي',
         'projects.parallel': 'موازي',
         'projects.sequentialTooltip': 'تسلسلي: تظهر المهمة الأولى فقط في الإجراءات التالية',

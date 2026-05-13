@@ -398,7 +398,7 @@ export const ptOverrides: Record<string, string> = {
         'projects.archive': 'Arquivo',
         'projects.reactivate': 'Reativar',
         'projects.completeConfirm': 'Marcar este projeto como concluído e concluir todas as suas tarefas?',
-        'projects.archiveConfirm': 'Arquivar este projeto e arquivar todas as suas tarefas?',
+        'projects.archiveConfirm': 'Arquivar este projeto e marcar suas tarefas incompletas como concluídas?',
         'projects.sequential': 'Sequencial',
         'projects.parallel': 'Paralelo',
         'projects.sequentialTooltip': 'Sequencial: apenas a primeira tarefa é exibida nas Próximas Ações',

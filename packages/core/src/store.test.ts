@@ -847,13 +847,13 @@ describe('TaskStore', () => {
         expect(mockStorage.saveData).toHaveBeenCalled();
     });
 
-    it('archives active tasks that belong to archived projects during fetch', async () => {
+    it('marks active tasks that belong to archived projects as done during fetch', async () => {
         vi.spyOn(Date, 'now').mockReturnValue(new Date('2026-02-14T10:00:00.000Z').getTime());
         mockStorage.getData = vi.fn().mockResolvedValue({
             tasks: [
                 {
                     id: 't-linked',
-                    title: 'Should be archived',
+                    title: 'Should be completed',
                     status: 'next',
                     projectId: 'p-archived',
                     tags: [],
@@ -893,7 +893,7 @@ describe('TaskStore', () => {
 
         const linkedTask = useTaskStore.getState()._allTasks.find((task) => task.id === 't-linked');
         const linkedSection = useTaskStore.getState()._allSections.find((section) => section.id === 's-linked');
-        expect(linkedTask?.status).toBe('archived');
+        expect(linkedTask?.status).toBe('done');
         expect(linkedTask?.isFocusedToday).toBe(false);
         expect(linkedTask?.completedAt).toBeTruthy();
         expect(linkedSection?.deletedAt).toBeTruthy();
@@ -1473,13 +1473,25 @@ describe('TaskStore', () => {
         expect(projectTasks.map(t => t.status)).toEqual(['next', 'waiting']);
     });
 
-    it('should archive a project, archive its active tasks, and archive its sections', async () => {
+    it('should archive a project, mark incomplete tasks done, and archive its sections', async () => {
         const { addProject, addTask, addSection, updateProject } = useTaskStore.getState();
         addProject('Archived Project', '#123456');
 
         const project = useTaskStore.getState().projects[0];
         addTask('Task 1', { status: 'next', projectId: project.id });
         addTask('Task 2', { status: 'waiting', projectId: project.id });
+        addTask('Already Done', {
+            status: 'done',
+            completedAt: '2026-03-20T10:00:00.000Z',
+            updatedAt: '2026-03-20T10:00:00.000Z',
+            projectId: project.id,
+        });
+        addTask('Already Archived', {
+            status: 'archived',
+            completedAt: '2026-03-19T10:00:00.000Z',
+            updatedAt: '2026-03-19T10:00:00.000Z',
+            projectId: project.id,
+        });
         const section = await addSection(project.id, 'Section 1');
         expect(section).not.toBeNull();
 
@@ -1487,8 +1499,10 @@ describe('TaskStore', () => {
 
         const projectTasks = useTaskStore.getState()._allTasks.filter(t => t.projectId === project.id && !t.deletedAt);
         const projectSections = useTaskStore.getState()._allSections.filter((item) => item.projectId === project.id);
-        expect(projectTasks).toHaveLength(2);
-        expect(projectTasks.every(t => t.status === 'archived')).toBe(true);
+        expect(projectTasks).toHaveLength(4);
+        expect(projectTasks.filter((task) => task.status === 'done')).toHaveLength(3);
+        expect(projectTasks.find((task) => task.title === 'Already Done')?.completedAt).toBe('2026-03-20T10:00:00.000Z');
+        expect(projectTasks.find((task) => task.title === 'Already Archived')?.status).toBe('archived');
         expect(projectSections).toHaveLength(1);
         expect(projectSections[0].deletedAt).toBeTruthy();
     });

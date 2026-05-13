@@ -405,7 +405,7 @@ export const trOverrides: Record<string, string> = {
         'projects.archive': 'Arşiv',
         'projects.reactivate': 'Yeniden etkinleştir',
         'projects.completeConfirm': 'Bu proje tamamlandı olarak işaretlenip tüm görevleri tamamlansın mı?',
-        'projects.archiveConfirm': 'Bu proje arşivlenip tüm görevleri arşivlensin mi?',
+        'projects.archiveConfirm': 'Bu projeyi arşivleyip tamamlanmamış görevlerini tamamlandı olarak işaretle?',
         'projects.sequential': 'Sıralı',
         'projects.parallel': 'Paralel',
         'projects.sequentialTooltip': 'Sıralı: Sonraki Eylemlerde yalnızca ilk görev gösterilir',

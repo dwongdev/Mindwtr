@@ -472,7 +472,7 @@ export const itOverrides: Record<string, string> = {
         'projects.archive': 'Archivia',
         'projects.reactivate': 'Riattiva',
         'projects.completeConfirm': 'Contrassegnare questo progetto come completato e concludere tutte le sue attività?',
-        'projects.archiveConfirm': 'Archiviare questo progetto e archiviare tutte le sue attività?',
+        'projects.archiveConfirm': 'Archiviare questo progetto e contrassegnare le attività incomplete come completate?',
         'projects.sequential': 'Sequenziale',
         'projects.parallel': 'Parallelo',
         'projects.sequentialTooltip': 'Sequenziale: solo la prima attività compare in Prossime azioni',

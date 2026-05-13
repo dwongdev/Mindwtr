@@ -398,7 +398,7 @@ export const ruOverrides: Record<string, string> = {
         'projects.archive': 'Архив',
         'projects.reactivate': 'Повторно активировать',
         'projects.completeConfirm': 'Отметить этот проект как завершенный и выполнить все задачи?',
-        'projects.archiveConfirm': 'Архивировать этот проект и все его задачи?',
+        'projects.archiveConfirm': 'Архивировать этот проект и отметить его незавершённые задачи как выполненные?',
         'projects.sequential': 'Последовательный',
         'projects.parallel': 'Параллельно',
         'projects.sequentialTooltip': 'Последовательно: в списке «Следующие действия» отображается только первая задача.',

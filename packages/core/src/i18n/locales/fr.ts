@@ -394,7 +394,7 @@ export const frOverrides: Record<string, string> = {
         'projects.complete': 'Complet',
         'projects.reactivate': 'Réactiver',
         'projects.completeConfirm': 'Marquer ce projet comme terminé et terminer toutes ses tâches ?',
-        'projects.archiveConfirm': 'Archiver ce projet et archiver toutes ses tâches ?',
+        'projects.archiveConfirm': 'Archiver ce projet et marquer ses tâches non terminées comme faites ?',
         'projects.sequential': 'Séquentiel',
         'projects.parallel': 'Parallèle',
         'projects.sequentialTooltip': 'Séquentiel : seule la première tâche s\'affiche dans les actions suivantes',

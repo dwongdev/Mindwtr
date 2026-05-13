@@ -107,7 +107,7 @@ export function shouldShowProjectWorkspaceTask(task: Task, project?: Project): b
     if (!project) return false;
     if (task.deletedAt || task.projectId !== project.id) return false;
     if (task.status === 'reference') return false;
-    if (project.status === 'archived') return task.status === 'archived';
+    if (project.status === 'archived') return task.status === 'done' || task.status === 'archived';
     return task.status !== 'done' && task.status !== 'archived';
 }
 
@@ -596,11 +596,11 @@ export function ProjectWorkspace({
     const projectProgress = useMemo(() => {
         if (!selectedProjectId) return null;
         if (isArchivedProject) {
-            const archivedCount = projectAllTasks.filter((task) => task.status === 'archived').length;
+            const completedCount = projectAllTasks.filter((task) => task.status === 'done' || task.status === 'archived').length;
             return {
-                doneCount: archivedCount,
+                doneCount: completedCount,
                 remainingCount: 0,
-                total: archivedCount,
+                total: completedCount,
                 isArchived: true,
             };
         }

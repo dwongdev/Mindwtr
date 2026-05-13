@@ -447,7 +447,7 @@ export const zhHant: Record<string, string> = {
         'projects.archive': '歸檔',
         'projects.reactivate': '重新激活',
         'projects.completeConfirm': '將此項目標記爲完成並結束其所有任務？',
-        'projects.archiveConfirm': '歸檔此項目並歸檔其所有任務？',
+        'projects.archiveConfirm': '歸檔此項目並將未完成的任務標記為已完成？',
         'projects.sequential': '順序',
         'projects.parallel': '並行',
         'projects.sequentialTooltip': '順序：僅顯示第一個任務作爲下一步行動',

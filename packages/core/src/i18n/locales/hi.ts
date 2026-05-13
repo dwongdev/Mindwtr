@@ -399,7 +399,7 @@ export const hiOverrides: Record<string, string> = {
         'projects.archive': 'पुरालेख',
         'projects.reactivate': 'पुन: सक्रिय',
         'projects.completeConfirm': 'इस प्रोजेक्ट को पूर्ण चिह्नित करें और इसके सभी कार्य पूर्ण करें?',
-        'projects.archiveConfirm': 'इस प्रोजेक्ट को संग्रहीत करें और इसके सभी कार्यों को संग्रहीत करें?',
+        'projects.archiveConfirm': 'इस प्रोजेक्ट को संग्रहीत करें और इसके अधूरे कार्यों को पूर्ण के रूप में चिह्नित करें?',
         'projects.sequential': 'क्रमबद्ध',
         'projects.parallel': 'समानांतर',
         'projects.sequentialTooltip': 'अनुक्रमिक: अगली कार्रवाइयों में केवल पहला कार्य दिखता है',

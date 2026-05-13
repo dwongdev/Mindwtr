@@ -396,7 +396,7 @@ export const koOverrides: Record<string, string> = {
         'projects.archive': '보관소',
         'projects.reactivate': '재활성화',
         'projects.completeConfirm': '이 프로젝트를 완료로 표시하고 모든 작업을 완료하시겠습니까?',
-        'projects.archiveConfirm': '이 프로젝트를 보관하고 모든 작업을 보관하시겠습니까?',
+        'projects.archiveConfirm': '이 프로젝트를 보관하고 완료되지 않은 작업을 완료로 표시하시겠습니까?',
         'projects.sequential': '잇달아 일어나는',
         'projects.parallel': '평행한',
         'projects.sequentialTooltip': '순차: 다음 작업에는 첫 번째 작업만 표시됩니다.',

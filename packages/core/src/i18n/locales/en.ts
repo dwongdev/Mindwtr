@@ -503,7 +503,7 @@ export const en: Record<string, string> = {
         'projects.archive': 'Archive',
         'projects.reactivate': 'Reactivate',
         'projects.completeConfirm': 'Mark this project completed and finish all its tasks?',
-        'projects.archiveConfirm': 'Archive this project and archive all its tasks?',
+        'projects.archiveConfirm': 'Archive this project and move incomplete tasks to Done?',
         'projects.sequential': 'Sequential',
         'projects.parallel': 'Parallel',
         'projects.sequentialTooltip': 'Sequential: Only first task shows in Next Actions',

@@ -27,11 +27,13 @@ const task = (status: Task['status'], overrides: Partial<Task> = {}): Task => ({
 });
 
 describe('shouldShowProjectWorkspaceTask', () => {
-    it('shows archived linked tasks when the selected project is archived', () => {
+    it('shows completed linked tasks when the selected project is archived', () => {
+        expect(shouldShowProjectWorkspaceTask(task('done'), project('archived'))).toBe(true);
         expect(shouldShowProjectWorkspaceTask(task('archived'), project('archived'))).toBe(true);
     });
 
-    it('keeps archived linked tasks out of active project task lists', () => {
+    it('keeps completed linked tasks out of active project task lists', () => {
+        expect(shouldShowProjectWorkspaceTask(task('done'), project('active'))).toBe(false);
         expect(shouldShowProjectWorkspaceTask(task('archived'), project('active'))).toBe(false);
     });
 
