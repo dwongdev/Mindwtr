@@ -86,6 +86,30 @@ pub(crate) fn set_global_quick_add_shortcut(
     state: tauri::State<'_, GlobalQuickAddShortcutState>,
     shortcut: Option<String>,
 ) -> Result<GlobalQuickAddShortcutApplyResult, String> {
+    #[cfg(target_os = "linux")]
+    if is_flatpak() {
+        let disabled = apply_global_quick_add_shortcut(
+            &app,
+            &state,
+            Some(GLOBAL_QUICK_ADD_SHORTCUT_DISABLED),
+        )?;
+        let requested_shortcut = shortcut.as_deref().unwrap_or("");
+        let warning = if requested_shortcut.is_empty()
+            || requested_shortcut.eq_ignore_ascii_case(GLOBAL_QUICK_ADD_SHORTCUT_DISABLED)
+        {
+            None
+        } else {
+            Some(
+                "Flatpak/Wayland requires a desktop custom shortcut. Use: flatpak run tech.dongdongbh.mindwtr --quick-add"
+                    .to_string(),
+            )
+        };
+        return Ok(GlobalQuickAddShortcutApplyResult {
+            shortcut: disabled,
+            warning,
+        });
+    }
+
     match apply_global_quick_add_shortcut(&app, &state, shortcut.as_deref()) {
         Ok(applied) => Ok(GlobalQuickAddShortcutApplyResult {
             shortcut: applied,

@@ -70,4 +70,17 @@ describe('SettingsMainPage', () => {
 
         expect(onLaunchAtStartupChange).not.toHaveBeenCalled();
     });
+
+    it('shows the Flatpak quick add command and disables app-owned shortcut selection', () => {
+        const { getByRole, getByText } = render(
+            <SettingsMainPage
+                {...baseProps}
+                isFlatpak
+            />,
+        );
+
+        expect(getByText('Flatpak custom shortcut command')).toBeInTheDocument();
+        expect(getByText('flatpak run tech.dongdongbh.mindwtr --quick-add')).toBeInTheDocument();
+        expect(getByRole('combobox', { name: 'Global quick add shortcut' })).toBeDisabled();
+    });
 });

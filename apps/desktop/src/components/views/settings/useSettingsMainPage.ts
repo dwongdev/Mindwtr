@@ -293,6 +293,7 @@ export function useSettingsMainPage({
         dateFormat,
         densityMode,
         globalQuickAddShortcut,
+        isFlatpak,
         keybindingStyle,
         language,
         launchAtStartupEnabled,

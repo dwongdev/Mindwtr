@@ -779,11 +779,14 @@ pub fn run() {
             }
 
             let shortcut_state = app.state::<GlobalQuickAddShortcutState>();
-            if let Err(error) = apply_global_quick_add_shortcut(
-                &handle,
-                &shortcut_state,
-                Some(default_global_quick_add_shortcut()),
-            ) {
+            let default_shortcut = if cfg!(target_os = "linux") && is_flatpak() {
+                GLOBAL_QUICK_ADD_SHORTCUT_DISABLED
+            } else {
+                default_global_quick_add_shortcut()
+            };
+            if let Err(error) =
+                apply_global_quick_add_shortcut(&handle, &shortcut_state, Some(default_shortcut))
+            {
                 log::warn!("Failed to register global quick add shortcut: {error}");
             }
 

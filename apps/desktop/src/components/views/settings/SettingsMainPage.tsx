@@ -1,8 +1,11 @@
 import type { Language } from '../../../contexts/language-context';
 import {
     type GlobalQuickAddShortcutSetting,
+    GLOBAL_QUICK_ADD_SHORTCUT_DISABLED,
     getGlobalQuickAddShortcutOptions,
 } from '../../../lib/global-quick-add-shortcut';
+
+const FLATPAK_QUICK_ADD_COMMAND = 'flatpak run tech.dongdongbh.mindwtr --quick-add';
 
 type ThemeMode = 'system' | 'light' | 'dark' | 'eink' | 'nord' | 'sepia';
 type DensityMode = 'comfortable' | 'compact';
@@ -53,6 +56,9 @@ type Labels = {
     undoNotificationsDesc: string;
     globalQuickAddShortcut: string;
     globalQuickAddShortcutDesc: string;
+    globalQuickAddFlatpakDesc: string;
+    globalQuickAddFlatpakCommand: string;
+    globalQuickAddFlatpakCommandDesc: string;
     keybindingVim: string;
     keybindingEmacs: string;
     viewShortcuts: string;
@@ -93,6 +99,7 @@ export type SettingsMainPageProps = {
     onKeybindingStyleChange: (style: 'vim' | 'emacs') => void;
     globalQuickAddShortcut: GlobalQuickAddShortcutSetting;
     onGlobalQuickAddShortcutChange: (shortcut: GlobalQuickAddShortcutSetting) => void;
+    isFlatpak?: boolean;
     undoNotificationsEnabled: boolean;
     onUndoNotificationsChange: (enabled: boolean) => void;
     onOpenHelp: () => void;
@@ -196,6 +203,7 @@ export function SettingsMainPage({
     onKeybindingStyleChange,
     globalQuickAddShortcut,
     onGlobalQuickAddShortcutChange,
+    isFlatpak = false,
     undoNotificationsEnabled,
     onUndoNotificationsChange,
     onOpenHelp,
@@ -218,9 +226,11 @@ export function SettingsMainPage({
     const isMac = typeof navigator !== 'undefined' && /mac/i.test(navigator.platform);
     const isWindows = typeof navigator !== 'undefined' && /win/i.test(navigator.userAgent);
     const globalQuickAddOptions = getGlobalQuickAddShortcutOptions({
+        isFlatpak,
         isMac,
         isWindows,
     });
+    const quickAddShortcutValue = isFlatpak ? GLOBAL_QUICK_ADD_SHORTCUT_DISABLED : globalQuickAddShortcut;
 
     return (
         <div className="space-y-5">
@@ -370,11 +380,16 @@ export function SettingsMainPage({
                         {t.viewShortcuts}
                     </button>
                 </SettingsRow>
-                <SettingsRow title={t.globalQuickAddShortcut} description={t.globalQuickAddShortcutDesc}>
+                <SettingsRow
+                    title={t.globalQuickAddShortcut}
+                    description={isFlatpak ? t.globalQuickAddFlatpakDesc : t.globalQuickAddShortcutDesc}
+                >
                     <select
-                        value={globalQuickAddShortcut}
+                        aria-label={t.globalQuickAddShortcut}
+                        disabled={isFlatpak}
+                        value={quickAddShortcutValue}
                         onChange={(e) => onGlobalQuickAddShortcutChange(e.target.value as GlobalQuickAddShortcutSetting)}
-                        className={selectCls}
+                        className={`${selectCls} ${isFlatpak ? 'cursor-not-allowed opacity-70' : ''}`}
                     >
                         {globalQuickAddOptions.map((option) => (
                             <option key={option.value} value={option.value}>
@@ -383,6 +398,15 @@ export function SettingsMainPage({
                         ))}
                     </select>
                 </SettingsRow>
+                {isFlatpak && (
+                    <div className="px-4 py-3">
+                        <div className="text-[13px] font-medium">{t.globalQuickAddFlatpakCommand}</div>
+                        <div className="text-xs text-muted-foreground mt-0.5">{t.globalQuickAddFlatpakCommandDesc}</div>
+                        <code className="mt-2 block break-all rounded-md border border-border bg-muted/50 px-2.5 py-2 text-xs text-foreground select-all">
+                            {FLATPAK_QUICK_ADD_COMMAND}
+                        </code>
+                    </div>
+                )}
                 <SettingsRow title={t.undoNotifications} description={t.undoNotificationsDesc}>
                     <Toggle
                         enabled={undoNotificationsEnabled}

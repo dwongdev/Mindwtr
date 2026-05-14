@@ -2,7 +2,7 @@ import React, { createContext, useCallback, useContext, useEffect, useMemo, useR
 import { shallow, translateWithFallback, useTaskStore } from '@mindwtr/core';
 import { useLanguage } from './language-context';
 import { KeybindingHelpModal } from '../components/KeybindingHelpModal';
-import { isTauriRuntime } from '../lib/runtime';
+import { isFlatpakRuntime, isTauriRuntime } from '../lib/runtime';
 import { reportError } from '../lib/report-error';
 import { logWarn } from '../lib/app-log';
 import { useUiStore } from '../store/ui-store';
@@ -143,6 +143,7 @@ export function KeybindingProvider({
     const [isHelpOpen, setIsHelpOpen] = useState(false);
     const quickAddShortcut = useMemo(
         () => normalizeGlobalQuickAddShortcut(settings.globalQuickAddShortcut, {
+            isFlatpak: isFlatpakRuntime(),
             isMac,
             isWindows,
         }),
@@ -808,7 +809,11 @@ export function KeybindingProvider({
             )
             .then((result) => {
                 if (cancelled) return;
-                const appliedShortcut = normalizeGlobalQuickAddShortcut(result?.shortcut, { isMac, isWindows });
+                const appliedShortcut = normalizeGlobalQuickAddShortcut(result?.shortcut, {
+                    isFlatpak: isFlatpakRuntime(),
+                    isMac,
+                    isWindows,
+                });
                 if (result?.warning) {
                     showToast(result.warning, 'info', 6000);
                 }
