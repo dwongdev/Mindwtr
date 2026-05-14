@@ -71,7 +71,9 @@ vi.mock('expo-application', () => ({
 
 vi.mock('@mindwtr/core', () => ({
   generateUUID: () => 'generated-id',
+  resetHeartbeatOptOutMarker: vi.fn(async () => undefined),
   sendDailyHeartbeat: vi.fn(async () => undefined),
+  sendHeartbeatOptOut: vi.fn(async () => undefined),
   selectVisibleTasks: (tasks: Array<{ deletedAt?: string | null; status?: string }>) => (
     tasks.filter((task) => !task.deletedAt && task.status !== 'archived')
   ),

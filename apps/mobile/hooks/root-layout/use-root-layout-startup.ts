@@ -1,12 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
 import { Alert, Platform } from 'react-native';
-import * as Application from 'expo-application';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import {
     type AppData,
-    generateUUID,
-    sendDailyHeartbeat,
     SQLITE_SCHEMA_VERSION,
     useTaskStore,
 } from '@mindwtr/core';
@@ -21,6 +18,10 @@ import { logError, logInfo } from '@/lib/app-log';
 import { coerceSupportedBackend, resolveBackend } from '@/lib/sync-service-utils';
 import { SYNC_BACKEND_KEY } from '@/lib/sync-constants';
 import { isCloudKitAvailable } from '@/lib/cloudkit-sync';
+import {
+    getMobileStartupAnalyticsContext,
+    sendMobileDailyHeartbeat,
+} from '@/lib/analytics-heartbeat';
 
 type UseRootLayoutStartupParams = {
     analyticsHeartbeatUrl: string;
@@ -31,67 +32,8 @@ type UseRootLayoutStartupParams = {
     storageInitError: Error | null;
 };
 
-const ANALYTICS_DISTINCT_ID_KEY = 'mindwtr-analytics-distinct-id';
-
-type PlatformExtras = typeof Platform & {
-    isPad?: boolean;
-    constants?: {
-        Release?: string;
-    };
-};
-
-const platformExtras = Platform as PlatformExtras;
-
 const supportsNativeICloudSync = (): boolean =>
     Platform.OS === 'ios' && isCloudKitAvailable();
-
-const getMobileAnalyticsChannel = async (isFossBuild: boolean): Promise<string> => {
-    if (Platform.OS === 'ios') return 'app-store';
-    if (Platform.OS !== 'android') return Platform.OS || 'mobile';
-    if (isFossBuild) return 'android-sideload';
-    try {
-        const referrer = await Application.getInstallReferrerAsync();
-        return (referrer || '').trim() ? 'play-store' : 'android-sideload';
-    } catch {
-        return 'android-unknown';
-    }
-};
-
-const getOrCreateAnalyticsDistinctId = async (): Promise<string> => {
-    const existing = (await AsyncStorage.getItem(ANALYTICS_DISTINCT_ID_KEY) || '').trim();
-    if (existing) return existing;
-    const generated = generateUUID();
-    await AsyncStorage.setItem(ANALYTICS_DISTINCT_ID_KEY, generated);
-    return generated;
-};
-
-const getMobileDeviceClass = (): string => {
-    if (Platform.OS === 'ios') return platformExtras.isPad === true ? 'tablet' : 'phone';
-    if (Platform.OS === 'android') return 'phone';
-    return 'desktop';
-};
-
-const getMobileOsMajor = (): string => {
-    if (Platform.OS === 'ios') {
-        const raw = String(Platform.Version ?? '');
-        const major = raw.match(/\d+/)?.[0];
-        return major ? `ios-${major}` : 'ios';
-    }
-    if (Platform.OS === 'android') {
-        const raw = String(platformExtras.constants?.Release ?? Platform.Version ?? '');
-        const major = raw.match(/\d+/)?.[0];
-        return major ? `android-${major}` : 'android';
-    }
-    return Platform.OS || 'mobile';
-};
-
-const getDeviceLocale = (): string => {
-    try {
-        return String(Intl.DateTimeFormat().resolvedOptions().locale || '').trim();
-    } catch {
-        return '';
-    }
-};
 
 const getStartupLoggingReason = (loggingEnabled: boolean): string =>
     loggingEnabled ? 'user-enabled' : 'startup-force';
@@ -199,44 +141,31 @@ export function useRootLayoutStartup({
                     startupContextLogged.current = true;
                     const rawBackend = await AsyncStorage.getItem(SYNC_BACKEND_KEY);
                     const syncBackend = coerceSupportedBackend(resolveBackend(rawBackend), supportsNativeICloudSync());
-                    const channel = await getMobileAnalyticsChannel(isFossBuild).catch(() => Platform.OS || 'mobile');
+                    const analyticsContext = await getMobileStartupAnalyticsContext(isFossBuild);
                     void logInfo('App started', {
                         scope: 'startup',
                         force: true,
                         extra: {
                             version: appVersion,
-                            platform: Platform.OS,
-                            osMajor: getMobileOsMajor(),
-                            locale: getDeviceLocale(),
-                            channel,
+                            platform: analyticsContext.platform,
+                            osMajor: analyticsContext.osMajor,
+                            locale: analyticsContext.locale,
+                            channel: analyticsContext.channel,
                             syncBackend,
                             schemaVersion: String(SQLITE_SCHEMA_VERSION),
-                            deviceClass: getMobileDeviceClass(),
+                            deviceClass: analyticsContext.deviceClass,
                             buildType: isFossBuild ? 'foss' : 'standard',
                             loggingReason: getStartupLoggingReason(loadedStore.settings.diagnostics?.loggingEnabled === true),
                         },
                     }).catch(() => {});
                 }
-                if (!isFossBuild && !isExpoGo && !__DEV__ && analyticsHeartbeatUrl) {
+                if (analyticsHeartbeatUrl) {
                     try {
-                        const [distinctId, channel] = await Promise.all([
-                            getOrCreateAnalyticsDistinctId(),
-                            getMobileAnalyticsChannel(isFossBuild),
-                        ]);
                         await measureStartupPhase('js.analytics.heartbeat', async () => {
-                            await sendDailyHeartbeat({
-                                enabled: true,
-                                endpointUrl: analyticsHeartbeatUrl,
-                                distinctId,
-                                platform: Platform.OS,
-                                channel,
-                                appVersion,
-                                deviceClass: getMobileDeviceClass(),
-                                osMajor: getMobileOsMajor(),
-                                locale: getDeviceLocale(),
-                                storage: AsyncStorage,
-                                fetcher: fetch,
-                            });
+                            await sendMobileDailyHeartbeat(
+                                { analyticsHeartbeatUrl, appVersion, isExpoGo, isFossBuild },
+                                loadedStore.settings
+                            );
                         });
                     } catch {
                         // Keep analytics heartbeat failures silent on mobile.

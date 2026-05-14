@@ -78,6 +78,7 @@ export const FOSS_LOCAL_LLM_MODEL_OPTIONS = ['llama3.2', 'qwen2.5', 'mistral', '
 export const FOSS_LOCAL_LLM_COPILOT_OPTIONS = ['llama3.2', 'qwen2.5', 'mistral', 'phi-4-mini'];
 
 export type MobileExtraConfig = {
+    analyticsHeartbeatUrl?: string;
     isFossBuild?: boolean | string;
     dropboxAppKey?: string;
 };

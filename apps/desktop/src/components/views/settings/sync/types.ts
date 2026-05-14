@@ -15,6 +15,12 @@ export type SettingsSyncLabels = {
     importOmniFocusDesc: string;
     diagnostics: string;
     diagnosticsDesc: string;
+    analyticsHeartbeat: string;
+    analyticsHeartbeatDesc: string;
+    analyticsHeartbeatDisableTitle: string;
+    analyticsHeartbeatDisableDesc: string;
+    analyticsHeartbeatDisableConfirm: string;
+    analyticsHeartbeatKeepEnabled: string;
     debugLogging: string;
     debugLoggingDesc: string;
     logFile: string;
@@ -112,8 +118,11 @@ export type SettingsSyncPageProps = {
     t: SettingsSyncLabels;
     isTauri: boolean;
     loggingEnabled: boolean;
+    analyticsHeartbeatAvailable: boolean;
+    analyticsHeartbeatEnabled: boolean;
     logPath: string;
     onToggleLogging: () => void;
+    onAnalyticsHeartbeatChange: (enabled: boolean) => Promise<void> | void;
     onClearLog: () => void;
     syncBackend: SyncBackend;
     onSetSyncBackend: (backend: SyncBackend) => void;

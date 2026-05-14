@@ -4,10 +4,9 @@ import App from './App.tsx';
 import { QuickAddWindowApp } from './QuickAddWindowApp.tsx';
 import './index.css';
 
-import { type AppData, consoleLogger, generateUUID, sendDailyHeartbeat, setLogger, setStorageAdapter, SQLITE_SCHEMA_VERSION } from '@mindwtr/core';
+import { type AppData, consoleLogger, setLogger, setStorageAdapter, SQLITE_SCHEMA_VERSION } from '@mindwtr/core';
 import { LanguageProvider } from './contexts/language-context';
-import { getInstallSourceOrFallback, isTauriRuntime } from './lib/runtime';
-import { normalizeAnalyticsInstallChannel } from './lib/install-source';
+import { isTauriRuntime } from './lib/runtime';
 import { reportError } from './lib/report-error';
 import { webStorage } from './lib/storage-adapter-web';
 import { isDiagnosticsEnabled, logError, logInfo, logWarn, setupGlobalErrorLogging } from './lib/app-log';
@@ -15,16 +14,15 @@ import { THEME_STORAGE_KEY, applyThemeMode, coerceDesktopThemeMode, resolveNativ
 import { TEXT_SIZE_STORAGE_KEY, applyDesktopTextSize, coerceDesktopTextSize } from './lib/text-size';
 import { loadStoredFullscreen } from './lib/window-state';
 import { isQuickAddWindowLocation } from './lib/quick-add-window';
+import {
+    detectDesktopPlatform,
+    getDesktopChannel,
+    getDesktopLocale,
+    getDesktopOsMajor,
+    getDesktopVersion,
+    sendDesktopDailyHeartbeat,
+} from './lib/analytics-heartbeat';
 
-const ANALYTICS_DISTINCT_ID_KEY = 'mindwtr-analytics-distinct-id';
-const ANALYTICS_HEARTBEAT_URL = String(import.meta.env.VITE_ANALYTICS_HEARTBEAT_URL || '').trim();
-
-const parseBool = (value: string | undefined): boolean => {
-    const normalized = String(value || '').trim().toLowerCase();
-    return normalized === '1' || normalized === 'true' || normalized === 'yes';
-};
-
-const heartbeatDisabled = parseBool(import.meta.env.VITE_DISABLE_HEARTBEAT);
 let coreLoggerBridgeInstalled = false;
 
 const buildCoreLogExtra = (payload: {
@@ -71,66 +69,6 @@ const installCoreLoggerBridge = () => {
         }
         void logInfo(payload.message, { scope, extra });
     });
-};
-
-const detectDesktopPlatform = (): string => {
-    const userAgent = navigator.userAgent.toLowerCase();
-    if (userAgent.includes('win')) return 'windows';
-    if (userAgent.includes('mac')) return 'macos';
-    if (userAgent.includes('linux')) return 'linux';
-    return 'unknown';
-};
-
-const getDesktopLocale = (): string => {
-    const candidates = navigator.languages?.length ? navigator.languages : [navigator.language];
-    const locale = String(candidates?.[0] || '').trim();
-    return locale;
-};
-
-const getDesktopOsMajor = (platform: string): string => {
-    const userAgent = navigator.userAgent;
-    if (platform === 'windows') {
-        const match = userAgent.match(/windows nt\s+(\d+)/i);
-        if (match?.[1]) return `windows-${match[1]}`;
-        return 'windows';
-    }
-    if (platform === 'macos') {
-        const match = userAgent.match(/mac os x\s+(\d+)/i);
-        if (match?.[1]) return `macos-${match[1]}`;
-        return 'macos';
-    }
-    if (platform === 'linux') {
-        return 'linux';
-    }
-    return 'unknown';
-};
-
-const getOrCreateAnalyticsDistinctId = (): string => {
-    const existing = localStorage.getItem(ANALYTICS_DISTINCT_ID_KEY)?.trim();
-    if (existing) return existing;
-    const generated = generateUUID();
-    localStorage.setItem(ANALYTICS_DISTINCT_ID_KEY, generated);
-    return generated;
-};
-
-const getDesktopChannel = async (): Promise<string> => {
-    if (!isTauriRuntime()) return 'web';
-    try {
-        const source = await getInstallSourceOrFallback('unknown');
-        return normalizeAnalyticsInstallChannel(source);
-    } catch {
-        return 'unknown';
-    }
-};
-
-const getDesktopVersion = async (): Promise<string> => {
-    if (!isTauriRuntime()) return 'web';
-    try {
-        const { getVersion } = await import('@tauri-apps/api/app');
-        return await getVersion();
-    } catch {
-        return '0.0.0';
-    }
 };
 
 const getLoggingReason = (loggingEnabled: boolean): string => {
@@ -183,38 +121,6 @@ const logDesktopStartupContext = async (): Promise<void> => {
             loggingReason: getLoggingReason(loggingEnabled),
         },
     });
-};
-
-const sendDesktopHeartbeat = async (): Promise<void> => {
-    if (!isTauriRuntime()) return;
-    if (import.meta.env.DEV || import.meta.env.VITEST || import.meta.env.MODE === 'test' || process.env.NODE_ENV === 'test') return;
-    if (heartbeatDisabled || !ANALYTICS_HEARTBEAT_URL) return;
-    try {
-        const [channel, appVersion] = await Promise.all([
-            getDesktopChannel(),
-            getDesktopVersion(),
-        ]);
-        const platform = detectDesktopPlatform();
-        const distinctId = getOrCreateAnalyticsDistinctId();
-        await sendDailyHeartbeat({
-            enabled: true,
-            endpointUrl: ANALYTICS_HEARTBEAT_URL,
-            distinctId,
-            platform,
-            channel,
-            appVersion,
-            deviceClass: 'desktop',
-            osMajor: getDesktopOsMajor(platform),
-            locale: getDesktopLocale(),
-            storage: localStorage,
-            fetcher: fetch,
-        });
-    } catch (error) {
-        void logWarn('Desktop analytics heartbeat failed', {
-            scope: 'analytics',
-            extra: { error: error instanceof Error ? error.message : String(error) },
-        });
-    }
 };
 
 // Initialize theme immediately before React renders to prevent flash
@@ -290,7 +196,12 @@ async function bootstrap() {
     );
 
     if (!isQuickAddWindow) {
-        void sendDesktopHeartbeat();
+        void sendDesktopDailyHeartbeat().catch((error) => {
+            void logWarn('Desktop analytics heartbeat failed', {
+                scope: 'analytics',
+                extra: { error: error instanceof Error ? error.message : String(error) },
+            });
+        });
     }
 }
 

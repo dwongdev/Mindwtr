@@ -394,18 +394,24 @@ export function SyncPreferencesCard({
 }
 
 type SyncDiagnosticsCardProps = {
+  analyticsHeartbeatAvailable: boolean;
+  analyticsHeartbeatEnabled: boolean;
   handleClearLog: () => void;
   handleShareLog: () => void;
   loggingEnabled: boolean;
+  toggleAnalyticsHeartbeat: (value: boolean) => void;
   t: Translate;
   tc: ThemeColors;
   toggleDebugLogging: (value: boolean) => void;
 };
 
 export function SyncDiagnosticsCard({
+  analyticsHeartbeatAvailable,
+  analyticsHeartbeatEnabled,
   handleClearLog,
   handleShareLog,
   loggingEnabled,
+  toggleAnalyticsHeartbeat,
   t,
   tc,
   toggleDebugLogging,
@@ -414,7 +420,23 @@ export function SyncDiagnosticsCard({
     <>
       <Text style={[styles.sectionTitle, { color: tc.text, marginTop: 24 }]}>{t('settings.diagnostics')}</Text>
       <View style={[styles.settingCard, { backgroundColor: tc.cardBg }]}>
-        <View style={styles.settingRow}>
+        {analyticsHeartbeatAvailable && (
+          <View style={styles.settingRow}>
+            <View style={styles.settingInfo}>
+              <Text style={[styles.settingLabel, { color: tc.text }]}>{t('settings.analyticsHeartbeat')}</Text>
+              <Text style={[styles.settingDescription, { color: tc.secondaryText }]}>{t('settings.analyticsHeartbeatDesc')}</Text>
+            </View>
+            <Switch
+              value={analyticsHeartbeatEnabled}
+              onValueChange={toggleAnalyticsHeartbeat}
+              trackColor={{ false: '#767577', true: '#3B82F6' }}
+            />
+          </View>
+        )}
+        <View style={[
+          styles.settingRow,
+          analyticsHeartbeatAvailable && { borderTopWidth: 1, borderTopColor: tc.border },
+        ]}>
           <View style={styles.settingInfo}>
             <Text style={[styles.settingLabel, { color: tc.text }]}>{t('settings.debugLogging')}</Text>
             <Text style={[styles.settingDescription, { color: tc.secondaryText }]}>{t('settings.debugLoggingDesc')}</Text>

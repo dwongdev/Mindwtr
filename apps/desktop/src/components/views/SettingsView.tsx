@@ -50,6 +50,11 @@ import {
   labelKeyOverrides,
   type SettingsLabels,
 } from "./settings/labels";
+import {
+  isDesktopAnalyticsHeartbeatConfigured,
+  resetDesktopAnalyticsOptOutMarker,
+  sendDesktopAnalyticsOptOut,
+} from "../../lib/analytics-heartbeat";
 import { SettingsUpdateModal } from "./settings/SettingsUpdateModal";
 import { SettingsSidebar } from "./settings/SettingsSidebar";
 import { useAiSettings } from "./settings/useAiSettings";
@@ -227,6 +232,9 @@ export function SettingsView() {
     ? Math.max(0, Math.floor(settings?.gtd?.autoArchiveDays as number))
     : 7;
   const loggingEnabled = settings?.diagnostics?.loggingEnabled === true;
+  const analyticsHeartbeatAvailable = isDesktopAnalyticsHeartbeatConfigured();
+  const analyticsHeartbeatEnabled =
+    analyticsHeartbeatAvailable && settings?.analytics?.heartbeatEnabled !== false;
   const attachmentsLastCleanupAt = settings?.attachments?.lastCleanupAt;
   const pendingRemoteDeleteCount =
     settings?.attachments?.pendingRemoteDeletes?.length ?? 0;
@@ -405,6 +413,47 @@ export function SettingsView() {
         reportError("Failed to update logging settings", error),
       );
   };
+
+  const handleAnalyticsHeartbeatChange = useCallback(async (enabled: boolean) => {
+    if (!analyticsHeartbeatAvailable) return;
+    if (!enabled) {
+      const confirmed = await requestConfirmation({
+        title: t.analyticsHeartbeatDisableTitle,
+        description: t.analyticsHeartbeatDisableDesc,
+        confirmLabel: t.analyticsHeartbeatDisableConfirm,
+        cancelLabel: t.analyticsHeartbeatKeepEnabled,
+      });
+      if (!confirmed) return;
+    }
+
+    await updateSettings({
+      analytics: {
+        ...(settings?.analytics ?? {}),
+        heartbeatEnabled: enabled,
+      },
+    })
+      .then(async () => {
+        if (enabled) {
+          await resetDesktopAnalyticsOptOutMarker();
+          return;
+        }
+        await sendDesktopAnalyticsOptOut();
+      })
+      .then(showSaved)
+      .catch((error) =>
+        reportError("Failed to update analytics heartbeat setting", error),
+      );
+  }, [
+    analyticsHeartbeatAvailable,
+    requestConfirmation,
+    settings?.analytics,
+    showSaved,
+    t.analyticsHeartbeatDisableConfirm,
+    t.analyticsHeartbeatDisableDesc,
+    t.analyticsHeartbeatDisableTitle,
+    t.analyticsHeartbeatKeepEnabled,
+    updateSettings,
+  ]);
 
   const handleClearLog = async () => {
     await clearLog();
@@ -902,8 +951,11 @@ export function SettingsView() {
           t={t}
           isTauri={isTauri}
           loggingEnabled={loggingEnabled}
+          analyticsHeartbeatAvailable={analyticsHeartbeatAvailable}
+          analyticsHeartbeatEnabled={analyticsHeartbeatEnabled}
           logPath={logPath}
           onToggleLogging={toggleLogging}
+          onAnalyticsHeartbeatChange={handleAnalyticsHeartbeatChange}
           onClearLog={handleClearLog}
           syncBackend={syncBackend}
           onSetSyncBackend={handleSetSyncBackend}
@@ -983,8 +1035,11 @@ export function SettingsView() {
           t={t}
           isTauri={isTauri}
           loggingEnabled={loggingEnabled}
+          analyticsHeartbeatAvailable={analyticsHeartbeatAvailable}
+          analyticsHeartbeatEnabled={analyticsHeartbeatEnabled}
           logPath={logPath}
           onToggleLogging={toggleLogging}
+          onAnalyticsHeartbeatChange={handleAnalyticsHeartbeatChange}
           onClearLog={handleClearLog}
           transferAction={transferAction}
           onExportBackup={handleExportBackup}

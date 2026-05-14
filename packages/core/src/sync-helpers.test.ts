@@ -123,6 +123,7 @@ describe('sync-helpers sanitizeAppDataForRemote', () => {
                 weeklyReviewEnabled: true,
                 window: { decorations: false, closeBehavior: 'tray' },
                 diagnostics: { loggingEnabled: true },
+                analytics: { heartbeatEnabled: false },
                 taskSortBy: 'updatedAt',
                 sidebarCollapsed: true,
                 deviceId: 'local-device-id',
@@ -216,6 +217,7 @@ describe('sync-helpers sanitizeAppDataForRemote', () => {
         expect(sanitized.settings.window).toBeUndefined();
         expect(sanitized.settings.notificationsEnabled).toBeUndefined();
         expect(sanitized.settings.diagnostics).toBeUndefined();
+        expect(sanitized.settings.analytics).toBeUndefined();
         expect(sanitized.settings.gtd).toBeUndefined();
         expect(sanitized.settings.features).toBeUndefined();
         expect(sanitized.settings.taskSortBy).toBeUndefined();

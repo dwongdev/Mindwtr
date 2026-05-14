@@ -7,8 +7,11 @@ type SettingsDataPageProps = Pick<
     SettingsSyncPageProps,
     | 't'
     | 'isTauri'
+    | 'analyticsHeartbeatAvailable'
+    | 'analyticsHeartbeatEnabled'
     | 'loggingEnabled'
     | 'logPath'
+    | 'onAnalyticsHeartbeatChange'
     | 'onToggleLogging'
     | 'onClearLog'
     | 'transferAction'
@@ -48,8 +51,11 @@ export function SettingsDataPage(props: SettingsDataPageProps) {
             {props.isTauri && (
                 <DiagnosticsSection
                     t={props.t}
+                    analyticsHeartbeatAvailable={props.analyticsHeartbeatAvailable}
+                    analyticsHeartbeatEnabled={props.analyticsHeartbeatEnabled}
                     loggingEnabled={props.loggingEnabled}
                     logPath={props.logPath}
+                    onAnalyticsHeartbeatChange={props.onAnalyticsHeartbeatChange}
                     onToggleLogging={props.onToggleLogging}
                     onClearLog={props.onClearLog}
                 />

@@ -768,10 +768,15 @@ export {
 
 export {
     HEARTBEAT_LAST_SENT_DAY_KEY,
+    HEARTBEAT_OPT_OUT_SENT_KEY,
+    resetHeartbeatOptOutMarker,
     sendDailyHeartbeat,
+    sendHeartbeatOptOut,
 } from './analytics-heartbeat';
 export type {
+    AnalyticsHeartbeatEvent,
     SendDailyHeartbeatOptions,
+    SendHeartbeatOptOutOptions,
 } from './analytics-heartbeat';
 
 export {

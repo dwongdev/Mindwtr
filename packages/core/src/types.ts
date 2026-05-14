@@ -377,6 +377,10 @@ export interface DiagnosticsSettings {
     loggingEnabled?: boolean;
 }
 
+export interface AnalyticsSettings {
+    heartbeatEnabled?: boolean;
+}
+
 export interface FilterSettings {
     areaId?: string;
 }
@@ -418,6 +422,7 @@ export interface AppSettings extends NotificationSettings {
     lastSyncStats?: MergeStats;
     lastSyncHistory?: SyncHistoryEntry[];
     diagnostics?: DiagnosticsSettings;
+    analytics?: AnalyticsSettings;
     filters?: FilterSettings;
     deviceId?: string;
     migrations?: MigrationSettings;

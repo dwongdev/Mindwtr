@@ -25,6 +25,11 @@ import {
 import {
     classifySyncFailure,
 } from '@/lib/sync-service-utils';
+import {
+    isMobileAnalyticsHeartbeatConfigured,
+    resetMobileAnalyticsOptOutMarker,
+    sendMobileAnalyticsOptOut,
+} from '@/lib/analytics-heartbeat';
 
 import { MobileExtraConfig } from './settings.constants';
 import { AppleRemindersImportSection } from './apple-reminders-import-section';
@@ -65,6 +70,10 @@ function SyncSettingsView({ mode }: { mode: SettingsScreenMode }) {
     } = useTaskStore();
     const extraConfig = Constants.expoConfig?.extra as MobileExtraConfig | undefined;
     const isFossBuild = extraConfig?.isFossBuild === true || extraConfig?.isFossBuild === 'true';
+    const analyticsHeartbeatUrl = typeof extraConfig?.analyticsHeartbeatUrl === 'string'
+        ? extraConfig.analyticsHeartbeatUrl.trim()
+        : '';
+    const appVersion = Constants.expoConfig?.version ?? '0.0.0';
     const dropboxAppKey = typeof extraConfig?.dropboxAppKey === 'string' ? extraConfig.dropboxAppKey.trim() : '';
     const dropboxConfigured = !isFossBuild && isDropboxClientConfigured(dropboxAppKey);
     const isExpoGo = Constants.appOwnership === 'expo';
@@ -96,6 +105,12 @@ function SyncSettingsView({ mode }: { mode: SettingsScreenMode }) {
         ...(lastSyncStats?.projects.conflictIds ?? []),
     ].slice(0, 6);
     const loggingEnabled = settings.diagnostics?.loggingEnabled === true;
+    const analyticsHeartbeatAvailable = isMobileAnalyticsHeartbeatConfigured({
+        analyticsHeartbeatUrl,
+        isExpoGo,
+        isFossBuild,
+    });
+    const analyticsHeartbeatEnabled = analyticsHeartbeatAvailable && settings.analytics?.heartbeatEnabled !== false;
     const pendingRemoteDeleteCount = settings.attachments?.pendingRemoteDeletes?.length ?? 0;
     const isBackupBusy = backupAction !== null;
     const backendOptions: ('off' | 'file' | 'webdav' | 'cloud')[] = ['off', 'file', 'webdav', 'cloud'];
@@ -167,6 +182,58 @@ function SyncSettingsView({ mode }: { mode: SettingsScreenMode }) {
             ],
         );
     }, [tr, pendingRemoteDeleteCount, settings.attachments, t, updateSettings]);
+
+    const toggleAnalyticsHeartbeat = useCallback((enabled: boolean) => {
+        if (!analyticsHeartbeatAvailable) return;
+        const saveSetting = () => {
+            updateSettings({
+                analytics: {
+                    ...(settings.analytics ?? {}),
+                    heartbeatEnabled: enabled,
+                },
+            })
+                .then(async () => {
+                    if (enabled) {
+                        await resetMobileAnalyticsOptOutMarker();
+                        return;
+                    }
+                    await sendMobileAnalyticsOptOut({
+                        analyticsHeartbeatUrl,
+                        appVersion,
+                        isExpoGo,
+                        isFossBuild,
+                    });
+                })
+                .catch(logSettingsError);
+        };
+
+        if (enabled) {
+            saveSetting();
+            return;
+        }
+
+        Alert.alert(
+            t('settings.analyticsHeartbeatDisableTitle'),
+            t('settings.analyticsHeartbeatDisableDesc'),
+            [
+                { text: t('settings.analyticsHeartbeatKeepEnabled'), style: 'cancel' },
+                {
+                    text: t('settings.analyticsHeartbeatDisableConfirm'),
+                    style: 'destructive',
+                    onPress: saveSetting,
+                },
+            ],
+        );
+    }, [
+        analyticsHeartbeatAvailable,
+        analyticsHeartbeatUrl,
+        appVersion,
+        isExpoGo,
+        isFossBuild,
+        settings.analytics,
+        t,
+        updateSettings,
+    ]);
 
     const refreshRecoverySnapshots = useCallback(async () => {
         setIsLoadingRecoverySnapshots(true);
@@ -642,9 +709,12 @@ function SyncSettingsView({ mode }: { mode: SettingsScreenMode }) {
                         </View>
 
                         <SyncDiagnosticsCard
+                            analyticsHeartbeatAvailable={analyticsHeartbeatAvailable}
+                            analyticsHeartbeatEnabled={analyticsHeartbeatEnabled}
                             handleClearLog={() => void handleClearLog()}
                             handleShareLog={() => void handleShareLog()}
                             loggingEnabled={loggingEnabled}
+                            toggleAnalyticsHeartbeat={toggleAnalyticsHeartbeat}
                             t={t}
                             tc={tc}
                             toggleDebugLogging={toggleDebugLogging}
