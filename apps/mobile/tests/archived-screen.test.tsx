@@ -2,7 +2,7 @@ import React from 'react';
 import renderer from 'react-test-renderer';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import ArchivedScreen from './archived';
+import ArchivedScreen from '../app/(drawer)/archived';
 
 const mocks = vi.hoisted(() => {
   const updateTask = vi.fn();
@@ -48,7 +48,7 @@ vi.mock('@mindwtr/core', () => ({
   safeFormatDate: vi.fn(() => 'May 12, 2026, 8:30 AM'),
 }));
 
-vi.mock('../../contexts/language-context', () => ({
+vi.mock('../contexts/language-context', () => ({
   useLanguage: () => ({
     t: (key: string) => ({
       'archived.empty': 'No archived tasks',

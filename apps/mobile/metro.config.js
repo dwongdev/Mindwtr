@@ -49,6 +49,7 @@ config.watchFolders = Array.from(new Set([...defaultWatchFolders, workspaceRoot]
 // 1.1 CRITICAL: Exclude build output directories that cause Metro to crash
 config.resolver.blockList = [
     /apps\/desktop\/src-tauri\/target\/.*/,
+    /apps\/mobile\/app\/.*\.(?:test|spec)\.[jt]sx?$/,
     /\.git\/.*/,
     /node_modules\/.*\/\.git\/.*/,
 ];
