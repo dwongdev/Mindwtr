@@ -45,6 +45,7 @@ export const itOverrides: Record<string, string> = {
         'quickDate.nextWeek': 'Prossima settimana',
         'quickDate.nextMonth': 'Prossimo mese',
         'quickDate.noDate': 'Nessuna data',
+        'mobileHelp.appShortcuts': 'Tieni premuta l\'icona dell\'app per le scorciatoie Aggiungi attività, Focus e Calendario.',
 
         // Checklist
         'checklist.progress': 'Avanzamento checklist',
@@ -857,8 +858,11 @@ export const itOverrides: Record<string, string> = {
         'settings.captureDefault': 'Metodo di acquisizione predefinito',
         'settings.captureDefaultDesc': 'Scegli se l\'acquisizione rapida parte da testo o audio.',
         'settings.captureDefaultText': 'Testo',
+        'settings.captureDefaultAudio': 'Registrazione audio',
         'settings.captureSaveAudio': 'Salva allegati audio',
         'settings.captureSaveAudioDesc': 'Mantieni allegato il file audio dopo la trascrizione.',
+        'settings.appleRemindersImport.appleReminders': 'Promemoria Apple',
+        'settings.gtdMobile.captureDefaults': 'Predefiniti di acquisizione',
         'settings.autoArchive': 'Archivia automaticamente le attività completate',
         'settings.autoArchiveDesc': 'Sposta le attività completate in Archiviate dopo il numero di giorni selezionato.',
         'settings.autoArchiveDays': 'Archivia dopo',

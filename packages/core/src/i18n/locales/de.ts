@@ -777,6 +777,8 @@ export const deOverrides: Record<string, string> = {
         'settings.inboxScheduleEnabled': 'Termin-Planung während der Verarbeitung zulassen',
         'settings.captureDefault': 'Standard-Erfassungsmethode',
         'settings.captureDefaultDesc': 'Auswählen ob die Schnelleingabe mit Text oder Audio beginnen soll.',
+        'settings.captureDefaultText': 'Texteingabe',
+        'settings.captureDefaultAudio': 'Audioaufnahme',
         'settings.captureSaveAudio': 'Audioanhänge speichern',
         'settings.captureSaveAudioDesc': 'Audio-Datei nach der Transkription beibehalten.',
         'settings.autoArchive': 'Erledigte Aufgaben automatisch archivieren',
