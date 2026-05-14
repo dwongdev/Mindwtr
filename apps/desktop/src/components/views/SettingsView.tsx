@@ -33,6 +33,11 @@ import {
 import { useKeybindings } from "../../contexts/keybinding-context";
 import { useLanguage, type Language } from "../../contexts/language-context";
 import { isFlatpakRuntime, isTauriRuntime } from "../../lib/runtime";
+import {
+  getCalendarSourceFileName,
+  isLocalCalendarFileUrl,
+  localCalendarFileUrlToPath,
+} from "../../lib/external-calendar-source";
 import { reportError } from "../../lib/report-error";
 import { SyncService } from "../../lib/sync-service";
 import { clearLog } from "../../lib/app-log";
@@ -153,6 +158,11 @@ const LANGUAGES: { id: Language; label: string; native: string }[] = [
 const maskCalendarUrl = (url: string): string => {
   const trimmed = url.trim();
   if (!trimmed) return "";
+  if (isLocalCalendarFileUrl(trimmed)) {
+    const path = localCalendarFileUrlToPath(trimmed);
+    const filename = getCalendarSourceFileName(trimmed);
+    return filename ? `Local file /.../${filename}` : `Local file ${path}`;
+  }
   const match = trimmed.match(/^(https?:\/\/)?([^/?#]+)([^?#]*)/i);
   if (!match) {
     return trimmed.length <= 8
@@ -734,6 +744,7 @@ export function SettingsView() {
     setNewCalendarName,
     setNewCalendarUrl,
     handleAddCalendar,
+    handleChooseLocalCalendarFile,
     handleToggleCalendar,
     handleRemoveCalendar,
     handleRequestSystemCalendarPermission,
@@ -849,6 +860,7 @@ export function SettingsView() {
           onCalendarNameChange={setNewCalendarName}
           onCalendarUrlChange={setNewCalendarUrl}
           onAddCalendar={handleAddCalendar}
+          onChooseLocalCalendarFile={handleChooseLocalCalendarFile}
           onToggleCalendar={handleToggleCalendar}
           onRemoveCalendar={handleRemoveCalendar}
           onRequestSystemCalendarPermission={

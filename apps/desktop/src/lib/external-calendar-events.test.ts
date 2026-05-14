@@ -2,6 +2,8 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const getCalendarsMock = vi.hoisted(() => vi.fn());
 const fetchSystemCalendarEventsMock = vi.hoisted(() => vi.fn());
+const isTauriRuntimeMock = vi.hoisted(() => vi.fn(() => false));
+const readTextFileMock = vi.hoisted(() => vi.fn());
 
 vi.mock('./external-calendar-service', () => ({
     ExternalCalendarService: {
@@ -10,7 +12,11 @@ vi.mock('./external-calendar-service', () => ({
 }));
 
 vi.mock('./runtime', () => ({
-    isTauriRuntime: () => false,
+    isTauriRuntime: isTauriRuntimeMock,
+}));
+
+vi.mock('@tauri-apps/plugin-fs', () => ({
+    readTextFile: readTextFileMock,
 }));
 
 vi.mock('./system-calendar', () => ({
@@ -46,6 +52,8 @@ describe('external calendar events', () => {
         vi.clearAllMocks();
         const { __externalCalendarEventsTestUtils } = await import('./external-calendar-events');
         __externalCalendarEventsTestUtils.clearCache();
+        isTauriRuntimeMock.mockReturnValue(false);
+        readTextFileMock.mockReset();
         getCalendarsMock.mockResolvedValue([]);
         fetchSystemCalendarEventsMock.mockResolvedValue({
             permission: 'unsupported',
@@ -111,6 +119,25 @@ describe('external calendar events', () => {
         expect(result.warnings).toEqual([]);
         expect(result.events.map((event) => event.title)).toEqual(['New Years Day']);
         expect(result.events[0].start.slice(0, 10)).toBe('2026-01-01');
+    });
+
+    it('loads local ICS calendar files through the desktop filesystem API', async () => {
+        const { fetchExternalCalendarEvents } = await import('./external-calendar-events');
+        isTauriRuntimeMock.mockReturnValue(true);
+        readTextFileMock.mockResolvedValue(workIcs);
+        getCalendarsMock.mockResolvedValue([
+            { id: 'local-work', name: 'Local Work', url: 'file:///home/user/agenda.ics', enabled: true },
+        ]);
+
+        const result = await fetchExternalCalendarEvents(
+            new Date('2026-04-26T00:00:00.000Z'),
+            new Date('2026-04-27T00:00:00.000Z'),
+        );
+
+        expect(readTextFileMock).toHaveBeenCalledWith('file:///home/user/agenda.ics');
+        expect(fetch).not.toHaveBeenCalled();
+        expect(result.warnings).toEqual([]);
+        expect(result.events.map((event) => event.title)).toEqual(['Team Meeting']);
     });
 
     it('filters system Mindwtr mirror calendars and prefixed pushed events', async () => {

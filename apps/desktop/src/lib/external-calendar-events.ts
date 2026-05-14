@@ -1,5 +1,6 @@
 import { parseIcs, type ExternalCalendarEvent, type ExternalCalendarSubscription } from '@mindwtr/core';
 import { ExternalCalendarService } from './external-calendar-service';
+import { isLocalCalendarFileUrl } from './external-calendar-source';
 import { isTauriRuntime } from './runtime';
 import { fetchSystemCalendarEvents } from './system-calendar';
 
@@ -143,6 +144,14 @@ export function isMindwtrMirrorEvent(
 }
 
 async function fetchTextWithTimeout(url: string, timeoutMs: number): Promise<string> {
+    if (isLocalCalendarFileUrl(url)) {
+        if (!isTauriRuntime()) {
+            throw new Error('Local calendar files require the desktop app.');
+        }
+        const mod: any = await import('@tauri-apps/plugin-fs');
+        return await mod.readTextFile(url);
+    }
+
     if (isTauriRuntime()) {
         const mod: any = await import('@tauri-apps/plugin-http');
         const tauriFetch: any = mod.fetch;

@@ -46,6 +46,8 @@ const isLocalAttachmentUri = (uri: string): boolean => {
     return !/^https?:\/\//i.test(trimmed);
 };
 
+const isLocalCalendarSourceUrl = (url: string): boolean => url.trim().toLowerCase().startsWith('file://');
+
 const collectPendingUploads = (
     ownerType: PendingAttachmentUpload['ownerType'],
     ownerId: string,
@@ -171,7 +173,9 @@ export const sanitizeAppDataForRemote = (data: AppData): AppData => {
 
         if (prefs.externalCalendars === true) {
             next.externalCalendars = settings.externalCalendars
-                ? settings.externalCalendars.map((item) => ({ ...item }))
+                ? settings.externalCalendars
+                    .filter((item) => !isLocalCalendarSourceUrl(item.url))
+                    .map((item) => ({ ...item }))
                 : settings.externalCalendars;
         }
 

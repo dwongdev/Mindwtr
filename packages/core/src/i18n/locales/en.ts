@@ -752,7 +752,7 @@ export const en: Record<string, string> = {
         'settings.dataSync': 'Data & Sync',
         'settings.dataDesc': 'Import or export your data to sync with other devices.',
         'settings.calendar': 'External Calendar',
-        'settings.calendarDesc': 'Connect external calendars (ICS subscription URLs).',
+        'settings.calendarDesc': 'Connect external calendars (ICS subscription URLs or local .ics files).',
         'settings.deviceCalendars': 'Device calendars',
         'settings.deviceCalendarsDesc': 'Read events from calendars already synced on this device (DAVx5, iCloud, Outlook, etc.).',
         'settings.calendarAccessDenied': 'Calendar access is denied. Enable it in system settings, then refresh.',

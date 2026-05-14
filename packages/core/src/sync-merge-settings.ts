@@ -187,14 +187,16 @@ const sanitizeExternalCalendars = (
 ): AppData['settings']['externalCalendars'] | undefined => {
     if (value === undefined) return fallback ? cloneSettingValue(fallback) : undefined;
     if (!Array.isArray(value)) return fallback ? cloneSettingValue(fallback) : undefined;
+    const isValidCalendar = (item: unknown): item is { id: string; name: string; url: string; enabled: boolean } =>
+        isObjectRecord(item)
+        && isNonEmptyString(item.id)
+        && isNonEmptyString(item.name)
+        && isNonEmptyString(item.url)
+        && typeof item.enabled === 'boolean';
+    const isLocalCalendarSource = (item: { url: string }): boolean => item.url.trim().toLowerCase().startsWith('file://');
     const next = value
-        .filter((item): item is { id: string; name: string; url: string; enabled: boolean } =>
-            isObjectRecord(item)
-            && isNonEmptyString(item.id)
-            && isNonEmptyString(item.name)
-            && isNonEmptyString(item.url)
-            && typeof item.enabled === 'boolean'
-        )
+        .filter(isValidCalendar)
+        .filter((item) => !isLocalCalendarSource(item))
         .map((item) => ({
             id: item.id.trim(),
             name: item.name.trim(),
@@ -204,6 +206,18 @@ const sanitizeExternalCalendars = (
     const deduped = new Map<string, (typeof next)[number]>();
     for (const item of next) {
         deduped.set(item.id, item);
+    }
+    for (const item of fallback ?? []) {
+        if (!isValidCalendar(item) || !isLocalCalendarSource(item)) continue;
+        const localSource = {
+            id: item.id.trim(),
+            name: item.name.trim(),
+            url: item.url.trim(),
+            enabled: item.enabled,
+        };
+        if (!deduped.has(localSource.id)) {
+            deduped.set(localSource.id, localSource);
+        }
     }
     if (value.length > 0 && deduped.size === 0 && fallback) {
         return cloneSettingValue(fallback);

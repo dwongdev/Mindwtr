@@ -1,5 +1,6 @@
 use crate::obsidian_paths::normalize_obsidian_inbox_file;
 use crate::*;
+use std::path::PathBuf;
 
 const KEYRING_FALLBACK_WARNING_EVENT: &str = "keyring-fallback-warning";
 
@@ -8,11 +9,107 @@ fn keyring_enabled() -> bool {
 }
 
 fn emit_keyring_fallback_warning(app: &tauri::AppHandle, secret_name: &str) {
-    let message = format!(
-        "{secret_name} stored in plaintext because the system keyring is unavailable."
-    );
+    let message =
+        format!("{secret_name} stored in plaintext because the system keyring is unavailable.");
     if let Err(error) = app.emit(KEYRING_FALLBACK_WARNING_EVENT, message) {
         log::warn!("Failed to emit keyring fallback warning: {error}");
+    }
+}
+
+fn calendar_file_url_to_path(raw: &str) -> Option<PathBuf> {
+    let trimmed = raw.trim();
+    if !trimmed
+        .get(..7)
+        .is_some_and(|prefix| prefix.eq_ignore_ascii_case("file://"))
+    {
+        return None;
+    }
+
+    let path = &trimmed[7..];
+    #[cfg(target_os = "windows")]
+    let path = {
+        let mut path = path;
+        let bytes = path.as_bytes();
+        if bytes.len() >= 3 && bytes[0] == b'/' && bytes[2] == b':' {
+            path = &path[1..];
+        }
+        path
+    };
+    let candidate = PathBuf::from(percent_decode_file_path(path)?);
+    if !candidate.is_absolute() {
+        return None;
+    }
+    let has_ics_extension = candidate
+        .extension()
+        .and_then(|ext| ext.to_str())
+        .is_some_and(|ext| ext.eq_ignore_ascii_case("ics"));
+    if !has_ics_extension {
+        return None;
+    }
+    Some(candidate)
+}
+
+fn percent_decode_file_path(path: &str) -> Option<String> {
+    let bytes = path.as_bytes();
+    let mut decoded = Vec::with_capacity(bytes.len());
+    let mut index = 0;
+    while index < bytes.len() {
+        if bytes[index] == b'%' {
+            let hi = bytes.get(index + 1).and_then(|value| hex_value(*value))?;
+            let lo = bytes.get(index + 2).and_then(|value| hex_value(*value))?;
+            decoded.push((hi << 4) | lo);
+            index += 3;
+            continue;
+        }
+        decoded.push(bytes[index]);
+        index += 1;
+    }
+    String::from_utf8(decoded).ok()
+}
+
+fn hex_value(value: u8) -> Option<u8> {
+    match value {
+        b'0'..=b'9' => Some(value - b'0'),
+        b'a'..=b'f' => Some(value - b'a' + 10),
+        b'A'..=b'F' => Some(value - b'A' + 10),
+        _ => None,
+    }
+}
+
+fn is_valid_calendar_url(raw: &str) -> bool {
+    let trimmed = raw.trim();
+    if trimmed.is_empty() {
+        return false;
+    }
+    let lower = trimmed.to_ascii_lowercase();
+    lower.starts_with("https://")
+        || lower.starts_with("http://")
+        || lower.starts_with("webcal://")
+        || calendar_file_url_to_path(trimmed).is_some()
+}
+
+pub(crate) fn expand_external_calendar_file_scopes(app: &tauri::AppHandle, raw: Option<&str>) {
+    let Some(raw) = raw else {
+        return;
+    };
+    let Ok(calendars) = serde_json::from_str::<Vec<ExternalCalendarSubscription>>(raw) else {
+        return;
+    };
+    for calendar in calendars {
+        let Some(path) = calendar_file_url_to_path(&calendar.url) else {
+            continue;
+        };
+        if let Err(error) = app.fs_scope().allow_file(&path) {
+            log::warn!(
+                "Failed to expand Tauri fs scope for calendar file {:?}: {error}",
+                path
+            );
+        } else {
+            log::info!(
+                "Expanded Tauri fs scope to include calendar file {:?}",
+                path
+            );
+        }
     }
 }
 
@@ -872,15 +969,6 @@ pub(crate) fn set_external_calendars(
 ) -> Result<bool, String> {
     let config_path = get_config_path(&app);
     let mut config = read_config(&app);
-    let is_valid_calendar_url = |raw: &str| {
-        let trimmed = raw.trim();
-        if trimmed.is_empty() {
-            return false;
-        }
-        trimmed.starts_with("https://")
-            || trimmed.starts_with("http://")
-            || trimmed.starts_with("webcal://")
-    };
     let sanitized: Vec<ExternalCalendarSubscription> = calendars
         .into_iter()
         .filter(|c| is_valid_calendar_url(&c.url))
@@ -896,5 +984,51 @@ pub(crate) fn set_external_calendars(
 
     config.external_calendars = Some(serde_json::to_string(&sanitized).map_err(|e| e.to_string())?);
     write_config_files(&config_path, &get_secrets_path(&app), &config)?;
+    expand_external_calendar_file_scopes(&app, config.external_calendars.as_deref());
     Ok(true)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn accepts_network_calendar_urls() {
+        assert!(is_valid_calendar_url("https://calendar.example/work.ics"));
+        assert!(is_valid_calendar_url("http://calendar.example/work.ics"));
+        assert!(is_valid_calendar_url("webcal://calendar.example/work.ics"));
+    }
+
+    #[cfg(not(target_os = "windows"))]
+    #[test]
+    fn accepts_absolute_file_calendar_urls() {
+        let path = calendar_file_url_to_path("file:///tmp/My%20Calendar.ICS").unwrap();
+        assert!(path.is_absolute());
+        assert_eq!(
+            path.file_name().and_then(|name| name.to_str()),
+            Some("My Calendar.ICS")
+        );
+        assert!(is_valid_calendar_url("file:///tmp/My%20Calendar.ICS"));
+    }
+
+    #[cfg(target_os = "windows")]
+    #[test]
+    fn accepts_absolute_windows_file_calendar_urls() {
+        let path = calendar_file_url_to_path("file:///C:/Users/demo/My%20Calendar.ICS").unwrap();
+        assert!(path.is_absolute());
+        assert_eq!(
+            path.file_name().and_then(|name| name.to_str()),
+            Some("My Calendar.ICS")
+        );
+        assert!(is_valid_calendar_url(
+            "file:///C:/Users/demo/My%20Calendar.ICS"
+        ));
+    }
+
+    #[test]
+    fn rejects_invalid_file_calendar_urls() {
+        assert!(!is_valid_calendar_url("file://agenda.ics"));
+        assert!(!is_valid_calendar_url("file:///tmp/agenda.txt"));
+        assert!(!is_valid_calendar_url("file:///tmp/bad%ZZ.ics"));
+    }
 }

@@ -162,7 +162,10 @@ describe('sync-helpers sanitizeAppDataForRemote', () => {
                 weekStart: 'monday',
                 dateFormat: 'yyyy-MM-dd',
                 timeFormat: '24h',
-                externalCalendars: [{ id: 'cal-1', name: 'Work', url: 'https://example.com/work.ics', enabled: true }],
+                externalCalendars: [
+                    { id: 'cal-1', name: 'Work', url: 'https://example.com/work.ics', enabled: true },
+                    { id: 'cal-local', name: 'Local', url: 'file:///home/user/agenda.ics', enabled: true },
+                ],
                 savedFilters: [{
                     id: 'filter-1',
                     name: 'Desk',
@@ -191,7 +194,9 @@ describe('sync-helpers sanitizeAppDataForRemote', () => {
         expect(sanitized.settings.theme).toBe('dark');
         expect(sanitized.settings.appearance).toEqual({ density: 'compact', textSize: 'large' });
         expect(sanitized.settings.keybindingStyle).toBe('emacs');
-        expect(sanitized.settings.externalCalendars).toEqual(data.settings.externalCalendars);
+        expect(sanitized.settings.externalCalendars).toEqual([
+            { id: 'cal-1', name: 'Work', url: 'https://example.com/work.ics', enabled: true },
+        ]);
         expect(sanitized.settings.savedFilters).toEqual(data.settings.savedFilters);
 
         expect(sanitized.settings.language).toBeUndefined();

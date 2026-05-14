@@ -265,6 +265,40 @@ describe('Sync Logic', () => {
             expect(merged.settings.externalCalendars?.[0]?.name).toBe('Team');
         });
 
+        it('keeps local file calendar sources out of synced settings merges', () => {
+            const localCalendars = [
+                { id: 'cal-local', name: 'Local', url: 'file:///home/user/agenda.ics', enabled: true },
+            ];
+            const local: AppData = {
+                ...mockAppData(),
+                settings: {
+                    externalCalendars: localCalendars,
+                    syncPreferencesUpdatedAt: {
+                        externalCalendars: '2024-01-01T00:00:00.000Z',
+                    },
+                },
+            };
+            const incoming: AppData = {
+                ...mockAppData(),
+                settings: {
+                    externalCalendars: [
+                        { id: 'cal-file', name: 'File', url: 'file:///tmp/other.ics', enabled: true },
+                        { id: 'cal-team', name: 'Team', url: 'https://calendar.example.com/team.ics', enabled: true },
+                    ],
+                    syncPreferencesUpdatedAt: {
+                        externalCalendars: '2024-01-02T00:00:00.000Z',
+                    },
+                },
+            };
+
+            const merged = mergeAppData(local, incoming);
+
+            expect(merged.settings.externalCalendars).toEqual([
+                { id: 'cal-team', name: 'Team', url: 'https://calendar.example.com/team.ics', enabled: true },
+                localCalendars[0],
+            ]);
+        });
+
         it('merges saved filters by id when their sync group is enabled', () => {
             const localFilter = {
                 id: 'filter-local',
