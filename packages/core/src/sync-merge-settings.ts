@@ -5,6 +5,7 @@ import {
     SETTINGS_DENSITY_VALUE_SET,
     SETTINGS_KEYBINDING_STYLE_VALUE_SET,
     SETTINGS_LANGUAGE_VALUE_SET,
+    SETTINGS_MOBILE_QUICK_ACCESS_VIEW_VALUE_SET,
     SETTINGS_TEXT_SIZE_VALUE_SET,
     SETTINGS_THEME_VALUE_SET,
     SETTINGS_TIME_FORMAT_VALUE_SET,
@@ -346,6 +347,22 @@ export const sanitizeMergedSettingsForSync = (
             };
             if (next.appearance.showFutureStarts === undefined) {
                 delete next.appearance.showFutureStarts;
+            }
+            didSanitizeAppearance = true;
+        }
+        const appearanceWithFutureStarts = next.appearance;
+        if (
+            appearanceWithFutureStarts
+            && appearanceWithFutureStarts.mobileQuickAccessView !== undefined
+            && !setContainsValue(SETTINGS_MOBILE_QUICK_ACCESS_VIEW_VALUE_SET, appearanceWithFutureStarts.mobileQuickAccessView)
+        ) {
+            next.appearance = {
+                ...fallbackAppearance,
+                ...appearanceWithFutureStarts,
+                mobileQuickAccessView: localSettings.appearance?.mobileQuickAccessView,
+            };
+            if (next.appearance.mobileQuickAccessView === undefined) {
+                delete next.appearance.mobileQuickAccessView;
             }
             didSanitizeAppearance = true;
         }

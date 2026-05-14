@@ -6,6 +6,13 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import TabLayout from '../app/(drawer)/(tabs)/_layout';
 
 const mockRouterPush = vi.hoisted(() => vi.fn());
+const mockTaskSettings = vi.hoisted(() => ({
+  appearance: {} as Record<string, unknown>,
+  gtd: {
+    defaultCaptureMethod: 'text',
+  },
+  savedSearches: [],
+}));
 
 vi.mock('expo-router', () => {
   function LinkMock({ children }: { children: React.ReactNode }) {
@@ -25,15 +32,21 @@ vi.mock('expo-router', () => {
           { key: 'inbox-key', name: 'inbox' },
           { key: 'focus-key', name: 'focus' },
           { key: 'capture-key', name: 'capture' },
+          { key: 'projects-key', name: 'projects' },
+          { key: 'calendar-key', name: 'calendar-tab' },
+          { key: 'contexts-key', name: 'contexts-tab' },
           { key: 'review-key', name: 'review-tab' },
           { key: 'menu-key', name: 'menu' },
         ],
       },
       descriptors: {
-        'inbox-key': { options: {} },
-        'focus-key': { options: {} },
-        'capture-key': { options: {} },
-        'review-key': { options: {} },
+        'inbox-key': { options: { title: 'Inbox' } },
+        'focus-key': { options: { title: 'Next' } },
+        'capture-key': { options: { title: 'Add task' } },
+        'projects-key': { options: { title: 'Projects' } },
+        'calendar-key': { options: { title: 'Calendar' } },
+        'contexts-key': { options: { title: 'Contexts' } },
+        'review-key': { options: { title: 'Review' } },
         'menu-key': { options: { title: 'Menu', tabBarAccessibilityLabel: 'Menu' } },
       },
       navigation: {
@@ -62,13 +75,7 @@ vi.mock('@mindwtr/core', () => ({
     const translated = t(key);
     return translated && translated !== key ? translated : fallback;
   },
-  useTaskStore: () => ({
-    settings: {
-      gtd: {
-        defaultCaptureMethod: 'text',
-      },
-    },
-  }),
+  useTaskStore: () => ({ settings: mockTaskSettings }),
 }));
 
 vi.mock('@/components/haptic-tab', () => ({
@@ -125,6 +132,7 @@ vi.mock('../contexts/language-context', () => ({
       'nav.done': 'Done',
       'nav.projects': 'Projects',
       'nav.reference': 'Reference',
+      'nav.review': 'Review',
       'nav.settings': 'Settings',
       'nav.someday': 'Someday',
       'nav.trash': 'Trash',
@@ -165,13 +173,22 @@ const getMenuButton = (tree: ReturnType<typeof create>) => {
   return button;
 };
 
+const getTabButton = (tree: ReturnType<typeof create>, label: string) => {
+  const button = tree.root.findAllByType(TouchableOpacity).find(
+    (node) => node.props.accessibilityLabel === label
+  );
+  if (!button) throw new Error(`${label} tab button not found`);
+  return button;
+};
+
 const getQuickCaptureSheets = (tree: ReturnType<typeof create>) => (
   tree.root.findAll((node) => String(node.type) === 'QuickCaptureSheet')
 );
 
 const getMoreSheetButtons = (tree: ReturnType<typeof create>, label: string) => (
   tree.root.findAll((node) => (
-    node.props.accessibilityLabel === label
+    String(node.type) === 'Pressable'
+    && node.props.accessibilityLabel === label
     && node.props.accessibilityRole === 'button'
     && typeof node.props.onPress === 'function'
   ))
@@ -198,6 +215,7 @@ const moreDestinationLabels = [
   'Contexts',
   'Calendar',
 ];
+const moreSheetDestinationLabels = [...moreDestinationLabels, 'Review'];
 
 const hasHiddenAccessibilityAncestor = (node: any) => {
   let parent = node.parent;
@@ -219,7 +237,7 @@ const getVisibleMoreDestinationLabels = (tree: ReturnType<typeof create>) => (
       String(node.type) === 'Pressable'
       && node.props.accessibilityRole === 'button'
       && typeof node.props.onPress === 'function'
-      && moreDestinationLabels.includes(node.props.accessibilityLabel)
+      && moreSheetDestinationLabels.includes(node.props.accessibilityLabel)
       && !hasHiddenAccessibilityAncestor(node)
     ))
     .map((node) => node.props.accessibilityLabel)
@@ -237,6 +255,9 @@ const getMoreSheetMenu = (tree: ReturnType<typeof create>) => {
 describe('mobile tab quick capture', () => {
   beforeEach(() => {
     mockRouterPush.mockClear();
+    mockTaskSettings.appearance = {};
+    mockTaskSettings.gtd.defaultCaptureMethod = 'text';
+    mockTaskSettings.savedSearches = [];
   });
 
   it('unmounts the quick capture sheet after close so the next plus tap gets a fresh modal', () => {
@@ -321,6 +342,45 @@ describe('mobile tab quick capture', () => {
 
     expect(mockRouterPush).toHaveBeenCalledWith('/calendar');
     expect(getMoreSheetButtons(tree, 'Calendar')).toHaveLength(0);
+  });
+
+  it('swaps a selected quick access view with Review in the More sheet', () => {
+    mockTaskSettings.appearance = { mobileQuickAccessView: 'projects' };
+    let tree!: ReturnType<typeof create>;
+
+    act(() => {
+      tree = create(<TabLayout />);
+    });
+
+    expect(getTabButton(tree, 'Projects')).toBeTruthy();
+
+    act(() => {
+      getMenuButton(tree).props.onPress();
+    });
+
+    expect(getVisibleMoreDestinationLabels(tree)).toEqual([
+      'Trash',
+      'Archived',
+      'Done',
+      'Reference',
+      'Settings',
+      'Waiting For',
+      'Board View',
+      'Review',
+      'Someday',
+      'Contexts',
+      'Calendar',
+    ]);
+    expect(getMoreSheetButtons(tree, 'Projects')).toHaveLength(0);
+
+    const reviewButtons = getMoreSheetButtons(tree, 'Review');
+    expect(reviewButtons.length).toBeGreaterThan(0);
+
+    act(() => {
+      reviewButtons[0]?.props.onPress();
+    });
+
+    expect(mockRouterPush).toHaveBeenCalledWith('/review');
   });
 
   it('closes the More sheet from the menu tab toggle and a downward swipe', () => {

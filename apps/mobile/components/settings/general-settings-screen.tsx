@@ -7,6 +7,10 @@ import { normalizeDateFormatSetting, normalizeTimeFormatSetting, useTaskStore } 
 
 import { useTheme } from '@/contexts/theme-context';
 import { useThemeColors } from '@/hooks/use-theme-colors';
+import {
+    coerceMobileQuickAccessView,
+    MOBILE_QUICK_ACCESS_VIEWS,
+} from '@/lib/mobile-quick-access-view';
 
 import { LANGUAGES } from './settings.constants';
 import { useSettingsLocalization, useSettingsScrollContent } from './settings.hooks';
@@ -24,11 +28,13 @@ export function GeneralSettingsScreen() {
     const [weekStartPickerOpen, setWeekStartPickerOpen] = useState(false);
     const [dateFormatPickerOpen, setDateFormatPickerOpen] = useState(false);
     const [timeFormatPickerOpen, setTimeFormatPickerOpen] = useState(false);
+    const [quickAccessPickerOpen, setQuickAccessPickerOpen] = useState(false);
 
     const weekStart = settings.weekStart === 'monday' ? 'monday' : 'sunday';
     const dateFormat = normalizeDateFormatSetting(settings.dateFormat);
     const timeFormat = normalizeTimeFormatSetting(settings.timeFormat);
     const showTaskAge = settings.appearance?.showTaskAge === true;
+    const quickAccessView = coerceMobileQuickAccessView(settings.appearance?.mobileQuickAccessView);
     const themeOptions: { value: typeof themeMode; label: string }[] = [
         { value: 'system', label: t('settings.system') },
         { value: 'light', label: t('settings.light') },
@@ -41,6 +47,17 @@ export function GeneralSettingsScreen() {
         { value: 'oled', label: t('settings.oled') },
     ];
     const currentThemeLabel = themeOptions.find((opt) => opt.value === themeMode)?.label ?? t('settings.system');
+    const quickAccessOptions = MOBILE_QUICK_ACCESS_VIEWS.map((value) => ({
+        value,
+        label: value === 'review'
+            ? t('tab.review')
+            : value === 'projects'
+                ? t('nav.projects')
+                : value === 'calendar'
+                    ? t('nav.calendar')
+                    : t('nav.contexts'),
+    }));
+    const currentQuickAccessLabel = quickAccessOptions.find((opt) => opt.value === quickAccessView)?.label ?? t('tab.review');
     const weekStartOptions: { value: 'sunday' | 'monday'; label: string }[] = [
         { value: 'sunday', label: t('settings.weekStartSunday') },
         { value: 'monday', label: t('settings.weekStartMonday') },
@@ -95,6 +112,20 @@ export function GeneralSettingsScreen() {
                             trackColor={{ false: '#767577', true: '#3B82F6' }}
                         />
                     </View>
+                    <TouchableOpacity
+                        style={[styles.settingRow, { borderTopWidth: 1, borderTopColor: tc.border }]}
+                        onPress={() => setQuickAccessPickerOpen(true)}
+                    >
+                        <View style={styles.settingInfo}>
+                            <Text style={[styles.settingLabel, { color: tc.text }]}>
+                                {tr('settings.mobile.quickAccessView')}
+                            </Text>
+                            <Text style={[styles.settingDescription, { color: tc.secondaryText }]}>
+                                {currentQuickAccessLabel}
+                            </Text>
+                        </View>
+                        <Ionicons color={tc.secondaryText} name="chevron-down" size={18} />
+                    </TouchableOpacity>
                 </View>
                 <Modal
                     transparent
@@ -122,6 +153,49 @@ export function GeneralSettingsScreen() {
                                                 setThemeMode(option.value);
                                                 updateSettings({ theme: option.value }).catch(console.error);
                                                 setThemePickerOpen(false);
+                                            }}
+                                        >
+                                            <Text style={[styles.pickerOptionText, { color: selected ? tc.tint : tc.text }]}>
+                                                {option.label}
+                                            </Text>
+                                            {selected && <Ionicons color={tc.tint} name="checkmark" size={18} />}
+                                        </TouchableOpacity>
+                                    );
+                                })}
+                            </ScrollView>
+                        </View>
+                    </Pressable>
+                </Modal>
+                <Modal
+                    transparent
+                    visible={quickAccessPickerOpen}
+                    animationType="fade"
+                    onRequestClose={() => setQuickAccessPickerOpen(false)}
+                >
+                    <Pressable style={styles.pickerOverlay} onPress={() => setQuickAccessPickerOpen(false)}>
+                        <View
+                            style={[styles.pickerCard, { backgroundColor: tc.cardBg, borderColor: tc.border }]}
+                            onStartShouldSetResponder={() => true}
+                        >
+                            <Text style={[styles.pickerTitle, { color: tc.text }]}>{tr('settings.mobile.quickAccessView')}</Text>
+                            <ScrollView style={styles.pickerList} contentContainerStyle={styles.pickerListContent}>
+                                {quickAccessOptions.map((option) => {
+                                    const selected = quickAccessView === option.value;
+                                    return (
+                                        <TouchableOpacity
+                                            key={option.value}
+                                            style={[
+                                                styles.pickerOption,
+                                                { borderColor: tc.border, backgroundColor: selected ? tc.filterBg : 'transparent' },
+                                            ]}
+                                            onPress={() => {
+                                                updateSettings({
+                                                    appearance: {
+                                                        ...(settings.appearance ?? {}),
+                                                        mobileQuickAccessView: option.value,
+                                                    },
+                                                }).catch(console.error);
+                                                setQuickAccessPickerOpen(false);
                                             }}
                                         >
                                             <Text style={[styles.pickerOptionText, { color: selected ? tc.tint : tc.text }]}>

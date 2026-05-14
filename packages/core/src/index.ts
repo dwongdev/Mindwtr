@@ -17,6 +17,7 @@ export type {
     Project,
     GtdSettings,
     MigrationSettings,
+    MobileQuickAccessView,
     NotificationSettings,
     Recurrence,
     RecurrenceByDay,

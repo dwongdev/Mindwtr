@@ -173,11 +173,11 @@ describe('Sync Logic', () => {
             expect(merged.settings.theme).toBe('dark');
         });
 
-        it('merges synced appearance settings including text size', () => {
+        it('merges synced appearance settings including text size and mobile quick access', () => {
             const local: AppData = {
                 ...mockAppData(),
                 settings: {
-                    appearance: { density: 'compact' },
+                    appearance: { density: 'compact', mobileQuickAccessView: 'review' },
                     syncPreferences: { appearance: true },
                     syncPreferencesUpdatedAt: {
                         preferences: '2024-01-01T00:00:00.000Z',
@@ -188,7 +188,7 @@ describe('Sync Logic', () => {
             const incoming: AppData = {
                 ...mockAppData(),
                 settings: {
-                    appearance: { density: 'compact', textSize: 'large' },
+                    appearance: { density: 'compact', textSize: 'large', mobileQuickAccessView: 'calendar' },
                     syncPreferences: { appearance: true },
                     syncPreferencesUpdatedAt: {
                         preferences: '2024-01-02T00:00:00.000Z',
@@ -199,7 +199,7 @@ describe('Sync Logic', () => {
 
             const merged = mergeAppData(local, incoming);
 
-            expect(merged.settings.appearance).toEqual({ density: 'compact', textSize: 'large' });
+            expect(merged.settings.appearance).toEqual({ density: 'compact', textSize: 'large', mobileQuickAccessView: 'calendar' });
         });
 
         it('merges synced future-start visibility preference', () => {
@@ -229,6 +229,35 @@ describe('Sync Logic', () => {
             const merged = mergeAppData(local, incoming);
 
             expect(merged.settings.appearance).toEqual({ showFutureStarts: true });
+        });
+
+        it('falls back to local mobile quick access when incoming appearance is malformed', () => {
+            const local: AppData = {
+                ...mockAppData(),
+                settings: {
+                    appearance: { mobileQuickAccessView: 'projects' },
+                    syncPreferences: { appearance: true },
+                    syncPreferencesUpdatedAt: {
+                        preferences: '2024-01-01T00:00:00.000Z',
+                        appearance: '2024-01-01T00:00:00.000Z',
+                    },
+                },
+            };
+            const incoming: AppData = {
+                ...mockAppData(),
+                settings: {
+                    appearance: { mobileQuickAccessView: 'trash' as AppData['settings']['appearance']['mobileQuickAccessView'] },
+                    syncPreferences: { appearance: true },
+                    syncPreferencesUpdatedAt: {
+                        preferences: '2024-01-02T00:00:00.000Z',
+                        appearance: '2024-01-02T00:00:00.000Z',
+                    },
+                },
+            };
+
+            const merged = mergeAppData(local, incoming);
+
+            expect(merged.settings.appearance?.mobileQuickAccessView).toBe('projects');
         });
 
         it('deep-clones merged settings arrays to avoid shared references', () => {

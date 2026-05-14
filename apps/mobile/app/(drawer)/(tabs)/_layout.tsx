@@ -1,7 +1,7 @@
 import { Link, Tabs, useRouter } from 'expo-router';
 import { CommonActions } from '@react-navigation/native';
 import type { BottomTabBarProps } from '@react-navigation/bottom-tabs';
-import { Search, Inbox, ArrowRightCircle, ClipboardCheck, Folder, Menu, Mic, Plus } from 'lucide-react-native';
+import { Search, Inbox, ArrowRightCircle, Calendar, Circle, ClipboardCheck, Folder, Menu, Mic, Plus } from 'lucide-react-native';
 import { Animated, Dimensions, PanResponder, Platform, Pressable, ScrollView, StyleSheet, Text, TouchableOpacity, View, type ViewStyle } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -16,7 +16,12 @@ import { useThemeColors } from '@/hooks/use-theme-colors';
 import { useLanguage } from '../../../contexts/language-context';
 import { QuickCaptureSheet } from '@/components/quick-capture-sheet';
 import { QuickCaptureProvider } from '../../../contexts/quick-capture-context';
-import { useTaskStore, type SavedSearch, type Task } from '@mindwtr/core';
+import { useTaskStore, type MobileQuickAccessView, type SavedSearch, type Task } from '@mindwtr/core';
+import {
+  coerceMobileQuickAccessView,
+  MOBILE_QUICK_ACCESS_STACK_ROUTE,
+  MOBILE_QUICK_ACCESS_TAB_ROUTE,
+} from '@/lib/mobile-quick-access-view';
 
 type IconSymbolName = Parameters<typeof IconSymbol>[0]['name'];
 type Translate = (key: string) => string;
@@ -120,6 +125,7 @@ function MoreNavigationSheet({
   tabBarHeight,
   tc,
   visible,
+  quickAccessView,
 }: {
   closeRequestId: number;
   onClose: () => void;
@@ -129,12 +135,14 @@ function MoreNavigationSheet({
   tabBarHeight: number;
   tc: ReturnType<typeof useThemeColors>;
   visible: boolean;
+  quickAccessView: MobileQuickAccessView;
 }) {
   const sheetTranslateY = useRef(new Animated.Value(Dimensions.get('window').height)).current;
   const lastCloseRequestIdRef = useRef(closeRequestId);
   const hiddenTranslateY = Dimensions.get('window').height;
   const iconColors = {
     board: '#4F8CF7',
+    review: '#22C55E',
     calendar: '#35B8B1',
     projects: '#10B981',
     contexts: '#8B5CF6',
@@ -211,10 +219,19 @@ function MoreNavigationSheet({
 
   if (!visible) return null;
 
+  const quickAccessItems: Record<MobileQuickAccessView, MoreDestination> = {
+    review: { id: 'review', label: t('nav.review'), icon: 'clipboard.fill', iconColor: iconColors.review, route: MOBILE_QUICK_ACCESS_STACK_ROUTE.review },
+    projects: { id: 'projects', label: t('nav.projects'), icon: 'folder.fill', iconColor: iconColors.projects, route: MOBILE_QUICK_ACCESS_STACK_ROUTE.projects },
+    calendar: { id: 'calendar', label: t('nav.calendar'), icon: 'calendar', iconColor: iconColors.calendar, route: MOBILE_QUICK_ACCESS_STACK_ROUTE.calendar },
+    contexts: { id: 'contexts', label: t('nav.contexts'), icon: 'circle', iconColor: iconColors.contexts, route: MOBILE_QUICK_ACCESS_STACK_ROUTE.contexts },
+  };
+  const moreQuickAccessItem = (view: Exclude<MobileQuickAccessView, 'review'>) => (
+    quickAccessView === view ? quickAccessItems.review : quickAccessItems[view]
+  );
   const primaryItems: MoreDestination[] = [
     { id: 'waiting', label: t('nav.waiting'), icon: 'pause.circle.fill', iconColor: iconColors.waiting, route: '/waiting' },
     { id: 'board', label: t('nav.board'), icon: 'square.grid.2x2.fill', iconColor: iconColors.board, route: '/board' },
-    { id: 'projects', label: t('nav.projects'), icon: 'folder.fill', iconColor: iconColors.projects, route: '/projects-screen' },
+    moreQuickAccessItem('projects'),
     {
       id: 'someday',
       label: t('nav.someday'),
@@ -223,8 +240,8 @@ function MoreNavigationSheet({
       iconColor: iconColors.someday,
       route: '/someday',
     },
-    { id: 'contexts', label: t('nav.contexts'), icon: 'circle', iconColor: iconColors.contexts, route: '/contexts' },
-    { id: 'calendar', label: t('nav.calendar'), icon: 'calendar', iconColor: iconColors.calendar, route: '/calendar' },
+    moreQuickAccessItem('contexts'),
+    moreQuickAccessItem('calendar'),
   ];
   const secondaryItems: MoreDestination[] = [
     { id: 'trash', label: t('nav.trash'), icon: 'trash.fill', iconColor: iconColors.trash, route: '/trash' },
@@ -337,6 +354,7 @@ function NativeTabBar({
   audioCaptureAccessibilityLabel,
   menuSyncIndicatorColor,
   moreSheetVisible,
+  quickAccessTabRoute,
 }: BottomTabBarProps & {
   iconTint: string;
   inactiveTint: string;
@@ -354,9 +372,10 @@ function NativeTabBar({
   audioCaptureAccessibilityLabel: string;
   menuSyncIndicatorColor?: string;
   moreSheetVisible: boolean;
+  quickAccessTabRoute: string;
 }) {
   const longPressRef = useRef(false);
-  const visibleTabNames = new Set(['inbox', 'focus', 'capture', 'review-tab', 'menu']);
+  const visibleTabNames = new Set(['inbox', 'focus', 'capture', quickAccessTabRoute, 'menu']);
   const visibleRoutes = state.routes.filter((route) => visibleTabNames.has(route.name));
 
   return (
@@ -565,6 +584,8 @@ export default function TabLayout() {
   const captureColor = tc.tint;
   const defaultCapture = settings.gtd?.defaultCaptureMethod ?? 'text';
   const defaultAutoRecord = defaultCapture === 'audio';
+  const quickAccessView = coerceMobileQuickAccessView(settings.appearance?.mobileQuickAccessView);
+  const quickAccessTabRoute = MOBILE_QUICK_ACCESS_TAB_ROUTE[quickAccessView];
   const { syncBadgeAccessibilityLabel, syncBadgeColor } = useMobileSyncBadge();
 
   return (
@@ -590,6 +611,7 @@ export default function TabLayout() {
             audioCaptureAccessibilityLabel={t('quickAdd.audioCaptureLabel')}
             menuSyncIndicatorColor={syncBadgeColor}
             moreSheetVisible={moreSheetVisible}
+            quickAccessTabRoute={quickAccessTabRoute}
           />
         )}
         screenOptions={({ route }) => ({
@@ -712,8 +734,29 @@ export default function TabLayout() {
         name="projects"
         options={{
           title: t('projects.title'),
+          href: quickAccessView === 'projects' ? undefined : null,
           tabBarIcon: ({ color, focused }) => (
             <Folder size={focused ? 26 : 24} color={color} strokeWidth={2} opacity={focused ? 1 : 0.8} />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="calendar-tab"
+        options={{
+          title: t('nav.calendar'),
+          href: quickAccessView === 'calendar' ? undefined : null,
+          tabBarIcon: ({ color, focused }) => (
+            <Calendar size={focused ? 26 : 24} color={color} strokeWidth={2} opacity={focused ? 1 : 0.8} />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="contexts-tab"
+        options={{
+          title: t('nav.contexts'),
+          href: quickAccessView === 'contexts' ? undefined : null,
+          tabBarIcon: ({ color, focused }) => (
+            <Circle size={focused ? 26 : 24} color={color} strokeWidth={2} opacity={focused ? 1 : 0.8} />
           ),
         }}
       />
@@ -721,6 +764,7 @@ export default function TabLayout() {
         name="review-tab"
         options={{
           title: t('tab.review'),
+          href: quickAccessView === 'review' ? undefined : null,
           tabBarIcon: ({ color, focused }) => (
             <ClipboardCheck size={focused ? 26 : 24} color={color} strokeWidth={2} opacity={focused ? 1 : 0.8} />
           ),
@@ -758,6 +802,7 @@ export default function TabLayout() {
       tabBarHeight={tabBarHeight}
       tc={tc}
       visible={moreSheetVisible}
+      quickAccessView={quickAccessView}
     />
     </QuickCaptureProvider>
   );
