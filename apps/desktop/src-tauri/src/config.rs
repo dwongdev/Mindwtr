@@ -718,6 +718,13 @@ fn read_obsidian_config_payload(config: &AppConfigToml) -> ObsidianConfigPayload
         .unwrap_or_default()
 }
 
+fn expand_obsidian_vault_scope(app: &tauri::AppHandle, payload: &ObsidianConfigPayload) {
+    let Some(vault_path) = payload.vault_path.as_ref() else {
+        return;
+    };
+    expand_tauri_fs_scope(app, &PathBuf::from(vault_path));
+}
+
 #[tauri::command]
 pub(crate) fn get_sync_backend(app: tauri::AppHandle) -> Result<String, String> {
     let config = read_config(&app);
@@ -755,6 +762,7 @@ pub(crate) fn set_obsidian_config(app: tauri::AppHandle, config: Value) -> Resul
             .map_err(|e| format!("Failed to encode Obsidian config: {e}"))?,
     );
     write_config_files(&config_path, &get_secrets_path(&app), &current)?;
+    expand_obsidian_vault_scope(&app, &payload);
     serde_json::to_value(payload).map_err(|e| e.to_string())
 }
 
