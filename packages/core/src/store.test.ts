@@ -480,6 +480,27 @@ describe('TaskStore', () => {
         expect(state.lastDataChangeAt).toBe(new Date('2026-03-21T12:00:00.000Z').getTime());
     });
 
+    it('merges appearance updates so density changes keep text size and task age', async () => {
+        await useTaskStore.getState().updateSettings({
+            appearance: {
+                textSize: 'large',
+                showTaskAge: true,
+            },
+        });
+
+        await useTaskStore.getState().updateSettings({
+            appearance: {
+                density: 'compact',
+            },
+        });
+
+        expect(useTaskStore.getState().settings.appearance).toEqual({
+            textSize: 'large',
+            showTaskAge: true,
+            density: 'compact',
+        });
+    });
+
     it('tracks saved filter changes as synced local data mutations', async () => {
         vi.setSystemTime(new Date('2026-03-21T12:00:00.000Z'));
 

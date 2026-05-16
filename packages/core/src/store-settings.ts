@@ -61,6 +61,20 @@ export const clearDerivedCache = () => {
 
 const settingsValueChanged = (left: unknown, right: unknown): boolean => JSON.stringify(left ?? null) !== JSON.stringify(right ?? null);
 
+const mergeSettingsUpdates = (
+    settings: AppData['settings'],
+    updates: Partial<AppData['settings']>
+): AppData['settings'] => {
+    const nextSettings = { ...settings, ...updates };
+    if (Object.prototype.hasOwnProperty.call(updates, 'appearance')) {
+        const appearanceUpdate = updates.appearance;
+        nextSettings.appearance = appearanceUpdate && typeof appearanceUpdate === 'object'
+            ? { ...(settings.appearance ?? {}), ...appearanceUpdate }
+            : appearanceUpdate;
+    }
+    return nextSettings;
+};
+
 const shouldTrackSettingsChange = (
     previous: AppData['settings'],
     next: AppData['settings'],
@@ -708,7 +722,7 @@ export const createSettingsActions = ({
         set((state) => {
             const deviceState = ensureDeviceId(state.settings);
             const nowIso = new Date().toISOString();
-            const nextSettings = { ...deviceState.settings, ...updates };
+            const nextSettings = mergeSettingsUpdates(deviceState.settings, updates);
             const nextSyncUpdatedAt = { ...(deviceState.settings.syncPreferencesUpdatedAt ?? {}) };
             let syncUpdated = false;
 
