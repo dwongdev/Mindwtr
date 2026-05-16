@@ -458,16 +458,6 @@ export const TaskItemDisplay = memo(function TaskItemDisplay({
                         selectionMode ? "cursor-pointer hover:bg-muted/40" : "cursor-default",
                     )}
                 >
-                    {!selectionMode && !readOnly && showHoverHint && (
-                        <span
-                            className={cn(
-                                "pointer-events-none absolute right-2 top-1 text-[10px] text-muted-foreground/70 opacity-0 transition-opacity group-hover/content:opacity-100",
-                                isRtl && "left-2 right-auto"
-                            )}
-                        >
-                            {hoverHintText}
-                        </span>
-                    )}
                     <button
                         type="button"
                         data-task-edit-trigger
@@ -487,6 +477,7 @@ export const TaskItemDisplay = memo(function TaskItemDisplay({
                         )}
                         aria-expanded={isViewOpen}
                         aria-label={t('task.toggleDetails') || 'Toggle task details'}
+                        title={!selectionMode && !readOnly && showHoverHint ? hoverHintText : undefined}
                         dir={resolvedDirection}
                     >
                         <div
