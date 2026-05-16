@@ -8,6 +8,16 @@ This is a **local stdio** server (no HTTP). MCP clients launch it as a subproces
 
 ---
 
+## App Binaries vs. MCP Helper
+
+The desktop and mobile app binaries include the Mindwtr app, but they do **not** currently include a desktop start/stop toggle or a standalone `mindwtr-mcp` command on your `PATH`.
+
+You do **not** need to run the whole app from source to use MCP. You can use the normal desktop app binary for your tasks, then run the separate MCP helper from this repository with Bun, or build the helper once and run it with Node. Point the helper at the desktop app's local `mindwtr.db`.
+
+On desktop, the app shows the exact local data path in **Settings -> Sync -> Local Data**. Mobile binaries do not expose a local MCP server surface.
+
+---
+
 ## Requirements
 
 - **Node.js 18+** (for the MCP client that spawns the server)
@@ -19,6 +29,10 @@ This is a **local stdio** server (no HTTP). MCP clients launch it as a subproces
 - **Linux:** `~/.local/share/mindwtr/mindwtr.db`
 - **macOS:** `~/Library/Application Support/mindwtr/mindwtr.db`
 - **Windows:** `%APPDATA%\mindwtr\mindwtr.db`
+
+Additional macOS path for sandboxed builds:
+
+- `~/Library/Containers/tech.dongdongbh.mindwtr/Data/Library/Application Support/mindwtr/mindwtr.db`
 
 You can override the database location with:
 

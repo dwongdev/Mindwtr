@@ -4,6 +4,16 @@ Mindwtr includes an optional local REST API server for scripting and integration
 
 ---
 
+## App Binaries vs. API Helper
+
+The desktop and mobile app binaries include the Mindwtr app, but they do **not** currently start the local REST API server or include a desktop toggle for it.
+
+You do **not** need to run the whole app from source to use the API. You can use the normal desktop app binary for your data, then run this separate API helper from the repository with Bun. By default it resolves the same desktop data paths as the app; you can also pass `--data` or `--db` explicitly.
+
+For the exact desktop storage path, open **Settings -> Sync -> Local Data** in the desktop app. Mobile binaries do not expose a local REST API surface.
+
+---
+
 ## Quick Start
 
 From the repo root:

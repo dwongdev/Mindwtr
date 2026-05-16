@@ -107,7 +107,7 @@ _Don't show me a cockpit when I just want to ride a bike._
 - Obsidian vault import with note deep links on desktop.
 - Optional AI copilot (BYOK + local/self-hosted compatible models).
 - Cross-platform apps for desktop and mobile, plus PWA.
-- Built-in automation with CLI, REST API, and MCP server.
+- Optional developer automation helpers with CLI, local REST API, and MCP server.
 
 <details>
 <summary>See all features</summary>
@@ -164,10 +164,12 @@ _Don't show me a cockpit when I just want to ride a bike._
 
 ### Automation
 
-- 🔌 **CLI** - Add, list, complete, search from terminal
-- 🌐 **REST API** - Local API server for scripting
+- 🔌 **CLI** - Add, list, complete, search from terminal by running the repo helper
+- 🌐 **REST API** - Optional localhost API server for scripting
 - 🌍 **Web App (PWA)** - Browser access with offline support
-- 🧠 **MCP Server** - Local Model Context Protocol server for LLM automation
+- 🧠 **MCP Server** - Optional local stdio Model Context Protocol server for LLM automation
+
+The desktop and mobile app binaries contain the Mindwtr app. The CLI, local REST API, and MCP server are separate automation helpers that you currently run from the repository or from a built helper script; the app binaries do not yet include a start/stop UI or a standalone `mindwtr-mcp` / `mindwtr-api` command. You can still use the normal desktop app binary for your data, then point the helper at the app's local `mindwtr.db`.
 
 ### Cross-Platform
 
