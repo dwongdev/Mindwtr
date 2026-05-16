@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { fireEvent, render, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, waitFor } from '@testing-library/react';
 import { useTaskStore, type Task } from '@mindwtr/core';
 import { LanguageProvider } from '../../contexts/language-context';
 import { AgendaView } from './AgendaView';
@@ -286,6 +286,34 @@ describe('AgendaView', () => {
 
         expect(queryByText('Future start next task')).not.toBeInTheDocument();
         expect(getByText('1 task hidden (future start)')).toBeInTheDocument();
+    });
+
+    it('removes focused tasks immediately when a local edit makes them ineligible', async () => {
+        useTaskStore.setState({
+            tasks: [focusedTask],
+            _allTasks: [focusedTask],
+            projects: [],
+            _allProjects: [],
+            areas: [],
+            _allAreas: [],
+            settings: { deviceId: 'test-device' },
+            error: null,
+            highlightTaskId: null,
+            lastDataChangeAt: 0,
+        });
+
+        const { getByText, queryByText } = renderAgenda();
+        expect(getByText('Focused task')).toBeInTheDocument();
+
+        await act(async () => {
+            await useTaskStore.getState().updateTask('focused-task', {
+                startTime: '2099-03-03T09:00:00.000Z',
+            });
+        });
+
+        await waitFor(() => {
+            expect(queryByText('Focused task')).not.toBeInTheDocument();
+        });
     });
 
     it('does not show later sequential actions when the first action has a hidden future start', () => {

@@ -185,7 +185,7 @@ function AgendaTaskList({
 
 export function AgendaView() {
     const perf = usePerformanceMonitor('AgendaView');
-    const { projects, areas, updateTask, updateSettings, settings, error, highlightTaskId, setHighlightTask } = useTaskStore(
+    const { projects, areas, updateTask, updateSettings, settings, error, highlightTaskId, setHighlightTask, taskChangeToken } = useTaskStore(
         (state) => ({
             projects: state.projects,
             areas: state.areas,
@@ -195,6 +195,7 @@ export function AgendaView() {
             error: state.error,
             highlightTaskId: state.highlightTaskId,
             setHighlightTask: state.setHighlightTask,
+            taskChangeToken: state.lastDataChangeAt,
         }),
         shallow
     );
@@ -246,7 +247,7 @@ export function AgendaView() {
 
     const derivedActiveTasks = useMemo(() => (
         AGENDA_ACTIVE_STATUSES.flatMap((status) => activeTasksByStatus.get(status) ?? [])
-    ), [activeTasksByStatus]);
+    ), [activeTasksByStatus, taskChangeToken]);
 
     // Filter active tasks
     const baseActiveTasks = useMemo(() => (
