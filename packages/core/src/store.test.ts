@@ -194,7 +194,7 @@ describe('TaskStore', () => {
         expect(task.sectionId).toBeUndefined();
     });
 
-    it('should clear action fields when a task becomes reference', () => {
+    it('should clear action fields and preserve checklist data when a task becomes reference', () => {
         const { addTask, updateTask } = useTaskStore.getState();
         addTask('Reference Task', {
             status: 'next',
@@ -220,9 +220,36 @@ describe('TaskStore', () => {
         expect(updatedTask.recurrence).toBeUndefined();
         expect(updatedTask.priority).toBeUndefined();
         expect(updatedTask.timeEstimate).toBeUndefined();
-        expect(updatedTask.checklist).toBeUndefined();
+        expect(updatedTask.checklist).toEqual([{ id: 'c1', title: 'Subtask', isCompleted: false }]);
         expect(updatedTask.isFocusedToday).toBe(false);
         expect(updatedTask.pushCount).toBe(0);
+    });
+
+    it('duplicates reference items into Inbox with checklist items reset', async () => {
+        const { addTask, duplicateTask } = useTaskStore.getState();
+        const addResult = await addTask('Reference Checklist', {
+            status: 'reference',
+            checklist: [
+                { id: 'c1', title: 'Pack charger', isCompleted: true },
+                { id: 'c2', title: 'Print agenda', isCompleted: false },
+            ],
+        });
+        expect(addResult.success).toBe(true);
+
+        await duplicateTask(addResult.id!, false);
+
+        const duplicatedTask = useTaskStore.getState()._allTasks.find((task) => (
+            task.id !== addResult.id && task.title === 'Reference Checklist (Copy)'
+        ));
+        expect(duplicatedTask?.status).toBe('inbox');
+        expect(duplicatedTask?.checklist?.map((item) => ({
+            title: item.title,
+            isCompleted: item.isCompleted,
+        }))).toEqual([
+            { title: 'Pack charger', isCompleted: false },
+            { title: 'Print agenda', isCompleted: false },
+        ]);
+        expect(duplicatedTask?.checklist?.map((item) => item.id)).not.toEqual(['c1', 'c2']);
     });
 
     it('rejects promoting a fourth task into today focus', async () => {
@@ -1537,6 +1564,46 @@ describe('TaskStore', () => {
         const projectTasks = useTaskStore.getState()._allTasks.filter(t => t.projectId === project.id && !t.deletedAt);
         expect(projectTasks).toHaveLength(2);
         expect(projectTasks.map(t => t.status)).toEqual(['next', 'waiting']);
+    });
+
+    it('duplicates projects as fresh active work with reset checklists', async () => {
+        const { addProject, addSection, addTask, duplicateProject } = useTaskStore.getState();
+        const project = await addProject('Launch Template', '#00ff00');
+        expect(project).not.toBeNull();
+        if (!project) return;
+        const section = await addSection(project.id, 'Preparation');
+        expect(section).not.toBeNull();
+        if (!section) return;
+        await addTask('Reference checklist', {
+            projectId: project.id,
+            sectionId: section.id,
+            status: 'reference',
+            checklist: [
+                { id: 'c1', title: 'Confirm venue', isCompleted: true },
+                { id: 'c2', title: 'Send agenda', isCompleted: false },
+            ],
+        });
+
+        const duplicated = await duplicateProject(project.id);
+
+        expect(duplicated?.title).toBe('Launch Template (Copy)');
+        const duplicatedSection = useTaskStore.getState()._allSections.find((item) => (
+            item.projectId === duplicated?.id && item.title === 'Preparation'
+        ));
+        expect(duplicatedSection).toBeTruthy();
+        const duplicatedTask = useTaskStore.getState()._allTasks.find((task) => (
+            task.projectId === duplicated?.id && task.title === 'Reference checklist'
+        ));
+        expect(duplicatedTask?.status).toBe('next');
+        expect(duplicatedTask?.sectionId).toBe(duplicatedSection?.id);
+        expect(duplicatedTask?.checklist?.map((item) => ({
+            title: item.title,
+            isCompleted: item.isCompleted,
+        }))).toEqual([
+            { title: 'Confirm venue', isCompleted: false },
+            { title: 'Send agenda', isCompleted: false },
+        ]);
+        expect(duplicatedTask?.checklist?.map((item) => item.id)).not.toEqual(['c1', 'c2']);
     });
 
     it('should archive a project, mark incomplete tasks done, and archive its sections', async () => {

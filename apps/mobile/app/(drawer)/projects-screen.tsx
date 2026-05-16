@@ -32,7 +32,24 @@ import { AREA_FILTER_ALL, AREA_FILTER_NONE } from '@/lib/area-filter';
 import { openContextsScreen, openProjectScreen } from '@/lib/task-meta-navigation';
 
 export default function ProjectsScreen() {
-  const { projects, tasks, addProject, updateProject, deleteProject, restoreProject, toggleProjectFocus, addArea, updateArea, deleteArea, reorderAreas, updateTask, setHighlightTask, settings, getDerivedState } = useTaskStore();
+  const {
+    projects,
+    tasks,
+    addProject,
+    updateProject,
+    deleteProject,
+    restoreProject,
+    duplicateProject,
+    toggleProjectFocus,
+    addArea,
+    updateArea,
+    deleteArea,
+    reorderAreas,
+    updateTask,
+    setHighlightTask,
+    settings,
+    getDerivedState,
+  } = useTaskStore();
   const { t, language } = useLanguage();
   const { showToast } = useToast();
   const tc = useThemeColors();
@@ -294,6 +311,34 @@ export default function ProjectsScreen() {
     undoNotificationsEnabled,
   ]);
 
+  const handleDuplicateProject = useCallback((projectIdToDuplicate: string) => {
+    void Promise.resolve(duplicateProject(projectIdToDuplicate))
+      .then((createdProject) => {
+        if (!createdProject) {
+          showToast({
+            title: resolveText('common.notice', 'Notice'),
+            message: resolveText('projects.duplicateFailed', 'Failed to duplicate project'),
+            tone: 'error',
+          });
+          return;
+        }
+        setSelectedProject(createdProject);
+        showToast({
+          title: resolveText('common.done', 'Done'),
+          message: resolveText('projects.duplicated', 'Project duplicated'),
+          tone: 'success',
+        });
+      })
+      .catch((error) => {
+        logProjectError('Failed to duplicate project', error);
+        showToast({
+          title: resolveText('common.notice', 'Notice'),
+          message: resolveText('projects.duplicateFailed', 'Failed to duplicate project'),
+          tone: 'error',
+        });
+      });
+  }, [duplicateProject, logProjectError, resolveText, showToast]);
+
   const renderProjectItem = (project: Project) => {
     return (
       <ProjectRow
@@ -305,6 +350,7 @@ export default function ProjectsScreen() {
         statusPalette={statusPalette}
         t={t}
         onDeleteProject={handleDeleteProject}
+        onDuplicateProject={handleDuplicateProject}
         onOpenProject={openProject}
         onToggleProjectFocus={toggleProjectFocus}
       />
@@ -649,6 +695,7 @@ export default function ProjectsScreen() {
         notesExpanded={notesExpanded}
         notesFullscreen={notesFullscreen}
         onCloseNotesFullscreen={() => setNotesFullscreen(false)}
+        onDuplicateProject={handleDuplicateProject}
         onDownloadAttachment={downloadAttachment}
         onOpenAreaPicker={openAreaPicker}
         onOpenAttachment={openAttachment}

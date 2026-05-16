@@ -48,6 +48,7 @@ type ProjectDetailModalProps = {
     notesExpanded: boolean;
     notesFullscreen: boolean;
     onCloseNotesFullscreen: () => void;
+    onDuplicateProject: (projectId: string) => void;
     onOpenAreaPicker: () => void;
     onOpenTagPicker: () => void;
     onRemoveProjectAttachment: (id: string) => void;
@@ -137,6 +138,7 @@ export function ProjectDetailModal({
     notesExpanded,
     notesFullscreen,
     onCloseNotesFullscreen,
+    onDuplicateProject,
     onDownloadAttachment,
     onOpenAreaPicker,
     onOpenAttachment,
@@ -266,6 +268,14 @@ export function ProjectDetailModal({
                                             <Text style={[styles.statusPickerText, { color: statusPalette[selectedProject.status]?.text ?? tc.text }]}>▾</Text>
                                         </TouchableOpacity>
                                         <View style={{ flex: 1 }} />
+                                        <TouchableOpacity
+                                            onPress={() => onDuplicateProject(selectedProject.id)}
+                                            style={[styles.statusButton, { backgroundColor: tc.filterBg }]}
+                                        >
+                                            <Text style={[styles.statusButtonText, { color: tc.tint }]}>
+                                                {t('projects.duplicate')}
+                                            </Text>
+                                        </TouchableOpacity>
                                         {selectedProject.status === 'archived' ? (
                                             <TouchableOpacity
                                                 onPress={() => handleSetProjectStatus('active')}

@@ -528,7 +528,6 @@ export function useTaskEditActions({
             recurrence: undefined,
             priority: undefined,
             timeEstimate: undefined,
-            checklist: undefined,
             isFocusedToday: false,
             pushCount: 0,
         };

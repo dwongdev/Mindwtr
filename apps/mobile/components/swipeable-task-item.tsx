@@ -120,6 +120,7 @@ export function SwipeableTaskItem({
         && task.status !== 'done'
         && task.status !== 'reference'
         && task.status !== 'archived';
+    const isReference = task.status === 'reference';
     const {
         cancelPendingChecklist,
         checklistProgress,
@@ -382,7 +383,7 @@ export function SwipeableTaskItem({
             areas={areas}
             canShowFocusToggle={canShowFocusToggle}
             checklistProgress={checklistProgress}
-            hideChecklistProgress={hideChecklistProgress}
+            hideChecklistProgress={hideChecklistProgress || isReference}
             hideContexts={hideContexts}
             hideStatusBadge={hideStatusBadge}
             isDark={isDark}
@@ -403,7 +404,7 @@ export function SwipeableTaskItem({
             onToggleFocus={toggleFocus}
             projects={projects}
             selectionMode={selectionMode}
-            showChecklist={showChecklist}
+            showChecklist={!isReference && showChecklist}
             showTaskAge={showTaskAge}
             t={t}
             task={{

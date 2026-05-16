@@ -123,7 +123,8 @@ export const TaskItemDisplay = memo(function TaskItemDisplay({
         onToggleChecklistItem,
         focusToggle,
     } = actions;
-    const checklistProgress = getChecklistProgress(task);
+    const isReference = task.status === 'reference';
+    const checklistProgress = isReference ? null : getChecklistProgress(task);
     const recurrenceCount = getRecurrenceCountValue(task.recurrence);
     const recurrenceUntil = getRecurrenceUntilValue(task.recurrence);
     const recurrenceInterval = task.recurrence && typeof task.recurrence === 'object' && task.recurrence.rrule
@@ -160,7 +161,7 @@ export const TaskItemDisplay = memo(function TaskItemDisplay({
         || task.location
         || recurrenceRule
         || (prioritiesEnabled && task.priority)
-        || (task.status !== 'reference' && task.energyLevel)
+        || (!isReference && task.energyLevel)
         || task.assignedTo
         || (task.contexts?.length ?? 0) > 0
         || task.tags.length > 0
@@ -589,7 +590,7 @@ export const TaskItemDisplay = memo(function TaskItemDisplay({
                             )}
                             {hasMetadata && renderMetadataRow("gap-3 mt-2")}
 
-                            {(task.checklist || []).length > 0 && (
+                            {!isReference && (task.checklist || []).length > 0 && (
                                 <div
                                     className="mt-3 space-y-1 pl-1"
                                     onPointerDown={(e) => e.stopPropagation()}

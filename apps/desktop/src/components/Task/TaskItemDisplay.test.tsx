@@ -495,4 +495,45 @@ describe('TaskItemDisplay', () => {
 
         expect(openAttachment).toHaveBeenCalledWith(imageAttachment);
     });
+
+    it('keeps preserved reference checklists hidden from row progress and toggles', () => {
+        const referenceTask: Task = {
+            ...baseTask,
+            title: 'Reference checklist',
+            status: 'reference',
+            checklist: [{ id: 'item-1', title: 'Reference step', isCompleted: false }],
+        };
+
+        const { queryByText } = render(
+            <LanguageProvider>
+                <TaskItemDisplay
+                    task={referenceTask}
+                    language="en"
+                    selectionMode={false}
+                    isViewOpen
+                    actions={{
+                        onToggleView: vi.fn(),
+                        onEdit: vi.fn(),
+                        onDelete: vi.fn(),
+                        onDuplicate: vi.fn(),
+                        onStatusChange: vi.fn(),
+                        openAttachment: vi.fn(),
+                        onToggleChecklistItem: vi.fn(),
+                    }}
+                    visibleAttachments={[]}
+                    recurrenceRule=""
+                    recurrenceStrategy="strict"
+                    prioritiesEnabled={false}
+                    timeEstimatesEnabled={false}
+                    isStagnant={false}
+                    showQuickDone={false}
+                    readOnly={false}
+                    t={(key: string) => key}
+                />
+            </LanguageProvider>
+        );
+
+        expect(queryByText('0/1')).not.toBeInTheDocument();
+        expect(queryByText('Reference step')).not.toBeInTheDocument();
+    });
 });

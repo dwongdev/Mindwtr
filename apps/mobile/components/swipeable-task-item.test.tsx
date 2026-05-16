@@ -703,6 +703,46 @@ describe('SwipeableTaskItem', () => {
     expect(() => tree.root.find((node) => node.props.accessibilityLabel === 'checklist.progress')).toThrow();
   });
 
+  it('keeps reference checklists non-actionable in task rows', () => {
+    const task = {
+      id: 'task-1',
+      title: 'Reference checklist',
+      status: 'reference',
+      checklist: [{ id: 'item-1', title: 'Book van', isCompleted: false }],
+      createdAt: '2026-01-01T00:00:00.000Z',
+      updatedAt: '2026-01-01T00:00:00.000Z',
+    } as any;
+    getChecklistProgress.mockReturnValue({
+      completed: 0,
+      total: 1,
+      percent: 0,
+    });
+
+    let tree!: renderer.ReactTestRenderer;
+    renderer.act(() => {
+      tree = renderer.create(
+        <SwipeableTaskItem
+          task={task}
+          isDark={false}
+          tc={{
+            taskItemBg: '#111111',
+            border: '#222222',
+            text: '#ffffff',
+            secondaryText: '#999999',
+            tint: '#3b82f6',
+            warning: '#f59e0b',
+          } as any}
+          onPress={vi.fn()}
+          onStatusChange={vi.fn()}
+          onDelete={vi.fn()}
+        />
+      );
+    });
+
+    expect(() => tree.root.find((node) => node.props.accessibilityLabel === 'checklist.progress')).toThrow();
+    expect(() => tree.root.find((node) => node.props.accessibilityLabel === 'Book van')).toThrow();
+  });
+
   it('flushes checklist updates using the full task set, not only visible tasks', () => {
     vi.useFakeTimers();
     const task = {

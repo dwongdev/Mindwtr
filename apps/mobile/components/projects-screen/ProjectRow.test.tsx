@@ -20,6 +20,7 @@ vi.mock('expo-haptics', () => ({
 
 vi.mock('lucide-react-native', () => ({
   AlertTriangle: (props: any) => React.createElement('AlertTriangle', props),
+  Copy: (props: any) => React.createElement('Copy', props),
   Star: (props: any) => React.createElement('Star', props),
   Trash2: (props: any) => React.createElement('Trash2', props),
 }));
@@ -67,6 +68,7 @@ describe('ProjectRow', () => {
           statusPalette={statusPalette as any}
           t={(key) => key}
           onDeleteProject={vi.fn()}
+          onDuplicateProject={vi.fn()}
           onOpenProject={vi.fn()}
           onToggleProjectFocus={onToggleProjectFocus}
         />,
@@ -103,11 +105,13 @@ describe('ProjectRow', () => {
             ({
               'projects.title': 'Projects',
               'projects.deleteConfirm': 'Delete this project?',
+              'projects.duplicate': 'Duplicate',
               'common.cancel': 'Cancel',
               'common.delete': 'Delete',
             }[key] ?? key)
           }
           onDeleteProject={onDeleteProject}
+          onDuplicateProject={vi.fn()}
           onOpenProject={vi.fn()}
           onToggleProjectFocus={vi.fn()}
         />,
@@ -141,5 +145,40 @@ describe('ProjectRow', () => {
 
     expect(hapticsMocks.notificationAsync).toHaveBeenCalledWith('warning');
     expect(onDeleteProject).toHaveBeenCalledWith('project-1');
+  });
+
+  it('exposes a duplicate action for project templates', () => {
+    const onDuplicateProject = vi.fn();
+
+    let tree!: renderer.ReactTestRenderer;
+    renderer.act(() => {
+      tree = renderer.create(
+        <ProjectRow
+          project={project}
+          tasks={[]}
+          areaById={new Map()}
+          tc={tc}
+          focusedCount={0}
+          statusPalette={statusPalette as any}
+          t={(key) => ({ 'projects.duplicate': 'Duplicate' }[key] ?? key)}
+          onDeleteProject={vi.fn()}
+          onDuplicateProject={onDuplicateProject}
+          onOpenProject={vi.fn()}
+          onToggleProjectFocus={vi.fn()}
+        />,
+      );
+    });
+
+    const duplicateButton = tree.root.find((node) => node.props.testID === 'project-row-duplicate-project-1');
+
+    expect(duplicateButton.props.accessibilityLabel).toBe('Duplicate');
+    expect(duplicateButton.props.hitSlop).toEqual({ top: 12, bottom: 12, left: 12, right: 12 });
+
+    renderer.act(() => {
+      duplicateButton.props.onPress();
+    });
+
+    expect(hapticsMocks.selectionAsync).toHaveBeenCalledTimes(1);
+    expect(onDuplicateProject).toHaveBeenCalledWith('project-1');
   });
 });

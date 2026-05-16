@@ -2,7 +2,7 @@ import React from 'react';
 import { Alert, Text, TouchableOpacity, View } from 'react-native';
 import { type Area, type Project, type Task } from '@mindwtr/core';
 import * as Haptics from 'expo-haptics';
-import { Trash2, Star, AlertTriangle } from 'lucide-react-native';
+import { Copy, Trash2, Star, AlertTriangle } from 'lucide-react-native';
 
 import { projectsScreenStyles as styles } from '@/components/projects-screen/projects-screen.styles';
 
@@ -24,6 +24,7 @@ type ProjectRowProps = {
     statusPalette: StatusPalette;
     t: (key: string) => string;
     onDeleteProject: (projectId: string) => void;
+    onDuplicateProject: (projectId: string) => void;
     onOpenProject: (project: Project) => void;
     onToggleProjectFocus: (projectId: string) => void;
 };
@@ -46,6 +47,7 @@ export function ProjectRow({
     statusPalette,
     t,
     onDeleteProject,
+    onDuplicateProject,
     onOpenProject,
     onToggleProjectFocus,
 }: ProjectRowProps) {
@@ -127,6 +129,19 @@ export function ProjectRow({
                         </Text>
                     )}
                 </View>
+            </TouchableOpacity>
+            <TouchableOpacity
+                testID={`project-row-duplicate-${project.id}`}
+                onPress={() => {
+                    void Haptics.selectionAsync().catch(() => {});
+                    onDuplicateProject(project.id);
+                }}
+                style={styles.deleteButton}
+                hitSlop={ROW_ACTION_HIT_SLOP}
+                accessibilityRole="button"
+                accessibilityLabel={t('projects.duplicate')}
+            >
+                <Copy size={18} color={tc.secondaryText} />
             </TouchableOpacity>
             <TouchableOpacity
                 testID={`project-row-delete-${project.id}`}
