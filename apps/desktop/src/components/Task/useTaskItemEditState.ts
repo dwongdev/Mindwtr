@@ -56,6 +56,8 @@ type TaskItemEditState = {
     resetEditState: () => void;
 };
 
+const hasPreviewableDescription = (task: Task) => Boolean(task.description?.trim());
+
 export function useTaskItemEditState({
     task,
     resetAttachmentState,
@@ -70,7 +72,7 @@ export function useTaskItemEditState({
     const [editContexts, setEditContexts] = useState(task.contexts?.join(', ') || '');
     const [editTags, setEditTags] = useState(task.tags?.join(', ') || '');
     const [editDescription, setEditDescription] = useState(task.description || '');
-    const [showDescriptionPreview, setShowDescriptionPreview] = useState(false);
+    const [showDescriptionPreview, setShowDescriptionPreview] = useState(() => hasPreviewableDescription(task));
     const [editLocation, setEditLocation] = useState(task.location || '');
     const [editRecurrence, setEditRecurrence] = useState<RecurrenceRule | ''>(
         getRecurrenceRuleValue(task.recurrence),
@@ -108,7 +110,7 @@ export function useTaskItemEditState({
         setEditAssignedTo(task.assignedTo || '');
         setEditReviewAt(toDateTimeLocalValue(task.reviewAt));
         resetAttachmentState(task.attachments);
-        setShowDescriptionPreview(false);
+        setShowDescriptionPreview(hasPreviewableDescription(task));
     }, [resetAttachmentState, task]);
 
     return {

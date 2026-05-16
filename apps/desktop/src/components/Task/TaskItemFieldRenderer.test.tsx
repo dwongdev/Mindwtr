@@ -112,6 +112,7 @@ const createData = (overrides: Partial<TaskItemFieldRendererData> = {}): TaskIte
 
 const createHandlers = (): TaskItemFieldRendererHandlers => ({
     toggleDescriptionPreview: vi.fn(),
+    editDescriptionFromPreview: vi.fn(),
     setEditDescription: vi.fn(),
     addFileAttachment: vi.fn(),
     addLinkAttachment: vi.fn(),
@@ -145,6 +146,24 @@ function DescriptionHarness() {
             handlers={{
                 ...createHandlers(),
                 setEditDescription,
+            }}
+        />
+    );
+}
+
+function DescriptionPreviewHarness() {
+    const [showDescriptionPreview, setShowDescriptionPreview] = useState(true);
+
+    return (
+        <TaskItemFieldRenderer
+            fieldId="description"
+            data={createData({
+                showDescriptionPreview,
+                editDescription: '**Project notes**',
+            })}
+            handlers={{
+                ...createHandlers(),
+                editDescriptionFromPreview: () => setShowDescriptionPreview(false),
             }}
         />
     );
@@ -379,6 +398,18 @@ describe('TaskItemFieldRenderer date clear buttons', () => {
 
         await waitFor(() => {
             expect(textarea.value).toBe('');
+        });
+    });
+
+    it('switches the description preview back to focused editing when clicked', async () => {
+        const { getByRole, queryByRole } = render(<DescriptionPreviewHarness />);
+
+        expect(queryByRole('textbox', { name: 'Description' })).toBeNull();
+
+        fireEvent.click(getByRole('button', { name: 'Edit Description' }));
+
+        await waitFor(() => {
+            expect(getByRole('textbox', { name: 'Description' })).toHaveFocus();
         });
     });
 });

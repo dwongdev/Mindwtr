@@ -482,7 +482,10 @@ export const TaskItem = memo(function TaskItem({
     const projectSections = activeProjectId ? (sectionsByProject.get(activeProjectId) ?? []) : [];
     const toggleDescriptionPreview = useCallback(() => {
         setShowDescriptionPreview((prev) => !prev);
-    }, []);
+    }, [setShowDescriptionPreview]);
+    const editDescriptionFromPreview = useCallback(() => {
+        setShowDescriptionPreview(false);
+    }, [setShowDescriptionPreview]);
     const handleSetEditDescription = useCallback((value: string) => {
         setEditDescription(value);
         resetCopilotDraft();
@@ -543,6 +546,7 @@ export const TaskItem = memo(function TaskItem({
     ]);
     const fieldRendererHandlers = useMemo(() => ({
         toggleDescriptionPreview,
+        editDescriptionFromPreview,
         setEditDescription: handleSetEditDescription,
         addFileAttachment,
         addLinkAttachment,
@@ -566,6 +570,7 @@ export const TaskItem = memo(function TaskItem({
         resetTaskChecklist,
     }), [
         toggleDescriptionPreview,
+        editDescriptionFromPreview,
         handleSetEditDescription,
         addFileAttachment,
         addLinkAttachment,
