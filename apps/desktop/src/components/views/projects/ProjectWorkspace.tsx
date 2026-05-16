@@ -11,7 +11,7 @@ import {
 } from '@mindwtr/core';
 import { DndContext, PointerSensor, MeasuringStrategy, useSensor, useSensors, type DragEndEvent } from '@dnd-kit/core';
 import { SortableContext, verticalListSortingStrategy, arrayMove } from '@dnd-kit/sortable';
-import { ChevronDown, ChevronRight, FileText, Folder, Pencil, Plus, Trash2 } from 'lucide-react';
+import { ArrowDown, ArrowUp, ChevronDown, ChevronRight, FileText, Folder, Pencil, Plus, Trash2 } from 'lucide-react';
 
 import { PromptModal } from '../../PromptModal';
 import { TaskItem } from '../../TaskItem';
@@ -78,6 +78,10 @@ type ProjectWorkspaceProps = {
         taskIds: string[],
         sectionId?: string | null,
     ) => Promise<unknown> | unknown;
+    reorderSections: (
+        projectId: string,
+        sectionIds: string[],
+    ) => Promise<unknown> | unknown;
     requestConfirmation: (options: ConfirmationRequestOptions) => Promise<boolean>;
     restoreProject: (projectId: string) => Promise<StoreActionResult | void> | StoreActionResult | void;
     sections: Section[];
@@ -130,6 +134,7 @@ export function ProjectWorkspace({
     onManageAreas,
     onRequestQuickArea,
     projects,
+    reorderSections,
     reorderProjectTasks,
     requestConfirmation,
     restoreProject,
@@ -274,6 +279,21 @@ export function ProjectWorkspace({
                 return a.title.localeCompare(b.title);
             });
     }, [sections, selectedProjectId]);
+
+    const handleMoveSection = useCallback((sectionId: string, offset: -1 | 1) => {
+        if (!selectedProject) return;
+        const currentIndex = projectSections.findIndex((section) => section.id === sectionId);
+        const nextIndex = currentIndex + offset;
+        if (currentIndex < 0 || nextIndex < 0 || nextIndex >= projectSections.length) return;
+        const nextSections = [...projectSections];
+        const [moved] = nextSections.splice(currentIndex, 1);
+        if (!moved) return;
+        nextSections.splice(nextIndex, 0, moved);
+        void Promise.resolve(reorderSections(selectedProject.id, nextSections.map((section) => section.id))).catch((error) => {
+            reportError('Failed to reorder sections', error);
+            showToast(resolveText('projects.sectionReorderFailed', 'Failed to reorder sections.'), 'error');
+        });
+    }, [projectSections, reorderSections, resolveText, selectedProject, showToast]);
 
     const sectionTaskGroups = useMemo(() => {
         if (!selectedProjectId || projectSections.length === 0) {
@@ -459,11 +479,15 @@ export function ProjectWorkspace({
 
         return (
             <div className="space-y-3">
-                {sectionTaskGroups.sections.map((group) => {
+                {sectionTaskGroups.sections.map((group, index) => {
                     const isCollapsed = group.section.isCollapsed;
                     const taskCount = group.tasks.length;
                     const hasNotes = Boolean(group.section.description?.trim());
                     const notesOpen = sectionNotesOpen[group.section.id] ?? false;
+                    const canMoveUp = index > 0;
+                    const canMoveDown = index < sectionTaskGroups.sections.length - 1;
+                    const moveSectionUpLabel = resolveText('projects.moveSectionUp', 'Move section up');
+                    const moveSectionDownLabel = resolveText('projects.moveSectionDown', 'Move section down');
 
                     return (
                         <SectionDropZone
@@ -486,6 +510,36 @@ export function ProjectWorkspace({
                                     <span className="text-xs text-muted-foreground">{taskCount}</span>
                                 </button>
                                 <div className="flex items-center gap-2">
+                                    {sectionTaskGroups.sections.length > 1 && (
+                                        <>
+                                            <button
+                                                type="button"
+                                                onClick={() => handleMoveSection(group.section.id, -1)}
+                                                disabled={!canMoveUp}
+                                                className={cn(
+                                                    "flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground hover:bg-muted/40 hover:text-foreground",
+                                                    !canMoveUp && "cursor-not-allowed opacity-40 hover:bg-transparent hover:text-muted-foreground"
+                                                )}
+                                                aria-label={`${moveSectionUpLabel}: ${group.section.title}`}
+                                                title={moveSectionUpLabel}
+                                            >
+                                                <ArrowUp className="h-3.5 w-3.5" />
+                                            </button>
+                                            <button
+                                                type="button"
+                                                onClick={() => handleMoveSection(group.section.id, 1)}
+                                                disabled={!canMoveDown}
+                                                className={cn(
+                                                    "flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground hover:bg-muted/40 hover:text-foreground",
+                                                    !canMoveDown && "cursor-not-allowed opacity-40 hover:bg-transparent hover:text-muted-foreground"
+                                                )}
+                                                aria-label={`${moveSectionDownLabel}: ${group.section.title}`}
+                                                title={moveSectionDownLabel}
+                                            >
+                                                <ArrowDown className="h-3.5 w-3.5" />
+                                            </button>
+                                        </>
+                                    )}
                                     <button
                                         type="button"
                                         onClick={() => handleOpenSectionTaskPrompt(group.section.id)}

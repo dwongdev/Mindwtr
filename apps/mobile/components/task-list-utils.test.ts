@@ -52,6 +52,23 @@ describe('buildProjectTaskReorderGroups', () => {
         expect(groups[0]?.sectionId).toBeUndefined();
         expect(groups[0]?.tasks.map((task) => task.id)).toEqual(['first', 'second']);
     });
+
+    it('can keep empty sections for section reordering', () => {
+        const groups = buildProjectTaskReorderGroups([
+            { type: 'section' as const, id: 'empty', title: 'Empty' },
+            { type: 'section' as const, id: 'filled', title: 'Filled' },
+            { type: 'task' as const, task: { id: 'task-1' } },
+        ], { includeEmptySections: true });
+
+        expect(groups.map((group) => ({
+            id: group.id,
+            taskIds: group.tasks.map((task) => task.id),
+            title: group.title,
+        }))).toEqual([
+            { id: 'empty', taskIds: [], title: 'Empty' },
+            { id: 'filled', taskIds: ['task-1'], title: 'Filled' },
+        ]);
+    });
 });
 
 describe('sortProjectTasksByOrder', () => {

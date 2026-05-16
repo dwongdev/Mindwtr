@@ -96,6 +96,8 @@ export interface TaskStore {
     updateSection: (id: string, updates: Partial<Section>) => Promise<StoreActionResult>;
     /** Delete a section and clear sectionId on child tasks */
     deleteSection: (id: string) => Promise<StoreActionResult>;
+    /** Reorder sections within a project by id list */
+    reorderSections: (projectId: string, orderedIds: string[]) => Promise<void>;
 
     // Area Actions
     /** Add a new area */

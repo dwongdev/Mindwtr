@@ -12,6 +12,7 @@ export const useProjectsViewStore = () =>
             deleteArea: state.deleteArea,
             reorderAreas: state.reorderAreas,
             reorderProjects: state.reorderProjects,
+            reorderSections: state.reorderSections,
             reorderProjectTasks: state.reorderProjectTasks,
             addProject: state.addProject,
             updateProject: state.updateProject,

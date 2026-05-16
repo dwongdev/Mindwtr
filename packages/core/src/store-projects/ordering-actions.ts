@@ -1,5 +1,5 @@
 import { buildSaveSnapshot, ensureDeviceId, getNextDataChangeAt, getTaskOrder, nextRevision, selectVisibleTasks } from '../store-helpers';
-import type { OrderingActions, Project, ProjectActionContext, Task } from './shared';
+import type { OrderingActions, Project, ProjectActionContext, Section, Task } from './shared';
 
 export const createOrderingActions = ({
     set,
@@ -49,6 +49,69 @@ export const createOrderingActions = ({
             return {
                 projects: newVisibleProjects,
                 _allProjects: newAllProjects,
+                lastDataChangeAt: getNextDataChangeAt(state.lastDataChangeAt, changeAt),
+                ...(deviceState.updated ? { settings: deviceState.settings } : {}),
+            };
+        });
+        if (snapshot) {
+            debouncedSave(snapshot, (msg) => set({ error: msg }));
+        }
+    },
+
+    reorderSections: async (projectId: string, orderedIds: string[]) => {
+        if (!projectId || orderedIds.length === 0) return;
+        const changeAt = Date.now();
+        const now = new Date().toISOString();
+        let snapshot = null;
+        set((state) => {
+            const projectExists = state._allProjects.some((project) => project.id === projectId && !project.deletedAt);
+            if (!projectExists) return state;
+
+            const deviceState = ensureDeviceId(state.settings);
+            const allSections = state._allSections;
+            const isInProject = (section: Section) => section.projectId === projectId && !section.deletedAt;
+            const projectSections = allSections.filter(isInProject);
+            const projectSectionIds = new Set(projectSections.map((section) => section.id));
+            const validOrderedIds = orderedIds.filter((id) => projectSectionIds.has(id));
+            if (validOrderedIds.length === 0) return state;
+
+            const orderedSet = new Set(validOrderedIds);
+            const remaining = projectSections
+                .filter((section) => !orderedSet.has(section.id))
+                .sort((a, b) => {
+                    const aOrder = Number.isFinite(a.order) ? a.order : Number.POSITIVE_INFINITY;
+                    const bOrder = Number.isFinite(b.order) ? b.order : Number.POSITIVE_INFINITY;
+                    if (aOrder !== bOrder) return aOrder - bOrder;
+                    return a.title.localeCompare(b.title);
+                });
+
+            const finalIds = [...validOrderedIds, ...remaining.map((section) => section.id)];
+            const orderById = new Map<string, number>();
+            finalIds.forEach((id, index) => {
+                orderById.set(id, index);
+            });
+
+            const newAllSections = allSections.map((section) => {
+                if (!isInProject(section)) return section;
+                const nextOrder = orderById.get(section.id);
+                if (!Number.isFinite(nextOrder)) return section;
+                return {
+                    ...section,
+                    order: nextOrder as number,
+                    updatedAt: now,
+                    rev: nextRevision(section.rev),
+                    revBy: deviceState.deviceId,
+                };
+            });
+
+            const newVisibleSections = newAllSections.filter((section) => !section.deletedAt);
+            snapshot = buildSaveSnapshot(state, {
+                sections: newAllSections,
+                ...(deviceState.updated ? { settings: deviceState.settings } : {}),
+            });
+            return {
+                sections: newVisibleSections,
+                _allSections: newAllSections,
                 lastDataChangeAt: getNextDataChangeAt(state.lastDataChangeAt, changeAt),
                 ...(deviceState.updated ? { settings: deviceState.settings } : {}),
             };

@@ -1796,6 +1796,31 @@ describe('TaskStore', () => {
             expect(useTaskStore.getState().error).toBe('Section not found');
         });
 
+        it('reorders sections within one project without changing other projects', async () => {
+            const { addProject, addSection, reorderSections } = useTaskStore.getState();
+            const project = await addProject('Section Order Project', '#123456');
+            const otherProject = await addProject('Other Project', '#654321');
+            expect(project).not.toBeNull();
+            expect(otherProject).not.toBeNull();
+            if (!project || !otherProject) return;
+
+            const first = await addSection(project.id, 'First');
+            const second = await addSection(project.id, 'Second');
+            const third = await addSection(project.id, 'Third');
+            const other = await addSection(otherProject.id, 'Other');
+            expect(first && second && third && other).toBeTruthy();
+            if (!first || !second || !third || !other) return;
+
+            await reorderSections(project.id, [third.id, first.id, second.id]);
+
+            const ordered = useTaskStore.getState().sections
+                .filter((section) => section.projectId === project.id)
+                .sort((a, b) => a.order - b.order);
+            expect(ordered.map((section) => section.id)).toEqual([third.id, first.id, second.id]);
+            expect(ordered.map((section) => section.order)).toEqual([0, 1, 2]);
+            expect(useTaskStore.getState().sections.find((section) => section.id === other.id)?.order).toBe(0);
+        });
+
         it('should not create sections without a valid project or title', async () => {
             const { addProject, addSection } = useTaskStore.getState();
             const invalid = await addSection('missing-project', 'Section');

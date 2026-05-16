@@ -13,6 +13,7 @@ export type ProjectActions = Pick<
     | 'addSection'
     | 'updateSection'
     | 'deleteSection'
+    | 'reorderSections'
     | 'addArea'
     | 'updateArea'
     | 'deleteArea'
@@ -46,7 +47,7 @@ export type SectionActions = Pick<ProjectActions, 'addSection' | 'updateSection'
 
 export type AreaActions = Pick<ProjectActions, 'addArea' | 'updateArea' | 'deleteArea' | 'restoreArea' | 'reorderAreas'>;
 
-export type OrderingActions = Pick<ProjectActions, 'reorderProjects' | 'reorderProjectTasks'>;
+export type OrderingActions = Pick<ProjectActions, 'reorderProjects' | 'reorderProjectTasks' | 'reorderSections'>;
 
 export type TaxonomyActions = Pick<ProjectActions, 'deleteTag' | 'renameTag' | 'deleteContext' | 'renameContext'>;
 

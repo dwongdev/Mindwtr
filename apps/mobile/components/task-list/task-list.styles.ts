@@ -344,11 +344,20 @@ export const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    gap: 8,
     paddingHorizontal: 6,
     paddingTop: 10,
     paddingBottom: 6,
   },
+  sectionHeaderTitleBlock: {
+    flex: 1,
+    minWidth: 0,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
   sectionTitle: {
+    flexShrink: 1,
     fontSize: 13,
     fontWeight: '700',
     textTransform: 'uppercase',
@@ -357,6 +366,22 @@ export const styles = StyleSheet.create({
   sectionCount: {
     fontSize: 11,
     fontWeight: '600',
+  },
+  sectionReorderControls: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  sectionReorderButton: {
+    width: 32,
+    height: 32,
+    borderWidth: 1,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  sectionReorderButtonDisabled: {
+    opacity: 0.4,
   },
   taskItem: {
     flexDirection: 'row',

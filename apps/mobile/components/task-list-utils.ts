@@ -16,7 +16,10 @@ export type ProjectTaskReorderGroup<T> = {
     title?: string;
 };
 
-export function buildProjectTaskReorderGroups<T>(items: ProjectTaskReorderListItem<T>[]): ProjectTaskReorderGroup<T>[] {
+export function buildProjectTaskReorderGroups<T>(
+    items: ProjectTaskReorderListItem<T>[],
+    options: { includeEmptySections?: boolean } = {},
+): ProjectTaskReorderGroup<T>[] {
     const groups: ProjectTaskReorderGroup<T>[] = [];
     let currentGroup: ProjectTaskReorderGroup<T> | null = null;
 
@@ -44,7 +47,9 @@ export function buildProjectTaskReorderGroups<T>(items: ProjectTaskReorderListIt
         currentGroup.tasks.push(item.task);
     });
 
-    return groups.filter((group) => group.tasks.length > 0);
+    return options.includeEmptySections
+        ? groups
+        : groups.filter((group) => group.tasks.length > 0);
 }
 
 export function sortProjectTasksByOrder<T extends { createdAt: string; order?: number; orderNum?: number }>(tasks: T[]): T[] {

@@ -113,6 +113,7 @@ export function ProjectsView() {
         deleteArea,
         reorderAreas,
         reorderProjects,
+        reorderSections,
         reorderProjectTasks,
         addProject,
         updateProject,
@@ -624,6 +625,7 @@ export function ProjectsView() {
                             setShowQuickAreaPrompt(true);
                         }}
                         projects={projects}
+                        reorderSections={reorderSections}
                         reorderProjectTasks={reorderProjectTasks}
                         requestConfirmation={requestConfirmation}
                         restoreProject={restoreProject}
