@@ -293,5 +293,39 @@ describe('task-utils', () => {
             expect([...reviewFirstIds]).toEqual(['waiting-review']);
             expect([...focusedFirstIds]).toEqual(['focused-waiting']);
         });
+
+        it('prioritizes scheduled candidates due today over older undated next actions', () => {
+            const firstTaskIds = getFocusSequentialFirstTaskIds([
+                { id: 'normal-next', projectId: 'p1', status: 'next', order: 1, orderNum: undefined, createdAt: '2026-04-01T00:00:00.000Z' },
+                {
+                    id: 'duplicated-scheduled',
+                    projectId: 'p1',
+                    status: 'next',
+                    dueDate: '2026-04-05T15:00:00.000Z',
+                    order: 2,
+                    orderNum: undefined,
+                    createdAt: '2026-04-05T13:00:00.000Z',
+                },
+            ], new Set(['p1']), { now });
+
+            expect([...firstTaskIds]).toEqual(['duplicated-scheduled']);
+        });
+
+        it('keeps future-start tasks in sequence order instead of exposing later actions', () => {
+            const firstTaskIds = getFocusSequentialFirstTaskIds([
+                {
+                    id: 'future-start',
+                    projectId: 'p1',
+                    status: 'next',
+                    startTime: '2026-04-06T09:00:00.000Z',
+                    order: 0,
+                    orderNum: undefined,
+                    createdAt: '2026-04-01T00:00:00.000Z',
+                },
+                { id: 'following-next', projectId: 'p1', status: 'next', order: 1, orderNum: undefined, createdAt: '2026-04-02T00:00:00.000Z' },
+            ], new Set(['p1']), { now });
+
+            expect([...firstTaskIds]).toEqual(['future-start']);
+        });
     });
 });

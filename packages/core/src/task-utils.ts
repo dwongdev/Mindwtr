@@ -42,6 +42,8 @@ type FocusSequentialOptions = {
     now?: Date;
 };
 
+type SequentialTaskOrderFields = Pick<Task, 'createdAt' | 'order' | 'orderNum'>;
+
 const safeTime = (value: string | undefined, fallback: number): number => {
     if (!value) return fallback;
     const parsed = Date.parse(value);
@@ -79,6 +81,17 @@ function getFocusNextActionBucket(
     if (!Number.isFinite(dueMs)) return 1;
     if (dueMs <= nowMs + dueSoonWindowMs) return 0;
     return 2;
+}
+
+function getSequentialTaskOrderKey<T extends SequentialTaskOrderFields>(task: T, hasOrder: boolean): number {
+    const taskOrder = Number.isFinite(task.order)
+        ? (task.order as number)
+        : Number.isFinite(task.orderNum)
+            ? (task.orderNum as number)
+            : Number.POSITIVE_INFINITY;
+    return hasOrder
+        ? taskOrder
+        : (safeParseDate(task.createdAt)?.getTime() ?? Number.POSITIVE_INFINITY);
 }
 
 export function rescheduleTask(task: Task, newDueDate?: string): Task {
@@ -153,14 +166,7 @@ export function getSequentialFirstTaskIds<T extends Pick<Task, 'createdAt' | 'id
         let bestKey = Number.POSITIVE_INFINITY;
 
         tasksForProject.forEach((task) => {
-            const taskOrder = Number.isFinite(task.order)
-                ? (task.order as number)
-                : Number.isFinite(task.orderNum)
-                    ? (task.orderNum as number)
-                    : Number.POSITIVE_INFINITY;
-            const key = hasOrder
-                ? taskOrder
-                : (safeParseDate(task.createdAt)?.getTime() ?? Number.POSITIVE_INFINITY);
+            const key = getSequentialTaskOrderKey(task, hasOrder);
             if (!firstTaskId || key < bestKey) {
                 firstTaskId = task.id;
                 bestKey = key;
@@ -182,18 +188,92 @@ export function isFocusSequentialCandidate(
     return isDueForReview(task.reviewAt, options.now);
 }
 
+function getFocusSequentialScheduleKey(
+    task: Pick<Task, 'dueDate' | 'isFocusedToday' | 'reviewAt' | 'startTime'>,
+    now: Date,
+): { rank: number; time: number } {
+    if (task.isFocusedToday === true) {
+        return { rank: 0, time: 0 };
+    }
+
+    const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0);
+    const endOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
+    const startOfTodayMs = startOfToday.getTime();
+    const endOfTodayMs = endOfToday.getTime();
+    const dueMs = safeDueTime(task.dueDate, Number.NaN);
+    const startMs = safeParseDate(task.startTime)?.getTime() ?? Number.NaN;
+    const reviewMs = safeParseDate(task.reviewAt)?.getTime() ?? Number.NaN;
+    let scheduledTime = Number.POSITIVE_INFINITY;
+
+    if (Number.isFinite(dueMs) && dueMs <= endOfTodayMs) {
+        scheduledTime = Math.min(scheduledTime, dueMs);
+    }
+    if (Number.isFinite(startMs) && startMs >= startOfTodayMs && startMs <= endOfTodayMs) {
+        scheduledTime = Math.min(scheduledTime, startMs);
+    }
+    if (isDueForReview(task.reviewAt, now) && Number.isFinite(reviewMs)) {
+        scheduledTime = Math.min(scheduledTime, reviewMs);
+    }
+
+    return Number.isFinite(scheduledTime)
+        ? { rank: 1, time: scheduledTime }
+        : { rank: 2, time: Number.POSITIVE_INFINITY };
+}
+
 export function getFocusSequentialFirstTaskIds<
-    T extends Pick<Task, 'createdAt' | 'id' | 'isFocusedToday' | 'order' | 'orderNum' | 'projectId' | 'reviewAt' | 'status'>
+    T extends Pick<Task, 'createdAt' | 'dueDate' | 'id' | 'isFocusedToday' | 'order' | 'orderNum' | 'projectId' | 'reviewAt' | 'startTime' | 'status'>
 >(
     tasks: T[],
     sequentialProjectIds: ReadonlySet<string>,
     options: FocusSequentialOptions = {},
 ): Set<string> {
     const now = options.now ?? new Date();
-    return getSequentialFirstTaskIds(
-        tasks.filter((task) => isFocusSequentialCandidate(task, { now })),
-        sequentialProjectIds,
-    );
+    const tasksByProject = new Map<string, T[]>();
+    for (const task of tasks) {
+        if (!task.projectId) continue;
+        if (!sequentialProjectIds.has(task.projectId)) continue;
+        if (!isFocusSequentialCandidate(task, { now })) continue;
+        const list = tasksByProject.get(task.projectId) ?? [];
+        list.push(task);
+        tasksByProject.set(task.projectId, list);
+    }
+
+    const firstTaskIds = new Set<string>();
+    tasksByProject.forEach((tasksForProject) => {
+        const hasOrder = tasksForProject.some((task) => Number.isFinite(task.order) || Number.isFinite(task.orderNum));
+        let firstTaskId: string | null = null;
+        let bestScheduleRank = Number.POSITIVE_INFINITY;
+        let bestScheduleTime = Number.POSITIVE_INFINITY;
+        let bestOrderKey = Number.POSITIVE_INFINITY;
+
+        tasksForProject.forEach((task) => {
+            const scheduleKey = getFocusSequentialScheduleKey(task, now);
+            const orderKey = getSequentialTaskOrderKey(task, hasOrder);
+            const isBetter = !firstTaskId
+                || scheduleKey.rank < bestScheduleRank
+                || (
+                    scheduleKey.rank === bestScheduleRank
+                    && (
+                        scheduleKey.time < bestScheduleTime
+                        || (
+                            scheduleKey.time === bestScheduleTime
+                            && orderKey < bestOrderKey
+                        )
+                    )
+                );
+
+            if (isBetter) {
+                firstTaskId = task.id;
+                bestScheduleRank = scheduleKey.rank;
+                bestScheduleTime = scheduleKey.time;
+                bestOrderKey = orderKey;
+            }
+        });
+
+        if (firstTaskId) firstTaskIds.add(firstTaskId);
+    });
+
+    return firstTaskIds;
 }
 
 /**
