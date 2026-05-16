@@ -1,22 +1,40 @@
 # Local API Server
 
-Mindwtr includes an optional local REST API server for scripting and integrations. On desktop-compatible paths it keeps `mindwtr.db` and `data.json` in sync so automation changes are visible both before and after the app starts.
+Mindwtr includes an optional local REST API server for scripting and integrations. On desktop it runs inside the app binary and uses the same local storage paths as the app. The repository also includes a Bun helper for development and advanced scripting.
 
 ---
 
-## App Binaries vs. API Helper
+## Desktop Toggle
 
-The desktop and mobile app binaries include the Mindwtr app, but they do **not** currently start the local REST API server or include a desktop toggle for it.
+Desktop builds can start the local REST API without running source code:
 
-You do **not** need to run the whole app from source to use the API. You can use the normal desktop app binary for your data, then run this separate API helper from the repository with Bun. By default it resolves the same desktop data paths as the app; you can also pass `--data` or `--db` explicitly.
+- Open **Settings -> Advanced**.
+- Enable **Local API server**.
+- Keep the default port `3456` or choose another localhost port.
 
-For the exact desktop storage path, open **Settings -> Sync -> Local Data** in the desktop app. Mobile binaries do not expose a local REST API surface.
+The app binds to `127.0.0.1` only. Mobile binaries do not expose a local REST API surface.
+
+### Development Helper
+
+The repo helper is still available when you want to run the API outside the desktop app or point it at explicit files.
 
 ---
 
 ## Quick Start
 
-From the repo root:
+From the desktop app:
+
+```text
+Settings -> Advanced -> Enable local API server
+```
+
+Default URL:
+
+```text
+http://127.0.0.1:3456
+```
+
+From the repo root with Bun:
 
 ```bash
 bun install

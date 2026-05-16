@@ -44,6 +44,7 @@ mod audio;
 mod autostart;
 mod config;
 mod install;
+mod local_api;
 mod logging;
 mod obsidian_paths;
 mod obsidian_watcher;
@@ -64,6 +65,10 @@ use config::{
 use install::{
     diagnostics_enabled, get_install_source, get_linux_distro, is_flatpak, is_niri_session,
     is_windows_store_install,
+};
+use local_api::{
+    get_local_api_server_status, set_local_api_server_config, start_configured_local_api_server,
+    LocalApiServerState,
 };
 use logging::{append_log_line, clear_log_file, log_ai_debug};
 use obsidian_paths::default_obsidian_inbox_file;
@@ -355,6 +360,8 @@ struct AppConfigToml {
     ai_key_openai: Option<String>,
     ai_key_anthropic: Option<String>,
     ai_key_gemini: Option<String>,
+    local_api_enabled: Option<String>,
+    local_api_port: Option<String>,
 }
 
 fn default_obsidian_scan_folders() -> Vec<String> {
@@ -567,6 +574,7 @@ pub fn run() {
         .manage(QuickAddPending(Mutex::new(None)))
         .manage(CloseRequestHandled(AtomicBool::new(false)))
         .manage(GlobalQuickAddShortcutState(Mutex::new(None)))
+        .manage(LocalApiServerState::default())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_http::init())
@@ -803,6 +811,11 @@ pub fn run() {
                 show_quick_add_window(&handle);
             }
 
+            {
+                let local_api_state = app.state::<LocalApiServerState>();
+                start_configured_local_api_server(&handle, &local_api_state);
+            }
+
             if cfg!(debug_assertions) || diagnostics_enabled {
                 app.handle().plugin(
                     tauri_plugin_log::Builder::default()
@@ -886,6 +899,8 @@ pub fn run() {
             get_install_source,
             get_launch_at_startup_enabled,
             set_launch_at_startup_enabled,
+            get_local_api_server_status,
+            set_local_api_server_config,
             quit_app
         ])
         .run(tauri::generate_context!())

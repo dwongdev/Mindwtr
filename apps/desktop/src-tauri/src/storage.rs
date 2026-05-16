@@ -190,7 +190,10 @@ fn persist_data_snapshot(app: &tauri::AppHandle, data: &Value) -> Result<(), Str
     Ok(())
 }
 
-fn persist_data_snapshot_with_retries(app: &tauri::AppHandle, data: &Value) -> Result<(), String> {
+pub(crate) fn persist_data_snapshot_with_retries(
+    app: &tauri::AppHandle,
+    data: &Value,
+) -> Result<(), String> {
     for attempt in 0..STORAGE_RETRY_ATTEMPTS {
         match persist_data_snapshot(app, data) {
             Ok(()) => return Ok(()),
@@ -1035,7 +1038,7 @@ fn migrate_json_to_sqlite(conn: &mut Connection, data: &Value) -> Result<(), Str
     Ok(())
 }
 
-fn read_sqlite_data(conn: &Connection) -> Result<Value, String> {
+pub(crate) fn read_sqlite_data(conn: &Connection) -> Result<Value, String> {
     let mut tasks_stmt = conn
         .prepare("SELECT * FROM tasks")
         .map_err(|e| e.to_string())?;
@@ -1233,62 +1236,64 @@ pub(crate) fn ensure_data_file(app: &tauri::AppHandle) -> Result<(), String> {
 
 #[tauri::command]
 pub(crate) async fn get_data(app: tauri::AppHandle) -> Result<Value, String> {
-    tauri::async_runtime::spawn_blocking(move || {
-        ensure_data_file(&app)?;
-        let data_path = get_data_path(&app);
-        let backup_path = data_json_backup_path(&data_path);
-        let mut conn = open_sqlite(&app)?;
+    tauri::async_runtime::spawn_blocking(move || load_data_snapshot(&app))
+        .await
+        .map_err(|e| e.to_string())?
+}
 
-        if !sqlite_has_any_data(&conn)? && data_path.exists() {
-            if let Ok(value) = read_json_with_retries(&data_path, 2) {
-                let _ = fs::copy(&data_path, &backup_path);
-                migrate_json_to_sqlite(&mut conn, &value)?;
-                ensure_fts_populated(&conn, true)?;
-            }
+pub(crate) fn load_data_snapshot(app: &tauri::AppHandle) -> Result<Value, String> {
+    ensure_data_file(app)?;
+    let data_path = get_data_path(app);
+    let backup_path = data_json_backup_path(&data_path);
+    let mut conn = open_sqlite(app)?;
+
+    if !sqlite_has_any_data(&conn)? && data_path.exists() {
+        if let Ok(value) = read_json_with_retries(&data_path, 2) {
+            let _ = fs::copy(&data_path, &backup_path);
+            migrate_json_to_sqlite(&mut conn, &value)?;
+            ensure_fts_populated(&conn, true)?;
         }
+    }
 
-        match read_sqlite_data(&conn) {
-            Ok(mut value) => {
-                let settings_empty = value
-                    .get("settings")
-                    .and_then(|v| v.as_object())
-                    .map(|obj| obj.is_empty())
-                    .unwrap_or(true);
-                if settings_empty && data_path.exists() {
-                    if let Ok(json_value) = read_json_with_retries(&data_path, 2) {
-                        if let Some(json_settings) =
-                            json_value.get("settings").and_then(|v| v.as_object())
-                        {
-                            if !json_settings.is_empty() {
-                                if let Some(map) = value.as_object_mut() {
-                                    map.insert(
-                                        "settings".to_string(),
-                                        Value::Object(json_settings.clone()),
-                                    );
-                                }
+    match read_sqlite_data(&conn) {
+        Ok(mut value) => {
+            let settings_empty = value
+                .get("settings")
+                .and_then(|v| v.as_object())
+                .map(|obj| obj.is_empty())
+                .unwrap_or(true);
+            if settings_empty && data_path.exists() {
+                if let Ok(json_value) = read_json_with_retries(&data_path, 2) {
+                    if let Some(json_settings) =
+                        json_value.get("settings").and_then(|v| v.as_object())
+                    {
+                        if !json_settings.is_empty() {
+                            if let Some(map) = value.as_object_mut() {
+                                map.insert(
+                                    "settings".to_string(),
+                                    Value::Object(json_settings.clone()),
+                                );
                             }
                         }
                     }
                 }
-                Ok(value)
             }
-            Err(primary_err) => {
-                if data_path.exists() {
-                    if let Ok(value) = read_json_with_retries(&data_path, 2) {
-                        return Ok(value);
-                    }
-                }
-                if backup_path.exists() {
-                    if let Ok(value) = read_json_with_retries(&backup_path, 2) {
-                        return Ok(value);
-                    }
-                }
-                Err(primary_err)
-            }
+            Ok(value)
         }
-    })
-    .await
-    .map_err(|e| e.to_string())?
+        Err(primary_err) => {
+            if data_path.exists() {
+                if let Ok(value) = read_json_with_retries(&data_path, 2) {
+                    return Ok(value);
+                }
+            }
+            if backup_path.exists() {
+                if let Ok(value) = read_json_with_retries(&backup_path, 2) {
+                    return Ok(value);
+                }
+            }
+            Err(primary_err)
+        }
+    }
 }
 
 #[tauri::command]

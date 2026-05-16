@@ -186,6 +186,10 @@ pub(crate) fn read_config_toml(path: &Path) -> AppConfigToml {
             config.ai_key_anthropic = parse_toml_string_value(value);
         } else if key == "ai_key_gemini" {
             config.ai_key_gemini = parse_toml_string_value(value);
+        } else if key == "local_api_enabled" {
+            config.local_api_enabled = parse_toml_string_value(value);
+        } else if key == "local_api_port" {
+            config.local_api_port = parse_toml_string_value(value);
         }
     }
     config
@@ -312,6 +316,18 @@ fn write_config_toml_with_header(
             serialize_toml_string_value(ai_key_gemini)
         ));
     }
+    if let Some(local_api_enabled) = &config.local_api_enabled {
+        lines.push(format!(
+            "local_api_enabled = {}",
+            serialize_toml_string_value(local_api_enabled)
+        ));
+    }
+    if let Some(local_api_port) = &config.local_api_port {
+        lines.push(format!(
+            "local_api_port = {}",
+            serialize_toml_string_value(local_api_port)
+        ));
+    }
     let content = format!("{}\n", lines.join("\n"));
     fs::write(path, content).map_err(|e| e.to_string())
 }
@@ -367,6 +383,12 @@ fn merge_config(base: &mut AppConfigToml, overrides: AppConfigToml) {
     }
     if overrides.ai_key_gemini.is_some() {
         base.ai_key_gemini = overrides.ai_key_gemini;
+    }
+    if overrides.local_api_enabled.is_some() {
+        base.local_api_enabled = overrides.local_api_enabled;
+    }
+    if overrides.local_api_port.is_some() {
+        base.local_api_port = overrides.local_api_port;
     }
 }
 
@@ -437,6 +459,8 @@ fn config_has_values(config: &AppConfigToml) -> bool {
         || config.ai_key_openai.is_some()
         || config.ai_key_anthropic.is_some()
         || config.ai_key_gemini.is_some()
+        || config.local_api_enabled.is_some()
+        || config.local_api_port.is_some()
 }
 
 pub(crate) fn write_config_files(

@@ -18,6 +18,7 @@ import {
   ListChecks,
   Monitor,
   RefreshCw,
+  SlidersHorizontal,
   Sparkles,
 } from "lucide-react";
 import {
@@ -66,6 +67,13 @@ import { useSyncSettings } from "./settings/useSyncSettings";
 import { useConfirmDialog } from "../../hooks/useConfirmDialog";
 import { usePerformanceMonitor } from "../../hooks/usePerformanceMonitor";
 import { checkBudget } from "../../config/performanceBudgets";
+import {
+  DEFAULT_LOCAL_API_PORT,
+  getLocalApiServerStatus,
+  normalizeLocalApiPortInput,
+  setLocalApiServerConfig,
+  type LocalApiServerStatus,
+} from "../../lib/local-api-server";
 
 type SettingsPage =
   | "main"
@@ -76,6 +84,7 @@ type SettingsPage =
   | "data"
   | "integrations"
   | "ai"
+  | "advanced"
   | "about";
 
 const SettingsMainPage = lazy(
@@ -131,6 +140,13 @@ const SettingsDataPage = lazy(
   wrapSettingsOpenImport("page-chunk:data", () =>
     import("./settings/SettingsDataPage").then((m) => ({
       default: m.SettingsDataPage,
+    })),
+  ),
+);
+const SettingsAdvancedPage = lazy(
+  wrapSettingsOpenImport("page-chunk:advanced", () =>
+    import("./settings/SettingsAdvancedPage").then((m) => ({
+      default: m.SettingsAdvancedPage,
     })),
   ),
 );
@@ -215,6 +231,18 @@ export function SettingsView() {
     }
   }, [isTauri]);
   const [saved, setSaved] = useState(false);
+  const [localApiStatus, setLocalApiStatus] = useState<LocalApiServerStatus>({
+    enabled: false,
+    running: false,
+    port: DEFAULT_LOCAL_API_PORT,
+    url: null,
+    error: null,
+  });
+  const [localApiPortInput, setLocalApiPortInput] = useState(
+    String(DEFAULT_LOCAL_API_PORT),
+  );
+  const [localApiBusy, setLocalApiBusy] = useState(false);
+  const [localApiPortError, setLocalApiPortError] = useState("");
   const notificationsEnabled = settings?.notificationsEnabled !== false;
   const startDateNotificationsEnabled =
     settings?.startDateNotificationsEnabled !== false;
@@ -244,6 +272,29 @@ export function SettingsView() {
     setSaved(true);
     setTimeout(() => setSaved(false), 2000);
   }, []);
+
+  const applyLocalApiStatus = useCallback((status: LocalApiServerStatus) => {
+    setLocalApiStatus(status);
+    setLocalApiPortInput(String(status.port || DEFAULT_LOCAL_API_PORT));
+    setLocalApiPortError("");
+  }, []);
+
+  useEffect(() => {
+    if (!isTauri) return;
+    let cancelled = false;
+    getLocalApiServerStatus()
+      .then((status) => {
+        if (!cancelled) applyLocalApiStatus(status);
+      })
+      .catch((error) => {
+        if (!cancelled) {
+          setLocalApiPortError(error instanceof Error ? error.message : String(error));
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [applyLocalApiStatus, isTauri]);
 
   const {
     aiEnabled,
@@ -313,6 +364,81 @@ export function SettingsView() {
     );
     return result;
   }, [language, translate]);
+
+  const handleLocalApiToggle = useCallback(
+    async (enabled: boolean) => {
+      if (!isTauri || localApiBusy) return;
+      const port = normalizeLocalApiPortInput(localApiPortInput);
+      if (!port) {
+        setLocalApiPortError(t.localApiPortInvalid);
+        return;
+      }
+      setLocalApiBusy(true);
+      try {
+        const status = await setLocalApiServerConfig({ enabled, port });
+        applyLocalApiStatus(status);
+        if (enabled && !status.running && status.error) {
+          setLocalApiPortError(status.error);
+          return;
+        }
+        showSaved();
+      } catch (error) {
+        setLocalApiPortError(error instanceof Error ? error.message : String(error));
+        reportError("Failed to update local API server", error);
+      } finally {
+        setLocalApiBusy(false);
+      }
+    },
+    [
+      applyLocalApiStatus,
+      isTauri,
+      localApiBusy,
+      localApiPortInput,
+      showSaved,
+      t.localApiPortInvalid,
+    ],
+  );
+
+  const handleLocalApiPortCommit = useCallback(async () => {
+    if (!isTauri || localApiBusy) return;
+    const port = normalizeLocalApiPortInput(localApiPortInput);
+    if (!port) {
+      setLocalApiPortError(t.localApiPortInvalid);
+      return;
+    }
+    if (port === localApiStatus.port) {
+      setLocalApiPortError("");
+      return;
+    }
+    setLocalApiBusy(true);
+    try {
+      const status = await setLocalApiServerConfig({
+        enabled: localApiStatus.enabled,
+        port,
+      });
+      applyLocalApiStatus(status);
+      if (localApiStatus.enabled && !status.running && status.error) {
+        setLocalApiPortError(status.error);
+        return;
+      }
+      showSaved();
+    } catch (error) {
+      setLocalApiPortError(error instanceof Error ? error.message : String(error));
+      reportError("Failed to update local API server port", error);
+    } finally {
+      setLocalApiBusy(false);
+    }
+  }, [
+    applyLocalApiStatus,
+    isTauri,
+    localApiBusy,
+    localApiPortInput,
+    localApiStatus.enabled,
+    localApiStatus.port,
+    showSaved,
+    t.localApiPortInvalid,
+  ]);
+
   const requestSettingsConfirmation = useCallback(
     ({ title, message }: { title: string; message: string }) =>
       requestConfirmation({
@@ -519,6 +645,8 @@ export function SettingsView() {
         return t.notifications;
       case "ai":
         return t.ai;
+      case "advanced":
+        return t.advanced;
       case "sync":
         return t.sync;
       case "data":
@@ -669,6 +797,20 @@ export function SettingsView() {
           "whisper",
           "copilot",
           "model",
+        ],
+      },
+      {
+        id: "advanced",
+        icon: SlidersHorizontal,
+        label: t.advanced,
+        keywords: [
+          "automation",
+          "local api",
+          "localhost",
+          "port",
+          "mcp",
+          "Claude",
+          "LLM",
         ],
       },
       {
@@ -1052,6 +1194,22 @@ export function SettingsView() {
           onClearPendingRemoteDeletes={handleClearPendingRemoteDeletes}
           onRunAttachmentsCleanup={handleAttachmentsCleanup}
           isCleaningAttachments={isCleaningAttachments}
+        />
+      );
+    }
+
+    if (page === "advanced") {
+      return (
+        <SettingsAdvancedPage
+          t={t}
+          isTauri={isTauri}
+          localApiStatus={localApiStatus}
+          localApiPortInput={localApiPortInput}
+          localApiBusy={localApiBusy}
+          localApiPortError={localApiPortError}
+          onLocalApiToggle={handleLocalApiToggle}
+          onLocalApiPortInputChange={setLocalApiPortInput}
+          onLocalApiPortCommit={handleLocalApiPortCommit}
         />
       );
     }
