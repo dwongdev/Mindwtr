@@ -98,11 +98,11 @@ export function ProjectDetailsHeader({
     ];
 
     return (
-        <header className="pb-5 border-b border-border/50">
-            <div className="flex flex-wrap items-start justify-between gap-4">
-                <div className="flex items-start gap-3 min-w-0 flex-1">
+        <header className="project-details-header pb-5 border-b border-border/50">
+            <div className="project-details-header__content flex flex-wrap items-start justify-between gap-4">
+                <div className="project-details-header__titleGroup flex items-start gap-3 min-w-0 flex-1">
                     <span
-                        className="w-3 h-3 rounded-full border border-border"
+                        className="mt-2 w-3 h-3 flex-none rounded-full border border-border"
                         style={{ backgroundColor: projectColor }}
                         aria-hidden="true"
                     />
@@ -119,7 +119,8 @@ export function ProjectDetailsHeader({
                                     (e.currentTarget as HTMLInputElement).blur();
                                 }
                             }}
-                            className="text-2xl font-bold truncate bg-transparent border-b border-transparent focus:border-border focus:outline-none w-full"
+                            title={editTitle || project.title}
+                            className="project-details-header__titleInput min-w-0 w-full truncate bg-transparent border-b border-transparent text-2xl font-bold focus:border-border focus:outline-none"
                             aria-label={t('projects.title')}
                         />
                         {projectProgress ? (
@@ -143,10 +144,10 @@ export function ProjectDetailsHeader({
                                 return (
                                     <span
                                         key={item.key}
-                                        className="inline-flex items-center gap-1.5 rounded-full border border-border/60 bg-muted/20 px-2 py-0.5 text-[11px] text-muted-foreground"
+                                        className="inline-flex max-w-full items-center gap-1.5 rounded-full border border-border/60 bg-muted/20 px-2 py-0.5 text-[11px] text-muted-foreground"
                                     >
-                                        <Icon className="h-3.5 w-3.5" />
-                                        <span>{item.label}</span>
+                                        <Icon className="h-3.5 w-3.5 flex-none" />
+                                        <span className="min-w-0 truncate">{item.label}</span>
                                     </span>
                                 );
                             })}
@@ -162,7 +163,7 @@ export function ProjectDetailsHeader({
                         )}
                     </div>
                 </div>
-                <div className="flex items-center gap-2 flex-wrap justify-end">
+                <div className="project-details-header__actions flex items-center gap-2 flex-wrap justify-end">
                     <button
                         type="button"
                         onClick={onToggleDetails}

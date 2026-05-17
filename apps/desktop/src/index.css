@@ -427,4 +427,30 @@
     background-color: hsl(0 30% 24%);
     color: hsl(0 70% 80%);
   }
+
+  .project-details-header {
+    container-type: inline-size;
+  }
+
+  @container (max-width: 720px) {
+    .project-details-header__content {
+      align-items: stretch;
+      flex-direction: column;
+    }
+
+    .project-details-header__titleGroup {
+      flex: none;
+      width: 100%;
+    }
+
+    .project-details-header__actions {
+      justify-content: flex-start;
+      width: 100%;
+    }
+
+    .project-details-header__titleInput {
+      font-size: 1.25rem;
+      line-height: 1.75rem;
+    }
+  }
 }

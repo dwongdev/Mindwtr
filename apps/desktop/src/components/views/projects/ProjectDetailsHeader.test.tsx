@@ -73,7 +73,7 @@ describe('ProjectDetailsHeader', () => {
         );
 
         expect(screen.getByRole('button', { name: /details/i })).toHaveAttribute('aria-expanded', 'false');
-        screen.getByDisplayValue('Launch site');
+        expect(screen.getByDisplayValue('Launch site')).toHaveAttribute('title', 'Launch site');
         screen.getByText('Waiting');
         screen.getByText('Ops');
         screen.getByText('Sequential');
@@ -114,5 +114,36 @@ describe('ProjectDetailsHeader', () => {
         expect(screen.queryByText('Ops')).not.toBeInTheDocument();
         expect(screen.queryByText(/Due Date:/i)).not.toBeInTheDocument();
         expect(screen.queryByText(/Review Date:/i)).not.toBeInTheDocument();
+    });
+
+    it('uses a container-responsive header layout so actions cannot hide long project titles', () => {
+        render(
+            <ProjectDetailsHeader
+                project={buildProject()}
+                projectColor="#2563eb"
+                isSequential={false}
+                dueDate={undefined}
+                editTitle="A very long project name that should keep the whole details-column width"
+                onEditTitleChange={vi.fn()}
+                onCommitTitle={vi.fn()}
+                onResetTitle={vi.fn()}
+                detailsExpanded={false}
+                onToggleDetails={vi.fn()}
+                onDuplicate={vi.fn()}
+                onArchive={vi.fn()}
+                onReactivate={vi.fn()}
+                onDelete={vi.fn()}
+                t={t}
+            />
+        );
+
+        const title = screen.getByDisplayValue('A very long project name that should keep the whole details-column width');
+        const header = title.closest('.project-details-header');
+        const actions = header?.querySelector('.project-details-header__actions');
+
+        expect(header).not.toBeNull();
+        expect(header).toHaveClass('project-details-header');
+        expect(title).toHaveClass('project-details-header__titleInput');
+        expect(actions).not.toBeNull();
     });
 });
