@@ -35,6 +35,7 @@ import { useRootLayoutNotificationOpenHandler } from '@/hooks/root-layout/use-ro
 import { useRootLayoutStartup } from '@/hooks/root-layout/use-root-layout-startup';
 import { useRootLayoutSyncEffects } from '@/hooks/root-layout/use-root-layout-sync-effects';
 import { ThemedAlertProvider } from '@/components/themed-alert';
+import { applyAndroidSystemBars } from '@/lib/android-system-bars';
 
 let coreLoggerBridgeInstalled = false;
 
@@ -239,6 +240,10 @@ function RootLayoutContentInner() {
   }, [isExpoGo]);
 
   useEffect(() => {
+    void applyAndroidSystemBars(tc, isDark);
+  }, [isDark, tc.bg]);
+
+  useEffect(() => {
     if (!settingsLanguage || !isSupportedLanguage(settingsLanguage)) return;
     if (settingsLanguage === language) return;
     void setLanguage(settingsLanguage);
@@ -354,6 +359,7 @@ function RootLayoutContentInner() {
         </Stack>
         <StatusBar
           barStyle={isDark ? 'light-content' : 'dark-content'}
+          backgroundColor={tc.bg}
         />
       </NavigationThemeProvider>
     </QuickCaptureProvider>
