@@ -46,8 +46,8 @@
     <img src="https://fdroid.gitlab.io/artwork/badge/get-it-on.png"
          align="center"
          alt="Get it on F-Droid"
-         style="height: 50px"
-         height="50" />
+         style="height: 56px"
+         height="56" />
   </a>
   <a href="https://flathub.org/apps/tech.dongdongbh.mindwtr" target="_blank">
     <img alt="在 Flathub 获取"
