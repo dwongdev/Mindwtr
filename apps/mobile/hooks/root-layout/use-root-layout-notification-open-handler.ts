@@ -40,6 +40,7 @@ export function useRootLayoutNotificationOpenHandler({
         kind?: string;
     } | null>(null);
     const handledCompleteActionsRef = useRef(new Set<string>());
+    const taskOpenSequenceRef = useRef(0);
     const normalizedPathname = useMemo(() => String(pathname || '').trim(), [pathname]);
     const canNavigate = appReady && normalizedPathname.length > 0 && normalizedPathname !== '/';
 
@@ -50,7 +51,8 @@ export function useRootLayoutNotificationOpenHandler({
         projectId?: string;
         kind?: string;
     }) => {
-        const openToken = typeof payload?.notificationId === 'string' ? payload.notificationId : String(Date.now());
+        const notificationId = typeof payload?.notificationId === 'string' ? payload.notificationId.trim() : undefined;
+        const openToken = notificationId || String(Date.now());
         const actionIdentifier = typeof payload?.actionIdentifier === 'string' ? payload.actionIdentifier : undefined;
         const taskId = typeof payload?.taskId === 'string' ? payload.taskId : undefined;
         const projectId = typeof payload?.projectId === 'string' ? payload.projectId : undefined;
@@ -82,8 +84,10 @@ export function useRootLayoutNotificationOpenHandler({
             return;
         }
         if (taskId) {
+            taskOpenSequenceRef.current += 1;
+            const taskOpenToken = `${notificationId || 'notification'}:${Date.now()}:${taskOpenSequenceRef.current}`;
             useTaskStore.getState().setHighlightTask(taskId);
-            router.push({ pathname: '/focus', params: { taskId, openToken } });
+            router.push({ pathname: '/focus', params: { taskId, openToken: taskOpenToken } });
             return;
         }
         if (projectId) {

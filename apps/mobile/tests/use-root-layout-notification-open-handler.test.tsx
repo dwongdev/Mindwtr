@@ -197,24 +197,34 @@ describe('useRootLayoutNotificationOpenHandler', () => {
     });
   });
 
-  it('still routes task notifications to the focus screen', () => {
+  it('routes task notification taps with a fresh open token so the editor can reopen', () => {
+    const nowSpy = vi.spyOn(Date, 'now').mockReturnValue(12345);
     const router = { push: vi.fn() };
 
-    act(() => {
-      create(<TestHarness router={router} />);
-    });
+    try {
+      act(() => {
+        create(<TestHarness router={router} />);
+      });
 
-    const handler = setNotificationOpenHandler.mock.calls[0]?.[0];
+      const handler = setNotificationOpenHandler.mock.calls[0]?.[0];
 
-    act(() => {
-      handler({ taskId: 'task-1', notificationId: 'notif-1' });
-    });
+      act(() => {
+        handler({ taskId: 'task-1', notificationId: 'notif-1' });
+        handler({ taskId: 'task-1', notificationId: 'notif-1' });
+      });
 
-    expect(setHighlightTask).toHaveBeenCalledWith('task-1');
-    expect(router.push).toHaveBeenCalledWith({
-      pathname: '/focus',
-      params: { taskId: 'task-1', openToken: 'notif-1' },
-    });
+      expect(setHighlightTask).toHaveBeenCalledWith('task-1');
+      expect(router.push).toHaveBeenNthCalledWith(1, {
+        pathname: '/focus',
+        params: { taskId: 'task-1', openToken: 'notif-1:12345:1' },
+      });
+      expect(router.push).toHaveBeenNthCalledWith(2, {
+        pathname: '/focus',
+        params: { taskId: 'task-1', openToken: 'notif-1:12345:2' },
+      });
+    } finally {
+      nowSpy.mockRestore();
+    }
   });
 
   it('marks a task done from a complete notification action without navigating', () => {
