@@ -32,8 +32,8 @@
     <img src="https://play.google.com/intl/en_us/badges/static/images/badges/en_badge_web_generic.png"
          align="center"
          alt="Google Play"
-         style="height: 56px"
-         height="56" />
+         style="height: 74px"
+         height="74" />
   </a>
   <a href="https://apps.apple.com/app/mindwtr/id6758597144" target="_blank">
     <img src="https://tools.applemediaservices.com/api/badges/download-on-the-app-store/black/en-us?size=250x83"
