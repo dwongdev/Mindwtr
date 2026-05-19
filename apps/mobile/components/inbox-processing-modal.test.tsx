@@ -88,6 +88,7 @@ vi.mock('@mindwtr/core', () => {
     isSelectableProjectForTaskAssignment: vi.fn((project: any) => (
       !project.deletedAt && project.status !== 'archived' && project.status !== 'completed'
     )),
+    isTaskInActiveProject: vi.fn(() => true),
     normalizeClockTimeInput: vi.fn((value?: string | null) => {
       const trimmed = String(value ?? '').trim();
       if (!trimmed) return '';

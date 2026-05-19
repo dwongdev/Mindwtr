@@ -20,6 +20,7 @@ const defaultTasks = [
 
 const storeState: any = {
   tasks: [...defaultTasks],
+  projects: [],
   settings: {},
   updateTask: vi.fn(),
   deleteTask: vi.fn(),
@@ -35,6 +36,7 @@ vi.mock('@mindwtr/core', () => {
     formatFocusTaskLimitText: (template: string, limit: number) => template.replace('{{count}}', String(limit)),
     useTaskStore: () => storeState,
     isDueForReview: () => false,
+    isTaskInActiveProject: () => true,
     normalizeFocusTaskLimit: (value?: number) => value ?? 3,
     safeFormatDate: () => '2026-03-15',
     safeParseDate: parseDate,
@@ -147,6 +149,7 @@ describe('DailyReviewScreen', () => {
     vi.clearAllMocks();
     vi.mocked(fetchExternalCalendarEvents).mockReset();
     storeState.tasks = defaultTasks.map((task) => ({ ...task }));
+    storeState.projects = [];
     storeState.settings = {};
     vi.mocked(fetchExternalCalendarEvents).mockResolvedValue({ calendars: [], events: [] });
   });

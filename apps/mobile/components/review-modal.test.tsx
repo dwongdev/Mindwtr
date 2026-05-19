@@ -60,6 +60,7 @@ vi.mock('@mindwtr/core', () => ({
     createAIProvider: vi.fn(),
     getStaleItems: vi.fn(() => []),
     isDueForReview: vi.fn(() => false),
+    isTaskInActiveProject: vi.fn(() => true),
     safeFormatDate: vi.fn(() => '2026-03-15'),
     safeParseDate: vi.fn((value?: string) => (value ? new Date(value) : null)),
     safeParseDueDate: vi.fn(() => null),
