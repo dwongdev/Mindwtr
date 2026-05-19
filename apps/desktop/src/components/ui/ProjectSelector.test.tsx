@@ -1,4 +1,5 @@
 import { act, fireEvent, render } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 
 import type { Project } from '@mindwtr/core';
@@ -73,6 +74,75 @@ describe('ProjectSelector', () => {
         setInputValue(getByLabelText('Search projects') as HTMLInputElement, 'Work Project');
 
         expect(queryByText(/Create project/i)).not.toBeInTheDocument();
+    });
+
+    it('selects the first matching project from the search input with Enter', () => {
+        const onChange = vi.fn();
+        const { getByRole, getByLabelText } = render(
+            <ProjectSelector
+                projects={projects}
+                value=""
+                onChange={onChange}
+                onCreateProject={vi.fn()}
+                placeholder="Select project"
+                searchPlaceholder="Search projects"
+                createProjectLabel="Create project"
+            />
+        );
+
+        fireEvent.click(getByRole('button', { name: 'Select project' }));
+        const input = getByLabelText('Search projects') as HTMLInputElement;
+        setInputValue(input, 'Work');
+        fireEvent.keyDown(input, { key: 'Enter' });
+
+        expect(onChange).toHaveBeenCalledWith('p2');
+    });
+
+    it('moves from typed search to the first matching project with ArrowDown', () => {
+        const { getByRole, getByLabelText } = render(
+            <ProjectSelector
+                projects={projects}
+                value=""
+                onChange={vi.fn()}
+                onCreateProject={vi.fn()}
+                placeholder="Select project"
+                searchPlaceholder="Search projects"
+                createProjectLabel="Create project"
+            />
+        );
+
+        fireEvent.click(getByRole('button', { name: 'Select project' }));
+        const input = getByLabelText('Search projects') as HTMLInputElement;
+        setInputValue(input, 'Work');
+        fireEvent.keyDown(input, { key: 'ArrowDown' });
+
+        expect(getByRole('option', { name: 'Work Project' })).toHaveFocus();
+    });
+
+    it('keeps matching project results reachable in the tab order', async () => {
+        const user = userEvent.setup();
+        const { getByRole, getByLabelText } = render(
+            <ProjectSelector
+                projects={projects}
+                value=""
+                onChange={vi.fn()}
+                onCreateProject={vi.fn()}
+                placeholder="Select project"
+                noProjectLabel="No project"
+                searchPlaceholder="Search projects"
+                createProjectLabel="Create project"
+            />
+        );
+
+        await user.click(getByRole('button', { name: 'Select project' }));
+        setInputValue(getByLabelText('Search projects') as HTMLInputElement, 'Work');
+
+        await user.tab();
+        expect(getByRole('option', { name: 'No project' })).toHaveFocus();
+        await user.tab();
+        expect(getByRole('option', { name: 'Create project "Work"' })).toHaveFocus();
+        await user.tab();
+        expect(getByRole('option', { name: 'Work Project' })).toHaveFocus();
     });
 
     it('prefers the empty label and falls back to the no-matches label', () => {

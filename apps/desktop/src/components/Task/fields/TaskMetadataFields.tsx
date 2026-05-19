@@ -1,3 +1,4 @@
+import { useRef, type KeyboardEvent } from 'react';
 import type { TaskEnergyLevel, TaskPriority, TaskStatus, TimeEstimate } from '@mindwtr/core';
 
 import { cn } from '../../../lib/utils';
@@ -20,17 +21,48 @@ function PillOptionField<TValue extends string>({
     value: TValue;
     onChange: (value: TValue) => void;
 }) {
+    const buttonRefs = useRef<Array<HTMLButtonElement | null>>([]);
+    const focusOption = (index: number) => {
+        buttonRefs.current[index]?.focus();
+        onChange(options[index].value);
+    };
+    const handleOptionKeyDown = (event: KeyboardEvent<HTMLButtonElement>, index: number) => {
+        if (event.key === 'ArrowDown' || event.key === 'ArrowRight') {
+            event.preventDefault();
+            focusOption((index + 1) % options.length);
+            return;
+        }
+        if (event.key === 'ArrowUp' || event.key === 'ArrowLeft') {
+            event.preventDefault();
+            focusOption((index - 1 + options.length) % options.length);
+            return;
+        }
+        if (event.key === 'Home') {
+            event.preventDefault();
+            focusOption(0);
+            return;
+        }
+        if (event.key === 'End') {
+            event.preventDefault();
+            focusOption(options.length - 1);
+        }
+    };
+
     return (
         <div className="flex flex-col gap-1">
             <label className="text-xs text-muted-foreground font-medium">{label}</label>
             <div role="group" aria-label={ariaLabel} className="flex flex-wrap gap-1.5">
-                {options.map((option) => {
+                {options.map((option, index) => {
                     const isActive = value === option.value;
                     return (
                         <button
                             key={option.value || 'none'}
+                            ref={(element) => {
+                                buttonRefs.current[index] = element;
+                            }}
                             type="button"
                             aria-pressed={isActive}
+                            onKeyDown={(event) => handleOptionKeyDown(event, index)}
                             onClick={() => onChange(option.value)}
                             className={cn(
                                 'inline-flex min-h-7 items-center rounded-full border px-2.5 py-1 text-xs font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-primary/40',

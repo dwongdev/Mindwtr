@@ -297,6 +297,25 @@ describe('TaskItemFieldRenderer date clear buttons', () => {
         expect(handlers.setEditStatus).toHaveBeenCalledWith('waiting');
     });
 
+    it('changes status pill choices with arrow keys', () => {
+        const handlers = createHandlers();
+
+        const { getByRole } = render(
+            <TaskItemFieldRenderer
+                fieldId="status"
+                data={createData()}
+                handlers={handlers}
+            />
+        );
+
+        const inboxButton = getByRole('button', { name: 'Inbox' });
+        inboxButton.focus();
+        fireEvent.keyDown(inboxButton, { key: 'ArrowDown' });
+
+        expect(getByRole('button', { name: 'Next' })).toHaveFocus();
+        expect(handlers.setEditStatus).toHaveBeenCalledWith('next');
+    });
+
     it('renders priority choices as pills including None', () => {
         const handlers = createHandlers();
 
