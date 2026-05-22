@@ -26,9 +26,11 @@ const t = (key: string) => ({
     'common.noMatches': 'No matches',
     'common.save': 'Save',
     'projects.duplicate': 'Duplicate',
+    'task.convertToReference': 'Convert to Reference',
     'task.aria.dueTime': 'Due time',
     'task.aria.reviewTime': 'Review time',
     'task.aria.startTime': 'Start time',
+    'task.moveToWaitingWithDue': 'Move to Waiting and set due date',
     'taskEdit.areaLabel': 'Area',
     'taskEdit.contextsLabel': 'Contexts',
     'taskEdit.dueDateLabel': 'Due Date',
@@ -51,6 +53,8 @@ const renderMenu = (overrides: Partial<ComponentProps<typeof TaskQuickActionMenu
         onClose: vi.fn(),
         onDuplicate: vi.fn(),
         onDelete: vi.fn(),
+        onStatusChange: vi.fn(),
+        onMoveToWaitingWithPrompt: vi.fn(),
         onCreateArea: vi.fn(async () => null),
         onUpdateTask: vi.fn(async () => ({ success: true })),
         ...overrides,
@@ -76,7 +80,7 @@ describe('TaskQuickActionMenu', () => {
         expect(screen.getByRole('dialog', { name: /start date/i }))
             .toHaveClass('w-[min(30rem,calc(100vw-1rem))]');
 
-        const dueButton = screen.getByRole('menuitem', { name: /due date/i });
+        const dueButton = screen.getByRole('menuitem', { name: 'Due Date…' });
         fireEvent.click(dueButton);
 
         expect(dueButton).toHaveAttribute('aria-haspopup', 'dialog');
@@ -96,7 +100,7 @@ describe('TaskQuickActionMenu', () => {
 
     it('uses Escape to close the active panel before closing the menu', () => {
         const props = renderMenu();
-        fireEvent.click(screen.getByRole('menuitem', { name: /due date/i }));
+        fireEvent.click(screen.getByRole('menuitem', { name: 'Due Date…' }));
 
         fireEvent.keyDown(window, { key: 'Escape' });
         expect(props.onClose).not.toHaveBeenCalled();
@@ -108,7 +112,7 @@ describe('TaskQuickActionMenu', () => {
 
     it('closes when clicking outside an open date panel', () => {
         const props = renderMenu();
-        fireEvent.click(screen.getByRole('menuitem', { name: /due date/i }));
+        fireEvent.click(screen.getByRole('menuitem', { name: 'Due Date…' }));
 
         fireEvent.mouseDown(document.body);
 
@@ -134,5 +138,19 @@ describe('TaskQuickActionMenu', () => {
             expect(onUpdateTask).toHaveBeenCalledWith({ startTime: '2026-02-04T09:30' });
         });
         expect(props.onClose).toHaveBeenCalledTimes(1);
+    });
+
+    it('keeps secondary task row actions in the quick menu', () => {
+        const onStatusChange = vi.fn();
+        const onMoveToWaitingWithPrompt = vi.fn();
+        const props = renderMenu({ onStatusChange, onMoveToWaitingWithPrompt });
+
+        fireEvent.click(screen.getByRole('menuitem', { name: 'Convert to Reference' }));
+        expect(onStatusChange).toHaveBeenCalledWith('reference');
+        expect(props.onClose).toHaveBeenCalledTimes(1);
+
+        fireEvent.click(screen.getByRole('menuitem', { name: 'Move to Waiting and set due date' }));
+        expect(onMoveToWaitingWithPrompt).toHaveBeenCalledTimes(1);
+        expect(props.onClose).toHaveBeenCalledTimes(2);
     });
 });

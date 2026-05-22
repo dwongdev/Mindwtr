@@ -498,7 +498,8 @@ describe('TaskItem', () => {
                 <TaskItem task={nextTask} />
             </LanguageProvider>
         );
-        const waitingButton = getByRole('button', { name: /move to waiting and set due date/i });
+        fireEvent.click(getByRole('button', { name: /more options/i }));
+        const waitingButton = getByRole('menuitem', { name: /move to waiting and set due date/i });
         fireEvent.click(waitingButton);
         expect(getByText('Who/what are you waiting for?')).toBeInTheDocument();
         fireEvent.click(getByRole('button', { name: 'Save' }));
@@ -626,15 +627,13 @@ describe('TaskItem', () => {
         });
     });
 
-    it('shows today focus toggle outside focus view for active tasks', () => {
-        const { getByRole } = render(
+    it('does not show today focus toggle unless a view provides it', () => {
+        const { queryByRole } = render(
             <LanguageProvider>
                 <TaskItem task={mockTask} />
             </LanguageProvider>
         );
-        const button = getByRole('button', { name: /add.*focus/i });
-        expect(button).toBeInTheDocument();
-        expect(button.className).toContain('opacity-0');
+        expect(queryByRole('button', { name: /add.*focus/i })).not.toBeInTheDocument();
     });
 
     it('keeps focus toggle visible when a view requests always-visible mode', () => {
@@ -663,7 +662,16 @@ describe('TaskItem', () => {
         try {
             const { getByRole } = render(
                 <LanguageProvider>
-                    <TaskItem task={mockTask} />
+                    <TaskItem
+                        task={mockTask}
+                        focusToggle={{
+                            isFocused: false,
+                            canToggle: true,
+                            onToggle: vi.fn(),
+                            title: 'Add to focus',
+                            ariaLabel: 'Add to focus',
+                        }}
+                    />
                 </LanguageProvider>
             );
             fireEvent.click(getByRole('button', { name: /add.*focus/i }));

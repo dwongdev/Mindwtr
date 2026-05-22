@@ -5,14 +5,12 @@ import {
     TaskStatus,
     TaskEditorFieldId,
     type TaskEditorPresentation,
-    formatFocusTaskLimitText,
     getProjectNextActionPromptData,
     getLocalizedWeekdayLabels,
     normalizeWeekStartSetting,
     Project,
     generateUUID,
     normalizeClockTimeInput,
-    normalizeFocusTaskLimit,
     tFallback,
     useTaskStore,
 } from '@mindwtr/core';
@@ -118,7 +116,6 @@ export const TaskItem = memo(function TaskItem({
         projectArea,
         taskArea: storeTaskArea,
         settings,
-        focusedCount,
         duplicateTask,
         resetTaskChecklist,
         restoreTask,
@@ -255,39 +252,12 @@ export const TaskItem = memo(function TaskItem({
     const undoNotificationsEnabled = settings?.undoNotificationsEnabled !== false;
     const showTaskAge = settings?.appearance?.showTaskAge === true;
     const isCompact = settings?.appearance?.density === 'compact';
-    const focusTaskLimit = normalizeFocusTaskLimit(settings?.gtd?.focusTaskLimit);
     const isHighlighted = highlightTaskId === task.id;
     const recurrenceRule = getRecurrenceRuleValue(task.recurrence);
     const recurrenceStrategy = getRecurrenceStrategyValue(task.recurrence);
     const isStagnant = (task.pushCount ?? 0) > 3;
     const effectiveReadOnly = readOnly || task.status === 'done';
-    const defaultFocusToggle = useMemo(() => {
-        if (effectiveReadOnly) return undefined;
-        if (task.status === 'done' || task.status === 'reference' || task.status === 'archived') return undefined;
-        const isFocused = Boolean(task.isFocusedToday);
-        const canToggle = isFocused || focusedCount < focusTaskLimit;
-        const removeLabel = t('agenda.removeFromFocus');
-        const addLabel = t('agenda.addToFocus');
-        const maxLabel = formatFocusTaskLimitText(t('agenda.maxFocusItems'), focusTaskLimit);
-        return {
-            isFocused,
-            canToggle,
-            onToggle: () => {
-                if (isFocused) {
-                    updateTask(task.id, { isFocusedToday: false });
-                } else if (focusedCount < focusTaskLimit) {
-                    const updates: Partial<Task> = {
-                        isFocusedToday: true,
-                        ...(task.status !== 'next' ? { status: 'next' } : {}),
-                    };
-                    updateTask(task.id, updates);
-                }
-            },
-            title: isFocused ? removeLabel : (canToggle ? addLabel : maxLabel),
-            ariaLabel: isFocused ? removeLabel : addLabel,
-        };
-    }, [effectiveReadOnly, focusTaskLimit, focusedCount, task.id, task.isFocusedToday, task.status, t, updateTask]);
-    const effectiveFocusToggle = focusToggle ?? defaultFocusToggle;
+    const effectiveFocusToggle = effectiveReadOnly ? undefined : focusToggle;
     const handleToggleChecklistItem = useCallback((index: number) => {
         if (effectiveReadOnly) return;
         const checklist = task.checklist || [];
@@ -1058,7 +1028,6 @@ export const TaskItem = memo(function TaskItem({
         onDuplicate: () => duplicateTask(task.id, false),
         onStatusChange: handleStatusChange,
         onOpenQuickActions: handleOpenQuickActionButton,
-        onMoveToWaitingWithPrompt: handleMoveToWaitingWithPrompt,
         onOpenProject: project ? handleOpenProject : undefined,
         onOpenContextToken: handleOpenContextToken,
         openAttachment,
@@ -1067,7 +1036,6 @@ export const TaskItem = memo(function TaskItem({
     }), [
         duplicateTask,
         effectiveFocusToggle,
-        handleMoveToWaitingWithPrompt,
         handleOpenContextToken,
         handleOpenProject,
         handleOpenQuickActionButton,
@@ -1174,6 +1142,8 @@ export const TaskItem = memo(function TaskItem({
                     onDelete={() => {
                         setShowDeleteConfirm(true);
                     }}
+                    onStatusChange={handleStatusChange}
+                    onMoveToWaitingWithPrompt={handleMoveToWaitingWithPrompt}
                     onCreateArea={handleCreateArea}
                     onUpdateTask={(updates) => updateTask(task.id, updates)}
                 />

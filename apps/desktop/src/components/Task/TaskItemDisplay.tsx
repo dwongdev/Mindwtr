@@ -1,4 +1,4 @@
-import { Calendar as CalendarIcon, Tag, Trash2, ArrowRight, Repeat, Check, Clock, Timer, Paperclip, RotateCcw, Copy, MapPin, Hourglass, BookOpen, PauseCircle, Star, Zap, MoreHorizontal } from 'lucide-react';
+import { Calendar as CalendarIcon, Tag, Trash2, ArrowRight, Repeat, Check, Clock, Timer, Paperclip, RotateCcw, Copy, MapPin, Hourglass, Star, Zap, MoreHorizontal } from 'lucide-react';
 import type { Area, Attachment, Project, Task, TaskStatus, RecurrenceRule, RecurrenceStrategy, Language } from '@mindwtr/core';
 import { DEFAULT_AREA_COLOR, getChecklistProgress, getRecurrenceCountValue, getRecurrenceUntilValue, getTaskAgeLabel, getTaskStaleness, getTaskUrgency, hasTimeComponent, parseRRuleString, safeFormatDate, resolveTaskTextDirection, tFallback } from '@mindwtr/core';
 import { cn } from '../../lib/utils';
@@ -20,7 +20,6 @@ interface TaskItemDisplayActions {
     onDuplicate: () => void;
     onStatusChange: (status: TaskStatus) => void;
     onOpenQuickActions?: (event: MouseEvent<HTMLButtonElement>) => void;
-    onMoveToWaitingWithPrompt?: () => void;
     onOpenProject?: (projectId: string) => void;
     onOpenContextToken?: (token: string) => void;
     openAttachment: (attachment: Attachment) => void;
@@ -118,7 +117,6 @@ export const TaskItemDisplay = memo(function TaskItemDisplay({
         onDuplicate,
         onStatusChange,
         onOpenQuickActions,
-        onMoveToWaitingWithPrompt,
         onOpenProject,
         onOpenContextToken,
         openAttachment,
@@ -177,7 +175,6 @@ export const TaskItemDisplay = memo(function TaskItemDisplay({
         ? tFallback(t, 'task.hoverHint', 'Click to toggle details / Double-click to edit')
         : '';
     const moreOptionsLabel = tFallback(t, 'taskEdit.moreOptions', 'More options');
-    const moveToWaitingWithDueLabel = tFallback(t, 'task.moveToWaitingWithDue', 'Move to Waiting and set due date');
     const openContextFilterLabel = tFallback(t, 'contexts.filter', 'Filter tasks');
     const imageAttachments = visibleAttachments.filter((attachment) => {
         if (!isImageAttachment(attachment)) return false;
@@ -786,28 +783,6 @@ export const TaskItemDisplay = memo(function TaskItemDisplay({
                         </>
                     ) : (
                         <>
-                            {task.status !== 'reference' && (
-                                <button
-                                    type="button"
-                                    onClick={() => onStatusChange('reference')}
-                                    aria-label={t('task.convertToReference')}
-                                    title={t('task.convertToReference')}
-                                    className="opacity-0 group-hover:opacity-100 focus:opacity-100 transition-opacity text-muted-foreground hover:text-foreground p-1 rounded hover:bg-muted/50 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
-                                >
-                                    <BookOpen className="w-4 h-4" />
-                                </button>
-                            )}
-                            {task.status === 'next' && onMoveToWaitingWithPrompt && (
-                                <button
-                                    type="button"
-                                    onClick={onMoveToWaitingWithPrompt}
-                                    aria-label={moveToWaitingWithDueLabel}
-                                    title={moveToWaitingWithDueLabel}
-                                    className="opacity-0 group-hover:opacity-100 focus:opacity-100 transition-opacity text-muted-foreground hover:text-foreground p-1 rounded hover:bg-muted/50 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
-                                >
-                                    <PauseCircle className="w-4 h-4" />
-                                </button>
-                            )}
                             {showStatusSelect && (
                                 <select
                                     value={task.status}
@@ -826,13 +801,6 @@ export const TaskItemDisplay = memo(function TaskItemDisplay({
                                     <option value="archived">{t('status.archived')}</option>
                                 </select>
                             )}
-                            <button
-                                onClick={onDelete}
-                                aria-label={t('task.aria.delete')}
-                                className="opacity-0 group-hover:opacity-100 focus:opacity-100 transition-opacity text-muted-foreground hover:text-muted-foreground/70 p-1 rounded hover:bg-muted/50 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
-                            >
-                                <Trash2 className="w-4 h-4" />
-                            </button>
                         </>
                     )}
                 </div>

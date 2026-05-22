@@ -1,6 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState, type ReactNode, type RefObject } from 'react';
 import { createPortal } from 'react-dom';
-import { Calendar, CalendarClock, ChevronRight, Copy, MapPin, Tag, Trash2, X } from 'lucide-react';
+import { BookOpen, Calendar, CalendarClock, ChevronRight, Copy, MapPin, PauseCircle, Tag, Trash2, X } from 'lucide-react';
 import {
     hasTimeComponent,
     safeFormatDate,
@@ -9,6 +9,7 @@ import {
     type Area,
     type StoreActionResult,
     type Task,
+    type TaskStatus,
 } from '@mindwtr/core';
 
 import { reportError } from '../../lib/report-error';
@@ -37,6 +38,8 @@ interface TaskQuickActionMenuProps {
     onClose: () => void;
     onDuplicate: () => void;
     onDelete: () => void;
+    onStatusChange: (status: TaskStatus) => void;
+    onMoveToWaitingWithPrompt?: () => void;
     onCreateArea: (name: string) => Promise<string | null>;
     onUpdateTask: (updates: Partial<Task>) => Promise<StoreActionResult>;
 }
@@ -75,6 +78,8 @@ export function TaskQuickActionMenu({
     onClose,
     onDuplicate,
     onDelete,
+    onStatusChange,
+    onMoveToWaitingWithPrompt,
     onCreateArea,
     onUpdateTask,
 }: TaskQuickActionMenuProps) {
@@ -110,6 +115,8 @@ export function TaskQuickActionMenu({
     const noAreaLabel = tFallback(t, 'taskEdit.noAreaOption', 'No Area');
     const duplicateLabel = tFallback(t, 'projects.duplicate', 'Duplicate');
     const deleteLabel = tFallback(t, 'common.delete', 'Delete');
+    const convertToReferenceLabel = tFallback(t, 'task.convertToReference', 'Convert to Reference');
+    const moveToWaitingWithDueLabel = tFallback(t, 'task.moveToWaitingWithDue', 'Move to Waiting and set due date');
     const saveLabel = tFallback(t, 'common.save', 'Save');
     const cancelLabel = tFallback(t, 'common.cancel', 'Cancel');
     const clearLabel = tFallback(t, 'common.clear', 'Clear');
@@ -443,6 +450,22 @@ export function TaskQuickActionMenu({
                     active: activePanel === 'contexts',
                     onClick: () => openPanel('contexts'),
                     showChevron: true,
+                })}
+                {!readOnly && task.status !== 'reference' && renderMenuAction({
+                    icon: <BookOpen className="h-4 w-4" />,
+                    label: convertToReferenceLabel,
+                    onClick: () => {
+                        onStatusChange('reference');
+                        onClose();
+                    },
+                })}
+                {!readOnly && task.status === 'next' && onMoveToWaitingWithPrompt && renderMenuAction({
+                    icon: <PauseCircle className="h-4 w-4" />,
+                    label: moveToWaitingWithDueLabel,
+                    onClick: () => {
+                        onMoveToWaitingWithPrompt();
+                        onClose();
+                    },
                 })}
                 {!readOnly ? <div className="my-1 h-px bg-border/70" role="separator" /> : null}
                 {renderMenuAction({

@@ -923,6 +923,7 @@ export function AgendaView() {
                                     <StoreTaskItem
                                         key={task.id}
                                         taskId={task.id}
+                                        buildFocusToggle={buildFocusToggle}
                                         showProjectBadgeInActions={false}
                                         compactMetaEnabled={showListDetails}
                                         enableDoubleClickEdit
