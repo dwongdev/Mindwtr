@@ -195,7 +195,7 @@ describe('ProjectsView', () => {
             expect(sidebar).toHaveStyle({ width: '328px' });
         });
         await waitFor(() => {
-            expect(layout).toHaveStyle({ maxWidth: '1368px' });
+            expect(layout).toHaveStyle({ maxWidth: '1416px' });
         });
         await waitFor(() => {
             expect(window.localStorage.getItem('mindwtr:projects:sidebarWidth')).toBe('328');
@@ -235,16 +235,16 @@ describe('ProjectsView', () => {
 
         expect(sidebar).not.toBeNull();
         expect(layout).not.toBeNull();
-        expect(separator).toHaveAttribute('aria-valuemax', '1920');
+        expect(separator).toHaveAttribute('aria-valuemax', '1200');
         expect(layout).toHaveClass('mx-auto');
 
         fireEvent.keyDown(separator, { key: 'End' });
 
         await waitFor(() => {
-            expect(sidebar).toHaveStyle({ width: '1920px' });
+            expect(sidebar).toHaveStyle({ width: '1200px' });
         });
         await waitFor(() => {
-            expect(layout).toHaveStyle({ maxWidth: '3024px' });
+            expect(layout).toHaveStyle({ maxWidth: '4096px' });
         });
 
         if (originalClientWidthDescriptor) {

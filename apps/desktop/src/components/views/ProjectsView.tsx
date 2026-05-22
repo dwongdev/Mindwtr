@@ -48,6 +48,7 @@ import { usePersistedViewState } from '../../hooks/usePersistedViewState';
 
 const COLLAPSED_AREAS_STORAGE_KEY = 'mindwtr:projects:collapsedAreas';
 const PROJECTS_VIEW_STATE_STORAGE_KEY = 'mindwtr:view:projects:v1';
+const PROJECTS_LAYOUT_SIDEBAR_EXTRA_MULTIPLIER = 3;
 const ALL_TAGS = '__all__';
 const NO_TAGS = '__none__';
 
@@ -202,7 +203,9 @@ export function ProjectsView() {
 
     const projectsLayoutMaxWidth = useMemo(() => {
         const baseMaxWidth = getProjectsBaseMaxWidth();
-        const desiredMaxWidth = baseMaxWidth + Math.max(0, sidebarWidth - PROJECTS_SIDEBAR_DEFAULT_WIDTH);
+        const desiredMaxWidth = baseMaxWidth
+            + Math.max(0, sidebarWidth - PROJECTS_SIDEBAR_DEFAULT_WIDTH)
+            * PROJECTS_LAYOUT_SIDEBAR_EXTRA_MULTIPLIER;
 
         if (typeof availableProjectsWidth !== 'number' || !Number.isFinite(availableProjectsWidth)) {
             return desiredMaxWidth;
