@@ -236,7 +236,7 @@ describe('ProjectsView', () => {
         expect(sidebar).not.toBeNull();
         expect(layout).not.toBeNull();
         expect(separator).toHaveAttribute('aria-valuemax', '1920');
-        expect(layout).not.toHaveClass('mx-auto');
+        expect(layout).toHaveClass('mx-auto');
 
         fireEvent.keyDown(separator, { key: 'End' });
 
