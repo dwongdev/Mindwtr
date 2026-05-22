@@ -1,6 +1,7 @@
 import {
     normalizeDateFormatSetting,
     normalizeTimeFormatSetting,
+    normalizeWeekStartSetting,
     resolveDateLocaleTag,
 } from '@mindwtr/core';
 
@@ -8,7 +9,7 @@ type NativeDateInputLocaleParams = {
     language?: string | null;
     dateFormat?: string | null;
     timeFormat?: string | null;
-    weekStart?: 'monday' | 'sunday' | null;
+    weekStart?: 'monday' | 'sunday' | 'saturday' | null;
     systemLocale?: string | null;
 };
 
@@ -54,9 +55,12 @@ export function resolveNativeDateInputLocale(params: NativeDateInputLocaleParams
     } else if (timeFormat === '12h') {
         unicodePreferences.push('hc-h12');
     }
-    if (params.weekStart === 'monday') {
+    const weekStart = normalizeWeekStartSetting(params.weekStart);
+    if (weekStart === 'monday') {
         unicodePreferences.push('fw-mon');
-    } else if (params.weekStart === 'sunday') {
+    } else if (weekStart === 'saturday') {
+        unicodePreferences.push('fw-sat');
+    } else if (weekStart === 'sunday') {
         unicodePreferences.push('fw-sun');
     }
 

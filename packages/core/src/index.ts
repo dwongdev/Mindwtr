@@ -334,12 +334,14 @@ export {
 export {
     configureDateFormatting,
     getQuickDate,
+    getWeekStartsOnIndex,
     hasTimeComponent,
     isDueForReview,
     isQuickDatePresetSelected,
     normalizeClockTimeInput,
     normalizeDateFormatSetting,
     normalizeTimeFormatSetting,
+    normalizeWeekStartSetting,
     QUICK_DATE_PRESETS,
     resolveDateLocaleTag,
     safeFormatDate,
@@ -350,6 +352,8 @@ export type {
     DateFormatSetting,
     QuickDatePreset,
     TimeFormatSetting,
+    WeekStartSetting,
+    WeekStartsOnIndex,
 } from './date';
 
 export {

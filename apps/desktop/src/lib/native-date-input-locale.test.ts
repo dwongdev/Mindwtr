@@ -32,4 +32,14 @@ describe('resolveNativeDateInputLocale', () => {
             systemLocale: 'en-US',
         })).toBe('en-US-u-hc-h23-fw-sun');
     });
+
+    it('applies Saturday first-weekday preference', () => {
+        expect(resolveNativeDateInputLocale({
+            language: 'en',
+            dateFormat: 'system',
+            timeFormat: 'system',
+            weekStart: 'saturday',
+            systemLocale: 'en-US',
+        })).toBe('en-US-u-fw-sat');
+    });
 });

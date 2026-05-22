@@ -10,6 +10,7 @@ import {
   resolveDateLocaleTag,
   findFreeSlotForDay as findCalendarFreeSlotForDay,
   getEnglishI18nValue,
+  getWeekStartsOnIndex,
   hasTimeComponent,
   isSlotFreeForDay as isCalendarSlotFreeForDay,
   isTaskInActiveProject,
@@ -256,7 +257,7 @@ export function useCalendarViewController() {
     ensureSelectedDateForViewMode(nextMode);
   }, [calendarSettings?.viewMode, ensureSelectedDateForViewMode]);
 
-  const weekStartIndex = settings?.weekStart === 'monday' ? 1 : 0;
+  const weekStartIndex = getWeekStartsOnIndex(settings?.weekStart);
   const daysInMonth = getDaysInMonth(currentYear, currentMonth);
   const firstDay = getFirstDayOfMonth(currentYear, currentMonth, weekStartIndex);
   const systemLocale = typeof Intl !== 'undefined' && typeof Intl.DateTimeFormat === 'function'

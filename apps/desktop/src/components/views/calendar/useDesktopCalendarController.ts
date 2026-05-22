@@ -23,6 +23,7 @@ import {
     formatCalendarDurationLabel,
     formatCalendarTimeInputValue,
     findFreeSlotForDay as findCalendarFreeSlotForDay,
+    getWeekStartsOnIndex,
     isSlotFreeForDay as isCalendarSlotFreeForDay,
     isTaskInActiveProject,
     hasTimeComponent,
@@ -219,7 +220,7 @@ export function useDesktopCalendarController() {
         () => resolveAreaFilter(settings?.filters?.areaId, areas),
         [settings?.filters?.areaId, areas],
     );
-    const weekStartsOn = settings?.weekStart === 'monday' ? 1 : 0;
+    const weekStartsOn = getWeekStartsOnIndex(settings?.weekStart);
     const calendarLocale = useMemo(
         () => resolveCalendarLocale({
             language,
@@ -760,7 +761,7 @@ export function useDesktopCalendarController() {
     };
     const monthNames = useMemo(() => getCalendarMonthNames(calendarLocale), [calendarLocale]);
     const weekdayHeaders = useMemo(
-        () => getCalendarWeekdayHeaders(calendarLocale, weekStartsOn as 0 | 1),
+        () => getCalendarWeekdayHeaders(calendarLocale, weekStartsOn),
         [calendarLocale, weekStartsOn]
     );
     const currentYear = getYear(currentMonth);

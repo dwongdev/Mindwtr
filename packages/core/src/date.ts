@@ -4,6 +4,8 @@ import type { Language } from './i18n/i18n-types';
 
 export type DateFormatSetting = 'system' | 'dmy' | 'mdy' | 'ymd';
 export type TimeFormatSetting = 'system' | '12h' | '24h';
+export type WeekStartSetting = 'sunday' | 'monday' | 'saturday';
+export type WeekStartsOnIndex = 0 | 1 | 2 | 3 | 4 | 5 | 6;
 export const QUICK_DATE_PRESETS = ['today', 'tomorrow', 'in_3_days', 'next_week', 'next_month', 'no_date'] as const;
 export type QuickDatePreset = typeof QUICK_DATE_PRESETS[number];
 
@@ -127,6 +129,20 @@ export function normalizeTimeFormatSetting(value?: string | null): TimeFormatSet
     if (normalized === '12h' || normalized === '12' || normalized === '12-hour') return '12h';
     if (normalized === '24h' || normalized === '24' || normalized === '24-hour') return '24h';
     return 'system';
+}
+
+export function normalizeWeekStartSetting(value?: string | null): WeekStartSetting {
+    const normalized = String(value || '').trim().toLowerCase();
+    if (normalized === 'monday') return 'monday';
+    if (normalized === 'saturday') return 'saturday';
+    return 'sunday';
+}
+
+export function getWeekStartsOnIndex(value?: string | null): WeekStartsOnIndex {
+    const weekStart = normalizeWeekStartSetting(value);
+    if (weekStart === 'monday') return 1;
+    if (weekStart === 'saturday') return 6;
+    return 0;
 }
 
 export function normalizeClockTimeInput(value?: string | null): string | null {

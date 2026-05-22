@@ -27,6 +27,18 @@ export function RichMarkdown({ markdown }: { markdown: string }) {
             disallowedElements={['img']}
             urlTransform={transformMarkdownUrl}
             components={{
+                h1: ({ className, ...props }: any) => (
+                    <h1 className={cn('mt-2 mb-1 text-lg font-semibold leading-snug text-foreground first:mt-0', className)} {...props} />
+                ),
+                h2: ({ className, ...props }: any) => (
+                    <h2 className={cn('mt-2 mb-1 text-base font-semibold leading-snug text-foreground first:mt-0', className)} {...props} />
+                ),
+                h3: ({ className, ...props }: any) => (
+                    <h3 className={cn('mt-1.5 mb-1 text-sm font-semibold leading-snug text-foreground first:mt-0', className)} {...props} />
+                ),
+                h4: ({ className, ...props }: any) => (
+                    <h4 className={cn('mt-1.5 mb-1 text-sm font-medium leading-snug text-foreground first:mt-0', className)} {...props} />
+                ),
                 a: ({ className, ...props }: any) => (
                     <InternalMarkdownLink
                         href={props.href}

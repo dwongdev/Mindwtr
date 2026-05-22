@@ -2,11 +2,13 @@ import { describe, it, expect } from 'vitest';
 import {
     configureDateFormatting,
     getQuickDate,
+    getWeekStartsOnIndex,
     isDueForReview,
     isQuickDatePresetSelected,
     normalizeClockTimeInput,
     normalizeDateFormatSetting,
     normalizeTimeFormatSetting,
+    normalizeWeekStartSetting,
     resolveDateLocaleTag,
     safeFormatDate,
     safeParseDate,
@@ -60,6 +62,15 @@ describe('date utils', () => {
         expect(normalizeTimeFormatSetting('12h')).toBe('12h');
         expect(normalizeTimeFormatSetting('24-hour')).toBe('24h');
         expect(normalizeTimeFormatSetting('unknown')).toBe('system');
+    });
+
+    it('normalizes week start settings safely', () => {
+        expect(normalizeWeekStartSetting('monday')).toBe('monday');
+        expect(normalizeWeekStartSetting('saturday')).toBe('saturday');
+        expect(normalizeWeekStartSetting('friday')).toBe('sunday');
+        expect(getWeekStartsOnIndex('monday')).toBe(1);
+        expect(getWeekStartsOnIndex('saturday')).toBe(6);
+        expect(getWeekStartsOnIndex('unknown')).toBe(0);
     });
 
     it('normalizes clock time inputs for stored schedule defaults', () => {

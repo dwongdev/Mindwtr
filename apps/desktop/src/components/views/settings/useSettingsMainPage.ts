@@ -4,6 +4,7 @@ import {
     flushPendingSave,
     normalizeDateFormatSetting,
     normalizeTimeFormatSetting,
+    normalizeWeekStartSetting,
     type AppearanceSettings,
     type AppData,
     type NotificationSettings,
@@ -78,7 +79,7 @@ export function useSettingsMainPage({
     const dateFormat = normalizeDateFormatSetting(settings?.dateFormat);
     const timeFormat = normalizeTimeFormatSetting(settings?.timeFormat);
     const undoNotificationsEnabled = notificationSettings.undoNotificationsEnabled !== false;
-    const weekStart = settings?.weekStart === 'monday' ? 'monday' : 'sunday';
+    const weekStart = normalizeWeekStartSetting(settings?.weekStart);
     const windowDecorationsEnabled = windowSettings?.decorations !== false;
     const closeBehavior = windowSettings?.closeBehavior ?? 'ask';
     const trayVisible = windowSettings?.showTray !== false;
@@ -178,7 +179,7 @@ export function useSettingsMainPage({
             .catch((error) => reportError('Failed to update language', error));
     }, [setLanguage, showSaved, updateSettings]);
 
-    const onWeekStartChange = useCallback((value: 'sunday' | 'monday') => {
+    const onWeekStartChange = useCallback((value: MainPageProps['weekStart']) => {
         updateSettings({ weekStart: value })
             .then(showSaved)
             .catch((error) => reportError('Failed to update week start', error));

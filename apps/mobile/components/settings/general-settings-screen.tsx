@@ -3,7 +3,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { Modal, Pressable, ScrollView, Switch, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { normalizeDateFormatSetting, normalizeTimeFormatSetting, useTaskStore } from '@mindwtr/core';
+import { normalizeDateFormatSetting, normalizeTimeFormatSetting, normalizeWeekStartSetting, useTaskStore } from '@mindwtr/core';
 
 import { useTheme } from '@/contexts/theme-context';
 import { useThemeColors } from '@/hooks/use-theme-colors';
@@ -30,7 +30,7 @@ export function GeneralSettingsScreen() {
     const [timeFormatPickerOpen, setTimeFormatPickerOpen] = useState(false);
     const [quickAccessPickerOpen, setQuickAccessPickerOpen] = useState(false);
 
-    const weekStart = settings.weekStart === 'monday' ? 'monday' : 'sunday';
+    const weekStart = normalizeWeekStartSetting(settings.weekStart);
     const dateFormat = normalizeDateFormatSetting(settings.dateFormat);
     const timeFormat = normalizeTimeFormatSetting(settings.timeFormat);
     const showTaskAge = settings.appearance?.showTaskAge === true;
@@ -58,9 +58,10 @@ export function GeneralSettingsScreen() {
                     : t('nav.contexts'),
     }));
     const currentQuickAccessLabel = quickAccessOptions.find((opt) => opt.value === quickAccessView)?.label ?? t('tab.review');
-    const weekStartOptions: { value: 'sunday' | 'monday'; label: string }[] = [
+    const weekStartOptions: { value: 'sunday' | 'monday' | 'saturday'; label: string }[] = [
         { value: 'sunday', label: t('settings.weekStartSunday') },
         { value: 'monday', label: t('settings.weekStartMonday') },
+        { value: 'saturday', label: t('settings.weekStartSaturday') },
     ];
     const currentWeekStartLabel = weekStartOptions.find((opt) => opt.value === weekStart)?.label ?? t('settings.weekStartSunday');
     const dateFormatOptions: { value: 'system' | 'dmy' | 'mdy' | 'ymd'; label: string }[] = [

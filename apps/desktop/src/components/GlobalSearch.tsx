@@ -10,6 +10,7 @@ import {
     SearchResults,
     SearchTaskResult,
     getStorageAdapter,
+    normalizeWeekStartSetting,
     TaskStatus,
 } from '@mindwtr/core';
 import { useLanguage } from '../contexts/language-context';
@@ -181,7 +182,7 @@ export function GlobalSearch({ onNavigate }: GlobalSearchProps) {
         selectedTokens,
         duePreset,
         scope,
-        weekStart: settings?.weekStart === 'monday' ? 'monday' : 'sunday',
+        weekStart: normalizeWeekStartSetting(settings?.weekStart),
         ftsResults,
     }), [
         query,

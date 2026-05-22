@@ -8,6 +8,7 @@ import {
     formatFocusTaskLimitText,
     getProjectNextActionPromptData,
     getLocalizedWeekdayLabels,
+    normalizeWeekStartSetting,
     Project,
     generateUUID,
     normalizeClockTimeInput,
@@ -156,7 +157,7 @@ export const TaskItem = memo(function TaskItem({
             language,
             dateFormat: settings?.dateFormat,
             timeFormat: settings?.timeFormat,
-            weekStart: settings?.weekStart === 'monday' ? 'monday' : 'sunday',
+            weekStart: normalizeWeekStartSetting(settings?.weekStart),
             systemLocale,
         });
     }, [language, settings?.dateFormat, settings?.timeFormat, settings?.weekStart]);

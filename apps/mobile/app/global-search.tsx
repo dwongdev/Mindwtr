@@ -12,6 +12,7 @@ import {
     TaskStatus,
     PRESET_CONTEXTS,
     PRESET_TAGS,
+    getWeekStartsOnIndex,
     matchesHierarchicalToken,
     safeParseDueDate,
     shouldShowTaskForStart,
@@ -143,10 +144,10 @@ export default function SearchScreen() {
     };
     const now = new Date();
     const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-    const weekStart = settings?.weekStart === 'monday' ? 1 : 0;
+    const weekStart = getWeekStartsOnIndex(settings?.weekStart);
     const startOfWeek = new Date(startOfToday);
     const weekday = startOfWeek.getDay();
-    const diffToWeekStart = weekStart === 1 ? (weekday + 6) % 7 : weekday;
+    const diffToWeekStart = (weekday - weekStart + 7) % 7;
     startOfWeek.setDate(startOfWeek.getDate() - diffToWeekStart);
     const endOfWeek = new Date(startOfWeek);
     endOfWeek.setDate(endOfWeek.getDate() + 7);

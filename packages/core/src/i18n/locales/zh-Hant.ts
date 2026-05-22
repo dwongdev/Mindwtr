@@ -635,6 +635,7 @@ export const zhHant: Record<string, string> = {
         'settings.weekStart': '每週開始於',
         'settings.weekStartSunday': '週日',
         'settings.weekStartMonday': '週一',
+        'settings.weekStartSaturday': '週六',
         'settings.dateFormat': '日期格式',
         'settings.dateFormatSystem': '系統默認',
         'settings.dateFormatDmy': '日 / 月 / 年',

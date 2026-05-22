@@ -10,7 +10,7 @@ const FLATPAK_QUICK_ADD_COMMAND = 'flatpak run tech.dongdongbh.mindwtr --quick-a
 type ThemeMode = 'system' | 'light' | 'dark' | 'eink' | 'nord' | 'sepia';
 type DensityMode = 'comfortable' | 'compact';
 type TextSizeMode = 'default' | 'large' | 'extra-large';
-type WeekStart = 'sunday' | 'monday';
+type WeekStart = 'sunday' | 'monday' | 'saturday';
 type DateFormatSetting = 'system' | 'dmy' | 'mdy' | 'ymd';
 type TimeFormatSetting = 'system' | '12h' | '24h';
 
@@ -41,6 +41,7 @@ type Labels = {
     weekStart: string;
     weekStartSunday: string;
     weekStartMonday: string;
+    weekStartSaturday: string;
     dateFormat: string;
     dateFormatSystem: string;
     dateFormatDmy: string;
@@ -231,6 +232,11 @@ export function SettingsMainPage({
         isWindows,
     });
     const quickAddShortcutValue = isFlatpak ? GLOBAL_QUICK_ADD_SHORTCUT_DISABLED : globalQuickAddShortcut;
+    const weekStartDescription = weekStart === 'monday'
+        ? t.weekStartMonday
+        : weekStart === 'saturday'
+            ? t.weekStartSaturday
+            : t.weekStartSunday;
 
     return (
         <div className="space-y-5">
@@ -305,15 +311,17 @@ export function SettingsMainPage({
                 </SettingsRow>
                 <SettingsRow
                     title={t.weekStart}
-                    description={weekStart === 'monday' ? t.weekStartMonday : t.weekStartSunday}
+                    description={weekStartDescription}
                 >
                     <select
+                        aria-label={t.weekStart}
                         value={weekStart}
                         onChange={(e) => onWeekStartChange(e.target.value as WeekStart)}
                         className={selectCls}
                     >
                         <option value="sunday">{t.weekStartSunday}</option>
                         <option value="monday">{t.weekStartMonday}</option>
+                        <option value="saturday">{t.weekStartSaturday}</option>
                     </select>
                 </SettingsRow>
                 <SettingsRow

@@ -106,6 +106,15 @@ describe('TaskQuickActionMenu', () => {
         expect(props.onClose).toHaveBeenCalledTimes(1);
     });
 
+    it('closes when clicking outside an open date panel', () => {
+        const props = renderMenu();
+        fireEvent.click(screen.getByRole('menuitem', { name: /due date/i }));
+
+        fireEvent.mouseDown(document.body);
+
+        expect(props.onClose).toHaveBeenCalledTimes(1);
+    });
+
     it('saves a start date from the quick action panel', async () => {
         const onUpdateTask = vi.fn(async () => ({ success: true as const }));
         const props = renderMenu({ onUpdateTask });

@@ -83,4 +83,22 @@ describe('SettingsMainPage', () => {
         expect(getByText('flatpak run tech.dongdongbh.mindwtr --quick-add')).toBeInTheDocument();
         expect(getByRole('combobox', { name: 'Global quick add shortcut' })).toBeDisabled();
     });
+
+    it('offers Saturday as a week start option', () => {
+        const onWeekStartChange = vi.fn();
+        const { getAllByText, getByRole } = render(
+            <SettingsMainPage
+                {...baseProps}
+                weekStart="saturday"
+                onWeekStartChange={onWeekStartChange}
+            />,
+        );
+
+        expect(getAllByText('Saturday').length).toBeGreaterThan(0);
+        fireEvent.change(getByRole('combobox', { name: 'Week starts on' }), {
+            target: { value: 'monday' },
+        });
+
+        expect(onWeekStartChange).toHaveBeenCalledWith('monday');
+    });
 });

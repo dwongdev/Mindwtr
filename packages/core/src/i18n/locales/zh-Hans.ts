@@ -635,6 +635,7 @@ export const zhHans: Record<string, string> = {
         'settings.weekStart': '每周开始于',
         'settings.weekStartSunday': '周日',
         'settings.weekStartMonday': '周一',
+        'settings.weekStartSaturday': '周六',
         'settings.dateFormat': '日期格式',
         'settings.dateFormatSystem': '系统默认',
         'settings.dateFormatDmy': '日 / 月 / 年',

@@ -29,6 +29,7 @@ const THEME_VALUE_FLAGS: Record<ThemeValue, true> = {
 
 const WEEK_START_VALUE_FLAGS: Record<WeekStartValue, true> = {
     monday: true,
+    saturday: true,
     sunday: true,
 };
 

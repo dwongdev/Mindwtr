@@ -3,6 +3,7 @@ import {
     safeParseDueDate,
     searchAll,
     shouldShowTaskForStart,
+    getWeekStartsOnIndex,
     type Project,
     type SearchProjectResult,
     type SearchResults,
@@ -27,7 +28,7 @@ type ComputeGlobalSearchResultsInput = {
     selectedTokens: string[];
     duePreset: DuePreset;
     scope: GlobalSearchScope;
-    weekStart: 'sunday' | 'monday';
+    weekStart: 'sunday' | 'monday' | 'saturday';
     ftsResults?: SearchResults | null;
 };
 
@@ -36,7 +37,7 @@ const buildDueMatcher = (duePreset: DuePreset, weekStart: number) => {
     const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
     const startOfWeek = new Date(startOfToday);
     const weekday = startOfWeek.getDay();
-    const diffToWeekStart = weekStart === 1 ? (weekday + 6) % 7 : weekday;
+    const diffToWeekStart = (weekday - weekStart + 7) % 7;
     startOfWeek.setDate(startOfWeek.getDate() - diffToWeekStart);
     const endOfWeek = new Date(startOfWeek);
     endOfWeek.setDate(endOfWeek.getDate() + 7);
@@ -113,7 +114,7 @@ export const computeGlobalSearchResults = ({
         );
     };
 
-    const matchesDue = buildDueMatcher(duePreset, weekStart === 'monday' ? 1 : 0);
+    const matchesDue = buildDueMatcher(duePreset, getWeekStartsOnIndex(weekStart));
 
     const filteredTasks = effectiveResults.tasks.filter((task) => {
         if (hasStatusFilter) {
