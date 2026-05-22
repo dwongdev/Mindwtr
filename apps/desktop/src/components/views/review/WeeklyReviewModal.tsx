@@ -5,6 +5,7 @@ import {
     getStaleItems,
     isDueForReview,
     isTaskInActiveProject,
+    parseQuickAddDateCommands,
     safeFormatDate,
     safeParseDate,
     safeParseDueDate,
@@ -24,6 +25,7 @@ import { cn } from '../../../lib/utils';
 import { useLanguage } from '../../../contexts/language-context';
 import { buildAIConfig, isAIKeyRequired, loadAIKey } from '../../../lib/ai-config';
 import { fetchExternalCalendarEvents, summarizeExternalCalendarWarnings } from '../../../lib/external-calendar-events';
+import { useUiStore } from '../../../store/ui-store';
 
 type ReviewStep = 'inbox' | 'ai' | 'calendar' | 'waiting' | 'contexts' | 'projects' | 'someday' | 'completed';
 type CalendarReviewEntry = {
@@ -61,6 +63,7 @@ export function WeeklyReviewGuideModal({ onClose }: WeeklyReviewGuideModalProps)
         shallow
     );
     const addTask = useTaskStore((state) => state.addTask);
+    const showToast = useUiStore((state) => state.showToast);
     const areaById = useMemo(() => new Map(areas.map((area) => [area.id, area])), [areas]);
     const projectMap = useMemo(() => new Map(projects.map((project) => [project.id, project])), [projects]);
     const { t } = useLanguage();
@@ -351,6 +354,32 @@ export function WeeklyReviewGuideModal({ onClose }: WeeklyReviewGuideModalProps)
             }
             return next;
         });
+    };
+
+    const confirmProjectTaskPrompt = (value: string) => {
+        const targetProject = projectTaskPrompt;
+        if (!targetProject) return;
+
+        const trimmed = value.trim();
+        if (!trimmed) return;
+
+        const { title, props, invalidDateCommands } = parseQuickAddDateCommands(trimmed, new Date());
+        if (invalidDateCommands && invalidDateCommands.length > 0) {
+            showToast(`${t('quickAdd.invalidDateCommand')}: ${invalidDateCommands.join(', ')}`, 'error');
+            return;
+        }
+
+        const parsedTitle = title.trim();
+        if (!parsedTitle) return;
+
+        void (async () => {
+            await addTask(parsedTitle, {
+                projectId: targetProject.projectId,
+                status: 'next',
+                ...props,
+            });
+            setProjectTaskPrompt(null);
+        })();
     };
 
     const renderCalendarList = (items: CalendarReviewEntry[]) => {
@@ -861,15 +890,7 @@ export function WeeklyReviewGuideModal({ onClose }: WeeklyReviewGuideModalProps)
                 confirmLabel={t('common.add')}
                 cancelLabel={t('common.cancel')}
                 onCancel={() => setProjectTaskPrompt(null)}
-                onConfirm={(value) => {
-                    const trimmed = value.trim();
-                    const targetProject = projectTaskPrompt;
-                    if (!trimmed || !targetProject) return;
-                    void (async () => {
-                        await addTask(trimmed, { projectId: targetProject.projectId, status: 'next' });
-                        setProjectTaskPrompt(null);
-                    })();
-                }}
+                onConfirm={confirmProjectTaskPrompt}
             />
         </div>
     );

@@ -1,6 +1,6 @@
 import { beforeEach, describe, it, expect, vi } from 'vitest';
-import { render, fireEvent } from '@testing-library/react';
-import { useTaskStore, type Task } from '@mindwtr/core';
+import { render, fireEvent, waitFor } from '@testing-library/react';
+import { useTaskStore, type Project, type Task } from '@mindwtr/core';
 import { ReviewView } from './ReviewView';
 import { LanguageProvider } from '../../contexts/language-context';
 import { useUiStore } from '../../store/ui-store';
@@ -18,6 +18,9 @@ vi.mock('../../lib/external-calendar-events', () => ({
     fetchExternalCalendarEvents: vi.fn(() => new Promise(() => {})),
 }));
 
+const initialTaskState = useTaskStore.getState();
+const initialUiState = useUiStore.getState();
+
 describe('ReviewView', () => {
     const nowIso = '2026-04-19T12:00:00.000Z';
     const makeTask = (id: string, overrides: Partial<Task> = {}): Task => ({
@@ -30,8 +33,21 @@ describe('ReviewView', () => {
         updatedAt: nowIso,
         ...overrides,
     });
+    const makeProject = (id: string, overrides: Partial<Project> = {}): Project => ({
+        id,
+        title: `Project ${id}`,
+        status: 'active',
+        color: '#2563eb',
+        order: 0,
+        tagIds: [],
+        createdAt: nowIso,
+        updatedAt: nowIso,
+        ...overrides,
+    });
 
     beforeEach(() => {
+        useTaskStore.setState(initialTaskState, true);
+        useUiStore.setState(initialUiState, true);
         useTaskStore.setState({
             tasks: [],
             _allTasks: [],
@@ -145,5 +161,47 @@ describe('ReviewView', () => {
         expect(queryByText('Process Inbox')).not.toBeInTheDocument();
         fireEvent.click(getByText('Back'));
         expect(getByText('Process Inbox')).toBeInTheDocument();
+    });
+
+    it('parses quick-add date commands when adding a task during project review', async () => {
+        const addTask = vi.fn(async () => ({ success: true }));
+        const project = makeProject('project-1', { title: 'Launch Project' });
+        useTaskStore.setState({
+            projects: [project],
+            _allProjects: [project],
+            settings: {
+                gtd: {
+                    weeklyReview: {
+                        includeContextStep: false,
+                    },
+                },
+            },
+            addTask,
+        });
+
+        const { getByText, getByRole, getByPlaceholderText } = renderWithProviders(<ReviewView />);
+
+        fireEvent.click(getByText('Weekly Review'));
+        fireEvent.click(getByText('Next Step'));
+        fireEvent.click(getByText('Next Step'));
+        fireEvent.click(getByText('Next Step'));
+
+        expect(getByText('Review Projects')).toBeInTheDocument();
+        fireEvent.click(getByRole('button', { name: 'Add Task' }));
+        fireEvent.change(getByPlaceholderText('Add Task'), {
+            target: { value: 'Draft launch plan /due:2026-05-30' },
+        });
+        fireEvent.click(getByRole('button', { name: 'Add' }));
+
+        await waitFor(() => {
+            expect(addTask).toHaveBeenCalledWith(
+                'Draft launch plan',
+                expect.objectContaining({
+                    projectId: 'project-1',
+                    status: 'next',
+                    dueDate: expect.stringContaining('2026-05-30'),
+                }),
+            );
+        });
     });
 });
