@@ -38,6 +38,7 @@ import { useTaskItemProjectContext } from './Task/useTaskItemProjectContext';
 import { useTaskItemFieldLayout } from './Task/useTaskItemFieldLayout';
 import { useTaskItemSubmit } from './Task/useTaskItemSubmit';
 import { dispatchNavigateEvent } from '../lib/navigation-events';
+import { dispatchContextsTokenSelection } from '../lib/contexts-view-state';
 import { reportError } from '../lib/report-error';
 import { resolveNativeDateInputLocale } from '../lib/native-date-input-locale';
 import { useTaskItemStoreState, useTaskItemUiState } from './Task/useTaskItemStoreState';
@@ -703,6 +704,11 @@ export const TaskItem = memo(function TaskItem({
         setSelectedProjectId(projectId);
         dispatchNavigateEvent('projects');
     }, [setHighlightTask, setSelectedProjectId, task.id]);
+    const handleOpenContextToken = useCallback((token: string) => {
+        setHighlightTask(task.id);
+        dispatchContextsTokenSelection(token);
+        dispatchNavigateEvent('contexts');
+    }, [setHighlightTask, task.id]);
     const undoLabel = useMemo(() => tFallback(t, 'common.undo', 'Undo'), [t]);
     const closeProjectNextActionPrompt = useCallback(() => {
         setProjectNextActionPrompt(null);
@@ -1053,6 +1059,7 @@ export const TaskItem = memo(function TaskItem({
         onOpenQuickActions: handleOpenQuickActionButton,
         onMoveToWaitingWithPrompt: handleMoveToWaitingWithPrompt,
         onOpenProject: project ? handleOpenProject : undefined,
+        onOpenContextToken: handleOpenContextToken,
         openAttachment,
         onToggleChecklistItem: handleToggleChecklistItem,
         focusToggle: effectiveFocusToggle,
@@ -1060,6 +1067,7 @@ export const TaskItem = memo(function TaskItem({
         duplicateTask,
         effectiveFocusToggle,
         handleMoveToWaitingWithPrompt,
+        handleOpenContextToken,
         handleOpenProject,
         handleOpenQuickActionButton,
         handleStatusChange,

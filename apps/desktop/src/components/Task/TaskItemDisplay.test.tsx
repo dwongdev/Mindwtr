@@ -255,6 +255,50 @@ describe('TaskItemDisplay', () => {
         expect(getByText('#admin').closest('.metadata-badge')?.parentElement).toHaveClass('flex-wrap', 'min-w-0', 'max-w-full');
     });
 
+    it('opens context and tag metadata tokens from task badges', () => {
+        const onOpenContextToken = vi.fn();
+        const taggedTask: Task = {
+            ...baseTask,
+            contexts: ['@desk'],
+            tags: ['#admin'],
+        };
+
+        const { getByRole } = render(
+            <LanguageProvider>
+                <TaskItemDisplay
+                    task={taggedTask}
+                    language="en"
+                    selectionMode={false}
+                    isViewOpen={false}
+                    actions={{
+                        onToggleView: vi.fn(),
+                        onEdit: vi.fn(),
+                        onDelete: vi.fn(),
+                        onDuplicate: vi.fn(),
+                        onStatusChange: vi.fn(),
+                        onOpenContextToken,
+                        openAttachment: vi.fn(),
+                    }}
+                    visibleAttachments={[]}
+                    recurrenceRule=""
+                    recurrenceStrategy="strict"
+                    prioritiesEnabled={false}
+                    timeEstimatesEnabled={false}
+                    isStagnant={false}
+                    showQuickDone={false}
+                    readOnly={false}
+                    t={(key: string) => key}
+                />
+            </LanguageProvider>
+        );
+
+        fireEvent.click(getByRole('button', { name: 'Filter tasks: @desk' }));
+        fireEvent.keyDown(getByRole('button', { name: 'Filter tasks: #admin' }), { key: 'Enter' });
+
+        expect(onOpenContextToken).toHaveBeenNthCalledWith(1, '@desk');
+        expect(onOpenContextToken).toHaveBeenNthCalledWith(2, '#admin');
+    });
+
     it('keeps the hover hint out of the row text layout', () => {
         const { getByRole, queryByText } = render(
             <LanguageProvider>

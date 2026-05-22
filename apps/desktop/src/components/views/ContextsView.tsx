@@ -31,40 +31,18 @@ import {
 } from './list/useVirtualList';
 import { StoreTaskItem } from './list/StoreTaskItem';
 import { usePersistedViewState } from '../../hooks/usePersistedViewState';
+import {
+    CONTEXTS_VIEW_STATE_STORAGE_KEY,
+    DEFAULT_CONTEXTS_VIEW_STATE,
+    NO_CONTEXT_TOKEN,
+    sanitizeContextsViewState,
+    subscribeContextsTokenSelection,
+} from '../../lib/contexts-view-state';
 
 type BulkTokenPickerState = {
     field: 'tags' | 'contexts';
     action: 'add' | 'remove';
 } | null;
-
-const CONTEXTS_VIEW_STATE_STORAGE_KEY = 'mindwtr:view:contexts:v1';
-const NO_CONTEXT_TOKEN = '__no_context__';
-const CONTEXT_STATUS_VALUES: Array<TaskStatus | 'all'> = ['all', 'inbox', 'next', 'waiting', 'someday', 'reference', 'done'];
-
-type ContextsPersistedViewState = {
-    selectedContext: string | null;
-    statusFilter: TaskStatus | 'all';
-};
-
-const DEFAULT_CONTEXTS_VIEW_STATE: ContextsPersistedViewState = {
-    selectedContext: null,
-    statusFilter: 'all',
-};
-
-function sanitizeContextsViewState(value: unknown, fallback: ContextsPersistedViewState): ContextsPersistedViewState {
-    const parsed = value && typeof value === 'object' && !Array.isArray(value)
-        ? value as Partial<ContextsPersistedViewState>
-        : {};
-    const selectedContext = typeof parsed.selectedContext === 'string' && parsed.selectedContext.trim()
-        ? parsed.selectedContext
-        : null;
-    return {
-        selectedContext,
-        statusFilter: CONTEXT_STATUS_VALUES.includes(parsed.statusFilter as TaskStatus | 'all')
-            ? parsed.statusFilter as TaskStatus | 'all'
-            : fallback.statusFilter,
-    };
-}
 
 export function ContextsView() {
     const perf = usePerformanceMonitor('ContextsView');
@@ -114,6 +92,10 @@ export function ContextsView() {
             statusFilter: value,
         }));
     }, [setPersistedViewState]);
+    useEffect(() => subscribeContextsTokenSelection(({ selectedContext: nextSelectedContext }) => {
+        setSelectedContext(nextSelectedContext);
+        setSearchQuery('');
+    }), [setSelectedContext]);
     const areaById = useMemo(() => new Map(areas.map((area) => [area.id, area])), [areas]);
     const resolvedAreaFilter = useMemo(
         () => resolveAreaFilter(settings?.filters?.areaId, areas),

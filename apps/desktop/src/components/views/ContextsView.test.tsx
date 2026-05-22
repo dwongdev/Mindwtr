@@ -1,9 +1,10 @@
-import { fireEvent, render } from '@testing-library/react';
+import { act, fireEvent, render } from '@testing-library/react';
 import type { Task } from '@mindwtr/core';
 import { useTaskStore } from '@mindwtr/core';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { LanguageProvider } from '../../contexts/language-context';
 import { ContextsView } from './ContextsView';
+import { CONTEXTS_VIEW_STATE_STORAGE_KEY, dispatchContextsTokenSelection } from '../../lib/contexts-view-state';
 
 const initialTaskState = useTaskStore.getState();
 const now = '2026-05-12T12:00:00.000Z';
@@ -84,5 +85,17 @@ describe('ContextsView', () => {
 
         expect(getByRole('heading', { name: '#ERP' })).toBeInTheDocument();
         expect(getByText('Plan launch')).toBeInTheDocument();
+    });
+
+    it('applies task token navigation while the context view is mounted', () => {
+        const { getByRole, getByText } = renderContextsView();
+
+        act(() => {
+            dispatchContextsTokenSelection('#ERP');
+        });
+
+        expect(getByRole('heading', { name: '#ERP' })).toBeInTheDocument();
+        expect(getByText('Plan launch')).toBeInTheDocument();
+        expect(window.localStorage.getItem(CONTEXTS_VIEW_STATE_STORAGE_KEY)).toContain('"selectedContext":"#ERP"');
     });
 });

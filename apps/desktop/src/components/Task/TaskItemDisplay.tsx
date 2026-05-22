@@ -22,6 +22,7 @@ interface TaskItemDisplayActions {
     onOpenQuickActions?: (event: MouseEvent<HTMLButtonElement>) => void;
     onMoveToWaitingWithPrompt?: () => void;
     onOpenProject?: (projectId: string) => void;
+    onOpenContextToken?: (token: string) => void;
     openAttachment: (attachment: Attachment) => void;
     onToggleChecklistItem?: (index: number) => void;
     focusToggle?: {
@@ -119,6 +120,7 @@ export const TaskItemDisplay = memo(function TaskItemDisplay({
         onOpenQuickActions,
         onMoveToWaitingWithPrompt,
         onOpenProject,
+        onOpenContextToken,
         openAttachment,
         onToggleChecklistItem,
         focusToggle,
@@ -176,6 +178,7 @@ export const TaskItemDisplay = memo(function TaskItemDisplay({
         : '';
     const moreOptionsLabel = tFallback(t, 'taskEdit.moreOptions', 'More options');
     const moveToWaitingWithDueLabel = tFallback(t, 'task.moveToWaitingWithDue', 'Move to Waiting and set due date');
+    const openContextFilterLabel = tFallback(t, 'contexts.filter', 'Filter tasks');
     const imageAttachments = visibleAttachments.filter((attachment) => {
         if (!isImageAttachment(attachment)) return false;
         if (!attachment.uri) return false;
@@ -231,6 +234,17 @@ export const TaskItemDisplay = memo(function TaskItemDisplay({
             onOpenProject?.(projectId);
         }
     };
+    const handleTokenClick = (event: MouseEvent<HTMLSpanElement>, token: string) => {
+        event.stopPropagation();
+        onOpenContextToken?.(token);
+    };
+    const handleTokenKeyDown = (event: KeyboardEvent<HTMLSpanElement>, token: string) => {
+        if (event.key === 'Enter' || event.key === ' ') {
+            event.preventDefault();
+            event.stopPropagation();
+            onOpenContextToken?.(token);
+        }
+    };
     const renderProjectBadge = () => {
         if (!project) return null;
         if (!onOpenProject) {
@@ -256,6 +270,54 @@ export const TaskItemDisplay = memo(function TaskItemDisplay({
                     label={project.title}
                     dotColor={projectColor || DEFAULT_AREA_COLOR}
                 />
+            </span>
+        );
+    };
+    const renderContextBadge = (ctx: string) => {
+        const badge = (
+            <MetadataBadge
+                key={ctx}
+                variant="context"
+                label={ctx}
+                dotColor={getContextColor(ctx)}
+            />
+        );
+        if (!onOpenContextToken) return badge;
+        return (
+            <span
+                key={ctx}
+                role="button"
+                tabIndex={0}
+                onClick={(event) => handleTokenClick(event, ctx)}
+                onKeyDown={(event) => handleTokenKeyDown(event, ctx)}
+                className="inline-flex metadata-badge--interactive"
+                aria-label={`${openContextFilterLabel}: ${ctx}`}
+            >
+                {badge}
+            </span>
+        );
+    };
+    const renderTagBadge = (tag: string) => {
+        const badge = (
+            <MetadataBadge
+                key={tag}
+                variant="tag"
+                icon={Tag}
+                label={tag}
+            />
+        );
+        if (!onOpenContextToken) return badge;
+        return (
+            <span
+                key={tag}
+                role="button"
+                tabIndex={0}
+                onClick={(event) => handleTokenClick(event, tag)}
+                onKeyDown={(event) => handleTokenKeyDown(event, tag)}
+                className="inline-flex metadata-badge--interactive"
+                aria-label={`${openContextFilterLabel}: ${tag}`}
+            >
+                {badge}
             </span>
         );
     };
@@ -346,16 +408,12 @@ export const TaskItemDisplay = memo(function TaskItemDisplay({
             )}
             {task.contexts?.length > 0 && (
                 <div className="flex flex-wrap items-center gap-2 min-w-0 max-w-full">
-                    {task.contexts.map((ctx) => (
-                        <MetadataBadge key={ctx} variant="context" label={ctx} dotColor={getContextColor(ctx)} />
-                    ))}
+                    {task.contexts.map((ctx) => renderContextBadge(ctx))}
                 </div>
             )}
             {task.tags.length > 0 && (
                 <div className="flex flex-wrap items-center gap-2 min-w-0 max-w-full">
-                    {task.tags.map((tag) => (
-                        <MetadataBadge key={tag} variant="tag" icon={Tag} label={tag} />
-                    ))}
+                    {task.tags.map((tag) => renderTagBadge(tag))}
                 </div>
             )}
             {checklistProgress && (
