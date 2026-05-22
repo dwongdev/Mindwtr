@@ -26,7 +26,7 @@ vi.mock('lucide-react-native', () => ({
 }));
 
 vi.mock('react-native-gesture-handler', () => ({
-  Swipeable: React.forwardRef(({ children, renderLeftActions, renderRightActions, ...props }: any, ref: any) => {
+  Swipeable: React.forwardRef(function SwipeableMock({ children, renderLeftActions, renderRightActions, ...props }: any, ref: any) {
     React.useImperativeHandle(ref, () => ({ close: () => undefined }));
     return React.createElement(
       'Swipeable',
