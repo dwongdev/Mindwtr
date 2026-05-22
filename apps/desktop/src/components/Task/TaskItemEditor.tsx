@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, type FormEvent, type ReactNode } from 'react';
-import { ChevronDown, ChevronRight, Loader2, Sparkles, Trash2 } from 'lucide-react';
+import { Check, ChevronDown, ChevronRight, Loader2, Sparkles, Trash2 } from 'lucide-react';
 import {
     filterProjectsBySelectedArea,
     resolveAutoTextDirection,
@@ -15,6 +15,7 @@ import { AreaSelector } from '../ui/AreaSelector';
 import { ProjectSelector } from '../ui/ProjectSelector';
 import { SectionSelector } from '../ui/SectionSelector';
 import { TaskInput } from './TaskInput';
+import { cn } from '../../lib/utils';
 
 interface TaskItemEditorProps {
     t: (key: string) => string;
@@ -71,6 +72,8 @@ interface TaskItemEditorProps {
     setEditLocation: (value: string) => void;
     language: string;
     inputContexts: string[];
+    isDoneActionActive?: boolean;
+    onMarkDone?: () => void;
     onDuplicateTask: () => void;
     onDeleteTask?: () => void;
     onCancel: () => void;
@@ -128,6 +131,8 @@ export function TaskItemEditor({
     setEditLocation,
     language,
     inputContexts,
+    isDoneActionActive = false,
+    onMarkDone,
     onDuplicateTask,
     onDeleteTask,
     onCancel,
@@ -188,6 +193,23 @@ export function TaskItemEditor({
         >
             <div className="flex-1 min-h-0 overflow-y-auto pr-1 space-y-3">
                 <div className="flex items-start gap-2">
+                    {onMarkDone && (
+                        <button
+                            type="button"
+                            onClick={onMarkDone}
+                            aria-label={t('status.done')}
+                            aria-pressed={isDoneActionActive}
+                            title={t('status.done')}
+                            className={cn(
+                                'mt-0.5 inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full border transition-colors focus:outline-none focus:ring-2 focus:ring-primary/40',
+                                isDoneActionActive
+                                    ? 'border-emerald-500 bg-emerald-500 text-white shadow-sm'
+                                    : 'border-border bg-muted/30 text-muted-foreground hover:border-emerald-500/50 hover:bg-emerald-500/10 hover:text-emerald-500'
+                            )}
+                        >
+                            <Check className="h-4 w-4" aria-hidden="true" />
+                        </button>
+                    )}
                     <TaskInput
                         autoFocus={autoFocusTitle}
                         value={editTitle}

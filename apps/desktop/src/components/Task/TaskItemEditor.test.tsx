@@ -19,6 +19,7 @@ const translations: Record<string, string> = {
     'common.delete': 'Delete',
     'common.save': 'Save',
     'common.cancel': 'Cancel',
+    'status.done': 'Done',
 };
 
 const t = (key: string) => translations[key] ?? key;
@@ -127,6 +128,22 @@ describe('TaskItemEditor', () => {
         fireEvent.click(getByRole('button', { name: 'Delete' }));
 
         expect(onDeleteTask).toHaveBeenCalledTimes(1);
+    });
+
+    it('calls the title-row done action when provided', () => {
+        const onMarkDone = vi.fn();
+        const { getByRole } = render(
+            <TaskItemEditor
+                {...baseProps}
+                onMarkDone={onMarkDone}
+            />
+        );
+
+        const doneButton = getByRole('button', { name: 'Done' });
+        expect(doneButton).toHaveAttribute('aria-pressed', 'false');
+        fireEvent.click(doneButton);
+
+        expect(onMarkDone).toHaveBeenCalledTimes(1);
     });
 
     it('does not show a delete action without an edit-mode delete handler', () => {

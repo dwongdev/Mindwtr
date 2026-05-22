@@ -782,6 +782,32 @@ export const TaskItem = memo(function TaskItem({
         setWaitingTransitionMode('status-and-due');
         setShowWaitingAssignmentPrompt(true);
     }, []);
+    const handleTaskCompleted = useCallback((previousStatus: TaskStatus) => {
+        if (undoNotificationsEnabled) {
+            showToast(
+                `${task.title} marked Done`,
+                'info',
+                5000,
+                {
+                    label: undoLabel,
+                    onClick: () => {
+                        closeProjectNextActionPrompt();
+                        void moveTask(task.id, previousStatus);
+                    },
+                }
+            );
+        }
+        openProjectNextActionPromptIfNeeded(task.id);
+    }, [
+        closeProjectNextActionPrompt,
+        moveTask,
+        openProjectNextActionPromptIfNeeded,
+        showToast,
+        task.id,
+        task.title,
+        undoLabel,
+        undoNotificationsEnabled,
+    ]);
     const handleStatusChange = useCallback((nextStatus: TaskStatus) => {
         if (nextStatus === 'waiting' && task.status !== 'waiting') {
             setWaitingTransitionMode('status-change');
@@ -795,35 +821,26 @@ export const TaskItem = memo(function TaskItem({
                     throw new Error(result.error || 'Failed to change task status');
                 }
                 if (nextStatus === 'done' && previousStatus !== 'done') {
-                    if (undoNotificationsEnabled) {
-                        showToast(
-                            `${task.title} marked Done`,
-                            'info',
-                            5000,
-                            {
-                                label: undoLabel,
-                                onClick: () => {
-                                    closeProjectNextActionPrompt();
-                                    void moveTask(task.id, previousStatus);
-                                },
-                            }
-                        );
-                    }
-                    openProjectNextActionPromptIfNeeded(task.id);
+                    handleTaskCompleted(previousStatus);
                 }
             })
             .catch((error) => reportError('Failed to change task status', error));
     }, [
-        closeProjectNextActionPrompt,
+        handleTaskCompleted,
         moveTask,
-        openProjectNextActionPromptIfNeeded,
-        showToast,
         task.id,
         task.status,
-        task.title,
-        undoLabel,
-        undoNotificationsEnabled,
     ]);
+    const handleEditorMarkDone = useCallback(() => {
+        if (task.status === 'done' || task.status === 'archived' || task.status === 'reference') return;
+        const previousStatus = task.status;
+        void handleSubmit(undefined, { statusOverride: 'done' })
+            .then((result) => {
+                if (!result?.success) return;
+                handleTaskCompleted(previousStatus);
+            })
+            .catch((error) => reportError('Failed to mark task done from editor', error));
+    }, [handleSubmit, handleTaskCompleted, task.status]);
     const hasPendingEdits = useCallback(() => {
         if (editTitle !== task.title) return true;
         if (editDescription !== (task.description || '')) return true;
@@ -1016,6 +1033,8 @@ export const TaskItem = memo(function TaskItem({
             setEditLocation={setEditLocation}
             language={language}
             inputContexts={allContexts}
+            isDoneActionActive={editStatus === 'done'}
+            onMarkDone={task.status !== 'done' && task.status !== 'archived' && task.status !== 'reference' ? handleEditorMarkDone : undefined}
             onDuplicateTask={() => duplicateTask(task.id, false)}
             onDeleteTask={task.status === 'inbox' ? () => setShowDeleteConfirm(true) : undefined}
             onCancel={handleEditorCancel}

@@ -8,9 +8,11 @@ import {
     type Area,
     type Project,
     type Recurrence,
+    type StoreActionResult,
     type Task,
     type TaskEnergyLevel,
     type TaskPriority,
+    type TaskStatus,
     type TimeEstimate,
 } from '@mindwtr/core';
 
@@ -47,7 +49,11 @@ type UseTaskItemSubmitParams = {
     showToast: (message: string, tone?: 'info' | 'error' | 'success') => void;
     t: (key: string) => string;
     task: Task;
-    updateTask: (id: string, patch: Partial<Task>) => Promise<unknown>;
+    updateTask: (id: string, patch: Partial<Task>) => Promise<StoreActionResult>;
+};
+
+type TaskItemSubmitOptions = {
+    statusOverride?: TaskStatus;
 };
 
 export function useTaskItemSubmit({
@@ -82,8 +88,8 @@ export function useTaskItemSubmit({
     task,
     updateTask,
 }: UseTaskItemSubmitParams) {
-    return useCallback(async (event: React.FormEvent) => {
-        event.preventDefault();
+    return useCallback(async (event?: React.FormEvent, options?: TaskItemSubmitOptions) => {
+        event?.preventDefault();
         const { title: parsedTitle, props: parsedProps, projectTitle, invalidDateCommands } = parseQuickAdd(editTitle, projects, new Date(), areas);
         if (invalidDateCommands && invalidDateCommands.length > 0) {
             showToast(`${t('quickAdd.invalidDateCommand')}: ${invalidDateCommands.join(', ')}`, 'error');
@@ -165,9 +171,9 @@ export function useTaskItemSubmit({
             ? undefined
             : (resolvedProjectId ? undefined : (editAreaId || undefined));
 
-        await updateTask(task.id, {
+        const result = await updateTask(task.id, {
             title: cleanedTitle,
-            status: parsedProps.status || editStatus,
+            status: options?.statusOverride ?? parsedProps.status ?? editStatus,
             dueDate: parsedProps.dueDate || editDueDate || undefined,
             startTime: parsedProps.startTime || editStartTime || undefined,
             projectId: resolvedProjectId,
@@ -186,10 +192,15 @@ export function useTaskItemSubmit({
             reviewAt: parsedProps.reviewAt || editReviewAt || undefined,
             attachments: (editAttachments?.length ?? 0) > 0 ? editAttachments : undefined,
         });
+        if (!result.success) {
+            showToast(result.error || 'Failed to update task', 'error');
+            return result;
+        }
         setIsEditing(false);
         if (editingTaskId === task.id) {
             setEditingTaskId(null);
         }
+        return result;
     }, [
         addProject,
         areas,

@@ -115,6 +115,51 @@ describe('TaskItem', () => {
         expect(queryByRole('button', { name: /^delete$/i })).not.toBeInTheDocument();
     });
 
+    it('marks the task done from the edit title action', async () => {
+        const editableTask: Task = {
+            ...mockTask,
+            id: 'editor-done-task',
+            status: 'next',
+        };
+        act(() => {
+            useTaskStore.setState((state) => ({
+                ...state,
+                tasks: [editableTask],
+                _allTasks: [editableTask],
+                _tasksById: new Map([[editableTask.id, editableTask]]),
+                projects: [],
+                _allProjects: [],
+                _projectsById: new Map(),
+                sections: [],
+                _allSections: [],
+                _sectionsById: new Map(),
+                areas: [],
+                _allAreas: [],
+                _areasById: new Map(),
+            }));
+        });
+        const { getAllByRole, getByDisplayValue } = render(
+            <LanguageProvider>
+                <TaskItem task={editableTask} />
+            </LanguageProvider>
+        );
+
+        await act(async () => {
+            fireEvent.click(getAllByRole('button', { name: /edit/i })[0]);
+        });
+        await waitFor(() => expect(getByDisplayValue('Test Task')).toBeInTheDocument());
+
+        await act(async () => {
+            fireEvent.click(getAllByRole('button', { name: 'Done' })[0]);
+        });
+
+        await waitFor(() => {
+            const updatedTask = useTaskStore.getState()._tasksById.get('editor-done-task');
+            expect(updatedTask?.status).toBe('done');
+            expect(updatedTask?.completedAt).toBeTruthy();
+        });
+    });
+
     it('enters edit mode when task title is double-clicked', () => {
         const { getByRole, getByDisplayValue } = render(
             <LanguageProvider>
