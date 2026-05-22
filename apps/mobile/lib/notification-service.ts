@@ -1,6 +1,8 @@
 import {
   getLocalNotificationPermissionStatus,
+  cancelLocalPomodoroCompletionNotification,
   requestLocalNotificationPermission,
+  scheduleLocalPomodoroCompletionNotification,
   sendLocalMobileNotification,
   setLocalNotificationOpenHandler,
   startLocalMobileNotifications,
@@ -48,4 +50,17 @@ export async function sendMobileImmediateNotification(
   data?: Record<string, string>
 ): Promise<void> {
   await sendLocalMobileNotification(title, message, data);
+}
+
+export async function scheduleMobilePomodoroCompletionNotification(
+  title: string,
+  message: string,
+  fireAt: Date,
+  data?: Record<string, string>
+): Promise<void> {
+  await scheduleLocalPomodoroCompletionNotification(title, message, fireAt, data);
+}
+
+export async function cancelMobilePomodoroCompletionNotification(): Promise<void> {
+  await cancelLocalPomodoroCompletionNotification();
 }

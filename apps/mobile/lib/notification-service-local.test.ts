@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const {
   mockAsyncStorageGetItem,
+  mockAsyncStorageRemoveItem,
   mockAsyncStorageSetItem,
   mockStoreSubscribe,
   mockStoreState,
@@ -19,6 +20,7 @@ const {
   mockPermissionsAndroidRequest,
 } = vi.hoisted(() => ({
   mockAsyncStorageGetItem: vi.fn(),
+  mockAsyncStorageRemoveItem: vi.fn(),
   mockAsyncStorageSetItem: vi.fn(),
   mockStoreSubscribe: vi.fn(() => () => undefined),
   mockStoreState: {
@@ -46,6 +48,7 @@ const {
 vi.mock('@react-native-async-storage/async-storage', () => ({
   default: {
     getItem: mockAsyncStorageGetItem,
+    removeItem: mockAsyncStorageRemoveItem,
     setItem: mockAsyncStorageSetItem,
   },
 }));
@@ -114,6 +117,8 @@ vi.mock('./app-log', () => ({
 
 import {
   __localNotificationTestUtils,
+  cancelLocalPomodoroCompletionNotification,
+  scheduleLocalPomodoroCompletionNotification,
   sendLocalMobileNotification,
   setLocalNotificationOpenHandler,
   startLocalMobileNotifications,
@@ -123,6 +128,7 @@ import {
 describe('notification-service-local', () => {
   beforeEach(() => {
     mockAsyncStorageGetItem.mockReset();
+    mockAsyncStorageRemoveItem.mockReset();
     mockAsyncStorageSetItem.mockReset();
     mockStoreSubscribe.mockClear();
     mockStoreState.settings = {};
@@ -418,5 +424,62 @@ describe('notification-service-local', () => {
       })
     );
     expect(mockAlarmScheduleAlarm).not.toHaveBeenCalled();
+  });
+
+  it('schedules a sound-enabled pomodoro completion alarm', async () => {
+    mockAsyncStorageGetItem.mockResolvedValue(null);
+    const fireAt = new Date('2099-05-22T12:30:00.000Z');
+
+    await scheduleLocalPomodoroCompletionNotification('Pomodoro Focus', 'Take a break.', fireAt, {
+      phase: 'focus-complete',
+    });
+
+    expect(mockAlarmScheduleAlarm).toHaveBeenCalledWith(
+      expect.objectContaining({
+        title: 'Pomodoro Focus',
+        message: 'Take a break.',
+        play_sound: true,
+        schedule_type: 'once',
+        fire_date: fireAt.toISOString(),
+        data: {
+          kind: 'pomodoro',
+          phase: 'focus-complete',
+        },
+      })
+    );
+    expect(mockAsyncStorageSetItem).toHaveBeenCalledWith(
+      'mindwtr:local:pomodoro-alarm:v1',
+      JSON.stringify({ id: 99, fireAtMs: fireAt.getTime() })
+    );
+  });
+
+  it('cancels a pending pomodoro completion alarm', async () => {
+    mockAsyncStorageGetItem.mockImplementation(async (key: string) => (
+      key === 'mindwtr:local:pomodoro-alarm:v1'
+        ? JSON.stringify({ id: 41, fireAtMs: Date.now() + 60_000 })
+        : null
+    ));
+
+    await cancelLocalPomodoroCompletionNotification();
+
+    expect(mockAlarmDeleteAlarm).toHaveBeenCalledWith(41);
+    expect(mockAlarmDeleteRepeatingAlarm).toHaveBeenCalledWith(41);
+    expect(mockAlarmRemoveFiredNotification).toHaveBeenCalledWith(41);
+    expect(mockAsyncStorageRemoveItem).toHaveBeenCalledWith('mindwtr:local:pomodoro-alarm:v1');
+  });
+
+  it('keeps an already fired pomodoro notification visible while clearing its stored alarm', async () => {
+    mockAsyncStorageGetItem.mockImplementation(async (key: string) => (
+      key === 'mindwtr:local:pomodoro-alarm:v1'
+        ? JSON.stringify({ id: 41, fireAtMs: Date.now() - 1000 })
+        : null
+    ));
+
+    await cancelLocalPomodoroCompletionNotification();
+
+    expect(mockAlarmDeleteAlarm).toHaveBeenCalledWith(41);
+    expect(mockAlarmDeleteRepeatingAlarm).toHaveBeenCalledWith(41);
+    expect(mockAlarmRemoveFiredNotification).not.toHaveBeenCalled();
+    expect(mockAsyncStorageRemoveItem).toHaveBeenCalledWith('mindwtr:local:pomodoro-alarm:v1');
   });
 });

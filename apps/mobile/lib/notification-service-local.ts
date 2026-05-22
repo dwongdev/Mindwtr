@@ -59,6 +59,11 @@ type LocalAlarmMapEntry = {
   signature?: string;
 };
 
+type PomodoroAlarmEntry = {
+  id: AlarmId;
+  fireAtMs?: number;
+};
+
 type LocalAlarmMap = Record<string, LocalAlarmMapEntry>;
 
 type LocalAlarmConfig = {
@@ -76,6 +81,7 @@ type NativeEmitterSubscription = {
 };
 
 const LOCAL_ALARM_MAP_KEY = 'mindwtr:local:alarms:v1';
+const LOCAL_POMODORO_ALARM_KEY = 'mindwtr:local:pomodoro-alarm:v1';
 const LOCAL_ALARM_CHANNEL = 'mindwtr_reminders_v2';
 const LOCAL_NOTIFICATION_COLOR = '#3b82f6';
 const LOCAL_SMALL_ICON = 'ic_launcher';
@@ -120,6 +126,40 @@ const logNotificationError = (message: string, error?: unknown) => {
   const extra = error ? { error: error instanceof Error ? error.message : String(error) } : undefined;
   void logWarn(`[Local Notifications] ${message}`, { scope: 'notifications', extra });
 };
+
+async function loadPomodoroAlarmEntry(): Promise<PomodoroAlarmEntry | null> {
+  try {
+    const raw = await AsyncStorage.getItem(LOCAL_POMODORO_ALARM_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as Partial<PomodoroAlarmEntry>;
+    const id = Number(parsed?.id);
+    if (!Number.isFinite(id)) return null;
+    const fireAtMs = Number(parsed?.fireAtMs);
+    return {
+      id: Math.floor(id),
+      ...(Number.isFinite(fireAtMs) ? { fireAtMs } : {}),
+    };
+  } catch (error) {
+    logNotificationError('Failed to load pomodoro alarm', error);
+    return null;
+  }
+}
+
+async function savePomodoroAlarmEntry(entry: PomodoroAlarmEntry): Promise<void> {
+  try {
+    await AsyncStorage.setItem(LOCAL_POMODORO_ALARM_KEY, JSON.stringify(entry));
+  } catch (error) {
+    logNotificationError('Failed to persist pomodoro alarm', error);
+  }
+}
+
+async function clearPomodoroAlarmEntry(): Promise<void> {
+  try {
+    await AsyncStorage.removeItem(LOCAL_POMODORO_ALARM_KEY);
+  } catch (error) {
+    logNotificationError('Failed to clear pomodoro alarm', error);
+  }
+}
 
 function getTaskKey(taskId: string): string {
   return `${LOCAL_TASK_KEY_PREFIX}${taskId}`;
@@ -195,6 +235,7 @@ async function loadAlarmApi(): Promise<AlarmNotificationsApi | null> {
 
 async function clearScheduledAlarms(api: AlarmNotificationsApi | null): Promise<void> {
   await loadAlarmMapIfNeeded();
+  await cancelLocalPomodoroCompletionNotification(api, { removeFired: true });
 
   if (api) {
     for (const entry of alarmMap.values()) {
@@ -778,6 +819,83 @@ export async function sendLocalMobileNotification(
     });
   } catch (error) {
     logNotificationError('Failed to send local mobile notification', error);
+  }
+}
+
+export async function cancelLocalPomodoroCompletionNotification(
+  loadedApi?: AlarmNotificationsApi | null,
+  options: { removeFired?: boolean } = {},
+): Promise<void> {
+  const api = loadedApi ?? await loadAlarmApi();
+  const entry = await loadPomodoroAlarmEntry();
+  if (api && entry) {
+    try {
+      api.deleteAlarm(entry.id);
+      api.deleteRepeatingAlarm(entry.id);
+      const shouldRemoveFired = options.removeFired ?? (!entry.fireAtMs || entry.fireAtMs > Date.now());
+      if (shouldRemoveFired) {
+        api.removeFiredNotification(entry.id);
+      }
+    } catch (error) {
+      logNotificationError('Failed to cancel pomodoro alarm', error);
+    }
+  }
+  await clearPomodoroAlarmEntry();
+}
+
+export async function scheduleLocalPomodoroCompletionNotification(
+  title: string,
+  message: string,
+  fireAt: Date,
+  data?: Record<string, string>,
+): Promise<void> {
+  const trimmedTitle = String(title || '').trim();
+  if (!trimmedTitle) return;
+
+  const fireAtMs = fireAt.getTime();
+  if (!Number.isFinite(fireAtMs)) return;
+
+  const api = await loadAlarmApi();
+  if (!api) return;
+
+  const permission = await requestLocalNotificationPermission();
+  if (!permission.granted) return;
+
+  await cancelLocalPomodoroCompletionNotification(api);
+
+  if (fireAtMs <= Date.now() + 1000) {
+    await sendLocalMobileNotification(trimmedTitle, message, data);
+    return;
+  }
+
+  try {
+    const result = await api.scheduleAlarm({
+      title: trimmedTitle,
+      message: normalizeNotificationMessage(trimmedTitle, message),
+      channel: LOCAL_ALARM_CHANNEL,
+      auto_cancel: true,
+      small_icon: LOCAL_SMALL_ICON,
+      color: LOCAL_NOTIFICATION_COLOR,
+      has_button: false,
+      loop_sound: false,
+      play_sound: true,
+      schedule_type: 'once',
+      use_big_text: true,
+      vibrate: false,
+      fire_date: toAlarmFireDate(api, fireAt),
+      data: {
+        kind: 'pomodoro',
+        ...(data ?? {}),
+      },
+    });
+    const id = Number(result?.id);
+    if (!Number.isFinite(id)) {
+      logNotificationError('Pomodoro alarm returned invalid id');
+      return;
+    }
+    await savePomodoroAlarmEntry({ id: Math.floor(id), fireAtMs });
+  } catch (error) {
+    logNotificationError('Failed to schedule pomodoro alarm', error);
   }
 }
 

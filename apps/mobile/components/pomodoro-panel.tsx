@@ -17,7 +17,10 @@ import {
 
 import { useLanguage } from '../contexts/language-context';
 import { useThemeColors } from '@/hooks/use-theme-colors';
-import { sendMobileImmediateNotification } from '../lib/notification-service';
+import {
+  cancelMobilePomodoroCompletionNotification,
+  scheduleMobilePomodoroCompletionNotification,
+} from '../lib/notification-service';
 import { logWarn } from '../lib/app-log';
 import {
   POMODORO_SESSION_STORAGE_KEY,
@@ -53,7 +56,6 @@ export function PomodoroPanel({
   const [lastEvent, setLastEvent] = useState<PomodoroEvent | null>(null);
   const [isHydratingSession, setIsHydratingSession] = useState(true);
   const [isTaskPickerOpen, setIsTaskPickerOpen] = useState(false);
-  const previousEventRef = useRef<PomodoroEvent | null>(null);
   const hasHydratedRef = useRef(false);
   const persistedRemainingSeconds = timerState.isRunning && phaseEndsAt
     ? createPomodoroState(durations, timerState.phase, timerState.completedFocusSessions).remainingSeconds
@@ -193,17 +195,20 @@ export function PomodoroPanel({
   const timerOnlyLabel = tFallback(t, 'pomodoro.timerOnly', 'Timer only');
   const changeTaskLabel = selectedTask ? tFallback(t, 'common.change', 'Change') : tFallback(t, 'pomodoro.linkTask', 'Link task');
   const taskDoneShortLabel = tFallback(t, 'pomodoro.taskDoneShort', 'Task done');
+  const timerIsRunning = timerState.isRunning;
+  const timerPhase = timerState.phase;
 
   useEffect(() => {
-    const previous = previousEventRef.current;
-    if (lastEvent && lastEvent !== previous && notificationsEnabled) {
-      const message = lastEvent === 'focus-finished' ? focusDoneLabel : breakDoneLabel;
-      void sendMobileImmediateNotification(cardTitle, message, {
-        phase: lastEvent === 'focus-finished' ? 'focus-complete' : 'break-complete',
-      });
+    if (!notificationsEnabled || !timerIsRunning || !phaseEndsAt) {
+      void cancelMobilePomodoroCompletionNotification();
+      return;
     }
-    previousEventRef.current = lastEvent;
-  }, [breakDoneLabel, cardTitle, focusDoneLabel, lastEvent, notificationsEnabled]);
+    const fireAt = new Date(phaseEndsAt);
+    const message = timerPhase === 'focus' ? focusDoneLabel : breakDoneLabel;
+    void scheduleMobilePomodoroCompletionNotification(cardTitle, message, fireAt, {
+      phase: timerPhase === 'focus' ? 'focus-complete' : 'break-complete',
+    });
+  }, [breakDoneLabel, cardTitle, focusDoneLabel, notificationsEnabled, phaseEndsAt, timerIsRunning, timerPhase]);
 
   const handleApplyPreset = (focusMinutes: number, breakMinutes: number) => {
     const nextDurations = { focusMinutes, breakMinutes };

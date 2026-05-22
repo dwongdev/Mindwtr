@@ -17,7 +17,7 @@ import {
 import { Play, Pause, RotateCcw, TimerReset, CheckCircle2 } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { useLanguage } from '../../contexts/language-context';
-import { sendDesktopImmediateNotification } from '../../lib/notification-service';
+import { sendDesktopPomodoroCompletionAlert } from '../../lib/pomodoro-alert';
 
 interface PomodoroPanelProps {
     tasks: Task[];
@@ -138,7 +138,7 @@ export function PomodoroPanel({ tasks }: PomodoroPanelProps) {
         const previous = previousEventRef.current;
         if (lastEvent && lastEvent !== previous && notificationsEnabled) {
             const message = lastEvent === 'focus-finished' ? focusDoneLabel : breakDoneLabel;
-            void sendDesktopImmediateNotification(cardTitle, message);
+            void sendDesktopPomodoroCompletionAlert(cardTitle, message);
         }
         previousEventRef.current = lastEvent;
     }, [breakDoneLabel, cardTitle, focusDoneLabel, lastEvent, notificationsEnabled]);
