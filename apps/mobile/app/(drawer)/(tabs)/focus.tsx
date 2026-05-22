@@ -50,6 +50,7 @@ import { PomodoroPanel } from '@/components/pomodoro-panel';
 import {
   formatFocusTimeEstimateLabel,
   getFocusTokenOptions,
+  groupFocusTasksByContext,
   splitFocusedTasks,
 } from '@/lib/focus-screen-utils';
 import { useMobileAreaFilter } from '@/hooks/use-mobile-area-filter';
@@ -70,6 +71,20 @@ type FocusFilterChip = {
   label: string;
   onPress?: () => void;
   variant?: 'advanced';
+};
+
+type FocusSectionType = 'focus' | 'schedule' | 'next' | 'reviewDue';
+
+type FocusListItem =
+  | { type: 'task'; task: Task; grouped?: boolean }
+  | { type: 'contextHeader'; id: string; title: string; count: number; muted?: boolean };
+
+type FocusSection = {
+  title: string;
+  data: FocusListItem[];
+  totalCount: number;
+  expanded: boolean;
+  type: FocusSectionType;
 };
 
 function filterSelectionStable<T>(current: T[], predicate: (item: T) => boolean): T[] {
@@ -492,45 +507,62 @@ export default function FocusScreen() {
     };
   }, [baseActiveTasks, filteredActiveTasks, prioritiesEnabled, sequentialProjectIds]);
 
-  const sections = useMemo(() => {
-    const nextSections = [];
+  const sections = useMemo<FocusSection[]>(() => {
+    const buildTaskItems = (items: Task[], grouped = false): FocusListItem[] => (
+      items.map((task) => ({ type: 'task' as const, task, grouped }))
+    );
+    const buildGroupedNextItems = (): FocusListItem[] => {
+      if (!expandedSections.next) return [];
+      return groupFocusTasksByContext(nextActions, resolveText('contexts.none', 'No context'))
+        .flatMap((group) => [
+          {
+            type: 'contextHeader' as const,
+            id: group.id,
+            title: group.title,
+            count: group.tasks.length,
+            muted: group.muted,
+          },
+          ...buildTaskItems(group.tasks, true),
+        ]);
+    };
+    const nextSections: FocusSection[] = [];
 
     if (focusedTasks.length > 0) {
       nextSections.push({
         title: t('agenda.todaysFocus') ?? "Today's Focus",
-        data: expandedSections.focus ? focusedTasks : [],
+        data: expandedSections.focus ? buildTaskItems(focusedTasks) : [],
         totalCount: focusedTasks.length,
         expanded: expandedSections.focus,
-        type: 'focus' as const,
+        type: 'focus',
       });
     }
 
     nextSections.push(
       {
         title: t('focus.schedule') ?? 'Today',
-        data: expandedSections.schedule ? schedule : [],
+        data: expandedSections.schedule ? buildTaskItems(schedule) : [],
         totalCount: schedule.length,
         expanded: expandedSections.schedule,
-        type: 'schedule' as const,
+        type: 'schedule',
       },
       {
         title: t('focus.nextActions') ?? t('list.next'),
-        data: expandedSections.next ? nextActions : [],
+        data: buildGroupedNextItems(),
         totalCount: nextActions.length,
         expanded: expandedSections.next,
-        type: 'next' as const,
+        type: 'next',
       },
       {
         title: t('agenda.reviewDue') ?? 'Review Due',
-        data: expandedSections.reviewDue ? reviewDue : [],
+        data: expandedSections.reviewDue ? buildTaskItems(reviewDue) : [],
         totalCount: reviewDue.length,
         expanded: expandedSections.reviewDue,
-        type: 'reviewDue' as const,
+        type: 'reviewDue',
       }
     );
 
     return nextSections;
-  }, [expandedSections.focus, expandedSections.next, expandedSections.reviewDue, expandedSections.schedule, focusedTasks, schedule, nextActions, reviewDue, t]);
+  }, [expandedSections.focus, expandedSections.next, expandedSections.reviewDue, expandedSections.schedule, focusedTasks, schedule, nextActions, reviewDue, resolveText, t]);
   const hasTasks = focusedTasks.length > 0 || schedule.length > 0 || nextActions.length > 0 || reviewDue.length > 0;
   const activeFilterCount = countFilterCriteria(effectiveFilterCriteria);
   const advancedFilterChips = useMemo<FocusFilterChip[]>(() => {
@@ -697,30 +729,66 @@ export default function FocusScreen() {
     );
   }, [resolveText, tc.border, tc.filterBg, tc.onTint, tc.text, tc.tint]);
 
-  const renderItem = ({ item }: { item: Task }) => (
-    <View style={styles.itemWrapper}>
-      <SwipeableTaskItem
-        task={item}
-        isDark={isDark}
-        tc={tc}
-        onPress={() => onEdit(item)}
-        onStatusChange={(status) => { void updateTask(item.id, { status: status as TaskStatus }); }}
-        onDelete={() => { void deleteTask(item.id); }}
-        isHighlighted={item.id === highlightTaskId}
-        showFocusToggle
-        hideStatusBadge
-        onProjectPress={openProjectScreen}
-        onContextPress={openContextsScreen}
-        onTagPress={openContextsScreen}
-      />
-    </View>
-  );
+  const renderItem = ({ item }: { item: FocusListItem }) => {
+    if (item.type === 'contextHeader') {
+      return (
+        <View
+          accessible
+          accessibilityRole="header"
+          accessibilityLabel={`${item.title} ${item.count}`}
+          style={styles.contextGroupHeader}
+        >
+          <View
+            style={[
+              styles.contextGroupDot,
+              { backgroundColor: item.muted ? tc.secondaryText : tc.tint },
+            ]}
+          />
+          <Text
+            style={[
+              styles.contextGroupTitle,
+              { color: item.muted ? tc.secondaryText : tc.text },
+            ]}
+          >
+            {item.title}
+          </Text>
+          <Text style={[styles.contextGroupCount, { color: tc.secondaryText }]}>
+            {item.count}
+          </Text>
+        </View>
+      );
+    }
+
+    return (
+      <View
+        style={[
+          styles.itemWrapper,
+          item.grouped ? [styles.contextGroupTaskWrapper, { borderLeftColor: tc.border }] : null,
+        ]}
+      >
+        <SwipeableTaskItem
+          task={item.task}
+          isDark={isDark}
+          tc={tc}
+          onPress={() => onEdit(item.task)}
+          onStatusChange={(status) => { void updateTask(item.task.id, { status: status as TaskStatus }); }}
+          onDelete={() => { void deleteTask(item.task.id); }}
+          isHighlighted={item.task.id === highlightTaskId}
+          showFocusToggle
+          hideStatusBadge
+          onProjectPress={openProjectScreen}
+          onContextPress={openContextsScreen}
+          onTagPress={openContextsScreen}
+        />
+      </View>
+    );
+  };
 
   return (
     <View style={[styles.container, { backgroundColor: tc.bg }]}>
       <SectionList
         sections={sections}
-        keyExtractor={(item) => item.id}
+        keyExtractor={(item) => item.type === 'task' ? item.task.id : item.id}
         stickySectionHeadersEnabled={false}
         initialNumToRender={FOCUS_LIST_INITIAL_RENDER_COUNT}
         maxToRenderPerBatch={FOCUS_LIST_BATCH_RENDER_COUNT}
@@ -1300,6 +1368,33 @@ const styles = StyleSheet.create({
     flex: 1,
     height: 1,
     borderRadius: 1,
+  },
+  contextGroupHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginTop: 10,
+    marginBottom: 6,
+    paddingHorizontal: 4,
+    paddingTop: 4,
+  },
+  contextGroupDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+  },
+  contextGroupTitle: {
+    fontSize: 17,
+    fontWeight: '800',
+  },
+  contextGroupCount: {
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  contextGroupTaskWrapper: {
+    marginLeft: 13,
+    paddingLeft: 10,
+    borderLeftWidth: 2,
   },
   itemWrapper: {
     marginBottom: 8,

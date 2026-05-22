@@ -1,5 +1,5 @@
 import React from 'react';
-import { Alert, SectionList, TextInput } from 'react-native';
+import { Alert, SectionList, TextInput, View } from 'react-native';
 import { act, create } from 'react-test-renderer';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Task } from '@mindwtr/core';
@@ -294,6 +294,29 @@ describe('FocusScreen', () => {
     expect(nextSectionButton.props.accessibilityState).toEqual({ expanded: false });
     expect(tree.root.findAllByType(SwipeableTaskItem)).toHaveLength(1);
     expect(() => tree.root.findByProps({ children: 'All clear' })).toThrow();
+  });
+
+  it('groups mobile Next Actions under context headers', () => {
+    storeState.tasks = [
+      makeTask('work-next', { title: 'Work next', contexts: ['@work'] }),
+      makeTask('no-context-next', { title: 'No context next' }),
+      makeTask('home-next', { title: 'Home next', contexts: ['@home'] }),
+    ];
+
+    let tree!: ReturnType<typeof create>;
+
+    act(() => {
+      tree = create(<FocusScreen />);
+    });
+
+    expect(
+      tree.root.findAllByType(View)
+        .filter((node) => node.props.accessibilityRole === 'header')
+        .map((node) => node.props.accessibilityLabel),
+    ).toEqual(['No context 1', '@home 1', '@work 1']);
+    expect(
+      tree.root.findAllByType(SwipeableTaskItem).map((node) => node.props.task.id),
+    ).toEqual(['no-context-next', 'home-next', 'work-next']);
   });
 
   it('renders review-due tasks in a dedicated Review Due section and allows collapsing it', () => {

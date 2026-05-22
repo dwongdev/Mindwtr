@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import {
     formatFocusTimeEstimateLabel,
     getFocusTokenOptions,
+    groupFocusTasksByContext,
     NO_PROJECT_FILTER_ID,
     splitFocusedTasks,
     taskMatchesFocusFilters,
@@ -49,6 +50,20 @@ describe('getFocusTokenOptions', () => {
             { contexts: ['@work/calls', '@home'], tags: ['#deep', '#ops'] },
             { contexts: [], tags: [] },
         ] as any)).toEqual(['@home', '@work', '@work/calls', '#deep', '#ops']);
+    });
+});
+
+describe('groupFocusTasksByContext', () => {
+    it('groups tasks under primary context headers and keeps context-less tasks first', () => {
+        const noContext = { id: 'no-context', contexts: [], tags: [] };
+        const work = { id: 'work', contexts: ['@work', '@deep'], tags: [] };
+        const home = { id: 'home', contexts: ['@home'], tags: [] };
+
+        const groups = groupFocusTasksByContext([work, noContext, home] as any, 'No context');
+
+        expect(groups.map((group) => group.title)).toEqual(['No context', '@home', '@work']);
+        expect(groups[0]).toMatchObject({ id: 'context:none', muted: true });
+        expect(groups[2]?.tasks.map((task) => task.id)).toEqual(['work']);
     });
 });
 

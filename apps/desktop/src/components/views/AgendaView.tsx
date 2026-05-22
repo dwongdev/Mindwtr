@@ -1033,25 +1033,29 @@ export function AgendaView() {
                                 >
                                     <div className="space-y-2">
                                         {nextActionGroups.map((group) => (
-                                            <div key={group.id} className="rounded-md border border-border/40 bg-card/30">
-                                                <div className={cn(
-                                                    'border-b border-border/30 px-3 py-2 text-xs font-semibold uppercase tracking-wide',
-                                                    group.muted ? 'text-muted-foreground' : 'text-foreground/90',
-                                                )}>
-                                                    <span className="inline-flex items-center gap-1.5">
+                                            <div key={group.id} className="overflow-hidden rounded-lg border border-border/50 bg-card/40">
+                                                <div className="flex items-center justify-between gap-3 border-b border-border/30 px-4 py-3">
+                                                    <span className={cn(
+                                                        'inline-flex min-w-0 items-center gap-2 text-sm font-semibold',
+                                                        group.muted ? 'text-muted-foreground' : 'text-foreground',
+                                                    )}>
                                                         {group.dotColor && (
-                                                            <span className="h-2 w-2 rounded-full" style={{ backgroundColor: group.dotColor }} aria-hidden="true" />
+                                                            <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: group.dotColor }} aria-hidden="true" />
                                                         )}
-                                                        <span>{group.title}</span>
+                                                        <span className="truncate">{group.title}</span>
                                                     </span>
-                                                    <span className="ml-2 text-muted-foreground">{group.tasks.length}</span>
+                                                    <span className="shrink-0 rounded-full bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">
+                                                        {group.tasks.length}
+                                                    </span>
                                                 </div>
-                                                <AgendaTaskList
-                                                    tasks={group.tasks}
-                                                    buildFocusToggle={buildFocusToggle}
-                                                    showListDetails={showListDetails}
-                                                    highlightTaskId={highlightTaskId}
-                                                />
+                                                <div className="ml-4 border-l border-border/40 pl-3">
+                                                    <AgendaTaskList
+                                                        tasks={group.tasks}
+                                                        buildFocusToggle={buildFocusToggle}
+                                                        showListDetails={showListDetails}
+                                                        highlightTaskId={highlightTaskId}
+                                                    />
+                                                </div>
                                             </div>
                                         ))}
                                     </div>

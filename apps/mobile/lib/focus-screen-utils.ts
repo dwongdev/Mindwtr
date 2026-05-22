@@ -41,6 +41,54 @@ export function getFocusTokenOptions(tasks: Task[]): string[] {
     return getUsedTaskTokens(tasks, (task) => [...(task.contexts ?? []), ...(task.tags ?? [])]);
 }
 
+export type FocusContextTaskGroup = {
+    id: string;
+    title: string;
+    tasks: Task[];
+    muted?: boolean;
+};
+
+export function groupFocusTasksByContext(tasks: Task[], noContextLabel: string): FocusContextTaskGroup[] {
+    const grouped = new Map<string, Task[]>();
+    const noContextTasks: Task[] = [];
+
+    tasks.forEach((task) => {
+        const primaryContext = (task.contexts ?? [])
+            .map((value) => value.trim())
+            .find((value) => value.length > 0);
+        if (!primaryContext) {
+            noContextTasks.push(task);
+            return;
+        }
+
+        const contextTasks = grouped.get(primaryContext) ?? [];
+        contextTasks.push(task);
+        grouped.set(primaryContext, contextTasks);
+    });
+
+    const groups: FocusContextTaskGroup[] = [];
+    if (noContextTasks.length > 0) {
+        groups.push({
+            id: 'context:none',
+            title: noContextLabel,
+            tasks: noContextTasks,
+            muted: true,
+        });
+    }
+
+    [...grouped.keys()]
+        .sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' }))
+        .forEach((context) => {
+            groups.push({
+                id: `context:${context}`,
+                title: context,
+                tasks: grouped.get(context) ?? [],
+            });
+        });
+
+    return groups;
+}
+
 export function taskMatchesFocusFilters(
     task: Pick<Task, 'contexts' | 'tags' | 'projectId' | 'priority' | 'energyLevel' | 'timeEstimate'>,
     filters: FocusTaskFilters,
