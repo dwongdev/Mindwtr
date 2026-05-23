@@ -137,6 +137,7 @@ function countFilterCriteria(criteria: FilterCriteria): number {
     + (criteria.energy?.length ?? 0)
     + (criteria.statuses?.length ?? 0)
     + (criteria.assignedTo?.length ?? 0)
+    + (criteria.locations?.length ?? 0)
     + (criteria.timeEstimates?.length ?? 0)
     + (criteria.dueDateRange ? 1 : 0)
     + (criteria.startDateRange ? 1 : 0)

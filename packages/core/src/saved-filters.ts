@@ -119,6 +119,7 @@ export function normalizeFilterCriteria(value: unknown): FilterCriteria {
     const priority = normalizeEnumArray(value.priority, FILTER_PRIORITY_VALUES);
     const statuses = normalizeEnumArray(value.statuses, TASK_STATUS_VALUES);
     const assignedTo = normalizeStringArray(value.assignedTo);
+    const locations = normalizeStringArray(value.locations);
     const timeEstimates = normalizeEnumArray(value.timeEstimates, TIME_ESTIMATE_VALUES);
 
     if (contexts) criteria.contexts = contexts;
@@ -129,6 +130,7 @@ export function normalizeFilterCriteria(value: unknown): FilterCriteria {
     if (priority) criteria.priority = priority;
     if (statuses) criteria.statuses = statuses;
     if (assignedTo) criteria.assignedTo = assignedTo;
+    if (locations) criteria.locations = locations;
     if (timeEstimates) criteria.timeEstimates = timeEstimates;
 
     const dueDateRange = normalizeDateRange(value.dueDateRange);
@@ -168,6 +170,7 @@ export function hasActiveFilterCriteria(criteria: FilterCriteria | undefined): b
         || normalized.startDateRange
         || normalized.statuses?.length
         || normalized.assignedTo?.length
+        || normalized.locations?.length
         || normalized.timeEstimateRange
         || normalized.timeEstimates?.length
         || normalized.hasDescription !== undefined
@@ -264,6 +267,13 @@ const matchesAssignedTo = (selected: readonly string[] | undefined, assignedTo: 
     return selected.some((item) => item.trim().toLowerCase() === normalized);
 };
 
+const matchesLocation = (selected: readonly string[] | undefined, location: string | undefined): boolean => {
+    if (!selected || selected.length === 0) return true;
+    const normalized = location?.trim().toLowerCase();
+    if (!normalized) return false;
+    return selected.some((item) => normalized.includes(item.trim().toLowerCase()));
+};
+
 const matchesPriority = (selected: readonly FilterPriority[] | undefined, priority: TaskPriority | undefined): boolean => {
     if (!selected || selected.length === 0) return true;
     return selected.some((item) => item === 'none' ? !priority : priority === item);
@@ -315,6 +325,7 @@ export function taskMatchesFilterCriteria(
     if (!matchesDateRange(task.dueDate, normalized.dueDateRange, safeParseDueDate, { now, weekStartsOn })) return false;
     if (!matchesDateRange(task.startTime, normalized.startDateRange, safeParseDate, { now, weekStartsOn })) return false;
     if (!matchesAssignedTo(normalized.assignedTo, task.assignedTo)) return false;
+    if (!matchesLocation(normalized.locations, task.location)) return false;
     if (normalized.timeEstimates?.length && (!task.timeEstimate || !normalized.timeEstimates.includes(task.timeEstimate))) return false;
     if (!matchesTimeEstimateRange(normalized.timeEstimateRange, task.timeEstimate)) return false;
     if (normalized.hasDescription !== undefined) {

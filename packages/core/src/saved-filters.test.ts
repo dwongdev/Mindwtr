@@ -82,6 +82,20 @@ describe('saved filters', () => {
         expect(filtered.map((item) => item.id)).toEqual(['medium']);
     });
 
+    it('matches location criteria by case-insensitive text', () => {
+        const tasks = [
+            task({ id: 'office', location: 'Main Office' }),
+            task({ id: 'home', location: 'Home desk' }),
+            task({ id: 'none' }),
+        ];
+
+        const filtered = applyFilter(tasks, {
+            locations: ['office'],
+        });
+
+        expect(filtered.map((item) => item.id)).toEqual(['office']);
+    });
+
     it('normalizes saved filter payloads for settings sync and storage', () => {
         const filters = normalizeSavedFilters([
             {
@@ -91,6 +105,7 @@ describe('saved filters', () => {
                 criteria: {
                     contexts: ['desk', '@desk'],
                     priority: ['high', 'invalid'],
+                    locations: [' Office ', ''],
                 },
                 createdAt: '2026-05-02T00:00:00.000Z',
                 updatedAt: '2026-05-02T00:00:00.000Z',
@@ -106,6 +121,7 @@ describe('saved filters', () => {
             criteria: {
                 contexts: ['@desk'],
                 priority: ['high'],
+                locations: ['Office'],
             },
             deletedAt: '2026-05-03T00:00:00.000Z',
         });

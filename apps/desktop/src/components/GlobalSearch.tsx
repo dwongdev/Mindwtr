@@ -45,6 +45,7 @@ export function GlobalSearch({ onNavigate }: GlobalSearchProps) {
     const [selectedStatuses, setSelectedStatuses] = useState<TaskStatus[]>([]);
     const [selectedArea, setSelectedArea] = useState<string>('all');
     const [selectedTokens, setSelectedTokens] = useState<string[]>([]);
+    const [locationQuery, setLocationQuery] = useState('');
     const [duePreset, setDuePreset] = useState<DuePreset>('any');
     const [scope, setScope] = useState<GlobalSearchScope>('all');
     const [ftsResults, setFtsResults] = useState<SearchResults | null>(null);
@@ -116,6 +117,7 @@ export function GlobalSearch({ onNavigate }: GlobalSearchProps) {
             setSelectedStatuses([]);
             setSelectedArea('all');
             setSelectedTokens([]);
+            setLocationQuery('');
             setDuePreset('any');
             setScope('all');
         }
@@ -192,6 +194,7 @@ export function GlobalSearch({ onNavigate }: GlobalSearchProps) {
         selectedStatuses,
         selectedArea,
         selectedTokens,
+        locationQuery,
         duePreset,
         scope,
         weekStart: normalizeWeekStartSetting(settings?.weekStart),
@@ -207,6 +210,7 @@ export function GlobalSearch({ onNavigate }: GlobalSearchProps) {
         selectedStatuses,
         selectedArea,
         selectedTokens,
+        locationQuery,
         duePreset,
         scope,
         settings?.weekStart,
@@ -339,6 +343,13 @@ export function GlobalSearch({ onNavigate }: GlobalSearchProps) {
             onRemove: () => toggleToken(token),
         });
     });
+    if (locationQuery.trim()) {
+        activeChips.push({
+            key: 'location',
+            label: `${t('taskEdit.locationLabel') || 'Location'}: ${locationQuery.trim()}`,
+            onRemove: () => setLocationQuery(''),
+        });
+    }
     if (duePreset !== 'any') {
         const labels: Record<string, string> = {
             overdue: 'Overdue',
@@ -534,6 +545,18 @@ export function GlobalSearch({ onNavigate }: GlobalSearchProps) {
                             </div>
                         </div>
                         <div className="space-y-2">
+                            <div className="text-[11px] uppercase tracking-wide text-muted-foreground/80">
+                                {t('taskEdit.locationLabel') || 'Location'}
+                            </div>
+                            <input
+                                type="text"
+                                value={locationQuery}
+                                onChange={(event) => setLocationQuery(event.target.value)}
+                                placeholder={t('taskEdit.locationPlaceholder') || 'e.g. Office'}
+                                className="w-full rounded border border-border bg-muted/40 px-2 py-1.5 text-xs text-foreground placeholder:text-muted-foreground"
+                            />
+                        </div>
+                        <div className="space-y-2">
                             <div className="text-[11px] uppercase tracking-wide text-muted-foreground/80">Contexts & Tags</div>
                             <div className="flex flex-wrap gap-2 max-h-20 overflow-y-auto">
                                 {allTokens.map((token) => (
@@ -599,6 +622,7 @@ export function GlobalSearch({ onNavigate }: GlobalSearchProps) {
                                     setSelectedStatuses([]);
                                     setSelectedArea('all');
                                     setSelectedTokens([]);
+                                    setLocationQuery('');
                                     setDuePreset('any');
                                     setScope('all');
                                     setIncludeCompleted(false);

@@ -231,6 +231,7 @@ export interface FilterCriteria {
     startDateRange?: DateRange;
     statuses?: TaskStatus[];
     assignedTo?: string[];
+    locations?: string[];
     timeEstimateRange?: { min?: number; max?: number };
     timeEstimates?: TimeEstimate[];
     hasDescription?: boolean;

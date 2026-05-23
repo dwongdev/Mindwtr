@@ -246,6 +246,7 @@ export function useTaskEditActions({
             contexts: mergedContexts,
             tags: mergedTags,
         };
+        updates.location = String(updates.location ?? '').trim() || undefined;
         updates.checklist = applyMarkdownChecklistToTask(resolvedDescription, updates.checklist);
         if (parsedProps.status) updates.status = parsedProps.status;
         if (parsedProps.startTime) updates.startTime = parsedProps.startTime;

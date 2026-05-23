@@ -59,6 +59,7 @@ export default function SearchScreen() {
     const [selectedStatuses, setSelectedStatuses] = useState<TaskStatus[]>([]);
     const [selectedArea, setSelectedArea] = useState<'all' | 'none' | string>('all');
     const [selectedTokens, setSelectedTokens] = useState<string[]>([]);
+    const [locationQuery, setLocationQuery] = useState('');
     const [duePreset, setDuePreset] = useState<'any' | 'overdue' | 'today' | 'tomorrow' | 'this_week' | 'next_week' | 'none'>('any');
     const [scope, setScope] = useState<'all' | 'projects' | 'tasks' | 'project_tasks'>('all');
     const inputRef = useRef<TextInput>(null);
@@ -142,6 +143,11 @@ export default function SearchScreen() {
             taskTokens.some((taskToken) => matchesHierarchicalToken(token, taskToken))
         );
     };
+    const normalizedLocationQuery = locationQuery.trim().toLowerCase();
+    const matchesLocation = (task: SearchTaskResult) => {
+        if (!normalizedLocationQuery) return true;
+        return String(task.location ?? '').toLowerCase().includes(normalizedLocationQuery);
+    };
     const now = new Date();
     const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
     const weekStart = getWeekStartsOnIndex(settings?.weekStart);
@@ -182,10 +188,12 @@ export default function SearchScreen() {
         if (scope === 'project_tasks' && !task.projectId) return false;
         if (!matchesTaskArea(task)) return false;
         if (!matchesTokens(task)) return false;
+        if (!matchesLocation(task)) return false;
         if (!matchesDue(task)) return false;
         return true;
     });
     const filteredProjects = projectResults.filter((project) => {
+        if (normalizedLocationQuery) return false;
         if (!includeCompleted && project.status === 'archived') return false;
         if (!matchesArea(project.areaId ?? null)) return false;
         return true;
@@ -298,6 +306,7 @@ export default function SearchScreen() {
         setSelectedStatuses([]);
         setSelectedArea('all');
         setSelectedTokens([]);
+        setLocationQuery('');
         setDuePreset('any');
         setScope('all');
         setIncludeCompleted(false);
@@ -308,6 +317,7 @@ export default function SearchScreen() {
         selectedStatuses.length > 0
         || selectedArea !== 'all'
         || selectedTokens.length > 0
+        || locationQuery.trim().length > 0
         || duePreset !== 'any'
         || scope !== 'all'
         || includeCompleted
@@ -339,6 +349,13 @@ export default function SearchScreen() {
             onPress: () => toggleToken(token),
         });
     });
+    if (locationQuery.trim()) {
+        activeChips.push({
+            key: 'location',
+            label: `${t('taskEdit.locationLabel')}: ${locationQuery.trim()}`,
+            onPress: () => setLocationQuery(''),
+        });
+    }
     if (duePreset !== 'any') {
         activeChips.push({
             key: `due:${duePreset}`,
@@ -503,6 +520,17 @@ export default function SearchScreen() {
                                 renderChip(area.name, selectedArea === area.id, () => setSelectedArea(area.id))
                             )}
                         </View>
+
+                        <Text style={[styles.sectionLabel, { color: tc.secondaryText }]}>
+                            {t('taskEdit.locationLabel') || 'Location'}
+                        </Text>
+                        <TextInput
+                            style={[styles.filterInput, { color: tc.text, borderColor: tc.border, backgroundColor: tc.filterBg }]}
+                            value={locationQuery}
+                            onChangeText={setLocationQuery}
+                            placeholder={t('taskEdit.locationPlaceholder') || 'e.g. Office'}
+                            placeholderTextColor={tc.secondaryText}
+                        />
 
                         <Text style={[styles.sectionLabel, { color: tc.secondaryText }]}>
                             {t('filters.contexts') || 'Contexts & tags'}
@@ -731,6 +759,13 @@ const styles = StyleSheet.create({
     chipText: {
         fontSize: 12,
         fontWeight: '600',
+    },
+    filterInput: {
+        borderWidth: 1,
+        borderRadius: 8,
+        paddingHorizontal: 10,
+        paddingVertical: 8,
+        fontSize: 13,
     },
     listContent: {
         padding: 16,

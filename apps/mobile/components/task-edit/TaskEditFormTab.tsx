@@ -423,6 +423,23 @@ export function TaskEditFormTab({
                                 <React.Fragment key={fieldId}>{renderField(fieldId)}</React.Fragment>
                             ))
                         )}
+                        <View style={styles.formGroup}>
+                            <Text style={[styles.label, { color: tc.secondaryText }]}>{t('taskEdit.locationLabel')}</Text>
+                            <TextInput
+                                style={[styles.input, inputStyle]}
+                                value={String(editedTask.location ?? '')}
+                                onChangeText={(location) => setEditedTask((prev) => ({ ...prev, location }))}
+                                placeholder={t('taskEdit.locationPlaceholder')}
+                                placeholderTextColor={tc.secondaryText}
+                                accessibilityLabel={t('taskEdit.locationLabel')}
+                                accessibilityHint={t('taskEdit.locationPlaceholder')}
+                                onFocus={(event) => {
+                                    if (event.nativeEvent.target) {
+                                        ensureInputVisible(event.nativeEvent.target);
+                                    }
+                                }}
+                            />
+                        </View>
                     </CollapsibleSection>
 
                     <View style={{ height: 100 }} />

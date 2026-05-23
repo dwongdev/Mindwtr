@@ -48,6 +48,7 @@ const compute = (selectedArea: string) => computeGlobalSearchResults({
     selectedStatuses: [],
     selectedArea,
     selectedTokens: [],
+    locationQuery: '',
     duePreset: 'any',
     scope: 'all',
     weekStart: 'sunday',
@@ -88,6 +89,7 @@ describe('computeGlobalSearchResults', () => {
             selectedStatuses: [],
             selectedArea: 'all',
             selectedTokens: [],
+            locationQuery: '',
             duePreset: 'any',
             scope: 'all',
             weekStart: 'sunday',
@@ -101,5 +103,31 @@ describe('computeGlobalSearchResults', () => {
 
         expect(result.isTruncated).toBe(true);
         expect(result.totalResultsLabel).toBe('200+');
+    });
+
+    it('narrows task results by location text', () => {
+        const result = computeGlobalSearchResults({
+            query: 'needle',
+            tasks: [
+                { ...task('task-office', 'Needle office task'), location: 'Main Office' },
+                { ...task('task-home', 'Needle home task'), location: 'Home desk' },
+            ],
+            projects: [
+                project('project-work', 'Needle work project', 'area-work'),
+            ],
+            areas: [{ id: 'area-work' }],
+            includeCompleted: false,
+            includeReference: true,
+            hideFutureTasks: false,
+            selectedStatuses: [],
+            selectedArea: 'all',
+            selectedTokens: [],
+            locationQuery: 'office',
+            duePreset: 'any',
+            scope: 'all',
+            weekStart: 'sunday',
+        });
+
+        expect(result.results.map((item) => item.item.id)).toEqual(['task-office']);
     });
 });

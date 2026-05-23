@@ -10,7 +10,7 @@ export type TaskQueryOptions = {
 
 export type SearchTaskResult = Pick<
     Task,
-    'id' | 'title' | 'status' | 'startTime' | 'dueDate' | 'projectId' | 'areaId' | 'tags' | 'contexts'
+    'id' | 'title' | 'status' | 'startTime' | 'dueDate' | 'projectId' | 'areaId' | 'tags' | 'contexts' | 'location'
 >;
 
 export type SearchProjectResult = Pick<Project, 'id' | 'title' | 'status' | 'areaId'>;

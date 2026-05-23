@@ -240,6 +240,35 @@ describe('search', () => {
         expect(results.map((task) => task.id)).toEqual(['t1']);
     });
 
+    it('matches location text and location field filters', () => {
+        const nowIso = new Date('2025-01-01T00:00:00Z').toISOString();
+        const tasks: Task[] = [
+            {
+                id: 't1',
+                title: 'Prepare slides',
+                status: 'next',
+                location: 'Main Office',
+                tags: [],
+                contexts: [],
+                createdAt: nowIso,
+                updatedAt: nowIso,
+            },
+            {
+                id: 't2',
+                title: 'Review notes',
+                status: 'next',
+                location: 'Home desk',
+                tags: [],
+                contexts: [],
+                createdAt: nowIso,
+                updatedAt: nowIso,
+            },
+        ];
+
+        expect(filterTasksBySearch(tasks, [], 'office').map((task) => task.id)).toEqual(['t1']);
+        expect(filterTasksBySearch(tasks, [], 'location:home').map((task) => task.id)).toEqual(['t2']);
+    });
+
     it('does not build project lookup when query has no project terms', () => {
         const nowIso = new Date('2025-01-01T00:00:00Z').toISOString();
         const tasks: Task[] = [

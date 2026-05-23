@@ -69,6 +69,7 @@ const SEARCH_TASK_SELECT = [
     't.areaId AS areaId',
     't.tags AS tags',
     't.contexts AS contexts',
+    't.location AS location',
 ].join(', ');
 const SEARCH_PROJECT_SELECT = [
     'p.id AS id',
@@ -731,6 +732,7 @@ export class SqliteAdapter {
             areaId: row.areaId as string | undefined,
             tags: toStringArray(fromJson<unknown>(row.tags, [])),
             contexts: toStringArray(fromJson<unknown>(row.contexts, [])),
+            location: row.location as string | undefined,
         };
     }
 

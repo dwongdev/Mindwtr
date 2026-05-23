@@ -26,6 +26,7 @@ type ComputeGlobalSearchResultsInput = {
     selectedStatuses: TaskStatus[];
     selectedArea: string;
     selectedTokens: string[];
+    locationQuery?: string;
     duePreset: DuePreset;
     scope: GlobalSearchScope;
     weekStart: 'sunday' | 'monday' | 'saturday';
@@ -75,6 +76,7 @@ export const computeGlobalSearchResults = ({
     selectedStatuses,
     selectedArea,
     selectedTokens,
+    locationQuery = '',
     duePreset,
     scope,
     weekStart,
@@ -89,6 +91,7 @@ export const computeGlobalSearchResults = ({
         : fallbackResults;
 
     const hasStatusFilter = selectedStatuses.length > 0;
+    const normalizedLocationQuery = locationQuery.trim().toLowerCase();
     const projectById = new Map(projects.map((project) => [project.id, project]));
     const areaById = new Map(areas.map((area) => [area.id, area]));
 
@@ -113,6 +116,10 @@ export const computeGlobalSearchResults = ({
             taskTokens.some((taskToken) => matchesHierarchicalToken(token, taskToken))
         );
     };
+    const matchesLocation = (task: SearchTaskResult) => {
+        if (!normalizedLocationQuery) return true;
+        return String(task.location ?? '').toLowerCase().includes(normalizedLocationQuery);
+    };
 
     const matchesDue = buildDueMatcher(duePreset, getWeekStartsOnIndex(weekStart));
 
@@ -127,11 +134,13 @@ export const computeGlobalSearchResults = ({
         if (scope === 'project_tasks' && !task.projectId) return false;
         if (!matchesTaskArea(task)) return false;
         if (!matchesTokens(task)) return false;
+        if (!matchesLocation(task)) return false;
         if (!matchesDue(task)) return false;
         return true;
     });
 
     const filteredProjects = effectiveResults.projects.filter((project: SearchProjectResult) => {
+        if (normalizedLocationQuery) return false;
         if (!includeCompleted && project.status === 'archived') return false;
         if (!matchesArea(project.areaId ?? null)) return false;
         return true;
