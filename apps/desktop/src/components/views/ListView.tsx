@@ -96,10 +96,7 @@ export const ListView = memo(function ListView({ title, statusFilter }: ListView
     const sortBy = (settings?.taskSortBy ?? 'default') as TaskSortBy;
     const isCompact = settings?.appearance?.density === 'compact';
     const densityMode = isCompact ? 'compact' : 'comfortable';
-    const resolvedAreaFilter = useMemo(
-        () => resolveAreaFilter(settings?.filters?.areaId, areas),
-        [settings?.filters?.areaId, areas],
-    );
+    const resolvedAreaFilter = resolveAreaFilter(settings?.filters?.areaId, areas);
     const [newTaskTitle, setNewTaskTitle] = useState('');
     const listFilters = useUiStore((state) => state.listFilters);
     const setListFilters = useUiStore((state) => state.setListFilters);
@@ -131,14 +128,8 @@ export const ListView = memo(function ListView({ title, statusFilter }: ListView
     const readOnly = statusFilter === 'done';
     const showViewFilterInput = statusFilter !== 'inbox';
     const normalizedSearchQuery = searchQuery.trim().toLowerCase();
-    const activePriorities = useMemo(
-        () => (prioritiesEnabled ? selectedPriorities : EMPTY_PRIORITIES),
-        [prioritiesEnabled, selectedPriorities]
-    );
-    const activeTimeEstimates = useMemo(
-        () => (timeEstimatesEnabled ? selectedTimeEstimates : EMPTY_ESTIMATES),
-        [timeEstimatesEnabled, selectedTimeEstimates]
-    );
+    const activePriorities = prioritiesEnabled ? selectedPriorities : EMPTY_PRIORITIES;
+    const activeTimeEstimates = timeEstimatesEnabled ? selectedTimeEstimates : EMPTY_ESTIMATES;
 
     useEffect(() => {
         if (!perf.enabled) return;
@@ -158,9 +149,7 @@ export const ListView = memo(function ListView({ title, statusFilter }: ListView
         tokenCounts,
         nextCount,
     } = useListViewOptimizations(tasks, baseTasks, statusFilter, perf);
-    const allTokens = useMemo(() => {
-        return Array.from(new Set([...allContexts, ...allTags])).sort();
-    }, [allContexts, allTags]);
+    const allTokens = Array.from(new Set([...allContexts, ...allTags])).sort();
 
     const {
         aiEnabled,
@@ -544,12 +533,9 @@ export const ListView = memo(function ListView({ title, statusFilter }: ListView
         undoNotificationsEnabled,
         viewFilterInputRef,
     });
-    const bulkAreaOptions = useMemo(
-        () => [...areas]
-            .sort((a, b) => a.name.localeCompare(b.name))
-            .map((area) => ({ id: area.id, name: area.name })),
-        [areas]
-    );
+    const bulkAreaOptions = [...areas]
+        .sort((a, b) => a.name.localeCompare(b.name))
+        .map((area) => ({ id: area.id, name: area.name }));
 
     const handleAddTask = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -609,15 +595,13 @@ export const ListView = memo(function ListView({ title, statusFilter }: ListView
         if (estimate.endsWith('hr')) return estimate.replace('hr', 'h');
         return estimate;
     };
-    const filterSummary = useMemo(() => {
-        return [
-            ...(normalizedSearchQuery ? [`${t('common.search')}: ${searchQuery.trim()}`] : []),
-            ...selectedTokens,
-            ...(prioritiesEnabled ? selectedPriorities.map((priority) => t(`priority.${priority}`)) : []),
-            ...(timeEstimatesEnabled ? selectedTimeEstimates.map(formatEstimate) : []),
-            ...(selectedWaitingPerson ? [`${t('process.delegateWhoLabel')}: ${selectedWaitingPerson}`] : []),
-        ];
-    }, [normalizedSearchQuery, prioritiesEnabled, searchQuery, selectedPriorities, selectedTimeEstimates, selectedTokens, selectedWaitingPerson, t, timeEstimatesEnabled]);
+    const filterSummary = [
+        ...(normalizedSearchQuery ? [`${t('common.search')}: ${searchQuery.trim()}`] : []),
+        ...selectedTokens,
+        ...(prioritiesEnabled ? selectedPriorities.map((priority) => t(`priority.${priority}`)) : []),
+        ...(timeEstimatesEnabled ? selectedTimeEstimates.map(formatEstimate) : []),
+        ...(selectedWaitingPerson ? [`${t('process.delegateWhoLabel')}: ${selectedWaitingPerson}`] : []),
+    ];
     const hasFilters = filterSummary.length > 0;
     const filterSummaryLabel = filterSummary.slice(0, 3).join(', ');
     const filterSummarySuffix = filterSummary.length > 3 ? ` +${filterSummary.length - 3}` : '';
@@ -660,7 +644,7 @@ export const ListView = memo(function ListView({ title, statusFilter }: ListView
         }));
     }, []);
 
-    const emptyState = useMemo(() => {
+    const emptyState = (() => {
         switch (statusFilter) {
             case 'inbox':
                 return {
@@ -704,7 +688,7 @@ export const ListView = memo(function ListView({ title, statusFilter }: ListView
                     action: t('nav.addTask') || 'Add task',
                 };
         }
-    }, [resolveText, statusFilter, t]);
+    })();
     const handleToggleDetails = useCallback(() => {
         if (showListDetails) {
             collapseAllTaskDetails();

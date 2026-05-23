@@ -89,10 +89,7 @@ function AgendaTaskList({
     const [containerElement, setContainerElement] = useState<HTMLDivElement | null>(null);
     const [scrollMargin, setScrollMargin] = useState(0);
     // Desktop views scroll inside the shared main content pane, not the window.
-    const scrollElement = useMemo(
-        () => getAgendaScrollElement(containerElement),
-        [containerElement]
-    );
+    const scrollElement = getAgendaScrollElement(containerElement);
     const shouldVirtualize = Boolean(scrollElement) && !highlightTaskId && tasks.length > AGENDA_VIRTUALIZATION_THRESHOLD;
     const rowVirtualizer = useVirtualizer({
         count: shouldVirtualize ? tasks.length : 0,
@@ -232,10 +229,7 @@ export function AgendaView() {
     const activePriorities = prioritiesEnabled ? selectedPriorities : [];
     const activeTimeEstimates = timeEstimatesEnabled ? selectedTimeEstimates : [];
     const areaById = useMemo(() => new Map(areas.map((area) => [area.id, area])), [areas]);
-    const resolvedAreaFilter = useMemo(
-        () => resolveAreaFilter(settings?.filters?.areaId, areas),
-        [settings?.filters?.areaId, areas],
-    );
+    const resolvedAreaFilter = resolveAreaFilter(settings?.filters?.areaId, areas);
 
     useEffect(() => {
         if (!perf.enabled) return;
@@ -289,37 +283,28 @@ export function AgendaView() {
                 dotColor: (project.areaId ? areaById.get(project.areaId)?.color : undefined) || project.color || undefined,
             }));
     }, [activeTasks, areaById, projects]);
-    const showNoProjectOption = useMemo(
-        () => activeTasks.some((task) => !task.projectId),
-        [activeTasks]
-    );
+    const showNoProjectOption = activeTasks.some((task) => !task.projectId);
     const formatEstimate = (estimate: TimeEstimate) => {
         if (estimate.endsWith('min')) return estimate.replace('min', 'm');
         if (estimate.endsWith('hr+')) return estimate.replace('hr+', 'h+');
         if (estimate.endsWith('hr')) return estimate.replace('hr', 'h');
         return estimate;
     };
-    const savedFocusFilters = useMemo(
-        () => (settings?.savedFilters ?? []).filter((filter) => filter.view === 'focus' && !filter.deletedAt),
-        [settings?.savedFilters],
-    );
-    const activeSavedFilter = useMemo(
-        () => savedFocusFilters.find((filter) => filter.id === activeSavedFilterId) ?? null,
-        [activeSavedFilterId, savedFocusFilters],
-    );
-    const currentFilterCriteria = useMemo(() => buildFocusFilterCriteria({
+    const savedFocusFilters = (settings?.savedFilters ?? []).filter((filter) => filter.view === 'focus' && !filter.deletedAt);
+    const activeSavedFilter = savedFocusFilters.find((filter) => filter.id === activeSavedFilterId) ?? null;
+    const currentFilterCriteria = buildFocusFilterCriteria({
         tokens: selectedTokens,
         projects: selectedProjects,
         priorities: activePriorities,
         energyLevels: selectedEnergyLevels,
         timeEstimates: activeTimeEstimates,
-    }), [activePriorities, activeTimeEstimates, selectedEnergyLevels, selectedProjects, selectedTokens]);
+    });
     const rawEffectiveFilterCriteria = activeSavedFilter?.criteria ?? currentFilterCriteria;
-    const effectiveFilterCriteria = useMemo<FilterCriteria>(() => ({
+    const effectiveFilterCriteria: FilterCriteria = {
         ...rawEffectiveFilterCriteria,
         ...(prioritiesEnabled ? {} : { priority: undefined }),
         ...(timeEstimatesEnabled ? {} : { timeEstimates: undefined, timeEstimateRange: undefined }),
-    }), [prioritiesEnabled, rawEffectiveFilterCriteria, timeEstimatesEnabled]);
+    };
     const hasCurrentFilterCriteria = hasActiveFilterCriteria(currentFilterCriteria);
     const hasFilters = hasActiveFilterCriteria(effectiveFilterCriteria);
     const normalizedSearchQuery = searchQuery.trim().toLowerCase();
@@ -432,10 +417,7 @@ export function AgendaView() {
         selectedTokens,
         t,
     ]);
-    const saveFilterDefaultName = useMemo(
-        () => getSavedFilterDefaultName(activeFilterChips, resolveText('savedFilters.defaultName', 'Focus filter')),
-        [activeFilterChips, resolveText],
-    );
+    const saveFilterDefaultName = getSavedFilterDefaultName(activeFilterChips, resolveText('savedFilters.defaultName', 'Focus filter'));
 
     const { filteredActiveTasks, reviewDueCandidates } = useMemo(() => {
         const now = new Date();
@@ -582,10 +564,7 @@ export function AgendaView() {
         return () => window.clearTimeout(timer);
     }, [highlightTaskId, setHighlightTask]);
     // Today's Focus: tasks marked as isFocusedToday.
-    const focusedTasks = useMemo(() =>
-        filteredActiveTasks.filter(t => t.isFocusedToday),
-        [filteredActiveTasks]
-    );
+    const focusedTasks = filteredActiveTasks.filter(t => t.isFocusedToday);
 
     // Categorize tasks
     const sections = useMemo(() => {
@@ -759,7 +738,7 @@ export function AgendaView() {
         || sections.nextActions.length > 0
         || sections.reviewDue.length > 0
         || reviewDueProjects.length > 0;
-    const pomodoroTasks = useMemo(() => {
+    const pomodoroTasks = (() => {
         const ordered = [
             ...focusedTasks,
             ...sections.schedule,
@@ -772,7 +751,7 @@ export function AgendaView() {
             byId.set(task.id, task);
         });
         return Array.from(byId.values());
-    }, [focusedTasks, sections]);
+    })();
     const handleToggleDetails = useCallback(() => {
         if (showListDetails) {
             collapseAllTaskDetails();

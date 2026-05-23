@@ -60,8 +60,8 @@ export function DailyReviewGuideModal({ onClose }: DailyReviewGuideModalProps) {
     const [externalCalendarLoading, setExternalCalendarLoading] = useState(false);
     const [externalCalendarError, setExternalCalendarError] = useState<string | null>(null);
 
-    const today = useMemo(() => new Date(), []);
-    const startOfToday = useMemo(() => new Date(today.getFullYear(), today.getMonth(), today.getDate()), [today]);
+    const [today] = useState(() => new Date());
+    const startOfToday = new Date(today.getFullYear(), today.getMonth(), today.getDate());
     const sortBy = (settings?.taskSortBy ?? 'default') as TaskSortBy;
     const focusTaskLimit = normalizeFocusTaskLimit(settings?.gtd?.focusTaskLimit);
 
@@ -71,38 +71,27 @@ export function DailyReviewGuideModal({ onClose }: DailyReviewGuideModalProps) {
         () => tasks.filter((task) => !task.deletedAt && task.status !== 'reference' && isTaskInActiveProject(task, projectMap)),
         [projectMap, tasks],
     );
-    const inboxTasks = useMemo(
-        () => activeTasks.filter((task) => task.status === 'inbox'),
-        [activeTasks],
-    );
-    const focusedTasks = useMemo(
-        () => activeTasks.filter((task) => task.isFocusedToday && task.status !== 'done'),
-        [activeTasks],
-    );
-    const waitingTasks = useMemo(
-        () => sortTasksBy(activeTasks.filter((task) => task.status === 'waiting'), sortBy),
-        [activeTasks, sortBy],
-    );
+    const inboxTasks = activeTasks.filter((task) => task.status === 'inbox');
+    const focusedTasks = activeTasks.filter((task) => task.isFocusedToday && task.status !== 'done');
+    const waitingTasks = sortTasksBy(activeTasks.filter((task) => task.status === 'waiting'), sortBy);
 
-    const dueTodayTasks = useMemo(() => activeTasks.filter((task) => {
+    const dueTodayTasks = activeTasks.filter((task) => {
         if (task.status === 'done') return false;
         if (!task.dueDate) return false;
         const due = safeParseDueDate(task.dueDate);
         if (!due) return false;
         return isSameDay(due, today);
-    }), [activeTasks, today]);
+    });
 
-    const overdueTasks = useMemo(() => activeTasks.filter((task) => {
+    const overdueTasks = activeTasks.filter((task) => {
         if (task.status === 'done') return false;
         if (!task.dueDate) return false;
         const due = safeParseDueDate(task.dueDate);
         if (!due) return false;
         return due < startOfToday;
-    }), [activeTasks, startOfToday]);
+    });
 
-    const allContexts = useMemo(() => {
-        return getUsedTaskTokens(activeTasks, (task) => task.contexts, { prefix: '@' });
-    }, [activeTasks]);
+    const allContexts = getUsedTaskTokens(activeTasks, (task) => task.contexts, { prefix: '@' });
 
     const sequentialProjectIds = useMemo(
         () => new Set(projects.filter((project) => project.isSequential && !project.deletedAt).map((project) => project.id)),
@@ -240,16 +229,13 @@ export function DailyReviewGuideModal({ onClose }: DailyReviewGuideModalProps) {
             });
     }, [externalCalendarEvents]);
 
-    const tomorrow = useMemo(() => {
-        const d = new Date(today);
-        d.setDate(d.getDate() + 1);
-        return d;
-    }, [today]);
-    const todayCalendarEvents = useMemo(() => getEventsForDay(today), [getEventsForDay, today]);
-    const tomorrowCalendarEvents = useMemo(() => getEventsForDay(tomorrow), [getEventsForDay, tomorrow]);
+    const tomorrow = new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    const todayCalendarEvents = getEventsForDay(today);
+    const tomorrowCalendarEvents = getEventsForDay(tomorrow);
 
     const includeFocusStep = settings?.gtd?.dailyReview?.includeFocusStep !== false;
-    const steps: { id: DailyReviewStep; title: string; description: string; icon: LucideIcon }[] = useMemo(() => {
+    const steps: { id: DailyReviewStep; title: string; description: string; icon: LucideIcon }[] = (() => {
         const visibleSteps: { id: DailyReviewStep; title: string; description: string; icon: LucideIcon }[] = [
             { id: 'today', title: t('dailyReview.todayStep'), description: t('dailyReview.todayDesc'), icon: Calendar },
         ];
@@ -264,7 +250,7 @@ export function DailyReviewGuideModal({ onClose }: DailyReviewGuideModalProps) {
             { id: 'completed', title: t('dailyReview.completeTitle'), description: t('dailyReview.completeDesc'), icon: Check },
         );
         return visibleSteps;
-    }, [inboxTasks.length, includeFocusStep, t]);
+    })();
 
     useEffect(() => {
         if (!steps.some((step) => step.id === currentStep)) {

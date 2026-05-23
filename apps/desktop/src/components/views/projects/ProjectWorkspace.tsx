@@ -647,7 +647,7 @@ export function ProjectWorkspace({
     );
 
     const visibleAttachments = (selectedProject?.attachments || []).filter((attachment) => !attachment.deletedAt);
-    const projectProgress = useMemo(() => {
+    const projectProgress = (() => {
         if (!selectedProjectId) return null;
         if (isArchivedProject) {
             const completedCount = projectAllTasks.filter((task) => task.status === 'done' || task.status === 'archived').length;
@@ -665,7 +665,7 @@ export function ProjectWorkspace({
             remainingCount,
             total: doneCount + remainingCount,
         };
-    }, [isArchivedProject, projectAllTasks, projectTasks, selectedProjectId]);
+    })();
 
     const handleCommitProjectTitle = () => {
         if (!selectedProject) return;
@@ -769,10 +769,10 @@ export function ProjectWorkspace({
         resolveValidationMessage,
     });
 
-    const selectedProjectAreaLabel = useMemo(() => {
+    const selectedProjectAreaLabel = (() => {
         if (!selectedProject?.areaId) return undefined;
         return areaById.get(selectedProject.areaId)?.name;
-    }, [areaById, selectedProject?.areaId]);
+    })();
 
     const handleAddTaskForProject = useCallback(
         async (value: string, sectionId?: string | null) => {
