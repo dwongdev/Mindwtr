@@ -4,6 +4,7 @@ import {
     assertNoPendingAttachmentUploads,
     computeSyncPayloadFingerprint,
     findPendingAttachmentUploads,
+    hasPendingSyncSideEffects,
     normalizeCloudUrl,
     sanitizeAppDataForRemote,
 } from './sync-helpers';
@@ -106,6 +107,32 @@ describe('sync-helpers pending attachment uploads', () => {
         expect(() => assertNoPendingAttachmentUploads(data)).toThrow(
             'Attachment upload incomplete: 2 file attachment(s) are still pending upload'
         );
+    });
+});
+
+describe('sync-helpers pending sync side effects', () => {
+    it('stays false for clean sync data', () => {
+        expect(hasPendingSyncSideEffects(createData([]))).toBe(false);
+    });
+
+    it('detects pending remote writes, uploads, and remote deletes', () => {
+        const pendingWrite = createData([]);
+        pendingWrite.settings.pendingRemoteWriteAt = now;
+        expect(hasPendingSyncSideEffects(pendingWrite)).toBe(true);
+
+        expect(hasPendingSyncSideEffects(createData([fileAttachment()]))).toBe(true);
+
+        const pendingDelete = createData([]);
+        pendingDelete.settings.attachments = {
+            pendingRemoteDeletes: [{
+                attachmentId: 'att-1',
+                cloudKey: 'attachments/att-1.jpg',
+                queuedAt: now,
+                ownerType: 'task',
+                ownerId: 'task-1',
+            }],
+        };
+        expect(hasPendingSyncSideEffects(pendingDelete)).toBe(true);
     });
 });
 

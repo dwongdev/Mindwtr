@@ -102,6 +102,12 @@ export const assertNoPendingAttachmentUploads = (data: AppData): void => {
     );
 };
 
+export const hasPendingSyncSideEffects = (data: AppData): boolean => (
+    Boolean(data.settings.pendingRemoteWriteAt)
+    || findPendingAttachmentUploads(data).length > 0
+    || Boolean(data.settings.attachments?.pendingRemoteDeletes?.length)
+);
+
 export const sanitizeAppDataForRemote = (data: AppData): AppData => {
     const hasNonEmptyValue = (value: unknown): boolean => (
         typeof value === 'string' && value.trim().length > 0

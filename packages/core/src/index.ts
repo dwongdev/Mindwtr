@@ -118,6 +118,7 @@ export {
     computeSyncPayloadFingerprint,
     filterNotDeleted,
     findPendingAttachmentUploads,
+    hasPendingSyncSideEffects,
     injectExternalCalendars,
     normalizeCloudUrl,
     normalizeWebdavUrl,

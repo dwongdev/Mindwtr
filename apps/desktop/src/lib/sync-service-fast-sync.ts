@@ -1,14 +1,14 @@
 import {
     computeStableValueFingerprint,
-    findPendingAttachmentUploads,
     normalizeCloudUrl,
     normalizeWebdavUrl,
-    type AppData,
     type CloudProvider,
 } from '@mindwtr/core';
 
 import type { CloudConfig, WebDavConfig } from './sync-attachment-backends';
 import type { SyncBackend } from './sync-service-utils';
+
+export { hasPendingSyncSideEffects } from '@mindwtr/core';
 
 const FAST_SYNC_STATE_KEY = 'mindwtr-fast-sync-state-v1';
 
@@ -92,10 +92,4 @@ export function buildFastSyncScope(context: FastSyncScopeContext): string | null
         });
     }
     return null;
-}
-
-export function hasPendingSyncSideEffects(data: AppData): boolean {
-    return Boolean(data.settings.pendingRemoteWriteAt)
-        || findPendingAttachmentUploads(data).length > 0
-        || Boolean(data.settings.attachments?.pendingRemoteDeletes?.length);
 }
