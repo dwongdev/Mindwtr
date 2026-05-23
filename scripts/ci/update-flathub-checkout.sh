@@ -121,6 +121,7 @@ def ensure_finish_arg(value: str, after=None) -> None:
     lines.insert(insert_index, formatted)
 
 ensure_finish_arg('--socket=pulseaudio', after='--socket=wayland')
+ensure_finish_arg('--talk-name=org.freedesktop.Notifications', after='--share=network')
 
 env_line_index = next((index for index, line in enumerate(lines) if line.strip() == 'env:'), None)
 if env_line_index is None:

@@ -22,6 +22,7 @@ type TauriNotificationApi = {
 let tauriNotificationApi: TauriNotificationApi | null = null;
 
 const CHECK_INTERVAL_MS = 15_000;
+type TaskReminderKind = 'start' | 'due' | 'review' | 'task';
 
 function getCurrentLanguage(): Language {
     if (typeof localStorage === 'undefined') return 'en';
@@ -33,6 +34,41 @@ function localDateKey(date: Date): string {
     const month = String(date.getMonth() + 1).padStart(2, '0');
     const day = String(date.getDate()).padStart(2, '0');
     return `${year}-${month}-${day}`;
+}
+
+function isSameScheduleTime(left: Date | null, right: Date | null): boolean {
+    if (!left || !right) return false;
+    return Math.abs(left.getTime() - right.getTime()) < 1_000;
+}
+
+export function resolveDesktopTaskReminderKind(task: Task, scheduledAt: Date): TaskReminderKind {
+    const start = hasTimeComponent(task.startTime) ? safeParseDate(task.startTime) : null;
+    if (isSameScheduleTime(scheduledAt, start)) return 'start';
+
+    const due = hasTimeComponent(task.dueDate) ? safeParseDate(task.dueDate) : null;
+    if (isSameScheduleTime(scheduledAt, due)) return 'due';
+
+    const review = hasTimeComponent(task.reviewAt) ? safeParseDate(task.reviewAt) : null;
+    if (isSameScheduleTime(scheduledAt, review)) return 'review';
+
+    return 'task';
+}
+
+export function buildDesktopTaskNotificationBody(
+    task: Task,
+    scheduledAt: Date,
+    translations: Record<string, string>
+): string | undefined {
+    const kind = resolveDesktopTaskReminderKind(task, scheduledAt);
+    const reminderLabel = kind === 'start'
+        ? (translations['settings.startDateNotifications'] ?? 'Start date reminder')
+        : kind === 'due'
+            ? (translations['settings.dueDateNotifications'] ?? 'Due date reminder')
+            : kind === 'review'
+                ? (translations['settings.reviewAtNotifications'] ?? 'Review date reminder')
+                : (translations['settings.notifications'] ?? 'Task reminder');
+    const description = stripMarkdown(task.description || '').trim();
+    return description ? `${reminderLabel}\n${description}` : reminderLabel;
 }
 
 async function loadTauriNotificationApi(): Promise<TauriNotificationApi | null> {
@@ -110,6 +146,11 @@ function checkDueAndNotify() {
 
     if (settings.notificationsEnabled === false) return;
 
+    const dateKey = localDateKey(now);
+    const lang = getCurrentLanguage();
+    void loadTranslations(lang);
+    const tr = getTranslationsSync(lang);
+
     const includeStartTime = settings.startDateNotificationsEnabled !== false;
     const includeDueDate = settings.dueDateNotificationsEnabled !== false;
     const includeReviewAt = settings.reviewAtNotificationsEnabled !== false;
@@ -122,14 +163,9 @@ function checkDueAndNotify() {
         const key = next.toISOString();
         if (notifiedAtByTask.get(task.id) === key) return;
 
-        sendNotification(task.title, stripMarkdown(task.description || '') || undefined);
+        sendNotification(task.title, buildDesktopTaskNotificationBody(task, next, tr));
         notifiedAtByTask.set(task.id, key);
     });
-
-    const dateKey = localDateKey(now);
-    const lang = getCurrentLanguage();
-    void loadTranslations(lang);
-    const tr = getTranslationsSync(lang);
 
     if (includeReviewAt) {
         projects.forEach((project) => {
