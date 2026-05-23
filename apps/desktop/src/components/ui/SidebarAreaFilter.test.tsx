@@ -55,4 +55,24 @@ describe('SidebarAreaFilter', () => {
 
         expect(onChange).toHaveBeenCalledWith(AREA_FILTER_NONE);
     });
+
+    it('opens from the collapsed sidebar trigger', () => {
+        const onChange = vi.fn();
+        const { getByRole } = render(
+            <SidebarAreaFilter
+                areas={areas}
+                value="a1"
+                onChange={onChange}
+                ariaLabel="Area filter"
+                allAreasLabel="All areas"
+                noAreaLabel="No area"
+                collapsed
+            />,
+        );
+
+        fireEvent.click(getByRole('button', { name: 'Area filter: Work' }));
+        fireEvent.click(within(getByRole('listbox', { name: 'Area filter' })).getByText('Home'));
+
+        expect(onChange).toHaveBeenCalledWith('a2');
+    });
 });

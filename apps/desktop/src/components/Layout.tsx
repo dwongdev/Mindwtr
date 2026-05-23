@@ -582,18 +582,17 @@ export function Layout({ children, currentView, onViewChange }: LayoutProps) {
                 </div>
 
                 <div className="mt-auto border-t border-border/60 px-3 pb-3 pt-3">
-                    {!isCollapsed && (
-                        <div className="pb-3">
-                            <SidebarAreaFilter
-                                areas={sortedAreas}
-                                value={resolvedAreaFilter}
-                                onChange={handleAreaFilterChange}
-                                ariaLabel={t('projects.areaFilter')}
-                                allAreasLabel={t('projects.allAreas')}
-                                noAreaLabel={t('projects.noArea')}
-                            />
-                        </div>
-                    )}
+                    <div className={cn("pb-3", isCollapsed && "flex justify-center")}>
+                        <SidebarAreaFilter
+                            areas={sortedAreas}
+                            value={resolvedAreaFilter}
+                            onChange={handleAreaFilterChange}
+                            ariaLabel={t('projects.areaFilter')}
+                            allAreasLabel={t('projects.allAreas')}
+                            noAreaLabel={t('projects.noArea')}
+                            collapsed={isCollapsed}
+                        />
+                    </div>
                     <div className={cn(!isCollapsed && "border-t border-border/50 pt-3")}>
                         <button
                             onClick={() => onViewChange('settings')}

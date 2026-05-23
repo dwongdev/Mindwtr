@@ -143,6 +143,31 @@ describe('Layout sync conflict surface', () => {
     });
 });
 
+describe('Layout collapsed sidebar area filter', () => {
+    it('keeps the area filter available when the sidebar is collapsed', () => {
+        act(() => {
+            useTaskStore.setState((state) => ({
+                ...state,
+                areas: [
+                    { id: 'area-work', name: 'Work', color: '#3b82f6', order: 0, createdAt: '', updatedAt: '' },
+                ],
+                settings: {
+                    ...state.settings,
+                    sidebarCollapsed: true,
+                    filters: {
+                        ...(state.settings?.filters ?? {}),
+                        areaId: 'area-work',
+                    },
+                },
+            }));
+        });
+
+        const { getByRole } = renderLayout();
+
+        expect(getByRole('button', { name: 'Area filter: Work' })).toBeInTheDocument();
+    });
+});
+
 describe('Layout sync security warning', () => {
     it('shows a cleartext HTTP banner for WebDAV sync', async () => {
         const backendSpy = vi.spyOn(SyncService, 'getSyncBackend').mockResolvedValue('webdav');
