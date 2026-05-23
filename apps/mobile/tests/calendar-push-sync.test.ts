@@ -45,6 +45,7 @@ const {
     mockGetCalendarsAsync: vi.fn(async () => [] as Array<{
         id: string;
         title?: string;
+        name?: string;
         ownerAccount?: string;
         accessLevel?: string;
         allowsModifications?: boolean;
@@ -150,6 +151,7 @@ vi.mock('@/lib/app-log', () => ({
 // ---------------------------------------------------------------------------
 
 import {
+    deleteMindwtrCalendar,
     ensureMindwtrCalendar,
     getCalendarPushTargetCalendars,
     runFullCalendarSync,
@@ -418,6 +420,68 @@ describe('getCalendarPushTargetCalendars', () => {
                 isLocalOnly: true,
             }),
         ]);
+    });
+});
+
+describe('deleteMindwtrCalendar', () => {
+    it('removes app-created Mindwtr calendars even when the stored calendar id was lost', async () => {
+        mockGetItem
+            .mockResolvedValueOnce(null) // stored calendar id after reinstall
+            .mockResolvedValueOnce(null); // selected target id
+        mockGetCalendarsAsync.mockResolvedValue([
+            {
+                id: 'old-app-calendar',
+                title: 'Mindwtr',
+                name: 'mindwtr',
+                accessLevel: 'owner',
+                allowsModifications: true,
+            },
+            {
+                id: 'user-calendar',
+                title: 'Mindwtr',
+                accessLevel: 'owner',
+                allowsModifications: true,
+            },
+            {
+                id: 'other',
+                title: 'Personal',
+                accessLevel: 'owner',
+                allowsModifications: true,
+            },
+        ]);
+
+        await deleteMindwtrCalendar();
+
+        expect(mockDeleteCalendarAsync).toHaveBeenCalledWith('old-app-calendar');
+        expect(mockDeleteCalendarAsync).not.toHaveBeenCalledWith('user-calendar');
+        expect(mockDeleteCalendarAsync).not.toHaveBeenCalledWith('other');
+        expect(mockRemoveItem).toHaveBeenCalledWith('mindwtr:calendar-push-sync:calendar-id');
+    });
+
+    it('clears the selected target and sync rows for deleted Mindwtr calendars', async () => {
+        mockGetItem
+            .mockResolvedValueOnce('stored-calendar')
+            .mockResolvedValueOnce('stored-calendar');
+        mockGetCalendarsAsync.mockResolvedValue([
+            {
+                id: 'stored-calendar',
+                title: 'Mindwtr',
+                name: 'mindwtr',
+                accessLevel: 'owner',
+                allowsModifications: true,
+            },
+        ]);
+        mockGetAllCalendarSyncEntries.mockResolvedValue([
+            { taskId: 'task-1', calendarEventId: 'evt-1', calendarId: 'stored-calendar', platform: 'ios', lastSyncedAt: '' },
+            { taskId: 'task-2', calendarEventId: 'evt-2', calendarId: 'other', platform: 'ios', lastSyncedAt: '' },
+        ]);
+
+        await deleteMindwtrCalendar();
+
+        expect(mockDeleteCalendarAsync).toHaveBeenCalledWith('stored-calendar');
+        expect(mockRemoveItem).toHaveBeenCalledWith('mindwtr:calendar-push-sync:target-calendar-id');
+        expect(mockDeleteCalendarSyncEntry).toHaveBeenCalledWith('task-1', 'ios');
+        expect(mockDeleteCalendarSyncEntry).not.toHaveBeenCalledWith('task-2', 'ios');
     });
 });
 

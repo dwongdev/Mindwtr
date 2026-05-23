@@ -182,6 +182,12 @@ function isStoredMindwtrManagedCalendar(calendar: Calendar.Calendar, storedCalen
     return Boolean(storedCalendarId && calendar.id === storedCalendarId);
 }
 
+function isAppCreatedMindwtrCalendar(calendar: Calendar.Calendar): boolean {
+    const title = getCalendarDisplayName(calendar).trim().toLowerCase();
+    const name = typeof calendar.name === 'string' ? calendar.name.trim().toLowerCase() : '';
+    return title === MANAGED_CALENDAR_TITLE.toLowerCase() && name === MANAGED_CALENDAR_NAME;
+}
+
 export const getCalendarPushTargetCalendars = async (): Promise<CalendarPushTargetCalendar[]> => {
     try {
         const [storedCalendarId, calendars] = await Promise.all([
@@ -354,18 +360,71 @@ async function resolveCalendarPushTarget(): Promise<CalendarPushTarget | null> {
  */
 export const deleteMindwtrCalendar = async (): Promise<void> => {
     const storedId = await getStoredCalendarId();
-    if (!storedId) return;
     const selectedTargetId = await getCalendarPushTargetCalendarId();
+    const calendarIdsToDelete = new Set<string>();
+    if (storedId) {
+        calendarIdsToDelete.add(storedId);
+    }
+
     try {
-        await Calendar.deleteCalendarAsync(storedId);
+        const calendars = await Calendar.getCalendarsAsync(Calendar.EntityTypes.EVENT);
+        calendars.forEach((calendar) => {
+            if (isAppCreatedMindwtrCalendar(calendar)) {
+                calendarIdsToDelete.add(calendar.id);
+            }
+        });
+    } catch (error) {
+        void logWarn('Failed to inspect calendars before deleting Mindwtr calendar', {
+            scope: 'calendar-push',
+            extra: { error: String(error) },
+        });
+    }
+
+    if (calendarIdsToDelete.size === 0) {
+        await AsyncStorage.removeItem(CALENDAR_ID_KEY);
+        if (selectedTargetId) {
+            const targets = await getCalendarPushTargetCalendars();
+            if (!targets.some((target) => target.id === selectedTargetId)) {
+                await setCalendarPushTargetCalendarId(null);
+            }
+        }
+        void logInfo('Deleted Mindwtr calendar', {
+            scope: 'calendar-push',
+            extra: { deletedCalendars: '0' },
+        });
+        return;
+    }
+
+    try {
+        await Promise.allSettled(
+            Array.from(calendarIdsToDelete).map((calendarId) => Calendar.deleteCalendarAsync(calendarId))
+        );
     } catch {
         // Already deleted or not found — ignore
     }
+
     await AsyncStorage.removeItem(CALENDAR_ID_KEY);
-    if (selectedTargetId === storedId) {
+    if (selectedTargetId && calendarIdsToDelete.has(selectedTargetId)) {
         await setCalendarPushTargetCalendarId(null);
     }
-    void logInfo('Deleted Mindwtr calendar', { scope: 'calendar-push' });
+
+    try {
+        const syncedEntries = await getAllCalendarSyncEntries(PLATFORM);
+        const deletedEntries = syncedEntries.filter((entry) => calendarIdsToDelete.has(entry.calendarId));
+        await Promise.allSettled(
+            deletedEntries.map((entry) => deleteCalendarSyncEntry(entry.taskId, PLATFORM))
+        );
+    } catch (error) {
+        void logWarn('Failed to clear deleted Mindwtr calendar sync entries', {
+            scope: 'calendar-push',
+            extra: { error: String(error) },
+        });
+    }
+
+    void logInfo('Deleted Mindwtr calendar', {
+        scope: 'calendar-push',
+        extra: { deletedCalendars: String(calendarIdsToDelete.size) },
+    });
 };
 
 // MARK: - Per-task sync
