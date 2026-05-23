@@ -4,6 +4,7 @@ import {
     shallow,
     useTaskStore,
     Task,
+    Project,
     generateUUID,
     SavedSearch,
     SearchProjectResult,
@@ -12,6 +13,10 @@ import {
     getStorageAdapter,
     normalizeWeekStartSetting,
     TaskStatus,
+    AREA_FILTER_ALL,
+    resolveAreaFilter,
+    taskMatchesAreaFilter,
+    projectMatchesAreaFilter,
 } from '@mindwtr/core';
 import { useLanguage } from '../contexts/language-context';
 import { cn } from '../lib/utils';
@@ -61,7 +66,14 @@ export function GlobalSearch({ onNavigate }: GlobalSearchProps) {
         shallow
     );
     const { allContexts, allTags } = getDerivedState();
+    const areaById = useMemo(() => new Map(areas.map((area) => [area.id, area])), [areas]);
+    const projectMap = useMemo(() => new Map(projects.map((project) => [project.id, project])), [projects]);
+    const activeAreaFilter = useMemo(
+        () => resolveAreaFilter(settings?.filters?.areaId, areas),
+        [settings?.filters?.areaId, areas]
+    );
     const setProjectView = useUiStore((state) => state.setProjectView);
+    const showToast = useUiStore((state) => state.showToast);
     const { t } = useLanguage();
 
     // Toggle search with Cmd+K / Ctrl+K
@@ -248,6 +260,16 @@ export function GlobalSearch({ onNavigate }: GlobalSearchProps) {
 
     const handleSelect = (result: { type: 'project'; item: SearchProjectResult } | { type: 'task'; item: SearchTaskResult }) => {
         setIsOpen(false);
+        const shouldSwitchToAllAreas = activeAreaFilter !== AREA_FILTER_ALL && (
+            result.type === 'project'
+                ? !projectMatchesAreaFilter(result.item as Project, activeAreaFilter, areaById)
+                : !taskMatchesAreaFilter(result.item as Task, activeAreaFilter, projectMap, areaById)
+        );
+        if (shouldSwitchToAllAreas) {
+            void updateSettings({ filters: { ...(settings?.filters ?? {}), areaId: AREA_FILTER_ALL } })
+                .catch(() => showToast('Failed to update area filter.', 'error'));
+            showToast('Switched to All Areas so the selected item is visible.', 'info');
+        }
         if (result.type === 'project') {
             setProjectView({ selectedProjectId: result.item.id });
             onNavigate('projects', result.item.id);
