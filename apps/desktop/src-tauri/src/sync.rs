@@ -844,6 +844,20 @@ mod tests {
             "WebDAV MKCOL failed (500 Internal Server Error)"
         ));
     }
+
+    #[test]
+    fn acquire_sync_lock_rejects_fresh_existing_lock() {
+        let dir = tempfile::tempdir().expect("temp dir");
+        let first = acquire_sync_lock(dir.path()).expect("first lock");
+
+        let second = acquire_sync_lock(dir.path());
+
+        assert_eq!(
+            second.expect_err("fresh lock should block another writer"),
+            "Sync lock held by another process"
+        );
+        release_sync_lock(&first);
+    }
 }
 
 #[tauri::command]
@@ -984,8 +998,8 @@ fn release_sync_lock(lock_path: &Path) {
 
 #[tauri::command]
 pub(crate) fn read_sync_file(app: tauri::AppHandle) -> Result<serde_json::Value, String> {
-    let sync_dir = configured_sync_dir(&app)?
-        .ok_or_else(|| "Sync path is not configured".to_string())?;
+    let sync_dir =
+        configured_sync_dir(&app)?.ok_or_else(|| "Sync path is not configured".to_string())?;
     let sync_file = sync_dir.join(DATA_FILE_NAME);
     let backup_file = sync_dir.join(format!("{}.bak", DATA_FILE_NAME));
     let legacy_sync_file = sync_dir.join(format!("{}-sync.json", APP_NAME));
@@ -1074,8 +1088,8 @@ pub(crate) fn read_sync_file(app: tauri::AppHandle) -> Result<serde_json::Value,
 
 #[tauri::command]
 pub(crate) fn write_sync_file(app: tauri::AppHandle, data: Value) -> Result<bool, String> {
-    let sync_dir = configured_sync_dir(&app)?
-        .ok_or_else(|| "Sync path is not configured".to_string())?;
+    let sync_dir =
+        configured_sync_dir(&app)?.ok_or_else(|| "Sync path is not configured".to_string())?;
     let sync_file = sync_dir.join(DATA_FILE_NAME);
     let backup_file = sync_dir.join(format!("{}.bak", DATA_FILE_NAME));
     let tmp_file = sync_dir.join(format!("{}.tmp", DATA_FILE_NAME));
@@ -1090,14 +1104,7 @@ pub(crate) fn write_sync_file(app: tauri::AppHandle, data: Value) -> Result<bool
         fs::create_dir_all(parent).map_err(|e| e.to_string())?;
     }
 
-    let lock = acquire_sync_lock(&sync_dir);
-    let lock_path = match &lock {
-        Ok(path) => Some(path.clone()),
-        Err(msg) => {
-            log::warn!("Sync lock unavailable, proceeding without lock: {msg}");
-            None
-        }
-    };
+    let lock_path = acquire_sync_lock(&sync_dir)?;
 
     let result = (|| -> Result<bool, String> {
         if sync_file.exists() {
@@ -1137,9 +1144,7 @@ pub(crate) fn write_sync_file(app: tauri::AppHandle, data: Value) -> Result<bool
         }
     })();
 
-    if let Some(ref lp) = lock_path {
-        release_sync_lock(lp);
-    }
+    release_sync_lock(&lock_path);
 
     result
 }
