@@ -936,6 +936,7 @@ function TaskListComponent({
                   accessibilityLabel={`${moveSectionUpLabel}: ${group.title}`}
                   accessibilityRole="button"
                   disabled={!canMoveSectionUp}
+                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                   onPress={() => handleProjectSectionMove(group.sectionId as string, -1)}
                   style={[
                     styles.sectionReorderButton,
@@ -949,6 +950,7 @@ function TaskListComponent({
                   accessibilityLabel={`${moveSectionDownLabel}: ${group.title}`}
                   accessibilityRole="button"
                   disabled={!canMoveSectionDown}
+                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                   onPress={() => handleProjectSectionMove(group.sectionId as string, 1)}
                   style={[
                     styles.sectionReorderButton,

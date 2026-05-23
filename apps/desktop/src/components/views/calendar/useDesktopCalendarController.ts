@@ -759,12 +759,14 @@ export function useDesktopCalendarController() {
         setEditingTimeTaskId(null);
         setEditingTimeValue('');
     };
-    const updateTaskDateFromDrop = useCallback(async (taskId: string, date: Date) => {
+    const updateTaskDateFromDrop = useCallback(async (taskId: string, date: Date, itemKind?: 'scheduled' | 'deadline' | null) => {
         const task = tasks.find((candidate) => candidate.id === taskId);
         if (!task) return;
 
         try {
-            if (hasTimeComponent(task.startTime)) {
+            if (itemKind === 'deadline') {
+                await updateTask(task.id, { dueDate: formatDateInputValue(date) });
+            } else if (hasTimeComponent(task.startTime)) {
                 const existingStart = task.startTime ? safeParseDate(task.startTime) : null;
                 if (existingStart) {
                     const nextStart = new Date(date);

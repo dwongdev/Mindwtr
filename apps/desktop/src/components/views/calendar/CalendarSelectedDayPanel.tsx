@@ -77,9 +77,9 @@ export function CalendarSelectedDayPanel({ controller }: CalendarSelectedDayPane
         timeEstimateToMinutes,
         updateTask,
     } = controller;
-    const handleTaskDragStart = (event: DragEvent<HTMLElement>, taskId: string) => {
+    const handleTaskDragStart = (event: DragEvent<HTMLElement>, taskId: string, kind: 'scheduled' | 'deadline') => {
         event.stopPropagation();
-        setCalendarTaskDragData(event.dataTransfer, taskId);
+        setCalendarTaskDragData(event.dataTransfer, taskId, { itemKind: kind });
     };
 
     if (!selectedDate) return null;
@@ -195,7 +195,7 @@ export function CalendarSelectedDayPanel({ controller }: CalendarSelectedDayPane
                                         key={id}
                                         data-task-id={task.id}
                                         draggable
-                                        onDragStart={(event) => handleTaskDragStart(event, task.id)}
+                                        onDragStart={(event) => handleTaskDragStart(event, task.id, kind)}
                                         className={cn(
                                             "group flex items-center gap-3 rounded-md px-3 py-2 text-sm transition-colors hover:bg-muted/50",
                                             kind === 'scheduled' ? "bg-primary/5" : "border-l-[3px] border-destructive/70 bg-background/60"

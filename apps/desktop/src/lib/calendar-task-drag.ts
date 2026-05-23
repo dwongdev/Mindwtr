@@ -1,4 +1,5 @@
 export const CALENDAR_TASK_DRAG_MIME = 'application/x-mindwtr-task-id';
+export const CALENDAR_TASK_DRAG_KIND_MIME = 'application/x-mindwtr-calendar-item-kind';
 
 const CALENDAR_TASK_DRAG_TEXT_PREFIX = 'mindwtr-task:';
 const CALENDAR_TASK_DRAG_PREVIEW_CLASS = 'mindwtr-calendar-drag-preview';
@@ -11,6 +12,7 @@ type CalendarTaskDragDataTransfer = Pick<DataTransfer, 'getData' | 'setData'> & 
 };
 
 type CalendarTaskDragOptions = {
+    itemKind?: 'scheduled' | 'deadline';
     variant?: 'calendar-block' | 'compact';
 };
 
@@ -29,6 +31,9 @@ export const setCalendarTaskDragData = (
 
     dataTransfer.effectAllowed = 'move';
     dataTransfer.setData(CALENDAR_TASK_DRAG_MIME, normalizedTaskId);
+    if (options.itemKind) {
+        dataTransfer.setData(CALENDAR_TASK_DRAG_KIND_MIME, options.itemKind);
+    }
     dataTransfer.setData('text/plain', `${CALENDAR_TASK_DRAG_TEXT_PREFIX}${normalizedTaskId}`);
 
     if (!dataTransfer.setDragImage || typeof document === 'undefined') return;
@@ -90,6 +95,14 @@ export const getCalendarTaskDragTaskId = (
     if (!textValue.startsWith(CALENDAR_TASK_DRAG_TEXT_PREFIX)) return null;
 
     return normalizeTaskId(textValue.slice(CALENDAR_TASK_DRAG_TEXT_PREFIX.length));
+};
+
+export const getCalendarTaskDragItemKind = (
+    dataTransfer: Pick<DataTransfer, 'getData'> | null,
+): 'scheduled' | 'deadline' | null => {
+    if (!dataTransfer) return null;
+    const kind = dataTransfer.getData(CALENDAR_TASK_DRAG_KIND_MIME).trim();
+    return kind === 'scheduled' || kind === 'deadline' ? kind : null;
 };
 
 export const hasCalendarTaskDragData = (

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, type DragEvent } from 'react';
+import { useCallback, useEffect, useRef, type DragEvent, type KeyboardEvent } from 'react';
 import { format, getMonth, isSameDay, isSameMonth, isToday } from 'date-fns';
 import { CalendarDays, ChevronLeft, ChevronRight, Search } from 'lucide-react';
 import { safeFormatDate } from '@mindwtr/core';
@@ -6,6 +6,7 @@ import { safeFormatDate } from '@mindwtr/core';
 import { ErrorBoundary } from '../ErrorBoundary';
 import { cn } from '../../lib/utils';
 import {
+    getCalendarTaskDragItemKind,
     getCalendarTaskDragTaskId,
     hasCalendarTaskDragData,
     setCalendarTaskDragData,
@@ -18,6 +19,7 @@ import {
     DESKTOP_GRID_SNAP_MINUTES,
     DESKTOP_HOUR_HEIGHT,
     type CalendarViewMode,
+    type CalendarCellItem,
     dayKey,
     useDesktopCalendarController,
 } from './calendar/useDesktopCalendarController';
@@ -66,9 +68,11 @@ export function CalendarView() {
         weekdayHeaders,
         yearOptions,
     } = controller;
-    const handleCalendarTaskDragStart = useCallback((event: DragEvent<HTMLElement>, taskId: string) => {
+    const handleCalendarTaskDragStart = useCallback((event: DragEvent<HTMLElement>, taskId: string, itemKind: CalendarCellItem['kind']) => {
+        if (itemKind === 'event') return;
         event.stopPropagation();
         setCalendarTaskDragData(event.dataTransfer, taskId, {
+            itemKind,
             variant: 'calendar-block',
         });
     }, []);
@@ -80,10 +84,16 @@ export function CalendarView() {
     const handleDropOnDueDate = useCallback((event: DragEvent<HTMLElement>, date: Date) => {
         const taskId = getCalendarTaskDragTaskId(event.dataTransfer);
         if (!taskId) return;
+        const itemKind = getCalendarTaskDragItemKind(event.dataTransfer);
         event.preventDefault();
         event.stopPropagation();
-        void updateTaskDateFromDrop(taskId, date);
+        void updateTaskDateFromDrop(taskId, date, itemKind);
     }, [updateTaskDateFromDrop]);
+    const handleOpenDayKeyDown = useCallback((event: KeyboardEvent<HTMLElement>, date: Date) => {
+        if (event.key !== 'Enter' && event.key !== ' ') return;
+        event.preventDefault();
+        openDayViewForDate(date);
+    }, [openDayViewForDate]);
     const handleDropOnTimelineSlot = useCallback((event: DragEvent<HTMLElement>, date: Date) => {
         const taskId = getCalendarTaskDragTaskId(event.dataTransfer);
         if (!taskId) return;
@@ -312,7 +322,11 @@ export function CalendarView() {
                                     isSelected && "ring-2 ring-primary"
                                 )}
                                 data-calendar-drop-date={dayKey(day)}
+                                role="button"
+                                tabIndex={0}
+                                aria-label={`${format(day, 'PP')}, ${resolveText('calendar.openDayView', 'Open day view')}`}
                                 onClick={() => openDayViewForDate(day)}
+                                onKeyDown={(event) => handleOpenDayKeyDown(event, day)}
                                 onDragOver={handleCalendarTaskDragOver}
                                 onDrop={(event) => handleDropOnDueDate(event, day)}
                                 title={resolveText('calendar.openDayView', 'Open day view')}
@@ -375,7 +389,7 @@ export function CalendarView() {
                                                         : "border-l-[3px] border-destructive/70 bg-background/60 text-foreground"
                                                 )}
                                                 title={task.title}
-                                                onDragStart={(event) => handleCalendarTaskDragStart(event, task.id)}
+                                                onDragStart={(event) => handleCalendarTaskDragStart(event, task.id, item.kind)}
                                                 onClick={(e) => {
                                                     e.stopPropagation();
                                                     openTaskFromCalendar(task);
@@ -469,7 +483,7 @@ export function CalendarView() {
                                                     data-task-id={item.task.id}
                                                     data-task-edit-trigger
                                                     draggable
-                                                    onDragStart={(event) => handleCalendarTaskDragStart(event, item.task.id)}
+                                                    onDragStart={(event) => handleCalendarTaskDragStart(event, item.task.id, item.kind)}
                                                     onClick={() => openTaskFromCalendar(item.task)}
                                                     className="block w-full truncate rounded border-l-[3px] border-destructive/70 bg-background/70 px-2 py-1 text-left text-xs hover:bg-muted"
                                                     title={item.title}
@@ -570,7 +584,7 @@ export function CalendarView() {
                                                         className="absolute z-10 overflow-hidden rounded bg-primary px-2 py-1 text-left text-xs text-primary-foreground shadow-sm hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-primary/40"
                                                         style={commonStyle}
                                                         title={`${item.title} ${timeLabel}`}
-                                                        onDragStart={(event) => handleCalendarTaskDragStart(event, item.task.id)}
+                                                        onDragStart={(event) => handleCalendarTaskDragStart(event, item.task.id, 'scheduled')}
                                                         onClick={(event) => {
                                                             event.stopPropagation();
                                                             openTaskFromCalendar(item.task);
@@ -637,7 +651,7 @@ export function CalendarView() {
                                                         data-task-id={item.task.id}
                                                         data-task-edit-trigger
                                                         draggable
-                                                        onDragStart={(event) => handleCalendarTaskDragStart(event, item.task.id)}
+                                                        onDragStart={(event) => handleCalendarTaskDragStart(event, item.task.id, item.kind)}
                                                         onClick={() => openTaskFromCalendar(item.task)}
                                                         className={cn(
                                                             "flex w-full items-center gap-3 rounded px-3 py-2 text-left text-sm hover:bg-muted focus:outline-none focus:ring-2 focus:ring-primary/40",

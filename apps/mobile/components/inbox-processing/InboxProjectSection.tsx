@@ -68,6 +68,7 @@ export function InboxProjectSection({
 
   const renderAreaPicker = () => {
     if (!showAreaField || selectedProjectId) return null;
+    const noAreaSelected = !selectedAreaId;
 
     return (
       <>
@@ -75,16 +76,25 @@ export function InboxProjectSection({
           <TouchableOpacity
             style={[styles.projectChip, { backgroundColor: currentArea.color || tc.tint }]}
             onPress={() => setSelectedAreaId(currentArea.id)}
+            accessibilityState={{ selected: selectedAreaId === currentArea.id }}
           >
             <Text style={styles.projectChipText}>✓ {currentArea.name}</Text>
           </TouchableOpacity>
         )}
         <View style={styles.projectListContainer}>
           <TouchableOpacity
-            style={[styles.projectChip, { backgroundColor: tc.filterBg, borderWidth: 1, borderColor: tc.border }]}
+            style={[
+              styles.projectChip,
+              noAreaSelected
+                ? { backgroundColor: tc.filterBg, borderWidth: 1, borderColor: tc.tint }
+                : { backgroundColor: tc.cardBg, borderWidth: 1, borderColor: tc.border },
+            ]}
             onPress={() => setSelectedAreaId(null)}
+            accessibilityState={{ selected: noAreaSelected }}
           >
-            <Text style={[styles.projectChipText, { color: tc.text }]}>✓ {t('projects.noArea')}</Text>
+            <Text style={[styles.projectChipText, { color: tc.text }]}>
+              {noAreaSelected ? '✓ ' : ''}{t('projects.noArea')}
+            </Text>
           </TouchableOpacity>
           {areaOptions.map((area) => {
             const isSelected = selectedAreaId === area.id;
@@ -98,6 +108,7 @@ export function InboxProjectSection({
                     : { backgroundColor: tc.cardBg, borderWidth: 1, borderColor: tc.border },
                 ]}
                 onPress={() => setSelectedAreaId(area.id)}
+                accessibilityState={{ selected: isSelected }}
               >
                 <View style={[styles.projectDot, { backgroundColor: area.color || tc.secondaryText }]} />
                 <Text style={[styles.projectChipText, { color: tc.text }]}>{area.name}</Text>
@@ -109,12 +120,15 @@ export function InboxProjectSection({
     );
   };
 
-  const renderProjectPicker = () => (
-    <>
+  const renderProjectPicker = () => {
+    const noProjectSelected = !selectedProjectId;
+    return (
+      <>
       {showProjectField && currentProject && (
         <TouchableOpacity
           style={[styles.projectChip, { backgroundColor: tc.tint }]}
           onPress={() => selectProjectEarly(currentProject.id)}
+          accessibilityState={{ selected: selectedProjectId === currentProject.id }}
         >
           <Text style={styles.projectChipText}>✓ {currentProject.title}</Text>
         </TouchableOpacity>
@@ -143,10 +157,18 @@ export function InboxProjectSection({
           </View>
           <View style={styles.projectListContainer}>
             <TouchableOpacity
-              style={[styles.projectChip, { backgroundColor: tc.filterBg, borderWidth: 1, borderColor: tc.border }]}
+              style={[
+                styles.projectChip,
+                noProjectSelected
+                  ? { backgroundColor: tc.filterBg, borderWidth: 1, borderColor: tc.tint }
+                  : { backgroundColor: tc.cardBg, borderWidth: 1, borderColor: tc.border },
+              ]}
               onPress={() => selectProjectEarly(null)}
+              accessibilityState={{ selected: noProjectSelected }}
             >
-              <Text style={[styles.projectChipText, { color: tc.text }]}>✓ {t('inbox.noProject')}</Text>
+              <Text style={[styles.projectChipText, { color: tc.text }]}>
+                {noProjectSelected ? '✓ ' : ''}{t('inbox.noProject')}
+              </Text>
             </TouchableOpacity>
             {filteredProjects.map((project) => {
               const projectColor = project.areaId ? areaById.get(project.areaId)?.color : undefined;
@@ -161,6 +183,7 @@ export function InboxProjectSection({
                       : { backgroundColor: tc.cardBg, borderWidth: 1, borderColor: tc.border },
                   ]}
                   onPress={() => selectProjectEarly(project.id)}
+                  accessibilityState={{ selected: isSelected }}
                 >
                   <View style={[styles.projectDot, { backgroundColor: projectColor || tc.secondaryText }]} />
                   <Text style={[styles.projectChipText, { color: tc.text }]}>{project.title}</Text>
@@ -170,8 +193,9 @@ export function InboxProjectSection({
           </View>
         </>
       )}
-    </>
-  );
+      </>
+    );
+  };
 
   const renderProjectConversion = () => (
     <>

@@ -98,7 +98,7 @@ const openNewTaskComposerForDay = async (dayText: string) => {
     });
 };
 
-const createTaskDragDataTransfer = (taskId: string): DataTransfer => {
+const createTaskDragDataTransfer = (taskId: string, itemKind?: 'scheduled' | 'deadline'): DataTransfer => {
     const values = new Map<string, string>();
     const types: string[] = [];
     const dataTransfer = {
@@ -111,7 +111,7 @@ const createTaskDragDataTransfer = (taskId: string): DataTransfer => {
             if (!types.includes(type)) types.push(type);
         }),
     } as unknown as DataTransfer;
-    setCalendarTaskDragData(dataTransfer, taskId);
+    setCalendarTaskDragData(dataTransfer, taskId, { itemKind });
     return dataTransfer;
 };
 
@@ -250,6 +250,20 @@ describe('CalendarView', () => {
         expect(screen.queryByText('+2 more')).not.toBeInTheDocument();
     });
 
+    it('opens an empty month day from the keyboard', async () => {
+        renderCalendar();
+        await flushCalendarEffects();
+
+        const dayCell = screen.getByRole('button', { name: /apr 5, 2026, open day view/i });
+        await act(async () => {
+            fireEvent.keyDown(dayCell, { key: 'Enter' });
+            await Promise.resolve();
+        });
+
+        expect(window.location.search).toContain('calendarView=day');
+        expect(window.location.search).toContain('calendarDate=2026-04-05');
+    });
+
     it('rejects composer submissions when the end time is before the start time', async () => {
         renderCalendar();
         await flushCalendarEffects();
@@ -369,6 +383,33 @@ describe('CalendarView', () => {
 
         expect(storeMocks.taskStoreState.updateTask).toHaveBeenCalledWith('drop-task', {
             dueDate: '2026-04-04',
+        });
+    });
+
+    it('moves a deadline item without changing the scheduled start time', async () => {
+        storeMocks.taskStoreState.tasks = [
+            makeTask({
+                id: 'mixed-drop-task',
+                title: 'Mixed drop task',
+                dueDate: '2026-04-03',
+                startTime: '2026-04-03T09:00:00',
+            }),
+        ];
+
+        renderCalendar();
+        await flushCalendarEffects();
+
+        const dropTarget = document.querySelector('[data-calendar-drop-date="2026-04-05"]') as HTMLElement;
+        expect(dropTarget).toBeTruthy();
+
+        const dataTransfer = createTaskDragDataTransfer('mixed-drop-task', 'deadline');
+        await act(async () => {
+            fireEvent.drop(dropTarget, { dataTransfer });
+            await Promise.resolve();
+        });
+
+        expect(storeMocks.taskStoreState.updateTask).toHaveBeenCalledWith('mixed-drop-task', {
+            dueDate: '2026-04-05',
         });
     });
 
