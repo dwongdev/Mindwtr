@@ -324,6 +324,10 @@ describe('mobile sync-service runtime', () => {
   });
 
   it('continues remote sync when iOS reports connected with uncertain internet reachability', async () => {
+    const activityStates: string[] = [];
+    const unsubscribeActivity = syncServiceModule.subscribeMobileSyncActivityState((state) => {
+      activityStates.push(state);
+    });
     networkMocks.getNetworkStateAsync.mockResolvedValue({
       isConnected: true,
       isInternetReachable: false,
@@ -332,15 +336,21 @@ describe('mobile sync-service runtime', () => {
     coreMocks.webdavGetJson.mockResolvedValue(emptyData);
 
     const result = await syncServiceModule.performMobileSync();
+    unsubscribeActivity();
 
     expect(result.success).toBe(true);
     expect(result.skipped).toBeUndefined();
+    expect(activityStates).toEqual(['idle', 'syncing', 'idle']);
     expect(coreMocks.performSyncCycle).toHaveBeenCalledTimes(1);
     expect(coreMocks.webdavGetJson).toHaveBeenCalledTimes(1);
     expect(logMocks.logSyncError).not.toHaveBeenCalled();
   });
 
   it('skips the full WebDAV merge when local and remote fingerprints are unchanged', async () => {
+    const activityStates: string[] = [];
+    const unsubscribeActivity = syncServiceModule.subscribeMobileSyncActivityState((state) => {
+      activityStates.push(state);
+    });
     const remoteFingerprint = 'webdav:v1:etag="fast":mtime=:len=2';
     const scope = computeStableValueFingerprint({
       backend: 'webdav',
@@ -371,8 +381,10 @@ describe('mobile sync-service runtime', () => {
     });
 
     const result = await syncServiceModule.performMobileSync();
+    unsubscribeActivity();
 
     expect(result).toEqual({ success: true, skipped: 'unchanged' });
+    expect(activityStates).toEqual(['idle']);
     expect(coreMocks.performSyncCycle).not.toHaveBeenCalled();
     expect(coreMocks.webdavGetJson).not.toHaveBeenCalled();
     expect(coreMocks.webdavHeadFile).toHaveBeenCalledTimes(1);

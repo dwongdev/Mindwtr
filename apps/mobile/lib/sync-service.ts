@@ -439,10 +439,10 @@ const mobileSyncOrchestrator = createSyncOrchestrator<string | undefined, Mobile
       return buildOfflineSkipResult();
     }
 
-    setMobileSyncActivityState('syncing');
     logSyncInfo('Sync start', { backend });
 
     let step = 'init';
+    let visibleActivityStarted = false;
     let syncUrl: string | undefined;
     let wroteLocal = false;
     let localSnapshotChangeAt = useTaskStore.getState().lastDataChangeAt;
@@ -455,6 +455,11 @@ const mobileSyncOrchestrator = createSyncOrchestrator<string | undefined, Mobile
     activeMobileSyncAbortController = requestAbortController;
     activeMobileSyncAbortReason = null;
     const fetchWithAbort = createAbortableFetch(fetch, { baseSignal: requestAbortController.signal });
+    const startVisibleSyncActivity = () => {
+      if (visibleActivityStarted) return;
+      visibleActivityStarted = true;
+      setMobileSyncActivityState('syncing');
+    };
     const ensureLocalSnapshotFresh = () => {
       const currentChangeAt = useTaskStore.getState().lastDataChangeAt;
       if (currentChangeAt > localSnapshotChangeAt) {
@@ -611,6 +616,9 @@ const mobileSyncOrchestrator = createSyncOrchestrator<string | undefined, Mobile
       try {
         const persistedData = await mobileStorage.getData();
         const localData = mergeAppData(persistedData, getInMemoryAppDataSnapshot());
+        if (hasPendingSyncSideEffects(localData)) {
+          startVisibleSyncActivity();
+        }
         const preSyncResult = await runPreSyncAttachmentPhase({
           backend,
           cloudProvider,
@@ -982,6 +990,7 @@ const mobileSyncOrchestrator = createSyncOrchestrator<string | undefined, Mobile
         return unchangedResult;
       }
 
+      startVisibleSyncActivity();
       const syncResult = await performSyncCycle({
         readLocal: readLocalDataForSyncCycle,
         readRemote: readRemoteDataByBackend,
