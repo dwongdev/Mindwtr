@@ -57,6 +57,7 @@ export const LANGUAGES: { id: Language; native: string }[] = [
     { id: 'ko', native: '한국어' },
     { id: 'it', native: 'Italiano' },
     { id: 'tr', native: 'Türkçe' },
+    { id: 'nl', native: 'Nederlands' },
 ];
 
 export const WHISPER_MODEL_BASE_URL = 'https://huggingface.co/ggerganov/whisper.cpp/resolve/main';

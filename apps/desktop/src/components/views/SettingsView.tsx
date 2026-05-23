@@ -174,6 +174,7 @@ const LANGUAGES: { id: Language; label: string; native: string }[] = [
   { id: "ko", label: "Korean", native: "한국어" },
   { id: "it", label: "Italian", native: "Italiano" },
   { id: "tr", label: "Turkish", native: "Türkçe" },
+  { id: "nl", label: "Dutch", native: "Nederlands" },
 ];
 
 const maskCalendarUrl = (url: string): string => {
