@@ -1,4 +1,5 @@
 import { parseIcs, type ExternalCalendarEvent, type ExternalCalendarSubscription } from '@mindwtr/core';
+import { gunzipSync, strFromU8 } from 'fflate';
 import { ExternalCalendarService } from './external-calendar-service';
 import { isLocalCalendarFileUrl } from './external-calendar-source';
 import { isTauriRuntime } from './runtime';
@@ -143,6 +144,12 @@ export function isMindwtrMirrorEvent(
     return event.title.trim().toLowerCase().startsWith(MINDWTR_PUSHED_EVENT_PREFIX.toLowerCase());
 }
 
+async function readCalendarResponseText(res: Response): Promise<string> {
+    const bytes = new Uint8Array(await res.arrayBuffer());
+    const isGzip = bytes.length >= 2 && bytes[0] === 0x1f && bytes[1] === 0x8b;
+    return strFromU8(isGzip ? gunzipSync(bytes) : bytes);
+}
+
 async function fetchTextWithTimeout(url: string, timeoutMs: number): Promise<string> {
     if (isLocalCalendarFileUrl(url)) {
         if (!isTauriRuntime()) {
@@ -160,7 +167,7 @@ async function fetchTextWithTimeout(url: string, timeoutMs: number): Promise<str
         try {
             const res = await tauriFetch(url, { method: 'GET', signal: controller.signal });
             if (!res.ok) throw new Error(`HTTP ${res.status}`);
-            return await res.text();
+            return await readCalendarResponseText(res);
         } finally {
             clearTimeout(timeout);
         }
@@ -171,7 +178,7 @@ async function fetchTextWithTimeout(url: string, timeoutMs: number): Promise<str
     try {
         const res = await fetch(url, controller ? { signal: controller.signal } : undefined);
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        return await res.text();
+        return await readCalendarResponseText(res);
     } finally {
         if (timeout) clearTimeout(timeout);
     }
