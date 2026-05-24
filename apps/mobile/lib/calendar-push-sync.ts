@@ -471,16 +471,26 @@ function buildEventDetails(task: Task, shouldPrefixTitle: boolean) {
         };
     }
 
-    startDate.setHours(0, 0, 0, 0);
-    const endDate = new Date(startDate);
-    endDate.setHours(23, 59, 59, 999);
+    const startDateOnly = buildAllDayBoundary(startDate);
+    const endDate = buildAllDayBoundary(startDate, 1);
     return {
         title,
-        startDate,
+        startDate: startDateOnly,
         endDate,
         allDay: true,
         notes: task.description ?? '',
+        ...(Platform.OS === 'android' ? { timeZone: 'UTC', endTimeZone: 'UTC' } : {}),
     };
+}
+
+function buildAllDayBoundary(date: Date, dayOffset = 0): Date {
+    if (Platform.OS === 'android') {
+        return new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate() + dayOffset));
+    }
+    const boundary = new Date(date);
+    boundary.setHours(0, 0, 0, 0);
+    boundary.setDate(boundary.getDate() + dayOffset);
+    return boundary;
 }
 
 async function removeTaskFromCalendar(taskId: string): Promise<void> {

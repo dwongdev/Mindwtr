@@ -22,6 +22,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { TaskEditModal } from '@/components/task-edit-modal';
 import { openContextsScreen, openProjectScreen } from '@/lib/task-meta-navigation';
 import { styles } from './calendar/calendar-view.styles';
+import { isAllDayScheduledTask, isTimedScheduledTask } from './calendar/calendar-task-items';
 import {
   CALENDAR_WEEK_VISIBLE_DAYS_MAX,
   CALENDAR_WEEK_VISIBLE_DAYS_MIN,
@@ -212,6 +213,7 @@ export function CalendarView() {
     selectCalendarComposerTask,
     selectedDate,
     selectedDateAllDayEvents,
+    selectedDateAllDayScheduledTasks,
     selectedDateDeadlines,
     selectedDateExternalEvents,
     selectedDateLongLabel,
@@ -741,9 +743,16 @@ export function CalendarView() {
               onScroll={handleTimelineScroll}
               scrollEventThrottle={16}
             >
-            {selectedDateAllDayEvents.length > 0 && (
+            {(selectedDateAllDayScheduledTasks.length > 0 || selectedDateAllDayEvents.length > 0) && (
               <View style={[styles.allDayCard, { backgroundColor: tc.cardBg, borderColor: tc.border }]}>
                 <Text style={[styles.sectionLabel, { color: tc.secondaryText }]}>{t('calendar.allDay')}</Text>
+                {selectedDateAllDayScheduledTasks.slice(0, 6).map((task) => (
+                  <Pressable key={task.id} onPress={() => openTaskActions(task.id)} style={styles.allDayPressable}>
+                    <Text style={[styles.allDayItem, { color: tc.text }]} numberOfLines={1}>
+                      {task.title}
+                    </Text>
+                  </Pressable>
+                ))}
                 {selectedDateAllDayEvents.slice(0, 6).map((event) => {
                   return (
                     <Pressable key={event.id} onPress={() => openExternalEvent(event)} style={styles.allDayPressable}>
@@ -998,7 +1007,11 @@ export function CalendarView() {
               </View>
               {weekDays.map((day) => {
                 const allDayItems = getCalendarItemsForDate(day)
-                  .filter((item) => item.kind === 'deadline' || (item.kind === 'event' && item.event.allDay))
+                  .filter((item) =>
+                    item.kind === 'deadline'
+                    || (item.kind === 'scheduled' && isAllDayScheduledTask(item.task))
+                    || (item.kind === 'event' && item.event.allDay)
+                  )
                   .slice(0, 3);
                 return (
                   <View key={`all-${day.toISOString()}`} style={[styles.weekAllDayCell, compactWeekColumns && styles.weekAllDayCellCompact, { width: weekColumnWidth, borderLeftColor: tc.border }]}>
@@ -1054,7 +1067,10 @@ export function CalendarView() {
                   const nowMinutes = (now.getHours() - DAY_START_HOUR) * 60 + now.getMinutes();
                   const showNow = isToday(day) && nowMinutes >= 0 && nowMinutes <= (DAY_END_HOUR - DAY_START_HOUR) * 60;
                   const timedItems = getCalendarItemsForDate(day)
-                    .filter((item) => item.kind === 'scheduled' || (item.kind === 'event' && !item.event.allDay));
+                    .filter((item) =>
+                      (item.kind === 'scheduled' && isTimedScheduledTask(item.task))
+                      || (item.kind === 'event' && !item.event.allDay)
+                    );
                   return (
                     <Pressable
                       key={`grid-${day.toISOString()}`}
@@ -1654,6 +1670,7 @@ export function CalendarView() {
                         if (!start) return '';
                         const durMs = timeEstimateToMinutes(task.timeEstimate) * 60 * 1000;
                         const end = new Date(start.getTime() + durMs);
+                        if (!isTimedScheduledTask(task)) return t('calendar.allDay');
                         const startLabel = safeFormatDate(start, 'p');
                         const endLabel = safeFormatDate(end, 'p');
                         return `${startLabel}-${endLabel}`;

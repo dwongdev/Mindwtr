@@ -11,7 +11,6 @@ import {
   findFreeSlotForDay as findCalendarFreeSlotForDay,
   getEnglishI18nValue,
   getWeekStartsOnIndex,
-  hasTimeComponent,
   isSlotFreeForDay as isCalendarSlotFreeForDay,
   isTaskInActiveProject,
   minutesToTimeEstimate,
@@ -48,6 +47,13 @@ import {
   needsCalendarSelectedDate,
   type CalendarViewMode,
 } from './calendar-view-mode';
+import {
+  addCalendarMapItem,
+  buildScheduledTasksByDate,
+  calendarDateKey,
+  isAllDayScheduledTask,
+  isTimedScheduledTask,
+} from './calendar-task-items';
 
 function getDaysInMonth(year: number, month: number): number {
   return new Date(year, month + 1, 0).getDate();
@@ -115,20 +121,6 @@ const sourceColorForId = (sourceId: string): string => {
 const addMinutesToDate = addCalendarMinutes;
 const formatTimeInputValue = formatCalendarTimeInputValue;
 const parseTimeOnDate = parseCalendarTimeOnDate;
-
-const calendarDateKey = (date: Date): string => (
-  `${date.getFullYear()}-${date.getMonth()}-${date.getDate()}`
-);
-
-const addMapItem = <T,>(map: Map<string, T[]>, date: Date, item: T) => {
-  const key = calendarDateKey(date);
-  const items = map.get(key);
-  if (items) {
-    items.push(item);
-    return;
-  }
-  map.set(key, [item]);
-};
 
 const normalizeDurationMinutes = normalizeCalendarDurationMinutes;
 
@@ -311,23 +303,14 @@ export function useCalendarViewController() {
 
   const visibleSchedulableTasks = schedulableTasks;
 
-  const scheduledTasksByDate = useMemo(() => {
-    const map = new Map<string, Task[]>();
-    for (const task of visibleTasks) {
-      if (!task.startTime) continue;
-      if (!hasTimeComponent(task.startTime)) continue;
-      const startTime = safeParseDate(task.startTime);
-      if (startTime) addMapItem(map, startTime, task);
-    }
-    return map;
-  }, [visibleTasks]);
+  const scheduledTasksByDate = useMemo(() => buildScheduledTasksByDate(visibleTasks), [visibleTasks]);
 
   const deadlineTasksByDate = useMemo(() => {
     const map = new Map<string, Task[]>();
     for (const task of visibleTasks) {
       if (!task.dueDate) continue;
       const dueDate = safeParseDueDate(task.dueDate);
-      if (dueDate) addMapItem(map, dueDate, task);
+      if (dueDate) addCalendarMapItem(map, dueDate, task);
     }
     return map;
   }, [visibleTasks]);
@@ -344,7 +327,7 @@ export function useCalendarViewController() {
         endDay.setDate(endDay.getDate() - 1);
       }
       for (let guard = 0; day.getTime() <= endDay.getTime() && guard < 370; guard += 1) {
-        addMapItem(map, day, event);
+        addCalendarMapItem(map, day, event);
         day.setDate(day.getDate() + 1);
       }
     }
@@ -942,6 +925,15 @@ export function useCalendarViewController() {
     () => selectedDateExternalEvents.filter((event) => event.allDay),
     [selectedDateExternalEvents],
   );
+  const selectedDateAllDayScheduledTasks = useMemo(
+    () => selectedDateScheduled.filter((task) =>
+      isAllDayScheduledTask(task)
+      && !task.deletedAt
+      && task.status !== 'done'
+      && task.status !== 'reference'
+    ),
+    [selectedDateScheduled],
+  );
   const selectedDateTimedEvents = useMemo(
     () => selectedDateExternalEvents.filter((event) => !event.allDay),
     [selectedDateExternalEvents],
@@ -961,7 +953,12 @@ export function useCalendarViewController() {
   const selectedDayMinutes = DAY_TIMELINE_MINUTES;
   const timelineHeight = selectedDayMinutes * PIXELS_PER_MINUTE;
   const selectedDayScheduledTasks = useMemo(
-    () => selectedDateScheduled.filter((task) => !task.deletedAt && task.status !== 'done' && task.status !== 'reference'),
+    () => selectedDateScheduled.filter((task) =>
+      isTimedScheduledTask(task)
+      && !task.deletedAt
+      && task.status !== 'done'
+      && task.status !== 'reference'
+    ),
     [selectedDateScheduled],
   );
   const selectedDayNowTop = useMemo(() => {
@@ -1050,6 +1047,7 @@ export function useCalendarViewController() {
     searchCandidates,
     selectedDate,
     selectedDateAllDayEvents,
+    selectedDateAllDayScheduledTasks,
     selectedDateDeadlines,
     selectedDateExternalEvents,
     selectedDateLongLabel,

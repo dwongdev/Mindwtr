@@ -485,8 +485,8 @@ describe('deleteMindwtrCalendar', () => {
     });
 });
 
-describe('buildEventDetails — date-only due date stays on correct local day', () => {
-    it('does not shift a YYYY-MM-DD due date to the previous day', async () => {
+describe('buildEventDetails — date-only calendar events stay on the intended day', () => {
+    it('exports a YYYY-MM-DD due date as an all-day event with an exclusive next-day end', async () => {
         setupEnabled();
         // Use a fixed date-only string — no time, no timezone suffix.
         // new Date('2026-04-20') parses as UTC midnight and shifts to Apr 19
@@ -510,7 +510,38 @@ describe('buildEventDetails — date-only due date stays on correct local day', 
 
         expect(eventData.endDate.getFullYear()).toBe(2026);
         expect(eventData.endDate.getMonth()).toBe(3);
-        expect(eventData.endDate.getDate()).toBe(20);
+        expect(eventData.endDate.getDate()).toBe(21);
+        expect(eventData.endDate.getHours()).toBe(0);
+    });
+
+    it('uses UTC midnight boundaries for Android date-only scheduled starts', async () => {
+        mockPlatform.OS = 'android';
+        setupEnabled();
+        const task = makeTask({
+            dueDate: null,
+            startTime: '2026-04-20',
+        });
+        setStoreTasks([task]);
+        mockGetCalendarSyncEntry.mockResolvedValue(null);
+        mockGetAllCalendarSyncEntries.mockResolvedValue([]);
+
+        await runFullCalendarSync();
+
+        expect(mockCreateEventAsync).toHaveBeenCalledOnce();
+        const call = mockCreateEventAsync.mock.calls[0] as unknown as [string, {
+            startDate: Date;
+            endDate: Date;
+            allDay: boolean;
+            timeZone?: string;
+            endTimeZone?: string;
+        }];
+        const [, eventData] = call;
+
+        expect(eventData.allDay).toBe(true);
+        expect(eventData.startDate.toISOString()).toBe('2026-04-20T00:00:00.000Z');
+        expect(eventData.endDate.toISOString()).toBe('2026-04-21T00:00:00.000Z');
+        expect(eventData.timeZone).toBe('UTC');
+        expect(eventData.endTimeZone).toBe('UTC');
     });
 
     it('creates a timed event for a scheduled task with a start time', async () => {
