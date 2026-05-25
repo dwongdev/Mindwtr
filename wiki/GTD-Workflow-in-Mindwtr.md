@@ -145,6 +145,8 @@ Create projects for multi-step outcomes:
    - **Sequential:** Only first task shows in Focus view
    - **Parallel:** All tasks show in Focus view
 
+Sequential projects can use a project-wide scope or a section scope. Use section scope when a project has independent phases or workstreams: Mindwtr shows the first available task in each section instead of blocking the whole project behind one task.
+
 ### Due Dates and Reminders
 
 - Set **due date** for deadlines

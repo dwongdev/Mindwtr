@@ -60,8 +60,14 @@ Use operators for powerful filtering:
 | `tag:`      | `tag:#focused`     | Filter by tag           |
 | `assigned:` | `assigned:Tom`     | Filter by assignee      |
 | `project:`  | `project:HomeReno` | Filter by project       |
+| `location:` | `location:office`  | Filter by task location |
+| `where:`    | `where:office`     | Alias for task location |
+| `id:`       | `id:abc123`        | Find an exact task ID   |
+| `-id:`      | `-id:abc123`       | Exclude an exact task ID |
 | `due:`      | `due:today`        | Tasks due on date       |
 | `due:<=`    | `due:<=7d`         | Tasks due within 7 days |
+| `start:`    | `start:>=tomorrow` | Tasks starting from date |
+| `created:`  | `created:>=30d`    | Tasks created in last 30 days |
 | `OR`        | `@home OR @work`   | Match either condition  |
 
 ### Saved Searches
@@ -336,7 +342,7 @@ To overlay external calendars with ICS subscriptions:
 2. Add your **ICS URL**
 3. Refresh to fetch events
 
-External events are view-only and are not synced.
+External events are view-only and are not synced back to their source. Tap an external event and choose **Create task** to make a separate Mindwtr task; Mindwtr copies the event title, date/time, location, description, and calendar name where available.
 
 ---
 
@@ -405,6 +411,8 @@ Open Projects from **Menu → Projects**.
 | -------------- | ---------------------------------------------------- |
 | **Sequential** | Only the first available project task appears in Focus |
 | **Parallel**   | All available project tasks can appear in Focus        |
+
+Sequential projects can run project-wide or section-by-section. Section-scoped sequencing shows the first available task in each project section, so separate phases or workstreams can move forward in parallel without making every task visible.
 
 ---
 

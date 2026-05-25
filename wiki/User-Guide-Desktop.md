@@ -65,6 +65,7 @@ Multi-step outcomes containing related tasks.
 
 - **Sequential mode** — Only the first available project task appears in Focus
 - **Parallel mode** — All available project tasks can appear in Focus
+- **Sequential scope** — Sequential projects can advance project-wide or section-by-section; section scope shows the first available task in each section.
 - **Status** — Active, Waiting, Someday, Archived
 - **Areas of Focus** — Group projects by higher-level areas (e.g., Work, Health) to keep your sidebar organized.
 - **Project tags** — Tag projects and filter by tag
@@ -168,6 +169,7 @@ Use checklists as templates:
 
 Mindwtr can overlay external calendars (ICS subscriptions) in the Calendar view.
 Add an **ICS URL** in **Settings → Calendar**.
+External events are read-only, but you can create a separate Mindwtr task from an event in Calendar; Mindwtr copies the event title, date/time, location, description, and calendar name where available.
 
 ### 🔍 Global Search
 
@@ -185,6 +187,10 @@ Powerful search with operators to find anything instantly.
 | `tag:`      | `tag:#focused`     | Filter by tag                 |
 | `assigned:` | `assigned:Tom`     | Filter by delegated assignee  |
 | `project:`  | `project:HomeReno` | Filter by project name or ID  |
+| `location:` | `location:office`  | Filter by task location       |
+| `where:`    | `where:office`     | Alias for task location       |
+| `id:`       | `id:abc123`        | Find an exact task ID         |
+| `-id:`      | `-id:abc123`       | Exclude an exact task ID      |
 | `due:`      | `due:today`        | Tasks due on date             |
 | `due:<=`    | `due:<=7d`         | Tasks due within 7 days       |
 | `start:`    | `start:>=tomorrow` | Tasks starting from date      |

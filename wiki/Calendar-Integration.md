@@ -100,10 +100,11 @@ External calendar visibility is a local display preference:
 
 On iOS and Android, Mindwtr can push scheduled tasks and tasks with due dates into a selected device calendar:
 
-- Tasks with `startTime` become timed events. `timeEstimate` is used as the event duration when available.
-- Tasks with only `dueDate` become all-day events.
-- Completed, archived, or deleted tasks are removed from the pushed calendar.
-- If you choose a shared account calendar, event titles use a `Mindwtr:` prefix so they are distinguishable from normal calendar events.
+- Tasks with a timed `startTime` become timed events. `timeEstimate` is used as the event duration when available.
+- Tasks with a date-only `startTime` or only a `dueDate` become all-day events.
+- Completed, archived, reference, or deleted tasks are removed from the pushed calendar.
+- Mindwtr preserves task titles when pushing events. Use a dedicated `Mindwtr` calendar if you want calendar apps to visually separate Mindwtr items from normal events.
+- Task descriptions become event notes, and task locations become event locations.
 - If you choose a dedicated calendar named `Mindwtr`, the calendar app can show Mindwtr items with that calendar's own color.
 
 Setup:
@@ -117,7 +118,7 @@ Setup:
 Target choices:
 
 - **Dedicated account calendar**: best for Google Calendar on Android or iCloud/Apple Calendar on iOS. Create a calendar named `Mindwtr` in that account, then select the dedicated target.
-- **Shared account calendar**: writes into an existing account calendar and prefixes titles with `Mindwtr:`.
+- **Shared account calendar**: writes into an existing account calendar without renaming task titles.
 - **Dedicated local calendar**: stays on the current device. Some Android calendar apps hide local calendars, and local targets will not appear on calendar.google.com or other account calendar web apps.
 - **Shared local calendar**: writes to a local device calendar only.
 
@@ -214,8 +215,8 @@ That link acts like a password: only apps with the link can see events, while th
 
 ## Notes
 
-- Desktop Calendar can create a new scheduled task from the in-calendar composer. Mobile scheduling currently works with existing tasks.
-- External calendars are **read-only** inside Mindwtr.
+- Desktop and mobile Calendar can create a separate Mindwtr task from an external event. Mindwtr copies the event title, date/time, location, description, and calendar name where available.
+- External calendars are **read-only** inside Mindwtr. Creating a task from an event does not modify the original event.
 - ICS recurring events support `FREQ=DAILY`, `WEEKLY`, `MONTHLY`, and `YEARLY`, including `INTERVAL`, `COUNT`, `UNTIL`, `BYDAY`, `BYMONTH`, and `BYMONTHDAY` for the patterns Mindwtr can expand into the visible range.
 - Yearly all-day events and yearly rules such as `FREQ=YEARLY;COUNT=...` or `FREQ=YEARLY;BYMONTH=1;BYDAY=3MO` are expanded in the visible calendar window.
 - Exception dates and recurrence overrides such as `EXDATE`, `RDATE`, and `RECURRENCE-ID` are not expanded today.
