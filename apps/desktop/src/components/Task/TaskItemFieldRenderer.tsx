@@ -263,7 +263,7 @@ function DateField({
         if (!isCalendarOpen) return;
         updateCalendarPosition();
 
-        const handlePointerDown = (event: MouseEvent | TouchEvent) => {
+        const handlePointerDown = (event: MouseEvent | PointerEvent | TouchEvent) => {
             const target = event.target;
             if (target instanceof Node && rootRef.current?.contains(target)) return;
             setIsCalendarOpen(false);
@@ -275,14 +275,16 @@ function DateField({
         };
         const handleViewportChange = () => updateCalendarPosition();
 
-        document.addEventListener('mousedown', handlePointerDown);
-        document.addEventListener('touchstart', handlePointerDown);
+        document.addEventListener('pointerdown', handlePointerDown, true);
+        document.addEventListener('mousedown', handlePointerDown, true);
+        document.addEventListener('touchstart', handlePointerDown, true);
         document.addEventListener('keydown', handleKeyDown);
         window.addEventListener('resize', handleViewportChange);
         window.addEventListener('scroll', handleViewportChange, true);
         return () => {
-            document.removeEventListener('mousedown', handlePointerDown);
-            document.removeEventListener('touchstart', handlePointerDown);
+            document.removeEventListener('pointerdown', handlePointerDown, true);
+            document.removeEventListener('mousedown', handlePointerDown, true);
+            document.removeEventListener('touchstart', handlePointerDown, true);
             document.removeEventListener('keydown', handleKeyDown);
             window.removeEventListener('resize', handleViewportChange);
             window.removeEventListener('scroll', handleViewportChange, true);
@@ -413,7 +415,11 @@ function DateField({
                                     type="button"
                                     aria-label={fullDateFormatter.format(day)}
                                     aria-pressed={isSelected}
-                                    onClick={() => applyCalendarDate(day, false)}
+                                    onPointerDown={(event) => {
+                                        event.preventDefault();
+                                        applyCalendarDate(day, true);
+                                    }}
+                                    onClick={() => applyCalendarDate(day, true)}
                                     onDoubleClick={() => applyCalendarDate(day, true)}
                                     className={[
                                         'h-8 rounded text-xs transition-colors',

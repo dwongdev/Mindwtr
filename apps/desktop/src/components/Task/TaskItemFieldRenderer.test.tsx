@@ -345,7 +345,7 @@ describe('TaskItemFieldRenderer date clear buttons', () => {
         expect(queryByRole('dialog', { name: dialogLabel })).not.toBeInTheDocument();
     });
 
-    it('sets the date and closes the mini calendar when a day is double-clicked', () => {
+    it('sets the date and closes the mini calendar when a day is selected', () => {
         const handlers = createHandlers();
 
         const { getByLabelText, getByRole, queryByRole } = render(
@@ -359,7 +359,7 @@ describe('TaskItemFieldRenderer date clear buttons', () => {
         fireEvent.focus(getByLabelText('Due date'));
         const dialog = getByRole('dialog', { name: 'Due Date calendar' });
 
-        fireEvent.doubleClick(getByRole('button', { name: /April 19, 2026/i }));
+        fireEvent.pointerDown(getByRole('button', { name: /April 19, 2026/i }));
 
         expect(handlers.setEditDueDate).toHaveBeenCalledWith('2026-04-19');
         expect(queryByRole('dialog', { name: 'Due Date calendar' })).not.toBeInTheDocument();
