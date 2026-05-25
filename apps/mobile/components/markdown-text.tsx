@@ -1,6 +1,7 @@
 import React from 'react';
-import { NativeModules, Pressable, View, Text, StyleSheet, type TextStyle } from 'react-native';
+import { Pressable, View, Text, StyleSheet, type TextStyle } from 'react-native';
 import * as Linking from 'expo-linking';
+import * as Clipboard from 'expo-clipboard';
 import { Ionicons } from '@expo/vector-icons';
 
 import type { ThemeColors } from '@/hooks/use-theme-colors';
@@ -14,13 +15,8 @@ const HEADING_RE = /^(#{1,3})\s+(.+)$/;
 const HORIZONTAL_RULE_RE = /^(?:-{3,}|\*{3,}|_{3,})$/;
 const FENCED_CODE_RE = /^```.*$/;
 
-type ClipboardModule = {
-  setString?: (value: string) => void;
-};
-
 const writeClipboardText = (text: string) => {
-  const clipboard = (NativeModules as { Clipboard?: ClipboardModule }).Clipboard;
-  clipboard?.setString?.(text);
+  void Clipboard.setStringAsync(text).catch(() => undefined);
 };
 
 function isBlockBoundary(line: string): boolean {

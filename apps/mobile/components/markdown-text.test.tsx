@@ -4,6 +4,10 @@ import { describe, expect, it, vi } from 'vitest';
 
 import { MarkdownText } from './markdown-text';
 
+const clipboardMocks = vi.hoisted(() => ({
+  setStringAsync: vi.fn(async () => {}),
+}));
+
 vi.mock('@mindwtr/core', async () => {
   const actual = await vi.importActual<typeof import('@mindwtr/core')>('@mindwtr/core');
   const mockState = {
@@ -33,6 +37,10 @@ vi.mock('@/lib/task-meta-navigation', () => ({
 
 vi.mock('expo-linking', () => ({
   openURL: vi.fn(),
+}));
+
+vi.mock('expo-clipboard', () => ({
+  setStringAsync: clipboardMocks.setStringAsync,
 }));
 
 const flattenText = (
@@ -120,5 +128,16 @@ describe('MarkdownText', () => {
     const tree = renderMarkdown('```ts\nconst value = 1;\n```');
 
     expect(tree.root.findByProps({ accessibilityLabel: 'Copy code' })).toBeTruthy();
+  });
+
+  it('copies fenced code block text with the supported clipboard API', () => {
+    const tree = renderMarkdown('```ts\nconst value = 1;\n```');
+    const copyButton = tree.root.findByProps({ accessibilityLabel: 'Copy code' });
+
+    renderer.act(() => {
+      copyButton.props.onPress();
+    });
+
+    expect(clipboardMocks.setStringAsync).toHaveBeenCalledWith('const value = 1;');
   });
 });
