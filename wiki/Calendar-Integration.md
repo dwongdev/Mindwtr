@@ -33,6 +33,16 @@ On desktop, the current calendar state is reflected in the URL:
 
 This lets you bookmark or share a specific planning window, for example a week view for the current sprint or a schedule view for the next two months.
 
+## Recurring Mindwtr Tasks
+
+Recurring Mindwtr tasks are generated as task instances, not as an expanded calendar series:
+
+- The calendar shows the active task instance when it has a due date or scheduled start time.
+- Mindwtr does not pre-populate future task occurrences in the calendar. The next task instance is created only when the current recurring task is completed.
+- **Strict** keeps the fixed schedule cadence. A monthly task due on the 1st stays anchored to that planned cycle, but Mindwtr still creates one next instance per completion instead of filling every future month.
+- **Repeat after completion** calculates the next instance from when you finish the current one. For example, a plain monthly habit completed on the 15th is scheduled from the 15th next time.
+- Mobile calendar push mirrors these concrete task instances. It does not export Mindwtr recurrence rules as native recurring calendar events.
+
 ## Scheduling Workflow
 
 On desktop:

@@ -238,14 +238,16 @@ Star tasks as today's priorities up to your configured Focus limit:
 
 ## Recurring Tasks
 
-Set up recurring tasks for habits:
+Set up recurring tasks for habits and repeating responsibilities:
 
 1. Edit a task
 2. Set recurrence (daily, weekly, monthly, yearly)
 3. Choose strategy:
-   - **Strict** for fixed schedules (e.g., every 5 days on a fixed cadence)
+   - **Strict** for fixed schedules, such as a monthly review that should stay on the planned day
    - **Repeat after completion** for habits based on when you actually finish
 4. When completed, a new instance is created automatically
+
+Mindwtr keeps one active instance of a recurring task. Future occurrences are not pre-populated in the Calendar; the next instance appears only after you complete the current one. This keeps overdue work visible instead of quietly creating a chain of future copies.
 
 **Example recurring tasks:**
 - Weekly: "Review project status"

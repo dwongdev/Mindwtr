@@ -281,6 +281,8 @@ Recurring tasks support two strategies:
 - **Repeat after completion** (next date from completion time)
 - **Ends: Never / On date / After N occurrences**
 
+Mindwtr keeps one active instance of a recurring task. The Calendar shows that current instance when it has a due date or start time; future occurrences are not pre-filled until the current one is completed.
+
 Use the recurrence field in the task editor, then toggle **Repeat after completion** when needed.
 The same sheet lets you stop a series on a target date or after a fixed number of total occurrences.
 

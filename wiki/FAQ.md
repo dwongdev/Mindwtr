@@ -170,6 +170,8 @@ Mindwtr supports two recurrence strategies:
 
 Set recurrence in the task editor (daily/weekly/monthly/yearly), then enable **Repeat after completion** if you want fluid behavior.
 
+Mindwtr keeps one active instance of a recurring task. It does not pre-populate future Calendar entries for the series; the next task instance is created only when the current one is completed.
+
 ### How do I collect logs for a bug report?
 
 Logging is off by default. Enable it only when you want to report a bug.
