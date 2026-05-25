@@ -413,7 +413,40 @@ describe('mobile sync-service runtime', () => {
     expect(activityStates).toEqual(['idle']);
     expect(coreMocks.performSyncCycle).not.toHaveBeenCalled();
     expect(coreMocks.webdavGetJson).toHaveBeenCalledTimes(1);
+    expect(coreMocks.webdavHeadFile).not.toHaveBeenCalled();
     expect(storeStateRef.current.updateSettings).not.toHaveBeenCalled();
+  });
+
+  it('runs a full sync cycle after attachment pre-sync mutates local data', async () => {
+    const preSyncedData: AppData = {
+      ...emptyData,
+      settings: {
+        attachments: {
+          lastCleanupAt: new Date().toISOString(),
+        },
+      },
+    };
+    attachmentSyncMocks.syncWebdavAttachments
+      .mockResolvedValueOnce(preSyncedData)
+      .mockResolvedValue(false);
+    coreMocks.webdavGetJson.mockResolvedValue(preSyncedData);
+    coreMocks.performSyncCycle.mockImplementation(async (io: any) => {
+      const local = await io.readLocal();
+      const remote = await io.readRemote();
+      expect(remote).toEqual(preSyncedData);
+      await io.writeLocal(local);
+      return { status: 'success', stats: emptyStats, data: local };
+    });
+
+    const result = await syncServiceModule.performMobileSync();
+
+    expect(result).toEqual({ success: true, stats: emptyStats });
+    expect(coreMocks.performSyncCycle).toHaveBeenCalledTimes(1);
+    expect(storageMocks.saveData).toHaveBeenCalledWith(expect.objectContaining({
+      settings: expect.objectContaining({
+        attachments: preSyncedData.settings.attachments,
+      }),
+    }));
   });
 
   it('reports Dropbox as unavailable in FOSS builds instead of falling through to self-hosted config', async () => {

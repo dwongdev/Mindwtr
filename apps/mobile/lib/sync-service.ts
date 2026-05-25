@@ -929,13 +929,17 @@ const mobileSyncOrchestrator = createSyncOrchestrator<string | undefined, Mobile
         dropboxClientId,
       });
 
-      const recordFastSyncState = async (data: AppData): Promise<void> => {
+      const recordFastSyncState = async (
+        data: AppData,
+        options: { allowRemoteFingerprintRead?: boolean } = {}
+      ): Promise<void> => {
         if (!fastSyncScope || hasPendingSyncSideEffects(data)) return;
         if (useTaskStore.getState().lastDataChangeAt > localSnapshotChangeAt) return;
         let remoteFingerprint: string | null = null;
         if (backend === 'cloud' && cloudProvider === CLOUD_PROVIDER_DROPBOX && dropboxLastRev) {
           remoteFingerprint = `dropbox:v1:rev=${dropboxLastRev}`;
         } else {
+          if (options.allowRemoteFingerprintRead === false) return;
           try {
             remoteFingerprint = await readRemoteFingerprintForFastCheck();
           } catch (error) {
@@ -956,6 +960,7 @@ const mobileSyncOrchestrator = createSyncOrchestrator<string | undefined, Mobile
         if (!fastSyncScope) return null;
         step = 'fast-check';
         logSyncInfo('Sync step', { step });
+        if (preSyncedLocalData) return null;
         const localDataForFastCheck = await readLocalDataForSyncCycle();
         ensureLocalSnapshotFresh();
         if (hasPendingSyncSideEffects(localDataForFastCheck)) return null;
@@ -987,6 +992,7 @@ const mobileSyncOrchestrator = createSyncOrchestrator<string | undefined, Mobile
       const trySkipUnchangedReadSync = async (): Promise<MobileSyncResult | null> => {
         step = 'read-check';
         logSyncInfo('Sync step', { step });
+        if (preSyncedLocalData) return null;
         const localDataForReadCheck = await readLocalDataForSyncCycle();
         ensureLocalSnapshotFresh();
         if (hasPendingSyncSideEffects(localDataForReadCheck)) return null;
@@ -1001,7 +1007,7 @@ const mobileSyncOrchestrator = createSyncOrchestrator<string | undefined, Mobile
         const remoteSanitized = sanitizeAppDataForRemote(remoteData);
         if (!areSyncPayloadsEqual(remoteSanitized, localSanitized)) return null;
 
-        await recordFastSyncState(localDataForReadCheck);
+        await recordFastSyncState(localDataForReadCheck, { allowRemoteFingerprintRead: false });
         readCheckLocalData = null;
         readCheckRemoteData = undefined;
         useTaskStore.getState().setError(null);
