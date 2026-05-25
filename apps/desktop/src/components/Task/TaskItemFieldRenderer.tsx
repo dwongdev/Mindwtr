@@ -9,6 +9,7 @@ import {
     continueMarkdownOnEnter,
     hasTimeComponent,
     normalizeClockTimeInput,
+    normalizeDateFormatSetting,
     parseRRuleString,
     resolveAutoTextDirection,
     safeFormatDate,
@@ -50,6 +51,8 @@ const DATE_INPUT_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 const DATE_POPOVER_WIDTH = 288;
 const DATE_POPOVER_APPROX_HEIGHT = 340;
 const DATE_POPOVER_MARGIN = 8;
+
+type DateInputOrder = 'dmy' | 'mdy' | 'ymd';
 
 function parseDateInputDate(value: string): Date | null {
     if (!DATE_INPUT_PATTERN.test(value)) return safeParseDate(value);
@@ -106,12 +109,84 @@ function getWeekdayLabels(locale: string, weekStartIndex: number): string[] {
     });
 }
 
+function getDateInputOrder(dateFormatSetting: string | null | undefined, locale: string): DateInputOrder {
+    const dateFormat = normalizeDateFormatSetting(dateFormatSetting);
+    if (dateFormat === 'dmy') return 'dmy';
+    if (dateFormat === 'mdy') return 'mdy';
+    if (dateFormat === 'ymd') return 'ymd';
+
+    const formatter = new Intl.DateTimeFormat(getCalendarLocale(locale), {
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+    });
+    const order = formatter
+        .formatToParts(new Date(2026, 10, 22))
+        .filter((part) => part.type === 'year' || part.type === 'month' || part.type === 'day')
+        .map((part) => part.type[0])
+        .join('');
+    if (order === 'dmy' || order === 'mdy' || order === 'ymd') return order;
+    return 'mdy';
+}
+
+function getDateInputPlaceholder(order: DateInputOrder): string {
+    if (order === 'dmy') return 'DD/MM/YYYY';
+    if (order === 'mdy') return 'MM/DD/YYYY';
+    return 'YYYY-MM-DD';
+}
+
+function formatDateInputDisplay(value: string, order: DateInputOrder): string {
+    if (!value) return '';
+    const parsed = parseDateInputDate(value);
+    if (!parsed) return value;
+
+    const year = String(parsed.getFullYear()).padStart(4, '0');
+    const month = String(parsed.getMonth() + 1).padStart(2, '0');
+    const day = String(parsed.getDate()).padStart(2, '0');
+    if (order === 'dmy') return `${day}/${month}/${year}`;
+    if (order === 'mdy') return `${month}/${day}/${year}`;
+    return `${year}-${month}-${day}`;
+}
+
+function parseDateInputDisplay(value: string, order: DateInputOrder): string | null {
+    const trimmed = value.trim();
+    if (!trimmed) return '';
+
+    if (DATE_INPUT_PATTERN.test(trimmed)) {
+        const normalized = normalizeDateInputValue(trimmed);
+        return parseDateInputDate(normalized) ? normalized : null;
+    }
+
+    const parts = trimmed.match(/\d{1,4}/g);
+    if (!parts || parts.length !== 3) return null;
+
+    let year: string;
+    let month: string;
+    let day: string;
+    if (parts[0].length === 4) {
+        [year, month, day] = parts;
+    } else if (order === 'dmy') {
+        [day, month, year] = parts;
+    } else if (order === 'mdy') {
+        [month, day, year] = parts;
+    } else {
+        [year, month, day] = parts;
+    }
+
+    if (year.length !== 4) return null;
+    const normalized = normalizeDateInputValue(
+        `${year.padStart(4, '0')}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`
+    );
+    return parseDateInputDate(normalized) ? normalized : null;
+}
+
 type DateFieldProps = {
     t: (key: string) => string;
     label: string;
     dateAriaLabel: string;
     dateValue: string;
     selectedDate: Date | null;
+    dateFormatSetting?: string | null;
     nativeDateInputLocale: string;
     dateInputClassName: string;
     timeInput: ReactNode;
@@ -126,6 +201,7 @@ function DateField({
     dateAriaLabel,
     dateValue,
     selectedDate,
+    dateFormatSetting,
     nativeDateInputLocale,
     dateInputClassName,
     timeInput,
@@ -141,6 +217,8 @@ function DateField({
         startOfMonth(selectedDate ?? parseDateInputDate(dateValue) ?? new Date())
     );
     const clearText = tFallback(t, 'common.clear', 'Clear');
+    const dateInputOrder = getDateInputOrder(dateFormatSetting, nativeDateInputLocale);
+    const [draftDateValue, setDraftDateValue] = useState(() => formatDateInputDisplay(dateValue, dateInputOrder));
     const weekStartIndex = getWeekStartIndex(nativeDateInputLocale);
     const calendarLocale = getCalendarLocale(nativeDateInputLocale);
     const monthLabel = new Intl.DateTimeFormat(calendarLocale, { month: 'long', year: 'numeric' }).format(calendarMonth);
@@ -170,6 +248,10 @@ function DateField({
         updateCalendarPosition();
         setIsCalendarOpen(true);
     }, [updateCalendarPosition]);
+
+    useEffect(() => {
+        setDraftDateValue(formatDateInputDisplay(dateValue, dateInputOrder));
+    }, [dateInputOrder, dateValue]);
 
     useEffect(() => {
         if (!isCalendarOpen) return;
@@ -207,8 +289,20 @@ function DateField({
         };
     }, [isCalendarOpen, updateCalendarPosition]);
 
+    const handleDateInputChange = (value: string) => {
+        setDraftDateValue(value);
+        const parsed = parseDateInputDisplay(value, dateInputOrder);
+        if (parsed === null) return;
+        if (!parsed) {
+            onClear();
+            return;
+        }
+        onDateChange(parsed);
+    };
     const applyCalendarDate = (date: Date, closeAfterSelect: boolean) => {
-        onDateChange(safeFormatDate(date, 'yyyy-MM-dd'));
+        const nextDateValue = safeFormatDate(date, 'yyyy-MM-dd');
+        setDraftDateValue(formatDateInputDisplay(nextDateValue, dateInputOrder));
+        onDateChange(nextDateValue);
         if (!closeAfterSelect) return;
         setIsCalendarOpen(false);
         window.setTimeout(() => inputRef.current?.focus(), 0);
@@ -223,15 +317,21 @@ function DateField({
                         ref={inputRef}
                         type="text"
                         inputMode="numeric"
-                        placeholder="YYYY-MM-DD"
+                        placeholder={getDateInputPlaceholder(dateInputOrder)}
                         lang={nativeDateInputLocale}
                         aria-label={dateAriaLabel}
                         aria-haspopup="dialog"
                         aria-expanded={isCalendarOpen}
-                        value={dateValue}
+                        value={draftDateValue}
                         onFocus={openCalendar}
                         onClick={openCalendar}
-                        onChange={(event) => onDateChange(event.target.value)}
+                        onChange={(event) => handleDateInputChange(event.target.value)}
+                        onBlur={() => {
+                            window.setTimeout(() => {
+                                if (rootRef.current?.contains(document.activeElement)) return;
+                                setDraftDateValue(formatDateInputDisplay(dateValue, dateInputOrder));
+                            }, 0);
+                        }}
                         onKeyDown={(event) => {
                             if (event.key === 'Escape') {
                                 setIsCalendarOpen(false);
@@ -253,6 +353,7 @@ function DateField({
                     <button
                         type="button"
                         onClick={() => {
+                            setDraftDateValue('');
                             onClear();
                             setIsCalendarOpen(false);
                         }}
@@ -337,11 +438,14 @@ function DateField({
                 wrap
                 onSelect={(date) => {
                     if (!date) {
+                        setDraftDateValue('');
                         onClear();
                         setIsCalendarOpen(false);
                         return;
                     }
-                    onDateChange(safeFormatDate(date, 'yyyy-MM-dd'));
+                    const nextDateValue = safeFormatDate(date, 'yyyy-MM-dd');
+                    setDraftDateValue(formatDateInputDisplay(nextDateValue, dateInputOrder));
+                    onDateChange(nextDateValue);
                 }}
                 className="w-full"
             />
@@ -377,6 +481,7 @@ export type TaskItemFieldRendererData = {
     editContexts: string;
     editTags: string;
     language: string;
+    dateFormatSetting?: string | null;
     nativeDateInputLocale: string;
     defaultScheduleTime: string;
     popularContextOptions: string[];
@@ -443,6 +548,7 @@ export function TaskItemFieldRenderer({
         editContexts,
         editTags,
         language,
+        dateFormatSetting,
         nativeDateInputLocale,
         defaultScheduleTime,
         popularContextOptions,
@@ -730,6 +836,7 @@ export function TaskItemFieldRenderer({
             dateAriaLabel={dateAriaLabel}
             dateValue={dateValue}
             selectedDate={selectedDate}
+            dateFormatSetting={dateFormatSetting}
             nativeDateInputLocale={nativeDateInputLocale}
             dateInputClassName={dateInputClassName}
             timeInput={timeInput}

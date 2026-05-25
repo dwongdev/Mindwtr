@@ -103,6 +103,7 @@ const createData = (overrides: Partial<TaskItemFieldRendererData> = {}): TaskIte
     editContexts: '',
     editTags: '',
     language: 'en',
+    dateFormatSetting: 'system',
     nativeDateInputLocale: 'en-US',
     defaultScheduleTime: '',
     popularContextOptions: [],
@@ -256,6 +257,55 @@ describe('TaskItemFieldRenderer date clear buttons', () => {
 
         expect(handlers.setEditDueDate).toHaveBeenCalledWith('2026-04-19T09:00');
     });
+
+    it.each([
+        {
+            dateFormatSetting: 'dmy',
+            nativeDateInputLocale: 'en-GB-u-fw-mon',
+            initialDisplay: '19/04/2026',
+            nextDisplay: '20/04/2026',
+            expectedDate: '2026-04-20',
+        },
+        {
+            dateFormatSetting: 'mdy',
+            nativeDateInputLocale: 'en-US-u-fw-sun',
+            initialDisplay: '04/19/2026',
+            nextDisplay: '04/20/2026',
+            expectedDate: '2026-04-20',
+        },
+        {
+            dateFormatSetting: 'ymd',
+            nativeDateInputLocale: 'en-CA-u-fw-mon',
+            initialDisplay: '2026-04-19',
+            nextDisplay: '2026-04-20',
+            expectedDate: '2026-04-20',
+        },
+    ])(
+        'formats and parses date text using the $dateFormatSetting date format setting',
+        ({ dateFormatSetting, nativeDateInputLocale, initialDisplay, nextDisplay, expectedDate }) => {
+            const handlers = createHandlers();
+
+            const { getByLabelText } = render(
+                <TaskItemFieldRenderer
+                    fieldId="dueDate"
+                    data={createData({
+                        editDueDate: '2026-04-19',
+                        dateFormatSetting,
+                        nativeDateInputLocale,
+                    })}
+                    handlers={handlers}
+                />
+            );
+
+            const input = getByLabelText('Due date') as HTMLInputElement;
+
+            expect(input.value).toBe(initialDisplay);
+
+            fireEvent.change(input, { target: { value: nextDisplay } });
+
+            expect(handlers.setEditDueDate).toHaveBeenCalledWith(expectedDate);
+        }
+    );
 
     it.each([
         {
