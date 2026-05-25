@@ -88,6 +88,25 @@
   <url type="bugtracker">https://github.com/dongdongbh/Mindwtr/issues</url>
   <url type="vcs-browser">https://github.com/dongdongbh/Mindwtr</url>
   <releases>
+    <release version="0.9.5" date="2026-05-25">
+      <url type="details">https://github.com/dongdongbh/Mindwtr/releases/tag/v0.9.5</url>
+      <description>
+        <p>Mindwtr 0.9.5 improves task locations, calendar planning, Markdown editing, and Linux desktop reliability.</p>
+        <p xml:lang="de">Mindwtr 0.9.5 verbessert Aufgabenorte, Kalenderplanung, Markdown-Bearbeitung und die Zuverlaessigkeit des Linux-Desktops.</p>
+        <ul>
+          <li>Made task locations editable, filterable, and searchable from desktop global search.</li>
+          <li xml:lang="de">Aufgabenorte sind jetzt im Desktop bearbeitbar, filterbar und in der globalen Suche auffindbar.</li>
+          <li>Improved calendar scheduling with all-day date-only tasks, location-preserving event tasks, gzip ICS subscriptions, and cleaner exported titles.</li>
+          <li xml:lang="de">Kalenderplanung mit ganztagigen reinen Datumsaufgaben, Aufgabenorten aus Ereignissen, gzip-ICS-Abos und saubereren exportierten Titeln verbessert.</li>
+          <li>Improved Markdown description editing and previews, including preserved blank lines.</li>
+          <li xml:lang="de">Markdown-Beschreibungen und Vorschauen verbessert, einschliesslich beibehaltener Leerzeilen.</li>
+          <li>Made desktop date pickers, wheel zoom, quick add positioning, and collapsed area filters more reliable.</li>
+          <li xml:lang="de">Datumsauswahl, Mausrad-Zoom, Schnellhinzufuegen-Position und eingeklappte Bereichsfilter im Desktop zuverlaessiger gemacht.</li>
+          <li>Restored Flatpak reminders, improved Obsidian vault scan retries, and kept Flathub-facing metadata localized.</li>
+          <li xml:lang="de">Flatpak-Erinnerungen wiederhergestellt, Wiederholungen fuer Obsidian-Vault-Scans verbessert und Flathub-Metadaten lokalisiert gehalten.</li>
+        </ul>
+      </description>
+    </release>
     <release version="0.9.4" date="2026-05-23">
       <url type="details">https://github.com/dongdongbh/Mindwtr/releases/tag/v0.9.4</url>
       <description>

@@ -1,3 +1,3 @@
-- Se agrego captura de Inbox con Siri y una pestana de acceso rapido configurable.
-- Se agrego una opcion para limpiar Apple Reminders despues de importar.
-- Mejoras en teclado del editor, reapertura de recordatorios, chips de fecha y agrupacion de Focus.
+- Las ubicaciones de tareas ahora se pueden editar, filtrar y buscar.
+- Markdown mejora con vista de lineas en blanco y copia de bloques de codigo.
+- Calendario, secuencias de Focus y comprobaciones sin cambios son mas fiables.

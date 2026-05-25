@@ -1,3 +1,3 @@
-- Added Siri inbox capture and a configurable quick access tab.
-- Added an Apple Reminders cleanup option after import.
-- Improved task editor keyboard handling, reminder reopening, quick date chips, and Focus grouping.
+- Added task location editing, filtering, and search.
+- Improved Markdown editing with blank-line previews and code-block copy.
+- Calendar scheduling, Focus sequencing, and unchanged-sync checks are more reliable.

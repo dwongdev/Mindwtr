@@ -30,7 +30,7 @@
           "完全离线可用，无需互联网连接",
           "完全开源，安全透明"
         ],
-        "ReleaseNotes": "• 桌面日历拖放规划、任务描述预览和键盘任务选择更好用。\n• 新增本地 API 服务器设置，并通过 bearer token 保护访问。\n• 全局搜索、项目布局、WebView 缩放和同步提示更加稳定。",
+        "ReleaseNotes": "• 任务位置现在可编辑、筛选，并可用位置运算符搜索。\n• Markdown 任务描述会保留空行，编辑也更一致。\n• 日历安排、项目顺序推进、日期选择器、快速添加位置和 WebView 缩放更可靠。",
         "Images": [
           {
             "FileName": "2026-01-27_22-59-40.png",
@@ -82,7 +82,7 @@
           "No internet connection required to function",
           "Open source and transparent"
         ],
-        "ReleaseNotes": "• Desktop calendar drag planning, task description previews, and keyboard task selectors are more capable.\n• Local API server settings now include bearer-token protection for automation.\n• Global search, project layouts, WebView zoom, and sync warning cleanup are more reliable.",
+        "ReleaseNotes": "• Task locations are now editable, filterable, and searchable with location operators.\n• Markdown task descriptions preserve blank lines and editing is more consistent.\n• Calendar scheduling, project sequencing, date pickers, quick add positioning, and WebView zoom are more reliable.",
         "Images": [
           {
             "FileName": "2026-01-27_22-59-40.png",
@@ -131,7 +131,7 @@
           "Offline nutzbar ohne staendige Internetverbindung",
           "Open Source und transparent"
         ],
-        "ReleaseNotes": "• Desktop-Kalenderplanung per Drag, Task-Beschreibungsvorschau und Tastaturauswahl wurden verbessert.\n• Lokale API-Servereinstellungen schuetzen Automatisierung jetzt mit bearer token.\n• Globale Suche, Projektlayouts, WebView-Zoom und Sync-Warnungen sind zuverlaessiger.",
+        "ReleaseNotes": "• Aufgabenorte sind jetzt bearbeitbar, filterbar und ueber Ortsoperatoren durchsuchbar.\n• Markdown-Aufgabenbeschreibungen bewahren Leerzeilen und lassen sich konsistenter bearbeiten.\n• Kalenderplanung, Projektsequenzen, Datumsauswahl, Schnellhinzufuegen-Position und WebView-Zoom sind zuverlaessiger.",
         "Images": [],
         "RecommendedHardware": [],
         "MinimumHardware": [],
@@ -160,7 +160,7 @@
           "No requiere conexión a internet para funcionar",
           "Código abierto y transparente"
         ],
-        "ReleaseNotes": "• La planificacion de calendario con arrastre, las vistas previas de descripcion y los selectores por teclado son mas capaces.\n• Los ajustes del servidor local API ahora protegen automatizaciones con bearer token.\n• Busqueda global, layouts de proyectos, zoom WebView y avisos de sync son mas fiables.",
+        "ReleaseNotes": "• Las ubicaciones de tareas se pueden editar, filtrar y buscar con operadores de ubicacion.\n• Las descripciones Markdown conservan lineas en blanco y la edicion es mas consistente.\n• Calendario, secuencias de proyectos, selector de fecha, posicion de entrada rapida y zoom WebView son mas fiables.",
         "Images": [
           {
             "FileName": "2026-01-27_22-59-40.png",
