@@ -60,6 +60,13 @@ export function Markdown({ markdown, className }: { markdown: string; className?
     while (i < lines.length) {
         const line = lines[i];
         if (!line.trim()) {
+            blocks.push(
+                <div
+                    key={`blank-${i}`}
+                    aria-hidden="true"
+                    className="mindwtr-markdown-blank-line h-4"
+                />
+            );
             i += 1;
             continue;
         }

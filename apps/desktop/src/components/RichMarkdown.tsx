@@ -6,6 +6,9 @@ import { Copy } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { InternalMarkdownLink } from './InternalMarkdownLink';
 
+const BLANK_LINE_MARKER = '\u00A0';
+const BLANK_LINE_CLASS = 'mindwtr-markdown-blank-line';
+
 function transformMarkdownUrl(url: string) {
     const normalized = url.trim().toLowerCase();
     if (
@@ -29,6 +32,43 @@ const extractTextContent = (node: unknown): string => {
     }
     return '';
 };
+
+function remarkPreserveBlankLines() {
+    return (tree: any) => {
+        if (!Array.isArray(tree?.children)) return;
+        const nextChildren: any[] = [];
+        let previousEndLine: number | undefined;
+
+        for (const child of tree.children) {
+            const startLine = child?.position?.start?.line;
+            if (typeof previousEndLine === 'number' && typeof startLine === 'number') {
+                const blankLineCount = Math.max(0, startLine - previousEndLine - 1);
+                for (let index = 0; index < blankLineCount; index += 1) {
+                    nextChildren.push({
+                        type: 'paragraph',
+                        data: {
+                            hProperties: {
+                                className: BLANK_LINE_CLASS,
+                                'aria-hidden': 'true',
+                            },
+                        },
+                        children: [{ type: 'text', value: BLANK_LINE_MARKER }],
+                    });
+                }
+            }
+
+            nextChildren.push(child);
+            const endLine = child?.position?.end?.line;
+            previousEndLine = typeof endLine === 'number'
+                ? endLine
+                : typeof startLine === 'number'
+                    ? startLine
+                    : previousEndLine;
+        }
+
+        tree.children = nextChildren;
+    };
+}
 
 function CodeBlock({ children, className, ...props }: any) {
     const code = extractTextContent(children).replace(/\n$/, '');
@@ -58,7 +98,7 @@ function CodeBlock({ children, className, ...props }: any) {
 export function RichMarkdown({ markdown }: { markdown: string }) {
     return (
         <ReactMarkdown
-            remarkPlugins={[remarkGfm]}
+            remarkPlugins={[remarkGfm, remarkPreserveBlankLines]}
             disallowedElements={['img']}
             urlTransform={transformMarkdownUrl}
             components={{
@@ -91,11 +131,24 @@ export function RichMarkdown({ markdown }: { markdown: string }) {
                 li: ({ className, ...props }: any) => (
                     <li className={cn('pl-1', className)} {...props} />
                 ),
-                p: ({ className, children, ...props }: any) => (
-                    <p className={cn('mb-1 last:mb-0 leading-relaxed whitespace-pre-line', className)} {...props}>
-                        {children}
-                    </p>
-                ),
+                p: ({ className, children, ...props }: any) => {
+                    if (String(className || '').includes(BLANK_LINE_CLASS)) {
+                        return (
+                            <p
+                                className={cn('my-1 h-4 leading-none', className)}
+                                aria-hidden="true"
+                                {...props}
+                            >
+                                {BLANK_LINE_MARKER}
+                            </p>
+                        );
+                    }
+                    return (
+                        <p className={cn('mb-1 last:mb-0 leading-relaxed whitespace-pre-line', className)} {...props}>
+                            {children}
+                        </p>
+                    );
+                },
                 code: ({ className, ...props }: any) => (
                     <code className={cn('bg-muted px-1 py-0.5 rounded text-[0.9em] font-mono', className)} {...props} />
                 ),

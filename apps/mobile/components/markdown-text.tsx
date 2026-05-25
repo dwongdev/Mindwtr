@@ -176,6 +176,15 @@ export function MarkdownText({
   while (i < lines.length) {
     const line = lines[i];
     if (!line.trim()) {
+      blocks.push(
+        <View
+          key={`blank-${i}`}
+          testID="markdown-blank-line"
+          accessibilityElementsHidden
+          importantForAccessibility="no-hide-descendants"
+          style={styles.blankLine}
+        />
+      );
       i += 1;
       continue;
     }
@@ -322,6 +331,9 @@ const styles = StyleSheet.create({
   paragraph: {
     fontSize: 13,
     lineHeight: 18,
+  },
+  blankLine: {
+    height: 12,
   },
   heading: {
     fontWeight: '700',

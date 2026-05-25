@@ -44,6 +44,15 @@ const flattenText = (
   return flattenText(value.children);
 };
 
+const countByTestId = (
+  value: renderer.ReactTestRendererNode | renderer.ReactTestRendererNode[] | null,
+  testID: string,
+): number => {
+  if (value == null || typeof value === 'string') return 0;
+  if (Array.isArray(value)) return value.reduce((total, item) => total + countByTestId(item, testID), 0);
+  return (value.props?.testID === testID ? 1 : 0) + countByTestId(value.children, testID);
+};
+
 describe('MarkdownText', () => {
   const renderMarkdown = (markdown: string) => {
     let tree!: renderer.ReactTestRenderer;
@@ -99,6 +108,12 @@ describe('MarkdownText', () => {
     const tree = renderMarkdown('line 1\nline 2');
 
     expect(flattenText(tree.toJSON())).toContain('line 1\nline 2');
+  });
+
+  it('preserves intentional blank lines between blocks', () => {
+    const tree = renderMarkdown('line 1\n\nline 2');
+
+    expect(countByTestId(tree.toJSON(), 'markdown-blank-line')).toBe(1);
   });
 
   it('adds an accessible copy button to fenced code blocks', () => {
