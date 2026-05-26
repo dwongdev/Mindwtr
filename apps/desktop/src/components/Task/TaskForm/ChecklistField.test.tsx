@@ -63,4 +63,14 @@ describe('ChecklistField', () => {
             focusSpy.mockRestore();
         }
     });
+
+    it('keeps the add-item click from blurring the current editor control first', () => {
+        const { getByRole } = render(<ChecklistHarness />);
+        const addButton = getByRole('button', { name: /taskEdit.addItem/i });
+        const mouseDown = createEvent.mouseDown(addButton, { cancelable: true });
+
+        fireEvent(addButton, mouseDown);
+
+        expect(mouseDown.defaultPrevented).toBe(true);
+    });
 });

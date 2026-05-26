@@ -23,7 +23,7 @@ type DescriptionFieldProps = {
     descriptionSelection: MarkdownSelection;
     descriptionAutocomplete: ReturnType<typeof useMarkdownReferenceAutocomplete>;
     onTogglePreview: () => void;
-    onEditFromPreview: () => void;
+    onEditFromPreview: (source?: HTMLElement) => void;
     onExpand: () => void;
     onCloseExpanded: () => void;
     onDescriptionInput: (value: string, selection: MarkdownSelection) => void;
@@ -70,12 +70,12 @@ export function DescriptionField({
     const handlePreviewClick = (event: MouseEvent<HTMLDivElement>) => {
         const target = event.target instanceof HTMLElement ? event.target : null;
         if (target?.closest('a, button, input, textarea, select, label')) return;
-        onEditFromPreview();
+        onEditFromPreview(event.currentTarget);
     };
     const handlePreviewKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
         if (event.key !== 'Enter' && event.key !== ' ') return;
         event.preventDefault();
-        onEditFromPreview();
+        onEditFromPreview(event.currentTarget);
     };
 
     return (
@@ -108,7 +108,7 @@ export function DescriptionField({
                     onClick={handlePreviewClick}
                     onKeyDown={handlePreviewKeyDown}
                     className={cn(
-                        'w-full cursor-text text-left text-xs bg-muted/30 border border-border rounded px-2 py-2 transition-[border-color,box-shadow] hover:border-primary/40 focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary/40',
+                        'w-full cursor-text text-left text-sm leading-6 bg-muted/30 border border-border rounded px-3 py-2 transition-[border-color,box-shadow] hover:border-primary/40 focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary/40',
                         isRtl && 'text-right'
                     )}
                     dir={resolvedDirection}

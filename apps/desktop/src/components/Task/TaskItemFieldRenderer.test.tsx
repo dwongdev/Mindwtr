@@ -577,4 +577,20 @@ describe('TaskItemFieldRenderer date clear buttons', () => {
             expect(getByRole('textbox', { name: 'Description' })).toHaveFocus();
         });
     });
+
+    it('does not force preview-to-edit clicks to the end of the description', async () => {
+        const selectionSpy = vi.spyOn(HTMLTextAreaElement.prototype, 'setSelectionRange').mockImplementation(() => {});
+        try {
+            const { getByRole } = render(<DescriptionPreviewHarness />);
+
+            fireEvent.click(getByRole('button', { name: 'Edit Description' }));
+
+            await waitFor(() => {
+                expect(getByRole('textbox', { name: 'Description' })).toHaveFocus();
+            });
+            expect(selectionSpy).not.toHaveBeenCalled();
+        } finally {
+            selectionSpy.mockRestore();
+        }
+    });
 });

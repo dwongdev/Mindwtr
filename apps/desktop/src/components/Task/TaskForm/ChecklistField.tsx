@@ -2,6 +2,11 @@ import { Check, Plus, Trash2 } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { generateUUID, type Task } from '@mindwtr/core';
 import { cn } from '../../../lib/utils';
+import {
+    captureScrollSnapshot,
+    focusElementWithoutScroll,
+    restoreScrollSnapshotSoon,
+} from '../../../lib/scroll-preservation';
 
 type ChecklistFieldProps = {
     t: (key: string) => string;
@@ -76,12 +81,16 @@ export function ChecklistField({
         }
     }, [taskId, updateTask]);
 
-    const focusChecklistIndex = useCallback((index: number) => {
+    const focusChecklistIndex = useCallback((index: number, source?: HTMLElement) => {
+        const scrollSnapshot = captureScrollSnapshot(source);
         const scheduleFocus = typeof window.requestAnimationFrame === 'function'
             ? window.requestAnimationFrame.bind(window)
             : (callback: FrameRequestCallback) => window.setTimeout(() => callback(0), 0);
         scheduleFocus(() => {
-            checklistInputRefs.current[index]?.focus({ preventScroll: true });
+            const input = checklistInputRefs.current[index];
+            if (!input) return;
+            focusElementWithoutScroll(input, scrollSnapshot);
+            restoreScrollSnapshotSoon(scrollSnapshot);
         });
     }, []);
 
@@ -141,7 +150,7 @@ export function ChecklistField({
                                     checklistDraftRef.current = nextList;
                                     checklistDirtyRef.current = false;
                                     updateTask(taskId, { checklist: nextList });
-                                    focusChecklistIndex(index + 1);
+                                    focusChecklistIndex(index + 1, event.currentTarget);
                                     return;
                                 }
                                 if (event.key === 'Backspace' && item.title.length === 0) {
@@ -153,7 +162,7 @@ export function ChecklistField({
                                     updateTask(taskId, { checklist: nextList });
                                     const nextIndex = Math.max(0, index - 1);
                                     if (nextList.length > 0) {
-                                        focusChecklistIndex(nextIndex);
+                                        focusChecklistIndex(nextIndex, event.currentTarget);
                                     }
                                     return;
                                 }
@@ -162,7 +171,7 @@ export function ChecklistField({
                                     const nextIndex = event.shiftKey ? index - 1 : index + 1;
                                     if (nextIndex >= 0 && nextIndex < (checklistDraft || []).length) {
                                         event.preventDefault();
-                                        focusChecklistIndex(nextIndex);
+                                        focusChecklistIndex(nextIndex, event.currentTarget);
                                     } else {
                                         commitChecklistDraft();
                                     }
@@ -194,7 +203,11 @@ export function ChecklistField({
                 <button
                     type="button"
                     tabIndex={-1}
+                    onMouseDown={(event) => event.preventDefault()}
                     onClick={() => {
+                        const source = document.activeElement instanceof HTMLElement
+                            ? document.activeElement
+                            : undefined;
                         const newItem = {
                             id: generateUUID(),
                             title: '',
@@ -205,7 +218,7 @@ export function ChecklistField({
                         checklistDraftRef.current = nextList;
                         checklistDirtyRef.current = false;
                         updateTask(taskId, { checklist: nextList });
-                        focusChecklistIndex(nextList.length - 1);
+                        focusChecklistIndex(nextList.length - 1, source);
                     }}
                     onKeyDown={(event) => {
                         if (event.key === 'Enter') {
@@ -221,7 +234,7 @@ export function ChecklistField({
                             checklistDraftRef.current = nextList;
                             checklistDirtyRef.current = false;
                             updateTask(taskId, { checklist: nextList });
-                            focusChecklistIndex(nextList.length - 1);
+                            focusChecklistIndex(nextList.length - 1, event.currentTarget);
                         }
                     }}
                     className="text-xs text-blue-500 hover:text-blue-600 font-medium flex items-center gap-1"

@@ -46,6 +46,12 @@ import {
     TimeEstimateField,
 } from './fields/TaskMetadataFields';
 import { QuickDateChips } from '../QuickDateChips';
+import {
+    captureScrollSnapshot,
+    focusElementWithoutScroll,
+    keepTextareaSelectionVisible,
+    restoreScrollSnapshotSoon,
+} from '../../lib/scroll-preservation';
 
 const DATE_INPUT_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 const DATE_POPOVER_WIDTH = 288;
@@ -733,8 +739,13 @@ export function TaskItemFieldRenderer({
             });
             descriptionSelectionRef.current = next.selection;
             requestAnimationFrame(() => {
-                descriptionTextareaRef.current?.focus();
-                descriptionTextareaRef.current?.setSelectionRange(next.selection.start, next.selection.end);
+                const textarea = descriptionTextareaRef.current;
+                if (!textarea) return;
+                const scrollSnapshot = captureScrollSnapshot(textarea);
+                focusElementWithoutScroll(textarea, scrollSnapshot);
+                textarea.setSelectionRange(next.selection.start, next.selection.end);
+                keepTextareaSelectionVisible(textarea);
+                restoreScrollSnapshotSoon(scrollSnapshot);
             });
         };
         const lowerKey = event.key.toLowerCase();
@@ -808,18 +819,24 @@ export function TaskItemFieldRenderer({
         });
         descriptionSelectionRef.current = next.selection;
         requestAnimationFrame(() => {
-            descriptionTextareaRef.current?.focus();
-            descriptionTextareaRef.current?.setSelectionRange(next.selection.start, next.selection.end);
+            const textarea = descriptionTextareaRef.current;
+            if (!textarea) return;
+            const scrollSnapshot = captureScrollSnapshot(textarea);
+            focusElementWithoutScroll(textarea, scrollSnapshot);
+            textarea.setSelectionRange(next.selection.start, next.selection.end);
+            keepTextareaSelectionVisible(textarea);
+            restoreScrollSnapshotSoon(scrollSnapshot);
         });
     };
-    const handleEditDescriptionFromPreview = () => {
+    const handleEditDescriptionFromPreview = (source?: HTMLElement) => {
+        const scrollSnapshot = captureScrollSnapshot(source);
         editDescriptionFromPreview();
+        restoreScrollSnapshotSoon(scrollSnapshot);
         requestAnimationFrame(() => {
             const textarea = descriptionTextareaRef.current;
             if (!textarea) return;
-            const nextCursorPosition = textarea.value.length;
-            textarea.focus();
-            textarea.setSelectionRange(nextCursorPosition, nextCursorPosition);
+            focusElementWithoutScroll(textarea, scrollSnapshot);
+            restoreScrollSnapshotSoon(scrollSnapshot);
         });
     };
     const dateInputClassName = 'min-w-0 flex-1 text-xs bg-muted/50 border border-border rounded px-2 py-1 text-foreground';
