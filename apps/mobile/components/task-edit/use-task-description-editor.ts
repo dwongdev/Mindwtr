@@ -2,9 +2,7 @@ import React from 'react';
 import { TextInput, type NativeSyntheticEvent, type TextInputKeyPressEventData } from 'react-native';
 import {
     applyMarkdownKeyboardShortcut,
-    applyMarkdownPairInsertion,
     applyMarkdownToolbarAction,
-    applyMarkdownUrlPaste,
     continueMarkdownOnTextChange,
     type MarkdownSelection,
     type MarkdownToolbarActionId,
@@ -12,6 +10,11 @@ import {
     type Task,
 } from '@mindwtr/core';
 
+import {
+    applyMarkdownPairInsertionWithSelectionFallback,
+    applyMarkdownUrlPasteWithSelectionFallback,
+    isRangeSelection,
+} from '../markdown-selection-utils';
 import type { SetEditedTask } from './use-task-edit-state';
 
 const selectionsEqual = (left: MarkdownSelection, right: MarkdownSelection) => (
@@ -53,10 +56,14 @@ export function useTaskDescriptionEditor({
         end: descriptionDraft.length,
     });
     const descriptionSelectionRef = React.useRef(descriptionSelection);
+    const lastDescriptionRangeRef = React.useRef<MarkdownSelection | null>(isRangeSelection(descriptionSelection) ? descriptionSelection : null);
     const pendingDescriptionSelectionRef = React.useRef<MarkdownSelection | null>(null);
 
     React.useEffect(() => {
         descriptionSelectionRef.current = descriptionSelection;
+        if (isRangeSelection(descriptionSelection)) {
+            lastDescriptionRangeRef.current = descriptionSelection;
+        }
     }, [descriptionSelection]);
 
     const restoreDescriptionSelection = React.useCallback((selection: MarkdownSelection) => {
@@ -94,6 +101,7 @@ export function useTaskDescriptionEditor({
         setDescriptionExpanded(false);
         const resetSelection = { start: 0, end: 0 };
         pendingDescriptionSelectionRef.current = null;
+        lastDescriptionRangeRef.current = null;
         descriptionSelectionRef.current = resetSelection;
         setDescriptionSelection(resetSelection);
     }, [task?.id]);
@@ -149,30 +157,37 @@ export function useTaskDescriptionEditor({
     ]);
 
     const handleDescriptionChange = React.useCallback((text: string) => {
-        const pastedUrl = applyMarkdownUrlPaste(
-            descriptionDraftRef.current,
+        const currentSelection = descriptionSelectionRef.current;
+        const previousValue = descriptionDraftRef.current;
+        const fallbackSelection = lastDescriptionRangeRef.current;
+        const pastedUrl = applyMarkdownUrlPasteWithSelectionFallback(
+            previousValue,
             text,
-            descriptionSelectionRef.current,
+            currentSelection,
+            fallbackSelection,
         );
         if (pastedUrl) {
-            applyDescriptionValue(pastedUrl.value, {
-                baseSelection: descriptionSelectionRef.current,
-                nextSelection: pastedUrl.selection,
+            lastDescriptionRangeRef.current = null;
+            applyDescriptionValue(pastedUrl.result.value, {
+                baseSelection: pastedUrl.baseSelection,
+                nextSelection: pastedUrl.result.selection,
             });
-            restoreDescriptionSelection(pastedUrl.selection);
+            restoreDescriptionSelection(pastedUrl.result.selection);
             return;
         }
-        const pairedInsertion = applyMarkdownPairInsertion(
-            descriptionDraftRef.current,
+        const pairedInsertion = applyMarkdownPairInsertionWithSelectionFallback(
+            previousValue,
             text,
-            descriptionSelectionRef.current,
+            currentSelection,
+            fallbackSelection,
         );
         if (pairedInsertion) {
-            applyDescriptionValue(pairedInsertion.value, {
-                baseSelection: descriptionSelectionRef.current,
-                nextSelection: pairedInsertion.selection,
+            lastDescriptionRangeRef.current = null;
+            applyDescriptionValue(pairedInsertion.result.value, {
+                baseSelection: pairedInsertion.baseSelection,
+                nextSelection: pairedInsertion.result.selection,
             });
-            restoreDescriptionSelection(pairedInsertion.selection);
+            restoreDescriptionSelection(pairedInsertion.result.selection);
             return;
         }
         const continued = continueMarkdownOnTextChange(
@@ -181,6 +196,7 @@ export function useTaskDescriptionEditor({
             descriptionSelectionRef.current,
         );
         if (continued) {
+            lastDescriptionRangeRef.current = null;
             applyDescriptionValue(continued.value, {
                 baseSelection: descriptionSelectionRef.current,
                 nextSelection: continued.selection,
@@ -188,6 +204,7 @@ export function useTaskDescriptionEditor({
             restoreDescriptionSelection(continued.selection);
             return;
         }
+        lastDescriptionRangeRef.current = null;
         applyDescriptionValue(text);
     }, [applyDescriptionValue, restoreDescriptionSelection]);
 
@@ -215,6 +232,9 @@ export function useTaskDescriptionEditor({
             pendingDescriptionSelectionRef.current = null;
         }
         descriptionSelectionRef.current = selection;
+        if (isRangeSelection(selection)) {
+            lastDescriptionRangeRef.current = selection;
+        }
         setDescriptionSelection(selection);
     }, []);
 
@@ -223,6 +243,7 @@ export function useTaskDescriptionEditor({
         if (!previousEntry) return undefined;
         descriptionUndoRef.current = descriptionUndoRef.current.slice(0, -1);
         setDescriptionUndoDepth(descriptionUndoRef.current.length);
+        lastDescriptionRangeRef.current = null;
         applyDescriptionValue(previousEntry.value, {
             nextSelection: previousEntry.selection,
             recordUndo: false,
@@ -232,6 +253,7 @@ export function useTaskDescriptionEditor({
 
     const handleDescriptionApplyAction = React.useCallback((actionId: MarkdownToolbarActionId, selection: MarkdownSelection): MarkdownToolbarResult => {
         const next = applyMarkdownToolbarAction(descriptionDraftRef.current, selection, actionId);
+        lastDescriptionRangeRef.current = null;
         applyDescriptionValue(next.value, {
             baseSelection: selection,
             nextSelection: next.selection,
@@ -239,6 +261,7 @@ export function useTaskDescriptionEditor({
         return next;
     }, [applyDescriptionValue, descriptionDraftRef]);
     const applyDescriptionResult = React.useCallback((next: MarkdownToolbarResult) => {
+        lastDescriptionRangeRef.current = null;
         applyDescriptionValue(next.value, {
             baseSelection: descriptionSelectionRef.current,
             nextSelection: next.selection,

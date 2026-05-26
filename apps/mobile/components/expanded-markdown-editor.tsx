@@ -19,9 +19,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import {
     applyMarkdownKeyboardShortcut,
-    applyMarkdownPairInsertion,
     applyMarkdownToolbarAction,
-    applyMarkdownUrlPaste,
     continueMarkdownOnTextChange,
     type MarkdownSelection,
     type MarkdownToolbarActionId,
@@ -34,6 +32,11 @@ import { expandedMarkdownEditorStyles as styles } from './expanded-markdown-edit
 import { KeyboardAccessoryHost } from './keyboard-accessory-host';
 import { MarkdownFormatToolbar } from './markdown-format-toolbar';
 import { MarkdownReferenceAutocomplete } from './markdown-reference-autocomplete';
+import {
+    applyMarkdownPairInsertionWithSelectionFallback,
+    applyMarkdownUrlPasteWithSelectionFallback,
+    isRangeSelection,
+} from './markdown-selection-utils';
 import { MarkdownText } from './markdown-text';
 import { getControlledTextInputSelection } from './text-input-selection';
 
@@ -89,6 +92,7 @@ export function ExpandedMarkdownEditor({
     const wasOpenRef = React.useRef(false);
     const toolbarInteractionUntilRef = React.useRef(0);
     const pendingSelectionRef = React.useRef<MarkdownSelection | null>(null);
+    const lastRangeSelectionRef = React.useRef<MarkdownSelection | null>(isRangeSelection(selection) ? selection : null);
     const valueRef = React.useRef(value);
     const selectionRef = React.useRef(selection);
     // Keep a local mirror while the fullscreen editor is open so Android
@@ -111,6 +115,7 @@ export function ExpandedMarkdownEditor({
             setMode(initialMode);
             valueRef.current = value;
             selectionRef.current = selection;
+            lastRangeSelectionRef.current = isRangeSelection(selection) ? selection : null;
             pendingSelectionRef.current = null;
             setEditorValue(value);
             setEditorSelection(selection);
@@ -121,6 +126,7 @@ export function ExpandedMarkdownEditor({
     React.useEffect(() => {
         if (!isOpen) {
             pendingSelectionRef.current = null;
+            lastRangeSelectionRef.current = null;
             setIsInputFocused(false);
         }
     }, [isOpen]);
@@ -165,6 +171,9 @@ export function ExpandedMarkdownEditor({
             return;
         }
         selectionRef.current = selection;
+        if (isRangeSelection(selection)) {
+            lastRangeSelectionRef.current = selection;
+        }
         setEditorSelection(selection);
     }, [selection]);
     React.useEffect(() => () => {
@@ -215,12 +224,18 @@ export function ExpandedMarkdownEditor({
             pendingSelectionRef.current = null;
         }
         selectionRef.current = nextSelection;
+        if (isRangeSelection(nextSelection)) {
+            lastRangeSelectionRef.current = nextSelection;
+        }
         setEditorSelection(nextSelection);
         onSelectionChange(nextSelection);
     }, [onSelectionChange]);
     const handleToolbarSelectionChange = React.useCallback((nextSelection: MarkdownSelection) => {
         pendingSelectionRef.current = null;
         selectionRef.current = nextSelection;
+        if (isRangeSelection(nextSelection)) {
+            lastRangeSelectionRef.current = nextSelection;
+        }
         setEditorSelection(nextSelection);
         onSelectionChange(nextSelection);
     }, [onSelectionChange]);
@@ -253,35 +268,42 @@ export function ExpandedMarkdownEditor({
     }, []);
 
     const handleChangeText = React.useCallback((nextValue: string) => {
-        const pastedUrl = applyMarkdownUrlPaste(
-            valueRef.current,
+        const currentSelection = selectionRef.current;
+        const previousValue = valueRef.current;
+        const fallbackSelection = lastRangeSelectionRef.current;
+        const pastedUrl = applyMarkdownUrlPasteWithSelectionFallback(
+            previousValue,
             nextValue,
-            selectionRef.current,
+            currentSelection,
+            fallbackSelection,
         );
         if (pastedUrl) {
-            valueRef.current = pastedUrl.value;
-            selectionRef.current = pastedUrl.selection;
-            setEditorValue(pastedUrl.value);
-            setEditorSelection(pastedUrl.selection);
-            onChange(pastedUrl.value);
-            onSelectionChange(pastedUrl.selection);
-            restoreEditorFocus(pastedUrl.selection);
+            lastRangeSelectionRef.current = null;
+            valueRef.current = pastedUrl.result.value;
+            selectionRef.current = pastedUrl.result.selection;
+            setEditorValue(pastedUrl.result.value);
+            setEditorSelection(pastedUrl.result.selection);
+            onChange(pastedUrl.result.value);
+            onSelectionChange(pastedUrl.result.selection);
+            restoreEditorFocus(pastedUrl.result.selection);
             return;
         }
 
-        const pairedInsertion = applyMarkdownPairInsertion(
+        const pairedInsertion = applyMarkdownPairInsertionWithSelectionFallback(
             valueRef.current,
             nextValue,
             selectionRef.current,
+            fallbackSelection,
         );
         if (pairedInsertion) {
-            valueRef.current = pairedInsertion.value;
-            selectionRef.current = pairedInsertion.selection;
-            setEditorValue(pairedInsertion.value);
-            setEditorSelection(pairedInsertion.selection);
-            onChange(pairedInsertion.value);
-            onSelectionChange(pairedInsertion.selection);
-            restoreEditorFocus(pairedInsertion.selection);
+            lastRangeSelectionRef.current = null;
+            valueRef.current = pairedInsertion.result.value;
+            selectionRef.current = pairedInsertion.result.selection;
+            setEditorValue(pairedInsertion.result.value);
+            setEditorSelection(pairedInsertion.result.selection);
+            onChange(pairedInsertion.result.value);
+            onSelectionChange(pairedInsertion.result.selection);
+            restoreEditorFocus(pairedInsertion.result.selection);
             return;
         }
 
@@ -291,6 +313,7 @@ export function ExpandedMarkdownEditor({
             selectionRef.current,
         );
         if (continued) {
+            lastRangeSelectionRef.current = null;
             valueRef.current = continued.value;
             selectionRef.current = continued.selection;
             setEditorValue(continued.value);
@@ -301,6 +324,7 @@ export function ExpandedMarkdownEditor({
             return;
         }
 
+        lastRangeSelectionRef.current = null;
         valueRef.current = nextValue;
         setEditorValue(nextValue);
         onChange(nextValue);
@@ -313,6 +337,7 @@ export function ExpandedMarkdownEditor({
         );
         if (!next) return;
         event.preventDefault?.();
+        lastRangeSelectionRef.current = null;
         valueRef.current = next.value;
         selectionRef.current = next.selection;
         setEditorValue(next.value);
@@ -333,6 +358,7 @@ export function ExpandedMarkdownEditor({
 
         valueRef.current = next.value;
         selectionRef.current = next.selection;
+        lastRangeSelectionRef.current = null;
         setEditorValue(next.value);
         setEditorSelection(next.selection);
 
@@ -347,6 +373,7 @@ export function ExpandedMarkdownEditor({
     const handleAutocompleteApply = React.useCallback((next: MarkdownToolbarResult) => {
         valueRef.current = next.value;
         selectionRef.current = next.selection;
+        lastRangeSelectionRef.current = null;
         setEditorValue(next.value);
         setEditorSelection(next.selection);
         onChange(next.value);
