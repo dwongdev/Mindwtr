@@ -80,6 +80,7 @@ describe('MarkdownText', () => {
             secondaryText: '#aaa',
             tint: '#3b82f6',
             border: '#334155',
+            cardBg: '#1f2937',
             filterBg: '#111827',
           } as any}
           direction="ltr"
@@ -153,6 +154,18 @@ describe('MarkdownText', () => {
     expect(flattenText(tree.toJSON())).toContain('First');
     expect(flattenText(tree.toJSON())).toContain('2.');
     expect(flattenText(tree.toJSON())).toContain('Second');
+  });
+
+  it('renders single-backtick inline code spans', () => {
+    const tree = renderMarkdown('Run `bun test` before release.');
+    const inlineCode = tree.root.findAll((node) => (
+      node.props.testID === 'markdown-inline-code'
+      && flattenStyle(node.props.style).backgroundColor === '#1f2937'
+    ))[0];
+
+    expect(flattenText(tree.toJSON())).toContain('Run bun test before release.');
+    expect(inlineCode).toBeTruthy();
+    expect(flattenStyle(inlineCode.props.style).backgroundColor).toBe('#1f2937');
   });
 
   it('adds an accessible copy button to fenced code blocks', () => {

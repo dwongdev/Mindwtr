@@ -58,7 +58,11 @@ function renderInline(
     if (token.type === 'text') return token.text;
     if (token.type === 'code') {
       return (
-        <Text key={`${keyPrefix}-code-${index}`} style={[styles.code, { backgroundColor: tc.filterBg, color: tc.text }]}>
+        <Text
+          key={`${keyPrefix}-code-${index}`}
+          testID="markdown-inline-code"
+          style={[styles.code, { backgroundColor: tc.cardBg, color: tc.text }]}
+        >
           {token.text}
         </Text>
       );
@@ -422,8 +426,11 @@ const styles = StyleSheet.create({
   },
   code: {
     fontFamily: 'monospace',
+    fontSize: 13,
+    lineHeight: 18,
+    includeFontPadding: false,
     paddingHorizontal: 4,
-    paddingVertical: 1,
+    paddingVertical: 0,
     borderRadius: 4,
   },
   codeBlock: {
