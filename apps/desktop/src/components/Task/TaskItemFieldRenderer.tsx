@@ -779,7 +779,10 @@ export function TaskItemFieldRenderer({
             )
         ) {
             const next = event.key === 'Tab'
-                ? applyMarkdownKeyboardShortcut(currentValue, selection, { key: event.key })
+                ? applyMarkdownKeyboardShortcut(currentValue, selection, {
+                    key: event.key,
+                    shiftKey: event.shiftKey,
+                })
                 : applyMarkdownPairInsertion(
                     currentValue,
                     `${currentValue.slice(0, selection.start)}${event.key}${currentValue.slice(selection.end)}`,

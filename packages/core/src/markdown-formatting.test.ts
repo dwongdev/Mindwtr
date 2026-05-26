@@ -200,6 +200,51 @@ describe('applyMarkdownKeyboardShortcut', () => {
         });
     });
 
+    it('nests the current unordered list item with Tab', () => {
+        expect(
+            applyMarkdownKeyboardShortcut('- item', { start: 3, end: 3 }, { key: 'Tab' }),
+        ).toEqual({
+            value: '  - item',
+            selection: { start: 5, end: 5 },
+        });
+    });
+
+    it('nests an empty list item with Tab', () => {
+        expect(
+            applyMarkdownKeyboardShortcut('- ', { start: 2, end: 2 }, { key: 'Tab' }),
+        ).toEqual({
+            value: '  - ',
+            selection: { start: 4, end: 4 },
+        });
+    });
+
+    it('nests the current ordered list item with Tab', () => {
+        expect(
+            applyMarkdownKeyboardShortcut('1. item', { start: 4, end: 4 }, { key: 'Tab' }),
+        ).toEqual({
+            value: '  1. item',
+            selection: { start: 6, end: 6 },
+        });
+    });
+
+    it('outdents the current nested list item with Shift+Tab', () => {
+        expect(
+            applyMarkdownKeyboardShortcut('  - item', { start: 5, end: 5 }, { key: 'Tab', shiftKey: true }),
+        ).toEqual({
+            value: '- item',
+            selection: { start: 3, end: 3 },
+        });
+    });
+
+    it('outdents selected nested list items with Shift+Tab', () => {
+        expect(
+            applyMarkdownKeyboardShortcut('  - alpha\n  - beta', { start: 0, end: 18 }, { key: 'Tab', shiftKey: true }),
+        ).toEqual({
+            value: '- alpha\n- beta',
+            selection: { start: 0, end: 14 },
+        });
+    });
+
     it('indents selected lines with two spaces for Tab', () => {
         expect(
             applyMarkdownKeyboardShortcut('alpha\nbeta', { start: 0, end: 10 }, { key: 'Tab' }),

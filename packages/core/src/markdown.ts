@@ -14,6 +14,7 @@ const INLINE_TOKEN_RE = /(\*\*([^*]+)\*\*|__([^_]+)__|~~([^~\n]+)~~|\*([^*\n]+)\
 const INTERNAL_LINK_RE = /\[\[(task|project):([^\]|]+)\|([^\]]+)\]\]/g;
 const INTERNAL_LINK_TOKEN_RE = /^\[\[(task|project):([^\]|]+)\|([^\]]+)\]\]$/;
 const TASK_LIST_RE = /^\s{0,3}(?:[-*+]\s+)?\[( |x|X)\]\s+(.+)$/;
+const MARKDOWN_LIST_ITEM_RE = /^(\s*)(?:(?:[-+*])\s+(?:\[(?: |x|X)\]\s*)?|\d+[.)]\s+)(?:\S|$)/;
 
 export type InlineToken =
     | { type: 'text'; text: string }
@@ -575,10 +576,99 @@ const replaceSelection = (
 const indentSelection = (value: string, selection: MarkdownSelection): MarkdownToolbarResult => {
     const normalizedSelection = normalizeSelection(value, selection);
     if (normalizedSelection.start === normalizedSelection.end) {
-        return replaceSelection(value, normalizedSelection, '  ');
+        return indentListItemAtCursor(value, normalizedSelection) ?? replaceSelection(value, normalizedSelection, '  ');
     }
 
     return prefixLines(value, normalizedSelection, '  ');
+};
+
+const adjustSelectionForLinePrefix = (
+    selection: MarkdownSelection,
+    lineStart: number,
+    delta: number,
+): MarkdownSelection => {
+    const adjust = (index: number) => (
+        index <= lineStart
+            ? index
+            : Math.max(lineStart, index + delta)
+    );
+    return {
+        start: adjust(selection.start),
+        end: adjust(selection.end),
+    };
+};
+
+const getListItemMatchAtCursor = (value: string, selection: MarkdownSelection) => {
+    const lineStart = findLineStart(value, selection.start);
+    const lineEnd = findLineEnd(value, selection.start);
+    const line = value.slice(lineStart, lineEnd);
+    const match = MARKDOWN_LIST_ITEM_RE.exec(line);
+    if (!match) return null;
+    return { lineStart, lineEnd, line, indent: match[1] ?? '' };
+};
+
+const indentListItemAtCursor = (
+    value: string,
+    selection: MarkdownSelection,
+): MarkdownToolbarResult | null => {
+    const match = getListItemMatchAtCursor(value, selection);
+    if (!match) return null;
+    const nextValue = `${value.slice(0, match.lineStart)}  ${match.line}${value.slice(match.lineEnd)}`;
+    return {
+        value: nextValue,
+        selection: adjustSelectionForLinePrefix(selection, match.lineStart, 2),
+    };
+};
+
+const outdentListItemAtCursor = (
+    value: string,
+    selection: MarkdownSelection,
+): MarkdownToolbarResult | null => {
+    const normalizedSelection = normalizeSelection(value, selection);
+    if (normalizedSelection.start !== normalizedSelection.end) {
+        return outdentSelectedListItems(value, normalizedSelection);
+    }
+
+    const match = getListItemMatchAtCursor(value, normalizedSelection);
+    if (!match || match.indent.length === 0) return null;
+    const removalLength = Math.min(match.indent.startsWith('\t') ? 1 : 2, match.indent.length);
+    const nextLine = match.line.slice(removalLength);
+    const nextValue = `${value.slice(0, match.lineStart)}${nextLine}${value.slice(match.lineEnd)}`;
+    return {
+        value: nextValue,
+        selection: adjustSelectionForLinePrefix(normalizedSelection, match.lineStart, -removalLength),
+    };
+};
+
+const outdentSelectedListItems = (
+    value: string,
+    selection: MarkdownSelection,
+): MarkdownToolbarResult | null => {
+    const blockStart = findLineStart(value, selection.start);
+    const blockEnd = findLineEnd(value, selection.end > selection.start ? selection.end - 1 : selection.start);
+    const block = value.slice(blockStart, blockEnd);
+    let changed = false;
+    const nextBlock = block
+        .split('\n')
+        .map((line) => {
+            const match = MARKDOWN_LIST_ITEM_RE.exec(line);
+            const indent = match?.[1] ?? '';
+            if (!match || indent.length === 0) return line;
+            changed = true;
+            const removalLength = Math.min(indent.startsWith('\t') ? 1 : 2, indent.length);
+            return line.slice(removalLength);
+        })
+        .join('\n');
+
+    if (!changed) return null;
+    const nextValue = `${value.slice(0, blockStart)}${nextBlock}${value.slice(blockEnd)}`;
+    return {
+        value: nextValue,
+        selection: {
+            start: blockStart,
+            end: blockStart + nextBlock.length,
+        },
+    };
 };
 
 const detectSelectionReplacement = (
@@ -713,6 +803,9 @@ export function applyMarkdownKeyboardShortcut(
     shortcut: MarkdownKeyboardShortcut,
 ): MarkdownToolbarResult | null {
     if (shortcut.key === 'Tab' && !shortcut.altKey && !shortcut.ctrlKey && !shortcut.metaKey) {
+        if (shortcut.shiftKey) {
+            return outdentListItemAtCursor(value, selection);
+        }
         return indentSelection(value, selection);
     }
 
