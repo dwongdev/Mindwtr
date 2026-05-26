@@ -243,6 +243,8 @@ Your primary dashboard for doing. Focus is an Engage dashboard, not a full inven
 
 Focus hides future-start tasks and later tasks in sequential projects so the list stays limited to what you can act on now. Use **Contexts**, **Projects**, or **Search** when you want to inspect the broader task inventory.
 
+Default Next Actions order is due-soon actions first, undated actions next, and far-future due actions last. Within the same bucket, Focus uses priority when enabled, then start time, creation date, title, and id. See [[GTD Workflow in Mindwtr#How Focus sorts available actions]] for the full logic.
+
 ### Features
 
 - **Context filter** — Tap a context chip to filter the Next list.

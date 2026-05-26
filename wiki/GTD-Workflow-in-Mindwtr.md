@@ -202,6 +202,23 @@ Use the **Focus** view to see:
 
 Focus is not a full inventory view. It hides future-start tasks and later tasks in sequential projects so the list reflects actions that are available now. Use **Contexts**, **Projects**, or **Search** when you need to inspect all next actions, including deferred or blocked items.
 
+### How Focus sorts available actions
+
+Focus first decides whether a task is available, then sorts the visible actions:
+
+1. **Today's Focus** shows tasks you explicitly focused for today.
+2. **Today / Schedule** shows available `next` tasks that are overdue, due today, or start today. These are ordered by the earliest due/start time, then priority when priorities are enabled, then oldest creation date.
+3. **Next Actions** shows the remaining available `next` tasks. The default order is:
+   - due soon first, earliest due date first (currently due within the next 30 days)
+   - undated actions next
+   - far-future due actions last, earliest due date first
+   - within the same bucket: priority when enabled, then start time, oldest creation date, title, and id
+4. **Review Due** shows tasks whose review date is due.
+
+Start date is Mindwtr's defer/planned-date field. Future-start tasks are hidden from Focus by default unless you enable future-start visibility. Sequential projects also limit Focus to the first available action for that project or section, so later actions stay out of Focus until the previous step is no longer blocking them.
+
+Time estimate and energy are Focus filters and grouping options, not default sort keys. Grouping by context, project, area, energy, or priority changes the visual groups; tasks inside those groups keep the same availability and next-action ordering.
+
 ### Context Filtering
 
 1. Go to **Focus** or **Contexts** view

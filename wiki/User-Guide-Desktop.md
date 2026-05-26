@@ -52,6 +52,8 @@ Your unified dashboard for daily engagement. Focus is not a full inventory of ev
 
 Focus hides future-start tasks and later tasks in sequential projects. Use **Contexts**, **Projects**, or **Search** when you need to inspect broader task inventory.
 
+**Default Next Actions order:** Focus puts due-soon actions first, undated actions next, and far-future due actions last. Within the same bucket it uses priority when enabled, then start time, creation date, title, and id. See [[GTD Workflow in Mindwtr#How Focus sorts available actions]] for the full logic.
+
 **Features:**
 - **Context Filters**: Filter Next Actions by context (e.g., @home, @work) or tag. The filter picker groups contexts and tags so long metadata lists stay scannable.
 - **Group by Context**: Use the list grouping control to group Next Actions by primary context, with context-less tasks collected under **No context**.
