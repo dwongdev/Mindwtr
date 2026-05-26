@@ -792,6 +792,8 @@ export function createNextRecurringTask(
         id: uuidv4(),
         title: task.title,
         status: newStatus,
+        priority: task.priority,
+        energyLevel: task.energyLevel,
         startTime: nextStartTime,
         dueDate: nextDueDate,
         recurrence: nextRecurrence,
