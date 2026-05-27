@@ -1,6 +1,6 @@
-import { act, fireEvent, render } from '@testing-library/react';
+import { act, fireEvent, render, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import type { Project } from '@mindwtr/core';
 
@@ -10,6 +10,8 @@ const projects: Project[] = [
     { id: 'p1', title: 'Alpha', status: 'active', color: '#3b82f6', order: 0, tagIds: [], createdAt: '', updatedAt: '' },
     { id: 'p2', title: 'Work Project', status: 'active', color: '#10b981', order: 1, tagIds: [], areaId: 'a1', createdAt: '', updatedAt: '' },
 ];
+const originalInnerHeight = window.innerHeight;
+let restoreGeometryMock: (() => void) | undefined;
 
 /**
  * Simulate typing into a controlled React input under bun + JSDOM.
@@ -30,6 +32,62 @@ function setInputValue(input: HTMLInputElement, value: string) {
         input.dispatchEvent(new Event('input', { bubbles: true }));
     });
 }
+
+function mockSelectorGeometry({
+    dropdownHeight,
+    triggerBottom,
+    triggerTop,
+    viewportHeight,
+}: {
+    dropdownHeight: number;
+    triggerBottom: number;
+    triggerTop: number;
+    viewportHeight: number;
+}) {
+    Object.defineProperty(window, 'innerHeight', {
+        configurable: true,
+        value: viewportHeight,
+    });
+    const spy = vi.spyOn(Element.prototype, 'getBoundingClientRect').mockImplementation(function (this: Element) {
+        if (this instanceof HTMLElement && this.classList.contains('relative')) {
+            return {
+                bottom: triggerBottom,
+                height: triggerBottom - triggerTop,
+                left: 0,
+                right: 320,
+                top: triggerTop,
+                width: 320,
+                x: 0,
+                y: triggerTop,
+                toJSON: () => ({}),
+            } as DOMRect;
+        }
+        if (this instanceof HTMLElement && this.classList.contains('absolute')) {
+            return {
+                bottom: triggerBottom + dropdownHeight,
+                height: dropdownHeight,
+                left: 0,
+                right: 320,
+                top: triggerBottom,
+                width: 320,
+                x: 0,
+                y: triggerBottom,
+                toJSON: () => ({}),
+            } as DOMRect;
+        }
+        return new DOMRect();
+    });
+    restoreGeometryMock = () => spy.mockRestore();
+}
+
+afterEach(() => {
+    restoreGeometryMock?.();
+    restoreGeometryMock = undefined;
+    Object.defineProperty(window, 'innerHeight', {
+        configurable: true,
+        value: originalInnerHeight,
+    });
+});
 
 describe('ProjectSelector', () => {
     it('hides archived and legacy completed projects from the selectable options', () => {
@@ -70,6 +128,60 @@ describe('ProjectSelector', () => {
         fireEvent.click(getByRole('button', { name: 'Select project' }));
 
         expect(getByRole('listbox', { name: 'Select project' }).closest('.absolute')).toHaveClass('z-50');
+    });
+
+    it('keeps the menu below the selector when compact vertical space is available', async () => {
+        mockSelectorGeometry({
+            dropdownHeight: 260,
+            triggerBottom: 280,
+            triggerTop: 250,
+            viewportHeight: 520,
+        });
+        const { container, getByRole } = render(
+            <ProjectSelector
+                projects={projects}
+                value=""
+                onChange={vi.fn()}
+                placeholder="Select project"
+                searchPlaceholder="Search projects"
+            />
+        );
+
+        fireEvent.click(getByRole('button', { name: 'Select project' }));
+
+        const dropdown = getByRole('listbox', { name: 'Select project' }).closest('.absolute');
+        await waitFor(() => {
+            expect(container.querySelector('[style*="max-height"]')).toHaveStyle({ maxHeight: '148px' });
+        });
+        expect(dropdown).toHaveClass('top-full');
+        expect(dropdown).not.toHaveClass('bottom-full');
+    });
+
+    it('opens above only when the minimum usable menu cannot fit below', async () => {
+        mockSelectorGeometry({
+            dropdownHeight: 260,
+            triggerBottom: 300,
+            triggerTop: 260,
+            viewportHeight: 420,
+        });
+        const { container, getByRole } = render(
+            <ProjectSelector
+                projects={projects}
+                value=""
+                onChange={vi.fn()}
+                placeholder="Select project"
+                searchPlaceholder="Search projects"
+            />
+        );
+
+        fireEvent.click(getByRole('button', { name: 'Select project' }));
+
+        const dropdown = getByRole('listbox', { name: 'Select project' }).closest('.absolute');
+        await waitFor(() => {
+            expect(container.querySelector('[style*="max-height"]')).toHaveStyle({ maxHeight: '168px' });
+        });
+        expect(dropdown).toHaveClass('bottom-full');
+        expect(dropdown).not.toHaveClass('top-full');
     });
 
     it('suppresses create when an exact match exists outside the filtered list', () => {

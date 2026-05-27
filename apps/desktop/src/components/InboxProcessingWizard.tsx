@@ -383,6 +383,8 @@ export const InboxProcessingWizard = memo(function InboxProcessingWizard({
                                     noMatchesLabel={t('common.noMatches')}
                                     emptyLabel={projectFilterAreaId ? t('projects.noProjectsInArea') : undefined}
                                     createProjectLabel={t('projects.create')}
+                                    controlClassName="rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary/40 focus:outline-none"
+                                    menuClassName="text-sm"
                                 />
                             </div>
                         )}

@@ -10,6 +10,7 @@ const MIN_LIST_HEIGHT = 120;
 const MAX_LIST_HEIGHT = 320;
 const VIEWPORT_MARGIN_PX = 8;
 const DROPDOWN_CHROME_PX = 84;
+const MIN_DROPDOWN_SPACE = MIN_LIST_HEIGHT + DROPDOWN_CHROME_PX;
 
 export function useDropdownPosition({ open, containerRef, dropdownRef }: UseDropdownPositionOptions) {
     const [openUpward, setOpenUpward] = useState(false);
@@ -24,12 +25,9 @@ export function useDropdownPosition({ open, containerRef, dropdownRef }: UseDrop
             if (!trigger || !dropdown) return;
 
             const triggerRect = trigger.getBoundingClientRect();
-            const dropdownRect = dropdown.getBoundingClientRect();
-            const estimatedHeight = dropdownRect.height || 260;
-
             const spaceAbove = triggerRect.top - VIEWPORT_MARGIN_PX;
             const spaceBelow = window.innerHeight - triggerRect.bottom - VIEWPORT_MARGIN_PX;
-            const shouldOpenUp = spaceBelow < estimatedHeight && spaceAbove > spaceBelow;
+            const shouldOpenUp = spaceBelow < MIN_DROPDOWN_SPACE && spaceAbove > spaceBelow;
             setOpenUpward(shouldOpenUp);
 
             const availableSpace = shouldOpenUp ? spaceAbove : spaceBelow;

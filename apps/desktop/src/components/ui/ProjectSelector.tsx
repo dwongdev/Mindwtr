@@ -17,6 +17,8 @@ interface ProjectSelectorProps {
     emptyLabel?: string;
     createProjectLabel?: string;
     className?: string;
+    controlClassName?: string;
+    menuClassName?: string;
 }
 
 const isSelectableProject = (project: Project): boolean => {
@@ -37,6 +39,8 @@ export function ProjectSelector({
     emptyLabel,
     createProjectLabel = 'Create project',
     className,
+    controlClassName,
+    menuClassName,
 }: ProjectSelectorProps) {
     const [open, setOpen] = useState(false);
     const [query, setQuery] = useState('');
@@ -160,7 +164,10 @@ export function ProjectSelector({
                         closeDropdown();
                     }
                 }}
-                className="w-full flex items-center justify-between text-xs bg-muted/50 border border-border rounded px-2 py-1 text-foreground"
+                className={cn(
+                    'w-full flex items-center justify-between text-xs bg-muted/50 border border-border rounded px-2 py-1 text-foreground',
+                    controlClassName,
+                )}
                 aria-haspopup="listbox"
                 aria-expanded={open}
             >
@@ -170,7 +177,11 @@ export function ProjectSelector({
             {open && (
                 <div
                     ref={dropdownRef}
-                    className={cn('absolute z-50 w-full rounded-md border border-border bg-popover shadow-lg p-1 text-xs', dropdownClassName)}
+                    className={cn(
+                        'absolute z-50 w-full rounded-md border border-border bg-popover text-popover-foreground shadow-lg p-1 text-xs',
+                        dropdownClassName,
+                        menuClassName,
+                    )}
                     onKeyDown={handleDropdownKeyDown}
                 >
                     <input
@@ -180,7 +191,7 @@ export function ProjectSelector({
                         onKeyDown={handleSearchKeyDown}
                         placeholder={searchPlaceholder}
                         aria-label={searchPlaceholder}
-                        className="w-full mb-1 rounded border border-border bg-muted/40 px-2 py-1 text-xs"
+                        className="w-full mb-1 rounded border border-border bg-muted/40 px-2 py-1 text-[inherit]"
                     />
                     <div role="listbox" aria-label={placeholder}>
                         <button
