@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { cleanup, fireEvent, render, waitFor } from '@testing-library/react';
+import { cleanup, fireEvent, render, waitFor, within } from '@testing-library/react';
 import type { Task } from '@mindwtr/core';
 
 import {
@@ -618,6 +618,32 @@ describe('TaskItemFieldRenderer date clear buttons', () => {
         fireEvent.focus(textarea);
 
         expect(textarea.style.height).toBe('112px');
+    });
+
+    it('keeps focus and selection in the expanded description editor after continuing a list', async () => {
+        const { getByRole } = render(<DescriptionHarness />);
+        const collapsedTextarea = getByRole('textbox', { name: 'Description' }) as HTMLTextAreaElement;
+
+        fireEvent.change(collapsedTextarea, { target: { value: '- item' } });
+        fireEvent.click(getByRole('button', { name: 'Expand' }));
+
+        const dialog = getByRole('dialog');
+        const expandedTextarea = within(dialog).getByRole('textbox') as HTMLTextAreaElement;
+
+        await waitFor(() => {
+            expect(expandedTextarea).toHaveFocus();
+        });
+
+        expandedTextarea.setSelectionRange(expandedTextarea.value.length, expandedTextarea.value.length);
+        fireEvent.keyDown(expandedTextarea, { key: 'Enter' });
+
+        await waitFor(() => {
+            expect(expandedTextarea).toHaveValue('- item\n- ');
+            expect(expandedTextarea).toHaveFocus();
+            expect(expandedTextarea.selectionStart).toBe(9);
+            expect(expandedTextarea.selectionEnd).toBe(9);
+        });
+        expect(collapsedTextarea).not.toHaveFocus();
     });
 
     it('switches the description preview back to focused editing when clicked', async () => {

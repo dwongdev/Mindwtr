@@ -691,6 +691,20 @@ export function TaskItemFieldRenderer({
             descriptionSelectionRef.current = options.nextSelection;
         }
     };
+    const restoreDescriptionTextareaSelection = (
+        textarea: HTMLTextAreaElement,
+        selection: MarkdownSelection,
+    ) => {
+        requestAnimationFrame(() => {
+            const target = textarea.isConnected ? textarea : descriptionTextareaRef.current;
+            if (!target) return;
+            const scrollSnapshot = captureScrollSnapshot(target);
+            focusElementWithoutScroll(target, scrollSnapshot);
+            target.setSelectionRange(selection.start, selection.end);
+            keepTextareaSelectionVisible(target);
+            restoreScrollSnapshotSoon(scrollSnapshot);
+        });
+    };
     const handleDescriptionUndo = () => {
         const previousEntry = descriptionUndoRef.current[descriptionUndoRef.current.length - 1];
         if (!previousEntry) return undefined;
@@ -727,6 +741,7 @@ export function TaskItemFieldRenderer({
         if (descriptionAutocomplete.handleKeyDown(event)) {
             return;
         }
+        const eventTextarea = event.currentTarget;
         const currentValue = event.currentTarget.value;
         const selection = {
             start: event.currentTarget.selectionStart ?? currentValue.length,
@@ -738,15 +753,7 @@ export function TaskItemFieldRenderer({
                 nextSelection: next.selection,
             });
             descriptionSelectionRef.current = next.selection;
-            requestAnimationFrame(() => {
-                const textarea = descriptionTextareaRef.current;
-                if (!textarea) return;
-                const scrollSnapshot = captureScrollSnapshot(textarea);
-                focusElementWithoutScroll(textarea, scrollSnapshot);
-                textarea.setSelectionRange(next.selection.start, next.selection.end);
-                keepTextareaSelectionVisible(textarea);
-                restoreScrollSnapshotSoon(scrollSnapshot);
-            });
+            restoreDescriptionTextareaSelection(eventTextarea, next.selection);
         };
         const lowerKey = event.key.toLowerCase();
         if ((event.metaKey || event.ctrlKey) && !event.altKey) {
@@ -804,6 +811,7 @@ export function TaskItemFieldRenderer({
     const handleDescriptionPaste = (event: ClipboardEvent<HTMLTextAreaElement>) => {
         const pastedText = event.clipboardData.getData('text/plain');
         if (!pastedText) return;
+        const eventTextarea = event.currentTarget;
         const currentValue = event.currentTarget.value;
         const selection = {
             start: event.currentTarget.selectionStart ?? currentValue.length,
@@ -821,15 +829,7 @@ export function TaskItemFieldRenderer({
             nextSelection: next.selection,
         });
         descriptionSelectionRef.current = next.selection;
-        requestAnimationFrame(() => {
-            const textarea = descriptionTextareaRef.current;
-            if (!textarea) return;
-            const scrollSnapshot = captureScrollSnapshot(textarea);
-            focusElementWithoutScroll(textarea, scrollSnapshot);
-            textarea.setSelectionRange(next.selection.start, next.selection.end);
-            keepTextareaSelectionVisible(textarea);
-            restoreScrollSnapshotSoon(scrollSnapshot);
-        });
+        restoreDescriptionTextareaSelection(eventTextarea, next.selection);
     };
     const handleEditDescriptionFromPreview = (source?: HTMLElement) => {
         const scrollSnapshot = captureScrollSnapshot(source);
