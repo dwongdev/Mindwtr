@@ -77,6 +77,44 @@ describe('useRootLayoutExternalCapture', () => {
     });
   });
 
+  it('handles repeated App Actions captures when the request id changes', () => {
+    let tree!: ReturnType<typeof create>;
+
+    act(() => {
+      tree = create(
+        <TestHarness
+          incomingUrl="mindwtr:///capture?title=Call%20dentist&requestId=first"
+          router={router}
+          showToast={showToast}
+        />
+      );
+    });
+
+    act(() => {
+      tree.update(
+        <TestHarness
+          incomingUrl="mindwtr:///capture?title=Call%20dentist&requestId=second"
+          router={router}
+          showToast={showToast}
+        />
+      );
+    });
+
+    expect(router.replace).toHaveBeenCalledTimes(2);
+    expect(router.replace).toHaveBeenNthCalledWith(1, {
+      pathname: '/capture-modal',
+      params: {
+        initialValue: 'Call%20dentist',
+      },
+    });
+    expect(router.replace).toHaveBeenNthCalledWith(2, {
+      pathname: '/capture-modal',
+      params: {
+        initialValue: 'Call%20dentist',
+      },
+    });
+  });
+
   it('routes App Actions feature links through the feature inventory map', () => {
     act(() => {
       create(

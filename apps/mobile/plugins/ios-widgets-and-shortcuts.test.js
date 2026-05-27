@@ -28,6 +28,8 @@ describe('ios-widgets-and-shortcuts', () => {
     expect(phraseBlock).not.toContain('\\(\\.$task)');
     expect(source).toContain('mindwtr');
     expect(source).toContain('/capture');
+    expect(source).toContain('requestId');
+    expect(source).toContain('UUID().uuidString');
     expect(source).toContain('.foreground(.immediate)');
   });
 

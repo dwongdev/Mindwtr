@@ -9,7 +9,8 @@ private enum MindwtrSiriCaptureLauncher {
         components.path = "/capture"
 
         var queryItems = [
-            URLQueryItem(name: "title", value: task)
+            URLQueryItem(name: "title", value: task),
+            URLQueryItem(name: "requestId", value: UUID().uuidString)
         ]
         if let note, !note.isEmpty {
             queryItems.append(URLQueryItem(name: "note", value: note))
