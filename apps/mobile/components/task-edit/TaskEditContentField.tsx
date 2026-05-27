@@ -111,6 +111,8 @@ export function TaskEditContentField({
                                 selection={getControlledTextInputSelection(descriptionSelection)}
                                 placeholder={t('taskEdit.descriptionPlaceholder')}
                                 multiline
+                                spellCheck={true}
+                                autoCorrect={true}
                                 placeholderTextColor={tc.secondaryText}
                                 accessibilityLabel={t('taskEdit.descriptionLabel')}
                                 accessibilityHint={t('taskEdit.descriptionPlaceholder')}

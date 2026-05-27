@@ -620,6 +620,13 @@ describe('TaskItemFieldRenderer date clear buttons', () => {
         expect(textarea.style.height).toBe('112px');
     });
 
+    it('enables native spell checking for inline description edits', () => {
+        const { getByRole } = render(<DescriptionHarness />);
+        const textarea = getByRole('textbox', { name: 'Description' });
+
+        expect(textarea).toHaveAttribute('spellcheck', 'true');
+    });
+
     it('keeps focus and selection in the expanded description editor after continuing a list', async () => {
         const { getByRole } = render(<DescriptionHarness />);
         const collapsedTextarea = getByRole('textbox', { name: 'Description' }) as HTMLTextAreaElement;

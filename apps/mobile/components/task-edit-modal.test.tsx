@@ -486,6 +486,48 @@ describe('TaskEditModal', () => {
     expect(findPager().props.scrollEnabled).toBe(true);
   });
 
+  it('enables native spell checking for the mobile description editor', () => {
+    let tree: renderer.ReactTestRenderer;
+
+    act(() => {
+      tree = renderer.create(
+        <TaskEditModal
+          visible
+          task={{
+            id: 't1',
+            title: 'Test task',
+            status: 'inbox',
+            description: 'Fix teh typo',
+            tags: [],
+            contexts: [],
+            createdAt: '2025-01-01T00:00:00.000Z',
+            updatedAt: '2025-01-01T00:00:00.000Z',
+          }}
+          onClose={vi.fn()}
+          onSave={vi.fn()}
+        />
+      );
+    });
+
+    const formTab = tree!.root.findAll((node) => typeof node.props.renderField === 'function')[0];
+    let descriptionTree: renderer.ReactTestRenderer;
+    act(() => {
+      descriptionTree = renderer.create(formTab.props.renderField('description'));
+    });
+
+    const descriptionInput = descriptionTree!.root.findByProps({
+      accessibilityLabel: 'taskEdit.descriptionLabel',
+    });
+
+    expect(descriptionInput.props.spellCheck).toBe(true);
+    expect(descriptionInput.props.autoCorrect).toBe(true);
+
+    act(() => {
+      descriptionTree!.unmount();
+      tree!.unmount();
+    });
+  });
+
   it('closes and delegates preview navigation actions', () => {
     const onClose = vi.fn();
     const onProjectNavigate = vi.fn();

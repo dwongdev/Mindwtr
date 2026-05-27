@@ -222,6 +222,7 @@ export function ExpandedMarkdownEditor({
                                     }}
                                     onPaste={onEditorPaste}
                                     placeholder={placeholder}
+                                    spellCheck={true}
                                     dir={direction}
                                     className={cn(
                                         'min-h-0 flex-1 resize-none rounded-xl border border-border bg-background px-4 py-3 text-sm leading-6 focus:outline-none focus:ring-2 focus:ring-primary/30',

@@ -503,6 +503,8 @@ export function ExpandedMarkdownEditor({
                                     placeholder={placeholder}
                                     placeholderTextColor={tc.secondaryText}
                                     multiline
+                                    spellCheck={true}
+                                    autoCorrect={true}
                                     accessibilityLabel={title}
                                     accessibilityHint={placeholder}
                                 />

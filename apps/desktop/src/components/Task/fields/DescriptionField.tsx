@@ -149,6 +149,7 @@ export function DescriptionField({
                             isRtl && 'text-right'
                         )}
                         placeholder={t('taskEdit.descriptionPlaceholder')}
+                        spellCheck={true}
                         dir={resolvedDirection}
                     />
                     <MarkdownReferenceAutocompleteMenu
