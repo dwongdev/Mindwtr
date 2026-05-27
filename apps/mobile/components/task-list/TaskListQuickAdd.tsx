@@ -1,11 +1,14 @@
+import React from 'react';
 import { ActivityIndicator, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { translateWithFallback } from '@mindwtr/core';
+import { CheckCircle2, Plus, Sparkles } from 'lucide-react-native';
 
 import { styles } from './task-list.styles';
 
 type ThemeColors = {
   border: string;
   inputBg: string;
+  onTint: string;
   secondaryText: string;
   text: string;
   tint: string;
@@ -112,8 +115,10 @@ export function TaskListQuickAdd({
           accessibilityLabel={addTaskLabel}
           accessibilityRole="button"
           accessibilityState={{ disabled: !newTaskTitle.trim() }}
+          activeOpacity={0.85}
+          hitSlop={8}
         >
-          <Text style={styles.addButtonText}>+</Text>
+          <Plus size={22} color={themeColors.onTint} strokeWidth={2.6} />
         </TouchableOpacity>
       </View>
       {typeaheadOpen && trigger && typeaheadOptions.length > 0 && (
@@ -126,9 +131,15 @@ export function TaskListQuickAdd({
                 styles.typeaheadRow,
                 index === typeaheadIndex && { backgroundColor: themeColors.border },
               ]}
+              accessibilityRole="button"
+              accessibilityState={{ selected: index === typeaheadIndex }}
+              activeOpacity={0.78}
             >
+              {option.kind === 'create' && (
+                <Sparkles size={14} color={themeColors.tint} strokeWidth={2} />
+              )}
               <Text style={[styles.typeaheadText, { color: themeColors.text }]}>
-                {option.kind === 'create' ? `✨ ${option.label}` : option.label}
+                {option.label}
               </Text>
             </TouchableOpacity>
           ))}
@@ -138,32 +149,46 @@ export function TaskListQuickAdd({
         <TouchableOpacity
           style={[styles.copilotPill, { borderColor: themeColors.border, backgroundColor: themeColors.inputBg }]}
           onPress={onApplyCopilot}
+          accessibilityRole="button"
+          activeOpacity={0.82}
         >
-          <Text style={[styles.copilotText, { color: themeColors.text }]}>
-            ✨ {t('copilot.suggested')}{' '}
-            {copilotSuggestion.context ? `${copilotSuggestion.context} ` : ''}
-            {copilotSuggestion.tags?.length ? copilotSuggestion.tags.join(' ') : ''}
-          </Text>
-          <Text style={[styles.copilotHint, { color: themeColors.secondaryText }]}>
-            {t('copilot.applyHint')}
-          </Text>
+          <View style={[styles.copilotIcon, { backgroundColor: themeColors.tint }]}>
+            <Sparkles size={14} color={themeColors.onTint} strokeWidth={2.2} />
+          </View>
+          <View style={styles.copilotContent}>
+            <Text style={[styles.copilotText, { color: themeColors.text }]}>
+              {t('copilot.suggested')}{' '}
+              {copilotSuggestion.context ? `${copilotSuggestion.context} ` : ''}
+              {copilotSuggestion.tags?.length ? copilotSuggestion.tags.join(' ') : ''}
+            </Text>
+            <Text style={[styles.copilotHint, { color: themeColors.secondaryText }]}>
+              {t('copilot.applyHint')}
+            </Text>
+          </View>
         </TouchableOpacity>
       )}
       {enableCopilot && aiEnabled && copilotThinking && !copilotSuggestion && !copilotApplied && (
         <View style={[styles.copilotPill, styles.copilotLoadingRow, { borderColor: themeColors.border, backgroundColor: themeColors.inputBg }]}>
           <ActivityIndicator size="small" color={themeColors.tint} />
-          <Text style={[styles.copilotHint, { color: themeColors.secondaryText, marginTop: 0 }]}>
-            {t('common.loading')}
-          </Text>
+          <View style={styles.copilotContent}>
+            <Text style={[styles.copilotHint, { color: themeColors.secondaryText, marginTop: 0 }]}>
+              {t('common.loading')}
+            </Text>
+          </View>
         </View>
       )}
       {enableCopilot && aiEnabled && copilotApplied && (
         <View style={[styles.copilotPill, { borderColor: themeColors.border, backgroundColor: themeColors.inputBg }]}>
-          <Text style={[styles.copilotText, { color: themeColors.text }]}>
-            ✅ {t('copilot.applied')}{' '}
-            {copilotContext ? `${copilotContext} ` : ''}
-            {copilotTags.length ? copilotTags.join(' ') : ''}
-          </Text>
+          <View style={[styles.copilotIcon, { backgroundColor: themeColors.tint }]}>
+            <CheckCircle2 size={14} color={themeColors.onTint} strokeWidth={2.2} />
+          </View>
+          <View style={styles.copilotContent}>
+            <Text style={[styles.copilotText, { color: themeColors.text }]}>
+              {t('copilot.applied')}{' '}
+              {copilotContext ? `${copilotContext} ` : ''}
+              {copilotTags.length ? copilotTags.join(' ') : ''}
+            </Text>
+          </View>
         </View>
       )}
       {showQuickAddHelp && !projectId && (

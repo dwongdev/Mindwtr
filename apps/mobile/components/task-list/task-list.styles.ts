@@ -175,6 +175,7 @@ export const styles = StyleSheet.create({
   },
   inputContainer: {
     flexDirection: 'row',
+    alignItems: 'center',
     padding: 16,
     gap: 8,
     borderBottomWidth: 1,
@@ -188,8 +189,12 @@ export const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 8,
     fontSize: 16,
+    minHeight: 44,
   },
   copilotPill: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 10,
     marginTop: 8,
     marginHorizontal: 16,
     borderWidth: 1,
@@ -200,15 +205,28 @@ export const styles = StyleSheet.create({
   copilotText: {
     fontSize: 12,
     fontWeight: '600',
+    lineHeight: 16,
   },
   copilotHint: {
     fontSize: 11,
+    lineHeight: 15,
     marginTop: 2,
   },
   copilotLoadingRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
+  },
+  copilotIcon: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  copilotContent: {
+    flex: 1,
+    minWidth: 0,
   },
   addButton: {
     width: 44,
@@ -228,16 +246,15 @@ export const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   typeaheadRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
     paddingHorizontal: 12,
     paddingVertical: 10,
   },
   typeaheadText: {
+    flexShrink: 1,
     fontSize: 13,
-  },
-  addButtonText: {
-    color: '#fff',
-    fontSize: 24,
-    fontWeight: 'bold',
   },
   quickAddHelp: {
     fontSize: 12,

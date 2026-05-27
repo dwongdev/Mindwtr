@@ -1,4 +1,4 @@
-import { ChevronDown, ChevronsUpDown, List } from 'lucide-react';
+import { ChevronDown, ChevronsUpDown, List, SlidersHorizontal } from 'lucide-react';
 import { cn } from '../../../lib/utils';
 import type { TaskSortBy } from '@mindwtr/core';
 import type { NextGroupBy } from './next-grouping';
@@ -83,24 +83,34 @@ export function ListHeader({
         const value = t('filters.priority');
         return value === 'filters.priority' ? 'Priority' : value;
     })();
-    const controlBaseClass = "text-xs border transition-colors focus:outline-none focus:ring-2 focus:ring-primary/40";
-    const controlMutedClass = "bg-muted/50 text-muted-foreground border-border hover:bg-muted hover:text-foreground";
+    const controlBaseClass = "h-9 text-xs border transition-colors focus:outline-none focus:ring-2 focus:ring-primary/40";
+    const controlMutedClass = "bg-card text-muted-foreground border-border hover:bg-muted/70 hover:text-foreground";
     const controlActiveClass = "bg-primary/10 text-primary border-primary";
 
     return (
-        <header className="flex items-center justify-between">
-            <h2 className="text-3xl font-bold tracking-tight">
-                {title}
-                {showNextCount && <span className="ml-2 text-lg font-normal text-muted-foreground">({nextCount})</span>}
-            </h2>
-            <div className="flex items-center gap-3">
-                <span className="text-muted-foreground text-sm" aria-live="polite">
-                    {taskCount} {t('common.tasks')}
-                    {hasFilters && (
-                        <span className="ml-1 text-primary">• {filterSummaryLabel}{filterSummarySuffix}</span>
+        <header className="flex flex-col gap-3 xl:flex-row xl:items-end xl:justify-between">
+            <div className="min-w-0 space-y-1">
+                <h2 className="truncate text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">
+                    {title}
+                    {showNextCount && (
+                        <span className="ml-2 align-baseline text-base font-medium text-muted-foreground sm:text-lg">
+                            ({nextCount})
+                        </span>
                     )}
-                </span>
-                <div className="relative">
+                </h2>
+                <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground" aria-live="polite">
+                    <span>{taskCount} {t('common.tasks')}</span>
+                    {hasFilters && (
+                        <span className="inline-flex max-w-full items-center gap-1 rounded-full border border-primary/20 bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary sm:max-w-[420px]">
+                            <SlidersHorizontal className="h-3 w-3 shrink-0" aria-hidden="true" />
+                            <span className="truncate">{filterSummaryLabel}{filterSummarySuffix}</span>
+                        </span>
+                    )}
+                </div>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-2 xl:justify-end">
+                <div className="relative min-w-[172px]">
                     <select
                         value={sortBy}
                         onChange={(e) => onChangeSortBy(e.target.value as TaskSortBy)}
@@ -108,7 +118,7 @@ export function ListHeader({
                         className={cn(
                             controlBaseClass,
                             controlMutedClass,
-                            "min-w-[180px] appearance-none rounded-xl pl-4 pr-9 py-2 text-foreground"
+                            "w-full appearance-none rounded-lg pl-3 pr-9 text-foreground"
                         )}
                     >
                         <option value="default">{t('sort.default')}</option>
@@ -125,7 +135,7 @@ export function ListHeader({
                     />
                 </div>
                 {showGroupBy && onChangeGroupBy && (
-                    <div className="relative">
+                    <div className="relative min-w-[132px]">
                         <select
                             value={groupBy}
                             onChange={(e) => onChangeGroupBy(e.target.value as NextGroupBy)}
@@ -133,7 +143,7 @@ export function ListHeader({
                             className={cn(
                                 controlBaseClass,
                                 controlMutedClass,
-                                "min-w-[136px] appearance-none rounded-xl pl-4 pr-9 py-2 text-foreground"
+                                "w-full appearance-none rounded-lg pl-3 pr-9 text-foreground"
                             )}
                         >
                             <option value="none">{noGroupingLabel}</option>
@@ -149,10 +159,11 @@ export function ListHeader({
                     </div>
                 )}
                 <button
+                    type="button"
                     onClick={onToggleSelection}
                     className={cn(
                         controlBaseClass,
-                        "px-4 py-2 rounded-xl",
+                        "rounded-lg px-3",
                         selectionMode
                             ? controlActiveClass
                             : controlMutedClass
@@ -166,7 +177,7 @@ export function ListHeader({
                     aria-pressed={showListDetails}
                     className={cn(
                         controlBaseClass,
-                        "px-4 py-2 rounded-xl inline-flex items-center gap-1.5",
+                        "inline-flex items-center gap-1.5 rounded-lg px-3",
                         showListDetails
                             ? controlActiveClass
                             : controlMutedClass
@@ -182,7 +193,7 @@ export function ListHeader({
                     aria-pressed={densityMode === 'compact'}
                     className={cn(
                         controlBaseClass,
-                        "px-4 py-2 rounded-xl inline-flex items-center gap-1.5",
+                        "inline-flex items-center gap-1.5 rounded-lg px-3",
                         densityMode === 'compact'
                             ? controlActiveClass
                             : controlMutedClass
