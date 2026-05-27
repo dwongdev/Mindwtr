@@ -1,5 +1,5 @@
 import React from 'react';
-import { Pressable, View, Text, StyleSheet, type TextStyle } from 'react-native';
+import { Pressable, View, Text, StyleSheet, type StyleProp, type TextStyle } from 'react-native';
 import * as Linking from 'expo-linking';
 import * as Clipboard from 'expo-clipboard';
 import { Ionicons } from '@expo/vector-icons';
@@ -43,16 +43,53 @@ function isSafeLink(href: string): boolean {
   return /^https?:\/\//i.test(href) || /^mailto:/i.test(href) || /^tel:/i.test(href);
 }
 
+type MarkdownRenderOptions = {
+  resolveTask: (id: string) => { title: string; projectId?: string } | null;
+  resolveProject: (id: string) => { title: string } | null;
+  deletedTaskLabel: string;
+  deletedProjectLabel: string;
+  copyCodeLabel: string;
+};
+
+function useMarkdownRenderOptions(): MarkdownRenderOptions {
+  const { t } = useLanguage();
+  const { tasks, projects } = useTaskStore((state) => ({
+    tasks: state._allTasks,
+    projects: state.projects,
+  }), shallow);
+  const deletedTaskLabel = tFallback(t, 'markdown.referenceDeletedTask', 'deleted task');
+  const deletedProjectLabel = tFallback(t, 'markdown.referenceDeletedProject', 'deleted project');
+  const copyCodeLabel = tFallback(t, 'markdown.copyCode', 'Copy code');
+  const resolveTask = React.useCallback((id: string) => {
+    const task = tasks.find((candidate) => candidate.id === id && !candidate.deletedAt);
+    if (!task) return null;
+    return {
+      title: task.title,
+      projectId: task.projectId,
+    };
+  }, [tasks]);
+  const resolveProject = React.useCallback((id: string) => {
+    const project = projects.find((candidate) => candidate.id === id && !candidate.deletedAt);
+    if (!project) return null;
+    return {
+      title: project.title,
+    };
+  }, [projects]);
+
+  return {
+    resolveTask,
+    resolveProject,
+    deletedTaskLabel,
+    deletedProjectLabel,
+    copyCodeLabel,
+  };
+}
+
 function renderInline(
   text: string,
   tc: ThemeColors,
   keyPrefix: string,
-  options: {
-    resolveTask: (id: string) => { title: string; projectId?: string } | null;
-    resolveProject: (id: string) => { title: string } | null;
-    deletedTaskLabel: string;
-    deletedProjectLabel: string;
-  },
+  options: MarkdownRenderOptions,
 ): React.ReactNode[] {
   const nodes: (string | React.ReactElement | null)[] = parseInlineMarkdown(text).map((token, index) => {
     if (token.type === 'text') return token.text;
@@ -148,6 +185,31 @@ function renderInline(
   return nodes.filter((node): node is string | React.ReactElement => node !== null);
 }
 
+export function MarkdownInlineText({
+  markdown,
+  tc,
+  direction,
+  style,
+  numberOfLines,
+}: {
+  markdown: string;
+  tc: ThemeColors;
+  direction?: 'ltr' | 'rtl';
+  style?: StyleProp<TextStyle>;
+  numberOfLines?: number;
+}) {
+  const renderOptions = useMarkdownRenderOptions();
+  const directionStyle: TextStyle | undefined = direction
+    ? { writingDirection: direction, textAlign: direction === 'rtl' ? 'right' : 'left' }
+    : undefined;
+
+  return (
+    <Text style={[style, directionStyle]} numberOfLines={numberOfLines}>
+      {renderInline(markdown || '', tc, 'inline', renderOptions)}
+    </Text>
+  );
+}
+
 export function MarkdownText({
   markdown,
   tc,
@@ -157,34 +219,13 @@ export function MarkdownText({
   tc: ThemeColors;
   direction?: 'ltr' | 'rtl';
 }) {
-  const { t } = useLanguage();
-  const { tasks, projects } = useTaskStore((state) => ({
-    tasks: state._allTasks,
-    projects: state.projects,
-  }), shallow);
+  const renderOptions = useMarkdownRenderOptions();
   const source = (markdown || '').replace(/\r\n/g, '\n');
   const lines = source.split('\n');
   const directionStyle: TextStyle | undefined = direction
     ? { writingDirection: direction, textAlign: direction === 'rtl' ? 'right' : 'left' }
     : undefined;
-  const deletedTaskLabel = tFallback(t, 'markdown.referenceDeletedTask', 'deleted task');
-  const deletedProjectLabel = tFallback(t, 'markdown.referenceDeletedProject', 'deleted project');
-  const copyCodeLabel = tFallback(t, 'markdown.copyCode', 'Copy code');
-  const resolveTask = React.useCallback((id: string) => {
-    const task = tasks.find((candidate) => candidate.id === id && !candidate.deletedAt);
-    if (!task) return null;
-    return {
-      title: task.title,
-      projectId: task.projectId,
-    };
-  }, [tasks]);
-  const resolveProject = React.useCallback((id: string) => {
-    const project = projects.find((candidate) => candidate.id === id && !candidate.deletedAt);
-    if (!project) return null;
-    return {
-      title: project.title,
-    };
-  }, [projects]);
+  const { copyCodeLabel } = renderOptions;
 
   const blocks: React.ReactNode[] = [];
   let i = 0;
@@ -218,7 +259,7 @@ export function MarkdownText({
             directionStyle,
           ]}
         >
-          {renderInline(text, tc, `h-${i}`, { resolveTask, resolveProject, deletedTaskLabel, deletedProjectLabel })}
+          {renderInline(text, tc, `h-${i}`, renderOptions)}
         </Text>
       );
       i += 1;
@@ -291,7 +332,7 @@ export function MarkdownText({
                 {item.checked ? '☑' : '☐'}
               </Text>
               <Text style={[styles.paragraph, styles.taskListText, { color: tc.text }, directionStyle]}>
-                {renderInline(item.text, tc, `task-li-${start}-${idx}`, { resolveTask, resolveProject, deletedTaskLabel, deletedProjectLabel })}
+                {renderInline(item.text, tc, `task-li-${start}-${idx}`, renderOptions)}
               </Text>
             </View>
           ))}
@@ -319,7 +360,7 @@ export function MarkdownText({
                 {item.marker}
               </Text>
               <Text style={[styles.paragraph, styles.listItemText, { color: tc.text }, directionStyle]}>
-                {renderInline(item.text, tc, `li-${start}-${idx}`, { resolveTask, resolveProject, deletedTaskLabel, deletedProjectLabel })}
+                {renderInline(item.text, tc, `li-${start}-${idx}`, renderOptions)}
               </Text>
             </View>
           ))}
@@ -346,7 +387,7 @@ export function MarkdownText({
                 {item.marker}
               </Text>
               <Text style={[styles.paragraph, styles.listItemText, { color: tc.text }, directionStyle]}>
-                {renderInline(item.text, tc, `oli-${start}-${idx}`, { resolveTask, resolveProject, deletedTaskLabel, deletedProjectLabel })}
+                {renderInline(item.text, tc, `oli-${start}-${idx}`, renderOptions)}
               </Text>
             </View>
           ))}
@@ -364,7 +405,7 @@ export function MarkdownText({
     if (text) {
       blocks.push(
         <Text key={`p-${i}`} style={[styles.paragraph, { color: tc.text }, directionStyle]}>
-          {renderInline(text, tc, `p-${i}`, { resolveTask, resolveProject, deletedTaskLabel, deletedProjectLabel })}
+          {renderInline(text, tc, `p-${i}`, renderOptions)}
         </Text>
       );
     }

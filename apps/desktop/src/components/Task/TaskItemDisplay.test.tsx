@@ -252,6 +252,50 @@ describe('TaskItemDisplay', () => {
         expect(queryByText('#list-tag')).not.toBeInTheDocument();
     });
 
+    it('renders inline markdown inside expanded checklist item titles', () => {
+        const markdownChecklistTask: Task = {
+            ...baseTask,
+            status: 'next',
+            checklist: [
+                { id: 'item-1', title: '**Draft** [spec](https://example.com)', isCompleted: false },
+            ],
+        };
+
+        const { container, queryByRole } = render(
+            <LanguageProvider>
+                <TaskItemDisplay
+                    task={markdownChecklistTask}
+                    language="en"
+                    selectionMode={false}
+                    isViewOpen
+                    actions={{
+                        onToggleView: vi.fn(),
+                        onEdit: vi.fn(),
+                        onDelete: vi.fn(),
+                        onDuplicate: vi.fn(),
+                        onStatusChange: vi.fn(),
+                        openAttachment: vi.fn(),
+                        onToggleChecklistItem: vi.fn(),
+                    }}
+                    visibleAttachments={[]}
+                    recurrenceRule=""
+                    recurrenceStrategy="strict"
+                    prioritiesEnabled={false}
+                    timeEstimatesEnabled={false}
+                    isStagnant={false}
+                    showQuickDone={false}
+                    readOnly={false}
+                    t={(key: string) => key}
+                />
+            </LanguageProvider>
+        );
+
+        expect(queryByRole('link', { name: 'spec' })).toBeNull();
+        expect(container.textContent).toContain('Draft spec');
+        expect(container.textContent).not.toContain('**');
+        expect(container.textContent).not.toContain('](');
+    });
+
     it('wraps expanded context and tag metadata groups', () => {
         const metadataHeavyTask: Task = {
             ...baseTask,

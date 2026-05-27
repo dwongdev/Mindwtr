@@ -14,6 +14,7 @@ vi.mock('../task-status-badge', () => ({
 }));
 
 vi.mock('../markdown-text', () => ({
+  MarkdownInlineText: (props: any) => React.createElement('MarkdownInlineText', props),
   MarkdownText: (props: any) => React.createElement('MarkdownText', props),
 }));
 

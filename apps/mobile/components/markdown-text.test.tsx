@@ -2,7 +2,7 @@ import React from 'react';
 import renderer from 'react-test-renderer';
 import { describe, expect, it, vi } from 'vitest';
 
-import { MarkdownText } from './markdown-text';
+import { MarkdownInlineText, MarkdownText } from './markdown-text';
 
 const clipboardMocks = vi.hoisted(() => ({
   setStringAsync: vi.fn(async () => {}),
@@ -183,5 +183,29 @@ describe('MarkdownText', () => {
     });
 
     expect(clipboardMocks.setStringAsync).toHaveBeenCalledWith('const value = 1;');
+  });
+
+  it('renders inline markdown without raw markers for compact checklist rows', () => {
+    let tree!: renderer.ReactTestRenderer;
+    renderer.act(() => {
+      tree = renderer.create(
+        <MarkdownInlineText
+          markdown={'✓ **Draft** [spec](https://example.com)'}
+          tc={{
+            text: '#fff',
+            secondaryText: '#aaa',
+            tint: '#3b82f6',
+            border: '#334155',
+            cardBg: '#1f2937',
+            filterBg: '#111827',
+          } as any}
+        />
+      );
+    });
+
+    const rendered = flattenText(tree.toJSON());
+    expect(rendered).toContain('✓ Draft spec');
+    expect(rendered).not.toContain('**');
+    expect(rendered).not.toContain('](');
   });
 });

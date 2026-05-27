@@ -20,6 +20,8 @@ import {
     DEFAULT_PROJECT_COLOR,
     getUsedTaskTokens,
     isSelectableProjectForTaskAssignment,
+    extractChecklistFromMarkdown,
+    syncMarkdownChecklistCompletion,
 } from '@mindwtr/core';
 
 import type { AIResponseAction } from '../ai-response-modal';
@@ -150,13 +152,19 @@ export function useTaskEditActions({
                     nextStatus = 'next';
                 }
             }
+            const currentDescription = descriptionDraftRef.current || String(prev.description ?? task?.description ?? '');
+            const nextDescription = syncMarkdownChecklistCompletion(currentDescription, nextChecklist) ?? '';
+            if (nextDescription !== currentDescription) {
+                descriptionDraftRef.current = nextDescription;
+            }
             return {
                 ...prev,
                 checklist: nextChecklist,
+                ...(nextDescription !== currentDescription ? { description: nextDescription } : {}),
                 status: nextStatus,
             };
         });
-    }, [setEditedTask, task?.status, task?.taskMode]);
+    }, [descriptionDraftRef, setEditedTask, task?.description, task?.status, task?.taskMode]);
 
     const handleResetChecklist = useCallback(() => {
         const current = editedTask.checklist || [];
@@ -247,7 +255,13 @@ export function useTaskEditActions({
             tags: mergedTags,
         };
         updates.location = String(updates.location ?? '').trim() || undefined;
-        updates.checklist = applyMarkdownChecklistToTask(resolvedDescription, updates.checklist);
+        const markdownChecklist = extractChecklistFromMarkdown(String(resolvedDescription ?? ''));
+        const previousMarkdownChecklist = extractChecklistFromMarkdown(String(task.description ?? ''));
+        updates.checklist = markdownChecklist.length > 0
+            ? applyMarkdownChecklistToTask(resolvedDescription, updates.checklist)
+            : previousMarkdownChecklist.length > 0
+                ? []
+                : updates.checklist;
         if (parsedProps.status) updates.status = parsedProps.status;
         if (parsedProps.startTime) updates.startTime = parsedProps.startTime;
         if (parsedProps.dueDate) updates.dueDate = parsedProps.dueDate;

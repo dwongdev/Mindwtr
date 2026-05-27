@@ -80,6 +80,8 @@ vi.mock('@mindwtr/core', () => {
     getStatusColor: () => ({ bg: '#111111', border: '#222222', text: '#333333' }),
     hasTimeComponent: () => false,
     normalizeFocusTaskLimit: (value?: number) => value ?? 3,
+    parseInlineMarkdown: (text: string) => [{ type: 'text', text }],
+    parseMarkdownReferenceHref: () => null,
     safeFormatDate,
     safeParseDueDate: () => null,
     tFallback: (t: (key: string) => string, key: string, fallback: string) => {
@@ -137,6 +139,19 @@ vi.mock('expo-haptics', () => ({
     Warning: 'warning',
   },
   notificationAsync: hapticsMocks.notificationAsync,
+}));
+
+vi.mock('expo-linking', () => ({
+  openURL: vi.fn(),
+}));
+
+vi.mock('expo-clipboard', () => ({
+  setStringAsync: vi.fn(async () => {}),
+}));
+
+vi.mock('@/lib/task-meta-navigation', () => ({
+  openProjectScreen: vi.fn(),
+  openTaskScreen: vi.fn(),
 }));
 
 vi.mock('../contexts/toast-context', () => ({

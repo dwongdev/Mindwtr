@@ -14,6 +14,7 @@ const INLINE_TOKEN_RE = /(\*\*([^*]+)\*\*|__([^_]+)__|~~([^~\n]+)~~|\*([^*\n]+)\
 const INTERNAL_LINK_RE = /\[\[(task|project):([^\]|]+)\|([^\]]+)\]\]/g;
 const INTERNAL_LINK_TOKEN_RE = /^\[\[(task|project):([^\]|]+)\|([^\]]+)\]\]$/;
 const TASK_LIST_RE = /^\s{0,3}(?:[-*+]\s+)?\[( |x|X)\]\s+(.+)$/;
+const TASK_LIST_LINE_RE = /^(\s{0,3}(?:[-*+]\s+)?)\[( |x|X)\](\s+)(.+)$/;
 const MARKDOWN_LIST_ITEM_RE = /^(\s*)(?:(?:[-+*])\s+(?:\[(?: |x|X)\]\s*)?|\d+[.)]\s+)(?:\S|$)/;
 
 export type InlineToken =
@@ -431,6 +432,47 @@ export function extractChecklistFromMarkdown(markdown: string): MarkdownChecklis
         });
     }
     return items;
+}
+
+const normalizeChecklistTitle = (value: string): string => value.trim().toLowerCase();
+
+export function syncMarkdownChecklistCompletion(
+    markdown: string | undefined,
+    checklist: MarkdownChecklistItem[] | undefined,
+): string | undefined {
+    if (!markdown || !checklist?.length) return markdown;
+
+    const remainingByTitle = new Map<string, MarkdownChecklistItem[]>();
+    for (const item of checklist) {
+        if (!item?.title) continue;
+        const key = normalizeChecklistTitle(item.title);
+        const bucket = remainingByTitle.get(key);
+        if (bucket) {
+            bucket.push(item);
+        } else {
+            remainingByTitle.set(key, [item]);
+        }
+    }
+
+    let changed = false;
+    const lines = markdown.replace(/\r\n/g, '\n').split('\n');
+    const nextLines = lines.map((line) => {
+        const match = TASK_LIST_LINE_RE.exec(line);
+        if (!match) return line;
+
+        const title = match[4] ?? '';
+        const bucket = remainingByTitle.get(normalizeChecklistTitle(title));
+        const checklistItem = bucket?.shift();
+        if (!checklistItem) return line;
+
+        const nextMarker = checklistItem.isCompleted ? 'x' : ' ';
+        if (match[2] === nextMarker) return line;
+
+        changed = true;
+        return `${match[1]}[${nextMarker}]${match[3]}${title}`;
+    });
+
+    return changed ? nextLines.join('\n') : markdown;
 }
 
 const normalizeSelection = (value: string, selection: MarkdownSelection): MarkdownSelection => {

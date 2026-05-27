@@ -160,9 +160,12 @@ export function useTaskItemSubmit({
             ? (editDescription ? `${editDescription}\n${parsedProps.description}` : parsedProps.description)
             : (editDescription || undefined);
         const markdownChecklist = extractChecklistFromMarkdown(String(resolvedDescription ?? ''));
+        const previousMarkdownChecklist = extractChecklistFromMarkdown(String(task.description ?? ''));
         const resolvedChecklist = markdownChecklist.length > 0
             ? mergeMarkdownChecklist(markdownChecklist, task.checklist)
-            : undefined;
+            : previousMarkdownChecklist.length > 0
+                ? []
+                : undefined;
         const projectChangedByCommand = hasProjectCommand && resolvedProjectId !== (editProjectId || undefined);
         const resolvedSectionId = projectChangedByCommand
             ? undefined

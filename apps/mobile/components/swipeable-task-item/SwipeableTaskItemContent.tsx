@@ -10,6 +10,7 @@ import {
 } from '@mindwtr/core';
 import type { Area, Language, Project, Task } from '@mindwtr/core';
 import type { ThemeColors } from '../../hooks/use-theme-colors';
+import { MarkdownInlineText } from '../markdown-text';
 import { styles } from './swipeable-task-item.styles';
 
 interface SwipeableTaskItemContentProps {
@@ -391,16 +392,16 @@ export function SwipeableTaskItemContent({
                                 accessibilityLabel={item.title}
                                 accessibilityState={{ checked: item.isCompleted }}
                             >
-                                <Text
+                                <MarkdownInlineText
+                                    markdown={`${item.isCompleted ? '✓' : '○'} ${item.title}`}
+                                    tc={tc}
                                     style={[
                                         styles.checklistItemText,
                                         { color: tc.secondaryText },
-                                        item.isCompleted && styles.checklistItemCompleted,
+                                        item.isCompleted ? styles.checklistItemCompleted : undefined,
                                     ]}
                                     numberOfLines={1}
-                                >
-                                    {item.isCompleted ? '✓ ' : '○ '} {item.title}
-                                </Text>
+                                />
                             </Pressable>
                         ))}
                     </View>

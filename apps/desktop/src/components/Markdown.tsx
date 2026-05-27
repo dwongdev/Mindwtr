@@ -20,7 +20,7 @@ function isBlockBoundary(line: string): boolean {
     return false;
 }
 
-function renderInline(text: string): React.ReactNode[] {
+function renderInline(text: string, options?: { interactiveLinks?: boolean }): React.ReactNode[] {
     return parseInlineMarkdown(text).map((token, index) => {
         if (token.type === 'text') return token.text;
         if (token.type === 'code') {
@@ -40,6 +40,13 @@ function renderInline(text: string): React.ReactNode[] {
             return <del key={`strike-${index}`}>{token.text}</del>;
         }
         if (token.type === 'link') {
+            if (options?.interactiveLinks === false) {
+                return (
+                    <span key={`link-${index}`} className="text-primary underline underline-offset-2">
+                        {token.text}
+                    </span>
+                );
+            }
             return (
                 <InternalMarkdownLink
                     key={`link-${index}`}
@@ -52,6 +59,18 @@ function renderInline(text: string): React.ReactNode[] {
         }
         return null;
     }).filter((node): node is string | React.ReactElement => node !== null);
+}
+
+export function InlineMarkdown({
+    markdown,
+    className,
+    interactiveLinks = true,
+}: {
+    markdown: string;
+    className?: string;
+    interactiveLinks?: boolean;
+}) {
+    return <span className={className}>{renderInline(markdown || '', { interactiveLinks })}</span>;
 }
 
 export function Markdown({ markdown, className }: { markdown: string; className?: string }) {

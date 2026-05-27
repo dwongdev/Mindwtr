@@ -14,7 +14,7 @@ import type {
   TimeEstimate,
 } from '@mindwtr/core';
 import type { ThemeColors } from '@/hooks/use-theme-colors';
-import { MarkdownText } from '../markdown-text';
+import { MarkdownInlineText, MarkdownText } from '../markdown-text';
 import { AttachmentProgressIndicator } from '../AttachmentProgressIndicator';
 import { TaskStatusBadge } from '../task-status-badge';
 
@@ -243,7 +243,12 @@ export function TaskEditViewTab({
                 ) : (
                   <Square size={18} color={tc.secondaryText} strokeWidth={2} />
                 )}
-                <Text style={[styles.viewChecklistText, textDirectionStyle, { color: tc.text }]}>{item.title}</Text>
+                <MarkdownInlineText
+                  markdown={item.title}
+                  tc={tc}
+                  direction={resolvedDirection}
+                  style={[styles.viewChecklistText, textDirectionStyle, { color: tc.text }]}
+                />
               </TouchableOpacity>
             ))}
           </View>

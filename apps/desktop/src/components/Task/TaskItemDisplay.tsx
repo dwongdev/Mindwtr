@@ -7,6 +7,7 @@ import { getContextColor } from '../../lib/context-color';
 import { MetadataBadge } from '../ui/MetadataBadge';
 import { AttachmentProgressIndicator } from '../AttachmentProgressIndicator';
 import { RichMarkdown } from '../RichMarkdown';
+import { InlineMarkdown } from '../Markdown';
 import type { KeyboardEvent, MouseEvent, ReactNode } from 'react';
 import { memo, useEffect, useRef } from 'react';
 import { isImageAttachment } from './task-item-attachment-utils';
@@ -676,7 +677,11 @@ export const TaskItemDisplay = memo(function TaskItemDisplay({
                                             >
                                                 {item.isCompleted && <Check className="w-2 h-2" />}
                                             </span>
-                                            <span className={cn(item.isCompleted && "line-through")}>{item.title}</span>
+                                            <InlineMarkdown
+                                                markdown={item.title}
+                                                className={cn(item.isCompleted && "line-through")}
+                                                interactiveLinks={false}
+                                            />
                                         </button>
                                     ))}
                                 </div>

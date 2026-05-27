@@ -7,6 +7,7 @@ import {
     parseMarkdownReferenceHref,
     searchMarkdownReferences,
     stripMarkdown,
+    syncMarkdownChecklistCompletion,
 } from './markdown';
 import type { Project, Task } from './types';
 
@@ -46,6 +47,25 @@ describe('extractChecklistFromMarkdown', () => {
             { title: 'Todo item', isCompleted: false },
             { title: 'Another done', isCompleted: true },
         ]);
+    });
+});
+
+describe('syncMarkdownChecklistCompletion', () => {
+    it('updates matching markdown task list markers from canonical checklist state', () => {
+        const input = '- [ ] **Draft** spec\n- [x] Review [notes](https://example.com)';
+
+        expect(syncMarkdownChecklistCompletion(input, [
+            { title: '**Draft** spec', isCompleted: true },
+            { title: 'Review [notes](https://example.com)', isCompleted: false },
+        ])).toBe('- [x] **Draft** spec\n- [ ] Review [notes](https://example.com)');
+    });
+
+    it('leaves unrelated markdown task list items unchanged', () => {
+        const input = '- [ ] Draft spec\n- [x] Keep independent';
+
+        expect(syncMarkdownChecklistCompletion(input, [
+            { title: 'Draft spec', isCompleted: true },
+        ])).toBe('- [x] Draft spec\n- [x] Keep independent');
     });
 });
 
