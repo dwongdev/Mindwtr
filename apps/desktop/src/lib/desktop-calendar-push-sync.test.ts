@@ -5,7 +5,7 @@ import {
     __desktopCalendarPushSyncTestUtils,
     runFullDesktopCalendarPushSync,
 } from './desktop-calendar-push-sync';
-import type { SystemCalendarEventDetails, SystemCalendarPushTarget } from './system-calendar';
+import type { SystemCalendarEventDetails, SystemCalendarEventWriteResult, SystemCalendarPushTarget } from './system-calendar';
 
 const makeTask = (overrides: Partial<Task> = {}): Task => ({
     id: 'task-1',
@@ -27,10 +27,21 @@ const setStoreTasks = (tasks: Task[]) => {
     }));
 };
 
+const writeOk = (eventId: string | null): SystemCalendarEventWriteResult => ({
+    ok: true,
+    eventId,
+});
+
+const writeFailed = (error: string): SystemCalendarEventWriteResult => ({
+    ok: false,
+    eventId: null,
+    error,
+});
+
 describe('desktop calendar push sync', () => {
-    let createEvent: ReturnType<typeof vi.fn<(details: SystemCalendarEventDetails) => Promise<string | null>>>;
-    let updateEvent: ReturnType<typeof vi.fn<(eventId: string, details: SystemCalendarEventDetails) => Promise<string | null>>>;
-    let deleteEvent: ReturnType<typeof vi.fn<(eventId: string) => Promise<boolean>>>;
+    let createEvent: ReturnType<typeof vi.fn<(details: SystemCalendarEventDetails) => Promise<SystemCalendarEventWriteResult>>>;
+    let updateEvent: ReturnType<typeof vi.fn<(eventId: string, details: SystemCalendarEventDetails) => Promise<SystemCalendarEventWriteResult>>>;
+    let deleteEvent: ReturnType<typeof vi.fn<(eventId: string) => Promise<SystemCalendarEventWriteResult>>>;
     let upsertSyncEntry: ReturnType<typeof vi.fn<(entry: CalendarSyncEntry) => Promise<void>>>;
     let deleteSyncEntry: ReturnType<typeof vi.fn<(taskId: string, platform: string) => Promise<void>>>;
     let getSyncEntry: ReturnType<typeof vi.fn<(taskId: string, platform: string) => Promise<CalendarSyncEntry | null>>>;
@@ -50,9 +61,9 @@ describe('desktop calendar push sync', () => {
         __desktopCalendarPushSyncTestUtils.resetForTests();
         setStoreTasks([]);
 
-        createEvent = vi.fn(async () => 'event-new');
-        updateEvent = vi.fn(async (_eventId) => _eventId);
-        deleteEvent = vi.fn(async () => true);
+        createEvent = vi.fn(async () => writeOk('event-new'));
+        updateEvent = vi.fn(async (_eventId) => writeOk(_eventId));
+        deleteEvent = vi.fn(async (_eventId) => writeOk(_eventId));
         upsertSyncEntry = vi.fn(async () => undefined);
         deleteSyncEntry = vi.fn(async () => undefined);
         getSyncEntry = vi.fn(async () => null);
@@ -135,6 +146,70 @@ describe('desktop calendar push sync', () => {
         expect(deleteEvent).toHaveBeenCalledWith('event-old');
         expect(deleteSyncEntry).toHaveBeenCalledWith('task-1', 'macos');
         expect(createEvent).not.toHaveBeenCalled();
+    });
+
+    it('keeps the sync mapping when deleting an event fails', async () => {
+        const entry: CalendarSyncEntry = {
+            taskId: 'task-1',
+            calendarEventId: 'event-old',
+            calendarId: 'cal-mindwtr',
+            platform: 'macos',
+            lastSyncedAt: '2026-01-01T00:00:00.000Z',
+        };
+        deleteEvent.mockResolvedValue(writeFailed('calendar-temporarily-unavailable'));
+        getSyncEntry.mockResolvedValue(entry);
+        setStoreTasks([makeTask({ dueDate: '2026-01-10', status: 'done' })]);
+
+        await runFullDesktopCalendarPushSync();
+
+        expect(deleteEvent).toHaveBeenCalledWith('event-old');
+        expect(deleteSyncEntry).not.toHaveBeenCalled();
+        expect(createEvent).not.toHaveBeenCalled();
+    });
+
+    it('does not create a duplicate when updating an existing event fails', async () => {
+        const entry: CalendarSyncEntry = {
+            taskId: 'task-1',
+            calendarEventId: 'event-old',
+            calendarId: 'cal-mindwtr',
+            platform: 'macos',
+            lastSyncedAt: '2026-01-01T00:00:00.000Z',
+        };
+        updateEvent.mockResolvedValue(writeFailed('calendar-temporarily-unavailable'));
+        getSyncEntry.mockResolvedValue(entry);
+        setStoreTasks([makeTask({ dueDate: '2026-01-10' })]);
+
+        await runFullDesktopCalendarPushSync();
+
+        expect(updateEvent).toHaveBeenCalledWith('event-old', expect.objectContaining({
+            calendarId: 'cal-mindwtr',
+        }));
+        expect(createEvent).not.toHaveBeenCalled();
+        expect(upsertSyncEntry).not.toHaveBeenCalled();
+        expect(deleteSyncEntry).not.toHaveBeenCalled();
+    });
+
+    it('recreates an event when the previous macOS event was deleted externally', async () => {
+        const entry: CalendarSyncEntry = {
+            taskId: 'task-1',
+            calendarEventId: 'event-old',
+            calendarId: 'cal-mindwtr',
+            platform: 'macos',
+            lastSyncedAt: '2026-01-01T00:00:00.000Z',
+        };
+        updateEvent.mockResolvedValue(writeFailed('event-not-found'));
+        getSyncEntry.mockResolvedValue(entry);
+        setStoreTasks([makeTask({ dueDate: '2026-01-10' })]);
+
+        await runFullDesktopCalendarPushSync();
+
+        expect(deleteSyncEntry).toHaveBeenCalledWith('task-1', 'macos');
+        expect(createEvent).toHaveBeenCalledWith(expect.objectContaining({
+            calendarId: 'cal-mindwtr',
+        }));
+        expect(upsertSyncEntry).toHaveBeenCalledWith(expect.objectContaining({
+            calendarEventId: 'event-new',
+        }));
     });
 
     it('reconciles stale calendar sync entries on full sync', async () => {

@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { Ionicons } from '@expo/vector-icons';
-import { ActivityIndicator, ScrollView, Switch, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Alert, ScrollView, Switch, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import * as DocumentPicker from 'expo-document-picker';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -100,6 +100,7 @@ export function CalendarSettingsScreen() {
     const [calendarPushTargetCalendarId, setCalendarPushTargetCalendarIdState] = useState<string | null>(null);
     const [calendarPushTargets, setCalendarPushTargets] = useState<CalendarPushTargetCalendar[]>([]);
     const [isCalendarPushTargetLoading, setIsCalendarPushTargetLoading] = useState(false);
+    const [isDeletingMindwtrCalendar, setIsDeletingMindwtrCalendar] = useState(false);
     const [calendarPushOpen, setCalendarPushOpen] = useState(false);
 
     const loadCalendarPushTargetState = useCallback(async () => {
@@ -190,20 +191,54 @@ export function CalendarSettingsScreen() {
         });
     };
 
-    const handleDeleteMindwtrCalendar = async () => {
-        // Disable push sync first so the calendar is not recreated on the next
-        // startup or task change.
-        await setCalendarPushEnabled(false);
-        setCalendarPushEnabledState(false);
-        stopCalendarPushSync();
-        await deleteMindwtrCalendar();
-        showToast({
-            title: tr('settings.calendarMobile.calendarDeleted'),
-            message: tr('settings.calendarMobile.theMindwtrCalendarAndAllItsEventsHaveBeenRemoved'),
-            tone: 'success',
-            durationMs: 3500,
-        });
-    };
+    const performDeleteMindwtrCalendar = useCallback(async () => {
+        if (isDeletingMindwtrCalendar) return;
+        setIsDeletingMindwtrCalendar(true);
+        try {
+            // Disable push sync first so the calendar is not recreated on the next
+            // startup or task change.
+            await setCalendarPushEnabled(false);
+            setCalendarPushEnabledState(false);
+            stopCalendarPushSync();
+            await deleteMindwtrCalendar();
+            setCalendarPushTargetCalendarIdState(null);
+            await loadCalendarPushTargetState();
+            showToast({
+                title: tr('settings.calendarMobile.calendarDeleted'),
+                message: tr('settings.calendarMobile.theMindwtrCalendarAndAllItsEventsHaveBeenRemoved'),
+                tone: 'success',
+                durationMs: 3500,
+            });
+        } catch (error) {
+            console.error(error);
+            showToast({
+                title: tr('settings.syncMobile.error'),
+                message: tr('settings.calendarMobile.failedToLoadWritableCalendars'),
+                tone: 'warning',
+                durationMs: 4200,
+            });
+        } finally {
+            setIsDeletingMindwtrCalendar(false);
+        }
+    }, [isDeletingMindwtrCalendar, loadCalendarPushTargetState, tr, showToast]);
+
+    const handleDeleteMindwtrCalendar = useCallback(() => {
+        if (isDeletingMindwtrCalendar) return;
+        Alert.alert(
+            tr('settings.calendarMobile.deleteMindwtrCalendar'),
+            tr('settings.calendarMobile.removeTheDedicatedCalendarAndItsPushedEventsFromThis'),
+            [
+                { text: t('common.cancel'), style: 'cancel' },
+                {
+                    text: t('common.delete'),
+                    style: 'destructive',
+                    onPress: () => {
+                        void performDeleteMindwtrCalendar();
+                    },
+                },
+            ],
+        );
+    }, [isDeletingMindwtrCalendar, performDeleteMindwtrCalendar, t, tr]);
 
     const loadSystemCalendarState = useCallback(async (requestAccess = false) => {
         setIsSystemCalendarLoading(true);
@@ -588,8 +623,16 @@ export function CalendarSettingsScreen() {
                             </TouchableOpacity>
 
                             <TouchableOpacity
-                                onPress={() => void handleDeleteMindwtrCalendar()}
-                                style={[styles.settingRow, { borderTopWidth: 1, borderTopColor: tc.border }]}
+                                onPress={handleDeleteMindwtrCalendar}
+                                disabled={isDeletingMindwtrCalendar}
+                                style={[
+                                    styles.settingRow,
+                                    {
+                                        borderTopWidth: 1,
+                                        borderTopColor: tc.border,
+                                        opacity: isDeletingMindwtrCalendar ? 0.6 : 1,
+                                    },
+                                ]}
                             >
                                 <View style={styles.settingInfo}>
                                     <Text style={[styles.settingLabel, { color: '#EF4444' }]}>
@@ -599,7 +642,11 @@ export function CalendarSettingsScreen() {
                                         {tr('settings.calendarMobile.removeTheDedicatedCalendarAndItsPushedEventsFromThis')}
                                     </Text>
                                 </View>
-                                <Ionicons color="#EF4444" name="trash-outline" size={20} />
+                                {isDeletingMindwtrCalendar ? (
+                                    <ActivityIndicator color="#EF4444" />
+                                ) : (
+                                    <Ionicons color="#EF4444" name="trash-outline" size={20} />
+                                )}
                             </TouchableOpacity>
                         </View>
                     )}

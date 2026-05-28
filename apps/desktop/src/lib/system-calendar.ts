@@ -34,6 +34,12 @@ type MacOsCalendarEventWriteResult = {
     error?: string;
 };
 
+export type SystemCalendarEventWriteResult = {
+    ok: boolean;
+    eventId: string | null;
+    error?: string;
+};
+
 const UNSUPPORTED_RESULT: MacOsCalendarReadResult = {
     permission: 'unsupported',
     calendars: [],
@@ -145,41 +151,71 @@ export async function ensureSystemMindwtrCalendar(storedCalendarId?: string | nu
     }
 }
 
-const resolveWriteResultEventId = (result: MacOsCalendarEventWriteResult | null | undefined): string | null => {
-    if (!result?.ok) return null;
-    const eventId = typeof result.eventId === 'string' ? result.eventId.trim() : '';
-    return eventId || null;
+const normalizeWriteResult = (result: MacOsCalendarEventWriteResult | null | undefined): SystemCalendarEventWriteResult => {
+    const eventId = typeof result?.eventId === 'string' ? result.eventId.trim() : '';
+    const error = typeof result?.error === 'string' && result.error.trim().length > 0
+        ? result.error.trim()
+        : undefined;
+    return {
+        ok: result?.ok === true,
+        eventId: eventId || null,
+        error,
+    };
 };
 
-export async function createSystemCalendarEvent(details: SystemCalendarEventDetails): Promise<string | null> {
-    if (!isTauriRuntime() || !isMacOsEnvironment()) return null;
+export async function createSystemCalendarEventResult(details: SystemCalendarEventDetails): Promise<SystemCalendarEventWriteResult> {
+    if (!isTauriRuntime() || !isMacOsEnvironment()) {
+        return { ok: false, eventId: null, error: 'unsupported' };
+    }
     try {
         const result = await tauriInvoke<MacOsCalendarEventWriteResult>('create_macos_calendar_event', { details });
-        return resolveWriteResultEventId(result);
+        return normalizeWriteResult(result);
     } catch (error) {
         reportError('Failed to create macOS calendar event', error);
-        return null;
+        return { ok: false, eventId: null, error: error instanceof Error ? error.message : String(error) };
+    }
+}
+
+export async function createSystemCalendarEvent(details: SystemCalendarEventDetails): Promise<string | null> {
+    const result = await createSystemCalendarEventResult(details);
+    return result.ok ? result.eventId : null;
+}
+
+export async function updateSystemCalendarEventResult(
+    eventId: string,
+    details: SystemCalendarEventDetails
+): Promise<SystemCalendarEventWriteResult> {
+    if (!isTauriRuntime() || !isMacOsEnvironment()) {
+        return { ok: false, eventId: null, error: 'unsupported' };
+    }
+    try {
+        const result = await tauriInvoke<MacOsCalendarEventWriteResult>('update_macos_calendar_event', { eventId, details });
+        return normalizeWriteResult(result);
+    } catch (error) {
+        reportError('Failed to update macOS calendar event', error);
+        return { ok: false, eventId: null, error: error instanceof Error ? error.message : String(error) };
     }
 }
 
 export async function updateSystemCalendarEvent(eventId: string, details: SystemCalendarEventDetails): Promise<string | null> {
-    if (!isTauriRuntime() || !isMacOsEnvironment()) return null;
+    const result = await updateSystemCalendarEventResult(eventId, details);
+    return result.ok ? result.eventId : null;
+}
+
+export async function deleteSystemCalendarEventResult(eventId: string): Promise<SystemCalendarEventWriteResult> {
+    if (!isTauriRuntime() || !isMacOsEnvironment()) {
+        return { ok: false, eventId: null, error: 'unsupported' };
+    }
     try {
-        const result = await tauriInvoke<MacOsCalendarEventWriteResult>('update_macos_calendar_event', { eventId, details });
-        return resolveWriteResultEventId(result);
+        const result = await tauriInvoke<MacOsCalendarEventWriteResult>('delete_macos_calendar_event', { eventId });
+        return normalizeWriteResult(result);
     } catch (error) {
-        reportError('Failed to update macOS calendar event', error);
-        return null;
+        reportError('Failed to delete macOS calendar event', error);
+        return { ok: false, eventId: null, error: error instanceof Error ? error.message : String(error) };
     }
 }
 
 export async function deleteSystemCalendarEvent(eventId: string): Promise<boolean> {
-    if (!isTauriRuntime() || !isMacOsEnvironment()) return false;
-    try {
-        const result = await tauriInvoke<MacOsCalendarEventWriteResult>('delete_macos_calendar_event', { eventId });
-        return result?.ok === true;
-    } catch (error) {
-        reportError('Failed to delete macOS calendar event', error);
-        return false;
-    }
+    const result = await deleteSystemCalendarEventResult(eventId);
+    return result.ok;
 }

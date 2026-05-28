@@ -658,7 +658,7 @@ describe('buildEventDetails — date-only calendar events stay on the intended d
 });
 
 describe('runFullCalendarSync — selected target calendar', () => {
-    it('writes unprefixed events to a selected account calendar instead of creating the managed calendar', async () => {
+    it('prefixes events on a selected account calendar instead of creating the managed calendar', async () => {
         setupEnabled('cal-managed', 'google-primary');
         mockGetCalendarsAsync.mockResolvedValue([
             {
@@ -678,7 +678,7 @@ describe('runFullCalendarSync — selected target calendar', () => {
         expect(mockCreateCalendarAsync).not.toHaveBeenCalled();
         expect(mockCreateEventAsync).toHaveBeenCalledWith('google-primary', expect.objectContaining({
             calendarId: 'google-primary',
-            title: task.title,
+            title: `Mindwtr: ${task.title}`,
         }));
     });
 
@@ -780,6 +780,88 @@ describe('runFullCalendarSync — selected target calendar', () => {
             calendarId: 'google-primary',
         }));
     });
+
+    it('keeps the old mapping and avoids duplicates when deleting from the old calendar fails', async () => {
+        setupEnabled('cal-managed', 'google-primary');
+        mockGetCalendarsAsync.mockResolvedValue([
+            {
+                id: 'google-primary',
+                title: 'Google',
+                accessLevel: 'owner',
+                allowsModifications: true,
+            },
+        ]);
+        const task = makeTask();
+        const previousEntry = {
+            taskId: task.id,
+            calendarEventId: 'evt-old',
+            calendarId: 'cal-old',
+            platform: 'ios',
+            lastSyncedAt: '',
+        };
+        setStoreTasks([task]);
+        mockGetCalendarSyncEntry.mockResolvedValue(previousEntry);
+        mockDeleteEventAsync.mockRejectedValueOnce(new Error('Calendar temporarily unavailable'));
+
+        await runFullCalendarSync();
+
+        expect(mockDeleteEventAsync).toHaveBeenCalledWith('evt-old');
+        expect(mockCreateEventAsync).not.toHaveBeenCalled();
+        expect(mockDeleteCalendarSyncEntry).not.toHaveBeenCalled();
+        expect(mockUpsertCalendarSyncEntry).not.toHaveBeenCalled();
+    });
+});
+
+describe('runFullCalendarSync — existing event updates', () => {
+    it('does not create a duplicate when updating an existing event fails', async () => {
+        setupEnabled();
+        const task = makeTask({ dueDate: '2026-04-20' });
+        const entry = {
+            taskId: task.id,
+            calendarEventId: 'evt-existing',
+            calendarId: 'cal-1',
+            platform: 'ios',
+            lastSyncedAt: '',
+        };
+        setStoreTasks([task]);
+        mockGetCalendarSyncEntry.mockResolvedValue(entry);
+        mockUpdateEventAsync.mockRejectedValueOnce(new Error('Calendar temporarily unavailable'));
+
+        await runFullCalendarSync();
+
+        expect(mockUpdateEventAsync).toHaveBeenCalledWith('evt-existing', expect.objectContaining({
+            title: task.title,
+        }));
+        expect(mockCreateEventAsync).not.toHaveBeenCalled();
+        expect(mockUpsertCalendarSyncEntry).not.toHaveBeenCalled();
+        expect(mockDeleteCalendarSyncEntry).not.toHaveBeenCalled();
+    });
+
+    it('recreates an event when the old event was deleted externally', async () => {
+        setupEnabled();
+        const task = makeTask({ dueDate: '2026-04-20' });
+        const entry = {
+            taskId: task.id,
+            calendarEventId: 'evt-existing',
+            calendarId: 'cal-1',
+            platform: 'ios',
+            lastSyncedAt: '',
+        };
+        setStoreTasks([task]);
+        mockGetCalendarSyncEntry.mockResolvedValue(entry);
+        mockUpdateEventAsync.mockRejectedValueOnce(new Error('Calendar event not found'));
+
+        await runFullCalendarSync();
+
+        expect(mockDeleteCalendarSyncEntry).toHaveBeenCalledWith(task.id, 'ios');
+        expect(mockCreateEventAsync).toHaveBeenCalledWith('cal-1', expect.objectContaining({
+            title: task.title,
+        }));
+        expect(mockUpsertCalendarSyncEntry).toHaveBeenCalledWith(expect.objectContaining({
+            taskId: task.id,
+            calendarEventId: 'evt-1',
+        }));
+    });
 });
 
 describe('runFullCalendarSync — completion removes event', () => {
@@ -795,6 +877,21 @@ describe('runFullCalendarSync — completion removes event', () => {
 
         expect(mockDeleteEventAsync).toHaveBeenCalledWith('evt-done');
         expect(mockDeleteCalendarSyncEntry).toHaveBeenCalledWith(task.id, 'ios');
+        expect(mockCreateEventAsync).not.toHaveBeenCalled();
+    });
+
+    it('keeps the sync mapping when deleting a completed task event fails', async () => {
+        setupEnabled();
+        const task = makeTask({ status: 'done' });
+        setStoreTasks([task]);
+        const entry = { taskId: task.id, calendarEventId: 'evt-done', calendarId: 'cal-1', platform: 'ios', lastSyncedAt: '' };
+        mockGetCalendarSyncEntry.mockResolvedValue(entry);
+        mockDeleteEventAsync.mockRejectedValueOnce(new Error('Calendar temporarily unavailable'));
+
+        await runFullCalendarSync();
+
+        expect(mockDeleteEventAsync).toHaveBeenCalledWith('evt-done');
+        expect(mockDeleteCalendarSyncEntry).not.toHaveBeenCalled();
         expect(mockCreateEventAsync).not.toHaveBeenCalled();
     });
 
