@@ -416,10 +416,10 @@ Thanks to these monthly sponsors for supporting Mindwtr.
     <img src="docs/assets/sponsors/ronmolenda.png" width="60" height="60" alt="@ronmolenda" />
   </a>
   <a href="https://github.com/bepolymathe" title="@bepolymathe">
-    <img src="https://github.com/bepolymathe.png?size=120" width="60" height="60" alt="@bepolymathe" />
+    <img src="docs/assets/sponsors/bepolymathe.png" width="60" height="60" alt="@bepolymathe" />
   </a>
   <a href="https://github.com/davidblume" title="@davidblume">
-    <img src="https://github.com/davidblume.png?size=120" width="60" height="60" alt="@davidblume" />
+    <img src="docs/assets/sponsors/davidblume.png" width="60" height="60" alt="@davidblume" />
   </a>
   <a href="https://github.com/karl1990" title="@karl1990">
     <img src="docs/assets/sponsors/karl1990.png" width="60" height="60" alt="@karl1990" />
