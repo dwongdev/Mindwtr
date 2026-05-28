@@ -37,6 +37,7 @@ export function useRootLayoutNotificationOpenHandler({
         actionIdentifier?: string;
         taskId?: string;
         projectId?: string;
+        context?: string;
         kind?: string;
     } | null>(null);
     const handledCompleteActionsRef = useRef(new Set<string>());
@@ -49,6 +50,7 @@ export function useRootLayoutNotificationOpenHandler({
         actionIdentifier?: string;
         taskId?: string;
         projectId?: string;
+        context?: string;
         kind?: string;
     }) => {
         const notificationId = typeof payload?.notificationId === 'string' ? payload.notificationId.trim() : undefined;
@@ -56,6 +58,7 @@ export function useRootLayoutNotificationOpenHandler({
         const actionIdentifier = typeof payload?.actionIdentifier === 'string' ? payload.actionIdentifier : undefined;
         const taskId = typeof payload?.taskId === 'string' ? payload.taskId : undefined;
         const projectId = typeof payload?.projectId === 'string' ? payload.projectId : undefined;
+        const context = typeof payload?.context === 'string' ? payload.context : undefined;
         const kind = typeof payload?.kind === 'string' ? payload.kind : undefined;
         const normalizedAction = String(actionIdentifier || '').trim().toLowerCase();
         if (normalizedAction === 'dismiss' || normalizedAction === 'dismiss_action' || normalizedAction === 'snooze' || normalizedAction === 'snooze_action') {
@@ -94,6 +97,10 @@ export function useRootLayoutNotificationOpenHandler({
             router.push({ pathname: '/projects-screen', params: { projectId } });
             return;
         }
+        if (kind === 'context-automation' && context) {
+            router.push({ pathname: '/contexts', params: { token: context } });
+            return;
+        }
         if (isDailyReviewOpen(kind, openToken)) {
             router.push({ pathname: '/daily-review', params: { openToken } });
             return;
@@ -108,6 +115,7 @@ export function useRootLayoutNotificationOpenHandler({
         actionIdentifier?: string;
         taskId?: string;
         projectId?: string;
+        context?: string;
         kind?: string;
     }) => {
         if (!canNavigate) {

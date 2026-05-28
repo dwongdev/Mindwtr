@@ -39,14 +39,14 @@ const notificationCacheFunction = `  private fun cacheNotificationOpenPayload(in
     fun copyNestedData(value: Any?) {
       when (value) {
         is Bundle -> {
-            listOf("alarmKey", "id", "taskId", "projectId", "kind", "actionIdentifier").forEach { key ->
+            listOf("alarmKey", "id", "taskId", "projectId", "context", "kind", "actionIdentifier").forEach { key ->
               copyPayloadValue(key, value.get(key))
             }
         }
         is String -> {
           runCatching {
             val json = JSONObject(value)
-            listOf("alarmKey", "id", "taskId", "projectId", "kind", "actionIdentifier").forEach { key ->
+            listOf("alarmKey", "id", "taskId", "projectId", "context", "kind", "actionIdentifier").forEach { key ->
               copyPayloadValue(key, json.opt(key))
             }
           }
@@ -54,14 +54,14 @@ const notificationCacheFunction = `  private fun cacheNotificationOpenPayload(in
         else -> {
           runCatching {
             val json = JSONObject(value.toString())
-            listOf("alarmKey", "id", "taskId", "projectId", "kind", "actionIdentifier").forEach { key ->
+            listOf("alarmKey", "id", "taskId", "projectId", "context", "kind", "actionIdentifier").forEach { key ->
               copyPayloadValue(key, json.opt(key))
             }
           }
         }
       }
     }
-    listOf("alarmKey", "id", "taskId", "projectId", "kind", "actionIdentifier").forEach { key ->
+    listOf("alarmKey", "id", "taskId", "projectId", "context", "kind", "actionIdentifier").forEach { key ->
       copyPayloadValue(key, extras.get(key))
     }
     copyNestedData(extras.get("data"))
@@ -95,6 +95,45 @@ const createNoteIntentFunction = `  private fun normalizeCreateNoteIntent(intent
 
     intent.action = Intent.ACTION_VIEW
     intent.data = builder.build()
+  }`;
+
+const contextAutomationIntentFunction = `  private fun normalizeContextAutomationIntent(intent: Intent?) {
+    val contextAction = when (intent?.action) {
+      "tech.dongdongbh.mindwtr.action.ACTIVATE_CONTEXT" -> "activate"
+      "tech.dongdongbh.mindwtr.action.DEACTIVATE_CONTEXT" -> "deactivate"
+      else -> return
+    }
+
+    fun clean(value: String?): String? {
+      val trimmed = value?.trim().orEmpty()
+      return if (trimmed.isBlank()) null else trimmed
+    }
+
+    val data = intent.data
+    val ignoredPathSegments = setOf("context", "contexts", "activate", "deactivate")
+    val pathContext = data?.pathSegments
+      ?.filter { segment -> !ignoredPathSegments.contains(segment) }
+      ?.joinToString("/")
+    val hostContext = data?.host?.takeIf { host -> host != "context" && host != "contexts" }
+    val rawContext = clean(intent.getStringExtra("context"))
+      ?: clean(intent.getStringExtra("name"))
+      ?: clean(intent.getStringExtra("token"))
+      ?: clean(intent.getStringExtra(Intent.EXTRA_TEXT))
+      ?: clean(data?.getQueryParameter("context"))
+      ?: clean(data?.getQueryParameter("name"))
+      ?: clean(data?.getQueryParameter("token"))
+      ?: clean(pathContext)
+      ?: clean(hostContext)
+      ?: return
+
+    intent.action = Intent.ACTION_VIEW
+    intent.data = Uri.Builder()
+      .scheme("mindwtr")
+      .path("contexts")
+      .appendQueryParameter("token", rawContext)
+      .appendQueryParameter("contextAction", contextAction)
+      .appendQueryParameter("source", "android_intent")
+      .build()
   }`;
 
 const patchMainApplication = (source) => {
@@ -231,6 +270,13 @@ const patchMainActivity = (source) => {
     );
   }
 
+  if (!next.includes('normalizeContextAutomationIntent(intent)')) {
+    next = next.replace(
+      '    normalizeCreateNoteIntent(intent)\n',
+      '    normalizeCreateNoteIntent(intent)\n    normalizeContextAutomationIntent(intent)\n'
+    );
+  }
+
   if (!next.includes('override fun onNewIntent(intent: Intent)')) {
     next = next.replace(
       '\n  override fun getMainComponentName(): String = "main"\n',
@@ -254,9 +300,16 @@ const patchMainActivity = (source) => {
     );
   }
 
+  if (!next.includes('normalizeContextAutomationIntent(intent)\n    super.onNewIntent(intent)')) {
+    next = next.replace(
+      '  override fun onNewIntent(intent: Intent) {\n    normalizeCreateNoteIntent(intent)\n    super.onNewIntent(intent)',
+      '  override fun onNewIntent(intent: Intent) {\n    normalizeCreateNoteIntent(intent)\n    normalizeContextAutomationIntent(intent)\n    super.onNewIntent(intent)'
+    );
+  }
+
   if (
     next.includes('private fun cacheNotificationOpenPayload(intent: Intent?)')
-    && !next.includes('copyNestedData(extras.get("data"))')
+    && (!next.includes('copyNestedData(extras.get("data"))') || !next.includes('"projectId", "context", "kind"'))
   ) {
     next = next.replace(
       /  private fun cacheNotificationOpenPayload\(intent: Intent\?\): LinkedHashMap<String, String>\? \{[\s\S]*?\n  \}\n\n  private fun emitNotificationOpenPayload/,
@@ -269,6 +322,8 @@ const patchMainActivity = (source) => {
       '\n}\n',
       `
 ${createNoteIntentFunction}
+
+${contextAutomationIntentFunction}
 
 ${notificationCacheFunction}
 
@@ -291,6 +346,16 @@ ${notificationCacheFunction}
     next = next.replace(
       '\n  private fun cacheNotificationOpenPayload(intent: Intent?)',
       `\n${createNoteIntentFunction}\n\n  private fun cacheNotificationOpenPayload(intent: Intent?)`
+    );
+  }
+
+  if (
+    next.includes('private fun cacheNotificationOpenPayload(intent: Intent?)')
+    && !next.includes('private fun normalizeContextAutomationIntent(intent: Intent?)')
+  ) {
+    next = next.replace(
+      '\n  private fun cacheNotificationOpenPayload(intent: Intent?)',
+      `\n${contextAutomationIntentFunction}\n\n  private fun cacheNotificationOpenPayload(intent: Intent?)`
     );
   }
 

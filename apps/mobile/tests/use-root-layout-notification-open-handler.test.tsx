@@ -10,6 +10,7 @@ type PendingNotificationOpenPayload = {
   notificationId?: string;
   taskId?: string;
   projectId?: string;
+  context?: string;
 } | null;
 
 const {
@@ -170,6 +171,25 @@ describe('useRootLayoutNotificationOpenHandler', () => {
     expect(router.push).toHaveBeenNthCalledWith(2, {
       pathname: '/weekly-review',
       params: { openToken: 'digest:weekly-review' },
+    });
+  });
+
+  it('routes context automation notification taps to the matching Contexts screen', () => {
+    const router = { push: vi.fn() };
+
+    act(() => {
+      create(<TestHarness router={router} />);
+    });
+
+    const handler = setNotificationOpenHandler.mock.calls[0]?.[0];
+
+    act(() => {
+      handler({ kind: 'context-automation', context: '@parents', notificationId: 'context-parents' });
+    });
+
+    expect(router.push).toHaveBeenCalledWith({
+      pathname: '/contexts',
+      params: { token: '@parents' },
     });
   });
 

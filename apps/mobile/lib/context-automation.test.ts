@@ -1,0 +1,102 @@
+import { describe, expect, it } from 'vitest';
+
+import type { Project, Task } from '@mindwtr/core';
+
+import {
+  buildContextAutomationNotificationCopy,
+  normalizeContextToken,
+  parseContextAutomationUrl,
+  selectContextNextActions,
+} from './context-automation';
+
+const task = (overrides: Partial<Task>): Task => ({
+  id: overrides.id ?? 'task',
+  title: overrides.title ?? 'Task',
+  status: overrides.status ?? 'next',
+  tags: overrides.tags ?? [],
+  contexts: overrides.contexts ?? [],
+  createdAt: overrides.createdAt ?? '2026-01-01T00:00:00.000Z',
+  updatedAt: overrides.updatedAt ?? '2026-01-01T00:00:00.000Z',
+  ...overrides,
+});
+
+const project = (overrides: Partial<Project>): Project => ({
+  id: overrides.id ?? 'project',
+  title: overrides.title ?? 'Project',
+  status: overrides.status ?? 'active',
+  color: overrides.color ?? '#3b82f6',
+  order: overrides.order ?? 0,
+  tagIds: overrides.tagIds ?? [],
+  createdAt: overrides.createdAt ?? '2026-01-01T00:00:00.000Z',
+  updatedAt: overrides.updatedAt ?? '2026-01-01T00:00:00.000Z',
+  ...overrides,
+});
+
+describe('context-automation', () => {
+  it('normalizes context names to @ tokens', () => {
+    expect(normalizeContextToken('parents')).toBe('@parents');
+    expect(normalizeContextToken('@parents')).toBe('@parents');
+    expect(normalizeContextToken('  #parents  ')).toBe('@parents');
+    expect(normalizeContextToken('')).toBe('');
+  });
+
+  it('parses context automation URLs', () => {
+    expect(parseContextAutomationUrl('mindwtr://contexts?token=%40parents&contextAction=activate')).toEqual({
+      action: 'activate',
+      context: '@parents',
+    });
+    expect(parseContextAutomationUrl('mindwtr:///context/deactivate/parents')).toEqual({
+      action: 'deactivate',
+      context: '@parents',
+    });
+    expect(parseContextAutomationUrl('mindwtr:///context/activate/parents/errands')).toEqual({
+      action: 'activate',
+      context: '@parents/errands',
+    });
+    expect(parseContextAutomationUrl('mindwtr://activate-context?name=parents')).toEqual({
+      action: 'activate',
+      context: '@parents',
+    });
+    expect(parseContextAutomationUrl('mindwtr://contexts?token=%40parents')).toBeNull();
+    expect(parseContextAutomationUrl('https://example.com/context?token=parents&action=activate')).toBeNull();
+  });
+
+  it('selects matching active /next tasks for a context', () => {
+    const tasks = [
+      task({ id: 'later-due', title: 'Later due', contexts: ['@parents'], dueDate: '2026-01-03' }),
+      task({ id: 'soon-due', title: 'Soon due', contexts: ['@parents'], dueDate: '2026-01-02' }),
+      task({ id: 'nested', title: 'Nested', contexts: ['@parents/errands'] }),
+      task({ id: 'waiting', title: 'Waiting', status: 'waiting', contexts: ['@parents'] }),
+      task({ id: 'deleted', title: 'Deleted', contexts: ['@parents'], deletedAt: '2026-01-01T01:00:00.000Z' }),
+      task({ id: 'archived-project', title: 'Archived project', contexts: ['@parents'], projectId: 'archived' }),
+      task({ id: 'other', title: 'Other', contexts: ['@home'] }),
+    ];
+    const projects = [
+      project({ id: 'archived', status: 'archived' }),
+    ];
+
+    expect(selectContextNextActions(tasks, projects, 'parents').map((item) => item.id)).toEqual([
+      'soon-due',
+      'later-due',
+      'nested',
+    ]);
+  });
+
+  it('builds compact notification copy', () => {
+    expect(buildContextAutomationNotificationCopy('@parents', [])).toEqual({
+      title: 'No @parents next actions',
+      message: 'Mindwtr did not find any /next tasks for @parents.',
+    });
+    expect(buildContextAutomationNotificationCopy('@parents', [task({ title: 'Call mom' })])).toEqual({
+      title: '@parents next action',
+      message: 'Call mom',
+    });
+    expect(buildContextAutomationNotificationCopy('@parents', [
+      task({ title: 'Call mom' }),
+      task({ title: 'Bring forms' }),
+    ])).toEqual({
+      title: '2 @parents next actions',
+      message: '- Call mom\n- Bring forms',
+    });
+  });
+});

@@ -30,6 +30,7 @@ import { ErrorBoundary } from '../components/ErrorBoundary';
 import { logError, logInfo, logWarn, setupGlobalErrorLogging } from '../lib/app-log';
 import { useMobileAreaFilter } from '../hooks/use-mobile-area-filter';
 import { useThemeColors } from '../hooks/use-theme-colors';
+import { useRootLayoutContextAutomation } from '@/hooks/root-layout/use-root-layout-context-automation';
 import { useRootLayoutExternalCapture } from '@/hooks/root-layout/use-root-layout-external-capture';
 import { useRootLayoutNotificationOpenHandler } from '@/hooks/root-layout/use-root-layout-notification-open-handler';
 import { useRootLayoutStartup } from '@/hooks/root-layout/use-root-layout-startup';
@@ -205,6 +206,13 @@ function RootLayoutContentInner() {
     appReady: isFirstPaintReady,
     pathname,
     router,
+  });
+  useRootLayoutContextAutomation({
+    dataReady,
+    incomingUrl,
+    resolveText,
+    router,
+    showToast,
   });
   useRootLayoutExternalCapture({
     dataReady,

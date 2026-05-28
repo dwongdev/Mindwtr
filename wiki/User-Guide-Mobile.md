@@ -127,6 +127,41 @@ On Android, add the Mindwtr capture tile to Quick Settings for one-swipe Inbox c
 
 Android builds expose a capture action to supported assistants, including Gemini/Assistant surfaces that route through Android App Actions. Voice-created captures open Mindwtr's confirmation flow so you can review the title and note before saving.
 
+### Android Context Automation Intents
+
+Automation apps such as Tasker, MacroDroid, or Phone Profiles can activate a Mindwtr context. When activated, Mindwtr opens the matching Contexts view and sends a notification with matching `/next` actions. Tapping that notification opens the same context again.
+
+Preferred URL form:
+
+| URL | Action |
+| --- | --- |
+| `mindwtr://contexts?token=%40parents&contextAction=activate` | Activate `@parents` |
+| `mindwtr://contexts?token=%40parents&contextAction=deactivate` | Deactivate `@parents` |
+
+Android intent form:
+
+| Field | Value |
+| --- | --- |
+| Package | `tech.dongdongbh.mindwtr` |
+| Class | `tech.dongdongbh.mindwtr.MainActivity` |
+| Activate action | `tech.dongdongbh.mindwtr.action.ACTIVATE_CONTEXT` |
+| Deactivate action | `tech.dongdongbh.mindwtr.action.DEACTIVATE_CONTEXT` |
+| String extra | `context=parents` or `context=@parents` |
+
+ADB examples:
+
+```bash
+adb shell am start -n tech.dongdongbh.mindwtr/.MainActivity -a tech.dongdongbh.mindwtr.action.ACTIVATE_CONTEXT --es context parents
+adb shell am start -n tech.dongdongbh.mindwtr/.MainActivity -a tech.dongdongbh.mindwtr.action.DEACTIVATE_CONTEXT --es context parents
+adb shell am start -a android.intent.action.VIEW -d 'mindwtr://contexts?token=%40parents&contextAction=activate' tech.dongdongbh.mindwtr
+```
+
+Notes:
+- Context names are normalized to `@context`, so `parents` and `@parents` both match `@parents`.
+- Hierarchical contexts match below the selected context, so `@parents` also matches `@parents/errands`.
+- Deactivation acknowledges the automation exit trigger; it does not delete, hide, or change tasks.
+- Mindwtr does not detect locations or device states itself; the automation app owns the trigger.
+
 ### URL Scheme Quick Capture (iOS Shortcuts / Android Automations)
 
 Mindwtr registers the URL scheme `mindwtr://`, so you can capture tasks from iOS Shortcuts, Tasker, or other automation tools.

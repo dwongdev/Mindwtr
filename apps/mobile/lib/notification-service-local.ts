@@ -27,6 +27,7 @@ type NotificationOpenPayload = {
   actionIdentifier?: string;
   taskId?: string;
   projectId?: string;
+  context?: string;
   kind?: string;
 };
 
@@ -406,6 +407,7 @@ function attachNativeEventListeners(): void {
         actionIdentifier: data.actionIdentifier || 'open',
         taskId: data.taskId,
         projectId: data.projectId,
+        context: data.context,
         kind: data.kind,
       });
     } catch (error) {

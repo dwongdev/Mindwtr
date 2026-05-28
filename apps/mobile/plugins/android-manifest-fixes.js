@@ -2,6 +2,10 @@ const { withAndroidManifest } = require('@expo/config-plugins');
 
 const MLKIT_ACTIVITY = 'com.google.mlkit.vision.codescanner.internal.GmsBarcodeScanningDelegateActivity';
 const MAIN_ACTIVITY = '.MainActivity';
+const CONTEXT_INTENT_ACTIONS = [
+  'tech.dongdongbh.mindwtr.action.ACTIVATE_CONTEXT',
+  'tech.dongdongbh.mindwtr.action.DEACTIVATE_CONTEXT',
+];
 const GMS_MODULE_DEPENDENCIES_SERVICE = 'com.google.android.gms.metadata.ModuleDependencies';
 const PERMISSIONS_TO_REMOVE = [
   'android.permission.CAMERA',
@@ -12,6 +16,56 @@ const PERMISSIONS_TO_REMOVE = [
   'com.google.android.finsky.permission.BIND_GET_INSTALL_REFERRER_SERVICE',
 ];
 const isFossBuild = process.env.FOSS_BUILD === '1' || process.env.FOSS_BUILD === 'true';
+
+const ensureArray = (target, key) => {
+  if (!Array.isArray(target[key])) {
+    target[key] = [];
+  }
+  return target[key];
+};
+
+const hasAction = (filter, actionName) => (
+  Array.isArray(filter.action)
+  && filter.action.some((action) => action?.$?.['android:name'] === actionName)
+);
+
+const hasCategory = (filter, categoryName) => (
+  Array.isArray(filter.category)
+  && filter.category.some((category) => category?.$?.['android:name'] === categoryName)
+);
+
+const hasDataScheme = (filter, scheme) => (
+  Array.isArray(filter.data)
+  && filter.data.some((data) => data?.$?.['android:scheme'] === scheme)
+);
+
+const hasContextIntentFilter = (filter, { dataScheme } = {}) => (
+  CONTEXT_INTENT_ACTIONS.every((actionName) => hasAction(filter, actionName))
+  && hasCategory(filter, 'android.intent.category.DEFAULT')
+  && (dataScheme ? hasDataScheme(filter, dataScheme) : !Array.isArray(filter.data))
+);
+
+const buildContextIntentFilter = ({ dataScheme } = {}) => ({
+  action: CONTEXT_INTENT_ACTIONS.map((actionName) => ({
+    $: { 'android:name': actionName },
+  })),
+  category: [
+    { $: { 'android:name': 'android.intent.category.DEFAULT' } },
+  ],
+  ...(dataScheme
+    ? { data: [{ $: { 'android:scheme': dataScheme } }] }
+    : {}),
+});
+
+const ensureContextIntentFilters = (activity) => {
+  const filters = ensureArray(activity, 'intent-filter');
+  if (!filters.some((filter) => hasContextIntentFilter(filter))) {
+    filters.push(buildContextIntentFilter());
+  }
+  if (!filters.some((filter) => hasContextIntentFilter(filter, { dataScheme: 'mindwtr' }))) {
+    filters.push(buildContextIntentFilter({ dataScheme: 'mindwtr' }));
+  }
+};
 
 module.exports = function withAndroidManifestFixes(config) {
   return withAndroidManifest(config, (config) => {
@@ -62,6 +116,7 @@ module.exports = function withAndroidManifestFixes(config) {
         // Explicitly allow both portrait and landscape on tablets/Chromebooks.
         activity.$['android:screenOrientation'] = 'fullUser';
         activity.$['android:resizeableActivity'] = 'true';
+        ensureContextIntentFilters(activity);
         didUpdateMainActivity = true;
       }
       if (activity.$ && activity.$['android:name'] === MLKIT_ACTIVITY) {
@@ -87,6 +142,10 @@ module.exports = function withAndroidManifestFixes(config) {
           'android:resizeableActivity': 'true',
           'tools:node': 'merge',
         },
+        'intent-filter': [
+          buildContextIntentFilter(),
+          buildContextIntentFilter({ dataScheme: 'mindwtr' }),
+        ],
       });
     }
 

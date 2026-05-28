@@ -6,6 +6,7 @@ type NotificationOpenPayload = {
   actionIdentifier?: string;
   taskId?: string;
   projectId?: string;
+  context?: string;
   kind?: string;
 };
 
@@ -63,6 +64,7 @@ function normalizePayload(payload: Record<string, unknown>): NotificationOpenPay
     actionIdentifier: stringifyPayloadValue(payload.actionIdentifier) || nestedData.actionIdentifier || 'open',
     taskId: stringifyPayloadValue(payload.taskId) || nestedData.taskId,
     projectId: stringifyPayloadValue(payload.projectId) || nestedData.projectId,
+    context: stringifyPayloadValue(payload.context) || nestedData.context,
     kind: stringifyPayloadValue(payload.kind) || nestedData.kind,
   };
 }

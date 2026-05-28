@@ -14,6 +14,7 @@ type NotificationOpenPayload = {
   actionIdentifier?: string;
   taskId?: string;
   projectId?: string;
+  context?: string;
   kind?: string;
 };
 
