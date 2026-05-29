@@ -47,7 +47,10 @@ const translate = vi.hoisted(() => {
     'status.inbox': 'Inbox',
     'status.done': 'Done',
     'status.next': 'Next',
+    'status.waiting': 'Waiting',
     'status.someday': 'Someday',
+    'status.reference': 'Reference',
+    'taskStatus.changeStatus': 'Change Status',
     'projects.nextActionPromptTitle': "What's the next action?",
     'projects.nextActionPromptDesc': 'Choose or add the next action for {{project}}.',
     'projects.nextActionPromptChooseExisting': 'Choose an existing task',
@@ -539,6 +542,56 @@ describe('SwipeableTaskItem', () => {
 
     expect(onStatusChange).toHaveBeenCalledWith('next');
     expect(hapticsMocks.notificationAsync).toHaveBeenCalledWith('success');
+  });
+
+  it('offers reference in the mobile status menu', () => {
+    const onStatusChange = vi.fn();
+
+    let tree!: renderer.ReactTestRenderer;
+    renderer.act(() => {
+      tree = renderer.create(
+        <SwipeableTaskItem
+          task={{
+            id: 'task-1',
+            title: 'Keep notes',
+            status: 'inbox',
+            createdAt: '2026-01-01T00:00:00.000Z',
+            updatedAt: '2026-01-01T00:00:00.000Z',
+          } as any}
+          isDark={false}
+          tc={{
+            taskItemBg: '#111111',
+            cardBg: '#111111',
+            border: '#222222',
+            text: '#ffffff',
+            secondaryText: '#999999',
+            tint: '#3b82f6',
+            warning: '#f59e0b',
+          } as any}
+          onPress={vi.fn()}
+          onStatusChange={onStatusChange}
+          onDelete={vi.fn()}
+        />
+      );
+    });
+
+    const statusBadge = tree.root.find(
+      (node) => node.props.accessibilityLabel === 'Change status. Current status: inbox'
+    );
+    renderer.act(() => {
+      statusBadge.props.onPress({ stopPropagation: vi.fn() });
+    });
+
+    expect(hasText(tree, 'Reference')).toBe(true);
+
+    const referenceAction = tree.root.find(
+      (node) => node.props.accessibilityLabel === 'Reference' && typeof node.props.onPress === 'function'
+    );
+    renderer.act(() => {
+      referenceAction.props.onPress();
+    });
+
+    expect(onStatusChange).toHaveBeenCalledWith('reference');
   });
 
   it('prompts for the project next action after completing the last next task', async () => {
