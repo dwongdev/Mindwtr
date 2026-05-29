@@ -38,7 +38,6 @@ const SYNC_DEBOUNCE_MS = 2500;
 const CALENDAR_SYNC_CONCURRENCY = 4;
 const MANAGED_CALENDAR_TITLE = 'Mindwtr';
 const MANAGED_CALENDAR_NAME = 'mindwtr';
-const ACCOUNT_TARGET_TITLE_PREFIX = 'Mindwtr: ';
 
 export type CalendarPushTargetCalendar = {
     id: string;
@@ -52,7 +51,6 @@ export type CalendarPushTargetCalendar = {
 
 type CalendarPushTarget = {
     id: string;
-    shouldPrefixTitles: boolean;
 };
 
 function isReadableAccountName(value: string): boolean {
@@ -345,10 +343,7 @@ async function resolveCalendarPushTarget(): Promise<CalendarPushTarget | null> {
             const calendars = await Calendar.getCalendarsAsync(Calendar.EntityTypes.EVENT);
             const selected = calendars.find((calendar) => calendar.id === selectedId);
             if (selected && isWritableCalendar(selected)) {
-                return {
-                    id: selectedId,
-                    shouldPrefixTitles: !isMindwtrNamedCalendar(selected),
-                };
+                return { id: selectedId };
             }
             await setCalendarPushTargetCalendarId(null);
             void logWarn('Selected calendar push target is unavailable; falling back to Mindwtr calendar', {
@@ -361,7 +356,7 @@ async function resolveCalendarPushTarget(): Promise<CalendarPushTarget | null> {
     }
 
     const managedId = await ensureMindwtrCalendar();
-    return managedId ? { id: managedId, shouldPrefixTitles: false } : null;
+    return managedId ? { id: managedId } : null;
 }
 
 /**
@@ -454,22 +449,17 @@ function timeEstimateToMinutes(estimate: Task['timeEstimate']): number {
     }
 }
 
-function formatCalendarEventTitle(title: string, shouldPrefixTitle: boolean): string {
-    const trimmed = title.trim() || 'Task';
-    if (!shouldPrefixTitle) return trimmed;
-    if (trimmed.toLowerCase().startsWith(ACCOUNT_TARGET_TITLE_PREFIX.toLowerCase())) {
-        return trimmed;
-    }
-    return `${ACCOUNT_TARGET_TITLE_PREFIX}${trimmed}`;
+function formatCalendarEventTitle(title: string): string {
+    return title.trim() || 'Task';
 }
 
-function buildEventDetails(task: Task, shouldPrefixTitle: boolean) {
+function buildEventDetails(task: Task) {
     // safeParseDate parses YYYY-MM-DD as local midnight, avoiding the UTC
     // shift that `new Date(dateString)` produces for date-only strings.
     const dateValue = task.startTime ?? task.dueDate;
     const parsed = safeParseDate(dateValue);
     const startDate = parsed ?? new Date();
-    const title = formatCalendarEventTitle(task.title, shouldPrefixTitle);
+    const title = formatCalendarEventTitle(task.title);
     const location = typeof task.location === 'string' ? task.location.trim() : '';
     const notes = [
         isProjectedRecurringTask(task)
@@ -574,7 +564,7 @@ async function syncTaskToCalendar(task: Task, target: CalendarPushTarget): Promi
         return;
     }
 
-    const details = buildEventDetails(task, target.shouldPrefixTitles);
+    const details = buildEventDetails(task);
     const calendarId = target.id;
     const existing = await getCalendarSyncEntry(task.id, PLATFORM);
 

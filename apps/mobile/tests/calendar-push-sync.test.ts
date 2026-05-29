@@ -658,7 +658,7 @@ describe('buildEventDetails — date-only calendar events stay on the intended d
 });
 
 describe('runFullCalendarSync — selected target calendar', () => {
-    it('prefixes events on a selected account calendar instead of creating the managed calendar', async () => {
+    it('writes unprefixed events to a selected account calendar instead of creating the managed calendar', async () => {
         setupEnabled('cal-managed', 'google-primary');
         mockGetCalendarsAsync.mockResolvedValue([
             {
@@ -678,7 +678,7 @@ describe('runFullCalendarSync — selected target calendar', () => {
         expect(mockCreateCalendarAsync).not.toHaveBeenCalled();
         expect(mockCreateEventAsync).toHaveBeenCalledWith('google-primary', expect.objectContaining({
             calendarId: 'google-primary',
-            title: `Mindwtr: ${task.title}`,
+            title: task.title,
         }));
     });
 
