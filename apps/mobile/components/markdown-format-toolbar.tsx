@@ -9,7 +9,7 @@ import {
     TextInput,
     View,
 } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { FontAwesome, Ionicons } from '@expo/vector-icons';
 import {
     MARKDOWN_TOOLBAR_ACTIONS,
     translateWithFallback,
@@ -67,12 +67,13 @@ const renderActionLabel = (
             return <Ionicons name="link-outline" size={iconSize} color={color} />;
         case 'code':
             return <Ionicons name="code-slash-outline" size={iconSize} color={color} />;
+        case 'italic':
+            return <FontAwesome name="italic" size={Math.max(14, Math.round(iconSize * 0.72))} color={color} />;
         default:
             return (
                 <Text
                     style={[
                         styles.buttonText,
-                        actionId === 'italic' ? styles.buttonTextItalic : null,
                         { color, fontSize },
                     ]}
                 >

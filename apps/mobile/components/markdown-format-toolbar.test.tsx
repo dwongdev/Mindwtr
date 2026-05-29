@@ -7,6 +7,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { MarkdownFormatToolbar } from './markdown-format-toolbar';
 
 vi.mock('@expo/vector-icons', () => ({
+    FontAwesome: (props: any) => React.createElement('FontAwesome', props),
     Ionicons: (props: any) => React.createElement('Ionicons', props),
 }));
 
@@ -66,6 +67,19 @@ describe('MarkdownFormatToolbar', () => {
             minHeight: 34,
             minWidth: 34,
         }));
+    });
+
+    it('uses a vector italic icon instead of Android italic text rendering', () => {
+        let tree: ReactTestRenderer | undefined;
+        act(() => {
+            tree = create(<MarkdownFormatToolbar {...baseProps} placement="inline" />);
+        });
+
+        const italicIcons = tree!.root.findAll((node) => (
+            String(node.type) === 'FontAwesome' && node.props.name === 'italic'
+        ));
+
+        expect(italicIcons).toHaveLength(1);
     });
 
     it('keeps keyboard placement hidden until the keyboard inset is known', () => {
