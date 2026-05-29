@@ -61,6 +61,7 @@ export function TaskListHeader({
 }: TaskListHeaderProps) {
   const filtersLabel = t('filters.label') === 'filters.label' ? 'Filters' : t('filters.label');
   const clearLabel = t('filters.clear') === 'filters.clear' ? t('common.clear') : t('filters.clear');
+  const removeFilterLabel = t('filters.remove') === 'filters.remove' ? 'Remove filter' : t('filters.remove');
   const sortControl = showSort ? (
     <TouchableOpacity
       onPress={onOpenSort}
@@ -152,6 +153,7 @@ export function TaskListHeader({
               <TouchableOpacity
                 key={chip.id}
                 accessibilityRole="button"
+                accessibilityLabel={`${removeFilterLabel}: ${chip.label}`}
                 onPress={chip.onPress}
                 style={[
                   styles.filterChip,
@@ -167,6 +169,7 @@ export function TaskListHeader({
             ))}
             <TouchableOpacity
               accessibilityRole="button"
+              accessibilityLabel={clearLabel}
               onPress={onClearFilters}
               style={[styles.filterChip, { borderColor: themeColors.border, backgroundColor: themeColors.filterBg }]}
             >

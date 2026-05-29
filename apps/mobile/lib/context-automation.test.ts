@@ -99,4 +99,21 @@ describe('context-automation', () => {
       message: '- Call mom\n- Bring forms',
     });
   });
+
+  it('accepts localized notification templates', () => {
+    expect(buildContextAutomationNotificationCopy('@parents', [], {
+      noTasksTitle: 'No hay acciones para {{context}}',
+      noTasksMessage: '{{context}} no tiene tareas /next.',
+    })).toEqual({
+      title: 'No hay acciones para @parents',
+      message: '@parents no tiene tareas /next.',
+    });
+    expect(buildContextAutomationNotificationCopy('@parents', Array.from({ length: 6 }, (_, index) => task({ title: `Task ${index + 1}` })), {
+      manyTasksTitle: '{{count}} acciones para {{context}}',
+      moreTasksLine: '{{count}} mas',
+    })).toEqual({
+      title: '6 acciones para @parents',
+      message: '- Task 1\n- Task 2\n- Task 3\n- Task 4\n- Task 5\n1 mas',
+    });
+  });
 });

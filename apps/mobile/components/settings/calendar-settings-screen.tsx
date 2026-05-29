@@ -575,6 +575,9 @@ export function CalendarSettingsScreen() {
                                     return (
                                         <TouchableOpacity
                                             key={target.id ?? 'mindwtr-managed'}
+                                            accessibilityRole="button"
+                                            accessibilityLabel={`${target.name}. ${target.description}`}
+                                            accessibilityState={{ selected }}
                                             style={[
                                                 styles.settingRow,
                                                 { borderTopWidth: idx > 0 ? 1 : 0, borderTopColor: tc.border },
@@ -608,6 +611,8 @@ export function CalendarSettingsScreen() {
                             )}
 
                             <TouchableOpacity
+                                accessibilityRole="button"
+                                accessibilityLabel={tr('settings.calendarMobile.refreshCalendars')}
                                 onPress={() => void loadCalendarPushTargetState()}
                                 style={[styles.settingRow, { borderTopWidth: 1, borderTopColor: tc.border }]}
                             >
@@ -623,6 +628,8 @@ export function CalendarSettingsScreen() {
                             </TouchableOpacity>
 
                             <TouchableOpacity
+                                accessibilityRole="button"
+                                accessibilityLabel={tr('settings.calendarMobile.deleteMindwtrCalendar')}
                                 onPress={handleDeleteMindwtrCalendar}
                                 disabled={isDeletingMindwtrCalendar}
                                 style={[

@@ -732,10 +732,11 @@ function TaskListComponent({
       const hasExact = query.length > 0 && projects.some((project) => project.title.toLowerCase() === query);
       const result: Option[] = [];
       if (!hasExact && query.length > 0) {
+        const title = trigger.query.trim();
         result.push({
           kind: 'create' as const,
-          label: `Create \"${trigger.query.trim()}\"`,
-          value: trigger.query.trim(),
+          label: `${tFallback(t, 'projects.create', 'Create')} "${title}"`,
+          value: title,
         });
       }
       result.push(

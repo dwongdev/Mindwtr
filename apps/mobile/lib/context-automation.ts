@@ -22,6 +22,14 @@ export type ContextAutomationNotificationCopy = {
   message: string;
 };
 
+export type ContextAutomationNotificationTemplates = {
+  noTasksTitle: string;
+  noTasksMessage: string;
+  oneTaskTitle: string;
+  manyTasksTitle: string;
+  moreTasksLine: string;
+};
+
 const CONTEXT_ROUTE_NAMES = new Set(['context', 'contexts']);
 
 const trimOrUndefined = (value: string | null | undefined): string | undefined => {
@@ -131,20 +139,24 @@ export function selectContextNextActions(tasks: Task[], projects: Project[], con
 export function buildContextAutomationNotificationCopy(
   context: string,
   tasks: Pick<Task, 'title'>[],
+  templates: Partial<ContextAutomationNotificationTemplates> = {},
 ): ContextAutomationNotificationCopy {
   const normalizedContext = normalizeContextToken(context);
   const count = tasks.length;
+  const interpolate = (template: string) => template
+    .replace(/{{context}}/g, normalizedContext)
+    .replace(/{{count}}/g, String(count));
 
   if (count === 0) {
     return {
-      title: `No ${normalizedContext} next actions`,
-      message: `Mindwtr did not find any /next tasks for ${normalizedContext}.`,
+      title: interpolate(templates.noTasksTitle ?? 'No {{context}} next actions'),
+      message: interpolate(templates.noTasksMessage ?? 'Mindwtr did not find any /next tasks for {{context}}.'),
     };
   }
 
   if (count === 1) {
     return {
-      title: `${normalizedContext} next action`,
+      title: interpolate(templates.oneTaskTitle ?? '{{context}} next action'),
       message: tasks[0]?.title || normalizedContext,
     };
   }
@@ -153,11 +165,11 @@ export function buildContextAutomationNotificationCopy(
   const hiddenCount = count - visibleTasks.length;
   const taskLines = visibleTasks.map((task) => `- ${task.title}`);
   if (hiddenCount > 0) {
-    taskLines.push(`+${hiddenCount} more`);
+    taskLines.push((templates.moreTasksLine ?? '+{{count}} more').replace(/{{count}}/g, String(hiddenCount)));
   }
 
   return {
-    title: `${count} ${normalizedContext} next actions`,
+    title: interpolate(templates.manyTasksTitle ?? '{{count}} {{context}} next actions'),
     message: taskLines.join('\n'),
   };
 }

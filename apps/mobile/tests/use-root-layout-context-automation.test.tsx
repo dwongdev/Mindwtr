@@ -29,14 +29,16 @@ vi.mock('@/lib/notification-service', () => ({
   sendMobileImmediateNotification,
 }));
 
-const resolveText = (_key: string, fallback: string) => fallback;
+const defaultResolveText = (_key: string, fallback: string) => fallback;
 
 function TestHarness({
   incomingUrl,
+  resolveText = defaultResolveText,
   router,
   showToast,
 }: {
   incomingUrl: string | null;
+  resolveText?: (key: string, fallback: string) => string;
   router: { replace: ReturnType<typeof vi.fn> };
   showToast: ReturnType<typeof vi.fn>;
 }) {
@@ -130,5 +132,44 @@ describe('useRootLayoutContextAutomation', () => {
       message: '@parents is no longer active.',
       tone: 'success',
     });
+  });
+
+  it('uses localized notification templates for context activation', async () => {
+    const router = { replace: vi.fn() };
+    const showToast = vi.fn();
+    const resolveText = (key: string, fallback: string) => ({
+      'contextAutomation.oneNextActionTitle': 'Accion para {{context}}',
+    }[key] ?? fallback);
+    mockStoreState.tasks = [
+      {
+        id: 'task-1',
+        title: 'Call mom',
+        status: 'next',
+        tags: [],
+        contexts: ['@parents'],
+        createdAt: '2026-01-01T00:00:00.000Z',
+        updatedAt: '2026-01-01T00:00:00.000Z',
+      },
+    ];
+
+    await act(async () => {
+      create(
+        <TestHarness
+          incomingUrl="mindwtr://contexts?token=%40parents&contextAction=activate"
+          resolveText={resolveText}
+          router={router}
+          showToast={showToast}
+        />
+      );
+    });
+
+    expect(sendMobileImmediateNotification).toHaveBeenCalledWith(
+      'Accion para @parents',
+      'Call mom',
+      {
+        kind: 'context-automation',
+        context: '@parents',
+      }
+    );
   });
 });

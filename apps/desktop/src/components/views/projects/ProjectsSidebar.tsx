@@ -220,6 +220,7 @@ export function ProjectsSidebar({
     const removeFromFocusLabel = t('projects.removeFromFocus');
     const addToFocusLabel = t('projects.addToFocus');
     const maxFocusedProjectsLabel = t('projects.maxFocusedProjects');
+    const createProjectLabel = `${tFallback(t, 'projects.create', 'Create')} ${tFallback(t, 'taskEdit.projectLabel', 'Project')}`;
 
     const handleProjectDragEnd = useCallback((dndState: ReturnType<typeof buildProjectDndState>) => (event: DragEndEvent) => {
         const failProjectMove = (error: unknown) => {
@@ -286,6 +287,8 @@ export function ProjectsSidebar({
                         onClick={onStartCreate}
                         className="h-8 w-8 flex items-center justify-center hover:bg-accent rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                         disabled={isCreatingProject}
+                        title={createProjectLabel}
+                        aria-label={createProjectLabel}
                     >
                         <Plus className="w-4 h-4" />
                     </button>
@@ -324,6 +327,7 @@ export function ProjectsSidebar({
                         className="w-full bg-transparent border-b border-primary/50 p-1 text-sm focus:outline-none disabled:opacity-60 disabled:cursor-not-allowed"
                         disabled={isCreatingProject}
                         aria-busy={isCreatingProject}
+                        aria-label={t('projects.projectName')}
                     />
                     <div className="flex gap-2 justify-end">
                         <button

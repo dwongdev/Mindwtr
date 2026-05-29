@@ -98,6 +98,7 @@ export function TaskListFiltersSheet({
   return (
     <Modal
       animationType="fade"
+      accessibilityViewIsModal
       onRequestClose={onClose}
       transparent
       visible={visible}
@@ -109,7 +110,10 @@ export function TaskListFiltersSheet({
           onPress={onClose}
           style={styles.taskFilterSheetBackdrop}
         />
-        <View style={[styles.taskFilterSheet, { backgroundColor: themeColors.cardBg, borderColor: themeColors.border }]}>
+        <View
+          accessibilityLabel={resolveText(t, 'filters.label', 'Filters')}
+          style={[styles.taskFilterSheet, { backgroundColor: themeColors.cardBg, borderColor: themeColors.border }]}
+        >
           <View style={styles.taskFilterSheetHeader}>
             <Text style={[styles.taskFilterSheetTitle, { color: themeColors.text }]}>
               {resolveText(t, 'filters.label', 'Filters')}

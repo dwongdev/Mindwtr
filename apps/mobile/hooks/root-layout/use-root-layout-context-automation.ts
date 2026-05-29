@@ -60,7 +60,13 @@ export function useRootLayoutContextAutomation({
 
     const state = useTaskStore.getState();
     const matchingTasks = selectContextNextActions(state.tasks ?? [], state.projects ?? [], payload.context);
-    const copy = buildContextAutomationNotificationCopy(payload.context, matchingTasks);
+    const copy = buildContextAutomationNotificationCopy(payload.context, matchingTasks, {
+      noTasksTitle: resolveText('contextAutomation.noNextActionsTitle', 'No {{context}} next actions'),
+      noTasksMessage: resolveText('contextAutomation.noNextActionsBody', 'Mindwtr did not find any /next tasks for {{context}}.'),
+      oneTaskTitle: resolveText('contextAutomation.oneNextActionTitle', '{{context}} next action'),
+      manyTasksTitle: resolveText('contextAutomation.manyNextActionsTitle', '{{count}} {{context}} next actions'),
+      moreTasksLine: resolveText('contextAutomation.moreTasksLine', '+{{count}} more'),
+    });
 
     void sendMobileImmediateNotification(copy.title, copy.message, {
       kind: CONTEXT_AUTOMATION_NOTIFICATION_KIND,

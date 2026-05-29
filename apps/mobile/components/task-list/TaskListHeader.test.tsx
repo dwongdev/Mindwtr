@@ -90,6 +90,8 @@ describe('TaskListHeader', () => {
     });
 
     expect(html).toContain('aria-label="Filters: 2"');
+    expect(html).toContain('aria-label="Remove filter: Search: errand"');
+    expect(html).toContain('aria-label="Remove filter: High"');
     expect(html).toContain('Search: errand');
     expect(html).toContain('High');
     expect(html).toContain('Clear');
