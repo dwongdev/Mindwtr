@@ -235,6 +235,10 @@ export default function FocusScreen() {
     baseActiveTasks.filter((task) => !shouldShowTaskForStart(task, { showFutureStarts: false })).length
   ), [baseActiveTasks]);
   const tokenOptions = useMemo(() => getFocusTokenOptions(activeTasks), [activeTasks]);
+  const showLocationFilter = useMemo(() => (
+    locationFilter.trim().length > 0
+    || activeTasks.some((task) => String(task.location ?? '').trim().length > 0)
+  ), [activeTasks, locationFilter]);
   const activeProjectIds = useMemo(() => (
     new Set(activeTasks.map((task) => task.projectId).filter((projectId): projectId is string => Boolean(projectId)))
   ), [activeTasks]);
@@ -1246,20 +1250,24 @@ export default function FocusScreen() {
                 </>
               ) : null}
 
-              <Text style={[styles.sheetSectionLabel, { color: tc.secondaryText }]}>
-                {resolveText('taskEdit.locationLabel', 'Location')}
-              </Text>
-              <TextInput
-                value={locationFilter}
-                onChangeText={updateLocationFilter}
-                placeholder={resolveText('taskEdit.locationPlaceholder', 'e.g. Office')}
-                placeholderTextColor={tc.secondaryText}
-                accessibilityLabel={resolveText('taskEdit.locationLabel', 'Location')}
-                style={[styles.sheetInput, { borderColor: tc.border, color: tc.text, backgroundColor: tc.bg }]}
-                autoCapitalize="none"
-                autoCorrect={false}
-                returnKeyType="done"
-              />
+              {showLocationFilter ? (
+                <>
+                  <Text style={[styles.sheetSectionLabel, { color: tc.secondaryText }]}>
+                    {resolveText('taskEdit.locationLabel', 'Location')}
+                  </Text>
+                  <TextInput
+                    value={locationFilter}
+                    onChangeText={updateLocationFilter}
+                    placeholder={resolveText('taskEdit.locationPlaceholder', 'e.g. Office')}
+                    placeholderTextColor={tc.secondaryText}
+                    accessibilityLabel={resolveText('taskEdit.locationLabel', 'Location')}
+                    style={[styles.sheetInput, { borderColor: tc.border, color: tc.text, backgroundColor: tc.bg }]}
+                    autoCapitalize="none"
+                    autoCorrect={false}
+                    returnKeyType="done"
+                  />
+                </>
+              ) : null}
 
               {prioritiesEnabled ? (
                 <>

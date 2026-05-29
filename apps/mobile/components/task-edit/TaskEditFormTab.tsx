@@ -136,7 +136,7 @@ export function TaskEditFormTab({
                 nextKeyboardTop = Math.max(0, windowHeight - endCoords.height);
             }
             keyboardTopRef.current = nextKeyboardTop;
-            setKeyboardBottomInset(Platform.OS === 'ios' ? Math.max(0, windowHeight - nextKeyboardTop) : 0);
+            setKeyboardBottomInset(Math.max(0, windowHeight - nextKeyboardTop));
         };
         const resetKeyboardTop = () => {
             keyboardTopRef.current = Dimensions.get('window').height;

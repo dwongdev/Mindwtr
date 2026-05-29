@@ -155,6 +155,12 @@ describe('TaskEditFormTab keyboard handling', () => {
 
   it('keeps Android height-based keyboard avoidance', () => {
     setPlatform('android');
+    vi.spyOn(Dimensions, 'get').mockReturnValue({
+      width: 390,
+      height: 800,
+      scale: 3,
+      fontScale: 1,
+    });
     const listeners = new Map<string, (event?: unknown) => void>();
     vi.spyOn(Keyboard, 'addListener').mockImplementation(((eventName: string, listener: (event?: unknown) => void) => {
       listeners.set(eventName, listener);
@@ -171,6 +177,14 @@ describe('TaskEditFormTab keyboard handling', () => {
     expect(listeners.has('keyboardDidShow')).toBe(true);
     expect(listeners.has('keyboardDidChangeFrame')).toBe(true);
     expect(listeners.has('keyboardDidHide')).toBe(true);
+
+    act(() => {
+      listeners.get('keyboardDidShow')?.({ endCoordinates: { screenY: 520 } });
+    });
+
+    expect(tree.root.findByType(ScrollView).props.contentContainerStyle).toEqual(
+      expect.arrayContaining([expect.objectContaining({ paddingBottom: 312 })])
+    );
   });
 
   it('tracks title focus without forcing fallback scrolling when no native handle is reported', () => {

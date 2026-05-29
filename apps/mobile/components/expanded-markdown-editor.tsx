@@ -1,5 +1,6 @@
 import React from 'react';
 import {
+    Dimensions,
     InteractionManager,
     Keyboard,
     KeyboardAvoidingView,
@@ -40,6 +41,8 @@ import {
 } from './markdown-selection-utils';
 import { MarkdownText } from './markdown-text';
 import { getControlledTextInputSelection } from './text-input-selection';
+
+const EDITOR_CONTENT_BASE_PADDING = 16;
 
 const selectionsEqual = (left: MarkdownSelection, right: MarkdownSelection) => (
     left.start === right.start && left.end === right.end
@@ -102,6 +105,7 @@ export function ExpandedMarkdownEditor({
     const [editorSelection, setEditorSelection] = React.useState(selection);
     const [mode, setMode] = React.useState<'edit' | 'preview'>(initialMode);
     const [isInputFocused, setIsInputFocused] = React.useState(false);
+    const [keyboardBottomInset, setKeyboardBottomInset] = React.useState(0);
     const resolvedHeaderTitle = (headerTitle || '').trim() || title;
     const directionStyle: TextStyle | undefined = direction
         ? {
@@ -129,8 +133,46 @@ export function ExpandedMarkdownEditor({
             pendingSelectionRef.current = null;
             lastRangeSelectionRef.current = null;
             setIsInputFocused(false);
+            setKeyboardBottomInset(0);
         }
     }, [isOpen]);
+    React.useEffect(() => {
+        if (!isOpen || mode !== 'edit') {
+            setKeyboardBottomInset(0);
+            return;
+        }
+        if (typeof Keyboard?.addListener !== 'function') return;
+
+        const updateKeyboardInset = (event: { endCoordinates?: { screenY?: number; height?: number } }) => {
+            const windowHeight = Dimensions.get('window').height;
+            const endCoords = event.endCoordinates;
+            let keyboardTop = windowHeight;
+            if (typeof endCoords?.screenY === 'number') {
+                keyboardTop = endCoords.screenY;
+            } else if (typeof endCoords?.height === 'number') {
+                keyboardTop = Math.max(0, windowHeight - endCoords.height);
+            }
+            setKeyboardBottomInset(Platform.OS === 'android' ? Math.max(0, windowHeight - keyboardTop) : 0);
+        };
+        const resetKeyboardInset = () => setKeyboardBottomInset(0);
+        const showListener = Keyboard.addListener(
+            Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow',
+            updateKeyboardInset,
+        );
+        const changeListener = Keyboard.addListener(
+            Platform.OS === 'ios' ? 'keyboardWillChangeFrame' : 'keyboardDidChangeFrame',
+            updateKeyboardInset,
+        );
+        const hideListener = Keyboard.addListener(
+            Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide',
+            resetKeyboardInset,
+        );
+        return () => {
+            showListener.remove();
+            changeListener.remove();
+            hideListener.remove();
+        };
+    }, [isOpen, mode]);
 
     const scheduleEditorFocus = React.useCallback(() => {
         if (focusInteractionRef.current?.cancel) {
@@ -407,6 +449,10 @@ export function ExpandedMarkdownEditor({
         onSelectionChange(next.selection);
         restoreEditorFocus(next.selection);
     }, [onChange, onSelectionChange, restoreEditorFocus]);
+    const editContentStyle = React.useMemo(() => [
+        styles.content,
+        keyboardBottomInset > 0 ? { paddingBottom: EDITOR_CONTENT_BASE_PADDING + keyboardBottomInset } : null,
+    ], [keyboardBottomInset]);
 
     return (
         <Modal
@@ -462,7 +508,7 @@ export function ExpandedMarkdownEditor({
                         style={styles.body}
                     >
                         {mode === 'edit' ? (
-                            <View style={styles.content}>
+                            <View style={editContentStyle}>
                                 <MarkdownReferenceAutocomplete
                                     currentTaskId={currentTaskId}
                                     value={editorValue}

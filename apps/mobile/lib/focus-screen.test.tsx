@@ -715,6 +715,25 @@ describe('FocusScreen', () => {
     });
   });
 
+  it('hides the Focus location filter when active tasks do not use locations', () => {
+    storeState.tasks = [
+      makeTask('plain-next', { title: 'Plain next' }),
+      makeTask('another-next', { title: 'Another next' }),
+    ];
+
+    let tree!: ReturnType<typeof create>;
+
+    act(() => {
+      tree = create(<FocusScreen />);
+    });
+
+    act(() => {
+      findButtonByLabel(tree, 'Filters').props.onPress();
+    });
+
+    expect(tree.root.findAllByProps({ accessibilityLabel: 'Location' })).toHaveLength(0);
+  });
+
   it('filters Focus tasks by location from the filter sheet', async () => {
     storeState.tasks = [
       makeTask('office-task', { title: 'Office task', location: 'Main Office' }),

@@ -384,6 +384,10 @@ function TaskListComponent({
   const tokenFilterOptions = useMemo(() => {
     return getUsedTaskTokens(filterableTasks, (task) => [...(task.contexts ?? []), ...(task.tags ?? [])]);
   }, [filterableTasks]);
+  const showLocationFilter = useMemo(() => (
+    locationFilter.trim().length > 0
+    || filterableTasks.some((task) => String(task.location ?? '').trim().length > 0)
+  ), [filterableTasks, locationFilter]);
   const taskListFilters = useMemo<MobileTaskListFilters>(() => ({
     energyLevels: selectedEnergyLevels,
     locationQuery: locationFilter,
@@ -1199,6 +1203,7 @@ function TaskListComponent({
         selectedPriorities={selectedPriorities}
         selectedTimeEstimates={selectedTimeEstimates}
         selectedTokens={selectedTokens}
+        showLocationFilter={showLocationFilter}
         showTimeEstimateFilters={showTimeEstimateFilters}
         t={t}
         themeColors={themeColorsMemo}

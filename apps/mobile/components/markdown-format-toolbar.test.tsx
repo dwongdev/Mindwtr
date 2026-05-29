@@ -1,5 +1,5 @@
 import React from 'react';
-import { Pressable } from 'react-native';
+import { Pressable, ScrollView } from 'react-native';
 import { act, create, type ReactTestRenderer } from 'react-test-renderer';
 import { MARKDOWN_TOOLBAR_ACTIONS } from '@mindwtr/core';
 import { describe, expect, it, vi } from 'vitest';
@@ -58,5 +58,43 @@ describe('MarkdownFormatToolbar', () => {
         });
 
         expect(tree!.root.findAllByType(Pressable)).toHaveLength(0);
+    });
+
+    it('applies toolbar actions on tap release so horizontal drags do not format text', () => {
+        const onApplyAction = vi.fn(() => ({ value: '', selection: { start: 0, end: 0 } }));
+        let tree: ReactTestRenderer | undefined;
+        act(() => {
+            tree = create(<MarkdownFormatToolbar {...baseProps} onApplyAction={onApplyAction} placement="inline" />);
+        });
+
+        const firstAction = tree!.root.findAllByType(Pressable)[0];
+
+        act(() => {
+            firstAction.props.onPressIn();
+        });
+        expect(onApplyAction).not.toHaveBeenCalled();
+
+        act(() => {
+            firstAction.props.onPress();
+        });
+        expect(onApplyAction).toHaveBeenCalledTimes(1);
+    });
+
+    it('ignores toolbar button release while the horizontal action strip is scrolling', () => {
+        const onApplyAction = vi.fn(() => ({ value: '', selection: { start: 0, end: 0 } }));
+        let tree: ReactTestRenderer | undefined;
+        act(() => {
+            tree = create(<MarkdownFormatToolbar {...baseProps} onApplyAction={onApplyAction} placement="inline" />);
+        });
+
+        const actionStrip = tree!.root.findByType(ScrollView);
+        const firstAction = tree!.root.findAllByType(Pressable)[0];
+
+        act(() => {
+            actionStrip.props.onScrollBeginDrag();
+            firstAction.props.onPress();
+        });
+
+        expect(onApplyAction).not.toHaveBeenCalled();
     });
 });

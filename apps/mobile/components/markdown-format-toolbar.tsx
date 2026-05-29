@@ -78,6 +78,7 @@ export function MarkdownFormatToolbar({
     placement = 'keyboard',
 }: MarkdownFormatToolbarProps) {
     const [keyboardInset, setKeyboardInset] = React.useState(0);
+    const suppressPressUntilRef = React.useRef(0);
 
     React.useEffect(() => {
         if (placement !== 'keyboard') return;
@@ -148,6 +149,12 @@ export function MarkdownFormatToolbar({
     const handleApplyAction = React.useCallback((actionId: MarkdownToolbarActionId) => {
         restoreSelection(onApplyAction(actionId, selection)?.selection);
     }, [onApplyAction, restoreSelection, selection]);
+    const guardScrollPress = React.useCallback((durationMs = 180) => {
+        suppressPressUntilRef.current = Date.now() + durationMs;
+    }, []);
+    const shouldSuppressPress = React.useCallback(() => (
+        suppressPressUntilRef.current > Date.now()
+    ), []);
 
     if (!visible) {
         return null;
@@ -161,6 +168,10 @@ export function MarkdownFormatToolbar({
                 style={styles.scroll}
                 contentContainerStyle={styles.content}
                 keyboardShouldPersistTaps="always"
+                onScrollBeginDrag={() => guardScrollPress(260)}
+                onScrollEndDrag={() => guardScrollPress(120)}
+                onMomentumScrollBegin={() => guardScrollPress(260)}
+                onMomentumScrollEnd={() => guardScrollPress(80)}
             >
                 {MARKDOWN_TOOLBAR_ACTIONS.map((action) => (
                     <Pressable
@@ -169,6 +180,9 @@ export function MarkdownFormatToolbar({
                         onPressIn={() => {
                             onInteractionStart?.();
                             keepInputFocused();
+                        }}
+                        onPress={() => {
+                            if (shouldSuppressPress()) return;
                             handleApplyAction(action.id);
                         }}
                         style={({ pressed }) => [
@@ -192,6 +206,9 @@ export function MarkdownFormatToolbar({
                     onPressIn={() => {
                         onInteractionStart?.();
                         keepInputFocused();
+                    }}
+                    onPress={() => {
+                        if (shouldSuppressPress()) return;
                         handleUndo();
                     }}
                     disabled={!canUndo}

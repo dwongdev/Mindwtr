@@ -32,6 +32,7 @@ type TaskListFiltersSheetProps = {
   selectedPriorities: TaskPriority[];
   selectedTimeEstimates: TimeEstimate[];
   selectedTokens: string[];
+  showLocationFilter: boolean;
   showTimeEstimateFilters: boolean;
   t: (key: string) => string;
   themeColors: ThemeColors;
@@ -64,6 +65,7 @@ export function TaskListFiltersSheet({
   selectedPriorities,
   selectedTimeEstimates,
   selectedTokens,
+  showLocationFilter,
   showTimeEstimateFilters,
   t,
   themeColors,
@@ -203,20 +205,24 @@ export function TaskListFiltersSheet({
               </>
             ) : null}
 
-            <Text style={[styles.taskFilterSectionLabel, { color: themeColors.secondaryText }]}>
-              {resolveText(t, 'taskEdit.locationLabel', 'Location')}
-            </Text>
-            <TextInput
-              accessibilityLabel={resolveText(t, 'taskEdit.locationLabel', 'Location')}
-              autoCapitalize="none"
-              autoCorrect={false}
-              onChangeText={onChangeLocationQuery}
-              placeholder={resolveText(t, 'taskEdit.locationPlaceholder', 'e.g. Office')}
-              placeholderTextColor={themeColors.secondaryText}
-              returnKeyType="done"
-              style={[styles.taskFilterInput, { backgroundColor: themeColors.bg, borderColor: themeColors.border, color: themeColors.text }]}
-              value={locationQuery}
-            />
+            {showLocationFilter ? (
+              <>
+                <Text style={[styles.taskFilterSectionLabel, { color: themeColors.secondaryText }]}>
+                  {resolveText(t, 'taskEdit.locationLabel', 'Location')}
+                </Text>
+                <TextInput
+                  accessibilityLabel={resolveText(t, 'taskEdit.locationLabel', 'Location')}
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                  onChangeText={onChangeLocationQuery}
+                  placeholder={resolveText(t, 'taskEdit.locationPlaceholder', 'e.g. Office')}
+                  placeholderTextColor={themeColors.secondaryText}
+                  returnKeyType="done"
+                  style={[styles.taskFilterInput, { backgroundColor: themeColors.bg, borderColor: themeColors.border, color: themeColors.text }]}
+                  value={locationQuery}
+                />
+              </>
+            ) : null}
           </ScrollView>
         </View>
       </View>
