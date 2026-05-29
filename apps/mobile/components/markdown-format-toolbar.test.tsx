@@ -65,6 +65,28 @@ const extractFloatingBarBottom = (tree: ReactTestRenderer) => {
     return styleWithBottom?.bottom;
 };
 
+const layoutKeyboardToolbarOverlay = (tree: ReactTestRenderer, height: number, width = 390) => {
+    const toolbarOverlay = tree.root.findAll((node) => (
+        node.props.pointerEvents === 'box-none'
+        && typeof node.props.onLayout === 'function'
+        && node.props.style?.justifyContent === 'flex-end'
+    ))[0];
+    expect(toolbarOverlay).toBeDefined();
+
+    act(() => {
+        toolbarOverlay.props.onLayout({
+            nativeEvent: {
+                layout: {
+                    x: 0,
+                    y: 0,
+                    width,
+                    height,
+                },
+            },
+        });
+    });
+};
+
 const renderKeyboardToolbar = (props: Partial<React.ComponentProps<typeof MarkdownFormatToolbar>> = {}) => (
     <KeyboardAccessoryHost>
         <MarkdownFormatToolbar {...baseProps} {...props} />
@@ -138,6 +160,10 @@ describe('MarkdownFormatToolbar', () => {
             listeners.get('keyboardDidShow')?.({ endCoordinates: { height: 320, screenY: 524 } });
         });
 
+        expect(tree!.root.findAllByType(Pressable)).toHaveLength(0);
+
+        layoutKeyboardToolbarOverlay(tree!, 844);
+
         expect(tree!.root.findAllByType(Pressable)).toHaveLength(MARKDOWN_TOOLBAR_ACTIONS.length + 1);
     });
 
@@ -156,6 +182,7 @@ describe('MarkdownFormatToolbar', () => {
         act(() => {
             listeners.get('keyboardDidShow')?.({ endCoordinates: { height: 320, screenY: 524 } });
         });
+        layoutKeyboardToolbarOverlay(tree!, 844);
 
         expect(tree!.root.findAllByType(Pressable)).toHaveLength(MARKDOWN_TOOLBAR_ACTIONS.length + 1);
 
@@ -189,6 +216,9 @@ describe('MarkdownFormatToolbar', () => {
             listeners.get('keyboardDidShow')?.({ endCoordinates: { height: 320, screenY: 524 } });
         });
 
+        expect(tree!.root.findAllByType(Pressable)).toHaveLength(0);
+        layoutKeyboardToolbarOverlay(tree!, 844);
+
         expect(extractFloatingBarBottom(tree!)).toBe(320);
     });
 
@@ -214,27 +244,9 @@ describe('MarkdownFormatToolbar', () => {
         act(() => {
             listeners.get('keyboardDidShow')?.({ endCoordinates: { height: 255, screenY: 521 } });
         });
-        expect(extractFloatingBarBottom(tree!)).toBe(255);
 
-        const toolbarOverlay = tree!.root.findAll((node) => (
-            node.props.pointerEvents === 'box-none'
-            && typeof node.props.onLayout === 'function'
-            && node.props.style?.justifyContent === 'flex-end'
-        ))[0];
-        expect(toolbarOverlay).toBeDefined();
-
-        act(() => {
-            toolbarOverlay.props.onLayout({
-                nativeEvent: {
-                    layout: {
-                        x: 0,
-                        y: 0,
-                        width: 360,
-                        height: 481,
-                    },
-                },
-            });
-        });
+        expect(tree!.root.findAllByType(Pressable)).toHaveLength(0);
+        layoutKeyboardToolbarOverlay(tree!, 481, 360);
 
         expect(extractFloatingBarBottom(tree!)).toBe(0);
     });
@@ -264,6 +276,8 @@ describe('MarkdownFormatToolbar', () => {
             listeners.get('keyboardDidShow')?.({ endCoordinates: { height: 320, screenY: 524 } });
         });
 
+        layoutKeyboardToolbarOverlay(tree!, 524);
+
         expect(extractFloatingBarBottom(tree!)).toBe(0);
     });
 
@@ -289,6 +303,8 @@ describe('MarkdownFormatToolbar', () => {
         act(() => {
             listeners.get('keyboardDidShow')?.({ endCoordinates: { height: 320, screenY: 524 } });
         });
+
+        layoutKeyboardToolbarOverlay(tree!, 524);
 
         expect(extractFloatingBarBottom(tree!)).toBe(0);
     });
