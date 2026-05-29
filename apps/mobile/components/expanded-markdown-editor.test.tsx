@@ -87,4 +87,50 @@ describe('ExpandedMarkdownEditor', () => {
       tree!.unmount();
     });
   });
+
+  it('keeps paired text when Android sends a delayed raw replacement after key press', () => {
+    const onChange = vi.fn();
+    const onSelectionChange = vi.fn();
+    let tree: renderer.ReactTestRenderer;
+
+    act(() => {
+      tree = renderer.create(
+        <ExpandedMarkdownEditor
+          isOpen
+          onClose={vi.fn()}
+          value="read docs"
+          onChange={onChange}
+          title="Description"
+          placeholder="Description"
+          t={(key) => key}
+          initialMode="edit"
+          selection={{ start: 5, end: 9 }}
+          onSelectionChange={onSelectionChange}
+          canUndo={false}
+          onUndo={() => undefined}
+        />
+      );
+    });
+
+    act(() => {
+      tree!.root.findByType(TextInput).props.onKeyPress({
+        nativeEvent: { key: '[' },
+        preventDefault: vi.fn(),
+      });
+    });
+
+    expect(onChange).toHaveBeenCalledWith('read [docs]');
+    expect(onSelectionChange).toHaveBeenCalledWith({ start: 6, end: 10 });
+
+    act(() => {
+      tree!.root.findByType(TextInput).props.onChangeText('read [');
+    });
+
+    expect(onChange).toHaveBeenCalledTimes(1);
+    expect(tree!.root.findByType(TextInput).props.value).toBe('read [docs]');
+
+    act(() => {
+      tree!.unmount();
+    });
+  });
 });

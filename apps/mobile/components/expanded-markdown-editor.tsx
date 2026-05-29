@@ -97,6 +97,11 @@ export function ExpandedMarkdownEditor({
     const toolbarInteractionUntilRef = React.useRef(0);
     const pendingSelectionRef = React.useRef<MarkdownSelection | null>(null);
     const lastRangeSelectionRef = React.useRef<MarkdownSelection | null>(isRangeSelection(selection) ? selection : null);
+    const ignoredNativePairChangeRef = React.useRef<{
+        nativeValue: string;
+        appliedValue: string;
+        selection: MarkdownSelection;
+    } | null>(null);
     const valueRef = React.useRef(value);
     const selectionRef = React.useRef(selection);
     // Keep a local mirror while the fullscreen editor is open so Android
@@ -122,6 +127,7 @@ export function ExpandedMarkdownEditor({
             selectionRef.current = selection;
             lastRangeSelectionRef.current = isRangeSelection(selection) ? selection : null;
             pendingSelectionRef.current = null;
+            ignoredNativePairChangeRef.current = null;
             setEditorValue(value);
             setEditorSelection(selection);
         }
@@ -132,6 +138,7 @@ export function ExpandedMarkdownEditor({
         if (!isOpen) {
             pendingSelectionRef.current = null;
             lastRangeSelectionRef.current = null;
+            ignoredNativePairChangeRef.current = null;
             setIsInputFocused(false);
             setKeyboardBottomInset(0);
         }
@@ -318,6 +325,18 @@ export function ExpandedMarkdownEditor({
     }, []);
 
     const handleChangeText = React.useCallback((nextValue: string) => {
+        const ignoredNativeChange = ignoredNativePairChangeRef.current;
+        if (ignoredNativeChange) {
+            ignoredNativePairChangeRef.current = null;
+            if (
+                nextValue === ignoredNativeChange.nativeValue
+                && valueRef.current === ignoredNativeChange.appliedValue
+            ) {
+                restoreEditorFocus(ignoredNativeChange.selection);
+                return;
+            }
+        }
+
         const currentSelection = selectionRef.current;
         const previousValue = valueRef.current;
         const fallbackSelection = lastRangeSelectionRef.current;
@@ -389,6 +408,11 @@ export function ExpandedMarkdownEditor({
         if (pairedInsertion) {
             event.preventDefault?.();
             lastRangeSelectionRef.current = null;
+            ignoredNativePairChangeRef.current = {
+                nativeValue: `${valueRef.current.slice(0, pairedInsertion.baseSelection.start)}${event.nativeEvent.key}${valueRef.current.slice(pairedInsertion.baseSelection.end)}`,
+                appliedValue: pairedInsertion.result.value,
+                selection: pairedInsertion.result.selection,
+            };
             valueRef.current = pairedInsertion.result.value;
             selectionRef.current = pairedInsertion.result.selection;
             setEditorValue(pairedInsertion.result.value);

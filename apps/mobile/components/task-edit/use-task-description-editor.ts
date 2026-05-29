@@ -59,6 +59,11 @@ export function useTaskDescriptionEditor({
     const descriptionSelectionRef = React.useRef(descriptionSelection);
     const lastDescriptionRangeRef = React.useRef<MarkdownSelection | null>(isRangeSelection(descriptionSelection) ? descriptionSelection : null);
     const pendingDescriptionSelectionRef = React.useRef<MarkdownSelection | null>(null);
+    const ignoredNativePairChangeRef = React.useRef<{
+        nativeValue: string;
+        appliedValue: string;
+        selection: MarkdownSelection;
+    } | null>(null);
 
     React.useEffect(() => {
         descriptionSelectionRef.current = descriptionSelection;
@@ -110,6 +115,7 @@ export function useTaskDescriptionEditor({
         const resetSelection = { start: 0, end: 0 };
         pendingDescriptionSelectionRef.current = null;
         lastDescriptionRangeRef.current = null;
+        ignoredNativePairChangeRef.current = null;
         descriptionSelectionRef.current = resetSelection;
         setDescriptionSelection(resetSelection);
     }, [task?.id]);
@@ -165,6 +171,18 @@ export function useTaskDescriptionEditor({
     ]);
 
     const handleDescriptionChange = React.useCallback((text: string) => {
+        const ignoredNativeChange = ignoredNativePairChangeRef.current;
+        if (ignoredNativeChange) {
+            ignoredNativePairChangeRef.current = null;
+            if (
+                text === ignoredNativeChange.nativeValue
+                && descriptionDraftRef.current === ignoredNativeChange.appliedValue
+            ) {
+                restoreDescriptionSelection(ignoredNativeChange.selection);
+                return;
+            }
+        }
+
         const currentSelection = descriptionSelectionRef.current;
         const previousValue = descriptionDraftRef.current;
         const fallbackSelection = lastDescriptionRangeRef.current;
@@ -214,7 +232,7 @@ export function useTaskDescriptionEditor({
         }
         lastDescriptionRangeRef.current = null;
         applyDescriptionValue(text);
-    }, [applyDescriptionValue, restoreDescriptionSelection]);
+    }, [applyDescriptionValue, descriptionDraftRef, restoreDescriptionSelection]);
 
     const handleDescriptionKeyPress = React.useCallback((event: NativeSyntheticEvent<TextInputKeyPressEventData>) => {
         const pairedInsertion = applyMarkdownPairKeyPressWithSelectionFallback(
@@ -226,6 +244,11 @@ export function useTaskDescriptionEditor({
         if (pairedInsertion) {
             event.preventDefault?.();
             lastDescriptionRangeRef.current = null;
+            ignoredNativePairChangeRef.current = {
+                nativeValue: `${descriptionDraftRef.current.slice(0, pairedInsertion.baseSelection.start)}${event.nativeEvent.key}${descriptionDraftRef.current.slice(pairedInsertion.baseSelection.end)}`,
+                appliedValue: pairedInsertion.result.value,
+                selection: pairedInsertion.result.selection,
+            };
             applyDescriptionValue(pairedInsertion.result.value, {
                 baseSelection: pairedInsertion.baseSelection,
                 nextSelection: pairedInsertion.result.selection,
