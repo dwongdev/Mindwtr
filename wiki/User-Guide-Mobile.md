@@ -324,9 +324,9 @@ Recurring tasks support two strategies:
 - **Repeat after completion** (next date from completion time)
 - **Ends: Never / On date / After N occurrences**
 
-Mindwtr keeps one active instance of a recurring task. The Calendar shows that current instance when it has a due date or start time; future occurrences are not pre-filled until the current one is completed.
+Mindwtr keeps one active instance of a recurring task. The Calendar shows that current instance when it has a due date or start time; future occurrences are not pre-filled until the current one is completed unless **Show next occurrence in Calendar** is enabled for a planning-only preview.
 
-Use the recurrence field in the task editor, then toggle **Repeat after completion** when needed.
+Use the recurrence field in the task editor, then toggle **Repeat after completion** or **Show next occurrence in Calendar** when needed.
 The same sheet lets you stop a series on a target date or after a fixed number of total occurrences.
 
 ### Attachments
@@ -361,11 +361,11 @@ Use checklists as templates:
 
 ## Calendar Integration
 
-Mindwtr can overlay external calendars and push dated Mindwtr tasks to the device calendar.
+Mindwtr can overlay external calendars and push dated Mindwtr tasks to the device calendar. Detailed setup lives in [[Calendar Integration]].
 
 To push tasks to Android/Google Calendar or Apple Calendar on iOS:
 
-1. Go to **Settings -> Advanced -> Calendar**
+1. Go to **Settings -> Calendar**
 2. Enable **Push tasks to calendar**
 3. Grant calendar permission
 4. Expand **Sync target**
@@ -375,7 +375,7 @@ For Android Google Calendar and iOS Apple Calendar target setup, see [[Calendar 
 
 To overlay external calendars with ICS subscriptions:
 
-1. Go to **Settings -> Advanced -> Calendar**
+1. Go to **Settings -> Calendar**
 2. Add your **ICS URL**
 3. Refresh to fetch events
 

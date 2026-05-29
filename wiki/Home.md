@@ -125,7 +125,7 @@ Mindwtr is **simple by default and powerful when needed**. We focus on reducing 
 | **Keyboard Shortcuts** | ✅ (Vim/Emacs) | ❌ |
 | **File Sync** | ✅ | ✅ |
 | **WebDAV Sync** | ✅ | ✅ |
-| **External Calendars** | ✅ (ICS) | ✅ (System calendars) |
+| **External Calendars** | ✅ (ICS + macOS Apple Calendar) | ✅ (System calendars + ICS) |
 | **Audio Capture** | ✅ (Whisper/Cloud) | ✅ |
 | **AI Assistant** | ✅ | ✅ |
 

@@ -1,9 +1,9 @@
 # Calendar Integration (Hard + Soft Landscape)
 
-Mindwtr supports calendar integration in two directions: reading external calendars into the planner, and pushing Mindwtr tasks out to a device calendar on mobile.
+Mindwtr supports calendar integration in two directions: reading external calendars into the planner, and pushing Mindwtr tasks out to a writable device calendar where the platform exposes one.
 
 - **Mobile (iOS/Android):** device calendars already exposed by the system, ICS subscription URLs, and one-way Mindwtr -> device calendar push
-- **Desktop (macOS):** read-only Apple Calendar via EventKit, plus ICS subscription URLs
+- **Desktop (macOS):** Apple Calendar via EventKit for read and one-way task push, plus ICS subscription URLs
 - **Desktop (Linux/Windows) and Web:** ICS subscription URLs
 
 ## Concepts
@@ -38,10 +38,11 @@ This lets you bookmark or share a specific planning window, for example a week v
 Recurring Mindwtr tasks are generated as task instances, not as an expanded calendar series:
 
 - The calendar shows the active task instance when it has a due date or scheduled start time.
-- Mindwtr does not pre-populate future task occurrences in the calendar. The next task instance is created only when the current recurring task is completed.
+- By default, Mindwtr does not pre-populate future task occurrences in the calendar. The next real task instance is created only when the current recurring task is completed.
+- If **Show next occurrence in Calendar** is enabled on a recurring task, Calendar can show one planning-only preview of the next occurrence. That preview is not a real task and mobile/macOS calendar push writes it as a normal single event, not as a native recurring event.
 - **Strict** keeps the fixed schedule cadence. A monthly task due on the 1st stays anchored to that planned cycle, but Mindwtr still creates one next instance per completion instead of filling every future month.
 - **Repeat after completion** calculates the next instance from when you finish the current one. For example, a plain monthly habit completed on the 15th is scheduled from the 15th next time.
-- Mobile calendar push mirrors these concrete task instances. It does not export Mindwtr recurrence rules as native recurring calendar events.
+- Mobile and macOS calendar push mirror these concrete task instances. They do not export Mindwtr recurrence rules as native recurring calendar events.
 
 ## Scheduling Workflow
 
@@ -71,7 +72,8 @@ Supported today:
 | iOS/Android mobile | Push Mindwtr tasks to a device calendar | Android is verified with Google Calendar. On iOS, use calendars that are already available to Apple Calendar/EventKit. |
 | iOS/Android mobile | Read device calendars | Reads calendars already exposed by the device calendar database after permission is granted. |
 | iOS/Android mobile | Direct ICS subscription URLs | The URL must return raw iCalendar data. |
-| macOS desktop | Apple Calendar accounts | Read-only through macOS EventKit after permission is granted. This includes calendars synced into Apple Calendar, such as iCloud, Google, and Exchange. |
+| macOS desktop | Read Apple Calendar accounts | Read events through macOS EventKit after permission is granted. This includes calendars synced into Apple Calendar, such as iCloud, Google, and Exchange. |
+| macOS desktop | Push Mindwtr tasks to Apple Calendar | Writes scheduled/due Mindwtr tasks into a selected writable Apple Calendar target through EventKit. |
 | Desktop and Web | Direct ICS subscription URLs | The URL must return raw iCalendar data. |
 
 Not supported today:
@@ -85,7 +87,6 @@ Not supported today:
 - Editing external calendar events from Mindwtr.
 - Syncing external calendar events through Mindwtr sync. External events are fetched and cached locally.
 - Two-way task/calendar sync. Pushed calendar events are generated from Mindwtr tasks.
-- macOS desktop Mindwtr -> Apple Calendar push. This is tracked in [#551](https://github.com/dongdongbh/Mindwtr/issues/551).
 - Exporting recurring task rules as native recurring calendar events.
 
 ### Visibility
@@ -103,7 +104,7 @@ On iOS and Android, Mindwtr can push scheduled tasks and tasks with due dates in
 - Tasks with a timed `startTime` become timed events. `timeEstimate` is used as the event duration when available.
 - Tasks with a date-only `startTime` or only a `dueDate` become all-day events.
 - Completed, archived, reference, or deleted tasks are removed from the pushed calendar.
-- Mindwtr preserves task titles when pushing events. Use a dedicated `Mindwtr` calendar if you want calendar apps to visually separate Mindwtr items from normal events.
+- Mindwtr preserves task titles when pushing into a dedicated `Mindwtr` calendar. If you choose a shared calendar target, pushed event titles are prefixed with `Mindwtr: ` so they remain recognizable beside normal events.
 - Task descriptions become event notes, and task locations become event locations.
 - If you choose a dedicated calendar named `Mindwtr`, the calendar app can show Mindwtr items with that calendar's own color.
 
@@ -118,7 +119,7 @@ Setup:
 Target choices:
 
 - **Dedicated account calendar**: best for Google Calendar on Android or iCloud/Apple Calendar on iOS. Create a calendar named `Mindwtr` in that account, then select the dedicated target.
-- **Shared account calendar**: writes into an existing account calendar without renaming task titles.
+- **Shared account calendar**: writes into an existing account calendar and prefixes event titles with `Mindwtr: `.
 - **Dedicated local calendar**: stays on the current device. Some Android calendar apps hide local calendars, and local targets will not appear on calendar.google.com or other account calendar web apps.
 - **Shared local calendar**: writes to a local device calendar only.
 
@@ -169,13 +170,15 @@ Mindwtr hides its own pushed `Mindwtr` calendars from the read list to avoid imp
 
 ### macOS: Apple Calendar Integration
 
-On macOS desktop, Mindwtr can read Apple Calendar events through EventKit:
+On macOS desktop, Mindwtr can read Apple Calendar events and push scheduled/due Mindwtr tasks through EventKit:
 
 1. Open **Settings -> Calendar**
 2. Request Apple Calendar access
 3. Allow Mindwtr in macOS **System Settings -> Privacy & Security -> Calendars**
+4. Enable **Push tasks to calendar** if you want Mindwtr tasks written to Apple Calendar
+5. Choose a dedicated `Mindwtr` calendar or another writable calendar target
 
-This works only for calendars that are already visible in Apple Calendar. Mindwtr desktop does not push tasks into Apple Calendar yet; macOS write support is tracked in [#551](https://github.com/dongdongbh/Mindwtr/issues/551). Linux and Windows do not have native desktop calendar account integration today.
+This works only for calendars that are already visible in Apple Calendar. Linux and Windows do not have native desktop calendar account integration today.
 
 ### Desktop/Web: ICS URLs
 

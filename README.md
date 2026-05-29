@@ -160,7 +160,7 @@ _Don't show me a cockpit when I just want to ride a bike._
 - ♻️ **Restore from Backup** - Replace local data from a validated Mindwtr backup with a recovery snapshot first
 - 📥 **Todoist + DGT GTD + OmniFocus Import** - Import Todoist CSV/ZIP, DGT GTD JSON/ZIP, or OmniFocus CSV exports into Mindwtr
 - 🔗 **Obsidian Integration** - Desktop vault task import with deep links back to source notes
-- 🗓️ **External Calendars (System + ICS)** - Mobile reads system calendars, creates tasks from events, and can push dated tasks to a device calendar; desktop supports ICS subscriptions and task creation from events
+- 🗓️ **External Calendars (System + ICS)** - Mobile reads system calendars and pushes dated tasks; macOS desktop reads Apple Calendar and can push dated tasks; desktop/web also support ICS subscriptions and task creation from events
 
 ### Automation
 

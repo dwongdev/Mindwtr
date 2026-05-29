@@ -169,9 +169,10 @@ Use checklists as templates:
 
 ## Calendar Integration
 
-Mindwtr can overlay external calendars (ICS subscriptions) in the Calendar view.
-Add an **ICS URL** in **Settings → Calendar**.
+Mindwtr can overlay external calendars in the Calendar view. On macOS it can read Apple Calendar through EventKit; on all desktop platforms it can read direct ICS subscription URLs.
+Add an **ICS URL** in **Settings → Calendar** when you need an ICS subscription.
 External events are read-only, but you can create a separate Mindwtr task from an event in Calendar; Mindwtr copies the event title, date/time, location, description, and calendar name where available.
+On macOS, **Push tasks to calendar** can also write scheduled/due Mindwtr tasks into a selected writable Apple Calendar target. See [[Calendar Integration]] for setup details.
 
 ### 🔍 Global Search
 
@@ -366,7 +367,7 @@ When you complete a recurring task, Mindwtr automatically creates the next insta
 - **Ends: Never / On date / After N occurrences**: choose whether the series runs forever, stops on a specific date, or stops after a fixed number of occurrences.
   `After N occurrences` counts the current task as part of the series total.
 
-Mindwtr keeps one active instance of a recurring task. The Calendar shows that current instance when it has a due date or start time; future occurrences are not pre-filled until the current one is completed.
+Mindwtr keeps one active instance of a recurring task. The Calendar shows that current instance when it has a due date or start time; future occurrences are not pre-filled until the current one is completed unless **Show next occurrence in Calendar** is enabled for a planning-only preview.
 
 You can toggle this in the task editor recurrence field using **Repeat after completion**.
 Use the same recurrence sheet to set an end date or an occurrence count when you need the series to stop automatically.

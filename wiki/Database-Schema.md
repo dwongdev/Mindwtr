@@ -22,7 +22,9 @@ Notable columns:
 - `status`: GTD lane (`inbox`, `next`, `waiting`, `someday`, `reference`, `done`, `archived`)
 - `projectId`, `sectionId`, `areaId`: parent relationships
 - `dueDate`, `startTime`, `reviewAt`, `completedAt`: time-based workflow fields
+- `location`: physical/location context for search, calendar-created tasks, and pushed calendar events
 - `checklist`, `attachments`, `tags`, `contexts`, `recurrence`: JSON-backed fields
+- `showFutureRecurrence`: boolean flag stored as an integer; enables one planning-only next-occurrence preview in Calendar
 - `deletedAt`, `purgedAt`: tombstone fields used by sync
 - `rev`, `revBy`, `updatedAt`: merge/conflict metadata
 
@@ -107,6 +109,7 @@ Indexed task search fields:
 - `description`
 - `tags`
 - `contexts`
+- `location`
 
 ### `projects_fts`
 

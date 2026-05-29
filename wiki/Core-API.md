@@ -35,6 +35,7 @@ interface Task {
     startTime?: string;            // ISO date string
     dueDate?: string;              // ISO date string
     recurrence?: Recurrence | RecurrenceRule;
+    showFutureRecurrence?: boolean; // Calendar-only preview of the next recurring occurrence
     tags: string[];                // e.g., ['#focused']
     contexts: string[];            // e.g., ['@home', '@work']
     checklist?: ChecklistItem[];   // Sub-items
@@ -97,6 +98,7 @@ interface Recurrence {
 - `count` stops the series after the total number of occurrences has been created.
 - `until` stops the series when the next generated task would land after the given date/time.
 - `completedOccurrences` is internal sync-safe metadata; clients should preserve it when round-tripping recurrence objects.
+- `showFutureRecurrence` belongs to the task, not the recurrence object. It asks Calendar to show one planning-only next occurrence; clients should preserve the boolean when round-tripping tasks.
 
 ### Project
 

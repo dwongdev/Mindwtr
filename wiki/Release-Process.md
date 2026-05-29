@@ -23,7 +23,7 @@ Release automation and version metadata are centered in:
 ## Standard Release Flow
 
 1. Make sure `main` is in the intended release state and commit any pre-release work first.
-   - If the previous version is already released, put follow-up fixes under `Unreleased` in `CHANGELOG.md` and target the next patch version, for example `v0.9.1` after `v0.9.0`.
+   - If the previous version is already released, put follow-up fixes under `docs/release-notes/unreleased.md` and link it from `CHANGELOG.md` until the next patch version is prepared, for example `v0.9.1` after `v0.9.0`.
 2. Bump the version with:
 
 ```bash
@@ -33,6 +33,10 @@ Release automation and version metadata are centered in:
 This updates workspace package versions and bumps the Android `versionCode`.
 
 3. Run the release hard gates before tagging:
+   - Type/test gate:
+     - `bun run test`
+     - `bun run typecheck`
+     - `bun run native:test`
    - FOSS/static gate:
      - inspect `git diff vPREV..HEAD -- apps/mobile/package.json`
      - inspect F-Droid/FOSS config files (`apps/mobile/plugins/android-manifest-fixes.js`, `apps/mobile/scripts/`, `.github/workflows/release-android-foss.yml`, `config/izzyonandroid.yml`)

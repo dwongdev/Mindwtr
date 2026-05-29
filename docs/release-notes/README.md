@@ -4,6 +4,7 @@ Versioned notes for desktop/mobile/core/cloud releases live in this folder.
 
 ## Versions
 
+- [Unreleased](./unreleased.md)
 - [v0.4.2](./0.4.2.md)
 - [v0.4.3](./0.4.3.md)
 - [v0.4.4](./0.4.4.md)
