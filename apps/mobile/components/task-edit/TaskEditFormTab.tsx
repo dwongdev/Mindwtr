@@ -53,6 +53,7 @@ type TaskEditFormTabProps = {
     textDirectionStyle: Record<string, any>;
     titleDraft: string;
     onTitleDraftChange: (text: string) => void;
+    onInputFocusTracked?: (targetInput?: number | string) => void;
     onTitleInputFocusChange?: (focused: boolean) => void;
     registerScrollToEnd?: (handler: ((targetInput?: number | string) => void) | null) => void;
     formResetKey?: string;
@@ -94,6 +95,7 @@ export function TaskEditFormTab({
     textDirectionStyle,
     titleDraft,
     onTitleDraftChange,
+    onInputFocusTracked,
     onTitleInputFocusChange,
     registerScrollToEnd,
     formResetKey,
@@ -305,6 +307,7 @@ export function TaskEditFormTab({
                             onChangeText={(text) => onTitleDraftChange(text)}
                             placeholderTextColor={tc.secondaryText}
                             onFocus={() => {
+                                onInputFocusTracked?.(undefined);
                                 setTitleFocused(true);
                                 onTitleInputFocusChange?.(true);
                             }}

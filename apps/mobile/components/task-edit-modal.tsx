@@ -742,6 +742,7 @@ function TaskEditModalInner({
                                 textDirectionStyle={textDirectionStyle}
                                 titleDraft={titleDraft}
                                 onTitleDraftChange={handleTitleDraftChange}
+                                onInputFocusTracked={handleInputFocus}
                                 onTitleInputFocusChange={setIsTitleInputFocused}
                                 registerScrollToEnd={registerScrollTaskFormToEnd}
                                 formResetKey={`${task.id}:${visible ? 'open' : 'closed'}`}

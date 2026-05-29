@@ -189,12 +189,14 @@ describe('TaskEditFormTab keyboard handling', () => {
 
   it('tracks title focus without forcing fallback scrolling when no native handle is reported', () => {
     const onTitleInputFocusChange = vi.fn();
+    const onInputFocusTracked = vi.fn();
     let tree!: ReturnType<typeof create>;
 
     act(() => {
       tree = create(
         <TaskEditFormTab
           {...baseProps}
+          onInputFocusTracked={onInputFocusTracked}
           onTitleInputFocusChange={onTitleInputFocusChange}
         />
       );
@@ -206,6 +208,7 @@ describe('TaskEditFormTab keyboard handling', () => {
       titleInput.props.onFocus({ nativeEvent: {} });
     });
 
+    expect(onInputFocusTracked).toHaveBeenCalledWith(undefined);
     expect(onTitleInputFocusChange).toHaveBeenCalledWith(true);
 
     act(() => {
@@ -217,6 +220,7 @@ describe('TaskEditFormTab keyboard handling', () => {
 
   it('does not schedule measured scrolling when the title input reports a native handle', () => {
     const onTitleInputFocusChange = vi.fn();
+    const onInputFocusTracked = vi.fn();
     const requestAnimationFrameSpy = vi.spyOn(globalThis, 'requestAnimationFrame');
     let tree!: ReturnType<typeof create>;
 
@@ -224,6 +228,7 @@ describe('TaskEditFormTab keyboard handling', () => {
       tree = create(
         <TaskEditFormTab
           {...baseProps}
+          onInputFocusTracked={onInputFocusTracked}
           onTitleInputFocusChange={onTitleInputFocusChange}
         />
       );
@@ -237,6 +242,7 @@ describe('TaskEditFormTab keyboard handling', () => {
       titleInput.props.onFocus({ nativeEvent: { target: 42 } });
     });
 
+    expect(onInputFocusTracked).toHaveBeenCalledWith(undefined);
     expect(onTitleInputFocusChange).toHaveBeenCalledWith(true);
     expect(requestAnimationFrameSpy).not.toHaveBeenCalled();
   });
