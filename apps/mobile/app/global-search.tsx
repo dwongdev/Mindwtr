@@ -1,5 +1,18 @@
 import React, { useMemo, useState, useEffect, useRef } from 'react';
-import { View, Text, TextInput, FlatList, TouchableOpacity, StyleSheet, Modal, ActivityIndicator, ScrollView } from 'react-native';
+import {
+    View,
+    Text,
+    TextInput,
+    FlatList,
+    TouchableOpacity,
+    StyleSheet,
+    Modal,
+    ActivityIndicator,
+    ScrollView,
+    KeyboardAvoidingView,
+    Platform,
+    Pressable,
+} from 'react-native';
 import {
     useTaskStore,
     searchAll,
@@ -211,6 +224,11 @@ export default function SearchScreen() {
     const savedSearches = settings?.savedSearches || [];
     const canSave = trimmedQuery.length > 0;
 
+    const openFilters = () => {
+        inputRef.current?.blur();
+        setFiltersOpen(true);
+    };
+
     const openSaveModal = () => {
         setSaveName(trimmedQuery);
         setShowSaveModal(true);
@@ -377,6 +395,14 @@ export default function SearchScreen() {
             onPress: () => setIncludeCompleted(false),
         });
     }
+    const hideLabel = translateWithFallback(t, 'filters.hide', 'Hide');
+    if (!includeReference) {
+        activeChips.push({
+            key: 'hideReference',
+            label: `${hideLabel}: ${t('status.reference') || 'Reference'}`,
+            onPress: () => setIncludeReference(true),
+        });
+    }
     const hideFutureTasksLabel = translateWithFallback(t, 'filters.hideFutureTasks', 'Hide future tasks');
     if (hideFutureTasks) {
         activeChips.push({
@@ -433,7 +459,9 @@ export default function SearchScreen() {
                     </TouchableOpacity>
                 )}
                 <TouchableOpacity
-                    onPress={() => setFiltersOpen((prev) => !prev)}
+                    accessibilityLabel={t('filters.label')}
+                    accessibilityRole="button"
+                    onPress={openFilters}
                     style={[
                         styles.filterButton,
                         {
@@ -465,112 +493,148 @@ export default function SearchScreen() {
                     {activeChips.map((chip) => renderChip(chip.label, true, chip.onPress))}
                 </ScrollView>
             )}
-            {filtersOpen && (
-                <View style={[styles.filtersPanel, { borderColor: tc.border, backgroundColor: tc.cardBg }]}>
-                    <View style={styles.filtersHeader}>
-                        <Text style={[styles.filtersTitle, { color: tc.text }]}>{t('filters.label')}</Text>
-                        {hasActiveFilters && (
-                            <TouchableOpacity onPress={clearFilters}>
-                                <Text style={[styles.clearFiltersText, { color: tc.tint }]}>{t('common.clear')}</Text>
-                            </TouchableOpacity>
-                        )}
+            <Modal
+                animationType="fade"
+                accessibilityViewIsModal
+                onRequestClose={() => setFiltersOpen(false)}
+                transparent
+                visible={filtersOpen}
+            >
+                <KeyboardAvoidingView
+                    behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+                    style={styles.filtersSheetRoot}
+                >
+                    <Pressable
+                        accessibilityLabel={t('common.close')}
+                        accessibilityRole="button"
+                        onPress={() => setFiltersOpen(false)}
+                        style={styles.filtersSheetBackdrop}
+                    />
+                    <View style={[styles.filtersSheet, { borderColor: tc.border, backgroundColor: tc.cardBg }]}>
+                        <View style={styles.filtersHeader}>
+                            <Text style={[styles.filtersTitle, { color: tc.text }]}>{t('filters.label')}</Text>
+                            <View style={styles.filtersHeaderActions}>
+                                {hasActiveFilters && (
+                                    <TouchableOpacity
+                                        accessibilityRole="button"
+                                        onPress={clearFilters}
+                                        style={styles.filtersTextButton}
+                                    >
+                                        <Text style={[styles.clearFiltersText, { color: tc.tint }]}>{t('common.clear')}</Text>
+                                    </TouchableOpacity>
+                                )}
+                                <TouchableOpacity
+                                    accessibilityLabel={t('common.close')}
+                                    accessibilityRole="button"
+                                    onPress={() => setFiltersOpen(false)}
+                                    style={styles.filtersIconButton}
+                                >
+                                    <X size={18} color={tc.secondaryText} />
+                                </TouchableOpacity>
+                            </View>
+                        </View>
+                        <ScrollView
+                            style={styles.filtersScroll}
+                            contentContainerStyle={styles.filtersContent}
+                            keyboardShouldPersistTaps="handled"
+                            showsVerticalScrollIndicator={false}
+                        >
+                            <Text style={[styles.sectionLabel, { color: tc.secondaryText }]}>
+                                {t('search.due.label') || 'Due date'}
+                            </Text>
+                            <View style={styles.chipRow}>
+                                {(['any', 'overdue', 'today', 'tomorrow', 'this_week', 'next_week', 'none'] as const).map((value) =>
+                                    renderChip(dueLabels[value], duePreset === value, () => setDuePreset(value))
+                                )}
+                            </View>
+
+                            <Text style={[styles.sectionLabel, { color: tc.secondaryText }]}>
+                                {t('taskEdit.locationLabel') || 'Location'}
+                            </Text>
+                            <TextInput
+                                accessibilityLabel={t('taskEdit.locationLabel') || 'Location'}
+                                autoCapitalize="none"
+                                autoCorrect={false}
+                                style={[styles.filterInput, { color: tc.text, borderColor: tc.border, backgroundColor: tc.filterBg }]}
+                                value={locationQuery}
+                                onChangeText={setLocationQuery}
+                                placeholder={t('taskEdit.locationPlaceholder') || 'e.g. Office'}
+                                placeholderTextColor={tc.secondaryText}
+                                returnKeyType="done"
+                            />
+
+                            <Text style={[styles.sectionLabel, { color: tc.secondaryText }]}>
+                                {t('filters.contexts') || 'Contexts & tags'}
+                            </Text>
+                            <View style={styles.chipRow}>
+                                {allTokens.map((token) => renderChip(token, selectedTokens.includes(token), () => toggleToken(token)))}
+                            </View>
+
+                            <Text style={[styles.sectionLabel, { color: tc.secondaryText }]}>
+                                {t('search.include.label') || 'Include'}
+                            </Text>
+                            <View style={styles.chipRow}>
+                                {renderChip(
+                                    t('search.includeCompleted'),
+                                    includeCompleted,
+                                    () => setIncludeCompleted((prev) => !prev)
+                                )}
+                                {renderChip(
+                                    t('search.includeReference'),
+                                    includeReference,
+                                    () => setIncludeReference((prev) => !prev)
+                                )}
+                                {renderChip(
+                                    hideFutureTasksLabel,
+                                    hideFutureTasks,
+                                    () => setHideFutureTasks((prev) => !prev)
+                                )}
+                            </View>
+
+                            <Text style={[styles.sectionLabel, { color: tc.secondaryText }]}>
+                                {t('taskEdit.statusLabel') || 'Status'}
+                            </Text>
+                            <View style={styles.chipRow}>
+                                {statusOptions.map((status) =>
+                                    renderChip(
+                                        t(`status.${status}`) || status,
+                                        selectedStatuses.includes(status),
+                                        () => toggleStatus(status)
+                                    )
+                                )}
+                            </View>
+
+                            <Text style={[styles.sectionLabel, { color: tc.secondaryText }]}>
+                                {t('search.scope.label') || 'Scope'}
+                            </Text>
+                            <View style={styles.chipRow}>
+                                {(['all', 'projects', 'tasks', 'project_tasks'] as const).map((value) =>
+                                    renderChip(scopeLabels[value], scope === value, () => setScope(value))
+                                )}
+                            </View>
+
+                            <Text style={[styles.sectionLabel, { color: tc.secondaryText }]}>
+                                {t('taskEdit.areaLabel') || 'Area'}
+                            </Text>
+                            <View style={styles.chipRow}>
+                                {renderChip(
+                                    `${t('common.all')} ${t('taskEdit.areaLabel') || 'Area'}`,
+                                    selectedArea === 'all',
+                                    () => setSelectedArea('all')
+                                )}
+                                {renderChip(
+                                    t('taskEdit.noAreaOption') || 'No Area',
+                                    selectedArea === 'none',
+                                    () => setSelectedArea('none')
+                                )}
+                                {areas.map((area) =>
+                                    renderChip(area.name, selectedArea === area.id, () => setSelectedArea(area.id))
+                                )}
+                            </View>
+                        </ScrollView>
                     </View>
-                    <ScrollView
-                        style={styles.filtersScroll}
-                        contentContainerStyle={styles.filtersContent}
-                        showsVerticalScrollIndicator={false}
-                    >
-                        <Text style={[styles.sectionLabel, { color: tc.secondaryText }]}>
-                            {t('taskEdit.statusLabel') || 'Status'}
-                        </Text>
-                        <View style={styles.chipRow}>
-                            {statusOptions.map((status) =>
-                                renderChip(
-                                    t(`status.${status}`) || status,
-                                    selectedStatuses.includes(status),
-                                    () => toggleStatus(status)
-                                )
-                            )}
-                        </View>
-
-                        <Text style={[styles.sectionLabel, { color: tc.secondaryText }]}>
-                            {t('search.scope.label') || 'Scope'}
-                        </Text>
-                        <View style={styles.chipRow}>
-                            {(['all', 'projects', 'tasks', 'project_tasks'] as const).map((value) =>
-                                renderChip(scopeLabels[value], scope === value, () => setScope(value))
-                            )}
-                        </View>
-
-                        <Text style={[styles.sectionLabel, { color: tc.secondaryText }]}>
-                            {t('taskEdit.areaLabel') || 'Area'}
-                        </Text>
-                        <View style={styles.chipRow}>
-                            {renderChip(
-                                `${t('common.all')} ${t('taskEdit.areaLabel') || 'Area'}`,
-                                selectedArea === 'all',
-                                () => setSelectedArea('all')
-                            )}
-                            {renderChip(
-                                t('taskEdit.noAreaOption') || 'No Area',
-                                selectedArea === 'none',
-                                () => setSelectedArea('none')
-                            )}
-                            {areas.map((area) =>
-                                renderChip(area.name, selectedArea === area.id, () => setSelectedArea(area.id))
-                            )}
-                        </View>
-
-                        <Text style={[styles.sectionLabel, { color: tc.secondaryText }]}>
-                            {t('taskEdit.locationLabel') || 'Location'}
-                        </Text>
-                        <TextInput
-                            style={[styles.filterInput, { color: tc.text, borderColor: tc.border, backgroundColor: tc.filterBg }]}
-                            value={locationQuery}
-                            onChangeText={setLocationQuery}
-                            placeholder={t('taskEdit.locationPlaceholder') || 'e.g. Office'}
-                            placeholderTextColor={tc.secondaryText}
-                        />
-
-                        <Text style={[styles.sectionLabel, { color: tc.secondaryText }]}>
-                            {t('filters.contexts') || 'Contexts & tags'}
-                        </Text>
-                        <View style={styles.chipRow}>
-                            {allTokens.map((token) => renderChip(token, selectedTokens.includes(token), () => toggleToken(token)))}
-                        </View>
-
-                        <Text style={[styles.sectionLabel, { color: tc.secondaryText }]}>
-                            {t('search.due.label') || 'Due date'}
-                        </Text>
-                        <View style={styles.chipRow}>
-                            {(['any', 'overdue', 'today', 'tomorrow', 'this_week', 'next_week', 'none'] as const).map((value) =>
-                                renderChip(dueLabels[value], duePreset === value, () => setDuePreset(value))
-                            )}
-                        </View>
-
-                        <Text style={[styles.sectionLabel, { color: tc.secondaryText }]}>
-                            {t('search.include.label') || 'Include'}
-                        </Text>
-                        <View style={styles.chipRow}>
-                            {renderChip(
-                                t('search.includeCompleted'),
-                                includeCompleted,
-                                () => setIncludeCompleted((prev) => !prev)
-                            )}
-                            {renderChip(
-                                t('search.includeReference'),
-                                includeReference,
-                                () => setIncludeReference((prev) => !prev)
-                            )}
-                            {renderChip(
-                                hideFutureTasksLabel,
-                                hideFutureTasks,
-                                () => setHideFutureTasks((prev) => !prev)
-                            )}
-                        </View>
-                    </ScrollView>
-                </View>
-            )}
+                </KeyboardAvoidingView>
+            </Modal>
             {trimmedQuery !== '' && isTruncated && (
                 <Text style={[styles.helpText, { color: tc.secondaryText }]}>
                     {t('search.showingFirst')
@@ -711,11 +775,20 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         gap: 8,
     },
-    filtersPanel: {
-        marginHorizontal: 16,
-        marginTop: 10,
+    filtersSheetRoot: {
+        flex: 1,
+        justifyContent: 'flex-end',
+    },
+    filtersSheetBackdrop: {
+        ...StyleSheet.absoluteFillObject,
+        backgroundColor: 'rgba(0,0,0,0.45)',
+    },
+    filtersSheet: {
+        maxHeight: '82%',
+        marginHorizontal: 12,
+        marginBottom: 12,
         padding: 12,
-        borderRadius: 12,
+        borderRadius: 16,
         borderWidth: 1,
         gap: 12,
     },
@@ -724,20 +797,36 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         justifyContent: 'space-between',
     },
+    filtersHeaderActions: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 8,
+    },
     filtersTitle: {
         fontSize: 14,
         fontWeight: '600',
+    },
+    filtersTextButton: {
+        minHeight: 36,
+        justifyContent: 'center',
+        paddingHorizontal: 8,
+    },
+    filtersIconButton: {
+        minWidth: 36,
+        minHeight: 36,
+        alignItems: 'center',
+        justifyContent: 'center',
     },
     clearFiltersText: {
         fontSize: 12,
         fontWeight: '600',
     },
     filtersScroll: {
-        maxHeight: 280,
+        flexGrow: 0,
     },
     filtersContent: {
         gap: 12,
-        paddingBottom: 4,
+        paddingBottom: 12,
     },
     sectionLabel: {
         fontSize: 12,
