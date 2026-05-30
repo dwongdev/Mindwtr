@@ -226,6 +226,12 @@ jobs:
             tech.dongdongbh.mindwtr.yml \
             tech.dongdongbh.mindwtr.node-sources.json \
             tech.dongdongbh.mindwtr.cargo-sources.json
+          if [ -f .gitmodules ]; then
+            git add .gitmodules
+          fi
+          if [ -e shared-modules ]; then
+            git add shared-modules
+          fi
 
           if git diff --cached --quiet; then
             echo "No staged Flathub changes to commit."

@@ -19,6 +19,8 @@ manifest_path="${flathub_dir}/tech.dongdongbh.mindwtr.yml"
 node_sources_path="${flathub_dir}/tech.dongdongbh.mindwtr.node-sources.json"
 cargo_sources_path="${flathub_dir}/tech.dongdongbh.mindwtr.cargo-sources.json"
 node_generator="${FLATPAK_NODE_GENERATOR:-flatpak-node-generator}"
+shared_modules_dir="${flathub_dir}/shared-modules"
+appindicator_module_path="${shared_modules_dir}/libayatana-appindicator/libayatana-appindicator-gtk3.json"
 
 required_paths=(
   "apps/desktop/package.json"
@@ -44,6 +46,19 @@ fi
 
 if [ ! -f "${tools_dir}/cargo/flatpak-cargo-generator.py" ]; then
   echo "Missing cargo generator in ${tools_dir}" >&2
+  exit 1
+fi
+
+if [ ! -f "${appindicator_module_path}" ]; then
+  if git -C "${flathub_dir}" config --file .gitmodules --get submodule.shared-modules.path >/dev/null 2>&1; then
+    git -C "${flathub_dir}" submodule update --init --recursive shared-modules
+  elif [ ! -e "${shared_modules_dir}" ]; then
+    git -C "${flathub_dir}" submodule add https://github.com/flathub/shared-modules.git shared-modules
+  fi
+fi
+
+if [ ! -f "${appindicator_module_path}" ]; then
+  echo "Missing Flathub shared module: ${appindicator_module_path}" >&2
   exit 1
 fi
 
@@ -95,6 +110,30 @@ def find_block_end(start_index: int, base_indent: int) -> int:
             block_end_index = index
             break
     return block_end_index
+
+appindicator_module = "shared-modules/libayatana-appindicator/libayatana-appindicator-gtk3.json"
+appindicator_module_entry = f"- {appindicator_module}"
+lines = [line for line in lines if line.strip() != appindicator_module_entry]
+
+modules_line_index = next((index for index, line in enumerate(lines) if line.strip() == 'modules:'), None)
+if modules_line_index is None:
+    raise SystemExit(f"Expected modules block in {manifest_path}")
+
+modules_indent = len(lines[modules_line_index]) - len(lines[modules_line_index].lstrip())
+modules_entry_indent = modules_indent + 2
+modules_block_end_index = find_block_end(modules_line_index, modules_indent)
+mindwtr_module_index = next(
+    (
+        index
+        for index in range(modules_line_index + 1, modules_block_end_index)
+        if lines[index].strip() == '- name: mindwtr'
+    ),
+    None,
+)
+if mindwtr_module_index is None:
+    raise SystemExit(f"Expected mindwtr module in {manifest_path}")
+
+lines.insert(mindwtr_module_index, f"{' ' * modules_entry_indent}{appindicator_module_entry}")
 
 finish_args_line_index = next((index for index, line in enumerate(lines) if line.strip() == 'finish-args:'), None)
 if finish_args_line_index is None:
