@@ -1,5 +1,12 @@
 import { test, expect } from '@playwright/test';
 
+const openInbox = async (page: import('@playwright/test').Page) => {
+    const inboxNav = page.locator('[data-sidebar-item][data-view="inbox"]');
+    await expect(inboxNav).toBeVisible();
+    await inboxNav.click();
+    await expect(inboxNav).toHaveAttribute('aria-current', 'page');
+};
+
 const createInboxTask = async (page: import('@playwright/test').Page, title: string) => {
     const quickAddInput = page.getByPlaceholder(/add task/i);
     await quickAddInput.fill(title);
@@ -19,11 +26,11 @@ const deleteInboxTask = async (page: import('@playwright/test').Page, title: str
     await expect(taskItem).toHaveCount(0);
 };
 
-test('loads the inbox view', async ({ page }) => {
+test('loads the default focus view', async ({ page }) => {
     await page.goto('/');
-    const inboxNav = page.locator('[data-sidebar-item][data-view="inbox"]');
-    await expect(inboxNav).toBeVisible();
-    await expect(inboxNav).toHaveAttribute('aria-current', 'page');
+    const focusNav = page.locator('[data-sidebar-item][data-view="agenda"]');
+    await expect(focusNav).toBeVisible();
+    await expect(focusNav).toHaveAttribute('aria-current', 'page');
 });
 
 test('navigates between sidebar views', async ({ page }) => {
@@ -39,12 +46,14 @@ test('navigates between sidebar views', async ({ page }) => {
 
 test('creates and deletes a task from inbox', async ({ page }) => {
     await page.goto('/');
+    await openInbox(page);
     await createInboxTask(page, 'E2E Task');
     await deleteInboxTask(page, 'E2E Task');
 });
 
 test('restores a deleted task from trash', async ({ page }) => {
     await page.goto('/');
+    await openInbox(page);
     const title = 'E2E Restore Task';
     await createInboxTask(page, title);
     await deleteInboxTask(page, title);
@@ -66,6 +75,7 @@ test('restores a deleted task from trash', async ({ page }) => {
 
 test('filters trashed tasks by search query', async ({ page }) => {
     await page.goto('/');
+    await openInbox(page);
     await createInboxTask(page, 'Trash Keep Alpha');
     await createInboxTask(page, 'Trash Keep Beta');
     await deleteInboxTask(page, 'Trash Keep Alpha');
