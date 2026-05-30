@@ -14,6 +14,20 @@ Mindwtr is a cross-platform Getting Things Done (GTD) productivity app that help
 
 Yes! Mindwtr is open source and free to use under the AGPL-3.0 license.
 
+### Is Mindwtr AI-generated? What is the project's stance on AI?
+
+Mindwtr is AI-assisted, not AI-generated. That distinction matters.
+
+The architecture, product direction, feature design, and GTD philosophy behind Mindwtr are designed and owned by the maintainer. AI tools help with execution: drafting implementations faster, reducing boilerplate, improving wording, and speeding up bug investigation. Every shipped change is still specified, reviewed, tested, and the maintainer takes responsibility for the result.
+
+AI-assisted development is normal software engineering practice today, including at major technology companies and across open source. AI is a tool, like IDEs, autocomplete, documentation, and Stack Overflow. Using it does not remove the developer's work; it shifts more of the work toward direction, judgment, review, integration, and validation.
+
+Mindwtr is maintained by a solo developer with 10+ years of software engineering experience. That experience is what makes AI useful rather than dangerous: knowing what to build, what not to build, when output is wrong, and how to keep the system coherent. AI helps a project this broad stay maintainable by one person, but it does not decide the design or own the result.
+
+Issue and discussion replies are written by the maintainer. AI may be used to polish English wording, but no agent auto-triages or auto-answers issues.
+
+For contributions, see the [LLM-assisted coding section in CONTRIBUTING.md](https://github.com/dongdongbh/Mindwtr/blob/main/docs/CONTRIBUTING.md#llm-assisted-coding-vibe-coding).
+
 ### Is there a roadmap or upcoming features page?
 
 We don’t maintain a fixed roadmap page. The living roadmap is the GitHub Issues list:
