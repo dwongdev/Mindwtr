@@ -617,6 +617,85 @@ where
         .any(|arg| arg.as_ref().eq_ignore_ascii_case(QUICK_ADD_CLI_FLAG))
 }
 
+#[cfg(target_os = "linux")]
+fn normalize_spellcheck_language(raw: &str) -> Option<String> {
+    let trimmed = raw.trim();
+    if trimmed.is_empty() {
+        return None;
+    }
+    let without_codeset = trimmed.split('.').next().unwrap_or(trimmed);
+    let without_modifier = without_codeset
+        .split('@')
+        .next()
+        .unwrap_or(without_codeset)
+        .trim()
+        .replace('-', "_");
+    if without_modifier.is_empty()
+        || without_modifier.eq_ignore_ascii_case("c")
+        || without_modifier.eq_ignore_ascii_case("posix")
+    {
+        return None;
+    }
+    Some(without_modifier)
+}
+
+#[cfg(target_os = "linux")]
+fn push_spellcheck_language(languages: &mut Vec<String>, language: String) {
+    if !languages.iter().any(|existing| existing == &language) {
+        languages.push(language);
+    }
+}
+
+#[cfg(target_os = "linux")]
+fn collect_spellcheck_languages(values: impl IntoIterator<Item = String>) -> Vec<String> {
+    let mut languages = Vec::new();
+    for value in values {
+        for raw_language in value.split(':') {
+            let Some(language) = normalize_spellcheck_language(raw_language) else {
+                continue;
+            };
+            push_spellcheck_language(&mut languages, language.clone());
+            if let Some((base_language, _region)) = language.split_once('_') {
+                push_spellcheck_language(&mut languages, base_language.to_string());
+            }
+        }
+    }
+    if languages.is_empty() {
+        languages.push("en_US".to_string());
+        languages.push("en".to_string());
+    }
+    languages
+}
+
+#[cfg(target_os = "linux")]
+fn linux_spellcheck_languages() -> Vec<String> {
+    collect_spellcheck_languages(
+        ["LANGUAGE", "LC_ALL", "LC_MESSAGES", "LANG"]
+            .into_iter()
+            .filter_map(|key| env::var(key).ok()),
+    )
+}
+
+#[cfg(target_os = "linux")]
+fn enable_desktop_spellcheck(window: &tauri::WebviewWindow) {
+    let languages = linux_spellcheck_languages();
+    if let Err(error) = window.with_webview(move |webview| {
+        use webkit2gtk::{WebContextExt, WebViewExt};
+
+        let Some(context) = webview.inner().context() else {
+            return;
+        };
+        let language_refs = languages.iter().map(String::as_str).collect::<Vec<_>>();
+        context.set_spell_checking_languages(&language_refs);
+        context.set_spell_checking_enabled(true);
+    }) {
+        log::warn!("Failed to enable WebKit spell checking: {error}");
+    }
+}
+
+#[cfg(not(target_os = "linux"))]
+fn enable_desktop_spellcheck(_window: &tauri::WebviewWindow) {}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     let initial_launch_requests_quick_add = launch_requests_quick_add(env::args());
@@ -765,6 +844,7 @@ pub fn run() {
             let is_windows_store = is_windows_store_install();
             let is_flatpak_install = cfg!(target_os = "linux") && is_flatpak();
             if let Some(window) = app.get_webview_window("main") {
+                enable_desktop_spellcheck(&window);
                 #[cfg(target_os = "linux")]
                 if let Ok(icon) = Image::from_bytes(include_bytes!("../icons/icon.png")) {
                     let _ = window.set_icon(icon);
@@ -1046,5 +1126,27 @@ arch=x86_64
         assert!(launch_requests_quick_add(["mindwtr", "--QUICK-ADD"]));
         assert!(!launch_requests_quick_add(["mindwtr"]));
         assert!(!launch_requests_quick_add(["mindwtr", "--foo"]));
+    }
+
+    #[cfg(target_os = "linux")]
+    #[test]
+    fn collect_spellcheck_languages_normalizes_locale_values() {
+        assert_eq!(
+            collect_spellcheck_languages([
+                "en_US.UTF-8".to_string(),
+                "de-DE:fr_CA@euro".to_string(),
+                "C".to_string(),
+            ]),
+            vec!["en_US", "en", "de_DE", "de", "fr_CA", "fr"]
+        );
+    }
+
+    #[cfg(target_os = "linux")]
+    #[test]
+    fn collect_spellcheck_languages_falls_back_to_english() {
+        assert_eq!(
+            collect_spellcheck_languages(["C.UTF-8".to_string(), "POSIX".to_string()]),
+            vec!["en_US", "en"]
+        );
     }
 }

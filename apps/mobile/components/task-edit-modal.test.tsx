@@ -522,6 +522,8 @@ describe('TaskEditModal', () => {
 
     expect(descriptionInput.props.spellCheck).toBe(true);
     expect(descriptionInput.props.autoCorrect).toBe(true);
+    expect(descriptionInput.props.autoCapitalize).toBe('sentences');
+    expect(descriptionInput.props.keyboardType).toBe('default');
 
     act(() => {
       descriptionTree!.unmount();

@@ -105,6 +105,8 @@ describe('ExpandedMarkdownEditor', () => {
 
     expect(input.props.spellCheck).toBe(true);
     expect(input.props.autoCorrect).toBe(true);
+    expect(input.props.autoCapitalize).toBe('sentences');
+    expect(input.props.keyboardType).toBe('default');
 
     act(() => {
       tree!.unmount();

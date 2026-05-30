@@ -557,6 +557,8 @@ export function ExpandedMarkdownEditor({
                                     multiline
                                     spellCheck={true}
                                     autoCorrect={true}
+                                    autoCapitalize="sentences"
+                                    keyboardType="default"
                                     accessibilityLabel={title}
                                     accessibilityHint={placeholder}
                                 />

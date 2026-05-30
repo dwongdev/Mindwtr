@@ -2920,6 +2920,7 @@ dependencies = [
  "tauri-plugin-single-instance",
  "tempfile",
  "time",
+ "webkit2gtk",
  "whisper-rs",
  "windows-sys 0.61.2",
 ]

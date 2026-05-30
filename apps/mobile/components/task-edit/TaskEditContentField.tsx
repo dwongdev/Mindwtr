@@ -265,6 +265,8 @@ export function TaskEditContentField({
                                 multiline
                                 spellCheck={true}
                                 autoCorrect={true}
+                                autoCapitalize="sentences"
+                                keyboardType="default"
                                 placeholderTextColor={tc.secondaryText}
                                 accessibilityLabel={t('taskEdit.descriptionLabel')}
                                 accessibilityHint={t('taskEdit.descriptionPlaceholder')}
