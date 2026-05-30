@@ -1,5 +1,5 @@
 import React from 'react';
-import { TextInput } from 'react-native';
+import { Platform, TextInput } from 'react-native';
 import { describe, expect, it, vi } from 'vitest';
 import renderer, { act } from 'react-test-renderer';
 
@@ -60,6 +60,22 @@ const flattenStyle = (style: any): Record<string, any> => {
     return Object.assign({}, ...style.filter(Boolean).map(flattenStyle));
   }
   return style ?? {};
+};
+
+const withPlatform = (os: typeof Platform.OS, run: () => void) => {
+  const originalPlatformOs = Platform.OS;
+  Object.defineProperty(Platform, 'OS', {
+    configurable: true,
+    value: os,
+  });
+  try {
+    run();
+  } finally {
+    Object.defineProperty(Platform, 'OS', {
+      configurable: true,
+      value: originalPlatformOs,
+    });
+  }
 };
 
 describe('ExpandedMarkdownEditor', () => {
@@ -138,6 +154,50 @@ describe('ExpandedMarkdownEditor', () => {
 
     act(() => {
       tree!.unmount();
+    });
+  });
+
+  it('temporarily controls Android selection after nested list continuation rewrites', () => {
+    const onChange = vi.fn();
+    const onSelectionChange = vi.fn();
+    let tree: renderer.ReactTestRenderer;
+
+    withPlatform('android', () => {
+      act(() => {
+        tree = renderer.create(
+          <ExpandedMarkdownEditor
+            isOpen
+            onClose={vi.fn()}
+            value="  - item"
+            onChange={onChange}
+            title="Description"
+            placeholder="Description"
+            t={(key) => key}
+            initialMode="edit"
+            selection={{ start: 8, end: 8 }}
+            onSelectionChange={onSelectionChange}
+            canUndo={false}
+            onUndo={() => undefined}
+          />
+        );
+      });
+
+      expect(tree!.root.findByType(TextInput).props.selection).toBeUndefined();
+
+      act(() => {
+        tree!.root.findByType(TextInput).props.onChangeText('  - item\n');
+      });
+
+      const input = tree!.root.findByType(TextInput);
+
+      expect(onChange).toHaveBeenCalledWith('  - item\n  - ');
+      expect(onSelectionChange).toHaveBeenCalledWith({ start: 13, end: 13 });
+      expect(input.props.value).toBe('  - item\n  - ');
+      expect(input.props.selection).toEqual({ start: 13, end: 13 });
+
+      act(() => {
+        tree!.unmount();
+      });
     });
   });
 

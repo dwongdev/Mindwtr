@@ -52,6 +52,7 @@ export function useTaskDescriptionEditor({
     const descriptionUndoRef = React.useRef<Array<{ value: string; selection: MarkdownSelection }>>([]);
     const [descriptionUndoDepth, setDescriptionUndoDepth] = React.useState(0);
     const [isDescriptionInputFocused, setIsDescriptionInputFocused] = React.useState(false);
+    const [descriptionSelectionRestorePending, setDescriptionSelectionRestorePending] = React.useState(false);
     const [descriptionSelection, setDescriptionSelection] = React.useState<MarkdownSelection>({
         start: descriptionDraft.length,
         end: descriptionDraft.length,
@@ -74,6 +75,7 @@ export function useTaskDescriptionEditor({
 
     const restoreDescriptionSelection = React.useCallback((selection: MarkdownSelection) => {
         pendingDescriptionSelectionRef.current = selection;
+        setDescriptionSelectionRestorePending(true);
         const applySelection = () => {
             descriptionInputRef.current?.focus?.();
             descriptionInputRef.current?.setNativeProps?.({ selection });
@@ -91,6 +93,15 @@ export function useTaskDescriptionEditor({
                 && selectionsEqual(pendingDescriptionSelectionRef.current, selection)
             ) {
                 pendingDescriptionSelectionRef.current = null;
+            }
+            if (
+                shouldClearPending
+                && (
+                    !pendingDescriptionSelectionRef.current
+                    || selectionsEqual(pendingDescriptionSelectionRef.current, selection)
+                )
+            ) {
+                setDescriptionSelectionRestorePending(false);
             }
         };
         setTimeout(() => {
@@ -124,6 +135,7 @@ export function useTaskDescriptionEditor({
         pendingDescriptionSelectionRef.current = null;
         lastDescriptionRangeRef.current = null;
         ignoredNativePairChangeRef.current = null;
+        setDescriptionSelectionRestorePending(false);
         descriptionSelectionRef.current = resetSelection;
         setDescriptionSelection(resetSelection);
     }, [task?.id]);
@@ -286,6 +298,7 @@ export function useTaskDescriptionEditor({
                 return;
             }
             pendingDescriptionSelectionRef.current = null;
+            setDescriptionSelectionRestorePending(false);
         }
         descriptionSelectionRef.current = selection;
         if (isRangeSelection(selection)) {
@@ -342,6 +355,7 @@ export function useTaskDescriptionEditor({
         descriptionExpanded,
         descriptionInputRef,
         descriptionSelection,
+        descriptionSelectionRestorePending,
         setDescriptionSelection: handleDescriptionSelectionChange,
         descriptionUndoDepth,
         isDescriptionInputFocused,

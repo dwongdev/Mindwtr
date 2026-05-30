@@ -21,6 +21,7 @@ export function TaskEditContentField({
     descriptionDraft,
     descriptionInputRef,
     descriptionSelection,
+    descriptionSelectionRestorePending,
     descriptionToolbarInteractionUntilRef,
     downloadAttachment,
     editedTask,
@@ -118,7 +119,9 @@ export function TaskEditContentField({
                                 onChangeText={handleDescriptionChange}
                                 onKeyPress={handleDescriptionKeyPress}
                                 onSelectionChange={(event) => setDescriptionSelection(event.nativeEvent.selection)}
-                                selection={getControlledTextInputSelection(descriptionSelection)}
+                                selection={getControlledTextInputSelection(descriptionSelection, {
+                                    force: descriptionSelectionRestorePending,
+                                })}
                                 placeholder={t('taskEdit.descriptionPlaceholder')}
                                 multiline
                                 spellCheck={true}

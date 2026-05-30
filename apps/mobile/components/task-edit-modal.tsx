@@ -584,6 +584,7 @@ function TaskEditModalInner({
         descriptionDraft,
         descriptionInputRef: descriptionEditor.descriptionInputRef,
         descriptionSelection: descriptionEditor.descriptionSelection,
+        descriptionSelectionRestorePending: descriptionEditor.descriptionSelectionRestorePending,
         setDescriptionSelection: descriptionEditor.setDescriptionSelection,
         descriptionToolbarInteractionUntilRef,
         isDescriptionInputFocused: descriptionEditor.isDescriptionInputFocused,

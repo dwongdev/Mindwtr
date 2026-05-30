@@ -105,6 +105,7 @@ export function ExpandedMarkdownEditor({
     // focus/toolbar interactions do not have to wait on parent rerenders.
     const [editorValue, setEditorValue] = React.useState(value);
     const [editorSelection, setEditorSelection] = React.useState(selection);
+    const [selectionRestorePending, setSelectionRestorePending] = React.useState(false);
     const [mode, setMode] = React.useState<'edit' | 'preview'>(initialMode);
     const [isInputFocused, setIsInputFocused] = React.useState(false);
     const resolvedHeaderTitle = (headerTitle || '').trim() || title;
@@ -124,6 +125,7 @@ export function ExpandedMarkdownEditor({
             lastRangeSelectionRef.current = isRangeSelection(selection) ? selection : null;
             pendingSelectionRef.current = null;
             ignoredNativePairChangeRef.current = null;
+            setSelectionRestorePending(false);
             setEditorValue(value);
             setEditorSelection(selection);
         }
@@ -135,6 +137,7 @@ export function ExpandedMarkdownEditor({
             pendingSelectionRef.current = null;
             lastRangeSelectionRef.current = null;
             ignoredNativePairChangeRef.current = null;
+            setSelectionRestorePending(false);
             setIsInputFocused(false);
         }
     }, [isOpen]);
@@ -230,6 +233,7 @@ export function ExpandedMarkdownEditor({
                 return;
             }
             pendingSelectionRef.current = null;
+            setSelectionRestorePending(false);
         }
         selectionRef.current = nextSelection;
         if (isRangeSelection(nextSelection)) {
@@ -240,6 +244,7 @@ export function ExpandedMarkdownEditor({
     }, [onSelectionChange]);
     const handleToolbarSelectionChange = React.useCallback((nextSelection: MarkdownSelection) => {
         pendingSelectionRef.current = null;
+        setSelectionRestorePending(false);
         selectionRef.current = nextSelection;
         if (isRangeSelection(nextSelection)) {
             lastRangeSelectionRef.current = nextSelection;
@@ -251,6 +256,7 @@ export function ExpandedMarkdownEditor({
         const targetSelection = selectionOverride ?? selectionRef.current;
         if (targetSelection) {
             pendingSelectionRef.current = targetSelection;
+            setSelectionRestorePending(true);
         }
         const focusInput = () => {
             inputRef.current?.focus();
@@ -272,6 +278,15 @@ export function ExpandedMarkdownEditor({
                 && selectionsEqual(pendingSelectionRef.current, targetSelection)
             ) {
                 pendingSelectionRef.current = null;
+            }
+            if (
+                shouldClearPending
+                && (
+                    !pendingSelectionRef.current
+                    || (targetSelection && selectionsEqual(pendingSelectionRef.current, targetSelection))
+                )
+            ) {
+                setSelectionRestorePending(false);
             }
         };
         setTimeout(() => {
@@ -533,7 +548,9 @@ export function ExpandedMarkdownEditor({
                                             }
                                         }, 0);
                                     }}
-                                    selection={getControlledTextInputSelection(editorSelection)}
+                                    selection={getControlledTextInputSelection(editorSelection, {
+                                        force: selectionRestorePending,
+                                    })}
                                     onSelectionChange={handleSelectionChange}
                                     placeholder={placeholder}
                                     placeholderTextColor={tc.secondaryText}

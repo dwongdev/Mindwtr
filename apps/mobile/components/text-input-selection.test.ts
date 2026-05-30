@@ -26,6 +26,12 @@ describe('getControlledTextInputSelection', () => {
     });
   });
 
+  it('allows Android selection control during programmatic caret restoration', () => {
+    withPlatform('android', () => {
+      expect(getControlledTextInputSelection({ start: 2, end: 2 }, { force: true })).toEqual({ start: 2, end: 2 });
+    });
+  });
+
   it('keeps controlled selection on iOS', () => {
     withPlatform('ios', () => {
       expect(getControlledTextInputSelection({ start: 2, end: 2 })).toEqual({ start: 2, end: 2 });

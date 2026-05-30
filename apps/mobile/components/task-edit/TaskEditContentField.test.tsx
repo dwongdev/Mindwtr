@@ -1,5 +1,5 @@
 import React from 'react';
-import { TextInput } from 'react-native';
+import { Platform, TextInput } from 'react-native';
 import { act, create } from 'react-test-renderer';
 import { describe, expect, it, vi } from 'vitest';
 
@@ -12,6 +12,22 @@ vi.mock('../markdown-reference-autocomplete', () => ({
 vi.mock('../markdown-text', () => ({
   MarkdownText: (props: any) => React.createElement('MarkdownText', props),
 }));
+
+const withPlatform = (os: typeof Platform.OS, run: () => void) => {
+  const originalPlatformOs = Platform.OS;
+  Object.defineProperty(Platform, 'OS', {
+    configurable: true,
+    value: os,
+  });
+  try {
+    run();
+  } finally {
+    Object.defineProperty(Platform, 'OS', {
+      configurable: true,
+      value: originalPlatformOs,
+    });
+  }
+};
 
 const baseProps: any = {
   addFileAttachment: vi.fn(),
@@ -32,6 +48,7 @@ const baseProps: any = {
   descriptionDraft: '# Heading\n\nLong description',
   descriptionInputRef: React.createRef<TextInput>(),
   descriptionSelection: { start: 0, end: 0 },
+  descriptionSelectionRestorePending: false,
   setDescriptionSelection: vi.fn(),
   descriptionToolbarInteractionUntilRef: { current: 0 },
   isDescriptionInputFocused: false,
@@ -149,5 +166,26 @@ describe('TaskEditContentField', () => {
 
     expect(setIsDescriptionInputFocused).toHaveBeenCalledWith(true);
     expect(handleInputFocus).toHaveBeenCalledWith(undefined);
+  });
+
+  it('temporarily controls Android description selection during caret restoration', () => {
+    let tree!: ReturnType<typeof create>;
+
+    withPlatform('android', () => {
+      act(() => {
+        tree = create(
+          <TaskEditContentField
+            {...baseProps}
+            fieldId="description"
+            descriptionSelection={{ start: 9, end: 9 }}
+            descriptionSelectionRestorePending
+          />
+        );
+      });
+
+      const input = tree.root.findByProps({ accessibilityLabel: 'taskEdit.descriptionLabel' });
+
+      expect(input.props.selection).toEqual({ start: 9, end: 9 });
+    });
   });
 });

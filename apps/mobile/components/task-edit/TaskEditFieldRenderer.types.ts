@@ -55,6 +55,7 @@ export type TaskEditFieldRendererProps = {
     descriptionDraft: string;
     descriptionInputRef: React.RefObject<TextInput | null>;
     descriptionSelection: MarkdownSelection;
+    descriptionSelectionRestorePending: boolean;
     setDescriptionSelection: (selection: MarkdownSelection) => void;
     descriptionToolbarInteractionUntilRef: React.MutableRefObject<number>;
     isDescriptionInputFocused: boolean;
