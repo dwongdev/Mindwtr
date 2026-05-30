@@ -85,6 +85,38 @@ describe('markdown selection replacement fallbacks', () => {
         });
     });
 
+    it('wraps selected text from a mobile backtick key press', () => {
+        expect(
+            applyMarkdownPairKeyPressWithSelectionFallback(
+                'run tests',
+                '`',
+                { start: 0, end: 9 },
+            ),
+        ).toEqual({
+            result: {
+                value: '`run tests`',
+                selection: { start: 1, end: 10 },
+            },
+            baseSelection: { start: 0, end: 9 },
+        });
+    });
+
+    it('wraps selected text from a mobile triple-backtick text change', () => {
+        expect(
+            applyMarkdownPairInsertionWithSelectionFallback(
+                'run tests',
+                '```',
+                { start: 0, end: 9 },
+            ),
+        ).toEqual({
+            result: {
+                value: '```\nrun tests\n```',
+                selection: { start: 4, end: 13 },
+            },
+            baseSelection: { start: 0, end: 9 },
+        });
+    });
+
     it('ignores mobile key press pairing without a range selection', () => {
         expect(
             applyMarkdownPairKeyPressWithSelectionFallback(

@@ -201,6 +201,43 @@ describe('ExpandedMarkdownEditor', () => {
     });
   });
 
+  it('wraps selected text in a fenced code block when native input replaces it with triple backticks', () => {
+    const onChange = vi.fn();
+    const onSelectionChange = vi.fn();
+    let tree: renderer.ReactTestRenderer;
+
+    act(() => {
+      tree = renderer.create(
+        <ExpandedMarkdownEditor
+          isOpen
+          onClose={vi.fn()}
+          value="run tests"
+          onChange={onChange}
+          title="Description"
+          placeholder="Description"
+          t={(key) => key}
+          initialMode="edit"
+          selection={{ start: 0, end: 9 }}
+          onSelectionChange={onSelectionChange}
+          canUndo={false}
+          onUndo={() => undefined}
+        />
+      );
+    });
+
+    act(() => {
+      tree!.root.findByType(TextInput).props.onChangeText('```');
+    });
+
+    expect(onChange).toHaveBeenCalledWith('```\nrun tests\n```');
+    expect(onSelectionChange).toHaveBeenCalledWith({ start: 4, end: 13 });
+    expect(tree!.root.findByType(TextInput).props.value).toBe('```\nrun tests\n```');
+
+    act(() => {
+      tree!.unmount();
+    });
+  });
+
   it('keeps the fullscreen edit field tall when the keyboard toolbar is visible', () => {
     let tree: renderer.ReactTestRenderer;
 

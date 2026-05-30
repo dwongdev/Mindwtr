@@ -629,6 +629,54 @@ describe('TaskItemFieldRenderer date clear buttons', () => {
         expect(textarea).toHaveAttribute('spellcheck', 'true');
     });
 
+    it('wraps selected description text when a backtick key press is intercepted', async () => {
+        const { getByRole } = render(<DescriptionHarness />);
+        const textarea = getByRole('textbox', { name: 'Description' }) as HTMLTextAreaElement;
+
+        fireEvent.change(textarea, { target: { value: 'run tests' } });
+        textarea.setSelectionRange(0, 9);
+        fireEvent.select(textarea);
+        fireEvent.keyDown(textarea, { key: '`' });
+
+        await waitFor(() => {
+            expect(textarea).toHaveValue('`run tests`');
+            expect(textarea.selectionStart).toBe(1);
+            expect(textarea.selectionEnd).toBe(10);
+        });
+    });
+
+    it('wraps selected description text when native input replaces it with a backtick', async () => {
+        const { getByRole } = render(<DescriptionHarness />);
+        const textarea = getByRole('textbox', { name: 'Description' }) as HTMLTextAreaElement;
+
+        fireEvent.change(textarea, { target: { value: 'run tests' } });
+        textarea.setSelectionRange(0, 9);
+        fireEvent.select(textarea);
+        fireEvent.change(textarea, { target: { value: '`' } });
+
+        await waitFor(() => {
+            expect(textarea).toHaveValue('`run tests`');
+            expect(textarea.selectionStart).toBe(1);
+            expect(textarea.selectionEnd).toBe(10);
+        });
+    });
+
+    it('wraps selected description text in a fenced code block when triple backticks replace it', async () => {
+        const { getByRole } = render(<DescriptionHarness />);
+        const textarea = getByRole('textbox', { name: 'Description' }) as HTMLTextAreaElement;
+
+        fireEvent.change(textarea, { target: { value: 'run tests' } });
+        textarea.setSelectionRange(0, 9);
+        fireEvent.select(textarea);
+        fireEvent.change(textarea, { target: { value: '```' } });
+
+        await waitFor(() => {
+            expect(textarea).toHaveValue('```\nrun tests\n```');
+            expect(textarea.selectionStart).toBe(4);
+            expect(textarea.selectionEnd).toBe(13);
+        });
+    });
+
     it('keeps focus and selection in the expanded description editor after continuing a list', async () => {
         const { getByRole } = render(<DescriptionHarness />);
         const collapsedTextarea = getByRole('textbox', { name: 'Description' }) as HTMLTextAreaElement;

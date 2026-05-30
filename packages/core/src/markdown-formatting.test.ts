@@ -139,6 +139,15 @@ describe('applyMarkdownPairInsertion', () => {
         });
     });
 
+    it('wraps selected text when a single backtick replaces the selection', () => {
+        expect(
+            applyMarkdownPairInsertion('run tests', '`', { start: 0, end: 9 }),
+        ).toEqual({
+            value: '`run tests`',
+            selection: { start: 1, end: 10 },
+        });
+    });
+
     it('wraps selected text in strikethrough markers when tilde replaces the selection', () => {
         expect(
             applyMarkdownPairInsertion('drop this', '~', { start: 0, end: 9 }),

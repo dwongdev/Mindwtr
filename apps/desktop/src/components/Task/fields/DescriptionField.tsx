@@ -26,7 +26,7 @@ type DescriptionFieldProps = {
     onEditFromPreview: (source?: HTMLElement) => void;
     onExpand: () => void;
     onCloseExpanded: () => void;
-    onDescriptionInput: (value: string, selection: MarkdownSelection) => void;
+    onDescriptionInput: (value: string, selection: MarkdownSelection, source: HTMLTextAreaElement) => void;
     onDescriptionChange: (
         value: string,
         options?: {
@@ -132,7 +132,7 @@ export function DescriptionField({
                             onDescriptionInput(event.target.value, {
                                 start: event.currentTarget.selectionStart ?? event.currentTarget.value.length,
                                 end: event.currentTarget.selectionEnd ?? event.currentTarget.value.length,
-                            });
+                            }, event.currentTarget);
                         }}
                         onSelect={(event) => {
                             onSelectionChange({

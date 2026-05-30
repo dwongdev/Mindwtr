@@ -838,6 +838,26 @@ export function TaskItemFieldRenderer({
         descriptionSelectionRef.current = next.selection;
         restoreDescriptionTextareaSelection(eventTextarea, next.selection);
     };
+    const handleDescriptionInput = (
+        value: string,
+        selection: MarkdownSelection,
+        source: HTMLTextAreaElement,
+    ) => {
+        const previousSelection = descriptionSelectionRef.current;
+        const pairedInsertion = applyMarkdownPairInsertion(editDescription, value, previousSelection);
+        if (pairedInsertion) {
+            applyDescriptionValue(pairedInsertion.value, {
+                baseSelection: previousSelection,
+                nextSelection: pairedInsertion.selection,
+            });
+            descriptionSelectionRef.current = pairedInsertion.selection;
+            restoreDescriptionTextareaSelection(source, pairedInsertion.selection);
+            return;
+        }
+
+        applyDescriptionValue(value);
+        descriptionSelectionRef.current = selection;
+    };
     const handleEditDescriptionFromPreview = (source?: HTMLElement) => {
         const scrollSnapshot = captureScrollSnapshot(source);
         editDescriptionFromPreview();
@@ -906,10 +926,7 @@ export function TaskItemFieldRenderer({
                     onEditFromPreview={handleEditDescriptionFromPreview}
                     onExpand={() => setDescriptionExpanded(true)}
                     onCloseExpanded={() => setDescriptionExpanded(false)}
-                    onDescriptionInput={(value, selection) => {
-                        applyDescriptionValue(value);
-                        descriptionSelectionRef.current = selection;
-                    }}
+                    onDescriptionInput={handleDescriptionInput}
                     onDescriptionChange={applyDescriptionValue}
                     onSelectionChange={(selection) => {
                         descriptionSelectionRef.current = selection;
