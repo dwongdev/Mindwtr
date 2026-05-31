@@ -16,9 +16,21 @@ assignees: ''
 
 ### ℹ️ Environment
 - **App Version:** (e.g. v0.6.14)
+- **Install Channel(s):** (e.g. Flathub / Play Store / MS Store / F-Droid / APT / AUR / release file)
 - **Sync Backend:** (WebDAV / Local File Sync / Cloud server)
 - **OS Version(s):** (all devices involved)
 - **Device clocks auto-sync enabled:** (yes/no/unknown)
+
+<details>
+<summary><strong>Install channel examples (Click to expand)</strong></summary>
+
+- **Desktop Linux:** Flathub, APT, AUR, distro package, release file (`.deb`, `.rpm`, AppImage), source/dev build
+- **Desktop macOS:** App Store, Homebrew, release file (`.dmg`), source/dev build
+- **Desktop Windows:** Microsoft Store, winget, release file (`.exe` / `.msi`), source/dev build
+- **Android:** Play Store, F-Droid, release file / sideloaded APK, source/dev build
+- **iOS:** App Store, TestFlight, source/dev build
+
+</details>
 
 ### 🧩 What happened?
 Describe the data mismatch clearly (e.g. description disappeared, duplicate task, missing attachment).

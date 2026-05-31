@@ -30,8 +30,20 @@ assignees: ''
 
 ### ℹ️ Environment
 - **App Version:** (e.g. v0.1.0 or Commit Hash)
+- **Install Channel:** (e.g. Flathub / Play Store / MS Store / F-Droid / APT / AUR / release file)
 - **OS Version:** (e.g. Arch Linux Kernel 6.6, Android 14)
 - **Device:** (If mobile)
+
+<details>
+<summary><strong>Install channel examples (Click to expand)</strong></summary>
+
+- **Desktop Linux:** Flathub, APT, AUR, distro package, release file (`.deb`, `.rpm`, AppImage), source/dev build
+- **Desktop macOS:** App Store, Homebrew, release file (`.dmg`), source/dev build
+- **Desktop Windows:** Microsoft Store, winget, release file (`.exe` / `.msi`), source/dev build
+- **Android:** Play Store, F-Droid, release file / sideloaded APK, source/dev build
+- **iOS:** App Store, TestFlight, source/dev build
+
+</details>
 
 ### 🚨 Impact
 - [ ] Blocks core workflow
