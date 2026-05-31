@@ -188,7 +188,7 @@ export function TaskItemEditor({
             className="flex flex-col gap-3 max-h-[80vh]"
         >
             <div className="flex-1 min-h-0 overflow-y-auto pr-1 space-y-3">
-                <div className="flex items-start gap-2">
+                <div className="flex items-start gap-3 pt-0.5">
                     {onMarkDone && (
                         <button
                             type="button"
@@ -197,7 +197,7 @@ export function TaskItemEditor({
                             aria-pressed={isDoneActionActive}
                             title={t('status.done')}
                             className={cn(
-                                'mt-0.5 inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full border transition-colors focus:outline-none focus:ring-2 focus:ring-primary/40',
+                                'mt-0.5 inline-flex h-8 w-8 shrink-0 cursor-pointer items-center justify-center rounded-full border transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:ring-offset-1 focus-visible:ring-offset-card motion-reduce:transition-none',
                                 isDoneActionActive
                                     ? 'border-emerald-500 bg-emerald-500 text-white shadow-sm'
                                     : 'border-border bg-muted/30 text-muted-foreground hover:border-emerald-500/50 hover:bg-emerald-500/10 hover:text-emerald-500'
