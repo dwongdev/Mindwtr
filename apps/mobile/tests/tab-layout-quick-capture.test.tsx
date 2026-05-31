@@ -33,8 +33,8 @@ vi.mock('expo-router', () => {
         index: 0,
         key: 'tabs',
         routes: [
-          { key: 'inbox-key', name: 'inbox' },
           { key: 'focus-key', name: 'focus' },
+          { key: 'inbox-key', name: 'inbox' },
           { key: 'capture-key', name: 'capture' },
           { key: 'projects-key', name: 'projects' },
           { key: 'calendar-key', name: 'calendar-tab' },

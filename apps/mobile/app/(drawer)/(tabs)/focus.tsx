@@ -1037,9 +1037,14 @@ export default function FocusScreen() {
               />
             )}
             <View style={styles.headerTopRow}>
-              <Text style={[styles.dateText, { color: tc.secondaryText }]}>
-                {safeFormatDate(new Date(), 'PPPP')}
-              </Text>
+              <View style={styles.headerTextBlock}>
+                <Text style={[styles.dateText, { color: tc.secondaryText }]}>
+                  {safeFormatDate(new Date(), 'PPPP')}
+                </Text>
+                <Text style={[styles.subtitleText, { color: tc.secondaryText }]}>
+                  {resolveText('agenda.subtitle', 'What you can commit to doing right now.')}
+                </Text>
+              </View>
               <View style={styles.headerActions}>
                 <Pressable
                   accessibilityLabel={resolveText('filters.label', 'Filters')}
@@ -1454,6 +1459,15 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     gap: 12,
+  },
+  headerTextBlock: {
+    flex: 1,
+    minWidth: 0,
+  },
+  subtitleText: {
+    marginTop: 2,
+    fontSize: 13,
+    lineHeight: 18,
   },
   headerActions: {
     flexDirection: 'row',

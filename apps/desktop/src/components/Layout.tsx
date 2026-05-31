@@ -271,8 +271,8 @@ export function Layout({ children, currentView, onViewChange }: LayoutProps) {
             key: 'focus',
             label: t('nav.sectionFocus') || 'Focus',
             items: [
-                { id: 'inbox', labelKey: 'nav.inbox', icon: Inbox, count: inboxCount },
                 { id: 'agenda', labelKey: 'nav.agenda', icon: Target },
+                { id: 'inbox', labelKey: 'nav.inbox', icon: Inbox, count: inboxCount },
             ],
         },
         {

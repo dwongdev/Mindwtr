@@ -4,7 +4,7 @@ import { purgeExpiredTombstones } from './sync';
 import { markCoreStartupPhase, measureCoreStartupPhase } from './startup-profiler';
 import { normalizeTaskForLoad } from './task-status';
 import type { StorageAdapter } from './storage';
-import type { AppData, Area, MigrationSettings, Project, TaskEditorFieldId } from './types';
+import type { AppData, Area, MigrationSettings, Project, Task, TaskEditorFieldId } from './types';
 import type { DerivedCache, TaskStore } from './store-types';
 import {
     buildSaveSnapshot,
@@ -119,6 +119,90 @@ const normalizeAreaForLoad = (area: Area, fallbackOrder: number, nowIso: string)
         createdAt,
         updatedAt,
     };
+};
+
+type StarterTaskTemplate = {
+    title: string;
+    description: string;
+    checklist: string[];
+};
+
+const buildFreshInstallGettingStartedData = (nowIso: string, deviceId?: string): Pick<AppData, 'projects' | 'tasks'> => {
+    const projectId = uuidv4();
+    const revisionMeta = deviceId ? { revBy: deviceId } : {};
+    const project: Project = {
+        id: projectId,
+        title: 'Getting Started',
+        status: 'active',
+        color: '#3B82F6',
+        order: 0,
+        tagIds: [],
+        rev: 1,
+        ...revisionMeta,
+        createdAt: nowIso,
+        updatedAt: nowIso,
+    };
+    const starterTasks: StarterTaskTemplate[] = [
+        {
+            title: 'Bring your tasks into Mindwtr',
+            description: 'If you already use another task app, import first so the rest of your setup happens around real work.',
+            checklist: [
+                'Open Settings -> Data',
+                'Import Todoist, DGT GTD, OmniFocus, Apple Reminders, or a backup file',
+                'Review imported items from Inbox',
+            ],
+        },
+        {
+            title: 'Pick your sync method',
+            description: 'Sync is optional. Choose one method that matches how you want to move data between devices.',
+            checklist: [
+                'Open Settings -> Sync',
+                'Choose Dropbox for the easiest cloud setup, File for a synced folder, or WebDAV/Self-hosted for custom storage',
+                'Run Test connection when available, then Sync now',
+            ],
+        },
+        {
+            title: 'Make Focus your doing list',
+            description: 'Focus is for actions you can commit to now. Keep Inbox for capture and processing.',
+            checklist: [
+                'Move a real next action out of Inbox',
+                "Mark today's most important items for Focus when needed",
+                'Add contexts, energy, or time estimates only when they help you choose',
+            ],
+        },
+        {
+            title: 'Run a weekly review',
+            description: 'A short review keeps your system trustworthy without turning every task into an alarm.',
+            checklist: [
+                'Open Review',
+                'Clarify Inbox items',
+                'Promote the next few actions and leave the rest quiet',
+            ],
+        },
+    ];
+    const tasks: Task[] = starterTasks.map((template, index) => ({
+        id: uuidv4(),
+        title: template.title,
+        status: 'next',
+        taskMode: 'list',
+        tags: [],
+        contexts: [],
+        checklist: template.checklist.map((title) => ({
+            id: uuidv4(),
+            title,
+            isCompleted: false,
+        })),
+        description: template.description,
+        projectId,
+        order: index,
+        orderNum: index,
+        rev: 1,
+        ...revisionMeta,
+        createdAt: nowIso,
+        updatedAt: nowIso,
+    }));
+
+    return { projects: [project], tasks };
 };
 
 type SettingsActionContext = {
@@ -314,6 +398,7 @@ export const createSettingsActions = ({
             let didProjectOrderMigration = false;
             let didAreaMigration = didNormalizeAreaTimestamps;
             let didRunAreaDedupePass = false;
+            let didSeedGettingStarted = false;
             let allProjects = rawProjects;
             let allSections = rawSections;
             let allAreas = rawAreas;
@@ -495,6 +580,12 @@ export const createSettingsActions = ({
                     });
                 }
             }
+            if (isFreshInstall) {
+                const starterData = buildFreshInstallGettingStartedData(nowIso, nextSettings.deviceId);
+                allTasks = starterData.tasks;
+                allProjects = starterData.projects;
+                didSeedGettingStarted = true;
+            }
             let didCompleteTasksForArchivedProjects = false;
             let didArchiveSectionsForArchivedProjects = false;
             const archivedProjectIds = new Set(
@@ -669,6 +760,7 @@ export const createSettingsActions = ({
                                 || didClearDeletedProjectArchiveMetadata
                                 || didRepairEntityReferences
                                 || didTombstoneCleanup
+                                || didSeedGettingStarted
                                 ? getNextDataChangeAt(state.lastDataChangeAt)
                                 : state.lastDataChangeAt,
                     };
@@ -697,6 +789,7 @@ export const createSettingsActions = ({
                 || didTombstoneCleanup
                 || didAreaMigration
                 || didProjectOrderMigration
+                || didSeedGettingStarted
                 || didSettingsUpdate
             ) {
                 markCoreStartupPhase('core.fetch_data.debounced_save_enqueued');

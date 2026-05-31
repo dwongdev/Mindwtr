@@ -1,4 +1,4 @@
-import { Calendar, ChevronDown, List } from 'lucide-react';
+import { ChevronDown, List, Target } from 'lucide-react';
 
 import { cn } from '../../../lib/utils';
 import type { NextGroupBy } from '../list/next-grouping';
@@ -30,10 +30,13 @@ export function AgendaHeader({
         <header className="flex flex-wrap items-start justify-between gap-3">
             <div>
                 <h2 className="flex items-center gap-2 text-3xl font-bold tracking-tight">
-                    <Calendar className="h-8 w-8" />
+                    <Target className="h-8 w-8" />
                     {t('agenda.title')}
                 </h2>
                 <p className="text-muted-foreground">
+                    {resolveText('agenda.subtitle', 'What you can commit to doing right now.')}
+                </p>
+                <p className="mt-1 text-sm text-muted-foreground">
                     {nextActionsCount} {t('list.next') || t('agenda.nextActions')}
                 </p>
             </div>

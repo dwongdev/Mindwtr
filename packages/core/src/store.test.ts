@@ -1074,6 +1074,42 @@ describe('TaskStore', () => {
         expect(useTaskStore.getState().settings.notificationsEnabled).toBe(false);
     });
 
+    it('seeds a getting started project on first install', async () => {
+        mockStorage.getData = vi.fn().mockResolvedValue({
+            tasks: [],
+            projects: [],
+            sections: [],
+            areas: [],
+            settings: {},
+        });
+
+        await useTaskStore.getState().fetchData({ silent: true });
+        await flushPendingSave();
+
+        const state = useTaskStore.getState();
+        const starterProject = state.projects.find((project) => project.title === 'Getting Started');
+        expect(starterProject).toBeTruthy();
+
+        const starterTasks = state.tasks
+            .filter((task) => task.projectId === starterProject?.id)
+            .sort((left, right) => (left.order ?? 0) - (right.order ?? 0));
+
+        expect(starterTasks.map((task) => task.title)).toEqual([
+            'Bring your tasks into Mindwtr',
+            'Pick your sync method',
+            'Make Focus your doing list',
+            'Run a weekly review',
+        ]);
+        expect(starterTasks.every((task) => task.status === 'next')).toBe(true);
+        expect(starterTasks.every((task) => task.taskMode === 'list')).toBe(true);
+        expect(starterTasks[1].checklist?.map((item) => item.title)).toContain('Open Settings -> Sync');
+
+        const saveCalls = (mockStorage.saveData as unknown as { mock: { calls: any[][] } }).mock.calls;
+        const saved = saveCalls[saveCalls.length - 1]?.[0];
+        expect(saved?.projects).toHaveLength(1);
+        expect(saved?.tasks).toHaveLength(4);
+    });
+
     it('does not force notifications off for existing data with legacy settings', async () => {
         mockStorage.getData = vi.fn().mockResolvedValue({
             tasks: [
@@ -1096,6 +1132,22 @@ describe('TaskStore', () => {
         await useTaskStore.getState().fetchData({ silent: true });
 
         expect(useTaskStore.getState().settings.notificationsEnabled).toBeUndefined();
+        expect(useTaskStore.getState().projects).toHaveLength(0);
+    });
+
+    it('does not seed getting started data when existing settings are present', async () => {
+        mockStorage.getData = vi.fn().mockResolvedValue({
+            tasks: [],
+            projects: [],
+            sections: [],
+            areas: [],
+            settings: { theme: 'dark' },
+        });
+
+        await useTaskStore.getState().fetchData({ silent: true });
+
+        expect(useTaskStore.getState().tasks).toHaveLength(0);
+        expect(useTaskStore.getState().projects).toHaveLength(0);
     });
 
     it('supports a basic task lifecycle', async () => {

@@ -668,21 +668,21 @@ export default function TabLayout() {
         ),
       })}
       >
-        <Tabs.Screen
-        name="inbox"
-        options={{
-          title: t('tab.inbox'),
-          tabBarIcon: ({ color, focused }) => (
-            <Inbox size={focused ? 26 : 24} color={color} strokeWidth={2} opacity={focused ? 1 : 0.8} />
-          ),
-        }}
-      />
       <Tabs.Screen
         name="focus"
         options={{
           title: t('tab.next'),
           tabBarIcon: ({ color, focused }) => (
             <Target size={focused ? 26 : 24} color={color} strokeWidth={2} opacity={focused ? 1 : 0.8} />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="inbox"
+        options={{
+          title: t('tab.inbox'),
+          tabBarIcon: ({ color, focused }) => (
+            <Inbox size={focused ? 26 : 24} color={color} strokeWidth={2} opacity={focused ? 1 : 0.8} />
           ),
         }}
       />
