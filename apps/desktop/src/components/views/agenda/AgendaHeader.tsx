@@ -1,4 +1,4 @@
-import { ChevronDown, List, Target } from 'lucide-react';
+import { ChevronDown, List } from 'lucide-react';
 
 import { cn } from '../../../lib/utils';
 import type { NextGroupBy } from '../list/next-grouping';
@@ -29,8 +29,7 @@ export function AgendaHeader({
     return (
         <header className="flex flex-wrap items-start justify-between gap-3">
             <div>
-                <h2 className="flex items-center gap-2 text-3xl font-bold tracking-tight">
-                    <Target className="h-8 w-8" />
+                <h2 className="text-3xl font-bold tracking-tight">
                     {t('agenda.title')}
                 </h2>
                 <p className="mt-1 text-sm text-muted-foreground">
