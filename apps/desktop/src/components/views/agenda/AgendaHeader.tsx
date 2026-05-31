@@ -33,9 +33,6 @@ export function AgendaHeader({
                     <Target className="h-8 w-8" />
                     {t('agenda.title')}
                 </h2>
-                <p className="text-muted-foreground">
-                    {resolveText('agenda.subtitle', 'What you can commit to doing right now.')}
-                </p>
                 <p className="mt-1 text-sm text-muted-foreground">
                     {nextActionsCount} {t('list.next') || t('agenda.nextActions')}
                 </p>

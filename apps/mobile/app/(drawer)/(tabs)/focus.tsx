@@ -1041,9 +1041,6 @@ export default function FocusScreen() {
                 <Text style={[styles.dateText, { color: tc.secondaryText }]}>
                   {safeFormatDate(new Date(), 'PPPP')}
                 </Text>
-                <Text style={[styles.subtitleText, { color: tc.secondaryText }]}>
-                  {resolveText('agenda.subtitle', 'What you can commit to doing right now.')}
-                </Text>
               </View>
               <View style={styles.headerActions}>
                 <Pressable

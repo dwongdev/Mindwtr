@@ -1,4 +1,4 @@
-import { AlertCircle, CheckCircle2, RefreshCw } from 'lucide-react';
+import { AlertCircle, CheckCircle2, ExternalLink, RefreshCw } from 'lucide-react';
 import { cn } from '../../../../lib/utils';
 import type { SettingsSyncPageProps } from './types';
 
@@ -524,7 +524,15 @@ export function SyncConfigurationSection({
             </h2>
 
             <div className="bg-card border border-border rounded-lg p-6 space-y-4">
-                <p className="text-sm text-muted-foreground">{t.syncDescription}</p>
+                <a
+                    href="https://github.com/dongdongbh/Mindwtr/wiki/Data-and-Sync"
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-flex items-center gap-1 text-sm font-medium text-primary hover:underline"
+                >
+                    Data and Sync guide
+                    <ExternalLink className="h-3.5 w-3.5" aria-hidden="true" />
+                </a>
 
                 <div className="space-y-1">
                     <span className="text-sm font-medium">{t.syncBackend}</span>

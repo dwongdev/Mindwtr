@@ -113,6 +113,11 @@ describe('SyncConfigurationSection', () => {
         expect(queryByText('Folder / File Sync')).not.toBeInTheDocument();
         expect(queryByText('Advanced / Custom Server')).not.toBeInTheDocument();
         expect(queryByText('Cloud provider')).not.toBeInTheDocument();
+        expect(queryByText('Sync description')).not.toBeInTheDocument();
+        expect(getByRole('link', { name: /Data and Sync guide/ })).toHaveAttribute(
+            'href',
+            'https://github.com/dongdongbh/Mindwtr/wiki/Data-and-Sync'
+        );
     });
 
     it('shows the selected backend group instead of all groups at once', () => {
