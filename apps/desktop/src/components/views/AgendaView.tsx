@@ -1031,11 +1031,14 @@ export function AgendaView() {
             ) : (
                 <>
                     {focusedTasks.length > 0 && (
-                        <div className="bg-gradient-to-r from-yellow-50 to-orange-50 dark:from-yellow-900/40 dark:to-amber-900/25 border border-yellow-200 dark:border-amber-500/30 rounded-xl p-6">
-                            <h3 className="font-bold text-lg flex items-center gap-2 mb-4 text-slate-900 dark:text-amber-100">
+                        <div
+                            data-testid="todays-focus-section"
+                            className="rounded-xl border border-border/70 border-l-4 border-l-amber-400 bg-card/70 p-6 shadow-sm dark:border-border/60 dark:border-l-amber-400/80 dark:bg-card/60"
+                        >
+                            <h3 className="font-bold text-lg flex items-center gap-2 mb-4 text-foreground">
                                 <Star className="w-5 h-5 text-yellow-500 fill-yellow-500 dark:text-amber-300 dark:fill-amber-300" />
                                 {t('agenda.todaysFocus')}
-                                <span className="text-sm font-normal text-slate-600 dark:text-amber-200">
+                                <span className="text-sm font-normal text-muted-foreground">
                                     ({focusedCount}/{focusTaskLimit})
                                 </span>
                             </h3>

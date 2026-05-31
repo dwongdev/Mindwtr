@@ -66,6 +66,16 @@ describe('AgendaView', () => {
         expect(getByText('Checklist item')).toBeInTheDocument();
     });
 
+    it('uses a neutral surface for today focus in dark mode', () => {
+        const { getByTestId } = renderAgenda();
+
+        const sectionClassName = getByTestId('todays-focus-section').className;
+        expect(sectionClassName).toContain('bg-card/70');
+        expect(sectionClassName).toContain('border-l-amber-400');
+        expect(sectionClassName).not.toContain('dark:from-yellow');
+        expect(sectionClassName).not.toContain('dark:to-amber');
+    });
+
     it('collapses expanded task details when page details are turned off', () => {
         const nextTask: Task = {
             id: 'next-action-task',
