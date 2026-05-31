@@ -793,7 +793,7 @@ export const TaskItemDisplay = memo(function TaskItemDisplay({
                                     value={task.status}
                                     aria-label={t('task.aria.status')}
                                     onChange={(e) => onStatusChange(e.target.value as TaskStatus)}
-                                    className="text-[11px] font-medium px-2.5 py-0.5 rounded-full cursor-pointer appearance-none bg-primary/10 text-primary border-none hover:bg-primary/15 focus:outline-none focus:ring-2 focus:ring-primary/40"
+                                    className="text-[11px] font-medium px-2.5 py-0.5 rounded-full cursor-pointer appearance-none bg-primary/10 text-blue-700 border-none hover:bg-primary/15 focus:outline-none focus:ring-2 focus:ring-primary/40 dark:text-primary"
                                 >
                                     <option value="inbox">{t('status.inbox')}</option>
                                     <option value="next">{t('status.next')}</option>
