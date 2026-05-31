@@ -38,6 +38,7 @@ interface TaskInputProps {
     inputRef?: RefObject<HTMLInputElement | null>;
     onKeyDown?: KeyboardEventHandler<HTMLInputElement>;
     dir?: 'ltr' | 'rtl';
+    ariaLabel?: string;
 }
 
 function getTrigger(text: string, caret: number): TriggerState | null {
@@ -76,6 +77,7 @@ export function TaskInput({
     inputRef,
     onKeyDown,
     dir,
+    ariaLabel,
 }: TaskInputProps) {
     const localRef = useRef<HTMLInputElement>(null);
     const mergedRef = inputRef ?? localRef;
@@ -313,6 +315,7 @@ export function TaskInput({
                 aria-controls={hasOptions ? listboxId : undefined}
                 aria-owns={hasOptions ? listboxId : undefined}
                 aria-activedescendant={activeDescendantId}
+                aria-label={ariaLabel}
                 className={cn(className, dir === 'rtl' && 'text-right')}
                 dir={dir}
             />

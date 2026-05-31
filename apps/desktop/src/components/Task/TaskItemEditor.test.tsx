@@ -11,6 +11,7 @@ const translations: Record<string, string> = {
     'taskEdit.organizationEmpty': 'No organization fields',
     'taskEdit.detailsEmpty': 'No details fields',
     'taskEdit.locationLabel': 'Location',
+    'taskEdit.titleLabel': 'Task title',
     'task.aria.location': 'Location',
     'taskEdit.locationPlaceholder': 'Add location',
     'taskEdit.duplicateTask': 'Duplicate task',
@@ -142,6 +143,17 @@ describe('TaskItemEditor', () => {
         fireEvent.click(doneButton);
 
         expect(onMarkDone).toHaveBeenCalledTimes(1);
+    });
+
+    it('emphasizes the task title field in the editor header', () => {
+        const { getByRole } = render(<TaskItemEditor {...baseProps} />);
+
+        expect(getByRole('combobox', { name: 'Task title' })).toHaveClass(
+            'text-lg',
+            'font-semibold',
+            'text-foreground',
+            'focus-visible:ring-2'
+        );
     });
 
     it('does not show a delete action without an edit-mode delete handler', () => {

@@ -218,7 +218,8 @@ export function TaskItemEditor({
                         areas={areas}
                         onCreateProject={onCreateProject}
                         placeholder={t('taskEdit.titleLabel')}
-                        className="w-full bg-transparent border-b border-primary/50 p-1 text-base font-medium focus:ring-0 focus:border-primary outline-none"
+                        ariaLabel={t('taskEdit.titleLabel')}
+                        className="w-full rounded-sm bg-transparent border-b border-primary/60 px-1 pb-1.5 pt-0 text-lg font-semibold leading-7 text-foreground placeholder:text-muted-foreground transition-colors focus:border-primary focus:ring-0 focus-visible:ring-2 focus-visible:ring-primary/30 focus-visible:ring-offset-1 focus-visible:ring-offset-card outline-none motion-reduce:transition-none"
                         containerClassName="flex-1 min-w-0"
                         dir={titleDirection}
                     />
