@@ -1,8 +1,6 @@
 import { createWithEqualityFn } from 'zustand/traditional';
 import type { TaskPriority, TimeEstimate } from '@mindwtr/core';
 
-import { PROJECTS_VIEW_STATE_STORAGE_KEY } from '../constants/layout';
-
 const toastTimeouts = new Map<string, number>();
 type ListNextGroupBy = 'none' | 'context' | 'area' | 'project' | 'energy' | 'priority';
 type ListOptions = {
@@ -28,7 +26,7 @@ function isListNextGroupBy(value: unknown): value is ListNextGroupBy {
         || value === 'priority';
 }
 
-function getUiStorage(): Storage | null {
+function getListOptionsStorage(): Storage | null {
     if (typeof window === 'undefined') return null;
     try {
         return window.localStorage;
@@ -38,7 +36,7 @@ function getUiStorage(): Storage | null {
 }
 
 function readStoredListOptions(): ListOptions {
-    const storage = getUiStorage();
+    const storage = getListOptionsStorage();
     if (!storage) return DEFAULT_LIST_OPTIONS;
     try {
         const raw = storage.getItem(LIST_OPTIONS_STORAGE_KEY);
@@ -55,45 +53,12 @@ function readStoredListOptions(): ListOptions {
 }
 
 function saveStoredListOptions(options: ListOptions) {
-    const storage = getUiStorage();
+    const storage = getListOptionsStorage();
     if (!storage) return;
     try {
         storage.setItem(LIST_OPTIONS_STORAGE_KEY, JSON.stringify(options));
     } catch {
         // View options are convenience state; storage failures should not block UI updates.
-    }
-}
-
-function readStoredProjectsSidebarCollapsed(): boolean {
-    const storage = getUiStorage();
-    if (!storage) return false;
-    try {
-        const raw = storage.getItem(PROJECTS_VIEW_STATE_STORAGE_KEY);
-        if (!raw) return false;
-        const parsed = JSON.parse(raw) as { projectsSidebarCollapsed?: unknown } | null;
-        return parsed?.projectsSidebarCollapsed === true;
-    } catch {
-        return false;
-    }
-}
-
-function saveStoredProjectsSidebarCollapsed(value: boolean) {
-    const storage = getUiStorage();
-    if (!storage) return;
-    try {
-        const raw = storage.getItem(PROJECTS_VIEW_STATE_STORAGE_KEY);
-        const parsed = raw ? JSON.parse(raw) as unknown : {};
-        const current = parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed : {};
-        storage.setItem(PROJECTS_VIEW_STATE_STORAGE_KEY, JSON.stringify({
-            ...current,
-            projectsSidebarCollapsed: value,
-        }));
-    } catch {
-        try {
-            storage.setItem(PROJECTS_VIEW_STATE_STORAGE_KEY, JSON.stringify({ projectsSidebarCollapsed: value }));
-        } catch {
-            // View state is a convenience; storage failures should not block UI updates.
-        }
     }
 }
 
@@ -136,7 +101,6 @@ interface UiState {
     setBoardFilters: (partial: Partial<UiState['boardFilters']>) => void;
     projectView: {
         selectedProjectId: string | null;
-        projectsSidebarCollapsed: boolean;
     };
     setProjectView: (partial: Partial<UiState['projectView']>) => void;
 }
@@ -230,13 +194,7 @@ export const useUiStore = createWithEqualityFn<UiState>()((set) => ({
         set((state) => ({ boardFilters: { ...state.boardFilters, ...partial } })),
     projectView: {
         selectedProjectId: null,
-        projectsSidebarCollapsed: readStoredProjectsSidebarCollapsed(),
     },
     setProjectView: (partial) =>
-        set((state) => {
-            if (typeof partial.projectsSidebarCollapsed === 'boolean') {
-                saveStoredProjectsSidebarCollapsed(partial.projectsSidebarCollapsed);
-            }
-            return { projectView: { ...state.projectView, ...partial } };
-        }),
+        set((state) => ({ projectView: { ...state.projectView, ...partial } })),
 }));

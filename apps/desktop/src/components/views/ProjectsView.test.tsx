@@ -1,48 +1,15 @@
-import { useSyncExternalStore, type ReactNode } from 'react';
+import type { ReactNode } from 'react';
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { ProjectsView } from './ProjectsView';
 
+const setProjectView = vi.fn();
 const showToast = vi.fn();
 const requestConfirmation = vi.fn();
 let resizeObserverCallback: ResizeObserverCallback | null = null;
 let animationFrameId = 0;
 const queuedAnimationFrames = new Map<number, FrameRequestCallback>();
-type MockUiState = {
-    projectView: {
-        selectedProjectId: string | null;
-        projectsSidebarCollapsed: boolean;
-    };
-    setProjectView: (partial: Partial<MockUiState['projectView']>) => void;
-    showToast: typeof showToast;
-};
-const uiStoreSubscribers = new Set<() => void>();
-let mockUiState: MockUiState;
-const notifyUiStoreSubscribers = () => {
-    uiStoreSubscribers.forEach((subscriber) => subscriber());
-};
-const setProjectView = vi.fn((partial: Partial<MockUiState['projectView']>) => {
-    mockUiState = {
-        ...mockUiState,
-        projectView: {
-            ...mockUiState.projectView,
-            ...partial,
-        },
-    };
-    notifyUiStoreSubscribers();
-});
-const resetMockUiState = () => {
-    mockUiState = {
-        projectView: {
-            selectedProjectId: null,
-            projectsSidebarCollapsed: false,
-        },
-        setProjectView,
-        showToast,
-    };
-};
-resetMockUiState();
 
 const flushAnimationFrames = () => {
     const callbacks = Array.from(queuedAnimationFrames.values());
@@ -115,16 +82,11 @@ vi.mock('../../config/performanceBudgets', () => ({
 }));
 
 vi.mock('../../store/ui-store', () => ({
-    useUiStore: (selector: (state: MockUiState) => unknown) => useSyncExternalStore(
-        (callback) => {
-            uiStoreSubscribers.add(callback);
-            return () => {
-                uiStoreSubscribers.delete(callback);
-            };
-        },
-        () => selector(mockUiState),
-        () => selector(mockUiState),
-    ),
+    useUiStore: (selector: (state: unknown) => unknown) => selector({
+        projectView: { selectedProjectId: null },
+        setProjectView,
+        showToast,
+    }),
 }));
 
 vi.mock('./projects/useAreaSidebarState', () => ({
@@ -175,11 +137,9 @@ vi.mock('./projects/useProjectsViewStore', () => ({
 
 describe('ProjectsView', () => {
     beforeEach(() => {
-        setProjectView.mockClear();
+        setProjectView.mockReset();
         showToast.mockReset();
         requestConfirmation.mockReset();
-        uiStoreSubscribers.clear();
-        resetMockUiState();
         resizeObserverCallback = null;
         animationFrameId = 0;
         queuedAnimationFrames.clear();
@@ -352,7 +312,6 @@ describe('ProjectsView', () => {
         });
 
         const sidebar = screen.getByTestId('projects-sidebar').parentElement?.parentElement;
-        const layout = sidebar?.parentElement;
         expect(sidebar).toHaveStyle({ width: '304px' });
         expect(screen.getByRole('separator', { name: 'Resize projects panel' })).toBeInTheDocument();
 
@@ -361,15 +320,12 @@ describe('ProjectsView', () => {
         await waitFor(() => {
             expect(screen.queryByTestId('projects-sidebar')).not.toBeInTheDocument();
         });
-        expect(screen.queryByTestId('projects-sidebar-collapsed')).not.toBeInTheDocument();
-        expect(sidebar).not.toBeInTheDocument();
-        expect(layout).toHaveStyle({ maxWidth: '1344px' });
+        expect(screen.getByTestId('projects-sidebar-collapsed')).toBeInTheDocument();
+        expect(sidebar).toHaveStyle({ width: '56px' });
         expect(screen.queryByRole('separator', { name: 'Resize projects panel' })).not.toBeInTheDocument();
         expect(window.localStorage.getItem('mindwtr:view:projects:v1')).toContain('"projectsSidebarCollapsed":true');
 
-        act(() => {
-            setProjectView({ projectsSidebarCollapsed: false });
-        });
+        fireEvent.click(screen.getByRole('button', { name: 'Expand projects panel' }));
 
         await waitFor(() => {
             expect(screen.getByTestId('projects-sidebar')).toBeInTheDocument();
