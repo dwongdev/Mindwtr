@@ -2,7 +2,7 @@ import { describe, it, expect, vi } from 'vitest';
 import { createEvent, fireEvent, render, waitFor } from '@testing-library/react';
 import { useState } from 'react';
 import type { Task } from '@mindwtr/core';
-import { ChecklistField } from './ChecklistField';
+import { ChecklistField, reorderChecklistItems } from './ChecklistField';
 
 const initialChecklist: NonNullable<Task['checklist']> = [
     { id: '1', title: 'Item 1', isCompleted: false },
@@ -10,8 +10,12 @@ const initialChecklist: NonNullable<Task['checklist']> = [
     { id: '3', title: 'Item 3', isCompleted: false },
 ];
 
-function ChecklistHarness() {
-    const [checklist, setChecklist] = useState<Task['checklist']>(initialChecklist);
+function ChecklistHarness({
+    initial = initialChecklist,
+}: {
+    initial?: Task['checklist'];
+}) {
+    const [checklist, setChecklist] = useState<Task['checklist']>(initial);
     return (
         <ChecklistField
             t={(key) => key}
@@ -24,6 +28,31 @@ function ChecklistHarness() {
 }
 
 describe('ChecklistField', () => {
+    it('reorders checklist items without changing completion state', () => {
+        const reordered = reorderChecklistItems(
+            [
+                { id: 'first', title: 'First', isCompleted: false },
+                { id: 'second', title: 'Second', isCompleted: true },
+                { id: 'third', title: 'Third', isCompleted: false },
+            ],
+            'third',
+            'first',
+        );
+
+        expect(reordered?.map((item) => item.id)).toEqual(['third', 'first', 'second']);
+        expect(reordered?.map((item) => item.isCompleted)).toEqual([false, false, true]);
+    });
+
+    it('renders desktop drag handles only when checklist order can change', () => {
+        const multiItem = render(<ChecklistHarness />);
+        expect(multiItem.getAllByLabelText('Drag checklist item')).toHaveLength(3);
+
+        multiItem.unmount();
+
+        const singleItem = render(<ChecklistHarness initial={[initialChecklist[0]]} />);
+        expect(singleItem.queryByLabelText('Drag checklist item')).not.toBeInTheDocument();
+    });
+
     it('wraps selected checklist text with Markdown character pairs', async () => {
         const { getAllByRole } = render(<ChecklistHarness />);
 

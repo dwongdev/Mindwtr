@@ -1,5 +1,21 @@
-import { Check, Plus, Trash2 } from 'lucide-react';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import {
+    closestCenter,
+    DndContext,
+    KeyboardSensor,
+    PointerSensor,
+    type DragEndEvent,
+    useSensor,
+    useSensors,
+} from '@dnd-kit/core';
+import {
+    SortableContext,
+    sortableKeyboardCoordinates,
+    useSortable,
+    verticalListSortingStrategy,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
+import { Check, GripVertical, Plus, Trash2 } from 'lucide-react';
+import { useCallback, useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import {
     applyMarkdownKeyboardShortcut,
     applyMarkdownPairInsertion,
@@ -39,6 +55,70 @@ const areChecklistsEqual = (a: Task['checklist'], b: Task['checklist']): boolean
     }
     return true;
 };
+
+export const reorderChecklistItems = (
+    checklist: Task['checklist'],
+    activeId: string,
+    overId: string,
+): Task['checklist'] => {
+    const list = checklist || [];
+    const oldIndex = list.findIndex((item) => item.id === activeId);
+    const newIndex = list.findIndex((item) => item.id === overId);
+    if (oldIndex < 0 || newIndex < 0 || oldIndex === newIndex) return list;
+
+    const next = [...list];
+    const [moved] = next.splice(oldIndex, 1);
+    if (!moved) return list;
+    next.splice(newIndex, 0, moved);
+    return next;
+};
+
+function SortableChecklistRow({
+    canReorder,
+    children,
+    dragLabel,
+    itemId,
+}: {
+    canReorder: boolean;
+    children: (props: { handle: ReactNode; isDragging: boolean }) => ReactNode;
+    dragLabel: string;
+    itemId: string;
+}) {
+    const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+        id: itemId,
+        disabled: !canReorder,
+    });
+    const style: CSSProperties = {
+        transform: CSS.Transform.toString(transform),
+        transition,
+        opacity: isDragging ? 0.65 : 1,
+    };
+    const handle = canReorder ? (
+        <button
+            type="button"
+            {...attributes}
+            {...listeners}
+            aria-label={dragLabel}
+            title={dragLabel}
+            onClick={(event) => event.stopPropagation()}
+            className={cn(
+                'absolute -left-6 top-1/2 flex h-5 w-5 -translate-y-1/2 items-center justify-center rounded-md',
+                'border border-transparent text-muted-foreground/70 opacity-0 transition-all',
+                'hover:border-border/70 hover:bg-muted/70 hover:text-foreground',
+                'focus:opacity-100 focus:outline-none focus:ring-2 focus:ring-primary/30',
+                'focus-visible:opacity-100 group-hover/item:opacity-100 cursor-grab active:cursor-grabbing touch-none',
+            )}
+        >
+            <GripVertical className="h-3.5 w-3.5" aria-hidden="true" />
+        </button>
+    ) : null;
+
+    return (
+        <div ref={setNodeRef} style={style} className="relative flex items-center gap-2 group/item">
+            {children({ handle, isDragging })}
+        </div>
+    );
+}
 
 export function ChecklistField({
     t,
@@ -91,6 +171,17 @@ export function ChecklistField({
         }
     }, [taskId, updateTask]);
 
+    const sensors = useSensors(
+        useSensor(PointerSensor, {
+            activationConstraint: {
+                distance: 6,
+            },
+        }),
+        useSensor(KeyboardSensor, {
+            coordinateGetter: sortableKeyboardCoordinates,
+        }),
+    );
+
     const focusChecklistIndex = useCallback((index: number, source?: HTMLElement) => {
         const scrollSnapshot = captureScrollSnapshot(source);
         const scheduleFocus = typeof window.requestAnimationFrame === 'function'
@@ -137,157 +228,189 @@ export function ChecklistField({
         restoreInputSelection(source, result.selection);
     }, [restoreInputSelection, updateChecklistItemTitle]);
 
+    const handleChecklistDragEnd = useCallback((event: DragEndEvent) => {
+        const { active, over } = event;
+        if (!over || active.id === over.id) return;
+        const nextList = reorderChecklistItems(
+            checklistDraftRef.current,
+            String(active.id),
+            String(over.id),
+        );
+        if (areChecklistsEqual(nextList, checklistDraftRef.current)) return;
+        setChecklistDraft(nextList);
+        checklistDraftRef.current = nextList;
+        checklistDirtyRef.current = false;
+        updateTask(taskId, { checklist: nextList });
+    }, [taskId, updateTask]);
+
+    const checklistItems = checklistDraft || [];
+    const canReorderChecklist = checklistItems.length > 1;
+
     return (
         <div className="flex flex-col gap-2 w-full pt-2 border-t border-border/50">
             <label className={taskEditorLabelClassName}>{t('taskEdit.checklist')}</label>
             <div className="space-y-2 pr-3">
-                {(checklistDraft || []).map((item, index) => (
-                    <div key={item.id || index} className="flex items-center gap-2 group/item">
-                        <button
-                            type="button"
-                            onClick={() => {
-                                const newList = (checklistDraft || []).map((entry, i) =>
-                                    i === index ? { ...entry, isCompleted: !entry.isCompleted } : entry
-                                );
-                                setChecklistDraft(newList);
-                                checklistDraftRef.current = newList;
-                                checklistDirtyRef.current = false;
-                                updateTask(taskId, { checklist: newList });
-                            }}
-                            className={cn(
-                                'w-4 h-4 border rounded flex items-center justify-center transition-colors',
-                                item.isCompleted
-                                    ? 'bg-primary border-primary text-primary-foreground'
-                                    : 'border-muted-foreground hover:border-primary'
-                            )}
-                        >
-                            {item.isCompleted && <Check className="w-3 h-3" />}
-                        </button>
-                        <input
-                            type="text"
-                            value={item.title}
-                            ref={(node) => {
-                                checklistInputRefs.current[index] = node;
-                            }}
-                            onChange={(event) => {
-                                const previousSelection = checklistSelectionRefs.current[index]
-                                    ?? getInputSelection(event.currentTarget);
-                                const pairedInsertion = applyMarkdownPairInsertion(
-                                    item.title,
-                                    event.target.value,
-                                    previousSelection,
-                                );
-                                if (pairedInsertion) {
-                                    applyChecklistMarkdownResult(index, pairedInsertion, event.currentTarget);
-                                    return;
-                                }
-                                updateChecklistItemTitle(index, event.target.value);
-                                checklistSelectionRefs.current[index] = getInputSelection(event.currentTarget);
-                            }}
-                            onBlur={() => {
-                                commitChecklistDraft();
-                            }}
-                            onSelect={(event) => {
-                                checklistSelectionRefs.current[index] = getInputSelection(event.currentTarget);
-                            }}
-                            onKeyDown={(event) => {
-                                const currentValue = event.currentTarget.value;
-                                const selection = getInputSelection(event.currentTarget);
-                                checklistSelectionRefs.current[index] = selection;
-                                const lowerKey = event.key.toLowerCase();
-                                if ((event.metaKey || event.ctrlKey) && !event.altKey) {
-                                    if (lowerKey !== 'b' && lowerKey !== 'i') return;
-                                    const next = applyMarkdownKeyboardShortcut(currentValue, selection, {
-                                        key: event.key,
-                                        ctrlKey: event.ctrlKey,
-                                        metaKey: event.metaKey,
-                                    });
-                                    if (!next) return;
-                                    event.preventDefault();
-                                    applyChecklistMarkdownResult(index, next, event.currentTarget);
-                                    return;
-                                }
-                                if (
-                                    selection.start !== selection.end
-                                    && !event.altKey
-                                    && !event.ctrlKey
-                                    && !event.metaKey
-                                    && ['[', '(', '{', '`', '~'].includes(event.key)
-                                ) {
-                                    const next = applyMarkdownPairInsertion(
-                                        currentValue,
-                                        `${currentValue.slice(0, selection.start)}${event.key}${currentValue.slice(selection.end)}`,
-                                        selection,
-                                    );
-                                    if (!next) return;
-                                    event.preventDefault();
-                                    applyChecklistMarkdownResult(index, next, event.currentTarget);
-                                    return;
-                                }
-                                if (event.key === 'Enter') {
-                                    event.preventDefault();
-                                    event.stopPropagation();
-                                    const newItem = {
-                                        id: generateUUID(),
-                                        title: '',
-                                        isCompleted: false,
-                                    };
-                                    const nextList = [...(checklistDraft || [])];
-                                    nextList.splice(index + 1, 0, newItem);
-                                    setChecklistDraft(nextList);
-                                    checklistDraftRef.current = nextList;
-                                    checklistDirtyRef.current = false;
-                                    updateTask(taskId, { checklist: nextList });
-                                    focusChecklistIndex(index + 1, event.currentTarget);
-                                    return;
-                                }
-                                if (event.key === 'Backspace' && item.title.length === 0) {
-                                    event.preventDefault();
-                                    const nextList = (checklistDraft || []).filter((_, i) => i !== index);
-                                    setChecklistDraft(nextList);
-                                    checklistDraftRef.current = nextList;
-                                    checklistDirtyRef.current = false;
-                                    updateTask(taskId, { checklist: nextList });
-                                    const nextIndex = Math.max(0, index - 1);
-                                    if (nextList.length > 0) {
-                                        focusChecklistIndex(nextIndex, event.currentTarget);
-                                    }
-                                    return;
-                                }
-                                if (event.key === 'Tab') {
-                                    event.stopPropagation();
-                                    const nextIndex = event.shiftKey ? index - 1 : index + 1;
-                                    if (nextIndex >= 0 && nextIndex < (checklistDraft || []).length) {
-                                        event.preventDefault();
-                                        focusChecklistIndex(nextIndex, event.currentTarget);
-                                    } else {
-                                        commitChecklistDraft();
-                                    }
-                                }
-                            }}
-                            className={cn(
-                                'flex-1 bg-transparent text-sm focus:outline-none border-b border-transparent focus:border-primary/50 px-1',
-                                item.isCompleted && 'text-muted-foreground line-through'
-                            )}
-                            placeholder={t('taskEdit.itemNamePlaceholder')}
-                        />
-                        <button
-                            type="button"
-                            tabIndex={-1}
-                            onClick={() => {
-                                const newList = (checklistDraft || []).filter((_, i) => i !== index);
-                                setChecklistDraft(newList);
-                                checklistDraftRef.current = newList;
-                                checklistDirtyRef.current = false;
-                                updateTask(taskId, { checklist: newList });
-                            }}
-                            aria-label={t('common.delete')}
-                            className="opacity-0 group-hover/item:opacity-100 text-muted-foreground hover:text-destructive p-1"
-                        >
-                            <Trash2 className="w-3 h-3" />
-                        </button>
-                    </div>
-                ))}
+                <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleChecklistDragEnd}>
+                    <SortableContext items={checklistItems.map((item) => item.id)} strategy={verticalListSortingStrategy}>
+                        {checklistItems.map((item, index) => (
+                            <SortableChecklistRow
+                                key={item.id || index}
+                                itemId={item.id}
+                                canReorder={canReorderChecklist}
+                                dragLabel="Drag checklist item"
+                            >
+                                {({ handle }) => (
+                                    <>
+                                        {handle}
+                                        <button
+                                            type="button"
+                                            onClick={() => {
+                                                const newList = checklistItems.map((entry, i) =>
+                                                    i === index ? { ...entry, isCompleted: !entry.isCompleted } : entry
+                                                );
+                                                setChecklistDraft(newList);
+                                                checklistDraftRef.current = newList;
+                                                checklistDirtyRef.current = false;
+                                                updateTask(taskId, { checklist: newList });
+                                            }}
+                                            className={cn(
+                                                'w-4 h-4 border rounded flex items-center justify-center transition-colors',
+                                                item.isCompleted
+                                                    ? 'bg-primary border-primary text-primary-foreground'
+                                                    : 'border-muted-foreground hover:border-primary'
+                                            )}
+                                        >
+                                            {item.isCompleted && <Check className="w-3 h-3" />}
+                                        </button>
+                                        <input
+                                            type="text"
+                                            value={item.title}
+                                            ref={(node) => {
+                                                checklistInputRefs.current[index] = node;
+                                            }}
+                                            onChange={(event) => {
+                                                const previousSelection = checklistSelectionRefs.current[index]
+                                                    ?? getInputSelection(event.currentTarget);
+                                                const pairedInsertion = applyMarkdownPairInsertion(
+                                                    item.title,
+                                                    event.target.value,
+                                                    previousSelection,
+                                                );
+                                                if (pairedInsertion) {
+                                                    applyChecklistMarkdownResult(index, pairedInsertion, event.currentTarget);
+                                                    return;
+                                                }
+                                                updateChecklistItemTitle(index, event.target.value);
+                                                checklistSelectionRefs.current[index] = getInputSelection(event.currentTarget);
+                                            }}
+                                            onBlur={() => {
+                                                commitChecklistDraft();
+                                            }}
+                                            onSelect={(event) => {
+                                                checklistSelectionRefs.current[index] = getInputSelection(event.currentTarget);
+                                            }}
+                                            onKeyDown={(event) => {
+                                                const currentValue = event.currentTarget.value;
+                                                const selection = getInputSelection(event.currentTarget);
+                                                checklistSelectionRefs.current[index] = selection;
+                                                const lowerKey = event.key.toLowerCase();
+                                                if ((event.metaKey || event.ctrlKey) && !event.altKey) {
+                                                    if (lowerKey !== 'b' && lowerKey !== 'i') return;
+                                                    const next = applyMarkdownKeyboardShortcut(currentValue, selection, {
+                                                        key: event.key,
+                                                        ctrlKey: event.ctrlKey,
+                                                        metaKey: event.metaKey,
+                                                    });
+                                                    if (!next) return;
+                                                    event.preventDefault();
+                                                    applyChecklistMarkdownResult(index, next, event.currentTarget);
+                                                    return;
+                                                }
+                                                if (
+                                                    selection.start !== selection.end
+                                                    && !event.altKey
+                                                    && !event.ctrlKey
+                                                    && !event.metaKey
+                                                    && ['[', '(', '{', '`', '~'].includes(event.key)
+                                                ) {
+                                                    const next = applyMarkdownPairInsertion(
+                                                        currentValue,
+                                                        `${currentValue.slice(0, selection.start)}${event.key}${currentValue.slice(selection.end)}`,
+                                                        selection,
+                                                    );
+                                                    if (!next) return;
+                                                    event.preventDefault();
+                                                    applyChecklistMarkdownResult(index, next, event.currentTarget);
+                                                    return;
+                                                }
+                                                if (event.key === 'Enter') {
+                                                    event.preventDefault();
+                                                    event.stopPropagation();
+                                                    const newItem = {
+                                                        id: generateUUID(),
+                                                        title: '',
+                                                        isCompleted: false,
+                                                    };
+                                                    const nextList = [...checklistItems];
+                                                    nextList.splice(index + 1, 0, newItem);
+                                                    setChecklistDraft(nextList);
+                                                    checklistDraftRef.current = nextList;
+                                                    checklistDirtyRef.current = false;
+                                                    updateTask(taskId, { checklist: nextList });
+                                                    focusChecklistIndex(index + 1, event.currentTarget);
+                                                    return;
+                                                }
+                                                if (event.key === 'Backspace' && item.title.length === 0) {
+                                                    event.preventDefault();
+                                                    const nextList = checklistItems.filter((_, i) => i !== index);
+                                                    setChecklistDraft(nextList);
+                                                    checklistDraftRef.current = nextList;
+                                                    checklistDirtyRef.current = false;
+                                                    updateTask(taskId, { checklist: nextList });
+                                                    const nextIndex = Math.max(0, index - 1);
+                                                    if (nextList.length > 0) {
+                                                        focusChecklistIndex(nextIndex, event.currentTarget);
+                                                    }
+                                                    return;
+                                                }
+                                                if (event.key === 'Tab') {
+                                                    event.stopPropagation();
+                                                    const nextIndex = event.shiftKey ? index - 1 : index + 1;
+                                                    if (nextIndex >= 0 && nextIndex < checklistItems.length) {
+                                                        event.preventDefault();
+                                                        focusChecklistIndex(nextIndex, event.currentTarget);
+                                                    } else {
+                                                        commitChecklistDraft();
+                                                    }
+                                                }
+                                            }}
+                                            className={cn(
+                                                'flex-1 bg-transparent text-sm focus:outline-none border-b border-transparent focus:border-primary/50 px-1',
+                                                item.isCompleted && 'text-muted-foreground line-through'
+                                            )}
+                                            placeholder={t('taskEdit.itemNamePlaceholder')}
+                                        />
+                                        <button
+                                            type="button"
+                                            tabIndex={-1}
+                                            onClick={() => {
+                                                const newList = checklistItems.filter((_, i) => i !== index);
+                                                setChecklistDraft(newList);
+                                                checklistDraftRef.current = newList;
+                                                checklistDirtyRef.current = false;
+                                                updateTask(taskId, { checklist: newList });
+                                            }}
+                                            aria-label={t('common.delete')}
+                                            className="opacity-0 group-hover/item:opacity-100 text-muted-foreground hover:text-destructive p-1"
+                                        >
+                                            <Trash2 className="w-3 h-3" />
+                                        </button>
+                                    </>
+                                )}
+                            </SortableChecklistRow>
+                        ))}
+                    </SortableContext>
+                </DndContext>
                 <button
                     type="button"
                     tabIndex={-1}
