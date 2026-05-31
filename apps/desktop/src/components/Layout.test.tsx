@@ -289,6 +289,25 @@ describe('Layout collapsed sidebar area filter', () => {
         expect(getByRole('button', { name: 'Area filter: Work' })).toBeInTheDocument();
     });
 
+    it('uses distinct collapsed icons for board navigation and area filtering', () => {
+        act(() => {
+            useTaskStore.setState((state) => ({
+                ...state,
+                settings: {
+                    ...state.settings,
+                    sidebarCollapsed: true,
+                },
+            }));
+        });
+
+        const { container, getByRole } = renderLayout();
+        const boardIcon = container.querySelector('[data-view="board"] svg');
+        const areaFilterIcon = getByRole('button', { name: 'Area filter: All areas' }).querySelector('svg');
+
+        expect(boardIcon).toHaveClass('lucide-kanban');
+        expect(areaFilterIcon).toHaveClass('lucide-layers');
+    });
+
     it('shows the project panel toggle above the area filter only on the projects view', () => {
         const { getByRole, unmount } = renderLayout('projects');
 

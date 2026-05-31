@@ -4,7 +4,7 @@ import {
     Inbox,
     CheckSquare,
     Archive,
-    Layers,
+    Kanban,
     Tag,
     CheckCircle2,
     ChevronDown,
@@ -297,7 +297,7 @@ export function Layout({ children, currentView, onViewChange }: LayoutProps) {
                 ...(isObsidianEnabled
                     ? [{ id: 'obsidian', labelKey: 'nav.obsidian', fallbackLabel: 'Obsidian', icon: BookOpen }]
                     : []),
-                { id: 'board', labelKey: 'nav.board', icon: Layers },
+                { id: 'board', labelKey: 'nav.board', icon: Kanban },
             ],
         },
         {
