@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useLayoutEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { ErrorBoundary } from '../ErrorBoundary';
 import { shallow, useTaskStore, TaskPriority, TimeEstimate, applyFilter, buildAdvancedFilterCriteriaChips, removeAdvancedFilterCriteriaChip, formatFocusTaskLimitText, generateUUID, getUsedTaskTokens, getFocusSequentialFirstTaskIds, hasActiveFilterCriteria, markSavedFilterDeleted, normalizeFocusTaskLimit, safeParseDate, safeParseDueDate, isDueForReview, isTaskInActiveProject, SAVED_FILTER_NO_PROJECT_ID, shouldShowTaskForStart, sortFocusNextActions, sortTasksBySavedPreference, translateWithFallback } from '@mindwtr/core';
@@ -10,6 +10,7 @@ import { AlertCircle, Clock, Star, ArrowRight, Folder, CheckCircle2, X } from 'l
 import { usePerformanceMonitor } from '../../hooks/usePerformanceMonitor';
 import { checkBudget } from '../../config/performanceBudgets';
 import { projectMatchesAreaFilter, resolveAreaFilter, taskMatchesAreaFilter } from '../../lib/area-filter';
+import { usePersistedViewState } from '../../hooks/usePersistedViewState';
 import { PomodoroPanel } from './PomodoroPanel';
 import { AgendaFiltersPanel, type AgendaActiveFilterChip, type AgendaProjectFilterOption } from './agenda/AgendaFiltersPanel';
 import { AgendaHeader } from './agenda/AgendaHeader';
@@ -24,6 +25,37 @@ const NO_PROJECT_FILTER_ID = SAVED_FILTER_NO_PROJECT_ID;
 const AGENDA_ACTIVE_STATUSES: Task['status'][] = ['inbox', 'next', 'waiting', 'someday'];
 const DEFAULT_FOCUS_SORT_BY: SortField = 'default';
 const FOCUS_GROUP_BY_VALUES = new Set<FocusGroupBy>(['none', 'context', 'project', 'area', 'energy', 'priority']);
+const FOCUS_VIEW_STATE_STORAGE_KEY = 'mindwtr:view:focus:v1';
+
+type FocusSectionKey = 'schedule' | 'nextActions' | 'reviewDue';
+
+type FocusPersistedViewState = {
+    expandedSections: Record<FocusSectionKey, boolean>;
+};
+
+const DEFAULT_FOCUS_VIEW_STATE: FocusPersistedViewState = {
+    expandedSections: {
+        schedule: true,
+        nextActions: true,
+        reviewDue: true,
+    },
+};
+
+function sanitizeFocusViewState(value: unknown, fallback: FocusPersistedViewState): FocusPersistedViewState {
+    const parsed = value && typeof value === 'object' && !Array.isArray(value)
+        ? value as Partial<FocusPersistedViewState>
+        : {};
+    const expandedSections = parsed.expandedSections && typeof parsed.expandedSections === 'object' && !Array.isArray(parsed.expandedSections)
+        ? parsed.expandedSections as Partial<Record<FocusSectionKey, boolean>>
+        : {};
+    return {
+        expandedSections: {
+            schedule: typeof expandedSections.schedule === 'boolean' ? expandedSections.schedule : fallback.expandedSections.schedule,
+            nextActions: typeof expandedSections.nextActions === 'boolean' ? expandedSections.nextActions : fallback.expandedSections.nextActions,
+            reviewDue: typeof expandedSections.reviewDue === 'boolean' ? expandedSections.reviewDue : fallback.expandedSections.reviewDue,
+        },
+    };
+}
 
 function normalizeAgendaGroupBy(value: unknown): NextGroupBy {
     return FOCUS_GROUP_BY_VALUES.has(value as FocusGroupBy) ? value as NextGroupBy : 'none';
@@ -227,12 +259,14 @@ export function AgendaView() {
     const [focusSortBy, setFocusSortBy] = useState<SortField>(DEFAULT_FOCUS_SORT_BY);
     const [saveFilterPromptOpen, setSaveFilterPromptOpen] = useState(false);
     const [filterPendingDelete, setFilterPendingDelete] = useState<SavedFilter | null>(null);
+    const filterInputRef = useRef<HTMLInputElement | null>(null);
     const showFutureStarts = settings?.appearance?.showFutureStarts === true;
-    const [expandedSections, setExpandedSections] = useState({
-        schedule: true,
-        nextActions: true,
-        reviewDue: true,
-    });
+    const [persistedViewState, setPersistedViewState] = usePersistedViewState(
+        FOCUS_VIEW_STATE_STORAGE_KEY,
+        DEFAULT_FOCUS_VIEW_STATE,
+        sanitizeFocusViewState
+    );
+    const expandedSections = persistedViewState.expandedSections;
     const prioritiesEnabled = settings?.features?.priorities !== false;
     const timeEstimatesEnabled = settings?.features?.timeEstimates !== false;
     const pomodoroEnabled = settings?.features?.pomodoro === true;
@@ -445,6 +479,10 @@ export function AgendaView() {
         selectedTokens,
         t,
     ]);
+    const activeFilterCount = activeFilterChips.length
+        + (normalizedSearchQuery ? 1 : 0)
+        + (effectiveFocusSortBy !== DEFAULT_FOCUS_SORT_BY ? 1 : 0)
+        + (activeSavedFilterId && activeFilterChips.length === 0 && effectiveFocusSortBy === DEFAULT_FOCUS_SORT_BY ? 1 : 0);
     const saveFilterDefaultName = getSavedFilterDefaultName(activeFilterChips, resolveText('savedFilters.defaultName', 'Focus filter'));
 
     const { filteredActiveTasks, reviewDueCandidates } = useMemo(() => {
@@ -481,11 +519,19 @@ export function AgendaView() {
     }, [projects, matchesSearchQuery, resolvedAreaFilter, areaById]);
     const hasTaskFilters = hasFilters || Boolean(normalizedSearchQuery);
     const showFiltersPanel = filtersOpen;
+    const shouldRenderFiltersPanel = filtersOpen
+        || hasTaskFilters
+        || focusSortBy !== DEFAULT_FOCUS_SORT_BY
+        || Boolean(activeSavedFilterId);
     useEffect(() => {
         if (activeSavedFilterId && !activeSavedFilter) {
             setActiveSavedFilterId(null);
         }
     }, [activeSavedFilter, activeSavedFilterId]);
+    useEffect(() => {
+        if (!filtersOpen) return;
+        filterInputRef.current?.focus();
+    }, [filtersOpen]);
     const toggleTokenFilter = (token: string) => {
         setActiveSavedFilterId(null);
         setSelectedTokens((prev) =>
@@ -826,12 +872,15 @@ export function AgendaView() {
         };
     }, [focusTaskLimit, focusedCount, handleToggleFocus, t]);
 
-    const toggleSection = useCallback((sectionKey: keyof typeof expandedSections) => {
-        setExpandedSections((current) => ({
+    const toggleSection = useCallback((sectionKey: FocusSectionKey) => {
+        setPersistedViewState((current) => ({
             ...current,
-            [sectionKey]: !current[sectionKey],
+            expandedSections: {
+                ...current.expandedSections,
+                [sectionKey]: !current.expandedSections[sectionKey],
+            },
         }));
-    }, []);
+    }, [setPersistedViewState]);
 
     const nextActionsCount = sections.nextActions.length;
     const hasAgendaContent = focusedTasks.length > 0
@@ -866,9 +915,12 @@ export function AgendaView() {
         <ErrorBoundary>
             <div className="space-y-6 w-full">
             <AgendaHeader
+                filterCount={activeFilterCount}
+                filtersOpen={filtersOpen}
                 nextActionsCount={nextActionsCount}
                 nextGroupBy={effectiveNextGroupBy}
                 onChangeGroupBy={updateFocusGroupBy}
+                onToggleFilters={() => setFiltersOpen((prev) => !prev)}
                 onToggleDetails={handleToggleDetails}
                 onToggleTop3={() => setListOptions({ focusTop3Only: !top3Only })}
                 resolveText={resolveText}
@@ -930,42 +982,45 @@ export function AgendaView() {
 
             {pomodoroEnabled && <PomodoroPanel tasks={pomodoroTasks} />}
 
-            <AgendaFiltersPanel
-                allTokens={allTokens}
-                activeFilterChips={activeFilterChips}
-                canSaveFilter={canSaveFocusPerspective}
-                energyLevelOptions={energyLevelOptions}
-                focusSortBy={effectiveFocusSortBy}
-                formatEstimate={formatEstimate}
-                hasFilters={hasFilters}
-                locationFilter={locationFilter}
-                onClearFilters={clearFilters}
-                onLocationChange={updateLocationFilter}
-                onSaveFilter={() => setSaveFilterPromptOpen(true)}
-                onSearchChange={setSearchQuery}
-                onSortChange={updateFocusSortBy}
-                onToggleEnergy={toggleEnergyFilter}
-                onToggleFiltersOpen={() => setFiltersOpen((prev) => !prev)}
-                onToggleProject={toggleProjectFilter}
-                onTogglePriority={togglePriorityFilter}
-                onToggleTime={toggleTimeFilter}
-                onToggleToken={toggleTokenFilter}
-                prioritiesEnabled={prioritiesEnabled}
-                projectOptions={projectOptions}
-                priorityOptions={priorityOptions}
-                searchQuery={searchQuery}
-                saveFilterLabel={resolveText('savedFilters.save', 'Save')}
-                selectedEnergyLevels={selectedEnergyLevels}
-                selectedProjects={selectedProjects}
-                selectedPriorities={selectedPriorities}
-                selectedTimeEstimates={selectedTimeEstimates}
-                selectedTokens={selectedTokens}
-                showNoProjectOption={showNoProjectOption}
-                showFiltersPanel={showFiltersPanel}
-                t={t}
-                timeEstimateOptions={timeEstimateOptions}
-                timeEstimatesEnabled={timeEstimatesEnabled}
-            />
+            {shouldRenderFiltersPanel && (
+                <AgendaFiltersPanel
+                    allTokens={allTokens}
+                    activeFilterChips={activeFilterChips}
+                    canSaveFilter={canSaveFocusPerspective}
+                    energyLevelOptions={energyLevelOptions}
+                    focusSortBy={effectiveFocusSortBy}
+                    formatEstimate={formatEstimate}
+                    hasFilters={activeFilterCount > 0}
+                    locationFilter={locationFilter}
+                    onClearFilters={clearAllFilters}
+                    onLocationChange={updateLocationFilter}
+                    onSaveFilter={() => setSaveFilterPromptOpen(true)}
+                    onSearchChange={setSearchQuery}
+                    onSortChange={updateFocusSortBy}
+                    onToggleEnergy={toggleEnergyFilter}
+                    onToggleFiltersOpen={() => setFiltersOpen((prev) => !prev)}
+                    onToggleProject={toggleProjectFilter}
+                    onTogglePriority={togglePriorityFilter}
+                    onToggleTime={toggleTimeFilter}
+                    onToggleToken={toggleTokenFilter}
+                    prioritiesEnabled={prioritiesEnabled}
+                    projectOptions={projectOptions}
+                    priorityOptions={priorityOptions}
+                    searchInputRef={filterInputRef}
+                    searchQuery={searchQuery}
+                    saveFilterLabel={resolveText('savedFilters.save', 'Save')}
+                    selectedEnergyLevels={selectedEnergyLevels}
+                    selectedProjects={selectedProjects}
+                    selectedPriorities={selectedPriorities}
+                    selectedTimeEstimates={selectedTimeEstimates}
+                    selectedTokens={selectedTokens}
+                    showNoProjectOption={showNoProjectOption}
+                    showFiltersPanel={showFiltersPanel}
+                    t={t}
+                    timeEstimateOptions={timeEstimateOptions}
+                    timeEstimatesEnabled={timeEstimatesEnabled}
+                />
+            )}
 
             {error && (
                 <div

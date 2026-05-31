@@ -1,3 +1,4 @@
+import type { RefObject } from 'react';
 import type { SortField, TaskEnergyLevel, TaskPriority, TimeEstimate } from '@mindwtr/core';
 import { Filter, Save, X } from 'lucide-react';
 
@@ -43,6 +44,7 @@ type AgendaFiltersPanelProps = {
     projectOptions: AgendaProjectFilterOption[];
     priorityOptions: TaskPriority[];
     searchQuery: string;
+    searchInputRef?: RefObject<HTMLInputElement | null>;
     saveFilterLabel: string;
     selectedEnergyLevels: TaskEnergyLevel[];
     selectedProjects: string[];
@@ -80,6 +82,7 @@ export function AgendaFiltersPanel({
     projectOptions,
     priorityOptions,
     searchQuery,
+    searchInputRef,
     saveFilterLabel,
     selectedEnergyLevels,
     selectedProjects,
@@ -93,7 +96,7 @@ export function AgendaFiltersPanel({
     timeEstimatesEnabled,
 }: AgendaFiltersPanelProps) {
     return (
-        <div className="space-y-3 rounded-lg border border-border bg-card p-3">
+        <div id="agenda-filters-panel" className="space-y-3 rounded-lg border border-border/70 bg-card/45 p-3">
             <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
                     <Filter className="h-4 w-4" />
@@ -130,6 +133,7 @@ export function AgendaFiltersPanel({
                 </div>
             </div>
             <input
+                ref={searchInputRef}
                 type="text"
                 data-view-filter-input
                 placeholder={t('common.search')}
