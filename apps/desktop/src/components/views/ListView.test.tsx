@@ -77,6 +77,7 @@ describe('ListView', () => {
       },
       projectView: {
         selectedProjectId: null,
+        projectsSidebarCollapsed: false,
       },
       editingTaskId: null,
       expandedTaskIds: {},

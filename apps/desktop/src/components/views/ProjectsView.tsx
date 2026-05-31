@@ -8,7 +8,6 @@ import {
     type KeyboardEvent as ReactKeyboardEvent,
     type PointerEvent as ReactPointerEvent,
 } from 'react';
-import { ChevronsRight, Folder } from 'lucide-react';
 import { ErrorBoundary } from '../ErrorBoundary';
 import { tFallback, useTaskStore, Task, type Project } from '@mindwtr/core';
 import { useLanguage } from '../../contexts/language-context';
@@ -31,7 +30,6 @@ import { useAreaSidebarState } from './projects/useAreaSidebarState';
 import { useProjectsViewStore } from './projects/useProjectsViewStore';
 import { splitProjectsForSidebar } from './projects/project-sidebar-grouping';
 import {
-    PROJECTS_SIDEBAR_COLLAPSED_WIDTH,
     PROJECTS_SIDEBAR_DEFAULT_WIDTH,
     PROJECTS_SIDEBAR_MIN_WIDTH,
     clampProjectsSidebarWidth,
@@ -41,6 +39,7 @@ import {
 } from './projects/projects-sidebar-width';
 import {
     PROJECTS_SIDEBAR_KEYBOARD_STEP,
+    PROJECTS_VIEW_STATE_STORAGE_KEY,
     PROJECTS_VIEW_DEFAULT_MAX_WIDTH,
     PROJECTS_VIEW_WIDE_BREAKPOINT,
     PROJECTS_VIEW_WIDE_MAX_WIDTH,
@@ -49,7 +48,6 @@ import { useConfirmDialog } from '../../hooks/useConfirmDialog';
 import { usePersistedViewState } from '../../hooks/usePersistedViewState';
 
 const COLLAPSED_AREAS_STORAGE_KEY = 'mindwtr:projects:collapsedAreas';
-const PROJECTS_VIEW_STATE_STORAGE_KEY = 'mindwtr:view:projects:v1';
 const PROJECTS_LAYOUT_SIDEBAR_EXTRA_MULTIPLIER = 3;
 const ALL_TAGS = '__all__';
 const NO_TAGS = '__none__';
@@ -153,6 +151,7 @@ export function ProjectsView() {
     );
     const { t, language } = useLanguage();
     const selectedProjectId = useUiStore((state) => state.projectView.selectedProjectId);
+    const projectsSidebarCollapsed = useUiStore((state) => state.projectView.projectsSidebarCollapsed);
     const setProjectView = useUiStore((state) => state.setProjectView);
     const showToast = useUiStore((state) => state.showToast);
     const { requestConfirmation, confirmModal } = useConfirmDialog();
@@ -167,7 +166,6 @@ export function ProjectsView() {
         DEFAULT_PROJECTS_VIEW_STATE,
         sanitizeProjectsViewState
     );
-    const projectsSidebarCollapsed = persistedViewState.projectsSidebarCollapsed;
     const showDeferredProjects = persistedViewState.showDeferredProjects;
     const showArchivedProjects = persistedViewState.showArchivedProjects;
     const showCompletedProjectTasks = persistedViewState.showCompletedProjectTasks;
@@ -214,11 +212,17 @@ export function ProjectsView() {
         }));
     }, [setPersistedViewState]);
     const toggleProjectsSidebarCollapsed = useCallback(() => {
-        setPersistedViewState((current) => ({
-            ...current,
-            projectsSidebarCollapsed: !current.projectsSidebarCollapsed,
-        }));
-    }, [setPersistedViewState]);
+        setProjectView({ projectsSidebarCollapsed: !projectsSidebarCollapsed });
+    }, [projectsSidebarCollapsed, setProjectView]);
+
+    useEffect(() => {
+        setPersistedViewState((current) => current.projectsSidebarCollapsed === projectsSidebarCollapsed
+            ? current
+            : {
+                ...current,
+                projectsSidebarCollapsed,
+            });
+    }, [projectsSidebarCollapsed, setPersistedViewState]);
 
     const getProjectsBaseMaxWidth = useCallback(() => {
         if (typeof window === 'undefined') return PROJECTS_VIEW_DEFAULT_MAX_WIDTH;
@@ -229,9 +233,7 @@ export function ProjectsView() {
 
     const projectsLayoutMaxWidth = useMemo(() => {
         const baseMaxWidth = getProjectsBaseMaxWidth();
-        const effectiveSidebarWidth = projectsSidebarCollapsed
-            ? PROJECTS_SIDEBAR_COLLAPSED_WIDTH
-            : sidebarWidth;
+        const effectiveSidebarWidth = projectsSidebarCollapsed ? 0 : sidebarWidth;
         const desiredMaxWidth = baseMaxWidth
             + Math.max(0, effectiveSidebarWidth - PROJECTS_SIDEBAR_DEFAULT_WIDTH)
             * PROJECTS_LAYOUT_SIDEBAR_EXTRA_MULTIPLIER;
@@ -311,7 +313,6 @@ export function ProjectsView() {
 
     const resizeSidebarLabel = tFallback(t, 'projects.resizeSidebar', 'Resize projects panel');
     const collapseProjectsSidebarLabel = tFallback(t, 'projects.collapseSidebar', 'Collapse projects panel');
-    const expandProjectsSidebarLabel = tFallback(t, 'projects.expandSidebar', 'Expand projects panel');
 
     const handleSidebarResizePointerDown = useCallback((event: ReactPointerEvent<HTMLDivElement>) => {
         if (event.button !== 0) return;
@@ -564,37 +565,12 @@ export function ProjectsView() {
                     className="mx-auto flex h-full w-full min-w-0 gap-5 xl:gap-6"
                     style={{ maxWidth: `${projectsLayoutMaxWidth}px` }}
                 >
-                    <div
-                        className="relative min-h-0 flex-none transition-[width] duration-150"
-                        style={{
-                            width: `${projectsSidebarCollapsed ? PROJECTS_SIDEBAR_COLLAPSED_WIDTH : sidebarWidth}px`,
-                        }}
-                    >
-                        <div id="projects-sidebar-panel" className="h-full min-w-0">
-                            {projectsSidebarCollapsed ? (
-                                <div
-                                    data-testid="projects-sidebar-collapsed"
-                                    className="flex h-full w-full flex-col items-center gap-3 border-r border-border py-1"
-                                >
-                                    <button
-                                        type="button"
-                                        onClick={toggleProjectsSidebarCollapsed}
-                                        className="h-8 w-8 flex items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground focus-visible:ring-2 focus-visible:ring-primary/40"
-                                        title={expandProjectsSidebarLabel}
-                                        aria-label={expandProjectsSidebarLabel}
-                                        aria-controls="projects-sidebar-panel"
-                                        aria-expanded={false}
-                                    >
-                                        <ChevronsRight className="w-4 h-4" />
-                                    </button>
-                                    <div
-                                        className="h-8 w-8 flex items-center justify-center rounded-md bg-muted/40 text-muted-foreground"
-                                        aria-hidden="true"
-                                    >
-                                        <Folder className="w-4 h-4" />
-                                    </div>
-                                </div>
-                            ) : (
+                    {!projectsSidebarCollapsed && (
+                        <div
+                            className="relative min-h-0 flex-none transition-[width] duration-150"
+                            style={{ width: `${sidebarWidth}px` }}
+                        >
+                            <div id="projects-sidebar-panel" className="h-full min-w-0">
                                 <ProjectsSidebar
                                     t={t}
                                     areaFilterLabel={areaFilterLabel ?? undefined}
@@ -635,9 +611,7 @@ export function ProjectsView() {
                                     collapseLabel={collapseProjectsSidebarLabel}
                                     onToggleCollapsed={toggleProjectsSidebarCollapsed}
                                 />
-                            )}
-                        </div>
-                        {!projectsSidebarCollapsed && (
+                            </div>
                             <div
                                 role="separator"
                                 aria-controls="projects-sidebar-panel"
@@ -668,8 +642,8 @@ export function ProjectsView() {
                                     }`}
                                 />
                             </div>
-                        )}
-                    </div>
+                        </div>
+                    )}
 
                     <ProjectWorkspace
                         addProject={addProject}

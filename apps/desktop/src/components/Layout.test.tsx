@@ -61,10 +61,10 @@ const createMergeStats = (conflictIds: string[] = []): MergeStats => {
     };
 };
 
-const renderLayout = () => render(
+const renderLayout = (currentView = 'inbox') => render(
     <LanguageProvider>
-        <KeybindingProvider currentView="inbox" onNavigate={onNavigate}>
-            <Layout currentView="inbox" onViewChange={vi.fn()}>
+        <KeybindingProvider currentView={currentView} onNavigate={onNavigate}>
+            <Layout currentView={currentView} onViewChange={vi.fn()}>
                 <div>Main content</div>
             </Layout>
         </KeybindingProvider>
@@ -100,6 +100,10 @@ beforeEach(() => {
         useUiStore.setState((state) => ({
             ...state,
             isFocusMode: false,
+            projectView: {
+                ...state.projectView,
+                projectsSidebarCollapsed: false,
+            },
         }));
         useObsidianStore.setState((state) => ({
             ...state,
@@ -283,6 +287,32 @@ describe('Layout collapsed sidebar area filter', () => {
         const { getByRole } = renderLayout();
 
         expect(getByRole('button', { name: 'Area filter: Work' })).toBeInTheDocument();
+    });
+
+    it('shows the project panel toggle above the area filter only on the projects view', () => {
+        const { getByRole, unmount } = renderLayout('projects');
+
+        const collapseButton = getByRole('button', { name: 'Collapse projects panel' });
+        const areaFilterButton = getByRole('button', { name: 'Area filter' });
+        expect(collapseButton).toBeInTheDocument();
+        expect(collapseButton.compareDocumentPosition(areaFilterButton) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+
+        fireEvent.click(collapseButton);
+
+        expect(useUiStore.getState().projectView.projectsSidebarCollapsed).toBe(true);
+        expect(getByRole('button', { name: 'Expand projects panel' })).toBeInTheDocument();
+
+        unmount();
+        useUiStore.setState((state) => ({
+            ...state,
+            projectView: {
+                ...state.projectView,
+                projectsSidebarCollapsed: false,
+            },
+        }));
+
+        const inboxLayout = renderLayout('inbox');
+        expect(inboxLayout.queryByRole('button', { name: 'Collapse projects panel' })).not.toBeInTheDocument();
     });
 });
 

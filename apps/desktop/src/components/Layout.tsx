@@ -93,6 +93,8 @@ export function Layout({ children, currentView, onViewChange }: LayoutProps) {
     const calendarDragNavTimeoutRef = useRef<number | null>(null);
     const isFocusMode = useUiStore((state) => state.isFocusMode);
     const showToast = useUiStore((state) => state.showToast);
+    const projectsSidebarCollapsed = useUiStore((state) => state.projectView.projectsSidebarCollapsed);
+    const setProjectView = useUiStore((state) => state.setProjectView);
     const isObsidianEnabled = useObsidianStore((state) => state.config.enabled);
     const [syncStatus, setSyncStatus] = useState(() => SyncService.getSyncStatus());
     const [isOnline, setIsOnline] = useState(() => (typeof navigator !== 'undefined' ? navigator.onLine : true));
@@ -384,11 +386,18 @@ export function Layout({ children, currentView, onViewChange }: LayoutProps) {
     const addTaskLabel = tFallback(t, 'nav.addTask', 'Add Task');
     const inboxLabel = tFallback(t, 'nav.inbox', 'Inbox');
     const inboxCaptureLabel = `${addTaskLabel} (${inboxLabel})`;
+    const projectsSidebarToggleLabel = projectsSidebarCollapsed
+        ? tFallback(t, 'projects.expandSidebar', 'Expand projects panel')
+        : tFallback(t, 'projects.collapseSidebar', 'Collapse projects panel');
 
     const savedSearches = settings?.savedSearches || [];
 
     const toggleSidebar = () => {
         updateSettings({ sidebarCollapsed: !isCollapsed }).catch((error) => reportError('Failed to update settings', error));
+    };
+
+    const toggleProjectsSidebar = () => {
+        setProjectView({ projectsSidebarCollapsed: !projectsSidebarCollapsed });
     };
 
     useEffect(() => {
@@ -633,6 +642,27 @@ export function Layout({ children, currentView, onViewChange }: LayoutProps) {
                 </div>
 
                 <div className="mt-auto border-t border-border/60 px-3 pb-3 pt-3">
+                    {currentView === 'projects' && (
+                        <div className={cn("pb-2", isCollapsed && "flex justify-center")}>
+                            <button
+                                type="button"
+                                onClick={toggleProjectsSidebar}
+                                className={cn(
+                                    "flex items-center rounded-lg bg-muted/40 text-foreground transition-colors hover:bg-accent hover:text-accent-foreground focus:outline-none focus:ring-2 focus:ring-primary/40",
+                                    isCollapsed ? "h-10 w-10 justify-center" : "w-full justify-start gap-3 px-3 py-2 text-sm font-medium"
+                                )}
+                                title={projectsSidebarToggleLabel}
+                                aria-label={projectsSidebarToggleLabel}
+                                aria-controls="projects-sidebar-panel"
+                                aria-expanded={!projectsSidebarCollapsed}
+                            >
+                                {projectsSidebarCollapsed
+                                    ? <ChevronsRight className="h-4 w-4 shrink-0" aria-hidden="true" />
+                                    : <ChevronsLeft className="h-4 w-4 shrink-0" aria-hidden="true" />}
+                                {!isCollapsed && <span className="truncate">{projectsSidebarToggleLabel}</span>}
+                            </button>
+                        </div>
+                    )}
                     <div className={cn("pb-3", isCollapsed && "flex justify-center")}>
                         <SidebarAreaFilter
                             areas={sortedAreas}
