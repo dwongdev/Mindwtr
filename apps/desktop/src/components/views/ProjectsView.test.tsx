@@ -312,7 +312,9 @@ describe('ProjectsView', () => {
         });
 
         const sidebar = screen.getByTestId('projects-sidebar').parentElement?.parentElement;
+        const layout = sidebar?.parentElement;
         expect(sidebar).toHaveStyle({ width: '304px' });
+        expect(layout).toHaveStyle({ maxWidth: '1344px' });
         expect(screen.getByRole('separator', { name: 'Resize projects panel' })).toBeInTheDocument();
 
         fireEvent.click(screen.getByRole('button', { name: 'Collapse projects panel' }));
@@ -322,6 +324,7 @@ describe('ProjectsView', () => {
         });
         expect(screen.getByTestId('projects-sidebar-collapsed')).toBeInTheDocument();
         expect(sidebar).toHaveStyle({ width: '56px' });
+        expect(layout).toHaveStyle({ maxWidth: '1592px' });
         expect(screen.queryByRole('separator', { name: 'Resize projects panel' })).not.toBeInTheDocument();
         expect(window.localStorage.getItem('mindwtr:view:projects:v1')).toContain('"projectsSidebarCollapsed":true');
 
@@ -331,6 +334,7 @@ describe('ProjectsView', () => {
             expect(screen.getByTestId('projects-sidebar')).toBeInTheDocument();
         });
         expect(sidebar).toHaveStyle({ width: '304px' });
+        expect(layout).toHaveStyle({ maxWidth: '1344px' });
         expect(screen.getByRole('separator', { name: 'Resize projects panel' })).toBeInTheDocument();
 
         if (originalClientWidthDescriptor) {

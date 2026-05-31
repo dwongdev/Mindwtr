@@ -229,12 +229,11 @@ export function ProjectsView() {
 
     const projectsLayoutMaxWidth = useMemo(() => {
         const baseMaxWidth = getProjectsBaseMaxWidth();
-        const effectiveSidebarWidth = projectsSidebarCollapsed
-            ? PROJECTS_SIDEBAR_COLLAPSED_WIDTH
-            : sidebarWidth;
-        const desiredMaxWidth = baseMaxWidth
-            + Math.max(0, effectiveSidebarWidth - PROJECTS_SIDEBAR_DEFAULT_WIDTH)
-            * PROJECTS_LAYOUT_SIDEBAR_EXTRA_MULTIPLIER;
+        const desiredMaxWidth = projectsSidebarCollapsed
+            ? baseMaxWidth + Math.max(0, sidebarWidth - PROJECTS_SIDEBAR_COLLAPSED_WIDTH)
+            : baseMaxWidth
+                + Math.max(0, sidebarWidth - PROJECTS_SIDEBAR_DEFAULT_WIDTH)
+                * PROJECTS_LAYOUT_SIDEBAR_EXTRA_MULTIPLIER;
 
         if (typeof availableProjectsWidth !== 'number' || !Number.isFinite(availableProjectsWidth)) {
             return desiredMaxWidth;
