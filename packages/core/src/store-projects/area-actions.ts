@@ -121,6 +121,13 @@ export const createAreaActions = ({
                 const existing = allAreas.find((a) => a.id !== id && !a.deletedAt && a?.name?.trim().toLowerCase() === normalized);
                 if (existing) {
                     const now = new Date().toISOString();
+                    const deletedArea: Area = {
+                        ...area,
+                        deletedAt: now,
+                        updatedAt: now,
+                        rev: nextRevision(area.rev),
+                        revBy: deviceState.deviceId,
+                    };
                     const mergedArea: Area = {
                         ...existing,
                         ...updates,
@@ -131,7 +138,7 @@ export const createAreaActions = ({
                     };
                     const newAllAreas = allAreas
                         .filter((a) => a.id !== id && a.id !== existing.id)
-                        .concat(mergedArea)
+                        .concat(deletedArea, mergedArea)
                         .sort((a, b) => a.order - b.order);
                     const newAllProjects = state._allProjects.map((project) => {
                         if (project.areaId !== id) return project;
@@ -144,8 +151,21 @@ export const createAreaActions = ({
                             revBy: deviceState.deviceId,
                         };
                     });
+                    const newAllTasks = state._allTasks.map((task) => {
+                        if (task.areaId !== id) return task;
+                        return {
+                            ...task,
+                            areaId: task.projectId ? undefined : existing.id,
+                            updatedAt: now,
+                            rev: nextRevision(task.rev),
+                            revBy: deviceState.deviceId,
+                        };
+                    });
                     const newVisibleProjects = newAllProjects.filter(p => !p.deletedAt);
+                    const newVisibleTasks = selectVisibleTasks(newAllTasks);
+                    clearDerivedCache();
                     snapshot = buildSaveSnapshot(state, {
+                        tasks: newAllTasks,
                         areas: newAllAreas,
                         projects: newAllProjects,
                         ...(deviceState.updated ? { settings: deviceState.settings } : {}),
@@ -155,6 +175,8 @@ export const createAreaActions = ({
                         _allAreas: newAllAreas,
                         projects: newVisibleProjects,
                         _allProjects: newAllProjects,
+                        tasks: newVisibleTasks,
+                        _allTasks: newAllTasks,
                         lastDataChangeAt: getNextDataChangeAt(state.lastDataChangeAt),
                         ...(deviceState.updated ? { settings: deviceState.settings } : {}),
                     };

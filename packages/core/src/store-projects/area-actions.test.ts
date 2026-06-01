@@ -219,6 +219,53 @@ describe('area actions', () => {
         expect(saved.tasks.find((task) => task.id === projectTask.id)?.deletedAt).toBeUndefined();
     });
 
+    it('keeps a tombstone and remaps direct tasks when renaming into an existing area', async () => {
+        const { addArea, addProject, addTask, updateArea } = useTaskStore.getState();
+        const work = await addArea('Work', { color: '#3b82f6' });
+        const home = await addArea('Home', { color: '#22c55e' });
+        expect(work).not.toBeNull();
+        expect(home).not.toBeNull();
+        if (!work || !home) return;
+
+        const project = await addProject('Launch', '#3b82f6', { areaId: work.id });
+        expect(project).not.toBeNull();
+        if (!project) return;
+        const areaTask = await addTask('Area task', { areaId: work.id, status: 'next' });
+        expect(areaTask.success).toBe(true);
+        if (!areaTask.success) return;
+
+        const result = await updateArea(work.id, { name: 'Home', color: '#ef4444' });
+        await flushPendingSave();
+
+        expect(result).toEqual({ success: true });
+        const state = useTaskStore.getState();
+        expect(state.areas.map((item) => item.id)).toEqual([home.id]);
+        expect(state._allAreas.find((item) => item.id === work.id)).toMatchObject({
+            id: work.id,
+            deletedAt: BASE_NOW,
+            updatedAt: BASE_NOW,
+        });
+        expect(state._allAreas.find((item) => item.id === home.id)).toMatchObject({
+            id: home.id,
+            name: 'Home',
+            color: '#ef4444',
+        });
+        expect(state._allAreas.find((item) => item.id === home.id)?.deletedAt).toBeUndefined();
+        expect(state.projects.find((item) => item.id === project.id)).toMatchObject({
+            areaId: home.id,
+            color: '#ef4444',
+        });
+        expect(state.tasks.find((item) => item.id === areaTask.id)).toMatchObject({
+            areaId: home.id,
+            updatedAt: BASE_NOW,
+        });
+
+        const saved = latestSavedData();
+        expect(saved.areas.find((item) => item.id === work.id)?.deletedAt).toBe(BASE_NOW);
+        expect(saved.projects.find((item) => item.id === project.id)?.areaId).toBe(home.id);
+        expect(saved.tasks.find((item) => item.id === areaTask.id)?.areaId).toBe(home.id);
+    });
+
     it('keeps deleted area tombstones when reordering active areas', async () => {
         const { addArea, deleteArea, reorderAreas } = useTaskStore.getState();
         const work = await addArea('Work');
