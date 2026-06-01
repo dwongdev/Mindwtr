@@ -1161,7 +1161,7 @@ describe('TaskStore', () => {
         expect(useTaskStore.getState().settings.notificationsEnabled).toBe(false);
     });
 
-    it('seeds a getting started project on first install', async () => {
+    it('leaves first install data empty until the user starts fresh', async () => {
         mockStorage.getData = vi.fn().mockResolvedValue({
             tasks: [],
             projects: [],
@@ -1174,42 +1174,13 @@ describe('TaskStore', () => {
         await flushPendingSave();
 
         const state = useTaskStore.getState();
-        const starterProject = state.projects.find((project) => project.title === 'Getting Started');
-        expect(starterProject).toBeTruthy();
-
-        const starterTasks = state.tasks
-            .filter((task) => task.projectId === starterProject?.id)
-            .sort((left, right) => (left.order ?? 0) - (right.order ?? 0));
-
-        expect(starterTasks.map((task) => task.title)).toEqual([
-            'Start here: process your first inbox item',
-            'Try quick capture with a context and date',
-            "Star up to 3 tasks for Today's Focus",
-            'Set up sync across your devices',
-            'Import tasks from another app',
-            'Run your first weekly review',
-        ]);
-        expect(starterTasks.every((task) => task.status === 'next')).toBe(true);
-        expect(starterTasks.every((task) => task.taskMode === 'list')).toBe(true);
-        expect(starterTasks.every((task) => task.checklist?.length === 3)).toBe(true);
-        expect(starterTasks[0].checklist?.map((item) => item.title)).toEqual([
-            'Open Inbox',
-            'Tap Process Inbox',
-            'Clarify one sample item into a next action or project',
-        ]);
-        expect(starterTasks[3].checklist?.map((item) => item.title)).toContain('Open Settings -> Sync');
-        expect(starterTasks[2].isFocusedToday).toBe(true);
-
-        const sampleInboxTasks = state.tasks
-            .filter((task) => task.status === 'inbox')
-            .map((task) => task.title)
-            .sort();
-        expect(sampleInboxTasks).toEqual(['Buy milk', 'Reply to Sam']);
+        expect(state.projects).toHaveLength(0);
+        expect(state.tasks).toHaveLength(0);
 
         const saveCalls = (mockStorage.saveData as unknown as { mock: { calls: any[][] } }).mock.calls;
         const saved = saveCalls[saveCalls.length - 1]?.[0];
-        expect(saved?.projects).toHaveLength(1);
-        expect(saved?.tasks).toHaveLength(8);
+        expect(saved?.projects).toHaveLength(0);
+        expect(saved?.tasks).toHaveLength(0);
     });
 
     it('does not force notifications off for existing data with legacy settings', async () => {
@@ -1260,6 +1231,33 @@ describe('TaskStore', () => {
         expect(firstResult.id).toBeTruthy();
         expect(useTaskStore.getState().projects.map((project) => project.title)).toEqual(['Getting Started']);
         expect(useTaskStore.getState().tasks).toHaveLength(8);
+        const state = useTaskStore.getState();
+        const starterTasks = state.tasks
+            .filter((task) => task.projectId === firstResult.id)
+            .sort((left, right) => (left.order ?? 0) - (right.order ?? 0));
+        expect(starterTasks.map((task) => task.title)).toEqual([
+            'Start here: process your first inbox item',
+            'Try quick capture with a context and date',
+            "Star up to 3 tasks for Today's Focus",
+            'Set up sync across your devices',
+            'Import tasks from another app',
+            'Run your first weekly review',
+        ]);
+        expect(starterTasks.every((task) => task.status === 'next')).toBe(true);
+        expect(starterTasks.every((task) => task.taskMode === 'list')).toBe(true);
+        expect(starterTasks.every((task) => task.checklist?.length === 3)).toBe(true);
+        expect(starterTasks[0].checklist?.map((item) => item.title)).toEqual([
+            'Open Inbox',
+            'Tap Process Inbox',
+            'Clarify one sample item into a next action or project',
+        ]);
+        expect(starterTasks[3].checklist?.map((item) => item.title)).toContain('Open Settings -> Sync');
+        expect(starterTasks[2].isFocusedToday).toBe(true);
+        const sampleInboxTasks = state.tasks
+            .filter((task) => task.status === 'inbox')
+            .map((task) => task.title)
+            .sort();
+        expect(sampleInboxTasks).toEqual(['Buy milk', 'Reply to Sam']);
 
         const secondResult = await useTaskStore.getState().seedGettingStarted();
         await flushPendingSave();

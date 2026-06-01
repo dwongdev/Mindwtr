@@ -686,7 +686,6 @@ export const createSettingsActions = ({
             let didProjectOrderMigration = false;
             let didAreaMigration = didNormalizeAreaTimestamps;
             let didRunAreaDedupePass = false;
-            let didSeedGettingStarted = false;
             let allProjects = rawProjects;
             let allSections = rawSections;
             let allAreas = rawAreas;
@@ -868,12 +867,6 @@ export const createSettingsActions = ({
                     });
                 }
             }
-            if (isFreshInstall) {
-                const starterData = buildFreshInstallGettingStartedData(nowIso, nextSettings.deviceId);
-                allTasks = starterData.tasks;
-                allProjects = starterData.projects;
-                didSeedGettingStarted = true;
-            }
             let didCompleteTasksForArchivedProjects = false;
             let didArchiveSectionsForArchivedProjects = false;
             const archivedProjectIds = new Set(
@@ -1048,7 +1041,6 @@ export const createSettingsActions = ({
                                 || didClearDeletedProjectArchiveMetadata
                                 || didRepairEntityReferences
                                 || didTombstoneCleanup
-                                || didSeedGettingStarted
                                 ? getNextDataChangeAt(state.lastDataChangeAt)
                                 : state.lastDataChangeAt,
                     };
@@ -1077,7 +1069,6 @@ export const createSettingsActions = ({
                 || didTombstoneCleanup
                 || didAreaMigration
                 || didProjectOrderMigration
-                || didSeedGettingStarted
                 || didSettingsUpdate
             ) {
                 markCoreStartupPhase('core.fetch_data.debounced_save_enqueued');
