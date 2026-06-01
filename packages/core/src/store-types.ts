@@ -43,6 +43,8 @@ export interface TaskStore {
     // Actions
     /** Load all data from storage */
     fetchData: (options?: { silent?: boolean }) => Promise<void>;
+    /** Add the shared Getting Started project/tasks when missing. */
+    seedGettingStarted: () => Promise<StoreActionResult>;
     /** Add a new task */
     addTask: (title: string, initialProps?: Partial<Task>) => Promise<StoreActionResult>;
     /** Update an existing task */

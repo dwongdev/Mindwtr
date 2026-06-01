@@ -5,7 +5,7 @@ import { markCoreStartupPhase, measureCoreStartupPhase } from './startup-profile
 import { normalizeTaskForLoad } from './task-status';
 import type { StorageAdapter } from './storage';
 import type { AppData, Area, MigrationSettings, Project, Task, TaskEditorFieldId } from './types';
-import type { DerivedCache, TaskStore } from './store-types';
+import type { DerivedCache, StoreActionResult, TaskStore } from './store-types';
 import {
     buildSaveSnapshot,
     archiveSectionForProjectArchive,
@@ -274,7 +274,7 @@ type SettingsActionContext = {
     getStorage: () => StorageAdapter;
 };
 
-type SettingsActions = Pick<TaskStore, 'fetchData' | 'updateSettings' | 'persistSnapshot' | 'getDerivedState' | 'setHighlightTask'>;
+type SettingsActions = Pick<TaskStore, 'fetchData' | 'seedGettingStarted' | 'updateSettings' | 'persistSnapshot' | 'getDerivedState' | 'setHighlightTask'>;
 
 export const createSettingsActions = ({
     set,
@@ -284,6 +284,62 @@ export const createSettingsActions = ({
     hasPendingSaveWork,
     getStorage,
 }: SettingsActionContext): SettingsActions => ({
+    seedGettingStarted: async (): Promise<StoreActionResult> => {
+        const changeAt = Date.now();
+        const nowIso = new Date().toISOString();
+        let snapshot: AppData | null = null;
+        let projectId: string | undefined;
+
+        set((state) => {
+            const existingProject = state._allProjects.find((project) =>
+                !project.deletedAt &&
+                typeof project.title === 'string' &&
+                project.title.trim().toLowerCase() === 'getting started'
+            );
+            if (existingProject) {
+                projectId = existingProject.id;
+                return state;
+            }
+
+            const deviceState = ensureDeviceId(state.settings);
+            const starterData = buildFreshInstallGettingStartedData(nowIso, deviceState.deviceId);
+            const maxProjectOrder = state._allProjects.reduce(
+                (max, project) => Math.max(max, Number.isFinite(project.order) ? project.order : -1),
+                -1
+            );
+            const starterProject = {
+                ...starterData.projects[0],
+                order: maxProjectOrder + 1,
+            };
+            const nextProjects = [...state._allProjects, starterProject];
+            const nextTasks = [...state._allTasks, ...starterData.tasks.map((task) => ({
+                ...task,
+                projectId: task.projectId === starterData.projects[0]?.id ? starterProject.id : task.projectId,
+            }))];
+
+            projectId = starterProject.id;
+            snapshot = buildSaveSnapshot(state, {
+                tasks: nextTasks,
+                projects: nextProjects,
+                ...(deviceState.updated ? { settings: deviceState.settings } : {}),
+            });
+
+            return {
+                tasks: selectVisibleTasks(nextTasks),
+                projects: selectVisibleProjects(nextProjects),
+                _allTasks: nextTasks,
+                _allProjects: nextProjects,
+                ...(deviceState.updated ? { settings: deviceState.settings } : {}),
+                lastDataChangeAt: getNextDataChangeAt(state.lastDataChangeAt, changeAt),
+            };
+        });
+
+        if (snapshot) {
+            debouncedSave(snapshot, (msg) => set({ error: msg }));
+        }
+        return { success: true, id: projectId };
+    },
+
     /**
      * Fetch all data from the configured storage adapter.
      * Stores full data internally, filters for UI display.

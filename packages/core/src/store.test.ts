@@ -1232,6 +1232,23 @@ describe('TaskStore', () => {
         expect(useTaskStore.getState().projects).toHaveLength(0);
     });
 
+    it('can seed getting started data on demand without duplicating it', async () => {
+        const firstResult = await useTaskStore.getState().seedGettingStarted();
+        await flushPendingSave();
+
+        expect(firstResult.success).toBe(true);
+        expect(firstResult.id).toBeTruthy();
+        expect(useTaskStore.getState().projects.map((project) => project.title)).toEqual(['Getting Started']);
+        expect(useTaskStore.getState().tasks).toHaveLength(8);
+
+        const secondResult = await useTaskStore.getState().seedGettingStarted();
+        await flushPendingSave();
+
+        expect(secondResult).toEqual(firstResult);
+        expect(useTaskStore.getState().projects.map((project) => project.title)).toEqual(['Getting Started']);
+        expect(useTaskStore.getState().tasks).toHaveLength(8);
+    });
+
     it('supports a basic task lifecycle', async () => {
         const { addTask, updateTask, moveTask } = useTaskStore.getState();
         addTask('Lifecycle Task');
