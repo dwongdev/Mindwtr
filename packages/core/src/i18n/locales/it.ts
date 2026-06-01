@@ -186,7 +186,6 @@ export const itOverrides: Record<string, string> = {
         'taskEdit.addItem': 'Aggiungi elemento',
         'taskEdit.resetChecklist': 'Reimposta checklist',
         'task.convertToReference': 'Salva come riferimento',
-        'task.moveToWaitingWithDue': 'Sposta In attesa e imposta la data di scadenza',
         'taskEdit.duplicateTask': 'Duplica attività',
         'taskEdit.duplicateDoneTitle': 'Attività duplicata',
         'taskEdit.duplicateDoneBody': 'Una nuova copia è stata creata nell\'Entrata.',

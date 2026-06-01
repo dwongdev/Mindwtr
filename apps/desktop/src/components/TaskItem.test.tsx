@@ -478,41 +478,6 @@ describe('TaskItem', () => {
         });
     });
 
-    it('shows quick NEXT to WAITING action and then opens due-date picker prompt', async () => {
-        const nextTask: Task = {
-            ...mockTask,
-            id: 'next-task',
-            status: 'next',
-        };
-        act(() => {
-            useTaskStore.setState((state) => ({
-                ...state,
-                tasks: [nextTask],
-                _allTasks: [nextTask],
-                projects: [],
-                _allProjects: [],
-            }));
-        });
-        const { getByRole, getByText, container } = render(
-            <LanguageProvider>
-                <TaskItem task={nextTask} />
-            </LanguageProvider>
-        );
-        fireEvent.click(getByRole('button', { name: /more options/i }));
-        const waitingButton = getByRole('menuitem', { name: /move to waiting and set due date/i });
-        fireEvent.click(waitingButton);
-        expect(getByText('Who/what are you waiting for?')).toBeInTheDocument();
-        fireEvent.click(getByRole('button', { name: 'Save' }));
-        await waitFor(() => {
-            const updatedTask = useTaskStore.getState()._allTasks.find((task) => task.id === 'next-task');
-            expect(updatedTask?.status).toBe('waiting');
-        });
-        await waitFor(() => {
-            expect(container.querySelector('input[type="date"]')).toBeTruthy();
-            expect(getByRole('button', { name: /skip/i })).toBeInTheDocument();
-        });
-    });
-
     it('prompts for a new next action after completing the last next project task', async () => {
         const projectTask: Task = {
             ...mockTask,

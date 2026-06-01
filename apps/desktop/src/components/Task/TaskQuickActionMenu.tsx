@@ -1,6 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState, type ReactNode, type RefObject } from 'react';
 import { createPortal } from 'react-dom';
-import { BookOpen, Calendar, CalendarClock, ChevronRight, Copy, MapPin, PauseCircle, Tag, Trash2 } from 'lucide-react';
+import { BookOpen, Calendar, CalendarClock, ChevronRight, Copy, MapPin, Tag, Trash2 } from 'lucide-react';
 import {
     hasTimeComponent,
     safeFormatDate,
@@ -40,7 +40,6 @@ interface TaskQuickActionMenuProps {
     onDuplicate: () => void;
     onDelete: () => void;
     onStatusChange: (status: TaskStatus) => void;
-    onMoveToWaitingWithPrompt?: () => void;
     onCreateArea: (name: string) => Promise<string | null>;
     onUpdateTask: (updates: Partial<Task>) => Promise<StoreActionResult>;
 }
@@ -81,7 +80,6 @@ export function TaskQuickActionMenu({
     onDuplicate,
     onDelete,
     onStatusChange,
-    onMoveToWaitingWithPrompt,
     onCreateArea,
     onUpdateTask,
 }: TaskQuickActionMenuProps) {
@@ -118,7 +116,6 @@ export function TaskQuickActionMenu({
     const duplicateLabel = tFallback(t, 'projects.duplicate', 'Duplicate');
     const deleteLabel = tFallback(t, 'common.delete', 'Delete');
     const convertToReferenceLabel = tFallback(t, 'task.convertToReference', 'Convert to Reference');
-    const moveToWaitingWithDueLabel = tFallback(t, 'task.moveToWaitingWithDue', 'Move to Waiting and set due date');
     const saveLabel = tFallback(t, 'common.save', 'Save');
     const cancelLabel = tFallback(t, 'common.cancel', 'Cancel');
     const moreOptionsLabel = tFallback(t, 'taskEdit.moreOptions', 'More options');
@@ -466,14 +463,6 @@ export function TaskQuickActionMenu({
                     label: convertToReferenceLabel,
                     onClick: () => {
                         onStatusChange('reference');
-                        onClose();
-                    },
-                })}
-                {!readOnly && task.status === 'next' && onMoveToWaitingWithPrompt && renderMenuAction({
-                    icon: <PauseCircle className="h-4 w-4" />,
-                    label: moveToWaitingWithDueLabel,
-                    onClick: () => {
-                        onMoveToWaitingWithPrompt();
                         onClose();
                     },
                 })}

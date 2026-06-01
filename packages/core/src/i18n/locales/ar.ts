@@ -246,7 +246,6 @@ export const arOverrides: Record<string, string> = {
         'task.aria.dueTime': 'الوقت المناسب',
         'task.aria.location': 'موقع',
         'task.deleteConfirmBody': 'سيتم نقل هذه المهمة إلى المهملات.',
-        'task.moveToWaitingWithDue': 'نقل إلى الانتظار مع تاريخ استحقاق',
         'recurrence.none': 'لا أحد',
         'recurrence.daily': 'يوميًا',
         'recurrence.weekly': 'أسبوعي',

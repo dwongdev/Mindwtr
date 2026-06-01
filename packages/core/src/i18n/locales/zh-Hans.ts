@@ -212,7 +212,6 @@ export const zhHans: Record<string, string> = {
         'task.select': '选择任务',
         'task.aria.delete': '删除任务',
         'task.deleteConfirmBody': '将此任务移到垃圾桶？',
-        'task.moveToWaitingWithDue': '移到等待中并设置截止日期',
         'task.aria.status': '任务状态',
         'task.aria.description': '任务描述',
         'task.aria.startDate': '开始日期',

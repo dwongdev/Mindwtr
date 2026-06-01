@@ -643,7 +643,6 @@ describe('TaskItemDisplay', () => {
         expect(statusSelect).toBeInTheDocument();
         expect(statusSelect).toHaveClass('text-blue-700', 'dark:text-primary');
         expect(queryByRole('button', { name: 'task.convertToReference' })).not.toBeInTheDocument();
-        expect(queryByRole('button', { name: 'task.moveToWaitingWithDue' })).not.toBeInTheDocument();
         expect(queryByRole('button', { name: 'task.aria.delete' })).not.toBeInTheDocument();
     });
 

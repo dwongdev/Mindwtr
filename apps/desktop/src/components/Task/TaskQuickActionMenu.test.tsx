@@ -30,7 +30,6 @@ const t = (key: string) => ({
     'task.aria.dueTime': 'Due time',
     'task.aria.reviewTime': 'Review time',
     'task.aria.startTime': 'Start time',
-    'task.moveToWaitingWithDue': 'Move to Waiting and set due date',
     'taskEdit.areaLabel': 'Area',
     'taskEdit.contextsLabel': 'Contexts',
     'taskEdit.dueDateLabel': 'Due Date',
@@ -55,7 +54,6 @@ const renderMenu = (overrides: Partial<ComponentProps<typeof TaskQuickActionMenu
         onDuplicate: vi.fn(),
         onDelete: vi.fn(),
         onStatusChange: vi.fn(),
-        onMoveToWaitingWithPrompt: vi.fn(),
         onCreateArea: vi.fn(async () => null),
         onUpdateTask: vi.fn(async () => ({ success: true })),
         ...overrides,
@@ -199,15 +197,10 @@ describe('TaskQuickActionMenu', () => {
 
     it('keeps secondary task row actions in the quick menu', () => {
         const onStatusChange = vi.fn();
-        const onMoveToWaitingWithPrompt = vi.fn();
-        const props = renderMenu({ onStatusChange, onMoveToWaitingWithPrompt });
+        const props = renderMenu({ onStatusChange });
 
         fireEvent.click(screen.getByRole('menuitem', { name: 'Convert to Reference' }));
         expect(onStatusChange).toHaveBeenCalledWith('reference');
         expect(props.onClose).toHaveBeenCalledTimes(1);
-
-        fireEvent.click(screen.getByRole('menuitem', { name: 'Move to Waiting and set due date' }));
-        expect(onMoveToWaitingWithPrompt).toHaveBeenCalledTimes(1);
-        expect(props.onClose).toHaveBeenCalledTimes(2);
     });
 });

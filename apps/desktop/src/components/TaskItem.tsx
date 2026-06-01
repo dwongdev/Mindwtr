@@ -247,10 +247,8 @@ export const TaskItem = memo(function TaskItem({
     const [showDiscardConfirm, setShowDiscardConfirm] = useState(false);
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
     const [showWaitingAssignmentPrompt, setShowWaitingAssignmentPrompt] = useState(false);
-    const [showWaitingDuePrompt, setShowWaitingDuePrompt] = useState(false);
     const [projectNextActionPrompt, setProjectNextActionPrompt] = useState<ProjectNextActionPromptState | null>(null);
     const [projectNextActionTitle, setProjectNextActionTitle] = useState('');
-    const [waitingTransitionMode, setWaitingTransitionMode] = useState<'status-change' | 'status-and-due' | null>(null);
     const prioritiesEnabled = settings?.features?.priorities !== false;
     const timeEstimatesEnabled = settings?.features?.timeEstimates !== false;
     const undoNotificationsEnabled = settings?.undoNotificationsEnabled !== false;
@@ -755,13 +753,10 @@ export const TaskItem = memo(function TaskItem({
     }, [addTask, closeProjectNextActionPrompt, projectNextActionPrompt, projectNextActionTitle]);
     const closeWaitingAssignmentPrompt = useCallback(() => {
         setShowWaitingAssignmentPrompt(false);
-        setWaitingTransitionMode(null);
     }, []);
     const applyWaitingAssignment = useCallback((value: string) => {
         const assignedTo = value.trim() || undefined;
-        const openDuePrompt = waitingTransitionMode === 'status-and-due';
         setShowWaitingAssignmentPrompt(false);
-        setWaitingTransitionMode(null);
         void moveTask(task.id, 'waiting')
             .then(async (result) => {
                 if (!result.success) {
@@ -771,16 +766,9 @@ export const TaskItem = memo(function TaskItem({
                 if (!updateResult.success) {
                     throw new Error(updateResult.error || 'Failed to update waiting assignee');
                 }
-                if (openDuePrompt) {
-                    setShowWaitingDuePrompt(true);
-                }
             })
             .catch((error) => reportError('Failed to move task to waiting', error));
-    }, [moveTask, task.id, updateTask, waitingTransitionMode]);
-    const handleMoveToWaitingWithPrompt = useCallback(() => {
-        setWaitingTransitionMode('status-and-due');
-        setShowWaitingAssignmentPrompt(true);
-    }, []);
+    }, [moveTask, task.id, updateTask]);
     const handleTaskCompleted = useCallback((previousStatus: TaskStatus) => {
         if (undoNotificationsEnabled) {
             showToast(
@@ -809,7 +797,6 @@ export const TaskItem = memo(function TaskItem({
     ]);
     const handleStatusChange = useCallback((nextStatus: TaskStatus) => {
         if (nextStatus === 'waiting' && task.status !== 'waiting') {
-            setWaitingTransitionMode('status-change');
             setShowWaitingAssignmentPrompt(true);
             return;
         }
@@ -1176,7 +1163,6 @@ export const TaskItem = memo(function TaskItem({
                         setShowDeleteConfirm(true);
                     }}
                     onStatusChange={handleStatusChange}
-                    onMoveToWaitingWithPrompt={handleMoveToWaitingWithPrompt}
                     onCreateArea={handleCreateArea}
                     onUpdateTask={(updates) => updateTask(task.id, updates)}
                 />
@@ -1226,11 +1212,9 @@ export const TaskItem = memo(function TaskItem({
                 openDiscardConfirm={showDiscardConfirm}
                 openLinkPrompt={showLinkPrompt}
                 openWaitingAssignmentPrompt={showWaitingAssignmentPrompt}
-                openWaitingDuePrompt={showWaitingDuePrompt}
                 onCancelWaitingAssignmentPrompt={closeWaitingAssignmentPrompt}
                 onConfirmWaitingAssignmentPrompt={applyWaitingAssignment}
                 waitingAssignmentDefaultValue={task.assignedTo || ''}
-                openWaitingDuePromptSetter={setShowWaitingDuePrompt}
                 restoreTask={restoreTask}
                 retryAudioTranscription={retryAudioTranscription}
                 setCustomInterval={setCustomInterval}
@@ -1249,7 +1233,6 @@ export const TaskItem = memo(function TaskItem({
                 textLoading={textLoading}
                 undoLabel={undoLabel}
                 undoNotificationsEnabled={undoNotificationsEnabled}
-                updateTask={updateTask}
                 weekdayLabels={recurrenceWeekdayLabels}
             />
         </>
