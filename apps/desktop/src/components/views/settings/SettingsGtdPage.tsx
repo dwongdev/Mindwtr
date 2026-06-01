@@ -27,6 +27,7 @@ import {
 } from '../../Task/task-item-helpers';
 
 type Labels = {
+    gtdDesc: string;
     features: string;
     featuresDesc: string;
     autoArchive: string;
@@ -472,6 +473,9 @@ export function SettingsGtdPage({
 
     return (
         <div className="space-y-6">
+            <p className="max-w-2xl text-sm text-muted-foreground">
+                {t.gtdDesc}
+            </p>
             <div className="bg-card border border-border rounded-lg divide-y divide-border">
                 <div className="p-4 flex items-center justify-between gap-6">
                     <div className="min-w-0">

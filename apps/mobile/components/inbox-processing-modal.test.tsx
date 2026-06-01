@@ -543,6 +543,7 @@ describe('InboxProcessingModal', () => {
   });
 
   it('suggests existing assignees in the assigned-to field', () => {
+    mockSettings.gtd.taskEditor = { hidden: [] };
     storeState.tasks = [
       { ...baseInboxTask },
       {
@@ -807,7 +808,8 @@ describe('InboxProcessingModal', () => {
     );
   });
 
-  it('saves the selected priority by default when priorities are not explicitly disabled', () => {
+  it('saves the selected priority when the priority field is shown', () => {
+    mockSettings.gtd.taskEditor = { hidden: [] };
     const onClose = vi.fn();
     let tree: ReturnType<typeof create>;
 
@@ -850,6 +852,7 @@ describe('InboxProcessingModal', () => {
   });
 
   it('saves energy level and time estimate during inbox processing', () => {
+    mockSettings.gtd.taskEditor = { hidden: [] };
     const onClose = vi.fn();
     let tree: ReturnType<typeof create>;
 
@@ -966,6 +969,7 @@ describe('InboxProcessingModal', () => {
   it('keeps the selected priority when delegating a task', () => {
     mockSettings.features = undefined;
     mockSettings.gtd.inboxProcessing = {};
+    mockSettings.gtd.taskEditor = { hidden: [] };
     storeState.projects = [];
     storeState.areas = [];
     updateTask.mockClear();
@@ -1030,6 +1034,7 @@ describe('InboxProcessingModal', () => {
   it('keeps the selected priority when delegating a task', () => {
     mockSettings.features = undefined;
     mockSettings.gtd.inboxProcessing = {};
+    mockSettings.gtd.taskEditor = { hidden: [] };
     storeState.projects = [];
     storeState.areas = [];
     updateTask.mockClear();

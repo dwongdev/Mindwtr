@@ -991,7 +991,7 @@ export const en: Record<string, string> = {
         'settings.dailyDigestEvening': 'Evening review',
         'settings.dailyDigestEveningTime': 'Evening time',
         'settings.gtd': 'GTD',
-        'settings.gtdDesc': 'Customize GTD defaults and quick options.',
+        'settings.gtdDesc': 'Mindwtr works out of the box. Tune these defaults only when you want a different GTD flow.',
         'settings.inboxProcessing': 'Inbox processing',
         'settings.inboxProcessingDesc': 'Tune the inbox workflow for how you like to process tasks.',
         'settings.inboxTwoMinuteFirst': 'Ask the 2-minute rule first',

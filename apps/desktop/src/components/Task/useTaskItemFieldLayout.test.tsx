@@ -42,14 +42,22 @@ const buildParams = (overrides: Partial<Parameters<typeof useTaskItemFieldLayout
 });
 
 describe('useTaskItemFieldLayout', () => {
-    it('shows priority and time estimate by default when they are enabled and not explicitly hidden', () => {
+    it('keeps the default editor shallow while leaving optional metadata hidden until used', () => {
         const { result } = renderHook(() => useTaskItemFieldLayout(buildParams({
             editPriority: '',
+            editEnergyLevel: '',
+            editAssignedTo: '',
+            editLocation: '',
             editTimeEstimate: '',
         })));
 
-        expect(result.current.organizationFields).toContain('priority');
-        expect(result.current.organizationFields).toContain('timeEstimate');
+        expect(result.current.basicFields).toEqual(expect.arrayContaining(['status', 'contexts', 'dueDate']));
+        expect(result.current.organizationFields).not.toContain('priority');
+        expect(result.current.organizationFields).not.toContain('energyLevel');
+        expect(result.current.organizationFields).not.toContain('assignedTo');
+        expect(result.current.organizationFields).not.toContain('timeEstimate');
+        expect(result.current.detailsFields).not.toContain('location');
+        expect(result.current.sectionOpenDefaults.details).toBe(false);
     });
 
     it('hides action-only fields while a task is being edited as reference', () => {
@@ -60,7 +68,7 @@ describe('useTaskItemFieldLayout', () => {
         expect(result.current.basicFields).toContain('status');
         expect(result.current.basicFields).not.toContain('dueDate');
         expect(result.current.schedulingFields).toEqual([]);
-        expect(result.current.organizationFields).toContain('contexts');
+        expect(result.current.basicFields).toContain('contexts');
         expect(result.current.organizationFields).toContain('tags');
         expect(result.current.organizationFields).not.toContain('priority');
         expect(result.current.organizationFields).not.toContain('timeEstimate');
@@ -82,6 +90,7 @@ describe('useTaskItemFieldLayout', () => {
         expect(result.current.basicFields).toContain('dueDate');
         expect(result.current.schedulingFields).toHaveLength(3);
         expect(result.current.schedulingFields).toEqual(expect.arrayContaining(['startTime', 'recurrence', 'reviewAt']));
+        expect(result.current.basicFields).toContain('contexts');
         expect(result.current.organizationFields).toContain('priority');
         expect(result.current.organizationFields).toContain('timeEstimate');
         expect(result.current.detailsFields).toContain('checklist');

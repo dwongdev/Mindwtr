@@ -495,6 +495,44 @@ describe('TaskStore', () => {
         ]);
     });
 
+    it('migrates uncustomized task editor layouts to lean defaults', async () => {
+        mockStorage.getData = vi.fn().mockResolvedValue({
+            tasks: [],
+            projects: [],
+            sections: [],
+            areas: [],
+            settings: {
+                gtd: {
+                    taskEditor: {
+                        hidden: [],
+                        defaultsVersion: 4,
+                    },
+                },
+            },
+        });
+
+        await useTaskStore.getState().fetchData({ silent: true });
+        await flushPendingSave();
+
+        const taskEditor = useTaskStore.getState().settings.gtd?.taskEditor;
+        expect(taskEditor?.defaultsVersion).toBe(5);
+        expect(taskEditor?.hidden).toEqual(expect.arrayContaining([
+            'section',
+            'priority',
+            'energyLevel',
+            'timeEstimate',
+            'assignedTo',
+            'location',
+        ]));
+        expect(taskEditor?.hidden).not.toEqual(expect.arrayContaining([
+            'status',
+            'project',
+            'area',
+            'contexts',
+            'dueDate',
+        ]));
+    });
+
     it('should delete a task', () => {
         const { addTask, deleteTask } = useTaskStore.getState();
         addTask('Task to Delete');

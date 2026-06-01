@@ -920,7 +920,7 @@ export const zhHant: Record<string, string> = {
         'settings.dailyDigestEvening': '晚間回顧',
         'settings.dailyDigestEveningTime': '晚間時間',
         'settings.gtd': 'GTD',
-        'settings.gtdDesc': '自定義 GTD 默認設置與快捷選項。',
+        'settings.gtdDesc': 'Mindwtr 開箱即可使用。只有當你想調整 GTD 流程時，再改這些預設設定。',
         'settings.inboxProcessing': '收集箱處理',
         'settings.inboxProcessingDesc': '調整收集箱處理流程以符合你的習慣。',
         'settings.inboxTwoMinuteFirst': '先詢問兩分鐘規則',

@@ -634,8 +634,14 @@ describe('InboxProcessor', () => {
         expect(updateTask).not.toHaveBeenCalled();
     });
 
-    it('processes a task from guided mode with organization fields in the context step by default', async () => {
-        const { getByRole, getByText, updateTask } = renderInboxProcessor();
+    it('processes a task from guided mode with enabled optional organization fields', async () => {
+        const { getByRole, getByText, updateTask } = renderInboxProcessor({
+            gtd: {
+                taskEditor: {
+                    hidden: [],
+                },
+            },
+        });
 
         fireEvent.click(getByRole('button', { name: /process\.btn/i }));
         fireEvent.click(getByText('process.refineNext'));

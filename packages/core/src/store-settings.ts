@@ -32,8 +32,15 @@ const MIGRATION_VERSION = 1;
 // Run auto-archive at most twice a day to keep background work bounded.
 const AUTO_ARCHIVE_INTERVAL_MS = 12 * 60 * 60 * 1000;
 const TOMBSTONE_CLEANUP_INTERVAL_MS = 24 * 60 * 60 * 1000;
-const TASK_EDITOR_DEFAULTS_VERSION = 4;
-const TASK_EDITOR_ALWAYS_VISIBLE: TaskEditorFieldId[] = ['status', 'project', 'description', 'checklist', 'contexts'];
+const TASK_EDITOR_DEFAULTS_VERSION = 5;
+const TASK_EDITOR_LEAN_DEFAULT_HIDDEN: TaskEditorFieldId[] = [
+    'section',
+    'priority',
+    'energyLevel',
+    'timeEstimate',
+    'assignedTo',
+    'location',
+];
 const STORAGE_TIMEOUT_MS = 15_000;
 const getFetchDataErrorMessage = (error: unknown): string => {
     const detail = error instanceof Error ? error.message : String(error ?? '');
@@ -318,22 +325,30 @@ export const createSettingsActions = ({
                 didSettingsUpdate = true;
             }
 
-            const taskEditorDefaultsVersion = nextSettings.gtd?.taskEditor?.defaultsVersion ?? 0;
+            const existingTaskEditorSettings = nextSettings.gtd?.taskEditor;
+            const taskEditorDefaultsVersion = existingTaskEditorSettings?.defaultsVersion ?? 0;
             if (taskEditorDefaultsVersion < TASK_EDITOR_DEFAULTS_VERSION) {
-                const hidden = new Set(nextSettings.gtd?.taskEditor?.hidden ?? []);
-                TASK_EDITOR_ALWAYS_VISIBLE.forEach((fieldId) => hidden.delete(fieldId));
+                const legacyHidden = (existingTaskEditorSettings?.hidden ?? []).filter((fieldId) => fieldId !== 'textDirection');
+                const legacyOrder = existingTaskEditorSettings?.order?.filter((fieldId) => fieldId !== 'textDirection');
+                const hasCustomLayout = Boolean(
+                    legacyHidden.length > 0
+                    || (legacyOrder && legacyOrder.length > 0)
+                    || Object.keys(existingTaskEditorSettings?.sections ?? {}).length > 0
+                    || Object.keys(existingTaskEditorSettings?.sectionOpen ?? {}).length > 0
+                );
+                const hidden = new Set<TaskEditorFieldId>(
+                    hasCustomLayout ? legacyHidden : TASK_EDITOR_LEAN_DEFAULT_HIDDEN
+                );
                 if (taskEditorDefaultsVersion < 4) {
                     hidden.delete('textDirection');
                 }
-                const existingOrder = nextSettings.gtd?.taskEditor?.order;
-                const normalizedOrder = existingOrder?.filter((fieldId) => fieldId !== 'textDirection');
                 nextSettings = {
                     ...nextSettings,
                     gtd: {
                         ...(nextSettings.gtd ?? {}),
                         taskEditor: {
-                            ...(nextSettings.gtd?.taskEditor ?? {}),
-                            ...(normalizedOrder ? { order: normalizedOrder } : {}),
+                            ...(existingTaskEditorSettings ?? {}),
+                            ...(legacyOrder ? { order: legacyOrder } : {}),
                             hidden: Array.from(hidden),
                             defaultsVersion: TASK_EDITOR_DEFAULTS_VERSION,
                         },

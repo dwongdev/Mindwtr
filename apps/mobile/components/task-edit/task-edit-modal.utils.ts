@@ -83,38 +83,37 @@ export const syncTaskEditPagerPosition = ({
 export const DEFAULT_TASK_EDITOR_ORDER: TaskEditorFieldId[] = [
     'status',
     'project',
-    'section',
     'area',
-    'priority',
-    'energyLevel',
-    'assignedTo',
     'contexts',
-    'description',
-    'location',
-    'tags',
-    'timeEstimate',
+    'dueDate',
+    'section',
     'recurrence',
     'startTime',
-    'dueDate',
     'reviewAt',
+    'tags',
+    'description',
     'attachments',
     'checklist',
+    'priority',
+    'energyLevel',
+    'timeEstimate',
+    'assignedTo',
+    'location',
 ];
 
 export const DEFAULT_TASK_EDITOR_VISIBLE: TaskEditorFieldId[] = [
     'status',
     'project',
-    'section',
     'area',
-    'description',
-    'location',
-    'checklist',
-    'energyLevel',
-    'assignedTo',
     'contexts',
     'dueDate',
-    'priority',
-    'timeEstimate',
+    'recurrence',
+    'startTime',
+    'reviewAt',
+    'tags',
+    'description',
+    'attachments',
+    'checklist',
 ];
 
 export const TASK_EDITOR_FIXED_FIELDS: TaskEditorFieldId[] = ['status', 'project', 'section', 'area'];
@@ -129,7 +128,7 @@ export const DEFAULT_TASK_EDITOR_SECTION_BY_FIELD: Record<TaskEditorFieldId, Tas
     priority: 'organization',
     energyLevel: 'organization',
     assignedTo: 'organization',
-    contexts: 'organization',
+    contexts: 'basic',
     tags: 'organization',
     location: 'details',
     timeEstimate: 'organization',
@@ -160,7 +159,7 @@ export const DEFAULT_TASK_EDITOR_SECTION_OPEN: Record<TaskEditorSectionId, boole
     basic: true,
     scheduling: false,
     organization: false,
-    details: true,
+    details: false,
 };
 
 const isTaskEditorSectionId = (value: unknown): value is TaskEditorSectionId =>
@@ -201,7 +200,7 @@ export const getTaskEditorSectionOpenDefaults = (
 };
 
 const TASK_EDITOR_PRESET_VISIBLE_FIELDS: Record<Exclude<TaskEditorPresetId, 'custom'>, TaskEditorFieldId[]> = {
-    simple: ['status', 'project', 'dueDate', 'description'],
+    simple: ['status', 'project', 'area', 'contexts', 'dueDate'],
     standard: [...DEFAULT_TASK_EDITOR_VISIBLE],
     full: [...DEFAULT_TASK_EDITOR_ORDER],
 };
@@ -265,9 +264,10 @@ export const buildTaskEditorPresetConfig = (
     const featureHiddenSet = new Set(featureHiddenFields);
     const visibleSet = new Set(TASK_EDITOR_PRESET_VISIBLE_FIELDS[presetId]);
     const hidden = DEFAULT_TASK_EDITOR_ORDER.filter((fieldId) => !visibleSet.has(fieldId));
+    const simpleOrder: TaskEditorFieldId[] = ['status', 'project', 'area', 'contexts', 'dueDate'];
     const base: TaskEditorPresetConfig = {
         order: presetId === 'simple'
-            ? ['status', 'project', 'dueDate', 'description', ...DEFAULT_TASK_EDITOR_ORDER.filter((fieldId) => !['status', 'project', 'dueDate', 'description'].includes(fieldId))]
+            ? [...simpleOrder, ...DEFAULT_TASK_EDITOR_ORDER.filter((fieldId) => !simpleOrder.includes(fieldId))]
             : [...DEFAULT_TASK_EDITOR_ORDER],
         hidden: normalizeTaskEditorHidden(hidden, featureHiddenSet),
         sections: {},
