@@ -135,7 +135,7 @@ type SettingsDisclosureCardProps = {
     children: ReactNode;
 };
 
-const SHOW_TEMP_ONBOARDING_TRIGGER = false;
+const SHOW_TEMP_ONBOARDING_TRIGGER = true;
 
 function SettingsDisclosureCard({
     title,
