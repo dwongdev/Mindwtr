@@ -109,7 +109,8 @@ async function requestOpenAI(config: AIProviderConfig, prompt: { system: string;
                 },
                 resolveTimeoutMs(config.timeoutMs),
                 'OpenAI',
-                options?.signal
+                options?.signal,
+                config.fetcher
             );
         } catch (error) {
             if (attempt < MAX_RETRIES) {

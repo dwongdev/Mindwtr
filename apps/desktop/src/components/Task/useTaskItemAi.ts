@@ -110,7 +110,7 @@ export function useTaskItemAi({
         const handle = setTimeout(async () => {
             try {
                 const currentContexts = editContexts.split(',').map((c) => c.trim()).filter(Boolean);
-                const provider = createAIProvider(buildCopilotConfig(settings ?? {}, aiKey));
+                const provider = createAIProvider(await buildCopilotConfig(settings ?? {}, aiKey));
                 const abortController = typeof AbortController === 'function' ? new AbortController() : null;
                 localAbort = abortController;
                 const previousController = copilotAbortRef.current;
@@ -180,7 +180,7 @@ export function useTaskItemAi({
         }
     }, [aiProvider, settings?.ai?.model, taskId]);
 
-    const getAIProvider = useCallback(() => {
+    const getAIProvider = useCallback(async () => {
         if (!aiEnabled) {
             setAiError(t('ai.disabledBody'));
             return null;
@@ -189,7 +189,7 @@ export function useTaskItemAi({
             setAiError(t('ai.missingKeyBody'));
             return null;
         }
-        return createAIProvider(buildAIConfig(settings, aiKey));
+        return createAIProvider(await buildAIConfig(settings, aiKey));
     }, [aiEnabled, aiKey, keyRequired, settings, t]);
 
     const resetCopilotDraft = useCallback(() => {
@@ -251,7 +251,7 @@ export function useTaskItemAi({
         if (isAIWorking) return;
         const title = editTitle.trim();
         if (!title) return;
-        const provider = getAIProvider();
+        const provider = await getAIProvider();
         if (!provider) return;
         setIsAIWorking(true);
         setAiError(null);
@@ -281,7 +281,7 @@ export function useTaskItemAi({
         if (isAIWorking) return;
         const title = editTitle.trim();
         if (!title) return;
-        const provider = getAIProvider();
+        const provider = await getAIProvider();
         if (!provider) return;
         setIsAIWorking(true);
         setAiError(null);

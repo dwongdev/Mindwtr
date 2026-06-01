@@ -7,36 +7,36 @@ export function parseJson<T>(raw: string, validator?: (value: unknown) => value 
         .replace(/^```(?:json)?/i, '')
         .replace(/```$/i, '')
         .trim();
-    try {
-        const parsed = JSON.parse(cleaned) as unknown;
-        if (validator && !validator(parsed)) {
-            throw new Error('AI response failed validation.');
-        }
-        return parsed as T;
-    } catch (error) {
-        const objectStart = cleaned.indexOf('{');
-        const objectEnd = cleaned.lastIndexOf('}');
-        if (objectStart !== -1 && objectEnd > objectStart) {
-            const sliced = cleaned.slice(objectStart, objectEnd + 1);
-            const parsed = JSON.parse(sliced) as unknown;
-            if (validator && !validator(parsed)) {
-                throw new Error('AI response failed validation.');
-            }
-            return parsed as T;
-        }
-        const arrayStart = cleaned.indexOf('[');
-        const arrayEnd = cleaned.lastIndexOf(']');
-        if (arrayStart !== -1 && arrayEnd > arrayStart) {
-            const sliced = cleaned.slice(arrayStart, arrayEnd + 1);
-            const parsed = JSON.parse(sliced) as unknown;
-            if (validator && !validator(parsed)) {
-                throw new Error('AI response failed validation.');
-            }
-            return parsed as T;
-        }
-        const message = error instanceof Error ? error.message : String(error);
-        throw new Error(`AI JSON parse error: ${message}.`);
+
+    const candidates = [cleaned];
+    const objectStart = cleaned.indexOf('{');
+    const objectEnd = cleaned.lastIndexOf('}');
+    if (objectStart !== -1 && objectEnd > objectStart) {
+        const sliced = cleaned.slice(objectStart, objectEnd + 1);
+        if (!candidates.includes(sliced)) candidates.push(sliced);
     }
+    const arrayStart = cleaned.indexOf('[');
+    const arrayEnd = cleaned.lastIndexOf(']');
+    if (arrayStart !== -1 && arrayEnd > arrayStart) {
+        const sliced = cleaned.slice(arrayStart, arrayEnd + 1);
+        if (!candidates.includes(sliced)) candidates.push(sliced);
+    }
+
+    let lastError: unknown = null;
+    for (const candidate of candidates) {
+        try {
+            const parsed = JSON.parse(candidate) as unknown;
+            if (validator && !validator(parsed)) {
+                throw new Error('AI response failed validation.');
+            }
+            return parsed as T;
+        } catch (error) {
+            lastError = error;
+        }
+    }
+
+    const message = lastError instanceof Error ? lastError.message : String(lastError);
+    throw new Error(`AI JSON parse error: ${message}.`);
 }
 
 const TIME_ESTIMATE_MAP: Record<string, string> = {
@@ -80,7 +80,8 @@ export async function fetchWithTimeout(
     init: RequestInit,
     timeoutMs: number,
     label: string,
-    externalSignal?: AbortSignal
+    externalSignal?: AbortSignal,
+    fetcher: typeof fetch = globalThis.fetch
 ): Promise<Response> {
     const abortController = typeof AbortController === 'function' ? new AbortController() : null;
     let removeExternalListener: (() => void) | null = null;
@@ -95,7 +96,7 @@ export async function fetchWithTimeout(
     }
     const timeoutId = abortController ? setTimeout(() => abortController.abort(), timeoutMs) : null;
     try {
-        return await fetch(url, { ...init, signal: abortController?.signal ?? init.signal });
+        return await fetcher(url, { ...init, signal: abortController?.signal ?? init.signal });
     } catch (error) {
         if (abortController?.signal.aborted) {
             if (externalSignal?.aborted) {

@@ -5,6 +5,7 @@ import { isBreakdownResponse, isClarifyResponse, isCopilotResponse, isReviewAnal
 
 const GEMINI_BASE_URL = 'https://generativelanguage.googleapis.com/v1beta/models';
 const DEFAULT_TIMEOUT_MS = 30_000;
+const DEFAULT_MAX_OUTPUT_TOKENS = 4096;
 const MAX_RETRIES = 2;
 const RETRYABLE_STATUSES = new Set([408, 429, 500, 502, 503, 504]);
 
@@ -127,7 +128,7 @@ async function requestGemini(config: AIProviderConfig, prompt: { system: string;
             topP: 0.8,
             topK: 20,
             candidateCount: 1,
-            maxOutputTokens: 1024,
+            maxOutputTokens: DEFAULT_MAX_OUTPUT_TOKENS,
             responseMimeType: 'application/json',
             ...(schema ? { responseSchema: schema } : {}),
             ...(thinkingBudget !== undefined ? { thinkingConfig: { thinkingBudget } } : {}),
@@ -151,7 +152,8 @@ async function requestGemini(config: AIProviderConfig, prompt: { system: string;
                 },
                 resolveTimeoutMs(config.timeoutMs),
                 'Gemini',
-                options?.signal
+                options?.signal,
+                config.fetcher
             );
         } catch (error) {
             if (attempt < MAX_RETRIES) {

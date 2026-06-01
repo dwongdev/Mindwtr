@@ -58,6 +58,25 @@ describe('openai provider auth behavior', () => {
         expect(headers.Authorization).toBeUndefined();
     });
 
+    it('uses the configured fetcher instead of global fetch', async () => {
+        const fetchMock = vi.fn(async () => mockOpenAiSuccess());
+        globalThis.fetch = vi.fn(async () => {
+            throw new Error('global fetch should not be used');
+        }) as unknown as typeof fetch;
+
+        const provider = createOpenAIProvider({
+            provider: 'openai',
+            apiKey: 'test-key',
+            model: 'gpt-4o-mini',
+            fetcher: fetchMock as unknown as typeof fetch,
+        });
+
+        const result = await provider.clarifyTask({ title: 'Plan trip' });
+        expect(result.question).toBe('What is the next action?');
+        expect(fetchMock).toHaveBeenCalledTimes(1);
+        expect(globalThis.fetch).not.toHaveBeenCalled();
+    });
+
     it('surfaces custom endpoint auth errors without implying official OpenAI auth', async () => {
         const fetchMock = vi.fn(async () =>
             new Response(

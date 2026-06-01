@@ -1,4 +1,6 @@
-import type { BreakdownInput, ClarifyInput } from './types';
+import type { BreakdownInput, ClarifyInput, ReviewSnapshotItem } from './types';
+
+export const MAX_REVIEW_ANALYSIS_ITEMS = 30;
 
 const SYSTEM_PROMPT = [
     'You are a strict GTD coach.',
@@ -54,10 +56,14 @@ export function buildBreakdownPrompt(input: BreakdownInput): { system: string; u
     return { system: SYSTEM_PROMPT, user };
 }
 
-export function buildReviewAnalysisPrompt(items: Array<{ id: string; title: string; daysStale: number; status: string }>): { system: string; user: string } {
+export function buildReviewAnalysisPrompt(items: ReviewSnapshotItem[]): { system: string; user: string } {
+    const scopedItems = items.slice(0, MAX_REVIEW_ANALYSIS_ITEMS);
+    const scope = items.length > scopedItems.length
+        ? `Analyze the ${scopedItems.length} stalest items shown below. Ignore the remaining ${items.length - scopedItems.length} items for this pass.`
+        : 'Analyze this list of stale items (untouched for >14 days).';
     const user = [
         'You are a ruthless GTD coach.',
-        'Analyze this list of stale items (untouched for >14 days).',
+        scope,
         'For each item, suggest ONE action:',
         '- "someday": move to Someday/Maybe.',
         '- "archive": archive it (likely done or irrelevant).',
@@ -66,7 +72,7 @@ export function buildReviewAnalysisPrompt(items: Array<{ id: string; title: stri
         'Return strictly valid JSON:',
         '{ "suggestions": [{ "id": "task_id", "action": "someday|archive|breakdown|keep", "reason": "..." }] }',
         'Items:',
-        JSON.stringify(items),
+        JSON.stringify(scopedItems),
     ].join('\n');
 
     return { system: SYSTEM_PROMPT, user };

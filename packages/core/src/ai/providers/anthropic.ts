@@ -71,7 +71,8 @@ async function requestAnthropic(
                 },
                 resolveTimeoutMs(config.timeoutMs),
                 'Anthropic',
-                options?.signal
+                options?.signal,
+                config.fetcher
             );
         } catch (error) {
             if (attempt < MAX_RETRIES) {

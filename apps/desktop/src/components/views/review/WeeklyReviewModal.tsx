@@ -290,7 +290,7 @@ export function WeeklyReviewGuideModal({ onClose }: WeeklyReviewGuideModalProps)
         }
         setAiLoading(true);
         try {
-            const provider = createAIProvider(buildAIConfig(settings, apiKey));
+            const provider = createAIProvider(await buildAIConfig(settings, apiKey));
             const response = await provider.analyzeReview({ items: staleItems });
             setAiSuggestions(response.suggestions || []);
             const defaultSelected = new Set(

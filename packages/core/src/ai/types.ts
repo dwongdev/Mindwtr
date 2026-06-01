@@ -84,6 +84,7 @@ export interface AIProviderConfig {
     apiKey: string;
     model: string;
     endpoint?: string;
+    fetcher?: typeof fetch;
     reasoningEffort?: AIReasoningEffort;
     thinkingBudget?: number;
     timeoutMs?: number;
