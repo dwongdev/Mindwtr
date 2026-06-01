@@ -1,6 +1,9 @@
 import { createNextRecurringTask } from './recurrence';
 import { getTaskDateCoherenceIssues } from './task-date-coherence';
-import { getUsedTaskTokens } from './task-token-usage';
+import {
+    collectTaskTokenUsage,
+    getUsedTaskTokensFromUsage,
+} from './task-token-usage';
 import { rescheduleTask } from './task-utils';
 import { filterNotDeleted } from './sync-helpers';
 import { nextRevision, normalizeRevision } from './sync-revision';
@@ -442,10 +445,12 @@ export const computeProjectDerivedState = (
 export const computeTaskDerivedState = (
     tasks: Task[],
     tasksById?: Map<string, Task>
-): Pick<DerivedState, 'tasksById' | 'activeTasksByStatus' | 'allContexts' | 'allTags' | 'dateCoherenceIssuesByTaskId' | 'focusedCount'> => {
+): Pick<DerivedState, 'tasksById' | 'activeTasksByStatus' | 'allContexts' | 'allTags' | 'contextTokenUsage' | 'tagTokenUsage' | 'dateCoherenceIssuesByTaskId' | 'focusedCount'> => {
     const resolvedTasksById = tasksById ?? new Map<string, Task>();
     const activeTasksByStatus = new Map<TaskStatus, Task[]>();
     const dateCoherenceIssuesByTaskId = new Map<string, ReturnType<typeof getTaskDateCoherenceIssues>>();
+    const contextTokenUsage = collectTaskTokenUsage(tasks, (task) => task.contexts, { prefix: '@' });
+    const tagTokenUsage = collectTaskTokenUsage(tasks, (task) => task.tags, { prefix: '#' });
     let focusedCount = 0;
 
     tasks.forEach((task) => {
@@ -469,8 +474,10 @@ export const computeTaskDerivedState = (
     return {
         tasksById: resolvedTasksById,
         activeTasksByStatus,
-        allContexts: getUsedTaskTokens(tasks, (task) => task.contexts, { prefix: '@' }),
-        allTags: getUsedTaskTokens(tasks, (task) => task.tags, { prefix: '#' }),
+        allContexts: getUsedTaskTokensFromUsage(contextTokenUsage),
+        allTags: getUsedTaskTokensFromUsage(tagTokenUsage),
+        contextTokenUsage,
+        tagTokenUsage,
         dateCoherenceIssuesByTaskId,
         focusedCount,
     };

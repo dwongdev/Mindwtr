@@ -43,11 +43,13 @@ let pendingSaves: PendingSave[] = [];
 let pendingVersion = 0;
 let savedVersion = 0;
 let saveInFlight: Promise<void> | null = null;
+let scheduledSaveTimer: ReturnType<typeof setTimeout> | null = null;
 let errorAutoClearTimer: ReturnType<typeof setTimeout> | null = null;
 const MAX_PENDING_SAVES = 100;
 const MAX_SAVE_RETRY_ATTEMPTS = 5;
 const INITIAL_SAVE_RETRY_DELAY_MS = 250;
 const MAX_SAVE_RETRY_DELAY_MS = 4000;
+const SAVE_FLUSH_DELAY_MS = 120;
 const ERROR_AUTO_CLEAR_MS = 10_000;
 const SAVE_QUEUE_OVERFLOW_ERROR_PREFIX = 'Save queue overflow:';
 const hasPendingSaveWork = (): boolean => pendingSaves.length > 0 || saveInFlight !== null;
@@ -177,7 +179,14 @@ const scheduleErrorAutoClear = (error: string | null) => {
     }, ERROR_AUTO_CLEAR_MS);
 };
 
+const clearScheduledSaveTimer = () => {
+    if (!scheduledSaveTimer) return;
+    clearTimeout(scheduledSaveTimer);
+    scheduledSaveTimer = null;
+};
+
 export const resetForTests = () => {
+    clearScheduledSaveTimer();
     if (errorAutoClearTimer) {
         clearTimeout(errorAutoClearTimer);
         errorAutoClearTimer = null;
@@ -328,6 +337,22 @@ const prepareStoreStateUpdate = (
     return prepared;
 };
 
+const schedulePendingSaveFlush = () => {
+    if (scheduledSaveTimer) return;
+    scheduledSaveTimer = setTimeout(() => {
+        scheduledSaveTimer = null;
+        void flushPendingSave().catch((error) => {
+            logError('Failed to flush pending save', { scope: 'store', category: 'storage', error });
+            const message = toSaveErrorMessage(error);
+            try {
+                useTaskStore.getState().setError(message);
+            } catch {
+                // Ignore if store is not initialized yet
+            }
+        });
+    }, SAVE_FLUSH_DELAY_MS);
+};
+
 /**
  * Save data with write coalescing.
  * Captures a snapshot immediately and serializes writes to avoid lost updates.
@@ -348,15 +373,7 @@ const debouncedSave = (data: AppData, onError?: (msg: string) => void) => {
         queueLen: pendingSaves.length,
         caller: getDebouncedSaveCaller(),
     });
-    void flushPendingSave().catch((error) => {
-        logError('Failed to flush pending save', { scope: 'store', category: 'storage', error });
-        const message = toSaveErrorMessage(error);
-        try {
-            useTaskStore.getState().setError(message);
-        } catch {
-            // Ignore if store is not initialized yet
-        }
-    });
+    schedulePendingSaveFlush();
 };
 
 /**
@@ -364,6 +381,7 @@ const debouncedSave = (data: AppData, onError?: (msg: string) => void) => {
  * Call this when the app goes to background or is about to be terminated.
  */
 export const flushPendingSave = async (): Promise<void> => {
+    clearScheduledSaveTimer();
     markCoreStartupPhase('core.flush_pending_save.enter', {
         queueLen: pendingSaves.length,
         inFlight: saveInFlight ? 1 : 0,

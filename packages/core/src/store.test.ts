@@ -1519,6 +1519,20 @@ describe('TaskStore', () => {
         expect(mockStorage.saveData).toHaveBeenCalledTimes(1);
     });
 
+    it('defers automatic persistence so UI updates can paint first', async () => {
+        const { addTask } = useTaskStore.getState();
+
+        addTask('Deferred Save');
+        await Promise.resolve();
+
+        expect(mockStorage.saveData).not.toHaveBeenCalled();
+
+        await vi.advanceTimersByTimeAsync(120);
+        await waitForExpectation(() => {
+            expect(mockStorage.saveData).toHaveBeenCalledTimes(1);
+        });
+    });
+
     it('should persist the latest snapshot after rapid edits', async () => {
         const { addTask, addProject, updateTask } = useTaskStore.getState();
 
@@ -1581,9 +1595,12 @@ describe('TaskStore', () => {
             })
         );
 
+        const flushPromise = flushPendingSave();
+        await waitForExpectation(() => {
+            expect(mockStorage.saveData).toHaveBeenCalledTimes(1);
+        });
         resolveFirstSave?.();
-        await Promise.resolve();
-        await flushPendingSave();
+        await flushPromise;
     });
 
     it('retries failed saves with the latest queued snapshot', async () => {
@@ -1604,12 +1621,14 @@ describe('TaskStore', () => {
 
         const taskId = useTaskStore.getState().tasks[0].id;
         updateTask(taskId, { title: 'Alpha Updated' });
-        expect(mockStorage.saveData).toHaveBeenCalledTimes(1);
 
+        const flushPromise = flushPendingSave();
+        await waitForExpectation(() => {
+            expect(mockStorage.saveData).toHaveBeenCalledTimes(1);
+        });
         rejectFirstSave?.(new Error('disk full'));
-        await Promise.resolve();
-
-        await flushPendingSave();
+        await vi.advanceTimersByTimeAsync(250);
+        await flushPromise;
 
         const saveCalls = (mockStorage.saveData as unknown as { mock: { calls: any[][] } }).mock.calls;
         expect(saveCalls.length).toBeGreaterThanOrEqual(2);
@@ -1634,16 +1653,17 @@ describe('TaskStore', () => {
 
         const { addTask, updateTask } = useTaskStore.getState();
         addTask('Alpha');
-        await Promise.resolve();
+        const flushPromise = flushPendingSave();
+        await waitForExpectation(() => {
+            expect(mockStorage.saveData).toHaveBeenCalledTimes(1);
+        });
 
         const taskId = useTaskStore.getState().tasks[0].id;
         updateTask(taskId, { title: 'Alpha Updated' });
-        expect(mockStorage.saveData).toHaveBeenCalledTimes(1);
 
         rejectFirstSave?.(new Error('disk full'));
-        await waitForExpectation(() => {
-            expect(mockStorage.saveData).toHaveBeenCalledTimes(2);
-        });
+        await flushPromise;
+        expect(mockStorage.saveData).toHaveBeenCalledTimes(2);
 
         const saveCalls = (mockStorage.saveData as unknown as { mock: { calls: any[][] } }).mock.calls;
         const lastSaved = saveCalls[saveCalls.length - 1]?.[0];

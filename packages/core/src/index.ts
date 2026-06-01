@@ -229,8 +229,10 @@ export type {
 export {
     collectTaskTokenUsage,
     getFrequentTaskTokens,
+    getFrequentTaskTokensFromUsage,
     getRecentTaskTokens,
     getUsedTaskTokens,
+    getUsedTaskTokensFromUsage,
 } from './task-token-usage';
 export type {
     TaskTokenUsage,

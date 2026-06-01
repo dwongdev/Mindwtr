@@ -13,8 +13,8 @@ import {
     DEFAULT_PROJECT_COLOR,
     getLocalizedWeekdayButtons,
     getLocalizedWeekdayLabels,
-    getUsedTaskTokens,
     normalizeClockTimeInput,
+    shallow,
 } from '@mindwtr/core';
 import { useLanguage } from '../contexts/language-context';
 import { useThemeColors } from '@/hooks/use-theme-colors';
@@ -92,7 +92,31 @@ function TaskEditModalInner({
         addArea,
         deleteTask,
         restoreTask,
-    } = useTaskStore();
+        allContexts = [],
+        allTags = [],
+        contextTokenUsage = [],
+        tagTokenUsage = [],
+    } = useTaskStore((state) => {
+        const derived = state.getDerivedState();
+        return {
+            tasks: state.tasks,
+            projects: state.projects,
+            sections: state.sections,
+            areas: state.areas,
+            settings: state.settings,
+            duplicateTask: state.duplicateTask,
+            resetTaskChecklist: state.resetTaskChecklist,
+            addProject: state.addProject,
+            addSection: state.addSection,
+            addArea: state.addArea,
+            deleteTask: state.deleteTask,
+            restoreTask: state.restoreTask,
+            allContexts: derived.allContexts,
+            allTags: derived.allTags,
+            contextTokenUsage: derived.contextTokenUsage,
+            tagTokenUsage: derived.tagTokenUsage,
+        };
+    }, shallow);
     const { t, language } = useLanguage();
     const tc = useThemeColors();
     const prioritiesEnabled = settings.features?.priorities !== false;
@@ -154,13 +178,13 @@ function TaskEditModalInner({
     const aiProvider = settings.ai?.provider ?? 'openai';
 
     const contextOptions = React.useMemo(() => Array.from(new Set([
-            ...getUsedTaskTokens(tasks, (item) => item.contexts, { prefix: '@' }),
+            ...allContexts,
             ...(editedTask.contexts ?? []),
-        ])).filter(Boolean), [editedTask.contexts, tasks]);
+        ])).filter(Boolean), [allContexts, editedTask.contexts]);
     const tagOptions = React.useMemo(() => Array.from(new Set([
-            ...getUsedTaskTokens(tasks, (item) => item.tags, { prefix: '#' }),
+            ...allTags,
             ...(editedTask.tags ?? []),
-        ])).filter(Boolean), [editedTask.tags, tasks]);
+        ])).filter(Boolean), [allTags, editedTask.tags]);
     const {
         handlePreviewContextPress,
         handlePreviewProjectPress,
@@ -168,6 +192,7 @@ function TaskEditModalInner({
         projectContext,
     } = useTaskEditPreview({
         editedProjectId: editedTask.projectId,
+        includeProjectContext: aiEnabled,
         onClose,
         onContextNavigate,
         onProjectNavigate,
@@ -244,11 +269,14 @@ function TaskEditModalInner({
         selectedContextTokens,
         selectedTagTokens,
     } = useTaskTokenSuggestions({
-        tasks,
         editedContexts: editedTask.contexts,
         editedTags: editedTask.tags,
         contextInputDraft,
         tagInputDraft,
+        allContexts,
+        allTags,
+        contextTokenUsage,
+        tagTokenUsage,
     });
     const assignedToSuggestions = useMemo(
         () => getAssignedToSuggestions(tasks, String(editedTask.assignedTo ?? ''), MAX_VISIBLE_SUGGESTIONS),

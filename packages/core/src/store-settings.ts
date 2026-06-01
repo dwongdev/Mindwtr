@@ -1244,6 +1244,8 @@ export const createSettingsActions = ({
                     activeTasksByStatus: previous.activeTasksByStatus,
                     allContexts: previous.allContexts,
                     allTags: previous.allTags,
+                    contextTokenUsage: previous.contextTokenUsage,
+                    tagTokenUsage: previous.tagTokenUsage,
                     dateCoherenceIssuesByTaskId: previous.dateCoherenceIssuesByTaskId,
                     focusedCount: previous.focusedCount,
                 }
