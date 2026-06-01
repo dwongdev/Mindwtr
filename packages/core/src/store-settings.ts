@@ -956,6 +956,7 @@ export const createSettingsActions = ({
                     activeTasksByStatus: previous.activeTasksByStatus,
                     allContexts: previous.allContexts,
                     allTags: previous.allTags,
+                    dateCoherenceIssuesByTaskId: previous.dateCoherenceIssuesByTaskId,
                     focusedCount: previous.focusedCount,
                 }
                 : computeTaskDerivedState(state.tasks, state._tasksById);

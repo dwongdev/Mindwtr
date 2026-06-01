@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { CLOCK_SKEW_THRESHOLD_MS, SYNC_REPAIR_REV_BY, mergeAppData, mergeAppDataWithStats } from './sync';
+import { getTaskDateCoherenceIssues } from './task-date-coherence';
 import {
     normalizeAreaForSyncMerge,
     normalizeAppData,
@@ -141,6 +142,25 @@ describe('sync normalization', () => {
 
         expect(normalized.startTime).toBe('2026-01-03');
         expect(normalized.isFocusedToday).toBe(false);
+    });
+
+    it('detects date incoherence from incoming synced tasks without mutating dates', () => {
+        const task = {
+            ...createMockTask('task-1', '2026-01-01T00:00:00.000Z'),
+            status: 'next',
+            dueDate: '2026-04-24',
+            startTime: '2026-04-25',
+        } satisfies Task;
+
+        const normalized = normalizeTaskForSyncMerge(task, '2026-04-20T10:00:00.000Z');
+
+        expect(getTaskDateCoherenceIssues(normalized)).toEqual([{
+            code: 'start_after_due',
+            field: 'startTime',
+            relatedField: 'dueDate',
+        }]);
+        expect(normalized.startTime).toBe('2026-04-25');
+        expect(normalized.dueDate).toBe('2026-04-24');
     });
 
     it('does not let one-sided revBy metadata decide equal-revision conflicts', () => {

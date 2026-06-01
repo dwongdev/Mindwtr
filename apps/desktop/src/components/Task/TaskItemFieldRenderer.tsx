@@ -7,6 +7,7 @@ import {
     applyMarkdownUrlPaste,
     buildRRuleString,
     continueMarkdownOnEnter,
+    getTaskDateCoherenceIssues,
     hasTimeComponent,
     normalizeClockTimeInput,
     normalizeDateFormatSetting,
@@ -875,6 +876,12 @@ export function TaskItemFieldRenderer({
     };
     const dateInputClassName = 'min-w-0 flex-1 text-xs bg-muted/50 border border-border rounded px-2 py-1 text-foreground';
     const timeInputClassName = 'w-24 shrink-0 text-xs bg-muted/50 border border-border rounded px-2 py-1 text-foreground';
+    const dateIssueLabel = getTaskDateCoherenceIssues({
+        startTime: editStartTime || undefined,
+        dueDate: editDueDate || undefined,
+    }).some((issue) => issue.code === 'start_after_due')
+        ? tFallback(t, 'task.dateIssue.startAfterDue', 'Starts after due date')
+        : '';
     const renderDateField = ({
         label,
         dateAriaLabel,
@@ -884,6 +891,7 @@ export function TaskItemFieldRenderer({
         timeInput,
         onClear,
         hasValue,
+        warning,
     }: {
         label: string;
         dateAriaLabel: string;
@@ -893,21 +901,29 @@ export function TaskItemFieldRenderer({
         timeInput: ReactNode;
         onClear: () => void;
         hasValue: boolean;
+        warning?: string;
     }) => (
-        <DateField
-            t={t}
-            label={label}
-            dateAriaLabel={dateAriaLabel}
-            dateValue={dateValue}
-            selectedDate={selectedDate}
-            dateFormatSetting={dateFormatSetting}
-            nativeDateInputLocale={nativeDateInputLocale}
-            dateInputClassName={dateInputClassName}
-            timeInput={timeInput}
-            onDateChange={onDateChange}
-            onClear={onClear}
-            hasValue={hasValue}
-        />
+        <div className="space-y-1">
+            <DateField
+                t={t}
+                label={label}
+                dateAriaLabel={dateAriaLabel}
+                dateValue={dateValue}
+                selectedDate={selectedDate}
+                dateFormatSetting={dateFormatSetting}
+                nativeDateInputLocale={nativeDateInputLocale}
+                dateInputClassName={dateInputClassName}
+                timeInput={timeInput}
+                onDateChange={onDateChange}
+                onClear={onClear}
+                hasValue={hasValue}
+            />
+            {warning && (
+                <p className="text-xs text-amber-500 dark:text-amber-300" role="note">
+                    {warning}
+                </p>
+            )}
+        </div>
     );
 
     switch (fieldId) {
@@ -1002,6 +1018,7 @@ export function TaskItemFieldRenderer({
                     ),
                     onClear: () => setEditStartTime(''),
                     hasValue: Boolean(editStartTime),
+                    warning: dateIssueLabel,
                 });
             }
         case 'dueDate':
@@ -1053,6 +1070,7 @@ export function TaskItemFieldRenderer({
                     ),
                     onClear: () => setEditDueDate(''),
                     hasValue: Boolean(editDueDate),
+                    warning: dateIssueLabel,
                 });
             }
         case 'reviewAt':

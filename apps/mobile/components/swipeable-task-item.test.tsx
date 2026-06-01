@@ -105,6 +105,11 @@ vi.mock('@mindwtr/core', () => {
     shallow: (value: unknown) => value,
     getChecklistProgress,
     getTaskAgeLabel,
+    getTaskDateCoherenceIssues: (task: any) => (
+      task?.startTime === '2026-04-25' && task?.dueDate === '2026-04-24'
+        ? [{ code: 'start_after_due', field: 'startTime', relatedField: 'dueDate' }]
+        : []
+    ),
     getTaskStaleness,
     getStatusColor: () => ({ bg: '#111111', border: '#222222', text: '#333333' }),
     hasTimeComponent: () => false,
@@ -354,6 +359,39 @@ describe('SwipeableTaskItem', () => {
     });
 
     expect(onLongPressAction).toHaveBeenCalledTimes(1);
+  });
+
+  it('shows a date-coherence indicator when a task starts after its due date', () => {
+    let tree!: renderer.ReactTestRenderer;
+    renderer.act(() => {
+      tree = renderer.create(
+        <SwipeableTaskItem
+          task={{
+            id: 'task-1',
+            title: 'Plan release',
+            status: 'next',
+            dueDate: '2026-04-24',
+            startTime: '2026-04-25',
+            createdAt: '2026-01-01T00:00:00.000Z',
+            updatedAt: '2026-01-01T00:00:00.000Z',
+          } as any}
+          isDark={false}
+          tc={{
+            taskItemBg: '#111111',
+            border: '#222222',
+            text: '#ffffff',
+            secondaryText: '#999999',
+            tint: '#3b82f6',
+            warning: '#f59e0b',
+          } as any}
+          onPress={vi.fn()}
+          onStatusChange={vi.fn()}
+          onDelete={vi.fn()}
+        />
+      );
+    });
+
+    expect(hasText(tree, 'Starts after due date')).toBe(true);
   });
 
   it('navigates from project, context, and tag meta labels', () => {

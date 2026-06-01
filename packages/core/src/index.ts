@@ -109,6 +109,17 @@ export type {
 } from './sync';
 
 export {
+    getTaskDateCoherence,
+    getTaskDateCoherenceIssues,
+    isTaskDateCoherent,
+} from './task-date-coherence';
+export type {
+    TaskDateCoherenceIssue,
+    TaskDateCoherenceIssueCode,
+    TaskDateCoherenceResult,
+} from './task-date-coherence';
+
+export {
     repairMergedSyncReferences,
 } from './sync-normalization';
 

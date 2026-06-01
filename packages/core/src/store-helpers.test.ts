@@ -404,6 +404,28 @@ describe('derived store state helpers', () => {
         expect(derived.focusedCount).toBe(1);
     });
 
+    it('derives transient date-coherence issues without mutating tasks', () => {
+        const incoherent = createTask('incoherent', 'project-1', 0, {
+            startTime: '2026-04-25',
+            dueDate: '2026-04-24',
+        });
+        const coherent = createTask('coherent', 'project-1', 1, {
+            startTime: '2026-04-24',
+            dueDate: '2026-04-24',
+        });
+
+        const derived = computeTaskDerivedState([incoherent, coherent]);
+
+        expect(derived.dateCoherenceIssuesByTaskId.get('incoherent')).toEqual([{
+            code: 'start_after_due',
+            field: 'startTime',
+            relatedField: 'dueDate',
+        }]);
+        expect(derived.dateCoherenceIssuesByTaskId.has('coherent')).toBe(false);
+        expect(incoherent.startTime).toBe('2026-04-25');
+        expect(incoherent.dueDate).toBe('2026-04-24');
+    });
+
     it('derives focused project count while ignoring tombstones', () => {
         const derived = computeProjectDerivedState([
             createProject('focused-a', { isFocused: true }),

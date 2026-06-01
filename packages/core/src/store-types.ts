@@ -1,5 +1,6 @@
 import type { AppData, Area, Project, Section, Task, TaskStatus } from './types';
 import type { TaskQueryOptions } from './storage';
+import type { TaskDateCoherenceIssue } from './task-date-coherence';
 
 export type StoreActionResult = {
     success: boolean;
@@ -147,6 +148,7 @@ export type DerivedState = {
     allTags: string[];
     sequentialProjectIds: Set<string>;
     sequentialWithinSectionProjectIds: Set<string>;
+    dateCoherenceIssuesByTaskId: Map<string, TaskDateCoherenceIssue[]>;
     focusedCount: number;
     focusedProjectCount: number;
 };

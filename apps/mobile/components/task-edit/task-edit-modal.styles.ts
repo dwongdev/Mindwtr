@@ -37,6 +37,11 @@ export const styles = StyleSheet.create({
         color: '#333',
         fontWeight: '600',
     },
+    dateIssueText: {
+        marginTop: 8,
+        fontSize: 12,
+        fontWeight: '600',
+    },
     statusContainer: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
     statusContainerCompact: {
         flexDirection: 'row',

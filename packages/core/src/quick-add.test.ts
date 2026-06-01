@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest';
+import { getTaskDateCoherenceIssues } from './task-date-coherence';
 import { parseQuickAdd, parseQuickAddDateCommands } from './quick-add';
 
 describe('quick-add', () => {
@@ -51,6 +52,19 @@ describe('quick-add', () => {
         const result = parseQuickAdd('Task /start:mon', undefined, now);
         expect(result.props.startTime).toBe(new Date(2026, 2, 2, 0, 0, 0, 0).toISOString());
         expect(result.invalidDateCommands).toBeUndefined();
+    });
+
+    it('exposes date incoherence from parsed quick-add dates without changing the dates', () => {
+        const now = new Date('2026-04-20T09:40:00Z');
+        const result = parseQuickAdd('Task /due:tomorrow /start:friday', undefined, now);
+
+        expect(result.props.dueDate).toBe('2026-04-21');
+        expect(result.props.startTime).toBe(new Date(2026, 3, 24, 0, 0, 0, 0).toISOString());
+        expect(getTaskDateCoherenceIssues(result.props)).toEqual([{
+            code: 'start_after_due',
+            field: 'startTime',
+            relatedField: 'dueDate',
+        }]);
     });
 
     it('reports invalid date commands instead of silently dropping them', () => {

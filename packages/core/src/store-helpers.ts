@@ -1,4 +1,5 @@
 import { createNextRecurringTask } from './recurrence';
+import { getTaskDateCoherenceIssues } from './task-date-coherence';
 import { getUsedTaskTokens } from './task-token-usage';
 import { rescheduleTask } from './task-utils';
 import { filterNotDeleted } from './sync-helpers';
@@ -441,9 +442,10 @@ export const computeProjectDerivedState = (
 export const computeTaskDerivedState = (
     tasks: Task[],
     tasksById?: Map<string, Task>
-): Pick<DerivedState, 'tasksById' | 'activeTasksByStatus' | 'allContexts' | 'allTags' | 'focusedCount'> => {
+): Pick<DerivedState, 'tasksById' | 'activeTasksByStatus' | 'allContexts' | 'allTags' | 'dateCoherenceIssuesByTaskId' | 'focusedCount'> => {
     const resolvedTasksById = tasksById ?? new Map<string, Task>();
     const activeTasksByStatus = new Map<TaskStatus, Task[]>();
+    const dateCoherenceIssuesByTaskId = new Map<string, ReturnType<typeof getTaskDateCoherenceIssues>>();
     let focusedCount = 0;
 
     tasks.forEach((task) => {
@@ -454,6 +456,10 @@ export const computeTaskDerivedState = (
         const list = activeTasksByStatus.get(task.status) ?? [];
         list.push(task);
         activeTasksByStatus.set(task.status, list);
+        const dateCoherenceIssues = getTaskDateCoherenceIssues(task);
+        if (dateCoherenceIssues.length > 0) {
+            dateCoherenceIssuesByTaskId.set(task.id, dateCoherenceIssues);
+        }
         // Done/reference tasks keep their historical focus flag but should not consume today's focus limit.
         if (task.isFocusedToday && task.status !== 'done' && task.status !== 'reference') {
             focusedCount += 1;
@@ -465,6 +471,7 @@ export const computeTaskDerivedState = (
         activeTasksByStatus,
         allContexts: getUsedTaskTokens(tasks, (task) => task.contexts, { prefix: '@' }),
         allTags: getUsedTaskTokens(tasks, (task) => task.tags, { prefix: '#' }),
+        dateCoherenceIssuesByTaskId,
         focusedCount,
     };
 };

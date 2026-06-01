@@ -3,11 +3,13 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import {
     getInlineMarkdownPreview,
     getTaskAgeLabel,
+    getTaskDateCoherenceIssues,
     getStatusColor,
     hasTimeComponent,
     resolveTaskTextDirection,
     safeFormatDate,
     safeParseDueDate,
+    tFallback,
 } from '@mindwtr/core';
 import type { Area, Language, Project, Task } from '@mindwtr/core';
 import type { ThemeColors } from '../../hooks/use-theme-colors';
@@ -115,6 +117,9 @@ export function SwipeableTaskItemContent({
         const hasTime = hasTimeComponent(task.dueDate);
         return safeFormatDate(due, hasTime ? 'Pp' : 'P');
     })();
+    const dateIssueLabel = getTaskDateCoherenceIssues(task).some((issue) => issue.code === 'start_after_due')
+        ? tFallback(t, 'task.dateIssue.startAfterDue', 'Starts after due date')
+        : null;
     const completionLabel = (() => {
         if (task.status !== 'done' && task.status !== 'archived') return null;
         const completionTimestamp = task.completedAt || task.updatedAt;
@@ -262,6 +267,15 @@ export function SwipeableTaskItemContent({
                 {dueLabel}
             </Text>,
             'due'
+        );
+    }
+
+    if (dateIssueLabel) {
+        addMetaPart(
+            <Text key="date-issue" style={[styles.metaText, styles.dateIssueText]} numberOfLines={1}>
+                {dateIssueLabel}
+            </Text>,
+            'date-issue'
         );
     }
 

@@ -341,6 +341,25 @@ describe('TaskStore', () => {
         expect(useTaskStore.getState().getDerivedState().focusedCount).toBe(0);
     });
 
+    it('derives date-coherence issues from updateTask without auto-mutating dates', async () => {
+        const { addTask, updateTask } = useTaskStore.getState();
+        const result = await addTask('Conflicting dates', { status: 'next', dueDate: '2026-04-24' });
+        expect(result.success).toBe(true);
+        const taskId = result.id;
+        expect(taskId).toBeTruthy();
+
+        await expect(updateTask(taskId!, { startTime: '2026-04-25' })).resolves.toEqual({ success: true });
+
+        const task = useTaskStore.getState()._tasksById.get(taskId!);
+        expect(task?.startTime).toBe('2026-04-25');
+        expect(task?.dueDate).toBe('2026-04-24');
+        expect(useTaskStore.getState().getDerivedState().dateCoherenceIssuesByTaskId.get(taskId!)).toEqual([{
+            code: 'start_after_due',
+            field: 'startTime',
+            relatedField: 'dueDate',
+        }]);
+    });
+
     it('stamps the GTD sync time when the focus limit changes', async () => {
         vi.setSystemTime(new Date('2026-03-21T12:00:00.000Z'));
 

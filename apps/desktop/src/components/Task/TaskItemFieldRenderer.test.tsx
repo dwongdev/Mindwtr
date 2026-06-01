@@ -46,6 +46,7 @@ const t = (key: string) => {
         'task.aria.description': 'Description',
         'task.aria.location': 'Location',
         'task.aria.recurrence': 'Recurrence',
+        'task.dateIssue.startAfterDue': 'Starts after due date',
         'taskEdit.descriptionLabel': 'Description',
         'taskEdit.descriptionPlaceholder': 'Add notes...',
         'taskEdit.locationLabel': 'Location',
@@ -228,6 +229,33 @@ describe('TaskItemFieldRenderer date clear buttons', () => {
 
         expect(getByText(label)).toHaveClass('text-xs', 'font-semibold');
         expect(getByText(label)).not.toHaveClass('font-medium');
+    });
+
+    it('shows a date-coherence note on conflicting start and due date fields', () => {
+        const data = createData({
+            editStartTime: '2026-04-25',
+            editDueDate: '2026-04-24',
+        });
+
+        const { getByText, rerender } = render(
+            <TaskItemFieldRenderer
+                fieldId="startTime"
+                data={data}
+                handlers={createHandlers()}
+            />
+        );
+
+        expect(getByText('Starts after due date')).toBeInTheDocument();
+
+        rerender(
+            <TaskItemFieldRenderer
+                fieldId="dueDate"
+                data={data}
+                handlers={createHandlers()}
+            />
+        );
+
+        expect(getByText('Starts after due date')).toBeInTheDocument();
     });
 
     it.each([

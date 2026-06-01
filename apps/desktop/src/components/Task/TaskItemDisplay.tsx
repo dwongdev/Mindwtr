@@ -1,6 +1,6 @@
-import { Calendar as CalendarIcon, Tag, Trash2, ArrowRight, Repeat, Check, Clock, Timer, Paperclip, RotateCcw, Copy, MapPin, Hourglass, Star, Zap, MoreHorizontal } from 'lucide-react';
+import { AlertTriangle, Calendar as CalendarIcon, Tag, Trash2, ArrowRight, Repeat, Check, Clock, Timer, Paperclip, RotateCcw, Copy, MapPin, Hourglass, Star, Zap, MoreHorizontal } from 'lucide-react';
 import type { Area, Attachment, Project, Task, TaskStatus, RecurrenceRule, RecurrenceStrategy, Language } from '@mindwtr/core';
-import { DEFAULT_AREA_COLOR, getChecklistProgress, getRecurrenceCountValue, getRecurrenceUntilValue, getTaskAgeLabel, getTaskStaleness, getTaskUrgency, hasTimeComponent, parseRRuleString, safeFormatDate, resolveTaskTextDirection, tFallback } from '@mindwtr/core';
+import { DEFAULT_AREA_COLOR, getChecklistProgress, getRecurrenceCountValue, getRecurrenceUntilValue, getTaskAgeLabel, getTaskDateCoherenceIssues, getTaskStaleness, getTaskUrgency, hasTimeComponent, parseRRuleString, safeFormatDate, resolveTaskTextDirection, tFallback } from '@mindwtr/core';
 import { cn } from '../../lib/utils';
 import { getAttachmentDisplayTitle } from '../../lib/attachment-utils';
 import { getContextColor } from '../../lib/context-color';
@@ -153,12 +153,16 @@ export const TaskItemDisplay = memo(function TaskItemDisplay({
     const completionLabel = completionTimestamp
         ? safeFormatDate(completionTimestamp, 'Pp', completionTimestamp)
         : '';
+    const dateIssueLabel = getTaskDateCoherenceIssues(task).some((issue) => issue.code === 'start_after_due')
+        ? tFallback(t, 'task.dateIssue.startAfterDue', 'Starts after due date')
+        : '';
     const hasMetadata = Boolean(
         project
         || area
         || completionLabel
         || task.startTime
         || task.dueDate
+        || dateIssueLabel
         || task.location
         || recurrenceRule
         || (prioritiesEnabled && task.priority)
@@ -370,6 +374,14 @@ export const TaskItemDisplay = memo(function TaskItemDisplay({
                         />
                     )}
                 </div>
+            )}
+            {dateIssueLabel && (
+                <MetadataBadge
+                    variant="info"
+                    icon={AlertTriangle}
+                    label={dateIssueLabel}
+                    className="text-amber-500 dark:text-amber-300"
+                />
             )}
             {task.location && (
                 <MetadataBadge

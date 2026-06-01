@@ -16,6 +16,7 @@ const styles = {
     statusContainer: {},
     statusChip: {},
     statusText: {},
+    dateIssueText: {},
     customRow: {},
     modalLabel: {},
     customInput: {},
@@ -32,10 +33,12 @@ const tc = {
     secondaryText: '#aaa',
     text: '#fff',
     tint: '#3b82f6',
+    warning: '#f59e0b',
 };
 
 const t = (key: string) => ({
     'common.notSet': 'Not set',
+    'task.dateIssue.startAfterDue': 'Starts after due date',
     'taskEdit.recurrenceLabel': 'Recurrence',
     'recurrence.none': 'None',
     'recurrence.weekly': 'Weekly',
@@ -93,6 +96,45 @@ describe('TaskEditScheduleField', () => {
 
         const textValues = tree.root.findAllByType(Text).map((node) => node.props.children);
         expect(textValues).toContain('2026-04-28 09:20');
+    });
+
+    it('shows a date-coherence note for start dates after due dates', () => {
+        let tree!: renderer.ReactTestRenderer;
+        act(() => {
+            tree = renderer.create(
+                <TaskEditScheduleField {...({
+                    customWeekdays: [],
+                    dailyInterval: 1,
+                    editedTask: { startTime: '2026-04-25', dueDate: '2026-04-24' },
+                    fieldId: 'startTime',
+                    formatDate: (value?: string) => value ?? '',
+                    formatDueDate: (value?: string) => value ?? '',
+                    getSafePickerDateValue: () => new Date('2026-04-25T09:20:00'),
+                    monthlyPattern: 'date',
+                    onDateChange: vi.fn(),
+                    openCustomRecurrence: vi.fn(),
+                    pendingDueDate: null,
+                    pendingStartDate: null,
+                    recurrenceOptions: [],
+                    recurrenceRRuleValue: '',
+                    recurrenceRuleValue: '',
+                    recurrenceStrategyValue: 'strict',
+                    recurrenceWeekdayButtons: [],
+                    setCustomWeekdays: vi.fn(),
+                    setEditedTask: vi.fn(),
+                    setShowDatePicker: vi.fn(),
+                    showDatePicker: null,
+                    styles,
+                    t,
+                    task: null,
+                    tc,
+                } as any)}
+                />
+            );
+        });
+
+        const textValues = tree.root.findAllByType(Text).map((node) => node.props.children);
+        expect(textValues).toContain('Starts after due date');
     });
 
     it('updates monthly recurrence intervals without changing the monthly pattern', () => {

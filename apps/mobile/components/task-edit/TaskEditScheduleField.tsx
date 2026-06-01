@@ -3,6 +3,7 @@ import { Keyboard, Platform, Pressable, Text, TextInput, TouchableOpacity, View 
 import DateTimePicker from '@react-native-community/datetimepicker';
 import {
     buildRRuleString,
+    getTaskDateCoherenceIssues,
     getRecurrenceUntilValue,
     hasTimeComponent,
     parseRRuleString,
@@ -174,6 +175,19 @@ export function TaskEditScheduleField({
         ) || t('common.notSet');
     };
     const dateOnlyLabel = tFallback(t, 'taskEdit.dateOnly', 'Date only');
+    const dateIssueLabel = getTaskDateCoherenceIssues({
+        startTime: editedTask.startTime,
+        dueDate: editedTask.dueDate,
+    }).some((issue) => issue.code === 'start_after_due')
+        ? tFallback(t, 'task.dateIssue.startAfterDue', 'Starts after due date')
+        : '';
+    const renderDateIssue = () => (
+        dateIssueLabel ? (
+            <Text style={[styles.dateIssueText, { color: tc.warning }]}>
+                {dateIssueLabel}
+            </Text>
+        ) : null
+    );
     const clearTimePart = (value?: string): string | undefined => {
         const parsed = safeParseDate(value);
         return parsed ? safeFormatDate(parsed, 'yyyy-MM-dd') : undefined;
@@ -577,6 +591,7 @@ export function TaskEditScheduleField({
                             )}
                         </View>
                         {renderQuickDateChips('start', parsed)}
+                        {renderDateIssue()}
                         {renderInlineIOSDatePicker(['start', 'start-time'])}
                     </View>
                 </View>
@@ -625,6 +640,7 @@ export function TaskEditScheduleField({
                             )}
                         </View>
                         {renderQuickDateChips('due', parsed)}
+                        {renderDateIssue()}
                         {renderInlineIOSDatePicker(['due', 'due-time'])}
                     </View>
                 </View>
