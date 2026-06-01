@@ -18,8 +18,8 @@ Detailed API, deployment, and operations docs are maintained in the project wiki
 
 Recommended pages:
 
-- https://github.com/dongdongbh/Mindwtr/wiki/Cloud-Sync
-- https://github.com/dongdongbh/Mindwtr/wiki/Cloud-API
-- https://github.com/dongdongbh/Mindwtr/wiki/Cloud-Deployment
-- https://github.com/dongdongbh/Mindwtr/wiki/Developer-Guide
 - https://github.com/dongdongbh/Mindwtr/wiki/Data-and-Sync
+- https://github.com/dongdongbh/Mindwtr/wiki/Cloud-Deployment
+- https://github.com/dongdongbh/Mindwtr/wiki/Cloud-API
+- https://github.com/dongdongbh/Mindwtr/wiki/Docker-Deployment
+- https://github.com/dongdongbh/Mindwtr/wiki/Developer-Guide

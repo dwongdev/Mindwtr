@@ -469,6 +469,18 @@ If recurrence or hierarchy fidelity matters, prefer the Omni Automation JSON / Z
 
 See [[OmniFocus Import]] for details and supported mappings.
 
+### Apple Reminders Import (iOS)
+
+On iPhone and iPad, Mindwtr can import incomplete Apple Reminders from **Settings → Data → Import from Apple Reminders**.
+
+- Choose the Apple Reminders list to use as the capture source
+- Adds new incomplete reminders to Mindwtr **Inbox**
+- Preserves reminder titles and notes as task titles and descriptions
+- Skips completed, titleless, and already imported reminders
+- Can optionally delete imported reminders from Apple Reminders after Mindwtr adds them to Inbox
+
+Apple Reminders import is a one-way import path, not a sync backend.
+
 ### Backup Strategy
 
 - Regular exports to sync folder

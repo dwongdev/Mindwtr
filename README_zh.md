@@ -362,7 +362,6 @@ Mindwtr 的发展离不开用户与贡献者的支持，感谢大家一起把它
 ## 路线图
 
 - 🗣️ Siri 直接收集到 Mindwtr 收件箱（[#388](https://github.com/dongdongbh/Mindwtr/issues/388)）
-- 📥 Apple 提醒事项导入到 Mindwtr 收件箱（[#387](https://github.com/dongdongbh/Mindwtr/issues/387)）
 - ✉️ 邮件添加到收件箱（[#35](https://github.com/dongdongbh/Mindwtr/issues/35)）
 - 🗓️ Mindwtr 单向同步到本地系统日历（移动端优先）（[#361](https://github.com/dongdongbh/Mindwtr/issues/361)）
 

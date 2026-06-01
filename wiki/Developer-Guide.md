@@ -132,7 +132,7 @@ Mindwtr/
 | `bun start`     | Start Expo server |
 | `bun android`   | Run on Android    |
 | `bun ios`       | Run on iOS        |
-| `bun build:apk` | Build Android APK |
+| `ARCHS=arm64-v8a bash ./scripts/android_build.sh` | Build Android APK |
 
 ### Cloud (`apps/cloud`)
 
