@@ -4,7 +4,7 @@ import { safeParseDate } from './date';
 import { useTaskStore, flushPendingSave, resetForTests, setStorageAdapter } from './store';
 import { buildEntityMap } from './store-helpers';
 import type { StorageAdapter } from './storage';
-import type { Task } from './types';
+import type { Project, Task } from './types';
 
 const waitForExpectation = async (assertion: () => void, maxAttempts = 200): Promise<void> => {
     let lastError: unknown = null;
@@ -31,6 +31,20 @@ const createStoreTask = (id: string, overrides: Partial<Task> = {}): Task => ({
     status: 'inbox',
     tags: [],
     contexts: [],
+    createdAt: '2026-04-01T00:00:00.000Z',
+    updatedAt: '2026-04-01T00:00:00.000Z',
+    rev: 1,
+    revBy: 'device-a',
+    ...overrides,
+});
+
+const createStoreProject = (id: string, overrides: Partial<Project> = {}): Project => ({
+    id,
+    title: `Project ${id}`,
+    status: 'active',
+    color: '#2563EB',
+    order: 0,
+    tagIds: [],
     createdAt: '2026-04-01T00:00:00.000Z',
     updatedAt: '2026-04-01T00:00:00.000Z',
     rev: 1,
@@ -1247,6 +1261,35 @@ describe('TaskStore', () => {
         expect(secondResult).toEqual(firstResult);
         expect(useTaskStore.getState().projects.map((project) => project.title)).toEqual(['Getting Started']);
         expect(useTaskStore.getState().tasks).toHaveLength(8);
+    });
+
+    it('backfills missing getting started tasks into an existing empty project', async () => {
+        const existingProject = createStoreProject('starter-project', {
+            title: 'Getting Started',
+        });
+        useTaskStore.setState({
+            projects: [existingProject],
+            _allProjects: [existingProject],
+        });
+
+        const result = await useTaskStore.getState().seedGettingStarted();
+        await flushPendingSave();
+
+        expect(result).toEqual({ success: true, id: existingProject.id });
+        expect(useTaskStore.getState().projects.map((project) => project.title)).toEqual(['Getting Started']);
+        expect(useTaskStore.getState().tasks).toHaveLength(8);
+        expect(
+            useTaskStore.getState().tasks
+                .filter((task) => task.projectId === existingProject.id)
+                .map((task) => task.title)
+        ).toEqual([
+            'Import tasks from another app',
+            'Set up sync across your devices',
+            'Process your first inbox item',
+            'Try quick capture with a context and date',
+            "Star up to 3 tasks for Today's Focus",
+            'Run your first weekly review',
+        ]);
     });
 
     it('supports a basic task lifecycle', async () => {

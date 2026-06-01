@@ -291,33 +291,44 @@ export const createSettingsActions = ({
         let projectId: string | undefined;
 
         set((state) => {
+            const deviceState = ensureDeviceId(state.settings);
+            const starterData = buildFreshInstallGettingStartedData(nowIso, deviceState.deviceId);
+            const starterTemplateProject = starterData.projects[0];
+            if (!starterTemplateProject) return state;
             const existingProject = state._allProjects.find((project) =>
                 !project.deletedAt &&
                 typeof project.title === 'string' &&
                 project.title.trim().toLowerCase() === 'getting started'
             );
-            if (existingProject) {
-                projectId = existingProject.id;
-                return state;
-            }
-
-            const deviceState = ensureDeviceId(state.settings);
-            const starterData = buildFreshInstallGettingStartedData(nowIso, deviceState.deviceId);
             const maxProjectOrder = state._allProjects.reduce(
                 (max, project) => Math.max(max, Number.isFinite(project.order) ? project.order : -1),
                 -1
             );
-            const starterProject = {
-                ...starterData.projects[0],
+            const starterProject = existingProject ?? {
+                ...starterTemplateProject,
                 order: maxProjectOrder + 1,
             };
-            const nextProjects = [...state._allProjects, starterProject];
-            const nextTasks = [...state._allTasks, ...starterData.tasks.map((task) => ({
-                ...task,
-                projectId: task.projectId === starterData.projects[0]?.id ? starterProject.id : task.projectId,
-            }))];
+            const activeTaskTitleKey = (task: Task) => `${task.status}:${task.projectId ?? ''}:${task.title.trim().toLowerCase()}`;
+            const existingActiveTaskKeys = new Set(
+                state._allTasks
+                    .filter((task) => !task.deletedAt)
+                    .map(activeTaskTitleKey)
+            );
+            const tasksToAdd = starterData.tasks
+                .map((task) => ({
+                    ...task,
+                    projectId: task.projectId === starterTemplateProject.id ? starterProject.id : task.projectId,
+                }))
+                .filter((task) => !existingActiveTaskKeys.has(activeTaskTitleKey(task)));
 
             projectId = starterProject.id;
+            if (existingProject && tasksToAdd.length === 0 && !deviceState.updated) {
+                return state;
+            }
+
+            const nextProjects = existingProject ? state._allProjects : [...state._allProjects, starterProject];
+            const nextTasks = tasksToAdd.length > 0 ? [...state._allTasks, ...tasksToAdd] : state._allTasks;
+
             snapshot = buildSaveSnapshot(state, {
                 tasks: nextTasks,
                 projects: nextProjects,
