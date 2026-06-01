@@ -8,7 +8,7 @@ import 'react-native-reanimated';
 import * as SplashScreen from 'expo-splash-screen';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
-import { Platform, SafeAreaView, StatusBar, Text, View } from 'react-native';
+import { BackHandler, Platform, SafeAreaView, StatusBar, Text, View } from 'react-native';
 import { ShareIntentProvider, useShareIntentContext } from 'expo-share-intent';
 import { QuickCaptureProvider, type QuickCaptureOptions } from '../contexts/quick-capture-context';
 import { ToastProvider, useToast } from '../contexts/toast-context';
@@ -207,6 +207,12 @@ function RootLayoutContentInner() {
     router.push({ pathname: '/settings', params: { settingsScreen: 'notifications' } } as never);
   }, [router]);
 
+  const returnContextAutomationToBackground = useCallback(() => {
+    if (Platform.OS === 'android') {
+      BackHandler.exitApp();
+    }
+  }, []);
+
   const { requestSync } = useRootLayoutSyncEffects({
     resolveText,
     openNotificationsSettings,
@@ -233,9 +239,8 @@ function RootLayoutContentInner() {
   useRootLayoutContextAutomation({
     dataReady,
     incomingUrl,
+    returnToBackground: returnContextAutomationToBackground,
     resolveText,
-    router,
-    showToast,
   });
   useRootLayoutExternalCapture({
     dataReady,

@@ -2,7 +2,6 @@ import { useEffect, useRef } from 'react';
 
 import { useTaskStore } from '@mindwtr/core';
 
-import type { ToastOptions } from '@/contexts/toast-context';
 import {
   buildContextAutomationNotificationCopy,
   CONTEXT_AUTOMATION_NOTIFICATION_KIND,
@@ -13,24 +12,41 @@ import { sendMobileImmediateNotification } from '@/lib/notification-service';
 
 type ResolveText = (key: string, fallback: string) => string;
 
-type RouterLike = {
-  replace: (...args: any[]) => void;
-};
-
 type UseRootLayoutContextAutomationParams = {
   dataReady: boolean;
   incomingUrl: string | null;
+  returnToBackground?: () => void;
   resolveText: ResolveText;
-  router: RouterLike;
-  showToast: (options: ToastOptions) => void;
 };
+
+const RECENT_CONTEXT_AUTOMATION_TTL_MS = 10_000;
+const recentlyHandledContextAutomation = new Map<string, number>();
+
+const wasRecentlyHandled = (key: string, nowMs: number): boolean => {
+  for (const [handledKey, handledAtMs] of recentlyHandledContextAutomation.entries()) {
+    if (nowMs - handledAtMs > RECENT_CONTEXT_AUTOMATION_TTL_MS) {
+      recentlyHandledContextAutomation.delete(handledKey);
+    }
+  }
+
+  const previousHandledAtMs = recentlyHandledContextAutomation.get(key);
+  if (previousHandledAtMs !== undefined && nowMs - previousHandledAtMs <= RECENT_CONTEXT_AUTOMATION_TTL_MS) {
+    return true;
+  }
+
+  recentlyHandledContextAutomation.set(key, nowMs);
+  return false;
+};
+
+export function __resetContextAutomationDedupeForTests(): void {
+  recentlyHandledContextAutomation.clear();
+}
 
 export function useRootLayoutContextAutomation({
   dataReady,
   incomingUrl,
+  returnToBackground,
   resolveText,
-  router,
-  showToast,
 }: UseRootLayoutContextAutomationParams) {
   const lastHandledUrl = useRef<string | null>(null);
 
@@ -42,24 +58,27 @@ export function useRootLayoutContextAutomation({
     const payload = parseContextAutomationUrl(incomingUrl);
     if (!payload) return;
 
+    const dedupeKey = `${payload.action}:${payload.context}`;
+    if (wasRecentlyHandled(dedupeKey, Date.now())) {
+      lastHandledUrl.current = incomingUrl;
+      returnToBackground?.();
+      return;
+    }
+
     lastHandledUrl.current = incomingUrl;
-    router.replace({
-      pathname: '/contexts',
-      params: { token: payload.context },
-    });
 
     if (payload.action === 'deactivate') {
-      showToast({
-        title: resolveText('contextAutomation.deactivatedTitle', 'Context deactivated'),
-        message: resolveText('contextAutomation.deactivatedBody', '{{context}} is no longer active.')
-          .replace('{{context}}', payload.context),
-        tone: 'success',
-      });
+      returnToBackground?.();
       return;
     }
 
     const state = useTaskStore.getState();
     const matchingTasks = selectContextNextActions(state.tasks ?? [], state.projects ?? [], payload.context);
+    if (matchingTasks.length === 0) {
+      returnToBackground?.();
+      return;
+    }
+
     const copy = buildContextAutomationNotificationCopy(payload.context, matchingTasks, {
       noTasksTitle: resolveText('contextAutomation.noNextActionsTitle', 'No {{context}} next actions'),
       noTasksMessage: resolveText('contextAutomation.noNextActionsBody', 'Mindwtr did not find any /next tasks for {{context}}.'),
@@ -71,6 +90,8 @@ export function useRootLayoutContextAutomation({
     void sendMobileImmediateNotification(copy.title, copy.message, {
       kind: CONTEXT_AUTOMATION_NOTIFICATION_KIND,
       context: payload.context,
+    }).finally(() => {
+      returnToBackground?.();
     });
-  }, [dataReady, incomingUrl, resolveText, router, showToast]);
+  }, [dataReady, incomingUrl, resolveText, returnToBackground]);
 }

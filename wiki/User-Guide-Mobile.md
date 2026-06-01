@@ -129,7 +129,7 @@ Android builds expose a capture action to supported assistants, including Gemini
 
 ### Android Context Automation Intents
 
-Automation apps such as Tasker, MacroDroid, or Phone Profiles can activate a Mindwtr context. When activated, Mindwtr opens the matching Contexts view and sends a notification with matching `/next` actions. Tapping that notification opens the same context again.
+Automation apps such as Tasker, MacroDroid, or Phone Profiles can activate a Mindwtr context. When activated, Mindwtr checks matching `/next` actions and sends a notification only when there is work to show. Tapping that notification opens the matching Contexts view.
 
 Preferred URL form:
 
@@ -144,6 +144,7 @@ Android intent form:
 | --- | --- |
 | Package | `tech.dongdongbh.mindwtr` |
 | Class | `tech.dongdongbh.mindwtr.MainActivity` |
+| Target | Activity |
 | Activate action | `tech.dongdongbh.mindwtr.action.ACTIVATE_CONTEXT` |
 | Deactivate action | `tech.dongdongbh.mindwtr.action.DEACTIVATE_CONTEXT` |
 | String extra | `context=parents` or `context=@parents` |
@@ -159,7 +160,9 @@ adb shell am start -a android.intent.action.VIEW -d 'mindwtr://contexts?token=%4
 Notes:
 - Context names are normalized to `@context`, so `parents` and `@parents` both match `@parents`.
 - Hierarchical contexts match below the selected context, so `@parents` also matches `@parents/errands`.
+- If no `/next` actions match the context, Mindwtr stays silent.
 - Deactivation acknowledges the automation exit trigger; it does not delete, hide, or change tasks.
+- On Android, context automation URLs and intents return Mindwtr to the background after handling. Use the notification tap when you want to open the matching Contexts view.
 - Mindwtr does not detect locations or device states itself; the automation app owns the trigger.
 
 ### URL Scheme Quick Capture (iOS Shortcuts / Android Automations)

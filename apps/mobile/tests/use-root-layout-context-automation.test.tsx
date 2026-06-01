@@ -2,7 +2,10 @@ import React from 'react';
 import { act, create } from 'react-test-renderer';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { useRootLayoutContextAutomation } from '@/hooks/root-layout/use-root-layout-context-automation';
+import {
+  __resetContextAutomationDedupeForTests,
+  useRootLayoutContextAutomation,
+} from '@/hooks/root-layout/use-root-layout-context-automation';
 
 const {
   mockStoreState,
@@ -33,21 +36,18 @@ const defaultResolveText = (_key: string, fallback: string) => fallback;
 
 function TestHarness({
   incomingUrl,
+  returnToBackground,
   resolveText = defaultResolveText,
-  router,
-  showToast,
 }: {
   incomingUrl: string | null;
+  returnToBackground?: ReturnType<typeof vi.fn>;
   resolveText?: (key: string, fallback: string) => string;
-  router: { replace: ReturnType<typeof vi.fn> };
-  showToast: ReturnType<typeof vi.fn>;
 }) {
   useRootLayoutContextAutomation({
     dataReady: true,
     incomingUrl,
+    returnToBackground,
     resolveText,
-    router,
-    showToast,
   });
   return null;
 }
@@ -57,11 +57,11 @@ describe('useRootLayoutContextAutomation', () => {
     mockStoreState.tasks = [];
     mockStoreState.projects = [];
     sendMobileImmediateNotification.mockClear();
+    __resetContextAutomationDedupeForTests();
   });
 
-  it('notifies and routes context activation URLs', async () => {
-    const router = { replace: vi.fn() };
-    const showToast = vi.fn();
+  it('notifies for context activation URLs without navigating the app shell', async () => {
+    const returnToBackground = vi.fn();
     mockStoreState.tasks = [
       {
         id: 'task-1',
@@ -87,16 +87,12 @@ describe('useRootLayoutContextAutomation', () => {
       create(
         <TestHarness
           incomingUrl="mindwtr://contexts?token=%40parents&contextAction=activate"
-          router={router}
-          showToast={showToast}
+          returnToBackground={returnToBackground}
         />
       );
+      await Promise.resolve();
     });
 
-    expect(router.replace).toHaveBeenCalledWith({
-      pathname: '/contexts',
-      params: { token: '@parents' },
-    });
     expect(sendMobileImmediateNotification).toHaveBeenCalledWith(
       '@parents next action',
       'Call mom',
@@ -105,41 +101,54 @@ describe('useRootLayoutContextAutomation', () => {
         context: '@parents',
       }
     );
-    expect(showToast).not.toHaveBeenCalled();
+    expect(returnToBackground).toHaveBeenCalledTimes(1);
   });
 
-  it('routes deactivation URLs without sending a notification', async () => {
-    const router = { replace: vi.fn() };
-    const showToast = vi.fn();
+  it('handles deactivation URLs silently', async () => {
+    const returnToBackground = vi.fn();
 
     await act(async () => {
       create(
         <TestHarness
           incomingUrl="mindwtr:///context/deactivate/parents"
-          router={router}
-          showToast={showToast}
+          returnToBackground={returnToBackground}
         />
       );
     });
 
-    expect(router.replace).toHaveBeenCalledWith({
-      pathname: '/contexts',
-      params: { token: '@parents' },
-    });
     expect(sendMobileImmediateNotification).not.toHaveBeenCalled();
-    expect(showToast).toHaveBeenCalledWith({
-      title: 'Context deactivated',
-      message: '@parents is no longer active.',
-      tone: 'success',
-    });
+    expect(returnToBackground).toHaveBeenCalledTimes(1);
   });
 
-  it('uses localized notification templates for context activation', async () => {
-    const router = { replace: vi.fn() };
-    const showToast = vi.fn();
-    const resolveText = (key: string, fallback: string) => ({
-      'contextAutomation.oneNextActionTitle': 'Accion para {{context}}',
-    }[key] ?? fallback);
+  it('stays silent when context activation has no next actions', async () => {
+    const returnToBackground = vi.fn();
+    mockStoreState.tasks = [
+      {
+        id: 'task-1',
+        title: 'Waiting task',
+        status: 'waiting',
+        tags: [],
+        contexts: ['@parents'],
+        createdAt: '2026-01-01T00:00:00.000Z',
+        updatedAt: '2026-01-01T00:00:00.000Z',
+      },
+    ];
+
+    await act(async () => {
+      create(
+        <TestHarness
+          incomingUrl="mindwtr://contexts?token=%40parents&contextAction=activate"
+          returnToBackground={returnToBackground}
+        />
+      );
+    });
+
+    expect(sendMobileImmediateNotification).not.toHaveBeenCalled();
+    expect(returnToBackground).toHaveBeenCalledTimes(1);
+  });
+
+  it('deduplicates repeated activation URLs from remounts', async () => {
+    const returnToBackground = vi.fn();
     mockStoreState.tasks = [
       {
         id: 'task-1',
@@ -156,19 +165,57 @@ describe('useRootLayoutContextAutomation', () => {
       create(
         <TestHarness
           incomingUrl="mindwtr://contexts?token=%40parents&contextAction=activate"
-          resolveText={resolveText}
-          router={router}
-          showToast={showToast}
+          returnToBackground={returnToBackground}
         />
       );
+      await Promise.resolve();
+      create(
+        <TestHarness
+          incomingUrl="mindwtr://contexts?token=%40parents&contextAction=activate"
+          returnToBackground={returnToBackground}
+        />
+      );
+      await Promise.resolve();
+    });
+
+    expect(sendMobileImmediateNotification).toHaveBeenCalledTimes(1);
+    expect(returnToBackground).toHaveBeenCalledTimes(2);
+  });
+
+  it('uses localized notification templates for context activation', async () => {
+    const returnToBackground = vi.fn();
+    const resolveText = (key: string, fallback: string) => ({
+      'contextAutomation.oneNextActionTitle': 'Accion para {{context}}',
+    }[key] ?? fallback);
+    mockStoreState.tasks = [
+      {
+        id: 'task-1',
+        title: 'Call mom',
+        status: 'next',
+        tags: [],
+        contexts: ['@family'],
+        createdAt: '2026-01-01T00:00:00.000Z',
+        updatedAt: '2026-01-01T00:00:00.000Z',
+      },
+    ];
+
+    await act(async () => {
+      create(
+        <TestHarness
+          incomingUrl="mindwtr://contexts?token=%40family&contextAction=activate"
+          returnToBackground={returnToBackground}
+          resolveText={resolveText}
+        />
+      );
+      await Promise.resolve();
     });
 
     expect(sendMobileImmediateNotification).toHaveBeenCalledWith(
-      'Accion para @parents',
+      'Accion para @family',
       'Call mom',
       {
         kind: 'context-automation',
-        context: '@parents',
+        context: '@family',
       }
     );
   });
