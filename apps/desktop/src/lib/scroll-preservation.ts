@@ -95,6 +95,13 @@ export function focusElementWithoutScroll(element: HTMLElement, snapshots = capt
 
 export function keepTextareaSelectionVisible(textarea: HTMLTextAreaElement, paddingLines = 1) {
     const selectionStart = textarea.selectionStart ?? textarea.value.length;
+    if (textarea.clientHeight <= 0) return;
+
+    if (selectionStart >= textarea.value.length && textarea.scrollHeight > textarea.clientHeight) {
+        textarea.scrollTop = Math.max(0, textarea.scrollHeight - textarea.clientHeight);
+        return;
+    }
+
     const linesBeforeCursor = textarea.value.slice(0, selectionStart).split('\n').length - 1;
     const computed = window.getComputedStyle(textarea);
     const lineHeight = Number.parseFloat(computed.lineHeight) || 24;
@@ -104,7 +111,6 @@ export function keepTextareaSelectionVisible(textarea: HTMLTextAreaElement, padd
     const visibleTop = textarea.scrollTop;
     const visibleBottom = visibleTop + textarea.clientHeight;
 
-    if (textarea.clientHeight <= 0) return;
     if (cursorTop < visibleTop + padding) {
         textarea.scrollTop = Math.max(0, cursorTop - padding);
         return;

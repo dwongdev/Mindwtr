@@ -17,6 +17,7 @@ import DateTimePicker, { type DateTimePickerEvent } from '@react-native-communit
 import { getRecurrenceUntilValue, type Task, type TaskEditorFieldId, type TaskEditorSectionId, type TimeEstimate } from '@mindwtr/core';
 import type { ThemeColors } from '@/hooks/use-theme-colors';
 import { CollapsibleSection } from './CollapsibleSection';
+import { DESCRIPTION_END_KEYBOARD_SCROLL_TARGET } from './task-edit-keyboard';
 
 type CopilotSuggestion = { context?: string; timeEstimate?: TimeEstimate; tags?: string[] };
 
@@ -215,6 +216,11 @@ export function TaskEditFormTab({
     }, [scrollHandleIntoView]);
 
     const ensureInputVisible = React.useCallback((targetInput?: number | string) => {
+        if (targetInput === DESCRIPTION_END_KEYBOARD_SCROLL_TARGET) {
+            scrollDownForKeyboard(Platform.OS === 'ios' ? 140 : 220);
+            return;
+        }
+
         const normalizedHandle = typeof targetInput === 'number'
             ? targetInput
             : typeof targetInput === 'string'

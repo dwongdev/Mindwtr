@@ -4,6 +4,7 @@ import {
     TextInput,
     TouchableOpacity,
     View,
+    Platform,
     type NativeSyntheticEvent,
     type TextInputKeyPressEventData,
 } from 'react-native';
@@ -32,6 +33,7 @@ import {
     isRangeSelection,
 } from '../markdown-selection-utils';
 import type { TaskEditFieldRendererProps } from './TaskEditFieldRenderer.types';
+import { DESCRIPTION_END_KEYBOARD_SCROLL_TARGET } from './task-edit-keyboard';
 
 type ContentFieldId = 'description' | 'location' | 'attachments' | 'checklist';
 
@@ -40,6 +42,8 @@ type TaskEditContentFieldProps = TaskEditFieldRendererProps & {
 };
 
 const getChecklistItemKey = (item: { id?: string }, index: number) => item.id || `index:${index}`;
+const DESCRIPTION_END_SELECTION_THRESHOLD = 2;
+const DESCRIPTION_END_KEYBOARD_SCROLL_THROTTLE_MS = 900;
 
 type ChecklistItem = NonNullable<Task['checklist']>[number];
 
@@ -121,6 +125,7 @@ export function TaskEditContentField({
         appliedValue: string;
         selection: MarkdownSelection;
     }>>({});
+    const lastDescriptionEndKeyboardScrollAtRef = React.useRef(0);
 
     React.useEffect(() => {
         const activeKeys = new Set<string>();
@@ -176,6 +181,30 @@ export function TaskEditContentField({
             lastChecklistRangeRefs.current[key] = selection;
         }
     }, []);
+
+    const handleDescriptionSelectionChange = React.useCallback((selection: MarkdownSelection) => {
+        setDescriptionSelection(selection);
+
+        if (Platform.OS !== 'android') return;
+        if (selection.start !== selection.end) return;
+        const descriptionLength = descriptionDraft.length;
+        if (descriptionLength === 0) return;
+        if (selection.end < Math.max(0, descriptionLength - DESCRIPTION_END_SELECTION_THRESHOLD)) return;
+
+        const isFocused = isDescriptionInputFocused || descriptionInputRef.current?.isFocused?.();
+        if (!isFocused) return;
+
+        const now = Date.now();
+        if (now - lastDescriptionEndKeyboardScrollAtRef.current < DESCRIPTION_END_KEYBOARD_SCROLL_THROTTLE_MS) return;
+        lastDescriptionEndKeyboardScrollAtRef.current = now;
+        handleInputFocus(DESCRIPTION_END_KEYBOARD_SCROLL_TARGET);
+    }, [
+        descriptionDraft,
+        descriptionInputRef,
+        handleInputFocus,
+        isDescriptionInputFocused,
+        setDescriptionSelection,
+    ]);
 
     const handleChecklistTitleChange = React.useCallback((index: number, key: string, text: string) => {
         const previousValue = checklistTitleRefs.current[key] ?? '';
@@ -304,7 +333,7 @@ export function TaskEditContentField({
                                 }}
                                 onChangeText={handleDescriptionChange}
                                 onKeyPress={handleDescriptionKeyPress}
-                                onSelectionChange={(event) => setDescriptionSelection(event.nativeEvent.selection)}
+                                onSelectionChange={(event) => handleDescriptionSelectionChange(event.nativeEvent.selection)}
                                 selection={getControlledTextInputSelection(descriptionSelection, {
                                     force: descriptionSelectionRestorePending,
                                 })}
