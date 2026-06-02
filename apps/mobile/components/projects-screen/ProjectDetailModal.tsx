@@ -1,6 +1,8 @@
 import React from 'react';
 import {
     Modal,
+    KeyboardAvoidingView,
+    Platform,
     ScrollView,
     Text,
     TextInput,
@@ -105,25 +107,33 @@ function ProjectDetailScrollFrame({
         keyboardShouldPersistTaps: 'always' as const,
     };
 
-    if (reorderMode) {
+    const scrollNode = reorderMode ? (
         // Reorder mode needs the nested draggable wrapper required by the library:
         // https://github.com/computerjazz/react-native-draggable-flatlist#nesting-draggableflatlists
-        return (
-            <NestableScrollContainer {...scrollProps}>
-                {children}
-            </NestableScrollContainer>
-        );
-    }
-
-    return (
+        <NestableScrollContainer {...scrollProps}>
+            {children}
+        </NestableScrollContainer>
+    ) : (
         // Normal mode stays on a plain ScrollView so Swipeable rows keep horizontal gestures.
         <ScrollView
             {...scrollProps}
+            automaticallyAdjustKeyboardInsets={Platform.OS === 'ios'}
+            keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}
             directionalLockEnabled
             nestedScrollEnabled
         >
             {children}
         </ScrollView>
+    );
+
+    return (
+        <KeyboardAvoidingView
+            behavior={Platform.OS === 'android' ? 'height' : undefined}
+            keyboardVerticalOffset={0}
+            style={[{ flex: 1 }, { backgroundColor }]}
+        >
+            {scrollNode}
+        </KeyboardAvoidingView>
     );
 }
 
@@ -521,7 +531,10 @@ export function ProjectDetailModal({
                                                             placeholderTextColor={tc.secondaryText}
                                                             value={selectedProjectNotes}
                                                             onFocus={() => onSetSelectedProjectNotesFocused(true)}
-                                                            onBlur={() => onSetSelectedProjectNotesFocused(false)}
+                                                            onBlur={() => {
+                                                                onSetSelectedProjectNotesFocused(false);
+                                                                commitSelectedProjectNotes();
+                                                            }}
                                                             onChangeText={handleSelectedProjectNotesChange}
                                                             onSelectionChange={(event) => {
                                                                 handleSelectedProjectNotesSelectionChange(event.nativeEvent.selection);

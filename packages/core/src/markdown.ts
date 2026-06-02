@@ -490,6 +490,91 @@ export function syncMarkdownChecklistCompletion(
     return changed ? nextLines.join('\n') : markdown;
 }
 
+export function syncMarkdownChecklistWithCanonical(
+    markdown: string | undefined,
+    checklist: MarkdownChecklistItem[] | undefined,
+): string | undefined {
+    if (!markdown || !checklist) return markdown;
+
+    const lines = markdown.replace(/\r\n/g, '\n').split('\n');
+    const taskLineIndexes: number[] = [];
+    const taskLineBuckets = new Map<string, Array<{
+        index: number;
+        prefix: string;
+        marker: string;
+        spacing: string;
+        title: string;
+    }>>();
+
+    lines.forEach((line, index) => {
+        const match = TASK_LIST_LINE_RE.exec(line);
+        if (!match) return;
+        const taskLine = {
+            index,
+            prefix: match[1] ?? '',
+            marker: match[2] ?? ' ',
+            spacing: match[3] ?? ' ',
+            title: match[4] ?? '',
+        };
+        taskLineIndexes.push(index);
+        const key = normalizeChecklistTitle(taskLine.title);
+        const bucket = taskLineBuckets.get(key);
+        if (bucket) {
+            bucket.push(taskLine);
+        } else {
+            taskLineBuckets.set(key, [taskLine]);
+        }
+    });
+
+    if (taskLineIndexes.length === 0) return markdown;
+
+    const firstTaskLineBucket = taskLineBuckets.values().next().value as Array<{
+        index: number;
+        prefix: string;
+        marker: string;
+        spacing: string;
+        title: string;
+    }> | undefined;
+    const firstTaskLine = firstTaskLineBucket?.[0];
+    const fallbackPrefix = firstTaskLine?.prefix ?? '- ';
+    const fallbackSpacing = firstTaskLine?.spacing ?? ' ';
+    const canonicalLines = (checklist || [])
+        .filter((item) => item?.title?.trim())
+        .map((item) => {
+            const key = normalizeChecklistTitle(item.title);
+            const matchedLine = taskLineBuckets.get(key)?.shift();
+            const prefix = matchedLine?.prefix ?? fallbackPrefix;
+            const spacing = matchedLine?.spacing ?? fallbackSpacing;
+            const title = matchedLine?.title ?? item.title;
+            return `${prefix}[${item.isCompleted ? 'x' : ' '}]${spacing}${title}`;
+        });
+
+    const taskLineIndexSet = new Set(taskLineIndexes);
+    const lastTaskLineIndex = taskLineIndexes[taskLineIndexes.length - 1] ?? -1;
+    let canonicalIndex = 0;
+    const nextLines: string[] = [];
+
+    lines.forEach((line, index) => {
+        if (!taskLineIndexSet.has(index)) {
+            nextLines.push(line);
+            return;
+        }
+
+        if (canonicalIndex < canonicalLines.length) {
+            nextLines.push(canonicalLines[canonicalIndex]);
+            canonicalIndex += 1;
+        }
+
+        if (index === lastTaskLineIndex && canonicalIndex < canonicalLines.length) {
+            nextLines.push(...canonicalLines.slice(canonicalIndex));
+            canonicalIndex = canonicalLines.length;
+        }
+    });
+
+    const nextMarkdown = nextLines.join('\n');
+    return nextMarkdown === markdown ? markdown : nextMarkdown;
+}
+
 const normalizeSelection = (value: string, selection: MarkdownSelection): MarkdownSelection => {
     const start = clampIndex(value, selection.start);
     const end = clampIndex(value, selection.end);

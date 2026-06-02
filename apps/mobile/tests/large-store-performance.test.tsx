@@ -305,6 +305,12 @@ vi.mock('expo-router', () => ({
   useLocalSearchParams: () => ({}),
 }));
 
+vi.mock('react-native-draggable-flatlist', () => ({
+  NestableDraggableFlatList: (props: any) => React.createElement('NestableDraggableFlatList', props, props.children),
+  NestableScrollContainer: (props: any) => React.createElement('NestableScrollContainer', props, props.children),
+  ScaleDecorator: (props: any) => React.createElement(React.Fragment, null, props.children),
+}));
+
 const buildMap = <T extends { id: string }>(items: readonly T[]): Map<string, T> =>
   new Map(items.map((item) => [item.id, item] as const));
 

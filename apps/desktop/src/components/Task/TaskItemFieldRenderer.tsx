@@ -1251,6 +1251,8 @@ export function TaskItemFieldRenderer({
                     t={t}
                     taskId={taskId}
                     checklist={task.checklist}
+                    description={editDescription}
+                    onDescriptionSync={setEditDescription}
                     updateTask={updateTask}
                     resetTaskChecklist={resetTaskChecklist}
                 />

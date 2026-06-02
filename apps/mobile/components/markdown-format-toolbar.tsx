@@ -30,7 +30,8 @@ const TOOLBAR_FIXED_CHROME = 18;
 const TOOLBAR_ACTION_GAP = 2;
 const MIN_RESIZED_WINDOW_DELTA = 48;
 const RESIZED_WINDOW_TOLERANCE = 32;
-const ANDROID_KEYBOARD_EDGE_GAP = 8;
+const ANDROID_KEYBOARD_EDGE_GAP = 0;
+const ANDROID_STALE_KEYBOARD_METRICS_MAX_INSET = 96;
 
 const getWindowWidth = () => {
     const width = Dimensions.get('window').width;
@@ -210,7 +211,11 @@ export function MarkdownFormatToolbar({
                 || snapshot.resizedWindowDelta >= Math.max(MIN_RESIZED_WINDOW_DELTA, snapshot.keyboardInset * 0.5)
             );
 
-        return isWindowAlreadyAboveKeyboard ? 0 : snapshot.keyboardInset;
+        const isSmallAndroidInset = Platform.OS === 'android'
+            && hasKeyboardInset
+            && snapshot.keyboardInset <= ANDROID_STALE_KEYBOARD_METRICS_MAX_INSET;
+
+        return isWindowAlreadyAboveKeyboard || isSmallAndroidInset ? 0 : snapshot.keyboardInset;
     }, []);
 
     React.useEffect(() => {
@@ -244,7 +249,7 @@ export function MarkdownFormatToolbar({
             const screenInset = typeof keyboardTop === 'number'
                 ? Math.max(0, screenHeight - keyboardTop)
                 : 0;
-            const keyboardInset = measuredInset || explicitInset || screenInset;
+            const keyboardInset = Math.max(measuredInset, explicitInset, screenInset);
             if (keyboardInset <= 0) {
                 overlayHeightRef.current = null;
                 lastKeyboardSnapshotRef.current = null;

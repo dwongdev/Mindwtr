@@ -180,8 +180,27 @@ export const styles = StyleSheet.create({
         borderColor: '#e5e5e5',
         overflow: 'visible',
     },
-    checklistDragList: {
-        overflow: 'visible',
+    checklistHeader: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        gap: 12,
+        marginBottom: 8,
+    },
+    checklistHeaderLabel: {
+        flex: 1,
+        marginBottom: 0,
+    },
+    checklistHeaderButton: {
+        minHeight: 36,
+        paddingHorizontal: 12,
+        borderRadius: 8,
+        borderWidth: 1,
+        justifyContent: 'center',
+    },
+    checklistHeaderButtonText: {
+        fontSize: 12,
+        fontWeight: '700',
     },
     checklistItem: {
         flexDirection: 'row',
@@ -190,18 +209,36 @@ export const styles = StyleSheet.create({
         borderBottomWidth: 1,
         borderBottomColor: '#f0f0f0',
     },
-    checklistItemDragging: {
-        opacity: 0.86,
+    checklistOrderPanel: {},
+    checklistOrderItem: {
+        minHeight: 56,
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 12,
+        paddingVertical: 8,
+        paddingHorizontal: 4,
+        borderBottomWidth: 1,
     },
-    checklistDragHandle: {
-        padding: 8,
-        minWidth: 36,
-        minHeight: 44,
+    checklistOrderTitle: {
+        flex: 1,
+        minWidth: 0,
+        fontSize: 16,
+        fontWeight: '500',
+    },
+    checklistOrderControls: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 6,
+    },
+    checklistOrderButton: {
+        width: 36,
+        height: 36,
+        borderRadius: 8,
+        borderWidth: 1,
         alignItems: 'center',
         justifyContent: 'center',
-        marginRight: 2,
     },
-    checklistDragHandleDisabled: {
+    checklistOrderButtonDisabled: {
         opacity: 0.35,
     },
     checkboxTouch: {

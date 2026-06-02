@@ -44,6 +44,7 @@ const baseProps = {
 };
 
 const originalPlatformOs = Platform.OS;
+const originalKeyboardMetrics = Keyboard.metrics;
 
 const setPlatform = (os: typeof Platform.OS) => {
     Object.defineProperty(Platform, 'OS', {
@@ -98,6 +99,10 @@ describe('MarkdownFormatToolbar', () => {
         Object.defineProperty(Platform, 'OS', {
             configurable: true,
             value: originalPlatformOs,
+        });
+        Object.defineProperty(Keyboard, 'metrics', {
+            configurable: true,
+            value: originalKeyboardMetrics,
         });
         vi.restoreAllMocks();
     });
@@ -219,7 +224,63 @@ describe('MarkdownFormatToolbar', () => {
         expect(tree!.root.findAllByType(Pressable)).toHaveLength(0);
         layoutKeyboardToolbarOverlay(tree!, 844);
 
-        expect(extractFloatingBarBottom(tree!)).toBe(328);
+        expect(extractFloatingBarBottom(tree!)).toBe(320);
+    });
+
+    it('uses Android keyboard event geometry instead of a stale small metrics inset', () => {
+        setPlatform('android');
+        vi.spyOn(Dimensions, 'get').mockReturnValue({
+            width: 390,
+            height: 844,
+            scale: 3,
+            fontScale: 1,
+        });
+        Object.defineProperty(Keyboard, 'metrics', {
+            configurable: true,
+            value: vi.fn(() => ({ height: 44, screenY: 800 })),
+        });
+        const listeners = new Map<string, (event?: unknown) => void>();
+        vi.spyOn(Keyboard, 'addListener').mockImplementation(((eventName: string, listener: (event?: unknown) => void) => {
+            listeners.set(eventName, listener);
+            return { remove: () => listeners.delete(eventName) };
+        }) as any);
+
+        let tree: ReactTestRenderer | undefined;
+        act(() => {
+            tree = create(renderKeyboardToolbar());
+        });
+
+        act(() => {
+            listeners.get('keyboardDidShow')?.({ endCoordinates: { height: 320, screenY: 524 } });
+        });
+        layoutKeyboardToolbarOverlay(tree!, 844);
+
+        expect(extractFloatingBarBottom(tree!)).toBe(320);
+    });
+
+    it('does not lift Android toolbar for small metrics-only keyboard insets', () => {
+        setPlatform('android');
+        vi.spyOn(Dimensions, 'get').mockReturnValue({
+            width: 390,
+            height: 524,
+            scale: 3,
+            fontScale: 1,
+        });
+        Object.defineProperty(Keyboard, 'metrics', {
+            configurable: true,
+            value: vi.fn(() => ({ height: 72, screenY: 772 })),
+        });
+        vi.spyOn(Keyboard, 'addListener').mockImplementation(((_eventName: string, _listener: (event?: unknown) => void) => {
+            return { remove: () => undefined };
+        }) as any);
+
+        let tree: ReactTestRenderer | undefined;
+        act(() => {
+            tree = create(renderKeyboardToolbar());
+        });
+        layoutKeyboardToolbarOverlay(tree!, 524);
+
+        expect(extractFloatingBarBottom(tree!)).toBe(0);
     });
 
     it('moves Android toolbar back to the resized overlay edge when layout shrinks after keyboard show', () => {
@@ -248,7 +309,7 @@ describe('MarkdownFormatToolbar', () => {
         expect(tree!.root.findAllByType(Pressable)).toHaveLength(0);
         layoutKeyboardToolbarOverlay(tree!, 481, 360);
 
-        expect(extractFloatingBarBottom(tree!)).toBe(8);
+        expect(extractFloatingBarBottom(tree!)).toBe(0);
     });
 
     it('keeps Android toolbar at the resized window edge when the root is already above the keyboard', () => {
@@ -278,7 +339,7 @@ describe('MarkdownFormatToolbar', () => {
 
         layoutKeyboardToolbarOverlay(tree!, 524);
 
-        expect(extractFloatingBarBottom(tree!)).toBe(8);
+        expect(extractFloatingBarBottom(tree!)).toBe(0);
     });
 
     it('keeps Android toolbar at the resized window edge when mounted after the keyboard opens', () => {
@@ -306,7 +367,7 @@ describe('MarkdownFormatToolbar', () => {
 
         layoutKeyboardToolbarOverlay(tree!, 524);
 
-        expect(extractFloatingBarBottom(tree!)).toBe(8);
+        expect(extractFloatingBarBottom(tree!)).toBe(0);
     });
 
     it('applies toolbar actions on tap release so horizontal drags do not format text', () => {

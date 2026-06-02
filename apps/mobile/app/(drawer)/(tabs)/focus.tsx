@@ -15,6 +15,7 @@ import {
 import DateTimePicker, { type DateTimePickerEvent } from '@react-native-community/datetimepicker';
 import { useLocalSearchParams } from 'expo-router';
 import { BookmarkPlus, SlidersHorizontal, X } from 'lucide-react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import {
   applyFilter,
@@ -74,6 +75,7 @@ const DEFAULT_FOCUS_SORT_BY: SortField = 'default';
 const FOCUS_LIST_INITIAL_RENDER_COUNT = 12;
 const FOCUS_LIST_BATCH_RENDER_COUNT = 12;
 const FOCUS_LIST_WINDOW_SIZE = 5;
+const FOCUS_LIST_BOTTOM_CLEARANCE = 150;
 
 type TaskActionResult = { success?: boolean; error?: unknown } | void;
 
@@ -212,6 +214,7 @@ function buildFocusTaskGroups(
 
 export default function FocusScreen() {
   const { taskId, openToken } = useLocalSearchParams<{ taskId?: string; openToken?: string }>();
+  const insets = useSafeAreaInsets();
   const { tasks, projects, settings, updateTask, deleteTask, updateSettings, highlightTaskId, setHighlightTask } = useTaskStore();
   const { isDark } = useTheme();
   const { t } = useLanguage();
@@ -1145,6 +1148,7 @@ export default function FocusScreen() {
       </View>
     );
   };
+  const listBottomPadding = FOCUS_LIST_BOTTOM_CLEARANCE + Math.max(0, insets.bottom);
 
   return (
     <View style={[styles.container, { backgroundColor: tc.bg }]}>
@@ -1157,7 +1161,9 @@ export default function FocusScreen() {
         windowSize={FOCUS_LIST_WINDOW_SIZE}
         contentContainerStyle={[
           styles.listContent,
+          { paddingBottom: listBottomPadding },
         ]}
+        scrollIndicatorInsets={{ bottom: listBottomPadding }}
         ListHeaderComponent={(
           <View style={styles.header}>
             {pomodoroEnabled && (

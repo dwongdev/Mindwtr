@@ -63,6 +63,7 @@ export type TaskEditFieldRendererProps = {
     handleDescriptionChange: (text: string) => void;
     handleDescriptionKeyPress: (event: any) => void;
     applyDescriptionResult: (result: MarkdownToolbarResult) => void;
+    applyChecklistUpdate: (checklist: NonNullable<Task['checklist']>) => void;
     openDescriptionExpandedEditor: () => void;
     downloadAttachment: (attachment: Attachment) => void | Promise<void>;
     editedTask: Partial<Task>;

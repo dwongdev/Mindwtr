@@ -497,6 +497,7 @@ export {
     serializeMarkdownReferenceHref,
     stripMarkdown,
     syncMarkdownChecklistCompletion,
+    syncMarkdownChecklistWithCanonical,
 } from './markdown';
 export type {
     ActiveMarkdownReferenceQuery,

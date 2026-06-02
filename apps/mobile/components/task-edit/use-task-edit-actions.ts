@@ -21,7 +21,7 @@ import {
     getUsedTaskTokens,
     isSelectableProjectForTaskAssignment,
     extractChecklistFromMarkdown,
-    syncMarkdownChecklistCompletion,
+    syncMarkdownChecklistWithCanonical,
 } from '@mindwtr/core';
 
 import type { AIResponseAction } from '../ai-response-modal';
@@ -79,6 +79,7 @@ type TaskEditActionsParams = {
     restoreTask: (taskId: string) => Promise<unknown>;
     sections: Array<{ id: string; projectId?: string; deletedAt?: string | null }>;
     setAiModal: React.Dispatch<React.SetStateAction<AIResponseModalState>>;
+    setDescriptionDraft: React.Dispatch<React.SetStateAction<string>>;
     setEditedTask: React.Dispatch<React.SetStateAction<Partial<Task>>>;
     setIsAIWorking: React.Dispatch<React.SetStateAction<boolean>>;
     setTitleImmediate: (text: string) => void;
@@ -126,6 +127,7 @@ export function useTaskEditActions({
     restoreTask,
     sections,
     setAiModal,
+    setDescriptionDraft,
     setEditedTask,
     setIsAIWorking,
     setTitleImmediate,
@@ -153,9 +155,14 @@ export function useTaskEditActions({
                 }
             }
             const currentDescription = descriptionDraftRef.current || String(prev.description ?? task?.description ?? '');
-            const nextDescription = syncMarkdownChecklistCompletion(currentDescription, nextChecklist) ?? '';
+            const nextDescription = syncMarkdownChecklistWithCanonical(currentDescription, nextChecklist) ?? '';
             if (nextDescription !== currentDescription) {
+                if (descriptionDebounceRef.current) {
+                    clearTimeout(descriptionDebounceRef.current);
+                    descriptionDebounceRef.current = null;
+                }
                 descriptionDraftRef.current = nextDescription;
+                setDescriptionDraft(nextDescription);
             }
             return {
                 ...prev,
@@ -164,7 +171,7 @@ export function useTaskEditActions({
                 status: nextStatus,
             };
         });
-    }, [descriptionDraftRef, setEditedTask, task?.description, task?.status, task?.taskMode]);
+    }, [descriptionDebounceRef, descriptionDraftRef, setDescriptionDraft, setEditedTask, task?.description, task?.status, task?.taskMode]);
 
     const handleResetChecklist = useCallback(() => {
         const current = editedTask.checklist || [];

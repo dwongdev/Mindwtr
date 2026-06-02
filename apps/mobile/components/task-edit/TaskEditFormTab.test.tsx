@@ -5,6 +5,27 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { TaskEditFormTab } from './TaskEditFormTab';
 
+const mockScrollTo = vi.hoisted(() => vi.fn());
+const mockFindNodeHandle = vi.hoisted(() => vi.fn(() => 9001));
+const mockMeasureInWindow = vi.hoisted(() => vi.fn());
+
+vi.mock('react-native', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('react-native')>();
+  const ReactModule = await import('react');
+  return {
+    ...actual,
+    findNodeHandle: mockFindNodeHandle,
+    ScrollView: ReactModule.forwardRef((props: any, ref) => {
+      ReactModule.useImperativeHandle(ref, () => ({ scrollTo: mockScrollTo }));
+      return ReactModule.createElement('ScrollView', props, props.children);
+    }),
+    UIManager: {
+      ...((actual as any).UIManager ?? {}),
+      measureInWindow: mockMeasureInWindow,
+    },
+  };
+});
+
 vi.mock('@react-native-community/datetimepicker', () => ({
   __esModule: true,
   default: (props: any) => React.createElement('DateTimePicker', props, props.children),
@@ -102,6 +123,9 @@ const baseProps = {
   onTitleDraftChange: vi.fn(),
 };
 
+const findScrollContainer = (tree: ReturnType<typeof create>) =>
+  tree.root.findByType(ScrollView);
+
 describe('TaskEditFormTab keyboard handling', () => {
   afterEach(() => {
     Object.defineProperty(Platform, 'OS', {
@@ -109,6 +133,9 @@ describe('TaskEditFormTab keyboard handling', () => {
       value: originalPlatformOs,
     });
     vi.restoreAllMocks();
+    mockScrollTo.mockReset();
+    mockFindNodeHandle.mockClear();
+    mockMeasureInWindow.mockReset();
   });
 
   it('adds an iOS keyboard bottom inset so focused lower inputs can scroll above the keyboard', () => {
@@ -131,7 +158,7 @@ describe('TaskEditFormTab keyboard handling', () => {
     });
 
     expect(tree.root.findByType(KeyboardAvoidingView).props.behavior).toBeUndefined();
-    expect(tree.root.findByType(ScrollView).props.keyboardDismissMode).toBe('interactive');
+    expect(findScrollContainer(tree).props.keyboardDismissMode).toBe('interactive');
     expect(listeners.has('keyboardWillShow')).toBe(true);
     expect(listeners.has('keyboardWillChangeFrame')).toBe(true);
     expect(listeners.has('keyboardWillHide')).toBe(true);
@@ -140,7 +167,7 @@ describe('TaskEditFormTab keyboard handling', () => {
       listeners.get('keyboardWillShow')?.({ endCoordinates: { screenY: 500 } });
     });
 
-    expect(tree.root.findByType(ScrollView).props.contentContainerStyle).toEqual(
+    expect(findScrollContainer(tree).props.contentContainerStyle).toEqual(
       expect.arrayContaining([expect.objectContaining({ paddingBottom: 332 })])
     );
 
@@ -148,7 +175,7 @@ describe('TaskEditFormTab keyboard handling', () => {
       listeners.get('keyboardWillHide')?.();
     });
 
-    expect(tree.root.findByType(ScrollView).props.contentContainerStyle).not.toEqual(
+    expect(findScrollContainer(tree).props.contentContainerStyle).not.toEqual(
       expect.arrayContaining([expect.objectContaining({ paddingBottom: 332 })])
     );
   });
@@ -173,7 +200,8 @@ describe('TaskEditFormTab keyboard handling', () => {
     });
 
     expect(tree.root.findByType(KeyboardAvoidingView).props.behavior).toBe('height');
-    expect(tree.root.findByType(ScrollView).props.keyboardDismissMode).toBe('on-drag');
+    expect(findScrollContainer(tree).props.keyboardDismissMode).toBe('on-drag');
+    expect(findScrollContainer(tree).props.scrollsChildToFocus).toBe(false);
     expect(listeners.has('keyboardDidShow')).toBe(true);
     expect(listeners.has('keyboardDidChangeFrame')).toBe(true);
     expect(listeners.has('keyboardDidHide')).toBe(true);
@@ -182,7 +210,7 @@ describe('TaskEditFormTab keyboard handling', () => {
       listeners.get('keyboardDidShow')?.({ endCoordinates: { screenY: 520 } });
     });
 
-    expect(tree.root.findByType(ScrollView).props.contentContainerStyle).toEqual(
+    expect(findScrollContainer(tree).props.contentContainerStyle).toEqual(
       expect.arrayContaining([expect.objectContaining({ paddingBottom: 312 })])
     );
   });
@@ -219,6 +247,7 @@ describe('TaskEditFormTab keyboard handling', () => {
   });
 
   it('does not schedule measured scrolling when the title input reports a native handle', () => {
+    setPlatform('ios');
     const onTitleInputFocusChange = vi.fn();
     const onInputFocusTracked = vi.fn();
     const requestAnimationFrameSpy = vi.spyOn(globalThis, 'requestAnimationFrame');
@@ -245,6 +274,153 @@ describe('TaskEditFormTab keyboard handling', () => {
     expect(onInputFocusTracked).toHaveBeenCalledWith(undefined);
     expect(onTitleInputFocusChange).toHaveBeenCalledWith(true);
     expect(requestAnimationFrameSpy).not.toHaveBeenCalled();
+  });
+
+  it('does not run measured Android scrolling before keyboard metrics settle', () => {
+    setPlatform('android');
+    const registeredHandlers: Array<((targetInput?: number | string) => void) | null> = [];
+    const requestAnimationFrameSpy = vi.spyOn(globalThis, 'requestAnimationFrame');
+    let tree!: ReturnType<typeof create>;
+
+    act(() => {
+      tree = create(
+        <TaskEditFormTab
+          {...baseProps}
+          registerScrollToEnd={(handler) => {
+            registeredHandlers.push(handler);
+          }}
+        />
+      );
+    });
+
+    requestAnimationFrameSpy.mockClear();
+
+    act(() => {
+      registeredHandlers.at(-1)?.(42);
+    });
+
+    expect(requestAnimationFrameSpy).not.toHaveBeenCalled();
+    expect(tree.root.findByType(KeyboardAvoidingView).props.behavior).toBe('height');
+  });
+
+  it('does not auto-scroll Android upward from stale focused-input measurements', () => {
+    setPlatform('android');
+    vi.spyOn(Dimensions, 'get').mockReturnValue({
+      width: 390,
+      height: 800,
+      scale: 3,
+      fontScale: 1,
+    });
+    const listeners = new Map<string, (event?: unknown) => void>();
+    vi.spyOn(Keyboard, 'addListener').mockImplementation(((eventName: string, listener: (event?: unknown) => void) => {
+      listeners.set(eventName, listener);
+      return { remove: () => listeners.delete(eventName) };
+    }) as any);
+    mockFindNodeHandle.mockReturnValue(9001);
+    mockMeasureInWindow.mockImplementation(((handle: number, callback: any) => {
+      if (handle === 42) {
+        callback(0, 260, 320, 40);
+        return;
+      }
+      callback(0, 300, 390, 600);
+    }) as any);
+    const requestAnimationFrameSpy = vi
+      .spyOn(globalThis, 'requestAnimationFrame')
+      .mockImplementation(((callback: FrameRequestCallback) => {
+        callback(0);
+        return 1;
+      }) as any);
+    const registeredHandlers: Array<((targetInput?: number | string) => void) | null> = [];
+    let tree!: ReturnType<typeof create>;
+
+    act(() => {
+      tree = create(
+        <TaskEditFormTab
+          {...baseProps}
+          registerScrollToEnd={(handler) => {
+            registeredHandlers.push(handler);
+          }}
+        />
+      );
+    });
+
+    mockScrollTo.mockClear();
+    requestAnimationFrameSpy.mockClear();
+
+    act(() => {
+      findScrollContainer(tree).props.onScroll({ nativeEvent: { contentOffset: { y: 420 } } });
+      listeners.get('keyboardDidShow')?.({ endCoordinates: { screenY: 520 } });
+      registeredHandlers.at(-1)?.(42);
+    });
+
+    expect(requestAnimationFrameSpy).toHaveBeenCalled();
+    expect(mockMeasureInWindow).toHaveBeenCalled();
+    expect(mockScrollTo).not.toHaveBeenCalled();
+  });
+
+  it('scrolls Android focused inputs by the measured overlap with the keyboard', () => {
+    setPlatform('android');
+    vi.spyOn(Dimensions, 'get').mockReturnValue({
+      width: 390,
+      height: 800,
+      scale: 3,
+      fontScale: 1,
+    });
+    const listeners = new Map<string, (event?: unknown) => void>();
+    vi.spyOn(Keyboard, 'addListener').mockImplementation(((eventName: string, listener: (event?: unknown) => void) => {
+      listeners.set(eventName, listener);
+      return { remove: () => listeners.delete(eventName) };
+    }) as any);
+    mockFindNodeHandle.mockReturnValue(9001);
+    const targetY = 700;
+    const targetH = 60;
+    const scrollY = 0;
+    const scrollH = 800;
+    const keyboardTop = 520;
+    mockMeasureInWindow.mockImplementation(((handle: number, callback: any) => {
+      if (handle === 42) {
+        callback(0, targetY, 320, targetH);
+        return;
+      }
+      callback(0, scrollY, 390, scrollH);
+    }) as any);
+    vi.spyOn(globalThis, 'requestAnimationFrame').mockImplementation(((callback: FrameRequestCallback) => {
+      callback(0);
+      return 1;
+    }) as any);
+    const registeredHandlers: Array<((targetInput?: number | string) => void) | null> = [];
+    let tree!: ReturnType<typeof create>;
+
+    act(() => {
+      tree = create(
+        <TaskEditFormTab
+          {...baseProps}
+          registerScrollToEnd={(handler) => {
+            registeredHandlers.push(handler);
+          }}
+        />
+      );
+    });
+    mockScrollTo.mockClear();
+
+    act(() => {
+      findScrollContainer(tree).props.onScroll({ nativeEvent: { contentOffset: { y: 420 } } });
+      registeredHandlers.at(-1)?.(42);
+    });
+
+    expect(mockScrollTo).not.toHaveBeenCalled();
+
+    act(() => {
+      listeners.get('keyboardDidShow')?.({ endCoordinates: { screenY: keyboardTop } });
+      registeredHandlers.at(-1)?.(42);
+    });
+
+    const visibleBottom = Math.min(scrollY + scrollH, keyboardTop);
+    const visibleTop = scrollY;
+    const visibleHeight = visibleBottom - visibleTop;
+    const bottomClearance = visibleHeight * 0.18;
+    const measuredOverlap = (targetY + targetH) - (visibleBottom - bottomClearance);
+    expect(mockScrollTo).toHaveBeenCalledWith({ y: 420 + measuredOverlap, animated: true });
   });
 
   it('renders a configured mobile location field in the details section', () => {

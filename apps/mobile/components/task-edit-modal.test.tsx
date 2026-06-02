@@ -111,6 +111,12 @@ vi.mock('expo-router', () => ({
   },
 }));
 
+vi.mock('react-native-draggable-flatlist', () => ({
+  NestableDraggableFlatList: (props: any) => React.createElement('NestableDraggableFlatList', props, props.children),
+  NestableScrollContainer: (props: any) => React.createElement('NestableScrollContainer', props, props.children),
+  ScaleDecorator: (props: any) => React.createElement(React.Fragment, null, props.children),
+}));
+
 vi.mock('./task-edit/task-edit-modal.utils', async () => {
   const actual = await vi.importActual<typeof import('./task-edit/task-edit-modal.utils')>('./task-edit/task-edit-modal.utils');
   return {

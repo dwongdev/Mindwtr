@@ -468,6 +468,7 @@ export default function ProjectsScreen() {
   };
 
   const closeProjectDetail = () => {
+    commitSelectedProjectNotes();
     persistSelectedProjectEdits(selectedProject);
     setSelectedProject(null);
     resetProjectNotesUi();

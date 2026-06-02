@@ -4,7 +4,6 @@ import { act, create } from 'react-test-renderer';
 import { describe, expect, it, vi } from 'vitest';
 
 import { TaskEditContentField } from './TaskEditContentField';
-import { DESCRIPTION_END_KEYBOARD_SCROLL_TARGET } from './task-edit-keyboard';
 
 vi.mock('../markdown-reference-autocomplete', () => ({
   MarkdownReferenceAutocomplete: (props: any) => React.createElement('MarkdownReferenceAutocomplete', props),
@@ -12,29 +11,6 @@ vi.mock('../markdown-reference-autocomplete', () => ({
 
 vi.mock('../markdown-text', () => ({
   MarkdownText: (props: any) => React.createElement('MarkdownText', props),
-}));
-
-vi.mock('lucide-react-native', () => ({
-  GripVertical: (props: any) => React.createElement('GripVertical', props),
-}));
-
-vi.mock('react-native-draggable-flatlist', () => ({
-  NestableDraggableFlatList: (props: any) => React.createElement(
-    'NestableDraggableFlatList',
-    props,
-    props.data?.map((item: any, index: number) => React.createElement(
-      React.Fragment,
-      { key: props.keyExtractor?.(item, index) ?? index },
-      props.renderItem?.({
-        item,
-        index,
-        drag: () => undefined,
-        isActive: false,
-        getIndex: () => index,
-      })
-    ))
-  ),
-  ScaleDecorator: (props: any) => React.createElement('ScaleDecorator', props, props.children),
 }));
 
 const withPlatform = (os: typeof Platform.OS, run: () => void) => {
@@ -79,6 +55,7 @@ const baseProps: any = {
   setIsDescriptionInputFocused: vi.fn(),
   handleDescriptionChange: vi.fn(),
   handleDescriptionKeyPress: vi.fn(),
+  applyChecklistUpdate: vi.fn(),
   applyDescriptionResult: vi.fn(),
   openDescriptionExpandedEditor: vi.fn(),
   downloadAttachment: vi.fn(),
@@ -133,11 +110,17 @@ const baseProps: any = {
     textArea: {},
     markdownPreview: {},
     checklistContainer: {},
-    checklistDragList: {},
+    checklistHeader: {},
+    checklistHeaderLabel: {},
+    checklistHeaderButton: {},
+    checklistHeaderButtonText: {},
     checklistItem: {},
-    checklistItemDragging: {},
-    checklistDragHandle: {},
-    checklistDragHandleDisabled: {},
+    checklistOrderPanel: {},
+    checklistOrderItem: {},
+    checklistOrderTitle: {},
+    checklistOrderControls: {},
+    checklistOrderButton: {},
+    checklistOrderButtonDisabled: {},
     checkboxTouch: {},
     checkbox: {},
     checkboxChecked: {},
@@ -193,8 +176,12 @@ const createChecklistState = (checklist = [{ id: 'check-1', title: 'Item 1', isC
   const setEditedTask = vi.fn((next: any) => {
     state = typeof next === 'function' ? next(state) : next;
   });
+  const applyChecklistUpdate = vi.fn((nextChecklist: any) => {
+    state = { ...state, checklist: nextChecklist };
+  });
   return {
     getState: () => state,
+    applyChecklistUpdate,
     setEditedTask,
   };
 };
@@ -226,6 +213,34 @@ describe('TaskEditContentField', () => {
     expect(handleInputFocus).toHaveBeenCalledWith(undefined);
   });
 
+  it('tracks the focused Android description handle for measured scrolling', () => {
+    const handleInputFocus = vi.fn();
+    const setIsDescriptionInputFocused = vi.fn();
+    let tree!: ReturnType<typeof create>;
+
+    withPlatform('android', () => {
+      act(() => {
+        tree = create(
+          <TaskEditContentField
+            {...baseProps}
+            fieldId="description"
+            handleInputFocus={handleInputFocus}
+            setIsDescriptionInputFocused={setIsDescriptionInputFocused}
+          />
+        );
+      });
+
+      const input = tree.root.findByProps({ accessibilityLabel: 'taskEdit.descriptionLabel' });
+
+      act(() => {
+        input.props.onFocus({ nativeEvent: { target: 42 } });
+      });
+
+      expect(setIsDescriptionInputFocused).toHaveBeenCalledWith(true);
+      expect(handleInputFocus).toHaveBeenCalledWith(42);
+    });
+  });
+
   it('keeps the Android description editor in plain-text spellcheck mode', () => {
     let tree!: ReturnType<typeof create>;
 
@@ -250,38 +265,6 @@ describe('TaskEditContentField', () => {
     expect(input.props.keyboardType).toBe('default');
   });
 
-  it('nudges Android keyboard scrolling when the inline description caret reaches the end', () => {
-    const descriptionDraft = 'First line\nLast line';
-    const handleInputFocus = vi.fn();
-    const setDescriptionSelection = vi.fn();
-    let tree!: ReturnType<typeof create>;
-
-    withPlatform('android', () => {
-      act(() => {
-        tree = create(
-          <TaskEditContentField
-            {...baseProps}
-            fieldId="description"
-            descriptionDraft={descriptionDraft}
-            isDescriptionInputFocused
-            handleInputFocus={handleInputFocus}
-            setDescriptionSelection={setDescriptionSelection}
-          />
-        );
-      });
-
-      const input = tree.root.findByProps({ accessibilityLabel: 'taskEdit.descriptionLabel' });
-      const endSelection = { start: descriptionDraft.length, end: descriptionDraft.length };
-
-      act(() => {
-        input.props.onSelectionChange({ nativeEvent: { selection: endSelection } });
-      });
-
-      expect(setDescriptionSelection).toHaveBeenCalledWith(endSelection);
-      expect(handleInputFocus).toHaveBeenCalledWith(DESCRIPTION_END_KEYBOARD_SCROLL_TARGET);
-    });
-  });
-
   it('temporarily controls Android description selection during caret restoration', () => {
     let tree!: ReturnType<typeof create>;
 
@@ -304,7 +287,7 @@ describe('TaskEditContentField', () => {
   });
 
   it('wraps selected checklist item text from mobile key presses', () => {
-    const { getState, setEditedTask } = createChecklistState();
+    const { getState, applyChecklistUpdate, setEditedTask } = createChecklistState();
     let tree!: ReturnType<typeof create>;
 
     act(() => {
@@ -313,6 +296,7 @@ describe('TaskEditContentField', () => {
           {...baseProps}
           fieldId="checklist"
           editedTask={getState()}
+          applyChecklistUpdate={applyChecklistUpdate}
           setEditedTask={setEditedTask}
         />
       );
@@ -332,16 +316,45 @@ describe('TaskEditContentField', () => {
     expect(preventDefault).toHaveBeenCalled();
     expect(getState().checklist[0].title).toBe('[Item 1]');
 
-    const callsAfterKeyPress = setEditedTask.mock.calls.length;
+    const callsAfterKeyPress = applyChecklistUpdate.mock.calls.length;
     act(() => {
       input.props.onChangeText('[');
     });
 
-    expect(setEditedTask).toHaveBeenCalledTimes(callsAfterKeyPress);
+    expect(applyChecklistUpdate).toHaveBeenCalledTimes(callsAfterKeyPress);
+  });
+
+  it('tracks the focused Android checklist row handle for measured scrolling', () => {
+    const { getState, applyChecklistUpdate, setEditedTask } = createChecklistState();
+    const handleInputFocus = vi.fn();
+    let tree!: ReturnType<typeof create>;
+
+    withPlatform('android', () => {
+      act(() => {
+        tree = create(
+          <TaskEditContentField
+            {...baseProps}
+            fieldId="checklist"
+            editedTask={getState()}
+            applyChecklistUpdate={applyChecklistUpdate}
+            handleInputFocus={handleInputFocus}
+            setEditedTask={setEditedTask}
+          />
+        );
+      });
+
+      const input = tree.root.findByProps({ accessibilityLabel: 'taskEdit.checklist 1' });
+
+      act(() => {
+        input.props.onFocus({ nativeEvent: { target: 42 } });
+      });
+
+      expect(handleInputFocus).toHaveBeenCalledWith(42);
+    });
   });
 
   it('wraps selected checklist item text from native mobile text changes', () => {
-    const { getState, setEditedTask } = createChecklistState();
+    const { getState, applyChecklistUpdate, setEditedTask } = createChecklistState();
     let tree!: ReturnType<typeof create>;
 
     act(() => {
@@ -350,6 +363,7 @@ describe('TaskEditContentField', () => {
           {...baseProps}
           fieldId="checklist"
           editedTask={getState()}
+          applyChecklistUpdate={applyChecklistUpdate}
           setEditedTask={setEditedTask}
         />
       );
@@ -365,13 +379,13 @@ describe('TaskEditContentField', () => {
     expect(getState().checklist[0].title).toBe('~~Item 1~~');
   });
 
-  it('persists checklist order changes from the mobile drag list', () => {
+  it('orders checklist items from compact mobile order controls', () => {
     const checklist = [
       { id: 'check-1', title: 'Item 1', isCompleted: false },
       { id: 'check-2', title: 'Item 2', isCompleted: false },
       { id: 'check-3', title: 'Item 3', isCompleted: true },
     ];
-    const { getState, setEditedTask } = createChecklistState(checklist);
+    const { getState, applyChecklistUpdate, setEditedTask } = createChecklistState(checklist);
     let tree!: ReturnType<typeof create>;
 
     act(() => {
@@ -380,25 +394,30 @@ describe('TaskEditContentField', () => {
           {...baseProps}
           fieldId="checklist"
           editedTask={getState()}
+          applyChecklistUpdate={applyChecklistUpdate}
           setEditedTask={setEditedTask}
         />
       );
     });
 
-    const dragList = tree.root.findByProps({ testID: 'mobile-checklist-reorder-list' });
+    const orderToggle = tree.root.findByProps({ testID: 'mobile-checklist-order-toggle' });
 
     act(() => {
-      dragList.props.onDragEnd({
-        from: 0,
-        to: 2,
-        data: [checklist[1], checklist[2], checklist[0]],
-      });
+      orderToggle.props.onPress();
+    });
+
+    expect(tree.root.findByProps({ testID: 'mobile-checklist-order-panel' })).toBeTruthy();
+
+    const moveFirstDown = tree.root.findByProps({ testID: 'mobile-checklist-move-down-check-1' });
+
+    act(() => {
+      moveFirstDown.props.onPress();
     });
 
     expect(getState().checklist.map((item: any) => item.id)).toEqual([
       'check-2',
-      'check-3',
       'check-1',
+      'check-3',
     ]);
   });
 });

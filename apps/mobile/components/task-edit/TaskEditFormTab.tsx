@@ -12,12 +12,12 @@ import {
     Dimensions,
     UIManager,
     findNodeHandle,
+    type ScrollViewProps,
 } from 'react-native';
 import DateTimePicker, { type DateTimePickerEvent } from '@react-native-community/datetimepicker';
 import { getRecurrenceUntilValue, type Task, type TaskEditorFieldId, type TaskEditorSectionId, type TimeEstimate } from '@mindwtr/core';
 import type { ThemeColors } from '@/hooks/use-theme-colors';
 import { CollapsibleSection } from './CollapsibleSection';
-import { DESCRIPTION_END_KEYBOARD_SCROLL_TARGET } from './task-edit-keyboard';
 
 type CopilotSuggestion = { context?: string; timeEstimate?: TimeEstimate; tags?: string[] };
 
@@ -106,7 +106,11 @@ export function TaskEditFormTab({
     const formScrollRef = React.useRef<ScrollView | null>(null);
     const formScrollOffsetRef = React.useRef(0);
     const keyboardTopRef = React.useRef(Dimensions.get('window').height);
+    const keyboardVisibleRef = React.useRef(false);
     const [keyboardBottomInset, setKeyboardBottomInset] = React.useState(0);
+    const androidScrollViewFocusProps: Partial<ScrollViewProps> & { scrollsChildToFocus?: boolean } = (
+        Platform.OS === 'android' ? { scrollsChildToFocus: false } : {}
+    );
     const aiWorkingLabel = t('ai.working');
     const aiWorkingText = aiWorkingLabel === 'ai.working' ? 'Working...' : aiWorkingLabel;
 
@@ -125,6 +129,7 @@ export function TaskEditFormTab({
     React.useEffect(() => {
         if (suspendKeyboardHandling) {
             keyboardTopRef.current = Dimensions.get('window').height;
+            keyboardVisibleRef.current = false;
             setKeyboardBottomInset(0);
             return;
         }
@@ -139,10 +144,12 @@ export function TaskEditFormTab({
                 nextKeyboardTop = Math.max(0, windowHeight - endCoords.height);
             }
             keyboardTopRef.current = nextKeyboardTop;
+            keyboardVisibleRef.current = nextKeyboardTop < windowHeight;
             setKeyboardBottomInset(Math.max(0, windowHeight - nextKeyboardTop));
         };
         const resetKeyboardTop = () => {
             keyboardTopRef.current = Dimensions.get('window').height;
+            keyboardVisibleRef.current = false;
             setKeyboardBottomInset(0);
         };
         const showListener = Keyboard.addListener(
@@ -164,11 +171,6 @@ export function TaskEditFormTab({
         };
     }, [suspendKeyboardHandling]);
 
-    const scrollDownForKeyboard = React.useCallback((amount = 180) => {
-        const nextOffset = Math.max(0, formScrollOffsetRef.current + amount);
-        formScrollRef.current?.scrollTo({ y: nextOffset, animated: true });
-    }, []);
-
     const scrollHandleIntoView = React.useCallback((targetHandle: number) => {
         const scrollView = formScrollRef.current;
         if (!scrollView) return;
@@ -180,22 +182,23 @@ export function TaskEditFormTab({
             if (!Number.isFinite(targetY) || !Number.isFinite(targetH)) return;
             UIManager.measureInWindow(scrollHandle, (_sx, scrollY, _sw, scrollH) => {
                 if (!Number.isFinite(scrollY) || !Number.isFinite(scrollH)) return;
-                const topPadding = 12;
-                const bottomPadding = Platform.OS === 'ios' ? 44 : 96;
-                const visibleTop = scrollY + topPadding;
+                const visibleTop = scrollY;
                 const keyboardTop = keyboardTopRef.current;
-                const visibleBottom = Math.min(scrollY + scrollH - bottomPadding, keyboardTop - bottomPadding);
+                const visibleBottom = Math.min(scrollY + scrollH, keyboardTop);
+                const visibleHeight = Math.max(0, visibleBottom - visibleTop);
+                const bottomClearance = visibleHeight * 0.18;
+                const effectiveVisibleBottom = visibleBottom - bottomClearance;
                 const targetTop = targetY;
                 const targetBottom = targetY + targetH;
 
-                if (targetBottom > visibleBottom) {
-                    const delta = targetBottom - visibleBottom;
+                if (targetBottom > effectiveVisibleBottom) {
+                    const delta = targetBottom - effectiveVisibleBottom;
                     const nextOffset = Math.max(0, formScrollOffsetRef.current + delta);
                     formScrollRef.current?.scrollTo({ y: nextOffset, animated: true });
                     return;
                 }
 
-                if (targetTop < visibleTop) {
+                if (targetTop < visibleTop && Platform.OS !== 'android') {
                     const delta = visibleTop - targetTop;
                     const nextOffset = Math.max(0, formScrollOffsetRef.current - delta);
                     formScrollRef.current?.scrollTo({ y: nextOffset, animated: true });
@@ -205,22 +208,24 @@ export function TaskEditFormTab({
     }, []);
 
     const scheduleScrollHandleIntoView = React.useCallback((targetHandle: number) => {
+        if (Platform.OS === 'android' && !keyboardVisibleRef.current) return;
         const scrollIntoView = () => scrollHandleIntoView(targetHandle);
         if (typeof requestAnimationFrame === 'function') {
-            requestAnimationFrame(scrollIntoView);
+            requestAnimationFrame(() => {
+                scrollIntoView();
+                if (Platform.OS === 'android') {
+                    requestAnimationFrame(scrollIntoView);
+                }
+            });
         } else {
             setTimeout(scrollIntoView, 0);
         }
+        if (Platform.OS === 'android') return;
         setTimeout(scrollIntoView, 180);
         setTimeout(scrollIntoView, 360);
     }, [scrollHandleIntoView]);
 
     const ensureInputVisible = React.useCallback((targetInput?: number | string) => {
-        if (targetInput === DESCRIPTION_END_KEYBOARD_SCROLL_TARGET) {
-            scrollDownForKeyboard(Platform.OS === 'ios' ? 140 : 220);
-            return;
-        }
-
         const normalizedHandle = typeof targetInput === 'number'
             ? targetInput
             : typeof targetInput === 'string'
@@ -228,11 +233,10 @@ export function TaskEditFormTab({
                 : NaN;
         const hasTargetHandle = Number.isFinite(normalizedHandle) && normalizedHandle > 0;
         if (!hasTargetHandle) {
-            scrollDownForKeyboard(Platform.OS === 'ios' ? 140 : 96);
             return;
         }
         scheduleScrollHandleIntoView(normalizedHandle);
-    }, [scheduleScrollHandleIntoView, scrollDownForKeyboard]);
+    }, [scheduleScrollHandleIntoView]);
 
     React.useEffect(() => {
         if (!registerScrollToEnd) return;
@@ -302,6 +306,7 @@ export function TaskEditFormTab({
                     keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}
                     keyboardShouldPersistTaps="handled"
                     scrollEnabled={!suspendKeyboardHandling}
+                    {...androidScrollViewFocusProps}
                     onScroll={(event) => {
                         formScrollOffsetRef.current = event.nativeEvent.contentOffset.y;
                     }}

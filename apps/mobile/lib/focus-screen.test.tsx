@@ -169,6 +169,10 @@ vi.mock('@/components/pomodoro-panel', () => ({
   PomodoroPanel: (props: any) => React.createElement('PomodoroPanel', props),
 }));
 
+vi.mock('react-native-safe-area-context', () => ({
+  useSafeAreaInsets: () => ({ top: 0, right: 0, bottom: 24, left: 0 }),
+}));
+
 vi.mock('@/hooks/use-mobile-area-filter', () => ({
   useMobileAreaFilter: () => ({ areaById: new Map(), resolvedAreaFilter: '__all__' }),
 }));
@@ -369,6 +373,20 @@ describe('FocusScreen', () => {
     expect(list.props.initialNumToRender).toBe(12);
     expect(list.props.maxToRenderPerBatch).toBe(12);
     expect(list.props.windowSize).toBe(5);
+  });
+
+  it('keeps Focus content clear of the custom bottom tab bar', () => {
+    let tree!: ReturnType<typeof create>;
+
+    act(() => {
+      tree = create(<FocusScreen />);
+    });
+
+    const list = tree.root.findByType(SectionList);
+    expect(list.props.contentContainerStyle).toEqual(
+      expect.arrayContaining([expect.objectContaining({ paddingBottom: 174 })])
+    );
+    expect(list.props.scrollIndicatorInsets).toEqual(expect.objectContaining({ bottom: 174 }));
   });
 
   it('keeps Today\'s Focus visible when collapsing Next Actions', () => {

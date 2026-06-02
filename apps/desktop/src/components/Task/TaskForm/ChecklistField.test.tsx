@@ -12,8 +12,12 @@ const initialChecklist: NonNullable<Task['checklist']> = [
 
 function ChecklistHarness({
     initial = initialChecklist,
+    description,
+    onUpdateTask,
 }: {
     initial?: Task['checklist'];
+    description?: string;
+    onUpdateTask?: (updates: Partial<Task>) => void;
 }) {
     const [checklist, setChecklist] = useState<Task['checklist']>(initial);
     return (
@@ -21,7 +25,11 @@ function ChecklistHarness({
             t={(key) => key}
             taskId="task-1"
             checklist={checklist}
-            updateTask={(_taskId, updates) => setChecklist(updates.checklist ?? [])}
+            description={description}
+            updateTask={(_taskId, updates) => {
+                onUpdateTask?.(updates);
+                setChecklist(updates.checklist ?? []);
+            }}
             resetTaskChecklist={() => setChecklist([])}
         />
     );
@@ -41,6 +49,27 @@ describe('ChecklistField', () => {
 
         expect(reordered?.map((item) => item.id)).toEqual(['third', 'first', 'second']);
         expect(reordered?.map((item) => item.isCompleted)).toEqual([false, false, true]);
+    });
+
+    it('syncs existing markdown task-list lines when checklist completion changes', () => {
+        const updates: Partial<Task>[] = [];
+        const { getByRole } = render(
+            <ChecklistHarness
+                description={'Intro\n- [ ] Item 1\n- [ ] Item 2\n- [ ] Item 3\nOutro'}
+                onUpdateTask={(next) => updates.push(next)}
+            />
+        );
+
+        fireEvent.click(getByRole('button', { name: 'taskEdit.checklist 1' }));
+
+        expect(updates[updates.length - 1]).toEqual({
+            checklist: [
+                { id: '1', title: 'Item 1', isCompleted: true },
+                { id: '2', title: 'Item 2', isCompleted: false },
+                { id: '3', title: 'Item 3', isCompleted: false },
+            ],
+            description: 'Intro\n- [x] Item 1\n- [ ] Item 2\n- [ ] Item 3\nOutro',
+        });
     });
 
     it('renders desktop drag handles only when checklist order can change', () => {

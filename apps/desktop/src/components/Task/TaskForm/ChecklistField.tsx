@@ -20,6 +20,7 @@ import {
     applyMarkdownKeyboardShortcut,
     applyMarkdownPairInsertion,
     generateUUID,
+    syncMarkdownChecklistWithCanonical,
     type MarkdownSelection,
     type MarkdownToolbarResult,
     type Task,
@@ -36,6 +37,8 @@ type ChecklistFieldProps = {
     t: (key: string) => string;
     taskId: string;
     checklist: Task['checklist'];
+    description?: string;
+    onDescriptionSync?: (description: string) => void;
     updateTask: (taskId: string, updates: Partial<Task>) => void;
     resetTaskChecklist: (taskId: string) => void;
 };
@@ -146,6 +149,8 @@ export function ChecklistField({
     t,
     taskId,
     checklist,
+    description,
+    onDescriptionSync,
     updateTask,
     resetTaskChecklist,
 }: ChecklistFieldProps) {
@@ -182,18 +187,29 @@ export function ChecklistField({
         checklistDirtyRef.current = true;
     }, []);
 
+    const commitChecklistUpdate = useCallback((nextChecklist: Task['checklist']) => {
+        const nextDescription = syncMarkdownChecklistWithCanonical(description, nextChecklist);
+        if (nextDescription !== description) {
+            onDescriptionSync?.(nextDescription ?? '');
+        }
+        updateTask(taskId, {
+            checklist: nextChecklist,
+            ...(nextDescription !== description ? { description: nextDescription } : {}),
+        });
+    }, [description, onDescriptionSync, taskId, updateTask]);
+
     const commitChecklistDraft = useCallback((next?: Task['checklist']) => {
         const payload = next ?? checklistDraftRef.current;
         if (!checklistDirtyRef.current && next === undefined) return;
         checklistDirtyRef.current = false;
-        updateTask(taskId, { checklist: payload });
-    }, [taskId, updateTask]);
+        commitChecklistUpdate(payload);
+    }, [commitChecklistUpdate]);
 
     useEffect(() => () => {
         if (checklistDirtyRef.current) {
-            updateTask(taskId, { checklist: checklistDraftRef.current });
+            commitChecklistUpdate(checklistDraftRef.current);
         }
-    }, [taskId, updateTask]);
+    }, [commitChecklistUpdate]);
 
     const sensors = useSensors(
         useSensor(PointerSensor, {
@@ -268,8 +284,8 @@ export function ChecklistField({
         setChecklistDraft(nextList);
         checklistDraftRef.current = nextList;
         checklistDirtyRef.current = false;
-        updateTask(taskId, { checklist: nextList });
-    }, [taskId, updateTask]);
+        commitChecklistUpdate(nextList);
+    }, [commitChecklistUpdate]);
 
     const checklistItems = checklistDraft || [];
     const canReorderChecklist = checklistItems.length > 1;
@@ -292,6 +308,7 @@ export function ChecklistField({
                                         {handle}
                                         <button
                                             type="button"
+                                            aria-label={`${t('taskEdit.checklist')} ${index + 1}`}
                                             onClick={() => {
                                                 const newList = checklistItems.map((entry, i) =>
                                                     i === index ? { ...entry, isCompleted: !entry.isCompleted } : entry
@@ -299,7 +316,7 @@ export function ChecklistField({
                                                 setChecklistDraft(newList);
                                                 checklistDraftRef.current = newList;
                                                 checklistDirtyRef.current = false;
-                                                updateTask(taskId, { checklist: newList });
+                                                commitChecklistUpdate(newList);
                                             }}
                                             className={cn(
                                                 'w-4 h-4 border rounded flex items-center justify-center transition-colors',
@@ -391,7 +408,7 @@ export function ChecklistField({
                                                     setChecklistDraft(nextList);
                                                     checklistDraftRef.current = nextList;
                                                     checklistDirtyRef.current = false;
-                                                    updateTask(taskId, { checklist: nextList });
+                                                    commitChecklistUpdate(nextList);
                                                     focusChecklistIndex(index + 1, event.currentTarget);
                                                     return;
                                                 }
@@ -401,7 +418,7 @@ export function ChecklistField({
                                                     setChecklistDraft(nextList);
                                                     checklistDraftRef.current = nextList;
                                                     checklistDirtyRef.current = false;
-                                                    updateTask(taskId, { checklist: nextList });
+                                                    commitChecklistUpdate(nextList);
                                                     const nextIndex = Math.max(0, index - 1);
                                                     if (nextList.length > 0) {
                                                         focusChecklistIndex(nextIndex, event.currentTarget);
@@ -433,7 +450,7 @@ export function ChecklistField({
                                                 setChecklistDraft(newList);
                                                 checklistDraftRef.current = newList;
                                                 checklistDirtyRef.current = false;
-                                                updateTask(taskId, { checklist: newList });
+                                                commitChecklistUpdate(newList);
                                             }}
                                             aria-label={t('common.delete')}
                                             className="opacity-0 group-hover/item:opacity-100 text-muted-foreground hover:text-destructive p-1"
@@ -463,7 +480,7 @@ export function ChecklistField({
                         setChecklistDraft(nextList);
                         checklistDraftRef.current = nextList;
                         checklistDirtyRef.current = false;
-                        updateTask(taskId, { checklist: nextList });
+                        commitChecklistUpdate(nextList);
                         focusChecklistIndex(nextList.length - 1, source);
                     }}
                     onKeyDown={(event) => {
@@ -479,7 +496,7 @@ export function ChecklistField({
                             setChecklistDraft(nextList);
                             checklistDraftRef.current = nextList;
                             checklistDirtyRef.current = false;
-                            updateTask(taskId, { checklist: nextList });
+                            commitChecklistUpdate(nextList);
                             focusChecklistIndex(nextList.length - 1, event.currentTarget);
                         }
                     }}

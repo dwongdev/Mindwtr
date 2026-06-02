@@ -8,6 +8,7 @@ import {
     searchMarkdownReferences,
     stripMarkdown,
     syncMarkdownChecklistCompletion,
+    syncMarkdownChecklistWithCanonical,
 } from './markdown';
 import type { Project, Task } from './types';
 
@@ -66,6 +67,48 @@ describe('syncMarkdownChecklistCompletion', () => {
         expect(syncMarkdownChecklistCompletion(input, [
             { title: 'Draft spec', isCompleted: true },
         ])).toBe('- [x] Draft spec\n- [x] Keep independent');
+    });
+});
+
+describe('syncMarkdownChecklistWithCanonical', () => {
+    it('reorders matching markdown task-list lines to follow the canonical checklist', () => {
+        const input = [
+            'Intro',
+            '- [ ] Desktop layout',
+            '- [x] Tablet layout',
+            '- [ ] Mobile layout',
+            'Outro',
+        ].join('\n');
+
+        expect(syncMarkdownChecklistWithCanonical(input, [
+            { title: 'Tablet layout', isCompleted: true },
+            { title: 'Desktop layout', isCompleted: false },
+            { title: 'Mobile layout', isCompleted: false },
+        ])).toBe([
+            'Intro',
+            '- [x] Tablet layout',
+            '- [ ] Desktop layout',
+            '- [ ] Mobile layout',
+            'Outro',
+        ].join('\n'));
+    });
+
+    it('removes stale markdown task-list lines missing from the canonical checklist', () => {
+        const input = '- [ ] Desktop layout\n- [ ] Tablet layout\n- [ ] Mobile layout';
+
+        expect(syncMarkdownChecklistWithCanonical(input, [
+            { title: 'Desktop layout', isCompleted: false },
+            { title: 'Mobile layout', isCompleted: false },
+        ])).toBe('- [ ] Desktop layout\n- [ ] Mobile layout');
+    });
+
+    it('adds new canonical checklist items after the existing markdown task-list block', () => {
+        const input = 'Intro\n- [ ] Desktop layout\nOutro';
+
+        expect(syncMarkdownChecklistWithCanonical(input, [
+            { title: 'Desktop layout', isCompleted: false },
+            { title: 'Tablet layout', isCompleted: true },
+        ])).toBe('Intro\n- [ ] Desktop layout\n- [x] Tablet layout\nOutro');
     });
 });
 
