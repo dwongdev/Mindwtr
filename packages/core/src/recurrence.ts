@@ -686,12 +686,19 @@ type ProjectedIsoResult = {
     steps: number;
 };
 
+const emptyProjectedIsoResult = (): ProjectedIsoResult => ({ iso: undefined, steps: 0 });
+
 const getProjectionBaseDate = (projectedAtIso: string): Date => {
     const parsed = safeParseDate(projectedAtIso);
     if (parsed) return parsed;
     const fallback = new Date(projectedAtIso);
     return Number.isNaN(fallback.getTime()) ? new Date() : fallback;
 };
+
+const hasMonthlyRuleDateAnchor = (byDay?: RecurrenceByDay[], byMonthDay?: number[]): boolean => (
+    Boolean(byMonthDay?.length)
+    || Boolean(byDay?.some((day) => typeof parseOrdinalByDay(day)?.ordinal === 'number'))
+);
 
 function projectStrictIsoFrom(
     baseIso: string | undefined,
@@ -716,6 +723,23 @@ function projectStrictIsoFrom(
         steps += 1;
     }
     return { iso: nextIso, steps };
+}
+
+function projectUnscheduledMonthlyStart(
+    rule: RecurrenceRule,
+    projectionBase: Date,
+    byDay?: RecurrenceByDay[],
+    interval: number = 1,
+    byMonthDay?: number[],
+    weekStart?: RecurrenceWeekday
+): ProjectedIsoResult {
+    if (rule !== 'monthly' || !hasMonthlyRuleDateAnchor(byDay, byMonthDay)) {
+        return emptyProjectedIsoResult();
+    }
+
+    const seedIso = format(projectionBase, 'yyyy-MM-dd');
+    const iso = nextIsoFrom(seedIso, rule, projectionBase, byDay, interval, byMonthDay, weekStart);
+    return iso ? { iso, steps: 1 } : emptyProjectedIsoResult();
 }
 
 /**
@@ -761,7 +785,10 @@ export function createProjectedRecurringTask(
         return projectStrictIsoFrom(baseIso, rule, projectionBase, byDay, interval, byMonthDay, weekStart, anchorDay);
     };
 
-    const nextStart = projectField('startTime');
+    const hasScheduleFields = Boolean(task.startTime || task.dueDate || task.reviewAt);
+    const nextStart = task.startTime || hasScheduleFields
+        ? projectField('startTime')
+        : projectUnscheduledMonthlyStart(rule, projectionBase, byDay, interval, byMonthDay, weekStart);
     const nextDue = projectField('dueDate');
     const nextReview = projectField('reviewAt');
     const projectionSteps = Math.max(nextStart.steps, nextDue.steps, nextReview.steps);

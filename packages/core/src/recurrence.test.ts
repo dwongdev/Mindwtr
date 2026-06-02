@@ -678,6 +678,52 @@ describe('recurrence', () => {
         expect(projected?.dueDate).toBeUndefined();
     });
 
+    it('projects an unscheduled monthly day-of-month recurrence from the closest matching date', () => {
+        const task: Task = {
+            id: 't-projected-unscheduled-ninth-day',
+            title: 'Ninth day planning',
+            status: 'next',
+            tags: [],
+            contexts: [],
+            recurrence: {
+                rule: 'monthly',
+                strategy: 'strict',
+                byMonthDay: [9],
+                rrule: 'FREQ=MONTHLY;BYMONTHDAY=9',
+            },
+            showFutureRecurrence: true,
+            createdAt: '2026-06-01T00:00:00.000Z',
+            updatedAt: '2026-06-01T00:00:00.000Z',
+        };
+
+        expect(createProjectedRecurringTask(task, '2026-06-02T12:00:00.000Z')?.startTime).toBe('2026-06-09');
+        expect(createProjectedRecurringTask(task, '2026-06-30T12:00:00.000Z')?.startTime).toBe('2026-07-09');
+    });
+
+    it('projects an unscheduled monthly nth-weekday recurrence from the closest matching date', () => {
+        const task: Task = {
+            id: 't-projected-unscheduled-third-monday',
+            title: 'Third Monday planning',
+            status: 'next',
+            tags: [],
+            contexts: [],
+            recurrence: {
+                rule: 'monthly',
+                strategy: 'strict',
+                byDay: ['3MO'],
+                rrule: 'FREQ=MONTHLY;BYDAY=3MO',
+            },
+            showFutureRecurrence: true,
+            createdAt: '2026-06-01T00:00:00.000Z',
+            updatedAt: '2026-06-01T00:00:00.000Z',
+        };
+
+        const projected = createProjectedRecurringTask(task, '2026-06-02T12:00:00.000Z');
+
+        expect(projected?.startTime).toBe('2026-06-15');
+        expect(projected?.dueDate).toBeUndefined();
+    });
+
     it('does not project recurring tasks unless the calendar preview is enabled', () => {
         const task: Task = {
             id: 't-projected-disabled',
