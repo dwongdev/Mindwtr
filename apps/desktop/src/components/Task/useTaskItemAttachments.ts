@@ -1,11 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Attachment, DEFAULT_PROJECT_COLOR, buildTaskUpdatesFromSpeechResult, generateUUID, translateWithFallback, useTaskStore, validateAttachmentForUpload, type Task } from '@mindwtr/core';
-import { invoke } from '@tauri-apps/api/core';
 import { dataDir } from '@tauri-apps/api/path';
 import { BaseDirectory, readFile, readTextFile, size } from '@tauri-apps/plugin-fs';
 import { loadAIKey } from '../../lib/ai-config';
-import { normalizeAttachmentPathForUrl, resolveAttachmentOpenTarget, toAttachmentBrowserUrl } from '../../lib/attachment-paths';
+import { normalizeAttachmentPathForUrl, resolveAttachmentOpenTarget } from '../../lib/attachment-paths';
 import { normalizeAttachmentInput } from '../../lib/attachment-utils';
+import { openAttachmentTarget } from '../../lib/open-attachment-target';
 import { isTauriRuntime } from '../../lib/runtime';
 import { logWarn } from '../../lib/app-log';
 import { processAudioCapture } from '../../lib/speech-to-text';
@@ -119,22 +119,16 @@ export function useTaskItemAttachments({ task, t }: UseTaskItemAttachmentsProps)
 
     const openExternal = useCallback(async (uri: string) => {
         setAttachmentError(null);
-        const normalized = toAttachmentBrowserUrl(uri);
-        const openTarget = resolveAttachmentOpenTarget(uri);
-        if (isTauriRuntime()) {
-            try {
-                await invoke('open_path', { path: openTarget });
-                return;
-            } catch (error) {
-                void logWarn('Failed to open attachment', {
-                    scope: 'attachment',
-                    extra: { error: error instanceof Error ? error.message : String(error) },
-                });
-                const message = error instanceof Error ? error.message : String(error);
-                setAttachmentError(message || t('attachments.fileNotSupported'));
-            }
+        try {
+            await openAttachmentTarget(uri);
+        } catch (error) {
+            void logWarn('Failed to open attachment', {
+                scope: 'attachment',
+                extra: { error: error instanceof Error ? error.message : String(error) },
+            });
+            const message = error instanceof Error ? error.message : String(error);
+            setAttachmentError(message || t('attachments.fileNotSupported'));
         }
-        window.open(normalized, '_blank');
     }, [t]);
 
     const closeAudio = useCallback(() => {
@@ -299,6 +293,10 @@ export function useTaskItemAttachments({ task, t }: UseTaskItemAttachmentsProps)
     }, [audioAttachment, closeAudio, closeImage, closeText, imageAttachment, textAttachment]);
 
     const openAttachment = useCallback((attachment: Attachment) => {
+        if (attachment.kind === 'link') {
+            void openExternal(attachment.uri);
+            return;
+        }
         if (isAudioAttachment(attachment)) {
             const requestId = audioLoadRequestRef.current + 1;
             audioLoadRequestRef.current = requestId;

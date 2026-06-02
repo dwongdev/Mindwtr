@@ -60,6 +60,11 @@ fn allowed_open_roots(app: &tauri::AppHandle) -> Vec<PathBuf> {
         roots.push(vault_path);
     }
 
+    #[cfg(target_os = "linux")]
+    if let Some(runtime_dir) = std::env::var_os("XDG_RUNTIME_DIR") {
+        roots.push(PathBuf::from(runtime_dir).join("doc"));
+    }
+
     roots
         .into_iter()
         .filter_map(canonical_existing_dir)
@@ -529,6 +534,15 @@ mod tests {
         let root = PathBuf::from("/tmp/mindwtr");
         assert!(path_is_under_allowed_root(Path::new("/tmp/mindwtr/attachments/a.pdf"), &[root.clone()]));
         assert!(!path_is_under_allowed_root(Path::new("/tmp/mindwtr-other/a.pdf"), &[root]));
+    }
+
+    #[test]
+    fn path_is_under_allowed_root_allows_flatpak_document_portal_paths() {
+        let portal_root = PathBuf::from("/run/user/1000/doc");
+        assert!(path_is_under_allowed_root(
+            Path::new("/run/user/1000/doc/abc123/notes.pdf"),
+            &[portal_root]
+        ));
     }
 }
 
