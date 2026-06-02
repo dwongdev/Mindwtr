@@ -240,7 +240,8 @@ export function useTaskEditDates({
         if (!dateStr) return t('common.notSet');
         const parsed = safeParseDate(dateStr);
         if (!parsed) return t('common.notSet');
-        return safeFormatDate(parsed, 'P', t('common.notSet')) || t('common.notSet');
+        const hasTime = hasTimeComponent(dateStr);
+        return safeFormatDate(parsed, hasTime ? 'P p' : 'P', t('common.notSet')) || t('common.notSet');
     }, [t]);
 
     const formatDueDate = React.useCallback((dateStr?: string) => {
