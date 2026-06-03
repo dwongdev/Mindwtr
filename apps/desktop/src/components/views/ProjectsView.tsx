@@ -133,6 +133,9 @@ export function ProjectsView() {
         restoreProject,
         duplicateProject,
         updateTask,
+        batchMoveTasks,
+        batchDeleteTasks,
+        batchUpdateTasks,
         addSection,
         updateSection,
         deleteSection,
@@ -680,6 +683,9 @@ export function ProjectsView() {
                         onToggleProjectsSidebar={toggleProjectsSidebarCollapsed}
                         onToggleShowCompletedTasks={() => setShowCompletedProjectTasks((prev) => !prev)}
                         undoNotificationsEnabled={settings?.undoNotificationsEnabled !== false}
+                        batchMoveTasks={batchMoveTasks}
+                        batchDeleteTasks={batchDeleteTasks}
+                        batchUpdateTasks={batchUpdateTasks}
                         updateProject={updateProject}
                         updateSection={updateSection}
                         updateTask={updateTask}

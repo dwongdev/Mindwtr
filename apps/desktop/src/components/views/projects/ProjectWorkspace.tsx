@@ -1,21 +1,29 @@
-import { useState, useMemo, useEffect, useCallback, type ReactNode } from 'react';
+import { useState, useMemo, useEffect, useCallback, useRef, type ReactNode } from 'react';
 import {
     Attachment,
     Task,
+    buildBulkTaskTokenUpdates,
+    collectBulkTaskTokens,
     type Area,
     type Project,
+    type RangeSelectionOptions,
     type Section,
     type StoreActionResult,
+    type TaskStatus,
     generateUUID,
     parseQuickAdd,
+    updateRangeSelection,
 } from '@mindwtr/core';
 import { DndContext, PointerSensor, MeasuringStrategy, useSensor, useSensors, type DragEndEvent } from '@dnd-kit/core';
 import { SortableContext, verticalListSortingStrategy, arrayMove } from '@dnd-kit/sortable';
 import { ArrowDown, ArrowUp, CheckCircle2, ChevronDown, ChevronRight, FileText, Folder, PanelLeftOpen, Pencil, Plus, Trash2 } from 'lucide-react';
 
 import { PromptModal } from '../../PromptModal';
+import { TokenPickerModal } from '../../TokenPickerModal';
 import { TaskItem } from '../../TaskItem';
 import { TaskInput } from '../../Task/TaskInput';
+import { BulkSelectionToolbar } from '../list/BulkSelectionToolbar';
+import { ListBulkActions } from '../list/ListBulkActions';
 import { normalizeAttachmentInput } from '../../../lib/attachment-utils';
 import { cn } from '../../../lib/utils';
 import { reportError } from '../../../lib/report-error';
@@ -49,6 +57,11 @@ type ShowToast = (
     durationMs?: number,
     action?: { label: string; onClick: () => void }
 ) => void;
+
+type BulkTokenPickerState = {
+    field: 'tags' | 'contexts';
+    action: 'add' | 'remove';
+} | null;
 
 type ProjectWorkspaceProps = {
     addProject: (
@@ -97,6 +110,11 @@ type ProjectWorkspaceProps = {
     projectsSidebarCollapsed?: boolean;
     onToggleProjectsSidebar?: () => void;
     undoNotificationsEnabled: boolean;
+    batchMoveTasks: (taskIds: string[], newStatus: TaskStatus) => Promise<unknown> | unknown;
+    batchDeleteTasks: (taskIds: string[]) => Promise<unknown> | unknown;
+    batchUpdateTasks: (
+        updates: Array<{ id: string; updates: Partial<Task> }>
+    ) => Promise<unknown> | unknown;
     updateProject: (
         projectId: string,
         updates: Partial<Project>,
@@ -160,6 +178,9 @@ export function ProjectWorkspace({
     projectsSidebarCollapsed = false,
     onToggleProjectsSidebar,
     undoNotificationsEnabled,
+    batchMoveTasks,
+    batchDeleteTasks,
+    batchUpdateTasks,
     updateProject,
     updateSection,
     updateTask,
@@ -178,6 +199,11 @@ export function ProjectWorkspace({
     const [projectTaskTitle, setProjectTaskTitle] = useState('');
     const [projectDetailsExpanded, setProjectDetailsExpanded] = useState(false);
     const [isProjectDeleting, setIsProjectDeleting] = useState(false);
+    const [selectionMode, setSelectionMode] = useState(false);
+    const [multiSelectedIds, setMultiSelectedIds] = useState<Set<string>>(new Set());
+    const [bulkTokenPicker, setBulkTokenPicker] = useState<BulkTokenPickerState>(null);
+    const [isBatchDeleting, setIsBatchDeleting] = useState(false);
+    const multiSelectAnchorIdRef = useRef<string | null>(null);
     const isArchivedProject = selectedProject?.status === 'archived';
     const resolveText = useCallback((key: string, fallback: string) => {
         const value = t(key);
@@ -348,6 +374,145 @@ export function ProjectWorkspace({
         }
         return combined;
     }, [orderedProjectTasks, projectSections.length, sectionTaskGroups.sections, sectionTaskGroups.unsectioned]);
+    const visibleProjectTaskList = useMemo(() => {
+        if (projectSections.length === 0) return orderedProjectTasks;
+        const combined: Task[] = [];
+        sectionTaskGroups.sections.forEach((group) => {
+            if (!group.section.isCollapsed) {
+                combined.push(...group.tasks);
+            }
+        });
+        combined.push(...sectionTaskGroups.unsectioned);
+        return combined;
+    }, [orderedProjectTasks, projectSections.length, sectionTaskGroups.sections, sectionTaskGroups.unsectioned]);
+    const visibleProjectTaskIds = useMemo(
+        () => visibleProjectTaskList.map((task) => task.id),
+        [visibleProjectTaskList],
+    );
+    const selectedIdsArray = useMemo(() => Array.from(multiSelectedIds), [multiSelectedIds]);
+    const selectedVisibleCount = visibleProjectTaskIds.filter((id) => multiSelectedIds.has(id)).length;
+    const allVisibleTasksSelected = visibleProjectTaskIds.length > 0 && selectedVisibleCount === visibleProjectTaskIds.length;
+    const tasksById = useMemo(() => new Map(allTasks.map((task) => [task.id, task])), [allTasks]);
+    const addTagOptions = useMemo(
+        () => allTokens.filter((token) => token.startsWith('#')),
+        [allTokens],
+    );
+    const addContextOptions = useMemo(
+        () => allTokens.filter((token) => token.startsWith('@')),
+        [allTokens],
+    );
+    const removableTagOptions = useMemo(
+        () => collectBulkTaskTokens(selectedIdsArray, tasksById, 'tags'),
+        [selectedIdsArray, tasksById],
+    );
+    const removableContextOptions = useMemo(
+        () => collectBulkTaskTokens(selectedIdsArray, tasksById, 'contexts'),
+        [selectedIdsArray, tasksById],
+    );
+
+    const exitSelectionMode = useCallback(() => {
+        setSelectionMode(false);
+        setMultiSelectedIds(new Set());
+        setBulkTokenPicker(null);
+        multiSelectAnchorIdRef.current = null;
+    }, []);
+
+    useEffect(() => {
+        setMultiSelectedIds((prev) => {
+            const visible = new Set(visibleProjectTaskIds);
+            const next = new Set(Array.from(prev).filter((id) => visible.has(id)));
+            if (next.size === prev.size) return prev;
+            return next;
+        });
+        if (multiSelectAnchorIdRef.current && !visibleProjectTaskIds.includes(multiSelectAnchorIdRef.current)) {
+            multiSelectAnchorIdRef.current = null;
+        }
+    }, [visibleProjectTaskIds]);
+
+    useEffect(() => {
+        exitSelectionMode();
+    }, [exitSelectionMode, selectedProjectId]);
+
+    const toggleMultiSelect = useCallback((taskId: string, options: RangeSelectionOptions = {}) => {
+        setMultiSelectedIds((prev) => {
+            const result = updateRangeSelection({
+                anchorId: multiSelectAnchorIdRef.current,
+                range: options.range,
+                selectedIds: prev,
+                targetId: taskId,
+                visibleIds: visibleProjectTaskIds,
+            });
+            multiSelectAnchorIdRef.current = result.anchorId;
+            return result.selectedIds;
+        });
+    }, [visibleProjectTaskIds]);
+
+    const selectAllVisibleTasks = useCallback(() => {
+        multiSelectAnchorIdRef.current = visibleProjectTaskIds[0] ?? null;
+        setMultiSelectedIds(new Set(visibleProjectTaskIds));
+    }, [visibleProjectTaskIds]);
+
+    const clearTaskSelection = useCallback(() => {
+        multiSelectAnchorIdRef.current = null;
+        setMultiSelectedIds(new Set());
+    }, []);
+
+    const handleBatchMove = useCallback(async (newStatus: TaskStatus) => {
+        if (selectedIdsArray.length === 0) return;
+        try {
+            await Promise.resolve(batchMoveTasks(selectedIdsArray, newStatus));
+            exitSelectionMode();
+        } catch (error) {
+            reportError('Failed to batch move project tasks', error);
+            showToast(resolveText('bulk.moveFailed', 'Failed to move selected tasks'), 'error');
+        }
+    }, [batchMoveTasks, exitSelectionMode, resolveText, selectedIdsArray, showToast]);
+
+    const handleBatchDelete = useCallback(async () => {
+        if (selectedIdsArray.length === 0) return;
+        const confirmed = await requestConfirmation({
+            title: t('common.delete') || 'Delete',
+            description: t('list.confirmBatchDelete') || 'Delete selected tasks?',
+            confirmLabel: t('common.delete') || 'Delete',
+            cancelLabel: t('common.cancel') || 'Cancel',
+        });
+        if (!confirmed) return;
+        setIsBatchDeleting(true);
+        try {
+            await Promise.resolve(batchDeleteTasks(selectedIdsArray));
+            exitSelectionMode();
+        } catch (error) {
+            reportError('Failed to batch delete project tasks', error);
+            showToast(resolveText('projects.deleteFailed', 'Failed to delete selected tasks'), 'error');
+        } finally {
+            setIsBatchDeleting(false);
+        }
+    }, [batchDeleteTasks, exitSelectionMode, requestConfirmation, resolveText, selectedIdsArray, showToast, t]);
+
+    const handleBatchTokenPick = useCallback((field: 'tags' | 'contexts', action: 'add' | 'remove') => {
+        if (selectedIdsArray.length === 0) return;
+        setBulkTokenPicker({ field, action });
+    }, [selectedIdsArray.length]);
+
+    const handleBulkTokenConfirm = useCallback(async (value: string) => {
+        if (!bulkTokenPicker || selectedIdsArray.length === 0) return;
+        try {
+            const updates = buildBulkTaskTokenUpdates(
+                selectedIdsArray,
+                tasksById,
+                bulkTokenPicker.field,
+                value,
+                bulkTokenPicker.action,
+            );
+            setBulkTokenPicker(null);
+            if (updates.length === 0) return;
+            await Promise.resolve(batchUpdateTasks(updates));
+            exitSelectionMode();
+        } catch (error) {
+            reportError('Failed to batch update project task tokens', error);
+            showToast(resolveText('bulk.updateFailed', 'Failed to update selected tasks'), 'error');
+        }
+    }, [batchUpdateTasks, bulkTokenPicker, exitSelectionMode, resolveText, selectedIdsArray, showToast, tasksById]);
 
     const projectReferenceTasks = useMemo(() => {
         if (!selectedProject) return [] as Task[];
@@ -470,6 +635,23 @@ export function ProjectWorkspace({
                 ))}
             </div>
         </SortableContext>
+    );
+
+    const renderSelectableTasks = (list: Task[]) => (
+        <div className="divide-y divide-border/30">
+            {list.map((task) => (
+                <TaskItem
+                    key={task.id}
+                    task={task}
+                    project={selectedProject}
+                    enableDoubleClickEdit
+                    showProjectBadgeInActions={false}
+                    selectionMode={selectionMode}
+                    isMultiSelected={multiSelectedIds.has(task.id)}
+                    onToggleSelect={(options) => toggleMultiSelect(task.id, options)}
+                />
+            ))}
+        </div>
     );
 
     const renderProjectSections = (renderTasks: (list: Task[]) => ReactNode) => {
@@ -648,7 +830,9 @@ export function ProjectWorkspace({
         );
     };
 
-    const tasksContent = (
+    const tasksContent = selectionMode ? (
+        renderProjectSections(renderSelectableTasks)
+    ) : (
         <DndContext
             sensors={taskSensors}
             collisionDetection={projectTaskCollisionDetection}
@@ -789,6 +973,24 @@ export function ProjectWorkspace({
     })();
     const expandProjectsSidebarLabel = resolveText('projects.expandSidebar', 'Expand projects panel');
     const showProjectsSidebarToggle = projectsSidebarCollapsed && Boolean(onToggleProjectsSidebar);
+    const removeTagLabel = resolveText('bulk.removeTag', 'Remove tag');
+    const tokenPickerTitle = (() => {
+        if (!bulkTokenPicker) return '';
+        if (bulkTokenPicker.field === 'tags') {
+            return bulkTokenPicker.action === 'add' ? t('bulk.addTag') : removeTagLabel;
+        }
+        return bulkTokenPicker.action === 'add' ? t('bulk.addContext') : t('bulk.removeContext');
+    })();
+    const tokenPickerOptions = (() => {
+        if (!bulkTokenPicker) return [] as string[];
+        if (bulkTokenPicker.field === 'tags') {
+            return bulkTokenPicker.action === 'add' ? addTagOptions : removableTagOptions;
+        }
+        return bulkTokenPicker.action === 'add' ? addContextOptions : removableContextOptions;
+    })();
+    const tokenPickerPlaceholder = bulkTokenPicker?.field === 'tags'
+        ? t('taskEdit.tagsPlaceholder')
+        : t('taskEdit.contextsPlaceholder');
 
     const handleAddTaskForProject = useCallback(
         async (value: string, sectionId?: string | null) => {
@@ -863,6 +1065,23 @@ export function ProjectWorkspace({
                                 onChange={(event) => setSearchQuery(event.target.value)}
                                 className="min-w-0 flex-1 rounded border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
                             />
+                            {selectedProject && (
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        if (selectionMode) exitSelectionMode();
+                                        else setSelectionMode(true);
+                                    }}
+                                    className={cn(
+                                        "h-9 rounded-lg border px-3 text-xs transition-colors focus:outline-none focus:ring-2 focus:ring-primary/40",
+                                        selectionMode
+                                            ? "border-primary bg-primary/10 text-primary"
+                                            : "border-border bg-muted/50 text-muted-foreground hover:bg-muted hover:text-foreground"
+                                    )}
+                                >
+                                    {selectionMode ? t('bulk.exitSelect') : t('bulk.select')}
+                                </button>
+                            )}
                         </div>
                     </div>
                     {selectedProject ? (
@@ -1029,6 +1248,33 @@ export function ProjectWorkspace({
                                         </div>
                                     )}
                                 </div>
+                                {selectionMode && (
+                                    <div className="mb-3 space-y-3">
+                                        <BulkSelectionToolbar
+                                            selectionCount={selectedIdsArray.length}
+                                            totalCount={visibleProjectTaskList.length}
+                                            allSelected={allVisibleTasksSelected}
+                                            onSelectAll={selectAllVisibleTasks}
+                                            onClearSelection={clearTaskSelection}
+                                            t={t}
+                                        />
+                                        {selectedIdsArray.length > 0 && (
+                                            <ListBulkActions
+                                                selectionCount={selectedIdsArray.length}
+                                                onMoveToStatus={handleBatchMove}
+                                                onAddTag={() => handleBatchTokenPick('tags', 'add')}
+                                                onRemoveTag={() => handleBatchTokenPick('tags', 'remove')}
+                                                disableRemoveTag={removableTagOptions.length === 0}
+                                                onAddContext={() => handleBatchTokenPick('contexts', 'add')}
+                                                onRemoveContext={() => handleBatchTokenPick('contexts', 'remove')}
+                                                disableRemoveContext={removableContextOptions.length === 0}
+                                                onDelete={handleBatchDelete}
+                                                isDeleting={isBatchDeleting}
+                                                t={t}
+                                            />
+                                        )}
+                                    </div>
+                                )}
                                 {tasksContent}
                             </section>
 
@@ -1141,6 +1387,18 @@ export function ProjectWorkspace({
                     });
                     setShowLinkPrompt(false);
                 }}
+            />
+            <TokenPickerModal
+                isOpen={bulkTokenPicker !== null}
+                title={tokenPickerTitle}
+                description={tokenPickerTitle}
+                tokens={tokenPickerOptions}
+                placeholder={tokenPickerPlaceholder}
+                allowCustomValue={bulkTokenPicker?.action === 'add'}
+                confirmLabel={t('common.save')}
+                cancelLabel={t('common.cancel')}
+                onCancel={() => setBulkTokenPicker(null)}
+                onConfirm={handleBulkTokenConfirm}
             />
         </>
     );
