@@ -74,7 +74,6 @@ describe('ProjectRow', () => {
       tree = renderer.create(
         <ProjectRow
           project={project}
-          tasks={[]}
           areaById={new Map()}
           tc={tc}
           focusedCount={0}
@@ -109,7 +108,6 @@ describe('ProjectRow', () => {
       tree = renderer.create(
         <ProjectRow
           project={project}
-          tasks={[]}
           areaById={new Map()}
           tc={tc}
           focusedCount={0}
@@ -166,7 +164,6 @@ describe('ProjectRow', () => {
       tree = renderer.create(
         <ProjectRow
           project={project}
-          tasks={[]}
           areaById={new Map()}
           tc={tc}
           focusedCount={0}

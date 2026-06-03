@@ -353,6 +353,34 @@ describe('TaskEditContentField', () => {
     });
   });
 
+  it('does not add another blank checklist item while one is already empty', () => {
+    const { getState, applyChecklistUpdate, setEditedTask } = createChecklistState([
+      { id: 'check-1', title: '', isCompleted: false },
+    ]);
+    let tree!: ReturnType<typeof create>;
+
+    act(() => {
+      tree = create(
+        <TaskEditContentField
+          {...baseProps}
+          fieldId="checklist"
+          editedTask={getState()}
+          applyChecklistUpdate={applyChecklistUpdate}
+          setEditedTask={setEditedTask}
+        />
+      );
+    });
+
+    const addItem = tree.root.findByProps({ testID: 'mobile-checklist-add-item' });
+
+    act(() => {
+      addItem.props.onPress();
+      addItem.props.onPress();
+    });
+
+    expect(applyChecklistUpdate).not.toHaveBeenCalled();
+  });
+
   it('wraps selected checklist item text from native mobile text changes', () => {
     const { getState, applyChecklistUpdate, setEditedTask } = createChecklistState();
     let tree!: ReturnType<typeof create>;

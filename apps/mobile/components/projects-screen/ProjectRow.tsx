@@ -1,11 +1,12 @@
 import React, { useRef } from 'react';
 import { Alert, Pressable, Text, TouchableOpacity, View } from 'react-native';
-import { type Area, type Project, type Task } from '@mindwtr/core';
+import { type Area, type Project } from '@mindwtr/core';
 import * as Haptics from 'expo-haptics';
 import { Copy, Trash2, Star, AlertTriangle } from 'lucide-react-native';
 import { Swipeable } from 'react-native-gesture-handler';
 
 import { projectsScreenStyles as styles } from '@/components/projects-screen/projects-screen.styles';
+import type { ProjectTaskSummary } from './project-list-model';
 
 type ThemeColors = {
     cardBg: string;
@@ -18,7 +19,7 @@ type StatusPalette = Record<Project['status'], { text: string; bg: string; borde
 
 type ProjectRowProps = {
     project: Project;
-    tasks: Task[];
+    taskSummary?: ProjectTaskSummary;
     areaById: Map<string, Area>;
     tc: ThemeColors;
     focusedCount: number;
@@ -41,7 +42,7 @@ function getStatusLabel(status: Project['status'], t: (key: string) => string) {
 
 export function ProjectRow({
     project,
-    tasks,
+    taskSummary,
     areaById,
     tc,
     focusedCount,
@@ -52,14 +53,8 @@ export function ProjectRow({
     onOpenProject,
     onToggleProjectFocus,
 }: ProjectRowProps) {
-    const projectTasks = tasks.filter((task) => (
-        task.projectId === project.id
-        && task.status !== 'done'
-        && task.status !== 'reference'
-        && !task.deletedAt
-    ));
-    const nextAction = projectTasks.find((task) => task.status === 'next');
-    const showFocusedWarning = project.isFocused && !nextAction && projectTasks.length > 0;
+    const nextAction = taskSummary?.nextAction;
+    const showFocusedWarning = project.isFocused && !nextAction && (taskSummary?.activeTaskCount ?? 0) > 0;
     const projectColor = project.areaId ? areaById.get(project.areaId)?.color : undefined;
     const swipeableRef = useRef<Swipeable>(null);
 

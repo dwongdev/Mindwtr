@@ -289,7 +289,9 @@ function TaskListComponent({
   const sortBy = (settings?.taskSortBy ?? 'default') as TaskSortBy;
   const canUseProjectReorder = Boolean(enableProjectReorder && projectId);
   const projectReorderMode = projectReorderModeProp ?? internalProjectReorderMode;
+  const quickAddAvailable = allowAdd && !projectReorderMode;
   const aiEnabled = settings?.ai?.enabled === true;
+  const quickAddCopilotEnabled = quickAddAvailable && enableCopilot && aiEnabled;
   const aiProvider = (settings?.ai?.provider ?? 'openai') as AIProviderId;
   const keyRequired = isAIKeyRequired(settings);
   const prioritiesEnabled = settings?.features?.priorities !== false;
@@ -386,12 +388,14 @@ function TaskListComponent({
     });
   }, [areaById, includeDone, projectById, projectId, resolvedAreaFilter, statusFilter, tasks]);
   const tokenFilterOptions = useMemo(() => {
+    if (!filtersVisible) return selectedTokens;
     return getUsedTaskTokens(filterableTasks, (task) => [...(task.contexts ?? []), ...(task.tags ?? [])]);
-  }, [filterableTasks]);
-  const showLocationFilter = useMemo(() => (
-    locationFilter.trim().length > 0
-    || filterableTasks.some((task) => String(task.location ?? '').trim().length > 0)
-  ), [filterableTasks, locationFilter]);
+  }, [filterableTasks, filtersVisible, selectedTokens]);
+  const showLocationFilter = useMemo(() => {
+    if (locationFilter.trim().length > 0) return true;
+    if (!filtersVisible) return false;
+    return filterableTasks.some((task) => String(task.location ?? '').trim().length > 0);
+  }, [filterableTasks, filtersVisible, locationFilter]);
   const taskListFilters = useMemo<MobileTaskListFilters>(() => ({
     energyLevels: selectedEnergyLevels,
     locationQuery: locationFilter,
@@ -699,11 +703,13 @@ function TaskListComponent({
   }, [projectId, projectSectionIds, reorderSections, showToast, t]);
 
   const contextOptions = useMemo(() => {
+    if (!quickAddAvailable) return [];
     return getUsedTaskTokens(tasks, (task) => task.contexts, { prefix: '@' });
-  }, [tasks]);
+  }, [quickAddAvailable, tasks]);
   const tagOptions = useMemo(() => {
+    if (!quickAddCopilotEnabled) return [];
     return getUsedTaskTokens(tasks, (task) => task.tags, { prefix: '#' });
-  }, [tasks]);
+  }, [quickAddCopilotEnabled, tasks]);
 
   type TriggerType = 'project' | 'context';
   type TriggerState = { type: TriggerType; start: number; end: number; query: string };
@@ -732,7 +738,7 @@ function TaskListComponent({
   }, [getTrigger, inputSelection.start, newTaskTitle]);
 
   const typeaheadOptions = useMemo<Option[]>(() => {
-    if (!trigger) return [];
+    if (!quickAddAvailable || !trigger) return [];
     const query = trigger.query.trim().toLowerCase();
     if (trigger.type === 'project') {
       const matches = projects
@@ -766,7 +772,7 @@ function TaskListComponent({
       label: context,
       value: context,
     }));
-  }, [contextOptions, projects, trigger]);
+  }, [contextOptions, projects, quickAddAvailable, t, trigger]);
 
   useEffect(() => {
     if (!trigger || typeaheadOptions.length === 0) {
@@ -777,6 +783,10 @@ function TaskListComponent({
   }, [trigger, typeaheadOptions.length]);
 
   useEffect(() => {
+    if (!quickAddCopilotEnabled) {
+      setAiKey('');
+      return;
+    }
     loadAIKey(aiProvider).then(setAiKey).catch((error) => {
       void logError(error, { scope: 'ai', extra: { message: 'Failed to load AI key' } });
       showToast({
@@ -786,10 +796,10 @@ function TaskListComponent({
         durationMs: 4200,
       });
     });
-  }, [aiProvider, showToast, t]);
+  }, [aiProvider, quickAddCopilotEnabled, showToast, t]);
 
   useEffect(() => {
-    if (!enableCopilot || !aiEnabled || (keyRequired && !aiKey)) {
+    if (!quickAddCopilotEnabled || (keyRequired && !aiKey)) {
       setCopilotSuggestion(null);
       setCopilotThinking(false);
       return;
@@ -838,7 +848,7 @@ function TaskListComponent({
         copilotAbortRef.current = null;
       }
     };
-  }, [aiEnabled, aiKey, aiProvider, contextOptions, enableCopilot, keyRequired, newTaskTitle, settings, statusFilter, tagOptions, timeEstimatesEnabled]);
+  }, [aiKey, aiProvider, contextOptions, keyRequired, newTaskTitle, quickAddCopilotEnabled, settings, statusFilter, tagOptions, timeEstimatesEnabled]);
 
   useEffect(() => {
     if (!highlightTaskId) return;
@@ -1271,7 +1281,7 @@ function TaskListComponent({
         </View>
       )}
 
-      {allowAdd && !projectReorderMode && (
+      {quickAddAvailable && (
         <TaskListQuickAdd
           aiEnabled={aiEnabled}
           applyTypeaheadOption={applyTypeaheadOption}

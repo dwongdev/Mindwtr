@@ -20,6 +20,11 @@ import {
 } from '@mindwtr/core';
 
 import FocusScreen from '../app/(drawer)/(tabs)/focus';
+import { ProjectRow } from '../components/projects-screen/ProjectRow';
+import {
+  buildProjectListRows,
+  buildProjectTaskSummaryById,
+} from '../components/projects-screen/project-list-model';
 import { TaskEditModal } from '../components/task-edit-modal';
 
 const LARGE_TASK_COUNT = 5_000;
@@ -31,6 +36,7 @@ const PERFORMANCE_BUDGET_MS = {
   saveWhileEditorMounted: 150,
   toggleCompleteWhileEditorMounted: 150,
   renderFocus: 350,
+  renderProjects: 350,
 } as const;
 
 const CONTEXTS = ['@home', '@work', '@errands', '@calls', '@computer', '@deep-work'];
@@ -256,6 +262,27 @@ vi.mock('../components/pomodoro-panel', () => ({
   PomodoroPanel: (props: Record<string, unknown>) => React.createElement('PomodoroPanel', props),
 }));
 
+vi.mock('lucide-react-native', () => {
+  const Icon = (props: Record<string, unknown>) => React.createElement('Icon', props);
+  return {
+    AlertTriangle: Icon,
+    BookmarkPlus: Icon,
+    Copy: Icon,
+    SlidersHorizontal: Icon,
+    Star: Icon,
+    Trash2: Icon,
+    X: Icon,
+  };
+});
+
+vi.mock('expo-haptics', () => ({
+  NotificationFeedbackType: {
+    Warning: 'warning',
+  },
+  notificationAsync: vi.fn().mockResolvedValue(undefined),
+  selectionAsync: vi.fn().mockResolvedValue(undefined),
+}));
+
 vi.mock('@/hooks/use-mobile-area-filter', () => ({
   useMobileAreaFilter: () => ({ areaById: new Map(), resolvedAreaFilter: '__all__' }),
 }));
@@ -309,6 +336,20 @@ vi.mock('react-native-draggable-flatlist', () => ({
   NestableDraggableFlatList: (props: any) => React.createElement('NestableDraggableFlatList', props, props.children),
   NestableScrollContainer: (props: any) => React.createElement('NestableScrollContainer', props, props.children),
   ScaleDecorator: (props: any) => React.createElement(React.Fragment, null, props.children),
+}));
+
+vi.mock('react-native-gesture-handler', () => ({
+  GestureHandlerRootView: (props: any) => React.createElement('GestureHandlerRootView', props, props.children),
+  Swipeable: React.forwardRef(function SwipeableMock({ children, renderLeftActions, renderRightActions, ...props }: any, ref: any) {
+    React.useImperativeHandle(ref, () => ({ close: () => undefined }));
+    return React.createElement(
+      'Swipeable',
+      props,
+      renderLeftActions ? renderLeftActions() : null,
+      children,
+      renderRightActions ? renderRightActions() : null,
+    );
+  }),
 }));
 
 const buildMap = <T extends { id: string }>(items: readonly T[]): Map<string, T> =>
@@ -603,6 +644,67 @@ describe('large-store mobile interaction performance', () => {
 
     await act(async () => {
       focusTree?.unmount();
+    });
+
+    const projectsData = createLargeStoreData();
+    const projectAreaById = buildMap(projectsData.areas);
+    const projectTaskSummaryById = buildProjectTaskSummaryById(projectsData.tasks);
+    const projectRows = buildProjectListRows({
+      areaById: projectAreaById,
+      collapsedAreas: {},
+      groupedActiveProjects: [{
+        title: 'Projects',
+        areaId: 'area-0',
+        data: projectsData.projects.map((project) => ({ type: 'project' as const, data: project })),
+      }],
+      groupedArchivedProjects: [],
+      groupedDeferredProjects: [],
+      showArchivedProjects: false,
+      showDeferredProjects: false,
+      t: (key) => key,
+    }).filter((row) => row.type === 'project');
+
+    let projectRowsTree: ReactTestRenderer | null = null;
+    const renderProjectsMs = measureSync(() => {
+      act(() => {
+        projectRowsTree = renderer.create(
+          <>
+            {projectRows.map((row) => (
+              <ProjectRow
+                key={row.project.id}
+                project={row.project}
+                taskSummary={projectTaskSummaryById.get(row.project.id)}
+                areaById={projectAreaById}
+                tc={{
+                  cardBg: '#111827',
+                  secondaryText: '#94a3b8',
+                  text: '#f8fafc',
+                  tint: '#3b82f6',
+                }}
+                focusedCount={0}
+                statusPalette={{
+                  active: { text: '#3b82f6', bg: '#3b82f622', border: '#3b82f6' },
+                  waiting: { text: '#F59E0B', bg: '#F59E0B22', border: '#F59E0B' },
+                  someday: { text: '#A855F7', bg: '#A855F722', border: '#A855F7' },
+                  archived: { text: '#94a3b8', bg: '#1f2937', border: '#334155' },
+                }}
+                t={(key) => key}
+                onDeleteProject={vi.fn()}
+                onDuplicateProject={vi.fn()}
+                onOpenProject={vi.fn()}
+                onToggleProjectFocus={vi.fn()}
+              />
+            ))}
+          </>
+        );
+      });
+    });
+
+    expectWithinBudget('Render Projects', renderProjectsMs, PERFORMANCE_BUDGET_MS.renderProjects);
+    expect(projectRowsTree).not.toBeNull();
+
+    await act(async () => {
+      projectRowsTree?.unmount();
     });
   }, 15_000);
 });

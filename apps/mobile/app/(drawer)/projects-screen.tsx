@@ -17,7 +17,11 @@ import { ProjectAreaModals } from '@/components/projects-screen/ProjectAreaModal
 import { ProjectDetailModal } from '@/components/projects-screen/ProjectDetailModal';
 import { ProjectImagePreviewModal, ProjectLinkModal, ProjectTagPickerModal } from '@/components/projects-screen/ProjectOverlayModals';
 import { ProjectRow } from '@/components/projects-screen/ProjectRow';
-import { buildProjectListRows, type ProjectListRow } from '@/components/projects-screen/project-list-model';
+import {
+  buildProjectListRows,
+  buildProjectTaskSummaryById,
+  type ProjectListRow,
+} from '@/components/projects-screen/project-list-model';
 import { useProjectAttachments } from '@/components/projects-screen/use-project-attachments';
 import { useProjectNotesEditor } from '@/components/projects-screen/use-project-notes-editor';
 import { TaskEditModal } from '@/components/task-edit-modal';
@@ -205,6 +209,7 @@ export default function ProjectsScreen() {
     showDeferredProjects,
     t,
   ]);
+  const projectTaskSummaryById = useMemo(() => buildProjectTaskSummaryById(tasks), [tasks]);
 
   const openProject = useCallback((project: Project) => {
     setSelectedProject(project);
@@ -344,7 +349,7 @@ export default function ProjectsScreen() {
     return (
       <ProjectRow
         project={project}
-        tasks={tasks}
+        taskSummary={projectTaskSummaryById.get(project.id)}
         areaById={areaById}
         tc={tc}
         focusedCount={focusedCount}

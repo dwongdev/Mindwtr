@@ -35,8 +35,6 @@ type TaskEditContentFieldProps = TaskEditFieldRendererProps & {
 
 const getChecklistItemKey = (item: { id?: string }, index: number) => item.id || `index:${index}`;
 
-type ChecklistItem = NonNullable<Task['checklist']>[number];
-
 export const reorderChecklistItems = (
     checklist: Task['checklist'],
     fromIndex: number,
@@ -441,6 +439,7 @@ export function TaskEditContentField({
         case 'checklist': {
             const checklistItems = editedTask.checklist || [];
             const canReorderChecklist = checklistItems.length > 1;
+            const hasEmptyChecklistItem = checklistItems.some((item) => item.title.trim().length === 0);
 
             return (
                 <View style={styles.formGroup}>
@@ -586,6 +585,7 @@ export function TaskEditContentField({
                                 <TouchableOpacity
                                     style={styles.addChecklistBtn}
                                     onPress={() => {
+                                        if (hasEmptyChecklistItem) return;
                                         const nextItem = {
                                             id: generateUUID(),
                                             title: '',
@@ -593,6 +593,7 @@ export function TaskEditContentField({
                                         };
                                         applyChecklistUpdate([...(editedTask.checklist || []), nextItem]);
                                     }}
+                                    testID="mobile-checklist-add-item"
                                 >
                                     <Text style={styles.addChecklistText}>+ {t('taskEdit.addItem')}</Text>
                                 </TouchableOpacity>
