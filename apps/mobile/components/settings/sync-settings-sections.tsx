@@ -395,11 +395,11 @@ export function SyncPreferencesCard({
 
 type SyncDiagnosticsCardProps = {
   analyticsHeartbeatAvailable: boolean;
-  analyticsHeartbeatEnabled: boolean;
+  analyticsHeartbeatOptedOut: boolean;
   handleClearLog: () => void;
   handleShareLog: () => void;
   loggingEnabled: boolean;
-  toggleAnalyticsHeartbeat: (value: boolean) => void;
+  toggleAnalyticsHeartbeatOptOut: (value: boolean) => void;
   t: Translate;
   tc: ThemeColors;
   toggleDebugLogging: (value: boolean) => void;
@@ -407,11 +407,11 @@ type SyncDiagnosticsCardProps = {
 
 export function SyncDiagnosticsCard({
   analyticsHeartbeatAvailable,
-  analyticsHeartbeatEnabled,
+  analyticsHeartbeatOptedOut,
   handleClearLog,
   handleShareLog,
   loggingEnabled,
-  toggleAnalyticsHeartbeat,
+  toggleAnalyticsHeartbeatOptOut,
   t,
   tc,
   toggleDebugLogging,
@@ -427,10 +427,10 @@ export function SyncDiagnosticsCard({
               <Text style={[styles.settingDescription, { color: tc.secondaryText }]}>{t('settings.analyticsHeartbeatDesc')}</Text>
             </View>
             <Switch
-              value={analyticsHeartbeatEnabled}
-              onValueChange={toggleAnalyticsHeartbeat}
-              trackColor={{ false: '#767577', true: '#3B82F6' }}
-              thumbColor={analyticsHeartbeatEnabled ? '#F8FAFC' : '#F4F4F5'}
+              value={analyticsHeartbeatOptedOut}
+              onValueChange={toggleAnalyticsHeartbeatOptOut}
+              trackColor={{ false: '#767577', true: '#71717A' }}
+              thumbColor="#F4F4F5"
             />
           </View>
         )}

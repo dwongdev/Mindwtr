@@ -133,6 +133,7 @@ function SyncSettingsView({
         isFossBuild,
     });
     const analyticsHeartbeatEnabled = analyticsHeartbeatAvailable && settings.analytics?.heartbeatEnabled !== false;
+    const analyticsHeartbeatOptedOut = analyticsHeartbeatAvailable && !analyticsHeartbeatEnabled;
     const pendingRemoteDeleteCount = settings.attachments?.pendingRemoteDeletes?.length ?? 0;
     const isBackupBusy = backupAction !== null;
     const backendGroups: VisibleSyncBackendGroup[] = [
@@ -228,8 +229,9 @@ function SyncSettingsView({
         );
     }, [tr, pendingRemoteDeleteCount, settings.attachments, t, updateSettings]);
 
-    const toggleAnalyticsHeartbeat = useCallback((enabled: boolean) => {
+    const toggleAnalyticsHeartbeatOptOut = useCallback((optedOut: boolean) => {
         if (!analyticsHeartbeatAvailable) return;
+        const enabled = !optedOut;
         const saveSetting = () => {
             updateSettings({
                 analytics: {
@@ -253,7 +255,7 @@ function SyncSettingsView({
                 .catch(logSettingsError);
         };
 
-        if (enabled) {
+        if (!optedOut) {
             saveSetting();
             return;
         }
@@ -851,11 +853,11 @@ function SyncSettingsView({
 
                         <SyncDiagnosticsCard
                             analyticsHeartbeatAvailable={analyticsHeartbeatAvailable}
-                            analyticsHeartbeatEnabled={analyticsHeartbeatEnabled}
+                            analyticsHeartbeatOptedOut={analyticsHeartbeatOptedOut}
                             handleClearLog={() => void handleClearLog()}
                             handleShareLog={() => void handleShareLog()}
                             loggingEnabled={loggingEnabled}
-                            toggleAnalyticsHeartbeat={toggleAnalyticsHeartbeat}
+                            toggleAnalyticsHeartbeatOptOut={toggleAnalyticsHeartbeatOptOut}
                             t={t}
                             tc={tc}
                             toggleDebugLogging={toggleDebugLogging}
