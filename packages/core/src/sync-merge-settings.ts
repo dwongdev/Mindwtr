@@ -468,6 +468,27 @@ export const mergeSettingsForSync = (
         }
         return mergedValue as T;
     };
+    type AppearanceSyncValue = {
+        theme: AppData['settings']['theme'];
+        appearance: AppData['settings']['appearance'];
+        keybindingStyle: AppData['settings']['keybindingStyle'];
+    };
+    const mergeAppearanceGroupValue = (
+        localValue: AppearanceSyncValue,
+        incomingValue: AppearanceSyncValue,
+        incomingWins: boolean
+    ): AppearanceSyncValue => {
+        const mergedValue = mergeRecordFields(localValue, incomingValue, incomingWins);
+        const mergedAppearance = mergeRecordFields(
+            (localValue.appearance ?? {}) as Record<string, unknown>,
+            (incomingValue.appearance ?? {}) as Record<string, unknown>,
+            incomingWins
+        ) as AppData['settings']['appearance'];
+        mergedValue.appearance = mergedAppearance && Object.keys(mergedAppearance).length > 0
+            ? mergedAppearance
+            : undefined;
+        return mergedValue;
+    };
     const mergeGroup = <T>(
         key: SettingsSyncGroup,
         localValue: T,
@@ -505,7 +526,7 @@ export const mergeSettingsForSync = (
             merged.appearance = value.appearance;
             merged.keybindingStyle = value.keybindingStyle;
         },
-        (localValue, incomingValue, incomingWins) => mergeRecordFields(localValue, incomingValue, incomingWins)
+        (localValue, incomingValue, incomingWins) => mergeAppearanceGroupValue(localValue, incomingValue, incomingWins)
     );
 
     mergeGroup(

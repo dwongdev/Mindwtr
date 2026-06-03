@@ -205,6 +205,39 @@ describe('Sync Logic', () => {
             expect(merged.settings.appearance).toEqual({ density: 'compact', textSize: 'small', mobileQuickAccessView: 'calendar' });
         });
 
+        it('preserves local mobile quick access when newer incoming appearance omits it', () => {
+            const local: AppData = {
+                ...mockAppData(),
+                settings: {
+                    appearance: { mobileQuickAccessView: 'contexts' },
+                    syncPreferences: { appearance: true },
+                    syncPreferencesUpdatedAt: {
+                        preferences: '2024-01-01T00:00:00.000Z',
+                        appearance: '2024-01-01T00:00:00.000Z',
+                    },
+                },
+            };
+            const incoming: AppData = {
+                ...mockAppData(),
+                settings: {
+                    appearance: { density: 'compact', textSize: 'small' },
+                    syncPreferences: { appearance: true },
+                    syncPreferencesUpdatedAt: {
+                        preferences: '2024-01-02T00:00:00.000Z',
+                        appearance: '2024-01-02T00:00:00.000Z',
+                    },
+                },
+            };
+
+            const merged = mergeAppData(local, incoming);
+
+            expect(merged.settings.appearance).toEqual({
+                density: 'compact',
+                textSize: 'small',
+                mobileQuickAccessView: 'contexts',
+            });
+        });
+
         it('merges synced future-start visibility preference', () => {
             const local: AppData = {
                 ...mockAppData(),
