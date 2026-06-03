@@ -1,5 +1,5 @@
 import React from 'react';
-import { KeyboardAvoidingView, Platform, ScrollView, TextInput } from 'react-native';
+import { Dimensions, Keyboard, KeyboardAvoidingView, Platform, ScrollView, TextInput } from 'react-native';
 import { act, create } from 'react-test-renderer';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { Project } from '@mindwtr/core';
@@ -49,8 +49,13 @@ vi.mock('../../components/markdown-text', () => ({
     MarkdownText: () => null,
 }));
 
+const taskListPropsSpy = vi.hoisted(() => vi.fn());
+
 vi.mock('../../components/task-list', () => ({
-    TaskList: () => null,
+    TaskList: (props: any) => {
+        taskListPropsSpy(props);
+        return null;
+    },
 }));
 
 vi.mock('../../components/AttachmentProgressIndicator', () => ({
@@ -198,6 +203,7 @@ afterEach(() => {
         configurable: true,
         value: originalPlatformOs,
     });
+    taskListPropsSpy.mockClear();
     vi.restoreAllMocks();
 });
 
@@ -245,6 +251,37 @@ describe('ProjectDetailModal keyboard handling', () => {
 
         expect(tree.root.findByType(KeyboardAvoidingView).props.behavior).toBe('height');
         expect(tree.root.findByType(ScrollView).props.keyboardDismissMode).toBe('on-drag');
+        expect(tree.root.findByType(ScrollView).props.scrollsChildToFocus).toBe(false);
+        expect(taskListPropsSpy).toHaveBeenCalled();
+        expect(typeof taskListPropsSpy.mock.calls.at(-1)?.[0].onQuickAddInputFocus).toBe('function');
+    });
+
+    it('adds Android keyboard bottom space so project quick-add can scroll above the keyboard', () => {
+        setPlatform('android');
+        vi.spyOn(Dimensions, 'get').mockReturnValue({
+            width: 390,
+            height: 800,
+            scale: 3,
+            fontScale: 1,
+        });
+        const listeners = new Map<string, (event?: any) => void>();
+        vi.spyOn(Keyboard, 'addListener').mockImplementation(((eventName: string, listener: (event?: any) => void) => {
+            listeners.set(eventName, listener);
+            return { remove: () => listeners.delete(eventName) };
+        }) as any);
+        let tree!: ReturnType<typeof create>;
+
+        act(() => {
+            tree = create(<ProjectDetailModal {...createProjectDetailModalProps()} />);
+        });
+
+        act(() => {
+            listeners.get('keyboardDidShow')?.({ endCoordinates: { screenY: 520 } });
+        });
+
+        expect(tree.root.findByType(ScrollView).props.contentContainerStyle).toEqual(
+            expect.arrayContaining([expect.objectContaining({ paddingBottom: 304 })])
+        );
     });
 });
 

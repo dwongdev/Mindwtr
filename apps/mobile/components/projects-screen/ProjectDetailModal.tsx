@@ -1,12 +1,19 @@
 import React from 'react';
 import {
+    Dimensions,
+    findNodeHandle,
+    Keyboard,
     Modal,
     KeyboardAvoidingView,
+    type NativeScrollEvent,
+    type NativeSyntheticEvent,
     Platform,
     ScrollView,
+    type ScrollViewProps,
     Text,
     TextInput,
     TouchableOpacity,
+    UIManager,
     View,
 } from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
@@ -95,15 +102,28 @@ type ProjectDetailModalProps = {
 function ProjectDetailScrollFrame({
     backgroundColor,
     children,
+    keyboardBottomInset,
+    onScroll,
     reorderMode,
+    scrollRef,
 }: {
     backgroundColor: string;
     children: React.ReactNode;
+    keyboardBottomInset: number;
+    onScroll: (event: NativeSyntheticEvent<NativeScrollEvent>) => void;
     reorderMode: boolean;
+    scrollRef: React.RefObject<ScrollView | null>;
 }) {
+    const androidScrollViewFocusProps: Partial<ScrollViewProps> & { scrollsChildToFocus?: boolean } = (
+        Platform.OS === 'android' ? { scrollsChildToFocus: false } : {}
+    );
     const scrollProps = {
         style: [{ flex: 1 }, { backgroundColor }],
-        contentContainerStyle: [styles.projectDetailScroll, { backgroundColor }],
+        contentContainerStyle: [
+            styles.projectDetailScroll,
+            { backgroundColor },
+            keyboardBottomInset > 0 ? { paddingBottom: 24 + keyboardBottomInset } : null,
+        ],
         keyboardShouldPersistTaps: 'always' as const,
     };
 
@@ -117,10 +137,14 @@ function ProjectDetailScrollFrame({
         // Normal mode stays on a plain ScrollView so Swipeable rows keep horizontal gestures.
         <ScrollView
             {...scrollProps}
+            ref={scrollRef}
             automaticallyAdjustKeyboardInsets={Platform.OS === 'ios'}
             keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}
             directionalLockEnabled
             nestedScrollEnabled
+            onScroll={onScroll}
+            scrollEventThrottle={16}
+            {...androidScrollViewFocusProps}
         >
             {children}
         </ScrollView>
@@ -194,6 +218,12 @@ export function ProjectDetailModal({
     updateProject,
 }: ProjectDetailModalProps) {
     const [projectTaskReorderMode, setProjectTaskReorderMode] = React.useState(false);
+    const projectDetailScrollRef = React.useRef<ScrollView | null>(null);
+    const projectDetailScrollOffsetRef = React.useRef(0);
+    const projectDetailKeyboardTopRef = React.useRef(Dimensions.get('window').height);
+    const projectDetailKeyboardVisibleRef = React.useRef(false);
+    const projectDetailFocusedInputHandleRef = React.useRef<number | null>(null);
+    const [projectDetailKeyboardBottomInset, setProjectDetailKeyboardBottomInset] = React.useState(0);
     const safeAreaEdges = getProjectDetailModalSafeAreaEdges(presentationStyle);
     const taskListOptions = getProjectDetailTaskListOptions(selectedProject, showCompletedTasks);
     const showCompletedLabel = showCompletedTasks
@@ -242,6 +272,90 @@ export function ProjectDetailModal({
     React.useEffect(() => {
         setProjectTaskReorderMode(false);
     }, [overlayVisible, selectedProject?.id]);
+
+    React.useEffect(() => {
+        if (Platform.OS !== 'android') return;
+        if (typeof Keyboard?.addListener !== 'function') return;
+        const updateKeyboardTop = (event: { endCoordinates?: { screenY?: number; height?: number } }) => {
+            const windowHeight = Dimensions.get('window').height;
+            const endCoords = event.endCoordinates;
+            let nextKeyboardTop = windowHeight;
+            if (typeof endCoords?.screenY === 'number') {
+                nextKeyboardTop = endCoords.screenY;
+            } else if (typeof endCoords?.height === 'number') {
+                nextKeyboardTop = Math.max(0, windowHeight - endCoords.height);
+            }
+            projectDetailKeyboardTopRef.current = nextKeyboardTop;
+            projectDetailKeyboardVisibleRef.current = nextKeyboardTop < windowHeight;
+            setProjectDetailKeyboardBottomInset(Math.max(0, windowHeight - nextKeyboardTop));
+            const focusedInputHandle = projectDetailFocusedInputHandleRef.current;
+            if (projectDetailKeyboardVisibleRef.current && focusedInputHandle) {
+                if (typeof requestAnimationFrame === 'function') {
+                    requestAnimationFrame(() => scrollProjectInputIntoView(focusedInputHandle));
+                } else {
+                    setTimeout(() => scrollProjectInputIntoView(focusedInputHandle), 0);
+                }
+            }
+        };
+        const resetKeyboardTop = () => {
+            projectDetailKeyboardTopRef.current = Dimensions.get('window').height;
+            projectDetailKeyboardVisibleRef.current = false;
+            setProjectDetailKeyboardBottomInset(0);
+        };
+        const showListener = Keyboard.addListener('keyboardDidShow', updateKeyboardTop);
+        const changeListener = Keyboard.addListener('keyboardDidChangeFrame', updateKeyboardTop);
+        const hideListener = Keyboard.addListener('keyboardDidHide', resetKeyboardTop);
+        return () => {
+            showListener.remove();
+            changeListener.remove();
+            hideListener.remove();
+        };
+    }, []);
+
+    const scrollProjectInputIntoView = React.useCallback((targetInput?: number | string) => {
+        if (Platform.OS !== 'android') return;
+        const targetHandle = typeof targetInput === 'number'
+            ? targetInput
+            : typeof targetInput === 'string'
+                ? Number(targetInput)
+                : NaN;
+        if (!Number.isFinite(targetHandle) || targetHandle <= 0) return;
+        projectDetailFocusedInputHandleRef.current = targetHandle;
+        if (!projectDetailKeyboardVisibleRef.current) return;
+        const scrollView = projectDetailScrollRef.current;
+        if (!scrollView) return;
+        const scrollHandle = findNodeHandle(scrollView);
+        if (!scrollHandle) return;
+
+        const measureAndScroll = () => {
+            UIManager.measureInWindow(targetHandle, (_x, targetY, _w, targetH) => {
+                if (!Number.isFinite(targetY) || !Number.isFinite(targetH)) return;
+                UIManager.measureInWindow(scrollHandle, (_sx, scrollY, _sw, scrollH) => {
+                    if (!Number.isFinite(scrollY) || !Number.isFinite(scrollH)) return;
+                    const visibleTop = scrollY;
+                    const keyboardTop = projectDetailKeyboardTopRef.current;
+                    const visibleBottom = Math.min(scrollY + scrollH, keyboardTop);
+                    const visibleHeight = Math.max(0, visibleBottom - visibleTop);
+                    const bottomClearance = visibleHeight * 0.18;
+                    const effectiveVisibleBottom = visibleBottom - bottomClearance;
+                    const targetBottom = targetY + targetH;
+                    if (targetBottom <= effectiveVisibleBottom) return;
+                    const delta = targetBottom - effectiveVisibleBottom;
+                    const nextOffset = Math.max(0, projectDetailScrollOffsetRef.current + delta);
+                    projectDetailScrollRef.current?.scrollTo({ y: nextOffset, animated: true });
+                });
+            });
+        };
+
+        if (typeof requestAnimationFrame === 'function') {
+            requestAnimationFrame(() => {
+                measureAndScroll();
+                requestAnimationFrame(measureAndScroll);
+            });
+        } else {
+            setTimeout(measureAndScroll, 0);
+        }
+    }, []);
 
     return (
         <Modal
@@ -307,7 +421,12 @@ export function ProjectDetailModal({
                                 </View>
                                 <ProjectDetailScrollFrame
                                     backgroundColor={tc.bg}
+                                    keyboardBottomInset={projectDetailKeyboardBottomInset}
+                                    onScroll={(event) => {
+                                        projectDetailScrollOffsetRef.current = event.nativeEvent.contentOffset.y;
+                                    }}
                                     reorderMode={projectTaskReorderMode}
+                                    scrollRef={projectDetailScrollRef}
                                 >
                                 <View style={[styles.statusBlock, { backgroundColor: tc.cardBg, borderBottomColor: tc.border }]}>
                                     <View style={styles.statusActionsRow}>
@@ -710,6 +829,7 @@ export function ProjectDetailModal({
                                     enableProjectReorder={taskListOptions.enableProjectReorder}
                                     includeArchived={taskListOptions.includeArchived}
                                     includeDone={taskListOptions.includeDone}
+                                    onQuickAddInputFocus={scrollProjectInputIntoView}
                                     projectReorderMode={projectTaskReorderMode}
                                     onProjectReorderModeChange={setProjectTaskReorderMode}
                                 />

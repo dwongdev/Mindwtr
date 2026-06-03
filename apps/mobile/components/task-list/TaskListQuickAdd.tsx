@@ -33,6 +33,7 @@ type TaskListQuickAddProps = {
   newTaskTitle: string;
   onApplyCopilot: () => void;
   onChangeText: (text: string) => void;
+  onInputFocus?: (targetInput?: number | string) => void;
   onSelectionChange: (selection: { end: number; start: number }) => void;
   projectId?: string;
   setTypeaheadIndex: (index: number) => void;
@@ -60,6 +61,7 @@ export function TaskListQuickAdd({
   newTaskTitle,
   onApplyCopilot,
   onChangeText,
+  onInputFocus,
   onSelectionChange,
   projectId,
   setTypeaheadIndex,
@@ -97,6 +99,9 @@ export function TaskListQuickAdd({
           onSelectionChange={(event) => {
             const selection = event.nativeEvent.selection;
             onSelectionChange(selection);
+          }}
+          onFocus={(event) => {
+            onInputFocus?.(event.nativeEvent.target);
           }}
           onSubmitEditing={handleAddTask}
           returnKeyType="done"

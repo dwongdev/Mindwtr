@@ -1,5 +1,6 @@
 import React from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
+import { act, create } from 'react-test-renderer';
 import { describe, expect, it, vi } from 'vitest';
 
 import { TaskListQuickAdd } from './TaskListQuickAdd';
@@ -45,23 +46,22 @@ const themeColors = {
   tint: '#2563eb',
 };
 
-const renderQuickAdd = (overrides: Partial<React.ComponentProps<typeof TaskListQuickAdd>> = {}) => renderToStaticMarkup(
-  <TaskListQuickAdd
-    aiEnabled
-    applyTypeaheadOption={vi.fn()}
-    copilotApplied={false}
-    copilotSuggestion={null}
-    copilotTags={[]}
-    copilotThinking={false}
-    enableCopilot
-    handleAddTask={vi.fn()}
-    newTaskTitle="Call Alex"
-    onApplyCopilot={vi.fn()}
-    onChangeText={vi.fn()}
-    onSelectionChange={vi.fn()}
-    setTypeaheadIndex={vi.fn()}
-    showQuickAddHelp={false}
-    t={(key) => ({
+const getQuickAddProps = (overrides: Partial<React.ComponentProps<typeof TaskListQuickAdd>> = {}) => ({
+    aiEnabled: true,
+    applyTypeaheadOption: vi.fn(),
+    copilotApplied: false,
+    copilotSuggestion: null,
+    copilotTags: [],
+    copilotThinking: false,
+    enableCopilot: true,
+    handleAddTask: vi.fn(),
+    newTaskTitle: 'Call Alex',
+    onApplyCopilot: vi.fn(),
+    onChangeText: vi.fn(),
+    onSelectionChange: vi.fn(),
+    setTypeaheadIndex: vi.fn(),
+    showQuickAddHelp: false,
+    t: (key: string) => ({
       'copilot.applyHint': 'Apply',
       'copilot.applied': 'Applied',
       'copilot.suggested': 'Suggested',
@@ -71,15 +71,18 @@ const renderQuickAdd = (overrides: Partial<React.ComponentProps<typeof TaskListQ
       'quickAdd.help': 'Help',
       'quickAdd.inputHint': 'Type a task title, then press add or the return key.',
       'quickAdd.inputLabel': 'Task title',
-    }[key] ?? key)}
-    themeColors={themeColors}
-    title="Inbox"
-    trigger={null}
-    typeaheadIndex={0}
-    typeaheadOpen={false}
-    typeaheadOptions={[]}
-    {...overrides}
-  />
+    }[key] ?? key),
+    themeColors,
+    title: 'Inbox',
+    trigger: null,
+    typeaheadIndex: 0,
+    typeaheadOpen: false,
+    typeaheadOptions: [],
+    ...overrides,
+});
+
+const renderQuickAdd = (overrides: Partial<React.ComponentProps<typeof TaskListQuickAdd>> = {}) => renderToStaticMarkup(
+  <TaskListQuickAdd {...getQuickAddProps(overrides)} />
 );
 
 describe('TaskListQuickAdd', () => {
@@ -115,5 +118,21 @@ describe('TaskListQuickAdd', () => {
     expect(html).toContain('data-icon="check-circle"');
     expect(html).toContain('Applied @work #focus');
     expect(html).not.toContain('✅');
+  });
+
+  it('reports the native input target on focus', () => {
+    const onInputFocus = vi.fn();
+    let tree!: ReturnType<typeof create>;
+
+    act(() => {
+      tree = create(<TaskListQuickAdd {...getQuickAddProps({ onInputFocus })} />);
+    });
+
+    const input = tree.root.findByType('input');
+    act(() => {
+      input.props.onFocus({ nativeEvent: { target: 42 } });
+    });
+
+    expect(onInputFocus).toHaveBeenCalledWith(42);
   });
 });

@@ -94,6 +94,7 @@ export interface TaskListProps {
   defaultEditTab?: 'task' | 'view';
   contentPaddingBottom?: number;
   enableProjectReorder?: boolean;
+  onQuickAddInputFocus?: (targetInput?: number | string) => void;
   projectReorderMode?: boolean;
   onProjectReorderModeChange?: (active: boolean) => void;
   includeArchived?: boolean;
@@ -121,6 +122,7 @@ function TaskListComponent({
   defaultEditTab,
   contentPaddingBottom,
   enableProjectReorder = false,
+  onQuickAddInputFocus,
   projectReorderMode: projectReorderModeProp,
   onProjectReorderModeChange,
   includeArchived = false,
@@ -1287,6 +1289,7 @@ function TaskListComponent({
             setCopilotContext(undefined);
             setCopilotTags([]);
           }}
+          onInputFocus={onQuickAddInputFocus}
           onSelectionChange={(selection) => {
             setInputSelection(selection);
             setTypeaheadOpen(Boolean(getTrigger(newTaskTitle, selection.start ?? newTaskTitle.length)));
