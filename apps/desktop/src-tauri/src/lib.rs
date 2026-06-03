@@ -344,6 +344,7 @@ CREATE VIRTUAL TABLE IF NOT EXISTS tasks_fts USING fts5(
   description,
   tags,
   contexts,
+  checklist,
   location,
   content=''
 );
@@ -358,20 +359,20 @@ CREATE VIRTUAL TABLE IF NOT EXISTS projects_fts USING fts5(
 );
 
 CREATE TRIGGER IF NOT EXISTS tasks_ai AFTER INSERT ON tasks BEGIN
-  INSERT INTO tasks_fts (rowid, title, description, tags, contexts, location)
-  VALUES (new.rowid, new.title, coalesce(new.description, ''), coalesce(new.tags, ''), coalesce(new.contexts, ''), coalesce(new.location, ''));
+  INSERT INTO tasks_fts (rowid, title, description, tags, contexts, checklist, location)
+  VALUES (new.rowid, new.title, coalesce(new.description, ''), coalesce(new.tags, ''), coalesce(new.contexts, ''), coalesce((SELECT group_concat(json_extract(value, '$.title'), ' ') FROM json_each(new.checklist)), ''), coalesce(new.location, ''));
 END;
 
 CREATE TRIGGER IF NOT EXISTS tasks_ad AFTER DELETE ON tasks BEGIN
-  INSERT INTO tasks_fts (tasks_fts, rowid, title, description, tags, contexts, location)
-  VALUES ('delete', old.rowid, old.title, coalesce(old.description, ''), coalesce(old.tags, ''), coalesce(old.contexts, ''), coalesce(old.location, ''));
+  INSERT INTO tasks_fts (tasks_fts, rowid, title, description, tags, contexts, checklist, location)
+  VALUES ('delete', old.rowid, old.title, coalesce(old.description, ''), coalesce(old.tags, ''), coalesce(old.contexts, ''), coalesce((SELECT group_concat(json_extract(value, '$.title'), ' ') FROM json_each(old.checklist)), ''), coalesce(old.location, ''));
 END;
 
 CREATE TRIGGER IF NOT EXISTS tasks_au AFTER UPDATE ON tasks BEGIN
-  INSERT INTO tasks_fts (tasks_fts, rowid, title, description, tags, contexts, location)
-  VALUES ('delete', old.rowid, old.title, coalesce(old.description, ''), coalesce(old.tags, ''), coalesce(old.contexts, ''), coalesce(old.location, ''));
-  INSERT INTO tasks_fts (rowid, title, description, tags, contexts, location)
-  VALUES (new.rowid, new.title, coalesce(new.description, ''), coalesce(new.tags, ''), coalesce(new.contexts, ''), coalesce(new.location, ''));
+  INSERT INTO tasks_fts (tasks_fts, rowid, title, description, tags, contexts, checklist, location)
+  VALUES ('delete', old.rowid, old.title, coalesce(old.description, ''), coalesce(old.tags, ''), coalesce(old.contexts, ''), coalesce((SELECT group_concat(json_extract(value, '$.title'), ' ') FROM json_each(old.checklist)), ''), coalesce(old.location, ''));
+  INSERT INTO tasks_fts (rowid, title, description, tags, contexts, checklist, location)
+  VALUES (new.rowid, new.title, coalesce(new.description, ''), coalesce(new.tags, ''), coalesce(new.contexts, ''), coalesce((SELECT group_concat(json_extract(value, '$.title'), ' ') FROM json_each(new.checklist)), ''), coalesce(new.location, ''));
 END;
 
 CREATE TRIGGER IF NOT EXISTS projects_ai AFTER INSERT ON projects BEGIN

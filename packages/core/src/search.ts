@@ -135,6 +135,10 @@ function matchesText(haystack: string | undefined, needle: string): boolean {
     return haystack.toLowerCase().includes(needle.toLowerCase());
 }
 
+function matchesChecklist(checklist: Task['checklist'], needle: string): boolean {
+    return (checklist || []).some((item) => matchesText(item.title, needle));
+}
+
 function normalizeTag(value: string): string {
     return normalizePrefixedToken(value, '#');
 }
@@ -191,7 +195,12 @@ export function matchesTask(term: SearchTerm, task: Task, projectById: Map<strin
     let result = false;
 
     if (!field) {
-        result = matchesText(task.title, value) || matchesText(task.description, value) || matchesText(task.location, value);
+        result = matchesText(task.title, value)
+            || matchesText(task.description, value)
+            || matchesChecklist(task.checklist, value)
+            || matchesText(task.location, value);
+    } else if (field === 'checklist') {
+        result = value.trim().length > 0 && matchesChecklist(task.checklist, value);
     } else if (field === 'id') {
         result = value.trim().length > 0 && matchesText(task.id, value);
     } else if (field === 'status') {
@@ -220,7 +229,9 @@ export function matchesTask(term: SearchTerm, task: Task, projectById: Map<strin
         else if (field === 'created') result = matchDateField(task.createdAt, term.comparator, value, now);
     } else {
         // Unknown field: treat as text search against title/description.
-        result = matchesText(task.title, `${field}:${value}`) || matchesText(task.description, `${field}:${value}`);
+        result = matchesText(task.title, `${field}:${value}`)
+            || matchesText(task.description, `${field}:${value}`)
+            || matchesChecklist(task.checklist, `${field}:${value}`);
     }
 
     return term.negated ? !result : result;

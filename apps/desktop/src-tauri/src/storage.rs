@@ -432,7 +432,7 @@ fn ensure_tasks_fts_schema(conn: &Connection) -> Result<(), String> {
         .query_map([], |row| row.get::<_, String>(1))
         .map_err(|e| e.to_string())?;
     for column in columns {
-        if column.map_err(|e| e.to_string())? == "location" {
+        if column.map_err(|e| e.to_string())? == "checklist" {
             return Ok(());
         }
     }
@@ -452,6 +452,7 @@ fn ensure_tasks_fts_schema(conn: &Connection) -> Result<(), String> {
           description,
           tags,
           contexts,
+          checklist,
           location,
           content=''
         )",
@@ -475,26 +476,26 @@ fn ensure_fts_triggers(conn: &Connection) -> Result<(), String> {
 
     conn.execute(
         "CREATE TRIGGER tasks_ai AFTER INSERT ON tasks BEGIN
-          INSERT INTO tasks_fts (rowid, title, description, tags, contexts, location)
-          VALUES (new.rowid, new.title, coalesce(new.description, ''), coalesce(new.tags, ''), coalesce(new.contexts, ''), coalesce(new.location, ''));
+          INSERT INTO tasks_fts (rowid, title, description, tags, contexts, checklist, location)
+          VALUES (new.rowid, new.title, coalesce(new.description, ''), coalesce(new.tags, ''), coalesce(new.contexts, ''), coalesce((SELECT group_concat(json_extract(value, '$.title'), ' ') FROM json_each(new.checklist)), ''), coalesce(new.location, ''));
         END",
         [],
     )
     .map_err(|e| e.to_string())?;
     conn.execute(
         "CREATE TRIGGER tasks_ad AFTER DELETE ON tasks BEGIN
-          INSERT INTO tasks_fts (tasks_fts, rowid, title, description, tags, contexts, location)
-          VALUES ('delete', old.rowid, old.title, coalesce(old.description, ''), coalesce(old.tags, ''), coalesce(old.contexts, ''), coalesce(old.location, ''));
+          INSERT INTO tasks_fts (tasks_fts, rowid, title, description, tags, contexts, checklist, location)
+          VALUES ('delete', old.rowid, old.title, coalesce(old.description, ''), coalesce(old.tags, ''), coalesce(old.contexts, ''), coalesce((SELECT group_concat(json_extract(value, '$.title'), ' ') FROM json_each(old.checklist)), ''), coalesce(old.location, ''));
         END",
         [],
     )
     .map_err(|e| e.to_string())?;
     conn.execute(
         "CREATE TRIGGER tasks_au AFTER UPDATE ON tasks BEGIN
-          INSERT INTO tasks_fts (tasks_fts, rowid, title, description, tags, contexts, location)
-          VALUES ('delete', old.rowid, old.title, coalesce(old.description, ''), coalesce(old.tags, ''), coalesce(old.contexts, ''), coalesce(old.location, ''));
-          INSERT INTO tasks_fts (rowid, title, description, tags, contexts, location)
-          VALUES (new.rowid, new.title, coalesce(new.description, ''), coalesce(new.tags, ''), coalesce(new.contexts, ''), coalesce(new.location, ''));
+          INSERT INTO tasks_fts (tasks_fts, rowid, title, description, tags, contexts, checklist, location)
+          VALUES ('delete', old.rowid, old.title, coalesce(old.description, ''), coalesce(old.tags, ''), coalesce(old.contexts, ''), coalesce((SELECT group_concat(json_extract(value, '$.title'), ' ') FROM json_each(old.checklist)), ''), coalesce(old.location, ''));
+          INSERT INTO tasks_fts (rowid, title, description, tags, contexts, checklist, location)
+          VALUES (new.rowid, new.title, coalesce(new.description, ''), coalesce(new.tags, ''), coalesce(new.contexts, ''), coalesce((SELECT group_concat(json_extract(value, '$.title'), ' ') FROM json_each(new.checklist)), ''), coalesce(new.location, ''));
         END",
         [],
     )
@@ -564,8 +565,8 @@ fn ensure_fts_populated(conn: &Connection, force_rebuild: bool) -> Result<(), St
         conn.execute("INSERT INTO tasks_fts(tasks_fts) VALUES('delete-all')", [])
             .map_err(|e| e.to_string())?;
         conn.execute(
-            "INSERT INTO tasks_fts (rowid, title, description, tags, contexts, location)
-             SELECT rowid, title, coalesce(description, ''), coalesce(tags, ''), coalesce(contexts, ''), coalesce(location, '') FROM tasks",
+            "INSERT INTO tasks_fts (rowid, title, description, tags, contexts, checklist, location)
+             SELECT rowid, title, coalesce(description, ''), coalesce(tags, ''), coalesce(contexts, ''), coalesce((SELECT group_concat(json_extract(value, '$.title'), ' ') FROM json_each(tasks.checklist)), ''), coalesce(location, '') FROM tasks",
             [],
         )
         .map_err(|e| e.to_string())?;
@@ -1957,7 +1958,7 @@ mod tests {
     }
 
     #[test]
-    fn ensure_tasks_fts_schema_recreates_legacy_index_with_location() {
+    fn ensure_tasks_fts_schema_recreates_legacy_index_with_checklist() {
         let conn = Connection::open_in_memory().expect("should open in-memory db");
         conn.execute_batch(
             r#"
@@ -1984,7 +1985,47 @@ mod tests {
             .map(|row| row.expect("column row"))
             .collect();
 
+        assert!(column_names.iter().any(|name| name == "checklist"));
         assert!(column_names.iter().any(|name| name == "location"));
+    }
+
+    #[test]
+    fn sqlite_fts_indexes_checklist_titles() {
+        let mut conn = Connection::open_in_memory().expect("should open in-memory db");
+        conn.execute_batch(SQLITE_SCHEMA)
+            .expect("should create schema");
+
+        let data = serde_json::json!({
+            "tasks": [{
+                "id": "task-checklist",
+                "title": "Travel prep",
+                "status": "next",
+                "tags": [],
+                "contexts": [],
+                "checklist": [
+                    { "id": "item-1", "title": "Book shuttle", "isCompleted": false },
+                    { "id": "item-2", "title": "Print ticket", "isCompleted": false }
+                ],
+                "createdAt": "2026-05-25T00:00:00.000Z",
+                "updatedAt": "2026-05-25T00:00:00.000Z"
+            }],
+            "projects": [],
+            "areas": [],
+            "sections": [],
+            "settings": {}
+        });
+
+        migrate_json_to_sqlite(&mut conn, &data).expect("should write data");
+
+        let count: i64 = conn
+            .query_row(
+                "SELECT COUNT(*) FROM tasks_fts WHERE tasks_fts MATCH ?1",
+                params!["shuttle*"],
+                |row| row.get(0),
+            )
+            .expect("should search fts");
+
+        assert_eq!(count, 1);
     }
 
     #[test]

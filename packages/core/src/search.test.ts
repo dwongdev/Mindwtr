@@ -269,6 +269,38 @@ describe('search', () => {
         expect(filterTasksBySearch(tasks, [], 'location:home').map((task) => task.id)).toEqual(['t2']);
     });
 
+    it('matches checklist item text in task searches', () => {
+        const nowIso = new Date('2025-01-01T00:00:00Z').toISOString();
+        const tasks: Task[] = [
+            {
+                id: 't1',
+                title: 'Trip prep',
+                status: 'next',
+                checklist: [
+                    { id: 'check-1', title: 'Book shuttle', isCompleted: false },
+                    { id: 'check-2', title: 'Print tickets', isCompleted: true },
+                ],
+                tags: [],
+                contexts: [],
+                createdAt: nowIso,
+                updatedAt: nowIso,
+            },
+            {
+                id: 't2',
+                title: 'Home errands',
+                status: 'next',
+                checklist: [{ id: 'check-3', title: 'Buy soap', isCompleted: false }],
+                tags: [],
+                contexts: [],
+                createdAt: nowIso,
+                updatedAt: nowIso,
+            },
+        ];
+
+        expect(filterTasksBySearch(tasks, [], 'shuttle').map((task) => task.id)).toEqual(['t1']);
+        expect(filterTasksBySearch(tasks, [], 'checklist:tickets').map((task) => task.id)).toEqual(['t1']);
+    });
+
     it('matches task id filters', () => {
         const nowIso = new Date('2025-01-01T00:00:00Z').toISOString();
         const tasks: Task[] = [

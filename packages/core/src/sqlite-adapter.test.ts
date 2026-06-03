@@ -522,6 +522,35 @@ describeSqlite('SqliteAdapter', () => {
         expect(results.tasks[0]?.location).toBe('Main Office');
     });
 
+    it('indexes checklist item titles in full text search', async () => {
+        const now = new Date().toISOString();
+        await adapter.saveData({
+            tasks: [
+                {
+                    id: 'task-checklist',
+                    title: 'Travel prep',
+                    status: 'next',
+                    contexts: [],
+                    tags: [],
+                    checklist: [
+                        { id: 'item-1', title: 'Book shuttle', isCompleted: false },
+                        { id: 'item-2', title: 'Print ticket', isCompleted: false },
+                    ],
+                    createdAt: now,
+                    updatedAt: now,
+                },
+            ],
+            projects: [],
+            areas: [],
+            sections: [],
+            settings: {},
+        });
+
+        const results = await adapter.searchAll('shuttle');
+
+        expect(results.tasks.map((task) => task.id)).toEqual(['task-checklist']);
+    });
+
     it('derives stable fallback order when project/section orderNum is null', async () => {
         const now = new Date().toISOString();
         await adapter.saveData({
