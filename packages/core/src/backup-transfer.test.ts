@@ -154,6 +154,21 @@ describe('backup transfer', () => {
         });
     });
 
+    it('does not restore device-local mobile app lock state', () => {
+        const data = buildAppData();
+        const restoredAt = '2026-04-01T00:00:10.000Z';
+        data.settings = {
+            diagnostics: { loggingEnabled: true },
+            security: { mobileAppLockEnabled: true },
+        };
+
+        const restored = prepareRestoredBackupDataForSync(data, { restoredAt });
+
+        expect(restored.settings.security).toBeUndefined();
+        expect(restored.settings.diagnostics).toEqual({ loggingEnabled: true });
+        expect(restored.settings.pendingRemoteWriteAt).toBe(restoredAt);
+    });
+
     it('keeps recovered backup data live when remote sync still has stale cascade tombstones', () => {
         const deletedAt = '2026-04-01T00:00:05.000Z';
         const restoredAt = '2026-04-01T00:00:10.000Z';

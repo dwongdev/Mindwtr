@@ -131,11 +131,25 @@ const prepareRestoredEntityForSync = <T extends RestorableEntity>(
     };
 };
 
+const stripDeviceLocalRestoreSettings = (settings: AppData['settings']): AppData['settings'] => {
+    if (settings.security?.mobileAppLockEnabled === undefined) return settings;
+    const nextSettings: AppData['settings'] = {
+        ...settings,
+        security: { ...settings.security },
+    };
+    delete nextSettings.security?.mobileAppLockEnabled;
+    if (nextSettings.security && Object.keys(nextSettings.security).length === 0) {
+        delete nextSettings.security;
+    }
+    return nextSettings;
+};
+
 export const prepareRestoredBackupDataForSync = (
     data: AppData,
     options: BackupRestoreSyncPreparationOptions = {}
 ): AppData => {
     const restoredAt = toIsoString(options.restoredAt) ?? new Date().toISOString();
+    const restoredSettings = stripDeviceLocalRestoreSettings(data.settings);
     return {
         ...data,
         tasks: data.tasks.map((task) => prepareRestoredEntityForSync(task, restoredAt)),
@@ -143,7 +157,7 @@ export const prepareRestoredBackupDataForSync = (
         sections: data.sections.map((section) => prepareRestoredEntityForSync(section, restoredAt)),
         areas: data.areas.map((area) => prepareRestoredEntityForSync(area, restoredAt)),
         settings: {
-            ...data.settings,
+            ...restoredSettings,
             pendingRemoteWriteAt: restoredAt,
             pendingRemoteWriteRetryAt: undefined,
             pendingRemoteWriteAttempts: undefined,
