@@ -117,6 +117,32 @@ export const projectsScreenStyles = StyleSheet.create({
         fontSize: 12,
         fontWeight: '700',
     },
+    projectTaskControls: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'flex-end',
+        flexWrap: 'wrap',
+        gap: 8,
+    },
+    projectSortSegment: {
+        minHeight: 34,
+        flexDirection: 'row',
+        alignItems: 'center',
+        borderRadius: 999,
+        borderWidth: 1,
+        padding: 2,
+    },
+    projectSortSegmentButton: {
+        minHeight: 28,
+        justifyContent: 'center',
+        alignItems: 'center',
+        borderRadius: 999,
+        paddingHorizontal: 10,
+    },
+    projectSortSegmentText: {
+        fontSize: 12,
+        fontWeight: '700',
+    },
     projectContent: {
         flex: 1,
     },

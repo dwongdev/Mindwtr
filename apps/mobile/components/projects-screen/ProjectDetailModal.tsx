@@ -27,6 +27,7 @@ import {
     type MarkdownToolbarActionId,
     type MarkdownToolbarResult,
     type Project,
+    type TaskSortBy,
     safeParseDate,
     tFallback,
 } from '@mindwtr/core';
@@ -75,10 +76,12 @@ type ProjectDetailModalProps = {
     onSetShowReviewPicker: React.Dispatch<React.SetStateAction<boolean>>;
     onSetShowStatusMenu: React.Dispatch<React.SetStateAction<boolean>>;
     onToggleShowCompletedTasks: () => void;
+    onProjectTaskSortByChange: (sortBy: Extract<TaskSortBy, 'default' | 'due'>) => void;
     onDownloadAttachment: (attachment: Attachment) => void | Promise<void>;
     onOpenAttachment: (attachment: Attachment) => void | Promise<void>;
     overlayVisible: boolean;
     presentationStyle: 'pageSheet' | 'fullScreen';
+    projectTaskSortBy: Extract<TaskSortBy, 'default' | 'due'>;
     selectedProjectAreaName: string;
     selectedProject: Project | null;
     selectedProjectNotes: string;
@@ -215,8 +218,10 @@ export function ProjectDetailModal({
     onSetShowReviewPicker,
     onSetShowStatusMenu,
     onToggleShowCompletedTasks,
+    onProjectTaskSortByChange,
     overlayVisible,
     presentationStyle,
+    projectTaskSortBy,
     selectedProjectAreaName,
     selectedProject,
     selectedProjectNotes,
@@ -252,11 +257,53 @@ export function ProjectDetailModal({
     const sequentialAcrossSectionsLabel = tFallback(t, 'projects.sequentialAcrossSections', 'Across sections');
     const sequentialWithinSectionsLabel = tFallback(t, 'projects.sequentialWithinSections', 'Within sections');
     const resolvedSequentialScope = selectedProject?.sequentialScope === 'section' ? 'section' : 'project';
+    const sortLabel = tFallback(t, 'sort.label', 'Sort');
     const setSelectedProjectSequentialScope = (sequentialScope: Project['sequentialScope']) => {
         if (!selectedProject) return;
         updateProject(selectedProject.id, { sequentialScope });
         onSetSelectedProject({ ...selectedProject, sequentialScope });
     };
+    const sortControl = selectedProject ? (
+        <View
+            accessibilityLabel={sortLabel}
+            accessibilityRole="radiogroup"
+            style={[
+                styles.projectSortSegment,
+                { backgroundColor: tc.filterBg, borderColor: tc.border },
+            ]}
+        >
+            {(['default', 'due'] as const).map((option) => {
+                const selected = projectTaskSortBy === option;
+                const label = option === 'default'
+                    ? tFallback(t, 'sort.default', 'Default')
+                    : tFallback(t, 'sort.due', 'Due date');
+                return (
+                    <TouchableOpacity
+                        key={option}
+                        accessibilityLabel={`${sortLabel}: ${label}`}
+                        accessibilityRole="radio"
+                        accessibilityState={{ checked: selected }}
+                        onPress={() => onProjectTaskSortByChange(option)}
+                        style={[
+                            styles.projectSortSegmentButton,
+                            selected && { backgroundColor: tc.tint },
+                        ]}
+                        testID={`project-task-sort-${option}`}
+                    >
+                        <Text
+                            style={[
+                                styles.projectSortSegmentText,
+                                { color: selected ? tc.onTint : tc.secondaryText },
+                            ]}
+                            numberOfLines={1}
+                        >
+                            {label}
+                        </Text>
+                    </TouchableOpacity>
+                );
+            })}
+        </View>
+    ) : null;
     const completedToggle = selectedProject && selectedProject.status !== 'archived' ? (
         <TouchableOpacity
             accessibilityLabel={showCompletedLabel}
@@ -287,6 +334,12 @@ export function ProjectDetailModal({
             </Text>
         </TouchableOpacity>
     ) : null;
+    const taskHeaderAccessory = (
+        <View style={styles.projectTaskControls}>
+            {sortControl}
+            {completedToggle}
+        </View>
+    );
 
     React.useEffect(() => {
         setProjectTaskReorderMode(false);
@@ -841,7 +894,7 @@ export function ProjectDetailModal({
                                 <TaskList
                                     statusFilter="all"
                                     title={selectedProject.title}
-                                    headerAccessory={completedToggle}
+                                    headerAccessory={taskHeaderAccessory}
                                     showHeader={false}
                                     showTimeEstimateFilters={false}
                                     projectId={selectedProject.id}
@@ -850,6 +903,7 @@ export function ProjectDetailModal({
                                     enableBulkActions
                                     showSort={false}
                                     enableProjectReorder={taskListOptions.enableProjectReorder}
+                                    projectSortBy={projectTaskSortBy}
                                     includeArchived={taskListOptions.includeArchived}
                                     includeDone={taskListOptions.includeDone}
                                     groupCompletedTasksLast={taskListOptions.groupCompletedTasksLast}

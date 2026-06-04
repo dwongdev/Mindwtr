@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import { View, Text, TextInput, TouchableOpacity, Alert, FlatList, Dimensions, Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
-import { AREA_PRESET_COLORS, Attachment, DEFAULT_PROJECT_COLOR, Project, Task, useTaskStore } from '@mindwtr/core';
+import { AREA_PRESET_COLORS, Attachment, DEFAULT_PROJECT_COLOR, Project, Task, type TaskSortBy, useTaskStore } from '@mindwtr/core';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { ChevronDown, ChevronRight } from 'lucide-react-native';
 
@@ -34,6 +34,8 @@ import { ListSectionHeader, defaultListContentStyle } from '@/components/list-la
 import { logError, logWarn } from '../../lib/app-log';
 import { AREA_FILTER_ALL, AREA_FILTER_NONE } from '@/lib/area-filter';
 import { openContextsScreen, openProjectScreen } from '@/lib/task-meta-navigation';
+
+type ProjectTaskSortBy = Extract<TaskSortBy, 'default' | 'due'>;
 
 export default function ProjectsScreen() {
   const {
@@ -67,6 +69,7 @@ export default function ProjectsScreen() {
   };
   const [newProjectTitle, setNewProjectTitle] = useState('');
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
+  const [projectTaskSortBy, setProjectTaskSortBy] = useState<ProjectTaskSortBy>('default');
   const [showProjectMeta, setShowProjectMeta] = useState(false);
   const [showDueDatePicker, setShowDueDatePicker] = useState(false);
   const [showReviewPicker, setShowReviewPicker] = useState(false);
@@ -213,6 +216,7 @@ export default function ProjectsScreen() {
 
   const openProject = useCallback((project: Project) => {
     setSelectedProject(project);
+    setProjectTaskSortBy('default');
     resetProjectNotesUi();
     setShowProjectMeta(false);
     setShowDueDatePicker(false);
@@ -719,9 +723,11 @@ export default function ProjectsScreen() {
         onSetShowProjectMeta={setShowProjectMeta}
         onSetShowReviewPicker={setShowReviewPicker}
         onSetShowStatusMenu={setShowStatusMenu}
+        onProjectTaskSortByChange={setProjectTaskSortBy}
         onToggleShowCompletedTasks={() => setShowCompletedProjectTasks((current) => !current)}
         overlayVisible={!!selectedProject}
         presentationStyle={Platform.OS === 'ios' ? 'pageSheet' : 'fullScreen'}
+        projectTaskSortBy={projectTaskSortBy}
         selectedProject={selectedProject}
         selectedProjectAreaName={selectedProjectAreaName}
         selectedProjectNotes={selectedProjectNotes}

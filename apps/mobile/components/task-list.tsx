@@ -96,6 +96,7 @@ export interface TaskListProps {
   defaultEditTab?: 'task' | 'view';
   contentPaddingBottom?: number;
   enableProjectReorder?: boolean;
+  projectSortBy?: TaskSortBy;
   onQuickAddInputFocus?: (targetInput?: number | string) => void;
   projectReorderMode?: boolean;
   onProjectReorderModeChange?: (active: boolean) => void;
@@ -125,6 +126,7 @@ function TaskListComponent({
   defaultEditTab,
   contentPaddingBottom,
   enableProjectReorder = false,
+  projectSortBy,
   onQuickAddInputFocus,
   projectReorderMode: projectReorderModeProp,
   onProjectReorderModeChange,
@@ -291,8 +293,8 @@ function TaskListComponent({
     tasksById,
   });
 
-  const sortBy = (settings?.taskSortBy ?? 'default') as TaskSortBy;
-  const canUseProjectReorder = Boolean(enableProjectReorder && projectId);
+  const sortBy = (projectSortBy ?? settings?.taskSortBy ?? 'default') as TaskSortBy;
+  const canUseProjectReorder = Boolean(enableProjectReorder && projectId && sortBy === 'default');
   const shouldGroupCompletedTasks = Boolean(groupCompletedTasksLast && projectId && statusFilter === 'all');
   const projectReorderMode = projectReorderModeProp ?? internalProjectReorderMode;
   const quickAddAvailable = allowAdd && !projectReorderMode;
@@ -508,7 +510,7 @@ function TaskListComponent({
   }, [filterableTasks, taskListFilters]);
 
   const orderedTasks = useMemo(() => {
-    if (projectId && enableProjectReorder) {
+    if (projectId && enableProjectReorder && sortBy === 'default') {
       return sortProjectTasksByOrder(filteredTasks);
     }
     return sortTasksBy(filteredTasks, sortBy);

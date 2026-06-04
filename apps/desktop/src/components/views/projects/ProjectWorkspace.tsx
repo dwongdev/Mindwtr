@@ -13,6 +13,7 @@ import {
     generateUUID,
     getQuickAddProjectInitialProps,
     parseQuickAdd,
+    sortTasksBy,
     splitCompletedTasks,
     updateRangeSelection,
 } from '@mindwtr/core';
@@ -64,6 +65,8 @@ type BulkTokenPickerState = {
     field: 'tags' | 'contexts';
     action: 'add' | 'remove';
 } | null;
+
+type ProjectTaskSortBy = 'default' | 'due';
 
 type ProjectWorkspaceProps = {
     addProject: (
@@ -199,6 +202,7 @@ export function ProjectWorkspace({
     const [searchQuery, setSearchQuery] = useState('');
     const [editProjectTitle, setEditProjectTitle] = useState('');
     const [projectTaskTitle, setProjectTaskTitle] = useState('');
+    const [projectTaskSortBy, setProjectTaskSortBy] = useState<ProjectTaskSortBy>('default');
     const [projectDetailsExpanded, setProjectDetailsExpanded] = useState(false);
     const [isProjectDeleting, setIsProjectDeleting] = useState(false);
     const [selectionMode, setSelectionMode] = useState(false);
@@ -261,6 +265,10 @@ export function ProjectWorkspace({
     }, [selectedProject?.id]);
 
     useEffect(() => {
+        setProjectTaskSortBy('default');
+    }, [selectedProject?.id]);
+
+    useEffect(() => {
         setProjectDetailsExpanded(false);
     }, [selectedProject?.id]);
 
@@ -289,6 +297,9 @@ export function ProjectWorkspace({
     );
 
     const sortProjectTasks = useCallback((items: Task[]) => {
+        if (projectTaskSortBy === 'due') {
+            return sortTasksBy(items, 'due');
+        }
         const sorted = [...items];
         const hasOrder = sorted.some((task) => Number.isFinite(task.order) || Number.isFinite(task.orderNum));
         sorted.sort((a, b) => {
@@ -308,7 +319,7 @@ export function ProjectWorkspace({
             return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
         });
         return sorted;
-    }, []);
+    }, [projectTaskSortBy]);
 
     const sortedProjectTasks = useMemo(() => {
         if (!selectedProject) return projectTasks;
@@ -906,8 +917,11 @@ export function ProjectWorkspace({
         );
     };
 
+    const canReorderProjectTasks = projectTaskSortBy === 'default';
     const tasksContent = selectionMode ? (
         renderProjectSections(renderSelectableTasks)
+    ) : !canReorderProjectTasks ? (
+        renderProjectSections(renderStaticTasks)
     ) : (
         <DndContext
             sensors={taskSensors}
@@ -1291,46 +1305,76 @@ export function ProjectWorkspace({
                                     <div className="text-xs uppercase tracking-wider text-muted-foreground">
                                         {t('projects.sectionsLabel')}
                                     </div>
-                                    {!isArchivedProject && (
-                                        <div className="flex flex-wrap items-center justify-end gap-2">
-                                            <button
-                                                type="button"
-                                                onClick={onToggleShowCompletedTasks}
-                                                aria-label={showCompletedTasks
-                                                    ? resolveText('common.hideCompleted', 'Hide completed')
-                                                    : resolveText('common.showCompleted', 'Show completed')}
-                                                aria-pressed={showCompletedTasks}
-                                                className={cn(
-                                                    'inline-flex items-center gap-2 whitespace-nowrap rounded-md border px-2.5 py-1.5 text-xs font-medium transition-colors',
-                                                    showCompletedTasks
-                                                        ? 'border-primary/40 bg-primary/10 text-primary'
-                                                        : 'border-border bg-background text-muted-foreground hover:bg-muted/40 hover:text-foreground'
-                                                )}
-                                            >
-                                                <CheckCircle2 className="h-3.5 w-3.5" />
-                                                {showCompletedTasks
-                                                    ? resolveText('common.hideCompleted', 'Hide completed')
-                                                    : resolveText('common.showCompleted', 'Show completed')}
-                                                {!showCompletedTasks && completedProjectTaskCount > 0 && (
-                                                    <span
-                                                        aria-hidden="true"
-                                                        className="rounded-full bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground"
+                                    <div className="flex flex-wrap items-center justify-end gap-2">
+                                        <div
+                                            role="group"
+                                            aria-label={resolveText('sort.label', 'Sort')}
+                                            className="inline-flex h-8 items-center rounded-md border border-border bg-muted/30 p-0.5"
+                                        >
+                                            {(['default', 'due'] as const).map((option) => {
+                                                const active = projectTaskSortBy === option;
+                                                const label = option === 'default'
+                                                    ? resolveText('sort.default', 'Default')
+                                                    : resolveText('sort.due', 'Due date');
+                                                return (
+                                                    <button
+                                                        key={option}
+                                                        type="button"
+                                                        aria-pressed={active}
+                                                        onClick={() => setProjectTaskSortBy(option)}
+                                                        className={cn(
+                                                            'h-7 whitespace-nowrap rounded px-2 text-xs font-medium transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40',
+                                                            active
+                                                                ? 'bg-primary text-primary-foreground'
+                                                                : 'text-muted-foreground hover:bg-background hover:text-foreground',
+                                                        )}
                                                     >
-                                                        {completedProjectTaskCount}
-                                                    </span>
-                                                )}
-                                            </button>
-                                            <button
-                                                type="button"
-                                                onClick={handleAddSection}
-                                                aria-label={t('projects.addSection')}
-                                                className="inline-flex items-center gap-2 whitespace-nowrap rounded-md border border-border bg-background px-2.5 py-1.5 text-xs transition-colors hover:bg-muted/40"
-                                            >
-                                                <Plus className="h-3.5 w-3.5" />
-                                                {t('projects.addSection')}
-                                            </button>
+                                                        {label}
+                                                    </button>
+                                                );
+                                            })}
                                         </div>
-                                    )}
+                                        {!isArchivedProject && (
+                                            <>
+                                                <button
+                                                    type="button"
+                                                    onClick={onToggleShowCompletedTasks}
+                                                    aria-label={showCompletedTasks
+                                                        ? resolveText('common.hideCompleted', 'Hide completed')
+                                                        : resolveText('common.showCompleted', 'Show completed')}
+                                                    aria-pressed={showCompletedTasks}
+                                                    className={cn(
+                                                        'inline-flex items-center gap-2 whitespace-nowrap rounded-md border px-2.5 py-1.5 text-xs font-medium transition-colors',
+                                                        showCompletedTasks
+                                                            ? 'border-primary/40 bg-primary/10 text-primary'
+                                                            : 'border-border bg-background text-muted-foreground hover:bg-muted/40 hover:text-foreground'
+                                                    )}
+                                                >
+                                                    <CheckCircle2 className="h-3.5 w-3.5" />
+                                                    {showCompletedTasks
+                                                        ? resolveText('common.hideCompleted', 'Hide completed')
+                                                        : resolveText('common.showCompleted', 'Show completed')}
+                                                    {!showCompletedTasks && completedProjectTaskCount > 0 && (
+                                                        <span
+                                                            aria-hidden="true"
+                                                            className="rounded-full bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground"
+                                                        >
+                                                            {completedProjectTaskCount}
+                                                        </span>
+                                                    )}
+                                                </button>
+                                                <button
+                                                    type="button"
+                                                    onClick={handleAddSection}
+                                                    aria-label={t('projects.addSection')}
+                                                    className="inline-flex items-center gap-2 whitespace-nowrap rounded-md border border-border bg-background px-2.5 py-1.5 text-xs transition-colors hover:bg-muted/40"
+                                                >
+                                                    <Plus className="h-3.5 w-3.5" />
+                                                    {t('projects.addSection')}
+                                                </button>
+                                            </>
+                                        )}
+                                    </div>
                                 </div>
                                 {selectionMode && (
                                     <div className="mb-3 space-y-3">

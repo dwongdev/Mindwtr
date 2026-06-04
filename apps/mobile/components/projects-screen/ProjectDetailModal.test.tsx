@@ -75,7 +75,7 @@ const taskListPropsSpy = vi.hoisted(() => vi.fn());
 vi.mock('../../components/task-list', () => ({
     TaskList: (props: any) => {
         taskListPropsSpy(props);
-        return null;
+        return props.headerAccessory ?? null;
     },
 }));
 
@@ -158,9 +158,11 @@ const createProjectDetailModalProps = (overrides: Partial<React.ComponentProps<t
     onSetShowProjectMeta: vi.fn(),
     onSetShowReviewPicker: vi.fn(),
     onSetShowStatusMenu: vi.fn(),
+    onProjectTaskSortByChange: vi.fn(),
     onToggleShowCompletedTasks: vi.fn(),
     overlayVisible: true,
     presentationStyle: 'fullScreen' as const,
+    projectTaskSortBy: 'default' as const,
     selectedProject: { ...project('active'), supportNotes: 'Draft' },
     selectedProjectAreaName: 'No Area',
     selectedProjectNotes: 'Draft',
@@ -207,6 +209,9 @@ const createProjectDetailModalProps = (overrides: Partial<React.ComponentProps<t
         'projects.sequentialScope': 'Sequential Scope',
         'projects.sequentialWithinSections': 'Within sections',
         'projects.statusLabel': 'Status',
+        'sort.default': 'Default',
+        'sort.due': 'Due date',
+        'sort.label': 'Sort',
         'status.active': 'Active',
         'status.someday': 'Someday',
         'status.waiting': 'Waiting',
@@ -262,6 +267,29 @@ describe('ProjectDetailModal notes editing', () => {
         });
 
         expect(commitSelectedProjectNotes).toHaveBeenCalledTimes(1);
+    });
+});
+
+describe('ProjectDetailModal task sorting', () => {
+    it('passes the project-local sort to TaskList and handles sort changes', () => {
+        const onProjectTaskSortByChange = vi.fn();
+        let tree!: ReturnType<typeof create>;
+
+        act(() => {
+            tree = create(<ProjectDetailModal {...createProjectDetailModalProps({
+                onProjectTaskSortByChange,
+                projectTaskSortBy: 'default',
+            })} />);
+        });
+
+        expect(taskListPropsSpy).toHaveBeenCalled();
+        expect(taskListPropsSpy.mock.calls.at(-1)?.[0].projectSortBy).toBe('default');
+
+        act(() => {
+            tree.root.findByProps({ testID: 'project-task-sort-due' }).props.onPress();
+        });
+
+        expect(onProjectTaskSortByChange).toHaveBeenCalledWith('due');
     });
 });
 

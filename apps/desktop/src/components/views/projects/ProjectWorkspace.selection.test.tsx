@@ -75,6 +75,9 @@ const translations: Record<string, string> = {
     'projects.addTaskPlaceholder': 'Add task',
     'projects.noActiveTasks': 'No active tasks',
     'projects.sectionsLabel': 'Tasks',
+    'sort.default': 'Default',
+    'sort.due': 'Due date',
+    'sort.label': 'Sort',
     'status.done': 'Done',
     'status.inbox': 'Inbox',
     'status.next': 'Next',
@@ -96,7 +99,7 @@ const project: Project = {
     updatedAt: '2026-05-12T00:00:00.000Z',
 };
 
-const task = (id: string, title: string): Task => ({
+const task = (id: string, title: string, overrides: Partial<Task> = {}): Task => ({
     id,
     title,
     status: 'next',
@@ -105,6 +108,7 @@ const task = (id: string, title: string): Task => ({
     contexts: [],
     createdAt: '2026-05-12T00:00:00.000Z',
     updatedAt: '2026-05-12T00:00:00.000Z',
+    ...overrides,
 });
 
 type ProjectWorkspaceProps = ComponentProps<typeof ProjectWorkspace>;
@@ -229,5 +233,21 @@ describe('ProjectWorkspace Select mode', () => {
             expect(requestConfirmation).toHaveBeenCalled();
             expect(batchDeleteTasks).toHaveBeenCalledWith(['task-1', 'task-2']);
         });
+    });
+
+    it('sorts visible project tasks by due date when selected', () => {
+        const allTasks = [
+            task('task-no-due', 'No due', { createdAt: '2026-05-01T00:00:00.000Z', order: 0 }),
+            task('task-later', 'Later due', { createdAt: '2026-05-02T00:00:00.000Z', dueDate: '2026-07-01', order: 1 }),
+            task('task-soon', 'Soon due', { createdAt: '2026-05-03T00:00:00.000Z', dueDate: '2026-06-01', order: 2 }),
+        ];
+        const { container, getByRole } = renderWorkspace({ allTasks });
+        const taskTitles = () => Array.from(container.querySelectorAll('[data-task-id] span')).map((item) => item.textContent);
+
+        expect(taskTitles()).toEqual(['No due', 'Later due', 'Soon due']);
+
+        fireEvent.click(getByRole('button', { name: 'Due date' }));
+
+        expect(taskTitles()).toEqual(['Soon due', 'Later due', 'No due']);
     });
 });
