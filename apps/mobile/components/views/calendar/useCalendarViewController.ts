@@ -1,4 +1,13 @@
-import { Alert, type AlertButton, type LayoutChangeEvent, type NativeScrollEvent, type NativeSyntheticEvent } from 'react-native';
+import { useFocusEffect } from '@react-navigation/native';
+import {
+  Alert,
+  AppState,
+  type AlertButton,
+  type AppStateStatus,
+  type LayoutChangeEvent,
+  type NativeScrollEvent,
+  type NativeSyntheticEvent,
+} from 'react-native';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   DEFAULT_CALENDAR_DAY_END_HOUR,
@@ -60,6 +69,10 @@ import {
   isAllDayScheduledTask,
   isTimedScheduledTask,
 } from './calendar-task-items';
+import {
+  EXTERNAL_CALENDAR_REFRESH_THROTTLE_MS,
+  shouldRefreshExternalCalendarOnAppStateChange,
+} from './calendar-external-refresh';
 
 function getDaysInMonth(year: number, month: number): number {
   return new Date(year, month + 1, 0).getDate();
@@ -188,7 +201,11 @@ export function useCalendarViewController() {
   const [externalEvents, setExternalEvents] = useState<ExternalCalendarEvent[]>([]);
   const [externalError, setExternalError] = useState<string | null>(null);
   const [isExternalLoading, setIsExternalLoading] = useState(false);
+  const [externalRefreshToken, setExternalRefreshToken] = useState(0);
   const [nowTick, setNowTick] = useState(() => Date.now());
+  const appStateRef = useRef<AppStateStatus>(AppState.currentState);
+  const hasHandledInitialFocusRef = useRef(false);
+  const lastExternalRefreshRequestMsRef = useRef(0);
   const timelineScrollRef = useRef<any>(null);
   const timelineScrollOffsetRef = useRef(0);
   const timelineContentTopRef = useRef(0);
@@ -452,15 +469,24 @@ export function useCalendarViewController() {
 
   const externalRangeStartMs = externalCalendarRange.rangeStart.getTime();
   const externalRangeEndMs = externalCalendarRange.rangeEnd.getTime();
+  const externalCalendarSettings = settings?.externalCalendars;
+
+  const requestExternalCalendarRefresh = useCallback(() => {
+    const nowMs = Date.now();
+    if (nowMs - lastExternalRefreshRequestMsRef.current < EXTERNAL_CALENDAR_REFRESH_THROTTLE_MS) return;
+    lastExternalRefreshRequestMsRef.current = nowMs;
+    setExternalRefreshToken((token) => token + 1);
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
+    const controller = typeof AbortController !== 'undefined' ? new AbortController() : null;
     setIsExternalLoading(true);
     setExternalError(null);
     const rangeStart = new Date(externalRangeStartMs);
     const rangeEnd = new Date(externalRangeEndMs);
 
-    fetchExternalCalendarEvents(rangeStart, rangeEnd)
+    fetchExternalCalendarEvents(rangeStart, rangeEnd, { signal: controller?.signal })
       .then(({ calendars, events }) => {
         if (cancelled) return;
         setExternalCalendars(calendars);
@@ -479,8 +505,31 @@ export function useCalendarViewController() {
 
     return () => {
       cancelled = true;
+      controller?.abort();
     };
-  }, [externalRangeEndMs, externalRangeStartMs]);
+  }, [externalCalendarSettings, externalRangeEndMs, externalRangeStartMs, externalRefreshToken]);
+
+  useFocusEffect(
+    useCallback(() => {
+      if (!hasHandledInitialFocusRef.current) {
+        hasHandledInitialFocusRef.current = true;
+        return undefined;
+      }
+      requestExternalCalendarRefresh();
+      return undefined;
+    }, [requestExternalCalendarRefresh]),
+  );
+
+  useEffect(() => {
+    const subscription = AppState.addEventListener('change', (nextAppState) => {
+      if (shouldRefreshExternalCalendarOnAppStateChange(appStateRef.current, nextAppState)) {
+        requestExternalCalendarRefresh();
+      }
+      appStateRef.current = nextAppState;
+    });
+
+    return () => subscription.remove();
+  }, [requestExternalCalendarRefresh]);
 
   const calendarNameById = useMemo(
     () => new Map(externalCalendars.map((calendar) => [calendar.id, calendar.name])),
