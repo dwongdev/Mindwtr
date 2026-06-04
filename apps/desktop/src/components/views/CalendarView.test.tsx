@@ -1,6 +1,6 @@
 import { act, createEvent, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { Project, Task } from '@mindwtr/core';
+import type { Area, Project, Task } from '@mindwtr/core';
 
 import { LanguageProvider } from '../../contexts/language-context';
 import { CalendarView } from './CalendarView';
@@ -12,9 +12,11 @@ const storeMocks = vi.hoisted(() => {
     const taskStoreState = {
         addProject: vi.fn(async () => null),
         addTask: vi.fn(async () => ({ success: true, id: 'task-new' })),
-        areas: [],
+        areas: [] as Area[],
         deleteTask: vi.fn(async () => {}),
         getDerivedState: () => ({
+            allContexts: Array.from(new Set(taskStoreState.tasks.flatMap((task) => task.contexts ?? []))).sort(),
+            allTags: Array.from(new Set(taskStoreState.tasks.flatMap((task) => task.tags ?? []))).sort(),
             projectMap: new Map(taskStoreState.projects.map((project) => [project.id, project])),
         }),
         projects: [] as Project[],
@@ -85,6 +87,16 @@ const makeProject = (overrides: Partial<Project> = {}): Project => ({
     ...overrides,
 });
 
+const makeArea = (overrides: Partial<Area> = {}): Area => ({
+    id: 'area-1',
+    name: 'Area',
+    color: '#94a3b8',
+    order: 0,
+    createdAt: '2026-04-01T00:00:00.000Z',
+    updatedAt: '2026-04-01T00:00:00.000Z',
+    ...overrides,
+});
+
 const renderCalendar = () => render(
     <LanguageProvider>
         <CalendarView />
@@ -143,6 +155,7 @@ describe('CalendarView', () => {
         window.localStorage.clear();
         storeMocks.taskStoreState.tasks = [];
         storeMocks.taskStoreState.projects = [];
+        storeMocks.taskStoreState.areas = [];
         storeMocks.taskStoreState.addProject.mockClear();
         storeMocks.taskStoreState.addTask.mockClear();
         storeMocks.taskStoreState.addTask.mockResolvedValue({ success: true, id: 'task-new' });
@@ -414,6 +427,46 @@ describe('CalendarView', () => {
             timeEstimate: '30min',
         }));
         expect(storeMocks.taskStoreState.addProject).not.toHaveBeenCalled();
+    });
+
+    it('shows quick-add autocomplete options in the calendar composer', async () => {
+        storeMocks.taskStoreState.projects = [
+            makeProject({ id: 'project-launch', title: 'Launch' }),
+        ];
+        storeMocks.taskStoreState.areas = [
+            makeArea({ id: 'area-work', name: 'Work' }),
+        ];
+        storeMocks.taskStoreState.tasks = [
+            makeTask({
+                id: 'task-token-source',
+                contexts: ['@computer'],
+                tags: ['#deep'],
+                title: 'Token source',
+            }),
+        ];
+
+        renderCalendar();
+        await flushCalendarEffects();
+        await openNewTaskComposerForDay('4');
+
+        const titleInput = screen.getByLabelText('Task title') as HTMLInputElement;
+        const updateTitle = (value: string, key: string) => {
+            fireEvent.change(titleInput, { target: { value } });
+            titleInput.setSelectionRange(value.length, value.length);
+            fireEvent.keyUp(titleInput, { key });
+        };
+
+        updateTitle('Draft +L', 'L');
+        expect(screen.getByRole('option', { name: 'Launch' })).toBeInTheDocument();
+
+        updateTitle('Draft !W', 'W');
+        expect(screen.getByRole('option', { name: 'Work' })).toBeInTheDocument();
+
+        updateTitle('Draft #d', 'd');
+        expect(screen.getByRole('option', { name: '#deep' })).toBeInTheDocument();
+
+        updateTitle('Draft @c', 'c');
+        expect(screen.getByRole('option', { name: '@computer' })).toBeInTheDocument();
     });
 
     it('saves existing tasks from the calendar composer', async () => {

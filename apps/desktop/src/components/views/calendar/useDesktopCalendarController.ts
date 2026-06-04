@@ -220,7 +220,7 @@ export function useDesktopCalendarController() {
         }),
         shallow
     );
-    const { projectMap } = getDerivedState();
+    const { allContexts = [], allTags = [], projectMap } = getDerivedState();
     const { t, language } = useLanguage();
     const resolveText = useCallback(
         (key: string, fallback: string) => {
@@ -266,6 +266,10 @@ export function useDesktopCalendarController() {
     const [taskComposer, setTaskComposer] = useState<CalendarTaskComposerState | null>(null);
     const calendarBodyRef = useRef<HTMLDivElement | null>(null);
     const normalizedViewFilterQuery = viewFilterQuery.trim().toLowerCase();
+    const quickAddSuggestionTokens = useMemo(
+        () => Array.from(new Set([...allContexts, ...allTags])).sort(),
+        [allContexts, allTags]
+    );
 
     useEffect(() => {
         if (!perf.enabled) return;
@@ -1248,6 +1252,9 @@ export function useDesktopCalendarController() {
         openTaskFromCalendar,
         resetSelectedDayState,
         resolveText,
+        areas,
+        projects,
+        quickAddSuggestionTokens,
         saveTaskComposer,
         scheduleCandidates,
         scheduleDays,

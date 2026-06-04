@@ -25,6 +25,7 @@ type Option =
     | { kind: 'area'; label: string; value: string };
 
 interface TaskInputProps {
+    id?: string;
     value: string;
     onChange: (value: string) => void;
     projects: Project[];
@@ -64,6 +65,7 @@ function getTrigger(text: string, caret: number): TriggerState | null {
 }
 
 export function TaskInput({
+    id,
     value,
     onChange,
     projects,
@@ -277,6 +279,7 @@ export function TaskInput({
     return (
         <div className={cn('relative', containerClassName)}>
             <input
+                id={id}
                 ref={mergedRef}
                 value={value}
                 autoFocus={autoFocus}
