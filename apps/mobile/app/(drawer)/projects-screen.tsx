@@ -4,7 +4,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { AREA_PRESET_COLORS, Attachment, DEFAULT_PROJECT_COLOR, Project, Task, type TaskSortBy, useTaskStore } from '@mindwtr/core';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { ChevronDown, ChevronRight } from 'lucide-react-native';
+import { ChevronDown, ChevronRight, Plus } from 'lucide-react-native';
 
 import { projectsScreenStyles as styles } from '@/components/projects-screen/projects-screen.styles';
 import {
@@ -354,7 +354,6 @@ export default function ProjectsScreen() {
       <ProjectRow
         project={project}
         taskSummary={projectTaskSummaryById.get(project.id)}
-        areaById={areaById}
         tc={tc}
         focusedCount={focusedCount}
         statusPalette={statusPalette}
@@ -580,15 +579,30 @@ export default function ProjectsScreen() {
     <GestureHandlerRootView style={{ flex: 1 }}>
       <View style={[styles.container, { backgroundColor: tc.bg }]}>
       <View style={[styles.inputContainer, { borderBottomColor: tc.border }]}>
-        <TextInput
-          style={[styles.input, { borderColor: tc.border, backgroundColor: tc.inputBg, color: tc.text }]}
-          placeholder={t('projects.addPlaceholder')}
-          placeholderTextColor={tc.secondaryText}
-          value={newProjectTitle}
-          onChangeText={setNewProjectTitle}
-          onSubmitEditing={handleAddProject}
-          returnKeyType="done"
-        />
+        <View style={styles.addProjectRow}>
+          <TextInput
+            style={[styles.input, styles.addProjectInput, { borderColor: tc.border, backgroundColor: tc.inputBg, color: tc.text }]}
+            placeholder={t('projects.addPlaceholder')}
+            placeholderTextColor={tc.secondaryText}
+            value={newProjectTitle}
+            onChangeText={setNewProjectTitle}
+            onSubmitEditing={handleAddProject}
+            returnKeyType="done"
+          />
+          <TouchableOpacity
+            accessibilityRole="button"
+            accessibilityLabel={t('projects.add')}
+            onPress={handleAddProject}
+            style={[
+              styles.addIconButton,
+              { backgroundColor: tc.tint },
+              !newProjectTitle.trim() && styles.addButtonDisabled,
+            ]}
+            disabled={!newProjectTitle.trim()}
+          >
+            <Plus size={22} color={tc.onTint} strokeWidth={2.4} />
+          </TouchableOpacity>
+        </View>
         <View style={styles.filterSection}>
           <TouchableOpacity
             style={styles.filterHeader}
@@ -663,17 +677,6 @@ export default function ProjectsScreen() {
             </View>
           )}
         </View>
-        <TouchableOpacity
-          onPress={handleAddProject}
-          style={[
-            styles.addButton,
-            { backgroundColor: tc.tint },
-            !newProjectTitle.trim() && styles.addButtonDisabled,
-          ]}
-          disabled={!newProjectTitle.trim()}
-        >
-          <Text style={styles.addButtonText}>{t('projects.add')}</Text>
-        </TouchableOpacity>
       </View>
 
       <FlatList

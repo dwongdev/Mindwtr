@@ -11,6 +11,11 @@ export const projectsScreenStyles = StyleSheet.create({
         borderBottomWidth: 1,
         borderBottomColor: '#e5e5e5',
     },
+    addProjectRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 8,
+    },
     filterSection: {
         gap: 8,
     },
@@ -50,6 +55,9 @@ export const projectsScreenStyles = StyleSheet.create({
         paddingVertical: 8,
         fontSize: 16,
     },
+    addProjectInput: {
+        flex: 1,
+    },
     colorPicker: {
         flexDirection: 'row',
         gap: 8,
@@ -64,18 +72,15 @@ export const projectsScreenStyles = StyleSheet.create({
     colorOptionSelected: {
         borderColor: '#000',
     },
-    addButton: {
-        borderRadius: 10,
-        paddingVertical: 10,
+    addIconButton: {
+        width: 46,
+        height: 46,
+        borderRadius: 8,
         alignItems: 'center',
+        justifyContent: 'center',
     },
     addButtonDisabled: {
         opacity: 0.5,
-    },
-    addButtonText: {
-        color: '#fff',
-        fontSize: 15,
-        fontWeight: '600',
     },
     projectItem: {
         flexDirection: 'row',
@@ -89,12 +94,6 @@ export const projectsScreenStyles = StyleSheet.create({
         flex: 1,
         flexDirection: 'row',
         alignItems: 'center',
-    },
-    projectColor: {
-        width: 12,
-        height: 12,
-        borderRadius: 6,
-        marginRight: 12,
     },
     projectDetailScroll: {
         flexGrow: 1,

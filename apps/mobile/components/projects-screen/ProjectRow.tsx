@@ -1,6 +1,6 @@
 import React, { useRef } from 'react';
 import { Alert, Pressable, Text, TouchableOpacity, View } from 'react-native';
-import { type Area, type Project } from '@mindwtr/core';
+import { type Project } from '@mindwtr/core';
 import * as Haptics from 'expo-haptics';
 import { Copy, Trash2, Star, AlertTriangle } from 'lucide-react-native';
 import { Swipeable } from 'react-native-gesture-handler';
@@ -20,7 +20,6 @@ type StatusPalette = Record<Project['status'], { text: string; bg: string; borde
 type ProjectRowProps = {
     project: Project;
     taskSummary?: ProjectTaskSummary;
-    areaById: Map<string, Area>;
     tc: ThemeColors;
     focusedCount: number;
     statusPalette: StatusPalette;
@@ -43,7 +42,6 @@ function getStatusLabel(status: Project['status'], t: (key: string) => string) {
 export function ProjectRow({
     project,
     taskSummary,
-    areaById,
     tc,
     focusedCount,
     statusPalette,
@@ -57,7 +55,6 @@ export function ProjectRow({
     const taskCount = taskSummary?.activeTaskCount ?? 0;
     const taskCountLabel = `${taskCount} ${t('common.tasks')}`;
     const showFocusedWarning = project.isFocused && !nextAction && taskCount > 0;
-    const projectColor = project.areaId ? areaById.get(project.areaId)?.color : undefined;
     const swipeableRef = useRef<Swipeable>(null);
 
     const handleDuplicate = () => {
@@ -145,7 +142,6 @@ export function ProjectRow({
                 style={styles.projectTouchArea}
                 onPress={() => onOpenProject(project)}
             >
-                <View style={[styles.projectColor, { backgroundColor: projectColor || '#6B7280' }]} />
                 <View style={styles.projectContent}>
                     <View style={styles.projectTitleRow}>
                         <Text style={[styles.projectTitle, { color: tc.text }]} numberOfLines={1}>

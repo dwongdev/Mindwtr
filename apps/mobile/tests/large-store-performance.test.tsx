@@ -674,7 +674,6 @@ describe('large-store mobile interaction performance', () => {
                 key={row.project.id}
                 project={row.project}
                 taskSummary={projectTaskSummaryById.get(row.project.id)}
-                areaById={projectAreaById}
                 tc={{
                   cardBg: '#111827',
                   secondaryText: '#94a3b8',

@@ -74,7 +74,6 @@ describe('ProjectRow', () => {
       tree = renderer.create(
         <ProjectRow
           project={project}
-          areaById={new Map()}
           tc={tc}
           focusedCount={0}
           statusPalette={statusPalette as any}
@@ -106,7 +105,6 @@ describe('ProjectRow', () => {
         <ProjectRow
           project={project}
           taskSummary={{ activeTaskCount: 7 }}
-          areaById={new Map()}
           tc={tc}
           focusedCount={0}
           statusPalette={statusPalette as any}
@@ -133,7 +131,6 @@ describe('ProjectRow', () => {
       tree = renderer.create(
         <ProjectRow
           project={project}
-          areaById={new Map()}
           tc={tc}
           focusedCount={0}
           statusPalette={statusPalette as any}
@@ -189,7 +186,6 @@ describe('ProjectRow', () => {
       tree = renderer.create(
         <ProjectRow
           project={project}
-          areaById={new Map()}
           tc={tc}
           focusedCount={0}
           statusPalette={statusPalette as any}
