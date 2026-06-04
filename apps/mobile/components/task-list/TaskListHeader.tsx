@@ -100,6 +100,21 @@ export function TaskListHeader({
       ) : null}
     </TouchableOpacity>
   );
+  const selectionControl = enableBulkActions ? (
+    <TouchableOpacity
+      onPress={onToggleSelectionMode}
+      style={[
+        styles.selectButton,
+        { borderColor: themeColors.border, backgroundColor: selectionMode ? themeColors.filterBg : 'transparent' },
+      ]}
+      accessibilityRole="button"
+      accessibilityLabel={selectionMode ? t('bulk.exitSelect') : t('bulk.select')}
+    >
+      <Text style={[styles.selectButtonText, { color: themeColors.text }]}>
+        {selectionMode ? t('bulk.exitSelect') : t('bulk.select')}
+      </Text>
+    </TouchableOpacity>
+  ) : null;
 
   return (
     <>
@@ -117,24 +132,10 @@ export function TaskListHeader({
             {sortControl}
             {filterControl}
             {headerAccessory}
-            {enableBulkActions && (
-              <TouchableOpacity
-                onPress={onToggleSelectionMode}
-                style={[
-                  styles.selectButton,
-                  { borderColor: themeColors.border, backgroundColor: selectionMode ? themeColors.filterBg : 'transparent' },
-                ]}
-                accessibilityRole="button"
-                accessibilityLabel={selectionMode ? t('bulk.exitSelect') : t('bulk.select')}
-              >
-                <Text style={[styles.selectButtonText, { color: themeColors.text }]}>
-                  {selectionMode ? t('bulk.exitSelect') : t('bulk.select')}
-                </Text>
-              </TouchableOpacity>
-            )}
+            {selectionControl}
           </View>
         </View>
-      ) : sortControl || filterControl || headerAccessory ? (
+      ) : sortControl || filterControl || headerAccessory || selectionControl ? (
         <View style={styles.headerAccessoryRow}>
           <View style={styles.headerAccessoryLeft}>
             <View style={styles.headerAccessoryControls}>
@@ -142,7 +143,10 @@ export function TaskListHeader({
               {filterControl}
             </View>
           </View>
-          <View style={styles.headerAccessoryRight}>{headerAccessory}</View>
+          <View style={styles.headerAccessoryRight}>
+            {headerAccessory}
+            {selectionControl}
+          </View>
         </View>
       ) : null}
 

@@ -54,7 +54,9 @@ export const styles = StyleSheet.create({
     gap: 8,
   },
   headerAccessoryRight: {
-    alignItems: 'flex-end',
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: 8,
   },
   sortButton: {
     borderWidth: 1,
@@ -133,6 +135,9 @@ export const styles = StyleSheet.create({
     gap: 8,
   },
   bulkActionButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
     paddingHorizontal: 10,
     paddingVertical: 6,
     borderRadius: 6,
@@ -140,6 +145,128 @@ export const styles = StyleSheet.create({
   bulkActionText: {
     fontSize: 12,
     fontWeight: '600',
+  },
+  bulkOrganizeCard: {
+    width: '100%',
+    maxWidth: 440,
+    maxHeight: '86%',
+    borderRadius: 12,
+    borderWidth: 1,
+    overflow: 'hidden',
+  },
+  bulkOrganizeHeader: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    gap: 12,
+    paddingHorizontal: 16,
+    paddingTop: 14,
+    paddingBottom: 12,
+  },
+  bulkOrganizeTitleRow: {
+    flex: 1,
+    minWidth: 0,
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 10,
+  },
+  bulkOrganizeTitleBlock: {
+    flex: 1,
+    minWidth: 0,
+  },
+  bulkOrganizeTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+  },
+  bulkOrganizeSubtitle: {
+    marginTop: 2,
+    fontSize: 12,
+    lineHeight: 16,
+  },
+  bulkOrganizeCloseButton: {
+    width: 32,
+    height: 32,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  bulkOrganizeScroll: {
+    flexGrow: 0,
+  },
+  bulkOrganizeContent: {
+    paddingHorizontal: 16,
+    paddingBottom: 14,
+    gap: 14,
+  },
+  bulkOrganizeSection: {
+    gap: 8,
+  },
+  bulkOrganizeLabel: {
+    fontSize: 12,
+    fontWeight: '700',
+    textTransform: 'uppercase',
+  },
+  bulkOrganizeChipRow: {
+    gap: 8,
+    paddingRight: 6,
+  },
+  bulkOrganizeChip: {
+    minHeight: 34,
+    borderRadius: 999,
+    borderWidth: 1,
+    justifyContent: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+  },
+  bulkOrganizeChipText: {
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  bulkOrganizeDateGrid: {
+    gap: 10,
+  },
+  bulkOrganizeDateField: {
+    gap: 6,
+  },
+  bulkOrganizeInput: {
+    minHeight: 42,
+    borderWidth: 1,
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    fontSize: 14,
+  },
+  bulkOrganizeValidation: {
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  bulkOrganizeFooter: {
+    borderTopWidth: 1,
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    gap: 10,
+    padding: 12,
+  },
+  bulkOrganizeFooterButton: {
+    minHeight: 40,
+    justifyContent: 'center',
+    paddingHorizontal: 12,
+  },
+  bulkOrganizeFooterText: {
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  bulkOrganizeApplyButton: {
+    minHeight: 40,
+    borderRadius: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingHorizontal: 14,
+  },
+  bulkOrganizeApplyText: {
+    fontSize: 14,
+    fontWeight: '700',
   },
   modalOverlay: {
     flex: 1,

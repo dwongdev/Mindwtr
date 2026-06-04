@@ -44,6 +44,9 @@ import {
   TaskListBulkBar,
 } from './task-list/TaskListBulkBar';
 import {
+  TaskListBulkOrganizeModal,
+} from './task-list/TaskListBulkOrganizeModal';
+import {
   TaskListHeader,
   type TaskListActiveFilterChip,
 } from './task-list/TaskListHeader';
@@ -85,6 +88,7 @@ export interface TaskListProps {
   projectId?: string;
   staticList?: boolean;
   enableBulkActions?: boolean;
+  enableInboxBulkOrganize?: boolean;
   showSort?: boolean;
   showQuickAddHelp?: boolean;
   emptyText?: string;
@@ -115,6 +119,7 @@ function TaskListComponent({
   projectId,
   staticList = false,
   enableBulkActions = true,
+  enableInboxBulkOrganize = false,
   showSort = true,
   showQuickAddHelp = true,
   emptyText,
@@ -191,6 +196,7 @@ function TaskListComponent({
   const [refreshing, setRefreshing] = useState(false);
   const [sortModalVisible, setSortModalVisible] = useState(false);
   const [filtersVisible, setFiltersVisible] = useState(false);
+  const [bulkOrganizeVisible, setBulkOrganizeVisible] = useState(false);
   const [internalProjectReorderMode, setInternalProjectReorderMode] = useState(false);
   const [completedTasksCollapsed, setCompletedTasksCollapsed] = useState(true);
   const [taskSearchQuery, setTaskSearchQuery] = useState('');
@@ -270,6 +276,7 @@ function TaskListComponent({
     exitSelectionMode,
     handleBatchAddTag,
     handleBatchDelete,
+    handleBatchOrganize,
     handleBatchMove,
     hasSelection,
     multiSelectedIds,
@@ -305,6 +312,7 @@ function TaskListComponent({
   const prioritiesEnabled = settings?.features?.priorities !== false;
   const timeEstimatesEnabled = settings?.features?.timeEstimates !== false;
   const showTimeEstimateFilters = showTimeEstimateFiltersProp && timeEstimatesEnabled && statusFilter !== 'inbox';
+  const canBulkOrganizeInbox = enableInboxBulkOrganize && statusFilter === 'inbox';
   const projectById = useMemo(() => new Map(projects.map((project) => [project.id, project])), [projects]);
   const { areaById, resolvedAreaFilter, selectedAreaIdForNewTasks } = useMobileAreaFilter();
 
@@ -1316,6 +1324,7 @@ function TaskListComponent({
           handleBatchDelete={handleBatchDelete}
           handleBatchMove={handleBatchMove}
           hasSelection={hasSelection}
+          onOpenOrganize={canBulkOrganizeInbox ? () => setBulkOrganizeVisible(true) : undefined}
           onToggleRangeSelectMode={toggleRangeSelectMode}
           onOpenTagModal={() => setTagModalVisible(true)}
           rangeSelectMode={rangeSelectMode}
@@ -1469,6 +1478,21 @@ function TaskListComponent({
         tagInput={tagInput}
         themeColors={themeColorsMemo}
         visible={tagModalVisible}
+      />
+
+      <TaskListBulkOrganizeModal
+        areas={areas}
+        isApplying={bulkActionLoading}
+        onApply={async (input) => {
+          await handleBatchOrganize(input);
+          setBulkOrganizeVisible(false);
+        }}
+        onClose={() => setBulkOrganizeVisible(false)}
+        projects={projects}
+        selectedCount={selectedIdsArray.length}
+        t={t}
+        themeColors={themeColorsMemo}
+        visible={bulkOrganizeVisible}
       />
 
       <TaskListSortModal

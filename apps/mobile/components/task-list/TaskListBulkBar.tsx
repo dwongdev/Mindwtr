@@ -1,5 +1,6 @@
 import React from 'react';
 import { ActivityIndicator, ScrollView, Text, TouchableOpacity, View } from 'react-native';
+import { ClipboardCheck } from 'lucide-react-native';
 import { tFallback, type TaskStatus } from '@mindwtr/core';
 
 import { styles } from './task-list.styles';
@@ -20,6 +21,7 @@ type TaskListBulkBarProps = {
   handleBatchDelete: () => void;
   handleBatchMove: (status: TaskStatus) => void;
   hasSelection: boolean;
+  onOpenOrganize?: () => void;
   onToggleRangeSelectMode: () => void;
   onOpenTagModal: () => void;
   rangeSelectMode: boolean;
@@ -34,6 +36,7 @@ export function TaskListBulkBar({
   handleBatchDelete,
   handleBatchMove,
   hasSelection,
+  onOpenOrganize,
   onToggleRangeSelectMode,
   onOpenTagModal,
   rangeSelectMode,
@@ -76,6 +79,20 @@ export function TaskListBulkBar({
         ))}
       </ScrollView>
       <View style={styles.bulkActions}>
+        {onOpenOrganize ? (
+          <TouchableOpacity
+            onPress={onOpenOrganize}
+            disabled={!hasSelection || bulkActionLoading}
+            style={[styles.bulkActionButton, { backgroundColor: themeColors.tint, opacity: hasSelection && !bulkActionLoading ? 1 : 0.5 }]}
+            accessibilityRole="button"
+            accessibilityLabel={tFallback(t, 'bulk.organizeInbox', 'Bulk organize Inbox')}
+          >
+            <ClipboardCheck size={14} color={themeColors.onTint} />
+            <Text style={[styles.bulkActionText, { color: themeColors.onTint }]}>
+              {tFallback(t, 'bulk.organize', 'Bulk organize')}
+            </Text>
+          </TouchableOpacity>
+        ) : null}
         <TouchableOpacity
           onPress={onToggleRangeSelectMode}
           disabled={!canSelectRange}

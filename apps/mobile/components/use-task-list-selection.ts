@@ -1,6 +1,11 @@
 import { useCallback, useMemo, useRef, useState } from 'react';
 import { Alert } from 'react-native';
-import { updateRangeSelection } from '@mindwtr/core';
+import {
+  buildBulkOrganizeTaskUpdates,
+  tFallback,
+  updateRangeSelection,
+  type BulkOrganizeTaskUpdateInput,
+} from '@mindwtr/core';
 import type { StoreActionResult, Task, TaskStatus } from '@mindwtr/core';
 import { logError } from '../lib/app-log';
 import { getBulkActionFailureMessage } from './task-list-utils';
@@ -158,12 +163,28 @@ export function useTaskListSelection({
     });
   }, [batchUpdateTasks, bulkActionLoading, exitSelectionMode, hasSelection, runBulkAction, selectedIdsArray, showToast, t, tagInput, tasksById]);
 
+  const handleBatchOrganize = useCallback(async (input: BulkOrganizeTaskUpdateInput) => {
+    if (!hasSelection || bulkActionLoading) return;
+    const updates = buildBulkOrganizeTaskUpdates(selectedIdsArray, tasksById, input);
+    if (updates.length === 0) return;
+    await runBulkAction(tFallback(t, 'bulk.organize', 'Bulk organize'), async () => {
+      await batchUpdateTasks(updates);
+      exitSelectionMode();
+      showToast({
+        title: t('common.done'),
+        message: `${updates.length} ${t('common.tasks')}`,
+        tone: 'success',
+      });
+    });
+  }, [batchUpdateTasks, bulkActionLoading, exitSelectionMode, hasSelection, runBulkAction, selectedIdsArray, showToast, t, tasksById]);
+
   return {
     bulkActionLabel,
     bulkActionLoading,
     exitSelectionMode,
     handleBatchAddTag,
     handleBatchDelete,
+    handleBatchOrganize,
     handleBatchMove,
     hasSelection,
     multiSelectedIds,

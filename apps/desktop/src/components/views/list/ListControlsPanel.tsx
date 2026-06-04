@@ -39,6 +39,7 @@ type ListControlsPanelProps = {
     onAddContext: () => void;
     onAddTag: () => void;
     onAssignArea: (areaId: string | null) => Promise<void>;
+    onBulkOrganize?: () => void;
     onChangeGroupBy: (value: NextGroupBy) => void;
     onChangeQuickAdd: (value: string) => void;
     onChangeSearch: (value: string) => void;
@@ -115,6 +116,7 @@ export function ListControlsPanel({
     onAddContext,
     onAddTag,
     onAssignArea,
+    onBulkOrganize,
     onChangeGroupBy,
     onChangeQuickAdd,
     onChangeSearch,
@@ -218,6 +220,7 @@ export function ListControlsPanel({
                             onMoveToStatus={onMoveToStatus}
                             onAssignArea={onAssignArea}
                             areaOptions={areaOptions}
+                            onBulkOrganize={onBulkOrganize}
                             onAddTag={onAddTag}
                             onAddContext={onAddContext}
                             onRemoveContext={onRemoveContext}

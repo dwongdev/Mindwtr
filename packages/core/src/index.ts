@@ -74,6 +74,16 @@ export type {
 } from './range-selection';
 
 export {
+    buildBulkOrganizeTaskUpdate,
+    buildBulkOrganizeTaskUpdates,
+    parseBulkOrganizeTokenInput,
+} from './bulk-organize';
+export type {
+    BulkOrganizeStatus,
+    BulkOrganizeTaskUpdateInput,
+} from './bulk-organize';
+
+export {
     applyTaskUpdates,
     flushPendingSave,
     getStorageAdapter,

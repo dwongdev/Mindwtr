@@ -59,7 +59,8 @@ export default function InboxScreen() {
         statusFilter="inbox"
         title={t('inbox.title')}
         showHeader={false}
-        enableBulkActions={false}
+        enableBulkActions
+        enableInboxBulkOrganize
         allowAdd={false}
         showQuickAddHelp={false}
         emptyText={t('inbox.empty')}
