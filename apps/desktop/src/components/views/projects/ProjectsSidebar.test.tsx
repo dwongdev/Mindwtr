@@ -5,6 +5,7 @@ import type { Project } from '@mindwtr/core';
 import { describe, expect, it, vi } from 'vitest';
 
 import { ProjectsSidebar } from './ProjectsSidebar';
+import { getProjectAreaCollapseKey } from './project-area-collapse';
 
 const now = '2026-04-02T12:00:00.000Z';
 const noAreaId = '__no_area__';
@@ -312,5 +313,53 @@ describe('ProjectsSidebar', () => {
         expect(deferredSection).toHaveTextContent('Waiting Project');
         expect(deferredSection).not.toHaveTextContent('Archived Project');
         expect(archivedSection).toHaveTextContent('Archived Project');
+    });
+
+    it('collapses matching areas independently across project sections', () => {
+        const areaId = 'area-1';
+        const activeProject = { ...buildProject('project-active', 'Active Project', 0), areaId };
+        const waitingProject = { ...buildProject('project-waiting', 'Waiting Project', 1), areaId, status: 'waiting' as const };
+
+        render(
+            <ProjectsSidebar
+                t={t}
+                selectedTag={allTagsId}
+                noAreaId={noAreaId}
+                allTagsId={allTagsId}
+                noTagsId={noTagsId}
+                tagOptions={{ list: [], hasNoTags: true }}
+                isCreating={false}
+                isCreatingProject={false}
+                newProjectTitle=""
+                onStartCreate={vi.fn()}
+                onCancelCreate={vi.fn()}
+                onCreateProject={vi.fn()}
+                onChangeNewProjectTitle={vi.fn()}
+                onSelectTag={vi.fn()}
+                groupedActiveProjects={[[areaId, [activeProject]]]}
+                groupedDeferredProjects={[[areaId, [waitingProject]]]}
+                groupedArchivedProjects={[]}
+                areaById={new Map([[areaId, { id: areaId, name: 'Test area', color: '#3b82f6', order: 0, createdAt: now, updatedAt: now }]])}
+                collapsedAreas={{ [getProjectAreaCollapseKey('active', areaId)]: true }}
+                onToggleAreaCollapse={vi.fn()}
+                showDeferredProjects={true}
+                onToggleDeferredProjects={vi.fn()}
+                showArchivedProjects={false}
+                onToggleArchivedProjects={vi.fn()}
+                selectedProjectId={null}
+                onSelectProject={vi.fn()}
+                getProjectColor={(project) => project.color}
+                tasksByProject={{}}
+                projects={[activeProject, waitingProject]}
+                focusedProjectCount={0}
+                toggleProjectFocus={vi.fn()}
+                updateProject={vi.fn()}
+                reorderProjects={vi.fn()}
+                onDuplicateProject={vi.fn()}
+            />
+        );
+
+        expect(screen.queryByText('Active Project')).not.toBeInTheDocument();
+        expect(screen.getByText('Waiting Project')).toBeInTheDocument();
     });
 });

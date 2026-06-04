@@ -5,6 +5,11 @@ import type { Area, AppData } from '@mindwtr/core';
 import { AREA_FILTER_ALL, AREA_FILTER_NONE, resolveAreaFilter } from '../../../lib/area-filter';
 import { reportError } from '../../../lib/report-error';
 import type { ConfirmationRequestOptions } from '../../../hooks/useConfirmDialog';
+import {
+    toggleProjectAreaCollapse,
+    type ProjectAreaSection,
+    type CollapsedProjectAreas,
+} from './project-area-collapse';
 
 type UseAreaSidebarStateParams = {
     areas: Area[];
@@ -12,7 +17,7 @@ type UseAreaSidebarStateParams = {
     t: (key: string) => string;
     reorderAreas: (ids: string[]) => Promise<void> | void;
     deleteArea: (id: string) => Promise<unknown> | void;
-    setCollapsedAreas: React.Dispatch<React.SetStateAction<Record<string, boolean>>>;
+    setCollapsedAreas: React.Dispatch<React.SetStateAction<CollapsedProjectAreas>>;
     requestConfirmation: (options: ConfirmationRequestOptions) => Promise<boolean>;
     showToast?: (message: string, tone?: 'success' | 'error' | 'info', durationMs?: number) => void;
 };
@@ -54,8 +59,8 @@ export function useAreaSidebarState({
         }),
     );
 
-    const toggleAreaCollapse = (areaId: string) => {
-        setCollapsedAreas((prev) => ({ ...prev, [areaId]: !prev[areaId] }));
+    const toggleAreaCollapse = (section: ProjectAreaSection, areaId: string) => {
+        setCollapsedAreas((prev) => toggleProjectAreaCollapse(prev, section, areaId));
     };
 
     const handleAreaDragEnd = (event: DragEndEvent) => {

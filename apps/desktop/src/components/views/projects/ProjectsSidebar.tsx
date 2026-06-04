@@ -11,6 +11,11 @@ import {
     getProjectAreaContainerId,
     ProjectAreaDropZone,
 } from './project-area-dnd';
+import {
+    isProjectAreaCollapsed,
+    type ProjectAreaSection,
+    type CollapsedProjectAreas,
+} from './project-area-collapse';
 
 const PROJECT_SELECTION_IGNORE_SELECTOR = '[data-project-selection-ignore="true"]';
 
@@ -52,8 +57,8 @@ interface ProjectsSidebarProps {
     groupedDeferredProjects: GroupedProjects;
     groupedArchivedProjects: GroupedProjects;
     areaById: Map<string, Area>;
-    collapsedAreas: Record<string, boolean>;
-    onToggleAreaCollapse: (areaId: string) => void;
+    collapsedAreas: CollapsedProjectAreas;
+    onToggleAreaCollapse: (section: ProjectAreaSection, areaId: string) => void;
     showDeferredProjects: boolean;
     onToggleDeferredProjects: () => void;
     showArchivedProjects: boolean;
@@ -364,13 +369,13 @@ export function ProjectsSidebar({
                         {groupedActiveProjects.map(([areaId, areaProjects]) => {
                             const area = areaById.get(areaId);
                             const areaLabel = area ? area.name : t('projects.noArea');
-                            const isCollapsed = collapsedAreas[areaId] ?? false;
+                            const isCollapsed = isProjectAreaCollapsed(collapsedAreas, 'active', areaId);
 
                             return (
                                 <div key={areaId} className="space-y-1">
                                     <button
                                         type="button"
-                                        onClick={() => onToggleAreaCollapse(areaId)}
+                                        onClick={() => onToggleAreaCollapse('active', areaId)}
                                         className="w-full flex items-center justify-between px-2 py-1.5 text-xs font-medium text-muted-foreground uppercase tracking-wide hover:text-foreground transition-colors"
                                     >
                                         <span className="flex items-center gap-2">
@@ -505,13 +510,13 @@ export function ProjectsSidebar({
                                     {groupedDeferredProjects.map(([areaId, areaProjects]) => {
                                         const area = areaById.get(areaId);
                                         const areaLabel = area ? area.name : t('projects.noArea');
-                                        const isCollapsed = collapsedAreas[areaId] ?? false;
+                                        const isCollapsed = isProjectAreaCollapsed(collapsedAreas, 'deferred', areaId);
 
                                         return (
                                             <div key={`deferred-${areaId}`} className="space-y-1">
                                                 <button
                                                     type="button"
-                                                    onClick={() => onToggleAreaCollapse(areaId)}
+                                                    onClick={() => onToggleAreaCollapse('deferred', areaId)}
                                                     className="w-full flex items-center justify-between px-2 py-1.5 text-xs font-medium text-muted-foreground uppercase tracking-wide hover:text-foreground transition-colors"
                                                 >
                                                     <span className="flex items-center gap-2">
@@ -603,13 +608,13 @@ export function ProjectsSidebar({
                                     {groupedArchivedProjects.map(([areaId, areaProjects]) => {
                                         const area = areaById.get(areaId);
                                         const areaLabel = area ? area.name : t('projects.noArea');
-                                        const isCollapsed = collapsedAreas[areaId] ?? false;
+                                        const isCollapsed = isProjectAreaCollapsed(collapsedAreas, 'archived', areaId);
 
                                         return (
                                             <div key={`archived-${areaId}`} className="space-y-1">
                                                 <button
                                                     type="button"
-                                                    onClick={() => onToggleAreaCollapse(areaId)}
+                                                    onClick={() => onToggleAreaCollapse('archived', areaId)}
                                                     className="w-full flex items-center justify-between px-2 py-1.5 text-xs font-medium text-muted-foreground uppercase tracking-wide hover:text-foreground transition-colors"
                                                 >
                                                     <span className="flex items-center gap-2">
