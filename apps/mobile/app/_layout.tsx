@@ -63,6 +63,8 @@ import {
   recordLocalPromptActivity,
   updateLocalUserPromptState,
 } from '@/lib/user-prompt-state';
+import { subscribePromptTest } from '@/lib/prompt-test-controls';
+import { requestStoreReviewForTesting } from '@/lib/store-review-prompt';
 import {
   readMobileOnboardingDismissed,
   shouldOpenMobileFirstRunOnboarding,
@@ -125,6 +127,7 @@ type MobileExtraConfig = {
   analyticsHeartbeatUrl?: string;
   analyticsHeartbeatChannel?: string;
   donationPromptEnabled?: boolean | string;
+  promptTestControlsEnabled?: boolean | string;
 };
 
 const parseBool = (value: unknown): boolean =>
@@ -141,12 +144,16 @@ const resolveMobileDonationPromptAllowed = async (options: {
 
 const UPDATE_REMINDER_RELEASES_API = 'https://api.github.com/repos/dongdongbh/Mindwtr/releases/latest';
 const UPDATE_REMINDER_RELEASES_URL = 'https://github.com/dongdongbh/Mindwtr/releases/latest';
+const APP_STORE_APP_ID = '6758597144';
+const APP_STORE_REVIEW_URL = `itms-apps://itunes.apple.com/app/id${APP_STORE_APP_ID}?action=write-review`;
+const APP_STORE_LISTING_URL = `https://apps.apple.com/app/mindwtr/id${APP_STORE_APP_ID}`;
 
 type MobileUpdateReminderInfo = {
   currentVersion: string;
   latestVersion: string;
   latestReleasedAt: string | null;
   releaseUrl: string;
+  testOnly?: boolean;
 };
 
 type GitHubLatestRelease = {
@@ -199,6 +206,43 @@ const buildUpdateReminderAnnouncement = (info: MobileUpdateReminderInfo): AppAnn
     url: info.releaseUrl,
   },
 });
+
+const getAndroidPackageName = (): string => (
+  Constants.expoConfig?.android?.package || Application.applicationId || 'tech.dongdongbh.mindwtr'
+);
+
+const openMobileStoreReviewDestination = async (): Promise<boolean> => {
+  if (Platform.OS === 'android') {
+    const packageName = getAndroidPackageName();
+    const marketUrl = `market://details?id=${packageName}`;
+    const webUrl = `https://play.google.com/store/apps/details?id=${packageName}`;
+    try {
+      await Linking.openURL(marketUrl);
+      return true;
+    } catch {
+      await Linking.openURL(webUrl);
+      return true;
+    }
+  }
+
+  if (Platform.OS === 'ios') {
+    try {
+      await Linking.openURL(APP_STORE_REVIEW_URL);
+      return true;
+    } catch {
+      await Linking.openURL(APP_STORE_LISTING_URL);
+      return true;
+    }
+  }
+
+  return false;
+};
+
+const PROMPT_TEST_ANNOUNCEMENT: AppAnnouncement = {
+  id: 'prompt-test-announcement',
+  title: 'Test announcement',
+  body: 'This is the temporary announcement template test. It uses the same popup surface as a real maintainer announcement.',
+};
 
 const getDeviceLocale = (): string => {
   try {
@@ -264,6 +308,8 @@ function RootLayoutContentInner() {
   const analyticsHeartbeatUrl = String(extraConfig?.analyticsHeartbeatUrl || '').trim();
   const analyticsHeartbeatChannel = String(extraConfig?.analyticsHeartbeatChannel || '').trim();
   const donationPromptEnabled = parseBool(extraConfig?.donationPromptEnabled);
+  const promptTestControlsEnabled = process.env.NODE_ENV !== 'test'
+    && (__DEV__ || parseBool(extraConfig?.promptTestControlsEnabled));
   const isExpoGo = Constants.appOwnership === 'expo';
   const appVersion = Constants.expoConfig?.version ?? '0.0.0';
   const settingsLanguage = useTaskStore((state) => state.settings?.language);
@@ -291,7 +337,9 @@ function RootLayoutContentInner() {
   const [updateReminderDismissedInSession, setUpdateReminderDismissedInSession] = useState(false);
   const [updateReminderAllowed, setUpdateReminderAllowed] = useState<boolean | null>(null);
   const [updateReminderInfo, setUpdateReminderInfo] = useState<MobileUpdateReminderInfo | null>(null);
+  const [testAnnouncement, setTestAnnouncement] = useState<AppAnnouncement | null>(null);
   const [promptActivitySettled, setPromptActivitySettled] = useState(false);
+  const activeAnnouncement = testAnnouncement ?? ACTIVE_APP_ANNOUNCEMENT;
 
   const resolveText = useCallback((key: string, fallback: string) => (
     translateWithFallback(t, key, fallback)
@@ -540,6 +588,11 @@ function RootLayoutContentInner() {
   ]);
 
   const dismissAppAnnouncement = useCallback(() => {
+    if (testAnnouncement) {
+      setTestAnnouncement(null);
+      setAnnouncementOpen(false);
+      return;
+    }
     const announcement = ACTIVE_APP_ANNOUNCEMENT;
     setAnnouncementDismissedInSession(true);
     setAnnouncementOpen(false);
@@ -553,7 +606,7 @@ function RootLayoutContentInner() {
         extra: { error: error instanceof Error ? error.message : String(error) },
       });
     });
-  }, []);
+  }, [testAnnouncement]);
 
   const openAnnouncementUrl = useCallback((url: string) => {
     const nextUrl = url.trim();
@@ -591,7 +644,7 @@ function RootLayoutContentInner() {
 
   const dismissUpdateReminder = useCallback(() => {
     const latestVersion = updateReminderInfo?.latestVersion;
-    if (latestVersion) {
+    if (latestVersion && updateReminderInfo?.testOnly !== true) {
       updateLocalUserPromptState((state) => recordUpdateReminderDismissed(state, latestVersion))
         .catch((error) => {
           void logWarn('Failed to persist update reminder dismissal', {
@@ -602,7 +655,7 @@ function RootLayoutContentInner() {
     }
     setUpdateReminderDismissedInSession(true);
     setUpdateReminderOpen(false);
-  }, [updateReminderInfo?.latestVersion]);
+  }, [updateReminderInfo?.latestVersion, updateReminderInfo?.testOnly]);
 
   const handleUpdateReminderAction = useCallback((action: AppAnnouncementAction) => {
     dismissUpdateReminder();
@@ -612,6 +665,55 @@ function RootLayoutContentInner() {
     }
     openAnnouncementUrl(action.url);
   }, [dismissUpdateReminder, openAnnouncementUrl, router]);
+
+  useEffect(() => {
+    if (!promptTestControlsEnabled) return;
+    return subscribePromptTest((kind) => {
+      setAnnouncementOpen(false);
+      setDonationPromptOpen(false);
+      setUpdateReminderOpen(false);
+      setTestAnnouncement(null);
+
+      if (kind === 'announcement') {
+        setTestAnnouncement(PROMPT_TEST_ANNOUNCEMENT);
+        setAnnouncementOpen(true);
+        return;
+      }
+      if (kind === 'donation') {
+        setDonationPromptOpen(true);
+        return;
+      }
+      if (kind === 'update') {
+        setUpdateReminderInfo({
+          currentVersion: appVersion,
+          latestVersion: '99.99.99',
+          latestReleasedAt: new Date().toISOString(),
+          releaseUrl: UPDATE_REMINDER_RELEASES_URL,
+          testOnly: true,
+        });
+        setUpdateReminderOpen(true);
+        return;
+      }
+      requestStoreReviewForTesting()
+        .then((shown) => {
+          if (shown) return;
+          return openMobileStoreReviewDestination()
+            .then((opened) => {
+              if (opened) return;
+              showToast({
+                message: 'Native review prompt is unavailable in this build.',
+                tone: 'info',
+              });
+            });
+        })
+        .catch((error) => {
+          void logWarn('Failed to request review prompt test', {
+            scope: 'store-review',
+            extra: { error: error instanceof Error ? error.message : String(error) },
+          });
+        });
+    });
+  }, [appVersion, promptTestControlsEnabled, showToast]);
 
   useEffect(() => {
     if (
@@ -965,7 +1067,7 @@ function RootLayoutContentInner() {
             onStartFresh={startFreshOnboarding}
           />
           <AppAnnouncementModal
-            announcement={ACTIVE_APP_ANNOUNCEMENT}
+            announcement={activeAnnouncement}
             visible={announcementOpen && !mobileOnboardingOpen}
             onAction={handleAppAnnouncementAction}
             onDismiss={dismissAppAnnouncement}

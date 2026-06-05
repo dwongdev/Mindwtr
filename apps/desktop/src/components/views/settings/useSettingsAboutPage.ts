@@ -25,6 +25,10 @@ import {
     getInstallSourceOrFallback,
     isTauriRuntime,
 } from '../../../lib/runtime';
+import {
+    dispatchPromptTest,
+    PROMPT_TEST_CONTROLS_ENABLED,
+} from '../../../lib/prompt-test-controls';
 import { reportError } from '../../../lib/report-error';
 import { getLogPath } from '../../../lib/app-log';
 import { measureSettingsOpenStep } from '../../../lib/settings-open-diagnostics';
@@ -434,6 +438,8 @@ export function useSettingsAboutPage({
             isCheckingUpdate,
             onCheckUpdates: handleCheckUpdates,
             onOpenLink: openLink,
+            onTriggerPromptTest: dispatchPromptTest,
+            promptTestControlsEnabled: PROMPT_TEST_CONTROLS_ENABLED,
             updateActionLabel,
             updateError,
             updateNotice,

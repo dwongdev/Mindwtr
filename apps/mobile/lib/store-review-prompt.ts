@@ -77,3 +77,20 @@ export async function maybeRequestStoreReviewAfterPositiveMoment(nowMs = Date.no
     return false;
   }
 }
+
+export async function requestStoreReviewForTesting(): Promise<boolean> {
+  if (Platform.OS !== 'ios' && Platform.OS !== 'android') return false;
+  const storeReviewAvailable = await hasNativeReviewAction();
+  if (!storeReviewAvailable) return false;
+
+  try {
+    await StoreReview.requestReview();
+    return true;
+  } catch (error) {
+    void logWarn('Native store review test request failed', {
+      scope: 'store-review',
+      extra: { error: error instanceof Error ? error.message : String(error) },
+    });
+    return false;
+  }
+}

@@ -137,7 +137,7 @@ export function FeedbackSettingsModal({
                         </View>
 
                         {status === 'sent' ? (
-                            <View style={styles.feedbackModalBody}>
+                            <View style={styles.feedbackSentBody}>
                                 <View style={[styles.feedbackNotice, { backgroundColor: `${tc.success}22`, borderColor: `${tc.success}55` }]}>
                                     <Text style={[styles.feedbackNoticeText, { color: tc.success }]}>
                                         {tr('settings.feedbackSent')}
@@ -157,6 +157,7 @@ export function FeedbackSettingsModal({
                                 style={styles.feedbackModalScroll}
                                 contentContainerStyle={styles.feedbackModalBody}
                                 keyboardShouldPersistTaps="handled"
+                                showsVerticalScrollIndicator
                             >
                                 <Text style={[styles.feedbackFieldLabel, { color: tc.secondaryText }]}>
                                     {tr('settings.feedbackCategory')}
@@ -270,37 +271,38 @@ export function FeedbackSettingsModal({
                                         </Text>
                                     </View>
                                 ) : null}
-
-                                <View style={styles.feedbackActions}>
-                                    <TouchableOpacity
-                                        style={[styles.feedbackSecondaryButton, { borderColor: tc.border }]}
-                                        onPress={onClose}
-                                    >
-                                        <Text style={[styles.feedbackSecondaryButtonText, { color: tc.secondaryText }]}>
-                                            {tr('common.cancel')}
-                                        </Text>
-                                    </TouchableOpacity>
-                                    <TouchableOpacity
-                                        disabled={!canSubmit}
-                                        style={[
-                                            styles.feedbackPrimaryButton,
-                                            { backgroundColor: tc.tint },
-                                            !canSubmit && styles.feedbackButtonDisabled,
-                                        ]}
-                                        onPress={() => void submit()}
-                                    >
-                                        {status === 'sending' ? (
-                                            <ActivityIndicator size="small" color={tc.onTint} />
-                                        ) : null}
-                                        <Text style={[styles.feedbackPrimaryButtonText, { color: tc.onTint }]}>
-                                            {status === 'sending'
-                                                ? tr('settings.feedbackSending')
-                                                : tr('settings.feedbackSubmit')}
-                                        </Text>
-                                    </TouchableOpacity>
-                                </View>
                             </ScrollView>
                         )}
+                        {status !== 'sent' ? (
+                            <View style={[styles.feedbackActions, { borderTopColor: tc.border }]}>
+                                <TouchableOpacity
+                                    style={[styles.feedbackSecondaryButton, { borderColor: tc.border }]}
+                                    onPress={onClose}
+                                >
+                                    <Text style={[styles.feedbackSecondaryButtonText, { color: tc.secondaryText }]}>
+                                        {tr('common.cancel')}
+                                    </Text>
+                                </TouchableOpacity>
+                                <TouchableOpacity
+                                    disabled={!canSubmit}
+                                    style={[
+                                        styles.feedbackPrimaryButton,
+                                        { backgroundColor: tc.tint },
+                                        !canSubmit && styles.feedbackButtonDisabled,
+                                    ]}
+                                    onPress={() => void submit()}
+                                >
+                                    {status === 'sending' ? (
+                                        <ActivityIndicator size="small" color={tc.onTint} />
+                                    ) : null}
+                                    <Text style={[styles.feedbackPrimaryButtonText, { color: tc.onTint }]}>
+                                        {status === 'sending'
+                                            ? tr('settings.feedbackSending')
+                                            : tr('settings.feedbackSubmit')}
+                                    </Text>
+                                </TouchableOpacity>
+                            </View>
+                        ) : null}
                     </Pressable>
                 </Pressable>
             </KeyboardAvoidingView>

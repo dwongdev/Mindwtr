@@ -15,6 +15,8 @@ const feedbackEndpointUrl = (process.env.FEEDBACK_ENDPOINT_URL ?? '').trim();
 const dropboxAppKey = (process.env.DROPBOX_APP_KEY ?? '').trim();
 const donationPromptEnabled = process.env.DONATION_PROMPT_ENABLED === '1'
   || process.env.DONATION_PROMPT_ENABLED === 'true';
+const promptTestControlsEnabled = process.env.PROMPT_TEST_CONTROLS_ENABLED === '1'
+  || process.env.PROMPT_TEST_CONTROLS_ENABLED === 'true';
 
 export default ({ config }: ConfigContext): ExpoConfig => {
   const base = config as ExpoConfig;
@@ -26,6 +28,7 @@ export default ({ config }: ConfigContext): ExpoConfig => {
     feedbackEndpointUrl,
     dropboxAppKey,
     donationPromptEnabled,
+    promptTestControlsEnabled,
   };
 
   return {

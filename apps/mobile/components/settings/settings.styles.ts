@@ -153,6 +153,18 @@ export const styles = StyleSheet.create({
     settingDescription: { fontSize: 13, marginTop: 2 },
     settingValue: { fontSize: 16 },
     linkText: { fontSize: 16, color: '#3B82F6' },
+    promptTestButtonGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 12 },
+    promptTestButton: {
+        alignItems: 'center',
+        borderRadius: 10,
+        borderWidth: 1,
+        flexDirection: 'row',
+        gap: 6,
+        minHeight: 38,
+        paddingHorizontal: 10,
+        paddingVertical: 8,
+    },
+    promptTestButtonText: { fontSize: 13, fontWeight: '700' },
     guideLinkInline: {
         alignItems: 'center',
         flexDirection: 'row',
@@ -372,6 +384,7 @@ export const styles = StyleSheet.create({
         maxHeight: '88%',
         borderRadius: 18,
         borderWidth: 1,
+        flexShrink: 1,
         overflow: 'hidden',
     },
     feedbackModalHeader: {
@@ -404,11 +417,16 @@ export const styles = StyleSheet.create({
         justifyContent: 'center',
     },
     feedbackModalScroll: {
-        flexGrow: 0,
+        flexShrink: 1,
     },
     feedbackModalBody: {
         padding: 16,
         gap: 12,
+        paddingBottom: 18,
+    },
+    feedbackSentBody: {
+        gap: 12,
+        padding: 16,
     },
     feedbackFieldLabel: {
         fontSize: 12,
@@ -491,10 +509,11 @@ export const styles = StyleSheet.create({
         fontWeight: '600',
     },
     feedbackActions: {
+        borderTopWidth: 1,
         flexDirection: 'row',
         justifyContent: 'flex-end',
         gap: 10,
-        marginTop: 2,
+        padding: 14,
     },
     feedbackPrimaryButton: {
         minHeight: 44,

@@ -1,7 +1,8 @@
 import { useState } from 'react';
-import { ExternalLink, MessageSquare, RefreshCw } from 'lucide-react';
+import { ExternalLink, Heart, Megaphone, MessageSquare, RefreshCw, Star } from 'lucide-react';
 
 import { cn } from '../../../lib/utils';
+import type { PromptTestKind } from '../../../lib/prompt-test-controls';
 import { SettingsFeedbackModal, type FeedbackSubmitInput } from './SettingsFeedbackModal';
 
 type Labels = {
@@ -49,6 +50,8 @@ export type SettingsAboutPageProps = {
     updateNotice: string | null;
     feedbackConfigured: boolean;
     onSubmitFeedback: (input: FeedbackSubmitInput) => Promise<void>;
+    promptTestControlsEnabled?: boolean;
+    onTriggerPromptTest?: (kind: PromptTestKind) => void;
 };
 
 export function SettingsAboutPage({
@@ -63,9 +66,19 @@ export function SettingsAboutPage({
     updateNotice,
     feedbackConfigured,
     onSubmitFeedback,
+    promptTestControlsEnabled = false,
+    onTriggerPromptTest,
 }: SettingsAboutPageProps) {
     const [feedbackOpen, setFeedbackOpen] = useState(false);
     const actionLabel = updateActionLabel ?? t.checkForUpdates;
+    const showPromptTestControls = promptTestControlsEnabled && Boolean(onTriggerPromptTest);
+    const promptTestButtons: Array<{ kind: PromptTestKind; label: string; icon: typeof Megaphone }> = [
+        { kind: 'announcement', label: 'Announcement', icon: Megaphone },
+        { kind: 'update', label: 'Update', icon: RefreshCw },
+        { kind: 'review', label: 'Review', icon: Star },
+        { kind: 'donation', label: 'Donation', icon: Heart },
+    ];
+
     return (
         <>
             <div className="bg-muted/30 rounded-lg p-6 space-y-4 border border-border">
@@ -156,6 +169,32 @@ export function SettingsAboutPage({
                 )}
                 {updateNotice && !updateError && (
                     <div className="text-sm text-muted-foreground">{updateNotice}</div>
+                )}
+                {showPromptTestControls && (
+                    <>
+                        <div className="border-t border-border/50"></div>
+                        <div className="space-y-3">
+                            <div>
+                                <span className="text-muted-foreground">Prompt test controls</span>
+                                <p className="mt-0.5 text-xs text-muted-foreground">
+                                    Temporary local controls for announcement, update, review, and donation prompts.
+                                </p>
+                            </div>
+                            <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                                {promptTestButtons.map(({ kind, label, icon: Icon }) => (
+                                    <button
+                                        key={kind}
+                                        type="button"
+                                        onClick={() => onTriggerPromptTest?.(kind)}
+                                        className="inline-flex min-h-9 items-center justify-center gap-2 rounded-md border border-border bg-background px-2.5 py-1.5 text-xs font-medium text-foreground transition-colors hover:bg-muted"
+                                    >
+                                        <Icon className="h-3.5 w-3.5 text-muted-foreground" aria-hidden="true" />
+                                        {label}
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+                    </>
                 )}
             </div>
             <SettingsFeedbackModal

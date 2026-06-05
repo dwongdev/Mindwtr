@@ -84,6 +84,10 @@ import {
     updateLocalUserPromptState,
 } from './lib/user-prompt-state';
 import { checkForUpdates, normalizeInstallSource, type InstallSource } from './lib/update-service';
+import {
+    PROMPT_TEST_CONTROLS_ENABLED,
+    subscribePromptTest,
+} from './lib/prompt-test-controls';
 import { useUiStore } from './store/ui-store';
 import { useObsidianStore } from './store/obsidian-store';
 import type { SettingsOnboardingHintPage, SettingsPage } from './components/views/SettingsView';
@@ -110,12 +114,15 @@ const UPDATE_REMINDER_DESKTOP_INSTALL_SOURCES = new Set<InstallSource>([
     'apt',
     'rpm',
 ]);
+const MS_STORE_REVIEW_URL = 'ms-windows-store://review/?ProductId=9N0V5B0B6FRX';
+const MAC_APP_STORE_REVIEW_URL = 'macappstore://itunes.apple.com/app/id6758597144?action=write-review';
 
 type DesktopUpdateReminderInfo = {
     currentVersion: string;
     latestVersion: string;
     latestReleasedAt: string | null;
     releaseUrl: string;
+    testOnly?: boolean;
 };
 
 const isDesktopDonationPromptAllowed = (installSource: string | null | undefined): boolean => (
@@ -155,6 +162,40 @@ const buildUpdateReminderAnnouncement = (info: DesktopUpdateReminderInfo): AppAn
     },
 });
 
+const PROMPT_TEST_ANNOUNCEMENT: AppAnnouncement = {
+    id: 'prompt-test-announcement',
+    title: 'Test announcement',
+    body: 'This is the temporary announcement template test. It uses the same popup surface as a real maintainer announcement.',
+};
+
+const getDesktopReviewTarget = (installSource: InstallSource | null): { label: string; url: string } => {
+    const userAgent = typeof navigator === 'undefined' ? '' : navigator.userAgent.toLowerCase();
+    if (installSource === 'microsoft-store' || userAgent.includes('win')) {
+        return { label: 'Open Microsoft Store', url: MS_STORE_REVIEW_URL };
+    }
+    if (installSource === 'mac-app-store' || userAgent.includes('mac')) {
+        return { label: 'Open App Store', url: MAC_APP_STORE_REVIEW_URL };
+    }
+    return {
+        label: 'Open GitHub',
+        url: 'https://github.com/dongdongbh/Mindwtr',
+    };
+};
+
+const buildPromptTestReviewAnnouncement = (installSource: InstallSource | null): AppAnnouncement => {
+    const target = getDesktopReviewTarget(installSource);
+    return {
+        id: 'prompt-test-review',
+        title: 'Review prompt test',
+        body: 'Desktop builds do not have a native in-app review sheet. This test opens the best review destination for this platform.',
+        action: {
+            type: 'url',
+            label: target.label,
+            url: target.url,
+        },
+    };
+};
+
 function App() {
     const [currentView, setCurrentView] = useState(DEFAULT_DESKTOP_VIEW);
     const [activeView, setActiveView] = useState(DEFAULT_DESKTOP_VIEW);
@@ -176,6 +217,7 @@ function App() {
     const [updateReminderOpen, setUpdateReminderOpen] = useState(false);
     const [updateReminderDismissedInSession, setUpdateReminderDismissedInSession] = useState(false);
     const [updateReminderInfo, setUpdateReminderInfo] = useState<DesktopUpdateReminderInfo | null>(null);
+    const [testAnnouncement, setTestAnnouncement] = useState<AppAnnouncement | null>(null);
     const [, startTransition] = useTransition();
     const fetchData = useTaskStore((state) => state.fetchData);
     const seedGettingStarted = useTaskStore((state) => state.seedGettingStarted);
@@ -214,6 +256,7 @@ function App() {
     const obsidianVaultPath = useObsidianStore((state) => state.config.vaultPath);
     const startObsidianWatcher = useObsidianStore((state) => state.startWatcher);
     const stopObsidianWatcher = useObsidianStore((state) => state.stopWatcher);
+    const activeAnnouncement = testAnnouncement ?? ACTIVE_APP_ANNOUNCEMENT;
 
     const setClosePromptRememberValue = useCallback((next: boolean) => {
         closePromptRememberRef.current = next;
@@ -880,6 +923,11 @@ function App() {
     }, [desktopOnboardingBusy, dismissDesktopOnboarding, handleViewChange, seedGettingStarted, showToast]);
 
     const dismissAppAnnouncement = useCallback(() => {
+        if (testAnnouncement) {
+            setTestAnnouncement(null);
+            setAnnouncementOpen(false);
+            return;
+        }
         const announcement = ACTIVE_APP_ANNOUNCEMENT;
         if (announcement && typeof window !== 'undefined') {
             try {
@@ -893,7 +941,7 @@ function App() {
         }
         setAnnouncementDismissedInSession(true);
         setAnnouncementOpen(false);
-    }, []);
+    }, [testAnnouncement]);
 
     const openAnnouncementUrl = useCallback(async (url: string) => {
         const nextUrl = url.trim();
@@ -947,7 +995,7 @@ function App() {
 
     const dismissUpdateReminder = useCallback(() => {
         const latestVersion = updateReminderInfo?.latestVersion;
-        if (latestVersion) {
+        if (latestVersion && updateReminderInfo?.testOnly !== true) {
             try {
                 updateLocalUserPromptState((state) => recordUpdateReminderDismissed(state, latestVersion));
             } catch (error) {
@@ -956,7 +1004,7 @@ function App() {
         }
         setUpdateReminderDismissedInSession(true);
         setUpdateReminderOpen(false);
-    }, [updateReminderInfo?.latestVersion]);
+    }, [updateReminderInfo?.latestVersion, updateReminderInfo?.testOnly]);
 
     const handleUpdateReminderAction = useCallback((action: AppAnnouncementAction) => {
         dismissUpdateReminder();
@@ -968,6 +1016,58 @@ function App() {
         }
         void openAnnouncementUrl(action.url);
     }, [dismissUpdateReminder, handleViewChange, openAnnouncementUrl]);
+
+    useEffect(() => {
+        if (!PROMPT_TEST_CONTROLS_ENABLED) return;
+        let disposed = false;
+        const closePromptSurfaces = () => {
+            setAnnouncementOpen(false);
+            setDonationPromptOpen(false);
+            setUpdateReminderOpen(false);
+            setTestAnnouncement(null);
+        };
+
+        const unsubscribe = subscribePromptTest((kind) => {
+            closePromptSurfaces();
+            if (kind === 'announcement') {
+                setTestAnnouncement(PROMPT_TEST_ANNOUNCEMENT);
+                setAnnouncementOpen(true);
+                return;
+            }
+            if (kind === 'donation') {
+                setDonationPromptOpen(true);
+                return;
+            }
+            if (kind === 'review') {
+                setTestAnnouncement(buildPromptTestReviewAnnouncement(desktopInstallSource));
+                setAnnouncementOpen(true);
+                return;
+            }
+            const openUpdateTest = async () => {
+                let currentVersion = 'this build';
+                try {
+                    const { getVersion } = await import('@tauri-apps/api/app');
+                    currentVersion = await getVersion();
+                } catch {
+                    currentVersion = 'this build';
+                }
+                if (disposed) return;
+                setUpdateReminderInfo({
+                    currentVersion,
+                    latestVersion: '99.99.99',
+                    latestReleasedAt: new Date().toISOString(),
+                    releaseUrl: 'https://github.com/dongdongbh/Mindwtr/releases/latest',
+                    testOnly: true,
+                });
+                setUpdateReminderOpen(true);
+            };
+            void openUpdateTest();
+        });
+        return () => {
+            disposed = true;
+            unsubscribe();
+        };
+    }, [desktopInstallSource]);
 
     useEffect(() => {
         if (import.meta.env.MODE === 'test' || import.meta.env.VITEST || process.env.NODE_ENV === 'test') return;
@@ -1280,7 +1380,7 @@ function App() {
                         onSkip={dismissDesktopOnboarding}
                     />
                     <AppAnnouncementModal
-                        announcement={ACTIVE_APP_ANNOUNCEMENT}
+                        announcement={activeAnnouncement}
                         isOpen={
                             announcementOpen
                             && !desktopOnboardingOpen

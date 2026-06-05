@@ -84,6 +84,7 @@ export type MobileExtraConfig = {
     feedbackEndpointUrl?: string;
     isFossBuild?: boolean | string;
     dropboxAppKey?: string;
+    promptTestControlsEnabled?: boolean | string;
 };
 
 export type CloudProvider = 'selfhosted' | 'dropbox' | 'cloudkit';
