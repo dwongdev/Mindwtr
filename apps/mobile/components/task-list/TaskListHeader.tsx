@@ -23,15 +23,12 @@ export type TaskListActiveFilterChip = {
 type TaskListHeaderProps = {
   activeFilterChips: TaskListActiveFilterChip[];
   count: number;
-  enableBulkActions: boolean;
   headerAccessory?: React.ReactNode;
   filterActiveCount: number;
   hasActiveFilters: boolean;
   onClearFilters: () => void;
   onOpenFilters: () => void;
   onOpenSort: () => void;
-  onToggleSelectionMode: () => void;
-  selectionMode: boolean;
   showHeader: boolean;
   showSort: boolean;
   sortByLabel: string;
@@ -43,15 +40,12 @@ type TaskListHeaderProps = {
 export function TaskListHeader({
   activeFilterChips,
   count,
-  enableBulkActions,
   headerAccessory,
   filterActiveCount,
   hasActiveFilters,
   onClearFilters,
   onOpenFilters,
   onOpenSort,
-  onToggleSelectionMode,
-  selectionMode,
   showHeader,
   showSort,
   sortByLabel,
@@ -100,22 +94,6 @@ export function TaskListHeader({
       ) : null}
     </TouchableOpacity>
   );
-  const selectionControl = enableBulkActions ? (
-    <TouchableOpacity
-      onPress={onToggleSelectionMode}
-      style={[
-        styles.selectButton,
-        { borderColor: themeColors.border, backgroundColor: selectionMode ? themeColors.filterBg : 'transparent' },
-      ]}
-      accessibilityRole="button"
-      accessibilityLabel={selectionMode ? t('bulk.exitSelect') : t('bulk.select')}
-    >
-      <Text style={[styles.selectButtonText, { color: themeColors.text }]}>
-        {selectionMode ? t('bulk.exitSelect') : t('bulk.select')}
-      </Text>
-    </TouchableOpacity>
-  ) : null;
-
   return (
     <>
       {showHeader ? (
@@ -132,10 +110,9 @@ export function TaskListHeader({
             {sortControl}
             {filterControl}
             {headerAccessory}
-            {selectionControl}
           </View>
         </View>
-      ) : sortControl || filterControl || headerAccessory || selectionControl ? (
+      ) : sortControl || filterControl || headerAccessory ? (
         <View style={styles.headerAccessoryRow}>
           <View style={styles.headerAccessoryLeft}>
             <View style={styles.headerAccessoryControls}>
@@ -145,7 +122,6 @@ export function TaskListHeader({
           </View>
           <View style={styles.headerAccessoryRight}>
             {headerAccessory}
-            {selectionControl}
           </View>
         </View>
       ) : null}

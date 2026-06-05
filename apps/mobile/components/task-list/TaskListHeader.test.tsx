@@ -36,14 +36,11 @@ const renderHeader = (overrides: Partial<React.ComponentProps<typeof TaskListHea
   <TaskListHeader
     activeFilterChips={[]}
     count={3}
-    enableBulkActions={false}
     filterActiveCount={0}
     hasActiveFilters={false}
     onClearFilters={vi.fn()}
     onOpenFilters={vi.fn()}
     onOpenSort={vi.fn()}
-    onToggleSelectionMode={vi.fn()}
-    selectionMode={false}
     showHeader={false}
     showSort
     sortByLabel="Created (newest)"
@@ -96,5 +93,16 @@ describe('TaskListHeader', () => {
     expect(html).toContain('High');
     expect(html).toContain('Clear');
     expect(html).toContain('data-icon="x"');
+  });
+
+  it('keeps compact tools left and the primary accessory on the outside edge without Select chrome', () => {
+    const html = renderHeader({
+      headerAccessory: React.createElement('span', { 'data-testid': 'process-inbox' }, 'Process Inbox'),
+    });
+
+    expect(html).not.toContain('aria-label="Select"');
+    expect(html).toContain('data-icon="arrow-up-down"');
+    expect(html).toContain('data-icon="sliders-horizontal"');
+    expect(html.indexOf('data-icon="sliders-horizontal"')).toBeLessThan(html.indexOf('Process Inbox'));
   });
 });

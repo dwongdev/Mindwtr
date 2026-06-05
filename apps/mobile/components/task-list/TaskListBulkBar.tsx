@@ -1,6 +1,6 @@
 import React from 'react';
 import { ActivityIndicator, ScrollView, Text, TouchableOpacity, View } from 'react-native';
-import { ClipboardCheck } from 'lucide-react-native';
+import { ClipboardCheck, X } from 'lucide-react-native';
 import { tFallback, type TaskStatus } from '@mindwtr/core';
 
 import { styles } from './task-list.styles';
@@ -21,6 +21,7 @@ type TaskListBulkBarProps = {
   handleBatchDelete: () => void;
   handleBatchMove: (status: TaskStatus) => void;
   hasSelection: boolean;
+  onExitSelectionMode: () => void;
   onOpenOrganize?: () => void;
   onToggleRangeSelectMode: () => void;
   onOpenTagModal: () => void;
@@ -36,6 +37,7 @@ export function TaskListBulkBar({
   handleBatchDelete,
   handleBatchMove,
   hasSelection,
+  onExitSelectionMode,
   onOpenOrganize,
   onToggleRangeSelectMode,
   onOpenTagModal,
@@ -55,14 +57,28 @@ export function TaskListBulkBar({
         <Text style={[styles.bulkCount, { color: themeColors.secondaryText }]}>
           {selectedCount} {t('bulk.selected')}
         </Text>
-        {bulkActionLoading && (
-          <View style={styles.bulkLoadingRow}>
-            <ActivityIndicator size="small" color={themeColors.tint} />
-            <Text style={[styles.bulkLoadingText, { color: themeColors.secondaryText }]}>
-              {bulkActionLabel || t('common.loading')}
-            </Text>
-          </View>
-        )}
+        <View style={styles.bulkStatusActions}>
+          {bulkActionLoading && (
+            <View style={styles.bulkLoadingRow}>
+              <ActivityIndicator size="small" color={themeColors.tint} />
+              <Text style={[styles.bulkLoadingText, { color: themeColors.secondaryText }]}>
+                {bulkActionLabel || t('common.loading')}
+              </Text>
+            </View>
+          )}
+          <TouchableOpacity
+            onPress={onExitSelectionMode}
+            disabled={bulkActionLoading}
+            style={[
+              styles.bulkExitButton,
+              { backgroundColor: themeColors.filterBg, opacity: bulkActionLoading ? 0.5 : 1 },
+            ]}
+            accessibilityRole="button"
+            accessibilityLabel={tFallback(t, 'bulk.exitSelect', 'Done')}
+          >
+            <X size={16} color={themeColors.secondaryText} strokeWidth={2} />
+          </TouchableOpacity>
+        </View>
       </View>
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.bulkMoveRow}>
         {(['inbox', 'next', 'waiting', 'someday', 'reference', 'done'] as TaskStatus[]).map((status) => (

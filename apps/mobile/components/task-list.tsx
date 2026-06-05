@@ -283,7 +283,6 @@ function TaskListComponent({
     rangeSelectMode,
     selectedIdsArray,
     selectionMode,
-    setSelectionMode,
     setTagInput,
     setTagModalVisible,
     tagInput,
@@ -1029,7 +1028,7 @@ function TaskListComponent({
   }, [updateTask]);
 
   const sortOptions: TaskSortBy[] = ['default', 'due', 'start', 'review', 'title', 'created', 'created-desc'];
-  const hideStatusBadgeForList = statusFilter === 'next' || statusFilter === 'waiting';
+  const hideStatusBadgeForList = statusFilter === 'inbox' || statusFilter === 'next' || statusFilter === 'waiting';
   const hideChecklistProgressForList = statusFilter === 'inbox';
 
   const renderTask = useCallback(({ item }: { item: Task }) => (
@@ -1273,15 +1272,12 @@ function TaskListComponent({
       <TaskListHeader
         activeFilterChips={activeFilterChips}
         count={orderedTasks.length}
-        enableBulkActions={enableBulkActions}
         filterActiveCount={activeTaskFilterCount}
         hasActiveFilters={hasActiveTaskFilters}
         headerAccessory={headerAccessory}
         onClearFilters={clearTaskFilters}
         onOpenFilters={() => setFiltersVisible(true)}
         onOpenSort={() => setSortModalVisible(true)}
-        onToggleSelectionMode={() => (selectionMode ? exitSelectionMode() : setSelectionMode(true))}
-        selectionMode={selectionMode}
         showHeader={showHeader}
         showSort={showSort}
         sortByLabel={t(`sort.${sortBy}`)}
@@ -1324,6 +1320,7 @@ function TaskListComponent({
           handleBatchDelete={handleBatchDelete}
           handleBatchMove={handleBatchMove}
           hasSelection={hasSelection}
+          onExitSelectionMode={exitSelectionMode}
           onOpenOrganize={canBulkOrganizeInbox ? () => setBulkOrganizeVisible(true) : undefined}
           onToggleRangeSelectMode={toggleRangeSelectMode}
           onOpenTagModal={() => setTagModalVisible(true)}

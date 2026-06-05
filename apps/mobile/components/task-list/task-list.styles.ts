@@ -81,16 +81,6 @@ export const styles = StyleSheet.create({
     fontSize: 10,
     fontWeight: '700',
   },
-  selectButton: {
-    borderWidth: 1,
-    borderRadius: 6,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-  },
-  selectButtonText: {
-    fontSize: 12,
-    fontWeight: '600',
-  },
   bulkBar: {
     borderBottomWidth: 1,
     paddingHorizontal: 12,
@@ -106,6 +96,18 @@ export const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     gap: 8,
+  },
+  bulkStatusActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  bulkExitButton: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   bulkLoadingRow: {
     flexDirection: 'row',

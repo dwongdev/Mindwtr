@@ -25,6 +25,11 @@ vi.mock('react-native', () => ({
     React.createElement('div', { ...props, 'aria-label': accessibilityLabel, role: accessibilityRole }, props.children),
 }));
 
+vi.mock('lucide-react-native', () => ({
+  ClipboardCheck: () => React.createElement('span', { 'data-icon': 'clipboard-check' }),
+  X: () => React.createElement('span', { 'data-icon': 'x' }),
+}));
+
 const themeColors = {
   border: '#d1d5db',
   cardBg: '#ffffff',
@@ -38,6 +43,7 @@ const themeColors = {
 const t = (key: string) => ({
   'bulk.addTag': 'Add tag',
   'bulk.delete': 'Delete selected',
+  'bulk.exitSelect': 'Done',
   'bulk.moveTo': 'Move to',
   'bulk.selectRange': 'Range',
   'bulk.selectRangeActive': 'Pick end',
@@ -58,6 +64,7 @@ const renderBulkBar = (overrides: Partial<React.ComponentProps<typeof TaskListBu
     handleBatchDelete={vi.fn()}
     handleBatchMove={vi.fn()}
     hasSelection
+    onExitSelectionMode={vi.fn()}
     onOpenTagModal={vi.fn()}
     onToggleRangeSelectMode={vi.fn()}
     rangeSelectMode={false}
@@ -83,5 +90,11 @@ describe('TaskListBulkBar', () => {
     expect(html).toContain('aria-label="Pick end"');
     expect(html).toContain('aria-selected="true"');
     expect(html).toContain('Pick end');
+  });
+
+  it('keeps a selection-mode exit affordance inside the bulk bar', () => {
+    const html = renderBulkBar();
+
+    expect(html).toContain('aria-label="Done"');
   });
 });
