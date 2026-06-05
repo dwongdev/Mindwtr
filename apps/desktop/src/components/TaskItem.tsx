@@ -1081,7 +1081,10 @@ export const TaskItem = memo(function TaskItem({
                 draggable={canCalendarDrag}
                 tabIndex={-1}
                 onDragStart={handleCalendarDragStart}
-                onClickCapture={onSelect ? () => onSelect?.() : undefined}
+                onClickCapture={onSelect ? (event) => {
+                    if (!event.currentTarget.contains(event.target as Node)) return;
+                    onSelect?.();
+                } : undefined}
                 onDoubleClick={(event) => {
                     if (!enableDoubleClickEdit || selectionMode || effectiveReadOnly || isEditing) return;
                     event.stopPropagation();

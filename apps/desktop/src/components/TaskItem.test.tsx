@@ -64,16 +64,19 @@ describe('TaskItem', () => {
             });
         });
 
-        const { getAllByRole, getByRole, getByDisplayValue } = render(
-            <LanguageProvider>
-                <TaskItem task={mockTask} />
-            </LanguageProvider>
+        const { container, getAllByRole, getByRole, getByDisplayValue } = render(
+            <div style={{ transform: 'translateY(120px)' }}>
+                <LanguageProvider>
+                    <TaskItem task={mockTask} />
+                </LanguageProvider>
+            </div>
         );
 
         await act(async () => {
             fireEvent.click(getAllByRole('button', { name: /edit/i })[0]);
         });
 
+        expect(container.querySelector('[role="dialog"]')).toBeNull();
         expect(getByRole('dialog', { name: /edit task/i })).toBeInTheDocument();
         expect(getByDisplayValue('Test Task')).toBeInTheDocument();
     });
