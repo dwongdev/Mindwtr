@@ -7,7 +7,7 @@
  * table through Tauri commands.
  */
 import {
-    createProjectedRecurringTask,
+    expandCalendarRecurringTasks,
     getProjectedRecurringTaskId,
     hasTimeComponent,
     isProjectedRecurringTask,
@@ -374,10 +374,7 @@ async function syncTaskToCalendar(task: Task, target: CalendarPushTarget): Promi
 
 function getCalendarPushTasks(tasks: Task[]): Task[] {
     const projectedAtIso = dependencies.nowIso();
-    return tasks.flatMap((task) => {
-        const projectedTask = createProjectedRecurringTask(task, projectedAtIso);
-        return projectedTask ? [task, projectedTask] : [task];
-    });
+    return tasks.flatMap((task) => expandCalendarRecurringTasks(task, projectedAtIso));
 }
 
 async function runLimitedSettled<T>(
@@ -474,11 +471,9 @@ const runPartialDesktopCalendarPushSync = async (taskIds: string[]): Promise<voi
             removedIds.push(id, getProjectedRecurringTaskId(id));
             continue;
         }
-        targets.push(task);
-        const projectedTask = createProjectedRecurringTask(task);
-        if (projectedTask) {
-            targets.push(projectedTask);
-        } else {
+        const expandedTasks = expandCalendarRecurringTasks(task);
+        targets.push(...expandedTasks);
+        if (!expandedTasks.some((candidate) => candidate.id === getProjectedRecurringTaskId(task.id))) {
             removedIds.push(getProjectedRecurringTaskId(task.id));
         }
     }

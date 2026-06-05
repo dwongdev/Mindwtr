@@ -72,7 +72,7 @@ const {
         _selectorOrListener: ((state: MockCalendarStoreState) => unknown) | ((state: MockCalendarStoreState) => void),
         _listener?: (selected: unknown) => void
     ) => () => {}),
-    mockCreateProjectedRecurringTask: vi.fn((_task: unknown) => null as unknown | null),
+    mockCreateProjectedRecurringTask: vi.fn((_task: unknown, _projectedAtIso?: string) => null as unknown | null),
     mockLogInfo: vi.fn(),
     mockLogWarn: vi.fn(),
     mockLogError: vi.fn(),
@@ -123,6 +123,10 @@ vi.mock('@mindwtr/core', () => ({
         subscribe: mockSubscribe,
     },
     createProjectedRecurringTask: mockCreateProjectedRecurringTask,
+    expandCalendarRecurringTasks: (task: unknown, projectedAtIso?: string): unknown[] => {
+        const projectedTask = mockCreateProjectedRecurringTask(task, projectedAtIso);
+        return projectedTask ? [task, projectedTask] : [task];
+    },
     getProjectedRecurringTaskId: (taskId: string): string => `${taskId}:projected-recurrence`,
     hasTimeComponent: (dateStr: string | null | undefined): boolean =>
         Boolean(dateStr && /[T\s]\d{2}:\d{2}/.test(dateStr)),

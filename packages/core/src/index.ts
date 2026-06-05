@@ -381,6 +381,8 @@ export {
 export {
     buildRRuleString,
     createNextRecurringTask,
+    createCurrentRecurringCalendarTask,
+    expandCalendarRecurringTasks,
     createProjectedRecurringTask,
     getProjectedRecurringTaskId,
     getRecurrenceCompletedOccurrencesValue,

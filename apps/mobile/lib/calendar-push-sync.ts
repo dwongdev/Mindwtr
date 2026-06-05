@@ -10,7 +10,7 @@ import * as Calendar from 'expo-calendar';
 import { Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
-    createProjectedRecurringTask,
+    expandCalendarRecurringTasks,
     getProjectedRecurringTaskId,
     hasTimeComponent,
     isProjectedRecurringTask,
@@ -609,10 +609,7 @@ async function syncTaskToCalendar(task: Task, target: CalendarPushTarget): Promi
 
 function getCalendarPushTasks(tasks: Task[]): Task[] {
     const projectedAtIso = new Date().toISOString();
-    return tasks.flatMap((task) => {
-        const projectedTask = createProjectedRecurringTask(task, projectedAtIso);
-        return projectedTask ? [task, projectedTask] : [task];
-    });
+    return tasks.flatMap((task) => expandCalendarRecurringTasks(task, projectedAtIso));
 }
 
 async function runLimitedSettled<T>(
@@ -712,11 +709,9 @@ const runPartialCalendarSync = async (taskIds: string[]): Promise<void> => {
             removedIds.push(id, getProjectedRecurringTaskId(id));
             continue;
         }
-        targets.push(task);
-        const projectedTask = createProjectedRecurringTask(task);
-        if (projectedTask) {
-            targets.push(projectedTask);
-        } else {
+        const expandedTasks = expandCalendarRecurringTasks(task);
+        targets.push(...expandedTasks);
+        if (!expandedTasks.some((candidate) => candidate.id === getProjectedRecurringTaskId(task.id))) {
             removedIds.push(getProjectedRecurringTaskId(task.id));
         }
     }

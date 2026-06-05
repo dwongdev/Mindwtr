@@ -23,7 +23,7 @@ import {
     addCalendarMinutes,
     buildCalendarEventTaskDraft,
     buildCalendarQuickAddTaskDraft,
-    createProjectedRecurringTask,
+    expandCalendarRecurringTasks,
     formatCalendarDurationLabel,
     formatCalendarTimeInputValue,
     findFreeSlotForDay as findCalendarFreeSlotForDay,
@@ -352,45 +352,26 @@ export function useDesktopCalendarController() {
         const deadlinesByDay = new Map<string, Task[]>();
         const scheduledByDay = new Map<string, Task[]>();
         for (const task of tasks) {
-            if (!isCalendarTaskVisible(task)) continue;
-            visibleTasks.push(task);
-            if (task.dueDate) {
-                const dueDate = safeParseDueDate(task.dueDate);
-                if (dueDate) {
-                    const dueKey = dayKey(dueDate);
-                    const existingDue = deadlinesByDay.get(dueKey);
-                    if (existingDue) existingDue.push(task);
-                    else deadlinesByDay.set(dueKey, [task]);
+            for (const calendarTask of expandCalendarRecurringTasks(task)) {
+                if (!isCalendarTaskVisible(calendarTask)) continue;
+                visibleTasks.push(calendarTask);
+                if (calendarTask.dueDate) {
+                    const dueDate = safeParseDueDate(calendarTask.dueDate);
+                    if (dueDate) {
+                        const dueKey = dayKey(dueDate);
+                        const existingDue = deadlinesByDay.get(dueKey);
+                        if (existingDue) existingDue.push(calendarTask);
+                        else deadlinesByDay.set(dueKey, [calendarTask]);
+                    }
                 }
-            }
-            if (task.startTime) {
-                const startTime = safeParseDate(task.startTime);
-                if (startTime) {
-                    const startKey = dayKey(startTime);
-                    const existingStart = scheduledByDay.get(startKey);
-                    if (existingStart) existingStart.push(task);
-                    else scheduledByDay.set(startKey, [task]);
-                }
-            }
-            const projectedTask = createProjectedRecurringTask(task);
-            if (!projectedTask || !isCalendarTaskVisible(projectedTask)) continue;
-            visibleTasks.push(projectedTask);
-            if (projectedTask.dueDate) {
-                const dueDate = safeParseDueDate(projectedTask.dueDate);
-                if (dueDate) {
-                    const dueKey = dayKey(dueDate);
-                    const existingDue = deadlinesByDay.get(dueKey);
-                    if (existingDue) existingDue.push(projectedTask);
-                    else deadlinesByDay.set(dueKey, [projectedTask]);
-                }
-            }
-            if (projectedTask.startTime) {
-                const startTime = safeParseDate(projectedTask.startTime);
-                if (startTime) {
-                    const startKey = dayKey(startTime);
-                    const existingStart = scheduledByDay.get(startKey);
-                    if (existingStart) existingStart.push(projectedTask);
-                    else scheduledByDay.set(startKey, [projectedTask]);
+                if (calendarTask.startTime) {
+                    const startTime = safeParseDate(calendarTask.startTime);
+                    if (startTime) {
+                        const startKey = dayKey(startTime);
+                        const existingStart = scheduledByDay.get(startKey);
+                        if (existingStart) existingStart.push(calendarTask);
+                        else scheduledByDay.set(startKey, [calendarTask]);
+                    }
                 }
             }
         }

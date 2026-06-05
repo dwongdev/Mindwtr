@@ -16,7 +16,7 @@ import {
   addCalendarMinutes,
   buildCalendarEventTaskDraft,
   buildCalendarQuickAddTaskDraft,
-  createProjectedRecurringTask,
+  expandCalendarRecurringTasks,
   formatCalendarTimeInputValue,
   formatI18nTemplate,
   normalizeDateFormatSetting,
@@ -321,10 +321,7 @@ export function useCalendarViewController() {
 
   const visibleTasks = useMemo(() => {
     const projectedAtIso = new Date(nowTick).toISOString();
-    return areaVisibleTasks.flatMap((task) => {
-      const projectedTask = createProjectedRecurringTask(task, projectedAtIso);
-      return projectedTask ? [task, projectedTask] : [task];
-    });
+    return areaVisibleTasks.flatMap((task) => expandCalendarRecurringTasks(task, projectedAtIso));
   }, [areaVisibleTasks, nowTick]);
 
   const schedulableTasks = useMemo(() => (

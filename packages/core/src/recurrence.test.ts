@@ -3,6 +3,8 @@ import {
     buildRRuleString,
     parseRRuleString,
     createNextRecurringTask,
+    createCurrentRecurringCalendarTask,
+    expandCalendarRecurringTasks,
     createProjectedRecurringTask,
     getProjectedRecurringTaskId,
     isProjectedRecurringTask,
@@ -678,7 +680,7 @@ describe('recurrence', () => {
         expect(projected?.dueDate).toBeUndefined();
     });
 
-    it('projects an unscheduled monthly day-of-month recurrence from the closest matching date', () => {
+    it('expands an unscheduled monthly day-of-month recurrence into current and projected calendar tasks', () => {
         const task: Task = {
             id: 't-projected-unscheduled-ninth-day',
             title: 'Ninth day planning',
@@ -696,31 +698,51 @@ describe('recurrence', () => {
             updatedAt: '2026-06-01T00:00:00.000Z',
         };
 
-        expect(createProjectedRecurringTask(task, '2026-06-02T12:00:00.000Z')?.startTime).toBe('2026-06-09');
-        expect(createProjectedRecurringTask(task, '2026-06-30T12:00:00.000Z')?.startTime).toBe('2026-07-09');
+        const current = createCurrentRecurringCalendarTask(task, '2026-06-05T12:00:00.000Z');
+        const projected = createProjectedRecurringTask(task, '2026-06-05T12:00:00.000Z');
+        const expanded = expandCalendarRecurringTasks(task, '2026-06-05T12:00:00.000Z');
+
+        expect(current?.id).toBe(task.id);
+        expect(current?.startTime).toBe('2026-06-09');
+        expect(isProjectedRecurringTask(current)).toBe(false);
+        expect(projected?.id).toBe(getProjectedRecurringTaskId(task.id));
+        expect(projected?.startTime).toBe('2026-07-09');
+        expect(expanded.map((item) => ({
+            id: item.id,
+            projected: isProjectedRecurringTask(item),
+            startTime: item.startTime,
+        }))).toEqual([
+            { id: task.id, projected: false, startTime: '2026-06-09' },
+            { id: getProjectedRecurringTaskId(task.id), projected: true, startTime: '2026-07-09' },
+        ]);
     });
 
-    it('projects an unscheduled monthly nth-weekday recurrence from the closest matching date', () => {
+    it('expands an unscheduled monthly nth-weekday recurrence into current and projected calendar tasks', () => {
         const task: Task = {
-            id: 't-projected-unscheduled-third-monday',
-            title: 'Third Monday planning',
+            id: 't-projected-unscheduled-third-thursday',
+            title: 'Third Thursday planning',
             status: 'next',
             tags: [],
             contexts: [],
             recurrence: {
                 rule: 'monthly',
                 strategy: 'strict',
-                byDay: ['3MO'],
-                rrule: 'FREQ=MONTHLY;BYDAY=3MO',
+                byDay: ['3TH'],
+                rrule: 'FREQ=MONTHLY;BYDAY=3TH',
             },
             showFutureRecurrence: true,
             createdAt: '2026-06-01T00:00:00.000Z',
             updatedAt: '2026-06-01T00:00:00.000Z',
         };
 
-        const projected = createProjectedRecurringTask(task, '2026-06-02T12:00:00.000Z');
+        const current = createCurrentRecurringCalendarTask(task, '2026-06-05T12:00:00.000Z');
+        const projected = createProjectedRecurringTask(task, '2026-06-05T12:00:00.000Z');
 
-        expect(projected?.startTime).toBe('2026-06-15');
+        expect(current?.id).toBe(task.id);
+        expect(current?.startTime).toBe('2026-06-18');
+        expect(isProjectedRecurringTask(current)).toBe(false);
+        expect(projected?.id).toBe(getProjectedRecurringTaskId(task.id));
+        expect(projected?.startTime).toBe('2026-07-16');
         expect(projected?.dueDate).toBeUndefined();
     });
 
