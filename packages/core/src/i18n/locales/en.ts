@@ -1393,7 +1393,7 @@ export const en: Record<string, string> = {
         'settings.sponsorProject': 'Sponsor Project',
         'settings.license': 'License',
         'settings.feedback': 'Send feedback',
-        'settings.feedbackDesc': 'Share a bug report or feature request without GitHub.',
+        'settings.feedbackDesc': 'Report a bug or suggest a feature. No account needed.',
         'settings.feedbackCategory': 'Category',
         'settings.feedbackCategoryBug': 'Bug report',
         'settings.feedbackCategoryFeature': 'Feature request',

@@ -1,8 +1,7 @@
 import { useState } from 'react';
-import { ExternalLink, Heart, Megaphone, MessageSquare, RefreshCw, Star } from 'lucide-react';
+import { ExternalLink, MessageSquare, RefreshCw } from 'lucide-react';
 
 import { cn } from '../../../lib/utils';
-import type { PromptTestKind } from '../../../lib/prompt-test-controls';
 import { SettingsFeedbackModal, type FeedbackSubmitInput } from './SettingsFeedbackModal';
 
 type Labels = {
@@ -50,8 +49,6 @@ export type SettingsAboutPageProps = {
     updateNotice: string | null;
     feedbackConfigured: boolean;
     onSubmitFeedback: (input: FeedbackSubmitInput) => Promise<void>;
-    promptTestControlsEnabled?: boolean;
-    onTriggerPromptTest?: (kind: PromptTestKind) => void;
 };
 
 export function SettingsAboutPage({
@@ -66,18 +63,9 @@ export function SettingsAboutPage({
     updateNotice,
     feedbackConfigured,
     onSubmitFeedback,
-    promptTestControlsEnabled = false,
-    onTriggerPromptTest,
 }: SettingsAboutPageProps) {
     const [feedbackOpen, setFeedbackOpen] = useState(false);
     const actionLabel = updateActionLabel ?? t.checkForUpdates;
-    const showPromptTestControls = promptTestControlsEnabled && Boolean(onTriggerPromptTest);
-    const promptTestButtons: Array<{ kind: PromptTestKind; label: string; icon: typeof Megaphone }> = [
-        { kind: 'announcement', label: 'Announcement', icon: Megaphone },
-        { kind: 'update', label: 'Update', icon: RefreshCw },
-        { kind: 'review', label: 'Review', icon: Star },
-        { kind: 'donation', label: 'Donation', icon: Heart },
-    ];
 
     return (
         <>
@@ -95,58 +83,6 @@ export function SettingsAboutPage({
                         </div>
                     </>
                 )}
-                <div className="border-t border-border/50"></div>
-                <div className="flex justify-between items-center gap-4">
-                    <div>
-                        <span className="text-muted-foreground">{t.feedback}</span>
-                        <p className="mt-0.5 text-xs text-muted-foreground">{t.feedbackDesc}</p>
-                    </div>
-                    <button
-                        onClick={() => setFeedbackOpen(true)}
-                        className="flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-medium bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
-                    >
-                        <MessageSquare className="w-4 h-4" />
-                        {t.feedback}
-                    </button>
-                </div>
-                <div className="border-t border-border/50"></div>
-                <div className="flex justify-between items-center">
-                    <span className="text-muted-foreground">{t.documentation}</span>
-                    <button
-                        onClick={() => onOpenLink('https://github.com/dongdongbh/Mindwtr/wiki')}
-                        className="text-primary hover:underline flex items-center gap-1"
-                    >
-                        GitHub Wiki
-                        <ExternalLink className="w-3 h-3" />
-                    </button>
-                </div>
-                <div className="border-t border-border/50"></div>
-                <div className="flex justify-between items-center">
-                    <span className="text-muted-foreground">{t.sponsorProject}</span>
-                    <button
-                        onClick={() => onOpenLink('https://ko-fi.com/dongdongbh')}
-                        className="text-blue-400 hover:underline cursor-pointer flex items-center gap-1"
-                    >
-                        ko-fi.com/dongdongbh
-                        <ExternalLink className="w-3 h-3" />
-                    </button>
-                </div>
-                <div className="border-t border-border/50"></div>
-                <div className="flex justify-between items-center">
-                    <span className="text-muted-foreground">{t.github}</span>
-                    <button
-                        onClick={() => onOpenLink('https://github.com/dongdongbh/Mindwtr')}
-                        className="text-blue-400 hover:underline cursor-pointer flex items-center gap-1"
-                    >
-                        github.com/dongdongbh/Mindwtr
-                        <ExternalLink className="w-3 h-3" />
-                    </button>
-                </div>
-                <div className="border-t border-border/50"></div>
-                <div className="flex justify-between items-center">
-                    <span className="text-muted-foreground">{t.license}</span>
-                    <span className="font-medium">AGPL-3.0</span>
-                </div>
                 <div className="border-t border-border/50"></div>
                 <div className="flex justify-between items-center">
                     <span className="text-muted-foreground">{actionLabel}</span>
@@ -170,32 +106,55 @@ export function SettingsAboutPage({
                 {updateNotice && !updateError && (
                     <div className="text-sm text-muted-foreground">{updateNotice}</div>
                 )}
-                {showPromptTestControls && (
-                    <>
-                        <div className="border-t border-border/50"></div>
-                        <div className="space-y-3">
-                            <div>
-                                <span className="text-muted-foreground">Prompt test controls</span>
-                                <p className="mt-0.5 text-xs text-muted-foreground">
-                                    Temporary local controls for announcement, update, review, and donation prompts.
-                                </p>
-                            </div>
-                            <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-                                {promptTestButtons.map(({ kind, label, icon: Icon }) => (
-                                    <button
-                                        key={kind}
-                                        type="button"
-                                        onClick={() => onTriggerPromptTest?.(kind)}
-                                        className="inline-flex min-h-9 items-center justify-center gap-2 rounded-md border border-border bg-background px-2.5 py-1.5 text-xs font-medium text-foreground transition-colors hover:bg-muted"
-                                    >
-                                        <Icon className="h-3.5 w-3.5 text-muted-foreground" aria-hidden="true" />
-                                        {label}
-                                    </button>
-                                ))}
-                            </div>
-                        </div>
-                    </>
-                )}
+                <div className="border-t border-border/50"></div>
+                <div className="flex justify-between items-center">
+                    <span className="text-muted-foreground">{t.documentation}</span>
+                    <button
+                        onClick={() => onOpenLink('https://github.com/dongdongbh/Mindwtr/wiki')}
+                        className="text-primary hover:underline flex items-center gap-1"
+                    >
+                        GitHub Wiki
+                        <ExternalLink className="w-3 h-3" />
+                    </button>
+                </div>
+                <div className="border-t border-border/50"></div>
+                <div className="flex justify-between items-center">
+                    <span className="text-muted-foreground">{t.github}</span>
+                    <button
+                        onClick={() => onOpenLink('https://github.com/dongdongbh/Mindwtr')}
+                        className="text-blue-400 hover:underline cursor-pointer flex items-center gap-1"
+                    >
+                        github.com/dongdongbh/Mindwtr
+                        <ExternalLink className="w-3 h-3" />
+                    </button>
+                </div>
+                <div className="border-t border-border/50"></div>
+                <div className="flex justify-between items-center gap-4">
+                    <span className="text-muted-foreground">{t.feedback}</span>
+                    <button
+                        onClick={() => setFeedbackOpen(true)}
+                        className="flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-medium bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
+                    >
+                        <MessageSquare className="w-4 h-4" />
+                        {t.feedback}
+                    </button>
+                </div>
+                <div className="border-t border-border/50"></div>
+                <div className="flex justify-between items-center">
+                    <span className="text-muted-foreground">{t.sponsorProject}</span>
+                    <button
+                        onClick={() => onOpenLink('https://ko-fi.com/dongdongbh')}
+                        className="text-blue-400 hover:underline cursor-pointer flex items-center gap-1"
+                    >
+                        ko-fi.com/dongdongbh
+                        <ExternalLink className="w-3 h-3" />
+                    </button>
+                </div>
+                <div className="border-t border-border/50"></div>
+                <div className="flex justify-between items-center">
+                    <span className="text-muted-foreground">{t.license}</span>
+                    <span className="font-medium">AGPL-3.0</span>
+                </div>
             </div>
             <SettingsFeedbackModal
                 isConfigured={feedbackConfigured}

@@ -1281,7 +1281,7 @@ export const zhHans: Record<string, string> = {
         'settings.sponsorProject': '赞助项目',
         'settings.license': '许可证',
         'settings.feedback': '发送反馈',
-        'settings.feedbackDesc': '无需 GitHub，也可以提交错误报告或功能请求。',
+        'settings.feedbackDesc': '提交错误报告或功能请求。无需账号。',
         'settings.feedbackCategory': '类别',
         'settings.feedbackCategoryBug': '错误报告',
         'settings.feedbackCategoryFeature': '功能请求',

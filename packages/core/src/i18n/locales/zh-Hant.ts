@@ -1281,7 +1281,7 @@ export const zhHant: Record<string, string> = {
         'settings.sponsorProject': '贊助項目',
         'settings.license': '授權條款',
         'settings.feedback': '發送反饋',
-        'settings.feedbackDesc': '無需 GitHub，也可以提交錯誤報告或功能請求。',
+        'settings.feedbackDesc': '提交錯誤報告或功能請求。無需帳號。',
         'settings.feedbackCategory': '類別',
         'settings.feedbackCategoryBug': '錯誤報告',
         'settings.feedbackCategoryFeature': '功能請求',

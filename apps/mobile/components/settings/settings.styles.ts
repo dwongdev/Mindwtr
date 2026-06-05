@@ -153,18 +153,6 @@ export const styles = StyleSheet.create({
     settingDescription: { fontSize: 13, marginTop: 2 },
     settingValue: { fontSize: 16 },
     linkText: { fontSize: 16, color: '#3B82F6' },
-    promptTestButtonGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 12 },
-    promptTestButton: {
-        alignItems: 'center',
-        borderRadius: 10,
-        borderWidth: 1,
-        flexDirection: 'row',
-        gap: 6,
-        minHeight: 38,
-        paddingHorizontal: 10,
-        paddingVertical: 8,
-    },
-    promptTestButtonText: { fontSize: 13, fontWeight: '700' },
     guideLinkInline: {
         alignItems: 'center',
         flexDirection: 'row',

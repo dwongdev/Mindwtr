@@ -4,13 +4,11 @@ import Constants from 'expo-constants';
 import * as Application from 'expo-application';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Heart, Megaphone, RefreshCw, Star } from 'lucide-react-native';
 
 import { submitFeedbackSubmission } from '@mindwtr/core';
 import { useToast } from '@/contexts/toast-context';
 import { getDeviceLocale } from '@/lib/analytics-heartbeat';
 import { readRecentLogText } from '@/lib/app-log';
-import { emitPromptTest, type PromptTestKind } from '@/lib/prompt-test-controls';
 import { useThemeColors } from '@/hooks/use-theme-colors';
 import { getPlayStoreUpdateInfoAsync } from '@/lib/play-store-updates';
 import { compareVersions, logSettingsError, logSettingsWarn } from '@/lib/settings-utils';
@@ -43,8 +41,6 @@ export function AboutSettingsScreen({
     const scrollContentStyle = useSettingsScrollContent();
     const extraConfig = Constants.expoConfig?.extra as MobileExtraConfig | undefined;
     const isFossBuild = parseExtraBool(extraConfig?.isFossBuild);
-    const promptTestControlsEnabled = process.env.NODE_ENV !== 'test'
-        && (__DEV__ || parseExtraBool(extraConfig?.promptTestControlsEnabled));
     const isExpoGo = Constants.appOwnership === 'expo';
     const currentVersion = Constants.expoConfig?.version || '0.0.0';
     const feedbackEndpointUrl = String(extraConfig?.feedbackEndpointUrl ?? '').trim();
@@ -92,16 +88,6 @@ export function AboutSettingsScreen({
     const APP_STORE_LOOKUP_URL = `https://itunes.apple.com/lookup?bundleId=${encodeURIComponent(APP_STORE_BUNDLE_ID)}&country=US`;
     const APP_STORE_LOOKUP_FALLBACK_URL = `https://itunes.apple.com/lookup?bundleId=${encodeURIComponent(APP_STORE_BUNDLE_ID)}`;
     const canRateInStore = !isFossBuild && (Platform.OS === 'android' || Platform.OS === 'ios');
-    const promptTestButtons: Array<{
-        kind: PromptTestKind;
-        label: string;
-        icon: typeof Megaphone;
-    }> = [
-        { kind: 'announcement', label: 'Announcement', icon: Megaphone },
-        { kind: 'update', label: 'Update', icon: RefreshCw },
-        { kind: 'review', label: 'Review', icon: Star },
-        { kind: 'donation', label: 'Donation', icon: Heart },
-    ];
 
     type AndroidComparableVersionResult =
         | { source: 'play-store'; updateAvailable: boolean; availableVersionCode: number | null }
@@ -445,29 +431,10 @@ export function AboutSettingsScreen({
                     )}
                     <TouchableOpacity
                         style={[styles.settingRow, { borderTopWidth: 1, borderTopColor: tc.border }]}
-                        onPress={() => setFeedbackOpen(true)}
-                    >
-                        <View style={styles.settingInfo}>
-                            <Text style={[styles.settingLabel, { color: tc.text }]}>{tr('settings.feedback')}</Text>
-                            <Text style={[styles.settingDescription, { color: tc.secondaryText }]}>
-                                {tr('settings.feedbackDesc')}
-                            </Text>
-                        </View>
-                        <Text style={styles.linkText}>{tr('settings.feedbackSubmit')}</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                        style={[styles.settingRow, { borderTopWidth: 1, borderTopColor: tc.border }]}
                         onPress={() => openLink('https://github.com/dongdongbh/Mindwtr/wiki')}
                     >
                         <Text style={[styles.settingLabel, { color: tc.text }]}>{t('settings.documentation')}</Text>
                         <Text style={styles.linkText}>GitHub Wiki</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                        style={[styles.settingRow, { borderTopWidth: 1, borderTopColor: tc.border }]}
-                        onPress={() => openLink('https://ko-fi.com/dongdongbh')}
-                    >
-                        <Text style={[styles.settingLabel, { color: tc.text }]}>{t('settings.sponsorProject')}</Text>
-                        <Text style={styles.linkText}>Ko-fi</Text>
                     </TouchableOpacity>
                     <TouchableOpacity
                         style={[styles.settingRow, { borderTopWidth: 1, borderTopColor: tc.border }]}
@@ -476,34 +443,24 @@ export function AboutSettingsScreen({
                         <Text style={[styles.settingLabel, { color: tc.text }]}>GitHub</Text>
                         <Text style={styles.linkText}>Mindwtr</Text>
                     </TouchableOpacity>
+                    <TouchableOpacity
+                        style={[styles.settingRow, { borderTopWidth: 1, borderTopColor: tc.border }]}
+                        onPress={() => setFeedbackOpen(true)}
+                    >
+                        <Text style={[styles.settingLabel, { color: tc.text }]}>{tr('settings.feedback')}</Text>
+                        <Text style={styles.linkText}>{tr('settings.feedbackSubmit')}</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                        style={[styles.settingRow, { borderTopWidth: 1, borderTopColor: tc.border }]}
+                        onPress={() => openLink('https://ko-fi.com/dongdongbh')}
+                    >
+                        <Text style={[styles.settingLabel, { color: tc.text }]}>{t('settings.sponsorProject')}</Text>
+                        <Text style={styles.linkText}>Ko-fi</Text>
+                    </TouchableOpacity>
                     <View style={[styles.settingRow, { borderTopWidth: 1, borderTopColor: tc.border }]}>
                         <Text style={[styles.settingLabel, { color: tc.text }]}>{t('settings.license')}</Text>
                         <Text style={[styles.settingValue, { color: tc.secondaryText }]}>AGPL-3.0</Text>
                     </View>
-                    {promptTestControlsEnabled && (
-                        <View style={[styles.settingRowColumn, { borderTopWidth: 1, borderTopColor: tc.border }]}>
-                            <Text style={[styles.settingLabel, { color: tc.text }]}>Prompt test controls</Text>
-                            <Text style={[styles.settingDescription, { color: tc.secondaryText }]}>
-                                Temporary controls for announcement, update, review, and donation prompts.
-                            </Text>
-                            <View style={styles.promptTestButtonGrid}>
-                                {promptTestButtons.map(({ kind, label, icon: Icon }) => (
-                                    <TouchableOpacity
-                                        key={kind}
-                                        accessibilityRole="button"
-                                        activeOpacity={0.82}
-                                        onPress={() => emitPromptTest(kind)}
-                                        style={[styles.promptTestButton, { borderColor: tc.border }]}
-                                    >
-                                        <Icon color={tc.secondaryText} size={15} strokeWidth={2.2} />
-                                        <Text numberOfLines={1} style={[styles.promptTestButtonText, { color: tc.text }]}>
-                                            {label}
-                                        </Text>
-                                    </TouchableOpacity>
-                                ))}
-                            </View>
-                        </View>
-                    )}
                 </View>
             </ScrollView>
             <FeedbackSettingsModal
