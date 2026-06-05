@@ -36,6 +36,8 @@ import { useLanguage } from '../contexts/language-context';
 import { useThemeColors } from '@/hooks/use-theme-colors';
 import { useMobileAreaFilter } from '@/hooks/use-mobile-area-filter';
 import { useToast } from '@/contexts/toast-context';
+import { PullSyncIndicator } from '@/components/PullSyncIndicator';
+import { useManualPullSync } from '@/hooks/use-manual-pull-sync';
 import { taskMatchesAreaFilter } from '@/lib/area-filter';
 import { openContextsScreen, openProjectScreen } from '@/lib/task-meta-navigation';
 import { buildCopilotConfig, isAIKeyRequired, loadAIKey } from '../lib/ai-config';
@@ -153,7 +155,6 @@ function TaskListComponent({
     updateTask,
     deleteTask,
     restoreTask,
-    fetchData,
     batchMoveTasks,
     batchDeleteTasks,
     batchUpdateTasks,
@@ -173,7 +174,6 @@ function TaskListComponent({
     updateTask: state.updateTask,
     deleteTask: state.deleteTask,
     restoreTask: state.restoreTask,
-    fetchData: state.fetchData,
     batchMoveTasks: state.batchMoveTasks,
     batchDeleteTasks: state.batchDeleteTasks,
     batchUpdateTasks: state.batchUpdateTasks,
@@ -193,7 +193,6 @@ function TaskListComponent({
   const [copilotThinking, setCopilotThinking] = useState(false);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [isModalVisible, setIsModalVisible] = useState(false);
-  const [refreshing, setRefreshing] = useState(false);
   const [sortModalVisible, setSortModalVisible] = useState(false);
   const [filtersVisible, setFiltersVisible] = useState(false);
   const [bulkOrganizeVisible, setBulkOrganizeVisible] = useState(false);
@@ -214,6 +213,7 @@ function TaskListComponent({
   const restoreActionLabel = getTranslationsSync(language)['trash.restoreToInbox']
     || getTranslationsSync('en')['trash.restoreToInbox']
     || 'Restore';
+  const pullSync = useManualPullSync();
 
   // Dynamic colors based on theme
   const themeColors = useThemeColors();
@@ -913,12 +913,6 @@ function TaskListComponent({
     };
   }, [highlightTaskId, setHighlightTask]);
 
-  const onRefresh = useCallback(async () => {
-    setRefreshing(true);
-    await fetchData();
-    setRefreshing(false);
-  }, [fetchData]);
-
   const handleAddTask = async () => {
     if (!newTaskTitle.trim()) return;
 
@@ -1447,7 +1441,13 @@ function TaskListComponent({
           updateCellsBatchingPeriod={50}
           removeClippedSubviews={listItems.length >= REMOVE_CLIPPED_SUBVIEWS_MIN_ITEMS}
           refreshControl={
-            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+            <RefreshControl
+              refreshing={pullSync.refreshing}
+              onRefresh={pullSync.onRefresh}
+              tintColor="transparent"
+              colors={['transparent']}
+              progressBackgroundColor="transparent"
+            />
           }
           ListEmptyComponent={
             <ListEmptyState
@@ -1463,6 +1463,8 @@ function TaskListComponent({
           }
         />
       )}
+
+      <PullSyncIndicator state={pullSync.indicatorState} />
 
       <TaskListTagModal
         onChangeTag={setTagInput}

@@ -256,6 +256,23 @@ describe('FocusScreen', () => {
     ).not.toThrow();
   });
 
+  it('uses a transparent refresh control for manual pull sync', () => {
+    let tree!: ReturnType<typeof create>;
+
+    act(() => {
+      tree = create(<FocusScreen />);
+    });
+
+    const list = tree.root.findByType(SectionList);
+    const refreshControl = list.props.refreshControl;
+
+    expect(refreshControl.props.refreshing).toBe(false);
+    expect(refreshControl.props.tintColor).toBe('transparent');
+    expect(refreshControl.props.colors).toEqual(['transparent']);
+    expect(refreshControl.props.progressBackgroundColor).toBe('transparent');
+    expect(typeof refreshControl.props.onRefresh).toBe('function');
+  });
+
   it('renders projects due for review and opens the project screen', () => {
     storeState.tasks = [];
     storeState.projects = [

@@ -11,6 +11,7 @@ import {
   TextInput,
   Alert,
   Platform,
+  RefreshControl,
 } from 'react-native';
 import DateTimePicker, { type DateTimePickerEvent } from '@react-native-community/datetimepicker';
 import { useLocalSearchParams } from 'expo-router';
@@ -63,6 +64,8 @@ import {
   splitFocusedTasks,
 } from '@/lib/focus-screen-utils';
 import { useMobileAreaFilter } from '@/hooks/use-mobile-area-filter';
+import { PullSyncIndicator } from '@/components/PullSyncIndicator';
+import { useManualPullSync } from '@/hooks/use-manual-pull-sync';
 import { projectMatchesAreaFilter, taskMatchesAreaFilter } from '@/lib/area-filter';
 import { openContextsScreen, openProjectScreen } from '@/lib/task-meta-navigation';
 
@@ -232,6 +235,7 @@ export default function FocusScreen() {
   const { t } = useLanguage();
   const { showToast } = useToast();
   const tc = useThemeColors();
+  const pullSync = useManualPullSync();
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [filtersVisible, setFiltersVisible] = useState(false);
@@ -1238,6 +1242,15 @@ export default function FocusScreen() {
           { paddingBottom: listBottomPadding },
         ]}
         scrollIndicatorInsets={{ bottom: listBottomPadding }}
+        refreshControl={(
+          <RefreshControl
+            refreshing={pullSync.refreshing}
+            onRefresh={pullSync.onRefresh}
+            tintColor="transparent"
+            colors={['transparent']}
+            progressBackgroundColor="transparent"
+          />
+        )}
         ListHeaderComponent={(
           <View style={styles.header}>
             {pomodoroEnabled && (
@@ -1404,6 +1417,7 @@ export default function FocusScreen() {
           </View>
         ) : null}
       />
+      <PullSyncIndicator state={pullSync.indicatorState} />
       <Modal
         animationType="fade"
         transparent
