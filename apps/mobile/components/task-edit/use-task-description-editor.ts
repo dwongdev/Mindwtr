@@ -14,6 +14,9 @@ import {
     applyMarkdownPairKeyPressWithSelectionFallback,
     applyMarkdownPairInsertionWithSelectionFallback,
     applyMarkdownUrlPasteWithSelectionFallback,
+    createIgnoredNativePairChange,
+    shouldIgnoreNativePairChange,
+    type IgnoredNativePairChange,
     isRangeSelection,
 } from '../markdown-selection-utils';
 import type { SetEditedTask } from './use-task-edit-state';
@@ -60,11 +63,7 @@ export function useTaskDescriptionEditor({
     const descriptionSelectionRef = React.useRef(descriptionSelection);
     const lastDescriptionRangeRef = React.useRef<MarkdownSelection | null>(isRangeSelection(descriptionSelection) ? descriptionSelection : null);
     const pendingDescriptionSelectionRef = React.useRef<MarkdownSelection | null>(null);
-    const ignoredNativePairChangeRef = React.useRef<{
-        nativeValue: string;
-        appliedValue: string;
-        selection: MarkdownSelection;
-    } | null>(null);
+    const ignoredNativePairChangeRef = React.useRef<IgnoredNativePairChange | null>(null);
 
     React.useEffect(() => {
         descriptionSelectionRef.current = descriptionSelection;
@@ -195,10 +194,7 @@ export function useTaskDescriptionEditor({
         const ignoredNativeChange = ignoredNativePairChangeRef.current;
         if (ignoredNativeChange) {
             ignoredNativePairChangeRef.current = null;
-            if (
-                text === ignoredNativeChange.nativeValue
-                && descriptionDraftRef.current === ignoredNativeChange.appliedValue
-            ) {
+            if (shouldIgnoreNativePairChange(text, descriptionDraftRef.current, ignoredNativeChange)) {
                 restoreDescriptionSelection(ignoredNativeChange.selection);
                 return;
             }
@@ -266,11 +262,12 @@ export function useTaskDescriptionEditor({
         );
         if (pairedInsertion) {
             event.preventDefault?.();
-            ignoredNativePairChangeRef.current = {
-                nativeValue: `${descriptionDraftRef.current.slice(0, pairedInsertion.baseSelection.start)}${event.nativeEvent.key}${descriptionDraftRef.current.slice(pairedInsertion.baseSelection.end)}`,
-                appliedValue: pairedInsertion.result.value,
-                selection: pairedInsertion.result.selection,
-            };
+            ignoredNativePairChangeRef.current = createIgnoredNativePairChange(
+                descriptionDraftRef.current,
+                event.nativeEvent.key,
+                pairedInsertion.baseSelection,
+                pairedInsertion.result,
+            );
             lastDescriptionRangeRef.current = isRangeSelection(pairedInsertion.result.selection)
                 ? pairedInsertion.result.selection
                 : null;

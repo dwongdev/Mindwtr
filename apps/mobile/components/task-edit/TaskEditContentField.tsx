@@ -23,6 +23,9 @@ import { getControlledTextInputSelection } from '../text-input-selection';
 import {
     applyMarkdownPairInsertionWithSelectionFallback,
     applyMarkdownPairKeyPressWithSelectionFallback,
+    createIgnoredNativePairChange,
+    shouldIgnoreNativePairChange,
+    type IgnoredNativePairChange,
     isRangeSelection,
 } from '../markdown-selection-utils';
 import type { TaskEditFieldRendererProps } from './TaskEditFieldRenderer.types';
@@ -35,6 +38,9 @@ type TaskEditContentFieldProps = TaskEditFieldRendererProps & {
 };
 
 const getChecklistItemKey = (item: { id?: string }, index: number) => item.id || `index:${index}`;
+const selectionsEqual = (left: MarkdownSelection, right: MarkdownSelection) => (
+    left.start === right.start && left.end === right.end
+);
 const DESCRIPTION_END_SELECTION_THRESHOLD = 2;
 const DESCRIPTION_END_KEYBOARD_SCROLL_THROTTLE_MS = 900;
 
@@ -113,11 +119,9 @@ export function TaskEditContentField({
     const checklistTitleRefs = React.useRef<Record<string, string>>({});
     const checklistSelectionRefs = React.useRef<Record<string, MarkdownSelection>>({});
     const lastChecklistRangeRefs = React.useRef<Record<string, MarkdownSelection | null>>({});
-    const ignoredNativePairChangeRefs = React.useRef<Record<string, {
-        nativeValue: string;
-        appliedValue: string;
-        selection: MarkdownSelection;
-    }>>({});
+    const ignoredNativePairChangeRefs = React.useRef<Record<string, IgnoredNativePairChange>>({});
+    const pendingChecklistSelectionRefs = React.useRef<Record<string, MarkdownSelection | null>>({});
+    const [checklistSelectionRestorePending, setChecklistSelectionRestorePending] = React.useState<Record<string, boolean>>({});
     const lastDescriptionEndKeyboardScrollAtRef = React.useRef(0);
     const checklistLength = editedTask.checklist?.length ?? 0;
     React.useEffect(() => {
@@ -140,6 +144,7 @@ export function TaskEditContentField({
             delete checklistSelectionRefs.current[key];
             delete lastChecklistRangeRefs.current[key];
             delete ignoredNativePairChangeRefs.current[key];
+            delete pendingChecklistSelectionRefs.current[key];
         }
     }, [editedTask.checklist]);
 
@@ -150,10 +155,26 @@ export function TaskEditContentField({
     const restoreChecklistSelection = React.useCallback((key: string, selection: MarkdownSelection) => {
         checklistSelectionRefs.current[key] = selection;
         lastChecklistRangeRefs.current[key] = isRangeSelection(selection) ? selection : null;
+        pendingChecklistSelectionRefs.current[key] = selection;
+        setChecklistSelectionRestorePending((prev) => (prev[key] ? prev : { ...prev, [key]: true }));
         const applySelection = () => {
             const input = checklistInputRefs.current[key];
             input?.focus?.();
             input?.setNativeProps?.({ selection });
+        };
+        const clearPendingSelection = () => {
+            if (
+                pendingChecklistSelectionRefs.current[key]
+                && selectionsEqual(pendingChecklistSelectionRefs.current[key], selection)
+            ) {
+                delete pendingChecklistSelectionRefs.current[key];
+            }
+            setChecklistSelectionRestorePending((prev) => {
+                if (!prev[key]) return prev;
+                const next = { ...prev };
+                delete next[key];
+                return next;
+            });
         };
         if (typeof requestAnimationFrame === 'function') {
             requestAnimationFrame(applySelection);
@@ -162,7 +183,10 @@ export function TaskEditContentField({
         }
         setTimeout(applySelection, 40);
         setTimeout(applySelection, 140);
-        setTimeout(applySelection, 300);
+        setTimeout(() => {
+            applySelection();
+            clearPendingSelection();
+        }, 300);
     }, []);
 
     const updateChecklistTitle = React.useCallback((index: number, key: string, title: string) => {
@@ -174,6 +198,19 @@ export function TaskEditContentField({
     }, [applyChecklistUpdate, editedTask.checklist]);
 
     const handleChecklistSelectionChange = React.useCallback((key: string, selection: MarkdownSelection) => {
+        const pendingSelection = pendingChecklistSelectionRefs.current[key];
+        if (pendingSelection) {
+            if (!selectionsEqual(pendingSelection, selection)) {
+                return;
+            }
+            delete pendingChecklistSelectionRefs.current[key];
+            setChecklistSelectionRestorePending((prev) => {
+                if (!prev[key]) return prev;
+                const next = { ...prev };
+                delete next[key];
+                return next;
+            });
+        }
         checklistSelectionRefs.current[key] = selection;
         if (isRangeSelection(selection)) {
             lastChecklistRangeRefs.current[key] = selection;
@@ -217,14 +254,12 @@ export function TaskEditContentField({
     const handleChecklistTitleChange = React.useCallback((index: number, key: string, text: string) => {
         const previousValue = checklistTitleRefs.current[key] ?? '';
         const ignoredNativeChange = ignoredNativePairChangeRefs.current[key];
-        if (
-            ignoredNativeChange
-            && text === ignoredNativeChange.nativeValue
-            && previousValue === ignoredNativeChange.appliedValue
-        ) {
+        if (ignoredNativeChange) {
             delete ignoredNativePairChangeRefs.current[key];
-            restoreChecklistSelection(key, ignoredNativeChange.selection);
-            return;
+            if (shouldIgnoreNativePairChange(text, previousValue, ignoredNativeChange)) {
+                restoreChecklistSelection(key, ignoredNativeChange.selection);
+                return;
+            }
         }
 
         const currentSelection = getChecklistSelection(key, previousValue);
@@ -262,11 +297,12 @@ export function TaskEditContentField({
         if (!pairedInsertion) return;
 
         event.preventDefault?.();
-        ignoredNativePairChangeRefs.current[key] = {
-            nativeValue: `${previousValue.slice(0, pairedInsertion.baseSelection.start)}${event.nativeEvent.key}${previousValue.slice(pairedInsertion.baseSelection.end)}`,
-            appliedValue: pairedInsertion.result.value,
-            selection: pairedInsertion.result.selection,
-        };
+        ignoredNativePairChangeRefs.current[key] = createIgnoredNativePairChange(
+            previousValue,
+            event.nativeEvent.key,
+            pairedInsertion.baseSelection,
+            pairedInsertion.result,
+        );
         lastChecklistRangeRefs.current[key] = isRangeSelection(pairedInsertion.result.selection)
             ? pairedInsertion.result.selection
             : null;
@@ -592,6 +628,13 @@ export function TaskEditContentField({
                                                 onSelectionChange={(event) => handleChecklistSelectionChange(
                                                     checklistItemKey,
                                                     event.nativeEvent.selection,
+                                                )}
+                                                selection={getControlledTextInputSelection(
+                                                    checklistSelectionRefs.current[checklistItemKey] ?? {
+                                                        start: item.title.length,
+                                                        end: item.title.length,
+                                                    },
+                                                    { force: Boolean(checklistSelectionRestorePending[checklistItemKey]) },
                                                 )}
                                                 placeholder={t('taskEdit.itemNamePlaceholder')}
                                                 placeholderTextColor={tc.secondaryText}

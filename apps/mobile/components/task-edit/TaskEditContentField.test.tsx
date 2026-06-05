@@ -396,6 +396,48 @@ describe('TaskEditContentField', () => {
     expect(applyChecklistUpdate).toHaveBeenCalledTimes(callsAfterKeyPress);
   });
 
+  it('keeps Android checklist cursor inside a collapsed pair and ignores duplicate native insertion', () => {
+    const { getState, applyChecklistUpdate, setEditedTask } = createChecklistState([
+      { id: 'check-1', title: '', isCompleted: false },
+    ]);
+    let tree!: ReturnType<typeof create>;
+
+    withPlatform('android', () => {
+      act(() => {
+        tree = create(
+          <TaskEditContentField
+            {...baseProps}
+            fieldId="checklist"
+            editedTask={getState()}
+            applyChecklistUpdate={applyChecklistUpdate}
+            setEditedTask={setEditedTask}
+          />
+        );
+      });
+
+      let input = tree.root.findByProps({ accessibilityLabel: 'taskEdit.checklist 1' });
+
+      const preventDefault = vi.fn();
+      act(() => {
+        input.props.onKeyPress({ nativeEvent: { key: '(' }, preventDefault });
+      });
+
+      expect(preventDefault).toHaveBeenCalled();
+      expect(getState().checklist[0].title).toBe('()');
+
+      input = tree.root.findByProps({ accessibilityLabel: 'taskEdit.checklist 1' });
+      expect(input.props.selection).toEqual({ start: 1, end: 1 });
+
+      const callsAfterKeyPress = applyChecklistUpdate.mock.calls.length;
+      act(() => {
+        input.props.onChangeText('(())');
+      });
+
+      expect(getState().checklist[0].title).toBe('()');
+      expect(applyChecklistUpdate).toHaveBeenCalledTimes(callsAfterKeyPress);
+    });
+  });
+
   it('tracks the focused Android checklist row handle for measured scrolling', () => {
     const { getState, applyChecklistUpdate, setEditedTask } = createChecklistState();
     const handleInputFocus = vi.fn();

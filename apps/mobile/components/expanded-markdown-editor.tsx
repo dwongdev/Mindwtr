@@ -36,6 +36,9 @@ import {
     applyMarkdownPairKeyPressWithSelectionFallback,
     applyMarkdownPairInsertionWithSelectionFallback,
     applyMarkdownUrlPasteWithSelectionFallback,
+    createIgnoredNativePairChange,
+    shouldIgnoreNativePairChange,
+    type IgnoredNativePairChange,
     isRangeSelection,
 } from './markdown-selection-utils';
 import { MarkdownText } from './markdown-text';
@@ -94,11 +97,7 @@ export function ExpandedMarkdownEditor({
     const toolbarInteractionUntilRef = React.useRef(0);
     const pendingSelectionRef = React.useRef<MarkdownSelection | null>(null);
     const lastRangeSelectionRef = React.useRef<MarkdownSelection | null>(isRangeSelection(selection) ? selection : null);
-    const ignoredNativePairChangeRef = React.useRef<{
-        nativeValue: string;
-        appliedValue: string;
-        selection: MarkdownSelection;
-    } | null>(null);
+    const ignoredNativePairChangeRef = React.useRef<IgnoredNativePairChange | null>(null);
     const valueRef = React.useRef(value);
     const selectionRef = React.useRef(selection);
     // Keep a local mirror while the fullscreen editor is open so Android
@@ -314,10 +313,7 @@ export function ExpandedMarkdownEditor({
         const ignoredNativeChange = ignoredNativePairChangeRef.current;
         if (ignoredNativeChange) {
             ignoredNativePairChangeRef.current = null;
-            if (
-                nextValue === ignoredNativeChange.nativeValue
-                && valueRef.current === ignoredNativeChange.appliedValue
-            ) {
+            if (shouldIgnoreNativePairChange(nextValue, valueRef.current, ignoredNativeChange)) {
                 restoreEditorFocus(ignoredNativeChange.selection);
                 return;
             }
@@ -393,11 +389,12 @@ export function ExpandedMarkdownEditor({
         );
         if (pairedInsertion) {
             event.preventDefault?.();
-            ignoredNativePairChangeRef.current = {
-                nativeValue: `${valueRef.current.slice(0, pairedInsertion.baseSelection.start)}${event.nativeEvent.key}${valueRef.current.slice(pairedInsertion.baseSelection.end)}`,
-                appliedValue: pairedInsertion.result.value,
-                selection: pairedInsertion.result.selection,
-            };
+            ignoredNativePairChangeRef.current = createIgnoredNativePairChange(
+                valueRef.current,
+                event.nativeEvent.key,
+                pairedInsertion.baseSelection,
+                pairedInsertion.result,
+            );
             valueRef.current = pairedInsertion.result.value;
             selectionRef.current = pairedInsertion.result.selection;
             lastRangeSelectionRef.current = isRangeSelection(pairedInsertion.result.selection) ? pairedInsertion.result.selection : null;

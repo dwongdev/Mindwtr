@@ -163,6 +163,54 @@ describe('ExpandedMarkdownEditor', () => {
     });
   });
 
+  it('keeps paired text when Android sends a duplicate native pair insertion', () => {
+    const onChange = vi.fn();
+    const onSelectionChange = vi.fn();
+    let tree: renderer.ReactTestRenderer;
+
+    withPlatform('android', () => {
+      act(() => {
+        tree = renderer.create(
+          <ExpandedMarkdownEditor
+            isOpen
+            onClose={vi.fn()}
+            value=""
+            onChange={onChange}
+            title="Description"
+            placeholder="Description"
+            t={(key) => key}
+            initialMode="edit"
+            selection={{ start: 0, end: 0 }}
+            onSelectionChange={onSelectionChange}
+            canUndo={false}
+            onUndo={() => undefined}
+          />
+        );
+      });
+
+      act(() => {
+        tree!.root.findByType(TextInput).props.onKeyPress({
+          nativeEvent: { key: '(' },
+          preventDefault: vi.fn(),
+        });
+      });
+
+      expect(onChange).toHaveBeenCalledWith('()');
+      expect(onSelectionChange).toHaveBeenCalledWith({ start: 1, end: 1 });
+
+      act(() => {
+        tree!.root.findByType(TextInput).props.onChangeText('(())');
+      });
+
+      expect(onChange).toHaveBeenCalledTimes(1);
+      expect(tree!.root.findByType(TextInput).props.value).toBe('()');
+
+      act(() => {
+        tree!.unmount();
+      });
+    });
+  });
+
   it('temporarily controls Android selection after nested list continuation rewrites', () => {
     const onChange = vi.fn();
     const onSelectionChange = vi.fn();

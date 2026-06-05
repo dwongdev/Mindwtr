@@ -4,9 +4,35 @@ import {
     applyMarkdownPairKeyPressWithSelectionFallback,
     applyMarkdownPairInsertionWithSelectionFallback,
     applyMarkdownUrlPasteWithSelectionFallback,
+    createIgnoredNativePairChange,
+    shouldIgnoreNativePairChange,
 } from './markdown-selection-utils';
 
 describe('markdown selection replacement fallbacks', () => {
+    it('recognizes raw and duplicate native pair changes after an applied key press', () => {
+        const paired = applyMarkdownPairKeyPressWithSelectionFallback(
+            '',
+            '(',
+            { start: 0, end: 0 },
+        );
+        expect(paired?.result).toEqual({
+            value: '()',
+            selection: { start: 1, end: 1 },
+        });
+
+        const ignored = createIgnoredNativePairChange(
+            '',
+            '(',
+            paired!.baseSelection,
+            paired!.result,
+        );
+
+        expect(shouldIgnoreNativePairChange('(', '()', ignored)).toBe(true);
+        expect(shouldIgnoreNativePairChange('(()', '()', ignored)).toBe(true);
+        expect(shouldIgnoreNativePairChange('(())', '()', ignored)).toBe(true);
+        expect(shouldIgnoreNativePairChange('()a', '()', ignored)).toBe(false);
+    });
+
     it('uses the last range selection when mobile paste collapses the current selection first', () => {
         expect(
             applyMarkdownUrlPasteWithSelectionFallback(
