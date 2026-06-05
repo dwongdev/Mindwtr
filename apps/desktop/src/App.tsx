@@ -83,7 +83,16 @@ import {
     recordLocalPromptActivity,
     updateLocalUserPromptState,
 } from './lib/user-prompt-state';
-import { checkForUpdates, normalizeInstallSource, type InstallSource } from './lib/update-service';
+import {
+    APP_STORE_LISTING_URL,
+    checkForUpdates,
+    GITHUB_RELEASES_URL,
+    HOMEBREW_CASK_URL,
+    MS_STORE_URL,
+    normalizeInstallSource,
+    WINGET_PACKAGE_URL,
+    type InstallSource,
+} from './lib/update-service';
 import {
     PROMPT_TEST_CONTROLS_ENABLED,
     subscribePromptTest,
@@ -122,6 +131,7 @@ type DesktopUpdateReminderInfo = {
     latestVersion: string;
     latestReleasedAt: string | null;
     releaseUrl: string;
+    actionLabel?: string;
     testOnly?: boolean;
 };
 
@@ -157,7 +167,7 @@ const buildUpdateReminderAnnouncement = (info: DesktopUpdateReminderInfo): AppAn
     body: `Mindwtr ${info.latestVersion} is available. You are using ${info.currentVersion}. Update when you have a minute to keep fixes and improvements current.`,
     action: {
         type: 'url',
-        label: 'View release',
+        label: info.actionLabel ?? 'View release',
         url: info.releaseUrl,
     },
 });
@@ -168,12 +178,21 @@ const PROMPT_TEST_ANNOUNCEMENT: AppAnnouncement = {
     body: 'This is the temporary announcement template test. It uses the same popup surface as a real maintainer announcement.',
 };
 
-const getDesktopReviewTarget = (installSource: InstallSource | null): { label: string; url: string } => {
+const getDesktopPlatform = (): 'windows' | 'macos' | 'linux' | 'other' => {
     const userAgent = typeof navigator === 'undefined' ? '' : navigator.userAgent.toLowerCase();
-    if (installSource === 'microsoft-store' || userAgent.includes('win')) {
+    if (userAgent.includes('win')) return 'windows';
+    if (userAgent.includes('mac')) return 'macos';
+    if (userAgent.includes('linux')) return 'linux';
+    return 'other';
+};
+
+const getDesktopReviewTarget = (installSource: InstallSource | null): { label: string; url: string } | null => {
+    const platform = getDesktopPlatform();
+    if (platform === 'linux') return null;
+    if (installSource === 'microsoft-store' || platform === 'windows') {
         return { label: 'Open Microsoft Store', url: MS_STORE_REVIEW_URL };
     }
-    if (installSource === 'mac-app-store' || userAgent.includes('mac')) {
+    if (installSource === 'mac-app-store' || platform === 'macos') {
         return { label: 'Open App Store', url: MAC_APP_STORE_REVIEW_URL };
     }
     return {
@@ -182,8 +201,25 @@ const getDesktopReviewTarget = (installSource: InstallSource | null): { label: s
     };
 };
 
-const buildPromptTestReviewAnnouncement = (installSource: InstallSource | null): AppAnnouncement => {
+const getDesktopUpdateTarget = (installSource: InstallSource | null): { label: string; url: string } => {
+    if (installSource === 'microsoft-store') {
+        return { label: 'Open Microsoft Store', url: MS_STORE_URL };
+    }
+    if (installSource === 'mac-app-store') {
+        return { label: 'Open App Store', url: APP_STORE_LISTING_URL };
+    }
+    if (installSource === 'homebrew') {
+        return { label: 'Open Homebrew', url: HOMEBREW_CASK_URL };
+    }
+    if (installSource === 'winget') {
+        return { label: 'Open winget', url: WINGET_PACKAGE_URL };
+    }
+    return { label: 'View release', url: GITHUB_RELEASES_URL };
+};
+
+const buildPromptTestReviewAnnouncement = (installSource: InstallSource | null): AppAnnouncement | null => {
     const target = getDesktopReviewTarget(installSource);
+    if (!target) return null;
     return {
         id: 'prompt-test-review',
         title: 'Review prompt test',
@@ -1039,7 +1075,9 @@ function App() {
                 return;
             }
             if (kind === 'review') {
-                setTestAnnouncement(buildPromptTestReviewAnnouncement(desktopInstallSource));
+                const reviewAnnouncement = buildPromptTestReviewAnnouncement(desktopInstallSource);
+                if (!reviewAnnouncement) return;
+                setTestAnnouncement(reviewAnnouncement);
                 setAnnouncementOpen(true);
                 return;
             }
@@ -1052,11 +1090,13 @@ function App() {
                     currentVersion = 'this build';
                 }
                 if (disposed) return;
+                const updateTarget = getDesktopUpdateTarget(desktopInstallSource);
                 setUpdateReminderInfo({
                     currentVersion,
                     latestVersion: '99.99.99',
                     latestReleasedAt: new Date().toISOString(),
-                    releaseUrl: 'https://github.com/dongdongbh/Mindwtr/releases/latest',
+                    releaseUrl: updateTarget.url,
+                    actionLabel: updateTarget.label,
                     testOnly: true,
                 });
                 setUpdateReminderOpen(true);
@@ -1252,11 +1292,13 @@ function App() {
                 }
                 updateLocalUserPromptState((state) => recordUpdateReminderShown(state, Date.now()));
                 if (cancelled) return;
+                const updateTarget = getDesktopUpdateTarget(desktopInstallSource);
                 setUpdateReminderInfo({
                     currentVersion: info.currentVersion,
                     latestVersion: info.latestVersion,
                     latestReleasedAt: info.latestReleasedAt,
-                    releaseUrl: info.releaseUrl,
+                    releaseUrl: updateTarget.url,
+                    actionLabel: updateTarget.label,
                 });
                 setUpdateReminderOpen(true);
             };

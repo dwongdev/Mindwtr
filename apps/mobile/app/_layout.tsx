@@ -153,8 +153,11 @@ type MobileUpdateReminderInfo = {
   latestVersion: string;
   latestReleasedAt: string | null;
   releaseUrl: string;
+  actionLabel?: string;
   testOnly?: boolean;
 };
+
+type AndroidInstallerSource = 'play-store' | 'sideload' | 'unknown';
 
 type GitHubLatestRelease = {
   tag_name?: unknown;
@@ -163,14 +166,14 @@ type GitHubLatestRelease = {
 };
 
 const resolveMobileUpdateReminderAllowed = async (options: {
+  androidInstallerSource: AndroidInstallerSource;
   isExpoGo: boolean;
   isFossBuild: boolean;
 }): Promise<boolean> => {
   if (options.isExpoGo) return false;
   if (Platform.OS !== 'android') return false;
-  if (options.isFossBuild) return true;
-  const referrer = await Application.getInstallReferrerAsync();
-  return !String(referrer || '').trim();
+  if (options.isFossBuild) return false;
+  return options.androidInstallerSource === 'sideload';
 };
 
 const fetchMobileUpdateReminderInfo = async (currentVersion: string): Promise<MobileUpdateReminderInfo> => {
@@ -202,7 +205,7 @@ const buildUpdateReminderAnnouncement = (info: MobileUpdateReminderInfo): AppAnn
   body: `Mindwtr ${info.latestVersion} is available. You are using ${info.currentVersion}. Update when you have a minute to keep fixes and improvements current.`,
   action: {
     type: 'url',
-    label: 'View release',
+    label: info.actionLabel ?? 'View release',
     url: info.releaseUrl,
   },
 });
@@ -236,6 +239,23 @@ const openMobileStoreReviewDestination = async (): Promise<boolean> => {
   }
 
   return false;
+};
+
+const getMobileUpdateTestTarget = (options: {
+  androidInstallerSource: AndroidInstallerSource;
+  isFossBuild: boolean;
+}): { label: string; url: string } | null => {
+  if (options.isFossBuild) return null;
+  if (Platform.OS === 'ios') {
+    return { label: 'Open App Store', url: APP_STORE_LISTING_URL };
+  }
+  if (Platform.OS === 'android' && options.androidInstallerSource !== 'sideload') {
+    return {
+      label: 'Open Google Play',
+      url: `https://play.google.com/store/apps/details?id=${getAndroidPackageName()}`,
+    };
+  }
+  return { label: 'View release', url: UPDATE_REMINDER_RELEASES_URL };
 };
 
 const PROMPT_TEST_ANNOUNCEMENT: AppAnnouncement = {
@@ -337,6 +357,9 @@ function RootLayoutContentInner() {
   const [updateReminderDismissedInSession, setUpdateReminderDismissedInSession] = useState(false);
   const [updateReminderAllowed, setUpdateReminderAllowed] = useState<boolean | null>(null);
   const [updateReminderInfo, setUpdateReminderInfo] = useState<MobileUpdateReminderInfo | null>(null);
+  const [androidInstallerSource, setAndroidInstallerSource] = useState<AndroidInstallerSource>(
+    Platform.OS === 'android' ? 'unknown' : 'play-store'
+  );
   const [testAnnouncement, setTestAnnouncement] = useState<AppAnnouncement | null>(null);
   const [promptActivitySettled, setPromptActivitySettled] = useState(false);
   const activeAnnouncement = testAnnouncement ?? ACTIVE_APP_ANNOUNCEMENT;
@@ -450,6 +473,33 @@ function RootLayoutContentInner() {
       systemLocale: getDeviceLocale(),
     });
   }, [language, settingsDateFormat, settingsLanguage, settingsTimeFormat]);
+
+  useEffect(() => {
+    if (Platform.OS !== 'android') {
+      setAndroidInstallerSource('play-store');
+      return;
+    }
+    if (isFossBuild) {
+      setAndroidInstallerSource('sideload');
+      return;
+    }
+    let cancelled = false;
+    Application.getInstallReferrerAsync()
+      .then((referrer) => {
+        if (cancelled) return;
+        setAndroidInstallerSource(String(referrer || '').trim() ? 'play-store' : 'sideload');
+      })
+      .catch((error) => {
+        if (!cancelled) setAndroidInstallerSource('unknown');
+        void logWarn('Failed to detect Android installer source', {
+          scope: 'prompt-state',
+          extra: { error: error instanceof Error ? error.message : String(error) },
+        });
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [isFossBuild]);
 
   useEffect(() => {
     let cancelled = false;
@@ -684,14 +734,30 @@ function RootLayoutContentInner() {
         return;
       }
       if (kind === 'update') {
+        const updateTarget = getMobileUpdateTestTarget({ androidInstallerSource, isFossBuild });
+        if (!updateTarget) {
+          showToast({
+            message: 'Updates are managed by this build channel.',
+            tone: 'info',
+          });
+          return;
+        }
         setUpdateReminderInfo({
           currentVersion: appVersion,
           latestVersion: '99.99.99',
           latestReleasedAt: new Date().toISOString(),
-          releaseUrl: UPDATE_REMINDER_RELEASES_URL,
+          releaseUrl: updateTarget.url,
+          actionLabel: updateTarget.label,
           testOnly: true,
         });
         setUpdateReminderOpen(true);
+        return;
+      }
+      if (isExpoGo) {
+        showToast({
+          message: 'Native review prompt is unavailable in Expo Go.',
+          tone: 'info',
+        });
         return;
       }
       requestStoreReviewForTesting()
@@ -713,7 +779,7 @@ function RootLayoutContentInner() {
           });
         });
     });
-  }, [appVersion, promptTestControlsEnabled, showToast]);
+  }, [androidInstallerSource, appVersion, isExpoGo, isFossBuild, promptTestControlsEnabled, showToast]);
 
   useEffect(() => {
     if (
@@ -805,7 +871,7 @@ function RootLayoutContentInner() {
 
   useEffect(() => {
     let cancelled = false;
-    resolveMobileUpdateReminderAllowed({ isExpoGo, isFossBuild })
+    resolveMobileUpdateReminderAllowed({ androidInstallerSource, isExpoGo, isFossBuild })
       .then((allowed) => {
         if (!cancelled) setUpdateReminderAllowed(allowed);
       })
@@ -819,7 +885,7 @@ function RootLayoutContentInner() {
     return () => {
       cancelled = true;
     };
-  }, [isExpoGo, isFossBuild]);
+  }, [androidInstallerSource, isExpoGo, isFossBuild]);
 
   useEffect(() => {
     if (
