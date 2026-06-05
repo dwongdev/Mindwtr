@@ -928,6 +928,27 @@ const wrapSelectionInFencedCodeBlock = (
     };
 };
 
+const insertCollapsedFencedCodeBlock = (
+    value: string,
+    cursor: number,
+    existingOpeningTicks = 0,
+): MarkdownToolbarResult => {
+    const fenceStart = Math.max(0, cursor - existingOpeningTicks);
+    const before = value.slice(0, fenceStart);
+    const after = value.slice(cursor);
+    const leadingBreak = before && !before.endsWith('\n') ? '\n' : '';
+    const trailingBreak = after && !after.startsWith('\n') ? '\n' : '';
+    const blockPrefix = `${leadingBreak}\`\`\`\n`;
+    const blockSuffix = `\n\`\`\`${trailingBreak}`;
+    const nextValue = `${before}${blockPrefix}${blockSuffix}${after}`;
+    const nextCursor = before.length + blockPrefix.length;
+
+    return {
+        value: nextValue,
+        selection: { start: nextCursor, end: nextCursor },
+    };
+};
+
 const getCollapsedInsertionCandidates = (
     previousValue: string,
     nextValue: string,
@@ -975,6 +996,17 @@ const applyCollapsedPairInsertion = (
     selection: MarkdownSelection,
 ): MarkdownToolbarResult | null => {
     for (const { cursor, insertedText } of getCollapsedInsertionCandidates(previousValue, nextValue, selection)) {
+        if (insertedText === '```') {
+            return insertCollapsedFencedCodeBlock(previousValue, cursor);
+        }
+        if (
+            insertedText === '`'
+            && countBackticksBefore(previousValue, cursor) === 2
+            && countBackticksAfter(previousValue, cursor) === 0
+        ) {
+            return insertCollapsedFencedCodeBlock(previousValue, cursor, 2);
+        }
+
         if (
             insertedText.length === 1
             && MARKDOWN_CLOSING_INSERTIONS.has(insertedText)

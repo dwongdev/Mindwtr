@@ -967,6 +967,35 @@ describe('TaskItemFieldRenderer date clear buttons', () => {
         });
     });
 
+    it('creates a fenced code block when three backticks are typed in an empty description', async () => {
+        const { getByRole } = render(<DescriptionHarness />);
+        const textarea = getByRole('textbox', { name: 'Description' }) as HTMLTextAreaElement;
+
+        fireEvent.keyDown(textarea, { key: '`' });
+
+        await waitFor(() => {
+            expect(textarea).toHaveValue('``');
+            expect(textarea.selectionStart).toBe(1);
+            expect(textarea.selectionEnd).toBe(1);
+        });
+
+        fireEvent.keyDown(textarea, { key: '`' });
+
+        await waitFor(() => {
+            expect(textarea).toHaveValue('``');
+            expect(textarea.selectionStart).toBe(2);
+            expect(textarea.selectionEnd).toBe(2);
+        });
+
+        fireEvent.keyDown(textarea, { key: '`' });
+
+        await waitFor(() => {
+            expect(textarea).toHaveValue('```\n\n```');
+            expect(textarea.selectionStart).toBe(4);
+            expect(textarea.selectionEnd).toBe(4);
+        });
+    });
+
     it('keeps focus and selection in the expanded description editor after continuing a list', async () => {
         const { getByRole } = render(<DescriptionHarness />);
         const collapsedTextarea = getByRole('textbox', { name: 'Description' }) as HTMLTextAreaElement;

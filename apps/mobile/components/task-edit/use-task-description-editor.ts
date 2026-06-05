@@ -229,7 +229,9 @@ export function useTaskDescriptionEditor({
             fallbackSelection,
         );
         if (pairedInsertion) {
-            lastDescriptionRangeRef.current = null;
+            lastDescriptionRangeRef.current = isRangeSelection(pairedInsertion.result.selection)
+                ? pairedInsertion.result.selection
+                : null;
             applyDescriptionValue(pairedInsertion.result.value, {
                 baseSelection: pairedInsertion.baseSelection,
                 nextSelection: pairedInsertion.result.selection,
@@ -264,12 +266,14 @@ export function useTaskDescriptionEditor({
         );
         if (pairedInsertion) {
             event.preventDefault?.();
-            lastDescriptionRangeRef.current = null;
             ignoredNativePairChangeRef.current = {
                 nativeValue: `${descriptionDraftRef.current.slice(0, pairedInsertion.baseSelection.start)}${event.nativeEvent.key}${descriptionDraftRef.current.slice(pairedInsertion.baseSelection.end)}`,
                 appliedValue: pairedInsertion.result.value,
                 selection: pairedInsertion.result.selection,
             };
+            lastDescriptionRangeRef.current = isRangeSelection(pairedInsertion.result.selection)
+                ? pairedInsertion.result.selection
+                : null;
             applyDescriptionValue(pairedInsertion.result.value, {
                 baseSelection: pairedInsertion.baseSelection,
                 nextSelection: pairedInsertion.result.selection,

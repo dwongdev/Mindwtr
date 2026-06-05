@@ -193,6 +193,35 @@ describe('applyMarkdownPairInsertion', () => {
         });
     });
 
+    it('creates a fenced code block when triple backticks are typed at a collapsed cursor', () => {
+        const once = applyMarkdownPairInsertion('', '`', { start: 0, end: 0 });
+        expect(once).toEqual({
+            value: '``',
+            selection: { start: 1, end: 1 },
+        });
+
+        const twice = applyMarkdownPairInsertion(once!.value, '```', once!.selection);
+        expect(twice).toEqual({
+            value: '``',
+            selection: { start: 2, end: 2 },
+        });
+
+        const three = applyMarkdownPairInsertion(twice!.value, '```', twice!.selection);
+        expect(three).toEqual({
+            value: '```\n\n```',
+            selection: { start: 4, end: 4 },
+        });
+    });
+
+    it('creates a fenced code block when native input inserts three backticks at once', () => {
+        expect(
+            applyMarkdownPairInsertion('', '```', { start: 0, end: 0 }),
+        ).toEqual({
+            value: '```\n\n```',
+            selection: { start: 4, end: 4 },
+        });
+    });
+
     it('wraps selected text when a single backtick replaces the selection', () => {
         expect(
             applyMarkdownPairInsertion('run tests', '`', { start: 0, end: 9 }),

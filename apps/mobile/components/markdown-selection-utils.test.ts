@@ -177,6 +177,48 @@ describe('markdown selection replacement fallbacks', () => {
         });
     });
 
+    it('creates a fenced code block from collapsed mobile triple-backtick key presses', () => {
+        const once = applyMarkdownPairKeyPressWithSelectionFallback(
+            '',
+            '`',
+            { start: 0, end: 0 },
+        );
+        expect(once).toEqual({
+            result: {
+                value: '``',
+                selection: { start: 1, end: 1 },
+            },
+            baseSelection: { start: 0, end: 0 },
+        });
+
+        const twice = applyMarkdownPairKeyPressWithSelectionFallback(
+            once!.result.value,
+            '`',
+            once!.result.selection,
+        );
+        expect(twice).toEqual({
+            result: {
+                value: '``',
+                selection: { start: 2, end: 2 },
+            },
+            baseSelection: { start: 1, end: 1 },
+        });
+
+        expect(
+            applyMarkdownPairKeyPressWithSelectionFallback(
+                twice!.result.value,
+                '`',
+                twice!.result.selection,
+            ),
+        ).toEqual({
+            result: {
+                value: '```\n\n```',
+                selection: { start: 4, end: 4 },
+            },
+            baseSelection: { start: 2, end: 2 },
+        });
+    });
+
     it('wraps selected text from a mobile triple-backtick text change', () => {
         expect(
             applyMarkdownPairInsertionWithSelectionFallback(
