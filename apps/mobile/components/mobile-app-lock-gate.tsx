@@ -6,12 +6,18 @@ import { translateWithFallback } from '@mindwtr/core';
 
 import { useLanguage } from '@/contexts/language-context';
 import { useThemeColors } from '@/hooks/use-theme-colors';
-import { authenticateWithDeviceLock, getMobileAppLockErrorKey } from '@/lib/mobile-app-lock';
+import {
+  authenticateWithDeviceLock,
+  getMobileAppLockErrorKey,
+  shouldAttemptMobileAppLockAuthentication,
+} from '@/lib/mobile-app-lock';
 
 type MobileAppLockGateProps = {
   enabled: boolean;
   children: React.ReactNode;
 };
+
+const AUTHENTICATE_AFTER_ACTIVE_DELAY_MS = 250;
 
 export function MobileAppLockGate({ enabled, children }: MobileAppLockGateProps) {
   const tc = useThemeColors();
@@ -21,6 +27,7 @@ export function MobileAppLockGate({ enabled, children }: MobileAppLockGateProps)
   const [errorKey, setErrorKey] = useState<string | null>(null);
   const [lockNonce, setLockNonce] = useState(0);
   const [promptedNonce, setPromptedNonce] = useState(-1);
+  const [appState, setAppState] = useState<AppStateStatus>(AppState.currentState);
   const appStateRef = useRef<AppStateStatus>(AppState.currentState);
   const authInFlightRef = useRef(false);
   const wasEnabledRef = useRef(enabled);
@@ -80,6 +87,7 @@ export function MobileAppLockGate({ enabled, children }: MobileAppLockGateProps)
       setLockNonce((value) => value + 1);
     };
     const subscription = AppState.addEventListener('change', (nextAppState) => {
+      setAppState(nextAppState);
       if (authInFlightRef.current) {
         appStateRef.current = nextAppState;
         return;
@@ -94,10 +102,23 @@ export function MobileAppLockGate({ enabled, children }: MobileAppLockGateProps)
   }, [enabled]);
 
   useEffect(() => {
-    if (!enabled || !locked || authenticating || promptedNonce === lockNonce) return;
-    setPromptedNonce(lockNonce);
-    void authenticate();
-  }, [authenticate, authenticating, enabled, locked, lockNonce, promptedNonce]);
+    if (!shouldAttemptMobileAppLockAuthentication({
+      appState,
+      authenticating,
+      enabled,
+      locked,
+      lockNonce,
+      promptedNonce,
+    })) {
+      return undefined;
+    }
+    const timer = setTimeout(() => {
+      if (appStateRef.current !== 'active') return;
+      setPromptedNonce(lockNonce);
+      void authenticate();
+    }, AUTHENTICATE_AFTER_ACTIVE_DELAY_MS);
+    return () => clearTimeout(timer);
+  }, [appState, authenticate, authenticating, enabled, locked, lockNonce, promptedNonce]);
 
   if (!enabled || !locked) {
     return <>{children}</>;

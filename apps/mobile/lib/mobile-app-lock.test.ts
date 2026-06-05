@@ -14,7 +14,11 @@ vi.mock('expo-local-authentication', () => ({
   authenticateAsync: authenticateAsyncMock,
 }));
 
-import { authenticateWithDeviceLock, getMobileAppLockErrorKey } from './mobile-app-lock';
+import {
+  authenticateWithDeviceLock,
+  getMobileAppLockErrorKey,
+  shouldAttemptMobileAppLockAuthentication,
+} from './mobile-app-lock';
 
 describe('mobile app lock authentication', () => {
   beforeEach(() => {
@@ -68,5 +72,72 @@ describe('mobile app lock authentication', () => {
 
     expect(result).toEqual({ success: false, reason: 'cancelled', error: 'user_cancel' });
     expect(getMobileAppLockErrorKey(result.success ? 'failed' : result.reason)).toBe('appLock.cancelled');
+  });
+
+  it('only auto-prompts the lock while the app is active', () => {
+    expect(shouldAttemptMobileAppLockAuthentication({
+      appState: 'background',
+      authenticating: false,
+      enabled: true,
+      locked: true,
+      lockNonce: 1,
+      promptedNonce: 0,
+    })).toBe(false);
+
+    expect(shouldAttemptMobileAppLockAuthentication({
+      appState: 'inactive',
+      authenticating: false,
+      enabled: true,
+      locked: true,
+      lockNonce: 1,
+      promptedNonce: 0,
+    })).toBe(false);
+
+    expect(shouldAttemptMobileAppLockAuthentication({
+      appState: 'active',
+      authenticating: false,
+      enabled: true,
+      locked: true,
+      lockNonce: 1,
+      promptedNonce: 0,
+    })).toBe(true);
+  });
+
+  it('does not auto-prompt while unlocked, already authenticating, or already prompted for that lock', () => {
+    expect(shouldAttemptMobileAppLockAuthentication({
+      appState: 'active',
+      authenticating: false,
+      enabled: false,
+      locked: true,
+      lockNonce: 1,
+      promptedNonce: 0,
+    })).toBe(false);
+
+    expect(shouldAttemptMobileAppLockAuthentication({
+      appState: 'active',
+      authenticating: false,
+      enabled: true,
+      locked: false,
+      lockNonce: 1,
+      promptedNonce: 0,
+    })).toBe(false);
+
+    expect(shouldAttemptMobileAppLockAuthentication({
+      appState: 'active',
+      authenticating: true,
+      enabled: true,
+      locked: true,
+      lockNonce: 1,
+      promptedNonce: 0,
+    })).toBe(false);
+
+    expect(shouldAttemptMobileAppLockAuthentication({
+      appState: 'active',
+      authenticating: false,
+      enabled: true,
+      locked: true,
+      lockNonce: 1,
+      promptedNonce: 1,
+    })).toBe(false);
   });
 });

@@ -6,6 +6,15 @@ export type MobileAppLockAuthOutcome =
   | { success: true }
   | { success: false; reason: MobileAppLockAuthFailureReason; error?: string };
 
+export type MobileAppLockAuthenticationGateInput = {
+  appState: string;
+  authenticating: boolean;
+  enabled: boolean;
+  locked: boolean;
+  lockNonce: number;
+  promptedNonce: number;
+};
+
 type AuthenticateWithDeviceLockOptions = {
   promptMessage: string;
   cancelLabel: string;
@@ -57,6 +66,23 @@ export async function authenticateWithDeviceLock({
     return { success: false, reason: 'cancelled', error: result.error };
   }
   return { success: false, reason: 'failed', error: result.error };
+}
+
+export function shouldAttemptMobileAppLockAuthentication({
+  appState,
+  authenticating,
+  enabled,
+  locked,
+  lockNonce,
+  promptedNonce,
+}: MobileAppLockAuthenticationGateInput): boolean {
+  return (
+    enabled
+    && locked
+    && !authenticating
+    && appState === 'active'
+    && promptedNonce !== lockNonce
+  );
 }
 
 export function getMobileAppLockErrorKey(reason: MobileAppLockAuthFailureReason): string {
