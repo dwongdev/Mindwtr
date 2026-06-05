@@ -55,11 +55,21 @@ describe('user prompt state', () => {
         const third = recordPromptActivity(second, baseMs + dayMs);
 
         expect(first.firstSeenAt).toBe(new Date(baseMs).toISOString());
+        expect(first.firstSeenDayKey).toBe(getPromptLocalDayKey(baseMs));
         expect(second.firstSeenAt).toBe(first.firstSeenAt);
+        expect(second.firstSeenDayKey).toBe(first.firstSeenDayKey);
         expect(third.activeDayKeys).toEqual([
             getPromptLocalDayKey(baseMs),
             getPromptLocalDayKey(baseMs + dayMs),
         ]);
+    });
+
+    it('derives a stable first seen day for existing prompt state', () => {
+        const firstSeenAt = new Date(baseMs - 14 * dayMs).toISOString();
+        const state = recordPromptActivity({ firstSeenAt }, baseMs);
+
+        expect(state.firstSeenAt).toBe(firstSeenAt);
+        expect(state.firstSeenDayKey).toBe(getPromptLocalDayKey(baseMs - 14 * dayMs));
     });
 
     it('allows store review after enough usage and native availability', () => {
@@ -77,6 +87,25 @@ describe('user prompt state', () => {
             nowMs: baseMs + 15 * dayMs,
             platform: 'android',
             promptState: newInstall,
+            storeReviewAvailable: true,
+        })).toBe(false);
+    });
+
+    it('ignores invalid and future active day keys for store review eligibility', () => {
+        const state: UserPromptState = {
+            firstSeenAt: new Date(baseMs - 30 * dayMs).toISOString(),
+            firstSeenDayKey: getPromptLocalDayKey(baseMs - 30 * dayMs),
+            activeDayKeys: [
+                ...Array.from({ length: 6 }, (_, index) => getPromptLocalDayKey(baseMs - index * dayMs)),
+                'not-a-day',
+                getPromptLocalDayKey(baseMs + dayMs),
+            ],
+        };
+
+        expect(shouldAttemptStoreReviewPrompt({
+            nowMs: baseMs,
+            platform: 'ios',
+            promptState: state,
             storeReviewAvailable: true,
         })).toBe(false);
     });

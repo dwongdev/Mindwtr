@@ -1,4 +1,5 @@
 const DAY_MS = 24 * 60 * 60 * 1000;
+const PROMPT_DAY_KEY_PATTERN = /^(\d{4})-(\d{2})-(\d{2})$/;
 
 export const PROMPT_COORDINATOR_COOLDOWN_MS = 7 * DAY_MS;
 export const STORE_REVIEW_MIN_DAYS_SINCE_FIRST_SEEN = 14;
@@ -15,6 +16,7 @@ export type UserPromptPlatform = 'ios' | 'android' | 'desktop' | 'web' | 'unknow
 
 export type UserPromptState = {
     firstSeenAt?: string;
+    firstSeenDayKey?: string;
     activeDayKeys?: string[];
     lastInterruptivePromptAt?: string;
     storeReview?: {
@@ -68,16 +70,67 @@ export function getPromptLocalDayKey(nowMs: number): string {
     return `${year}-${month}-${day}`;
 }
 
+function getPromptLocalDayIndex(nowMs: number): number {
+    const date = new Date(nowMs);
+    return Math.floor(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()) / DAY_MS);
+}
+
+function parsePromptDayKey(value: string | null | undefined): number | null {
+    if (!value) return null;
+    const match = PROMPT_DAY_KEY_PATTERN.exec(value);
+    if (!match) return null;
+    const year = Number.parseInt(match[1], 10);
+    const month = Number.parseInt(match[2], 10);
+    const day = Number.parseInt(match[3], 10);
+    const ms = Date.UTC(year, month - 1, day);
+    const date = new Date(ms);
+    if (
+        date.getUTCFullYear() !== year
+        || date.getUTCMonth() !== month - 1
+        || date.getUTCDate() !== day
+    ) {
+        return null;
+    }
+    return Math.floor(ms / DAY_MS);
+}
+
 function parseTimeMs(value: string | null | undefined): number | null {
     if (!value) return null;
     const ms = Date.parse(value);
     return Number.isFinite(ms) ? ms : null;
 }
 
-function daysSince(value: string | null | undefined, nowMs: number): number | null {
+function getPromptLocalDayKeyFromTime(value: string | null | undefined): string | null {
     const thenMs = parseTimeMs(value);
     if (thenMs === null) return null;
-    return Math.floor((nowMs - thenMs) / DAY_MS);
+    return getPromptLocalDayKey(thenMs);
+}
+
+function normalizePromptDayKeys(values: string[] | null | undefined): string[] {
+    const seen = new Set<string>();
+    const keys: string[] = [];
+    for (const value of values ?? []) {
+        if (parsePromptDayKey(value) === null || seen.has(value)) continue;
+        seen.add(value);
+        keys.push(value);
+    }
+    return keys;
+}
+
+function countActiveDaysThroughNow(values: string[] | null | undefined, nowMs: number): number {
+    const todayIndex = getPromptLocalDayIndex(nowMs);
+    return normalizePromptDayKeys(values).filter((key) => {
+        const dayIndex = parsePromptDayKey(key);
+        return dayIndex !== null && dayIndex <= todayIndex;
+    }).length;
+}
+
+function daysSinceFirstSeen(promptState: UserPromptState | null | undefined, nowMs: number): number | null {
+    const firstSeenDayKey = promptState?.firstSeenDayKey
+        ?? getPromptLocalDayKeyFromTime(promptState?.firstSeenAt);
+    const firstSeenDayIndex = parsePromptDayKey(firstSeenDayKey);
+    if (firstSeenDayIndex === null) return null;
+    return getPromptLocalDayIndex(nowMs) - firstSeenDayIndex;
 }
 
 function isCooldownElapsed(value: string | null | undefined, nowMs: number, cooldownMs: number): boolean {
@@ -136,15 +189,20 @@ export function recordPromptActivity(
 ): UserPromptState {
     const nowIso = new Date(nowMs).toISOString();
     const todayKey = getPromptLocalDayKey(nowMs);
-    const existingKeys = promptState?.activeDayKeys ?? [];
+    const existingKeys = normalizePromptDayKeys(promptState?.activeDayKeys);
     const nextKeys = existingKeys.includes(todayKey)
         ? existingKeys
         : [...existingKeys, todayKey].slice(-180);
+    const firstSeenDayKey = promptState?.firstSeenDayKey
+        ?? getPromptLocalDayKeyFromTime(promptState?.firstSeenAt)
+        ?? nextKeys[0]
+        ?? todayKey;
 
     return {
         ...(promptState ?? {}),
         activeDayKeys: nextKeys,
         firstSeenAt: promptState?.firstSeenAt ?? nowIso,
+        firstSeenDayKey,
     };
 }
 
@@ -159,12 +217,12 @@ export function shouldAttemptStoreReviewPrompt({
     if (recentNegativeSignal) return false;
     if (platform !== 'ios' && platform !== 'android') return false;
 
-    const daysSinceFirstSeen = daysSince(promptState?.firstSeenAt, nowMs);
-    if (daysSinceFirstSeen === null || daysSinceFirstSeen < STORE_REVIEW_MIN_DAYS_SINCE_FIRST_SEEN) {
+    const firstSeenDayCount = daysSinceFirstSeen(promptState, nowMs);
+    if (firstSeenDayCount === null || firstSeenDayCount < STORE_REVIEW_MIN_DAYS_SINCE_FIRST_SEEN) {
         return false;
     }
 
-    const activeDayCount = new Set(promptState?.activeDayKeys ?? []).size;
+    const activeDayCount = countActiveDaysThroughNow(promptState?.activeDayKeys, nowMs);
     if (activeDayCount < STORE_REVIEW_MIN_ACTIVE_DAYS) return false;
 
     if (!isCooldownElapsed(
@@ -205,12 +263,12 @@ export function shouldShowDonationPrompt({
     if (!donationAllowed) return false;
     if (promptState?.donation?.askedEver === true) return false;
 
-    const daysSinceFirstSeen = daysSince(promptState?.firstSeenAt, nowMs);
-    if (daysSinceFirstSeen === null || daysSinceFirstSeen < DONATION_PROMPT_MIN_DAYS_SINCE_FIRST_SEEN) {
+    const firstSeenDayCount = daysSinceFirstSeen(promptState, nowMs);
+    if (firstSeenDayCount === null || firstSeenDayCount < DONATION_PROMPT_MIN_DAYS_SINCE_FIRST_SEEN) {
         return false;
     }
 
-    const activeDayCount = new Set(promptState?.activeDayKeys ?? []).size;
+    const activeDayCount = countActiveDaysThroughNow(promptState?.activeDayKeys, nowMs);
     if (activeDayCount < DONATION_PROMPT_MIN_ACTIVE_DAYS) return false;
 
     return isCooldownElapsed(
@@ -276,12 +334,12 @@ export function shouldShowUpdateReminder({
     const dismissedVersion = promptState?.update?.dismissedVersion;
     if (dismissedVersion && comparePromptVersions(dismissedVersion, latestVersion) >= 0) return false;
 
-    const daysSinceFirstSeen = daysSince(promptState?.firstSeenAt, nowMs);
-    if (daysSinceFirstSeen === null || daysSinceFirstSeen < UPDATE_REMINDER_MIN_DAYS_SINCE_FIRST_SEEN) {
+    const firstSeenDayCount = daysSinceFirstSeen(promptState, nowMs);
+    if (firstSeenDayCount === null || firstSeenDayCount < UPDATE_REMINDER_MIN_DAYS_SINCE_FIRST_SEEN) {
         return false;
     }
 
-    const activeDayCount = new Set(promptState?.activeDayKeys ?? []).size;
+    const activeDayCount = countActiveDaysThroughNow(promptState?.activeDayKeys, nowMs);
     if (activeDayCount < UPDATE_REMINDER_MIN_ACTIVE_DAYS) return false;
 
     return isCooldownElapsed(
