@@ -129,17 +129,19 @@ describe('Accessibility', () => {
 
     it('GlobalSearch should have no violations when open', async () => {
         vi.useFakeTimers();
-        const { container } = renderWithLanguage(<GlobalSearch onNavigate={vi.fn()} />);
+        renderWithLanguage(<GlobalSearch onNavigate={vi.fn()} />);
 
         await act(async () => {
             window.dispatchEvent(new Event('mindwtr:open-search'));
             await vi.advanceTimersByTimeAsync(50);
         });
 
-        expect(container.querySelector('[role="dialog"]')).not.toBeNull();
+        const dialog = document.body.querySelector<HTMLElement>('[role="dialog"]');
+        expect(dialog).not.toBeNull();
+        if (!dialog) throw new Error('Global search dialog did not open');
         vi.useRealTimers();
 
-        const results = await runAxe(container);
+        const results = await runAxe(dialog);
         expect(results.violations).toHaveLength(0);
     });
 

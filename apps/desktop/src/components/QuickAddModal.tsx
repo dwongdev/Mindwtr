@@ -25,6 +25,7 @@ import { encodeWav, resampleAudio } from '../lib/audio-utils';
 import { getPreferredDesktopAudioCaptureBackend } from '../lib/audio-capture-backend';
 import { processAudioCapture, type SpeechToTextResult } from '../lib/speech-to-text';
 import { DEFAULT_WHISPER_MODEL } from '../lib/speech-models';
+import { ModalPortal } from './ModalPortal';
 import {
     QUICK_ADD_NATIVE_TARGET_MAIN,
     QUICK_ADD_NATIVE_TARGET_WINDOW,
@@ -659,6 +660,7 @@ export function QuickAddModal({ standaloneWindow = false }: QuickAddModalProps) 
     if (!isOpen) return null;
 
     return (
+        <ModalPortal>
         <div
             className={cn(
                 'fixed inset-0 flex items-start justify-center z-50',
@@ -849,5 +851,6 @@ export function QuickAddModal({ standaloneWindow = false }: QuickAddModalProps) 
                 )}
             </div>
         </div>
+        </ModalPortal>
     );
 }

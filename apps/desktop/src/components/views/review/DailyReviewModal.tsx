@@ -19,6 +19,7 @@ import {
 import { cn } from '../../../lib/utils';
 import { useLanguage } from '../../../contexts/language-context';
 import { InboxProcessor } from '../InboxProcessor';
+import { ModalPortal } from '../../ModalPortal';
 import { TaskItem } from '../../TaskItem';
 import { fetchExternalCalendarEvents, summarizeExternalCalendarWarnings } from '../../../lib/external-calendar-events';
 
@@ -514,6 +515,7 @@ export function DailyReviewGuideModal({ onClose }: DailyReviewGuideModalProps) {
     };
 
     return (
+        <ModalPortal>
         <div
             className="fixed inset-0 bg-black/50 flex items-center justify-center z-50"
             role="dialog"
@@ -584,5 +586,6 @@ export function DailyReviewGuideModal({ onClose }: DailyReviewGuideModalProps) {
                 </div>
             </div>
         </div>
+        </ModalPortal>
     );
 }

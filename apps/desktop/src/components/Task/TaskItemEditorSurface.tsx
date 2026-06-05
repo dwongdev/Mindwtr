@@ -1,5 +1,5 @@
 import type { ReactNode, RefObject } from 'react';
-import { createPortal } from 'react-dom';
+import { ModalPortal } from '../ModalPortal';
 
 type TaskItemEditorSurfaceProps = {
     editorAriaLabel: string;
@@ -81,7 +81,7 @@ export function TaskItemEditorSurface({
             ) : (
                 renderDisplay()
             )}
-            {modal && (typeof document === 'undefined' ? modal : createPortal(modal, document.body))}
+            {modal && <ModalPortal>{modal}</ModalPortal>}
         </>
     );
 }

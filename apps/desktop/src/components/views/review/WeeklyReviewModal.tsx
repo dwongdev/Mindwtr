@@ -20,6 +20,7 @@ import {
 import { Archive, ArrowRight, Calendar, Check, CheckSquare, ChevronLeft, Layers, MapPin, RefreshCw, Sparkles, X, type LucideIcon } from 'lucide-react';
 
 import { TaskItem } from '../../TaskItem';
+import { ModalPortal } from '../../ModalPortal';
 import { PromptModal } from '../../PromptModal';
 import { cn } from '../../../lib/utils';
 import { useLanguage } from '../../../contexts/language-context';
@@ -812,6 +813,7 @@ export function WeeklyReviewGuideModal({ onClose }: WeeklyReviewGuideModalProps)
     };
 
     return (
+        <ModalPortal>
         <div
             className="fixed inset-0 bg-black/50 flex items-center justify-center z-50"
             role="dialog"
@@ -893,5 +895,6 @@ export function WeeklyReviewGuideModal({ onClose }: WeeklyReviewGuideModalProps)
                 onConfirm={confirmProjectTaskPrompt}
             />
         </div>
+        </ModalPortal>
     );
 }

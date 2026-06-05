@@ -20,6 +20,7 @@ import {
 } from '@mindwtr/core';
 import { useLanguage } from '../contexts/language-context';
 import { cn } from '../lib/utils';
+import { ModalPortal } from './ModalPortal';
 import { PromptModal } from './PromptModal';
 import { useUiStore } from '../store/ui-store';
 import { computeGlobalSearchResults, type DuePreset, type GlobalSearchScope } from './global-search-filtering';
@@ -400,6 +401,7 @@ export function GlobalSearch({ onNavigate }: GlobalSearchProps) {
     }
 
     return (
+        <ModalPortal>
         <div
             className="fixed inset-0 z-50 flex items-start justify-center pt-[20vh] bg-background/80 backdrop-blur-sm animate-in fade-in-0"
             role="dialog"
@@ -745,5 +747,6 @@ export function GlobalSearch({ onNavigate }: GlobalSearchProps) {
                 onClick={() => setIsOpen(false)}
             />
         </div>
+        </ModalPortal>
     );
 }

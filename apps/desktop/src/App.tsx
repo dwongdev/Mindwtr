@@ -37,6 +37,7 @@ import { GlobalSearch } from './components/GlobalSearch';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { AppAnnouncementModal } from './components/AppAnnouncementModal';
 import { DesktopOnboardingFlow } from './components/DesktopOnboardingFlow';
+import { ModalPortal } from './components/ModalPortal';
 import { useLanguage } from './contexts/language-context';
 import { KeybindingProvider } from './contexts/keybinding-context';
 import { QuickAddModal } from './components/QuickAddModal';
@@ -1479,6 +1480,7 @@ function App() {
                         onDismiss={dismissUpdateReminder}
                     />
                     {externalSyncChange && (
+                        <ModalPortal>
                         <div
                             className="fixed inset-0 bg-black/50 flex items-start justify-center pt-[20vh] z-50"
                             role="dialog"
@@ -1539,6 +1541,7 @@ function App() {
                                 </div>
                             </div>
                         </div>
+                        </ModalPortal>
                     )}
                 </Layout>
             </KeybindingProvider>

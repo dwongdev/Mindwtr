@@ -1,4 +1,5 @@
 import { Database, Download, RefreshCw, X } from 'lucide-react';
+import { ModalPortal } from './ModalPortal';
 
 type DesktopOnboardingFlowProps = {
     isOpen: boolean;
@@ -22,6 +23,7 @@ export function DesktopOnboardingFlow({
     if (!isOpen) return null;
 
     return (
+        <ModalPortal>
         <div
             className="fixed inset-0 z-[70] flex items-center justify-center bg-black/55 px-6 py-8"
             role="dialog"
@@ -124,5 +126,6 @@ export function DesktopOnboardingFlow({
                 </div>
             </div>
         </div>
+        </ModalPortal>
     );
 }

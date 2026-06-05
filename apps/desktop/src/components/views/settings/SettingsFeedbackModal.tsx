@@ -1,9 +1,9 @@
 import { useEffect, useId, useRef, useState } from 'react';
-import { createPortal } from 'react-dom';
 import { Bug, Lightbulb, MessageSquare, Send, X } from 'lucide-react';
 
 import { FEEDBACK_CATEGORIES, type FeedbackCategory } from '@mindwtr/core';
 import { cn } from '../../../lib/utils';
+import { ModalPortal } from '../../ModalPortal';
 import { Button } from '../../ui/Button';
 
 type Labels = {
@@ -126,7 +126,8 @@ export function SettingsFeedbackModal({
         }
     };
 
-    return createPortal(
+    return (
+        <ModalPortal>
         <div
             className="fixed inset-0 z-50 flex items-start justify-center bg-black/50 px-4 pt-[12vh]"
             role="dialog"
@@ -271,7 +272,7 @@ export function SettingsFeedbackModal({
                     </div>
                 )}
             </div>
-        </div>,
-        document.body,
+        </div>
+        </ModalPortal>
     );
 }

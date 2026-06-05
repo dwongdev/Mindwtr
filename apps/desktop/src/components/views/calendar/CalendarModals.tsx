@@ -4,6 +4,7 @@ import { CALENDAR_TIME_ESTIMATE_OPTIONS } from '@mindwtr/core';
 
 import { TaskInput } from '../../Task/TaskInput';
 import { TaskItem } from '../../TaskItem';
+import { ModalPortal } from '../../ModalPortal';
 import { cn } from '../../../lib/utils';
 import {
     DESKTOP_GRID_SNAP_MINUTES,
@@ -61,6 +62,7 @@ export function CalendarOpenTaskModal({ controller }: CalendarOpenTaskModalProps
     if (!openTask) return null;
 
     return (
+        <ModalPortal>
         <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/50 p-4" role="dialog" aria-modal="true">
             <div
                 className="absolute inset-0"
@@ -87,6 +89,7 @@ export function CalendarOpenTaskModal({ controller }: CalendarOpenTaskModalProps
                 />
             </div>
         </div>
+        </ModalPortal>
     );
 }
 
@@ -117,6 +120,7 @@ export function CalendarTaskComposerModal({ controller }: CalendarTaskComposerMo
     if (!taskComposer) return null;
 
     return (
+        <ModalPortal>
         <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/50 p-4" role="dialog" aria-modal="true">
             <div
                 className="absolute inset-0"
@@ -325,5 +329,6 @@ export function CalendarTaskComposerModal({ controller }: CalendarTaskComposerMo
                 </div>
             </form>
         </div>
+        </ModalPortal>
     );
 }

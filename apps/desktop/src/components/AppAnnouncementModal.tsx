@@ -1,8 +1,8 @@
 import { useEffect, useId, useRef } from 'react';
-import { createPortal } from 'react-dom';
 import { ExternalLink, Megaphone, MessageSquare, X } from 'lucide-react';
 
 import type { AppAnnouncement, AppAnnouncementAction } from '@mindwtr/core';
+import { ModalPortal } from './ModalPortal';
 import { Button } from './ui/Button';
 
 type AppAnnouncementModalProps = {
@@ -46,11 +46,12 @@ export function AppAnnouncementModal({
         return () => window.clearTimeout(timer);
     }, [announcement, isOpen]);
 
-    if (!isOpen || !announcement || typeof document === 'undefined') return null;
+    if (!isOpen || !announcement) return null;
 
     const action = announcement.action;
 
-    return createPortal(
+    return (
+        <ModalPortal>
         <div
             className="fixed inset-0 z-[60] flex items-start justify-center bg-black/50 px-4 pt-[18vh]"
             onClick={onDismiss}
@@ -122,7 +123,7 @@ export function AppAnnouncementModal({
                     ) : null}
                 </div>
             </div>
-        </div>,
-        document.body,
+        </div>
+        </ModalPortal>
     );
 }

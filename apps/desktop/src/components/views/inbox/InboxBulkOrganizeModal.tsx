@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useState } from 'react';
-import { createPortal } from 'react-dom';
 import { ClipboardCheck, X } from 'lucide-react';
 import {
     isSelectableProjectForTaskAssignment,
@@ -11,6 +10,7 @@ import {
     type Project,
 } from '@mindwtr/core';
 
+import { ModalPortal } from '../../ModalPortal';
 import { Button } from '../../ui/Button';
 
 type InboxBulkOrganizeModalProps = {
@@ -108,7 +108,8 @@ export function InboxBulkOrganizeModal({
         void onApply(input);
     };
 
-    return createPortal(
+    return (
+        <ModalPortal>
         <div
             className="fixed inset-0 z-50 flex items-start justify-center bg-black/50 px-4 pt-[8vh]"
             role="dialog"
@@ -285,7 +286,7 @@ export function InboxBulkOrganizeModal({
                     </Button>
                 </div>
             </div>
-        </div>,
-        document.body,
+        </div>
+        </ModalPortal>
     );
 }

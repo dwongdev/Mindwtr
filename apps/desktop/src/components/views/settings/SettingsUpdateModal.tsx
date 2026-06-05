@@ -1,6 +1,7 @@
 import { ExternalLink } from 'lucide-react';
 import type { UpdateInfo } from '../../../lib/update-service';
 import { cn } from '../../../lib/utils';
+import { ModalPortal } from '../../ModalPortal';
 
 export type RecommendedDownload = {
     label: string;
@@ -34,7 +35,12 @@ export function SettingsUpdateModal({
 }: SettingsUpdateModalProps) {
     if (!isOpen || !updateInfo) return null;
     return (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+        <ModalPortal>
+        <div
+            className="fixed inset-0 bg-black/50 flex items-center justify-center z-50"
+            role="dialog"
+            aria-modal="true"
+        >
             <div className="bg-card border border-border rounded-lg shadow-xl max-w-lg w-full mx-4 max-h-[80vh] flex flex-col">
                 <div className="p-6 border-b border-border">
                     <h3 className="text-xl font-semibold text-green-500 flex items-center gap-2">{t.updateAvailable}</h3>
@@ -92,5 +98,6 @@ export function SettingsUpdateModal({
                 </div>
             </div>
         </div>
+        </ModalPortal>
     );
 }

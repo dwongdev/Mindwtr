@@ -1,5 +1,6 @@
 import { useId } from 'react';
 import { KeybindingStyle } from '../contexts/keybinding-context';
+import { ModalPortal } from './ModalPortal';
 import {
     type GlobalQuickAddShortcutSetting,
     formatGlobalQuickAddShortcutForDisplay,
@@ -113,6 +114,7 @@ export function KeybindingHelpModal({
     };
 
     return (
+        <ModalPortal>
         <div
             className="fixed inset-0 bg-black/50 flex items-center justify-center z-50"
             onKeyDown={(event) => {
@@ -183,5 +185,6 @@ export function KeybindingHelpModal({
                 </div>
             </div>
         </div>
+        </ModalPortal>
     );
 }

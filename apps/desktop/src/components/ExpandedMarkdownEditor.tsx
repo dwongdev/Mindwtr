@@ -1,10 +1,10 @@
 import { useCallback, useEffect, useId, useRef, useState, type ClipboardEvent, type KeyboardEvent } from 'react';
-import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
 
 import { cn } from '../lib/utils';
 import { MarkdownFormatToolbar } from './MarkdownFormatToolbar';
 import { MarkdownReferenceAutocompleteMenu, useMarkdownReferenceAutocomplete } from './MarkdownReferenceAutocomplete';
+import { ModalPortal } from './ModalPortal';
 import { RichMarkdown } from './RichMarkdown';
 import type { MarkdownSelection, MarkdownToolbarActionId, MarkdownToolbarResult } from '@mindwtr/core';
 
@@ -111,9 +111,9 @@ export function ExpandedMarkdownEditor({
     }, [isOpen, mode]);
 
     if (!isOpen) return null;
-    if (typeof document === 'undefined') return null;
 
-    return createPortal(
+    return (
+        <ModalPortal>
         <div
             className="fixed inset-0 z-[70] flex items-center justify-center bg-black/50 p-4"
             role="dialog"
@@ -254,7 +254,7 @@ export function ExpandedMarkdownEditor({
                     )}
                 </div>
             </div>
-        </div>,
-        document.body,
+        </div>
+        </ModalPortal>
     );
 }

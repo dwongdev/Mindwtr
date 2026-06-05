@@ -3,6 +3,7 @@ import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable'
 import { translateWithFallback, type Area, type StoreActionResult } from '@mindwtr/core';
 import type { ChangeEventHandler, MouseEventHandler } from 'react';
 import { X } from 'lucide-react';
+import { ModalPortal } from '../../ModalPortal';
 import { SortableAreaRow } from './SortableRows';
 import { AreaColorPicker } from './AreaColorPicker';
 
@@ -53,6 +54,7 @@ export function AreaManagerModal({
     const loadingLabel = resolveText('common.loading', 'Loading...');
 
     return (
+        <ModalPortal>
         <div
             className="fixed inset-0 bg-black/50 flex items-start justify-center pt-[15vh] z-50"
             role="dialog"
@@ -146,5 +148,6 @@ export function AreaManagerModal({
                 </div>
             </div>
         </div>
+        </ModalPortal>
     );
 }
