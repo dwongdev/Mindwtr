@@ -4,6 +4,7 @@ import { act, create } from 'react-test-renderer';
 import { describe, expect, it, vi } from 'vitest';
 
 import { TaskEditContentField } from './TaskEditContentField';
+import { DESCRIPTION_END_KEYBOARD_SCROLL_TARGET } from './task-edit-keyboard';
 
 vi.mock('../markdown-reference-autocomplete', () => ({
   MarkdownReferenceAutocomplete: (props: any) => React.createElement('MarkdownReferenceAutocomplete', props),
@@ -213,7 +214,7 @@ describe('TaskEditContentField', () => {
     expect(handleInputFocus).toHaveBeenCalledWith(undefined);
   });
 
-  it('tracks the focused Android description handle for measured scrolling', () => {
+  it('does not register Android description focus as a whole-input scroll target', () => {
     const handleInputFocus = vi.fn();
     const setIsDescriptionInputFocused = vi.fn();
     let tree!: ReturnType<typeof create>;
@@ -237,7 +238,78 @@ describe('TaskEditContentField', () => {
       });
 
       expect(setIsDescriptionInputFocused).toHaveBeenCalledWith(true);
-      expect(handleInputFocus).toHaveBeenCalledWith(42);
+      expect(handleInputFocus).toHaveBeenCalledWith(undefined);
+    });
+  });
+
+  it('nudges Android keyboard scrolling when the inline description caret reaches the end', () => {
+    const descriptionDraft = 'First line\nLast line';
+    const handleInputFocus = vi.fn();
+    const setDescriptionSelection = vi.fn();
+    let tree!: ReturnType<typeof create>;
+
+    withPlatform('android', () => {
+      act(() => {
+        tree = create(
+          <TaskEditContentField
+            {...baseProps}
+            fieldId="description"
+            descriptionDraft={descriptionDraft}
+            isDescriptionInputFocused
+            handleInputFocus={handleInputFocus}
+            setDescriptionSelection={setDescriptionSelection}
+          />
+        );
+      });
+
+      const input = tree.root.findByProps({ accessibilityLabel: 'taskEdit.descriptionLabel' });
+      const endSelection = { start: descriptionDraft.length, end: descriptionDraft.length };
+
+      act(() => {
+        input.props.onSelectionChange({ nativeEvent: { selection: endSelection } });
+      });
+
+      expect(setDescriptionSelection).toHaveBeenCalledWith(endSelection);
+      expect(handleInputFocus).toHaveBeenCalledWith(DESCRIPTION_END_KEYBOARD_SCROLL_TARGET);
+    });
+  });
+
+  it('does not nudge Android keyboard scrolling for middle description taps', () => {
+    const descriptionDraft = [
+      'Intro line',
+      '[First link](https://example.com/first)',
+      '[Second link](https://example.com/second)',
+      '[Third link](https://example.com/third)',
+      'Last line',
+    ].join('\n');
+    const handleInputFocus = vi.fn();
+    const setDescriptionSelection = vi.fn();
+    let tree!: ReturnType<typeof create>;
+
+    withPlatform('android', () => {
+      act(() => {
+        tree = create(
+          <TaskEditContentField
+            {...baseProps}
+            fieldId="description"
+            descriptionDraft={descriptionDraft}
+            isDescriptionInputFocused
+            handleInputFocus={handleInputFocus}
+            setDescriptionSelection={setDescriptionSelection}
+          />
+        );
+      });
+
+      const input = tree.root.findByProps({ accessibilityLabel: 'taskEdit.descriptionLabel' });
+      const middleSelection = { start: descriptionDraft.indexOf('Second'), end: descriptionDraft.indexOf('Second') };
+
+      act(() => {
+        input.props.onSelectionChange({ nativeEvent: { selection: middleSelection } });
+      });
+
+      expect(setDescriptionSelection).toHaveBeenCalledWith(middleSelection);
+      expect(handleInputFocus).toHaveBeenCalledWith(undefined);
+      expect(handleInputFocus).not.toHaveBeenCalledWith(DESCRIPTION_END_KEYBOARD_SCROLL_TARGET);
     });
   });
 
