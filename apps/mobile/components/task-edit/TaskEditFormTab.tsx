@@ -63,7 +63,7 @@ type TaskEditFormTabProps = {
 
 const TASK_FORM_BASE_BOTTOM_PADDING = 32;
 
-export function TaskEditFormTab({
+function TaskEditFormTabComponent({
     t,
     tc,
     styles,
@@ -475,3 +475,5 @@ export function TaskEditFormTab({
         </View>
     );
 }
+
+export const TaskEditFormTab = React.memo(TaskEditFormTabComponent);

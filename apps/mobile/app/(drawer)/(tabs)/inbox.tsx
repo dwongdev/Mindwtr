@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 
-import { isTaskInActiveProject, useTaskStore } from '@mindwtr/core';
+import { isTaskInActiveProject, shallow, useTaskStore } from '@mindwtr/core';
 import { TaskList } from '../../../components/task-list';
 import { InboxProcessingModal } from '../../../components/inbox-processing-modal';
 import { ErrorBoundary } from '../../../components/ErrorBoundary';
@@ -13,7 +13,11 @@ import { taskMatchesAreaFilter } from '@/lib/area-filter';
 import { useQuickCapture } from '../../../contexts/quick-capture-context';
 
 export default function InboxScreen() {
-  const { tasks, projects, settings } = useTaskStore();
+  const { tasks, projects, settings } = useTaskStore((state) => ({
+    tasks: state.tasks,
+    projects: state.projects,
+    settings: state.settings,
+  }), shallow);
   const { t } = useLanguage();
   const tc = useThemeColors();
   const { openQuickCapture } = useQuickCapture();

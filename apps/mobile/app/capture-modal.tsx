@@ -18,6 +18,7 @@ import {
   getUsedTaskTokens,
   isSelectableProjectForTaskAssignment,
   parseQuickAdd,
+  shallow,
   type AIProviderId,
   type Project,
   type Task,
@@ -116,7 +117,14 @@ const sanitizeInitialPropsParam = (
 export default function CaptureScreen() {
   const params = useLocalSearchParams<CaptureSearchParams>();
   const router = useRouter();
-  const { addProject, addTask, projects, tasks, settings, areas } = useTaskStore();
+  const { addProject, addTask, projects, tasks, settings, areas } = useTaskStore((state) => ({
+    addProject: state.addProject,
+    addTask: state.addTask,
+    projects: state.projects,
+    tasks: state.tasks,
+    settings: state.settings,
+    areas: state.areas,
+  }), shallow);
   const tc = useThemeColors();
   const { showToast } = useToast();
   const { t } = useLanguage();

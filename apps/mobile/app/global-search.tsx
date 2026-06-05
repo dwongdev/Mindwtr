@@ -28,6 +28,7 @@ import {
     getWeekStartsOnIndex,
     matchesHierarchicalToken,
     safeParseDueDate,
+    shallow,
     shouldShowTaskForStart,
     translateWithFallback,
 } from '@mindwtr/core';
@@ -53,7 +54,14 @@ const decodeSearchParam = (value: string | string[] | undefined): string => {
 };
 
 export default function SearchScreen() {
-    const { _allTasks, projects, areas, settings, updateSettings, setHighlightTask } = useTaskStore();
+    const { _allTasks, projects, areas, settings, updateSettings, setHighlightTask } = useTaskStore((state) => ({
+        _allTasks: state._allTasks,
+        projects: state.projects,
+        areas: state.areas,
+        settings: state.settings,
+        updateSettings: state.updateSettings,
+        setHighlightTask: state.setHighlightTask,
+    }), shallow);
     const tc = useThemeColors();
     const { t } = useLanguage();
     const router = useRouter();

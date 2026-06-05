@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import { View, Text, TextInput, TouchableOpacity, Alert, FlatList, Dimensions, Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
-import { AREA_PRESET_COLORS, Attachment, DEFAULT_PROJECT_COLOR, Project, Task, type TaskSortBy, useTaskStore } from '@mindwtr/core';
+import { AREA_PRESET_COLORS, Attachment, DEFAULT_PROJECT_COLOR, Project, shallow, Task, type TaskSortBy, useTaskStore } from '@mindwtr/core';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { ChevronDown, ChevronRight, Plus } from 'lucide-react-native';
 
@@ -55,7 +55,24 @@ export default function ProjectsScreen() {
     setHighlightTask,
     settings,
     getDerivedState,
-  } = useTaskStore();
+  } = useTaskStore((state) => ({
+    projects: state.projects,
+    tasks: state.tasks,
+    addProject: state.addProject,
+    updateProject: state.updateProject,
+    deleteProject: state.deleteProject,
+    restoreProject: state.restoreProject,
+    duplicateProject: state.duplicateProject,
+    toggleProjectFocus: state.toggleProjectFocus,
+    addArea: state.addArea,
+    updateArea: state.updateArea,
+    deleteArea: state.deleteArea,
+    reorderAreas: state.reorderAreas,
+    updateTask: state.updateTask,
+    setHighlightTask: state.setHighlightTask,
+    settings: state.settings,
+    getDerivedState: state.getDerivedState,
+  }), shallow);
   const { t, language } = useLanguage();
   const { showToast } = useToast();
   const tc = useThemeColors();

@@ -1,7 +1,7 @@
 import { BackHandler, View, Text, ScrollView, Pressable, StyleSheet, TouchableOpacity, Modal, TextInput, Share } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useFocusEffect } from '@react-navigation/native';
-import { DEFAULT_AREA_COLOR, useTaskStore, sortTasksBy, isTaskInActiveProject, type Task, type TaskStatus, type TaskSortBy } from '@mindwtr/core';
+import { DEFAULT_AREA_COLOR, useTaskStore, sortTasksBy, isTaskInActiveProject, shallow, type Task, type TaskStatus, type TaskSortBy } from '@mindwtr/core';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTheme } from '../../contexts/theme-context';
 import { useLanguage } from '../../contexts/language-context';
@@ -23,7 +23,16 @@ const NEEDS_ACTION_COLOR = '#F59E0B';
 
 export default function ReviewScreen() {
   const router = useRouter();
-  const { tasks, projects, updateTask, deleteTask, batchMoveTasks, batchDeleteTasks, batchUpdateTasks, settings } = useTaskStore();
+  const { tasks, projects, updateTask, deleteTask, batchMoveTasks, batchDeleteTasks, batchUpdateTasks, settings } = useTaskStore((state) => ({
+    tasks: state.tasks,
+    projects: state.projects,
+    updateTask: state.updateTask,
+    deleteTask: state.deleteTask,
+    batchMoveTasks: state.batchMoveTasks,
+    batchDeleteTasks: state.batchDeleteTasks,
+    batchUpdateTasks: state.batchUpdateTasks,
+    settings: state.settings,
+  }), shallow);
   const { isDark } = useTheme();
   const { t } = useLanguage();
   const [editingTask, setEditingTask] = useState<Task | null>(null);

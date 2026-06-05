@@ -30,9 +30,37 @@ import { TaskEditModal } from '../components/task-edit-modal';
 const LARGE_TASK_COUNT = 5_000;
 const PROJECT_COUNT = 40;
 const SECTIONS_PER_PROJECT = 2;
+const heavyEditorTabRenderCounts = vi.hoisted(() => ({
+  form: 0,
+  view: 0,
+}));
+const translate = vi.hoisted(() => {
+  const labels: Record<string, string> = {
+    'agenda.allClear': 'All clear',
+    'agenda.noTasks': 'No tasks',
+    'agenda.reviewDue': 'Review Due',
+    'agenda.todaysFocus': "Today's Focus",
+    'common.all': 'All',
+    'common.cancel': 'Cancel',
+    'common.delete': 'Delete',
+    'common.done': 'Done',
+    'common.error': 'Error',
+    'common.undo': 'Undo',
+    'energyLevel.high': 'High energy',
+    'filters.label': 'Filters',
+    'focus.nextActions': 'Next Actions',
+    'focus.schedule': 'Today',
+    'savedFilters.save': 'Save',
+    'task.updateFailed': 'Could not update task.',
+    'taskEdit.locationLabel': 'Location',
+    'taskEdit.locationPlaceholder': 'e.g. Office',
+  };
+  return (key: string) => labels[key] ?? key;
+});
 
 const PERFORMANCE_BUDGET_MS = {
   openEditor: 300,
+  toggleProjectPicker: 80,
   saveWhileEditorMounted: 150,
   toggleCompleteWhileEditorMounted: 150,
   renderFocus: 350,
@@ -187,27 +215,7 @@ vi.mock('../contexts/theme-context', () => ({
 vi.mock('../contexts/language-context', () => ({
   useLanguage: () => ({
     language: 'en',
-    t: (key: string) =>
-      ({
-        'agenda.allClear': 'All clear',
-        'agenda.noTasks': 'No tasks',
-        'agenda.reviewDue': 'Review Due',
-        'agenda.todaysFocus': "Today's Focus",
-        'common.all': 'All',
-        'common.cancel': 'Cancel',
-        'common.delete': 'Delete',
-        'common.done': 'Done',
-        'common.error': 'Error',
-        'common.undo': 'Undo',
-        'energyLevel.high': 'High energy',
-        'filters.label': 'Filters',
-        'focus.nextActions': 'Next Actions',
-        'focus.schedule': 'Today',
-        'savedFilters.save': 'Save',
-        'task.updateFailed': 'Could not update task.',
-        'taskEdit.locationLabel': 'Location',
-        'taskEdit.locationPlaceholder': 'e.g. Office',
-      }[key] ?? key),
+    t: translate,
   }),
 }));
 
@@ -247,11 +255,17 @@ vi.mock('../lib/ai-config', () => ({
 }));
 
 vi.mock('../components/task-edit/TaskEditViewTab', () => ({
-  TaskEditViewTab: (props: Record<string, unknown>) => React.createElement('TaskEditViewTab', props),
+  TaskEditViewTab: React.memo((props: Record<string, unknown>) => {
+    heavyEditorTabRenderCounts.view += 1;
+    return React.createElement('TaskEditViewTab', props);
+  }),
 }));
 
 vi.mock('../components/task-edit/TaskEditFormTab', () => ({
-  TaskEditFormTab: (props: Record<string, unknown>) => React.createElement('TaskEditFormTab', props),
+  TaskEditFormTab: React.memo((props: Record<string, unknown>) => {
+    heavyEditorTabRenderCounts.form += 1;
+    return React.createElement('TaskEditFormTab', props);
+  }),
 }));
 
 vi.mock('../components/swipeable-task-item', () => ({
@@ -592,8 +606,70 @@ describe('large-store mobile interaction performance', () => {
     await flushPendingSave();
     resetForTests();
     resetStore();
+    heavyEditorTabRenderCounts.form = 0;
+    heavyEditorTabRenderCounts.view = 0;
     vi.useRealTimers();
     vi.restoreAllMocks();
+  });
+
+  it('does not rerender heavy editor tabs when dismissing the project picker', async () => {
+    vi.useFakeTimers();
+    const data = createLargeStoreData();
+    loadLargeStore(data);
+    heavyEditorTabRenderCounts.form = 0;
+    heavyEditorTabRenderCounts.view = 0;
+
+    let editorTree: ReactTestRenderer | null = null;
+    await act(async () => {
+      editorTree = renderer.create(
+        <TaskEditModal
+          visible
+          task={data.targetTask}
+          onClose={vi.fn()}
+          onSave={vi.fn()}
+        />
+      );
+      await Promise.resolve();
+    });
+    await act(async () => {
+      await Promise.resolve();
+    });
+    await act(async () => {
+      vi.runOnlyPendingTimers();
+      await Promise.resolve();
+    });
+
+    const initialFormRenders = heavyEditorTabRenderCounts.form;
+    const initialViewRenders = heavyEditorTabRenderCounts.view;
+    const formTab = editorTree!.root.findAll((node) => String(node.type) === 'TaskEditFormTab')[0];
+    if (!formTab) throw new Error('TaskEditFormTab not found');
+    const projectField = formTab.props.renderField('project') as React.ReactElement<Record<string, unknown>>;
+    const setShowProjectPicker = projectField.props.setShowProjectPicker as (visible: boolean) => void;
+
+    const togglePickerMs = measureSync(() => {
+      act(() => {
+        setShowProjectPicker(true);
+      });
+      const projectPickerModal = editorTree!.root.findAll(
+        (node) => node.props.accessibilityViewIsModal === true && typeof node.props.onRequestClose === 'function'
+      )[0];
+      if (!projectPickerModal) throw new Error('Project picker modal not found');
+      act(() => {
+        projectPickerModal.props.onRequestClose();
+      });
+    });
+
+    expect(heavyEditorTabRenderCounts.form).toBe(initialFormRenders);
+    expect(heavyEditorTabRenderCounts.view).toBe(initialViewRenders);
+    expectWithinBudget(
+      'Toggle project picker',
+      togglePickerMs,
+      PERFORMANCE_BUDGET_MS.toggleProjectPicker
+    );
+
+    act(() => {
+      editorTree?.unmount();
+    });
   });
 
   it('keeps core mobile interactions under the large-store budget', async () => {

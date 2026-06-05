@@ -1,5 +1,5 @@
 import { View, Text, ScrollView, StyleSheet, TouchableOpacity, Platform } from 'react-native';
-import { isTaskInActiveProject, useTaskStore } from '@mindwtr/core';
+import { isTaskInActiveProject, shallow, useTaskStore } from '@mindwtr/core';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { Task, TaskStatus } from '@mindwtr/core';
 import { useTheme } from '../../contexts/theme-context';
@@ -19,7 +19,15 @@ import { TaskEditModal } from '../task-edit-modal';
 
 
 export function SomedayView() {
-  const { tasks, projects, updateTask, updateProject, deleteTask, highlightTaskId, setHighlightTask } = useTaskStore();
+  const { tasks, projects, updateTask, updateProject, deleteTask, highlightTaskId, setHighlightTask } = useTaskStore((state) => ({
+    tasks: state.tasks,
+    projects: state.projects,
+    updateTask: state.updateTask,
+    updateProject: state.updateProject,
+    deleteTask: state.deleteTask,
+    highlightTaskId: state.highlightTaskId,
+    setHighlightTask: state.setHighlightTask,
+  }), shallow);
   const { isDark } = useTheme();
   const { t } = useLanguage();
   const [editingTask, setEditingTask] = useState<Task | null>(null);

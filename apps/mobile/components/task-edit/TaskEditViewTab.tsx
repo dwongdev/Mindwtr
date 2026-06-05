@@ -46,7 +46,7 @@ type TaskEditViewTabProps = {
   onStatusUpdate?: (status: TaskStatus) => void;
 };
 
-export function TaskEditViewTab({
+function TaskEditViewTabComponent({
   t,
   tc,
   styles,
@@ -303,3 +303,5 @@ export function TaskEditViewTab({
     </ScrollView>
   );
 }
+
+export const TaskEditViewTab = React.memo(TaskEditViewTabComponent);

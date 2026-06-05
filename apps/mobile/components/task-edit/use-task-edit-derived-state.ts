@@ -133,19 +133,22 @@ export function useTaskEditDerivedState({
         return '4h+';
     }, []);
 
-    const savedPresets = settings.gtd?.timeEstimatePresets;
-    const basePresets = savedPresets?.length ? savedPresets : DEFAULT_TIME_ESTIMATE_PRESETS;
-    const normalizedPresets = ALL_TIME_ESTIMATES.filter((value) => basePresets.includes(value));
+    const savedPresetsKey = settings.gtd?.timeEstimatePresets?.join('|') ?? '';
     const currentEstimate = editedTask.timeEstimate as TimeEstimate | undefined;
-    const effectivePresets = currentEstimate && !normalizedPresets.includes(currentEstimate)
-        ? [...normalizedPresets, currentEstimate]
-        : normalizedPresets;
     const timeEstimateOptions: { value: TimeEstimate | ''; label: string }[] = useMemo(
-        () => [
-            { value: '', label: t('common.none') },
-            ...effectivePresets.map((value) => ({ value, label: formatTimeEstimateLabel(value) })),
-        ],
-        [effectivePresets, formatTimeEstimateLabel, t]
+        () => {
+            const savedPresets = settings.gtd?.timeEstimatePresets;
+            const basePresets = savedPresets?.length ? savedPresets : DEFAULT_TIME_ESTIMATE_PRESETS;
+            const normalizedPresets = ALL_TIME_ESTIMATES.filter((value) => basePresets.includes(value));
+            const effectivePresets = currentEstimate && !normalizedPresets.includes(currentEstimate)
+                ? [...normalizedPresets, currentEstimate]
+                : normalizedPresets;
+            return [
+                { value: '', label: t('common.none') },
+                ...effectivePresets.map((value) => ({ value, label: formatTimeEstimateLabel(value) })),
+            ];
+        },
+        [currentEstimate, formatTimeEstimateLabel, savedPresetsKey, settings.gtd?.timeEstimatePresets, t]
     );
 
     const savedOrder = useMemo(() => settings.gtd?.taskEditor?.order ?? [], [settings.gtd?.taskEditor?.order]);

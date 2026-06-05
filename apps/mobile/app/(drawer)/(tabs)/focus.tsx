@@ -37,6 +37,7 @@ import {
   safeFormatDate,
   safeParseDate,
   safeParseDueDate,
+  shallow,
   type Task,
   type TaskStatus,
   type TaskPriority,
@@ -215,7 +216,16 @@ function buildFocusTaskGroups(
 export default function FocusScreen() {
   const { taskId, openToken } = useLocalSearchParams<{ taskId?: string; openToken?: string }>();
   const insets = useSafeAreaInsets();
-  const { tasks, projects, settings, updateTask, deleteTask, updateSettings, highlightTaskId, setHighlightTask } = useTaskStore();
+  const { tasks, projects, settings, updateTask, deleteTask, updateSettings, highlightTaskId, setHighlightTask } = useTaskStore((state) => ({
+    tasks: state.tasks,
+    projects: state.projects,
+    settings: state.settings,
+    updateTask: state.updateTask,
+    deleteTask: state.deleteTask,
+    updateSettings: state.updateSettings,
+    highlightTaskId: state.highlightTaskId,
+    setHighlightTask: state.setHighlightTask,
+  }), shallow);
   const { isDark } = useTheme();
   const { t } = useLanguage();
   const { showToast } = useToast();
