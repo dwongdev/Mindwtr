@@ -1,5 +1,5 @@
 import React from 'react';
-import { Text, TextInput } from 'react-native';
+import { Platform, Text, TextInput } from 'react-native';
 import renderer, { act } from 'react-test-renderer';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { configureDateFormatting } from '@mindwtr/core';
@@ -25,6 +25,10 @@ const styles = {
     compactFieldRow: {},
     compactFieldLabel: {},
     compactFieldValue: {},
+    pickerToolbar: {},
+    pickerSpacer: {},
+    pickerDone: {},
+    pickerDoneText: {},
     customRow: {},
     modalLabel: {},
     customInput: {},
@@ -46,6 +50,7 @@ const tc = {
 
 const t = (key: string) => ({
     'common.notSet': 'Not set',
+    'common.done': 'Done',
     'taskEdit.dueDateLabel': 'Due Date',
     'taskEdit.startDateLabel': 'Start Date',
     'task.dateIssue.startAfterDue': 'Starts after due date',
@@ -62,7 +67,10 @@ const t = (key: string) => ({
     'recurrence.endsAfterCount': 'After',
 }[key] ?? key);
 
+const originalPlatformOS = Platform.OS;
+
 afterEach(() => {
+    Object.defineProperty(Platform, 'OS', { value: originalPlatformOS, configurable: true });
     configureDateFormatting({ language: 'en', dateFormat: 'system', timeFormat: 'system', systemLocale: 'en-US' });
 });
 
@@ -192,6 +200,49 @@ describe('TaskEditScheduleField', () => {
 
         const textValues = tree.root.findAllByType(Text).map((node) => node.props.children);
         expect(textValues).toContain('Starts after due date');
+    });
+
+    it('renders the iOS due-time picker with time mode and theme text color', () => {
+        Object.defineProperty(Platform, 'OS', { value: 'ios', configurable: true });
+
+        let tree!: renderer.ReactTestRenderer;
+        act(() => {
+            tree = renderer.create(
+                <TaskEditScheduleField {...({
+                    customWeekdays: [],
+                    dailyInterval: 1,
+                    editedTask: { dueDate: '2026-04-28T09:20:00' },
+                    fieldId: 'dueDate',
+                    formatDate: (value?: string) => value ?? '',
+                    formatDueDate: (value?: string) => value ?? '',
+                    getSafePickerDateValue: () => new Date('2026-04-28T09:20:00'),
+                    monthlyPattern: 'date',
+                    onDateChange: vi.fn(),
+                    openCustomRecurrence: vi.fn(),
+                    pendingDueDate: null,
+                    pendingStartDate: null,
+                    recurrenceOptions: [],
+                    recurrenceRRuleValue: '',
+                    recurrenceRuleValue: '',
+                    recurrenceStrategyValue: 'strict',
+                    recurrenceWeekdayButtons: [],
+                    setCustomWeekdays: vi.fn(),
+                    setEditedTask: vi.fn(),
+                    setShowDatePicker: vi.fn(),
+                    showDatePicker: 'due-time',
+                    styles,
+                    t,
+                    task: null,
+                    tc,
+                } as any)}
+                />
+            );
+        });
+
+        const picker = tree.root.findByType('DateTimePicker' as any);
+        expect(picker.props.mode).toBe('time');
+        expect(picker.props.display).toBe('spinner');
+        expect(picker.props.textColor).toBe(tc.text);
     });
 
     it('updates monthly recurrence intervals without changing the monthly pattern', () => {

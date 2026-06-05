@@ -145,9 +145,11 @@ export function TaskEditScheduleField({
                     </Pressable>
                 </View>
                 <DateTimePicker
+                    key={showDatePicker}
                     value={getDatePickerValue(showDatePicker)}
                     mode={getDatePickerMode(showDatePicker)}
                     display="spinner"
+                    textColor={tc.text}
                     onChange={onDateChange}
                 />
             </View>
