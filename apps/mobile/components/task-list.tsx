@@ -84,6 +84,7 @@ const ENERGY_LEVEL_OPTIONS: TaskEnergyLevel[] = ['low', 'medium', 'high'];
 export interface TaskListProps {
   statusFilter: TaskStatus | 'all';
   title: string;
+  taskSource?: Task[];
   showHeader?: boolean;
   showTimeEstimateFilters?: boolean;
   allowAdd?: boolean;
@@ -115,6 +116,7 @@ export interface TaskListProps {
 function TaskListComponent({
   statusFilter,
   title,
+  taskSource,
   showHeader = true,
   showTimeEstimateFilters: showTimeEstimateFiltersProp = true,
   allowAdd = true,
@@ -165,7 +167,7 @@ function TaskListComponent({
     highlightTaskId,
     setHighlightTask,
   } = useTaskStore((state) => ({
-    tasks: includeArchived ? state._allTasks : state.tasks,
+    tasks: taskSource ?? (includeArchived ? state._allTasks : state.tasks),
     projects: state.projects,
     sections: state.sections,
     areas: state.areas,

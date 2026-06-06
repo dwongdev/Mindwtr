@@ -283,6 +283,7 @@ export {
     buildTaskUpdatesFromSpeechResult,
     extractWaitingPerson,
     FOCUS_NEXT_DUE_SOON_WINDOW_DAYS,
+    buildTasksByProjectId,
     getChecklistProgress,
     getProjectDeadlineBoosts,
     getFocusSequentialFirstTaskIds,

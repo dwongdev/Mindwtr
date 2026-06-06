@@ -106,6 +106,7 @@ type ProjectWorkspaceProps = {
     sections: Section[];
     selectedProject: Project | undefined;
     selectedProjectId: string | null;
+    selectedProjectTasks?: readonly Task[];
     setHighlightTask: (taskId: string | null) => void;
     setSelectedProjectId: (taskId: string | null) => void;
     showCompletedTasks: boolean;
@@ -174,6 +175,7 @@ export function ProjectWorkspace({
     sections,
     selectedProject,
     selectedProjectId,
+    selectedProjectTasks,
     setHighlightTask,
     setSelectedProjectId,
     showCompletedTasks,
@@ -282,14 +284,15 @@ export function ProjectWorkspace({
         setSectionTaskTargetId(null);
     }, [selectedProjectId]);
 
+    const projectTaskSource = selectedProjectTasks ?? allTasks;
     const projectAllTasks = useMemo(() => {
         if (!selectedProjectId) return [];
-        return allTasks.filter((task) => {
+        return projectTaskSource.filter((task) => {
             if (task.deletedAt || task.projectId !== selectedProjectId) return false;
             if (normalizedSearchQuery && !task.title.toLowerCase().includes(normalizedSearchQuery)) return false;
             return true;
         });
-    }, [allTasks, normalizedSearchQuery, selectedProjectId]);
+    }, [projectTaskSource, normalizedSearchQuery, selectedProjectId]);
 
     const projectTasks = useMemo(
         () => projectAllTasks.filter((task) => shouldShowProjectWorkspaceTask(task, selectedProject, showCompletedTasks)),

@@ -1,5 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { performance } from 'node:perf_hooks';
 import {
+    buildTasksByProjectId,
     sortTasks,
     sortFocusNextActions,
     sortTasksBySavedPreference,
@@ -19,6 +21,76 @@ import {
 import { Project, Task } from './types';
 
 describe('task-utils', () => {
+    describe('buildTasksByProjectId', () => {
+        it('profiles large project task lookup without repeated full-store scans', () => {
+            const projectCount = 250;
+            const tasksPerProject = 80;
+            const selectedProjectId = 'project-137';
+            const tasks: Task[] = [];
+
+            for (let projectIndex = 0; projectIndex < projectCount; projectIndex += 1) {
+                const projectId = `project-${projectIndex}`;
+                for (let taskIndex = 0; taskIndex < tasksPerProject; taskIndex += 1) {
+                    tasks.push({
+                        id: `task-${projectIndex}-${taskIndex}`,
+                        title: `Task ${projectIndex}-${taskIndex}`,
+                        status: taskIndex % 7 === 0 ? 'done' : 'next',
+                        projectId,
+                        createdAt: '2026-06-01T00:00:00.000Z',
+                        updatedAt: '2026-06-01T00:00:00.000Z',
+                    } as Task);
+                }
+            }
+
+            tasks.push(
+                {
+                    id: 'inbox-task',
+                    title: 'Inbox task',
+                    status: 'inbox',
+                    createdAt: '2026-06-01T00:00:00.000Z',
+                    updatedAt: '2026-06-01T00:00:00.000Z',
+                } as Task,
+                {
+                    id: 'deleted-selected-task',
+                    title: 'Deleted selected task',
+                    status: 'next',
+                    projectId: selectedProjectId,
+                    deletedAt: '2026-06-02T00:00:00.000Z',
+                    createdAt: '2026-06-01T00:00:00.000Z',
+                    updatedAt: '2026-06-02T00:00:00.000Z',
+                } as Task,
+            );
+
+            const tasksByProjectId = buildTasksByProjectId(tasks);
+            const selectedProjectTasks = tasksByProjectId.get(selectedProjectId) ?? [];
+
+            expect(tasksByProjectId.size).toBe(projectCount);
+            expect(selectedProjectTasks).toHaveLength(tasksPerProject);
+            expect(selectedProjectTasks.every((task) => task.projectId === selectedProjectId && !task.deletedAt)).toBe(true);
+            expect(tasksByProjectId.has('')).toBe(false);
+
+            const lookupIterations = 5_000;
+            const indexedLookupStartedAt = performance.now();
+            let indexedLookupCount = 0;
+            for (let index = 0; index < lookupIterations; index += 1) {
+                indexedLookupCount += tasksByProjectId.get(selectedProjectId)?.length ?? 0;
+            }
+            const indexedLookupMs = performance.now() - indexedLookupStartedAt;
+
+            const repeatedScanIterations = 100;
+            const repeatedScanStartedAt = performance.now();
+            let repeatedScanCount = 0;
+            for (let index = 0; index < repeatedScanIterations; index += 1) {
+                repeatedScanCount += tasks.filter((task) => task.projectId === selectedProjectId && !task.deletedAt).length;
+            }
+            const repeatedScanMs = performance.now() - repeatedScanStartedAt;
+
+            expect(indexedLookupCount).toBe(tasksPerProject * lookupIterations);
+            expect(repeatedScanCount).toBe(tasksPerProject * repeatedScanIterations);
+            expect(indexedLookupMs).toBeLessThan(repeatedScanMs);
+        });
+    });
+
     describe('sortTasks', () => {
         it('should sort by status order', () => {
             const tasks: Partial<Task>[] = [

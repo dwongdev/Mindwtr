@@ -8,6 +8,23 @@ import { timeEstimateToMinutes } from './calendar-scheduling';
 import { TASK_STATUS_ORDER } from './task-status';
 import type { Language } from './i18n/i18n-types';
 
+export function buildTasksByProjectId(tasks: readonly Task[]): Map<string, Task[]> {
+    const tasksByProjectId = new Map<string, Task[]>();
+
+    tasks.forEach((task) => {
+        if (!task.projectId || task.deletedAt) return;
+
+        const projectTasks = tasksByProjectId.get(task.projectId);
+        if (projectTasks) {
+            projectTasks.push(task);
+        } else {
+            tasksByProjectId.set(task.projectId, [task]);
+        }
+    });
+
+    return tasksByProjectId;
+}
+
 /**
  * Status sorting order for task list display
  */

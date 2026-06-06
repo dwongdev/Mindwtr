@@ -2,7 +2,7 @@ import React from 'react';
 import { Dimensions, Keyboard, KeyboardAvoidingView, Platform, ScrollView, TextInput } from 'react-native';
 import { act, create } from 'react-test-renderer';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import type { Project } from '@mindwtr/core';
+import type { Project, Task } from '@mindwtr/core';
 
 const mockScrollTo = vi.hoisted(() => vi.fn());
 const mockFindNodeHandle = vi.hoisted(() => vi.fn(() => 9001));
@@ -273,17 +273,29 @@ describe('ProjectDetailModal notes editing', () => {
 describe('ProjectDetailModal task sorting', () => {
     it('passes the project-local sort to TaskList and handles sort changes', () => {
         const onProjectTaskSortByChange = vi.fn();
+        const selectedProjectTasks = [
+            {
+                id: 'project-task-1',
+                title: 'Project task',
+                status: 'next',
+                projectId: 'project-1',
+                createdAt: '2026-05-12T00:00:00.000Z',
+                updatedAt: '2026-05-12T00:00:00.000Z',
+            },
+        ] as Task[];
         let tree!: ReturnType<typeof create>;
 
         act(() => {
             tree = create(<ProjectDetailModal {...createProjectDetailModalProps({
                 onProjectTaskSortByChange,
                 projectTaskSortBy: 'default',
+                selectedProjectTasks,
             })} />);
         });
 
         expect(taskListPropsSpy).toHaveBeenCalled();
         expect(taskListPropsSpy.mock.calls.at(-1)?.[0].projectSortBy).toBe('default');
+        expect(taskListPropsSpy.mock.calls.at(-1)?.[0].taskSource).toBe(selectedProjectTasks);
 
         act(() => {
             tree.root.findByProps({ testID: 'project-task-sort-due' }).props.onPress();

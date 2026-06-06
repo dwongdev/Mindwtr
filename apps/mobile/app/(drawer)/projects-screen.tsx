@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import { View, Text, TextInput, TouchableOpacity, Alert, FlatList, Dimensions, Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
-import { AREA_PRESET_COLORS, Attachment, DEFAULT_PROJECT_COLOR, Project, shallow, Task, type TaskSortBy, useTaskStore } from '@mindwtr/core';
+import { AREA_PRESET_COLORS, Attachment, buildTasksByProjectId, DEFAULT_PROJECT_COLOR, Project, shallow, Task, type TaskSortBy, useTaskStore } from '@mindwtr/core';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { ChevronDown, ChevronRight, Plus } from 'lucide-react-native';
 
@@ -37,6 +37,7 @@ import { AREA_FILTER_ALL, AREA_FILTER_NONE } from '@/lib/area-filter';
 import { openContextsScreen, openProjectScreen } from '@/lib/task-meta-navigation';
 
 type ProjectTaskSortBy = Extract<TaskSortBy, 'default' | 'due'>;
+const EMPTY_PROJECT_TASKS: Task[] = [];
 
 function resolveTaskRouteTab(value?: string | string[]): TaskEditTab {
   const routeValue = Array.isArray(value) ? value[0] : value;
@@ -238,6 +239,11 @@ export default function ProjectsScreen() {
     t,
   ]);
   const projectTaskSummaryById = useMemo(() => buildProjectTaskSummaryById(tasks), [tasks]);
+  const projectTasksById = useMemo(() => buildTasksByProjectId(tasks), [tasks]);
+  const selectedProjectTasks = useMemo(
+    () => (selectedProject ? projectTasksById.get(selectedProject.id) ?? EMPTY_PROJECT_TASKS : EMPTY_PROJECT_TASKS),
+    [projectTasksById, selectedProject?.id]
+  );
 
   const openProject = useCallback((project: Project) => {
     setSelectedProject(project);
@@ -760,6 +766,7 @@ export default function ProjectsScreen() {
         presentationStyle={Platform.OS === 'ios' ? 'pageSheet' : 'fullScreen'}
         projectTaskSortBy={projectTaskSortBy}
         selectedProject={selectedProject}
+        selectedProjectTasks={selectedProjectTasks}
         selectedProjectAreaName={selectedProjectAreaName}
         selectedProjectNotes={selectedProjectNotes}
         selectedProjectNotesDirection={selectedProjectNotesDirection}

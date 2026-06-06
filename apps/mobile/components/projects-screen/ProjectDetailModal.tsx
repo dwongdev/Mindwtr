@@ -27,6 +27,7 @@ import {
     type MarkdownToolbarActionId,
     type MarkdownToolbarResult,
     type Project,
+    type Task,
     type TaskSortBy,
     safeParseDate,
     tFallback,
@@ -84,6 +85,7 @@ type ProjectDetailModalProps = {
     projectTaskSortBy: Extract<TaskSortBy, 'default' | 'due'>;
     selectedProjectAreaName: string;
     selectedProject: Project | null;
+    selectedProjectTasks?: Task[];
     selectedProjectNotes: string;
     selectedProjectNotesDirection: 'ltr' | 'rtl';
     selectedProjectNotesInputRef: React.RefObject<TextInput | null>;
@@ -224,6 +226,7 @@ export function ProjectDetailModal({
     projectTaskSortBy,
     selectedProjectAreaName,
     selectedProject,
+    selectedProjectTasks,
     selectedProjectNotes,
     selectedProjectNotesDirection,
     selectedProjectNotesInputRef,
@@ -898,6 +901,7 @@ export function ProjectDetailModal({
                                     showHeader={false}
                                     showTimeEstimateFilters={false}
                                     projectId={selectedProject.id}
+                                    taskSource={selectedProjectTasks}
                                     allowAdd={taskListOptions.allowAdd}
                                     staticList
                                     enableBulkActions

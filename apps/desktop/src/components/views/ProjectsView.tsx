@@ -9,7 +9,7 @@ import {
     type PointerEvent as ReactPointerEvent,
 } from 'react';
 import { ErrorBoundary } from '../ErrorBoundary';
-import { tFallback, useTaskStore, Task, type Project } from '@mindwtr/core';
+import { buildTasksByProjectId, tFallback, useTaskStore, Task, type Project } from '@mindwtr/core';
 import { useLanguage } from '../../contexts/language-context';
 import { PromptModal } from '../PromptModal';
 import { ProjectsSidebar } from './projects/ProjectsSidebar';
@@ -103,6 +103,8 @@ function loadCollapsedAreas(): Record<string, boolean> {
         return {};
     }
 }
+
+const EMPTY_PROJECT_TASKS: readonly Task[] = [];
 
 function saveCollapsedAreas(state: Record<string, boolean>) {
     if (typeof window === 'undefined') return;
@@ -542,6 +544,11 @@ export function ProjectsView() {
     };
 
     const selectedProject = projects.find(p => p.id === selectedProjectId);
+    const selectedProjectTasksById = useMemo(() => buildTasksByProjectId(allTasks), [allTasks]);
+    const selectedProjectTasks = useMemo(
+        () => (selectedProjectId ? selectedProjectTasksById.get(selectedProjectId) ?? EMPTY_PROJECT_TASKS : EMPTY_PROJECT_TASKS),
+        [selectedProjectId, selectedProjectTasksById]
+    );
 
     useEffect(() => {
         if (selectedProject?.status === 'archived') {
@@ -673,6 +680,7 @@ export function ProjectsView() {
                         sections={sections}
                         selectedProject={selectedProject}
                         selectedProjectId={selectedProjectId}
+                        selectedProjectTasks={selectedProjectTasks}
                         setHighlightTask={setHighlightTask}
                         setSelectedProjectId={setSelectedProjectId}
                         showCompletedTasks={showCompletedProjectTasks}
