@@ -113,6 +113,10 @@ export const Animated = {
 
 export const Platform = { OS: 'web', select: (options: any) => options?.web ?? options?.default };
 
+export const AppRegistry = {
+  registerHeadlessTask: () => undefined,
+};
+
 export const Dimensions = {
   get: () => ({ width: 390, height: 844 }),
 };

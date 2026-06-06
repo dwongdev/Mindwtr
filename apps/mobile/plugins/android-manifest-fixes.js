@@ -2,6 +2,8 @@ const { withAndroidManifest } = require('@expo/config-plugins');
 
 const MLKIT_ACTIVITY = 'com.google.mlkit.vision.codescanner.internal.GmsBarcodeScanningDelegateActivity';
 const MAIN_ACTIVITY = '.MainActivity';
+const CONTEXT_AUTOMATION_HEADLESS_SERVICE = '.ContextAutomationHeadlessService';
+const CONTEXT_AUTOMATION_RECEIVER = '.ContextAutomationReceiver';
 const CONTEXT_INTENT_ACTIONS = [
   'tech.dongdongbh.mindwtr.action.ACTIVATE_CONTEXT',
   'tech.dongdongbh.mindwtr.action.DEACTIVATE_CONTEXT',
@@ -67,6 +69,38 @@ const ensureContextIntentFilters = (activity) => {
   }
 };
 
+const removeContextIntentFilters = (activity) => {
+  if (!Array.isArray(activity['intent-filter'])) return;
+  activity['intent-filter'] = activity['intent-filter'].filter((filter) => (
+    !hasContextIntentFilter(filter) && !hasContextIntentFilter(filter, { dataScheme: 'mindwtr' })
+  ));
+};
+
+const ensureContextAutomationReceiver = (application) => {
+  const receivers = ensureArray(application, 'receiver');
+  let receiver = receivers.find((entry) => entry?.$?.['android:name'] === CONTEXT_AUTOMATION_RECEIVER);
+  if (!receiver) {
+    receiver = { $: {} };
+    receivers.push(receiver);
+  }
+
+  receiver.$['android:name'] = CONTEXT_AUTOMATION_RECEIVER;
+  receiver.$['android:exported'] = 'true';
+  ensureContextIntentFilters(receiver);
+};
+
+const ensureContextAutomationHeadlessService = (application) => {
+  const services = ensureArray(application, 'service');
+  let service = services.find((entry) => entry?.$?.['android:name'] === CONTEXT_AUTOMATION_HEADLESS_SERVICE);
+  if (!service) {
+    service = { $: {} };
+    services.push(service);
+  }
+
+  service.$['android:name'] = CONTEXT_AUTOMATION_HEADLESS_SERVICE;
+  service.$['android:exported'] = 'false';
+};
+
 module.exports = function withAndroidManifestFixes(config) {
   return withAndroidManifest(config, (config) => {
     const manifest = config.modResults;
@@ -116,7 +150,7 @@ module.exports = function withAndroidManifestFixes(config) {
         // Explicitly allow both portrait and landscape on tablets/Chromebooks.
         activity.$['android:screenOrientation'] = 'fullUser';
         activity.$['android:resizeableActivity'] = 'true';
-        ensureContextIntentFilters(activity);
+        removeContextIntentFilters(activity);
         didUpdateMainActivity = true;
       }
       if (activity.$ && activity.$['android:name'] === MLKIT_ACTIVITY) {
@@ -142,12 +176,11 @@ module.exports = function withAndroidManifestFixes(config) {
           'android:resizeableActivity': 'true',
           'tools:node': 'merge',
         },
-        'intent-filter': [
-          buildContextIntentFilter(),
-          buildContextIntentFilter({ dataScheme: 'mindwtr' }),
-        ],
       });
     }
+
+    ensureContextAutomationReceiver(application);
+    ensureContextAutomationHeadlessService(application);
 
     if (!didUpdateMlkit && application.activity.length > 0) {
       application.activity.push({
@@ -203,4 +236,11 @@ module.exports = function withAndroidManifestFixes(config) {
 
     return config;
   });
+};
+
+module.exports.__testables = {
+  buildContextIntentFilter,
+  ensureContextAutomationHeadlessService,
+  ensureContextAutomationReceiver,
+  removeContextIntentFilters,
 };

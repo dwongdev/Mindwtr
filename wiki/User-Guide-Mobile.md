@@ -130,22 +130,15 @@ Android builds expose a capture action to supported assistants, including Gemini
 
 ### Android Context Automation Intents
 
-Automation apps such as Tasker, MacroDroid, or Phone Profiles can activate a Mindwtr context. When activated, Mindwtr checks matching `/next` actions and sends a notification only when there is work to show. Tapping that notification opens the matching Contexts view.
+Automation apps such as Tasker, MacroDroid, or Phone Profiles can activate a Mindwtr context. Use the Android broadcast form for background-only triggers. When activated, Mindwtr checks matching `/next` actions and sends a notification only when there is work to show. Tapping that notification opens the matching Contexts view.
 
-Preferred URL form:
-
-| URL | Action |
-| --- | --- |
-| `mindwtr://contexts?token=%40parents&contextAction=activate` | Activate `@parents` |
-| `mindwtr://contexts?token=%40parents&contextAction=deactivate` | Deactivate `@parents` |
-
-Android intent form:
+Android broadcast form:
 
 | Field | Value |
 | --- | --- |
 | Package | `tech.dongdongbh.mindwtr` |
-| Class | `tech.dongdongbh.mindwtr.MainActivity` |
-| Target | Activity |
+| Class | `tech.dongdongbh.mindwtr.ContextAutomationReceiver` |
+| Target | Broadcast Receiver |
 | Activate action | `tech.dongdongbh.mindwtr.action.ACTIVATE_CONTEXT` |
 | Deactivate action | `tech.dongdongbh.mindwtr.action.DEACTIVATE_CONTEXT` |
 | String extra | `context=parents` or `context=@parents` |
@@ -153,12 +146,25 @@ Android intent form:
 ADB examples:
 
 ```bash
-adb shell am start -n tech.dongdongbh.mindwtr/.MainActivity -a tech.dongdongbh.mindwtr.action.ACTIVATE_CONTEXT --es context parents
-adb shell am start -n tech.dongdongbh.mindwtr/.MainActivity -a tech.dongdongbh.mindwtr.action.DEACTIVATE_CONTEXT --es context parents
+adb shell am broadcast -n tech.dongdongbh.mindwtr/.ContextAutomationReceiver -a tech.dongdongbh.mindwtr.action.ACTIVATE_CONTEXT --es context parents
+adb shell am broadcast -n tech.dongdongbh.mindwtr/.ContextAutomationReceiver -a tech.dongdongbh.mindwtr.action.DEACTIVATE_CONTEXT --es context parents
+```
+
+URL form:
+
+| URL | Action |
+| --- | --- |
+| `mindwtr://contexts?token=%40parents&contextAction=activate` | Activate `@parents` |
+| `mindwtr://contexts?token=%40parents&contextAction=deactivate` | Deactivate `@parents` |
+
+URL examples:
+
+```bash
 adb shell am start -a android.intent.action.VIEW -d 'mindwtr://contexts?token=%40parents&contextAction=activate' tech.dongdongbh.mindwtr
 ```
 
 Notes:
+- URL launches may open Mindwtr. Use the broadcast receiver form when the automation should stay in the background.
 - Context names are normalized to `@context`, so `parents` and `@parents` both match `@parents`.
 - Hierarchical contexts match below the selected context, so `@parents` also matches `@parents/errands`.
 - If no `/next` actions match the context, Mindwtr stays silent.

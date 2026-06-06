@@ -2,9 +2,29 @@ import { describe, expect, it } from 'vitest';
 
 const plugin = require('./android-startup-trace');
 
-const { patchMainActivity } = plugin.__testables;
+const {
+  buildContextAutomationHeadlessServiceSource,
+  buildContextAutomationReceiverSource,
+  patchMainActivity,
+} = plugin.__testables;
 
 describe('android-startup-trace', () => {
+  it('generates Android context automation broadcast receiver support', () => {
+    const receiver = buildContextAutomationReceiverSource('tech.dongdongbh.mindwtr');
+    const service = buildContextAutomationHeadlessServiceSource('tech.dongdongbh.mindwtr');
+
+    expect(receiver).toContain('package tech.dongdongbh.mindwtr');
+    expect(receiver).toContain('class ContextAutomationReceiver : BroadcastReceiver()');
+    expect(receiver).toContain('tech.dongdongbh.mindwtr.action.ACTIVATE_CONTEXT');
+    expect(receiver).toContain('tech.dongdongbh.mindwtr.action.DEACTIVATE_CONTEXT');
+    expect(receiver).toContain('ContextAutomationHeadlessService::class.java');
+    expect(receiver).toContain('HeadlessJsTaskService.acquireWakeLockNow(context)');
+
+    expect(service).toContain('class ContextAutomationHeadlessService : HeadlessJsTaskService()');
+    expect(service).toContain('MindwtrContextAutomation');
+    expect(service).toContain('HeadlessJsTaskConfig(');
+  });
+
   it('adds notification intent replay support to MainActivity', () => {
     const input = `package tech.dongdongbh.mindwtr
 import expo.modules.splashscreen.SplashScreenManager
