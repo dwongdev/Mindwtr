@@ -430,6 +430,9 @@ export const createTaskActions = ({ set, get, getStorage, debouncedSave }: TaskA
             }
         }
         let snapshot: AppData | null = null;
+        const incrementalPersistence: { task?: Task; hasRecurringFollowUp: boolean } = {
+            hasRecurringFollowUp: false,
+        };
         set((state) => {
             const oldTask = state._tasksById.get(id);
             if (!oldTask) {
@@ -446,6 +449,8 @@ export const createTaskActions = ({ set, get, getStorage, debouncedSave }: TaskA
                 { ...preparedUpdates.updates, ...revisionPatch },
                 now
             );
+            incrementalPersistence.task = updatedTask;
+            incrementalPersistence.hasRecurringFollowUp = nextRecurringTask !== null;
 
             const updatedAllTasksBase = replaceEntityInArray(state._allTasks, id, updatedTask);
             const updatedAllTasks = nextRecurringTask
@@ -472,7 +477,20 @@ export const createTaskActions = ({ set, get, getStorage, debouncedSave }: TaskA
             };
         });
 
-        if (snapshot) {
+        const storage = getStorage();
+        if (incrementalPersistence.task && !incrementalPersistence.hasRecurringFollowUp && storage.saveTask) {
+            const taskToPersist = incrementalPersistence.task;
+            void storage.saveTask(taskToPersist, snapshot ?? undefined).catch((error) => {
+                const message = error instanceof Error ? error.message : String(error);
+                logWarn('Incremental task save failed', {
+                    scope: 'store',
+                    category: 'storage',
+                    context: { taskId: taskToPersist.id },
+                    error,
+                });
+                set({ error: `Failed to save task: ${message}` });
+            });
+        } else if (snapshot) {
             debouncedSave(snapshot, (msg) => set({ error: msg }));
         }
         return actionOk();

@@ -1,4 +1,4 @@
-import { AppData, SQLITE_SCHEMA_VERSION, StorageAdapter, TaskQueryOptions } from '@mindwtr/core';
+import { AppData, SQLITE_SCHEMA_VERSION, StorageAdapter, TaskQueryOptions, type Task } from '@mindwtr/core';
 import { invoke } from '@tauri-apps/api/core';
 import { logInfo, logWarn } from './app-log';
 import { reportError } from './report-error';
@@ -6,6 +6,13 @@ import { markLocalWrite } from './local-data-watcher';
 
 const STORAGE_SCHEMA_VERSION_KEY = 'mindwtr-storage-schema-version';
 let storageInitLogged = false;
+let saveQueue: Promise<void> = Promise.resolve();
+
+const enqueueSave = (operation: () => Promise<void>): Promise<void> => {
+    const run = saveQueue.catch(() => undefined).then(operation);
+    saveQueue = run;
+    return run;
+};
 
 const invokeWithError = async <T>(
     action: string,
@@ -72,7 +79,7 @@ export const tauriStorage: StorageAdapter = {
             }
         }
     },
-    saveData: async (data: AppData): Promise<void> => {
+    saveData: async (data: AppData): Promise<void> => enqueueSave(async () => {
         markLocalWrite(data);
         try {
             await invoke<void>('save_data' as any, { data } as any);
@@ -82,7 +89,17 @@ export const tauriStorage: StorageAdapter = {
             const detail = error instanceof Error ? error.message : String(error);
             throw new Error(`Failed to save data: ${detail}`);
         }
-    },
+    }),
+    saveTask: async (task: Task): Promise<void> => enqueueSave(async () => {
+        try {
+            await invoke<void>('save_task' as any, { task } as any);
+            logStorageInitIfNeeded();
+        } catch (error) {
+            reportError('saveTask failure', error, { category: 'storage', scope: 'storage' });
+            const detail = error instanceof Error ? error.message : String(error);
+            throw new Error(`Failed to save task: ${detail}`);
+        }
+    }),
     queryTasks: async (options: TaskQueryOptions) => {
         return invokeWithError('query tasks', 'query_tasks', { options });
     },

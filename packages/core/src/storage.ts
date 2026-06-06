@@ -27,6 +27,7 @@ export type SearchResults = {
 export interface StorageAdapter {
     getData(): Promise<AppData>;
     saveData(data: AppData): Promise<void>;
+    saveTask?: (task: Task, snapshot?: AppData) => Promise<void>;
     queryTasks?: (options: TaskQueryOptions) => Promise<Task[]>;
     searchAll?: (query: string) => Promise<SearchResults>;
 }

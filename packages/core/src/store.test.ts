@@ -133,6 +133,46 @@ describe('TaskStore', () => {
         expect(updatedTask.status).toBe('next');
     });
 
+    it('persists simple task updates through incremental task storage when available', async () => {
+        const saveTask = vi.fn().mockResolvedValue(undefined);
+        mockStorage.saveTask = saveTask;
+        const task = createStoreTask('task-1', { status: 'next' });
+        useTaskStore.setState({
+            tasks: [task],
+            _allTasks: [task],
+            _tasksById: buildEntityMap([task]),
+        });
+
+        const result = await useTaskStore.getState().updateTask('task-1', { title: 'Updated Task' });
+
+        expect(result).toEqual({ success: true });
+        await waitForExpectation(() => {
+            expect(saveTask).toHaveBeenCalledTimes(1);
+        });
+        expect(saveTask.mock.calls[0]?.[0]).toMatchObject({
+            id: 'task-1',
+            title: 'Updated Task',
+        });
+        expect(mockStorage.saveData).not.toHaveBeenCalled();
+        await flushPendingSave();
+        expect(mockStorage.saveData).not.toHaveBeenCalled();
+    });
+
+    it('falls back to full snapshot storage when incremental task storage is unavailable', async () => {
+        const task = createStoreTask('task-1', { status: 'next' });
+        useTaskStore.setState({
+            tasks: [task],
+            _allTasks: [task],
+            _tasksById: buildEntityMap([task]),
+        });
+
+        const result = await useTaskStore.getState().updateTask('task-1', { title: 'Updated Task' });
+
+        expect(result).toEqual({ success: true });
+        await flushPendingSave();
+        expect(mockStorage.saveData).toHaveBeenCalledTimes(1);
+    });
+
     it('rejects adding a task with a missing projectId', async () => {
         const result = await useTaskStore.getState().addTask('Broken Task', {
             projectId: 'missing-project',

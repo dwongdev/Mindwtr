@@ -1,4 +1,4 @@
-import { AppData, SqliteAdapter, searchAll, type SqliteClient, type CalendarSyncEntry, StorageAdapter } from '@mindwtr/core';
+import { AppData, SqliteAdapter, searchAll, type SqliteClient, type CalendarSyncEntry, StorageAdapter, type Task } from '@mindwtr/core';
 import { Platform } from 'react-native';
 import Constants from 'expo-constants';
 
@@ -486,6 +486,40 @@ const createStorage = (): StorageAdapter => {
                     markStartupPhase('mobile.storage.save_data.error');
                     logStorageError('Failed to save data', e);
                     throw new Error('Failed to save data: ' + (e as Error).message);
+                }
+            });
+        },
+        saveTask: async (task: Task, snapshot?: AppData): Promise<void> => {
+            return enqueueSave(async () => {
+                try {
+                    if (!shouldUseSqlite) {
+                        throw new Error('SQLite disabled in Expo Go');
+                    }
+                    const { adapter } = await measureStartupPhase('mobile.storage.save_task.sqlite_get_state', async () => getSqliteState());
+                    await measureStartupPhase('mobile.storage.save_task.sqlite_write', async () => adapter.saveTask(task));
+                    clearPreferJsonBackup();
+                    if (snapshot) {
+                        await measureStartupPhase('mobile.storage.save_task.widget_update', async () => updateMobileWidgetFromData(snapshot));
+                    }
+                } catch (error) {
+                    markPreferJsonBackup();
+                    logStorageWarn('[Storage] SQLite task save failed', error);
+                    if (!snapshot) {
+                        throw error;
+                    }
+
+                    try {
+                        const jsonValue = await measureStartupPhase('mobile.storage.save_task.json_fallback_stringify', async () => JSON.stringify(snapshot));
+                        await measureStartupPhase('mobile.storage.save_task.json_fallback_set', async () =>
+                            AsyncStorage.setItem(DATA_KEY, jsonValue)
+                        );
+                        await measureStartupPhase('mobile.storage.save_task.json_fallback_widget_update', async () =>
+                            updateMobileWidgetFromData(snapshot)
+                        );
+                    } catch (fallbackError) {
+                        logStorageError('Failed to save task fallback data', fallbackError);
+                        throw new Error('Failed to save task: ' + (fallbackError as Error).message);
+                    }
                 }
             });
         },

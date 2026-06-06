@@ -613,6 +613,56 @@ fn json_str_or_default(value: Option<&Value>, default: &str) -> String {
     json_str(value).unwrap_or_else(|| default.to_string())
 }
 
+fn upsert_task_row(conn: &Connection, task: &Value) -> Result<(), String> {
+    let tags_json = json_str_or_default(task.get("tags"), "[]");
+    let contexts_json = json_str_or_default(task.get("contexts"), "[]");
+    let recurrence_json = json_str(task.get("recurrence"));
+    let checklist_json = json_str(task.get("checklist"));
+    let attachments_json = json_str(task.get("attachments"));
+    conn.execute(
+        "INSERT OR REPLACE INTO tasks (id, title, status, priority, energyLevel, assignedTo, taskMode, startTime, dueDate, recurrence, showFutureRecurrence, pushCount, tags, contexts, checklist, description, attachments, location, projectId, sectionId, areaId, orderNum, isFocusedToday, timeEstimate, suppressMindwtrReminders, reviewAt, completedAt, rev, revBy, createdAt, updatedAt, deletedAt, purgedAt) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20, ?21, ?22, ?23, ?24, ?25, ?26, ?27, ?28, ?29, ?30, ?31, ?32, ?33)",
+        params![
+            task.get("id").and_then(|v| v.as_str()).unwrap_or_default(),
+            task.get("title").and_then(|v| v.as_str()).unwrap_or_default(),
+            task.get("status").and_then(|v| v.as_str()).unwrap_or("inbox"),
+            task.get("priority").and_then(|v| v.as_str()),
+            task.get("energyLevel").and_then(|v| v.as_str()),
+            task.get("assignedTo").and_then(|v| v.as_str()),
+            task.get("taskMode").and_then(|v| v.as_str()),
+            task.get("startTime").and_then(|v| v.as_str()),
+            task.get("dueDate").and_then(|v| v.as_str()),
+            recurrence_json,
+            task.get("showFutureRecurrence").and_then(|v| v.as_bool()).unwrap_or(false) as i32,
+            task.get("pushCount").and_then(|v| v.as_i64()),
+            tags_json,
+            contexts_json,
+            checklist_json,
+            task.get("description").and_then(|v| v.as_str()),
+            attachments_json,
+            task.get("location").and_then(|v| v.as_str()),
+            task.get("projectId").and_then(|v| v.as_str()),
+            task.get("sectionId").and_then(|v| v.as_str()),
+            task.get("areaId").and_then(|v| v.as_str()),
+            task.get("orderNum")
+                .and_then(|v| v.as_i64())
+                .or_else(|| task.get("order").and_then(|v| v.as_i64())),
+            task.get("isFocusedToday").and_then(|v| v.as_bool()).unwrap_or(false) as i32,
+            task.get("timeEstimate").and_then(|v| v.as_str()),
+            task.get("suppressMindwtrReminders").and_then(|v| v.as_bool()).unwrap_or(false) as i32,
+            task.get("reviewAt").and_then(|v| v.as_str()),
+            task.get("completedAt").and_then(|v| v.as_str()),
+            task.get("rev").and_then(|v| v.as_i64()),
+            task.get("revBy").and_then(|v| v.as_str()),
+            task.get("createdAt").and_then(|v| v.as_str()).unwrap_or_default(),
+            task.get("updatedAt").and_then(|v| v.as_str()).unwrap_or_default(),
+            task.get("deletedAt").and_then(|v| v.as_str()),
+            task.get("purgedAt").and_then(|v| v.as_str()),
+        ],
+    )
+    .map_err(|e| e.to_string())?;
+    Ok(())
+}
+
 fn parse_json_value(raw: Option<String>) -> Value {
     if let Some(text) = raw {
         if let Ok(value) = serde_json::from_str::<Value>(&text) {
@@ -999,7 +1049,9 @@ fn migrate_json_to_sqlite(conn: &mut Connection, data: &Value) -> Result<(), Str
                 task.get("projectId").and_then(|v| v.as_str()),
                 task.get("sectionId").and_then(|v| v.as_str()),
                 task.get("areaId").and_then(|v| v.as_str()),
-                task.get("orderNum").and_then(|v| v.as_i64()),
+                task.get("orderNum")
+                    .and_then(|v| v.as_i64())
+                    .or_else(|| task.get("order").and_then(|v| v.as_i64())),
                 task.get("isFocusedToday").and_then(|v| v.as_bool()).unwrap_or(false) as i32,
                 task.get("timeEstimate").and_then(|v| v.as_str()),
                 task.get("suppressMindwtrReminders").and_then(|v| v.as_bool()).unwrap_or(false) as i32,
@@ -1239,7 +1291,9 @@ pub(crate) struct CalendarSyncEntryRecord {
     last_synced_at: String,
 }
 
-fn row_to_calendar_sync_entry(row: &rusqlite::Row<'_>) -> Result<CalendarSyncEntryRecord, rusqlite::Error> {
+fn row_to_calendar_sync_entry(
+    row: &rusqlite::Row<'_>,
+) -> Result<CalendarSyncEntryRecord, rusqlite::Error> {
     Ok(CalendarSyncEntryRecord {
         task_id: row.get("task_id")?,
         calendar_event_id: row.get("calendar_event_id")?,
@@ -1480,6 +1534,23 @@ pub(crate) async fn read_data_json(app: tauri::AppHandle) -> Result<Value, Strin
 pub(crate) async fn save_data(app: tauri::AppHandle, data: Value) -> Result<bool, String> {
     tauri::async_runtime::spawn_blocking(move || {
         persist_data_snapshot_with_retries(&app, &data)?;
+        Ok(true)
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+
+#[tauri::command]
+pub(crate) async fn save_task(app: tauri::AppHandle, task: Value) -> Result<bool, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let conn = open_sqlite(&app)?;
+        conn.execute_batch("BEGIN IMMEDIATE")
+            .map_err(|e| e.to_string())?;
+        if let Err(error) = upsert_task_row(&conn, &task) {
+            let _ = conn.execute_batch("ROLLBACK");
+            return Err(error);
+        }
+        conn.execute_batch("COMMIT").map_err(|e| e.to_string())?;
         Ok(true)
     })
     .await

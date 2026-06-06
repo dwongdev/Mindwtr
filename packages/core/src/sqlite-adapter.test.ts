@@ -272,6 +272,75 @@ describeSqlite('SqliteAdapter', () => {
         expect(area.revBy).toBe('device-desktop');
     });
 
+    it('updates a single task row through saveTask while preserving unrelated data', async () => {
+        const now = new Date().toISOString();
+        const data: AppData = {
+            tasks: [
+                {
+                    id: 'task-1',
+                    title: 'Original task',
+                    status: 'next',
+                    tags: ['#focus'],
+                    contexts: ['@desk'],
+                    createdAt: now,
+                    updatedAt: now,
+                },
+                {
+                    id: 'task-2',
+                    title: 'Unchanged task',
+                    status: 'inbox',
+                    tags: [],
+                    contexts: [],
+                    createdAt: now,
+                    updatedAt: now,
+                },
+            ],
+            projects: [
+                {
+                    id: 'project-1',
+                    title: 'Preserved project',
+                    status: 'active',
+                    color: '#2563EB',
+                    order: 0,
+                    createdAt: now,
+                    updatedAt: now,
+                },
+            ],
+            sections: [],
+            areas: [],
+            settings: { gtd: { autoArchiveDays: 3 } },
+        };
+
+        await adapter.saveData(data);
+        await adapter.saveTask({
+            ...data.tasks[0],
+            title: 'Updated task',
+            status: 'done',
+            completedAt: '2026-05-14T10:00:00.000Z',
+            updatedAt: '2026-05-14T10:00:00.000Z',
+        });
+
+        const loaded = await adapter.getData();
+        expect(loaded.tasks).toHaveLength(2);
+        expect(loaded.tasks.find((task) => task.id === 'task-1')).toMatchObject({
+            title: 'Updated task',
+            status: 'done',
+            completedAt: '2026-05-14T10:00:00.000Z',
+        });
+        expect(loaded.tasks.find((task) => task.id === 'task-2')).toMatchObject({
+            title: 'Unchanged task',
+            status: 'inbox',
+        });
+        expect(loaded.projects[0]?.title).toBe('Preserved project');
+        expect(loaded.settings.gtd?.autoArchiveDays).toBe(3);
+
+        const taskRows = allSql<{ id: string; title: string }>(db, 'SELECT id, title FROM tasks ORDER BY id');
+        expect(taskRows).toEqual([
+            { id: 'task-1', title: 'Updated task' },
+            { id: 'task-2', title: 'Unchanged task' },
+        ]);
+    });
+
     it('normalizes legacy string recurrence values when loading tasks', async () => {
         const now = new Date().toISOString();
         await adapter.saveData({

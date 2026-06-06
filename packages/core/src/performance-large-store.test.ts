@@ -6,6 +6,8 @@ import {
     sortFocusNextActions,
     sortTasksBy,
 } from './task-utils';
+import { flushPendingSave, resetForTests, setStorageAdapter, useTaskStore } from './store';
+import { buildEntityMap } from './store-helpers';
 import type {
     Project,
     Section,
@@ -357,5 +359,57 @@ describePerf('large-store performance budgets', () => {
                 `${operation.label} grew ${growth.toFixed(2)}x from 10k to 50k tasks; max allowed is ${operation.maxGrowthFrom10kTo50k}x`,
             ).toBeLessThanOrEqual(operation.maxGrowthFrom10kTo50k);
         });
+    });
+
+    it('persists one task through the incremental path on a 50k-task store', async () => {
+        const fixture = createLargeStoreFixture(50_000);
+        let saveDataCalls = 0;
+        let savedTask: Task | null = null;
+        setStorageAdapter({
+            getData: async () => ({ tasks: [], projects: [], sections: [], areas: [], settings: {} }),
+            saveData: async () => {
+                saveDataCalls += 1;
+            },
+            saveTask: async (task) => {
+                savedTask = task;
+            },
+        });
+        useTaskStore.setState({
+            tasks: fixture.tasks,
+            projects: fixture.projects,
+            sections: fixture.sections,
+            areas: [],
+            settings: {},
+            isLoading: false,
+            error: null,
+            _allTasks: fixture.tasks,
+            _allProjects: fixture.projects,
+            _allSections: fixture.sections,
+            _allAreas: [],
+            _tasksById: buildEntityMap(fixture.tasks),
+            _projectsById: buildEntityMap(fixture.projects),
+            _sectionsById: buildEntityMap(fixture.sections),
+            _areasById: new Map(),
+        });
+
+        try {
+            const startedAt = performance.now();
+            const result = await useTaskStore.getState().updateTask(fixture.targetTaskId, {
+                title: 'Incrementally persisted task',
+            });
+            const durationMs = performance.now() - startedAt;
+            await Promise.resolve();
+
+            expect(result).toEqual({ success: true });
+            expect(savedTask).toMatchObject({
+                id: fixture.targetTaskId,
+                title: 'Incrementally persisted task',
+            });
+            expect(saveDataCalls).toBe(0);
+            expectWithinBudget('One-task incremental persisted update', 50_000, durationMs, 1_000);
+        } finally {
+            await flushPendingSave();
+            resetForTests();
+        }
     });
 });
