@@ -70,11 +70,11 @@ export function MenuItem({
                     </View>
                 )}
                 <View style={styles.menuTextBlock}>
-                    <Text style={[styles.menuLabel, { color: tc.text }]} numberOfLines={1}>
+                    <Text style={[styles.menuLabel, { color: tc.text }]} numberOfLines={2}>
                         {title}
                     </Text>
                     {description && (
-                        <Text style={[styles.menuDescription, { color: tc.secondaryText }]} numberOfLines={1}>
+                        <Text style={[styles.menuDescription, { color: tc.secondaryText }]} numberOfLines={2}>
                             {description}
                         </Text>
                     )}
@@ -145,7 +145,7 @@ export function SettingsTopBar({ title }: { title?: string } = {}) {
                 {
                     backgroundColor: tc.cardBg,
                     borderBottomColor: tc.border,
-                    height: 52 + insets.top,
+                    minHeight: 52 + insets.top,
                     paddingTop: insets.top,
                 },
             ]}
@@ -162,7 +162,7 @@ export function SettingsTopBar({ title }: { title?: string } = {}) {
             >
                 <Ionicons color={tc.text} name="chevron-back" size={24} />
             </Pressable>
-            <Text style={[styles.topBarTitle, { color: tc.text }]} numberOfLines={1}>
+            <Text style={[styles.topBarTitle, { color: tc.text }]} numberOfLines={2}>
                 {title ?? t('settings.title')}
             </Text>
             <View style={styles.topBarBackButton} />

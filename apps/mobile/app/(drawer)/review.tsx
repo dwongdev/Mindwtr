@@ -301,7 +301,7 @@ export default function ReviewScreen() {
             onPress={() => setReviewPickerVisible(true)}
             activeOpacity={0.85}
           >
-            <Text style={styles.startReviewButtonText} numberOfLines={1} ellipsizeMode="tail">
+            <Text style={styles.startReviewButtonText} numberOfLines={2} ellipsizeMode="tail">
               {startReviewLabel}
             </Text>
           </TouchableOpacity>
@@ -658,11 +658,13 @@ const styles = StyleSheet.create({
     minWidth: 152,
     minHeight: 42,
     paddingHorizontal: 16,
+    maxWidth: '100%',
   },
   startReviewButtonText: {
     color: '#FFFFFF',
     fontSize: 15,
     fontWeight: '800',
+    textAlign: 'center',
   },
   taskList: {
     flex: 1,

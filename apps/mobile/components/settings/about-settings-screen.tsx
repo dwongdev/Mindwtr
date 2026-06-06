@@ -399,10 +399,10 @@ export function AboutSettingsScreen({
                 <View style={[styles.settingCard, { backgroundColor: tc.cardBg }]}>
                     <View style={[styles.aboutAppHeader, { borderBottomColor: tc.border }]}>
                         <Image source={appIconSource} style={styles.aboutAppIcon} resizeMode="cover" />
-                        <Text style={[styles.aboutAppName, { color: tc.text }]} numberOfLines={1}>
+                        <Text style={[styles.aboutAppName, { color: tc.text }]} numberOfLines={2}>
                             {appName}
                         </Text>
-                        <Text style={[styles.aboutAppVersion, { color: tc.secondaryText }]} numberOfLines={1}>
+                        <Text style={[styles.aboutAppVersion, { color: tc.secondaryText }]} numberOfLines={2}>
                             v{currentVersion}
                         </Text>
                     </View>

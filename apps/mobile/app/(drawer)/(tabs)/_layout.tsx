@@ -71,7 +71,7 @@ function MoreSheetTile({
       <View style={[styles.moreTileIcon, { backgroundColor: tc.filterBg }]}>
         <IconSymbol name={item.icon} size={24} color={item.iconColor} />
       </View>
-      <Text style={[styles.moreTileLabel, { color: tc.text }]} numberOfLines={1}>
+      <Text style={[styles.moreTileLabel, { color: tc.text }]} numberOfLines={2}>
         {item.displayLabel ?? item.label}
       </Text>
     </Pressable>
@@ -109,7 +109,7 @@ function MoreSheetCompactItem({
       <View style={styles.moreCompactIcon}>
         <IconSymbol name={item.icon} size={18} color={item.iconColor} />
       </View>
-      <Text style={[styles.moreCompactLabel, { color: tc.secondaryText }]} numberOfLines={1}>
+      <Text style={[styles.moreCompactLabel, { color: tc.secondaryText }]} numberOfLines={2}>
         {item.displayLabel ?? item.label}
       </Text>
     </Pressable>
@@ -906,7 +906,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     flexBasis: '31%',
     flexGrow: 1,
-    minHeight: 86,
+    minHeight: 96,
     paddingHorizontal: 8,
     paddingVertical: 12,
   },
@@ -922,7 +922,7 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '700',
     lineHeight: 15,
-    minHeight: 15,
+    minHeight: 30,
     textAlign: 'center',
   },
   moreDivider: {
@@ -942,7 +942,7 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     alignItems: 'center',
     justifyContent: 'center',
-    minHeight: 48,
+    minHeight: 56,
     paddingHorizontal: 2,
     paddingVertical: 4,
   },

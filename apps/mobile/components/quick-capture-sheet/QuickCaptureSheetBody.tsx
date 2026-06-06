@@ -135,7 +135,7 @@ export function QuickCaptureSheetBody({
             <View style={styles.headerRow}>
               <Text
                 style={[styles.title, { color: tc.text }]}
-                numberOfLines={1}
+                numberOfLines={2}
                 maxFontSizeMultiplier={COMPACT_TEXT_MAX_SCALE}
               >
                 {t('nav.addTask')}
@@ -212,7 +212,7 @@ export function QuickCaptureSheetBody({
                   <AtSign size={16} color={tc.text} />
                   <Text
                     style={[styles.collapsedContextText, { color: tc.text }]}
-                    numberOfLines={1}
+                    numberOfLines={2}
                     ellipsizeMode="tail"
                     maxFontSizeMultiplier={COMPACT_TEXT_MAX_SCALE}
                   >
@@ -230,7 +230,7 @@ export function QuickCaptureSheetBody({
                 <SlidersHorizontal size={16} color={tc.text} />
                 <Text
                   style={[styles.optionsToggleText, { color: tc.text }]}
-                  numberOfLines={1}
+                  numberOfLines={2}
                   maxFontSizeMultiplier={COMPACT_TEXT_MAX_SCALE}
                 >
                   {optionsToggleLabel}
@@ -257,7 +257,7 @@ export function QuickCaptureSheetBody({
                       <Clock size={16} color={tc.text} />
                       <Text
                         style={[styles.optionText, { color: tc.text }]}
-                        numberOfLines={1}
+                        numberOfLines={2}
                         ellipsizeMode="tail"
                         maxFontSizeMultiplier={COMPACT_TEXT_MAX_SCALE}
                       >
@@ -276,7 +276,7 @@ export function QuickCaptureSheetBody({
                     <AtSign size={16} color={tc.text} />
                     <Text
                       style={[styles.optionText, { color: tc.text }]}
-                      numberOfLines={1}
+                      numberOfLines={2}
                       ellipsizeMode="tail"
                       maxFontSizeMultiplier={COMPACT_TEXT_MAX_SCALE}
                     >
@@ -293,7 +293,7 @@ export function QuickCaptureSheetBody({
                   >
                     <Text
                       style={[styles.optionText, { color: tc.text }]}
-                      numberOfLines={1}
+                      numberOfLines={2}
                       ellipsizeMode="tail"
                       maxFontSizeMultiplier={COMPACT_TEXT_MAX_SCALE}
                     >
@@ -311,7 +311,7 @@ export function QuickCaptureSheetBody({
                     <Folder size={16} color={tc.text} />
                     <Text
                       style={[styles.optionText, { color: tc.text }]}
-                      numberOfLines={1}
+                      numberOfLines={2}
                       ellipsizeMode="tail"
                       maxFontSizeMultiplier={COMPACT_TEXT_MAX_SCALE}
                     >
@@ -330,7 +330,7 @@ export function QuickCaptureSheetBody({
                       <Flag size={16} color={tc.text} />
                       <Text
                         style={[styles.optionText, { color: tc.text }]}
-                        numberOfLines={1}
+                        numberOfLines={2}
                         ellipsizeMode="tail"
                         maxFontSizeMultiplier={COMPACT_TEXT_MAX_SCALE}
                       >
@@ -364,7 +364,7 @@ export function QuickCaptureSheetBody({
                   <CalendarDays size={14} color={tc.secondaryText} />
                   <Text
                     style={[styles.customDateButtonText, { color: tc.secondaryText }]}
-                    numberOfLines={1}
+                    numberOfLines={2}
                     ellipsizeMode="tail"
                     maxFontSizeMultiplier={COMPACT_TEXT_MAX_SCALE}
                   >
@@ -385,7 +385,7 @@ export function QuickCaptureSheetBody({
                 />
                 <Text
                   style={[styles.toggleText, { color: tc.text }]}
-                  numberOfLines={1}
+                  numberOfLines={2}
                   maxFontSizeMultiplier={COMPACT_TEXT_MAX_SCALE}
                 >
                   {t('quickAdd.addAnother')}

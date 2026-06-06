@@ -68,7 +68,7 @@ export function QuickDateChips({
                 styles.chipText,
                 { color: active ? tc.onTint : tc.secondaryText },
               ]}
-              numberOfLines={1}
+              numberOfLines={2}
               maxFontSizeMultiplier={1.2}
             >
               {label}
@@ -95,9 +95,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: 11,
     paddingVertical: 7,
     justifyContent: 'center',
+    maxWidth: '100%',
   },
   chipText: {
     fontSize: 12,
     fontWeight: '600',
+    textAlign: 'center',
   },
 });
