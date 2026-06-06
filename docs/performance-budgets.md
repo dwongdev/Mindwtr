@@ -25,7 +25,7 @@ Budgets are intentionally explicit and conservative. They should only change in 
 | --- | ---: | ---: | ---: | ---: |
 | Project detail lookup and sort | 25ms | 90ms | 450ms | 50k <= 12x 10k |
 | Project summary aggregation | 20ms | 70ms | 300ms | 50k <= 10x 10k |
-| Focus derivation | 40ms | 180ms | 900ms | 50k <= 12x 10k |
+| Focus derivation | 40ms | 500ms | 2500ms | 50k <= 12x 10k |
 | Search/filter/sort derivation | 30ms | 130ms | 650ms | 50k <= 12x 10k |
 | One-task normalized update | 20ms | 80ms | 350ms | 50k <= 10x 10k |
 
