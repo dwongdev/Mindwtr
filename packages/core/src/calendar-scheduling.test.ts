@@ -172,7 +172,7 @@ describe('calendar scheduling helpers', () => {
             start: new Date('2026-04-26T14:00:00.000Z'),
         });
 
-        expect(draft.projectTitle).toBeUndefined();
+        expect(draft.projectTitle).toBe('Launch');
         expect(draft.props.projectId).toBeUndefined();
     });
 

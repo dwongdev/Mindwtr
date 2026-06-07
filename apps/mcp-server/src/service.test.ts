@@ -440,15 +440,29 @@ describe('mcp service', () => {
         status: 'waiting',
         supportNotes: 'Track home-related work here.',
       });
+      const section = await service.addSection({
+        projectId: project.id,
+        title: 'Errands',
+      });
+      const updatedSection = await service.updateSection({
+        id: section.id,
+        title: 'Home Errands',
+        order: 2,
+      });
+      const deletedSection = await service.deleteSection(section.id);
 
       const tasks = await service.listTasks({ status: 'all' });
       const projects = await service.listProjects();
+      const sections = await service.listSections({ projectId: project.id });
       const persistedTask = tasks.find((item) => item.id === task.id);
       const persistedProject = projects.find((item) => item.id === project.id);
 
       expect(updatedProject.title).toBe('Household');
       expect(updatedProject.status).toBe('waiting');
       expect(updatedProject.supportNotes).toBe('Track home-related work here.');
+      expect(updatedSection.title).toBe('Home Errands');
+      expect(updatedSection.order).toBe(2);
+      expect(deletedSection.deletedAt).toBeTruthy();
 
       expect(persistedTask).toBeTruthy();
       expect(persistedTask?.title).toBe('Buy milk');
@@ -462,6 +476,7 @@ describe('mcp service', () => {
       expect(persistedProject?.title).toBe('Household');
       expect(persistedProject?.status).toBe('waiting');
       expect(persistedProject?.supportNotes).toBe('Track home-related work here.');
+      expect(sections.find((item) => item.id === section.id)).toBeUndefined();
     } finally {
       await service.close();
     }
