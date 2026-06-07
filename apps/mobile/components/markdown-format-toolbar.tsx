@@ -95,14 +95,20 @@ const renderActionLabel = (
             return <Ionicons name="list-circle-outline" size={iconSize} color={color} />;
         case 'taskList':
             return <Ionicons name="checkbox-outline" size={iconSize} color={color} />;
+        case 'horizontalRule':
+            return <Ionicons name="remove-outline" size={iconSize} color={color} />;
         case 'quote':
             return <Ionicons name="chatbox-ellipses-outline" size={iconSize} color={color} />;
         case 'link':
             return <Ionicons name="link-outline" size={iconSize} color={color} />;
         case 'code':
             return <Ionicons name="code-slash-outline" size={iconSize} color={color} />;
+        case 'codeBlock':
+            return <Ionicons name="code-working-outline" size={iconSize} color={color} />;
         case 'italic':
             return <FontAwesome name="italic" size={Math.max(12, Math.round(iconSize * 0.64))} color={color} />;
+        case 'strikethrough':
+            return <FontAwesome name="strikethrough" size={Math.max(12, Math.round(iconSize * 0.64))} color={color} />;
         default:
             return (
                 <Text

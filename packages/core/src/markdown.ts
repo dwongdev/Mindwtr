@@ -64,12 +64,15 @@ export type MarkdownToolbarActionId =
     | 'heading'
     | 'bold'
     | 'italic'
+    | 'strikethrough'
     | 'quote'
+    | 'horizontalRule'
     | 'bulletList'
     | 'orderedList'
     | 'taskList'
     | 'link'
-    | 'code';
+    | 'code'
+    | 'codeBlock';
 
 export type MarkdownSelection = {
     start: number;
@@ -100,9 +103,12 @@ export const MARKDOWN_TOOLBAR_ACTIONS: MarkdownToolbarAction[] = [
     { id: 'heading', shortLabel: 'H1', labelKey: 'markdown.toolbar.heading', fallbackLabel: 'Insert heading' },
     { id: 'bold', shortLabel: 'B', labelKey: 'markdown.toolbar.bold', fallbackLabel: 'Bold' },
     { id: 'italic', shortLabel: 'I', labelKey: 'markdown.toolbar.italic', fallbackLabel: 'Italic' },
+    { id: 'strikethrough', shortLabel: 'S', labelKey: 'markdown.toolbar.strikethrough', fallbackLabel: 'Strikethrough' },
     { id: 'link', shortLabel: '[]', labelKey: 'markdown.toolbar.link', fallbackLabel: 'Insert link' },
     { id: 'code', shortLabel: '`', labelKey: 'markdown.toolbar.code', fallbackLabel: 'Inline code' },
+    { id: 'codeBlock', shortLabel: '</>', labelKey: 'markdown.toolbar.codeBlock', fallbackLabel: 'Code block' },
     { id: 'quote', shortLabel: '>', labelKey: 'markdown.toolbar.quote', fallbackLabel: 'Quote' },
+    { id: 'horizontalRule', shortLabel: '---', labelKey: 'markdown.toolbar.horizontalRule', fallbackLabel: 'Horizontal rule' },
     { id: 'bulletList', shortLabel: '-', labelKey: 'markdown.toolbar.bulletList', fallbackLabel: 'Bullet list' },
     { id: 'orderedList', shortLabel: '1.', labelKey: 'markdown.toolbar.orderedList', fallbackLabel: 'Numbered list' },
     { id: 'taskList', shortLabel: '[ ]', labelKey: 'markdown.toolbar.taskList', fallbackLabel: 'Task list' },
@@ -748,6 +754,17 @@ const replaceSelection = (
     };
 };
 
+const insertHorizontalRule = (value: string, selection: MarkdownSelection): MarkdownToolbarResult => {
+    const { start, end } = normalizeSelection(value, selection);
+    const before = value.slice(0, start);
+    const after = value.slice(end);
+    const leadingBreak = before && !before.endsWith('\n') ? '\n' : '';
+    const inserted = `${leadingBreak}---\n`;
+    const nextValue = `${before}${inserted}${after}`;
+    const cursor = before.length + leadingBreak.length + 4;
+    return { value: nextValue, selection: { start: cursor, end: cursor } };
+};
+
 const indentSelection = (value: string, selection: MarkdownSelection): MarkdownToolbarResult => {
     const normalizedSelection = normalizeSelection(value, selection);
     if (normalizedSelection.start === normalizedSelection.end) {
@@ -1136,8 +1153,12 @@ export function applyMarkdownToolbarAction(
             return wrapSelection(value, selection, '**', '**', 2);
         case 'italic':
             return wrapSelection(value, selection, '*', '*', 1);
+        case 'strikethrough':
+            return wrapSelection(value, selection, '~~', '~~', 2);
         case 'quote':
             return prefixLines(value, selection, '> ');
+        case 'horizontalRule':
+            return insertHorizontalRule(value, selection);
         case 'bulletList':
             return prefixLines(value, selection, '- ');
         case 'orderedList':
@@ -1148,6 +1169,14 @@ export function applyMarkdownToolbarAction(
             return wrapSelection(value, selection, '[', ']()', 1, 'inside-suffix');
         case 'code':
             return wrapSelection(value, selection, '`', '`', 1);
+        case 'codeBlock': {
+            const normalizedSelection = normalizeSelection(value, selection);
+            const selectedText = value.slice(normalizedSelection.start, normalizedSelection.end);
+            if (selectedText) {
+                return wrapSelectionInFencedCodeBlock(value, normalizedSelection, selectedText);
+            }
+            return insertCollapsedFencedCodeBlock(value, normalizedSelection.start);
+        }
         default:
             return { value, selection: normalizeSelection(value, selection) };
     }

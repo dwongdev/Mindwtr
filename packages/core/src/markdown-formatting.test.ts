@@ -101,6 +101,42 @@ describe('applyMarkdownToolbarAction', () => {
             selection: { start: 6, end: 10 },
         });
     });
+
+    it('wraps selected text in strikethrough markers', () => {
+        expect(
+            applyMarkdownToolbarAction('finish note', { start: 7, end: 11 }, 'strikethrough'),
+        ).toEqual({
+            value: 'finish ~~note~~',
+            selection: { start: 9, end: 13 },
+        });
+    });
+
+    it('inserts a horizontal rule on its own line and places the cursor after it', () => {
+        expect(
+            applyMarkdownToolbarAction('alphabeta', { start: 5, end: 5 }, 'horizontalRule'),
+        ).toEqual({
+            value: 'alpha\n---\nbeta',
+            selection: { start: 10, end: 10 },
+        });
+    });
+
+    it('creates a fenced code block and places the cursor inside it', () => {
+        expect(
+            applyMarkdownToolbarAction('', { start: 0, end: 0 }, 'codeBlock'),
+        ).toEqual({
+            value: '```\n\n```',
+            selection: { start: 4, end: 4 },
+        });
+    });
+
+    it('wraps selected text in a fenced code block from the toolbar', () => {
+        expect(
+            applyMarkdownToolbarAction('run tests', { start: 0, end: 9 }, 'codeBlock'),
+        ).toEqual({
+            value: '```\nrun tests\n```',
+            selection: { start: 4, end: 13 },
+        });
+    });
 });
 
 describe('applyMarkdownPairInsertion', () => {

@@ -116,7 +116,7 @@ describe('MarkdownFormatToolbar', () => {
         expect(tree!.root.findAllByType(Pressable)).toHaveLength(MARKDOWN_TOOLBAR_ACTIONS.length + 1);
     });
 
-    it('sizes toolbar buttons adaptively above the compact minimum on phone-width screens', () => {
+    it('keeps toolbar buttons at the compact touch-safe minimum when actions overflow phone width', () => {
         let tree: ReactTestRenderer | undefined;
         act(() => {
             tree = create(<MarkdownFormatToolbar {...baseProps} placement="inline" />);
@@ -127,9 +127,9 @@ describe('MarkdownFormatToolbar', () => {
         const adaptiveStyle = styles.find((entry: Record<string, unknown> | null) => entry && entry.width);
 
         expect(adaptiveStyle).toEqual(expect.objectContaining({
-            width: 34,
-            minHeight: 34,
-            minWidth: 34,
+            width: 32,
+            minHeight: 32,
+            minWidth: 32,
         }));
     });
 
@@ -144,7 +144,28 @@ describe('MarkdownFormatToolbar', () => {
         ));
 
         expect(italicIcons).toHaveLength(1);
-        expect(italicIcons[0].props.size).toBe(13);
+        expect(italicIcons[0].props.size).toBe(12);
+    });
+
+    it('renders vector icons for added Markdown toolbar actions', () => {
+        let tree: ReactTestRenderer;
+        act(() => {
+            tree = create(<MarkdownFormatToolbar {...baseProps} placement="inline" />);
+        });
+
+        const strikethroughIcons = tree!.root.findAll((node) => (
+            String(node.type) === 'FontAwesome' && node.props.name === 'strikethrough'
+        ));
+        const codeBlockIcons = tree!.root.findAll((node) => (
+            String(node.type) === 'Ionicons' && node.props.name === 'code-working-outline'
+        ));
+        const horizontalRuleIcons = tree!.root.findAll((node) => (
+            String(node.type) === 'Ionicons' && node.props.name === 'remove-outline'
+        ));
+
+        expect(strikethroughIcons).toHaveLength(1);
+        expect(codeBlockIcons).toHaveLength(1);
+        expect(horizontalRuleIcons).toHaveLength(1);
     });
 
     it('waits for keyboard visibility before rendering keyboard placement', () => {
