@@ -579,10 +579,15 @@ function App() {
             startDesktopNotifications().catch((error) => reportError('Notifications failed', error));
             SyncService.startFileWatcher().catch((error) => reportError('File watcher failed', error));
 
-            // Watch local data.json for external changes (e.g. from the CLI)
+            // Watch local data.json and SQLite sidecar files for external changes (CLI/MCP/Local REST).
             import('@tauri-apps/api/core')
-                .then((mod) => mod.invoke<string>('get_data_path_cmd'))
-                .then((dataPath) => LocalDataWatcher.start(dataPath))
+                .then(async (mod) => {
+                    const [dataPath, dbPath] = await Promise.all([
+                        mod.invoke<string>('get_data_path_cmd'),
+                        mod.invoke<string>('get_db_path_cmd'),
+                    ]);
+                    await LocalDataWatcher.start(dataPath, dbPath);
+                })
                 .catch((error) => reportError('Local data watcher failed', error));
         }
 

@@ -30,6 +30,7 @@ type PendingExternalData = {
 
 type LocalDataWatcherDependencies = {
     readDataJson: () => Promise<AppData>;
+    refreshStorageData: () => Promise<void>;
     watchFile: (path: string, callback: (event: FsEvent) => void) => Promise<unknown>;
     now: () => number;
     schedule: typeof setTimeout;
@@ -68,6 +69,9 @@ const persistMergedDataThroughStore = async (merged: AppData): Promise<void> => 
 
 const defaultDependencies: LocalDataWatcherDependencies = {
     readDataJson: () => invoke<AppData>('read_data_json' as any),
+    refreshStorageData: async () => {
+        await useTaskStore.getState().fetchData({ silent: true });
+    },
     watchFile: async (path, callback) => {
         const { watch } = await import('@tauri-apps/plugin-fs');
         return watch(path, callback);
@@ -85,20 +89,33 @@ const defaultDependencies: LocalDataWatcherDependencies = {
 };
 
 let localDataWatcherDependencies: LocalDataWatcherDependencies = { ...defaultDependencies };
-let unwatchFn: (() => void) | null = null;
+let unwatchFns: Array<() => void> = [];
 let ignoreUntil = 0;
 let lastKnownHash = '';
 let pendingSelfWrites: Array<{ payload: string; expiresAt: number }> = [];
 let debounceTimer: ReturnType<typeof setTimeout> | null = null;
+let sqliteDebounceTimer: ReturnType<typeof setTimeout> | null = null;
 let ignoreDrainTimer: ReturnType<typeof setTimeout> | null = null;
 let hasPendingChangeDuringIgnore = false;
 let pendingExternalData: PendingExternalData | null = null;
 let mergeInFlight: Promise<void> | null = null;
+let sqliteRefreshInFlight: Promise<void> | null = null;
 
 const normalizePathsFromEvent = (event: FsEvent): string[] => {
     if (Array.isArray(event?.paths)) return event.paths;
     if (typeof event?.path === 'string' && event.path.length > 0) return [event.path];
     return [];
+};
+
+const getPathBasename = (path: string): string => {
+    const separatorIndex = Math.max(path.lastIndexOf('/'), path.lastIndexOf('\\'));
+    return separatorIndex >= 0 ? path.slice(separatorIndex + 1) : path;
+};
+
+const getParentPath = (path: string): string | null => {
+    const separatorIndex = Math.max(path.lastIndexOf('/'), path.lastIndexOf('\\'));
+    if (separatorIndex <= 0) return null;
+    return path.slice(0, separatorIndex);
 };
 
 /** Filter out iCloud placeholder events (.icloud files, lock files). */
@@ -113,6 +130,12 @@ const isRelevantSyncEvent = (paths: string[]): boolean => {
         if (name.endsWith('.tmp')) return false;
         return true;
     });
+};
+
+const isRelevantSqliteEvent = (paths: string[], dbPath: string): boolean => {
+    const dbName = getPathBasename(dbPath);
+    const sqliteNames = new Set([dbName, `${dbName}-wal`, `${dbName}-shm`]);
+    return paths.some((path) => sqliteNames.has(getPathBasename(path)));
 };
 
 const resolveUnwatch = (unwatch: unknown): (() => void) | null => {
@@ -192,6 +215,41 @@ async function mergeExternalData(externalData: PendingExternalData): Promise<voi
     } catch (error) {
         localDataWatcherDependencies.logWarn('[local-data-watcher] Failed to merge external data: ' + String(error));
     }
+}
+
+const runSqliteRefresh = (): Promise<void> => {
+    if (sqliteRefreshInFlight) return sqliteRefreshInFlight;
+
+    sqliteRefreshInFlight = (async () => {
+        try {
+            await flushPendingSave();
+            await localDataWatcherDependencies.refreshStorageData();
+            localDataWatcherDependencies.logInfo('[local-data-watcher] Refreshed after SQLite change');
+        } catch (error) {
+            localDataWatcherDependencies.logWarn('[local-data-watcher] Failed to refresh SQLite change: ' + String(error));
+        }
+    })().finally(() => {
+        sqliteRefreshInFlight = null;
+    });
+
+    return sqliteRefreshInFlight;
+};
+
+async function handleSqliteChange(options: { immediate?: boolean } = {}): Promise<void> {
+    if (sqliteDebounceTimer) {
+        localDataWatcherDependencies.cancelSchedule(sqliteDebounceTimer);
+        sqliteDebounceTimer = null;
+    }
+
+    if (options.immediate) {
+        await runSqliteRefresh();
+        return;
+    }
+
+    sqliteDebounceTimer = localDataWatcherDependencies.schedule(() => {
+        sqliteDebounceTimer = null;
+        void runSqliteRefresh();
+    }, DEBOUNCE_MS);
 }
 
 async function handleExternalChange(options: { immediate?: boolean; ignoreSelfWindow?: boolean } = {}): Promise<void> {
@@ -287,9 +345,9 @@ export function markLocalWrite(data?: AppData): void {
     scheduleIgnoreDrain();
 }
 
-export async function start(dataPath: string): Promise<void> {
+export async function start(dataPath: string, dbPath?: string): Promise<void> {
     if (!isTauriRuntime()) return;
-    if (unwatchFn) return;
+    if (unwatchFns.length > 0) return;
 
     try {
         const unwatch = await localDataWatcherDependencies.watchFile(dataPath, (event) => {
@@ -301,10 +359,29 @@ export async function start(dataPath: string): Promise<void> {
             void handleExternalChange();
         });
 
-        unwatchFn = resolveUnwatch(unwatch);
+        const resolvedUnwatch = resolveUnwatch(unwatch);
+        if (resolvedUnwatch) unwatchFns.push(resolvedUnwatch);
         localDataWatcherDependencies.logInfo('[local-data-watcher] Started watching ' + dataPath);
     } catch (error) {
         localDataWatcherDependencies.logWarn('[local-data-watcher] Failed to start watcher: ' + String(error));
+    }
+
+    if (dbPath) {
+        const dbWatchPath = getParentPath(dbPath) ?? dbPath;
+        try {
+            const unwatch = await localDataWatcherDependencies.watchFile(dbWatchPath, (event) => {
+                const paths = normalizePathsFromEvent(event);
+                if (paths.length === 0) return;
+                if (!isRelevantSqliteEvent(paths, dbPath)) return;
+                void handleSqliteChange();
+            });
+
+            const resolvedUnwatch = resolveUnwatch(unwatch);
+            if (resolvedUnwatch) unwatchFns.push(resolvedUnwatch);
+            localDataWatcherDependencies.logInfo('[local-data-watcher] Started watching SQLite directory ' + dbWatchPath);
+        } catch (error) {
+            localDataWatcherDependencies.logWarn('[local-data-watcher] Failed to start SQLite watcher: ' + String(error));
+        }
     }
 }
 
@@ -312,6 +389,10 @@ export function stop(): void {
     if (debounceTimer) {
         localDataWatcherDependencies.cancelSchedule(debounceTimer);
         debounceTimer = null;
+    }
+    if (sqliteDebounceTimer) {
+        localDataWatcherDependencies.cancelSchedule(sqliteDebounceTimer);
+        sqliteDebounceTimer = null;
     }
     if (ignoreDrainTimer) {
         localDataWatcherDependencies.cancelSchedule(ignoreDrainTimer);
@@ -321,9 +402,9 @@ export function stop(): void {
     pendingExternalData = null;
     pendingSelfWrites = [];
 
-    if (unwatchFn) {
-        unwatchFn();
-        unwatchFn = null;
+    if (unwatchFns.length > 0) {
+        unwatchFns.forEach((unwatch) => unwatch());
+        unwatchFns = [];
         localDataWatcherDependencies.logInfo('[local-data-watcher] Stopped');
     }
 }
@@ -345,10 +426,11 @@ export const __localDataWatcherTestUtils = {
         stop();
         localDataWatcherDependencies = { ...defaultDependencies };
         ignoreUntil = 0;
-        lastKnownHash = '';
-        pendingSelfWrites = [];
-        mergeInFlight = null;
-    },
+            lastKnownHash = '';
+            pendingSelfWrites = [];
+            mergeInFlight = null;
+            sqliteRefreshInFlight = null;
+        },
     getPendingSelfWritePayloadLengthForTests() {
         return pendingSelfWrites.reduce((total, entry) => total + entry.payload.length, 0);
     },

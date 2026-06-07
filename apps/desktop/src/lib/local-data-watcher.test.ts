@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { flushPendingSave, setStorageAdapter, useTaskStore } from '@mindwtr/core';
 import type { AppData, StorageAdapter } from '@mindwtr/core';
-import { __localDataWatcherTestUtils, markLocalWrite } from './local-data-watcher';
+import { __localDataWatcherTestUtils, markLocalWrite, start } from './local-data-watcher';
 
 function getTauriMocks() {
     const globalObject = globalThis as typeof globalThis & {
@@ -92,6 +92,7 @@ const storageAdapter: StorageAdapter = {
 beforeEach(() => {
     const { invokeMock } = getTauriMocks();
     invokeMock.mockReset();
+    (window as typeof window & { __TAURI__?: unknown }).__TAURI__ = {};
 
     nowMs = 0;
     timerId = 1;
@@ -130,11 +131,49 @@ beforeEach(() => {
 
 afterEach(async () => {
     __localDataWatcherTestUtils.resetForTests();
+    delete (window as typeof window & { __TAURI__?: unknown }).__TAURI__;
     scheduledTimers.clear();
     await flushPendingSave();
 });
 
 describe('local-data-watcher', () => {
+    it('refreshes the store when SQLite WAL files change', async () => {
+        const watchers: Array<{ path: string; callback: (event: { path?: string; paths?: string[] }) => void }> = [];
+        const task = {
+            id: 'mcp-1',
+            title: 'From MCP',
+            status: 'inbox' as const,
+            createdAt: '2026-01-01T00:00:00.000Z',
+            updatedAt: '2026-01-01T00:00:00.000Z',
+        } as AppData['tasks'][number];
+        const refreshStorageData = vi.fn(async () => {
+            useTaskStore.setState((state) => ({
+                ...state,
+                tasks: [task],
+                _allTasks: [task],
+                lastDataChangeAt: 1,
+            }));
+        });
+
+        __localDataWatcherTestUtils.setDependenciesForTests({
+            watchFile: async (path, callback) => {
+                watchers.push({ path, callback });
+                return () => undefined;
+            },
+            refreshStorageData,
+        });
+
+        await start('/tmp/mindwtr/data.json', '/tmp/mindwtr/mindwtr.db');
+
+        expect(watchers.map((watcher) => watcher.path)).toEqual(['/tmp/mindwtr/data.json', '/tmp/mindwtr']);
+
+        watchers[1]?.callback({ paths: ['/tmp/mindwtr/mindwtr.db-wal'] });
+        await flushScheduledTimers();
+
+        expect(refreshStorageData).toHaveBeenCalledTimes(1);
+        expect(useTaskStore.getState().tasks[0]?.id).toBe('mcp-1');
+    });
+
     it('ignores self-written payloads after the ignore window drains', async () => {
         externalData = {
             ...emptyData(),
