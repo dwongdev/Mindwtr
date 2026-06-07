@@ -1,9 +1,10 @@
 import { describe, expect, it } from 'vitest';
 
 import {
-    buildProjectTaskReorderGroups,
-    getBulkActionFailureMessage,
-    sortProjectTasksByOrder,
+  buildStaticListVirtualWindow,
+  buildProjectTaskReorderGroups,
+  getBulkActionFailureMessage,
+  sortProjectTasksByOrder,
 } from './task-list-utils';
 
 describe('getBulkActionFailureMessage', () => {
@@ -87,4 +88,41 @@ describe('sortProjectTasksByOrder', () => {
             { id: 'older', createdAt: '2026-01-01T00:00:00.000Z' },
         ]).map((task) => task.id)).toEqual(['older', 'newer']);
     });
+});
+
+describe('buildStaticListVirtualWindow', () => {
+  it('returns a bounded visible slice with spacers for large static lists', () => {
+    const items = Array.from({ length: 200 }, (_, index) => ({ id: `item-${index}` }));
+
+    const window = buildStaticListVirtualWindow(items, {
+      listOffsetY: 120,
+      overscan: 8,
+      rowEstimate: 88,
+      scrollOffsetY: 120 + 88 * 50,
+      viewportHeight: 704,
+    });
+
+    expect(window.startIndex).toBe(42);
+    expect(window.items).toHaveLength(24);
+    expect(window.items[0]?.id).toBe('item-42');
+    expect(window.items.at(-1)?.id).toBe('item-65');
+    expect(window.topSpacerHeight).toBe(42 * 88);
+    expect(window.bottomSpacerHeight).toBe((200 - 66) * 88);
+  });
+
+  it('clamps the first window at the top of the list', () => {
+    const items = Array.from({ length: 20 }, (_, index) => index);
+
+    const window = buildStaticListVirtualWindow(items, {
+      listOffsetY: 300,
+      overscan: 4,
+      rowEstimate: 50,
+      scrollOffsetY: 0,
+      viewportHeight: 200,
+    });
+
+    expect(window.startIndex).toBe(0);
+    expect(window.items).toEqual(items.slice(0, 12));
+    expect(window.topSpacerHeight).toBe(0);
+  });
 });

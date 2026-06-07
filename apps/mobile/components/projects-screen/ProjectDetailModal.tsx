@@ -247,6 +247,10 @@ export function ProjectDetailModal({
     const [projectTaskReorderMode, setProjectTaskReorderMode] = React.useState(false);
     const projectDetailScrollRef = React.useRef<ScrollView | null>(null);
     const projectDetailScrollOffsetRef = React.useRef(0);
+    const [projectDetailScrollWindow, setProjectDetailScrollWindow] = React.useState({
+        offsetY: 0,
+        viewportHeight: 0,
+    });
     const projectDetailKeyboardTopRef = React.useRef(Dimensions.get('window').height);
     const projectDetailKeyboardVisibleRef = React.useRef(false);
     const projectDetailFocusedInputHandleRef = React.useRef<number | null>(null);
@@ -501,9 +505,21 @@ export function ProjectDetailModal({
                                 <ProjectDetailScrollFrame
                                     backgroundColor={tc.bg}
                                     keyboardBottomInset={projectDetailKeyboardBottomInset}
-                                    onScroll={(event) => {
-                                        projectDetailScrollOffsetRef.current = event.nativeEvent.contentOffset.y;
-                                    }}
+                                onScroll={(event) => {
+                                    const offsetY = event.nativeEvent.contentOffset.y;
+                                    const viewportHeight = event.nativeEvent.layoutMeasurement?.height
+                                        ?? projectDetailScrollWindow.viewportHeight;
+                                    projectDetailScrollOffsetRef.current = offsetY;
+                                    setProjectDetailScrollWindow((current) => {
+                                        if (
+                                            Math.abs(current.offsetY - offsetY) < 32
+                                            && Math.abs(current.viewportHeight - viewportHeight) < 1
+                                        ) {
+                                            return current;
+                                        }
+                                        return { offsetY, viewportHeight };
+                                    });
+                                }}
                                     reorderMode={projectTaskReorderMode}
                                     scrollRef={projectDetailScrollRef}
                                 >
@@ -904,6 +920,10 @@ export function ProjectDetailModal({
                                     taskSource={selectedProjectTasks}
                                     allowAdd={taskListOptions.allowAdd}
                                     staticList
+                                    staticListVirtualization={{
+                                        scrollOffsetY: projectDetailScrollWindow.offsetY,
+                                        viewportHeight: projectDetailScrollWindow.viewportHeight,
+                                    }}
                                     enableBulkActions
                                     showSort={false}
                                     enableProjectReorder={taskListOptions.enableProjectReorder}

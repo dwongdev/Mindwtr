@@ -30,6 +30,14 @@ When a screen feels slow, use this order:
 4. Split large components by concern (header/form/list/modals) so state updates stay localized.
 5. Replace broad dependency arrays with smaller memoized selectors/helpers.
 
+### Desktop Project List Virtualization
+- Use `@tanstack/react-virtual` for large desktop task lists that share the main workspace scroll container.
+- Keep row keys task-ID based; never use indexes for task rows that can be edited, selected, moved, or reordered.
+- Measure virtual rows when task card height can change, and keep a conservative row estimate so scrolling does not jump.
+- Preserve drag/reorder semantics by virtualizing the existing sortable row component rather than swapping in a separate row UI.
+- Avoid nested scroll containers inside project sections. If a virtual list is below project metadata or a section header, account for the list offset with scroll margin.
+- Add bounded render-count tests for large-list regressions. A test should prove the mounted row count stays near the visible window plus overscan, not the full task count.
+
 ### FlatList / Virtualization Tuning (Mobile)
 
 - Set `initialNumToRender`, `maxToRenderPerBatch`, `windowSize` intentionally by screen.
@@ -38,6 +46,7 @@ When a screen feels slow, use this order:
 - Keep `keyExtractor` stable and avoid index keys.
 - Avoid inline anonymous renderers in deeply nested item trees.
 
+Keep normal task screens on `FlatList`. For task lists embedded inside an existing `ScrollView`, use a manual visible-window slice with spacer rows rather than nesting another vertical virtualized list, so swipe, pull, keyboard, and drag gestures keep a single scroll owner.
 Calendar-specific rule: virtualize unbounded result sets, not fixed calendar scaffolding. The mobile Schedule view can grow with every visible task/event and should stay on `FlatList`; day and week timelines are bounded by the visible hour grid, and month cells are bounded by calendar weeks, so `ScrollView` is acceptable there as long as task/event rows are pre-filtered outside the render loop.
 
 ## Sync Performance Guidance

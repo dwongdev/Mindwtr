@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react';
-import { View, FlatList, Text, RefreshControl, Keyboard, TouchableOpacity, useWindowDimensions } from 'react-native';
+import { View, FlatList, Text, RefreshControl, Keyboard, TouchableOpacity, useWindowDimensions, type LayoutChangeEvent } from 'react-native';
 import { router } from 'expo-router';
 import { ArrowDown, ArrowUp, ChevronDown, ChevronRight, GripVertical, MoveVertical } from 'lucide-react-native';
 import { NestableDraggableFlatList, ScaleDecorator, type DragEndParams, type RenderItemParams } from 'react-native-draggable-flatlist';
@@ -67,6 +67,7 @@ import {
 import { styles } from './task-list/task-list.styles';
 import {
   buildProjectTaskReorderGroups,
+  buildStaticListVirtualWindow,
   type ProjectTaskReorderGroup,
   sortProjectTasksByOrder,
 } from './task-list-utils';
@@ -78,8 +79,16 @@ import {
 import { useTaskListSelection } from './use-task-list-selection';
 
 const REMOVE_CLIPPED_SUBVIEWS_MIN_ITEMS = 15;
+const STATIC_LIST_VIRTUALIZATION_THRESHOLD = 80;
+const STATIC_LIST_ROW_ESTIMATE = 88;
+const STATIC_LIST_OVERSCAN = 8;
 const PRIORITY_OPTIONS: TaskPriority[] = ['low', 'medium', 'high', 'urgent'];
 const ENERGY_LEVEL_OPTIONS: TaskEnergyLevel[] = ['low', 'medium', 'high'];
+
+type StaticListVirtualizationWindow = {
+  scrollOffsetY: number;
+  viewportHeight: number;
+};
 
 export interface TaskListProps {
   statusFilter: TaskStatus | 'all';
@@ -90,6 +99,7 @@ export interface TaskListProps {
   allowAdd?: boolean;
   projectId?: string;
   staticList?: boolean;
+  staticListVirtualization?: StaticListVirtualizationWindow;
   enableBulkActions?: boolean;
   enableInboxBulkOrganize?: boolean;
   showSort?: boolean;
@@ -122,6 +132,7 @@ function TaskListComponent({
   allowAdd = true,
   projectId,
   staticList = false,
+  staticListVirtualization,
   enableBulkActions = true,
   enableInboxBulkOrganize = false,
   showSort = true,
@@ -264,6 +275,16 @@ function TaskListComponent({
     }
     return [styles.listContent, { paddingBottom: 12 + contentPaddingBottom }];
   }, [contentPaddingBottom]);
+  const [taskListRootOffsetY, setTaskListRootOffsetY] = useState(0);
+  const [staticListOffsetY, setStaticListOffsetY] = useState(0);
+  const handleTaskListRootLayout = useCallback((event: LayoutChangeEvent) => {
+    if (!staticListVirtualization) return;
+    setTaskListRootOffsetY(event.nativeEvent.layout.y);
+  }, [staticListVirtualization]);
+  const handleStaticListLayout = useCallback((event: LayoutChangeEvent) => {
+    if (!staticListVirtualization) return;
+    setStaticListOffsetY(event.nativeEvent.layout.y);
+  }, [staticListVirtualization]);
   const emptyMessage = emptyText || t('list.noTasks');
 
   const tasksById = useMemo(() => {
@@ -700,6 +721,32 @@ function TaskListComponent({
   }, [canUseProjectReorder, listItems, projectSections.length, shouldGroupCompletedTasks]);
   const projectSectionIds = useMemo(() => projectSections.map((section) => section.id), [projectSections]);
   const hasProjectReorderItems = projectReorderGroups.some((group) => group.tasks.length > 0) || projectSections.length > 1;
+  const staticListVirtualWindow = useMemo(() => {
+    if (
+      !staticList
+      || projectReorderMode
+      || !staticListVirtualization
+      || staticListVirtualization.viewportHeight <= 0
+      || listItems.length <= STATIC_LIST_VIRTUALIZATION_THRESHOLD
+    ) {
+      return null;
+    }
+
+    return buildStaticListVirtualWindow(listItems, {
+      listOffsetY: taskListRootOffsetY + staticListOffsetY,
+      overscan: STATIC_LIST_OVERSCAN,
+      rowEstimate: STATIC_LIST_ROW_ESTIMATE,
+      scrollOffsetY: staticListVirtualization.scrollOffsetY,
+      viewportHeight: staticListVirtualization.viewportHeight,
+    });
+  }, [
+    listItems,
+    projectReorderMode,
+    staticList,
+    staticListOffsetY,
+    staticListVirtualization,
+    taskListRootOffsetY,
+  ]);
   // Keep the draggable pan handler on the handle strip so vertical scrolling still works.
   // DraggableFlatList gesture props: https://github.com/computerjazz/react-native-draggable-flatlist#props
   const projectDragHitSlop = useMemo(() => ({
@@ -1264,7 +1311,10 @@ function TaskListComponent({
   ) : null;
 
   return (
-    <View style={[styles.container, { backgroundColor: themeColorsMemo.bg }]}>
+    <View
+      style={[styles.container, { backgroundColor: themeColorsMemo.bg }]}
+      onLayout={handleTaskListRootLayout}
+    >
       <TaskListHeader
         activeFilterChips={activeFilterChips}
         count={orderedTasks.length}
@@ -1407,7 +1457,7 @@ function TaskListComponent({
           {projectReorderGroups.map(renderProjectReorderGroup)}
         </View>
       ) : staticList ? (
-        <View style={styles.staticList}>
+        <View style={styles.staticList} onLayout={handleStaticListLayout}>
           {listItems.length === 0 ? (
             <ListEmptyState
               message={filteredEmptyMessage}
@@ -1419,6 +1469,20 @@ function TaskListComponent({
               actionLabel={filteredEmptyActionLabel}
               onAction={filteredEmptyAction}
             />
+          ) : staticListVirtualWindow ? (
+            <>
+              {staticListVirtualWindow.topSpacerHeight > 0 ? (
+                <View style={{ height: staticListVirtualWindow.topSpacerHeight }} />
+              ) : null}
+              {staticListVirtualWindow.items.map((item) => (
+                <View key={item.type === 'section' ? `section-${item.id}` : item.task.id} style={styles.staticItem}>
+                  {renderListItem({ item })}
+                </View>
+              ))}
+              {staticListVirtualWindow.bottomSpacerHeight > 0 ? (
+                <View style={{ height: staticListVirtualWindow.bottomSpacerHeight }} />
+              ) : null}
+            </>
           ) : (
             listItems.map((item) => (
               <View key={item.type === 'section' ? `section-${item.id}` : item.task.id} style={styles.staticItem}>

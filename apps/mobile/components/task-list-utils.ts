@@ -53,8 +53,8 @@ export function buildProjectTaskReorderGroups<T>(
 }
 
 export function sortProjectTasksByOrder<T extends { createdAt: string; order?: number; orderNum?: number }>(tasks: T[]): T[] {
-    const sorted = [...tasks];
-    const hasOrder = sorted.some((task) => Number.isFinite(task.order) || Number.isFinite(task.orderNum));
+  const sorted = [...tasks];
+  const hasOrder = sorted.some((task) => Number.isFinite(task.order) || Number.isFinite(task.orderNum));
     return sorted.sort((a, b) => {
         if (hasOrder) {
             const aOrder = Number.isFinite(a.order)
@@ -71,5 +71,38 @@ export function sortProjectTasksByOrder<T extends { createdAt: string; order?: n
         }
 
         return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
-    });
+  });
+}
+
+export type StaticListVirtualWindow<T> = {
+  bottomSpacerHeight: number;
+  items: T[];
+  startIndex: number;
+  topSpacerHeight: number;
+};
+
+export function buildStaticListVirtualWindow<T>(
+  items: T[],
+  options: {
+    listOffsetY: number;
+    overscan: number;
+    rowEstimate: number;
+    scrollOffsetY: number;
+    viewportHeight: number;
+  },
+): StaticListVirtualWindow<T> {
+  const relativeScrollY = Math.max(0, options.scrollOffsetY - options.listOffsetY);
+  const startIndex = Math.max(
+    0,
+    Math.floor(relativeScrollY / options.rowEstimate) - options.overscan,
+  );
+  const visibleCount = Math.ceil(options.viewportHeight / options.rowEstimate) + options.overscan * 2;
+  const endIndex = Math.min(items.length, startIndex + visibleCount);
+
+  return {
+    bottomSpacerHeight: Math.max(0, (items.length - endIndex) * options.rowEstimate),
+    items: items.slice(startIndex, endIndex),
+    startIndex,
+    topSpacerHeight: startIndex * options.rowEstimate,
+  };
 }

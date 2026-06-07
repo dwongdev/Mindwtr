@@ -32,6 +32,14 @@ vi.mock('../../TaskItem', () => ({
     ),
 }));
 
+vi.mock('./SortableRows', () => ({
+    SortableProjectTaskRow: ({ task }: { task: Task }) => (
+        <div data-sortable-task-id={task.id} data-task-id={task.id}>
+            <span>{task.title}</span>
+        </div>
+    ),
+}));
+
 vi.mock('../../PromptModal', () => ({
     PromptModal: () => null,
 }));
@@ -232,6 +240,22 @@ describe('ProjectWorkspace Select mode', () => {
         await waitFor(() => {
             expect(requestConfirmation).toHaveBeenCalled();
             expect(batchDeleteTasks).toHaveBeenCalledWith(['task-1', 'task-2']);
+        });
+    });
+
+    it('bounds mounted rows for large project task lists', async () => {
+        const allTasks = Array.from({ length: 200 }, (_, index) => (
+            task(`task-${index}`, `Task ${index}`)
+        ));
+        const { container } = renderWorkspace({ allTasks });
+
+        await waitFor(() => {
+            const virtualList = container.querySelector('[data-virtualized-task-list="true"]');
+            expect(virtualList).not.toBeNull();
+
+            const mountedRows = container.querySelectorAll('[data-virtualized-task-list="true"] [data-index]');
+            expect(mountedRows.length).toBeGreaterThan(0);
+            expect(mountedRows.length).toBeLessThan(80);
         });
     });
 

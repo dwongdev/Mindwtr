@@ -1,4 +1,5 @@
-import { useState, useMemo, useEffect, useCallback, useRef, type ReactNode } from 'react';
+import { useState, useMemo, useEffect, useCallback, useRef, useLayoutEffect, type ReactNode, type RefObject } from 'react';
+import { useVirtualizer } from '@tanstack/react-virtual';
 import {
     Attachment,
     Task,
@@ -53,6 +54,122 @@ const projectTaskDndMeasuring = {
         frequency: 16,
     },
 } as const;
+
+const PROJECT_TASK_VIRTUALIZATION_THRESHOLD = 80;
+const PROJECT_TASK_ROW_ESTIMATE = 88;
+const PROJECT_TASK_VIRTUAL_OVERSCAN = 8;
+const PROJECT_TASK_VIRTUAL_INITIAL_HEIGHT = 720;
+
+type ProjectTaskRowsProps = {
+    tasks: readonly Task[];
+    renderTask: (task: Task) => ReactNode;
+    scrollRef: RefObject<HTMLDivElement | null>;
+};
+
+function ProjectTaskRows({ tasks, renderTask, scrollRef }: ProjectTaskRowsProps) {
+    const shouldVirtualize = tasks.length > PROJECT_TASK_VIRTUALIZATION_THRESHOLD;
+    const listRef = useRef<HTMLDivElement | null>(null);
+    const [scrollMargin, setScrollMargin] = useState(0);
+
+    const updateScrollMargin = useCallback(() => {
+        const scrollElement = scrollRef.current;
+        const listElement = listRef.current;
+        if (!scrollElement || !listElement) return;
+
+        const scrollRect = scrollElement.getBoundingClientRect();
+        const listRect = listElement.getBoundingClientRect();
+        setScrollMargin(listRect.top - scrollRect.top + scrollElement.scrollTop);
+    }, [scrollRef]);
+
+    useLayoutEffect(() => {
+        if (!shouldVirtualize) return;
+
+        updateScrollMargin();
+
+        if (typeof window === 'undefined') return;
+
+        const resizeObserver = typeof ResizeObserver !== 'undefined'
+            ? new ResizeObserver(updateScrollMargin)
+            : null;
+
+        if (resizeObserver) {
+            if (scrollRef.current) resizeObserver.observe(scrollRef.current);
+            if (listRef.current) resizeObserver.observe(listRef.current);
+        }
+
+        window.addEventListener('resize', updateScrollMargin);
+        return () => {
+            resizeObserver?.disconnect();
+            window.removeEventListener('resize', updateScrollMargin);
+        };
+    }, [shouldVirtualize, scrollRef, tasks.length, updateScrollMargin]);
+
+    useLayoutEffect(() => {
+        if (shouldVirtualize) updateScrollMargin();
+    });
+
+    const rowVirtualizer = useVirtualizer({
+        count: shouldVirtualize ? tasks.length : 0,
+        getScrollElement: () => scrollRef.current,
+        estimateSize: () => PROJECT_TASK_ROW_ESTIMATE,
+        overscan: PROJECT_TASK_VIRTUAL_OVERSCAN,
+        getItemKey: (index) => tasks[index]?.id ?? index,
+        initialRect: { width: 0, height: PROJECT_TASK_VIRTUAL_INITIAL_HEIGHT },
+        scrollMargin,
+    });
+
+    if (!shouldVirtualize) {
+        return (
+            <div className="divide-y divide-border/30">
+                {tasks.map((task) => renderTask(task))}
+            </div>
+        );
+    }
+
+    const virtualRows = rowVirtualizer.getVirtualItems();
+    const rowsToRender = virtualRows.length > 0
+        ? virtualRows
+        : Array.from({
+            length: Math.min(
+                tasks.length,
+                Math.ceil(PROJECT_TASK_VIRTUAL_INITIAL_HEIGHT / PROJECT_TASK_ROW_ESTIMATE)
+                    + PROJECT_TASK_VIRTUAL_OVERSCAN * 2,
+            ),
+        }, (_, index) => ({
+            index,
+            key: tasks[index]?.id ?? index,
+            start: index * PROJECT_TASK_ROW_ESTIMATE,
+        }));
+    const totalSize = rowVirtualizer.getTotalSize() || tasks.length * PROJECT_TASK_ROW_ESTIMATE;
+
+    return (
+        <div
+            ref={listRef}
+            data-virtualized-task-list="true"
+            className="relative"
+            style={{ height: totalSize }}
+        >
+            {rowsToRender.map((virtualRow) => {
+                const task = tasks[virtualRow.index];
+                if (!task) return null;
+
+                return (
+                    <div
+                        key={virtualRow.key}
+                        ref={virtualRows.length > 0 ? rowVirtualizer.measureElement : undefined}
+                        data-index={virtualRow.index}
+                        className="absolute left-0 top-0 w-full border-b border-border/30"
+                        style={{
+                            transform: `translateY(${virtualRow.start - scrollMargin}px)`,
+                        }}
+                    >
+                        {renderTask(task)}
+                    </div>
+                );
+            })}
+        </div>
+    );
+}
 
 type ShowToast = (
     message: string,
@@ -213,6 +330,7 @@ export function ProjectWorkspace({
     const [isBatchDeleting, setIsBatchDeleting] = useState(false);
     const [completedTasksCollapsed, setCompletedTasksCollapsed] = useState(true);
     const multiSelectAnchorIdRef = useRef<string | null>(null);
+    const projectScrollRef = useRef<HTMLDivElement | null>(null);
     const isArchivedProject = selectedProject?.status === 'archived';
     const shouldGroupCompletedTasks = Boolean(selectedProject && !isArchivedProject && showCompletedTasks);
     const resolveText = useCallback((key: string, fallback: string) => {
@@ -668,17 +786,21 @@ export function ProjectWorkspace({
 
     const renderSortableTasks = (list: Task[]) => (
         <SortableContext items={list.map((task) => task.id)} strategy={verticalListSortingStrategy}>
-            <div className="divide-y divide-border/30">
-                {list.map((task) => (
+            <ProjectTaskRows
+                tasks={list}
+                scrollRef={projectScrollRef}
+                renderTask={(task) => (
                     <SortableProjectTaskRow key={task.id} task={task} project={selectedProject!} />
-                ))}
-            </div>
+                )}
+            />
         </SortableContext>
     );
 
     const renderSelectableTasks = (list: Task[]) => (
-        <div className="divide-y divide-border/30">
-            {list.map((task) => (
+        <ProjectTaskRows
+            tasks={list}
+            scrollRef={projectScrollRef}
+            renderTask={(task) => (
                 <TaskItem
                     key={task.id}
                     task={task}
@@ -689,13 +811,15 @@ export function ProjectWorkspace({
                     isMultiSelected={multiSelectedIds.has(task.id)}
                     onToggleSelect={(options) => toggleMultiSelect(task.id, options)}
                 />
-            ))}
-        </div>
+            )}
+        />
     );
 
     const renderStaticTasks = (list: Task[]) => (
-        <div className="divide-y divide-border/30">
-            {list.map((task) => (
+        <ProjectTaskRows
+            tasks={list}
+            scrollRef={projectScrollRef}
+            renderTask={(task) => (
                 <TaskItem
                     key={task.id}
                     task={task}
@@ -703,8 +827,8 @@ export function ProjectWorkspace({
                     enableDoubleClickEdit
                     showProjectBadgeInActions={false}
                 />
-            ))}
-        </div>
+            )}
+        />
     );
 
     const renderCompletedTaskGroup = () => {
@@ -1182,7 +1306,7 @@ export function ProjectWorkspace({
                         </div>
                     </div>
                     {selectedProject ? (
-                        <div className="flex-1 min-h-0 overflow-y-auto pr-2">
+                        <div ref={projectScrollRef} className="flex-1 min-h-0 overflow-y-auto pr-2">
                             {(isCreatingProject || isProjectDeleting || isAreaCreating) && (
                                 <div className="mb-4 rounded-lg border border-border/60 bg-muted/30 px-3 py-2 text-xs text-muted-foreground">
                                     {t('common.loading') || 'Loading...'}
@@ -1416,16 +1540,8 @@ export function ProjectWorkspace({
                                             {t('status.reference')} ({projectReferenceTasks.length})
                                         </div>
                                     </div>
-                                    <div className="divide-y divide-border/30 border-t border-border/40">
-                                        {projectReferenceTasks.map((task) => (
-                                            <TaskItem
-                                                key={`project-reference-${task.id}`}
-                                                task={task}
-                                                project={selectedProject}
-                                                enableDoubleClickEdit
-                                                showProjectBadgeInActions={false}
-                                            />
-                                        ))}
+                                    <div className="border-t border-border/40">
+                                        {renderStaticTasks(projectReferenceTasks)}
                                     </div>
                                 </section>
                             )}
