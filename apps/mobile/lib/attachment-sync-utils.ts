@@ -31,6 +31,7 @@ export const WEBDAV_ATTACHMENT_MISSING_BACKOFF_MS = 15 * 60_000;
 export const WEBDAV_ATTACHMENT_ERROR_BACKOFF_MS = 2 * 60_000;
 export const DROPBOX_ATTACHMENT_MAX_DOWNLOADS_PER_SYNC = 10;
 export const DROPBOX_ATTACHMENT_MAX_UPLOADS_PER_SYNC = 10;
+export const ATTACHMENT_LOCAL_MIGRATION_MAX_PER_SYNC = 3;
 const webdavDownloadBackoff = createWebdavDownloadBackoff({
   missingBackoffMs: WEBDAV_ATTACHMENT_MISSING_BACKOFF_MS,
   errorBackoffMs: WEBDAV_ATTACHMENT_ERROR_BACKOFF_MS,
@@ -356,11 +357,16 @@ export const loadCloudConfig = async (): Promise<CloudConfig | null> => {
   };
 };
 
-export const getAttachmentsDir = async (): Promise<string | null> => {
+const getManagedAttachmentsDir = (): string | null => {
   const base = FileSystem.documentDirectory || FileSystem.cacheDirectory;
   if (!base) return null;
   const normalized = base.endsWith('/') ? base : `${base}/`;
-  const dir = `${normalized}${ATTACHMENTS_DIR_NAME}/`;
+  return `${normalized}${ATTACHMENTS_DIR_NAME}/`;
+};
+
+export const getAttachmentsDir = async (): Promise<string | null> => {
+  const dir = getManagedAttachmentsDir();
+  if (!dir) return null;
   try {
     await FileSystem.makeDirectoryAsync(dir, { intermediates: true });
   } catch (error) {
@@ -625,6 +631,86 @@ export const ensureAttachmentStoredLocally = async (attachment: Attachment): Pro
   attachment.size = cached.size;
   attachment.localStatus = cached.localStatus;
   return true;
+};
+
+export const attachmentNeedsManagedLocalCopy = (attachment: Attachment): boolean => {
+  if (attachment.kind !== 'file') return false;
+  if (attachment.deletedAt) return false;
+  const uri = attachment.uri || '';
+  if (!uri || isHttpAttachmentUri(uri)) return false;
+  const attachmentsDir = getManagedAttachmentsDir();
+  if (!attachmentsDir) return false;
+  return !uri.startsWith(attachmentsDir);
+};
+
+export const createAttachmentLocalMigrationLimiter = (
+  maxMigrations = ATTACHMENT_LOCAL_MIGRATION_MAX_PER_SYNC
+): ((attachment: Attachment) => Promise<{ migrated: boolean; skipped: boolean }>) => {
+  let migrationAttempts = 0;
+  let limitLogged = false;
+
+  return async (attachment: Attachment): Promise<{ migrated: boolean; skipped: boolean }> => {
+    if (!attachmentNeedsManagedLocalCopy(attachment)) {
+      return { migrated: false, skipped: false };
+    }
+    if (migrationAttempts >= maxMigrations) {
+      if (!limitLogged) {
+        logAttachmentInfo('Attachment local migration limit reached', {
+          limit: String(maxMigrations),
+        });
+        limitLogged = true;
+      }
+      return { migrated: false, skipped: true };
+    }
+
+    migrationAttempts += 1;
+    const migrated = await ensureAttachmentStoredLocally(attachment);
+    return { migrated, skipped: !migrated };
+  };
+};
+
+export const hasPendingAttachmentSyncWork = async (appData: AppData): Promise<boolean> => {
+  if (appData.settings.attachments?.pendingRemoteDeletes?.length) return true;
+
+  const attachmentsById = collectAttachments(appData);
+  let shouldCheckManagedStorage = false;
+
+  for (const attachment of attachmentsById.values()) {
+    if (attachment.kind !== 'file') continue;
+    if (attachment.deletedAt) continue;
+
+    const uri = attachment.uri || '';
+    const isHttp = isHttpAttachmentUri(uri);
+    const hasLocalUri = Boolean(uri) && !isHttp;
+    if (!attachment.cloudKey && hasLocalUri && attachment.localStatus !== 'missing') {
+      return true;
+    }
+    if (attachment.cloudKey && hasLocalUri && attachment.localStatus === undefined) {
+      return true;
+    }
+    if (attachment.cloudKey && (!uri || attachment.localStatus === 'missing' || attachment.localStatus === 'downloading')) {
+      return true;
+    }
+    if (hasLocalUri) {
+      shouldCheckManagedStorage = true;
+    }
+  }
+
+  if (!shouldCheckManagedStorage) return false;
+  const attachmentsDir = getManagedAttachmentsDir();
+  if (!attachmentsDir) return false;
+
+  for (const attachment of attachmentsById.values()) {
+    if (attachment.kind !== 'file') continue;
+    if (attachment.deletedAt) continue;
+    const uri = attachment.uri || '';
+    if (!uri || isHttpAttachmentUri(uri)) continue;
+    if (!uri.startsWith(attachmentsDir)) {
+      return true;
+    }
+  }
+
+  return false;
 };
 
 export const collectAttachments = (appData: AppData): Map<string, Attachment> => {

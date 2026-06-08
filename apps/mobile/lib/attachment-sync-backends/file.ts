@@ -6,8 +6,8 @@ import {
   bytesToBase64,
   collectAttachments,
   copyFileSafely,
+  createAttachmentLocalMigrationLimiter,
   DEFAULT_CONTENT_TYPE,
-  ensureAttachmentStoredLocally,
   extractExtension,
   FILE_BACKEND_VALIDATION_CONFIG,
   fileExists,
@@ -39,6 +39,7 @@ export const syncFileAttachments = async (
   if (!attachmentsDir) return false;
 
   const attachmentsById = collectAttachments(appData);
+  const migrateAttachmentLocally = createAttachmentLocalMigrationLimiter();
   let safEntriesByName: Map<string, string> | null = null;
   const getSafEntriesByName = async (): Promise<Map<string, string>> => {
     if (!safEntriesByName) {
@@ -52,9 +53,11 @@ export const syncFileAttachments = async (
     if (attachment.kind !== 'file') continue;
     if (attachment.deletedAt) continue;
     assertAttachmentSyncNotAborted(signal);
-    if (await ensureAttachmentStoredLocally(attachment)) {
+    const localMigration = await migrateAttachmentLocally(attachment);
+    if (localMigration.migrated) {
       didMutate = true;
     }
+    if (localMigration.skipped) continue;
 
     const uri = attachment.uri || '';
     const isHttp = isHttpAttachmentUri(uri);

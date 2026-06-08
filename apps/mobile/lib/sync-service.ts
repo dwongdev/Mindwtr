@@ -6,7 +6,7 @@ import { mobileStorage } from './storage-adapter';
 import { logInfo, logSyncError, logWarn, sanitizeLogMessage } from './app-log';
 import { readSyncFile, resolveSyncFileUri, writeSyncFile } from './storage-file';
 import { resolveSyncPathBookmark } from './sync-path-bookmarks';
-import { getBaseSyncUrl, getCloudBaseUrl, syncCloudAttachments, syncCloudKitAttachments, syncDropboxAttachments, syncFileAttachments, syncWebdavAttachments, cleanupAttachmentTempFiles } from './attachment-sync';
+import { getBaseSyncUrl, getCloudBaseUrl, syncCloudAttachments, syncCloudKitAttachments, syncDropboxAttachments, syncFileAttachments, syncWebdavAttachments, cleanupAttachmentTempFiles, hasPendingAttachmentSyncWork } from './attachment-sync';
 import { getExternalCalendars, saveExternalCalendars } from './external-calendar';
 import { forceRefreshDropboxAccessToken, getValidDropboxAccessToken, isDropboxConnected } from './dropbox-auth';
 import {
@@ -691,62 +691,74 @@ const mobileSyncOrchestrator = createSyncOrchestrator<string | undefined, Mobile
         await ensureCloudKitReady({ signal: requestAbortController.signal });
       }
 
-      // Pre-sync local attachments so cloudKeys exist before writing remote data.
-      step = 'attachments_prepare';
-      logSyncInfo('Sync step', { step });
+      // Pre-sync local attachments only when attachment metadata shows real work.
       const attachmentPrepareStartedAt = Date.now();
       try {
         const persistedData = await mobileStorage.getData();
         const localData = mergeAppData(persistedData, getInMemoryAppDataSnapshot());
-        if (hasPendingSyncSideEffects(localData)) {
+        const hasAttachmentWork = await hasPendingAttachmentSyncWork(localData);
+        if (hasPendingSyncSideEffects(localData) || hasAttachmentWork) {
           startVisibleSyncActivity();
         }
-        const preSyncResult = await runPreSyncAttachmentPhase({
-          backend,
-          cloudProvider,
-          data: localData,
-          ensureNetworkStillAvailable,
-          webdav: webdavConfig?.url
-            ? async (data) => {
-              const baseSyncUrl = getBaseSyncUrl(webdavConfig.url);
-              return syncWebdavAttachments(data, webdavConfig, baseSyncUrl, requestAbortController.signal);
-            }
-            : undefined,
-          cloudkit: backend === 'cloudkit'
-            ? async (data) => syncCloudKitAttachments(data, requestAbortController.signal)
-            : undefined,
-          selfHostedCloud: cloudProvider === CLOUD_PROVIDER_SELF_HOSTED && cloudConfig?.url
-            ? async (data) => {
-              const baseSyncUrl = getCloudBaseUrl(cloudConfig.url);
-              return syncCloudAttachments(data, cloudConfig, baseSyncUrl, {
-                assertCurrent: ensureLocalSnapshotFresh,
+        if (!hasAttachmentWork) {
+          logSyncInfo('Attachment pre-sync skipped', {
+            backend,
+            reason: 'no-pending-work',
+          });
+          logSyncDiagnostic('Sync diagnostic attachment prepare skipped', attachmentPrepareStartedAt, {
+            backend,
+            ...buildSyncDataDiagnostics(localData),
+          });
+        } else {
+          step = 'attachments_prepare';
+          logSyncInfo('Sync step', { step });
+          const preSyncResult = await runPreSyncAttachmentPhase({
+            backend,
+            cloudProvider,
+            data: localData,
+            ensureNetworkStillAvailable,
+            webdav: webdavConfig?.url
+              ? async (data) => {
+                const baseSyncUrl = getBaseSyncUrl(webdavConfig.url);
+                return syncWebdavAttachments(data, webdavConfig, baseSyncUrl, requestAbortController.signal);
+              }
+              : undefined,
+            cloudkit: backend === 'cloudkit'
+              ? async (data) => syncCloudKitAttachments(data, requestAbortController.signal)
+              : undefined,
+            selfHostedCloud: cloudProvider === CLOUD_PROVIDER_SELF_HOSTED && cloudConfig?.url
+              ? async (data) => {
+                const baseSyncUrl = getCloudBaseUrl(cloudConfig.url);
+                return syncCloudAttachments(data, cloudConfig, baseSyncUrl, {
+                  assertCurrent: ensureLocalSnapshotFresh,
+                  signal: requestAbortController.signal,
+                });
+              }
+              : undefined,
+            dropbox: cloudProvider === CLOUD_PROVIDER_DROPBOX
+              ? async (data) => syncDropboxAttachments(data, dropboxClientId, fetchWithAbort, {
                 signal: requestAbortController.signal,
-              });
-            }
-            : undefined,
-          dropbox: cloudProvider === CLOUD_PROVIDER_DROPBOX
-            ? async (data) => syncDropboxAttachments(data, dropboxClientId, fetchWithAbort, {
-              signal: requestAbortController.signal,
-            })
-            : undefined,
-          file: fileSyncPath
-            ? async (data) => syncFileAttachments(data, fileSyncPath, requestAbortController.signal)
-            : undefined,
-        });
-        if (preSyncResult.mutated) {
-          // Capture pre-sync attachment mutations before stale-snapshot checks so we can persist them on abort.
-          preSyncedLocalData = preSyncResult.data ?? localData;
-          ensureLocalSnapshotFresh();
+              })
+              : undefined,
+            file: fileSyncPath
+              ? async (data) => syncFileAttachments(data, fileSyncPath, requestAbortController.signal)
+              : undefined,
+          });
+          if (preSyncResult.mutated) {
+            // Capture pre-sync attachment mutations before stale-snapshot checks so we can persist them on abort.
+            preSyncedLocalData = preSyncResult.data ?? localData;
+            ensureLocalSnapshotFresh();
+          }
+          logSyncInfo('Attachment pre-sync complete', {
+            backend,
+            mutated: preSyncResult.mutated ? 'true' : 'false',
+          });
+          logSyncDiagnostic('Sync diagnostic attachment prepare complete', attachmentPrepareStartedAt, {
+            backend,
+            mutated: preSyncResult.mutated ? 'true' : 'false',
+            ...buildSyncDataDiagnostics(preSyncResult.data ?? localData),
+          });
         }
-        logSyncInfo('Attachment pre-sync complete', {
-          backend,
-          mutated: preSyncResult.mutated ? 'true' : 'false',
-        });
-        logSyncDiagnostic('Sync diagnostic attachment prepare complete', attachmentPrepareStartedAt, {
-          backend,
-          mutated: preSyncResult.mutated ? 'true' : 'false',
-          ...buildSyncDataDiagnostics(preSyncResult.data ?? localData),
-        });
       } catch (error) {
         if (error instanceof LocalSyncAbort) {
           throw error;
@@ -1252,50 +1264,48 @@ const mobileSyncOrchestrator = createSyncOrchestrator<string | undefined, Mobile
         wroteLocal = true;
       };
 
-      if (backend === 'webdav' && webdavConfigValue?.url) {
+      if (await hasPendingAttachmentSyncWork(mergedData)) {
         step = 'attachments';
         logSyncInfo('Sync step', { step });
         ensureLocalSnapshotFresh();
-        await ensureNetworkStillAvailable();
-        const baseSyncUrl = getBaseSyncUrl(webdavConfigValue.url);
-        await applyAttachmentSyncMutation((candidateData) =>
-          syncWebdavAttachments(candidateData, webdavConfigValue, baseSyncUrl, requestAbortController.signal)
-        );
-      }
+        if (backend === 'webdav' && webdavConfigValue?.url) {
+          await ensureNetworkStillAvailable();
+          const baseSyncUrl = getBaseSyncUrl(webdavConfigValue.url);
+          await applyAttachmentSyncMutation((candidateData) =>
+            syncWebdavAttachments(candidateData, webdavConfigValue, baseSyncUrl, requestAbortController.signal)
+          );
+        }
 
-      if (backend === 'cloud' && cloudProvider === CLOUD_PROVIDER_SELF_HOSTED && cloudConfigValue?.url) {
-        step = 'attachments';
-        logSyncInfo('Sync step', { step });
-        ensureLocalSnapshotFresh();
-        await ensureNetworkStillAvailable();
-        const baseSyncUrl = getCloudBaseUrl(cloudConfigValue.url);
-        await applyAttachmentSyncMutation((candidateData) =>
-          syncCloudAttachments(candidateData, cloudConfigValue, baseSyncUrl, {
-            assertCurrent: ensureLocalSnapshotFresh,
-            signal: requestAbortController.signal,
-          })
-        );
-      }
+        if (backend === 'cloud' && cloudProvider === CLOUD_PROVIDER_SELF_HOSTED && cloudConfigValue?.url) {
+          await ensureNetworkStillAvailable();
+          const baseSyncUrl = getCloudBaseUrl(cloudConfigValue.url);
+          await applyAttachmentSyncMutation((candidateData) =>
+            syncCloudAttachments(candidateData, cloudConfigValue, baseSyncUrl, {
+              assertCurrent: ensureLocalSnapshotFresh,
+              signal: requestAbortController.signal,
+            })
+          );
+        }
 
-      if (backend === 'cloud' && cloudProvider === CLOUD_PROVIDER_DROPBOX) {
-        step = 'attachments';
-        logSyncInfo('Sync step', { step });
-        ensureLocalSnapshotFresh();
-        await ensureNetworkStillAvailable();
-        await applyAttachmentSyncMutation((candidateData) =>
-          syncDropboxAttachments(candidateData, dropboxClientId, fetchWithAbort, {
-            signal: requestAbortController.signal,
-          })
-        );
-      }
+        if (backend === 'cloud' && cloudProvider === CLOUD_PROVIDER_DROPBOX) {
+          await ensureNetworkStillAvailable();
+          await applyAttachmentSyncMutation((candidateData) =>
+            syncDropboxAttachments(candidateData, dropboxClientId, fetchWithAbort, {
+              signal: requestAbortController.signal,
+            })
+          );
+        }
 
-      if (backend === 'file' && fileSyncPath) {
-        step = 'attachments';
-        logSyncInfo('Sync step', { step });
-        ensureLocalSnapshotFresh();
-        await applyAttachmentSyncMutation((candidateData) =>
-          syncFileAttachments(candidateData, fileSyncPath, requestAbortController.signal)
-        );
+        if (backend === 'file' && fileSyncPath) {
+          await applyAttachmentSyncMutation((candidateData) =>
+            syncFileAttachments(candidateData, fileSyncPath, requestAbortController.signal)
+          );
+        }
+      } else {
+        logSyncInfo('Attachment sync skipped', {
+          backend,
+          reason: 'no-pending-work',
+        });
       }
 
       await cleanupAttachmentTempFiles();

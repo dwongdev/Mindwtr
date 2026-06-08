@@ -49,6 +49,7 @@ const attachmentSyncMocks = vi.hoisted(() => ({
   syncFileAttachments: vi.fn(),
   syncWebdavAttachments: vi.fn(),
   cleanupAttachmentTempFiles: vi.fn(),
+  hasPendingAttachmentSyncWork: vi.fn(),
 }));
 
 const externalCalendarMocks = vi.hoisted(() => ({
@@ -156,6 +157,7 @@ vi.mock('./attachment-sync', () => ({
   syncFileAttachments: attachmentSyncMocks.syncFileAttachments,
   syncWebdavAttachments: attachmentSyncMocks.syncWebdavAttachments,
   cleanupAttachmentTempFiles: attachmentSyncMocks.cleanupAttachmentTempFiles,
+  hasPendingAttachmentSyncWork: attachmentSyncMocks.hasPendingAttachmentSyncWork,
 }));
 
 vi.mock('./external-calendar', () => ({
@@ -267,6 +269,7 @@ describe('mobile sync-service runtime', () => {
     attachmentSyncMocks.syncFileAttachments.mockResolvedValue(false);
     attachmentSyncMocks.syncWebdavAttachments.mockResolvedValue(false);
     attachmentSyncMocks.cleanupAttachmentTempFiles.mockResolvedValue(undefined);
+    attachmentSyncMocks.hasPendingAttachmentSyncWork.mockResolvedValue(false);
 
     externalCalendarMocks.getExternalCalendars.mockResolvedValue([]);
     externalCalendarMocks.saveExternalCalendars.mockResolvedValue(undefined);
@@ -429,6 +432,7 @@ describe('mobile sync-service runtime', () => {
     attachmentSyncMocks.syncWebdavAttachments
       .mockResolvedValueOnce(preSyncedData)
       .mockResolvedValue(false);
+    attachmentSyncMocks.hasPendingAttachmentSyncWork.mockResolvedValue(true);
     coreMocks.webdavGetJson.mockResolvedValue(preSyncedData);
     coreMocks.performSyncCycle.mockImplementation(async (io: any) => {
       const local = await io.readLocal();
@@ -447,6 +451,16 @@ describe('mobile sync-service runtime', () => {
         attachments: preSyncedData.settings.attachments,
       }),
     }));
+  });
+
+  it('skips attachment phases when there is no pending attachment work', async () => {
+    coreMocks.webdavGetJson.mockResolvedValue(remoteChangedData);
+
+    const result = await syncServiceModule.performMobileSync();
+
+    expect(result).toEqual({ success: true, stats: emptyStats });
+    expect(attachmentSyncMocks.hasPendingAttachmentSyncWork).toHaveBeenCalled();
+    expect(attachmentSyncMocks.syncWebdavAttachments).not.toHaveBeenCalled();
   });
 
   it('does not cache fast-sync state when attachment cleanup changes the sync payload after remote write', async () => {
@@ -702,11 +716,15 @@ describe('mobile sync-service runtime', () => {
       data.tasks[0].attachments[0].localStatus = 'available';
       return true;
     });
+    attachmentSyncMocks.hasPendingAttachmentSyncWork.mockImplementation(async (data: AppData) => {
+      const attachment = data.tasks[0]?.attachments?.[0];
+      return Boolean(attachment?.uri && !attachment?.cloudKey);
+    });
 
     const result = await syncServiceModule.performMobileSync();
 
     expect(result).toEqual({ success: true, stats: emptyStats });
-    expect(attachmentSyncMocks.syncWebdavAttachments).toHaveBeenCalledTimes(3);
+    expect(attachmentSyncMocks.syncWebdavAttachments).toHaveBeenCalledTimes(2);
     expect(events.indexOf('sync:2')).toBeGreaterThan(events.indexOf('sync:1'));
     expect(events.indexOf('write-remote')).toBeGreaterThan(events.indexOf('sync:2'));
     expect(coreMocks.webdavPutJson).toHaveBeenCalledWith(
@@ -836,6 +854,7 @@ describe('mobile sync-service runtime', () => {
     storageMocks.getData.mockResolvedValue(dataWithAttachment);
     coreMocks.getInMemoryAppDataSnapshot.mockReturnValue(dataWithAttachment);
     coreMocks.cloudGetJson.mockResolvedValue(emptyData);
+    attachmentSyncMocks.hasPendingAttachmentSyncWork.mockResolvedValue(true);
     attachmentSyncMocks.syncCloudAttachments.mockImplementation(async (_data, _config, _baseUrl, options) => {
       uploadSignal = options?.signal;
       releaseUploadStart();

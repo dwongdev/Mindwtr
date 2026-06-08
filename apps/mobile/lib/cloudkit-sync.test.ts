@@ -1,4 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import {
+    ensureCloudKitReady,
+    readRemoteCloudKit,
+    writeRemoteCloudKit,
+} from './cloudkit-sync';
 
 const {
     asyncStorageGetItem,
@@ -66,7 +71,6 @@ describe('cloudkit-sync abort handling', () => {
     });
 
     it('rejects CloudKit reads when the sync lifecycle aborts mid-fetch', async () => {
-        const { readRemoteCloudKit } = await import('./cloudkit-sync');
         const controller = new AbortController();
         const abortReason = new Error('Sync lifecycle aborted');
         cloudKitSync.fetchAllRecords.mockImplementation(() => createPendingPromise());
@@ -80,7 +84,6 @@ describe('cloudkit-sync abort handling', () => {
     });
 
     it('rejects CloudKit writes when the sync lifecycle aborts mid-save', async () => {
-        const { writeRemoteCloudKit } = await import('./cloudkit-sync');
         const controller = new AbortController();
         const abortReason = new Error('Sync lifecycle aborted');
         cloudKitSync.saveRecords.mockImplementation(() => createPendingPromise());
@@ -108,7 +111,6 @@ describe('cloudkit-sync abort handling', () => {
     });
 
     it('does not start CloudKit setup when the signal is already aborted', async () => {
-        const { ensureCloudKitReady } = await import('./cloudkit-sync');
         const controller = new AbortController();
         controller.abort(new Error('Already cancelled'));
 

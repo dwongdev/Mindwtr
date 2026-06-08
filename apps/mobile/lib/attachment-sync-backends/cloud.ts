@@ -4,8 +4,8 @@ import { logAttachmentWarn } from '../attachment-sync-utils';
 import {
   buildCloudKey,
   collectAttachments,
+  createAttachmentLocalMigrationLimiter,
   DEFAULT_CONTENT_TYPE,
-  ensureAttachmentStoredLocally,
   fileExists,
   getAttachmentByteSize,
   getAttachmentLocalStatus,
@@ -59,6 +59,7 @@ export const syncCloudAttachments = async (
 
   let didMutate = false;
   const pendingUploadMutations: PendingCloudUploadMutation[] = [];
+  const migrateAttachmentLocally = createAttachmentLocalMigrationLimiter();
 
   const cleanupUploadedCloudFile = async (uploadUrl: string, title: string) => {
     try {
@@ -78,9 +79,11 @@ export const syncCloudAttachments = async (
   for (const attachment of attachmentsById.values()) {
     if (attachment.kind !== 'file') continue;
     if (attachment.deletedAt) continue;
-    if (await ensureAttachmentStoredLocally(attachment)) {
+    const localMigration = await migrateAttachmentLocally(attachment);
+    if (localMigration.migrated) {
       didMutate = true;
     }
+    if (localMigration.skipped) continue;
 
     const uri = attachment.uri || '';
     const isHttp = isHttpAttachmentUri(uri);

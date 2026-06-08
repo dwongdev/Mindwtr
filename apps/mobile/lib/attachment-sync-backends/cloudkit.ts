@@ -8,7 +8,7 @@ import {
 } from '../cloudkit-sync';
 import {
     collectAttachments,
-    ensureAttachmentStoredLocally,
+    createAttachmentLocalMigrationLimiter,
     extractExtension,
     fileExists,
     getAttachmentByteSize,
@@ -142,15 +142,18 @@ export const syncCloudKitAttachments = async (appData: AppData, signal?: AbortSi
     let didMutate = await flushPendingCloudKitDeletes(appData, signal);
     const attachmentsById = collectAttachments(appData);
     if (attachmentsById.size === 0) return didMutate;
+    const migrateAttachmentLocally = createAttachmentLocalMigrationLimiter();
 
     for (const owned of collectOwnedAttachments(appData)) {
         const attachment = owned.attachment;
         if (attachment.kind !== 'file') continue;
         if (attachment.deletedAt) continue;
         assertAttachmentSyncNotAborted(signal);
-        if (await ensureAttachmentStoredLocally(attachment)) {
+        const localMigration = await migrateAttachmentLocally(attachment);
+        if (localMigration.migrated) {
             didMutate = true;
         }
+        if (localMigration.skipped) continue;
 
         const uri = attachment.uri || '';
         const isHttp = isHttpAttachmentUri(uri);
