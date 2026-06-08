@@ -298,21 +298,30 @@ export const projectsScreenStyles = StyleSheet.create({
         fontWeight: '500',
     },
     sequentialToggle: {
+        minHeight: 30,
         paddingHorizontal: 10,
-        paddingVertical: 6,
+        paddingVertical: 4,
         borderRadius: 8,
+        borderWidth: 1,
         backgroundColor: '#F3F4F6',
     },
-    sequentialToggleActive: {
-        backgroundColor: '#3B82F6',
+    projectTypeControls: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 6,
+    },
+    projectTypeHelpButton: {
+        width: 30,
+        height: 30,
+        borderRadius: 8,
+        borderWidth: 1,
+        alignItems: 'center',
+        justifyContent: 'center',
     },
     sequentialToggleText: {
         fontSize: 12,
         fontWeight: '600',
         color: '#6B7280',
-    },
-    sequentialToggleTextActive: {
-        color: '#FFFFFF',
     },
     sequentialScopeOptions: {
         flexDirection: 'row',
@@ -430,10 +439,16 @@ export const projectsScreenStyles = StyleSheet.create({
         paddingVertical: 8,
         marginTop: 6,
         marginBottom: 8,
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        gap: 12,
     },
     detailsToggleButton: {
         flexDirection: 'row',
         alignItems: 'center',
+        flex: 1,
+        minHeight: 30,
     },
     detailsToggleText: {
         fontSize: 14,
@@ -761,10 +776,16 @@ export const projectsScreenStyles = StyleSheet.create({
         paddingHorizontal: 16,
         paddingVertical: 12,
     },
+    reviewLabelRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        gap: 12,
+        marginBottom: 6,
+    },
     reviewLabel: {
         fontSize: 14,
         fontWeight: '600',
-        marginBottom: 6,
     },
     reviewButton: {
         padding: 10,

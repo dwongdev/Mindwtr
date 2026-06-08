@@ -18,6 +18,7 @@ import {
   createAIProvider,
   type AIProviderId,
   type TaskSortBy,
+  type ProjectSequenceTaskCue,
   DEFAULT_PROJECT_COLOR,
   getTranslationsSync,
   shallow,
@@ -120,6 +121,8 @@ export interface TaskListProps {
   includeArchived?: boolean;
   includeDone?: boolean;
   groupCompletedTasksLast?: boolean;
+  getTaskSequenceCue?: (task: Task) => ProjectSequenceTaskCue | undefined;
+  sequenceCueLabels?: Record<ProjectSequenceTaskCue, string>;
 }
 
 // ... inside TaskList component
@@ -153,6 +156,8 @@ function TaskListComponent({
   includeArchived = false,
   includeDone = true,
   groupCompletedTasksLast = false,
+  getTaskSequenceCue,
+  sequenceCueLabels,
 }: TaskListProps) {
   const { isDark } = useTheme();
   const { t, language } = useLanguage();
@@ -1074,30 +1079,38 @@ function TaskListComponent({
   const hideStatusBadgeForList = statusFilter === 'inbox' || statusFilter === 'next' || statusFilter === 'waiting';
   const hideChecklistProgressForList = statusFilter === 'inbox';
 
-  const renderTask = useCallback(({ item }: { item: Task }) => (
-    <ErrorBoundary>
-      <SwipeableTaskItem
-        task={item}
-        isDark={isDark}
-        tc={themeColorsMemo}
-        onPress={() => handleEditTask(item)}
-        selectionMode={enableBulkActions ? selectionMode : false}
-        isMultiSelected={enableBulkActions && multiSelectedIds.has(item.id)}
-        onToggleSelect={enableBulkActions ? () => toggleMultiSelect(item.id, { visibleTaskIds: orderedTaskIds }) : undefined}
-        onStatusChange={(status) => updateTask(item.id, { status: status as TaskStatus })}
-        onDelete={() => { void deleteTask(item.id); }}
-        isHighlighted={item.id === highlightTaskId}
-        hideStatusBadge={hideStatusBadgeForList}
-        hideChecklistProgress={hideChecklistProgressForList}
-        hideProjectMeta={Boolean(projectId)}
-        onProjectPress={projectId ? undefined : openProjectScreen}
-        onContextPress={openContextsScreen}
-        onTagPress={openContextsScreen}
-      />
-    </ErrorBoundary>
-  ), [
+  const renderTask = useCallback(({ item }: { item: Task }) => {
+    const sequenceCue = getTaskSequenceCue?.(item);
+    const sequenceLabel = sequenceCue ? sequenceCueLabels?.[sequenceCue] : undefined;
+
+    return (
+      <ErrorBoundary>
+        <SwipeableTaskItem
+          task={item}
+          isDark={isDark}
+          tc={themeColorsMemo}
+          onPress={() => handleEditTask(item)}
+          selectionMode={enableBulkActions ? selectionMode : false}
+          isMultiSelected={enableBulkActions && multiSelectedIds.has(item.id)}
+          onToggleSelect={enableBulkActions ? () => toggleMultiSelect(item.id, { visibleTaskIds: orderedTaskIds }) : undefined}
+          onStatusChange={(status) => updateTask(item.id, { status: status as TaskStatus })}
+          onDelete={() => { void deleteTask(item.id); }}
+          isHighlighted={item.id === highlightTaskId}
+          hideStatusBadge={hideStatusBadgeForList}
+          hideChecklistProgress={hideChecklistProgressForList}
+          hideProjectMeta={Boolean(projectId)}
+          sequenceCue={sequenceCue}
+          sequenceLabel={sequenceLabel}
+          onProjectPress={projectId ? undefined : openProjectScreen}
+          onContextPress={openContextsScreen}
+          onTagPress={openContextsScreen}
+        />
+      </ErrorBoundary>
+    );
+  }, [
     deleteTask,
     enableBulkActions,
+    getTaskSequenceCue,
     handleEditTask,
     highlightTaskId,
     isDark,
@@ -1110,6 +1123,7 @@ function TaskListComponent({
     toggleMultiSelect,
     updateTask,
     projectId,
+    sequenceCueLabels,
   ]);
 
   const renderProjectReorderTask = useCallback(({ drag, isActive, item }: RenderItemParams<Task>) => (

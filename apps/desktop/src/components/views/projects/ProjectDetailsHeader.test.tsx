@@ -12,6 +12,8 @@ const translations: Record<string, string> = {
     'projects.duplicate': 'Duplicate',
     'projects.noActiveTasks': 'No active tasks',
     'projects.parallel': 'Parallel',
+    'projects.projectTypeHelpLabel': 'Project type help',
+    'projects.projectTypeHelpText': 'Sequential projects surface one available action at a time. Parallel projects can surface multiple independent Next tasks.',
     'projects.reviewAt': 'Review Date',
     'projects.reactivate': 'Reactivate',
     'projects.sequential': 'Sequential',
@@ -81,6 +83,9 @@ describe('ProjectDetailsHeader', () => {
         screen.getByText('Due Date: Mar 28');
         screen.getByText('Review Date: Mar 30');
         screen.getByText('#client');
+
+        fireEvent.click(screen.getByRole('button', { name: 'Project type help' }));
+        expect(screen.getByText('Sequential projects surface one available action at a time. Parallel projects can surface multiple independent Next tasks.')).toBeInTheDocument();
 
         fireEvent.click(screen.getByRole('button', { name: /details/i }));
         expect(onToggleDetails).toHaveBeenCalledTimes(1);

@@ -1,5 +1,6 @@
 import React from 'react';
 import {
+    Alert,
     View,
     Text,
     TextInput,
@@ -14,8 +15,9 @@ import {
     findNodeHandle,
     type ScrollViewProps,
 } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import DateTimePicker, { type DateTimePickerEvent } from '@react-native-community/datetimepicker';
-import { getRecurrenceUntilValue, type Task, type TaskEditorFieldId, type TaskEditorSectionId, type TimeEstimate } from '@mindwtr/core';
+import { getRecurrenceUntilValue, tFallback, type Task, type TaskEditorFieldId, type TaskEditorSectionId, type TimeEstimate } from '@mindwtr/core';
 import type { ThemeColors } from '@/hooks/use-theme-colors';
 import { CollapsibleSection } from './CollapsibleSection';
 import { DESCRIPTION_END_KEYBOARD_SCROLL_TARGET } from './task-edit-keyboard';
@@ -114,6 +116,15 @@ function TaskEditFormTabComponent({
     );
     const aiWorkingLabel = t('ai.working');
     const aiWorkingText = aiWorkingLabel === 'ai.working' ? 'Working...' : aiWorkingLabel;
+    const taskEditorLayoutHelpLabel = tFallback(t, 'taskEdit.editorLayoutHelpLabel', 'Editor layout help');
+    const taskEditorLayoutHelpText = tFallback(
+        t,
+        'taskEdit.editorLayoutHelpText',
+        'You can customize which fields appear here in Settings -> GTD -> Task Editor Layout.'
+    );
+    const showTaskEditorLayoutHelp = React.useCallback(() => {
+        Alert.alert(taskEditorLayoutHelpLabel, taskEditorLayoutHelpText);
+    }, [taskEditorLayoutHelpLabel, taskEditorLayoutHelpText]);
 
     React.useEffect(() => {
         formScrollOffsetRef.current = 0;
@@ -324,9 +335,25 @@ function TaskEditFormTabComponent({
                     scrollEventThrottle={16}
                     nestedScrollEnabled
                 >
-                    <View style={styles.formGroup}>
-                        <Text style={[styles.label, { color: tc.secondaryText }]}>{t('taskEdit.titleLabel')}</Text>
-                        <TextInput
+                        <View style={styles.formGroup}>
+                            <View style={styles.labelRow}>
+                                <Text style={[styles.label, { color: tc.secondaryText, marginBottom: 0 }]}>
+                                    {t('taskEdit.titleLabel')}
+                                </Text>
+                                <TouchableOpacity
+                                    accessibilityLabel={taskEditorLayoutHelpLabel}
+                                    accessibilityRole="button"
+                                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                                    onPress={showTaskEditorLayoutHelp}
+                                    style={[
+                                        styles.fieldHelpButton,
+                                        { backgroundColor: tc.filterBg, borderColor: tc.border },
+                                    ]}
+                                >
+                                    <Ionicons name="help-circle-outline" size={18} color={tc.secondaryText} />
+                                </TouchableOpacity>
+                            </View>
+                            <TextInput
                             style={[styles.input, inputStyle, textDirectionStyle]}
                             value={titleDraft}
                             onChangeText={(text) => onTitleDraftChange(text)}

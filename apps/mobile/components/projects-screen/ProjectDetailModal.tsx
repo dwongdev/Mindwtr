@@ -1,5 +1,6 @@
 import React from 'react';
 import {
+    Alert,
     Dimensions,
     findNodeHandle,
     Keyboard,
@@ -27,8 +28,10 @@ import {
     type MarkdownToolbarActionId,
     type MarkdownToolbarResult,
     type Project,
+    type ProjectSequenceTaskCue,
     type Task,
     type TaskSortBy,
+    getSequentialProjectTaskCues,
     safeParseDate,
     tFallback,
 } from '@mindwtr/core';
@@ -263,7 +266,40 @@ export function ProjectDetailModal({
     const sequentialScopeLabel = tFallback(t, 'projects.sequentialScope', 'Sequential Scope');
     const sequentialAcrossSectionsLabel = tFallback(t, 'projects.sequentialAcrossSections', 'Across sections');
     const sequentialWithinSectionsLabel = tFallback(t, 'projects.sequentialWithinSections', 'Within sections');
+    const sequentialScopeHelpLabel = tFallback(t, 'projects.sequentialScopeHelpLabel', 'Sequential scope help');
+    const sequentialScopeHelpText = tFallback(
+        t,
+        'projects.sequentialScopeHelpText',
+        'Across sections surfaces one available action for the whole project. Within sections surfaces one available action per section.'
+    );
+    const projectTypeHelpLabel = tFallback(t, 'projects.projectTypeHelpLabel', 'Project type help');
+    const projectTypeHelpText = tFallback(
+        t,
+        'projects.projectTypeHelpText',
+        'Sequential projects surface one available action at a time. Parallel projects can surface multiple independent Next tasks.'
+    );
+    const sequenceCueLabels = React.useMemo<Record<ProjectSequenceTaskCue, string>>(
+        () => ({
+            available: tFallback(t, 'projects.availableNextAction', 'Available next action'),
+            later: tFallback(t, 'projects.laterInSequence', 'Later in sequence'),
+        }),
+        [t]
+    );
     const resolvedSequentialScope = selectedProject?.sequentialScope === 'section' ? 'section' : 'project';
+    const projectTaskSequenceCues = React.useMemo<Map<string, ProjectSequenceTaskCue>>(() => {
+        if (!selectedProject || projectTaskSortBy !== 'default') return new Map();
+        return getSequentialProjectTaskCues(selectedProject, selectedProjectTasks ?? []);
+    }, [projectTaskSortBy, selectedProject, selectedProjectTasks]);
+    const getTaskSequenceCue = React.useCallback(
+        (task: Task) => projectTaskSequenceCues.get(task.id),
+        [projectTaskSequenceCues]
+    );
+    const showProjectTypeHelp = React.useCallback(() => {
+        Alert.alert(projectTypeHelpLabel, projectTypeHelpText);
+    }, [projectTypeHelpLabel, projectTypeHelpText]);
+    const showSequentialScopeHelp = React.useCallback(() => {
+        Alert.alert(sequentialScopeHelpLabel, sequentialScopeHelpText);
+    }, [sequentialScopeHelpLabel, sequentialScopeHelpText]);
     const sortLabel = tFallback(t, 'sort.label', 'Sort');
     const setSelectedProjectSequentialScope = (sequentialScope: Project['sequentialScope']) => {
         if (!selectedProject) return;
@@ -482,25 +518,6 @@ export function ProjectDetailModal({
                                         }}
                                         returnKeyType="done"
                                     />
-                                    <TouchableOpacity
-                                        onPress={() => {
-                                            updateProject(selectedProject.id, { isSequential: !selectedProject.isSequential });
-                                            onSetSelectedProject({ ...selectedProject, isSequential: !selectedProject.isSequential });
-                                        }}
-                                        style={[
-                                            styles.sequentialToggle,
-                                            selectedProject.isSequential && styles.sequentialToggleActive,
-                                        ]}
-                                    >
-                                        <Text
-                                            style={[
-                                                styles.sequentialToggleText,
-                                                selectedProject.isSequential && styles.sequentialToggleTextActive,
-                                            ]}
-                                        >
-                                            {selectedProject.isSequential ? '📋 Seq' : '⏸ Par'}
-                                        </Text>
-                                    </TouchableOpacity>
                                 </View>
                                 <ProjectDetailScrollFrame
                                     backgroundColor={tc.bg}
@@ -609,13 +626,64 @@ export function ProjectDetailModal({
                                             {showProjectMeta ? '▾' : '▸'} {t('taskEdit.details')}
                                         </Text>
                                     </TouchableOpacity>
+                                    <View style={styles.projectTypeControls}>
+                                        <TouchableOpacity
+                                            accessibilityRole="button"
+                                            onPress={() => {
+                                                updateProject(selectedProject.id, { isSequential: !selectedProject.isSequential });
+                                                onSetSelectedProject({ ...selectedProject, isSequential: !selectedProject.isSequential });
+                                            }}
+                                            style={[
+                                                styles.sequentialToggle,
+                                                {
+                                                    backgroundColor: selectedProject.isSequential ? tc.tint : tc.filterBg,
+                                                    borderColor: selectedProject.isSequential ? tc.tint : tc.border,
+                                                },
+                                            ]}
+                                        >
+                                            <Text
+                                                style={[
+                                                    styles.sequentialToggleText,
+                                                    { color: selectedProject.isSequential ? tc.onTint : tc.secondaryText },
+                                                ]}
+                                            >
+                                                {selectedProject.isSequential ? 'Seq' : 'Par'}
+                                            </Text>
+                                        </TouchableOpacity>
+                                        <TouchableOpacity
+                                            accessibilityLabel={projectTypeHelpLabel}
+                                            accessibilityRole="button"
+                                            onPress={showProjectTypeHelp}
+                                            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                                            style={[
+                                                styles.projectTypeHelpButton,
+                                                { backgroundColor: tc.filterBg, borderColor: tc.border },
+                                            ]}
+                                        >
+                                            <Ionicons name="help-circle-outline" size={17} color={tc.secondaryText} />
+                                        </TouchableOpacity>
+                                    </View>
                                 </View>
 
                                 {showProjectMeta && (
                                     <>
                                         {selectedProject.isSequential && (
                                             <View style={[styles.reviewContainer, { backgroundColor: tc.cardBg, borderColor: tc.border }]}>
-                                                <Text style={[styles.reviewLabel, { color: tc.text }]}>{sequentialScopeLabel}</Text>
+                                                <View style={styles.reviewLabelRow}>
+                                                    <Text style={[styles.reviewLabel, { color: tc.text }]}>{sequentialScopeLabel}</Text>
+                                                    <TouchableOpacity
+                                                        accessibilityLabel={sequentialScopeHelpLabel}
+                                                        accessibilityRole="button"
+                                                        onPress={showSequentialScopeHelp}
+                                                        hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                                                        style={[
+                                                            styles.projectTypeHelpButton,
+                                                            { backgroundColor: tc.filterBg, borderColor: tc.border },
+                                                        ]}
+                                                    >
+                                                        <Ionicons name="help-circle-outline" size={17} color={tc.secondaryText} />
+                                                    </TouchableOpacity>
+                                                </View>
                                                 <View style={styles.sequentialScopeOptions}>
                                                     {(['project', 'section'] as const).map((scope) => {
                                                         const selected = resolvedSequentialScope === scope;
@@ -931,6 +999,8 @@ export function ProjectDetailModal({
                                     includeArchived={taskListOptions.includeArchived}
                                     includeDone={taskListOptions.includeDone}
                                     groupCompletedTasksLast={taskListOptions.groupCompletedTasksLast}
+                                    getTaskSequenceCue={getTaskSequenceCue}
+                                    sequenceCueLabels={sequenceCueLabels}
                                     onQuickAddInputFocus={scrollProjectInputIntoView}
                                     projectReorderMode={projectTaskReorderMode}
                                     onProjectReorderModeChange={setProjectTaskReorderMode}

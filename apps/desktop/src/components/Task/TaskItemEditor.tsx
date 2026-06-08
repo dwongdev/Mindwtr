@@ -1,8 +1,9 @@
 import { useState, useEffect, useRef, type FormEvent, type ReactNode } from 'react';
-import { Check, ChevronDown, ChevronRight, Loader2, Sparkles, Trash2 } from 'lucide-react';
+import { Check, ChevronDown, ChevronRight, HelpCircle, Loader2, Sparkles, Trash2 } from 'lucide-react';
 import {
     filterProjectsBySelectedArea,
     resolveAutoTextDirection,
+    tFallback,
     type Area,
     type ClarifyResponse,
     type Project,
@@ -140,6 +141,13 @@ export function TaskItemEditor({
     const aiAssistantAriaLabel = aiAssistantLabel === 'taskEdit.aiAssistant' ? 'AI assistant' : aiAssistantLabel;
     const aiWorkingLabel = t('ai.working');
     const aiWorkingText = aiWorkingLabel === 'ai.working' ? 'Working...' : aiWorkingLabel;
+    const taskEditorLayoutHelpLabel = tFallback(t, 'taskEdit.editorLayoutHelpLabel', 'Editor layout help');
+    const taskEditorLayoutHelpText = tFallback(
+        t,
+        'taskEdit.editorLayoutHelpText',
+        'You can customize which fields appear here in Settings -> GTD -> Task Editor Layout.'
+    );
+    const [editorLayoutHelpOpen, setEditorLayoutHelpOpen] = useState(false);
 
     const compareLabels = (left: string, right: string) =>
         left.localeCompare(right, undefined, { numeric: true, sensitivity: 'base' });
@@ -523,6 +531,26 @@ export function TaskItemEditor({
             </div>
             </div>
             <div className="flex flex-wrap items-center gap-2 pt-1">
+                <div className="relative">
+                    <button
+                        type="button"
+                        aria-label={taskEditorLayoutHelpLabel}
+                        aria-expanded={editorLayoutHelpOpen}
+                        title={taskEditorLayoutHelpLabel}
+                        onClick={() => setEditorLayoutHelpOpen((open) => !open)}
+                        className="inline-flex h-7 w-7 items-center justify-center rounded-full border border-border bg-background text-muted-foreground transition-colors hover:bg-muted/40 hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+                    >
+                        <HelpCircle className="h-3.5 w-3.5" aria-hidden="true" />
+                    </button>
+                    {editorLayoutHelpOpen && (
+                        <div
+                            role="note"
+                            className="absolute bottom-9 left-0 z-30 w-72 rounded-md border border-border bg-popover px-3 py-2 text-xs leading-5 text-popover-foreground shadow-lg"
+                        >
+                            {taskEditorLayoutHelpText}
+                        </div>
+                    )}
+                </div>
                 {onDeleteTask && (
                     <button
                         type="button"

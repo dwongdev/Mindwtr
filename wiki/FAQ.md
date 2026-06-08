@@ -161,15 +161,26 @@ Sections are not subtasks and not separate projects. They are just headings for 
 
 The **Project Section** field on a task assigns that task to one of the sections in its current project. It only does something when the task already belongs to a project that has sections. If the task has no project, or the project has no sections, leave it blank.
 
+### Why can a project have multiple Next tasks?
+
+In Mindwtr, **Next** is a task status: the task has been clarified and is actionable. It is not always the same thing as "the single next action" for a project.
+
+Project type controls what gets surfaced:
+
+- **Sequential:** one available Next task is surfaced at a time. Later Next tasks stay in the project and wait their turn.
+- **Parallel:** multiple independent Next tasks can be surfaced because they can be done in any order.
+
+Later steps in a sequential project are not **Reference**. Reference is for non-actionable support material, notes, and documents.
+
 ### How do I enable Priority or Estimated Time?
 
 Mindwtr uses progressive disclosure, so optional fields are hidden by default.
 
-Enable them in:
+Control task edit fields in:
 
-**Settings → GTD → Task Editor Layout**
+**Settings -> GTD -> Task Editor Layout**
 
-Turn on **Priority** and **Estimated Time** there (and reorder fields if needed).
+Turn on **Priority** and **Estimated Time** there (and reorder fields if needed). Hidden fields still appear under **More** or when a task already has content in that field.
 
 
 ### What is the difference between Done and Archived tasks?

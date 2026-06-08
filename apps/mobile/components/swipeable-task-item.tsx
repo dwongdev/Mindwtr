@@ -13,7 +13,7 @@ import {
     tFallback,
     useTaskStore,
 } from '@mindwtr/core';
-import type { Task, TaskStatus } from '@mindwtr/core';
+import type { ProjectSequenceTaskCue, Task, TaskStatus } from '@mindwtr/core';
 import { useLanguage } from '../contexts/language-context';
 import React, { useCallback, useRef, useState } from 'react';
 import { ArrowRight, Check, RotateCcw, Trash2 } from 'lucide-react-native';
@@ -46,6 +46,8 @@ export interface SwipeableTaskItemProps {
     isHighlighted?: boolean;
     showFocusToggle?: boolean;
     hideStatusBadge?: boolean;
+    sequenceCue?: ProjectSequenceTaskCue;
+    sequenceLabel?: string;
     disableSwipe?: boolean;
     interactionDisabled?: boolean;
     hideChecklistProgress?: boolean;
@@ -103,6 +105,8 @@ export function SwipeableTaskItem({
     isHighlighted = false,
     showFocusToggle = false,
     hideStatusBadge = false,
+    sequenceCue,
+    sequenceLabel,
     disableSwipe = false,
     interactionDisabled = false,
     hideChecklistProgress = false,
@@ -362,6 +366,7 @@ export function SwipeableTaskItem({
             const hasTime = hasTimeComponent(task.dueDate);
             return `Due: ${safeFormatDate(due, hasTime ? 'Pp' : 'P')}`;
         })(),
+        sequenceCue === 'available' ? sequenceLabel : null,
         projectDeadlineLabel,
     ].filter(Boolean).join('. ');
 
@@ -488,6 +493,7 @@ export function SwipeableTaskItem({
             onToggleFocus={toggleFocus}
             projects={projects}
             selectionMode={selectionMode}
+            sequenceCue={sequenceCue}
             showChecklist={!isReference && showChecklist}
             showTaskAge={showTaskAge}
             t={t}

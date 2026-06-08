@@ -14,7 +14,7 @@ import {
     safeParseDueDate,
     tFallback,
 } from '@mindwtr/core';
-import type { Area, Language, Project, Task } from '@mindwtr/core';
+import type { Area, Language, Project, ProjectSequenceTaskCue, Task } from '@mindwtr/core';
 import type { ThemeColors } from '../../hooks/use-theme-colors';
 import { MarkdownInlineText } from '../markdown-text';
 import { styles } from './swipeable-task-item.styles';
@@ -47,6 +47,7 @@ interface SwipeableTaskItemContentProps {
     onToggleFocus: () => void;
     projects: Project[];
     projectDeadlineLabel?: string;
+    sequenceCue?: ProjectSequenceTaskCue;
     areas: Area[];
     selectionMode: boolean;
     showChecklist: boolean;
@@ -85,6 +86,7 @@ export function SwipeableTaskItemContent({
     onToggleFocus,
     projects,
     projectDeadlineLabel,
+    sequenceCue,
     selectionMode,
     showChecklist,
     showTaskAge,
@@ -144,6 +146,7 @@ export function SwipeableTaskItemContent({
         && task.status !== 'reference'
         && !!ageLabel;
     const statusColors = getStatusColor(task.status);
+    const isAvailableNextAction = sequenceCue === 'available';
     const descriptionPreview = useMemo(
         () => getInlineMarkdownPreview(task.description ?? ''),
         [task.description],
@@ -324,6 +327,10 @@ export function SwipeableTaskItemContent({
                 styles.taskItem,
                 { backgroundColor: tc.taskItemBg },
                 { borderWidth: StyleSheet.hairlineWidth, borderColor: tc.border },
+                isAvailableNextAction && !selectionMode && {
+                    backgroundColor: isDark ? 'rgba(59, 130, 246, 0.08)' : 'rgba(59, 130, 246, 0.05)',
+                    borderColor: isDark ? 'rgba(59, 130, 246, 0.34)' : 'rgba(59, 130, 246, 0.24)',
+                },
                 !isDark && {
                     shadowColor: '#0F172A',
                     shadowOffset: { width: 0, height: 2 },

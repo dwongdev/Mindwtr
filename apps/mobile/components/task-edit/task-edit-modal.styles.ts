@@ -7,6 +7,21 @@ export const styles = StyleSheet.create({
     contentContainer: { paddingBottom: 32, flexGrow: 1 },
     formGroup: { marginBottom: 16 },
     label: { fontSize: 14, color: '#666', marginBottom: 8, textTransform: 'uppercase' },
+    labelRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        gap: 12,
+        marginBottom: 8,
+    },
+    fieldHelpButton: {
+        width: 28,
+        height: 28,
+        borderRadius: 7,
+        borderWidth: 1,
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
     input: {
         padding: 12,
         borderRadius: 10,

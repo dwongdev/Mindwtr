@@ -25,6 +25,8 @@ const translations: Record<string, string> = {
     'taskEdit.noSectionOption': 'No Section',
     'taskEdit.sectionLabel': 'Section',
     'taskEdit.titleLabel': 'Task title',
+    'taskEdit.editorLayoutHelpLabel': 'Editor layout help',
+    'taskEdit.editorLayoutHelpText': 'You can customize which fields appear here in Settings -> GTD -> Task Editor Layout.',
     'task.aria.location': 'Location',
     'taskEdit.locationPlaceholder': 'Add location',
     'taskEdit.duplicateTask': 'Duplicate task',
@@ -169,6 +171,18 @@ describe('TaskItemEditor', () => {
             'text-foreground',
             'focus-visible:ring-2'
         );
+    });
+
+    it('shows task editor layout help in an inline popover', () => {
+        const { getByRole, getByText, queryByText } = render(<TaskItemEditor {...baseProps} />);
+
+        fireEvent.click(getByRole('button', { name: 'Editor layout help' }));
+
+        expect(getByText('You can customize which fields appear here in Settings -> GTD -> Task Editor Layout.')).toBeInTheDocument();
+
+        fireEvent.click(getByRole('button', { name: 'Editor layout help' }));
+
+        expect(queryByText('You can customize which fields appear here in Settings -> GTD -> Task Editor Layout.')).not.toBeInTheDocument();
     });
 
     it('uses stronger weight for organization field labels without changing label size', () => {

@@ -7,6 +7,43 @@ export function normalizeProjectSequentialScope(value: unknown): Project['sequen
     return undefined;
 }
 
+export type ProjectSequenceTaskCue = 'available' | 'later';
+
+export function getSequentialProjectTaskCues(
+    project: Pick<Project, 'isSequential' | 'sequentialScope'> | null | undefined,
+    tasks: Task[],
+    options: { sectionIds?: string[] } = {}
+): Map<string, ProjectSequenceTaskCue> {
+    const cues = new Map<string, ProjectSequenceTaskCue>();
+    if (!project?.isSequential) return cues;
+
+    const scope = normalizeProjectSequentialScope(project.sequentialScope) ?? 'project';
+    const validSectionIds = options.sectionIds ? new Set(options.sectionIds) : null;
+    let projectHasAvailableNext = false;
+    const sectionsWithAvailableNext = new Set<string>();
+
+    tasks.forEach((task) => {
+        if (task.deletedAt || task.status !== 'next') return;
+
+        if (scope === 'section') {
+            const sectionKey =
+                task.sectionId && (!validSectionIds || validSectionIds.has(task.sectionId))
+                    ? task.sectionId
+                    : '__unsectioned__';
+            const cue = sectionsWithAvailableNext.has(sectionKey) ? 'later' : 'available';
+            cues.set(task.id, cue);
+            sectionsWithAvailableNext.add(sectionKey);
+            return;
+        }
+
+        const cue = projectHasAvailableNext ? 'later' : 'available';
+        cues.set(task.id, cue);
+        projectHasAvailableNext = true;
+    });
+
+    return cues;
+}
+
 const getTaskProjectOrder = (task: Task): number => {
     if (Number.isFinite(task.order)) return task.order as number;
     if (Number.isFinite(task.orderNum)) return task.orderNum as number;

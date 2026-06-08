@@ -425,8 +425,10 @@ export {
     getProjectNextActionPromptData,
     getProjectsByArea,
     getProjectsByTag,
+    getSequentialProjectTaskCues,
     isSelectableProjectForTaskAssignment,
     isTaskInActiveProject,
+    type ProjectSequenceTaskCue,
     projectHasNextAction,
     shouldPromptForProjectNextAction,
 } from './project-utils';

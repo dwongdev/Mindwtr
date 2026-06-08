@@ -5,8 +5,10 @@ import {
     Task,
     buildBulkTaskTokenUpdates,
     collectBulkTaskTokens,
+    getSequentialProjectTaskCues,
     type Area,
     type Project,
+    type ProjectSequenceTaskCue,
     type RangeSelectionOptions,
     type Section,
     type StoreActionResult,
@@ -524,6 +526,13 @@ export function ProjectWorkspace({
         }
         return combined;
     }, [completedProjectTasks, orderedProjectTasks, projectSections.length, sectionTaskGroups.sections, sectionTaskGroups.unsectioned]);
+    const projectTaskSequenceCues = useMemo<Map<string, ProjectSequenceTaskCue>>(() => {
+        if (!selectedProject || projectTaskSortBy !== 'default') return new Map();
+        return getSequentialProjectTaskCues(selectedProject, orderedProjectTaskList, {
+            sectionIds: projectSections.map((section) => section.id),
+        });
+    }, [orderedProjectTaskList, projectSections, projectTaskSortBy, selectedProject]);
+    const availableSequenceLabel = resolveText('projects.availableNextAction', 'Available next action');
     const visibleProjectTaskList = useMemo(() => {
         if (projectSections.length === 0) {
             return completedTasksCollapsed
@@ -790,7 +799,13 @@ export function ProjectWorkspace({
                 tasks={list}
                 scrollRef={projectScrollRef}
                 renderTask={(task) => (
-                    <SortableProjectTaskRow key={task.id} task={task} project={selectedProject!} />
+                    <SortableProjectTaskRow
+                        key={task.id}
+                        task={task}
+                        project={selectedProject!}
+                        sequenceCue={projectTaskSequenceCues.get(task.id)}
+                        availableSequenceLabel={availableSequenceLabel}
+                    />
                 )}
             />
         </SortableContext>
