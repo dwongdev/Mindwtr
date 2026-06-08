@@ -57,6 +57,22 @@ describe('parseInlineMarkdown', () => {
             { type: 'text', text: '.' },
         ]);
     });
+
+    it('autolinks RFC 2392 message-id links', () => {
+        expect(parseInlineMarkdown('Reply later mid:960830.1639@example.com.')).toEqual([
+            { type: 'text', text: 'Reply later ' },
+            { type: 'link', text: 'mid:960830.1639@example.com', href: 'mid:960830.1639@example.com' },
+            { type: 'text', text: '.' },
+        ]);
+    });
+
+    it('keeps explicit RFC 2392 message-id link labels and hrefs', () => {
+        expect(parseInlineMarkdown('See [email](mid:960830.1639@example.com).')).toEqual([
+            { type: 'text', text: 'See ' },
+            { type: 'link', text: 'email', href: 'mid:960830.1639@example.com' },
+            { type: 'text', text: '.' },
+        ]);
+    });
 });
 
 describe('extractChecklistFromMarkdown', () => {

@@ -19,6 +19,16 @@ describe('InternalMarkdownLink', () => {
         });
     });
 
+    it('renders RFC 2392 message-id links as safe external links', () => {
+        const { getByRole } = render(
+            <LanguageProvider>
+                <InternalMarkdownLink href="mid:960830.1639@example.com">Email</InternalMarkdownLink>
+            </LanguageProvider>
+        );
+
+        expect(getByRole('link', { name: 'Email' })).toHaveAttribute('href', 'mid:960830.1639@example.com');
+    });
+
     it('restores deleted task links and navigates to the live task view', async () => {
         const deletedTask: Task = {
             id: 'task-1',

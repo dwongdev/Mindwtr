@@ -10,7 +10,7 @@ import type { Project, Task } from './types';
 const CODE_BLOCK_RE = /```[\s\S]*?```/g;
 const INLINE_CODE_RE = /`([^`]+)`/g;
 const LINK_RE = /\[([^\]]+)\]\(([^)]+)\)/g;
-const INLINE_TOKEN_RE = /(\*\*([^*]+)\*\*|__([^_]+)__|~~([^~\n]+)~~|\*([^*\n]+)\*|_([^_\n]+)_|`([^`]+)`|\[([^\]]+)\]\(([^)]+)\)|((?:https?:\/\/|mailto:|tel:)[^\s<>\]]+))/gi;
+const INLINE_TOKEN_RE = /(\*\*([^*]+)\*\*|__([^_]+)__|~~([^~\n]+)~~|\*([^*\n]+)\*|_([^_\n]+)_|`([^`]+)`|\[([^\]]+)\]\(([^)]+)\)|((?:https?:\/\/|mailto:|tel:|mid:)[^\s<>\]]+))/gi;
 const INTERNAL_LINK_RE = /\[\[(task|project):([^\]|]+)\|([^\]]+)\]\]/g;
 const INTERNAL_LINK_TOKEN_RE = /^\[\[(task|project):([^\]|]+)\|([^\]]+)\]\]$/;
 const TASK_LIST_RE = /^\s{0,3}(?:[-*+]\s+)?\[( |x|X)\]\s+(.+)$/;
@@ -129,7 +129,7 @@ const sanitizeLinkHref = (href: string): string | null => {
     }
     try {
         const url = new URL(trimmed);
-        if (['http:', 'https:', 'mailto:', 'tel:', 'mindwtr:'].includes(url.protocol)) {
+        if (['http:', 'https:', 'mailto:', 'tel:', 'mid:', 'mindwtr:'].includes(url.protocol)) {
             return trimmed;
         }
     } catch {

@@ -18,7 +18,7 @@ type InternalMarkdownLinkProps = {
 function isSafeExternalHref(href: string): boolean {
     try {
         const url = new URL(href);
-        return ['http:', 'https:', 'mailto:', 'tel:'].includes(url.protocol);
+        return ['http:', 'https:', 'mailto:', 'tel:', 'mid:'].includes(url.protocol);
     } catch {
         return false;
     }

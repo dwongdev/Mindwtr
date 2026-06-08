@@ -54,7 +54,7 @@
   },
   "plugins": {
     "shell": {
-      "open": "^(mailto:[^\\s]+|tel:[^\\s]+|https?://[^\\s]+|obsidian://[^\\s]+)$"
+      "open": "^(mailto:[^\\s]+|tel:[^\\s]+|mid:[^\\s]+|https?://[^\\s]+|obsidian://[^\\s]+)$"
     }
   }
 }

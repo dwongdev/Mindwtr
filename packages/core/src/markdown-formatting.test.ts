@@ -315,6 +315,15 @@ describe('applyMarkdownUrlPaste', () => {
         });
     });
 
+    it('turns selected text into a markdown link when a message-id url replaces the selection', () => {
+        expect(
+            applyMarkdownUrlPaste('reply email today', 'reply mid:960830.1639@example.com today', { start: 6, end: 11 }),
+        ).toEqual({
+            value: 'reply [email](mid:960830.1639@example.com) today',
+            selection: { start: 42, end: 42 },
+        });
+    });
+
     it('ignores non-url replacements', () => {
         expect(
             applyMarkdownUrlPaste('read docs', 'read note', { start: 5, end: 9 }),

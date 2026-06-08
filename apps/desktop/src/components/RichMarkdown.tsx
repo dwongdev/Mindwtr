@@ -17,6 +17,7 @@ function transformMarkdownUrl(url: string) {
         || normalized.startsWith('https://')
         || normalized.startsWith('mailto:')
         || normalized.startsWith('tel:')
+        || normalized.startsWith('mid:')
         || normalized.startsWith('#')
     ) {
         return url;

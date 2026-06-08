@@ -1,6 +1,7 @@
 import { render, screen } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 
+import { LanguageProvider } from '../contexts/language-context';
 import { RichMarkdown } from './RichMarkdown';
 
 describe('RichMarkdown', () => {
@@ -29,5 +30,15 @@ describe('RichMarkdown', () => {
 
         expect(screen.getByRole('button', { name: 'Copy code' })).toBeInTheDocument();
         expect(screen.getByText('const value = 1;')).toBeInTheDocument();
+    });
+
+    it('keeps RFC 2392 message-id links clickable', () => {
+        render(
+            <LanguageProvider>
+                <RichMarkdown markdown={'Reply from [email](mid:960830.1639@example.com).'} />
+            </LanguageProvider>
+        );
+
+        expect(screen.getByRole('link', { name: 'email' })).toHaveAttribute('href', 'mid:960830.1639@example.com');
     });
 });
