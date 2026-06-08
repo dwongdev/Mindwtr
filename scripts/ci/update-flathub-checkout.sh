@@ -173,19 +173,43 @@ env_indent = len(lines[env_line_index]) - len(lines[env_line_index].lstrip())
 entry_indent = env_indent + 2
 block_end_index = find_block_end(env_line_index, env_indent)
 
+env_values: dict[str, str] = {}
+env_order: list[str] = []
+
+def remember_env_value(name: str, value: str) -> None:
+    if name not in env_values:
+        env_order.append(name)
+    env_values[name] = value
+
+def normalize_env_scalar(value: str) -> str:
+    value = value.strip()
+    if len(value) >= 2 and value[0] == value[-1] and value[0] in {'"', "'"}:
+        return value[1:-1]
+    return value
+
+for line in lines[env_line_index + 1:block_end_index]:
+    stripped = line.strip()
+    if not stripped:
+        continue
+    if stripped.startswith('- '):
+        assignment = stripped[2:].strip()
+        if '=' in assignment:
+            name, value = assignment.split('=', 1)
+            if name:
+                remember_env_value(name, value)
+        continue
+    if ':' in stripped:
+        name, value = stripped.split(':', 1)
+        if name:
+            remember_env_value(name, normalize_env_scalar(value))
+
 def set_env_value(name: str, value: str) -> None:
-    env_line = f"{' ' * entry_indent}{name}: {value}"
-    for index in range(env_line_index + 1, block_end_index):
-        if lines[index].lstrip().startswith(f'{name}:'):
-            lines[index] = env_line
-            return
-    lines.insert(env_line_index + 1, env_line)
+    remember_env_value(name, value)
 
 def remove_env_value(name: str) -> None:
-    for index in range(env_line_index + 1, block_end_index):
-        if lines[index].lstrip().startswith(f'{name}:'):
-            del lines[index]
-            return
+    env_values.pop(name, None)
+    while name in env_order:
+        env_order.remove(name)
 
 set_env_value('VITE_ANALYTICS_HEARTBEAT_URL', heartbeat_url)
 set_env_value('VITE_DONATION_PROMPT_ENABLED', 'true')
@@ -193,6 +217,12 @@ if dropbox_app_key:
     set_env_value('VITE_DROPBOX_APP_KEY', dropbox_app_key)
 else:
     remove_env_value('VITE_DROPBOX_APP_KEY')
+
+lines[env_line_index + 1:block_end_index] = [
+    f"{' ' * entry_indent}- {name}={env_values[name]}"
+    for name in env_order
+    if name in env_values
+]
 
 manifest_path.write_text("\n".join(lines) + "\n")
 PY
