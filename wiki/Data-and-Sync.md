@@ -49,7 +49,7 @@ Data is stored in a local SQLite database, with a JSON sync/backup file:
 
 Mindwtr directly supports five sync backends:
 
-- **Native iCloud / CloudKit Sync**: Apple-only native sync where available
+- **Native iCloud / CloudKit Sync**: Apple-only native sync for core data and attachment assets where available
 - **File Sync**: a user-selected folder/file (`data.json` + `attachments/`)
 - **Dropbox OAuth Sync**: direct Dropbox App Folder sync in supported builds
 - **WebDAV**: any compatible WebDAV endpoint
@@ -73,7 +73,7 @@ Existing Dropbox setups continue to work; they are simply shown as the top-level
 - **Dropbox**: easiest cross-platform cloud option in supported builds; connect with OAuth and Mindwtr uses its Dropbox App Folder.
 - **Syncthing**: device-to-device file sync. Best on the same LAN/subnet. For remote sync, use a Syncthing relay or a mesh VPN (Nebula/Tailscale).
 - **WebDAV**: use a provider that supports WebDAV (e.g., Nextcloud, ownCloud, Fastmail, self-hosted).
-- **iCloud**: use native iCloud sync on supported Apple builds, or iCloud Drive via File Sync.
+- **iCloud**: use native iCloud sync on supported Apple builds, including attachment assets, or iCloud Drive via File Sync.
 - **Google Drive/OneDrive**: use File Sync (and Android bridge apps when needed).
 
 ## Sync Recommendations
