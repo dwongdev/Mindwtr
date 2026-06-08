@@ -2,7 +2,7 @@ import React from 'react';
 import { Alert, SectionList, TextInput, View } from 'react-native';
 import { act, create } from 'react-test-renderer';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { Project, Task } from '@mindwtr/core';
+import type { AppSettings, Project, Task } from '@mindwtr/core';
 
 import FocusScreen from '../app/(drawer)/(tabs)/focus';
 import { SwipeableTaskItem } from '@/components/swipeable-task-item';
@@ -40,7 +40,7 @@ const makeProject = (id: string, overrides: Partial<Project> = {}): Project => (
 const storeState: {
   tasks: Task[];
   projects: Project[];
-  settings: { appearance: Record<string, unknown>; features: Record<string, unknown> };
+  settings: AppSettings;
   updateTask: ReturnType<typeof vi.fn>;
   deleteTask: ReturnType<typeof vi.fn>;
   updateSettings: ReturnType<typeof vi.fn>;
