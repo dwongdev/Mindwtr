@@ -17,10 +17,4 @@ module.exports = {
     requestReview,
     storeUrl,
     hasAction,
-    default: {
-        isAvailableAsync,
-        requestReview,
-        storeUrl,
-        hasAction,
-    },
 };
