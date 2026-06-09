@@ -796,6 +796,35 @@ describe('FocusScreen', () => {
     expect(() => tree.root.findByProps({ children: 'All clear' })).toThrow();
   });
 
+  it('does not duplicate review-due next actions in earlier Focus sections', () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-04-02T12:00:00.000Z'));
+    storeState.tasks = [
+      makeTask('plain-next', { title: 'Plain next' }),
+      makeTask('review-due-next', {
+        title: 'Review due next',
+        reviewAt: '2026-04-02T09:00:00.000Z',
+      }),
+      makeTask('review-due-scheduled', {
+        title: 'Review due scheduled',
+        dueDate: '2026-04-02',
+        reviewAt: '2026-04-02T09:30:00.000Z',
+      }),
+    ];
+
+    let tree!: ReturnType<typeof create>;
+
+    act(() => {
+      tree = create(<FocusScreen />);
+    });
+
+    const rowIds = tree.root.findAllByType(SwipeableTaskItem).map((node) => node.props.task.id);
+    expect(rowIds).toHaveLength(3);
+    expect(rowIds.filter((id) => id === 'review-due-next')).toHaveLength(1);
+    expect(rowIds.filter((id) => id === 'review-due-scheduled')).toHaveLength(1);
+    expect(textContent(tree.root)).toContain('Review Due');
+  });
+
   it('does not let earlier non-Focus tasks hide the next task in a sequential project', () => {
     storeState.projects = [makeProject('project-1', { isSequential: true })];
     storeState.tasks = [

@@ -807,7 +807,18 @@ export default function FocusScreen() {
       return !sequentialFirstTaskIds.has(task.id);
     };
 
+    const reviewDueItems = nonFocusedTasks
+      .filter((task) => isDueForReview(task.reviewAt, now))
+      .sort((a, b) => {
+        const aReview = safeParseDate(a.reviewAt)?.getTime() ?? Number.POSITIVE_INFINITY;
+        const bReview = safeParseDate(b.reviewAt)?.getTime() ?? Number.POSITIVE_INFINITY;
+        if (aReview !== bReview) return aReview - bReview;
+        return a.title.localeCompare(b.title);
+      });
+    const reviewDueIds = new Set(reviewDueItems.map((task) => task.id));
+
     const scheduleItems = nonFocusedTasks.filter((task) => {
+      if (reviewDueIds.has(task.id)) return false;
       if (task.status !== 'next') return false;
       if (isSequentialBlocked(task)) return false;
       const due = safeParseDueDate(task.dueDate);
@@ -823,6 +834,7 @@ export default function FocusScreen() {
     const scheduleIds = new Set(scheduleItems.map((task) => task.id));
 
     const nextItems = nonFocusedTasks.filter((task) => {
+      if (reviewDueIds.has(task.id)) return false;
       if (task.status !== 'next') return false;
       if (isSequentialBlocked(task)) return false;
       return !scheduleIds.has(task.id);
@@ -830,15 +842,6 @@ export default function FocusScreen() {
     const nextProjectDeadlineBoosts = effectiveFocusSortBy === DEFAULT_FOCUS_SORT_BY
       ? getProjectDeadlineBoosts(nextItems, projects, { now })
       : new Map<string, ProjectDeadlineBoost>();
-
-    const reviewDueItems = nonFocusedTasks
-      .filter((task) => isDueForReview(task.reviewAt, now))
-      .sort((a, b) => {
-        const aReview = safeParseDate(a.reviewAt)?.getTime() ?? Number.POSITIVE_INFINITY;
-        const bReview = safeParseDate(b.reviewAt)?.getTime() ?? Number.POSITIVE_INFINITY;
-        if (aReview !== bReview) return aReview - bReview;
-        return a.title.localeCompare(b.title);
-      });
 
     return {
       focusedTasks: sortBySavedPerspective(allFocusedTasks),
