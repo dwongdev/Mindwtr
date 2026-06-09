@@ -20,7 +20,6 @@ import DateTimePicker, { type DateTimePickerEvent } from '@react-native-communit
 import { getRecurrenceUntilValue, tFallback, type Task, type TaskEditorFieldId, type TaskEditorSectionId, type TimeEstimate } from '@mindwtr/core';
 import type { ThemeColors } from '@/hooks/use-theme-colors';
 import { CollapsibleSection } from './CollapsibleSection';
-import { DESCRIPTION_END_KEYBOARD_SCROLL_TARGET } from './task-edit-keyboard';
 
 type CopilotSuggestion = { context?: string; timeEstimate?: TimeEstimate; tags?: string[] };
 
@@ -237,17 +236,7 @@ function TaskEditFormTabComponent({
         setTimeout(scrollIntoView, 360);
     }, [scrollHandleIntoView]);
 
-    const scrollDownForKeyboard = React.useCallback((amount: number) => {
-        if (Platform.OS === 'android' && !keyboardVisibleRef.current) return;
-        const nextOffset = Math.max(0, formScrollOffsetRef.current + amount);
-        formScrollRef.current?.scrollTo({ y: nextOffset, animated: true });
-    }, []);
-
     const ensureInputVisible = React.useCallback((targetInput?: number | string) => {
-        if (targetInput === DESCRIPTION_END_KEYBOARD_SCROLL_TARGET) {
-            scrollDownForKeyboard(Platform.OS === 'ios' ? 140 : 220);
-            return;
-        }
         const normalizedHandle = typeof targetInput === 'number'
             ? targetInput
             : typeof targetInput === 'string'
@@ -258,7 +247,7 @@ function TaskEditFormTabComponent({
             return;
         }
         scheduleScrollHandleIntoView(normalizedHandle);
-    }, [scheduleScrollHandleIntoView, scrollDownForKeyboard]);
+    }, [scheduleScrollHandleIntoView]);
 
     React.useEffect(() => {
         if (!registerScrollToEnd) return;

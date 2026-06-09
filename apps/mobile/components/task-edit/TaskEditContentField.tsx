@@ -29,7 +29,6 @@ import {
     isRangeSelection,
 } from '../markdown-selection-utils';
 import type { TaskEditFieldRendererProps } from './TaskEditFieldRenderer.types';
-import { DESCRIPTION_END_KEYBOARD_SCROLL_TARGET } from './task-edit-keyboard';
 
 type ContentFieldId = 'description' | 'location' | 'attachments' | 'checklist';
 
@@ -41,8 +40,6 @@ const getChecklistItemKey = (item: { id?: string }, index: number) => item.id ||
 const selectionsEqual = (left: MarkdownSelection, right: MarkdownSelection) => (
     left.start === right.start && left.end === right.end
 );
-const DESCRIPTION_END_SELECTION_THRESHOLD = 2;
-const DESCRIPTION_END_KEYBOARD_SCROLL_THROTTLE_MS = 900;
 
 export const reorderChecklistItems = (
     checklist: Task['checklist'],
@@ -122,7 +119,6 @@ export function TaskEditContentField({
     const ignoredNativePairChangeRefs = React.useRef<Record<string, IgnoredNativePairChange>>({});
     const pendingChecklistSelectionRefs = React.useRef<Record<string, MarkdownSelection | null>>({});
     const [checklistSelectionRestorePending, setChecklistSelectionRestorePending] = React.useState<Record<string, boolean>>({});
-    const lastDescriptionEndKeyboardScrollAtRef = React.useRef(0);
     const checklistLength = editedTask.checklist?.length ?? 0;
     React.useEffect(() => {
         if (fieldId !== 'checklist' || checklistLength < 2) {
@@ -225,26 +221,8 @@ export function TaskEditContentField({
         if (Platform.OS !== 'android') return;
         const isFocused = isDescriptionInputFocused || descriptionInputRef.current?.isFocused?.();
         if (!isFocused) return;
-        if (selection.start !== selection.end) {
-            handleInputFocus(undefined);
-            return;
-        }
-        const descriptionLength = descriptionDraft.length;
-        if (descriptionLength === 0) {
-            handleInputFocus(undefined);
-            return;
-        }
-        if (selection.end < Math.max(0, descriptionLength - DESCRIPTION_END_SELECTION_THRESHOLD)) {
-            handleInputFocus(undefined);
-            return;
-        }
-
-        const now = Date.now();
-        if (now - lastDescriptionEndKeyboardScrollAtRef.current < DESCRIPTION_END_KEYBOARD_SCROLL_THROTTLE_MS) return;
-        lastDescriptionEndKeyboardScrollAtRef.current = now;
-        handleInputFocus(DESCRIPTION_END_KEYBOARD_SCROLL_TARGET);
+        handleInputFocus(undefined);
     }, [
-        descriptionDraft.length,
         descriptionInputRef,
         handleInputFocus,
         isDescriptionInputFocused,

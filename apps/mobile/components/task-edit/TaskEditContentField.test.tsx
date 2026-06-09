@@ -4,7 +4,6 @@ import { act, create } from 'react-test-renderer';
 import { describe, expect, it, vi } from 'vitest';
 
 import { TaskEditContentField } from './TaskEditContentField';
-import { DESCRIPTION_END_KEYBOARD_SCROLL_TARGET } from './task-edit-keyboard';
 
 vi.mock('../markdown-reference-autocomplete', () => ({
   MarkdownReferenceAutocomplete: (props: any) => React.createElement('MarkdownReferenceAutocomplete', props),
@@ -242,7 +241,7 @@ describe('TaskEditContentField', () => {
     });
   });
 
-  it('nudges Android keyboard scrolling when the inline description caret reaches the end', () => {
+  it('does not nudge Android keyboard scrolling when the inline description caret reaches the end', () => {
     const descriptionDraft = 'First line\nLast line';
     const handleInputFocus = vi.fn();
     const setDescriptionSelection = vi.fn();
@@ -270,7 +269,8 @@ describe('TaskEditContentField', () => {
       });
 
       expect(setDescriptionSelection).toHaveBeenCalledWith(endSelection);
-      expect(handleInputFocus).toHaveBeenCalledWith(DESCRIPTION_END_KEYBOARD_SCROLL_TARGET);
+      expect(handleInputFocus).toHaveBeenCalledWith(undefined);
+      expect(handleInputFocus).not.toHaveBeenCalledWith('description-end-keyboard-scroll');
     });
   });
 
@@ -309,7 +309,7 @@ describe('TaskEditContentField', () => {
 
       expect(setDescriptionSelection).toHaveBeenCalledWith(middleSelection);
       expect(handleInputFocus).toHaveBeenCalledWith(undefined);
-      expect(handleInputFocus).not.toHaveBeenCalledWith(DESCRIPTION_END_KEYBOARD_SCROLL_TARGET);
+      expect(handleInputFocus).not.toHaveBeenCalledWith('description-end-keyboard-scroll');
     });
   });
 

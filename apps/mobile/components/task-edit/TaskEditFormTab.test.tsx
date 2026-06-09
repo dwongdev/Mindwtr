@@ -4,7 +4,6 @@ import { act, create } from 'react-test-renderer';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { TaskEditFormTab } from './TaskEditFormTab';
-import { DESCRIPTION_END_KEYBOARD_SCROLL_TARGET } from './task-edit-keyboard';
 
 const mockScrollTo = vi.hoisted(() => vi.fn());
 const mockFindNodeHandle = vi.hoisted(() => vi.fn(() => 9001));
@@ -424,7 +423,7 @@ describe('TaskEditFormTab keyboard handling', () => {
     expect(mockScrollTo).toHaveBeenCalledWith({ y: 420 + measuredOverlap, animated: true });
   });
 
-  it('scrolls Android description-end requests downward without measuring the whole input', () => {
+  it('ignores stale string keyboard targets instead of applying a fixed Android scroll', () => {
     setPlatform('android');
     vi.spyOn(Dimensions, 'get').mockReturnValue({
       width: 390,
@@ -453,18 +452,18 @@ describe('TaskEditFormTab keyboard handling', () => {
 
     act(() => {
       findScrollContainer(tree).props.onScroll({ nativeEvent: { contentOffset: { y: 120 } } });
-      registeredHandlers.at(-1)?.(DESCRIPTION_END_KEYBOARD_SCROLL_TARGET);
+      registeredHandlers.at(-1)?.('description-end-keyboard-scroll');
     });
 
     expect(mockScrollTo).not.toHaveBeenCalled();
 
     act(() => {
       listeners.get('keyboardDidShow')?.({ endCoordinates: { screenY: 520 } });
-      registeredHandlers.at(-1)?.(DESCRIPTION_END_KEYBOARD_SCROLL_TARGET);
+      registeredHandlers.at(-1)?.('description-end-keyboard-scroll');
     });
 
     expect(mockMeasureInWindow).not.toHaveBeenCalled();
-    expect(mockScrollTo).toHaveBeenCalledWith({ y: 340, animated: true });
+    expect(mockScrollTo).not.toHaveBeenCalled();
   });
 
   it('renders a configured mobile location field in the details section', () => {
