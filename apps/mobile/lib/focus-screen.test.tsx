@@ -131,6 +131,7 @@ vi.mock('../contexts/language-context', () => ({
         'agenda.reviewDueProjects': 'Projects to review',
         'agenda.allClear': 'All clear',
         'agenda.noTasks': 'No tasks',
+        'review.markReviewed': 'Mark reviewed',
         'status.active': 'Active',
         'energyLevel.high': 'High energy',
         'filters.label': 'Filters',
@@ -794,6 +795,47 @@ describe('FocusScreen', () => {
     expect(reviewDueButton.props.accessibilityState).toEqual({ expanded: false });
     expect(tree.root.findAllByType(SwipeableTaskItem)).toHaveLength(0);
     expect(() => tree.root.findByProps({ children: 'All clear' })).toThrow();
+  });
+
+  it('marks a review-due Focus task reviewed from the row action and offers undo', async () => {
+    const reviewAt = '2000-01-01T00:00:00.000Z';
+    storeState.tasks = [
+      makeTask('waiting-review', {
+        status: 'waiting',
+        title: 'Waiting review',
+        reviewAt,
+      }),
+    ];
+
+    let tree!: ReturnType<typeof create>;
+
+    act(() => {
+      tree = create(<FocusScreen />);
+    });
+
+    const row = tree.root.findAllByType(SwipeableTaskItem).find((node) => node.props.task.id === 'waiting-review');
+    expect(row?.props.onLongPressAction).toBeTypeOf('function');
+    expect(row?.props.onLongPressActionLabel).toBe('Mark reviewed');
+
+    await act(async () => {
+      row?.props.onLongPressAction();
+      await Promise.resolve();
+    });
+
+    expect(storeState.updateTask).toHaveBeenCalledWith('waiting-review', { reviewAt: undefined });
+    expect(showToastMock).toHaveBeenCalledWith(expect.objectContaining({
+      title: 'Waiting review',
+      message: 'Marked reviewed',
+      actionLabel: 'Undo',
+      onAction: expect.any(Function),
+    }));
+
+    const toast = showToastMock.mock.calls[0]?.[0] as { onAction?: () => Promise<void> | void };
+    await act(async () => {
+      await toast.onAction?.();
+    });
+
+    expect(storeState.updateTask).toHaveBeenLastCalledWith('waiting-review', { reviewAt });
   });
 
   it('does not duplicate review-due next actions in earlier Focus sections', () => {

@@ -26,6 +26,7 @@ const t = (key: string) => ({
     'common.noMatches': 'No matches',
     'common.save': 'Save',
     'projects.duplicate': 'Duplicate',
+    'review.markReviewed': 'Mark reviewed',
     'task.convertToReference': 'Convert to Reference',
     'task.aria.dueTime': 'Due time',
     'task.aria.reviewTime': 'Review time',
@@ -193,6 +194,30 @@ describe('TaskQuickActionMenu', () => {
             expect(onUpdateTask).toHaveBeenCalledWith({ dueDate: '2026-04-19' });
         });
         expect(props.onClose).toHaveBeenCalledTimes(1);
+    });
+
+    it('marks a review-due task reviewed from the quick action menu', async () => {
+        const onUpdateTask = vi.fn(async () => ({ success: true as const }));
+        const props = renderMenu({
+            task: { ...task, reviewAt: '2000-01-01T00:00:00.000Z' },
+            onUpdateTask,
+        });
+
+        fireEvent.click(screen.getByRole('menuitem', { name: 'Mark reviewed' }));
+
+        await waitFor(() => {
+            expect(onUpdateTask).toHaveBeenCalledWith({ reviewAt: undefined });
+        });
+        expect(props.onClose).toHaveBeenCalledTimes(1);
+    });
+
+    it('does not show mark reviewed for future review dates', () => {
+        renderMenu({
+            task: { ...task, reviewAt: '2999-01-01T00:00:00.000Z' },
+        });
+
+        expect(screen.queryByRole('menuitem', { name: 'Mark reviewed' })).not.toBeInTheDocument();
+        expect(screen.getByRole('menuitem', { name: /review date/i })).toBeInTheDocument();
     });
 
     it('keeps secondary task row actions in the quick menu', () => {

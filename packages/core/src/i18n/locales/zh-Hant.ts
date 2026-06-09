@@ -600,6 +600,8 @@ export const zhHant: Record<string, string> = {
         'review.deadline': '截止時間',
         'review.contexts': '情境',
         'review.markDone': '標記完成',
+        'review.markReviewed': '標記已回顧',
+        'review.markReviewedDone': '已標記為已回顧',
         'review.noTasks': '沒有要回顧的任務',
         'review.addTaskPlaceholder': '輸入任務標題',
         'review.activeTasks': '個活動任務',

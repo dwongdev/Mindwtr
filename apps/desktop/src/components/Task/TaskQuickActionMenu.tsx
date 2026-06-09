@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { BookOpen, Calendar, CalendarClock, ChevronRight, Copy, MapPin, Star, Tag, Trash2 } from 'lucide-react';
 import {
     hasTimeComponent,
+    isDueForReview,
     safeFormatDate,
     safeParseDate,
     tFallback,
@@ -126,6 +127,7 @@ export function TaskQuickActionMenu({
     const duplicateLabel = tFallback(t, 'projects.duplicate', 'Duplicate');
     const deleteLabel = tFallback(t, 'common.delete', 'Delete');
     const convertToReferenceLabel = tFallback(t, 'task.convertToReference', 'Convert to Reference');
+    const markReviewedLabel = tFallback(t, 'review.markReviewed', 'Mark reviewed');
     const saveLabel = tFallback(t, 'common.save', 'Save');
     const cancelLabel = tFallback(t, 'common.cancel', 'Cancel');
     const moreOptionsLabel = tFallback(t, 'taskEdit.moreOptions', 'More options');
@@ -133,6 +135,7 @@ export function TaskQuickActionMenu({
     const noMatchesLabel = tFallback(t, 'common.noMatches', 'No matches');
     const createAreaLabel = tFallback(t, 'areas.create', 'Create area');
     const canEditArea = !task.projectId;
+    const canMarkReviewed = isDueForReview(task.reviewAt);
     const normalizedInitialContexts = parseTokenInput(initialContextsDraft);
     const normalizedDraftContexts = parseTokenInput(contextsDraft);
     const startDraftChanged = startDateDraft !== initialStartDraft.date || startTimeDraft !== initialStartDraft.time;
@@ -355,6 +358,21 @@ export function TaskQuickActionMenu({
         }
     };
 
+    const handleMarkReviewed = async () => {
+        setSavingPanel('reviewAt');
+        try {
+            const result = await onUpdateTask({ reviewAt: undefined });
+            if (!result.success) {
+                throw new Error(result.error || 'Failed to mark task reviewed');
+            }
+            onClose();
+        } catch (error) {
+            reportError('Failed to mark task reviewed from quick actions', error);
+        } finally {
+            setSavingPanel(null);
+        }
+    };
+
     const handleAreaSave = async () => {
         setSavingPanel('area');
         try {
@@ -480,6 +498,11 @@ export function TaskQuickActionMenu({
                     active: activePanel === 'reviewAt',
                     onClick: () => openPanel('reviewAt'),
                     showChevron: true,
+                })}
+                {!readOnly && canMarkReviewed && renderMenuAction({
+                    icon: <CalendarClock className="h-4 w-4" />,
+                    label: markReviewedLabel,
+                    onClick: () => { void handleMarkReviewed(); },
                 })}
                 {!readOnly && canEditArea && renderMenuAction({
                     ref: areaButtonRef,

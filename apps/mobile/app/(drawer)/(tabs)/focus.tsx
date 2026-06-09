@@ -512,6 +512,31 @@ export default function FocusScreen() {
       })
       .catch((error) => showTaskUpdateError(getUnknownErrorMessage(error)));
   }, [resolveText, showTaskUpdateError, showToast, updateTask]);
+  const markTaskReviewed = useCallback((task: Task) => {
+    const previousReviewAt = task.reviewAt;
+
+    void Promise.resolve(updateTask(task.id, { reviewAt: undefined }))
+      .then((result: TaskActionResult) => {
+        const failure = getActionFailureMessage(result);
+        if (failure) {
+          showTaskUpdateError(failure);
+          return;
+        }
+        showToast({
+          title: task.title,
+          message: resolveText('review.markReviewedDone', 'Marked reviewed'),
+          tone: 'success',
+          actionLabel: resolveText('common.undo', 'Undo'),
+          onAction: async () => {
+            const undoResult = await updateTask(task.id, { reviewAt: previousReviewAt });
+            const undoFailure = getActionFailureMessage(undoResult);
+            if (undoFailure) throw new Error(undoFailure);
+          },
+          durationMs: 5200,
+        });
+      })
+      .catch((error) => showTaskUpdateError(getUnknownErrorMessage(error)));
+  }, [resolveText, showTaskUpdateError, showToast, updateTask]);
   const openDeferDatePicker = useCallback((task: Task) => {
     setDeferPickerDate(getStartDateOffset(1));
     setDeferPickerTask(task);
@@ -1223,7 +1248,7 @@ export default function FocusScreen() {
     );
   }, [resolveText, tc.border, tc.filterBg, tc.onTint, tc.text, tc.tint]);
 
-  const renderItem = ({ item }: { item: FocusListItem }) => {
+  const renderItem = ({ item, section }: { item: FocusListItem; section: FocusSection }) => {
     if (item.type === 'groupHeader') {
       return (
         <View
@@ -1287,7 +1312,18 @@ export default function FocusScreen() {
       );
     }
 
-    const canDeferTask = !item.task.dueDate && (item.task.isFocusedToday === true || item.task.status === 'next');
+    const canMarkReviewed = section.type === 'reviewDue' && Boolean(item.task.reviewAt);
+    const canDeferTask = !canMarkReviewed && !item.task.dueDate && (item.task.isFocusedToday === true || item.task.status === 'next');
+    const longPressAction = canMarkReviewed
+      ? () => markTaskReviewed(item.task)
+      : canDeferTask
+        ? () => openDeferMenu(item.task)
+        : undefined;
+    const longPressActionLabel = canMarkReviewed
+      ? resolveText('review.markReviewed', 'Mark reviewed')
+      : canDeferTask
+        ? resolveText('review.startTime', 'Defer until')
+        : undefined;
     const projectDeadlineLabel = getProjectDeadlineBoostLabel(
       projectDeadlineBoosts.get(item.task.id),
       resolveText,
@@ -1311,8 +1347,8 @@ export default function FocusScreen() {
           showFocusToggle
           hideStatusBadge
           projectDeadlineLabel={projectDeadlineLabel}
-          onLongPressAction={canDeferTask ? () => openDeferMenu(item.task) : undefined}
-          onLongPressActionLabel={canDeferTask ? resolveText('review.startTime', 'Defer until') : undefined}
+          onLongPressAction={longPressAction}
+          onLongPressActionLabel={longPressActionLabel}
           onProjectPress={openProjectScreen}
           onContextPress={openContextsScreen}
           onTagPress={openContextsScreen}

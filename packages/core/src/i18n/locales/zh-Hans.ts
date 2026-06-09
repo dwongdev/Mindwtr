@@ -600,6 +600,8 @@ export const zhHans: Record<string, string> = {
         'review.deadline': '截止时间',
         'review.contexts': '情境',
         'review.markDone': '标记完成',
+        'review.markReviewed': '标记已回顾',
+        'review.markReviewedDone': '已标记为已回顾',
         'review.noTasks': '没有要回顾的任务',
         'review.addTaskPlaceholder': '输入任务标题',
         'review.activeTasks': '个活动任务',

@@ -659,6 +659,8 @@ export const en: Record<string, string> = {
         'review.deadline': 'Deadline',
         'review.contexts': 'Contexts',
         'review.markDone': 'Mark Done',
+        'review.markReviewed': 'Mark reviewed',
+        'review.markReviewedDone': 'Marked reviewed',
         'review.noTasks': 'You\'re all caught up. Nothing to review right now.',
         'review.addTaskPlaceholder': 'Enter task title',
         'review.activeTasks': 'active tasks',
