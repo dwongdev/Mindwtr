@@ -21,6 +21,7 @@ type TaskEditLinkModalProps = {
     visible: boolean;
     t: Translator;
     tc: ThemeColors;
+    title: string;
     linkInput: string;
     linkInputTouched: boolean;
     onChangeLinkInput: (value: string) => void;
@@ -33,6 +34,7 @@ export const TaskEditLinkModal = ({
     visible,
     t,
     tc,
+    title,
     linkInput,
     linkInputTouched,
     onChangeLinkInput,
@@ -48,7 +50,7 @@ export const TaskEditLinkModal = ({
     >
         <View style={styles.overlay}>
             <View style={[styles.modalCard, { backgroundColor: tc.cardBg, borderColor: tc.border }]}>
-                <Text style={[styles.modalTitle, { color: tc.text }]}>{t('attachments.addLink')}</Text>
+                <Text style={[styles.modalTitle, { color: tc.text }]}>{title}</Text>
                 <TextInput
                     value={linkInput}
                     onChangeText={onChangeLinkInput}

@@ -37,6 +37,8 @@ type TaskItemOverlaysProps = {
     openDeleteConfirm: boolean;
     openDiscardConfirm: boolean;
     openLinkPrompt: boolean;
+    linkPromptDefaultValue: string;
+    linkPromptTitle: string;
     openWaitingAssignmentPrompt: boolean;
     onCancelWaitingAssignmentPrompt: () => void;
     onConfirmWaitingAssignmentPrompt: (value: string) => void;
@@ -93,6 +95,8 @@ export function TaskItemOverlays({
     openDeleteConfirm,
     openDiscardConfirm,
     openLinkPrompt,
+    linkPromptDefaultValue,
+    linkPromptTitle,
     openWaitingAssignmentPrompt,
     onCancelWaitingAssignmentPrompt,
     onConfirmWaitingAssignmentPrompt,
@@ -157,10 +161,10 @@ export function TaskItemOverlays({
             {openLinkPrompt && (
                 <PromptModal
                     isOpen={openLinkPrompt}
-                    title={t('attachments.addLink')}
+                    title={linkPromptTitle}
                     description={t('attachments.linkInputHint')}
                     placeholder={t('attachments.linkPlaceholder')}
-                    defaultValue=""
+                    defaultValue={linkPromptDefaultValue}
                     confirmLabel={t('common.save')}
                     cancelLabel={t('common.cancel')}
                     onCancel={clearLinkPrompt}

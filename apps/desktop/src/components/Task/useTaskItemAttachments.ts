@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Attachment, DEFAULT_PROJECT_COLOR, buildTaskUpdatesFromSpeechResult, generateUUID, translateWithFallback, useTaskStore, validateAttachmentForUpload, type Task } from '@mindwtr/core';
+import { Attachment, DEFAULT_PROJECT_COLOR, buildTaskUpdatesFromSpeechResult, generateUUID, normalizeLinkAttachmentInput, translateWithFallback, useTaskStore, validateAttachmentForUpload, type Task } from '@mindwtr/core';
 import { dataDir } from '@tauri-apps/api/path';
 import { BaseDirectory, readFile, readTextFile, size } from '@tauri-apps/plugin-fs';
 import { loadAIKey } from '../../lib/ai-config';
@@ -37,6 +37,8 @@ export function useTaskItemAttachments({ task, t }: UseTaskItemAttachmentsProps)
     const [textError, setTextError] = useState<string | null>(null);
     const [textLoading, setTextLoading] = useState(false);
     const [showLinkPrompt, setShowLinkPrompt] = useState(false);
+    const [editingLinkAttachmentId, setEditingLinkAttachmentId] = useState<string | null>(null);
+    const [linkPromptDefaultValue, setLinkPromptDefaultValue] = useState('');
     const audioRef = useRef<HTMLAudioElement | null>(null);
     const audioLoadRequestRef = useRef(0);
     const audioObjectUrlRef = useRef<string | null>(null);
@@ -414,13 +416,31 @@ export function useTaskItemAttachments({ task, t }: UseTaskItemAttachmentsProps)
 
     const addLinkAttachment = useCallback(() => {
         setAttachmentError(null);
+        setEditingLinkAttachmentId(null);
+        setLinkPromptDefaultValue('');
         setShowLinkPrompt(true);
     }, []);
 
     const handleAddLinkAttachment = useCallback((value: string) => {
-        const normalized = normalizeAttachmentInput(value);
+        const normalized = editingLinkAttachmentId
+            ? normalizeLinkAttachmentInput(value)
+            : normalizeAttachmentInput(value);
         if (!normalized.uri) return false;
         const now = new Date().toISOString();
+        if (editingLinkAttachmentId) {
+            setEditAttachments((prev) => prev.map((attachment) => (
+                attachment.id === editingLinkAttachmentId
+                    ? {
+                        ...attachment,
+                        kind: 'link',
+                        title: normalized.title,
+                        uri: normalized.uri,
+                        updatedAt: now,
+                    }
+                    : attachment
+            )));
+            return true;
+        }
         const attachment: Attachment = {
             id: generateUUID(),
             kind: normalized.kind,
@@ -431,6 +451,24 @@ export function useTaskItemAttachments({ task, t }: UseTaskItemAttachmentsProps)
         };
         setEditAttachments((prev) => [...prev, attachment]);
         return true;
+    }, [editingLinkAttachmentId]);
+
+    const editLinkAttachment = useCallback((attachment: Attachment) => {
+        if (attachment.kind !== 'link') return;
+        setAttachmentError(null);
+        setEditingLinkAttachmentId(attachment.id);
+        setLinkPromptDefaultValue(
+            attachment.title && attachment.title !== attachment.uri
+                ? `${attachment.title} | ${attachment.uri}`
+                : attachment.uri,
+        );
+        setShowLinkPrompt(true);
+    }, []);
+
+    const closeLinkPrompt = useCallback(() => {
+        setShowLinkPrompt(false);
+        setEditingLinkAttachmentId(null);
+        setLinkPromptDefaultValue('');
     }, []);
 
     const removeAttachment = useCallback((id: string) => {
@@ -443,11 +481,11 @@ export function useTaskItemAttachments({ task, t }: UseTaskItemAttachmentsProps)
     const resetAttachmentState = useCallback((attachments: Attachment[] | undefined) => {
         setEditAttachments(attachments || []);
         setAttachmentError(null);
-        setShowLinkPrompt(false);
+        closeLinkPrompt();
         closeAudio();
         closeImage();
         closeText();
-    }, [closeAudio, closeImage, closeText]);
+    }, [closeAudio, closeImage, closeLinkPrompt, closeText]);
 
     return {
         editAttachments,
@@ -456,8 +494,12 @@ export function useTaskItemAttachments({ task, t }: UseTaskItemAttachmentsProps)
         setAttachmentError,
         showLinkPrompt,
         setShowLinkPrompt,
+        editingLinkAttachmentId,
+        linkPromptDefaultValue,
+        closeLinkPrompt,
         addFileAttachment,
         addLinkAttachment,
+        editLinkAttachment,
         handleAddLinkAttachment,
         removeAttachment,
         openAttachment,

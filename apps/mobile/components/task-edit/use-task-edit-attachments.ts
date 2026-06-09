@@ -51,6 +51,7 @@ export function useTaskEditAttachments({
     const [audioTranscriptionError, setAudioTranscriptionError] = React.useState<string | null>(null);
     const [linkInput, setLinkInput] = React.useState('');
     const [linkInputTouched, setLinkInputTouched] = React.useState(false);
+    const [editingLinkAttachmentId, setEditingLinkAttachmentId] = React.useState<string | null>(null);
 
     const audioPlayer = useAudioPlayer(null, { updateInterval: 500 });
     const audioStatus = useAudioPlayerStatus(audioPlayer);
@@ -176,6 +177,25 @@ export function useTaskEditAttachments({
         setEditedTask((prev) => ({ ...prev, attachments: [...(prev.attachments || []), cached] }));
     }, [resolveValidationMessage, setEditedTask, t]);
 
+    const openAddLinkAttachment = React.useCallback(() => {
+        setEditingLinkAttachmentId(null);
+        setLinkInput('');
+        setLinkInputTouched(false);
+        setLinkModalVisible(true);
+    }, []);
+
+    const editLinkAttachment = React.useCallback((attachment: Attachment) => {
+        if (attachment.kind !== 'link') return;
+        setEditingLinkAttachmentId(attachment.id);
+        setLinkInput(
+            attachment.title && attachment.title !== attachment.uri
+                ? `${attachment.title} | ${attachment.uri}`
+                : attachment.uri
+        );
+        setLinkInputTouched(false);
+        setLinkModalVisible(true);
+    }, []);
+
     const confirmAddLink = React.useCallback(() => {
         if (!linkInput.trim()) {
             setLinkInputTouched(true);
@@ -187,6 +207,27 @@ export function useTaskEditAttachments({
             return;
         }
         const now = new Date().toISOString();
+        if (editingLinkAttachmentId) {
+            setEditedTask((prev) => ({
+                ...prev,
+                attachments: (prev.attachments || []).map((attachment) => (
+                    attachment.id === editingLinkAttachmentId
+                        ? {
+                            ...attachment,
+                            kind: 'link',
+                            title: normalized.title,
+                            uri: normalized.uri,
+                            updatedAt: now,
+                        }
+                        : attachment
+                )),
+            }));
+            setLinkInput('');
+            setLinkInputTouched(false);
+            setEditingLinkAttachmentId(null);
+            setLinkModalVisible(false);
+            return;
+        }
         const attachment: Attachment = {
             id: generateUUID(),
             kind: normalized.kind,
@@ -198,13 +239,15 @@ export function useTaskEditAttachments({
         setEditedTask((prev) => ({ ...prev, attachments: [...(prev.attachments || []), attachment] }));
         setLinkInput('');
         setLinkInputTouched(false);
+        setEditingLinkAttachmentId(null);
         setLinkModalVisible(false);
-    }, [linkInput, setEditedTask, t]);
+    }, [editingLinkAttachmentId, linkInput, setEditedTask, t]);
 
     const closeLinkModal = React.useCallback(() => {
         setLinkModalVisible(false);
         setLinkInput('');
         setLinkInputTouched(false);
+        setEditingLinkAttachmentId(null);
     }, []);
 
     const isAudioAttachment = React.useCallback((attachment: Attachment) => {
@@ -524,11 +567,14 @@ export function useTaskEditAttachments({
         closeLinkModal,
         confirmAddLink,
         downloadAttachment,
+        editLinkAttachment,
+        editingLinkAttachmentId,
         imagePreviewAttachment,
         isImageAttachment,
         linkInput,
         linkInputTouched,
         linkModalVisible,
+        openAddLinkAttachment,
         openAttachment,
         removeAttachment,
         retryAudioTranscription,

@@ -184,9 +184,12 @@ export const TaskItem = memo(function TaskItem({
         editAttachments,
         attachmentError,
         showLinkPrompt,
-        setShowLinkPrompt,
+        editingLinkAttachmentId,
+        linkPromptDefaultValue,
+        closeLinkPrompt,
         addFileAttachment,
         addLinkAttachment,
+        editLinkAttachment,
         handleAddLinkAttachment,
         removeAttachment,
         openAttachment,
@@ -663,6 +666,7 @@ export const TaskItem = memo(function TaskItem({
         setEditDescription: handleSetEditDescription,
         addFileAttachment,
         addLinkAttachment,
+        editLinkAttachment,
         openAttachment,
         removeAttachment,
         setEditStartTime,
@@ -689,6 +693,7 @@ export const TaskItem = memo(function TaskItem({
         handleSetEditDescription,
         addFileAttachment,
         addLinkAttachment,
+        editLinkAttachment,
         openAttachment,
         removeAttachment,
         setEditStartTime,
@@ -1321,7 +1326,7 @@ export const TaskItem = memo(function TaskItem({
                 audioSource={audioSource}
                 audioTranscribing={audioTranscribing}
                 audioTranscriptionError={audioTranscriptionError}
-                clearLinkPrompt={() => setShowLinkPrompt(false)}
+                clearLinkPrompt={closeLinkPrompt}
                 closeAudio={closeAudio}
                 closeImage={closeImage}
                 closeText={closeText}
@@ -1344,6 +1349,8 @@ export const TaskItem = memo(function TaskItem({
                 openDeleteConfirm={showDeleteConfirm}
                 openDiscardConfirm={showDiscardConfirm}
                 openLinkPrompt={showLinkPrompt}
+                linkPromptDefaultValue={linkPromptDefaultValue}
+                linkPromptTitle={editingLinkAttachmentId ? t('common.edit') : t('attachments.addLink')}
                 openWaitingAssignmentPrompt={showWaitingAssignmentPrompt}
                 onCancelWaitingAssignmentPrompt={closeWaitingAssignmentPrompt}
                 onConfirmWaitingAssignmentPrompt={applyWaitingAssignment}

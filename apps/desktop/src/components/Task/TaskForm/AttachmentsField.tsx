@@ -1,4 +1,4 @@
-import { Link2, Paperclip } from 'lucide-react';
+import { Edit3, Link2, Paperclip } from 'lucide-react';
 import type { Attachment } from '@mindwtr/core';
 import { getAttachmentDisplayTitle } from '../../../lib/attachment-utils';
 import { isImageAttachment } from '../task-item-attachment-utils';
@@ -11,6 +11,7 @@ type AttachmentsFieldProps = {
     visibleEditAttachments: Attachment[];
     addFileAttachment: () => void;
     addLinkAttachment: () => void;
+    editLinkAttachment: (attachment: Attachment) => void;
     openAttachment: (attachment: Attachment) => void;
     removeAttachment: (id: string) => void;
 };
@@ -21,6 +22,7 @@ export function AttachmentsField({
     visibleEditAttachments,
     addFileAttachment,
     addLinkAttachment,
+    editLinkAttachment,
     openAttachment,
     removeAttachment,
 }: AttachmentsFieldProps) {
@@ -103,13 +105,25 @@ export function AttachmentsField({
                                             >
                                                 {displayTitle}
                                             </button>
-                                            <button
-                                                type="button"
-                                                onClick={() => removeAttachment(attachment.id)}
-                                                className="shrink-0 text-muted-foreground hover:text-foreground"
-                                            >
-                                                {t('attachments.remove')}
-                                            </button>
+                                            <div className="flex shrink-0 items-center gap-2">
+                                                {attachment.kind === 'link' && (
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => editLinkAttachment(attachment)}
+                                                        className="inline-flex items-center gap-1 text-muted-foreground hover:text-foreground"
+                                                    >
+                                                        <Edit3 className="h-3 w-3" />
+                                                        {t('common.edit')}
+                                                    </button>
+                                                )}
+                                                <button
+                                                    type="button"
+                                                    onClick={() => removeAttachment(attachment.id)}
+                                                    className="text-muted-foreground hover:text-foreground"
+                                                >
+                                                    {t('attachments.remove')}
+                                                </button>
+                                            </div>
                                         </div>
                                     </div>
                                 );
@@ -133,13 +147,25 @@ export function AttachmentsField({
                                 >
                                     {displayTitle}
                                 </button>
-                                <button
-                                    type="button"
-                                    onClick={() => removeAttachment(attachment.id)}
-                                    className="text-muted-foreground hover:text-foreground"
-                                >
-                                    {t('attachments.remove')}
-                                </button>
+                                <div className="flex shrink-0 items-center gap-2">
+                                    {attachment.kind === 'link' && (
+                                        <button
+                                            type="button"
+                                            onClick={() => editLinkAttachment(attachment)}
+                                            className="inline-flex items-center gap-1 text-muted-foreground hover:text-foreground"
+                                        >
+                                            <Edit3 className="h-3 w-3" />
+                                            {t('common.edit')}
+                                        </button>
+                                    )}
+                                    <button
+                                        type="button"
+                                        onClick={() => removeAttachment(attachment.id)}
+                                        className="text-muted-foreground hover:text-foreground"
+                                    >
+                                        {t('attachments.remove')}
+                                    </button>
+                                </div>
                             </div>
                         );
                     })}

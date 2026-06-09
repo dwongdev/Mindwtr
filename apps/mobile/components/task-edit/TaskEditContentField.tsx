@@ -80,6 +80,7 @@ export function TaskEditContentField({
     descriptionSelectionRestorePending,
     descriptionToolbarInteractionUntilRef,
     downloadAttachment,
+    editLinkAttachment,
     editedTask,
     fieldId,
     handleDescriptionChange,
@@ -89,13 +90,12 @@ export function TaskEditContentField({
     isDescriptionInputFocused,
     language,
     openAttachment,
+    openAddLinkAttachment,
     openDescriptionExpandedEditor,
     removeAttachment,
     setDescriptionSelection,
     setEditedTask,
     setIsDescriptionInputFocused,
-    setLinkInputTouched,
-    setLinkModalVisible,
     setShowDescriptionPreview,
     showDescriptionPreview,
     styles,
@@ -420,10 +420,7 @@ export function TaskEditContentField({
                             <Text style={[styles.attachmentButtonText, { color: tc.tint }]} numberOfLines={1}>{t('attachments.addPhoto')}</Text>
                         </TouchableOpacity>
                         <TouchableOpacity
-                            onPress={() => {
-                                setLinkInputTouched(false);
-                                setLinkModalVisible(true);
-                            }}
+                            onPress={openAddLinkAttachment}
                             style={[styles.attachmentButton, { backgroundColor: tc.cardBg, borderColor: tc.border }]}
                         >
                             <Ionicons name="link-outline" size={16} color={tc.tint} />
@@ -466,11 +463,20 @@ export function TaskEditContentField({
                                                 {t('attachments.missing')}
                                             </Text>
                                         ) : null}
-                                        <TouchableOpacity onPress={() => removeAttachment(attachment.id)}>
-                                            <Text style={[styles.attachmentRemove, { color: tc.secondaryText }]}>
-                                                {t('attachments.remove')}
-                                            </Text>
-                                        </TouchableOpacity>
+                                        <View style={styles.attachmentActions}>
+                                            {attachment.kind === 'link' ? (
+                                                <TouchableOpacity onPress={() => editLinkAttachment(attachment)}>
+                                                    <Text style={[styles.attachmentRemove, { color: tc.secondaryText }]}>
+                                                        {t('common.edit')}
+                                                    </Text>
+                                                </TouchableOpacity>
+                                            ) : null}
+                                            <TouchableOpacity onPress={() => removeAttachment(attachment.id)}>
+                                                <Text style={[styles.attachmentRemove, { color: tc.secondaryText }]}>
+                                                    {t('attachments.remove')}
+                                                </Text>
+                                            </TouchableOpacity>
+                                        </View>
                                     </View>
                                 );
                             })}

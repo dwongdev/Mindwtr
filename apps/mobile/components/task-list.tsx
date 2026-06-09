@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react';
-import { View, FlatList, Text, RefreshControl, Keyboard, TouchableOpacity, useWindowDimensions, type LayoutChangeEvent } from 'react-native';
+import { View, FlatList, Text, TextInput, RefreshControl, Keyboard, TouchableOpacity, useWindowDimensions, type LayoutChangeEvent } from 'react-native';
 import { router } from 'expo-router';
 import { ArrowDown, ArrowUp, ChevronDown, ChevronRight, GripVertical, MoveVertical } from 'lucide-react-native';
 import { NestableDraggableFlatList, ScaleDecorator, type DragEndParams, type RenderItemParams } from 'react-native-draggable-flatlist';
@@ -118,6 +118,8 @@ export interface TaskListProps {
   defaultEditTab?: 'task' | 'view';
   contentPaddingBottom?: number;
   enableProjectReorder?: boolean;
+  externalFilterOpenSignal?: number;
+  externalQuickAddFocusSignal?: number;
   projectSortBy?: TaskSortBy;
   onQuickAddInputFocus?: (targetInput?: number | string) => void;
   projectReorderMode?: boolean;
@@ -156,6 +158,8 @@ function TaskListComponent({
   defaultEditTab,
   contentPaddingBottom,
   enableProjectReorder = false,
+  externalFilterOpenSignal = 0,
+  externalQuickAddFocusSignal = 0,
   projectSortBy,
   onQuickAddInputFocus,
   projectReorderMode: projectReorderModeProp,
@@ -338,6 +342,7 @@ function TaskListComponent({
   const canUseProjectReorder = Boolean(enableProjectReorder && projectId && sortBy === 'default');
   const shouldGroupCompletedTasks = Boolean(groupCompletedTasksLast && projectId && statusFilter === 'all');
   const projectReorderMode = projectReorderModeProp ?? internalProjectReorderMode;
+  const quickAddInputRef = useRef<TextInput | null>(null);
   const quickAddAvailable = allowAdd && !projectReorderMode;
   const aiEnabled = settings?.ai?.enabled === true;
   const quickAddCopilotEnabled = quickAddAvailable && enableCopilot && aiEnabled;
@@ -349,6 +354,17 @@ function TaskListComponent({
   const canBulkOrganizeInbox = enableInboxBulkOrganize && statusFilter === 'inbox';
   const projectById = useMemo(() => new Map(projects.map((project) => [project.id, project])), [projects]);
   const { areaById, resolvedAreaFilter, selectedAreaIdForNewTasks } = useMobileAreaFilter();
+
+  useEffect(() => {
+    if (externalFilterOpenSignal <= 0) return;
+    setFiltersVisible(true);
+  }, [externalFilterOpenSignal]);
+
+  useEffect(() => {
+    if (externalQuickAddFocusSignal <= 0) return;
+    if (!quickAddAvailable) return;
+    quickAddInputRef.current?.focus();
+  }, [externalQuickAddFocusSignal, quickAddAvailable]);
 
   useEffect(() => {
     if (!showTimeEstimateFilters && selectedTimeEstimates.length > 0) {
@@ -1453,6 +1469,7 @@ function TaskListComponent({
           copilotThinking={copilotThinking}
           enableCopilot={enableCopilot}
           handleAddTask={handleAddTask}
+          inputRef={quickAddInputRef}
           newTaskTitle={newTaskTitle}
           onApplyCopilot={() => {
             setCopilotContext(copilotSuggestion?.context);

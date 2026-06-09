@@ -42,6 +42,7 @@ export function TaskEditOverlayStack(props: TaskEditOverlayStackProps) {
         linkInput,
         linkInputTouched,
         linkModalVisible,
+        linkModalTitle,
         projects,
         recurrenceWeekdayButtons,
         recurrenceWeekdayLabels,
@@ -71,6 +72,7 @@ export function TaskEditOverlayStack(props: TaskEditOverlayStackProps) {
                     visible
                     t={t}
                     tc={tc}
+                    title={linkModalTitle}
                     linkInput={linkInput}
                     linkInputTouched={linkInputTouched}
                     onChangeLinkInput={(text: string) => {

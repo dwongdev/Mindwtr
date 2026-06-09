@@ -136,6 +136,7 @@ const createHandlers = (): TaskItemFieldRendererHandlers => ({
     setEditDescription: vi.fn(),
     addFileAttachment: vi.fn(),
     addLinkAttachment: vi.fn(),
+    editLinkAttachment: vi.fn(),
     openAttachment: vi.fn(),
     removeAttachment: vi.fn(),
     setEditStartTime: vi.fn(),

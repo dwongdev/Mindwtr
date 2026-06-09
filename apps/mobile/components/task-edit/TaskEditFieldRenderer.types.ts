@@ -66,6 +66,7 @@ export type TaskEditFieldRendererProps = {
     applyChecklistUpdate: (checklist: NonNullable<Task['checklist']>) => void;
     openDescriptionExpandedEditor: () => void;
     downloadAttachment: (attachment: Attachment) => void | Promise<void>;
+    editLinkAttachment: (attachment: Attachment) => void | Promise<void>;
     editedTask: Partial<Task>;
     formatDate: (dateStr?: string) => string;
     formatDueDate: (dateStr?: string) => string;
@@ -78,6 +79,7 @@ export type TaskEditFieldRendererProps = {
     monthlyPattern: 'date' | 'custom';
     onDateChange: (event: DateTimePickerEvent, selectedDate?: Date) => void;
     openAttachment: (attachment: Attachment) => void | Promise<void>;
+    openAddLinkAttachment: () => void;
     openCustomRecurrence: () => void;
     pendingDueDate: Date | null;
     pendingStartDate: Date | null;

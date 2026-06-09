@@ -538,6 +538,7 @@ export type TaskItemFieldRendererHandlers = {
     setEditDescription: (value: string) => void;
     addFileAttachment: () => void;
     addLinkAttachment: () => void;
+    editLinkAttachment: (attachment: Attachment) => void;
     openAttachment: (attachment: Attachment) => void;
     removeAttachment: (id: string) => void;
     setEditStartTime: (value: string) => void;
@@ -637,6 +638,7 @@ export function TaskItemFieldRenderer({
         setEditDescription,
         addFileAttachment,
         addLinkAttachment,
+        editLinkAttachment,
         openAttachment,
         removeAttachment,
         setEditStartTime,
@@ -1012,6 +1014,7 @@ export function TaskItemFieldRenderer({
                     visibleEditAttachments={visibleEditAttachments}
                     addFileAttachment={addFileAttachment}
                     addLinkAttachment={addLinkAttachment}
+                    editLinkAttachment={editLinkAttachment}
                     openAttachment={openAttachment}
                     removeAttachment={removeAttachment}
                 />

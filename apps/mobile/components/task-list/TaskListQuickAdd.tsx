@@ -30,6 +30,7 @@ type TaskListQuickAddProps = {
   copilotThinking: boolean;
   enableCopilot: boolean;
   handleAddTask: () => void | Promise<void>;
+  inputRef?: React.RefObject<TextInput | null>;
   newTaskTitle: string;
   onApplyCopilot: () => void;
   onChangeText: (text: string) => void;
@@ -58,6 +59,7 @@ export function TaskListQuickAdd({
   copilotThinking,
   enableCopilot,
   handleAddTask,
+  inputRef,
   newTaskTitle,
   onApplyCopilot,
   onChangeText,
@@ -86,6 +88,7 @@ export function TaskListQuickAdd({
     <>
       <View style={[styles.inputContainer, { borderBottomColor: themeColors.border }]}>
         <TextInput
+          ref={inputRef}
           style={[styles.input, { backgroundColor: themeColors.inputBg, borderColor: themeColors.border, color: themeColors.text }]}
           autoCapitalize="sentences"
           autoCorrect={false}

@@ -263,11 +263,14 @@ function TaskEditModalInner({
         closeLinkModal,
         confirmAddLink,
         downloadAttachment,
+        editLinkAttachment,
+        editingLinkAttachmentId,
         imagePreviewAttachment,
         isImageAttachment,
         linkInput,
         linkInputTouched,
         linkModalVisible,
+        openAddLinkAttachment,
         openAttachment,
         removeAttachment,
         retryAudioTranscription,
@@ -663,6 +666,7 @@ function TaskEditModalInner({
         applyQuickDate,
         openDescriptionExpandedEditor: descriptionEditor.openDescriptionExpandedEditor,
         downloadAttachment,
+        editLinkAttachment,
         editedTask,
         formatDate,
         formatDueDate,
@@ -675,6 +679,7 @@ function TaskEditModalInner({
         language,
         monthlyPattern,
         onDateChange,
+        openAddLinkAttachment,
         openAttachment: stableOpenAttachment,
         openCustomRecurrence,
         pendingDueDate,
@@ -747,6 +752,7 @@ function TaskEditModalInner({
         descriptionEditor.setIsDescriptionInputFocused,
         descriptionToolbarInteractionUntilRef,
         downloadAttachment,
+        editLinkAttachment,
         editedTask,
         formatDate,
         formatDueDate,
@@ -759,6 +765,7 @@ function TaskEditModalInner({
         language,
         monthlyPattern,
         onDateChange,
+        openAddLinkAttachment,
         stableOpenAttachment,
         openCustomRecurrence,
         pendingDueDate,
@@ -967,6 +974,7 @@ function TaskEditModalInner({
                         linkInput={linkInput}
                         linkInputTouched={linkInputTouched}
                         linkModalVisible={linkModalVisible}
+                        linkModalTitle={editingLinkAttachmentId ? t('common.edit') : t('attachments.addLink')}
                         projectFilterAreaId={projectFilterAreaId}
                         projects={projects}
                         recurrenceWeekdayButtons={recurrenceWeekdayButtons}

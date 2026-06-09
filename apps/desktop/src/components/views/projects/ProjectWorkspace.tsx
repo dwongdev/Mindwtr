@@ -1407,144 +1407,146 @@ export function ProjectWorkspace({
                             )}
 
                             <section className="border-t border-border/50 py-5">
-                                {!isArchivedProject && (
-                                    <form
-                                        onSubmit={async (event) => {
-                                            event.preventDefault();
-                                            if (!projectTaskTitle.trim()) return;
-                                            await handleAddTaskForProject(projectTaskTitle);
-                                            setProjectTaskTitle('');
-                                        }}
-                                        className="mb-4 flex gap-2"
-                                    >
-                                        <TaskInput
-                                            value={projectTaskTitle}
-                                            projects={projects}
-                                            contexts={allTokens}
-                                            areas={areas}
-                                            onCreateProject={async (title) => {
-                                                const created = await addProject(
-                                                    title,
-                                                    DEFAULT_AREA_COLOR,
-                                                    getQuickAddProjectInitialProps({}, selectedProject.areaId),
-                                                );
-                                                return created?.id ?? null;
+                                <div className="sticky top-0 z-20 -mx-2 mb-4 border-y border-border/60 bg-background/95 px-2 py-3 shadow-sm backdrop-blur supports-[backdrop-filter]:bg-background/85">
+                                    {!isArchivedProject && (
+                                        <form
+                                            onSubmit={async (event) => {
+                                                event.preventDefault();
+                                                if (!projectTaskTitle.trim()) return;
+                                                await handleAddTaskForProject(projectTaskTitle);
+                                                setProjectTaskTitle('');
                                             }}
-                                            onChange={(next) => setProjectTaskTitle(next)}
-                                            placeholder={t('projects.addTaskPlaceholder')}
-                                            containerClassName="flex-1"
-                                            className="h-9 w-full rounded-md border border-border bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
-                                        />
-                                        <button
-                                            type="submit"
-                                            className="h-9 whitespace-nowrap rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
+                                            className="mb-3 flex gap-2"
                                         >
-                                            {t('projects.addTask')}
-                                        </button>
-                                    </form>
-                                )}
-                                <div className="mb-3 flex items-center justify-between">
-                                    <div className="text-xs uppercase tracking-wider text-muted-foreground">
-                                        {t('projects.sectionsLabel')}
-                                    </div>
-                                    <div className="flex flex-wrap items-center justify-end gap-2">
-                                        <div
-                                            role="group"
-                                            aria-label={resolveText('sort.label', 'Sort')}
-                                            className="inline-flex h-8 items-center rounded-md border border-border bg-muted/30 p-0.5"
-                                        >
-                                            {(['default', 'due'] as const).map((option) => {
-                                                const active = projectTaskSortBy === option;
-                                                const label = option === 'default'
-                                                    ? resolveText('sort.default', 'Default')
-                                                    : resolveText('sort.due', 'Due date');
-                                                return (
+                                            <TaskInput
+                                                value={projectTaskTitle}
+                                                projects={projects}
+                                                contexts={allTokens}
+                                                areas={areas}
+                                                onCreateProject={async (title) => {
+                                                    const created = await addProject(
+                                                        title,
+                                                        DEFAULT_AREA_COLOR,
+                                                        getQuickAddProjectInitialProps({}, selectedProject.areaId),
+                                                    );
+                                                    return created?.id ?? null;
+                                                }}
+                                                onChange={(next) => setProjectTaskTitle(next)}
+                                                placeholder={t('projects.addTaskPlaceholder')}
+                                                containerClassName="flex-1"
+                                                className="h-9 w-full rounded-md border border-border bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
+                                            />
+                                            <button
+                                                type="submit"
+                                                className="h-9 whitespace-nowrap rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
+                                            >
+                                                {t('projects.addTask')}
+                                            </button>
+                                        </form>
+                                    )}
+                                    <div className="flex items-center justify-between gap-3">
+                                        <div className="text-xs uppercase tracking-wider text-muted-foreground">
+                                            {t('projects.sectionsLabel')}
+                                        </div>
+                                        <div className="flex flex-wrap items-center justify-end gap-2">
+                                            <div
+                                                role="group"
+                                                aria-label={resolveText('sort.label', 'Sort')}
+                                                className="inline-flex h-8 items-center rounded-md border border-border bg-muted/30 p-0.5"
+                                            >
+                                                {(['default', 'due'] as const).map((option) => {
+                                                    const active = projectTaskSortBy === option;
+                                                    const label = option === 'default'
+                                                        ? resolveText('sort.default', 'Default')
+                                                        : resolveText('sort.due', 'Due date');
+                                                    return (
+                                                        <button
+                                                            key={option}
+                                                            type="button"
+                                                            aria-pressed={active}
+                                                            onClick={() => setProjectTaskSortBy(option)}
+                                                            className={cn(
+                                                                'h-7 whitespace-nowrap rounded px-2 text-xs font-medium transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40',
+                                                                active
+                                                                    ? 'bg-primary text-primary-foreground'
+                                                                    : 'text-muted-foreground hover:bg-background hover:text-foreground',
+                                                            )}
+                                                        >
+                                                            {label}
+                                                        </button>
+                                                    );
+                                                })}
+                                            </div>
+                                            {!isArchivedProject && (
+                                                <>
                                                     <button
-                                                        key={option}
                                                         type="button"
-                                                        aria-pressed={active}
-                                                        onClick={() => setProjectTaskSortBy(option)}
+                                                        onClick={onToggleShowCompletedTasks}
+                                                        aria-label={showCompletedTasks
+                                                            ? resolveText('common.hideCompleted', 'Hide completed')
+                                                            : resolveText('common.showCompleted', 'Show completed')}
+                                                        aria-pressed={showCompletedTasks}
                                                         className={cn(
-                                                            'h-7 whitespace-nowrap rounded px-2 text-xs font-medium transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40',
-                                                            active
-                                                                ? 'bg-primary text-primary-foreground'
-                                                                : 'text-muted-foreground hover:bg-background hover:text-foreground',
+                                                            'inline-flex items-center gap-2 whitespace-nowrap rounded-md border px-2.5 py-1.5 text-xs font-medium transition-colors',
+                                                            showCompletedTasks
+                                                                ? 'border-primary/40 bg-primary/10 text-primary'
+                                                                : 'border-border bg-background text-muted-foreground hover:bg-muted/40 hover:text-foreground'
                                                         )}
                                                     >
-                                                        {label}
+                                                        <CheckCircle2 className="h-3.5 w-3.5" />
+                                                        {showCompletedTasks
+                                                            ? resolveText('common.hideCompleted', 'Hide completed')
+                                                            : resolveText('common.showCompleted', 'Show completed')}
+                                                        {!showCompletedTasks && completedProjectTaskCount > 0 && (
+                                                            <span
+                                                                aria-hidden="true"
+                                                                className="rounded-full bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground"
+                                                            >
+                                                                {completedProjectTaskCount}
+                                                            </span>
+                                                        )}
                                                     </button>
-                                                );
-                                            })}
+                                                    <button
+                                                        type="button"
+                                                        onClick={handleAddSection}
+                                                        aria-label={t('projects.addSection')}
+                                                        className="inline-flex items-center gap-2 whitespace-nowrap rounded-md border border-border bg-background px-2.5 py-1.5 text-xs transition-colors hover:bg-muted/40"
+                                                    >
+                                                        <Plus className="h-3.5 w-3.5" />
+                                                        {t('projects.addSection')}
+                                                    </button>
+                                                </>
+                                            )}
                                         </div>
-                                        {!isArchivedProject && (
-                                            <>
-                                                <button
-                                                    type="button"
-                                                    onClick={onToggleShowCompletedTasks}
-                                                    aria-label={showCompletedTasks
-                                                        ? resolveText('common.hideCompleted', 'Hide completed')
-                                                        : resolveText('common.showCompleted', 'Show completed')}
-                                                    aria-pressed={showCompletedTasks}
-                                                    className={cn(
-                                                        'inline-flex items-center gap-2 whitespace-nowrap rounded-md border px-2.5 py-1.5 text-xs font-medium transition-colors',
-                                                        showCompletedTasks
-                                                            ? 'border-primary/40 bg-primary/10 text-primary'
-                                                            : 'border-border bg-background text-muted-foreground hover:bg-muted/40 hover:text-foreground'
-                                                    )}
-                                                >
-                                                    <CheckCircle2 className="h-3.5 w-3.5" />
-                                                    {showCompletedTasks
-                                                        ? resolveText('common.hideCompleted', 'Hide completed')
-                                                        : resolveText('common.showCompleted', 'Show completed')}
-                                                    {!showCompletedTasks && completedProjectTaskCount > 0 && (
-                                                        <span
-                                                            aria-hidden="true"
-                                                            className="rounded-full bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground"
-                                                        >
-                                                            {completedProjectTaskCount}
-                                                        </span>
-                                                    )}
-                                                </button>
-                                                <button
-                                                    type="button"
-                                                    onClick={handleAddSection}
-                                                    aria-label={t('projects.addSection')}
-                                                    className="inline-flex items-center gap-2 whitespace-nowrap rounded-md border border-border bg-background px-2.5 py-1.5 text-xs transition-colors hover:bg-muted/40"
-                                                >
-                                                    <Plus className="h-3.5 w-3.5" />
-                                                    {t('projects.addSection')}
-                                                </button>
-                                            </>
-                                        )}
                                     </div>
-                                </div>
-                                {selectionMode && (
-                                    <div className="mb-3 space-y-3">
-                                        <BulkSelectionToolbar
-                                            selectionCount={selectedIdsArray.length}
-                                            totalCount={visibleProjectTaskList.length}
-                                            allSelected={allVisibleTasksSelected}
-                                            onSelectAll={selectAllVisibleTasks}
-                                            onClearSelection={clearTaskSelection}
-                                            t={t}
-                                        />
-                                        {selectedIdsArray.length > 0 && (
-                                            <ListBulkActions
+                                    {selectionMode && (
+                                        <div className="mt-3 space-y-3">
+                                            <BulkSelectionToolbar
                                                 selectionCount={selectedIdsArray.length}
-                                                onMoveToStatus={handleBatchMove}
-                                                onAddTag={() => handleBatchTokenPick('tags', 'add')}
-                                                onRemoveTag={() => handleBatchTokenPick('tags', 'remove')}
-                                                disableRemoveTag={removableTagOptions.length === 0}
-                                                onAddContext={() => handleBatchTokenPick('contexts', 'add')}
-                                                onRemoveContext={() => handleBatchTokenPick('contexts', 'remove')}
-                                                disableRemoveContext={removableContextOptions.length === 0}
-                                                onDelete={handleBatchDelete}
-                                                isDeleting={isBatchDeleting}
+                                                totalCount={visibleProjectTaskList.length}
+                                                allSelected={allVisibleTasksSelected}
+                                                onSelectAll={selectAllVisibleTasks}
+                                                onClearSelection={clearTaskSelection}
                                                 t={t}
                                             />
-                                        )}
-                                    </div>
-                                )}
+                                            {selectedIdsArray.length > 0 && (
+                                                <ListBulkActions
+                                                    selectionCount={selectedIdsArray.length}
+                                                    onMoveToStatus={handleBatchMove}
+                                                    onAddTag={() => handleBatchTokenPick('tags', 'add')}
+                                                    onRemoveTag={() => handleBatchTokenPick('tags', 'remove')}
+                                                    disableRemoveTag={removableTagOptions.length === 0}
+                                                    onAddContext={() => handleBatchTokenPick('contexts', 'add')}
+                                                    onRemoveContext={() => handleBatchTokenPick('contexts', 'remove')}
+                                                    disableRemoveContext={removableContextOptions.length === 0}
+                                                    onDelete={handleBatchDelete}
+                                                    isDeleting={isBatchDeleting}
+                                                    t={t}
+                                                />
+                                            )}
+                                        </div>
+                                    )}
+                                </div>
                                 {tasksContent}
                             </section>
 

@@ -23,6 +23,7 @@ describe('AttachmentsField', () => {
                 visibleEditAttachments={[attachment]}
                 addFileAttachment={vi.fn()}
                 addLinkAttachment={vi.fn()}
+                editLinkAttachment={vi.fn()}
                 openAttachment={openAttachment}
                 removeAttachment={vi.fn()}
             />
@@ -33,5 +34,34 @@ describe('AttachmentsField', () => {
         fireEvent.click(getByRole('button', { name: 'attachments.open: github-share.png' }));
 
         expect(openAttachment).toHaveBeenCalledWith(attachment);
+    });
+
+    it('shows an edit action for link attachments', () => {
+        const editLinkAttachment = vi.fn();
+        const attachment = {
+            id: 'attachment-1',
+            kind: 'link' as const,
+            title: 'Project brief',
+            uri: 'https://example.com/brief',
+            createdAt: '2026-04-17T00:00:00.000Z',
+            updatedAt: '2026-04-17T00:00:00.000Z',
+        };
+
+        const { getByRole } = render(
+            <AttachmentsField
+                t={(key) => key}
+                attachmentError={null}
+                visibleEditAttachments={[attachment]}
+                addFileAttachment={vi.fn()}
+                addLinkAttachment={vi.fn()}
+                editLinkAttachment={editLinkAttachment}
+                openAttachment={vi.fn()}
+                removeAttachment={vi.fn()}
+            />
+        );
+
+        fireEvent.click(getByRole('button', { name: 'common.edit' }));
+
+        expect(editLinkAttachment).toHaveBeenCalledWith(attachment);
     });
 });
