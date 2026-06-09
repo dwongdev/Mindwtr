@@ -102,4 +102,36 @@ describe('openai provider auth behavior', () => {
             }),
         ).rejects.toThrow('OpenAI-compatible endpoint rejected the request. Check the custom base URL, API key, and model.');
     });
+
+    it('adds extra OpenAI-compatible body params without overriding core request fields', async () => {
+        const fetchMock = vi.fn(async () => mockOpenAiSuccess());
+        globalThis.fetch = fetchMock as unknown as typeof fetch;
+
+        const provider = createOpenAIProvider({
+            provider: 'openai',
+            endpoint: 'https://api.z.ai/api/paas/v4/chat/completions',
+            apiKey: 'test-key',
+            model: 'glm-4.5-flash',
+            extraBodyParams: {
+                thinking: { type: 'disabled' },
+                max_tokens: 1024,
+                model: 'wrong-model',
+                messages: [],
+                response_format: { type: 'text' },
+            },
+        });
+
+        await provider.clarifyTask({ title: 'Plan trip' });
+
+        const requestInit = fetchMock.mock.calls[0]?.[1] as RequestInit | undefined;
+        const body = JSON.parse(String(requestInit?.body ?? '{}')) as Record<string, unknown>;
+        expect(body.thinking).toEqual({ type: 'disabled' });
+        expect(body.max_tokens).toBe(1024);
+        expect(body.model).toBe('glm-4.5-flash');
+        expect(body.messages).toEqual([
+            expect.objectContaining({ role: 'system' }),
+            expect.objectContaining({ role: 'user' }),
+        ]);
+        expect(body.response_format).toEqual({ type: 'json_object' });
+    });
 });

@@ -851,9 +851,11 @@ export {
 export {
     buildAIConfig,
     buildCopilotConfig,
+    formatOpenAIExtraBodyParams,
     getAIKeyStorageKey,
     loadAIKeyFromStorage,
     loadAIKeyFromStorageSync,
+    parseOpenAIExtraBodyParamsInput,
     saveAIKeyToStorage,
     saveAIKeyToStorageSync,
 } from './ai-config';

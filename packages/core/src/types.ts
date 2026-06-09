@@ -374,6 +374,7 @@ export interface AiSettings {
     apiKey?: string;
     baseUrl?: string;
     model?: string;
+    openAIExtraBodyParams?: Record<string, unknown>;
     reasoningEffort?: 'low' | 'medium' | 'high';
     thinkingBudget?: number;
     copilotModel?: string;

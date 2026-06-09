@@ -4,6 +4,8 @@ export type AIProviderId = 'gemini' | 'openai' | 'anthropic';
 
 export type AIReasoningEffort = 'low' | 'medium' | 'high';
 
+export type AIRequestExtraBodyParams = Record<string, unknown>;
+
 export type AudioCaptureMode = 'smart_parse' | 'transcribe_only';
 
 export type AudioFieldStrategy = 'smart' | 'title_only' | 'description_only';
@@ -87,6 +89,7 @@ export interface AIProviderConfig {
     fetcher?: typeof fetch;
     reasoningEffort?: AIReasoningEffort;
     thinkingBudget?: number;
+    extraBodyParams?: AIRequestExtraBodyParams;
     timeoutMs?: number;
 }
 

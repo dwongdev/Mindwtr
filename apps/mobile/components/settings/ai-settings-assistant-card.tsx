@@ -21,6 +21,8 @@ type AiSettingsAssistantCardProps = {
     aiCopilotModel: string;
     aiCopilotOptions: string[];
     aiEnabled: boolean;
+    aiExtraBodyParamsDraft: string;
+    aiExtraBodyParamsError: string;
     aiModel: string;
     aiModelOptions: string[];
     aiProvider: AIProviderId;
@@ -34,6 +36,8 @@ type AiSettingsAssistantCardProps = {
     onAiBaseUrlChange: (value: string) => void;
     onAiCopilotModelChange: (value: string) => void;
     onAiEnabledChange: (value: boolean) => void;
+    onAiExtraBodyParamsDraftChange: (value: string) => void;
+    onAiExtraBodyParamsSave: () => void;
     onAiModelChange: (value: string) => void;
     onAiProviderChange: (provider: AIProviderId) => void;
     onAiReasoningEffortChange: (value: AIReasoningEffort) => void;
@@ -52,6 +56,8 @@ export function AiSettingsAssistantCard({
     aiCopilotModel,
     aiCopilotOptions,
     aiEnabled,
+    aiExtraBodyParamsDraft,
+    aiExtraBodyParamsError,
     aiModel,
     aiModelOptions,
     aiProvider,
@@ -65,6 +71,8 @@ export function AiSettingsAssistantCard({
     onAiBaseUrlChange,
     onAiCopilotModelChange,
     onAiEnabledChange,
+    onAiExtraBodyParamsDraftChange,
+    onAiExtraBodyParamsSave,
     onAiModelChange,
     onAiProviderChange,
     onAiReasoningEffortChange,
@@ -208,11 +216,15 @@ export function AiSettingsAssistantCard({
                         <AiSettingsAssistantOpenAiPanel
                             aiApiKey={aiApiKey}
                             aiBaseUrl={aiBaseUrl}
+                            aiExtraBodyParamsDraft={aiExtraBodyParamsDraft}
+                            aiExtraBodyParamsError={aiExtraBodyParamsError}
                             aiReasoningEffort={aiReasoningEffort}
                             isFossBuild={isFossBuild}
                             tr={tr}
                             onAiApiKeyChange={onAiApiKeyChange}
                             onAiBaseUrlChange={onAiBaseUrlChange}
+                            onAiExtraBodyParamsDraftChange={onAiExtraBodyParamsDraftChange}
+                            onAiExtraBodyParamsSave={onAiExtraBodyParamsSave}
                             onAiReasoningEffortChange={onAiReasoningEffortChange}
                             t={t}
                             tc={tc}

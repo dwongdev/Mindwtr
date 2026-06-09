@@ -14,6 +14,11 @@ const t = {
     aiBaseUrl: 'Custom OpenAI-compatible base URL',
     aiBaseUrlHint: 'Leave blank for official OpenAI. Set this for local or third-party OpenAI-compatible APIs such as llama.cpp, Ollama, LM Studio, GLM, or vLLM.',
     aiBaseUrlModelHint: 'This model looks non-OpenAI. If you are using GLM or another OpenAI-compatible provider, set a custom base URL.',
+    aiExtraBodyParams: 'Extra request parameters',
+    aiExtraBodyParamsDesc: 'Optional JSON object merged into OpenAI-compatible requests.',
+    aiExtraBodyParamsHint: 'Core fields such as model, messages, and response_format are protected. Example: { "thinking": { "type": "disabled" } }',
+    aiExtraBodyParamsInvalid: 'Enter a valid JSON object.',
+    aiExtraBodyParamsSave: 'Save parameters',
     aiCopilotModel: 'Copilot model',
     aiCopilotHint: 'Used for fast autocomplete suggestions.',
     aiConsentTitle: 'Enable AI Features?',
@@ -70,6 +75,7 @@ const baseProps: Parameters<typeof SettingsAiPage>[0] = {
     aiModel: 'GLM-4.7',
     aiModelOptions: ['gpt-4o-mini', 'gpt-5-mini'],
     aiBaseUrl: '',
+    aiOpenAIExtraBodyParams: undefined,
     aiCopilotModel: 'gpt-4o-mini',
     aiCopilotOptions: ['gpt-4o-mini'],
     aiReasoningEffort: 'medium',
@@ -109,5 +115,29 @@ describe('SettingsAiPage', () => {
         expect(getByText('Custom OpenAI-compatible base URL')).toBeInTheDocument();
         expect(getByText('This model looks non-OpenAI. If you are using GLM or another OpenAI-compatible provider, set a custom base URL.')).toBeInTheDocument();
         expect(getByText('Stored locally on this device. Never synced. Official OpenAI requires a key. Custom OpenAI-compatible endpoints may also require one; leave it blank only if your endpoint allows unauthenticated requests.')).toBeInTheDocument();
+    });
+
+    it('saves extra OpenAI-compatible request parameters from folded JSON input', () => {
+        const onUpdateAISettings = vi.fn();
+        const { getByPlaceholderText, getByRole, getByText } = render(
+            <SettingsAiPage
+                {...baseProps}
+                onUpdateAISettings={onUpdateAISettings}
+            />
+        );
+
+        fireEvent.click(getByRole('button', { name: /Enable AI assistant/i }));
+        expect(getByText('Extra request parameters')).toBeInTheDocument();
+        fireEvent.click(getByRole('button', { name: /Extra request parameters/i }));
+        fireEvent.change(getByPlaceholderText(/thinking/), {
+            target: { value: '{ "thinking": { "type": "disabled" } }' },
+        });
+        fireEvent.click(getByRole('button', { name: 'Save parameters' }));
+
+        expect(onUpdateAISettings).toHaveBeenCalledWith({
+            openAIExtraBodyParams: {
+                thinking: { type: 'disabled' },
+            },
+        });
     });
 });

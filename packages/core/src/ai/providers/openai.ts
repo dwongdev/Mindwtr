@@ -78,6 +78,7 @@ async function requestOpenAI(config: AIProviderConfig, prompt: { system: string;
         : undefined;
 
     const body = {
+        ...(config.extraBodyParams ?? {}),
         model: config.model,
         messages: [
             { role: 'system', content: prompt.system },

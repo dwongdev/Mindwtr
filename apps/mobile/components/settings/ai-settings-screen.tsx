@@ -9,10 +9,12 @@ import {
     DEFAULT_ANTHROPIC_THINKING_BUDGET,
     DEFAULT_GEMINI_THINKING_BUDGET,
     DEFAULT_REASONING_EFFORT,
+    formatOpenAIExtraBodyParams,
     getCopilotModelOptions,
     getDefaultAIConfig,
     getDefaultCopilotModel,
     getModelOptions,
+    parseOpenAIExtraBodyParamsInput,
     type AIProviderId,
     type AIReasoningEffort,
     useTaskStore,
@@ -54,12 +56,17 @@ export function AISettingsScreen() {
     const [aiAssistantOpen, setAiAssistantOpen] = useState(false);
     const [speechOpen, setSpeechOpen] = useState(false);
     const [modelPicker, setModelPicker] = useState<null | 'model' | 'copilot' | 'speech'>(null);
+    const [openAIExtraParamsDraft, setOpenAIExtraParamsDraft] = useState(() =>
+        formatOpenAIExtraBodyParams(settings.ai?.openAIExtraBodyParams)
+    );
+    const [openAIExtraParamsError, setOpenAIExtraParamsError] = useState('');
 
     const aiProvider = (isFossBuild ? 'openai' : (settings.ai?.provider ?? 'openai')) as AIProviderId;
     const aiEnabled = settings.ai?.enabled === true;
     const aiModelOptions = isFossBuild ? FOSS_LOCAL_LLM_MODEL_OPTIONS : getModelOptions(aiProvider);
     const aiModel = settings.ai?.model ?? (isFossBuild ? FOSS_LOCAL_LLM_MODEL_OPTIONS[0] : getDefaultAIConfig(aiProvider).model);
     const aiBaseUrl = settings.ai?.baseUrl ?? '';
+    const aiOpenAIExtraBodyParams = settings.ai?.openAIExtraBodyParams;
     const aiReasoningEffort = (settings.ai?.reasoningEffort ?? DEFAULT_REASONING_EFFORT) as AIReasoningEffort;
     const aiThinkingBudget = settings.ai?.thinkingBudget ?? getDefaultAIConfig(aiProvider).thinkingBudget ?? 0;
     const aiCopilotOptions = isFossBuild ? FOSS_LOCAL_LLM_COPILOT_OPTIONS : getCopilotModelOptions(aiProvider);
@@ -89,6 +96,11 @@ export function AISettingsScreen() {
     const updateAISettings = useCallback((next: Partial<NonNullable<typeof settings.ai>>) => {
         updateSettings({ ai: { ...(settings.ai ?? {}), ...next } }).catch(logSettingsError);
     }, [settings.ai, updateSettings]);
+
+    useEffect(() => {
+        setOpenAIExtraParamsDraft(formatOpenAIExtraBodyParams(aiOpenAIExtraBodyParams));
+        setOpenAIExtraParamsError('');
+    }, [aiOpenAIExtraBodyParams]);
 
     const getAIProviderLabel = (provider: AIProviderId): string => (
         isFossBuild && provider === 'openai'
@@ -258,6 +270,24 @@ export function AISettingsScreen() {
         setAiApiKey(value);
         saveAIKey(aiProvider, value).catch(logSettingsError);
     }, [aiProvider]);
+
+    const handleOpenAIExtraBodyParamsSave = useCallback(() => {
+        const result = parseOpenAIExtraBodyParamsInput(openAIExtraParamsDraft);
+        if (!result.ok) {
+            const message = t('settings.aiExtraBodyParamsInvalid');
+            setOpenAIExtraParamsError(message);
+            showToast({
+                title: t('settings.aiExtraBodyParams'),
+                message,
+                tone: 'warning',
+                durationMs: 4200,
+            });
+            return;
+        }
+        setOpenAIExtraParamsError('');
+        setOpenAIExtraParamsDraft(formatOpenAIExtraBodyParams(result.value));
+        updateAISettings({ openAIExtraBodyParams: result.value });
+    }, [openAIExtraParamsDraft, showToast, t, updateAISettings]);
 
     const handleAnthropicThinkingEnabledChange = useCallback((value: boolean) => {
         updateAISettings({
@@ -584,6 +614,8 @@ export function AISettingsScreen() {
                         aiCopilotModel={aiCopilotModel}
                         aiCopilotOptions={aiCopilotOptions}
                         aiEnabled={aiEnabled}
+                        aiExtraBodyParamsDraft={openAIExtraParamsDraft}
+                        aiExtraBodyParamsError={openAIExtraParamsError}
                         aiModel={aiModel}
                         aiModelOptions={aiModelOptions}
                         aiProvider={aiProvider}
@@ -597,6 +629,8 @@ export function AISettingsScreen() {
                         onAiBaseUrlChange={(value) => updateAISettings({ baseUrl: value })}
                         onAiCopilotModelChange={(value) => updateAISettings({ copilotModel: value })}
                         onAiEnabledChange={handleAIEnabledToggle}
+                        onAiExtraBodyParamsDraftChange={setOpenAIExtraParamsDraft}
+                        onAiExtraBodyParamsSave={handleOpenAIExtraBodyParamsSave}
                         onAiModelChange={(value) => updateAISettings({ model: value })}
                         onAiProviderChange={handleAIProviderChange}
                         onAiReasoningEffortChange={(value) => updateAISettings({ reasoningEffort: value })}

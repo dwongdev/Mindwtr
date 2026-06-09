@@ -1,6 +1,7 @@
 import type { AIProviderId, AIReasoningEffort, AiSettings } from '@mindwtr/core';
+import { formatOpenAIExtraBodyParams, parseOpenAIExtraBodyParamsInput } from '@mindwtr/core';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { ChevronDown, ChevronRight } from 'lucide-react';
 import { cn } from '../../../lib/utils';
 import { ConfirmModal } from '../../ConfirmModal';
@@ -16,6 +17,11 @@ type Labels = {
     aiBaseUrl: string;
     aiBaseUrlHint: string;
     aiBaseUrlModelHint: string;
+    aiExtraBodyParams: string;
+    aiExtraBodyParamsDesc: string;
+    aiExtraBodyParamsHint: string;
+    aiExtraBodyParamsInvalid: string;
+    aiExtraBodyParamsSave: string;
     aiCopilotModel: string;
     aiCopilotHint: string;
     aiConsentTitle: string;
@@ -91,6 +97,7 @@ type SettingsAiPageProps = {
     aiModel: string;
     aiModelOptions: string[];
     aiBaseUrl: string;
+    aiOpenAIExtraBodyParams?: Record<string, unknown>;
     aiCopilotModel: string;
     aiCopilotOptions: string[];
     aiReasoningEffort: AIReasoningEffort;
@@ -128,6 +135,7 @@ export function SettingsAiPage({
     aiModel,
     aiModelOptions,
     aiBaseUrl,
+    aiOpenAIExtraBodyParams,
     aiCopilotModel,
     aiCopilotOptions,
     aiReasoningEffort,
@@ -159,6 +167,9 @@ export function SettingsAiPage({
 }: SettingsAiPageProps) {
     const [aiOpen, setAiOpen] = useState(false);
     const [speechOpen, setSpeechOpen] = useState(false);
+    const [openAIExtraOpen, setOpenAIExtraOpen] = useState(false);
+    const [openAIExtraDraft, setOpenAIExtraDraft] = useState(() => formatOpenAIExtraBodyParams(aiOpenAIExtraBodyParams));
+    const [openAIExtraError, setOpenAIExtraError] = useState<string | null>(null);
     const [showAiConsentModal, setShowAiConsentModal] = useState(false);
     const selectedProviderLabel = aiProvider === 'gemini'
         ? t.aiProviderGemini
@@ -169,6 +180,23 @@ export function SettingsAiPage({
     const showCustomBaseUrlModelHint = aiProvider === 'openai'
         && !aiBaseUrl.trim()
         && !looksLikeOfficialOpenAIModel(aiModel, aiModelOptions);
+
+    useEffect(() => {
+        setOpenAIExtraDraft(formatOpenAIExtraBodyParams(aiOpenAIExtraBodyParams));
+        setOpenAIExtraError(null);
+    }, [aiOpenAIExtraBodyParams]);
+
+    const handleSaveOpenAIExtraBodyParams = () => {
+        const result = parseOpenAIExtraBodyParamsInput(openAIExtraDraft);
+        if (!result.ok) {
+            setOpenAIExtraError(t.aiExtraBodyParamsInvalid);
+            return;
+        }
+        setOpenAIExtraError(null);
+        setOpenAIExtraDraft(formatOpenAIExtraBodyParams(result.value));
+        onUpdateAISettings({ openAIExtraBodyParams: result.value });
+    };
+
     const handleAiToggle = () => {
         if (aiEnabled) {
             onUpdateAISettings({ enabled: false });
@@ -300,6 +328,50 @@ export function SettingsAiPage({
                                     <div className="text-xs text-muted-foreground">{t.aiBaseUrlHint}</div>
                                     {showCustomBaseUrlModelHint && (
                                         <div className="text-xs text-amber-600">{t.aiBaseUrlModelHint}</div>
+                                    )}
+                                </div>
+                            )}
+
+                            {aiProvider === 'openai' && (
+                                <div className="rounded-lg border border-border bg-muted/30">
+                                    <button
+                                        type="button"
+                                        onClick={() => setOpenAIExtraOpen((open) => !open)}
+                                        aria-expanded={openAIExtraOpen}
+                                        className="flex w-full items-center justify-between gap-4 p-3 text-left"
+                                    >
+                                        <div className="min-w-0">
+                                            <div className="text-sm font-medium">{t.aiExtraBodyParams}</div>
+                                            <div className="text-xs text-muted-foreground">{t.aiExtraBodyParamsDesc}</div>
+                                        </div>
+                                        {openAIExtraOpen ? (
+                                            <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground" />
+                                        ) : (
+                                            <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
+                                        )}
+                                    </button>
+                                    {openAIExtraOpen && (
+                                        <div className="space-y-2 border-t border-border p-3">
+                                            <textarea
+                                                value={openAIExtraDraft}
+                                                onChange={(event) => setOpenAIExtraDraft(event.target.value)}
+                                                placeholder={'{\n  "thinking": { "type": "disabled" }\n}'}
+                                                className="min-h-[120px] w-full resize-y rounded border border-border bg-muted/50 px-2 py-2 font-mono text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/40"
+                                                spellCheck={false}
+                                            />
+                                            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                                                <div className={cn('text-xs', openAIExtraError ? 'text-destructive' : 'text-muted-foreground')}>
+                                                    {openAIExtraError ?? t.aiExtraBodyParamsHint}
+                                                </div>
+                                                <button
+                                                    type="button"
+                                                    onClick={handleSaveOpenAIExtraBodyParams}
+                                                    className="rounded-md bg-secondary px-4 py-2 text-sm font-medium text-secondary-foreground hover:bg-secondary/90"
+                                                >
+                                                    {t.aiExtraBodyParamsSave}
+                                                </button>
+                                            </div>
+                                        </div>
                                     )}
                                 </div>
                             )}

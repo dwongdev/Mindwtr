@@ -351,6 +351,7 @@ export function SettingsView({ initialPage, onboardingHintPage, onResumeOnboardi
     aiProvider,
     aiModel,
     aiBaseUrl,
+    aiOpenAIExtraBodyParams,
     aiModelOptions,
     aiCopilotModel,
     aiCopilotOptions,
@@ -1124,6 +1125,7 @@ export function SettingsView({ initialPage, onboardingHintPage, onResumeOnboardi
           aiProvider={aiProvider}
           aiModel={aiModel}
           aiBaseUrl={aiBaseUrl}
+          aiOpenAIExtraBodyParams={aiOpenAIExtraBodyParams}
           aiModelOptions={aiModelOptions}
           aiCopilotModel={aiCopilotModel}
           aiCopilotOptions={aiCopilotOptions}

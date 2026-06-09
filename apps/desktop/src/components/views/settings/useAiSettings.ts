@@ -50,6 +50,7 @@ export function useAiSettings({ isTauri, settings, updateSettings, showSaved, en
     const aiDefaults = getDefaultAIConfig(aiProvider);
     const aiModel = settings?.ai?.model ?? aiDefaults.model;
     const aiBaseUrl = settings?.ai?.baseUrl ?? '';
+    const aiOpenAIExtraBodyParams = settings?.ai?.openAIExtraBodyParams;
     const aiReasoningEffort = (settings?.ai?.reasoningEffort ?? DEFAULT_REASONING_EFFORT) as AIReasoningEffort;
     const aiThinkingBudget = settings?.ai?.thinkingBudget ?? aiDefaults.thinkingBudget ?? DEFAULT_GEMINI_THINKING_BUDGET;
     const anthropicThinkingEnabled = aiProvider === 'anthropic' && aiThinkingBudget > 0;
@@ -325,6 +326,7 @@ export function useAiSettings({ isTauri, settings, updateSettings, showSaved, en
         aiProvider,
         aiModel,
         aiBaseUrl,
+        aiOpenAIExtraBodyParams,
         aiModelOptions,
         aiCopilotModel,
         aiCopilotOptions,

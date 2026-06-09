@@ -1,5 +1,5 @@
 import type { AppData } from './types';
-import type { AIProviderConfig, AIProviderId } from './ai/types';
+import type { AIProviderConfig, AIProviderId, AIRequestExtraBodyParams } from './ai/types';
 import { DEFAULT_ANTHROPIC_THINKING_BUDGET, DEFAULT_GEMINI_THINKING_BUDGET, DEFAULT_REASONING_EFFORT, getDefaultAIConfig, getDefaultCopilotModel } from './ai/catalog';
 
 const AI_KEY_PREFIX = 'mindwtr-ai-key';
@@ -59,11 +59,50 @@ const resolveOpenAIEndpoint = (baseUrl?: string): string | undefined => {
     return `${normalized}${OPENAI_CHAT_COMPLETIONS_PATH}`;
 };
 
+const isObjectRecord = (value: unknown): value is Record<string, unknown> => (
+    typeof value === 'object' && value !== null && !Array.isArray(value)
+);
+
+const normalizeOpenAIExtraBodyParams = (
+    value: unknown
+): AIRequestExtraBodyParams | undefined => {
+    if (!isObjectRecord(value)) return undefined;
+    return Object.keys(value).length > 0
+        ? value as AIRequestExtraBodyParams
+        : undefined;
+};
+
+export const formatOpenAIExtraBodyParams = (value: unknown): string => {
+    const params = normalizeOpenAIExtraBodyParams(value);
+    return params ? JSON.stringify(params, null, 2) : '';
+};
+
+export type OpenAIExtraBodyParamsParseResult =
+    | { ok: true; value?: AIRequestExtraBodyParams }
+    | { ok: false; message: string };
+
+export const parseOpenAIExtraBodyParamsInput = (input: string): OpenAIExtraBodyParamsParseResult => {
+    const trimmed = input.trim();
+    if (!trimmed) return { ok: true };
+    try {
+        const parsed = JSON.parse(trimmed) as unknown;
+        if (!isObjectRecord(parsed)) {
+            return { ok: false, message: 'Enter a JSON object, for example { "thinking": { "type": "disabled" } }.' };
+        }
+        return { ok: true, value: normalizeOpenAIExtraBodyParams(parsed) };
+    } catch {
+        return { ok: false, message: 'Enter valid JSON.' };
+    }
+};
+
 export function buildAIConfig(settings: AppData['settings'], apiKey: string): AIProviderConfig {
     const provider = (settings.ai?.provider ?? 'openai') as AIProviderId;
     const defaults = getDefaultAIConfig(provider);
     const endpoint = provider === 'openai'
         ? resolveOpenAIEndpoint(settings.ai?.baseUrl)
+        : undefined;
+    const extraBodyParams = provider === 'openai'
+        ? normalizeOpenAIExtraBodyParams(settings.ai?.openAIExtraBodyParams)
         : undefined;
     return {
         provider,
@@ -72,6 +111,7 @@ export function buildAIConfig(settings: AppData['settings'], apiKey: string): AI
         reasoningEffort: settings.ai?.reasoningEffort ?? DEFAULT_REASONING_EFFORT,
         thinkingBudget: settings.ai?.thinkingBudget ?? defaults.thinkingBudget,
         ...(endpoint ? { endpoint } : {}),
+        ...(extraBodyParams ? { extraBodyParams } : {}),
     };
 }
 
@@ -79,6 +119,9 @@ export function buildCopilotConfig(settings: AppData['settings'], apiKey: string
     const provider = (settings.ai?.provider ?? 'openai') as AIProviderId;
     const endpoint = provider === 'openai'
         ? resolveOpenAIEndpoint(settings.ai?.baseUrl)
+        : undefined;
+    const extraBodyParams = provider === 'openai'
+        ? normalizeOpenAIExtraBodyParams(settings.ai?.openAIExtraBodyParams)
         : undefined;
     return {
         provider,
@@ -88,5 +131,6 @@ export function buildCopilotConfig(settings: AppData['settings'], apiKey: string
         ...(provider === 'gemini' ? { thinkingBudget: DEFAULT_GEMINI_THINKING_BUDGET } : {}),
         ...(provider === 'anthropic' ? { thinkingBudget: DEFAULT_ANTHROPIC_THINKING_BUDGET } : {}),
         ...(endpoint ? { endpoint } : {}),
+        ...(extraBodyParams ? { extraBodyParams } : {}),
     };
 }

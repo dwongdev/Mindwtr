@@ -251,6 +251,9 @@ const sanitizeAiSettings = (
     if (next.model !== undefined && !isNonEmptyString(next.model)) {
         next.model = fallback?.model;
     }
+    if (next.openAIExtraBodyParams !== undefined && !isObjectRecord(next.openAIExtraBodyParams)) {
+        next.openAIExtraBodyParams = fallback?.openAIExtraBodyParams;
+    }
     if (next.reasoningEffort !== undefined && !AI_REASONING_EFFORT_VALUE_SET.has(next.reasoningEffort)) {
         next.reasoningEffort = fallback?.reasoningEffort;
     }
