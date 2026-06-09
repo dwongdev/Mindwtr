@@ -665,7 +665,8 @@ export const createAttachmentLocalMigrationLimiter = (
 
     migrationAttempts += 1;
     const migrated = await ensureAttachmentStoredLocally(attachment);
-    return { migrated, skipped: !migrated };
+    // If migration failed but the original URI is still readable, the backend can upload from it.
+    return { migrated, skipped: false };
   };
 };
 

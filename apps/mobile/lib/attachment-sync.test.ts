@@ -696,6 +696,70 @@ describe('attachment sync', () => {
     );
   });
 
+  it('uploads cloud attachments from the original URI when local cache migration fails', async () => {
+    const originalUri = 'file://document/audio-captures/audio.m4a';
+    const managedUri = 'file://document/attachments/audio.m4a';
+    fileSystemMock.getInfoAsync.mockImplementation(async (uri: string) => {
+      if (uri === managedUri) return { exists: false };
+      if (uri === originalUri) return { exists: true, size: 3 };
+      return { exists: false };
+    });
+    fileSystemMock.copyAsync.mockRejectedValueOnce(new Error('copy failed'));
+    fileSystemMock.readAsStringAsync.mockResolvedValue('AQID');
+    const core = await import('@mindwtr/core');
+    const appData: AppData = {
+      tasks: [
+        {
+          id: 'task-1',
+          title: 'Task',
+          status: 'inbox',
+          tags: [],
+          contexts: [],
+          attachments: [
+            {
+              id: 'audio',
+              kind: 'file',
+              title: 'Audio Note',
+              uri: originalUri,
+              mimeType: 'audio/mp4',
+              size: 3,
+              localStatus: 'available',
+              createdAt: '2026-06-09T14:26:59.059Z',
+              updatedAt: '2026-06-09T14:26:59.059Z',
+            },
+          ],
+          createdAt: '2026-06-09T14:26:59.059Z',
+          updatedAt: '2026-06-09T14:26:59.059Z',
+        },
+      ],
+      projects: [],
+      sections: [],
+      areas: [],
+      settings: {},
+    };
+
+    const { syncCloudAttachments } = await import('./attachment-sync');
+
+    const didMutate = await syncCloudAttachments(
+      appData,
+      { url: 'https://cloud.example/v1/data', token: 'token' },
+      'https://cloud.example/v1'
+    );
+
+    expect(didMutate).toBe(true);
+    expect(core.cloudPutFile).toHaveBeenCalledWith(
+      'https://cloud.example/v1/attachments/audio.m4a',
+      expect.any(ArrayBuffer),
+      'audio/mp4',
+      { token: 'token' }
+    );
+    expect(appData.tasks[0].attachments?.[0]).toMatchObject({
+      cloudKey: 'attachments/audio.m4a',
+      localStatus: 'available',
+      uri: originalUri,
+    });
+  });
+
   it('cleans up a cloud upload when local data changes before metadata is stamped', async () => {
     fileSystemMock.getInfoAsync.mockResolvedValue({ exists: true, size: 3 });
     fileSystemMock.readAsStringAsync.mockResolvedValue('AQID');
