@@ -1,7 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform } from 'react-native';
 import Constants from 'expo-constants';
-import { AppData, Attachment, MergeStats, createSyncOrchestrator, runPreSyncAttachmentPhase, useTaskStore, webdavGetJson, webdavHeadFile, webdavPutJson, cloudGetJson, cloudHeadJson, cloudPutJson, flushPendingSave, performSyncCycle, findOrphanedAttachments, removeOrphanedAttachmentsFromData, removeAttachmentsByIdFromData, webdavDeleteFile, cloudDeleteFile, CLOCK_SKEW_THRESHOLD_MS, appendSyncHistory, withRetry, isRetryableWebdavReadError, isWebdavInvalidJsonError, normalizeWebdavUrl, normalizeCloudUrl, sanitizeAppDataForRemote, computeStableValueFingerprint, computeSyncPayloadFingerprint, areSyncPayloadsEqual, assertNoPendingAttachmentUploads, findPendingAttachmentUploads, hasPendingSyncSideEffects, injectExternalCalendars as injectExternalCalendarsForSync, persistExternalCalendars as persistExternalCalendarsForSync, mergeAppData, cloneAppData, LocalSyncAbort, getInMemoryAppDataSnapshot, shouldRunAttachmentCleanup, createAbortableFetch, normalizeCloudProvider as normalizeCoreCloudProvider, getErrorStatus, CLOUD_PROVIDER_DROPBOX, CLOUD_PROVIDER_SELF_HOSTED, type CloudProvider, type PendingAttachmentUpload, type PendingRemoteAttachmentDelete } from '@mindwtr/core';
+import { AppData, Attachment, MergeStats, createSyncOrchestrator, runPreSyncAttachmentPhase, useTaskStore, webdavGetJson, webdavHeadFile, webdavPutJson, cloudGetJson, cloudHeadJson, cloudPutJson, flushPendingSave, performSyncCycle, findOrphanedAttachments, removeOrphanedAttachmentsFromData, removeAttachmentsByIdFromData, webdavDeleteFile, cloudDeleteFile, CLOCK_SKEW_THRESHOLD_MS, appendSyncHistory, withRetry, isRetryableWebdavReadError, isWebdavInvalidJsonError, normalizeWebdavUrl, normalizeCloudUrl, sanitizeAppDataForRemote, computeStableValueFingerprint, computeSyncPayloadFingerprint, areSyncPayloadsEqual, assertNoPendingAttachmentUploads, buildConflictDiagnosticsLogExtra, buildPendingAttachmentUploadLogExtra, findPendingAttachmentUploads, hasPendingSyncSideEffects, injectExternalCalendars as injectExternalCalendarsForSync, persistExternalCalendars as persistExternalCalendarsForSync, mergeAppData, cloneAppData, LocalSyncAbort, getInMemoryAppDataSnapshot, shouldRunAttachmentCleanup, createAbortableFetch, normalizeCloudProvider as normalizeCoreCloudProvider, getErrorStatus, CLOUD_PROVIDER_DROPBOX, CLOUD_PROVIDER_SELF_HOSTED, type CloudProvider, type PendingAttachmentUpload, type PendingRemoteAttachmentDelete } from '@mindwtr/core';
 import { mobileStorage } from './storage-adapter';
 import { logInfo, logSyncError, logWarn, sanitizeLogMessage } from './app-log';
 import { readSyncFile, resolveSyncFileUri, writeSyncFile } from './storage-file';
@@ -86,50 +86,12 @@ const logSyncInfo = (message: string, extra?: Record<string, string>) => {
   void logInfo(message, { scope: 'sync', extra });
 };
 
-const buildPendingAttachmentUploadLogExtra = (backend: string, phase: string, pending: PendingAttachmentUpload[]): Record<string, string> => {
-  const sample = pending.slice(0, 3);
-  return {
-    backend,
-    phase,
-    pending: String(pending.length),
-    sample: sample.map((item) => `${item.ownerType}:${item.ownerId}:${item.attachmentId}`).join(', '),
-    uriSchemes: sample.map((item) => item.uriScheme || 'unknown').join(', '),
-    localStatuses: sample.map((item) => item.localStatus || 'unset').join(', '),
-    titles: sample.map((item) => sanitizeLogMessage(item.title || '')).join(' | '),
-  };
-};
-
 const logPendingAttachmentUploads = (message: string, backend: string, phase: string, pending: PendingAttachmentUpload[]): void => {
   if (pending.length === 0) return;
   void logWarn(message, {
     scope: 'sync',
-    extra: buildPendingAttachmentUploadLogExtra(backend, phase, pending),
+    extra: buildPendingAttachmentUploadLogExtra(backend, phase, pending, sanitizeLogMessage),
   });
-};
-
-const buildConflictDiagnosticsLogExtra = (stats: MergeStats): Record<string, string> => {
-  const reasonCountsByEntity = Object.fromEntries(
-    Object.entries({
-      tasks: stats.tasks.conflictReasonCounts ?? {},
-      projects: stats.projects.conflictReasonCounts ?? {},
-      sections: stats.sections.conflictReasonCounts ?? {},
-      areas: stats.areas.conflictReasonCounts ?? {},
-    }).filter(([, counts]) => Object.keys(counts).length > 0)
-  );
-  const conflictSamples = [
-    ...(stats.tasks.conflictSamples ?? []).map((sample) => ({ entity: 'task', ...sample })),
-    ...(stats.projects.conflictSamples ?? []).map((sample) => ({ entity: 'project', ...sample })),
-    ...(stats.sections.conflictSamples ?? []).map((sample) => ({ entity: 'section', ...sample })),
-    ...(stats.areas.conflictSamples ?? []).map((sample) => ({ entity: 'area', ...sample })),
-  ].slice(0, 6);
-  const extra: Record<string, string> = {};
-  if (Object.keys(reasonCountsByEntity).length > 0) {
-    extra.conflictReasonCounts = JSON.stringify(reasonCountsByEntity);
-  }
-  if (conflictSamples.length > 0) {
-    extra.conflictSamples = JSON.stringify(conflictSamples);
-  }
-  return extra;
 };
 
 const sanitizeConfigValue = (value: unknown): string | null => {

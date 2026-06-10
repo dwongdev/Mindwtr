@@ -227,6 +227,11 @@ export type {
 } from './sync-helpers';
 
 export {
+    buildConflictDiagnosticsLogExtra,
+    buildPendingAttachmentUploadLogExtra,
+} from './sync-log-utils';
+
+export {
     CLOUD_PROVIDER_DROPBOX,
     CLOUD_PROVIDER_SELF_HOSTED,
     createAbortableFetch,
