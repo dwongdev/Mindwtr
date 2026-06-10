@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { fireEvent, render, waitFor } from '@testing-library/react';
+import { createEvent, fireEvent, render, waitFor } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import type { Project } from '@mindwtr/core';
 
@@ -104,6 +104,44 @@ describe('TaskInput autocomplete', () => {
             expect(input.selectionStart).toBe('@work '.length);
             expect(input.selectionEnd).toBe('@work '.length);
         });
+    });
+
+    it('accepts a hotkey suggestion against the live input value during rapid typing', async () => {
+        const onChange = vi.fn();
+        const { getByRole } = render(
+            <TaskInput
+                value="@wo"
+                onChange={onChange}
+                projects={[]}
+                contexts={['@work']}
+            />
+        );
+        const input = getByRole('combobox') as HTMLInputElement;
+        input.focus();
+        input.setSelectionRange(input.value.length, input.value.length);
+        fireEvent.click(input);
+
+        input.value = '@wo today';
+        input.setSelectionRange('@wo'.length, '@wo'.length);
+        fireEvent.keyDown(input, { key: 'Enter' });
+
+        await waitFor(() => {
+            expect(onChange).toHaveBeenLastCalledWith('@work today');
+        });
+    });
+
+    it('does not accept a hotkey suggestion while an IME composition is active', () => {
+        const { getByRole } = render(<TaskInputHarness initialValue="@wo" contexts={['@work']} />);
+        const input = getByRole('combobox') as HTMLInputElement;
+        input.focus();
+        input.setSelectionRange(input.value.length, input.value.length);
+        fireEvent.click(input);
+
+        const enter = createEvent.keyDown(input, { key: 'Enter' });
+        Object.defineProperty(enter, 'isComposing', { value: true });
+        fireEvent(input, enter);
+
+        expect(input.value).toBe('@wo');
     });
 
     it('undoes task title edits with Ctrl+Z', async () => {

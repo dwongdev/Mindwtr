@@ -17,6 +17,12 @@ interface InputSelection {
     end: number;
 }
 
+type ActiveTrigger = {
+    text: string;
+    trigger: TriggerState;
+    selection: InputSelection;
+};
+
 type Option =
     | { kind: 'create'; label: string; value: string }
     | { kind: 'project'; label: string; value: string }
@@ -176,6 +182,16 @@ export function TaskInput({
         };
     };
 
+    const resolveInputSelection = (input: HTMLInputElement | null): InputSelection => {
+        if (!input) return selectionRef.current;
+        const selection = {
+            start: input.selectionStart ?? input.value.length,
+            end: input.selectionEnd ?? input.value.length,
+        };
+        selectionRef.current = selection;
+        return selection;
+    };
+
     useEffect(() => {
         const isFocused = typeof document !== 'undefined' && mergedRef.current === document.activeElement;
         if (!isFocused && value !== valueRef.current) {
@@ -195,8 +211,27 @@ export function TaskInput({
         setSelectedIndex(0);
     };
 
+    const resolveActiveTrigger = (): ActiveTrigger | null => {
+        const input = mergedRef.current;
+        const text = input?.value ?? valueRef.current;
+        const selection = resolveInputSelection(input);
+        const nextTrigger = getTrigger(text, selection.start);
+        if (nextTrigger) {
+            return { text, trigger: nextTrigger, selection };
+        }
+        if (trigger) {
+            return { text, trigger, selection };
+        }
+        return null;
+    };
+
     const applyOption = async (option: Option) => {
-        if (!trigger) return;
+        const active = resolveActiveTrigger();
+        if (!active) return;
+        const activeTrigger = active.trigger;
+        const expectedTriggerType = option.kind === 'create' ? 'project' : option.kind;
+        if (activeTrigger.type !== expectedTriggerType) return;
+
         let tokenValue = option.value;
         if (option.kind === 'create' && onCreateProject) {
             const title = option.value.trim();
@@ -204,21 +239,21 @@ export function TaskInput({
                 await onCreateProject(title);
             }
         }
-        if (trigger.type === 'project') {
+        if (activeTrigger.type === 'project') {
             tokenValue = `+${tokenValue}`;
-        } else if (trigger.type === 'area') {
+        } else if (activeTrigger.type === 'area') {
             tokenValue = `!${tokenValue}`;
-        } else if (trigger.type === 'tag') {
+        } else if (activeTrigger.type === 'tag') {
             tokenValue = tokenValue.startsWith('#') ? tokenValue : `#${tokenValue}`;
         } else {
             tokenValue = tokenValue.startsWith('@') ? tokenValue : `@${tokenValue}`;
         }
 
-        const before = value.slice(0, trigger.start);
-        const after = value.slice(trigger.end);
+        const before = active.text.slice(0, activeTrigger.start);
+        const after = active.text.slice(activeTrigger.end);
         const needsSpace = after.length === 0 || !/^\s/.test(after);
         const nextValue = `${before}${tokenValue}${needsSpace ? ' ' : ''}${after}`;
-        pushUndoEntry(valueRef.current, selectionRef.current);
+        pushUndoEntry(active.text, active.selection);
         valueRef.current = nextValue;
         onChange(nextValue);
         closeTrigger();
@@ -248,6 +283,10 @@ export function TaskInput({
                 });
                 return;
             }
+        }
+        if (event.nativeEvent.isComposing || event.key === 'Process') {
+            onKeyDown?.(event);
+            return;
         }
         if (trigger && options.length > 0) {
             if (event.key === 'ArrowDown') {

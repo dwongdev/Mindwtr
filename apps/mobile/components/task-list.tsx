@@ -248,6 +248,8 @@ function TaskListComponent({
   const [inputSelection, setInputSelection] = useState<{ start: number; end: number }>({ start: 0, end: 0 });
   const [typeaheadOpen, setTypeaheadOpen] = useState(false);
   const [typeaheadIndex, setTypeaheadIndex] = useState(0);
+  const newTaskTitleRef = useRef(newTaskTitle);
+  const inputSelectionRef = useRef(inputSelection);
   const highlightTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const copilotAbortRef = useRef<AbortController | null>(null);
   const copilotRequestIdRef = useRef(0);
@@ -1191,7 +1193,10 @@ function TaskListComponent({
       : null;
     if (resultObject?.success === false) return;
     const createdTaskId = typeof resultObject?.id === 'string' ? resultObject.id : undefined;
+    newTaskTitleRef.current = '';
+    inputSelectionRef.current = { start: 0, end: 0 };
     setNewTaskTitle('');
+    setInputSelection({ start: 0, end: 0 });
     setTypeaheadOpen(false);
     setCopilotSuggestion(null);
     setCopilotApplied(false);
@@ -1212,7 +1217,13 @@ function TaskListComponent({
   };
 
   const applyTypeaheadOption = useCallback(async (option: Option) => {
-    if (!trigger) return;
+    const currentTitle = newTaskTitleRef.current;
+    const currentSelection = inputSelectionRef.current;
+    const activeTrigger = getTrigger(currentTitle, currentSelection.start ?? currentTitle.length) ?? trigger;
+    if (!activeTrigger) return;
+    const expectedTriggerType = option.kind === 'create' ? 'project' : option.kind;
+    if (activeTrigger.type !== expectedTriggerType) return;
+
     let tokenValue = option.value;
     if (option.kind === 'create') {
       const title = option.value.trim();
@@ -1224,21 +1235,24 @@ function TaskListComponent({
         );
       }
     }
-    if (trigger.type === 'project') {
+    if (activeTrigger.type === 'project') {
       tokenValue = `+${tokenValue}`;
     } else {
       tokenValue = tokenValue.startsWith('@') ? tokenValue : `@${tokenValue}`;
     }
-    const before = newTaskTitle.slice(0, trigger.start);
-    const after = newTaskTitle.slice(trigger.end);
+    const before = currentTitle.slice(0, activeTrigger.start);
+    const after = currentTitle.slice(activeTrigger.end);
     const needsSpace = after.length > 0 && !/^\s/.test(after);
     const nextValue = `${before}${tokenValue}${needsSpace ? ' ' : ''}${after}`;
+    newTaskTitleRef.current = nextValue;
     setNewTaskTitle(nextValue);
     const caret = before.length + tokenValue.length + (needsSpace ? 1 : 0);
-    setInputSelection({ start: caret, end: caret });
+    const nextSelection = { start: caret, end: caret };
+    inputSelectionRef.current = nextSelection;
+    setInputSelection(nextSelection);
     setTypeaheadOpen(false);
     setTypeaheadIndex(0);
-  }, [addProject, newTaskTitle, selectedAreaIdForNewTasks, trigger]);
+  }, [addProject, getTrigger, selectedAreaIdForNewTasks, trigger]);
 
   const handleEditTask = useCallback((task: Task) => {
     setEditingTask(task);
@@ -1620,16 +1634,21 @@ function TaskListComponent({
             setCopilotApplied(true);
           }}
           onChangeText={(text) => {
+            newTaskTitleRef.current = text;
             setNewTaskTitle(text);
-            setInputSelection({ start: text.length, end: text.length });
+            const nextSelection = { start: text.length, end: text.length };
+            inputSelectionRef.current = nextSelection;
+            setInputSelection(nextSelection);
             setCopilotApplied(false);
             setCopilotContext(undefined);
             setCopilotTags([]);
           }}
           onInputFocus={onQuickAddInputFocus}
           onSelectionChange={(selection) => {
+            inputSelectionRef.current = selection;
             setInputSelection(selection);
-            setTypeaheadOpen(Boolean(getTrigger(newTaskTitle, selection.start ?? newTaskTitle.length)));
+            const currentTitle = newTaskTitleRef.current;
+            setTypeaheadOpen(Boolean(getTrigger(currentTitle, selection.start ?? currentTitle.length)));
           }}
           projectId={projectId}
           setTypeaheadIndex={setTypeaheadIndex}

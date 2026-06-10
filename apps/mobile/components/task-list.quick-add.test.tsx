@@ -383,4 +383,24 @@ describe('TaskList project quick add', () => {
       tree.unmount();
     });
   });
+
+  it('applies typeahead suggestions using the latest quick-add text and selection', async () => {
+    let tree!: ReturnType<typeof create>;
+    await act(async () => {
+      tree = renderProjectList();
+    });
+
+    await act(async () => {
+      const quickAdd = latestQuickAddProps();
+      quickAdd.onChangeText('+La today');
+      quickAdd.onSelectionChange({ start: '+La'.length, end: '+La'.length });
+      await quickAdd.applyTypeaheadOption({ kind: 'project', label: 'Launch', value: 'Launch' });
+    });
+
+    expect(latestQuickAddProps().newTaskTitle).toBe('+Launch today');
+
+    act(() => {
+      tree.unmount();
+    });
+  });
 });
