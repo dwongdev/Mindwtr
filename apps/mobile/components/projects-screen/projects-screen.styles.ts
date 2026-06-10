@@ -109,45 +109,6 @@ export const projectsScreenStyles = StyleSheet.create({
     projectDetailRoot: {
         flex: 1,
     },
-    projectTaskPinnedToolbar: {
-        borderBottomWidth: 1,
-        paddingVertical: 8,
-    },
-    projectTaskPinnedToolbarContent: {
-        alignItems: 'center',
-        flexDirection: 'row',
-        flexWrap: 'wrap',
-        gap: 8,
-        paddingHorizontal: 12,
-    },
-    projectTaskPinnedButton: {
-        minHeight: 34,
-        maxWidth: 170,
-        borderRadius: 8,
-        borderWidth: 1,
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'center',
-        gap: 5,
-        paddingHorizontal: 10,
-    },
-    projectTaskPinnedButtonText: {
-        flexShrink: 1,
-        fontSize: 12,
-        fontWeight: '700',
-    },
-    projectTaskPinnedBadge: {
-        minWidth: 18,
-        height: 18,
-        borderRadius: 9,
-        alignItems: 'center',
-        justifyContent: 'center',
-        paddingHorizontal: 4,
-    },
-    projectTaskPinnedBadgeText: {
-        fontSize: 10,
-        fontWeight: '800',
-    },
     projectTaskFilterSection: {
         gap: 12,
         paddingBottom: 2,
@@ -788,6 +749,23 @@ export const projectsScreenStyles = StyleSheet.create({
         flexDirection: 'row',
         alignItems: 'center',
         gap: 6,
+        flexShrink: 0,
+    },
+    sectionManagerOrderButtons: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 4,
+    },
+    sectionManagerIconButton: {
+        width: 30,
+        height: 30,
+        borderRadius: 8,
+        borderWidth: 1,
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    sectionManagerIconButtonDisabled: {
+        opacity: 0.4,
     },
     areaManagerList: {
         paddingBottom: 8,

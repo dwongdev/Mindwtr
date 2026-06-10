@@ -70,6 +70,7 @@ type ProjectDetailModalProps = {
     onOpenTagPicker: () => void;
     onRemoveProjectAttachment: (id: string) => void;
     deleteSection: (id: string) => Promise<unknown> | unknown;
+    reorderSections: (projectId: string, orderedIds: string[]) => Promise<unknown> | unknown;
     onSetLinkInput: (value: string) => void;
     onSetLinkModalVisible: (visible: boolean) => void;
     onSetNotesExpanded: React.Dispatch<React.SetStateAction<boolean>>;
@@ -136,6 +137,7 @@ function ProjectSectionManagerModal({
     deleteSection,
     onClose,
     projectId,
+    reorderSections,
     sections,
     t,
     tc,
@@ -147,6 +149,7 @@ function ProjectSectionManagerModal({
     deleteSection: (id: string) => Promise<unknown> | unknown;
     onClose: () => void;
     projectId: string;
+    reorderSections: (projectId: string, orderedIds: string[]) => Promise<unknown> | unknown;
     sections: Section[];
     t: (key: string) => string;
     tc: ThemeColors;
@@ -163,12 +166,15 @@ function ProjectSectionManagerModal({
     const editLabel = tFallback(t, 'common.edit', 'Edit');
     const cancelLabel = tFallback(t, 'common.cancel', 'Cancel');
     const deleteLabel = tFallback(t, 'common.delete', 'Delete');
+    const moveUpLabel = tFallback(t, 'projects.moveUp', 'Move up');
+    const moveDownLabel = tFallback(t, 'projects.moveDown', 'Move down');
     const noneLabel = tFallback(t, 'common.none', 'None');
     const deleteConfirm = tFallback(
         t,
         'projects.deleteSectionConfirm',
         'Are you sure you want to delete this section?'
     );
+    const sectionReorderFailed = tFallback(t, 'projects.sectionReorderFailed', 'Failed to reorder sections.');
     const editing = sections.find((section) => section.id === editingSectionId);
     const showEditor = canManage && editingSectionId !== null;
 
@@ -229,6 +235,22 @@ function ProjectSectionManagerModal({
             ],
         );
     }, [canManage, cancelLabel, closeEditor, deleteConfirm, deleteLabel, deleteSection, editingSectionId, sectionTitle]);
+
+    const moveSection = React.useCallback((sectionId: string, offset: -1 | 1) => {
+        if (!canManage) return;
+        const currentIndex = sections.findIndex((section) => section.id === sectionId);
+        const nextIndex = currentIndex + offset;
+        if (currentIndex < 0 || nextIndex < 0 || nextIndex >= sections.length) return;
+
+        const nextIds = sections.map((section) => section.id);
+        const [moved] = nextIds.splice(currentIndex, 1);
+        if (!moved) return;
+        nextIds.splice(nextIndex, 0, moved);
+
+        void Promise.resolve(reorderSections(projectId, nextIds)).catch(() => {
+            Alert.alert(sectionTitle, sectionReorderFailed);
+        });
+    }, [canManage, projectId, reorderSections, sectionReorderFailed, sectionTitle, sections]);
 
     return (
         <Modal
@@ -321,41 +343,77 @@ function ProjectSectionManagerModal({
                             style={[styles.sectionManagerList, { borderColor: tc.border, backgroundColor: tc.inputBg }]}
                             contentContainerStyle={styles.sectionManagerListContent}
                         >
-                            {sections.map((section) => (
-                                <View
-                                    key={section.id}
-                                    style={[styles.sectionManagerRow, { borderBottomColor: tc.border }]}
-                                    testID={`project-section-row-${section.id}`}
-                                >
-                                    <View style={styles.sectionManagerRowTitleWrap}>
-                                        <Text style={[styles.sectionManagerRowTitle, { color: tc.text }]} numberOfLines={1}>
-                                            {section.title}
-                                        </Text>
-                                    </View>
-                                    {canManage ? (
-                                        <View style={styles.sectionManagerRowActions}>
-                                            <TouchableOpacity
-                                                accessibilityRole="button"
-                                                accessibilityLabel={`${editLabel}: ${section.title}`}
-                                                onPress={() => openEdit(section)}
-                                                style={[styles.smallButton, { borderColor: tc.border, backgroundColor: tc.cardBg }]}
-                                                testID={`project-section-edit-${section.id}`}
-                                            >
-                                                <Text style={[styles.smallButtonText, { color: tc.tint }]}>{editLabel}</Text>
-                                            </TouchableOpacity>
-                                            <TouchableOpacity
-                                                accessibilityRole="button"
-                                                accessibilityLabel={`${deleteLabel}: ${section.title}`}
-                                                onPress={() => confirmDeleteSection(section)}
-                                                style={[styles.smallButton, { borderColor: tc.border, backgroundColor: tc.cardBg }]}
-                                                testID={`project-section-delete-${section.id}`}
-                                            >
-                                                <Text style={[styles.smallButtonText, { color: tc.danger }]}>{deleteLabel}</Text>
-                                            </TouchableOpacity>
+                            {sections.map((section, index) => {
+                                const canMoveUp = index > 0;
+                                const canMoveDown = index < sections.length - 1;
+                                return (
+                                    <View
+                                        key={section.id}
+                                        style={[styles.sectionManagerRow, { borderBottomColor: tc.border }]}
+                                        testID={`project-section-row-${section.id}`}
+                                    >
+                                        <View style={styles.sectionManagerRowTitleWrap}>
+                                            <Text style={[styles.sectionManagerRowTitle, { color: tc.text }]} numberOfLines={1}>
+                                                {section.title}
+                                            </Text>
                                         </View>
-                                    ) : null}
-                                </View>
-                            ))}
+                                        {canManage ? (
+                                            <View style={styles.sectionManagerRowActions}>
+                                                <View style={styles.sectionManagerOrderButtons}>
+                                                    <TouchableOpacity
+                                                        accessibilityRole="button"
+                                                        accessibilityLabel={`${moveUpLabel}: ${section.title}`}
+                                                        accessibilityState={{ disabled: !canMoveUp }}
+                                                        disabled={!canMoveUp}
+                                                        onPress={() => moveSection(section.id, -1)}
+                                                        style={[
+                                                            styles.sectionManagerIconButton,
+                                                            { borderColor: tc.border, backgroundColor: tc.cardBg },
+                                                            !canMoveUp && styles.sectionManagerIconButtonDisabled,
+                                                        ]}
+                                                        testID={`project-section-move-up-${section.id}`}
+                                                    >
+                                                        <Ionicons name="chevron-up" size={16} color={tc.secondaryText} />
+                                                    </TouchableOpacity>
+                                                    <TouchableOpacity
+                                                        accessibilityRole="button"
+                                                        accessibilityLabel={`${moveDownLabel}: ${section.title}`}
+                                                        accessibilityState={{ disabled: !canMoveDown }}
+                                                        disabled={!canMoveDown}
+                                                        onPress={() => moveSection(section.id, 1)}
+                                                        style={[
+                                                            styles.sectionManagerIconButton,
+                                                            { borderColor: tc.border, backgroundColor: tc.cardBg },
+                                                            !canMoveDown && styles.sectionManagerIconButtonDisabled,
+                                                        ]}
+                                                        testID={`project-section-move-down-${section.id}`}
+                                                    >
+                                                        <Ionicons name="chevron-down" size={16} color={tc.secondaryText} />
+                                                    </TouchableOpacity>
+                                                </View>
+                                                <TouchableOpacity
+                                                    accessibilityRole="button"
+                                                    accessibilityLabel={`${editLabel}: ${section.title}`}
+                                                    onPress={() => openEdit(section)}
+                                                    style={[styles.smallButton, { borderColor: tc.border, backgroundColor: tc.cardBg }]}
+                                                    testID={`project-section-edit-${section.id}`}
+                                                >
+                                                    <Text style={[styles.smallButtonText, { color: tc.tint }]}>{editLabel}</Text>
+                                                </TouchableOpacity>
+                                                <TouchableOpacity
+                                                    accessibilityRole="button"
+                                                    accessibilityLabel={`${deleteLabel}: ${section.title}`}
+                                                    onPress={() => confirmDeleteSection(section)}
+                                                    style={[styles.smallButton, { borderColor: tc.border, backgroundColor: tc.cardBg }]}
+                                                    testID={`project-section-delete-${section.id}`}
+                                                >
+                                                    <Text style={[styles.smallButtonText, { color: tc.danger }]}>{deleteLabel}</Text>
+                                                </TouchableOpacity>
+                                            </View>
+                                        ) : null}
+                                    </View>
+                                );
+                            })}
                         </ScrollView>
                     )}
                 </View>
@@ -451,6 +509,7 @@ export function ProjectDetailModal({
     onOpenTagPicker,
     onRemoveProjectAttachment,
     deleteSection,
+    reorderSections,
     onSetLinkInput,
     onSetLinkModalVisible,
     onSetNotesExpanded,
@@ -491,9 +550,6 @@ export function ProjectDetailModal({
 }: ProjectDetailModalProps) {
     const [projectTaskReorderMode, setProjectTaskReorderMode] = React.useState(false);
     const [sectionManagerVisible, setSectionManagerVisible] = React.useState(false);
-    const [projectTaskFilterOpenSignal, setProjectTaskFilterOpenSignal] = React.useState(0);
-    const [projectQuickAddFocusSignal, setProjectQuickAddFocusSignal] = React.useState(0);
-    const [projectTaskListOffsetY, setProjectTaskListOffsetY] = React.useState(0);
     const projectDetailScrollRef = React.useRef<ScrollView | null>(null);
     const projectDetailScrollOffsetRef = React.useRef(0);
     const [projectDetailScrollWindow, setProjectDetailScrollWindow] = React.useState({
@@ -667,21 +723,8 @@ export function ProjectDetailModal({
         </View>
     ) : null;
 
-    const handlePinnedProjectAddTask = React.useCallback(() => {
-        projectDetailScrollRef.current?.scrollTo({
-            y: Math.max(0, projectTaskListOffsetY - 8),
-            animated: true,
-        });
-        setProjectQuickAddFocusSignal((value) => value + 1);
-    }, [projectTaskListOffsetY]);
-
-    const handlePinnedProjectFilters = React.useCallback(() => {
-        setProjectTaskFilterOpenSignal((value) => value + 1);
-    }, []);
-
     const resetProjectDetailVirtualWindow = React.useCallback(() => {
         projectDetailScrollOffsetRef.current = 0;
-        setProjectTaskListOffsetY(0);
         setProjectDetailScrollWindow((current) => {
             if (current.offsetY === 0 && current.viewportHeight === 0) {
                 return current;
@@ -830,126 +873,24 @@ export function ProjectDetailModal({
                                         returnKeyType="done"
                                     />
                                 </View>
-                                <View style={[styles.projectTaskPinnedToolbar, { backgroundColor: tc.cardBg, borderBottomColor: tc.border }]}>
-                                    <View style={styles.projectTaskPinnedToolbarContent}>
-                                        {taskListOptions.allowAdd ? (
-                                            <TouchableOpacity
-                                                accessibilityRole="button"
-                                                accessibilityLabel={t('projects.addTask')}
-                                                onPress={handlePinnedProjectAddTask}
-                                                style={[styles.projectTaskPinnedButton, { backgroundColor: tc.tint, borderColor: tc.tint }]}
-                                            >
-                                                <Ionicons name="add" size={16} color={tc.onTint} />
-                                                <Text style={[styles.projectTaskPinnedButtonText, { color: tc.onTint }]} numberOfLines={1}>
-                                                    {t('projects.addTask')}
-                                                </Text>
-                                            </TouchableOpacity>
-                                        ) : null}
-                                        <TouchableOpacity
-                                            accessibilityRole="button"
-                                            accessibilityLabel={tFallback(t, 'filters.label', 'Filters')}
-                                            onPress={handlePinnedProjectFilters}
-                                            style={[styles.projectTaskPinnedButton, { backgroundColor: tc.filterBg, borderColor: projectTaskFilterActiveCount > 0 ? tc.tint : tc.border }]}
-                                        >
-                                            <Ionicons name="options-outline" size={16} color={projectTaskFilterActiveCount > 0 ? tc.tint : tc.secondaryText} />
-                                            <Text style={[styles.projectTaskPinnedButtonText, { color: projectTaskFilterActiveCount > 0 ? tc.tint : tc.text }]} numberOfLines={1}>
-                                                {tFallback(t, 'filters.label', 'Filters')}
-                                            </Text>
-                                            {projectTaskFilterActiveCount > 0 ? (
-                                                <View style={[styles.projectTaskPinnedBadge, { backgroundColor: tc.tint }]}>
-                                                    <Text style={[styles.projectTaskPinnedBadgeText, { color: tc.onTint }]}>
-                                                        {projectTaskFilterActiveCount}
-                                                    </Text>
-                                                </View>
-                                            ) : null}
-                                        </TouchableOpacity>
-                                        {(['default', 'due'] as const).map((option) => {
-                                            const selected = projectTaskSortBy === option;
-                                            const label = option === 'default'
-                                                ? tFallback(t, 'sort.default', 'Default')
-                                                : tFallback(t, 'sort.due', 'Due date');
-                                            return (
-                                                <TouchableOpacity
-                                                    key={option}
-                                                    accessibilityRole="button"
-                                                    accessibilityState={{ selected }}
-                                                    onPress={() => onProjectTaskSortByChange(option)}
-                                                    style={[
-                                                        styles.projectTaskPinnedButton,
-                                                        {
-                                                            backgroundColor: selected ? tc.tint : tc.filterBg,
-                                                            borderColor: selected ? tc.tint : tc.border,
-                                                        },
-                                                    ]}
-                                                >
-                                                    <Text style={[styles.projectTaskPinnedButtonText, { color: selected ? tc.onTint : tc.text }]} numberOfLines={1}>
-                                                        {label}
-                                                    </Text>
-                                                </TouchableOpacity>
-                                            );
-                                        })}
-                                        {selectedProject.status !== 'archived' ? (
-                                            <TouchableOpacity
-                                                accessibilityRole="switch"
-                                                accessibilityState={{ checked: showCompletedTasks }}
-                                                accessibilityLabel={showCompletedLabel}
-                                                onPress={onToggleShowCompletedTasks}
-                                                style={[
-                                                    styles.projectTaskPinnedButton,
-                                                    {
-                                                        backgroundColor: showCompletedTasks ? `${tc.tint}20` : tc.filterBg,
-                                                        borderColor: showCompletedTasks ? tc.tint : tc.border,
-                                                    },
-                                                ]}
-                                            >
-                                                <Ionicons name={showCompletedTasks ? 'checkmark-circle' : 'checkmark-circle-outline'} size={16} color={showCompletedTasks ? tc.tint : tc.secondaryText} />
-                                                <Text style={[styles.projectTaskPinnedButtonText, { color: showCompletedTasks ? tc.tint : tc.text }]} numberOfLines={1}>
-                                                    {showCompletedLabel}
-                                                </Text>
-                                            </TouchableOpacity>
-                                        ) : null}
-                                        {taskListOptions.enableProjectReorder ? (
-                                            <TouchableOpacity
-                                                accessibilityRole="button"
-                                                accessibilityState={{ selected: projectTaskReorderMode }}
-                                                accessibilityLabel={projectTaskReorderMode
-                                                    ? t('common.done')
-                                                    : tFallback(t, 'projects.reorderTasks', 'Order')}
-                                                onPress={() => setProjectTaskReorderMode((value) => !value)}
-                                                style={[
-                                                    styles.projectTaskPinnedButton,
-                                                    {
-                                                        backgroundColor: projectTaskReorderMode ? tc.tint : tc.filterBg,
-                                                        borderColor: projectTaskReorderMode ? tc.tint : tc.border,
-                                                    },
-                                                ]}
-                                            >
-                                                <Ionicons name="reorder-three-outline" size={18} color={projectTaskReorderMode ? tc.onTint : tc.secondaryText} />
-                                                <Text style={[styles.projectTaskPinnedButtonText, { color: projectTaskReorderMode ? tc.onTint : tc.text }]} numberOfLines={1}>
-                                                    {projectTaskReorderMode ? t('common.done') : tFallback(t, 'projects.reorderTasks', 'Order')}
-                                                </Text>
-                                            </TouchableOpacity>
-                                        ) : null}
-                                    </View>
-                                </View>
                                 <ProjectDetailScrollFrame
                                     backgroundColor={tc.bg}
                                     keyboardBottomInset={projectDetailKeyboardBottomInset}
-                                onScroll={(event) => {
-                                    const offsetY = event.nativeEvent.contentOffset.y;
-                                    const viewportHeight = event.nativeEvent.layoutMeasurement?.height
-                                        ?? projectDetailScrollWindow.viewportHeight;
-                                    projectDetailScrollOffsetRef.current = offsetY;
-                                    setProjectDetailScrollWindow((current) => {
-                                        if (
-                                            Math.abs(current.offsetY - offsetY) < 32
-                                            && Math.abs(current.viewportHeight - viewportHeight) < 1
-                                        ) {
-                                            return current;
-                                        }
-                                        return { offsetY, viewportHeight };
-                                    });
-                                }}
+                                    onScroll={(event) => {
+                                        const offsetY = event.nativeEvent.contentOffset.y;
+                                        const viewportHeight = event.nativeEvent.layoutMeasurement?.height
+                                            ?? projectDetailScrollWindow.viewportHeight;
+                                        projectDetailScrollOffsetRef.current = offsetY;
+                                        setProjectDetailScrollWindow((current) => {
+                                            if (
+                                                Math.abs(current.offsetY - offsetY) < 32
+                                                && Math.abs(current.viewportHeight - viewportHeight) < 1
+                                            ) {
+                                                return current;
+                                            }
+                                            return { offsetY, viewportHeight };
+                                        });
+                                    }}
                                     reorderMode={projectTaskReorderMode}
                                     scrollRef={projectDetailScrollRef}
                                 >
@@ -1432,11 +1373,7 @@ export function ProjectDetailModal({
                                     </>
                                 )}
 
-                                <View
-                                    onLayout={(event) => {
-                                        setProjectTaskListOffsetY(event.nativeEvent.layout.y);
-                                    }}
-                                >
+                                <View>
                                     <TaskList
                                         statusFilter="all"
                                         title={selectedProject.title}
@@ -1454,8 +1391,6 @@ export function ProjectDetailModal({
                                             viewportHeight: projectDetailScrollWindow.viewportHeight,
                                         }}
                                         enableBulkActions
-                                        externalFilterOpenSignal={projectTaskFilterOpenSignal}
-                                        externalQuickAddFocusSignal={projectQuickAddFocusSignal}
                                         showSort={false}
                                         enableProjectReorder={taskListOptions.enableProjectReorder}
                                         projectSortBy={projectTaskSortBy}
@@ -1476,6 +1411,7 @@ export function ProjectDetailModal({
                                     deleteSection={deleteSection}
                                     onClose={() => setSectionManagerVisible(false)}
                                     projectId={selectedProject.id}
+                                    reorderSections={reorderSections}
                                     sections={selectedProjectSections}
                                     t={t}
                                     tc={tc}

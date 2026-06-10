@@ -158,6 +158,7 @@ const createProjectDetailModalProps = (overrides: Partial<React.ComponentProps<t
     onOpenTagPicker: vi.fn(),
     onRemoveProjectAttachment: vi.fn(),
     deleteSection: vi.fn(),
+    reorderSections: vi.fn(),
     onSetLinkInput: vi.fn(),
     onSetLinkModalVisible: vi.fn(),
     onSetNotesExpanded: vi.fn(),
@@ -218,6 +219,8 @@ const createProjectDetailModalProps = (overrides: Partial<React.ComponentProps<t
         'projects.addSection': 'Add Section',
         'projects.deleteSectionConfirm': 'Are you sure you want to delete this section?',
         'projects.duplicate': 'Duplicate',
+        'projects.moveDown': 'Move down',
+        'projects.moveUp': 'Move up',
         'projects.notesPlaceholder': 'Notes',
         'projects.noArea': 'No Area',
         'projects.reactivate': 'Reactivate',
@@ -370,6 +373,30 @@ describe('ProjectDetailModal section management', () => {
             expect.any(Array),
         );
         expect(deleteSection).toHaveBeenCalledWith('section-1');
+    });
+
+    it('reorders sections from project details', async () => {
+        const reorderSections = vi.fn().mockResolvedValue(undefined);
+        let tree!: ReturnType<typeof create>;
+
+        await act(async () => {
+            tree = create(<ProjectDetailModal {...createProjectDetailModalProps({
+                reorderSections,
+                selectedProjectSections: [
+                    { ...section('section-1', 'Planning'), order: 0 },
+                    { ...section('section-2', 'Speaking'), order: 1 },
+                ],
+            })} />);
+        });
+
+        await act(async () => {
+            tree.root.findByProps({ testID: 'project-sections-button' }).props.onPress();
+        });
+        await act(async () => {
+            tree.root.findByProps({ testID: 'project-section-move-down-section-1' }).props.onPress();
+        });
+
+        expect(reorderSections).toHaveBeenCalledWith('project-1', ['section-2', 'section-1']);
     });
 });
 

@@ -57,6 +57,7 @@ export default function ProjectsScreen() {
     addSection,
     updateSection,
     deleteSection,
+    reorderSections,
     toggleProjectFocus,
     addArea,
     updateArea,
@@ -78,6 +79,7 @@ export default function ProjectsScreen() {
     addSection: state.addSection,
     updateSection: state.updateSection,
     deleteSection: state.deleteSection,
+    reorderSections: state.reorderSections,
     toggleProjectFocus: state.toggleProjectFocus,
     addArea: state.addArea,
     updateArea: state.updateArea,
@@ -786,6 +788,7 @@ export default function ProjectsScreen() {
         onOpenTagPicker={openTagPicker}
         onRemoveProjectAttachment={removeProjectAttachment}
         deleteSection={deleteSection}
+        reorderSections={reorderSections}
         onSetLinkInput={setLinkInput}
         onSetLinkModalVisible={setLinkModalVisible}
         onSetNotesExpanded={setNotesExpanded}
