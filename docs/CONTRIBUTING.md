@@ -253,6 +253,7 @@ When changing docs:
 - Prefer concrete examples over vague guidance
 - Validate links
 - Update both English and Chinese docs when the content is mirrored
+- Keep `README.md` and `README_zh.md` heading structure aligned; CI runs `bun run docs:check-readme`
 - Prefer updating `wiki/` when the content is part of the public user/developer wiki
 
 Useful references:

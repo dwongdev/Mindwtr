@@ -267,6 +267,7 @@ Delete-vs-live conflicts use the **last operation time**, not just the raw `upda
 - For deleted items, Mindwtr compares `deletedAt` against the live item's latest update.
 - If the delete and live edit are more than 30 seconds apart, the newer operation wins.
 - Inside that 30-second ambiguity window, a higher revision number still wins when available. Otherwise, Mindwtr preserves the live item instead of eagerly letting the tombstone win.
+- Practical effect: if you delete a task on one device within about 30 seconds of editing it on another device, the edited live task may reappear after sync. Delete it again after the devices have synced if you meant to remove it.
 
 Clock-skewed future timestamps are clamped during merge safety checks so a bad device clock does not dominate forever. If both sides are clamped into the future, Mindwtr still preserves their relative ordering instead of treating them as a false tie.
 
