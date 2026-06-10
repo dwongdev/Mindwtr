@@ -253,6 +253,78 @@ describe('desktop sync-service runtime', () => {
         expect(storeStateRef.current.setError).not.toHaveBeenCalled();
     });
 
+    it('clears the pending remote marker when local edits abort after remote write succeeds', async () => {
+        const syncServiceModule = await syncServiceModulePromise;
+        const pendingAt = '2026-01-01T00:00:00.000Z';
+        invokeMock.mockImplementation(async (command: string, args?: Record<string, unknown>) => {
+            if (command === 'get_sync_backend') return 'file';
+            if (command === 'get_sync_path') return '/sync/data.json';
+            if (command === 'create_data_snapshot') return undefined;
+            if (command === 'get_data') return structuredClone(localData);
+            if (command === 'save_data') return undefined;
+            if (command === 'write_sync_file') return undefined;
+            throw new Error(`Unexpected command: ${command} ${JSON.stringify(args)}`);
+        });
+        const syncData: AppData = {
+            ...structuredClone(localData),
+            tasks: [{
+                ...localData.tasks[0],
+                attachments: [],
+            }],
+        };
+        const editedAfterRemote: AppData = {
+            ...structuredClone(syncData),
+            tasks: [{
+                ...syncData.tasks[0],
+                title: 'Edited after remote write',
+            }],
+            settings: {
+                pendingRemoteWriteAt: pendingAt,
+            },
+        };
+        performSyncCycleMock.mockImplementation(async (io: {
+            writeLocal: (data: AppData) => Promise<void>;
+            writeRemote: (data: AppData) => Promise<void>;
+            clearPendingRemoteWriteAfterLocalAbort?: (pendingAt: string) => Promise<void>;
+        }) => {
+            const pendingData: AppData = {
+                ...structuredClone(syncData),
+                settings: {
+                    pendingRemoteWriteAt: pendingAt,
+                },
+            };
+            await io.writeLocal(pendingData);
+            await io.writeRemote({
+                ...pendingData,
+                settings: {},
+            });
+            storeStateRef.current = {
+                ...storeStateRef.current,
+                lastDataChangeAt: 2,
+            };
+            getInMemoryAppDataSnapshotMock.mockReturnValue(editedAfterRemote);
+            try {
+                await io.writeLocal({
+                    ...pendingData,
+                    settings: {},
+                });
+            } catch (error) {
+                await io.clearPendingRemoteWriteAfterLocalAbort?.(pendingAt);
+                throw error;
+            }
+            throw new Error('Expected final local write to abort');
+        });
+
+        const result = await syncServiceModule.SyncService.performSync();
+        const saveDataCalls = invokeMock.mock.calls.filter(([command]) => command === 'save_data');
+        const clearedData = saveDataCalls[saveDataCalls.length - 1]?.[1]?.data as AppData | undefined;
+
+        expect(result).toEqual({ success: true, skipped: 'requeued' });
+        expect(saveDataCalls).toHaveLength(2);
+        expect(clearedData?.settings.pendingRemoteWriteAt).toBeUndefined();
+        expect(clearedData?.tasks[0]?.title).toBe('Edited after remote write');
+    });
+
     it('uses native Tauri commands for self-hosted Cloud data sync on desktop', async () => {
         const syncServiceModule = await syncServiceModulePromise;
         const localCloudData: AppData = {

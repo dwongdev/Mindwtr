@@ -1911,7 +1911,7 @@ export class SyncService {
                     await persistLocalDataWithTracking(data);
                 },
                 clearPendingRemoteWriteAfterLocalAbort: async (pendingAt) => {
-                    const current = getInMemoryAppDataSnapshot();
+                    const current = syncServiceDependencies.getInMemoryAppDataSnapshot();
                     if (current.settings.pendingRemoteWriteAt && current.settings.pendingRemoteWriteAt !== pendingAt) return;
                     await persistLocalDataWithTracking({
                         ...current,
