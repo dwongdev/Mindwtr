@@ -20,7 +20,7 @@ import { isNonEmptyString, isObjectRecord, isValidTimestamp } from './sync-norma
 import { MAX_FOCUS_TASK_LIMIT, MIN_FOCUS_TASK_LIMIT, normalizeFocusTaskLimit } from './focus-utils';
 import { normalizeSavedFilters } from './saved-filters';
 import { chooseDeterministicWinner } from './sync-signatures';
-import { CLOCK_SKEW_THRESHOLD_MS, DELETE_VS_LIVE_AMBIGUOUS_WINDOW_MS } from './sync-types';
+import { DELETE_VS_LIVE_AMBIGUOUS_WINDOW_MS } from './sync-types';
 import { normalizeExternalCalendarColor } from './external-calendar-colors';
 
 const parseSyncTimestamp = (value?: string): number => {
@@ -73,9 +73,8 @@ const chooseSavedFilter = (localFilter: SavedFilter, incomingFilter: SavedFilter
     if (!Number.isFinite(incomingUpdatedAt) && Number.isFinite(localUpdatedAt)) return localFilter;
     if (Number.isFinite(incomingUpdatedAt) && Number.isFinite(localUpdatedAt)) {
         const updatedAtDiff = incomingUpdatedAt - localUpdatedAt;
-        if (Math.abs(updatedAtDiff) > CLOCK_SKEW_THRESHOLD_MS) {
-            return updatedAtDiff > 0 ? incomingFilter : localFilter;
-        }
+        if (updatedAtDiff > 0) return incomingFilter;
+        if (updatedAtDiff < 0) return localFilter;
         return chooseDeterministicWinner(localFilter, incomingFilter);
     }
     return incomingWins ? incomingFilter : localFilter;

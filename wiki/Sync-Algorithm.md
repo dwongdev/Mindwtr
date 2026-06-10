@@ -26,9 +26,10 @@ Revisit ADR 0008 only if snapshot files regularly exceed 5 MB, sync round-trips 
 1. Entities are matched by `id`.
 2. If entity exists on one side only, it is kept.
 3. If both exist, merge uses revision-aware LWW:
-   - Compare `rev` first (higher wins).
+   - When revision metadata exists, compare `rev` first (higher wins). `rev` is a per-entity edit counter, not a vector clock, so several offline edits on one device can beat one newer edit on another device.
    - If revisions tie, compare `updatedAt` (newer wins).
    - If timestamps tie, apply deterministic tie-break by normalized content signature.
+   - Legacy entities without revision metadata treat `updatedAt` values within the 5-minute clock-skew threshold as an ambiguous tie and use the deterministic signature winner. Outside that window, newer `updatedAt` wins.
 4. Soft-deletes use operation time:
    - Operation time = `max(updatedAt, deletedAt)` for tombstones.
    - Live-vs-deleted conflicts choose newer operation time.
@@ -53,6 +54,7 @@ Revisit ADR 0008 only if snapshot files regularly exceed 5 MB, sync round-trips 
    - Appearance/language/GTD scheduling/external calendars/AI/saved filters can be merged independently.
    - Conflict resolution uses group-level timestamps (`appearance`, `language`, `gtd`, `externalCalendars`, `ai`, `savedFilters`).
    - Concurrent edits to different fields inside the same group can still collapse to the newer group update.
+   - Saved filters merge by filter `id`. Live-vs-live saved-filter conflicts use the filter `updatedAt` strictly; deterministic tie-break applies only when the timestamps tie or are unusable.
    - A local `syncPreferences` opt-out is bidirectional for that group: Mindwtr does not send that group to remote and does not accept incoming remote changes for it.
    - Secrets (API keys, local model paths) are never synced.
 10. Remote-write recovery is explicit:

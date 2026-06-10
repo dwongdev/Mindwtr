@@ -458,6 +458,49 @@ describe('Sync Logic', () => {
             expect(merged.settings.savedFilters).toEqual([incomingFilter]);
         });
 
+        it('keeps a newer saved filter even when it falls inside the entity clock-skew window', () => {
+            const localFilter = {
+                id: 'filter-shared',
+                name: 'zz older local',
+                view: 'focus' as const,
+                criteria: { tags: ['#older'] },
+                createdAt: '2024-01-01T00:00:00.000Z',
+                updatedAt: '2024-01-05T00:00:00.000Z',
+            };
+            const incomingFilter = {
+                id: 'filter-shared',
+                name: 'aa newer incoming',
+                view: 'focus' as const,
+                criteria: { tags: ['#newer'] },
+                createdAt: '2024-01-01T00:00:00.000Z',
+                updatedAt: '2024-01-05T00:03:00.000Z',
+            };
+            const local: AppData = {
+                ...mockAppData(),
+                settings: {
+                    savedFilters: [localFilter],
+                    syncPreferences: { savedFilters: true },
+                    syncPreferencesUpdatedAt: {
+                        savedFilters: '2024-01-05T00:00:00.000Z',
+                    },
+                },
+            };
+            const incoming: AppData = {
+                ...mockAppData(),
+                settings: {
+                    savedFilters: [incomingFilter],
+                    syncPreferences: { savedFilters: true },
+                    syncPreferencesUpdatedAt: {
+                        savedFilters: '2024-01-05T00:03:00.000Z',
+                    },
+                },
+            };
+
+            const merged = mergeAppData(local, incoming);
+
+            expect(merged.settings.savedFilters).toEqual([incomingFilter]);
+        });
+
         it('keeps saved filter tombstones from resurrecting older copies', () => {
             const deletedFilter = {
                 id: 'filter-shared',
