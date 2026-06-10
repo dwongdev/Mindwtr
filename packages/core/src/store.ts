@@ -43,6 +43,7 @@ let pendingSaves: PendingSave[] = [];
 let pendingVersion = 0;
 let savedVersion = 0;
 let saveInFlight: Promise<void> | null = null;
+const immediateSavesInFlight = new Set<Promise<void>>();
 let scheduledSaveTimer: ReturnType<typeof setTimeout> | null = null;
 let errorAutoClearTimer: ReturnType<typeof setTimeout> | null = null;
 const MAX_PENDING_SAVES = 100;
@@ -52,7 +53,7 @@ const MAX_SAVE_RETRY_DELAY_MS = 4000;
 const SAVE_FLUSH_DELAY_MS = 120;
 const ERROR_AUTO_CLEAR_MS = 10_000;
 const SAVE_QUEUE_OVERFLOW_ERROR_PREFIX = 'Save queue overflow:';
-const hasPendingSaveWork = (): boolean => pendingSaves.length > 0 || saveInFlight !== null;
+const hasPendingSaveWork = (): boolean => pendingSaves.length > 0 || saveInFlight !== null || immediateSavesInFlight.size > 0;
 const sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
 const hasOwnField = (value: object, field: PropertyKey): boolean => Object.prototype.hasOwnProperty.call(value, field);
 const getRequiredArrayField = <T>(value: Record<string, unknown>, field: string): T[] => {
@@ -353,6 +354,18 @@ const schedulePendingSaveFlush = () => {
     }, SAVE_FLUSH_DELAY_MS);
 };
 
+const trackImmediateSave = (save: Promise<void>): Promise<void> => {
+    let trackedSave: Promise<void>;
+    trackedSave = save.finally(() => {
+        immediateSavesInFlight.delete(trackedSave);
+    });
+    immediateSavesInFlight.add(trackedSave);
+    markCoreStartupPhase('core.immediate_save.enqueued', {
+        inFlight: immediateSavesInFlight.size,
+    });
+    return trackedSave;
+};
+
 /**
  * Save data with write coalescing.
  * Captures a snapshot immediately and serializes writes to avoid lost updates.
@@ -385,8 +398,17 @@ export const flushPendingSave = async (): Promise<void> => {
     markCoreStartupPhase('core.flush_pending_save.enter', {
         queueLen: pendingSaves.length,
         inFlight: saveInFlight ? 1 : 0,
+        immediateInFlight: immediateSavesInFlight.size,
     });
     while (true) {
+        if (immediateSavesInFlight.size > 0) {
+            const saves = Array.from(immediateSavesInFlight);
+            markCoreStartupPhase('core.flush_pending_save.await_immediate', {
+                inFlight: saves.length,
+            });
+            await Promise.all(saves);
+            continue;
+        }
         if (saveInFlight) {
             markCoreStartupPhase('core.flush_pending_save.await_in_flight');
             await saveInFlight;
@@ -527,6 +549,7 @@ export const useTaskStore = createWithEqualityFn<TaskStore>()(subscribeWithSelec
             set,
             get,
             debouncedSave,
+            trackImmediateSave,
             getStorage: () => storage,
         }),
         ...createProjectActions({

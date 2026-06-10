@@ -82,6 +82,7 @@ type TaskActionContext = {
     get: () => TaskStore;
     getStorage: () => StorageAdapter;
     debouncedSave: (data: AppData, onError?: (msg: string) => void) => void;
+    trackImmediateSave: (save: Promise<void>) => Promise<void>;
 };
 
 const actionOk = (extra?: Omit<StoreActionResult, 'success'>): StoreActionResult => ({ success: true, ...extra });
@@ -323,7 +324,7 @@ const normalizeTaskUpdateForStore = ({
     return adjustedUpdates;
 };
 
-export const createTaskActions = ({ set, get, getStorage, debouncedSave }: TaskActionContext): TaskActions => ({
+export const createTaskActions = ({ set, get, getStorage, debouncedSave, trackImmediateSave }: TaskActionContext): TaskActions => ({
     /**
      * Add a new task to the store and persist to storage.
      * @param title Task title
@@ -522,7 +523,7 @@ export const createTaskActions = ({ set, get, getStorage, debouncedSave }: TaskA
         const storage = getStorage();
         if (incrementalPersistence.task && !incrementalPersistence.hasRecurringFollowUp && storage.saveTask) {
             const taskToPersist = incrementalPersistence.task;
-            void storage.saveTask(taskToPersist, snapshot ?? undefined).catch((error) => {
+            void trackImmediateSave(storage.saveTask(taskToPersist, snapshot ?? undefined)).catch((error) => {
                 const message = error instanceof Error ? error.message : String(error);
                 logWarn('Incremental task save failed', {
                     scope: 'store',

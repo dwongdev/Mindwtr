@@ -497,6 +497,11 @@ describe('mcp service', () => {
       const task = await service.addTask({
         quickAdd: 'Buy milk +Home @errands #weekly /due:2026-04-20 /next',
       });
+      const updatedTask = await service.updateTask({
+        id: task.id,
+        status: 'waiting',
+        contexts: ['@desk'],
+      });
 
       const updatedProject = await service.updateProject({
         id: project.id,
@@ -518,9 +523,12 @@ describe('mcp service', () => {
       const tasks = await service.listTasks({ status: 'all' });
       const projects = await service.listProjects();
       const sections = await service.listSections({ projectId: project.id });
+      const persistedUpdatedTask = await service.getTask({ id: task.id });
       const persistedTask = tasks.find((item) => item.id === task.id);
       const persistedProject = projects.find((item) => item.id === project.id);
 
+      expect(updatedTask.status).toBe('waiting');
+      expect(updatedTask.contexts).toEqual(['@desk']);
       expect(updatedProject.title).toBe('Household');
       expect(updatedProject.status).toBe('waiting');
       expect(updatedProject.supportNotes).toBe('Track home-related work here.');
@@ -530,11 +538,13 @@ describe('mcp service', () => {
 
       expect(persistedTask).toBeTruthy();
       expect(persistedTask?.title).toBe('Buy milk');
-      expect(persistedTask?.status).toBe('next');
+      expect(persistedTask?.status).toBe('waiting');
       expect(persistedTask?.projectId).toBe(project.id);
       expect(persistedTask?.dueDate).toContain('2026-04-20');
-      expect(persistedTask?.contexts).toEqual(['@errands']);
+      expect(persistedTask?.contexts).toEqual(['@desk']);
       expect(persistedTask?.tags).toEqual(['#weekly']);
+      expect(persistedUpdatedTask.status).toBe('waiting');
+      expect(persistedUpdatedTask.contexts).toEqual(['@desk']);
 
       expect(persistedProject).toBeTruthy();
       expect(persistedProject?.title).toBe('Household');

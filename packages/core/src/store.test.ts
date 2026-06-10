@@ -158,6 +158,36 @@ describe('TaskStore', () => {
         expect(mockStorage.saveData).not.toHaveBeenCalled();
     });
 
+    it('waits for incremental task storage during flushPendingSave', async () => {
+        let resolveSaveTask: (() => void) | null = null;
+        const saveTask = vi.fn(() => new Promise<void>((resolve) => {
+            resolveSaveTask = resolve;
+        }));
+        mockStorage.saveTask = saveTask;
+        const task = createStoreTask('task-1', { status: 'next' });
+        useTaskStore.setState({
+            tasks: [task],
+            _allTasks: [task],
+            _tasksById: buildEntityMap([task]),
+        });
+
+        const result = await useTaskStore.getState().updateTask('task-1', { title: 'Updated Task' });
+        expect(result).toEqual({ success: true });
+        expect(saveTask).toHaveBeenCalledTimes(1);
+
+        let flushed = false;
+        const flushPromise = flushPendingSave().then(() => {
+            flushed = true;
+        });
+        await Promise.resolve();
+        expect(flushed).toBe(false);
+
+        resolveSaveTask?.();
+        await flushPromise;
+        expect(flushed).toBe(true);
+        expect(mockStorage.saveData).not.toHaveBeenCalled();
+    });
+
     it('falls back to full snapshot storage when incremental task storage is unavailable', async () => {
         const task = createStoreTask('task-1', { status: 'next' });
         useTaskStore.setState({
