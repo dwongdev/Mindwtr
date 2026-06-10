@@ -13,6 +13,16 @@ const tauriMocks = vi.hoisted(() => ({
     invoke: vi.fn(async () => false),
     listen: vi.fn(async () => () => undefined),
 }));
+const fsMocks = vi.hoisted(() => ({
+    mkdir: vi.fn(async () => undefined),
+    readFile: vi.fn(async () => new Uint8Array()),
+    remove: vi.fn(async () => undefined),
+    writeFile: vi.fn(async () => undefined),
+}));
+const pathMocks = vi.hoisted(() => ({
+    dataDir: vi.fn(async () => '/data'),
+    join: vi.fn(async (...parts: string[]) => parts.join('/')),
+}));
 
 vi.mock('@tauri-apps/api/core', () => ({
     invoke: tauriMocks.invoke,
@@ -27,6 +37,19 @@ vi.mock('@tauri-apps/api/window', () => ({
     getCurrentWindow: () => ({
         hide: tauriMocks.hide,
     }),
+}));
+
+vi.mock('@tauri-apps/plugin-fs', () => ({
+    BaseDirectory: { Data: 'Data' },
+    mkdir: fsMocks.mkdir,
+    readFile: fsMocks.readFile,
+    remove: fsMocks.remove,
+    writeFile: fsMocks.writeFile,
+}));
+
+vi.mock('@tauri-apps/api/path', () => ({
+    dataDir: pathMocks.dataDir,
+    join: pathMocks.join,
 }));
 
 const initialTaskState = useTaskStore.getState();
@@ -44,6 +67,15 @@ const createDeferred = () => {
     });
     return { promise, resolve };
 };
+
+const createImageClipboardData = (file: File) => ({
+    files: [file],
+    items: [{
+        kind: 'file',
+        type: file.type,
+        getAsFile: () => file,
+    }],
+});
 
 beforeEach(() => {
     delete (window as typeof window & { __TAURI_INTERNALS__?: unknown }).__TAURI_INTERNALS__;
@@ -196,6 +228,104 @@ describe('QuickAddModal', () => {
         expect(addTask).toHaveBeenCalledWith('Plan campaign', expect.objectContaining({
             projectId: 'project-launch',
             areaId: undefined,
+        }));
+    });
+
+    it('attaches a pasted image to a text quick-add task', async () => {
+        const addTask = vi.fn(async () => ({ success: true, id: 'task-id' }));
+        act(() => {
+            useTaskStore.setState((state) => ({
+                ...state,
+                addTask,
+            }));
+        });
+
+        renderQuickAddModal();
+
+        await act(async () => {
+            window.dispatchEvent(new CustomEvent('mindwtr:quick-add', {
+                detail: { initialValue: 'Capture receipt' },
+            }));
+            await Promise.resolve();
+        });
+
+        const file = new File([new Uint8Array([1, 2, 3])], 'receipt.png', { type: 'image/png' });
+        fireEvent.paste(screen.getByPlaceholderText('Add Task'), {
+            clipboardData: createImageClipboardData(file),
+        });
+
+        await waitFor(() => {
+            expect(fsMocks.writeFile).toHaveBeenCalled();
+            expect(screen.getByText('1 image attached')).toBeInTheDocument();
+        });
+
+        fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+
+        await waitFor(() => expect(addTask).toHaveBeenCalled());
+        expect(fsMocks.mkdir).toHaveBeenCalledWith('mindwtr/quick-add-images', {
+            baseDir: 'Data',
+            recursive: true,
+        });
+        expect(fsMocks.writeFile).toHaveBeenCalledWith(
+            expect.stringMatching(/^mindwtr\/quick-add-images\/mindwtr-paste-/),
+            expect.any(Uint8Array),
+            expect.objectContaining({ baseDir: 'Data' }),
+        );
+        expect(addTask).toHaveBeenCalledWith('Capture receipt', expect.objectContaining({
+            attachments: [
+                expect.objectContaining({
+                    kind: 'file',
+                    title: expect.stringContaining('Screenshot'),
+                    uri: expect.stringContaining('/data/mindwtr/quick-add-images/mindwtr-paste-'),
+                    mimeType: 'image/png',
+                    size: 3,
+                }),
+            ],
+        }));
+    });
+
+    it('creates a screenshot-titled task for an image-only quick add paste', async () => {
+        const addTask = vi.fn(async () => ({ success: true, id: 'task-id' }));
+        act(() => {
+            useTaskStore.setState((state) => ({
+                ...state,
+                addTask,
+            }));
+        });
+
+        renderQuickAddModal();
+
+        await act(async () => {
+            window.dispatchEvent(new CustomEvent('mindwtr:quick-add'));
+            await Promise.resolve();
+        });
+
+        const file = new File([new Uint8Array([4, 5])], 'screenshot.png', { type: 'image/png' });
+        fireEvent.paste(screen.getByPlaceholderText('Add Task'), {
+            clipboardData: createImageClipboardData(file),
+        });
+
+        await waitFor(() => {
+            expect(screen.getByText('1 image attached')).toBeInTheDocument();
+        });
+
+        const saveButton = screen.getByRole('button', { name: 'Save' });
+        await waitFor(() => expect(saveButton).not.toBeDisabled());
+        fireEvent.click(saveButton);
+
+        await waitFor(() => expect(addTask).toHaveBeenCalled());
+        const [title, props] = addTask.mock.calls[0] as unknown as [string, Record<string, unknown>];
+        expect(title).toContain('Screenshot');
+        expect(props).toEqual(expect.objectContaining({
+            status: 'inbox',
+            attachments: [
+                expect.objectContaining({
+                    kind: 'file',
+                    title: expect.stringContaining('Screenshot'),
+                    mimeType: 'image/png',
+                    size: 2,
+                }),
+            ],
         }));
     });
 });

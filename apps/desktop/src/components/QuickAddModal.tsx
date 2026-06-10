@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import type { ClipboardEvent } from 'react';
 import {
     shallow,
     useTaskStore,
@@ -37,7 +38,13 @@ import { AreaSelector } from './ui/AreaSelector';
 import { AREA_FILTER_ALL, AREA_FILTER_NONE, resolveAreaFilter } from '../lib/area-filter';
 
 const AUDIO_CAPTURE_DIR = 'mindwtr/audio-captures';
+const QUICK_ADD_IMAGE_CAPTURE_DIR = 'mindwtr/quick-add-images';
 const TARGET_SAMPLE_RATE = 16_000;
+
+type PastedImageAttachment = {
+    attachment: Attachment;
+    relativePath: string;
+};
 
 type QuickAddModalProps = {
     standaloneWindow?: boolean;
@@ -48,6 +55,49 @@ type QuickAddOpenDetail = {
     initialValue?: string;
     captureMode?: 'text' | 'audio';
 };
+
+function getClipboardImageFiles(data: DataTransfer | null): File[] {
+    if (!data) return [];
+    const files: File[] = [];
+    for (const item of Array.from(data.items ?? [])) {
+        if (item.kind !== 'file' || !item.type.toLowerCase().startsWith('image/')) continue;
+        const file = item.getAsFile();
+        if (file) files.push(file);
+    }
+    for (const file of Array.from(data.files ?? [])) {
+        if (!file.type.toLowerCase().startsWith('image/')) continue;
+        if (files.includes(file)) continue;
+        files.push(file);
+    }
+    return files;
+}
+
+function getImageExtension(file: File): string {
+    const mime = file.type.toLowerCase();
+    if (mime === 'image/png') return 'png';
+    if (mime === 'image/jpeg') return 'jpg';
+    if (mime === 'image/webp') return 'webp';
+    if (mime === 'image/gif') return 'gif';
+    if (mime === 'image/bmp') return 'bmp';
+    if (mime === 'image/svg+xml') return 'svg';
+    if (mime === 'image/heic') return 'heic';
+    if (mime === 'image/heif') return 'heif';
+    const nameMatch = file.name.match(/\.([a-z0-9]{2,5})$/i);
+    if (nameMatch?.[1]) return nameMatch[1].toLowerCase() === 'jpeg' ? 'jpg' : nameMatch[1].toLowerCase();
+    return 'png';
+}
+
+function mergeQuickAddAttachments(...groups: Array<Attachment[] | undefined>): Attachment[] | undefined {
+    const attachments = groups.flatMap((group) => group ?? []);
+    return attachments.length > 0 ? attachments : undefined;
+}
+
+async function readClipboardFileBytes(file: File): Promise<Uint8Array> {
+    if (typeof file.arrayBuffer === 'function') {
+        return new Uint8Array(await file.arrayBuffer());
+    }
+    return new Uint8Array(await new Response(file).arrayBuffer());
+}
 
 export function QuickAddModal({ standaloneWindow = false }: QuickAddModalProps) {
     const getDerivedState = useTaskStore((state) => state.getDerivedState);
@@ -79,6 +129,9 @@ export function QuickAddModal({ standaloneWindow = false }: QuickAddModalProps) 
     const [recordingBusy, setRecordingBusy] = useState(false);
     const [recordingError, setRecordingError] = useState<string | null>(null);
     const [recordingBackend, setRecordingBackend] = useState<'web' | 'native' | null>(null);
+    const [pastedImageAttachments, setPastedImageAttachments] = useState<PastedImageAttachment[]>([]);
+    const [pastedImageError, setPastedImageError] = useState<string | null>(null);
+    const [pastingImageCount, setPastingImageCount] = useState(0);
     const lastActiveElementRef = useRef<HTMLElement | null>(null);
     const modalRef = useRef<HTMLDivElement | null>(null);
     const audioContextRef = useRef<AudioContext | null>(null);
@@ -90,6 +143,7 @@ export function QuickAddModal({ standaloneWindow = false }: QuickAddModalProps) 
     const isOpenRef = useRef(false);
     const openRequestInFlightRef = useRef(false);
     const standaloneDataRefreshRef = useRef<Promise<void> | null>(null);
+    const pastedImageAttachmentsRef = useRef<PastedImageAttachment[]>([]);
     const sortedAreas = useMemo(() => [...areas].sort((a, b) => a.order - b.order), [areas]);
     const resolvedAreaFilter = useMemo(
         () => resolveAreaFilter(settings?.filters?.areaId, areas),
@@ -108,6 +162,42 @@ export function QuickAddModal({ standaloneWindow = false }: QuickAddModalProps) 
     );
     const hasProjectOverride = Boolean(initialProps?.projectId || parsedInput.props.projectId || parsedInput.projectTitle);
     const showAreaSelector = !hasProjectOverride;
+    const isPastingImage = pastingImageCount > 0;
+    const pastedAttachments = useMemo(
+        () => pastedImageAttachments.map((item) => item.attachment),
+        [pastedImageAttachments],
+    );
+
+    useEffect(() => {
+        pastedImageAttachmentsRef.current = pastedImageAttachments;
+    }, [pastedImageAttachments]);
+
+    const cleanupPastedImageAttachments = useCallback((attachments: PastedImageAttachment[]) => {
+        attachments.forEach(({ relativePath }) => {
+            remove(relativePath, { baseDir: BaseDirectory.Data }).catch((error) => {
+                void logWarn('Pasted image cleanup failed', {
+                    scope: 'attachment',
+                    extra: { error: error instanceof Error ? error.message : String(error) },
+                });
+            });
+        });
+    }, []);
+
+    const resetPastedImageAttachments = useCallback((cleanup: boolean) => {
+        const current = pastedImageAttachmentsRef.current;
+        if (cleanup && current.length > 0) {
+            cleanupPastedImageAttachments(current);
+        }
+        pastedImageAttachmentsRef.current = [];
+        setPastedImageAttachments([]);
+        setPastedImageError(null);
+        setPastingImageCount(0);
+    }, [cleanupPastedImageAttachments]);
+
+    useEffect(() => () => {
+        cleanupPastedImageAttachments(pastedImageAttachmentsRef.current);
+        pastedImageAttachmentsRef.current = [];
+    }, [cleanupPastedImageAttachments]);
 
     const refreshStandaloneData = useCallback(async () => {
         if (!standaloneWindow) return;
@@ -135,6 +225,7 @@ export function QuickAddModal({ standaloneWindow = false }: QuickAddModalProps) 
             setInitialProps(detail?.initialProps ?? null);
             setValue(detail?.initialValue ?? '');
             setForcedCaptureMode(detail?.captureMode ?? null);
+            resetPastedImageAttachments(true);
             isOpenRef.current = true;
             setIsOpen(true);
             if (standaloneWindow) {
@@ -267,7 +358,7 @@ export function QuickAddModal({ standaloneWindow = false }: QuickAddModalProps) 
         }
     }, [standaloneWindow]);
 
-    const close = useCallback(() => {
+    const close = useCallback((options?: { keepPastedImages?: boolean }) => {
         isOpenRef.current = false;
         openRequestInFlightRef.current = false;
         setIsOpen(false);
@@ -275,9 +366,65 @@ export function QuickAddModal({ standaloneWindow = false }: QuickAddModalProps) 
         setValue('');
         setSelectedAreaId('');
         setForcedCaptureMode(null);
+        resetPastedImageAttachments(!options?.keepPastedImages);
         lastActiveElementRef.current?.focus();
         hideStandaloneWindow();
-    }, [hideStandaloneWindow]);
+    }, [hideStandaloneWindow, resetPastedImageAttachments]);
+
+    const createPastedImageAttachment = useCallback(async (file: File): Promise<PastedImageAttachment> => {
+        const now = new Date();
+        const nowIso = now.toISOString();
+        const displayTitle = `${tFallback(t, 'quickAdd.pastedImageTitle', 'Screenshot')} ${safeFormatDate(now, 'Pp')}`;
+        const fileName = `mindwtr-paste-${safeFormatDate(now, 'yyyyMMdd-HHmmss')}-${generateUUID().slice(0, 8)}.${getImageExtension(file)}`;
+        await mkdir(QUICK_ADD_IMAGE_CAPTURE_DIR, { baseDir: BaseDirectory.Data, recursive: true });
+        const relativePath = `${QUICK_ADD_IMAGE_CAPTURE_DIR}/${fileName}`;
+        const bytes = await readClipboardFileBytes(file);
+        await writeFile(relativePath, bytes, { baseDir: BaseDirectory.Data });
+        const baseDir = await dataDir();
+        const absolutePath = await join(baseDir, QUICK_ADD_IMAGE_CAPTURE_DIR, fileName);
+        return {
+            relativePath,
+            attachment: {
+                id: generateUUID(),
+                kind: 'file',
+                title: displayTitle,
+                uri: absolutePath,
+                mimeType: file.type || `image/${getImageExtension(file)}`,
+                size: file.size,
+                createdAt: nowIso,
+                updatedAt: nowIso,
+            },
+        };
+    }, [t]);
+
+    const handleImagePaste = useCallback((event: ClipboardEvent<HTMLInputElement>) => {
+        const imageFiles = getClipboardImageFiles(event.clipboardData);
+        if (imageFiles.length === 0) return;
+        event.preventDefault();
+        setPastedImageError(null);
+        imageFiles.forEach((file) => {
+            setPastingImageCount((count) => count + 1);
+            void createPastedImageAttachment(file)
+                .then((pastedAttachment) => {
+                    if (!isOpenRef.current) {
+                        cleanupPastedImageAttachments([pastedAttachment]);
+                        return;
+                    }
+                    setPastedImageAttachments((current) => {
+                        const next = [...current, pastedAttachment];
+                        pastedImageAttachmentsRef.current = next;
+                        return next;
+                    });
+                })
+                .catch((error) => {
+                    reportError('Failed to attach pasted image', error);
+                    setPastedImageError(tFallback(t, 'quickAdd.pastedImageError', 'Could not attach pasted image.'));
+                })
+                .finally(() => {
+                    setPastingImageCount((count) => Math.max(0, count - 1));
+                });
+        });
+    }, [cleanupPastedImageAttachments, createPastedImageAttachment, t]);
 
     const startRecording = useCallback(async () => {
         if (recordingBusy || isRecording) return;
@@ -601,7 +748,9 @@ export function QuickAddModal({ standaloneWindow = false }: QuickAddModalProps) 
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!value.trim()) return;
+        if (isPastingImage) return;
+        const hasPastedAttachments = pastedAttachments.length > 0;
+        if (!value.trim() && !hasPastedAttachments) return;
         let currentProjects = projects;
         let currentAreas = areas;
         if (standaloneWindow) {
@@ -621,11 +770,21 @@ export function QuickAddModal({ standaloneWindow = false }: QuickAddModalProps) 
             return;
         }
         const baseProps: Partial<Task> = { ...initialProps, ...props };
+        const mergedAttachments = mergeQuickAddAttachments(
+            initialProps?.attachments,
+            props.attachments,
+            pastedAttachments,
+        );
+        if (mergedAttachments) {
+            baseProps.attachments = mergedAttachments;
+        }
         const shouldApplyDetectedDate = Boolean(detectedDate?.date && !baseProps.dueDate);
         if (shouldApplyDetectedDate && detectedDate) {
             baseProps.dueDate = detectedDate.date;
         }
-        const finalTitle = shouldApplyDetectedDate && detectedDate ? detectedDate.titleWithoutDate : (title || value);
+        const finalTitle = shouldApplyDetectedDate && detectedDate
+            ? detectedDate.titleWithoutDate
+            : (title || value.trim() || pastedAttachments[0]?.title || tFallback(t, 'quickAdd.pastedImageTitle', 'Screenshot'));
         if (!finalTitle.trim()) return;
         if (!baseProps.areaId && selectedAreaId) {
             baseProps.areaId = selectedAreaId;
@@ -649,7 +808,7 @@ export function QuickAddModal({ standaloneWindow = false }: QuickAddModalProps) 
             await flushPendingSave().catch((error) => reportError('Failed to save quick add task', error));
             await notifyStandaloneTaskSaved();
         }
-        close();
+        close({ keepPastedImages: true });
     };
 
     const scheduledLabel = initialProps?.startTime
@@ -666,6 +825,10 @@ export function QuickAddModal({ standaloneWindow = false }: QuickAddModalProps) 
         : isRecording
             ? t('quickAdd.audioRecording')
             : t('quickAdd.audioCaptureLabel');
+    const pastedImageLabel = pastedImageAttachments.length === 1
+        ? tFallback(t, 'quickAdd.pastedImageAttached', '1 image attached')
+        : tFallback(t, 'quickAdd.pastedImagesAttached', `${pastedImageAttachments.length} images attached`);
+    const saveDisabled = isPastingImage || (!value.trim() && pastedImageAttachments.length === 0);
 
     if (!isOpen) return null;
 
@@ -759,6 +922,7 @@ export function QuickAddModal({ standaloneWindow = false }: QuickAddModalProps) 
                                 return created?.id ?? null;
                             }}
                             onChange={(next) => setValue(next)}
+                            onPaste={handleImagePaste}
                             onKeyDown={(e) => {
                                 if (e.key === 'Escape') {
                                     e.preventDefault();
@@ -770,6 +934,17 @@ export function QuickAddModal({ standaloneWindow = false }: QuickAddModalProps) 
                                 "w-full bg-card border border-border rounded-lg py-3 px-4 shadow-sm focus:ring-2 focus:ring-primary focus:border-transparent transition-all",
                             )}
                         />
+                        {isPastingImage ? (
+                            <p className="text-xs text-muted-foreground">
+                                {tFallback(t, 'quickAdd.pastedImageSaving', 'Attaching image...')}
+                            </p>
+                        ) : null}
+                        {pastedImageAttachments.length > 0 ? (
+                            <p className="text-xs text-muted-foreground">{pastedImageLabel}</p>
+                        ) : null}
+                        {pastedImageError ? (
+                            <p className="text-xs text-destructive">{pastedImageError}</p>
+                        ) : null}
                         {showAreaSelector && (
                             <div className="flex flex-col gap-1">
                                 <label className="text-xs text-muted-foreground font-medium">{t('taskEdit.areaLabel')}</label>
@@ -807,7 +982,11 @@ export function QuickAddModal({ standaloneWindow = false }: QuickAddModalProps) 
                             </button>
                             <button
                                 type="submit"
-                                className="px-3 py-1.5 rounded-md text-sm bg-primary text-primary-foreground hover:bg-primary/90"
+                                disabled={saveDisabled}
+                                className={cn(
+                                    'px-3 py-1.5 rounded-md text-sm bg-primary text-primary-foreground hover:bg-primary/90',
+                                    saveDisabled && 'opacity-50 cursor-not-allowed hover:bg-primary',
+                                )}
                             >
                                 {t('common.save')}
                             </button>

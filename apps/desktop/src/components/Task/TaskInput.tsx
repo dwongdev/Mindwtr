@@ -1,5 +1,5 @@
 import { useEffect, useId, useMemo, useRef, useState } from 'react';
-import type { KeyboardEventHandler, RefObject } from 'react';
+import type { ClipboardEventHandler, KeyboardEventHandler, RefObject } from 'react';
 import type { Area, Project } from '@mindwtr/core';
 import { cn } from '../../lib/utils';
 
@@ -38,6 +38,7 @@ interface TaskInputProps {
     autoFocus?: boolean;
     inputRef?: RefObject<HTMLInputElement | null>;
     onKeyDown?: KeyboardEventHandler<HTMLInputElement>;
+    onPaste?: ClipboardEventHandler<HTMLInputElement>;
     dir?: 'ltr' | 'rtl';
     ariaLabel?: string;
 }
@@ -78,6 +79,7 @@ export function TaskInput({
     autoFocus,
     inputRef,
     onKeyDown,
+    onPaste,
     dir,
     ariaLabel,
 }: TaskInputProps) {
@@ -296,6 +298,7 @@ export function TaskInput({
                     updateTrigger(text, event.target.selectionStart ?? text.length);
                 }}
                 onKeyDown={handleKeyDown}
+                onPaste={onPaste}
                 onClick={(event) => {
                     const target = event.target as HTMLInputElement;
                     updateSelection(target);
