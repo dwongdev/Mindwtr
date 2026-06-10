@@ -21,6 +21,7 @@ import {
     SearchProjectResult,
     SearchResults,
     SearchTaskResult,
+    Task,
     getStorageAdapter,
     TaskStatus,
     PRESET_CONTEXTS,
@@ -37,6 +38,8 @@ import { useLanguage } from '../contexts/language-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Search, X, Folder, CheckCircle, ChevronRight, SlidersHorizontal } from 'lucide-react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { TaskEditModal } from '@/components/task-edit-modal';
+import { openContextsScreen, openProjectScreen } from '@/lib/task-meta-navigation';
 
 const firstSearchParam = (value: string | string[] | undefined): string => {
     if (Array.isArray(value)) return value[0] ?? '';
@@ -54,12 +57,13 @@ const decodeSearchParam = (value: string | string[] | undefined): string => {
 };
 
 export default function SearchScreen() {
-    const { _allTasks, projects, areas, settings, updateSettings, setHighlightTask } = useTaskStore((state) => ({
+    const { _allTasks, projects, areas, settings, updateSettings, updateTask, setHighlightTask } = useTaskStore((state) => ({
         _allTasks: state._allTasks,
         projects: state.projects,
         areas: state.areas,
         settings: state.settings,
         updateSettings: state.updateSettings,
+        updateTask: state.updateTask,
         setHighlightTask: state.setHighlightTask,
     }), shallow);
     const tc = useThemeColors();
@@ -83,6 +87,7 @@ export default function SearchScreen() {
     const [locationQuery, setLocationQuery] = useState('');
     const [duePreset, setDuePreset] = useState<'any' | 'overdue' | 'today' | 'tomorrow' | 'this_week' | 'next_week' | 'none'>('any');
     const [scope, setScope] = useState<'all' | 'projects' | 'tasks' | 'project_tasks'>('all');
+    const [editingTaskId, setEditingTaskId] = useState<string | null>(null);
     const inputRef = useRef<TextInput>(null);
 
     useEffect(() => {
@@ -219,6 +224,12 @@ export default function SearchScreen() {
         if (!matchesArea(project.areaId ?? null)) return false;
         return true;
     });
+    const editingTask = useMemo<Task | null>(
+        () => editingTaskId
+            ? _allTasks.find((task) => task.id === editingTaskId && !task.deletedAt) ?? null
+            : null,
+        [_allTasks, editingTaskId]
+    );
     const scopedProjects = scope === 'tasks' || scope === 'project_tasks' ? [] : filteredProjects;
     const scopedTasks = scope === 'projects' ? [] : filteredTasks;
     const totalResults = scopedProjects.length + scopedTasks.length;
@@ -263,13 +274,7 @@ export default function SearchScreen() {
         router.push(`/saved-search/${newSearch.id}`);
     };
 
-    const handleSelect = (result: { type: 'project'; item: SearchProjectResult } | { type: 'task'; item: SearchTaskResult }) => {
-        if (result.type === 'project') {
-            router.push({ pathname: '/projects-screen', params: { projectId: result.item.id } });
-            return;
-        }
-
-        const task = result.item;
+    const navigateToTaskList = (task: SearchTaskResult) => {
         const status = task.status;
         setHighlightTask(task.id);
         if (status === 'done') {
@@ -292,6 +297,22 @@ export default function SearchScreen() {
         else if (status === 'someday') router.push('/someday');
         else if (status === 'reference') router.push('/reference' as never);
         else router.push('/focus');
+    };
+
+    const handleSelect = (result: { type: 'project'; item: SearchProjectResult } | { type: 'task'; item: SearchTaskResult }) => {
+        if (result.type === 'project') {
+            router.push({ pathname: '/projects-screen', params: { projectId: result.item.id } });
+            return;
+        }
+
+        const task = _allTasks.find((item) => item.id === result.item.id && !item.deletedAt);
+        if (!task) {
+            navigateToTaskList(result.item);
+            return;
+        }
+
+        setHighlightTask(task.id);
+        setEditingTaskId(task.id);
     };
 
     const statusOptions: TaskStatus[] = ['inbox', 'next', 'waiting', 'someday', 'reference', 'done', 'archived'];
@@ -726,6 +747,23 @@ export default function SearchScreen() {
                     </View>
                 </View>
             </Modal>
+            <TaskEditModal
+                visible={Boolean(editingTask)}
+                task={editingTask}
+                onClose={() => setEditingTaskId(null)}
+                onSave={(taskId, updates) => {
+                    updateTask(taskId, updates);
+                    setEditingTaskId(null);
+                }}
+                defaultTab="view"
+                onProjectNavigate={openProjectScreen}
+                onContextNavigate={openContextsScreen}
+                onTagNavigate={openContextsScreen}
+                onFocusMode={(taskId) => {
+                    setEditingTaskId(null);
+                    router.push(`/check-focus?id=${taskId}`);
+                }}
+            />
         </SafeAreaView>
     );
 }
