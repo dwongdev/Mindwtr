@@ -24,6 +24,16 @@ const inboxTask: Task = {
     updatedAt: nowIso,
 };
 
+const inboxTaskTwo: Task = {
+    id: 'task-2',
+    title: 'Follow up with Casey',
+    status: 'inbox',
+    tags: [],
+    contexts: [],
+    createdAt: nowIso,
+    updatedAt: nowIso,
+};
+
 const createdProject: Project = {
     id: 'project-1',
     title: 'Plan launch',
@@ -538,6 +548,51 @@ describe('InboxProcessor', () => {
                 }),
             );
         });
+    });
+
+    it('commits quick processing with Enter from title input and advances to the next item', async () => {
+        const { getByRole, getByLabelText, getByDisplayValue, updateTask } = renderInboxProcessor({
+            settings: {
+                gtd: {
+                    inboxProcessing: {
+                        defaultMode: 'quick',
+                    },
+                },
+            },
+            tasks: [inboxTask, inboxTaskTwo],
+        });
+
+        fireEvent.click(getByRole('button', { name: /process\.btn/i }));
+        fireEvent.change(getByLabelText('taskEdit.titleLabel'), {
+            target: { value: 'Clarified launch' },
+        });
+        fireEvent.keyDown(getByLabelText('taskEdit.titleLabel'), { key: 'Enter' });
+
+        await waitFor(() => {
+            expect(updateTask).toHaveBeenCalledWith(
+                'task-1',
+                expect.objectContaining({
+                    title: 'Clarified launch',
+                    status: 'next',
+                }),
+            );
+        });
+        expect(getByDisplayValue('Follow up with Casey')).toBeTruthy();
+    });
+
+    it('does not commit quick processing when Enter is used in the description textarea', () => {
+        const { getByRole, getByLabelText, updateTask } = renderInboxProcessor({
+            gtd: {
+                inboxProcessing: {
+                    defaultMode: 'quick',
+                },
+            },
+        });
+
+        fireEvent.click(getByRole('button', { name: /process\.btn/i }));
+        fireEvent.keyDown(getByLabelText('taskEdit.descriptionLabel'), { key: 'Enter' });
+
+        expect(updateTask).not.toHaveBeenCalled();
     });
 
     it('keeps quick context and tag inputs editable while typing multiple tokens', async () => {

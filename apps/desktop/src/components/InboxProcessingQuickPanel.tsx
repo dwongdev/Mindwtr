@@ -1,3 +1,4 @@
+import type { KeyboardEvent } from 'react';
 import { ArrowRight, BookOpen, CheckCircle, ClipboardList, Clock, Trash2, User, X } from 'lucide-react';
 import { DEFAULT_PROJECT_COLOR, filterProjectsBySelectedArea, safeFormatDate, safeParseDate, tFallback, type Area, type Project, type Task, type TaskPriority, type TimeEstimate } from '@mindwtr/core';
 
@@ -104,6 +105,16 @@ const formatTimeEstimateLabel = (value: TimeEstimate): string => {
     return '4h+';
 };
 
+const shouldCommitQuickProcessingFromEnter = (target: EventTarget | null): boolean => {
+    if (!(target instanceof HTMLElement)) return false;
+    if (target.isContentEditable) return false;
+    if (target.closest('button, [role="button"], [role="option"], [role="listbox"]')) return false;
+
+    const tagName = target.tagName.toLowerCase();
+    if (tagName === 'textarea' || tagName === 'select') return false;
+    return tagName === 'input';
+};
+
 export function InboxProcessingQuickPanel({
     t,
     processingTask,
@@ -185,9 +196,22 @@ export function InboxProcessingQuickPanel({
     const sortedProjects = [...projects].sort((a, b) => compareLabels(a.title, b.title));
     const projectFilterAreaId = selectedAreaId || undefined;
     const filteredProjects = filterProjectsBySelectedArea(sortedProjects, projectFilterAreaId);
+    const handlePanelKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
+        if (event.defaultPrevented) return;
+        if (event.key === 'Process' || event.nativeEvent.isComposing) return;
+        if (event.key !== 'Enter' || event.shiftKey || event.altKey || event.ctrlKey || event.metaKey) return;
+        if (!shouldCommitQuickProcessingFromEnter(event.target)) return;
+
+        event.preventDefault();
+        event.stopPropagation();
+        void onSubmit();
+    };
 
     return (
-        <div className="bg-card border border-border rounded-xl animate-in fade-in overflow-visible">
+        <div
+            className="bg-card border border-border rounded-xl animate-in fade-in overflow-visible"
+            onKeyDown={handlePanelKeyDown}
+        >
             <div className="flex items-center justify-between gap-3 px-5 py-3.5">
                 <div className="flex items-center gap-2.5 min-w-0">
                     <h3 className="font-semibold text-[15px] truncate inline-flex items-center gap-2">
