@@ -715,6 +715,91 @@ describe('desktop sync-service runtime', () => {
         }));
     });
 
+    it('reuses the fast-check local snapshot when falling back to a full WebDAV sync', async () => {
+        const syncServiceModule = await syncServiceModulePromise;
+        const syncedData: AppData = {
+            tasks: [],
+            projects: [],
+            sections: [],
+            areas: [],
+            settings: {},
+        };
+        const remoteChangedData: AppData = {
+            ...syncedData,
+            settings: {
+                syncPreferences: { appearance: true },
+                theme: 'dark',
+            },
+        };
+        const cachedRemoteFingerprint = 'webdav:v1:etag="old":mtime=:len=2';
+        const freshRemoteFingerprint = 'webdav:v1:etag="new":mtime=:len=2';
+        const scope = computeStableValueFingerprint({
+            backend: 'webdav',
+            url: 'https://sync.example.com/data.json',
+            username: 'user',
+        });
+        const headFetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+            expect(String(input)).toBe('https://sync.example.com/data.json');
+            expect(init?.method).toBe('HEAD');
+            return buildResponse(200, '', { etag: '"new"', 'content-length': '2' });
+        });
+
+        storeStateRef.current = {
+            ...storeStateRef.current,
+            _allTasks: [],
+            _allProjects: [],
+            _allSections: [],
+            _allAreas: [],
+            settings: {},
+        };
+        getInMemoryAppDataSnapshotMock.mockReturnValue(syncedData);
+        localStorage.setItem('mindwtr-fast-sync-state-v1', JSON.stringify({
+            scope,
+            localFingerprint: computeSyncPayloadFingerprint(syncedData),
+            remoteFingerprint: cachedRemoteFingerprint,
+            checkedAt: '2026-05-07T00:00:00.000Z',
+        }));
+        invokeMock.mockImplementation(async (command: string, args?: Record<string, unknown>) => {
+            if (command === 'get_sync_backend') return 'webdav';
+            if (command === 'create_data_snapshot') return undefined;
+            if (command === 'get_webdav_config') {
+                return {
+                    url: 'https://sync.example.com/data.json',
+                    username: 'user',
+                    password: 'pass',
+                    hasPassword: true,
+                    allowInsecureHttp: false,
+                };
+            }
+            if (command === 'get_data') return structuredClone(syncedData);
+            if (command === 'webdav_get_json') return structuredClone(remoteChangedData);
+            if (command === 'save_data') return undefined;
+            throw new Error(`Unexpected command: ${command} ${JSON.stringify(args)}`);
+        });
+        syncServiceModule.__syncServiceTestUtils.setDependenciesForTests({
+            getTauriFetch: async () => headFetchMock as unknown as typeof fetch,
+        });
+        performSyncCycleMock.mockImplementation(async (io: {
+            readLocal: () => Promise<AppData>;
+            readRemote: () => Promise<AppData | null>;
+        }) => {
+            const local = await io.readLocal();
+            const remote = await io.readRemote();
+            expect(local.tasks).toEqual([]);
+            expect(remote?.settings.theme).toBe('dark');
+            return { status: 'success', stats: emptyStats, data: remoteChangedData };
+        });
+
+        const result = await syncServiceModule.SyncService.performSync();
+
+        const getDataCalls = invokeMock.mock.calls.filter(([command]) => command === 'get_data');
+        expect(result).toEqual({ success: true, stats: emptyStats });
+        expect(getDataCalls).toHaveLength(2);
+        expect(performSyncCycleMock).toHaveBeenCalledTimes(1);
+        expect(headFetchMock).toHaveBeenCalled();
+        expect(freshRemoteFingerprint).not.toBe(cachedRemoteFingerprint);
+    });
+
     it('falls back to browser fetch when native Dropbox download returns an empty body', async () => {
         const syncServiceModule = await syncServiceModulePromise;
         const dropboxRemoteData: AppData = {

@@ -416,6 +416,7 @@ type SyncExecutionContext = {
     step: string;
     syncUrl?: string;
     localSnapshotChangeAt: number;
+    localDataCache: { changeAt: number; data: AppData } | null;
     networkWentOffline: boolean;
     removeNetworkListener: (() => void) | null;
     requestAbortController: AbortController;
@@ -883,6 +884,7 @@ export class SyncService {
             step: 'init',
             syncUrl: undefined,
             localSnapshotChangeAt: 0,
+            localDataCache: null,
             networkWentOffline: false,
             removeNetworkListener: null,
             requestAbortController: new AbortController(),
@@ -1046,12 +1048,21 @@ export class SyncService {
     }
 
     private static async readLocalDataForSyncCycle(context: SyncExecutionContext): Promise<AppData> {
+        const currentChangeAt = getStoreState().lastDataChangeAt;
+        if (context.localDataCache && context.localDataCache.changeAt === currentChangeAt) {
+            context.localSnapshotChangeAt = currentChangeAt;
+            return context.localDataCache.data;
+        }
         const inMemorySnapshot = syncServiceDependencies.getInMemoryAppDataSnapshot();
         const baseData = context.preSyncedLocalData
             ? mergeAppData(context.preSyncedLocalData, inMemorySnapshot)
             : mergeAppData(await readLocalDataForSync(), inMemorySnapshot);
         const data = await injectExternalCalendars(baseData);
         context.localSnapshotChangeAt = getStoreState().lastDataChangeAt;
+        context.localDataCache = {
+            changeAt: context.localSnapshotChangeAt,
+            data,
+        };
         return data;
     }
 

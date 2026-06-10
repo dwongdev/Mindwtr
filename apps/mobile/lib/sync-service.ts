@@ -595,7 +595,7 @@ const mobileSyncOrchestrator = createSyncOrchestrator<string | undefined, Mobile
       let dropboxLastRev: string | null = null;
       let fileSyncPath: string | null = null;
       let remoteDataForCompare: AppData | null = null;
-      let readCheckLocalData: AppData | null = null;
+      let localDataCache: { changeAt: number; data: AppData } | null = null;
       let readCheckRemoteData: AppData | null | undefined;
       let webdavRemoteCorrupted = false;
       step = 'flush';
@@ -983,11 +983,10 @@ const mobileSyncOrchestrator = createSyncOrchestrator<string | undefined, Mobile
       };
 
       const readLocalDataForSyncCycle = async (): Promise<AppData> => {
-        if (readCheckLocalData) {
-          ensureLocalSnapshotFresh();
-          const data = readCheckLocalData;
-          readCheckLocalData = null;
-          return data;
+        const currentChangeAt = useTaskStore.getState().lastDataChangeAt;
+        if (localDataCache && localDataCache.changeAt === currentChangeAt) {
+          localSnapshotChangeAt = currentChangeAt;
+          return localDataCache.data;
         }
         const inMemorySnapshot = getInMemoryAppDataSnapshot();
         const baseData = preSyncedLocalData
@@ -995,6 +994,10 @@ const mobileSyncOrchestrator = createSyncOrchestrator<string | undefined, Mobile
           : mergeAppData(await mobileStorage.getData(), inMemorySnapshot);
         const data = await injectExternalCalendars(baseData);
         localSnapshotChangeAt = useTaskStore.getState().lastDataChangeAt;
+        localDataCache = {
+          changeAt: localSnapshotChangeAt,
+          data,
+        };
         return data;
       };
 
@@ -1126,7 +1129,6 @@ const mobileSyncOrchestrator = createSyncOrchestrator<string | undefined, Mobile
         const remoteData = await readRemoteDataByBackend();
         ensureLocalSnapshotFresh();
         if (!remoteData) return null;
-        readCheckLocalData = localDataForReadCheck;
         readCheckRemoteData = remoteData;
 
         const localSanitized = sanitizeAppDataForRemote(localDataForReadCheck);
@@ -1134,7 +1136,6 @@ const mobileSyncOrchestrator = createSyncOrchestrator<string | undefined, Mobile
         if (!areSyncPayloadsEqual(remoteSanitized, localSanitized)) return null;
 
         await recordFastSyncState(localDataForReadCheck, { allowRemoteFingerprintRead: false });
-      readCheckLocalData = null;
       readCheckRemoteData = undefined;
       useTaskStore.getState().setError(null);
       logSyncInfo('Sync read check found no changes', {
