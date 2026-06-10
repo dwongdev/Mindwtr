@@ -214,7 +214,7 @@ export function TaskInput({
 
         const before = value.slice(0, trigger.start);
         const after = value.slice(trigger.end);
-        const needsSpace = after.length > 0 && !/^\s/.test(after);
+        const needsSpace = after.length === 0 || !/^\s/.test(after);
         const nextValue = `${before}${tokenValue}${needsSpace ? ' ' : ''}${after}`;
         pushUndoEntry(valueRef.current, selectionRef.current);
         valueRef.current = nextValue;
@@ -223,6 +223,7 @@ export function TaskInput({
 
         requestAnimationFrame(() => {
             const caret = before.length + tokenValue.length + (needsSpace ? 1 : 0);
+            mergedRef.current?.focus();
             mergedRef.current?.setSelectionRange(caret, caret);
             selectionRef.current = { start: caret, end: caret };
         });

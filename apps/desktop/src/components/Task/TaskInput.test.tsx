@@ -87,7 +87,23 @@ describe('TaskInput autocomplete', () => {
 
         fireEvent.click(getByRole('option', { name: '#urgent' }));
 
-        expect(onChange).toHaveBeenCalledWith('#urgent');
+        expect(onChange).toHaveBeenCalledWith('#urgent ');
+    });
+
+    it('accepts a hotkey suggestion with Enter and advances the caret for continued typing', async () => {
+        const { getByRole } = render(<TaskInputHarness initialValue="@wo" contexts={['@work']} />);
+        const input = getByRole('combobox') as HTMLInputElement;
+        input.focus();
+        input.setSelectionRange(input.value.length, input.value.length);
+        fireEvent.click(input);
+
+        fireEvent.keyDown(input, { key: 'Enter' });
+
+        await waitFor(() => {
+            expect(input.value).toBe('@work ');
+            expect(input.selectionStart).toBe('@work '.length);
+            expect(input.selectionEnd).toBe('@work '.length);
+        });
     });
 
     it('undoes task title edits with Ctrl+Z', async () => {
