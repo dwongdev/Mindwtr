@@ -1,13 +1,12 @@
 import { BackHandler, View, Text, FlatList, Pressable, StyleSheet, TouchableOpacity, Modal, TextInput, Share } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useFocusEffect } from '@react-navigation/native';
-import { DEFAULT_AREA_COLOR, useTaskStore, sortTasksBy, isTaskInActiveProject, shallow, type Task, type TaskStatus, type TaskSortBy } from '@mindwtr/core';
+import { DEFAULT_AREA_COLOR, useTaskStore, sortTasksBy, shallow, type Task, type TaskStatus, type TaskSortBy } from '@mindwtr/core';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTheme } from '../../contexts/theme-context';
 import { useLanguage } from '../../contexts/language-context';
 import { useMobileAreaFilter } from '@/hooks/use-mobile-area-filter';
 import { useThemeColors } from '@/hooks/use-theme-colors';
-import { taskMatchesAreaFilter } from '@/lib/area-filter';
 import { openContextsScreen, openProjectScreen } from '@/lib/task-meta-navigation';
 import { ReviewModal } from '../../components/review-modal';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -16,7 +15,7 @@ import { logError } from '../../lib/app-log';
 
 import { TaskEditModal } from '@/components/task-edit-modal';
 import { SwipeableTaskItem } from '@/components/swipeable-task-item';
-import { buildReviewTaskGroups } from '@/components/review/review-task-groups';
+import { buildReviewTaskGroups, getReviewOverviewTasks } from '@/components/review/review-task-groups';
 
 const HAS_NEXT_ACTION_COLOR = '#10B981';
 const NEEDS_ACTION_COLOR = '#F59E0B';
@@ -164,13 +163,12 @@ export default function ReviewScreen() {
 
   const bulkStatuses: TaskStatus[] = ['inbox', 'next', 'waiting', 'someday', 'reference', 'done'];
 
-  // Filter out deleted and reference tasks before building the review overview.
-  const activeTasks = tasks.filter((task) => (
-    !task.deletedAt
-    && task.status !== 'reference'
-    && isTaskInActiveProject(task, projectById)
-    && taskMatchesAreaFilter(task, resolvedAreaFilter, projectById, areaById)
-  ));
+  const activeTasks = useMemo(() => getReviewOverviewTasks({
+    areaById,
+    projectById,
+    resolvedAreaFilter,
+    tasks,
+  }), [areaById, projectById, resolvedAreaFilter, tasks]);
 
   const sortBy = (settings?.taskSortBy ?? 'default') as TaskSortBy;
   const sortedTasks = sortTasksBy(activeTasks, sortBy);
