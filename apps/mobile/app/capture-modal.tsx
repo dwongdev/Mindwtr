@@ -194,6 +194,10 @@ export default function CaptureScreen() {
   const tagOptions = React.useMemo(() => {
     return getUsedTaskTokens(tasks, (task) => task.tags, { prefix: '#' });
   }, [tasks]);
+  const quickAddParseOptions = React.useMemo(
+    () => ({ knownContexts: contextOptions, knownTags: tagOptions }),
+    [contextOptions, tagOptions]
+  );
 
   useEffect(() => {
     if (!aiEnabled || (keyRequired && !aiKey)) {
@@ -283,7 +287,13 @@ export default function CaptureScreen() {
 
   const handleSave = async () => {
     if (!value.trim()) return;
-    const { title, props, projectTitle, invalidDateCommands, detectedDate } = parseQuickAdd(value, projects, new Date(), areas);
+    const { title, props, projectTitle, invalidDateCommands, detectedDate } = parseQuickAdd(
+      value,
+      projects,
+      new Date(),
+      areas,
+      quickAddParseOptions
+    );
     if (
       props.projectId
       && !projects.some((project) => project.id === props.projectId && isSelectableProjectForTaskAssignment(project))

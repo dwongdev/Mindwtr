@@ -98,9 +98,13 @@ export function QuickAddModal({ standaloneWindow = false }: QuickAddModalProps) 
     const defaultAreaId = resolvedAreaFilter !== AREA_FILTER_ALL && resolvedAreaFilter !== AREA_FILTER_NONE
         ? resolvedAreaFilter
         : '';
+    const quickAddParseOptions = useMemo(
+        () => ({ knownContexts: allContexts, knownTags: allTags }),
+        [allContexts, allTags],
+    );
     const parsedInput = useMemo(
-        () => parseQuickAdd(value, projects, new Date(), areas),
-        [value, projects, areas],
+        () => parseQuickAdd(value, projects, new Date(), areas, quickAddParseOptions),
+        [value, projects, areas, quickAddParseOptions],
     );
     const hasProjectOverride = Boolean(initialProps?.projectId || parsedInput.props.projectId || parsedInput.projectTitle);
     const showAreaSelector = !hasProjectOverride;
@@ -606,7 +610,13 @@ export function QuickAddModal({ standaloneWindow = false }: QuickAddModalProps) 
             currentProjects = currentState.projects;
             currentAreas = currentState.areas;
         }
-        const { title, props, projectTitle, invalidDateCommands, detectedDate } = parseQuickAdd(value, currentProjects, new Date(), currentAreas);
+        const { title, props, projectTitle, invalidDateCommands, detectedDate } = parseQuickAdd(
+            value,
+            currentProjects,
+            new Date(),
+            currentAreas,
+            quickAddParseOptions,
+        );
         if (invalidDateCommands && invalidDateCommands.length > 0) {
             return;
         }

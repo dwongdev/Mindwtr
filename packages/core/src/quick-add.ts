@@ -19,6 +19,11 @@ export interface QuickAddResult {
     detectedDate?: QuickAddDetectedDate;
 }
 
+export interface QuickAddParseOptions {
+    knownContexts?: readonly string[];
+    knownTags?: readonly string[];
+}
+
 export function getQuickAddProjectInitialProps(
     props: Partial<Task>,
     fallbackAreaId?: string | null
@@ -170,13 +175,101 @@ function stripToken(source: string, token: string): string {
     return source.replace(token, '').replace(/\s{2,}/g, ' ').trim();
 }
 
-function getQuickAddTokenMatches(working: string, prefix: '@' | '#'): string[] {
-    const matches: Array<{ token: string; index: number }> = [];
+type QuickAddTokenMatch = {
+    token: string;
+    raw: string;
+    index: number;
+    end: number;
+};
+
+function normalizeKnownQuickAddToken(token: string, prefix: '@' | '#'): string | null {
+    const trimmed = restoreEscapes(String(token || '')).replace(/\s+/g, ' ').trim();
+    if (!trimmed || trimmed === prefix) return null;
+    return trimmed.startsWith(prefix) ? trimmed : `${prefix}${trimmed}`;
+}
+
+function isQuickAddTokenStartBoundary(working: string, index: number): boolean {
+    return index === 0 || /\s/u.test(working[index - 1] ?? '');
+}
+
+function isQuickAddTokenEndBoundary(working: string, index: number): boolean {
+    if (index >= working.length) return true;
+    const ch = working[index] ?? '';
+    return /\s/u.test(ch) || !/[\p{L}\p{N}_-]/u.test(ch);
+}
+
+function pushQuickAddQuotedTokenMatches(working: string, prefix: '@' | '#', matches: QuickAddTokenMatch[]) {
+    const quotedRe = /(?:^|\s)([@#])"((?:\\.|[^"\\])*)"/gu;
+    for (const match of working.matchAll(quotedRe)) {
+        if (match[1] !== prefix) continue;
+        const rawOffset = match[0].indexOf(`${prefix}"`);
+        if (rawOffset < 0) continue;
+        const index = (match.index ?? 0) + rawOffset;
+        const raw = match[0].slice(rawOffset);
+        const value = (match[2] ?? '').replace(/\\(["\\])/g, '$1').replace(/\s+/g, ' ').trim();
+        if (!value) continue;
+        matches.push({
+            token: `${prefix}${restoreEscapes(value)}`,
+            raw,
+            index,
+            end: index + raw.length,
+        });
+    }
+}
+
+function pushQuickAddKnownTokenMatches(
+    working: string,
+    prefix: '@' | '#',
+    knownTokens: readonly string[] | undefined,
+    matches: QuickAddTokenMatch[],
+) {
+    if (!knownTokens?.length) return;
+    const candidates = Array.from(
+        new Set(
+            knownTokens
+                .map((token) => normalizeKnownQuickAddToken(token, prefix))
+                .filter((token): token is string => Boolean(token))
+        )
+    ).sort((a, b) => b.length - a.length);
+    if (candidates.length === 0) return;
+
+    const lowerWorking = working.toLowerCase();
+    for (let index = 0; index < working.length; index += 1) {
+        if (working[index] !== prefix || !isQuickAddTokenStartBoundary(working, index)) continue;
+        const candidate = candidates.find((token) => {
+            if (lowerWorking.slice(index, index + token.length) !== token.toLowerCase()) return false;
+            return isQuickAddTokenEndBoundary(working, index + token.length);
+        });
+        if (!candidate) continue;
+        matches.push({
+            token: candidate,
+            raw: working.slice(index, index + candidate.length),
+            index,
+            end: index + candidate.length,
+        });
+    }
+}
+
+function getQuickAddTokenMatches(
+    working: string,
+    prefix: '@' | '#',
+    knownTokens?: readonly string[],
+): QuickAddTokenMatch[] {
+    const matches: QuickAddTokenMatch[] = [];
+
+    pushQuickAddQuotedTokenMatches(working, prefix, matches);
+    pushQuickAddKnownTokenMatches(working, prefix, knownTokens, matches);
 
     for (const match of working.matchAll(SIMPLE_TASK_TOKEN_RE)) {
         const token = match[0];
         if (token.startsWith(prefix)) {
-            matches.push({ token, index: match.index ?? 0 });
+            const index = match.index ?? 0;
+            matches.push({
+                token: restoreEscapes(token),
+                raw: token,
+                index,
+                end: index + token.length,
+            });
         }
     }
 
@@ -184,17 +277,22 @@ function getQuickAddTokenMatches(working: string, prefix: '@' | '#'): string[] {
         const token = match[1]?.replace(/\s+/g, ' ').trim();
         if (token?.startsWith(prefix)) {
             const rawIndex = match.index ?? 0;
-            matches.push({ token, index: rawIndex + match[0].indexOf(match[1]) });
+            const index = rawIndex + match[0].indexOf(match[1]);
+            matches.push({
+                token: restoreEscapes(token),
+                raw: match[1] ?? token,
+                index,
+                end: index + (match[1]?.length ?? token.length),
+            });
         }
     }
 
-    const seen = new Set<string>();
+    let lastEnd = -1;
     return matches
-        .sort((a, b) => a.index - b.index)
-        .map((match) => match.token)
-        .filter((token) => {
-            if (seen.has(token)) return false;
-            seen.add(token);
+        .sort((a, b) => (a.index - b.index) || (b.end - b.index) - (a.end - a.index))
+        .filter((match) => {
+            if (match.index < lastEnd) return false;
+            lastEnd = match.end;
             return true;
         });
 }
@@ -321,7 +419,13 @@ export function parseQuickAddDateCommands(input: string, now: Date = new Date())
     };
 }
 
-export function parseQuickAdd(input: string, projects?: Project[], now: Date = new Date(), areas?: Area[]): QuickAddResult {
+export function parseQuickAdd(
+    input: string,
+    projects?: Project[],
+    now: Date = new Date(),
+    areas?: Area[],
+    options: QuickAddParseOptions = {},
+): QuickAddResult {
     let working = protectEscapes(input.trim());
     const hadExplicitDueCommand = /(?:^|\s)\/due:/i.test(working);
 
@@ -332,13 +436,13 @@ export function parseQuickAdd(input: string, projects?: Project[], now: Date = n
     const attachments = linkResult.attachments;
     working = linkResult.working;
 
-    const contextMatches = getQuickAddTokenMatches(working, '@');
-    contextMatches.forEach((ctx) => contexts.add(ctx));
-    contextMatches.forEach((ctx) => (working = stripToken(working, ctx)));
+    const contextMatches = getQuickAddTokenMatches(working, '@', options.knownContexts);
+    contextMatches.forEach((ctx) => contexts.add(ctx.token));
+    contextMatches.forEach((ctx) => (working = stripToken(working, ctx.raw)));
 
-    const tagMatches = getQuickAddTokenMatches(working, '#');
-    tagMatches.forEach((tag) => tags.add(tag));
-    tagMatches.forEach((tag) => (working = stripToken(working, tag)));
+    const tagMatches = getQuickAddTokenMatches(working, '#', options.knownTags);
+    tagMatches.forEach((tag) => tags.add(tag.token));
+    tagMatches.forEach((tag) => (working = stripToken(working, tag.raw)));
 
     // Area: /area:<id|name> or !Area Name
     let areaId: string | undefined;

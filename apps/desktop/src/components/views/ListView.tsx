@@ -172,6 +172,10 @@ export const ListView = memo(function ListView({ title, statusFilter }: ListView
         nextCount,
     } = useListViewOptimizations(tasks, baseTasks, statusFilter, perf);
     const allTokens = Array.from(new Set([...allContexts, ...allTags])).sort();
+    const quickAddParseOptions = useMemo(
+        () => ({ knownContexts: allContexts, knownTags: allTags }),
+        [allContexts, allTags],
+    );
 
     const {
         aiEnabled,
@@ -614,7 +618,13 @@ export const ListView = memo(function ListView({ title, statusFilter }: ListView
         e.preventDefault();
         if (!newTaskTitle.trim()) return;
         try {
-            const { title: parsedTitle, props, projectTitle, invalidDateCommands, detectedDate } = parseQuickAdd(newTaskTitle, projects, new Date(), areas);
+            const { title: parsedTitle, props, projectTitle, invalidDateCommands, detectedDate } = parseQuickAdd(
+                newTaskTitle,
+                projects,
+                new Date(),
+                areas,
+                quickAddParseOptions,
+            );
             if (invalidDateCommands && invalidDateCommands.length > 0) {
                 showToast(`${t('quickAdd.invalidDateCommand')}: ${invalidDateCommands.join(', ')}`, 'error');
                 return;

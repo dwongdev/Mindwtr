@@ -394,6 +394,48 @@ describe('quick-add', () => {
         expect(result.props.status).toBe('next');
     });
 
+    it('matches the longest existing multi-word tag from quick add tokens', () => {
+        const now = new Date('2026-05-19T10:00:00Z');
+        const result = parseQuickAdd(
+            'Buy headset #home office',
+            undefined,
+            now,
+            undefined,
+            { knownTags: ['#home', '#home office'] },
+        );
+
+        expect(result.title).toBe('Buy headset');
+        expect(result.props.tags).toEqual(['#home office']);
+    });
+
+    it('leaves trailing words in the title after a matched multi-word tag', () => {
+        const now = new Date('2026-05-19T10:00:00Z');
+        const result = parseQuickAdd(
+            'Buy headset #home office supplies',
+            undefined,
+            now,
+            undefined,
+            { knownTags: ['#home office'] },
+        );
+
+        expect(result.title).toBe('Buy headset supplies');
+        expect(result.props.tags).toEqual(['#home office']);
+    });
+
+    it('supports quoted multi-word tags without known tag lookup', () => {
+        const result = parseQuickAdd('Buy headset #"home office"');
+
+        expect(result.title).toBe('Buy headset');
+        expect(result.props.tags).toEqual(['#home office']);
+    });
+
+    it('keeps unknown unquoted multi-word tags single-word to avoid guessing', () => {
+        const result = parseQuickAdd('Buy headset #home office');
+
+        expect(result.title).toBe('Buy headset office');
+        expect(result.props.tags).toEqual(['#home']);
+    });
+
     it('keeps simple single-word tags from consuming following title text', () => {
         const now = new Date('2026-05-19T10:00:00Z');
         const result = parseQuickAdd('Email #project stakeholders /next', undefined, now);
