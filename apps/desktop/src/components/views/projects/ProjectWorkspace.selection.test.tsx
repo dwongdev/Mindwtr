@@ -3,6 +3,7 @@ import type { ComponentProps } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Project, Task } from '@mindwtr/core';
 
+import { useUiStore } from '../../../store/ui-store';
 import { ProjectWorkspace } from './ProjectWorkspace';
 
 vi.mock('../../TaskItem', () => ({
@@ -74,6 +75,7 @@ const translations: Record<string, string> = {
     'common.cancel': 'Cancel',
     'common.clear': 'Clear',
     'common.delete': 'Delete',
+    'common.edit': 'Edit',
     'common.save': 'Save',
     'common.search': 'Search...',
     'common.tasks': 'tasks',
@@ -173,6 +175,49 @@ const renderWorkspace = (overrides: Partial<ProjectWorkspaceProps> = {}) => rend
 describe('ProjectWorkspace Select mode', () => {
     beforeEach(() => {
         vi.clearAllMocks();
+        useUiStore.setState({ editingTaskId: null });
+    });
+
+    it('keeps plain task add as fire-and-forget without opening edit mode', async () => {
+        const addTask = vi.fn().mockResolvedValue({ success: true, id: 'created-task' });
+        const setHighlightTask = vi.fn();
+        const { getByPlaceholderText, getByRole } = renderWorkspace({
+            addTask,
+            setHighlightTask,
+        });
+
+        fireEvent.change(getByPlaceholderText('Add task'), { target: { value: 'Draft launch checklist' } });
+        fireEvent.click(getByRole('button', { name: 'Add task' }));
+
+        await waitFor(() => {
+            expect(addTask).toHaveBeenCalledWith('Draft launch checklist', expect.objectContaining({
+                projectId: project.id,
+                status: 'next',
+            }));
+        });
+        expect(setHighlightTask).not.toHaveBeenCalled();
+        expect(useUiStore.getState().editingTaskId).toBeNull();
+    });
+
+    it('opens the created task only when add-and-edit is explicitly requested', async () => {
+        const addTask = vi.fn().mockResolvedValue({ success: true, id: 'created-task' });
+        const setHighlightTask = vi.fn();
+        const { getByPlaceholderText, getByRole } = renderWorkspace({
+            addTask,
+            setHighlightTask,
+        });
+
+        fireEvent.change(getByPlaceholderText('Add task'), { target: { value: 'Add launch brief' } });
+        fireEvent.click(getByRole('button', { name: 'Add task / Edit' }));
+
+        await waitFor(() => {
+            expect(addTask).toHaveBeenCalledWith('Add launch brief', expect.objectContaining({
+                projectId: project.id,
+                status: 'next',
+            }));
+        });
+        expect(setHighlightTask).toHaveBeenCalledWith('created-task');
+        expect(useUiStore.getState().editingTaskId).toBe('created-task');
     });
 
     it('selects all visible project tasks and clears the selection', () => {

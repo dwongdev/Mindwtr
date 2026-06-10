@@ -49,6 +49,7 @@ import {
     toDateTimeLocalValue,
 } from './projects-utils';
 import type { ConfirmationRequestOptions } from '../../../hooks/useConfirmDialog';
+import { useUiStore } from '../../../store/ui-store';
 
 const projectTaskDndMeasuring = {
     droppable: {
@@ -185,7 +186,22 @@ type BulkTokenPickerState = {
     action: 'add' | 'remove';
 } | null;
 
+type AddProjectTaskResult = {
+    added: boolean;
+    taskId: string | null;
+};
+
 type ProjectTaskSortBy = 'default' | 'due';
+
+function getCreatedTaskId(result: unknown): string | null {
+    if (!result || typeof result !== 'object') return null;
+    const maybeId = (result as { id?: unknown }).id;
+    return typeof maybeId === 'string' && maybeId.trim() ? maybeId : null;
+}
+
+function isFailedStoreAction(result: unknown): result is { success: false; error?: string } {
+    return Boolean(result && typeof result === 'object' && (result as { success?: unknown }).success === false);
+}
 
 type ProjectWorkspaceProps = {
     addProject: (
@@ -335,10 +351,12 @@ export function ProjectWorkspace({
     const projectScrollRef = useRef<HTMLDivElement | null>(null);
     const isArchivedProject = selectedProject?.status === 'archived';
     const shouldGroupCompletedTasks = Boolean(selectedProject && !isArchivedProject && showCompletedTasks);
+    const setEditingTaskId = useUiStore((state) => state.setEditingTaskId);
     const resolveText = useCallback((key: string, fallback: string) => {
         const value = t(key);
         return value && value !== key ? value : fallback;
     }, [t]);
+    const addAndEditTaskLabel = `${resolveText('projects.addTask', 'Add task')} / ${resolveText('common.edit', 'Edit')}`;
 
     const {
         handleAddSection,
@@ -1227,8 +1245,9 @@ export function ProjectWorkspace({
         : t('taskEdit.contextsPlaceholder');
 
     const handleAddTaskForProject = useCallback(
-        async (value: string, sectionId?: string | null) => {
-            if (!selectedProject) return;
+        async (value: string, sectionId?: string | null): Promise<AddProjectTaskResult> => {
+            const notAdded = { added: false, taskId: null };
+            if (!selectedProject) return notAdded;
             const {
                 title: parsedTitle,
                 props,
@@ -1237,11 +1256,11 @@ export function ProjectWorkspace({
             } = parseQuickAdd(value, projects, new Date(), areas);
             if (invalidDateCommands && invalidDateCommands.length > 0) {
                 showToast(`${t('quickAdd.invalidDateCommand')}: ${invalidDateCommands.join(', ')}`, 'error');
-                return;
+                return notAdded;
             }
 
             const finalTitle = (parsedTitle || value).trim();
-            if (!finalTitle) return;
+            if (!finalTitle) return notAdded;
 
             const initialProps: Partial<Task> = {
                 projectId: selectedProject.id,
@@ -1257,7 +1276,7 @@ export function ProjectWorkspace({
                     DEFAULT_AREA_COLOR,
                     getQuickAddProjectInitialProps(props, selectedProject.areaId),
                 );
-                if (!created) return;
+                if (!created) return notAdded;
                 initialProps.projectId = created.id;
             }
 
@@ -1268,14 +1287,39 @@ export function ProjectWorkspace({
             }
 
             try {
-                await addTask(finalTitle, initialProps);
+                const result = await addTask(finalTitle, initialProps);
+                if (isFailedStoreAction(result)) {
+                    showToast(result.error || t('projects.addTaskFailed') || 'Failed to add task', 'error');
+                    return notAdded;
+                }
+                return { added: true, taskId: getCreatedTaskId(result) };
             } catch (error) {
                 reportError('Failed to add task to project', error);
                 showToast(t('projects.addTaskFailed') || 'Failed to add task', 'error');
+                return notAdded;
             }
         },
         [addProject, addTask, areas, projects, selectedProject, showToast, t],
     );
+
+    const handleAddProjectTaskSubmit = useCallback(async () => {
+        if (!projectTaskTitle.trim()) return;
+        const result = await handleAddTaskForProject(projectTaskTitle);
+        if (result.added) {
+            setProjectTaskTitle('');
+        }
+    }, [handleAddTaskForProject, projectTaskTitle]);
+
+    const handleAddProjectTaskAndEdit = useCallback(async () => {
+        if (!projectTaskTitle.trim()) return;
+        const result = await handleAddTaskForProject(projectTaskTitle);
+        if (!result.added) return;
+        setProjectTaskTitle('');
+        if (result.taskId) {
+            setHighlightTask(result.taskId);
+            setEditingTaskId(result.taskId);
+        }
+    }, [handleAddTaskForProject, projectTaskTitle, setEditingTaskId, setHighlightTask]);
 
     return (
         <>
@@ -1414,9 +1458,7 @@ export function ProjectWorkspace({
                                         <form
                                             onSubmit={async (event) => {
                                                 event.preventDefault();
-                                                if (!projectTaskTitle.trim()) return;
-                                                await handleAddTaskForProject(projectTaskTitle);
-                                                setProjectTaskTitle('');
+                                                await handleAddProjectTaskSubmit();
                                             }}
                                             className="mb-3 flex gap-2"
                                         >
@@ -1443,6 +1485,16 @@ export function ProjectWorkspace({
                                                 className="h-9 whitespace-nowrap rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
                                             >
                                                 {t('projects.addTask')}
+                                            </button>
+                                            <button
+                                                type="button"
+                                                onClick={handleAddProjectTaskAndEdit}
+                                                disabled={!projectTaskTitle.trim()}
+                                                aria-label={addAndEditTaskLabel}
+                                                title={addAndEditTaskLabel}
+                                                className="inline-flex h-9 w-9 flex-none items-center justify-center rounded-md border border-border bg-background text-muted-foreground transition-colors hover:bg-muted/60 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 disabled:cursor-not-allowed disabled:opacity-50"
+                                            >
+                                                <Pencil className="h-4 w-4" aria-hidden="true" />
                                             </button>
                                         </form>
                                     )}

@@ -15,6 +15,7 @@ vi.mock('react-native', () => ({
     accessibilityLabel,
     autoCapitalize,
     autoCorrect,
+    blurOnSubmit,
     onChangeText,
     onSelectionChange,
     onSubmitEditing,
@@ -24,7 +25,7 @@ vi.mock('react-native', () => ({
     value,
     ...props
   }: any) =>
-    React.createElement('input', { ...props, 'aria-description': accessibilityHint, 'aria-label': accessibilityLabel, defaultValue: value }),
+    React.createElement('input', { ...props, 'aria-description': accessibilityHint, 'aria-label': accessibilityLabel, 'data-blur-on-submit': String(blurOnSubmit), defaultValue: value }),
   TouchableOpacity: ({ accessibilityLabel, accessibilityRole, accessibilityState, activeOpacity, hitSlop, onPress, style, ...props }: any) =>
     React.createElement('button', { ...props, 'aria-label': accessibilityLabel, 'aria-selected': accessibilityState?.selected, disabled: accessibilityState?.disabled, role: accessibilityRole, onClick: onPress }, props.children),
   View: ({ accessibilityLabel, accessibilityRole, style, ...props }: any) =>
@@ -33,6 +34,7 @@ vi.mock('react-native', () => ({
 
 vi.mock('lucide-react-native', () => ({
   CheckCircle2: () => React.createElement('span', { 'data-icon': 'check-circle' }),
+  Pencil: () => React.createElement('span', { 'data-icon': 'pencil' }),
   Plus: () => React.createElement('span', { 'data-icon': 'plus' }),
   Sparkles: () => React.createElement('span', { 'data-icon': 'sparkles' }),
 }));
@@ -65,6 +67,7 @@ const getQuickAddProps = (overrides: Partial<React.ComponentProps<typeof TaskLis
       'copilot.applyHint': 'Apply',
       'copilot.applied': 'Applied',
       'copilot.suggested': 'Suggested',
+      'common.edit': 'Edit',
       'inbox.addPlaceholder': 'Add a task',
       'nav.addTask': 'Add Task',
       'projects.addTaskPlaceholder': 'Add a project task',
@@ -134,5 +137,34 @@ describe('TaskListQuickAdd', () => {
     });
 
     expect(onInputFocus).toHaveBeenCalledWith(42);
+  });
+
+  it('keeps the native input focused after return-key submit', () => {
+    let tree!: ReturnType<typeof create>;
+
+    act(() => {
+      tree = create(<TaskListQuickAdd {...getQuickAddProps()} />);
+    });
+
+    const input = tree.root.findByType('input');
+    expect(input.props['data-blur-on-submit']).toBe('false');
+  });
+
+  it('can render a separate add-and-edit action', () => {
+    const handleAddAndEditTask = vi.fn();
+    let tree!: ReturnType<typeof create>;
+
+    act(() => {
+      tree = create(<TaskListQuickAdd {...getQuickAddProps({ handleAddAndEditTask })} />);
+    });
+
+    const button = tree.root.findByProps({ 'aria-label': 'Add Task / Edit' });
+    expect(button.findByProps({ 'data-icon': 'pencil' })).toBeTruthy();
+
+    act(() => {
+      button.props.onClick();
+    });
+
+    expect(handleAddAndEditTask).toHaveBeenCalledTimes(1);
   });
 });

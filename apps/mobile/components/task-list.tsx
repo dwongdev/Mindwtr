@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react';
-import { View, FlatList, Text, TextInput, RefreshControl, Keyboard, TouchableOpacity, useWindowDimensions, type LayoutChangeEvent } from 'react-native';
+import { View, FlatList, Text, TextInput, RefreshControl, TouchableOpacity, useWindowDimensions, type LayoutChangeEvent } from 'react-native';
 import { router } from 'expo-router';
 import { ArrowDown, ArrowUp, ChevronDown, ChevronRight, GripVertical, MoveVertical } from 'lucide-react-native';
 import { NestableDraggableFlatList, ScaleDecorator, type DragEndParams, type RenderItemParams } from 'react-native-draggable-flatlist';
@@ -90,6 +90,10 @@ const ENERGY_LEVEL_OPTIONS: TaskEnergyLevel[] = ['low', 'medium', 'high'];
 type StaticListVirtualizationWindow = {
   scrollOffsetY: number;
   viewportHeight: number;
+};
+
+type AddTaskOptions = {
+  openAfterCreate?: boolean;
 };
 
 export interface TaskListProps {
@@ -365,6 +369,18 @@ function TaskListComponent({
     if (!quickAddAvailable) return;
     quickAddInputRef.current?.focus();
   }, [externalQuickAddFocusSignal, quickAddAvailable]);
+
+  const refocusQuickAddInput = useCallback(() => {
+    if (!quickAddAvailable) return;
+    const focusInput = () => {
+      quickAddInputRef.current?.focus();
+    };
+    if (typeof requestAnimationFrame === 'function') {
+      requestAnimationFrame(focusInput);
+    } else {
+      setTimeout(focusInput, 0);
+    }
+  }, [quickAddAvailable]);
 
   useEffect(() => {
     if (!showTimeEstimateFilters && selectedTimeEstimates.length > 0) {
@@ -1001,7 +1017,7 @@ function TaskListComponent({
     };
   }, [highlightTaskId, setHighlightTask]);
 
-  const handleAddTask = async () => {
+  const handleAddTask = async (options: AddTaskOptions = {}) => {
     if (!newTaskTitle.trim()) return;
 
     const defaultStatus: TaskStatus = projectId
@@ -1059,14 +1075,30 @@ function TaskListComponent({
       initialProps.tags = nextTags;
     }
 
-    await addTask(finalTitle, initialProps);
+    const result = await addTask(finalTitle, initialProps);
+    const resultObject = result && typeof result === 'object'
+      ? result as { success?: boolean; id?: string }
+      : null;
+    if (resultObject?.success === false) return;
+    const createdTaskId = typeof resultObject?.id === 'string' ? resultObject.id : undefined;
     setNewTaskTitle('');
     setTypeaheadOpen(false);
     setCopilotSuggestion(null);
     setCopilotApplied(false);
     setCopilotContext(undefined);
     setCopilotTags([]);
-    Keyboard.dismiss();
+
+    if (options.openAfterCreate && createdTaskId) {
+      const createdTask = useTaskStore.getState()._allTasks.find((task) => task.id === createdTaskId && !task.deletedAt);
+      if (createdTask) {
+        setHighlightTask(createdTaskId);
+        setEditingTask(createdTask);
+        setIsModalVisible(true);
+      }
+      return;
+    }
+
+    refocusQuickAddInput();
   };
 
   const applyTypeaheadOption = useCallback(async (option: Option) => {
@@ -1468,6 +1500,7 @@ function TaskListComponent({
           copilotTags={copilotTags}
           copilotThinking={copilotThinking}
           enableCopilot={enableCopilot}
+          handleAddAndEditTask={projectId ? () => handleAddTask({ openAfterCreate: true }) : undefined}
           handleAddTask={handleAddTask}
           inputRef={quickAddInputRef}
           newTaskTitle={newTaskTitle}

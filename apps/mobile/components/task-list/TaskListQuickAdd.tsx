@@ -1,7 +1,7 @@
 import React from 'react';
 import { ActivityIndicator, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { translateWithFallback } from '@mindwtr/core';
-import { CheckCircle2, Plus, Sparkles } from 'lucide-react-native';
+import { CheckCircle2, Pencil, Plus, Sparkles } from 'lucide-react-native';
 
 import { styles } from './task-list.styles';
 
@@ -29,6 +29,7 @@ type TaskListQuickAddProps = {
   copilotTags: string[];
   copilotThinking: boolean;
   enableCopilot: boolean;
+  handleAddAndEditTask?: () => void | Promise<void>;
   handleAddTask: () => void | Promise<void>;
   inputRef?: React.RefObject<TextInput | null>;
   newTaskTitle: string;
@@ -58,6 +59,7 @@ export function TaskListQuickAdd({
   copilotTags,
   copilotThinking,
   enableCopilot,
+  handleAddAndEditTask,
   handleAddTask,
   inputRef,
   newTaskTitle,
@@ -81,8 +83,11 @@ export function TaskListQuickAdd({
     return translateWithFallback(t, key, fallback);
   };
   const addTaskLabel = resolveText('nav.addTask', 'Add Task');
+  const editLabel = resolveText('common.edit', 'Edit');
+  const addAndEditTaskLabel = `${addTaskLabel} / ${editLabel}`;
   const inputLabel = title ? `${addTaskLabel}: ${title}` : resolveText('quickAdd.inputLabel', 'Task title');
   const inputHint = resolveText('quickAdd.inputHint', 'Type a task title, then press add or the return key.');
+  const addDisabled = !newTaskTitle.trim();
 
   return (
     <>
@@ -106,23 +111,42 @@ export function TaskListQuickAdd({
           onFocus={(event) => {
             onInputFocus?.(event.nativeEvent.target);
           }}
-          onSubmitEditing={handleAddTask}
+          blurOnSubmit={false}
+          onSubmitEditing={() => { void handleAddTask(); }}
           returnKeyType="done"
           accessibilityLabel={inputLabel}
           accessibilityHint={inputHint}
         />
         {trailingAccessory}
+        {handleAddAndEditTask ? (
+          <TouchableOpacity
+            onPress={() => { void handleAddAndEditTask(); }}
+            style={[
+              styles.addAndEditButton,
+              { backgroundColor: themeColors.inputBg, borderColor: themeColors.border },
+              addDisabled && styles.addButtonDisabled,
+            ]}
+            disabled={addDisabled}
+            accessibilityLabel={addAndEditTaskLabel}
+            accessibilityRole="button"
+            accessibilityState={{ disabled: addDisabled }}
+            activeOpacity={0.85}
+            hitSlop={8}
+          >
+            <Pencil size={20} color={themeColors.tint} strokeWidth={2.4} />
+          </TouchableOpacity>
+        ) : null}
         <TouchableOpacity
-          onPress={handleAddTask}
+          onPress={() => { void handleAddTask(); }}
           style={[
             styles.addButton,
             { backgroundColor: themeColors.tint },
-            !newTaskTitle.trim() && styles.addButtonDisabled,
+            addDisabled && styles.addButtonDisabled,
           ]}
-          disabled={!newTaskTitle.trim()}
+          disabled={addDisabled}
           accessibilityLabel={addTaskLabel}
           accessibilityRole="button"
-          accessibilityState={{ disabled: !newTaskTitle.trim() }}
+          accessibilityState={{ disabled: addDisabled }}
           activeOpacity={0.85}
           hitSlop={8}
         >
