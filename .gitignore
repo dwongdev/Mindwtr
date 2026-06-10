@@ -84,12 +84,14 @@ aur/src/
 .flatpak-builder/
 
 # Agent files
+AGENT.md
 AGENTS.md
 .codex/
 .codegraph/
 .agents/
 .serena/
 .claude/
+.cursor/
 .gemini/
 .kiro/
 skills-lock.json
