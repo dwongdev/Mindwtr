@@ -1,44 +1,44 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
     addDays,
-    addMonths,
     addWeeks,
     eachDayOfInterval,
-    endOfMonth,
     endOfWeek,
     format,
-    getYear,
-    isSameMonth,
-    setMonth,
-    setYear,
-    startOfMonth,
     startOfWeek,
     subDays,
-    subMonths,
     subWeeks,
 } from 'date-fns';
 import {
     DEFAULT_CALENDAR_DAY_START_HOUR,
     DEFAULT_PROJECT_COLOR,
     addCalendarMinutes,
+    addCalendarMonths as addCalendarSystemMonths,
     buildCalendarEventTaskDraft,
     buildCalendarQuickAddTaskDraft,
+    endOfCalendarMonth,
     expandCalendarRecurringTasks,
     formatCalendarDurationLabel,
     formatCalendarTimeInputValue,
     findFreeSlotForDay as findCalendarFreeSlotForDay,
     getExternalCalendarColorForId,
+    getCalendarYear,
     getQuickAddProjectInitialProps,
     getWeekStartsOnIndex,
+    isSameCalendarMonth,
     isSlotFreeForDay as isCalendarSlotFreeForDay,
     isTaskInActiveProject,
     isProjectedRecurringTask,
     hasTimeComponent,
     minutesToTimeEstimate,
     normalizeCalendarDurationMinutes,
+    resolveCalendarSystemSetting,
     safeParseDate,
     safeParseDueDate,
     shallow,
+    setCalendarMonthIndex,
+    setCalendarYear,
+    startOfCalendarMonth,
     timeEstimateToMinutes as resolveTimeEstimateToMinutes,
     translateWithFallback,
     type ExternalCalendarEvent,
@@ -233,13 +233,19 @@ export function useDesktopCalendarController() {
         [settings?.filters?.areaId, areas],
     );
     const weekStartsOn = getWeekStartsOnIndex(settings?.weekStart);
+    const systemLocale = typeof Intl !== 'undefined' ? Intl.DateTimeFormat().resolvedOptions().locale : undefined;
+    const calendarSystem = resolveCalendarSystemSetting(settings?.calendarSystem, {
+        language,
+        systemLocale,
+    });
     const calendarLocale = useMemo(
         () => resolveCalendarLocale({
             language,
             dateFormat: settings?.dateFormat,
-            systemLocale: typeof Intl !== 'undefined' ? Intl.DateTimeFormat().resolvedOptions().locale : undefined,
+            calendarSystem: settings?.calendarSystem,
+            systemLocale,
         }),
-        [language, settings?.dateFormat]
+        [language, settings?.calendarSystem, settings?.dateFormat, systemLocale]
     );
     const [initialCalendarState] = useState(() => getInitialCalendarState(new Date()));
     const [currentMonth, setCurrentMonth] = useState(initialCalendarState.currentMonth);
@@ -298,8 +304,12 @@ export function useDesktopCalendarController() {
         window.localStorage.setItem(HIDDEN_EXTERNAL_CALENDAR_IDS_STORAGE_KEY, serialized);
     }, [hiddenExternalCalendarIds]);
 
-    const calendarStart = startOfWeek(startOfMonth(currentMonth), { weekStartsOn });
-    const calendarEnd = endOfWeek(endOfMonth(currentMonth), { weekStartsOn });
+    const currentCalendarMonth = useMemo(
+        () => startOfCalendarMonth(currentMonth, calendarSystem),
+        [calendarSystem, currentMonth]
+    );
+    const calendarStart = startOfWeek(currentCalendarMonth, { weekStartsOn });
+    const calendarEnd = endOfWeek(endOfCalendarMonth(currentCalendarMonth, calendarSystem), { weekStartsOn });
     const days = eachDayOfInterval({
         start: calendarStart,
         end: calendarEnd,
@@ -315,8 +325,11 @@ export function useDesktopCalendarController() {
         if (viewMode === 'schedule') {
             return { start: currentMonth, end: addDays(currentMonth, 60) };
         }
-        return { start: startOfMonth(currentMonth), end: endOfMonth(currentMonth) };
-    }, [currentMonth, viewMode, weekStartsOn]);
+        return {
+            start: currentCalendarMonth,
+            end: endOfCalendarMonth(currentCalendarMonth, calendarSystem),
+        };
+    }, [calendarSystem, currentCalendarMonth, currentMonth, viewMode, weekStartsOn]);
     const timelineDays = useMemo(
         () => viewMode === 'day'
             ? [currentMonth]
@@ -898,18 +911,23 @@ export function useDesktopCalendarController() {
         () => getCalendarWeekdayHeaders(calendarLocale, weekStartsOn),
         [calendarLocale, weekStartsOn]
     );
-    const currentYear = getYear(currentMonth);
+    const currentYear = getCalendarYear(currentMonth, calendarSystem);
     const currentMonthLabel = (() => {
-        if (viewMode === 'day') return format(currentMonth, 'EEEE, MMMM d, yyyy');
+        if (viewMode === 'day') return currentMonth.toLocaleDateString(calendarLocale, {
+            weekday: 'long',
+            month: 'long',
+            day: 'numeric',
+            year: 'numeric',
+        });
         if (viewMode === 'week') {
             const start = startOfWeek(currentMonth, { weekStartsOn });
             const end = addDays(start, 6);
-            return `${format(start, 'MMM d')} - ${format(end, 'MMM d, yyyy')}`;
+            return `${start.toLocaleDateString(calendarLocale, { month: 'short', day: 'numeric' })} - ${end.toLocaleDateString(calendarLocale, { month: 'short', day: 'numeric', year: 'numeric' })}`;
         }
         if (viewMode === 'schedule') {
-            return `${format(visibleRange.start, 'MMM d')} - ${format(visibleRange.end, 'MMM d, yyyy')}`;
+            return `${visibleRange.start.toLocaleDateString(calendarLocale, { month: 'short', day: 'numeric' })} - ${visibleRange.end.toLocaleDateString(calendarLocale, { month: 'short', day: 'numeric', year: 'numeric' })}`;
         }
-        return format(currentMonth, 'MMMM yyyy');
+        return currentCalendarMonth.toLocaleDateString(calendarLocale, { month: 'long', year: 'numeric' });
     })();
     const yearOptions = useMemo(
         () => Array.from({ length: 11 }, (_, index) => currentYear - 5 + index),
@@ -923,7 +941,7 @@ export function useDesktopCalendarController() {
     };
     const selectCalendarDate = (date: Date) => {
         setSelectedDate(date);
-        if (!isSameMonth(date, currentMonth)) {
+        if (!isSameCalendarMonth(date, currentMonth, calendarSystem)) {
             setCurrentMonth(date);
         }
     };
@@ -937,12 +955,12 @@ export function useDesktopCalendarController() {
     const handleMonthChange = (monthIndex: number) => {
         setSelectedDate(null);
         resetSelectedDayState();
-        setCurrentMonth((prev) => setMonth(prev, monthIndex));
+        setCurrentMonth((prev) => setCalendarMonthIndex(prev, monthIndex, calendarSystem));
     };
     const handleYearChange = (yearValue: number) => {
         setSelectedDate(null);
         resetSelectedDayState();
-        setCurrentMonth((prev) => setYear(prev, yearValue));
+        setCurrentMonth((prev) => setCalendarYear(prev, yearValue, calendarSystem));
     };
     const handlePrevMonth = () => {
         resetSelectedDayState();
@@ -953,7 +971,7 @@ export function useDesktopCalendarController() {
             ? subWeeks(currentMonth, 1)
             : viewMode === 'schedule'
             ? subWeeks(currentMonth, 2)
-            : subMonths(currentMonth, 1);
+            : addCalendarSystemMonths(currentMonth, -1, calendarSystem);
         setCurrentMonth(next);
         setSelectedDate(needsCalendarSelectedDate(viewMode) ? next : null);
     };
@@ -966,7 +984,7 @@ export function useDesktopCalendarController() {
             ? addWeeks(currentMonth, 1)
             : viewMode === 'schedule'
             ? addWeeks(currentMonth, 2)
-            : addMonths(currentMonth, 1);
+            : addCalendarSystemMonths(currentMonth, 1, calendarSystem);
         setCurrentMonth(next);
         setSelectedDate(needsCalendarSelectedDate(viewMode) ? next : null);
     };
@@ -1198,6 +1216,7 @@ export function useDesktopCalendarController() {
         beginEditScheduledTime,
         calendarBodyRef,
         calendarNameById,
+        calendarSystem,
         cancelEditScheduledTime,
         combineDateAndTime,
         commitEditScheduledTime,
@@ -1228,6 +1247,7 @@ export function useDesktopCalendarController() {
         isExternalLoading,
         isMonthPickerOpen,
         layoutTimedItems,
+        locale: calendarLocale,
         markTaskDone,
         monthNames,
         normalizeDurationMinutes,

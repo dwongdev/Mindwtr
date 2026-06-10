@@ -20,6 +20,9 @@ const baseProps: SettingsMainPageProps = {
     onWeekStartChange: vi.fn(),
     dateFormat: 'system',
     onDateFormatChange: vi.fn(),
+    calendarSystem: 'gregorian',
+    showCalendarSystem: false,
+    onCalendarSystemChange: vi.fn(),
     timeFormat: 'system',
     onTimeFormatChange: vi.fn(),
     keybindingStyle: 'vim',
@@ -100,6 +103,29 @@ describe('SettingsMainPage', () => {
         });
 
         expect(onWeekStartChange).toHaveBeenCalledWith('monday');
+    });
+
+    it('only renders the calendar system selector when enabled', () => {
+        const onCalendarSystemChange = vi.fn();
+        const hidden = render(<SettingsMainPage {...baseProps} />);
+        expect(hidden.queryByText('Calendar system')).toBeNull();
+        hidden.unmount();
+
+        const { getByRole, getByText } = render(
+            <SettingsMainPage
+                {...baseProps}
+                showCalendarSystem
+                calendarSystem="jalali"
+                onCalendarSystemChange={onCalendarSystemChange}
+            />,
+        );
+
+        expect(getByText('Calendar system')).toBeInTheDocument();
+        fireEvent.change(getByRole('combobox', { name: 'Calendar system' }), {
+            target: { value: 'gregorian' },
+        });
+
+        expect(onCalendarSystemChange).toHaveBeenCalledWith('gregorian');
     });
 
     it('offers the small text size preset', () => {

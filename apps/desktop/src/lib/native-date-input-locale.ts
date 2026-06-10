@@ -1,13 +1,16 @@
 import {
+    JALALI_LOCALE_TAG,
     normalizeDateFormatSetting,
     normalizeTimeFormatSetting,
     normalizeWeekStartSetting,
+    resolveCalendarSystemSetting,
     resolveDateLocaleTag,
 } from '@mindwtr/core';
 
 type NativeDateInputLocaleParams = {
     language?: string | null;
     dateFormat?: string | null;
+    calendarSystem?: string | null;
     timeFormat?: string | null;
     weekStart?: 'monday' | 'sunday' | 'saturday' | null;
     systemLocale?: string | null;
@@ -38,14 +41,20 @@ export function resolveNativeDateInputLocale(params: NativeDateInputLocaleParams
     const timeFormat = normalizeTimeFormatSetting(params.timeFormat);
     const systemLocale = normalizeLocaleTag(params.systemLocale) || undefined;
     const normalizedLanguage = normalizeLanguageKey(params.language);
-
-    let baseLocale = resolveDateLocaleTag({
+    const calendarSystem = resolveCalendarSystemSetting(params.calendarSystem, {
         language: params.language,
-        dateFormat,
         systemLocale,
     });
 
-    if (dateFormat === 'ymd') {
+    let baseLocale = calendarSystem === 'jalali'
+        ? JALALI_LOCALE_TAG
+        : resolveDateLocaleTag({
+            language: params.language,
+            dateFormat,
+            systemLocale,
+        });
+
+    if (dateFormat === 'ymd' && calendarSystem !== 'jalali') {
         baseLocale = YMD_NATIVE_LOCALE_BY_LANGUAGE[normalizedLanguage] ?? baseLocale;
     }
 
@@ -68,5 +77,11 @@ export function resolveNativeDateInputLocale(params: NativeDateInputLocaleParams
         return baseLocale;
     }
 
-    return `${baseLocale}-u-${unicodePreferences.join('-')}`;
+    const [localeBase, existingUnicodeExtension] = baseLocale.split('-u-', 2);
+    const unicodeExtension = [
+        ...(existingUnicodeExtension ? existingUnicodeExtension.split('-') : []),
+        ...unicodePreferences,
+    ].filter(Boolean);
+
+    return `${localeBase}-u-${unicodeExtension.join('-')}`;
 }

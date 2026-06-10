@@ -12,6 +12,7 @@ type DensityMode = 'comfortable' | 'compact';
 type TextSizeMode = 'small' | 'default' | 'large' | 'extra-large';
 type WeekStart = 'sunday' | 'monday' | 'saturday';
 type DateFormatSetting = 'system' | 'dmy' | 'mdy' | 'ymd';
+type CalendarSystemSetting = 'gregorian' | 'jalali';
 type TimeFormatSetting = 'system' | '12h' | '24h';
 
 type Labels = {
@@ -48,6 +49,9 @@ type Labels = {
     dateFormatDmy: string;
     dateFormatMdy: string;
     dateFormatYmd: string;
+    calendarSystem: string;
+    calendarSystemGregorian: string;
+    calendarSystemJalali: string;
     timeFormat: string;
     timeFormatSystem: string;
     timeFormat12h: string;
@@ -95,6 +99,9 @@ export type SettingsMainPageProps = {
     onWeekStartChange: (weekStart: WeekStart) => void;
     dateFormat: DateFormatSetting;
     onDateFormatChange: (format: DateFormatSetting) => void;
+    calendarSystem: CalendarSystemSetting;
+    showCalendarSystem: boolean;
+    onCalendarSystemChange: (calendarSystem: CalendarSystemSetting) => void;
     timeFormat: TimeFormatSetting;
     onTimeFormatChange: (format: TimeFormatSetting) => void;
     keybindingStyle: 'vim' | 'emacs';
@@ -199,6 +206,9 @@ export function SettingsMainPage({
     onWeekStartChange,
     dateFormat,
     onDateFormatChange,
+    calendarSystem,
+    showCalendarSystem,
+    onCalendarSystemChange,
     timeFormat,
     onTimeFormatChange,
     keybindingStyle,
@@ -350,6 +360,26 @@ export function SettingsMainPage({
                         <option value="ymd">{t.dateFormatYmd}</option>
                     </select>
                 </SettingsRow>
+                {showCalendarSystem && (
+                    <SettingsRow
+                        title={t.calendarSystem}
+                        description={
+                            calendarSystem === 'jalali'
+                                ? t.calendarSystemJalali
+                                : t.calendarSystemGregorian
+                        }
+                    >
+                        <select
+                            aria-label={t.calendarSystem}
+                            value={calendarSystem}
+                            onChange={(e) => onCalendarSystemChange(e.target.value as CalendarSystemSetting)}
+                            className={selectCls}
+                        >
+                            <option value="gregorian">{t.calendarSystemGregorian}</option>
+                            <option value="jalali">{t.calendarSystemJalali}</option>
+                        </select>
+                    </SettingsRow>
+                )}
                 <SettingsRow
                     title={t.timeFormat}
                     description={

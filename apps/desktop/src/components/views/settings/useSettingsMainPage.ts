@@ -2,9 +2,11 @@ import { useCallback, useEffect, useState } from 'react';
 
 import {
     flushPendingSave,
+    canUseJalaliCalendar,
     normalizeDateFormatSetting,
     normalizeTimeFormatSetting,
     normalizeWeekStartSetting,
+    resolveCalendarSystemSetting,
     type AppearanceSettings,
     type AppData,
     type NotificationSettings,
@@ -84,6 +86,11 @@ export function useSettingsMainPage({
     const timeFormat = normalizeTimeFormatSetting(settings?.timeFormat);
     const undoNotificationsEnabled = notificationSettings.undoNotificationsEnabled !== false;
     const weekStart = normalizeWeekStartSetting(settings?.weekStart);
+    const systemLocale = typeof Intl !== 'undefined' && typeof Intl.DateTimeFormat === 'function'
+        ? Intl.DateTimeFormat().resolvedOptions().locale
+        : '';
+    const showCalendarSystem = canUseJalaliCalendar({ language, systemLocale });
+    const calendarSystem = resolveCalendarSystemSetting(settings?.calendarSystem, { language, systemLocale });
     const windowDecorationsEnabled = windowSettings?.decorations !== false;
     const closeBehavior = resolveCloseBehavior(windowSettings?.closeBehavior, isFlatpak);
     const trayVisible = windowSettings?.showTray !== false;
@@ -206,6 +213,12 @@ export function useSettingsMainPage({
             .catch((error) => reportError('Failed to update date format', error));
     }, [showSaved, updateSettings]);
 
+    const onCalendarSystemChange = useCallback((value: MainPageProps['calendarSystem']) => {
+        updateSettings({ calendarSystem: value })
+            .then(showSaved)
+            .catch((error) => reportError('Failed to update calendar system', error));
+    }, [showSaved, updateSettings]);
+
     const onTimeFormatChange = useCallback((value: MainPageProps['timeFormat']) => {
         updateSettings({ timeFormat: value })
             .then(showSaved)
@@ -306,6 +319,7 @@ export function useSettingsMainPage({
 
     return {
         closeBehavior,
+        calendarSystem,
         dateFormat,
         densityMode,
         globalQuickAddShortcut,
@@ -315,6 +329,7 @@ export function useSettingsMainPage({
         launchAtStartupEnabled,
         launchAtStartupLoading,
         onCloseBehaviorChange,
+        onCalendarSystemChange,
         onDateFormatChange,
         onDensityChange,
         onGlobalQuickAddShortcutChange,
@@ -331,6 +346,7 @@ export function useSettingsMainPage({
         onWeekStartChange,
         onWindowDecorationsChange,
         showCloseBehavior: isTauri,
+        showCalendarSystem,
         showLaunchAtStartup: isTauri,
         showTaskAge,
         showTrayToggle: isTauri,

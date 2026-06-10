@@ -14,7 +14,7 @@ import {
   type GestureResponderEvent,
 } from 'react-native';
 import * as Haptics from 'expo-haptics';
-import { CALENDAR_TIME_ESTIMATE_OPTIONS, isProjectedRecurringTask, safeFormatDate, safeParseDate, type Task } from '@mindwtr/core';
+import { CALENDAR_TIME_ESTIMATE_OPTIONS, getCalendarDayOfMonth, isProjectedRecurringTask, safeFormatDate, safeParseDate, type Task } from '@mindwtr/core';
 import { Gesture, GestureDetector, ScrollView } from 'react-native-gesture-handler';
 import Animated, { runOnJS, useAnimatedStyle, useSharedValue, withSequence, withSpring, withTiming } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -204,13 +204,12 @@ export function CalendarView() {
     calendarComposer,
     calendarComposerCandidates,
     calendarComposerSelectedTask,
+    calendarSystem,
     calendarWeekVisibleDays,
     calendarNameById,
     closeCalendarComposer,
     closeEditingTask,
     commitTaskDrag,
-    currentMonth,
-    currentYear,
     dayNames,
     editingTask,
     externalCalendars,
@@ -1469,7 +1468,8 @@ export function CalendarView() {
                 return <View key={`empty-${index}`} style={[styles.dayCell, selectedDate && styles.dayCellCompact]} />;
               }
 
-              const date = new Date(currentYear, currentMonth, day);
+              const date = day;
+              const dateKey = `${date.getFullYear()}-${date.getMonth()}-${date.getDate()}`;
               const taskCount = getTaskCountForDate(date);
               const eventCount = getExternalEventsForDate(date).length;
               const calendarItems = getCalendarItemsForDate(date);
@@ -1481,7 +1481,7 @@ export function CalendarView() {
 
               return (
                 <Pressable
-                  key={day}
+                  key={dateKey}
                   style={[
                     styles.dayCell,
                     selectedDate && styles.dayCellCompact,
@@ -1507,7 +1507,7 @@ export function CalendarView() {
                         isToday(date) && { color: tc.onTint },
                       ]}
                     >
-                      {day}
+                      {getCalendarDayOfMonth(date, calendarSystem)}
                     </Text>
                   </View>
                   {visibleItems.length > 0 && (

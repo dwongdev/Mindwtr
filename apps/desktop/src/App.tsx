@@ -295,6 +295,7 @@ function App() {
     const settingsTextSize = useTaskStore((state) => state.settings?.appearance?.textSize);
     const settingsLanguage = useTaskStore((state) => state.settings?.language);
     const settingsDateFormat = useTaskStore((state) => state.settings?.dateFormat);
+    const settingsCalendarSystem = useTaskStore((state) => state.settings?.calendarSystem);
     const settingsTimeFormat = useTaskStore((state) => state.settings?.timeFormat);
     const updateSettings = useTaskStore((state) => state.updateSettings);
     const showToast = useUiStore((state) => state.showToast);
@@ -489,10 +490,11 @@ function App() {
         configureDateFormatting({
             language: settingsLanguage || language,
             dateFormat: settingsDateFormat,
+            calendarSystem: settingsCalendarSystem,
             timeFormat: settingsTimeFormat,
             systemLocale,
         });
-    }, [language, settingsDateFormat, settingsLanguage, settingsTimeFormat]);
+    }, [language, settingsCalendarSystem, settingsDateFormat, settingsLanguage, settingsTimeFormat]);
 
     const translateOrFallback = useCallback((key: string, fallback: string) => {
         return translateWithFallback(t, key, fallback);

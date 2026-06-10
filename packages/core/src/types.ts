@@ -426,6 +426,7 @@ export interface AppSettings extends NotificationSettings {
     language?: AppLanguage;
     weekStart?: 'monday' | 'sunday' | 'saturday';
     dateFormat?: string;
+    calendarSystem?: string;
     timeFormat?: string;
     syncPreferences?: SettingsSyncPreferences;
     syncPreferencesUpdatedAt?: SettingsSyncUpdatedAt;

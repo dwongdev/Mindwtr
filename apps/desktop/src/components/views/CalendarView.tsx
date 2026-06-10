@@ -1,7 +1,15 @@
 import { useCallback, useEffect, useRef, type DragEvent, type KeyboardEvent } from 'react';
-import { format, getMonth, isSameDay, isSameMonth, isToday } from 'date-fns';
+import { isSameDay, isToday } from 'date-fns';
 import { CalendarDays, ChevronLeft, ChevronRight, Plus, Search } from 'lucide-react';
-import { hasTimeComponent, isProjectedRecurringTask, safeFormatDate, type Task } from '@mindwtr/core';
+import {
+    getCalendarDayOfMonth,
+    getCalendarMonthIndex,
+    hasTimeComponent,
+    isProjectedRecurringTask,
+    isSameCalendarMonth,
+    safeFormatDate,
+    type Task,
+} from '@mindwtr/core';
 
 import { ErrorBoundary } from '../ErrorBoundary';
 import { cn } from '../../lib/utils';
@@ -29,6 +37,7 @@ export function CalendarView() {
     const controller = useDesktopCalendarController();
     const {
         calendarBodyRef,
+        calendarSystem,
         createTaskFromExternalEvent,
         currentMonth,
         currentMonthLabel,
@@ -48,6 +57,7 @@ export function CalendarView() {
         hiddenExternalCalendarIds,
         isMonthPickerOpen,
         layoutTimedItems,
+        locale,
         monthNames,
         openDayViewForDate,
         openQuickAddForStart,
@@ -196,7 +206,7 @@ export function CalendarView() {
                                             {resolveText('calendar.month', 'Month')}
                                             <select
                                                 className="w-full rounded border border-border bg-background px-2 py-1.5 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30"
-                                                value={getMonth(currentMonth)}
+                                                value={getCalendarMonthIndex(currentMonth, calendarSystem)}
                                                 onChange={(event) => handleMonthChange(Number(event.target.value))}
                                                 aria-label={resolveText('calendar.month', 'Month')}
                                             >
@@ -320,13 +330,13 @@ export function CalendarView() {
                                 key={day.toString()}
                                 className={cn(
                                     "group bg-card min-h-[128px] cursor-pointer p-2 transition-colors hover:bg-accent/50 relative",
-                                    !isSameMonth(day, currentMonth) && "bg-muted/50 text-muted-foreground",
+                                    !isSameCalendarMonth(day, currentMonth, calendarSystem) && "bg-muted/50 text-muted-foreground",
                                     isSelected && "ring-2 ring-primary"
                                 )}
                                 data-calendar-drop-date={dayKey(day)}
                                 role="button"
                                 tabIndex={0}
-                                aria-label={`${format(day, 'PP')}, ${resolveText('calendar.openDayView', 'Open day view')}`}
+                                aria-label={`${day.toLocaleDateString(locale, { month: 'short', day: 'numeric', year: 'numeric' })}, ${resolveText('calendar.openDayView', 'Open day view')}`}
                                 onClick={() => openDayViewForDate(day)}
                                 onKeyDown={(event) => handleOpenDayKeyDown(event, day)}
                                 onDragOver={handleCalendarTaskDragOver}
@@ -337,7 +347,7 @@ export function CalendarView() {
                                     <div className="flex min-w-0 items-center gap-1.5">
                                         <div className="flex h-6 w-6 items-center justify-center rounded-full text-sm font-medium" style={todayMarkerStyle}>
                                             <span className="tabular-nums leading-none">
-                                                {format(day, 'd')}
+                                                {getCalendarDayOfMonth(day, calendarSystem)}
                                             </span>
                                         </div>
                                         {isToday(day) && (
@@ -414,7 +424,7 @@ export function CalendarView() {
                                                 event.stopPropagation();
                                                 openDayViewForDate(day);
                                             }}
-                                            aria-label={`${resolveText('calendar.openDayView', 'Open day view')}: ${format(day, 'PP')}`}
+                                            aria-label={`${resolveText('calendar.openDayView', 'Open day view')}: ${day.toLocaleDateString(locale, { month: 'short', day: 'numeric', year: 'numeric' })}`}
                                         >
                                             +{overflowCount} {resolveText('calendar.more', 'more')}
                                         </button>
@@ -445,9 +455,11 @@ export function CalendarView() {
                                         isToday(day) && "bg-primary/5"
                                     )}
                                 >
-                                    <div className="text-xs font-medium text-muted-foreground">{format(day, 'EEE')}</div>
+                                    <div className="text-xs font-medium text-muted-foreground">
+                                        {day.toLocaleDateString(locale, { weekday: 'short' })}
+                                    </div>
                                     <div className={cn("mt-0.5 inline-flex h-7 min-w-7 items-center justify-center rounded-full px-2 text-sm font-semibold", isToday(day) && "bg-primary text-primary-foreground")}>
-                                        {format(day, 'd')}
+                                        {getCalendarDayOfMonth(day, calendarSystem)}
                                     </div>
                                 </button>
                             ))}
@@ -650,7 +662,9 @@ export function CalendarView() {
                                         onDrop={(event) => handleDropOnDueDate(event, day)}
                                     >
                                         <div>
-                                            <div className={cn("text-sm font-semibold", isToday(day) && "text-primary")}>{format(day, 'EEE, MMM d')}</div>
+                                            <div className={cn("text-sm font-semibold", isToday(day) && "text-primary")}>
+                                                {day.toLocaleDateString(locale, { weekday: 'short', month: 'short', day: 'numeric' })}
+                                            </div>
                                             {isToday(day) && <div className="mt-1 text-xs font-medium text-primary">{resolveText('calendar.today', 'Today')}</div>}
                                         </div>
                                         <div className="space-y-1">

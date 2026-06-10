@@ -14,12 +14,15 @@ import {
   DEFAULT_CALENDAR_DAY_START_HOUR,
   DEFAULT_PROJECT_COLOR,
   addCalendarMinutes,
+  addCalendarMonths as addCalendarSystemMonths,
   buildCalendarEventTaskDraft,
   buildCalendarQuickAddTaskDraft,
   expandCalendarRecurringTasks,
   formatCalendarTimeInputValue,
   formatI18nTemplate,
+  getCalendarMonthIndex,
   normalizeDateFormatSetting,
+  resolveCalendarSystemSetting,
   resolveDateLocaleTag,
   findFreeSlotForDay as findCalendarFreeSlotForDay,
   getEnglishI18nValue,
@@ -36,6 +39,7 @@ import {
   safeParseDate,
   safeParseDueDate,
   shallow,
+  startOfCalendarMonth,
   getExternalCalendarColorForId,
   timeEstimateToMinutes as resolveTimeEstimateToMinutes,
   translateText,
@@ -76,13 +80,21 @@ import {
   shouldRefreshExternalCalendarOnAppStateChange,
 } from './calendar-external-refresh';
 
-function getDaysInMonth(year: number, month: number): number {
-  return new Date(year, month + 1, 0).getDate();
+function getFirstDayOfMonth(monthDate: Date, weekStartIndex: number): number {
+  const day = monthDate.getDay();
+  return (day - weekStartIndex + 7) % 7;
 }
 
-function getFirstDayOfMonth(year: number, month: number, weekStartIndex: number): number {
-  const day = new Date(year, month, 1).getDay();
-  return (day - weekStartIndex + 7) % 7;
+function getCalendarMonthDates(monthDate: Date, calendarSystem: string): Date[] {
+  const firstOfMonth = startOfCalendarMonth(monthDate, calendarSystem);
+  const monthIndex = getCalendarMonthIndex(firstOfMonth, calendarSystem);
+  const dates: Date[] = [];
+  const cursor = new Date(firstOfMonth);
+  while (dates.length < 32 && getCalendarMonthIndex(cursor, calendarSystem) === monthIndex) {
+    dates.push(new Date(cursor));
+    cursor.setDate(cursor.getDate() + 1);
+  }
+  return dates;
 }
 
 function getWeekStart(date: Date, weekStartIndex: number): Date {
@@ -177,6 +189,10 @@ export function useCalendarViewController() {
   const timeEstimatesEnabled = settings?.features?.timeEstimates !== false;
   const calendarSettings: CalendarSettings | undefined = settings?.calendar;
   const today = new Date();
+  const systemLocale = typeof Intl !== 'undefined' && typeof Intl.DateTimeFormat === 'function'
+    ? Intl.DateTimeFormat().resolvedOptions().locale
+    : '';
+  const calendarSystem = resolveCalendarSystemSetting(settings?.calendarSystem, { language, systemLocale });
   const initialViewMode = coerceCalendarViewMode(calendarSettings?.viewMode);
   const calendarWeekVisibleDays = coerceCalendarWeekVisibleDays(calendarSettings?.weekVisibleDays);
   const [currentMonth, setCurrentMonth] = useState(today.getMonth());
@@ -265,17 +281,22 @@ export function useCalendarViewController() {
   }, [calendarSettings?.viewMode, ensureSelectedDateForViewMode]);
 
   const weekStartIndex = getWeekStartsOnIndex(settings?.weekStart);
-  const daysInMonth = getDaysInMonth(currentYear, currentMonth);
-  const firstDay = getFirstDayOfMonth(currentYear, currentMonth, weekStartIndex);
-  const systemLocale = typeof Intl !== 'undefined' && typeof Intl.DateTimeFormat === 'function'
-    ? Intl.DateTimeFormat().resolvedOptions().locale
-    : '';
+  const currentMonthDate = useMemo(
+    () => startOfCalendarMonth(new Date(currentYear, currentMonth, 1), calendarSystem),
+    [calendarSystem, currentMonth, currentYear],
+  );
+  const monthDates = useMemo(
+    () => getCalendarMonthDates(currentMonthDate, calendarSystem),
+    [calendarSystem, currentMonthDate],
+  );
+  const firstDay = getFirstDayOfMonth(currentMonthDate, weekStartIndex);
   const locale = resolveDateLocaleTag({
     language,
     dateFormat: normalizeDateFormatSetting(settings?.dateFormat),
+    calendarSystem: settings?.calendarSystem,
     systemLocale,
   });
-  const monthLabel = new Date(currentYear, currentMonth, 1).toLocaleDateString(locale, {
+  const monthLabel = currentMonthDate.toLocaleDateString(locale, {
     year: 'numeric',
     month: 'long',
   });
@@ -284,8 +305,8 @@ export function useCalendarViewController() {
     return base.toLocaleDateString(locale, { weekday: 'short' });
   });
   const weekStartDate = useMemo(() => (
-    getWeekStart(selectedDate ?? new Date(currentYear, currentMonth, 1), weekStartIndex)
-  ), [currentMonth, currentYear, selectedDate, weekStartIndex]);
+    getWeekStart(selectedDate ?? currentMonthDate, weekStartIndex)
+  ), [currentMonthDate, selectedDate, weekStartIndex]);
   const weekStartTime = weekStartDate.getTime();
   const weekDays = useMemo(() => Array.from({ length: 7 }, (_, index) => {
     const date = new Date(weekStartTime);
@@ -443,16 +464,16 @@ export function useCalendarViewController() {
     const rangeStart = viewMode === 'week'
       ? weekStart
       : viewMode === 'schedule'
-        ? new Date(selectedDate ?? new Date(currentYear, currentMonth, 1))
-        : new Date(currentYear, currentMonth, 1, 0, 0, 0, 0);
+        ? new Date(selectedDate ?? currentMonthDate)
+        : new Date(currentMonthDate);
     rangeStart.setHours(0, 0, 0, 0);
     const rangeEnd = viewMode === 'week'
       ? new Date(weekStart.getFullYear(), weekStart.getMonth(), weekStart.getDate() + 6, 23, 59, 59, 999)
       : viewMode === 'schedule'
         ? new Date(rangeStart.getFullYear(), rangeStart.getMonth(), rangeStart.getDate() + 45, 23, 59, 59, 999)
-        : new Date(currentYear, currentMonth + 1, 0, 23, 59, 59, 999);
+        : new Date(addCalendarSystemMonths(currentMonthDate, 1, calendarSystem).getTime() - 1);
     return { rangeStart, rangeEnd };
-  }, [currentMonth, currentYear, selectedDate, viewMode, weekStartTime]);
+  }, [calendarSystem, currentMonthDate, selectedDate, viewMode, weekStartTime]);
 
   const externalRangeStartMs = externalCalendarRange.rangeStart.getTime();
   const externalRangeEndMs = externalCalendarRange.rangeEnd.getTime();
@@ -1041,27 +1062,23 @@ export function useCalendarViewController() {
     Alert.alert(event.title || t('calendar.eventFallbackTitle'), undefined, buttons, { cancelable: true });
   };
 
+  const setVisibleMonth = (date: Date) => {
+    const nextMonth = startOfCalendarMonth(date, calendarSystem);
+    setCurrentMonth(nextMonth.getMonth());
+    setCurrentYear(nextMonth.getFullYear());
+  };
+
   const handlePrevMonth = () => {
-    if (currentMonth === 0) {
-      setCurrentMonth(11);
-      setCurrentYear(currentYear - 1);
-    } else {
-      setCurrentMonth(currentMonth - 1);
-    }
+    setVisibleMonth(addCalendarSystemMonths(currentMonthDate, -1, calendarSystem));
   };
 
   const handleNextMonth = () => {
-    if (currentMonth === 11) {
-      setCurrentMonth(0);
-      setCurrentYear(currentYear + 1);
-    } else {
-      setCurrentMonth(currentMonth + 1);
-    }
+    setVisibleMonth(addCalendarSystemMonths(currentMonthDate, 1, calendarSystem));
   };
 
-  const calendarDays: (number | null)[] = [];
+  const calendarDays: (Date | null)[] = [];
   for (let i = 0; i < firstDay; i++) calendarDays.push(null);
-  for (let day = 1; day <= daysInMonth; day++) calendarDays.push(day);
+  calendarDays.push(...monthDates);
 
   const selectedDateExternalEvents = useMemo(
     () => (selectedDate ? getExternalEventsForDate(selectedDate) : []),
@@ -1134,7 +1151,7 @@ export function useCalendarViewController() {
     ? `${selectedDate.toLocaleDateString(locale, { weekday: 'short', month: 'long', day: 'numeric' })}${isToday(selectedDate) ? ` · ${t('filters.datePreset.today')}` : ''}`
     : '';
   const scheduleSections = useMemo(() => {
-    const start = selectedDate ?? new Date(currentYear, currentMonth, 1);
+    const start = selectedDate ?? currentMonthDate;
     const sections: { date: Date; id: string; items: ReturnType<typeof getCalendarItemsForDate> }[] = [];
     for (let offset = 0; offset < 45; offset += 1) {
       const date = new Date(start);
@@ -1145,7 +1162,7 @@ export function useCalendarViewController() {
       if (sections.length >= 18) break;
     }
     return sections;
-  }, [currentMonth, currentYear, getCalendarItemsForDate, selectedDate]);
+  }, [currentMonthDate, getCalendarItemsForDate, selectedDate]);
 
   const closeEditingTask = () => setEditingTask(null);
   const saveEditingTask = (taskId: string, updates: Partial<Task>) => updateTask(taskId, updates);
@@ -1159,6 +1176,7 @@ export function useCalendarViewController() {
     calendarComposer,
     calendarComposerCandidates,
     calendarComposerSelectedTask,
+    calendarSystem,
     calendarWeekVisibleDays,
     calendarNameById,
     closeCalendarComposer,

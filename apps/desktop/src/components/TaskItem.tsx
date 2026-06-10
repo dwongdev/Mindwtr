@@ -169,11 +169,12 @@ export const TaskItem = memo(function TaskItem({
         return resolveNativeDateInputLocale({
             language,
             dateFormat: settings?.dateFormat,
+            calendarSystem: settings?.calendarSystem,
             timeFormat: settings?.timeFormat,
             weekStart: normalizeWeekStartSetting(settings?.weekStart),
             systemLocale,
         });
-    }, [language, settings?.dateFormat, settings?.timeFormat, settings?.weekStart]);
+    }, [language, settings?.calendarSystem, settings?.dateFormat, settings?.timeFormat, settings?.weekStart]);
     const recurrenceWeekdayLabels = useMemo(
         () => getLocalizedWeekdayLabels(language, 'long'),
         [language]

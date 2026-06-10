@@ -6,6 +6,7 @@ const MONTH_REFERENCE_DATES = Array.from({ length: 12 }, (_, index) => new Date(
 export function resolveCalendarLocale(params: {
     language?: string | null;
     dateFormat?: string | null;
+    calendarSystem?: string | null;
     systemLocale?: string | null;
 }): string {
     return resolveDateLocaleTag(params);

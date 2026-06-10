@@ -727,6 +727,7 @@ export function SettingsView({ initialPage, onboardingHintPage, onResumeOnboardi
   const locale = resolveDateLocaleTag({
     language,
     dateFormat: mainPageProps.dateFormat,
+    calendarSystem: mainPageProps.calendarSystem,
     systemLocale,
   });
   const weekdayOptions = useMemo(

@@ -3,7 +3,14 @@ import { Ionicons } from '@expo/vector-icons';
 import { Modal, Pressable, ScrollView, Switch, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { normalizeDateFormatSetting, normalizeTimeFormatSetting, normalizeWeekStartSetting, useTaskStore } from '@mindwtr/core';
+import {
+    canUseJalaliCalendar,
+    normalizeDateFormatSetting,
+    normalizeTimeFormatSetting,
+    normalizeWeekStartSetting,
+    resolveCalendarSystemSetting,
+    useTaskStore,
+} from '@mindwtr/core';
 
 import { useTheme } from '@/contexts/theme-context';
 import { useThemeColors } from '@/hooks/use-theme-colors';
@@ -28,6 +35,7 @@ export function GeneralSettingsScreen() {
     const [languagePickerOpen, setLanguagePickerOpen] = useState(false);
     const [weekStartPickerOpen, setWeekStartPickerOpen] = useState(false);
     const [dateFormatPickerOpen, setDateFormatPickerOpen] = useState(false);
+    const [calendarSystemPickerOpen, setCalendarSystemPickerOpen] = useState(false);
     const [timeFormatPickerOpen, setTimeFormatPickerOpen] = useState(false);
     const [quickAccessPickerOpen, setQuickAccessPickerOpen] = useState(false);
     const [appLockBusy, setAppLockBusy] = useState(false);
@@ -36,6 +44,11 @@ export function GeneralSettingsScreen() {
     const weekStart = normalizeWeekStartSetting(settings.weekStart);
     const dateFormat = normalizeDateFormatSetting(settings.dateFormat);
     const timeFormat = normalizeTimeFormatSetting(settings.timeFormat);
+    const systemLocale = typeof Intl !== 'undefined' && typeof Intl.DateTimeFormat === 'function'
+        ? Intl.DateTimeFormat().resolvedOptions().locale
+        : '';
+    const showCalendarSystem = canUseJalaliCalendar({ language, systemLocale });
+    const calendarSystem = resolveCalendarSystemSetting(settings.calendarSystem, { language, systemLocale });
     const showTaskAge = settings.appearance?.showTaskAge === true;
     const quickAccessView = coerceMobileQuickAccessView(settings.appearance?.mobileQuickAccessView);
     const appLockEnabled = settings.security?.mobileAppLockEnabled === true;
@@ -75,6 +88,12 @@ export function GeneralSettingsScreen() {
         { value: 'ymd', label: t('settings.dateFormatYmd') },
     ];
     const currentDateFormatLabel = dateFormatOptions.find((opt) => opt.value === dateFormat)?.label ?? t('settings.dateFormatSystem');
+    const calendarSystemOptions: { value: 'gregorian' | 'jalali'; label: string }[] = [
+        { value: 'gregorian', label: t('settings.calendarSystemGregorian') },
+        { value: 'jalali', label: t('settings.calendarSystemJalali') },
+    ];
+    const currentCalendarSystemLabel = calendarSystemOptions.find((opt) => opt.value === calendarSystem)?.label
+        ?? t('settings.calendarSystemGregorian');
     const timeFormatOptions: { value: 'system' | '12h' | '24h'; label: string }[] = [
         { value: 'system', label: t('settings.timeFormatSystem') },
         { value: '12h', label: t('settings.timeFormat12h') },
@@ -422,6 +441,58 @@ export function GeneralSettingsScreen() {
                         </View>
                     </Pressable>
                 </Modal>
+
+                {showCalendarSystem && (
+                    <>
+                        <View style={[styles.settingCard, { backgroundColor: tc.cardBg, marginTop: 12 }]}>
+                            <TouchableOpacity style={styles.settingRow} onPress={() => setCalendarSystemPickerOpen(true)}>
+                                <View style={styles.settingInfo}>
+                                    <Text style={[styles.settingLabel, { color: tc.text }]}>{t('settings.calendarSystem')}</Text>
+                                    <Text style={[styles.settingDescription, { color: tc.secondaryText }]}>{currentCalendarSystemLabel}</Text>
+                                </View>
+                                <Ionicons color={tc.secondaryText} name="chevron-down" size={18} />
+                            </TouchableOpacity>
+                        </View>
+                        <Modal
+                            transparent
+                            visible={calendarSystemPickerOpen}
+                            animationType="fade"
+                            onRequestClose={() => setCalendarSystemPickerOpen(false)}
+                        >
+                            <Pressable style={styles.pickerOverlay} onPress={() => setCalendarSystemPickerOpen(false)}>
+                                <View
+                                    style={[styles.pickerCard, { backgroundColor: tc.cardBg, borderColor: tc.border }]}
+                                    onStartShouldSetResponder={() => true}
+                                >
+                                    <Text style={[styles.pickerTitle, { color: tc.text }]}>{t('settings.calendarSystem')}</Text>
+                                    <ScrollView style={styles.pickerList} contentContainerStyle={styles.pickerListContent}>
+                                        {calendarSystemOptions.map((option) => {
+                                            const selected = calendarSystem === option.value;
+                                            return (
+                                                <TouchableOpacity
+                                                    key={option.value}
+                                                    style={[
+                                                        styles.pickerOption,
+                                                        { borderColor: tc.border, backgroundColor: selected ? tc.filterBg : 'transparent' },
+                                                    ]}
+                                                    onPress={() => {
+                                                        updateSettings({ calendarSystem: option.value }).catch(console.error);
+                                                        setCalendarSystemPickerOpen(false);
+                                                    }}
+                                                >
+                                                    <Text style={[styles.pickerOptionText, { color: selected ? tc.tint : tc.text }]}>
+                                                        {option.label}
+                                                    </Text>
+                                                    {selected && <Ionicons color={tc.tint} name="checkmark" size={18} />}
+                                                </TouchableOpacity>
+                                            );
+                                        })}
+                                    </ScrollView>
+                                </View>
+                            </Pressable>
+                        </Modal>
+                    </>
+                )}
 
                 <View style={[styles.settingCard, { backgroundColor: tc.cardBg, marginTop: 12 }]}>
                     <TouchableOpacity style={styles.settingRow} onPress={() => setTimeFormatPickerOpen(true)}>

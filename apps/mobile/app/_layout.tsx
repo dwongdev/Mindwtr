@@ -344,6 +344,7 @@ function RootLayoutContentInner() {
   const appVersion = Constants.expoConfig?.version ?? '0.0.0';
   const settingsLanguage = useTaskStore((state) => state.settings?.language);
   const settingsDateFormat = useTaskStore((state) => state.settings?.dateFormat);
+  const settingsCalendarSystem = useTaskStore((state) => state.settings?.calendarSystem);
   const settingsTimeFormat = useTaskStore((state) => state.settings?.timeFormat);
   const mobileAppLockEnabled = useTaskStore((state) => state.settings?.security?.mobileAppLockEnabled === true);
   const seedGettingStarted = useTaskStore((state) => state.seedGettingStarted);
@@ -479,10 +480,11 @@ function RootLayoutContentInner() {
     configureDateFormatting({
       language: settingsLanguage || language,
       dateFormat: settingsDateFormat,
+      calendarSystem: settingsCalendarSystem,
       timeFormat: settingsTimeFormat,
       systemLocale: getDeviceLocale(),
     });
-  }, [language, settingsDateFormat, settingsLanguage, settingsTimeFormat]);
+  }, [language, settingsCalendarSystem, settingsDateFormat, settingsLanguage, settingsTimeFormat]);
 
   useEffect(() => {
     if (Platform.OS !== 'android') {

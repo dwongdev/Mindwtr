@@ -5,16 +5,23 @@ import {
     applyMarkdownPairInsertion,
     applyMarkdownToolbarAction,
     applyMarkdownUrlPaste,
+    addCalendarMonths,
     buildRRuleString,
     continueMarkdownOnEnter,
+    formatCalendarInputDate,
+    getCalendarDayOfMonth,
+    getCalendarMonthIndex,
     getTaskDateCoherenceIssues,
     hasTimeComponent,
+    isJalaliCalendarLocale,
     normalizeClockTimeInput,
     normalizeDateFormatSetting,
+    parseCalendarInputDate,
     parseRRuleString,
     resolveAutoTextDirection,
     safeFormatDate,
     safeParseDate,
+    startOfCalendarMonth,
     tFallback,
     type Attachment,
     type MarkdownSelection,
@@ -112,16 +119,8 @@ function getWeekStartIndex(locale: string): number {
     return 0;
 }
 
-function startOfMonth(date: Date): Date {
-    return new Date(date.getFullYear(), date.getMonth(), 1);
-}
-
-function addMonths(date: Date, months: number): Date {
-    return new Date(date.getFullYear(), date.getMonth() + months, 1);
-}
-
-function getCalendarGridDays(monthDate: Date, weekStartIndex: number): Date[] {
-    const firstOfMonth = startOfMonth(monthDate);
+function getCalendarGridDays(monthDate: Date, weekStartIndex: number, calendarSystem: string): Date[] {
+    const firstOfMonth = startOfCalendarMonth(monthDate, calendarSystem);
     const offset = (firstOfMonth.getDay() - weekStartIndex + 7) % 7;
     const start = new Date(firstOfMonth.getFullYear(), firstOfMonth.getMonth(), 1 - offset);
     return Array.from({ length: 42 }, (_, index) =>
@@ -165,8 +164,11 @@ function getDateInputPlaceholder(order: DateInputOrder): string {
     return 'YYYY-MM-DD';
 }
 
-function formatDateInputDisplay(value: string, order: DateInputOrder): string {
+function formatDateInputDisplay(value: string, order: DateInputOrder, calendarSystem: string): string {
     if (!value) return '';
+    if (calendarSystem === 'jalali') {
+        return formatCalendarInputDate(value, calendarSystem);
+    }
     const parsed = parseDateInputDate(value);
     if (!parsed) return value;
 
@@ -178,9 +180,22 @@ function formatDateInputDisplay(value: string, order: DateInputOrder): string {
     return `${year}-${month}-${day}`;
 }
 
-function parseDateInputDisplay(value: string, order: DateInputOrder): string | null {
+function parseDateInputDisplay(value: string, order: DateInputOrder, calendarSystem: string): string | null {
     const trimmed = value.trim();
     if (!trimmed) return '';
+
+    if (calendarSystem === 'jalali') {
+        if (DATE_INPUT_PATTERN.test(trimmed)) {
+            return parseCalendarInputDate(trimmed, calendarSystem);
+        }
+        const parts = trimmed.match(/\d{1,4}/g);
+        if (!parts || parts.length !== 3 || parts[0].length !== 4) return null;
+        const [year, month, day] = parts;
+        return parseCalendarInputDate(
+            `${year.padStart(4, '0')}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`,
+            calendarSystem
+        );
+    }
 
     if (DATE_INPUT_PATTERN.test(trimmed)) {
         const normalized = normalizeDateInputValue(trimmed);
@@ -245,12 +260,17 @@ export function DateField({
     const inputRef = useRef<HTMLInputElement | null>(null);
     const [isCalendarOpen, setIsCalendarOpen] = useState(false);
     const [calendarPosition, setCalendarPosition] = useState({ top: 0, left: 0 });
+    const calendarSystem = isJalaliCalendarLocale(nativeDateInputLocale) ? 'jalali' : 'gregorian';
     const [calendarMonth, setCalendarMonth] = useState(() =>
-        startOfMonth(selectedDate ?? parseDateInputDate(dateValue) ?? new Date())
+        startOfCalendarMonth(selectedDate ?? parseDateInputDate(dateValue) ?? new Date(), calendarSystem)
     );
     const clearText = tFallback(t, 'common.clear', 'Clear');
-    const dateInputOrder = getDateInputOrder(dateFormatSetting, nativeDateInputLocale);
-    const [draftDateValue, setDraftDateValue] = useState(() => formatDateInputDisplay(dateValue, dateInputOrder));
+    const dateInputOrder = calendarSystem === 'jalali'
+        ? 'ymd'
+        : getDateInputOrder(dateFormatSetting, nativeDateInputLocale);
+    const [draftDateValue, setDraftDateValue] = useState(() => (
+        formatDateInputDisplay(dateValue, dateInputOrder, calendarSystem)
+    ));
     const weekStartIndex = getWeekStartIndex(nativeDateInputLocale);
     const calendarLocale = getCalendarLocale(nativeDateInputLocale);
     const monthLabel = new Intl.DateTimeFormat(calendarLocale, { month: 'long', year: 'numeric' }).format(calendarMonth);
@@ -261,7 +281,7 @@ export function DateField({
         day: 'numeric',
     });
     const weekdayLabels = getWeekdayLabels(nativeDateInputLocale, weekStartIndex);
-    const days = getCalendarGridDays(calendarMonth, weekStartIndex);
+    const days = getCalendarGridDays(calendarMonth, weekStartIndex, calendarSystem);
     const todayValue = safeFormatDate(new Date(), 'yyyy-MM-dd');
 
     const updateCalendarPosition = useCallback(() => {
@@ -282,14 +302,14 @@ export function DateField({
     }, [updateCalendarPosition]);
 
     useEffect(() => {
-        setDraftDateValue(formatDateInputDisplay(dateValue, dateInputOrder));
-    }, [dateInputOrder, dateValue]);
+        setDraftDateValue(formatDateInputDisplay(dateValue, dateInputOrder, calendarSystem));
+    }, [calendarSystem, dateInputOrder, dateValue]);
 
     useEffect(() => {
         if (!isCalendarOpen) return;
         const nextDate = selectedDate ?? parseDateInputDate(dateValue) ?? new Date();
-        setCalendarMonth(startOfMonth(nextDate));
-    }, [dateValue, isCalendarOpen, selectedDate]);
+        setCalendarMonth(startOfCalendarMonth(nextDate, calendarSystem));
+    }, [calendarSystem, dateValue, isCalendarOpen, selectedDate]);
 
     useEffect(() => {
         if (!isCalendarOpen) return;
@@ -325,7 +345,7 @@ export function DateField({
 
     const handleDateInputChange = (value: string) => {
         setDraftDateValue(value);
-        const parsed = parseDateInputDisplay(value, dateInputOrder);
+        const parsed = parseDateInputDisplay(value, dateInputOrder, calendarSystem);
         if (parsed === null) return;
         if (!parsed) {
             onClear();
@@ -335,7 +355,7 @@ export function DateField({
     };
     const applyCalendarDate = (date: Date, closeAfterSelect: boolean) => {
         const nextDateValue = safeFormatDate(date, 'yyyy-MM-dd');
-        setDraftDateValue(formatDateInputDisplay(nextDateValue, dateInputOrder));
+        setDraftDateValue(formatDateInputDisplay(nextDateValue, dateInputOrder, calendarSystem));
         onDateChange(nextDateValue);
         onCalendarSelect?.(nextDateValue);
         if (!closeAfterSelect) return;
@@ -364,7 +384,7 @@ export function DateField({
                         onBlur={() => {
                             window.setTimeout(() => {
                                 if (rootRef.current?.contains(document.activeElement)) return;
-                                setDraftDateValue(formatDateInputDisplay(dateValue, dateInputOrder));
+                                setDraftDateValue(formatDateInputDisplay(dateValue, dateInputOrder, calendarSystem));
                             }, 0);
                         }}
                         onKeyDown={(event) => {
@@ -412,7 +432,7 @@ export function DateField({
                         <button
                             type="button"
                             aria-label="Previous month"
-                            onClick={() => setCalendarMonth((current) => addMonths(current, -1))}
+                            onClick={() => setCalendarMonth((current) => addCalendarMonths(current, -1, calendarSystem))}
                             className="rounded p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
                         >
                             <ChevronLeft className="h-4 w-4" />
@@ -423,7 +443,7 @@ export function DateField({
                         <button
                             type="button"
                             aria-label="Next month"
-                            onClick={() => setCalendarMonth((current) => addMonths(current, 1))}
+                            onClick={() => setCalendarMonth((current) => addCalendarMonths(current, 1, calendarSystem))}
                             className="rounded p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
                         >
                             <ChevronRight className="h-4 w-4" />
@@ -441,7 +461,7 @@ export function DateField({
                             const value = safeFormatDate(day, 'yyyy-MM-dd');
                             const isSelected = value === dateValue;
                             const isToday = value === todayValue;
-                            const isOutsideMonth = day.getMonth() !== calendarMonth.getMonth();
+                            const isOutsideMonth = getCalendarMonthIndex(day, calendarSystem) !== getCalendarMonthIndex(calendarMonth, calendarSystem);
                             return (
                                 <button
                                     key={value}
@@ -464,7 +484,7 @@ export function DateField({
                                         isOutsideMonth && !isSelected ? 'text-muted-foreground/50' : '',
                                     ].filter(Boolean).join(' ')}
                                 >
-                                    {day.getDate()}
+                                    {getCalendarDayOfMonth(day, calendarSystem)}
                                 </button>
                             );
                         })}
@@ -483,7 +503,7 @@ export function DateField({
                         return;
                     }
                     const nextDateValue = safeFormatDate(date, 'yyyy-MM-dd');
-                    setDraftDateValue(formatDateInputDisplay(nextDateValue, dateInputOrder));
+                    setDraftDateValue(formatDateInputDisplay(nextDateValue, dateInputOrder, calendarSystem));
                     onDateChange(nextDateValue);
                 }}
                 className="w-full"
