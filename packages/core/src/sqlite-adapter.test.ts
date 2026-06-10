@@ -341,6 +341,88 @@ describeSqlite('SqliteAdapter', () => {
         ]);
     });
 
+    it('does not let a stale full snapshot overwrite a newer task revision', async () => {
+        const baseTask = {
+            id: 'task-1',
+            title: 'Original task',
+            status: 'next',
+            tags: [],
+            contexts: [],
+            createdAt: '2026-06-10T08:00:00.000Z',
+            updatedAt: '2026-06-10T08:00:00.000Z',
+            rev: 4,
+            revBy: 'device-old',
+        };
+        const baseData: AppData = {
+            tasks: [baseTask],
+            projects: [],
+            sections: [],
+            areas: [],
+            settings: {},
+        };
+
+        await adapter.saveData(baseData);
+        await adapter.saveTask({
+            ...baseTask,
+            title: 'Newer incremental task',
+            updatedAt: '2026-06-10T08:01:00.000Z',
+            rev: 5,
+            revBy: 'device-new',
+        });
+        await adapter.saveData({
+            ...baseData,
+            tasks: [{
+                ...baseTask,
+                title: 'Stale snapshot task',
+                updatedAt: '2026-06-10T08:00:30.000Z',
+            }],
+        });
+
+        const loaded = await adapter.getData();
+        expect(loaded.tasks).toHaveLength(1);
+        expect(loaded.tasks[0]).toMatchObject({
+            id: 'task-1',
+            title: 'Newer incremental task',
+            rev: 5,
+            revBy: 'device-new',
+            updatedAt: '2026-06-10T08:01:00.000Z',
+        });
+    });
+
+    it('allows equal-revision task upserts for unchanged ordering semantics', async () => {
+        const task = {
+            id: 'task-1',
+            title: 'Original task',
+            status: 'next',
+            tags: [],
+            contexts: [],
+            createdAt: '2026-06-10T08:00:00.000Z',
+            updatedAt: '2026-06-10T08:00:00.000Z',
+            rev: 5,
+            revBy: 'device-a',
+        };
+
+        await adapter.saveData({
+            tasks: [task],
+            projects: [],
+            sections: [],
+            areas: [],
+            settings: {},
+        });
+        await adapter.saveTask({
+            ...task,
+            title: 'Equal revision task',
+            updatedAt: '2026-06-10T08:02:00.000Z',
+        });
+
+        const loaded = await adapter.getData();
+        expect(loaded.tasks[0]).toMatchObject({
+            title: 'Equal revision task',
+            rev: 5,
+            updatedAt: '2026-06-10T08:02:00.000Z',
+        });
+    });
+
     it('normalizes legacy string recurrence values when loading tasks', async () => {
         const now = new Date().toISOString();
         await adapter.saveData({
