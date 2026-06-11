@@ -4,6 +4,7 @@ import type { StoreActionResult, TaskStore } from './store-types';
 import {
     applyTaskUpdates,
     buildSaveSnapshot,
+    createProjectOrderReserver,
     ensureDeviceId,
     getNextDataChangeAt,
     getTaskOrder,
@@ -14,7 +15,7 @@ import {
     replaceEntitiesInMap,
     replaceEntityInArray,
     replaceEntityInMap,
-    reserveNextProjectOrder,
+    type ProjectOrderReserver,
     updateVisibleTasks,
 } from './store-helpers';
 import { logWarn } from './logger';
@@ -251,6 +252,7 @@ const prepareTaskUpdatesForStore = ({
     allSections,
     allAreas,
     reserveProjectOrder,
+    projectOrderReserver,
 }: {
     task: Task;
     updates: Partial<Task>;
@@ -259,6 +261,7 @@ const prepareTaskUpdatesForStore = ({
     allSections: AppData['sections'];
     allAreas: AppData['areas'];
     reserveProjectOrder?: boolean;
+    projectOrderReserver?: ProjectOrderReserver;
 }): { ok: true; updates: Partial<Task> } | { ok: false; error: string } => {
     const hasProjectUpdate = hasOwnField(updates, 'projectId');
     const nextProjectId = hasProjectUpdate
@@ -295,6 +298,7 @@ const prepareTaskUpdatesForStore = ({
         },
         allTasks,
         reserveProjectOrder,
+        projectOrderReserver,
     });
 
     return {
@@ -313,11 +317,13 @@ const normalizeTaskUpdateForStore = ({
     updates,
     allTasks,
     reserveProjectOrder,
+    projectOrderReserver,
 }: {
     task: Task;
     updates: Partial<Task>;
     allTasks: Task[];
     reserveProjectOrder?: boolean;
+    projectOrderReserver?: ProjectOrderReserver;
 }): Partial<Task> => {
     const shouldReserveProjectOrder = reserveProjectOrder !== false;
     let adjustedUpdates = updates;
@@ -359,7 +365,7 @@ const normalizeTaskUpdateForStore = ({
         const hasTaskOrderOverride = hasOrder || hasOrderNum;
         if (nextProjectId) {
             if (shouldReserveProjectOrder && !hasTaskOrderOverride) {
-                const nextOrder = reserveNextProjectOrder(nextProjectId, allTasks);
+                const nextOrder = (projectOrderReserver ?? createProjectOrderReserver(allTasks))(nextProjectId);
                 adjustedUpdates = {
                     ...adjustedUpdates,
                     order: nextOrder,
@@ -400,11 +406,11 @@ const normalizeTaskUpdateForStore = ({
 const reserveProjectOrderForPreparedUpdates = ({
     task,
     updates,
-    allTasks,
+    projectOrderReserver,
 }: {
     task: Task;
     updates: Partial<Task>;
-    allTasks: Task[];
+    projectOrderReserver: ProjectOrderReserver;
 }): Partial<Task> => {
     if (!hasOwnField(updates, 'projectId')) return updates;
     if (hasOwnField(updates, 'order') || hasOwnField(updates, 'orderNum')) return updates;
@@ -412,7 +418,7 @@ const reserveProjectOrderForPreparedUpdates = ({
         ? updates.projectId
         : undefined;
     if (!nextProjectId || (task.projectId ?? undefined) === nextProjectId) return updates;
-    const nextOrder = reserveNextProjectOrder(nextProjectId, allTasks);
+    const nextOrder = projectOrderReserver(nextProjectId);
     return {
         ...updates,
         order: nextOrder,
@@ -483,8 +489,9 @@ export const createTaskActions = ({ set, get, getStorage, debouncedSave, trackIm
             const deviceState = ensureDeviceId(state.settings);
             const deviceId = deviceState.deviceId;
             const explicitOrder = getTaskOrder(initialProps ?? {});
+            const projectOrderReserver = createProjectOrderReserver(state._allTasks);
             const resolvedOrder = !hasTaskOrder && resolvedProjectId
-                ? reserveNextProjectOrder(resolvedProjectId, state._allTasks)
+                ? projectOrderReserver(resolvedProjectId)
                 : explicitOrder;
             createdTaskId = uuidv4();
             const newTask: Task = {
@@ -749,8 +756,9 @@ export const createTaskActions = ({ set, get, getStorage, debouncedSave, trackIm
                 updatedAt: now,
                 deletedAt: undefined,
             }));
+            const projectOrderReserver = createProjectOrderReserver(state._allTasks);
             const duplicatedOrder = sourceTask.projectId
-                ? reserveNextProjectOrder(sourceTask.projectId, state._allTasks)
+                ? projectOrderReserver(sourceTask.projectId)
                 : undefined;
 
             const newTask: Task = {
@@ -889,6 +897,7 @@ export const createTaskActions = ({ set, get, getStorage, debouncedSave, trackIm
             let nextRecurringTasks: Task[] = [];
             const changedTasks: Task[] = [];
             const newAllTasksBase = [...state._allTasks];
+            const projectOrderReserver = createProjectOrderReserver(newAllTasksBase);
             for (let index = 0; index < state._allTasks.length; index += 1) {
                 const task = newAllTasksBase[index];
                 const preparedUpdates = preparedUpdatesById.get(task.id);
@@ -896,7 +905,7 @@ export const createTaskActions = ({ set, get, getStorage, debouncedSave, trackIm
                 const adjustedUpdates = reserveProjectOrderForPreparedUpdates({
                     task,
                     updates: preparedUpdates,
-                    allTasks: newAllTasksBase,
+                    projectOrderReserver,
                 });
                 const { updatedTask, nextRecurringTask } = applyTaskUpdates(
                     task,

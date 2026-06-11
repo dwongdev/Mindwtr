@@ -22,11 +22,6 @@ type EntityWithRevision = EntityWithId & {
     purgedAt?: string;
 };
 
-let projectOrderCacheRef: Task[] | null = null;
-let projectOrderCacheValue: Map<string, number> | null = null;
-let reservedProjectOrdersRef: Task[] | null = null;
-let reservedProjectOrdersValue: Map<string, number> | null = null;
-
 export const getNextDataChangeAt = (previous: number, now = Date.now()): number => (
     Math.max(now, previous + 1)
 );
@@ -583,9 +578,6 @@ export const getTaskOrder = (task: Pick<Task, 'order' | 'orderNum'>): number | u
 };
 
 const getProjectOrderIndex = (tasks: Task[]): Map<string, number> => {
-    if (projectOrderCacheRef === tasks && projectOrderCacheValue) {
-        return projectOrderCacheValue;
-    }
     const nextCache = new Map<string, number>();
     for (const task of tasks) {
         if (task.deletedAt || !task.projectId) continue;
@@ -594,12 +586,6 @@ const getProjectOrderIndex = (tasks: Task[]): Map<string, number> => {
         if (order > previous) {
             nextCache.set(task.projectId, order);
         }
-    }
-    projectOrderCacheRef = tasks;
-    projectOrderCacheValue = nextCache;
-    if (reservedProjectOrdersRef !== tasks) {
-        reservedProjectOrdersRef = tasks;
-        reservedProjectOrdersValue = null;
     }
     return nextCache;
 };
@@ -612,25 +598,14 @@ export const getNextProjectOrder = (
     return (getProjectOrderIndex(tasks).get(projectId) ?? -1) + 1;
 };
 
-export const reserveNextProjectOrder = (
-    projectId: string | undefined,
-    tasks: Task[]
-): number | undefined => {
-    if (!projectId) return undefined;
-    // Reservations are scoped to the exact task-array snapshot used during a
-    // prepare loop. A new array intentionally resets the reservation sequence.
-    if (reservedProjectOrdersRef !== tasks || !reservedProjectOrdersValue) {
-        reservedProjectOrdersRef = tasks;
-        reservedProjectOrdersValue = new Map<string, number>();
-    }
-    const snapshotReservations = reservedProjectOrdersValue;
-    const reserved = snapshotReservations.get(projectId);
-    if (typeof reserved === 'number') {
-        snapshotReservations.set(projectId, reserved + 1);
-        return reserved;
-    }
-    const nextOrder = getNextProjectOrder(projectId, tasks);
-    if (typeof nextOrder !== 'number') return undefined;
-    snapshotReservations.set(projectId, nextOrder + 1);
-    return nextOrder;
+export type ProjectOrderReserver = (projectId: string | undefined) => number | undefined;
+
+export const createProjectOrderReserver = (tasks: Task[]): ProjectOrderReserver => {
+    const nextOrders = getProjectOrderIndex(tasks);
+    return (projectId: string | undefined): number | undefined => {
+        if (!projectId) return undefined;
+        const nextOrder = (nextOrders.get(projectId) ?? -1) + 1;
+        nextOrders.set(projectId, nextOrder);
+        return nextOrder;
+    };
 };

@@ -4,6 +4,7 @@ import {
     clearDeletedTaskProjectArchiveMetadata,
     computeProjectDerivedState,
     computeTaskDerivedState,
+    createProjectOrderReserver,
     getNextProjectOrder,
     hasSameEntityIdentity,
     reconcileEntityCollection,
@@ -11,7 +12,6 @@ import {
     replaceEntitiesInMap,
     replaceEntityInArray,
     replaceEntityInMap,
-    reserveNextProjectOrder,
     restoreSectionFromProjectArchive,
     restoreTaskFromProjectArchive,
     reuseArrayIfShallowEqual,
@@ -363,28 +363,29 @@ describe('getNextProjectOrder', () => {
         expect(getNextProjectOrder('project-2', tasks)).toBe(0);
     });
 
-    it('reserves unique project orders against the same snapshot', () => {
+    it('reserves unique project orders with an explicit reserver', () => {
         const tasks = [
             createTask('t1', 'project-1', 0),
             createTask('t2', 'project-1', 1),
         ];
+        const reserveProjectOrder = createProjectOrderReserver(tasks);
 
-        expect(reserveNextProjectOrder('project-1', tasks)).toBe(2);
-        expect(reserveNextProjectOrder('project-1', tasks)).toBe(3);
-        expect(reserveNextProjectOrder('project-2', tasks)).toBe(0);
-        expect(reserveNextProjectOrder('project-2', tasks)).toBe(1);
+        expect(reserveProjectOrder('project-1')).toBe(2);
+        expect(reserveProjectOrder('project-1')).toBe(3);
+        expect(reserveProjectOrder('project-2')).toBe(0);
+        expect(reserveProjectOrder('project-2')).toBe(1);
     });
 
-    it('does not carry reserved orders across new task snapshots', () => {
+    it('does not carry reserved orders across reserver instances', () => {
         const tasks = [
             createTask('t1', 'project-1', 0),
             createTask('t2', 'project-1', 1),
         ];
 
-        expect(reserveNextProjectOrder('project-1', tasks)).toBe(2);
+        expect(createProjectOrderReserver(tasks)('project-1')).toBe(2);
 
         const refreshedTasks = tasks.map((task) => ({ ...task }));
-        expect(reserveNextProjectOrder('project-1', refreshedTasks)).toBe(2);
+        expect(createProjectOrderReserver(refreshedTasks)('project-1')).toBe(2);
     });
 });
 
