@@ -121,6 +121,17 @@ vi.mock('@mindwtr/core', () => {
       && project.status !== 'completed'
       && (!selectedAreaId || project.areaId === selectedAreaId)
     ))),
+    resolveAreaFilter: vi.fn((value: string | undefined, areas: any[]) => {
+      if (!value || value === '__all__' || value === '__none__') return value ?? '__all__';
+      return areas.some((area: any) => !area.deletedAt && area.id === value) ? value : '__all__';
+    }),
+    taskMatchesAreaFilter: vi.fn((task: any, filter: string, projectMap: Map<string, any>, areaById?: Map<string, any>) => {
+      if (filter === '__all__') return true;
+      const taskAreaId = task.areaId || (task.projectId ? projectMap.get(task.projectId)?.areaId : undefined);
+      const effectiveAreaId = taskAreaId && (!areaById || areaById.has(taskAreaId)) ? taskAreaId : undefined;
+      if (filter === '__none__') return !effectiveAreaId;
+      return effectiveAreaId === filter;
+    }),
     QUICK_DATE_PRESETS: ['today', 'tomorrow', 'in_3_days', 'next_week', 'next_month', 'no_date'],
     getQuickDate: vi.fn((preset: string) => {
       const today = new Date(2025, 0, 1);
@@ -267,6 +278,7 @@ describe('InboxProcessingModal', () => {
     mockSettings.features = undefined;
     mockSettings.gtd = { inboxProcessing: {}, taskEditor: undefined };
     mockSettings.ai = {};
+    mockSettings.filters = undefined;
     storeState.tasks = [{ ...baseInboxTask }];
     storeState.projects = [];
     storeState.areas = [];
@@ -438,6 +450,59 @@ describe('InboxProcessingModal', () => {
 
     expect(findNodesWithText(root, 'Work Project').length).toBeGreaterThan(0);
     expect(findNodesWithText(root, 'Home Project')).toHaveLength(0);
+  });
+
+  it('respects the global area filter when building the processing queue', () => {
+    mockSettings.filters = { areaId: workArea.id };
+    storeState.areas = [workArea, homeArea];
+    storeState.projects = [workProject, homeProject];
+    storeState.tasks = [
+      {
+        ...baseInboxTask,
+        id: 'home-inbox',
+        title: 'Home inbox',
+        projectId: homeProject.id,
+        contexts: [],
+        tags: [],
+      },
+      {
+        ...baseInboxTask,
+        id: 'work-inbox',
+        title: 'Work inbox',
+        projectId: workProject.id,
+        contexts: [],
+        tags: [],
+      },
+    ];
+    const onClose = vi.fn();
+    let tree: ReturnType<typeof create>;
+
+    act(() => {
+      tree = create(<InboxProcessingModal visible onClose={onClose} />);
+    });
+
+    const root = tree!.root;
+
+    expect(root.findByProps({ placeholder: 'taskEdit.titleLabel' }).props.value).toBe('Work inbox');
+
+    const skipLabel = root.findByProps({ children: 'Skip' });
+    const skipButton = skipLabel.parent;
+
+    if (!skipButton) {
+      throw new Error('Skip button not found');
+    }
+
+    act(() => {
+      skipButton.props.onPress();
+    });
+
+    expect(updateTask).toHaveBeenCalledWith(
+      'work-inbox',
+      expect.objectContaining({
+        title: 'Work inbox',
+      }),
+    );
+    expect(onClose).toHaveBeenCalled();
   });
 
   it('creates inbox processing projects in the selected area', async () => {

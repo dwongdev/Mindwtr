@@ -91,6 +91,16 @@ echo "Updating lockfile..."
 bun install
 
 echo ""
+echo "Validating core package.json/package-lock sync..."
+if ! node scripts/ci/check-package-lock-sync.js packages/core/package.json packages/core/package-lock.json; then
+    echo ""
+    echo "Core package-lock.json does not match packages/core/package.json."
+    echo "Repair it before tagging with:"
+    echo "  npm install --package-lock-only --prefix packages/core --legacy-peer-deps --workspaces=false"
+    exit 1
+fi
+
+echo ""
 echo "Validating desktop package.json/package-lock sync..."
 if ! node scripts/ci/check-package-lock-sync.js apps/desktop/package.json apps/desktop/package-lock.json; then
     echo ""

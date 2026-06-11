@@ -16,10 +16,12 @@ import {
   hasTimeComponent,
   isTaskInActiveProject,
   normalizeClockTimeInput,
+  resolveAreaFilter,
   safeFormatDate,
   safeParseDate,
   tFallback,
   resolveAutoTextDirection,
+  taskMatchesAreaFilter,
   useTaskStore,
   type AIProviderId,
   type Task,
@@ -158,15 +160,26 @@ export function useInboxProcessingController({
       : MOBILE_TIME_ESTIMATE_OPTIONS;
   }, [selectedTimeEstimate, settings?.gtd?.timeEstimatePresets]);
 
+  const projectById = useMemo(
+    () => new Map(projects.map((project) => [project.id, project])),
+    [projects],
+  );
+  const areaById = useMemo(
+    () => new Map(areas.map((area) => [area.id, area])),
+    [areas],
+  );
+  const resolvedAreaFilter = useMemo(
+    () => resolveAreaFilter(settings?.filters?.areaId, areas),
+    [settings?.filters?.areaId, areas],
+  );
   const inboxTasks = useMemo(() => {
-    const projectById = new Map(projects.map((project) => [project.id, project]));
     return tasks.filter((task) => {
       if (task.deletedAt) return false;
       if (task.status !== 'inbox') return false;
       if (!isTaskInActiveProject(task, projectById)) return false;
-      return true;
+      return taskMatchesAreaFilter(task, resolvedAreaFilter, projectById, areaById);
     });
-  }, [projects, tasks]);
+  }, [areaById, projectById, resolvedAreaFilter, tasks]);
 
   const processingQueue = useMemo(
     () => inboxTasks.filter((task) => !skippedIds.has(task.id)),
@@ -203,10 +216,6 @@ export function useInboxProcessingController({
     [insets.top, tc.border],
   );
 
-  const areaById = useMemo(
-    () => new Map(areas.map((area) => [area.id, area])),
-    [areas],
-  );
   const contextSuggestionPool = useMemo(() => {
     return collectTaskTokenUsage(tasks, (task) => task.contexts, { prefix: '@' })
       .sort((a, b) => b.lastUsedAt - a.lastUsedAt || b.count - a.count || a.token.localeCompare(b.token))
