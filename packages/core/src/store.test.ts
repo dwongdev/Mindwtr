@@ -1544,7 +1544,7 @@ describe('TaskStore', () => {
         expect(restored?.status).toBe('archived');
     });
 
-    it('purges deleted tasks without rebuilding the visible task slice', async () => {
+    it('purges deleted tasks while deriving the visible task slice from all tasks', async () => {
         const archivedTask = {
             id: 'archived-visible',
             title: 'Archived Visible Task',
@@ -1572,7 +1572,8 @@ describe('TaskStore', () => {
 
         await useTaskStore.getState().purgeDeletedTasks();
 
-        expect(useTaskStore.getState().tasks).toEqual([archivedTask]);
+        expect(useTaskStore.getState().tasks).toEqual([]);
+        expect(useTaskStore.getState()._allTasks.find((task) => task.id === archivedTask.id)).toEqual(archivedTask);
         expect(useTaskStore.getState()._allTasks.find((task) => task.id === deletedTask.id)?.purgedAt).toBeTruthy();
     });
 

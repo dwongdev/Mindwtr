@@ -11,6 +11,10 @@ import type { TaskStore } from './store-types';
 import {
     buildEntityMap,
     sanitizeAppDataForStorage,
+    selectVisibleAreas,
+    selectVisibleProjects,
+    selectVisibleSections,
+    selectVisibleTasks,
 } from './store-helpers';
 import { markCoreStartupPhase } from './startup-profiler';
 import { createProjectActions } from './store-projects';
@@ -56,11 +60,6 @@ const ERROR_AUTO_CLEAR_MS = 10_000;
 const SAVE_QUEUE_OVERFLOW_ERROR_PREFIX = 'Save queue overflow:';
 const hasPendingSaveWork = (): boolean => pendingSaves.length > 0 || saveInFlight !== null || immediateSavesInFlight.size > 0;
 const hasOwnField = (value: object, field: PropertyKey): boolean => Object.prototype.hasOwnProperty.call(value, field);
-const getRequiredArrayField = <T>(value: Record<string, unknown>, field: string): T[] => {
-    const resolved = value[field];
-    if (Array.isArray(resolved)) return resolved as T[];
-    throw new Error(`TaskStore invariant violated: missing ${field} array state`);
-};
 const getSaveRetryDelayMs = (attempt: number): number => {
     const cappedAttempt = Math.max(0, attempt - 1);
     return Math.min(MAX_SAVE_RETRY_DELAY_MS, INITIAL_SAVE_RETRY_DELAY_MS * (2 ** cappedAttempt));
@@ -194,105 +193,45 @@ export const resetForTests = () => {
     }
 };
 
-type EntityCollectionConfig = {
+type EntityCollectionConfig<T extends { id: string }> = {
     allKey: '_allTasks' | '_allProjects' | '_allSections' | '_allAreas';
     visibleKey: 'tasks' | 'projects' | 'sections' | 'areas';
     mapKey: '_tasksById' | '_projectsById' | '_sectionsById' | '_areasById';
+    selectVisible: (items: T[]) => T[];
 };
 
-const patchEntityMapFromAlignedArray = <T extends { id: string }>(
-    currentItems: T[],
-    currentMap: Map<string, T>,
-    nextItems: T[]
-): Map<string, T> | null => {
-    if (currentItems.length !== nextItems.length) return null;
-    let nextMap: Map<string, T> | null = null;
-    for (let index = 0; index < nextItems.length; index += 1) {
-        const currentItem = currentItems[index];
-        const nextItem = nextItems[index];
-        if (currentItem === nextItem) continue;
-        if (currentItem?.id !== nextItem?.id) return null;
-        if (!nextMap) nextMap = new Map(currentMap);
-        nextMap.set(nextItem.id, nextItem);
-    }
-    return nextMap ?? currentMap;
+const shouldEnforceStoreWriteContract = (): boolean => {
+    if (typeof process === 'undefined') return true;
+    return process.env?.NODE_ENV !== 'production';
 };
 
 const normalizeEntityCollectionUpdate = <T extends { id: string }>(
-    state: TaskStore,
     nextState: Partial<TaskStore>,
-    config: EntityCollectionConfig
+    config: EntityCollectionConfig<T>
 ) => {
-    const { allKey, visibleKey, mapKey } = config;
+    const { allKey, visibleKey, mapKey, selectVisible } = config;
     const touchesAll = hasOwnField(nextState, allKey);
     const touchesVisible = hasOwnField(nextState, visibleKey);
     const touchesMap = hasOwnField(nextState, mapKey);
     if (!touchesAll && !touchesVisible && !touchesMap) return;
 
-    const currentStateRecord = state as unknown as Record<string, unknown>;
-    const currentAll = getRequiredArrayField<T>(currentStateRecord, allKey);
-    const currentVisible = getRequiredArrayField<T>(currentStateRecord, visibleKey);
-    const currentMapValue = currentStateRecord[mapKey];
-    const currentMap = currentMapValue instanceof Map ? currentMapValue as Map<string, T> : buildEntityMap(currentAll);
-    const nextAllRaw = (nextState as Record<string, unknown>)[allKey] as T[] | undefined;
-    const nextVisibleRaw = (nextState as Record<string, unknown>)[visibleKey] as T[] | undefined;
-    const nextMapRaw = (nextState as Record<string, unknown>)[mapKey] as Map<string, T> | undefined;
-    const allChanged = touchesAll && Array.isArray(nextAllRaw) && nextAllRaw !== currentAll;
-    const visibleChanged = touchesVisible && Array.isArray(nextVisibleRaw) && nextVisibleRaw !== currentVisible;
-    const mapChanged = touchesMap && nextMapRaw instanceof Map && nextMapRaw !== currentMap;
-
-    let source: 'all' | 'visible' | 'map' | 'current' = 'current';
-    if (visibleChanged && !allChanged && !mapChanged) {
-        source = 'visible';
-    } else if (allChanged && !mapChanged) {
-        source = 'all';
-    } else if (mapChanged && !allChanged) {
-        source = 'map';
-    } else if (allChanged) {
-        source = 'all';
-    } else if (mapChanged) {
-        source = 'map';
-    } else if (visibleChanged) {
-        source = 'visible';
-    }
-    if (
-        source === 'all'
-        && visibleChanged
-        && Array.isArray(nextAllRaw)
-        && Array.isArray(nextVisibleRaw)
-    ) {
-        const nextAllIds = new Set(nextAllRaw.map((item) => item.id));
-        const isVisibleSubsetOfAll = nextVisibleRaw.every((item) => nextAllIds.has(item.id));
-        if (!isVisibleSubsetOfAll) {
-            source = 'visible';
+    const record = nextState as Record<string, unknown>;
+    if (!touchesAll) {
+        if (shouldEnforceStoreWriteContract()) {
+            throw new Error(`TaskStore invariant violated: write ${allKey} instead of ${visibleKey}/${mapKey}`);
         }
+        delete record[visibleKey];
+        delete record[mapKey];
+        return;
     }
 
-    let resolvedAll: T[];
-    if (source === 'all' && Array.isArray(nextAllRaw)) {
-        resolvedAll = nextAllRaw;
-    } else if (source === 'map' && nextMapRaw instanceof Map) {
-        resolvedAll = Array.from(nextMapRaw.values());
-    } else if (source === 'visible' && Array.isArray(nextVisibleRaw)) {
-        resolvedAll = nextVisibleRaw;
-    } else {
-        resolvedAll = currentAll;
+    const nextAll = record[allKey];
+    if (!Array.isArray(nextAll)) {
+        throw new Error(`TaskStore invariant violated: ${allKey} must be an array`);
     }
-
-    const resolvedMap = mapChanged && nextMapRaw instanceof Map
-        ? nextMapRaw
-        : resolvedAll === currentAll
-            ? currentMap
-            : patchEntityMapFromAlignedArray(currentAll, currentMap, resolvedAll) ?? buildEntityMap(resolvedAll);
-    const resolvedVisible = visibleChanged && Array.isArray(nextVisibleRaw)
-        ? nextVisibleRaw
-        : currentVisible;
-
-    (nextState as Record<string, unknown>)[allKey] = resolvedAll;
-    (nextState as Record<string, unknown>)[mapKey] = resolvedMap;
-    if (!touchesVisible || touchesAll || touchesMap) {
-        (nextState as Record<string, unknown>)[visibleKey] = resolvedVisible;
-    }
+    const allItems = nextAll as T[];
+    record[visibleKey] = selectVisible(allItems);
+    record[mapKey] = buildEntityMap(allItems);
 };
 
 const prepareStoreStateUpdate = (
@@ -304,25 +243,29 @@ const prepareStoreStateUpdate = (
     }
 
     const prepared = { ...(nextState as Partial<TaskStore>) };
-    normalizeEntityCollectionUpdate(state, prepared, {
+    normalizeEntityCollectionUpdate(prepared, {
         allKey: '_allTasks',
         visibleKey: 'tasks',
         mapKey: '_tasksById',
+        selectVisible: selectVisibleTasks,
     });
-    normalizeEntityCollectionUpdate(state, prepared, {
+    normalizeEntityCollectionUpdate(prepared, {
         allKey: '_allProjects',
         visibleKey: 'projects',
         mapKey: '_projectsById',
+        selectVisible: selectVisibleProjects,
     });
-    normalizeEntityCollectionUpdate(state, prepared, {
+    normalizeEntityCollectionUpdate(prepared, {
         allKey: '_allSections',
         visibleKey: 'sections',
         mapKey: '_sectionsById',
+        selectVisible: selectVisibleSections,
     });
-    normalizeEntityCollectionUpdate(state, prepared, {
+    normalizeEntityCollectionUpdate(prepared, {
         allKey: '_allAreas',
         visibleKey: 'areas',
         mapKey: '_areasById',
+        selectVisible: selectVisibleAreas,
     });
 
     if (hasOwnField(prepared, 'error')) {

@@ -51,10 +51,6 @@ const persistMergedDataThroughStore = async (merged: AppData): Promise<void> => 
     const allAreas = Array.isArray(merged.areas) ? merged.areas : [];
 
     useTaskStore.setState((state) => ({
-        tasks: allTasks.filter((task) => !task.deletedAt && task.status !== 'archived'),
-        projects: allProjects.filter((project) => !project.deletedAt),
-        sections: allSections.filter((section) => !section.deletedAt),
-        areas: allAreas.filter((area) => !area.deletedAt),
         _allTasks: allTasks,
         _allProjects: allProjects,
         _allSections: allSections,
