@@ -62,6 +62,16 @@ Notable columns:
 - `orderNum`: manual ordering
 - `deletedAt`, `rev`, `revBy`, `updatedAt`: sync metadata
 
+### `people`
+
+Managed assignees for delegated/person-centered work.
+
+Notable columns:
+
+- `name`: display name used by task assignee suggestions and `assigned:` search
+- `note`, `referenceLink`: optional person notes and reference URL
+- `deletedAt`, `rev`, `revBy`, `updatedAt`: sync metadata
+
 ### `settings`
 
 Single-row JSON store for app settings.

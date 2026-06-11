@@ -39,6 +39,7 @@ Your capture zone. All new tasks land here before processing.
 - **Add tasks** using the input field at the bottom
 - **Quick-add syntax** is supported (see [[Getting Started]])
 - **Process Inbox** using the clarify workflow
+- **Mind Sweep** prompts you through common life/work areas when you want a guided capture session instead of a blank input.
 
 ### 🎯 Focus
 
@@ -114,6 +115,8 @@ Kanban-style drag-and-drop board with columns:
 - **Someday/Maybe** — Deferred items
 - **Done** — Completed tasks
 
+Drag cards within a column to set manual board order. Moving a task to another status clears its old column order so it can be ordered in the new column.
+
 ### ✅ Done
 
 Recently completed tasks. Use this as your short-term completion log for daily or weekly review.
@@ -131,6 +134,8 @@ Guided GTD review wizard with steps:
 3. Follow up Waiting For
 4. Review Projects
 5. Review Someday/Maybe
+
+Use the **Process Inbox** action in the review to clear captured items before continuing through calendar, waiting-for, projects, and someday review.
 
 See [[Weekly Review]] for detailed guidance.
 
@@ -353,6 +358,7 @@ Configure notifications in Settings:
 | **Description**   | Markdown-formatted notes with preview               |
 | **Attachments**   | Files and links attached to the task                |
 | **Location**      | Physical location                                   |
+| **Assignee / Person** | Delegated person for Waiting For and `assigned:` search |
 | **Project**       | Parent project assignment                           |
 | **Section**       | Optional group within a project                     |
 
@@ -475,7 +481,8 @@ Access Settings from the sidebar.
   - Choose the editor opening style: **Side peek** for inline edits or **Pop-up** for focused editing
   - You can move fields like **Due Date** into **Scheduling** and choose which sections expand by default
 - **Manage** — Maintain your reusable metadata from one place
-  - Edit **Areas**, **Contexts**, and **Tags** without hunting through individual tasks
+  - Edit **Areas**, **People**, **Contexts**, and **Tags** without hunting through individual tasks
+  - People keep reusable assignee names, notes, and reference links for delegated work and suggestions
 
 ### Data & Sync
 

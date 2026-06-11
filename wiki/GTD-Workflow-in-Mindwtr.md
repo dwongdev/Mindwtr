@@ -42,6 +42,7 @@ Use these patterns to keep the system light:
 
 - **Desktop:** Type in the bottom input field or use keyboard shortcut `o`
 - **Mobile:** Tap the input field on the Inbox tab
+- **Mind Sweep:** Use guided prompts when you need to collect open loops across work, home, people, errands, and someday ideas.
 
 ### Quick-Add Syntax
 
@@ -133,6 +134,10 @@ Add contexts to filter by where you can do tasks:
 - `#creative` — Brainstorming
 - `#routine` — Repetitive tasks
 
+### People
+
+Use People for delegated or person-centered work. A task's assignee powers Waiting For lists, suggestions, and `assigned:` search; the People manager lets you keep reusable names, notes, and reference links without turning every person into a context tag.
+
 ### Projects
 
 Create projects for multi-step outcomes:
@@ -175,6 +180,7 @@ Sequential projects can use a project-wide scope or a section scope. Use section
 1. **Process Inbox**
    - Clear all inbox items
    - Goal: Inbox Zero
+   - Use the review's Process Inbox action to run the normal clarify workflow from inside Weekly Review
 
 2. **Review Calendar**
    - Look back 2 weeks for missed follow-ups

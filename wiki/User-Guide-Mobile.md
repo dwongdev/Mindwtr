@@ -30,7 +30,7 @@ The mobile app uses bottom tabs for core flows and a Menu page for additional vi
  
 Tap the **Menu** tab to access additional views:
  
- - 📋 **Board** — Kanban board view
+ - 📋 **Board** — Kanban board view with manual drag ordering inside each status column
  - 🗓️ **Calendar** — Time-based view
  - 📁 **Projects** — Multi-step outcomes
  - 🏷️ **Contexts** — Filter by context
@@ -242,6 +242,8 @@ Capture tasks using your voice with AI-powered transcription.
 
 Your capture zone for quick task entry.
 
+Use **Mind Sweep** when you want guided capture prompts for work, home, people, errands, and open loops instead of starting from a blank input.
+
 ### Adding Tasks
 
 1. Tap the input field at the bottom
@@ -308,6 +310,7 @@ Review your tasks and update their status.
 - Quickly mark tasks as done
 - Navigate between tasks
 - **Select mode**: Batch select tasks and share them
+- During Weekly Review, use the **Process Inbox** step to clear captured items before continuing through calendar, waiting-for, projects, and someday review.
 
 ---
 
@@ -328,6 +331,7 @@ Description markdown supports unordered lists and task checkboxes (`- item`, `[ 
 Type `[[` in task descriptions or project notes to link another task or project from the link picker sheet.
 Those links are navigational only; they do not sync completion state between tasks.
 Markdown checkbox lines can populate checklist items when you save.
+The **Assignee / Person** field stores delegated people for Waiting For, suggestions, and `assigned:` search. Manage saved people, notes, and reference links from **Settings → Manage**.
 
 Recurring tasks support two strategies:
 - **Strict** (fixed cadence)
@@ -593,7 +597,7 @@ Customize how Mindwtr works for your GTD workflow:
 - Hidden fields can be revealed with the **More** button in the editor
 
 **Manage:**
-- Use **Settings → Manage** to edit saved **Areas**, **Contexts**, and **Tags**
+- Use **Settings → Manage** to edit saved **Areas**, **People**, **Contexts**, and **Tags**
 - This is the fastest place to clean up duplicates or rename reusable metadata
 
 ### Data & Sync

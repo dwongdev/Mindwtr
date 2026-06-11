@@ -54,6 +54,7 @@ Review each inbox item:
 **In Mindwtr:**
 - See your inbox count
 - Process items using the clarify workflow
+- Use the **Process Inbox** action from the review step, then return to the review when the inbox is clear
 - Empty the inbox completely
 
 ### Step 2: Review Calendar

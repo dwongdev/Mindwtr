@@ -140,6 +140,12 @@ Important:
 - Do not move only `data.json` without `attachments/`, or attachment metadata/files can drift.
 - If iCloud Optimize Storage offloads files, let Files re-download before running a manual sync.
 
+#### iOS file bookmarks for Google Drive, OneDrive, and other Files providers
+
+On iOS, Google Drive, OneDrive, and similar providers can be used through **File Sync** when they expose a file in the Files picker. If folder selection is unavailable, pick an existing JSON file in the target folder; Mindwtr stores a security-scoped bookmark and uses it for later reads and writes.
+
+This file-scoped provider mode syncs `data.json`. Attachment folders are not available through every Files provider bookmark, so use native iCloud/CloudKit, Dropbox, WebDAV, or self-hosted Cloud when attachments need to sync reliably. If iOS reports that bookmark access expired, re-select the sync file in **Settings → Sync**.
+
 #### Syncthing Notes (Recommended Setup)
 
 Syncthing works well with Mindwtr, but the initial setup order matters.
@@ -289,6 +295,7 @@ On mobile, sync history entries are collapsed by default; tap to expand.
 - Attachments are synced **after** metadata merges.
 - Missing attachments remain as placeholders until downloaded.
 - Orphaned attachments are cleaned up automatically (and can be triggered manually on desktop in **Settings → Data**).
+- Remote attachment cleanup is local-reference aware, not global-reference counted. If two devices create or retain references to the same remote attachment before they have synced with each other, one device may not know about the other reference yet. Let devices sync before deleting shared attachments, and reattach the file if cleanup removes a remote copy another device still needs.
 
 ---
 
@@ -589,6 +596,16 @@ The `data.json` file structure:
       "color": "#3B82F6",
       "icon": "🔬",
       "order": 0,
+      "createdAt": "2025-01-01T10:00:00Z",
+      "updatedAt": "2025-01-10T15:30:00Z"
+    }
+  ],
+  "people": [
+    {
+      "id": "uuid",
+      "name": "Alex",
+      "note": "Design lead",
+      "referenceLink": "https://example.com/alex",
       "createdAt": "2025-01-01T10:00:00Z",
       "updatedAt": "2025-01-10T15:30:00Z"
     }
