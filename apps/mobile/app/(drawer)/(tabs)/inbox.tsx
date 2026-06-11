@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { useRouter } from 'expo-router';
 
 import { isTaskInActiveProject, shallow, useTaskStore } from '@mindwtr/core';
 import { TaskList } from '../../../components/task-list';
@@ -21,6 +22,7 @@ export default function InboxScreen() {
   const { t } = useLanguage();
   const tc = useThemeColors();
   const { openQuickCapture } = useQuickCapture();
+  const router = useRouter();
   const [showProcessing, setShowProcessing] = useState(false);
   const { areaById, resolvedAreaFilter } = useMobileAreaFilter();
   const projectById = useMemo(() => new Map(projects.map((project) => [project.id, project])), [projects]);
@@ -43,19 +45,34 @@ export default function InboxScreen() {
     ? t('quickAdd.audioCaptureLabel')
     : t('nav.addTask');
 
-  const processButton = inboxTasks.length > 0 ? (
-    <TouchableOpacity
-      style={[styles.processHeaderButton, { backgroundColor: tc.tint }]}
-      onPress={() => setShowProcessing(true)}
-      hitSlop={8}
-      accessibilityRole="button"
-      accessibilityLabel={t('inbox.processButton')}
-    >
-      <Text style={styles.processHeaderButtonText}>
-        ▷ {t('inbox.processButton')} ({inboxTasks.length})
-      </Text>
-    </TouchableOpacity>
-  ) : null;
+  const headerButtons = (
+    <View style={styles.headerButtonsRow}>
+      <TouchableOpacity
+        style={[styles.processHeaderButton, styles.mindSweepButton, { borderColor: tc.tint }]}
+        onPress={() => router.push('/mind-sweep-modal')}
+        hitSlop={8}
+        accessibilityRole="button"
+        accessibilityLabel={t('mindSweep.launchButton')}
+      >
+        <Text style={[styles.mindSweepButtonText, { color: tc.tint }]}>
+          {t('mindSweep.launchButton')}
+        </Text>
+      </TouchableOpacity>
+      {inboxTasks.length > 0 ? (
+        <TouchableOpacity
+          style={[styles.processHeaderButton, { backgroundColor: tc.tint }]}
+          onPress={() => setShowProcessing(true)}
+          hitSlop={8}
+          accessibilityRole="button"
+          accessibilityLabel={t('inbox.processButton')}
+        >
+          <Text style={styles.processHeaderButtonText}>
+            ▷ {t('inbox.processButton')} ({inboxTasks.length})
+          </Text>
+        </TouchableOpacity>
+      ) : null}
+    </View>
+  );
 
   return (
     <View style={[styles.container, { backgroundColor: tc.bg }]}>
@@ -71,7 +88,7 @@ export default function InboxScreen() {
         emptyHint={emptyHint}
         emptyActionLabel={emptyActionLabel}
         onEmptyAction={() => openQuickCapture({ autoRecord: defaultCaptureMethod === 'audio' })}
-        headerAccessory={processButton}
+        headerAccessory={headerButtons}
         defaultEditTab="task"
       />
       <ErrorBoundary>
@@ -88,6 +105,11 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
+  headerButtonsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
   processHeaderButton: {
     paddingHorizontal: 12,
     paddingVertical: 8,
@@ -95,6 +117,13 @@ const styles = StyleSheet.create({
   },
   processHeaderButtonText: {
     color: '#FFFFFF',
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  mindSweepButton: {
+    borderWidth: 1,
+  },
+  mindSweepButtonText: {
     fontSize: 12,
     fontWeight: '700',
   },

@@ -1129,6 +1129,14 @@ function RootLayoutContentInner() {
               }}
             />
             <Stack.Screen
+              name="mind-sweep-modal"
+              options={{
+                headerShown: false,
+                presentation: 'modal',
+                animation: 'slide_from_bottom'
+              }}
+            />
+            <Stack.Screen
               name="check-focus"
               options={{
                 headerShown: false,
