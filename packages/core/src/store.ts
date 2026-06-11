@@ -202,10 +202,11 @@ type EntityCollectionConfig<T extends { id: string }> = {
 
 const shouldEnforceStoreWriteContract = (): boolean => {
     if (typeof process === 'undefined') return true;
-    return process.env?.NODE_ENV !== 'production';
+    return process.env?.NODE_ENV === 'development';
 };
 
 const normalizeEntityCollectionUpdate = <T extends { id: string }>(
+    state: TaskStore,
     nextState: Partial<TaskStore>,
     config: EntityCollectionConfig<T>
 ) => {
@@ -216,8 +217,23 @@ const normalizeEntityCollectionUpdate = <T extends { id: string }>(
     if (!touchesAll && !touchesVisible && !touchesMap) return;
 
     const record = nextState as Record<string, unknown>;
+    const currentRecord = state as unknown as Record<string, unknown>;
+    const enforceWriteContract = shouldEnforceStoreWriteContract();
+    const visibleItems = record[visibleKey];
+    const canUseVisibleCompatibilityUpdate =
+        !enforceWriteContract &&
+        touchesVisible &&
+        Array.isArray(visibleItems) &&
+        record[visibleKey] !== currentRecord[visibleKey] &&
+        (!touchesAll || record[allKey] === currentRecord[allKey]);
+    if (canUseVisibleCompatibilityUpdate) {
+        record[allKey] = visibleItems;
+        record[mapKey] = buildEntityMap(visibleItems as T[]);
+        return;
+    }
+
     if (!touchesAll) {
-        if (shouldEnforceStoreWriteContract()) {
+        if (enforceWriteContract) {
             throw new Error(`TaskStore invariant violated: write ${allKey} instead of ${visibleKey}/${mapKey}`);
         }
         delete record[visibleKey];
@@ -243,25 +259,25 @@ const prepareStoreStateUpdate = (
     }
 
     const prepared = { ...(nextState as Partial<TaskStore>) };
-    normalizeEntityCollectionUpdate(prepared, {
+    normalizeEntityCollectionUpdate(state, prepared, {
         allKey: '_allTasks',
         visibleKey: 'tasks',
         mapKey: '_tasksById',
         selectVisible: selectVisibleTasks,
     });
-    normalizeEntityCollectionUpdate(prepared, {
+    normalizeEntityCollectionUpdate(state, prepared, {
         allKey: '_allProjects',
         visibleKey: 'projects',
         mapKey: '_projectsById',
         selectVisible: selectVisibleProjects,
     });
-    normalizeEntityCollectionUpdate(prepared, {
+    normalizeEntityCollectionUpdate(state, prepared, {
         allKey: '_allSections',
         visibleKey: 'sections',
         mapKey: '_sectionsById',
         selectVisible: selectVisibleSections,
     });
-    normalizeEntityCollectionUpdate(prepared, {
+    normalizeEntityCollectionUpdate(state, prepared, {
         allKey: '_allAreas',
         visibleKey: 'areas',
         mapKey: '_areasById',
