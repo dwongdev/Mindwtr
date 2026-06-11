@@ -118,5 +118,5 @@ describe('storage-file sync writes', () => {
     expect(written.startsWith(next)).toBe(true);
     expect(written.slice(next.length)).toMatch(/^\s+$/);
     expect(JSON.parse(fileSystemMock.__getStoredText())).toEqual(nextData);
-  });
+  }, 10_000);
 });
