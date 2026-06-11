@@ -1618,4 +1618,77 @@ describe('AgendaView', () => {
         expect(getByText(/no context/i)).toBeInTheDocument();
         expect(getByText('Next task 30')).toBeInTheDocument();
     });
+
+    it('persists collapsed grouped next-action state by grouping mode', () => {
+        const workProject: Project = {
+            id: 'work-project',
+            title: '@work',
+            status: 'active',
+            color: '#2563eb',
+            order: 0,
+            tagIds: [],
+            createdAt: nowIso,
+            updatedAt: nowIso,
+        };
+        const workTask: Task = {
+            id: 'work-task',
+            title: 'Work task',
+            status: 'next',
+            projectId: workProject.id,
+            tags: [],
+            contexts: ['@work'],
+            createdAt: nowIso,
+            updatedAt: nowIso,
+        };
+        const homeTask: Task = {
+            id: 'home-task',
+            title: 'Home task',
+            status: 'next',
+            tags: [],
+            contexts: ['@home'],
+            createdAt: nowIso,
+            updatedAt: nowIso,
+        };
+
+        useTaskStore.setState({
+            tasks: [workTask, homeTask],
+            _allTasks: [workTask, homeTask],
+            projects: [workProject],
+            _allProjects: [workProject],
+            areas: [],
+            _allAreas: [],
+            settings: {},
+            highlightTaskId: null,
+        });
+
+        const firstRender = renderAgenda();
+        const groupSelect = firstRender.getByLabelText('Group') as HTMLSelectElement;
+        fireEvent.change(groupSelect, { target: { value: 'context' } });
+
+        const workContextGroup = firstRender.getByRole('button', { name: /@work\s*1/i });
+        fireEvent.click(workContextGroup);
+
+        expect(firstRender.getByRole('button', { name: /@work\s*1/i })).toHaveAttribute('aria-expanded', 'false');
+        expect(firstRender.queryByText('Work task')).not.toBeInTheDocument();
+        expect(firstRender.getByText('Home task')).toBeInTheDocument();
+
+        const persisted = JSON.parse(window.localStorage.getItem(focusViewStateStorageKey) ?? '{}') as {
+            collapsedGroups?: Record<string, string[]>;
+        };
+        expect(persisted.collapsedGroups?.context).toEqual(['context:@work']);
+        expect(persisted.collapsedGroups?.project ?? []).toEqual([]);
+
+        fireEvent.change(groupSelect, { target: { value: 'project' } });
+
+        expect(firstRender.getByRole('button', { name: /@work\s*1/i })).toHaveAttribute('aria-expanded', 'true');
+        expect(firstRender.getByText('Work task')).toBeInTheDocument();
+
+        fireEvent.change(groupSelect, { target: { value: 'context' } });
+        firstRender.unmount();
+
+        const secondRender = renderAgenda();
+        expect(secondRender.getByRole('button', { name: /@work\s*1/i })).toHaveAttribute('aria-expanded', 'false');
+        expect(secondRender.queryByText('Work task')).not.toBeInTheDocument();
+        expect(secondRender.getByText('Home task')).toBeInTheDocument();
+    });
 });

@@ -6,7 +6,7 @@ import type { FilterCriteria, FocusGroupBy, MultiValueFilterMatchMode, ProjectDe
 import { useLanguage } from '../../contexts/language-context';
 import { cn } from '../../lib/utils';
 import { useUiStore } from '../../store/ui-store';
-import { AlertCircle, Clock, Star, ArrowRight, Folder, CheckCircle2, X } from 'lucide-react';
+import { AlertCircle, Clock, Star, ArrowRight, Folder, CheckCircle2, X, ChevronDown, ChevronRight } from 'lucide-react';
 import { usePerformanceMonitor } from '../../hooks/usePerformanceMonitor';
 import { checkBudget } from '../../config/performanceBudgets';
 import { projectMatchesAreaFilter, resolveAreaFilter, taskMatchesAreaFilter } from '@mindwtr/core';
@@ -29,9 +29,11 @@ const FOCUS_GROUP_BY_VALUES = new Set<FocusGroupBy>(['none', 'context', 'project
 const FOCUS_VIEW_STATE_STORAGE_KEY = 'mindwtr:view:focus:v1';
 
 type FocusSectionKey = 'schedule' | 'nextActions' | 'reviewDue';
+type FocusGroupCollapseKey = Exclude<NextGroupBy, 'none'>;
 
 type FocusPersistedViewState = {
     expandedSections: Record<FocusSectionKey, boolean>;
+    collapsedGroups: Partial<Record<FocusGroupCollapseKey, string[]>>;
 };
 
 const DEFAULT_FOCUS_VIEW_STATE: FocusPersistedViewState = {
@@ -39,6 +41,13 @@ const DEFAULT_FOCUS_VIEW_STATE: FocusPersistedViewState = {
         schedule: true,
         nextActions: true,
         reviewDue: true,
+    },
+    collapsedGroups: {
+        context: [],
+        area: [],
+        project: [],
+        energy: [],
+        priority: [],
     },
 };
 
@@ -49,17 +58,40 @@ function sanitizeFocusViewState(value: unknown, fallback: FocusPersistedViewStat
     const expandedSections = parsed.expandedSections && typeof parsed.expandedSections === 'object' && !Array.isArray(parsed.expandedSections)
         ? parsed.expandedSections as Partial<Record<FocusSectionKey, boolean>>
         : {};
+    const collapsedGroups = parsed.collapsedGroups && typeof parsed.collapsedGroups === 'object' && !Array.isArray(parsed.collapsedGroups)
+        ? parsed.collapsedGroups as Partial<Record<FocusGroupCollapseKey, unknown>>
+        : {};
+    const sanitizeGroupIds = (ids: unknown, fallbackIds: string[] | undefined = []) => (
+        Array.isArray(ids)
+            ? Array.from(new Set(ids.filter((id): id is string => typeof id === 'string' && id.trim().length > 0)))
+            : fallbackIds ?? []
+    );
     return {
         expandedSections: {
             schedule: typeof expandedSections.schedule === 'boolean' ? expandedSections.schedule : fallback.expandedSections.schedule,
             nextActions: typeof expandedSections.nextActions === 'boolean' ? expandedSections.nextActions : fallback.expandedSections.nextActions,
             reviewDue: typeof expandedSections.reviewDue === 'boolean' ? expandedSections.reviewDue : fallback.expandedSections.reviewDue,
         },
+        collapsedGroups: {
+            context: sanitizeGroupIds(collapsedGroups.context, fallback.collapsedGroups.context),
+            area: sanitizeGroupIds(collapsedGroups.area, fallback.collapsedGroups.area),
+            project: sanitizeGroupIds(collapsedGroups.project, fallback.collapsedGroups.project),
+            energy: sanitizeGroupIds(collapsedGroups.energy, fallback.collapsedGroups.energy),
+            priority: sanitizeGroupIds(collapsedGroups.priority, fallback.collapsedGroups.priority),
+        },
     };
 }
 
 function normalizeAgendaGroupBy(value: unknown): NextGroupBy {
     return FOCUS_GROUP_BY_VALUES.has(value as FocusGroupBy) ? value as NextGroupBy : 'none';
+}
+
+function getFocusGroupCollapseKey(value: NextGroupBy): FocusGroupCollapseKey | null {
+    return value === 'none' ? null : value;
+}
+
+function getDomIdSegment(value: string): string {
+    return value.trim().replace(/[^a-zA-Z0-9_-]+/g, '-') || 'group';
 }
 
 function getAgendaScrollElement(containerElement: HTMLDivElement | null): HTMLElement | null {
@@ -835,6 +867,10 @@ export function AgendaView() {
             noContextLabel: resolveText('contexts.none', 'No context'),
         });
     }, [areas, effectiveNextGroupBy, projectMap, resolveText, sections.nextActions, t]);
+    const activeGroupCollapseKey = getFocusGroupCollapseKey(effectiveNextGroupBy);
+    const collapsedNextActionGroupIds = useMemo(() => new Set(
+        activeGroupCollapseKey ? persistedViewState.collapsedGroups[activeGroupCollapseKey] ?? [] : []
+    ), [activeGroupCollapseKey, persistedViewState.collapsedGroups]);
     const getProjectDeadlineLabel = useCallback((taskId: string) => (
         getProjectDeadlineBoostLabel(sections.projectDeadlineBoosts.get(taskId), resolveText)
     ), [resolveText, sections.projectDeadlineBoosts]);
@@ -895,6 +931,23 @@ export function AgendaView() {
             },
         }));
     }, [setPersistedViewState]);
+    const toggleNextActionGroup = useCallback((groupId: string) => {
+        const collapseKey = getFocusGroupCollapseKey(effectiveNextGroupBy);
+        if (!collapseKey) return;
+        setPersistedViewState((current) => {
+            const currentIds = current.collapsedGroups[collapseKey] ?? [];
+            const nextIds = currentIds.includes(groupId)
+                ? currentIds.filter((id) => id !== groupId)
+                : [...currentIds, groupId];
+            return {
+                ...current,
+                collapsedGroups: {
+                    ...current.collapsedGroups,
+                    [collapseKey]: nextIds,
+                },
+            };
+        });
+    }, [effectiveNextGroupBy, setPersistedViewState]);
 
     const nextActionsCount = sections.nextActions.length;
     const hasAgendaContent = focusedTasks.length > 0
@@ -1190,33 +1243,54 @@ export function AgendaView() {
                                     controlsId="agenda-section-nextActions"
                                 >
                                     <div className="space-y-2">
-                                        {nextActionGroups.map((group) => (
-                                            <div key={group.id} className="overflow-hidden rounded-lg border border-border/50 bg-card/40">
-                                                <div className="flex items-center justify-between gap-3 border-b border-border/30 px-4 py-3">
-                                                    <span className={cn(
-                                                        'inline-flex min-w-0 items-center gap-2 text-sm font-semibold',
-                                                        group.muted ? 'text-muted-foreground' : 'text-foreground',
-                                                    )}>
-                                                        {group.dotColor && (
-                                                            <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: group.dotColor }} aria-hidden="true" />
+                                        {nextActionGroups.map((group, index) => {
+                                            const collapsed = collapsedNextActionGroupIds.has(group.id);
+                                            const controlsId = `agenda-next-group-${getDomIdSegment(effectiveNextGroupBy)}-${index}-${getDomIdSegment(group.id)}`;
+                                            return (
+                                                <div key={group.id} className="overflow-hidden rounded-lg border border-border/50 bg-card/40">
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => toggleNextActionGroup(group.id)}
+                                                        aria-expanded={!collapsed}
+                                                        aria-controls={controlsId}
+                                                        className={cn(
+                                                            'flex w-full items-center justify-between gap-3 px-4 py-3 text-left transition-colors hover:bg-muted/30',
+                                                            'focus:outline-none focus:ring-2 focus:ring-primary/30',
+                                                            !collapsed && 'border-b border-border/30',
                                                         )}
-                                                        <span className="truncate">{group.title}</span>
-                                                    </span>
-                                                    <span className="shrink-0 rounded-full bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">
-                                                        {group.tasks.length}
-                                                    </span>
+                                                    >
+                                                        <span className={cn(
+                                                            'inline-flex min-w-0 items-center gap-2 text-sm font-semibold',
+                                                            group.muted ? 'text-muted-foreground' : 'text-foreground',
+                                                        )}>
+                                                            {collapsed ? (
+                                                                <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+                                                            ) : (
+                                                                <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+                                                            )}
+                                                            {group.dotColor && (
+                                                                <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: group.dotColor }} aria-hidden="true" />
+                                                            )}
+                                                            <span className="truncate">{group.title}</span>
+                                                        </span>
+                                                        <span className="shrink-0 rounded-full bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">
+                                                            {group.tasks.length}
+                                                        </span>
+                                                    </button>
+                                                    {!collapsed && (
+                                                        <div id={controlsId} className="ml-4 border-l border-border/40 pl-3">
+                                                            <AgendaTaskList
+                                                                tasks={group.tasks}
+                                                                buildFocusToggle={buildFocusToggle}
+                                                                getProjectDeadlineLabel={getProjectDeadlineLabel}
+                                                                showListDetails={showListDetails}
+                                                                highlightTaskId={highlightTaskId}
+                                                            />
+                                                        </div>
+                                                    )}
                                                 </div>
-                                                <div className="ml-4 border-l border-border/40 pl-3">
-                                                    <AgendaTaskList
-                                                        tasks={group.tasks}
-                                                        buildFocusToggle={buildFocusToggle}
-                                                        getProjectDeadlineLabel={getProjectDeadlineLabel}
-                                                        showListDetails={showListDetails}
-                                                        highlightTaskId={highlightTaskId}
-                                                    />
-                                                </div>
-                                            </div>
-                                        ))}
+                                            );
+                                        })}
                                     </div>
                                 </AgendaCollapsibleSection>
                             )
