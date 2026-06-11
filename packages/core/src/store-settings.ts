@@ -5,6 +5,7 @@ import { markCoreStartupPhase, measureCoreStartupPhase } from './startup-profile
 import { normalizeTaskForLoad } from './task-status';
 import type { StorageAdapter } from './storage';
 import type { AppData, Area, MigrationSettings, Project, Task, TaskEditorFieldId } from './types';
+import { normalizePeopleForLoad } from './people';
 import type { DerivedCache, StoreActionResult, TaskStore } from './store-types';
 import {
     buildSaveSnapshot,
@@ -20,6 +21,7 @@ import {
     reconcileEntityCollection,
     reuseArrayIfShallowEqual,
     selectVisibleAreas,
+    selectVisiblePeople,
     selectVisibleProjects,
     selectVisibleSections,
     selectVisibleTasks,
@@ -597,6 +599,7 @@ export const createSettingsActions = ({
             const rawProjects = Array.isArray(data.projects) ? data.projects : [];
             const rawSettings = data.settings && typeof data.settings === 'object' ? data.settings : {};
             const rawSections = Array.isArray((data as AppData).sections) ? (data as AppData).sections : [];
+            const rawPeople = Array.isArray((data as AppData).people) ? (data as AppData).people ?? [] : [];
             // Store ALL data including tombstones for persistence
             const nowIso = new Date().toISOString();
             let didNormalizeAreaTimestamps = false;
@@ -614,6 +617,7 @@ export const createSettingsActions = ({
                 rawProjects.length === 0 &&
                 rawSections.length === 0 &&
                 rawAreas.length === 0 &&
+                rawPeople.length === 0 &&
                 Object.keys(settings).length === 0;
             const migrations: MigrationSettings = settings.migrations ?? {};
             const shouldRunMigrations = (migrations.version ?? 0) < MIGRATION_VERSION;
@@ -715,6 +719,9 @@ export const createSettingsActions = ({
             });
             allTasks = autoArchiveResult.tasks;
             const didAutoArchive = autoArchiveResult.didAutoArchive;
+            const peopleLoadResult = normalizePeopleForLoad(rawPeople, allTasks, nowIso, nextSettings.deviceId);
+            let allPeople = peopleLoadResult.people;
+            const didPeopleMigration = peopleLoadResult.didChange;
             let didProjectOrderMigration = false;
             let didAreaMigration = didNormalizeAreaTimestamps;
             let didRunAreaDedupePass = false;
@@ -1002,6 +1009,7 @@ export const createSettingsActions = ({
                         projects: allProjects,
                         sections: allSections,
                         areas: allAreas,
+                        people: allPeople,
                         settings: nextSettings,
                     },
                     nowIso
@@ -1010,12 +1018,14 @@ export const createSettingsActions = ({
                 allProjects = cleanup.data.projects;
                 allSections = cleanup.data.sections;
                 allAreas = cleanup.data.areas;
+                allPeople = cleanup.data.people ?? [];
                 nextSettings = cleanup.data.settings;
                 if (
                     cleanup.removedTaskTombstones > 0
                     || cleanup.removedProjectTombstones > 0
                     || cleanup.removedSectionTombstones > 0
                     || cleanup.removedAreaTombstones > 0
+                    || cleanup.removedPersonTombstones > 0
                     || cleanup.removedAttachmentTombstones > 0
                     || cleanup.removedSavedFilterTombstones > 0
                 ) {
@@ -1028,6 +1038,7 @@ export const createSettingsActions = ({
                             removedProjectTombstones: cleanup.removedProjectTombstones,
                             removedSectionTombstones: cleanup.removedSectionTombstones,
                             removedAreaTombstones: cleanup.removedAreaTombstones,
+                            removedPersonTombstones: cleanup.removedPersonTombstones,
                             removedAttachmentTombstones: cleanup.removedAttachmentTombstones,
                             removedSavedFilterTombstones: cleanup.removedSavedFilterTombstones,
                         },
@@ -1046,24 +1057,29 @@ export const createSettingsActions = ({
                     const nextProjects = reconcileEntityCollection(state._allProjects, state._projectsById, allProjects);
                     const nextSections = reconcileEntityCollection(state._allSections, state._sectionsById, allSections);
                     const nextAreas = reconcileEntityCollection(state._allAreas, state._areasById, allAreas);
+                    const nextPeople = reconcileEntityCollection(state._allPeople, state._peopleById, allPeople);
                     const visibleTasks = reuseArrayIfShallowEqual(state.tasks, selectVisibleTasks(nextTasks.items));
                     const visibleProjects = reuseArrayIfShallowEqual(state.projects, selectVisibleProjects(nextProjects.items));
                     const visibleSections = reuseArrayIfShallowEqual(state.sections, selectVisibleSections(nextSections.items));
                     const visibleAreas = reuseArrayIfShallowEqual(state.areas, selectVisibleAreas(nextAreas.items));
+                    const visiblePeople = reuseArrayIfShallowEqual(state.people, selectVisiblePeople(nextPeople.items));
                     return {
                         tasks: visibleTasks,
                         projects: visibleProjects,
                         sections: visibleSections,
                         areas: visibleAreas,
+                        people: visiblePeople,
                         settings: nextSettings,
                         _allTasks: nextTasks.items,
                         _allProjects: nextProjects.items,
                         _allSections: nextSections.items,
                         _allAreas: nextAreas.items,
+                        _allPeople: nextPeople.items,
                         _tasksById: nextTasks.byId,
                         _projectsById: nextProjects.byId,
                         _sectionsById: nextSections.byId,
                         _areasById: nextAreas.byId,
+                        _peopleById: nextPeople.byId,
                         isLoading: false,
                         lastDataChangeAt:
                             didAutoArchive
@@ -1073,6 +1089,7 @@ export const createSettingsActions = ({
                                 || didClearDeletedProjectArchiveMetadata
                                 || didRepairEntityReferences
                                 || didTombstoneCleanup
+                                || didPeopleMigration
                                 ? getNextDataChangeAt(state.lastDataChangeAt)
                                 : state.lastDataChangeAt,
                     };
@@ -1100,12 +1117,13 @@ export const createSettingsActions = ({
                 || didRepairEntityReferences
                 || didTombstoneCleanup
                 || didAreaMigration
+                || didPeopleMigration
                 || didProjectOrderMigration
                 || didSettingsUpdate
             ) {
                 markCoreStartupPhase('core.fetch_data.debounced_save_enqueued');
                 debouncedSave(
-                    { tasks: allTasks, projects: allProjects, sections: allSections, areas: allAreas, settings: nextSettings },
+                    { tasks: allTasks, projects: allProjects, sections: allSections, areas: allAreas, people: allPeople, settings: nextSettings },
                     (msg) => set({ error: msg })
                 );
             }

@@ -3,7 +3,7 @@ import { cn } from '../../../lib/utils';
 import type { TaskSortBy } from '@mindwtr/core';
 import type { TaskListGroupBy } from './next-grouping';
 
-const DEFAULT_GROUP_BY_OPTIONS: TaskListGroupBy[] = ['none', 'context', 'area', 'project', 'energy', 'priority'];
+const DEFAULT_GROUP_BY_OPTIONS: TaskListGroupBy[] = ['none', 'context', 'area', 'project', 'energy', 'priority', 'person'];
 
 type ListHeaderProps = {
     title: string;
@@ -95,6 +95,10 @@ export function ListHeader({
         const value = t('focus.group.energy');
         return value === 'focus.group.energy' ? 'Energy' : value;
     })();
+    const groupByPersonLabel = (() => {
+        const value = t('people.title');
+        return value === 'people.title' ? 'People' : value;
+    })();
     const controlBaseClass = "h-9 text-xs border transition-colors focus:outline-none focus:ring-2 focus:ring-primary/40";
     const controlMutedClass = "bg-card text-muted-foreground border-border hover:bg-muted/70 hover:text-foreground";
     const controlActiveClass = "bg-primary/10 text-primary border-primary";
@@ -106,6 +110,7 @@ export function ListHeader({
         tag: groupByTagLabel,
         energy: groupByEnergyLabel,
         priority: groupByPriorityLabel,
+        person: groupByPersonLabel,
     };
 
     return (

@@ -15,6 +15,7 @@ import {
     selectVisibleProjects,
     selectVisibleSections,
     selectVisibleTasks,
+    selectVisiblePeople,
 } from './store-helpers';
 import { markCoreStartupPhase } from './startup-profiler';
 import { createProjectActions } from './store-projects';
@@ -194,9 +195,9 @@ export const resetForTests = () => {
 };
 
 type EntityCollectionConfig<T extends { id: string }> = {
-    allKey: '_allTasks' | '_allProjects' | '_allSections' | '_allAreas';
-    visibleKey: 'tasks' | 'projects' | 'sections' | 'areas';
-    mapKey: '_tasksById' | '_projectsById' | '_sectionsById' | '_areasById';
+    allKey: '_allTasks' | '_allProjects' | '_allSections' | '_allAreas' | '_allPeople';
+    visibleKey: 'tasks' | 'projects' | 'sections' | 'areas' | 'people';
+    mapKey: '_tasksById' | '_projectsById' | '_sectionsById' | '_areasById' | '_peopleById';
     selectVisible: (items: T[]) => T[];
 };
 
@@ -297,6 +298,12 @@ const prepareStoreStateUpdate = (
         visibleKey: 'areas',
         mapKey: '_areasById',
         selectVisible: selectVisibleAreas,
+    });
+    normalizeEntityCollectionUpdate(state, prepared, {
+        allKey: '_allPeople',
+        visibleKey: 'people',
+        mapKey: '_peopleById',
+        selectVisible: selectVisiblePeople,
     });
 
     if (hasOwnField(prepared, 'error')) {
@@ -492,6 +499,7 @@ export const useTaskStore = createWithEqualityFn<TaskStore>()(subscribeWithSelec
         projects: [],
         sections: [],
         areas: [],
+        people: [],
         settings: {},
         isLoading: false,
         error: null,
@@ -504,10 +512,12 @@ export const useTaskStore = createWithEqualityFn<TaskStore>()(subscribeWithSelec
         _allProjects: [],
         _allSections: [],
         _allAreas: [],
+        _allPeople: [],
         _tasksById: new Map(),
         _projectsById: new Map(),
         _sectionsById: new Map(),
         _areasById: new Map(),
+        _peopleById: new Map(),
         setError: (error: string | null) => set({ error }),
         lockEditing: () => set((state) => ({ editLockCount: state.editLockCount + 1 })),
         unlockEditing: () => set((state) => ({ editLockCount: Math.max(0, state.editLockCount - 1) })),

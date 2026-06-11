@@ -72,6 +72,7 @@ const FOCUS_GROUP_BY_VALUE_FLAGS: Record<FocusGroupByValue, true> = {
     area: true,
     energy: true,
     priority: true,
+    person: true,
 };
 
 const DEFAULT_PROJECT_FLOW_MODE_VALUE_FLAGS: Record<DefaultProjectFlowModeValue, true> = {

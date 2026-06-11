@@ -112,6 +112,7 @@ export function AgendaHeader({
                         <option value="project">{resolveText('list.groupByProject', 'Project')}</option>
                         <option value="energy">{resolveText('focus.group.energy', 'Energy')}</option>
                         <option value="priority">{resolveText('filters.priority', 'Priority')}</option>
+                        <option value="person">{resolveText('people.title', 'People')}</option>
                     </select>
                     <ChevronDown
                         className="pointer-events-none absolute right-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground"

@@ -1,4 +1,5 @@
-import type { AppData, Area, Attachment, Project, Task } from './types';
+import type { AppData, Area, Attachment, Person, Project, Task } from './types';
+import { normalizePersonName, normalizePersonNote, normalizePersonReferenceLink } from './people';
 import { normalizeProjectSequentialScope } from './project-utils';
 import { normalizeTaskForLoad } from './task-status';
 import { SYNC_REPAIR_REV_BY } from './sync-types';
@@ -10,6 +11,7 @@ export const normalizeAppData = (data: AppData): AppData => ({
     projects: Array.isArray(data.projects) ? data.projects : [],
     sections: Array.isArray(data.sections) ? data.sections : [],
     areas: Array.isArray(data.areas) ? data.areas : [],
+    people: Array.isArray(data.people) ? data.people : [],
     settings: data.settings ?? {},
 });
 
@@ -184,6 +186,19 @@ export const normalizeAreaForSyncMerge = (area: Area, nowIso: string): SyncMerge
         color: normalizeOptionalString(area.color),
         icon: normalizeOptionalString(area.icon),
         order: Number.isFinite(area.order) ? area.order : undefined,
+        createdAt,
+        updatedAt,
+    };
+};
+
+export const normalizePersonForSyncMerge = (person: Person, nowIso: string): Person => {
+    const createdAt = normalizeOptionalString(person.createdAt) ?? normalizeOptionalString(person.updatedAt) ?? nowIso;
+    const updatedAt = normalizeOptionalString(person.updatedAt) ?? normalizeOptionalString(person.createdAt) ?? nowIso;
+    return {
+        ...person,
+        name: normalizePersonName(person.name),
+        note: normalizePersonNote(person.note),
+        referenceLink: normalizePersonReferenceLink(person.referenceLink),
         createdAt,
         updatedAt,
     };
@@ -396,6 +411,7 @@ export const validateMergedSyncData = (data: AppData): string[] => {
     if (!Array.isArray(data.projects)) errors.push('projects must be an array');
     if (!Array.isArray(data.sections)) errors.push('sections must be an array');
     if (!Array.isArray(data.areas)) errors.push('areas must be an array');
+    if (data.people !== undefined && !Array.isArray(data.people)) errors.push('people must be an array');
     if (!isObjectRecord(data.settings)) errors.push('settings must be an object');
 
     if (Array.isArray(data.tasks)) validateEntityShape(data.tasks as unknown[], 'tasks', errors);
@@ -432,6 +448,39 @@ export const validateMergedSyncData = (data: AppData): string[] => {
                 }
             }
             validateRevisionFields(area, 'areas', index, errors);
+        }
+    }
+    if (Array.isArray(data.people)) {
+        for (let index = 0; index < data.people.length; index += 1) {
+            const person = data.people[index] as unknown;
+            if (!isObjectRecord(person)) {
+                errors.push(`people[${index}] must be an object`);
+                continue;
+            }
+            if (!isNonEmptyString(person.id)) {
+                errors.push(`people[${index}].id must be a non-empty string`);
+            }
+            if (!isNonEmptyString(person.name)) {
+                errors.push(`people[${index}].name must be a non-empty string`);
+            }
+            if (!isNonEmptyString(person.createdAt)) {
+                errors.push(`people[${index}].createdAt must be a non-empty string`);
+            } else if (!isValidTimestamp(person.createdAt)) {
+                errors.push(`people[${index}].createdAt must be a valid ISO timestamp`);
+            }
+            if (!isNonEmptyString(person.updatedAt)) {
+                errors.push(`people[${index}].updatedAt must be a non-empty string`);
+            } else if (!isValidTimestamp(person.updatedAt)) {
+                errors.push(`people[${index}].updatedAt must be a valid ISO timestamp`);
+            }
+            if (isValidTimestamp(person.createdAt) && isValidTimestamp(person.updatedAt)) {
+                const createdMs = Date.parse(person.createdAt);
+                const updatedMs = Date.parse(person.updatedAt);
+                if (updatedMs < createdMs) {
+                    errors.push(`people[${index}].updatedAt must be greater than or equal to createdAt`);
+                }
+            }
+            validateRevisionFields(person, 'people', index, errors);
         }
     }
 
@@ -526,6 +575,9 @@ export const validateSyncPayloadShape = (data: unknown, source: 'local' | 'remot
     }
     if (record.areas !== undefined && !Array.isArray(record.areas)) {
         errors.push(`${source} payload field "areas" must be an array when present`);
+    }
+    if (record.people !== undefined && !Array.isArray(record.people)) {
+        errors.push(`${source} payload field "people" must be an array when present`);
     }
     if (record.settings !== undefined && !isObjectRecord(record.settings)) {
         errors.push(`${source} payload field "settings" must be an object when present`);

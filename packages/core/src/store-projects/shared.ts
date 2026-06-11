@@ -1,4 +1,4 @@
-import type { AppData, Area, Project, Section, Task, TaskStatus } from '../types';
+import type { AppData, Area, Person, Project, Section, Task, TaskStatus } from '../types';
 import type { StoreActionResult, TaskStore } from '../store-types';
 import { normalizeTagId } from '../store-helpers';
 
@@ -22,6 +22,10 @@ export type ProjectActions = Pick<
     | 'reorderProjects'
     | 'reorderProjectTasks'
     | 'reorderBoardTasks'
+    | 'addPerson'
+    | 'updatePerson'
+    | 'renamePerson'
+    | 'deletePerson'
     | 'deleteTag'
     | 'renameTag'
     | 'deleteContext'
@@ -50,9 +54,11 @@ export type AreaActions = Pick<ProjectActions, 'addArea' | 'updateArea' | 'delet
 
 export type OrderingActions = Pick<ProjectActions, 'reorderProjects' | 'reorderProjectTasks' | 'reorderBoardTasks' | 'reorderSections'>;
 
+export type PeopleActions = Pick<ProjectActions, 'addPerson' | 'updatePerson' | 'renamePerson' | 'deletePerson'>;
+
 export type TaxonomyActions = Pick<ProjectActions, 'deleteTag' | 'renameTag' | 'deleteContext' | 'renameContext'>;
 
-export type { AppData, Area, Project, Section, Task, TaskStatus };
+export type { AppData, Area, Person, Project, Section, Task, TaskStatus };
 
 export const actionOk = (extra?: Omit<StoreActionResult, 'success'>): StoreActionResult => ({ success: true, ...extra });
 export const actionFail = (error: string): StoreActionResult => ({ success: false, error });

@@ -78,7 +78,7 @@ const PRIORITY_OPTIONS: TaskPriority[] = ['low', 'medium', 'high', 'urgent'];
 const ENERGY_LEVEL_OPTIONS: TaskEnergyLevel[] = ['low', 'medium', 'high'];
 const ALL_TIME_ESTIMATE_OPTIONS: TimeEstimate[] = ['5min', '10min', '15min', '30min', '1hr', '2hr', '3hr', '4hr', '4hr+'];
 const DEFAULT_TIME_ESTIMATE_PRESETS: TimeEstimate[] = ['5min', '10min', '30min', '1hr', '2hr', '3hr', '4hr', '4hr+'];
-const FOCUS_GROUP_BY_OPTIONS: FocusGroupBy[] = ['none', 'context', 'project', 'area', 'energy', 'priority'];
+const FOCUS_GROUP_BY_OPTIONS: FocusGroupBy[] = ['none', 'context', 'project', 'area', 'energy', 'priority', 'person'];
 const FOCUS_SORT_OPTIONS: SortField[] = ['default', 'due', 'start', 'priority', 'created', 'created-desc'];
 const NO_PROJECT_FILTER_ID = SAVED_FILTER_NO_PROJECT_ID;
 const DEFAULT_FOCUS_SORT_BY: SortField = 'default';
@@ -451,6 +451,8 @@ export default function FocusScreen() {
         return resolveText('focus.group.energy', 'Energy');
       case 'priority':
         return resolveText('focus.group.priority', 'Priority');
+      case 'person':
+        return resolveText('people.title', 'People');
       case 'none':
       default:
         return resolveText('focus.group.none', 'None');
@@ -1001,6 +1003,13 @@ export default function FocusScreen() {
               }
               : { id: 'priority:none', title: resolveText('focus.group.noPriority', 'No priority'), muted: true, sortOrder: getPrioritySortOrder(undefined) }
           ));
+        case 'person':
+          return buildFocusTaskGroups(nextActions, (task) => {
+            const name = task.assignedTo?.trim();
+            return name
+              ? { id: `person:${name.toLowerCase()}`, title: name }
+              : { id: 'person:none', title: resolveText('people.unassigned', 'Unassigned'), muted: true, sortOrder: Number.POSITIVE_INFINITY };
+          });
         case 'none':
         default:
           return [];

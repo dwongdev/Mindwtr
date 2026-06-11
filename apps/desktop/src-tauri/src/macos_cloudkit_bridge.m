@@ -202,6 +202,18 @@ static const MWFieldSpec kAreaFields[] = {
 };
 static const size_t kAreaFieldsCount = sizeof(kAreaFields) / sizeof(kAreaFields[0]);
 
+static const MWFieldSpec kPersonFields[] = {
+    {"name",          "name",          MWFieldKindString},
+    {"note",          "note",          MWFieldKindString},
+    {"referenceLink", "referenceLink", MWFieldKindString},
+    {"rev",           "rev",           MWFieldKindInt},
+    {"revBy",         "revBy",         MWFieldKindString},
+    {"createdAt",     "createdAt",     MWFieldKindDate},
+    {"updatedAt",     "updatedAt",     MWFieldKindDate},
+    {"deletedAt",     "deletedAt",     MWFieldKindDate},
+};
+static const size_t kPersonFieldsCount = sizeof(kPersonFields) / sizeof(kPersonFields[0]);
+
 static const MWFieldSpec kSettingsFields[] = {
     {"payload",   "payload",   MWFieldKindJsonString},
     {"updatedAt", "updatedAt", MWFieldKindDate},
@@ -219,6 +231,8 @@ static void ck_get_field_specs(NSString *recordType,
         *outSpecs = kSectionFields; *outCount = kSectionFieldsCount;
     } else if ([recordType isEqualToString:@"MindwtrArea"]) {
         *outSpecs = kAreaFields; *outCount = kAreaFieldsCount;
+    } else if ([recordType isEqualToString:@"MindwtrPerson"]) {
+        *outSpecs = kPersonFields; *outCount = kPersonFieldsCount;
     } else if ([recordType isEqualToString:@"MindwtrSettings"]) {
         *outSpecs = kSettingsFields; *outCount = kSettingsFieldsCount;
     } else {

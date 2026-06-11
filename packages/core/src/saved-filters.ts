@@ -45,7 +45,7 @@ const TASK_ENERGY_VALUES = new Set<TaskEnergyLevel>(['low', 'medium', 'high']);
 const TIME_ESTIMATE_VALUES = new Set<TimeEstimate>(['5min', '10min', '15min', '30min', '1hr', '2hr', '3hr', '4hr', '4hr+']);
 const MULTI_VALUE_FILTER_MATCH_MODE_VALUES = new Set<MultiValueFilterMatchMode>(['any', 'all']);
 const SAVED_FILTER_VIEW_VALUES = new Set<SavedFilterView>(['focus', 'next', 'waiting', 'someday', 'contexts', 'all']);
-const FOCUS_GROUP_BY_VALUES = new Set<FocusGroupBy>(['none', 'context', 'project', 'area', 'energy', 'priority']);
+const FOCUS_GROUP_BY_VALUES = new Set<FocusGroupBy>(['none', 'context', 'project', 'area', 'energy', 'priority', 'person']);
 const SORT_FIELD_VALUES = new Set<SortField>([
     'default',
     'due',

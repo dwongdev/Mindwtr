@@ -7,7 +7,7 @@ import {
 import { rescheduleTask } from './task-utils';
 import { filterNotDeleted } from './sync-helpers';
 import { nextRevision, normalizeRevision } from './sync-revision';
-import type { AiSettings, AppData, Area, Project, Section, Task, TaskStatus } from './types';
+import type { AiSettings, AppData, Area, Person, Project, Section, Task, TaskStatus } from './types';
 import { generateUUID as uuidv4 } from './uuid';
 import type { DerivedState, SaveBaseState } from './store-types';
 
@@ -141,6 +141,9 @@ export const selectVisibleSections = (sections: Section[]): Section[] =>
 
 export const selectVisibleAreas = (areas: Area[]): Area[] =>
     filterNotDeleted(areas);
+
+export const selectVisiblePeople = (people: Person[]): Person[] =>
+    filterNotDeleted(people).sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base' }));
 
 export const completeTaskForProjectArchive = (task: Task, archivedAt: string, deviceId?: string): Task => ({
     ...task,
@@ -374,6 +377,7 @@ export const buildSaveSnapshot = (state: SaveBaseState, overrides?: Partial<AppD
     const projects = overrides?.projects ?? state._allProjects;
     const sections = overrides?.sections ?? state._allSections;
     const areas = overrides?.areas ?? state._allAreas;
+    const people = overrides?.people ?? state._allPeople;
     if (overrides?.tasks) {
         assertCollectionSnapshotIncludesExistingItems<Task>('task', tasks, state._allTasks);
     }
@@ -386,11 +390,15 @@ export const buildSaveSnapshot = (state: SaveBaseState, overrides?: Partial<AppD
     if (overrides?.areas) {
         assertCollectionSnapshotIncludesExistingItems<Area>('area', areas, state._allAreas);
     }
+    if (overrides?.people) {
+        assertCollectionSnapshotIncludesExistingItems<Person>('person', people, state._allPeople);
+    }
     return {
         tasks,
         projects,
         sections,
         areas,
+        people,
         settings: overrides?.settings ?? state.settings,
     };
 };

@@ -56,7 +56,7 @@ export function useInboxProcessingController({
   visible,
   onClose,
 }: InboxProcessingControllerParams) {
-  const { tasks, projects, areas, settings, updateTask, deleteTask, addProject } = useTaskStore();
+  const { tasks, projects, areas, people, settings, updateTask, deleteTask, addProject } = useTaskStore();
   const { t, language } = useLanguage();
   const { showToast } = useToast();
   const router = useRouter();
@@ -252,12 +252,12 @@ export function useInboxProcessingController({
     tokenQuery,
   ]);
   const assignedToSuggestions = useMemo(
-    () => getAssignedToSuggestions(tasks, selectedAssignedTo, MAX_TOKEN_SUGGESTIONS),
-    [selectedAssignedTo, tasks],
+    () => getAssignedToSuggestions(tasks, selectedAssignedTo, MAX_TOKEN_SUGGESTIONS, people),
+    [people, selectedAssignedTo, tasks],
   );
   const delegateWhoSuggestions = useMemo(
-    () => getAssignedToSuggestions(tasks, delegateWho, MAX_TOKEN_SUGGESTIONS),
-    [delegateWho, tasks],
+    () => getAssignedToSuggestions(tasks, delegateWho, MAX_TOKEN_SUGGESTIONS, people),
+    [delegateWho, people, tasks],
   );
   const contextCopilotSuggestions = useMemo(() => {
     const selected = new Set(selectedContexts);

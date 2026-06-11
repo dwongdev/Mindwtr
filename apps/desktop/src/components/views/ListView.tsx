@@ -39,7 +39,7 @@ import { reportError } from '../../lib/report-error';
 import { AREA_FILTER_ALL, AREA_FILTER_NONE, projectMatchesAreaFilter, resolveAreaFilter, taskMatchesAreaFilter } from '@mindwtr/core';
 import { cn } from '../../lib/utils';
 import { sortDoneTasksForListView } from './list/done-sort';
-import { groupTasksByArea, groupTasksByContext, groupTasksByEnergy, groupTasksByPriority, groupTasksByProject, groupTasksByTag, type NextGroupBy, type ReferenceGroupBy, type TaskGroup, type TaskListGroupBy } from './list/next-grouping';
+import { groupTasksByArea, groupTasksByContext, groupTasksByEnergy, groupTasksByPerson, groupTasksByPriority, groupTasksByProject, groupTasksByTag, type NextGroupBy, type ReferenceGroupBy, type TaskGroup, type TaskListGroupBy } from './list/next-grouping';
 import { useListSelection } from './list/useListSelection';
 import { StoreTaskItem } from './list/StoreTaskItem';
 import { LIST_VIRTUALIZATION_THRESHOLD, LIST_VIRTUAL_ROW_ESTIMATE, LIST_VIRTUAL_OVERSCAN } from './list/useVirtualList';
@@ -438,7 +438,7 @@ export const ListView = memo(function ListView({ title, statusFilter }: ListView
     const activeGroupBy: TaskListGroupBy = statusFilter === 'reference' ? activeReferenceGroupBy : activeNextGroupBy;
     const groupByOptions: TaskListGroupBy[] = statusFilter === 'reference'
         ? ['none', 'area', 'project', 'tag']
-        : ['none', 'context', 'area', 'project', 'energy', 'priority'];
+        : ['none', 'context', 'area', 'project', 'energy', 'priority', 'person'];
     const isReferenceGrouping = statusFilter === 'reference' && activeReferenceGroupBy !== 'none';
     const isNextGrouping = statusFilter === 'next' && activeNextGroupBy !== 'none';
     const referenceAreaGroups = useMemo(() => {
@@ -492,6 +492,12 @@ export const ListView = memo(function ListView({ title, statusFilter }: ListView
                 tasks: filteredTasks,
                 getEnergyLabel: (energy) => t(`energyLevel.${energy}`),
                 noEnergyLabel: resolveText('focus.group.noEnergy', 'No energy'),
+            });
+        }
+        if (activeNextGroupBy === 'person') {
+            return groupTasksByPerson({
+                tasks: filteredTasks,
+                unassignedLabel: resolveText('people.unassigned', 'Unassigned'),
             });
         }
         return groupTasksByContext({

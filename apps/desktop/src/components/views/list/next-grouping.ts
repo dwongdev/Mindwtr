@@ -2,7 +2,7 @@ import { DEFAULT_AREA_COLOR } from '@mindwtr/core';
 import type { Area, Project, Task, TaskEnergyLevel, TaskPriority } from '@mindwtr/core';
 import { getContextColor } from '../../../lib/context-color';
 
-export type NextGroupBy = 'none' | 'context' | 'area' | 'project' | 'energy' | 'priority';
+export type NextGroupBy = 'none' | 'context' | 'area' | 'project' | 'energy' | 'priority' | 'person';
 export type ReferenceGroupBy = 'none' | 'area' | 'project' | 'tag';
 export type TaskListGroupBy = NextGroupBy | ReferenceGroupBy;
 
@@ -47,6 +47,11 @@ interface GroupByEnergyParams {
     tasks: Task[];
     getEnergyLabel: (energy: TaskEnergyLevel) => string;
     noEnergyLabel: string;
+}
+
+interface GroupByPersonParams {
+    tasks: Task[];
+    unassignedLabel: string;
 }
 
 const PRIORITY_GROUP_ORDER: TaskPriority[] = ['urgent', 'high', 'medium', 'low'];
@@ -280,6 +285,47 @@ export function groupTasksByProject({
         });
     });
 
+    return groups;
+}
+
+export function groupTasksByPerson({
+    tasks,
+    unassignedLabel,
+}: GroupByPersonParams): TaskGroup[] {
+    const grouped = new Map<string, { name: string; tasks: Task[] }>();
+    const unassignedTasks: Task[] = [];
+
+    tasks.forEach((task) => {
+        const name = task.assignedTo?.trim();
+        if (!name) {
+            unassignedTasks.push(task);
+            return;
+        }
+        const key = name.toLowerCase();
+        const entry = grouped.get(key) ?? { name, tasks: [] };
+        entry.tasks.push(task);
+        grouped.set(key, entry);
+    });
+
+    const groups: TaskGroup[] = [];
+    const sortedPeople = [...grouped.values()].sort((a, b) =>
+        a.name.localeCompare(b.name, undefined, { sensitivity: 'base' })
+    );
+    sortedPeople.forEach((entry) => {
+        groups.push({
+            id: `person:${entry.name.toLowerCase()}`,
+            title: entry.name,
+            tasks: entry.tasks,
+        });
+    });
+    if (unassignedTasks.length > 0) {
+        groups.push({
+            id: 'person:none',
+            title: unassignedLabel,
+            tasks: unassignedTasks,
+            muted: true,
+        });
+    }
     return groups;
 }
 

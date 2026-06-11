@@ -17,6 +17,7 @@ export type {
     InboxProcessingMode,
     FilterSettings,
     PendingRemoteAttachmentDelete,
+    Person,
     Project,
     ProjectSequentialScope,
     GtdSettings,
@@ -363,6 +364,16 @@ export {
 export type {
     TaskTokenUsage,
 } from './task-token-usage';
+
+export {
+    getPersonNameKey,
+    getPersonOptionNames,
+    getPersonSuggestionNames,
+    normalizePeopleForLoad,
+    normalizePersonName,
+    normalizePersonNote,
+    normalizePersonReferenceLink,
+} from './people';
 
 export {
     buildBulkTaskTokenUpdates,

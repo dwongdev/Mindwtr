@@ -88,6 +88,7 @@ function TaskEditModalInner({
         projects,
         sections,
         areas,
+        people,
         settings,
         duplicateTask,
         resetTaskChecklist,
@@ -107,6 +108,7 @@ function TaskEditModalInner({
             projects: state.projects,
             sections: state.sections,
             areas: state.areas,
+            people: state.people,
             settings: state.settings,
             duplicateTask: state.duplicateTask,
             resetTaskChecklist: state.resetTaskChecklist,
@@ -304,8 +306,8 @@ function TaskEditModalInner({
         tagTokenUsage,
     });
     const assignedToSuggestions = useMemo(
-        () => getAssignedToSuggestions(tasks, String(editedTask.assignedTo ?? ''), MAX_VISIBLE_SUGGESTIONS),
-        [editedTask.assignedTo, tasks]
+        () => getAssignedToSuggestions(tasks, String(editedTask.assignedTo ?? ''), MAX_VISIBLE_SUGGESTIONS, people),
+        [editedTask.assignedTo, people, tasks]
     );
 
     const closeAIModal = () => setAiModal(null);

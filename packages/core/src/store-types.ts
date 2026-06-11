@@ -1,4 +1,4 @@
-import type { AppData, Area, Project, Section, Task, TaskStatus } from './types';
+import type { AppData, Area, Person, Project, Section, Task, TaskStatus } from './types';
 import type { TaskQueryOptions } from './storage';
 import type { TaskDateCoherenceIssue } from './task-date-coherence';
 import type { TaskTokenUsage } from './task-token-usage';
@@ -20,6 +20,7 @@ export interface TaskStore {
     projects: Project[];
     sections: Section[];
     areas: Area[];
+    people: Person[];
     settings: AppData['settings'];
     isLoading: boolean;
     error: string | null;
@@ -36,10 +37,12 @@ export interface TaskStore {
     _allProjects: Project[];
     _allSections: Section[];
     _allAreas: Area[];
+    _allPeople: Person[];
     _tasksById: Map<string, Task>;
     _projectsById: Map<string, Project>;
     _sectionsById: Map<string, Section>;
     _areasById: Map<string, Area>;
+    _peopleById: Map<string, Person>;
 
     // Actions
     /** Load all data from storage */
@@ -121,6 +124,16 @@ export interface TaskStore {
     /** Reorder tasks within a Board status column by id list */
     reorderBoardTasks: (status: TaskStatus, orderedIds: string[]) => Promise<void>;
 
+    // People Actions
+    /** Add a new managed person for delegated tasks */
+    addPerson: (name: string, initialProps?: Partial<Person>) => Promise<Person | null>;
+    /** Update managed person metadata */
+    updatePerson: (id: string, updates: Partial<Person>) => Promise<StoreActionResult>;
+    /** Rename a person and optionally update exact task assignments */
+    renamePerson: (id: string, name: string, options?: { updateTasks?: boolean }) => Promise<StoreActionResult>;
+    /** Soft-delete a managed person without clearing task assignments */
+    deletePerson: (id: string) => Promise<StoreActionResult>;
+
     // Tag Actions
     /** Delete a tag from tasks and projects */
     deleteTag: (tagId: string) => Promise<void>;
@@ -172,4 +185,4 @@ export type DerivedCache = {
     value: DerivedState;
 };
 
-export type SaveBaseState = Pick<TaskStore, '_allTasks' | '_allProjects' | '_allSections' | '_allAreas' | 'settings'>;
+export type SaveBaseState = Pick<TaskStore, '_allTasks' | '_allProjects' | '_allSections' | '_allAreas' | '_allPeople' | 'settings'>;

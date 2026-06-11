@@ -1,4 +1,4 @@
-import type { AppData, Attachment, Area, Project, Task } from './types';
+import type { AppData, Attachment, Area, Person, Project, Task } from './types';
 import { logWarn } from './logger';
 import {
     type ClockSkewWarning,
@@ -18,6 +18,7 @@ import {
     type SyncMergeArea,
     normalizeAreaForSyncMerge,
     normalizeAppData,
+    normalizePersonForSyncMerge,
     normalizeProjectForSyncMerge,
     repairMergedSyncReferences,
     normalizeRevisionMetadata,
@@ -33,6 +34,7 @@ import {
     type SyncSignatureMemo,
     hashComparableSignature,
     normalizeAreaForContentComparison,
+    normalizePersonForContentComparison,
     normalizeProjectForContentComparison,
     normalizeSectionForContentComparison,
     normalizeTaskForContentComparison,
@@ -709,10 +711,12 @@ const getClockSkewWarning = (stats: MergeResult['stats']): ClockSkewWarning | un
         stats.projects,
         stats.sections,
         stats.areas,
-    ].filter((entityStats) =>
-        (entityStats.maxClockSkewMs || 0) > CLOCK_SKEW_THRESHOLD_MS
-        && !!entityStats.maxClockSkewDirection
-    );
+        stats.people,
+    ].filter((entityStats): entityStats is EntityMergeStats => {
+        if (!entityStats) return false;
+        return (entityStats.maxClockSkewMs || 0) > CLOCK_SKEW_THRESHOLD_MS
+            && !!entityStats.maxClockSkewDirection;
+    });
     if (candidates.length === 0) return undefined;
     candidates.sort((left, right) => (right.maxClockSkewMs || 0) - (left.maxClockSkewMs || 0));
     const winner = candidates[0];
@@ -732,6 +736,7 @@ export function mergeAppDataWithStats(local: AppData, incoming: AppData, options
         projects: (local.projects || []).map((project) => normalizeRevisionMetadata(normalizeProjectForSyncMerge(project))),
         sections: (local.sections || []).map((section) => normalizeRevisionMetadata(section)),
         areas: (local.areas || []).map((area) => normalizeRevisionMetadata(normalizeAreaForSyncMerge(area, nowIso))),
+        people: (local.people || []).map((person) => normalizeRevisionMetadata(normalizePersonForSyncMerge(person, nowIso))),
     };
     const incomingNormalized = {
         ...incoming,
@@ -739,6 +744,7 @@ export function mergeAppDataWithStats(local: AppData, incoming: AppData, options
         projects: (incoming.projects || []).map((project) => normalizeRevisionMetadata(normalizeProjectForSyncMerge(project))),
         sections: (incoming.sections || []).map((section) => normalizeRevisionMetadata(section)),
         areas: (incoming.areas || []).map((area) => normalizeRevisionMetadata(normalizeAreaForSyncMerge(area, nowIso))),
+        people: (incoming.people || []).map((person) => normalizeRevisionMetadata(normalizePersonForSyncMerge(person, nowIso))),
     };
 
     const mergeAttachments = (localAttachments?: Attachment[], incomingAttachments?: Attachment[]): Attachment[] | undefined => {
@@ -877,12 +883,22 @@ export function mergeAppDataWithStats(local: AppData, incoming: AppData, options
     );
 
     const areasResult = mergeAreas(localNormalized.areas, incomingNormalized.areas, signatureMemo, nowIso);
+    const peopleResult = mergeEntitiesWithStats(
+        localNormalized.people,
+        incomingNormalized.people,
+        undefined,
+        normalizePersonForContentComparison,
+        'person',
+        signatureMemo,
+        nowIso
+    );
 
     const stats = {
         tasks: tasksResult.stats,
         projects: projectsResult.stats,
         sections: sectionsResult.stats,
         areas: areasResult.stats,
+        people: peopleResult.stats,
     };
 
     return {
@@ -891,6 +907,7 @@ export function mergeAppDataWithStats(local: AppData, incoming: AppData, options
             projects: projectsResult.merged,
             sections: sectionsResult.merged,
             areas: areasResult.merged,
+            people: peopleResult.merged as Person[],
             settings: mergeSettingsForSync(localNormalized.settings, incomingNormalized.settings),
         }, nowIso),
         stats,
@@ -1130,6 +1147,7 @@ async function performSyncCycleUnlocked(io: SyncCycleIO): Promise<SyncCycleResul
         || pruned.removedProjectTombstones > 0
         || pruned.removedSectionTombstones > 0
         || pruned.removedAreaTombstones > 0
+        || pruned.removedPersonTombstones > 0
         || pruned.removedAttachmentTombstones > 0
         || pruned.removedSavedFilterTombstones > 0
         || pruned.removedPendingRemoteDeletes > 0
@@ -1141,6 +1159,7 @@ async function performSyncCycleUnlocked(io: SyncCycleIO): Promise<SyncCycleResul
                 removedProjectTombstones: pruned.removedProjectTombstones,
                 removedSectionTombstones: pruned.removedSectionTombstones,
                 removedAreaTombstones: pruned.removedAreaTombstones,
+                removedPersonTombstones: pruned.removedPersonTombstones,
                 removedAttachmentTombstones: pruned.removedAttachmentTombstones,
                 removedSavedFilterTombstones: pruned.removedSavedFilterTombstones,
                 removedPendingRemoteDeletes: pruned.removedPendingRemoteDeletes,

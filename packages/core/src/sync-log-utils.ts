@@ -30,6 +30,7 @@ export const buildConflictDiagnosticsLogExtra = (stats: MergeStats): Record<stri
             projects: stats.projects.conflictReasonCounts ?? {},
             sections: stats.sections.conflictReasonCounts ?? {},
             areas: stats.areas.conflictReasonCounts ?? {},
+            people: stats.people?.conflictReasonCounts ?? {},
         }).filter(([, counts]) => Object.keys(counts).length > 0)
     );
     const conflictSamples = [
@@ -37,6 +38,7 @@ export const buildConflictDiagnosticsLogExtra = (stats: MergeStats): Record<stri
         ...(stats.projects.conflictSamples ?? []).map((sample) => ({ entity: 'project', ...sample })),
         ...(stats.sections.conflictSamples ?? []).map((sample) => ({ entity: 'section', ...sample })),
         ...(stats.areas.conflictSamples ?? []).map((sample) => ({ entity: 'area', ...sample })),
+        ...(stats.people?.conflictSamples ?? []).map((sample) => ({ entity: 'person', ...sample })),
     ].slice(0, 6);
     const extra: Record<string, string> = {};
     if (Object.keys(reasonCountsByEntity).length > 0) {
@@ -48,7 +50,7 @@ export const buildConflictDiagnosticsLogExtra = (stats: MergeStats): Record<stri
     return extra;
 };
 
-const MERGE_STAT_ENTITIES = ['tasks', 'projects', 'sections', 'areas'] as const;
+const MERGE_STAT_ENTITIES = ['tasks', 'projects', 'sections', 'areas', 'people'] as const;
 
 export type MergeStatsSummary = {
     conflicts: number;

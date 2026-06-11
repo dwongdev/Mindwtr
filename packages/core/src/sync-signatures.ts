@@ -1,4 +1,4 @@
-import type { Area, Attachment, Project, Section, Task } from './types';
+import type { Area, Attachment, Person, Project, Section, Task } from './types';
 import { normalizeProjectSequentialScope } from './project-utils';
 
 type StableSignatureCacheEntry = {
@@ -123,6 +123,12 @@ export const normalizeAreaForContentComparison = (area: AreaContentComparisonInp
     ...area,
     color: area.color === '#6B7280' ? undefined : area.color,
     order: undefined,
+});
+
+export const normalizePersonForContentComparison = (person: Person): Record<string, unknown> => ({
+    ...person,
+    note: person.note?.trim() || undefined,
+    referenceLink: person.referenceLink?.trim() || undefined,
 });
 
 const STABLE_SIGNATURE_CACHE_LIMIT = 5000;

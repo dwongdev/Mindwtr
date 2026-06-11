@@ -13,7 +13,7 @@ export type TaskSortBy = 'default' | 'due' | 'start' | 'review' | 'title' | 'cre
 
 export type TaskMode = 'task' | 'list';
 
-export type FocusGroupBy = 'none' | 'context' | 'project' | 'area' | 'energy' | 'priority';
+export type FocusGroupBy = 'none' | 'context' | 'project' | 'area' | 'energy' | 'priority' | 'person';
 
 export type RecurrenceRule = 'daily' | 'weekly' | 'monthly' | 'yearly';
 
@@ -129,6 +129,18 @@ export interface Area {
     createdAt: string;
     updatedAt: string;
     deletedAt?: string; // Soft-delete tombstone for cross-device area deletion
+}
+
+export interface Person {
+    id: string;
+    name: string;
+    note?: string;
+    referenceLink?: string;
+    rev?: number;
+    revBy?: string;
+    createdAt: string;
+    updatedAt: string;
+    deletedAt?: string;
 }
 
 export type AttachmentKind = 'file' | 'link';
@@ -466,5 +478,6 @@ export interface AppData {
     projects: Project[];
     sections: Section[];
     areas: Area[];
+    people?: Person[];
     settings: AppSettings;
 }

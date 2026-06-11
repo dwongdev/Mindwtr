@@ -13,9 +13,10 @@ enum CloudKitRecordMapper {
     static let projectType = "MindwtrProject"
     static let sectionType = "MindwtrSection"
     static let areaType = "MindwtrArea"
+    static let personType = "MindwtrPerson"
     static let settingsType = "MindwtrSettings"
 
-    static let allTypes = [taskType, projectType, sectionType, areaType, settingsType]
+    static let allTypes = [taskType, projectType, sectionType, areaType, personType, settingsType]
 
     // MARK: - JSON → CKRecord
 
@@ -98,6 +99,7 @@ enum CloudKitRecordMapper {
         case projectType: return projectFieldSpecs
         case sectionType: return sectionFieldSpecs
         case areaType: return areaFieldSpecs
+        case personType: return personFieldSpecs
         case settingsType: return settingsFieldSpecs
         default: return []
         }
@@ -188,6 +190,19 @@ enum CloudKitRecordMapper {
         FieldSpec(jsKey: "color", ckKey: "color", kind: .string),
         FieldSpec(jsKey: "icon", ckKey: "icon", kind: .string),
         FieldSpec(jsKey: "order", ckKey: "sortOrder", kind: .int),
+        FieldSpec(jsKey: "rev", ckKey: "rev", kind: .int),
+        FieldSpec(jsKey: "revBy", ckKey: "revBy", kind: .string),
+        FieldSpec(jsKey: "createdAt", ckKey: "createdAt", kind: .date),
+        FieldSpec(jsKey: "updatedAt", ckKey: "updatedAt", kind: .date),
+        FieldSpec(jsKey: "deletedAt", ckKey: "deletedAt", kind: .date),
+    ]
+
+    // MARK: - Person Fields
+
+    private static let personFieldSpecs: [FieldSpec] = [
+        FieldSpec(jsKey: "name", ckKey: "name", kind: .string),
+        FieldSpec(jsKey: "note", ckKey: "note", kind: .string),
+        FieldSpec(jsKey: "referenceLink", ckKey: "referenceLink", kind: .string),
         FieldSpec(jsKey: "rev", ckKey: "rev", kind: .int),
         FieldSpec(jsKey: "revBy", ckKey: "revBy", kind: .string),
         FieldSpec(jsKey: "createdAt", ckKey: "createdAt", kind: .date),

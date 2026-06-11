@@ -48,6 +48,7 @@ export interface MergeStats {
     projects: EntityMergeStats;
     sections: EntityMergeStats;
     areas: EntityMergeStats;
+    people?: EntityMergeStats;
 }
 
 export type ClockSkewDirection = 'local-ahead' | 'remote-ahead';
