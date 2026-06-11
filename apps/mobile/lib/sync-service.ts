@@ -1100,12 +1100,9 @@ const mobileSyncOrchestrator = createSyncOrchestrator<string | undefined, Mobile
         );
       }
       let mergedData = syncResult.data;
-      const remotePersistedPayloadFingerprint = computeSyncPayloadFingerprint(mergedData);
       let canRecordFastSyncState = true;
-      const markFastSyncStateUnsafeIfRemotePayloadChanged = () => {
-        if (computeSyncPayloadFingerprint(mergedData) !== remotePersistedPayloadFingerprint) {
-          canRecordFastSyncState = false;
-        }
+      const markFastSyncStateUnsafe = () => {
+        canRecordFastSyncState = false;
       };
       ensureLocalSnapshotFresh();
       await persistExternalCalendars(mergedData);
@@ -1126,7 +1123,7 @@ const mobileSyncOrchestrator = createSyncOrchestrator<string | undefined, Mobile
         if (!mutated) return;
         ensureLocalSnapshotFresh();
         mergedData = candidateData;
-        markFastSyncStateUnsafeIfRemotePayloadChanged();
+        markFastSyncStateUnsafe();
         await mobileStorage.saveData(mergedData);
         wroteLocal = true;
       };
@@ -1312,7 +1309,9 @@ const mobileSyncOrchestrator = createSyncOrchestrator<string | undefined, Mobile
           processedOrphanedIds,
           reachedBatchLimit,
         });
-        markFastSyncStateUnsafeIfRemotePayloadChanged();
+        if (orphaned.length > 0 && (!reachedBatchLimit || processedOrphanedIds.size > 0)) {
+          markFastSyncStateUnsafe();
+        }
         ensureLocalSnapshotFresh();
         await mobileStorage.saveData(mergedData);
         wroteLocal = true;

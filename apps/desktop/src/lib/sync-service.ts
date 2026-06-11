@@ -24,6 +24,7 @@ import {
     buildMergeSummaryLog,
     buildPendingAttachmentUploadLogExtra,
     findPendingAttachmentUploads,
+    findOrphanedAttachments,
     injectExternalCalendars as injectExternalCalendarsForSync,
     persistExternalCalendars as persistExternalCalendarsForSync,
     summarizeMergeStats,
@@ -1911,19 +1912,19 @@ export class SyncService {
             }
             const stats = syncResult.stats;
             let mergedData = syncResult.data;
-            const remotePersistedPayloadFingerprint = computeSyncPayloadFingerprint(mergedData);
             let canRecordFastSyncState = true;
-            const markFastSyncStateUnsafeIfRemotePayloadChanged = () => {
-                if (computeSyncPayloadFingerprint(mergedData) !== remotePersistedPayloadFingerprint) {
-                    canRecordFastSyncState = false;
-                }
+            const markFastSyncStateUnsafe = () => {
+                canRecordFastSyncState = false;
             };
             await persistExternalCalendars(mergedData);
             SyncService.logSyncMergeSummary(stats);
             ensureLocalSnapshotFresh();
 
+            const preAttachmentMergedData = mergedData;
             mergedData = await SyncService.runPostMergeAttachmentPhase(context, mergedData, helpers);
-            markFastSyncStateUnsafeIfRemotePayloadChanged();
+            if (mergedData !== preAttachmentMergedData) {
+                markFastSyncStateUnsafe();
+            }
 
             await cleanupAttachmentTempFiles(getAttachmentCleanupDeps());
 
@@ -1932,8 +1933,11 @@ export class SyncService {
                 await yieldToRenderer();
                 ensureLocalSnapshotFresh();
                 ensureNetworkStillAvailable();
+                const cleanupChangesSyncPayload = findOrphanedAttachments(mergedData).length > 0;
                 mergedData = await cleanupOrphanedAttachments(mergedData, context.backend, getAttachmentCleanupDeps());
-                markFastSyncStateUnsafeIfRemotePayloadChanged();
+                if (cleanupChangesSyncPayload) {
+                    markFastSyncStateUnsafe();
+                }
                 await persistLocalDataWithTracking(mergedData);
             }
 
