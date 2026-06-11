@@ -892,6 +892,33 @@ describe('TaskStore', () => {
         }
     });
 
+    it('drops stale live tasks when production compat setState replaces visible tasks', () => {
+        const originalNodeEnv = process.env.NODE_ENV;
+        const previousVisibleTask = createStoreTask('task-previous');
+        const nextVisibleTask = createStoreTask('task-next');
+        const deletedTask = createStoreTask('task-deleted', {
+            deletedAt: '2026-04-02T00:00:00.000Z',
+        });
+        useTaskStore.setState({
+            tasks: [previousVisibleTask],
+            _allTasks: [previousVisibleTask, deletedTask],
+        });
+
+        try {
+            process.env.NODE_ENV = 'production';
+            useTaskStore.setState({ tasks: [nextVisibleTask] });
+
+            const state = useTaskStore.getState();
+            expect(state.tasks).toEqual([nextVisibleTask]);
+            expect(state._allTasks.map((task) => task.id).sort()).toEqual(['task-deleted', 'task-next']);
+            expect(state._tasksById.has('task-previous')).toBe(false);
+            expect(state._tasksById.get('task-next')).toBe(nextVisibleTask);
+            expect(state._tasksById.get('task-deleted')).toBe(deletedTask);
+        } finally {
+            process.env.NODE_ENV = originalNodeEnv;
+        }
+    });
+
     it('keeps derived context and tag lists scoped to used tokens', () => {
         const { addTask } = useTaskStore.getState();
         addTask('Token Task', {

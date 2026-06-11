@@ -15,7 +15,6 @@ import {
     selectVisibleProjects,
     selectVisibleSections,
     selectVisibleTasks,
-    replaceEntitiesInArray,
 } from './store-helpers';
 import { markCoreStartupPhase } from './startup-profiler';
 import { createProjectActions } from './store-projects';
@@ -233,12 +232,13 @@ const normalizeEntityCollectionUpdate = <T extends { id: string }>(
         const allItems = Array.isArray(currentAll)
             ? (() => {
                 const currentItems = currentAll as T[];
-                const currentIds = new Set(currentItems.map((item) => item.id));
-                const missingVisibleItems = visibleArray.filter((item) => !currentIds.has(item.id));
-                const patchedItems = replaceEntitiesInArray(currentItems, visibleArray);
-                return missingVisibleItems.length > 0
-                    ? [...patchedItems, ...missingVisibleItems]
-                    : patchedItems;
+                const visibleIds = new Set(visibleArray.map((item) => item.id));
+                const currentVisibleIds = new Set(selectVisible(currentItems).map((item) => item.id));
+                const hiddenItems = currentItems.filter((item) => {
+                    if (visibleIds.has(item.id)) return false;
+                    return !currentVisibleIds.has(item.id);
+                });
+                return [...visibleArray, ...hiddenItems];
             })()
             : visibleArray;
         record[allKey] = allItems;
