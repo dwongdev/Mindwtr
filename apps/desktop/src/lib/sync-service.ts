@@ -391,16 +391,76 @@ type SyncExecutionContext = {
     hadAttachmentWarning: boolean;
 };
 
-type SyncExecutionHelpers = {
-    setStep: (next: string) => void;
-    createFetchWithAbort: (baseFetch: typeof fetch) => typeof fetch;
-    ensureNetworkStillAvailable: () => void;
-    ensureLocalSnapshotFresh: () => void;
-    persistLocalDataWithTracking: (data: AppData) => Promise<void>;
+type SyncRunDependencies = {
+    updateSyncStep: (next: string) => void;
     requestFollowUp: () => void;
-    resolveDropboxAccessToken: (forceRefresh?: boolean) => Promise<string>;
-    runDropboxWithRetry: <T>(operation: (token: string) => Promise<T>) => Promise<T>;
+    persistLocalData: (data: AppData) => Promise<void>;
+    getDropboxAccessToken: (appKey: string, options?: { forceRefresh?: boolean }) => Promise<string>;
+    runDropboxWithRetry: <T>(
+        resolveToken: (forceRefresh?: boolean) => Promise<string>,
+        operation: (token: string) => Promise<T>
+    ) => Promise<T>;
 };
+
+class SyncRun {
+    constructor(
+        readonly options: SyncRunOptions,
+        readonly context: SyncExecutionContext,
+        private readonly deps: SyncRunDependencies
+    ) { }
+
+    setStep(next: string): void {
+        this.context.step = next;
+        this.deps.updateSyncStep(next);
+    }
+
+    createFetchWithAbort(baseFetch: typeof fetch): typeof fetch {
+        return createAbortableFetch(baseFetch, { baseSignal: this.context.requestAbortController.signal });
+    }
+
+    ensureNetworkStillAvailable(): void {
+        const { context } = this;
+        if (context.backend !== 'cloud' && context.backend !== 'webdav' && context.backend !== 'cloudkit') return;
+        if (
+            context.networkWentOffline
+            || (typeof navigator !== 'undefined' && navigator.onLine === false)
+        ) {
+            context.requestAbortController.abort();
+            throw new Error('Sync paused: offline state detected');
+        }
+    }
+
+    ensureLocalSnapshotFresh(): void {
+        if (getStoreState().lastDataChangeAt > this.context.localSnapshotChangeAt) {
+            this.deps.requestFollowUp();
+            throw new LocalSyncAbort();
+        }
+    }
+
+    async persistLocalDataWithTracking(data: AppData): Promise<void> {
+        await this.deps.persistLocalData(data);
+        this.context.wroteLocal = true;
+    }
+
+    requestFollowUp(): void {
+        this.deps.requestFollowUp();
+    }
+
+    async resolveDropboxAccessToken(forceRefresh = false): Promise<string> {
+        const { context } = this;
+        if (!context.dropboxAppKey) {
+            throw new Error('Dropbox app key is not configured');
+        }
+        if (!context.cachedDropboxAccessToken || forceRefresh) {
+            context.cachedDropboxAccessToken = await this.deps.getDropboxAccessToken(context.dropboxAppKey, { forceRefresh });
+        }
+        return context.cachedDropboxAccessToken;
+    }
+
+    runDropboxWithRetry<T>(operation: (token: string) => Promise<T>): Promise<T> {
+        return this.deps.runDropboxWithRetry((forceRefresh) => this.resolveDropboxAccessToken(forceRefresh), operation);
+    }
+}
 
 export class SyncService {
     private static didMigrate = false;
@@ -860,17 +920,15 @@ export class SyncService {
         };
     }
 
-    private static async readRemoteFingerprintForFastCheck(
-        context: SyncExecutionContext,
-        helpers: Pick<SyncExecutionHelpers, 'createFetchWithAbort' | 'ensureNetworkStillAvailable' | 'runDropboxWithRetry'>
-    ): Promise<string | null> {
-        helpers.ensureNetworkStillAvailable();
+    private static async readRemoteFingerprintForFastCheck(run: SyncRun): Promise<string | null> {
+        const { context } = run;
+        run.ensureNetworkStillAvailable();
         if (context.backend === 'webdav') {
             if (!context.webdavConfig?.url) return null;
             const normalizedUrl = normalizeWebdavUrl(context.webdavConfig.url);
             context.syncUrl = normalizedUrl;
             const password = await resolveWebdavPassword(context.webdavConfig);
-            const fetcher = helpers.createFetchWithAbort((await getTauriFetch()) ?? fetch);
+            const fetcher = run.createFetchWithAbort((await getTauriFetch()) ?? fetch);
             const metadata = await webdavHeadFile(normalizedUrl, {
                 allowInsecureHttp: context.webdavConfig.allowInsecureHttp,
                 allowWeakFingerprint: context.webdavConfig.allowWeakFingerprint,
@@ -885,7 +943,7 @@ export class SyncService {
             if (!context.cloudConfig?.url) return null;
             const normalizedUrl = normalizeCloudUrl(context.cloudConfig.url);
             context.syncUrl = normalizedUrl;
-            const fetcher = helpers.createFetchWithAbort((await getTauriFetch()) ?? fetch);
+            const fetcher = run.createFetchWithAbort((await getTauriFetch()) ?? fetch);
             const metadata = await cloudHeadJson(normalizedUrl, {
                 allowInsecureHttp: context.cloudConfig.allowInsecureHttp,
                 token: context.cloudConfig.token,
@@ -895,8 +953,8 @@ export class SyncService {
             return metadata.fingerprint;
         }
         if (context.backend === 'cloud' && context.cloudProvider === 'dropbox') {
-            const fetcher = helpers.createFetchWithAbort((await getTauriFetch()) ?? fetch);
-            const metadata = await helpers.runDropboxWithRetry((token) =>
+            const fetcher = run.createFetchWithAbort((await getTauriFetch()) ?? fetch);
+            const metadata = await run.runDropboxWithRetry((token) =>
                 getDropboxAppDataMetadata(token, fetcher)
             );
             context.dropboxDataRev = metadata.rev;
@@ -926,20 +984,15 @@ export class SyncService {
         logSyncInfo('Sync fast check found no changes', { backend: context.backend });
     }
 
-    private static async trySkipUnchangedSync(
-        context: SyncExecutionContext,
-        helpers: Pick<
-            SyncExecutionHelpers,
-            'setStep' | 'createFetchWithAbort' | 'ensureNetworkStillAvailable' | 'ensureLocalSnapshotFresh' | 'runDropboxWithRetry'
-        >
-    ): Promise<SyncRunResult | null> {
+    private static async trySkipUnchangedSync(run: SyncRun): Promise<SyncRunResult | null> {
+        const { context } = run;
         const scope = buildFastSyncScope(context);
         if (!scope) return null;
 
-        helpers.setStep('fast-check');
+        run.setStep('fast-check');
         await yieldToRenderer();
         const localData = await SyncService.readLocalDataForSyncCycle(context);
-        helpers.ensureLocalSnapshotFresh();
+        run.ensureLocalSnapshotFresh();
         if (hasPendingSyncSideEffects(localData)) return null;
 
         const localFingerprint = computeSyncPayloadFingerprint(localData);
@@ -948,7 +1001,7 @@ export class SyncService {
 
         let remoteFingerprint: string | null = null;
         try {
-            remoteFingerprint = await SyncService.readRemoteFingerprintForFastCheck(context, helpers);
+            remoteFingerprint = await SyncService.readRemoteFingerprintForFastCheck(run);
         } catch (error) {
             logSyncWarning('Sync fast check failed; falling back to full sync', error);
             return null;
@@ -964,11 +1017,8 @@ export class SyncService {
         return { success: true, skipped: 'unchanged' };
     }
 
-    private static async recordFastSyncState(
-        context: SyncExecutionContext,
-        data: AppData,
-        helpers: Pick<SyncExecutionHelpers, 'createFetchWithAbort' | 'ensureNetworkStillAvailable' | 'runDropboxWithRetry'>
-    ): Promise<void> {
+    private static async recordFastSyncState(run: SyncRun, data: AppData): Promise<void> {
+        const { context } = run;
         const scope = buildFastSyncScope(context);
         if (!scope || hasPendingSyncSideEffects(data)) return;
         if (getStoreState().lastDataChangeAt > context.localSnapshotChangeAt) return;
@@ -978,7 +1028,7 @@ export class SyncService {
             remoteFingerprint = `dropbox:v1:rev=${context.dropboxDataRev}`;
         } else {
             try {
-                remoteFingerprint = await SyncService.readRemoteFingerprintForFastCheck(context, helpers);
+                remoteFingerprint = await SyncService.readRemoteFingerprintForFastCheck(run);
             } catch (error) {
                 logSyncWarning('Failed to refresh sync fast-check state', error);
                 return;
@@ -993,14 +1043,12 @@ export class SyncService {
         }, logSyncWarning);
     }
 
-    private static async persistPreSyncedLocalDataIfNeeded(
-        context: SyncExecutionContext,
-        persistLocalDataWithTracking: (data: AppData) => Promise<void>
-    ): Promise<void> {
+    private static async persistPreSyncedLocalDataIfNeeded(run: SyncRun): Promise<void> {
+        const { context } = run;
         if (!context.preSyncedLocalData || context.wroteLocal) return;
         const inMemorySnapshot = syncServiceDependencies.getInMemoryAppDataSnapshot();
         const reconciledData = mergeAppData(context.preSyncedLocalData, inMemorySnapshot);
-        await persistLocalDataWithTracking(reconciledData);
+        await run.persistLocalDataWithTracking(reconciledData);
     }
 
     private static async readLocalDataForSyncCycle(context: SyncExecutionContext): Promise<AppData> {
@@ -1022,11 +1070,8 @@ export class SyncService {
         return data;
     }
 
-    private static async prepareSyncExecutionContext(
-        context: SyncExecutionContext,
-        options: SyncRunOptions,
-        helpers: Pick<SyncExecutionHelpers, 'setStep'>
-    ): Promise<void> {
+    private static async prepareSyncExecutionContext(run: SyncRun): Promise<void> {
+        const { context, options } = run;
         context.backend = options.backendOverride ?? await SyncService.getSyncBackend();
         if (context.backend === 'off') {
             return;
@@ -1048,7 +1093,7 @@ export class SyncService {
         }
 
         if (isTauriRuntimeEnv()) {
-            helpers.setStep('snapshot');
+            run.setStep('snapshot');
             await yieldToRenderer();
             try {
                 await tauriInvoke<string>('create_data_snapshot');
@@ -1082,18 +1127,13 @@ export class SyncService {
             : '';
     }
 
-    private static async runPreSyncAttachmentPhase(
-        context: SyncExecutionContext,
-        helpers: Pick<
-            SyncExecutionHelpers,
-            'setStep' | 'ensureNetworkStillAvailable' | 'ensureLocalSnapshotFresh' | 'resolveDropboxAccessToken'
-        >
-    ): Promise<void> {
+    private static async runPreSyncAttachmentPhase(run: SyncRun): Promise<void> {
+        const { context } = run;
         if (!isTauriRuntimeEnv() || (context.backend !== 'webdav' && context.backend !== 'file' && context.backend !== 'cloud' && context.backend !== 'cloudkit')) {
             return;
         }
 
-        helpers.setStep('attachments_prepare');
+        run.setStep('attachments_prepare');
         await yieldToRenderer();
         try {
             const localData = await readLocalDataForSync();
@@ -1101,19 +1141,19 @@ export class SyncService {
                 backend: context.backend,
                 cloudProvider: context.cloudProvider,
                 data: localData,
-                ensureNetworkStillAvailable: helpers.ensureNetworkStillAvailable,
-            webdav: context.webdavConfig?.url
-                ? async (data) => {
-                    const baseUrl = getBaseSyncUrl(context.webdavConfig!.url);
-                    return syncAttachments(data, context.webdavConfig!, baseUrl, attachmentBackendDeps);
-                }
-                : undefined,
-            cloudkit: context.backend === 'cloudkit'
-                ? async (data) => syncCloudKitAttachments(data, attachmentBackendDeps)
-                : undefined,
-            file: context.fileBaseDir
-                ? async (data) => syncFileAttachments(data, context.fileBaseDir, attachmentBackendDeps)
-                : undefined,
+                ensureNetworkStillAvailable: () => run.ensureNetworkStillAvailable(),
+                webdav: context.webdavConfig?.url
+                    ? async (data) => {
+                        const baseUrl = getBaseSyncUrl(context.webdavConfig!.url);
+                        return syncAttachments(data, context.webdavConfig!, baseUrl, attachmentBackendDeps);
+                    }
+                    : undefined,
+                cloudkit: context.backend === 'cloudkit'
+                    ? async (data) => syncCloudKitAttachments(data, attachmentBackendDeps)
+                    : undefined,
+                file: context.fileBaseDir
+                    ? async (data) => syncFileAttachments(data, context.fileBaseDir, attachmentBackendDeps)
+                    : undefined,
                 selfHostedCloud: context.cloudProvider === 'selfhosted' && context.cloudConfig?.url
                     ? async (data) => {
                         const baseUrl = getCloudBaseUrl(context.cloudConfig!.url);
@@ -1121,13 +1161,13 @@ export class SyncService {
                     }
                     : undefined,
                 dropbox: context.cloudProvider === 'dropbox'
-                    ? async (data) => syncDropboxAttachments(data, helpers.resolveDropboxAccessToken, attachmentBackendDeps)
+                    ? async (data) => syncDropboxAttachments(data, (forceRefresh) => run.resolveDropboxAccessToken(forceRefresh), attachmentBackendDeps)
                     : undefined,
             });
 
             if (result.mutated) {
                 context.preSyncedLocalData = result.data ?? localData;
-                helpers.ensureLocalSnapshotFresh();
+                run.ensureLocalSnapshotFresh();
             }
         } catch (error) {
             if (error instanceof LocalSyncAbort) {
@@ -1138,11 +1178,9 @@ export class SyncService {
         }
     }
 
-    private static async readRemoteDataByBackend(
-        context: SyncExecutionContext,
-        helpers: Pick<SyncExecutionHelpers, 'createFetchWithAbort' | 'ensureNetworkStillAvailable' | 'runDropboxWithRetry'>
-    ): Promise<AppData | null> {
-        helpers.ensureNetworkStillAvailable();
+    private static async readRemoteDataByBackend(run: SyncRun): Promise<AppData | null> {
+        const { context } = run;
+        run.ensureNetworkStillAvailable();
         if (context.backend === 'cloudkit') {
             const data = await syncServiceDependencies.readRemoteCloudKit();
             context.remoteDataForCompare = data ?? null;
@@ -1169,7 +1207,7 @@ export class SyncService {
                 const webdavConfig = context.webdavConfig;
                 const normalizedUrl = normalizeWebdavUrl(webdavConfig.url);
                 context.syncUrl = normalizedUrl;
-                const fetcher = helpers.createFetchWithAbort((await getTauriFetch()) ?? fetch);
+                const fetcher = run.createFetchWithAbort((await getTauriFetch()) ?? fetch);
                 const data = await withRetry(
                     () => webdavGetJson<AppData>(normalizedUrl, {
                         allowInsecureHttp: webdavConfig.allowInsecureHttp,
@@ -1204,7 +1242,7 @@ export class SyncService {
                     context.remoteDataForCompare = data ?? null;
                     return data;
                 }
-                const fetcher = helpers.createFetchWithAbort((await getTauriFetch()) ?? fetch);
+                const fetcher = run.createFetchWithAbort((await getTauriFetch()) ?? fetch);
                 const data = await cloudGetJson<AppData>(normalizedUrl, {
                     allowInsecureHttp: context.cloudConfig.allowInsecureHttp,
                     token: context.cloudConfig.token,
@@ -1217,7 +1255,7 @@ export class SyncService {
                 throw new Error('Dropbox app key is not configured');
             }
             context.syncUrl = 'dropbox:///Apps/Mindwtr/data.json';
-            const remote = await SyncService.readDropboxRemoteData(context, helpers);
+            const remote = await SyncService.readDropboxRemoteData(run);
             context.dropboxDataRev = remote.rev;
             context.remoteDataForCompare = remote.data ?? null;
             return remote.data;
@@ -1230,19 +1268,16 @@ export class SyncService {
         return data;
     }
 
-    private static async readDropboxRemoteData(
-        _context: SyncExecutionContext,
-        helpers: Pick<SyncExecutionHelpers, 'createFetchWithAbort' | 'runDropboxWithRetry'>
-    ): Promise<{ data: AppData | null; rev: string | null }> {
+    private static async readDropboxRemoteData(run: SyncRun): Promise<{ data: AppData | null; rev: string | null }> {
         const nativeFetch = await getTauriFetch();
-        const browserFetcher = helpers.createFetchWithAbort(fetch);
+        const browserFetcher = run.createFetchWithAbort(fetch);
 
         if (!nativeFetch) {
-            return helpers.runDropboxWithRetry((token) => downloadDropboxAppData(token, browserFetcher));
+            return run.runDropboxWithRetry((token) => downloadDropboxAppData(token, browserFetcher));
         }
 
-        const nativeFetcher = helpers.createFetchWithAbort(nativeFetch);
-        const nativeRemote = await helpers.runDropboxWithRetry((token) =>
+        const nativeFetcher = run.createFetchWithAbort(nativeFetch);
+        const nativeRemote = await run.runDropboxWithRetry((token) =>
             downloadDropboxAppData(token, nativeFetcher)
         );
         if (nativeRemote.data !== null) {
@@ -1251,7 +1286,7 @@ export class SyncService {
 
         logSyncInfo('Retrying Dropbox remote read with browser fetch fallback');
         try {
-            const browserRemote = await helpers.runDropboxWithRetry((token) =>
+            const browserRemote = await run.runDropboxWithRetry((token) =>
                 downloadDropboxAppData(token, browserFetcher)
             );
             if (browserRemote.data !== null) {
@@ -1265,23 +1300,17 @@ export class SyncService {
         }
     }
 
-    private static async prepareRemoteWriteData(
-        context: SyncExecutionContext,
-        data: AppData,
-        helpers: Pick<
-            SyncExecutionHelpers,
-            'setStep' | 'ensureNetworkStillAvailable' | 'resolveDropboxAccessToken'
-        >
-    ): Promise<AppData> {
+    private static async prepareRemoteWriteData(run: SyncRun, data: AppData): Promise<AppData> {
+        const { context } = run;
         if (findPendingAttachmentUploads(data).length === 0) {
             return data;
         }
 
-        helpers.setStep('attachments_finalize');
+        run.setStep('attachments_finalize');
         await yieldToRenderer();
 
         if (context.backend === 'webdav' && context.webdavConfig?.url) {
-            helpers.ensureNetworkStillAvailable();
+            run.ensureNetworkStillAvailable();
             const baseUrl = getBaseSyncUrl(context.webdavConfig.url);
             const syncedData = await syncAttachments(data, context.webdavConfig, baseUrl, attachmentBackendDeps);
             return syncedData ?? data;
@@ -1293,32 +1322,29 @@ export class SyncService {
         }
 
         if (context.backend === 'cloudkit') {
-            helpers.ensureNetworkStillAvailable();
+            run.ensureNetworkStillAvailable();
             await syncCloudKitAttachments(data, attachmentBackendDeps);
             return data;
         }
 
         if (context.backend === 'cloud' && context.cloudProvider === 'selfhosted' && context.cloudConfig?.url) {
-            helpers.ensureNetworkStillAvailable();
+            run.ensureNetworkStillAvailable();
             const baseUrl = getCloudBaseUrl(context.cloudConfig.url);
             await syncCloudAttachments(data, context.cloudConfig, baseUrl, attachmentBackendDeps);
             return data;
         }
 
         if (context.backend === 'cloud' && context.cloudProvider === 'dropbox') {
-            helpers.ensureNetworkStillAvailable();
-            await syncDropboxAttachments(data, helpers.resolveDropboxAccessToken, attachmentBackendDeps);
+            run.ensureNetworkStillAvailable();
+            await syncDropboxAttachments(data, (forceRefresh) => run.resolveDropboxAccessToken(forceRefresh), attachmentBackendDeps);
         }
 
         return data;
     }
 
-    private static async writeRemoteDataByBackend(
-        context: SyncExecutionContext,
-        data: AppData,
-        helpers: Pick<SyncExecutionHelpers, 'createFetchWithAbort' | 'ensureNetworkStillAvailable' | 'requestFollowUp' | 'runDropboxWithRetry'>
-    ): Promise<void> {
-        helpers.ensureNetworkStillAvailable();
+    private static async writeRemoteDataByBackend(run: SyncRun, data: AppData): Promise<void> {
+        const { context } = run;
+        run.ensureNetworkStillAvailable();
         if (context.backend === 'cloudkit') {
             logPendingAttachmentUploads(
                 'CloudKit sync has local-only file attachments',
@@ -1366,7 +1392,7 @@ export class SyncService {
             const config = await SyncService.getWebDavConfig();
             const { url, username, password } = config;
             const normalizedUrl = normalizeWebdavUrl(url);
-            const fetcher = helpers.createFetchWithAbort((await getTauriFetch()) ?? fetch);
+            const fetcher = run.createFetchWithAbort((await getTauriFetch()) ?? fetch);
             if (context.webdavRemoteCorrupted) {
                 logSyncInfo('Repairing corrupted WebDAV data.json with current merged data');
             }
@@ -1392,7 +1418,7 @@ export class SyncService {
                     context.remoteDataForCompare = sanitized;
                     return;
                 }
-                const fetcher = helpers.createFetchWithAbort((await getTauriFetch()) ?? fetch);
+                const fetcher = run.createFetchWithAbort((await getTauriFetch()) ?? fetch);
                 await cloudPutJson(normalizedUrl, sanitized, {
                     allowInsecureHttp: config.allowInsecureHttp,
                     token,
@@ -1404,9 +1430,9 @@ export class SyncService {
             if (!context.dropboxAppKey) {
                 throw new Error('Dropbox app key is not configured');
             }
-            const fetcher = helpers.createFetchWithAbort((await getTauriFetch()) ?? fetch);
+            const fetcher = run.createFetchWithAbort((await getTauriFetch()) ?? fetch);
             try {
-                const uploaded = await helpers.runDropboxWithRetry((token) =>
+                const uploaded = await run.runDropboxWithRetry((token) =>
                     uploadDropboxAppData(token, sanitized, context.dropboxDataRev, fetcher)
                 );
                 context.dropboxDataRev = uploaded.rev;
@@ -1414,7 +1440,7 @@ export class SyncService {
                 return;
             } catch (error) {
                 if (error instanceof DropboxConflictError) {
-                    helpers.requestFollowUp();
+                    run.requestFollowUp();
                     throw new LocalSyncAbort();
                 }
                 throw error;
@@ -1440,19 +1466,13 @@ export class SyncService {
         );
     }
 
-    private static async runPostMergeAttachmentPhase(
-        context: SyncExecutionContext,
-        mergedData: AppData,
-        helpers: Pick<
-            SyncExecutionHelpers,
-            'setStep' | 'ensureNetworkStillAvailable' | 'ensureLocalSnapshotFresh' | 'persistLocalDataWithTracking' | 'resolveDropboxAccessToken'
-        >
-    ): Promise<AppData> {
+    private static async runPostMergeAttachmentPhase(run: SyncRun, mergedData: AppData): Promise<AppData> {
+        const { context } = run;
         if (!isTauriRuntimeEnv() || (context.backend !== 'webdav' && context.backend !== 'file' && context.backend !== 'cloud' && context.backend !== 'cloudkit')) {
             return mergedData;
         }
 
-        helpers.setStep('attachments');
+        run.setStep('attachments');
         await yieldToRenderer();
         try {
             let nextMergedData = mergedData;
@@ -1467,15 +1487,15 @@ export class SyncService {
                         ? candidateData
                         : null;
                 if (!nextData) return;
-                helpers.ensureLocalSnapshotFresh();
+                run.ensureLocalSnapshotFresh();
                 nextMergedData = nextData;
-                await helpers.persistLocalDataWithTracking(nextMergedData);
+                await run.persistLocalDataWithTracking(nextMergedData);
                 await yieldToRenderer();
             };
 
-            helpers.ensureLocalSnapshotFresh();
+            run.ensureLocalSnapshotFresh();
             if (context.backend === 'webdav') {
-                helpers.ensureNetworkStillAvailable();
+                run.ensureNetworkStillAvailable();
                 const config = context.webdavConfig ?? await SyncService.getWebDavConfig();
                 const baseUrl = config.url ? getBaseSyncUrl(config.url) : '';
                 if (baseUrl) {
@@ -1483,20 +1503,20 @@ export class SyncService {
                         syncAttachments(candidateData, config, baseUrl, attachmentBackendDeps)
                     );
                 }
-        } else if (context.backend === 'file') {
-            if (context.fileBaseDir) {
+            } else if (context.backend === 'file') {
+                if (context.fileBaseDir) {
+                    await applyAttachmentSyncMutation((candidateData) =>
+                        syncFileAttachments(candidateData, context.fileBaseDir, attachmentBackendDeps)
+                    );
+                }
+            } else if (context.backend === 'cloudkit') {
+                run.ensureNetworkStillAvailable();
                 await applyAttachmentSyncMutation((candidateData) =>
-                    syncFileAttachments(candidateData, context.fileBaseDir, attachmentBackendDeps)
+                    syncCloudKitAttachments(candidateData, attachmentBackendDeps)
                 );
-            }
-        } else if (context.backend === 'cloudkit') {
-            helpers.ensureNetworkStillAvailable();
-            await applyAttachmentSyncMutation((candidateData) =>
-                syncCloudKitAttachments(candidateData, attachmentBackendDeps)
-            );
-        } else if (context.backend === 'cloud') {
-            helpers.ensureNetworkStillAvailable();
-            if (context.cloudProvider === 'selfhosted') {
+            } else if (context.backend === 'cloud') {
+                run.ensureNetworkStillAvailable();
+                if (context.cloudProvider === 'selfhosted') {
                     const config = context.cloudConfig ?? await SyncService.getCloudConfig();
                     const baseUrl = config.url ? getCloudBaseUrl(config.url) : '';
                     if (baseUrl) {
@@ -1506,7 +1526,7 @@ export class SyncService {
                     }
                 } else if (context.cloudProvider === 'dropbox') {
                     await applyAttachmentSyncMutation((candidateData) =>
-                        syncDropboxAttachments(candidateData, helpers.resolveDropboxAccessToken, attachmentBackendDeps)
+                        syncDropboxAttachments(candidateData, (forceRefresh) => run.resolveDropboxAccessToken(forceRefresh), attachmentBackendDeps)
                     );
                 }
             }
@@ -1780,13 +1800,12 @@ export class SyncService {
     private static async runSyncCycle(options: SyncRunOptions): Promise<SyncRunResult> {
         SyncService.queuedSyncOptions = null;
         const context = SyncService.createSyncExecutionContext();
-        const persistLocalDataWithTracking = async (data: AppData): Promise<void> => {
+        const persistLocalData = async (data: AppData): Promise<void> => {
             if (isTauriRuntimeEnv()) {
                 await persistLocalDataForSync(data);
             } else {
                 await webStorage.saveData(data);
             }
-            context.wroteLocal = true;
         };
 
         SyncService.updateSyncStatus({
@@ -1797,88 +1816,53 @@ export class SyncService {
         });
         await yieldToRenderer();
 
-        const setStep = (next: string) => {
-            context.step = next;
-            SyncService.updateSyncStatus({ step: next });
-        };
-        const createFetchWithAbort = (baseFetch: typeof fetch): typeof fetch =>
-            createAbortableFetch(baseFetch, { baseSignal: context.requestAbortController.signal });
-        const ensureNetworkStillAvailable = () => {
-            if (context.backend !== 'cloud' && context.backend !== 'webdav' && context.backend !== 'cloudkit') return;
-            if (
-                context.networkWentOffline
-                || (typeof navigator !== 'undefined' && navigator.onLine === false)
-            ) {
-                context.requestAbortController.abort();
-                throw new Error('Sync paused: offline state detected');
-            }
-        };
-        const ensureLocalSnapshotFresh = () => {
-            if (getStoreState().lastDataChangeAt > context.localSnapshotChangeAt) {
-                SyncService.requestQueuedSyncRun(options, false);
-                throw new LocalSyncAbort();
-            }
-        };
-        const resolveDropboxAccessToken = async (forceRefresh = false): Promise<string> => {
-            if (!context.dropboxAppKey) {
-                throw new Error('Dropbox app key is not configured');
-            }
-            if (!context.cachedDropboxAccessToken || forceRefresh) {
-                context.cachedDropboxAccessToken = await SyncService.getDropboxAccessToken(context.dropboxAppKey, { forceRefresh });
-            }
-            return context.cachedDropboxAccessToken;
-        };
-        const helpers: SyncExecutionHelpers = {
-            setStep,
-            createFetchWithAbort,
-            ensureNetworkStillAvailable,
-            ensureLocalSnapshotFresh,
-            persistLocalDataWithTracking,
+        const run = new SyncRun(options, context, {
+            updateSyncStep: (next) => SyncService.updateSyncStatus({ step: next }),
             requestFollowUp: () => SyncService.requestQueuedSyncRun(options, false),
-            resolveDropboxAccessToken,
-            runDropboxWithRetry: <T>(operation: (token: string) => Promise<T>) =>
-                SyncService.runDropboxWithRetry(resolveDropboxAccessToken, operation),
-        };
+            persistLocalData,
+            getDropboxAccessToken: (appKey, tokenOptions) => SyncService.getDropboxAccessToken(appKey, tokenOptions),
+            runDropboxWithRetry: (resolveToken, operation) => SyncService.runDropboxWithRetry(resolveToken, operation),
+        });
 
         const runSync = async (): Promise<SyncRunResult> => {
             // 1. Flush pending writes so disk reflects the latest state
-            setStep('flush');
+            run.setStep('flush');
             await yieldToRenderer();
             await syncServiceDependencies.flushPendingSave();
             context.localSnapshotChangeAt = getStoreState().lastDataChangeAt;
 
             // 2. Read/merge/write via shared core orchestration.
-            await SyncService.prepareSyncExecutionContext(context, options, helpers);
+            await SyncService.prepareSyncExecutionContext(run);
             if (context.backend === 'off') {
                 return { success: true };
             }
 
             // Pre-sync local attachments so cloudKeys exist before writing remote data.
-            await SyncService.runPreSyncAttachmentPhase(context, helpers);
+            await SyncService.runPreSyncAttachmentPhase(run);
 
             // CloudKit setup: ensure zone and subscription exist before syncing.
             if (context.backend === 'cloudkit') {
-                setStep('cloudkit_setup');
+                run.setStep('cloudkit_setup');
                 await yieldToRenderer();
                 await syncServiceDependencies.ensureCloudKitReady();
             }
 
-            const unchangedResult = await SyncService.trySkipUnchangedSync(context, helpers);
+            const unchangedResult = await SyncService.trySkipUnchangedSync(run);
             if (unchangedResult) {
                 return unchangedResult;
             }
 
             const syncResult = await syncServiceDependencies.performSyncCycle({
                 readLocal: () => SyncService.readLocalDataForSyncCycle(context),
-                readRemote: () => SyncService.readRemoteDataByBackend(context, helpers),
+                readRemote: () => SyncService.readRemoteDataByBackend(run),
                 writeLocal: async (data) => {
-                    ensureLocalSnapshotFresh();
-                    await persistLocalDataWithTracking(data);
+                    run.ensureLocalSnapshotFresh();
+                    await run.persistLocalDataWithTracking(data);
                 },
                 clearPendingRemoteWriteAfterLocalAbort: async (pendingAt) => {
                     const current = syncServiceDependencies.getInMemoryAppDataSnapshot();
                     if (current.settings.pendingRemoteWriteAt && current.settings.pendingRemoteWriteAt !== pendingAt) return;
-                    await persistLocalDataWithTracking({
+                    await run.persistLocalDataWithTracking({
                         ...current,
                         settings: {
                             ...current.settings,
@@ -1889,13 +1873,13 @@ export class SyncService {
                     });
                 },
                 flushPendingLocalBeforeRetryRead: syncServiceDependencies.flushPendingSave,
-                prepareRemoteWrite: (data) => SyncService.prepareRemoteWriteData(context, data, helpers),
+                prepareRemoteWrite: (data) => SyncService.prepareRemoteWriteData(run, data),
                 writeRemote: async (data) => {
-                    ensureLocalSnapshotFresh();
-                    await SyncService.writeRemoteDataByBackend(context, data, helpers);
+                    run.ensureLocalSnapshotFresh();
+                    await SyncService.writeRemoteDataByBackend(run, data);
                 },
                 onStep: (next) => {
-                    setStep(next);
+                    run.setStep(next);
                 },
                 yieldToUi: yieldToRenderer,
                 historyContext: {
@@ -1918,10 +1902,10 @@ export class SyncService {
             };
             await persistExternalCalendars(mergedData);
             SyncService.logSyncMergeSummary(stats);
-            ensureLocalSnapshotFresh();
+            run.ensureLocalSnapshotFresh();
 
             const preAttachmentMergedData = mergedData;
-            mergedData = await SyncService.runPostMergeAttachmentPhase(context, mergedData, helpers);
+            mergedData = await SyncService.runPostMergeAttachmentPhase(run, mergedData);
             if (mergedData !== preAttachmentMergedData) {
                 markFastSyncStateUnsafe();
             }
@@ -1929,26 +1913,26 @@ export class SyncService {
             await cleanupAttachmentTempFiles(getAttachmentCleanupDeps());
 
             if (isTauriRuntimeEnv() && shouldRunAttachmentCleanup(mergedData.settings.attachments?.lastCleanupAt, CLEANUP_INTERVAL_MS)) {
-                setStep('attachments_cleanup');
+                run.setStep('attachments_cleanup');
                 await yieldToRenderer();
-                ensureLocalSnapshotFresh();
-                ensureNetworkStillAvailable();
+                run.ensureLocalSnapshotFresh();
+                run.ensureNetworkStillAvailable();
                 const cleanupChangesSyncPayload = findOrphanedAttachments(mergedData).length > 0;
                 mergedData = await cleanupOrphanedAttachments(mergedData, context.backend, getAttachmentCleanupDeps());
                 if (cleanupChangesSyncPayload) {
                     markFastSyncStateUnsafe();
                 }
-                await persistLocalDataWithTracking(mergedData);
+                await run.persistLocalDataWithTracking(mergedData);
             }
 
             if (canRecordFastSyncState) {
-                await SyncService.recordFastSyncState(context, mergedData, helpers);
+                await SyncService.recordFastSyncState(run, mergedData);
             }
 
             // 7. Refresh UI Store
-            setStep('refresh');
+            run.setStep('refresh');
             await yieldToRenderer();
-            ensureLocalSnapshotFresh();
+            run.ensureLocalSnapshotFresh();
             await getStoreState().fetchData({ silent: true });
             SyncService.lastSuccessfulSyncLocalChangeAt = getStoreState().lastDataChangeAt;
 
@@ -1960,7 +1944,7 @@ export class SyncService {
 
         const resultPromise = runSync().catch(async (error) => {
             if (error instanceof LocalSyncAbort) {
-                await SyncService.persistPreSyncedLocalDataIfNeeded(context, persistLocalDataWithTracking);
+                await SyncService.persistPreSyncedLocalDataIfNeeded(run);
                 return { success: true, skipped: 'requeued' as const };
             }
             logSyncWarning('Sync failed', error);

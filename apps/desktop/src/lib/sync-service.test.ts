@@ -679,7 +679,7 @@ describe('SyncService orchestration', () => {
         };
         const prepareSpy = vi.spyOn(SyncService as any, 'prepareSyncExecutionContext').mockImplementation(
             async (...args: unknown[]) => {
-                const context = args[0] as Record<string, unknown>;
+                const context = (args[0] as { context: Record<string, unknown> }).context;
                 context.backend = 'file';
                 context.fileBaseDir = '';
             }
@@ -748,7 +748,7 @@ describe('SyncService orchestration', () => {
         };
         const prepareSpy = vi.spyOn(SyncService as any, 'prepareSyncExecutionContext').mockImplementation(
             async (...args: unknown[]) => {
-                const context = args[0] as Record<string, unknown>;
+                const context = (args[0] as { context: Record<string, unknown> }).context;
                 context.backend = 'file';
                 context.fileBaseDir = '';
             }
