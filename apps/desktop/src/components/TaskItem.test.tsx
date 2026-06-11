@@ -185,6 +185,136 @@ describe('TaskItem', () => {
         });
     });
 
+    it('applies accepted title suggestions as metadata without keeping the token in the title', async () => {
+        const editableTask: Task = {
+            ...mockTask,
+            id: 'editor-title-token-task',
+            title: 'Email',
+            status: 'next',
+        };
+        const contextSourceTask: Task = {
+            ...mockTask,
+            id: 'editor-title-context-source',
+            title: 'Context source',
+            contexts: ['@work'],
+        };
+        act(() => {
+            useTaskStore.setState((state) => ({
+                ...state,
+                tasks: [editableTask, contextSourceTask],
+                _allTasks: [editableTask, contextSourceTask],
+                _tasksById: new Map([
+                    [editableTask.id, editableTask],
+                    [contextSourceTask.id, contextSourceTask],
+                ]),
+                projects: [],
+                _allProjects: [],
+                _projectsById: new Map(),
+                sections: [],
+                _allSections: [],
+                _sectionsById: new Map(),
+                areas: [],
+                _allAreas: [],
+                _areasById: new Map(),
+            }));
+        });
+
+        const { findByRole, getAllByRole, getByDisplayValue, getByRole } = render(
+            <LanguageProvider>
+                <TaskItem task={editableTask} />
+            </LanguageProvider>
+        );
+
+        await act(async () => {
+            fireEvent.click(getAllByRole('button', { name: /edit/i })[0]);
+        });
+        const titleInput = getByDisplayValue('Email') as HTMLInputElement;
+        fireEvent.change(titleInput, { target: { value: 'Email @wo today' } });
+        titleInput.setSelectionRange('Email @wo'.length, 'Email @wo'.length);
+        fireEvent.click(titleInput);
+
+        expect(await findByRole('option', { name: '@work' })).toBeInTheDocument();
+        await act(async () => {
+            fireEvent.keyDown(titleInput, { key: 'Enter' });
+        });
+
+        await waitFor(() => expect(titleInput.value).toBe('Email today'));
+
+        await act(async () => {
+            fireEvent.click(getByRole('button', { name: 'Save' }));
+        });
+
+        await waitFor(() => {
+            const updatedTask = useTaskStore.getState()._allTasks.find((task) => task.id === 'editor-title-token-task');
+            expect(updatedTask?.title).toBe('Email today');
+            expect(updatedTask?.contexts).toEqual(['@work']);
+        });
+    });
+
+    it('keeps unaccepted quick-add-looking text literal in existing title edits', async () => {
+        const editableTask: Task = {
+            ...mockTask,
+            id: 'editor-title-literal-task',
+            title: 'Email',
+            status: 'next',
+            contexts: [],
+            tags: [],
+        };
+        const project: Project = {
+            id: 'project-home',
+            title: 'Home',
+            status: 'active',
+            color: '#000000',
+            order: 0,
+            tagIds: [],
+            createdAt: editableTask.createdAt,
+            updatedAt: editableTask.updatedAt,
+        };
+        act(() => {
+            useTaskStore.setState((state) => ({
+                ...state,
+                tasks: [editableTask],
+                _allTasks: [editableTask],
+                _tasksById: new Map([[editableTask.id, editableTask]]),
+                projects: [project],
+                _allProjects: [project],
+                _projectsById: new Map([[project.id, project]]),
+                sections: [],
+                _allSections: [],
+                _sectionsById: new Map(),
+                areas: [],
+                _allAreas: [],
+                _areasById: new Map(),
+            }));
+        });
+
+        const { getAllByRole, getByDisplayValue, getByRole } = render(
+            <LanguageProvider>
+                <TaskItem task={editableTask} />
+            </LanguageProvider>
+        );
+
+        await act(async () => {
+            fireEvent.click(getAllByRole('button', { name: /edit/i })[0]);
+        });
+        const titleInput = getByDisplayValue('Email') as HTMLInputElement;
+        const literalTitle = 'Email @home #note +Home /due:tomorrow';
+        fireEvent.change(titleInput, { target: { value: literalTitle } });
+
+        await act(async () => {
+            fireEvent.click(getByRole('button', { name: 'Save' }));
+        });
+
+        await waitFor(() => {
+            const updatedTask = useTaskStore.getState()._allTasks.find((task) => task.id === 'editor-title-literal-task');
+            expect(updatedTask?.title).toBe(literalTitle);
+            expect(updatedTask?.contexts).toEqual([]);
+            expect(updatedTask?.tags).toEqual([]);
+            expect(updatedTask?.projectId).toBeUndefined();
+            expect(updatedTask?.dueDate).toBeUndefined();
+        });
+    });
+
     it('enters edit mode when task title is double-clicked', () => {
         const { getByRole, getByDisplayValue } = render(
             <LanguageProvider>

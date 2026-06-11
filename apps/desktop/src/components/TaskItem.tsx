@@ -781,8 +781,6 @@ export const TaskItem = memo(function TaskItem({
     }, [editingTaskId, resetEditState, setEditingTaskId, task.id]);
 
     const handleSubmit = useTaskItemSubmit({
-        addProject,
-        areas,
         editAreaId,
         editAssignedTo,
         editAttachments,
@@ -805,11 +803,9 @@ export const TaskItem = memo(function TaskItem({
         editTimeEstimate,
         editTitle,
         editingTaskId,
-        projects,
         setEditingTaskId,
         setIsEditing,
         showToast,
-        t,
         task,
         updateTask,
     });
@@ -1085,6 +1081,10 @@ export const TaskItem = memo(function TaskItem({
             t={t}
             editTitle={editTitle}
             setEditTitle={setEditTitle}
+            editContexts={editContexts}
+            setEditContexts={setEditContexts}
+            editTags={editTags}
+            setEditTags={setEditTags}
             autoFocusTitle={autoFocusTitle}
             resetCopilotDraft={resetCopilotDraft}
             aiEnabled={aiEnabled}

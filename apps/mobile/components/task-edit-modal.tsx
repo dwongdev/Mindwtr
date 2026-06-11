@@ -568,9 +568,7 @@ function TaskEditModalInner({
         handleResetChecklist,
         handleShare,
     } = useTaskEditActions({
-        addProject,
         aiEnabled,
-        areas,
         baseTaskRef,
         closeAIModal,
         contextInputDraft,
@@ -591,8 +589,6 @@ function TaskEditModalInner({
         onSave,
         prioritiesEnabled,
         projectContext,
-        projectFilterAreaId,
-        projects,
         recurrenceRuleValue,
         recurrenceRRuleValue,
         recurrenceStrategyValue,

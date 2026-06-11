@@ -315,6 +315,54 @@ describe('TaskEditModal', () => {
     expect(onClose).toHaveBeenCalledTimes(1);
   });
 
+  it('keeps quick-add-looking text literal when saving an existing task title', () => {
+    const onClose = vi.fn();
+    const onSave = vi.fn();
+    let tree: renderer.ReactTestRenderer;
+
+    act(() => {
+      tree = renderer.create(
+        <TaskEditModal
+          visible
+          task={{
+            id: 't1',
+            title: 'Test task',
+            status: 'inbox',
+            tags: [],
+            contexts: [],
+            createdAt: '2025-01-01T00:00:00.000Z',
+            updatedAt: '2025-01-01T00:00:00.000Z',
+          }}
+          onClose={onClose}
+          onSave={onSave}
+        />
+      );
+    });
+
+    const formTab = tree!.root.findAll((node) => typeof node.props.onTitleDraftChange === 'function')[0];
+    const literalTitle = 'Email @home #note +Home /due:tomorrow';
+    act(() => {
+      formTab.props.onTitleDraftChange(literalTitle);
+    });
+
+    const header = tree!.root.find((node) =>
+      typeof node.props.onDone === 'function'
+      && typeof node.props.onDelete === 'function'
+    );
+    act(() => {
+      header.props.onDone();
+    });
+
+    expect(onSave).toHaveBeenCalledWith('t1', expect.objectContaining({
+      title: literalTitle,
+    }));
+    expect(onSave.mock.calls[0]?.[1]).not.toHaveProperty('contexts');
+    expect(onSave.mock.calls[0]?.[1]).not.toHaveProperty('tags');
+    expect(onSave.mock.calls[0]?.[1]).not.toHaveProperty('dueDate');
+    expect(onSave.mock.calls[0]?.[1]).not.toHaveProperty('projectId');
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
   it('saves clearing a project and moving the task to an area in one edit', () => {
     const onClose = vi.fn();
     const onSave = vi.fn();

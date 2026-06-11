@@ -25,10 +25,17 @@ type ActiveTrigger = {
 
 type Option =
     | { kind: 'create'; label: string; value: string }
-    | { kind: 'project'; label: string; value: string }
+    | { kind: 'project'; label: string; value: string; id: string }
     | { kind: 'context'; label: string; value: string }
     | { kind: 'tag'; label: string; value: string }
-    | { kind: 'area'; label: string; value: string };
+    | { kind: 'area'; label: string; value: string; id: string };
+
+export type TaskInputAcceptedSuggestion =
+    | { kind: 'project'; label: string; value: string; projectId: string }
+    | { kind: 'createProject'; label: string; value: string; projectId: string | null }
+    | { kind: 'context'; label: string; value: string }
+    | { kind: 'tag'; label: string; value: string }
+    | { kind: 'area'; label: string; value: string; areaId: string };
 
 interface TaskInputProps {
     id?: string;
@@ -38,6 +45,7 @@ interface TaskInputProps {
     contexts: readonly string[];
     areas?: Area[];
     onCreateProject?: (title: string) => Promise<string | null>;
+    onAcceptSuggestion?: (suggestion: TaskInputAcceptedSuggestion) => boolean | Promise<boolean>;
     placeholder?: string;
     className?: string;
     containerClassName?: string;
@@ -87,6 +95,34 @@ const compareAutocompleteLabels = (left: string, right: string, query: string): 
 const matchesAutocompleteQuery = (label: string, query: string): boolean =>
     query.length === 0 || label.toLowerCase().includes(query);
 
+function removeAcceptedTriggerText(text: string, trigger: TriggerState): { value: string; caret: number } {
+    const before = text.slice(0, trigger.start);
+    const after = text.slice(trigger.end);
+    if (before.length === 0) {
+        return {
+            value: after.replace(/^\s+/, ''),
+            caret: 0,
+        };
+    }
+    if (after.length === 0) {
+        const value = before.replace(/\s+$/, '');
+        return {
+            value,
+            caret: value.length,
+        };
+    }
+    if (/\s$/.test(before) && /^\s+/.test(after)) {
+        return {
+            value: `${before}${after.replace(/^\s+/, '')}`,
+            caret: before.length,
+        };
+    }
+    return {
+        value: `${before}${after}`,
+        caret: before.length,
+    };
+}
+
 export function TaskInput({
     id,
     value,
@@ -95,6 +131,7 @@ export function TaskInput({
     contexts,
     areas = [],
     onCreateProject,
+    onAcceptSuggestion,
     placeholder,
     className,
     containerClassName,
@@ -130,6 +167,7 @@ export function TaskInput({
                 kind: 'project' as const,
                 label: project.title,
                 value: project.title,
+                id: project.id,
             }));
             if (!hasExact && query.length > 0) {
                 result.push({
@@ -148,6 +186,7 @@ export function TaskInput({
                 kind: 'area' as const,
                 label: area.name,
                 value: area.name,
+                id: area.id,
             }));
         }
         const expectedPrefix = trigger.type === 'tag' ? '#' : '@';
@@ -247,10 +286,37 @@ export function TaskInput({
         if (activeTrigger.type !== expectedTriggerType) return;
 
         let tokenValue = option.value;
+        let createdProjectId: string | null = null;
         if (option.kind === 'create' && onCreateProject) {
             const title = option.value.trim();
             if (title) {
-                await onCreateProject(title);
+                createdProjectId = await onCreateProject(title);
+            }
+        }
+        if (onAcceptSuggestion) {
+            const acceptedSuggestion: TaskInputAcceptedSuggestion | null = option.kind === 'project'
+                ? { kind: 'project', label: option.label, value: option.value, projectId: option.id }
+                : option.kind === 'create'
+                    ? { kind: 'createProject', label: option.label, value: option.value, projectId: createdProjectId }
+                    : option.kind === 'area'
+                        ? { kind: 'area', label: option.label, value: option.value, areaId: option.id }
+                        : option.kind === 'context'
+                            ? { kind: 'context', label: option.label, value: option.value }
+                            : { kind: 'tag', label: option.label, value: option.value };
+            const handled = await onAcceptSuggestion(acceptedSuggestion);
+            if (handled) {
+                const next = removeAcceptedTriggerText(active.text, activeTrigger);
+                pushUndoEntry(active.text, active.selection);
+                valueRef.current = next.value;
+                onChange(next.value);
+                closeTrigger();
+
+                requestAnimationFrame(() => {
+                    mergedRef.current?.focus();
+                    mergedRef.current?.setSelectionRange(next.caret, next.caret);
+                    selectionRef.current = { start: next.caret, end: next.caret };
+                });
+                return;
             }
         }
         if (activeTrigger.type === 'project') {

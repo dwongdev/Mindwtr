@@ -15,7 +15,7 @@ import {
 import { AreaSelector } from '../ui/AreaSelector';
 import { ProjectSelector } from '../ui/ProjectSelector';
 import { SectionSelector } from '../ui/SectionSelector';
-import { TaskInput } from './TaskInput';
+import { TaskInput, type TaskInputAcceptedSuggestion } from './TaskInput';
 import { cn } from '../../lib/utils';
 import { taskEditorLabelClassName } from './task-editor-label';
 
@@ -23,6 +23,10 @@ interface TaskItemEditorProps {
     t: (key: string) => string;
     editTitle: string;
     setEditTitle: (value: string) => void;
+    editContexts: string;
+    setEditContexts: (value: string) => void;
+    editTags: string;
+    setEditTags: (value: string) => void;
     autoFocusTitle?: boolean;
     resetCopilotDraft: () => void;
     aiEnabled: boolean;
@@ -80,10 +84,33 @@ interface TaskItemEditorProps {
     onSubmit: (e: FormEvent) => void;
 }
 
+function appendCommaToken(value: string, token: string): string {
+    const normalizedToken = token.trim();
+    if (!normalizedToken) return value;
+    const tokens = value
+        .split(',')
+        .map((item) => item.trim())
+        .filter(Boolean);
+    if (tokens.some((item) => item.toLowerCase() === normalizedToken.toLowerCase())) {
+        return tokens.join(', ');
+    }
+    return [...tokens, normalizedToken].join(', ');
+}
+
+function ensureTokenPrefix(value: string, prefix: '@' | '#'): string {
+    const trimmed = value.trim();
+    if (!trimmed) return trimmed;
+    return trimmed.startsWith(prefix) ? trimmed : `${prefix}${trimmed.replace(/^[@#]+/, '')}`;
+}
+
 export function TaskItemEditor({
     t,
     editTitle,
     setEditTitle,
+    editContexts,
+    setEditContexts,
+    editTags,
+    setEditTags,
     autoFocusTitle = false,
     resetCopilotDraft,
     aiEnabled,
@@ -160,6 +187,37 @@ export function TaskItemEditor({
     const [detailsOpen, setDetailsOpen] = useState(sectionOpenDefaults.details);
     const [aiMenuOpen, setAiMenuOpen] = useState(false);
     const aiMenuRef = useRef<HTMLDivElement>(null);
+    const handleTitleSuggestionAccept = async (suggestion: TaskInputAcceptedSuggestion) => {
+        resetCopilotDraft();
+        if (suggestion.kind === 'context') {
+            setEditContexts(appendCommaToken(editContexts, ensureTokenPrefix(suggestion.value, '@')));
+            return true;
+        }
+        if (suggestion.kind === 'tag') {
+            setEditTags(appendCommaToken(editTags, ensureTokenPrefix(suggestion.value, '#')));
+            return true;
+        }
+        if (suggestion.kind === 'project') {
+            setEditProjectId(suggestion.projectId);
+            setEditSectionId('');
+            setEditAreaId('');
+            return true;
+        }
+        if (suggestion.kind === 'createProject') {
+            if (!suggestion.projectId) return false;
+            setEditProjectId(suggestion.projectId);
+            setEditSectionId('');
+            setEditAreaId('');
+            return true;
+        }
+        if (suggestion.kind === 'area') {
+            setEditAreaId(suggestion.areaId);
+            setEditProjectId('');
+            setEditSectionId('');
+            return true;
+        }
+        return false;
+    };
 
     useEffect(() => {
         if (!aiMenuOpen) return;
@@ -226,6 +284,7 @@ export function TaskItemEditor({
                         contexts={inputContexts}
                         areas={areas}
                         onCreateProject={onCreateProject}
+                        onAcceptSuggestion={handleTitleSuggestionAccept}
                         placeholder={t('taskEdit.titleLabel')}
                         ariaLabel={t('taskEdit.titleLabel')}
                         className="w-full rounded-sm bg-transparent border-b border-primary/60 px-1 pb-1.5 pt-0 text-lg font-semibold leading-7 text-foreground placeholder:text-muted-foreground transition-colors focus:border-primary focus:ring-0 focus-visible:ring-2 focus-visible:ring-primary/30 focus-visible:ring-offset-1 focus-visible:ring-offset-card outline-none motion-reduce:transition-none"

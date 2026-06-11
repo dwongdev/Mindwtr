@@ -19,9 +19,11 @@ const buildProject = (title: string, status: Project['status'] = 'active'): Proj
 function TaskInputHarness({
     initialValue = '',
     contexts = [],
+    onAcceptSuggestion,
 }: {
     initialValue?: string;
     contexts?: string[];
+    onAcceptSuggestion?: Parameters<typeof TaskInput>[0]['onAcceptSuggestion'];
 }) {
     const [value, setValue] = useState(initialValue);
 
@@ -31,6 +33,7 @@ function TaskInputHarness({
             onChange={setValue}
             projects={[]}
             contexts={contexts}
+            onAcceptSuggestion={onAcceptSuggestion}
         />
     );
 }
@@ -124,6 +127,34 @@ describe('TaskInput autocomplete', () => {
             expect(input.value).toBe('@work ');
             expect(input.selectionStart).toBe('@work '.length);
             expect(input.selectionEnd).toBe('@work '.length);
+        });
+    });
+
+    it('removes an explicitly accepted token when the parent applies metadata', async () => {
+        const onAcceptSuggestion = vi.fn(() => true);
+        const { getByRole } = render(
+            <TaskInputHarness
+                initialValue="Email @wo today"
+                contexts={['@work']}
+                onAcceptSuggestion={onAcceptSuggestion}
+            />
+        );
+        const input = getByRole('combobox') as HTMLInputElement;
+        input.focus();
+        input.setSelectionRange('Email @wo'.length, 'Email @wo'.length);
+        fireEvent.click(input);
+
+        fireEvent.keyDown(input, { key: 'Enter' });
+
+        await waitFor(() => {
+            expect(onAcceptSuggestion).toHaveBeenCalledWith({
+                kind: 'context',
+                label: '@work',
+                value: '@work',
+            });
+            expect(input.value).toBe('Email today');
+            expect(input.selectionStart).toBe('Email '.length);
+            expect(input.selectionEnd).toBe('Email '.length);
         });
     });
 
