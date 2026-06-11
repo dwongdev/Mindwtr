@@ -580,6 +580,61 @@ describe('InboxProcessor', () => {
         expect(getByDisplayValue('Follow up with Casey')).toBeTruthy();
     });
 
+    it('commits quick processing with Ctrl+Enter without requiring input focus', async () => {
+        const { getByRole, getByDisplayValue, updateTask } = renderInboxProcessor({
+            settings: {
+                gtd: {
+                    inboxProcessing: {
+                        defaultMode: 'quick',
+                    },
+                },
+            },
+            tasks: [inboxTask, inboxTaskTwo],
+        });
+
+        fireEvent.click(getByRole('button', { name: /process\.btn/i }));
+        fireEvent.keyDown(document, { key: 'Enter', ctrlKey: true });
+
+        await waitFor(() => {
+            expect(updateTask).toHaveBeenCalledWith(
+                'task-1',
+                expect.objectContaining({
+                    title: 'Plan launch',
+                    status: 'next',
+                }),
+            );
+        });
+        expect(getByDisplayValue('Follow up with Casey')).toBeTruthy();
+    });
+
+    it('commits quick processing with Cmd+Enter from the description textarea', async () => {
+        const { getByRole, getByLabelText, updateTask } = renderInboxProcessor({
+            settings: {
+                gtd: {
+                    inboxProcessing: {
+                        defaultMode: 'quick',
+                    },
+                },
+            },
+        });
+
+        fireEvent.click(getByRole('button', { name: /process\.btn/i }));
+        fireEvent.change(getByLabelText('taskEdit.descriptionLabel'), {
+            target: { value: 'Captured context' },
+        });
+        fireEvent.keyDown(getByLabelText('taskEdit.descriptionLabel'), { key: 'Enter', metaKey: true });
+
+        await waitFor(() => {
+            expect(updateTask).toHaveBeenCalledWith(
+                'task-1',
+                expect.objectContaining({
+                    description: 'Captured context',
+                    status: 'next',
+                }),
+            );
+        });
+    });
+
     it('does not commit quick processing when Enter is used in the description textarea', () => {
         const { getByRole, getByLabelText, updateTask } = renderInboxProcessor({
             gtd: {

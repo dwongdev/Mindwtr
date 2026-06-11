@@ -1,4 +1,4 @@
-import type { KeyboardEvent } from 'react';
+import { useEffect, type KeyboardEvent } from 'react';
 import { ArrowRight, BookOpen, CheckCircle, ClipboardList, Clock, Trash2, User, X } from 'lucide-react';
 import { DEFAULT_PROJECT_COLOR, filterProjectsBySelectedArea, safeFormatDate, safeParseDate, tFallback, type Area, type Project, type Task, type TaskPriority, type TimeEstimate } from '@mindwtr/core';
 
@@ -115,6 +115,17 @@ const shouldCommitQuickProcessingFromEnter = (target: EventTarget | null): boole
     return tagName === 'input';
 };
 
+const shouldCommitQuickProcessingFromShortcut = (target: EventTarget | null): boolean => {
+    if (!(target instanceof HTMLElement)) return true;
+    if (target.isContentEditable) return false;
+    if (target.closest('[role="option"], [role="listbox"]')) return false;
+    return target.tagName.toLowerCase() !== 'select';
+};
+
+const isQuickProcessingSubmitShortcut = (event: Pick<KeyboardEvent | globalThis.KeyboardEvent, 'altKey' | 'ctrlKey' | 'key' | 'metaKey' | 'shiftKey'>): boolean => (
+    event.key === 'Enter' && !event.shiftKey && !event.altKey && (event.ctrlKey || event.metaKey)
+);
+
 export function InboxProcessingQuickPanel({
     t,
     processingTask,
@@ -196,10 +207,28 @@ export function InboxProcessingQuickPanel({
     const sortedProjects = [...projects].sort((a, b) => compareLabels(a.title, b.title));
     const projectFilterAreaId = selectedAreaId || undefined;
     const filteredProjects = filterProjectsBySelectedArea(sortedProjects, projectFilterAreaId);
+
+    useEffect(() => {
+        const handleDocumentKeyDown = (event: globalThis.KeyboardEvent) => {
+            if (event.defaultPrevented) return;
+            if (event.key === 'Process' || event.isComposing) return;
+            if (!isQuickProcessingSubmitShortcut(event)) return;
+            if (!shouldCommitQuickProcessingFromShortcut(event.target)) return;
+
+            event.preventDefault();
+            event.stopPropagation();
+            void onSubmit();
+        };
+
+        document.addEventListener('keydown', handleDocumentKeyDown);
+        return () => document.removeEventListener('keydown', handleDocumentKeyDown);
+    }, [onSubmit]);
+
     const handlePanelKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
         if (event.defaultPrevented) return;
         if (event.key === 'Process' || event.nativeEvent.isComposing) return;
-        if (event.key !== 'Enter' || event.shiftKey || event.altKey || event.ctrlKey || event.metaKey) return;
+        if (isQuickProcessingSubmitShortcut(event)) return;
+        if (event.key !== 'Enter' || event.shiftKey || event.altKey) return;
         if (!shouldCommitQuickProcessingFromEnter(event.target)) return;
 
         event.preventDefault();
