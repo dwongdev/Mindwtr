@@ -213,6 +213,8 @@ export type {
 
 export {
     repairMergedSyncReferences,
+    sanitizeAttachmentCloudKeyForSyncMerge,
+    sanitizeAttachmentUriForSyncMerge,
 } from './sync-normalization';
 
 export {

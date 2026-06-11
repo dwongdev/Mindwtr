@@ -163,6 +163,61 @@ describe('sync normalization', () => {
         expect(normalized.dueDate).toBe('2026-04-24');
     });
 
+    it('sanitizes synced task attachment URIs and cloud keys during normalization', () => {
+        const task = {
+            ...createMockTask('task-1', '2026-01-01T00:00:00.000Z'),
+            attachments: [
+                {
+                    id: 'att-1',
+                    kind: 'file',
+                    title: 'Unsafe',
+                    uri: 'file:///safe/%252e%252e/secret.txt',
+                    cloudKey: '../attachments/secret.txt',
+                    createdAt: '2026-01-01T00:00:00.000Z',
+                    updatedAt: '2026-01-01T00:00:00.000Z',
+                },
+                {
+                    id: 'att-2',
+                    kind: 'file',
+                    title: 'Safe',
+                    uri: 'file:///local/attachments/safe.txt',
+                    cloudKey: 'attachments/att-2.txt',
+                    createdAt: '2026-01-01T00:00:00.000Z',
+                    updatedAt: '2026-01-01T00:00:00.000Z',
+                },
+            ],
+        } satisfies Task;
+
+        const normalized = normalizeTaskForSyncMerge(task, '2026-04-20T10:00:00.000Z');
+
+        expect(normalized.attachments?.[0]?.uri).toBe('');
+        expect(normalized.attachments?.[0]?.cloudKey).toBeUndefined();
+        expect(normalized.attachments?.[1]?.uri).toBe('file:///local/attachments/safe.txt');
+        expect(normalized.attachments?.[1]?.cloudKey).toBe('attachments/att-2.txt');
+    });
+
+    it('sanitizes synced project attachment cloud keys during normalization', () => {
+        const project = {
+            ...createMockProject('project-1', '2026-01-01T00:00:00.000Z'),
+            attachments: [
+                {
+                    id: 'att-1',
+                    kind: 'file',
+                    title: 'Unsafe',
+                    uri: '/tmp/safe.txt',
+                    cloudKey: 'attachments/../secret.txt',
+                    createdAt: '2026-01-01T00:00:00.000Z',
+                    updatedAt: '2026-01-01T00:00:00.000Z',
+                },
+            ],
+        } satisfies Project;
+
+        const normalized = normalizeProjectForSyncMerge(project);
+
+        expect(normalized.attachments?.[0]?.uri).toBe('/tmp/safe.txt');
+        expect(normalized.attachments?.[0]?.cloudKey).toBeUndefined();
+    });
+
     it('does not let one-sided revBy metadata decide equal-revision conflicts', () => {
         const updatedAt = '2026-01-01T00:00:00.000Z';
         const local = mockAppData([{

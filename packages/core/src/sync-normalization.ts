@@ -1,4 +1,4 @@
-import type { AppData, Area, Project, Task } from './types';
+import type { AppData, Area, Attachment, Project, Task } from './types';
 import { normalizeProjectSequentialScope } from './project-utils';
 import { normalizeTaskForLoad } from './task-status';
 import { SYNC_REPAIR_REV_BY } from './sync-types';
@@ -27,6 +27,76 @@ const normalizeOptionalString = (value: unknown): string | undefined =>
 
 const normalizeStringArray = (value: unknown): string[] =>
     Array.isArray(value) ? value.filter((item): item is string => typeof item === 'string') : [];
+
+const ATTACHMENT_TRAVERSAL_SEGMENT_PATTERN = /(?:^|[\\/])\.\.(?:[\\/]|$)/;
+const ATTACHMENT_URI_DECODE_LIMIT = 4;
+const ATTACHMENT_CLOUD_KEY_PATTERN = /^attachments\/[A-Za-z0-9][A-Za-z0-9_-]*(?:\.[A-Za-z0-9][A-Za-z0-9._-]{0,127})?$|^cloudkit:[A-Za-z0-9][A-Za-z0-9_-]*$/;
+
+const containsAttachmentTraversalSegment = (value: string): boolean => {
+    const candidates = new Set<string>([value]);
+    const queue: string[] = [value];
+    const enqueueCandidate = (candidate: string) => {
+        if (!candidate || candidates.has(candidate)) return;
+        candidates.add(candidate);
+        queue.push(candidate);
+    };
+
+    for (let index = 0; index < queue.length && index < ATTACHMENT_URI_DECODE_LIMIT; index += 1) {
+        const current = queue[index];
+        try {
+            const decoded = decodeURIComponent(current);
+            if (decoded !== current) enqueueCandidate(decoded);
+        } catch {
+            // Keep evaluating other candidates when decoding fails.
+        }
+        const trimmed = current.trim();
+        if (trimmed.startsWith('//')) {
+            try {
+                enqueueCandidate(new URL(`file:${trimmed}`).pathname);
+            } catch {
+                // Keep evaluating the raw candidate when URL parsing fails.
+            }
+            continue;
+        }
+        if (/^[A-Za-z][A-Za-z0-9+.-]*:/.test(trimmed)) {
+            try {
+                enqueueCandidate(new URL(trimmed).pathname);
+            } catch {
+                // Keep evaluating the raw candidate when URL parsing fails.
+            }
+        }
+    }
+
+    return Array.from(candidates).some((candidate) => ATTACHMENT_TRAVERSAL_SEGMENT_PATTERN.test(candidate));
+};
+
+export const sanitizeAttachmentUriForSyncMerge = (value: unknown): string | undefined => {
+    if (typeof value !== 'string') return undefined;
+    const trimmed = value.trim();
+    if (!trimmed || trimmed.includes('\0')) return undefined;
+    if (containsAttachmentTraversalSegment(trimmed)) return undefined;
+    return trimmed;
+};
+
+export const sanitizeAttachmentCloudKeyForSyncMerge = (value: unknown): string | undefined => {
+    if (typeof value !== 'string') return undefined;
+    const trimmed = value.trim();
+    if (!trimmed || trimmed.includes('\0')) return undefined;
+    if (containsAttachmentTraversalSegment(trimmed)) return undefined;
+    return ATTACHMENT_CLOUD_KEY_PATTERN.test(trimmed) ? trimmed : undefined;
+};
+
+const normalizeAttachmentsForSyncMerge = (attachments: Attachment[] | undefined): Attachment[] | undefined => {
+    if (!attachments) return attachments;
+    return attachments.map((attachment) => {
+        if (attachment.kind !== 'file') return attachment;
+        return {
+            ...attachment,
+            uri: sanitizeAttachmentUriForSyncMerge(attachment.uri) ?? '',
+            cloudKey: sanitizeAttachmentCloudKeyForSyncMerge(attachment.cloudKey),
+        };
+    });
+};
 
 type RevisionMetadata = {
     rev?: unknown;
@@ -75,6 +145,7 @@ export const normalizeTaskForSyncMerge = (task: Task, nowIso: string): Task => {
         ...normalized,
         tags: normalizeStringArray(normalized.tags),
         contexts: normalizeStringArray(normalized.contexts),
+        attachments: normalizeAttachmentsForSyncMerge(normalized.attachments),
         sectionId: normalizeOptionalString(normalized.sectionId),
         isFocusedToday: normalized.isFocusedToday === true,
         showFutureRecurrence: hasRecurrence && normalized.showFutureRecurrence === true ? true : undefined,
@@ -91,6 +162,7 @@ export const normalizeProjectForSyncMerge = (project: Project): Project => {
         isSequential: project.isSequential === true,
         sequentialScope: normalizeProjectSequentialScope(project.sequentialScope),
         isFocused: project.isFocused === true,
+        attachments: normalizeAttachmentsForSyncMerge(project.attachments),
         dueDate: normalizeOptionalString(project.dueDate),
         reviewAt: normalizeOptionalString(project.reviewAt),
         areaId: normalizeOptionalString(project.areaId),

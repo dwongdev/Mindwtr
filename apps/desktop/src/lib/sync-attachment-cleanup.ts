@@ -11,6 +11,8 @@ import {
     isAttachmentCloudResourceReferenced,
     isAttachmentLocalResourceReferenced,
     LEGACY_SYNC_FILE_NAME,
+    sanitizeAttachmentCloudKeyForSyncMerge,
+    sanitizeAttachmentUriForSyncMerge,
     type CloudProvider,
     SYNC_FILE_NAME,
     webdavDeleteFile,
@@ -71,19 +73,24 @@ export const deleteAttachmentFile = async (
     attachment: Attachment,
     deps: Pick<AttachmentCleanupDeps, 'logSyncWarning'>,
 ): Promise<void> => {
-    if (!attachment.uri) return;
-    const rawUri = stripFileScheme(attachment.uri);
+    const safeUri = sanitizeAttachmentUriForSyncMerge(attachment.uri);
+    if (!safeUri) return;
+    const rawUri = stripFileScheme(safeUri);
     if (/^https?:\/\//i.test(rawUri) || rawUri.startsWith('content://')) return;
     try {
         const { remove, BaseDirectory } = await import('@tauri-apps/plugin-fs');
         const { dataDir } = await import('@tauri-apps/api/path');
         const baseDataDir = await dataDir();
-        if (rawUri.startsWith(baseDataDir)) {
-            const relative = rawUri.slice(baseDataDir.length).replace(/^[\\/]/, '');
-            await remove(relative, { baseDir: BaseDirectory.Data });
-        } else {
-            await remove(rawUri);
-        }
+        const normalizePath = (value: string) => value.replace(/\\/g, '/').replace(/\/+$/, '');
+        const normalizedRawUri = normalizePath(rawUri);
+        const normalizedBaseDataDir = normalizePath(baseDataDir);
+        const normalizedAttachmentsDir = normalizePath(`${normalizedBaseDataDir}/${LOCAL_ATTACHMENTS_DIR}`);
+        if (
+            normalizedRawUri === normalizedAttachmentsDir
+            || !normalizedRawUri.startsWith(`${normalizedAttachmentsDir}/`)
+        ) return;
+        const relative = normalizedRawUri.slice(normalizedBaseDataDir.length).replace(/^[\\/]/, '');
+        await remove(relative, { baseDir: BaseDirectory.Data });
     } catch (error) {
         deps.logSyncWarning(`Failed to delete attachment file ${attachment.title}`, error);
     }
@@ -97,7 +104,12 @@ export const cleanupOrphanedAttachments = async (
     const orphaned = findOrphanedAttachments(appData);
     const deletedAttachments = findDeletedAttachmentsForFileCleanup(appData);
     const previousPendingRemoteDeletes = normalizePendingRemoteDeletes(appData.settings.attachments?.pendingRemoteDeletes);
-    const previousPendingByCloudKey = new Map(previousPendingRemoteDeletes.map((item) => [item.cloudKey, item]));
+    const previousPendingByCloudKey = new Map<string, PendingRemoteAttachmentDeleteEntry>();
+    for (const item of previousPendingRemoteDeletes) {
+        const cloudKey = sanitizeAttachmentCloudKeyForSyncMerge(item.cloudKey);
+        if (!cloudKey) continue;
+        previousPendingByCloudKey.set(cloudKey, { ...item, cloudKey });
+    }
     const cleanupTargets = new Map<string, Attachment>();
     const liveResourceReferences = findLiveAttachmentResourceReferences(appData);
     const maybeYield = createCooperativeYield(4);
@@ -108,19 +120,22 @@ export const cleanupOrphanedAttachments = async (
     const remoteCleanupTargets = new Map<string, { cloudKey: string; title: string }>();
     for (const attachment of cleanupTargets.values()) {
         await maybeYield();
-        if (!attachment.cloudKey) continue;
-        if (isAttachmentCloudResourceReferenced(attachment, liveResourceReferences)) continue;
-        remoteCleanupTargets.set(attachment.cloudKey, {
-            cloudKey: attachment.cloudKey,
-            title: attachment.title || attachment.cloudKey,
+        const cloudKey = sanitizeAttachmentCloudKeyForSyncMerge(attachment.cloudKey);
+        if (!cloudKey) continue;
+        if (isAttachmentCloudResourceReferenced({ cloudKey }, liveResourceReferences)) continue;
+        remoteCleanupTargets.set(cloudKey, {
+            cloudKey,
+            title: attachment.title || cloudKey,
         });
     }
     for (const pending of previousPendingRemoteDeletes) {
         await maybeYield();
-        if (isAttachmentCloudResourceReferenced({ cloudKey: pending.cloudKey }, liveResourceReferences)) continue;
-        remoteCleanupTargets.set(pending.cloudKey, {
-            cloudKey: pending.cloudKey,
-            title: pending.title || pending.cloudKey,
+        const cloudKey = sanitizeAttachmentCloudKeyForSyncMerge(pending.cloudKey);
+        if (!cloudKey) continue;
+        if (isAttachmentCloudResourceReferenced({ cloudKey }, liveResourceReferences)) continue;
+        remoteCleanupTargets.set(cloudKey, {
+            cloudKey,
+            title: pending.title || cloudKey,
         });
     }
 
