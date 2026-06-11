@@ -11,10 +11,10 @@ export function findOrphanedAttachments(appData: AppData): Attachment[] {
     const activeReferenceIds = new Set<string>();
 
     for (const task of appData.tasks) {
-        const taskDeleted = Boolean(task.deletedAt);
+        const taskPurged = Boolean(task.purgedAt);
         for (const attachment of task.attachments || []) {
             allAttachments.set(attachment.id, attachment);
-            if (!taskDeleted && !attachment.deletedAt) {
+            if (!taskPurged && !attachment.deletedAt) {
                 activeReferenceIds.add(attachment.id);
             }
         }

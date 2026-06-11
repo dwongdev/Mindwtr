@@ -46,7 +46,7 @@ describe('findOrphanedAttachments', () => {
         expect(orphaned.map((attachment) => attachment.id)).toEqual(['a1']);
     });
 
-    it('detects attachments on deleted tasks', () => {
+    it('keeps attachments on deleted but restorable tasks', () => {
         const data = buildData();
         data.tasks.push({
             id: 't1',
@@ -56,6 +56,33 @@ describe('findOrphanedAttachments', () => {
             createdAt: new Date().toISOString(),
             updatedAt: new Date().toISOString(),
             deletedAt: new Date().toISOString(),
+            attachments: [
+                {
+                    id: 'a1',
+                    kind: 'file',
+                    title: 'file',
+                    uri: '/tmp/file',
+                    createdAt: new Date().toISOString(),
+                    updatedAt: new Date().toISOString(),
+                },
+            ],
+        });
+
+        const orphaned = findOrphanedAttachments(data);
+        expect(orphaned).toHaveLength(0);
+    });
+
+    it('detects attachments on purged tasks', () => {
+        const data = buildData();
+        data.tasks.push({
+            id: 't1',
+            title: 'Task',
+            status: 'done',
+            contexts: [],
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+            deletedAt: new Date().toISOString(),
+            purgedAt: new Date().toISOString(),
             attachments: [
                 {
                     id: 'a1',
@@ -292,6 +319,7 @@ describe('removeOrphanedAttachmentsFromData', () => {
                     createdAt: new Date().toISOString(),
                     updatedAt: new Date().toISOString(),
                     deletedAt: new Date().toISOString(),
+                    purgedAt: new Date().toISOString(),
                     attachments: [
                         {
                             id: 'a1',
@@ -408,6 +436,7 @@ describe('applyAttachmentCleanupResult', () => {
             createdAt: '2026-01-01T00:00:00.000Z',
             updatedAt: '2026-01-01T00:00:00.000Z',
             deletedAt: '2026-01-01T00:00:00.000Z',
+            purgedAt: '2026-01-01T00:00:00.000Z',
             attachments: [
                 {
                     id: 'a1',
@@ -444,6 +473,7 @@ describe('applyAttachmentCleanupResult', () => {
             createdAt: '2026-01-01T00:00:00.000Z',
             updatedAt: '2026-01-01T00:00:00.000Z',
             deletedAt: '2026-01-01T00:00:00.000Z',
+            purgedAt: '2026-01-01T00:00:00.000Z',
             attachments: [
                 {
                     id: 'processed',
