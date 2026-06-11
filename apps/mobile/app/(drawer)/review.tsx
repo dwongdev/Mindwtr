@@ -1,8 +1,18 @@
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { BackHandler, View, Text, FlatList, Pressable, StyleSheet, TouchableOpacity, Modal, TextInput, Share } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useFocusEffect } from '@react-navigation/native';
-import { DEFAULT_AREA_COLOR, useTaskStore, sortTasksBy, shallow, type Task, type TaskStatus, type TaskSortBy } from '@mindwtr/core';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import {
+  DEFAULT_AREA_COLOR,
+  buildBulkOrganizeTaskUpdates,
+  useTaskStore,
+  sortTasksBy,
+  shallow,
+  type BulkOrganizeTaskUpdateInput,
+  type Task,
+  type TaskStatus,
+  type TaskSortBy,
+} from '@mindwtr/core';
 import { useTheme } from '../../contexts/theme-context';
 import { useLanguage } from '../../contexts/language-context';
 import { useMobileAreaFilter } from '@/hooks/use-mobile-area-filter';
@@ -16,6 +26,7 @@ import { logError } from '../../lib/app-log';
 import { TaskEditModal } from '@/components/task-edit-modal';
 import { SwipeableTaskItem } from '@/components/swipeable-task-item';
 import { buildReviewTaskGroups, getReviewOverviewTasks } from '@/components/review/review-task-groups';
+import { TaskListBulkOrganizeModal } from '@/components/task-list/TaskListBulkOrganizeModal';
 
 const HAS_NEXT_ACTION_COLOR = '#10B981';
 const NEEDS_ACTION_COLOR = '#F59E0B';
@@ -43,6 +54,8 @@ export default function ReviewScreen() {
   const [tagModalVisible, setTagModalVisible] = useState(false);
   const [tagInput, setTagInput] = useState('');
   const [moveModalVisible, setMoveModalVisible] = useState(false);
+  const [bulkOrganizeVisible, setBulkOrganizeVisible] = useState(false);
+  const [bulkOrganizeApplying, setBulkOrganizeApplying] = useState(false);
   const [expandedAreaIds, setExpandedAreaIds] = useState<Set<string>>(new Set());
   const [expandedReviewProjectIds, setExpandedReviewProjectIds] = useState<Set<string>>(new Set());
 
@@ -86,7 +99,14 @@ export default function ReviewScreen() {
 
   useEffect(() => {
     const handleBackPress = () => {
-      if (isModalVisible || tagModalVisible || moveModalVisible || showReviewModal || reviewPickerVisible) {
+      if (
+        isModalVisible
+        || tagModalVisible
+        || moveModalVisible
+        || bulkOrganizeVisible
+        || showReviewModal
+        || reviewPickerVisible
+      ) {
         return false;
       }
       if (!selectionMode) return false;
@@ -96,7 +116,16 @@ export default function ReviewScreen() {
 
     const subscription = BackHandler.addEventListener('hardwareBackPress', handleBackPress);
     return () => subscription.remove();
-  }, [selectionMode, exitSelectionMode, isModalVisible, tagModalVisible, moveModalVisible, showReviewModal, reviewPickerVisible]);
+  }, [
+    selectionMode,
+    exitSelectionMode,
+    isModalVisible,
+    tagModalVisible,
+    moveModalVisible,
+    bulkOrganizeVisible,
+    showReviewModal,
+    reviewPickerVisible,
+  ]);
 
   const toggleMultiSelect = useCallback((taskId: string) => {
     if (!selectionMode) setSelectionMode(true);
@@ -160,6 +189,21 @@ export default function ReviewScreen() {
     setTagModalVisible(false);
     exitSelectionMode();
   }, [batchUpdateTasks, selectedIdsArray, tasksById, tagInput, hasSelection, exitSelectionMode]);
+
+  const handleBatchOrganize = useCallback(async (input: BulkOrganizeTaskUpdateInput) => {
+    if (!hasSelection || bulkOrganizeApplying) return;
+    const updates = buildBulkOrganizeTaskUpdates(selectedIdsArray, tasksById, input);
+    if (updates.length === 0) return;
+
+    setBulkOrganizeApplying(true);
+    try {
+      await batchUpdateTasks(updates);
+      setBulkOrganizeVisible(false);
+      exitSelectionMode();
+    } finally {
+      setBulkOrganizeApplying(false);
+    }
+  }, [batchUpdateTasks, bulkOrganizeApplying, exitSelectionMode, hasSelection, selectedIdsArray, tasksById]);
 
   const bulkStatuses: TaskStatus[] = ['inbox', 'next', 'waiting', 'someday', 'reference', 'done'];
 
@@ -317,6 +361,21 @@ export default function ReviewScreen() {
             </TouchableOpacity>
           </View>
           <View style={styles.bulkActions}>
+            <TouchableOpacity
+              onPress={() => setBulkOrganizeVisible(true)}
+              disabled={!hasSelection || bulkOrganizeApplying}
+              style={[
+                styles.bulkActionButton,
+                {
+                  backgroundColor: tc.tint,
+                  opacity: hasSelection && !bulkOrganizeApplying ? 1 : 0.5,
+                },
+              ]}
+            >
+              <Text style={[styles.bulkActionText, { color: tc.onTint }]}>
+                {translateOr('bulk.organize', 'Organize')}
+              </Text>
+            </TouchableOpacity>
             <TouchableOpacity
               onPress={() => setMoveModalVisible(true)}
               disabled={!hasSelection}
@@ -615,6 +674,20 @@ export default function ReviewScreen() {
         </Pressable>
       </Modal>
 
+      <TaskListBulkOrganizeModal
+        areas={sortedAreas}
+        isApplying={bulkOrganizeApplying}
+        onApply={handleBatchOrganize}
+        onClose={() => {
+          if (!bulkOrganizeApplying) setBulkOrganizeVisible(false);
+        }}
+        projects={projects}
+        selectedCount={selectedIdsArray.length}
+        t={t}
+        themeColors={tc}
+        visible={bulkOrganizeVisible}
+      />
+
       <TaskEditModal
         visible={isModalVisible}
         task={editingTask}
@@ -856,6 +929,7 @@ const styles = StyleSheet.create({
   },
   bulkActions: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
     gap: 8,
   },
   bulkActionButton: {
