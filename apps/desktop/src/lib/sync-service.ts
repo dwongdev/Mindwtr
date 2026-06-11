@@ -25,6 +25,7 @@ import {
     buildMergeSummaryLog,
     buildPendingAttachmentUploadLogExtra,
     findPendingAttachmentUploads,
+    findDeletedAttachmentsForFileCleanup,
     findOrphanedAttachments,
     injectExternalCalendars as injectExternalCalendarsForSync,
     persistExternalCalendars as persistExternalCalendarsForSync,
@@ -1968,16 +1969,20 @@ export class SyncService {
             await cleanupAttachmentTempFiles(getAttachmentCleanupDeps());
 
             if (isTauriRuntimeEnv() && shouldRunAttachmentCleanup(mergedData.settings.attachments?.lastCleanupAt, CLEANUP_INTERVAL_MS)) {
-                run.setStep('attachments_cleanup');
-                await yieldToRenderer();
-                run.ensureLocalSnapshotFresh();
-                run.ensureNetworkStillAvailable();
-                const cleanupChangesSyncPayload = findOrphanedAttachments(mergedData).length > 0;
-                mergedData = await cleanupOrphanedAttachments(mergedData, context.backend, getAttachmentCleanupDeps());
-                if (cleanupChangesSyncPayload) {
-                    markFastSyncStateUnsafe();
+                const orphanedAttachments = findOrphanedAttachments(mergedData);
+                const deletedAttachments = findDeletedAttachmentsForFileCleanup(mergedData);
+                const pendingRemoteDeletes = mergedData.settings.attachments?.pendingRemoteDeletes ?? [];
+                if (orphanedAttachments.length > 0 || deletedAttachments.length > 0 || pendingRemoteDeletes.length > 0) {
+                    run.setStep('attachments_cleanup');
+                    await yieldToRenderer();
+                    run.ensureLocalSnapshotFresh();
+                    run.ensureNetworkStillAvailable();
+                    mergedData = await cleanupOrphanedAttachments(mergedData, context.backend, getAttachmentCleanupDeps());
+                    if (orphanedAttachments.length > 0) {
+                        markFastSyncStateUnsafe();
+                    }
+                    await run.persistLocalDataWithTracking(mergedData);
                 }
-                await run.persistLocalDataWithTracking(mergedData);
             }
 
             if (canRecordFastSyncState) {
