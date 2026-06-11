@@ -1,5 +1,5 @@
 import type { RefObject } from 'react';
-import type { SortField, TaskEnergyLevel, TaskPriority, TimeEstimate } from '@mindwtr/core';
+import type { MultiValueFilterMatchMode, SortField, TaskEnergyLevel, TaskPriority, TimeEstimate } from '@mindwtr/core';
 import { Filter, Save, X } from 'lucide-react';
 
 import { cn } from '../../../lib/utils';
@@ -27,11 +27,18 @@ type AgendaFiltersPanelProps = {
     formatEstimate: (estimate: TimeEstimate) => string;
     focusSortBy: SortField;
     canSaveFilter: boolean;
+    contextMatchMode: MultiValueFilterMatchMode;
+    contextMatchModeLabels: {
+        title: string;
+        any: string;
+        all: string;
+    };
     hasFilters: boolean;
     locationFilter: string;
     onSaveFilter: () => void;
     onClearFilters: () => void;
     onLocationChange: (value: string) => void;
+    onContextMatchModeChange: (value: MultiValueFilterMatchMode) => void;
     onSearchChange: (value: string) => void;
     onSortChange: (value: SortField) => void;
     onToggleEnergy: (energyLevel: TaskEnergyLevel) => void;
@@ -65,9 +72,12 @@ export function AgendaFiltersPanel({
     formatEstimate,
     focusSortBy,
     canSaveFilter,
+    contextMatchMode,
+    contextMatchModeLabels,
     hasFilters,
     locationFilter,
     onClearFilters,
+    onContextMatchModeChange,
     onLocationChange,
     onSearchChange,
     onSortChange,
@@ -95,6 +105,9 @@ export function AgendaFiltersPanel({
     timeEstimateOptions,
     timeEstimatesEnabled,
 }: AgendaFiltersPanelProps) {
+    const selectedContextCount = selectedTokens.filter((token) => token.trim().startsWith('@')).length;
+    const showContextMatchMode = selectedContextCount > 1;
+
     return (
         <div id="agenda-filters-panel" className="space-y-3 rounded-lg border border-border/70 bg-card/45 p-3">
             <div className="flex items-center justify-between">
@@ -204,6 +217,32 @@ export function AgendaFiltersPanel({
                     </div>
                     <div className="space-y-2">
                         <div className="text-xs uppercase tracking-wide text-muted-foreground">{t('filters.contexts')}</div>
+                        {showContextMatchMode && (
+                            <div className="flex flex-wrap items-center gap-2">
+                                <span className="text-xs text-muted-foreground">{contextMatchModeLabels.title}</span>
+                                <div className="inline-flex rounded-full border border-border bg-muted/50 p-0.5">
+                                    {(['any', 'all'] as const).map((mode) => {
+                                        const isActive = contextMatchMode === mode;
+                                        return (
+                                            <button
+                                                key={mode}
+                                                type="button"
+                                                onClick={() => onContextMatchModeChange(mode)}
+                                                aria-pressed={isActive}
+                                                className={cn(
+                                                    'rounded-full px-2.5 py-1 text-xs font-medium transition-colors',
+                                                    isActive
+                                                        ? 'bg-primary text-primary-foreground'
+                                                        : 'text-muted-foreground hover:text-foreground',
+                                                )}
+                                            >
+                                                {mode === 'any' ? contextMatchModeLabels.any : contextMatchModeLabels.all}
+                                            </button>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+                        )}
                         <div className="flex max-h-32 flex-wrap gap-2 overflow-y-auto">
                             {allTokens.map((token) => {
                                 const isActive = selectedTokens.includes(token);

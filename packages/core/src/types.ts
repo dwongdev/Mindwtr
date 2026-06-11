@@ -227,12 +227,15 @@ export type SortField =
 
 export type FilterPriority = 'none' | TaskPriority;
 
+export type MultiValueFilterMatchMode = 'any' | 'all';
+
 export type DateRange =
     | { preset: 'today' | 'this_week' | 'this_month' | 'overdue' | 'no_date' }
     | { from?: string; to?: string };
 
 export interface FilterCriteria {
     contexts?: string[];
+    contextMatchMode?: MultiValueFilterMatchMode;
     areas?: string[];
     projects?: string[];
     tags?: string[];

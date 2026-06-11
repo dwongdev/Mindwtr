@@ -1,6 +1,6 @@
 import React from 'react';
 import { Modal, Pressable, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
-import type { TaskEnergyLevel, TaskPriority, TimeEstimate } from '@mindwtr/core';
+import type { MultiValueFilterMatchMode, TaskEnergyLevel, TaskPriority, TimeEstimate } from '@mindwtr/core';
 import { X } from 'lucide-react-native';
 
 import { MOBILE_TIME_ESTIMATE_OPTIONS, formatTimeEstimateChipLabel } from '../time-estimate-filter-utils';
@@ -21,7 +21,14 @@ type TaskListFiltersSheetProps = {
   energyLevelOptions: TaskEnergyLevel[];
   extraContent?: React.ReactNode;
   hasFilters: boolean;
+  contextMatchMode: MultiValueFilterMatchMode;
+  contextMatchModeLabels: {
+    title: string;
+    any: string;
+    all: string;
+  };
   locationQuery: string;
+  onChangeContextMatchMode: (value: MultiValueFilterMatchMode) => void;
   onChangeLocationQuery: (value: string) => void;
   onChangeSearchQuery: (value: string) => void;
   onClearFilters: () => void;
@@ -33,6 +40,7 @@ type TaskListFiltersSheetProps = {
   selectedPriorities: TaskPriority[];
   selectedTimeEstimates: TimeEstimate[];
   selectedTokens: string[];
+  showContextMatchMode: boolean;
   showLocationFilter: boolean;
   showTimeEstimateFilters: boolean;
   t: (key: string) => string;
@@ -55,7 +63,10 @@ export function TaskListFiltersSheet({
   energyLevelOptions,
   extraContent,
   hasFilters,
+  contextMatchMode,
+  contextMatchModeLabels,
   locationQuery,
+  onChangeContextMatchMode,
   onChangeLocationQuery,
   onChangeSearchQuery,
   onClearFilters,
@@ -67,6 +78,7 @@ export function TaskListFiltersSheet({
   selectedPriorities,
   selectedTimeEstimates,
   selectedTokens,
+  showContextMatchMode,
   showLocationFilter,
   showTimeEstimateFilters,
   t,
@@ -171,6 +183,36 @@ export function TaskListFiltersSheet({
                 <View style={styles.taskFilterChipRow}>
                   {tokenOptions.map((token) => renderChip(token, selectedTokens.includes(token), () => toggleToken(token), `token:${token}`))}
                 </View>
+                {showContextMatchMode ? (
+                  <View style={styles.taskFilterMatchModeRow}>
+                    <Text style={[styles.taskFilterMatchModeLabel, { color: themeColors.secondaryText }]}>
+                      {contextMatchModeLabels.title}
+                    </Text>
+                    <View style={[styles.taskFilterMatchModeControl, { borderColor: themeColors.border, backgroundColor: themeColors.filterBg }]}>
+                      {(['any', 'all'] as const).map((mode) => (
+                        <TouchableOpacity
+                          key={mode}
+                          accessibilityRole="button"
+                          accessibilityState={{ selected: contextMatchMode === mode }}
+                          onPress={() => onChangeContextMatchMode(mode)}
+                          style={[
+                            styles.taskFilterMatchModeButton,
+                            { backgroundColor: contextMatchMode === mode ? themeColors.tint : 'transparent' },
+                          ]}
+                        >
+                          <Text
+                            style={[
+                              styles.taskFilterMatchModeButtonText,
+                              { color: contextMatchMode === mode ? themeColors.onTint : themeColors.secondaryText },
+                            ]}
+                          >
+                            {mode === 'any' ? contextMatchModeLabels.any : contextMatchModeLabels.all}
+                          </Text>
+                        </TouchableOpacity>
+                      ))}
+                    </View>
+                  </View>
+                ) : null}
               </>
             ) : null}
 

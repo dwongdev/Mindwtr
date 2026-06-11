@@ -49,6 +49,7 @@ import {
   type TimeEstimate,
   type FocusGroupBy,
   type FilterCriteria,
+  type MultiValueFilterMatchMode,
   type SavedFilter,
   type SortField,
   type ProjectDeadlineBoost,
@@ -176,9 +177,11 @@ function buildFocusFilterCriteria({
   locations,
   priorities,
   projects,
+  contextMatchMode,
   timeEstimates,
   tokens,
 }: {
+  contextMatchMode: MultiValueFilterMatchMode;
   energyLevels: TaskEnergyLevel[];
   locations: string[];
   priorities: TaskPriority[];
@@ -190,6 +193,7 @@ function buildFocusFilterCriteria({
   const tags = tokens.filter((token) => token.trim().startsWith('#'));
   return {
     ...(contexts.length > 0 ? { contexts } : {}),
+    ...(contexts.length > 1 ? { contextMatchMode } : {}),
     ...(tags.length > 0 ? { tags } : {}),
     ...(projects.length > 0 ? { projects } : {}),
     ...(locations.length > 0 ? { locations } : {}),
@@ -318,6 +322,7 @@ export default function FocusScreen() {
   const [selectedEnergyLevels, setSelectedEnergyLevels] = useState<TaskEnergyLevel[]>([]);
   const [selectedTimeEstimates, setSelectedTimeEstimates] = useState<TimeEstimate[]>([]);
   const [locationFilter, setLocationFilter] = useState('');
+  const [contextMatchMode, setContextMatchMode] = useState<MultiValueFilterMatchMode>('all');
   const [activeSavedFilterId, setActiveSavedFilterId] = useState<string | null>(null);
   const [focusSortBy, setFocusSortBy] = useState<SortField>(DEFAULT_FOCUS_SORT_BY);
   const [saveFilterDialogVisible, setSaveFilterDialogVisible] = useState(false);
@@ -396,8 +401,10 @@ export default function FocusScreen() {
     locations: locationFilter.trim() ? [locationFilter.trim()] : [],
     priorities: prioritiesEnabled ? selectedPriorities : [],
     energyLevels: selectedEnergyLevels,
+    contextMatchMode,
     timeEstimates: timeEstimatesEnabled ? selectedTimeEstimates : [],
   }), [
+    contextMatchMode,
     locationFilter,
     prioritiesEnabled,
     selectedEnergyLevels,
@@ -408,6 +415,7 @@ export default function FocusScreen() {
     timeEstimatesEnabled,
   ]);
   const rawEffectiveFilterCriteria = activeSavedFilter?.criteria ?? currentFilterCriteria;
+  const effectiveContextMatchMode = rawEffectiveFilterCriteria.contextMatchMode ?? 'all';
   const effectiveFilterCriteria = useMemo<FilterCriteria>(() => ({
     ...rawEffectiveFilterCriteria,
     ...(prioritiesEnabled ? {} : { priority: undefined }),
@@ -639,6 +647,10 @@ export default function FocusScreen() {
       current.includes(estimate) ? current.filter((item) => item !== estimate) : [...current, estimate]
     ));
   }, []);
+  const updateContextMatchMode = useCallback((mode: MultiValueFilterMatchMode) => {
+    setActiveSavedFilterId(null);
+    setContextMatchMode(mode);
+  }, []);
   const updateLocationFilter = useCallback((value: string) => {
     setActiveSavedFilterId(null);
     setLocationFilter(value);
@@ -652,6 +664,7 @@ export default function FocusScreen() {
     setSelectedPriorities([]);
     setSelectedEnergyLevels([]);
     setSelectedTimeEstimates([]);
+    setContextMatchMode('all');
   }, []);
   const applySavedFocusFilter = useCallback((filter: SavedFilter) => {
     const criteria = filter.criteria ?? {};
@@ -666,6 +679,7 @@ export default function FocusScreen() {
     )));
     setSelectedEnergyLevels((criteria.energy ?? []).filter((energy): energy is TaskEnergyLevel => energySet.has(energy)));
     setSelectedTimeEstimates((criteria.timeEstimates ?? []).filter((estimate): estimate is TimeEstimate => estimateSet.has(estimate)));
+    setContextMatchMode(criteria.contextMatchMode ?? 'all');
     setFocusSortBy(filter.sortBy ?? DEFAULT_FOCUS_SORT_BY);
     setActiveSavedFilterId(filter.id);
     setFiltersVisible(false);
@@ -1174,6 +1188,11 @@ export default function FocusScreen() {
     setSaveFilterName(defaultName);
     setSaveFilterDialogVisible(true);
   }, [activeFilterChips, resolveText]);
+  const selectedContextCount = useMemo(
+    () => selectedTokens.filter((token) => token.trim().startsWith('@')).length,
+    [selectedTokens],
+  );
+  const showContextMatchMode = selectedContextCount > 1;
   const emptyTitle = hasFilters ? resolveText('filters.noMatch', 'No tasks match these filters.') : t('agenda.allClear');
   const emptySubtitle = hasFilters ? resolveText('filters.label', 'Filters') : t('agenda.noTasks');
   const pomodoroTasks = useMemo(() => {
@@ -1657,6 +1676,36 @@ export default function FocusScreen() {
                   <View style={styles.sheetChipRow}>
                     {tokenOptions.map((token) => renderFilterChip(token, selectedTokens.includes(token), () => toggleToken(token)))}
                   </View>
+                  {showContextMatchMode ? (
+                    <View style={styles.matchModeRow}>
+                      <Text style={[styles.matchModeLabel, { color: tc.secondaryText }]}>
+                        {resolveText('filters.contextMatchMode', 'Context match')}
+                      </Text>
+                      <View style={[styles.matchModeControl, { borderColor: tc.border, backgroundColor: tc.filterBg }]}>
+                        {(['any', 'all'] as const).map((mode) => (
+                          <TouchableOpacity
+                            key={mode}
+                            accessibilityRole="button"
+                            accessibilityState={{ selected: effectiveContextMatchMode === mode }}
+                            onPress={() => updateContextMatchMode(mode)}
+                            style={[
+                              styles.matchModeButton,
+                              { backgroundColor: effectiveContextMatchMode === mode ? tc.tint : 'transparent' },
+                            ]}
+                          >
+                            <Text
+                              style={[
+                                styles.matchModeButtonText,
+                                { color: effectiveContextMatchMode === mode ? tc.onTint : tc.secondaryText },
+                              ]}
+                            >
+                              {mode === 'any' ? resolveText('filters.matchAny', 'Any') : resolveText('common.all', 'All')}
+                            </Text>
+                          </TouchableOpacity>
+                        ))}
+                      </View>
+                    </View>
+                  ) : null}
                 </>
               ) : null}
 
@@ -2245,6 +2294,35 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: 8,
+  },
+  matchModeRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    alignItems: 'center',
+    gap: 8,
+  },
+  matchModeLabel: {
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  matchModeControl: {
+    minHeight: 36,
+    flexDirection: 'row',
+    borderWidth: 1,
+    borderRadius: 18,
+    padding: 2,
+  },
+  matchModeButton: {
+    minWidth: 52,
+    minHeight: 30,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 15,
+    paddingHorizontal: 10,
+  },
+  matchModeButtonText: {
+    fontSize: 12,
+    fontWeight: '700',
   },
   sheetInput: {
     minHeight: 44,

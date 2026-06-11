@@ -14,6 +14,7 @@ const emptyFilters: MobileTaskListFilters = {
   searchQuery: '',
   timeEstimates: [],
   tokens: [],
+  contextMatchMode: 'all',
 };
 
 const task: Task = {
@@ -61,6 +62,24 @@ describe('task-list-filter-utils', () => {
     expect(taskMatchesMobileTaskFilters(task, { ...emptyFilters, tokens: ['@work', '#client'] })).toBe(true);
     expect(taskMatchesMobileTaskFilters(task, { ...emptyFilters, tokens: ['@workshop'] })).toBe(false);
     expect(taskMatchesMobileTaskFilters(task, { ...emptyFilters, tokens: ['#ops'] })).toBe(false);
+  });
+
+  it('can match any selected context while keeping tag filters required', () => {
+    expect(taskMatchesMobileTaskFilters(task, {
+      ...emptyFilters,
+      tokens: ['@work', '@phone'],
+      contextMatchMode: 'all',
+    })).toBe(false);
+    expect(taskMatchesMobileTaskFilters(task, {
+      ...emptyFilters,
+      tokens: ['@work', '@phone'],
+      contextMatchMode: 'any',
+    })).toBe(true);
+    expect(taskMatchesMobileTaskFilters(task, {
+      ...emptyFilters,
+      tokens: ['@work', '@phone', '#ops'],
+      contextMatchMode: 'any',
+    })).toBe(false);
   });
 
   it('matches priority, energy, time estimate, and location filters', () => {

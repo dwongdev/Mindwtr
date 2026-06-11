@@ -1,4 +1,4 @@
-import type { Task, TaskEnergyLevel, TaskPriority, TimeEstimate } from '@mindwtr/core';
+import type { MultiValueFilterMatchMode, Task, TaskEnergyLevel, TaskPriority, TimeEstimate } from '@mindwtr/core';
 import { matchesHierarchicalToken, matchesTask, parseSearchQuery, timeEstimateToFilterBucket } from '@mindwtr/core';
 
 export type MobileTaskListFilters = {
@@ -8,6 +8,7 @@ export type MobileTaskListFilters = {
   searchQuery: string;
   timeEstimates: TimeEstimate[];
   tokens: string[];
+  contextMatchMode: MultiValueFilterMatchMode;
 };
 
 const normalize = (value: string | undefined): string => value?.trim().toLowerCase() ?? '';
@@ -44,11 +45,17 @@ export const taskMatchesMobileTaskFilters = (
   }
 
   if (filters.tokens.length > 0) {
-    const taskTokens = [...(task.contexts ?? []), ...(task.tags ?? [])];
-    const matchesAll = filters.tokens.every((token) =>
-      taskTokens.some((taskToken) => matchesHierarchicalToken(token, taskToken))
+    const contextTokens = filters.tokens.filter((token) => token.trim().startsWith('@'));
+    const tagTokens = filters.tokens.filter((token) => token.trim().startsWith('#'));
+    const matchesContext = contextTokens.length === 0 || (
+      filters.contextMatchMode === 'any'
+        ? contextTokens.some((token) => (task.contexts ?? []).some((taskToken) => matchesHierarchicalToken(token, taskToken)))
+        : contextTokens.every((token) => (task.contexts ?? []).some((taskToken) => matchesHierarchicalToken(token, taskToken)))
     );
-    if (!matchesAll) return false;
+    const matchesTags = tagTokens.every((token) =>
+      (task.tags ?? []).some((taskToken) => matchesHierarchicalToken(token, taskToken))
+    );
+    if (!matchesContext || !matchesTags) return false;
   }
 
   if (filters.priorities.length > 0 && (!task.priority || !filters.priorities.includes(task.priority))) {

@@ -51,6 +51,22 @@ describe('saved filters', () => {
         expect(filtered.map((item) => item.id)).toEqual(['desk-phone']);
     });
 
+    it('can override context matching to any while keeping tag matching strict', () => {
+        const tasks = [
+            task({ id: 'desk-urgent', contexts: ['@desk'], tags: ['#urgent'] }),
+            task({ id: 'phone-urgent', contexts: ['@phone'], tags: ['#urgent'] }),
+            task({ id: 'desk-later', contexts: ['@desk'], tags: ['#later'] }),
+        ];
+
+        const filtered = applyFilter(tasks, {
+            contexts: ['@desk', '@phone'],
+            contextMatchMode: 'any',
+            tags: ['#urgent'],
+        }, { tokenMatchMode: 'all' });
+
+        expect(filtered.map((item) => item.id)).toEqual(['desk-urgent', 'phone-urgent']);
+    });
+
     it('supports due date presets and no-project filters', () => {
         const now = new Date('2026-05-09T12:00:00.000Z');
         const tasks = [
@@ -115,6 +131,7 @@ describe('saved filters', () => {
                 view: 'focus',
                 criteria: {
                     contexts: ['desk', '@desk'],
+                    contextMatchMode: 'any',
                     priority: ['high', 'invalid'],
                     locations: [' Office ', ''],
                 },
@@ -134,6 +151,7 @@ describe('saved filters', () => {
             name: 'Desk',
             criteria: {
                 contexts: ['@desk'],
+                contextMatchMode: 'any',
                 priority: ['high'],
                 locations: ['Office'],
             },

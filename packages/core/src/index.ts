@@ -22,6 +22,7 @@ export type {
     GtdSettings,
     MigrationSettings,
     MobileQuickAccessView,
+    MultiValueFilterMatchMode,
     NotificationSettings,
     Recurrence,
     RecurrenceByDay,

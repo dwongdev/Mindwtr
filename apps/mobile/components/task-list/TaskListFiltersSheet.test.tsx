@@ -26,7 +26,14 @@ const createProps = (
 ): React.ComponentProps<typeof TaskListFiltersSheet> => ({
   energyLevelOptions: ['low', 'medium', 'high'] as TaskEnergyLevel[],
   hasFilters: false,
+  contextMatchMode: 'all',
+  contextMatchModeLabels: {
+    title: 'Context match',
+    any: 'Any',
+    all: 'All',
+  },
   locationQuery: '',
+  onChangeContextMatchMode: vi.fn(),
   onChangeLocationQuery: vi.fn(),
   onChangeSearchQuery: vi.fn(),
   onClearFilters: vi.fn(),
@@ -38,6 +45,7 @@ const createProps = (
   selectedPriorities: [],
   selectedTimeEstimates: [],
   selectedTokens: [],
+  showContextMatchMode: false,
   showLocationFilter: false,
   showTimeEstimateFilters: false,
   t: (key: string) => ({
@@ -101,5 +109,41 @@ describe('TaskListFiltersSheet', () => {
     expect(searchLabelIndex).toBeGreaterThanOrEqual(0);
     expect(searchInputIndex).toBeGreaterThan(searchLabelIndex);
     expect(extraContentIndex).toBeGreaterThan(searchInputIndex);
+  });
+
+  it('shows the context match mode control only when requested', () => {
+    const onChangeContextMatchMode = vi.fn();
+    let tree!: ReturnType<typeof create>;
+
+    act(() => {
+      tree = create(
+        <TaskListFiltersSheet
+          {...createProps({
+            contextMatchMode: 'any',
+            onChangeContextMatchMode,
+            selectedTokens: ['@desk', '@phone'],
+            showContextMatchMode: true,
+            tokenOptions: ['@desk', '@phone'],
+          })}
+        />
+      );
+    });
+
+    const anyButton = tree.root.find((node) => (
+      node.props.accessibilityRole === 'button'
+      && node.findAllByType(Text).some((textNode) => textNode.props.children === 'Any')
+    ));
+    const allButton = tree.root.find((node) => (
+      node.props.accessibilityRole === 'button'
+      && node.findAllByType(Text).some((textNode) => textNode.props.children === 'All')
+    ));
+
+    expect(anyButton.props.accessibilityState).toEqual({ selected: true });
+
+    act(() => {
+      allButton.props.onPress();
+    });
+
+    expect(onChangeContextMatchMode).toHaveBeenCalledWith('all');
   });
 });

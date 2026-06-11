@@ -26,6 +26,7 @@ import {
   tFallback,
   isSelectableProjectForTaskAssignment,
   isTaskInActiveProject,
+  type MultiValueFilterMatchMode,
 } from '@mindwtr/core';
 
 import { TaskEditModal } from './task-edit-modal';
@@ -242,6 +243,7 @@ function TaskListComponent({
   const [taskSearchQuery, setTaskSearchQuery] = useState('');
   const [locationFilter, setLocationFilter] = useState('');
   const [selectedTokens, setSelectedTokens] = useState<string[]>([]);
+  const [contextMatchMode, setContextMatchMode] = useState<MultiValueFilterMatchMode>('all');
   const [selectedPriorities, setSelectedPriorities] = useState<TaskPriority[]>([]);
   const [selectedEnergyLevels, setSelectedEnergyLevels] = useState<TaskEnergyLevel[]>([]);
   const [selectedTimeEstimates, setSelectedTimeEstimates] = useState<TimeEstimate[]>([]);
@@ -467,6 +469,7 @@ function TaskListComponent({
     setTaskSearchQuery('');
     setLocationFilter('');
     setSelectedTokens([]);
+    setContextMatchMode('all');
     setSelectedPriorities([]);
     setSelectedEnergyLevels([]);
     setSelectedTimeEstimates([]);
@@ -504,7 +507,9 @@ function TaskListComponent({
     searchQuery: taskSearchQuery,
     timeEstimates: showTimeEstimateFilters ? selectedTimeEstimates : [],
     tokens: selectedTokens,
+    contextMatchMode,
   }), [
+    contextMatchMode,
     locationFilter,
     prioritiesEnabled,
     selectedEnergyLevels,
@@ -584,6 +589,14 @@ function TaskListComponent({
     toggleTimeEstimate,
     toggleTokenFilter,
   ]);
+  const selectedContextCount = useMemo(
+    () => selectedTokens.filter((token) => token.trim().startsWith('@')).length,
+    [selectedTokens],
+  );
+  const showContextMatchMode = selectedContextCount > 1;
+  const updateContextMatchMode = useCallback((mode: MultiValueFilterMatchMode) => {
+    setContextMatchMode(mode);
+  }, []);
   const filteredEmptyMessage = hasActiveTaskFilters
     ? tFallback(t, 'filters.noMatch', 'No tasks match these filters.')
     : emptyMessage;
@@ -1552,6 +1565,14 @@ function TaskListComponent({
         selectedPriorities={selectedPriorities}
         selectedTimeEstimates={selectedTimeEstimates}
         selectedTokens={selectedTokens}
+        contextMatchMode={contextMatchMode}
+        contextMatchModeLabels={{
+          title: tFallback(t, 'filters.contextMatchMode', 'Context match'),
+          any: tFallback(t, 'filters.matchAny', 'Any'),
+          all: tFallback(t, 'common.all', 'All'),
+        }}
+        onChangeContextMatchMode={updateContextMatchMode}
+        showContextMatchMode={showContextMatchMode}
         showLocationFilter={showLocationFilter}
         showTimeEstimateFilters={showTimeEstimateFilters}
         t={t}

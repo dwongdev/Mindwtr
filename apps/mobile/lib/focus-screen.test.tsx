@@ -1036,6 +1036,42 @@ describe('FocusScreen', () => {
     ).toEqual(['desk-task', 'phone-task']);
   });
 
+  it('can switch multiple context filters from all to any matching', () => {
+    storeState.tasks = [
+      makeTask('desk-task', { title: 'Desk task', contexts: ['@desk'] }),
+      makeTask('phone-task', { title: 'Phone task', contexts: ['@phone'] }),
+      makeTask('desk-phone-task', { title: 'Desk and phone task', contexts: ['@desk', '@phone'] }),
+    ];
+
+    let tree!: ReturnType<typeof create>;
+
+    act(() => {
+      tree = create(<FocusScreen />);
+    });
+
+    act(() => {
+      findButtonByLabel(tree, 'Filters').props.onPress();
+    });
+    act(() => {
+      findButtonByText(tree, '@desk').props.onPress();
+    });
+    act(() => {
+      findButtonByText(tree, '@phone').props.onPress();
+    });
+
+    expect(
+      tree.root.findAllByType(SwipeableTaskItem).map((node) => node.props.task.id),
+    ).toEqual(['desk-phone-task']);
+
+    act(() => {
+      findButtonByText(tree, 'Any').props.onPress();
+    });
+
+    expect(
+      tree.root.findAllByType(SwipeableTaskItem).map((node) => node.props.task.id).sort(),
+    ).toEqual(['desk-phone-task', 'desk-task', 'phone-task']);
+  });
+
   it('deletes the active saved Focus filter from the chip row', async () => {
     const alertSpy = vi.spyOn(Alert, 'alert').mockImplementation((_title, _message, buttons) => {
       buttons?.find((button) => button.style === 'destructive')?.onPress?.();
@@ -1177,6 +1213,56 @@ describe('FocusScreen', () => {
         name: 'High energy preset',
         view: 'focus',
         criteria: { energy: ['high'] },
+      })],
+    });
+  });
+
+  it('saves context any matching in Focus filters', async () => {
+    storeState.updateSettings.mockResolvedValue(undefined);
+    storeState.tasks = [
+      makeTask('desk-task', { contexts: ['@desk'] }),
+      makeTask('phone-task', { contexts: ['@phone'] }),
+    ];
+
+    let tree!: ReturnType<typeof create>;
+
+    act(() => {
+      tree = create(<FocusScreen />);
+    });
+
+    act(() => {
+      findButtonByLabel(tree, 'Filters').props.onPress();
+    });
+    act(() => {
+      findButtonByText(tree, '@desk').props.onPress();
+    });
+    act(() => {
+      findButtonByText(tree, '@phone').props.onPress();
+    });
+    act(() => {
+      findButtonByText(tree, 'Any').props.onPress();
+    });
+    act(() => {
+      findButtonByText(tree, 'Save', { last: true }).props.onPress();
+    });
+
+    const inputs = tree.root.findAllByType(TextInput);
+    const input = inputs[inputs.length - 1];
+    await act(async () => {
+      input.props.onChangeText('Desk or phone');
+    });
+    await act(async () => {
+      findButtonByText(tree, 'Save', { last: true }).props.onPress();
+    });
+
+    expect(storeState.updateSettings).toHaveBeenCalledWith({
+      savedFilters: [expect.objectContaining({
+        name: 'Desk or phone',
+        view: 'focus',
+        criteria: {
+          contexts: ['@desk', '@phone'],
+          contextMatchMode: 'any',
+        },
       })],
     });
   });

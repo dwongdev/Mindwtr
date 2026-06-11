@@ -2,7 +2,7 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } fr
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { ErrorBoundary } from '../ErrorBoundary';
 import { shallow, useTaskStore, TaskPriority, TimeEstimate, applyFilter, buildAdvancedFilterCriteriaChips, removeAdvancedFilterCriteriaChip, formatFocusTaskLimitText, formatTimeEstimateLabel, generateUUID, getUsedTaskTokens, getFocusSequentialFirstTaskIds, getProjectDeadlineBoosts, hasActiveFilterCriteria, markSavedFilterDeleted, normalizeFocusTaskLimit, safeParseDate, safeParseDueDate, isDueForReview, isTaskInActiveProject, SAVED_FILTER_NO_PROJECT_ID, shouldShowTaskForStart, sortFocusNextActions, sortTasksBySavedPreference, translateWithFallback } from '@mindwtr/core';
-import type { FilterCriteria, FocusGroupBy, ProjectDeadlineBoost, SavedFilter, SortField, Task, TaskEnergyLevel } from '@mindwtr/core';
+import type { FilterCriteria, FocusGroupBy, MultiValueFilterMatchMode, ProjectDeadlineBoost, SavedFilter, SortField, Task, TaskEnergyLevel } from '@mindwtr/core';
 import { useLanguage } from '../../contexts/language-context';
 import { cn } from '../../lib/utils';
 import { useUiStore } from '../../store/ui-store';
@@ -92,9 +92,11 @@ function buildFocusFilterCriteria({
     priorities,
     energyLevels,
     projects,
+    contextMatchMode,
     timeEstimates,
     tokens,
 }: {
+    contextMatchMode: MultiValueFilterMatchMode;
     energyLevels: TaskEnergyLevel[];
     locations: string[];
     priorities: TaskPriority[];
@@ -106,6 +108,7 @@ function buildFocusFilterCriteria({
     const tags = tokens.filter((token) => token.trim().startsWith('#'));
     return {
         ...(contexts.length > 0 ? { contexts } : {}),
+        ...(contexts.length > 1 ? { contextMatchMode } : {}),
         ...(tags.length > 0 ? { tags } : {}),
         ...(projects.length > 0 ? { projects } : {}),
         ...(locations.length > 0 ? { locations } : {}),
@@ -268,6 +271,7 @@ export function AgendaView() {
     const [selectedEnergyLevels, setSelectedEnergyLevels] = useState<TaskEnergyLevel[]>([]);
     const [selectedTimeEstimates, setSelectedTimeEstimates] = useState<TimeEstimate[]>([]);
     const [selectedProjects, setSelectedProjects] = useState<string[]>([]);
+    const [contextMatchMode, setContextMatchMode] = useState<MultiValueFilterMatchMode>('all');
     const [locationFilter, setLocationFilter] = useState('');
     const [searchQuery, setSearchQuery] = useState('');
     const [filtersOpen, setFiltersOpen] = useState(false);
@@ -352,6 +356,7 @@ export function AgendaView() {
     const effectiveNextGroupBy = normalizeAgendaGroupBy(activeSavedFilter?.groupBy ?? nextGroupBy);
     const currentFilterCriteria = buildFocusFilterCriteria({
         tokens: selectedTokens,
+        contextMatchMode,
         projects: selectedProjects,
         locations: locationFilter.trim() ? [locationFilter.trim()] : [],
         priorities: activePriorities,
@@ -359,6 +364,7 @@ export function AgendaView() {
         timeEstimates: activeTimeEstimates,
     });
     const rawEffectiveFilterCriteria = activeSavedFilter?.criteria ?? currentFilterCriteria;
+    const effectiveContextMatchMode = rawEffectiveFilterCriteria.contextMatchMode ?? 'all';
     const effectiveFilterCriteria: FilterCriteria = {
         ...rawEffectiveFilterCriteria,
         ...(prioritiesEnabled ? {} : { priority: undefined }),
@@ -577,6 +583,10 @@ export function AgendaView() {
             prev.includes(estimate) ? prev.filter((item) => item !== estimate) : [...prev, estimate]
         );
     };
+    const updateContextMatchMode = useCallback((mode: MultiValueFilterMatchMode) => {
+        setActiveSavedFilterId(null);
+        setContextMatchMode(mode);
+    }, []);
     const updateLocationFilter = (value: string) => {
         setActiveSavedFilterId(null);
         setLocationFilter(value);
@@ -598,6 +608,7 @@ export function AgendaView() {
         setSelectedPriorities([]);
         setSelectedEnergyLevels([]);
         setSelectedTimeEstimates([]);
+        setContextMatchMode('all');
     };
     const clearAllFilters = () => {
         clearFilters();
@@ -616,6 +627,7 @@ export function AgendaView() {
         )));
         setSelectedEnergyLevels((criteria.energy ?? []).filter((energy): energy is TaskEnergyLevel => energySet.has(energy)));
         setSelectedTimeEstimates((criteria.timeEstimates ?? []).filter((estimate): estimate is TimeEstimate => estimateSet.has(estimate)));
+        setContextMatchMode(criteria.contextMatchMode ?? 'all');
         setFocusSortBy(filter.sortBy ?? DEFAULT_FOCUS_SORT_BY);
         setActiveSavedFilterId(filter.id);
         setFiltersOpen(false);
@@ -1016,6 +1028,12 @@ export function AgendaView() {
                     allTokens={allTokens}
                     activeFilterChips={activeFilterChips}
                     canSaveFilter={canSaveFocusPerspective}
+                    contextMatchMode={effectiveContextMatchMode}
+                    contextMatchModeLabels={{
+                        title: resolveText('filters.contextMatchMode', 'Context match'),
+                        any: resolveText('filters.matchAny', 'Any'),
+                        all: resolveText('common.all', 'All'),
+                    }}
                     energyLevelOptions={energyLevelOptions}
                     focusSortBy={effectiveFocusSortBy}
                     formatEstimate={formatEstimate}
@@ -1024,6 +1042,7 @@ export function AgendaView() {
                     onClearFilters={clearAllFilters}
                     onLocationChange={updateLocationFilter}
                     onSaveFilter={() => setSaveFilterPromptOpen(true)}
+                    onContextMatchModeChange={updateContextMatchMode}
                     onSearchChange={setSearchQuery}
                     onSortChange={updateFocusSortBy}
                     onToggleEnergy={toggleEnergyFilter}

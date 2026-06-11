@@ -522,6 +522,35 @@ export const styles = StyleSheet.create({
     flexWrap: 'wrap',
     gap: 8,
   },
+  taskFilterMatchModeRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    alignItems: 'center',
+    gap: 8,
+  },
+  taskFilterMatchModeLabel: {
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  taskFilterMatchModeControl: {
+    minHeight: 36,
+    flexDirection: 'row',
+    borderWidth: 1,
+    borderRadius: 18,
+    padding: 2,
+  },
+  taskFilterMatchModeButton: {
+    minWidth: 52,
+    minHeight: 30,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 15,
+    paddingHorizontal: 10,
+  },
+  taskFilterMatchModeButtonText: {
+    fontSize: 12,
+    fontWeight: '700',
+  },
   taskFilterChip: {
     borderWidth: 1,
     borderRadius: 999,

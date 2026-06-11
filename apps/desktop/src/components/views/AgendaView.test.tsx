@@ -1025,6 +1025,64 @@ describe('AgendaView', () => {
         expect(getByText('No tasks match these filters.')).toBeInTheDocument();
     });
 
+    it('can switch multiple context filters from all to any matching', () => {
+        const deskTask: Task = {
+            id: 'desk-task',
+            title: 'Desk task',
+            status: 'next',
+            contexts: ['@desk'],
+            tags: [],
+            createdAt: nowIso,
+            updatedAt: nowIso,
+        };
+        const phoneTask: Task = {
+            id: 'phone-task',
+            title: 'Phone task',
+            status: 'next',
+            contexts: ['@phone'],
+            tags: [],
+            createdAt: nowIso,
+            updatedAt: nowIso,
+        };
+        const deskPhoneTask: Task = {
+            id: 'desk-phone-task',
+            title: 'Desk and phone task',
+            status: 'next',
+            contexts: ['@desk', '@phone'],
+            tags: [],
+            createdAt: nowIso,
+            updatedAt: nowIso,
+        };
+
+        useTaskStore.setState({
+            tasks: [deskTask, phoneTask, deskPhoneTask],
+            _allTasks: [deskTask, phoneTask, deskPhoneTask],
+            projects: [],
+            _allProjects: [],
+            areas: [],
+            _allAreas: [],
+            settings: {},
+            error: null,
+            highlightTaskId: null,
+        });
+
+        const { getByRole, getByText, queryByText } = renderAgenda();
+
+        fireEvent.click(getByRole('button', { name: /^Filters$/i }));
+        fireEvent.click(getByRole('button', { name: '@desk' }));
+        fireEvent.click(getByRole('button', { name: '@phone' }));
+
+        expect(queryByText('Desk task')).not.toBeInTheDocument();
+        expect(queryByText('Phone task')).not.toBeInTheDocument();
+        expect(getByText('Desk and phone task')).toBeInTheDocument();
+
+        fireEvent.click(getByRole('button', { name: 'Any' }));
+
+        expect(getByText('Desk task')).toBeInTheDocument();
+        expect(getByText('Phone task')).toBeInTheDocument();
+        expect(getByText('Desk and phone task')).toBeInTheDocument();
+    });
+
     it('shows store errors inside the Agenda surface', () => {
         useTaskStore.setState({
             error: 'Storage request timed out. Try again.',
@@ -1294,6 +1352,62 @@ describe('AgendaView', () => {
             });
         });
         expect(getByText('High energy preset')).toBeInTheDocument();
+    });
+
+    it('persists context any matching when saving a Focus filter', async () => {
+        const tasks: Task[] = [
+            {
+                id: 'desk-task',
+                title: 'Desk task',
+                status: 'next',
+                contexts: ['@desk'],
+                tags: [],
+                createdAt: nowIso,
+                updatedAt: nowIso,
+            },
+            {
+                id: 'phone-task',
+                title: 'Phone task',
+                status: 'next',
+                contexts: ['@phone'],
+                tags: [],
+                createdAt: nowIso,
+                updatedAt: nowIso,
+            },
+        ];
+
+        useTaskStore.setState({
+            tasks,
+            _allTasks: tasks,
+            projects: [],
+            _allProjects: [],
+            areas: [],
+            _allAreas: [],
+            settings: {},
+            highlightTaskId: null,
+        });
+
+        const { getAllByRole, getByDisplayValue, getByRole } = renderAgenda();
+
+        fireEvent.click(getByRole('button', { name: /^Filters$/i }));
+        fireEvent.click(getByRole('button', { name: '@desk' }));
+        fireEvent.click(getByRole('button', { name: '@phone' }));
+        fireEvent.click(getByRole('button', { name: 'Any' }));
+        fireEvent.click(getByRole('button', { name: /^Save$/i }));
+        fireEvent.change(getByDisplayValue('@desk + @phone'), { target: { value: 'Desk or phone' } });
+        const saveButtons = getAllByRole('button', { name: /^Save$/i });
+        fireEvent.click(saveButtons[saveButtons.length - 1]);
+
+        await waitFor(() => {
+            expect(useTaskStore.getState().settings.savedFilters?.[0]).toMatchObject({
+                name: 'Desk or phone',
+                view: 'focus',
+                criteria: {
+                    contexts: ['@desk', '@phone'],
+                    contextMatchMode: 'any',
+                },
+            });
+        });
     });
 
     it('saves Focus sort and group preferences without requiring criteria', async () => {
