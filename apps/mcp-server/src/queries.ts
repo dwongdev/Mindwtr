@@ -1,10 +1,12 @@
 import {
   DEFAULT_PROJECT_COLOR,
+  TASK_SQLITE_COLUMNS,
   getTaskFocusEligibility,
   mapSqliteTaskRow,
   normalizeFocusTaskLimit,
   TASK_STATUS_SET,
   parseQuickAdd as parseQuickAddCore,
+  taskToSqliteRow,
   type AppData as CoreAppData,
   type Area as CoreArea,
   type Project as CoreProject,
@@ -124,7 +126,7 @@ const BASE_TASK_COLUMNS = [
   'purgedAt',
 ];
 
-const taskColumnsCache = new WeakMap<DbClient, { hasOrderNum: boolean; selectColumns: string[] }>();
+const taskColumnsCache = new WeakMap<DbClient, { hasOrderNum: boolean; insertColumns: string[]; selectColumns: string[] }>();
 const tasksFtsCache = new WeakMap<DbClient, boolean>();
 
 const getTaskColumns = (db: DbClient) => {
@@ -135,11 +137,12 @@ const getTaskColumns = (db: DbClient) => {
     const names = new Set<string>(columns.map((col: any) => String(col.name)));
     const hasOrderNum = names.has('orderNum');
     const selectColumns = BASE_TASK_COLUMNS.filter((name) => name === 'orderNum' ? hasOrderNum : names.has(name));
-    const resolved = { hasOrderNum, selectColumns };
+    const insertColumns = TASK_SQLITE_COLUMNS.filter((name) => names.has(name));
+    const resolved = { hasOrderNum, insertColumns, selectColumns };
     taskColumnsCache.set(db, resolved);
     return resolved;
   } catch {
-    const fallback = { hasOrderNum: true, selectColumns: BASE_TASK_COLUMNS };
+    const fallback = { hasOrderNum: true, insertColumns: [...TASK_SQLITE_COLUMNS], selectColumns: BASE_TASK_COLUMNS };
     taskColumnsCache.set(db, fallback);
     return fallback;
   }
@@ -577,36 +580,7 @@ export function addTask(db: DbClient, input: AddTaskInput): TaskRow {
       }
     }
 
-    const { hasOrderNum } = getTaskColumns(db);
-    const insertColumns = [
-      'id',
-      'title',
-      'status',
-      'priority',
-      'energyLevel',
-      'assignedTo',
-      'taskMode',
-      'startTime',
-      'dueDate',
-      'recurrence',
-      'pushCount',
-      'tags',
-      'contexts',
-      'checklist',
-      'description',
-      'attachments',
-      'location',
-      'projectId',
-      ...(hasOrderNum ? ['orderNum'] : []),
-      'isFocusedToday',
-      'timeEstimate',
-      'reviewAt',
-      'completedAt',
-      'createdAt',
-      'updatedAt',
-      'deletedAt',
-      'purgedAt',
-    ];
+    const { insertColumns } = getTaskColumns(db);
     const insert = db.prepare(`
       INSERT INTO tasks (
         ${insertColumns.join(', ')}
@@ -614,36 +588,13 @@ export function addTask(db: DbClient, input: AddTaskInput): TaskRow {
         ${insertColumns.map((col) => `@${col}`).join(', ')}
       )
     `);
-
-    insert.run({
-      id: task.id,
-      title: task.title,
-      status: task.status,
-      priority: task.priority ?? null,
-      energyLevel: task.energyLevel ?? null,
-      assignedTo: task.assignedTo ?? null,
-      taskMode: task.taskMode ?? null,
-      startTime: task.startTime ?? null,
-      dueDate: task.dueDate ?? null,
-      recurrence: task.recurrence ? JSON.stringify(task.recurrence) : null,
-      pushCount: task.pushCount ?? null,
-      tags: JSON.stringify(task.tags ?? []),
-      contexts: JSON.stringify(task.contexts ?? []),
-      checklist: task.checklist ? JSON.stringify(task.checklist) : null,
-      description: task.description ?? null,
-      attachments: task.attachments ? JSON.stringify(task.attachments) : null,
-      location: task.location ?? null,
-      projectId: task.projectId ?? null,
-      ...(hasOrderNum ? { orderNum: task.orderNum ?? null } : {}),
-      isFocusedToday: task.isFocusedToday ? 1 : 0,
-      timeEstimate: task.timeEstimate ?? null,
-      reviewAt: task.reviewAt ?? null,
-      completedAt: task.completedAt ?? null,
-      createdAt: task.createdAt,
-      updatedAt: task.updatedAt,
-      deletedAt: task.deletedAt ?? null,
-      purgedAt: task.purgedAt ?? null,
-    });
+    const taskValues = taskToSqliteRow(task);
+    const taskSqliteRow = Object.fromEntries(
+      TASK_SQLITE_COLUMNS
+        .map((column, index) => [column, taskValues[index]] as const)
+        .filter(([column]) => insertColumns.includes(column))
+    );
+    insert.run(taskSqliteRow);
 
     return task as TaskRow;
   });

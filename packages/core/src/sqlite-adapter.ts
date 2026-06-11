@@ -56,7 +56,7 @@ const fromNullableBool = (value: unknown): boolean | null | undefined => {
     return Boolean(value);
 };
 
-const TASK_UPSERT_COLUMNS = [
+export const TASK_SQLITE_COLUMNS = [
     'id',
     'title',
     'status',
@@ -97,6 +97,8 @@ const TASK_UPSERT_COLUMNS = [
     'purgedAt',
 ] as const;
 
+const TASK_UPSERT_COLUMNS = TASK_SQLITE_COLUMNS;
+
 const TASK_UPSERT_UPDATE_CLAUSE = `title=excluded.title,
 status=excluded.status,
 priority=excluded.priority,
@@ -136,7 +138,7 @@ deletedAt=excluded.deletedAt,
 purgedAt=excluded.purgedAt
 WHERE tasks.rev IS NULL OR tasks.rev <= excluded.rev`;
 
-const taskToSqliteRow = (task: Task): unknown[] => {
+export const taskToSqliteRow = (task: Task): unknown[] => {
     const taskOrder = Number.isFinite(task.order) ? task.order : task.orderNum;
     return [
         task.id,

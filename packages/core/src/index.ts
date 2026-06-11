@@ -916,6 +916,8 @@ export {
 export {
     mapSqliteTaskRow,
     SqliteAdapter,
+    TASK_SQLITE_COLUMNS,
+    taskToSqliteRow,
 } from './sqlite-adapter';
 export type {
     CalendarSyncEntry,
