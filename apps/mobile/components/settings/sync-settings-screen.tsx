@@ -5,6 +5,7 @@ import { Alert, Platform, ScrollView, Text, TouchableOpacity, View } from 'react
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import {
+    summarizeMergeStats,
     useTaskStore,
 } from '@mindwtr/core';
 
@@ -119,13 +120,11 @@ function SyncSettingsView({
     const syncHistoryEntries = syncHistory.slice(0, 5);
     const lastSyncStats = settings.lastSyncStats ?? null;
     const showLastSyncStats = Boolean(lastSyncStats) && (settings.lastSyncStatus === 'success' || settings.lastSyncStatus === 'conflict');
-    const syncConflictCount = (lastSyncStats?.tasks.conflicts || 0) + (lastSyncStats?.projects.conflicts || 0);
-    const maxClockSkewMs = Math.max(lastSyncStats?.tasks.maxClockSkewMs || 0, lastSyncStats?.projects.maxClockSkewMs || 0);
-    const timestampAdjustments = (lastSyncStats?.tasks.timestampAdjustments || 0) + (lastSyncStats?.projects.timestampAdjustments || 0);
-    const conflictIds = [
-        ...(lastSyncStats?.tasks.conflictIds ?? []),
-        ...(lastSyncStats?.projects.conflictIds ?? []),
-    ].slice(0, 6);
+    const lastSyncSummary = summarizeMergeStats(lastSyncStats);
+    const syncConflictCount = lastSyncSummary.conflicts;
+    const maxClockSkewMs = lastSyncSummary.maxClockSkewMs;
+    const timestampAdjustments = lastSyncSummary.timestampAdjustments;
+    const conflictIds = lastSyncSummary.conflictIds.slice(0, 6);
     const loggingEnabled = settings.diagnostics?.loggingEnabled === true;
     const analyticsHeartbeatAvailable = isMobileAnalyticsHeartbeatConfigured({
         analyticsHeartbeatUrl,

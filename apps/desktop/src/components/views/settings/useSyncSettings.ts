@@ -10,6 +10,7 @@ import {
     getInMemoryAppDataSnapshot,
     isConnectionAllowed,
     SYNC_LOCAL_INSECURE_URL_OPTIONS,
+    summarizeMergeStats,
     translateWithFallback,
     type SyncBackend,
 } from '@mindwtr/core';
@@ -530,16 +531,9 @@ export const useSyncSettings = ({
                     await SyncService.setSyncBackend('cloudkit');
                     showSaved();
                 }
-                const maxClockSkewMs = Math.max(
-                    result.stats?.tasks.maxClockSkewMs ?? 0,
-                    result.stats?.projects.maxClockSkewMs ?? 0,
-                    result.stats?.sections.maxClockSkewMs ?? 0,
-                    result.stats?.areas.maxClockSkewMs ?? 0
-                );
-                const timestampAdjustments = (result.stats?.tasks.timestampAdjustments ?? 0)
-                    + (result.stats?.projects.timestampAdjustments ?? 0)
-                    + (result.stats?.sections.timestampAdjustments ?? 0)
-                    + (result.stats?.areas.timestampAdjustments ?? 0);
+                const mergeSummary = summarizeMergeStats(result.stats);
+                const maxClockSkewMs = mergeSummary.maxClockSkewMs;
+                const timestampAdjustments = mergeSummary.timestampAdjustments;
                 showToast('Sync completed', 'success');
                 if (maxClockSkewMs > CLOCK_SKEW_THRESHOLD_MS) {
                     showToast(

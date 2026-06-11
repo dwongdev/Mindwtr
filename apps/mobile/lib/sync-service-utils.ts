@@ -7,6 +7,7 @@ import {
   isSyncFilePath as isCoreSyncFilePath,
   resolveSyncBackend,
   sanitizeSyncErrorMessage,
+  summarizeMergeStats,
   type MergeStats,
   type SyncBackend as CoreSyncBackend,
 } from '@mindwtr/core';
@@ -97,34 +98,19 @@ export const coerceSupportedBackend = (backend: SyncBackend, allowCloudKit: bool
   coerceSupportedSyncBackend(backend, { allowCloudKit });
 
 const collectConflictIds = (stats?: MergeStats | null): string[] => {
-  if (!stats) return [];
-  return [
-    ...(stats.tasks.conflictIds || []),
-    ...(stats.projects.conflictIds || []),
-    ...(stats.sections.conflictIds || []),
-    ...(stats.areas.conflictIds || []),
-  ].sort();
+  return summarizeMergeStats(stats).conflictIds.sort();
 };
 
 export const getSyncConflictCount = (stats?: MergeStats | null): number => (
-  (stats?.tasks.conflicts || 0)
-  + (stats?.projects.conflicts || 0)
-  + (stats?.sections.conflicts || 0)
-  + (stats?.areas.conflicts || 0)
+  summarizeMergeStats(stats).conflicts
 );
 
 export const getSyncTimestampAdjustments = (stats?: MergeStats | null): number => (
-  (stats?.tasks.timestampAdjustments || 0)
-  + (stats?.projects.timestampAdjustments || 0)
-  + (stats?.sections.timestampAdjustments || 0)
-  + (stats?.areas.timestampAdjustments || 0)
+  summarizeMergeStats(stats).timestampAdjustments
 );
 
-export const getSyncMaxClockSkewMs = (stats?: MergeStats | null): number => Math.max(
-  stats?.tasks.maxClockSkewMs || 0,
-  stats?.projects.maxClockSkewMs || 0,
-  stats?.sections.maxClockSkewMs || 0,
-  stats?.areas.maxClockSkewMs || 0,
+export const getSyncMaxClockSkewMs = (stats?: MergeStats | null): number => (
+  summarizeMergeStats(stats).maxClockSkewMs
 );
 
 export const hasSameUserFacingSyncConflictSummary = (

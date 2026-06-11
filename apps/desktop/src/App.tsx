@@ -28,6 +28,7 @@ import {
     shouldShowDonationPrompt,
     shouldCheckUpdateReminder,
     shouldShowUpdateReminder,
+    summarizeMergeStats,
     translateWithFallback,
     useTaskStore,
     type AppAnnouncement,
@@ -338,7 +339,7 @@ function App() {
                 } else if (resolution === 'use-external') {
                     showToast('Loaded external sync file changes.', 'success');
                 } else {
-                    const conflicts = (result.stats?.tasks.conflicts || 0) + (result.stats?.projects.conflicts || 0);
+                    const conflicts = summarizeMergeStats(result.stats).conflicts;
                     showToast(
                         conflicts > 0
                             ? `Sync merged with ${conflicts} conflict${conflicts === 1 ? '' : 's'} resolved.`

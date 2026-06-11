@@ -234,7 +234,12 @@ export type {
 
 export {
     buildConflictDiagnosticsLogExtra,
+    buildMergeSummaryLog,
     buildPendingAttachmentUploadLogExtra,
+    summarizeMergeStats,
+} from './sync-log-utils';
+export type {
+    MergeStatsSummary,
 } from './sync-log-utils';
 
 export {

@@ -42,6 +42,7 @@ import {
 import { purgeExpiredTombstones } from './sync-tombstones';
 import { filterNotDeleted } from './sync-helpers';
 import { nextRevision, SYNC_BACKUP_RESTORE_REV_BY } from './sync-revision';
+import { summarizeMergeStats } from './sync-log-utils';
 
 export type {
     ClockSkewDirection,
@@ -79,26 +80,15 @@ export const appendSyncHistory = (
 };
 
 const buildSyncHistoryDetails = (stats: MergeStats): string | undefined => {
-    const deleteVsLiveConflicts = [
-        stats.tasks,
-        stats.projects,
-        stats.sections,
-        stats.areas,
-    ].reduce((total, entityStats) => total + (entityStats.conflictReasonCounts?.deleteState ?? 0), 0);
-    const futureTimestampClamps = [
-        stats.tasks,
-        stats.projects,
-        stats.sections,
-        stats.areas,
-    ].reduce((total, entityStats) => total + (entityStats.futureTimestampClamps || 0), 0);
+    const summary = summarizeMergeStats(stats);
     const details: string[] = [];
-    if (deleteVsLiveConflicts > 0) {
-        const itemLabel = deleteVsLiveConflicts === 1 ? 'item' : 'items';
-        details.push(`Delete-vs-live conflict on ${deleteVsLiveConflicts} ${itemLabel}; live edits can be preserved when delete and edit times are ambiguous.`);
+    if (summary.deleteVsLiveConflicts > 0) {
+        const itemLabel = summary.deleteVsLiveConflicts === 1 ? 'item' : 'items';
+        details.push(`Delete-vs-live conflict on ${summary.deleteVsLiveConflicts} ${itemLabel}; live edits can be preserved when delete and edit times are ambiguous.`);
     }
-    if (futureTimestampClamps > 0) {
-        const itemLabel = futureTimestampClamps === 1 ? 'timestamp' : 'timestamps';
-        details.push(`Future sync timestamp clamp on ${futureTimestampClamps} ${itemLabel}; check device clocks if this repeats.`);
+    if (summary.futureTimestampClamps > 0) {
+        const itemLabel = summary.futureTimestampClamps === 1 ? 'timestamp' : 'timestamps';
+        details.push(`Future sync timestamp clamp on ${summary.futureTimestampClamps} ${itemLabel}; check device clocks if this repeats.`);
     }
     return details.length > 0 ? details.join(' ') : undefined;
 };
@@ -1126,23 +1116,11 @@ async function performSyncCycleUnlocked(io: SyncCycleIO): Promise<SyncCycleResul
     io.onStep?.('merge');
     await yieldToUi();
     const mergeResult = mergeAppDataWithStats(localData, remoteData, { nowIso });
-    const conflictCount = (mergeResult.stats.tasks.conflicts || 0)
-        + (mergeResult.stats.projects.conflicts || 0)
-        + (mergeResult.stats.sections.conflicts || 0)
-        + (mergeResult.stats.areas.conflicts || 0);
+    const mergeSummary = summarizeMergeStats(mergeResult.stats);
+    const conflictCount = mergeSummary.conflicts;
     const nextSyncStatus: SyncCycleResult['status'] = conflictCount > 0 ? 'conflict' : 'success';
-    const conflictIds = [
-        ...(mergeResult.stats.tasks.conflictIds || []),
-        ...(mergeResult.stats.projects.conflictIds || []),
-        ...(mergeResult.stats.sections.conflictIds || []),
-        ...(mergeResult.stats.areas.conflictIds || []),
-    ].slice(0, 10);
-    const maxClockSkewMs = Math.max(
-        mergeResult.stats.tasks.maxClockSkewMs || 0,
-        mergeResult.stats.projects.maxClockSkewMs || 0,
-        mergeResult.stats.sections.maxClockSkewMs || 0,
-        mergeResult.stats.areas.maxClockSkewMs || 0
-    );
+    const conflictIds = mergeSummary.conflictIds.slice(0, 10);
+    const maxClockSkewMs = mergeSummary.maxClockSkewMs;
     if (maxClockSkewMs > CLOCK_SKEW_THRESHOLD_MS) {
         logWarn('Sync merge detected large clock skew', {
             scope: 'sync',
@@ -1153,10 +1131,7 @@ async function performSyncCycleUnlocked(io: SyncCycleIO): Promise<SyncCycleResul
             },
         });
     }
-    const timestampAdjustments = (mergeResult.stats.tasks.timestampAdjustments || 0)
-        + (mergeResult.stats.projects.timestampAdjustments || 0)
-        + (mergeResult.stats.sections.timestampAdjustments || 0)
-        + (mergeResult.stats.areas.timestampAdjustments || 0);
+    const timestampAdjustments = mergeSummary.timestampAdjustments;
     const historyEntry: SyncHistoryEntry = {
         at: nowIso,
         status: nextSyncStatus,

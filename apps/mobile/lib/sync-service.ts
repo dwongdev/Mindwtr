@@ -1,7 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform } from 'react-native';
 import Constants from 'expo-constants';
-import { AppData, Attachment, MergeStats, createSyncOrchestrator, runPreSyncAttachmentPhase, useTaskStore, webdavGetJson, webdavHeadFile, webdavPutJson, cloudGetJson, cloudHeadJson, cloudPutJson, flushPendingSave, performSyncCycle, findOrphanedAttachments, removeOrphanedAttachmentsFromData, removeAttachmentsByIdFromData, webdavDeleteFile, cloudDeleteFile, CLOCK_SKEW_THRESHOLD_MS, appendSyncHistory, withRetry, isRetryableWebdavReadError, isWebdavInvalidJsonError, normalizeWebdavUrl, normalizeCloudUrl, sanitizeAppDataForRemote, computeStableValueFingerprint, computeSyncPayloadFingerprint, areSyncPayloadsEqual, assertNoPendingAttachmentUploads, buildConflictDiagnosticsLogExtra, buildPendingAttachmentUploadLogExtra, findPendingAttachmentUploads, hasPendingSyncSideEffects, injectExternalCalendars as injectExternalCalendarsForSync, persistExternalCalendars as persistExternalCalendarsForSync, mergeAppData, cloneAppData, LocalSyncAbort, getInMemoryAppDataSnapshot, shouldRunAttachmentCleanup, createAbortableFetch, normalizeCloudProvider as normalizeCoreCloudProvider, getErrorStatus, isDropboxUnauthorizedError, CLOUD_PROVIDER_DROPBOX, CLOUD_PROVIDER_SELF_HOSTED, type CloudProvider, type PendingAttachmentUpload, type PendingRemoteAttachmentDelete } from '@mindwtr/core';
+import { AppData, Attachment, MergeStats, createSyncOrchestrator, runPreSyncAttachmentPhase, useTaskStore, webdavGetJson, webdavHeadFile, webdavPutJson, cloudGetJson, cloudHeadJson, cloudPutJson, flushPendingSave, performSyncCycle, findOrphanedAttachments, removeOrphanedAttachmentsFromData, removeAttachmentsByIdFromData, webdavDeleteFile, cloudDeleteFile, CLOCK_SKEW_THRESHOLD_MS, appendSyncHistory, withRetry, isRetryableWebdavReadError, isWebdavInvalidJsonError, normalizeWebdavUrl, normalizeCloudUrl, sanitizeAppDataForRemote, computeStableValueFingerprint, computeSyncPayloadFingerprint, areSyncPayloadsEqual, assertNoPendingAttachmentUploads, buildMergeSummaryLog, buildPendingAttachmentUploadLogExtra, findPendingAttachmentUploads, hasPendingSyncSideEffects, injectExternalCalendars as injectExternalCalendarsForSync, persistExternalCalendars as persistExternalCalendarsForSync, mergeAppData, cloneAppData, LocalSyncAbort, getInMemoryAppDataSnapshot, shouldRunAttachmentCleanup, createAbortableFetch, normalizeCloudProvider as normalizeCoreCloudProvider, getErrorStatus, isDropboxUnauthorizedError, CLOUD_PROVIDER_DROPBOX, CLOUD_PROVIDER_SELF_HOSTED, type CloudProvider, type PendingAttachmentUpload, type PendingRemoteAttachmentDelete } from '@mindwtr/core';
 import { mobileStorage } from './storage-adapter';
 import { logInfo, logSyncError, logWarn, sanitizeLogMessage } from './app-log';
 import { readSyncFile, resolveSyncFileUri, writeSyncFile } from './storage-file';
@@ -1166,38 +1166,13 @@ const mobileSyncOrchestrator = createSyncOrchestrator<string | undefined, Mobile
       });
 
       const stats = syncResult.stats;
-      const conflictCount = (stats.tasks.conflicts || 0)
-        + (stats.projects.conflicts || 0)
-        + (stats.sections.conflicts || 0)
-        + (stats.areas.conflicts || 0);
-      const maxClockSkewMs = Math.max(
-        stats.tasks.maxClockSkewMs || 0,
-        stats.projects.maxClockSkewMs || 0,
-        stats.sections.maxClockSkewMs || 0,
-        stats.areas.maxClockSkewMs || 0,
-      );
-      const timestampAdjustments = (stats.tasks.timestampAdjustments || 0)
-        + (stats.projects.timestampAdjustments || 0)
-        + (stats.sections.timestampAdjustments || 0)
-        + (stats.areas.timestampAdjustments || 0);
-      if (conflictCount > 0 || maxClockSkewMs > CLOCK_SKEW_THRESHOLD_MS || timestampAdjustments > 0) {
-        const conflictIds = [
-          ...(stats.tasks.conflictIds || []),
-          ...(stats.projects.conflictIds || []),
-          ...(stats.sections.conflictIds || []),
-          ...(stats.areas.conflictIds || []),
-        ].slice(0, 6);
+      const mergeLog = buildMergeSummaryLog(stats, { clockSkewThresholdMs: CLOCK_SKEW_THRESHOLD_MS });
+      if (mergeLog) {
         void logInfo(
-          `Sync merge summary: ${conflictCount} conflicts, max skew ${Math.round(maxClockSkewMs)}ms, ${timestampAdjustments} timestamp fixes.`,
+          mergeLog.message,
           {
             scope: 'sync',
-            extra: {
-              conflicts: String(conflictCount),
-              maxClockSkewMs: String(Math.round(maxClockSkewMs)),
-              timestampFixes: String(timestampAdjustments),
-              conflictIds: conflictIds.join(','),
-              ...buildConflictDiagnosticsLogExtra(stats),
-            },
+            extra: mergeLog.extra,
           }
         );
       }

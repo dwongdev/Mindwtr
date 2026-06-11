@@ -21,11 +21,12 @@ import {
     computeSyncPayloadFingerprint,
     areSyncPayloadsEqual,
     assertNoPendingAttachmentUploads,
-    buildConflictDiagnosticsLogExtra,
+    buildMergeSummaryLog,
     buildPendingAttachmentUploadLogExtra,
     findPendingAttachmentUploads,
     injectExternalCalendars as injectExternalCalendarsForSync,
     persistExternalCalendars as persistExternalCalendarsForSync,
+    summarizeMergeStats,
     withTimeout,
     withRetry,
     isRetryableWebdavReadError,
@@ -1425,41 +1426,15 @@ export class SyncService {
     }
 
     private static logSyncMergeSummary(stats: MergeStats): void {
-        const conflictCount = (stats.tasks.conflicts || 0)
-            + (stats.projects.conflicts || 0)
-            + (stats.sections.conflicts || 0)
-            + (stats.areas.conflicts || 0);
-        const maxClockSkewMs = Math.max(
-            stats.tasks.maxClockSkewMs || 0,
-            stats.projects.maxClockSkewMs || 0,
-            stats.sections.maxClockSkewMs || 0,
-            stats.areas.maxClockSkewMs || 0
-        );
-        const timestampAdjustments = (stats.tasks.timestampAdjustments || 0)
-            + (stats.projects.timestampAdjustments || 0)
-            + (stats.sections.timestampAdjustments || 0)
-            + (stats.areas.timestampAdjustments || 0);
-        if (!isTauriRuntimeEnv() || (conflictCount === 0 && maxClockSkewMs <= CLOCK_SKEW_THRESHOLD_MS && timestampAdjustments === 0)) {
+        const mergeLog = buildMergeSummaryLog(stats, { clockSkewThresholdMs: CLOCK_SKEW_THRESHOLD_MS });
+        if (!isTauriRuntimeEnv() || !mergeLog) {
             return;
         }
-
-        const conflictIds = [
-            ...(stats.tasks.conflictIds || []),
-            ...(stats.projects.conflictIds || []),
-            ...(stats.sections.conflictIds || []),
-            ...(stats.areas.conflictIds || []),
-        ].slice(0, 6);
         void syncServiceDependencies.logInfo(
-            `Sync merge summary: ${conflictCount} conflicts, max skew ${Math.round(maxClockSkewMs)}ms, ${timestampAdjustments} timestamp fixes.`,
+            mergeLog.message,
             {
                 scope: 'sync',
-                extra: {
-                    conflicts: String(conflictCount),
-                    maxClockSkewMs: String(Math.round(maxClockSkewMs)),
-                    timestampFixes: String(timestampAdjustments),
-                    conflictIds: conflictIds.join(','),
-                    ...buildConflictDiagnosticsLogExtra(stats),
-                },
+                extra: mergeLog.extra,
             }
         );
     }
@@ -1661,7 +1636,7 @@ export class SyncService {
                     .then((result) => {
                         if (result.success) {
                             SyncService.setPendingExternalSyncChange(null);
-                            const conflicts = (result.stats?.tasks.conflicts || 0) + (result.stats?.projects.conflicts || 0);
+                            const conflicts = summarizeMergeStats(result.stats).conflicts;
                             const message = conflicts > 0
                                 ? `Data updated from sync (${conflicts} conflict${conflicts === 1 ? '' : 's'} resolved).`
                                 : 'Data updated from sync.';

@@ -26,6 +26,7 @@ import {
   resolveDateLocaleTag,
   DEFAULT_ANTHROPIC_THINKING_BUDGET,
   safeFormatDate,
+  summarizeMergeStats,
   translateText,
   translateWithFallback,
   submitFeedbackSubmission,
@@ -713,9 +714,7 @@ export function SettingsView({ initialPage, onboardingHintPage, onResumeOnboardi
   const lastSyncDisplay = lastSyncAt
     ? safeFormatDate(lastSyncAt, "PPpp", lastSyncAt)
     : t.lastSyncNever;
-  const conflictCount =
-    (lastSyncStats?.tasks.conflicts || 0) +
-    (lastSyncStats?.projects.conflicts || 0);
+  const conflictCount = summarizeMergeStats(lastSyncStats).conflicts;
   const weeklyReviewEnabled = settings?.weeklyReviewEnabled === true;
   const weeklyReviewTime = settings?.weeklyReviewTime || "18:00";
   const weeklyReviewDay = Number.isFinite(settings?.weeklyReviewDay)

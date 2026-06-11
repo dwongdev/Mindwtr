@@ -1,5 +1,5 @@
 import type { PendingAttachmentUpload } from './sync-helpers';
-import type { MergeStats } from './sync-types';
+import type { EntityMergeStats, MergeStats } from './sync-types';
 
 type SanitizeLogValue = (value: string) => string;
 
@@ -46,4 +46,81 @@ export const buildConflictDiagnosticsLogExtra = (stats: MergeStats): Record<stri
         extra.conflictSamples = JSON.stringify(conflictSamples);
     }
     return extra;
+};
+
+const MERGE_STAT_ENTITIES = ['tasks', 'projects', 'sections', 'areas'] as const;
+
+export type MergeStatsSummary = {
+    conflicts: number;
+    conflictIds: string[];
+    maxClockSkewMs: number;
+    timestampAdjustments: number;
+    deleteVsLiveConflicts: number;
+    futureTimestampClamps: number;
+};
+
+const emptyEntityStats: Pick<
+    EntityMergeStats,
+    'conflicts'
+    | 'conflictIds'
+    | 'maxClockSkewMs'
+    | 'timestampAdjustments'
+    | 'futureTimestampClamps'
+    | 'conflictReasonCounts'
+> = {
+    conflicts: 0,
+    conflictIds: [],
+    maxClockSkewMs: 0,
+    timestampAdjustments: 0,
+    futureTimestampClamps: 0,
+    conflictReasonCounts: {},
+};
+
+export const summarizeMergeStats = (stats?: MergeStats | null): MergeStatsSummary => {
+    const summary: MergeStatsSummary = {
+        conflicts: 0,
+        conflictIds: [],
+        maxClockSkewMs: 0,
+        timestampAdjustments: 0,
+        deleteVsLiveConflicts: 0,
+        futureTimestampClamps: 0,
+    };
+    if (!stats) return summary;
+
+    for (const entity of MERGE_STAT_ENTITIES) {
+        const entityStats = stats[entity] ?? emptyEntityStats;
+        summary.conflicts += entityStats.conflicts || 0;
+        summary.conflictIds.push(...(entityStats.conflictIds || []));
+        summary.maxClockSkewMs = Math.max(summary.maxClockSkewMs, entityStats.maxClockSkewMs || 0);
+        summary.timestampAdjustments += entityStats.timestampAdjustments || 0;
+        summary.deleteVsLiveConflicts += entityStats.conflictReasonCounts?.deleteState ?? 0;
+        summary.futureTimestampClamps += entityStats.futureTimestampClamps || 0;
+    }
+    return summary;
+};
+
+export const buildMergeSummaryLog = (
+    stats: MergeStats,
+    options: { clockSkewThresholdMs: number; conflictIdLimit?: number }
+): { message: string; extra: Record<string, string>; summary: MergeStatsSummary } | null => {
+    const summary = summarizeMergeStats(stats);
+    if (
+        summary.conflicts === 0
+        && summary.maxClockSkewMs <= options.clockSkewThresholdMs
+        && summary.timestampAdjustments === 0
+    ) {
+        return null;
+    }
+    const conflictIds = summary.conflictIds.slice(0, options.conflictIdLimit ?? 6);
+    return {
+        message: `Sync merge summary: ${summary.conflicts} conflicts, max skew ${Math.round(summary.maxClockSkewMs)}ms, ${summary.timestampAdjustments} timestamp fixes.`,
+        extra: {
+            conflicts: String(summary.conflicts),
+            maxClockSkewMs: String(Math.round(summary.maxClockSkewMs)),
+            timestampFixes: String(summary.timestampAdjustments),
+            conflictIds: conflictIds.join(','),
+            ...buildConflictDiagnosticsLogExtra(stats),
+        },
+        summary,
+    };
 };
