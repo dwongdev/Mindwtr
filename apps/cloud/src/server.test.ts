@@ -1104,6 +1104,8 @@ describe('cloud server api', () => {
         const createdJson = await createResponse.json();
         const taskId = createdJson.task.id as string;
         expect(taskId).toBeTruthy();
+        expect(createdJson.task.rev).toBe(1);
+        expect(createdJson.task.revBy).toBe('cloud');
 
         const patchResponse = await fetch(`${baseUrl}/v1/tasks/${encodeURIComponent(taskId)}`, {
             method: 'PATCH',
@@ -1115,7 +1117,7 @@ describe('cloud server api', () => {
         });
         expect(patchResponse.status).toBe(200);
         const patchJson = await patchResponse.json();
-        expect(patchJson.task.rev).toBe(1);
+        expect(patchJson.task.rev).toBe(2);
         expect(patchJson.task.revBy).toBe('cloud');
 
         const getResponse = await fetch(`${baseUrl}/v1/tasks/${encodeURIComponent(taskId)}`, {
@@ -1138,7 +1140,7 @@ describe('cloud server api', () => {
         const deletedJson = await listDeleted.json();
         const deletedTask = (deletedJson.tasks as { id: string; deletedAt?: string; rev?: number; revBy?: string }[]).find((task) => task.id === taskId);
         expect(deletedTask?.deletedAt).toBeTruthy();
-        expect(deletedTask?.rev).toBe(2);
+        expect(deletedTask?.rev).toBe(3);
         expect(deletedTask?.revBy).toBe('cloud');
 
         const getDeleted = await fetch(`${baseUrl}/v1/tasks/${encodeURIComponent(taskId)}`, {
@@ -1441,7 +1443,7 @@ describe('cloud server api', () => {
         expect(completeResponse.status).toBe(200);
         const completeJson = await completeResponse.json();
         expect(completeJson.task.status).toBe('done');
-        expect(completeJson.task.rev).toBe(1);
+        expect(completeJson.task.rev).toBe(2);
         expect(completeJson.task.revBy).toBe('cloud');
 
         const archiveResponse = await fetch(`${baseUrl}/v1/tasks/${encodeURIComponent(taskId)}/archive`, {
@@ -1451,7 +1453,7 @@ describe('cloud server api', () => {
         expect(archiveResponse.status).toBe(200);
         const archiveJson = await archiveResponse.json();
         expect(archiveJson.task.status).toBe('archived');
-        expect(archiveJson.task.rev).toBe(2);
+        expect(archiveJson.task.rev).toBe(3);
         expect(archiveJson.task.revBy).toBe('cloud');
     });
 

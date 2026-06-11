@@ -1096,6 +1096,8 @@ export async function startCloudServer(options: CloudServerOptions = {}): Promis
                                 status,
                                 tags,
                                 contexts,
+                                rev: 1,
+                                revBy: CLOUD_API_REV_BY,
                                 createdAt: nowIso,
                                 updatedAt: nowIso,
                             } as Task;
