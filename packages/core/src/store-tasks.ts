@@ -93,6 +93,69 @@ const normalizeOptionalReferenceId = (value: unknown): string | undefined => (
 );
 const normalizeProjectIdInput = normalizeOptionalReferenceId;
 
+type MutateTasksOptions = {
+    selectTasks: (state: TaskStore) => Task[];
+    buildUpdates: (task: Task, context: { now: string }) => Partial<Task>;
+    updateVisible?: boolean;
+    missingMessage?: string;
+    ensureDeviceIdWhenEmpty?: boolean;
+};
+
+const mutateTasks = async (
+    { set, debouncedSave }: Pick<TaskActionContext, 'set' | 'debouncedSave'>,
+    options: MutateTasksOptions
+): Promise<StoreActionResult> => {
+    const changeAt = Date.now();
+    const now = new Date().toISOString();
+    let snapshot: AppData | null = null;
+    let missing = false;
+    set((state) => {
+        const selectedTasks = options.selectTasks(state);
+        if (selectedTasks.length === 0 && !options.ensureDeviceIdWhenEmpty) {
+            missing = Boolean(options.missingMessage);
+            return state;
+        }
+        const deviceState = ensureDeviceId(state.settings);
+        if (selectedTasks.length === 0 && !deviceState.updated) {
+            return state;
+        }
+        let nextVisibleTasks = state.tasks;
+        const changedTasks = selectedTasks.map((task) => {
+            const updatedTask: Task = {
+                ...task,
+                ...options.buildUpdates(task, { now }),
+                updatedAt: now,
+                rev: nextRevision(task.rev),
+                revBy: deviceState.deviceId,
+            };
+            if (options.updateVisible !== false) {
+                nextVisibleTasks = updateVisibleTasks(nextVisibleTasks, task, updatedTask);
+            }
+            return updatedTask;
+        });
+        const nextAllTasks = changedTasks.length > 0
+            ? replaceEntitiesInArray(state._allTasks, changedTasks)
+            : state._allTasks;
+        snapshot = buildSaveSnapshot(state, {
+            tasks: nextAllTasks,
+            ...(deviceState.updated ? { settings: deviceState.settings } : {}),
+        });
+        return {
+            tasks: nextVisibleTasks,
+            _allTasks: nextAllTasks,
+            _tasksById: changedTasks.length > 0
+                ? replaceEntitiesInMap(state._tasksById, changedTasks)
+                : state._tasksById,
+            lastDataChangeAt: getNextDataChangeAt(state.lastDataChangeAt, changeAt),
+            ...(deviceState.updated ? { settings: deviceState.settings } : {}),
+        };
+    });
+    if (snapshot) {
+        debouncedSave(snapshot, (msg) => set({ error: msg }));
+    }
+    return missing ? actionFail(options.missingMessage ?? 'Task not found') : actionOk();
+};
+
 const validateExistingProjectId = (
     projectId: unknown,
     allProjects: AppData['projects']
@@ -546,174 +609,64 @@ export const createTaskActions = ({ set, get, getStorage, debouncedSave, trackIm
      * @param id Task ID
      */
     deleteTask: async (id: string) => {
-        const changeAt = Date.now();
-        const now = new Date().toISOString();
-        let snapshot: AppData | null = null;
-        let missingTask = false;
-        set((state) => {
-            const oldTask = state._tasksById.get(id);
-            if (!oldTask) {
-                missingTask = true;
-                return state;
-            }
-            const deviceState = ensureDeviceId(state.settings);
-            const updatedTask = {
-                ...oldTask,
-                deletedAt: now,
-                updatedAt: now,
-                rev: nextRevision(oldTask.rev),
-                revBy: deviceState.deviceId,
-            };
-            // Update in full data (set tombstone)
-            const newAllTasks = replaceEntityInArray(state._allTasks, id, updatedTask);
-            // Filter for UI state (hide deleted)
-            const newVisibleTasks = updateVisibleTasks(state.tasks, oldTask, updatedTask);
-            snapshot = buildSaveSnapshot(state, {
-                tasks: newAllTasks,
-                ...(deviceState.updated ? { settings: deviceState.settings } : {}),
-            });
-            return {
-                tasks: newVisibleTasks,
-                _allTasks: newAllTasks,
-                _tasksById: replaceEntityInMap(state._tasksById, updatedTask),
-                lastDataChangeAt: getNextDataChangeAt(state.lastDataChangeAt, changeAt),
-                ...(deviceState.updated ? { settings: deviceState.settings } : {}),
-            };
+        return mutateTasks({ set, debouncedSave }, {
+            selectTasks: (state) => {
+                const task = state._tasksById.get(id);
+                return task ? [task] : [];
+            },
+            buildUpdates: (_task, { now }) => ({ deletedAt: now }),
+            missingMessage: 'Task not found',
         });
-        if (snapshot) {
-            debouncedSave(snapshot, (msg) => set({ error: msg }));
-        }
-        return missingTask ? actionFail('Task not found') : actionOk();
     },
 
     /**
      * Restore a soft-deleted task.
      */
     restoreTask: async (id: string) => {
-        const changeAt = Date.now();
-        const now = new Date().toISOString();
-        let snapshot: AppData | null = null;
-        let missingTask = false;
-        set((state) => {
-            const oldTask = state._tasksById.get(id);
-            if (!oldTask) {
-                missingTask = true;
-                return state;
-            }
-            const deviceState = ensureDeviceId(state.settings);
-            const updatedTask = {
-                ...oldTask,
+        return mutateTasks({ set, debouncedSave }, {
+            selectTasks: (state) => {
+                const task = state._tasksById.get(id);
+                return task ? [task] : [];
+            },
+            buildUpdates: () => ({
                 deletedAt: undefined,
                 purgedAt: undefined,
-                updatedAt: now,
-                rev: nextRevision(oldTask.rev),
-                revBy: deviceState.deviceId,
-            };
-            const newAllTasks = replaceEntityInArray(state._allTasks, id, updatedTask);
-            const newVisibleTasks = updateVisibleTasks(state.tasks, oldTask, updatedTask);
-            snapshot = buildSaveSnapshot(state, {
-                tasks: newAllTasks,
-                ...(deviceState.updated ? { settings: deviceState.settings } : {}),
-            });
-            return {
-                tasks: newVisibleTasks,
-                _allTasks: newAllTasks,
-                _tasksById: replaceEntityInMap(state._tasksById, updatedTask),
-                lastDataChangeAt: getNextDataChangeAt(state.lastDataChangeAt, changeAt),
-                ...(deviceState.updated ? { settings: deviceState.settings } : {}),
-            };
+            }),
+            missingMessage: 'Task not found',
         });
-        if (snapshot) {
-            debouncedSave(snapshot, (msg) => set({ error: msg }));
-        }
-        return missingTask ? actionFail('Task not found') : actionOk();
     },
 
     /**
      * Permanently delete a task (removes from storage).
      */
     purgeTask: async (id: string) => {
-        const changeAt = Date.now();
-        const now = new Date().toISOString();
-        let snapshot: AppData | null = null;
-        let missingTask = false;
-        set((state) => {
-            const oldTask = state._tasksById.get(id);
-            if (!oldTask) {
-                missingTask = true;
-                return state;
-            }
-            const deviceState = ensureDeviceId(state.settings);
-            const updatedTask = {
-                ...oldTask,
-                deletedAt: oldTask.deletedAt ?? now,
+        return mutateTasks({ set, debouncedSave }, {
+            selectTasks: (state) => {
+                const task = state._tasksById.get(id);
+                return task ? [task] : [];
+            },
+            buildUpdates: (task, { now }) => ({
+                deletedAt: task.deletedAt ?? now,
                 purgedAt: now,
-                attachments: stripAttachmentRemoteMetadata(oldTask.attachments),
-                updatedAt: now,
-                rev: nextRevision(oldTask.rev),
-                revBy: deviceState.deviceId,
-            };
-            const newAllTasks = replaceEntityInArray(state._allTasks, id, updatedTask);
-            const newVisibleTasks = updateVisibleTasks(state.tasks, oldTask, updatedTask);
-            snapshot = buildSaveSnapshot(state, {
-                tasks: newAllTasks,
-                ...(deviceState.updated ? { settings: deviceState.settings } : {}),
-            });
-            return {
-                tasks: newVisibleTasks,
-                _allTasks: newAllTasks,
-                _tasksById: replaceEntityInMap(state._tasksById, updatedTask),
-                lastDataChangeAt: getNextDataChangeAt(state.lastDataChangeAt, changeAt),
-                ...(deviceState.updated ? { settings: deviceState.settings } : {}),
-            };
+                attachments: stripAttachmentRemoteMetadata(task.attachments),
+            }),
+            missingMessage: 'Task not found',
         });
-        if (snapshot) {
-            debouncedSave(snapshot, (msg) => set({ error: msg }));
-        }
-        return missingTask ? actionFail('Task not found') : actionOk();
     },
 
     /**
      * Permanently delete all soft-deleted tasks.
      */
     purgeDeletedTasks: async () => {
-        const changeAt = Date.now();
-        const now = new Date().toISOString();
-        let snapshot: AppData | null = null;
-        set((state) => {
-            const deviceState = ensureDeviceId(state.settings);
-            const changedTasks: Task[] = [];
-            for (const task of state._allTasks) {
-                if (!task.deletedAt || task.purgedAt) continue;
-                changedTasks.push({
-                    ...task,
-                    purgedAt: now,
-                    attachments: stripAttachmentRemoteMetadata(task.attachments),
-                    updatedAt: now,
-                    rev: nextRevision(task.rev),
-                    revBy: deviceState.deviceId,
-                });
-            }
-            if (changedTasks.length === 0 && !deviceState.updated) {
-                return state;
-            }
-            const newAllTasks = replaceEntitiesInArray(state._allTasks, changedTasks);
-            snapshot = buildSaveSnapshot(state, {
-                tasks: newAllTasks,
-                ...(deviceState.updated ? { settings: deviceState.settings } : {}),
-            });
-            return {
-                tasks: state.tasks,
-                _allTasks: newAllTasks,
-                _tasksById: replaceEntitiesInMap(state._tasksById, changedTasks),
-                lastDataChangeAt: getNextDataChangeAt(state.lastDataChangeAt, changeAt),
-                ...(deviceState.updated ? { settings: deviceState.settings } : {}),
-            };
+        return mutateTasks({ set, debouncedSave }, {
+            selectTasks: (state) => state._allTasks.filter((task) => task.deletedAt && !task.purgedAt),
+            buildUpdates: (task, { now }) => ({
+                purgedAt: now,
+                attachments: stripAttachmentRemoteMetadata(task.attachments),
+            }),
+            updateVisible: false,
+            ensureDeviceIdWhenEmpty: true,
         });
-        if (snapshot) {
-            debouncedSave(snapshot, (msg) => set({ error: msg }));
-        }
-        return actionOk();
     },
 
     /**
@@ -726,11 +679,7 @@ export const createTaskActions = ({ set, get, getStorage, debouncedSave, trackIm
         let missingTask = false;
         set((state) => {
             const sourceTask = state._tasksById.get(id);
-            if (sourceTask?.deletedAt) {
-                missingTask = true;
-                return state;
-            }
-            if (!sourceTask) {
+            if (!sourceTask || sourceTask.deletedAt) {
                 missingTask = true;
                 return state;
             }
@@ -798,54 +747,25 @@ export const createTaskActions = ({ set, get, getStorage, debouncedSave, trackIm
      * Reset checklist items to unchecked (useful for reusable lists).
      */
     resetTaskChecklist: async (id: string) => {
-        const changeAt = Date.now();
-        const now = new Date().toISOString();
-        let snapshot: AppData | null = null;
-        let missingTask = false;
-        set((state) => {
-            const sourceTask = state._tasksById.get(id);
-            if (!sourceTask || sourceTask.deletedAt || !sourceTask.checklist || sourceTask.checklist.length === 0) {
-                missingTask = true;
-                return state;
-            }
-            const deviceState = ensureDeviceId(state.settings);
-
-            const resetChecklist = sourceTask.checklist.map((item) => ({
-                ...item,
-                isCompleted: false,
-            }));
-            const wasDone = sourceTask.status === 'done';
-            const nextStatus: TaskStatus = wasDone ? 'next' : sourceTask.status;
-
-            const updatedTask: Task = {
-                ...sourceTask,
-                checklist: resetChecklist,
-                status: nextStatus,
-                completedAt: wasDone ? undefined : sourceTask.completedAt,
-                isFocusedToday: wasDone ? false : sourceTask.isFocusedToday,
-                updatedAt: now,
-                rev: nextRevision(sourceTask.rev),
-                revBy: deviceState.deviceId,
-            };
-
-            const newAllTasks = replaceEntityInArray(state._allTasks, id, updatedTask);
-            const newVisibleTasks = updateVisibleTasks(state.tasks, sourceTask, updatedTask);
-            snapshot = buildSaveSnapshot(state, {
-                tasks: newAllTasks,
-                ...(deviceState.updated ? { settings: deviceState.settings } : {}),
-            });
-            return {
-                tasks: newVisibleTasks,
-                _allTasks: newAllTasks,
-                _tasksById: replaceEntityInMap(state._tasksById, updatedTask),
-                lastDataChangeAt: getNextDataChangeAt(state.lastDataChangeAt, changeAt),
-                ...(deviceState.updated ? { settings: deviceState.settings } : {}),
-            };
+        return mutateTasks({ set, debouncedSave }, {
+            selectTasks: (state) => {
+                const task = state._tasksById.get(id);
+                return task && !task.deletedAt && task.checklist && task.checklist.length > 0 ? [task] : [];
+            },
+            buildUpdates: (task) => {
+                const wasDone = task.status === 'done';
+                return {
+                    checklist: task.checklist?.map((item) => ({
+                        ...item,
+                        isCompleted: false,
+                    })),
+                    status: wasDone ? 'next' : task.status,
+                    completedAt: wasDone ? undefined : task.completedAt,
+                    isFocusedToday: wasDone ? false : task.isFocusedToday,
+                };
+            },
+            missingMessage: 'Task not found',
         });
-        if (snapshot) {
-            debouncedSave(snapshot, (msg) => set({ error: msg }));
-        }
-        return missingTask ? actionFail('Task not found') : actionOk();
     },
 
     /**
@@ -993,43 +913,11 @@ export const createTaskActions = ({ set, get, getStorage, debouncedSave, trackIm
             set({ error: message });
             return actionFail(message);
         }
-        const changeAt = Date.now();
-        const now = new Date().toISOString();
         const idSet = new Set(ids);
-        let snapshot: AppData | null = null;
-        set((state) => {
-            const deviceState = ensureDeviceId(state.settings);
-            let newVisibleTasks = state.tasks;
-            const changedTasks: Task[] = [];
-            for (const task of state._allTasks) {
-                if (!idSet.has(task.id)) continue;
-                const updatedTask = {
-                    ...task,
-                    deletedAt: now,
-                    updatedAt: now,
-                    rev: nextRevision(task.rev),
-                    revBy: deviceState.deviceId,
-                };
-                newVisibleTasks = updateVisibleTasks(newVisibleTasks, task, updatedTask);
-                changedTasks.push(updatedTask);
-            }
-            const newAllTasks = replaceEntitiesInArray(state._allTasks, changedTasks);
-            snapshot = buildSaveSnapshot(state, {
-                tasks: newAllTasks,
-                ...(deviceState.updated ? { settings: deviceState.settings } : {}),
-            });
-            return {
-                tasks: newVisibleTasks,
-                _allTasks: newAllTasks,
-                _tasksById: replaceEntitiesInMap(state._tasksById, changedTasks),
-                lastDataChangeAt: getNextDataChangeAt(state.lastDataChangeAt, changeAt),
-                ...(deviceState.updated ? { settings: deviceState.settings } : {}),
-            };
+        return mutateTasks({ set, debouncedSave }, {
+            selectTasks: (state) => state._allTasks.filter((task) => idSet.has(task.id)),
+            buildUpdates: (_task, { now }) => ({ deletedAt: now }),
         });
-        if (snapshot) {
-            debouncedSave(snapshot, (msg) => set({ error: msg }));
-        }
-        return actionOk();
     },
 
     queryTasks: async (options: TaskQueryOptions) => {
