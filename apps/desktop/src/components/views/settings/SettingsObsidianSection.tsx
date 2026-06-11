@@ -16,6 +16,10 @@ type Labels = {
     obsidianScanFoldersHint: string;
     obsidianInboxFile: string;
     obsidianInboxFileHint: string;
+    obsidianDataview: string;
+    obsidianDataviewDesc: string;
+    obsidianDataviewMetadata: string;
+    obsidianDataviewMetadataHint: string;
     obsidianTaskNotes: string;
     obsidianTaskNotesDesc: string;
     obsidianTaskNotesIncludeArchived: string;
@@ -45,6 +49,7 @@ type SettingsObsidianSectionProps = {
     obsidianScanFoldersText: string;
     obsidianInboxFile: string;
     obsidianTaskNotesIncludeArchived: boolean;
+    obsidianDataviewMetadataEnabled: boolean;
     obsidianNewTaskFormat: 'auto' | 'inline' | 'tasknotes';
     obsidianLastScannedAt: string | null;
     obsidianHasVaultMarker: boolean | null;
@@ -58,6 +63,7 @@ type SettingsObsidianSectionProps = {
     onObsidianScanFoldersTextChange: (value: string) => void;
     onObsidianInboxFileChange: (value: string) => void;
     onObsidianTaskNotesIncludeArchivedChange: (value: boolean) => void;
+    onObsidianDataviewMetadataEnabledChange: (value: boolean) => void;
     onObsidianNewTaskFormatChange: (value: 'auto' | 'inline' | 'tasknotes') => void;
     onBrowseObsidianVault: () => Promise<void> | void;
     onSaveObsidian: () => Promise<void> | void;
@@ -73,6 +79,7 @@ export function SettingsObsidianSection({
     obsidianScanFoldersText,
     obsidianInboxFile,
     obsidianTaskNotesIncludeArchived,
+    obsidianDataviewMetadataEnabled,
     obsidianNewTaskFormat,
     obsidianLastScannedAt,
     obsidianHasVaultMarker,
@@ -86,6 +93,7 @@ export function SettingsObsidianSection({
     onObsidianScanFoldersTextChange,
     onObsidianInboxFileChange,
     onObsidianTaskNotesIncludeArchivedChange,
+    onObsidianDataviewMetadataEnabledChange,
     onObsidianNewTaskFormatChange,
     onBrowseObsidianVault,
     onSaveObsidian,
@@ -189,6 +197,37 @@ export function SettingsObsidianSection({
                             className="bg-muted p-2 rounded text-sm font-mono border border-border focus:outline-none focus:ring-2 focus:ring-primary"
                         />
                         <p className="text-xs text-muted-foreground">{t.obsidianInboxFileHint}</p>
+                    </div>
+
+                    <div className="space-y-3 rounded-lg border border-border/60 bg-muted/30 p-4">
+                        <div className="space-y-1">
+                            <div className="text-sm font-medium">{t.obsidianDataview}</div>
+                            <p className="text-xs text-muted-foreground">{t.obsidianDataviewDesc}</p>
+                        </div>
+
+                        <div className="flex items-start justify-between gap-4">
+                            <div>
+                                <p className="text-sm font-medium">{t.obsidianDataviewMetadata}</p>
+                                <p className="text-xs text-muted-foreground">{t.obsidianDataviewMetadataHint}</p>
+                            </div>
+                            <button
+                                type="button"
+                                role="switch"
+                                aria-checked={obsidianDataviewMetadataEnabled}
+                                onClick={() => onObsidianDataviewMetadataEnabledChange(!obsidianDataviewMetadataEnabled)}
+                                className={cn(
+                                    'relative inline-flex h-5 w-9 items-center rounded-full border transition-colors',
+                                    obsidianDataviewMetadataEnabled ? 'bg-primary border-primary' : 'bg-muted/50 border-border',
+                                )}
+                            >
+                                <span
+                                    className={cn(
+                                        'inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform',
+                                        obsidianDataviewMetadataEnabled ? 'translate-x-4' : 'translate-x-1',
+                                    )}
+                                />
+                            </button>
+                        </div>
                     </div>
 
                     <div className="space-y-3 rounded-lg border border-border/60 bg-muted/30 p-4">

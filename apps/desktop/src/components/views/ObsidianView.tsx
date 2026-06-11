@@ -563,8 +563,10 @@ export function ObsidianView() {
                         {visibleTasks.map((task) => {
                             const isPending = Boolean(pendingTaskIds[task.id]);
                             const taskNotesData = task.taskNotesData;
-                            const dueLabel = formatTaskNotesDate(taskNotesData?.dueDate);
-                            const scheduledLabel = formatTaskNotesDate(taskNotesData?.scheduledDate);
+                            const dataviewData = task.dataviewData;
+                            const metadata = taskNotesData ?? dataviewData;
+                            const dueLabel = formatTaskNotesDate(metadata?.dueDate);
+                            const scheduledLabel = formatTaskNotesDate(metadata?.scheduledDate);
                             const completedLabel = formatTaskNotesDate(taskNotesData?.completedDate);
                             return (
                                 <article
@@ -601,9 +603,14 @@ export function ObsidianView() {
                                                                 {taskNotesData.mindwtrStatus}
                                                             </span>
                                                         )}
-                                                        {taskNotesData?.priority && (
+                                                        {dataviewData && (
+                                                            <span className="rounded-full bg-muted px-2 py-0.5 text-[11px] text-muted-foreground">
+                                                                {resolveText('obsidian.dataviewBadge', 'Dataview')}
+                                                            </span>
+                                                        )}
+                                                        {metadata?.priority && (
                                                             <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-medium text-amber-800">
-                                                                {taskNotesData.priority}
+                                                                {metadata.priority}
                                                             </span>
                                                         )}
                                                     </div>
@@ -618,9 +625,9 @@ export function ObsidianView() {
                                                             ? task.source.relativeFilePath
                                                             : `${task.source.relativeFilePath}:${task.source.lineNumber}`}
                                                     </p>
-                                                    {taskNotesData && (
+                                                    {metadata && (
                                                         <div className="mt-3 space-y-2">
-                                                            {(dueLabel || scheduledLabel || completedLabel || taskNotesData.timeEstimateMinutes) && (
+                                                            {(dueLabel || scheduledLabel || completedLabel || metadata.timeEstimateMinutes) && (
                                                                 <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
                                                                     {dueLabel && (
                                                                         <span className="inline-flex items-center gap-1 rounded-full bg-muted px-2.5 py-1">
@@ -640,17 +647,17 @@ export function ObsidianView() {
                                                                             {resolveText('obsidian.completed', 'Completed')}: {completedLabel}
                                                                         </span>
                                                                     )}
-                                                                    {taskNotesData.timeEstimateMinutes && (
+                                                                    {metadata.timeEstimateMinutes && (
                                                                         <span className="inline-flex items-center gap-1 rounded-full bg-muted px-2.5 py-1">
                                                                             <Clock3 className="h-3 w-3" />
-                                                                            {taskNotesData.timeEstimateMinutes}m
+                                                                            {metadata.timeEstimateMinutes}m
                                                                         </span>
                                                                     )}
                                                                 </div>
                                                             )}
-                                                            {(taskNotesData.contexts.length > 0 || taskNotesData.projects.length > 0) && (
+                                                            {(metadata.contexts.length > 0 || metadata.projects.length > 0) && (
                                                                 <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
-                                                                    {taskNotesData.contexts.map((context) => (
+                                                                    {metadata.contexts.map((context) => (
                                                                         <span
                                                                             key={`${task.id}-context-${context}`}
                                                                             className="rounded-full border border-border/70 bg-background px-2.5 py-1"
@@ -658,7 +665,7 @@ export function ObsidianView() {
                                                                             @{context}
                                                                         </span>
                                                                     ))}
-                                                                    {taskNotesData.projects.map((project) => (
+                                                                    {metadata.projects.map((project) => (
                                                                         <span
                                                                             key={`${task.id}-project-${project}`}
                                                                             className="inline-flex items-center gap-1 rounded-full border border-border/70 bg-background px-2.5 py-1"
@@ -669,7 +676,7 @@ export function ObsidianView() {
                                                                     ))}
                                                                 </div>
                                                             )}
-                                                            {taskNotesData.bodyPreview && (
+                                                            {taskNotesData?.bodyPreview && (
                                                                 <p className="text-xs leading-5 text-muted-foreground">
                                                                     {taskNotesData.bodyPreview}
                                                                 </p>

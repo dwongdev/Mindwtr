@@ -216,6 +216,8 @@ vi.mock('./settings/useObsidianSettings', () => ({
         setObsidianInboxFile: vi.fn(),
         obsidianTaskNotesIncludeArchived: false,
         setObsidianTaskNotesIncludeArchived: vi.fn(),
+        obsidianDataviewMetadataEnabled: false,
+        setObsidianDataviewMetadataEnabled: vi.fn(),
         obsidianNewTaskFormat: 'auto',
         setObsidianNewTaskFormat: vi.fn(),
         obsidianLastScannedAt: null,

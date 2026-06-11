@@ -39,6 +39,10 @@ type Labels = {
     obsidianScanFoldersHint: string;
     obsidianInboxFile: string;
     obsidianInboxFileHint: string;
+    obsidianDataview: string;
+    obsidianDataviewDesc: string;
+    obsidianDataviewMetadata: string;
+    obsidianDataviewMetadataHint: string;
     obsidianTaskNotes: string;
     obsidianTaskNotesDesc: string;
     obsidianTaskNotesIncludeArchived: string;
@@ -90,6 +94,7 @@ type SettingsIntegrationsPageProps = {
     obsidianScanFoldersText: string;
     obsidianInboxFile: string;
     obsidianTaskNotesIncludeArchived: boolean;
+    obsidianDataviewMetadataEnabled: boolean;
     obsidianNewTaskFormat: 'auto' | 'inline' | 'tasknotes';
     obsidianLastScannedAt: string | null;
     obsidianHasVaultMarker: boolean | null;
@@ -103,6 +108,7 @@ type SettingsIntegrationsPageProps = {
     onObsidianScanFoldersTextChange: (value: string) => void;
     onObsidianInboxFileChange: (value: string) => void;
     onObsidianTaskNotesIncludeArchivedChange: (value: boolean) => void;
+    onObsidianDataviewMetadataEnabledChange: (value: boolean) => void;
     onObsidianNewTaskFormatChange: (value: 'auto' | 'inline' | 'tasknotes') => void;
     onBrowseObsidianVault: () => Promise<void> | void;
     onSaveObsidian: () => Promise<void> | void;
@@ -140,6 +146,7 @@ export function SettingsIntegrationsPage({
     obsidianScanFoldersText,
     obsidianInboxFile,
     obsidianTaskNotesIncludeArchived,
+    obsidianDataviewMetadataEnabled,
     obsidianNewTaskFormat,
     obsidianLastScannedAt,
     obsidianHasVaultMarker,
@@ -153,6 +160,7 @@ export function SettingsIntegrationsPage({
     onObsidianScanFoldersTextChange,
     onObsidianInboxFileChange,
     onObsidianTaskNotesIncludeArchivedChange,
+    onObsidianDataviewMetadataEnabledChange,
     onObsidianNewTaskFormatChange,
     onBrowseObsidianVault,
     onSaveObsidian,
@@ -195,6 +203,7 @@ export function SettingsIntegrationsPage({
                 obsidianScanFoldersText={obsidianScanFoldersText}
                 obsidianInboxFile={obsidianInboxFile}
                 obsidianTaskNotesIncludeArchived={obsidianTaskNotesIncludeArchived}
+                obsidianDataviewMetadataEnabled={obsidianDataviewMetadataEnabled}
                 obsidianNewTaskFormat={obsidianNewTaskFormat}
                 obsidianLastScannedAt={obsidianLastScannedAt}
                 obsidianHasVaultMarker={obsidianHasVaultMarker}
@@ -208,6 +217,7 @@ export function SettingsIntegrationsPage({
                 onObsidianScanFoldersTextChange={onObsidianScanFoldersTextChange}
                 onObsidianInboxFileChange={onObsidianInboxFileChange}
                 onObsidianTaskNotesIncludeArchivedChange={onObsidianTaskNotesIncludeArchivedChange}
+                onObsidianDataviewMetadataEnabledChange={onObsidianDataviewMetadataEnabledChange}
                 onObsidianNewTaskFormatChange={onObsidianNewTaskFormatChange}
                 onBrowseObsidianVault={onBrowseObsidianVault}
                 onSaveObsidian={onSaveObsidian}

@@ -1035,6 +1035,8 @@ export function SettingsView({ initialPage, onboardingHintPage, onResumeOnboardi
     setObsidianInboxFile,
     obsidianTaskNotesIncludeArchived,
     setObsidianTaskNotesIncludeArchived,
+    obsidianDataviewMetadataEnabled,
+    setObsidianDataviewMetadataEnabled,
     obsidianNewTaskFormat,
     setObsidianNewTaskFormat,
     obsidianLastScannedAt,
@@ -1216,6 +1218,7 @@ export function SettingsView({ initialPage, onboardingHintPage, onResumeOnboardi
           obsidianScanFoldersText={obsidianScanFoldersText}
           obsidianInboxFile={obsidianInboxFile}
           obsidianTaskNotesIncludeArchived={obsidianTaskNotesIncludeArchived}
+          obsidianDataviewMetadataEnabled={obsidianDataviewMetadataEnabled}
           obsidianNewTaskFormat={obsidianNewTaskFormat}
           obsidianLastScannedAt={obsidianLastScannedAt}
           obsidianHasVaultMarker={obsidianHasVaultMarker}
@@ -1230,6 +1233,9 @@ export function SettingsView({ initialPage, onboardingHintPage, onResumeOnboardi
           onObsidianInboxFileChange={setObsidianInboxFile}
           onObsidianTaskNotesIncludeArchivedChange={
             setObsidianTaskNotesIncludeArchived
+          }
+          onObsidianDataviewMetadataEnabledChange={
+            setObsidianDataviewMetadataEnabled
           }
           onObsidianNewTaskFormatChange={setObsidianNewTaskFormat}
           onBrowseObsidianVault={onBrowseObsidianVault}

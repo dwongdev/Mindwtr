@@ -681,11 +681,13 @@ export {
     extractObsidianWikiLinks,
     normalizeObsidianRelativePath,
     normalizeObsidianTagValue,
+    parseObsidianDataviewData,
     parseObsidianNoteFrontmatter,
     parseObsidianTasksFromMarkdown,
     uniqueObsidianStrings,
 } from './obsidian-parser';
 export type {
+    ObsidianDataviewData,
     ObsidianFrontmatter,
     ObsidianSourceRef,
     ObsidianTask,

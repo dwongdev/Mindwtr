@@ -30,6 +30,7 @@ beforeEach(() => {
                 scanFolders: ['/'],
                 inboxFile: 'Mindwtr/Inbox.md',
                 taskNotesIncludeArchived: false,
+                dataviewMetadataEnabled: false,
                 newTaskFormat: 'auto',
                 lastScannedAt: null,
                 enabled: false,
@@ -78,6 +79,7 @@ describe('ObsidianView', () => {
                     scanFolders: ['/'],
                     inboxFile: 'Mindwtr/Inbox.md',
                     taskNotesIncludeArchived: false,
+                    dataviewMetadataEnabled: false,
                     newTaskFormat: 'auto',
                     lastScannedAt: '2026-03-14T11:00:00.000Z',
                     enabled: true,
@@ -127,6 +129,7 @@ describe('ObsidianView', () => {
                     scanFolders: ['/'],
                     inboxFile: 'Mindwtr/Inbox.md',
                     taskNotesIncludeArchived: false,
+                    dataviewMetadataEnabled: false,
                     newTaskFormat: 'auto',
                     lastScannedAt: '2026-03-14T11:00:00.000Z',
                     enabled: true,
@@ -198,6 +201,7 @@ describe('ObsidianView', () => {
                     scanFolders: ['/'],
                     inboxFile: 'Mindwtr/Inbox.md',
                     taskNotesIncludeArchived: false,
+                    dataviewMetadataEnabled: false,
                     newTaskFormat: 'auto',
                     lastScannedAt: null,
                     enabled: true,
@@ -226,6 +230,7 @@ describe('ObsidianView', () => {
                     scanFolders: ['/'],
                     inboxFile: 'Mindwtr/Inbox.md',
                     taskNotesIncludeArchived: false,
+                    dataviewMetadataEnabled: false,
                     newTaskFormat: 'auto',
                     lastScannedAt: '2026-03-14T11:00:00.000Z',
                     enabled: true,
@@ -279,5 +284,62 @@ describe('ObsidianView', () => {
         expect(getByText('TaskNotes mode is active')).toBeInTheDocument();
         expect(getByText('TaskNotes/Archive/Old task.md')).toBeInTheDocument();
         expect(getAllByText('TaskNotes/Review quarterly report.md').length).toBeGreaterThan(0);
+    });
+
+    it('renders Dataview metadata imported from inline tasks', () => {
+        act(() => {
+            useObsidianStore.setState((state) => ({
+                ...state,
+                config: {
+                    vaultPath: '/Vault',
+                    vaultName: 'Vault',
+                    scanFolders: ['/'],
+                    inboxFile: 'Mindwtr/Inbox.md',
+                    taskNotesIncludeArchived: false,
+                    dataviewMetadataEnabled: true,
+                    newTaskFormat: 'auto',
+                    lastScannedAt: '2026-03-14T11:00:00.000Z',
+                    enabled: true,
+                },
+                scannedFileCount: 1,
+                taskNotesDetectedPaths: [],
+                importMode: 'inline',
+                tasks: [{
+                    id: 'obsidian-dataview-1',
+                    text: 'Draft proposal [project:: Launch]',
+                    completed: false,
+                    tags: ['writing'],
+                    wikiLinks: [],
+                    nestingLevel: 0,
+                    source: {
+                        vaultName: 'Vault',
+                        vaultPath: '/Vault',
+                        relativeFilePath: 'Projects/Launch.md',
+                        lineNumber: 8,
+                        fileModifiedAt: '2026-03-14T10:00:00.000Z',
+                        noteTags: [],
+                    },
+                    format: 'inline',
+                    dataviewData: {
+                        priority: 'medium',
+                        dueDate: '2026-05-01',
+                        scheduledDate: '2026-04-28',
+                        contexts: ['desk'],
+                        projects: ['Launch'],
+                        tags: ['writing'],
+                        timeEstimateMinutes: 45,
+                    },
+                }],
+            }));
+        });
+
+        const { getByText } = renderWithProviders();
+
+        expect(getByText('Dataview')).toBeInTheDocument();
+        expect(getByText('Launch')).toBeInTheDocument();
+        expect(getByText('@desk')).toBeInTheDocument();
+        expect(getByText(/45m/)).toBeInTheDocument();
+        expect(getByText(/Due:/)).toBeInTheDocument();
+        expect(getByText(/Scheduled:/)).toBeInTheDocument();
     });
 });

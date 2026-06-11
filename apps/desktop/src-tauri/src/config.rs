@@ -744,6 +744,7 @@ fn normalize_obsidian_config_payload(payload: ObsidianConfigPayload) -> Obsidian
         scan_folders: normalize_obsidian_scan_folders(payload.scan_folders),
         inbox_file: normalize_obsidian_inbox_file(&payload.inbox_file),
         task_notes_include_archived: payload.task_notes_include_archived,
+        dataview_metadata_enabled: payload.dataview_metadata_enabled,
         new_task_format: normalize_obsidian_new_task_format(payload.new_task_format),
         last_scanned_at,
     }
