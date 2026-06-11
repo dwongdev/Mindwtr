@@ -1369,17 +1369,7 @@ const mobileSyncOrchestrator = createSyncOrchestrator<string | undefined, Mobile
 
       step = 'refresh';
       ensureLocalSnapshotFresh();
-      await useTaskStore.getState().fetchData();
-      const now = new Date().toISOString();
-      try {
-        await useTaskStore.getState().updateSettings({
-          lastSyncAt: now,
-          lastSyncStatus: syncResult.status,
-          lastSyncError: undefined,
-        });
-      } catch (error) {
-        logSyncWarning('[Mobile] Failed to persist sync status', error);
-      }
+      await useTaskStore.getState().fetchData({ silent: true });
       logSyncDiagnostic('Sync diagnostic complete', syncDiagnosticStartedAt, {
         backend,
         step,
@@ -1434,7 +1424,7 @@ const mobileSyncOrchestrator = createSyncOrchestrator<string | undefined, Mobile
         }
         if (wroteLocal) {
           try {
-            await useTaskStore.getState().fetchData();
+            await useTaskStore.getState().fetchData({ silent: true });
           } catch (fetchError) {
             logSyncWarning('[Mobile] Failed to refresh store after offline sync skip', fetchError);
           }
@@ -1478,7 +1468,7 @@ const mobileSyncOrchestrator = createSyncOrchestrator<string | undefined, Mobile
       });
       try {
         if (wroteLocal) {
-          await useTaskStore.getState().fetchData();
+          await useTaskStore.getState().fetchData({ silent: true });
         }
         await useTaskStore.getState().updateSettings({
           lastSyncAt: now,
