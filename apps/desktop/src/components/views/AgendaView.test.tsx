@@ -752,21 +752,22 @@ describe('AgendaView', () => {
             createdAt: nowIso,
             updatedAt: nowIso,
         };
+        const projects = [{
+            id: 'project-alpha',
+            title: 'Alpha project',
+            status: 'active' as const,
+            color: '#123456',
+            order: 0,
+            tagIds: [],
+            createdAt: nowIso,
+            updatedAt: nowIso,
+        }];
 
         useTaskStore.setState({
             tasks: [projectTask, noProjectTask],
             _allTasks: [projectTask, noProjectTask],
-            projects: [{
-                id: 'project-alpha',
-                title: 'Alpha project',
-                status: 'active',
-                color: '#123456',
-                order: 0,
-                tagIds: [],
-                createdAt: nowIso,
-                updatedAt: nowIso,
-            }],
-            _allProjects: [],
+            projects,
+            _allProjects: projects,
             areas: [],
             _allAreas: [],
             settings: {},
@@ -858,33 +859,34 @@ describe('AgendaView', () => {
             createdAt: nowIso,
             updatedAt: nowIso,
         };
+        const projects = [
+            {
+                id: 'project-alpha',
+                title: 'Alpha project',
+                status: 'active' as const,
+                color: '#123456',
+                order: 0,
+                tagIds: [],
+                createdAt: nowIso,
+                updatedAt: nowIso,
+            },
+            {
+                id: 'project-beta',
+                title: 'Beta project',
+                status: 'active' as const,
+                color: '#654321',
+                order: 1,
+                tagIds: [],
+                createdAt: nowIso,
+                updatedAt: nowIso,
+            },
+        ];
 
         useTaskStore.setState({
             tasks: [projectTask, otherTask],
             _allTasks: [projectTask, otherTask],
-            projects: [
-                {
-                    id: 'project-alpha',
-                    title: 'Alpha project',
-                    status: 'active',
-                    color: '#123456',
-                    order: 0,
-                    tagIds: [],
-                    createdAt: nowIso,
-                    updatedAt: nowIso,
-                },
-                {
-                    id: 'project-beta',
-                    title: 'Beta project',
-                    status: 'active',
-                    color: '#654321',
-                    order: 1,
-                    tagIds: [],
-                    createdAt: nowIso,
-                    updatedAt: nowIso,
-                },
-            ],
-            _allProjects: [],
+            projects,
+            _allProjects: projects,
             areas: [],
             _allAreas: [],
             settings: {},
@@ -920,21 +922,22 @@ describe('AgendaView', () => {
             createdAt: nowIso,
             updatedAt: nowIso,
         };
+        const projects = [{
+            id: 'project-alpha',
+            title: 'Alpha project',
+            status: 'active' as const,
+            color: '#123456',
+            order: 0,
+            tagIds: [],
+            createdAt: nowIso,
+            updatedAt: nowIso,
+        }];
 
         useTaskStore.setState({
             tasks: [projectTask, noProjectTask],
             _allTasks: [projectTask, noProjectTask],
-            projects: [{
-                id: 'project-alpha',
-                title: 'Alpha project',
-                status: 'active',
-                color: '#123456',
-                order: 0,
-                tagIds: [],
-                createdAt: nowIso,
-                updatedAt: nowIso,
-            }],
-            _allProjects: [],
+            projects,
+            _allProjects: projects,
             areas: [],
             _allAreas: [],
             settings: {},
