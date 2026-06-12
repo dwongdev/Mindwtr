@@ -461,6 +461,27 @@ export const TaskItemDisplay = memo(function TaskItemDisplay({
     const inlineLeftControls = !actionsOverlay && (showQuickDoneButton || dragHandle);
     const showActionTags = !actionsOverlay && !isViewOpen && task.tags.length > 0;
 
+    // Inbox items are unprocessed captures, not a done/not-done checklist, so the
+    // quick-complete check stays hidden at rest and only reveals on row hover (for the
+    // 2-minute rule). Actionable lists (next, projects, focus) show it at rest.
+    const isInboxItem = task.status === 'inbox';
+    const quickDoneButton = (
+        <button
+            type="button"
+            onClick={(event) => {
+                event.stopPropagation();
+                onStatusChange('done');
+            }}
+            aria-label={t('status.done')}
+            className={cn(
+                "text-emerald-400 hover:text-emerald-300 p-1 rounded hover:bg-emerald-500/20",
+                isInboxItem && "opacity-0 group-hover:opacity-100 focus:opacity-100 transition-opacity",
+            )}
+        >
+            <Check className="w-4 h-4" />
+        </button>
+    );
+
     return (
         <div className={cn("task-item-display flex-1 min-w-0 flex items-start gap-3", actionsOverlay && "relative")}>
             {overlayDragHandle && (
@@ -476,17 +497,7 @@ export const TaskItemDisplay = memo(function TaskItemDisplay({
                     className="absolute left-4 top-2 flex items-center z-10"
                     onPointerDown={(event) => event.stopPropagation()}
                 >
-                    <button
-                        type="button"
-                        onClick={(event) => {
-                            event.stopPropagation();
-                            onStatusChange('done');
-                        }}
-                        aria-label={t('status.done')}
-                        className="text-emerald-400 hover:text-emerald-300 p-1 rounded hover:bg-emerald-500/20"
-                    >
-                        <Check className="w-4 h-4" />
-                    </button>
+                    {quickDoneButton}
                 </div>
             )}
             <div className={cn("task-item-display__main flex min-w-0 flex-1 items-start gap-2")}>
@@ -498,19 +509,7 @@ export const TaskItemDisplay = memo(function TaskItemDisplay({
                         )}
                     >
                         {dragHandle}
-                        {showQuickDoneButton && (
-                            <button
-                                type="button"
-                                onClick={(event) => {
-                                    event.stopPropagation();
-                                    onStatusChange('done');
-                                }}
-                                aria-label={t('status.done')}
-                                className="text-emerald-400 hover:text-emerald-300 p-1 rounded hover:bg-emerald-500/20"
-                            >
-                                <Check className="w-4 h-4" />
-                            </button>
-                        )}
+                        {showQuickDoneButton && quickDoneButton}
                     </div>
                 )}
                 <div
