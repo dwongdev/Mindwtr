@@ -1106,20 +1106,20 @@ const mobileSyncOrchestrator = createSyncOrchestrator<string | undefined, Mobile
           lastSyncStatus: 'success',
           lastSyncError: undefined,
         });
-      useTaskStore.getState().setError(null);
-      logSyncInfo('Sync fast check found no changes', {
-        backend,
-        elapsedMs: getSyncDiagnosticElapsedMs(fastCheckStartedAt),
-        ...buildSyncDataDiagnostics(localDataForFastCheck),
-      });
-      return { success: true, skipped: 'unchanged' };
-    };
+        useTaskStore.getState().setError(null);
+        logSyncInfo('Sync fast check found no changes', {
+          backend,
+          elapsedMs: getSyncDiagnosticElapsedMs(fastCheckStartedAt),
+          ...buildSyncDataDiagnostics(localDataForFastCheck),
+        });
+        return { success: true, skipped: 'unchanged' };
+      };
 
-    const trySkipUnchangedReadSync = async (): Promise<MobileSyncResult | null> => {
-      const readCheckStartedAt = Date.now();
-      step = 'read-check';
-      logSyncInfo('Sync step', { step });
-      if (preSyncedLocalData) return null;
+      const trySkipUnchangedReadSync = async (): Promise<MobileSyncResult | null> => {
+        const readCheckStartedAt = Date.now();
+        step = 'read-check';
+        logSyncInfo('Sync step', { step });
+        if (preSyncedLocalData) return null;
         const localDataForReadCheck = await readLocalDataForSyncCycle();
         ensureLocalSnapshotFresh();
         if (hasPendingSyncSideEffects(localDataForReadCheck)) return null;
@@ -1134,20 +1134,20 @@ const mobileSyncOrchestrator = createSyncOrchestrator<string | undefined, Mobile
         if (!areSyncPayloadsEqual(remoteSanitized, localSanitized)) return null;
 
         await recordFastSyncState(localDataForReadCheck, { allowRemoteFingerprintRead: false });
-      await applyLocalSyncStatus({
-        lastSyncAt: new Date().toISOString(),
-        lastSyncStatus: 'success',
-        lastSyncError: undefined,
-      });
-      readCheckRemoteData = undefined;
-      useTaskStore.getState().setError(null);
-      logSyncInfo('Sync read check found no changes', {
-        backend,
-        elapsedMs: getSyncDiagnosticElapsedMs(readCheckStartedAt),
-        ...buildSyncDataDiagnostics(localDataForReadCheck),
-      });
-      return { success: true, skipped: 'unchanged' };
-    };
+        await applyLocalSyncStatus({
+          lastSyncAt: new Date().toISOString(),
+          lastSyncStatus: 'success',
+          lastSyncError: undefined,
+        });
+        readCheckRemoteData = undefined;
+        useTaskStore.getState().setError(null);
+        logSyncInfo('Sync read check found no changes', {
+          backend,
+          elapsedMs: getSyncDiagnosticElapsedMs(readCheckStartedAt),
+          ...buildSyncDataDiagnostics(localDataForReadCheck),
+        });
+        return { success: true, skipped: 'unchanged' };
+      };
 
       const unchangedFastResult = await trySkipUnchangedFastSync();
       const unchangedResult = unchangedFastResult ?? await trySkipUnchangedReadSync();

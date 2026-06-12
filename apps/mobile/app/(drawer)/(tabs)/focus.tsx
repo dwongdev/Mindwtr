@@ -362,9 +362,7 @@ export default function FocusScreen() {
   const futureStartTasks = useMemo(() => (
     baseActiveTasks.filter((task) => !shouldShowTaskForStart(task, { showFutureStarts: false }))
   ), [baseActiveTasks]);
-  const hiddenFutureStartCount = useMemo(() => (
-    futureStartTasks.length
-  ), [futureStartTasks]);
+  const hiddenFutureStartCount = futureStartTasks.length;
   const futureStartPreview = useMemo(() => {
     if (!showFutureStarts || futureStartTasks.length === 0) return '';
     const visibleTitles = futureStartTasks.slice(0, 2).map((task) => task.title.trim()).filter(Boolean);
