@@ -193,6 +193,7 @@ describe('CalendarView', () => {
                 id: 'month-start-task',
                 title: 'Month start task',
                 dueDate: '2026-04-01T12:00:00',
+                startTime: '2026-04-01T12:00:00',
             }),
             makeTask({
                 id: 'today-task',
@@ -527,13 +528,15 @@ describe('CalendarView', () => {
 
         const panel = screen.getByText('Plan next actions').closest('aside') as HTMLElement;
         expect(within(panel).getByText('Draft planning memo')).toBeInTheDocument();
-        expect(within(panel).queryByText('Review deadline brief')).not.toBeInTheDocument();
+        expect(within(panel).getByText('Review deadline brief')).toBeInTheDocument();
         expect(within(panel).queryByText('Already scheduled')).not.toBeInTheDocument();
         expect(within(panel).queryByText('Focused today')).not.toBeInTheDocument();
 
         await selectDay('4');
+        const planTitle = panel.querySelector('[data-task-id="task-plan"]') as HTMLElement;
+        const planCard = planTitle.parentElement as HTMLElement;
         await act(async () => {
-            fireEvent.click(within(panel).getAllByRole('button', { name: 'Schedule' })[0]);
+            fireEvent.click(within(planCard).getByRole('button', { name: 'Schedule' }));
             await Promise.resolve();
         });
         await act(async () => {
@@ -544,6 +547,35 @@ describe('CalendarView', () => {
         expect(storeMocks.taskStoreState.updateTask).toHaveBeenCalledWith('task-plan', expect.objectContaining({
             startTime: new Date(2026, 3, 4, 8, 0).toISOString(),
         }));
+    });
+
+    it('collapses and expands the calendar planning panel', async () => {
+        storeMocks.taskStoreState.tasks = [
+            makeTask({
+                id: 'task-plan',
+                title: 'Draft planning memo',
+            }),
+        ];
+
+        renderCalendar();
+        await flushCalendarEffects();
+
+        expect(screen.getByText('Draft planning memo')).toBeInTheDocument();
+        await act(async () => {
+            fireEvent.click(screen.getByRole('button', { name: 'Collapse planning panel' }));
+            await Promise.resolve();
+        });
+
+        expect(screen.queryByText('Draft planning memo')).not.toBeInTheDocument();
+        expect(window.localStorage.getItem('mindwtr.calendar.planningPanelCollapsed')).toBe('true');
+
+        await act(async () => {
+            fireEvent.click(screen.getByRole('button', { name: 'Expand planning panel' }));
+            await Promise.resolve();
+        });
+
+        expect(screen.getByText('Draft planning memo')).toBeInTheDocument();
+        expect(window.localStorage.getItem('mindwtr.calendar.planningPanelCollapsed')).toBe('false');
     });
 
     it('shows date-only start times as all-day scheduled tasks on the calendar', async () => {

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, type DragEvent, type KeyboardEvent } from 'react';
+import { useCallback, useEffect, useRef, useState, type DragEvent, type KeyboardEvent } from 'react';
 import { isSameDay, isToday } from 'date-fns';
 import { CalendarDays, ChevronLeft, ChevronRight, Plus, Search } from 'lucide-react';
 import {
@@ -35,6 +35,16 @@ import {
 } from './calendar/useDesktopCalendarController';
 
 const PROJECTED_RECURRENCE_LABEL_DATE_FORMAT = 'MMM d';
+const CALENDAR_PLANNING_PANEL_COLLAPSED_KEY = 'mindwtr.calendar.planningPanelCollapsed';
+
+const readPlanningPanelCollapsedPreference = (): boolean => {
+    if (typeof window === 'undefined') return false;
+    try {
+        return window.localStorage.getItem(CALENDAR_PLANNING_PANEL_COLLAPSED_KEY) === 'true';
+    } catch {
+        return false;
+    }
+};
 
 function getProjectedRecurrenceDisplayLabel(task: Task, projectedLabel: string): string {
     const occurrenceDateLabel = safeFormatDate(
@@ -46,6 +56,7 @@ function getProjectedRecurrenceDisplayLabel(task: Task, projectedLabel: string):
 
 export function CalendarView() {
     const timelineScrollRef = useRef<HTMLDivElement | null>(null);
+    const [isPlanningPanelCollapsed, setIsPlanningPanelCollapsed] = useState(readPlanningPanelCollapsedPreference);
     const controller = useDesktopCalendarController();
     const {
         calendarBodyRef,
@@ -137,6 +148,14 @@ export function CalendarView() {
     const timelineScrollKey = viewMode === 'day' || viewMode === 'week'
         ? `${viewMode}:${timelineDays.map(dayKey).join('|')}`
         : '';
+    const handlePlanningPanelCollapsedChange = useCallback((collapsed: boolean) => {
+        setIsPlanningPanelCollapsed(collapsed);
+        try {
+            window.localStorage.setItem(CALENDAR_PLANNING_PANEL_COLLAPSED_KEY, collapsed ? 'true' : 'false');
+        } catch {
+            // Ignore storage failures; the in-memory state still updates.
+        }
+    }, []);
 
     useEffect(() => {
         if (!timelineScrollKey) return;
@@ -316,7 +335,15 @@ export function CalendarView() {
                 </div>
             )}
 
-            <div ref={calendarBodyRef} className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_20rem]">
+            <div
+                ref={calendarBodyRef}
+                className={cn(
+                    "grid gap-6",
+                    isPlanningPanelCollapsed
+                        ? "xl:grid-cols-[minmax(0,1fr)_3.5rem]"
+                        : "xl:grid-cols-[minmax(0,1fr)_20rem]"
+                )}
+            >
                 <div className="min-w-0 space-y-6">
                 {viewMode === 'month' && (
                 <div className="grid grid-cols-7 gap-px bg-border rounded-lg overflow-hidden shadow-sm">
@@ -771,7 +798,11 @@ export function CalendarView() {
 
                 <CalendarSelectedDayPanel controller={controller} />
                 </div>
-                <CalendarPlanningPanel controller={controller} />
+                <CalendarPlanningPanel
+                    controller={controller}
+                    isCollapsed={isPlanningPanelCollapsed}
+                    onCollapsedChange={handlePlanningPanelCollapsedChange}
+                />
         </div>
             <CalendarOpenTaskModal controller={controller} />
             <CalendarTaskComposerModal controller={controller} />

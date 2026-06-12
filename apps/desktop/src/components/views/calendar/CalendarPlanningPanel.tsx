@@ -1,4 +1,4 @@
-import { Clock } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Clock } from 'lucide-react';
 import { safeFormatDate, safeParseDueDate, type Task } from '@mindwtr/core';
 
 import { cn } from '../../../lib/utils';
@@ -16,6 +16,8 @@ type CalendarPlanningPanelController = Pick<
 
 type CalendarPlanningPanelProps = {
     controller: CalendarPlanningPanelController;
+    isCollapsed: boolean;
+    onCollapsedChange: (collapsed: boolean) => void;
 };
 
 const getDueLabel = (task: Task, fallback: string): string | null => {
@@ -26,7 +28,11 @@ const getDueLabel = (task: Task, fallback: string): string | null => {
     return label ? `${fallback}: ${label}` : null;
 };
 
-export function CalendarPlanningPanel({ controller }: CalendarPlanningPanelProps) {
+export function CalendarPlanningPanel({
+    controller,
+    isCollapsed,
+    onCollapsedChange,
+}: CalendarPlanningPanelProps) {
     const {
         locale,
         planningTasks,
@@ -41,19 +47,48 @@ export function CalendarPlanningPanel({ controller }: CalendarPlanningPanelProps
     const targetLabel = selectedDateLabel
         ? resolveText('calendar.planningForDate', 'Plan for {date}').replace('{date}', selectedDateLabel)
         : resolveText('calendar.selectDayToPlan', 'Select a day to plan first.');
+    const collapseLabel = resolveText('calendar.collapsePlanningPanel', 'Collapse planning panel');
+    const expandLabel = resolveText('calendar.expandPlanningPanel', 'Expand planning panel');
+
+    if (isCollapsed) {
+        return (
+            <aside className="rounded-lg border border-border bg-card p-2 shadow-sm">
+                <button
+                    type="button"
+                    onClick={() => onCollapsedChange(false)}
+                    className="inline-flex h-10 w-full items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground focus:outline-none focus:ring-2 focus:ring-primary/40"
+                    aria-label={expandLabel}
+                    title={expandLabel}
+                >
+                    <ChevronLeft className="h-4 w-4" aria-hidden="true" />
+                </button>
+            </aside>
+        );
+    }
 
     return (
         <aside className="space-y-3 rounded-lg border border-border bg-card p-3 shadow-sm">
-            <div className="space-y-1">
-                <div className="text-sm font-semibold text-foreground">
-                    {resolveText('calendar.planningTitle', 'Plan next actions')}
+            <div className="flex items-start justify-between gap-2">
+                <div className="min-w-0 space-y-1">
+                    <div className="text-sm font-semibold text-foreground">
+                        {resolveText('calendar.planningTitle', 'Plan next actions')}
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                        {resolveText('calendar.planningHelp', 'Pick existing next actions and place them around your hard landscape.')}
+                    </p>
+                    <p className={cn("text-xs font-medium", selectedDate ? "text-primary" : "text-muted-foreground")}>
+                        {targetLabel}
+                    </p>
                 </div>
-                <p className="text-xs text-muted-foreground">
-                    {resolveText('calendar.planningHelp', 'Pick existing next actions and place them around your hard landscape.')}
-                </p>
-                <p className={cn("text-xs font-medium", selectedDate ? "text-primary" : "text-muted-foreground")}>
-                    {targetLabel}
-                </p>
+                <button
+                    type="button"
+                    onClick={() => onCollapsedChange(true)}
+                    className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground focus:outline-none focus:ring-2 focus:ring-primary/40"
+                    aria-label={collapseLabel}
+                    title={collapseLabel}
+                >
+                    <ChevronRight className="h-4 w-4" aria-hidden="true" />
+                </button>
             </div>
 
             {scheduleError && (
