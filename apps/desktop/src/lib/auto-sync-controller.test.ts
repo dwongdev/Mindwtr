@@ -191,6 +191,38 @@ describe('createDesktopAutoSyncController', () => {
         });
     });
 
+    it('skips focus and blur syncs when there are no pending local changes', async () => {
+        const scheduler = createManualScheduler(50_000);
+        let pendingLocalChanges = false;
+
+        const performSync = vi.fn(async () => ({ success: true }));
+        const controller = createDesktopAutoSyncController({
+            canSync: async () => true,
+            performSync,
+            flushPendingSave: async () => undefined,
+            reportError: vi.fn(),
+            isRuntimeActive: () => true,
+            hasPendingLocalChanges: () => pendingLocalChanges,
+            now: scheduler.now,
+            setTimer: scheduler.setTimer,
+            clearTimer: scheduler.clearTimer,
+            minIntervalMs: 0,
+            periodicSyncIntervalMs: null,
+        });
+
+        controller.handleBlur();
+        controller.handleFocus();
+        await Promise.resolve();
+
+        expect(performSync).not.toHaveBeenCalled();
+
+        pendingLocalChanges = true;
+        controller.handleBlur();
+        await waitForAssertion(() => {
+            expect(performSync).toHaveBeenCalledTimes(1);
+        });
+    });
+
     it('runs a periodic heartbeat while the runtime is active', async () => {
         const scheduler = createManualScheduler();
         let pauseWindowSync = false;

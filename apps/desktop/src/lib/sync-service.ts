@@ -1609,6 +1609,12 @@ export class SyncService {
         return state.lastDataChangeAt > SyncService.lastSuccessfulSyncLocalChangeAt;
     }
 
+    static hasPendingLocalChangesForAutoSync(): boolean {
+        const state = getStoreState();
+        if (state.lastDataChangeAt <= 0) return false;
+        return state.lastDataChangeAt > SyncService.lastSuccessfulSyncLocalChangeAt;
+    }
+
     static async resolveExternalSyncChange(
         resolution: ExternalSyncChangeResolution
     ): Promise<{ success: boolean; stats?: MergeStats; error?: string }> {

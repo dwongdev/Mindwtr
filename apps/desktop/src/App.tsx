@@ -624,6 +624,7 @@ function App() {
                 useTaskStore.getState().editLockCount > 0
                 || useUiStore.getState().editingTaskId !== null
             ),
+            hasPendingLocalChanges: () => SyncService.hasPendingLocalChangesForAutoSync(),
         });
 
         const focusListener = () => {

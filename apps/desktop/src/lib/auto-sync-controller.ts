@@ -13,6 +13,7 @@ type DesktopAutoSyncControllerOptions = {
     onSyncFailure?: (error: string) => void;
     isRuntimeActive: () => boolean;
     shouldPauseWindowSync?: () => boolean;
+    hasPendingLocalChanges?: () => boolean;
     now?: () => number;
     setTimer?: typeof setTimeout;
     clearTimer?: typeof clearTimeout;
@@ -100,6 +101,12 @@ export const createDesktopAutoSyncController = (
         }, periodicSyncIntervalMs);
     };
 
+    const shouldRunWindowSync = () => (
+        options.isRuntimeActive()
+        && !options.shouldPauseWindowSync?.()
+        && (options.hasPendingLocalChanges?.() ?? true)
+    );
+
     const autoSyncOrchestrator = createSyncOrchestrator<number | undefined, void>({
         runCycle: async (overrideMinIntervalMs) => {
             if (!options.isRuntimeActive()) return;
@@ -142,15 +149,13 @@ export const createDesktopAutoSyncController = (
     return {
         requestSync,
         handleFocus: () => {
-            if (!options.isRuntimeActive()) return;
-            if (options.shouldPauseWindowSync?.()) return;
+            if (!shouldRunWindowSync()) return;
             if (now() - lastAutoSyncAt > focusMinIntervalMs) {
                 void requestSync().catch((error) => options.reportError('Sync failed', error));
             }
         },
         handleBlur: () => {
-            if (!options.isRuntimeActive()) return;
-            if (options.shouldPauseWindowSync?.()) return;
+            if (!shouldRunWindowSync()) return;
             void requestSync().catch((error) => options.reportError('Sync failed', error));
         },
         handleDataChange: () => {

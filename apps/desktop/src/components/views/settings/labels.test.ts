@@ -37,7 +37,7 @@ const reportedZhHantLabels = {
     importOmniFocus: '從 OmniFocus 導入',
     importOmniFocusDesc: '將 OmniFocus 的 CSV、JSON 或 ZIP 導出導入為 Mindwtr 項目和收集箱任務。',
     backgroundSync: '後台同步',
-    backgroundSyncDesc: '桌面端會在 Mindwtr 運行時每 15 分鐘同步一次。關閉到托盤可保持運行；開機自動啟動可在登錄後啟動。退出應用會停止桌面後台同步。',
+    backgroundSyncDesc: '桌面端會在啟動時、Mindwtr 運行時每 15 分鐘一次，以及任務/項目變更後短暫延遲同步。關閉到托盤可保持運行；開機自動啟動可在登錄後啟動。退出應用會停止桌面後台同步。',
     attachmentsCleanupPendingDeletes: '待處理遠程刪除',
     attachmentsCleanupPendingDeletesClear: '清除待處理刪除',
     calendarChooseLocalFile: '選擇本地 .ics 文件',

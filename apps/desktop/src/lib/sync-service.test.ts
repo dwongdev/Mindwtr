@@ -668,6 +668,24 @@ describe('SyncService orchestration', () => {
         expect((SyncService as any).lastSuccessfulSyncLocalChangeAt).toBe(0);
     });
 
+    it('reports pending local changes for desktop auto-sync only after local data changes', () => {
+        const storeState = {
+            lastDataChangeAt: 0,
+        };
+        __syncServiceTestUtils.setDependenciesForTests({
+            getStoreState: () => storeState as any,
+        });
+
+        expect(SyncService.hasPendingLocalChangesForAutoSync()).toBe(false);
+
+        (SyncService as any).lastSuccessfulSyncLocalChangeAt = 100;
+        storeState.lastDataChangeAt = 100;
+        expect(SyncService.hasPendingLocalChangesForAutoSync()).toBe(false);
+
+        storeState.lastDataChangeAt = 101;
+        expect(SyncService.hasPendingLocalChangesForAutoSync()).toBe(true);
+    });
+
     it('refreshes store data without overwriting synced settings after a successful sync', async () => {
         const callOrder: string[] = [];
         const storeState = {
