@@ -5,6 +5,7 @@ import {
     type GlobalQuickAddShortcutSetting,
     formatGlobalQuickAddShortcutForDisplay,
 } from '../lib/global-quick-add-shortcut';
+import { MANUAL_SYNC_SHORTCUT_DISPLAY } from '../lib/manual-sync-shortcut';
 
 interface KeybindingHelpModalProps {
     style: KeybindingStyle;
@@ -32,6 +33,7 @@ export function KeybindingHelpModal({
     const quickAddShortcutDisplay = formatGlobalQuickAddShortcutForDisplay(quickAddShortcut, isMac);
     const sharedGlobal: HelpItem[] = [
         { keys: quickAddShortcutDisplay, labelKey: 'keybindings.quickAdd' },
+        { keys: MANUAL_SYNC_SHORTCUT_DISPLAY, labelKey: 'settings.syncNow', fallbackLabel: 'Sync now' },
         { keys: 'Ctrl+, / Cmd+,', labelKey: 'keybindings.openSettings' },
         { keys: 'Ctrl-b / Cmd-b', labelKey: 'keybindings.toggleSidebar' },
         { keys: 'Ctrl+\\ / Cmd+\\', labelKey: 'keybindings.toggleSidebar' },

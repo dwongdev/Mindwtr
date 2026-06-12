@@ -20,6 +20,7 @@ describe('KeybindingHelpModal', () => {
         const { getByText, queryByText } = renderModal('vim');
 
         expect(getByText('Ctrl+, / Cmd+,')).toBeInTheDocument();
+        expect(getByText('Ctrl+Alt+S / Cmd+Option+S')).toBeInTheDocument();
         expect(getByText('Ctrl-b / Cmd-b')).toBeInTheDocument();
         expect(getByText('Ctrl+\\ / Cmd+\\')).toBeInTheDocument();
         expect(getByText('Ctrl+Shift+D / Cmd+Shift+D')).toBeInTheDocument();
@@ -36,6 +37,7 @@ describe('KeybindingHelpModal', () => {
         const { getByText, queryByText } = renderModal('emacs');
 
         expect(getByText('Ctrl+, / Cmd+,')).toBeInTheDocument();
+        expect(getByText('Ctrl+Alt+S / Cmd+Option+S')).toBeInTheDocument();
         expect(getByText('Ctrl-h / Ctrl-?')).toBeInTheDocument();
         expect(getByText('Alt-i')).toBeInTheDocument();
         expect(getByText('Alt-A')).toBeInTheDocument();

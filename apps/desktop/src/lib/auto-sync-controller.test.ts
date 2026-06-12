@@ -191,7 +191,7 @@ describe('createDesktopAutoSyncController', () => {
         });
     });
 
-    it('skips focus and blur syncs when there are no pending local changes', async () => {
+    it('keeps focus sync for remote pulls but skips blur sync when there are no pending local changes', async () => {
         const scheduler = createManualScheduler(50_000);
         let pendingLocalChanges = false;
 
@@ -211,15 +211,19 @@ describe('createDesktopAutoSyncController', () => {
         });
 
         controller.handleBlur();
-        controller.handleFocus();
         await Promise.resolve();
 
         expect(performSync).not.toHaveBeenCalled();
 
+        controller.handleFocus();
+        await waitForAssertion(() => {
+            expect(performSync).toHaveBeenCalledTimes(1);
+        });
+
         pendingLocalChanges = true;
         controller.handleBlur();
         await waitForAssertion(() => {
-            expect(performSync).toHaveBeenCalledTimes(1);
+            expect(performSync).toHaveBeenCalledTimes(2);
         });
     });
 

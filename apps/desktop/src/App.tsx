@@ -76,6 +76,7 @@ import {
 } from './lib/text-size';
 import { saveStoredFullscreen } from './lib/window-state';
 import { installWebviewZoomShortcuts } from './lib/webview-zoom';
+import { isEditableManualSyncShortcutTarget, isManualSyncShortcut } from './lib/manual-sync-shortcut';
 import { resolveCloseBehavior } from './lib/window-behavior';
 import { handleDesktopCloseRequest } from './lib/close-request-handler';
 import { subscribeNavigateEvent } from './lib/navigation-events';
@@ -635,6 +636,14 @@ function App() {
             autoSyncController.handleBlur();
         };
 
+        const manualSyncShortcutListener = (event: KeyboardEvent) => {
+            if (!isManualSyncShortcut(event)) return;
+            if (!isTauriRuntime()) return;
+            if (isEditableManualSyncShortcutTarget(event.target)) return;
+            event.preventDefault();
+            void autoSyncController.requestSync(0).catch((error) => reportError('Sync failed', error));
+        };
+
         const storeUnsubscribe = useTaskStore.subscribe((state, prevState) => {
             if (state.lastDataChangeAt === prevState.lastDataChangeAt) return;
             autoSyncController.handleDataChange();
@@ -642,6 +651,7 @@ function App() {
 
         window.addEventListener('focus', focusListener);
         window.addEventListener('blur', blurListener);
+        window.addEventListener('keydown', manualSyncShortcutListener);
         autoSyncController.scheduleInitialSync();
 
         return () => {
@@ -651,6 +661,7 @@ function App() {
             window.removeEventListener('beforeunload', handleUnload);
             window.removeEventListener('focus', focusListener);
             window.removeEventListener('blur', blurListener);
+            window.removeEventListener('keydown', manualSyncShortcutListener);
             if (unlistenClose) {
                 unlistenClose();
             }

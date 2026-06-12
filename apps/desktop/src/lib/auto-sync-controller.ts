@@ -101,9 +101,13 @@ export const createDesktopAutoSyncController = (
         }, periodicSyncIntervalMs);
     };
 
-    const shouldRunWindowSync = () => (
+    const canRunWindowSync = () => (
         options.isRuntimeActive()
         && !options.shouldPauseWindowSync?.()
+    );
+
+    const shouldRunBlurSync = () => (
+        canRunWindowSync()
         && (options.hasPendingLocalChanges?.() ?? true)
     );
 
@@ -149,13 +153,13 @@ export const createDesktopAutoSyncController = (
     return {
         requestSync,
         handleFocus: () => {
-            if (!shouldRunWindowSync()) return;
+            if (!canRunWindowSync()) return;
             if (now() - lastAutoSyncAt > focusMinIntervalMs) {
                 void requestSync().catch((error) => options.reportError('Sync failed', error));
             }
         },
         handleBlur: () => {
-            if (!shouldRunWindowSync()) return;
+            if (!shouldRunBlurSync()) return;
             void requestSync().catch((error) => options.reportError('Sync failed', error));
         },
         handleDataChange: () => {
