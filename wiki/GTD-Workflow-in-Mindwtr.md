@@ -170,9 +170,9 @@ Sequential projects can use a project-wide scope or a section scope. Use section
 
 Mindwtr keeps task status and task dates separate. Status is the GTD state you choose, such as `inbox`, `next`, `waiting`, or `someday`. Dates control when and why a task appears; they do not automatically promote a task to `next`.
 
-- **Start date** is a defer/availability gate. A future start hides the task from Focus by default. When the start date arrives, the task becomes visible according to its existing status.
-- **Review date** is a tickler. When due, it surfaces a non-inbox task for reconsideration without changing its status.
-- **Due date** is a deadline. It drives deadline display, reminders, and sorting pressure without changing status.
+- **Start date** is a defer/availability gate. A future start hides the task from Focus by default. When the date arrives, the task appears again with whatever status it already had; it is not promoted.
+- **Review date** is a tickler. When the date arrives, Mindwtr surfaces the task where that view supports review-due items so you can reconsider it; nothing changes until you decide.
+- **Due date** is a deadline. As it approaches or passes, Mindwtr gives the task deadline emphasis through display, reminders, and sorting pressure; status stays unchanged.
 
 Some processing actions set status and dates together. For example, choosing **Later** while processing the Inbox moves the item to `next` and sets a start date. That action changes the status; the start date does not promote the task later on its own.
 

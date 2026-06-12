@@ -13,6 +13,7 @@ import {
     extractWaitingPerson,
     getFocusSequentialFirstTaskIds,
     getSequentialFirstTaskIds,
+    getTaskFocusEligibility,
     getWaitingPerson,
     groupCompletedTasksLast,
     isTaskFutureStart,
@@ -682,6 +683,62 @@ describe('task-utils', () => {
 
             expect(shouldShowTaskForStart(task, { now })).toBe(false);
             expect(shouldShowTaskForStart(task, { now, showFutureStarts: true })).toBe(true);
+        });
+    });
+
+    describe('getTaskFocusEligibility', () => {
+        const now = new Date('2026-04-05T12:00:00.000Z');
+        const makeTask = (overrides: Partial<Task>): Task => ({
+            id: overrides.id ?? 'task',
+            title: overrides.title ?? 'Task',
+            status: overrides.status ?? 'next',
+            tags: [],
+            contexts: [],
+            createdAt: '2026-04-01T00:00:00.000Z',
+            updatedAt: '2026-04-01T00:00:00.000Z',
+            ...overrides,
+        });
+
+        it('does not promote an elapsed-start someday task into Focus as next', () => {
+            const task = makeTask({
+                id: 'someday-started',
+                status: 'someday',
+                startTime: '2026-04-04T09:00:00.000Z',
+            });
+
+            expect(getTaskFocusEligibility(task, { tasks: [task], projects: [], now })).toEqual({
+                eligible: false,
+                reason: 'clarify',
+            });
+            expect(task.status).toBe('someday');
+        });
+
+        it('does not make inbox tasks Focus-eligible through review dates', () => {
+            const task = makeTask({
+                id: 'inbox-review',
+                status: 'inbox',
+                reviewAt: '2026-04-04T09:00:00.000Z',
+            });
+
+            expect(getTaskFocusEligibility(task, { tasks: [task], projects: [], now })).toEqual({
+                eligible: false,
+                reason: 'clarify',
+            });
+            expect(task.status).toBe('inbox');
+        });
+
+        it('can surface review-due waiting tasks without changing status', () => {
+            const task = makeTask({
+                id: 'waiting-review',
+                status: 'waiting',
+                reviewAt: '2026-04-04T09:00:00.000Z',
+            });
+
+            expect(getTaskFocusEligibility(task, { tasks: [task], projects: [], now })).toEqual({
+                eligible: true,
+                reason: 'eligible',
+            });
+            expect(task.status).toBe('waiting');
         });
     });
 
