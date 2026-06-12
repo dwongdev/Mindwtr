@@ -26,6 +26,7 @@ import { ListEmptyState } from './list/ListEmptyState';
 import { ListControlsPanel } from './list/ListControlsPanel';
 import { PromptModal } from '../PromptModal';
 import { InboxProcessor } from './InboxProcessor';
+import { MindSweepLauncher } from '../MindSweepModal';
 import { TaskBulkOrganizeModal } from './list/TaskBulkOrganizeModal';
 import { useLanguage } from '../../contexts/language-context';
 import { useKeybindings } from '../../contexts/keybinding-context';
@@ -971,6 +972,9 @@ export const ListView = memo(function ListView({ title, statusFilter }: ListView
                         hasFilters={hasFilters}
                         emptyState={emptyState}
                         onAddTask={() => openQuickAdd(statusFilter)}
+                        primaryAction={isInbox && !hasFilters
+                            ? <MindSweepLauncher t={t} addTask={addTask} variant="primary" />
+                            : undefined}
                         t={t}
                     />
                 ) : shouldVirtualize ? (

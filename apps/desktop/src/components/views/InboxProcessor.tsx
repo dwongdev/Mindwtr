@@ -77,10 +77,6 @@ export function InboxProcessor({
                 </div>
             )}
 
-            {!isProcessing && inboxCount === 0 && (
-                <MindSweepLauncher t={t} addTask={addTask} variant="primary" />
-            )}
-
             {quickPanelProps ? (
                 <InboxProcessingQuickPanel {...quickPanelProps} />
             ) : (
