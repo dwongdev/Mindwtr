@@ -242,10 +242,13 @@ Mindwtr also supports direct Dropbox sync in supported desktop/mobile builds.
 
 Mindwtr automatically syncs in the following situations:
 
-- **On data changes** — 5 seconds after any task/project modification (debounced)
-- **On app focus** — When the app regains focus (throttled to every 30 seconds)
-- **On app blur/background** — When you switch away from the app
-- **On startup** — Shortly after the app launches
+- **On startup** — shortly after the app launches.
+- **On data changes** — shortly after task/project changes, with a short debounce so rapid edits sync together.
+- **On app focus** — when the desktop app regains focus, throttled to every 30 seconds; this still runs without local edits so remote changes can be pulled promptly.
+- **On app blur/background** — when you switch away from the desktop app, but only if there are pending local changes to push.
+- **Periodic desktop heartbeat** — every 15 minutes while Mindwtr is running.
+
+If an automatic sync fails, Mindwtr pauses automatic retry attempts for about 60 seconds. Manual sync remains available during that cooldown.
 
 ### Settings Sync Options
 
