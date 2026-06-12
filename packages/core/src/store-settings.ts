@@ -724,7 +724,6 @@ export const createSettingsActions = ({
             const didPeopleMigration = peopleLoadResult.didChange;
             let didProjectOrderMigration = false;
             let didAreaMigration = didNormalizeAreaTimestamps;
-            let didRunAreaDedupePass = false;
             let allProjects = rawProjects;
             let allSections = rawSections;
             let allAreas = rawAreas;
@@ -789,7 +788,6 @@ export const createSettingsActions = ({
                 }
                 const shouldRunAreaMigration = hasLegacyAreaTitle || hasMissingAreaId || hasDuplicateNames;
                 if (shouldRunAreaMigration) {
-                    didRunAreaDedupePass = true;
                     const areaByName = new Map<string, string>();
                     const areaIdRemap = new Map<string, string>();
                     const uniqueAreas: Area[] = [];
@@ -862,48 +860,6 @@ export const createSettingsActions = ({
                             order: Number.isFinite(area.order) ? area.order : index,
                         }))
                         .sort((a, b) => a.order - b.order);
-                }
-            }
-            if (!didRunAreaDedupePass) {
-                const areaByName = new Map<string, string>();
-                const areaIdRemap = new Map<string, string>();
-                const uniqueAreas: Area[] = [];
-                allAreas.forEach((area) => {
-                    if (area.deletedAt) {
-                        uniqueAreas.push(area);
-                        return;
-                    }
-                    const normalizedName = typeof area?.name === 'string' ? area.name.trim().toLowerCase() : '';
-                    if (!normalizedName) {
-                        uniqueAreas.push(area);
-                        return;
-                    }
-                    const existingId = areaByName.get(normalizedName);
-                    if (existingId) {
-                        areaIdRemap.set(area.id, existingId);
-                        return;
-                    }
-                    areaByName.set(normalizedName, area.id);
-                    uniqueAreas.push(area);
-                });
-                if (areaIdRemap.size > 0) {
-                    didAreaMigration = true;
-                    allAreas = uniqueAreas
-                        .map((area, index) => ({
-                            ...area,
-                            order: Number.isFinite(area.order) ? area.order : index,
-                        }))
-                        .sort((a, b) => a.order - b.order);
-                    allProjects = allProjects.map((project) => {
-                        const remappedAreaId = project.areaId ? areaIdRemap.get(project.areaId) : undefined;
-                        if (!remappedAreaId || remappedAreaId === project.areaId) return project;
-                        return { ...project, areaId: remappedAreaId };
-                    });
-                    allTasks = allTasks.map((task) => {
-                        const remappedAreaId = task.areaId ? areaIdRemap.get(task.areaId) : undefined;
-                        if (!remappedAreaId || remappedAreaId === task.areaId) return task;
-                        return { ...task, areaId: remappedAreaId };
-                    });
                 }
             }
             let didCompleteTasksForArchivedProjects = false;

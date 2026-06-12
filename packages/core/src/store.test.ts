@@ -4,7 +4,7 @@ import { safeParseDate } from './date';
 import { useTaskStore, flushPendingSave, resetForTests, setStorageAdapter } from './store';
 import { buildEntityMap } from './store-helpers';
 import type { StorageAdapter } from './storage';
-import type { Project, Task } from './types';
+import type { Area, Project, Task } from './types';
 
 const waitForExpectation = async (assertion: () => void, maxAttempts = 200): Promise<void> => {
     let lastError: unknown = null;
@@ -45,6 +45,17 @@ const createStoreProject = (id: string, overrides: Partial<Project> = {}): Proje
     color: '#2563EB',
     order: 0,
     tagIds: [],
+    createdAt: '2026-04-01T00:00:00.000Z',
+    updatedAt: '2026-04-01T00:00:00.000Z',
+    rev: 1,
+    revBy: 'device-a',
+    ...overrides,
+});
+
+const createStoreArea = (id: string, overrides: Partial<Area> = {}): Area => ({
+    id,
+    name: `Area ${id}`,
+    order: 0,
     createdAt: '2026-04-01T00:00:00.000Z',
     updatedAt: '2026-04-01T00:00:00.000Z',
     rev: 1,
@@ -1067,6 +1078,44 @@ describe('TaskStore', () => {
         await useTaskStore.getState().fetchData({ silent: true });
 
         expect(useTaskStore.getState().error).toBe('Failed to fetch data: Database needs repair');
+    });
+
+    it('preserves duplicate active area names in current-version data during fetch', async () => {
+        const nowIso = '2026-06-12T12:00:00.000Z';
+        vi.setSystemTime(new Date(nowIso));
+        const areaA = createStoreArea('area-a', { name: 'Work', order: 0 });
+        const areaB = createStoreArea('area-b', {
+            name: 'Work',
+            order: 1,
+            createdAt: '2026-04-02T00:00:00.000Z',
+            updatedAt: '2026-04-02T00:00:00.000Z',
+        });
+        mockStorage.getData = vi.fn().mockResolvedValue({
+            tasks: [],
+            projects: [],
+            sections: [],
+            areas: [areaA, areaB],
+            people: [],
+            settings: {
+                deviceId: 'device-a',
+                migrations: {
+                    version: 9999,
+                    lastAutoArchiveAt: nowIso,
+                    lastTombstoneCleanupAt: nowIso,
+                },
+                gtd: {
+                    taskEditor: {
+                        defaultsVersion: 9999,
+                    },
+                },
+            },
+        });
+
+        await useTaskStore.getState().fetchData({ silent: true });
+        await flushPendingSave();
+
+        expect(useTaskStore.getState()._allAreas.map((area) => area.id)).toEqual(['area-a', 'area-b']);
+        expect(mockStorage.saveData).not.toHaveBeenCalled();
     });
 
     it('does not overwrite local task edits made during an in-flight fetch', async () => {
