@@ -132,6 +132,48 @@ describe('recurrence', () => {
         expect(next?.dueDate).toBe('2025-01-06T14:00:00.000Z');
     });
 
+    it('advances date-only start dates for fluid recurrence', () => {
+        const task: Task = {
+            id: 't2-start-fluid-date',
+            title: 'Weekly planning',
+            status: 'done',
+            tags: [],
+            contexts: [],
+            startTime: '2026-06-01',
+            recurrence: { rule: 'weekly', strategy: 'fluid' },
+            createdAt: '2026-06-01T00:00:00.000Z',
+            updatedAt: '2026-06-01T00:00:00.000Z',
+        };
+
+        const next = createNextRecurringTask(task, '2026-06-12T12:00:00.000Z', 'done');
+        expect(next?.startTime).toBe('2026-06-19');
+        expect(next?.dueDate).toBeUndefined();
+    });
+
+    it('keeps the advanced start date when switching a strict follow-up to fluid', () => {
+        const original: Task = {
+            id: 't2-start-strict-to-fluid',
+            title: 'Weekly reset',
+            status: 'done',
+            tags: [],
+            contexts: [],
+            startTime: '2026-06-01',
+            recurrence: { rule: 'weekly', strategy: 'strict' },
+            createdAt: '2026-06-01T00:00:00.000Z',
+            updatedAt: '2026-06-01T00:00:00.000Z',
+        };
+
+        const strictNext = createNextRecurringTask(original, '2026-06-01T12:00:00.000Z', 'done') as Task;
+        const fluidTask: Task = {
+            ...strictNext,
+            recurrence: { rule: 'weekly', strategy: 'fluid' },
+        };
+
+        const next = createNextRecurringTask(fluidTask, '2026-06-12T12:00:00.000Z', 'next');
+        expect(strictNext.startTime).toBe('2026-06-08');
+        expect(next?.startTime).toBe('2026-06-19');
+    });
+
     it('keeps dueDate unset for startTime-only recurring tasks', () => {
         const task: Task = {
             id: 't2-start-only',

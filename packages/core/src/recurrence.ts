@@ -692,6 +692,15 @@ function nextIsoFrom(
     return hasTimezone ? nextDate.toISOString() : format(nextDate, "yyyy-MM-dd'T'HH:mm");
 }
 
+const preserveDateOnlyFormat = (
+    nextIso: string | undefined,
+    sourceIso: string | undefined
+): string | undefined => {
+    if (!nextIso || !sourceIso || !/^\d{4}-\d{2}-\d{2}$/.test(sourceIso)) return nextIso;
+    const parsed = safeParseDate(nextIso);
+    return parsed ? format(parsed, 'yyyy-MM-dd') : nextIso;
+};
+
 function resetChecklist(checklist: ChecklistItem[] | undefined): ChecklistItem[] | undefined {
     if (!checklist || checklist.length === 0) return undefined;
     return checklist.map((item) => ({
@@ -936,29 +945,35 @@ export function createNextRecurringTask(
     })();
     const completedAtDate = parsedCompletedAt ?? fallbackCompletedAt;
     const nextDueDate = task.dueDate
-        ? nextIsoFrom(
-            strategy === 'fluid' ? completedAtIso : task.dueDate,
-            rule,
-            completedAtDate,
-            byDay,
-            interval,
-            byMonthDay,
-            weekStart,
-            undefined,
-            strategy === 'fluid' ? undefined : dueAnchorDay
+        ? preserveDateOnlyFormat(
+            nextIsoFrom(
+                strategy === 'fluid' ? completedAtIso : task.dueDate,
+                rule,
+                completedAtDate,
+                byDay,
+                interval,
+                byMonthDay,
+                weekStart,
+                undefined,
+                strategy === 'fluid' ? undefined : dueAnchorDay
+            ),
+            task.dueDate
         )
         : undefined;
     let nextStartTime = task.startTime
-        ? nextIsoFrom(
-            strategy === 'fluid' ? completedAtIso : task.startTime,
-            rule,
-            completedAtDate,
-            byDay,
-            interval,
-            byMonthDay,
-            weekStart,
-            undefined,
-            strategy === 'fluid' ? undefined : startAnchorDay
+        ? preserveDateOnlyFormat(
+            nextIsoFrom(
+                strategy === 'fluid' ? completedAtIso : task.startTime,
+                rule,
+                completedAtDate,
+                byDay,
+                interval,
+                byMonthDay,
+                weekStart,
+                undefined,
+                strategy === 'fluid' ? undefined : startAnchorDay
+            ),
+            task.startTime
         )
         : undefined;
     if (strategy === 'strict' && task.startTime && task.dueDate && nextStartTime) {
@@ -968,16 +983,19 @@ export function createNextRecurringTask(
         }
     }
     const nextReviewAt = task.reviewAt
-        ? nextIsoFrom(
-            strategy === 'fluid' ? completedAtIso : task.reviewAt,
-            rule,
-            completedAtDate,
-            byDay,
-            interval,
-            byMonthDay,
-            weekStart,
-            undefined,
-            strategy === 'fluid' ? undefined : reviewAnchorDay
+        ? preserveDateOnlyFormat(
+            nextIsoFrom(
+                strategy === 'fluid' ? completedAtIso : task.reviewAt,
+                rule,
+                completedAtDate,
+                byDay,
+                interval,
+                byMonthDay,
+                weekStart,
+                undefined,
+                strategy === 'fluid' ? undefined : reviewAnchorDay
+            ),
+            task.reviewAt
         )
         : undefined;
     if (!nextStartTime && !nextDueDate && !nextReviewAt) {
