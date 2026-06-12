@@ -35,6 +35,14 @@ const initialUiState = useUiStore.getState();
 
 describe('ReviewView', () => {
     const nowIso = '2026-04-19T12:00:00.000Z';
+    const dateStringFromToday = (offsetDays: number) => {
+        const date = new Date();
+        date.setDate(date.getDate() + offsetDays);
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const day = String(date.getDate()).padStart(2, '0');
+        return `${year}-${month}-${day}`;
+    };
     const makeTask = (id: string, overrides: Partial<Task> = {}): Task => ({
         id,
         title: `Task ${id}`,
@@ -180,7 +188,7 @@ describe('ReviewView', () => {
         const project = makeProject('project-1', { title: 'Launch Project' });
         const tasks = [
             makeTask('inbox-1', { title: 'Inbox item', status: 'inbox' }),
-            makeTask('calendar-1', { title: 'Calendar item', dueDate: '2026-06-11', status: 'next' }),
+            makeTask('calendar-1', { title: 'Calendar item', dueDate: dateStringFromToday(1), status: 'next' }),
             makeTask('waiting-1', { title: 'Waiting item', status: 'waiting' }),
             makeTask('context-1', { title: 'Context item', contexts: ['@home'], status: 'next' }),
             makeTask('project-1-task', { title: 'Project item', projectId: project.id, status: 'next' }),
