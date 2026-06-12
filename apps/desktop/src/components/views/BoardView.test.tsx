@@ -224,10 +224,11 @@ describe('BoardView', () => {
             settings: { taskSortBy: 'created-desc' },
         });
 
-        const { getByRole } = renderWithProviders();
+        const { getByRole, getByText } = renderWithProviders();
 
         const column = getByRole('list', { name: /next actions tasks list/i });
         const titles = getRenderedTaskTitles(column, ['Task Q', 'Task W', 'Task E', 'Task R']);
         expect(titles).toEqual(['Task R', 'Task E', 'Task W', 'Task Q']);
+        expect(getByText('Ordering follows the selected sort. Switch to default sort to reorder cards.')).toBeInTheDocument();
     });
 });

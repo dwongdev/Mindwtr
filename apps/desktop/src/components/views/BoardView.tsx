@@ -497,6 +497,11 @@ export function BoardView() {
                             className="w-full text-sm px-3 py-2 rounded border border-border bg-background focus:outline-none focus:ring-2 focus:ring-primary/30"
                         />
                     </div>
+                    {sortBy !== 'default' && (
+                        <p className="mt-2 text-xs text-muted-foreground">
+                            {resolveText('board.reorderFollowsSort', 'Ordering follows the selected sort. Switch to default sort to reorder cards.')}
+                        </p>
+                    )}
 
                     {showFiltersPanel && (
                         <div className="mt-3 bg-card border border-border rounded-lg p-3 space-y-2">
