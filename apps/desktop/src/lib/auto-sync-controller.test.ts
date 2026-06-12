@@ -153,6 +153,50 @@ describe('createDesktopAutoSyncController', () => {
         });
     });
 
+    it('backs off automatic retries after a failed sync without blocking manual sync', async () => {
+        const scheduler = createManualScheduler();
+        const logInfo = vi.fn();
+
+        const performSync = vi.fn(async () => ({
+            success: false,
+            error: 'WebDAV error: 503 Service Unavailable',
+        }));
+        const controller = createDesktopAutoSyncController({
+            canSync: async () => true,
+            performSync,
+            flushPendingSave: async () => undefined,
+            reportError: vi.fn(),
+            isRuntimeActive: () => true,
+            now: scheduler.now,
+            setTimer: scheduler.setTimer,
+            clearTimer: scheduler.clearTimer,
+            minIntervalMs: 0,
+            autoFailureCooldownMs: 60_000,
+            periodicSyncIntervalMs: null,
+            logInfo,
+        });
+
+        controller.handleDataChange();
+        await scheduler.advanceBy(2_000);
+        await waitForAssertion(() => {
+            expect(performSync).toHaveBeenCalledTimes(1);
+        });
+
+        controller.handleDataChange();
+        await scheduler.advanceBy(2_000);
+        await Promise.resolve();
+
+        expect(performSync).toHaveBeenCalledTimes(1);
+        expect(logInfo).toHaveBeenCalledWith(
+            'Auto sync skipped during failure cooldown',
+            expect.objectContaining({ source: 'data-change' })
+        );
+
+        await controller.requestSync(0);
+
+        expect(performSync).toHaveBeenCalledTimes(2);
+    });
+
     it('pauses focus and blur syncs while edits are active without blocking save-driven sync', async () => {
         const scheduler = createManualScheduler(50_000);
         let pauseWindowSync = true;
