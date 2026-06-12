@@ -228,6 +228,37 @@ describe('ProjectWorkspace Select mode', () => {
         window.removeEventListener('mindwtr:quick-add', quickAddListener);
     });
 
+    it('sorts completed project tasks by most recent completion first', () => {
+        const { container, getByRole } = renderWorkspace({
+            showCompletedTasks: true,
+            allTasks: [
+                task('done-old', 'Old finish', {
+                    status: 'done',
+                    completedAt: '2026-05-12T09:00:00.000Z',
+                    updatedAt: '2026-05-12T09:00:00.000Z',
+                }),
+                task('done-newest', 'Newest finish', {
+                    status: 'done',
+                    completedAt: '2026-05-12T11:00:00.000Z',
+                    updatedAt: '2026-05-12T11:00:00.000Z',
+                }),
+                task('done-middle', 'Middle finish', {
+                    status: 'done',
+                    completedAt: '2026-05-12T10:00:00.000Z',
+                    updatedAt: '2026-05-12T10:00:00.000Z',
+                }),
+            ],
+        });
+
+        fireEvent.click(getByRole('button', { name: /Done/ }));
+
+        expect(Array.from(container.querySelectorAll('[data-task-id]')).map((row) => row.getAttribute('data-task-id'))).toEqual([
+            'done-newest',
+            'done-middle',
+            'done-old',
+        ]);
+    });
+
     it('shows bulk organize and area assignment for selected project tasks', () => {
         const area = {
             id: 'area-1',

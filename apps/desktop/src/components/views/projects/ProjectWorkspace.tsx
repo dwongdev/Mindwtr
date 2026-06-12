@@ -28,6 +28,7 @@ import { PromptModal } from '../../PromptModal';
 import { TokenPickerModal } from '../../TokenPickerModal';
 import { TaskItem } from '../../TaskItem';
 import { BulkSelectionToolbar } from '../list/BulkSelectionToolbar';
+import { sortDoneTasksForListView } from '../list/done-sort';
 import { ListBulkActions } from '../list/ListBulkActions';
 import { TaskBulkOrganizeModal } from '../list/TaskBulkOrganizeModal';
 import { normalizeAttachmentInput } from '../../../lib/attachment-utils';
@@ -445,7 +446,11 @@ export function ProjectWorkspace({
         if (!shouldGroupCompletedTasks) {
             return { activeTasks: sortedProjectTasks, completedTasks: [] as Task[] };
         }
-        return splitCompletedTasks(sortedProjectTasks);
+        const { activeTasks, completedTasks } = splitCompletedTasks(sortedProjectTasks);
+        return {
+            activeTasks,
+            completedTasks: sortDoneTasksForListView(completedTasks),
+        };
     }, [shouldGroupCompletedTasks, sortedProjectTasks]);
 
     const projectSections = useMemo(() => {
