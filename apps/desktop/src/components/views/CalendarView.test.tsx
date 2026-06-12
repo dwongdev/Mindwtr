@@ -1,4 +1,4 @@
-import { act, createEvent, fireEvent, render, screen } from '@testing-library/react';
+import { act, createEvent, fireEvent, render, screen, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Area, Project, Task } from '@mindwtr/core';
 
@@ -18,6 +18,8 @@ const storeMocks = vi.hoisted(() => {
             allContexts: Array.from(new Set(taskStoreState.tasks.flatMap((task) => task.contexts ?? []))).sort(),
             allTags: Array.from(new Set(taskStoreState.tasks.flatMap((task) => task.tags ?? []))).sort(),
             projectMap: new Map(taskStoreState.projects.map((project) => [project.id, project])),
+            sequentialProjectIds: new Set(taskStoreState.projects.filter((project) => project.isSequential).map((project) => project.id)),
+            sequentialWithinSectionProjectIds: new Set(taskStoreState.projects.filter((project) => project.isSequential && project.sequentialScope === 'section').map((project) => project.id)),
         }),
         projects: [] as Project[],
         setError: vi.fn(),
@@ -495,6 +497,53 @@ describe('CalendarView', () => {
             timeEstimate: '1hr',
         }));
         expect(storeMocks.taskStoreState.addTask).not.toHaveBeenCalled();
+    });
+
+    it('plans unscheduled next actions from the calendar side panel', async () => {
+        storeMocks.taskStoreState.tasks = [
+            makeTask({
+                id: 'task-plan',
+                title: 'Draft planning memo',
+            }),
+            makeTask({
+                id: 'task-deadline',
+                title: 'Review deadline brief',
+                dueDate: '2026-04-10T17:00:00.000Z',
+            }),
+            makeTask({
+                id: 'task-scheduled',
+                title: 'Already scheduled',
+                startTime: '2026-04-04T09:00:00.000Z',
+            }),
+            makeTask({
+                id: 'task-focused',
+                title: 'Focused today',
+                isFocusedToday: true,
+            }),
+        ];
+
+        renderCalendar();
+        await flushCalendarEffects();
+
+        const panel = screen.getByText('Plan next actions').closest('aside') as HTMLElement;
+        expect(within(panel).getByText('Draft planning memo')).toBeInTheDocument();
+        expect(within(panel).queryByText('Review deadline brief')).not.toBeInTheDocument();
+        expect(within(panel).queryByText('Already scheduled')).not.toBeInTheDocument();
+        expect(within(panel).queryByText('Focused today')).not.toBeInTheDocument();
+
+        await selectDay('4');
+        await act(async () => {
+            fireEvent.click(within(panel).getAllByRole('button', { name: 'Schedule' })[0]);
+            await Promise.resolve();
+        });
+        await act(async () => {
+            fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+            await Promise.resolve();
+        });
+
+        expect(storeMocks.taskStoreState.updateTask).toHaveBeenCalledWith('task-plan', expect.objectContaining({
+            startTime: new Date(2026, 3, 4, 8, 0).toISOString(),
+        }));
     });
 
     it('shows date-only start times as all-day scheduled tasks on the calendar', async () => {

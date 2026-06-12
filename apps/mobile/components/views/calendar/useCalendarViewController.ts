@@ -20,6 +20,7 @@ import {
   expandCalendarRecurringTasks,
   formatCalendarTimeInputValue,
   formatI18nTemplate,
+  getCalendarPlanningCandidates,
   getCalendarMonthIndex,
   normalizeDateFormatSetting,
   resolveCalendarSystemSetting,
@@ -187,6 +188,7 @@ export function useCalendarViewController() {
   };
 
   const timeEstimatesEnabled = settings?.features?.timeEstimates !== false;
+  const prioritiesEnabled = settings?.features?.priorities !== false;
   const calendarSettings: CalendarSettings | undefined = settings?.calendar;
   const today = new Date();
   const systemLocale = typeof Intl !== 'undefined' && typeof Intl.DateTimeFormat === 'function'
@@ -552,13 +554,15 @@ export function useCalendarViewController() {
     [calendarColorById],
   );
 
-  const nextQuickScheduleCandidates = useMemo(() => {
+  const planningTasks = useMemo(() => {
     if (!selectedDate) return [];
-    return visibleSchedulableTasks
-      .filter((task) => task.status === 'next')
-      .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())
-      .slice(0, 6);
-  }, [selectedDate, visibleSchedulableTasks]);
+    return getCalendarPlanningCandidates(areaVisibleTasks, {
+      limit: 6,
+      now: new Date(nowTick),
+      prioritizeByPriority: prioritiesEnabled,
+      projects,
+    });
+  }, [areaVisibleTasks, nowTick, prioritiesEnabled, projects, selectedDate]);
 
   const searchCandidates = useMemo(() => {
     if (!selectedDate) return [];
@@ -1207,7 +1211,7 @@ export function useCalendarViewController() {
     locale,
     markTaskDone,
     monthLabel,
-    nextQuickScheduleCandidates,
+    planningTasks,
     tr,
     openQuickAddAtDateTime,
     openQuickAddForDate,

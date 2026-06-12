@@ -319,6 +319,7 @@ export {
     buildTaskUpdatesFromSpeechResult,
     FOCUS_NEXT_DUE_SOON_WINDOW_DAYS,
     FOCUS_ELIGIBILITY_ACTIVE_STATUSES,
+    getCalendarPlanningCandidates,
     getChecklistProgress,
     getProjectDeadlineBoosts,
     getFocusSequentialFirstTaskIds,
@@ -345,6 +346,7 @@ export {
     STATUS_COLORS,
 } from './task-utils';
 export type {
+    CalendarPlanningCandidateOptions,
     ProjectDeadlineBoost,
     SpeechResultLike,
     TaskFocusEligibilityOptions,

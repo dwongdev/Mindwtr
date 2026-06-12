@@ -275,7 +275,7 @@ export function CalendarView() {
     tr,
     markTaskDone,
     monthLabel,
-    nextQuickScheduleCandidates,
+    planningTasks,
     openQuickAddForDate,
     openQuickAddAtDateTime,
     openExternalEvent,
@@ -1000,10 +1000,12 @@ export function CalendarView() {
             </View>
 
             <View style={[styles.dayScheduleCard, { backgroundColor: tc.cardBg, borderColor: tc.border }]}>
-              {nextQuickScheduleCandidates.length > 0 && (
+              {planningTasks.length > 0 && (
                 <View style={styles.scheduleResults}>
-                  <Text style={[styles.scheduleResultsTitle, { color: tc.secondaryText }]}>{t('nav.next')}</Text>
-                  {nextQuickScheduleCandidates.map((task) => {
+                  <Text style={[styles.scheduleResultsTitle, { color: tc.secondaryText }]}>
+                    {tr('calendar.planningTitle')}
+                  </Text>
+                  {planningTasks.map((task) => {
                     const slotLabel = getScheduleSlotLabel(selectedDate, task);
                     return (
                       <Pressable
@@ -1466,6 +1468,34 @@ export function CalendarView() {
           style={styles.scheduleScroll}
           contentContainerStyle={styles.scheduleContent}
           keyExtractor={(section) => section.id}
+          ListHeaderComponent={selectedDate && planningTasks.length > 0 ? (
+            <View style={styles.scheduleSection}>
+              <Text style={[styles.scheduleDate, { color: tc.secondaryText }]}>
+                {tr('calendar.planningTitle')}
+              </Text>
+              <View style={styles.scheduleItems}>
+                {planningTasks.map((task) => {
+                  const slotLabel = getScheduleSlotLabel(selectedDate, task);
+                  return (
+                    <Pressable
+                      key={task.id}
+                      style={[styles.taskItem, { backgroundColor: tc.inputBg, borderLeftColor: tc.tint }]}
+                      onPress={() => scheduleTaskOnSelectedDate(task.id)}
+                    >
+                      <View style={styles.taskItemMain}>
+                        <Text style={[styles.taskItemTitle, { color: tc.text }]} numberOfLines={1}>
+                          {task.title}
+                        </Text>
+                        <Text style={[styles.taskItemTime, { color: tc.secondaryText }]}>
+                          {slotLabel ? `${t('calendar.scheduleAction')} · ${slotLabel}` : t('calendar.scheduleAction')}
+                        </Text>
+                      </View>
+                    </Pressable>
+                  );
+                })}
+              </View>
+            </View>
+          ) : null}
           renderItem={({ item: section }) => (
             <View style={styles.scheduleSection}>
               <Text style={[styles.scheduleDate, { color: tc.secondaryText }]}>
@@ -1550,7 +1580,7 @@ export function CalendarView() {
               </View>
             </View>
           )}
-          ListEmptyComponent={(
+          ListEmptyComponent={planningTasks.length > 0 ? null : (
             <Text style={[styles.noTasks, { color: tc.secondaryText }]}>{t('calendar.noTasks')}</Text>
           )}
           removeClippedSubviews
@@ -1736,10 +1766,12 @@ export function CalendarView() {
               </Pressable>
             </View>
 
-            {nextQuickScheduleCandidates.length > 0 && (
+            {planningTasks.length > 0 && (
               <View style={styles.scheduleResults}>
-                <Text style={[styles.scheduleResultsTitle, { color: tc.secondaryText }]}>{t('nav.next')}</Text>
-                {nextQuickScheduleCandidates.map((task) => {
+                <Text style={[styles.scheduleResultsTitle, { color: tc.secondaryText }]}>
+                  {tr('calendar.planningTitle')}
+                </Text>
+                {planningTasks.map((task) => {
                   const slotLabel = getScheduleSlotLabel(selectedDate, task);
                   return (
                     <Pressable

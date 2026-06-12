@@ -21,6 +21,7 @@ import {
     setCalendarTaskDragData,
 } from '../../lib/calendar-task-drag';
 import { CalendarOpenTaskModal, CalendarTaskComposerModal } from './calendar/CalendarModals';
+import { CalendarPlanningPanel } from './calendar/CalendarPlanningPanel';
 import { CalendarSelectedDayPanel } from './calendar/CalendarSelectedDayPanel';
 import {
     DESKTOP_DAY_END_HOUR,
@@ -315,7 +316,8 @@ export function CalendarView() {
                 </div>
             )}
 
-            <div ref={calendarBodyRef} className="space-y-6">
+            <div ref={calendarBodyRef} className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_20rem]">
+                <div className="min-w-0 space-y-6">
                 {viewMode === 'month' && (
                 <div className="grid grid-cols-7 gap-px bg-border rounded-lg overflow-hidden shadow-sm">
                     {weekdayHeaders.map((day) => (
@@ -768,9 +770,11 @@ export function CalendarView() {
                 )}
 
                 <CalendarSelectedDayPanel controller={controller} />
-                <CalendarOpenTaskModal controller={controller} />
-                <CalendarTaskComposerModal controller={controller} />
+                </div>
+                <CalendarPlanningPanel controller={controller} />
         </div>
+            <CalendarOpenTaskModal controller={controller} />
+            <CalendarTaskComposerModal controller={controller} />
         </div>
         </ErrorBoundary>
     );

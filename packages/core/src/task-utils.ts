@@ -800,6 +800,63 @@ export function sortFocusNextActions(tasks: Task[], options: SortFocusNextAction
     });
 }
 
+export type CalendarPlanningCandidateOptions = {
+    limit?: number;
+    now?: Date;
+    prioritizeByPriority?: boolean;
+    projects?: readonly Project[] | Map<string, Project>;
+    sectionScopedProjectIds?: ReadonlySet<string>;
+    sequentialProjectIds?: ReadonlySet<string>;
+};
+
+export function getCalendarPlanningCandidates<T extends Task>(
+    tasks: readonly T[],
+    options: CalendarPlanningCandidateOptions = {},
+): T[] {
+    const now = options.now ?? new Date();
+    const projectMap = options.projects ? getFocusEligibilityProjectMap(options.projects) : null;
+    const derivedSequential = projectMap && (!options.sequentialProjectIds || !options.sectionScopedProjectIds)
+        ? getFocusEligibilitySequentialProjectIds(projectMap)
+        : null;
+    const sequentialProjectIds = options.sequentialProjectIds
+        ?? derivedSequential?.sequentialProjectIds
+        ?? new Set<string>();
+    const sectionScopedProjectIds = options.sectionScopedProjectIds
+        ?? derivedSequential?.sectionScopedProjectIds
+        ?? new Set<string>();
+
+    const activeFocusTasks = tasks.filter((task) => (
+        !task.deletedAt
+        && FOCUS_ELIGIBILITY_ACTIVE_STATUS_SET.has(task.status)
+        && (!projectMap || isTaskInActiveProject(task, projectMap))
+    ));
+    const sequentialFirstTaskIds = getFocusSequentialFirstTaskIds(
+        activeFocusTasks,
+        sequentialProjectIds,
+        { now, sectionScopedProjectIds },
+    );
+
+    const candidates = tasks.filter((task) => {
+        if (task.deletedAt) return false;
+        if (task.status !== 'next') return false;
+        if (task.isFocusedToday) return false;
+        if (task.startTime) return false;
+        if (task.dueDate) return false;
+        if (projectMap && !isTaskInActiveProject(task, projectMap)) return false;
+        if (task.projectId && sequentialProjectIds.has(task.projectId) && !sequentialFirstTaskIds.has(task.id)) return false;
+        return true;
+    });
+
+    const sortProjects = Array.isArray(options.projects) ? options.projects : undefined;
+    const sorted = sortFocusNextActions(candidates as Task[], {
+        now,
+        prioritizeByPriority: options.prioritizeByPriority,
+        projects: sortProjects,
+    }) as T[];
+    const limit = Number.isFinite(options.limit) ? Math.max(0, Math.floor(options.limit as number)) : sorted.length;
+    return sorted.slice(0, limit);
+}
+
 /**
  * Get display color for a task status
  */

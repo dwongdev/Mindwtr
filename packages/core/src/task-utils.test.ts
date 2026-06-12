@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { performance } from 'node:perf_hooks';
 import {
     buildTasksByProjectId,
+    getCalendarPlanningCandidates,
     sortTasks,
     sortFocusNextActions,
     sortTasksBySavedPreference,
@@ -89,6 +90,89 @@ describe('task-utils', () => {
             expect(indexedLookupCount).toBe(tasksPerProject * lookupIterations);
             expect(repeatedScanCount).toBe(tasksPerProject * repeatedScanIterations);
             expect(indexedLookupMs).toBeLessThan(repeatedScanMs);
+        });
+    });
+
+    describe('getCalendarPlanningCandidates', () => {
+        it('returns undated visible next actions without sequentially blocked tasks', () => {
+            const projects = [
+                {
+                    id: 'sequential-project',
+                    title: 'Sequential project',
+                    status: 'active',
+                    isSequential: true,
+                    color: '#123456',
+                    order: 0,
+                    tagIds: [],
+                    createdAt: '2026-01-01T00:00:00.000Z',
+                    updatedAt: '2026-01-01T00:00:00.000Z',
+                },
+            ] as Project[];
+            const tasks = [
+                {
+                    id: 'deadline-only',
+                    title: 'Deadline only',
+                    status: 'next',
+                    dueDate: '2026-01-05T17:00:00.000Z',
+                    tags: [],
+                    contexts: [],
+                    createdAt: '2026-01-01T00:00:00.000Z',
+                    updatedAt: '2026-01-01T00:00:00.000Z',
+                },
+                {
+                    id: 'scheduled',
+                    title: 'Already scheduled',
+                    status: 'next',
+                    startTime: '2026-01-03T09:00:00.000Z',
+                    tags: [],
+                    contexts: [],
+                    createdAt: '2026-01-01T00:00:00.000Z',
+                    updatedAt: '2026-01-01T00:00:00.000Z',
+                },
+                {
+                    id: 'focused',
+                    title: 'Focused today',
+                    status: 'next',
+                    isFocusedToday: true,
+                    tags: [],
+                    contexts: [],
+                    createdAt: '2026-01-01T00:00:00.000Z',
+                    updatedAt: '2026-01-01T00:00:00.000Z',
+                },
+                {
+                    id: 'sequential-first',
+                    title: 'Sequential first',
+                    status: 'next',
+                    projectId: 'sequential-project',
+                    order: 0,
+                    orderNum: 0,
+                    tags: [],
+                    contexts: [],
+                    createdAt: '2026-01-01T00:00:00.000Z',
+                    updatedAt: '2026-01-01T00:00:00.000Z',
+                },
+                {
+                    id: 'sequential-second',
+                    title: 'Sequential second',
+                    status: 'next',
+                    projectId: 'sequential-project',
+                    order: 1,
+                    orderNum: 1,
+                    tags: [],
+                    contexts: [],
+                    createdAt: '2026-01-01T00:00:00.000Z',
+                    updatedAt: '2026-01-01T00:00:00.000Z',
+                },
+            ] as Task[];
+
+            const candidates = getCalendarPlanningCandidates(tasks, {
+                now: new Date('2026-01-01T12:00:00.000Z'),
+                projects,
+            });
+
+            expect(candidates.map((task) => task.id)).toEqual([
+                'sequential-first',
+            ]);
         });
     });
 
