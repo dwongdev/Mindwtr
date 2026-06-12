@@ -905,7 +905,8 @@ export function useCalendarViewController() {
     return `${startLabel}-${endLabel}`;
   };
 
-  const getScheduleSlotLabel = (date: Date, task: Task) => {
+  const getScheduleSlotLabel = (date: Date | null, task: Task) => {
+    if (!date) return null;
     const durationMinutes = timeEstimateToMinutes(task.timeEstimate);
     const slot = findFreeSlotForDay(date, durationMinutes, task.id);
     return slot ? formatTimeRange(slot, durationMinutes) : null;

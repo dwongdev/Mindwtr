@@ -185,7 +185,7 @@ describe('SyncService testability hooks', () => {
     });
 
     it('persists Tauri sync status outside the data snapshot', async () => {
-        const invoke = vi.fn(async (command: string, args?: Record<string, unknown>) => {
+        const invoke = vi.fn(async (command: string, _args?: Record<string, unknown>) => {
             throw new Error(`unexpected command: ${command}`);
         });
         const updateSettings = vi.fn(async () => undefined);

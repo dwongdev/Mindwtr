@@ -109,7 +109,7 @@ type ScheduledTaskBlockProps = {
 };
 
 type PlanningTaskListProps = {
-  getScheduleSlotLabel: (date: Date | null, task: Task) => string;
+  getScheduleSlotLabel: (date: Date | null, task: Task) => string | null;
   planningTasks: Task[];
   scheduleTaskOnSelectedDate: (taskId: string) => void;
   selectedDate: Date | null;
