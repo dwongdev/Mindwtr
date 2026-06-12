@@ -94,7 +94,7 @@ describe('task-utils', () => {
     });
 
     describe('getCalendarPlanningCandidates', () => {
-        it('returns undated visible next actions without sequentially blocked tasks', () => {
+        it('returns visible unscheduled next actions without sequentially blocked tasks', () => {
             const projects = [
                 {
                     id: 'sequential-project',
@@ -171,6 +171,7 @@ describe('task-utils', () => {
             });
 
             expect(candidates.map((task) => task.id)).toEqual([
+                'deadline-only',
                 'sequential-first',
             ]);
         });

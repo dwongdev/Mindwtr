@@ -841,7 +841,6 @@ export function getCalendarPlanningCandidates<T extends Task>(
         if (task.status !== 'next') return false;
         if (task.isFocusedToday) return false;
         if (task.startTime) return false;
-        if (task.dueDate) return false;
         if (projectMap && !isTaskInActiveProject(task, projectMap)) return false;
         if (task.projectId && sequentialProjectIds.has(task.projectId) && !sequentialFirstTaskIds.has(task.id)) return false;
         return true;
