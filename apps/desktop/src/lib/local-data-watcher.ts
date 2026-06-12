@@ -131,7 +131,9 @@ const isRelevantSyncEvent = (paths: string[]): boolean => {
 
 const isRelevantSqliteEvent = (paths: string[], dbPath: string): boolean => {
     const dbName = getPathBasename(dbPath);
-    const sqliteNames = new Set([dbName, `${dbName}-wal`, `${dbName}-shm`]);
+    // WAL carries committed writes. The shared-memory file can move during
+    // read/lock activity, so watching it makes fetchData feed itself.
+    const sqliteNames = new Set([dbName, `${dbName}-wal`]);
     return paths.some((path) => sqliteNames.has(getPathBasename(path)));
 };
 

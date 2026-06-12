@@ -321,6 +321,22 @@ CREATE TABLE IF NOT EXISTS sections (
   deletedAt TEXT
 );
 
+CREATE TABLE IF NOT EXISTS people (
+  id TEXT PRIMARY KEY,
+  name TEXT NOT NULL,
+  note TEXT,
+  referenceLink TEXT,
+  rev INTEGER,
+  revBy TEXT,
+  createdAt TEXT NOT NULL,
+  updatedAt TEXT NOT NULL,
+  deletedAt TEXT
+);
+
+CREATE INDEX IF NOT EXISTS idx_people_updated_at ON people(updatedAt);
+CREATE INDEX IF NOT EXISTS idx_people_deleted_at ON people(deletedAt);
+CREATE INDEX IF NOT EXISTS idx_people_updatedAt_rev ON people(updatedAt, rev);
+
 CREATE TABLE IF NOT EXISTS settings (
   id INTEGER PRIMARY KEY CHECK (id = 1),
   data TEXT NOT NULL

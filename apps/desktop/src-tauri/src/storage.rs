@@ -1008,6 +1008,49 @@ fn row_to_section_value(row: &rusqlite::Row<'_>) -> Result<Value, rusqlite::Erro
     Ok(Value::Object(map))
 }
 
+fn row_to_person_value(row: &rusqlite::Row<'_>) -> Result<Value, rusqlite::Error> {
+    let mut map = serde_json::Map::new();
+    map.insert("id".to_string(), Value::String(row.get::<_, String>("id")?));
+    map.insert(
+        "name".to_string(),
+        Value::String(row.get::<_, String>("name")?),
+    );
+    if let Ok(val) = row.get::<_, Option<String>>("note") {
+        if let Some(v) = val {
+            map.insert("note".to_string(), Value::String(v));
+        }
+    }
+    if let Ok(val) = row.get::<_, Option<String>>("referenceLink") {
+        if let Some(v) = val {
+            map.insert("referenceLink".to_string(), Value::String(v));
+        }
+    }
+    if let Ok(val) = row.get::<_, Option<i64>>("rev") {
+        if let Some(v) = val {
+            map.insert("rev".to_string(), Value::Number(v.into()));
+        }
+    }
+    if let Ok(val) = row.get::<_, Option<String>>("revBy") {
+        if let Some(v) = val {
+            map.insert("revBy".to_string(), Value::String(v));
+        }
+    }
+    map.insert(
+        "createdAt".to_string(),
+        Value::String(row.get::<_, String>("createdAt")?),
+    );
+    map.insert(
+        "updatedAt".to_string(),
+        Value::String(row.get::<_, String>("updatedAt")?),
+    );
+    if let Ok(val) = row.get::<_, Option<String>>("deletedAt") {
+        if let Some(v) = val {
+            map.insert("deletedAt".to_string(), Value::String(v));
+        }
+    }
+    Ok(Value::Object(map))
+}
+
 fn migrate_json_to_sqlite(conn: &mut Connection, data: &Value) -> Result<(), String> {
     let tx = conn.transaction().map_err(|e| e.to_string())?;
     tx.execute("DELETE FROM tasks", [])
@@ -1017,6 +1060,8 @@ fn migrate_json_to_sqlite(conn: &mut Connection, data: &Value) -> Result<(), Str
     tx.execute("DELETE FROM areas", [])
         .map_err(|e| e.to_string())?;
     tx.execute("DELETE FROM sections", [])
+        .map_err(|e| e.to_string())?;
+    tx.execute("DELETE FROM people", [])
         .map_err(|e| e.to_string())?;
     tx.execute("DELETE FROM settings", [])
         .map_err(|e| e.to_string())?;
@@ -1161,6 +1206,29 @@ fn migrate_json_to_sqlite(conn: &mut Connection, data: &Value) -> Result<(), Str
         .map_err(|e| e.to_string())?;
     }
 
+    let people = data
+        .get("people")
+        .and_then(|v| v.as_array())
+        .cloned()
+        .unwrap_or_default();
+    for person in people {
+        tx.execute(
+            "INSERT OR REPLACE INTO people (id, name, note, referenceLink, rev, revBy, createdAt, updatedAt, deletedAt) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)",
+            params![
+                person.get("id").and_then(|v| v.as_str()).unwrap_or_default(),
+                person.get("name").and_then(|v| v.as_str()).unwrap_or_default(),
+                person.get("note").and_then(|v| v.as_str()),
+                person.get("referenceLink").and_then(|v| v.as_str()),
+                person.get("rev").and_then(|v| v.as_i64()),
+                person.get("revBy").and_then(|v| v.as_str()),
+                person.get("createdAt").and_then(|v| v.as_str()).unwrap_or_default(),
+                person.get("updatedAt").and_then(|v| v.as_str()).unwrap_or_default(),
+                person.get("deletedAt").and_then(|v| v.as_str()),
+            ],
+        )
+        .map_err(|e| e.to_string())?;
+    }
+
     let settings_json = json_str(data.get("settings"));
     tx.execute(
         "INSERT INTO settings (id, data) VALUES (1, ?1)",
@@ -1264,6 +1332,17 @@ pub(crate) fn read_sqlite_data(conn: &Connection) -> Result<Value, String> {
         areas.push(row.map_err(|e| e.to_string())?);
     }
 
+    let mut people_stmt = conn
+        .prepare("SELECT * FROM people")
+        .map_err(|e| e.to_string())?;
+    let people_rows = people_stmt
+        .query_map([], |row| row_to_person_value(row))
+        .map_err(|e| e.to_string())?;
+    let mut people: Vec<Value> = Vec::new();
+    for row in people_rows {
+        people.push(row.map_err(|e| e.to_string())?);
+    }
+
     let settings_raw: Option<String> = conn
         .query_row("SELECT data FROM settings WHERE id = 1", [], |row| {
             row.get(0)
@@ -1281,6 +1360,7 @@ pub(crate) fn read_sqlite_data(conn: &Connection) -> Result<Value, String> {
             "projects": projects,
             "sections": sections,
             "areas": areas,
+            "people": people,
             "settings": Value::Object(settings_val),
         })
         .as_object()
@@ -2148,6 +2228,47 @@ mod tests {
 
         assert_eq!(project["sequentialScope"], "section");
     }
+
+    #[test]
+    fn sqlite_people_round_trip_preserves_people() {
+        let mut conn = Connection::open_in_memory().expect("should open in-memory db");
+        conn.execute_batch(SQLITE_SCHEMA)
+            .expect("should create schema");
+
+        let data = serde_json::json!({
+            "tasks": [],
+            "projects": [],
+            "areas": [],
+            "sections": [],
+            "people": [{
+                "id": "person-1",
+                "name": "Ada Lovelace",
+                "note": "review owner",
+                "referenceLink": "https://example.com/ada",
+                "rev": 7,
+                "revBy": "device-1",
+                "createdAt": "2026-05-25T00:00:00.000Z",
+                "updatedAt": "2026-05-26T00:00:00.000Z"
+            }],
+            "settings": {}
+        });
+
+        migrate_json_to_sqlite(&mut conn, &data).expect("should write data");
+        let read = read_sqlite_data(&conn).expect("should read data");
+        let person = read["people"]
+            .as_array()
+            .and_then(|people| people.first())
+            .expect("person should exist");
+
+        assert_eq!(person["id"], "person-1");
+        assert_eq!(person["name"], "Ada Lovelace");
+        assert_eq!(person["note"], "review owner");
+        assert_eq!(person["referenceLink"], "https://example.com/ada");
+        assert_eq!(person["rev"], 7);
+        assert_eq!(person["revBy"], "device-1");
+        assert_eq!(person["createdAt"], "2026-05-25T00:00:00.000Z");
+        assert_eq!(person["updatedAt"], "2026-05-26T00:00:00.000Z");
+    }
 }
 
 fn normalize_sync_value(value: Value) -> Value {
@@ -2161,6 +2282,12 @@ fn normalize_sync_value(value: Value) -> Value {
         if !matches!(map.get("areas"), Some(Value::Array(_))) {
             map.insert("areas".to_string(), Value::Array(Vec::new()));
         }
+        if !matches!(map.get("sections"), Some(Value::Array(_))) {
+            map.insert("sections".to_string(), Value::Array(Vec::new()));
+        }
+        if !matches!(map.get("people"), Some(Value::Array(_))) {
+            map.insert("people".to_string(), Value::Array(Vec::new()));
+        }
         if !matches!(map.get("settings"), Some(Value::Object(_))) {
             map.insert("settings".to_string(), Value::Object(Map::new()));
         }
@@ -2170,6 +2297,8 @@ fn normalize_sync_value(value: Value) -> Value {
         "tasks": [],
         "projects": [],
         "areas": [],
+        "sections": [],
+        "people": [],
         "settings": {}
     })
 }

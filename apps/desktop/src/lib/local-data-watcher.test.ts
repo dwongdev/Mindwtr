@@ -174,6 +174,31 @@ describe('local-data-watcher', () => {
         expect(useTaskStore.getState().tasks[0]?.id).toBe('mcp-1');
     });
 
+    it('ignores SQLite shared-memory events from read activity', async () => {
+        const watchers: Array<{ path: string; callback: (event: { path?: string; paths?: string[] }) => void }> = [];
+        const refreshStorageData = vi.fn();
+
+        __localDataWatcherTestUtils.setDependenciesForTests({
+            watchFile: async (path, callback) => {
+                watchers.push({ path, callback });
+                return () => undefined;
+            },
+            refreshStorageData,
+        });
+
+        await start('/tmp/mindwtr/data.json', '/tmp/mindwtr/mindwtr.db');
+
+        watchers[1]?.callback({ paths: ['/tmp/mindwtr/mindwtr.db-shm'] });
+        await flushScheduledTimers();
+
+        expect(refreshStorageData).not.toHaveBeenCalled();
+
+        watchers[1]?.callback({ paths: ['/tmp/mindwtr/mindwtr.db-wal'] });
+        await flushScheduledTimers();
+
+        expect(refreshStorageData).toHaveBeenCalledTimes(1);
+    });
+
     it('ignores SQLite watcher events caused by local SQLite writes', async () => {
         const watchers: Array<{ path: string; callback: (event: { path?: string; paths?: string[] }) => void }> = [];
         const refreshStorageData = vi.fn();
