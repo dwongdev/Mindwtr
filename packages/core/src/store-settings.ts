@@ -116,6 +116,19 @@ const autoArchiveStaleCompletedTasks = (
     };
 };
 
+const runAutoArchive = (
+    tasks: Task[],
+    settings: AppData['settings'],
+    context: { nowIso: string; nowMs: number; deviceId: string; enabled?: boolean }
+): { allTasks: Task[]; visibleTasks?: Task[]; didAutoArchive: boolean } => {
+    const result = autoArchiveStaleCompletedTasks(tasks, settings, context);
+    return {
+        allTasks: result.tasks,
+        visibleTasks: result.didAutoArchive ? selectVisibleTasks(result.tasks) : undefined,
+        didAutoArchive: result.didAutoArchive,
+    };
+};
+
 const mergeSettingsUpdates = (
     settings: AppData['settings'],
     updates: Partial<AppData['settings']>
@@ -711,13 +724,13 @@ export const createSettingsActions = ({
             });
 
             // Auto-archive stale completed items to keep day-to-day UI fast/clean.
-            const autoArchiveResult = autoArchiveStaleCompletedTasks(allTasks, settings, {
+            const autoArchiveResult = runAutoArchive(allTasks, settings, {
                 nowIso,
                 nowMs,
                 deviceId: deviceState.deviceId,
                 enabled: shouldRunAutoArchive,
             });
-            allTasks = autoArchiveResult.tasks;
+            allTasks = autoArchiveResult.allTasks;
             const didAutoArchive = autoArchiveResult.didAutoArchive;
             const peopleLoadResult = normalizePeopleForLoad(rawPeople, allTasks, nowIso, nextSettings.deviceId);
             let allPeople = peopleLoadResult.people;
@@ -1157,19 +1170,17 @@ export const createSettingsActions = ({
             const newSettings = syncUpdated ? { ...nextSettings, syncPreferencesUpdatedAt: nextSyncUpdatedAt } : nextSettings;
             const shouldTrackChange = shouldTrackSettingsChange(state.settings, newSettings, updates);
             if (archiveDaysUpdate) {
-                const autoArchiveResult = autoArchiveStaleCompletedTasks(state._allTasks, newSettings, {
+                const autoArchiveResult = runAutoArchive(state._allTasks, newSettings, {
                     nowIso,
                     nowMs: Date.now(),
                     deviceId: deviceState.deviceId,
                 });
-                const newAllTasks = autoArchiveResult.tasks;
 
                 if (autoArchiveResult.didAutoArchive) {
-                    const newVisibleTasks = selectVisibleTasks(newAllTasks);
-                    snapshot = buildSaveSnapshot(state, { tasks: newAllTasks, settings: newSettings });
+                    snapshot = buildSaveSnapshot(state, { tasks: autoArchiveResult.allTasks, settings: newSettings });
                     return {
-                        tasks: newVisibleTasks,
-                        _allTasks: newAllTasks,
+                        tasks: autoArchiveResult.visibleTasks ?? selectVisibleTasks(autoArchiveResult.allTasks),
+                        _allTasks: autoArchiveResult.allTasks,
                         settings: newSettings,
                         lastDataChangeAt: getNextDataChangeAt(state.lastDataChangeAt),
                     };

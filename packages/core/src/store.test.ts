@@ -1346,6 +1346,73 @@ describe('TaskStore', () => {
         expect(mockStorage.saveData).toHaveBeenCalled();
     });
 
+    it('auto-archives stale completed tasks during fetch', async () => {
+        vi.setSystemTime(new Date('2026-04-10T12:00:00.000Z'));
+        const staleTask = createStoreTask('task-stale', {
+            status: 'done',
+            completedAt: '2026-03-01T12:00:00.000Z',
+            updatedAt: '2026-03-01T12:00:00.000Z',
+        });
+        const recentTask = createStoreTask('task-recent', {
+            status: 'done',
+            completedAt: '2026-04-09T12:00:00.000Z',
+            updatedAt: '2026-04-09T12:00:00.000Z',
+        });
+        mockStorage.getData = vi.fn().mockResolvedValue({
+            tasks: [staleTask, recentTask],
+            projects: [],
+            sections: [],
+            areas: [],
+            settings: {
+                deviceId: 'device-a',
+                gtd: { autoArchiveDays: 7 },
+                migrations: { lastAutoArchiveAt: '2026-03-01T00:00:00.000Z' },
+            },
+        });
+
+        await useTaskStore.getState().fetchData({ silent: true });
+        await flushPendingSave();
+
+        const byId = new Map(useTaskStore.getState()._allTasks.map((task) => [task.id, task]));
+        expect(byId.get('task-stale')?.status).toBe('archived');
+        expect(byId.get('task-stale')?.rev).toBe(2);
+        expect(byId.get('task-stale')?.revBy).toBe('device-a');
+        expect(byId.get('task-recent')?.status).toBe('done');
+        expect(useTaskStore.getState().tasks.some((task) => task.id === 'task-stale')).toBe(false);
+        expect(mockStorage.saveData).toHaveBeenCalled();
+    });
+
+    it('auto-archives stale completed tasks when archive days change', async () => {
+        vi.setSystemTime(new Date('2026-04-10T12:00:00.000Z'));
+        const staleTask = createStoreTask('task-stale', {
+            status: 'done',
+            completedAt: '2026-03-01T12:00:00.000Z',
+            updatedAt: '2026-03-01T12:00:00.000Z',
+        });
+        useTaskStore.setState({
+            tasks: [staleTask],
+            _allTasks: [staleTask],
+            settings: {
+                deviceId: 'device-a',
+                gtd: { autoArchiveDays: 30 },
+            },
+            lastDataChangeAt: 0,
+        });
+
+        await useTaskStore.getState().updateSettings({
+            gtd: { autoArchiveDays: 7 },
+        });
+        await flushPendingSave();
+
+        const archivedTask = useTaskStore.getState()._allTasks.find((task) => task.id === staleTask.id);
+        expect(archivedTask?.status).toBe('archived');
+        expect(archivedTask?.rev).toBe(2);
+        expect(archivedTask?.revBy).toBe('device-a');
+        expect(useTaskStore.getState().tasks.some((task) => task.id === staleTask.id)).toBe(false);
+        expect(useTaskStore.getState().lastDataChangeAt).toBe(new Date('2026-04-10T12:00:00.000Z').getTime());
+        expect(mockStorage.saveData).toHaveBeenCalled();
+    });
+
     it('marks active tasks that belong to archived projects as done during fetch', async () => {
         vi.spyOn(Date, 'now').mockReturnValue(new Date('2026-02-14T10:00:00.000Z').getTime());
         mockStorage.getData = vi.fn().mockResolvedValue({
