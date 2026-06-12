@@ -442,6 +442,64 @@ describe('desktop sync-service runtime', () => {
         );
     });
 
+    it('only emits sync payload trace logs when diagnostics logging is enabled', async () => {
+        const syncServiceModule = await syncServiceModulePromise;
+        const syncedData: AppData = {
+            tasks: [],
+            projects: [],
+            sections: [],
+            areas: [],
+            people: [],
+            settings: {},
+        };
+        const hasPayloadTraceLog = () => logInfoMock.mock.calls.some(([message]) =>
+            typeof message === 'string' && message.startsWith('Sync trace')
+        );
+        const configureFileSync = () => {
+            invokeMock.mockImplementation(async (command: string, args?: Record<string, unknown>) => {
+                if (command === 'get_sync_backend') return 'file';
+                if (command === 'get_sync_path') return '/sync/data.json';
+                if (command === 'create_data_snapshot') return undefined;
+                if (command === 'get_data') return structuredClone(syncedData);
+                if (command === 'read_sync_file') return structuredClone(syncedData);
+                if (command === 'save_data') return undefined;
+                if (command === 'write_sync_file') return undefined;
+                throw new Error(`Unexpected command: ${command} ${JSON.stringify(args)}`);
+            });
+            performSyncCycleMock.mockImplementation(async (io: {
+                readLocal: () => Promise<AppData>;
+                readRemote: () => Promise<AppData | null>;
+                writeLocal: (data: AppData) => Promise<void>;
+                writeRemote: (data: AppData) => Promise<void>;
+            }) => {
+                const local = await io.readLocal();
+                await io.readRemote();
+                await io.writeLocal(local);
+                await io.writeRemote(local);
+                return { status: 'success', stats: emptyStats, data: local };
+            });
+        };
+
+        configureFileSync();
+        await syncServiceModule.SyncService.performSync();
+
+        expect(hasPayloadTraceLog()).toBe(false);
+
+        await syncServiceModule.SyncService.resetForTests();
+        vi.clearAllMocks();
+        configureFileSync();
+        storeStateRef.current = {
+            ...storeStateRef.current,
+            settings: {
+                diagnostics: { loggingEnabled: true },
+            },
+        };
+
+        await syncServiceModule.SyncService.performSync();
+
+        expect(hasPayloadTraceLog()).toBe(true);
+    });
+
     it('preserves attachment pre-sync mutations when local edits land during file attachment sync', async () => {
         const syncServiceModule = await syncServiceModulePromise;
 

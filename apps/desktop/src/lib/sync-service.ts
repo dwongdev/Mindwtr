@@ -250,6 +250,10 @@ const logSyncInfo = (message: string, extra?: Record<string, string>) => {
     void syncServiceDependencies.logInfo(message, { scope: 'sync', extra });
 };
 
+const isSyncPayloadTraceEnabled = (): boolean => (
+    getStoreState().settings?.diagnostics?.loggingEnabled === true
+);
+
 const buildSyncPayloadTraceExtra = (
     data: AppData | null | undefined,
     extra: Record<string, string> = {},
@@ -282,6 +286,7 @@ const logSyncPayloadTrace = (
     data: AppData | null | undefined,
     extra?: Record<string, string>,
 ): void => {
+    if (!isSyncPayloadTraceEnabled()) return;
     logSyncInfo(message, buildSyncPayloadTraceExtra(data, extra));
 };
 
