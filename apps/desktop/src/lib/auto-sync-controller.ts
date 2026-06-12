@@ -43,6 +43,7 @@ const DEFAULT_DEBOUNCE_CONTINUOUS_CHANGE_MS = 5_000;
 const DEFAULT_AUTO_FAILURE_COOLDOWN_MS = 60_000;
 const DEFAULT_INITIAL_SYNC_DELAY_MS = 1_500;
 const DEFAULT_PERIODIC_SYNC_INTERVAL_MS = 15 * 60 * 1000;
+const FOCUS_TRIGGER_DEDUPE_MS = 1_000;
 
 export const createDesktopAutoSyncController = (
     options: DesktopAutoSyncControllerOptions
@@ -67,6 +68,7 @@ export const createDesktopAutoSyncController = (
     let initialSyncTimer: ReturnType<typeof setTimeout> | null = null;
     let periodicSyncTimer: ReturnType<typeof setTimeout> | null = null;
     let autoSyncRetryAfter = 0;
+    let lastFocusTriggerAt = 0;
     let disposed = false;
 
     const trace = (message: string, extra?: Record<string, string>) => {
@@ -208,7 +210,10 @@ export const createDesktopAutoSyncController = (
         requestSync,
         handleFocus: () => {
             if (!canRunWindowSync()) return;
-            if (now() - lastAutoSyncAt > focusMinIntervalMs) {
+            const nowMs = now();
+            if (nowMs - lastFocusTriggerAt < FOCUS_TRIGGER_DEDUPE_MS) return;
+            if (nowMs - lastAutoSyncAt > focusMinIntervalMs) {
+                lastFocusTriggerAt = nowMs;
                 trace('Auto sync trigger', { source: 'focus' });
                 void requestAutoSync(undefined, 'focus').catch((error) => options.reportError('Sync failed', error));
             }

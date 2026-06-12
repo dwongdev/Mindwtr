@@ -257,6 +257,45 @@ describe('local-data-watcher', () => {
         expect(refreshStorageData).toHaveBeenCalledTimes(2);
     });
 
+    it('does not treat sync bookkeeping-only SQLite refreshes as app data changes', async () => {
+        const watchers: Array<{ path: string; callback: (event: { path?: string; paths?: string[] }) => void }> = [];
+        const logInfo = vi.fn();
+        const refreshStorageData = vi.fn(async () => {
+            useTaskStore.setState((state) => ({
+                ...state,
+                settings: {
+                    ...state.settings,
+                    lastSyncAt: '2026-01-01T00:00:00.000Z',
+                    lastSyncStatus: 'success',
+                },
+                lastDataChangeAt: 1,
+            }));
+        });
+
+        __localDataWatcherTestUtils.setDependenciesForTests({
+            watchFile: async (path, callback) => {
+                watchers.push({ path, callback });
+                return () => undefined;
+            },
+            refreshStorageData,
+            logInfo,
+        });
+
+        await start('/tmp/mindwtr/data.json', '/tmp/mindwtr/mindwtr.db');
+        logInfo.mockClear();
+
+        watchers[1]?.callback({ paths: ['/tmp/mindwtr/mindwtr.db-wal'] });
+        await flushScheduledTimers();
+
+        expect(refreshStorageData).toHaveBeenCalledTimes(1);
+        expect(logInfo).not.toHaveBeenCalledWith('[local-data-watcher] Refreshed after SQLite change');
+
+        watchers[1]?.callback({ paths: ['/tmp/mindwtr/mindwtr.db-wal'] });
+        await flushScheduledTimers();
+
+        expect(refreshStorageData).toHaveBeenCalledTimes(1);
+    });
+
     it('does not cancel a pending external SQLite refresh when a local SQLite write follows', async () => {
         const watchers: Array<{ path: string; callback: (event: { path?: string; paths?: string[] }) => void }> = [];
         const refreshStorageData = vi.fn();

@@ -185,8 +185,40 @@ const runPendingMerge = () => {
     });
 };
 
+const stripSqliteRefreshBookkeeping = (data: AppData): AppData => {
+    const {
+        network,
+        lastSyncAt,
+        lastSyncStatus,
+        lastSyncError,
+        pendingRemoteWriteAt,
+        pendingRemoteWriteRetryAt,
+        pendingRemoteWriteAttempts,
+        lastSyncStats,
+        lastSyncHistory,
+        ...settings
+    } = data.settings ?? {};
+
+    void network;
+    void lastSyncAt;
+    void lastSyncStatus;
+    void lastSyncError;
+    void pendingRemoteWriteAt;
+    void pendingRemoteWriteRetryAt;
+    void pendingRemoteWriteAttempts;
+    void lastSyncStats;
+    void lastSyncHistory;
+
+    return {
+        ...data,
+        settings,
+    };
+};
+
 const hashCurrentSnapshot = async (): Promise<string> => {
-    const normalized = localDataWatcherDependencies.normalize(localDataWatcherDependencies.getSnapshot());
+    const normalized = stripSqliteRefreshBookkeeping(
+        localDataWatcherDependencies.normalize(localDataWatcherDependencies.getSnapshot())
+    );
     return localDataWatcherDependencies.hashPayload(toStableJson(normalized));
 };
 

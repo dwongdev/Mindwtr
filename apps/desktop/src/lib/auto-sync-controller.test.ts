@@ -271,6 +271,38 @@ describe('createDesktopAutoSyncController', () => {
         });
     });
 
+    it('dedupes duplicate focus events before they queue a follow-up sync', async () => {
+        const scheduler = createManualScheduler(50_000);
+        let finishSync: (result: { success: boolean }) => void = () => undefined;
+        const performSync = vi.fn(() => new Promise<{ success: boolean }>((resolve) => {
+            finishSync = resolve;
+        }));
+        const controller = createDesktopAutoSyncController({
+            canSync: async () => true,
+            performSync,
+            flushPendingSave: async () => undefined,
+            reportError: vi.fn(),
+            isRuntimeActive: () => true,
+            now: scheduler.now,
+            setTimer: scheduler.setTimer,
+            clearTimer: scheduler.clearTimer,
+            minIntervalMs: 0,
+            periodicSyncIntervalMs: null,
+        });
+
+        controller.handleFocus();
+        controller.handleFocus();
+        await waitForAssertion(() => {
+            expect(performSync).toHaveBeenCalledTimes(1);
+        });
+
+        finishSync({ success: true });
+        await Promise.resolve();
+        await Promise.resolve();
+
+        expect(performSync).toHaveBeenCalledTimes(1);
+    });
+
     it('runs a periodic heartbeat while the runtime is active', async () => {
         const scheduler = createManualScheduler();
         let pauseWindowSync = false;
