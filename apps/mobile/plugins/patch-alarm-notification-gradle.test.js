@@ -78,6 +78,16 @@ describe('patch-alarm-notification-gradle', () => {
         this.stopAlarmSound();
 
         calendar.add(Calendar.MINUTE, alarm.getSnoozeInterval());
+
+        setAlarmFromCalendar(alarm, calendar);
+
+        long time = System.currentTimeMillis() / 1000;
+
+        alarm.setAlarmId((int) time);
+
+        getAlarmDB().update(alarm);
+
+        Log.e(TAG, "snooze data - " + alarm.toString());
     }
 }`;
 
@@ -91,6 +101,10 @@ describe('patch-alarm-notification-gradle', () => {
     expect(output).not.toContain('alarmManager.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, calendar.getTimeInMillis(), alarmIntent);');
     expect(output).toContain('Calendar calendar = Calendar.getInstance();');
     expect(output).not.toContain('Calendar calendar = getCalendarFromAlarm(alarm);');
+    expect(output).toContain('int firedNotificationId = alarm.getAlarmId();');
+    expect(output).toContain('getNotificationManager().cancel(firedNotificationId);');
+    expect(output.indexOf('int firedNotificationId = alarm.getAlarmId();')).toBeLessThan(output.indexOf('alarm.setAlarmId((int) time);'));
+    expect(output.indexOf('getNotificationManager().cancel(firedNotificationId);')).toBeGreaterThan(output.indexOf('getAlarmDB().update(alarm);'));
   });
 
   it('patches AlarmUtil reminder behavior away from alarm semantics', () => {

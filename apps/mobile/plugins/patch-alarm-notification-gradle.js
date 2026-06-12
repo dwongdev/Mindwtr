@@ -152,6 +152,43 @@ const applyAlarmTimingPatchToSource = (original) => {
         Calendar calendar = Calendar.getInstance();
 `
   );
+  const firedNotificationIdMarker = 'int firedNotificationId = alarm.getAlarmId();';
+  if (!next.includes(firedNotificationIdMarker)) {
+    const withFiredNotificationId = next.replace(
+      `    void snoozeAlarm(AlarmModel alarm) {
+        Calendar calendar = Calendar.getInstance();
+
+        this.stopAlarmSound();
+`,
+      `    void snoozeAlarm(AlarmModel alarm) {
+        Calendar calendar = Calendar.getInstance();
+
+        this.stopAlarmSound();
+
+        int firedNotificationId = alarm.getAlarmId();
+`
+    );
+    if (withFiredNotificationId !== next) {
+      next = withFiredNotificationId;
+    }
+  }
+  if (
+    next.includes(firedNotificationIdMarker)
+    && !next.includes('getNotificationManager().cancel(firedNotificationId);')
+  ) {
+    next = next.replace(
+      `        getAlarmDB().update(alarm);
+
+        Log.e(TAG, "snooze data - " + alarm.toString());
+`,
+      `        getAlarmDB().update(alarm);
+
+        getNotificationManager().cancel(firedNotificationId);
+
+        Log.e(TAG, "snooze data - " + alarm.toString());
+`
+    );
+  }
 
   return next;
 };
