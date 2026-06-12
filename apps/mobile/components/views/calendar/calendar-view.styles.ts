@@ -401,6 +401,13 @@ export const styles = StyleSheet.create({
     top: 0,
     bottom: 0,
   },
+  timelineItemsLayer: {
+    position: 'absolute',
+    left: 56,
+    right: 12,
+    top: 0,
+    bottom: 0,
+  },
   nowLine: {
     position: 'absolute',
     left: 50,
@@ -599,6 +606,21 @@ export const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     zIndex: 30,
+  },
+  weekTimedItemsLayer: {
+    position: 'absolute',
+    left: 4,
+    right: 4,
+    top: 0,
+    bottom: 0,
+  },
+  weekTimedItemsLayerCompact: {
+    left: 2,
+    right: 2,
+  },
+  weekTimedItemsLayerUltraCompact: {
+    left: 1,
+    right: 1,
   },
   weekBlock: {
     position: 'absolute',
