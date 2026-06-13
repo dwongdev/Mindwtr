@@ -219,9 +219,16 @@ describe('QuickCaptureSheet save handling', () => {
     expect(getUsedTaskTokens).not.toHaveBeenCalled();
   });
 
-  it('waits for the Android keyboard dismissal before expanding organize options', async () => {
+  it('keeps the sheet lifted until the Android keyboard finishes hiding, then expands', async () => {
     vi.useFakeTimers();
     const keyboardDismiss = vi.spyOn(Keyboard, 'dismiss').mockImplementation(vi.fn());
+    vi.spyOn(Keyboard, 'isVisible').mockReturnValue(true);
+    const hideListeners: (() => void)[] = [];
+    const removeListener = vi.fn();
+    vi.spyOn(Keyboard, 'addListener').mockImplementation(((event: string, cb: () => void) => {
+      if (event === 'keyboardDidHide') hideListeners.push(cb);
+      return { remove: removeListener };
+    }) as unknown as typeof Keyboard.addListener);
 
     await withPlatform('android', async () => {
       let tree!: ReturnType<typeof create>;
@@ -255,19 +262,34 @@ describe('QuickCaptureSheet save handling', () => {
         await Promise.resolve();
       });
 
+      // The keyboard is dismissed, but the lift must stay on and the sheet must
+      // stay collapsed until the keyboard is actually gone. Dropping the lift now
+      // would slam the sheet behind the still-visible keyboard (the flicker).
       expect(keyboardDismiss).toHaveBeenCalledOnce();
       expect(blur).toHaveBeenCalledOnce();
+      expect(hideListeners).toHaveLength(1);
       expect(getBody().props.optionsExpanded).toBe(false);
-      expect(getBody().props.keyboardAvoidingEnabled).toBe(false);
+      expect(getBody().props.keyboardAvoidingEnabled).toBe(true);
 
+      // A premature timer must not expand the sheet on its own; only the keyboard
+      // hide event (or the far safety-net) may.
       await act(async () => {
         vi.advanceTimersByTime(160);
+        await Promise.resolve();
+      });
+      expect(getBody().props.optionsExpanded).toBe(false);
+      expect(getBody().props.keyboardAvoidingEnabled).toBe(true);
+
+      // Keyboard finished hiding: now expand and drop the lift together.
+      await act(async () => {
+        hideListeners.forEach((cb) => cb());
         await Promise.resolve();
       });
 
       expect(focus).not.toHaveBeenCalled();
       expect(getBody().props.optionsExpanded).toBe(true);
       expect(getBody().props.keyboardAvoidingEnabled).toBe(false);
+      expect(removeListener).toHaveBeenCalled();
 
       await act(async () => {
         getBody().props.onToggleOptions();
@@ -276,6 +298,45 @@ describe('QuickCaptureSheet save handling', () => {
 
       expect(getBody().props.optionsExpanded).toBe(false);
       expect(getBody().props.keyboardAvoidingEnabled).toBe(true);
+    });
+  });
+
+  it('expands Android organize options immediately when the keyboard is already hidden', async () => {
+    vi.useFakeTimers();
+    vi.spyOn(Keyboard, 'dismiss').mockImplementation(vi.fn());
+    vi.spyOn(Keyboard, 'isVisible').mockReturnValue(false);
+    const addListener = vi.spyOn(Keyboard, 'addListener');
+
+    await withPlatform('android', async () => {
+      let tree!: ReturnType<typeof create>;
+      await act(async () => {
+        tree = create(
+          <QuickCaptureSheet
+            visible
+            openRequestId={1}
+            initialValue=""
+            onClose={vi.fn()}
+          />
+        );
+        await Promise.resolve();
+      });
+
+      const getBody = () => {
+        const body = tree.root.findAll((node) => String(node.type) === 'QuickCaptureSheetBody')[0];
+        if (!body) throw new Error('QuickCaptureSheetBody not found');
+        return body;
+      };
+
+      getBody().props.inputRef.current = { blur: vi.fn(), focus: vi.fn() };
+
+      await act(async () => {
+        getBody().props.onToggleOptions();
+        await Promise.resolve();
+      });
+
+      expect(addListener).not.toHaveBeenCalled();
+      expect(getBody().props.optionsExpanded).toBe(true);
+      expect(getBody().props.keyboardAvoidingEnabled).toBe(false);
     });
   });
 

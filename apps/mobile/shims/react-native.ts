@@ -124,6 +124,7 @@ export const Dimensions = {
 export const Keyboard = {
   addListener: () => ({ remove: () => {} }),
   dismiss: () => {},
+  isVisible: () => false,
 };
 
 export const PanResponder = {
