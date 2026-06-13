@@ -1,5 +1,5 @@
 import React from 'react';
-import { FlatList, Modal, Platform, Text, TextInput } from 'react-native';
+import { FlatList, KeyboardAvoidingView, Modal, Platform, Text, TextInput } from 'react-native';
 import { act, create } from 'react-test-renderer';
 import { describe, expect, it, vi } from 'vitest';
 
@@ -164,6 +164,7 @@ describe('Quick capture modal composition', () => {
             handleSave={vi.fn()}
             insetsBottom={0}
             inputRef={{ current: null }}
+            keyboardAvoidingEnabled={false}
             onOpenAreaPicker={vi.fn()}
             onOpenContextPicker={vi.fn()}
             onOpenDueDatePicker={vi.fn()}
@@ -208,6 +209,7 @@ describe('Quick capture modal composition', () => {
     expect(modal.props.transparent).toBe(true);
     expect(modal.props.animationType).toBe('none');
     expect(modal.props.hardwareAccelerated).toBe(true);
+    expect(tree.root.findByType(KeyboardAvoidingView).props.behavior).toBeUndefined();
     expect(modal.props.statusBarTranslucent).toBe(true);
     expect(modal.props.accessibilityViewIsModal).toBe(true);
   });

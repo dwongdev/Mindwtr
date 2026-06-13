@@ -22,6 +22,7 @@ interface QuickCaptureSheetBodyProps {
   handleSaveAndEdit?: () => void;
   insetsBottom: number;
   inputRef: RefObject<TextInput | null>;
+  keyboardAvoidingEnabled?: boolean;
   onOpenAreaPicker: () => void;
   onOpenContextPicker: () => void;
   onOpenDueDatePicker: () => void;
@@ -68,6 +69,7 @@ export function QuickCaptureSheetBody({
   handleSaveAndEdit,
   insetsBottom,
   inputRef,
+  keyboardAvoidingEnabled = true,
   onOpenAreaPicker,
   onOpenContextPicker,
   onOpenDueDatePicker,
@@ -102,6 +104,7 @@ export function QuickCaptureSheetBody({
 }: QuickCaptureSheetBodyProps) {
   const optionsToggleLabel = optionsExpanded ? t('taskEdit.hideOptions') : tFallback(t, 'common.more', 'More');
   const defaultProjectLabel = tFallback(t, 'taskEdit.projectLabel', 'Project');
+  const keyboardAvoidingBehavior = Platform.OS === 'ios' ? 'padding' : keyboardAvoidingEnabled ? 'height' : undefined;
 
   return (
     <Modal
@@ -123,7 +126,7 @@ export function QuickCaptureSheetBody({
           accessibilityLabel={t('common.close')}
         />
         <KeyboardAvoidingView
-          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          behavior={keyboardAvoidingBehavior}
           keyboardVerticalOffset={0}
           style={styles.keyboardAvoiding}
         >

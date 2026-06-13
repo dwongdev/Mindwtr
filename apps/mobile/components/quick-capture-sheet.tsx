@@ -134,6 +134,7 @@ export function QuickCaptureSheet({
   const [priority, setPriority] = useState<TaskPriority | null>(null);
   const [showPriorityPicker, setShowPriorityPicker] = useState(false);
   const [optionsExpanded, setOptionsExpanded] = useState(false);
+  const [androidKeyboardAvoidingEnabled, setAndroidKeyboardAvoidingEnabled] = useState(true);
   const [addAnother, setAddAnother] = useState(false);
   const projectsRef = useRef(projects);
   const contextOptionsLoadTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -300,6 +301,7 @@ export function QuickCaptureSheet({
     setPriority((initialProps?.priority as TaskPriority) ?? null);
     setShowPriorityPicker(false);
     setOptionsExpanded(false);
+    setAndroidKeyboardAvoidingEnabled(true);
     setShowDatePicker(false);
     setShowDueTimePicker(false);
     setStartPickerMode(null);
@@ -421,6 +423,7 @@ export function QuickCaptureSheet({
     setShowAreaPicker(false);
     setShowPriorityPicker(false);
     setOptionsExpanded(false);
+    setAndroidKeyboardAvoidingEnabled(true);
     setShowDatePicker(false);
     setShowDueTimePicker(false);
     setStartPickerMode(null);
@@ -684,23 +687,24 @@ export function QuickCaptureSheet({
   }, [recording, startRecording, stopRecording]);
 
   const handleToggleOptions = useCallback(() => {
-    setOptionsExpanded((prev) => {
-      clearAndroidOptionsExpandTimer();
-      if (!prev) {
-        inputRef.current?.blur();
-        Keyboard.dismiss();
-        if (Platform.OS === 'android') {
-          // Let the transparent modal settle after keyboard resize before growing the sheet.
-          androidOptionsExpandTimerRef.current = setTimeout(() => {
-            androidOptionsExpandTimerRef.current = null;
-            setOptionsExpanded(true);
-          }, ANDROID_OPTIONS_EXPAND_DELAY_MS);
-          return false;
-        }
+    clearAndroidOptionsExpandTimer();
+    if (!optionsExpanded) {
+      inputRef.current?.blur();
+      Keyboard.dismiss();
+      if (Platform.OS === 'android') {
+        setAndroidKeyboardAvoidingEnabled(false);
+        // Let the transparent modal settle after keyboard resize before growing the sheet.
+        androidOptionsExpandTimerRef.current = setTimeout(() => {
+          androidOptionsExpandTimerRef.current = null;
+          setOptionsExpanded(true);
+        }, ANDROID_OPTIONS_EXPAND_DELAY_MS);
+        return;
       }
-      return !prev;
-    });
-  }, [clearAndroidOptionsExpandTimer]);
+    } else if (Platform.OS === 'android') {
+      setAndroidKeyboardAvoidingEnabled(true);
+    }
+    setOptionsExpanded((prev) => !prev);
+  }, [clearAndroidOptionsExpandTimer, optionsExpanded]);
 
   const openContextPicker = useCallback(() => {
     setShowContextPicker(true);
@@ -781,6 +785,7 @@ export function QuickCaptureSheet({
         }}
         insetsBottom={insets.bottom}
         inputRef={inputRef}
+        keyboardAvoidingEnabled={androidKeyboardAvoidingEnabled}
         onOpenAreaPicker={() => setShowAreaPicker(true)}
         onOpenContextPicker={openContextPicker}
         onOpenDueDatePicker={openDueDatePicker}

@@ -244,6 +244,7 @@ describe('QuickCaptureSheet save handling', () => {
       };
 
       expect(getBody().props.optionsExpanded).toBe(false);
+      expect(getBody().props.keyboardAvoidingEnabled).toBe(true);
 
       await act(async () => {
         getBody().props.onToggleOptions();
@@ -252,6 +253,7 @@ describe('QuickCaptureSheet save handling', () => {
 
       expect(keyboardDismiss).toHaveBeenCalledOnce();
       expect(getBody().props.optionsExpanded).toBe(false);
+      expect(getBody().props.keyboardAvoidingEnabled).toBe(false);
 
       await act(async () => {
         vi.advanceTimersByTime(160);
@@ -259,6 +261,15 @@ describe('QuickCaptureSheet save handling', () => {
       });
 
       expect(getBody().props.optionsExpanded).toBe(true);
+      expect(getBody().props.keyboardAvoidingEnabled).toBe(false);
+
+      await act(async () => {
+        getBody().props.onToggleOptions();
+        await Promise.resolve();
+      });
+
+      expect(getBody().props.optionsExpanded).toBe(false);
+      expect(getBody().props.keyboardAvoidingEnabled).toBe(true);
     });
   });
 
