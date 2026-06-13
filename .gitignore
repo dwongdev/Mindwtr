@@ -86,14 +86,14 @@ aur/src/
 # Agent files
 AGENT.md
 AGENTS.md
-.codex/
+.codex
 .codegraph/
-.agents/
-.serena/
-.claude/
+.agents
+.serena
+.claude
 .cursor/
-.gemini/
-.kiro/
+.gemini
+.kiro
 skills-lock.json
 
 # CI artifacts
