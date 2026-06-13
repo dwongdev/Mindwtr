@@ -2,7 +2,7 @@
 export const ptOverrides: Record<string, string> = {
         // App
         'app.name': 'Mindwtr',
-        
+
         // Navigation
         'nav.main': 'Principal',
         'nav.inbox': 'Caixa de entrada',
@@ -25,7 +25,7 @@ export const ptOverrides: Record<string, string> = {
         'nav.sectionLists': 'Listas',
         'nav.sectionOrganize': 'Organizar',
         'nav.sectionArchive': 'Arquivo',
-        
+
         // Quick Add
         'quickAdd.help': 'A adição rápida suporta /start:<when>, /due:<when>, /review:<when>, /note:<text>, /link:<url>, /next, /area:<name> ou !Area, @context, #tag, +Project.',
         'quickAdd.example': 'Exemplo: Ligue para a mãe /start:tomorrow /due:tomorrow 5pm @phone #family',
@@ -1214,7 +1214,7 @@ export const ptOverrides: Record<string, string> = {
         'list.groupBy': 'Agrupar por',
         'list.groupByNone': 'Sem agrupamento',
         'list.groupByContext': 'Contexto',
-        
+
         'bulk.contextPlaceholder': '@context',
         'bulk.tagPlaceholder': '#tag',
         'settings.cloudUrlPlaceholder': 'https://example.com',
