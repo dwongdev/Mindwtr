@@ -132,7 +132,7 @@ export function ProjectRow({
                 hitSlop={ROW_ACTION_HIT_SLOP}
             >
                 <FocusStarIcon
-                    focused={project.isFocused}
+                    focused={project.isFocused === true}
                     inactiveColor={tc.secondaryText}
                     disabled={!project.isFocused && focusedCount >= 5}
                 />
