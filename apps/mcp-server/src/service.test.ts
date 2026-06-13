@@ -489,6 +489,7 @@ describe('mcp service', () => {
 
   test('delegates project and area writes through core deps', async () => {
     let receivedProjectCreate: any = null;
+    let receivedProjectUpdate: any = null;
     let receivedAreaUpdate: any = null;
     const fakeDb = {} as any;
     const deps = {
@@ -511,7 +512,10 @@ describe('mcp service', () => {
             receivedProjectCreate = input;
             return { id: 'p1', title: input.title, color: input.color };
           },
-          updateProject: async () => ({ id: 'p1', title: 'Project' }),
+          updateProject: async (input: any) => {
+            receivedProjectUpdate = input;
+            return { id: input.id, title: 'Project', ...input.updates };
+          },
           deleteProject: async () => ({ id: 'p1', title: 'Project' }),
           addArea: async () => ({ id: 'a1', name: 'Area' }),
           updateArea: async (input: any) => {
@@ -524,11 +528,27 @@ describe('mcp service', () => {
     const service = createService({ readonly: false }, deps as any);
 
     await service.addProject({ title: 'Project', areaId: null });
+    await service.updateProject({
+      id: 'p1',
+      color: null,
+      areaId: null,
+      dueDate: null,
+      reviewAt: null,
+      supportNotes: null,
+    });
     await service.updateArea({ id: 'a1', color: null, icon: 'briefcase' });
 
     expect(receivedProjectCreate.color).toBeTruthy();
     expect(receivedProjectCreate.props.areaId).toBeUndefined();
+    expect(receivedProjectUpdate.updates).toEqual({
+      color: undefined,
+      areaId: undefined,
+      dueDate: undefined,
+      reviewAt: undefined,
+      supportNotes: undefined,
+    });
     expect(receivedAreaUpdate.updates.icon).toBe('briefcase');
+    expect(Object.prototype.hasOwnProperty.call(receivedAreaUpdate.updates, 'color')).toBe(true);
     expect(receivedAreaUpdate.updates.color).toBeUndefined();
   });
 

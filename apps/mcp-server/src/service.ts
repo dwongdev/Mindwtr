@@ -447,17 +447,16 @@ export const createService = (options: DbOptions, deps: ServiceDeps = defaultSer
       }),
     updateProject: async (input) =>
       runCoreWriteWithRetries(options, deps, async (core) => {
-        const updates = filterUndefined({
-          title: input.title !== undefined ? validateProjectTitle(input.title) : undefined,
-          color: input.color ?? undefined,
-          status: parseProjectStatus(input.status),
-          areaId: input.areaId ?? undefined,
-          isSequential: input.isSequential,
-          isFocused: input.isFocused,
-          dueDate: input.dueDate ?? undefined,
-          reviewAt: input.reviewAt ?? undefined,
-          supportNotes: input.supportNotes ?? undefined,
-        }) as Partial<CoreProject>;
+        const updates: Partial<CoreProject> = {};
+        if (input.title !== undefined) updates.title = validateProjectTitle(input.title);
+        if (input.color !== undefined) updates.color = input.color ?? undefined;
+        if (input.status !== undefined) updates.status = parseProjectStatus(input.status);
+        if (input.areaId !== undefined) updates.areaId = input.areaId ?? undefined;
+        if (input.isSequential !== undefined) updates.isSequential = input.isSequential;
+        if (input.isFocused !== undefined) updates.isFocused = input.isFocused;
+        if (input.dueDate !== undefined) updates.dueDate = input.dueDate ?? undefined;
+        if (input.reviewAt !== undefined) updates.reviewAt = input.reviewAt ?? undefined;
+        if (input.supportNotes !== undefined) updates.supportNotes = input.supportNotes ?? undefined;
         return core.updateProject({ id: input.id, updates });
       }),
     deleteProject: async (id) => runCoreWriteWithRetries(options, deps, (core) => core.deleteProject(id)),
@@ -495,11 +494,10 @@ export const createService = (options: DbOptions, deps: ServiceDeps = defaultSer
       }),
     updateArea: async (input) =>
       runCoreWriteWithRetries(options, deps, async (core) => {
-        const updates = filterUndefined({
-          name: input.name !== undefined ? validateAreaName(input.name) : undefined,
-          color: input.color ?? undefined,
-          icon: input.icon ?? undefined,
-        }) as Partial<CoreArea>;
+        const updates: Partial<CoreArea> = {};
+        if (input.name !== undefined) updates.name = validateAreaName(input.name);
+        if (input.color !== undefined) updates.color = input.color ?? undefined;
+        if (input.icon !== undefined) updates.icon = input.icon ?? undefined;
         return core.updateArea({ id: input.id, updates });
       }),
     deleteArea: async (id) => runCoreWriteWithRetries(options, deps, (core) => core.deleteArea(id)),
