@@ -37,11 +37,29 @@ const stripAttachmentRemoteMetadata = (attachments: Task['attachments']): Task['
             : attachment
     ));
 
-const collectPendingRemoteDeletesForTasks = (tasks: readonly Task[]): PendingRemoteAttachmentDelete[] => {
+const collectAttachmentCloudKeysForTasks = (tasks: readonly Task[]): Set<string> => {
+    const cloudKeys = new Set<string>();
+    for (const task of tasks) {
+        if (task.purgedAt) continue;
+        for (const attachment of task.attachments || []) {
+            if (attachment.kind === 'file' && attachment.cloudKey) {
+                cloudKeys.add(attachment.cloudKey);
+            }
+        }
+    }
+    return cloudKeys;
+};
+
+const collectPendingRemoteDeletesForTasks = (
+    tasks: readonly Task[],
+    remainingTasks: readonly Task[] = [],
+): PendingRemoteAttachmentDelete[] => {
     const byCloudKey = new Map<string, PendingRemoteAttachmentDelete>();
+    const retainedCloudKeys = collectAttachmentCloudKeysForTasks(remainingTasks);
     for (const task of tasks) {
         for (const attachment of task.attachments || []) {
             if (attachment.kind !== 'file' || !attachment.cloudKey) continue;
+            if (retainedCloudKeys.has(attachment.cloudKey)) continue;
             if (byCloudKey.has(attachment.cloudKey)) continue;
             byCloudKey.set(attachment.cloudKey, {
                 cloudKey: attachment.cloudKey,
@@ -819,8 +837,10 @@ export const createTaskActions = ({ set, get, getStorage, debouncedSave, trackIm
                 purgedAt: now,
                 attachments: stripAttachmentRemoteMetadata(task.attachments),
             }),
-            buildSettings: (_state, selectedTasks, { settings }) => {
-                const pendingDeletes = collectPendingRemoteDeletesForTasks(selectedTasks);
+            buildSettings: (state, selectedTasks, { settings }) => {
+                const selectedIds = new Set(selectedTasks.map((task) => task.id));
+                const remainingTasks = state._allTasks.filter((task) => !selectedIds.has(task.id));
+                const pendingDeletes = collectPendingRemoteDeletesForTasks(selectedTasks, remainingTasks);
                 return pendingDeletes.length > 0
                     ? appendPendingRemoteDeletes(settings, pendingDeletes)
                     : undefined;
@@ -839,8 +859,10 @@ export const createTaskActions = ({ set, get, getStorage, debouncedSave, trackIm
                 purgedAt: now,
                 attachments: stripAttachmentRemoteMetadata(task.attachments),
             }),
-            buildSettings: (_state, selectedTasks, { settings }) => {
-                const pendingDeletes = collectPendingRemoteDeletesForTasks(selectedTasks);
+            buildSettings: (state, selectedTasks, { settings }) => {
+                const selectedIds = new Set(selectedTasks.map((task) => task.id));
+                const remainingTasks = state._allTasks.filter((task) => !selectedIds.has(task.id));
+                const pendingDeletes = collectPendingRemoteDeletesForTasks(selectedTasks, remainingTasks);
                 return pendingDeletes.length > 0
                     ? appendPendingRemoteDeletes(settings, pendingDeletes)
                     : undefined;

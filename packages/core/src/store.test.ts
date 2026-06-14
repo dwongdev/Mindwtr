@@ -1021,6 +1021,60 @@ describe('TaskStore', () => {
         ]);
     });
 
+    it('does not queue remote attachment delete while another task still references the cloud key', () => {
+        const { addTask, deleteTask, purgeTask } = useTaskStore.getState();
+        const sharedAttachment = {
+            id: 'a-shared-1',
+            kind: 'file' as const,
+            title: 'shared.txt',
+            uri: '/tmp/shared.txt',
+            cloudKey: 'attachments/shared.txt',
+            localStatus: 'available' as const,
+            createdAt: '2026-01-01T00:00:00.000Z',
+            updatedAt: '2026-01-01T00:00:00.000Z',
+        };
+        addTask('First shared attachment', { attachments: [sharedAttachment] });
+        addTask('Second shared attachment', {
+            attachments: [{ ...sharedAttachment, id: 'a-shared-2' }],
+        });
+
+        const [firstTask, secondTask] = useTaskStore.getState()._allTasks;
+        deleteTask(firstTask.id);
+        purgeTask(firstTask.id);
+
+        const state = useTaskStore.getState();
+        expect(state.settings.attachments?.pendingRemoteDeletes).toBeUndefined();
+        expect(state._allTasks.find((task) => task.id === firstTask.id)?.attachments?.[0]?.cloudKey).toBeUndefined();
+        expect(state._allTasks.find((task) => task.id === secondTask.id)?.attachments?.[0]?.cloudKey).toBe('attachments/shared.txt');
+    });
+
+    it('does not queue remote attachment delete from purge-all while a live task still references the cloud key', () => {
+        const { addTask, deleteTask, purgeDeletedTasks } = useTaskStore.getState();
+        const sharedAttachment = {
+            id: 'a-shared-1',
+            kind: 'file' as const,
+            title: 'shared.txt',
+            uri: '/tmp/shared.txt',
+            cloudKey: 'attachments/shared.txt',
+            localStatus: 'available' as const,
+            createdAt: '2026-01-01T00:00:00.000Z',
+            updatedAt: '2026-01-01T00:00:00.000Z',
+        };
+        addTask('Deleted shared attachment', { attachments: [sharedAttachment] });
+        addTask('Live shared attachment', {
+            attachments: [{ ...sharedAttachment, id: 'a-shared-2' }],
+        });
+
+        const [deletedTask, liveTask] = useTaskStore.getState()._allTasks;
+        deleteTask(deletedTask.id);
+        purgeDeletedTasks();
+
+        const state = useTaskStore.getState();
+        expect(state.settings.attachments?.pendingRemoteDeletes).toBeUndefined();
+        expect(state._allTasks.find((task) => task.id === deletedTask.id)?.purgedAt).toBeTruthy();
+        expect(state._allTasks.find((task) => task.id === liveTask.id)?.attachments?.[0]?.cloudKey).toBe('attachments/shared.txt');
+    });
+
     it('queues remote attachment deletes when purging all deleted tasks', () => {
         const { addTask, deleteTask, purgeDeletedTasks } = useTaskStore.getState();
         addTask('First deleted attachment', {
