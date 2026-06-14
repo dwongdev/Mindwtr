@@ -4,7 +4,7 @@ import { normalizeMarkdownInternalLinks } from '@mindwtr/core';
 import { Copy } from 'lucide-react';
 
 import { cn } from '../lib/utils';
-import { InternalMarkdownLink } from './InternalMarkdownLink';
+import { InternalMarkdownLink, useInternalMarkdownLinkContext } from './InternalMarkdownLink';
 
 const BLANK_LINE_MARKER = '\u00A0';
 const BLANK_LINE_CLASS = 'mindwtr-markdown-blank-line';
@@ -97,6 +97,8 @@ function CodeBlock({ children, className, ...props }: any) {
 }
 
 export function RichMarkdown({ markdown }: { markdown: string }) {
+    const linkContext = useInternalMarkdownLinkContext();
+
     return (
         <ReactMarkdown
             remarkPlugins={[remarkGfm, remarkPreserveBlankLines]}
@@ -119,6 +121,7 @@ export function RichMarkdown({ markdown }: { markdown: string }) {
                     <InternalMarkdownLink
                         href={props.href}
                         className={cn('text-primary underline hover:text-primary/80', className)}
+                        linkContext={linkContext}
                     >
                         {props.children}
                     </InternalMarkdownLink>
