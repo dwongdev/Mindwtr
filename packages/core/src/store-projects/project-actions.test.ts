@@ -1,0 +1,109 @@
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { flushPendingSave, resetForTests, setStorageAdapter, useTaskStore } from '../store';
+import type { StorageAdapter } from '../storage';
+import type { AppData } from '../types';
+
+const BASE_NOW = '2026-06-14T12:00:00.000Z';
+
+describe('project actions', () => {
+    let saveData: ReturnType<typeof vi.fn>;
+
+    beforeEach(() => {
+        saveData = vi.fn().mockResolvedValue(undefined);
+        const storage: StorageAdapter = {
+            getData: vi.fn().mockResolvedValue({ tasks: [], projects: [], sections: [], areas: [], settings: {} }),
+            saveData,
+        };
+        setStorageAdapter(storage);
+        useTaskStore.setState({
+            tasks: [],
+            projects: [],
+            sections: [],
+            areas: [],
+            settings: {},
+            isLoading: false,
+            error: null,
+            _allTasks: [],
+            _allProjects: [],
+            _allSections: [],
+            _allAreas: [],
+            _tasksById: new Map(),
+            _projectsById: new Map(),
+            _sectionsById: new Map(),
+            _areasById: new Map(),
+            lastDataChangeAt: 0,
+        });
+        vi.useFakeTimers();
+        vi.setSystemTime(new Date(BASE_NOW));
+    });
+
+    afterEach(async () => {
+        await flushPendingSave();
+        resetForTests();
+        vi.useRealTimers();
+        vi.restoreAllMocks();
+    });
+
+    const latestSavedData = (): AppData => {
+        const saved = saveData.mock.calls.at(-1)?.[0] as AppData | undefined;
+        expect(saved).toBeDefined();
+        return saved!;
+    };
+
+    it('deletes the project while detaching live tasks from its project and sections', async () => {
+        const { addProject, addSection, addTask, deleteProject, deleteTask } = useTaskStore.getState();
+        const project = await addProject('Launch', '#3b82f6');
+        expect(project).not.toBeNull();
+        if (!project) return;
+        const section = await addSection(project.id, 'Planning');
+        expect(section).not.toBeNull();
+        if (!section) return;
+
+        const taskResult = await addTask('Project task', {
+            projectId: project.id,
+            sectionId: section.id,
+            status: 'next',
+        });
+        const deletedTaskResult = await addTask('Already deleted task', {
+            projectId: project.id,
+            sectionId: section.id,
+            status: 'next',
+        });
+        expect(taskResult.success).toBe(true);
+        expect(deletedTaskResult.success).toBe(true);
+        if (!taskResult.success || !deletedTaskResult.success) return;
+
+        vi.setSystemTime(new Date('2026-06-14T12:05:00.000Z'));
+        await deleteTask(deletedTaskResult.id);
+        const deletedTaskBeforeProjectDelete = useTaskStore.getState()._allTasks.find((task) => task.id === deletedTaskResult.id);
+        expect(deletedTaskBeforeProjectDelete?.deletedAt).toBe('2026-06-14T12:05:00.000Z');
+
+        vi.setSystemTime(new Date(BASE_NOW));
+        await deleteProject(project.id);
+        await flushPendingSave();
+
+        const state = useTaskStore.getState();
+        expect(state.projects).toEqual([]);
+        expect(state.sections).toEqual([]);
+        expect(state.tasks.map((task) => task.id)).toEqual([taskResult.id]);
+
+        const saved = latestSavedData();
+        expect(saved.projects.find((item) => item.id === project.id)).toMatchObject({
+            deletedAt: BASE_NOW,
+            updatedAt: BASE_NOW,
+        });
+        expect(saved.sections.find((item) => item.id === section.id)).toMatchObject({
+            deletedAt: BASE_NOW,
+            updatedAt: BASE_NOW,
+        });
+        const savedTask = saved.tasks.find((task) => task.id === taskResult.id);
+        expect(savedTask).toMatchObject({
+            projectId: undefined,
+            sectionId: undefined,
+            deletedAt: undefined,
+            updatedAt: BASE_NOW,
+        });
+        expect(savedTask?.rev).toBe(2);
+        expect(saved.tasks.find((task) => task.id === deletedTaskResult.id)?.deletedAt).toBe('2026-06-14T12:05:00.000Z');
+    });
+});

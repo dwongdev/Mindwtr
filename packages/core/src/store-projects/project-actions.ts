@@ -233,8 +233,13 @@ export const createProjectCoreActions = ({
                     }
                     : project
             );
+            const sectionIdsForProject = new Set(
+                state._allSections
+                    .filter((section) => section.projectId === id)
+                    .map((section) => section.id)
+            );
             const newAllSections = state._allSections.map((section) =>
-                section.projectId === id && !section.deletedAt
+                sectionIdsForProject.has(section.id) && !section.deletedAt
                     ? {
                         ...section,
                         deletedAt: now,
@@ -245,10 +250,11 @@ export const createProjectCoreActions = ({
                     : section
             );
             const newAllTasks = state._allTasks.map(task =>
-                task.projectId === id && !task.deletedAt
+                !task.deletedAt && (task.projectId === id || (task.sectionId && sectionIdsForProject.has(task.sectionId)))
                     ? {
                         ...task,
-                        deletedAt: now,
+                        projectId: undefined,
+                        sectionId: undefined,
                         updatedAt: now,
                         rev: nextRevision(task.rev),
                         revBy: deviceState.deviceId,
