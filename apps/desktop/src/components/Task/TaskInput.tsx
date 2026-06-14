@@ -1,4 +1,4 @@
-import { useEffect, useId, useMemo, useRef, useState } from 'react';
+import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import type { ClipboardEventHandler, KeyboardEventHandler, RefObject } from 'react';
 import type { Area, Project } from '@mindwtr/core';
 import { cn } from '../../lib/utils';
@@ -141,6 +141,7 @@ export function TaskInput({
         start: value.length,
         end: value.length,
     });
+    const pendingSelectionRef = useRef<InputSelection | null>(null);
     const undoRef = useRef<Array<{ value: string; selection: InputSelection }>>([]);
 
     const options = useMemo<Option[]>(() => {
@@ -229,6 +230,28 @@ export function TaskInput({
         return selection;
     };
 
+    const restoreSelection = (selection: InputSelection) => {
+        mergedRef.current?.focus();
+        mergedRef.current?.setSelectionRange(selection.start, selection.end);
+        selectionRef.current = selection;
+    };
+
+    const scheduleSelectionRestore = (selection: InputSelection) => {
+        pendingSelectionRef.current = selection;
+        requestAnimationFrame(() => {
+            if (pendingSelectionRef.current !== selection) return;
+            restoreSelection(selection);
+            pendingSelectionRef.current = null;
+        });
+    };
+
+    useLayoutEffect(() => {
+        const pendingSelection = pendingSelectionRef.current;
+        if (!pendingSelection) return;
+        restoreSelection(pendingSelection);
+        pendingSelectionRef.current = null;
+    }, [value]);
+
     useEffect(() => {
         const isFocused = typeof document !== 'undefined' && mergedRef.current === document.activeElement;
         if (!isFocused && value !== valueRef.current) {
@@ -294,12 +317,7 @@ export function TaskInput({
                 valueRef.current = next.value;
                 onChange(next.value);
                 closeTrigger();
-
-                requestAnimationFrame(() => {
-                    mergedRef.current?.focus();
-                    mergedRef.current?.setSelectionRange(next.caret, next.caret);
-                    selectionRef.current = { start: next.caret, end: next.caret };
-                });
+                scheduleSelectionRestore({ start: next.caret, end: next.caret });
                 return;
             }
         }
@@ -321,13 +339,8 @@ export function TaskInput({
         valueRef.current = nextValue;
         onChange(nextValue);
         closeTrigger();
-
-        requestAnimationFrame(() => {
-            const caret = before.length + tokenValue.length + (needsSpace ? 1 : 0);
-            mergedRef.current?.focus();
-            mergedRef.current?.setSelectionRange(caret, caret);
-            selectionRef.current = { start: caret, end: caret };
-        });
+        const caret = before.length + tokenValue.length + (needsSpace ? 1 : 0);
+        scheduleSelectionRestore({ start: caret, end: caret });
     };
 
     const handleKeyDown: KeyboardEventHandler<HTMLInputElement> = async (event) => {
@@ -340,11 +353,7 @@ export function TaskInput({
                 valueRef.current = previousEntry.value;
                 onChange(previousEntry.value);
                 closeTrigger();
-                requestAnimationFrame(() => {
-                    mergedRef.current?.focus();
-                    mergedRef.current?.setSelectionRange(previousEntry.selection.start, previousEntry.selection.end);
-                    selectionRef.current = previousEntry.selection;
-                });
+                scheduleSelectionRestore(previousEntry.selection);
                 return;
             }
         }
