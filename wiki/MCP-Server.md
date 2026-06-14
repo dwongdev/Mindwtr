@@ -109,7 +109,56 @@ claude mcp add mindwtr -- \
   npx -y mindwtr-mcp --db "/path/to/mindwtr.db" --write
 ```
 
-### 3. Gemini CLI
+### 3. OpenAI Codex (CLI / IDE Extension)
+
+Codex reads MCP server configuration from `~/.codex/config.toml`. You can also use a project-scoped `.codex/config.toml` in a trusted project. The Codex CLI and IDE extension share this configuration.
+
+**Command Line:**
+
+```bash
+codex mcp add mindwtr -- \
+  npx -y mindwtr-mcp \
+  --db "/path/to/mindwtr.db"
+```
+
+Add `--write` only if you want Codex to mutate local Mindwtr data:
+
+```bash
+codex mcp add mindwtr -- \
+  npx -y mindwtr-mcp \
+  --db "/path/to/mindwtr.db" --write
+```
+
+In the Codex TUI, run `/mcp` to confirm the server is active.
+
+**Manual Config:**
+
+```toml
+[mcp_servers.mindwtr]
+command = "npx"
+args = [
+  "-y",
+  "mindwtr-mcp",
+  "--db",
+  "/path/to/mindwtr.db"
+]
+```
+
+With write access:
+
+```toml
+[mcp_servers.mindwtr]
+command = "npx"
+args = [
+  "-y",
+  "mindwtr-mcp",
+  "--db",
+  "/path/to/mindwtr.db",
+  "--write"
+]
+```
+
+### 4. Gemini CLI
 
 Gemini CLI uses `settings.json` (User: `~/.gemini/settings.json` or Project: `.gemini/settings.json`).
 

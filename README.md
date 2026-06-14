@@ -374,13 +374,8 @@ You can help in several ways:
 5. **Join the community chat:** Come to [Discord](https://discord.gg/ahhFxuDBb4).
 6. **Help with translations:** Contribute locale updates in [`packages/core/src/i18n/locales/`](packages/core/src/i18n/locales/).
 7. **Contribute code/docs:** Open a pull request and follow the [contribution guide](docs/CONTRIBUTING.md) and commit conventions.
-8. **Pick and build:** Community members are welcome to pick any item in the [Roadmap](#roadmap) or any open issue and submit a PR.
+8. **Pick and build:** Community members are welcome to pick any open issue and submit a PR.
 9. **Sponsor the project:** Support ongoing development via [GitHub Sponsors](https://github.com/sponsors/dongdongbh) or [Ko-fi](https://ko-fi.com/D1D01T20WK).
-
-## Roadmap
-
-- ✉️ Email to Inbox ([#35](https://github.com/dongdongbh/Mindwtr/issues/35))
-- 🗓️ Expand one-way Mindwtr -> local system calendar sync beyond the shipped mobile implementation ([#361](https://github.com/dongdongbh/Mindwtr/issues/361))
 
 ## Documentation
 
