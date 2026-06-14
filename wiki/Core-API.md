@@ -335,17 +335,17 @@ addArea(name: string, initialProps?: Partial<Area>): Promise<Area | null>;
 // Update
 updateArea(id: string, updates: Partial<Area>): Promise<StoreActionResult>;
 
-// Delete (soft, cascades to child projects/sections/tasks)
+// Delete (soft, detaches linked projects/tasks)
 deleteArea(id: string): Promise<StoreActionResult>;
 
-// Restore (restores children deleted by the same cascade)
+// Restore (restores the area tombstone only)
 restoreArea(id: string): Promise<StoreActionResult>;
 
 // Reorder
 reorderAreas(orderedIds: string[]): Promise<void>;
 ```
 
-Area delete/restore is intentionally cascading. A child project, section, or task that was deleted separately keeps its own tombstone when the area is restored.
+Area delete/restore intentionally avoids cascading tombstones. Deleting an area clears `areaId` and `areaTitle` from linked projects and clears direct task `areaId` values; sections and project tasks remain attached to their projects. Restoring an area does not reassign children that were detached while it was deleted.
 
 #### Person Operations
 
