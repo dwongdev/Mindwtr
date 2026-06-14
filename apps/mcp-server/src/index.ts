@@ -1,4 +1,8 @@
 #!/usr/bin/env node
+import { readFileSync } from 'fs';
+import { dirname, resolve } from 'path';
+import { fileURLToPath } from 'url';
+
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import * as z from 'zod';
@@ -11,6 +15,19 @@ import {
   normalizeOptionalTaskTokens,
 } from './input-validation.js';
 import { createService, type MindwtrService } from './service.js';
+
+const resolvePackageVersion = (): string => {
+  try {
+    const packageJsonPath = resolve(dirname(fileURLToPath(import.meta.url)), '../package.json');
+    const parsed = JSON.parse(readFileSync(packageJsonPath, 'utf8')) as { version?: unknown };
+    if (typeof parsed.version === 'string' && parsed.version.trim()) {
+      return parsed.version;
+    }
+  } catch {
+    // Fall back to a valid implementation version if package metadata is unavailable.
+  }
+  return '0.0.0';
+};
 
 type LogLevel = 'info' | 'error';
 type LogEntry = {
@@ -700,8 +717,8 @@ export async function startMcpServer(argv: string[] = process.argv.slice(2)) {
   attachLifecycleHandlers(service);
 
   const server = new McpServer({
-    name: 'mindwtr-mcp-server',
-    version: '0.1.0',
+    name: 'mindwtr-mcp',
+    version: resolvePackageVersion(),
   });
 
   registerMindwtrTools(server, service, readonly);

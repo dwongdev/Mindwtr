@@ -19,6 +19,7 @@ On desktop, the app shows the exact local data path in **Settings -> Sync -> Loc
 ## Requirements
 
 - Node.js 18+ (for the MCP client that spawns the server)
+- npm package installs use better-sqlite3, a native SQLite addon. If no prebuilt binary is available for your platform, npm needs a working C/C++ build toolchain and Python for node-gyp.
 - Bun (recommended for development in this repo)
 - A local Mindwtr database (`mindwtr.db`)
 
@@ -42,7 +43,35 @@ You can override with:
 
 ## Start / Stop
 
-### 1) Run directly from the repo (recommended)
+### Run from npm
+
+After installing the published package, run it directly:
+
+```bash
+mindwtr-mcp --db "/path/to/mindwtr.db"
+```
+
+Or let an MCP client launch it through npx:
+
+```json
+{
+  "mcpServers": {
+    "mindwtr": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "mindwtr-mcp",
+        "--db",
+        "/home/dd/.local/share/mindwtr/mindwtr.db"
+      ]
+    }
+  }
+}
+```
+
+The npm package is read-only by default. Add `--write` only when you explicitly want add/update/complete/delete tools enabled.
+
+### Run directly from the repo
 
 ```bash
 # from repo root (read-only by default)
@@ -71,20 +100,20 @@ bun run mindwtr:mcp -- --db "/path/to/mindwtr.db" --nowait
 
 Note: When an MCP client launches the server, it keeps stdin open, so the server should remain connected.
 
-### 2) Run without the helper script
+### Run without the helper script
 
 ```bash
-bun run --filter mindwtr-mcp-server dev -- --db "/path/to/mindwtr.db"
+bun run --filter mindwtr-mcp dev -- --db "/path/to/mindwtr.db"
 ```
 
 Stop:
 - Press `Ctrl+C` in the terminal.
 
-### 3) Build and run the binary entry (Node)
+### Build and run the binary entry (Node)
 
 ```bash
 # from repo root
-bun run --filter mindwtr-mcp-server build
+bun run --filter mindwtr-mcp build
 node apps/mcp-server/dist/index.js --db "/path/to/mindwtr.db"
 ```
 
@@ -95,16 +124,16 @@ Stop:
 
 ## Why `mindwtr-mcp` is “command not found”
 
-`mindwtr-mcp` is the **package binary**. It only exists after you build the package and run it via Node, or when you use the Bun workspace script.
+`mindwtr-mcp` is the package binary. It exists after installing the npm package globally, after an MCP client launches it through `npx`, or after you build the source package and run it with Node.
 
-Use one of these instead:
+Use one of these source-tree options instead:
 
 ```bash
 # ✅ works immediately
 bun run mindwtr:mcp -- --db "/path/to/mindwtr.db"
 
 # ✅ build then run
-bun run --filter mindwtr-mcp-server build
+bun run --filter mindwtr-mcp build
 node apps/mcp-server/dist/index.js --db "/path/to/mindwtr.db"
 ```
 
@@ -163,7 +192,7 @@ If your client doesn't support Bun, build first and use Node:
 
 ```bash
 # Build once
-cd /path/to/Mindwtr && bun run --filter mindwtr-mcp-server build
+cd /path/to/Mindwtr && bun run --filter mindwtr-mcp build
 ```
 
 ```json

@@ -132,15 +132,16 @@
       },
     },
     "apps/mcp-server": {
-      "name": "mindwtr-mcp-server",
+      "name": "mindwtr-mcp",
       "version": "0.9.10",
       "bin": {
         "mindwtr-mcp": "dist/index.js",
       },
       "dependencies": {
-        "@mindwtr/core": "workspace:*",
+        "better-sqlite3": "9.6.0",
+      },
+      "devDependencies": {
         "@modelcontextprotocol/sdk": "^1.29.0",
-        "better-sqlite3": "^9.6.0",
         "zod": "^3.24.1",
       },
     },
@@ -2064,7 +2065,7 @@
 
     "mindwtr-cloud": ["mindwtr-cloud@workspace:apps/cloud"],
 
-    "mindwtr-mcp-server": ["mindwtr-mcp-server@workspace:apps/mcp-server"],
+    "mindwtr-mcp": ["mindwtr-mcp@workspace:apps/mcp-server"],
 
     "minimatch": ["minimatch@10.2.3", "", { "dependencies": { "brace-expansion": "^5.0.2" } }, "sha512-Rwi3pnapEqirPSbWbrZaa6N3nmqq4Xer/2XooiOKyV3q12ML06f7MOuc5DVH8ONZIFhwIYQ3yzPH4nt7iWHaTg=="],
 

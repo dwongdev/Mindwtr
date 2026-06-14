@@ -1,0 +1,32 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "io.github.dongdongbh/mindwtr",
+  "title": "Mindwtr",
+  "description": "Local task and project automation for Mindwtr.",
+  "version": "0.9.10",
+  "websiteUrl": "https://github.com/dongdongbh/Mindwtr/wiki/MCP-Server",
+  "repository": {
+    "url": "https://github.com/dongdongbh/Mindwtr",
+    "source": "github",
+    "id": "1111978380",
+    "subfolder": "apps/mcp-server"
+  },
+  "packages": [
+    {
+      "registryType": "npm",
+      "identifier": "mindwtr-mcp",
+      "version": "0.9.10",
+      "transport": {
+        "type": "stdio"
+      },
+      "environmentVariables": [
+        {
+          "name": "MINDWTR_DB_PATH",
+          "description": "Optional path to the local Mindwtr SQLite database.",
+          "format": "filepath",
+          "isRequired": false
+        }
+      ]
+    }
+  ]
+}

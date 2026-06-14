@@ -1,0 +1,111 @@
+name: Publish MCP Registry
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      npm_tag:
+        description: 'npm dist-tag to publish'
+        required: true
+        default: 'latest'
+        type: choice
+        options:
+          - latest
+          - next
+
+permissions:
+  contents: read
+  id-token: write
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+
+jobs:
+  publish:
+    name: Publish MCP package and registry metadata
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+
+      - name: Set up Node.js
+        uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
+        with:
+          node-version: "22.14.0"
+          registry-url: https://registry.npmjs.org/
+
+      - name: Ensure npm supports trusted publishing
+        run: npm install -g npm@^11.5.1
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version-file: ".bun-version"
+
+      - name: Cache Bun dependencies
+        uses: actions/cache@9255dc7a253b0ccc959486e2bca901246202afeb # v5.0.1
+        with:
+          path: ~/.bun/install/cache
+          key: ${{ runner.os }}-bun-${{ hashFiles('bun.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-bun-
+
+      - name: Install dependencies
+        run: |
+          set -euo pipefail
+          bun install || (echo "bun install failed, clearing cache and retrying..." && (bun pm cache rm || bun pm cache clean || true) && bun install)
+
+      - name: MCP typecheck
+        run: bun run --filter mindwtr-mcp typecheck
+
+      - name: MCP tests
+        run: bun run --filter mindwtr-mcp test
+
+      - name: Build MCP package
+        run: bun run --filter mindwtr-mcp build
+
+      - name: Verify bundle is self-contained
+        run: |
+          set -euo pipefail
+          if grep -R "@mindwtr/core" apps/mcp-server/dist; then
+            echo "Built MCP package still references @mindwtr/core. Refusing to publish."
+            exit 1
+          fi
+
+      - name: Clean-room package smoke test
+        run: |
+          set -euo pipefail
+          rm -rf /tmp/mindwtr-mcp-pack /tmp/mindwtr-mcp-clean
+          mkdir -p /tmp/mindwtr-mcp-pack /tmp/mindwtr-mcp-clean
+          cd apps/mcp-server
+          npm pack --pack-destination /tmp/mindwtr-mcp-pack
+          cd /tmp/mindwtr-mcp-clean
+          npm init -y
+          npm install /tmp/mindwtr-mcp-pack/mindwtr-mcp-*.tgz
+          node "$GITHUB_WORKSPACE/scripts/ci/smoke-mcp-stdio.mjs" "$PWD/node_modules/.bin/mindwtr-mcp" "$PWD/data/mindwtr.db"
+
+      - name: Publish npm package with trusted publishing
+        env:
+          NPM_DIST_TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.npm_tag || 'latest' }}
+        run: |
+          set -euo pipefail
+          cd apps/mcp-server
+          npm publish --access public --provenance --tag "$NPM_DIST_TAG"
+
+      - name: Install mcp-publisher
+        run: |
+          set -euo pipefail
+          curl -L "https://github.com/modelcontextprotocol/registry/releases/latest/download/mcp-publisher_$(uname -s | tr '[:upper:]' '[:lower:]')_$(uname -m | sed 's/x86_64/amd64/;s/aarch64/arm64/').tar.gz" | tar xz mcp-publisher
+
+      - name: Publish MCP Registry metadata
+        run: |
+          set -euo pipefail
+          ./mcp-publisher login github-oidc
+          cd apps/mcp-server
+          ../../mcp-publisher publish

@@ -272,7 +272,7 @@ jobs:
         run: bun run --filter mindwtr-cloud typecheck
 
       - name: MCP TypeScript check
-        run: bun run --filter mindwtr-mcp-server typecheck
+        run: bun run --filter mindwtr-mcp typecheck
 
       - name: Cloud tests
         run: bun run --filter mindwtr-cloud test:coverage
@@ -292,7 +292,7 @@ jobs:
           if-no-files-found: ignore
 
       - name: MCP tests
-        run: bun run --filter mindwtr-mcp-server test:coverage
+        run: bun run --filter mindwtr-mcp test:coverage
 
       - name: MCP coverage summary
         if: always()
@@ -403,4 +403,4 @@ jobs:
         run: bun run --filter mindwtr-cloud lint
 
       - name: Check for lint errors (mcp)
-        run: bun run --filter mindwtr-mcp-server lint
+        run: bun run --filter mindwtr-mcp lint

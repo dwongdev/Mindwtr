@@ -52,7 +52,7 @@ flowchart LR
     Sync --> WebDAV["WebDAV"]
     Sync --> File["File Sync"]
     Sync --> Cloud["Self-hosted Cloud"]
-    MCP["MCP Server<br/>mindwtr-mcp-server"] --> Core
+    MCP["MCP Server<br/>mindwtr-mcp"] --> Core
 ```
 
 ---

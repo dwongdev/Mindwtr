@@ -91,7 +91,7 @@
     "docs:check-readme": "bun run scripts/check-readme-heading-parity.ts",
     "mindwtr:cli": "bun run scripts/mindwtr-cli.ts --",
     "mindwtr:api": "bun run scripts/mindwtr-api.ts --",
-    "mindwtr:mcp": "bun run --filter mindwtr-mcp-server dev --",
+    "mindwtr:mcp": "bun run --filter mindwtr-mcp dev --",
     "set-version": "bun run scripts/set-version.ts"
   },
   "devDependencies": {

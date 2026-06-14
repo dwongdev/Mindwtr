@@ -134,7 +134,7 @@ bun run mindwtr:mcp -- --db "/path/to/mindwtr.db" --write
 
 ```bash
 # Build
-bun run --filter mindwtr-mcp-server build
+bun run --filter mindwtr-mcp build
 
 # Run
 node apps/mcp-server/dist/index.js --db "/path/to/mindwtr.db"
