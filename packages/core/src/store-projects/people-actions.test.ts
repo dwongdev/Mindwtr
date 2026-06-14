@@ -104,6 +104,51 @@ describe('people actions', () => {
         expect(saved.tasks.find((item) => item.id === taskResult.id)?.assignedTo).toBe('Jordan');
     });
 
+    it('restores soft-deleted person metadata without changing task assignments', async () => {
+        const { addPerson, addTask, deletePerson, restorePerson } = useTaskStore.getState();
+        const person = await addPerson('Jordan');
+        expect(person).not.toBeNull();
+        if (!person) return;
+        const taskResult = await addTask('Waiting on contract', { status: 'waiting', assignedTo: 'Jordan' });
+        expect(taskResult.success).toBe(true);
+
+        await deletePerson(person.id);
+        const result = await restorePerson(person.id);
+        await flushPendingSave();
+
+        expect(result).toEqual({ success: true });
+        const state = useTaskStore.getState();
+        expect(state.people.find((item) => item.id === person.id)).toMatchObject({
+            name: 'Jordan',
+            updatedAt: BASE_NOW,
+        });
+        expect(state.people.find((item) => item.id === person.id)?.deletedAt).toBeUndefined();
+        expect(state._allPeople.find((item) => item.id === person.id)?.deletedAt).toBeUndefined();
+        expect(state.tasks.find((item) => item.id === taskResult.id)?.assignedTo).toBe('Jordan');
+
+        const saved = latestSavedData();
+        expect(saved.people?.find((item) => item.id === person.id)?.deletedAt).toBeUndefined();
+        expect(saved.tasks.find((item) => item.id === taskResult.id)?.assignedTo).toBe('Jordan');
+    });
+
+    it('rejects restoring a person when the name is already active', async () => {
+        const { addPerson, deletePerson, renamePerson, restorePerson } = useTaskStore.getState();
+        const original = await addPerson('Morgan');
+        expect(original).not.toBeNull();
+        if (!original) return;
+
+        await deletePerson(original.id);
+        const replacement = await addPerson('Morgan active');
+        expect(replacement).not.toBeNull();
+        if (!replacement) return;
+        await renamePerson(replacement.id, 'Morgan', { updateTasks: false });
+
+        const result = await restorePerson(original.id);
+
+        expect(result).toEqual({ success: false, error: 'A person with this name already exists' });
+        expect(useTaskStore.getState().people.map((item) => item.id)).toEqual([replacement.id]);
+    });
+
     it('clears person note and reference link when explicitly updated to undefined', async () => {
         const { addPerson, updatePerson } = useTaskStore.getState();
         const person = await addPerson('Casey', {

@@ -133,6 +133,8 @@ export interface TaskStore {
     renamePerson: (id: string, name: string, options?: { updateTasks?: boolean }) => Promise<StoreActionResult>;
     /** Soft-delete a managed person without clearing task assignments */
     deletePerson: (id: string) => Promise<StoreActionResult>;
+    /** Restore a soft-deleted managed person */
+    restorePerson: (id: string) => Promise<StoreActionResult>;
 
     // Tag Actions
     /** Delete a tag from tasks and projects */

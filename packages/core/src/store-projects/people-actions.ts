@@ -296,4 +296,68 @@ export const createPeopleActions = ({
         }
         return actionOk();
     },
+
+    restorePerson: async (id: string) => {
+        const now = new Date().toISOString();
+        const changeAt = Date.now();
+        let snapshot = null;
+        let missingPerson = false;
+        let duplicateActivePerson = false;
+        set((state) => {
+            const person = state._allPeople.find((item) => item.id === id);
+            if (!person) {
+                missingPerson = true;
+                return state;
+            }
+            if (!person.deletedAt) {
+                return state;
+            }
+            const restoredNameKey = getPersonNameKey(person.name);
+            const existingActive = state._allPeople.find((item) => (
+                item.id !== id
+                && !item.deletedAt
+                && getPersonNameKey(item.name) === restoredNameKey
+            ));
+            if (existingActive) {
+                duplicateActivePerson = true;
+                return state;
+            }
+            const deviceState = ensureDeviceId(state.settings);
+            const nextAllPeople = state._allPeople.map((item) => (
+                item.id === id
+                    ? {
+                        ...item,
+                        deletedAt: undefined,
+                        updatedAt: now,
+                        rev: nextRevision(item.rev),
+                        revBy: deviceState.deviceId,
+                    }
+                    : item
+            ));
+            snapshot = buildSaveSnapshot(state, {
+                people: nextAllPeople,
+                ...(deviceState.updated ? { settings: deviceState.settings } : {}),
+            });
+            return {
+                people: selectVisiblePeople(nextAllPeople),
+                _allPeople: nextAllPeople,
+                lastDataChangeAt: getNextDataChangeAt(state.lastDataChangeAt, changeAt),
+                ...(deviceState.updated ? { settings: deviceState.settings } : {}),
+            };
+        });
+        if (missingPerson) {
+            const message = 'Person not found';
+            set({ error: message });
+            return actionFail(message);
+        }
+        if (duplicateActivePerson) {
+            const message = 'A person with this name already exists';
+            set({ error: message });
+            return actionFail(message);
+        }
+        if (snapshot) {
+            debouncedSave(snapshot, (msg) => set({ error: msg }));
+        }
+        return actionOk();
+    },
 });

@@ -119,6 +119,43 @@ describe('purgeExpiredTombstones', () => {
         expect(result.data.areas.map((area) => area.id)).toEqual(['area-recent']);
     });
 
+    it('purges expired person tombstones while keeping recent and active people', () => {
+        const data: AppData = {
+            tasks: [],
+            projects: [],
+            sections: [],
+            areas: [],
+            people: [
+                {
+                    id: 'person-old',
+                    name: 'Old person tombstone',
+                    createdAt: '2025-01-01T00:00:00.000Z',
+                    updatedAt: '2025-01-01T00:00:00.000Z',
+                    deletedAt: '2025-01-01T00:00:00.000Z',
+                },
+                {
+                    id: 'person-recent',
+                    name: 'Recent person tombstone',
+                    createdAt: '2026-03-20T00:00:00.000Z',
+                    updatedAt: '2026-03-20T00:00:00.000Z',
+                    deletedAt: '2026-03-20T00:00:00.000Z',
+                },
+                {
+                    id: 'person-active',
+                    name: 'Active person',
+                    createdAt: '2026-03-20T00:00:00.000Z',
+                    updatedAt: '2026-03-20T00:00:00.000Z',
+                },
+            ],
+            settings: {},
+        };
+
+        const result = purgeExpiredTombstones(data, nowIso);
+
+        expect(result.removedPersonTombstones).toBe(1);
+        expect(result.data.people?.map((person) => person.id)).toEqual(['person-recent', 'person-active']);
+    });
+
     it('prunes expired pending remote attachment deletes while keeping recent failures', () => {
         const data: AppData = {
             tasks: [],
