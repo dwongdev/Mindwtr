@@ -12,7 +12,8 @@
     "generate:android-monochrome-icon": "node scripts/generate_android_monochrome_icon.js",
     "startup:bench": "bash scripts/android_startup_benchmark.sh",
     "lint": "expo lint",
-    "test": "vitest run"
+    "test": "vitest run",
+    "test:coverage": "vitest run --coverage"
   },
   "dependencies": {
     "@babel/runtime": "^7.28.4",

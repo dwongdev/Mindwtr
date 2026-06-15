@@ -230,7 +230,7 @@ jobs:
         run: cd apps/mobile && bunx expo-doctor
 
       - name: Mobile tests
-        run: bun run --filter mobile test -- --coverage --coverage.thresholds.lines=38 --coverage.thresholds.statements=38 --coverage.thresholds.functions=50 --coverage.thresholds.branches=50
+        run: bun run --filter mobile test:coverage
 
       - name: Mobile coverage summary
         if: always()
