@@ -572,6 +572,7 @@ export {
     addCalendarMinutes,
     buildCalendarQuickAddTaskDraft,
     buildCalendarEventTaskDraft,
+    buildCalendarPushEventFields,
     CALENDAR_TIME_ESTIMATE_OPTIONS,
     createCustomTimeEstimate,
     customTimeEstimateToMinutes,
