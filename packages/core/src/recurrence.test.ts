@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs';
 import { describe, it, expect } from 'vitest';
 import {
     buildRRuleString,
@@ -13,7 +14,30 @@ import {
     isProjectedRecurringTask,
     normalizeRecurrenceForLoad,
 } from './recurrence';
-import type { Task } from './types';
+import type { Task, TaskStatus } from './types';
+
+type LocalApiRecurrenceParityCase = {
+    name: string;
+    completedAt: string;
+    previousStatus: TaskStatus;
+    task: Task;
+    expected: Record<string, unknown> | null;
+};
+
+const localApiRecurrenceParityCases = JSON.parse(
+    readFileSync(new URL('./recurrence-local-api-parity.fixtures.json', import.meta.url), 'utf8')
+) as LocalApiRecurrenceParityCase[];
+
+const toLocalApiRecurrenceParitySnapshot = (task: Task | null): Record<string, unknown> | null => {
+    if (!task) return null;
+    return {
+        status: task.status,
+        ...(task.startTime ? { startTime: task.startTime } : {}),
+        ...(task.dueDate ? { dueDate: task.dueDate } : {}),
+        ...(task.reviewAt ? { reviewAt: task.reviewAt } : {}),
+        ...(task.recurrence ? { recurrence: task.recurrence } : {}),
+    };
+};
 
 describe('recurrence', () => {
     const t = (key: string) => ({
@@ -716,6 +740,15 @@ describe('recurrence', () => {
         })).toBe('2026-07-10');
         expect(getTaskCalendarOccurrenceDate({})).toBeUndefined();
     });
+
+    it.each(localApiRecurrenceParityCases.map((testCase) => [testCase.name, testCase] as const))(
+        'matches the local API recurrence parity fixture: %s',
+        (_name, testCase) => {
+            const next = createNextRecurringTask(testCase.task, testCase.completedAt, testCase.previousStatus);
+
+            expect(toLocalApiRecurrenceParitySnapshot(next)).toEqual(testCase.expected);
+        }
+    );
 
     it('returns the projected calendar occurrence date for recurrence previews', () => {
         const task: Task = {

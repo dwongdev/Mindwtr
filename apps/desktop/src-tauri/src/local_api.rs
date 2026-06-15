@@ -900,21 +900,59 @@ fn create_next_recurring_task_for_local_api(
         }
     }
 
+    let strict_anchors = strategy != "fluid";
+    let due_anchor_day = strict_anchors
+        .then(|| recurrence_anchor_day_for_field(task, "dueAnchorDay", "dueDate"))
+        .flatten();
+    let start_anchor_day = strict_anchors
+        .then(|| recurrence_anchor_day_for_field(task, "startAnchorDay", "startTime"))
+        .flatten();
+    let review_anchor_day = strict_anchors
+        .then(|| recurrence_anchor_day_for_field(task, "reviewAnchorDay", "reviewAt"))
+        .flatten();
     let next_due_date = task
         .get("dueDate")
         .and_then(|value| value.as_str())
-        .and_then(|value| next_recurring_iso(value, completed_at, rule, strategy, interval));
+        .and_then(|value| {
+            next_recurring_iso(
+                value,
+                completed_at,
+                rule,
+                strategy,
+                interval,
+                due_anchor_day,
+            )
+        });
     let mut next_start_time = task
         .get("startTime")
         .and_then(|value| value.as_str())
-        .and_then(|value| next_recurring_iso(value, completed_at, rule, strategy, interval));
+        .and_then(|value| {
+            next_recurring_iso(
+                value,
+                completed_at,
+                rule,
+                strategy,
+                interval,
+                start_anchor_day,
+            )
+        });
     let next_review_at = task
         .get("reviewAt")
         .and_then(|value| value.as_str())
-        .and_then(|value| next_recurring_iso(value, completed_at, rule, strategy, interval));
+        .and_then(|value| {
+            next_recurring_iso(
+                value,
+                completed_at,
+                rule,
+                strategy,
+                interval,
+                review_anchor_day,
+            )
+        });
 
     if next_start_time.is_none() && next_due_date.is_none() && next_review_at.is_none() {
-        next_start_time = next_recurring_iso(completed_at, completed_at, rule, "fluid", interval);
+        next_start_time =
+            next_recurring_iso(completed_at, completed_at, rule, "fluid", interval, None);
     }
 
     let next_occurrence_anchor = next_due_date
@@ -968,7 +1006,7 @@ fn create_next_recurring_task_for_local_api(
     if let Some(value) = next_review_at {
         next_task.insert("reviewAt".to_string(), Value::String(value));
     }
-    if let Some(recurrence) = next_recurrence_value(task, completed_occurrences + 1) {
+    if let Some(recurrence) = next_recurrence_value(task, completed_occurrences + 1, rule) {
         next_task.insert("recurrence".to_string(), recurrence);
     }
     if task
@@ -1092,10 +1130,79 @@ fn recurrence_until(task: &Map<String, Value>) -> Option<String> {
     }
 }
 
-fn next_recurrence_value(task: &Map<String, Value>, completed_occurrences: i64) -> Option<Value> {
+fn normalized_anchor_day(value: Option<&Value>) -> Option<u32> {
+    value
+        .and_then(|value| value.as_i64())
+        .and_then(|value| u32::try_from(value).ok())
+        .filter(|value| (1..=31).contains(value))
+}
+
+fn recurrence_anchor_day_value(task: &Map<String, Value>, key: &str) -> Option<u32> {
+    match recurrence_value(task) {
+        Some(Value::Object(value)) => normalized_anchor_day(value.get(key)),
+        _ => None,
+    }
+}
+
+fn iso_day(value: &str) -> Option<u32> {
+    parse_iso_prefix(value).map(|(_, _, day, _)| day)
+}
+
+fn recurrence_anchor_day_for_field(
+    task: &Map<String, Value>,
+    field_anchor_key: &str,
+    field_key: &str,
+) -> Option<u32> {
+    recurrence_anchor_day_value(task, field_anchor_key)
+        .or_else(|| recurrence_anchor_day_value(task, "anchorDay"))
+        .or_else(|| {
+            task.get(field_key)
+                .and_then(|value| value.as_str())
+                .and_then(iso_day)
+        })
+}
+
+fn next_recurrence_anchor_days(task: &Map<String, Value>, rule: &str) -> Map<String, Value> {
+    let mut anchors = Map::new();
+    if rule != "monthly" && rule != "yearly" {
+        return anchors;
+    }
+
+    let start_anchor_day = recurrence_anchor_day_for_field(task, "startAnchorDay", "startTime");
+    let due_anchor_day = recurrence_anchor_day_for_field(task, "dueAnchorDay", "dueDate");
+    let review_anchor_day = recurrence_anchor_day_for_field(task, "reviewAnchorDay", "reviewAt");
+    let anchor_day = recurrence_anchor_day_value(task, "anchorDay")
+        .or(due_anchor_day)
+        .or(start_anchor_day)
+        .or(review_anchor_day);
+
+    if let Some(value) = anchor_day {
+        anchors.insert("anchorDay".to_string(), Value::Number(value.into()));
+    }
+    if let Some(value) = start_anchor_day {
+        anchors.insert("startAnchorDay".to_string(), Value::Number(value.into()));
+    }
+    if let Some(value) = due_anchor_day {
+        anchors.insert("dueAnchorDay".to_string(), Value::Number(value.into()));
+    }
+    if let Some(value) = review_anchor_day {
+        anchors.insert("reviewAnchorDay".to_string(), Value::Number(value.into()));
+    }
+    anchors
+}
+
+fn next_recurrence_value(
+    task: &Map<String, Value>,
+    completed_occurrences: i64,
+    rule: &str,
+) -> Option<Value> {
+    let anchor_days = next_recurrence_anchor_days(task, rule);
     match recurrence_value(task)? {
         Value::Object(value) => {
             let mut next = value.clone();
+            for (key, value) in anchor_days {
+                next.insert(key, value);
+            }
             if value
                 .get("count")
                 .and_then(|count| count.as_i64())
@@ -1108,6 +1215,11 @@ fn next_recurrence_value(task: &Map<String, Value>, completed_occurrences: i64) 
             }
             Some(Value::Object(next))
         }
+        Value::String(value) if !anchor_days.is_empty() => {
+            let mut next = anchor_days;
+            next.insert("rule".to_string(), Value::String(value.clone()));
+            Some(Value::Object(next))
+        }
         value => Some(value.clone()),
     }
 }
@@ -1118,6 +1230,7 @@ fn next_recurring_iso(
     rule: &str,
     strategy: &str,
     interval: i64,
+    anchor_day: Option<u32>,
 ) -> Option<String> {
     let base_iso = if strategy == "fluid" {
         completed_at
@@ -1128,8 +1241,13 @@ fn next_recurring_iso(
     let (next_year, next_month, next_day) = match rule {
         "daily" => add_days(year, month, day, interval),
         "weekly" => add_days(year, month, day, interval.saturating_mul(7)),
-        "monthly" => add_months(year, month, day, interval),
-        "yearly" => add_months(year, month, day, interval.saturating_mul(12)),
+        "monthly" => add_months(year, month, anchor_day.unwrap_or(day), interval),
+        "yearly" => add_months(
+            year,
+            month,
+            anchor_day.unwrap_or(day),
+            interval.saturating_mul(12),
+        ),
         _ => return None,
     };
     Some(format!(
@@ -1467,6 +1585,55 @@ mod tests {
             task.get("revBy").and_then(|value| value.as_str()),
             Some("device-a")
         );
+    }
+
+    fn comparable_local_api_recurring_task(task: Option<Map<String, Value>>) -> Value {
+        let Some(task) = task else {
+            return Value::Null;
+        };
+        let mut comparable = Map::new();
+        for key in ["status", "startTime", "dueDate", "reviewAt", "recurrence"] {
+            if let Some(value) = task.get(key) {
+                comparable.insert(key.to_string(), value.clone());
+            }
+        }
+        Value::Object(comparable)
+    }
+
+    #[test]
+    fn local_api_recurring_task_matches_core_golden_fixture() {
+        let cases: Value = serde_json::from_str(include_str!(
+            "../../../../packages/core/src/recurrence-local-api-parity.fixtures.json"
+        ))
+        .expect("valid recurrence parity fixture");
+        let cases = cases.as_array().expect("fixture array");
+
+        for test_case in cases {
+            let name = test_case
+                .get("name")
+                .and_then(|value| value.as_str())
+                .unwrap_or("unnamed recurrence parity case");
+            let task = test_case
+                .get("task")
+                .and_then(|value| value.as_object())
+                .unwrap_or_else(|| panic!("missing task object for {name}"));
+            let completed_at = test_case
+                .get("completedAt")
+                .and_then(|value| value.as_str())
+                .unwrap_or_else(|| panic!("missing completedAt for {name}"));
+            let previous_status = test_case
+                .get("previousStatus")
+                .and_then(|value| value.as_str())
+                .unwrap_or_else(|| panic!("missing previousStatus for {name}"));
+            let expected = test_case
+                .get("expected")
+                .unwrap_or_else(|| panic!("missing expected snapshot for {name}"));
+
+            let actual = comparable_local_api_recurring_task(
+                create_next_recurring_task_for_local_api(task, completed_at, previous_status),
+            );
+            assert_eq!(&actual, expected, "{name}");
+        }
     }
 
     #[test]
