@@ -10,6 +10,7 @@ import * as Calendar from 'expo-calendar';
 import { Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
+    buildCalendarPushEventFields,
     expandCalendarRecurringTasks,
     getProjectedRecurringTaskId,
     getTaskCalendarOccurrenceDate,
@@ -518,12 +519,16 @@ function buildEventDetails(task: Task) {
         : '';
     const title = formatCalendarEventTitle(task.title, projectedOccurrenceDateLabel);
     const location = typeof task.location === 'string' ? task.location.trim() : '';
-    const notes = [
-        isProjectedRecurringTask(task)
-            ? formatProjectedRecurrenceNote(task)
-            : '',
-        task.description ?? '',
-    ].filter(Boolean).join('\n\n');
+    const { projects, sections } = useTaskStore.getState();
+    const projectName = task.projectId
+        ? projects.find((project) => project.id === task.projectId)?.title
+        : undefined;
+    const sectionName = task.sectionId
+        ? sections.find((section) => section.id === task.sectionId)?.title
+        : undefined;
+    const leadingNote = isProjectedRecurringTask(task) ? formatProjectedRecurrenceNote(task) : undefined;
+    const { notes, url } = buildCalendarPushEventFields(task, { projectName, sectionName, leadingNote });
+
     if (hasTimeComponent(dateValue)) {
         const endDate = new Date(startDate.getTime() + timeEstimateToMinutes(task.timeEstimate) * 60 * 1000);
         return {
@@ -533,6 +538,7 @@ function buildEventDetails(task: Task) {
             allDay: false,
             notes,
             location,
+            ...(url ? { url } : {}),
         };
     }
 
@@ -545,6 +551,7 @@ function buildEventDetails(task: Task) {
         allDay: true,
         notes,
         location,
+        ...(url ? { url } : {}),
         ...(Platform.OS === 'android' ? { timeZone: 'UTC', endTimeZone: 'UTC' } : {}),
     };
 }
@@ -695,7 +702,19 @@ async function runLimitedSettled<T>(
 
 // MARK: - Full sync
 
-export const runFullCalendarSync = async (): Promise<void> => {
+// Serialize all calendar writes so a full sync and the debounced partial sync
+// (or two rapid manual refreshes) cannot race on the check-then-create path and
+// create duplicate events (#743).
+let calendarSyncQueue: Promise<void> = Promise.resolve();
+function enqueueCalendarSync(run: () => Promise<void>): Promise<void> {
+    const next = calendarSyncQueue.catch(() => undefined).then(run);
+    calendarSyncQueue = next.catch(() => undefined);
+    return next;
+}
+
+export const runFullCalendarSync = (): Promise<void> => enqueueCalendarSync(runFullCalendarSyncUnsafe);
+
+const runFullCalendarSyncUnsafe = async (): Promise<void> => {
     const enabled = await getCalendarPushEnabled();
     if (!enabled) return;
 
@@ -745,7 +764,10 @@ export const scheduleSyncDebounced = (taskIds: string[]): void => {
     }, SYNC_DEBOUNCE_MS);
 };
 
-const runPartialCalendarSync = async (taskIds: string[]): Promise<void> => {
+const runPartialCalendarSync = (taskIds: string[]): Promise<void> =>
+    enqueueCalendarSync(() => runPartialCalendarSyncUnsafe(taskIds));
+
+const runPartialCalendarSyncUnsafe = async (taskIds: string[]): Promise<void> => {
     const enabled = await getCalendarPushEnabled();
     if (!enabled) return;
 
