@@ -75,7 +75,7 @@ let coreQueue: SerializedAsyncQueue | null = null;
 
 const CORE_SQLITE_BUSY_TIMEOUT_MS = 0;
 
-const isBun = () => typeof (globalThis as any).Bun !== 'undefined';
+const isBun = () => typeof (globalThis as { Bun?: unknown }).Bun !== 'undefined';
 
 const createSqliteClient = async (dbPath: string, readonly: boolean) => {
   if (isBun()) {
