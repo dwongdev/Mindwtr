@@ -21,9 +21,14 @@ describe('android monochrome icon packaging', () => {
     expect(xml).toContain('<vector');
     expect(xml).toContain('android:width="108dp"');
     expect(xml).toContain('android:viewportWidth="1024"');
+    expect(xml).toContain('android:fillColor="#FFFFFFFF"');
     expect(xml).toContain('android:fillColor="#00000000"');
     expect(xml).toContain('android:strokeColor="#FFFFFFFF"');
+    expect(xml).toContain('android:strokeWidth="56.507"');
     expect(xml).toContain('android:strokeLineCap="round"');
+    expect(xml).toContain('android:strokeLineJoin="round"');
+    expect((xml.match(/<path/g) || []).length).toBe(2);
+    expect(xml).toContain('M438.993,484.065 L505.168,549.282 L751.144,302.33');
     expect(xml).not.toContain('<background');
   });
 
