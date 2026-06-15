@@ -254,6 +254,7 @@ export {
     CLOUD_PROVIDER_SELF_HOSTED,
     createAbortableFetch,
     DEFAULT_ATTACHMENT_CLEANUP_INTERVAL_MS,
+    ensureFreshLocalSyncSnapshot,
     getInMemoryAppDataSnapshot,
     LocalSyncAbort,
     normalizeCloudProvider,
@@ -261,6 +262,7 @@ export {
 } from './sync-client-helpers';
 export type {
     CloudProvider,
+    LocalSyncSnapshotFreshnessOptions,
 } from './sync-client-helpers';
 
 export {

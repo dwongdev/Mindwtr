@@ -39,6 +39,7 @@ import {
     appendSyncHistory,
     cloneAppData,
     createSyncOrchestrator,
+    ensureFreshLocalSyncSnapshot,
     runPreSyncAttachmentPhase as runCorePreSyncAttachmentPhase,
     formatSyncErrorMessage,
     LocalSyncAbort,
@@ -673,12 +674,14 @@ class SyncRun {
     }
 
     ensureLocalSnapshotFresh(expectedSyncedData?: AppData): void {
-        const currentChangeAt = getStoreState().lastDataChangeAt;
-        if (currentChangeAt <= this.context.localSnapshotChangeAt) return;
-        if (expectedSyncedData && this.deps.acceptCoveredLocalSnapshot(expectedSyncedData)) return;
-
-        this.deps.requestFollowUp();
-        throw new LocalSyncAbort();
+        ensureFreshLocalSyncSnapshot({
+            localSnapshotChangeAt: this.context.localSnapshotChangeAt,
+            getCurrentChangeAt: () => getStoreState().lastDataChangeAt,
+            acceptCoveredSnapshot: expectedSyncedData
+                ? () => this.deps.acceptCoveredLocalSnapshot(expectedSyncedData)
+                : undefined,
+            requestFollowUp: () => this.deps.requestFollowUp(),
+        });
     }
 
     async persistLocalDataWithTracking(data: AppData): Promise<void> {
