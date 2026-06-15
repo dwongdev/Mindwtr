@@ -231,6 +231,11 @@ vi.mock('@/contexts/toast-context', () => ({
   }),
 }));
 
+vi.mock('@/lib/sync-service', () => ({
+  getMobileSyncConfigurationStatus: vi.fn().mockResolvedValue({ backend: 'off', configured: false }),
+  performMobileSync: vi.fn().mockResolvedValue({ success: true }),
+}));
+
 vi.mock('@/hooks/use-theme-colors', () => ({
   useThemeColors: () => ({
     bg: '#0f172a',

@@ -149,6 +149,11 @@ vi.mock('../contexts/toast-context', () => ({
   }),
 }));
 
+vi.mock('@/lib/sync-service', () => ({
+  getMobileSyncConfigurationStatus: vi.fn().mockResolvedValue({ backend: 'off', configured: false }),
+  performMobileSync: vi.fn().mockResolvedValue({ success: true }),
+}));
+
 vi.mock('@react-native-community/datetimepicker', () => ({
   default: (props: any) => React.createElement('DateTimePicker', props),
 }));

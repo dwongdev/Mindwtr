@@ -117,6 +117,10 @@ export const AppRegistry = {
   registerHeadlessTask: () => undefined,
 };
 
+export const NativeModules = {
+  EXDevLauncher: null,
+};
+
 export const Dimensions = {
   get: () => ({ width: 390, height: 844 }),
 };

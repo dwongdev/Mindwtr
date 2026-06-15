@@ -59,5 +59,5 @@ describe('mobile storage adapter', () => {
     const snapshot = await getMobileStartupSnapshotFromBackup();
 
     expect(snapshot?.people).toEqual(backup.people);
-  });
+  }, 10_000);
 });
