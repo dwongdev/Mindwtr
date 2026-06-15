@@ -21,7 +21,7 @@ const AI_KEY_PATTERNS = [
     /AIza[0-9A-Za-z\-_]{10,}/g,
 ];
 const TOKEN_PATTERN = /(password|pass|token|access_token|api_key|apikey|authorization|username|user|secret|session|cookie)=([^\s&]+)/gi;
-const AUTH_HEADER_PATTERN = /(Authorization:\s*)(Basic|Bearer)\s+[A-Za-z0-9+\/=._-]+/gi;
+const AUTH_HEADER_PATTERN = /(Authorization:\s*)(Basic|Bearer)\s+[A-Za-z0-9+/=._-]+/gi;
 const READONLY_ERROR_PATTERN = /isn't writable|not writable|read-only|read only|permission denied|EACCES/i;
 const OFFLINE_ERROR_PATTERNS = [
     /offline state detected/i,

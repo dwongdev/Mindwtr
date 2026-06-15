@@ -552,7 +552,7 @@ export const stripSensitiveSettings = (settings: AppData['settings']): AppData['
 
 export const normalizeAiSettingsForSync = (ai?: AiSettings): AiSettings | undefined => {
     if (!ai) return ai;
-    const { apiKey, ...rest } = ai;
+    const { apiKey: _apiKey, ...rest } = ai;
     if (!rest.speechToText) return rest;
     return {
         ...rest,

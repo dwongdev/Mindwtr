@@ -461,6 +461,8 @@ describe('cloud server utils', () => {
             duplex: 'half' as RequestDuplex,
         });
         const parsed = await __cloudTestUtils.readJsonBody(req, 10);
+        expect(__cloudTestUtils.isBodyReadError(parsed)).toBe(true);
+        if (!__cloudTestUtils.isBodyReadError(parsed)) throw new Error('Expected body read error');
         expect(parsed.__mindwtrError.message).toBe('Payload too large');
         expect(parsed.__mindwtrError.status).toBe(413);
     });
@@ -482,6 +484,8 @@ describe('cloud server utils', () => {
 
         controller.abort(new Error('Request timed out'));
         const parsed = await __cloudTestUtils.readJsonBody(req, 1024, controller.signal);
+        expect(__cloudTestUtils.isBodyReadError(parsed)).toBe(true);
+        if (!__cloudTestUtils.isBodyReadError(parsed)) throw new Error('Expected body read error');
         expect(parsed.__mindwtrError.message).toBe('Request timed out');
         expect(parsed.__mindwtrError.status).toBe(408);
     });

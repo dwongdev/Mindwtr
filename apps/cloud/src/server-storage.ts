@@ -500,7 +500,7 @@ export async function readRequestBytes(
     }
 }
 
-export async function readJsonBody(req: Request, maxBodyBytes: number, signal?: AbortSignal): Promise<any> {
+export async function readJsonBody(req: Request, maxBodyBytes: number, signal?: AbortSignal): Promise<unknown> {
     const bytes = await readRequestBytes(req, maxBodyBytes, signal);
     if (isBodyReadError(bytes)) {
         return bytes;

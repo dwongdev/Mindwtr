@@ -423,6 +423,7 @@ const handleEntityRoute = async <T extends CloudEntity>(
     return null;
 };
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- The route table is heterogeneous; each route owns its entity type.
 const ENTITY_ROUTES: Array<EntityRouteDefinition<any>> = [
     {
         path: '/v1/projects',
@@ -756,6 +757,7 @@ export const __cloudTestUtils = {
     validateTaskPatchProps,
     pickTaskList,
     readJsonBody,
+    isBodyReadError,
     resolveServerMergeTimestamp,
     writeData,
     resolveAttachmentPath,
@@ -1039,16 +1041,17 @@ export async function startCloudServer(options: CloudServerOptions = {}): Promis
                             const err = body.__mindwtrError;
                             return errorResponse(String(err?.message || 'Payload too large'), Number(err?.status) || 413);
                         }
-                        if (!body || typeof body !== 'object') return errorResponse('Invalid JSON body');
+                        const bodyRecord = readObjectBody(body);
+                        if (!bodyRecord) return errorResponse('Invalid JSON body');
 
                         return await withWriteLock(key, async () => {
                             throwIfRequestAborted(requestAbortController.signal);
                             const data = loadAppData(filePath);
                             const nowIso = new Date().toISOString();
 
-                            const input = typeof (body as any).input === 'string' ? String((body as any).input) : '';
-                            const rawTitle = typeof (body as any).title === 'string' ? String((body as any).title) : '';
-                            const rawInitialProps = typeof (body as any).props === 'object' && (body as any).props ? (body as any).props : {};
+                            const input = typeof bodyRecord.input === 'string' ? bodyRecord.input : '';
+                            const rawTitle = typeof bodyRecord.title === 'string' ? bodyRecord.title : '';
+                            const rawInitialProps = readObjectBody(bodyRecord.props) ?? {};
                             const validatedInitialProps = validateTaskCreationProps(rawInitialProps);
                             if (!validatedInitialProps.ok) {
                                 return errorResponse(validatedInitialProps.error, 400);
@@ -1072,14 +1075,14 @@ export async function startCloudServer(options: CloudServerOptions = {}): Promis
                                 ...initialProps,
                             };
 
-                            const rawStatus = (props as any).status;
+                            const rawStatus = props.status;
                             const parsedStatus = asStatus(rawStatus);
                             if (rawStatus !== undefined && parsedStatus === null) {
                                 return errorResponse('Invalid task status', 400);
                             }
                             const status = parsedStatus || 'inbox';
-                            const tags = Array.isArray((props as any).tags) ? (props as any).tags : [];
-                            const contexts = Array.isArray((props as any).contexts) ? (props as any).contexts : [];
+                            const tags = Array.isArray(props.tags) ? props.tags : [];
+                            const contexts = Array.isArray(props.contexts) ? props.contexts : [];
                             const {
                                 id: _id,
                                 title: _title,
@@ -1089,7 +1092,7 @@ export async function startCloudServer(options: CloudServerOptions = {}): Promis
                                 tags: _tags,
                                 contexts: _contexts,
                                 ...restProps
-                            } = props as any;
+                            } = props;
                             const task: Task = {
                                 id: generateUUID(),
                                 title,
@@ -1169,16 +1172,17 @@ export async function startCloudServer(options: CloudServerOptions = {}): Promis
                                 const err = body.__mindwtrError;
                                 return errorResponse(String(err?.message || 'Payload too large'), Number(err?.status) || 413);
                             }
-                            if (!body || typeof body !== 'object') return errorResponse('Invalid JSON body');
-                            const validatedPatch = validateTaskPatchProps(body);
+                            const bodyRecord = readObjectBody(body);
+                            if (!bodyRecord) return errorResponse('Invalid JSON body');
+                            const validatedPatch = validateTaskPatchProps(bodyRecord);
                             if (!validatedPatch.ok) {
                                 return errorResponse(validatedPatch.error, 400);
                             }
                             const updates = validatedPatch.props;
-                            if (typeof (updates as any).title === 'string' && (updates as any).title.length > MAX_TASK_TITLE_LENGTH) {
+                            if (typeof updates.title === 'string' && updates.title.length > MAX_TASK_TITLE_LENGTH) {
                                 return errorResponse(`Task title too long (max ${MAX_TASK_TITLE_LENGTH} characters)`, 400);
                             }
-                            const rawStatus = (updates as any).status;
+                            const rawStatus = updates.status;
                             if (rawStatus !== undefined && asStatus(rawStatus) === null) {
                                 return errorResponse('Invalid task status', 400);
                             }
@@ -1517,7 +1521,7 @@ export async function startCloudServer(options: CloudServerOptions = {}): Promis
                     return errorResponse(error.message, error.status);
                 }
                 if (error && typeof error === 'object' && 'code' in error) {
-                    const code = (error as any).code;
+                    const code = (error as { code?: unknown }).code;
                     if (code === 'EACCES') {
                         logError(`permission denied writing cloud data (requestId=${requestId})`, error);
                         return createInternalServerErrorResponse(
