@@ -5,7 +5,7 @@ import * as Clipboard from 'expo-clipboard';
 import { Ionicons } from '@expo/vector-icons';
 
 import type { ThemeColors } from '@/hooks/use-theme-colors';
-import { parseInlineMarkdown, parseMarkdownReferenceHref, shallow, tFallback, useTaskStore } from '@mindwtr/core';
+import { parseInlineMarkdown, parseMarkdownReferenceHref, shallow, tFallback, useTaskStore, type Project, type Task } from '@mindwtr/core';
 import { useLanguage } from '@/contexts/language-context';
 import { openProjectScreen, openTaskScreen } from '@/lib/task-meta-navigation';
 
@@ -52,30 +52,53 @@ type MarkdownRenderOptions = {
   copyCodeLabel: string;
 };
 
+type MarkdownLinkLookup = {
+  tasksById: Map<string, Task>;
+  projectsById: Map<string, Project>;
+};
+
+function createMarkdownLinkLookup(tasks: readonly Task[], projects: readonly Project[]): MarkdownLinkLookup {
+  const tasksById = new Map<string, Task>();
+  const projectsById = new Map<string, Project>();
+
+  tasks.forEach((task) => {
+    if (!task.deletedAt) tasksById.set(task.id, task);
+  });
+  projects.forEach((project) => {
+    if (!project.deletedAt) projectsById.set(project.id, project);
+  });
+
+  return { tasksById, projectsById };
+}
+
 function useMarkdownRenderOptions(): MarkdownRenderOptions {
   const { t } = useLanguage();
   const { tasks, projects } = useTaskStore((state) => ({
     tasks: state._allTasks,
-    projects: state.projects,
+    projects: state._allProjects,
   }), shallow);
+  const { tasksById, projectsById } = React.useMemo(
+    () => createMarkdownLinkLookup(tasks, projects),
+    [tasks, projects],
+  );
   const deletedTaskLabel = tFallback(t, 'markdown.referenceDeletedTask', 'deleted task');
   const deletedProjectLabel = tFallback(t, 'markdown.referenceDeletedProject', 'deleted project');
   const copyCodeLabel = tFallback(t, 'markdown.copyCode', 'Copy code');
   const resolveTask = React.useCallback((id: string) => {
-    const task = tasks.find((candidate) => candidate.id === id && !candidate.deletedAt);
+    const task = tasksById.get(id);
     if (!task) return null;
     return {
       title: task.title,
       projectId: task.projectId,
     };
-  }, [tasks]);
+  }, [tasksById]);
   const resolveProject = React.useCallback((id: string) => {
-    const project = projects.find((candidate) => candidate.id === id && !candidate.deletedAt);
+    const project = projectsById.get(id);
     if (!project) return null;
     return {
       title: project.title,
     };
-  }, [projects]);
+  }, [projectsById]);
 
   return {
     resolveTask,
