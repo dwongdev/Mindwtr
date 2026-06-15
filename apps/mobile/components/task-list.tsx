@@ -76,6 +76,11 @@ import {
   sortProjectTasksByOrder,
 } from './task-list-utils';
 import {
+  buildTaskListItemLayouts,
+  ESTIMATED_TASK_HEIGHT,
+  LIST_CONTENT_VERTICAL_PADDING,
+} from './task-list/task-list-layout';
+import {
   countActiveMobileTaskFilters,
   taskMatchesMobileTaskFilters,
   type MobileTaskListFilters,
@@ -652,10 +657,6 @@ function TaskListComponent({
     | { type: 'section'; id: string; title: string; count: number; muted?: boolean; collapsible?: boolean; collapsed?: boolean }
     | { type: 'task'; task: Task; reorderSectionId?: string | null; groupId?: string };
 
-  const LIST_CONTENT_VERTICAL_PADDING = 12;
-  const ESTIMATED_SECTION_HEIGHT = 32;
-  const ESTIMATED_TASK_HEIGHT = 86;
-
   const listItems = useMemo<ListItem[]>(() => {
     if (statusFilter === 'reference' && !projectId) {
       if (referenceGroupByValue === 'none') {
@@ -825,9 +826,6 @@ function TaskListComponent({
   const getListItemKey = useCallback((item: ListItem) => (
     item.type === 'section' ? `section-${item.id}` : (item.groupId ? `${item.groupId}:${item.task.id}` : item.task.id)
   ), []);
-  const estimateItemHeight = useCallback((item: ListItem) => (
-    item.type === 'section' ? ESTIMATED_SECTION_HEIGHT : ESTIMATED_TASK_HEIGHT
-  ), []);
   const registerItemHeight = useCallback((itemKey: string, height: number) => {
     const rounded = Math.round(height);
     if (!Number.isFinite(rounded) || rounded <= 0) return;
@@ -838,15 +836,11 @@ function TaskListComponent({
   const itemLayouts = useMemo(() => {
     // itemLayoutVersion invalidates memoized offsets when ref-backed row heights change.
     void itemLayoutVersion;
-    let offset = LIST_CONTENT_VERTICAL_PADDING;
-    return listItems.map((item) => {
-      const key = getListItemKey(item);
-      const length = itemHeightsRef.current[key] ?? estimateItemHeight(item);
-      const layout = { length, offset };
-      offset += length;
-      return layout;
+    return buildTaskListItemLayouts(listItems, {
+      getItemKey: getListItemKey,
+      measuredHeights: itemHeightsRef.current,
     });
-  }, [estimateItemHeight, getListItemKey, itemLayoutVersion, listItems]);
+  }, [getListItemKey, itemLayoutVersion, listItems]);
   const getItemLayout = useCallback((_: ArrayLike<ListItem> | null | undefined, index: number) => {
     const measured = itemLayouts[index];
     if (measured) {
