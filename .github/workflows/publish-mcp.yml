@@ -21,6 +21,9 @@ permissions:
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+  PAGER: cat
+  NPM_CONFIG_AUDIT: "false"
+  NPM_CONFIG_FUND: "false"
 
 jobs:
   publish:
@@ -42,6 +45,13 @@ jobs:
 
       - name: Ensure npm supports trusted publishing
         run: npm install -g npm@^11.5.1
+
+      - name: Remove obsolete npm auth config
+        run: |
+          set -euo pipefail
+          if [ -n "${NPM_CONFIG_USERCONFIG:-}" ] && [ -f "$NPM_CONFIG_USERCONFIG" ]; then
+            sed -i '/^always-auth[[:space:]]*=/d' "$NPM_CONFIG_USERCONFIG"
+          fi
 
       - name: Setup Bun
         uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
