@@ -65,8 +65,8 @@ use config::{
     set_obsidian_config, set_sync_backend, set_webdav_config,
 };
 use install::{
-    diagnostics_enabled, get_install_source, get_linux_distro, is_flatpak, is_niri_session,
-    is_windows_store_install,
+    check_microsoft_store_update, diagnostics_enabled, get_install_source, get_linux_distro,
+    is_flatpak, is_niri_session, is_windows_store_install,
 };
 use local_api::{
     get_local_api_server_status, set_local_api_server_config, start_configured_local_api_server,
@@ -1253,6 +1253,7 @@ pub fn run() {
         .manage(AudioRecorderState(Mutex::new(None)))
         .manage(ObsidianWatcherState::default())
         .invoke_handler(tauri::generate_handler![
+            check_microsoft_store_update,
             get_data,
             read_data_json,
             save_data,

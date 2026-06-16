@@ -47,6 +47,7 @@ tempfile = "3.23"
 tauri-plugin-autostart = "2.5.1"
 
 [target.'cfg(target_os = "windows")'.dependencies]
+windows = { version = "0.61", features = ["ApplicationModel", "Foundation", "Foundation_Collections", "Services_Store"] }
 windows-sys = { version = "0.61", features = ["Win32_Foundation", "Win32_Storage_Packaging_Appx"] }
 
 [target.'cfg(target_os = "linux")'.dependencies]

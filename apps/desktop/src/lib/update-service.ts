@@ -11,6 +11,7 @@ const GITHUB_RELEASES_URL =
   "https://github.com/dongdongbh/Mindwtr/releases/latest";
 const MS_STORE_PRODUCT_ID = "9N0V5B0B6FRX";
 const MS_STORE_URL = `ms-windows-store://pdp/?ProductId=${MS_STORE_PRODUCT_ID}`;
+const MS_STORE_UPDATES_URL = "ms-windows-store://downloadsandupdates";
 const WINGET_MANIFESTS_API =
   "https://api.github.com/repos/microsoft/winget-pkgs/contents/manifests/d/dongdongbh/Mindwtr";
 const WINGET_PACKAGE_URL =
@@ -55,7 +56,8 @@ export type UpdateSource =
   | "winget"
   | "homebrew"
   | "aur"
-  | "app-store";
+  | "app-store"
+  | "microsoft-store";
 
 export interface UpdateInfo {
   hasUpdate: boolean;
@@ -80,12 +82,21 @@ type SourceVersionResult = {
   releaseUrl: string;
 };
 
+export type MicrosoftStoreUpdateInfo = {
+  hasUpdate: boolean;
+  latestVersion: string | null;
+};
+
+type MicrosoftStoreUpdateProvider = () => Promise<MicrosoftStoreUpdateInfo>;
+
 type CheckForUpdatesOptions = {
   installSource?: InstallSource;
+  microsoftStoreUpdateProvider?: MicrosoftStoreUpdateProvider;
 };
 
 const isManagedInstallSource = (installSource: InstallSource): boolean => {
   return (
+    installSource === "microsoft-store" ||
     installSource === "mac-app-store" ||
     installSource === "homebrew" ||
     installSource === "winget" ||
@@ -481,6 +492,35 @@ const fetchAppStoreLatestVersion = async (): Promise<SourceVersionResult> => {
   throw new Error("Unable to fetch App Store version.");
 };
 
+
+const normalizeMicrosoftStoreUpdateInfo = (
+  value: unknown,
+): MicrosoftStoreUpdateInfo => {
+  const payload = value as Partial<MicrosoftStoreUpdateInfo> | null | undefined;
+  return {
+    hasUpdate: Boolean(payload?.hasUpdate),
+    latestVersion:
+      typeof payload?.latestVersion === "string" && payload.latestVersion.trim()
+        ? normalizeComparableVersion(payload.latestVersion)
+        : null,
+  };
+};
+
+const fetchMicrosoftStoreUpdateInfo = async (
+  provider?: MicrosoftStoreUpdateProvider,
+): Promise<MicrosoftStoreUpdateInfo> => {
+  if (provider) {
+    return normalizeMicrosoftStoreUpdateInfo(await provider());
+  }
+  if (!isTauriRuntime()) {
+    throw new Error("Microsoft Store update checks require the desktop app.");
+  }
+  const { invoke } = await import("@tauri-apps/api/core");
+  return normalizeMicrosoftStoreUpdateInfo(
+    await invoke<MicrosoftStoreUpdateInfo>("check_microsoft_store_update"),
+  );
+};
+
 const fetchSourceVersion = async (
   installSource: InstallSource,
 ): Promise<SourceVersionResult | null> => {
@@ -516,6 +556,43 @@ export async function checkForUpdates(
   let githubRelease: GitHubRelease | null = null;
 
   try {
+    if (installSource === "microsoft-store") {
+      const storeInfo = await fetchMicrosoftStoreUpdateInfo(
+        options.microsoftStoreUpdateProvider,
+      );
+      try {
+        githubRelease = await fetchGithubLatestRelease();
+      } catch (error) {
+        reportError("Failed to fetch GitHub release notes for Microsoft Store update", error, {
+          toast: false,
+        });
+      }
+      const githubLatestVersion = githubRelease
+        ? normalizeComparableVersion(githubRelease.tag_name)
+        : "";
+      const latestVersion = storeInfo.hasUpdate
+        ? storeInfo.latestVersion ?? githubLatestVersion ?? cleanCurrentVersion
+        : cleanCurrentVersion;
+      const assets = (githubRelease?.assets || []).map((asset) => ({
+        name: asset.name,
+        url: asset.browser_download_url,
+      }));
+      return {
+        hasUpdate: storeInfo.hasUpdate,
+        currentVersion: cleanCurrentVersion,
+        latestVersion,
+        releaseUrl: MS_STORE_UPDATES_URL,
+        latestReleasedAt: githubRelease?.published_at || null,
+        releaseNotes: githubRelease?.body || "",
+        downloadUrl: null,
+        platform,
+        assets,
+        source: "microsoft-store",
+        installSource,
+        sourceFallback: false,
+      };
+    }
+
     if (
       installSource !== "unknown" &&
       installSource !== "direct" &&
@@ -646,6 +723,7 @@ export {
   GITHUB_RELEASES_URL,
   HOMEBREW_CASK_URL,
   MS_STORE_URL,
+  MS_STORE_UPDATES_URL,
   SNAPCRAFT_PACKAGE_URL,
   WINGET_PACKAGE_URL,
 };

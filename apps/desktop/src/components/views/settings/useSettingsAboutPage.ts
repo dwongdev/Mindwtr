@@ -6,7 +6,7 @@ import {
     compareVersions,
     getFlatpakInstallChannel,
     HOMEBREW_CASK_URL,
-    MS_STORE_URL,
+    MS_STORE_UPDATES_URL,
     normalizeInstallSource,
     verifyDownloadChecksum,
     WINGET_PACKAGE_URL,
@@ -324,7 +324,7 @@ export function useSettingsAboutPage({
     const handleDownloadUpdate = useCallback(async () => {
         const targetUrl = preferredDownloadUrl;
         if (installSource === 'microsoft-store') {
-            await openLink(MS_STORE_URL);
+            await openLink(MS_STORE_UPDATES_URL);
             setDownloadNotice(t.storeUpdateHint);
             return;
         }
