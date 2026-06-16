@@ -383,6 +383,15 @@ export const updateMindwtrCalendarColor = async (color: string): Promise<boolean
         const target = calendars.find((calendar) => storedCalendarId && calendar.id === storedCalendarId)
             ?? calendars.find(isAppCreatedMindwtrCalendar);
         if (!target || !isWritableCalendar(target)) return false;
+
+        // Android's CalendarProvider only stores a calendar's color at creation
+        // time, and expo-calendar's update path never writes CALENDAR_COLOR, so
+        // updating it in place never reaches third-party calendar apps (#726).
+        // Recreate the managed calendar with the freshly stored color instead.
+        if (Platform.OS === 'android') {
+            return await recreateManagedMindwtrCalendar();
+        }
+
         await Calendar.updateCalendarAsync(target.id, { color: normalized });
         return true;
     } catch (error) {
@@ -393,6 +402,26 @@ export const updateMindwtrCalendarColor = async (color: string): Promise<boolean
         return false;
     }
 };
+
+/**
+ * Deletes and recreates the managed "Mindwtr" calendar so a color change takes
+ * effect on Android. The provider ignores post-creation color updates, so the
+ * only way to change the color third-party calendar apps render is to drop the
+ * calendar and create a fresh one with the already-stored color, then re-push
+ * its events. Serialized on the calendar sync queue so it cannot race a
+ * concurrent push and duplicate events (#743). Returns true when a new managed
+ * calendar was created.
+ */
+async function recreateManagedMindwtrCalendar(): Promise<boolean> {
+    let recreatedId: string | null = null;
+    await enqueueCalendarSync(async () => {
+        await deleteMindwtrCalendar();
+        recreatedId = await ensureMindwtrCalendar();
+        if (!recreatedId) return;
+        await runFullCalendarSyncUnsafe();
+    });
+    return recreatedId !== null;
+}
 
 async function resolveCalendarPushTarget(): Promise<CalendarPushTarget | null> {
     const selectedId = await getCalendarPushTargetCalendarId();

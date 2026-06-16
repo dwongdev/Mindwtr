@@ -45,8 +45,8 @@ const {
     mockPlatform,
 } = vi.hoisted(() => ({
     mockGetItem: vi.fn<(key: string) => Promise<string | null>>(async () => null),
-    mockSetItem: vi.fn(async () => {}),
-    mockRemoveItem: vi.fn(async () => {}),
+    mockSetItem: vi.fn(async (_key: string, _value: string) => {}),
+    mockRemoveItem: vi.fn(async (_key: string) => {}),
     mockGetCalendarsAsync: vi.fn(async () => [] as Array<{
         id: string;
         title?: string;
@@ -61,9 +61,9 @@ const {
         };
     }>),
     mockGetSourcesAsync: vi.fn(async () => [{ id: 'src1', type: 'local', name: 'Local' }]),
-    mockCreateCalendarAsync: vi.fn(async () => 'cal-1'),
+    mockCreateCalendarAsync: vi.fn(async (_details?: { color?: string }) => 'cal-1'),
     mockUpdateCalendarAsync: vi.fn(async () => 'cal-1'),
-    mockDeleteCalendarAsync: vi.fn(async () => {}),
+    mockDeleteCalendarAsync: vi.fn(async (_id: string) => {}),
     mockCreateEventAsync: vi.fn(async () => 'evt-1'),
     mockUpdateEventAsync: vi.fn(async () => 'evt-1'),
     mockDeleteEventAsync: vi.fn(async () => {}),
@@ -285,6 +285,55 @@ function setStoreTasks(tasks: unknown[], allTasks: unknown[] = tasks) {
     });
 }
 
+type MockAndroidCalendar = {
+    id: string;
+    title?: string;
+    name?: string;
+    color?: string;
+    ownerAccount?: string;
+    accessLevel?: string;
+    allowsModifications?: boolean;
+    source?: { name: string; type?: string; isLocalAccount?: boolean };
+};
+
+/**
+ * Wires AsyncStorage and the device calendar list as stateful mocks so the
+ * Android delete-then-recreate color flow behaves like a real device: the
+ * managed calendar starts as `cal-old`, deleting it removes it from the list,
+ * and creating a new one yields `cal-new` carrying the requested color.
+ */
+function setupStatefulAndroidCalendar() {
+    const storage = new Map<string, string>([
+        ['mindwtr:calendar-push-sync:enabled', '1'],
+        ['mindwtr:calendar-push-sync:calendar-id', 'cal-old'],
+        ['mindwtr:calendar-push-sync:color', '#3B82F6'],
+    ]);
+    mockGetItem.mockImplementation(async (key: string) => storage.get(key) ?? null);
+    mockSetItem.mockImplementation(async (key: string, value: string) => { storage.set(key, value); });
+    mockRemoveItem.mockImplementation(async (key: string) => { storage.delete(key); });
+
+    const ownedAccount = {
+        ownerAccount: 'me@gmail.com',
+        accessLevel: 'owner',
+        allowsModifications: true,
+        source: { name: 'me@gmail.com', type: 'com.google' },
+    };
+    let calendars: MockAndroidCalendar[] = [
+        { id: 'cal-old', title: 'Mindwtr', name: 'mindwtr', color: '#3B82F6', ...ownedAccount },
+        { id: 'google-primary', title: 'Personal', ...ownedAccount },
+    ];
+    mockGetCalendarsAsync.mockImplementation(async () => calendars);
+    mockDeleteCalendarAsync.mockImplementation(async (id: string) => {
+        calendars = calendars.filter((c) => c.id !== id);
+    });
+    mockCreateCalendarAsync.mockImplementation(async (details?: { color?: string }) => {
+        calendars = [...calendars, { id: 'cal-new', title: 'Mindwtr', name: 'mindwtr', color: details?.color, ...ownedAccount }];
+        return 'cal-new';
+    });
+
+    return { storage, calendars: () => calendars };
+}
+
 beforeEach(() => {
     vi.clearAllMocks();
     vi.useFakeTimers();
@@ -409,6 +458,57 @@ describe('calendar push color', () => {
         expect(updated).toBe(true);
         expect(mockSetItem).toHaveBeenCalledWith('mindwtr:calendar-push-sync:color', '#059669');
         expect(mockUpdateCalendarAsync).toHaveBeenCalledWith('cal-1', { color: '#059669' });
+        // iOS updates the calendar in place — it must not recreate it.
+        expect(mockDeleteCalendarAsync).not.toHaveBeenCalled();
+        expect(mockCreateCalendarAsync).not.toHaveBeenCalled();
+    });
+
+    it('recreates the managed calendar with the new color on Android so external apps update (#726)', async () => {
+        mockPlatform.OS = 'android';
+        const { calendars } = setupStatefulAndroidCalendar();
+        setStoreTasks([]);
+
+        const updated = await updateMindwtrCalendarColor('#059669');
+
+        expect(updated).toBe(true);
+        expect(mockSetItem).toHaveBeenCalledWith('mindwtr:calendar-push-sync:color', '#059669');
+        // expo-calendar cannot change a calendar's color in place on Android, so
+        // the managed calendar is deleted and recreated with the new color.
+        expect(mockUpdateCalendarAsync).not.toHaveBeenCalled();
+        expect(mockDeleteCalendarAsync).toHaveBeenCalledWith('cal-old');
+        expect(mockCreateCalendarAsync).toHaveBeenCalledTimes(1);
+        expect(mockCreateCalendarAsync).toHaveBeenCalledWith(expect.objectContaining({ color: '#059669' }));
+        expect(calendars().some((c) => c.id === 'cal-new' && c.color === '#059669')).toBe(true);
+        expect(mockSetItem).toHaveBeenCalledWith('mindwtr:calendar-push-sync:calendar-id', 'cal-new');
+    });
+
+    it('re-pushes events to the recreated Android calendar so they inherit the new color (#726)', async () => {
+        mockPlatform.OS = 'android';
+        setupStatefulAndroidCalendar();
+        setStoreTasks([makeTask({ id: 'task-1', dueDate: '2026-04-20' })]);
+
+        await updateMindwtrCalendarColor('#059669');
+
+        expect(mockCreateEventAsync).toHaveBeenCalledWith('cal-new', expect.objectContaining({
+            calendarId: 'cal-new',
+        }));
+    });
+
+    it('stores the color but does not recreate when no managed Android calendar exists yet (#726)', async () => {
+        mockPlatform.OS = 'android';
+        mockGetItem.mockImplementation(async (key: string) => (
+            key === 'mindwtr:calendar-push-sync:color' ? '#3B82F6' : null
+        ));
+        mockGetCalendarsAsync.mockResolvedValue([
+            { id: 'google-primary', title: 'Personal', accessLevel: 'owner', allowsModifications: true },
+        ]);
+
+        const updated = await updateMindwtrCalendarColor('#059669');
+
+        expect(updated).toBe(false);
+        expect(mockSetItem).toHaveBeenCalledWith('mindwtr:calendar-push-sync:color', '#059669');
+        expect(mockDeleteCalendarAsync).not.toHaveBeenCalled();
+        expect(mockCreateCalendarAsync).not.toHaveBeenCalled();
     });
 });
 
