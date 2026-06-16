@@ -124,6 +124,7 @@ export function SomedayView() {
             onStatusChange={(status) => handleStatusChange(task.id, status as TaskStatus)}
             onDelete={() => { void deleteTask(task.id); }}
             isHighlighted={task.id === highlightTaskId}
+            statusBadgeAsIcon
             onProjectPress={openProjectScreen}
             onContextPress={openContextsScreen}
             onTagPress={openContextsScreen}

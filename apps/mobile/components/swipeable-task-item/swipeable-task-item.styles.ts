@@ -149,6 +149,13 @@ export const styles = StyleSheet.create({
         fontWeight: '600',
         textTransform: 'capitalize',
     },
+    statusIconButton: {
+        minWidth: 44,
+        minHeight: 44,
+        marginLeft: 8,
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
     swipeActionLeft: {
         backgroundColor: '#10B981',
         justifyContent: 'center',

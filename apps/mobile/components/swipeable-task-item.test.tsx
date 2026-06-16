@@ -232,6 +232,7 @@ vi.mock('../contexts/toast-context', () => ({
 vi.mock('lucide-react-native', () => ({
   ArrowRight: (props: any) => React.createElement('ArrowRight', props),
   Check: (props: any) => React.createElement('Check', props),
+  CircleDot: (props: any) => React.createElement('CircleDot', props),
   Repeat: (props: any) => React.createElement('Repeat', props),
   RotateCcw: (props: any) => React.createElement('RotateCcw', props),
   Star: (props: any) => React.createElement('Star', props),
@@ -998,6 +999,60 @@ it('uses the shared rounded star treatment for focused tasks', () => {
     });
 
     expect(onStatusChange).toHaveBeenCalledWith('reference');
+  });
+
+  it('renders the status control as an icon button on single-status lists and still opens the menu', () => {
+    const onStatusChange = vi.fn();
+
+    let tree!: renderer.ReactTestRenderer;
+    renderer.act(() => {
+      tree = renderer.create(
+        <SwipeableTaskItem
+          task={{
+            id: 'task-1',
+            title: 'Capture idea',
+            status: 'inbox',
+            createdAt: '2026-01-01T00:00:00.000Z',
+            updatedAt: '2026-01-01T00:00:00.000Z',
+          } as any}
+          isDark={false}
+          tc={{
+            taskItemBg: '#111111',
+            cardBg: '#111111',
+            border: '#222222',
+            text: '#ffffff',
+            secondaryText: '#999999',
+            tint: '#3b82f6',
+            warning: '#f59e0b',
+          } as any}
+          onPress={vi.fn()}
+          onStatusChange={onStatusChange}
+          onDelete={vi.fn()}
+          statusBadgeAsIcon
+        />
+      );
+    });
+
+    // Icon variant renders the status dot, not the redundant "Inbox" label.
+    expect(tree.root.findAll((node) => (node.type as unknown) === 'CircleDot')).toHaveLength(1);
+    const statusControl = tree.root.find(
+      (node) => node.props.accessibilityLabel === 'Change status. Current status: inbox'
+    );
+    expect(flattenText(statusControl.props.children)).not.toContain('Inbox');
+
+    // Tapping the icon still opens the quick-status menu.
+    renderer.act(() => {
+      statusControl.props.onPress({ stopPropagation: vi.fn() });
+    });
+    expect(hasText(tree, 'Change Status')).toBe(true);
+
+    const nextAction = tree.root.find(
+      (node) => node.props.accessibilityLabel === 'Next' && typeof node.props.onPress === 'function'
+    );
+    renderer.act(() => {
+      nextAction.props.onPress();
+    });
+    expect(onStatusChange).toHaveBeenCalledWith('next');
   });
 
   it('prompts for the project next action after completing the last next task', async () => {

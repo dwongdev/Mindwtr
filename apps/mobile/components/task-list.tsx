@@ -1347,7 +1347,10 @@ function TaskListComponent({
   }, [updateTask]);
 
   const sortOptions: TaskSortBy[] = ['default', 'due', 'start', 'review', 'title', 'created', 'created-desc'];
-  const hideStatusBadgeForList = statusFilter === 'inbox' || statusFilter === 'next' || statusFilter === 'waiting';
+  // Single-status lists (inbox/next/waiting/someday/done/reference) repeat the same status on every
+  // row, so show a compact icon button to change status instead of the redundant status-name badge.
+  // The 'all' list keeps the labeled badge because its rows have mixed statuses.
+  const statusBadgeAsIconForList = statusFilter !== 'all';
   const hideChecklistProgressForList = statusFilter === 'inbox';
 
   const renderTask = useCallback(({ item }: { item: Task }) => {
@@ -1367,7 +1370,7 @@ function TaskListComponent({
           onStatusChange={(status) => updateTask(item.id, { status: status as TaskStatus })}
           onDelete={() => { void deleteTask(item.id); }}
           isHighlighted={item.id === highlightTaskId}
-          hideStatusBadge={hideStatusBadgeForList}
+          statusBadgeAsIcon={statusBadgeAsIconForList}
           hideChecklistProgress={hideChecklistProgressForList}
           hideProjectMeta={Boolean(projectId)}
           sequenceCue={sequenceCue}
@@ -1389,7 +1392,7 @@ function TaskListComponent({
     orderedTaskIds,
     selectionMode,
     hideChecklistProgressForList,
-    hideStatusBadgeForList,
+    statusBadgeAsIconForList,
     themeColorsMemo,
     toggleMultiSelect,
     updateTask,

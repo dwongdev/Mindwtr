@@ -47,6 +47,8 @@ export interface SwipeableTaskItemProps {
     isHighlighted?: boolean;
     showFocusToggle?: boolean;
     hideStatusBadge?: boolean;
+    /** Render the status control as a compact icon button (no status-name label) for single-status lists */
+    statusBadgeAsIcon?: boolean;
     sequenceCue?: ProjectSequenceTaskCue;
     sequenceLabel?: string;
     disableSwipe?: boolean;
@@ -110,6 +112,7 @@ export function SwipeableTaskItem({
     isHighlighted = false,
     showFocusToggle = false,
     hideStatusBadge = false,
+    statusBadgeAsIcon = false,
     sequenceCue,
     sequenceLabel,
     disableSwipe = false,
@@ -481,6 +484,7 @@ export function SwipeableTaskItem({
             hideContexts={hideContexts}
             hideProjectMeta={hideProjectMeta}
             hideStatusBadge={hideStatusBadge}
+            statusBadgeAsIcon={statusBadgeAsIcon}
             isDark={isDark}
             isHighlighted={isHighlighted}
             isMultiSelected={isMultiSelected}

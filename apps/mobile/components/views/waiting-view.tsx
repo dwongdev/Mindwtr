@@ -206,6 +206,7 @@ export function WaitingView() {
             onStatusChange={(status) => handleStatusChange(task.id, status)}
             onDelete={() => { void deleteTask(task.id); }}
             isHighlighted={task.id === highlightTaskId}
+            statusBadgeAsIcon
             onProjectPress={openProjectScreen}
             onContextPress={openContextsScreen}
             onTagPress={openContextsScreen}

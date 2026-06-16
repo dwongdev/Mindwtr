@@ -1,6 +1,6 @@
 import React, { type ReactNode, useMemo } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { Repeat } from 'lucide-react-native';
+import { CircleDot, Repeat } from 'lucide-react-native';
 import {
     getInlineMarkdownPreview,
     getTaskAgeLabel,
@@ -31,6 +31,8 @@ interface SwipeableTaskItemContentProps {
     hideContexts: boolean;
     hideProjectMeta: boolean;
     hideStatusBadge: boolean;
+    /** Render the status control as a compact icon button (no status-name label) for single-status lists */
+    statusBadgeAsIcon: boolean;
     isDark: boolean;
     isHighlighted: boolean;
     isMultiSelected: boolean;
@@ -71,6 +73,7 @@ export function SwipeableTaskItemContent({
     hideContexts,
     hideProjectMeta,
     hideStatusBadge,
+    statusBadgeAsIcon,
     isDark,
     isHighlighted,
     isMultiSelected,
@@ -490,17 +493,25 @@ export function SwipeableTaskItemContent({
                         onOpenStatusMenu();
                     }}
                     hitSlop={8}
-                    style={[
-                        styles.statusBadge,
-                        { backgroundColor: statusColors.bg, borderColor: statusColors.border },
-                    ]}
+                    style={
+                        statusBadgeAsIcon
+                            ? styles.statusIconButton
+                            : [
+                                styles.statusBadge,
+                                { backgroundColor: statusColors.bg, borderColor: statusColors.border },
+                            ]
+                    }
                     accessibilityLabel={`Change status. Current status: ${task.status}`}
                     accessibilityHint="Double tap to open status menu"
                     accessibilityRole="button"
                 >
-                    <Text style={[styles.statusText, { color: statusColors.text }]}>
-                        {t(`status.${task.status}`)}
-                    </Text>
+                    {statusBadgeAsIcon ? (
+                        <CircleDot size={20} color={statusColors.text} strokeWidth={2} />
+                    ) : (
+                        <Text style={[styles.statusText, { color: statusColors.text }]}>
+                            {t(`status.${task.status}`)}
+                        </Text>
+                    )}
                 </Pressable>
             )}
         </Pressable>
