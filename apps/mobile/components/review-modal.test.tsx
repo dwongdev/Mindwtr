@@ -272,7 +272,7 @@ describe('ReviewModal', () => {
             tree = create(<ReviewModal visible onClose={vi.fn()} />);
         });
 
-        const rows = tree.root.findAll((node) => node.type === 'SwipeableTaskItem');
+        const rows = tree.root.findAll((node) => String(node.type) === 'SwipeableTaskItem');
         expect(rows.length).toBeGreaterThan(0);
         for (const row of rows) {
             expect(typeof row.props.onPress).toBe('function');
