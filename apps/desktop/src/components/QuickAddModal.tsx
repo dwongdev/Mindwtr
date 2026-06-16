@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import type { ClipboardEvent } from 'react';
+import type { ChangeEvent, ClipboardEvent } from 'react';
 import {
     shallow,
     useTaskStore,
@@ -9,9 +9,13 @@ import {
     parseQuickAdd,
     safeFormatDate,
     generateUUID,
+    splitQuickAddBulkLines,
     DEFAULT_PROJECT_COLOR,
     tFallback,
+    type Area,
     type Attachment,
+    type Project,
+    type QuickAddResult,
     type Task,
 } from '@mindwtr/core';
 import { BaseDirectory, mkdir, readFile, remove, writeFile } from '@tauri-apps/plugin-fs';
@@ -56,6 +60,11 @@ type QuickAddOpenDetail = {
     initialProps?: Partial<Task>;
     initialValue?: string;
     captureMode?: 'text' | 'audio';
+};
+
+type ParsedQuickAddTask = {
+    input: string;
+    parsed: QuickAddResult;
 };
 
 function getCreatedTaskId(result: unknown): string | null {
@@ -107,6 +116,18 @@ async function readClipboardFileBytes(file: File): Promise<Uint8Array> {
     return new Uint8Array(await new Response(file).arrayBuffer());
 }
 
+async function readTextFile(file: File): Promise<string> {
+    if (typeof file.text === 'function') {
+        return file.text();
+    }
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(String(reader.result ?? ''));
+        reader.onerror = () => reject(reader.error ?? new Error('File read failed'));
+        reader.readAsText(file);
+    });
+}
+
 export function QuickAddModal({ standaloneWindow = false }: QuickAddModalProps) {
     const getDerivedState = useTaskStore((state) => state.getDerivedState);
     const { addTask, addProject, projects, areas, settings, setHighlightTask } = useTaskStore(
@@ -143,8 +164,11 @@ export function QuickAddModal({ standaloneWindow = false }: QuickAddModalProps) 
     const [pastedImageAttachments, setPastedImageAttachments] = useState<PastedImageAttachment[]>([]);
     const [pastedImageError, setPastedImageError] = useState<string | null>(null);
     const [pastingImageCount, setPastingImageCount] = useState(0);
+    const [bulkQuickAddLines, setBulkQuickAddLines] = useState<string[] | null>(null);
+    const [bulkQuickAddError, setBulkQuickAddError] = useState<string | null>(null);
     const lastActiveElementRef = useRef<HTMLElement | null>(null);
     const modalRef = useRef<HTMLDivElement | null>(null);
+    const fileInputRef = useRef<HTMLInputElement | null>(null);
     const audioContextRef = useRef<AudioContext | null>(null);
     const audioStreamRef = useRef<MediaStream | null>(null);
     const audioSourceRef = useRef<MediaStreamAudioSourceNode | null>(null);
@@ -240,6 +264,8 @@ export function QuickAddModal({ standaloneWindow = false }: QuickAddModalProps) 
             setInitialProps(detail?.initialProps ?? null);
             setValue(detail?.initialValue ?? '');
             setForcedCaptureMode(detail?.captureMode ?? null);
+            setBulkQuickAddLines(null);
+            setBulkQuickAddError(null);
             resetPastedImageAttachments(true);
             isOpenRef.current = true;
             setIsOpen(true);
@@ -381,6 +407,8 @@ export function QuickAddModal({ standaloneWindow = false }: QuickAddModalProps) 
         setValue('');
         setSelectedAreaId('');
         setForcedCaptureMode(null);
+        setBulkQuickAddLines(null);
+        setBulkQuickAddError(null);
         resetPastedImageAttachments(!options?.keepPastedImages);
         lastActiveElementRef.current?.focus();
         hideStandaloneWindow();
@@ -412,34 +440,62 @@ export function QuickAddModal({ standaloneWindow = false }: QuickAddModalProps) 
         };
     }, [t]);
 
-    const handleImagePaste = useCallback((event: ClipboardEvent<HTMLInputElement>) => {
+    const handleQuickAddPaste = useCallback((event: ClipboardEvent<HTMLInputElement>) => {
         const imageFiles = getClipboardImageFiles(event.clipboardData);
-        if (imageFiles.length === 0) return;
-        event.preventDefault();
-        setPastedImageError(null);
-        imageFiles.forEach((file) => {
-            setPastingImageCount((count) => count + 1);
-            void createPastedImageAttachment(file)
-                .then((pastedAttachment) => {
-                    if (!isOpenRef.current) {
-                        cleanupPastedImageAttachments([pastedAttachment]);
-                        return;
-                    }
-                    setPastedImageAttachments((current) => {
-                        const next = [...current, pastedAttachment];
-                        pastedImageAttachmentsRef.current = next;
-                        return next;
+        if (imageFiles.length > 0) {
+            event.preventDefault();
+            setPastedImageError(null);
+            imageFiles.forEach((file) => {
+                setPastingImageCount((count) => count + 1);
+                void createPastedImageAttachment(file)
+                    .then((pastedAttachment) => {
+                        if (!isOpenRef.current) {
+                            cleanupPastedImageAttachments([pastedAttachment]);
+                            return;
+                        }
+                        setPastedImageAttachments((current) => {
+                            const next = [...current, pastedAttachment];
+                            pastedImageAttachmentsRef.current = next;
+                            return next;
+                        });
+                    })
+                    .catch((error) => {
+                        reportError('Failed to attach pasted image', error);
+                        setPastedImageError(tFallback(t, 'quickAdd.pastedImageError', 'Could not attach pasted image.'));
+                    })
+                    .finally(() => {
+                        setPastingImageCount((count) => Math.max(0, count - 1));
                     });
-                })
-                .catch((error) => {
-                    reportError('Failed to attach pasted image', error);
-                    setPastedImageError(tFallback(t, 'quickAdd.pastedImageError', 'Could not attach pasted image.'));
-                })
-                .finally(() => {
-                    setPastingImageCount((count) => Math.max(0, count - 1));
-                });
-        });
+            });
+            return;
+        }
+
+        const pastedText = event.clipboardData?.getData('text/plain') ?? '';
+        const lines = splitQuickAddBulkLines(pastedText);
+        if (lines.length <= 1) return;
+        event.preventDefault();
+        setBulkQuickAddLines(lines);
+        setBulkQuickAddError(null);
     }, [cleanupPastedImageAttachments, createPastedImageAttachment, t]);
+
+    const handleTextFileImport = useCallback(async (event: ChangeEvent<HTMLInputElement>) => {
+        const file = event.target.files?.[0];
+        event.target.value = '';
+        if (!file) return;
+        try {
+            const text = await readTextFile(file);
+            const lines = splitQuickAddBulkLines(text);
+            setBulkQuickAddError(null);
+            if (lines.length > 1) {
+                setBulkQuickAddLines(lines);
+            } else if (lines.length === 1) {
+                setValue(lines[0]);
+            }
+        } catch (error) {
+            reportError('Failed to import quick add text file', error);
+            setBulkQuickAddError(tFallback(t, 'quickAdd.bulkImportError', 'Could not read that text file.'));
+        }
+    }, [t]);
 
     const startRecording = useCallback(async () => {
         if (recordingBusy || isRecording) return;
@@ -779,6 +835,74 @@ export function QuickAddModal({ standaloneWindow = false }: QuickAddModalProps) 
         }
     }, [setEditingTaskId, setHighlightTask, setProjectView]);
 
+    const createTaskFromParsedQuickAdd = useCallback(async ({
+        currentAreas,
+        currentProjects,
+        extraAttachments,
+        input,
+        parsed,
+    }: {
+        currentAreas: Area[];
+        currentProjects: Project[];
+        extraAttachments?: Attachment[];
+        input: string;
+        parsed: QuickAddResult;
+    }) => {
+        const { title, props, projectTitle, detectedDate } = parsed;
+        const baseProps: Partial<Task> = { ...initialProps, ...props };
+        const mergedAttachments = mergeQuickAddAttachments(
+            initialProps?.attachments,
+            props.attachments,
+            extraAttachments,
+        );
+        if (mergedAttachments) {
+            baseProps.attachments = mergedAttachments;
+        }
+        const shouldApplyDetectedDate = Boolean(detectedDate?.date && !baseProps.dueDate);
+        if (shouldApplyDetectedDate && detectedDate) {
+            baseProps.dueDate = detectedDate.date;
+        }
+        const finalTitle = shouldApplyDetectedDate && detectedDate
+            ? detectedDate.titleWithoutDate
+            : (title || input.trim() || extraAttachments?.[0]?.title || tFallback(t, 'quickAdd.pastedImageTitle', 'Screenshot'));
+        if (!finalTitle.trim()) return { success: false, currentProjects, currentAreas };
+        if (!baseProps.areaId && selectedAreaId) {
+            baseProps.areaId = selectedAreaId;
+        }
+        let projectId = baseProps.projectId;
+        let nextProjects = currentProjects;
+        if (!projectId && projectTitle) {
+            const existing = currentProjects.find((project) => (
+                project.status !== 'archived'
+                && project.title.toLowerCase() === projectTitle.toLowerCase()
+            ));
+            if (existing) {
+                projectId = existing.id;
+            } else {
+                const created = await addProject(
+                    projectTitle,
+                    DEFAULT_PROJECT_COLOR,
+                    getQuickAddProjectInitialProps(baseProps)
+                );
+                if (!created) return { success: false, currentProjects, currentAreas };
+                projectId = created.id;
+                nextProjects = [...currentProjects, created];
+            }
+        }
+        const mergedProps: Partial<Task> = { status: 'inbox', ...baseProps, projectId };
+        if (projectId) mergedProps.areaId = undefined;
+        if (!baseProps.status) mergedProps.status = 'inbox';
+        const addTaskResult = await addTask(finalTitle, mergedProps);
+        if (!addTaskResult.success) return { success: false, currentProjects: nextProjects, currentAreas };
+        return {
+            success: true,
+            createdTaskId: getCreatedTaskId(addTaskResult),
+            props: mergedProps,
+            currentAreas,
+            currentProjects: nextProjects,
+        };
+    }, [addProject, addTask, initialProps, selectedAreaId, t]);
+
     useEffect(() => {
         if (!isOpen) return;
         const handler = (event: KeyboardEvent) => {
@@ -802,60 +926,72 @@ export function QuickAddModal({ standaloneWindow = false }: QuickAddModalProps) 
             currentProjects = currentState.projects;
             currentAreas = currentState.areas;
         }
-        const { title, props, projectTitle, invalidDateCommands, detectedDate } = parseQuickAdd(
-            value,
-            currentProjects,
-            new Date(),
-            currentAreas,
-            quickAddParseOptions,
-        );
-        if (invalidDateCommands && invalidDateCommands.length > 0) {
+        const parsed = parseQuickAdd(value, currentProjects, new Date(), currentAreas, quickAddParseOptions);
+        if (parsed.invalidDateCommands && parsed.invalidDateCommands.length > 0) {
             return;
         }
-        const baseProps: Partial<Task> = { ...initialProps, ...props };
-        const mergedAttachments = mergeQuickAddAttachments(
-            initialProps?.attachments,
-            props.attachments,
-            pastedAttachments,
-        );
-        if (mergedAttachments) {
-            baseProps.attachments = mergedAttachments;
-        }
-        const shouldApplyDetectedDate = Boolean(detectedDate?.date && !baseProps.dueDate);
-        if (shouldApplyDetectedDate && detectedDate) {
-            baseProps.dueDate = detectedDate.date;
-        }
-        const finalTitle = shouldApplyDetectedDate && detectedDate
-            ? detectedDate.titleWithoutDate
-            : (title || value.trim() || pastedAttachments[0]?.title || tFallback(t, 'quickAdd.pastedImageTitle', 'Screenshot'));
-        if (!finalTitle.trim()) return;
-        if (!baseProps.areaId && selectedAreaId) {
-            baseProps.areaId = selectedAreaId;
-        }
-        let projectId = baseProps.projectId;
-        if (!projectId && projectTitle) {
-            const created = await addProject(
-                projectTitle,
-                DEFAULT_PROJECT_COLOR,
-                getQuickAddProjectInitialProps(baseProps)
-            );
-            if (!created) return;
-            projectId = created.id;
-        }
-        const mergedProps: Partial<Task> = { status: 'inbox', ...baseProps, projectId };
-        if (projectId) mergedProps.areaId = undefined;
-        if (!baseProps.status) mergedProps.status = 'inbox';
-        const addTaskResult = await addTask(finalTitle, mergedProps);
-        if (!addTaskResult.success) return;
-        const createdTaskId = getCreatedTaskId(addTaskResult);
+        const result = await createTaskFromParsedQuickAdd({
+            currentAreas,
+            currentProjects,
+            extraAttachments: pastedAttachments,
+            input: value,
+            parsed,
+        });
+        if (!result.success) return;
         if (standaloneWindow) {
             await flushPendingSave().catch((error) => reportError('Failed to save quick add task', error));
             await notifyStandaloneTaskSaved();
         }
         close({ keepPastedImages: true });
-        if (openAfterSave && createdTaskId && !standaloneWindow) {
-            openCreatedTaskForEditing(createdTaskId, mergedProps);
+        if (openAfterSave && result.createdTaskId && result.props && !standaloneWindow) {
+            openCreatedTaskForEditing(result.createdTaskId, result.props);
         }
+    };
+
+    const confirmBulkQuickAdd = async () => {
+        if (!bulkQuickAddLines || bulkQuickAddLines.length === 0 || isPastingImage) return;
+        let currentProjects = projects;
+        let currentAreas = areas;
+        if (standaloneWindow) {
+            await refreshStandaloneData().catch((error) => reportError('Failed to refresh quick add data', error));
+            const currentState = useTaskStore.getState();
+            currentProjects = currentState.projects;
+            currentAreas = currentState.areas;
+        }
+        const parsedItems: ParsedQuickAddTask[] = bulkQuickAddLines.map((line) => ({
+            input: line,
+            parsed: parseQuickAdd(line, currentProjects, new Date(), currentAreas, quickAddParseOptions),
+        }));
+        const invalid = parsedItems.find((item) => item.parsed.invalidDateCommands?.length);
+        if (invalid?.parsed.invalidDateCommands?.length) {
+            setBulkQuickAddError(
+                `${tFallback(t, 'quickAdd.invalidDateCommand', 'Invalid date command')}: ${invalid.parsed.invalidDateCommands.join(', ')}`
+            );
+            return;
+        }
+
+        for (const item of parsedItems) {
+            const result = await createTaskFromParsedQuickAdd({
+                currentAreas,
+                currentProjects,
+                input: item.input,
+                parsed: item.parsed,
+            });
+            if (!result.success) {
+                setBulkQuickAddError(tFallback(t, 'quickAdd.bulkCreateError', 'Could not create all tasks.'));
+                return;
+            }
+            currentProjects = result.currentProjects;
+            currentAreas = result.currentAreas;
+        }
+
+        if (standaloneWindow) {
+            await flushPendingSave().catch((error) => reportError('Failed to save quick add tasks', error));
+            await notifyStandaloneTaskSaved();
+        }
+        setBulkQuickAddLines(null);
+        setBulkQuickAddError(null);
+        close({ keepPastedImages: true });
     };
 
     const handleSubmit = async (e: React.FormEvent) => {
@@ -881,6 +1017,11 @@ export function QuickAddModal({ standaloneWindow = false }: QuickAddModalProps) 
         ? tFallback(t, 'quickAdd.pastedImageAttached', '1 image attached')
         : tFallback(t, 'quickAdd.pastedImagesAttached', `${pastedImageAttachments.length} images attached`);
     const saveDisabled = isPastingImage || (!value.trim() && pastedImageAttachments.length === 0);
+    const bulkTaskCount = bulkQuickAddLines?.length ?? 0;
+    const bulkConfirmTitle = tFallback(t, 'quickAdd.bulkConfirmTitle', 'Create {{count}} tasks?')
+        .replace('{{count}}', String(bulkTaskCount));
+    const bulkPreviewLines = bulkQuickAddLines?.slice(0, 8) ?? [];
+    const bulkMoreCount = Math.max(0, bulkTaskCount - bulkPreviewLines.length);
 
     if (!isOpen) return null;
 
@@ -974,7 +1115,7 @@ export function QuickAddModal({ standaloneWindow = false }: QuickAddModalProps) 
                                 return created?.id ?? null;
                             }}
                             onChange={(next) => setValue(next)}
-                            onPaste={handleImagePaste}
+                            onPaste={handleQuickAddPaste}
                             onKeyDown={(e) => {
                                 if (e.key === 'Escape') {
                                     e.preventDefault();
@@ -996,6 +1137,9 @@ export function QuickAddModal({ standaloneWindow = false }: QuickAddModalProps) 
                         ) : null}
                         {pastedImageError ? (
                             <p className="text-xs text-destructive">{pastedImageError}</p>
+                        ) : null}
+                        {bulkQuickAddError && !bulkQuickAddLines ? (
+                            <p className="text-xs text-destructive">{bulkQuickAddError}</p>
                         ) : null}
                         {showAreaSelector && (
                             <div className="flex flex-col gap-1">
@@ -1025,6 +1169,23 @@ export function QuickAddModal({ standaloneWindow = false }: QuickAddModalProps) 
                             </p>
                         )}
                         <div className="flex justify-end gap-2 pt-1">
+                            <input
+                                ref={fileInputRef}
+                                aria-label={tFallback(t, 'quickAdd.bulkImportTextFileLabel', 'Import text file')}
+                                className="sr-only"
+                                type="file"
+                                accept=".txt,text/plain"
+                                onChange={(event) => {
+                                    void handleTextFileImport(event);
+                                }}
+                            />
+                            <button
+                                type="button"
+                                onClick={() => fileInputRef.current?.click()}
+                                className="px-3 py-1.5 rounded-md text-sm border border-border bg-background hover:bg-muted/60"
+                            >
+                                {tFallback(t, 'quickAdd.bulkImportTextFile', 'Import .txt')}
+                            </button>
                             <button
                                 type="button"
                                 onClick={handleClose}
@@ -1107,6 +1268,67 @@ export function QuickAddModal({ standaloneWindow = false }: QuickAddModalProps) 
                 )}
             </div>
         </div>
+        {bulkQuickAddLines ? (
+            <div
+                className="fixed inset-0 bg-black/50 flex items-start justify-center pt-[22vh] z-[60]"
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby="quick-add-bulk-title"
+                onClick={() => {
+                    setBulkQuickAddLines(null);
+                    setBulkQuickAddError(null);
+                }}
+            >
+                <div
+                    className="w-full max-w-md rounded-xl border bg-popover p-4 text-popover-foreground shadow-2xl"
+                    onClick={(event) => event.stopPropagation()}
+                >
+                    <h4 id="quick-add-bulk-title" className="text-sm font-semibold">
+                        {bulkConfirmTitle}
+                    </h4>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                        {tFallback(t, 'quickAdd.bulkConfirmBody', 'Blank lines will be skipped. Each line uses Quick Add syntax.')}
+                    </p>
+                    <div className="mt-3 max-h-48 overflow-auto rounded-md border border-border bg-card text-sm">
+                        {bulkPreviewLines.map((line, index) => (
+                            <div key={`${index}:${line}`} className="border-b border-border px-3 py-2 last:border-b-0">
+                                {line}
+                            </div>
+                        ))}
+                        {bulkMoreCount > 0 ? (
+                            <div className="px-3 py-2 text-xs text-muted-foreground">
+                                {tFallback(t, 'quickAdd.bulkMoreLines', '+{{count}} more')
+                                    .replace('{{count}}', String(bulkMoreCount))}
+                            </div>
+                        ) : null}
+                    </div>
+                    {bulkQuickAddError ? (
+                        <p className="mt-2 text-xs text-destructive">{bulkQuickAddError}</p>
+                    ) : null}
+                    <div className="mt-4 flex justify-end gap-2">
+                        <button
+                            type="button"
+                            onClick={() => {
+                                setBulkQuickAddLines(null);
+                                setBulkQuickAddError(null);
+                            }}
+                            className="px-3 py-1.5 rounded-md text-sm bg-muted hover:bg-muted/80"
+                        >
+                            {t('common.cancel')}
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => {
+                                void confirmBulkQuickAdd();
+                            }}
+                            className="px-3 py-1.5 rounded-md text-sm bg-primary text-primary-foreground hover:bg-primary/90"
+                        >
+                            {tFallback(t, 'quickAdd.bulkConfirmCreate', 'Create tasks')}
+                        </button>
+                    </div>
+                </div>
+            </div>
+        ) : null}
         </ModalPortal>
     );
 }

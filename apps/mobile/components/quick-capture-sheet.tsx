@@ -1,10 +1,13 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
+  Alert,
   Keyboard,
   Platform,
   TextInput,
   useWindowDimensions,
 } from 'react-native';
+import * as DocumentPicker from 'expo-document-picker';
+import * as FileSystem from 'expo-file-system';
 
 import {
   DEFAULT_PROJECT_COLOR,
@@ -16,6 +19,8 @@ import {
   safeFormatDate,
   safeParseDate,
   shallow,
+  splitQuickAddBulkLines,
+  tFallback,
   type Task,
   type TaskPriority,
   useTaskStore,
@@ -40,6 +45,7 @@ import { useAndroidQuickCaptureExpand } from './quick-capture-sheet/useAndroidQu
 
 const PRIORITY_OPTIONS: TaskPriority[] = ['low', 'medium', 'high', 'urgent'];
 const ANDROID_OPTIONS_EXPAND_FALLBACK_MS = 500;
+const BULK_PREVIEW_LINE_LIMIT = 5;
 
 const logCaptureWarn = (message: string, error?: unknown) => {
   void logWarn(message, { scope: 'capture', extra: buildCaptureExtra(undefined, error) });
@@ -375,8 +381,8 @@ export function QuickCaptureSheet({
     };
   }, [visible]);
 
-  const buildTaskProps = useCallback(async (fallbackTitle: string, extraProps?: Partial<Task>) => {
-    const trimmed = value.trim();
+  const buildTaskPropsForInput = useCallback(async (inputValue: string, fallbackTitle: string, extraProps?: Partial<Task>) => {
+    const trimmed = inputValue.trim();
     let finalTitle = trimmed || fallbackTitle;
     let projectTitle: string | undefined;
     let parsedProps: Partial<Task> = {};
@@ -448,7 +454,11 @@ export function QuickCaptureSheet({
     if (startTime) initialPropsMerged.startTime = startTime.toISOString();
 
     return { title: finalTitle, props: initialPropsMerged, invalidDateCommands };
-  }, [addProject, areas, contextTags, dueDate, dueDateHasTime, initialProps, prioritiesEnabled, priority, projectId, projects, selectedAreaId, settings.quickAddAutoClean, startTime, value]);
+  }, [addProject, areas, contextTags, dueDate, dueDateHasTime, initialProps, prioritiesEnabled, priority, projectId, projects, selectedAreaId, settings.quickAddAutoClean, startTime]);
+
+  const buildTaskProps = useCallback((fallbackTitle: string, extraProps?: Partial<Task>) => (
+    buildTaskPropsForInput(value, fallbackTitle, extraProps)
+  ), [buildTaskPropsForInput, value]);
 
   const resetState = useCallback(() => {
     clearAndroidOptionsExpand();
@@ -512,30 +522,88 @@ export function QuickCaptureSheet({
     finalizeClose();
   }, [finalizeClose, recording, recordingBusy, stopRecording]);
 
-  const handleSave = useCallback(async ({ openAfterSave = false }: { openAfterSave?: boolean } = {}) => {
-    if (!value.trim()) return;
+  const formatBulkConfirmTitle = useCallback((count: number) => (
+    tFallback(t, 'quickAdd.bulkConfirmTitle', 'Create {{count}} tasks?')
+      .replace('{{count}}', String(count))
+  ), [t]);
+
+  const formatBulkConfirmMessage = useCallback((lines: string[]) => {
+    const preview = lines.slice(0, BULK_PREVIEW_LINE_LIMIT).join('\n');
+    const remaining = Math.max(0, lines.length - BULK_PREVIEW_LINE_LIMIT);
+    const suffix = remaining > 0
+      ? `\n${tFallback(t, 'quickAdd.bulkMoreLines', '+{{count}} more').replace('{{count}}', String(remaining))}`
+      : '';
+    return `${preview}${suffix}`;
+  }, [t]);
+
+  const createTaskFromInput = useCallback(async (inputValue: string) => {
+    const { title, props, invalidDateCommands } = await buildTaskPropsForInput(inputValue, inputValue.trim());
+    if (invalidDateCommands && invalidDateCommands.length > 0) {
+      showToast({
+        title: t('common.notice'),
+        message: `${t('quickAdd.invalidDateCommand')}: ${invalidDateCommands.join(', ')}`,
+        tone: 'warning',
+        durationMs: 4200,
+      });
+      return null;
+    }
+    if (!title.trim()) return null;
+
+    const addTaskResult = await addTask(title, props);
+    if (addTaskResult && typeof addTaskResult === 'object' && addTaskResult.success === false) return null;
+    return {
+      createdTaskId: getCreatedTaskId(addTaskResult),
+      props,
+    };
+  }, [addTask, buildTaskPropsForInput, showToast, t]);
+
+  const createBulkTasks = useCallback(async (lines: string[]) => {
     if (isSavingRef.current) return;
     isSavingRef.current = true;
     try {
-      const { title, props, invalidDateCommands } = await buildTaskProps(value.trim());
-      if (invalidDateCommands && invalidDateCommands.length > 0) {
-        showToast({
-          title: t('common.notice'),
-          message: `${t('quickAdd.invalidDateCommand')}: ${invalidDateCommands.join(', ')}`,
-          tone: 'warning',
-          durationMs: 4200,
-        });
-        return;
+      for (const line of lines) {
+        const result = await createTaskFromInput(line);
+        if (!result) return;
       }
-      if (!title.trim()) return;
+      finalizeClose();
+    } finally {
+      isSavingRef.current = false;
+    }
+  }, [createTaskFromInput, finalizeClose]);
 
-      const addTaskResult = await addTask(title, props);
-      const createdTaskId = getCreatedTaskId(addTaskResult);
+  const confirmBulkQuickAdd = useCallback((lines: string[]) => {
+    Alert.alert(
+      formatBulkConfirmTitle(lines.length),
+      formatBulkConfirmMessage(lines),
+      [
+        { text: t('common.cancel'), style: 'cancel' },
+        {
+          text: tFallback(t, 'quickAdd.bulkConfirmCreate', 'Create tasks'),
+          onPress: () => {
+            void createBulkTasks(lines);
+          },
+        },
+      ],
+    );
+  }, [createBulkTasks, formatBulkConfirmMessage, formatBulkConfirmTitle, t]);
+
+  const handleSave = useCallback(async ({ openAfterSave = false }: { openAfterSave?: boolean } = {}) => {
+    if (!value.trim()) return;
+    const bulkLines = splitQuickAddBulkLines(value);
+    if (bulkLines.length > 1) {
+      confirmBulkQuickAdd(bulkLines);
+      return;
+    }
+    if (isSavingRef.current) return;
+    isSavingRef.current = true;
+    try {
+      const result = await createTaskFromInput(value.trim());
+      if (!result) return;
 
       if (openAfterSave) {
         finalizeClose();
-        if (createdTaskId) {
-          openTaskScreen(createdTaskId, props.projectId, 'task');
+        if (result.createdTaskId) {
+          openTaskScreen(result.createdTaskId, result.props.projectId, 'task');
         }
         return;
       }
@@ -550,7 +618,7 @@ export function QuickCaptureSheet({
     } finally {
       isSavingRef.current = false;
     }
-  }, [addAnother, addTask, buildTaskProps, finalizeClose, resetDraftState, showToast, t, value]);
+  }, [addAnother, confirmBulkQuickAdd, createTaskFromInput, finalizeClose, resetDraftState, value]);
 
   const selectedProject = projectId ? projects.find((project) => project.id === projectId) : null;
   const dueLabel = dueDate ? safeFormatDate(dueDate, dueDateHasTime ? 'Pp' : 'P') : t('taskEdit.dueDateLabel');
@@ -764,6 +832,34 @@ export function QuickCaptureSheet({
     setContextOptionsLoading(false);
   }, [clearContextOptionsLoad]);
 
+  const handleImportTextFile = useCallback(async () => {
+    try {
+      const result = await DocumentPicker.getDocumentAsync({
+        copyToCacheDirectory: true,
+        multiple: false,
+        type: 'text/plain',
+      });
+      if (result.canceled) return;
+      const asset = result.assets?.[0];
+      if (!asset?.uri) return;
+      const text = await FileSystem.readAsStringAsync(asset.uri);
+      const lines = splitQuickAddBulkLines(text);
+      if (lines.length > 1) {
+        confirmBulkQuickAdd(lines);
+      } else if (lines.length === 1) {
+        setValue(lines[0]);
+      }
+    } catch (error) {
+      logCaptureError('Failed to import quick capture text file', error);
+      showToast({
+        title: t('common.notice'),
+        message: tFallback(t, 'quickAdd.bulkImportError', 'Could not read that text file.'),
+        tone: 'warning',
+        durationMs: 4200,
+      });
+    }
+  }, [confirmBulkQuickAdd, showToast, t]);
+
   const pickerProps = {
     areas,
     contextInputRef,
@@ -823,6 +919,7 @@ export function QuickCaptureSheet({
         dueLabel={dueLabel}
         dueTimeLabel={dueTimeLabel}
         handleClose={handleClose}
+        handleImportTextFile={handleImportTextFile}
         handleSave={() => {
           void handleSave();
         }}

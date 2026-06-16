@@ -168,6 +168,22 @@ export const styles = StyleSheet.create({
     lineHeight: 15,
     fontWeight: '500',
   },
+  importTextButton: {
+    alignSelf: 'flex-start',
+    borderRadius: 999,
+    borderWidth: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginTop: 8,
+    minHeight: 38,
+    paddingHorizontal: 10,
+    paddingVertical: 7,
+  },
+  importTextButtonText: {
+    fontSize: 12,
+    fontWeight: '700',
+  },
   customDateButton: {
     minHeight: 34,
     borderRadius: 999,

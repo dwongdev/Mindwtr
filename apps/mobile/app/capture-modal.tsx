@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import {
+  Alert,
   Keyboard,
   KeyboardAvoidingView,
   Platform,
@@ -19,6 +20,7 @@ import {
   isSelectableProjectForTaskAssignment,
   parseQuickAdd,
   shallow,
+  splitQuickAddBulkLines,
   tFallback,
   type AIProviderId,
   type Project,
@@ -43,6 +45,7 @@ type CaptureSearchParams = {
 };
 
 const URL_INITIAL_TASK_STATUSES = new Set<Task['status']>(['inbox', 'next', 'waiting', 'someday', 'reference']);
+const BULK_PREVIEW_LINE_LIMIT = 5;
 
 const firstSearchParam = (value: string | string[] | undefined): string => {
   if (Array.isArray(value)) return value[0] ?? '';
@@ -325,10 +328,27 @@ export default function CaptureScreen() {
     closeCapture();
   };
 
-  const handleSave = async ({ openAfterSave = false }: { openAfterSave?: boolean } = {}) => {
-    if (!value.trim()) return;
+  const formatBulkConfirmTitle = (count: number) => (
+    tFallback(t, 'quickAdd.bulkConfirmTitle', 'Create {{count}} tasks?')
+      .replace('{{count}}', String(count))
+  );
+
+  const formatBulkConfirmMessage = (lines: string[]) => {
+    const preview = lines.slice(0, BULK_PREVIEW_LINE_LIMIT).join('\n');
+    const remaining = Math.max(0, lines.length - BULK_PREVIEW_LINE_LIMIT);
+    const suffix = remaining > 0
+      ? `\n${tFallback(t, 'quickAdd.bulkMoreLines', '+{{count}} more').replace('{{count}}', String(remaining))}`
+      : '';
+    return `${preview}${suffix}`;
+  };
+
+  const createTaskFromInput = async (
+    inputValue: string,
+    { openAfterSave = false }: { openAfterSave?: boolean } = {},
+  ): Promise<boolean> => {
+    if (!inputValue.trim()) return false;
     const { title, props, projectTitle, invalidDateCommands, detectedDate } = parseQuickAdd(
-      value,
+      inputValue,
       projects,
       new Date(),
       areas,
@@ -347,11 +367,11 @@ export default function CaptureScreen() {
         tone: 'warning',
         durationMs: 4200,
       });
-      return;
+      return false;
     }
     const shouldApplyDetectedDate = Boolean(detectedDate?.date && !props.dueDate);
-    const finalTitle = shouldApplyDetectedDate && detectedDate ? detectedDate.titleWithoutDate : (title || value);
-    if (!finalTitle.trim()) return;
+    const finalTitle = shouldApplyDetectedDate && detectedDate ? detectedDate.titleWithoutDate : (title || inputValue);
+    if (!finalTitle.trim()) return false;
     const taskProps: Partial<Task> = { status: 'inbox', ...initialProps, ...props };
     if (!taskProps.status) taskProps.status = 'inbox';
     if (shouldApplyDetectedDate && detectedDate) {
@@ -384,7 +404,7 @@ export default function CaptureScreen() {
             DEFAULT_PROJECT_COLOR,
             getQuickAddProjectInitialProps(taskProps),
           );
-          if (!created) return;
+          if (!created) return false;
           taskProps.projectId = created.id;
         }
       }
@@ -411,12 +431,44 @@ export default function CaptureScreen() {
       taskProps.tags = nextTags;
     }
     const addTaskResult = await addTask(finalTitle, taskProps);
+    if (addTaskResult && typeof addTaskResult === 'object' && addTaskResult.success === false) return false;
     const createdTaskId = getCreatedTaskId(addTaskResult);
     if (openAfterSave && createdTaskId) {
       openTaskScreen(createdTaskId, taskProps.projectId, 'task');
-      return;
+      return false;
+    }
+    return true;
+  };
+
+  const createBulkTasks = async (lines: string[]) => {
+    for (const line of lines) {
+      const shouldClose = await createTaskFromInput(line);
+      if (!shouldClose) return;
     }
     closeCapture();
+  };
+
+  const handleSave = async ({ openAfterSave = false }: { openAfterSave?: boolean } = {}) => {
+    if (!value.trim()) return;
+    const bulkLines = splitQuickAddBulkLines(value);
+    if (bulkLines.length > 1) {
+      Alert.alert(
+        formatBulkConfirmTitle(bulkLines.length),
+        formatBulkConfirmMessage(bulkLines),
+        [
+          { text: t('common.cancel'), style: 'cancel' },
+          {
+            text: tFallback(t, 'quickAdd.bulkConfirmCreate', 'Create tasks'),
+            onPress: () => {
+              void createBulkTasks(bulkLines);
+            },
+          },
+        ],
+      );
+      return;
+    }
+    const shouldClose = await createTaskFromInput(value, { openAfterSave });
+    if (shouldClose) closeCapture();
   };
 
   return (

@@ -1,5 +1,5 @@
 import React from 'react';
-import { Keyboard, Platform } from 'react-native';
+import { Alert, Keyboard, Platform } from 'react-native';
 import { act, create } from 'react-test-renderer';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -13,7 +13,10 @@ const {
   openTaskScreen,
   getUsedTaskTokens,
   parseQuickAdd,
+  splitQuickAddBulkLines,
   selectStore,
+  documentPickerGetDocumentAsync,
+  fileSystemReadAsStringAsync,
 } = vi.hoisted(() => {
   const addTask = vi.fn();
   const addProject = vi.fn();
@@ -26,6 +29,13 @@ const {
     props: {},
     invalidDateCommands: [],
   }));
+  const splitQuickAddBulkLines = vi.fn((input: string) => input
+    .replace(/\r\n?/g, '\n')
+    .split('\n')
+    .map((line) => line.trim())
+    .filter(Boolean));
+  const documentPickerGetDocumentAsync = vi.fn();
+  const fileSystemReadAsStringAsync = vi.fn();
   const storeState = {
     addTask,
     addProject,
@@ -47,7 +57,10 @@ const {
     openTaskScreen,
     getUsedTaskTokens,
     parseQuickAdd,
+    splitQuickAddBulkLines,
     selectStore,
+    documentPickerGetDocumentAsync,
+    fileSystemReadAsStringAsync,
   };
 });
 
@@ -63,6 +76,7 @@ vi.mock('@mindwtr/core', () => ({
     !project.deletedAt && project.status !== 'archived' && project.status !== 'completed'
   ),
   parseQuickAdd,
+  splitQuickAddBulkLines,
   safeFormatDate: (value: Date | string, formatStr: string) => {
     const date = value instanceof Date ? value : new Date(value);
     if (formatStr === 'p') {
@@ -82,6 +96,14 @@ vi.mock('@mindwtr/core', () => ({
     return value && value !== key ? value : fallback;
   },
   useTaskStore: selectStore,
+}));
+
+vi.mock('expo-document-picker', () => ({
+  getDocumentAsync: documentPickerGetDocumentAsync,
+}));
+
+vi.mock('expo-file-system', () => ({
+  readAsStringAsync: fileSystemReadAsStringAsync,
 }));
 
 vi.mock('react-native', async () => {
@@ -191,6 +213,8 @@ describe('QuickCaptureSheet save handling', () => {
     selectStore.getState().tasks = [];
     getUsedTaskTokens.mockClear();
     getUsedTaskTokens.mockReturnValue([]);
+    documentPickerGetDocumentAsync.mockReset();
+    fileSystemReadAsStringAsync.mockReset();
     parseQuickAdd.mockReset();
     parseQuickAdd.mockImplementation((input: string) => ({
       title: input,
@@ -422,6 +446,112 @@ describe('QuickCaptureSheet save handling', () => {
       resolveAddTask?.({ success: true, id: 'task-1' });
       await Promise.resolve();
     });
+  });
+
+  it('confirms multiline capture before creating one task per line', async () => {
+    const alertSpy = vi.spyOn(Alert, 'alert').mockImplementation(vi.fn());
+    addTask.mockResolvedValue({ success: true, id: 'task-1' });
+    parseQuickAdd.mockImplementation((input: string) => ({
+      title: input.replace(/\s+\/next$/u, ''),
+      props: input.endsWith('/next') ? { status: 'next' } : {},
+      invalidDateCommands: [],
+    }));
+
+    let tree!: ReturnType<typeof create>;
+    await act(async () => {
+      tree = create(
+        <QuickCaptureSheet
+          visible
+          openRequestId={1}
+          initialValue={'Email Bob\n\nCall Alice /next'}
+          onClose={vi.fn()}
+        />
+      );
+      await Promise.resolve();
+    });
+
+    const body = tree.root.findAll((node) => String(node.type) === 'QuickCaptureSheetBody')[0];
+    if (!body) throw new Error('QuickCaptureSheetBody not found');
+
+    await act(async () => {
+      body.props.handleSave();
+      await Promise.resolve();
+    });
+
+    expect(addTask).not.toHaveBeenCalled();
+    expect(alertSpy).toHaveBeenCalledWith(
+      'Create 2 tasks?',
+      expect.stringContaining('Email Bob'),
+      expect.any(Array),
+    );
+
+    const buttons = alertSpy.mock.calls[0]?.[2] as Array<{ text?: string; onPress?: () => void | Promise<void> }>;
+    const confirm = buttons.find((button) => button.text === 'Create tasks');
+    if (!confirm?.onPress) throw new Error('Confirm button not found');
+
+    await act(async () => {
+      await confirm.onPress?.();
+      await Promise.resolve();
+    });
+
+    expect(addTask).toHaveBeenCalledTimes(2);
+    expect(addTask).toHaveBeenNthCalledWith(1, 'Email Bob', expect.objectContaining({ status: 'inbox' }));
+    expect(addTask).toHaveBeenNthCalledWith(2, 'Call Alice', expect.objectContaining({ status: 'next' }));
+  });
+
+  it('imports a text file through the bulk capture confirmation', async () => {
+    const alertSpy = vi.spyOn(Alert, 'alert').mockImplementation(vi.fn());
+    addTask.mockResolvedValue({ success: true, id: 'task-1' });
+    documentPickerGetDocumentAsync.mockResolvedValue({
+      canceled: false,
+      assets: [{ name: 'tasks.txt', uri: 'file://tasks.txt', mimeType: 'text/plain' }],
+    });
+    fileSystemReadAsStringAsync.mockResolvedValue('First imported task\nSecond imported task\n');
+
+    let tree!: ReturnType<typeof create>;
+    await act(async () => {
+      tree = create(
+        <QuickCaptureSheet
+          visible
+          openRequestId={1}
+          initialValue=""
+          onClose={vi.fn()}
+        />
+      );
+      await Promise.resolve();
+    });
+
+    const body = tree.root.findAll((node) => String(node.type) === 'QuickCaptureSheetBody')[0];
+    if (!body) throw new Error('QuickCaptureSheetBody not found');
+
+    await act(async () => {
+      await body.props.handleImportTextFile();
+      await Promise.resolve();
+    });
+
+    expect(documentPickerGetDocumentAsync).toHaveBeenCalledWith(expect.objectContaining({
+      multiple: false,
+      type: 'text/plain',
+    }));
+    expect(fileSystemReadAsStringAsync).toHaveBeenCalledWith('file://tasks.txt');
+    expect(alertSpy).toHaveBeenCalledWith(
+      'Create 2 tasks?',
+      expect.stringContaining('First imported task'),
+      expect.any(Array),
+    );
+
+    const buttons = alertSpy.mock.calls[0]?.[2] as Array<{ text?: string; onPress?: () => void | Promise<void> }>;
+    const confirm = buttons.find((button) => button.text === 'Create tasks');
+    if (!confirm?.onPress) throw new Error('Confirm button not found');
+
+    await act(async () => {
+      await confirm.onPress?.();
+      await Promise.resolve();
+    });
+
+    expect(addTask).toHaveBeenCalledTimes(2);
+    expect(addTask).toHaveBeenNthCalledWith(1, 'First imported task', expect.objectContaining({ status: 'inbox' }));
+    expect(addTask).toHaveBeenNthCalledWith(2, 'Second imported task', expect.objectContaining({ status: 'inbox' }));
   });
 
   it('opens the created task when save and edit is requested', async () => {

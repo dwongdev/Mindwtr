@@ -44,6 +44,14 @@ export interface QuickAddDateCommandsResult {
     invalidDateCommands?: string[];
 }
 
+export function splitQuickAddBulkLines(input: string): string[] {
+    return String(input || '')
+        .replace(/\r\n?/g, '\n')
+        .split('\n')
+        .map((line) => line.trim())
+        .filter(Boolean);
+}
+
 const STATUS_TOKENS: Record<string, TaskStatus> = {
     inbox: 'inbox',
     next: 'next',

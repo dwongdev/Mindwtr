@@ -376,4 +376,70 @@ describe('QuickAddModal', () => {
             ],
         }));
     });
+
+    it('confirms and creates one task per nonblank pasted text line', async () => {
+        const addTask = vi.fn(async () => ({ success: true, id: 'task-id' }));
+        act(() => {
+            useTaskStore.setState((state) => ({
+                ...state,
+                addTask,
+            }));
+        });
+
+        renderQuickAddModal();
+
+        await act(async () => {
+            window.dispatchEvent(new CustomEvent('mindwtr:quick-add'));
+            await Promise.resolve();
+        });
+
+        fireEvent.paste(screen.getByPlaceholderText('Add Task'), {
+            clipboardData: {
+                files: [],
+                items: [],
+                getData: (type: string) => type === 'text/plain'
+                    ? 'Email Bob\n\nCall Alice\nReview notes'
+                    : '',
+            },
+        });
+
+        expect(await screen.findByText('Create 3 tasks?')).toBeInTheDocument();
+        expect(screen.getByText('Email Bob')).toBeInTheDocument();
+
+        fireEvent.click(screen.getByRole('button', { name: 'Create tasks' }));
+
+        await waitFor(() => expect(addTask).toHaveBeenCalledTimes(3));
+        expect(addTask).toHaveBeenNthCalledWith(1, 'Email Bob', expect.objectContaining({ status: 'inbox' }));
+        expect(addTask).toHaveBeenNthCalledWith(2, 'Call Alice', expect.objectContaining({ status: 'inbox' }));
+        expect(addTask).toHaveBeenNthCalledWith(3, 'Review notes', expect.objectContaining({ status: 'inbox' }));
+    });
+
+    it('imports a text file through the same bulk quick-add confirmation', async () => {
+        const addTask = vi.fn(async () => ({ success: true, id: 'task-id' }));
+        act(() => {
+            useTaskStore.setState((state) => ({
+                ...state,
+                addTask,
+            }));
+        });
+
+        renderQuickAddModal();
+
+        await act(async () => {
+            window.dispatchEvent(new CustomEvent('mindwtr:quick-add'));
+            await Promise.resolve();
+        });
+
+        const file = new File(['First imported task\nSecond imported task\n'], 'tasks.txt', { type: 'text/plain' });
+        fireEvent.change(screen.getByLabelText('Import text file'), {
+            target: { files: [file] },
+        });
+
+        expect(await screen.findByText('Create 2 tasks?')).toBeInTheDocument();
+        fireEvent.click(screen.getByRole('button', { name: 'Create tasks' }));
+
+        await waitFor(() => expect(addTask).toHaveBeenCalledTimes(2));
+        expect(addTask).toHaveBeenNthCalledWith(1, 'First imported task', expect.objectContaining({ status: 'inbox' }));
+        expect(addTask).toHaveBeenNthCalledWith(2, 'Second imported task', expect.objectContaining({ status: 'inbox' }));
+    });
 });

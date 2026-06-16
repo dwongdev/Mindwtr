@@ -1,5 +1,5 @@
 import React from 'react';
-import { Keyboard, KeyboardAvoidingView, ScrollView, Text, TouchableOpacity } from 'react-native';
+import { Alert, Keyboard, KeyboardAvoidingView, ScrollView, Text, TouchableOpacity } from 'react-native';
 import { act, create } from 'react-test-renderer';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -47,6 +47,11 @@ vi.mock('@mindwtr/core', () => ({
   )),
   parseQuickAdd,
   shallow: (left: unknown, right: unknown) => Object.is(left, right),
+  splitQuickAddBulkLines: (input: string) => input
+    .replace(/\r\n?/g, '\n')
+    .split('\n')
+    .map((line) => line.trim())
+    .filter(Boolean),
   tFallback: (t: (key: string) => string, key: string, fallback: string) => {
     const value = t(key);
     return value && value !== key ? value : fallback;
@@ -251,6 +256,50 @@ describe('CaptureScreen', () => {
       description: 'Tomorrow morning',
       tags: ['#phone'],
     });
+    expect(routerMocks.replace).toHaveBeenCalledWith('/inbox');
+  });
+
+  it('confirms multiline capture before creating one task per line', async () => {
+    routeParams.current = {
+      initialValue: encodeURIComponent('Email Bob\n\nCall Alice /next'),
+    };
+    parseQuickAdd.mockImplementation((value: string) => ({
+      title: value.replace(/\s+\/next$/u, ''),
+      props: value.endsWith('/next') ? { status: 'next' } : {},
+      invalidDateCommands: [],
+    }));
+    const alertSpy = vi.spyOn(Alert, 'alert').mockImplementation(vi.fn());
+
+    let tree!: ReturnType<typeof create>;
+
+    act(() => {
+      tree = create(<CaptureScreen />);
+    });
+
+    const saveButton = findTouchableByText(tree, 'Save');
+
+    await act(async () => {
+      await saveButton.props.onPress();
+    });
+
+    expect(storeState.addTask).not.toHaveBeenCalled();
+    expect(alertSpy).toHaveBeenCalledWith(
+      'Create 2 tasks?',
+      expect.stringContaining('Email Bob'),
+      expect.any(Array),
+    );
+
+    const buttons = alertSpy.mock.calls[0]?.[2] as Array<{ text?: string; onPress?: () => void | Promise<void> }>;
+    const confirm = buttons.find((button) => button.text === 'Create tasks');
+    if (!confirm?.onPress) throw new Error('Confirm button not found');
+
+    await act(async () => {
+      await confirm.onPress?.();
+    });
+
+    expect(storeState.addTask).toHaveBeenCalledTimes(2);
+    expect(storeState.addTask).toHaveBeenNthCalledWith(1, 'Email Bob', expect.objectContaining({ status: 'inbox' }));
+    expect(storeState.addTask).toHaveBeenNthCalledWith(2, 'Call Alice', expect.objectContaining({ status: 'next' }));
     expect(routerMocks.replace).toHaveBeenCalledWith('/inbox');
   });
 

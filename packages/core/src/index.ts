@@ -550,6 +550,7 @@ export {
     getQuickAddProjectInitialProps,
     parseQuickAdd,
     parseQuickAddDateCommands,
+    splitQuickAddBulkLines,
 } from './quick-add';
 export type {
     QuickAddDateCommandsResult,

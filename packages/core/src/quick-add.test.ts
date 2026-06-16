@@ -1,8 +1,18 @@
 import { describe, it, expect } from 'vitest';
 import { getTaskDateCoherenceIssues } from './task-date-coherence';
-import { getQuickAddProjectInitialProps, parseQuickAdd, parseQuickAddDateCommands } from './quick-add';
+import { getQuickAddProjectInitialProps, parseQuickAdd, parseQuickAddDateCommands, splitQuickAddBulkLines } from './quick-add';
 
 describe('quick-add', () => {
+    it('splits bulk quick-add text into trimmed nonblank lines', () => {
+        expect(splitQuickAddBulkLines('  Email Bob  \r\n\nCall Alice\n\t\nReview notes +Work  ')).toEqual([
+            'Email Bob',
+            'Call Alice',
+            'Review notes +Work',
+        ]);
+        expect(splitQuickAddBulkLines('One task only')).toEqual(['One task only']);
+        expect(splitQuickAddBulkLines(' \n\t\r\n ')).toEqual([]);
+    });
+
     it('parses status, due, note, tags, contexts', () => {
         const now = new Date('2025-01-01T10:00:00Z');
         const result = parseQuickAdd('Call mom @phone #family /next /due:tomorrow 5pm /note:ask about trip', undefined, now);

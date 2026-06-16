@@ -1,7 +1,7 @@
 import React from 'react';
 import type { RefObject } from 'react';
 import { KeyboardAvoidingView, Modal, Platform, Pressable, Switch, Text, TextInput, TouchableOpacity, View } from 'react-native';
-import { AtSign, CalendarDays, ChevronDown, ChevronUp, Clock, Flag, Folder, Mic, SlidersHorizontal, Square, X } from 'lucide-react-native';
+import { AtSign, CalendarDays, ChevronDown, ChevronUp, Clock, FileText, Flag, Folder, Mic, SlidersHorizontal, Square, X } from 'lucide-react-native';
 import { tFallback } from '@mindwtr/core';
 import type { ThemeColors } from '@/hooks/use-theme-colors';
 import { QuickDateChips } from '../QuickDateChips';
@@ -22,6 +22,7 @@ interface QuickCaptureSheetBodyProps {
   dueDate: Date | null;
   dueTimeLabel: string;
   handleClose: () => void;
+  handleImportTextFile?: () => void;
   handleSave: () => void;
   handleSaveAndEdit?: () => void;
   insetsBottom: number;
@@ -70,6 +71,7 @@ export function QuickCaptureSheetBody({
   dueLabel,
   dueTimeLabel,
   handleClose,
+  handleImportTextFile,
   handleSave,
   handleSaveAndEdit,
   insetsBottom,
@@ -396,6 +398,24 @@ export function QuickCaptureSheetBody({
                 >
                   {t('quickAdd.placeholder')}
                 </Text>
+
+                {handleImportTextFile ? (
+                  <TouchableOpacity
+                    style={[styles.importTextButton, { backgroundColor: tc.filterBg, borderColor: tc.border }]}
+                    onPress={handleImportTextFile}
+                    accessibilityRole="button"
+                    accessibilityLabel={tFallback(t, 'quickAdd.bulkImportTextFileLabel', 'Import text file')}
+                  >
+                    <FileText size={16} color={tc.text} />
+                    <Text
+                      style={[styles.importTextButtonText, { color: tc.text }]}
+                      numberOfLines={1}
+                      maxFontSizeMultiplier={COMPACT_TEXT_MAX_SCALE}
+                    >
+                      {tFallback(t, 'quickAdd.bulkImportTextFile', 'Import .txt')}
+                    </Text>
+                  </TouchableOpacity>
+                ) : null}
 
                 <QuickDateChips
                   t={t}

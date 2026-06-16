@@ -44,6 +44,14 @@ export const en: Record<string, string> = {
         'quickAdd.audioErrorTitle': 'Recording failed',
         'quickAdd.audioErrorBody': 'We could not record audio. Please try again.',
         'quickAdd.invalidDateCommand': 'Invalid date command',
+        'quickAdd.bulkConfirmTitle': 'Create {{count}} tasks?',
+        'quickAdd.bulkConfirmBody': 'Blank lines will be skipped. Each line uses Quick Add syntax.',
+        'quickAdd.bulkConfirmCreate': 'Create tasks',
+        'quickAdd.bulkMoreLines': '+{{count}} more',
+        'quickAdd.bulkImportTextFile': 'Import .txt',
+        'quickAdd.bulkImportTextFileLabel': 'Import text file',
+        'quickAdd.bulkImportError': 'Could not read that text file.',
+        'quickAdd.bulkCreateError': 'Could not create all tasks.',
 
         // Checklist
         'checklist.progress': 'Checklist progress',
