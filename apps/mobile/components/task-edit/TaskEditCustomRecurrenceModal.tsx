@@ -1,6 +1,7 @@
 import React from 'react';
 import { Modal, Pressable, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import type { ThemeColors } from '@/hooks/use-theme-colors';
+import { useAndroidKeyboardInset } from '../../lib/use-android-keyboard-inset';
 
 const getOrdinalTranslationKey = (value: '1' | '2' | '3' | '4' | '-1'): 'first' | 'second' | 'third' | 'fourth' | 'last' => {
     if (value === '-1') return 'last';
@@ -51,6 +52,7 @@ export function TaskEditCustomRecurrenceModal({
     tc,
     visible,
 }: TaskEditCustomRecurrenceModalProps) {
+    const keyboardInset = useAndroidKeyboardInset(visible);
     const getStatusChipStyle = (active: boolean) => ([
         styles.statusChip,
         { backgroundColor: active ? tc.tint : tc.filterBg, borderColor: active ? tc.tint : tc.border },
@@ -67,7 +69,10 @@ export function TaskEditCustomRecurrenceModal({
             animationType="fade"
             onRequestClose={onClose}
         >
-            <Pressable style={styles.overlay} onPress={onClose}>
+            <Pressable
+                style={keyboardInset > 0 ? [styles.overlay, { paddingBottom: keyboardInset }] : styles.overlay}
+                onPress={onClose}
+            >
                 <Pressable
                     style={[styles.modalCard, { backgroundColor: tc.cardBg, borderColor: tc.border }]}
                     onPress={(event) => event.stopPropagation()}

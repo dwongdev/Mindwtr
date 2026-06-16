@@ -4,6 +4,7 @@ import type { Area } from '@mindwtr/core';
 import type { ThemeColors } from '@/hooks/use-theme-colors';
 import { styles } from './task-edit-modal.styles';
 import { logError } from '../../lib/app-log';
+import { useAndroidKeyboardInset } from '../../lib/use-android-keyboard-inset';
 
 interface TaskEditAreaPickerProps {
     visible: boolean;
@@ -25,6 +26,7 @@ export function TaskEditAreaPicker({
     onCreateArea,
 }: TaskEditAreaPickerProps) {
     const [areaQuery, setAreaQuery] = useState('');
+    const keyboardInset = useAndroidKeyboardInset(visible);
 
     useEffect(() => {
         if (visible) setAreaQuery('');
@@ -77,7 +79,7 @@ export function TaskEditAreaPicker({
             onRequestClose={onClose}
             accessibilityViewIsModal
         >
-            <View style={styles.overlay}>
+            <View style={keyboardInset > 0 ? [styles.overlay, { paddingBottom: keyboardInset }] : styles.overlay}>
                 <View style={[styles.modalCard, { backgroundColor: tc.cardBg, borderColor: tc.border }]}>
                     <Text style={[styles.modalTitle, { color: tc.text }]} accessibilityRole="header">
                         {t('taskEdit.areaLabel')}

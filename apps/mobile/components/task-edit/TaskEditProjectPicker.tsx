@@ -4,6 +4,7 @@ import { isSelectableProjectForTaskAssignment, type Project } from '@mindwtr/cor
 import type { ThemeColors } from '@/hooks/use-theme-colors';
 import { styles } from './task-edit-modal.styles';
 import { logError } from '../../lib/app-log';
+import { useAndroidKeyboardInset } from '../../lib/use-android-keyboard-inset';
 
 interface TaskEditProjectPickerProps {
     visible: boolean;
@@ -31,6 +32,7 @@ export function TaskEditProjectPicker({
     noMatchesLabel,
 }: TaskEditProjectPickerProps) {
     const [projectQuery, setProjectQuery] = useState('');
+    const keyboardInset = useAndroidKeyboardInset(visible);
 
     useEffect(() => {
         if (visible) setProjectQuery('');
@@ -97,7 +99,7 @@ export function TaskEditProjectPicker({
             onRequestClose={onClose}
             accessibilityViewIsModal
         >
-            <View style={styles.overlay}>
+            <View style={keyboardInset > 0 ? [styles.overlay, { paddingBottom: keyboardInset }] : styles.overlay}>
                 <View style={[styles.modalCard, { backgroundColor: tc.cardBg, borderColor: tc.border }]}>
                     <Text style={[styles.modalTitle, { color: tc.text }]} accessibilityRole="header">
                         {t('taskEdit.projectLabel')}

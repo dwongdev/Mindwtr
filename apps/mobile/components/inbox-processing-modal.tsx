@@ -1,5 +1,5 @@
 import React from 'react';
-import { ActivityIndicator, Keyboard, KeyboardAvoidingView, Modal, Platform, ScrollView, Text, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, KeyboardAvoidingView, Modal, Platform, ScrollView, Text, TouchableOpacity, View } from 'react-native';
 import { X } from 'lucide-react-native';
 import { tFallback } from '@mindwtr/core';
 
@@ -15,7 +15,7 @@ import { InboxProjectSection } from './inbox-processing/InboxProjectSection';
 import { InboxSchedulingSection } from './inbox-processing/InboxSchedulingSection';
 import { InboxTitleSection } from './inbox-processing/InboxTitleSection';
 import { InboxTwoMinuteSection } from './inbox-processing/InboxTwoMinuteSection';
-import { getAndroidKeyboardFrame } from '../lib/android-keyboard-frame';
+import { useAndroidKeyboardInset } from '../lib/use-android-keyboard-inset';
 
 type InboxProcessingModalProps = {
   visible: boolean;
@@ -156,28 +156,7 @@ export function InboxProcessingModal({ visible, onClose }: InboxProcessingModalP
   const laterLabel = tFallback(t, 'process.later', 'Later');
   const laterHint = tFallback(t, 'process.laterHint', 'Set a start date and move this to Next.');
   const dateOnlyLabel = tFallback(t, 'taskEdit.dateOnly', 'Date only');
-  const [androidKeyboardInset, setAndroidKeyboardInset] = React.useState(0);
-
-  React.useEffect(() => {
-    if (Platform.OS !== 'android') return;
-    if (!visible) {
-      setAndroidKeyboardInset(0);
-      return;
-    }
-    if (typeof Keyboard?.addListener !== 'function') return;
-    const applyFrame = (event: { endCoordinates?: { screenY?: number; height?: number } }) => {
-      setAndroidKeyboardInset(getAndroidKeyboardFrame(event).inset);
-    };
-    const reset = () => setAndroidKeyboardInset(0);
-    const showSub = Keyboard.addListener('keyboardDidShow', applyFrame);
-    const changeSub = Keyboard.addListener('keyboardDidChangeFrame', applyFrame);
-    const hideSub = Keyboard.addListener('keyboardDidHide', reset);
-    return () => {
-      showSub.remove();
-      changeSub.remove();
-      hideSub.remove();
-    };
-  }, [visible]);
+  const androidKeyboardInset = useAndroidKeyboardInset(visible);
 
   if (!visible) return null;
 
