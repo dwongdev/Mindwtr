@@ -60,6 +60,23 @@ const storeState: {
   setHighlightTask: vi.fn(),
 };
 
+const createDeferred = <T,>() => {
+  let resolve!: (value: T | PromiseLike<T>) => void;
+  let reject!: (reason?: unknown) => void;
+  const promise = new Promise<T>((resolvePromise, rejectPromise) => {
+    resolve = resolvePromise;
+    reject = rejectPromise;
+  });
+  return { promise, resolve, reject };
+};
+
+const createImmediatePromise = <T,>(value: T): Promise<T> => ({
+  then: (onFulfilled) => Promise.resolve(onFulfilled ? onFulfilled(value) : value),
+  catch: () => Promise.resolve(value),
+  finally: () => Promise.resolve(value),
+  [Symbol.toStringTag]: 'Promise',
+}) as Promise<T>;
+
 beforeEach(() => {
   storeState.tasks = [
     makeTask('focus-task', { isFocusedToday: true, dueDate: '2000-01-01' }),
@@ -75,7 +92,7 @@ beforeEach(() => {
   showToastMock.mockClear();
   openProjectScreenMock.mockClear();
   asyncStorageMock.getItem.mockReset();
-  asyncStorageMock.getItem.mockResolvedValue(null);
+  asyncStorageMock.getItem.mockReturnValue(createImmediatePromise<string | null>(null));
   asyncStorageMock.setItem.mockReset();
   asyncStorageMock.setItem.mockResolvedValue(undefined);
 });
@@ -560,9 +577,8 @@ describe('FocusScreen', () => {
   });
 
   it('restores the persisted Next Actions collapsed state', async () => {
-    asyncStorageMock.getItem.mockResolvedValue(JSON.stringify({
-      expandedSections: { nextActions: false },
-    }));
+    const deferred = createDeferred<string | null>();
+    asyncStorageMock.getItem.mockReturnValue(deferred.promise);
     storeState.tasks = [
       makeTask('focused-next', { title: 'Focused next', isFocusedToday: true }),
       makeTask('plain-next', { title: 'Plain next' }),
@@ -573,7 +589,13 @@ describe('FocusScreen', () => {
     act(() => {
       tree = create(<FocusScreen />);
     });
+
+    expect(tree.root.findAllByType(SwipeableTaskItem)).toHaveLength(0);
+
     await act(async () => {
+      deferred.resolve(JSON.stringify({
+        expandedSections: { nextActions: false },
+      }));
       await Promise.resolve();
       await Promise.resolve();
     });

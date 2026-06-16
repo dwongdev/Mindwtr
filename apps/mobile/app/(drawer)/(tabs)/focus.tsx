@@ -329,6 +329,7 @@ export default function FocusScreen() {
   const [saveFilterName, setSaveFilterName] = useState('');
   const showFutureStarts = settings?.appearance?.showFutureStarts === true;
   const [expandedSections, setExpandedSections] = useState(DEFAULT_EXPANDED_SECTIONS);
+  const [focusViewStateHydrated, setFocusViewStateHydrated] = useState(false);
   const didToggleSectionRef = useRef(false);
   const lastOpenedFromNotificationRef = useRef<string | null>(null);
   const highlightTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -773,15 +774,23 @@ export default function FocusScreen() {
     let active = true;
     AsyncStorage.getItem(FOCUS_VIEW_STATE_STORAGE_KEY)
       .then((raw) => {
-        if (!active || didToggleSectionRef.current) return;
-        const persistedExpandedSections = readPersistedFocusExpandedSections(raw);
-        if (!persistedExpandedSections) return;
-        setExpandedSections((current) => ({
-          ...current,
-          ...persistedExpandedSections,
-        }));
+        if (!active) return;
+        if (!didToggleSectionRef.current) {
+          const persistedExpandedSections = readPersistedFocusExpandedSections(raw);
+          if (persistedExpandedSections) {
+            setExpandedSections((current) => ({
+              ...current,
+              ...persistedExpandedSections,
+            }));
+          }
+        }
+        setFocusViewStateHydrated(true);
       })
-      .catch(() => {});
+      .catch(() => {
+        if (active) {
+          setFocusViewStateHydrated(true);
+        }
+      });
     return () => {
       active = false;
     };
@@ -947,6 +956,8 @@ export default function FocusScreen() {
   }, [visibleProjects]);
 
   const sections = useMemo<FocusSection[]>(() => {
+    if (!focusViewStateHydrated) return [];
+
     const buildTaskItems = (items: Task[], grouped = false): FocusListItem[] => (
       items.map((task) => ({ type: 'task' as const, task, grouped }))
     );
@@ -1094,6 +1105,7 @@ export default function FocusScreen() {
     effectiveFocusGroupBy,
     expandedSections.focus,
     expandedSections.next,
+    focusViewStateHydrated,
     expandedSections.reviewDue,
     expandedSections.reviewProjects,
     expandedSections.schedule,
