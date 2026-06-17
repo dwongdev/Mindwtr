@@ -124,6 +124,7 @@ describeSqlite('SqliteAdapter', () => {
                     rev: 5,
                     revBy: 'device-desktop',
                     boardOrder: 4,
+                    repeatReminderMinutes: 30,
                     tags: ['#docs', '#writing'],
                     contexts: ['@computer'],
                     recurrence: {
@@ -285,6 +286,7 @@ describeSqlite('SqliteAdapter', () => {
         expect(task.rev).toBe(5);
         expect(task.revBy).toBe('device-desktop');
         expect(task.boardOrder).toBe(4);
+        expect(task.repeatReminderMinutes).toBe(30);
 
         const project = loaded.projects[0];
         expect(project.title).toBe('Mindwtr');
