@@ -42,6 +42,13 @@ _New to GTD? Read [GTD in 15 minutes](https://hamberg.no/gtd) for a quick introd
          style="height: 50px"
          height="50" />
   </a>
+  <a href="https://flathub.org/apps/tech.dongdongbh.mindwtr" target="_blank">
+    <img alt="Get it on Flathub"
+         src="https://flathub.org/api/badge?locale=en"
+         align="center"
+         style="height: 50px"
+         height="50" />
+  </a>
   <a href="https://apt.izzysoft.de/packages/tech.dongdongbh.mindwtr" target="_blank">
     <img src="https://gitlab.com/IzzyOnDroid/repo/-/raw/master/assets/IzzyOnDroid.png"
          align="center"
@@ -55,13 +62,6 @@ _New to GTD? Read [GTD in 15 minutes](https://hamberg.no/gtd) for a quick introd
          alt="Get it on F-Droid"
          style="height: 74px"
          height="74" />
-  </a>
-  <a href="https://flathub.org/apps/tech.dongdongbh.mindwtr" target="_blank">
-    <img alt="Get it on Flathub"
-         src="https://flathub.org/api/badge?locale=en"
-         align="center"
-         style="height: 50px"
-         height="50" />
   </a>
 </p>
 

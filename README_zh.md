@@ -44,6 +44,13 @@
          style="height: 50px"
          height="50" />
   </a>
+  <a href="https://flathub.org/apps/tech.dongdongbh.mindwtr" target="_blank">
+    <img alt="在 Flathub 获取"
+         src="https://flathub.org/api/badge?locale=zh-Hans"
+         align="center"
+         style="height: 50px"
+         height="50" />
+  </a>
   <a href="https://apt.izzysoft.de/packages/tech.dongdongbh.mindwtr" target="_blank">
     <img src="https://gitlab.com/IzzyOnDroid/repo/-/raw/master/assets/IzzyOnDroid.png"
          align="center"
@@ -57,13 +64,6 @@
          alt="Get it on F-Droid"
          style="height: 74px"
          height="74" />
-  </a>
-  <a href="https://flathub.org/apps/tech.dongdongbh.mindwtr" target="_blank">
-    <img alt="在 Flathub 获取"
-         src="https://flathub.org/api/badge?locale=zh-Hans"
-         align="center"
-         style="height: 50px"
-         height="50" />
   </a>
 </p>
 
