@@ -601,10 +601,15 @@ export type {
 } from './calendar-scheduling';
 
 export {
+    getDueReminderRepeatTimes,
     getNextScheduledAt,
     getUpcomingSchedules,
     isDueWithinMinutes,
+    normalizeRepeatReminderMinutes,
     parseTimeOfDay,
+    REPEAT_REMINDER_INTERVAL_OPTIONS,
+    REPEAT_REMINDER_MAX_OCCURRENCES,
+    REPEAT_REMINDER_MAX_WINDOW_MINUTES,
 } from './schedule-utils';
 
 export {

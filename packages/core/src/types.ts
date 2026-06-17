@@ -203,6 +203,7 @@ export interface Task {
     isFocusedToday?: boolean; // Marked as today's focus list.
     timeEstimate?: TimeEstimate; // Estimated time to complete
     suppressMindwtrReminders?: boolean; // If true, skip Mindwtr start/due reminders for this task.
+    repeatReminderMinutes?: number; // Repeat the due-time reminder every N minutes (presets 5|10|15|30|60). Absent/0 = off. Due-time only.
     reviewAt?: string; // Tickler/review date (ISO string). If set, task is due for review at/after this time.
     completedAt?: string; // ISO timestamp when task was last completed/archived.
     statusBeforeProjectArchive?: TaskStatus; // Original status when a project archive auto-completed this task.
