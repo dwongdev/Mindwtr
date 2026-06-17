@@ -43,11 +43,10 @@ _New to GTD? Read [GTD in 15 minutes](https://hamberg.no/gtd) for a quick introd
          height="50" />
   </a>
   <a href="https://apt.izzysoft.de/packages/tech.dongdongbh.mindwtr" target="_blank">
-    <img src="https://gitlab.com/IzzyOnDroid/repo/-/raw/master/assets/IzzyOnDroidButtonGreyBorder_nofont.png"
+    <img src="https://gitlab.com/IzzyOnDroid/repo/-/raw/master/assets/IzzyOnDroidButtonGreyBorder.svg"
          align="center"
          alt="Get it at IzzyOnDroid"
-         style="width: 250px; height: auto"
-         width="250" />
+         height="74" />
   </a>
   <a href="https://f-droid.org/en/packages/tech.dongdongbh.mindwtr/" target="_blank">
     <img src="https://fdroid.gitlab.io/artwork/badge/get-it-on.png"
