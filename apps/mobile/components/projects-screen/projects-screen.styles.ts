@@ -291,11 +291,6 @@ export const projectsScreenStyles = StyleSheet.create({
     },
     backButton: {
         padding: 8,
-        width: 60,
-    },
-    backButtonText: {
-        fontSize: 16,
-        color: '#007AFF',
     },
     modalTitle: {
         fontSize: 18,

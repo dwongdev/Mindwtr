@@ -905,8 +905,10 @@ export function ProjectDetailModal({
                                         onPress={closeProjectDetail}
                                         style={styles.backButton}
                                         hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                                        accessibilityRole="button"
+                                        accessibilityLabel={t('common.back') || 'Back'}
                                     >
-                                        <Text style={[styles.backButtonText, { color: tc.tint }]}>{t('common.back') || 'Back'}</Text>
+                                        <Ionicons name="chevron-back" size={24} color={tc.tint} />
                                     </TouchableOpacity>
                                     <TextInput
                                         style={[styles.modalTitle, { color: tc.text, marginLeft: 8, flex: 1 }]}

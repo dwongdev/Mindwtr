@@ -3,7 +3,8 @@ import { View, Text, StyleSheet, TouchableOpacity, ScrollView, TextInput } from 
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { generateUUID, useTaskStore } from '@mindwtr/core';
-import { Check, ArrowLeft, Trash2, Plus } from 'lucide-react-native';
+import { Check, Trash2, Plus } from 'lucide-react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { useLanguage } from '../contexts/language-context';
 
 export default function FocusChecklistPage() {
@@ -74,9 +75,13 @@ export default function FocusChecklistPage() {
     return (
         <SafeAreaView style={styles.container}>
             <View style={styles.header}>
-                <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-                    <ArrowLeft color="#000" size={24} />
-                    <Text style={styles.backText}>Back</Text>
+                <TouchableOpacity
+                    onPress={() => router.back()}
+                    style={styles.backBtn}
+                    accessibilityRole="button"
+                    accessibilityLabel={t('common.back') || 'Back'}
+                >
+                    <Ionicons name="chevron-back" color="#000" size={24} />
                 </TouchableOpacity>
             </View>
 
@@ -143,10 +148,6 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         alignItems: 'center',
         gap: 8,
-    },
-    backText: {
-        fontSize: 16,
-        color: '#000',
     },
     titleContainer: {
         padding: 20,
