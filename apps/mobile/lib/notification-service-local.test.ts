@@ -292,7 +292,7 @@ describe('notification-service-local', () => {
 
     await startLocalMobileNotifications();
 
-    const alarmKeys = (mockAlarmScheduleAlarm.mock.calls as Array<[{ data?: { alarmKey?: string } }]>)
+    const alarmKeys = (mockAlarmScheduleAlarm.mock.calls as unknown as Array<[{ data?: { alarmKey?: string } }]>)
       .map((call) => call[0]?.data?.alarmKey);
     expect(alarmKeys).toEqual(expect.arrayContaining([
       'task:task-1:r1',
