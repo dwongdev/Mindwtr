@@ -63,6 +63,13 @@ _New to GTD? Read [GTD in 15 minutes](https://hamberg.no/gtd) for a quick introd
          style="height: 74px"
          height="74" />
   </a>
+  <a href="https://snapcraft.io/mindwtr" target="_blank">
+    <img alt="Get it from the Snap Store"
+         src="https://snapcraft.io/en/dark/install.svg"
+         align="center"
+         style="height: 50px"
+         height="50" />
+  </a>
 </p>
 
 </div>

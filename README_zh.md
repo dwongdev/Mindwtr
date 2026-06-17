@@ -65,6 +65,13 @@
          style="height: 74px"
          height="74" />
   </a>
+  <a href="https://snapcraft.io/mindwtr" target="_blank">
+    <img alt="从 Snap Store 获取"
+         src="https://snapcraft.io/en/dark/install.svg"
+         align="center"
+         style="height: 50px"
+         height="50" />
+  </a>
 </p>
 
 </div>
