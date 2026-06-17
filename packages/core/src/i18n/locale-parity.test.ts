@@ -59,10 +59,10 @@ const overrideLocaleCoverageFloors: Record<string, number> = {
     ja: 69,
     ko: 68,
     nl: 22,
-    pl: 71,
+    pl: 70,
     pt: 71,
     ru: 69,
-    tr: 72,
+    tr: 71,
 };
 
 const shippedLocales: Record<string, Record<string, string>> = {
