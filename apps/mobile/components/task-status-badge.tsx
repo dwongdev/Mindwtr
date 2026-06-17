@@ -17,7 +17,7 @@ interface TaskStatusBadgeProps {
     onUpdate: (status: TaskStatus) => void;
 }
 
-const QUICK_STATUS_OPTIONS: TaskStatus[] = ['inbox', 'next', 'waiting', 'someday', 'reference', 'done'];
+const QUICK_STATUS_OPTIONS: TaskStatus[] = ['inbox', 'next', 'waiting', 'someday', 'done', 'reference'];
 
 export function TaskStatusBadge({ status, onUpdate }: TaskStatusBadgeProps) {
     const [modalVisible, setModalVisible] = useState(false);

@@ -2,7 +2,7 @@ import { Dimensions } from 'react-native';
 import { type Task, type TaskEditorFieldId, type TaskEditorSectionId, type TaskEditorSettings, type TaskStatus } from '@mindwtr/core';
 import { logError, logWarn } from '../../lib/app-log';
 
-export const STATUS_OPTIONS: TaskStatus[] = ['inbox', 'next', 'waiting', 'someday', 'reference', 'done'];
+export const STATUS_OPTIONS: TaskStatus[] = ['inbox', 'next', 'waiting', 'someday', 'done', 'reference'];
 const formatError = (error: unknown) => (error instanceof Error ? error.message : String(error));
 const buildTaskExtra = (message?: string, error?: unknown): Record<string, string> | undefined => {
     const extra: Record<string, string> = {};

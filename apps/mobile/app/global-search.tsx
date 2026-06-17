@@ -315,7 +315,7 @@ export default function SearchScreen() {
         setEditingTaskId(task.id);
     };
 
-    const statusOptions: TaskStatus[] = ['inbox', 'next', 'waiting', 'someday', 'reference', 'done', 'archived'];
+    const statusOptions: TaskStatus[] = ['inbox', 'next', 'waiting', 'someday', 'done', 'reference', 'archived'];
     const allTokens = useMemo(() => {
         const tokens = new Set<string>([...PRESET_CONTEXTS, ...PRESET_TAGS]);
         _allTasks.forEach((task) => {

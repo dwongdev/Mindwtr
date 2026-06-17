@@ -6,14 +6,28 @@ import { styles } from './task-edit-modal.styles';
 import { logError } from '../../lib/app-log';
 import { useAndroidKeyboardInset } from '../../lib/use-android-keyboard-inset';
 
+type AreaPickerThemeColors = Pick<ThemeColors, 'border' | 'cardBg' | 'inputBg' | 'secondaryText' | 'text' | 'tint'>;
+
+type AreaPickerLeadingOption = {
+    key: string;
+    label: string;
+    accessibilityLabel?: string;
+    selected?: boolean;
+    disabled?: boolean;
+    onPress: () => void;
+};
+
 interface TaskEditAreaPickerProps {
     visible: boolean;
     areas: Area[];
-    tc: ThemeColors;
+    tc: AreaPickerThemeColors;
     t: (key: string) => string;
     onClose: () => void;
     onSelectArea: (areaId?: string) => void;
     onCreateArea: (name: string) => Promise<Area | null>;
+    allowCreate?: boolean;
+    leadingOptions?: AreaPickerLeadingOption[];
+    selectedAreaId?: string | null;
 }
 
 export function TaskEditAreaPicker({
@@ -24,6 +38,9 @@ export function TaskEditAreaPicker({
     onClose,
     onSelectArea,
     onCreateArea,
+    allowCreate = true,
+    leadingOptions = [],
+    selectedAreaId,
 }: TaskEditAreaPickerProps) {
     const [areaQuery, setAreaQuery] = useState('');
     const keyboardInset = useAndroidKeyboardInset(visible);
@@ -50,6 +67,7 @@ export function TaskEditAreaPicker({
     }, [activeAreas, normalizedAreaQuery]);
 
     const handleCreateArea = async () => {
+        if (!allowCreate) return;
         const name = areaQuery.trim();
         if (!name) return;
         if (hasExactAreaMatch) {
@@ -98,7 +116,7 @@ export function TaskEditAreaPicker({
                         accessibilityLabel={t('taskEdit.areaLabel')}
                         accessibilityHint={t('common.search')}
                     />
-                    {!hasExactAreaMatch && areaQuery.trim() && (
+                    {allowCreate && !hasExactAreaMatch && areaQuery.trim() && (
                         <Pressable
                             onPress={handleCreateArea}
                             style={styles.pickerItem}
@@ -114,6 +132,22 @@ export function TaskEditAreaPicker({
                         style={[styles.pickerList, { borderColor: tc.border, backgroundColor: tc.inputBg }]}
                         contentContainerStyle={{ paddingVertical: 4 }}
                     >
+                        {leadingOptions.map((option) => (
+                            <Pressable
+                                key={option.key}
+                                onPress={() => {
+                                    option.onPress();
+                                    onClose();
+                                }}
+                                disabled={option.disabled}
+                                style={styles.pickerItem}
+                                accessibilityRole="button"
+                                accessibilityLabel={option.accessibilityLabel ?? option.label}
+                                accessibilityState={{ selected: Boolean(option.selected), disabled: Boolean(option.disabled) }}
+                            >
+                                <Text style={[styles.pickerItemText, { color: option.disabled ? tc.secondaryText : tc.text }]}>{option.label}</Text>
+                            </Pressable>
+                        ))}
                         <Pressable
                             onPress={() => {
                                 onSelectArea(undefined);
@@ -122,6 +156,7 @@ export function TaskEditAreaPicker({
                             style={styles.pickerItem}
                             accessibilityRole="button"
                             accessibilityLabel={t('taskEdit.noAreaOption')}
+                            accessibilityState={{ selected: selectedAreaId === null }}
                         >
                             <Text style={[styles.pickerItemText, { color: tc.text }]}>{t('taskEdit.noAreaOption')}</Text>
                         </Pressable>
@@ -135,6 +170,7 @@ export function TaskEditAreaPicker({
                                 style={styles.pickerItem}
                                 accessibilityRole="button"
                                 accessibilityLabel={area.name}
+                                accessibilityState={{ selected: selectedAreaId === area.id }}
                             >
                                 <Text style={[styles.pickerItemText, { color: tc.text }]}>{area.name}</Text>
                             </Pressable>

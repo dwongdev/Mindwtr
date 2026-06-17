@@ -454,7 +454,7 @@ export function ContextsView() {
                 </View>
               </View>
               <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.bulkRow}>
-                {(['inbox', 'next', 'waiting', 'someday', 'reference', 'done'] as TaskStatus[]).map((status) => (
+                {(['inbox', 'next', 'waiting', 'someday', 'done', 'reference'] as TaskStatus[]).map((status) => (
                   <TouchableOpacity
                     key={status}
                     onPress={() => void handleBatchMove(status)}
@@ -541,7 +541,7 @@ export function ContextsView() {
                     },
                   ]}
                 >
-                  <Text style={[styles.bulkButtonText, { color: tc.text }]}>{t('bulk.delete')}</Text>
+                  <Text style={[styles.bulkButtonText, { color: tc.text }]}>{t('common.delete')}</Text>
                 </TouchableOpacity>
               </ScrollView>
             </View>

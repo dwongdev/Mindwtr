@@ -250,6 +250,9 @@ vi.mock('./use-task-list-selection', () => ({
 
 vi.mock('./task-list/TaskListBulkBar', () => ({
   TaskListBulkBar: (props: any) => React.createElement('TaskListBulkBar', props),
+  getBulkMoveStatusOptions: (currentStatus?: string) => (
+    ['inbox', 'next', 'waiting', 'someday', 'done', 'reference'].filter((status) => status !== currentStatus)
+  ),
 }));
 
 vi.mock('./task-list/TaskListBulkOrganizeModal', () => ({
@@ -389,6 +392,37 @@ describe('TaskList project quick add', () => {
       selectedCount: 2,
       visible: true,
     }));
+  });
+
+
+
+  it('omits the current page status from bulk move options and orders Done before Reference', async () => {
+    taskListSelectionState.current = {
+      ...taskListSelectionState.current,
+      hasSelection: true,
+      selectedIdsArray: ['task-1'],
+      selectionMode: true,
+    };
+    let tree!: ReturnType<typeof create>;
+
+    await act(async () => {
+      tree = create(
+        <TaskList
+          allowAdd={false}
+          showHeader={false}
+          statusFilter="inbox"
+          taskSource={[]}
+          title="Inbox"
+        />,
+      );
+    });
+
+    const bulkBarProps = tree.root.findAll((node) => String(node.type) === 'TaskListBulkBar')[0]?.props;
+    expect(bulkBarProps.statusOptions).toEqual(['next', 'waiting', 'someday', 'done', 'reference']);
+
+    act(() => {
+      tree.unmount();
+    });
   });
 
   it('plain add clears the composer and refocuses it for the next capture', async () => {

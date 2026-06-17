@@ -48,6 +48,7 @@ import { buildCopilotConfig, isAIKeyRequired, loadAIKey } from '../lib/ai-config
 import { logError } from '../lib/app-log';
 import {
   TaskListBulkBar,
+  getBulkMoveStatusOptions,
   type TaskListBulkBarProps,
 } from './task-list/TaskListBulkBar';
 import {
@@ -1006,6 +1007,11 @@ function TaskListComponent({
     return getUsedTaskTokens(tasks, (task) => task.tags, { prefix: '#' });
   }, [quickAddCopilotEnabled, tasks]);
 
+  const bulkMoveStatusOptions = useMemo(
+    () => getBulkMoveStatusOptions(statusFilter),
+    [statusFilter],
+  );
+
   const bulkBarProps = useMemo<TaskListBulkBarProps | null>(() => {
     if (!enableBulkActions || !selectionMode || projectReorderMode) return null;
     return {
@@ -1020,12 +1026,14 @@ function TaskListComponent({
       onToggleRangeSelectMode: toggleRangeSelectMode,
       rangeSelectMode,
       selectedCount: selectedIdsArray.length,
+      statusOptions: bulkMoveStatusOptions,
       t,
       themeColors: themeColorsMemo,
     };
   }, [
     bulkActionLabel,
     bulkActionLoading,
+    bulkMoveStatusOptions,
     canBulkOrganizeSelection,
     enableBulkActions,
     exitSelectionMode,

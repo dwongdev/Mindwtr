@@ -1190,7 +1190,7 @@ export const en: Record<string, string> = {
         'bulk.removeContext': 'Remove context',
         'bulk.tagPlaceholder': '#tag',
         'bulk.contextPlaceholder': '@context',
-        'bulk.delete': 'Delete selected',
+        'bulk.delete': 'Delete',
         'bulk.confirmDeleteTitle': 'Delete tasks',
         'bulk.confirmDeleteBody': 'Delete selected tasks?',
 

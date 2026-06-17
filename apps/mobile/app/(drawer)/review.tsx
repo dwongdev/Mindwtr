@@ -205,7 +205,7 @@ export default function ReviewScreen() {
     }
   }, [batchUpdateTasks, bulkOrganizeApplying, exitSelectionMode, hasSelection, selectedIdsArray, tasksById]);
 
-  const bulkStatuses: TaskStatus[] = ['inbox', 'next', 'waiting', 'someday', 'reference', 'done'];
+  const bulkStatuses: TaskStatus[] = ['inbox', 'next', 'waiting', 'someday', 'done', 'reference'];
 
   const activeTasks = useMemo(() => getReviewOverviewTasks({
     areaById,
@@ -402,7 +402,7 @@ export default function ReviewScreen() {
               disabled={!hasSelection}
               style={[styles.bulkActionButton, { backgroundColor: tc.filterBg, opacity: hasSelection ? 1 : 0.5 }]}
             >
-              <Text style={[styles.bulkActionText, { color: tc.text }]}>{t('bulk.delete')}</Text>
+              <Text style={[styles.bulkActionText, { color: tc.text }]}>{t('common.delete')}</Text>
             </TouchableOpacity>
           </View>
         </View>

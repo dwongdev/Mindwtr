@@ -237,6 +237,23 @@ export const styles = StyleSheet.create({
     paddingVertical: 8,
     fontSize: 14,
   },
+  bulkOrganizePickerRow: {
+    minHeight: 42,
+    borderWidth: 1,
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 8,
+  },
+  bulkOrganizePickerValue: {
+    flex: 1,
+    minWidth: 0,
+    fontSize: 14,
+    fontWeight: '600',
+  },
   bulkOrganizeValidation: {
     fontSize: 12,
     fontWeight: '600',

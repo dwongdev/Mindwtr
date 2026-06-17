@@ -42,7 +42,8 @@ const themeColors = {
 
 const t = (key: string) => ({
   'bulk.addTag': 'Add tag',
-  'bulk.delete': 'Delete selected',
+  'bulk.delete': 'Delete',
+  'common.delete': 'Delete',
   'bulk.exitSelect': 'Done',
   'bulk.moveTo': 'Move to',
   'bulk.selectRange': 'Range',
@@ -96,6 +97,15 @@ describe('TaskListBulkBar', () => {
     const html = renderBulkBar();
 
     expect(html).toContain('aria-label="Done"');
+  });
+
+
+
+  it('renders provided move statuses in order without adding hidden statuses', () => {
+    const html = renderBulkBar({ statusOptions: ['next', 'done', 'reference'] } as any);
+
+    expect(html).not.toContain('Move to Inbox');
+    expect(html.indexOf('Move to Done')).toBeLessThan(html.indexOf('Move to Reference'));
   });
 
   it('labels bulk organize generically because it is shared outside Inbox', () => {
