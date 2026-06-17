@@ -59,6 +59,7 @@ export function TaskEditScheduleField({
     tc,
     task,
 }: TaskEditScheduleFieldProps) {
+    const [repeatReminderOptionsExpanded, setRepeatReminderOptionsExpanded] = React.useState(false);
     const getStatusChipStyle = (active: boolean) => ([
         styles.statusChip,
         { backgroundColor: active ? tc.tint : tc.filterBg, borderColor: active ? tc.tint : tc.border },
@@ -252,32 +253,63 @@ export function TaskEditScheduleField({
     const renderRepeatReminderControl = () => {
         if (fieldId !== 'dueDate' || !hasTimeComponent(editedTask.dueDate)) return null;
         if (editedTask.suppressMindwtrReminders === true) return null;
+        const label = tFallback(t, 'taskEdit.repeatReminderLabel', 'Repeat reminder');
         const current = editedTask.repeatReminderMinutes ?? 0;
         const options = [0, ...REPEAT_REMINDER_INTERVAL_OPTIONS];
+        const formatValue = (minutes: number) => (
+            minutes === 0
+                ? tFallback(t, 'taskEdit.repeatReminderOff', 'Off')
+                : tFallback(t, 'taskEdit.repeatReminderEveryMinutes', 'Every {count} min').replace('{count}', String(minutes))
+        );
+        const formatOption = (minutes: number) => (
+            minutes === 0
+                ? tFallback(t, 'taskEdit.repeatReminderOff', 'Off')
+                : tFallback(t, 'taskEdit.repeatReminderMinutesShort', '{count} min').replace('{count}', String(minutes))
+        );
         return (
             <View style={{ marginTop: 8 }}>
-                <Text style={[styles.label, { color: tc.secondaryText }]}>
-                    {tFallback(t, 'taskEdit.repeatReminderLabel', 'Repeat reminder')}
-                </Text>
-                <View style={styles.statusContainer}>
-                    {options.map((minutes) => (
-                        <TouchableOpacity
-                            key={minutes}
-                            accessibilityRole="button"
-                            style={getStatusChipStyle(current === minutes)}
-                            onPress={() => setEditedTask((prev) => ({
-                                ...prev,
-                                repeatReminderMinutes: minutes > 0 ? minutes : undefined,
-                            }))}
-                        >
-                            <Text style={{ color: tc.text }}>
-                                {minutes === 0
-                                    ? tFallback(t, 'taskEdit.repeatReminderOff', 'Off')
-                                    : tFallback(t, 'taskEdit.repeatReminderEveryMinutes', 'Every {count} min').replace('{count}', String(minutes))}
-                            </Text>
-                        </TouchableOpacity>
-                    ))}
-                </View>
+                <TouchableOpacity
+                    accessibilityRole="button"
+                    accessibilityLabel={`${label}: ${formatValue(current)}`}
+                    style={[
+                        styles.dateBtn,
+                        {
+                            backgroundColor: current > 0 ? tc.filterBg : tc.cardBg,
+                            borderColor: repeatReminderOptionsExpanded || current > 0 ? tc.tint : tc.border,
+                        },
+                    ]}
+                    onPress={() => setRepeatReminderOptionsExpanded((expanded) => !expanded)}
+                >
+                    <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+                        <Text style={[styles.modalLabel, { color: tc.text, flexShrink: 1 }]} numberOfLines={1}>{label}</Text>
+                        <Text style={{ color: current > 0 ? tc.tint : tc.secondaryText, fontSize: 13, flexShrink: 0 }} numberOfLines={1}>
+                            {formatValue(current)}
+                        </Text>
+                    </View>
+                </TouchableOpacity>
+                {repeatReminderOptionsExpanded && (
+                    <View style={[styles.statusContainer, { marginTop: 8 }]}>
+                        {options.map((minutes) => (
+                            <TouchableOpacity
+                                key={minutes}
+                                accessibilityRole="button"
+                                accessibilityLabel={formatOption(minutes)}
+                                style={getStatusChipStyle(current === minutes)}
+                                onPress={() => {
+                                    setEditedTask((prev) => ({
+                                        ...prev,
+                                        repeatReminderMinutes: minutes > 0 ? minutes : undefined,
+                                    }));
+                                    setRepeatReminderOptionsExpanded(false);
+                                }}
+                            >
+                                <Text style={getStatusTextStyle(current === minutes)}>
+                                    {formatOption(minutes)}
+                                </Text>
+                            </TouchableOpacity>
+                        ))}
+                    </View>
+                )}
             </View>
         );
     };

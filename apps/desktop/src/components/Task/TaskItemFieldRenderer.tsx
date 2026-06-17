@@ -639,6 +639,7 @@ export function TaskItemFieldRenderer({
     const markdownEditorAssist = useTaskStore((state) => isMarkdownEditorAssistEnabled(state.settings));
 
     const [reviewTimeDraft, setReviewTimeDraft] = useState('');
+    const [repeatReminderOptionsExpanded, setRepeatReminderOptionsExpanded] = useState(false);
     const [descriptionExpanded, setDescriptionExpanded] = useState(false);
     const descriptionTextareaRef = useRef<HTMLTextAreaElement | null>(null);
     const lastDescriptionPairSelectionRef = useRef<{ value: string; selection: MarkdownSelection } | null>(null);
@@ -1189,33 +1190,63 @@ export function TaskItemFieldRenderer({
                             hasValue: Boolean(editDueDate),
                             warning: dateIssueLabel,
                         })}
-                        {hasTime && !task.suppressMindwtrReminders && (
-                            <div className="mt-1 flex items-center gap-2">
-                                <label
-                                    htmlFor={`repeat-reminder-${taskId}`}
-                                    className="text-xs text-muted-foreground shrink-0"
-                                >
-                                    {tFallback(t, 'taskEdit.repeatReminderLabel', 'Repeat reminder')}
-                                </label>
-                                <select
-                                    id={`repeat-reminder-${taskId}`}
-                                    aria-label={tFallback(t, 'taskEdit.repeatReminderLabel', 'Repeat reminder')}
-                                    className="text-xs bg-muted/50 border border-border rounded px-2 py-1 text-foreground"
-                                    value={editRepeatReminderMinutes ?? 0}
-                                    onChange={(event) => {
-                                        const next = Number(event.target.value);
-                                        setEditRepeatReminderMinutes(next > 0 ? next : undefined);
-                                    }}
-                                >
-                                    <option value={0}>{tFallback(t, 'taskEdit.repeatReminderOff', 'Off')}</option>
-                                    {REPEAT_REMINDER_INTERVAL_OPTIONS.map((minutes) => (
-                                        <option key={minutes} value={minutes}>
-                                            {tFallback(t, 'taskEdit.repeatReminderEveryMinutes', 'Every {count} min').replace('{count}', String(minutes))}
-                                        </option>
-                                    ))}
-                                </select>
-                            </div>
-                        )}
+                        {hasTime && !task.suppressMindwtrReminders && (() => {
+                            const label = tFallback(t, 'taskEdit.repeatReminderLabel', 'Repeat reminder');
+                            const current = editRepeatReminderMinutes ?? 0;
+                            const formatValue = (minutes: number) => (
+                                minutes === 0
+                                    ? tFallback(t, 'taskEdit.repeatReminderOff', 'Off')
+                                    : tFallback(t, 'taskEdit.repeatReminderEveryMinutes', 'Every {count} min').replace('{count}', String(minutes))
+                            );
+                            const formatOption = (minutes: number) => (
+                                minutes === 0
+                                    ? tFallback(t, 'taskEdit.repeatReminderOff', 'Off')
+                                    : tFallback(t, 'taskEdit.repeatReminderMinutesShort', '{count} min').replace('{count}', String(minutes))
+                            );
+                            return (
+                                <div className="mt-1 space-y-1.5">
+                                    <button
+                                        type="button"
+                                        aria-label={`${label}: ${formatValue(current)}`}
+                                        aria-expanded={repeatReminderOptionsExpanded}
+                                        className={`flex w-full items-center justify-between gap-2 rounded border px-2 py-1.5 text-left text-xs transition-colors ${repeatReminderOptionsExpanded || current > 0
+                                            ? 'border-primary/60 bg-primary/10'
+                                            : 'border-border bg-muted/30 hover:bg-muted/50'
+                                            }`}
+                                        onClick={() => setRepeatReminderOptionsExpanded((expanded) => !expanded)}
+                                    >
+                                        <span className="min-w-0 truncate font-medium text-foreground">{label}</span>
+                                        <span className={current > 0 ? 'shrink-0 text-primary' : 'shrink-0 text-muted-foreground'}>
+                                            {formatValue(current)}
+                                        </span>
+                                    </button>
+                                    {repeatReminderOptionsExpanded && (
+                                        <div className="flex flex-wrap gap-1.5" role="group" aria-label={label}>
+                                            {[0, ...REPEAT_REMINDER_INTERVAL_OPTIONS].map((minutes) => {
+                                                const active = current === minutes;
+                                                return (
+                                                    <button
+                                                        key={minutes}
+                                                        type="button"
+                                                        aria-pressed={active}
+                                                        className={`rounded border px-2 py-1 text-xs transition-colors ${active
+                                                            ? 'border-primary bg-primary text-primary-foreground'
+                                                            : 'border-border bg-muted/40 text-foreground hover:bg-muted'
+                                                            }`}
+                                                        onClick={() => {
+                                                            setEditRepeatReminderMinutes(minutes > 0 ? minutes : undefined);
+                                                            setRepeatReminderOptionsExpanded(false);
+                                                        }}
+                                                    >
+                                                        {formatOption(minutes)}
+                                                    </button>
+                                                );
+                                            })}
+                                        </div>
+                                    )}
+                                </div>
+                            );
+                        })()}
                     </>
                 );
             }

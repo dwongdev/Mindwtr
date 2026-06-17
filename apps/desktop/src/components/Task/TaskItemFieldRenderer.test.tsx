@@ -54,6 +54,10 @@ const t = (key: string) => {
         'taskEdit.locationLabel': 'Location',
         'taskEdit.locationPlaceholder': 'Add location',
         'taskEdit.recurrenceLabel': 'Recurrence',
+        'taskEdit.repeatReminderLabel': 'Repeat reminder',
+        'taskEdit.repeatReminderOff': 'Off',
+        'taskEdit.repeatReminderEveryMinutes': 'Every {count} min',
+        'taskEdit.repeatReminderMinutesShort': '{count} min',
         'taskEdit.checklist': 'Checklist',
         'attachments.title': 'Attachments',
         'recurrence.none': 'None',
@@ -377,6 +381,26 @@ describe('TaskItemFieldRenderer date clear buttons', () => {
         );
 
         expect(queryByRole('button', { name: 'Clear Due Date' })).toBeNull();
+    });
+
+    it('collapses due-date repeat reminder options until the compact row is opened', () => {
+        const handlers = createHandlers();
+
+        const { getByRole, queryByRole } = render(
+            <TaskItemFieldRenderer
+                fieldId="dueDate"
+                data={createData({ editDueDate: '2026-04-19T11:45' })}
+                handlers={handlers}
+            />
+        );
+
+        expect(queryByRole('combobox', { name: 'Repeat reminder' })).toBeNull();
+        const collapsedRow = getByRole('button', { name: 'Repeat reminder: Off' });
+
+        fireEvent.click(collapsedRow);
+        fireEvent.click(getByRole('button', { name: '10 min' }));
+
+        expect(handlers.setEditRepeatReminderMinutes).toHaveBeenCalledWith(10);
     });
 
     it('applies the configured locale to native date and time inputs', () => {

@@ -220,6 +220,7 @@ export const esOverrides: Record<string, string> = {
         'taskEdit.repeatReminderLabel': 'Recordatorio repetido',
         'taskEdit.repeatReminderOff': 'Desactivado',
         'taskEdit.repeatReminderEveryMinutes': 'Cada {count} min',
+        'taskEdit.repeatReminderMinutesShort': '{count} min.',
         'taskEdit.repeatReminderHint': 'Vuelve a avisarte en este intervalo hasta que la completes o la pospongas, con un límite (menos repeticiones en intervalos cortos).',
         'taskEdit.pushCountHint': 'Movida',
         'taskEdit.unblocksLabel': 'Desbloquea',

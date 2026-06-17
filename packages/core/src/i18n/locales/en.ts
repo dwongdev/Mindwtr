@@ -255,6 +255,7 @@ export const en: Record<string, string> = {
         'taskEdit.repeatReminderLabel': 'Repeat reminder',
         'taskEdit.repeatReminderOff': 'Off',
         'taskEdit.repeatReminderEveryMinutes': 'Every {count} min',
+        'taskEdit.repeatReminderMinutesShort': '{count} min',
         'taskEdit.repeatReminderHint': 'Re-notify at this interval until you complete or snooze it, up to a limit (fewer repeats at shorter intervals).',
         'taskEdit.pushCountHint': 'Pushed',
         'taskEdit.unblocksLabel': 'Unblocks',

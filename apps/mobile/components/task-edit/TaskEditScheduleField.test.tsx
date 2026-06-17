@@ -55,6 +55,10 @@ const t = (key: string) => ({
     'taskEdit.startDateLabel': 'Start Date',
     'taskEdit.suppressMindwtrReminders': 'Use calendar reminder',
     'taskEdit.suppressMindwtrRemindersHint': 'Skip Mindwtr start/due reminders for this task when your device calendar already reminds you.',
+    'taskEdit.repeatReminderLabel': 'Repeat reminder',
+    'taskEdit.repeatReminderOff': 'Off',
+    'taskEdit.repeatReminderEveryMinutes': 'Every {count} min',
+    'taskEdit.repeatReminderMinutesShort': '{count} min',
     'task.dateIssue.startAfterDue': 'Starts after due date',
     'taskEdit.recurrenceLabel': 'Recurrence',
     'recurrence.none': 'None',
@@ -324,6 +328,63 @@ describe('TaskEditScheduleField', () => {
         expect(update({ dueDate: '2026-04-28T09:20:00' })).toMatchObject({
             dueDate: '2026-04-28T09:20:00',
             suppressMindwtrReminders: true,
+        });
+    });
+
+    it('collapses repeat reminder options until the compact row is pressed', () => {
+        const setEditedTask = vi.fn();
+
+        let tree!: renderer.ReactTestRenderer;
+        act(() => {
+            tree = renderer.create(
+                <TaskEditScheduleField {...({
+                    customWeekdays: [],
+                    dailyInterval: 1,
+                    editedTask: { dueDate: '2026-04-28T09:20:00' },
+                    fieldId: 'dueDate',
+                    formatDate: (value?: string) => value ?? '',
+                    formatDueDate: (value?: string) => value ?? '',
+                    getSafePickerDateValue: () => new Date('2026-04-28T09:20:00'),
+                    monthlyPattern: 'date',
+                    onDateChange: vi.fn(),
+                    openCustomRecurrence: vi.fn(),
+                    pendingDueDate: null,
+                    pendingStartDate: null,
+                    recurrenceOptions: [],
+                    recurrenceRRuleValue: '',
+                    recurrenceRuleValue: '',
+                    recurrenceStrategyValue: 'strict',
+                    recurrenceWeekdayButtons: [],
+                    setCustomWeekdays: vi.fn(),
+                    setEditedTask,
+                    setShowDatePicker: vi.fn(),
+                    showDatePicker: null,
+                    styles,
+                    t,
+                    task: null,
+                    tc,
+                } as any)}
+                />
+            );
+        });
+
+        const collapsedRow = tree.root.findByProps({ accessibilityLabel: 'Repeat reminder: Off' });
+        expect(collapsedRow.props.accessibilityRole).toBe('button');
+        expect(tree.root.findAllByProps({ accessibilityLabel: '5 min' })).toHaveLength(0);
+
+        act(() => {
+            collapsedRow.props.onPress();
+        });
+
+        const fiveMinuteOption = tree.root.findByProps({ accessibilityLabel: '5 min' });
+        act(() => {
+            fiveMinuteOption.props.onPress();
+        });
+
+        const update = setEditedTask.mock.calls[0][0] as (previous: any) => any;
+        expect(update({ dueDate: '2026-04-28T09:20:00' })).toMatchObject({
+            dueDate: '2026-04-28T09:20:00',
+            repeatReminderMinutes: 5,
         });
     });
 

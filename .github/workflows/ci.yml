@@ -99,11 +99,13 @@ jobs:
           set -euo pipefail
 
           # GitHub-hosted Ubuntu runners sometimes point apt at a flaky Azure
-          # mirror. Prefer the canonical Ubuntu archive when that mirror list
-          # is present, then retry the whole apt transaction for transient
-          # DNS/connection failures.
+          # mirror, but the canonical Ubuntu archive can also stall. Try the
+          # runner's default mirror first, then alternate with the archive
+          # fallback on retry.
+          APT_MIRROR_BACKUP=""
           if [ -f /etc/apt/apt-mirrors.txt ]; then
-            sudo sed -i 's|http://azure.archive.ubuntu.com/ubuntu|https://archive.ubuntu.com/ubuntu|g' /etc/apt/apt-mirrors.txt
+            APT_MIRROR_BACKUP="$(mktemp)"
+            sudo cp /etc/apt/apt-mirrors.txt "$APT_MIRROR_BACKUP"
           fi
 
           # The runner image also carries optional Microsoft apt feeds that are
@@ -114,9 +116,29 @@ jobs:
             sudo mv "$source_file" "$source_file.disabled"
           done
 
+          APT_OPTIONS=(
+            -o Acquire::Retries=3
+            -o Acquire::http::Timeout=30
+            -o Acquire::https::Timeout=30
+          )
+          APT_PACKAGES=(
+            libwebkit2gtk-4.1-dev
+            libappindicator3-dev
+            librsvg2-dev
+            patchelf
+            libasound2-dev
+          )
+
           for attempt in 1 2 3; do
-            if sudo apt-get -o Acquire::Retries=3 update && \
-              sudo apt-get -o Acquire::Retries=3 install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf libasound2-dev; then
+            if [ -n "$APT_MIRROR_BACKUP" ]; then
+              sudo cp "$APT_MIRROR_BACKUP" /etc/apt/apt-mirrors.txt
+              if [ "$attempt" -eq 2 ]; then
+                sudo sed -i 's|http://azure.archive.ubuntu.com/ubuntu|https://archive.ubuntu.com/ubuntu|g' /etc/apt/apt-mirrors.txt
+              fi
+            fi
+
+            if timeout 8m sudo apt-get "${APT_OPTIONS[@]}" update && \
+              timeout 8m sudo apt-get "${APT_OPTIONS[@]}" install -y "${APT_PACKAGES[@]}"; then
               exit 0
             fi
 
