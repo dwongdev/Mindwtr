@@ -44,6 +44,13 @@
          style="height: 50px"
          height="50" />
   </a>
+  <a href="https://apt.izzysoft.de/packages/tech.dongdongbh.mindwtr" target="_blank">
+    <img src="https://gitlab.com/IzzyOnDroid/repo/-/raw/master/assets/IzzyOnDroidButtonGreyBorder_nofont.png"
+         align="center"
+         alt="在 IzzyOnDroid 获取"
+         style="height: 74px"
+         height="74" />
+  </a>
   <a href="https://f-droid.org/en/packages/tech.dongdongbh.mindwtr/" target="_blank">
     <img src="https://fdroid.gitlab.io/artwork/badge/get-it-on.png"
          align="center"
@@ -304,11 +311,11 @@ brew install --cask mindwtr
 <a href="https://play.google.com/store/apps/details?id=tech.dongdongbh.mindwtr">
   <img src="https://img.shields.io/badge/Google_Play-Install-414141?logo=googleplay&logoColor=white" alt="Get it on Google Play">
 </a>
+<a href="https://apt.izzysoft.de/packages/tech.dongdongbh.mindwtr">
+  <img src="https://img.shields.io/endpoint?url=https://apt.izzysoft.de/fdroid/api/v1/shield/tech.dongdongbh.mindwtr&label=IzzyOnDroid" alt="IzzyOnDroid">
+</a>
 <a href="https://f-droid.org/en/packages/tech.dongdongbh.mindwtr/">
   <img src="https://img.shields.io/f-droid/v/tech.dongdongbh.mindwtr?label=F-Droid&logo=fdroid&logoColor=white&color=1976D2" alt="F-Droid Version">
-</a>
-<a href="https://apt.izzysoft.de/fdroid/index/apk/tech.dongdongbh.mindwtr">
-  <img src="https://img.shields.io/endpoint?url=https://apt.izzysoft.de/fdroid/api/v1/shield/tech.dongdongbh.mindwtr&label=IzzyOnDroid" alt="IzzyOnDroid">
 </a>
 
 通过 F-Droid 安装：
