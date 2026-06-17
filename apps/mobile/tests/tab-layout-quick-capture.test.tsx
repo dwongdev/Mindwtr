@@ -435,8 +435,10 @@ describe('mobile tab quick capture', () => {
     expect(getMoreSheetButtonIconName(tree, 'Board View')).toBe('square.grid.2x2.fill');
     expect(getMoreSheetButtonIconName(tree, 'Someday')).toBe('arrow.up.circle.fill');
     const trashLabel = getMoreSheetButtonLabelNode(tree, 'Trash');
-    expect(trashLabel.props.numberOfLines).toBe(1);
-    expect(trashLabel.props.adjustsFontSizeToFit).toBe(true);
+    // #632: utility labels now wrap to two lines instead of shrinking to fit,
+    // so the longest label ("Reference") stays readable at large font scales.
+    expect(trashLabel.props.numberOfLines).toBe(2);
+    expect(trashLabel.props.adjustsFontSizeToFit).toBeUndefined();
     expect(trashLabel.props.maxFontSizeMultiplier).toBe(1.15);
     expect(flattenStyle(getMoreSheetButtons(tree, 'Trash')[0]?.props.style)).toEqual(expect.objectContaining({
       flex: 1,

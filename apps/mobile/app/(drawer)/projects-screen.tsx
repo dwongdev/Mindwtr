@@ -45,10 +45,10 @@ import { ListSectionHeader, defaultListContentStyle } from '@/components/list-la
 import { logError, logWarn } from '../../lib/app-log';
 import { AREA_FILTER_ALL, AREA_FILTER_NONE } from '@mindwtr/core';
 import { openContextsScreen, openProjectScreen } from '@/lib/task-meta-navigation';
+import { COMPACT_TEXT_MAX_SCALE } from '@/constants/text-scale';
 
 type ProjectTaskSortBy = TaskSortBy;
 const EMPTY_PROJECT_TASKS: Task[] = [];
-const COMPACT_PROJECT_TEXT_MAX_SCALE = 1.2;
 function resolveTaskRouteTab(value?: string | string[]): TaskEditTab {
   const routeValue = Array.isArray(value) ? value[0] : value;
   return routeValue === 'task' ? 'task' : 'view';
@@ -742,7 +742,7 @@ export default function ProjectsScreen() {
             onChangeText={setNewProjectTitle}
             onSubmitEditing={handleAddProject}
             returnKeyType="done"
-            maxFontSizeMultiplier={COMPACT_PROJECT_TEXT_MAX_SCALE}
+            maxFontSizeMultiplier={COMPACT_TEXT_MAX_SCALE}
             accessibilityLabel={t('projects.addPlaceholder')}
           />
           <TouchableOpacity
@@ -770,7 +770,7 @@ export default function ProjectsScreen() {
             <Text
               style={[styles.tagFilterLabel, { color: tc.text }]}
               numberOfLines={1}
-              maxFontSizeMultiplier={COMPACT_PROJECT_TEXT_MAX_SCALE}
+              maxFontSizeMultiplier={COMPACT_TEXT_MAX_SCALE}
             >
               {t('projects.tagFilter')}
             </Text>
@@ -779,7 +779,7 @@ export default function ProjectsScreen() {
               numberOfLines={1}
               adjustsFontSizeToFit
               minimumFontScale={0.78}
-              maxFontSizeMultiplier={COMPACT_PROJECT_TEXT_MAX_SCALE}
+              maxFontSizeMultiplier={COMPACT_TEXT_MAX_SCALE}
             >
               {showTagFilter ? t('filters.hide') : t('filters.show')}
             </Text>

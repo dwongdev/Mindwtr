@@ -22,10 +22,10 @@ import {
   MOBILE_QUICK_ACCESS_STACK_ROUTE,
   MOBILE_QUICK_ACCESS_TAB_ROUTE,
 } from '@/lib/mobile-quick-access-view';
+import { COMPACT_NAV_TEXT_MAX_SCALE } from '@/constants/text-scale';
 
 type IconSymbolName = Parameters<typeof IconSymbol>[0]['name'];
 type Translate = (key: string) => string;
-const COMPACT_NAV_TEXT_MAX_SCALE = 1.15;
 
 type MoreDestination = {
   id: string;
@@ -118,9 +118,7 @@ function MoreSheetCompactItem({
       </View>
       <Text
         style={[styles.moreCompactLabel, { color: tc.secondaryText }]}
-        numberOfLines={1}
-        adjustsFontSizeToFit
-        minimumFontScale={0.76}
+        numberOfLines={2}
         maxFontSizeMultiplier={COMPACT_NAV_TEXT_MAX_SCALE}
       >
         {item.displayLabel ?? item.label}
@@ -260,7 +258,7 @@ function MoreNavigationSheet({
     { id: 'trash', label: t('nav.trash'), icon: 'trash.fill', iconColor: iconColors.trash, route: '/trash' },
     { id: 'archived', label: t('nav.archived'), icon: 'archivebox.fill', iconColor: iconColors.archived, route: '/archived' },
     { id: 'done', label: t('nav.done'), icon: 'checkmark.circle.fill', iconColor: iconColors.done, route: '/done' },
-    { id: 'reference', label: t('nav.reference'), displayLabel: 'Refer', icon: 'book.closed.fill', iconColor: iconColors.reference, route: '/reference' },
+    { id: 'reference', label: t('nav.reference'), icon: 'book.closed.fill', iconColor: iconColors.reference, route: '/reference' },
     { id: 'settings', label: t('nav.settings'), icon: 'gearshape.fill', iconColor: iconColors.settings, route: '/settings' },
   ];
 

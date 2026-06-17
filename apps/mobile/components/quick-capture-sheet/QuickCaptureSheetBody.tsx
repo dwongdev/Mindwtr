@@ -4,10 +4,9 @@ import { KeyboardAvoidingView, Modal, Platform, Pressable, Switch, Text, TextInp
 import { AtSign, CalendarDays, ChevronDown, ChevronUp, Clock, FileText, Flag, Folder, Mic, SlidersHorizontal, Square, X } from 'lucide-react-native';
 import { tFallback } from '@mindwtr/core';
 import type { ThemeColors } from '@/hooks/use-theme-colors';
+import { COMPACT_TEXT_MAX_SCALE } from '@/constants/text-scale';
 import { QuickDateChips } from '../QuickDateChips';
 import { styles } from './quick-capture-sheet.styles';
-
-const COMPACT_TEXT_MAX_SCALE = 1.2;
 
 // Quick capture favors speed: show only the most-reached date presets inline.
 // Rarer choices (+3 days, next month) and clearing live behind the Custom picker / tapping the active chip.

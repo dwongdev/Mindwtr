@@ -20,6 +20,7 @@ import type { ThemeColors } from '../../hooks/use-theme-colors';
 import { FocusStarIcon } from '../FocusStarIcon';
 import { MarkdownInlineText } from '../markdown-text';
 import { styles } from './swipeable-task-item.styles';
+import { COMPACT_TEXT_MAX_SCALE } from '@/constants/text-scale';
 
 interface SwipeableTaskItemContentProps {
     accessibilityActions: { label: string; name: string }[];
@@ -285,7 +286,11 @@ export function SwipeableTaskItemContent({
 
     if (completionLabel) {
         addMetaPart(
-            <Text key="completed" style={[styles.metaText, { color: tc.secondaryText }]}>
+            <Text
+                key="completed"
+                style={[styles.metaText, { color: tc.secondaryText }]}
+                maxFontSizeMultiplier={COMPACT_TEXT_MAX_SCALE}
+            >
                 {`${t('list.done') || 'Completed'}: ${completionLabel}`}
             </Text>,
             'completed'
@@ -294,7 +299,11 @@ export function SwipeableTaskItemContent({
 
     if (dueLabel) {
         addMetaPart(
-            <Text key="due" style={[styles.metaText, styles.dueText, { color: dueColor }]}>
+            <Text
+                key="due"
+                style={[styles.metaText, styles.dueText, { color: dueColor }]}
+                maxFontSizeMultiplier={COMPACT_TEXT_MAX_SCALE}
+            >
                 {dueLabel}
             </Text>,
             'due'
@@ -303,7 +312,11 @@ export function SwipeableTaskItemContent({
 
     if (startLabel) {
         addMetaPart(
-            <Text key="start" style={[styles.metaText, { color: tc.secondaryText }]}>
+            <Text
+                key="start"
+                style={[styles.metaText, { color: tc.secondaryText }]}
+                maxFontSizeMultiplier={COMPACT_TEXT_MAX_SCALE}
+            >
                 {`${startDateLabel}: ${startLabel}`}
             </Text>,
             'start'
@@ -312,7 +325,12 @@ export function SwipeableTaskItemContent({
 
     if (dateIssueLabel) {
         addMetaPart(
-            <Text key="date-issue" style={[styles.metaText, styles.dateIssueText]} numberOfLines={1}>
+            <Text
+                key="date-issue"
+                style={[styles.metaText, styles.dateIssueText]}
+                numberOfLines={1}
+                maxFontSizeMultiplier={COMPACT_TEXT_MAX_SCALE}
+            >
                 {dateIssueLabel}
             </Text>,
             'date-issue'

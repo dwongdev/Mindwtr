@@ -26,6 +26,7 @@ import { SwipeableTaskItemContent } from './swipeable-task-item/SwipeableTaskIte
 import { ProjectNextActionPromptModal } from './swipeable-task-item/ProjectNextActionPromptModal';
 import { SwipeableTaskItemStatusMenu } from './swipeable-task-item/SwipeableTaskItemStatusMenu';
 import { styles } from './swipeable-task-item/swipeable-task-item.styles';
+import { COMPACT_TEXT_MAX_SCALE } from '@/constants/text-scale';
 import { useSwipeableChecklist } from './swipeable-task-item/useSwipeableChecklist';
 
 export interface SwipeableTaskItemProps {
@@ -340,7 +341,9 @@ export function SwipeableTaskItem({
                 accessibilityRole="button"
             >
                 <LeftIcon size={20} color="#FFFFFF" />
-                <Text style={styles.swipeActionText}>{leftAction.label}</Text>
+                <Text style={styles.swipeActionText} numberOfLines={1} maxFontSizeMultiplier={COMPACT_TEXT_MAX_SCALE}>
+                    {leftAction.label}
+                </Text>
             </Pressable>
         );
     };
@@ -356,7 +359,9 @@ export function SwipeableTaskItem({
             accessibilityRole="button"
         >
             <Trash2 size={20} color="#FFFFFF" />
-            <Text style={styles.swipeActionText}>{t('common.delete')}</Text>
+            <Text style={styles.swipeActionText} numberOfLines={1} maxFontSizeMultiplier={COMPACT_TEXT_MAX_SCALE}>
+                {t('common.delete')}
+            </Text>
         </Pressable>
     );
 

@@ -10,6 +10,7 @@ import { ErrorBoundary } from '../../../components/ErrorBoundary';
 
 import { useLanguage } from '../../../contexts/language-context';
 import { useThemeColors } from '@/hooks/use-theme-colors';
+import { COMPACT_TEXT_MAX_SCALE } from '@/constants/text-scale';
 import { useMobileAreaFilter } from '@/hooks/use-mobile-area-filter';
 import { taskMatchesAreaFilter } from '@mindwtr/core';
 import { useQuickCapture } from '../../../contexts/quick-capture-context';
@@ -60,7 +61,11 @@ export default function InboxScreen() {
       accessibilityLabel={t('mindSweep.launchButton')}
     >
       <Brain size={18} color={tc.tint} strokeWidth={2.2} />
-      <Text style={[styles.mindSweepLabel, { color: tc.tint }]} numberOfLines={1}>
+      <Text
+        style={[styles.mindSweepLabel, { color: tc.tint }]}
+        numberOfLines={2}
+        maxFontSizeMultiplier={COMPACT_TEXT_MAX_SCALE}
+      >
         {t('mindSweep.launchButton')}
       </Text>
     </TouchableOpacity>
@@ -78,7 +83,11 @@ export default function InboxScreen() {
           accessibilityLabel={`${t('inbox.processButton')} (${inboxTasks.length})`}
         >
           <ListChecks size={18} color={tc.onTint} strokeWidth={2.2} />
-          <Text style={[styles.actionLabel, { color: tc.onTint }]} numberOfLines={1}>
+          <Text
+            style={[styles.actionLabel, { color: tc.onTint }]}
+            numberOfLines={2}
+            maxFontSizeMultiplier={COMPACT_TEXT_MAX_SCALE}
+          >
             {t('inbox.processButton')} ({processCount})
           </Text>
         </TouchableOpacity>
@@ -90,7 +99,11 @@ export default function InboxScreen() {
           accessibilityLabel={t('mindSweep.launchButton')}
         >
           <Brain size={18} color={tc.onTint} strokeWidth={2.2} />
-          <Text style={[styles.actionLabel, { color: tc.onTint }]} numberOfLines={1}>
+          <Text
+            style={[styles.actionLabel, { color: tc.onTint }]}
+            numberOfLines={2}
+            maxFontSizeMultiplier={COMPACT_TEXT_MAX_SCALE}
+          >
             {t('mindSweep.launchButton')}
           </Text>
         </TouchableOpacity>
@@ -148,8 +161,10 @@ const styles = StyleSheet.create({
     borderRadius: 12,
   },
   actionLabel: {
+    flexShrink: 1,
     fontSize: 15,
     fontWeight: '600',
+    textAlign: 'center',
   },
   mindSweepPill: {
     flexDirection: 'row',
@@ -162,7 +177,9 @@ const styles = StyleSheet.create({
     borderWidth: 1,
   },
   mindSweepLabel: {
+    flexShrink: 1,
     fontSize: 14,
     fontWeight: '600',
+    textAlign: 'center',
   },
 });

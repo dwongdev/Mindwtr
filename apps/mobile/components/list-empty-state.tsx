@@ -1,5 +1,6 @@
 import React from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { COMPACT_TEXT_MAX_SCALE } from '@/constants/text-scale';
 
 export interface ListEmptyStateProps {
   message: string;
@@ -33,6 +34,7 @@ export function ListEmptyState({
         style={[styles.text, { color: textColor }]}
         accessibilityRole="text"
         accessibilityLiveRegion="polite"
+        maxFontSizeMultiplier={COMPACT_TEXT_MAX_SCALE}
       >
         {message}
       </Text>
@@ -40,6 +42,7 @@ export function ListEmptyState({
         <Text
           style={[styles.hint, { color: mutedTextColor ?? textColor }]}
           accessibilityRole="text"
+          maxFontSizeMultiplier={COMPACT_TEXT_MAX_SCALE}
         >
           {hint}
         </Text>
@@ -51,7 +54,10 @@ export function ListEmptyState({
           accessibilityLabel={actionLabel}
           onPress={onAction}
         >
-          <Text style={[styles.actionText, { color: textColor }]}>
+          <Text
+            style={[styles.actionText, { color: textColor }]}
+            maxFontSizeMultiplier={COMPACT_TEXT_MAX_SCALE}
+          >
             {actionLabel}
           </Text>
         </TouchableOpacity>

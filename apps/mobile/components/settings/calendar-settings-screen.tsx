@@ -46,6 +46,7 @@ import {
 import { useToast } from '@/contexts/toast-context';
 import { maskCalendarUrl } from '@/lib/settings-utils';
 import { useThemeColors } from '@/hooks/use-theme-colors';
+import { COMPACT_TEXT_MAX_SCALE } from '@/constants/text-scale';
 
 import { useSettingsLocalization, useSettingsScrollContent } from './settings.hooks';
 import { SettingsGuideLink, SettingsTopBar } from './settings.shell';
@@ -854,7 +855,10 @@ export function CalendarSettingsScreen() {
                                 onPress={() => void handleAddCalendar()}
                                 disabled={!newCalendarUrl.trim()}
                             >
-                                <Text style={[styles.backendOptionText, { color: newCalendarUrl.trim() ? '#FFFFFF' : tc.secondaryText }]}>
+                                <Text
+                                    style={[styles.backendOptionText, { color: newCalendarUrl.trim() ? '#FFFFFF' : tc.secondaryText }]}
+                                    maxFontSizeMultiplier={COMPACT_TEXT_MAX_SCALE}
+                                >
                                     {t('settings.externalCalendarAdd')}
                                 </Text>
                             </TouchableOpacity>
@@ -863,7 +867,12 @@ export function CalendarSettingsScreen() {
                                 style={[styles.backendOption, { borderColor: tc.border, backgroundColor: tc.filterBg }]}
                                 onPress={() => void handleTestFetch()}
                             >
-                                <Text style={[styles.backendOptionText, { color: tc.text }]}>{tr('settings.calendarMobile.test')}</Text>
+                                <Text
+                                    style={[styles.backendOptionText, { color: tc.text }]}
+                                    maxFontSizeMultiplier={COMPACT_TEXT_MAX_SCALE}
+                                >
+                                    {tr('settings.calendarMobile.test')}
+                                </Text>
                             </TouchableOpacity>
                         </View>
 
@@ -874,7 +883,10 @@ export function CalendarSettingsScreen() {
                             ]}
                             onPress={() => void handleChooseLocalCalendar()}
                         >
-                            <Text style={[styles.backendOptionText, { color: tc.text }]}>
+                            <Text
+                                style={[styles.backendOptionText, { color: tc.text }]}
+                                maxFontSizeMultiplier={COMPACT_TEXT_MAX_SCALE}
+                            >
                                 {tr('settings.calendarMobile.chooseLocalIcsFile')}
                             </Text>
                         </TouchableOpacity>

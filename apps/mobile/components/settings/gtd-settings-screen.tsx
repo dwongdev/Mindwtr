@@ -18,6 +18,7 @@ import {
     type TaskEditorPresetId,
 } from '@/components/task-edit/task-edit-modal.utils';
 import { useThemeColors } from '@/hooks/use-theme-colors';
+import { COMPACT_TEXT_MAX_SCALE } from '@/constants/text-scale';
 import { dispatchMobileOnboardingEvent } from '@/lib/mobile-onboarding-events';
 import { logSettingsError } from '@/lib/settings-utils';
 import { useToast } from '@/contexts/toast-context';
@@ -971,7 +972,13 @@ export function GtdSettingsScreen({
                                     style={[styles.settingRow, idx > 0 && { borderTopWidth: 1, borderTopColor: tc.border }]}
                                     onPress={() => togglePreset(value)}
                                 >
-                                    <Text style={[styles.settingLabel, { color: tc.text }]}>{formatTimeEstimateLabel(value)}</Text>
+                                    <Text
+                                        style={[styles.settingLabel, { color: tc.text }]}
+                                        numberOfLines={2}
+                                        maxFontSizeMultiplier={COMPACT_TEXT_MAX_SCALE}
+                                    >
+                                        {formatTimeEstimateLabel(value)}
+                                    </Text>
                                     {selected && <Text style={{ color: '#3B82F6', fontSize: 20 }}>✓</Text>}
                                 </TouchableOpacity>
                             );
@@ -982,7 +989,13 @@ export function GtdSettingsScreen({
                         onPress={resetToDefault}
                     >
                         <View style={styles.settingRow}>
-                            <Text style={[styles.settingLabel, { color: tc.text }]}>{t('settings.resetToDefault')}</Text>
+                            <Text
+                                style={[styles.settingLabel, { color: tc.text }]}
+                                numberOfLines={2}
+                                maxFontSizeMultiplier={COMPACT_TEXT_MAX_SCALE}
+                            >
+                                {t('settings.resetToDefault')}
+                            </Text>
                         </View>
                     </TouchableOpacity>
                 </ScrollView>
@@ -1272,7 +1285,11 @@ export function GtdSettingsScreen({
                                         saveTaskEditor(preset);
                                     }}
                                 >
-                                    <Text style={[styles.taskEditorPresetButtonText, { color: selected ? tc.tint : tc.secondaryText }]}>
+                                    <Text
+                                        style={[styles.taskEditorPresetButtonText, { color: selected ? tc.tint : tc.secondaryText }]}
+                                        numberOfLines={1}
+                                        maxFontSizeMultiplier={COMPACT_TEXT_MAX_SCALE}
+                                    >
                                         {option.label}
                                     </Text>
                                 </TouchableOpacity>
@@ -1298,7 +1315,13 @@ export function GtdSettingsScreen({
                                 activeOpacity={0.8}
                             >
                                 <View style={styles.taskEditorSectionHeaderMain}>
-                                    <Text style={[styles.settingLabel, { color: tc.text }]}>{group.title}</Text>
+                                    <Text
+                                        style={[styles.settingLabel, { color: tc.text }]}
+                                        numberOfLines={2}
+                                        maxFontSizeMultiplier={COMPACT_TEXT_MAX_SCALE}
+                                    >
+                                        {group.title}
+                                    </Text>
                                     <View style={[styles.taskEditorSectionCountBadge, { backgroundColor: tc.filterBg }]}>
                                         <Text style={[styles.taskEditorSectionCountText, { color: tc.tint }]}>{groupOrder.length}</Text>
                                     </View>
@@ -1352,7 +1375,13 @@ export function GtdSettingsScreen({
                     }}
                 >
                     <View style={styles.settingRow}>
-                        <Text style={[styles.settingLabel, { color: tc.text }]}>{t('settings.resetToDefault')}</Text>
+                        <Text
+                            style={[styles.settingLabel, { color: tc.text }]}
+                            numberOfLines={2}
+                            maxFontSizeMultiplier={COMPACT_TEXT_MAX_SCALE}
+                        >
+                            {t('settings.resetToDefault')}
+                        </Text>
                     </View>
                 </TouchableOpacity>
             </ScrollView>

@@ -56,6 +56,7 @@ import {
 } from '@mindwtr/core';
 import { SwipeableTaskItem } from '@/components/swipeable-task-item';
 import { useThemeColors } from '@/hooks/use-theme-colors';
+import { COMPACT_TEXT_MAX_SCALE } from '@/constants/text-scale';
 import { useTheme } from '../../../contexts/theme-context';
 import { useLanguage } from '../../../contexts/language-context';
 import { useToast } from '../../../contexts/toast-context';
@@ -1298,6 +1299,7 @@ export default function FocusScreen() {
       <Text
         style={[styles.filterChipText, { color: textColor }]}
         numberOfLines={2}
+        maxFontSizeMultiplier={COMPACT_TEXT_MAX_SCALE}
       >
         {label}
       </Text>
@@ -1634,8 +1636,19 @@ export default function FocusScreen() {
               <Text style={[styles.sectionChevron, { color: tc.secondaryText }]}>
                 {section.expanded ? '▾' : '▸'}
               </Text>
-              <Text style={[styles.sectionTitle, { color: tc.tint }]}>{section.title}</Text>
-              <Text style={[styles.sectionCount, { color: tc.secondaryText }]}>({section.totalCount})</Text>
+              <Text
+                style={[styles.sectionTitle, { color: tc.tint }]}
+                numberOfLines={2}
+                maxFontSizeMultiplier={COMPACT_TEXT_MAX_SCALE}
+              >
+                {section.title}
+              </Text>
+              <Text
+                style={[styles.sectionCount, { color: tc.secondaryText }]}
+                maxFontSizeMultiplier={COMPACT_TEXT_MAX_SCALE}
+              >
+                ({section.totalCount})
+              </Text>
               <View style={[styles.sectionLine, { backgroundColor: tc.border }]} />
             </Pressable>
           ) : null

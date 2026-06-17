@@ -15,6 +15,7 @@ import { useLanguage } from '../contexts/language-context';
 import { useToast } from '../contexts/toast-context';
 import { useThemeColors } from '@/hooks/use-theme-colors';
 import { useMobileAreaFilter } from '@/hooks/use-mobile-area-filter';
+import { COMPACT_TEXT_MAX_SCALE } from '@/constants/text-scale';
 import { AREA_FILTER_ALL, AREA_FILTER_NONE } from '@mindwtr/core';
 
 export function MobileAreaSwitcher() {
@@ -83,6 +84,7 @@ export function MobileAreaSwitcher() {
       >
         <Text
           numberOfLines={2}
+          maxFontSizeMultiplier={COMPACT_TEXT_MAX_SCALE}
           style={[
             styles.triggerText,
             { color: isDefaultScope ? tc.secondaryText : tc.tint },

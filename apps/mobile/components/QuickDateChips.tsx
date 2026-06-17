@@ -9,6 +9,7 @@ import {
 } from '@mindwtr/core';
 
 import type { ThemeColors } from '@/hooks/use-theme-colors';
+import { COMPACT_TEXT_MAX_SCALE } from '@/constants/text-scale';
 
 const QUICK_DATE_LABELS: Record<QuickDatePreset, { key: string; fallback: string }> = {
   today: { key: 'quickDate.today', fallback: 'Today' },
@@ -76,7 +77,7 @@ export function QuickDateChips({
                 { color: active ? tc.onTint : tc.secondaryText },
               ]}
               numberOfLines={2}
-              maxFontSizeMultiplier={1.2}
+              maxFontSizeMultiplier={COMPACT_TEXT_MAX_SCALE}
             >
               {label}
             </Text>
