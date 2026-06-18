@@ -49,6 +49,8 @@ Mindwtr is **simple by default and powerful when needed**. We focus on reducing 
 ### Data & Sync
 - [[Data and Sync]] — Storage locations and sync setup
 - [[Backup and Restore]] — Export backups, restore local data, and use recovery snapshots
+- [[Importing Data From Other Apps]] — Native importers plus paste, text, script, and API migration paths
+- [[TickTick Import]] — Import TickTick CSV or ZIP backups into Mindwtr
 - [[Todoist Import]] — Import Todoist CSV or ZIP exports into Mindwtr
 - [[DGT GTD Import]] — Import DGT GTD JSON or ZIP exports into Mindwtr
 - [[OmniFocus Import]] — Import OmniFocus CSV, JSON, or ZIP exports into Mindwtr
