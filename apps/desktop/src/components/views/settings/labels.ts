@@ -1061,6 +1061,8 @@ export const zhHantLabelOverrides: Partial<SettingsLabels> = {
     restoreBackupDesc: '從 Mindwtr 備份 JSON 文件替換本地數據。',
     importTodoist: '從 Todoist 導入',
     importTodoistDesc: '將 Todoist 的 CSV 或 ZIP 導出導入為 Mindwtr 項目。',
+    importTickTick: '從 TickTick 導入',
+    importTickTickDesc: '將 TickTick 的 CSV 或 ZIP 備份導入為 Mindwtr 的領域、項目和任務。',
     importDgt: '從 DGT GTD 導入',
     importDgtDesc: '將 DGT GTD 的 JSON 或 ZIP 導出導入為 Mindwtr 的領域、項目和任務。',
     importOmniFocus: '從 OmniFocus 導入',

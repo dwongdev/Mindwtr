@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { createEvent, fireEvent, render, waitFor } from '@testing-library/react';
+import { act, createEvent, fireEvent, render, waitFor } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import type { Project } from '@mindwtr/core';
 
@@ -156,6 +156,64 @@ describe('TaskInput autocomplete', () => {
             expect(input.selectionStart).toBe('Email '.length);
             expect(input.selectionEnd).toBe('Email '.length);
         });
+    });
+
+    it('keeps the metadata-applied caret when the parent value update is delayed', async () => {
+        const onAcceptSuggestion = vi.fn(() => true);
+        const rafCallbacks: FrameRequestCallback[] = [];
+        const requestAnimationFrameSpy = vi.spyOn(window, 'requestAnimationFrame').mockImplementation((callback) => {
+            rafCallbacks.push(callback);
+            return rafCallbacks.length;
+        });
+        let commitChange: (() => void) | null = null;
+
+        function DelayedTaskInputHarness() {
+            const [value, setValue] = useState('Email @wo today');
+
+            return (
+                <TaskInput
+                    value={value}
+                    onChange={(nextValue) => {
+                        commitChange = () => setValue(nextValue);
+                    }}
+                    projects={[]}
+                    contexts={['@work']}
+                    onAcceptSuggestion={onAcceptSuggestion}
+                />
+            );
+        }
+
+        try {
+            const { getByRole } = render(<DelayedTaskInputHarness />);
+            const input = getByRole('combobox') as HTMLInputElement;
+            input.focus();
+            input.setSelectionRange('Email @wo'.length, 'Email @wo'.length);
+            fireEvent.click(input);
+
+            fireEvent.keyDown(input, { key: 'Enter' });
+
+            await waitFor(() => {
+                expect(onAcceptSuggestion).toHaveBeenCalled();
+                expect(commitChange).not.toBeNull();
+            });
+            expect(input.value).toBe('Email @wo today');
+
+            act(() => {
+                rafCallbacks.shift()?.(0);
+            });
+
+            await act(async () => {
+                commitChange?.();
+            });
+
+            await waitFor(() => {
+                expect(input.value).toBe('Email today');
+                expect(input.selectionStart).toBe('Email '.length);
+                expect(input.selectionEnd).toBe('Email '.length);
+            });
+        } finally {
+            requestAnimationFrameSpy.mockRestore();
+        }
     });
 
     it('accepts a hotkey suggestion with Tab', async () => {

@@ -22,6 +22,11 @@ interface InputSelection {
     end: number;
 }
 
+type PendingSelectionRestore = {
+    selection: InputSelection;
+    expectedValue: string;
+};
+
 type ActiveTrigger = {
     text: string;
     trigger: TriggerState;
@@ -141,7 +146,7 @@ export function TaskInput({
         start: value.length,
         end: value.length,
     });
-    const pendingSelectionRef = useRef<InputSelection | null>(null);
+    const pendingSelectionRef = useRef<PendingSelectionRestore | null>(null);
     const undoRef = useRef<Array<{ value: string; selection: InputSelection }>>([]);
 
     const options = useMemo<Option[]>(() => {
@@ -237,18 +242,29 @@ export function TaskInput({
     };
 
     const scheduleSelectionRestore = (selection: InputSelection) => {
-        pendingSelectionRef.current = selection;
+        const pendingRestore: PendingSelectionRestore = {
+            selection,
+            expectedValue: valueRef.current,
+        };
+        pendingSelectionRef.current = pendingRestore;
         requestAnimationFrame(() => {
-            if (pendingSelectionRef.current !== selection) return;
-            restoreSelection(selection);
-            pendingSelectionRef.current = null;
+            if (pendingSelectionRef.current !== pendingRestore) return;
+            restoreSelection(pendingRestore.selection);
+            const input = mergedRef.current;
+            if (!input || input.value === pendingRestore.expectedValue) {
+                pendingSelectionRef.current = null;
+            }
         });
     };
 
     useLayoutEffect(() => {
-        const pendingSelection = pendingSelectionRef.current;
-        if (!pendingSelection) return;
-        restoreSelection(pendingSelection);
+        const pendingRestore = pendingSelectionRef.current;
+        if (!pendingRestore) return;
+        if (value !== pendingRestore.expectedValue) {
+            pendingSelectionRef.current = null;
+            return;
+        }
+        restoreSelection(pendingRestore.selection);
         pendingSelectionRef.current = null;
     }, [value]);
 
