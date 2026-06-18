@@ -2,7 +2,7 @@ import { DEFAULT_AREA_COLOR } from '@mindwtr/core';
 import type { Area, Project, Task, TaskEnergyLevel, TaskPriority } from '@mindwtr/core';
 import { getContextColor } from '../../../lib/context-color';
 
-export type NextGroupBy = 'none' | 'context' | 'area' | 'project' | 'energy' | 'priority' | 'person';
+export type NextGroupBy = 'none' | 'context' | 'area' | 'project' | 'energy' | 'priority' | 'person' | 'tag';
 export type ReferenceGroupBy = 'none' | 'context' | 'area' | 'project' | 'tag';
 export type TaskListGroupBy = NextGroupBy | ReferenceGroupBy;
 

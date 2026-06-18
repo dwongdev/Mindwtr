@@ -13,7 +13,7 @@ export type TaskSortBy = 'default' | 'due' | 'start' | 'review' | 'title' | 'cre
 
 export type TaskMode = 'task' | 'list';
 
-export type FocusGroupBy = 'none' | 'context' | 'project' | 'area' | 'energy' | 'priority' | 'person';
+export type FocusGroupBy = 'none' | 'context' | 'project' | 'area' | 'energy' | 'priority' | 'person' | 'tag';
 
 export type RecurrenceRule = 'daily' | 'weekly' | 'monthly' | 'yearly';
 

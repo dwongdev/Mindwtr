@@ -92,6 +92,49 @@ export function groupFocusTasksByContext(tasks: Task[], noContextLabel: string):
     return groups;
 }
 
+export function groupFocusTasksByTag(tasks: Task[], noTagLabel: string): FocusContextTaskGroup[] {
+    const grouped = new Map<string, Task[]>();
+    const noTagTasks: Task[] = [];
+
+    tasks.forEach((task) => {
+        const tags = (task.tags ?? [])
+            .map((value) => value.trim())
+            .filter((value) => value.length > 0);
+        if (tags.length === 0) {
+            noTagTasks.push(task);
+            return;
+        }
+
+        Array.from(new Set(tags)).forEach((tag) => {
+            const tagTasks = grouped.get(tag) ?? [];
+            tagTasks.push(task);
+            grouped.set(tag, tagTasks);
+        });
+    });
+
+    const groups: FocusContextTaskGroup[] = [];
+    if (noTagTasks.length > 0) {
+        groups.push({
+            id: 'tag:none',
+            title: noTagLabel,
+            tasks: noTagTasks,
+            muted: true,
+        });
+    }
+
+    [...grouped.keys()]
+        .sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' }))
+        .forEach((tag) => {
+            groups.push({
+                id: `tag:${tag}`,
+                title: tag,
+                tasks: grouped.get(tag) ?? [],
+            });
+        });
+
+    return groups;
+}
+
 export function taskMatchesFocusFilters(
     task: Pick<Task, 'contexts' | 'tags' | 'projectId' | 'location' | 'priority' | 'energyLevel' | 'timeEstimate'>,
     filters: FocusTaskFilters,

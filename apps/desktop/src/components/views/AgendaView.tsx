@@ -16,7 +16,7 @@ import { AgendaFiltersPanel, type AgendaActiveFilterChip, type AgendaProjectFilt
 import { AgendaHeader } from './agenda/AgendaHeader';
 import { AgendaCollapsibleSection, AgendaProjectSection } from './agenda/AgendaSections';
 import { StoreTaskItem } from './list/StoreTaskItem';
-import { groupTasksByArea, groupTasksByContext, groupTasksByEnergy, groupTasksByPerson, groupTasksByPriority, groupTasksByProject, type NextGroupBy, type TaskGroup } from './list/next-grouping';
+import { groupTasksByArea, groupTasksByContext, groupTasksByEnergy, groupTasksByPerson, groupTasksByPriority, groupTasksByProject, groupTasksByTag, type NextGroupBy, type TaskGroup } from './list/next-grouping';
 import { PromptModal } from '../PromptModal';
 import { ConfirmModal } from '../ConfirmModal';
 import { dispatchNavigateEvent } from '../../lib/navigation-events';
@@ -26,7 +26,7 @@ const AGENDA_VIRTUALIZATION_THRESHOLD = 25;
 const NO_PROJECT_FILTER_ID = SAVED_FILTER_NO_PROJECT_ID;
 const AGENDA_ACTIVE_STATUSES: Task['status'][] = ['inbox', 'next', 'waiting', 'someday'];
 const DEFAULT_FOCUS_SORT_BY: SortField = 'default';
-const FOCUS_GROUP_BY_VALUES = new Set<FocusGroupBy>(['none', 'context', 'project', 'area', 'energy', 'priority', 'person']);
+const FOCUS_GROUP_BY_VALUES = new Set<FocusGroupBy>(['none', 'context', 'project', 'area', 'energy', 'priority', 'person', 'tag']);
 const FOCUS_VIEW_STATE_STORAGE_KEY = 'mindwtr:view:focus:v1';
 
 type FocusSectionKey = 'schedule' | 'nextActions' | 'reviewDue';
@@ -50,6 +50,7 @@ const DEFAULT_FOCUS_VIEW_STATE: FocusPersistedViewState = {
         energy: [],
         priority: [],
         person: [],
+        tag: [],
     },
 };
 
@@ -81,6 +82,7 @@ function sanitizeFocusViewState(value: unknown, fallback: FocusPersistedViewStat
             energy: sanitizeGroupIds(collapsedGroups.energy, fallback.collapsedGroups.energy),
             priority: sanitizeGroupIds(collapsedGroups.priority, fallback.collapsedGroups.priority),
             person: sanitizeGroupIds(collapsedGroups.person, fallback.collapsedGroups.person),
+            tag: sanitizeGroupIds(collapsedGroups.tag, fallback.collapsedGroups.tag),
         },
     };
 }
@@ -869,6 +871,12 @@ export function AgendaView() {
             return groupTasksByPerson({
                 tasks: sections.nextActions,
                 unassignedLabel: resolveText('people.unassigned', 'Unassigned'),
+            });
+        }
+        if (effectiveNextGroupBy === 'tag') {
+            return groupTasksByTag({
+                tasks: sections.nextActions,
+                noTagLabel: resolveText('projects.noTags', 'No tags'),
             });
         }
         return groupTasksByContext({

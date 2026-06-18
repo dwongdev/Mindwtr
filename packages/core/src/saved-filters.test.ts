@@ -163,6 +163,22 @@ describe('saved filters', () => {
         expect(hasActiveFilterCriteria(filters[0]?.criteria)).toBe(true);
     });
 
+    it('preserves tag grouping for saved Focus filters', () => {
+        const filters = normalizeSavedFilters([
+            {
+                id: 'filter-1',
+                name: 'Tag view',
+                view: 'focus',
+                criteria: { tags: ['#deep'] },
+                groupBy: 'tag',
+                createdAt: '2026-05-02T00:00:00.000Z',
+                updatedAt: '2026-05-02T00:00:00.000Z',
+            },
+        ]);
+
+        expect(filters[0]?.groupBy).toBe('tag');
+    });
+
     it('marks saved filters as tombstones instead of removing them', () => {
         const filters = markSavedFilterDeleted([
             {

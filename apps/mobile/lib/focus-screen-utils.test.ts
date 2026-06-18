@@ -4,6 +4,7 @@ import {
     formatFocusTimeEstimateLabel,
     getFocusTokenOptions,
     groupFocusTasksByContext,
+    groupFocusTasksByTag,
     NO_PROJECT_FILTER_ID,
     splitFocusedTasks,
     taskMatchesFocusFilters,
@@ -64,6 +65,21 @@ describe('groupFocusTasksByContext', () => {
         expect(groups.map((group) => group.title)).toEqual(['No context', '@home', '@work']);
         expect(groups[0]).toMatchObject({ id: 'context:none', muted: true });
         expect(groups[2]?.tasks.map((task) => task.id)).toEqual(['work']);
+    });
+});
+
+describe('groupFocusTasksByTag', () => {
+    it('groups tasks under every matching tag and keeps untagged tasks muted first', () => {
+        const noTag = { id: 'no-tag', contexts: [], tags: [] };
+        const multi = { id: 'multi', contexts: [], tags: ['#work', '#deep', '#work'] };
+        const home = { id: 'home', contexts: [], tags: ['#home'] };
+
+        const groups = groupFocusTasksByTag([multi, noTag, home] as any, 'No tags');
+
+        expect(groups.map((group) => group.title)).toEqual(['No tags', '#deep', '#home', '#work']);
+        expect(groups[0]).toMatchObject({ id: 'tag:none', muted: true });
+        expect(groups.find((group) => group.id === 'tag:#deep')?.tasks.map((task) => task.id)).toEqual(['multi']);
+        expect(groups.find((group) => group.id === 'tag:#work')?.tasks.map((task) => task.id)).toEqual(['multi']);
     });
 });
 

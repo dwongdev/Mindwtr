@@ -73,6 +73,7 @@ const FOCUS_GROUP_BY_VALUE_FLAGS: Record<FocusGroupByValue, true> = {
     energy: true,
     priority: true,
     person: true,
+    tag: true,
 };
 
 const DEFAULT_PROJECT_FLOW_MODE_VALUE_FLAGS: Record<DefaultProjectFlowModeValue, true> = {

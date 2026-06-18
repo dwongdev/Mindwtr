@@ -557,6 +557,12 @@ export const ListView = memo(function ListView({ title, statusFilter }: ListView
                 unassignedLabel: resolveText('people.unassigned', 'Unassigned'),
             });
         }
+        if (activeNextGroupBy === 'tag') {
+            return groupTasksByTag({
+                tasks: filteredTasks,
+                noTagLabel: resolveText('projects.noTags', 'No tags'),
+            });
+        }
         return groupTasksByContext({
             tasks: filteredTasks,
             noContextLabel: resolveText('contexts.none', 'No context'),

@@ -3,7 +3,7 @@ import { cn } from '../../../lib/utils';
 import type { TaskSortBy } from '@mindwtr/core';
 import type { TaskListGroupBy } from './next-grouping';
 
-const DEFAULT_GROUP_BY_OPTIONS: TaskListGroupBy[] = ['none', 'context', 'area', 'project', 'energy', 'priority', 'person'];
+const DEFAULT_GROUP_BY_OPTIONS: TaskListGroupBy[] = ['none', 'context', 'area', 'project', 'tag', 'energy', 'priority', 'person'];
 
 type ListHeaderProps = {
     title: string;

@@ -110,6 +110,7 @@ export function AgendaHeader({
                         <option value="context">{resolveText('list.groupByContext', 'Context')}</option>
                         <option value="area">{resolveText('list.groupByArea', 'Area')}</option>
                         <option value="project">{resolveText('list.groupByProject', 'Project')}</option>
+                        <option value="tag">{resolveText('tags.title', 'Tags')}</option>
                         <option value="energy">{resolveText('focus.group.energy', 'Energy')}</option>
                         <option value="priority">{resolveText('filters.priority', 'Priority')}</option>
                         <option value="person">{resolveText('people.title', 'People')}</option>
