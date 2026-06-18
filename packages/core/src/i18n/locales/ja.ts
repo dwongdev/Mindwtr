@@ -1217,4 +1217,11 @@ export const jaOverrides: Record<string, string> = {
         'mindSweep.group.workAdmin.p3': '期限のある研修、評価、提出書類',
         'mindSweep.group.workAdmin.p4': '手配が必要な出張、機材、アクセス権',
         'mindSweep.group.workAdmin.p5': '今日整理しておけば、未来の自分に感謝されること',
+        'settings.backupMobile.importTicktickData': 'TickTick データをインポートしますか？',
+        'settings.backupMobile.theSelectedFileIsNotASupportedTicktickBackup': '選択したファイルはサポートされている TickTick バックアップではありません。',
+        'settings.backupMobile.ticktickAreasWillBeCreated': 'TickTick のフォルダから {{areaCount}} 個のエリアを作成します。',
+        'settings.backupMobile.ticktickProjectsWillBeCreated': 'TickTick のリストから {{projectCount}} 個のプロジェクトを作成します。',
+        'settings.backupMobile.recurringTasksWillKeepSupportedRepeatRules': '{{taskCount}} 件の繰り返しタスクは、対応している繰り返しルールを保持します。',
+        'settings.syncMobile.importFromTicktick': 'TickTick からインポート',
+        'settings.syncMobile.importTicktickCsvOrZipBackupsIntoMindwtrAreas': 'TickTick の CSV または ZIP バックアップを Mindwtr のエリア、プロジェクト、タスクにインポートします。',
 };

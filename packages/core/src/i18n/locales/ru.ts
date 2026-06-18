@@ -1217,4 +1217,11 @@ export const ruOverrides: Record<string, string> = {
         'mindSweep.group.workAdmin.p3': 'Обучения, аттестации или анкеты со сроком',
         'mindSweep.group.workAdmin.p4': 'Командировки, оборудование или доступы, которые нужно оформить',
         'mindSweep.group.workAdmin.p5': 'Всё, за что будущий вы скажет спасибо, если разложить это сегодня',
+        'settings.backupMobile.importTicktickData': 'Импортировать данные TickTick?',
+        'settings.backupMobile.theSelectedFileIsNotASupportedTicktickBackup': 'Выбранный файл не является поддерживаемой резервной копией TickTick.',
+        'settings.backupMobile.ticktickAreasWillBeCreated': 'Из папок TickTick будет создано областей: {{areaCount}}.',
+        'settings.backupMobile.ticktickProjectsWillBeCreated': 'Из списков TickTick будет создано проектов: {{projectCount}}.',
+        'settings.backupMobile.recurringTasksWillKeepSupportedRepeatRules': 'Повторяющиеся задачи ({{taskCount}}) сохранят поддерживаемые правила повтора.',
+        'settings.syncMobile.importFromTicktick': 'Импорт из TickTick',
+        'settings.syncMobile.importTicktickCsvOrZipBackupsIntoMindwtrAreas': 'Импортируйте CSV- или ZIP-резервные копии TickTick в области, проекты и задачи Mindwtr.',
 };

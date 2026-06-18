@@ -1422,4 +1422,11 @@ export const itOverrides: Record<string, string> = {
         'mindSweep.group.workAdmin.p3': 'Corsi, valutazioni o moduli con una scadenza',
         'mindSweep.group.workAdmin.p4': 'Trasferte, attrezzatura o accessi da organizzare',
         'mindSweep.group.workAdmin.p5': 'Tutto ciò per cui il te del futuro ti ringrazierà se lo archivi oggi',
+        'settings.backupMobile.importTicktickData': 'Importare dati da TickTick?',
+        'settings.backupMobile.theSelectedFileIsNotASupportedTicktickBackup': 'Il file selezionato non è un backup TickTick supportato.',
+        'settings.backupMobile.ticktickAreasWillBeCreated': '{{areaCount}} aree verranno create dalle cartelle TickTick.',
+        'settings.backupMobile.ticktickProjectsWillBeCreated': '{{projectCount}} progetti verranno creati dagli elenchi TickTick.',
+        'settings.backupMobile.recurringTasksWillKeepSupportedRepeatRules': '{{taskCount}} attività ricorrenti manterranno le regole di ripetizione supportate.',
+        'settings.syncMobile.importFromTicktick': 'Importa da TickTick',
+        'settings.syncMobile.importTicktickCsvOrZipBackupsIntoMindwtrAreas': 'Importa backup CSV o ZIP di TickTick in aree, progetti e attività Mindwtr.',
 };

@@ -1087,6 +1087,16 @@ export type {
     TodoistImportProjectPreview,
 } from './todoist-import';
 export type {
+    ParsedTickTickArea,
+    ParsedTickTickImportData,
+    ParsedTickTickProject,
+    ParsedTickTickTask,
+    TickTickImportExecutionResult,
+    TickTickImportParseResult,
+    TickTickImportPreview,
+    TickTickImportProjectPreview,
+} from './ticktick-import';
+export type {
     DgtImportExecutionResult,
     DgtImportParseResult,
     DgtImportPreview,

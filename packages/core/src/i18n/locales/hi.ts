@@ -1217,4 +1217,11 @@ export const hiOverrides: Record<string, string> = {
         'mindSweep.group.workAdmin.p3': 'समय-सीमा वाले प्रशिक्षण, समीक्षा या फ़ॉर्म',
         'mindSweep.group.workAdmin.p4': 'यात्रा, उपकरण या पहुँच जिनका इंतज़ाम करना है',
         'mindSweep.group.workAdmin.p5': 'हर वह चीज़ जिसे आज सहेज देने पर आने वाला कल आपका शुक्रगुज़ार होगा',
+        'settings.backupMobile.importTicktickData': 'TickTick डेटा आयात करें?',
+        'settings.backupMobile.theSelectedFileIsNotASupportedTicktickBackup': 'चुनी गई फ़ाइल समर्थित TickTick बैकअप नहीं है।',
+        'settings.backupMobile.ticktickAreasWillBeCreated': 'TickTick फ़ोल्डरों से {{areaCount}} क्षेत्र बनाए जाएंगे।',
+        'settings.backupMobile.ticktickProjectsWillBeCreated': 'TickTick सूचियों से {{projectCount}} प्रोजेक्ट बनाए जाएंगे।',
+        'settings.backupMobile.recurringTasksWillKeepSupportedRepeatRules': '{{taskCount}} दोहराए जाने वाले कार्य समर्थित दोहराव नियम रखेंगे।',
+        'settings.syncMobile.importFromTicktick': 'TickTick से आयात करें',
+        'settings.syncMobile.importTicktickCsvOrZipBackupsIntoMindwtrAreas': 'TickTick CSV या ZIP बैकअप को Mindwtr क्षेत्रों, प्रोजेक्टों और कार्यों में आयात करें।',
 };

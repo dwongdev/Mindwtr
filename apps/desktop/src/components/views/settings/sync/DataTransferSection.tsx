@@ -8,6 +8,7 @@ type DataTransferSectionProps = Pick<
     | 'onExportBackup'
     | 'onRestoreBackup'
     | 'onImportTodoist'
+    | 'onImportTickTick'
     | 'onImportDgt'
     | 'onImportOmniFocus'
 > & {
@@ -47,6 +48,7 @@ export function DataTransferSection({
     onExportBackup,
     onImportDgt,
     onImportOmniFocus,
+    onImportTickTick,
     onImportTodoist,
     onRestoreBackup,
     onAddGettingStartedContent,
@@ -100,6 +102,13 @@ export function DataTransferSection({
                         description={t.importTodoistDesc}
                         statusText={transferAction === 'import' ? t.syncing : null}
                         onClick={() => void onImportTodoist()}
+                    />
+                    <TransferActionButton
+                        disabled={disabled}
+                        label={t.importTickTick}
+                        description={t.importTickTickDesc}
+                        statusText={transferAction === 'import' ? t.syncing : null}
+                        onClick={() => void onImportTickTick()}
                     />
                     <TransferActionButton
                         disabled={disabled}

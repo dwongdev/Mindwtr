@@ -1017,6 +1017,7 @@ export function SettingsView({ initialPage, onboardingHintPage, onResumeOnboardi
     handleExportBackup,
     handleRestoreBackup,
     handleImportTodoist,
+    handleImportTickTick,
     handleImportDgt,
     handleImportOmniFocus,
   } = useSyncSettings({
@@ -1328,6 +1329,7 @@ export function SettingsView({ initialPage, onboardingHintPage, onResumeOnboardi
           onExportBackup={handleExportBackup}
           onRestoreBackup={handleRestoreBackup}
           onImportTodoist={handleImportTodoist}
+          onImportTickTick={handleImportTickTick}
           onImportDgt={handleImportDgt}
           onImportOmniFocus={handleImportOmniFocus}
         />
@@ -1350,6 +1352,7 @@ export function SettingsView({ initialPage, onboardingHintPage, onResumeOnboardi
           onExportBackup={handleExportBackup}
           onRestoreBackup={handleRestoreBackup}
           onImportTodoist={handleImportTodoist}
+          onImportTickTick={handleImportTickTick}
           onImportDgt={handleImportDgt}
           onImportOmniFocus={handleImportOmniFocus}
           onAddGettingStartedContent={handleAddGettingStartedContent}

@@ -1299,4 +1299,11 @@ export const ptOverrides: Record<string, string> = {
         'mindSweep.group.workAdmin.p3': 'Treinamentos, avaliações ou formulários com prazo',
         'mindSweep.group.workAdmin.p4': 'Viagens, equipamentos ou acessos para providenciar',
         'mindSweep.group.workAdmin.p5': 'Qualquer coisa que o seu eu do futuro agradecerá se você arquivar hoje',
+        'settings.backupMobile.importTicktickData': 'Importar dados do TickTick?',
+        'settings.backupMobile.theSelectedFileIsNotASupportedTicktickBackup': 'O arquivo selecionado não é um backup TickTick compatível.',
+        'settings.backupMobile.ticktickAreasWillBeCreated': '{{areaCount}} área(s) serão criadas a partir das pastas do TickTick.',
+        'settings.backupMobile.ticktickProjectsWillBeCreated': '{{projectCount}} projeto(s) serão criados a partir das listas do TickTick.',
+        'settings.backupMobile.recurringTasksWillKeepSupportedRepeatRules': '{{taskCount}} tarefa(s) recorrentes manterão regras de repetição compatíveis.',
+        'settings.syncMobile.importFromTicktick': 'Importar do TickTick',
+        'settings.syncMobile.importTicktickCsvOrZipBackupsIntoMindwtrAreas': 'Importe backups CSV ou ZIP do TickTick para áreas, projetos e tarefas do Mindwtr.',
 };

@@ -18,10 +18,12 @@ import {
     importDesktopDgtData,
     exportDesktopBackup,
     importDesktopOmniFocusData,
+    importDesktopTickTickData,
     importDesktopTodoistData,
     inspectDesktopDgtImport,
     inspectDesktopBackup,
     inspectDesktopOmniFocusImport,
+    inspectDesktopTickTickImport,
     inspectDesktopTodoistImport,
     restoreDesktopBackup,
 } from '../../../lib/data-transfer';
@@ -705,6 +707,67 @@ export const useSyncSettings = ({
         }
     }, [formatText, isTauri, requestConfirmation, showToast, toErrorMessage]);
 
+
+    const handleImportTickTick = useCallback(async () => {
+        addBreadcrumb('transfer:restore');
+        setTransferAction('import');
+        try {
+            const parseResult = await inspectDesktopTickTickImport();
+            if (!parseResult) return;
+            if (!parseResult.valid || !parseResult.preview || !parseResult.parsedData) {
+                showToast(parseResult.errors[0] || 'The selected file is not a supported TickTick backup.', 'error');
+                return;
+            }
+
+            const preview = parseResult.preview;
+            const projectLines = preview.projects
+                .slice(0, 4)
+                .map((project: { areaName?: string; name: string; taskCount: number }) => `- ${project.areaName ? `${project.areaName} / ` : ''}${project.name}: ${project.taskCount}`);
+            if (preview.projects.length > 4) {
+                projectLines.push(`- ${preview.projects.length - 4} more project(s)...`);
+            }
+
+            const confirmed = await requestConfirmation({
+                title: 'Import TickTick data?',
+                message: [
+                    `Import ${preview.taskCount} task(s) from ${preview.fileName}?`,
+                    preview.areaCount > 0 ? `${preview.areaCount} area(s) will be created from TickTick folders.` : null,
+                    preview.projectCount > 0 ? `${preview.projectCount} project(s) will be created from TickTick lists.` : null,
+                    preview.checklistItemCount > 0 ? `${preview.checklistItemCount} checklist item(s) will be preserved.` : null,
+                    preview.recurringCount > 0 ? `${preview.recurringCount} recurring task(s) will keep supported repeat rules.` : null,
+                    'Imported active tasks stay in Inbox so you can process them in Mindwtr.',
+                    ...(projectLines.length > 0 ? ['', ...projectLines] : []),
+                    ...(preview.warnings.length > 0 ? ['', ...preview.warnings] : []),
+                ].filter(Boolean).join('\n'),
+            });
+            if (!confirmed) return;
+
+            const { snapshotName, result } = await importDesktopTickTickData(parseResult.parsedData);
+            if (isTauri) {
+                setSnapshots(await SyncService.listDataSnapshots());
+            }
+            const details = [
+                formatText(
+                    'settings.importTickTickSummary',
+                    'Imported {{taskCount}} task(s), {{projectCount}} project(s), and {{areaCount}} area(s).',
+                    {
+                        taskCount: result.importedTaskCount,
+                        projectCount: result.importedProjectCount,
+                        areaCount: result.importedAreaCount,
+                    },
+                ),
+                result.importedChecklistItemCount > 0 ? `${result.importedChecklistItemCount} checklist item(s) were preserved.` : null,
+                snapshotName ? `Snapshot saved as ${snapshotName}.` : null,
+                ...(result.warnings.length > 0 ? ['', ...result.warnings] : []),
+            ].filter(Boolean).join('\n');
+            showToast(details, 'success', 8000);
+        } catch (error) {
+            showToast(toErrorMessage(error, 'Failed to import TickTick data.'), 'error');
+        } finally {
+            setTransferAction(null);
+        }
+    }, [formatText, isTauri, requestConfirmation, showToast, toErrorMessage]);
+
     const handleImportDgt = useCallback(async () => {
         addBreadcrumb('transfer:restore');
         setTransferAction('import');
@@ -887,6 +950,7 @@ export const useSyncSettings = ({
         handleExportBackup,
         handleRestoreBackup,
         handleImportTodoist,
+        handleImportTickTick,
         handleImportDgt,
         handleImportOmniFocus,
     };

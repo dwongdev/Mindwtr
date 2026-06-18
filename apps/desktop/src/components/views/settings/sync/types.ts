@@ -9,6 +9,8 @@ export type SettingsSyncLabels = {
     restoreBackupDesc: string;
     importTodoist: string;
     importTodoistDesc: string;
+    importTickTick: string;
+    importTickTickDesc: string;
     importDgt: string;
     importDgtDesc: string;
     importOmniFocus: string;
@@ -201,6 +203,7 @@ export type SettingsSyncPageProps = {
     onExportBackup: () => Promise<void> | void;
     onRestoreBackup: () => Promise<void> | void;
     onImportTodoist: () => Promise<void> | void;
+    onImportTickTick: () => Promise<void> | void;
     onImportDgt: () => Promise<void> | void;
     onImportOmniFocus: () => Promise<void> | void;
 };

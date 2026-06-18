@@ -1202,4 +1202,11 @@ export const koOverrides: Record<string, string> = {
         'mindSweep.group.workAdmin.p3': '기한이 있는 교육, 평가, 서류',
         'mindSweep.group.workAdmin.p4': '준비해야 할 출장, 장비, 접근 권한',
         'mindSweep.group.workAdmin.p5': '오늘 정리해 두면 미래의 내가 고마워할 모든 것',
+        'settings.backupMobile.importTicktickData': 'TickTick 데이터 가져오기?',
+        'settings.backupMobile.theSelectedFileIsNotASupportedTicktickBackup': '선택한 파일은 지원되는 TickTick 백업이 아닙니다.',
+        'settings.backupMobile.ticktickAreasWillBeCreated': 'TickTick 폴더에서 영역 {{areaCount}}개가 생성됩니다.',
+        'settings.backupMobile.ticktickProjectsWillBeCreated': 'TickTick 목록에서 프로젝트 {{projectCount}}개가 생성됩니다.',
+        'settings.backupMobile.recurringTasksWillKeepSupportedRepeatRules': '반복 작업 {{taskCount}}개는 지원되는 반복 규칙을 유지합니다.',
+        'settings.syncMobile.importFromTicktick': 'TickTick에서 가져오기',
+        'settings.syncMobile.importTicktickCsvOrZipBackupsIntoMindwtrAreas': 'TickTick CSV 또는 ZIP 백업을 Mindwtr 영역, 프로젝트, 작업으로 가져옵니다.',
 };

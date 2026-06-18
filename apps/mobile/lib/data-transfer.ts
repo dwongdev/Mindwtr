@@ -35,6 +35,13 @@ import {
     type TodoistImportExecutionResult,
     type TodoistImportParseResult,
 } from '@mindwtr/core/todoist-import';
+import {
+    applyTickTickImport,
+    parseTickTickImportSource,
+    type ParsedTickTickImportData,
+    type TickTickImportExecutionResult,
+    type TickTickImportParseResult,
+} from '@mindwtr/core/ticktick-import';
 
 import { logError, logInfo } from './app-log';
 import { mobileStorage } from './storage-adapter';
@@ -232,6 +239,15 @@ export const pickTodoistDocument = async (): Promise<TransferDocument | null> =>
         'application/octet-stream',
     ]);
 
+export const pickTickTickDocument = async (): Promise<TransferDocument | null> =>
+    pickDocument([
+        'text/csv',
+        'text/comma-separated-values',
+        'application/zip',
+        'application/x-zip-compressed',
+        'application/octet-stream',
+    ]);
+
 export const pickDgtDocument = async (): Promise<TransferDocument | null> =>
     pickDocument([
         'application/json',
@@ -267,6 +283,16 @@ export const inspectTodoistDocument = async (
 ): Promise<TodoistImportParseResult> => {
     const bytes = await readBinaryFile(document.uri);
     return parseTodoistImportSource({
+        bytes,
+        fileName: document.fileName,
+    });
+};
+
+export const inspectTickTickDocument = async (
+    document: TransferDocument
+): Promise<TickTickImportParseResult> => {
+    const bytes = await readBinaryFile(document.uri);
+    return parseTickTickImportSource({
         bytes,
         fileName: document.fileName,
     });
@@ -355,6 +381,44 @@ export const importTodoistData = async (
         };
     } catch (error) {
         void logError(error, { scope: 'transfer', extra: { operation: 'importTodoist' } });
+        throw error;
+    }
+};
+
+export const importTickTickData = async (
+    parsedData: ParsedTickTickImportData
+): Promise<SnapshotApplyResult & { result: TickTickImportExecutionResult }> => {
+    addBreadcrumb('transfer:restore');
+    void logInfo('TickTick import started', {
+        scope: 'transfer',
+        extra: {
+            operation: 'importTickTick',
+            source: 'ticktick',
+        },
+    });
+    try {
+        await flushPendingSave();
+        const currentData = await mobileStorage.getData();
+        const snapshotName = await saveCurrentDataSnapshot(currentData);
+        const result = applyTickTickImport(currentData, parsedData);
+        await applyImportedData(result.data);
+        void logInfo('TickTick import complete', {
+            scope: 'transfer',
+            extra: {
+                operation: 'importTickTick',
+                source: 'ticktick',
+                tasks: String(result.importedTaskCount),
+                projects: String(result.importedProjectCount),
+                areas: String(result.importedAreaCount),
+                checklistItems: String(result.importedChecklistItemCount),
+            },
+        });
+        return {
+            snapshotName,
+            result,
+        };
+    } catch (error) {
+        void logError(error, { scope: 'transfer', extra: { operation: 'importTickTick' } });
         throw error;
     }
 };

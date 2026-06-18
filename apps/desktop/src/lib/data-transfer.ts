@@ -30,6 +30,13 @@ import {
     type TodoistImportExecutionResult,
     type TodoistImportParseResult,
 } from '@mindwtr/core/todoist-import';
+import {
+    applyTickTickImport,
+    parseTickTickImportSource,
+    type ParsedTickTickImportData,
+    type TickTickImportExecutionResult,
+    type TickTickImportParseResult,
+} from '@mindwtr/core/ticktick-import';
 
 import { SyncService } from './sync-service';
 import { tauriStorage } from './storage-adapter';
@@ -222,6 +229,20 @@ export const inspectDesktopTodoistImport = async (): Promise<TodoistImportParseR
     });
 };
 
+export const inspectDesktopTickTickImport = async (): Promise<TickTickImportParseResult | null> => {
+    const document = await pickTransferDocument({
+        accept: '.csv,.zip,text/csv,application/zip',
+        extensions: ['csv', 'zip'],
+        mode: 'binary',
+        title: 'TickTick Backup',
+    });
+    if (!document) return null;
+    return parseTickTickImportSource({
+        bytes: document.bytes,
+        fileName: document.fileName,
+    });
+};
+
 export const inspectDesktopDgtImport = async (): Promise<DgtImportParseResult | null> => {
     const document = await pickTransferDocument({
         accept: '.json,.zip,application/json,application/zip',
@@ -312,6 +333,44 @@ export const importDesktopTodoistData = async (
         };
     } catch (error) {
         void logError(error, { scope: 'transfer', extra: { operation: 'importTodoist' } });
+        throw error;
+    }
+};
+
+export const importDesktopTickTickData = async (
+    parsedData: ParsedTickTickImportData
+): Promise<DesktopTransferResult & { result: TickTickImportExecutionResult }> => {
+    addBreadcrumb('transfer:restore');
+    void logInfo('TickTick import started', {
+        scope: 'transfer',
+        extra: {
+            operation: 'importTickTick',
+            source: 'ticktick',
+        },
+    });
+    try {
+        await flushPendingSave();
+        const currentData = await getStorage().getData();
+        const snapshotName = isTauriRuntime() ? await SyncService.createDataSnapshot() : null;
+        const result = applyTickTickImport(currentData, parsedData);
+        await persistTransferredData(result.data);
+        void logInfo('TickTick import complete', {
+            scope: 'transfer',
+            extra: {
+                operation: 'importTickTick',
+                source: 'ticktick',
+                tasks: String(result.importedTaskCount),
+                projects: String(result.importedProjectCount),
+                areas: String(result.importedAreaCount),
+                checklistItems: String(result.importedChecklistItemCount),
+            },
+        });
+        return {
+            snapshotName,
+            result,
+        };
+    } catch (error) {
+        void logError(error, { scope: 'transfer', extra: { operation: 'importTickTick' } });
         throw error;
     }
 };

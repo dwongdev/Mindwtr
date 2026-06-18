@@ -1746,4 +1746,11 @@ export const csOverrides: Record<string, string> = {
         'mindSweep.group.workAdmin.p3': 'Školení, hodnocení nebo formuláře s termínem',
         'mindSweep.group.workAdmin.p4': 'Cesty, vybavení nebo přístupy, které je třeba zařídit',
         'mindSweep.group.workAdmin.p5': 'Cokoli, za co vám vaše budoucí já poděkuje, když to dnes založíte',
+        'settings.backupMobile.importTicktickData': 'Importovat data z TickTick?',
+        'settings.backupMobile.theSelectedFileIsNotASupportedTicktickBackup': 'Vybraný soubor není podporovaná záloha TickTick.',
+        'settings.backupMobile.ticktickAreasWillBeCreated': 'Z TickTick složek bude vytvořeno {{areaCount}} oblastí.',
+        'settings.backupMobile.ticktickProjectsWillBeCreated': 'Z TickTick seznamů bude vytvořeno {{projectCount}} projektů.',
+        'settings.backupMobile.recurringTasksWillKeepSupportedRepeatRules': '{{taskCount}} opakovaných úkolů si ponechá podporovaná pravidla opakování.',
+        'settings.syncMobile.importFromTicktick': 'Importovat z TickTick',
+        'settings.syncMobile.importTicktickCsvOrZipBackupsIntoMindwtrAreas': 'Importujte CSV nebo ZIP zálohy TickTick do oblastí, projektů a úkolů Mindwtr.',
 };

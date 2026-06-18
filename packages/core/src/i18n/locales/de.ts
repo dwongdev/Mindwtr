@@ -1305,4 +1305,11 @@ export const deOverrides: Record<string, string> = {
         'mindSweep.group.workAdmin.p3': 'Schulungen, Beurteilungen oder Formulare mit Frist',
         'mindSweep.group.workAdmin.p4': 'Reisen, Ausstattung oder Zugänge, die du organisieren musst',
         'mindSweep.group.workAdmin.p5': 'Alles, wofür dir dein zukünftiges Ich danken wird, wenn du es heute ablegst',
+        'settings.backupMobile.importTicktickData': 'TickTick-Daten importieren?',
+        'settings.backupMobile.theSelectedFileIsNotASupportedTicktickBackup': 'Die ausgewählte Datei ist kein unterstütztes TickTick-Backup.',
+        'settings.backupMobile.ticktickAreasWillBeCreated': '{{areaCount}} Bereich(e) werden aus TickTick-Ordnern erstellt.',
+        'settings.backupMobile.ticktickProjectsWillBeCreated': '{{projectCount}} Projekt(e) werden aus TickTick-Listen erstellt.',
+        'settings.backupMobile.recurringTasksWillKeepSupportedRepeatRules': '{{taskCount}} wiederkehrende Aufgabe(n) behalten unterstützte Wiederholungsregeln.',
+        'settings.syncMobile.importFromTicktick': 'Aus TickTick importieren',
+        'settings.syncMobile.importTicktickCsvOrZipBackupsIntoMindwtrAreas': 'TickTick-CSV- oder ZIP-Backups in Mindwtr-Bereiche, Projekte und Aufgaben importieren.',
 };
