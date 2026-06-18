@@ -77,6 +77,11 @@ import {
 import { saveStoredFullscreen } from './lib/window-state';
 import { installWebviewZoomShortcuts } from './lib/webview-zoom';
 import { isEditableManualSyncShortcutTarget, isManualSyncShortcut } from './lib/manual-sync-shortcut';
+import {
+    isDesktopSyncRuntimeActive,
+    resolveVisibilitySyncAction,
+    shouldHandleDesktopManualSyncShortcut,
+} from './lib/desktop-sync-runtime';
 import { resolveCloseBehavior } from './lib/window-behavior';
 import { handleDesktopCloseRequest } from './lib/close-request-handler';
 import { subscribeNavigateEvent } from './lib/navigation-events';
@@ -567,7 +572,7 @@ function App() {
             flushPendingSave,
             reportError,
             onSyncFailure: handleSyncFailure,
-            isRuntimeActive: () => isActiveRef.current && isTauriRuntime(),
+            isRuntimeActive: () => isDesktopSyncRuntimeActive(isActiveRef.current),
             shouldPauseWindowSync: () => (
                 useTaskStore.getState().editLockCount > 0
                 || useUiStore.getState().editingTaskId !== null
@@ -587,11 +592,21 @@ function App() {
         };
 
         const manualSyncShortcutListener = (event: KeyboardEvent) => {
-            if (!isManualSyncShortcut(event)) return;
-            if (!isTauriRuntime()) return;
-            if (isEditableManualSyncShortcutTarget(event.target)) return;
+            if (!shouldHandleDesktopManualSyncShortcut({
+                isEditableTarget: isEditableManualSyncShortcutTarget(event.target),
+                isShortcut: isManualSyncShortcut(event),
+            })) return;
             event.preventDefault();
             void autoSyncController.requestSync(0).catch((error) => reportError('Sync failed', error));
+        };
+
+        const visibilityListener = () => {
+            const action = resolveVisibilitySyncAction(document.visibilityState);
+            if (action === 'focus') {
+                autoSyncController.handleFocus();
+            } else if (action === 'blur') {
+                autoSyncController.handleBlur();
+            }
         };
 
         const storeUnsubscribe = useTaskStore.subscribe((state, prevState) => {
@@ -602,6 +617,7 @@ function App() {
         window.addEventListener('focus', focusListener);
         window.addEventListener('blur', blurListener);
         window.addEventListener('keydown', manualSyncShortcutListener);
+        document.addEventListener('visibilitychange', visibilityListener);
         autoSyncController.scheduleInitialSync();
 
         return () => {
@@ -612,6 +628,7 @@ function App() {
             window.removeEventListener('focus', focusListener);
             window.removeEventListener('blur', blurListener);
             window.removeEventListener('keydown', manualSyncShortcutListener);
+            document.removeEventListener('visibilitychange', visibilityListener);
             if (unlistenClose) {
                 unlistenClose();
             }

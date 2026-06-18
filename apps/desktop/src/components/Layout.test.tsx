@@ -183,6 +183,28 @@ describe('Layout sync conflict surface', () => {
         expect(getByText('Synced')).toBeInTheDocument();
     });
 
+    it('runs manual sync from the sidebar sync button', async () => {
+        const showToast = vi.fn();
+        const performSyncSpy = vi.spyOn(SyncService, 'performSync').mockResolvedValue({
+            success: true,
+        } as Awaited<ReturnType<typeof SyncService.performSync>>);
+        act(() => {
+            useUiStore.setState((state) => ({
+                ...state,
+                showToast,
+            }));
+        });
+
+        const { getByRole } = renderLayout();
+
+        fireEvent.click(getByRole('button', { name: /Sync now/i }));
+
+        await waitFor(() => expect(performSyncSpy).toHaveBeenCalledTimes(1));
+        expect(showToast).toHaveBeenCalledWith('Sync completed', 'success');
+
+        performSyncSpy.mockRestore();
+    });
+
     it('shows a toast when a new sync conflict status is present', () => {
         const showToast = vi.fn();
         act(() => {

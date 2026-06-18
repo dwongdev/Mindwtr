@@ -21,6 +21,7 @@ import {
     BookOpen,
     AlertTriangle,
     Plus,
+    RefreshCw,
     type LucideIcon,
 } from 'lucide-react';
 import { cn } from '../lib/utils';
@@ -95,6 +96,7 @@ export function Layout({ children, currentView, onViewChange }: LayoutProps) {
     const showToast = useUiStore((state) => state.showToast);
     const isObsidianEnabled = useObsidianStore((state) => state.config.enabled);
     const [syncStatus, setSyncStatus] = useState(() => SyncService.getSyncStatus());
+    const [isManualSyncing, setIsManualSyncing] = useState(false);
     const [isOnline, setIsOnline] = useState(() => (typeof navigator !== 'undefined' ? navigator.onLine : true));
     const [cleartextSyncWarning, setCleartextSyncWarning] = useState<string | null>(null);
     const searchShortcutHint = useMemo(() => (
@@ -208,6 +210,8 @@ export function Layout({ children, currentView, onViewChange }: LayoutProps) {
         : lastSyncStatus === 'conflict' || syncFreshness === 'stale'
             ? 'text-amber-600 dark:text-amber-300'
             : 'text-muted-foreground';
+    const syncNowLabel = tFallback(t, 'settings.syncNow', 'Sync now');
+    const manualSyncBusy = syncStatus.inFlight || isManualSyncing;
     const formatCompactSyncTime = useCallback((iso: string) => {
         const date = new Date(iso);
         if (Number.isNaN(date.getTime())) return iso;
@@ -390,6 +394,27 @@ export function Layout({ children, currentView, onViewChange }: LayoutProps) {
     const toggleSidebar = () => {
         updateSettings({ sidebarCollapsed: !isCollapsed }).catch((error) => reportError('Failed to update settings', error));
     };
+
+    const handleManualSyncNow = useCallback(async () => {
+        if (manualSyncBusy) return;
+        setIsManualSyncing(true);
+        try {
+            const result = await SyncService.performSync();
+            if (result.skipped === 'requeued') {
+                showToast('Local changes arrived during sync. Retry queued.', 'info');
+            } else if (result.success) {
+                showToast(tFallback(t, 'settings.lastSyncSuccess', 'Sync completed'), 'success');
+            } else {
+                showToast(result.error || tFallback(t, 'settings.lastSyncError', 'Sync failed'), 'error');
+            }
+        } catch (error) {
+            const message = error instanceof Error ? error.message : String(error);
+            reportError('Sync failed', error);
+            showToast(`${tFallback(t, 'settings.lastSyncError', 'Sync failed')}: ${message}`, 'error');
+        } finally {
+            setIsManualSyncing(false);
+        }
+    }, [manualSyncBusy, showToast, t]);
 
     useEffect(() => {
         if (areas.length === 0) return;
@@ -645,70 +670,86 @@ export function Layout({ children, currentView, onViewChange }: LayoutProps) {
                         />
                     </div>
                     <div className={cn(!isCollapsed && "border-t border-border/50 pt-3")}>
-                        <button
-                            onClick={() => onViewChange('settings')}
-                            className={cn(
-                                "group relative w-full rounded-lg text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:ring-inset",
-                                isCollapsed ? "flex h-10 items-center justify-center px-0" : "px-2.5 py-2",
-                                currentView === 'settings'
-                                    ? "bg-primary/5 text-primary"
-                                    : "text-muted-foreground hover:bg-accent/70 hover:text-accent-foreground"
-                            )}
-                            aria-current={currentView === 'settings' ? 'page' : undefined}
-                            title={!isCollapsed ? `${t('nav.settings')} • ${syncTooltip}` : t('nav.settings')}
-                            aria-label={isCollapsed ? `${t('nav.settings')}. ${syncTooltip}` : t('nav.settings')}
-                        >
-                            <span className={cn(
-                                "flex min-w-0",
-                                isCollapsed ? "items-center justify-center" : "flex-col items-stretch gap-1.5"
-                            )}>
-                                <span className="inline-flex min-w-0 items-center gap-2 text-sm font-medium">
-                                    <Settings className="h-4 w-4 shrink-0" />
-                                    {!isCollapsed && <span>{t('nav.settings')}</span>}
-                                </span>
-                                {!isCollapsed && (
-                                    <span
-                                        className={cn(
-                                            "inline-flex min-w-0 items-center gap-1.5 pl-6 text-[11px] leading-none text-muted-foreground",
-                                            (!isOnline || lastSyncStatus === 'error' || lastSyncStatus === 'conflict' || syncFreshness === 'old' || syncFreshness === 'stale') && "text-foreground"
-                                        )}
-                                        title={syncTooltip}
-                                        role="status"
-                                        aria-live="polite"
-                                        aria-label={syncTooltip}
-                                    >
+                        <div className={cn("flex gap-1.5", isCollapsed ? "flex-col items-center" : "items-stretch")}>
+                            <button
+                                onClick={() => onViewChange('settings')}
+                                className={cn(
+                                    "group relative w-full rounded-lg text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:ring-inset",
+                                    isCollapsed ? "flex h-10 items-center justify-center px-0" : "min-w-0 flex-1 px-2.5 py-2",
+                                    currentView === 'settings'
+                                        ? "bg-primary/5 text-primary"
+                                        : "text-muted-foreground hover:bg-accent/70 hover:text-accent-foreground"
+                                )}
+                                aria-current={currentView === 'settings' ? 'page' : undefined}
+                                title={!isCollapsed ? `${t('nav.settings')} • ${syncTooltip}` : t('nav.settings')}
+                                aria-label={isCollapsed ? `${t('nav.settings')}. ${syncTooltip}` : t('nav.settings')}
+                            >
+                                <span className={cn(
+                                    "flex min-w-0",
+                                    isCollapsed ? "items-center justify-center" : "flex-col items-stretch gap-1.5"
+                                )}>
+                                    <span className="inline-flex min-w-0 items-center gap-2 text-sm font-medium">
+                                        <Settings className="h-4 w-4 shrink-0" />
+                                        {!isCollapsed && <span>{t('nav.settings')}</span>}
+                                    </span>
+                                    {!isCollapsed && (
                                         <span
                                             className={cn(
-                                                "h-1.5 w-1.5 shrink-0 rounded-full",
-                                                syncFreshnessDotClass,
-                                                syncStatus.inFlight && "animate-pulse"
+                                                "inline-flex min-w-0 items-center gap-1.5 pl-6 text-[11px] leading-none text-muted-foreground",
+                                                (!isOnline || lastSyncStatus === 'error' || lastSyncStatus === 'conflict' || syncFreshness === 'old' || syncFreshness === 'stale') && "text-foreground"
                                             )}
-                                            aria-hidden="true"
-                                        />
-                                        <span className={cn("min-w-0 truncate", syncStatusLabelClass)}>
-                                            {syncStatusLabel}
+                                            title={syncTooltip}
+                                            role="status"
+                                            aria-live="polite"
+                                            aria-label={syncTooltip}
+                                        >
+                                            <span
+                                                className={cn(
+                                                    "h-1.5 w-1.5 shrink-0 rounded-full",
+                                                    syncFreshnessDotClass,
+                                                    syncStatus.inFlight && "animate-pulse"
+                                                )}
+                                                aria-hidden="true"
+                                            />
+                                            <span className={cn("min-w-0 truncate", syncStatusLabelClass)}>
+                                                {syncStatusLabel}
+                                            </span>
+                                            <span className="shrink-0 text-muted-foreground" aria-hidden="true">
+                                                ·
+                                            </span>
+                                            <span className="shrink-0 tabular-nums text-muted-foreground">
+                                                {compactSyncTimeLabel}
+                                            </span>
                                         </span>
-                                        <span className="shrink-0 text-muted-foreground" aria-hidden="true">
-                                            ·
-                                        </span>
-                                        <span className="shrink-0 tabular-nums text-muted-foreground">
-                                            {compactSyncTimeLabel}
-                                        </span>
-                                    </span>
-                                )}
-                            </span>
-                            {isCollapsed && (
-                                <span
-                                    className={cn(
-                                        "absolute right-1.5 top-1.5 h-2 w-2 rounded-full ring-2 ring-card",
-                                        syncFreshnessDotClass,
-                                        syncStatus.inFlight && "animate-pulse"
                                     )}
-                                    title={syncTooltip}
-                                    aria-hidden="true"
-                                />
-                            )}
-                        </button>
+                                </span>
+                                {isCollapsed && (
+                                    <span
+                                        className={cn(
+                                            "absolute right-1.5 top-1.5 h-2 w-2 rounded-full ring-2 ring-card",
+                                            syncFreshnessDotClass,
+                                            syncStatus.inFlight && "animate-pulse"
+                                        )}
+                                        title={syncTooltip}
+                                        aria-hidden="true"
+                                    />
+                                )}
+                            </button>
+                            <button
+                                type="button"
+                                onClick={handleManualSyncNow}
+                                disabled={manualSyncBusy}
+                                className={cn(
+                                    "inline-flex shrink-0 items-center justify-center rounded-lg text-muted-foreground transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 disabled:cursor-not-allowed disabled:opacity-60",
+                                    "hover:bg-accent/70 hover:text-accent-foreground",
+                                    isCollapsed ? "h-10 w-10" : "w-10"
+                                )}
+                                title={`${syncNowLabel}. ${syncTooltip}`}
+                                aria-label={`${syncNowLabel}. ${syncTooltip}`}
+                            >
+                                <RefreshCw className={cn("h-4 w-4", manualSyncBusy && "animate-spin")} aria-hidden="true" />
+                            </button>
+                        </div>
                     </div>
                 </div>
                 </aside>
