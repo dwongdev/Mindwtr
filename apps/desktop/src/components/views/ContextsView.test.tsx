@@ -87,6 +87,13 @@ describe('ContextsView', () => {
         expect(getByText('Plan launch')).toBeInTheDocument();
     });
 
+    it('keeps the sort control labeled and visually scannable', () => {
+        const { getByRole, getByTestId } = renderContextsView();
+
+        expect(getByRole('combobox', { name: 'Sort' })).toBeInTheDocument();
+        expect(getByTestId('contexts-sort-icon')).toBeInTheDocument();
+    });
+
     it('hides done tasks from the default context filter while keeping the Done status available', () => {
         const tasks = [
             makeTask('active-office', {

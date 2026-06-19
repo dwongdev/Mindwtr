@@ -16,7 +16,7 @@ import {
 } from '@mindwtr/core';
 import type { RangeSelectionOptions } from '@mindwtr/core';
 import type { TaskSortBy } from '@mindwtr/core';
-import { AtSign, ChevronDown, ChevronRight, Filter, Hash, Tag, type LucideIcon } from 'lucide-react';
+import { ArrowUpDown, AtSign, CheckSquare, ChevronDown, ChevronRight, Filter, Hash, Tag, type LucideIcon } from 'lucide-react';
 import { TokenPickerModal } from '../TokenPickerModal';
 import { BulkSelectionToolbar } from './list/BulkSelectionToolbar';
 import { ListBulkActions } from './list/ListBulkActions';
@@ -396,6 +396,7 @@ export function ContextsView() {
     const contextsLabel = tFallback(t, 'taskEdit.contextsLabel', 'Contexts');
     const tagsLabel = tFallback(t, 'taskEdit.tagsLabel', 'Tags');
     const allTokensLabel = `${contextsLabel} & ${tagsLabel}`;
+    const sortLabel = tFallback(t, 'sort.label', 'Sort');
 
     const renderTokenRow = (token: string, marker: '@' | '#') => {
         const taskCount = scopedTasks.filter(t => matchesSelected(t, token)).length;
@@ -567,14 +568,35 @@ export function ContextsView() {
                             </div>
                             <div className="ml-auto">
                                 <div className="flex flex-wrap items-center gap-2">
-                                    <div className="relative min-w-[172px]">
+                                    <button
+                                        onClick={() => {
+                                            if (selectionMode) exitSelectionMode();
+                                            else setSelectionMode(true);
+                                        }}
+                                        className={cn(
+                                            "inline-flex h-9 items-center gap-1.5 rounded-lg border px-3 text-xs transition-colors focus:outline-none focus:ring-2 focus:ring-primary/40",
+                                            selectionMode
+                                                ? "bg-primary/10 text-primary border-primary"
+                                                : "bg-card text-muted-foreground border-border hover:bg-muted/70 hover:text-foreground"
+                                        )}
+                                    >
+                                        <CheckSquare className="h-3.5 w-3.5" aria-hidden="true" />
+                                        {selectionMode ? t('bulk.exitSelect') : t('bulk.select')}
+                                    </button>
+                                    <div className="relative flex h-9 min-w-[160px] items-center rounded-lg border border-border bg-card pl-2 text-xs transition-colors hover:bg-muted/70 focus-within:ring-2 focus-within:ring-primary/40">
+                                        <ArrowUpDown
+                                            className="mr-1.5 h-3.5 w-3.5 shrink-0 text-muted-foreground"
+                                            aria-hidden="true"
+                                            data-testid="contexts-sort-icon"
+                                        />
+                                        <span className="mr-2 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+                                            {sortLabel}
+                                        </span>
                                         <select
                                             value={sortBy}
                                             onChange={(event) => updateSettings({ taskSortBy: event.target.value as TaskSortBy })}
-                                            aria-label={t('sort.label')}
-                                            className={cn(
-                                                "h-9 w-full appearance-none rounded-lg border border-border bg-card pl-3 pr-9 text-xs text-foreground transition-colors hover:bg-muted/70 focus:outline-none focus:ring-2 focus:ring-primary/40"
-                                            )}
+                                            aria-label={sortLabel}
+                                            className="h-full min-w-0 flex-1 appearance-none bg-transparent pr-8 text-xs text-foreground focus:outline-none"
                                         >
                                             <option value="default">{t('sort.default')}</option>
                                             <option value="due">{t('sort.due')}</option>
@@ -589,20 +611,6 @@ export function ContextsView() {
                                             aria-hidden="true"
                                         />
                                     </div>
-                                    <button
-                                        onClick={() => {
-                                            if (selectionMode) exitSelectionMode();
-                                            else setSelectionMode(true);
-                                        }}
-                                        className={cn(
-                                            "text-xs px-3 py-1 rounded-md border transition-colors",
-                                            selectionMode
-                                                ? "bg-primary/10 text-primary border-primary"
-                                                : "bg-muted/50 text-muted-foreground border-border hover:bg-muted hover:text-foreground"
-                                        )}
-                                    >
-                                        {selectionMode ? t('bulk.exitSelect') : t('bulk.select')}
-                                    </button>
                                 </div>
                             </div>
                         </header>

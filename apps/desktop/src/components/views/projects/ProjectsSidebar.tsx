@@ -275,30 +275,19 @@ export function ProjectsSidebar({
                         </span>
                     )}
                 </div>
-                <div className="flex items-center gap-1">
-                    {onToggleCollapsed && collapseLabel && (
-                        <button
-                            type="button"
-                            onClick={onToggleCollapsed}
-                            className="h-8 w-8 flex items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground focus-visible:ring-2 focus-visible:ring-primary/40"
-                            title={collapseLabel}
-                            aria-label={collapseLabel}
-                            aria-controls="projects-sidebar-panel"
-                            aria-expanded={true}
-                        >
-                            <ChevronsLeft className="w-4 h-4" />
-                        </button>
-                    )}
+                {onToggleCollapsed && collapseLabel && (
                     <button
-                        onClick={onStartCreate}
-                        className="h-8 w-8 flex items-center justify-center hover:bg-accent rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                        disabled={isCreatingProject}
-                        title={createProjectLabel}
-                        aria-label={createProjectLabel}
+                        type="button"
+                        onClick={onToggleCollapsed}
+                        className="h-8 w-8 flex items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground focus-visible:ring-2 focus-visible:ring-primary/40"
+                        title={collapseLabel}
+                        aria-label={collapseLabel}
+                        aria-controls="projects-sidebar-panel"
+                        aria-expanded={true}
                     >
-                        <Plus className="w-4 h-4" />
+                        <ChevronsLeft className="w-4 h-4" />
                     </button>
-                </div>
+                )}
             </div>
 
             <div className="space-y-2">
@@ -306,6 +295,7 @@ export function ProjectsSidebar({
                     {t('projects.tagFilter')}
                 </label>
                 <select
+                    aria-label={t('projects.tagFilter')}
                     value={selectedTag}
                     onChange={(e) => onSelectTag(e.target.value)}
                     className="w-full h-8 text-xs bg-background border border-border rounded px-2 text-foreground"
@@ -322,38 +312,51 @@ export function ProjectsSidebar({
                 </select>
             </div>
 
-            {isCreating && (
-                <form onSubmit={onCreateProject} className="border border-border/60 rounded-lg p-3 space-y-3 animate-in slide-in-from-top-2">
+            <form
+                onSubmit={onCreateProject}
+                className="rounded-lg border border-border/70 bg-card/40 p-2.5 space-y-2"
+            >
+                <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                    {createProjectLabel}
+                </label>
+                <div className="flex items-center gap-2">
                     <input
-                        autoFocus
                         type="text"
                         value={newProjectTitle}
                         onChange={(e) => onChangeNewProjectTitle(e.target.value)}
+                        onFocus={onStartCreate}
                         placeholder={t('projects.projectName')}
-                        className="w-full bg-transparent border-b border-primary/50 p-1 text-sm focus:outline-none disabled:opacity-60 disabled:cursor-not-allowed"
+                        className="h-8 min-w-0 flex-1 rounded-md border border-border bg-background px-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 disabled:opacity-60 disabled:cursor-not-allowed"
                         disabled={isCreatingProject}
                         aria-busy={isCreatingProject}
                         aria-label={t('projects.projectName')}
                     />
-                    <div className="flex gap-2 justify-end">
+                    <button
+                        type="submit"
+                        className="inline-flex h-8 w-8 items-center justify-center rounded-md bg-primary text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed"
+                        disabled={!newProjectTitle.trim() || isCreatingProject}
+                        title={t('projects.create')}
+                        aria-label={createProjectLabel}
+                    >
+                        <Plus className="w-4 h-4" />
+                    </button>
+                </div>
+                {(isCreating || newProjectTitle.trim().length > 0) && (
+                    <div className="flex justify-end">
                         <button
                             type="button"
-                            onClick={onCancelCreate}
-                            className="text-xs px-2 py-1 hover:bg-muted rounded disabled:opacity-60 disabled:cursor-not-allowed"
+                            onClick={() => {
+                                onChangeNewProjectTitle('');
+                                onCancelCreate();
+                            }}
+                            className="text-xs px-2 py-1 text-muted-foreground hover:bg-muted hover:text-foreground rounded disabled:opacity-60 disabled:cursor-not-allowed"
                             disabled={isCreatingProject}
                         >
                             {t('common.cancel')}
                         </button>
-                        <button
-                            type="submit"
-                            className="text-xs bg-primary text-primary-foreground px-2 py-1 rounded disabled:opacity-60 disabled:cursor-not-allowed"
-                            disabled={isCreatingProject}
-                        >
-                            {t('projects.create')}
-                        </button>
                     </div>
-                </form>
-            )}
+                )}
+            </form>
 
             <div className="space-y-3 overflow-y-auto flex-1">
                 {groupedActiveProjects.length > 0 && (

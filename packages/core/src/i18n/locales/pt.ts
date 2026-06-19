@@ -29,7 +29,9 @@ export const ptOverrides: Record<string, string> = {
 
         // Quick Add
         'quickAdd.help': 'A adição rápida suporta /start:<when>, /due:<when>, /review:<when>, /note:<text>, /link:<url>, /next, /area:<name> ou !Area, @context, #tag, +Project.',
-        'quickAdd.example': 'Exemplo: Ligue para a mãe /start:tomorrow /due:tomorrow 5pm @phone #family',
+        'quickAdd.example': 'Exemplo: Ligue para a mãe /due:tomorrow @phone',
+        'quickAdd.inlineHint': 'Tente: Ligue para a mãe /due:tomorrow 5pm @phone #family',
+        'quickAdd.syntaxHelp': 'Ajuda da sintaxe de adição rápida',
         'quickAdd.placeholder': 'Adicione uma tarefa… use @context +Project #tag',
         'quickAdd.inputLabel': 'Adição rápida',
         'quickAdd.inputHint': 'Digite uma tarefa e pressione Enter para salvar.',
@@ -990,8 +992,8 @@ export const ptOverrides: Record<string, string> = {
         'sort.start': 'Data de início',
         'sort.review': 'Data da revisão',
         'sort.title': 'Título',
-        'sort.created': 'Criado (mais antigo)',
-        'sort.created-desc': 'Criado (mais novo)',
+        'sort.created': 'Mais antigo',
+        'sort.created-desc': 'Mais novo',
         'agenda.title': 'Foco',
         'agenda.active': 'itens ativos',
         'agenda.top3Only': 'Mostrar apenas os 3 primeiros',

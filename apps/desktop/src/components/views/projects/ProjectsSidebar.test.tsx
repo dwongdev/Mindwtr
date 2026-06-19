@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, type FormEvent } from 'react';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import type { Project } from '@mindwtr/core';
@@ -173,6 +173,57 @@ function renderSidebarWithSpy(onSelectProject = vi.fn()) {
 }
 
 describe('ProjectsSidebar', () => {
+    it('keeps project creation visible as an inline field below the filters', () => {
+        const onCreateProject = vi.fn((event: FormEvent) => event.preventDefault());
+        const onChangeNewProjectTitle = vi.fn();
+
+        render(
+            <ProjectsSidebar
+                t={t}
+                selectedTag={allTagsId}
+                noAreaId={noAreaId}
+                allTagsId={allTagsId}
+                noTagsId={noTagsId}
+                tagOptions={{ list: [], hasNoTags: true }}
+                isCreating={false}
+                isCreatingProject={false}
+                newProjectTitle=""
+                onStartCreate={vi.fn()}
+                onCancelCreate={vi.fn()}
+                onCreateProject={onCreateProject}
+                onChangeNewProjectTitle={onChangeNewProjectTitle}
+                onSelectTag={vi.fn()}
+                groupedActiveProjects={[[noAreaId, [buildProject('project-alpha', 'Alpha', 0)]]]}
+                groupedDeferredProjects={[]}
+                groupedArchivedProjects={[]}
+                areaById={new Map()}
+                collapsedAreas={{}}
+                onToggleAreaCollapse={vi.fn()}
+                showDeferredProjects={false}
+                onToggleDeferredProjects={vi.fn()}
+                showArchivedProjects={false}
+                onToggleArchivedProjects={vi.fn()}
+                selectedProjectId={null}
+                onSelectProject={vi.fn()}
+                getProjectColor={(project) => project.color}
+                tasksByProject={{}}
+                projects={[buildProject('project-alpha', 'Alpha', 0)]}
+                focusedProjectCount={0}
+                toggleProjectFocus={vi.fn()}
+                updateProject={vi.fn()}
+                reorderProjects={vi.fn()}
+                onDuplicateProject={vi.fn()}
+            />
+        );
+
+        const projectName = screen.getByLabelText('Project name');
+
+        expect(projectName).toBeInTheDocument();
+
+        fireEvent.change(projectName, { target: { value: 'New project' } });
+        expect(onChangeNewProjectTitle).toHaveBeenCalledWith('New project');
+    });
+
     it('selects a project on primary mouse down so blur-driven rerenders cannot swallow the switch', () => {
         const { onSelectProject } = renderSidebarWithSpy();
 

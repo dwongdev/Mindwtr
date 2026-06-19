@@ -872,6 +872,32 @@ describeSqlite('SqliteAdapter', () => {
         expect(results.tasks[0]?.location).toBe('Main Office');
     });
 
+    it('indexes assigned people in full text search', async () => {
+        const now = new Date().toISOString();
+        await adapter.saveData({
+            tasks: [
+                {
+                    id: 'task-assigned',
+                    title: 'Unrelated task',
+                    status: 'waiting',
+                    contexts: [],
+                    tags: [],
+                    assignedTo: 'John Smith',
+                    createdAt: now,
+                    updatedAt: now,
+                },
+            ],
+            projects: [],
+            areas: [],
+            sections: [],
+            settings: {},
+        });
+
+        const results = await adapter.searchAll('john');
+
+        expect(results.tasks.map((task) => task.id)).toEqual(['task-assigned']);
+    });
+
     it('indexes checklist item titles in full text search', async () => {
         const now = new Date().toISOString();
         await adapter.saveData({

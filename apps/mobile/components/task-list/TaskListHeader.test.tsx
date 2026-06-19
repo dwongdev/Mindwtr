@@ -43,7 +43,7 @@ const renderHeader = (overrides: Partial<React.ComponentProps<typeof TaskListHea
     onOpenSort={vi.fn()}
     showHeader={false}
     showSort
-    sortByLabel="Created (newest)"
+    sortByLabel="Newest"
     t={(key) => ({
       'common.clear': 'Clear',
       'common.tasks': 'tasks',
@@ -60,7 +60,7 @@ describe('TaskListHeader', () => {
   it('keeps the sort control visible for compact headerless task lists', () => {
     const html = renderHeader();
 
-    expect(html).toContain('aria-label="Sort: Created (newest)"');
+    expect(html).toContain('aria-label="Sort: Newest"');
     expect(html).toContain('data-icon="arrow-up-down"');
     expect(html).toContain('aria-label="Filters"');
     expect(html).toContain('data-icon="sliders-horizontal"');

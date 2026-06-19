@@ -388,6 +388,8 @@ export function Layout({ children, currentView, onViewChange }: LayoutProps) {
     const addTaskLabel = tFallback(t, 'nav.addTask', 'Add Task');
     const inboxLabel = tFallback(t, 'nav.inbox', 'Inbox');
     const inboxCaptureLabel = `${addTaskLabel} (${inboxLabel})`;
+    const searchTitleLabel = tFallback(t, 'search.title', 'Search');
+    const searchScopeLabel = tFallback(t, 'search.scopeHint', 'Tasks, projects, people');
 
     const savedSearches = settings?.savedSearches || [];
 
@@ -533,16 +535,20 @@ export function Layout({ children, currentView, onViewChange }: LayoutProps) {
                 <button
                     onClick={triggerSearch}
                     className={cn(
-                        "w-full flex items-center gap-3 px-3 py-2 mb-4 rounded-md text-sm font-medium transition-colors bg-muted/50 hover:bg-accent hover:text-accent-foreground text-muted-foreground focus-visible:ring-2 focus-visible:ring-primary/40",
+                        "w-full flex items-center gap-3 px-3 py-2.5 mb-3 rounded-lg border border-border/80 bg-background/60 text-sm font-medium text-foreground transition-colors hover:bg-accent hover:text-accent-foreground focus-visible:ring-2 focus-visible:ring-primary/40",
                         isCollapsed && "justify-center px-2"
                     )}
-                    title={t('search.placeholder')}
+                    title={`${searchTitleLabel} (${searchShortcutHint})`}
+                    aria-label={searchTitleLabel}
                 >
-                    <Search className="w-4 h-4" />
+                    <Search className="w-4 h-4 text-primary" />
                     {!isCollapsed && (
                         <>
-                            <span className="flex-1 text-left">{t('search.placeholder') || 'Search...'}</span>
-                            <span className="text-xs text-muted-foreground">{searchShortcutHint}</span>
+                            <span className="flex min-w-0 flex-1 flex-col text-left leading-tight">
+                                <span>{searchTitleLabel}</span>
+                                <span className="truncate text-[11px] font-normal text-muted-foreground">{searchScopeLabel}</span>
+                            </span>
+                            <span className="rounded border border-border bg-muted/40 px-1.5 py-0.5 text-[10px] text-muted-foreground">{searchShortcutHint}</span>
                         </>
                     )}
                 </button>

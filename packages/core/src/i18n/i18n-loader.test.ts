@@ -66,4 +66,14 @@ describe('i18n-loader sync fallback', () => {
         expect(zhHant['settings.deviceCalendars']).toBe('裝置日曆');
         expect(zhHant['settings.syncOff']).toBe('同步已關閉');
     });
+
+    it('keeps dense desktop helper copy compact', async () => {
+        const en = await loadTranslations('en');
+
+        expect(en['sort.created']).toBe('Oldest');
+        expect(en['sort.created-desc']).toBe('Newest');
+        expect(en['quickAdd.example']).toBe('e.g. Call mom /due:tomorrow @phone');
+        expect(en['quickAdd.inlineHint']).toBe('Try: Call mom /due:tomorrow 5pm @phone #family');
+        expect(en['quickAdd.inlineHint']).not.toContain('/start:<when>');
+    });
 });

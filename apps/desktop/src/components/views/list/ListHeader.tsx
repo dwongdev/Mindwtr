@@ -1,4 +1,4 @@
-import { ChevronDown, ChevronsUpDown, List, SlidersHorizontal } from 'lucide-react';
+import { ArrowUpDown, CheckSquare, ChevronDown, ChevronsUpDown, List, SlidersHorizontal } from 'lucide-react';
 import { cn } from '../../../lib/utils';
 import type { TaskSortBy } from '@mindwtr/core';
 import type { TaskListGroupBy } from './next-grouping';
@@ -53,6 +53,10 @@ export function ListHeader({
     const densityTitle = (() => {
         const value = t('list.density');
         return value === 'list.density' ? 'Density' : value;
+    })();
+    const sortLabel = (() => {
+        const value = t('sort.label');
+        return value === 'sort.label' ? 'Sort' : value;
     })();
     const densityLabel = densityMode === 'compact'
         ? (() => {
@@ -136,16 +140,34 @@ export function ListHeader({
             </div>
 
             <div className="flex flex-wrap items-center gap-2 xl:justify-end">
-                <div className="relative min-w-[172px]">
+                <button
+                    type="button"
+                    onClick={onToggleSelection}
+                    className={cn(
+                        controlBaseClass,
+                        "inline-flex items-center gap-1.5 rounded-lg px-3",
+                        selectionMode
+                            ? controlActiveClass
+                            : controlMutedClass
+                    )}
+                >
+                    <CheckSquare className="h-3.5 w-3.5" aria-hidden="true" />
+                    {selectionMode ? t('bulk.exitSelect') : t('bulk.select')}
+                </button>
+                <div className={cn(controlBaseClass, controlMutedClass, "relative flex min-w-[160px] items-center rounded-lg pl-2") }>
+                    <ArrowUpDown
+                        className="mr-1.5 h-3.5 w-3.5 shrink-0 text-muted-foreground"
+                        aria-hidden="true"
+                        data-testid="list-sort-icon"
+                    />
+                    <span className="mr-2 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+                        {sortLabel}
+                    </span>
                     <select
                         value={sortBy}
                         onChange={(e) => onChangeSortBy(e.target.value as TaskSortBy)}
-                        aria-label={t('sort.label')}
-                        className={cn(
-                            controlBaseClass,
-                            controlMutedClass,
-                            "w-full appearance-none rounded-lg pl-3 pr-9 text-foreground"
-                        )}
+                        aria-label={sortLabel}
+                        className="h-full min-w-0 flex-1 appearance-none bg-transparent pr-8 text-xs text-foreground focus:outline-none"
                     >
                         <option value="default">{t('sort.default')}</option>
                         <option value="due">{t('sort.due')}</option>
@@ -161,16 +183,15 @@ export function ListHeader({
                     />
                 </div>
                 {showGroupBy && onChangeGroupBy && (
-                    <div className="relative min-w-[132px]">
+                    <div className={cn(controlBaseClass, controlMutedClass, "relative flex min-w-[180px] items-center rounded-lg pl-2") }>
+                        <span className="mr-2 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+                            {groupLabel}
+                        </span>
                         <select
                             value={groupBy}
                             onChange={(e) => onChangeGroupBy(e.target.value as TaskListGroupBy)}
                             aria-label={groupLabel}
-                            className={cn(
-                                controlBaseClass,
-                                controlMutedClass,
-                                "w-full appearance-none rounded-lg pl-3 pr-9 text-foreground"
-                            )}
+                            className="h-full min-w-0 flex-1 appearance-none bg-transparent pr-8 text-xs text-foreground focus:outline-none"
                         >
                             {groupByOptions.map((option) => (
                                 <option key={option} value={option}>{groupByLabels[option]}</option>
@@ -182,19 +203,6 @@ export function ListHeader({
                         />
                     </div>
                 )}
-                <button
-                    type="button"
-                    onClick={onToggleSelection}
-                    className={cn(
-                        controlBaseClass,
-                        "rounded-lg px-3",
-                        selectionMode
-                            ? controlActiveClass
-                            : controlMutedClass
-                    )}
-                >
-                    {selectionMode ? t('bulk.exitSelect') : t('bulk.select')}
-                </button>
                 <button
                     type="button"
                     onClick={onToggleDetails}

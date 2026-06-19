@@ -1,5 +1,5 @@
 import { useEffect, useId, useMemo, useRef, useState } from 'react';
-import type { KeyboardEventHandler, RefObject } from 'react';
+import type { FocusEventHandler, KeyboardEventHandler, RefObject } from 'react';
 
 import { cn } from '../../lib/utils';
 import {
@@ -24,6 +24,7 @@ type TokenAutocompleteInputProps = {
     className?: string;
     ariaLabel?: string;
     inputRef?: RefObject<HTMLInputElement | null>;
+    onBlur?: FocusEventHandler<HTMLInputElement>;
     onKeyDown?: KeyboardEventHandler<HTMLInputElement>;
     onAcceptToken?: (token: string) => void;
 };
@@ -73,6 +74,7 @@ export function TokenAutocompleteInput({
     className,
     ariaLabel,
     inputRef,
+    onBlur,
     onKeyDown,
     onAcceptToken,
 }: TokenAutocompleteInputProps) {
@@ -195,7 +197,8 @@ export function TokenAutocompleteInput({
                     updateSegment(event.currentTarget);
                 }}
                 onSelect={(event) => updateSegment(event.currentTarget)}
-                onBlur={() => {
+                onBlur={(event) => {
+                    onBlur?.(event);
                     window.setTimeout(() => closeOptions(), 250);
                 }}
                 placeholder={placeholder}

@@ -1,6 +1,6 @@
 import React, { memo, useState, useMemo, useDeferredValue, useEffect, useRef, useCallback } from 'react';
 import { useVirtualizer } from '@tanstack/react-virtual';
-import { ChevronDown, ChevronRight } from 'lucide-react';
+import { ChevronDown, ChevronRight, HelpCircle } from 'lucide-react';
 import {
     buildBulkOrganizeTaskUpdates,
     DEFAULT_AREA_COLOR,
@@ -161,6 +161,7 @@ export const ListView = memo(function ListView({ title, statusFilter }: ListView
     const densityMode = isCompact ? 'compact' : 'comfortable';
     const resolvedAreaFilter = resolveAreaFilter(settings?.filters?.areaId, areas);
     const [newTaskTitle, setNewTaskTitle] = useState('');
+    const [quickAddSyntaxOpen, setQuickAddSyntaxOpen] = useState(false);
     const listFilters = useUiStore((state) => state.listFilters);
     const setListFilters = useUiStore((state) => state.setListFilters);
     const resetListFilters = useUiStore((state) => state.resetListFilters);
@@ -1033,9 +1034,28 @@ export const ListView = memo(function ListView({ title, statusFilter }: ListView
                                 </div>
                             )}
                             {!isProcessing && (
-                                <p className="text-xs text-muted-foreground">
-                                    {t('quickAdd.help')}
-                                </p>
+                                <div className="mt-1 space-y-1 text-xs text-muted-foreground">
+                                    <div className="flex min-w-0 items-center gap-1.5">
+                                        <span className="min-w-0 truncate">
+                                            {t('quickAdd.inlineHint')}
+                                        </span>
+                                        <button
+                                            type="button"
+                                            onClick={() => setQuickAddSyntaxOpen((open) => !open)}
+                                            className="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 focus-visible:ring-offset-background"
+                                            aria-label={t('quickAdd.syntaxHelp')}
+                                            aria-expanded={quickAddSyntaxOpen}
+                                            title={t('quickAdd.help')}
+                                        >
+                                            <HelpCircle className="h-3.5 w-3.5" aria-hidden="true" />
+                                        </button>
+                                    </div>
+                                    {quickAddSyntaxOpen && (
+                                        <p className="rounded border border-border bg-muted/30 px-2 py-1 leading-relaxed text-muted-foreground">
+                                            {t('quickAdd.help')}
+                                        </p>
+                                    )}
+                                </div>
                             )}
                         </>
                     )}

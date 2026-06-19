@@ -543,7 +543,8 @@ export class SqliteAdapter {
     private async ensureFtsSchema() {
         const columns = await this.client.all<{ name?: string }>('PRAGMA table_info(tasks_fts)');
         const hasChecklist = columns.some((column) => column.name === 'checklist');
-        if (hasChecklist) return;
+        const hasAssignedTo = columns.some((column) => column.name === 'assignedTo');
+        if (hasChecklist && hasAssignedTo) return;
 
         await this.client.run('DROP TRIGGER IF EXISTS tasks_ai');
         await this.client.run('DROP TRIGGER IF EXISTS tasks_ad');
@@ -558,6 +559,7 @@ export class SqliteAdapter {
               contexts,
               checklist,
               location,
+              assignedTo,
               content=''
             )
         `);
@@ -576,22 +578,22 @@ export class SqliteAdapter {
 
             await this.client.run(`
                 CREATE TRIGGER IF NOT EXISTS tasks_ai AFTER INSERT ON tasks BEGIN
-                  INSERT INTO tasks_fts (rowid, title, description, tags, contexts, checklist, location)
-                  VALUES (new.rowid, new.title, coalesce(new.description, ''), coalesce(new.tags, ''), coalesce(new.contexts, ''), coalesce((SELECT group_concat(json_extract(value, '$.title'), ' ') FROM json_each(new.checklist)), ''), coalesce(new.location, ''));
+                  INSERT INTO tasks_fts (rowid, title, description, tags, contexts, checklist, location, assignedTo)
+                  VALUES (new.rowid, new.title, coalesce(new.description, ''), coalesce(new.tags, ''), coalesce(new.contexts, ''), coalesce((SELECT group_concat(json_extract(value, '$.title'), ' ') FROM json_each(new.checklist)), ''), coalesce(new.location, ''), coalesce(new.assignedTo, ''));
                 END
             `);
             await this.client.run(`
                 CREATE TRIGGER IF NOT EXISTS tasks_ad AFTER DELETE ON tasks BEGIN
-                  INSERT INTO tasks_fts (tasks_fts, rowid, title, description, tags, contexts, checklist, location)
-                  VALUES ('delete', old.rowid, old.title, coalesce(old.description, ''), coalesce(old.tags, ''), coalesce(old.contexts, ''), coalesce((SELECT group_concat(json_extract(value, '$.title'), ' ') FROM json_each(old.checklist)), ''), coalesce(old.location, ''));
+                  INSERT INTO tasks_fts (tasks_fts, rowid, title, description, tags, contexts, checklist, location, assignedTo)
+                  VALUES ('delete', old.rowid, old.title, coalesce(old.description, ''), coalesce(old.tags, ''), coalesce(old.contexts, ''), coalesce((SELECT group_concat(json_extract(value, '$.title'), ' ') FROM json_each(old.checklist)), ''), coalesce(old.location, ''), coalesce(old.assignedTo, ''));
                 END
             `);
             await this.client.run(`
                 CREATE TRIGGER IF NOT EXISTS tasks_au AFTER UPDATE ON tasks BEGIN
-                  INSERT INTO tasks_fts (tasks_fts, rowid, title, description, tags, contexts, checklist, location)
-                  VALUES ('delete', old.rowid, old.title, coalesce(old.description, ''), coalesce(old.tags, ''), coalesce(old.contexts, ''), coalesce((SELECT group_concat(json_extract(value, '$.title'), ' ') FROM json_each(old.checklist)), ''), coalesce(old.location, ''));
-                  INSERT INTO tasks_fts (rowid, title, description, tags, contexts, checklist, location)
-                  VALUES (new.rowid, new.title, coalesce(new.description, ''), coalesce(new.tags, ''), coalesce(new.contexts, ''), coalesce((SELECT group_concat(json_extract(value, '$.title'), ' ') FROM json_each(new.checklist)), ''), coalesce(new.location, ''));
+                  INSERT INTO tasks_fts (tasks_fts, rowid, title, description, tags, contexts, checklist, location, assignedTo)
+                  VALUES ('delete', old.rowid, old.title, coalesce(old.description, ''), coalesce(old.tags, ''), coalesce(old.contexts, ''), coalesce((SELECT group_concat(json_extract(value, '$.title'), ' ') FROM json_each(old.checklist)), ''), coalesce(old.location, ''), coalesce(old.assignedTo, ''));
+                  INSERT INTO tasks_fts (rowid, title, description, tags, contexts, checklist, location, assignedTo)
+                  VALUES (new.rowid, new.title, coalesce(new.description, ''), coalesce(new.tags, ''), coalesce(new.contexts, ''), coalesce((SELECT group_concat(json_extract(value, '$.title'), ' ') FROM json_each(new.checklist)), ''), coalesce(new.location, ''), coalesce(new.assignedTo, ''));
                 END
             `);
             await this.client.run(`
@@ -935,8 +937,8 @@ export class SqliteAdapter {
                         // Use FTS5 delete-all command for contentless tables (content='')
                         await this.client.run("INSERT INTO tasks_fts(tasks_fts) VALUES('delete-all')");
                         await this.client.run(
-                            `INSERT INTO tasks_fts (rowid, title, description, tags, contexts, checklist, location)
-                             SELECT rowid, title, coalesce(description, ''), coalesce(tags, ''), coalesce(contexts, ''), coalesce((SELECT group_concat(json_extract(value, '$.title'), ' ') FROM json_each(tasks.checklist)), ''), coalesce(location, '') FROM tasks`
+                            `INSERT INTO tasks_fts (rowid, title, description, tags, contexts, checklist, location, assignedTo)
+                             SELECT rowid, title, coalesce(description, ''), coalesce(tags, ''), coalesce(contexts, ''), coalesce((SELECT group_concat(json_extract(value, '$.title'), ' ') FROM json_each(tasks.checklist)), ''), coalesce(location, ''), coalesce(assignedTo, '') FROM tasks`
                         );
                     }
                     if (needsProjectRebuild) {

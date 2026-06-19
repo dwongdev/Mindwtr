@@ -1368,6 +1368,7 @@ export function ProjectWorkspace({
                                         noAreaId={noAreaId}
                                         t={t}
                                         tagDraft={tagDraft}
+                                        tagSuggestions={addTagOptions}
                                         onTagDraftChange={setTagDraft}
                                         onCommitTags={() => {
                                             updateProject(selectedProject.id, { tagIds: parseTagInput(tagDraft) });

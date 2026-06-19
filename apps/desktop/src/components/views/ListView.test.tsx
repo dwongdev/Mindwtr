@@ -96,6 +96,17 @@ describe('ListView', () => {
     expect(html).not.toContain('data-view-filter-input');
   });
 
+  it('uses a compact one-line quick-add hint in the list footer', () => {
+    const { getByRole, getByText, queryByText } = renderListView('inbox', 'Inbox');
+
+    expect(getByText('Try: Call mom /due:tomorrow 5pm @phone #family')).toBeInTheDocument();
+    expect(getByRole('button', { name: 'Quick Add syntax help' })).toHaveAttribute(
+      'title',
+      expect.stringContaining('/start:<when>')
+    );
+    expect(queryByText(/Quick add supports/)).not.toBeInTheDocument();
+  });
+
   it('renders local search input in done view', () => {
     const html = renderStaticListView('done', 'Done');
     expect(html).toContain('data-view-filter-input');
