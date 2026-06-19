@@ -248,6 +248,47 @@ describe('TaskStore', () => {
         expect(useTaskStore.getState().tasks).toHaveLength(0);
     });
 
+    it('applies the configured default area to new inbox tasks', async () => {
+        const { addArea, addTask, updateSettings } = useTaskStore.getState();
+        const area = await addArea('Work');
+        expect(area).not.toBeNull();
+        if (!area) return;
+        await updateSettings({ gtd: { defaultAreaId: area.id } });
+
+        const result = await addTask('Captured Task');
+
+        expect(result.success).toBe(true);
+        expect(useTaskStore.getState()._tasksById.get(result.id ?? '')?.areaId).toBe(area.id);
+    });
+
+    it('lets explicit task area choices override the configured default area', async () => {
+        const { addArea, addTask, updateSettings } = useTaskStore.getState();
+        const work = await addArea('Work');
+        const home = await addArea('Home');
+        expect(work).not.toBeNull();
+        expect(home).not.toBeNull();
+        if (!work || !home) return;
+        await updateSettings({ gtd: { defaultAreaId: work.id } });
+
+        const explicitArea = await addTask('Explicit Home', { areaId: home.id });
+        const explicitNone = await addTask('Explicit None', { areaId: undefined });
+
+        expect(explicitArea.success).toBe(true);
+        expect(explicitNone.success).toBe(true);
+        expect(useTaskStore.getState()._tasksById.get(explicitArea.id ?? '')?.areaId).toBe(home.id);
+        expect(useTaskStore.getState()._tasksById.get(explicitNone.id ?? '')?.areaId).toBeUndefined();
+    });
+
+    it('ignores a stale configured default area when adding a task', async () => {
+        const { addTask, updateSettings } = useTaskStore.getState();
+        await updateSettings({ gtd: { defaultAreaId: 'missing-area' } });
+
+        const result = await addTask('Stale Default Area Task');
+
+        expect(result.success).toBe(true);
+        expect(useTaskStore.getState()._tasksById.get(result.id ?? '')?.areaId).toBeUndefined();
+    });
+
     it('infers projectId from a valid section when adding a task', async () => {
         const { addProject, addSection, addTask } = useTaskStore.getState();
         const project = await addProject('Section Project', '#123456');
@@ -1146,7 +1187,7 @@ describe('TaskStore', () => {
         expect(useTaskStore.getState().error).toBe('Failed to fetch data: Database needs repair');
     });
 
-    it('preserves duplicate active area names in current-version data during fetch', async () => {
+    it('tombstones duplicate active area names in current-version data during fetch', async () => {
         const nowIso = '2026-06-12T12:00:00.000Z';
         vi.setSystemTime(new Date(nowIso));
         const areaA = createStoreArea('area-a', { name: 'Work', order: 0 });
@@ -1157,8 +1198,8 @@ describe('TaskStore', () => {
             updatedAt: '2026-04-02T00:00:00.000Z',
         });
         mockStorage.getData = vi.fn().mockResolvedValue({
-            tasks: [],
-            projects: [],
+            tasks: [createStoreTask('task-a', { areaId: 'area-b', status: 'next' })],
+            projects: [createStoreProject('project-a', { areaId: 'area-b', areaTitle: 'Work' })],
             sections: [],
             areas: [areaA, areaB],
             people: [],
@@ -1170,6 +1211,7 @@ describe('TaskStore', () => {
                     lastTombstoneCleanupAt: nowIso,
                 },
                 gtd: {
+                    defaultAreaId: 'area-b',
                     taskEditor: {
                         defaultsVersion: 9999,
                     },
@@ -1180,8 +1222,18 @@ describe('TaskStore', () => {
         await useTaskStore.getState().fetchData({ silent: true });
         await flushPendingSave();
 
-        expect(useTaskStore.getState()._allAreas.map((area) => area.id)).toEqual(['area-a', 'area-b']);
-        expect(mockStorage.saveData).not.toHaveBeenCalled();
+        const state = useTaskStore.getState();
+        expect(state.areas.map((area) => area.id)).toEqual(['area-a']);
+        expect(state._allAreas.find((area) => area.id === 'area-b')).toMatchObject({
+            deletedAt: nowIso,
+            updatedAt: nowIso,
+            revBy: 'device-a',
+        });
+        expect(state._allProjects.find((project) => project.id === 'project-a')?.areaId).toBe('area-a');
+        expect(state._allTasks.find((task) => task.id === 'task-a')?.areaId).toBe('area-a');
+        expect(state.settings.gtd?.defaultAreaId).toBe('area-a');
+        expect(state.settings.syncPreferencesUpdatedAt?.gtd).toBe(nowIso);
+        expect(mockStorage.saveData).toHaveBeenCalled();
     });
 
     it('does not overwrite local task edits made during an in-flight fetch', async () => {

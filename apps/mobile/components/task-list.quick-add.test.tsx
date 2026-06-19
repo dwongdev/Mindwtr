@@ -137,6 +137,12 @@ vi.mock('@mindwtr/core', () => {
     isSelectableProjectForTaskAssignment: (item: Project) => item.status === 'active' && !item.deletedAt,
     isTaskInActiveProject: vi.fn(() => true),
     parseQuickAdd: parseQuickAddMock,
+    resolveDefaultNewTaskAreaId: (settings: any, areas: any[]) => {
+      const areaId = settings?.gtd?.defaultAreaId;
+      return typeof areaId === 'string' && areas.some((area) => area.id === areaId && !area.deletedAt)
+        ? areaId
+        : undefined;
+    },
     shallow: Object.is,
     sortTasksBy: (tasks: Task[]) => tasks,
     splitCompletedTasks: (tasks: Task[]) => ({ activeTasks: tasks, completedTasks: [] }),

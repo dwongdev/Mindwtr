@@ -18,6 +18,7 @@ vi.mock('@react-native-async-storage/async-storage', () => ({
 
 type MockStoreState = {
   settings: AppData['settings'];
+  areas: AppData['areas'];
   updateSettings: typeof updateSettings;
 };
 
@@ -31,6 +32,7 @@ const storeState: MockStoreState = {
       timeEstimates: true,
     },
   },
+  areas: [],
   updateSettings,
 };
 
@@ -47,6 +49,12 @@ vi.mock('@mindwtr/core', () => ({
     return `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`;
   },
   normalizeFocusTaskLimit: (value?: number) => value ?? 3,
+  resolveDefaultNewTaskAreaId: (settings: AppData['settings'], areas: AppData['areas']) => {
+    const areaId = settings?.gtd?.defaultAreaId;
+    return typeof areaId === 'string' && areas.some((area) => area.id === areaId && !area.deletedAt)
+      ? areaId
+      : undefined;
+  },
   sanitizePomodoroDurations: (value?: { focusMinutes?: number; breakMinutes?: number }) => ({
     focusMinutes: Number.isFinite(value?.focusMinutes) ? Math.round(value!.focusMinutes!) : 25,
     breakMinutes: Number.isFinite(value?.breakMinutes) ? Math.round(value!.breakMinutes!) : 5,
@@ -145,6 +153,7 @@ describe('GtdSettingsScreen task editor layout', () => {
         timeEstimates: true,
       },
     };
+    storeState.areas = [];
   });
 
   it('quick-toggles the eye icon without opening the field sheet', () => {
@@ -276,6 +285,47 @@ describe('GtdSettingsScreen task editor layout', () => {
     expect(updateSettings).toHaveBeenCalledWith(expect.objectContaining({
       gtd: expect.objectContaining({
         defaultProjectFlowMode: 'sequential',
+      }),
+    }));
+  });
+
+  it('saves the default area from capture settings', () => {
+    storeState.settings = {
+      gtd: {
+        defaultAreaId: null,
+        taskEditor: {},
+      },
+      features: {
+        priorities: true,
+        timeEstimates: true,
+      },
+    };
+    storeState.areas = [{
+      id: 'area-work',
+      name: 'Work',
+      color: '#64748b',
+      order: 0,
+      createdAt: '2026-01-01T00:00:00.000Z',
+      updatedAt: '2026-01-01T00:00:00.000Z',
+    }];
+
+    let tree!: renderer.ReactTestRenderer;
+    renderer.act(() => {
+      tree = renderer.create(<GtdSettingsScreen onNavigate={vi.fn()} screen="gtd-capture" />);
+    });
+
+    const workButton = tree.root.findAllByType(TouchableOpacity).find((button) => (
+      button.findAllByType(Text).some((text) => text.props.children === 'Work')
+    ));
+    expect(workButton).toBeTruthy();
+
+    renderer.act(() => {
+      workButton?.props.onPress();
+    });
+
+    expect(updateSettings).toHaveBeenCalledWith(expect.objectContaining({
+      gtd: expect.objectContaining({
+        defaultAreaId: 'area-work',
       }),
     }));
   });

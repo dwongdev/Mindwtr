@@ -10,6 +10,7 @@ import {
     isTaskInActiveProject,
     matchesHierarchicalToken,
     parseQuickAdd,
+    resolveDefaultNewTaskAreaId,
     safeParseDate,
     shallow,
     sortTasksBy,
@@ -39,7 +40,7 @@ import { useListViewOptimizations } from '../../hooks/useListViewOptimizations';
 import { usePersistedViewState } from '../../hooks/usePersistedViewState';
 import { dispatchNavigateEvent } from '../../lib/navigation-events';
 import { reportError } from '../../lib/report-error';
-import { AREA_FILTER_ALL, AREA_FILTER_NONE, projectMatchesAreaFilter, resolveAreaFilter, taskMatchesAreaFilter } from '@mindwtr/core';
+import { projectMatchesAreaFilter, resolveAreaFilter, taskMatchesAreaFilter } from '@mindwtr/core';
 import { cn } from '../../lib/utils';
 import { sortDoneTasksForListView } from './list/done-sort';
 import { groupTasksByArea, groupTasksByContext, groupTasksByEnergy, groupTasksByPerson, groupTasksByPriority, groupTasksByProject, groupTasksByTag, type NextGroupBy, type ReferenceGroupBy, type TaskGroup, type TaskListGroupBy } from './list/next-grouping';
@@ -198,6 +199,7 @@ export const ListView = memo(function ListView({ title, statusFilter }: ListView
     const normalizedSearchQuery = searchQuery.trim().toLowerCase();
     const activePriorities = prioritiesEnabled ? selectedPriorities : EMPTY_PRIORITIES;
     const activeTimeEstimates = timeEstimatesEnabled ? selectedTimeEstimates : EMPTY_ESTIMATES;
+    const defaultNewTaskAreaId = resolveDefaultNewTaskAreaId(settings, areas);
 
     useEffect(() => {
         if (!perf.enabled) return;
@@ -750,20 +752,14 @@ export const ListView = memo(function ListView({ title, statusFilter }: ListView
             const finalTitle = shouldApplyDetectedDate && detectedDate
                 ? detectedDate.titleWithoutDate
                 : (parsedTitle || newTaskTitle);
-            const fallbackAreaId = resolvedAreaFilter !== AREA_FILTER_ALL && resolvedAreaFilter !== AREA_FILTER_NONE
-                ? resolvedAreaFilter
-                : undefined;
             if (!initialProps.projectId && projectTitle) {
                 const created = await addProject(
                     projectTitle,
                     DEFAULT_AREA_COLOR,
-                    getQuickAddProjectInitialProps(initialProps, fallbackAreaId),
+                    getQuickAddProjectInitialProps(initialProps, defaultNewTaskAreaId),
                 );
                 if (!created) return;
                 initialProps.projectId = created.id;
-            }
-            if (!initialProps.projectId && !initialProps.areaId && resolvedAreaFilter !== AREA_FILTER_ALL && resolvedAreaFilter !== AREA_FILTER_NONE) {
-                initialProps.areaId = resolvedAreaFilter;
             }
             // Only set status if we have an explicit filter and parser didn't set one
             if (!initialProps.status && statusFilter !== 'all') {
@@ -1004,13 +1000,10 @@ export const ListView = memo(function ListView({ title, statusFilter }: ListView
                     projects={projects}
                     areas={areas}
                     onCreateProject={async (title) => {
-                        const fallbackAreaId = resolvedAreaFilter !== AREA_FILTER_ALL && resolvedAreaFilter !== AREA_FILTER_NONE
-                            ? resolvedAreaFilter
-                            : undefined;
                         const created = await addProject(
                             title,
                             DEFAULT_AREA_COLOR,
-                            getQuickAddProjectInitialProps({}, fallbackAreaId),
+                            getQuickAddProjectInitialProps({}, defaultNewTaskAreaId),
                         );
                         return created?.id ?? null;
                     }}

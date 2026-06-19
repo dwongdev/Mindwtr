@@ -26,6 +26,7 @@ import { normalizeRepeatReminderMinutes } from './schedule-utils';
 import { normalizeFocusTaskLimit } from './focus-utils';
 import { getTaskFocusEligibility, isTaskFutureStart } from './task-utils';
 import { resolveTaskContainerHierarchy } from './task-container-rules';
+import { resolveDefaultNewTaskAreaId } from './area-utils';
 
 const stripAttachmentRemoteMetadata = (attachments: Task['attachments']): Task['attachments'] =>
     attachments?.map((attachment) => (
@@ -589,10 +590,18 @@ export const createTaskActions = ({ set, get, getStorage, debouncedSave, trackIm
             return actionFail(message);
         }
         const currentState = get();
+        const initialTaskProps = initialProps ?? {};
+        const hasExplicitAreaId = hasOwnField(initialTaskProps, 'areaId');
+        const shouldApplyDefaultArea = !hasExplicitAreaId
+            && !normalizeProjectIdInput(initialTaskProps.projectId)
+            && !normalizeOptionalReferenceId(initialTaskProps.sectionId);
+        const defaultAreaId = shouldApplyDefaultArea
+            ? resolveDefaultNewTaskAreaId(currentState.settings, currentState._allAreas)
+            : undefined;
         const containerResolution = resolveTaskContainerAssignment({
-            projectId: initialProps?.projectId,
-            sectionId: initialProps?.sectionId,
-            areaId: initialProps?.areaId,
+            projectId: initialTaskProps.projectId,
+            sectionId: initialTaskProps.sectionId,
+            areaId: defaultAreaId ?? initialTaskProps.areaId,
             allProjects: currentState._allProjects,
             allSections: currentState._allSections,
             allAreas: currentState._allAreas,

@@ -7,6 +7,7 @@ import {
     flushPendingSave,
     getQuickAddProjectInitialProps,
     parseQuickAdd,
+    resolveDefaultNewTaskAreaId,
     safeFormatDate,
     generateUUID,
     splitQuickAddBulkLines,
@@ -41,7 +42,6 @@ import {
 import { QUICK_ADD_MAIN_WINDOW_LABEL, QUICK_ADD_SAVED_EVENT } from '../lib/quick-add-saved-event';
 import { TaskInput } from './Task/TaskInput';
 import { AreaSelector } from './ui/AreaSelector';
-import { AREA_FILTER_ALL, AREA_FILTER_NONE, resolveAreaFilter } from '@mindwtr/core';
 
 const AUDIO_CAPTURE_DIR = 'mindwtr/audio-captures';
 const QUICK_ADD_IMAGE_CAPTURE_DIR = 'mindwtr/quick-add-images';
@@ -179,14 +179,8 @@ export function QuickAddModal({ standaloneWindow = false }: QuickAddModalProps) 
     const openRequestInFlightRef = useRef(false);
     const standaloneDataRefreshRef = useRef<Promise<void> | null>(null);
     const pastedImageAttachmentsRef = useRef<PastedImageAttachment[]>([]);
-    const sortedAreas = useMemo(() => [...areas].sort((a, b) => a.order - b.order), [areas]);
-    const resolvedAreaFilter = useMemo(
-        () => resolveAreaFilter(settings?.filters?.areaId, areas),
-        [settings?.filters?.areaId, areas],
-    );
-    const defaultAreaId = resolvedAreaFilter !== AREA_FILTER_ALL && resolvedAreaFilter !== AREA_FILTER_NONE
-        ? resolvedAreaFilter
-        : '';
+    const sortedAreas = useMemo(() => [...areas].filter((area) => !area.deletedAt).sort((a, b) => a.order - b.order), [areas]);
+    const defaultAreaId = resolveDefaultNewTaskAreaId(settings, sortedAreas) ?? '';
     const quickAddParseOptions = useMemo(
         () => ({
             knownContexts: allContexts,
@@ -866,8 +860,9 @@ export function QuickAddModal({ standaloneWindow = false }: QuickAddModalProps) 
             ? detectedDate.titleWithoutDate
             : (title || input.trim() || extraAttachments?.[0]?.title || tFallback(t, 'quickAdd.pastedImageTitle', 'Screenshot'));
         if (!finalTitle.trim()) return { success: false, currentProjects, currentAreas };
-        if (!baseProps.areaId && selectedAreaId) {
-            baseProps.areaId = selectedAreaId;
+        const hasProjectAssignment = Boolean(baseProps.projectId || projectTitle);
+        if (!hasProjectAssignment) {
+            baseProps.areaId = props.areaId || selectedAreaId || undefined;
         }
         let projectId = baseProps.projectId;
         let nextProjects = currentProjects;
@@ -882,7 +877,7 @@ export function QuickAddModal({ standaloneWindow = false }: QuickAddModalProps) 
                 const created = await addProject(
                     projectTitle,
                     DEFAULT_PROJECT_COLOR,
-                    getQuickAddProjectInitialProps(baseProps)
+                    getQuickAddProjectInitialProps(baseProps, selectedAreaId)
                 );
                 if (!created) return { success: false, currentProjects, currentAreas };
                 projectId = created.id;

@@ -5,6 +5,7 @@ import { normalizeTaskForLoad } from './task-status';
 import { SYNC_REPAIR_REV_BY } from './sync-types';
 import { isValidRevision, nextRevision, normalizeRevision } from './sync-revision';
 import { resolveTaskContainerHierarchy } from './task-container-rules';
+import { dedupeLiveAreasByName } from './area-utils';
 
 export const normalizeAppData = (data: AppData): AppData => ({
     tasks: Array.isArray(data.tasks) ? data.tasks : [],
@@ -218,19 +219,27 @@ const withRepairRevision = <T extends { rev?: number; revBy?: string }>(item: T)
 };
 
 export const repairMergedSyncReferences = (data: AppData, nowIso: string): AppData => {
+    const dedupedAreas = dedupeLiveAreasByName(data.areas, {
+        nowIso,
+        revBy: SYNC_REPAIR_REV_BY,
+    });
+    const areaIdRemap = dedupedAreas.areaIdRemap;
+    const areas = dedupedAreas.areas;
     const liveAreasById = new Map(
-        data.areas
+        areas
             .filter((area) => !hasDeletedAt(area))
             .map((area) => [area.id, area] as const)
     );
     const deletedAreaIds = new Set(
-        data.areas
+        areas
             .filter((area) => hasDeletedAt(area))
             .map((area) => area.id)
     );
 
     const repairedProjects = data.projects.map((project) => {
-        const areaId = normalizeOptionalString(project.areaId);
+        const originalAreaId = normalizeOptionalString(project.areaId);
+        const remappedAreaId = originalAreaId ? areaIdRemap.get(originalAreaId) : undefined;
+        const areaId = remappedAreaId ?? originalAreaId;
         if (!areaId) {
             return areaId === project.areaId && project.areaTitle === normalizeOptionalString(project.areaTitle)
                 ? project
@@ -295,8 +304,8 @@ export const repairMergedSyncReferences = (data: AppData, nowIso: string): AppDa
         const originalAreaId = normalizeOptionalString(task.areaId);
         let nextProjectId = originalProjectId;
         let nextSectionId = originalSectionId;
-        let nextAreaId = originalAreaId;
-        let changed = false;
+        let nextAreaId = originalAreaId ? areaIdRemap.get(originalAreaId) ?? originalAreaId : undefined;
+        let changed = nextAreaId !== originalAreaId;
 
         if (nextProjectId && deletedProjectIds.has(nextProjectId)) {
             nextProjectId = undefined;
@@ -347,11 +356,32 @@ export const repairMergedSyncReferences = (data: AppData, nowIso: string): AppDa
         };
     });
 
+    let repairedSettings = data.settings;
+    const configuredDefaultAreaId = data.settings?.gtd?.defaultAreaId;
+    const remappedDefaultAreaId = typeof configuredDefaultAreaId === 'string'
+        ? areaIdRemap.get(configuredDefaultAreaId)
+        : undefined;
+    if (remappedDefaultAreaId && remappedDefaultAreaId !== configuredDefaultAreaId) {
+        repairedSettings = {
+            ...data.settings,
+            gtd: {
+                ...(data.settings?.gtd ?? {}),
+                defaultAreaId: remappedDefaultAreaId,
+            },
+            syncPreferencesUpdatedAt: {
+                ...(data.settings?.syncPreferencesUpdatedAt ?? {}),
+                gtd: nowIso,
+            },
+        };
+    }
+
     return {
         ...data,
+        areas,
         tasks: repairedTasks,
         projects: repairedProjects,
         sections: repairedSections,
+        settings: repairedSettings,
     };
 };
 

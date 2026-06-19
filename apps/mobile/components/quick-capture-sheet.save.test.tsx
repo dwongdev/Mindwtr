@@ -76,6 +76,12 @@ vi.mock('@mindwtr/core', () => ({
     !project.deletedAt && project.status !== 'archived' && project.status !== 'completed'
   ),
   parseQuickAdd,
+  resolveDefaultNewTaskAreaId: (settings: any, areas: any[]) => {
+    const areaId = settings?.gtd?.defaultAreaId;
+    return typeof areaId === 'string' && areas.some((area) => area.id === areaId && !area.deletedAt)
+      ? areaId
+      : undefined;
+  },
   splitQuickAddBulkLines,
   safeFormatDate: (value: Date | string, formatStr: string) => {
     const date = value instanceof Date ? value : new Date(value);

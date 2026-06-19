@@ -26,6 +26,7 @@ import {
     FOCUS_TASK_LIMIT_OPTIONS,
     normalizeClockTimeInput,
     normalizeFocusTaskLimit,
+    resolveDefaultNewTaskAreaId,
     sanitizePomodoroDurations,
     tFallback,
     translateText,
@@ -69,7 +70,7 @@ export function GtdSettingsScreen({
     const insets = useSafeAreaInsets();
     const { isChineseLanguage, language, tr, t } = useSettingsLocalization();
     const { showToast } = useToast();
-    const { settings, updateSettings } = useTaskStore();
+    const { settings, updateSettings, areas } = useTaskStore();
     const scrollContentStyle = useSettingsScrollContent();
     const [taskEditorExpandedSections, setTaskEditorExpandedSections] = useState<Record<TaskEditorSectionId, boolean>>({
         basic: true,
@@ -85,6 +86,10 @@ export function GtdSettingsScreen({
         ? settings.gtd.timeEstimatePresets
         : defaultTimeEstimatePresets) as TimeEstimate[];
     const defaultCaptureMethod = settings.gtd?.defaultCaptureMethod ?? 'text';
+    const sortedAreas = [...areas]
+        .filter((area) => !area.deletedAt)
+        .sort((a, b) => (a.order - b.order) || a.name.localeCompare(b.name));
+    const defaultAreaId = resolveDefaultNewTaskAreaId(settings, sortedAreas) ?? '';
     const saveAudioAttachments = settings.gtd?.saveAudioAttachments !== false;
     const quickAddAutoClean = settings.quickAddAutoClean === true;
     const markdownEditorAssist = settings.markdownEditorAssist !== false;
@@ -352,6 +357,13 @@ export function GtdSettingsScreen({
         'settings.defaultProjectFlowModeDesc',
         'Applies only when creating new projects.'
     );
+    const defaultAreaLabel = tFallback(t, 'settings.defaultArea', 'Default area for new tasks');
+    const defaultAreaDesc = tFallback(
+        t,
+        'settings.defaultAreaDesc',
+        'Applies to new tasks, including Inbox captures. You can still change or clear the area per task.'
+    );
+    const defaultAreaNoneLabel = tFallback(t, 'settings.defaultAreaNone', 'No area');
     const captureSettingsTitle = tFallback(t, 'settings.captureSettings', tr('settings.gtdMobile.captureDefaults'));
     const quickAddAutoCleanLabel = tFallback(t, 'settings.quickAddAutoClean', 'Clean up quick add text');
     const quickAddAutoCleanDesc = tFallback(t, 'settings.quickAddAutoCleanDesc', 'Remove recognized dates, tags, and contexts from the title after applying them. Off keeps your text exactly as typed.');
@@ -366,6 +378,10 @@ export function GtdSettingsScreen({
     const captureMethodOptions: { id: 'text' | 'audio'; label: string; icon: keyof typeof Ionicons.glyphMap }[] = [
         { id: 'text', label: t('settings.captureDefaultText'), icon: 'text-outline' },
         { id: 'audio', label: t('settings.captureDefaultAudio'), icon: 'mic-outline' },
+    ];
+    const defaultAreaOptions = [
+        { id: '', label: defaultAreaNoneLabel },
+        ...sortedAreas.map((area) => ({ id: area.id, label: area.name })),
     ];
 
     const renderGtdNavigationRow = (
@@ -707,6 +723,37 @@ export function GtdSettingsScreen({
                                                 size={16}
                                                 color={selected ? tc.tint : tc.secondaryText}
                                             />
+                                            <Text
+                                                style={[styles.gtdSegmentedOptionText, { color: selected ? tc.tint : tc.secondaryText }]}
+                                                numberOfLines={1}
+                                            >
+                                                {option.label}
+                                            </Text>
+                                        </TouchableOpacity>
+                                    );
+                                })}
+                            </View>
+                        </View>
+                        <View style={[styles.settingRowColumn, { borderTopWidth: 1, borderTopColor: tc.border, gap: 12 }]}>
+                            <View style={styles.settingInfo}>
+                                <Text style={[styles.settingLabel, { color: tc.text }]}>{defaultAreaLabel}</Text>
+                                <Text style={[styles.settingDescription, { color: tc.secondaryText }]}>{defaultAreaDesc}</Text>
+                            </View>
+                            <View style={[styles.gtdSegmentedControl, { backgroundColor: tc.bg, borderColor: tc.border }]}>
+                                {defaultAreaOptions.map((option) => {
+                                    const selected = defaultAreaId === option.id;
+                                    return (
+                                        <TouchableOpacity
+                                            key={option.id || 'none'}
+                                            accessibilityRole="button"
+                                            accessibilityState={{ selected }}
+                                            style={[
+                                                styles.gtdSegmentedOption,
+                                                { backgroundColor: selected ? tc.filterBg : 'transparent' },
+                                            ]}
+                                            onPress={() => updateGtdSettings({ defaultAreaId: option.id || null })}
+                                            activeOpacity={0.8}
+                                        >
                                             <Text
                                                 style={[styles.gtdSegmentedOptionText, { color: selected ? tc.tint : tc.secondaryText }]}
                                                 numberOfLines={1}

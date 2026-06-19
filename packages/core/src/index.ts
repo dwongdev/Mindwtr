@@ -570,6 +570,12 @@ export type {
 } from './area-filter';
 
 export {
+    dedupeLiveAreasByName,
+    normalizeAreaNameKey,
+    resolveDefaultNewTaskAreaId,
+} from './area-utils';
+
+export {
     addCalendarMinutes,
     buildCalendarQuickAddTaskDraft,
     buildCalendarEventTaskDraft,

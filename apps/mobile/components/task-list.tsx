@@ -14,6 +14,7 @@ import {
   splitCompletedTasks,
   sortDoneTasksForListView,
   parseQuickAdd,
+  resolveDefaultNewTaskAreaId,
   getQuickAddProjectInitialProps,
   getUsedTaskTokens,
   createAIProvider,
@@ -386,7 +387,8 @@ function TaskListComponent({
   const canBulkOrganizeProject = enableProjectBulkOrganize && Boolean(projectId);
   const canBulkOrganizeSelection = canBulkOrganizeInbox || canBulkOrganizeProject;
   const projectById = useMemo(() => new Map(projects.map((project) => [project.id, project])), [projects]);
-  const { areaById, resolvedAreaFilter, selectedAreaIdForNewTasks } = useMobileAreaFilter();
+  const { areaById, resolvedAreaFilter } = useMobileAreaFilter();
+  const defaultNewTaskAreaId = resolveDefaultNewTaskAreaId(settings, areas);
 
   // Track the last-seen signal so a remount (e.g. toggling reorder mode swaps the
   // scroll container component type) doesn't re-open the sheet from a stale value.
@@ -1256,13 +1258,10 @@ function TaskListComponent({
       const created = await addProject(
         projectTitle,
         DEFAULT_PROJECT_COLOR,
-        getQuickAddProjectInitialProps(initialProps, selectedAreaIdForNewTasks)
+        getQuickAddProjectInitialProps(initialProps, defaultNewTaskAreaId)
       );
       if (!created) return;
       initialProps.projectId = created.id;
-    }
-    if (!initialProps.projectId && !initialProps.areaId && selectedAreaIdForNewTasks) {
-      initialProps.areaId = selectedAreaIdForNewTasks;
     }
     if (initialProps.projectId) {
       initialProps.areaId = undefined;
@@ -1320,7 +1319,7 @@ function TaskListComponent({
         await addProject(
           title,
           DEFAULT_PROJECT_COLOR,
-          getQuickAddProjectInitialProps({}, selectedAreaIdForNewTasks)
+          getQuickAddProjectInitialProps({}, defaultNewTaskAreaId)
         );
       }
     }
@@ -1341,7 +1340,7 @@ function TaskListComponent({
     setInputSelection(nextSelection);
     setTypeaheadOpen(false);
     setTypeaheadIndex(0);
-  }, [addProject, getTrigger, selectedAreaIdForNewTasks, trigger]);
+  }, [addProject, defaultNewTaskAreaId, getTrigger, trigger]);
 
   const handleEditTask = useCallback((task: Task) => {
     setEditingTask(task);

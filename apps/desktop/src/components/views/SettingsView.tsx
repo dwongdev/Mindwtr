@@ -246,6 +246,7 @@ export function SettingsView({ initialPage, onboardingHintPage, onResumeOnboardi
   } = useKeybindings();
   const settings =
     useTaskStore((state) => state.settings) ?? ({} as AppData["settings"]);
+  const areas = useTaskStore((state) => state.areas);
   const updateSettings = useTaskStore((state) => state.updateSettings);
   const seedGettingStarted = useTaskStore((state) => state.seedGettingStarted);
   const visibleDataCount = useTaskStore((state) => (
@@ -1115,6 +1116,7 @@ export function SettingsView({ initialPage, onboardingHintPage, onResumeOnboardi
           updateSettings={updateSettings}
           showSaved={showSaved}
           autoArchiveDays={autoArchiveDays}
+          areas={areas}
         />
       );
     }

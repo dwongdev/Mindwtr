@@ -19,6 +19,7 @@ import {
   getUsedTaskTokens,
   isSelectableProjectForTaskAssignment,
   parseQuickAdd,
+  resolveDefaultNewTaskAreaId,
   shallow,
   splitQuickAddBulkLines,
   tFallback,
@@ -164,6 +165,7 @@ export default function CaptureScreen() {
     () => sanitizeInitialPropsParam(params.initialProps, projects, areas),
     [areas, params.initialProps, projects]
   );
+  const defaultNewTaskAreaId = resolveDefaultNewTaskAreaId(settings, areas);
   const returnTo = React.useMemo(
     () => sanitizeCaptureReturnToParam(params.returnTo),
     [params.returnTo]
@@ -402,7 +404,7 @@ export default function CaptureScreen() {
           const created = await addProject(
             requestedProjectTitle,
             DEFAULT_PROJECT_COLOR,
-            getQuickAddProjectInitialProps(taskProps),
+            getQuickAddProjectInitialProps(taskProps, defaultNewTaskAreaId),
           );
           if (!created) return false;
           taskProps.projectId = created.id;

@@ -298,6 +298,7 @@ export interface GtdSettings {
     taskEditor?: TaskEditorSettings;
     autoArchiveDays?: number;
     defaultCaptureMethod?: 'text' | 'audio';
+    defaultAreaId?: string | null;
     focusTaskLimit?: number;
     focusGroupBy?: FocusGroupBy;
     defaultProjectFlowMode?: DefaultProjectFlowMode;

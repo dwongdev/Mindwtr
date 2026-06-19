@@ -44,7 +44,6 @@ import { mobileStorage } from '../lib/storage-adapter';
 import { markStartupPhase } from '../lib/startup-profiler';
 import { ErrorBoundary } from '../components/ErrorBoundary';
 import { logError, logInfo, logWarn, setupGlobalErrorLogging } from '../lib/app-log';
-import { useMobileAreaFilter } from '../hooks/use-mobile-area-filter';
 import { useThemeColors } from '../hooks/use-theme-colors';
 import { useRootLayoutContextAutomation } from '@/hooks/root-layout/use-root-layout-context-automation';
 import { useRootLayoutExternalCapture } from '@/hooks/root-layout/use-root-layout-external-capture';
@@ -352,7 +351,6 @@ function RootLayoutContentInner() {
     state.tasks.length + state.projects.length + state.sections.length + state.areas.length
   ));
   const firstRenderLogged = useRef(false);
-  const { selectedAreaIdForNewTasks } = useMobileAreaFilter();
   const [mobileOnboardingDismissed, setMobileOnboardingDismissed] = useState(false);
   const [mobileOnboardingDismissalLoaded, setMobileOnboardingDismissalLoaded] = useState(false);
   const [mobileOnboardingOpen, setMobileOnboardingOpen] = useState(false);
@@ -381,11 +379,8 @@ function RootLayoutContentInner() {
 
   const buildQuickCaptureInitialProps = useCallback((initialProps?: QuickCaptureOptions['initialProps']) => {
     const nextInitialProps = initialProps ? { ...initialProps } : {};
-    if (!nextInitialProps.projectId && !nextInitialProps.areaId && selectedAreaIdForNewTasks) {
-      nextInitialProps.areaId = selectedAreaIdForNewTasks;
-    }
     return Object.keys(nextInitialProps).length > 0 ? nextInitialProps : undefined;
-  }, [selectedAreaIdForNewTasks]);
+  }, []);
 
   const openSyncSettings = useCallback(() => {
     router.push({ pathname: '/settings', params: { settingsScreen: 'sync' } } as never);

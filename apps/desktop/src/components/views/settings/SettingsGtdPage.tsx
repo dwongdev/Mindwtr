@@ -1,8 +1,9 @@
-import type { AppSettings, DefaultProjectFlowMode, FeatureSettings, GtdSettings, TaskEditorFieldId, TaskEditorPresentation, TaskEditorSectionId } from '@mindwtr/core';
+import type { AppSettings, Area, DefaultProjectFlowMode, FeatureSettings, GtdSettings, TaskEditorFieldId, TaskEditorPresentation, TaskEditorSectionId } from '@mindwtr/core';
 import {
     FOCUS_TASK_LIMIT_OPTIONS,
     normalizeClockTimeInput,
     normalizeFocusTaskLimit,
+    resolveDefaultNewTaskAreaId,
     sanitizePomodoroDurations,
     translateText,
 } from '@mindwtr/core';
@@ -37,6 +38,9 @@ type Labels = {
     autoArchiveDayUnit: string;
     defaultScheduleTime: string;
     defaultScheduleTimeDesc: string;
+    defaultArea: string;
+    defaultAreaDesc: string;
+    defaultAreaNone: string;
     focusTaskLimit: string;
     focusTaskLimitDesc: string;
     defaultProjectFlowMode: string;
@@ -132,6 +136,7 @@ type SettingsGtdPageProps = {
     updateSettings: (updates: Partial<AppSettings>) => Promise<void>;
     showSaved: () => void;
     autoArchiveDays: number;
+    areas: Area[];
 };
 
 type SettingsDisclosureCardProps = {
@@ -184,6 +189,7 @@ export function SettingsGtdPage({
     updateSettings,
     showSaved,
     autoArchiveDays,
+    areas,
 }: SettingsGtdPageProps) {
     const safeSettings = settings ?? ({} as AppSettings);
     const [featuresOpen, setFeaturesOpen] = useState(false);
@@ -224,6 +230,10 @@ export function SettingsGtdPage({
         ? 'modal'
         : 'inline';
     const defaultCaptureMethod = safeSettings.gtd?.defaultCaptureMethod ?? 'text';
+    const sortedAreas = [...areas]
+        .filter((area) => !area.deletedAt)
+        .sort((a, b) => (a.order - b.order) || a.name.localeCompare(b.name));
+    const defaultAreaId = resolveDefaultNewTaskAreaId(safeSettings, sortedAreas) ?? '';
     const saveAudioAttachments = safeSettings.gtd?.saveAudioAttachments !== false;
     const quickAddAutoClean = safeSettings.quickAddAutoClean === true;
     const markdownEditorAssist = safeSettings.markdownEditorAssist !== false;
@@ -560,6 +570,25 @@ export function SettingsGtdPage({
                         }}
                         className="w-24 shrink-0 text-sm bg-muted/50 text-foreground border border-border rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary/40"
                     />
+                </div>
+                <div className="p-4 flex items-center justify-between gap-6">
+                    <div className="min-w-0">
+                        <div className="text-sm font-medium">{t.defaultArea}</div>
+                        <div className="text-xs text-muted-foreground mt-1">{t.defaultAreaDesc}</div>
+                    </div>
+                    <select
+                        value={defaultAreaId}
+                        aria-label={t.defaultArea}
+                        onChange={(event) => {
+                            updateGtdSettings({ defaultAreaId: event.target.value || null });
+                        }}
+                        className="max-w-56 shrink-0 text-sm bg-muted/50 text-foreground border border-border rounded px-3 py-2 hover:bg-muted focus:outline-none focus:ring-2 focus:ring-primary/40"
+                    >
+                        <option value="">{t.defaultAreaNone}</option>
+                        {sortedAreas.map((area) => (
+                            <option key={area.id} value={area.id}>{area.name}</option>
+                        ))}
+                    </select>
                 </div>
                 <div className="p-4 flex items-center justify-between gap-6">
                     <div className="min-w-0">

@@ -417,6 +417,20 @@ export const sanitizeMergedSettingsForSync = (
         }
 
         if (
+            next.gtd.defaultAreaId !== undefined
+            && next.gtd.defaultAreaId !== null
+            && !isNonEmptyString(next.gtd.defaultAreaId)
+        ) {
+            next.gtd = {
+                ...next.gtd,
+                defaultAreaId: localSettings.gtd?.defaultAreaId,
+            };
+            if (next.gtd.defaultAreaId === undefined) {
+                delete next.gtd.defaultAreaId;
+            }
+        }
+
+        if (
             next.gtd.defaultProjectFlowMode !== undefined
             && !setContainsValue(SETTINGS_DEFAULT_PROJECT_FLOW_MODE_VALUE_SET, next.gtd.defaultProjectFlowMode)
         ) {
@@ -573,12 +587,14 @@ export const mergeSettingsForSync = (
         'gtd',
         {
             defaultScheduleTime: localSettings.gtd?.defaultScheduleTime,
+            defaultAreaId: localSettings.gtd?.defaultAreaId,
             focusTaskLimit: localSettings.gtd?.focusTaskLimit,
             focusGroupBy: localSettings.gtd?.focusGroupBy,
             defaultProjectFlowMode: localSettings.gtd?.defaultProjectFlowMode,
         },
         {
             defaultScheduleTime: incomingSettings.gtd?.defaultScheduleTime,
+            defaultAreaId: incomingSettings.gtd?.defaultAreaId,
             focusTaskLimit: incomingSettings.gtd?.focusTaskLimit,
             focusGroupBy: incomingSettings.gtd?.focusGroupBy,
             defaultProjectFlowMode: incomingSettings.gtd?.defaultProjectFlowMode,
@@ -589,6 +605,11 @@ export const mergeSettingsForSync = (
                 delete nextGtd.defaultScheduleTime;
             } else {
                 nextGtd.defaultScheduleTime = value.defaultScheduleTime;
+            }
+            if (value.defaultAreaId === undefined) {
+                delete nextGtd.defaultAreaId;
+            } else {
+                nextGtd.defaultAreaId = value.defaultAreaId;
             }
             if (value.focusTaskLimit === undefined) {
                 delete nextGtd.focusTaskLimit;

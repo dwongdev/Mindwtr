@@ -16,6 +16,7 @@ import {
   hasTimeComponent,
   isSelectableProjectForTaskAssignment,
   parseQuickAdd,
+  resolveDefaultNewTaskAreaId,
   safeFormatDate,
   safeParseDate,
   shallow,
@@ -27,7 +28,6 @@ import {
 } from '@mindwtr/core';
 import { useLanguage } from '../contexts/language-context';
 import { useThemeColors } from '@/hooks/use-theme-colors';
-import { useMobileAreaFilter } from '@/hooks/use-mobile-area-filter';
 import { useToast } from '@/contexts/toast-context';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAndroidKeyboardInset } from '../lib/use-android-keyboard-inset';
@@ -104,7 +104,7 @@ export function QuickCaptureSheet({
   const contextInputRef = useRef<TextInput>(null);
   const isSavingRef = useRef(false);
   const prioritiesEnabled = settings?.features?.priorities !== false;
-  const { selectedAreaIdForNewTasks } = useMobileAreaFilter();
+  const defaultAreaId = resolveDefaultNewTaskAreaId(settings, areas) ?? null;
 
   const updateSpeechSettings = useCallback(
     (next: Partial<NonNullable<NonNullable<typeof settings.ai>['speechToText']>>) => {
@@ -315,7 +315,7 @@ export function QuickCaptureSheet({
       ? initialProps.projectId
       : null;
     setProjectId(initialProjectId);
-    setSelectedAreaId(initialProjectId ? null : (initialProps?.areaId ?? selectedAreaIdForNewTasks ?? null));
+    setSelectedAreaId(initialProjectId ? null : (initialProps?.areaId ?? defaultAreaId));
     setProjectQuery('');
     setShowProjectPicker(false);
     setShowAreaPicker(false);
@@ -328,7 +328,7 @@ export function QuickCaptureSheet({
     setStartPickerMode(null);
     setPendingStartDate(null);
     setAddAnother(Boolean(options?.keepAddAnother));
-  }, [clearAndroidOptionsExpand, clearContextOptionsLoad, initialProps, initialValue, selectedAreaIdForNewTasks]);
+  }, [clearAndroidOptionsExpand, clearContextOptionsLoad, defaultAreaId, initialProps, initialValue]);
 
   useEffect(() => () => {
     clearAndroidOptionsExpand();
@@ -415,7 +415,9 @@ export function QuickCaptureSheet({
     }
 
     if (projectId) initialPropsMerged.projectId = projectId;
-    if (!initialPropsMerged.projectId && selectedAreaId) initialPropsMerged.areaId = selectedAreaId;
+    if (!initialPropsMerged.projectId && !parsedProps.areaId) {
+      initialPropsMerged.areaId = selectedAreaId || undefined;
+    }
     if (initialPropsMerged.projectId) initialPropsMerged.areaId = undefined;
     if (contextTags.length > 0) {
       initialPropsMerged.contexts = Array.from(new Set([...(initialPropsMerged.contexts ?? []), ...contextTags]));
@@ -448,7 +450,7 @@ export function QuickCaptureSheet({
     setContextQuery('');
     setShowContextPicker(false);
     setProjectId(null);
-    setSelectedAreaId(selectedAreaIdForNewTasks ?? null);
+    setSelectedAreaId(defaultAreaId);
     setPriority(null);
     setProjectQuery('');
     setShowProjectPicker(false);
@@ -461,7 +463,7 @@ export function QuickCaptureSheet({
     setStartPickerMode(null);
     setPendingStartDate(null);
     setAddAnother(false);
-  }, [clearAndroidOptionsExpand, clearContextOptionsLoad, selectedAreaIdForNewTasks]);
+  }, [clearAndroidOptionsExpand, clearContextOptionsLoad, defaultAreaId]);
 
   const finalizeClose = useCallback(() => {
     clearInitialFocusTimer();
@@ -918,7 +920,7 @@ export function QuickCaptureSheet({
         onResetPriority={() => setPriority(null)}
         onResetProject={() => {
           setProjectId(null);
-          setSelectedAreaId(selectedAreaIdForNewTasks ?? null);
+          setSelectedAreaId(defaultAreaId);
         }}
         onToggleOptions={handleToggleOptions}
         onToggleAddAnother={setAddAnother}

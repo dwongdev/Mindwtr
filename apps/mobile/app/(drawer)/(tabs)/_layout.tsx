@@ -9,7 +9,6 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { HapticTab } from '@/components/haptic-tab';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { MobileAreaSwitcher } from '@/components/mobile-area-switcher';
-import { useMobileAreaFilter } from '@/hooks/use-mobile-area-filter';
 import { useMobileSyncBadge } from '@/hooks/use-mobile-sync-badge';
 import { useThemeColors } from '@/hooks/use-theme-colors';
 import { MOBILE_HOME_TAB_ROUTE } from '@/lib/home-route';
@@ -548,15 +547,10 @@ export default function TabLayout() {
   const [moreSheetVisible, setMoreSheetVisible] = useState(false);
   const [moreSheetCloseRequestId, setMoreSheetCloseRequestId] = useState(0);
   const longPressRef = useRef(false);
-  const { selectedAreaIdForNewTasks } = useMobileAreaFilter();
-
   const withSelectedArea = useCallback((initialProps?: Partial<Task> | null): Partial<Task> | undefined => {
     const nextInitialProps = initialProps ? { ...initialProps } : {};
-    if (!nextInitialProps.projectId && !nextInitialProps.areaId && selectedAreaIdForNewTasks) {
-      nextInitialProps.areaId = selectedAreaIdForNewTasks;
-    }
     return Object.keys(nextInitialProps).length > 0 ? nextInitialProps : undefined;
-  }, [selectedAreaIdForNewTasks]);
+  }, []);
 
   const openQuickCapture = useCallback((options?: { initialValue?: string; initialProps?: Partial<Task>; autoRecord?: boolean }) => {
     setCaptureState((prev) => ({

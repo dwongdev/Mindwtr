@@ -3,6 +3,7 @@ import { logWarn } from './logger';
 import { purgeExpiredTombstones } from './sync';
 import { markCoreStartupPhase, measureCoreStartupPhase } from './startup-profiler';
 import { normalizeTaskForLoad } from './task-status';
+import { dedupeLiveAreasByName } from './area-utils';
 import type { StorageAdapter } from './storage';
 import type { AppData, Area, MigrationSettings, Project, Task, TaskEditorFieldId } from './types';
 import { normalizePeopleForLoad } from './people';
@@ -741,6 +742,60 @@ export const createSettingsActions = ({
             let allSections = rawSections;
             let allAreas = rawAreas;
 
+            const remapAreaReferences = (areaIdRemap: Map<string, string>) => {
+                if (areaIdRemap.size === 0) return;
+                const liveAreaById = new Map(
+                    allAreas
+                        .filter((area) => !area.deletedAt)
+                        .map((area) => [area.id, area] as const)
+                );
+                allProjects = allProjects.map((project) => {
+                    const remappedAreaId = project.areaId ? areaIdRemap.get(project.areaId) : undefined;
+                    if (!remappedAreaId || remappedAreaId === project.areaId) return project;
+                    const remappedArea = liveAreaById.get(remappedAreaId);
+                    didAreaMigration = true;
+                    return {
+                        ...project,
+                        areaId: remappedAreaId,
+                        areaTitle: remappedArea?.name ?? project.areaTitle,
+                        updatedAt: nowIso,
+                        rev: nextRevision(project.rev),
+                        revBy: nextSettings.deviceId,
+                    };
+                });
+                allTasks = allTasks.map((task) => {
+                    const remappedAreaId = task.areaId ? areaIdRemap.get(task.areaId) : undefined;
+                    if (!remappedAreaId || remappedAreaId === task.areaId) return task;
+                    didAreaMigration = true;
+                    return {
+                        ...task,
+                        areaId: task.projectId ? undefined : remappedAreaId,
+                        updatedAt: nowIso,
+                        rev: nextRevision(task.rev),
+                        revBy: nextSettings.deviceId,
+                    };
+                });
+                const configuredDefaultAreaId = nextSettings.gtd?.defaultAreaId;
+                const remappedDefaultAreaId = typeof configuredDefaultAreaId === 'string'
+                    ? areaIdRemap.get(configuredDefaultAreaId)
+                    : undefined;
+                if (remappedDefaultAreaId && remappedDefaultAreaId !== configuredDefaultAreaId) {
+                    nextSettings = {
+                        ...nextSettings,
+                        gtd: {
+                            ...(nextSettings.gtd ?? {}),
+                            defaultAreaId: remappedDefaultAreaId,
+                        },
+                        syncPreferencesUpdatedAt: {
+                            ...(nextSettings.syncPreferencesUpdatedAt ?? {}),
+                            gtd: nowIso,
+                        },
+                    };
+                    didAreaMigration = true;
+                    didSettingsUpdate = true;
+                }
+            };
+
             if (shouldRunMigrations) {
                 allProjects = rawProjects.map((project) => {
                     const status = project.status;
@@ -787,48 +842,14 @@ export const createSettingsActions = ({
                     }
                     if (hasLegacyAreaTitle && hasMissingAreaId) break;
                 }
-                const nameSet = new Set<string>();
-                let hasDuplicateNames = false;
-                for (const area of allAreas) {
-                    if (area.deletedAt) continue;
-                    const normalizedName = typeof area?.name === 'string' ? area.name.trim().toLowerCase() : '';
-                    if (!normalizedName) continue;
-                    if (nameSet.has(normalizedName)) {
-                        hasDuplicateNames = true;
-                        break;
-                    }
-                    nameSet.add(normalizedName);
-                }
-                const shouldRunAreaMigration = hasLegacyAreaTitle || hasMissingAreaId || hasDuplicateNames;
+                const shouldRunAreaMigration = hasLegacyAreaTitle || hasMissingAreaId;
                 if (shouldRunAreaMigration) {
                     const areaByName = new Map<string, string>();
-                    const areaIdRemap = new Map<string, string>();
-                    const uniqueAreas: Area[] = [];
                     allAreas.forEach((area) => {
-                        if (area.deletedAt) {
-                            uniqueAreas.push(area);
-                            return;
-                        }
+                        if (area.deletedAt) return;
                         const normalizedName = typeof area?.name === 'string' ? area.name.trim().toLowerCase() : '';
-                        if (!normalizedName) {
-                            uniqueAreas.push(area);
-                            return;
-                        }
-                        const existingId = areaByName.get(normalizedName);
-                        if (existingId) {
-                            areaIdRemap.set(area.id, existingId);
-                            didAreaMigration = true;
-                            return;
-                        }
-                        areaByName.set(normalizedName, area.id);
-                        uniqueAreas.push(area);
+                        if (normalizedName && !areaByName.has(normalizedName)) areaByName.set(normalizedName, area.id);
                     });
-                    allAreas = uniqueAreas
-                        .map((area, index) => ({
-                            ...area,
-                            order: Number.isFinite(area.order) ? area.order : index,
-                        }))
-                        .sort((a, b) => a.order - b.order);
                     const ensureAreaForTitle = (title: string) => {
                         const trimmed = title.trim();
                         if (!trimmed) return undefined;
@@ -846,11 +867,6 @@ export const createSettingsActions = ({
                     const areaIdExists = (areaId?: string) =>
                         Boolean(areaId && allAreas.some((area) => area.id === areaId && !area.deletedAt));
                     allProjects = allProjects.map((project) => {
-                        const remappedAreaId = project.areaId ? areaIdRemap.get(project.areaId) : undefined;
-                        if (remappedAreaId && remappedAreaId !== project.areaId) {
-                            didAreaMigration = true;
-                            return { ...project, areaId: remappedAreaId };
-                        }
                         if (areaIdExists(project.areaId)) return project;
                         const areaTitle = typeof project.areaTitle === 'string' ? project.areaTitle : '';
                         if (!areaTitle) return project;
@@ -859,14 +875,6 @@ export const createSettingsActions = ({
                         didAreaMigration = true;
                         return { ...project, areaId: derivedId };
                     });
-                    if (areaIdRemap.size > 0) {
-                        allTasks = allTasks.map((task) => {
-                            const remappedAreaId = task.areaId ? areaIdRemap.get(task.areaId) : undefined;
-                            if (!remappedAreaId || remappedAreaId === task.areaId) return task;
-                            didAreaMigration = true;
-                            return { ...task, areaId: remappedAreaId };
-                        });
-                    }
                     allAreas = allAreas
                         .map((area, index) => ({
                             ...area,
@@ -874,6 +882,20 @@ export const createSettingsActions = ({
                         }))
                         .sort((a, b) => a.order - b.order);
                 }
+            }
+            const dedupedAreas = dedupeLiveAreasByName(allAreas, {
+                nowIso,
+                revBy: nextSettings.deviceId,
+            });
+            if (dedupedAreas.changed) {
+                allAreas = dedupedAreas.areas
+                    .map((area, index) => ({
+                        ...area,
+                        order: Number.isFinite(area.order) ? area.order : index,
+                    }))
+                    .sort((a, b) => a.order - b.order);
+                didAreaMigration = true;
+                remapAreaReferences(dedupedAreas.areaIdRemap);
             }
             let didCompleteTasksForArchivedProjects = false;
             let didArchiveSectionsForArchivedProjects = false;
@@ -1133,6 +1155,9 @@ export const createSettingsActions = ({
             const defaultScheduleTimeUpdate = updates.gtd
                 ? Object.prototype.hasOwnProperty.call(updates.gtd, 'defaultScheduleTime')
                 : false;
+            const defaultAreaIdUpdate = updates.gtd
+                ? Object.prototype.hasOwnProperty.call(updates.gtd, 'defaultAreaId')
+                : false;
             const focusTaskLimitUpdate = updates.gtd
                 ? Object.prototype.hasOwnProperty.call(updates.gtd, 'focusTaskLimit')
                 : false;
@@ -1147,7 +1172,7 @@ export const createSettingsActions = ({
                 markSyncUpdated('language');
             }
 
-            if (defaultScheduleTimeUpdate || focusTaskLimitUpdate || focusGroupByUpdate || defaultProjectFlowModeUpdate) {
+            if (defaultScheduleTimeUpdate || defaultAreaIdUpdate || focusTaskLimitUpdate || focusGroupByUpdate || defaultProjectFlowModeUpdate) {
                 markSyncUpdated('gtd');
             }
 
