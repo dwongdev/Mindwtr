@@ -80,9 +80,12 @@ import {
   sortProjectTasksByOrder,
 } from './task-list-utils';
 import {
+  buildTaskListMeasuredHeightKey,
   buildTaskListItemLayouts,
+  buildTaskListVirtualizedItemKey,
   ESTIMATED_TASK_HEIGHT,
   LIST_CONTENT_VERTICAL_PADDING,
+  type TaskListLayoutRevision,
 } from './task-list/task-list-layout';
 import {
   countActiveMobileTaskFilters,
@@ -843,6 +846,18 @@ function TaskListComponent({
   const getListItemKey = useCallback((item: ListItem) => (
     item.type === 'section' ? `section-${item.id}` : (item.groupId ? `${item.groupId}:${item.task.id}` : item.task.id)
   ), []);
+  const getListItemLayoutRevision = useCallback((item: ListItem): TaskListLayoutRevision => {
+    if (item.type === 'section') {
+      return `${item.title}:${item.count}:${item.collapsed === true ? 'collapsed' : 'expanded'}`;
+    }
+    return item.task.rev ?? item.task.updatedAt;
+  }, []);
+  const getListItemLayoutKey = useCallback((item: ListItem) => (
+    buildTaskListMeasuredHeightKey(getListItemKey(item), getListItemLayoutRevision(item))
+  ), [getListItemKey, getListItemLayoutRevision]);
+  const getVirtualizedListItemKey = useCallback((item: ListItem, index: number) => (
+    buildTaskListVirtualizedItemKey(getListItemKey(item), index)
+  ), [getListItemKey]);
   const registerItemHeight = useCallback((itemKey: string, height: number) => {
     const rounded = Math.round(height);
     if (!Number.isFinite(rounded) || rounded <= 0) return;
@@ -854,10 +869,23 @@ function TaskListComponent({
     // itemLayoutVersion invalidates memoized offsets when ref-backed row heights change.
     void itemLayoutVersion;
     return buildTaskListItemLayouts(listItems, {
-      getItemKey: getListItemKey,
+      getItemKey: getListItemLayoutKey,
       measuredHeights: itemHeightsRef.current,
     });
-  }, [getListItemKey, itemLayoutVersion, listItems]);
+  }, [getListItemLayoutKey, itemLayoutVersion, listItems]);
+  useEffect(() => {
+    const activeItemKeys = new Set(listItems.map(getListItemLayoutKey));
+    let didPrune = false;
+    Object.keys(itemHeightsRef.current).forEach((itemKey) => {
+      if (!activeItemKeys.has(itemKey)) {
+        delete itemHeightsRef.current[itemKey];
+        didPrune = true;
+      }
+    });
+    if (didPrune) {
+      setItemLayoutVersion((prev) => prev + 1);
+    }
+  }, [getListItemLayoutKey, listItems]);
   const getItemLayout = useCallback((_: ArrayLike<ListItem> | null | undefined, index: number) => {
     const measured = itemLayouts[index];
     if (measured) {
@@ -1458,7 +1486,7 @@ function TaskListComponent({
   ]);
 
   const renderListItem = useCallback(({ item }: { item: ListItem }) => {
-    const itemKey = getListItemKey(item);
+    const itemKey = getListItemLayoutKey(item);
     if (item.type === 'section') {
       if (item.collapsible) {
         return (
@@ -1505,7 +1533,7 @@ function TaskListComponent({
         {renderTask({ item: item.task })}
       </View>
     );
-  }, [getListItemKey, registerItemHeight, renderTask, themeColorsMemo.secondaryText, themeColorsMemo.text]);
+  }, [getListItemLayoutKey, registerItemHeight, renderTask, themeColorsMemo.secondaryText, themeColorsMemo.text]);
 
   const renderProjectReorderGroup = useCallback((group: ProjectTaskReorderGroup<Task>) => {
     const sectionIndex = typeof group.sectionId === 'string' ? projectSectionIds.indexOf(group.sectionId) : -1;
@@ -1774,7 +1802,7 @@ function TaskListComponent({
                 <View style={{ height: staticListVirtualWindow.topSpacerHeight }} />
               ) : null}
               {staticListVirtualWindow.items.map((item) => (
-                <View key={item.type === 'section' ? `section-${item.id}` : item.task.id} style={styles.staticItem}>
+                <View key={getListItemKey(item)} style={styles.staticItem}>
                   {renderListItem({ item })}
                 </View>
               ))}
@@ -1784,7 +1812,7 @@ function TaskListComponent({
             </>
           ) : (
             listItems.map((item) => (
-              <View key={item.type === 'section' ? `section-${item.id}` : item.task.id} style={styles.staticItem}>
+              <View key={getListItemKey(item)} style={styles.staticItem}>
                 {renderListItem({ item })}
               </View>
             ))
@@ -1794,7 +1822,7 @@ function TaskListComponent({
         <FlatList
           data={listItems}
           renderItem={renderListItem}
-          keyExtractor={(item) => (item.type === 'section' ? `section-${item.id}` : item.task.id)}
+          keyExtractor={getVirtualizedListItemKey}
           style={styles.list}
           contentContainerStyle={listContentStyle}
           keyboardDismissMode="on-drag"

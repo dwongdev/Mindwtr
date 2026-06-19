@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  buildTaskListMeasuredHeightKey,
   buildTaskListItemLayouts,
+  buildTaskListVirtualizedItemKey,
   ESTIMATED_SECTION_HEIGHT,
   ESTIMATED_TASK_HEIGHT,
   LIST_CONTENT_VERTICAL_PADDING,
@@ -43,6 +45,29 @@ describe('task-list-layout', () => {
       { length: ESTIMATED_SECTION_HEIGHT, offset: LIST_CONTENT_VERTICAL_PADDING },
       { length: 104, offset: LIST_CONTENT_VERTICAL_PADDING + ESTIMATED_SECTION_HEIGHT },
       { length: ESTIMATED_TASK_HEIGHT, offset: LIST_CONTENT_VERTICAL_PADDING + ESTIMATED_SECTION_HEIGHT + 104 },
+    ]);
+  });
+
+  it('changes virtualization keys when a surviving row moves after refresh', () => {
+    expect(buildTaskListVirtualizedItemKey('task-a', 8)).not.toBe(
+      buildTaskListVirtualizedItemKey('task-a', 0),
+    );
+  });
+
+  it('does not reuse measured heights across task layout revisions', () => {
+    const staleHeightKey = buildTaskListMeasuredHeightKey('task-a', 1);
+    const refreshedHeightKey = buildTaskListMeasuredHeightKey('task-a', 2);
+
+    const layouts = buildTaskListItemLayouts(
+      [{ type: 'task', key: refreshedHeightKey }],
+      {
+        getItemKey: (item) => item.key,
+        measuredHeights: { [staleHeightKey]: 180 },
+      },
+    );
+
+    expect(layouts).toEqual([
+      { length: ESTIMATED_TASK_HEIGHT, offset: LIST_CONTENT_VERTICAL_PADDING },
     ]);
   });
 });

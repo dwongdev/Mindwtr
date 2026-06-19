@@ -4,9 +4,24 @@ export const ESTIMATED_TASK_HEIGHT = 86;
 
 export type TaskListLayoutItem = { type: 'section' } | { type: 'task' };
 export type TaskListItemLayout = { length: number; offset: number };
+export type TaskListLayoutRevision = string | number | null | undefined;
 
 export function estimateTaskListItemHeight(item: TaskListLayoutItem): number {
   return item.type === 'section' ? ESTIMATED_SECTION_HEIGHT : ESTIMATED_TASK_HEIGHT;
+}
+
+export function buildTaskListMeasuredHeightKey(
+  itemKey: string,
+  layoutRevision: TaskListLayoutRevision,
+): string {
+  if (layoutRevision === null || layoutRevision === undefined || layoutRevision === '') {
+    return itemKey;
+  }
+  return `${itemKey}@layout:${layoutRevision}`;
+}
+
+export function buildTaskListVirtualizedItemKey(itemKey: string, index: number): string {
+  return `${index}:${itemKey}`;
 }
 
 type BuildTaskListItemLayoutsOptions<T extends TaskListLayoutItem> = {
