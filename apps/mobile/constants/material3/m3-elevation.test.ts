@@ -6,6 +6,7 @@ describe('buildElevationStyle', () => {
   it('returns {} for non-Material themes (no shadow, no surface shift)', () => {
     expect(buildElevationStyle(3, { isMaterial: false, roles: null })).toEqual({});
     expect(buildElevationStyle(3, { isMaterial: false, roles: M3Colors.light })).toEqual({});
+    expect(buildElevationStyle(3, { isMaterial: true, roles: null })).toEqual({});
   });
   it('level 0 has no shadow but uses the base surface under Material', () => {
     const s = buildElevationStyle(0, { isMaterial: true, roles: M3Colors.light });
