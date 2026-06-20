@@ -46,12 +46,12 @@ Important properties:
 - Tombstones prevent deleted records from being silently resurrected.
 - Attachments are merged and transferred separately from the main JSON payload.
 
-The detailed algorithm, edge cases, and tie-break rules are documented in the wiki:
+The detailed algorithm, edge cases, and tie-break rules are documented in the public docs site. The source for those pages lives in `/home/dd/code/mindwtr-web/docs`:
 
-- [Wiki: Architecture](https://github.com/dongdongbh/Mindwtr/wiki/Architecture)
-- [Wiki: Sync Algorithm](https://github.com/dongdongbh/Mindwtr/wiki/Sync-Algorithm)
-- [Wiki: Data and Sync](https://github.com/dongdongbh/Mindwtr/wiki/Data-and-Sync)
-- [Wiki: Performance Guide](https://github.com/dongdongbh/Mindwtr/wiki/Performance-Guide)
+- [Architecture](https://docs.mindwtr.app/developers/architecture)
+- [Sync Algorithm](https://docs.mindwtr.app/data-sync/sync-algorithm)
+- [Data and Sync](https://docs.mindwtr.app/data-sync/)
+- [Performance Guide](https://docs.mindwtr.app/developers/performance)
 
 ## Boundaries and responsibilities
 

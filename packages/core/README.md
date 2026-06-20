@@ -19,12 +19,12 @@ bun run --filter @mindwtr/core test
 
 ## Documentation
 
-Detailed architecture and API docs are maintained in the project wiki:
+Detailed architecture and API docs are maintained in the public docs site. Source edits belong in `/home/dd/code/mindwtr-web/docs`:
 
-- https://github.com/dongdongbh/Mindwtr/wiki
+- https://docs.mindwtr.app/
 
 Recommended pages:
 
-- Core Package Reference
-- Sync Algorithm Deep Dive
-- Data Model and Migration Notes
+- https://docs.mindwtr.app/developers/core-api
+- https://docs.mindwtr.app/developers/architecture
+- https://docs.mindwtr.app/data-sync/sync-algorithm

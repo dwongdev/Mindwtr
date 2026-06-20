@@ -94,11 +94,13 @@ Mindwtr/
 │           └── ...
 │
 ├── scripts/               # Utility scripts (CLI, API, release)
-├── docs/                  # Documentation
-├── wiki/                  # Wiki source
+├── docs/                  # Repository-local docs: ADRs, release notes, contribution docs
+├── wiki/                  # Legacy GitHub Wiki mirror during docs migration
 ├── .github/               # CI/CD workflows
 └── package.json           # Monorepo root
 ```
+
+Public user and developer documentation is moving to `/home/dd/code/mindwtr-web/docs` and publishes at https://docs.mindwtr.app/. Prefer that docs repo for new or migrated guide pages.
 
 ---
 
@@ -188,7 +190,7 @@ Contributors should treat the snapshot transport as a deliberate product choice,
 6. Commit with descriptive message
 7. Open a pull request
 
-When adding a new top-level entity type, update the full persistence and sync surface in the same change: core `AppData` types and normalization, desktop SQLite schema/storage round-trip tests, mobile SQLite schema/backup restore, cloud validation/normalization, MCP tools if exposed, and the wiki/Core API docs.
+When adding a new top-level entity type, update the full persistence and sync surface in the same change: core `AppData` types and normalization, desktop SQLite schema/storage round-trip tests, mobile SQLite schema/backup restore, cloud validation/normalization, MCP tools if exposed, and the Core API docs in `/home/dd/code/mindwtr-web/docs`.
 
 ### Code Style
 
