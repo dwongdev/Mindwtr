@@ -199,177 +199,33 @@ Desktop builds can start the local REST API from **Settings -> Advanced** on `12
 
 ## Installation
 
-### Desktop (Linux)
+For the complete and current install guides, see [Desktop Installation](https://docs.mindwtr.app/start/desktop-installation) and [Mobile Installation](https://docs.mindwtr.app/start/mobile-installation).
 
-**Arch Linux (AUR, prebuilt recommended):**
-<a href="https://aur.archlinux.org/packages/mindwtr-bin">
-<img src="https://img.shields.io/aur/version/mindwtr-bin?logo=arch-linux&logoColor=white&color=1793d1&label=mindwtr-bin" alt="AUR mindwtr-bin Version">
-</a>
+Quick options:
 
-```bash
-# Using yay
-yay -S mindwtr-bin
+- Windows: Microsoft Store, Winget, Chocolatey, Scoop, or GitHub Releases.
+- macOS: Mac App Store, Homebrew, TestFlight beta, or GitHub Releases.
+- Linux: Flathub, Snap, AUR, APT/RPM repos, or GitHub Releases.
+- Android: Google Play, F-Droid, IzzyOnDroid, or GitHub Releases APK.
+- iOS: App Store or TestFlight beta.
+- Web / self-hosted: [Cloud Deployment](https://docs.mindwtr.app/data-sync/cloud-deployment) or the [Docker guide](docker/README.md).
 
-# Using paru
-paru -S mindwtr-bin
-```
-
-**Arch Linux (AUR, build from source):**
-<a href="https://aur.archlinux.org/packages/mindwtr">
-<img src="https://img.shields.io/aur/version/mindwtr?logo=arch-linux&logoColor=white&color=1793d1&label=mindwtr" alt="AUR mindwtr Version">
-</a>
-
-```bash
-# Using yay
-yay -S mindwtr
-
-# Using paru
-paru -S mindwtr
-```
-
-**Debian / Ubuntu (APT repo, recommended):**
-
-```bash
-curl -fsSL https://dongdongbh.github.io/Mindwtr/mindwtr.gpg.key | sudo gpg --dearmor -o /usr/share/keyrings/mindwtr-archive-keyring.gpg
-echo "deb [signed-by=/usr/share/keyrings/mindwtr-archive-keyring.gpg] https://dongdongbh.github.io/Mindwtr/deb ./" | sudo tee /etc/apt/sources.list.d/mindwtr.list
-sudo apt update
-sudo apt install mindwtr
-```
-
-**Fedora / RHEL / openSUSE (DNF/YUM repo, recommended):**
-
-```bash
-cat <<'EOF' | sudo tee /etc/yum.repos.d/mindwtr.repo
-[mindwtr]
-name=Mindwtr Repository
-baseurl=https://dongdongbh.github.io/Mindwtr/rpm
-enabled=1
-gpgcheck=0
-EOF
-
-sudo dnf install mindwtr
-```
-
-**Flatpak (Flathub):**
-<a href="https://flathub.org/apps/tech.dongdongbh.mindwtr">
-<img src="https://img.shields.io/badge/Flathub-Install-000000?logo=flathub&logoColor=white" alt="Get it on Flathub">
-</a>
+<details>
+<summary>Package manager quick commands</summary>
 
 ```bash
 flatpak install flathub tech.dongdongbh.mindwtr
+yay -S mindwtr-bin
+brew install --cask mindwtr
 ```
-
-**Other methods:** AppImage or `.deb`/`.rpm` from [GitHub Releases](https://github.com/dongdongbh/Mindwtr/releases).
-
-### Desktop (Windows)
-
-**Microsoft Store (recommended):**
-<a href="https://apps.microsoft.com/detail/9n0v5b0b6frx?ocid=webpdpshare">
-<img src="https://img.shields.io/badge/Microsoft_Store-Install-0078D6?logo=microsoft&logoColor=white" alt="Microsoft Store">
-</a>
-
-**Winget:**
-<a href="https://winstall.app/apps/dongdongbh.Mindwtr">
-<img src="https://img.shields.io/winget/v/dongdongbh.Mindwtr?label=Winget&logo=windows&logoColor=white&color=00D2FF" alt="Winget Version">
-</a>
 
 ```powershell
 winget install dongdongbh.Mindwtr
 ```
 
-**Chocolatey:**
-<a href="https://community.chocolatey.org/packages/mindwtr">
-<img src="https://img.shields.io/chocolatey/v/mindwtr?label=Chocolatey&logo=chocolatey&logoColor=white&color=80B5E3" alt="Chocolatey Version">
-</a>
+For APT/RPM repo setup, source builds, portable ZIPs, mobile store variants, and Docker setup, use the full install guides above.
 
-```powershell
-choco install mindwtr
-```
-
-**Scoop:**
-<a href="https://github.com/dongdongbh/homebrew-mindwtr">
-<img src="https://img.shields.io/scoop/v/mindwtr?bucket=https://github.com/dongdongbh/homebrew-mindwtr&label=Scoop&logo=scoop&logoColor=white&color=E6E6E6" alt="Scoop Version">
-</a>
-
-```powershell
-scoop bucket add mindwtr https://github.com/dongdongbh/homebrew-mindwtr
-scoop install mindwtr
-```
-
-**Portable ZIP (no admin required):**
-
-- Download `mindwtr_<version>_windows_x64_portable.zip` from [GitHub Releases](https://github.com/dongdongbh/Mindwtr/releases).
-- Extract it to a writable folder and keep `portable.txt` next to `mindwtr.exe`.
-- Mindwtr stores data under `profile/` in the extracted folder.
-
-**Other methods:** installer `.exe` from [GitHub Releases](https://github.com/dongdongbh/Mindwtr/releases).
-
-### Desktop (macOS)
-
-**Mac App Store (recommended):**
-<a href="https://apps.apple.com/app/mindwtr/id6758597144">
-<img src="https://img.shields.io/badge/Mac_App_Store-Install-0A84FF?logo=apple&logoColor=white" alt="Mac App Store">
-</a>
-
-Install from the Mac App Store: [Mindwtr on Mac App Store](https://apps.apple.com/app/mindwtr/id6758597144).
-TestFlight beta (macOS): [Join the beta](https://testflight.apple.com/join/7SMJCTSR).
-
-**Homebrew:**
-<a href="https://formulae.brew.sh/cask/mindwtr">
-<img src="https://img.shields.io/homebrew/cask/v/mindwtr?label=Homebrew&logo=homebrew&logoColor=white" alt="Homebrew Cask Version">
-</a>
-
-```bash
-brew install --cask mindwtr
-```
-
-**Other methods:** `.dmg` from [GitHub Releases](https://github.com/dongdongbh/Mindwtr/releases).
-
-### Mobile
-
-**Android:**
-<a href="https://play.google.com/store/apps/details?id=tech.dongdongbh.mindwtr">
-<img src="https://img.shields.io/badge/Google_Play-Install-414141?logo=googleplay&logoColor=white" alt="Get it on Google Play">
-</a>
-<a href="https://apt.izzysoft.de/packages/tech.dongdongbh.mindwtr">
-<img src="https://img.shields.io/endpoint?url=https://apt.izzysoft.de/fdroid/api/v1/shield/tech.dongdongbh.mindwtr&label=IzzyOnDroid" alt="IzzyOnDroid">
-</a>
-<a href="https://f-droid.org/en/packages/tech.dongdongbh.mindwtr/">
-<img src="https://img.shields.io/f-droid/v/tech.dongdongbh.mindwtr?label=F-Droid&logo=fdroid&logoColor=white&color=1976D2" alt="F-Droid Version">
-</a>
-
-Install with F-Droid:
-
-1. Install the F-Droid client.
-2. Open [Mindwtr on F-Droid](https://f-droid.org/en/packages/tech.dongdongbh.mindwtr/) and install.
-
-Install with IzzyOnDroid (alternative F-Droid-compatible repo):
-
-1. Install an F-Droid-compatible client (Droid-ify, Neo Store, or F-Droid).
-2. Add the IzzyOnDroid repository: `https://apt.izzysoft.de/fdroid/repo`.
-3. Open [Mindwtr on IzzyOnDroid](https://apt.izzysoft.de/fdroid/index/apk/tech.dongdongbh.mindwtr) and install.
-
-Other methods: APK from [GitHub Releases](https://github.com/dongdongbh/Mindwtr/releases).
-
-**iOS:**
-<a href="https://apps.apple.com/app/mindwtr/id6758597144">
-<img src="https://img.shields.io/badge/App_Store-iOS-0A84FF?logo=apple&logoColor=white" alt="App Store">
-</a>
-
-Available on the App Store: [Mindwtr for iOS](https://apps.apple.com/app/mindwtr/id6758597144).
-TestFlight beta: [Join the beta](https://testflight.apple.com/join/7SMJCTSR).
-
-However, maintaining the iOS version on the App Store requires a substantial annual fee (see the [Apple Developer Program](https://developer.apple.com/support/enrollment/)), which I currently cover out of pocket.
-
-To ensure Mindwtr's continued existence and future development, your support is greatly appreciated! If you find value in the app, please consider supporting the project via [GitHub Sponsors](https://github.com/sponsors/dongdongbh) or [Ko-fi](https://ko-fi.com/D1D01T20WK).
-
-### Docker (PWA + Cloud Sync)
-
-Run the web app (PWA) and the self-hosted sync server with Docker:
-
-- Guide: [`docker/README.md`](docker/README.md)
-
-Install guides: 🚀 [Getting Started](https://docs.mindwtr.app/start/getting-started)
+</details>
 
 ## Community
 
