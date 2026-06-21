@@ -291,6 +291,62 @@ describe('ProjectWorkspace Select mode', () => {
         ]);
     });
 
+    it('restores project scroll after expanding completed tasks and entering selection mode', () => {
+        const rafCallbacks: FrameRequestCallback[] = [];
+        const originalRequestAnimationFrame = window.requestAnimationFrame;
+        Object.defineProperty(window, 'requestAnimationFrame', {
+            configurable: true,
+            writable: true,
+            value: vi.fn((callback: FrameRequestCallback) => {
+                rafCallbacks.push(callback);
+                return rafCallbacks.length;
+            }),
+        });
+        const flushAnimationFrame = () => {
+            const callbacks = rafCallbacks.splice(0);
+            callbacks.forEach((callback) => callback(0));
+        };
+
+        try {
+            const { container, getByRole } = renderWorkspace({
+                showCompletedTasks: true,
+                allTasks: [
+                    task('active-1', 'Active task'),
+                    task('done-1', 'Finished one', {
+                        status: 'done',
+                        completedAt: '2026-05-12T10:00:00.000Z',
+                    }),
+                    task('done-2', 'Finished two', {
+                        status: 'done',
+                        completedAt: '2026-05-12T11:00:00.000Z',
+                    }),
+                ],
+            });
+            const scrollContainer = container.querySelector('.overflow-y-auto') as HTMLDivElement;
+            expect(scrollContainer).toBeTruthy();
+
+            scrollContainer.scrollTop = 420;
+            fireEvent.click(getByRole('button', { name: /Done/ }));
+            scrollContainer.scrollTop = 0;
+            act(flushAnimationFrame);
+
+            expect(scrollContainer.scrollTop).toBe(420);
+
+            scrollContainer.scrollTop = 360;
+            fireEvent.click(getByRole('button', { name: 'Select' }));
+            scrollContainer.scrollTop = 0;
+            act(flushAnimationFrame);
+
+            expect(scrollContainer.scrollTop).toBe(360);
+        } finally {
+            Object.defineProperty(window, 'requestAnimationFrame', {
+                configurable: true,
+                writable: true,
+                value: originalRequestAnimationFrame,
+            });
+        }
+    });
+
     it('shows bulk organize and area assignment for selected project tasks', () => {
         const area = {
             id: 'area-1',

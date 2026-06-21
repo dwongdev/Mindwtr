@@ -324,12 +324,43 @@ export function ProjectWorkspace({
     const [completedTasksCollapsed, setCompletedTasksCollapsed] = useState(true);
     const multiSelectAnchorIdRef = useRef<string | null>(null);
     const projectScrollRef = useRef<HTMLDivElement | null>(null);
+    const selectedProjectIdRef = useRef<string | null>(selectedProjectId);
     const isArchivedProject = selectedProject?.status === 'archived';
     const shouldGroupCompletedTasks = Boolean(selectedProject && !isArchivedProject && showCompletedTasks);
     const resolveText = useCallback((key: string, fallback: string) => {
         const value = t(key);
         return value && value !== key ? value : fallback;
     }, [t]);
+
+    useLayoutEffect(() => {
+        selectedProjectIdRef.current = selectedProjectId;
+    }, [selectedProjectId]);
+
+    const restoreProjectScrollAfterRender = useCallback(() => {
+        const scrollElement = projectScrollRef.current;
+        if (!scrollElement) return;
+
+        const scrollTop = scrollElement.scrollTop;
+        const scrollLeft = scrollElement.scrollLeft;
+        const projectId = selectedProjectIdRef.current;
+        const restoreScroll = () => {
+            if (selectedProjectIdRef.current !== projectId) return;
+            const currentScrollElement = projectScrollRef.current;
+            if (!currentScrollElement) return;
+            currentScrollElement.scrollTop = scrollTop;
+            currentScrollElement.scrollLeft = scrollLeft;
+        };
+
+        if (typeof window === 'undefined') return;
+
+        if (typeof window.requestAnimationFrame === 'function') {
+            window.requestAnimationFrame(restoreScroll);
+            return;
+        }
+
+        window.setTimeout(restoreScroll, 0);
+    }, []);
+
     const openProjectQuickAdd = useCallback((sectionId?: string | null) => {
         if (!selectedProject) return;
         window.dispatchEvent(new CustomEvent('mindwtr:quick-add', {
@@ -906,7 +937,10 @@ export function ProjectWorkspace({
             <div className="rounded-lg border border-border/60 bg-muted/10">
                 <button
                     type="button"
-                    onClick={() => setCompletedTasksCollapsed((value) => !value)}
+                    onClick={() => {
+                        restoreProjectScrollAfterRender();
+                        setCompletedTasksCollapsed((value) => !value);
+                    }}
                     aria-expanded={!completedTasksCollapsed}
                     className="flex w-full items-center justify-between border-b border-border/50 px-3 py-2 text-left text-sm font-semibold text-muted-foreground transition-colors hover:text-foreground"
                 >
@@ -1306,6 +1340,7 @@ export function ProjectWorkspace({
                                 <button
                                     type="button"
                                     onClick={() => {
+                                        restoreProjectScrollAfterRender();
                                         if (selectionMode) exitSelectionMode();
                                         else setSelectionMode(true);
                                     }}
