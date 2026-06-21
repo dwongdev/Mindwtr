@@ -138,10 +138,10 @@ export function SettingsAboutPage({
                 <div className="flex justify-between items-center">
                     <span className="text-muted-foreground">{t.documentation}</span>
                     <button
-                        onClick={() => onOpenLink('https://github.com/dongdongbh/Mindwtr/wiki')}
+                        onClick={() => onOpenLink('https://docs.mindwtr.app')}
                         className="text-primary hover:underline flex items-center gap-1"
                     >
-                        GitHub Wiki
+                        docs.mindwtr.app
                         <ExternalLink className="w-3 h-3" />
                     </button>
                 </div>
@@ -160,10 +160,10 @@ export function SettingsAboutPage({
                 <div className="flex justify-between items-center">
                     <span className="text-muted-foreground">{t.sponsorProject}</span>
                     <button
-                        onClick={() => onOpenLink('https://ko-fi.com/dongdongbh')}
+                        onClick={() => onOpenLink('https://mindwtr.app/support')}
                         className="text-blue-400 hover:underline cursor-pointer flex items-center gap-1"
                     >
-                        ko-fi.com/dongdongbh
+                        mindwtr.app/support
                         <ExternalLink className="w-3 h-3" />
                     </button>
                 </div>

@@ -1439,7 +1439,7 @@ export const en: Record<string, string> = {
         'settings.website': 'Developer Website',
         'settings.github': 'GitHub',
         'settings.documentation': 'Documentation',
-        'settings.sponsorProject': 'Sponsor Project',
+        'settings.sponsorProject': 'Support Project',
         'settings.license': 'License',
         'settings.feedback': 'Send feedback',
         'settings.feedbackDesc': 'Report a bug or suggest a feature. No account needed.',

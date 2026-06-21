@@ -1182,7 +1182,7 @@ export const deOverrides: Record<string, string> = {
         'settings.website': 'Entwickler-Webseite',
         'settings.github': 'GitHub',
         'settings.documentation': 'Dokumentation',
-        'settings.sponsorProject': 'Projekt-Sponsor',
+        'settings.sponsorProject': 'Projekt unterstützen',
         'settings.license': 'Lizenz',
         'settings.checkForUpdates': 'Suchen Sie nach Aktualisierungen',
         'settings.checkStoreUpdates': 'Überprüfen Sie den Microsoft Store',

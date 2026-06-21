@@ -446,7 +446,7 @@ export const labelFallback = {
         website: 'Developer Website',
         github: 'GitHub',
         documentation: 'Documentation',
-        sponsorProject: 'Sponsor Project',
+        sponsorProject: 'Support Project',
         license: 'License',
         feedback: 'Send feedback',
         feedbackDesc: 'Report a bug or suggest a feature. No account needed.',
@@ -961,7 +961,7 @@ export const labelFallback = {
         website: '开发者网站',
         github: 'GitHub',
         documentation: '文档',
-        sponsorProject: '赞助项目',
+        sponsorProject: '支持项目',
         license: '许可证',
         feedback: '发送反馈',
         feedbackDesc: '提交错误报告或功能请求。无需账号。',
@@ -1102,6 +1102,7 @@ export const zhHantLabelOverrides: Partial<SettingsLabels> = {
     feedbackWhereOther: '其他',
     feedbackUnavailableDesc: '你仍可透過 GitHub issue 模板提交錯誤報告或功能請求。',
     feedbackOpenGitHubIssue: '打開 GitHub issue',
+    sponsorProject: '支持項目',
 };
 
 export const getSettingsLabelFallback = (language: string): SettingsLabels => {

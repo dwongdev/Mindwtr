@@ -334,7 +334,7 @@ export const nlOverrides: Record<string, string> = {
         'settings.website': 'Ontwikkelaarswebsite',
         'settings.github': 'GitHub',
         'settings.documentation': 'Documentatie',
-        'settings.sponsorProject': 'Sponsorproject',
+        'settings.sponsorProject': 'Project ondersteunen',
         'settings.license': 'Licentie',
         'settings.checkForUpdates': 'Controleer op updates',
         'settings.checkStoreUpdates': 'Controleer Microsoft Store',

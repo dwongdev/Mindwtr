@@ -1043,7 +1043,7 @@ export const esOverrides: Record<string, string> = {
         'settings.website': 'Developer Sitio web',
         'settings.github': 'GitHub',
         'settings.documentation': 'Documentación',
-        'settings.sponsorProject': 'Sponsor Proyecto',
+        'settings.sponsorProject': 'Apoyar el proyecto',
         'settings.license': 'Licencia',
         'settings.checkForUpdates': 'Buscar actualizaciones',
         'settings.checkStoreUpdates': 'Consultar la tienda de Microsoft',

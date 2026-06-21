@@ -1327,7 +1327,7 @@ export const zhHans: Record<string, string> = {
         'settings.website': '开发者网站',
         'settings.github': 'GitHub',
         'settings.documentation': '文档',
-        'settings.sponsorProject': '赞助项目',
+        'settings.sponsorProject': '支持项目',
         'settings.license': '许可证',
         'settings.feedback': '发送反馈',
         'settings.feedbackDesc': '提交错误报告或功能请求。无需账号。',

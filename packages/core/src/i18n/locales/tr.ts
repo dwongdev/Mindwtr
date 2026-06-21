@@ -1132,7 +1132,7 @@ export const trOverrides: Record<string, string> = {
         'settings.website': 'Developer Web sitesi',
         'settings.github': 'GitHub',
         'settings.documentation': 'Dokümantasyon',
-        'settings.sponsorProject': 'Sponsor Proje',
+        'settings.sponsorProject': 'Projeyi destekle',
         'settings.license': 'Lisans',
         'settings.checkForUpdates': 'Güncellemeleri Kontrol Et',
         'settings.checkStoreUpdates': 'Microsoft Mağazasını kontrol edin',

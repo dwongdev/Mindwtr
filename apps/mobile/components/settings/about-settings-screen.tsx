@@ -439,10 +439,10 @@ export function AboutSettingsScreen({
                     </TouchableOpacity>
                     <TouchableOpacity
                         style={[styles.settingRow, { borderTopWidth: 1, borderTopColor: tc.border }]}
-                        onPress={() => openLink('https://github.com/dongdongbh/Mindwtr/wiki')}
+                        onPress={() => openLink('https://docs.mindwtr.app')}
                     >
                         <Text style={[styles.settingLabel, { color: tc.text }]}>{t('settings.documentation')}</Text>
-                        <Text style={styles.linkText}>GitHub Wiki</Text>
+                        <Text style={styles.linkText}>docs.mindwtr.app</Text>
                     </TouchableOpacity>
                     <TouchableOpacity
                         style={[styles.settingRow, { borderTopWidth: 1, borderTopColor: tc.border }]}
@@ -453,10 +453,10 @@ export function AboutSettingsScreen({
                     </TouchableOpacity>
                     <TouchableOpacity
                         style={[styles.settingRow, { borderTopWidth: 1, borderTopColor: tc.border }]}
-                        onPress={() => openLink('https://ko-fi.com/dongdongbh')}
+                        onPress={() => openLink('https://mindwtr.app/support')}
                     >
                         <Text style={[styles.settingLabel, { color: tc.text }]}>{t('settings.sponsorProject')}</Text>
-                        <Text style={styles.linkText}>Ko-fi</Text>
+                        <Text style={styles.linkText}>mindwtr.app/support</Text>
                     </TouchableOpacity>
                     <View style={[styles.settingRow, { borderTopWidth: 1, borderTopColor: tc.border }]}>
                         <Text style={[styles.settingLabel, { color: tc.text }]}>{t('settings.license')}</Text>

@@ -1304,7 +1304,7 @@ export const itOverrides: Record<string, string> = {
         'settings.website': 'Sito dello sviluppatore',
         'settings.github': 'GitHub',
         'settings.documentation': 'Documentazione',
-        'settings.sponsorProject': 'Sponsorizza il progetto',
+        'settings.sponsorProject': 'Sostieni il progetto',
         'settings.license': 'Licenza',
         'settings.checkForUpdates': 'Controlla aggiornamenti',
         'settings.checkStoreUpdates': 'Controlla Microsoft Store',

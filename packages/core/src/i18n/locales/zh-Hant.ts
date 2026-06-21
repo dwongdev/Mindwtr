@@ -1327,7 +1327,7 @@ export const zhHant: Record<string, string> = {
         'settings.website': '開發者網站',
         'settings.github': 'GitHub',
         'settings.documentation': '文件',
-        'settings.sponsorProject': '贊助項目',
+        'settings.sponsorProject': '支持項目',
         'settings.license': '授權條款',
         'settings.feedback': '發送反饋',
         'settings.feedbackDesc': '提交錯誤報告或功能請求。無需帳號。',

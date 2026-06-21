@@ -1115,7 +1115,7 @@ export const plOverrides: Record<string, string> = {
         'settings.website': 'Developer Strona internetowa',
         'settings.github': 'GitHub',
         'settings.documentation': 'Dokumentacja',
-        'settings.sponsorProject': 'Sponsor Projekt',
+        'settings.sponsorProject': 'Wesprzyj projekt',
         'settings.license': 'Licencja',
         'settings.checkForUpdates': 'Sprawdź aktualizacje',
         'settings.checkStoreUpdates': 'Sprawdź sklep Microsoft',

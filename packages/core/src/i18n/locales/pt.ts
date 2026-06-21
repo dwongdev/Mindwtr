@@ -1181,7 +1181,7 @@ export const ptOverrides: Record<string, string> = {
         'settings.website': 'Developer Site',
         'settings.github': 'GitHub',
         'settings.documentation': 'Documentação',
-        'settings.sponsorProject': 'Sponsor Projeto',
+        'settings.sponsorProject': 'Apoiar o projeto',
         'settings.license': 'Licença',
         'settings.checkForUpdates': 'Verifique se há atualizações',
         'settings.checkStoreUpdates': 'Verifique a Microsoft Store',
