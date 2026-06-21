@@ -85,10 +85,10 @@ It also publishes tester builds to the store-backed channels that are already wi
 - Android AAB to Google Play `internal` by default; manual runs can choose another Play track or `none`.
 - iOS App Store build to TestFlight with App Store review submission disabled.
 - macOS App Store build to TestFlight with App Store review submission disabled.
+- Flathub beta by opening a PR against the Flathub repository's `beta` branch. The first run requires that branch to exist in `flathub/tech.dongdongbh.mindwtr`.
+- AUR beta by updating the binary-only `mindwtr-bin-beta` package after the GitHub prerelease assets exist. Source-building AUR packages stay stable-only for RCs.
 
 The stable `release.yml` remains the stable-release workflow. It is guarded so prerelease tags do not publish stable-only channels such as production Google Play, Microsoft Store, Snap stable, Linux APT/RPM repos, Flathub stable, AUR stable, Scoop, winget, Homebrew, or Chocolatey.
-
-Flathub beta and AUR beta are still channel-setup follow-ups. Add them after the beta branch/package exists and can be smoke-tested in automation.
 
 Because a Play testing upload consumes an Android `versionCode`, every RC that uploads to Play needs a fresh `versionCode`. The current final stable flow should also use a fresh production upload with a higher `versionCode`, or a future stable-promotion workflow should promote the already-tested Play build. Do not tag a final stable release with an Android `versionCode` that has already been uploaded to Play unless the stable workflow has been taught to promote that existing build.
 
@@ -102,7 +102,7 @@ The review-latency channels need a head start. Use this default schedule:
 | T-7 to T-5 | Feature freeze. Only bug fixes, release notes, metadata, and release blockers are allowed. |
 | T-5 | Create the release branch, bump app/package versions to `X.Y.Z`, generate release notes, tag `vX.Y.Z-rc.1`, and let `release-rc.yml` upload TestFlight and Google Play testing builds. |
 | T-4 | Run channel artifact smoke checks as reviewed builds become available. Fix only blockers. |
-| T-3 | Confirm the GitHub prerelease from `release-rc.yml`, update Flathub beta/AUR beta manually if those channels exist, and announce the RC to testers. |
+| T-3 | Confirm the GitHub prerelease from `release-rc.yml`, confirm the Flathub beta PR and `mindwtr-bin-beta` AUR update succeeded, and announce the RC to testers. |
 | T-2 to T-1 | Triage feedback. Cut `rc.2` only for blockers. Non-blockers move to the next cycle. |
 | Release day | Tag `vX.Y.Z`, publish stable everywhere, and also update any persistent test channels that exist to the stable version. |
 | T+1 to T+2 | Watch crashes, GitHub issues, Discord, store feedback, and downstream package reports. Patch with the next patch tag, such as `v1.1.1` after `v1.1.0`, if needed. |
