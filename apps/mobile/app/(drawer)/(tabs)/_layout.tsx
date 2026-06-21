@@ -11,6 +11,7 @@ import { IconSymbol } from '@/components/ui/icon-symbol';
 import { MobileAreaSwitcher } from '@/components/mobile-area-switcher';
 import { useMobileSyncBadge } from '@/hooks/use-mobile-sync-badge';
 import { useThemeColors } from '@/hooks/use-theme-colors';
+import { useThemeTokens } from '@/hooks/use-theme-tokens';
 import { MOBILE_HOME_TAB_ROUTE } from '@/lib/home-route';
 import { useLanguage } from '../../../contexts/language-context';
 import { QuickCaptureSheet } from '@/components/quick-capture-sheet';
@@ -351,6 +352,9 @@ function NativeTabBar({
   iconTint,
   inactiveTint,
   tc,
+  captureBg,
+  captureFg,
+  captureRadius,
   tabBarHeight,
   tabBarBottomInset,
   tabBarBottomOffset,
@@ -369,6 +373,9 @@ function NativeTabBar({
   iconTint: string;
   inactiveTint: string;
   tc: { cardBg: string; border: string; onTint: string; tint: string };
+  captureBg: string;
+  captureFg: string;
+  captureRadius: number;
   tabBarHeight: number;
   tabBarBottomInset: number;
   tabBarBottomOffset: number;
@@ -434,11 +441,11 @@ function NativeTabBar({
                 { paddingTop: iconLift, transform: [{ translateY: tabItemTopOffset }] },
               ]}
             >
-              <View style={[styles.captureButtonInner, { backgroundColor: tc.tint }]}>
+              <View style={[styles.captureButtonInner, { backgroundColor: captureBg, borderRadius: captureRadius }]}>
                 {defaultAutoRecord ? (
-                  <Mic size={22} color={tc.onTint} strokeWidth={2.5} />
+                  <Mic size={22} color={captureFg} strokeWidth={2.5} />
                 ) : (
-                  <Plus size={22} color={tc.onTint} strokeWidth={3} />
+                  <Plus size={22} color={captureFg} strokeWidth={3} />
                 )}
               </View>
             </TouchableOpacity>
@@ -516,6 +523,7 @@ function NativeTabBar({
 
 export default function TabLayout() {
   const tc = useThemeColors();
+  const tokens = useThemeTokens();
   const { t } = useLanguage();
   const router = useRouter();
   const insets = useSafeAreaInsets();
@@ -586,7 +594,11 @@ export default function TabLayout() {
 
   const iconTint = tc.tabIconSelected;
   const inactiveTint = tc.tabIconDefault;
-  const captureColor = tc.tint;
+  // Material 3: the capture FAB uses the primary-container role + the M3 "large"
+  // corner radius. Non-Material themes keep today's primary tint + 10px radius.
+  const captureBg = tokens.isMaterial && tokens.roles ? tokens.roles.primaryContainer : tc.tint;
+  const captureFg = tokens.isMaterial && tokens.roles ? tokens.roles.onPrimaryContainer : tc.onTint;
+  const captureRadius = tokens.isMaterial ? tokens.shape.large : 10;
   const defaultCapture = settings.gtd?.defaultCaptureMethod ?? 'text';
   const defaultAutoRecord = defaultCapture === 'audio';
   const quickAccessView = coerceMobileQuickAccessView(settings.appearance?.mobileQuickAccessView);
@@ -603,6 +615,9 @@ export default function TabLayout() {
             iconTint={iconTint}
             inactiveTint={inactiveTint}
             tc={{ cardBg: tc.cardBg, border: tc.border, onTint: tc.onTint, tint: tc.tint }}
+            captureBg={captureBg}
+            captureFg={captureFg}
+            captureRadius={captureRadius}
             tabBarHeight={tabBarHeight}
             tabBarBottomInset={tabBarBottomInset}
             tabBarBottomOffset={tabBarBottomOffset}
@@ -727,11 +742,11 @@ export default function TabLayout() {
               accessibilityLabel={defaultAutoRecord ? t('quickAdd.audioCaptureLabel') : t('nav.addTask')}
               style={styles.captureButton}
             >
-              <View style={[styles.captureButtonInner, { backgroundColor: captureColor }]}>
+              <View style={[styles.captureButtonInner, { backgroundColor: captureBg, borderRadius: captureRadius }]}>
                 {defaultAutoRecord ? (
-                  <Mic size={22} color={tc.onTint} strokeWidth={2.5} />
+                  <Mic size={22} color={captureFg} strokeWidth={2.5} />
                 ) : (
-                  <Plus size={22} color={tc.onTint} strokeWidth={3} />
+                  <Plus size={22} color={captureFg} strokeWidth={3} />
                 )}
               </View>
             </TouchableOpacity>

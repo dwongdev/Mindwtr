@@ -122,6 +122,10 @@ vi.mock('@/hooks/use-theme-colors', () => ({
   }),
 }));
 
+vi.mock('@/hooks/use-theme-tokens', () => ({
+  useThemeTokens: () => ({ isMaterial: false, roles: null, shape: { large: 16 } }),
+}));
+
 vi.mock('../contexts/language-context', () => ({
   useLanguage: () => ({
     t: (key: string) => ({
