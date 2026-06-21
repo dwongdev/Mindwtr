@@ -1047,9 +1047,6 @@ export default function FocusScreen() {
         return buildTaskItems(nextActions);
       }
       const groups = buildNextActionGroups();
-      if (groups.length <= 1) {
-        return buildTaskItems(nextActions);
-      }
       return groups
         .flatMap((group) => [
           {

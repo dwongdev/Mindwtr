@@ -798,6 +798,40 @@ describe('FocusScreen', () => {
     ).toEqual(['no-context-next', 'home-next', 'work-next']);
   });
 
+  it('updates the mobile Focus list identity when grouping changes to a single context group', () => {
+    storeState.tasks = [
+      makeTask('work-first', { title: 'Work first', contexts: ['@work'] }),
+      makeTask('work-second', { title: 'Work second', contexts: ['@work'] }),
+    ];
+
+    let tree!: ReturnType<typeof create>;
+
+    act(() => {
+      tree = create(<FocusScreen />);
+    });
+
+    const initialListVersion = tree.root.findByType(SectionList).props.extraData;
+
+    act(() => {
+      storeState.settings = {
+        appearance: {},
+        features: {},
+        gtd: { focusGroupBy: 'context' },
+      } as any;
+      tree.update(<FocusScreen />);
+    });
+
+    expect(tree.root.findByType(SectionList).props.extraData).not.toEqual(initialListVersion);
+    expect(
+      tree.root.findAllByType(View)
+        .filter((node) => node.props.accessibilityRole === 'header')
+        .map((node) => node.props.accessibilityLabel),
+    ).toEqual(['@work 2']);
+    expect(
+      tree.root.findAllByType(SwipeableTaskItem).map((node) => node.props.task.id),
+    ).toEqual(['work-first', 'work-second']);
+  });
+
   it('saves the Focus group-by preference from the filter sheet', async () => {
     storeState.updateSettings.mockResolvedValue(undefined);
 
