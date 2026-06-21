@@ -426,7 +426,7 @@ export const registerMindwtrTools = (
   server.registerTool(
     'mindwtr_list_tasks',
     {
-      description: 'List tasks from the local Mindwtr SQLite database. Supports filtering by status, project, date range, and search. Supports sorting by various fields.',
+      description: 'List tasks from the configured Mindwtr backend. Supports filtering by status, project, date range, and search. Supports sorting by various fields.',
       inputSchema: listTasksSchema,
     },
     withMcpErrorHandling('mindwtr_list_tasks', async (input) => {
@@ -440,7 +440,7 @@ export const registerMindwtrTools = (
   server.registerTool(
     'mindwtr_list_projects',
     {
-      description: 'List projects from the local Mindwtr SQLite database.',
+      description: 'List projects from the configured Mindwtr backend.',
       inputSchema: listProjectsSchema,
     },
     withMcpErrorHandling('mindwtr_list_projects', async () => {
@@ -452,7 +452,7 @@ export const registerMindwtrTools = (
   server.registerTool(
     'mindwtr_get_project',
     {
-      description: 'Get a single project by ID from the local Mindwtr SQLite database.',
+      description: 'Get a single project by ID from the configured Mindwtr backend.',
       inputSchema: getProjectSchema,
     },
     withMcpErrorHandling('mindwtr_get_project', async (input) => {
@@ -464,7 +464,7 @@ export const registerMindwtrTools = (
   server.registerTool(
     'mindwtr_list_sections',
     {
-      description: 'List project sections from the local Mindwtr SQLite database. Optionally filter by projectId.',
+      description: 'List project sections from the configured Mindwtr backend. Optionally filter by projectId.',
       inputSchema: listSectionsSchema,
     },
     withMcpErrorHandling('mindwtr_list_sections', async (input) => {
@@ -476,7 +476,7 @@ export const registerMindwtrTools = (
   server.registerTool(
     'mindwtr_get_section',
     {
-      description: 'Get a single project section by ID from the local Mindwtr SQLite database.',
+      description: 'Get a single project section by ID from the configured Mindwtr backend.',
       inputSchema: getSectionSchema,
     },
     withMcpErrorHandling('mindwtr_get_section', async (input) => {
@@ -488,7 +488,7 @@ export const registerMindwtrTools = (
   server.registerTool(
     'mindwtr_list_areas',
     {
-      description: 'List areas from the local Mindwtr SQLite database.',
+      description: 'List areas from the configured Mindwtr backend.',
       inputSchema: listAreasSchema,
     },
     withMcpErrorHandling('mindwtr_list_areas', async () => {
@@ -500,7 +500,7 @@ export const registerMindwtrTools = (
   server.registerTool(
     'mindwtr_list_people',
     {
-      description: 'List managed people from the local Mindwtr SQLite database.',
+      description: 'List managed people from the configured Mindwtr backend.',
       inputSchema: listPeopleSchema,
     },
     withMcpErrorHandling('mindwtr_list_people', async (input) => {
@@ -512,7 +512,7 @@ export const registerMindwtrTools = (
   server.registerTool(
     'mindwtr_get_person',
     {
-      description: 'Get a single managed person by ID from the local Mindwtr SQLite database.',
+      description: 'Get a single managed person by ID from the configured Mindwtr backend.',
       inputSchema: getPersonSchema,
     },
     withMcpErrorHandling('mindwtr_get_person', async (input) => {
@@ -524,7 +524,7 @@ export const registerMindwtrTools = (
   server.registerTool(
     'mindwtr_add_task',
     {
-      description: 'Add a task to the local Mindwtr SQLite database.',
+      description: 'Add a task to the configured Mindwtr backend.',
       inputSchema: addTaskSchema,
     },
     withReadonlyMcpErrorHandling('mindwtr_add_task', async (input) => {
@@ -539,7 +539,7 @@ export const registerMindwtrTools = (
   server.registerTool(
     'mindwtr_update_task',
     {
-      description: 'Update a task in the local Mindwtr SQLite database.',
+      description: 'Update a task in the configured Mindwtr backend.',
       inputSchema: updateTaskSchema,
     },
     withReadonlyMcpErrorHandling('mindwtr_update_task', async (input) => {
@@ -553,7 +553,7 @@ export const registerMindwtrTools = (
   server.registerTool(
     'mindwtr_complete_task',
     {
-      description: 'Mark a task as done in the local Mindwtr SQLite database.',
+      description: 'Mark a task as done in the configured Mindwtr backend.',
       inputSchema: completeTaskSchema,
     },
     withReadonlyMcpErrorHandling('mindwtr_complete_task', async (input) => {
@@ -565,7 +565,7 @@ export const registerMindwtrTools = (
   server.registerTool(
     'mindwtr_delete_task',
     {
-      description: 'Soft-delete a task in the local Mindwtr SQLite database.',
+      description: 'Soft-delete a task in the configured Mindwtr backend.',
       inputSchema: deleteTaskSchema,
     },
     withReadonlyMcpErrorHandling('mindwtr_delete_task', async (input) => {
@@ -577,7 +577,7 @@ export const registerMindwtrTools = (
   server.registerTool(
     'mindwtr_get_task',
     {
-      description: 'Get a single task by ID from the local Mindwtr SQLite database.',
+      description: 'Get a single task by ID from the configured Mindwtr backend.',
       inputSchema: getTaskSchema,
     },
     withMcpErrorHandling('mindwtr_get_task', async (input) => {
@@ -589,7 +589,7 @@ export const registerMindwtrTools = (
   server.registerTool(
     'mindwtr_restore_task',
     {
-      description: 'Restore a soft-deleted task in the local Mindwtr SQLite database.',
+      description: 'Restore a soft-deleted task in the configured Mindwtr backend.',
       inputSchema: restoreTaskSchema,
     },
     withReadonlyMcpErrorHandling('mindwtr_restore_task', async (input) => {
@@ -601,7 +601,7 @@ export const registerMindwtrTools = (
   server.registerTool(
     'mindwtr_add_project',
     {
-      description: 'Add a project to the local Mindwtr SQLite database.',
+      description: 'Add a project to the configured Mindwtr backend.',
       inputSchema: addProjectSchema,
     },
     withReadonlyMcpErrorHandling('mindwtr_add_project', async (input) => {
@@ -613,7 +613,7 @@ export const registerMindwtrTools = (
   server.registerTool(
     'mindwtr_update_project',
     {
-      description: 'Update a project in the local Mindwtr SQLite database.',
+      description: 'Update a project in the configured Mindwtr backend.',
       inputSchema: updateProjectSchema,
     },
     withReadonlyMcpErrorHandling('mindwtr_update_project', async (input) => {
@@ -625,7 +625,7 @@ export const registerMindwtrTools = (
   server.registerTool(
     'mindwtr_delete_project',
     {
-      description: 'Soft-delete a project in the local Mindwtr SQLite database.',
+      description: 'Soft-delete a project in the configured Mindwtr backend.',
       inputSchema: deleteProjectSchema,
     },
     withReadonlyMcpErrorHandling('mindwtr_delete_project', async (input) => {
@@ -637,7 +637,7 @@ export const registerMindwtrTools = (
   server.registerTool(
     'mindwtr_add_section',
     {
-      description: 'Add a project-scoped section to the local Mindwtr SQLite database.',
+      description: 'Add a project-scoped section to the configured Mindwtr backend.',
       inputSchema: addSectionSchema,
     },
     withReadonlyMcpErrorHandling('mindwtr_add_section', async (input) => {
@@ -649,7 +649,7 @@ export const registerMindwtrTools = (
   server.registerTool(
     'mindwtr_update_section',
     {
-      description: 'Update a project section in the local Mindwtr SQLite database.',
+      description: 'Update a project section in the configured Mindwtr backend.',
       inputSchema: updateSectionSchema,
     },
     withReadonlyMcpErrorHandling('mindwtr_update_section', async (input) => {
@@ -661,7 +661,7 @@ export const registerMindwtrTools = (
   server.registerTool(
     'mindwtr_delete_section',
     {
-      description: 'Soft-delete a project section in the local Mindwtr SQLite database. Tasks in the section are kept and moved to no section by core.',
+      description: 'Soft-delete a project section in the configured Mindwtr backend. Tasks in the section are kept and moved to no section by core.',
       inputSchema: deleteSectionSchema,
     },
     withReadonlyMcpErrorHandling('mindwtr_delete_section', async (input) => {
@@ -673,7 +673,7 @@ export const registerMindwtrTools = (
   server.registerTool(
     'mindwtr_add_area',
     {
-      description: 'Add an area to the local Mindwtr SQLite database.',
+      description: 'Add an area to the configured Mindwtr backend.',
       inputSchema: addAreaSchema,
     },
     withReadonlyMcpErrorHandling('mindwtr_add_area', async (input) => {
@@ -685,7 +685,7 @@ export const registerMindwtrTools = (
   server.registerTool(
     'mindwtr_update_area',
     {
-      description: 'Update an area in the local Mindwtr SQLite database.',
+      description: 'Update an area in the configured Mindwtr backend.',
       inputSchema: updateAreaSchema,
     },
     withReadonlyMcpErrorHandling('mindwtr_update_area', async (input) => {
@@ -697,7 +697,7 @@ export const registerMindwtrTools = (
   server.registerTool(
     'mindwtr_delete_area',
     {
-      description: 'Soft-delete an area in the local Mindwtr SQLite database.',
+      description: 'Soft-delete an area in the configured Mindwtr backend.',
       inputSchema: deleteAreaSchema,
     },
     withReadonlyMcpErrorHandling('mindwtr_delete_area', async (input) => {
@@ -709,7 +709,7 @@ export const registerMindwtrTools = (
   server.registerTool(
     'mindwtr_add_person',
     {
-      description: 'Add a managed person to the local Mindwtr SQLite database.',
+      description: 'Add a managed person to the configured Mindwtr backend.',
       inputSchema: addPersonSchema,
     },
     withReadonlyMcpErrorHandling('mindwtr_add_person', async (input) => {
@@ -721,7 +721,7 @@ export const registerMindwtrTools = (
   server.registerTool(
     'mindwtr_update_person',
     {
-      description: 'Update managed person metadata in the local Mindwtr SQLite database.',
+      description: 'Update managed person metadata in the configured Mindwtr backend.',
       inputSchema: updatePersonSchema,
     },
     withReadonlyMcpErrorHandling('mindwtr_update_person', async (input) => {
@@ -745,7 +745,7 @@ export const registerMindwtrTools = (
   server.registerTool(
     'mindwtr_delete_person',
     {
-      description: 'Soft-delete a managed person in the local Mindwtr SQLite database.',
+      description: 'Soft-delete a managed person in the configured Mindwtr backend.',
       inputSchema: deletePersonSchema,
     },
     withReadonlyMcpErrorHandling('mindwtr_delete_person', async (input) => {

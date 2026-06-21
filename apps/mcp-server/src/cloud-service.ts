@@ -85,9 +85,6 @@ const matchesSearch = (task: Task, search: string | undefined): boolean => {
   const haystack = [
     task.title,
     task.description,
-    task.assignedTo,
-    ...(task.tags ?? []),
-    ...(task.contexts ?? []),
   ]
     .filter((value): value is string => typeof value === 'string')
     .join(' ')
