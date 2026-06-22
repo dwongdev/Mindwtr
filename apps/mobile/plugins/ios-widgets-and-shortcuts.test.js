@@ -39,6 +39,9 @@ describe('ios-widgets-and-shortcuts', () => {
     expect(source).toContain('URLQueryItem(name: "tags"');
     expect(source).toContain('case focus');
     expect(source).toContain('case review');
+    expect(source).toContain('@Parameter(title: "List", default: MindwtrShortcutList.inbox)');
+    expect(source).toContain('var list: MindwtrShortcutList');
+    expect(source).not.toContain('var list: MindwtrShortcutList = .inbox');
     expect(source).toContain('.foreground(.immediate)');
   });
 

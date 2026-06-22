@@ -34,6 +34,20 @@ if (appShortcutPhrases.length === 0) {
   process.exit(1);
 }
 
+const parameterWrappedValueDefaults = source.match(
+  /@Parameter\([^)]*\)\s*\n\s*var\s+\w+\s*:[^\n=]+=[^\n]+/g
+) || [];
+if (parameterWrappedValueDefaults.length > 0) {
+  console.error(
+    'AppIntent @Parameter defaults must use the default: argument instead of a wrapped property assignment.'
+  );
+  console.error(
+    'Xcode 26 AppIntents rejects wrappedValue defaults for these parameters:'
+  );
+  console.error(parameterWrappedValueDefaults.join('\n---\n'));
+  process.exit(1);
+}
+
 const stringParameterInterpolation = /\\\(\\\.\$(task|note|tags|project)\)/;
 if (appShortcutPhrases.some((phraseBlock) => stringParameterInterpolation.test(phraseBlock))) {
   console.error(

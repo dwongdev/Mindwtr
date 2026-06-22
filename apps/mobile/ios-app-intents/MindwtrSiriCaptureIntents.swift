@@ -209,8 +209,8 @@ struct MindwtrOpenListIntent: AppIntent {
         true
     }
 
-    @Parameter(title: "List")
-    var list: MindwtrShortcutList = .inbox
+    @Parameter(title: "List", default: MindwtrShortcutList.inbox)
+    var list: MindwtrShortcutList
 
     static var parameterSummary: some ParameterSummary {
         Summary("Open \(\.$list)")
