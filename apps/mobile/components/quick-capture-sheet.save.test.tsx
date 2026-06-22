@@ -303,9 +303,11 @@ describe('QuickCaptureSheet save handling', () => {
     const keyboardDismiss = vi.spyOn(Keyboard, 'dismiss').mockImplementation(vi.fn());
     vi.spyOn(Keyboard, 'isVisible').mockReturnValue(true);
     const hideListeners: (() => void)[] = [];
+    const showListeners: (() => void)[] = [];
     const removeListener = vi.fn();
     vi.spyOn(Keyboard, 'addListener').mockImplementation(((event: string, cb: () => void) => {
       if (event === 'keyboardDidHide') hideListeners.push(cb);
+      if (event === 'keyboardDidShow') showListeners.push(cb);
       return { remove: removeListener };
     }) as unknown as typeof Keyboard.addListener);
 
@@ -339,6 +341,7 @@ describe('QuickCaptureSheet save handling', () => {
       // Ignore the baseline keyboard-inset listeners registered on mount; this
       // test only cares about the keyboardDidHide gate the More toggle adds.
       hideListeners.length = 0;
+      showListeners.length = 0;
 
       await act(async () => {
         getBody().props.onToggleOptions();
@@ -373,6 +376,15 @@ describe('QuickCaptureSheet save handling', () => {
       expect(getBody().props.optionsExpanded).toBe(true);
       expect(getBody().props.keyboardAvoidingEnabled).toBe(false);
       expect(removeListener).toHaveBeenCalled();
+      expect(showListeners).toHaveLength(1);
+
+      await act(async () => {
+        showListeners.forEach((cb) => cb());
+        await Promise.resolve();
+      });
+
+      expect(getBody().props.optionsExpanded).toBe(true);
+      expect(getBody().props.keyboardAvoidingEnabled).toBe(true);
 
       await act(async () => {
         getBody().props.onToggleOptions();
@@ -413,7 +425,7 @@ describe('QuickCaptureSheet save handling', () => {
       getBody().props.inputRef.current = { blur: vi.fn(), focus: vi.fn() };
 
       // Drop the baseline keyboard-inset listeners registered on mount so we can
-      // assert the More toggle adds none of its own when the keyboard is hidden.
+      // assert the More toggle adds only the refocus guard.
       addListener.mockClear();
 
       await act(async () => {
@@ -421,7 +433,7 @@ describe('QuickCaptureSheet save handling', () => {
         await Promise.resolve();
       });
 
-      expect(addListener).not.toHaveBeenCalled();
+      expect(addListener).toHaveBeenCalledWith('keyboardDidShow', expect.any(Function));
       expect(getBody().props.optionsExpanded).toBe(true);
       expect(getBody().props.keyboardAvoidingEnabled).toBe(false);
     });

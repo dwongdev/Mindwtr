@@ -77,7 +77,7 @@ describe('useAndroidQuickCaptureExpand', () => {
 
       expect(blur).toHaveBeenCalledOnce();
       expect(dismiss).toHaveBeenCalledOnce();
-      expect(addListener).not.toHaveBeenCalled();
+      expect(addListener).toHaveBeenCalledWith('keyboardDidShow', expect.any(Function));
       expect(snapshot.optionsExpanded).toBe(true);
       expect(snapshot.keyboardAvoidingEnabled).toBe(false);
       expect(snapshot.androidOptionsExpandPhase).toBe('expanded');
@@ -90,8 +90,10 @@ describe('useAndroidQuickCaptureExpand', () => {
     vi.spyOn(Keyboard, 'dismiss').mockImplementation(vi.fn());
     const remove = vi.fn();
     const hideListeners: Array<() => void> = [];
+    const showListeners: Array<() => void> = [];
     vi.spyOn(Keyboard, 'addListener').mockImplementation(((event: string, callback: () => void) => {
       if (event === 'keyboardDidHide') hideListeners.push(callback);
+      if (event === 'keyboardDidShow') showListeners.push(callback);
       return { remove };
     }) as unknown as typeof Keyboard.addListener);
     let snapshot!: HookSnapshot;
@@ -121,6 +123,16 @@ describe('useAndroidQuickCaptureExpand', () => {
       expect(remove).toHaveBeenCalledOnce();
       expect(snapshot.optionsExpanded).toBe(true);
       expect(snapshot.keyboardAvoidingEnabled).toBe(false);
+      expect(snapshot.androidOptionsExpandPhase).toBe('expanded');
+      expect(showListeners).toHaveLength(1);
+
+      await act(async () => {
+        showListeners[0]?.();
+        await Promise.resolve();
+      });
+
+      expect(snapshot.optionsExpanded).toBe(true);
+      expect(snapshot.keyboardAvoidingEnabled).toBe(true);
       expect(snapshot.androidOptionsExpandPhase).toBe('expanded');
     });
   });

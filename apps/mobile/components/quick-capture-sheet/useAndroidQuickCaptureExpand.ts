@@ -23,6 +23,7 @@ export function useAndroidQuickCaptureExpand({
   const [phase, setPhase] = useState<AndroidQuickCaptureExpandPhase>('idle');
   const fallbackTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const keyboardHideSubRef = useRef<KeyboardSubscription | null>(null);
+  const keyboardShowSubRef = useRef<KeyboardSubscription | null>(null);
 
   const clearAndroidOptionsExpand = useCallback(() => {
     if (fallbackTimerRef.current) {
@@ -33,6 +34,10 @@ export function useAndroidQuickCaptureExpand({
       keyboardHideSubRef.current.remove();
       keyboardHideSubRef.current = null;
     }
+    if (keyboardShowSubRef.current) {
+      keyboardShowSubRef.current.remove();
+      keyboardShowSubRef.current = null;
+    }
     setPhase('idle');
   }, []);
 
@@ -41,6 +46,11 @@ export function useAndroidQuickCaptureExpand({
     setKeyboardAvoidingEnabled(false);
     setOptionsExpanded(true);
     setPhase('expanded');
+    if (Platform.OS === 'android') {
+      keyboardShowSubRef.current = Keyboard.addListener('keyboardDidShow', () => {
+        setKeyboardAvoidingEnabled(true);
+      });
+    }
   }, [clearAndroidOptionsExpand, setKeyboardAvoidingEnabled, setOptionsExpanded]);
 
   const requestAndroidOptionsExpand = useCallback(() => {
