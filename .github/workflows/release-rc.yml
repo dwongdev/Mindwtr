@@ -1,9 +1,6 @@
 name: Release Candidate
 
 on:
-  push:
-    tags:
-      - 'v*-rc.*'
   workflow_dispatch:
     inputs:
       tag:
@@ -47,7 +44,7 @@ on:
         type: string
 
 concurrency:
-  group: release-rc-${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
+  group: release-rc-${{ inputs.tag }}
   cancel-in-progress: true
 
 env:
@@ -71,8 +68,8 @@ jobs:
       - name: Resolve version
         id: version
         env:
-          INPUT_TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
-          GITHUB_EVENT_INPUTS_TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || '' }}
+          INPUT_TAG: ${{ inputs.tag }}
+          GITHUB_EVENT_INPUTS_TAG: ${{ inputs.tag }}
         run: |
           set -euo pipefail
           scripts/ci/resolve-release-version.sh "$INPUT_TAG" >> "$GITHUB_OUTPUT"
@@ -132,6 +129,20 @@ jobs:
           console.log(`Verified app/package versions use stable base ${base}.`);
           NODE
 
+      - name: Verify RC tag points at this commit
+        run: |
+          set -euo pipefail
+          TAG="${{ steps.version.outputs.tag }}"
+          TAG_SHA="$(git rev-list -n 1 "$TAG")"
+          HEAD_SHA="$(git rev-parse HEAD)"
+          if [ "$TAG_SHA" != "$HEAD_SHA" ]; then
+            echo "RC workflow must be dispatched from the commit pointed to by $TAG." >&2
+            echo "$TAG -> $TAG_SHA" >&2
+            echo "workflow HEAD -> $HEAD_SHA" >&2
+            exit 1
+          fi
+          echo "Verified $TAG points at $HEAD_SHA."
+
   linux:
     needs: validate
     uses: ./.github/workflows/release-linux.yml
@@ -162,7 +173,7 @@ jobs:
     uses: ./.github/workflows/release-android.yml
     with:
       tag: ${{ needs.validate.outputs.tag }}
-      play_track: ${{ github.event_name != 'workflow_dispatch' && 'internal,beta' || (inputs.run_play_testing && inputs.play_track || 'none') }}
+      play_track: ${{ inputs.run_play_testing && inputs.play_track || 'none' }}
       internal_test_release: false
       release_notes: 'Mindwtr release candidate. Please test launch, capture, task editing, task completion, sync settings, and upgrade from the previous stable release.'
       retention_days: '28'
@@ -176,26 +187,26 @@ jobs:
     secrets: inherit
 
   ios-appstore:
-    if: ${{ github.event_name != 'workflow_dispatch' || inputs.run_ios_testflight }}
+    if: ${{ inputs.run_ios_testflight }}
     needs: validate
     uses: ./.github/workflows/release-ios-appstore.yml
     with:
       upload: true
       submit_for_review: false
       distribute_testflight: true
-      testflight_group: ${{ github.event_name == 'workflow_dispatch' && inputs.testflight_group || 'external_testing' }}
+      testflight_group: ${{ inputs.testflight_group }}
       skip_screenshots: true
     secrets: inherit
 
   macos-appstore:
-    if: ${{ github.event_name != 'workflow_dispatch' || inputs.run_macos_testflight }}
+    if: ${{ inputs.run_macos_testflight }}
     needs: validate
     uses: ./.github/workflows/release-macos-appstore.yml
     with:
       upload: true
       submit_for_review: false
       distribute_testflight: true
-      testflight_group: ${{ github.event_name == 'workflow_dispatch' && inputs.testflight_group || 'external_testing' }}
+      testflight_group: ${{ inputs.testflight_group }}
       skip_screenshots: true
     secrets: inherit
 
@@ -297,19 +308,21 @@ jobs:
           set -euo pipefail
           TAG="${{ needs.validate.outputs.tag }}"
           VERSION="${{ needs.validate.outputs.version }}"
-          BASE_VERSION="${{ needs.validate.outputs.base_version }}"
           for path in \
             "docs/release-notes/${TAG}.md" \
-            "docs/release-notes/${VERSION}.md" \
-            "docs/release-notes/${BASE_VERSION}.md" \
-            "docs/release-notes/unreleased.md"; do
+            "docs/release-notes/${VERSION}.md"; do
             if [ -f "$path" ]; then
+              first_heading="$(grep -m 1 '^# ' "$path" || true)"
+              if [[ "$first_heading" != *"$VERSION"* && "$first_heading" != *"$TAG"* ]]; then
+                echo "RC release notes heading must include ${VERSION} or ${TAG}: $path" >&2
+                exit 1
+              fi
               echo "Using release notes at $path"
               echo "body_path=$path" >> "$GITHUB_OUTPUT"
               exit 0
             fi
           done
-          echo "Missing RC release notes. Expected RC-specific notes, base release notes, or docs/release-notes/unreleased.md." >&2
+          echo "Missing RC release notes. Expected docs/release-notes/${VERSION}.md or docs/release-notes/${TAG}.md." >&2
           exit 1
 
       - name: Create GitHub prerelease
@@ -334,7 +347,7 @@ jobs:
           fi
 
   flathub-beta:
-    if: ${{ always() && needs.prerelease.result == 'success' && (github.event_name != 'workflow_dispatch' || inputs.run_flathub_beta) }}
+    if: ${{ always() && needs.prerelease.result == 'success' && inputs.run_flathub_beta }}
     needs: [validate, prerelease]
     name: Update Flathub Beta
     uses: ./.github/workflows/update-flathub.yml
@@ -344,7 +357,7 @@ jobs:
     secrets: inherit
 
   aur-beta:
-    if: ${{ always() && needs.prerelease.result == 'success' && (github.event_name != 'workflow_dispatch' || inputs.run_aur_beta) }}
+    if: ${{ always() && needs.prerelease.result == 'success' && inputs.run_aur_beta }}
     needs: [validate, prerelease]
     runs-on: ubuntu-latest
     name: Update AUR Beta (mindwtr-bin-beta)
