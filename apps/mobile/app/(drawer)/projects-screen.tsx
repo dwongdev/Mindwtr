@@ -872,6 +872,7 @@ export default function ProjectsScreen() {
           </View>
         }
         renderItem={renderProjectListRow}
+        removeClippedSubviews={false}
       />
 
       <ProjectDetailModal

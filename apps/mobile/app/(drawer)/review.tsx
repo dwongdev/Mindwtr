@@ -550,7 +550,7 @@ export default function ReviewScreen() {
         maxToRenderPerBatch={8}
         windowSize={5}
         updateCellsBatchingPeriod={50}
-        removeClippedSubviews={reviewTaskGroups.length >= 12}
+        removeClippedSubviews={false}
         showsVerticalScrollIndicator={false}
         ListEmptyComponent={
           <View style={styles.emptyState}>

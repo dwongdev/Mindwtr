@@ -150,6 +150,7 @@ export default function SavedSearchScreen() {
             )}
           </View>
         }
+        removeClippedSubviews={false}
       />
 
       <TaskEditModal

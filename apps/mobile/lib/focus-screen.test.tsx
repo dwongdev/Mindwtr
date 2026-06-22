@@ -506,6 +506,7 @@ describe('FocusScreen', () => {
     expect(list.props.initialNumToRender).toBe(12);
     expect(list.props.maxToRenderPerBatch).toBe(12);
     expect(list.props.windowSize).toBe(5);
+    expect(list.props.removeClippedSubviews).toBe(false);
   });
 
   it('keeps Focus content clear of the custom bottom tab bar', () => {

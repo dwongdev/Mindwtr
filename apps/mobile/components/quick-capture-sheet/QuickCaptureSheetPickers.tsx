@@ -240,6 +240,7 @@ export function QuickCaptureSheetPickers({
                   </Text>
                 </Pressable>
               )}
+              removeClippedSubviews={false}
             />
           </View>
         </View>
@@ -289,6 +290,7 @@ export function QuickCaptureSheetPickers({
                   </Text>
                 </Pressable>
               )}
+              removeClippedSubviews={false}
             />
           </View>
         </View>
@@ -352,6 +354,7 @@ export function QuickCaptureSheetPickers({
                   <Text style={[styles.pickerRowText, { color: tc.text }]}>{project.title}</Text>
                 </Pressable>
               )}
+              removeClippedSubviews={false}
             />
           </View>
         </View>

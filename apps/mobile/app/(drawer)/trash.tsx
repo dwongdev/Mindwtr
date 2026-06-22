@@ -187,7 +187,7 @@ export default function TrashScreen() {
           maxToRenderPerBatch={12}
           windowSize={5}
           updateCellsBatchingPeriod={50}
-          removeClippedSubviews={trashedTasks.length >= 25}
+          removeClippedSubviews={false}
           showsVerticalScrollIndicator={false}
           ListEmptyComponent={
             <View style={styles.emptyState}>

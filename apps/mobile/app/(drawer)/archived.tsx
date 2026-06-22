@@ -209,7 +209,7 @@ export default function ArchivedScreen() {
                     maxToRenderPerBatch={12}
                     windowSize={5}
                     updateCellsBatchingPeriod={50}
-                    removeClippedSubviews={archivedTasks.length >= 25}
+                    removeClippedSubviews={false}
                     showsVerticalScrollIndicator={false}
                     ListEmptyComponent={
                         <View style={styles.emptyState}>

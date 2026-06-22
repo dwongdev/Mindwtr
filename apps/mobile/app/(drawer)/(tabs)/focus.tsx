@@ -1664,6 +1664,7 @@ export default function FocusScreen() {
             <Text style={[styles.emptySubtitle, { color: tc.secondaryText }]}>{emptySubtitle}</Text>
           </View>
         ) : null}
+        removeClippedSubviews={false}
       />
       <PullSyncIndicator state={pullSync.indicatorState} />
       <Modal

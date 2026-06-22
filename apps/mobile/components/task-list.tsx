@@ -1602,6 +1602,7 @@ function TaskListComponent({
             dragItemOverflow
             dragHitSlop={projectDragHitSlop}
             style={styles.projectDragList}
+            removeClippedSubviews={false}
           />
         ) : null}
       </View>
@@ -1833,7 +1834,7 @@ function TaskListComponent({
           maxToRenderPerBatch={12}
           windowSize={5}
           updateCellsBatchingPeriod={50}
-          removeClippedSubviews={listItems.length >= REMOVE_CLIPPED_SUBVIEWS_MIN_ITEMS}
+          removeClippedSubviews={false}
           refreshControl={
             <RefreshControl
               refreshing={pullSync.refreshing}

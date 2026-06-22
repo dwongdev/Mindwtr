@@ -402,7 +402,7 @@ function DailyReviewFlow({ onClose }: { onClose: () => void }) {
             maxToRenderPerBatch={12}
             windowSize={5}
             updateCellsBatchingPeriod={50}
-            removeClippedSubviews={list.length >= 25}
+            removeClippedSubviews={false}
             showsVerticalScrollIndicator={false}
         />
     );

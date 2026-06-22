@@ -717,6 +717,7 @@ export default function SearchScreen() {
                         <ChevronRight size={20} color={tc.secondaryText} />
                     </TouchableOpacity>
                 )}
+              removeClippedSubviews={false}
             />
 
             <Modal

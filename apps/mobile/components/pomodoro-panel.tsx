@@ -491,7 +491,7 @@ export function PomodoroPanel({
                 maxToRenderPerBatch={12}
                 windowSize={5}
                 updateCellsBatchingPeriod={50}
-                removeClippedSubviews={tasks.length >= 25}
+                removeClippedSubviews={false}
                 showsVerticalScrollIndicator={false}
                 ListEmptyComponent={
                   <Text style={[styles.noTaskText, { color: tc.secondaryText }]}>{noTaskLabel}</Text>

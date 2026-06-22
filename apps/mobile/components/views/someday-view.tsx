@@ -203,7 +203,7 @@ export function SomedayView() {
         maxToRenderPerBatch={12}
         windowSize={5}
         updateCellsBatchingPeriod={50}
-        removeClippedSubviews={somedayTasks.length >= 25}
+        removeClippedSubviews={false}
         showsVerticalScrollIndicator={false}
         ListHeaderComponent={deferredProjects.length > 0 ? (
           <View style={[styles.projectSection, { backgroundColor: tc.cardBg, borderColor: tc.border }]}>

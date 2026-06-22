@@ -1645,7 +1645,7 @@ export function CalendarView() {
           ListEmptyComponent={planningTasks.length > 0 ? null : (
             <Text style={[styles.noTasks, { color: tc.secondaryText }]}>{t('calendar.noTasks')}</Text>
           )}
-          removeClippedSubviews
+          removeClippedSubviews={false}
         />
 
         {renderCalendarComposer()}

@@ -219,7 +219,7 @@ export function ReviewModal({ visible, onClose }: ReviewModalProps) {
             maxToRenderPerBatch={12}
             windowSize={5}
             updateCellsBatchingPeriod={50}
-            removeClippedSubviews={taskList.length >= 25}
+            removeClippedSubviews={false}
             showsVerticalScrollIndicator={false}
         />
     );
@@ -352,7 +352,7 @@ export function ReviewModal({ visible, onClose }: ReviewModalProps) {
                 maxToRenderPerBatch={12}
                 windowSize={5}
                 updateCellsBatchingPeriod={50}
-                removeClippedSubviews={groups.length >= 25}
+                removeClippedSubviews={false}
                 showsVerticalScrollIndicator={false}
             />
         );
@@ -648,7 +648,7 @@ export function ReviewModal({ visible, onClose }: ReviewModalProps) {
                                 maxToRenderPerBatch={12}
                                 windowSize={5}
                                 updateCellsBatchingPeriod={50}
-                                removeClippedSubviews={projectReviewEntries.length >= 25}
+                                removeClippedSubviews={false}
                                 showsVerticalScrollIndicator={false}
                             />
                         )}
