@@ -22,14 +22,15 @@ describe('settings styles', () => {
     });
   });
 
-  it('wraps segmented settings buttons at large Android display sizes', () => {
+  it('keeps GTD segmented controls in a single connected row', () => {
     expect(flattenStyle(styles.gtdSegmentedControl)).toMatchObject({
-      flexWrap: 'wrap',
+      flexDirection: 'row',
     });
     expect(flattenStyle(styles.gtdSegmentedOption)).toMatchObject({
-      flexBasis: 112,
+      flexBasis: 0,
       flexGrow: 1,
       flexShrink: 1,
+      minWidth: 0,
     });
     expect(flattenStyle(styles.gtdSegmentedOptionText)).toMatchObject({
       textAlign: 'center',
