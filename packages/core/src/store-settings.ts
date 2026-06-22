@@ -36,6 +36,7 @@ const MIGRATION_VERSION = 1;
 const AUTO_ARCHIVE_INTERVAL_MS = 12 * 60 * 60 * 1000;
 const TOMBSTONE_CLEANUP_INTERVAL_MS = 24 * 60 * 60 * 1000;
 const TASK_EDITOR_DEFAULTS_VERSION = 5;
+const FOCUS_GROUP_BY_DEFAULTS_VERSION = 1;
 const TASK_EDITOR_LEAN_DEFAULT_HIDDEN: TaskEditorFieldId[] = [
     'section',
     'priority',
@@ -696,6 +697,31 @@ export const createSettingsActions = ({
                             defaultsVersion: TASK_EDITOR_DEFAULTS_VERSION,
                         },
                     },
+                };
+                didSettingsUpdate = true;
+            }
+
+            const focusGroupByDefaultsVersion = nextSettings.gtd?.focusGroupByDefaultsVersion ?? 0;
+            if (focusGroupByDefaultsVersion < FOCUS_GROUP_BY_DEFAULTS_VERSION) {
+                const nextGtd = {
+                    ...(nextSettings.gtd ?? {}),
+                    focusGroupByDefaultsVersion: FOCUS_GROUP_BY_DEFAULTS_VERSION,
+                };
+                const didMigrateLegacyContextDefault = nextGtd.focusGroupBy === 'context';
+                if (didMigrateLegacyContextDefault) {
+                    nextGtd.focusGroupBy = 'none';
+                }
+                nextSettings = {
+                    ...nextSettings,
+                    gtd: nextGtd,
+                    ...(didMigrateLegacyContextDefault
+                        ? {
+                            syncPreferencesUpdatedAt: {
+                                ...(nextSettings.syncPreferencesUpdatedAt ?? {}),
+                                gtd: nowIso,
+                            },
+                        }
+                        : {}),
                 };
                 didSettingsUpdate = true;
             }

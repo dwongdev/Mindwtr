@@ -86,6 +86,7 @@ describe('SettingsGtdPage', () => {
             />
         );
 
+        fireEvent.click(getByRole('button', { name: /default capture method/i }));
         fireEvent.change(getByRole('combobox', { name: /default area for new tasks/i }), {
             target: { value: 'area-work' },
         });

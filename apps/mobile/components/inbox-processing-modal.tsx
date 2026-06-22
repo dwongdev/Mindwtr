@@ -95,6 +95,7 @@ export function InboxProcessingModal({ visible, onClose }: InboxProcessingModalP
     setDelegateWho,
     setExecutionChoice,
     setNewContext,
+    setLaterNoDateSelected,
     setPendingDueDate,
     setPendingDueDateOnly,
     setPendingReviewDate,
@@ -304,6 +305,7 @@ export function InboxProcessingModal({ visible, onClose }: InboxProcessingModalP
                 dateOnlyLabel={dateOnlyLabel}
                 pendingStartDate={pendingStartDate}
                 setPendingStartDate={setPendingStartDate}
+                setLaterNoDateSelected={setLaterNoDateSelected}
                 pendingStartDateOnly={pendingStartDateOnly}
                 setPendingStartDateOnly={setPendingStartDateOnly}
                 setShowStartDatePicker={setShowStartDatePicker}

@@ -65,7 +65,7 @@ export function DataTransferSection({
             </h2>
             <div className="bg-card border border-border rounded-lg p-6 space-y-3">
                 <a
-                    href="https://github.com/dongdongbh/Mindwtr/wiki/Data-and-Sync#imports-and-migrations"
+                    href="https://docs.mindwtr.app/import/"
                     target="_blank"
                     rel="noreferrer"
                     className="inline-flex items-center gap-1 text-sm font-medium text-primary hover:underline"

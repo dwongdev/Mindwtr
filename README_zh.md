@@ -251,7 +251,6 @@ Mindwtr 的发展离不开用户与贡献者的支持，感谢大家一起把它
 - 🛠️ [云端部署](https://docs.mindwtr.app/data-sync/cloud-deployment)
 - ☁️ [云端 API](https://docs.mindwtr.app/developers/cloud-api)
 - 🧠 [MCP 服务器](https://docs.mindwtr.app/power-users/mcp)
-- 🗂️ [GitHub Wiki](https://github.com/dongdongbh/Mindwtr/wiki) - 文档迁移期间保留的旧版 Wiki
 - 📝 [版本说明索引](docs/release-notes/README.md)
 
 ## Star History

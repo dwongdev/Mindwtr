@@ -573,25 +573,6 @@ export function SettingsGtdPage({
                 </div>
                 <div className="p-4 flex items-center justify-between gap-6">
                     <div className="min-w-0">
-                        <div className="text-sm font-medium">{t.defaultArea}</div>
-                        <div className="text-xs text-muted-foreground mt-1">{t.defaultAreaDesc}</div>
-                    </div>
-                    <select
-                        value={defaultAreaId}
-                        aria-label={t.defaultArea}
-                        onChange={(event) => {
-                            updateGtdSettings({ defaultAreaId: event.target.value || null });
-                        }}
-                        className="max-w-56 shrink-0 text-sm bg-muted/50 text-foreground border border-border rounded px-3 py-2 hover:bg-muted focus:outline-none focus:ring-2 focus:ring-primary/40"
-                    >
-                        <option value="">{t.defaultAreaNone}</option>
-                        {sortedAreas.map((area) => (
-                            <option key={area.id} value={area.id}>{area.name}</option>
-                        ))}
-                    </select>
-                </div>
-                <div className="p-4 flex items-center justify-between gap-6">
-                    <div className="min-w-0">
                         <div className="text-sm font-medium">{t.focusTaskLimit}</div>
                         <div className="text-xs text-muted-foreground mt-1">{t.focusTaskLimitDesc}</div>
                     </div>
@@ -859,6 +840,25 @@ export function SettingsGtdPage({
                             {t.captureDefaultAudio}
                         </button>
                     </div>
+                </div>
+                <div className="p-4 flex items-center justify-between gap-6">
+                    <div className="min-w-0">
+                        <div className="text-sm font-medium">{t.defaultArea}</div>
+                        <div className="text-xs text-muted-foreground mt-1">{t.defaultAreaDesc}</div>
+                    </div>
+                    <select
+                        value={defaultAreaId}
+                        aria-label={t.defaultArea}
+                        onChange={(event) => {
+                            updateGtdSettings({ defaultAreaId: event.target.value || null });
+                        }}
+                        className="max-w-56 shrink-0 text-sm bg-muted/50 text-foreground border border-border rounded px-3 py-2 hover:bg-muted focus:outline-none focus:ring-2 focus:ring-primary/40"
+                    >
+                        <option value="">{t.defaultAreaNone}</option>
+                        {sortedAreas.map((area) => (
+                            <option key={area.id} value={area.id}>{area.name}</option>
+                        ))}
+                    </select>
                 </div>
                 {defaultCaptureMethod === 'audio' && speechEnabled ? (
                     <div className="p-4 flex items-center justify-between gap-6">

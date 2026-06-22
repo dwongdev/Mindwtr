@@ -81,6 +81,7 @@ export function GtdSettingsScreen({
         details: false,
     });
     const [taskEditorSelectedField, setTaskEditorSelectedField] = useState<TaskEditorFieldId | null>(null);
+    const [defaultAreaPickerVisible, setDefaultAreaPickerVisible] = useState(false);
 
     const defaultTimeEstimatePresets: TimeEstimate[] = ['5min', '10min', '30min', '1hr', '2hr', '3hr', '4hr', '4hr+'];
     const timeEstimateOptions: TimeEstimate[] = ['5min', '10min', '15min', '30min', '1hr', '2hr', '3hr', '4hr', '4hr+'];
@@ -385,6 +386,11 @@ export function GtdSettingsScreen({
         { id: '', label: defaultAreaNoneLabel },
         ...sortedAreas.map((area) => ({ id: area.id, label: area.name })),
     ];
+    const defaultAreaSelectedLabel = defaultAreaOptions.find((option) => option.id === defaultAreaId)?.label ?? defaultAreaNoneLabel;
+    const selectDefaultArea = (areaId: string) => {
+        updateGtdSettings({ defaultAreaId: areaId || null });
+        setDefaultAreaPickerVisible(false);
+    };
 
     const renderGtdNavigationRow = (
         title: string,
@@ -736,37 +742,25 @@ export function GtdSettingsScreen({
                                 })}
                             </View>
                         </View>
-                        <View style={[styles.settingRowColumn, { borderTopWidth: 1, borderTopColor: tc.border, gap: 12 }]}>
+                        <TouchableOpacity
+                            testID="default-area-picker-button"
+                            style={[styles.settingRow, { borderTopWidth: 1, borderTopColor: tc.border }]}
+                            accessibilityRole="button"
+                            accessibilityLabel={`${defaultAreaLabel}: ${defaultAreaSelectedLabel}`}
+                            onPress={() => setDefaultAreaPickerVisible(true)}
+                            activeOpacity={0.75}
+                        >
                             <View style={styles.settingInfo}>
                                 <Text style={[styles.settingLabel, { color: tc.text }]}>{defaultAreaLabel}</Text>
                                 <Text style={[styles.settingDescription, { color: tc.secondaryText }]}>{defaultAreaDesc}</Text>
                             </View>
-                            <View style={[styles.gtdSegmentedControl, { backgroundColor: tc.bg, borderColor: tc.border }]}>
-                                {defaultAreaOptions.map((option) => {
-                                    const selected = defaultAreaId === option.id;
-                                    return (
-                                        <TouchableOpacity
-                                            key={option.id || 'none'}
-                                            accessibilityRole="button"
-                                            accessibilityState={{ selected }}
-                                            style={[
-                                                styles.gtdSegmentedOption,
-                                                { backgroundColor: selected ? tc.filterBg : 'transparent' },
-                                            ]}
-                                            onPress={() => updateGtdSettings({ defaultAreaId: option.id || null })}
-                                            activeOpacity={0.8}
-                                        >
-                                            <Text
-                                                style={[styles.gtdSegmentedOptionText, { color: selected ? tc.tint : tc.secondaryText }]}
-                                                numberOfLines={1}
-                                            >
-                                                {option.label}
-                                            </Text>
-                                        </TouchableOpacity>
-                                    );
-                                })}
+                            <View style={[styles.menuRight, { flexShrink: 1, maxWidth: '42%' }]}>
+                                <Text style={[styles.settingValue, { color: tc.secondaryText }]} numberOfLines={1}>
+                                    {defaultAreaSelectedLabel}
+                                </Text>
+                                <Ionicons name="chevron-forward" size={18} color={tc.secondaryText} />
                             </View>
-                        </View>
+                        </TouchableOpacity>
                         {defaultCaptureMethod === 'audio' ? (
                             <View style={[styles.settingRow, { borderTopWidth: 1, borderTopColor: tc.border }]}>
                                 <View style={styles.settingInfo}>
@@ -815,6 +809,48 @@ export function GtdSettingsScreen({
                         </View>
                     </View>
                 </ScrollView>
+                <Modal
+                    visible={defaultAreaPickerVisible}
+                    transparent
+                    animationType="fade"
+                    onRequestClose={() => setDefaultAreaPickerVisible(false)}
+                >
+                    <Pressable style={styles.pickerOverlay} onPress={() => setDefaultAreaPickerVisible(false)}>
+                        <Pressable
+                            style={[styles.pickerCard, { backgroundColor: tc.cardBg, borderColor: tc.border }]}
+                            onPress={(event) => event.stopPropagation()}
+                        >
+                            <Text style={[styles.pickerTitle, { color: tc.text }]}>{defaultAreaLabel}</Text>
+                            <ScrollView style={styles.pickerList} contentContainerStyle={styles.pickerListContent}>
+                                {defaultAreaOptions.map((option) => {
+                                    const selected = defaultAreaId === option.id;
+                                    return (
+                                        <TouchableOpacity
+                                            key={option.id || 'none'}
+                                            testID={`default-area-picker-option-${option.id || 'none'}`}
+                                            accessibilityRole="button"
+                                            accessibilityState={{ selected }}
+                                            style={[
+                                                styles.pickerOption,
+                                                {
+                                                    backgroundColor: selected ? tc.filterBg : 'transparent',
+                                                    borderColor: selected ? tc.tint : tc.border,
+                                                },
+                                            ]}
+                                            onPress={() => selectDefaultArea(option.id)}
+                                            activeOpacity={0.8}
+                                        >
+                                            <Text style={[styles.pickerOptionText, { color: selected ? tc.tint : tc.text }]} numberOfLines={1}>
+                                                {option.label}
+                                            </Text>
+                                            {selected ? <Ionicons name="checkmark" size={18} color={tc.tint} /> : null}
+                                        </TouchableOpacity>
+                                    );
+                                })}
+                            </ScrollView>
+                        </Pressable>
+                    </Pressable>
+                </Modal>
             </SafeAreaView>
         );
     }

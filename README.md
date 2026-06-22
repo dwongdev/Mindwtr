@@ -257,7 +257,6 @@ You can help in several ways:
 - 🛠️ [Cloud Deployment](https://docs.mindwtr.app/data-sync/cloud-deployment)
 - ☁️ [Cloud API](https://docs.mindwtr.app/developers/cloud-api)
 - 🧠 [MCP Server](https://docs.mindwtr.app/power-users/mcp)
-- 🗂️ [GitHub Wiki](https://github.com/dongdongbh/Mindwtr/wiki) - Legacy wiki while docs migration continues
 - 📝 [Release Notes Index](docs/release-notes/README.md)
 
 ## Star History

@@ -301,6 +301,7 @@ export interface GtdSettings {
     defaultAreaId?: string | null;
     focusTaskLimit?: number;
     focusGroupBy?: FocusGroupBy;
+    focusGroupByDefaultsVersion?: number;
     defaultProjectFlowMode?: DefaultProjectFlowMode;
     defaultScheduleTime?: string; // HH:mm, used to prefill manual scheduling fields.
     saveAudioAttachments?: boolean;

@@ -1,5 +1,6 @@
 import React from 'react';
 import { Text, TouchableOpacity, View } from 'react-native';
+import type { QuickDatePreset } from '@mindwtr/core';
 
 import { styles } from '../inbox-processing-modal.styles';
 import { InboxDateSelectorRow } from './InboxDateSelectorRow';
@@ -18,6 +19,7 @@ type Props = {
   dateOnlyLabel: string;
   pendingStartDate: Date | null;
   setPendingStartDate: (v: Date | null) => void;
+  setLaterNoDateSelected: (v: boolean) => void;
   pendingStartDateOnly: boolean;
   setPendingStartDateOnly: (v: boolean) => void;
   setShowStartDatePicker: (v: boolean) => void;
@@ -35,6 +37,7 @@ export function InboxActionabilitySection({
   dateOnlyLabel,
   pendingStartDate,
   setPendingStartDate,
+  setLaterNoDateSelected,
   pendingStartDateOnly,
   setPendingStartDateOnly,
   setShowStartDatePicker,
@@ -106,8 +109,16 @@ export function InboxActionabilitySection({
             label={t('taskEdit.startDateLabel')}
             value={pendingStartDate}
             onOpen={() => setShowStartDatePicker(true)}
-            onClear={() => { setPendingStartDate(null); setPendingStartDateOnly(false); }}
-            onQuickDateSelect={(date) => { setPendingStartDate(date); setPendingStartDateOnly(false); }}
+            onClear={() => {
+              setPendingStartDate(null);
+              setPendingStartDateOnly(false);
+              setLaterNoDateSelected(false);
+            }}
+            onQuickDateSelect={(date, preset: QuickDatePreset) => {
+              setPendingStartDate(date);
+              setPendingStartDateOnly(false);
+              setLaterNoDateSelected(preset === 'no_date');
+            }}
             dateOnly={pendingStartDateOnly}
             onDateOnly={() => setPendingStartDateOnly(true)}
             onUseDefaultTime={() => setPendingStartDateOnly(false)}

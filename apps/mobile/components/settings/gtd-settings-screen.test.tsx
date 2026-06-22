@@ -9,6 +9,13 @@ import { GtdSettingsScreen } from './gtd-settings-screen';
 const updateSettings = vi.fn().mockResolvedValue(undefined);
 const showToast = vi.fn();
 
+const flattenStyle = (style: unknown): Record<string, unknown> => {
+  if (Array.isArray(style)) {
+    return Object.assign({}, ...style.map(flattenStyle));
+  }
+  return style && typeof style === 'object' ? style as Record<string, unknown> : {};
+};
+
 vi.mock('@react-native-async-storage/async-storage', () => ({
   default: {
     getItem: vi.fn(async () => null),
@@ -271,6 +278,28 @@ describe('GtdSettingsScreen task editor layout', () => {
     }));
   });
 
+  it('keeps focus limit options on a single equal-width row', () => {
+    let tree!: renderer.ReactTestRenderer;
+    renderer.act(() => {
+      tree = renderer.create(<GtdSettingsScreen onNavigate={vi.fn()} screen="gtd" />);
+    });
+
+    const focusLimitButtons = [3, 5, 10].map((option) => {
+      const button = tree.root.findAllByType(TouchableOpacity).find((candidate) => (
+        candidate.findAllByType(Text).some((textNode) => textNode.props.children === option)
+      ));
+      expect(button).toBeTruthy();
+      return button!;
+    });
+
+    focusLimitButtons.forEach((button) => {
+      const flattenedStyle = flattenStyle(button.props.style);
+      expect(flattenedStyle.flexBasis).toBe(0);
+      expect(flattenedStyle.minWidth).toBe(0);
+      expect(flattenedStyle.flexGrow).toBe(1);
+    });
+  });
+
   it('saves the default project flow mode from GTD settings', () => {
     let tree!: renderer.ReactTestRenderer;
     renderer.act(() => {
@@ -293,7 +322,7 @@ describe('GtdSettingsScreen task editor layout', () => {
     }));
   });
 
-  it('saves the default area from capture settings', () => {
+  it('opens a picker before saving the default area from capture settings', () => {
     storeState.settings = {
       gtd: {
         defaultAreaId: null,
@@ -318,13 +347,16 @@ describe('GtdSettingsScreen task editor layout', () => {
       tree = renderer.create(<GtdSettingsScreen onNavigate={vi.fn()} screen="gtd-capture" />);
     });
 
-    const workButton = tree.root.findAllByType(TouchableOpacity).find((button) => (
-      button.findAllByType(Text).some((text) => text.props.children === 'Work')
-    ));
-    expect(workButton).toBeTruthy();
+    expect(tree.root.findByType(Modal).props.visible).toBe(false);
 
     renderer.act(() => {
-      workButton?.props.onPress();
+      tree.root.findByProps({ testID: 'default-area-picker-button' }).props.onPress();
+    });
+
+    expect(tree.root.findByType(Modal).props.visible).toBe(true);
+
+    renderer.act(() => {
+      tree.root.findByProps({ testID: 'default-area-picker-option-area-work' }).props.onPress();
     });
 
     expect(updateSettings).toHaveBeenCalledWith(expect.objectContaining({
@@ -332,6 +364,7 @@ describe('GtdSettingsScreen task editor layout', () => {
         defaultAreaId: 'area-work',
       }),
     }));
+    expect(tree.root.findByType(Modal).props.visible).toBe(false);
   });
 
   it('routes GTD feature areas to sub-screens from the hub', () => {

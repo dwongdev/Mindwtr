@@ -753,6 +753,52 @@ describe('TaskStore', () => {
         ]));
     });
 
+    it('migrates the legacy Focus context grouping default to no grouping', async () => {
+        const nowIso = '2026-06-21T12:00:00.000Z';
+        vi.setSystemTime(new Date(nowIso));
+        mockStorage.getData = vi.fn().mockResolvedValue({
+            tasks: [],
+            projects: [],
+            sections: [],
+            areas: [],
+            settings: {
+                gtd: {
+                    focusGroupBy: 'context',
+                },
+            },
+        });
+
+        await useTaskStore.getState().fetchData({ silent: true });
+        await flushPendingSave();
+
+        const { settings } = useTaskStore.getState();
+        expect(settings.gtd?.focusGroupBy).toBe('none');
+        expect(settings.gtd?.focusGroupByDefaultsVersion).toBe(1);
+        expect(settings.syncPreferencesUpdatedAt?.gtd).toBe(nowIso);
+    });
+
+    it('preserves explicitly versioned Focus context grouping preferences', async () => {
+        mockStorage.getData = vi.fn().mockResolvedValue({
+            tasks: [],
+            projects: [],
+            sections: [],
+            areas: [],
+            settings: {
+                gtd: {
+                    focusGroupBy: 'context',
+                    focusGroupByDefaultsVersion: 1,
+                },
+            },
+        });
+
+        await useTaskStore.getState().fetchData({ silent: true });
+        await flushPendingSave();
+
+        const { settings } = useTaskStore.getState();
+        expect(settings.gtd?.focusGroupBy).toBe('context');
+        expect(settings.gtd?.focusGroupByDefaultsVersion).toBe(1);
+    });
+
     it('should delete a task', () => {
         const { addTask, deleteTask } = useTaskStore.getState();
         addTask('Task to Delete');

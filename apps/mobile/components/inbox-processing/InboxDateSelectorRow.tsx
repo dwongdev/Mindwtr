@@ -1,6 +1,6 @@
 import React from 'react';
 import { Text, TouchableOpacity, View } from 'react-native';
-import { safeFormatDate } from '@mindwtr/core';
+import { safeFormatDate, type QuickDatePreset } from '@mindwtr/core';
 
 import { QuickDateChips } from '../QuickDateChips';
 import { styles } from '../inbox-processing-modal.styles';
@@ -12,7 +12,7 @@ type Props = {
   value: Date | null;
   onOpen: () => void;
   onClear: () => void;
-  onQuickDateSelect?: (date: Date | null) => void;
+  onQuickDateSelect?: (date: Date | null, preset: QuickDatePreset) => void;
   dateOnly?: boolean;
   onDateOnly?: () => void;
   onUseDefaultTime?: () => void;
@@ -75,7 +75,7 @@ export function InboxDateSelectorRow({
           t={t}
           tc={tc}
           selectedDate={value}
-          onSelect={(date) => onQuickDateSelect(date)}
+          onSelect={(date, preset) => onQuickDateSelect(date, preset)}
         />
       ) : null}
     </View>

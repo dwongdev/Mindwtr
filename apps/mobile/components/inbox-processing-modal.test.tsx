@@ -953,6 +953,55 @@ describe('InboxProcessingModal', () => {
     );
   });
 
+  it('moves Later items to next when No date is explicitly selected', () => {
+    const onClose = vi.fn();
+    let tree: ReturnType<typeof create>;
+
+    act(() => {
+      tree = create(<InboxProcessingModal visible onClose={onClose} />);
+    });
+
+    const root = tree!.root;
+    const laterButton = findNodeWithText(root, 'Later').parent;
+
+    if (!laterButton) {
+      throw new Error('Later button not found');
+    }
+
+    act(() => {
+      laterButton.props.onPress();
+    });
+
+    const noDateButton = findNodeWithText(root, 'No date').parent;
+
+    if (!noDateButton) {
+      throw new Error('No date button not found');
+    }
+
+    act(() => {
+      noDateButton.props.onPress();
+    });
+
+    const nextTaskButton = findNodeWithText(root, 'Next task →').parent;
+
+    if (!nextTaskButton) {
+      throw new Error('Next task button not found');
+    }
+
+    act(() => {
+      nextTaskButton.props.onPress();
+    });
+
+    expect(updateTask).toHaveBeenCalledWith(
+      'inbox-1',
+      expect.objectContaining({
+        status: 'next',
+      })
+    );
+    expect(updateTask.mock.calls[0][1]).toHaveProperty('startTime', undefined);
+    expect(onClose).toHaveBeenCalled();
+  });
+
   it('saves the selected priority when the priority field is shown', () => {
     mockSettings.gtd.taskEditor = { hidden: [] };
     const onClose = vi.fn();

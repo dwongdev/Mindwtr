@@ -544,7 +544,7 @@ export function SyncConfigurationSection({
 
             <div className="bg-card border border-border rounded-lg p-6 space-y-4">
                 <a
-                    href="https://github.com/dongdongbh/Mindwtr/wiki/Data-and-Sync"
+                    href="https://docs.mindwtr.app/data-sync/"
                     target="_blank"
                     rel="noreferrer"
                     className="inline-flex items-center gap-1 text-sm font-medium text-primary hover:underline"

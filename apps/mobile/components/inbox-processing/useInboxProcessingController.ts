@@ -90,6 +90,7 @@ export function useInboxProcessingController({
   const [selectedTimeEstimate, setSelectedTimeEstimate] = useState<TimeEstimate | undefined>(undefined);
   const [pendingStartDate, setPendingStartDate] = useState<Date | null>(null);
   const [pendingStartDateOnly, setPendingStartDateOnly] = useState(false);
+  const [laterNoDateSelected, setLaterNoDateSelected] = useState(false);
   const [pendingDueDate, setPendingDueDate] = useState<Date | null>(null);
   const [pendingDueDateOnly, setPendingDueDateOnly] = useState(false);
   const [pendingReviewDate, setPendingReviewDate] = useState<Date | null>(null);
@@ -348,6 +349,7 @@ export function useInboxProcessingController({
     setExecutionChoice('defer');
     setPendingStartDate(task?.startTime ? safeParseDate(task.startTime) : null);
     setPendingStartDateOnly(Boolean(task?.startTime) && !hasTimeComponent(task?.startTime));
+    setLaterNoDateSelected(false);
     setPendingDueDate(task?.dueDate ? safeParseDate(task.dueDate) : null);
     setPendingDueDateOnly(Boolean(task?.dueDate) && !hasTimeComponent(task?.dueDate));
     setPendingReviewDate(task?.reviewAt ? safeParseDate(task.reviewAt) : null);
@@ -478,7 +480,7 @@ export function useInboxProcessingController({
 
   const handleLaterMobile = useCallback(() => {
     if (!currentTask) return;
-    if (!pendingStartDate) {
+    if (!pendingStartDate && !laterNoDateSelected) {
       showToast({
         title: t('common.notice'),
         message: tFallback(t, 'process.laterStartRequired', 'Choose a start date for Later.'),
@@ -490,9 +492,10 @@ export function useInboxProcessingController({
       status: 'next',
       ...(showProjectField ? { projectId: selectedProjectId ?? undefined } : {}),
       ...(showAreaField ? { areaId: selectedProjectId ? undefined : (selectedAreaId ?? undefined) } : {}),
-      startTime: formatScheduledDateValue(pendingStartDate, pendingStartDateOnly),
+      startTime: pendingStartDate ? formatScheduledDateValue(pendingStartDate, pendingStartDateOnly) : undefined,
     });
     setPendingStartDate(null);
+    setLaterNoDateSelected(false);
     moveToNext();
   }, [
     applyProcessingEdits,
@@ -1067,6 +1070,7 @@ export function useInboxProcessingController({
     setDelegateWho,
     setExecutionChoice,
     setNewContext,
+    setLaterNoDateSelected,
     setPendingDueDate,
     setPendingDueDateOnly,
     setPendingReviewDate,

@@ -32,12 +32,12 @@ const baseProps = {
 } as unknown as ComponentProps<typeof DataTransferSection>;
 
 describe('DataTransferSection', () => {
-    it('links to the import guide on the wiki', () => {
+    it('links to the import guide in the docs site', () => {
         const { getByRole } = render(<DataTransferSection {...baseProps} />);
 
         expect(getByRole('link', { name: /Import guide/ })).toHaveAttribute(
             'href',
-            'https://github.com/dongdongbh/Mindwtr/wiki/Data-and-Sync#imports-and-migrations'
+            'https://docs.mindwtr.app/import/'
         );
     });
 

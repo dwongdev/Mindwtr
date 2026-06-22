@@ -69,12 +69,12 @@ const baseProps: Parameters<typeof SettingsObsidianSection>[0] = {
 };
 
 describe('SettingsObsidianSection', () => {
-    it('links to the Obsidian integration guide on the wiki', () => {
+    it('links to the Obsidian integration guide in the docs site', () => {
         const { getByRole } = render(<SettingsObsidianSection {...baseProps} />);
 
         expect(getByRole('link', { name: /Obsidian integration guide/ })).toHaveAttribute(
             'href',
-            'https://github.com/dongdongbh/Mindwtr/wiki/Obsidian-Integration',
+            'https://docs.mindwtr.app/power-users/obsidian',
         );
     });
 

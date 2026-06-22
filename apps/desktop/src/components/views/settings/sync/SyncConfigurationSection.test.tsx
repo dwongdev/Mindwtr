@@ -120,7 +120,7 @@ describe('SyncConfigurationSection', () => {
         expect(queryByText('Sync description')).not.toBeInTheDocument();
         expect(getByRole('link', { name: /Data and Sync guide/ })).toHaveAttribute(
             'href',
-            'https://github.com/dongdongbh/Mindwtr/wiki/Data-and-Sync'
+            'https://docs.mindwtr.app/data-sync/'
         );
     });
 

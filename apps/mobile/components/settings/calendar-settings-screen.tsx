@@ -53,7 +53,7 @@ import { useSettingsLocalization, useSettingsScrollContent } from './settings.ho
 import { SettingsGuideLink, SettingsTopBar } from './settings.shell';
 import { styles } from './settings.styles';
 
-const CALENDAR_INTEGRATION_GUIDE_URL = 'https://github.com/dongdongbh/Mindwtr/wiki/Calendar-Integration';
+const CALENDAR_INTEGRATION_GUIDE_URL = 'https://docs.mindwtr.app/use/calendar-integration';
 
 type CollapsibleSettingHeaderProps = {
     title: string;

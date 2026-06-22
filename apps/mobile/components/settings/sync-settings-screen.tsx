@@ -54,8 +54,8 @@ import { useSyncSettingsTransportActions, type CloudKitAccountStatus } from './u
 import { SettingsGuideLink, SettingsTopBar } from './settings.shell';
 import { styles } from './settings.styles';
 
-const DATA_AND_SYNC_GUIDE_URL = 'https://github.com/dongdongbh/Mindwtr/wiki/Data-and-Sync';
-const IMPORT_GUIDE_URL = `${DATA_AND_SYNC_GUIDE_URL}#imports-and-migrations`;
+const DATA_AND_SYNC_GUIDE_URL = 'https://docs.mindwtr.app/data-sync/';
+const IMPORT_GUIDE_URL = 'https://docs.mindwtr.app/import/';
 
 type SettingsScreenMode = 'sync' | 'data';
 type VisibleSyncBackendOption = 'off' | 'file' | 'dropbox' | 'webdav' | 'selfhosted' | 'cloudkit';

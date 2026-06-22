@@ -4,7 +4,7 @@ import { ChevronDown, ChevronRight, ExternalLink } from 'lucide-react';
 
 import { cn } from '../../../lib/utils';
 
-const OBSIDIAN_INTEGRATION_GUIDE_URL = 'https://github.com/dongdongbh/Mindwtr/wiki/Obsidian-Integration';
+const OBSIDIAN_INTEGRATION_GUIDE_URL = 'https://docs.mindwtr.app/power-users/obsidian';
 
 type Labels = {
     obsidianVault: string;
