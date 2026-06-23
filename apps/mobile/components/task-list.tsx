@@ -48,6 +48,11 @@ import { openContextsScreen, openProjectScreen } from '@/lib/task-meta-navigatio
 import { buildCopilotConfig, isAIKeyRequired, loadAIKey } from '../lib/ai-config';
 import { logError } from '../lib/app-log';
 import {
+  beginMobilePerformanceDiagnostic,
+  finishMobilePerformanceDiagnostic,
+  resolveMobilePerformanceRoute,
+} from '../lib/performance-diagnostics';
+import {
   TaskListBulkBar,
   getBulkMoveStatusOptions,
   type TaskListBulkBarProps,
@@ -842,6 +847,11 @@ function TaskListComponent({
     () => Array.from(new Set(listItems.flatMap((item) => (item.type === 'task' ? [item.task.id] : [])))),
     [listItems],
   );
+  const performanceRoute = useMemo(
+    () => resolveMobilePerformanceRoute({ projectId, statusFilter }),
+    [projectId, statusFilter],
+  );
+  const listItemCountForDiagnostics = orderedTaskIds.length;
   const itemHeightsRef = useRef<Record<string, number>>({});
   const [itemLayoutVersion, setItemLayoutVersion] = useState(0);
   const getListItemKey = useCallback((item: ListItem) => (
@@ -1377,10 +1387,20 @@ function TaskListComponent({
   }, []);
 
   const onSaveTask = useCallback((taskId: string, updates: Partial<Task>) => {
-    updateTask(taskId, updates);
+    const diagnostic = beginMobilePerformanceDiagnostic({
+      operation: 'task_save_to_list',
+      route: performanceRoute,
+      listItemCount: listItemCountForDiagnostics,
+    });
+    const result = updateTask(taskId, updates);
     setIsModalVisible(false);
     setEditingTask(null);
-  }, [updateTask]);
+    void Promise.resolve(result).finally(() => {
+      void finishMobilePerformanceDiagnostic(diagnostic, {
+        visibleItemCount: listItemCountForDiagnostics,
+      });
+    });
+  }, [listItemCountForDiagnostics, performanceRoute, updateTask]);
 
   const sortOptions: TaskSortBy[] = ['default', 'due', 'start', 'review', 'title', 'created', 'created-desc'];
   // Single-status lists (inbox/next/waiting/someday/done/reference) repeat the same status on every
@@ -1388,6 +1408,19 @@ function TaskListComponent({
   // The 'all' list keeps the labeled badge because its rows have mixed statuses.
   const statusBadgeAsIconForList = statusFilter !== 'all';
   const hideChecklistProgressForList = statusFilter === 'inbox';
+  const handleTaskStatusChange = useCallback((taskId: string, status: TaskStatus) => {
+    const diagnostic = beginMobilePerformanceDiagnostic({
+      operation: status === 'done' ? 'task_done_to_list' : 'task_mutation',
+      route: performanceRoute,
+      listItemCount: listItemCountForDiagnostics,
+    });
+    const result = updateTask(taskId, { status });
+    void Promise.resolve(result).finally(() => {
+      void finishMobilePerformanceDiagnostic(diagnostic, {
+        visibleItemCount: listItemCountForDiagnostics,
+      });
+    });
+  }, [listItemCountForDiagnostics, performanceRoute, updateTask]);
 
   const renderTask = useCallback(({ item }: { item: Task }) => {
     const sequenceCue = getTaskSequenceCue?.(item);
@@ -1403,7 +1436,7 @@ function TaskListComponent({
           selectionMode={enableBulkActions ? selectionMode : false}
           isMultiSelected={enableBulkActions && multiSelectedIds.has(item.id)}
           onToggleSelect={enableBulkActions ? () => toggleMultiSelect(item.id, { visibleTaskIds: orderedTaskIds }) : undefined}
-          onStatusChange={(status) => updateTask(item.id, { status: status as TaskStatus })}
+          onStatusChange={(status) => handleTaskStatusChange(item.id, status as TaskStatus)}
           onDelete={() => { void deleteTask(item.id); }}
           isHighlighted={item.id === highlightTaskId}
           statusBadgeAsIcon={statusBadgeAsIconForList}
@@ -1422,6 +1455,7 @@ function TaskListComponent({
     enableBulkActions,
     getTaskSequenceCue,
     handleEditTask,
+    handleTaskStatusChange,
     highlightTaskId,
     isDark,
     multiSelectedIds,
@@ -1431,7 +1465,6 @@ function TaskListComponent({
     statusBadgeAsIconForList,
     themeColorsMemo,
     toggleMultiSelect,
-    updateTask,
     projectId,
     sequenceCueLabels,
   ]);
