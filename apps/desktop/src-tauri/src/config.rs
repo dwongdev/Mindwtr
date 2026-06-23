@@ -192,6 +192,8 @@ pub(crate) fn read_config_toml(path: &Path) -> AppConfigToml {
             config.local_api_port = parse_toml_string_value(value);
         } else if key == "local_api_token" {
             config.local_api_token = parse_toml_string_value(value);
+        } else if key == "disable_hardware_acceleration" {
+            config.disable_hardware_acceleration = parse_toml_string_value(value);
         }
     }
     config
@@ -336,6 +338,12 @@ fn write_config_toml_with_header(
             serialize_toml_string_value(local_api_token)
         ));
     }
+    if let Some(disable_hardware_acceleration) = &config.disable_hardware_acceleration {
+        lines.push(format!(
+            "disable_hardware_acceleration = {}",
+            serialize_toml_string_value(disable_hardware_acceleration)
+        ));
+    }
     let content = format!("{}\n", lines.join("\n"));
     fs::write(path, content).map_err(|e| e.to_string())
 }
@@ -400,6 +408,9 @@ fn merge_config(base: &mut AppConfigToml, overrides: AppConfigToml) {
     }
     if overrides.local_api_token.is_some() {
         base.local_api_token = overrides.local_api_token;
+    }
+    if overrides.disable_hardware_acceleration.is_some() {
+        base.disable_hardware_acceleration = overrides.disable_hardware_acceleration;
     }
 }
 
@@ -477,6 +488,7 @@ fn config_has_values(config: &AppConfigToml) -> bool {
         || config.local_api_enabled.is_some()
         || config.local_api_port.is_some()
         || config.local_api_token.is_some()
+        || config.disable_hardware_acceleration.is_some()
 }
 
 pub(crate) fn write_config_files(

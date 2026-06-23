@@ -90,9 +90,9 @@ use platform::{
 };
 use storage::{
     create_data_snapshot, delete_calendar_sync_entry, get_all_calendar_sync_entries,
-    get_calendar_sync_entry, get_config_path_cmd, get_data, get_data_path_cmd, get_db_path_cmd,
-    list_data_snapshots, query_tasks, read_data_json, restore_data_snapshot, save_data, save_task,
-    search_fts, upsert_calendar_sync_entry,
+    get_calendar_sync_entry, get_config_path_cmd, get_config_path_for_startup, get_data,
+    get_data_path_cmd, get_db_path_cmd, list_data_snapshots, query_tasks, read_data_json,
+    restore_data_snapshot, save_data, save_task, search_fts, upsert_calendar_sync_entry,
 };
 use sync::{
     cloud_get_json, cloud_put_json, connect_dropbox, disconnect_dropbox, get_dropbox_access_token,
@@ -105,7 +105,7 @@ use ui::{
     set_tray_visible, show_main, show_quick_add_window,
 };
 
-#[cfg(test)]
+#[cfg(any(target_os = "windows", target_os = "linux", test))]
 use config::read_config_toml;
 pub(crate) use config::{
     get_keyring_secret, parse_toml_string_value, read_config, set_keyring_secret,
@@ -171,8 +171,16 @@ const GLOBAL_QUICK_ADD_SHORTCUT_DISABLED: &str = "disabled";
 const WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS_ENV: &str = "WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS";
 #[cfg(any(target_os = "windows", test))]
 const WEBVIEW2_DISABLE_GPU_ARG: &str = "--disable-gpu";
-#[cfg(target_os = "windows")]
-const MINDWTR_WEBVIEW2_ENABLE_GPU_ENV: &str = "MINDWTR_WEBVIEW2_ENABLE_GPU";
+#[cfg(any(target_os = "linux", test))]
+const WEBKIT_DISABLE_DMABUF_RENDERER_ENV: &str = "WEBKIT_DISABLE_DMABUF_RENDERER";
+#[cfg(any(target_os = "linux", test))]
+const WEBKIT_DISABLE_DMABUF_RENDERER_VALUE: &str = "1";
+#[cfg(any(target_os = "linux", test))]
+const WEBKIT_DISABLE_COMPOSITING_MODE_ENV: &str = "WEBKIT_DISABLE_COMPOSITING_MODE";
+#[cfg(any(target_os = "linux", test))]
+const WEBKIT_DISABLE_COMPOSITING_MODE_VALUE: &str = "1";
+#[cfg(any(target_os = "linux", test))]
+const MINDWTR_WEBKIT_ENABLE_DMABUF_ENV: &str = "MINDWTR_WEBKIT_ENABLE_DMABUF";
 
 #[cfg(target_os = "linux")]
 fn flatpak_notification_id() -> String {
@@ -471,6 +479,7 @@ struct AppConfigToml {
     local_api_enabled: Option<String>,
     local_api_port: Option<String>,
     local_api_token: Option<String>,
+    disable_hardware_acceleration: Option<String>,
 }
 
 fn default_obsidian_scan_folders() -> Vec<String> {
@@ -737,9 +746,8 @@ fn with_webview2_disable_gpu_argument(existing: Option<&str>) -> String {
     }
 }
 
-#[cfg(target_os = "windows")]
-fn webview2_gpu_override_enabled() -> bool {
-    env::var(MINDWTR_WEBVIEW2_ENABLE_GPU_ENV)
+fn bool_setting_enabled(value: Option<&str>) -> bool {
+    value
         .map(|value| {
             matches!(
                 value.trim().to_ascii_lowercase().as_str(),
@@ -749,14 +757,139 @@ fn webview2_gpu_override_enabled() -> bool {
         .unwrap_or(false)
 }
 
+fn hardware_acceleration_disabled(config: &AppConfigToml) -> bool {
+    bool_setting_enabled(config.disable_hardware_acceleration.as_deref())
+}
+
+#[cfg(any(target_os = "windows", target_os = "linux"))]
+fn read_startup_disable_hardware_acceleration() -> bool {
+    let config = read_config_toml(&get_config_path_for_startup());
+    hardware_acceleration_disabled(&config)
+}
+
+#[cfg(any(target_os = "windows", test))]
+fn should_configure_windows_webview2_disable_gpu(disable_hardware_acceleration: bool) -> bool {
+    disable_hardware_acceleration
+}
+
 #[cfg(target_os = "windows")]
-fn configure_windows_webview2_browser_arguments() {
-    if webview2_gpu_override_enabled() {
+fn configure_windows_webview2_browser_arguments(disable_hardware_acceleration: bool) {
+    if !should_configure_windows_webview2_disable_gpu(disable_hardware_acceleration) {
         return;
     }
     let existing = env::var(WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS_ENV).ok();
     let arguments = with_webview2_disable_gpu_argument(existing.as_deref());
     env::set_var(WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS_ENV, arguments);
+}
+
+#[cfg(any(target_os = "linux", test))]
+fn is_nvidia_vendor_id(value: &str) -> bool {
+    value.trim().eq_ignore_ascii_case("0x10de")
+}
+
+#[cfg(target_os = "linux")]
+fn linux_nvidia_gpu_detected() -> bool {
+    linux_sysfs_has_nvidia_gpu(Path::new("/sys/class/drm"))
+}
+
+#[cfg(target_os = "linux")]
+fn linux_sysfs_has_nvidia_gpu(root: &Path) -> bool {
+    let Ok(entries) = fs::read_dir(root) else {
+        return false;
+    };
+    let mut any_nvidia = false;
+    let mut saw_primary_marker = false;
+    for entry in entries.flatten() {
+        let file_name = entry.file_name();
+        let file_name = file_name.to_string_lossy();
+        if !file_name.starts_with("card") || file_name.contains('-') {
+            continue;
+        }
+        let device_dir = entry.path().join("device");
+        let vendor = fs::read_to_string(device_dir.join("vendor")).unwrap_or_default();
+        let is_nvidia = is_nvidia_vendor_id(&vendor);
+        any_nvidia |= is_nvidia;
+        let boot_vga = fs::read_to_string(device_dir.join("boot_vga")).unwrap_or_default();
+        let is_primary = boot_vga.trim() == "1";
+        saw_primary_marker |= !boot_vga.trim().is_empty();
+        if is_primary && is_nvidia {
+            return true;
+        }
+    }
+    !saw_primary_marker && any_nvidia
+}
+
+#[cfg(any(target_os = "linux", test))]
+fn should_configure_linux_webkit_disable_dmabuf(
+    existing_disable_dmabuf: Option<&str>,
+    enable_dmabuf_override: Option<&str>,
+    disable_hardware_acceleration: bool,
+    detected_nvidia: bool,
+) -> bool {
+    existing_disable_dmabuf.is_none()
+        && (disable_hardware_acceleration
+            || (!bool_setting_enabled(enable_dmabuf_override) && detected_nvidia))
+}
+
+#[cfg(target_os = "linux")]
+fn configure_linux_webkit_renderer(disable_hardware_acceleration: bool) {
+    let existing_disable_dmabuf = env::var(WEBKIT_DISABLE_DMABUF_RENDERER_ENV).ok();
+    let enable_dmabuf_override = env::var(MINDWTR_WEBKIT_ENABLE_DMABUF_ENV).ok();
+    if should_configure_linux_webkit_disable_dmabuf(
+        existing_disable_dmabuf.as_deref(),
+        enable_dmabuf_override.as_deref(),
+        disable_hardware_acceleration,
+        linux_nvidia_gpu_detected(),
+    ) {
+        // WebKitGTK's DMABUF renderer can fail before a window appears on NVIDIA GBM setups.
+        env::set_var(
+            WEBKIT_DISABLE_DMABUF_RENDERER_ENV,
+            WEBKIT_DISABLE_DMABUF_RENDERER_VALUE,
+        );
+    }
+    if disable_hardware_acceleration && env::var(WEBKIT_DISABLE_COMPOSITING_MODE_ENV).is_err() {
+        env::set_var(
+            WEBKIT_DISABLE_COMPOSITING_MODE_ENV,
+            WEBKIT_DISABLE_COMPOSITING_MODE_VALUE,
+        );
+    }
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct DesktopRenderingConfig {
+    disable_hardware_acceleration: bool,
+}
+
+fn desktop_rendering_config_from(config: &AppConfigToml) -> DesktopRenderingConfig {
+    DesktopRenderingConfig {
+        disable_hardware_acceleration: hardware_acceleration_disabled(config),
+    }
+}
+
+#[tauri::command]
+fn get_desktop_rendering_config(app: tauri::AppHandle) -> DesktopRenderingConfig {
+    desktop_rendering_config_from(&read_config(&app))
+}
+
+#[tauri::command]
+fn set_desktop_rendering_config(
+    app: tauri::AppHandle,
+    disable_hardware_acceleration: bool,
+) -> Result<DesktopRenderingConfig, String> {
+    let mut config = read_config(&app);
+    config.disable_hardware_acceleration = Some(
+        if disable_hardware_acceleration {
+            "true"
+        } else {
+            "false"
+        }
+        .to_string(),
+    );
+    let config_path = get_config_path(&app);
+    let secrets_path = get_secrets_path(&app);
+    write_config_files(&config_path, &secrets_path, &config)?;
+    Ok(desktop_rendering_config_from(&config))
 }
 
 #[cfg(target_os = "linux")]
@@ -1007,8 +1140,12 @@ fn enable_desktop_spellcheck(_window: &tauri::WebviewWindow) {}
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    #[cfg(any(target_os = "windows", target_os = "linux"))]
+    let disable_hardware_acceleration = read_startup_disable_hardware_acceleration();
     #[cfg(target_os = "windows")]
-    configure_windows_webview2_browser_arguments();
+    configure_windows_webview2_browser_arguments(disable_hardware_acceleration);
+    #[cfg(target_os = "linux")]
+    configure_linux_webkit_renderer(disable_hardware_acceleration);
 
     let launch_args = env::args().collect::<Vec<_>>();
     let initial_launch_requests_quick_add = launch_requests_quick_add(launch_args.iter());
@@ -1391,6 +1528,8 @@ pub fn run() {
             send_flatpak_notification,
             get_local_api_server_status,
             set_local_api_server_config,
+            get_desktop_rendering_config,
+            set_desktop_rendering_config,
             quit_app
         ])
         .run(tauri::generate_context!())
@@ -1445,6 +1584,32 @@ mod tests {
     }
 
     #[test]
+    fn hardware_acceleration_setting_round_trips_in_public_config() {
+        let dir = unique_test_dir("hardware-acceleration");
+        fs::create_dir_all(&dir).expect("should create temp config dir");
+
+        let config_path = dir.join("config.toml");
+        let secrets_path = dir.join("secrets.toml");
+        let config = AppConfigToml {
+            disable_hardware_acceleration: Some("true".to_string()),
+            ..AppConfigToml::default()
+        };
+
+        write_config_files(&config_path, &secrets_path, &config)
+            .expect("should write config files");
+
+        let public_config = read_config_toml(&config_path);
+        assert_eq!(
+            public_config.disable_hardware_acceleration.as_deref(),
+            Some("true")
+        );
+        assert!(hardware_acceleration_disabled(&public_config));
+        assert!(!secrets_path.exists());
+
+        let _ = fs::remove_dir_all(dir);
+    }
+
+    #[test]
     fn flatpak_install_channel_reads_branch_from_instance_section() {
         let contents = r#"
 [Application]
@@ -1481,6 +1646,47 @@ arch=x86_64
             with_webview2_disable_gpu_argument(Some("--foo=bar --disable-gpu")),
             "--foo=bar --disable-gpu",
         );
+    }
+
+    #[test]
+    fn webview2_disable_gpu_requires_local_setting() {
+        assert!(!should_configure_windows_webview2_disable_gpu(false));
+        assert!(should_configure_windows_webview2_disable_gpu(true));
+    }
+
+    #[test]
+    fn linux_webkit_dmabuf_renderer_is_targeted_to_nvidia_or_local_setting() {
+        assert!(!should_configure_linux_webkit_disable_dmabuf(
+            None, None, false, false,
+        ));
+        assert!(should_configure_linux_webkit_disable_dmabuf(
+            None, None, false, true,
+        ));
+        assert!(!should_configure_linux_webkit_disable_dmabuf(
+            None,
+            Some("1"),
+            false,
+            true,
+        ));
+        assert!(should_configure_linux_webkit_disable_dmabuf(
+            None,
+            Some("1"),
+            true,
+            true,
+        ));
+        assert!(!should_configure_linux_webkit_disable_dmabuf(
+            Some("0"),
+            None,
+            true,
+            true,
+        ));
+    }
+
+    #[test]
+    fn nvidia_vendor_id_matches_sysfs_value() {
+        assert!(is_nvidia_vendor_id("0x10de\n"));
+        assert!(is_nvidia_vendor_id("0X10DE"));
+        assert!(!is_nvidia_vendor_id("0x8086"));
     }
 
     #[cfg(target_os = "linux")]

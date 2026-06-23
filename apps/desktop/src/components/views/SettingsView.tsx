@@ -81,6 +81,11 @@ import {
   type LocalApiServerStatus,
 } from "../../lib/local-api-server";
 import {
+  getDesktopRenderingConfig,
+  setDesktopRenderingConfig,
+  type DesktopRenderingConfig,
+} from "../../lib/desktop-rendering";
+import {
   dismissDesktopOnboardingHandoffHint,
   isDesktopOnboardingHandoffHintDismissed,
   type DesktopOnboardingHandoffPage,
@@ -287,6 +292,10 @@ export function SettingsView({ initialPage, onboardingHintPage, onResumeOnboardi
   const [networkProxyUrl, setNetworkProxyUrl] = useState(() =>
     normalizeProxyUrl(settings?.network?.proxyUrl),
   );
+  const [desktopRenderingConfig, setDesktopRenderingConfigState] = useState<DesktopRenderingConfig>({
+    disableHardwareAcceleration: false,
+  });
+  const [desktopRenderingBusy, setDesktopRenderingBusy] = useState(false);
   const notificationsEnabled = settings?.notificationsEnabled !== false;
   const startDateNotificationsEnabled =
     settings?.startDateNotificationsEnabled !== false;
@@ -331,6 +340,21 @@ export function SettingsView({ initialPage, onboardingHintPage, onResumeOnboardi
     setLocalApiPortInput(String(status.port || DEFAULT_LOCAL_API_PORT));
     setLocalApiPortError("");
   }, []);
+
+  useEffect(() => {
+    if (!isTauri) return;
+    let cancelled = false;
+    getDesktopRenderingConfig()
+      .then((config) => {
+        if (!cancelled) setDesktopRenderingConfigState(config);
+      })
+      .catch((error) => {
+        if (!cancelled) reportError("Failed to read desktop rendering setting", error);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [isTauri]);
 
   useEffect(() => {
     if (!isTauri) return;
@@ -415,6 +439,21 @@ export function SettingsView({ initialPage, onboardingHintPage, onResumeOnboardi
     );
     return result;
   }, [language, translate]);
+
+  const handleDesktopRenderingToggle = useCallback(async (disableHardwareAcceleration: boolean) => {
+    if (!isTauri || desktopRenderingBusy) return;
+    setDesktopRenderingBusy(true);
+    try {
+      const config = await setDesktopRenderingConfig({ disableHardwareAcceleration });
+      setDesktopRenderingConfigState(config);
+      showSaved();
+    } catch (error) {
+      reportError("Failed to update desktop rendering setting", error);
+      showToast(error instanceof Error ? error.message : String(error), "error");
+    } finally {
+      setDesktopRenderingBusy(false);
+    }
+  }, [desktopRenderingBusy, isTauri, showSaved, showToast]);
 
   const handleSaveNetworkProxy = useCallback(async () => {
     const trimmedProxyUrl = normalizeProxyUrl(networkProxyUrl);
@@ -1377,11 +1416,14 @@ export function SettingsView({ initialPage, onboardingHintPage, onResumeOnboardi
           localApiBusy={localApiBusy}
           localApiPortError={localApiPortError}
           networkProxyUrl={networkProxyUrl}
+          desktopRenderingConfig={desktopRenderingConfig}
+          desktopRenderingBusy={desktopRenderingBusy}
           onLocalApiToggle={handleLocalApiToggle}
           onLocalApiPortInputChange={setLocalApiPortInput}
           onLocalApiPortCommit={handleLocalApiPortCommit}
           onNetworkProxyUrlChange={setNetworkProxyUrl}
           onSaveNetworkProxy={handleSaveNetworkProxy}
+          onDesktopRenderingToggle={handleDesktopRenderingToggle}
         />
       );
     }

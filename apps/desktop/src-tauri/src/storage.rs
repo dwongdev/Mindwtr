@@ -41,17 +41,26 @@ pub(crate) fn is_portable_mode() -> bool {
     matches!(detect_storage_mode(), StorageMode::Portable { .. })
 }
 
+pub(crate) fn get_config_dir_for_startup() -> PathBuf {
+    if let StorageMode::Portable { profile_root } = detect_storage_mode() {
+        return profile_root.join(PORTABLE_CONFIG_DIR_NAME);
+    }
+    dirs::config_dir()
+        .unwrap_or_else(|| PathBuf::from("."))
+        .join(APP_NAME)
+}
+
+pub(crate) fn get_config_path_for_startup() -> PathBuf {
+    get_config_dir_for_startup().join(CONFIG_FILE_NAME)
+}
+
 pub(crate) fn get_config_dir(app: &tauri::AppHandle) -> PathBuf {
     if let StorageMode::Portable { profile_root } = detect_storage_mode() {
         return profile_root.join(PORTABLE_CONFIG_DIR_NAME);
     }
     app.path()
         .resolve(APP_NAME, BaseDirectory::Config)
-        .unwrap_or_else(|_| {
-            // Fallback: use a sensible default under the user's home directory.
-            let home = dirs::config_dir().unwrap_or_else(|| PathBuf::from("."));
-            home.join(APP_NAME)
-        })
+        .unwrap_or_else(|_| get_config_dir_for_startup())
 }
 
 pub(crate) fn get_data_dir(app: &tauri::AppHandle) -> PathBuf {
