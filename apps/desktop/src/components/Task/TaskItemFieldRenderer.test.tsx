@@ -545,6 +545,57 @@ describe('TaskItemFieldRenderer date clear buttons', () => {
         expect(dialog).not.toBeInTheDocument();
     });
 
+    it('closes the due-date mini calendar when the date input loses focus', async () => {
+        const handlers = createHandlers();
+
+        const { getByLabelText, getByRole, queryByRole } = render(
+            <TaskItemFieldRenderer
+                fieldId="dueDate"
+                data={createData({ editDueDate: '2026-04-12' })}
+                handlers={handlers}
+            />
+        );
+
+        const input = getByLabelText('Due date');
+        fireEvent.focus(input);
+        expect(getByRole('dialog', { name: 'Due Date calendar' })).toBeInTheDocument();
+
+        fireEvent.blur(input);
+
+        await waitFor(() => {
+            expect(queryByRole('dialog', { name: 'Due Date calendar' })).not.toBeInTheDocument();
+        });
+    });
+
+    it('keeps the mini calendar closed after selecting a date from another month', async () => {
+        const handlers = createHandlers();
+
+        const { getByLabelText, getByRole, queryByRole } = render(
+            <TaskItemFieldRenderer
+                fieldId="dueDate"
+                data={createData({ editDueDate: '2026-04-12' })}
+                handlers={handlers}
+            />
+        );
+
+        fireEvent.focus(getByLabelText('Due date'));
+        const dialog = getByRole('dialog', { name: 'Due Date calendar' });
+        const nextMonthButton = within(dialog).getByRole('button', { name: 'Next month' });
+        fireEvent.click(nextMonthButton);
+        nextMonthButton.focus();
+
+        const updatedDialog = getByRole('dialog', { name: 'Due Date calendar' });
+        fireEvent.pointerDown(
+            within(updatedDialog).getByRole('button', { name: /May 19, 2026/i })
+        );
+        await new Promise((resolve) => window.setTimeout(resolve, 0));
+
+        expect(handlers.setEditDueDate).toHaveBeenCalledWith('2026-05-19');
+        await waitFor(() => {
+            expect(queryByRole('dialog', { name: 'Due Date calendar' })).not.toBeInTheDocument();
+        });
+    });
+
     it('lets quick date shortcuts use the full date field width', () => {
         const handlers = createHandlers();
 

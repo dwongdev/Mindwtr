@@ -264,6 +264,7 @@ export function DateField({
 }: DateFieldProps) {
     const rootRef = useRef<HTMLDivElement | null>(null);
     const inputRef = useRef<HTMLInputElement | null>(null);
+    const calendarRef = useRef<HTMLDivElement | null>(null);
     const [isCalendarOpen, setIsCalendarOpen] = useState(false);
     const [calendarPosition, setCalendarPosition] = useState({ top: 0, left: 0 });
     const calendarSystem = isJalaliCalendarLocale(nativeDateInputLocale) ? 'jalali' : 'gregorian';
@@ -366,7 +367,6 @@ export function DateField({
         onCalendarSelect?.(nextDateValue);
         if (!closeAfterSelect) return;
         setIsCalendarOpen(false);
-        window.setTimeout(() => inputRef.current?.focus(), 0);
     };
 
     return (
@@ -389,8 +389,10 @@ export function DateField({
                         onChange={(event) => handleDateInputChange(event.target.value)}
                         onBlur={() => {
                             window.setTimeout(() => {
-                                if (rootRef.current?.contains(document.activeElement)) return;
+                                const activeElement = document.activeElement;
+                                if (activeElement instanceof Node && calendarRef.current?.contains(activeElement)) return;
                                 setDraftDateValue(formatDateInputDisplay(dateValue, dateInputOrder, calendarSystem));
+                                setIsCalendarOpen(false);
                             }, 0);
                         }}
                         onKeyDown={(event) => {
@@ -429,6 +431,7 @@ export function DateField({
             </div>
             {isCalendarOpen && (
                 <div
+                    ref={calendarRef}
                     role="dialog"
                     aria-label={`${label} calendar`}
                     className="fixed z-50 w-72 rounded-lg border border-border bg-popover p-3 text-popover-foreground shadow-lg"
