@@ -385,6 +385,58 @@ describe('TaskItemFieldRenderer date clear buttons', () => {
         expect(queryByRole('button', { name: 'Clear Due Date' })).toBeNull();
     });
 
+    it.each([
+        {
+            fieldId: 'startTime' as const,
+            editValue: { editStartTime: '2026-04-18T09:30' },
+            dateOnlyLabel: 'Date only: Start Date',
+            handlerKey: 'setEditStartTime' as const,
+            expected: '2026-04-18',
+        },
+        {
+            fieldId: 'dueDate' as const,
+            editValue: { editDueDate: '2026-04-19T11:45' },
+            dateOnlyLabel: 'Date only: Due Date',
+            handlerKey: 'setEditDueDate' as const,
+            expected: '2026-04-19',
+        },
+        {
+            fieldId: 'reviewAt' as const,
+            editValue: { editReviewAt: '2026-04-20T14:15' },
+            dateOnlyLabel: 'Date only: Review Date',
+            handlerKey: 'setEditReviewAt' as const,
+            expected: '2026-04-20',
+        },
+    ])('strips the time from $fieldId when the date-only button is clicked', ({ fieldId, editValue, dateOnlyLabel, handlerKey, expected }) => {
+        const handlers = createHandlers();
+
+        const { getByRole } = render(
+            <TaskItemFieldRenderer
+                fieldId={fieldId}
+                data={createData(editValue)}
+                handlers={handlers}
+            />
+        );
+
+        fireEvent.click(getByRole('button', { name: dateOnlyLabel }));
+
+        expect(handlers[handlerKey]).toHaveBeenCalledWith(expected);
+    });
+
+    it('hides the date-only button when the due date has no time component', () => {
+        const handlers = createHandlers();
+
+        const { queryByRole } = render(
+            <TaskItemFieldRenderer
+                fieldId="dueDate"
+                data={createData({ editDueDate: '2026-04-19' })}
+                handlers={handlers}
+            />
+        );
+
+        expect(queryByRole('button', { name: 'Date only: Due Date' })).toBeNull();
+    });
+
     it('collapses due-date repeat reminder options until the compact row is opened', () => {
         const handlers = createHandlers();
 

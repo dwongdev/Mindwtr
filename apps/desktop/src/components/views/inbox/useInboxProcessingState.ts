@@ -353,36 +353,58 @@ export function useInboxProcessingState({
         setReviewTimeDraft('');
     }, []);
 
+    const setScheduleDateOnly = useCallback(() => {
+        setScheduleTime('');
+        setScheduleTimeDraft('');
+    }, []);
+
+    const setDueDateOnly = useCallback(() => {
+        setDueTime('');
+        setDueTimeDraft('');
+    }, []);
+
+    const setReviewDateOnly = useCallback(() => {
+        setReviewTime('');
+        setReviewTimeDraft('');
+    }, []);
+
     const scheduleFields = useMemo<InboxProcessingScheduleFieldsControls>(() => ({
         start: {
             date: scheduleDate,
             timeDraft: scheduleTimeDraft,
+            hasTime: Boolean(scheduleTime),
             onDateChange: handleScheduleDateChange,
             onTimeDraftChange: setScheduleTimeDraft,
             onTimeCommit: handleScheduleTimeCommit,
             onClear: clearScheduleDate,
+            onDateOnly: setScheduleDateOnly,
         },
         due: {
             date: dueDate,
             timeDraft: dueTimeDraft,
+            hasTime: Boolean(dueTime),
             onDateChange: handleDueDateChange,
             onTimeDraftChange: setDueTimeDraft,
             onTimeCommit: handleDueTimeCommit,
             onClear: clearDueDate,
+            onDateOnly: setDueDateOnly,
         },
         review: {
             date: reviewDate,
             timeDraft: reviewTimeDraft,
+            hasTime: Boolean(reviewTime),
             onDateChange: handleReviewDateChange,
             onTimeDraftChange: setReviewTimeDraft,
             onTimeCommit: handleReviewTimeCommit,
             onClear: clearReviewDate,
+            onDateOnly: setReviewDateOnly,
         },
     }), [
         clearDueDate,
         clearReviewDate,
         clearScheduleDate,
         dueDate,
+        dueTime,
         dueTimeDraft,
         handleDueDateChange,
         handleDueTimeCommit,
@@ -391,9 +413,14 @@ export function useInboxProcessingState({
         handleScheduleDateChange,
         handleScheduleTimeCommit,
         reviewDate,
+        reviewTime,
         reviewTimeDraft,
         scheduleDate,
+        scheduleTime,
         scheduleTimeDraft,
+        setDueDateOnly,
+        setReviewDateOnly,
+        setScheduleDateOnly,
     ]);
 
     const timeEstimateOptions = useMemo<TimeEstimate[]>(() => {

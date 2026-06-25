@@ -245,6 +245,7 @@ type DateFieldProps = {
     onDateChange: (value: string) => void;
     onCalendarSelect?: (value: string) => void;
     onClear: () => void;
+    onDateOnly?: () => void;
     hasValue: boolean;
 };
 
@@ -261,6 +262,7 @@ export function DateField({
     onDateChange,
     onCalendarSelect,
     onClear,
+    onDateOnly,
     hasValue,
 }: DateFieldProps) {
     const rootRef = useRef<HTMLDivElement | null>(null);
@@ -273,6 +275,7 @@ export function DateField({
         startOfCalendarMonth(selectedDate ?? parseDateInputDate(dateValue) ?? new Date(), calendarSystem)
     );
     const clearText = tFallback(t, 'common.clear', 'Clear');
+    const dateOnlyText = tFallback(t, 'taskEdit.dateOnly', 'Date only');
     const dateInputOrder = calendarSystem === 'jalali'
         ? 'ymd'
         : getDateInputOrder(dateFormatSetting, nativeDateInputLocale);
@@ -413,6 +416,16 @@ export function DateField({
                     />
                 </div>
                 {timeInput}
+                {onDateOnly ? (
+                    <button
+                        type="button"
+                        onClick={onDateOnly}
+                        className="shrink-0 whitespace-nowrap rounded px-1.5 py-1 text-[11px] text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                        aria-label={`${dateOnlyText}: ${label}`}
+                    >
+                        {dateOnlyText}
+                    </button>
+                ) : null}
                 {hasValue ? (
                     <button
                         type="button"
@@ -1010,6 +1023,7 @@ export function TaskItemFieldRenderer({
         onDateChange,
         timeInput,
         onClear,
+        onDateOnly,
         hasValue,
         warning,
     }: {
@@ -1020,6 +1034,7 @@ export function TaskItemFieldRenderer({
         onDateChange: (value: string) => void;
         timeInput: ReactNode;
         onClear: () => void;
+        onDateOnly?: () => void;
         hasValue: boolean;
         warning?: string;
     }) => (
@@ -1036,6 +1051,7 @@ export function TaskItemFieldRenderer({
                 timeInput={timeInput}
                 onDateChange={onDateChange}
                 onClear={onClear}
+                onDateOnly={onDateOnly}
                 hasValue={hasValue}
             />
             {warning && (
@@ -1157,6 +1173,7 @@ export function TaskItemFieldRenderer({
                                 setEditRelativeStartOffset(undefined);
                                 setEditStartTime('');
                             },
+                            onDateOnly: hasTime ? () => handleTimeChange('') : undefined,
                             hasValue: Boolean(editStartTime),
                             warning: dateIssueLabel,
                         })}
@@ -1269,6 +1286,7 @@ export function TaskItemFieldRenderer({
                                 />
                             ),
                             onClear: () => updateDueDate(''),
+                            onDateOnly: hasTime ? () => handleTimeChange('') : undefined,
                             hasValue: Boolean(editDueDate),
                             warning: dateIssueLabel,
                         })}
@@ -1390,6 +1408,12 @@ export function TaskItemFieldRenderer({
                         />
                     ),
                     onClear: () => setEditReviewAt(''),
+                    onDateOnly: hasTime
+                        ? () => {
+                            setReviewTimeDraft('');
+                            handleTimeChange('');
+                        }
+                        : undefined,
                     hasValue: Boolean(editReviewAt),
                 });
             }
