@@ -568,6 +568,8 @@ export const en: Record<string, string> = {
         'projects.complete': 'Complete',
         'projects.archive': 'Archive',
         'projects.reactivate': 'Reactivate',
+        'projects.actionsLabel': 'Actions',
+        'projects.archiveHelp': 'Completing a project files it in Archived — reactivate it anytime.',
         'projects.completeConfirm': 'Mark this project completed and finish all its tasks?',
         'projects.archiveConfirm': 'Archive this project and move incomplete tasks to Done?',
         'projects.sequential': 'Sequential',

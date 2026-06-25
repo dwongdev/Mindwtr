@@ -911,11 +911,17 @@ export const projectsScreenStyles = StyleSheet.create({
         gap: 8,
         marginTop: 12,
     },
+    projectActionsHelper: {
+        fontSize: 12,
+        lineHeight: 16,
+    },
     projectManageButton: {
         flex: 1,
         minHeight: 38,
+        flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'center',
+        gap: 6,
         borderRadius: 8,
         borderWidth: 1,
         paddingHorizontal: 10,

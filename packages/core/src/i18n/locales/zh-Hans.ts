@@ -512,6 +512,8 @@ export const zhHans: Record<string, string> = {
         'projects.complete': '完成',
         'projects.archive': '归档',
         'projects.reactivate': '重新激活',
+        'projects.actionsLabel': '操作',
+        'projects.archiveHelp': '完成项目后会将其归档，可随时重新激活。',
         'projects.completeConfirm': '将此项目标记为完成并结束其所有任务？',
         'projects.archiveConfirm': '归档此项目并将未完成的任务标记为已完成？',
         'projects.sequential': '顺序',

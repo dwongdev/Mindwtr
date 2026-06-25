@@ -748,6 +748,49 @@ describe('ProjectDetailModal keyboard handling', () => {
     });
 });
 
+describe('ProjectDetailModal lifecycle actions', () => {
+    it('groups Duplicate and Archive in a section separate from the Type setting', () => {
+        let tree!: ReturnType<typeof create>;
+
+        act(() => {
+            tree = create(<ProjectDetailModal {...createProjectDetailModalProps()} />);
+        });
+
+        const actionsSection = tree.root.findByProps({ testID: 'project-actions-section' });
+        expect(actionsSection.findByProps({ testID: 'project-duplicate-button' })).toBeTruthy();
+        expect(actionsSection.findByProps({ testID: 'project-archive-button' })).toBeTruthy();
+        // The Type toggle must stay with the Status/Type card, not read as part of the actions.
+        expect(actionsSection.findAllByProps({ testID: 'project-type-toggle' })).toHaveLength(0);
+    });
+
+    it('surfaces that completing a project files it in Archived', () => {
+        let tree!: ReturnType<typeof create>;
+
+        act(() => {
+            tree = create(<ProjectDetailModal {...createProjectDetailModalProps()} />);
+        });
+
+        const helper = tree.root.findByProps({ testID: 'project-actions-helper' });
+        const helperText = String(helper.props.children).toLowerCase();
+        expect(helperText).toContain('complet');
+        expect(helperText).toContain('archived');
+    });
+
+    it('shows Reactivate instead of Archive in the actions section for archived projects', () => {
+        let tree!: ReturnType<typeof create>;
+
+        act(() => {
+            tree = create(<ProjectDetailModal {...createProjectDetailModalProps({
+                selectedProject: { ...project('archived'), supportNotes: 'Draft' },
+            })} />);
+        });
+
+        const actionsSection = tree.root.findByProps({ testID: 'project-actions-section' });
+        expect(actionsSection.findByProps({ testID: 'project-reactivate-button' })).toBeTruthy();
+        expect(actionsSection.findAllByProps({ testID: 'project-archive-button' })).toHaveLength(0);
+    });
+});
+
 describe('ProjectDetailModal archived projects', () => {
     it('shows archived task data without quick-add or reorder controls', () => {
         expect(getProjectDetailTaskListOptions(project('archived'))).toEqual({

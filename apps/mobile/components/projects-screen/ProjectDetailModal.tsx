@@ -637,6 +637,12 @@ export function ProjectDetailModal({
     const filterButtonLabel = tFallback(t, 'filters.label', 'Filters');
     const doneButtonLabel = tFallback(t, 'common.done', 'Done');
     const projectTypeLabel = tFallback(t, 'projects.projectTypeLabel', 'Type');
+    const projectActionsLabel = tFallback(t, 'projects.actionsLabel', 'Actions');
+    const projectActionsHelpText = tFallback(
+        t,
+        'projects.archiveHelp',
+        'Completing a project files it in Archived — reactivate it anytime.'
+    );
     const projectStatusLabel = selectedProject
         ? (selectedProject.status === 'active'
             ? t('status.active')
@@ -1075,12 +1081,25 @@ export function ProjectDetailModal({
                                                     </TouchableOpacity>
                                                 </View>
                                             </View>
+                                        </View>
 
+                                        <View style={[styles.reviewContainer, { backgroundColor: tc.cardBg, borderColor: tc.border }]} testID="project-actions-section">
+                                            <Text style={[styles.reviewLabel, { color: tc.text }]}>{projectActionsLabel}</Text>
+                                            <Text
+                                                style={[styles.projectActionsHelper, { color: tc.secondaryText }]}
+                                                testID="project-actions-helper"
+                                            >
+                                                {projectActionsHelpText}
+                                            </Text>
                                             <View style={styles.projectManageActions}>
                                                 <TouchableOpacity
                                                     onPress={() => onDuplicateProject(selectedProject.id)}
                                                     style={[styles.projectManageButton, { backgroundColor: tc.filterBg, borderColor: tc.border }]}
+                                                    accessibilityRole="button"
+                                                    accessibilityLabel={t('projects.duplicate')}
+                                                    testID="project-duplicate-button"
                                                 >
+                                                    <Ionicons name="copy-outline" size={16} color={tc.tint} />
                                                     <Text style={[styles.statusButtonText, { color: tc.tint }]}>
                                                         {t('projects.duplicate')}
                                                     </Text>
@@ -1089,7 +1108,11 @@ export function ProjectDetailModal({
                                                     <TouchableOpacity
                                                         onPress={() => handleSetProjectStatus('active')}
                                                         style={[styles.projectManageButton, styles.reactivateButton, { borderColor: tc.border }]}
+                                                        accessibilityRole="button"
+                                                        accessibilityLabel={t('projects.reactivate')}
+                                                        testID="project-reactivate-button"
                                                     >
+                                                        <Ionicons name="refresh-outline" size={16} color="#3B82F6" />
                                                         <Text style={[styles.statusButtonText, styles.reactivateText]}>
                                                             {t('projects.reactivate')}
                                                         </Text>
@@ -1098,7 +1121,11 @@ export function ProjectDetailModal({
                                                     <TouchableOpacity
                                                         onPress={handleArchiveSelectedProject}
                                                         style={[styles.projectManageButton, styles.archiveButton, { borderColor: tc.border }]}
+                                                        accessibilityRole="button"
+                                                        accessibilityLabel={t('projects.archive')}
+                                                        testID="project-archive-button"
                                                     >
+                                                        <Ionicons name="archive-outline" size={16} color="#6B7280" />
                                                         <Text style={[styles.statusButtonText, styles.archiveText]}>
                                                             {t('projects.archive')}
                                                         </Text>
