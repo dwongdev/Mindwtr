@@ -77,7 +77,7 @@ jobs:
           ARCHS: ${{ inputs.archs }}
           EXPO_NO_TELEMETRY: "1"
           DONATION_PROMPT_ENABLED: "true"
-          FEEDBACK_ENDPOINT_URL: ${{ vars.FEEDBACK_ENDPOINT_URL || vars.VITE_FEEDBACK_ENDPOINT_URL || 'https://mindwtr-feedback.mindwtr.workers.dev' }}
+          FEEDBACK_ENDPOINT_URL: ${{ vars.FEEDBACK_ENDPOINT_URL || vars.VITE_FEEDBACK_ENDPOINT_URL || 'https://feedback.mindwtr.app' }}
 
       - name: Prepare debug artifacts
         run: |

@@ -32,7 +32,7 @@ fi
 
 if [[ "${FOSS_BUILD}" == "1" ]]; then
   export DONATION_PROMPT_ENABLED="${DONATION_PROMPT_ENABLED:-true}"
-  export FEEDBACK_ENDPOINT_URL="${FEEDBACK_ENDPOINT_URL:-https://mindwtr-feedback.mindwtr.workers.dev}"
+  export FEEDBACK_ENDPOINT_URL="${FEEDBACK_ENDPOINT_URL:-https://feedback.mindwtr.app}"
   node scripts/fdroid_patch_expo_application.js
 fi
 
