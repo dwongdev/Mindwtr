@@ -8,6 +8,10 @@ const routerPushMock = vi.hoisted(() => vi.fn());
 const setHighlightTaskMock = vi.hoisted(() => vi.fn());
 const taskEditModalPropsSpy = vi.hoisted(() => vi.fn());
 const updateTaskMock = vi.hoisted(() => vi.fn());
+const routeParams = vi.hoisted(() => ({ q: 'Launch' as string | undefined }));
+const storageAdapterState = vi.hoisted(() => ({
+    searchAll: undefined as undefined | ((query: string) => Promise<any>),
+}));
 const storeState = vi.hoisted(() => ({
     _allTasks: [] as Task[],
     projects: [],
@@ -24,14 +28,14 @@ vi.mock('@mindwtr/core', async (importOriginal) => {
     const actual = await importOriginal<typeof import('@mindwtr/core')>();
     return {
         ...actual,
-        getStorageAdapter: () => ({}),
+        getStorageAdapter: () => (storageAdapterState.searchAll ? { searchAll: storageAdapterState.searchAll } : {}),
         shallow: Object.is,
         useTaskStore: (selector: (state: typeof storeState) => unknown) => selector(storeState),
     };
 });
 
 vi.mock('expo-router', () => ({
-    useLocalSearchParams: () => ({ q: 'Launch' }),
+    useLocalSearchParams: () => routeParams,
     useRouter: () => ({ push: routerPushMock }),
 }));
 
@@ -113,6 +117,8 @@ import SearchScreen from './global-search';
 describe('SearchScreen task results', () => {
     beforeEach(() => {
         vi.clearAllMocks();
+        routeParams.q = 'Launch';
+        storageAdapterState.searchAll = undefined;
         const tasks = [
             makeTask('task-1', 'Launch checklist'),
             makeTask('task-2', 'Home errands'),
@@ -151,5 +157,42 @@ describe('SearchScreen task results', () => {
             visible: true,
             task: expect.objectContaining({ id: 'task-1' }),
         }));
+    });
+
+    it('keeps literal CJK substring matches when SQLite search returns partial token matches', async () => {
+        vi.useFakeTimers();
+        try {
+            routeParams.q = '搬家';
+            const tasks = [
+                makeTask('task-1', '準備搬家了'),
+                makeTask('task-2', '列出需要處理的搬家物品'),
+                makeTask('task-3', '搬家到新住處'),
+            ];
+            storeState._allTasks = tasks;
+            storageAdapterState.searchAll = vi.fn(async () => ({
+                tasks: [tasks[2]],
+                projects: [],
+            }));
+
+            let tree!: ReturnType<typeof create>;
+            await act(async () => {
+                tree = create(<SearchScreen />);
+            });
+
+            await act(async () => {
+                vi.advanceTimersByTime(250);
+                await Promise.resolve();
+            });
+
+            const resultList = tree.root.findByType(FlatList);
+            expect(resultList.props.data.map((result: any) => result.item.id)).toEqual([
+                'task-3',
+                'task-1',
+                'task-2',
+            ]);
+            expect(storageAdapterState.searchAll).toHaveBeenCalledWith('搬家');
+        } finally {
+            vi.useRealTimers();
+        }
     });
 });

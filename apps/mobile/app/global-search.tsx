@@ -141,9 +141,23 @@ export default function SearchScreen() {
   const fallbackResults = trimmedQuery === ''
     ? { tasks: [] as SearchTaskResult[], projects: [] as SearchProjectResult[] }
     : searchAll(_allTasks, projects, trimmedQuery);
-  const effectiveResults = ftsResults && (ftsResults.tasks.length + ftsResults.projects.length) > 0
-    ? ftsResults
-    : fallbackResults;
+  const effectiveResults = useMemo(() => {
+    if (!ftsResults || (ftsResults.tasks.length + ftsResults.projects.length) === 0) {
+      return fallbackResults;
+    }
+    const seenTaskIds = new Set(ftsResults.tasks.map((task) => task.id));
+    const seenProjectIds = new Set(ftsResults.projects.map((project) => project.id));
+    const fallbackOnlyTasks = fallbackResults.tasks.filter((task) => !seenTaskIds.has(task.id));
+    const fallbackOnlyProjects = fallbackResults.projects.filter((project) => !seenProjectIds.has(project.id));
+    const limited = ftsResults.limited === true || fallbackResults.limited === true;
+    const limit = ftsResults.limit ?? fallbackResults.limit;
+    return {
+      tasks: [...ftsResults.tasks, ...fallbackOnlyTasks],
+      projects: [...ftsResults.projects, ...fallbackOnlyProjects],
+      limited: limited || undefined,
+      limit: limited ? limit : undefined,
+    };
+  }, [fallbackResults, ftsResults]);
   const { tasks: taskResults, projects: projectResults } = effectiveResults;
     const sourceLimited = effectiveResults.limited === true;
     const sourceLimit = effectiveResults.limit ?? 200;
