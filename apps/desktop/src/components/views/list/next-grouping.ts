@@ -113,16 +113,18 @@ export function groupTasksByContext({
     const noContextTasks: Task[] = [];
 
     tasks.forEach((task) => {
-        const primaryContext = (task.contexts ?? [])
+        const contexts = (task.contexts ?? [])
             .map((value) => value.trim())
-            .find((value) => value.length > 0);
-        if (!primaryContext) {
+            .filter((value) => value.length > 0);
+        if (contexts.length === 0) {
             noContextTasks.push(task);
             return;
         }
-        const contextTasks = grouped.get(primaryContext) ?? [];
-        contextTasks.push(task);
-        grouped.set(primaryContext, contextTasks);
+        Array.from(new Set(contexts)).forEach((context) => {
+            const contextTasks = grouped.get(context) ?? [];
+            contextTasks.push(task);
+            grouped.set(context, contextTasks);
+        });
     });
 
     const groups: TaskGroup[] = [];
