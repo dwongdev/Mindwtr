@@ -115,6 +115,7 @@ enum CloudKitRecordMapper {
         FieldSpec(jsKey: "assignedTo", ckKey: "assignedTo", kind: .string),
         FieldSpec(jsKey: "taskMode", ckKey: "taskMode", kind: .string),
         FieldSpec(jsKey: "startTime", ckKey: "startTime", kind: .date),
+        FieldSpec(jsKey: "relativeStartOffset", ckKey: "relativeStartOffset", kind: .jsonString),
         FieldSpec(jsKey: "dueDate", ckKey: "dueDate", kind: .date),
         FieldSpec(jsKey: "recurrence", ckKey: "recurrence", kind: .jsonString),
         FieldSpec(jsKey: "showFutureRecurrence", ckKey: "showFutureRecurrence", kind: .bool),

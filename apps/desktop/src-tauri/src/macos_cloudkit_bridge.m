@@ -122,6 +122,7 @@ static const MWFieldSpec kTaskFields[] = {
     {"assignedTo",     "assignedTo",      MWFieldKindString},
     {"taskMode",       "taskMode",        MWFieldKindString},
     {"startTime",      "startTime",       MWFieldKindDate},
+    {"relativeStartOffset", "relativeStartOffset", MWFieldKindJsonString},
     {"dueDate",        "dueDate",         MWFieldKindDate},
     {"recurrence",     "recurrence",      MWFieldKindJsonString},
     {"showFutureRecurrence", "showFutureRecurrence", MWFieldKindBool},
