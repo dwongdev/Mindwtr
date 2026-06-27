@@ -58,7 +58,7 @@ Publish RC builds only to channels that can support testers without creating hig
 | macOS App Store build | TestFlight | Mac App Store remains the stable channel. |
 | Android Play build | Google Play internal testing by default; closed/open/custom track when configured | Production receives a later stable upload, and the internal test track is refreshed by the stable workflow. |
 | Linux Flatpak | Flathub beta branch | Future automation: publish stable to both stable and beta branches so beta users are not stranded. |
-| Arch Linux | `mindwtr-beta` or equivalent AUR package | Future automation: update the beta package to the final stable version when no newer RC exists. |
+| Arch Linux | `mindwtr-bin-beta` AUR package | Future automation: update the beta package to the final stable version when no newer RC exists. |
 | Windows direct download | GitHub prerelease installer/portable | Microsoft Store remains stable-only unless package flights are later automated. |
 
 Keep these stable-only unless there is a clear need and automation is already in place:

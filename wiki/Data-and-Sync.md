@@ -443,6 +443,18 @@ See [[Backup and Restore]] for the detailed flow.
 
 Use these guides when bringing task data from another app into Mindwtr. Imports add data to Mindwtr; they do not configure sync.
 
+### TickTick CSV / ZIP Import
+
+Mindwtr can import TickTick backups from **Settings → Data → Import from TickTick**.
+
+- Supports TickTick **CSV** backups and **ZIP** backups containing the CSV export
+- Creates Mindwtr areas from TickTick folders
+- Creates Mindwtr projects from TickTick lists
+- Preserves supported task status, dates, priorities, tags, notes, and recurrence
+- Converts supported checklist/subtask data into Mindwtr checklist items
+
+See [[TickTick Import]] for details and supported mappings.
+
 ### Todoist CSV / ZIP Import
 
 Mindwtr can import Todoist exports from **Settings → Data → Import from Todoist**.
