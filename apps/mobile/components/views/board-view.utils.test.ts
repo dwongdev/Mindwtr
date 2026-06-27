@@ -34,8 +34,13 @@ describe('toggleCriteriaDuePreset', () => {
 });
 
 describe('countActiveBoardFilters', () => {
-    it('counts contexts, tags, and the due-date range', () => {
-        expect(countActiveBoardFilters({ contexts: ['@a', '@b'], tags: ['#x'], dueDateRange: { preset: 'today' } })).toBe(4);
+    it('counts contexts, tags, project filters, and the due-date range', () => {
+        expect(countActiveBoardFilters({
+            contexts: ['@a', '@b'],
+            tags: ['#x'],
+            projects: ['p1', 'p2'],
+            dueDateRange: { preset: 'today' },
+        })).toBe(6);
     });
 
     it('is zero for empty criteria', () => {

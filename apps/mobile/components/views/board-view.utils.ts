@@ -45,10 +45,11 @@ export const toggleCriteriaDuePreset = (criteria: FilterCriteria, preset: BoardD
     return next;
 };
 
-/** Number of active board filter chips (contexts + tags + due-date range). */
+/** Number of active board filter chips (contexts + tags + projects + due-date range). */
 export const countActiveBoardFilters = (criteria: FilterCriteria): number => (
     (criteria.contexts?.length ?? 0)
     + (criteria.tags?.length ?? 0)
+    + (criteria.projects?.length ?? 0)
     + (criteria.dueDateRange ? 1 : 0)
 );
 

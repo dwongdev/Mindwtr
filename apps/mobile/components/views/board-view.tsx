@@ -1,5 +1,5 @@
-import { View, Text, ScrollView, StyleSheet, Platform, Pressable } from 'react-native';
-import { isTaskInActiveProject, shallow, sortTasksByBoardOrder, useTaskStore, taskMatchesFilterCriteria, taskMatchesAreaFilter, hasActiveFilterCriteria, getUsedTaskTokens, tFallback } from '@mindwtr/core';
+import { View, Text, ScrollView, StyleSheet, Platform, Pressable, TextInput } from 'react-native';
+import { isTaskInActiveProject, shallow, sortTasksByBoardOrder, useTaskStore, taskMatchesFilterCriteria, taskMatchesAreaFilter, hasActiveFilterCriteria, getUsedTaskTokens, tFallback, projectMatchesAreaFilter, SAVED_FILTER_NO_PROJECT_ID } from '@mindwtr/core';
 import type { Task, TaskStatus, FilterCriteria } from '@mindwtr/core';
 import { useMemo, useState, useCallback, useRef, useEffect } from 'react';
 import { useTheme } from '../../contexts/theme-context';
@@ -361,6 +361,7 @@ export function BoardView() {
   const [dragSourceColumnIndex, setDragSourceColumnIndex] = useState<number | null>(null);
   const [draggingTaskId, setDraggingTaskId] = useState<string | null>(null);
   const [filtersOpen, setFiltersOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
   const [criteria, setCriteria] = useState<FilterCriteria>({});
   const insets = useSafeAreaInsets();
   const boardScrollRef = useRef<ScrollView | null>(null);
@@ -387,6 +388,13 @@ export function BoardView() {
 
   const areaById = useMemo(() => new Map(areas.map((area) => [area.id, area])), [areas]);
   const { resolvedAreaFilter } = useMobileAreaFilter();
+  const projectMap = useMemo(() => new Map(projects.map((project) => [project.id, project])), [projects]);
+  const sortedProjects = useMemo(() => (
+    projects
+      .filter((project) => !project.deletedAt)
+      .filter((project) => projectMatchesAreaFilter(project, resolvedAreaFilter, areaById))
+      .sort((a, b) => a.title.localeCompare(b.title))
+  ), [projects, resolvedAreaFilter, areaById]);
   const projectById = useMemo(() => {
     return projects.reduce((acc, project) => {
       const projectColor = project.areaId ? areaById.get(project.areaId)?.color : undefined;
@@ -397,14 +405,13 @@ export function BoardView() {
 
   // Tasks visible after the global area filter, before the board-level filter bar.
   const areaActiveTasks = useMemo(() => {
-    const projectMap = new Map(projects.map((project) => [project.id, project]));
     return tasks.filter((task) => (
       !task.deletedAt
       && task.status !== 'reference'
       && isTaskInActiveProject(task, projectMap)
       && taskMatchesAreaFilter(task, resolvedAreaFilter, projectMap, areaById)
     ));
-  }, [tasks, projects, resolvedAreaFilter, areaById]);
+  }, [tasks, projectMap, resolvedAreaFilter, areaById]);
 
   const allTokens = useMemo(
     () => getUsedTaskTokens(areaActiveTasks, (task) => [...(task.contexts || []), ...(task.tags || [])]),
@@ -413,25 +420,39 @@ export function BoardView() {
 
   const filtersActive = hasActiveFilterCriteria(criteria);
   const activeFilterCount = countActiveBoardFilters(criteria);
+  const selectedProjectIds = criteria.projects ?? [];
 
-  // Apply the board filter bar (contexts / tags / dates) and group by status.
+  // Apply the board filter bar (search / contexts / tags / dates / projects) and group by status.
   const tasksByStatus = useMemo(() => {
     const now = new Date();
-    const visibleTasks = filtersActive
+    const criteriaFilteredTasks = filtersActive
       ? areaActiveTasks.filter((task) => taskMatchesFilterCriteria(task, criteria, { projects, now }))
       : areaActiveTasks;
+    const normalizedSearch = searchQuery.trim().toLowerCase();
+    const visibleTasks = normalizedSearch
+      ? criteriaFilteredTasks.filter((task) => task.title.toLowerCase().includes(normalizedSearch))
+      : criteriaFilteredTasks;
     const grouped: Record<string, Task[]> = {};
     COLUMNS.forEach(col => {
       grouped[col.id] = sortTasksByBoardOrder(visibleTasks.filter(t => t.status === col.id));
     });
     return grouped;
-  }, [areaActiveTasks, criteria, filtersActive, projects]);
+  }, [areaActiveTasks, criteria, filtersActive, projects, searchQuery]);
 
   const handleToggleToken = useCallback((token: string) => {
     setCriteria((prev) => toggleCriteriaToken(prev, token));
   }, []);
   const handleToggleDuePreset = useCallback((preset: BoardDuePreset) => {
     setCriteria((prev) => toggleCriteriaDuePreset(prev, preset));
+  }, []);
+  const handleToggleProject = useCallback((projectId: string) => {
+    setCriteria((prev) => {
+      const current = prev.projects ?? [];
+      const next = current.includes(projectId)
+        ? current.filter((item) => item !== projectId)
+        : [...current, projectId];
+      return { ...prev, projects: next.length > 0 ? next : undefined };
+    });
   }, []);
   const clearFilters = useCallback(() => setCriteria({}), []);
 
@@ -699,6 +720,16 @@ export function BoardView() {
             </Pressable>
           )}
         </View>
+        <TextInput
+          value={searchQuery}
+          onChangeText={setSearchQuery}
+          placeholder={t('common.search')}
+          placeholderTextColor={tc.secondaryText}
+          accessibilityLabel={t('common.search')}
+          returnKeyType="search"
+          clearButtonMode="while-editing"
+          style={[styles.searchInput, { backgroundColor: tc.inputBg, borderColor: tc.border, color: tc.text }]}
+        />
         {filtersOpen && (
           <View style={styles.filterPanel}>
             {allTokens.length > 0 && (
@@ -753,6 +784,59 @@ export function BoardView() {
                     >
                       <Text style={[styles.filterChipText, { color: selected ? tc.onTint : tc.text }]}>
                         {t(`filters.datePreset.${preset}`)}
+                      </Text>
+                    </Pressable>
+                  );
+                })}
+              </View>
+            </View>
+            <View style={styles.filterSection}>
+              <Text style={[styles.filterSectionTitle, { color: tc.secondaryText }]}>{t('filters.projects')}</Text>
+              <View style={styles.filterChipRow}>
+                {(() => {
+                  const selected = selectedProjectIds.includes(SAVED_FILTER_NO_PROJECT_ID);
+                  return (
+                    <Pressable
+                      key={`project:${SAVED_FILTER_NO_PROJECT_ID}`}
+                      onPress={() => handleToggleProject(SAVED_FILTER_NO_PROJECT_ID)}
+                      accessibilityRole="button"
+                      accessibilityState={{ selected }}
+                      style={[
+                        styles.filterChip,
+                        {
+                          backgroundColor: selected ? tc.tint : tc.filterBg,
+                          borderColor: selected ? tc.tint : tc.border,
+                        },
+                      ]}
+                    >
+                      <Text style={[styles.filterChipText, { color: selected ? tc.onTint : tc.text }]}>{t('taskEdit.noProjectOption')}</Text>
+                    </Pressable>
+                  );
+                })()}
+                {sortedProjects.map((project) => {
+                  const selected = selectedProjectIds.includes(project.id);
+                  const projectColor = project.areaId ? areaById.get(project.areaId)?.color : undefined;
+                  return (
+                    <Pressable
+                      key={`project:${project.id}`}
+                      onPress={() => handleToggleProject(project.id)}
+                      accessibilityRole="button"
+                      accessibilityState={{ selected }}
+                      style={[
+                        styles.filterChip,
+                        styles.projectFilterChip,
+                        {
+                          backgroundColor: selected ? tc.tint : tc.filterBg,
+                          borderColor: selected ? tc.tint : tc.border,
+                        },
+                      ]}
+                    >
+                      <View style={[styles.projectFilterDot, { backgroundColor: projectColor || '#6B7280' }]} />
+                      <Text
+                        style={[styles.filterChipText, styles.projectFilterText, { color: selected ? tc.onTint : tc.text }]}
+                        numberOfLines={1}
+                      >
+                        {project.title}
                       </Text>
                     </Pressable>
                   );
@@ -866,6 +950,14 @@ const styles = StyleSheet.create({
   filterPanel: {
     gap: 12,
   },
+  searchInput: {
+    minHeight: 40,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 8,
+    borderWidth: 1,
+    fontSize: 14,
+  },
   filterSection: {
     gap: 6,
   },
@@ -889,6 +981,20 @@ const styles = StyleSheet.create({
   filterChipText: {
     fontSize: 13,
     fontWeight: '500',
+  },
+  projectFilterChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    maxWidth: 180,
+  },
+  projectFilterDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+  },
+  projectFilterText: {
+    flexShrink: 1,
   },
   boardScroll: {
     flex: 1,
