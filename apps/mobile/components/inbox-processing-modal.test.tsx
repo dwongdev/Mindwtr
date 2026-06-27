@@ -222,7 +222,12 @@ vi.mock('@mindwtr/core', () => {
 });
 
 vi.mock('../contexts/language-context', () => ({
-  useLanguage: () => ({ t: (key: string) => key, language: 'en' }),
+  useLanguage: () => ({
+    t: (key: string) => ({
+      'taskEdit.dateOnly': 'Date only',
+    }[key] ?? key),
+    language: 'en',
+  }),
 }));
 
 vi.mock('../contexts/theme-context', () => ({

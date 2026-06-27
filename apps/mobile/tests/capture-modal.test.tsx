@@ -77,6 +77,7 @@ vi.mock('@/contexts/language-context', () => ({
         'common.done': 'Done',
         'common.save': 'Save',
         'common.notice': 'Notice',
+        'quickAdd.saveAndEdit': 'Save & edit',
         'quickAdd.invalidDateCommand': 'Invalid date command',
         'copilot.suggested': 'Suggested',
         'copilot.applyHint': 'Tap to apply',

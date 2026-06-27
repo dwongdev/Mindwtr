@@ -13,6 +13,7 @@ const t = (key: string) => {
         'taskEdit.startDateLabel': 'Start Date',
         'taskEdit.dueDateLabel': 'Due Date',
         'taskEdit.reviewDateLabel': 'Review Date',
+        'taskEdit.dateOnly': 'Date only',
         'task.aria.startTime': 'Start time',
         'task.aria.dueTime': 'Due time',
         'task.aria.reviewTime': 'Review time',
