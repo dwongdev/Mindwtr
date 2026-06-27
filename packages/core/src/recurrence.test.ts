@@ -261,6 +261,36 @@ describe('recurrence', () => {
         expect(next?.status).toBe('next');
     });
 
+    it('carries recurrence task metadata into the next instance', () => {
+        const task: Task = {
+            id: 't2-field-carry',
+            title: 'Renew prescription',
+            status: 'done',
+            tags: [],
+            contexts: [],
+            taskMode: 'list',
+            checklist: [{ id: 'c1', title: 'Call pharmacy', isCompleted: true }],
+            startTime: '2025-01-09T09:00:00.000Z',
+            relativeStartOffset: { amount: -1, unit: 'day' },
+            dueDate: '2025-01-10T09:00:00.000Z',
+            repeatReminderMinutes: 30,
+            recurrence: { rule: 'weekly', strategy: 'strict' },
+            createdAt: '2025-01-01T00:00:00.000Z',
+            updatedAt: '2025-01-01T00:00:00.000Z',
+        };
+
+        const next = createNextRecurringTask(task, '2025-01-10T12:00:00.000Z', 'done');
+
+        expect(next?.taskMode).toBe('list');
+        expect(next?.relativeStartOffset).toEqual({ amount: -1, unit: 'day' });
+        expect(next?.repeatReminderMinutes).toBe(30);
+        expect(next?.startTime).toBe('2025-01-16T09:00:00.000Z');
+        expect(next?.dueDate).toBe('2025-01-17T09:00:00.000Z');
+        expect(next?.checklist).toHaveLength(1);
+        expect(next?.checklist?.[0]).toMatchObject({ title: 'Call pharmacy', isCompleted: false });
+        expect(next?.checklist?.[0]?.id).not.toBe('c1');
+    });
+
     it('respects daily interval for strict recurrence', () => {
         const task: Task = {
             id: 't2b',
