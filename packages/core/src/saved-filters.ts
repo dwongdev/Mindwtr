@@ -303,18 +303,37 @@ const matchesTimeEstimateRange = (
     return true;
 };
 
-export function taskMatchesFilterCriteria(
-    task: Task,
+type PreparedFilterContext = {
+    normalized: FilterCriteria;
+    projectById?: Map<string, Project>;
+    now: Date;
+    tokenMatchMode: 'any' | 'all';
+    contextMatchMode: 'any' | 'all';
+    weekStartsOn: 0 | 1 | 2 | 3 | 4 | 5 | 6;
+};
+
+const prepareFilterContext = (
     criteria: FilterCriteria | undefined,
     options: ApplyFilterOptions = {}
-): boolean {
-    if (task.deletedAt) return false;
+): PreparedFilterContext => {
     const normalized = normalizeFilterCriteria(criteria);
-    const projectById = options.projects ? new Map(options.projects.map((project) => [project.id, project])) : undefined;
-    const now = options.now ?? new Date();
     const tokenMatchMode = options.tokenMatchMode ?? 'any';
-    const contextMatchMode = normalized.contextMatchMode ?? tokenMatchMode;
-    const weekStartsOn = options.weekStartsOn ?? 1;
+    return {
+        normalized,
+        projectById: options.projects ? new Map(options.projects.map((project) => [project.id, project])) : undefined,
+        now: options.now ?? new Date(),
+        tokenMatchMode,
+        contextMatchMode: normalized.contextMatchMode ?? tokenMatchMode,
+        weekStartsOn: options.weekStartsOn ?? 1,
+    };
+};
+
+const taskMatchesPreparedFilterCriteria = (
+    task: Task,
+    context: PreparedFilterContext
+): boolean => {
+    if (task.deletedAt) return false;
+    const { normalized, projectById, now, tokenMatchMode, contextMatchMode, weekStartsOn } = context;
 
     if (normalized.statuses?.length && !normalized.statuses.includes(task.status)) return false;
     if (!matchesTokens(normalized.contexts, task.contexts, contextMatchMode)) return false;
@@ -351,6 +370,14 @@ export function taskMatchesFilterCriteria(
     if (normalized.isStarred !== undefined && Boolean(task.isFocusedToday) !== normalized.isStarred) return false;
 
     return true;
+};
+
+export function taskMatchesFilterCriteria(
+    task: Task,
+    criteria: FilterCriteria | undefined,
+    options: ApplyFilterOptions = {}
+): boolean {
+    return taskMatchesPreparedFilterCriteria(task, prepareFilterContext(criteria, options));
 }
 
 export function applyFilter<T extends Task>(
@@ -358,7 +385,8 @@ export function applyFilter<T extends Task>(
     criteria: FilterCriteria | undefined,
     options: ApplyFilterOptions = {}
 ): T[] {
-    return tasks.filter((task) => taskMatchesFilterCriteria(task, criteria, options));
+    const context = prepareFilterContext(criteria, options);
+    return tasks.filter((task) => taskMatchesPreparedFilterCriteria(task, context));
 }
 
 export function normalizeSavedFilter(value: unknown): SavedFilter | null {
