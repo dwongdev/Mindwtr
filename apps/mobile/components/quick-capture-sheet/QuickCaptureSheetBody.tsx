@@ -359,7 +359,7 @@ export function QuickCaptureSheetBody({
                     onPress={onOpenProjectPicker}
                     onLongPress={onResetProject}
                     accessibilityRole="button"
-                    accessibilityLabel={`${t('taskEdit.project')}: ${projectLabel}`}
+                    accessibilityLabel={`${t('taskEdit.projectLabel')}: ${projectLabel}`}
                   >
                     <Folder size={16} color={tc.text} />
                     <Text
@@ -432,7 +432,7 @@ export function QuickCaptureSheetBody({
                       onPress={onOpenDueDatePicker}
                       onLongPress={onResetDueDate}
                       accessibilityRole="button"
-                      accessibilityLabel={`${t('taskEdit.dueDate')}: ${dueLabel}`}
+                      accessibilityLabel={`${t('taskEdit.dueDateLabel')}: ${dueLabel}`}
                     >
                       <CalendarDays size={14} color={tc.secondaryText} />
                       <Text

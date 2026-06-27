@@ -689,4 +689,68 @@ describe('Quick capture modal composition', () => {
     expect(handleSave).toHaveBeenCalledOnce();
     expect(blur).not.toHaveBeenCalled();
   });
+
+  it('uses translated field labels for project and due date accessibility', () => {
+    const t = (key: string) => ({
+      'taskEdit.projectLabel': 'Project',
+      'taskEdit.dueDateLabel': 'Due date',
+    }[key] ?? key);
+    let tree!: ReturnType<typeof create>;
+
+    act(() => {
+      tree = create(
+        <QuickCaptureSheetBody
+          addAnother={false}
+          areaLabel="No Area"
+          contextLabel="Contexts"
+          dueDate={null}
+          dueLabel="Tomorrow"
+          dueTimeLabel="Change time"
+          handleClose={vi.fn()}
+          handleSave={vi.fn()}
+          insetsBottom={0}
+          inputRef={{ current: null }}
+          onOpenAreaPicker={vi.fn()}
+          onOpenContextPicker={vi.fn()}
+          onOpenDueDatePicker={vi.fn()}
+          onOpenDueTimePicker={vi.fn()}
+          onOpenPriorityPicker={vi.fn()}
+          onOpenProjectPicker={vi.fn()}
+          onQuickDueDateSelect={vi.fn()}
+          onResetArea={vi.fn()}
+          onResetContexts={vi.fn()}
+          onResetDueDate={vi.fn()}
+          onResetDueTime={vi.fn()}
+          onResetPriority={vi.fn()}
+          onResetProject={vi.fn()}
+          onToggleOptions={vi.fn()}
+          onToggleAddAnother={vi.fn()}
+          onToggleRecording={vi.fn()}
+          onValueChange={vi.fn()}
+          optionsExpanded
+          prioritiesEnabled
+          priorityLabel="Priority"
+          projectLabel="Inbox"
+          recording={false}
+          recordingBusy={false}
+          recordingReady={false}
+          sheetMaxHeight={500}
+          showDueTime={false}
+          t={t}
+          tc={tc}
+          value=""
+          visible
+        />
+      );
+    });
+
+    const labels = tree.root
+      .findAll((node) => typeof node.props.accessibilityLabel === 'string')
+      .map((node) => node.props.accessibilityLabel);
+
+    expect(labels).toContain('Project: Inbox');
+    expect(labels).toContain('Due date: Tomorrow');
+    expect(labels).not.toContain('taskEdit.project: Inbox');
+    expect(labels).not.toContain('taskEdit.dueDate: Tomorrow');
+  });
 });
