@@ -408,6 +408,14 @@ describe('TaskStore', () => {
                     createdAt: '2026-01-01T00:00:00.000Z',
                     updatedAt: '2026-01-01T00:00:00.000Z',
                 },
+                {
+                    id: 'a2',
+                    kind: 'link',
+                    title: 'Spec',
+                    uri: 'https://example.com/spec',
+                    createdAt: '2026-01-01T00:00:00.000Z',
+                    updatedAt: '2026-01-01T00:00:00.000Z',
+                },
             ],
         });
         expect(addResult.success).toBe(true);
@@ -448,7 +456,15 @@ describe('TaskStore', () => {
             {
                 id: expect.not.stringMatching(/^a1$/),
                 title: 'Agenda',
-                uri: '/tmp/agenda.pdf',
+                uri: '',
+                cloudKey: undefined,
+                fileHash: undefined,
+                localStatus: 'missing',
+            },
+            {
+                id: expect.not.stringMatching(/^a2$/),
+                title: 'Spec',
+                uri: 'https://example.com/spec',
                 cloudKey: undefined,
                 fileHash: undefined,
                 localStatus: undefined,
