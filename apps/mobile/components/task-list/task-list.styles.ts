@@ -638,9 +638,41 @@ export const styles = StyleSheet.create({
   projectDragTaskRowActive: {
     opacity: 0.92,
   },
-  projectDragTaskContent: {
+  projectReorderTaskCard: {
     flex: 1,
     minWidth: 0,
+    minHeight: 72,
+    marginBottom: 8,
+    borderWidth: 1,
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 9,
+    justifyContent: 'center',
+  },
+  projectReorderTaskTitle: {
+    fontSize: 15,
+    fontWeight: '700',
+    lineHeight: 19,
+  },
+  projectReorderTaskMeta: {
+    marginTop: 3,
+    fontSize: 12,
+    fontWeight: '600',
+    lineHeight: 15,
+  },
+  projectDragPlaceholder: {
+    minHeight: 72,
+    marginHorizontal: 12,
+    marginBottom: 8,
+    borderWidth: 1,
+    borderStyle: 'dashed',
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    justifyContent: 'center',
+  },
+  projectDragPlaceholderTitle: {
+    fontSize: 13,
+    fontWeight: '700',
   },
   projectDragHandle: {
     width: 44,

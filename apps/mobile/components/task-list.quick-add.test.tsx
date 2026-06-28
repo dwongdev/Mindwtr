@@ -119,7 +119,7 @@ vi.mock('lucide-react-native', () => ({
 }));
 
 vi.mock('react-native-draggable-flatlist', () => ({
-  NestableDraggableFlatList: () => null,
+  NestableDraggableFlatList: (props: any) => React.createElement('NestableDraggableFlatList', props),
   ScaleDecorator: ({ children }: any) => children,
 }));
 
@@ -135,9 +135,12 @@ vi.mock('@mindwtr/core', () => {
     getQuickAddProjectInitialProps: vi.fn(() => ({})),
     getTranslationsSync: vi.fn(() => ({ 'trash.restoreToInbox': 'Restore' })),
     getUsedTaskTokens: vi.fn(() => []),
+    hasActiveFilterCriteria: vi.fn(() => false),
     isSelectableProjectForTaskAssignment: (item: Project) => item.status === 'active' && !item.deletedAt,
     isTaskInActiveProject: vi.fn(() => true),
+    matchesTask: vi.fn(() => true),
     parseQuickAdd: parseQuickAddMock,
+    parseSearchQuery: vi.fn(() => ({ filters: [], text: '' })),
     resolveDefaultNewTaskAreaId: (settings: any, areas: any[]) => {
       const areaId = settings?.gtd?.defaultAreaId;
       return typeof areaId === 'string' && areas.some((area) => area.id === areaId && !area.deletedAt)
@@ -147,6 +150,8 @@ vi.mock('@mindwtr/core', () => {
     shallow: Object.is,
     sortTasksBy: (tasks: Task[]) => tasks,
     splitCompletedTasks: (tasks: Task[]) => ({ activeTasks: tasks, completedTasks: [] }),
+    taskMatchesAreaFilter: vi.fn(() => true),
+    taskMatchesFilterCriteria: vi.fn(() => true),
     tFallback: (t: (key: string) => string, key: string, fallback: string) => {
       const value = t(key);
       return value && value !== key ? value : fallback;
@@ -171,7 +176,7 @@ vi.mock('./list-empty-state', () => ({
 }));
 
 vi.mock('./swipeable-task-item', () => ({
-  SwipeableTaskItem: () => null,
+  SwipeableTaskItem: (props: any) => React.createElement('SwipeableTaskItem', props),
 }));
 
 vi.mock('../contexts/theme-context', () => ({
@@ -557,6 +562,55 @@ describe('TaskList project quick add', () => {
     expect(latestQuickAddProps().newTaskTitle).toBe('+Launch today');
 
     act(() => {
+      tree.unmount();
+    });
+  });
+
+  it('uses compact draggable rows with a placeholder for long project reorder lists', async () => {
+    const longTaskList = Array.from({ length: 130 }, (_, index) => makeTask(
+      `task-${index}`,
+      `Task ${index}`,
+      { order: index },
+    ));
+    let tree!: ReturnType<typeof create>;
+
+    await act(async () => {
+      tree = create(
+        <TaskList
+          allowAdd={false}
+          enableProjectReorder
+          projectId={project.id}
+          projectReorderMode
+          showHeader={false}
+          statusFilter="all"
+          taskSource={longTaskList}
+          title={project.title}
+        />,
+      );
+    });
+
+    const draggableList = tree.root.findByType('NestableDraggableFlatList' as unknown as React.ElementType);
+    expect(draggableList.props.data).toHaveLength(longTaskList.length);
+    expect(draggableList.props.renderPlaceholder).toEqual(expect.any(Function));
+
+    let row!: ReturnType<typeof create>;
+    await act(async () => {
+      row = create(
+        draggableList.props.renderItem({
+          drag: vi.fn(),
+          getIndex: () => 80,
+          isActive: false,
+          item: longTaskList[80],
+        }),
+      );
+    });
+
+    expect(row.root.findAllByType('SwipeableTaskItem' as unknown as React.ElementType)).toHaveLength(0);
+    expect(row.root.findByProps({ testID: 'project-task-reorder-row-task-80' })).toBeTruthy();
+    expect(row.root.findByProps({ testID: 'project-task-drag-handle-task-80' })).toBeTruthy();
+
+    act(() => {
+      row.unmount();
       tree.unmount();
     });
   });
