@@ -13,6 +13,13 @@ const PARAKEET_MODEL_ARCHIVE_SHA256: &str =
 const PARAKEET_INSTALL_DIR_NAME: &str = "parakeet-model";
 const WHISPER_MODEL_BASE_URL: &str = "https://huggingface.co/ggerganov/whisper.cpp/resolve/main";
 const WHISPER_INSTALL_DIR_NAME: &str = "whisper-models";
+const WHISPER_MODEL_IDS: [&str; 5] = [
+    "whisper-tiny",
+    "whisper-tiny.en",
+    "whisper-base",
+    "whisper-base.en",
+    "whisper-large-v3-turbo",
+];
 const SHERPA_RELEASE_VERSION: &str = "v1.13.2";
 const SHERPA_INSTALL_DIR_NAME: &str = "sherpa-onnx";
 #[cfg(windows)]
@@ -83,6 +90,67 @@ fn parakeet_model_archive_sha256(model: &str) -> Option<&'static str> {
 fn whisper_model_path(data_dir: &Path, model: &str) -> Option<PathBuf> {
     whisper_model_file_name(model)
         .map(|file_name| data_dir.join(WHISPER_INSTALL_DIR_NAME).join(file_name))
+}
+
+fn canonicalize_existing_file(path: &Path, label: &str) -> Result<PathBuf, String> {
+    if !path.is_file() {
+        return Err(format!("{label} not found"));
+    }
+    fs::canonicalize(path).map_err(|error| format!("Invalid {label}: {error}"))
+}
+
+fn canonicalize_existing_dir(path: &Path, label: &str) -> Result<PathBuf, String> {
+    if !path.is_dir() {
+        return Err(format!("{label} not found"));
+    }
+    fs::canonicalize(path).map_err(|error| format!("Invalid {label}: {error}"))
+}
+
+fn validate_managed_audio_path(data_dir: &Path, audio_path: &Path) -> Result<PathBuf, String> {
+    if audio_path
+        .extension()
+        .and_then(|extension| extension.to_str())
+        .is_none_or(|extension| !extension.eq_ignore_ascii_case("wav"))
+    {
+        return Err("Audio file must be a WAV capture".into());
+    }
+    let capture_dir =
+        canonicalize_existing_dir(&data_dir.join("audio-captures"), "audio capture directory")?;
+    let audio_file = canonicalize_existing_file(audio_path, "audio file")?;
+    if !audio_file.starts_with(&capture_dir) {
+        return Err("Audio file must be a managed Mindwtr capture".into());
+    }
+    Ok(audio_file)
+}
+
+fn validate_managed_whisper_model_path(
+    data_dir: &Path,
+    model_path: &Path,
+) -> Result<PathBuf, String> {
+    let model_file = canonicalize_existing_file(model_path, "Whisper model")?;
+    for model in WHISPER_MODEL_IDS {
+        if let Some(expected_path) = whisper_model_path(data_dir, model) {
+            if let Ok(expected_file) = fs::canonicalize(expected_path) {
+                if model_file == expected_file {
+                    return Ok(model_file);
+                }
+            }
+        }
+    }
+    Err("Whisper model must be installed by Mindwtr".into())
+}
+
+fn validate_managed_parakeet_model_dir(
+    data_dir: &Path,
+    model_path: &Path,
+) -> Result<PathBuf, String> {
+    let model_dir = canonicalize_existing_dir(model_path, "Parakeet model directory")?;
+    let expected_dir = fs::canonicalize(parakeet_model_dir(data_dir))
+        .map_err(|error| format!("Invalid Parakeet model directory: {error}"))?;
+    if model_dir != expected_dir {
+        return Err("Parakeet model must be installed by Mindwtr".into());
+    }
+    Ok(model_dir)
 }
 
 fn parakeet_model_ready(model_dir: &Path) -> bool {
@@ -690,26 +758,27 @@ fn write_audio_capture_wav(
 
 #[tauri::command]
 pub(crate) async fn transcribe_whisper(
+    app: tauri::AppHandle,
     model_path: String,
     audio_path: String,
     language: Option<String>,
 ) -> Result<String, String> {
     tauri::async_runtime::spawn_blocking(move || {
-        transcribe_whisper_blocking(model_path, audio_path, language)
+        let data_dir = get_data_dir(&app);
+        transcribe_whisper_blocking(&data_dir, model_path, audio_path, language)
     })
     .await
     .map_err(|error| format!("Whisper transcription task failed: {error}"))?
 }
 
 fn transcribe_whisper_blocking(
+    data_dir: &Path,
     model_path: String,
     audio_path: String,
     language: Option<String>,
 ) -> Result<String, String> {
-    let model_exists = Path::new(&model_path).exists();
-    if !model_exists {
-        return Err("Whisper model not found".into());
-    }
+    let model_path = validate_managed_whisper_model_path(data_dir, Path::new(&model_path))?;
+    let audio_path = validate_managed_audio_path(data_dir, Path::new(&audio_path))?;
 
     let mut reader = hound::WavReader::open(&audio_path).map_err(|e| e.to_string())?;
     let spec = reader.spec();
@@ -756,8 +825,11 @@ fn transcribe_whisper_blocking(
         params.set_language(Some(lang));
     }
 
-    let ctx = WhisperContext::new_with_params(&model_path, WhisperContextParameters::default())
-        .map_err(|e| e.to_string())?;
+    let ctx = WhisperContext::new_with_params(
+        model_path.to_string_lossy().as_ref(),
+        WhisperContextParameters::default(),
+    )
+    .map_err(|e| e.to_string())?;
     let mut state = ctx.create_state().map_err(|e| e.to_string())?;
     state.full(params, &audio[..]).map_err(|e| e.to_string())?;
 
@@ -892,30 +964,27 @@ fn download_whisper_model_blocking(app: tauri::AppHandle, model: String) -> Resu
 
 #[tauri::command]
 pub(crate) async fn transcribe_parakeet(
+    app: tauri::AppHandle,
     model_path: String,
     audio_path: String,
     language: Option<String>,
 ) -> Result<String, String> {
     tauri::async_runtime::spawn_blocking(move || {
-        transcribe_parakeet_blocking(model_path, audio_path, language)
+        let data_dir = get_data_dir(&app);
+        transcribe_parakeet_blocking(&data_dir, model_path, audio_path, language)
     })
     .await
     .map_err(|error| format!("Parakeet transcription task failed: {error}"))?
 }
 
 fn transcribe_parakeet_blocking(
+    data_dir: &Path,
     model_path: String,
     audio_path: String,
     language: Option<String>,
 ) -> Result<String, String> {
-    let model_dir = Path::new(&model_path);
-    if !model_dir.is_dir() {
-        return Err("Parakeet model directory not found".into());
-    }
-    let audio_file = Path::new(&audio_path);
-    if !audio_file.is_file() {
-        return Err("Audio file not found".into());
-    }
+    let model_dir = validate_managed_parakeet_model_dir(data_dir, Path::new(&model_path))?;
+    let audio_file = validate_managed_audio_path(data_dir, Path::new(&audio_path))?;
 
     let encoder = model_dir.join("encoder.int8.onnx");
     let decoder = model_dir.join("decoder.int8.onnx");
@@ -1151,6 +1220,62 @@ mod tests {
         let error = validate_archive_entry_limits(&mut unpacked_bytes, &mut entry_count, 1)
             .expect_err("entry beyond size limit should fail");
         assert!(error.contains("Archive unpacked size exceeds"));
+    }
+
+    #[test]
+    fn managed_audio_path_validation_rejects_outside_capture_dir() {
+        let temp_dir = tempfile::tempdir().expect("should create temp dir");
+        let data_dir = temp_dir.path().join("data");
+        let capture_dir = data_dir.join("audio-captures");
+        fs::create_dir_all(&capture_dir).expect("should create capture dir");
+        let managed = capture_dir.join("capture.wav");
+        let outside = temp_dir.path().join("outside.wav");
+        File::create(&managed).expect("should create managed capture");
+        File::create(&outside).expect("should create outside capture");
+
+        assert_eq!(
+            validate_managed_audio_path(&data_dir, &managed)
+                .expect("managed capture should validate"),
+            fs::canonicalize(&managed).expect("should canonicalize managed capture")
+        );
+        let error = validate_managed_audio_path(&data_dir, &outside)
+            .expect_err("outside capture should be rejected");
+        assert!(error.contains("managed Mindwtr capture"));
+    }
+
+    #[test]
+    fn managed_model_path_validation_rejects_outside_paths() {
+        let temp_dir = tempfile::tempdir().expect("should create temp dir");
+        let data_dir = temp_dir.path().join("data");
+        let whisper_dir = data_dir.join(WHISPER_INSTALL_DIR_NAME);
+        fs::create_dir_all(&whisper_dir).expect("should create whisper dir");
+        let managed_whisper = whisper_dir.join("ggml-tiny.bin");
+        let outside_whisper = temp_dir.path().join("ggml-tiny.bin");
+        File::create(&managed_whisper).expect("should create managed whisper model");
+        File::create(&outside_whisper).expect("should create outside whisper model");
+
+        assert_eq!(
+            validate_managed_whisper_model_path(&data_dir, &managed_whisper)
+                .expect("managed whisper model should validate"),
+            fs::canonicalize(&managed_whisper).expect("should canonicalize managed whisper model")
+        );
+        let whisper_error = validate_managed_whisper_model_path(&data_dir, &outside_whisper)
+            .expect_err("outside whisper model should be rejected");
+        assert!(whisper_error.contains("installed by Mindwtr"));
+
+        let parakeet_dir = data_dir.join(PARAKEET_INSTALL_DIR_NAME);
+        let outside_parakeet_dir = temp_dir.path().join(PARAKEET_INSTALL_DIR_NAME);
+        fs::create_dir_all(&parakeet_dir).expect("should create managed parakeet dir");
+        fs::create_dir_all(&outside_parakeet_dir).expect("should create outside parakeet dir");
+
+        assert_eq!(
+            validate_managed_parakeet_model_dir(&data_dir, &parakeet_dir)
+                .expect("managed parakeet model should validate"),
+            fs::canonicalize(&parakeet_dir).expect("should canonicalize managed parakeet dir")
+        );
+        let parakeet_error = validate_managed_parakeet_model_dir(&data_dir, &outside_parakeet_dir)
+            .expect_err("outside parakeet model should be rejected");
+        assert!(parakeet_error.contains("installed by Mindwtr"));
     }
 
     #[test]
