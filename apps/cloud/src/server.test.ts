@@ -432,6 +432,45 @@ describe('cloud server utils', () => {
         expect(invalidRecurrenceValue.error).toContain('recurrence');
     });
 
+    test('validates schedule task prop values in app data snapshots', () => {
+        const baseTask = makeTestTask({ id: 't1', title: 'Task' });
+
+        const valid = __cloudTestUtils.validateAppData({
+            tasks: [{
+                ...baseTask,
+                repeatReminderMinutes: 15,
+                relativeStartOffset: { amount: -3, unit: 'day' },
+                recurrence: { rule: 'weekly', byDay: ['MO'] },
+            }],
+            projects: [],
+        });
+        expect(valid.ok).toBe(true);
+
+        const invalidRepeat = __cloudTestUtils.validateAppData({
+            tasks: [{ ...baseTask, repeatReminderMinutes: 7 }],
+            projects: [],
+        });
+        expect(invalidRepeat.ok).toBe(false);
+        if (invalidRepeat.ok) throw new Error('Expected invalid repeatReminderMinutes');
+        expect(invalidRepeat.error).toContain('repeatReminderMinutes');
+
+        const invalidOffset = __cloudTestUtils.validateAppData({
+            tasks: [{ ...baseTask, relativeStartOffset: { amount: 3, unit: 'day' } }],
+            projects: [],
+        });
+        expect(invalidOffset.ok).toBe(false);
+        if (invalidOffset.ok) throw new Error('Expected invalid relativeStartOffset');
+        expect(invalidOffset.error).toContain('relativeStartOffset');
+
+        const invalidRecurrence = __cloudTestUtils.validateAppData({
+            tasks: [{ ...baseTask, recurrence: { rule: 'weekly', byDay: ['NOPE'] } }],
+            projects: [],
+        });
+        expect(invalidRecurrence.ok).toBe(false);
+        if (invalidRecurrence.ok) throw new Error('Expected invalid recurrence');
+        expect(invalidRecurrence.error).toContain('recurrence');
+    });
+
     test('validates settings.attachments.pendingRemoteDeletes structure', () => {
         const iso = '2024-01-01T00:00:00.000Z';
         const base = {

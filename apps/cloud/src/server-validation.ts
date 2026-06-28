@@ -151,6 +151,10 @@ export function validateAppData(
         if (task.deletedAt != null && !isValidIsoTimestamp(task.deletedAt)) {
             return { ok: false, error: 'Invalid data: task deletedAt must be a valid ISO timestamp when present' };
         }
+        const valueError = validateTaskPropValues(task);
+        if (valueError) {
+            return { ok: false, error: `Invalid data: task ${String(task.id)}: ${valueError}` };
+        }
     }
 
     for (const project of projects) {
