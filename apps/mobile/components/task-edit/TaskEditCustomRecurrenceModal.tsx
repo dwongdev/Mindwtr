@@ -126,13 +126,13 @@ export function TaskEditCustomRecurrenceModal({
                                                 style={[
                                                     styles.ordinalButton,
                                                     {
-                                                        borderColor: tc.border,
-                                                        backgroundColor: customOrdinal === value ? tc.filterBg : tc.cardBg,
+                                                        borderColor: customOrdinal === value ? tc.tint : tc.border,
+                                                        backgroundColor: customOrdinal === value ? tc.tint : tc.cardBg,
                                                     },
                                                 ]}
                                                 onPress={() => setCustomOrdinal(value)}
                                             >
-                                                <Text style={[styles.weekdayButtonText, { color: tc.text }]}>{label}</Text>
+                                                <Text style={[styles.weekdayButtonText, { color: customOrdinal === value ? tc.onTint : tc.text }]}>{label}</Text>
                                             </TouchableOpacity>
                                         );
                                     })}
@@ -146,13 +146,13 @@ export function TaskEditCustomRecurrenceModal({
                                                 style={[
                                                     styles.weekdayButton,
                                                     {
-                                                        borderColor: tc.border,
-                                                        backgroundColor: active ? tc.filterBg : tc.cardBg,
+                                                        borderColor: active ? tc.tint : tc.border,
+                                                        backgroundColor: active ? tc.tint : tc.cardBg,
                                                     },
                                                 ]}
                                                 onPress={() => setCustomWeekday(day.key)}
                                             >
-                                                <Text style={[styles.weekdayButtonText, { color: tc.text }]}>{day.label}</Text>
+                                                <Text style={[styles.weekdayButtonText, { color: active ? tc.onTint : tc.text }]}>{day.label}</Text>
                                             </TouchableOpacity>
                                         );
                                     })}

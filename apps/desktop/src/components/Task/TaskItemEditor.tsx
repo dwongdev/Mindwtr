@@ -499,99 +499,87 @@ export function TaskItemEditor({
                 </div>
             )}
             <div className="space-y-3">
-                <div className="border-t border-border pt-3">
-                    <button
-                        type="button"
-                        onClick={() => setSchedulingOpen((prev) => !prev)}
-                        className="w-full flex items-center justify-between text-xs uppercase tracking-wide text-muted-foreground font-semibold"
-                        aria-expanded={schedulingOpen}
-                    >
-                        <span className="flex items-center gap-2">
-                            {t('taskEdit.scheduling')}
-                            {sectionCounts.scheduling > 0 && (
-                                <span className="text-[10px] px-2 py-0.5 rounded-full bg-primary/10 text-primary">
-                                    {sectionCounts.scheduling}
-                                </span>
-                            )}
-                        </span>
-                        {schedulingOpen ? <ChevronDown className="w-3 h-3 text-muted-foreground shrink-0" /> : <ChevronRight className="w-3 h-3 text-muted-foreground shrink-0" />}
-                    </button>
-                    {schedulingOpen && (
-                        <div className="mt-3 space-y-3">
-                            {schedulingFields.length === 0 ? (
-                                <div className="rounded-md border border-dashed border-border px-3 py-2 text-xs text-muted-foreground">
-                                    {t('taskEdit.schedulingEmpty')}
-                                </div>
-                            ) : (
-                                schedulingFields.map((fieldId) => (
+                {schedulingFields.length > 0 && (
+                    <div className="border-t border-border pt-3">
+                        <button
+                            type="button"
+                            onClick={() => setSchedulingOpen((prev) => !prev)}
+                            className="w-full flex items-center justify-between text-xs uppercase tracking-wide text-muted-foreground font-semibold"
+                            aria-expanded={schedulingOpen}
+                        >
+                            <span className="flex items-center gap-2">
+                                {t('taskEdit.scheduling')}
+                                {sectionCounts.scheduling > 0 && (
+                                    <span className="text-[10px] px-2 py-0.5 rounded-full bg-primary/10 text-primary">
+                                        {sectionCounts.scheduling}
+                                    </span>
+                                )}
+                            </span>
+                            {schedulingOpen ? <ChevronDown className="w-3 h-3 text-muted-foreground shrink-0" /> : <ChevronRight className="w-3 h-3 text-muted-foreground shrink-0" />}
+                        </button>
+                        {schedulingOpen && (
+                            <div className="mt-3 space-y-3">
+                                {schedulingFields.map((fieldId) => (
                                     <div key={fieldId}>{renderField(fieldId)}</div>
-                                ))
-                            )}
-                        </div>
-                    )}
-                </div>
-                <div className="border-t border-border pt-3">
-                    <button
-                        type="button"
-                        onClick={() => setOrganizationOpen((prev) => !prev)}
-                        className="w-full flex items-center justify-between text-xs uppercase tracking-wide text-muted-foreground font-semibold"
-                        aria-expanded={organizationOpen}
-                    >
-                        <span className="flex items-center gap-2">
-                            {t('taskEdit.organization')}
-                            {sectionCounts.organization > 0 && (
-                                <span className="text-[10px] px-2 py-0.5 rounded-full bg-primary/10 text-primary">
-                                    {sectionCounts.organization}
-                                </span>
-                            )}
-                        </span>
-                        {organizationOpen ? <ChevronDown className="w-3 h-3 text-muted-foreground shrink-0" /> : <ChevronRight className="w-3 h-3 text-muted-foreground shrink-0" />}
-                    </button>
-                    {organizationOpen && (
-                        <div className="mt-3 space-y-3">
-                            {organizationFields.length === 0 ? (
-                                <div className="rounded-md border border-dashed border-border px-3 py-2 text-xs text-muted-foreground">
-                                    {t('taskEdit.organizationEmpty')}
-                                </div>
-                            ) : (
-                                organizationFields.map((fieldId) => (
+                                ))}
+                            </div>
+                        )}
+                    </div>
+                )}
+                {organizationFields.length > 0 && (
+                    <div className="border-t border-border pt-3">
+                        <button
+                            type="button"
+                            onClick={() => setOrganizationOpen((prev) => !prev)}
+                            className="w-full flex items-center justify-between text-xs uppercase tracking-wide text-muted-foreground font-semibold"
+                            aria-expanded={organizationOpen}
+                        >
+                            <span className="flex items-center gap-2">
+                                {t('taskEdit.organization')}
+                                {sectionCounts.organization > 0 && (
+                                    <span className="text-[10px] px-2 py-0.5 rounded-full bg-primary/10 text-primary">
+                                        {sectionCounts.organization}
+                                    </span>
+                                )}
+                            </span>
+                            {organizationOpen ? <ChevronDown className="w-3 h-3 text-muted-foreground shrink-0" /> : <ChevronRight className="w-3 h-3 text-muted-foreground shrink-0" />}
+                        </button>
+                        {organizationOpen && (
+                            <div className="mt-3 space-y-3">
+                                {organizationFields.map((fieldId) => (
                                     <div key={fieldId}>{renderField(fieldId)}</div>
-                                ))
-                            )}
-                        </div>
-                    )}
-                </div>
-                <div className="border-t border-border pt-3">
-                    <button
-                        type="button"
-                        onClick={() => setDetailsOpen((prev) => !prev)}
-                        className="w-full flex items-center justify-between text-xs uppercase tracking-wide text-muted-foreground font-semibold"
-                        aria-expanded={detailsOpen}
-                    >
-                        <span className="flex items-center gap-2">
-                            {t('taskEdit.details')}
-                            {sectionCounts.details > 0 && (
-                                <span className="text-[10px] px-2 py-0.5 rounded-full bg-primary/10 text-primary">
-                                    {sectionCounts.details}
-                                </span>
-                            )}
-                        </span>
-                        {detailsOpen ? <ChevronDown className="w-3 h-3 text-muted-foreground shrink-0" /> : <ChevronRight className="w-3 h-3 text-muted-foreground shrink-0" />}
-                    </button>
-                    {detailsOpen && (
-                        <div className="mt-3 space-y-3">
-                            {detailsFields.length === 0 ? (
-                                <div className="rounded-md border border-dashed border-border px-3 py-2 text-xs text-muted-foreground">
-                                    {t('taskEdit.detailsEmpty')}
-                                </div>
-                            ) : (
-                                detailsFields.map((fieldId) => (
+                                ))}
+                            </div>
+                        )}
+                    </div>
+                )}
+                {detailsFields.length > 0 && (
+                    <div className="border-t border-border pt-3">
+                        <button
+                            type="button"
+                            onClick={() => setDetailsOpen((prev) => !prev)}
+                            className="w-full flex items-center justify-between text-xs uppercase tracking-wide text-muted-foreground font-semibold"
+                            aria-expanded={detailsOpen}
+                        >
+                            <span className="flex items-center gap-2">
+                                {t('taskEdit.details')}
+                                {sectionCounts.details > 0 && (
+                                    <span className="text-[10px] px-2 py-0.5 rounded-full bg-primary/10 text-primary">
+                                        {sectionCounts.details}
+                                    </span>
+                                )}
+                            </span>
+                            {detailsOpen ? <ChevronDown className="w-3 h-3 text-muted-foreground shrink-0" /> : <ChevronRight className="w-3 h-3 text-muted-foreground shrink-0" />}
+                        </button>
+                        {detailsOpen && (
+                            <div className="mt-3 space-y-3">
+                                {detailsFields.map((fieldId) => (
                                     <div key={fieldId}>{renderField(fieldId)}</div>
-                                ))
-                            )}
-                        </div>
-                    )}
-                </div>
+                                ))}
+                            </div>
+                        )}
+                    </div>
+                )}
             </div>
             </div>
             <div className="flex flex-wrap items-center gap-2 pt-1">

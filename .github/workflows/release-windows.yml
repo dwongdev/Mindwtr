@@ -843,6 +843,45 @@ jobs:
             Write-Warning "metadata/metadata.json not found; submitting cloned metadata from last published version."
           }
 
+          function Set-SubmissionPropertyIfPresent {
+            param(
+              [Parameter(Mandatory = $false)]$Object,
+              [Parameter(Mandatory = $true)][string[]]$Names,
+              [Parameter(Mandatory = $false)]$Value
+            )
+            if (-not $Object) { return }
+            foreach ($name in $Names) {
+              if ($Object.PSObject.Properties.Name -contains $name) {
+                $Object.$name = $Value
+              }
+            }
+          }
+
+          function Apply-PublicSupportPropertiesIfPresent {
+            param([Parameter(Mandatory = $false)]$Object)
+            if (-not $Object) { return }
+            Set-SubmissionPropertyIfPresent -Object $Object -Names @('privacyPolicyUrl', 'PrivacyPolicyUrl', 'privacyPolicy', 'PrivacyPolicy') -Value 'https://mindwtr.app/privacy'
+            Set-SubmissionPropertyIfPresent -Object $Object -Names @('websiteUrl', 'WebsiteUrl', 'website', 'Website') -Value 'https://mindwtr.app/'
+            Set-SubmissionPropertyIfPresent -Object $Object -Names @('supportContactInfo', 'SupportContactInfo', 'supportContact', 'SupportContact') -Value 'support@mindwtr.app'
+            Set-SubmissionPropertyIfPresent -Object $Object -Names @('phoneNumber', 'PhoneNumber', 'phone', 'Phone') -Value ''
+            Set-SubmissionPropertyIfPresent -Object $Object -Names @('address', 'Address', 'addressLine1', 'AddressLine1', 'addressLine2', 'AddressLine2', 'postalCode', 'PostalCode', 'zipCode', 'ZipCode', 'city', 'City', 'state', 'State', 'stateOrProvince', 'StateOrProvince', 'province', 'Province', 'country', 'Country', 'countryOrRegion', 'CountryOrRegion') -Value ''
+          }
+
+          Apply-PublicSupportPropertiesIfPresent -Object $submission
+          if ($submission.PSObject.Properties.Name -contains 'properties') {
+            Apply-PublicSupportPropertiesIfPresent -Object $submission.properties
+          }
+          if ($submission.PSObject.Properties.Name -contains 'listings' -and $submission.listings) {
+            foreach ($listingProp in $submission.listings.PSObject.Properties) {
+              if ($listingProp.Value -and ($listingProp.Value.PSObject.Properties.Name -contains 'baseListing')) {
+                Apply-PublicSupportPropertiesIfPresent -Object $listingProp.Value.baseListing
+              }
+              if ($listingProp.Value -and ($listingProp.Value.PSObject.Properties.Name -contains 'BaseListing')) {
+                Apply-PublicSupportPropertiesIfPresent -Object $listingProp.Value.BaseListing
+              }
+            }
+          }
+
           foreach ($prop in @('id', 'status', 'statusDetails', 'fileUploadUrl', 'friendlyName', 'pendingApplicationId', 'sales')) {
             if ($submission.PSObject.Properties.Name -contains $prop) {
               $submission.PSObject.Properties.Remove($prop)

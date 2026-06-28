@@ -263,6 +263,7 @@ type DateFieldProps = {
     onClear: () => void;
     onDateOnly?: () => void;
     hasValue: boolean;
+    quickDateChipsMode?: 'always' | 'calendar';
 };
 
 export function DateField({
@@ -280,6 +281,7 @@ export function DateField({
     onClear,
     onDateOnly,
     hasValue,
+    quickDateChipsMode = 'always',
 }: DateFieldProps) {
     const rootRef = useRef<HTMLDivElement | null>(null);
     const inputRef = useRef<HTMLInputElement | null>(null);
@@ -310,6 +312,7 @@ export function DateField({
     const weekdayLabels = getWeekdayLabels(nativeDateInputLocale, weekStartIndex);
     const days = getCalendarGridDays(calendarMonth, weekStartIndex, calendarSystem);
     const todayValue = safeFormatDate(new Date(), 'yyyy-MM-dd');
+    const showQuickDateChips = quickDateChipsMode === 'always' || isCalendarOpen;
 
     const updateCalendarPosition = useCallback(() => {
         const anchor = inputRef.current?.parentElement ?? inputRef.current;
@@ -530,23 +533,25 @@ export function DateField({
                     </div>
                 </div>
             )}
-            <QuickDateChips
-                t={t}
-                selectedDate={selectedDate}
-                wrap
-                onSelect={(date) => {
-                    if (!date) {
-                        setDraftDateValue('');
-                        onClear();
-                        setIsCalendarOpen(false);
-                        return;
-                    }
-                    const nextDateValue = safeFormatDate(date, 'yyyy-MM-dd');
-                    setDraftDateValue(formatDateInputDisplay(nextDateValue, dateInputOrder, calendarSystem));
-                    onDateChange(nextDateValue);
-                }}
-                className="w-full"
-            />
+            {showQuickDateChips && (
+                <QuickDateChips
+                    t={t}
+                    selectedDate={selectedDate}
+                    wrap
+                    onSelect={(date) => {
+                        if (!date) {
+                            setDraftDateValue('');
+                            onClear();
+                            setIsCalendarOpen(false);
+                            return;
+                        }
+                        const nextDateValue = safeFormatDate(date, 'yyyy-MM-dd');
+                        setDraftDateValue(formatDateInputDisplay(nextDateValue, dateInputOrder, calendarSystem));
+                        onDateChange(nextDateValue);
+                    }}
+                    className="w-full"
+                />
+            )}
         </div>
     );
 }
@@ -1186,6 +1191,7 @@ export function TaskItemFieldRenderer({
         onDateOnly,
         hasValue,
         warning,
+        quickDateChipsMode,
     }: {
         label: string;
         dateAriaLabel: string;
@@ -1197,6 +1203,7 @@ export function TaskItemFieldRenderer({
         onDateOnly?: () => void;
         hasValue: boolean;
         warning?: string;
+        quickDateChipsMode?: DateFieldProps['quickDateChipsMode'];
     }) => (
         <div className="space-y-1">
             <DateField
@@ -1213,6 +1220,7 @@ export function TaskItemFieldRenderer({
                 onClear={onClear}
                 onDateOnly={onDateOnly}
                 hasValue={hasValue}
+                quickDateChipsMode={quickDateChipsMode}
             />
             {warning && (
                 <p className="text-xs text-amber-500 dark:text-amber-300" role="note">
@@ -1475,6 +1483,7 @@ export function TaskItemFieldRenderer({
                             onDateOnly: hasTime ? () => handleTimeChange('') : undefined,
                             hasValue: Boolean(editDueDate),
                             warning: dateIssueLabel,
+                            quickDateChipsMode: 'calendar',
                         })}
                         {hasTime && !task.suppressMindwtrReminders && (() => {
                             const label = tFallback(t, 'taskEdit.repeatReminderLabel', 'Repeat reminder');

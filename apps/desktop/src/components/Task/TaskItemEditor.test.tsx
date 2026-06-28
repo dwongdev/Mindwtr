@@ -121,6 +121,22 @@ describe('TaskItemEditor', () => {
         expect(queryByText('Location')).not.toBeInTheDocument();
     });
 
+    it('does not render optional sections that have no fields', () => {
+        const { getByRole, queryByRole } = render(
+            <TaskItemEditor
+                {...baseProps}
+                schedulingFields={[]}
+                organizationFields={['contexts']}
+                detailsFields={[]}
+                sectionCounts={{ scheduling: 0, organization: 0, details: 0 }}
+            />
+        );
+
+        expect(queryByRole('button', { name: /Scheduling/i })).not.toBeInTheDocument();
+        expect(getByRole('button', { name: /Organization/i })).toBeInTheDocument();
+        expect(queryByRole('button', { name: /Details/i })).not.toBeInTheDocument();
+    });
+
     it('shows a visible loading label while AI is working', () => {
         const { getByRole, getByText } = render(
             <TaskItemEditor

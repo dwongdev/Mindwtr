@@ -19,13 +19,81 @@ export type WhisperModelNativeDownloadResult = {
 };
 
 export type WhisperModelNativeFs = {
-    downloadFile?: (options: {
+    downloadFile: (options: {
         fromUrl: string;
         toFile: string;
+        headers?: Record<string, string>;
         cacheable?: boolean;
         readTimeout?: number;
         backgroundTimeout?: number;
     }) => { promise: Promise<WhisperModelNativeDownloadResult> };
+};
+
+export type WhisperModelNativeHashFs = {
+    hash: (path: string, algorithm: string) => Promise<string>;
+};
+
+type NativeModuleCandidate = Partial<WhisperModelNativeFs> & Partial<WhisperModelNativeHashFs>;
+
+const isNativeModuleCandidate = (value: unknown): value is NativeModuleCandidate => (
+    typeof value === 'object' && value !== null
+);
+
+const getNativeModuleCandidates = (value: unknown): NativeModuleCandidate[] => {
+    const candidates: NativeModuleCandidate[] = [];
+    if (isNativeModuleCandidate(value)) {
+        candidates.push(value);
+        const maybeDefault = (value as { default?: unknown }).default;
+        if (isNativeModuleCandidate(maybeDefault)) {
+            candidates.push(maybeDefault);
+        }
+    }
+    return candidates;
+};
+
+const hasNativeDownloadFile = (candidate: NativeModuleCandidate): candidate is WhisperModelNativeFs => (
+    typeof candidate.downloadFile === 'function'
+);
+
+const hasNativeHash = (candidate: NativeModuleCandidate): candidate is WhisperModelNativeHashFs => (
+    typeof candidate.hash === 'function'
+);
+
+export const resolveWhisperNativeFsModule = (value: unknown): WhisperModelNativeFs | null => (
+    getNativeModuleCandidates(value).find(hasNativeDownloadFile) ?? null
+);
+
+export const resolveWhisperNativeHashModule = (value: unknown): WhisperModelNativeHashFs | null => (
+    getNativeModuleCandidates(value).find(hasNativeHash) ?? null
+);
+
+export type WhisperModelResolveDownloadUrl = (url: string) => Promise<string>;
+
+export const resolveWhisperModelDownloadUrl = async (url: string, fetchImpl = globalThis.fetch): Promise<string> => {
+    if (typeof fetchImpl !== 'function') return url;
+
+    const resolveFromHead = async (redirect: RequestRedirect): Promise<string> => {
+        const response = await fetchImpl(url, { method: 'HEAD', redirect });
+        const location = response.headers?.get?.('location');
+        if (location) return new URL(location, url).toString();
+        const resolvedUrl = typeof response.url === 'string' && response.url.trim() ? response.url : '';
+        return resolvedUrl && resolvedUrl !== url ? resolvedUrl : '';
+    };
+
+    try {
+        const manualRedirectUrl = await resolveFromHead('manual');
+        if (manualRedirectUrl) return manualRedirectUrl;
+    } catch {
+        // Some mobile fetch implementations do not support manual redirects for HEAD.
+    }
+
+    try {
+        const followedUrl = await resolveFromHead('follow');
+        if (followedUrl) return followedUrl;
+    } catch {
+        // Fall back to the original URL; the native downloader will surface any HTTP failure.
+    }
+    return url;
 };
 
 export type WhisperModelExpoDownloadFile<TFile extends WhisperModelDownloadFile> = (
@@ -52,35 +120,47 @@ export const downloadWhisperModelFile = async <TFile extends WhisperModelDownloa
     url,
     targetFile,
     nativeFs,
-    expoDownloadFile,
+    resolveDownloadUrl,
 }: {
     url: string;
     targetFile: TFile;
     nativeFs?: WhisperModelNativeFs | null;
+    resolveDownloadUrl?: WhisperModelResolveDownloadUrl;
     expoDownloadFile: WhisperModelExpoDownloadFile<TFile>;
 }): Promise<TFile> => {
     const downloadFile = nativeFs?.downloadFile;
-    if (typeof downloadFile === 'function') {
+    if (typeof downloadFile !== 'function') {
+        throw new Error('Native streaming Whisper model downloads are unavailable in this build.');
+    }
+
+    let downloadUrl = url;
+    if (resolveDownloadUrl) {
         try {
-            const result = await downloadFile({
-                fromUrl: url,
-                toFile: toWhisperNativeDownloadPath(targetFile.uri),
-                cacheable: false,
-                readTimeout: 10 * 60 * 1000,
-                backgroundTimeout: 30 * 60 * 1000,
-            }).promise;
-            const statusCode = result.statusCode;
-            if (typeof statusCode !== 'number' || statusCode < 200 || statusCode >= 300) {
-                throw new Error(`Whisper model download failed with HTTP ${statusCode ?? 'unknown'}`);
-            }
-            return targetFile;
-        } catch (error) {
-            targetFile.delete?.();
-            throw error;
+            const resolvedUrl = await resolveDownloadUrl(url);
+            if (resolvedUrl.trim()) downloadUrl = resolvedUrl;
+        } catch {
+            downloadUrl = url;
         }
     }
 
-    return expoDownloadFile(url, targetFile, { idempotent: true });
+    try {
+        const result = await downloadFile({
+            fromUrl: downloadUrl,
+            toFile: toWhisperNativeDownloadPath(targetFile.uri),
+            headers: { Accept: 'application/octet-stream' },
+            cacheable: false,
+            readTimeout: 10 * 60 * 1000,
+            backgroundTimeout: 30 * 60 * 1000,
+        }).promise;
+        const statusCode = result.statusCode;
+        if (typeof statusCode !== 'number' || statusCode < 200 || statusCode >= 300) {
+            throw new Error(`Whisper model download failed with HTTP ${statusCode ?? 'unknown'}`);
+        }
+        return targetFile;
+    } catch (error) {
+        targetFile.delete?.();
+        throw error;
+    }
 };
 
 export type WhisperModelPathInfo = {

@@ -138,6 +138,32 @@ describe('TaskEditFormTab keyboard handling', () => {
     mockMeasureInWindow.mockReset();
   });
 
+  it('does not render collapsible sections that have no fields', () => {
+    const renderField = vi.fn((fieldId: string) => React.createElement('Field', { fieldId }));
+
+    let tree!: ReturnType<typeof create>;
+    act(() => {
+      tree = create(
+        <TaskEditFormTab
+          {...baseProps}
+          renderField={renderField}
+          schedulingFields={[]}
+          organizationFields={['project' as any]}
+          detailsFields={[]}
+        />
+      );
+    });
+
+    const sectionHeaders = (label: string) => tree.root.findAll(
+      (node) => node.props.accessibilityRole === 'button' && node.props.accessibilityLabel === label
+    );
+
+    expect(sectionHeaders('taskEdit.scheduling')).toHaveLength(0);
+    expect(sectionHeaders('taskEdit.organization').length).toBeGreaterThan(0);
+    expect(sectionHeaders('taskEdit.details')).toHaveLength(0);
+    expect(renderField).toHaveBeenCalledWith('project');
+  });
+
   it('adds an iOS keyboard bottom inset so focused lower inputs can scroll above the keyboard', () => {
     setPlatform('ios');
     vi.spyOn(Dimensions, 'get').mockReturnValue({

@@ -416,62 +416,44 @@ function TaskEditFormTabComponent({
                         <React.Fragment key={fieldId}>{renderField(fieldId)}</React.Fragment>
                     ))}
 
-                    <CollapsibleSection
-                        resetKey={`${formResetKey ?? 'task'}:scheduling`}
-                        title={t('taskEdit.scheduling')}
-                        badge={schedulingFilledCount}
-                        defaultExpanded={sectionOpenDefaults.scheduling || schedulingFilledCount > 0}
-                    >
-                        {schedulingFields.length === 0 ? (
-                            <View style={[styles.emptySectionHint, { borderColor: tc.border, backgroundColor: tc.filterBg }]}>
-                                <Text style={[styles.emptySectionHintText, { color: tc.secondaryText }]}>
-                                    {t('taskEdit.schedulingEmpty')}
-                                </Text>
-                            </View>
-                        ) : (
-                            schedulingFields.map((fieldId) => (
+                    {schedulingFields.length > 0 && (
+                        <CollapsibleSection
+                            resetKey={`${formResetKey ?? 'task'}:scheduling`}
+                            title={t('taskEdit.scheduling')}
+                            badge={schedulingFilledCount}
+                            defaultExpanded={sectionOpenDefaults.scheduling || schedulingFilledCount > 0}
+                        >
+                            {schedulingFields.map((fieldId) => (
                                 <React.Fragment key={fieldId}>{renderField(fieldId)}</React.Fragment>
-                            ))
-                        )}
-                    </CollapsibleSection>
+                            ))}
+                        </CollapsibleSection>
+                    )}
 
-                    <CollapsibleSection
-                        resetKey={`${formResetKey ?? 'task'}:organization`}
-                        title={t('taskEdit.organization')}
-                        badge={organizationFilledCount}
-                        defaultExpanded={sectionOpenDefaults.organization || organizationFilledCount > 0}
-                    >
-                        {organizationFields.length === 0 ? (
-                            <View style={[styles.emptySectionHint, { borderColor: tc.border, backgroundColor: tc.filterBg }]}>
-                                <Text style={[styles.emptySectionHintText, { color: tc.secondaryText }]}>
-                                    {t('taskEdit.organizationEmpty')}
-                                </Text>
-                            </View>
-                        ) : (
-                            organizationFields.map((fieldId) => (
+                    {organizationFields.length > 0 && (
+                        <CollapsibleSection
+                            resetKey={`${formResetKey ?? 'task'}:organization`}
+                            title={t('taskEdit.organization')}
+                            badge={organizationFilledCount}
+                            defaultExpanded={sectionOpenDefaults.organization || organizationFilledCount > 0}
+                        >
+                            {organizationFields.map((fieldId) => (
                                 <React.Fragment key={fieldId}>{renderField(fieldId)}</React.Fragment>
-                            ))
-                        )}
-                    </CollapsibleSection>
+                            ))}
+                        </CollapsibleSection>
+                    )}
 
-                    <CollapsibleSection
-                        resetKey={`${formResetKey ?? 'task'}:details`}
-                        title={t('taskEdit.details')}
-                        badge={detailsFilledCount}
-                        defaultExpanded={sectionOpenDefaults.details || detailsFilledCount > 0}
-                    >
-                        {detailsFields.length === 0 ? (
-                            <View style={[styles.emptySectionHint, { borderColor: tc.border, backgroundColor: tc.filterBg }]}>
-                                <Text style={[styles.emptySectionHintText, { color: tc.secondaryText }]}>
-                                    {t('taskEdit.detailsEmpty')}
-                                </Text>
-                            </View>
-                        ) : (
-                            detailsFields.map((fieldId) => (
+                    {detailsFields.length > 0 && (
+                        <CollapsibleSection
+                            resetKey={`${formResetKey ?? 'task'}:details`}
+                            title={t('taskEdit.details')}
+                            badge={detailsFilledCount}
+                            defaultExpanded={sectionOpenDefaults.details || detailsFilledCount > 0}
+                        >
+                            {detailsFields.map((fieldId) => (
                                 <React.Fragment key={fieldId}>{renderField(fieldId)}</React.Fragment>
-                            ))
-                        )}
-                    </CollapsibleSection>
+                            ))}
+                        </CollapsibleSection>
+                    )}
 
                     <View style={{ height: 100 }} />
 

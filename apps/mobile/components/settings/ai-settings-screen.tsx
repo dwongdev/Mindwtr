@@ -27,7 +27,17 @@ import { logSettingsError, logSettingsWarn } from '@/lib/settings-utils';
 
 import { AiSettingsAssistantCard } from './ai-settings-assistant-card';
 import { AiSettingsSpeechCard } from './ai-settings-speech-card';
-import { downloadWhisperModelFile, isWhisperModelFileReady, isWhisperModelSafeDeleteTarget, verifyWhisperModelFileHash } from './ai-settings-whisper-model';
+import {
+    downloadWhisperModelFile,
+    isWhisperModelFileReady,
+    isWhisperModelSafeDeleteTarget,
+    resolveWhisperModelDownloadUrl,
+    resolveWhisperNativeFsModule,
+    resolveWhisperNativeHashModule,
+    verifyWhisperModelFileHash,
+    type WhisperModelNativeFs,
+    type WhisperModelNativeHashFs,
+} from './ai-settings-whisper-model';
 import {
     AI_PROVIDER_CONSENT_KEY,
     DEFAULT_WHISPER_MODEL,
@@ -42,19 +52,32 @@ import { SettingsTopBar } from './settings.shell';
 import { styles } from './settings.styles';
 
 type RNFSModule = typeof import('react-native-fs');
-let rnfsHashModuleCache: RNFSModule | null | undefined;
+let rnfsModuleCache: unknown | null | undefined;
+let rnfsHashModuleCache: WhisperModelNativeHashFs | null | undefined;
+let rnfsDownloadModuleCache: WhisperModelNativeFs | null | undefined;
 
-const getRNFSHashModule = (): RNFSModule | null => {
-    if (rnfsHashModuleCache !== undefined) return rnfsHashModuleCache;
+const getRNFSModule = (): unknown | null => {
+    if (rnfsModuleCache !== undefined) return rnfsModuleCache;
     try {
         // eslint-disable-next-line @typescript-eslint/no-var-requires
-        const mod = require('react-native-fs') as RNFSModule;
-        rnfsHashModuleCache = typeof mod?.hash === 'function' ? mod : null;
-        return rnfsHashModuleCache;
+        rnfsModuleCache = require('react-native-fs') as RNFSModule;
+        return rnfsModuleCache;
     } catch {
-        rnfsHashModuleCache = null;
+        rnfsModuleCache = null;
         return null;
     }
+};
+
+const getRNFSHashModule = (): WhisperModelNativeHashFs | null => {
+    if (rnfsHashModuleCache !== undefined) return rnfsHashModuleCache;
+    rnfsHashModuleCache = resolveWhisperNativeHashModule(getRNFSModule());
+    return rnfsHashModuleCache;
+};
+
+const getRNFSDownloadModule = (): WhisperModelNativeFs | null => {
+    if (rnfsDownloadModuleCache !== undefined) return rnfsDownloadModuleCache;
+    rnfsDownloadModuleCache = resolveWhisperNativeFsModule(getRNFSModule());
+    return rnfsDownloadModuleCache;
 };
 
 const toNativeHashPath = (uri: string): string => {
@@ -583,7 +606,8 @@ export function AISettingsScreen() {
                         const file = await downloadWhisperModelFile({
                             url,
                             targetFile,
-                            nativeFs: getRNFSHashModule(),
+                            nativeFs: getRNFSDownloadModule(),
+                            resolveDownloadUrl: resolveWhisperModelDownloadUrl,
                             expoDownloadFile: async (downloadUrl, destination, options) => {
                                 await File.downloadFileAsync(downloadUrl, destination, options);
                                 return destination;

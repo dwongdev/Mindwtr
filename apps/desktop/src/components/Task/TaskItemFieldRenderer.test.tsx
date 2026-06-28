@@ -662,10 +662,10 @@ describe('TaskItemFieldRenderer date clear buttons', () => {
         });
     });
 
-    it('lets quick date shortcuts use the full date field width', () => {
+    it('shows due-date quick shortcuts only while the due date field is active', () => {
         const handlers = createHandlers();
 
-        const { getByRole } = render(
+        const { getByLabelText, getByText, queryByRole } = render(
             <TaskItemFieldRenderer
                 fieldId="dueDate"
                 data={createData()}
@@ -673,8 +673,12 @@ describe('TaskItemFieldRenderer date clear buttons', () => {
             />
         );
 
-        const nextMonthButton = getByRole('button', { name: 'Next month' });
-        const chipsRow = nextMonthButton.parentElement;
+        expect(queryByRole('button', { name: 'Next month' })).not.toBeInTheDocument();
+
+        fireEvent.focus(getByLabelText('Due date'));
+
+        const nextMonthButton = getByText('Next month').closest('button');
+        const chipsRow = nextMonthButton?.parentElement;
 
         expect(chipsRow).toHaveClass('w-full');
         expect(chipsRow).toHaveClass('flex-wrap');

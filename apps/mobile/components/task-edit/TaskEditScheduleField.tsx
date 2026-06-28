@@ -182,14 +182,17 @@ export function TaskEditScheduleField({
     const renderQuickDateChips = (
         mode: 'start' | 'due' | 'review',
         selectedDate: Date | null
-    ) => (
-        <QuickDateChips
-            t={t}
-            tc={tc}
-            selectedDate={selectedDate}
-            onSelect={(date) => applyQuickDate(mode, date)}
-        />
-    );
+    ) => {
+        if (mode === 'due' && showDatePicker !== 'due') return null;
+        return (
+            <QuickDateChips
+                t={t}
+                tc={tc}
+                selectedDate={selectedDate}
+                onSelect={(date) => applyQuickDate(mode, date)}
+            />
+        );
+    };
     const formatStartDateTime = (dateStr?: string) => {
         if (!dateStr) return t('common.notSet');
         const parsed = safeParseDate(dateStr);
@@ -477,8 +480,8 @@ export function TaskEditScheduleField({
                                             style={[
                                                 styles.weekdayButton,
                                                 {
-                                                    borderColor: tc.border,
-                                                    backgroundColor: active ? tc.filterBg : tc.cardBg,
+                                                    borderColor: active ? tc.tint : tc.border,
+                                                    backgroundColor: active ? tc.tint : tc.cardBg,
                                                 },
                                             ]}
                                             onPress={() => {
@@ -495,7 +498,7 @@ export function TaskEditScheduleField({
                                                 }));
                                             }}
                                         >
-                                            <Text style={[styles.weekdayButtonText, { color: tc.text }]}>{day.label}</Text>
+                                            <Text style={[styles.weekdayButtonText, { color: active ? tc.onTint : tc.text }]}>{day.label}</Text>
                                         </TouchableOpacity>
                                     );
                                 })}

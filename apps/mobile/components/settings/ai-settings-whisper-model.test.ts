@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest';
 
 import {
     downloadWhisperModelFile,
+    resolveWhisperModelDownloadUrl,
+    resolveWhisperNativeFsModule,
     isWhisperModelFileReady,
     isWhisperModelSafeDeleteTarget,
     verifyWhisperModelFileHash,
@@ -62,6 +64,82 @@ describe('ai settings whisper model helpers', () => {
             'file:///document/whisper-models/ggml-tiny.bin',
             async () => sha256.toUpperCase()
         )).resolves.toBeUndefined();
+    });
+
+
+    it('resolves a native downloader from a default-exported react-native-fs module', () => {
+        const nativeFs = {
+            downloadFile: () => ({
+                promise: Promise.resolve({ statusCode: 200, bytesWritten: sizeBytes }),
+            }),
+        };
+
+        expect(resolveWhisperNativeFsModule({ default: nativeFs })).toBe(nativeFs);
+        expect(resolveWhisperNativeFsModule({ hash: async () => sha256 })).toBeNull();
+    });
+
+    it('does not fall back to Expo buffered downloads when native streaming is unavailable', async () => {
+        let expoUsed = false;
+
+        await expect(downloadWhisperModelFile({
+            url: 'https://example.test/ggml-tiny.bin',
+            targetFile: { uri: 'file:///document/whisper-models/ggml-tiny.bin' },
+            nativeFs: null,
+            expoDownloadFile: async (_url, targetFile) => {
+                expoUsed = true;
+                return targetFile;
+            },
+        })).rejects.toThrow('Native streaming Whisper model downloads are unavailable');
+        expect(expoUsed).toBe(false);
+    });
+
+    it('resolves a Hugging Face redirect location from HEAD without downloading the model', async () => {
+        const calls: Array<{ url: string; init: { method?: string; redirect?: string } }> = [];
+        const resolved = await resolveWhisperModelDownloadUrl(
+            'https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-tiny.bin',
+            async (url, init) => {
+                calls.push({ url: String(url), init: init as { method?: string; redirect?: string } });
+                return {
+                    url: String(url),
+                    headers: {
+                        get: (name: string) => name.toLowerCase() === 'location'
+                            ? 'https://cdn.example.test/signed/ggml-tiny.bin?token=abc'
+                            : null,
+                    },
+                } as Response;
+            }
+        );
+
+        expect(resolved).toBe('https://cdn.example.test/signed/ggml-tiny.bin?token=abc');
+        expect(calls).toEqual([expect.objectContaining({
+            init: expect.objectContaining({ method: 'HEAD', redirect: 'manual' }),
+        })]);
+    });
+
+    it('uses a resolved final URL for native Whisper downloads', async () => {
+        const calls: unknown[] = [];
+        const targetFile = { uri: 'file:///document/whisper-models/ggml-tiny.bin' };
+
+        await downloadWhisperModelFile({
+            url: 'https://example.test/redirect/ggml-tiny.bin',
+            targetFile,
+            nativeFs: {
+                downloadFile: (options: unknown) => {
+                    calls.push(options);
+                    return {
+                        promise: Promise.resolve({ statusCode: 200, bytesWritten: sizeBytes }),
+                    };
+                },
+            },
+            resolveDownloadUrl: async () => 'https://cdn.example.test/final/ggml-tiny.bin',
+            expoDownloadFile: async () => {
+                throw new Error('Expo download should not be used when native streaming is available');
+            },
+        });
+
+        expect(calls).toEqual([expect.objectContaining({
+            fromUrl: 'https://cdn.example.test/final/ggml-tiny.bin',
+        })]);
     });
 
     it('prefers native streaming downloads for Whisper models', async () => {
