@@ -118,6 +118,8 @@ Public user and developer documentation is moving to the Mindwtr web docs source
 | `bun mobile:android` | Run on Android           |
 | `bun mobile:ios`     | Run on iOS               |
 | `bun test`           | Run all tests            |
+| `bun typecheck`      | Type-check core, cloud, desktop, and mobile packages |
+| `bun i18n:check`     | Verify locale key parity |
 | `bun mindwtr:cli`    | Run CLI tool             |
 | `bun mindwtr:api`    | Run local API server     |
 
