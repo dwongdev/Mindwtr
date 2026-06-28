@@ -16,27 +16,43 @@ export const resolveDefaultNewTaskAreaId = (
     return areas.some((area) => area.id === areaId && !area.deletedAt) ? areaId : undefined;
 };
 
+const compareAreaDedupeWinner = (left: Area, right: Area): number => {
+    const createdAtCompare = left.createdAt.localeCompare(right.createdAt);
+    if (createdAtCompare !== 0) return createdAtCompare;
+    return left.id.localeCompare(right.id);
+};
+
 export const dedupeLiveAreasByName = (
     areas: readonly Area[],
     options: { nowIso: string; revBy?: string }
 ): { areas: Area[]; areaIdRemap: Map<string, string>; changed: boolean } => {
-    const areaIdByName = new Map<string, string>();
+    const areaByName = new Map<string, Area>();
     const areaIdRemap = new Map<string, string>();
     let changed = false;
+
+    for (const area of areas) {
+        if (area.deletedAt) continue;
+        const nameKey = normalizeAreaNameKey(area.name);
+        if (!nameKey) continue;
+
+        const existing = areaByName.get(nameKey);
+        if (!existing || compareAreaDedupeWinner(area, existing) < 0) {
+            areaByName.set(nameKey, area);
+        }
+    }
 
     const nextAreas = areas.map((area) => {
         if (area.deletedAt) return area;
         const nameKey = normalizeAreaNameKey(area.name);
         if (!nameKey) return area;
 
-        const existingId = areaIdByName.get(nameKey);
-        if (!existingId) {
-            areaIdByName.set(nameKey, area.id);
+        const canonicalArea = areaByName.get(nameKey);
+        if (!canonicalArea || canonicalArea.id === area.id) {
             return area;
         }
 
         changed = true;
-        areaIdRemap.set(area.id, existingId);
+        areaIdRemap.set(area.id, canonicalArea.id);
         return {
             ...area,
             deletedAt: options.nowIso,
