@@ -255,6 +255,8 @@ private struct MindwtrTasksWidgetView: View {
                     )
                 }
 
+                Spacer(minLength: metrics.sectionSpacing)
+
                 Link(destination: URL(string: payload.quickCaptureUri) ?? URL(fileURLWithPath: "/")) {
                     Text(payload.captureLabel)
                         .font(.system(size: metrics.buttonSize, weight: .semibold))

@@ -101,22 +101,108 @@ jobs:
     uses: ./.github/workflows/release-windows.yml
     secrets: inherit
 
+  android-version-code:
+    if: ${{ !contains(github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name, '-') && (github.event_name != 'workflow_dispatch' || inputs.run_android || inputs.run_android_foss) }}
+    runs-on: ubuntu-latest
+    name: Android VersionCode Preflight
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    outputs:
+      version_code: ${{ steps.version_code.outputs.resolved_code }}
+      local_version_code: ${{ steps.version_code.outputs.local_code }}
+      remote_max_version_code: ${{ steps.version_code.outputs.remote_max_code }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+
+      - name: Authenticate Google Play API
+        if: ${{ github.event_name != 'workflow_dispatch' || inputs.run_android }}
+        id: play_auth
+        uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093 # v3.0.0
+        with:
+          credentials_json: ${{ secrets.ANDROID_SERVICE_ACCOUNT_JSON }}
+          token_format: access_token
+          access_token_scopes: https://www.googleapis.com/auth/androidpublisher
+
+      - name: Resolve Android versionCode
+        id: version_code
+        env:
+          ACCESS_TOKEN: ${{ steps.play_auth.outputs.access_token }}
+          USE_PLAY_TRACKS: ${{ github.event_name != 'workflow_dispatch' || inputs.run_android }}
+        run: |
+          set -euo pipefail
+          PACKAGE="tech.dongdongbh.mindwtr"
+          LOCAL_CODE=$(jq -r '.expo.android.versionCode' apps/mobile/app.json)
+          if [ -z "$LOCAL_CODE" ] || [ "$LOCAL_CODE" = "null" ]; then
+            echo "Missing expo.android.versionCode in apps/mobile/app.json" >&2
+            exit 1
+          fi
+          MAX_CODE=0
+          if [ "$USE_PLAY_TRACKS" = "true" ]; then
+            if [ -z "${ACCESS_TOKEN:-}" ]; then
+              echo "Missing Google Play access token for Android versionCode preflight" >&2
+              exit 1
+            fi
+            EDIT_ID=$(curl -sS -X POST \
+              -H "Authorization: Bearer $ACCESS_TOKEN" \
+              -H "Content-Type: application/json" \
+              "https://androidpublisher.googleapis.com/androidpublisher/v3/applications/$PACKAGE/edits" \
+              -d '{}' | jq -r '.id')
+            if [ -z "$EDIT_ID" ] || [ "$EDIT_ID" = "null" ]; then
+              echo "Failed to create Google Play edit" >&2
+              exit 1
+            fi
+            TRACKS_FILE=$(mktemp)
+            TRACKS_CODE=$(curl -sS -o "$TRACKS_FILE" -w "%{http_code}" \
+              -H "Authorization: Bearer $ACCESS_TOKEN" \
+              "https://androidpublisher.googleapis.com/androidpublisher/v3/applications/$PACKAGE/edits/$EDIT_ID/tracks")
+            TRACKS_JSON=$(cat "$TRACKS_FILE")
+            if [ "$TRACKS_CODE" != "200" ]; then
+              echo "Failed to fetch Google Play tracks (HTTP $TRACKS_CODE): $TRACKS_JSON" >&2
+              exit 1
+            fi
+            if echo "$TRACKS_JSON" | jq -e '.error' >/dev/null; then
+              echo "Failed to fetch Google Play tracks: $TRACKS_JSON" >&2
+              exit 1
+            fi
+            MAX_CODE=$(echo "$TRACKS_JSON" | jq -r '[(.tracks // [])[]? | (.releases // [])[]? | (.versionCodes // [])[]? | tonumber] | max // 0')
+            if [ -z "$MAX_CODE" ] || [ "$MAX_CODE" = "null" ]; then
+              MAX_CODE=0
+            fi
+            curl -sS -X DELETE \
+              -H "Authorization: Bearer $ACCESS_TOKEN" \
+              "https://androidpublisher.googleapis.com/androidpublisher/v3/applications/$PACKAGE/edits/$EDIT_ID" >/dev/null
+          fi
+          RESOLVED_CODE="$LOCAL_CODE"
+          if [ "$MAX_CODE" -ge "$LOCAL_CODE" ]; then
+            RESOLVED_CODE=$((MAX_CODE + 1))
+            echo "::warning::Google Play already has versionCode $MAX_CODE; local versionCode $LOCAL_CODE will be bumped to $RESOLVED_CODE for this CI build."
+          else
+            echo "versionCode ok: local $LOCAL_CODE > store $MAX_CODE"
+          fi
+          echo "local_code=$LOCAL_CODE" >> "$GITHUB_OUTPUT"
+          echo "remote_max_code=$MAX_CODE" >> "$GITHUB_OUTPUT"
+          echo "resolved_code=$RESOLVED_CODE" >> "$GITHUB_OUTPUT"
+
   android:
-    if: ${{ !contains(github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name, '-') && (github.event_name != 'workflow_dispatch' || inputs.run_android) }}
+    needs: android-version-code
+    if: ${{ always() && !contains(github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name, '-') && (github.event_name != 'workflow_dispatch' || inputs.run_android) && needs['android-version-code'].result == 'success' }}
     permissions:
       actions: read
       contents: read
     uses: ./.github/workflows/release-android.yml
     with:
       play_track: production
+      version_code: ${{ needs['android-version-code'].outputs.version_code }}
     secrets: inherit
 
   android-foss:
-    needs: android
-    if: ${{ always() && !contains(github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name, '-') && (github.event_name != 'workflow_dispatch' || inputs.run_android_foss) && (needs.android.result == 'success' || needs.android.result == 'skipped') }}
+    needs: android-version-code
+    if: ${{ always() && !contains(github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name, '-') && (github.event_name != 'workflow_dispatch' || inputs.run_android_foss) && needs['android-version-code'].result == 'success' }}
     uses: ./.github/workflows/release-android-foss.yml
     with:
-      version_code: ${{ needs.android.outputs.version_code }}
+      version_code: ${{ needs['android-version-code'].outputs.version_code }}
     secrets: inherit
 
   ios-appstore:

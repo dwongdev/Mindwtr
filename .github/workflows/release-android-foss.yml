@@ -96,7 +96,7 @@ jobs:
           json.expo.android = json.expo.android || {};
           const previous = json.expo.android.versionCode;
           json.expo.android.versionCode = versionCode;
-          fs.writeFileSync(path, `${JSON.stringify(json, null, 2)}\\n`);
+          fs.writeFileSync(path, `${JSON.stringify(json, null, 2)}\n`);
           console.log(`FOSS Android versionCode: ${previous} -> ${versionCode}`);
           NODE
 

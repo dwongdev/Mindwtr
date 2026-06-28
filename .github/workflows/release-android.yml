@@ -12,6 +12,11 @@ on:
         required: false
         default: 'production'
         type: string
+      version_code:
+        description: 'Resolved Android versionCode to apply before building. If omitted, this workflow resolves one from Google Play.'
+        required: false
+        default: ''
+        type: string
       internal_test_release:
         description: 'Publish a profileable build to the Google Play internal track'
         required: false
@@ -48,6 +53,11 @@ on:
         required: false
         default: 'production'
         type: string
+      version_code:
+        description: 'Resolved Android versionCode to apply before building. If omitted, this workflow resolves one from Google Play.'
+        required: false
+        default: ''
+        type: string
       internal_test_release:
         description: 'Publish a profileable build to the Google Play internal track'
         required: true
@@ -83,8 +93,8 @@ jobs:
     outputs:
       tag: ${{ steps.version.outputs.tag }}
       version: ${{ steps.version.outputs.version }}
-      version_code: ${{ steps.version_code.outputs.resolved_code || steps.version_code.outputs.local_code }}
-      local_version_code: ${{ steps.version_code.outputs.local_code }}
+      version_code: ${{ steps.provided_version_code.outputs.resolved_code || steps.version_code.outputs.resolved_code || steps.version_code.outputs.local_code }}
+      local_version_code: ${{ steps.provided_version_code.outputs.local_code || steps.version_code.outputs.local_code }}
       remote_max_version_code: ${{ steps.version_code.outputs.remote_max_code }}
 
     steps:
@@ -92,7 +102,7 @@ jobs:
         uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
 
       - name: Authenticate Google Play API
-        if: ${{ inputs.play_track != 'none' || inputs.internal_test_release }}
+        if: ${{ inputs.version_code == '' && (inputs.play_track != 'none' || inputs.internal_test_release) }}
         id: play_auth
         uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093 # v3.0.0
         with:
@@ -107,8 +117,32 @@ jobs:
           GITHUB_EVENT_INPUTS_TAG="${{ github.event.inputs.tag }}"
           scripts/ci/resolve-release-version.sh "$INPUT_TAG" >> "$GITHUB_OUTPUT"
 
+      - name: Use provided Android versionCode
+        if: ${{ inputs.version_code != '' }}
+        id: provided_version_code
+        env:
+          VERSION_CODE: ${{ inputs.version_code }}
+        run: |
+          set -euo pipefail
+          node - <<'NODE'
+          const fs = require('fs');
+          const versionCode = Number(process.env.VERSION_CODE);
+          if (!Number.isInteger(versionCode) || versionCode <= 0) {
+            throw new Error(`Invalid Android versionCode: ${process.env.VERSION_CODE}`);
+          }
+          const json = JSON.parse(fs.readFileSync('apps/mobile/app.json', 'utf8'));
+          const localCode = Number(json.expo?.android?.versionCode || 0);
+          if (!Number.isInteger(localCode) || localCode <= 0) {
+            throw new Error('Missing expo.android.versionCode in apps/mobile/app.json');
+          }
+          const output = process.env.GITHUB_OUTPUT;
+          fs.appendFileSync(output, `local_code=${localCode}\n`);
+          fs.appendFileSync(output, `resolved_code=${versionCode}\n`);
+          console.log(`Using provided Android versionCode: ${versionCode}`);
+          NODE
+
       - name: Ensure Android versionCode is unique
-        if: ${{ inputs.play_track != 'none' || inputs.internal_test_release }}
+        if: ${{ inputs.version_code == '' && (inputs.play_track != 'none' || inputs.internal_test_release) }}
         id: version_code
         env:
           ACCESS_TOKEN: ${{ steps.play_auth.outputs.access_token }}

@@ -7,6 +7,82 @@ export type WhisperModelDescriptor = {
     sizeBytes?: number;
 };
 
+
+export type WhisperModelDownloadFile = {
+    uri: string;
+    delete?: () => void;
+};
+
+export type WhisperModelNativeDownloadResult = {
+    statusCode?: number;
+    bytesWritten?: number;
+};
+
+export type WhisperModelNativeFs = {
+    downloadFile?: (options: {
+        fromUrl: string;
+        toFile: string;
+        cacheable?: boolean;
+        readTimeout?: number;
+        backgroundTimeout?: number;
+    }) => { promise: Promise<WhisperModelNativeDownloadResult> };
+};
+
+export type WhisperModelExpoDownloadFile<TFile extends WhisperModelDownloadFile> = (
+    url: string,
+    targetFile: TFile,
+    options?: { idempotent?: boolean }
+) => Promise<TFile>;
+
+export const toWhisperNativeDownloadPath = (uri: string): string => {
+    let nativePath = uri;
+    if (uri.startsWith('file://')) {
+        nativePath = uri.slice('file://'.length);
+    } else if (uri.startsWith('file:/')) {
+        nativePath = uri.replace(/^file:\//u, '/');
+    }
+    try {
+        return decodeURI(nativePath);
+    } catch {
+        return nativePath;
+    }
+};
+
+export const downloadWhisperModelFile = async <TFile extends WhisperModelDownloadFile>({
+    url,
+    targetFile,
+    nativeFs,
+    expoDownloadFile,
+}: {
+    url: string;
+    targetFile: TFile;
+    nativeFs?: WhisperModelNativeFs | null;
+    expoDownloadFile: WhisperModelExpoDownloadFile<TFile>;
+}): Promise<TFile> => {
+    const downloadFile = nativeFs?.downloadFile;
+    if (typeof downloadFile === 'function') {
+        try {
+            const result = await downloadFile({
+                fromUrl: url,
+                toFile: toWhisperNativeDownloadPath(targetFile.uri),
+                cacheable: false,
+                readTimeout: 10 * 60 * 1000,
+                backgroundTimeout: 30 * 60 * 1000,
+            }).promise;
+            const statusCode = result.statusCode;
+            if (typeof statusCode !== 'number' || statusCode < 200 || statusCode >= 300) {
+                throw new Error(`Whisper model download failed with HTTP ${statusCode ?? 'unknown'}`);
+            }
+            return targetFile;
+        } catch (error) {
+            targetFile.delete?.();
+            throw error;
+        }
+    }
+
+    return expoDownloadFile(url, targetFile, { idempotent: true });
+};
+
 export type WhisperModelPathInfo = {
     exists?: boolean;
     isDirectory?: boolean | null;

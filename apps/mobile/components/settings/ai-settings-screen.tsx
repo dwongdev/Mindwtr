@@ -27,7 +27,7 @@ import { logSettingsError, logSettingsWarn } from '@/lib/settings-utils';
 
 import { AiSettingsAssistantCard } from './ai-settings-assistant-card';
 import { AiSettingsSpeechCard } from './ai-settings-speech-card';
-import { isWhisperModelFileReady, isWhisperModelSafeDeleteTarget, verifyWhisperModelFileHash } from './ai-settings-whisper-model';
+import { downloadWhisperModelFile, isWhisperModelFileReady, isWhisperModelSafeDeleteTarget, verifyWhisperModelFileHash } from './ai-settings-whisper-model';
 import {
     AI_PROVIDER_CONSENT_KEY,
     DEFAULT_WHISPER_MODEL,
@@ -580,7 +580,15 @@ export function AISettingsScreen() {
                         }
                     }
                     try {
-                        const file = await File.downloadFileAsync(url, targetFile, { idempotent: true });
+                        const file = await downloadWhisperModelFile({
+                            url,
+                            targetFile,
+                            nativeFs: getRNFSHashModule(),
+                            expoDownloadFile: async (downloadUrl, destination, options) => {
+                                await File.downloadFileAsync(downloadUrl, destination, options);
+                                return destination;
+                            },
+                        });
                         const downloadedInfo = safePathInfo(file.uri);
                         if (!isWhisperModelFileReady(selectedWhisperModel, downloadedInfo)) {
                             try {

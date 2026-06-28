@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+    downloadWhisperModelFile,
     isWhisperModelFileReady,
     isWhisperModelSafeDeleteTarget,
     verifyWhisperModelFileHash,
@@ -62,4 +63,54 @@ describe('ai settings whisper model helpers', () => {
             async () => sha256.toUpperCase()
         )).resolves.toBeUndefined();
     });
+
+    it('prefers native streaming downloads for Whisper models', async () => {
+        const calls: unknown[] = [];
+        const targetFile = { uri: 'file:///document/whisper-models/ggml-tiny.bin' };
+        const nativeFs = {
+            downloadFile: (options: unknown) => {
+                calls.push(options);
+                return {
+                    promise: Promise.resolve({ statusCode: 200, bytesWritten: sizeBytes }),
+                };
+            },
+        };
+
+        const result = await downloadWhisperModelFile({
+            url: 'https://example.test/ggml-tiny.bin',
+            targetFile,
+            nativeFs,
+            expoDownloadFile: async () => {
+                throw new Error('Expo download should not be used when native streaming is available');
+            },
+        });
+
+        expect(result).toBe(targetFile);
+        expect(calls).toEqual([expect.objectContaining({
+            fromUrl: 'https://example.test/ggml-tiny.bin',
+            toFile: '/document/whisper-models/ggml-tiny.bin',
+        })]);
+    });
+
+    it('rejects non-2xx native Whisper downloads before file-size validation', async () => {
+        let deleted = false;
+
+        await expect(downloadWhisperModelFile({
+            url: 'https://example.test/ggml-tiny.bin',
+            targetFile: {
+                uri: 'file:///document/whisper-models/ggml-tiny.bin',
+                delete: () => { deleted = true; },
+            },
+            nativeFs: {
+                downloadFile: () => ({
+                    promise: Promise.resolve({ statusCode: 302, bytesWritten: 1093 }),
+                }),
+            },
+            expoDownloadFile: async () => {
+                throw new Error('Expo download should not be used when native streaming is available');
+            },
+        })).rejects.toThrow('HTTP 302');
+        expect(deleted).toBe(true);
+    });
+
 });

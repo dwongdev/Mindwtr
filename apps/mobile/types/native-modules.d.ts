@@ -239,6 +239,28 @@ declare module 'expo-network' {
 }
 
 declare module 'react-native-fs' {
+  export type DownloadFileOptions = {
+    fromUrl: string;
+    toFile: string;
+    headers?: Record<string, string>;
+    background?: boolean;
+    discretionary?: boolean;
+    cacheable?: boolean;
+    progressInterval?: number;
+    progressDivider?: number;
+    begin?: (res: { jobId: number; statusCode: number; contentLength: number; headers: Record<string, string> }) => void;
+    progress?: (res: { jobId: number; contentLength: number; bytesWritten: number }) => void;
+    resumable?: () => void;
+    connectionTimeout?: number;
+    readTimeout?: number;
+    backgroundTimeout?: number;
+  };
+  export type DownloadResult = {
+    jobId: number;
+    statusCode: number;
+    bytesWritten: number;
+  };
+  export function downloadFile(options: DownloadFileOptions): { jobId: number; promise: Promise<DownloadResult> };
   export function writeFile(path: string, contents: string, encoding?: string): Promise<void>;
   export function appendFile(path: string, contents: string, encoding?: string): Promise<void>;
   export function readFile(path: string, encoding?: string): Promise<string>;
@@ -253,6 +275,7 @@ declare module 'react-native-fs' {
     exists: typeof exists;
     hash: typeof hash;
     unlink: typeof unlink;
+    downloadFile: typeof downloadFile;
   };
 
   export default ReactNativeFS;
