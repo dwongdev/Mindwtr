@@ -28,6 +28,7 @@ const COLUMNS: { id: TaskStatus; label: string; labelKey: string; color: string 
   { id: 'someday', label: 'Someday', labelKey: 'status.someday', color: '#8B5CF6' },
   { id: 'done', label: 'Done', labelKey: 'status.done', color: '#10B981' },
 ];
+const BOARD_FILTER_CHIP_MAX_FONT_SCALE = 1.2;
 
 type RelativeTaskLayout = {
   columnIndex: number;
@@ -785,7 +786,12 @@ export function BoardView() {
                           },
                         ]}
                       >
-                        <Text style={[styles.filterChipText, { color: selected ? tc.onTint : tc.text }]}>{token}</Text>
+                        <Text
+                          maxFontSizeMultiplier={BOARD_FILTER_CHIP_MAX_FONT_SCALE}
+                          style={[styles.filterChipText, { color: selected ? tc.onTint : tc.text }]}
+                        >
+                          {token}
+                        </Text>
                       </Pressable>
                     );
                   })}
@@ -813,7 +819,10 @@ export function BoardView() {
                         },
                       ]}
                     >
-                      <Text style={[styles.filterChipText, { color: selected ? tc.onTint : tc.text }]}>
+                      <Text
+                        maxFontSizeMultiplier={BOARD_FILTER_CHIP_MAX_FONT_SCALE}
+                        style={[styles.filterChipText, { color: selected ? tc.onTint : tc.text }]}
+                      >
                         {t(`filters.datePreset.${preset}`)}
                       </Text>
                     </Pressable>
@@ -840,7 +849,12 @@ export function BoardView() {
                         },
                       ]}
                     >
-                      <Text style={[styles.filterChipText, { color: selected ? tc.onTint : tc.text }]}>{t('taskEdit.noProjectOption')}</Text>
+                      <Text
+                        maxFontSizeMultiplier={BOARD_FILTER_CHIP_MAX_FONT_SCALE}
+                        style={[styles.filterChipText, { color: selected ? tc.onTint : tc.text }]}
+                      >
+                        {t('taskEdit.noProjectOption')}
+                      </Text>
                     </Pressable>
                   );
                 })()}
@@ -864,6 +878,7 @@ export function BoardView() {
                     >
                       <View style={[styles.projectFilterDot, { backgroundColor: projectColor || '#6B7280' }]} />
                       <Text
+                        maxFontSizeMultiplier={BOARD_FILTER_CHIP_MAX_FONT_SCALE}
                         style={[styles.filterChipText, styles.projectFilterText, { color: selected ? tc.onTint : tc.text }]}
                         numberOfLines={1}
                       >
