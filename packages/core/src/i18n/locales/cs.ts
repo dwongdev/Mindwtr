@@ -179,6 +179,8 @@ export const csOverrides: Record<string, string> = {
         'taskEdit.recurrenceLabel': 'Opakování',
         'taskEdit.descriptionLabel': 'Popis',
         'taskEdit.descriptionPlaceholder': 'Přidat poznámky…',
+        'taskEdit.descriptionAudio': 'Diktovat popis',
+        'taskEdit.descriptionAudioStop': 'Zastavit diktování',
         'taskEdit.textDirectionLabel': 'Směr textu',
         'taskEdit.textDirection.auto': 'Automaticky',
         'taskEdit.textDirection.ltr': 'Zleva doprava',
