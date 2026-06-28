@@ -1,5 +1,6 @@
 use crate::*;
 use bzip2::read::BzDecoder;
+use sha2::{Digest, Sha256};
 #[cfg(unix)]
 use std::os::unix::fs::PermissionsExt;
 use tar::Archive;
@@ -79,6 +80,51 @@ fn sherpa_sidecar_archive_name() -> Result<&'static str, String> {
         (os, arch) => Err(format!(
             "Parakeet runtime download is not available for {os}/{arch}"
         )),
+    }
+}
+
+fn sherpa_sidecar_archive_sha256(archive_name: &str) -> Option<&'static str> {
+    match archive_name {
+        "sherpa-onnx-v1.13.2-linux-x64-static-no-tts.tar.bz2" => {
+            Some("3aef3e284030568abe0640d6e12e00b8015077a1ed94d29e3b60374d060d1daf")
+        }
+        "sherpa-onnx-v1.13.2-linux-aarch64-static.tar.bz2" => {
+            Some("f07daeaf592e09ed8a98121c195a2ff90a48405135c209a3906d9d7f93abc7da")
+        }
+        "sherpa-onnx-v1.13.2-osx-x64-static-no-tts.tar.bz2" => {
+            Some("1cf9a3061e9393e511f5a0a44f44aa0426c94673f60dff7ddf3e69ea668ee80f")
+        }
+        "sherpa-onnx-v1.13.2-osx-arm64-static-no-tts.tar.bz2" => {
+            Some("037fa6d0619334502e16f47e12e642d5be43d1189df61188931e0ea2c728f5cd")
+        }
+        "sherpa-onnx-v1.13.2-win-x64-static-MT-Release-no-tts.tar.bz2" => {
+            Some("15d10ec7af9a8ddce310babc293307aefdd25204a78a0f15684ecebfa72df132")
+        }
+        "sherpa-onnx-v1.13.2-win-arm64-static-MT-Release-no-tts.tar.bz2" => {
+            Some("e8abbc101440b48f6c8e322eb3dab10df578774a039ff54ef9d0989c7e72bc00")
+        }
+        _ => None,
+    }
+}
+
+fn verify_file_sha256(path: &Path, label: &str, expected_sha256: &str) -> Result<(), String> {
+    let mut file = File::open(path).map_err(|error| error.to_string())?;
+    let mut hasher = Sha256::new();
+    let mut buffer = [0u8; 64 * 1024];
+    loop {
+        let bytes_read = file.read(&mut buffer).map_err(|error| error.to_string())?;
+        if bytes_read == 0 {
+            break;
+        }
+        hasher.update(&buffer[..bytes_read]);
+    }
+    let actual = format!("{:x}", hasher.finalize());
+    if actual.eq_ignore_ascii_case(expected_sha256) {
+        Ok(())
+    } else {
+        Err(format!(
+            "{label} SHA-256 mismatch: expected {expected_sha256}, got {actual}"
+        ))
     }
 }
 
@@ -210,6 +256,10 @@ fn ensure_sherpa_sidecar(data_dir: &Path, app: &tauri::AppHandle) -> Result<Path
         &archive_path,
         "sherpa-onnx runtime",
     )?;
+    let expected_sha256 = sherpa_sidecar_archive_sha256(archive_name).ok_or_else(|| {
+        format!("No pinned SHA-256 digest for sherpa-onnx runtime archive {archive_name}")
+    })?;
+    verify_file_sha256(&archive_path, "sherpa-onnx runtime", expected_sha256)?;
     unpack_tar_bz2(&archive_path, &extract_dir)?;
     let binary = find_file_recursive(&extract_dir, SHERPA_BINARY_NAME).ok_or_else(|| {
         "Downloaded sherpa-onnx runtime is missing sherpa-onnx-offline".to_string()
@@ -775,5 +825,60 @@ mod tests {
         File::create(&binary).expect("should create sidecar binary");
 
         assert_eq!(managed_sherpa_binary(temp_dir.path()), Some(binary));
+    }
+
+    #[test]
+    fn supported_sherpa_sidecar_archives_have_pinned_hashes() {
+        let archives = [
+            (
+                "sherpa-onnx-v1.13.2-linux-x64-static-no-tts.tar.bz2",
+                "3aef3e284030568abe0640d6e12e00b8015077a1ed94d29e3b60374d060d1daf",
+            ),
+            (
+                "sherpa-onnx-v1.13.2-linux-aarch64-static.tar.bz2",
+                "f07daeaf592e09ed8a98121c195a2ff90a48405135c209a3906d9d7f93abc7da",
+            ),
+            (
+                "sherpa-onnx-v1.13.2-osx-x64-static-no-tts.tar.bz2",
+                "1cf9a3061e9393e511f5a0a44f44aa0426c94673f60dff7ddf3e69ea668ee80f",
+            ),
+            (
+                "sherpa-onnx-v1.13.2-osx-arm64-static-no-tts.tar.bz2",
+                "037fa6d0619334502e16f47e12e642d5be43d1189df61188931e0ea2c728f5cd",
+            ),
+            (
+                "sherpa-onnx-v1.13.2-win-x64-static-MT-Release-no-tts.tar.bz2",
+                "15d10ec7af9a8ddce310babc293307aefdd25204a78a0f15684ecebfa72df132",
+            ),
+            (
+                "sherpa-onnx-v1.13.2-win-arm64-static-MT-Release-no-tts.tar.bz2",
+                "e8abbc101440b48f6c8e322eb3dab10df578774a039ff54ef9d0989c7e72bc00",
+            ),
+        ];
+
+        for (archive, expected_digest) in archives {
+            let digest = sherpa_sidecar_archive_sha256(archive)
+                .unwrap_or_else(|| panic!("missing digest for {archive}"));
+
+            assert_eq!(digest, expected_digest);
+        }
+    }
+
+    #[test]
+    fn verify_file_sha256_rejects_mismatched_content() {
+        let temp_dir = tempfile::tempdir().expect("should create temp dir");
+        let file_path = temp_dir.path().join("archive.tar.bz2");
+        fs::write(&file_path, b"tampered archive").expect("should write archive");
+
+        let error = verify_file_sha256(
+            &file_path,
+            "sherpa-onnx runtime",
+            "0000000000000000000000000000000000000000000000000000000000000000",
+        )
+        .expect_err("hash mismatch should fail");
+
+        assert!(error.contains("sherpa-onnx runtime SHA-256 mismatch"));
+        assert!(error
+            .contains("expected 0000000000000000000000000000000000000000000000000000000000000000"));
     }
 }
