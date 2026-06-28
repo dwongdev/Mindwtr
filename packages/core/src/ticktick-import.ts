@@ -386,6 +386,8 @@ const parseTickTickTaskDate = (value: string, isAllDay: boolean, timeZone: strin
     const trimmed = normalizeTickTickDateInput(value);
     if (!trimmed) return undefined;
     if (/^\d{4}-\d{2}-\d{2}$/u.test(trimmed)) return trimmed;
+    const exportedDate = trimmed.match(/^(\d{4}-\d{2}-\d{2})(?:[T\s]|$)/u)?.[1];
+    if (isAllDay && !timeZone.trim() && exportedDate) return exportedDate;
     const parsed = safeParseDate(trimmed);
     if (!parsed) return undefined;
     return isAllDay ? formatDateInTimeZone(parsed, timeZone) : parsed.toISOString();

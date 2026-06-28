@@ -301,6 +301,49 @@ describe('ticktick import', () => {
         ]);
     });
 
+    it('keeps TickTick all-day dates on the exported local day when timezone is empty', () => {
+        const csv = buildTickTickCsv([
+            [
+                '',
+                'Inbox',
+                'All-day task',
+                'TEXT',
+                '',
+                '',
+                'N',
+                '2026-06-17T23:30:00-0200',
+                '2026-06-18T23:30:00-0200',
+                '',
+                '',
+                '0',
+                '0',
+                '2026-06-10T12:00:00+0000',
+                '',
+                '1',
+                '',
+                'true',
+                'false',
+                'Not Sectioned',
+                '-1',
+                'list',
+                'all-day-1',
+                '',
+            ],
+        ]);
+
+        const result = parseTickTickImportSource({
+            fileName: 'all-day.csv',
+            text: csv,
+        });
+
+        expect(result.valid).toBe(true);
+        expect(result.parsedData?.tasks[0]).toMatchObject({
+            title: 'All-day task',
+            startTime: '2026-06-17',
+            dueDate: '2026-06-18',
+        });
+    });
+
     it('parses a zipped TickTick backup and skips unsupported archive entries', () => {
         const archive = zipSync({
             'backup.csv': strToU8(sampleTickTickCsv),
