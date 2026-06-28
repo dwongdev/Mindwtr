@@ -9,6 +9,17 @@ const appLogMock = vi.hoisted(() => ({
   logWarn: vi.fn(),
 }));
 
+const constantsMock = vi.hoisted(() => ({
+  default: {
+    appOwnership: 'standalone',
+    expoConfig: {
+      extra: {
+        isFossBuild: false,
+      },
+    },
+  },
+}));
+
 const whisperMock = vi.hoisted(() => ({
   initWhisper: vi.fn(),
 }));
@@ -16,6 +27,8 @@ const whisperMock = vi.hoisted(() => ({
 vi.mock('react-native', () => ({
   Platform: { OS: 'android' },
 }));
+
+vi.mock('expo-constants', () => constantsMock);
 
 vi.mock('expo-file-system', () => ({
   Directory: class MockDirectory {
@@ -64,7 +77,13 @@ vi.mock('whisper.rn/src/index', () => whisperMock);
 vi.mock('whisper.rn/realtime-transcription/adapters/AudioPcmStreamAdapter.js', () => ({}));
 vi.mock('whisper.rn/realtime-transcription/index.js', () => ({}));
 
-import { prepareAudioForLocalWhisper, processAudioCapture, startWhisperRealtimeCapture } from './speech-to-text';
+import {
+  prepareAudioForLocalWhisper,
+  processAudioCapture,
+  REMOTE_SPEECH_TO_TEXT_FOSS_ERROR,
+  resolveSpeechToTextRuntimeSettings,
+  startWhisperRealtimeCapture,
+} from './speech-to-text';
 
 const makePcmWav = ({
   sampleRate = 16000,
@@ -104,7 +123,67 @@ const makeM4aHeader = () => new Uint8Array([
 
 describe('speech-to-text', () => {
   beforeEach(() => {
+    constantsMock.default.expoConfig.extra.isFossBuild = false;
     vi.clearAllMocks();
+  });
+
+  it('forces synced remote speech settings to local Whisper in FOSS builds', () => {
+    expect(
+      resolveSpeechToTextRuntimeSettings(
+        {
+          enabled: true,
+          provider: 'openai',
+          model: 'gpt-4o-transcribe',
+          offlineModelPath: 'file:///document/whisper-models/ggml-tiny.bin',
+          language: 'en',
+          mode: 'transcribe_only',
+          fieldStrategy: 'description_only',
+        },
+        { isFossBuild: true }
+      )
+    ).toMatchObject({
+      provider: 'whisper',
+      enabled: true,
+      model: 'whisper-tiny',
+      modelPath: 'file:///document/whisper-models/ggml-tiny.bin',
+      language: 'en',
+      mode: 'transcribe_only',
+      fieldStrategy: 'description_only',
+      isFossBuild: true,
+    });
+  });
+
+  it('keeps synced Parakeet disabled outside FOSS builds', () => {
+    expect(
+      resolveSpeechToTextRuntimeSettings(
+        { enabled: true, provider: 'parakeet', model: 'parakeet-tdt-0.6b-v3-int8' },
+        { isFossBuild: false }
+      )
+    ).toMatchObject({
+      provider: 'whisper',
+      enabled: false,
+      model: 'whisper-tiny',
+      isFossBuild: false,
+    });
+  });
+
+  it('blocks remote speech-to-text transport in FOSS builds', async () => {
+    constantsMock.default.expoConfig.extra.isFossBuild = true;
+
+    await expect(
+      processAudioCapture('file:///tmp/audio.m4a', {
+        provider: 'gemini',
+        apiKey: 'secret',
+        model: 'gemini-2.5-flash',
+        isFossBuild: true,
+      })
+    ).rejects.toThrow(REMOTE_SPEECH_TO_TEXT_FOSS_ERROR);
+    expect(appLogMock.logWarn).toHaveBeenCalledWith(
+      'Remote speech-to-text blocked in FOSS build',
+      expect.objectContaining({
+        extra: { provider: 'gemini' },
+      })
+    );
   });
 
   it('fails cleanly when Android Whisper realtime helper modules are unavailable', async () => {

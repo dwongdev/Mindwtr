@@ -1,6 +1,6 @@
 import { Directory, File, Paths } from 'expo-file-system';
 import { Platform } from 'react-native';
-import type { AudioCaptureMode, AudioFieldStrategy } from '@mindwtr/core';
+import type { AudioCaptureMode, AudioFieldStrategy, SpeechToTextSettings } from '@mindwtr/core';
 import { logInfo, logWarn } from './app-log';
 import {
   buildMultipartAudioPart,
@@ -8,7 +8,7 @@ import {
   normalizeAudioUriForFileRead,
 } from './speech-to-text.helpers';
 
-type SpeechProvider = 'openai' | 'gemini' | 'whisper';
+export type SpeechProvider = 'openai' | 'gemini' | 'whisper';
 
 export type SpeechToTextResult = {
   transcript: string;
@@ -48,6 +48,7 @@ export type SpeechToTextConfig = {
   fieldStrategy?: AudioFieldStrategy;
   parseModel?: string;
   modelPath?: string;
+  isFossBuild?: boolean;
   now?: Date;
   timeZone?: string;
 };
@@ -76,9 +77,27 @@ const LOCAL_WHISPER_BITS_PER_SAMPLE = 16;
 const LOCAL_WHISPER_MIN_DURATION_MS = 150;
 const LOCAL_WHISPER_UNSUPPORTED_AUDIO_ERROR =
   'Local Whisper can only transcribe 16 kHz mono PCM WAV audio.';
+const DEFAULT_OPENAI_STT_MODEL = 'gpt-4o-transcribe';
+const DEFAULT_GEMINI_STT_MODEL = 'gemini-2.5-flash';
+const DEFAULT_WHISPER_STT_MODEL = 'whisper-tiny';
+const WHISPER_STT_MODEL_IDS = new Set([
+  'whisper-tiny',
+  'whisper-tiny.en',
+  'whisper-base',
+  'whisper-base.en',
+]);
+export const REMOTE_SPEECH_TO_TEXT_FOSS_ERROR =
+  'Remote speech-to-text is not available in FOSS builds.';
+
+type ExpoConstantsExtra = {
+  isFossBuild?: unknown;
+};
 
 type ExpoConstantsLike = {
   appOwnership?: string | null;
+  expoConfig?: {
+    extra?: ExpoConstantsExtra | null;
+  } | null;
 };
 
 type WhisperContextLike = {
@@ -191,8 +210,16 @@ const getExpoConstants = (): ExpoConstantsLike | null => {
   try {
     // Delay loading expo-constants so non-Expo test environments can import this module.
     // eslint-disable-next-line @typescript-eslint/no-var-requires
-    const mod = require('expo-constants') as { default?: ExpoConstantsLike } | undefined;
-    expoConstantsCache = mod?.default ?? null;
+    const mod = require('expo-constants') as {
+      default?: ExpoConstantsLike | { default?: ExpoConstantsLike };
+    } | ExpoConstantsLike | undefined;
+    const moduleDefault = (mod as { default?: ExpoConstantsLike | { default?: ExpoConstantsLike } } | undefined)?.default;
+    expoConstantsCache = (
+      (moduleDefault as { default?: ExpoConstantsLike } | undefined)?.default
+      ?? (moduleDefault as ExpoConstantsLike | undefined)
+      ?? (mod as ExpoConstantsLike | undefined)
+      ?? null
+    );
     return expoConstantsCache;
   } catch {
     expoConstantsCache = null;
@@ -200,7 +227,74 @@ const getExpoConstants = (): ExpoConstantsLike | null => {
   }
 };
 
+const parseExtraBool = (value: unknown): boolean => value === true || value === 'true' || value === '1';
+
 const isExpoGo = (): boolean => getExpoConstants()?.appOwnership === 'expo';
+
+export const isMobileFossBuild = (): boolean => parseExtraBool(
+  getExpoConstants()?.expoConfig?.extra?.isFossBuild
+);
+
+const getDefaultSpeechModel = (provider: SpeechProvider): string => {
+  if (provider === 'openai') return DEFAULT_OPENAI_STT_MODEL;
+  if (provider === 'gemini') return DEFAULT_GEMINI_STT_MODEL;
+  return DEFAULT_WHISPER_STT_MODEL;
+};
+
+const normalizeSpeechProviderForRuntime = (
+  provider: SpeechToTextSettings['provider'] | undefined,
+  fossBuild: boolean
+): { provider: SpeechProvider; enabledProvider: boolean } => {
+  if (fossBuild) return { provider: 'whisper', enabledProvider: true };
+  if (!provider) return { provider: 'gemini', enabledProvider: true };
+  if (provider === 'parakeet') return { provider: 'whisper', enabledProvider: false };
+  return { provider, enabledProvider: true };
+};
+
+const normalizeSpeechModelForRuntime = (model: string | undefined, provider: SpeechProvider): string => {
+  if (model && (provider !== 'whisper' || WHISPER_STT_MODEL_IDS.has(model))) return model;
+  return getDefaultSpeechModel(provider);
+};
+
+export type ResolvedSpeechToTextRuntimeSettings = {
+  provider: SpeechProvider;
+  enabled: boolean;
+  model: string;
+  modelPath?: string;
+  language?: string;
+  mode: AudioCaptureMode;
+  fieldStrategy: AudioFieldStrategy;
+  isFossBuild: boolean;
+};
+
+export const resolveSpeechToTextRuntimeSettings = (
+  speech: SpeechToTextSettings | undefined,
+  options?: { isFossBuild?: boolean }
+): ResolvedSpeechToTextRuntimeSettings => {
+  const fossBuild = options?.isFossBuild ?? isMobileFossBuild();
+  const normalized = normalizeSpeechProviderForRuntime(speech?.provider, fossBuild);
+  const model = normalizeSpeechModelForRuntime(speech?.model, normalized.provider);
+  return {
+    provider: normalized.provider,
+    enabled: speech?.enabled === true && normalized.enabledProvider,
+    model,
+    modelPath: normalized.provider === 'whisper' ? speech?.offlineModelPath : undefined,
+    language: speech?.language,
+    mode: speech?.mode ?? 'smart_parse',
+    fieldStrategy: speech?.fieldStrategy ?? 'smart',
+    isFossBuild: fossBuild,
+  };
+};
+
+const assertSpeechProviderAllowedForRuntime = (provider: SpeechProvider, fossBuild = isMobileFossBuild()): void => {
+  if (!fossBuild || provider === 'whisper') return;
+  void logWarn('Remote speech-to-text blocked in FOSS build', {
+    scope: 'speech',
+    force: true,
+    extra: { provider },
+  });
+  throw new Error(REMOTE_SPEECH_TO_TEXT_FOSS_ERROR);
+};
 
 const getWhisperRealtimeModule = () => {
   if (whisperRealtimeModuleCache !== undefined) return whisperRealtimeModuleCache;
@@ -1656,6 +1750,7 @@ export async function processAudioCapture(
   audioUri: string,
   config: SpeechToTextConfig
 ): Promise<SpeechToTextResult> {
+  assertSpeechProviderAllowedForRuntime(config.provider, config.isFossBuild);
   const mode = config.mode ?? 'smart_parse';
   if (config.provider === 'whisper') {
     const localInput = await prepareAudioForLocalWhisper({

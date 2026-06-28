@@ -23,6 +23,7 @@ import {
   prepareAudioForLocalWhisper,
   preloadWhisperContext,
   processAudioCapture,
+  resolveSpeechToTextRuntimeSettings,
   startWhisperRealtimeCapture,
   transcribeLocalWhisper,
   type LocalWhisperAudio,
@@ -165,9 +166,9 @@ export function useQuickCaptureAudio({
   useEffect(() => {
     if (!visible) return;
     const speech = settings.ai?.speechToText;
-    if (!speech?.enabled || speech.provider !== 'whisper') return;
-    const model = speech.model ?? 'whisper-tiny';
-    const modelPath = speech.offlineModelPath;
+    const speechRuntime = resolveSpeechToTextRuntimeSettings(speech);
+    if (!speechRuntime.enabled || speechRuntime.provider !== 'whisper') return;
+    const { model, modelPath } = speechRuntime;
     const resolved = resolveWhisperModel(model, modelPath);
     if (!resolved.exists) return;
     let cancelled = false;
@@ -246,11 +247,8 @@ export function useQuickCaptureAudio({
         interruptionModeAndroid: 'duckOthers',
       });
       const speech = settings.ai?.speechToText;
-      const configuredProvider = speech?.provider ?? 'gemini';
-      const provider = configuredProvider === 'parakeet' ? 'whisper' : configuredProvider;
-      const speechEnabled = speech?.enabled === true && configuredProvider !== 'parakeet';
-      const model = speech?.model ?? (provider === 'openai' ? 'gpt-4o-transcribe' : provider === 'gemini' ? 'gemini-2.5-flash' : 'whisper-tiny');
-      const modelPath = provider === 'whisper' ? speech?.offlineModelPath : undefined;
+      const speechRuntime = resolveSpeechToTextRuntimeSettings(speech);
+      const { provider, model, modelPath } = speechRuntime;
       const whisperResolved = provider === 'whisper'
         ? resolveWhisperModel(model, modelPath)
         : null;
@@ -258,14 +256,14 @@ export function useQuickCaptureAudio({
       const resolvedModelPath = provider === 'whisper'
         ? (whisperResolved?.exists ? whisperResolved.path : modelPath)
         : undefined;
-      const useWhisperRealtime = speechEnabled
+      const useWhisperRealtime = speechRuntime.enabled
         && provider === 'whisper'
         && whisperModelReady;
       if (provider === 'whisper') {
         logSpeechCaptureInfo('Quick capture Whisper start resolved', {
           platform: Platform.OS,
           model,
-          speechEnabled: String(speechEnabled),
+          speechEnabled: String(speechRuntime.enabled),
           modelReady: String(whisperModelReady),
           resolvedModelPath: resolvedModelPath ?? '',
           resolvedModelSize: String(whisperResolved?.size ?? 0),
@@ -306,9 +304,10 @@ export function useQuickCaptureAudio({
             provider,
             model,
             modelPath: resolvedModelPath,
-            language: speech?.language,
-            mode: speech?.mode ?? 'smart_parse',
-            fieldStrategy: speech?.fieldStrategy ?? 'smart',
+            isFossBuild: speechRuntime.isFossBuild,
+            language: speechRuntime.language,
+            mode: speechRuntime.mode,
+            fieldStrategy: speechRuntime.fieldStrategy,
           });
           setRecording({
             kind: 'whisper',
@@ -390,12 +389,9 @@ export function useQuickCaptureAudio({
         const nowIso = now.toISOString();
         const displayTitle = `${t('quickAdd.audioNoteTitle')} ${safeFormatDate(now, 'Pp')}`;
         const speech = settings.ai?.speechToText;
-        const configuredProvider = speech?.provider ?? 'gemini';
-        const provider = configuredProvider === 'parakeet' ? 'whisper' : configuredProvider;
-        const speechEnabled = speech?.enabled === true && configuredProvider !== 'parakeet';
-        const model = speech?.model ?? (provider === 'openai' ? 'gpt-4o-transcribe' : provider === 'gemini' ? 'gemini-2.5-flash' : 'whisper-tiny');
+        const speechRuntime = resolveSpeechToTextRuntimeSettings(speech);
+        const { provider, model, modelPath } = speechRuntime;
         const apiKey = provider === 'whisper' ? '' : await loadAIKey(provider).catch(() => '');
-        const modelPath = provider === 'whisper' ? speech?.offlineModelPath : undefined;
         const whisperResolved = provider === 'whisper'
           ? resolveWhisperModel(model, modelPath)
           : null;
@@ -405,7 +401,7 @@ export function useQuickCaptureAudio({
           : undefined;
 
         const speechReady = isQuickCaptureSpeechReady({
-          speechEnabled: speechEnabled,
+          speechEnabled: speechRuntime.enabled,
           provider,
           apiKey,
           whisperModelReady,
@@ -481,9 +477,10 @@ export function useQuickCaptureAudio({
             apiKey,
             model,
             modelPath: resolvedModelPath,
-            language: speech?.language,
-            mode: speech?.mode ?? 'smart_parse',
-            fieldStrategy: speech?.fieldStrategy ?? 'smart',
+            isFossBuild: speechRuntime.isFossBuild,
+            language: speechRuntime.language,
+            mode: speechRuntime.mode,
+            fieldStrategy: speechRuntime.fieldStrategy,
             parseModel: provider === 'openai' && settings.ai?.provider === 'openai' ? settings.ai?.model : undefined,
             now: new Date(),
             timeZone,
@@ -530,7 +527,7 @@ export function useQuickCaptureAudio({
               platform: Platform.OS,
               model,
               modelReady: String(whisperModelReady),
-              speechEnabled: String(speechEnabled),
+              speechEnabled: String(speechRuntime.enabled),
               localWhisperInputReady: String(Boolean(localWhisperInput)),
             });
           }
@@ -590,12 +587,9 @@ export function useQuickCaptureAudio({
       const nowIso = now.toISOString();
       const displayTitle = `${t('quickAdd.audioNoteTitle')} ${safeFormatDate(now, 'Pp')}`;
       const speech = settings.ai?.speechToText;
-      const configuredProvider = speech?.provider ?? 'gemini';
-      const provider = configuredProvider === 'parakeet' ? 'whisper' : configuredProvider;
-      const speechEnabled = speech?.enabled === true && configuredProvider !== 'parakeet';
-      const model = speech?.model ?? (provider === 'openai' ? 'gpt-4o-transcribe' : provider === 'gemini' ? 'gemini-2.5-flash' : 'whisper-tiny');
+      const speechRuntime = resolveSpeechToTextRuntimeSettings(speech);
+      const { provider, model, modelPath } = speechRuntime;
       const apiKey = provider === 'whisper' ? '' : await loadAIKey(provider).catch(() => '');
-      const modelPath = provider === 'whisper' ? speech?.offlineModelPath : undefined;
       const whisperResolved = provider === 'whisper'
         ? resolveWhisperModel(model, modelPath)
         : null;
@@ -605,7 +599,7 @@ export function useQuickCaptureAudio({
         : undefined;
 
       const speechReady = isQuickCaptureSpeechReady({
-        speechEnabled,
+        speechEnabled: speechRuntime.enabled,
         provider,
         apiKey,
         whisperModelReady,
@@ -680,9 +674,10 @@ export function useQuickCaptureAudio({
           apiKey,
           model,
           modelPath: resolvedModelPath,
-          language: speech?.language,
-          mode: speech?.mode ?? 'smart_parse',
-          fieldStrategy: speech?.fieldStrategy ?? 'smart',
+          isFossBuild: speechRuntime.isFossBuild,
+          language: speechRuntime.language,
+          mode: speechRuntime.mode,
+          fieldStrategy: speechRuntime.fieldStrategy,
           parseModel: provider === 'openai' && settings.ai?.provider === 'openai' ? settings.ai?.model : undefined,
           now: new Date(),
           timeZone,
@@ -712,7 +707,7 @@ export function useQuickCaptureAudio({
             platform: Platform.OS,
             model,
             modelReady: String(whisperModelReady),
-            speechEnabled: String(speechEnabled),
+            speechEnabled: String(speechRuntime.enabled),
             localWhisperInputReady: String(Boolean(localWhisperInput)),
           });
         }

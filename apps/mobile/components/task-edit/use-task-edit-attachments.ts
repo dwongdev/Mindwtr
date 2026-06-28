@@ -19,7 +19,7 @@ import { Paths } from 'expo-file-system';
 
 import { ensureAttachmentAvailable, persistAttachmentLocally } from '../../lib/attachment-sync';
 import { loadAIKey } from '../../lib/ai-config';
-import { ensureWhisperModelPathForConfig, processAudioCapture } from '../../lib/speech-to-text';
+import { ensureWhisperModelPathForConfig, processAudioCapture, resolveSpeechToTextRuntimeSettings } from '../../lib/speech-to-text';
 import { normalizeAudioUri } from '../../lib/speech-to-text.helpers';
 import {
     isReleasedAudioPlayerError,
@@ -388,18 +388,13 @@ export function useTaskEditAttachments({
             }
 
             const speech = currentSettings.ai?.speechToText;
-            if (!speech?.enabled) {
+            const speechRuntime = resolveSpeechToTextRuntimeSettings(speech);
+            if (!speechRuntime.enabled) {
                 throw new Error(resolveText('attachments.transcriptionUnavailable', 'Speech-to-text is not ready. Check your AI settings and try again.'));
             }
 
-            const configuredProvider = speech.provider ?? 'gemini';
-            if (configuredProvider === 'parakeet') {
-                throw new Error(resolveText('attachments.transcriptionUnavailable', 'Speech-to-text is not ready. Check your AI settings and try again.'));
-            }
-            const provider = configuredProvider;
-            const model = speech.model ?? (provider === 'openai' ? 'gpt-4o-transcribe' : provider === 'gemini' ? 'gemini-2.5-flash' : 'whisper-tiny');
+            const { provider, model, modelPath } = speechRuntime;
             const apiKey = provider === 'whisper' ? '' : await loadAIKey(provider).catch(() => '');
-            const modelPath = provider === 'whisper' ? speech.offlineModelPath : undefined;
             const whisperResolved = provider === 'whisper'
                 ? ensureWhisperModelPathForConfig(model, modelPath)
                 : null;
@@ -420,9 +415,10 @@ export function useTaskEditAttachments({
                 apiKey,
                 model,
                 modelPath: resolvedModelPath,
-                language: speech.language,
-                mode: speech.mode ?? 'smart_parse',
-                fieldStrategy: speech.fieldStrategy ?? 'smart',
+                isFossBuild: speechRuntime.isFossBuild,
+                language: speechRuntime.language,
+                mode: speechRuntime.mode,
+                fieldStrategy: speechRuntime.fieldStrategy,
                 parseModel: provider === 'openai' && currentSettings.ai?.provider === 'openai' ? currentSettings.ai?.model : undefined,
                 now: new Date(),
                 timeZone,
