@@ -31,7 +31,6 @@ export const styles = StyleSheet.create({
         backgroundColor: 'transparent',
     },
     titleInput: {
-        maxHeight: 120,
         textAlignVertical: 'top',
     },
     textArea: { minHeight: 100, textAlignVertical: 'top' },
