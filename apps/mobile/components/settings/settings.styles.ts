@@ -165,7 +165,7 @@ export const styles = StyleSheet.create({
     taskEditorSheetDoneButtonText: { color: '#FFFFFF', fontSize: 15, fontWeight: '700' },
     settingInfo: { flex: 1, minWidth: 0, marginRight: 16 },
     settingLabel: { fontSize: 16, fontWeight: '500', flexShrink: 1, lineHeight: 21, minWidth: 0 },
-    settingDescription: { fontSize: 13, marginTop: 2 },
+    settingDescription: { flexShrink: 1, fontSize: 13, lineHeight: 18, marginTop: 2, minWidth: 0 },
     settingValue: { fontSize: 16, flexShrink: 1, lineHeight: 21, minWidth: 0, textAlign: 'right' },
     linkText: { fontSize: 16, color: '#3B82F6', flexShrink: 1, lineHeight: 21, minWidth: 0, textAlign: 'right' },
     guideLinkInline: {
@@ -183,8 +183,8 @@ export const styles = StyleSheet.create({
     helpTitle: { fontSize: 15, fontWeight: '600', marginBottom: 8 },
     helpText: { fontSize: 13, lineHeight: 20 },
     backendToggle: { flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap' },
-    backendOption: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 16, borderWidth: 1, maxWidth: '100%', flexShrink: 1 },
-    backendOptionText: { fontSize: 13, fontWeight: '700', textAlign: 'center' },
+    backendOption: { paddingHorizontal: 10, paddingVertical: 6, borderRadius: 16, borderWidth: 1, maxWidth: '100%', flexShrink: 1 },
+    backendOptionText: { flexShrink: 1, fontSize: 13, fontWeight: '700', lineHeight: 17, minWidth: 0, textAlign: 'center' },
     dropdownButton: {
         flexDirection: 'row',
         alignItems: 'center',
@@ -221,12 +221,17 @@ export const styles = StyleSheet.create({
     modelSuggestButton: {
         borderWidth: 1,
         borderRadius: 10,
-        paddingHorizontal: 10,
+        flexShrink: 1,
+        paddingHorizontal: 8,
         paddingVertical: 10,
     },
     modelSuggestButtonText: {
+        flexShrink: 1,
         fontSize: 12,
         fontWeight: '600',
+        lineHeight: 16,
+        minWidth: 0,
+        textAlign: 'center',
     },
     pickerOverlay: {
         flex: 1,
@@ -322,8 +327,11 @@ export const styles = StyleSheet.create({
         paddingHorizontal: 10,
     },
     gtdSegmentedOptionText: {
+        flexShrink: 1,
         fontSize: 14,
         fontWeight: '700',
+        lineHeight: 18,
+        minWidth: 0,
         textAlign: 'center',
     },
     inputGroup: { padding: 16 },

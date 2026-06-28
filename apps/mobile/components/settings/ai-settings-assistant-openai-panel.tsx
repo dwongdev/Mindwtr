@@ -4,6 +4,7 @@ import { Platform, Text, TextInput, TouchableOpacity, View } from 'react-native'
 import type { AIReasoningEffort } from '@mindwtr/core';
 
 import type { ThemeColors } from '@/hooks/use-theme-colors';
+import { COMPACT_TEXT_MAX_SCALE } from '@/constants/text-scale';
 
 import { styles } from './settings.styles';
 
@@ -66,7 +67,11 @@ export function AiSettingsAssistantOpenAiPanel({
                             ]}
                             onPress={() => onAiReasoningEffortChange(effort)}
                         >
-                            <Text style={[styles.backendOptionText, { color: aiReasoningEffort === effort ? tc.tint : tc.secondaryText }]}>
+                            <Text
+                                style={[styles.backendOptionText, { color: aiReasoningEffort === effort ? tc.tint : tc.secondaryText }]}
+                                numberOfLines={2}
+                                maxFontSizeMultiplier={COMPACT_TEXT_MAX_SCALE}
+                            >
                                 {effort === 'low'
                                     ? t('settings.aiEffortLow')
                                     : effort === 'medium'

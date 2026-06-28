@@ -120,7 +120,9 @@ function MoreSheetCompactItem({
       <Text
         style={[styles.moreCompactLabel, { color: tc.secondaryText }]}
         numberOfLines={2}
-        maxFontSizeMultiplier={COMPACT_NAV_TEXT_MAX_SCALE}
+        adjustsFontSizeToFit
+        minimumFontScale={0.72}
+        maxFontSizeMultiplier={1}
       >
         {item.displayLabel ?? item.label}
       </Text>

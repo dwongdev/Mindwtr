@@ -412,7 +412,7 @@ export function QuickCaptureSheetBody({
                     <FileText size={16} color={tc.text} />
                     <Text
                       style={[styles.importTextButtonText, { color: tc.text }]}
-                      numberOfLines={1}
+                      numberOfLines={2}
                       maxFontSizeMultiplier={COMPACT_TEXT_MAX_SCALE}
                     >
                       {tFallback(t, 'quickAdd.bulkImportTextFile', 'Import .txt')}

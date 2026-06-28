@@ -220,7 +220,11 @@ export function SwipeableTaskItemContent({
                 children: (
                     <>
                         <View style={[styles.projectDot, { backgroundColor: projectColor || tc.tint }]} />
-                        <Text style={[styles.metaText, { color: tc.secondaryText }]} numberOfLines={1}>
+                        <Text
+                            style={[styles.metaText, { color: tc.secondaryText }]}
+                            numberOfLines={2}
+                            maxFontSizeMultiplier={COMPACT_TEXT_MAX_SCALE}
+                        >
                             {project.title}
                         </Text>
                     </>
@@ -232,7 +236,12 @@ export function SwipeableTaskItemContent({
 
     if (projectDeadlineLabel) {
         addMetaPart(
-            <Text key="project-deadline" style={[styles.metaText, styles.projectDeadlineText]} numberOfLines={1}>
+            <Text
+                key="project-deadline"
+                style={[styles.metaText, styles.projectDeadlineText]}
+                numberOfLines={2}
+                maxFontSizeMultiplier={COMPACT_TEXT_MAX_SCALE}
+            >
                 {projectDeadlineLabel}
             </Text>,
             'project-deadline'
@@ -249,11 +258,15 @@ export function SwipeableTaskItemContent({
                 accessibilityLabel: `Open context ${context}`,
                 children: (
                     <>
-                        <Text style={[styles.metaText, styles.contextText]} numberOfLines={1}>
+                        <Text
+                            style={[styles.metaText, styles.contextText]}
+                            numberOfLines={2}
+                            maxFontSizeMultiplier={COMPACT_TEXT_MAX_SCALE}
+                        >
                             {context}
                         </Text>
                         {moreContexts > 0 && (
-                            <Text style={[styles.metaText, { color: tc.secondaryText }]}>+{moreContexts}</Text>
+                            <Text style={[styles.metaText, { color: tc.secondaryText }]} maxFontSizeMultiplier={COMPACT_TEXT_MAX_SCALE}>+{moreContexts}</Text>
                         )}
                     </>
                 ),
@@ -272,11 +285,15 @@ export function SwipeableTaskItemContent({
                 accessibilityLabel: `Open tag ${tag}`,
                 children: (
                     <>
-                        <Text style={[styles.metaText, styles.tagText]} numberOfLines={1}>
+                        <Text
+                            style={[styles.metaText, styles.tagText]}
+                            numberOfLines={2}
+                            maxFontSizeMultiplier={COMPACT_TEXT_MAX_SCALE}
+                        >
                             {tag}
                         </Text>
                         {moreTags > 0 && (
-                            <Text style={[styles.metaText, { color: tc.secondaryText }]}>+{moreTags}</Text>
+                            <Text style={[styles.metaText, { color: tc.secondaryText }]} maxFontSizeMultiplier={COMPACT_TEXT_MAX_SCALE}>+{moreTags}</Text>
                         )}
                     </>
                 ),
@@ -345,7 +362,12 @@ export function SwipeableTaskItemContent({
                 children: (
                     <>
                         <Repeat size={12} color={tc.secondaryText} strokeWidth={2} />
-                        <Text key="recurrence-label" style={[styles.metaText, { color: tc.secondaryText }]} numberOfLines={1}>
+                        <Text
+                            key="recurrence-label"
+                            style={[styles.metaText, { color: tc.secondaryText }]}
+                            numberOfLines={2}
+                            maxFontSizeMultiplier={COMPACT_TEXT_MAX_SCALE}
+                        >
                             {recurrenceLabel}
                         </Text>
                     </>

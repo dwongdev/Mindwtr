@@ -15,6 +15,7 @@ import { getMindSweepGroups, shallow, useTaskStore, type MindSweepScope } from '
 import { useLanguage } from '../contexts/language-context';
 import { useThemeColors } from '@/hooks/use-theme-colors';
 import { useFilledButtonColors } from '@/hooks/use-filled-button-colors';
+import { COMPACT_TEXT_MAX_SCALE } from '@/constants/text-scale';
 
 const INTRO_STEP = -1;
 
@@ -103,7 +104,11 @@ export function MindSweepModalContent({ onClose }: MindSweepModalContentProps) {
                         selected && { backgroundColor: tc.tint, borderColor: tc.tint },
                       ]}
                     >
-                      <Text style={[styles.scopeButtonText, { color: selected ? tc.onTint : tc.text }]}>
+                      <Text
+                        style={[styles.scopeButtonText, { color: selected ? tc.onTint : tc.text }]}
+                        numberOfLines={2}
+                        maxFontSizeMultiplier={COMPACT_TEXT_MAX_SCALE}
+                      >
                         {option.label}
                       </Text>
                     </TouchableOpacity>
@@ -236,14 +241,14 @@ const styles = StyleSheet.create({
   content: { paddingHorizontal: 16, paddingBottom: 24, gap: 10 },
   bodyText: { fontSize: 15, lineHeight: 21 },
   sectionLabel: { fontSize: 15, fontWeight: '600', marginTop: 8 },
-  scopeRow: { flexDirection: 'row', gap: 8 },
+  scopeRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   scopeButton: {
     paddingHorizontal: 14,
     paddingVertical: 8,
     borderRadius: 999,
     borderWidth: 1,
   },
-  scopeButtonText: { fontSize: 14, fontWeight: '600' },
+  scopeButtonText: { fontSize: 14, fontWeight: '600', lineHeight: 18, textAlign: 'center' },
   primaryButton: {
     marginTop: 16,
     paddingVertical: 12,

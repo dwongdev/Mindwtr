@@ -1560,7 +1560,8 @@ export default function FocusScreen() {
                       >
                         <Text
                           style={[styles.savedFilterChipText, { color: selected ? tc.onTint : tc.text }]}
-                          numberOfLines={1}
+                          numberOfLines={2}
+                          maxFontSizeMultiplier={COMPACT_TEXT_MAX_SCALE}
                         >
                           {filter.icon ? `${filter.icon} ` : ''}{filter.name}
                         </Text>
@@ -1660,8 +1661,20 @@ export default function FocusScreen() {
         renderItem={renderItem}
         ListEmptyComponent={!hasTasks ? (
           <View style={styles.emptyState}>
-            <Text style={[styles.emptyTitle, { color: tc.text }]}>{emptyTitle}</Text>
-            <Text style={[styles.emptySubtitle, { color: tc.secondaryText }]}>{emptySubtitle}</Text>
+            <Text
+              style={[styles.emptyTitle, { color: tc.text }]}
+              numberOfLines={2}
+              maxFontSizeMultiplier={COMPACT_TEXT_MAX_SCALE}
+            >
+              {emptyTitle}
+            </Text>
+            <Text
+              style={[styles.emptySubtitle, { color: tc.secondaryText }]}
+              numberOfLines={3}
+              maxFontSizeMultiplier={COMPACT_TEXT_MAX_SCALE}
+            >
+              {emptySubtitle}
+            </Text>
           </View>
         ) : null}
         removeClippedSubviews={false}

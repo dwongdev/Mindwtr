@@ -69,14 +69,18 @@ export const styles = StyleSheet.create({
         gap: 12,
     },
     compactFieldLabel: {
+        flexShrink: 0,
         fontSize: 13,
         fontWeight: '700',
+        lineHeight: 17,
         textTransform: 'uppercase',
     },
     compactFieldValue: {
         flexShrink: 1,
         fontSize: 14,
         fontWeight: '700',
+        lineHeight: 18,
+        minWidth: 0,
         textAlign: 'right',
     },
     statusContainer: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },

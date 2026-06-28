@@ -12,6 +12,7 @@ import {
 import { useMobileSyncBadge } from '@/hooks/use-mobile-sync-badge';
 import { useThemeColors } from '@/hooks/use-theme-colors';
 import { useToast } from '@/contexts/toast-context';
+import { COMPACT_TEXT_MAX_SCALE } from '@/constants/text-scale';
 import { isCloudKitAvailable } from '@/lib/cloudkit-sync';
 import {
     listLocalDataSnapshots,
@@ -655,6 +656,8 @@ function SyncSettingsView({
                                                         styles.backendOptionText,
                                                         { color: selected ? tc.tint : tc.secondaryText },
                                                     ]}
+                                                    numberOfLines={2}
+                                                    maxFontSizeMultiplier={COMPACT_TEXT_MAX_SCALE}
                                                 >
                                                     {getBackendOptionLabel(backend)}
                                                 </Text>
@@ -850,7 +853,11 @@ function SyncSettingsView({
                                     onPress={handleClearPendingRemoteDeletes}
                                     style={{ opacity: pendingRemoteDeleteCount === 0 ? 0.45 : 1 }}
                                 >
-                                    <Text style={[styles.linkText, { color: pendingRemoteDeleteCount === 0 ? tc.secondaryText : tc.tint }]}>
+                                    <Text
+                                        style={[styles.linkText, { color: pendingRemoteDeleteCount === 0 ? tc.secondaryText : tc.tint }]}
+                                        numberOfLines={2}
+                                        maxFontSizeMultiplier={COMPACT_TEXT_MAX_SCALE}
+                                    >
                                         {tr('filters.clear')}
                                     </Text>
                                 </TouchableOpacity>

@@ -774,7 +774,13 @@ export function CalendarSettingsScreen() {
                                         ]}
                                         onPress={() => void loadSystemCalendarState(true)}
                                     >
-                                        <Text style={[styles.backendOptionText, { color: tc.text }]}>{t('settings.grantCalendarAccess')}</Text>
+                                        <Text
+                                            style={[styles.backendOptionText, { color: tc.text }]}
+                                            numberOfLines={2}
+                                            maxFontSizeMultiplier={COMPACT_TEXT_MAX_SCALE}
+                                        >
+                                            {t('settings.grantCalendarAccess')}
+                                        </Text>
                                     </TouchableOpacity>
                                 </View>
                             ) : isSystemCalendarLoading ? (
@@ -859,6 +865,7 @@ export function CalendarSettingsScreen() {
                             >
                                 <Text
                                     style={[styles.backendOptionText, { color: newCalendarUrl.trim() ? (filledButton.textColor ?? '#FFFFFF') : tc.secondaryText }]}
+                                    numberOfLines={2}
                                     maxFontSizeMultiplier={COMPACT_TEXT_MAX_SCALE}
                                 >
                                     {t('settings.externalCalendarAdd')}
@@ -871,6 +878,7 @@ export function CalendarSettingsScreen() {
                             >
                                 <Text
                                     style={[styles.backendOptionText, { color: tc.text }]}
+                                    numberOfLines={2}
                                     maxFontSizeMultiplier={COMPACT_TEXT_MAX_SCALE}
                                 >
                                     {tr('settings.calendarMobile.test')}
@@ -887,6 +895,7 @@ export function CalendarSettingsScreen() {
                         >
                             <Text
                                 style={[styles.backendOptionText, { color: tc.text }]}
+                                numberOfLines={2}
                                 maxFontSizeMultiplier={COMPACT_TEXT_MAX_SCALE}
                             >
                                 {tr('settings.calendarMobile.chooseLocalIcsFile')}

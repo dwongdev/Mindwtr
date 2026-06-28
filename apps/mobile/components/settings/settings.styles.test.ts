@@ -33,6 +33,9 @@ describe('settings styles', () => {
       minWidth: 0,
     });
     expect(flattenStyle(styles.gtdSegmentedOptionText)).toMatchObject({
+      flexShrink: 1,
+      lineHeight: 18,
+      minWidth: 0,
       textAlign: 'center',
     });
   });
@@ -43,11 +46,31 @@ describe('settings styles', () => {
       flexShrink: 1,
     });
     expect(flattenStyle(styles.backendOptionText)).toMatchObject({
+      flexShrink: 1,
+      lineHeight: 17,
+      minWidth: 0,
       textAlign: 'center',
     });
     expect(flattenStyle(styles.pickerOptionText)).toMatchObject({
       flex: 1,
       minWidth: 0,
+    });
+  });
+
+  it('lets compact suggestion and setting descriptions wrap at larger text sizes', () => {
+    expect(flattenStyle(styles.settingDescription)).toMatchObject({
+      flexShrink: 1,
+      lineHeight: 18,
+      minWidth: 0,
+    });
+    expect(flattenStyle(styles.modelSuggestButton)).toMatchObject({
+      flexShrink: 1,
+    });
+    expect(flattenStyle(styles.modelSuggestButtonText)).toMatchObject({
+      flexShrink: 1,
+      lineHeight: 16,
+      minWidth: 0,
+      textAlign: 'center',
     });
   });
 });

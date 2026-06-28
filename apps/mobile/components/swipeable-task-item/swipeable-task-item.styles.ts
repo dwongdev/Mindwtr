@@ -67,8 +67,11 @@ export const styles = StyleSheet.create({
         maxWidth: '100%',
     },
     metaText: {
+        flexShrink: 1,
         fontSize: 12,
         fontWeight: '500',
+        lineHeight: 16,
+        minWidth: 0,
     },
     metaSeparator: {
         fontSize: 12,

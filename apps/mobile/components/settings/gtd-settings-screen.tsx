@@ -490,7 +490,8 @@ export function GtdSettingsScreen({
                                         >
                                             <Text
                                                 style={[styles.gtdSegmentedOptionText, { color: selected ? tc.tint : tc.secondaryText }]}
-                                                numberOfLines={1}
+                                                numberOfLines={2}
+                                                maxFontSizeMultiplier={COMPACT_TEXT_MAX_SCALE}
                                             >
                                                 {option}
                                             </Text>
@@ -521,7 +522,8 @@ export function GtdSettingsScreen({
                                         >
                                             <Text
                                                 style={[styles.gtdSegmentedOptionText, { color: selected ? tc.tint : tc.secondaryText }]}
-                                                numberOfLines={1}
+                                                numberOfLines={2}
+                                                maxFontSizeMultiplier={COMPACT_TEXT_MAX_SCALE}
                                             >
                                                 {option.label}
                                             </Text>
@@ -729,7 +731,8 @@ export function GtdSettingsScreen({
                                             />
                                             <Text
                                                 style={[styles.gtdSegmentedOptionText, { color: selected ? tc.tint : tc.secondaryText }]}
-                                                numberOfLines={1}
+                                                numberOfLines={2}
+                                                maxFontSizeMultiplier={COMPACT_TEXT_MAX_SCALE}
                                             >
                                                 {option.label}
                                             </Text>
@@ -751,9 +754,13 @@ export function GtdSettingsScreen({
                                 <Text style={[styles.settingDescription, { color: tc.secondaryText }]}>{defaultAreaDesc}</Text>
                             </View>
                             <View style={[styles.menuRight, { flexShrink: 1, maxWidth: '42%' }]}>
-                                <Text style={[styles.settingValue, { color: tc.secondaryText }]} numberOfLines={1}>
-                                    {defaultAreaSelectedLabel}
-                                </Text>
+                            <Text
+                                style={[styles.settingValue, { color: tc.secondaryText }]}
+                                numberOfLines={2}
+                                maxFontSizeMultiplier={COMPACT_TEXT_MAX_SCALE}
+                            >
+                                {defaultAreaSelectedLabel}
+                            </Text>
                                 <Ionicons name="chevron-forward" size={18} color={tc.secondaryText} />
                             </View>
                         </TouchableOpacity>
@@ -836,7 +843,11 @@ export function GtdSettingsScreen({
                                             onPress={() => selectDefaultArea(option.id)}
                                             activeOpacity={0.8}
                                         >
-                                            <Text style={[styles.pickerOptionText, { color: selected ? tc.tint : tc.text }]} numberOfLines={1}>
+                                            <Text
+                                                style={[styles.pickerOptionText, { color: selected ? tc.tint : tc.text }]}
+                                                numberOfLines={2}
+                                                maxFontSizeMultiplier={COMPACT_TEXT_MAX_SCALE}
+                                            >
                                                 {option.label}
                                             </Text>
                                             {selected ? <Ionicons name="checkmark" size={18} color={tc.tint} /> : null}

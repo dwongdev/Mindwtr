@@ -4,6 +4,7 @@ import { Switch, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import type { AIProviderId, AIReasoningEffort } from '@mindwtr/core';
 
 import type { ThemeColors } from '@/hooks/use-theme-colors';
+import { COMPACT_TEXT_MAX_SCALE } from '@/constants/text-scale';
 
 import { AiSettingsAssistantAnthropicPanel } from './ai-settings-assistant-anthropic-panel';
 import { AiSettingsAssistantGeminiPanel } from './ai-settings-assistant-gemini-panel';
@@ -124,7 +125,11 @@ export function AiSettingsAssistantCard({
                                 ]}
                                 onPress={() => onAiProviderChange('openai')}
                             >
-                                <Text style={[styles.backendOptionText, { color: aiProvider === 'openai' ? tc.tint : tc.secondaryText }]}>
+                                <Text
+                                    style={[styles.backendOptionText, { color: aiProvider === 'openai' ? tc.tint : tc.secondaryText }]}
+                                    numberOfLines={2}
+                                    maxFontSizeMultiplier={COMPACT_TEXT_MAX_SCALE}
+                                >
                                     {getAIProviderLabel('openai')}
                                 </Text>
                             </TouchableOpacity>
@@ -136,7 +141,11 @@ export function AiSettingsAssistantCard({
                                     ]}
                                     onPress={() => onAiProviderChange('gemini')}
                                 >
-                                    <Text style={[styles.backendOptionText, { color: aiProvider === 'gemini' ? tc.tint : tc.secondaryText }]}>
+                                    <Text
+                                        style={[styles.backendOptionText, { color: aiProvider === 'gemini' ? tc.tint : tc.secondaryText }]}
+                                        numberOfLines={2}
+                                        maxFontSizeMultiplier={COMPACT_TEXT_MAX_SCALE}
+                                    >
                                         {t('settings.aiProviderGemini')}
                                     </Text>
                                 </TouchableOpacity>
@@ -149,7 +158,11 @@ export function AiSettingsAssistantCard({
                                     ]}
                                     onPress={() => onAiProviderChange('anthropic')}
                                 >
-                                    <Text style={[styles.backendOptionText, { color: aiProvider === 'anthropic' ? tc.tint : tc.secondaryText }]}>
+                                    <Text
+                                        style={[styles.backendOptionText, { color: aiProvider === 'anthropic' ? tc.tint : tc.secondaryText }]}
+                                        numberOfLines={2}
+                                        maxFontSizeMultiplier={COMPACT_TEXT_MAX_SCALE}
+                                    >
                                         {t('settings.aiProviderAnthropic')}
                                     </Text>
                                 </TouchableOpacity>
@@ -177,7 +190,11 @@ export function AiSettingsAssistantCard({
                                 style={[styles.modelSuggestButton, { borderColor: tc.border, backgroundColor: tc.cardBg }]}
                                 onPress={() => onModelPickerChange('model')}
                             >
-                                <Text style={[styles.modelSuggestButtonText, { color: tc.secondaryText }]}>
+                                <Text
+                                    style={[styles.modelSuggestButtonText, { color: tc.secondaryText }]}
+                                    numberOfLines={2}
+                                    maxFontSizeMultiplier={COMPACT_TEXT_MAX_SCALE}
+                                >
                                     {tr('settings.aiMobile.suggestions')}
                                 </Text>
                             </TouchableOpacity>
@@ -205,7 +222,11 @@ export function AiSettingsAssistantCard({
                                 style={[styles.modelSuggestButton, { borderColor: tc.border, backgroundColor: tc.cardBg }]}
                                 onPress={() => onModelPickerChange('copilot')}
                             >
-                                <Text style={[styles.modelSuggestButtonText, { color: tc.secondaryText }]}>
+                                <Text
+                                    style={[styles.modelSuggestButtonText, { color: tc.secondaryText }]}
+                                    numberOfLines={2}
+                                    maxFontSizeMultiplier={COMPACT_TEXT_MAX_SCALE}
+                                >
                                     {tr('settings.aiMobile.suggestions')}
                                 </Text>
                             </TouchableOpacity>
