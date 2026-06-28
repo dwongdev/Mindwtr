@@ -283,9 +283,6 @@ Thanks to these monthly sponsors for supporting Mindwtr.
   <a href="https://github.com/bepolymathe" title="@bepolymathe">
     <img src="docs/assets/sponsors/bepolymathe.png" width="60" height="60" alt="@bepolymathe" />
   </a>
-  <a href="https://github.com/davidblume" title="@davidblume">
-    <img src="docs/assets/sponsors/davidblume.png" width="60" height="60" alt="@davidblume" />
-  </a>
   <a href="https://github.com/karl1990" title="@karl1990">
     <img src="docs/assets/sponsors/karl1990.png" width="60" height="60" alt="@karl1990" />
   </a>
@@ -298,5 +295,5 @@ Thanks to these monthly sponsors for supporting Mindwtr.
 </p>
 
 <p align="center">
-  <sub><a href="https://github.com/jarrydstan">@jarrydstan</a> · <a href="https://github.com/ronmolenda">@ronmolenda</a> · <a href="https://github.com/bepolymathe">@bepolymathe</a> · <a href="https://github.com/davidblume">@davidblume</a> · <a href="https://github.com/karl1990">@karl1990</a> · <a href="https://github.com/srijan">@srijan</a> · <a href="https://github.com/davibicudo">@davibicudo</a></sub>
+  <sub><a href="https://github.com/jarrydstan">@jarrydstan</a> · <a href="https://github.com/ronmolenda">@ronmolenda</a> · <a href="https://github.com/bepolymathe">@bepolymathe</a> · <a href="https://github.com/karl1990">@karl1990</a> · <a href="https://github.com/srijan">@srijan</a> · <a href="https://github.com/davibicudo">@davibicudo</a></sub>
 </p>
