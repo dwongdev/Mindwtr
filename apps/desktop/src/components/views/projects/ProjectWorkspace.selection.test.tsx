@@ -260,23 +260,38 @@ describe('ProjectWorkspace Select mode', () => {
         window.removeEventListener('mindwtr:quick-add', quickAddListener);
     });
 
-    it('renders an offscreen task when an external edit request targets it in a virtualized project list', () => {
-        const tasks = Array.from({ length: 130 }, (_, index) => (
+    it('renders a newly created save-and-edit task outside the initial virtualized project rows', () => {
+        const originalScrollIntoView = HTMLElement.prototype.scrollIntoView;
+        const scrollIntoView = vi.fn();
+        const existingTasks = Array.from({ length: 130 }, (_, index) => (
             task(`task-${index}`, `Task ${index}`, {
                 createdAt: `2026-05-12T00:${String(index).padStart(2, '0')}:00.000Z`,
                 updatedAt: `2026-05-12T00:${String(index).padStart(2, '0')}:00.000Z`,
             })
         ));
+        const createdTask = task('task-created', 'New project task', {
+            createdAt: '2026-05-12T02:10:00.000Z',
+            updatedAt: '2026-05-12T02:10:00.000Z',
+        });
+        const tasks = [...existingTasks, createdTask];
         act(() => {
-            useUiStore.setState({ editingTaskId: 'task-129' });
+            useUiStore.setState({ editingTaskId: createdTask.id });
         });
+        HTMLElement.prototype.scrollIntoView = scrollIntoView;
 
-        const { container, getByText } = renderWorkspace({
-            allTasks: tasks,
-        });
+        try {
+            const { container, getByText } = renderWorkspace({
+                allTasks: tasks,
+                highlightTaskId: createdTask.id,
+            });
 
-        expect(container.querySelector('[data-virtualized-task-list="true"]')).toBeInTheDocument();
-        expect(getByText('Task 129')).toBeInTheDocument();
+            expect(container.querySelector('[data-virtualized-task-list="true"]')).toBeInTheDocument();
+            expect(container.querySelector('[data-index="130"]')).toBeInTheDocument();
+            expect(getByText('New project task')).toBeInTheDocument();
+            expect(scrollIntoView).toHaveBeenCalledWith({ block: 'center', behavior: 'smooth' });
+        } finally {
+            HTMLElement.prototype.scrollIntoView = originalScrollIntoView;
+        }
     });
 
     it('sorts completed project tasks by most recent completion first', () => {

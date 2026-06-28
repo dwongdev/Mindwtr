@@ -273,6 +273,7 @@ describe('QuickAddModal', () => {
         });
         expect(useUiStore.getState().projectView.selectedProjectId).toBe('project-launch');
         expect(useUiStore.getState().editingTaskId).toBe('task-created');
+        expect(useTaskStore.getState().highlightTaskId).toBe('task-created');
         expect(navigateListener).toHaveBeenCalledWith(expect.objectContaining({
             detail: { view: 'projects' },
         }));
