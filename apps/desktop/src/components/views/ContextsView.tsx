@@ -51,13 +51,14 @@ type BulkTokenPickerState = {
 
 export function ContextsView() {
     const perf = usePerformanceMonitor('ContextsView');
-    const { tasks, tasksById, projects, areas, settings, updateSettings } = useTaskStore(
+    const { tasks, tasksById, projects, areas, areaFilterId, taskSortBy, updateSettings } = useTaskStore(
         (state) => ({
             tasks: state.tasks,
             tasksById: state._tasksById,
             projects: state.projects,
             areas: state.areas,
-            settings: state.settings,
+            areaFilterId: state.settings?.filters?.areaId,
+            taskSortBy: state.settings?.taskSortBy,
             updateSettings: state.updateSettings,
         }),
         shallow
@@ -74,7 +75,7 @@ export function ContextsView() {
     const selectedContext = persistedViewState.selectedContext;
     const statusFilters = persistedViewState.statusFilters;
     const selectedStatusSet = useMemo(() => new Set(statusFilters), [statusFilters]);
-    const sortBy = (settings?.taskSortBy ?? 'default') as TaskSortBy;
+    const sortBy = (taskSortBy ?? 'default') as TaskSortBy;
     const [searchQuery, setSearchQuery] = useState('');
     const [selectionMode, setSelectionMode] = useState(false);
     const [multiSelectedIds, setMultiSelectedIds] = useState<Set<string>>(new Set());
@@ -117,8 +118,8 @@ export function ContextsView() {
     }), [setSelectedContext]);
     const areaById = useMemo(() => new Map(areas.map((area) => [area.id, area])), [areas]);
     const resolvedAreaFilter = useMemo(
-        () => resolveAreaFilter(settings?.filters?.areaId, areas),
-        [settings?.filters?.areaId, areas],
+        () => resolveAreaFilter(areaFilterId, areas),
+        [areaFilterId, areas],
     );
 
     useEffect(() => {

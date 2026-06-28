@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, TextInput } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -9,21 +9,25 @@ import { useLanguage } from '../contexts/language-context';
 
 export default function FocusChecklistPage() {
     const { id } = useLocalSearchParams();
+    const taskId = Array.isArray(id) ? id[0] : id;
     const router = useRouter();
     const { t } = useLanguage();
-    const { tasks, updateTask } = useTaskStore();
-    const [task, setTask] = useState(tasks.find(t => t.id === id));
+    const storeTask = useTaskStore(useCallback(
+        (state) => state.tasks.find((candidate) => candidate.id === taskId),
+        [taskId]
+    ));
+    const updateTask = useTaskStore((state) => state.updateTask);
+    const [task, setTask] = useState(storeTask);
 
     // Local state for immediate feedback
     const [checklist, setChecklist] = useState(task?.checklist || []);
 
     useEffect(() => {
-        const found = tasks.find(t => t.id === id);
-        if (found) {
-            setTask(found);
-            setChecklist(found.checklist || []);
+        if (storeTask) {
+            setTask(storeTask);
+            setChecklist(storeTask.checklist || []);
         }
-    }, [id, tasks]);
+    }, [storeTask]);
 
     const handleToggle = (index: number) => {
         if (!task) return;
