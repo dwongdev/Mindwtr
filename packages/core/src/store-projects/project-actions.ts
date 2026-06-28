@@ -14,6 +14,7 @@ import { logWarn } from '../logger';
 import { clearDerivedCache } from '../store-settings';
 import { generateUUID as uuidv4 } from '../uuid';
 import { DEFAULT_PROJECT_COLOR } from '../color-constants';
+import { findSelectableProjectByTitleAndArea } from '../project-utils';
 import type { Project, ProjectCoreActions, ProjectActionContext, Task, TaskStatus } from './shared';
 import type { TaskStore } from '../store-types';
 import { actionFail, actionOk } from './shared';
@@ -90,17 +91,12 @@ export const createProjectCoreActions = ({
             set({ error: 'Project title is required' });
             return null;
         }
-        const normalizedTitle = trimmedTitle.toLowerCase();
+        const targetAreaId = typeof initialProps?.areaId === 'string' ? initialProps.areaId : undefined;
         let snapshot = null;
         let createdProject: Project | null = null;
         let existingProject: Project | null = null;
         set((state) => {
-            const duplicate = state._allProjects.find(
-                (project) =>
-                    !project.deletedAt &&
-                    typeof project.title === 'string' &&
-                    project.title.trim().toLowerCase() === normalizedTitle
-            );
+            const duplicate = findSelectableProjectByTitleAndArea(state._allProjects, trimmedTitle, targetAreaId);
             if (duplicate) {
                 existingProject = duplicate;
                 return state;

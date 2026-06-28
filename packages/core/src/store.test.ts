@@ -550,6 +550,64 @@ describe('TaskStore', () => {
         expect(useTaskStore.getState()._tasksById.get(addResult.id!)?.projectId).toBe(existing!.id);
     });
 
+    it('reuses a same-named project in the task area when promoting', async () => {
+        const { addTask, promoteTaskToProject } = useTaskStore.getState();
+        const homeArea = createStoreArea('area-home', { name: 'Home' });
+        const workArea = createStoreArea('area-work', { name: 'Work' });
+        const homeProject = createStoreProject('project-home', { title: 'Plan launch', areaId: homeArea.id, order: 0 });
+        const workProject = createStoreProject('project-work', { title: 'Plan launch', areaId: workArea.id, order: 0 });
+        useTaskStore.setState({
+            areas: [homeArea, workArea],
+            projects: [homeProject, workProject],
+            _allAreas: [homeArea, workArea],
+            _allProjects: [homeProject, workProject],
+            _areasById: buildEntityMap([homeArea, workArea]),
+            _projectsById: buildEntityMap([homeProject, workProject]),
+        });
+
+        const addResult = await addTask('plan launch', { status: 'next', areaId: workArea.id });
+        expect(addResult.success).toBe(true);
+
+        const promoteResult = await promoteTaskToProject(addResult.id!);
+        expect(promoteResult.success).toBe(true);
+        expect(promoteResult.reused).toBe(true);
+        expect(promoteResult.id).toBe(workProject.id);
+        expect(useTaskStore.getState()._allProjects).toHaveLength(2);
+        expect(useTaskStore.getState()._tasksById.get(addResult.id!)?.projectId).toBe(workProject.id);
+    });
+
+    it('creates a project in the task area instead of reusing another area match', async () => {
+        const { addTask, promoteTaskToProject } = useTaskStore.getState();
+        const homeArea = createStoreArea('area-home', { name: 'Home' });
+        const workArea = createStoreArea('area-work', { name: 'Work' });
+        const homeProject = createStoreProject('project-home', { title: 'Plan launch', areaId: homeArea.id, order: 0 });
+        useTaskStore.setState({
+            areas: [homeArea, workArea],
+            projects: [homeProject],
+            _allAreas: [homeArea, workArea],
+            _allProjects: [homeProject],
+            _areasById: buildEntityMap([homeArea, workArea]),
+            _projectsById: buildEntityMap([homeProject]),
+        });
+
+        const addResult = await addTask('plan launch', { status: 'next', areaId: workArea.id });
+        expect(addResult.success).toBe(true);
+
+        const promoteResult = await promoteTaskToProject(addResult.id!);
+        expect(promoteResult.success).toBe(true);
+        expect(promoteResult.reused).toBe(false);
+        expect(promoteResult.id).toBeTruthy();
+        expect(promoteResult.id).not.toBe(homeProject.id);
+
+        const created = useTaskStore.getState()._allProjects.find((project) => project.id === promoteResult.id);
+        expect(created).toMatchObject({
+            title: 'plan launch',
+            areaId: workArea.id,
+            status: 'active',
+        });
+        expect(useTaskStore.getState()._tasksById.get(addResult.id!)?.projectId).toBe(promoteResult.id);
+    });
+
     it('does not reuse an archived same-named project when promoting', async () => {
         const { addProject, addTask, promoteTaskToProject } = useTaskStore.getState();
         const archived = await addProject('Plan launch', '#123456', { status: 'archived' });

@@ -480,6 +480,7 @@ export {
 export {
     filterProjectsBySelectedArea,
     filterProjectsNeedingNextAction,
+    findSelectableProjectByTitleAndArea,
     getProjectNextActionCandidates,
     getProjectNextActionPromptData,
     getProjectsByArea,

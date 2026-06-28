@@ -6,7 +6,7 @@ import {
   DEFAULT_PROJECT_COLOR,
   buildTaskUpdatesFromSpeechResult,
   generateUUID,
-  isSelectableProjectForTaskAssignment,
+  findSelectableProjectByTitleAndArea,
   safeFormatDate,
   type AppSettings,
   type Attachment,
@@ -188,13 +188,16 @@ export function useQuickCaptureAudio({
 
     const { updates, suggestedProjectTitle } = buildTaskUpdatesFromSpeechResult(existing, result, currentSettings);
     if (suggestedProjectTitle && !existing.projectId) {
-      const match = currentProjects.find((project) => project.title.toLowerCase() === suggestedProjectTitle.toLowerCase());
+      const targetAreaId = updates.areaId ?? existing.areaId;
+      const match = findSelectableProjectByTitleAndArea(currentProjects, suggestedProjectTitle, targetAreaId);
       if (match) {
-        if (isSelectableProjectForTaskAssignment(match)) {
-          updates.projectId = match.id;
-        }
+        updates.projectId = match.id;
       } else {
-        const created = await addProjectNow(suggestedProjectTitle, DEFAULT_PROJECT_COLOR);
+        const created = await addProjectNow(
+          suggestedProjectTitle,
+          DEFAULT_PROJECT_COLOR,
+          targetAreaId ? { areaId: targetAreaId } : undefined
+        );
         if (!created) return 'skipped';
         updates.projectId = created.id;
       }

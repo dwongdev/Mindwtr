@@ -27,6 +27,7 @@ import { normalizeFocusTaskLimit } from './focus-utils';
 import { getTaskFocusEligibility, isTaskFutureStart } from './task-utils';
 import { resolveTaskContainerHierarchy } from './task-container-rules';
 import { resolveDefaultNewTaskAreaId } from './area-utils';
+import { findSelectableProjectByTitleAndArea } from './project-utils';
 import { buildNewProject } from './store-projects/project-actions';
 
 const stripAttachmentRemoteMetadata = (attachments: Task['attachments']): Task['attachments'] =>
@@ -1003,13 +1004,10 @@ export const createTaskActions = ({ set, get, getStorage, debouncedSave, trackIm
                 return { error: errorMessage };
             }
 
-            const normalizedTitle = trimmedTitle.toLowerCase();
-            const existingProject = state._allProjects.find(
-                (project) =>
-                    !project.deletedAt &&
-                    project.status !== 'archived' &&
-                    typeof project.title === 'string' &&
-                    project.title.trim().toLowerCase() === normalizedTitle
+            const existingProject = findSelectableProjectByTitleAndArea(
+                state._allProjects,
+                trimmedTitle,
+                targetAreaId
             );
             reusedExistingProject = Boolean(existingProject);
             const projectSupportNotes = typeof sourceTask.description === 'string' && sourceTask.description.trim()

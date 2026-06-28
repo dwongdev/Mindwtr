@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Attachment, DEFAULT_PROJECT_COLOR, buildTaskUpdatesFromSpeechResult, generateUUID, normalizeLinkAttachmentInput, translateWithFallback, useTaskStore, validateAttachmentForUpload, type Task } from '@mindwtr/core';
+import { Attachment, DEFAULT_PROJECT_COLOR, buildTaskUpdatesFromSpeechResult, findSelectableProjectByTitleAndArea, generateUUID, normalizeLinkAttachmentInput, translateWithFallback, useTaskStore, validateAttachmentForUpload, type Task } from '@mindwtr/core';
 import { dataDir } from '@tauri-apps/api/path';
 import { BaseDirectory, readFile, readTextFile, size } from '@tauri-apps/plugin-fs';
 import { loadAIKey } from '../../lib/ai-config';
@@ -250,11 +250,16 @@ export function useTaskItemAttachments({ task, t }: UseTaskItemAttachmentsProps)
 
             const { updates, suggestedProjectTitle } = buildTaskUpdatesFromSpeechResult(existing, result, currentSettings);
             if (suggestedProjectTitle && !existing.projectId) {
-                const match = currentProjects.find((project) => project.title.toLowerCase() === suggestedProjectTitle.toLowerCase());
+                const targetAreaId = updates.areaId ?? existing.areaId;
+                const match = findSelectableProjectByTitleAndArea(currentProjects, suggestedProjectTitle, targetAreaId);
                 if (match) {
                     updates.projectId = match.id;
                 } else {
-                    const created = await addProjectNow(suggestedProjectTitle, DEFAULT_PROJECT_COLOR);
+                    const created = await addProjectNow(
+                        suggestedProjectTitle,
+                        DEFAULT_PROJECT_COLOR,
+                        targetAreaId ? { areaId: targetAreaId } : undefined
+                    );
                     if (!created) {
                         throw new Error(resolveText('attachments.transcriptionFailed', 'Transcription failed. Please try again.'));
                     }

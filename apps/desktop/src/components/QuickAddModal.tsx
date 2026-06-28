@@ -5,6 +5,7 @@ import {
     useTaskStore,
     buildTaskUpdatesFromSpeechResult,
     flushPendingSave,
+    findSelectableProjectByTitleAndArea,
     getQuickAddProjectInitialProps,
     parseQuickAdd,
     resolveDefaultNewTaskAreaId,
@@ -361,11 +362,16 @@ export function QuickAddModal({ standaloneWindow = false }: QuickAddModalProps) 
 
         const { updates, suggestedProjectTitle } = buildTaskUpdatesFromSpeechResult(existing, result, currentSettings);
         if (suggestedProjectTitle && !existing.projectId) {
-            const match = currentProjects.find((project) => project.title.toLowerCase() === suggestedProjectTitle.toLowerCase());
+            const targetAreaId = updates.areaId ?? existing.areaId;
+            const match = findSelectableProjectByTitleAndArea(currentProjects, suggestedProjectTitle, targetAreaId);
             if (match) {
                 updates.projectId = match.id;
             } else {
-                const created = await addProjectNow(suggestedProjectTitle, DEFAULT_PROJECT_COLOR);
+                const created = await addProjectNow(
+                    suggestedProjectTitle,
+                    DEFAULT_PROJECT_COLOR,
+                    targetAreaId ? { areaId: targetAreaId } : undefined
+                );
                 if (!created) return;
                 updates.projectId = created.id;
             }

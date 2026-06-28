@@ -104,6 +104,30 @@ describe('project actions', () => {
         expect(explicitParallelProject.isSequential).toBe(false);
     });
 
+    it('allows the same project title in different areas', async () => {
+        const { addArea, addProject } = useTaskStore.getState();
+        const home = await addArea('Home');
+        const work = await addArea('Work');
+        expect(home).not.toBeNull();
+        expect(work).not.toBeNull();
+        if (!home || !work) return;
+
+        const homeProject = await addProject('Launch', '#3b82f6', { areaId: home.id });
+        const workProject = await addProject('Launch', '#22c55e', { areaId: work.id });
+        const repeatedHomeProject = await addProject(' launch ', '#ef4444', { areaId: home.id });
+
+        expect(homeProject).not.toBeNull();
+        expect(workProject).not.toBeNull();
+        expect(homeProject?.id).not.toBe(workProject?.id);
+        expect(repeatedHomeProject?.id).toBe(homeProject?.id);
+        expect(useTaskStore.getState()._allProjects).toHaveLength(2);
+        expect(workProject).toMatchObject({
+            title: 'Launch',
+            color: '#22c55e',
+            areaId: work.id,
+        });
+    });
+
     it('deletes the project while detaching live tasks from its project and sections', async () => {
         const { addProject, addSection, addTask, deleteProject, deleteTask } = useTaskStore.getState();
         const project = await addProject('Launch', '#3b82f6');
