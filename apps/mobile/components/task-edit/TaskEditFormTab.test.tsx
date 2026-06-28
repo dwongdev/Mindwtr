@@ -246,6 +246,26 @@ describe('TaskEditFormTab keyboard handling', () => {
     expect(onTitleInputFocusChange).toHaveBeenCalledWith(false);
   });
 
+  it('wraps the title across lines and strips newlines from pasted titles', () => {
+    const onTitleDraftChange = vi.fn();
+    let tree!: ReturnType<typeof create>;
+
+    act(() => {
+      tree = create(
+        <TaskEditFormTab {...baseProps} onTitleDraftChange={onTitleDraftChange} />
+      );
+    });
+
+    const titleInput = tree.root.findAllByType(TextInput)[0];
+    expect(titleInput.props.multiline).toBe(true);
+
+    act(() => {
+      titleInput.props.onChangeText('line one\nline two');
+    });
+
+    expect(onTitleDraftChange).toHaveBeenCalledWith('line one line two');
+  });
+
   it('does not schedule measured scrolling when the title input reports a native handle', () => {
     setPlatform('ios');
     const onTitleInputFocusChange = vi.fn();

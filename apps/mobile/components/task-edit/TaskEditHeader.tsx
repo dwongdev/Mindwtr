@@ -5,7 +5,6 @@ import { useLanguage } from '../../contexts/language-context';
 import { useThemeColors } from '../../hooks/use-theme-colors';
 
 type TaskEditHeaderProps = {
-  title: string;
   onDone: () => void;
   onShare: () => void;
   onDuplicate: () => void;
@@ -16,7 +15,6 @@ type TaskEditHeaderProps = {
 };
 
 export function TaskEditHeader({
-  title,
   onDone,
   onShare,
   onDuplicate,
@@ -41,9 +39,6 @@ export function TaskEditHeader({
             <Text style={[styles.headerBtn, styles.headerMoreBtn, { color: tc.tint }]}>•••</Text>
           </TouchableOpacity>
         </View>
-        <Text style={[styles.headerTitle, { color: tc.text }]} numberOfLines={1}>
-          {title}
-        </Text>
         <View style={[styles.headerSide, styles.headerRight]}>
           <TouchableOpacity
             style={[styles.headerActionTouchable, styles.headerActionRight]}
@@ -136,13 +131,6 @@ const styles = StyleSheet.create({
   },
   headerMoreBtn: {
     fontSize: 22,
-  },
-  headerTitle: {
-    flex: 1,
-    textAlign: 'center',
-    fontSize: 17,
-    fontWeight: '700',
-    marginHorizontal: 8,
   },
   headerSide: {
     minWidth: 72,

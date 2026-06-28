@@ -40,6 +40,58 @@ describe('TaskEditViewTab', () => {
     });
   });
 
+  it('shows the task title as a capped field at the top of the read-only preview', () => {
+    let tree!: renderer.ReactTestRenderer;
+    renderer.act(() => {
+      tree = renderer.create(
+        <TaskEditViewTab
+          t={(key) => ({ 'taskEdit.titleLabel': 'Title' }[key] ?? key)}
+          tc={{
+            text: '#fff',
+            secondaryText: '#aaa',
+            inputBg: '#111',
+            border: '#222',
+            cardBg: '#000',
+            tint: '#3b82f6',
+          } as any}
+          styles={taskEditStyles as any}
+          mergedTask={{
+            id: 'task-1',
+            title: 'A very long task title that would otherwise be truncated in the header',
+            status: 'next',
+            tags: [],
+            contexts: [],
+            createdAt: '2026-04-01T00:00:00.000Z',
+            updatedAt: '2026-04-01T00:00:00.000Z',
+          }}
+          projects={[]}
+          sections={[]}
+          areas={[]}
+          prioritiesEnabled={false}
+          timeEstimatesEnabled={false}
+          formatTimeEstimateLabel={(value) => String(value)}
+          formatDate={(value) => value}
+          formatDueDate={(value) => value}
+          getRecurrenceRuleValue={() => ''}
+          getRecurrenceStrategyValue={() => 'strict'}
+          applyChecklistUpdate={vi.fn()}
+          visibleAttachments={[]}
+          openAttachment={vi.fn()}
+          isImageAttachment={() => false}
+          textDirectionStyle={{}}
+          resolvedDirection="ltr"
+          showStatusField={false}
+        />
+      );
+    });
+
+    const titleNode = tree.root.findByProps({
+      children: 'A very long task title that would otherwise be truncated in the header',
+    });
+    expect(titleNode.props.numberOfLines).toBe(4);
+    expect(titleNode.props.ellipsizeMode).toBe('tail');
+  });
+
   it('renders an interactive status badge and forwards updates', () => {
     const onStatusUpdate = vi.fn();
 

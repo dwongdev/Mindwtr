@@ -862,7 +862,6 @@ function TaskEditModalInner({
                     edges={['top']}
                 >
                     <TaskEditHeader
-                        title={String(titleDraft || editedTask.title || '').trim() || t('taskEdit.title')}
                         onDone={handleDone}
                         onShare={handleShare}
                         onDuplicate={handleDuplicateTask}

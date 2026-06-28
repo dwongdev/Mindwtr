@@ -136,6 +136,7 @@ function TaskEditViewTabComponent({
 
   const project = projects.find((p) => p.id === mergedTask.projectId);
   const section = sections.find((item) => item.id === mergedTask.sectionId);
+  const title = String(mergedTask.title || '').trim();
   const description = String(mergedTask.description || '').trim();
   const area = areas.find((a) => a.id === mergedTask.areaId);
   const checklist = mergedTask.checklist || [];
@@ -180,6 +181,18 @@ function TaskEditViewTabComponent({
       keyboardShouldPersistTaps="handled"
       nestedScrollEnabled={nestedScrollEnabled}
     >
+      {title ? (
+        <View style={[styles.viewRow, { backgroundColor: tc.inputBg, borderColor: tc.border }]}>
+          <Text style={[styles.viewLabel, { color: tc.secondaryText }]}>{t('taskEdit.titleLabel')}</Text>
+          <Text
+            style={[styles.viewTitleValue, { color: tc.text }]}
+            numberOfLines={4}
+            ellipsizeMode="tail"
+          >
+            {title}
+          </Text>
+        </View>
+      ) : null}
       {showStatusField && statusLabel ? (
         <View style={[styles.viewRow, { backgroundColor: tc.inputBg, borderColor: tc.border }]}>
           <Text style={[styles.viewLabel, { color: tc.secondaryText }]}>{t('taskEdit.statusLabel')}</Text>

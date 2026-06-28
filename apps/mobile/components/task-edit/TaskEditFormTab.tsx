@@ -343,10 +343,11 @@ function TaskEditFormTabComponent({
                                 </TouchableOpacity>
                             </View>
                             <TextInput
-                            style={[styles.input, inputStyle, textDirectionStyle]}
+                            style={[styles.input, inputStyle, textDirectionStyle, styles.titleInput]}
                             value={titleDraft}
-                            onChangeText={(text) => onTitleDraftChange(text)}
+                            onChangeText={(text) => onTitleDraftChange(text.replace(/[\r\n]+/g, ' '))}
                             placeholderTextColor={tc.secondaryText}
+                            multiline
                             onFocus={() => {
                                 onInputFocusTracked?.(undefined);
                                 setTitleFocused(true);
