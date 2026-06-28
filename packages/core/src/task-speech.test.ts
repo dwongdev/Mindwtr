@@ -79,4 +79,61 @@ describe('buildTaskUpdatesFromSpeechResult', () => {
             suggestedProjectTitle: undefined,
         });
     });
+
+    it('ignores bracket-only caption transcripts from local Whisper', () => {
+        const plan = buildTaskUpdatesFromSpeechResult(
+            {
+                title: '',
+                description: undefined,
+                dueDate: undefined,
+                startTime: undefined,
+                tags: [],
+                contexts: [],
+                projectId: undefined,
+            },
+            {
+                transcript: '[Unrecognized speech]',
+            },
+            {
+                ai: {
+                    speechToText: {
+                        mode: 'transcribe_only',
+                        fieldStrategy: 'smart',
+                    },
+                },
+            },
+        );
+
+        expect(plan).toEqual({
+            updates: {},
+            suggestedProjectTitle: undefined,
+        });
+    });
+
+    it('keeps normal transcripts that contain bracketed text', () => {
+        const plan = buildTaskUpdatesFromSpeechResult(
+            {
+                title: '',
+                description: undefined,
+                dueDate: undefined,
+                startTime: undefined,
+                tags: [],
+                contexts: [],
+                projectId: undefined,
+            },
+            {
+                transcript: 'Buy [AAA] batteries',
+            },
+            {
+                ai: {
+                    speechToText: {
+                        mode: 'transcribe_only',
+                        fieldStrategy: 'smart',
+                    },
+                },
+            },
+        );
+
+        expect(plan.updates.title).toBe('Buy [AAA] batteries');
+    });
 });

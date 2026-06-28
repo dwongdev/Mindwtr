@@ -3,6 +3,7 @@ import {
     buildCaptureExtra,
     getCaptureFileExtension,
     getCaptureMimeType,
+    isQuickCaptureSpeechReady,
     normalizeContextToken,
     parseContextQueryTokens,
 } from './quick-capture-sheet.utils';
@@ -41,5 +42,24 @@ describe('quick-capture utils', () => {
             '@home',
             '@errands',
         ]);
+    });
+
+    it('treats a ready local Whisper model as quick-capture speech ready', () => {
+        expect(isQuickCaptureSpeechReady({
+            speechEnabled: true,
+            provider: 'whisper',
+            whisperModelReady: true,
+        })).toBe(true);
+        expect(isQuickCaptureSpeechReady({
+            speechEnabled: true,
+            provider: 'whisper',
+            whisperModelReady: false,
+        })).toBe(false);
+        expect(isQuickCaptureSpeechReady({
+            speechEnabled: true,
+            provider: 'gemini',
+            apiKey: '',
+            whisperModelReady: true,
+        })).toBe(false);
     });
 });

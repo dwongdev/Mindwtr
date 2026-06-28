@@ -22,6 +22,7 @@ This folder contains small, focused decision documents that explain **why** we m
 - [ADR 0016: Serialize sync cycles around the merge/write window](0016-sync-cycle-serialization.md)
 - [ADR 0017: Defer CRDT sync adoption](0017-defer-crdt-sync-adoption.md)
 - [ADR 0018: Mobile theming via unified token hook with theme-isolation invariant](0018-mobile-theming-token-hook.md)
+- [ADR 0019: Mobile local Whisper audio contract](0019-mobile-local-whisper-audio-contract.md)
 
 ## Template
 

@@ -22,6 +22,23 @@ export type SpeechToTextResult = {
   language?: string | null;
 };
 
+export type CapturedAudio = {
+  uri: string;
+  platform: 'ios' | 'android';
+  source: 'expo-recorder' | 'pcm-recorder';
+  extension?: string;
+};
+
+export type LocalWhisperAudio = {
+  uri: string;
+  format: 'wav-pcm';
+  sampleRate: number;
+  channels: number;
+  bitsPerSample: number;
+  bytes: number;
+  durationMs: number;
+};
+
 export type SpeechToTextConfig = {
   provider: SpeechProvider;
   apiKey?: string;
@@ -53,6 +70,12 @@ const OPENAI_RESPONSES_URL = 'https://api.openai.com/v1/responses';
 const GEMINI_BASE_URL = 'https://generativelanguage.googleapis.com/v1beta/models';
 const WHISPER_ANDROID_MAX_THREADS = 1;
 const WHISPER_ANDROID_N_PROCESSORS = 1;
+const LOCAL_WHISPER_SAMPLE_RATE = 16000;
+const LOCAL_WHISPER_CHANNELS = 1;
+const LOCAL_WHISPER_BITS_PER_SAMPLE = 16;
+const LOCAL_WHISPER_MIN_DURATION_MS = 150;
+const LOCAL_WHISPER_UNSUPPORTED_AUDIO_ERROR =
+  'Local Whisper can only transcribe 16 kHz mono PCM WAV audio.';
 
 type ExpoConstantsLike = {
   appOwnership?: string | null;
@@ -182,19 +205,14 @@ const isExpoGo = (): boolean => getExpoConstants()?.appOwnership === 'expo';
 const getWhisperRealtimeModule = () => {
   if (whisperRealtimeModuleCache !== undefined) return whisperRealtimeModuleCache;
   try {
-    const localRequire = typeof require === 'function' ? require : null;
-    if (!localRequire) {
-      whisperRealtimeModuleCache = null;
-      return null;
-    }
     // Delay loading Whisper realtime modules so generic task-edit tests can import this file
     // without a native audio stream implementation in the environment.
     // eslint-disable-next-line @typescript-eslint/no-var-requires
-    const adapterModule = localRequire(
+    const adapterModule = require(
       'whisper.rn/realtime-transcription/adapters/AudioPcmStreamAdapter.js'
     ) as { AudioPcmStreamAdapter?: AudioPcmStreamAdapterConstructor } | undefined;
     // eslint-disable-next-line @typescript-eslint/no-var-requires
-    const realtimeModule = localRequire(
+    const realtimeModule = require(
       'whisper.rn/realtime-transcription/index.js'
     ) as { RealtimeTranscriber?: RealtimeTranscriberConstructor } | undefined;
     if (!adapterModule?.AudioPcmStreamAdapter || !realtimeModule?.RealtimeTranscriber) {
@@ -206,7 +224,12 @@ const getWhisperRealtimeModule = () => {
       RealtimeTranscriber: realtimeModule.RealtimeTranscriber,
     };
     return whisperRealtimeModuleCache;
-  } catch {
+  } catch (error) {
+    void logWarn('Whisper realtime module unavailable', {
+      scope: 'speech',
+      force: true,
+      extra: { error: error instanceof Error ? error.message : String(error) },
+    });
     whisperRealtimeModuleCache = null;
     return null;
   }
@@ -856,11 +879,11 @@ const buildWhisperDiagnostics = (modelId?: string, modelPath?: string, resolved?
 const ensureWhisperModelDirectory = (): string | null => {
   const roots: Directory[] = [];
   try {
-    roots.push(Paths.cache);
+    roots.push(Paths.document);
   } catch {
   }
   try {
-    roots.push(Paths.document);
+    roots.push(Paths.cache);
   } catch {
   }
   for (const root of roots) {
@@ -906,10 +929,10 @@ const buildWhisperModelCandidates = (
         candidates.push(`${normalizedBase}${fileName}`);
       }
     };
+    appendCandidates(Paths.document?.uri ?? null);
     if (includeCache) {
       appendCandidates(Paths.cache?.uri ?? null);
     }
-    appendCandidates(Paths.document?.uri ?? null);
   }
   return candidates;
 };
@@ -993,6 +1016,7 @@ export const ensureWhisperModelPathForConfig = (
 
   void logWarn('Whisper model missing', {
     scope: 'speech',
+    force: true,
     extra: buildWhisperDiagnostics(modelId, modelPath, resolved),
   });
 
@@ -1023,6 +1047,7 @@ const enableWhisperNativeLogging = async (): Promise<void> => {
   } catch (error) {
     void logWarn('Failed to enable Whisper native logs', {
       scope: 'speech',
+      force: true,
       extra: { error: error instanceof Error ? error.message : String(error) },
     });
   }
@@ -1048,23 +1073,87 @@ const getWhisperContext = async (modelPath: string, modelId?: string) => {
   if (Platform.OS === 'android') {
     initOptions.useGpu = false;
   }
+  void logInfo('Whisper context init starting', {
+    scope: 'speech',
+    force: true,
+    extra: {
+      platform: Platform.OS,
+      modelId: modelId ?? '',
+      modelPath: resolved.path,
+      modelSize: String(resolved.size),
+    },
+  });
   try {
     const context = await initWhisper(initOptions);
     whisperContextCache = { modelPath: resolved.path, context };
+    void logInfo('Whisper context init completed', {
+      scope: 'speech',
+      force: true,
+      extra: {
+        platform: Platform.OS,
+        modelId: modelId ?? '',
+        modelPath: resolved.path,
+      },
+    });
     return context;
   } catch (error) {
     const withScheme = resolved.uri;
     if (withScheme !== resolved.path) {
+      const primaryMessage = error instanceof Error ? error.message : String(error);
+      void logWarn('Whisper context init failed, retrying with file uri', {
+        scope: 'speech',
+        force: true,
+        extra: {
+          platform: Platform.OS,
+          modelId: modelId ?? '',
+          modelPath: resolved.path,
+          modelUri: withScheme,
+          modelSize: String(resolved.size),
+          error: primaryMessage,
+        },
+      });
       try {
         const context = await initWhisper({ ...initOptions, filePath: withScheme });
         whisperContextCache = { modelPath: withScheme, context };
+        void logInfo('Whisper context init completed with file uri', {
+          scope: 'speech',
+          force: true,
+          extra: {
+            platform: Platform.OS,
+            modelId: modelId ?? '',
+            modelPath: withScheme,
+          },
+        });
         return context;
       } catch (retryError) {
         const message = retryError instanceof Error ? retryError.message : String(retryError);
+        void logWarn('Whisper context init failed', {
+          scope: 'speech',
+          force: true,
+          extra: {
+            platform: Platform.OS,
+            modelId: modelId ?? '',
+            modelPath: resolved.path,
+            modelUri: withScheme,
+            modelSize: String(resolved.size),
+            error: message,
+          },
+        });
         throw new Error(`Whisper init failed (${message}) at ${resolved.path} (${resolved.size} bytes)`);
       }
     }
     const message = error instanceof Error ? error.message : String(error);
+    void logWarn('Whisper context init failed', {
+      scope: 'speech',
+      force: true,
+      extra: {
+        platform: Platform.OS,
+        modelId: modelId ?? '',
+        modelPath: resolved.path,
+        modelSize: String(resolved.size),
+        error: message,
+      },
+    });
     throw new Error(`Whisper init failed (${message}) at ${resolved.path} (${resolved.size} bytes)`);
   }
 };
@@ -1089,15 +1178,187 @@ const extractWhisperText = (result: unknown): string => {
   return '';
 };
 
+type WavPcmMetadata = {
+  valid: boolean;
+  reason?: string;
+  sampleRate?: number;
+  channels?: number;
+  bitsPerSample?: number;
+  audioFormat?: number;
+  dataBytes?: number;
+  durationMs?: number;
+  headerRiffWave: boolean;
+};
+
+const getAudioFileExtensionFromUri = (uri: string): string => {
+  const withoutQuery = uri.split('?')[0]?.split('#')[0] ?? '';
+  const fileName = withoutQuery.split('/').pop() ?? '';
+  const dotIndex = fileName.lastIndexOf('.');
+  if (dotIndex < 0 || dotIndex === fileName.length - 1) return '';
+  return fileName.slice(dotIndex + 1).toLowerCase();
+};
+
+const getUriScheme = (uri: string): string => {
+  const index = uri.indexOf(':');
+  if (index > 0) return uri.slice(0, index);
+  if (uri.startsWith('/')) return 'file';
+  return 'unknown';
+};
+
+const readAscii = (bytes: Uint8Array, offset: number, length: number): string => {
+  let value = '';
+  for (let i = 0; i < length; i += 1) {
+    value += String.fromCharCode(bytes[offset + i] ?? 0);
+  }
+  return value;
+};
+
+const readUInt16LE = (bytes: Uint8Array, offset: number): number => (
+  (bytes[offset] ?? 0) | ((bytes[offset + 1] ?? 0) << 8)
+);
+
+const readUInt32LE = (bytes: Uint8Array, offset: number): number => (
+  ((bytes[offset] ?? 0)
+    | ((bytes[offset + 1] ?? 0) << 8)
+    | ((bytes[offset + 2] ?? 0) << 16)
+    | ((bytes[offset + 3] ?? 0) << 24)) >>> 0
+);
+
+const inspectWavPcm = (bytes: Uint8Array): WavPcmMetadata => {
+  if (bytes.byteLength < 44) {
+    return { valid: false, reason: 'too_short', headerRiffWave: false };
+  }
+
+  const headerRiffWave = readAscii(bytes, 0, 4) === 'RIFF' && readAscii(bytes, 8, 4) === 'WAVE';
+  if (!headerRiffWave) {
+    return { valid: false, reason: 'not_riff_wave', headerRiffWave };
+  }
+
+  let offset = 12;
+  let audioFormat: number | undefined;
+  let channels: number | undefined;
+  let sampleRate: number | undefined;
+  let bitsPerSample: number | undefined;
+  let dataBytes: number | undefined;
+
+  while (offset + 8 <= bytes.byteLength) {
+    const chunkId = readAscii(bytes, offset, 4);
+    const chunkSize = readUInt32LE(bytes, offset + 4);
+    const chunkDataOffset = offset + 8;
+    if (chunkDataOffset + chunkSize > bytes.byteLength) {
+      break;
+    }
+
+    if (chunkId === 'fmt ' && chunkSize >= 16) {
+      audioFormat = readUInt16LE(bytes, chunkDataOffset);
+      channels = readUInt16LE(bytes, chunkDataOffset + 2);
+      sampleRate = readUInt32LE(bytes, chunkDataOffset + 4);
+      bitsPerSample = readUInt16LE(bytes, chunkDataOffset + 14);
+    } else if (chunkId === 'data') {
+      dataBytes = chunkSize;
+    }
+
+    offset = chunkDataOffset + chunkSize + (chunkSize % 2);
+  }
+
+  const bytesPerSecond = sampleRate && channels && bitsPerSample
+    ? sampleRate * channels * (bitsPerSample / 8)
+    : 0;
+  const durationMs = dataBytes && bytesPerSecond > 0 ? Math.round((dataBytes / bytesPerSecond) * 1000) : 0;
+  const base = {
+    audioFormat,
+    bitsPerSample,
+    channels,
+    dataBytes,
+    durationMs,
+    headerRiffWave,
+    sampleRate,
+  };
+
+  if (audioFormat !== 1) return { ...base, valid: false, reason: 'not_pcm' };
+  if (channels !== LOCAL_WHISPER_CHANNELS) return { ...base, valid: false, reason: 'unsupported_channels' };
+  if (sampleRate !== LOCAL_WHISPER_SAMPLE_RATE) return { ...base, valid: false, reason: 'unsupported_sample_rate' };
+  if (bitsPerSample !== LOCAL_WHISPER_BITS_PER_SAMPLE) return { ...base, valid: false, reason: 'unsupported_bits_per_sample' };
+  if (!dataBytes || dataBytes <= 0) return { ...base, valid: false, reason: 'empty_data' };
+  if (durationMs < LOCAL_WHISPER_MIN_DURATION_MS) return { ...base, valid: false, reason: 'too_short_duration' };
+
+  return { ...base, valid: true };
+};
+
+const buildLocalAsrLogContext = (captured: CapturedAudio, metadata: WavPcmMetadata | null, bytes: number, fallbackReason?: string) => ({
+  bits_per_sample: String(metadata?.bitsPerSample ?? ''),
+  capture_mode: captured.source,
+  channels: String(metadata?.channels ?? ''),
+  duration_ms: String(metadata?.durationMs ?? 0),
+  extension: captured.extension ?? getAudioFileExtensionFromUri(captured.uri),
+  fallback_reason: fallbackReason ?? '',
+  file_size: String(bytes),
+  header_riff_wave: String(metadata?.headerRiffWave === true),
+  platform: captured.platform,
+  sample_rate: String(metadata?.sampleRate ?? ''),
+  sniffed_format: metadata?.headerRiffWave ? 'wav' : 'unknown',
+  uri_scheme: getUriScheme(captured.uri),
+});
+
+export const prepareAudioForLocalWhisper = async (captured: CapturedAudio): Promise<LocalWhisperAudio | null> => {
+  const normalizedUri = normalizeAudioUriForFileRead(captured.uri);
+  let bytes: Uint8Array;
+  try {
+    bytes = await new File(normalizedUri).bytes();
+  } catch (error) {
+    await logWarn('ASR_INPUT_REJECTED_UNSUPPORTED_FORMAT', {
+      scope: 'speech',
+      force: true,
+      extra: {
+        ...buildLocalAsrLogContext(captured, null, 0, 'read_failed'),
+        error: error instanceof Error ? error.message : String(error),
+        local_whisper_called: 'false',
+        reject_reason: 'read_failed',
+      },
+    });
+    return null;
+  }
+
+  const metadata = inspectWavPcm(bytes);
+  if (!metadata.valid) {
+    await logWarn('ASR_INPUT_REJECTED_UNSUPPORTED_FORMAT', {
+      scope: 'speech',
+      force: true,
+      extra: {
+        ...buildLocalAsrLogContext(captured, metadata, bytes.byteLength, metadata.reason),
+        local_whisper_called: 'false',
+        reject_reason: metadata.reason ?? 'unsupported_format',
+      },
+    });
+    return null;
+  }
+
+  await logInfo('ASR_INPUT_ACCEPTED_LOCAL_WHISPER', {
+    scope: 'speech',
+    force: true,
+    extra: {
+      ...buildLocalAsrLogContext(captured, metadata, bytes.byteLength),
+      local_whisper_called: 'false',
+    },
+  });
+
+  return {
+    uri: normalizeAudioUri(captured.uri),
+    format: 'wav-pcm',
+    sampleRate: metadata.sampleRate ?? LOCAL_WHISPER_SAMPLE_RATE,
+    channels: metadata.channels ?? LOCAL_WHISPER_CHANNELS,
+    bitsPerSample: metadata.bitsPerSample ?? LOCAL_WHISPER_BITS_PER_SAMPLE,
+    bytes: bytes.byteLength,
+    durationMs: metadata.durationMs ?? 0,
+  };
+};
+
 export const startWhisperRealtimeCapture = async (
   audioOutputPath: string,
   config: SpeechToTextConfig
 ): Promise<WhisperRealtimeHandle> => {
   if (isExpoGo()) {
     throw new Error('On-device Whisper requires a dev build or production build (not Expo Go).');
-  }
-  if (Platform.OS === 'android') {
-    throw new Error('Whisper realtime capture is disabled on Android.');
   }
   const whisperRealtime = getWhisperRealtimeModule();
   if (!whisperRealtime) {
@@ -1131,7 +1392,10 @@ export const startWhisperRealtimeCapture = async (
 
   void logInfo('Whisper transcription started', {
     scope: 'speech',
+    force: true,
     extra: {
+      mode: 'realtime',
+      platform: Platform.OS,
       uri: audioOutputPath,
       modelPath: resolved.path,
       language: effectiveLanguage,
@@ -1139,16 +1403,15 @@ export const startWhisperRealtimeCapture = async (
   });
 
   const audioStream = new whisperRealtime.AudioPcmStreamAdapter();
-  const enableRealtimeTranscript = true;
+  // Android's file transcription path decodes WAV only. Use the realtime helper
+  // there as a PCM/WAV recorder, then transcribe the generated WAV after stop.
+  const enableRealtimeTranscript = Platform.OS !== 'android';
   const transcriptBySlice = new Map<number, string>();
   let completed = false;
   let hasActivated = false;
   let resolveResult: (value: SpeechToTextResult) => void = () => {};
-  let rejectResult: (error: Error) => void = () => {};
-
-  const result = new Promise<SpeechToTextResult>((resolve, reject) => {
+  const result = new Promise<SpeechToTextResult>((resolve) => {
     resolveResult = resolve;
-    rejectResult = reject;
   });
 
   const finalize = () => {
@@ -1166,6 +1429,7 @@ export const startWhisperRealtimeCapture = async (
     if (!text) {
       void logWarn('Whisper returned empty transcript', {
         scope: 'speech',
+        force: true,
         extra: {
           uri: audioOutputPath,
           modelPath: resolved.path,
@@ -1175,6 +1439,7 @@ export const startWhisperRealtimeCapture = async (
     } else {
       void logInfo('Whisper transcription completed', {
         scope: 'speech',
+        force: true,
         extra: {
           length: String(text.length),
           language: effectiveLanguage,
@@ -1206,7 +1471,15 @@ export const startWhisperRealtimeCapture = async (
       onError: (error: string) => {
         if (completed) return;
         completed = true;
-        rejectResult(new Error(error));
+        void logWarn('Whisper realtime transcription failed', {
+          scope: 'speech',
+          force: true,
+          extra: {
+            platform: Platform.OS,
+            error,
+          },
+        });
+        resolveResult({ transcript: '' });
       },
       onStatusChange: (isActive: boolean) => {
         if (completed) return;
@@ -1264,7 +1537,7 @@ export const preloadWhisperContext = async (config: {
   await getWhisperContext(resolved.path, config.model);
 };
 
-const transcribeWhisper = async (audioUri: string, config: SpeechToTextConfig) => {
+export const transcribeLocalWhisper = async (input: LocalWhisperAudio, config: SpeechToTextConfig) => {
   if (isExpoGo()) {
     throw new Error('On-device Whisper requires a dev build or production build (not Expo Go).');
   }
@@ -1278,12 +1551,23 @@ const transcribeWhisper = async (audioUri: string, config: SpeechToTextConfig) =
   const options = buildWhisperTranscribeOptions(effectiveLanguage);
   void logInfo('Whisper transcription started', {
     scope: 'speech',
+    force: true,
     extra: {
-      uri: audioUri,
+      mode: 'file',
+      platform: Platform.OS,
+      uri: input.uri,
       modelPath: resolved.path,
       language: effectiveLanguage,
+      inputExtension: getAudioFileExtensionFromUri(input.uri),
+      local_whisper_called: 'true',
+      file_size: String(input.bytes),
+      duration_ms: String(input.durationMs),
+      sample_rate: String(input.sampleRate),
+      channels: String(input.channels),
+      bits_per_sample: String(input.bitsPerSample),
     },
   });
+  const audioUri = input.uri;
   const normalizedUri = audioUri.startsWith('file://')
     ? audioUri.replace(/^file:\/\//, '')
     : audioUri.startsWith('file:/')
@@ -1294,8 +1578,45 @@ const transcribeWhisper = async (audioUri: string, config: SpeechToTextConfig) =
     result = await context.transcribe(normalizedUri, options).promise;
   } catch (error) {
     if (normalizedUri !== audioUri) {
-      result = await context.transcribe(audioUri, options).promise;
+      const primaryMessage = error instanceof Error ? error.message : String(error);
+      void logWarn('Whisper transcription path failed, retrying with file uri', {
+        scope: 'speech',
+        force: true,
+        extra: {
+          platform: Platform.OS,
+          modelPath: resolved.path,
+          language: effectiveLanguage,
+          error: primaryMessage,
+        },
+      });
+      try {
+        result = await context.transcribe(audioUri, options).promise;
+      } catch (retryError) {
+        const message = retryError instanceof Error ? retryError.message : String(retryError);
+        void logWarn('Whisper transcription failed', {
+          scope: 'speech',
+          force: true,
+          extra: {
+            platform: Platform.OS,
+            modelPath: resolved.path,
+            language: effectiveLanguage,
+            error: message,
+          },
+        });
+        throw retryError;
+      }
     } else {
+      const message = error instanceof Error ? error.message : String(error);
+      void logWarn('Whisper transcription failed', {
+        scope: 'speech',
+        force: true,
+        extra: {
+          platform: Platform.OS,
+          modelPath: resolved.path,
+          language: effectiveLanguage,
+          error: message,
+        },
+      });
       throw error;
     }
   }
@@ -1311,6 +1632,7 @@ const transcribeWhisper = async (audioUri: string, config: SpeechToTextConfig) =
   if (!text) {
     void logWarn('Whisper returned empty transcript', {
       scope: 'speech',
+      force: true,
       extra: {
         uri: audioUri,
         modelPath: resolved.path,
@@ -1320,6 +1642,7 @@ const transcribeWhisper = async (audioUri: string, config: SpeechToTextConfig) =
   } else {
     void logInfo('Whisper transcription completed', {
       scope: 'speech',
+      force: true,
       extra: {
         length: String(text.length),
         language: effectiveLanguage,
@@ -1335,7 +1658,16 @@ export async function processAudioCapture(
 ): Promise<SpeechToTextResult> {
   const mode = config.mode ?? 'smart_parse';
   if (config.provider === 'whisper') {
-    const transcript = await transcribeWhisper(audioUri, config);
+    const localInput = await prepareAudioForLocalWhisper({
+      uri: audioUri,
+      platform: Platform.OS === 'ios' ? 'ios' : 'android',
+      source: 'expo-recorder',
+      extension: getAudioFileExtensionFromUri(audioUri),
+    });
+    if (!localInput) {
+      throw new Error(LOCAL_WHISPER_UNSUPPORTED_AUDIO_ERROR);
+    }
+    const transcript = await transcribeLocalWhisper(localInput, config);
     return { transcript };
   }
   if (config.provider === 'gemini') {

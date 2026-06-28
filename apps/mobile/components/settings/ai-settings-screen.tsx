@@ -298,16 +298,14 @@ export function AISettingsScreen() {
     const getWhisperDirectories = () => {
         const candidates: Directory[] = [];
         try {
+            candidates.push(new Directory(Paths.document, 'whisper-models'));
+        } catch (error) {
+            logSettingsWarn('Whisper document directory unavailable', error);
+        }
+        try {
             candidates.push(new Directory(Paths.cache, 'whisper-models'));
         } catch (error) {
             logSettingsWarn('Whisper cache directory unavailable', error);
-        }
-        if (!candidates.length) {
-            try {
-                candidates.push(new Directory(Paths.document, 'whisper-models'));
-            } catch (error) {
-                logSettingsWarn('Whisper document directory unavailable', error);
-            }
         }
         return candidates;
     };
@@ -375,8 +373,8 @@ export function AISettingsScreen() {
             candidates.push(`${normalized}whisper-models/${fileName}`);
             candidates.push(`${normalized}${fileName}`);
         };
-        appendCandidates(Paths.cache?.uri ?? null);
         appendCandidates(Paths.document?.uri ?? null);
+        appendCandidates(Paths.cache?.uri ?? null);
         for (const candidate of candidates) {
             try {
                 const info = safePathInfo(candidate);

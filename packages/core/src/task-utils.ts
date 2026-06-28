@@ -974,6 +974,17 @@ export type SpeechUpdatePlan = {
     suggestedProjectTitle?: string;
 };
 
+const normalizeSpeechTranscriptForTask = (transcript: string | null | undefined): string | undefined => {
+    const trimmed = transcript?.trim();
+    if (!trimmed) return undefined;
+
+    if (/^(?:\[\s*[^\]]+?\s*\]\s*)+$/.test(trimmed)) {
+        return undefined;
+    }
+
+    return trimmed;
+};
+
 export function buildTaskUpdatesFromSpeechResult(
     existing: Pick<Task, 'title' | 'description' | 'dueDate' | 'startTime' | 'tags' | 'contexts' | 'projectId'>,
     result: SpeechResultLike,
@@ -982,7 +993,7 @@ export function buildTaskUpdatesFromSpeechResult(
     const updates: Partial<Task> = {};
     const mode = settings?.ai?.speechToText?.mode ?? 'smart_parse';
     const fieldStrategy = settings?.ai?.speechToText?.fieldStrategy ?? 'smart';
-    const transcript = result.transcript?.trim();
+    const transcript = normalizeSpeechTranscriptForTask(result.transcript);
 
     if (mode === 'transcribe_only') {
         if (transcript) {

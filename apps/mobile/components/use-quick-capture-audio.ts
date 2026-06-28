@@ -16,15 +16,20 @@ import {
 } from '@mindwtr/core';
 import { loadAIKey } from '../lib/ai-config';
 import { persistAttachmentLocally } from '../lib/attachment-sync';
+import { logInfo } from '../lib/app-log';
 import { useToast } from '../contexts/toast-context';
 import {
   ensureWhisperModelPathForConfig,
+  prepareAudioForLocalWhisper,
   preloadWhisperContext,
   processAudioCapture,
   startWhisperRealtimeCapture,
+  transcribeLocalWhisper,
+  type LocalWhisperAudio,
+  type SpeechToTextConfig,
   type SpeechToTextResult,
 } from '../lib/speech-to-text';
-import { getCaptureFileExtension, getCaptureMimeType } from './quick-capture-sheet.utils';
+import { getCaptureFileExtension, getCaptureMimeType, isQuickCaptureSpeechReady } from './quick-capture-sheet.utils';
 
 type SpeechSettings = SpeechToTextSettings;
 type BuildTaskPropsResult = {
@@ -32,6 +37,7 @@ type BuildTaskPropsResult = {
   props: Partial<Task>;
   invalidDateCommands?: string[];
 };
+type SpeechApplyResult = 'applied' | 'empty' | 'skipped';
 
 export type RecordingState =
   | { kind: 'expo' }
@@ -56,6 +62,16 @@ type UseQuickCaptureAudioParams = {
   updateSpeechSettings: (next: Partial<SpeechSettings>) => void;
   visible: boolean;
 };
+
+const logSpeechCaptureInfo = (message: string, extra?: Record<string, unknown>) => {
+  void logInfo(message, { scope: 'speech', extra, force: true });
+};
+
+const getWhisperCapturePlatform = (): 'ios' | 'android' => (Platform.OS === 'ios' ? 'ios' : 'android');
+
+const runWhisperLocalTranscription = async (input: LocalWhisperAudio, config: SpeechToTextConfig): Promise<SpeechToTextResult> => ({
+  transcript: await transcribeLocalWhisper(input, config),
+});
 
 export function useQuickCaptureAudio({
   addTask,
@@ -164,10 +180,10 @@ export function useQuickCaptureAudio({
     };
   }, [onWarn, resolveWhisperModel, settings.ai?.speechToText, visible]);
 
-  const applySpeechResult = useCallback(async (taskId: string, result: SpeechToTextResult) => {
+  const applySpeechResult = useCallback(async (taskId: string, result: SpeechToTextResult): Promise<SpeechApplyResult> => {
     const { tasks: currentTasks, projects: currentProjects, addProject: addProjectNow, updateTask: updateTaskNow, settings: currentSettings } = useTaskStore.getState();
     const existing = currentTasks.find((task) => task.id === taskId);
-    if (!existing) return;
+    if (!existing) return 'skipped';
 
     const { updates, suggestedProjectTitle } = buildTaskUpdatesFromSpeechResult(existing, result, currentSettings);
     if (suggestedProjectTitle && !existing.projectId) {
@@ -178,15 +194,40 @@ export function useQuickCaptureAudio({
         }
       } else {
         const created = await addProjectNow(suggestedProjectTitle, DEFAULT_PROJECT_COLOR);
-        if (!created) return;
+        if (!created) return 'skipped';
         updates.projectId = created.id;
       }
     }
 
     if (Object.keys(updates).length) {
       await updateTaskNow(taskId, updates);
+      return 'applied';
     }
+
+    logSpeechCaptureInfo('Quick capture speech produced no task fields', {
+      taskId,
+      transcriptLength: String(result.transcript?.trim().length ?? 0),
+      hasTitle: String(Boolean(result.title?.trim())),
+      hasDescription: String(Boolean(result.description?.trim())),
+    });
+    return 'empty';
   }, []);
+
+  const discardEmptySpeechTask = useCallback(async (taskId: string, files: Array<File | null | undefined>, reason = 'empty_transcript') => {
+    try {
+      await useTaskStore.getState().deleteTask(taskId);
+      logSpeechCaptureInfo('Quick capture discarded empty speech task', { taskId, reason });
+    } catch (error) {
+      onWarn('Failed to discard empty speech task', error);
+    }
+    const seen = new Set<string>();
+    for (const file of files) {
+      const uri = file?.uri ?? '';
+      if (!file || !uri || seen.has(uri)) continue;
+      seen.add(uri);
+      safeDeleteFile(file, reason);
+    }
+  }, [onWarn, safeDeleteFile]);
 
   const startRecording = useCallback(async () => {
     if (recording || recordingBusy) return;
@@ -215,10 +256,20 @@ export function useQuickCaptureAudio({
       const resolvedModelPath = provider === 'whisper'
         ? (whisperResolved?.exists ? whisperResolved.path : modelPath)
         : undefined;
-      const useWhisperRealtime = Platform.OS !== 'android'
-        && speech?.enabled
+      const useWhisperRealtime = speech?.enabled
         && provider === 'whisper'
         && whisperModelReady;
+      if (provider === 'whisper') {
+        logSpeechCaptureInfo('Quick capture Whisper start resolved', {
+          platform: Platform.OS,
+          model,
+          speechEnabled: String(speech?.enabled === true),
+          modelReady: String(whisperModelReady),
+          resolvedModelPath: resolvedModelPath ?? '',
+          resolvedModelSize: String(whisperResolved?.size ?? 0),
+          realtimeEnabled: String(Boolean(useWhisperRealtime)),
+        });
+      }
       if (useWhisperRealtime) {
         try {
           const now = new Date();
@@ -269,6 +320,15 @@ export function useQuickCaptureAudio({
         } catch (error) {
           onWarn('Whisper realtime start failed, falling back to audio recording', error);
         }
+      }
+
+      if (provider === 'whisper') {
+          logSpeechCaptureInfo('Quick capture Whisper using recorded audio path', {
+            platform: Platform.OS,
+            model,
+            modelReady: String(whisperModelReady),
+          reason: 'realtime-start-fallback',
+        });
       }
 
       await audioRecorder.prepareToRecordAsync();
@@ -340,12 +400,22 @@ export function useQuickCaptureAudio({
           ? (whisperResolved?.exists ? whisperResolved.path : modelPath)
           : undefined;
 
-        const speechReady = speech?.enabled
-          ? provider === 'whisper'
-            ? whisperModelReady
-            : Boolean(apiKey)
-          : false;
-        const saveAudioAttachments = settings.gtd?.saveAudioAttachments !== false || !speechReady;
+        const speechReady = isQuickCaptureSpeechReady({
+          speechEnabled: speech?.enabled === true,
+          provider,
+          apiKey,
+          whisperModelReady,
+        });
+        const localWhisperInput = speechReady && provider === 'whisper'
+          ? await prepareAudioForLocalWhisper({
+            uri: finalFile.uri,
+            platform: getWhisperCapturePlatform(),
+            source: 'pcm-recorder',
+            extension: '.wav',
+          })
+          : null;
+        const canTranscribeSpeech = provider === 'whisper' ? Boolean(localWhisperInput) : speechReady;
+        const saveAudioAttachments = settings.gtd?.saveAudioAttachments !== false || !canTranscribeSpeech;
 
         let attachment: Attachment | null = saveAudioAttachments ? {
           id: generateUUID(),
@@ -386,12 +456,23 @@ export function useQuickCaptureAudio({
         if (!addTaskResult.success || !addTaskResult.id) return;
         const taskId = addTaskResult.id;
 
-        if (speechReady) {
+        if (canTranscribeSpeech) {
           const timeZone = typeof Intl === 'object' && typeof Intl.DateTimeFormat === 'function'
             ? Intl.DateTimeFormat().resolvedOptions().timeZone
             : undefined;
           const transcriptionUri = stripFileScheme(attachment?.uri ?? finalFile.uri);
-          void processAudioCapture(transcriptionUri, {
+          if (provider === 'whisper') {
+            logSpeechCaptureInfo('Quick capture Whisper offline transcription queued', {
+              platform: Platform.OS,
+              model,
+              modelReady: String(whisperModelReady),
+              fileSize: String(fileInfo?.size ?? 0),
+              realtimeFallback: String(currentRecording.allowRealtimeFallback),
+              saveAudioAttachments: String(saveAudioAttachments),
+              localWhisperInputReady: String(Boolean(localWhisperInput)),
+            });
+          }
+          const speechConfig = {
             provider,
             apiKey,
             model,
@@ -402,8 +483,20 @@ export function useQuickCaptureAudio({
             parseModel: provider === 'openai' && settings.ai?.provider === 'openai' ? settings.ai?.model : undefined,
             now: new Date(),
             timeZone,
-          })
-            .then((result) => applySpeechResult(taskId, result))
+          } satisfies SpeechToTextConfig;
+          const speechPromise = provider === 'whisper' && localWhisperInput
+            ? runWhisperLocalTranscription(localWhisperInput, speechConfig)
+            : processAudioCapture(transcriptionUri, speechConfig);
+          void speechPromise
+            .then(async (result) => {
+              const applyResult = await applySpeechResult(taskId, result);
+              if (applyResult === 'empty') {
+                await discardEmptySpeechTask(taskId, [
+                  finalFile,
+                  attachment?.uri ? new File(attachment.uri) : null,
+                ], 'whisper_empty_transcript');
+              }
+            })
             .catch((error) => {
               if (!currentRecording.allowRealtimeFallback) {
                 onWarn('Whisper offline transcription failed', error);
@@ -411,7 +504,15 @@ export function useQuickCaptureAudio({
               }
               onWarn('Whisper offline transcription failed, using realtime result', error);
               return currentRecording.result
-                .then((result) => applySpeechResult(taskId, result))
+                .then(async (result) => {
+                  const applyResult = await applySpeechResult(taskId, result);
+                  if (applyResult === 'empty') {
+                    await discardEmptySpeechTask(taskId, [
+                      finalFile,
+                      attachment?.uri ? new File(attachment.uri) : null,
+                    ], 'whisper_empty_realtime_fallback');
+                  }
+                })
                 .catch((realtimeError) => onWarn('Speech-to-text failed', realtimeError));
             })
             .finally(() => {
@@ -419,8 +520,19 @@ export function useQuickCaptureAudio({
                 safeDeleteFile(finalFile, 'whisper_cleanup');
               }
             });
-        } else if (!saveAudioAttachments) {
-          safeDeleteFile(finalFile, 'whisper_skip_cleanup');
+        } else {
+          if (provider === 'whisper') {
+            logSpeechCaptureInfo('Quick capture Whisper transcription skipped', {
+              platform: Platform.OS,
+              model,
+              modelReady: String(whisperModelReady),
+              speechEnabled: String(speech?.enabled === true),
+              localWhisperInputReady: String(Boolean(localWhisperInput)),
+            });
+          }
+          if (!saveAudioAttachments) {
+            safeDeleteFile(finalFile, 'whisper_skip_cleanup');
+          }
         }
         return;
       }
@@ -486,15 +598,24 @@ export function useQuickCaptureAudio({
         ? (whisperResolved?.exists ? whisperResolved.path : modelPath)
         : undefined;
 
-      const allowWhisperOffline = provider !== 'whisper';
-      const speechReady = speech?.enabled
-        ? provider === 'whisper'
-          ? whisperModelReady && allowWhisperOffline
-          : Boolean(apiKey)
-        : false;
-      const saveAudioAttachments = settings.gtd?.saveAudioAttachments !== false || !speechReady;
-
+      const speechReady = isQuickCaptureSpeechReady({
+        speechEnabled: speech?.enabled === true,
+        provider,
+        apiKey,
+        whisperModelReady,
+      });
       const audioUri = finalFile.uri;
+      const localWhisperInput = speechReady && provider === 'whisper'
+        ? await prepareAudioForLocalWhisper({
+          uri: audioUri,
+          platform: getWhisperCapturePlatform(),
+          source: 'expo-recorder',
+          extension,
+        })
+        : null;
+      const canTranscribeSpeech = provider === 'whisper' ? Boolean(localWhisperInput) : speechReady;
+      const saveAudioAttachments = settings.gtd?.saveAudioAttachments !== false || !canTranscribeSpeech;
+
       let attachment: Attachment | null = saveAudioAttachments ? {
         id: generateUUID(),
         kind: 'file',
@@ -534,11 +655,21 @@ export function useQuickCaptureAudio({
       if (!addTaskResult.success || !addTaskResult.id) return;
       const taskId = addTaskResult.id;
 
-      if (speechReady) {
+      if (canTranscribeSpeech) {
         const timeZone = typeof Intl === 'object' && typeof Intl.DateTimeFormat === 'function'
           ? Intl.DateTimeFormat().resolvedOptions().timeZone
           : undefined;
-        void processAudioCapture(audioUri, {
+        if (provider === 'whisper') {
+          logSpeechCaptureInfo('Quick capture Whisper offline transcription queued', {
+            platform: Platform.OS,
+            model,
+            modelReady: String(whisperModelReady),
+            fileSize: String(fileInfo?.size ?? 0),
+            saveAudioAttachments: String(saveAudioAttachments),
+            localWhisperInputReady: String(Boolean(localWhisperInput)),
+          });
+        }
+        const speechConfig = {
           provider,
           apiKey,
           model,
@@ -549,16 +680,39 @@ export function useQuickCaptureAudio({
           parseModel: provider === 'openai' && settings.ai?.provider === 'openai' ? settings.ai?.model : undefined,
           now: new Date(),
           timeZone,
-        })
-          .then((result) => applySpeechResult(taskId, result))
+        } satisfies SpeechToTextConfig;
+        const speechPromise = provider === 'whisper' && localWhisperInput
+          ? runWhisperLocalTranscription(localWhisperInput, speechConfig)
+          : processAudioCapture(audioUri, speechConfig);
+        void speechPromise
+          .then(async (result) => {
+            const applyResult = await applySpeechResult(taskId, result);
+            if (applyResult === 'empty') {
+              await discardEmptySpeechTask(taskId, [
+                finalFile,
+                attachment?.uri ? new File(attachment.uri) : null,
+              ], 'speech_empty_transcript');
+            }
+          })
           .catch((error) => onWarn('Speech-to-text failed', error))
           .finally(() => {
             if (!saveAudioAttachments) {
               safeDeleteFile(finalFile, 'expo_cleanup');
             }
           });
-      } else if (!saveAudioAttachments) {
-        safeDeleteFile(finalFile, 'expo_skip_cleanup');
+      } else {
+        if (provider === 'whisper') {
+          logSpeechCaptureInfo('Quick capture Whisper transcription skipped', {
+            platform: Platform.OS,
+            model,
+            modelReady: String(whisperModelReady),
+            speechEnabled: String(speech?.enabled === true),
+            localWhisperInputReady: String(Boolean(localWhisperInput)),
+          });
+        }
+        if (!saveAudioAttachments) {
+          safeDeleteFile(finalFile, 'expo_skip_cleanup');
+        }
       }
     } catch (error) {
       onError('Failed to save recording', error);
@@ -571,6 +725,7 @@ export function useQuickCaptureAudio({
     applySpeechResult,
     audioRecorder,
     buildTaskProps,
+    discardEmptySpeechTask,
     ensureAudioDirectory,
     handleClose,
     initialAttachments,

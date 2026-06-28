@@ -59,3 +59,19 @@ export const getCaptureMimeType = (extension: string) => {
             return 'audio/mp4';
     }
 };
+
+export const isQuickCaptureSpeechReady = ({
+    speechEnabled,
+    provider,
+    apiKey,
+    whisperModelReady,
+}: {
+    speechEnabled: boolean;
+    provider: string;
+    apiKey?: string;
+    whisperModelReady: boolean;
+}) => {
+    if (!speechEnabled) return false;
+    if (provider === 'whisper') return whisperModelReady;
+    return Boolean(apiKey);
+};
