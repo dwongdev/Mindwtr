@@ -549,6 +549,33 @@ describe('CalendarView', () => {
         }));
     });
 
+
+    it('explains disabled planning schedule buttons until a day is selected', async () => {
+        storeMocks.taskStoreState.tasks = [
+            makeTask({
+                id: 'task-plan',
+                title: 'Draft planning memo',
+            }),
+        ];
+
+        renderCalendar();
+        await flushCalendarEffects();
+
+        const panel = screen.getByText('Plan next actions').closest('aside') as HTMLElement;
+        const planTitle = within(panel).getByText('Draft planning memo');
+        const planCard = planTitle.closest('.rounded-md') as HTMLElement;
+        const disabledHintTarget = within(planCard).getByTitle('Select a day to plan first.');
+        const scheduleButton = within(disabledHintTarget).getByRole('button', { name: 'Schedule' });
+
+        expect(scheduleButton).toBeDisabled();
+        expect(within(planCard).getByText('Select a day to plan first.')).toHaveClass('sr-only');
+
+        await selectDay('4');
+
+        expect(within(planCard).queryByTitle('Select a day to plan first.')).not.toBeInTheDocument();
+        expect(within(planCard).getByRole('button', { name: 'Schedule' })).toBeEnabled();
+    });
+
     it('collapses and expands the calendar planning panel', async () => {
         storeMocks.taskStoreState.tasks = [
             makeTask({

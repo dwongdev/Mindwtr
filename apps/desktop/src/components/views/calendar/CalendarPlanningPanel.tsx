@@ -117,20 +117,31 @@ export function CalendarPlanningPanel({
                                     {dueLabel}
                                 </div>
                             )}
-                            <button
-                                type="button"
-                                disabled={!selectedDate}
-                                onClick={() => schedulePlanningTask(task.id)}
-                                className={cn(
-                                    "mt-2 inline-flex h-7 items-center gap-1.5 rounded-md px-2 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-primary/40",
-                                    selectedDate
-                                        ? "bg-primary/10 text-primary hover:bg-primary/15"
-                                        : "cursor-not-allowed bg-muted text-muted-foreground"
-                                )}
+                            <span
+                                className="mt-2 inline-flex"
+                                title={selectedDate ? undefined : targetLabel}
                             >
-                                <Clock className="h-3.5 w-3.5" aria-hidden="true" />
-                                {resolveText('calendar.scheduleAction', 'Schedule')}
-                            </button>
+                                <button
+                                    type="button"
+                                    disabled={!selectedDate}
+                                    aria-describedby={!selectedDate ? `calendar-planning-schedule-hint-${task.id}` : undefined}
+                                    onClick={() => schedulePlanningTask(task.id)}
+                                    className={cn(
+                                        "inline-flex h-7 items-center gap-1.5 rounded-md px-2 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-primary/40",
+                                        selectedDate
+                                            ? "bg-primary/10 text-primary hover:bg-primary/15"
+                                            : "pointer-events-none cursor-not-allowed bg-muted text-muted-foreground"
+                                    )}
+                                >
+                                    <Clock className="h-3.5 w-3.5" aria-hidden="true" />
+                                    {resolveText('calendar.scheduleAction', 'Schedule')}
+                                </button>
+                            </span>
+                            {!selectedDate && (
+                                <span id={`calendar-planning-schedule-hint-${task.id}`} className="sr-only">
+                                    {targetLabel}
+                                </span>
+                            )}
                         </div>
                     );
                 })}
