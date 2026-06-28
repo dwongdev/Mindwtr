@@ -1,3 +1,3 @@
 - Repeat reminders can now re-notify timed tasks until you complete or snooze them.
-- Bulk Quick Add, TickTick import, Apple Shortcuts, widgets, Focus grouping, and board filters are smoother.
-- Sync repair, startup state, keyboard-covered popups, and task editing are more reliable.
+- Bulk Quick Add, TickTick and Obsidian import, Apple Shortcuts, widgets, Focus grouping, and board filters are smoother.
+- Local dictation, sync repair, keyboard-covered popups, long task titles, and task editing are more reliable.

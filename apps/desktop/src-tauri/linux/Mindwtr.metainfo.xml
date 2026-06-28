@@ -88,20 +88,20 @@
   <url type="bugtracker">https://github.com/dongdongbh/Mindwtr/issues</url>
   <url type="vcs-browser">https://github.com/dongdongbh/Mindwtr</url>
   <releases>
-    <release version="1.0.5" date="2026-06-21">
+    <release version="1.0.5" date="2026-06-28">
       <url type="details">https://github.com/dongdongbh/Mindwtr/releases/tag/v1.0.5</url>
       <description>
-        <p>Mindwtr 1.0.5 improves desktop planning, import, sync diagnostics, and Linux beta release coverage.</p>
-        <p xml:lang="de">Mindwtr 1.0.5 verbessert Desktop-Planung, Import, Sync-Diagnosen und Linux-Beta-Release-Kanaele.</p>
+        <p>Mindwtr 1.0.5 improves desktop planning, import, sync diagnostics, local dictation, and Linux release coverage.</p>
+        <p xml:lang="de">Mindwtr 1.0.5 verbessert Desktop-Planung, Import, Sync-Diagnosen, lokale Diktatfunktion und Linux-Release-Kanaele.</p>
         <ul>
-          <li>Added repeat reminders for timed tasks plus board filters for contexts, tags, and dates.</li>
-          <li xml:lang="de">Wiederhol-Erinnerungen fuer Aufgaben mit Uhrzeit sowie Board-Filter fuer Kontexte, Tags und Daten hinzugefuegt.</li>
-          <li>Added TickTick import support, desktop reference fields, and a slash-command title picker.</li>
-          <li xml:lang="de">TickTick-Import, Desktop-Referenzfelder und eine Slash-Command-Titelauswahl hinzugefuegt.</li>
-          <li>Made project scrolling, popup editing focus, WebDAV/native sync errors, and parent-reference repair steadier.</li>
-          <li xml:lang="de">Projekt-Scrollposition, Popup-Bearbeitungsfokus, WebDAV/native Sync-Fehler und Parent-Referenzreparatur stabiler gemacht.</li>
-          <li>Added release candidate automation for GitHub prereleases, Flathub beta, and AUR beta testing.</li>
-          <li xml:lang="de">Release-Candidate-Automation fuer GitHub-Prereleases, Flathub-Beta und AUR-Beta-Tests hinzugefuegt.</li>
+          <li>Added repeat reminders, relative start offsets, date-only scheduling, and board filters for contexts, tags, and dates.</li>
+          <li xml:lang="de">Wiederhol-Erinnerungen, relative Startzeiten, Datum-only-Planung und Board-Filter fuer Kontexte, Tags und Daten hinzugefuegt.</li>
+          <li>Added TickTick and Obsidian import improvements, desktop reference fields, and a slash-command title picker.</li>
+          <li xml:lang="de">TickTick- und Obsidian-Importverbesserungen, Desktop-Referenzfelder und eine Slash-Command-Titelauswahl hinzugefuegt.</li>
+          <li>Made local dictation downloads, WebDAV reads, task recurrence, project editing, and parent-reference repair steadier.</li>
+          <li xml:lang="de">Lokale Diktat-Downloads, WebDAV-Lesezugriffe, Aufgabenwiederholungen, Projektbearbeitung und Parent-Referenzreparatur stabiler gemacht.</li>
+          <li>Added release candidate automation, AppImage packaging fixes, and Linux beta testing channels.</li>
+          <li xml:lang="de">Release-Candidate-Automation, AppImage-Paketkorrekturen und Linux-Beta-Testkanaele hinzugefuegt.</li>
         </ul>
       </description>
     </release>

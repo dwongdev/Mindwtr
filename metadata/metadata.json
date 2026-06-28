@@ -30,7 +30,7 @@
           "完全离线可用，无需互联网连接",
           "完全开源，安全透明"
         ],
-        "ReleaseNotes": "• 同步和本地存储更安全地处理人员、项目删除、共用附件和重复任务。\n• 任务输入和自动补全更稳定，容器删除结果更清晰，Markdown 链接查找更快。\n• 本地自动化和云同步路径加强了写入处理与测试覆盖。",
+        "ReleaseNotes": "• 重复提醒、相对开始时间、看板筛选、仅日期计划和长标题编辑让计划更顺畅。\n• TickTick/Obsidian 导入、WebDAV 读取、本地听写下载和循环任务更可靠。\n• 桌面侧边栏、项目编辑、同步修复和本地自动化路径提升了稳定性和可访问性。",
         "Images": [
           {
             "FileName": "2026-01-27_22-59-40.png",
@@ -82,7 +82,7 @@
           "No internet connection required to function",
           "Open source and transparent"
         ],
-        "ReleaseNotes": "• Sync and local storage now preserve people, project deletes, shared attachments, and recurring tasks more safely.\n• Task input and autocomplete are steadier, with clearer container delete outcomes and faster Markdown link lookups.\n• Local automation and cloud sync paths received stronger write handling and test coverage.",
+        "ReleaseNotes": "• Repeat reminders, relative start offsets, board filters, date-only scheduling, and long task title editing make planning smoother.\n• TickTick and Obsidian imports, WebDAV reads, local dictation downloads, and recurrence handling are more reliable.\n• Desktop sidebar, project editing, sync repair, and local automation paths received stability and accessibility polish.",
         "Images": [
           {
             "FileName": "2026-01-27_22-59-40.png",
@@ -131,7 +131,7 @@
           "Offline nutzbar ohne staendige Internetverbindung",
           "Open Source und transparent"
         ],
-        "ReleaseNotes": "• Sync und lokaler Speicher behandeln Personen, Projektloeschungen, gemeinsame Anhaenge und Wiederholungen sicherer.\n• Aufgabeneingabe und Autovervollstaendigung sind stabiler, mit klareren Container-Loeschungen und schnelleren Markdown-Links.\n• Lokale Automation und Cloud-Sync haben staerkere Schreiblogik und Tests.",
+        "ReleaseNotes": "• Wiederhol-Erinnerungen, relative Startzeiten, Board-Filter, Datum-only-Planung und lange Aufgabentitel machen Planung runder.\n• TickTick-/Obsidian-Importe, WebDAV-Lesezugriffe, lokale Diktat-Downloads und Wiederholungen sind zuverlaessiger.\n• Desktop-Seitenleiste, Projektbearbeitung, Sync-Reparatur und lokale Automation wurden stabiler und zugaenglicher.",
         "Images": [],
         "RecommendedHardware": [],
         "MinimumHardware": [],
@@ -161,7 +161,7 @@
           "Projets, contextes, revue et tableau Kanban",
           "Open source et transparent"
         ],
-        "ReleaseNotes": "• Sync et stockage local gerent mieux personnes, suppressions de projets, pieces jointes partagees et taches recurrentes.\n• Saisie et autocompletion sont plus stables, avec suppressions de conteneurs plus claires et liens Markdown plus rapides.\n• Automation locale et sync cloud ont des ecritures et tests renforces.",
+        "ReleaseNotes": "• Rappels repetes, debuts relatifs, filtres tableau, dates sans heure et longs titres rendent la planification plus fluide.\n• Imports TickTick/Obsidian, lectures WebDAV, telechargements de dictee locale et recurrence sont plus fiables.\n• Barre laterale, edition de projets, reparation sync et automation locale gagnent en stabilite et accessibilite.",
         "Images": [],
         "RecommendedHardware": [],
         "MinimumHardware": [],
@@ -190,7 +190,7 @@
           "No requiere conexión a internet para funcionar",
           "Código abierto y transparente"
         ],
-        "ReleaseNotes": "• Sync y almacenamiento local manejan mejor personas, borrados de proyectos, adjuntos compartidos y tareas recurrentes.\n• Entrada de tareas y autocompletado son mas estables, con borrados de contenedores mas claros y enlaces Markdown mas rapidos.\n• Automatizacion local y sync en la nube tienen escrituras y pruebas mas solidas.",
+        "ReleaseNotes": "• Recordatorios repetidos, inicios relativos, filtros de tablero, fechas sin hora y titulos largos hacen la planificacion mas fluida.\n• Importaciones TickTick/Obsidian, lecturas WebDAV, descargas de dictado local y recurrencia son mas fiables.\n• Barra lateral, edicion de proyectos, reparacion de sync y automatizacion local recibieron mas estabilidad y accesibilidad.",
         "Images": [
           {
             "FileName": "2026-01-27_22-59-40.png",

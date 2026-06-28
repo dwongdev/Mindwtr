@@ -1,15 +1,15 @@
 <en-US>
-Mindwtr 1.0.5 adds local dictation model downloads, relative start offsets, board/project filters and date-only scheduling, plus safer imports, recurrence, WebDAV sync, FOSS speech, REST validation, Android reminders, AppImage builds, AUR/release guards, and mobile keyboard/search polish.
+Mindwtr 1.0.5 adds repeat reminders, bulk Quick Add, TickTick and Obsidian import fixes, board/project filters, local dictation model downloads, safer recurrence and relative-start scheduling, better WebDAV sync, clearer completed-task visibility, and mobile keyboard/search/title polish.
 </en-US>
 <de-DE>
-Mindwtr 1.0.5 bringt lokale Diktatmodell-Downloads, relative Startzeiten, Board-/Projektfilter und Datum-only-Planung sowie sicherere Importe, Recurrence, WebDAV-Sync, FOSS-Sprache, REST-Validierung, Android-Erinnerungen, AppImage-Builds, AUR/Release-Guards und mobile Keyboard-/Such-Politur.
+Mindwtr 1.0.5 bringt Wiederhol-Erinnerungen, Bulk Quick Add, TickTick- und Obsidian-Importfixes, Board-/Projektfilter, lokale Diktatmodell-Downloads, sicherere Wiederholungen und relative Startzeiten, besseren WebDAV-Sync, klarere Erledigt-Sichtbarkeit und mobile Tastatur-/Such-/Titel-Politur.
 </de-DE>
 <es-ES>
-Mindwtr 1.0.5 agrega descargas de modelos locales de dictado, offsets de inicio relativo, filtros de tablero/proyecto y fechas sin hora, ademas de importaciones, recurrencia, WebDAV, voz FOSS, validacion REST, recordatorios Android, AppImage, guardas AUR/release y mejoras moviles de teclado/busqueda.
+Mindwtr 1.0.5 agrega recordatorios repetidos, Bulk Quick Add, arreglos de importacion TickTick/Obsidian, filtros de tablero/proyecto, modelos locales de dictado, recurrencia e inicios relativos mas seguros, mejor WebDAV, visibilidad de completadas mas clara y mejoras moviles de teclado/busqueda/titulos.
 </es-ES>
 <fr-FR>
-Mindwtr 1.0.5 ajoute les telechargements de modeles de dictee locale, les decalages de debut relatifs, les filtres board/projet et les dates sans heure, avec import, recurrence, WebDAV, voix FOSS, validation REST, rappels Android, AppImage, gardes AUR/release et polish clavier/recherche mobile.
+Mindwtr 1.0.5 ajoute rappels repetes, Bulk Quick Add, corrections d'import TickTick/Obsidian, filtres tableau/projet, modeles locaux de dictee, recurrence et debuts relatifs plus surs, meilleur WebDAV, visibilite des taches terminees plus claire et polish clavier/recherche/titres mobile.
 </fr-FR>
 <zh-CN>
-Mindwtr 1.0.5 新增本地听写模型下载、相对开始偏移、Board/项目筛选和仅日期计划，并改进导入、循环任务、WebDAV 同步、FOSS 语音、REST 校验、Android 提醒、AppImage、AUR/发布保护以及移动端键盘和搜索体验。
+Mindwtr 1.0.5 新增重复提醒、批量 Quick Add、TickTick/Obsidian 导入修复、看板/项目筛选、本地听写模型下载，并改进循环任务、相对开始时间、WebDAV 同步、已完成可见性以及移动端键盘、搜索和标题显示。
 </zh-CN>
