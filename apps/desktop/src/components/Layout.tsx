@@ -578,7 +578,7 @@ export function Layout({ children, currentView, onViewChange }: LayoutProps) {
                     {savedSearches.length > 0 && (
                         <div className={cn("mb-2 space-y-1", isCollapsed && "mb-2")}>
                             {!isCollapsed && (
-                                <div className="px-2 text-[10px] font-semibold text-muted-foreground/80 uppercase tracking-[0.16em]">
+                                <div className="px-2 text-[10px] font-semibold text-muted-foreground uppercase tracking-[0.16em]">
                                     {t('search.savedSearches')}
                                 </div>
                             )}
@@ -614,7 +614,7 @@ export function Layout({ children, currentView, onViewChange }: LayoutProps) {
                                         onClick={() => toggleSection(section.key)}
                                         aria-expanded={!isSectionCollapsed}
                                         aria-controls={sectionId}
-                                        className="group w-full flex h-7 items-center gap-1 rounded-md px-2.5 text-[10px] font-semibold text-muted-foreground/80 uppercase tracking-[0.16em] transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 cursor-pointer"
+                                        className="group w-full flex h-7 items-center gap-1 rounded-md px-2.5 text-[10px] font-semibold text-muted-foreground uppercase tracking-[0.16em] transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 cursor-pointer"
                                     >
                                         <ChevronDown
                                             className={cn(
@@ -660,7 +660,7 @@ export function Layout({ children, currentView, onViewChange }: LayoutProps) {
                                         className={cn(
                                             "w-full flex items-center rounded-md text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:ring-inset",
                                             itemWeightClass,
-                                            isActiveItem ? "bg-primary/10 text-primary" : inactiveItemClass,
+                                            isActiveItem ? "bg-primary/5 text-primary" : inactiveItemClass,
                                             isCollapsed ? "h-10 justify-center px-2" : "h-9 justify-between px-2.5"
                                         )}
                                         aria-current={isActiveItem ? 'page' : undefined}
