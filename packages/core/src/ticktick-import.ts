@@ -556,13 +556,28 @@ const parseTickTickRows = (csvText: string, counters: TickTickWarningCounters): 
     const recordById = new Map(records.map((record) => [record.sourceId, record]));
     const checklistChildrenByParent = new Map<string, NormalizedTickTickRecord[]>();
     const convertedChildIds = new Set<string>();
-    records.forEach((record) => {
-        if (!record.parentId) return;
-        const parent = recordById.get(record.parentId);
+    const resolveChecklistParent = (record: NormalizedTickTickRecord): NormalizedTickTickRecord | null => {
+        if (!record.parentId) return null;
+        let parent = recordById.get(record.parentId);
         if (!parent) {
             counters.orphanChildTasks += 1;
-            return;
+            return null;
         }
+
+        const visited = new Set<string>([record.sourceId, parent.sourceId]);
+        while (parent.parentId) {
+            const grandparent = recordById.get(parent.parentId);
+            if (!grandparent) return parent;
+            if (visited.has(grandparent.sourceId)) return null;
+            visited.add(grandparent.sourceId);
+            parent = grandparent;
+        }
+        return parent;
+    };
+
+    records.forEach((record) => {
+        const parent = resolveChecklistParent(record);
+        if (!parent) return;
         const children = checklistChildrenByParent.get(parent.sourceId) ?? [];
         children.push(record);
         checklistChildrenByParent.set(parent.sourceId, children);

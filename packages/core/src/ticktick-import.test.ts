@@ -196,6 +196,111 @@ describe('ticktick import', () => {
         });
     });
 
+    it('flattens nested TickTick child tasks into the nearest imported parent checklist', () => {
+        const nestedCsv = buildTickTickCsv([
+            [
+                'Work',
+                'Launch',
+                'Parent task',
+                'TEXT',
+                '#root',
+                'Parent notes',
+                'N',
+                '',
+                '',
+                '',
+                '',
+                '0',
+                '0',
+                '2026-06-10T12:00:00+0000',
+                '',
+                '1',
+                'America/New_York',
+                'false',
+                'false',
+                'Not Sectioned',
+                '-1',
+                'list',
+                'parent-1',
+                '',
+            ],
+            [
+                'Work',
+                'Launch',
+                'Child task',
+                'TEXT',
+                '#child',
+                'Child notes',
+                'N',
+                '',
+                '',
+                '',
+                '',
+                '0',
+                '0',
+                '2026-06-10T12:00:00+0000',
+                '',
+                '2',
+                'America/New_York',
+                'false',
+                'false',
+                'Not Sectioned',
+                '-1',
+                'list',
+                'child-1',
+                'parent-1',
+            ],
+            [
+                'Work',
+                'Launch',
+                'Grandchild task',
+                'TEXT',
+                '#deep',
+                'Grandchild notes',
+                'N',
+                '',
+                '',
+                '',
+                '',
+                '0',
+                '0',
+                '2026-06-10T12:00:00+0000',
+                '',
+                '3',
+                'America/New_York',
+                'false',
+                'false',
+                'Not Sectioned',
+                '-1',
+                'list',
+                'grandchild-1',
+                'child-1',
+            ],
+        ]);
+
+        const result = parseTickTickImportSource({
+            fileName: 'nested.csv',
+            text: nestedCsv,
+        });
+
+        expect(result.valid).toBe(true);
+        expect(result.preview).toMatchObject({
+            taskCount: 1,
+            checklistItemCount: 2,
+        });
+        expect(result.warnings).toContain('2 TickTick child tasks were imported as checklist items on their parent tasks.');
+
+        const importedTask = result.parsedData?.tasks[0];
+        expect(importedTask?.title).toBe('Parent task');
+        expect(importedTask?.tags).toEqual(['#root', '#child', '#deep']);
+        expect(importedTask?.description).toContain('Subtask "Child task": Child notes');
+        expect(importedTask?.description).toContain('Subtask "Grandchild task": Grandchild notes');
+        expect(importedTask?.checklist).toMatchObject([
+            { title: 'Child task', isCompleted: false },
+            { title: 'Grandchild task', isCompleted: false },
+        ]);
+    });
+
     it('parses a zipped TickTick backup and skips unsupported archive entries', () => {
         const archive = zipSync({
             'backup.csv': strToU8(sampleTickTickCsv),
