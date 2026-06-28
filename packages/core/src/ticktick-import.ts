@@ -879,12 +879,27 @@ export const applyTickTickImport = (
             importedProjectCount += 1;
         });
 
-    const nextTaskOrderByBucket = new Map<string, number>();
     const getTaskBucketKey = (projectId?: string, areaId?: string): string => {
         if (projectId) return `project:${projectId}`;
         if (areaId) return `area:${areaId}`;
         return 'inbox';
     };
+
+    const nextTaskOrderByBucket = new Map<string, number>();
+    nextData.tasks.forEach((task) => {
+        if (task.deletedAt) return;
+        const bucket = getTaskBucketKey(task.projectId, task.areaId);
+        const candidate = typeof task.order === 'number'
+            ? task.order
+            : typeof task.orderNum === 'number'
+                ? task.orderNum
+                : -1;
+        nextTaskOrderByBucket.set(bucket, Math.max(nextTaskOrderByBucket.get(bucket) ?? -1, candidate));
+    });
+    nextTaskOrderByBucket.forEach((maxOrder, bucket) => {
+        nextTaskOrderByBucket.set(bucket, maxOrder + 1);
+    });
+
     const allocateTaskOrder = (projectId?: string, areaId?: string): number => {
         const bucket = getTaskBucketKey(projectId, areaId);
         const cached = nextTaskOrderByBucket.get(bucket);
@@ -892,17 +907,7 @@ export const applyTickTickImport = (
             nextTaskOrderByBucket.set(bucket, cached + 1);
             return cached;
         }
-        const currentMax = nextData.tasks
-            .filter((task) => !task.deletedAt && (task.projectId ?? undefined) === projectId && (task.areaId ?? undefined) === areaId)
-            .reduce((max, task) => {
-                const candidate = typeof task.order === 'number'
-                    ? task.order
-                    : typeof task.orderNum === 'number'
-                        ? task.orderNum
-                        : -1;
-                return Math.max(max, candidate);
-            }, -1);
-        const nextOrder = currentMax + 1;
+        const nextOrder = 0;
         nextTaskOrderByBucket.set(bucket, nextOrder + 1);
         return nextOrder;
     };
