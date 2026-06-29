@@ -672,6 +672,46 @@ describe('ProjectDetailModal project task virtualization', () => {
             viewportHeight: 0,
         });
     });
+
+
+    it('restores the project task scroll offset when the external bulk bar appears', () => {
+        let tree!: ReturnType<typeof create>;
+
+        act(() => {
+            tree = create(<ProjectDetailModal {...createProjectDetailModalProps()} />);
+        });
+
+        act(() => {
+            tree.root.findByType(ScrollView).props.onScroll({
+                nativeEvent: {
+                    contentOffset: { y: 480 },
+                    layoutMeasurement: { height: 620 },
+                },
+            });
+        });
+
+        const taskListProps = taskListPropsSpy.mock.calls.at(-1)?.[0];
+        expect(typeof taskListProps.onBulkBarPropsChange).toBe('function');
+
+        act(() => {
+            taskListProps.onBulkBarPropsChange({
+                bulkActionLabel: '',
+                bulkActionLoading: false,
+                handleBatchDelete: vi.fn(),
+                handleBatchMove: vi.fn(),
+                hasSelection: true,
+                onExitSelectionMode: vi.fn(),
+                onOpenTagModal: vi.fn(),
+                onToggleRangeSelectMode: vi.fn(),
+                rangeSelectMode: false,
+                selectedCount: 1,
+                t: createProjectDetailModalProps().t,
+                themeColors,
+            });
+        });
+
+        expect(mockScrollTo).toHaveBeenCalledWith({ y: 480, animated: false });
+    });
 });
 
 describe('ProjectDetailModal keyboard handling', () => {

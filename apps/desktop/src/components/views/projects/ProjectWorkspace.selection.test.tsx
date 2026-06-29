@@ -326,58 +326,75 @@ describe('ProjectWorkspace Select mode', () => {
     });
 
     it('restores project scroll after expanding completed tasks and entering selection mode', () => {
-        const rafCallbacks: FrameRequestCallback[] = [];
-        const originalRequestAnimationFrame = window.requestAnimationFrame;
-        Object.defineProperty(window, 'requestAnimationFrame', {
-            configurable: true,
-            writable: true,
-            value: vi.fn((callback: FrameRequestCallback) => {
-                rafCallbacks.push(callback);
-                return rafCallbacks.length;
-            }),
+        const { container, getByRole } = renderWorkspace({
+            showCompletedTasks: true,
+            allTasks: [
+                task('active-1', 'Active task'),
+                task('done-1', 'Finished one', {
+                    status: 'done',
+                    completedAt: '2026-05-12T10:00:00.000Z',
+                }),
+                task('done-2', 'Finished two', {
+                    status: 'done',
+                    completedAt: '2026-05-12T11:00:00.000Z',
+                }),
+            ],
         });
-        const flushAnimationFrame = () => {
-            const callbacks = rafCallbacks.splice(0);
-            callbacks.forEach((callback) => callback(0));
-        };
+        const scrollContainer = container.querySelector('.overflow-y-auto') as HTMLDivElement;
+        expect(scrollContainer).toBeTruthy();
+
+        scrollContainer.scrollTop = 420;
+        fireEvent.click(getByRole('button', { name: /Done/ }));
+
+        expect(scrollContainer.scrollTop).toBe(420);
+
+        scrollContainer.scrollTop = 360;
+        fireEvent.click(getByRole('button', { name: 'Select' }));
+
+        expect(scrollContainer.scrollTop).toBe(360);
+    });
+
+    it('keeps the first visible project task anchored when Select expands the toolbar', () => {
+        const originalGetBoundingClientRect = HTMLElement.prototype.getBoundingClientRect;
+        const getRect = (top: number, bottom: number) => ({
+            top,
+            bottom,
+            left: 0,
+            right: 320,
+            width: 320,
+            height: bottom - top,
+            x: 0,
+            y: top,
+            toJSON: () => ({}),
+        } as DOMRect);
 
         try {
             const { container, getByRole } = renderWorkspace({
-                showCompletedTasks: true,
                 allTasks: [
-                    task('active-1', 'Active task'),
-                    task('done-1', 'Finished one', {
-                        status: 'done',
-                        completedAt: '2026-05-12T10:00:00.000Z',
-                    }),
-                    task('done-2', 'Finished two', {
-                        status: 'done',
-                        completedAt: '2026-05-12T11:00:00.000Z',
-                    }),
+                    task('task-1', 'Earlier task'),
+                    task('task-2', 'Visible task'),
                 ],
             });
-            const scrollContainer = container.querySelector('.overflow-y-auto') as HTMLDivElement;
+            const scrollContainer = container.querySelector('[data-project-scroll-container]') as HTMLDivElement;
             expect(scrollContainer).toBeTruthy();
 
-            scrollContainer.scrollTop = 420;
-            fireEvent.click(getByRole('button', { name: /Done/ }));
-            scrollContainer.scrollTop = 0;
-            act(flushAnimationFrame);
-
-            expect(scrollContainer.scrollTop).toBe(420);
+            vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(function getMockRect(this: HTMLElement) {
+                const element = this as HTMLElement;
+                if (element === scrollContainer) return getRect(0, 600);
+                if (element.getAttribute('data-task-id') === 'task-1') return getRect(-120, -80);
+                if (element.getAttribute('data-task-id') === 'task-2') {
+                    const selectModeActive = document.body.textContent?.includes('Exit Select') ?? false;
+                    return getRect(selectModeActive ? 160 : 120, selectModeActive ? 200 : 160);
+                }
+                return originalGetBoundingClientRect.call(element);
+            });
 
             scrollContainer.scrollTop = 360;
             fireEvent.click(getByRole('button', { name: 'Select' }));
-            scrollContainer.scrollTop = 0;
-            act(flushAnimationFrame);
 
-            expect(scrollContainer.scrollTop).toBe(360);
+            expect(scrollContainer.scrollTop).toBe(400);
         } finally {
-            Object.defineProperty(window, 'requestAnimationFrame', {
-                configurable: true,
-                writable: true,
-                value: originalRequestAnimationFrame,
-            });
+            HTMLElement.prototype.getBoundingClientRect = originalGetBoundingClientRect;
         }
     });
 

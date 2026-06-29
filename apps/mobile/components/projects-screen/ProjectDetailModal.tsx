@@ -555,6 +555,8 @@ export function ProjectDetailModal({
     const [sectionManagerVisible, setSectionManagerVisible] = React.useState(false);
     const projectDetailScrollRef = React.useRef<ScrollView | null>(null);
     const projectDetailScrollOffsetRef = React.useRef(0);
+    const pendingProjectDetailScrollRestoreRef = React.useRef<number | null>(null);
+    const projectTaskBulkBarPropsRef = React.useRef<TaskListBulkBarProps | null>(null);
     const [projectDetailScrollWindow, setProjectDetailScrollWindow] = React.useState({
         offsetY: 0,
         viewportHeight: 0,
@@ -633,6 +635,12 @@ export function ProjectDetailModal({
         []
     );
     const handleProjectBulkBarPropsChange = React.useCallback((props: TaskListBulkBarProps | null) => {
+        const hadBulkBar = projectTaskBulkBarPropsRef.current !== null;
+        const hasBulkBar = props !== null;
+        if (hadBulkBar !== hasBulkBar && projectDetailScrollOffsetRef.current > 0) {
+            pendingProjectDetailScrollRestoreRef.current = projectDetailScrollOffsetRef.current;
+        }
+        projectTaskBulkBarPropsRef.current = props;
         setProjectTaskBulkBarProps(props);
     }, []);
     const openProjectTaskSort = React.useCallback(() => {
@@ -797,8 +805,28 @@ export function ProjectDetailModal({
         onSetSelectedProject({ ...selectedProject, sequentialScope });
     };
 
+    const restoreProjectDetailScrollOffset = React.useCallback((offsetY: number) => {
+        if (!Number.isFinite(offsetY) || offsetY <= 0) return;
+        const scrollToOffset = () => {
+            projectDetailScrollRef.current?.scrollTo({ y: offsetY, animated: false });
+        };
+        scrollToOffset();
+        if (typeof requestAnimationFrame === 'function') {
+            requestAnimationFrame(scrollToOffset);
+        }
+    }, []);
+
+    React.useLayoutEffect(() => {
+        const offsetY = pendingProjectDetailScrollRestoreRef.current;
+        if (offsetY === null) return;
+        pendingProjectDetailScrollRestoreRef.current = null;
+        if (projectReorderOwnsScroll) return;
+        restoreProjectDetailScrollOffset(offsetY);
+    }, [projectReorderOwnsScroll, projectTaskBulkBarProps, restoreProjectDetailScrollOffset]);
+
     const resetProjectDetailVirtualWindow = React.useCallback(() => {
         projectDetailScrollOffsetRef.current = 0;
+        pendingProjectDetailScrollRestoreRef.current = null;
         setProjectDetailScrollWindow((current) => {
             if (current.offsetY === 0 && current.viewportHeight === 0) {
                 return current;

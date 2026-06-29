@@ -66,6 +66,67 @@ const PROJECT_TASK_VIRTUAL_INITIAL_HEIGHT = 720;
 const PROJECT_TASK_TOOLBAR_COLLAPSE_SCROLL_Y = 96;
 const PROJECT_TASK_TOOLBAR_EXPAND_SCROLL_Y = 8;
 
+type ProjectScrollSnapshot = {
+    scrollTop: number;
+    scrollLeft: number;
+    projectId: string | null;
+    anchorKey?: string;
+    anchorTop?: number;
+};
+
+const PROJECT_SCROLL_ANCHOR_SELECTOR = '[data-task-id],[data-project-completed-toggle]';
+
+const getProjectScrollAnchorKey = (element: HTMLElement): string | null => {
+    const taskId = element.getAttribute('data-task-id');
+    if (taskId) return `task:${taskId}`;
+    if (element.hasAttribute('data-project-completed-toggle')) return 'completed-toggle';
+    return null;
+};
+
+const findProjectScrollAnchorByKey = (scrollElement: HTMLElement, anchorKey: string): HTMLElement | null => (
+    Array.from(scrollElement.querySelectorAll<HTMLElement>(PROJECT_SCROLL_ANCHOR_SELECTOR))
+        .find((element) => getProjectScrollAnchorKey(element) === anchorKey) ?? null
+);
+
+const createProjectScrollSnapshot = (scrollElement: HTMLElement, projectId: string | null): ProjectScrollSnapshot => {
+    const snapshot: ProjectScrollSnapshot = {
+        scrollTop: scrollElement.scrollTop,
+        scrollLeft: scrollElement.scrollLeft,
+        projectId,
+    };
+    const scrollRect = scrollElement.getBoundingClientRect();
+    const visibleAnchor = Array.from(scrollElement.querySelectorAll<HTMLElement>(PROJECT_SCROLL_ANCHOR_SELECTOR))
+        .map((element) => ({ element, rect: element.getBoundingClientRect() }))
+        .filter(({ rect }) => (
+            Number.isFinite(rect.top)
+            && Number.isFinite(rect.bottom)
+            && rect.bottom > scrollRect.top
+            && rect.top < scrollRect.bottom
+        ))
+        .sort((a, b) => Math.abs(a.rect.top - scrollRect.top) - Math.abs(b.rect.top - scrollRect.top))[0];
+    if (!visibleAnchor) return snapshot;
+    const anchorKey = getProjectScrollAnchorKey(visibleAnchor.element);
+    if (!anchorKey) return snapshot;
+    return {
+        ...snapshot,
+        anchorKey,
+        anchorTop: visibleAnchor.rect.top,
+    };
+};
+
+const restoreProjectScrollSnapshot = (scrollElement: HTMLElement, snapshot: ProjectScrollSnapshot) => {
+    scrollElement.scrollTop = snapshot.scrollTop;
+    scrollElement.scrollLeft = snapshot.scrollLeft;
+
+    if (!snapshot.anchorKey || typeof snapshot.anchorTop !== 'number') return;
+    const anchor = findProjectScrollAnchorByKey(scrollElement, snapshot.anchorKey);
+    if (!anchor) return;
+    const nextAnchorTop = anchor.getBoundingClientRect().top;
+    const delta = nextAnchorTop - snapshot.anchorTop;
+    if (!Number.isFinite(delta) || Math.abs(delta) < 0.5) return;
+    scrollElement.scrollTop += delta;
+};
+
 type ProjectTaskRowsProps = {
     tasks: readonly Task[];
     renderTask: (task: Task) => ReactNode;
@@ -355,6 +416,7 @@ export function ProjectWorkspace({
     const projectScrollRef = useRef<HTMLDivElement | null>(null);
     const searchInputRef = useRef<HTMLInputElement | null>(null);
     const lastProjectScrollTopRef = useRef(0);
+    const pendingProjectScrollRestoreRef = useRef<ProjectScrollSnapshot | null>(null);
     const selectedProjectIdRef = useRef<string | null>(selectedProjectId);
     const isArchivedProject = selectedProject?.status === 'archived';
     const shouldGroupCompletedTasks = Boolean(selectedProject && !isArchivedProject && showCompletedTasks);
@@ -367,30 +429,21 @@ export function ProjectWorkspace({
         selectedProjectIdRef.current = selectedProjectId;
     }, [selectedProjectId]);
 
-    const restoreProjectScrollAfterRender = useCallback(() => {
+    const captureProjectScrollBeforeLayoutChange = useCallback(() => {
         const scrollElement = projectScrollRef.current;
         if (!scrollElement) return;
-
-        const scrollTop = scrollElement.scrollTop;
-        const scrollLeft = scrollElement.scrollLeft;
-        const projectId = selectedProjectIdRef.current;
-        const restoreScroll = () => {
-            if (selectedProjectIdRef.current !== projectId) return;
-            const currentScrollElement = projectScrollRef.current;
-            if (!currentScrollElement) return;
-            currentScrollElement.scrollTop = scrollTop;
-            currentScrollElement.scrollLeft = scrollLeft;
-        };
-
-        if (typeof window === 'undefined') return;
-
-        if (typeof window.requestAnimationFrame === 'function') {
-            window.requestAnimationFrame(restoreScroll);
-            return;
-        }
-
-        window.setTimeout(restoreScroll, 0);
+        pendingProjectScrollRestoreRef.current = createProjectScrollSnapshot(scrollElement, selectedProjectIdRef.current);
     }, []);
+
+    useLayoutEffect(() => {
+        const snapshot = pendingProjectScrollRestoreRef.current;
+        if (!snapshot) return;
+        pendingProjectScrollRestoreRef.current = null;
+        if (selectedProjectIdRef.current !== snapshot.projectId) return;
+        const scrollElement = projectScrollRef.current;
+        if (!scrollElement) return;
+        restoreProjectScrollSnapshot(scrollElement, snapshot);
+    });
 
     const handleProjectScroll = useCallback(() => {
         const scrollElement = projectScrollRef.current;
@@ -997,10 +1050,11 @@ export function ProjectWorkspace({
                 <button
                     type="button"
                     onClick={() => {
-                        restoreProjectScrollAfterRender();
+                        captureProjectScrollBeforeLayoutChange();
                         setCompletedTasksCollapsed((value) => !value);
                     }}
                     aria-expanded={!completedTasksCollapsed}
+                    data-project-completed-toggle
                     className="flex w-full items-center justify-between border-b border-border/50 px-3 py-2 text-left text-sm font-semibold text-muted-foreground transition-colors hover:text-foreground"
                 >
                     <span className="flex items-center gap-2">
@@ -1388,7 +1442,7 @@ export function ProjectWorkspace({
         <button
             type="button"
             onClick={() => {
-                restoreProjectScrollAfterRender();
+                captureProjectScrollBeforeLayoutChange();
                 if (selectionMode) exitSelectionMode();
                 else setSelectionMode(true);
             }}
