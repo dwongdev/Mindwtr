@@ -928,33 +928,10 @@ const checkNativeFile = async (normalized: ReturnType<typeof normalizeFilePath>)
     const isDirectory = typeof stat.isDirectory === 'function' ? stat.isDirectory() : false;
     const isFile = typeof stat.isFile === 'function' ? stat.isFile() : !isDirectory;
     const size = typeof stat.size === 'number' && Number.isFinite(stat.size) ? stat.size : 0;
-    void logInfo('Whisper model native stat result', {
-      scope: 'speech',
-      force: true,
-      extra: {
-        uri: normalized.uri,
-        path: normalized.path,
-        exists: String(Boolean(isFile && !isDirectory)),
-        isFile: String(Boolean(isFile)),
-        isDirectory: String(Boolean(isDirectory)),
-        size: String(size),
-        nativePath: typeof stat.path === 'string' ? stat.path : '',
-        originalFilepath: typeof stat.originalFilepath === 'string' ? stat.originalFilepath : '',
-      },
-    });
     if (isFile && !isDirectory) {
       return { exists: true, size };
     }
-  } catch (error) {
-    void logInfo('Whisper model native stat failed', {
-      scope: 'speech',
-      force: true,
-      extra: {
-        uri: normalized.uri,
-        path: normalized.path,
-        error: error instanceof Error ? error.message : String(error),
-      },
-    });
+  } catch {
   }
   return { exists: false, size: 0 };
 };
@@ -1028,17 +1005,6 @@ const deleteWhisperDirectoryBlockingFile = (uri: string, reason: string): boolea
   }
   const before = checkPath(normalized);
   if (!before.exists || before.isDirectory) return false;
-  void logInfo('Whisper model directory file cleanup start', {
-    scope: 'speech',
-    force: true,
-    extra: {
-      uri: normalized,
-      reason,
-      exists: String(Boolean(before.exists)),
-      isDirectory: String(Boolean(before.isDirectory)),
-      size: String(before.size ?? 0),
-    },
-  });
   try {
     new File(normalized).delete();
   } catch (error) {
@@ -1054,17 +1020,6 @@ const deleteWhisperDirectoryBlockingFile = (uri: string, reason: string): boolea
     return false;
   }
   const after = checkPath(normalized);
-  void logInfo('Whisper model directory file cleanup complete', {
-    scope: 'speech',
-    force: true,
-    extra: {
-      uri: normalized,
-      reason,
-      exists: String(Boolean(after.exists)),
-      isDirectory: String(Boolean(after.isDirectory)),
-      size: String(after.size ?? 0),
-    },
-  });
   return !after.exists || after.isDirectory;
 };
 
@@ -1453,28 +1408,9 @@ const getWhisperContext = async (modelPath: string, modelId?: string) => {
   if (Platform.OS === 'android') {
     initOptions.useGpu = false;
   }
-  void logInfo('Whisper context init starting', {
-    scope: 'speech',
-    force: true,
-    extra: {
-      platform: Platform.OS,
-      modelId: modelId ?? '',
-      modelPath: resolved.path,
-      modelSize: String(resolved.size),
-    },
-  });
   try {
     const context = await initWhisper(initOptions);
     whisperContextCache = { modelPath: resolved.path, context };
-    void logInfo('Whisper context init completed', {
-      scope: 'speech',
-      force: true,
-      extra: {
-        platform: Platform.OS,
-        modelId: modelId ?? '',
-        modelPath: resolved.path,
-      },
-    });
     return context;
   } catch (error) {
     const withScheme = resolved.uri;
@@ -1495,15 +1431,6 @@ const getWhisperContext = async (modelPath: string, modelId?: string) => {
       try {
         const context = await initWhisper({ ...initOptions, filePath: withScheme });
         whisperContextCache = { modelPath: withScheme, context };
-        void logInfo('Whisper context init completed with file uri', {
-          scope: 'speech',
-          force: true,
-          extra: {
-            platform: Platform.OS,
-            modelId: modelId ?? '',
-            modelPath: withScheme,
-          },
-        });
         return context;
       } catch (retryError) {
         const message = retryError instanceof Error ? retryError.message : String(retryError);
@@ -1770,18 +1697,6 @@ export const startWhisperRealtimeCapture = async (
     promptPreviousSlices: false,
   };
 
-  void logInfo('Whisper transcription started', {
-    scope: 'speech',
-    force: true,
-    extra: {
-      mode: 'realtime',
-      platform: Platform.OS,
-      uri: audioOutputPath,
-      modelPath: resolved.path,
-      language: effectiveLanguage,
-    },
-  });
-
   const audioStream = new whisperRealtime.AudioPcmStreamAdapter();
   // Android's file transcription path decodes WAV only. Use the realtime helper
   // there as a PCM/WAV recorder, then transcribe the generated WAV after stop.
@@ -1813,15 +1728,6 @@ export const startWhisperRealtimeCapture = async (
         extra: {
           uri: audioOutputPath,
           modelPath: resolved.path,
-          language: effectiveLanguage,
-        },
-      });
-    } else {
-      void logInfo('Whisper transcription completed', {
-        scope: 'speech',
-        force: true,
-        extra: {
-          length: String(text.length),
           language: effectiveLanguage,
         },
       });
@@ -1929,24 +1835,6 @@ export const transcribeLocalWhisper = async (input: LocalWhisperAudio, config: S
   const language = resolveLanguage(config.language);
   const effectiveLanguage = config.model?.endsWith('.en') && language === 'auto' ? 'en' : language;
   const options = buildWhisperTranscribeOptions(effectiveLanguage);
-  void logInfo('Whisper transcription started', {
-    scope: 'speech',
-    force: true,
-    extra: {
-      mode: 'file',
-      platform: Platform.OS,
-      uri: input.uri,
-      modelPath: resolved.path,
-      language: effectiveLanguage,
-      inputExtension: getAudioFileExtensionFromUri(input.uri),
-      local_whisper_called: 'true',
-      file_size: String(input.bytes),
-      duration_ms: String(input.durationMs),
-      sample_rate: String(input.sampleRate),
-      channels: String(input.channels),
-      bits_per_sample: String(input.bitsPerSample),
-    },
-  });
   const audioUri = input.uri;
   const normalizedUri = audioUri.startsWith('file://')
     ? audioUri.replace(/^file:\/\//, '')
@@ -2016,15 +1904,6 @@ export const transcribeLocalWhisper = async (input: LocalWhisperAudio, config: S
       extra: {
         uri: audioUri,
         modelPath: resolved.path,
-        language: effectiveLanguage,
-      },
-    });
-  } else {
-    void logInfo('Whisper transcription completed', {
-      scope: 'speech',
-      force: true,
-      extra: {
-        length: String(text.length),
         language: effectiveLanguage,
       },
     });

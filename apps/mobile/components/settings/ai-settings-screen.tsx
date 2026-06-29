@@ -23,7 +23,6 @@ import {
 import { loadAIKey, saveAIKey } from '@/lib/ai-config';
 import { useToast } from '@/contexts/toast-context';
 import { useThemeColors } from '@/hooks/use-theme-colors';
-import { logInfo } from '@/lib/app-log';
 import { logSettingsError, logSettingsWarn } from '@/lib/settings-utils';
 
 import { AiSettingsAssistantCard } from './ai-settings-assistant-card';
@@ -61,16 +60,6 @@ let rnfsDownloadModuleCache: WhisperModelNativeFs | null | undefined;
 const buildWhisperModelDirectoryUri = (rootUri: string): string => {
     const normalized = rootUri.endsWith('/') ? rootUri : `${rootUri}/`;
     return `${normalized}whisper-models`;
-};
-
-const stringifyWhisperLogDetails = (details?: Record<string, unknown>): Record<string, string> | undefined => {
-    if (!details) return undefined;
-    const extra: Record<string, string> = {};
-    for (const [key, value] of Object.entries(details)) {
-        if (value === undefined || value === null) continue;
-        extra[key] = typeof value === 'string' ? value : JSON.stringify(value);
-    }
-    return extra;
 };
 
 const getRNFSModule = (): unknown | null => {
@@ -114,11 +103,6 @@ const hashWhisperModelFile = async (uri: string): Promise<string> => {
 const getWhisperNativePathInfo = async (uri: string): Promise<WhisperModelPathInfo | null> => {
     const rnfs = getRNFSDownloadModule();
     if (!rnfs || typeof rnfs.stat !== 'function') {
-        void logInfo('Whisper model native stat unavailable', {
-            scope: 'settings',
-            force: true,
-            extra: { uri },
-        });
         return null;
     }
     const nativePath = toNativeHashPath(uri);
@@ -127,35 +111,12 @@ const getWhisperNativePathInfo = async (uri: string): Promise<WhisperModelPathIn
         const isDirectory = typeof stat.isDirectory === 'function' ? stat.isDirectory() : false;
         const isFile = typeof stat.isFile === 'function' ? stat.isFile() : !isDirectory;
         const size = typeof stat.size === 'number' && Number.isFinite(stat.size) ? stat.size : 0;
-        void logInfo('Whisper model native stat result', {
-            scope: 'settings',
-            force: true,
-            extra: {
-                uri,
-                nativePath,
-                exists: String(Boolean(isFile || isDirectory)),
-                isFile: String(Boolean(isFile)),
-                isDirectory: String(Boolean(isDirectory)),
-                size: String(size),
-                statPath: stat.path ?? '',
-                originalFilepath: stat.originalFilepath ?? '',
-            },
-        });
         return {
             exists: Boolean(isFile || isDirectory),
             isDirectory,
             size,
         };
-    } catch (error) {
-        void logInfo('Whisper model native stat failed', {
-            scope: 'settings',
-            force: true,
-            extra: {
-                uri,
-                nativePath,
-                error: error instanceof Error ? error.message : String(error),
-            },
-        });
+    } catch {
         return null;
     }
 };
@@ -492,7 +453,7 @@ export function AISettingsScreen() {
         return true;
     };
 
-    const cleanupWhisperDirectoryBlockingFile = async (uri: string, reason: string) => {
+    const cleanupWhisperDirectoryBlockingFile = async (uri: string, _reason: string) => {
         const normalized = normalizeWhisperDirectoryUri(uri);
         if (!isKnownWhisperDirectoryTarget(normalized)) {
             logSettingsWarn('Refusing to repair unsafe Whisper model directory target', new Error(normalized));
@@ -505,18 +466,6 @@ export function AISettingsScreen() {
         const exists = Boolean(expoInfo?.exists || nativeInfo?.exists);
         const isDirectory = expoInfo?.isDirectory === true || nativeInfo?.isDirectory === true;
         if (!exists || isDirectory) return false;
-        void logInfo('Whisper model directory file cleanup start', {
-            scope: 'settings',
-            force: true,
-            extra: {
-                uri: normalized,
-                reason,
-                expoExists: String(Boolean(expoInfo?.exists)),
-                expoIsDirectory: String(Boolean(expoInfo?.isDirectory)),
-                nativeExists: String(Boolean(nativeInfo?.exists)),
-                nativeIsDirectory: String(Boolean(nativeInfo?.isDirectory)),
-            },
-        });
         let deleted = false;
         try {
             new File(normalized).delete();
@@ -538,20 +487,6 @@ export function AISettingsScreen() {
         const repaired = !afterExpo?.exists && !afterNative?.exists
             || afterExpo?.isDirectory === true
             || afterNative?.isDirectory === true;
-        void logInfo('Whisper model directory file cleanup complete', {
-            scope: 'settings',
-            force: true,
-            extra: {
-                uri: normalized,
-                reason,
-                deleted: String(deleted),
-                repaired: String(repaired),
-                expoExists: String(Boolean(afterExpo?.exists)),
-                expoIsDirectory: String(Boolean(afterExpo?.isDirectory)),
-                nativeExists: String(Boolean(afterNative?.exists)),
-                nativeIsDirectory: String(Boolean(afterNative?.isDirectory)),
-            },
-        });
         return repaired;
     };
 
@@ -571,18 +506,6 @@ export function AISettingsScreen() {
         const afterInfo = safePathInfo(directory.uri);
         const afterNativeInfo = afterInfo?.isDirectory === true ? null : await getWhisperNativePathInfo(directory.uri);
         const ready = afterInfo?.isDirectory === true || afterNativeInfo?.isDirectory === true;
-        void logInfo('Whisper model directory ready check', {
-            scope: 'settings',
-            force: true,
-            extra: {
-                uri: normalizeWhisperDirectoryUri(directory.uri),
-                expoExists: String(Boolean(afterInfo?.exists)),
-                expoIsDirectory: String(Boolean(afterInfo?.isDirectory)),
-                nativeExists: String(Boolean(afterNativeInfo?.exists)),
-                nativeIsDirectory: String(Boolean(afterNativeInfo?.isDirectory)),
-                ready: String(ready),
-            },
-        });
         if (!ready) {
             throw new Error(`Whisper model directory is blocked by a file: ${normalizeWhisperDirectoryUri(directory.uri)}`);
         }
@@ -826,13 +749,6 @@ export function AISettingsScreen() {
                             targetFile,
                             nativeFs: nativeDownloadModule,
                             resolveDownloadUrl: resolveWhisperModelDownloadUrl,
-                            logger: (event, details) => {
-                                void logInfo(`Whisper model download ${event}`, {
-                                    scope: 'settings',
-                                    force: true,
-                                    extra: stringifyWhisperLogDetails(details),
-                                });
-                            },
                             expoDownloadFile: async (downloadUrl, destination, options) => {
                                 await File.downloadFileAsync(downloadUrl, destination, options);
                                 return destination;
@@ -844,23 +760,6 @@ export function AISettingsScreen() {
                         const expoReady = isWhisperModelFileReady(selectedWhisperModel, downloadedInfo, bytesWritten);
                         const nativeReady = isWhisperModelFileReady(selectedWhisperModel, nativeDownloadedInfo, bytesWritten);
                         const ready = expoReady || nativeReady;
-                        void logInfo('Whisper model download verification', {
-                            scope: 'settings',
-                            force: true,
-                            extra: {
-                                targetUri: file.uri,
-                                bytesWritten: String(bytesWritten ?? ''),
-                                expoExists: String(Boolean(downloadedInfo?.exists)),
-                                expoIsDirectory: String(Boolean(downloadedInfo?.isDirectory)),
-                                expoSize: String(getWhisperPathInfoSize(downloadedInfo)),
-                                nativeExists: String(Boolean(nativeDownloadedInfo?.exists)),
-                                nativeIsDirectory: String(Boolean(nativeDownloadedInfo?.isDirectory)),
-                                nativeSize: String(getWhisperPathInfoSize(nativeDownloadedInfo)),
-                                expoReady: String(expoReady),
-                                nativeReady: String(nativeReady),
-                                ready: String(ready),
-                            },
-                        });
                         if (!ready) {
                             try {
                                 file.delete();
