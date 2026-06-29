@@ -8,4 +8,4 @@ Changes collected after `v1.0.5` and before the next version tag.
 
 ## Full Change List
 
-- None yet.
+- ci(android): build profileable internal test AABs alongside the normal release AAB.

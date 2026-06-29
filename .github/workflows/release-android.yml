@@ -202,8 +202,7 @@ jobs:
     env:
       DROPBOX_APP_KEY: ${{ vars.DROPBOX_APP_KEY || secrets.DROPBOX_APP_KEY }}
       DONATION_PROMPT_ENABLED: "true"
-      IS_INTERNAL_TEST_RELEASE: ${{ inputs.internal_test_release && 'true' || 'false' }}
-      ANDROID_PROFILEABLE: ${{ inputs.internal_test_release && 'true' || 'false' }}
+      ANDROID_PROFILEABLE: "false"
 
     steps:
       - name: Checkout code
@@ -263,15 +262,11 @@ jobs:
           VERSION=${{ needs.preflight.outputs.version }}
           cd apps/mobile
           OUTPUT="./build/mindwtr-${VERSION}.aab"
-          if [ "${IS_INTERNAL_TEST_RELEASE}" = "true" ]; then
-            OUTPUT="./build/mindwtr-${VERSION}-internal-${GITHUB_RUN_NUMBER}.aab"
-          fi
           MINDWTR_ANDROID_ARCHS=arm64-v8a,armeabi-v7a eas build --platform android --profile production --local --non-interactive --output "$OUTPUT"
           ls -la ./build
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
           ANALYTICS_HEARTBEAT_URL: ${{ secrets.ANALYTICS_HEARTBEAT_URL }}
-          ANALYTICS_HEARTBEAT_CHANNEL: ${{ inputs.internal_test_release && 'android-internal-test' || '' }}
           ANALYTICS_RELEASE_VERSION: ${{ inputs.tag || github.event.inputs.tag || github.ref_name }}
           FEEDBACK_ENDPOINT_URL: ${{ vars.FEEDBACK_ENDPOINT_URL || vars.VITE_FEEDBACK_ENDPOINT_URL || 'https://feedback.mindwtr.app' }}
 
@@ -280,6 +275,92 @@ jobs:
         with:
           name: android-aab-build
           path: apps/mobile/build/*.aab
+          if-no-files-found: error
+          retention-days: ${{ inputs.retention_days }}
+
+  build-internal-test-aab:
+    if: ${{ inputs.internal_test_release }}
+    needs: preflight
+    runs-on: ubuntu-latest
+    name: Android Internal Profileable AAB Build
+    timeout-minutes: 75
+    env:
+      DROPBOX_APP_KEY: ${{ vars.DROPBOX_APP_KEY || secrets.DROPBOX_APP_KEY }}
+      DONATION_PROMPT_ENABLED: "true"
+      ANDROID_PROFILEABLE: "true"
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
+        with:
+          node-version: 20
+
+      - name: Setup Java
+        uses: actions/setup-java@dded0888837ed1f317902acf8a20df0ad188d165 # v5.0.0
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - name: Setup Android SDK
+        run: bash scripts/ci/setup-android-sdk.sh
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version-file: ".bun-version"
+
+      - name: Install dependencies
+        run: bun install
+
+      - name: Setup EAS CLI
+        run: npm install -g eas-cli
+
+      - name: Apply resolved Android versionCode
+        if: ${{ needs.preflight.outputs.version_code != '' }}
+        env:
+          VERSION_CODE: ${{ needs.preflight.outputs.version_code }}
+        run: |
+          set -euo pipefail
+          node - <<'NODE'
+          const fs = require('fs');
+          const path = 'apps/mobile/app.json';
+          const versionCode = Number(process.env.VERSION_CODE);
+          if (!Number.isInteger(versionCode) || versionCode <= 0) {
+            throw new Error(`Invalid Android versionCode: ${process.env.VERSION_CODE}`);
+          }
+          const json = JSON.parse(fs.readFileSync(path, 'utf8'));
+          json.expo = json.expo || {};
+          json.expo.android = json.expo.android || {};
+          const previous = json.expo.android.versionCode;
+          json.expo.android.versionCode = versionCode;
+          fs.writeFileSync(path, `${JSON.stringify(json, null, 2)}\n`);
+          console.log(`Android versionCode: ${previous} -> ${versionCode}`);
+          NODE
+
+      - name: Build Android internal profileable AAB (local EAS)
+        timeout-minutes: 60
+        run: |
+          set -euo pipefail
+          VERSION=${{ needs.preflight.outputs.version }}
+          cd apps/mobile
+          OUTPUT="./build/mindwtr-${VERSION}-internal-${GITHUB_RUN_NUMBER}.aab"
+          MINDWTR_ANDROID_ARCHS=arm64-v8a,armeabi-v7a eas build --platform android --profile production --local --non-interactive --output "$OUTPUT"
+          ls -la ./build
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+          ANALYTICS_HEARTBEAT_URL: ${{ secrets.ANALYTICS_HEARTBEAT_URL }}
+          ANALYTICS_HEARTBEAT_CHANNEL: android-internal-test
+          ANALYTICS_RELEASE_VERSION: ${{ inputs.tag || github.event.inputs.tag || github.ref_name }}
+          FEEDBACK_ENDPOINT_URL: ${{ vars.FEEDBACK_ENDPOINT_URL || vars.VITE_FEEDBACK_ENDPOINT_URL || 'https://feedback.mindwtr.app' }}
+
+      - name: Upload Android internal profileable AAB artifact
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        with:
+          name: android-internal-test-aab-build
+          path: apps/mobile/build/*-internal-*.aab
           if-no-files-found: error
           retention-days: ${{ inputs.retention_days }}
 
@@ -380,8 +461,8 @@ jobs:
           retention-days: 28
 
   publish:
-    if: ${{ always() && inputs.play_track != 'none' && needs.preflight.result == 'success' && needs.build-aab.result == 'success' && ((needs.build-apk.result == 'success' && (inputs.play_track != 'production' || (startsWith(github.ref, 'refs/tags/') && github.event_name != 'workflow_dispatch' && !contains(github.ref_name, '-')))) || inputs.internal_test_release) }}
-    needs: [preflight, build-aab, build-apk]
+    if: ${{ always() && needs.preflight.result == 'success' && needs.build-aab.result == 'success' && ((inputs.play_track != 'none' && !inputs.internal_test_release && needs.build-apk.result == 'success' && (inputs.play_track != 'production' || (startsWith(github.ref, 'refs/tags/') && github.event_name != 'workflow_dispatch' && !contains(github.ref_name, '-')))) || (inputs.internal_test_release && needs['build-internal-test-aab'].result == 'success')) }}
+    needs: [preflight, build-aab, build-internal-test-aab, build-apk]
     runs-on: ubuntu-latest
     name: Android Publish
     timeout-minutes: 30
@@ -409,6 +490,22 @@ jobs:
           find "$download_dir" -type f -name '*.aab' -print -exec cp {} apps/mobile/build/ \;
           if ! find apps/mobile/build -maxdepth 1 -name '*.aab' -print -quit | grep -q .; then
             echo "Downloaded android-aab-build artifact did not contain an AAB." >&2
+            exit 1
+          fi
+          ls -la apps/mobile/build
+
+      - name: Download Android internal profileable AAB artifact
+        if: ${{ inputs.internal_test_release }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          download_dir="$(mktemp -d)"
+          mkdir -p apps/mobile/build
+          gh run download "$GITHUB_RUN_ID" -n android-internal-test-aab-build -D "$download_dir"
+          find "$download_dir" -type f -name '*-internal-*.aab' -print -exec cp {} apps/mobile/build/ \;
+          if ! find apps/mobile/build -maxdepth 1 -name '*-internal-*.aab' -print -quit | grep -q .; then
+            echo "Downloaded android-internal-test-aab-build artifact did not contain an internal AAB." >&2
             exit 1
           fi
           ls -la apps/mobile/build
@@ -494,7 +591,7 @@ jobs:
           cat apps/mobile/build/play-listing-metadata.json
 
       - name: Publish to Google Play Store (Production)
-        if: inputs.play_track == 'production' && startsWith(github.ref, 'refs/tags/') && github.event_name != 'workflow_dispatch' && !contains(github.ref_name, '-')
+        if: ${{ !inputs.internal_test_release && inputs.play_track == 'production' && startsWith(github.ref, 'refs/tags/') && github.event_name != 'workflow_dispatch' && !contains(github.ref_name, '-') }}
         env:
           ACCESS_TOKEN: ${{ steps.play_auth.outputs.access_token }}
         run: |
@@ -808,9 +905,9 @@ jobs:
           set -euo pipefail
           PACKAGE="tech.dongdongbh.mindwtr"
           VERSION="${{ needs.preflight.outputs.version }}"
-          AAB_PATH=$(find apps/mobile/build -maxdepth 1 -name '*.aab' -print -quit)
+          AAB_PATH=$(find apps/mobile/build -maxdepth 1 -name "mindwtr-${VERSION}-internal-*.aab" -print -quit)
           if [ -z "$AAB_PATH" ] || [ ! -f "$AAB_PATH" ]; then
-            echo "Missing AAB artifact in apps/mobile/build" >&2
+            echo "Missing internal profileable AAB artifact in apps/mobile/build" >&2
             exit 1
           fi
 
@@ -889,7 +986,7 @@ jobs:
           echo "version_code=$VERSION_CODE" >> "$GITHUB_OUTPUT"
 
       - name: Publish same versionCode to stable testing tracks (no re-upload)
-        if: inputs.play_track == 'production' && startsWith(github.ref, 'refs/tags/') && github.event_name != 'workflow_dispatch' && !contains(github.ref_name, '-')
+        if: ${{ !inputs.internal_test_release && inputs.play_track == 'production' && startsWith(github.ref, 'refs/tags/') && github.event_name != 'workflow_dispatch' && !contains(github.ref_name, '-') }}
         env:
           ACCESS_TOKEN: ${{ steps.play_auth.outputs.access_token }}
           TESTING_TRACKS: internal,beta
@@ -991,13 +1088,16 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p android-internal-test-artifacts
-          cp apps/mobile/build/*.aab android-internal-test-artifacts/
+          VERSION="${{ needs.preflight.outputs.version }}"
+          cp apps/mobile/build/mindwtr-${VERSION}-internal-*.aab android-internal-test-artifacts/
           {
             echo "Mindwtr Android internal test release"
             echo "Commit: ${GITHUB_SHA}"
             echo "VersionCode: ${{ steps.internal_publish.outputs.version_code }}"
             echo "Track: internal"
             echo "Profileable: true"
+            echo
+            echo "This Google Play internal build allows Android Studio/Perfetto profiling with shell access."
           } > android-internal-test-artifacts/README.txt
           ls -la android-internal-test-artifacts
 
