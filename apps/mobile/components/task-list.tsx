@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import { View, FlatList, Text, TextInput, RefreshControl, Modal, Pressable, TouchableOpacity, useWindowDimensions, type LayoutChangeEvent } from 'react-native';
 import { router } from 'expo-router';
-import { ArrowDown, ArrowUp, ChevronDown, ChevronRight, Folder, GripVertical, MoveVertical } from 'lucide-react-native';
+import { ArrowDown, ArrowUp, ChevronDown, ChevronRight, GripVertical, MoveVertical } from 'lucide-react-native';
 import DraggableFlatList, { NestableDraggableFlatList, type DragEndParams, type RenderItemParams } from 'react-native-draggable-flatlist';
 import {
   useTaskStore,
@@ -14,6 +14,7 @@ import {
   splitCompletedTasks,
   sortDoneTasksForListView,
   parseQuickAdd,
+  formatFocusTaskLimitText,
   resolveDefaultNewTaskAreaId,
   getQuickAddProjectInitialProps,
   getUsedTaskTokens,
@@ -25,6 +26,7 @@ import {
   DEFAULT_PROJECT_COLOR,
   getTranslationsSync,
   shallow,
+  normalizeFocusTaskLimit,
   tFallback,
   isSelectableProjectForTaskAssignment,
   isTaskInActiveProject,
@@ -168,6 +170,8 @@ export interface TaskListProps {
   groupCompletedTasksLast?: boolean;
   referenceGroupBy?: ReferenceGroupBy;
   onChangeReferenceGroupBy?: (value: ReferenceGroupBy) => void;
+  groupBy?: ReferenceGroupBy;
+  onChangeGroupBy?: (value: ReferenceGroupBy) => void;
   getTaskSequenceCue?: (task: Task) => ProjectSequenceTaskCue | undefined;
   sequenceCueLabels?: Record<ProjectSequenceTaskCue, string>;
 }
@@ -214,6 +218,8 @@ function TaskListComponent({
   groupCompletedTasksLast = false,
   referenceGroupBy = 'area',
   onChangeReferenceGroupBy,
+  groupBy,
+  onChangeGroupBy,
   getTaskSequenceCue,
   sequenceCueLabels,
 }: TaskListProps) {
@@ -240,6 +246,7 @@ function TaskListComponent({
     updateSettings,
     highlightTaskId,
     setHighlightTask,
+    getDerivedState,
   } = useTaskStore((state) => ({
     tasks: taskSource ?? (includeArchived ? state._allTasks : state.tasks),
     projects: state.projects,
@@ -259,8 +266,10 @@ function TaskListComponent({
     updateSettings: state.updateSettings,
     highlightTaskId: state.highlightTaskId,
     setHighlightTask: state.setHighlightTask,
+    getDerivedState: state.getDerivedState,
   }), shallow);
   const [newTaskTitle, setNewTaskTitle] = useState('');
+  const [quickAddFocus, setQuickAddFocus] = useState(false);
   const [aiKey, setAiKey] = useState('');
   const [copilotSuggestion, setCopilotSuggestion] = useState<{ context?: string; timeEstimate?: Task['timeEstimate']; tags?: string[] } | null>(null);
   const [copilotApplied, setCopilotApplied] = useState(false);
@@ -390,7 +399,12 @@ function TaskListComponent({
   });
 
   const sortBy = (projectSortBy ?? settings?.taskSortBy ?? 'default') as TaskSortBy;
-  const referenceGroupByValue = referenceGroupBy ?? 'area';
+  const activeGroupBy: ReferenceGroupBy = statusFilter === 'reference' && !projectId
+    ? (referenceGroupBy ?? groupBy ?? 'area')
+    : (groupBy ?? 'none');
+  const handleChangeGroupBy = statusFilter === 'reference' && !projectId
+    ? (onChangeReferenceGroupBy ?? onChangeGroupBy)
+    : onChangeGroupBy;
   const canUseProjectReorder = Boolean(enableProjectReorder && projectId && sortBy === 'default');
   const shouldGroupCompletedTasks = Boolean(groupCompletedTasksLast && projectId && statusFilter === 'all');
   const projectReorderMode = projectReorderModeProp ?? internalProjectReorderMode;
@@ -398,6 +412,13 @@ function TaskListComponent({
   const quickAddAvailable = allowAdd && !projectReorderMode;
   const aiEnabled = settings?.ai?.enabled === true;
   const quickAddCopilotEnabled = quickAddAvailable && enableCopilot && aiEnabled;
+  const focusTaskLimit = normalizeFocusTaskLimit(settings?.gtd?.focusTaskLimit);
+  const focusedCount = getDerivedState().focusedCount;
+  const canQuickAddFocus = quickAddFocus || focusedCount < focusTaskLimit;
+  const quickAddFocusDisabledReason = formatFocusTaskLimitText(
+    tFallback(t, 'agenda.maxFocusItems', 'Max {{count}} focus items.'),
+    focusTaskLimit,
+  );
   const aiProvider = (settings?.ai?.provider ?? 'openai') as AIProviderId;
   const keyRequired = isAIKeyRequired(settings);
   const prioritiesEnabled = settings?.features?.priorities !== false;
@@ -698,10 +719,7 @@ function TaskListComponent({
     | { type: 'task'; task: Task; reorderSectionId?: string | null; groupId?: string };
 
   const listItems = useMemo<ListItem[]>(() => {
-    if (statusFilter === 'reference' && !projectId) {
-      if (referenceGroupByValue === 'none') {
-        return orderedActiveTasks.map((task) => ({ type: 'task', task }));
-      }
+    if (!projectId && activeGroupBy !== 'none') {
       const appendSection = (items: ListItem[], id: string, title: string, tasksForGroup: Task[], muted = false) => {
         if (tasksForGroup.length === 0) return;
         items.push({
@@ -713,7 +731,7 @@ function TaskListComponent({
         });
         tasksForGroup.forEach((task) => items.push({ type: 'task', task, groupId: id }));
       };
-      if (referenceGroupByValue === 'project') {
+      if (activeGroupBy === 'project') {
         const grouped = new Map<string, Task[]>();
         const noProjectTasks: Task[] = [];
 
@@ -746,7 +764,7 @@ function TaskListComponent({
         sortedProjects.forEach((project) => appendSection(items, `project:${project.id}`, project.title, grouped.get(project.id) ?? []));
         return items;
       }
-      if (referenceGroupByValue === 'tag') {
+      if (activeGroupBy === 'tag') {
         const grouped = new Map<string, Task[]>();
         const noTagTasks: Task[] = [];
 
@@ -856,7 +874,7 @@ function TaskListComponent({
       unsectioned.forEach((task) => items.push({ type: 'task', task, reorderSectionId }));
     }
     return appendCompletedTasks(items);
-  }, [areas, completedTasksCollapsed, orderedActiveTasks, orderedCompletedTasks, projectById, projectId, projectReorderMode, projectSections, referenceGroupByValue, shouldGroupCompletedTasks, statusFilter, t]);
+  }, [activeGroupBy, areas, completedTasksCollapsed, orderedActiveTasks, orderedCompletedTasks, projectById, projectId, projectReorderMode, projectSections, shouldGroupCompletedTasks, t]);
   const orderedTaskIds = useMemo(
     () => Array.from(new Set(listItems.flatMap((item) => (item.type === 'task' ? [item.task.id] : [])))),
     [listItems],
@@ -940,7 +958,7 @@ function TaskListComponent({
   }, [canUseProjectReorder, listItems, projectSections.length, shouldGroupCompletedTasks]);
   const projectSectionIds = useMemo(() => projectSections.map((section) => section.id), [projectSections]);
   const hasProjectReorderItems = projectReorderGroups.some((group) => group.tasks.length > 0) || projectSections.length > 1;
-  const referenceGroupOptions: ReferenceGroupBy[] = ['none', 'area', 'project', 'tag'];
+  const groupByOptions: ReferenceGroupBy[] = ['none', 'area', 'project', 'tag'];
   const getReferenceGroupLabel = useCallback((groupBy: ReferenceGroupBy) => {
     switch (groupBy) {
       case 'none':
@@ -955,29 +973,9 @@ function TaskListComponent({
         return groupBy;
     }
   }, [t]);
-  const referenceGroupLabel = getReferenceGroupLabel(referenceGroupByValue);
+  const groupByLabel = getReferenceGroupLabel(activeGroupBy);
   const groupLabel = tFallback(t, 'list.groupBy', 'Group');
-  const showReferenceGroupControl = statusFilter === 'reference' && !projectId && Boolean(onChangeReferenceGroupBy);
-  const referenceGroupControl = showReferenceGroupControl ? (
-    <TouchableOpacity
-      onPress={() => setReferenceGroupModalVisible(true)}
-      style={[
-        styles.sortButton,
-        { borderColor: themeColorsMemo.border, backgroundColor: themeColorsMemo.filterBg },
-      ]}
-      accessibilityRole="button"
-      accessibilityLabel={`${groupLabel}: ${referenceGroupLabel}`}
-      hitSlop={8}
-    >
-      <Folder size={16} color={themeColorsMemo.secondaryText} strokeWidth={2} />
-    </TouchableOpacity>
-  ) : null;
-  const effectiveHeaderAccessory = referenceGroupControl || headerAccessory ? (
-    <>
-      {referenceGroupControl}
-      {headerAccessory}
-    </>
-  ) : undefined;
+  const showGroupControl = !projectId && Boolean(handleChangeGroupBy);
   const staticListVirtualWindow = useMemo(() => {
     const effectiveViewportHeight = resolveStaticListViewportHeight(
       staticListVirtualization?.viewportHeight ?? 0,
@@ -1338,6 +1336,9 @@ function TaskListComponent({
       const nextTags = Array.from(new Set([...(initialProps.tags ?? []), ...copilotTags]));
       initialProps.tags = nextTags;
     }
+    if (quickAddFocus && canQuickAddFocus) {
+      initialProps.isFocusedToday = true;
+    }
 
     const result = await addTask(finalTitle, initialProps);
     const resultObject = result && typeof result === 'object'
@@ -1354,6 +1355,7 @@ function TaskListComponent({
     setCopilotApplied(false);
     setCopilotContext(undefined);
     setCopilotTags([]);
+    setQuickAddFocus(false);
 
     if (options.openAfterCreate && createdTaskId) {
       const createdTask = useTaskStore.getState()._allTasks.find((task) => task.id === createdTaskId && !task.deletedAt);
@@ -1717,10 +1719,12 @@ function TaskListComponent({
         activeFilterChips={activeFilterChips}
         count={orderedTasks.length}
         filterActiveCount={totalFilterActiveCount}
+        groupByLabel={showGroupControl ? groupByLabel : undefined}
         hasActiveFilters={hasAnyActiveFilters}
-        headerAccessory={effectiveHeaderAccessory}
+        headerAccessory={headerAccessory}
         onClearFilters={clearAllFilters}
         onOpenFilters={() => setFiltersVisible(true)}
+        onOpenGroup={showGroupControl ? () => setReferenceGroupModalVisible(true) : undefined}
         onOpenSort={() => setSortModalVisible(true)}
         showHeader={showHeader}
         showFilterButton={showFilterButton}
@@ -1816,6 +1820,9 @@ function TaskListComponent({
           enableCopilot={enableCopilot}
           handleAddAndEditTask={projectId ? () => handleAddTask({ openAfterCreate: true }) : undefined}
           handleAddTask={handleAddTask}
+          focusNewTask={quickAddFocus}
+          canFocusNewTask={canQuickAddFocus}
+          focusNewTaskDisabledReason={quickAddFocusDisabledReason}
           inputRef={quickAddInputRef}
           newTaskTitle={newTaskTitle}
           onApplyCopilot={() => {
@@ -1840,6 +1847,7 @@ function TaskListComponent({
             const currentTitle = newTaskTitleRef.current;
             setTypeaheadOpen(Boolean(getTrigger(currentTitle, selection.start ?? currentTitle.length)));
           }}
+          onToggleFocusNewTask={() => setQuickAddFocus((current) => !current)}
           projectId={projectId}
           setTypeaheadIndex={setTypeaheadIndex}
           showQuickAddHelp={showQuickAddHelp}
@@ -2000,7 +2008,7 @@ function TaskListComponent({
         visible={sortModalVisible}
       />
 
-      {showReferenceGroupControl && (
+      {showGroupControl && (
         <Modal
           visible={referenceGroupModalVisible}
           transparent
@@ -2011,16 +2019,16 @@ function TaskListComponent({
             <View style={[styles.modalCard, { backgroundColor: themeColorsMemo.cardBg }]}>
               <Text style={[styles.modalTitle, { color: themeColorsMemo.text }]}>{groupLabel}</Text>
               <View style={styles.sortList}>
-                {referenceGroupOptions.map((option) => (
+                {groupByOptions.map((option) => (
                   <Pressable
                     key={option}
                     onPress={() => {
-                      onChangeReferenceGroupBy?.(option);
+                      handleChangeGroupBy?.(option);
                       setReferenceGroupModalVisible(false);
                     }}
                     style={[
                       styles.sortItem,
-                      option === referenceGroupByValue && { backgroundColor: themeColorsMemo.filterBg },
+                      option === activeGroupBy && { backgroundColor: themeColorsMemo.filterBg },
                     ]}
                   >
                     <Text style={[styles.sortItemText, { color: themeColorsMemo.text }]}>

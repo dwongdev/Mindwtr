@@ -219,6 +219,31 @@ describe('ListView', () => {
     expect(getAllByText('Dual-tag reference')).toHaveLength(2);
   });
 
+  it('groups inbox tasks by each tag when tag grouping is selected', () => {
+    useTaskStore.setState({
+      _allTasks: [
+        makeTask('1', { title: 'Dual-tag inbox', status: 'inbox', tags: ['#alpha', '#beta'] }),
+        makeTask('2', { title: 'Untagged inbox', status: 'inbox' }),
+      ],
+      lastDataChangeAt: 1,
+    });
+    useUiStore.setState((state) => ({
+      ...state,
+      listOptions: {
+        ...state.listOptions,
+        nextGroupBy: 'tag',
+      },
+    }));
+
+    const { getAllByText, getByRole, queryByText } = renderListView('inbox', 'Inbox');
+
+    expect(getByRole('combobox', { name: 'Group' })).toHaveValue('tag');
+    expect(queryByText('#alpha')).toBeInTheDocument();
+    expect(queryByText('#beta')).toBeInTheDocument();
+    expect(queryByText('No tags')).toBeInTheDocument();
+    expect(getAllByText('Dual-tag inbox')).toHaveLength(2);
+  });
+
   it('groups reference tasks by context when context grouping is selected', () => {
     useTaskStore.setState({
       _allTasks: [
@@ -495,5 +520,29 @@ describe('ListView', () => {
     } finally {
       vi.useRealTimers();
     }
+  });
+
+  it('can star a quick-add task during creation', async () => {
+    const addTask = vi.fn().mockResolvedValue({ success: true });
+    useTaskStore.setState({ addTask });
+
+    const { container, getByRole } = renderListView('next', 'Next');
+
+    fireEvent.click(getByRole('button', { name: /add to today's focus/i }));
+    const input = getByRole('combobox', { name: '' });
+    await act(async () => {
+      fireEvent.change(input, { target: { value: 'Focus this task' } });
+    });
+
+    const form = container.querySelector('form');
+    expect(form).not.toBeNull();
+    await act(async () => {
+      fireEvent.submit(form!);
+    });
+
+    expect(addTask).toHaveBeenCalledWith('Focus this task', expect.objectContaining({
+      isFocusedToday: true,
+      status: 'next',
+    }));
   });
 });

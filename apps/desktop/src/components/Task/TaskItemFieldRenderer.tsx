@@ -612,6 +612,7 @@ export type TaskItemFieldRendererData = {
     popularContextOptions: string[];
     popularTagOptions: string[];
     assignedToOptions: string[];
+    showObsidianNoteAttachment: boolean;
 };
 
 export type TaskItemFieldRendererHandlers = {
@@ -692,6 +693,7 @@ export function TaskItemFieldRenderer({
         popularContextOptions,
         popularTagOptions,
         assignedToOptions,
+        showObsidianNoteAttachment,
     } = data;
 
     const markdownEditorAssist = useTaskStore((state) => isMarkdownEditorAssistEnabled(state.settings));
@@ -1289,6 +1291,7 @@ export function TaskItemFieldRenderer({
                     addFileAttachment={addFileAttachment}
                     addLinkAttachment={addLinkAttachment}
                     addObsidianNoteAttachment={addObsidianNoteAttachment}
+                    showObsidianNoteAttachment={showObsidianNoteAttachment}
                     editLinkAttachment={editLinkAttachment}
                     openAttachment={openAttachment}
                     removeAttachment={removeAttachment}

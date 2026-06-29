@@ -22,6 +22,7 @@ import {
     useTaskStore,
 } from '@mindwtr/core';
 import { cn } from '../lib/utils';
+import { useObsidianStore } from '../store/obsidian-store';
 import { useLanguage } from '../contexts/language-context';
 import { TaskItemEditor } from './Task/TaskItemEditor';
 import { TaskItemDisplay } from './Task/TaskItemDisplay';
@@ -112,6 +113,7 @@ export const TaskItem = memo(function TaskItem({
 }: TaskItemProps) {
     const [isEditing, setIsEditing] = useState(false);
     const [autoFocusTitle, setAutoFocusTitle] = useState(false);
+    const showObsidianNoteAttachment = useObsidianStore((state) => state.config.enabled);
     const [quickActionMenu, setQuickActionMenu] = useState<{ x: number; y: number } | null>(null);
     const taskRootRef = useRef<HTMLDivElement | null>(null);
     const quickActionReturnFocusRef = useRef<HTMLElement | null>(null);
@@ -634,6 +636,7 @@ export const TaskItem = memo(function TaskItem({
         popularContextOptions,
         popularTagOptions,
         assignedToOptions,
+        showObsidianNoteAttachment,
     }), [
         t,
         task,
@@ -668,6 +671,7 @@ export const TaskItem = memo(function TaskItem({
         popularContextOptions,
         popularTagOptions,
         assignedToOptions,
+        showObsidianNoteAttachment,
     ]);
     const fieldRendererHandlers = useMemo(() => ({
         toggleDescriptionPreview,

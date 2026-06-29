@@ -5,12 +5,14 @@ import {
     buildBulkOrganizeTaskUpdates,
     createTaskFilterPredicate,
     DEFAULT_AREA_COLOR,
+    formatFocusTaskLimitText,
     formatTimeEstimateLabel,
     getQuickAddProjectInitialProps,
     getWaitingPerson,
     hasActiveFilterCriteria,
     isTaskInActiveProject,
     parseQuickAdd,
+    normalizeFocusTaskLimit,
     resolveDefaultNewTaskAreaId,
     safeParseDate,
     shallow,
@@ -184,6 +186,7 @@ export const ListView = memo(function ListView({ title, statusFilter }: ListView
     const densityMode = isCompact ? 'compact' : 'comfortable';
     const resolvedAreaFilter = resolveAreaFilter(settings?.filters?.areaId, areas);
     const [newTaskTitle, setNewTaskTitle] = useState('');
+    const [quickAddFocus, setQuickAddFocus] = useState(false);
     const [quickAddSyntaxOpen, setQuickAddSyntaxOpen] = useState(false);
     const listFilters = useUiStore((state) => state.listFilters);
     const setListFilters = useUiStore((state) => state.setListFilters);
@@ -509,45 +512,17 @@ export const ListView = memo(function ListView({ title, statusFilter }: ListView
     const resolveText = useCallback((key: string, fallback: string) => {
         return translateTextWithFallback(t, key, fallback);
     }, [t]);
-    const activeNextGroupBy: NextGroupBy = statusFilter === 'next' ? nextGroupBy : 'none';
+    const activeNextGroupBy: NextGroupBy = statusFilter !== 'reference' ? nextGroupBy : 'none';
     const activeReferenceGroupBy: ReferenceGroupBy = statusFilter === 'reference' ? (referenceGroupBy ?? 'area') : 'none';
     const activeGroupBy: TaskListGroupBy = statusFilter === 'reference' ? activeReferenceGroupBy : activeNextGroupBy;
     const groupByOptions: TaskListGroupBy[] = statusFilter === 'reference'
         ? ['none', 'context', 'area', 'project', 'tag']
         : ['none', 'context', 'area', 'project', 'tag', 'energy', 'priority', 'person'];
     const isReferenceGrouping = statusFilter === 'reference' && activeReferenceGroupBy !== 'none';
-    const isNextGrouping = statusFilter === 'next' && activeNextGroupBy !== 'none';
-    const referenceGroups = useMemo(() => {
-        if (!isReferenceGrouping) return [] as TaskGroup[];
-        if (activeReferenceGroupBy === 'context') {
-            return groupTasksByContext({
-                tasks: filteredTasks,
-                noContextLabel: resolveText('contexts.none', 'No context'),
-            });
-        }
-        if (activeReferenceGroupBy === 'project') {
-            return groupTasksByProject({
-                tasks: filteredTasks,
-                projectMap,
-                noProjectLabel: resolveText('taskEdit.noProjectOption', 'No project'),
-            });
-        }
-        if (activeReferenceGroupBy === 'tag') {
-            return groupTasksByTag({
-                tasks: filteredTasks,
-                noTagLabel: resolveText('taskEdit.noTags', 'No tags'),
-            });
-        }
-        return groupTasksByArea({
-            areas,
-            tasks: filteredTasks,
-            projectMap,
-            generalLabel: resolveText('settings.general', 'General'),
-        });
-    }, [activeReferenceGroupBy, areas, filteredTasks, isReferenceGrouping, projectMap, resolveText]);
-    const nextGroups = useMemo(() => {
-        if (!isNextGrouping) return [] as TaskGroup[];
-        if (activeNextGroupBy === 'area') {
+    const isListGrouping = activeGroupBy !== 'none';
+    const groupedTasks = useMemo(() => {
+        if (!isListGrouping) return [] as TaskGroup[];
+        if (activeGroupBy === 'area') {
             return groupTasksByArea({
                 areas,
                 tasks: filteredTasks,
@@ -555,34 +530,34 @@ export const ListView = memo(function ListView({ title, statusFilter }: ListView
                 generalLabel: resolveText('settings.general', 'General'),
             });
         }
-        if (activeNextGroupBy === 'project') {
+        if (activeGroupBy === 'project') {
             return groupTasksByProject({
                 tasks: filteredTasks,
                 projectMap,
                 noProjectLabel: resolveText('taskEdit.noProjectOption', 'No project'),
             });
         }
-        if (activeNextGroupBy === 'priority') {
+        if (activeGroupBy === 'priority') {
             return groupTasksByPriority({
                 tasks: filteredTasks,
                 getPriorityLabel: (priority) => t(`priority.${priority}`),
                 noPriorityLabel: resolveText('focus.group.noPriority', 'No priority'),
             });
         }
-        if (activeNextGroupBy === 'energy') {
+        if (activeGroupBy === 'energy') {
             return groupTasksByEnergy({
                 tasks: filteredTasks,
                 getEnergyLabel: (energy) => t(`energyLevel.${energy}`),
                 noEnergyLabel: resolveText('focus.group.noEnergy', 'No energy'),
             });
         }
-        if (activeNextGroupBy === 'person') {
+        if (activeGroupBy === 'person') {
             return groupTasksByPerson({
                 tasks: filteredTasks,
                 unassignedLabel: resolveText('people.unassigned', 'Unassigned'),
             });
         }
-        if (activeNextGroupBy === 'tag') {
+        if (activeGroupBy === 'tag') {
             return groupTasksByTag({
                 tasks: filteredTasks,
                 noTagLabel: resolveText('projects.noTags', 'No tags'),
@@ -592,8 +567,7 @@ export const ListView = memo(function ListView({ title, statusFilter }: ListView
             tasks: filteredTasks,
             noContextLabel: resolveText('contexts.none', 'No context'),
         });
-    }, [activeNextGroupBy, areas, filteredTasks, isNextGrouping, projectMap, resolveText, t]);
-    const groupedTasks = isReferenceGrouping ? referenceGroups : nextGroups;
+    }, [activeGroupBy, areas, filteredTasks, isListGrouping, projectMap, resolveText, t]);
     const activeReferenceCollapseKey: ReferenceGroupCollapseKey | null = isReferenceGrouping
         ? activeReferenceGroupBy as ReferenceGroupCollapseKey
         : null;
@@ -646,7 +620,7 @@ export const ListView = memo(function ListView({ title, statusFilter }: ListView
             });
     }, [showToast, t, updateProject]);
 
-    const shouldVirtualize = !isReferenceGrouping && !isNextGrouping && filteredTasks.length > LIST_VIRTUALIZATION_THRESHOLD;
+    const shouldVirtualize = !isListGrouping && filteredTasks.length > LIST_VIRTUALIZATION_THRESHOLD;
     const rowVirtualizer = useVirtualizer({
         count: shouldVirtualize ? filteredTasks.length : 0,
         getScrollElement: () => listScrollRef.current,
@@ -752,6 +726,14 @@ export const ListView = memo(function ListView({ title, statusFilter }: ListView
         translateWithFallback,
     ]);
 
+    const focusTaskLimit = normalizeFocusTaskLimit(settings?.gtd?.focusTaskLimit);
+    const focusedCount = getDerivedState().focusedCount;
+    const canQuickAddFocus = quickAddFocus || focusedCount < focusTaskLimit;
+    const quickAddFocusDisabledReason = formatFocusTaskLimitText(
+        translateWithFallback('agenda.maxFocusItems', 'Max {{count}} focus items.'),
+        focusTaskLimit,
+    );
+
     const handleAddTask = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!newTaskTitle.trim()) return;
@@ -796,8 +778,12 @@ export const ListView = memo(function ListView({ title, statusFilter }: ListView
                 const existingTags = initialProps.tags ?? [];
                 initialProps.tags = Array.from(new Set([...existingTags, ...copilotTags]));
             }
+            if (quickAddFocus && canQuickAddFocus) {
+                initialProps.isFocusedToday = true;
+            }
             await addTask(finalTitle, initialProps);
             setNewTaskTitle('');
+            setQuickAddFocus(false);
             resetCopilot();
         } catch (error) {
             reportError('Failed to add task from quick add', error);
@@ -941,6 +927,7 @@ export const ListView = memo(function ListView({ title, statusFilter }: ListView
                     onChangeSortBy={(value) => updateSettings({ taskSortBy: value })}
                     activeGroupBy={activeGroupBy}
                     groupByOptions={groupByOptions}
+                    showGroupBy
                     onChangeGroupBy={(value) => {
                         if (statusFilter === 'reference') {
                             setListOptions({ referenceGroupBy: value as ReferenceGroupBy });
@@ -975,7 +962,6 @@ export const ListView = memo(function ListView({ title, statusFilter }: ListView
                     onRemoveContext={handleBatchRemoveContext}
                     onDeleteSelection={handleBatchDelete}
                     isNextView={isNextView}
-                    isReferenceView={statusFilter === 'reference'}
                     showDeferredProjectSection={showDeferredProjectSection}
                     deferredProjects={deferredProjects}
                     areaById={areaById}
@@ -1026,6 +1012,10 @@ export const ListView = memo(function ListView({ title, statusFilter }: ListView
                     formatEstimate={formatEstimate}
                     showQuickAdd={showQuickAdd}
                     quickAddValue={newTaskTitle}
+                    quickAddFocus={quickAddFocus}
+                    canQuickAddFocus={canQuickAddFocus}
+                    quickAddFocusDisabledReason={quickAddFocusDisabledReason}
+                    onToggleQuickAddFocus={() => setQuickAddFocus((current) => !current)}
                     addInputRef={addInputRef}
                     projects={projects}
                     areas={areas}
@@ -1148,11 +1138,13 @@ export const ListView = memo(function ListView({ title, statusFilter }: ListView
                             );
                         })}
                     </div>
-                ) : isReferenceGrouping || isNextGrouping ? (
+                ) : isListGrouping ? (
                     <div className="space-y-2">
                         {groupedTasks.map((group, groupIndex) => {
                             const collapsed = isReferenceGrouping && collapsedReferenceGroupIds.has(group.id);
-                            const controlsId = `reference-group-${getListDomIdSegment(activeReferenceGroupBy)}-${groupIndex}-${getListDomIdSegment(group.id)}`;
+                            const controlsId = isReferenceGrouping
+                                ? `reference-group-${getListDomIdSegment(activeReferenceGroupBy)}-${groupIndex}-${getListDomIdSegment(group.id)}`
+                                : undefined;
                             const groupTitle = (
                                 <span className="inline-flex min-w-0 items-center gap-1.5">
                                     {isReferenceGrouping && (
@@ -1196,7 +1188,7 @@ export const ListView = memo(function ListView({ title, statusFilter }: ListView
                                         </div>
                                     )}
                                     {!collapsed && (
-                                        <div id={isReferenceGrouping ? controlsId : undefined} className="divide-y divide-border/30">
+                                        <div id={controlsId} className="divide-y divide-border/30">
                                             {group.tasks.map((task) => {
                                                 const index = taskIndexById.get(task.id) ?? 0;
                                                 return (

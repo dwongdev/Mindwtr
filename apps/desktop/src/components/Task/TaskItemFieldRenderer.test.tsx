@@ -144,6 +144,7 @@ const createData = (overrides: Partial<TaskItemFieldRendererData> = {}): TaskIte
     popularContextOptions: [],
     popularTagOptions: [],
     assignedToOptions: [],
+    showObsidianNoteAttachment: true,
     ...overrides,
 });
 

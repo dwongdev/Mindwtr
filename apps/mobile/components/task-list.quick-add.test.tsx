@@ -13,6 +13,7 @@ const selectedAreaIdForNewTasksMock = vi.hoisted(() => ({ current: undefined as 
 const taskEditModalPropsSpy = vi.hoisted(() => vi.fn());
 const bulkOrganizeModalPropsSpy = vi.hoisted(() => vi.fn());
 const parseQuickAddMock = vi.hoisted(() => vi.fn());
+const taskListHeaderPropsSpy = vi.hoisted(() => vi.fn());
 const taskListSelectionState = vi.hoisted(() => ({
   current: {
     bulkActionLabel: 'Move',
@@ -82,6 +83,9 @@ const storeState = vi.hoisted(() => ({
     appearance: {},
     features: {},
   },
+  getDerivedState: vi.fn(() => ({
+    focusedCount: storeState._allTasks.filter((task) => task.isFocusedToday).length,
+  })),
   updateSettings: vi.fn(),
   highlightTaskId: null as string | null,
   setHighlightTask: setHighlightTaskMock,
@@ -96,6 +100,8 @@ vi.mock('react-native', () => ({
       ? data.map((item: unknown, index: number) => renderItem?.({ item, index }))
       : (typeof ListEmptyComponent === 'function' ? React.createElement(ListEmptyComponent) : ListEmptyComponent),
   ),
+  Modal: ({ children, visible, ...props }: any) => (visible ? React.createElement('Modal', props, children) : null),
+  Pressable: ({ children, onPress, ...props }: any) => React.createElement('Pressable', { ...props, onPress }, children),
   RefreshControl: () => null,
   StyleSheet: { create: (styles: unknown) => styles },
   Text: ({ children, ...props }: any) => React.createElement('Text', props, children),
@@ -133,6 +139,9 @@ vi.mock('@mindwtr/core', () => {
   return {
     DEFAULT_PROJECT_COLOR: '#2563eb',
     createAIProvider: vi.fn(),
+    formatFocusTaskLimitText: (template: string, limit: number) => (
+      template.includes('{{count}}') ? template.replace('{{count}}', String(limit)) : `Max ${limit} focus items.`
+    ),
     getQuickAddProjectInitialProps: vi.fn(() => ({})),
     getTranslationsSync: vi.fn(() => ({ 'trash.restoreToInbox': 'Restore' })),
     getUsedTaskTokens: vi.fn(() => []),
@@ -140,6 +149,7 @@ vi.mock('@mindwtr/core', () => {
     isSelectableProjectForTaskAssignment: (item: Project) => item.status === 'active' && !item.deletedAt,
     isTaskInActiveProject: vi.fn(() => true),
     matchesTask: vi.fn(() => true),
+    normalizeFocusTaskLimit: (value: unknown) => (typeof value === 'number' ? value : 3),
     parseQuickAdd: parseQuickAddMock,
     parseSearchQuery: vi.fn(() => ({ filters: [], text: '' })),
     resolveDefaultNewTaskAreaId: (settings: any, areas: any[]) => {
@@ -303,7 +313,10 @@ vi.mock('./task-list/TaskListFiltersSheet', () => ({
 }));
 
 vi.mock('./task-list/TaskListHeader', () => ({
-  TaskListHeader: () => null,
+  TaskListHeader: (props: any) => {
+    taskListHeaderPropsSpy(props);
+    return React.createElement('TaskListHeader', props);
+  },
 }));
 
 vi.mock('./task-list/TaskListQuickAdd', () => ({
@@ -332,6 +345,7 @@ vi.mock('./task-list/TaskListTagModal', () => ({
 import { TaskList } from './task-list';
 
 const latestQuickAddProps = () => quickAddPropsSpy.mock.calls.at(-1)?.[0];
+const latestHeaderProps = () => taskListHeaderPropsSpy.mock.calls.at(-1)?.[0];
 
 describe('TaskList project quick add', () => {
   beforeEach(() => {
@@ -374,6 +388,34 @@ describe('TaskList project quick add', () => {
       title="Inbox"
     />,
   );
+
+  it('passes a group control to non-reference list headers', async () => {
+    const onChangeGroupBy = vi.fn();
+    let tree!: ReturnType<typeof create>;
+
+    await act(async () => {
+      tree = create(
+        <TaskList
+          allowAdd
+          groupBy="tag"
+          onChangeGroupBy={onChangeGroupBy}
+          showHeader={false}
+          statusFilter="inbox"
+          taskSource={[]}
+          title="Inbox"
+        />,
+      );
+    });
+
+    expect(latestHeaderProps()).toEqual(expect.objectContaining({
+      groupByLabel: 'Tags',
+      onOpenGroup: expect.any(Function),
+    }));
+
+    act(() => {
+      tree.unmount();
+    });
+  });
 
   it('publishes project selection actions to an external bulk bar with organize available', async () => {
     taskListSelectionState.current = {
@@ -504,6 +546,32 @@ describe('TaskList project quick add', () => {
     expect(latestQuickAddProps().newTaskTitle).toBe('');
     expect(quickAddFocusMock).toHaveBeenCalledTimes(1);
     expect(taskEditModalPropsSpy.mock.calls.some(([props]) => props.visible === true)).toBe(false);
+
+    act(() => {
+      tree.unmount();
+    });
+  });
+
+  it('passes isFocusedToday when the quick-add focus toggle is enabled', async () => {
+    let tree!: ReturnType<typeof create>;
+    await act(async () => {
+      tree = renderProjectList();
+    });
+
+    await act(async () => {
+      latestQuickAddProps().onToggleFocusNewTask();
+      latestQuickAddProps().onChangeText('Focus launch checklist');
+    });
+
+    await act(async () => {
+      await latestQuickAddProps().handleAddTask();
+    });
+
+    expect(addTaskMock).toHaveBeenCalledWith('Focus launch checklist', expect.objectContaining({
+      isFocusedToday: true,
+      projectId: project.id,
+      status: 'next',
+    }));
 
     act(() => {
       tree.unmount();

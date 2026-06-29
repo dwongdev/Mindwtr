@@ -44,6 +44,7 @@ vi.mock('lucide-react-native', () => ({
   Pencil: () => React.createElement('span', { 'data-icon': 'pencil' }),
   Plus: () => React.createElement('span', { 'data-icon': 'plus' }),
   Sparkles: () => React.createElement('span', { 'data-icon': 'sparkles' }),
+  Star: ({ fill }: any) => React.createElement('span', { 'data-icon': 'star', 'data-fill': fill }),
 }));
 
 const themeColors = {
@@ -63,10 +64,13 @@ const getQuickAddProps = (overrides: Partial<React.ComponentProps<typeof TaskLis
     copilotTags: [],
     copilotThinking: false,
     enableCopilot: true,
+    canFocusNewTask: true,
+    focusNewTask: false,
     handleAddTask: vi.fn(),
     newTaskTitle: 'Call Alex',
     onApplyCopilot: vi.fn(),
     onChangeText: vi.fn(),
+    onToggleFocusNewTask: vi.fn(),
     onSelectionChange: vi.fn(),
     setTypeaheadIndex: vi.fn(),
     showQuickAddHelp: false,
@@ -75,6 +79,8 @@ const getQuickAddProps = (overrides: Partial<React.ComponentProps<typeof TaskLis
       'copilot.applied': 'Applied',
       'copilot.suggested': 'Suggested',
       'common.edit': 'Edit',
+      'agenda.addToFocus': "Add to today's focus",
+      'agenda.removeFromFocus': "Remove from today's focus",
       'inbox.addPlaceholder': 'Add a task',
       'nav.addTask': 'Add Task',
       'projects.addTaskPlaceholder': 'Add a project task',
@@ -173,5 +179,23 @@ describe('TaskListQuickAdd', () => {
     });
 
     expect(handleAddAndEditTask).toHaveBeenCalledTimes(1);
+  });
+
+  it('renders a focus toggle for starring the task during creation', () => {
+    const onToggleFocusNewTask = vi.fn();
+    let tree!: ReturnType<typeof create>;
+
+    act(() => {
+      tree = create(<TaskListQuickAdd {...getQuickAddProps({ focusNewTask: true, onToggleFocusNewTask })} />);
+    });
+
+    const button = tree.root.findByProps({ 'aria-label': "Remove from today's focus" });
+    expect(button.findByProps({ 'data-icon': 'star' })).toBeTruthy();
+
+    act(() => {
+      button.props.onClick();
+    });
+
+    expect(onToggleFocusNewTask).toHaveBeenCalledTimes(1);
   });
 });

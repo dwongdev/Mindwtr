@@ -24,6 +24,7 @@ describe('AttachmentsField', () => {
                 addFileAttachment={vi.fn()}
                 addLinkAttachment={vi.fn()}
                 addObsidianNoteAttachment={vi.fn()}
+                showObsidianNoteAttachment={false}
                 editLinkAttachment={vi.fn()}
                 openAttachment={openAttachment}
                 removeAttachment={vi.fn()}
@@ -56,6 +57,7 @@ describe('AttachmentsField', () => {
                 addFileAttachment={vi.fn()}
                 addLinkAttachment={vi.fn()}
                 addObsidianNoteAttachment={vi.fn()}
+                showObsidianNoteAttachment={false}
                 editLinkAttachment={editLinkAttachment}
                 openAttachment={vi.fn()}
                 removeAttachment={vi.fn()}
@@ -78,6 +80,7 @@ describe('AttachmentsField', () => {
                 addFileAttachment={vi.fn()}
                 addLinkAttachment={vi.fn()}
                 addObsidianNoteAttachment={addObsidianNoteAttachment}
+                showObsidianNoteAttachment
                 editLinkAttachment={vi.fn()}
                 openAttachment={vi.fn()}
                 removeAttachment={vi.fn()}
@@ -87,6 +90,25 @@ describe('AttachmentsField', () => {
         fireEvent.click(getByRole('button', { name: 'attachments.attachObsidianNote' }));
 
         expect(addObsidianNoteAttachment).toHaveBeenCalledTimes(1);
+    });
+
+    it('hides the Obsidian note attachment action when the integration is disabled', () => {
+        const { queryByRole } = render(
+            <AttachmentsField
+                t={(key) => key}
+                attachmentError={null}
+                visibleEditAttachments={[]}
+                addFileAttachment={vi.fn()}
+                addLinkAttachment={vi.fn()}
+                addObsidianNoteAttachment={vi.fn()}
+                showObsidianNoteAttachment={false}
+                editLinkAttachment={vi.fn()}
+                openAttachment={vi.fn()}
+                removeAttachment={vi.fn()}
+            />
+        );
+
+        expect(queryByRole('button', { name: 'attachments.attachObsidianNote' })).not.toBeInTheDocument();
     });
 
 });

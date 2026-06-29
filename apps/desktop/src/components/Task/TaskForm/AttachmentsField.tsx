@@ -12,6 +12,7 @@ type AttachmentsFieldProps = {
     addFileAttachment: () => void;
     addLinkAttachment: () => void;
     addObsidianNoteAttachment: () => void;
+    showObsidianNoteAttachment: boolean;
     editLinkAttachment: (attachment: Attachment) => void;
     openAttachment: (attachment: Attachment) => void;
     removeAttachment: (id: string) => void;
@@ -24,6 +25,7 @@ export function AttachmentsField({
     addFileAttachment,
     addLinkAttachment,
     addObsidianNoteAttachment,
+    showObsidianNoteAttachment,
     editLinkAttachment,
     openAttachment,
     removeAttachment,
@@ -61,14 +63,16 @@ export function AttachmentsField({
                         <Link2 className="w-3 h-3" />
                         {t('attachments.addLink')}
                     </button>
-                    <button
-                        type="button"
-                        onClick={addObsidianNoteAttachment}
-                        className="text-xs px-2 py-1 rounded bg-muted/50 hover:bg-muted transition-colors flex items-center gap-1"
-                    >
-                        <BookOpen className="w-3 h-3" />
-                        {t('attachments.attachObsidianNote')}
-                    </button>
+                    {showObsidianNoteAttachment && (
+                        <button
+                            type="button"
+                            onClick={addObsidianNoteAttachment}
+                            className="text-xs px-2 py-1 rounded bg-muted/50 hover:bg-muted transition-colors flex items-center gap-1"
+                        >
+                            <BookOpen className="w-3 h-3" />
+                            {t('attachments.attachObsidianNote')}
+                        </button>
+                    )}
                 </div>
             </div>
             {attachmentError && (
