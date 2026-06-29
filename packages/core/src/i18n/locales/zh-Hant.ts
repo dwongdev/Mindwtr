@@ -1168,6 +1168,8 @@ export const zhHant: Record<string, string> = {
         'agenda.noTasks': '目前沒有緊急任務。',
         'focus.schedule': '今天',
         'focus.nextActions': '下一步行動',
+        'focus.nextActionsScopeHelp': '排序和分組只影響下一步行動。今日焦點和今天保持平鋪。',
+        'focus.allSectionsScopeHelp': '篩選會套用到所有焦點分區。',
         'focus.groupBy': '分組方式',
         'focus.group.context': '情境',
         'focus.group.project': '項目',

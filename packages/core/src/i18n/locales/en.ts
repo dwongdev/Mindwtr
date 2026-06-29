@@ -1283,6 +1283,8 @@ export const en: Record<string, string> = {
         'agenda.noTasks': 'Nothing on deck. Pick a next action to focus on.',
         'focus.schedule': 'Today',
         'focus.nextActions': 'Next Actions',
+        'focus.nextActionsScopeHelp': "Sorting and grouping affect Next Actions. Today's Focus and Today stay flat.",
+        'focus.allSectionsScopeHelp': 'Filters apply to all Focus sections.',
         'focus.groupBy': 'Group by',
         'focus.group.context': 'Context',
         'focus.group.project': 'Project',

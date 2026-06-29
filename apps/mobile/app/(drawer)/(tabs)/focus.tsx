@@ -1727,6 +1727,15 @@ export default function FocusScreen() {
               contentContainerStyle={styles.sheetContent}
               showsVerticalScrollIndicator={false}
             >
+              <View style={styles.sheetScopeBlock}>
+                <Text style={[styles.sheetScopeTitle, { color: tc.secondaryText }]}>
+                  {resolveText('focus.nextActions', 'Next Actions')}
+                </Text>
+                <Text style={[styles.sheetScopeHelp, { color: tc.secondaryText }]}>
+                  {resolveText('focus.nextActionsScopeHelp', "Sorting and grouping affect Next Actions. Today's Focus and Today stay flat.")}
+                </Text>
+              </View>
+
               <Text style={[styles.sheetSectionLabel, { color: tc.secondaryText }]}>
                 {resolveText('sort.label', 'Sort')}
               </Text>
@@ -1749,6 +1758,15 @@ export default function FocusScreen() {
                   () => updateFocusGroupBy(groupBy),
                   `group:${groupBy}`,
                 ))}
+              </View>
+
+              <View style={styles.sheetScopeBlock}>
+                <Text style={[styles.sheetScopeTitle, { color: tc.secondaryText }]}>
+                  {resolveText('common.all', 'All')}
+                </Text>
+                <Text style={[styles.sheetScopeHelp, { color: tc.secondaryText }]}>
+                  {resolveText('focus.allSectionsScopeHelp', 'Filters apply to all Focus sections.')}
+                </Text>
               </View>
 
               {activeFilterChips.length > 0 ? (
@@ -2394,6 +2412,19 @@ const styles = StyleSheet.create({
   sheetContent: {
     gap: 14,
     paddingBottom: 12,
+  },
+  sheetScopeBlock: {
+    gap: 4,
+  },
+  sheetScopeTitle: {
+    fontSize: 12,
+    fontWeight: '700',
+    textTransform: 'uppercase',
+    letterSpacing: 0.4,
+  },
+  sheetScopeHelp: {
+    fontSize: 12,
+    lineHeight: 17,
   },
   sheetSectionLabel: {
     fontSize: 12,

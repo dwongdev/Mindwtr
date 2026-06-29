@@ -144,6 +144,9 @@ vi.mock('../contexts/language-context', () => ({
         'agenda.todaysFocus': "Today's Focus",
         'focus.schedule': 'Today',
         'focus.nextActions': 'Next Actions',
+        'focus.nextActionsScopeHelp': "Sorting and grouping affect Next Actions. Today's Focus and Today stay flat.",
+        'focus.allSectionsScopeHelp': 'Filters apply to all Focus sections.',
+        'focus.groupBy': 'Group by',
         'agenda.reviewDue': 'Review Due',
         'agenda.reviewDueProjects': 'Projects to review',
         'agenda.allClear': 'All clear',
@@ -835,6 +838,21 @@ describe('FocusScreen', () => {
     expect(
       tree.root.findAllByType(SwipeableTaskItem).map((node) => node.props.task.id),
     ).toEqual(['work-first', 'work-second']);
+  });
+
+  it('scopes Focus filter sheet controls between Next Actions and all sections', () => {
+    let tree!: ReturnType<typeof create>;
+
+    act(() => {
+      tree = create(<FocusScreen />);
+    });
+
+    act(() => {
+      findButtonByLabel(tree, 'Filters').props.onPress();
+    });
+
+    expect(textContent(tree.root)).toContain("Sorting and grouping affect Next Actions. Today's Focus and Today stay flat.");
+    expect(textContent(tree.root)).toContain('Filters apply to all Focus sections.');
   });
 
   it('saves the Focus group-by preference from the filter sheet', async () => {

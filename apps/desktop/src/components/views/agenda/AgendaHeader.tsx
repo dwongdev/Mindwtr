@@ -34,6 +34,8 @@ export function AgendaHeader({
 }: AgendaHeaderProps) {
     const filtersActive = filtersOpen || filterCount > 0;
     const filtersLabel = resolveText('filters.label', 'Filters');
+    const groupLabel = resolveText('focus.groupBy', resolveText('list.groupBy', 'Group'));
+    const nextActionsGroupLabel = `${resolveText('focus.nextActions', 'Next Actions')}: ${groupLabel}`;
 
     return (
         <header className="flex flex-wrap items-start justify-between gap-3">
@@ -99,7 +101,8 @@ export function AgendaHeader({
                     <select
                         value={nextGroupBy}
                         onChange={(event) => onChangeGroupBy(event.target.value as NextGroupBy)}
-                        aria-label={resolveText('list.groupBy', 'Group')}
+                        aria-label={nextActionsGroupLabel}
+                        title={nextActionsGroupLabel}
                         className={cn(
                             'min-w-[136px] appearance-none rounded-full border py-1.5 pl-3 pr-8 text-xs leading-none transition-colors',
                             'border-border bg-muted/50 text-muted-foreground hover:bg-muted hover:text-foreground',
