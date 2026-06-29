@@ -7,6 +7,7 @@ import {
     isQuickCaptureSpeechReady,
     normalizeContextToken,
     parseContextQueryTokens,
+    selectExistingCaptureFile,
     selectQuickCaptureSettings,
 } from './quick-capture-sheet.utils';
 
@@ -27,6 +28,39 @@ describe('quick-capture utils', () => {
             .toBe('file:///document/audio-captures/mindwtr-audio.m4a');
         expect(buildCaptureFileUri('file:///document/audio-captures/', 'mindwtr-audio.wav'))
             .toBe('file:///document/audio-captures/mindwtr-audio.wav');
+    });
+
+    it('selects the first existing capture file and skips missing candidates', () => {
+        const missingDestination = {
+            uri: 'file:///document/mindwtr-audio.m4a',
+            info: () => ({ exists: false, size: 0 }),
+        };
+        const originalSource = {
+            uri: 'file:///cache/ExpoAudio/recording.m4a',
+            info: () => ({ exists: true, size: 105614 }),
+        };
+
+        expect(selectExistingCaptureFile([missingDestination, originalSource])).toMatchObject({
+            file: originalSource,
+            info: { exists: true, size: 105614 },
+        });
+    });
+
+    it('returns null when every capture file candidate is missing or invalid', () => {
+        const missingDestination = {
+            uri: 'file:///document/mindwtr-audio.m4a',
+            info: () => ({ exists: false, size: 0 }),
+        };
+        const directoryCandidate = {
+            uri: 'file:///document/audio-captures',
+            info: () => ({ exists: true, isDirectory: true, size: 0 }),
+        };
+        const throwingCandidate = {
+            uri: 'file:///cache/ExpoAudio/recording.m4a',
+            info: () => { throw new Error('missing'); },
+        };
+
+        expect(selectExistingCaptureFile([missingDestination, directoryCandidate, throwingCandidate])).toBeNull();
     });
 
     it('builds structured capture error metadata', () => {

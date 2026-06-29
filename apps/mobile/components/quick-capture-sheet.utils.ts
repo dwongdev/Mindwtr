@@ -42,6 +42,34 @@ export const buildCaptureFileUri = (directoryUri: string, fileName: string) => {
     return `${baseUri}${fileName}`;
 };
 
+export type CaptureFileInfo = {
+    exists?: boolean;
+    isDirectory?: boolean;
+    size?: number;
+};
+
+export type CaptureFileLike = {
+    uri: string;
+    info: () => CaptureFileInfo;
+};
+
+export const selectExistingCaptureFile = <T extends CaptureFileLike>(
+    candidates: (T | null | undefined)[]
+): { file: T; info: CaptureFileInfo } | null => {
+    for (const file of candidates) {
+        if (!file) continue;
+        try {
+            const info = file.info();
+            if (info?.exists && !info.isDirectory) {
+                return { file, info };
+            }
+        } catch {
+            // Try the next candidate. The caller decides how to report total failure.
+        }
+    }
+    return null;
+};
+
 type QuickCaptureSettingsLike = {
     ai?: unknown;
 } | null | undefined;

@@ -211,17 +211,22 @@ export const copyFileSafely = async (sourceUri: string, targetUri: string): Prom
   const tempUri = buildTempUri(targetUri);
   try {
     await FileSystem.copyAsync({ from: sourceUri, to: tempUri });
-  } catch {
+  } catch (error) {
+    logAttachmentWarn('Attachment temp copy failed, falling back to byte write', error);
     await writeBytesSafely(targetUri, await readFileAsBytes(sourceUri));
+    logAttachmentInfo('Attachment byte fallback copied file', { sourceUri, targetUri });
     return;
   }
   try {
     await FileSystem.moveAsync({ from: tempUri, to: targetUri });
-  } catch {
+  } catch (moveError) {
+    logAttachmentWarn('Attachment temp move failed, falling back to direct copy', moveError);
     try {
       await FileSystem.copyAsync({ from: sourceUri, to: targetUri });
-    } catch {
+    } catch (copyError) {
+      logAttachmentWarn('Attachment direct copy failed, falling back to byte write', copyError);
       await writeBytesSafely(targetUri, await readFileAsBytes(sourceUri));
+      logAttachmentInfo('Attachment byte fallback copied file', { sourceUri, targetUri });
     } finally {
       try {
         await FileSystem.deleteAsync(tempUri, { idempotent: true });

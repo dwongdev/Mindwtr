@@ -35,6 +35,7 @@ import {
   getCaptureFileExtension,
   getCaptureMimeType,
   isQuickCaptureSpeechReady,
+  selectExistingCaptureFile,
   selectQuickCaptureSettings,
 } from './quick-capture-sheet.utils';
 
@@ -79,6 +80,32 @@ const getWhisperCapturePlatform = (): 'ios' | 'android' => (Platform.OS === 'ios
 const runWhisperLocalTranscription = async (input: LocalWhisperAudio, config: SpeechToTextConfig): Promise<SpeechToTextResult> => ({
   transcript: await transcribeLocalWhisper(input, config),
 });
+
+const describeCaptureFile = (file: File | null | undefined): Record<string, string> => {
+  if (!file) return { uri: '' };
+  const uri = file.uri ?? '';
+  try {
+    const info = file.info();
+    return {
+      uri,
+      exists: String(Boolean(info?.exists)),
+      isDirectory: String(Boolean(info?.isDirectory)),
+      size: typeof info?.size === 'number' ? String(info.size) : 'unknown',
+    };
+  } catch (error) {
+    return {
+      uri,
+      exists: 'error',
+      error: error instanceof Error ? error.message : String(error),
+    };
+  }
+};
+
+const describeCaptureFiles = (files: (File | null | undefined)[]) => files
+  .map((file, index) => Object.entries(describeCaptureFile(file))
+    .map(([key, value]) => `${index}.${key}=${value}`)
+    .join('|'))
+  .join('; ');
 
 export function useQuickCaptureAudio({
   addTask,
@@ -223,7 +250,7 @@ export function useQuickCaptureAudio({
     return 'empty';
   }, []);
 
-  const discardEmptySpeechTask = useCallback(async (taskId: string, files: Array<File | null | undefined>, reason = 'empty_transcript') => {
+  const discardEmptySpeechTask = useCallback(async (taskId: string, files: (File | null | undefined)[], reason = 'empty_transcript') => {
     try {
       await useTaskStore.getState().deleteTask(taskId);
       logSpeechCaptureInfo('Quick capture discarded empty speech task', { taskId, reason });
@@ -569,31 +596,72 @@ export function useQuickCaptureAudio({
       const fileName = `mindwtr-audio-${timestamp}${extension}`;
       const sourceFile = new File(uri);
       const destinationFile = directory ? new File(buildCaptureFileUri(directory.uri, fileName)) : null;
-      let finalFile = sourceFile;
+      let captureCandidates: (File | null)[] = [sourceFile];
+      logSpeechCaptureInfo('Quick capture Expo recording stopped', {
+        platform: Platform.OS,
+        recorderUri: uri,
+        directoryUri: directory?.uri ?? '',
+        destinationUri: destinationFile?.uri ?? '',
+        extension,
+      });
 
       if (destinationFile) {
         try {
           sourceFile.move(destinationFile);
-          finalFile = destinationFile;
+          captureCandidates = [sourceFile, destinationFile];
+          logSpeechCaptureInfo('Quick capture audio move result', {
+            platform: Platform.OS,
+            sourceBeforeUri: uri,
+            candidates: describeCaptureFiles(captureCandidates),
+          });
         } catch (error) {
           onWarn('Move recording failed, falling back to copy', error);
           try {
             sourceFile.copy(destinationFile);
-            safeDeleteFile(sourceFile, 'recording_copy_cleanup');
-            finalFile = destinationFile;
+            captureCandidates = [destinationFile, sourceFile];
+            const copiedDestination = selectExistingCaptureFile([destinationFile]);
+            logSpeechCaptureInfo('Quick capture audio copy result', {
+              platform: Platform.OS,
+              sourceBeforeUri: uri,
+              candidates: describeCaptureFiles(captureCandidates),
+              copiedDestinationReady: String(Boolean(copiedDestination)),
+            });
+            if (copiedDestination) {
+              safeDeleteFile(sourceFile, 'recording_copy_cleanup');
+            }
           } catch (copyError) {
             onWarn('Copy recording failed, using original file', copyError);
-            finalFile = sourceFile;
+            captureCandidates = [sourceFile];
+            logSpeechCaptureInfo('Quick capture audio copy failed', {
+              platform: Platform.OS,
+              sourceBeforeUri: uri,
+              candidates: describeCaptureFiles(captureCandidates),
+              error: copyError instanceof Error ? copyError.message : String(copyError),
+            });
           }
         }
       }
 
-      let fileInfo: { exists?: boolean; size?: number } | null = null;
-      try {
-        fileInfo = finalFile.info();
-      } catch (error) {
-        onWarn('Audio info lookup failed', error);
+      const verifiedCapture = selectExistingCaptureFile(captureCandidates);
+      if (!verifiedCapture) {
+        logSpeechCaptureInfo('Quick capture audio file missing after save', {
+          platform: Platform.OS,
+          sourceBeforeUri: uri,
+          directoryUri: directory?.uri ?? '',
+          destinationUri: destinationFile?.uri ?? '',
+          candidates: describeCaptureFiles(captureCandidates),
+        });
+        throw new Error(`Recording file missing after save: ${captureCandidates.map((file) => file?.uri ?? '').filter(Boolean).join(', ')}`);
       }
+      const finalFile = verifiedCapture.file;
+      const fileInfo = verifiedCapture.info;
+      logSpeechCaptureInfo('Quick capture audio file selected', {
+        platform: Platform.OS,
+        sourceBeforeUri: uri,
+        selectedUri: finalFile.uri,
+        selectedSize: typeof fileInfo.size === 'number' ? String(fileInfo.size) : 'unknown',
+        candidates: describeCaptureFiles(captureCandidates),
+      });
       const nowIso = now.toISOString();
       const displayTitle = `${t('quickAdd.audioNoteTitle')} ${safeFormatDate(now, 'Pp')}`;
       const currentSettings = selectQuickCaptureSettings(settings, useTaskStore.getState().settings);
