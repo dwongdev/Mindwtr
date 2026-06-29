@@ -24,6 +24,9 @@ interface GeminiResponse {
 const resolveTimeoutMs = (value?: number) =>
     typeof value === 'number' && Number.isFinite(value) && value > 0 ? value : DEFAULT_TIMEOUT_MS;
 
+// Gemini 2.5+ (and 3.x) support `thinkingConfig`; sending it to older models can be rejected.
+const modelSupportsThinking = (model: string): boolean => /gemini-(2\.[5-9]|[3-9])/i.test(model);
+
 const CLARIFY_SCHEMA: GeminiSchema = {
     type: 'object',
     required: ['question', 'options'],
@@ -111,9 +114,18 @@ async function requestGemini(config: AIProviderConfig, prompt: { system: string;
         // If URL parsing fails, fall back to a manual cleanup of key params.
         url = rawUrl.replace(/([?&])key=[^&]+&?/gi, '$1').replace(/[?&]$/, '');
     }
-    const thinkingBudget = typeof config.thinkingBudget === 'number' && config.thinkingBudget > 0
+    // Gemini 2.5+ "thinking" tokens count against maxOutputTokens; when the user has not
+    // set a budget these models still think dynamically, which can consume the budget and
+    // truncate the JSON answer (#596). Explicitly disable thinking for those models unless a
+    // budget is requested. Older models that do not support thinkingConfig get nothing sent.
+    const explicitBudget = typeof config.thinkingBudget === 'number' && config.thinkingBudget > 0
         ? Math.floor(config.thinkingBudget)
         : undefined;
+    const thinkingBudget = explicitBudget !== undefined
+        ? explicitBudget
+        : modelSupportsThinking(config.model)
+            ? 0
+            : undefined;
     const body = {
         contents: [
             {
