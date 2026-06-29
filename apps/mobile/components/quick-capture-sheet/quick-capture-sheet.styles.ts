@@ -48,6 +48,14 @@ export const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 10,
   },
+  focusButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   recordButton: {
     width: 40,
     height: 40,

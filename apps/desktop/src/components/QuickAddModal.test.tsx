@@ -188,6 +188,35 @@ describe('QuickAddModal', () => {
         expect(addTask).toHaveBeenCalledWith('Fast capture', expect.objectContaining({ status: 'inbox' }));
     });
 
+    it("stars a task for Today's Focus from the add task modal", async () => {
+        const addTask = vi.fn(async () => ({ success: true, id: 'task-id' }));
+        act(() => {
+            useTaskStore.setState((state) => ({
+                ...state,
+                addTask,
+            }));
+        });
+
+        renderQuickAddModal();
+
+        await act(async () => {
+            window.dispatchEvent(new CustomEvent('mindwtr:quick-add', {
+                detail: { initialValue: 'File Q3 estimated tax payment' },
+            }));
+            await Promise.resolve();
+        });
+
+        fireEvent.click(screen.getByRole('button', { name: "Add to today's focus" }));
+        fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+
+        await waitFor(() => {
+            expect(addTask).toHaveBeenCalledWith('File Q3 estimated tax payment', expect.objectContaining({
+                status: 'inbox',
+                isFocusedToday: true,
+            }));
+        });
+    });
+
     it('creates a new quick-add project in the parsed area', async () => {
         const addProject = vi.fn(async () => ({
             id: 'project-launch',

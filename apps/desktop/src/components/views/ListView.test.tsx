@@ -522,27 +522,9 @@ describe('ListView', () => {
     }
   });
 
-  it('can star a quick-add task during creation', async () => {
-    const addTask = vi.fn().mockResolvedValue({ success: true });
-    useTaskStore.setState({ addTask });
+  it('does not show the focus star in desktop inline quick add', () => {
+    const { queryByRole } = renderListView('next', 'Next');
 
-    const { container, getByRole } = renderListView('next', 'Next');
-
-    fireEvent.click(getByRole('button', { name: /add to today's focus/i }));
-    const input = getByRole('combobox', { name: '' });
-    await act(async () => {
-      fireEvent.change(input, { target: { value: 'Focus this task' } });
-    });
-
-    const form = container.querySelector('form');
-    expect(form).not.toBeNull();
-    await act(async () => {
-      fireEvent.submit(form!);
-    });
-
-    expect(addTask).toHaveBeenCalledWith('Focus this task', expect.objectContaining({
-      isFocusedToday: true,
-      status: 'next',
-    }));
+    expect(queryByRole('button', { name: /add to today's focus/i })).toBeNull();
   });
 });

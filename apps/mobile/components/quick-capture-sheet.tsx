@@ -11,11 +11,13 @@ import * as FileSystem from 'expo-file-system';
 
 import {
   DEFAULT_PROJECT_COLOR,
+  formatFocusTaskLimitText,
   getQuickAddProjectInitialProps,
   getUsedTaskTokens,
   hasTimeComponent,
   isSelectableProjectForTaskAssignment,
   parseQuickAdd,
+  normalizeFocusTaskLimit,
   resolveDefaultNewTaskAreaId,
   safeFormatDate,
   safeParseDate,
@@ -89,7 +91,7 @@ export function QuickCaptureSheet({
   initialValue?: string;
   autoRecord?: boolean;
 }) {
-  const { addTask, addTasks, addProject, updateSettings, projects, settings, areas } = useTaskStore((state) => ({
+  const { addTask, addTasks, addProject, updateSettings, projects, settings, areas, getDerivedState } = useTaskStore((state) => ({
     addTask: state.addTask,
     addTasks: state.addTasks,
     addProject: state.addProject,
@@ -97,6 +99,7 @@ export function QuickCaptureSheet({
     projects: state.projects,
     settings: state.settings,
     areas: state.areas,
+    getDerivedState: state.getDerivedState,
   }), shallow);
   const { t } = useLanguage();
   const tc = useThemeColors();
@@ -161,10 +164,17 @@ export function QuickCaptureSheet({
   const [androidKeyboardAvoidingEnabled, setAndroidKeyboardAvoidingEnabled] = useState(true);
   const androidKeyboardInset = useAndroidKeyboardInset(visible);
   const [addAnother, setAddAnother] = useState(false);
+  const [focusNewTask, setFocusNewTask] = useState(false);
   const projectsRef = useRef(projects);
   const contextOptionsLoadTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const contextOptionsRequestRef = useRef(0);
   const initialFocusTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const focusTaskLimit = normalizeFocusTaskLimit(settings?.gtd?.focusTaskLimit);
+  const canFocusNewTask = focusNewTask || getDerivedState().focusedCount < focusTaskLimit;
+  const focusNewTaskDisabledReason = formatFocusTaskLimitText(
+    tFallback(t, 'agenda.maxFocusItems', 'Max {{count}} focus items'),
+    focusTaskLimit,
+  );
 
   useEffect(() => {
     projectsRef.current = projects;
@@ -343,6 +353,7 @@ export function QuickCaptureSheet({
     setShowDueTimePicker(false);
     setStartPickerMode(null);
     setPendingStartDate(null);
+    setFocusNewTask(Boolean(initialProps?.isFocusedToday));
     setAddAnother(Boolean(options?.keepAddAnother));
   }, [clearAndroidOptionsExpand, clearContextOptionsLoad, defaultAreaId, initialProps, initialValue]);
 
@@ -444,9 +455,10 @@ export function QuickCaptureSheet({
       if (dateOnly) initialPropsMerged.dueDate = dueDateHasTime ? dueDate.toISOString() : dateOnly;
     }
     if (startTime) initialPropsMerged.startTime = startTime.toISOString();
+    if (focusNewTask && canFocusNewTask) initialPropsMerged.isFocusedToday = true;
 
     return { title: finalTitle, props: initialPropsMerged, invalidDateCommands };
-  }, [addProject, areas, contextTags, dueDate, dueDateHasTime, initialProps, prioritiesEnabled, priority, projectId, projects, selectedAreaId, settings.quickAddAutoClean, startTime]);
+  }, [addProject, areas, canFocusNewTask, contextTags, dueDate, dueDateHasTime, focusNewTask, initialProps, prioritiesEnabled, priority, projectId, projects, selectedAreaId, settings.quickAddAutoClean, startTime]);
 
   const buildTaskProps = useCallback((fallbackTitle: string, extraProps?: Partial<Task>) => (
     buildTaskPropsForInput(value, fallbackTitle, extraProps)
@@ -479,6 +491,7 @@ export function QuickCaptureSheet({
     setStartPickerMode(null);
     setPendingStartDate(null);
     setAddAnother(false);
+    setFocusNewTask(false);
   }, [clearAndroidOptionsExpand, clearContextOptionsLoad, defaultAreaId]);
 
   const finalizeClose = useCallback(() => {
@@ -928,6 +941,9 @@ export function QuickCaptureSheet({
         handleSave={() => {
           void handleSave();
         }}
+        focusNewTask={focusNewTask}
+        canFocusNewTask={canFocusNewTask}
+        focusNewTaskDisabledReason={focusNewTaskDisabledReason}
         handleSaveAndEdit={() => {
           void handleSave({ openAfterSave: true });
         }}
@@ -953,6 +969,10 @@ export function QuickCaptureSheet({
         }}
         onToggleOptions={handleToggleOptions}
         onToggleAddAnother={setAddAnother}
+        onToggleFocusNewTask={() => {
+          if (!focusNewTask && !canFocusNewTask) return;
+          setFocusNewTask((current) => !current);
+        }}
         onToggleRecording={handleToggleRecording}
         onValueChange={setValue}
         optionsExpanded={optionsExpanded}

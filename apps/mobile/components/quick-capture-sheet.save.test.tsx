@@ -15,6 +15,7 @@ const {
   showToast,
   openTaskScreen,
   getUsedTaskTokens,
+  getDerivedState,
   parseQuickAdd,
   splitQuickAddBulkLines,
   selectStore,
@@ -28,6 +29,7 @@ const {
   const showToast = vi.fn();
   const openTaskScreen = vi.fn();
   const getUsedTaskTokens = vi.fn<() => string[]>(() => []);
+  const getDerivedState = vi.fn(() => ({ focusedCount: 0 }));
   const parseQuickAdd = vi.fn<(input: string) => any>((input: string) => ({
     title: input,
     props: {},
@@ -49,6 +51,7 @@ const {
     projects: [],
     settings: {},
     tasks: [],
+    getDerivedState,
   };
   const selectStore = ((selector?: (state: typeof storeState) => unknown) => (
     selector ? selector(storeState) : storeState
@@ -62,6 +65,7 @@ const {
     showToast,
     openTaskScreen,
     getUsedTaskTokens,
+    getDerivedState,
     parseQuickAdd,
     splitQuickAddBulkLines,
     selectStore,
@@ -77,11 +81,13 @@ vi.mock('@mindwtr/core', () => ({
     return areaId ? { areaId } : undefined;
   },
   getUsedTaskTokens,
+  formatFocusTaskLimitText: (template: string, limit: number) => template.replace('{{count}}', String(limit)),
   hasTimeComponent: (value?: string | null) => Boolean(value && /[T\s]\d{2}:\d{2}/.test(value)),
   isSelectableProjectForTaskAssignment: (project: any) => (
     !project.deletedAt && project.status !== 'archived' && project.status !== 'completed'
   ),
   parseQuickAdd,
+  normalizeFocusTaskLimit: (value: unknown) => (typeof value === 'number' ? value : 3),
   resolveDefaultNewTaskAreaId: (settings: any, areas: any[]) => {
     const areaId = settings?.gtd?.defaultAreaId;
     return typeof areaId === 'string' && areas.some((area) => area.id === areaId && !area.deletedAt)
@@ -143,6 +149,9 @@ vi.mock('../contexts/language-context', () => ({
   useLanguage: () => ({
     t: (key: string) => ({
       'common.notice': 'Notice',
+      'agenda.addToFocus': "Add to today's focus",
+      'agenda.maxFocusItems': 'Max {{count}} focus items',
+      'agenda.removeFromFocus': 'Remove from focus',
       'quickAdd.invalidDateCommand': 'Invalid date',
       'taskEdit.contextsLabel': 'Contexts',
       'taskEdit.dueDateLabel': 'Due Date',
@@ -237,6 +246,8 @@ describe('QuickCaptureSheet save handling', () => {
     selectStore.getState().tasks = [];
     selectStore.getState().settings = {};
     selectedAreaIdForNewTasksMock.current = undefined;
+    getDerivedState.mockClear();
+    getDerivedState.mockReturnValue({ focusedCount: 0 });
     getUsedTaskTokens.mockClear();
     getUsedTaskTokens.mockReturnValue([]);
     documentPickerGetDocumentAsync.mockReset();
@@ -521,6 +532,47 @@ describe('QuickCaptureSheet save handling', () => {
       resolveAddTask?.({ success: true, id: 'task-1' });
       await Promise.resolve();
     });
+  });
+
+  it("stars a task for Today's Focus from the capture sheet", async () => {
+    addTask.mockResolvedValue({ success: true, id: 'task-1' });
+
+    let tree!: ReturnType<typeof create>;
+    await act(async () => {
+      tree = create(
+        <QuickCaptureSheet
+          visible
+          openRequestId={1}
+          initialValue="File Q3 estimated tax payment"
+          onClose={vi.fn()}
+        />
+      );
+      await Promise.resolve();
+    });
+
+    const body = tree.root.findAll((node) => String(node.type) === 'QuickCaptureSheetBody')[0];
+    if (!body) throw new Error('QuickCaptureSheetBody not found');
+
+    expect(body.props.focusNewTask).toBe(false);
+
+    await act(async () => {
+      body.props.onToggleFocusNewTask();
+      await Promise.resolve();
+    });
+
+    const updatedBody = tree.root.findAll((node) => String(node.type) === 'QuickCaptureSheetBody')[0];
+    if (!updatedBody) throw new Error('QuickCaptureSheetBody not found after toggle');
+    expect(updatedBody.props.focusNewTask).toBe(true);
+
+    await act(async () => {
+      updatedBody.props.handleSave();
+      await Promise.resolve();
+    });
+
+    expect(addTask).toHaveBeenCalledWith('File Q3 estimated tax payment', expect.objectContaining({
+      status: 'inbox',
+      isFocusedToday: true,
+    }));
   });
 
   it('confirms multiline capture before creating one task per line', async () => {

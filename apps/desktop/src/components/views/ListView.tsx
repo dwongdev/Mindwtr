@@ -5,14 +5,12 @@ import {
     buildBulkOrganizeTaskUpdates,
     createTaskFilterPredicate,
     DEFAULT_AREA_COLOR,
-    formatFocusTaskLimitText,
     formatTimeEstimateLabel,
     getQuickAddProjectInitialProps,
     getWaitingPerson,
     hasActiveFilterCriteria,
     isTaskInActiveProject,
     parseQuickAdd,
-    normalizeFocusTaskLimit,
     resolveDefaultNewTaskAreaId,
     safeParseDate,
     shallow,
@@ -186,7 +184,6 @@ export const ListView = memo(function ListView({ title, statusFilter }: ListView
     const densityMode = isCompact ? 'compact' : 'comfortable';
     const resolvedAreaFilter = resolveAreaFilter(settings?.filters?.areaId, areas);
     const [newTaskTitle, setNewTaskTitle] = useState('');
-    const [quickAddFocus, setQuickAddFocus] = useState(false);
     const [quickAddSyntaxOpen, setQuickAddSyntaxOpen] = useState(false);
     const listFilters = useUiStore((state) => state.listFilters);
     const setListFilters = useUiStore((state) => state.setListFilters);
@@ -726,14 +723,6 @@ export const ListView = memo(function ListView({ title, statusFilter }: ListView
         translateWithFallback,
     ]);
 
-    const focusTaskLimit = normalizeFocusTaskLimit(settings?.gtd?.focusTaskLimit);
-    const focusedCount = getDerivedState().focusedCount;
-    const canQuickAddFocus = quickAddFocus || focusedCount < focusTaskLimit;
-    const quickAddFocusDisabledReason = formatFocusTaskLimitText(
-        translateWithFallback('agenda.maxFocusItems', 'Max {{count}} focus items.'),
-        focusTaskLimit,
-    );
-
     const handleAddTask = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!newTaskTitle.trim()) return;
@@ -778,12 +767,8 @@ export const ListView = memo(function ListView({ title, statusFilter }: ListView
                 const existingTags = initialProps.tags ?? [];
                 initialProps.tags = Array.from(new Set([...existingTags, ...copilotTags]));
             }
-            if (quickAddFocus && canQuickAddFocus) {
-                initialProps.isFocusedToday = true;
-            }
             await addTask(finalTitle, initialProps);
             setNewTaskTitle('');
-            setQuickAddFocus(false);
             resetCopilot();
         } catch (error) {
             reportError('Failed to add task from quick add', error);
@@ -1012,10 +997,6 @@ export const ListView = memo(function ListView({ title, statusFilter }: ListView
                     formatEstimate={formatEstimate}
                     showQuickAdd={showQuickAdd}
                     quickAddValue={newTaskTitle}
-                    quickAddFocus={quickAddFocus}
-                    canQuickAddFocus={canQuickAddFocus}
-                    quickAddFocusDisabledReason={quickAddFocusDisabledReason}
-                    onToggleQuickAddFocus={() => setQuickAddFocus((current) => !current)}
                     addInputRef={addInputRef}
                     projects={projects}
                     areas={areas}

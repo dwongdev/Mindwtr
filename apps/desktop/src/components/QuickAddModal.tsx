@@ -8,11 +8,13 @@ import {
     findSelectableProjectByTitleAndArea,
     getQuickAddProjectInitialProps,
     parseQuickAdd,
+    normalizeFocusTaskLimit,
     resolveDefaultNewTaskAreaId,
     safeFormatDate,
     generateUUID,
     splitQuickAddBulkLines,
     DEFAULT_PROJECT_COLOR,
+    formatFocusTaskLimitText,
     tFallback,
     type Area,
     type Attachment,
@@ -44,6 +46,7 @@ import {
 import { QUICK_ADD_MAIN_WINDOW_LABEL, QUICK_ADD_SAVED_EVENT } from '../lib/quick-add-saved-event';
 import { TaskInput } from './Task/TaskInput';
 import { AreaSelector } from './ui/AreaSelector';
+import { FocusStarIcon } from './FocusStarIcon';
 
 const AUDIO_CAPTURE_DIR = 'mindwtr/audio-captures';
 const QUICK_ADD_IMAGE_CAPTURE_DIR = 'mindwtr/quick-add-images';
@@ -145,7 +148,8 @@ export function QuickAddModal({ standaloneWindow = false }: QuickAddModalProps) 
     );
     const setProjectView = useUiStore((state) => state.setProjectView);
     const setEditingTaskId = useUiStore((state) => state.setEditingTaskId);
-    const { allContexts, allTags } = getDerivedState();
+    const derivedState = getDerivedState();
+    const { allContexts, allTags } = derivedState;
     const suggestionTokens = useMemo(
         () => Array.from(new Set([...allContexts, ...allTags])).sort(),
         [allContexts, allTags]
@@ -155,6 +159,7 @@ export function QuickAddModal({ standaloneWindow = false }: QuickAddModalProps) 
     const [value, setValue] = useState('');
     const [selectedAreaId, setSelectedAreaId] = useState('');
     const [initialProps, setInitialProps] = useState<Partial<Task> | null>(null);
+    const [focusNewTask, setFocusNewTask] = useState(false);
     const [forcedCaptureMode, setForcedCaptureMode] = useState<'text' | 'audio' | null>(null);
     const [captureMode, setCaptureMode] = useState<'text' | 'audio'>(
         settings?.gtd?.defaultCaptureMethod === 'audio' ? 'audio' : 'text'
@@ -204,6 +209,18 @@ export function QuickAddModal({ standaloneWindow = false }: QuickAddModalProps) 
         () => pastedImageAttachments.map((item) => item.attachment),
         [pastedImageAttachments],
     );
+    const focusTaskLimit = normalizeFocusTaskLimit(settings?.gtd?.focusTaskLimit);
+    const canFocusNewTask = focusNewTask || derivedState.focusedCount < focusTaskLimit;
+    const focusDisabled = !focusNewTask && !canFocusNewTask;
+    const addFocusLabel = tFallback(t, 'agenda.addToFocus', "Add to today's focus");
+    const removeFocusLabel = tFallback(t, 'agenda.removeFromFocus', 'Remove from focus');
+    const focusLimitLabel = formatFocusTaskLimitText(
+        tFallback(t, 'agenda.maxFocusItems', 'Max {{count}} focus items'),
+        focusTaskLimit,
+    );
+    const focusLabel = focusNewTask
+        ? removeFocusLabel
+        : (focusDisabled ? focusLimitLabel : addFocusLabel);
 
     useEffect(() => {
         pastedImageAttachmentsRef.current = pastedImageAttachments;
@@ -260,6 +277,7 @@ export function QuickAddModal({ standaloneWindow = false }: QuickAddModalProps) 
         openRequestInFlightRef.current = true;
         try {
             setInitialProps(detail?.initialProps ?? null);
+            setFocusNewTask(Boolean(detail?.initialProps?.isFocusedToday));
             setValue(detail?.initialValue ?? '');
             setForcedCaptureMode(detail?.captureMode ?? null);
             setBulkQuickAddLines(null);
@@ -407,6 +425,7 @@ export function QuickAddModal({ standaloneWindow = false }: QuickAddModalProps) 
         openRequestInFlightRef.current = false;
         setIsOpen(false);
         setInitialProps(null);
+        setFocusNewTask(false);
         setValue('');
         setSelectedAreaId('');
         setForcedCaptureMode(null);
@@ -883,6 +902,9 @@ export function QuickAddModal({ standaloneWindow = false }: QuickAddModalProps) 
         if (mergedAttachments) {
             baseProps.attachments = mergedAttachments;
         }
+        if (focusNewTask && canFocusNewTask) {
+            baseProps.isFocusedToday = true;
+        }
         const shouldApplyDetectedDate = Boolean(detectedDate?.date && !baseProps.dueDate);
         if (shouldApplyDetectedDate && detectedDate) {
             baseProps.dueDate = detectedDate.date;
@@ -927,7 +949,7 @@ export function QuickAddModal({ standaloneWindow = false }: QuickAddModalProps) 
             currentAreas,
             currentProjects: nextProjects,
         };
-    }, [addProject, addTask, initialProps, selectedAreaId, t]);
+    }, [addProject, addTask, canFocusNewTask, focusNewTask, initialProps, selectedAreaId, t]);
 
     useEffect(() => {
         if (!isOpen) return;
@@ -1126,33 +1148,52 @@ export function QuickAddModal({ standaloneWindow = false }: QuickAddModalProps) 
                 </div>
                 {captureMode === 'text' ? (
                     <form onSubmit={handleSubmit} className="p-4 space-y-2">
-                        <TaskInput
-                            value={value}
-                            autoFocus={captureMode === 'text'}
-                            projects={projects}
-                            contexts={suggestionTokens}
-                            areas={areas}
-                            onCreateProject={async (title) => {
-                                const created = await addProject(
-                                    title,
-                                    DEFAULT_PROJECT_COLOR,
-                                    getQuickAddProjectInitialProps({}, selectedAreaId)
-                                );
-                                return created?.id ?? null;
-                            }}
-                            onChange={(next) => setValue(next)}
-                            onPaste={handleQuickAddPaste}
-                            onKeyDown={(e) => {
-                                if (e.key === 'Escape') {
-                                    e.preventDefault();
-                                    handleClose();
-                                }
-                            }}
-                            placeholder={t('nav.addTask')}
-                            className={cn(
-                                "w-full bg-card border border-border rounded-lg py-3 px-4 shadow-sm focus:ring-2 focus:ring-primary focus:border-transparent transition-all",
-                            )}
-                        />
+                        <div className="flex items-start gap-2">
+                            <TaskInput
+                                value={value}
+                                autoFocus={captureMode === 'text'}
+                                projects={projects}
+                                contexts={suggestionTokens}
+                                areas={areas}
+                                onCreateProject={async (title) => {
+                                    const created = await addProject(
+                                        title,
+                                        DEFAULT_PROJECT_COLOR,
+                                        getQuickAddProjectInitialProps({}, selectedAreaId)
+                                    );
+                                    return created?.id ?? null;
+                                }}
+                                onChange={(next) => setValue(next)}
+                                onPaste={handleQuickAddPaste}
+                                onKeyDown={(e) => {
+                                    if (e.key === 'Escape') {
+                                        e.preventDefault();
+                                        handleClose();
+                                    }
+                                }}
+                                placeholder={t('nav.addTask')}
+                                className={cn(
+                                    "min-w-0 flex-1 bg-card border border-border rounded-lg py-3 px-4 shadow-sm focus:ring-2 focus:ring-primary focus:border-transparent transition-all",
+                                )}
+                            />
+                            <button
+                                type="button"
+                                onClick={() => setFocusNewTask((current) => !current)}
+                                disabled={focusDisabled}
+                                className={cn(
+                                    'inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-lg border transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background',
+                                    focusNewTask
+                                        ? 'border-amber-400/70 bg-amber-100 text-amber-700 hover:bg-amber-200 dark:bg-amber-500/20 dark:text-amber-300 dark:hover:bg-amber-500/30'
+                                        : 'border-border bg-card text-muted-foreground hover:bg-muted hover:text-foreground',
+                                    focusDisabled && 'cursor-not-allowed opacity-50 hover:bg-card hover:text-muted-foreground',
+                                )}
+                                aria-label={focusLabel}
+                                aria-pressed={focusNewTask}
+                                title={focusLabel}
+                            >
+                                <FocusStarIcon filled={focusNewTask} className="h-4 w-4" />
+                            </button>
+                        </div>
                         {isPastingImage ? (
                             <p className="text-xs text-muted-foreground">
                                 {tFallback(t, 'quickAdd.pastedImageSaving', 'Attaching image...')}

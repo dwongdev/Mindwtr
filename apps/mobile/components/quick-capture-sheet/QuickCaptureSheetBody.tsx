@@ -6,6 +6,7 @@ import { tFallback } from '@mindwtr/core';
 import type { ThemeColors } from '@/hooks/use-theme-colors';
 import { CompactText, CompactTextInput } from '@/components/compact-text';
 import { QuickDateChips } from '../QuickDateChips';
+import { FocusStarIcon, FOCUS_STAR_COLOR } from '../FocusStarIcon';
 import { styles } from './quick-capture-sheet.styles';
 
 // Quick capture favors speed: show only the most-reached date presets inline.
@@ -20,6 +21,9 @@ interface QuickCaptureSheetBodyProps {
   dueLabel: string;
   dueDate: Date | null;
   dueTimeLabel: string;
+  focusNewTask?: boolean;
+  canFocusNewTask?: boolean;
+  focusNewTaskDisabledReason?: string;
   handleClose: () => void;
   handleImportTextFile?: () => void;
   handleSave: () => void;
@@ -43,6 +47,7 @@ interface QuickCaptureSheetBodyProps {
   onResetProject: () => void;
   onToggleOptions: () => void;
   onToggleAddAnother: (value: boolean) => void;
+  onToggleFocusNewTask?: () => void;
   onToggleRecording: () => void;
   onValueChange: (value: string) => void;
   optionsExpanded: boolean;
@@ -71,6 +76,9 @@ export function QuickCaptureSheetBody({
   dueDate,
   dueLabel,
   dueTimeLabel,
+  focusNewTask = false,
+  canFocusNewTask = true,
+  focusNewTaskDisabledReason,
   handleClose,
   handleImportTextFile,
   handleSave,
@@ -94,6 +102,7 @@ export function QuickCaptureSheetBody({
   onResetProject,
   onToggleOptions,
   onToggleAddAnother,
+  onToggleFocusNewTask = () => {},
   onToggleRecording,
   onValueChange,
   optionsExpanded,
@@ -115,6 +124,12 @@ export function QuickCaptureSheetBody({
 }: QuickCaptureSheetBodyProps) {
   const optionsToggleLabel = optionsExpanded ? t('taskEdit.hideOptions') : tFallback(t, 'common.more', 'More');
   const defaultProjectLabel = tFallback(t, 'taskEdit.projectLabel', 'Project');
+  const focusDisabled = !focusNewTask && !canFocusNewTask;
+  const addFocusLabel = tFallback(t, 'agenda.addToFocus', "Add to today's focus");
+  const removeFocusLabel = tFallback(t, 'agenda.removeFromFocus', 'Remove from focus');
+  const focusLabel = focusNewTask
+    ? removeFocusLabel
+    : (focusDisabled ? (focusNewTaskDisabledReason || addFocusLabel) : addFocusLabel);
   // Drop the trailing ellipsis here so the Custom chip is narrow enough to sit on the preset row;
   // the shared recurrence.custom string (used elsewhere) keeps its "…".
   const customDateLabel = t('recurrence.custom').replace(/[\s.…]+$/u, '');
@@ -195,6 +210,29 @@ export function QuickCaptureSheetBody({
                 numberOfLines={1}
                 textAlignVertical="center"
               />
+              <TouchableOpacity
+                onPress={onToggleFocusNewTask}
+                accessibilityRole="button"
+                accessibilityLabel={focusLabel}
+                accessibilityState={{ selected: focusNewTask, disabled: focusDisabled }}
+                style={[
+                  styles.focusButton,
+                  {
+                    backgroundColor: tc.filterBg,
+                    borderColor: focusNewTask ? FOCUS_STAR_COLOR : tc.border,
+                    opacity: focusDisabled ? 0.5 : 1,
+                  },
+                ]}
+                disabled={focusDisabled}
+                activeOpacity={0.85}
+              >
+                <FocusStarIcon
+                  focused={focusNewTask}
+                  inactiveColor={tc.secondaryText}
+                  disabled={focusDisabled}
+                  size={18}
+                />
+              </TouchableOpacity>
               <TouchableOpacity
                 onPress={onToggleRecording}
                 accessibilityRole="button"

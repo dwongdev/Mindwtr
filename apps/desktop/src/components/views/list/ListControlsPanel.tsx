@@ -59,7 +59,6 @@ type ListControlsPanelProps = {
     onRemoveContext: () => void;
     onResetCopilot: () => void;
     onSubmitQuickAdd: (event: FormEvent) => void;
-    onToggleQuickAddFocus: () => void;
     onSelectAllVisible: () => void;
     onToggleDetails: () => void;
     onToggleEstimate: (estimate: TimeEstimate) => void;
@@ -72,9 +71,6 @@ type ListControlsPanelProps = {
     priorityOptions: TaskPriority[];
     projects: Project[];
     quickAddFooter?: ReactNode;
-    quickAddFocus: boolean;
-    canQuickAddFocus: boolean;
-    quickAddFocusDisabledReason?: string;
     quickAddValue: string;
     searchQuery: string;
     selectedCount: number;
@@ -142,7 +138,6 @@ export function ListControlsPanel({
     onRemoveContext,
     onResetCopilot,
     onSubmitQuickAdd,
-    onToggleQuickAddFocus,
     onSelectAllVisible,
     onToggleDetails,
     onToggleEstimate,
@@ -155,9 +150,6 @@ export function ListControlsPanel({
     priorityOptions,
     projects,
     quickAddFooter,
-    quickAddFocus,
-    canQuickAddFocus,
-    quickAddFocusDisabledReason,
     quickAddValue,
     searchQuery,
     selectedCount,
@@ -382,10 +374,6 @@ export function ListControlsPanel({
                         onSubmit={onSubmitQuickAdd}
                         onOpenAudio={onOpenAudioQuickAdd}
                         onResetCopilot={onResetCopilot}
-                        focusNewTask={quickAddFocus}
-                        canFocusNewTask={canQuickAddFocus}
-                        focusNewTaskDisabledReason={quickAddFocusDisabledReason}
-                        onToggleFocusNewTask={onToggleQuickAddFocus}
                     />
                     {quickAddFooter}
                 </>
