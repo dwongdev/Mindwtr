@@ -3,8 +3,22 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 const fileSystemMock = vi.hoisted(() => ({
   bytes: vi.fn(),
   existingUris: null as Set<string> | null,
+  directoryUris: null as Set<string> | null,
+  fileUris: null as Set<string> | null,
   fileSizes: new Map<string, number>(),
 }));
+
+function normalizeMockUri(uri: string) {
+  return uri.replace(/\/+$/u, '');
+}
+
+function hasDirectoryUri(uri: string) {
+  return Boolean(fileSystemMock.directoryUris?.has(normalizeMockUri(uri)));
+}
+
+function hasFileUri(uri: string) {
+  return Boolean(fileSystemMock.fileUris?.has(normalizeMockUri(uri)));
+}
 
 const appLogMock = vi.hoisted(() => ({
   logInfo: vi.fn(),
@@ -51,10 +65,21 @@ vi.mock('expo-file-system', () => ({
     }
 
     get exists() {
+      if (fileSystemMock.directoryUris || fileSystemMock.fileUris) {
+        return hasDirectoryUri(this.uri);
+      }
       return fileSystemMock.existingUris ? fileSystemMock.existingUris.has(this.uri) : true;
     }
 
     create() {
+      if (fileSystemMock.directoryUris || fileSystemMock.fileUris) {
+        if (hasFileUri(this.uri)) {
+          throw new Error('Unable to create file or directory: same name already exists');
+        }
+        fileSystemMock.directoryUris ??= new Set<string>();
+        fileSystemMock.directoryUris.add(normalizeMockUri(this.uri));
+        return;
+      }
       if (fileSystemMock.existingUris) {
         fileSystemMock.existingUris.add(this.uri);
       }
@@ -80,6 +105,9 @@ vi.mock('expo-file-system', () => ({
     }
 
     get exists() {
+      if (fileSystemMock.directoryUris || fileSystemMock.fileUris) {
+        return hasFileUri(this.uri);
+      }
       return fileSystemMock.existingUris ? fileSystemMock.existingUris.has(this.uri) : true;
     }
 
@@ -90,14 +118,27 @@ vi.mock('expo-file-system', () => ({
     bytes() {
       return fileSystemMock.bytes(this.uri);
     }
+
+    delete() {
+      if (fileSystemMock.fileUris) {
+        fileSystemMock.fileUris.delete(normalizeMockUri(this.uri));
+      }
+      if (fileSystemMock.existingUris) {
+        fileSystemMock.existingUris.delete(this.uri);
+      }
+    }
   },
   Paths: {
     cache: { uri: 'file:///cache/' },
     document: { uri: 'file:///document/' },
     info: vi.fn((uri: string) => ({
-      exists: fileSystemMock.existingUris ? fileSystemMock.existingUris.has(uri) : true,
-      isDirectory: false,
-      size: fileSystemMock.fileSizes.get(uri),
+      exists: fileSystemMock.directoryUris || fileSystemMock.fileUris
+        ? hasDirectoryUri(uri) || hasFileUri(uri)
+        : (fileSystemMock.existingUris ? fileSystemMock.existingUris.has(uri) : true),
+      isDirectory: fileSystemMock.directoryUris || fileSystemMock.fileUris
+        ? hasDirectoryUri(uri)
+        : false,
+      size: fileSystemMock.fileSizes.get(uri) ?? fileSystemMock.fileSizes.get(normalizeMockUri(uri)),
     })),
   },
 }));
@@ -158,6 +199,8 @@ describe('speech-to-text', () => {
   beforeEach(() => {
     constantsMock.default.expoConfig.extra.isFossBuild = false;
     fileSystemMock.existingUris = null;
+    fileSystemMock.directoryUris = null;
+    fileSystemMock.fileUris = null;
     fileSystemMock.fileSizes.clear();
     vi.clearAllMocks();
   });
@@ -270,6 +313,25 @@ describe('speech-to-text', () => {
       exists: false,
       size: 0,
     });
+  });
+
+  it('repairs a file blocking the Whisper model directory before resolving the model path', () => {
+    fileSystemMock.directoryUris = new Set([
+      'file:///document',
+      'file:///cache',
+    ]);
+    fileSystemMock.fileUris = new Set([
+      'file:///document/whisper-models',
+    ]);
+
+    expect(ensureWhisperModelPathForConfig('whisper-tiny.en')).toMatchObject({
+      uri: 'file:///document/whisper-models/ggml-tiny.en.bin',
+      path: '/document/whisper-models/ggml-tiny.en.bin',
+      exists: false,
+      size: 0,
+    });
+    expect(fileSystemMock.fileUris.has('file:///document/whisper-models')).toBe(false);
+    expect(fileSystemMock.directoryUris.has('file:///document/whisper-models')).toBe(true);
   });
 
   it('logs Whisper model search directories and candidates when the model is missing', () => {

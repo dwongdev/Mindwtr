@@ -133,7 +133,7 @@ const getWhisperNativePathInfo = async (uri: string): Promise<WhisperModelPathIn
             extra: {
                 uri,
                 nativePath,
-                exists: String(Boolean(isFile && !isDirectory)),
+                exists: String(Boolean(isFile || isDirectory)),
                 isFile: String(Boolean(isFile)),
                 isDirectory: String(Boolean(isDirectory)),
                 size: String(size),
@@ -142,7 +142,7 @@ const getWhisperNativePathInfo = async (uri: string): Promise<WhisperModelPathIn
             },
         });
         return {
-            exists: Boolean(isFile && !isDirectory),
+            exists: Boolean(isFile || isDirectory),
             isDirectory,
             size,
         };
@@ -478,6 +478,116 @@ export function AISettingsScreen() {
         return pathInfo ?? null;
     };
 
+    const normalizeWhisperDirectoryUri = (uri: string) => normalizeWhisperPath(uri).replace(/\/+$/u, '');
+
+    const isKnownWhisperDirectoryTarget = (uri: string) => {
+        const normalized = normalizeWhisperDirectoryUri(uri);
+        return getWhisperDirectories().some((directory) => normalizeWhisperDirectoryUri(directory.uri) === normalized);
+    };
+
+    const unlinkWhisperPathWithNativeFs = async (uri: string) => {
+        const rnfs = getRNFSModule() as { unlink?: (path: string) => Promise<void> } | null;
+        if (typeof rnfs?.unlink !== 'function') return false;
+        await rnfs.unlink(toNativeHashPath(uri));
+        return true;
+    };
+
+    const cleanupWhisperDirectoryBlockingFile = async (uri: string, reason: string) => {
+        const normalized = normalizeWhisperDirectoryUri(uri);
+        if (!isKnownWhisperDirectoryTarget(normalized)) {
+            logSettingsWarn('Refusing to repair unsafe Whisper model directory target', new Error(normalized));
+            return false;
+        }
+        const expoInfo = safePathInfo(normalized);
+        const nativeInfo = expoInfo?.exists && expoInfo.isDirectory === true
+            ? null
+            : await getWhisperNativePathInfo(normalized);
+        const exists = Boolean(expoInfo?.exists || nativeInfo?.exists);
+        const isDirectory = expoInfo?.isDirectory === true || nativeInfo?.isDirectory === true;
+        if (!exists || isDirectory) return false;
+        void logInfo('Whisper model directory file cleanup start', {
+            scope: 'settings',
+            force: true,
+            extra: {
+                uri: normalized,
+                reason,
+                expoExists: String(Boolean(expoInfo?.exists)),
+                expoIsDirectory: String(Boolean(expoInfo?.isDirectory)),
+                nativeExists: String(Boolean(nativeInfo?.exists)),
+                nativeIsDirectory: String(Boolean(nativeInfo?.isDirectory)),
+            },
+        });
+        let deleted = false;
+        try {
+            new File(normalized).delete();
+            deleted = true;
+        } catch (error) {
+            logSettingsWarn('Whisper model directory file cleanup with Expo failed', error);
+        }
+        if (!deleted) {
+            try {
+                deleted = await unlinkWhisperPathWithNativeFs(normalized);
+            } catch (error) {
+                logSettingsWarn('Whisper model directory file cleanup with native fs failed', error);
+            }
+        }
+        const afterExpo = safePathInfo(normalized);
+        const afterNative = afterExpo?.exists && afterExpo.isDirectory === true
+            ? null
+            : await getWhisperNativePathInfo(normalized);
+        const repaired = !afterExpo?.exists && !afterNative?.exists
+            || afterExpo?.isDirectory === true
+            || afterNative?.isDirectory === true;
+        void logInfo('Whisper model directory file cleanup complete', {
+            scope: 'settings',
+            force: true,
+            extra: {
+                uri: normalized,
+                reason,
+                deleted: String(deleted),
+                repaired: String(repaired),
+                expoExists: String(Boolean(afterExpo?.exists)),
+                expoIsDirectory: String(Boolean(afterExpo?.isDirectory)),
+                nativeExists: String(Boolean(afterNative?.exists)),
+                nativeIsDirectory: String(Boolean(afterNative?.isDirectory)),
+            },
+        });
+        return repaired;
+    };
+
+    const ensureWhisperDownloadDirectory = async (directory: Directory) => {
+        const createDirectory = () => directory.create({ intermediates: true, idempotent: true });
+        const info = safePathInfo(directory.uri);
+        if (info?.exists && info.isDirectory === false) {
+            await cleanupWhisperDirectoryBlockingFile(directory.uri, 'pre-create');
+        }
+        try {
+            createDirectory();
+        } catch (error) {
+            const repaired = await cleanupWhisperDirectoryBlockingFile(directory.uri, 'create-failed');
+            if (!repaired) throw error;
+            createDirectory();
+        }
+        const afterInfo = safePathInfo(directory.uri);
+        const afterNativeInfo = afterInfo?.isDirectory === true ? null : await getWhisperNativePathInfo(directory.uri);
+        const ready = afterInfo?.isDirectory === true || afterNativeInfo?.isDirectory === true;
+        void logInfo('Whisper model directory ready check', {
+            scope: 'settings',
+            force: true,
+            extra: {
+                uri: normalizeWhisperDirectoryUri(directory.uri),
+                expoExists: String(Boolean(afterInfo?.exists)),
+                expoIsDirectory: String(Boolean(afterInfo?.isDirectory)),
+                nativeExists: String(Boolean(afterNativeInfo?.exists)),
+                nativeIsDirectory: String(Boolean(afterNativeInfo?.isDirectory)),
+                ready: String(ready),
+            },
+        });
+        if (!ready) {
+            throw new Error(`Whisper model directory is blocked by a file: ${normalizeWhisperDirectoryUri(directory.uri)}`);
+        }
+    };
+
     const resolveWhisperModelPath = (modelId: string) => {
         const model = WHISPER_MODELS.find((entry) => entry.id === modelId);
         if (!model) return undefined;
@@ -675,7 +785,7 @@ export function AISettingsScreen() {
             let lastError: Error | null = null;
             for (const directory of directories) {
                 try {
-                    directory.create({ intermediates: true, idempotent: true });
+                    await ensureWhisperDownloadDirectory(directory);
                     const dirUri = directory.uri.endsWith('/') ? directory.uri : `${directory.uri}/`;
                     const targetFile = new File(`${dirUri}${fileName}`);
                     const conflictInfo = safePathInfo(targetFile.uri);

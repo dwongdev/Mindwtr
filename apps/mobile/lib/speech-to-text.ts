@@ -962,13 +962,14 @@ const checkNativeFile = async (normalized: ReturnType<typeof normalizeFilePath>)
 
 const checkPath = (uri?: string) => {
   if (!uri) return { exists: false, isDirectory: false, size: 0 };
+  let pathInfo: ReturnType<typeof Paths.info> | null = null;
   try {
-    const info = Paths.info(uri);
-    if (info?.exists) {
+    pathInfo = Paths.info(uri);
+    if (pathInfo?.exists && pathInfo.isDirectory) {
       return {
         exists: true,
-        isDirectory: Boolean(info.isDirectory),
-        size: getPathInfoSize(info),
+        isDirectory: true,
+        size: getPathInfoSize(pathInfo),
       };
     }
   } catch {
@@ -987,7 +988,85 @@ const checkPath = (uri?: string) => {
     }
   } catch {
   }
+  if (pathInfo?.exists) {
+    return {
+      exists: true,
+      isDirectory: Boolean(pathInfo.isDirectory),
+      size: getPathInfoSize(pathInfo),
+    };
+  }
   return { exists: false, isDirectory: false, size: 0 };
+};
+
+const normalizeWhisperDirectoryUri = (uri: string) => normalizeFilePath(uri).uri.replace(/\/+$/u, '');
+
+const isKnownWhisperModelDirectoryUri = (uri: string): boolean => {
+  const normalized = normalizeWhisperDirectoryUri(uri);
+  const roots: Array<Directory | undefined> = [];
+  try {
+    roots.push(Paths.document);
+  } catch {
+  }
+  try {
+    roots.push(Paths.cache);
+  } catch {
+  }
+  return roots.some((root) => {
+    if (!root?.uri) return false;
+    return normalizeWhisperDirectoryUri(buildWhisperModelDirectoryUri(root.uri)) === normalized;
+  });
+};
+
+const deleteWhisperDirectoryBlockingFile = (uri: string, reason: string): boolean => {
+  const normalized = normalizeFilePath(uri).uri;
+  if (!isKnownWhisperModelDirectoryUri(normalized)) {
+    void logWarn('Refusing to repair unsafe Whisper model directory target', {
+      scope: 'speech',
+      force: true,
+      extra: { uri: normalized, reason },
+    });
+    return false;
+  }
+  const before = checkPath(normalized);
+  if (!before.exists || before.isDirectory) return false;
+  void logInfo('Whisper model directory file cleanup start', {
+    scope: 'speech',
+    force: true,
+    extra: {
+      uri: normalized,
+      reason,
+      exists: String(Boolean(before.exists)),
+      isDirectory: String(Boolean(before.isDirectory)),
+      size: String(before.size ?? 0),
+    },
+  });
+  try {
+    new File(normalized).delete();
+  } catch (error) {
+    void logWarn('Whisper model directory file cleanup failed', {
+      scope: 'speech',
+      force: true,
+      extra: {
+        uri: normalized,
+        reason,
+        error: error instanceof Error ? error.message : String(error),
+      },
+    });
+    return false;
+  }
+  const after = checkPath(normalized);
+  void logInfo('Whisper model directory file cleanup complete', {
+    scope: 'speech',
+    force: true,
+    extra: {
+      uri: normalized,
+      reason,
+      exists: String(Boolean(after.exists)),
+      isDirectory: String(Boolean(after.isDirectory)),
+      size: String(after.size ?? 0),
+    },
+  });
+  return !after.exists || after.isDirectory;
 };
 
 const listDirectorySample = (uri?: string) => {
@@ -1079,8 +1158,9 @@ const ensureWhisperModelDirectory = (): string | null => {
   } catch {
   }
   for (const root of roots) {
-    try {
-      const dir = new Directory(buildWhisperModelDirectoryUri(root.uri));
+    const dirUri = buildWhisperModelDirectoryUri(root.uri);
+    const createDirectory = () => {
+      const dir = new Directory(dirUri);
       dir.create({ intermediates: true, idempotent: true });
       try {
         const keepFile = new File(dir, WHISPER_MODEL_KEEP_FILE);
@@ -1091,7 +1171,37 @@ const ensureWhisperModelDirectory = (): string | null => {
         // Ignore keep file errors; directory is the important part.
       }
       return dir.uri;
-    } catch {
+    };
+    try {
+      const info = checkPath(dirUri);
+      if (info.exists && !info.isDirectory) {
+        deleteWhisperDirectoryBlockingFile(dirUri, 'pre-create');
+      }
+      return createDirectory();
+    } catch (error) {
+      if (deleteWhisperDirectoryBlockingFile(dirUri, 'create-failed')) {
+        try {
+          return createDirectory();
+        } catch (retryError) {
+          void logWarn('Whisper model directory recreate failed', {
+            scope: 'speech',
+            force: true,
+            extra: {
+              uri: dirUri,
+              error: retryError instanceof Error ? retryError.message : String(retryError),
+            },
+          });
+        }
+      } else {
+        void logWarn('Whisper model directory create failed', {
+          scope: 'speech',
+          force: true,
+          extra: {
+            uri: dirUri,
+            error: error instanceof Error ? error.message : String(error),
+          },
+        });
+      }
     }
   }
   return null;

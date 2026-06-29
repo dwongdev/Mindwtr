@@ -20,7 +20,7 @@ import { getAttachmentsDir } from '../lib/attachment-sync-utils';
 import { logInfo } from '../lib/app-log';
 import { useToast } from '../contexts/toast-context';
 import {
-  ensureWhisperModelPathForConfig,
+  ensureWhisperModelPathForConfigAsync,
   prepareAudioForLocalWhisper,
   preloadWhisperContext,
   processAudioCapture,
@@ -231,8 +231,8 @@ export function useQuickCaptureAudio({
     }
   }, [isUnsafeDeleteTarget, onWarn]);
 
-  const resolveWhisperModel = useCallback((modelId: string, storedPath?: string) => {
-    const resolved = ensureWhisperModelPathForConfig(modelId, storedPath);
+  const resolveWhisperModelAsync = useCallback(async (modelId: string, storedPath?: string) => {
+    const resolved = await ensureWhisperModelPathForConfigAsync(modelId, storedPath);
     if (resolved.exists) {
       const currentPath = storedPath ? stripFileScheme(storedPath) : '';
       const resolvedPath = stripFileScheme(resolved.uri);
@@ -249,17 +249,20 @@ export function useQuickCaptureAudio({
     const speechRuntime = resolveSpeechToTextRuntimeSettings(speech);
     if (!speechRuntime.enabled || speechRuntime.provider !== 'whisper') return;
     const { model, modelPath } = speechRuntime;
-    const resolved = resolveWhisperModel(model, modelPath);
-    if (!resolved.exists) return;
     let cancelled = false;
-    void preloadWhisperContext({ model, modelPath: resolved.path }).catch((error) => {
-      if (cancelled) return;
-      onWarn('Failed to preload whisper model', error);
-    });
+    void resolveWhisperModelAsync(model, modelPath)
+      .then((resolved) => {
+        if (cancelled || !resolved.exists) return undefined;
+        return preloadWhisperContext({ model, modelPath: resolved.path });
+      })
+      .catch((error) => {
+        if (cancelled) return;
+        onWarn('Failed to preload whisper model', error);
+      });
     return () => {
       cancelled = true;
     };
-  }, [onWarn, resolveWhisperModel, settings.ai?.speechToText, visible]);
+  }, [onWarn, resolveWhisperModelAsync, settings.ai?.speechToText, visible]);
 
   const applySpeechResult = useCallback(async (taskId: string, result: SpeechToTextResult): Promise<SpeechApplyResult> => {
     const { tasks: currentTasks, projects: currentProjects, addProject: addProjectNow, updateTask: updateTaskNow, settings: currentSettings } = useTaskStore.getState();
@@ -334,7 +337,7 @@ export function useQuickCaptureAudio({
       const speechRuntime = resolveSpeechToTextRuntimeSettings(speech);
       const { provider, model, modelPath } = speechRuntime;
       const whisperResolved = provider === 'whisper'
-        ? resolveWhisperModel(model, modelPath)
+        ? await resolveWhisperModelAsync(model, modelPath)
         : null;
       const whisperModelReady = provider === 'whisper' ? Boolean(whisperResolved?.exists) : false;
       const resolvedModelPath = provider === 'whisper'
@@ -433,7 +436,7 @@ export function useQuickCaptureAudio({
     onWarn,
     recording,
     recordingBusy,
-    resolveWhisperModel,
+    resolveWhisperModelAsync,
     settings,
     stripFileScheme,
     t,
@@ -477,7 +480,7 @@ export function useQuickCaptureAudio({
         const { provider, model, modelPath } = speechRuntime;
         const apiKey = provider === 'whisper' ? '' : await loadAIKey(provider).catch(() => '');
         const whisperResolved = provider === 'whisper'
-          ? resolveWhisperModel(model, modelPath)
+          ? await resolveWhisperModelAsync(model, modelPath)
           : null;
         const whisperModelReady = provider === 'whisper' ? Boolean(whisperResolved?.exists) : false;
         const resolvedModelPath = provider === 'whisper'
@@ -728,7 +731,7 @@ export function useQuickCaptureAudio({
       const { provider, model, modelPath } = speechRuntime;
       const apiKey = provider === 'whisper' ? '' : await loadAIKey(provider).catch(() => '');
       const whisperResolved = provider === 'whisper'
-        ? resolveWhisperModel(model, modelPath)
+        ? await resolveWhisperModelAsync(model, modelPath)
         : null;
       const whisperModelReady = provider === 'whisper' ? Boolean(whisperResolved?.exists) : false;
       const resolvedModelPath = provider === 'whisper'
@@ -873,7 +876,7 @@ export function useQuickCaptureAudio({
     onWarn,
     recording,
     recordingBusy,
-    resolveWhisperModel,
+    resolveWhisperModelAsync,
     safeDeleteFile,
     settings,
     showToast,

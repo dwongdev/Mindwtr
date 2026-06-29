@@ -19,7 +19,7 @@ import { Paths } from 'expo-file-system';
 
 import { ensureAttachmentAvailable, persistAttachmentLocally } from '../../lib/attachment-sync';
 import { loadAIKey } from '../../lib/ai-config';
-import { ensureWhisperModelPathForConfig, processAudioCapture, resolveSpeechToTextRuntimeSettings } from '../../lib/speech-to-text';
+import { ensureWhisperModelPathForConfigAsync, processAudioCapture, resolveSpeechToTextRuntimeSettings } from '../../lib/speech-to-text';
 import { normalizeAudioUri } from '../../lib/speech-to-text.helpers';
 import {
     isReleasedAudioPlayerError,
@@ -396,7 +396,7 @@ export function useTaskEditAttachments({
             const { provider, model, modelPath } = speechRuntime;
             const apiKey = provider === 'whisper' ? '' : await loadAIKey(provider).catch(() => '');
             const whisperResolved = provider === 'whisper'
-                ? ensureWhisperModelPathForConfig(model, modelPath)
+                ? await ensureWhisperModelPathForConfigAsync(model, modelPath)
                 : null;
             const whisperModelReady = provider === 'whisper' ? Boolean(whisperResolved?.exists) : false;
             const resolvedModelPath = provider === 'whisper'
