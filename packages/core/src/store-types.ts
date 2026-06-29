@@ -7,6 +7,7 @@ export type StoreActionResult = {
     success: boolean;
     error?: string;
     id?: string;
+    ids?: string[];
     /** For promoteTaskToProject: true when an existing same-named project was reused instead of created. */
     reused?: boolean;
 };
@@ -53,6 +54,8 @@ export interface TaskStore {
     seedGettingStarted: () => Promise<StoreActionResult>;
     /** Add a new task */
     addTask: (title: string, initialProps?: Partial<Task>) => Promise<StoreActionResult>;
+    /** Add multiple new tasks in a single store update */
+    addTasks: (items: Array<{ title: string; initialProps?: Partial<Task> }>) => Promise<StoreActionResult>;
     /** Update an existing task */
     updateTask: (id: string, updates: Partial<Task>) => Promise<StoreActionResult>;
     /** Soft-delete a task */

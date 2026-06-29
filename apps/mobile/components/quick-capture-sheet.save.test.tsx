@@ -9,6 +9,7 @@ const selectedAreaIdForNewTasksMock = vi.hoisted(() => ({ current: undefined as 
 
 const {
   addTask,
+  addTasks,
   addProject,
   updateSettings,
   showToast,
@@ -21,6 +22,7 @@ const {
   fileSystemReadAsStringAsync,
 } = vi.hoisted(() => {
   const addTask = vi.fn();
+  const addTasks = vi.fn();
   const addProject = vi.fn();
   const updateSettings = vi.fn();
   const showToast = vi.fn();
@@ -40,6 +42,7 @@ const {
   const fileSystemReadAsStringAsync = vi.fn();
   const storeState = {
     addTask,
+    addTasks,
     addProject,
     updateSettings,
     areas: [],
@@ -53,6 +56,7 @@ const {
   selectStore.getState = () => storeState;
   return {
     addTask,
+    addTasks,
     addProject,
     updateSettings,
     showToast,
@@ -565,9 +569,12 @@ describe('QuickCaptureSheet save handling', () => {
       await Promise.resolve();
     });
 
-    expect(addTask).toHaveBeenCalledTimes(2);
-    expect(addTask).toHaveBeenNthCalledWith(1, 'Email Bob', expect.objectContaining({ status: 'inbox' }));
-    expect(addTask).toHaveBeenNthCalledWith(2, 'Call Alice', expect.objectContaining({ status: 'next' }));
+    expect(addTask).not.toHaveBeenCalled();
+    expect(addTasks).toHaveBeenCalledTimes(1);
+    expect(addTasks).toHaveBeenCalledWith([
+      { title: 'Email Bob', initialProps: expect.objectContaining({ status: 'inbox' }) },
+      { title: 'Call Alice', initialProps: expect.objectContaining({ status: 'next' }) },
+    ]);
   });
 
   it('imports a text file through the bulk capture confirmation', async () => {
@@ -620,9 +627,12 @@ describe('QuickCaptureSheet save handling', () => {
       await Promise.resolve();
     });
 
-    expect(addTask).toHaveBeenCalledTimes(2);
-    expect(addTask).toHaveBeenNthCalledWith(1, 'First imported task', expect.objectContaining({ status: 'inbox' }));
-    expect(addTask).toHaveBeenNthCalledWith(2, 'Second imported task', expect.objectContaining({ status: 'inbox' }));
+    expect(addTask).not.toHaveBeenCalled();
+    expect(addTasks).toHaveBeenCalledTimes(1);
+    expect(addTasks).toHaveBeenCalledWith([
+      { title: 'First imported task', initialProps: expect.objectContaining({ status: 'inbox' }) },
+      { title: 'Second imported task', initialProps: expect.objectContaining({ status: 'inbox' }) },
+    ]);
   });
 
   it('opens the created task when save and edit is requested', async () => {

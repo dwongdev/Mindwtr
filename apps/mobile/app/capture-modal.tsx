@@ -145,9 +145,10 @@ const sanitizeInitialPropsParam = (
 export default function CaptureScreen() {
   const params = useLocalSearchParams<CaptureSearchParams>();
   const router = useRouter();
-  const { addProject, addTask, projects, tasks, settings, areas } = useTaskStore((state) => ({
+  const { addProject, addTask, addTasks, projects, tasks, settings, areas } = useTaskStore((state) => ({
     addProject: state.addProject,
     addTask: state.addTask,
+    addTasks: state.addTasks,
     projects: state.projects,
     tasks: state.tasks,
     settings: state.settings,
@@ -344,11 +345,8 @@ export default function CaptureScreen() {
     return `${preview}${suffix}`;
   };
 
-  const createTaskFromInput = async (
-    inputValue: string,
-    { openAfterSave = false }: { openAfterSave?: boolean } = {},
-  ): Promise<boolean> => {
-    if (!inputValue.trim()) return false;
+  const buildTaskInputFromInput = async (inputValue: string): Promise<{ title: string; initialProps: Partial<Task> } | null> => {
+    if (!inputValue.trim()) return null;
     const { title, props, projectTitle, invalidDateCommands, detectedDate } = parseQuickAdd(
       inputValue,
       projects,
@@ -369,11 +367,11 @@ export default function CaptureScreen() {
         tone: 'warning',
         durationMs: 4200,
       });
-      return false;
+      return null;
     }
     const shouldApplyDetectedDate = Boolean(detectedDate?.date && !props.dueDate);
     const finalTitle = shouldApplyDetectedDate && detectedDate ? detectedDate.titleWithoutDate : (title || inputValue);
-    if (!finalTitle.trim()) return false;
+    if (!finalTitle.trim()) return null;
     const taskProps: Partial<Task> = { status: 'inbox', ...initialProps, ...props };
     if (!taskProps.status) taskProps.status = 'inbox';
     if (shouldApplyDetectedDate && detectedDate) {
@@ -406,7 +404,7 @@ export default function CaptureScreen() {
             DEFAULT_PROJECT_COLOR,
             getQuickAddProjectInitialProps(taskProps, defaultNewTaskAreaId),
           );
-          if (!created) return false;
+          if (!created) return null;
           taskProps.projectId = created.id;
         }
       }
@@ -432,21 +430,34 @@ export default function CaptureScreen() {
       const nextTags = Array.from(new Set([...(taskProps.tags ?? []), ...copilotTags]));
       taskProps.tags = nextTags;
     }
-    const addTaskResult = await addTask(finalTitle, taskProps);
+    return { title: finalTitle, initialProps: taskProps };
+  };
+
+  const createTaskFromInput = async (
+    inputValue: string,
+    { openAfterSave = false }: { openAfterSave?: boolean } = {},
+  ): Promise<boolean> => {
+    const taskInput = await buildTaskInputFromInput(inputValue);
+    if (!taskInput) return false;
+    const addTaskResult = await addTask(taskInput.title, taskInput.initialProps);
     if (addTaskResult && typeof addTaskResult === 'object' && addTaskResult.success === false) return false;
     const createdTaskId = getCreatedTaskId(addTaskResult);
     if (openAfterSave && createdTaskId) {
-      openTaskScreen(createdTaskId, taskProps.projectId, 'task');
+      openTaskScreen(createdTaskId, taskInput.initialProps.projectId, 'task');
       return false;
     }
     return true;
   };
 
   const createBulkTasks = async (lines: string[]) => {
+    const taskInputs: Array<{ title: string; initialProps: Partial<Task> }> = [];
     for (const line of lines) {
-      const shouldClose = await createTaskFromInput(line);
-      if (!shouldClose) return;
+      const taskInput = await buildTaskInputFromInput(line);
+      if (!taskInput) return;
+      taskInputs.push(taskInput);
     }
+    const result = await addTasks(taskInputs);
+    if (result && typeof result === 'object' && result.success === false) return;
     closeCapture();
   };
 

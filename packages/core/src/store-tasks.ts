@@ -125,6 +125,7 @@ const findExistingRecurringFollowUp = (tasks: readonly Task[], candidate: Task |
 type TaskActions = Pick<
     TaskStore,
     | 'addTask'
+    | 'addTasks'
     | 'updateTask'
     | 'deleteTask'
     | 'restoreTask'
@@ -585,67 +586,83 @@ export const createTaskActions = ({ set, get, getStorage, debouncedSave, trackIm
      * @param initialProps Optional initial properties
      */
     addTask: async (title: string, initialProps?: Partial<Task>) => {
-        const changeAt = Date.now();
         const trimmedTitle = typeof title === 'string' ? title.trim() : '';
         if (!trimmedTitle) {
             const message = 'Task title is required';
             set({ error: message });
             return actionFail(message);
         }
-        const currentState = get();
-        const initialTaskProps = initialProps ?? {};
-        const hasExplicitAreaId = hasOwnField(initialTaskProps, 'areaId');
-        const shouldApplyDefaultArea = !hasExplicitAreaId
-            && !normalizeProjectIdInput(initialTaskProps.projectId)
-            && !normalizeOptionalReferenceId(initialTaskProps.sectionId);
-        const defaultAreaId = shouldApplyDefaultArea
-            ? resolveDefaultNewTaskAreaId(currentState.settings, currentState._allAreas)
-            : undefined;
-        const containerResolution = resolveTaskContainerAssignment({
-            projectId: initialTaskProps.projectId,
-            sectionId: initialTaskProps.sectionId,
-            areaId: defaultAreaId ?? initialTaskProps.areaId,
-            allProjects: currentState._allProjects,
-            allSections: currentState._allSections,
-            allAreas: currentState._allAreas,
-        });
-        if (!containerResolution.ok) {
-            set({ error: containerResolution.error });
-            return actionFail(containerResolution.error);
-        }
-        const resolvedStatus = (initialProps?.status ?? 'inbox') as TaskStatus;
-        const hasTaskOrder = Object.prototype.hasOwnProperty.call(initialProps ?? {}, 'order')
-            || Object.prototype.hasOwnProperty.call(initialProps ?? {}, 'orderNum');
-        const resolvedProjectId = containerResolution.projectId;
-        const resolvedSectionId = containerResolution.sectionId;
-        const resolvedAreaId = containerResolution.areaId;
-        const referenceClears = resolvedStatus === 'reference'
-            ? getReferenceTaskFieldClears()
-            : {};
-        const now = new Date().toISOString();
-        let snapshot: AppData | null = null;
-        let createdTaskId = '';
+        const result = await get().addTasks([{ title: trimmedTitle, initialProps }]);
+        if (!result.success) return result;
+        return actionOk({ id: result.ids?.[0] });
+    },
 
-        set((state) => {
-            const deviceState = ensureDeviceId(state.settings);
-            const deviceId = deviceState.deviceId;
-            const explicitOrder = getTaskOrder(initialProps ?? {});
-            const projectOrderReserver = createProjectOrderReserver(state._allTasks);
+    /**
+     * Add multiple tasks in one store update and persistence snapshot.
+     */
+    addTasks: async (items: Array<{ title: string; initialProps?: Partial<Task> }>) => {
+        const changeAt = Date.now();
+        const normalizedItems = items.map((item) => ({
+            title: typeof item.title === 'string' ? item.title.trim() : '',
+            initialProps: item.initialProps ?? {},
+        })).filter((item) => item.title.length > 0);
+        if (normalizedItems.length === 0) return actionOk({ ids: [] });
+
+        const currentState = get();
+        const deviceState = ensureDeviceId(currentState.settings);
+        const deviceId = deviceState.deviceId;
+        const now = new Date().toISOString();
+        const projectOrderReserver = createProjectOrderReserver(currentState._allTasks);
+        const focusTaskLimit = normalizeFocusTaskLimit(currentState.settings.gtd?.focusTaskLimit);
+        let focusedCount = currentState.getDerivedState().focusedCount;
+        const nextAllTasks = [...currentState._allTasks];
+        const newTasks: Task[] = [];
+
+        for (const item of normalizedItems) {
+            const initialTaskProps = item.initialProps;
+            const hasExplicitAreaId = hasOwnField(initialTaskProps, 'areaId');
+            const shouldApplyDefaultArea = !hasExplicitAreaId
+                && !normalizeProjectIdInput(initialTaskProps.projectId)
+                && !normalizeOptionalReferenceId(initialTaskProps.sectionId);
+            const defaultAreaId = shouldApplyDefaultArea
+                ? resolveDefaultNewTaskAreaId(currentState.settings, currentState._allAreas)
+                : undefined;
+            const containerResolution = resolveTaskContainerAssignment({
+                projectId: initialTaskProps.projectId,
+                sectionId: initialTaskProps.sectionId,
+                areaId: defaultAreaId ?? initialTaskProps.areaId,
+                allProjects: currentState._allProjects,
+                allSections: currentState._allSections,
+                allAreas: currentState._allAreas,
+            });
+            if (!containerResolution.ok) {
+                set({ error: containerResolution.error });
+                return actionFail(containerResolution.error);
+            }
+
+            const resolvedStatus = (initialTaskProps.status ?? 'inbox') as TaskStatus;
+            const hasTaskOrder = hasOwnField(initialTaskProps, 'order') || hasOwnField(initialTaskProps, 'orderNum');
+            const resolvedProjectId = containerResolution.projectId;
+            const resolvedSectionId = containerResolution.sectionId;
+            const resolvedAreaId = containerResolution.areaId;
+            const referenceClears = resolvedStatus === 'reference'
+                ? getReferenceTaskFieldClears()
+                : {};
+            const explicitOrder = getTaskOrder(initialTaskProps);
             const resolvedOrder = !hasTaskOrder && resolvedProjectId
                 ? projectOrderReserver(resolvedProjectId)
                 : explicitOrder;
-            createdTaskId = uuidv4();
             const newTask: Task = {
-                ...initialProps,
-                id: createdTaskId,
-                title: trimmedTitle,
+                ...initialTaskProps,
+                id: uuidv4(),
+                title: item.title,
                 status: resolvedStatus,
-                taskMode: initialProps?.taskMode ?? 'task',
-                tags: initialProps?.tags ?? [],
-                contexts: initialProps?.contexts ?? [],
-                pushCount: initialProps?.pushCount ?? 0,
-                recurrence: normalizeRecurrenceForLoad(initialProps?.recurrence),
-                repeatReminderMinutes: normalizeRepeatReminderMinutes(initialProps?.repeatReminderMinutes),
+                taskMode: initialTaskProps.taskMode ?? 'task',
+                tags: initialTaskProps.tags ?? [],
+                contexts: initialTaskProps.contexts ?? [],
+                pushCount: initialTaskProps.pushCount ?? 0,
+                recurrence: normalizeRecurrenceForLoad(initialTaskProps.recurrence),
+                repeatReminderMinutes: normalizeRepeatReminderMinutes(initialTaskProps.repeatReminderMinutes),
                 rev: 1,
                 revBy: deviceId,
                 createdAt: now,
@@ -659,29 +676,33 @@ export const createTaskActions = ({ set, get, getStorage, debouncedSave, trackIm
                 order: resolvedOrder,
                 orderNum: resolvedOrder,
             };
+
             if (newTask.isFocusedToday === true) {
-                const focusTaskLimit = normalizeFocusTaskLimit(state.settings.gtd?.focusTaskLimit);
-                const focusedCount = state.getDerivedState().focusedCount;
                 const focusCandidate: Task = { ...newTask, isFocusedToday: false };
                 const focusEligibility = getTaskFocusEligibility(focusCandidate, {
-                    tasks: [...state._allTasks, focusCandidate],
-                    projects: state._allProjects,
-                    showFutureStarts: state.settings.appearance?.showFutureStarts,
+                    tasks: [...nextAllTasks, focusCandidate],
+                    projects: currentState._allProjects,
+                    showFutureStarts: currentState.settings.appearance?.showFutureStarts,
                 });
                 if (!focusEligibility.eligible || focusedCount >= focusTaskLimit) {
                     newTask.isFocusedToday = false;
+                } else {
+                    focusedCount += 1;
                 }
             }
 
-            const newAllTasks = [...state._allTasks, newTask];
-            const newVisibleTasks = updateVisibleTasks(state.tasks, null, newTask);
+            newTasks.push(newTask);
+            nextAllTasks.push(newTask);
+        }
+
+        let snapshot: AppData | null = null;
+        set((state) => {
             snapshot = buildSaveSnapshot(state, {
-                tasks: newAllTasks,
+                tasks: nextAllTasks,
                 ...(deviceState.updated ? { settings: deviceState.settings } : {}),
             });
             return {
-                tasks: newVisibleTasks,
-                _allTasks: newAllTasks,
+                _allTasks: nextAllTasks,
                 lastDataChangeAt: getNextDataChangeAt(state.lastDataChangeAt, changeAt),
                 ...(deviceState.updated ? { settings: deviceState.settings } : {}),
             };
@@ -690,7 +711,7 @@ export const createTaskActions = ({ set, get, getStorage, debouncedSave, trackIm
         if (snapshot) {
             debouncedSave(snapshot, (msg) => set({ error: msg }));
         }
-        return actionOk({ id: createdTaskId });
+        return actionOk({ id: newTasks[0]?.id, ids: newTasks.map((task) => task.id) });
     },
 
     /**

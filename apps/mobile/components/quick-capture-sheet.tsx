@@ -89,8 +89,9 @@ export function QuickCaptureSheet({
   initialValue?: string;
   autoRecord?: boolean;
 }) {
-  const { addTask, addProject, updateSettings, projects, settings, areas } = useTaskStore((state) => ({
+  const { addTask, addTasks, addProject, updateSettings, projects, settings, areas } = useTaskStore((state) => ({
     addTask: state.addTask,
+    addTasks: state.addTasks,
     addProject: state.addProject,
     updateSettings: state.updateSettings,
     projects: state.projects,
@@ -552,15 +553,28 @@ export function QuickCaptureSheet({
     if (isSavingRef.current) return;
     isSavingRef.current = true;
     try {
+      const taskInputs: Array<{ title: string; initialProps: Partial<Task> }> = [];
       for (const line of lines) {
-        const result = await createTaskFromInput(line);
-        if (!result) return;
+        const { title, props, invalidDateCommands } = await buildTaskPropsForInput(line, line.trim());
+        if (invalidDateCommands && invalidDateCommands.length > 0) {
+          showToast({
+            title: t('common.notice'),
+            message: `${t('quickAdd.invalidDateCommand')}: ${invalidDateCommands.join(', ')}`,
+            tone: 'warning',
+            durationMs: 4200,
+          });
+          return;
+        }
+        if (!title.trim()) return;
+        taskInputs.push({ title, initialProps: props });
       }
+      const result = await addTasks(taskInputs);
+      if (result && typeof result === 'object' && result.success === false) return;
       finalizeClose();
     } finally {
       isSavingRef.current = false;
     }
-  }, [createTaskFromInput, finalizeClose]);
+  }, [addTasks, buildTaskPropsForInput, finalizeClose, showToast, t]);
 
   const confirmBulkQuickAdd = useCallback((lines: string[]) => {
     Alert.alert(

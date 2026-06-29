@@ -21,6 +21,7 @@ const { openTaskScreen, parseQuickAdd, routerMocks, routeParams, storeState } = 
     storeState: {
       addProject: vi.fn(),
       addTask: vi.fn(),
+      addTasks: vi.fn(),
       projects: [] as any[],
       tasks: [] as any[],
       settings: { ai: { enabled: false }, features: {} },
@@ -304,9 +305,12 @@ describe('CaptureScreen', () => {
       await confirm.onPress?.();
     });
 
-    expect(storeState.addTask).toHaveBeenCalledTimes(2);
-    expect(storeState.addTask).toHaveBeenNthCalledWith(1, 'Email Bob', expect.objectContaining({ status: 'inbox' }));
-    expect(storeState.addTask).toHaveBeenNthCalledWith(2, 'Call Alice', expect.objectContaining({ status: 'next' }));
+    expect(storeState.addTask).not.toHaveBeenCalled();
+    expect(storeState.addTasks).toHaveBeenCalledTimes(1);
+    expect(storeState.addTasks).toHaveBeenCalledWith([
+      { title: 'Email Bob', initialProps: expect.objectContaining({ status: 'inbox' }) },
+      { title: 'Call Alice', initialProps: expect.objectContaining({ status: 'next' }) },
+    ]);
     expect(routerMocks.replace).toHaveBeenCalledWith('/inbox');
   });
 

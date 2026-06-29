@@ -111,6 +111,35 @@ describe('TaskStore', () => {
         expect(tasks[0].status).toBe('inbox');
     });
 
+    it('adds multiple tasks in one store update and one save', async () => {
+        const project = createStoreProject('project-1');
+        useTaskStore.setState({
+            projects: [project],
+            _allProjects: [project],
+            _projectsById: buildEntityMap([project]),
+        });
+        const listener = vi.fn();
+        const unsubscribe = useTaskStore.subscribe(listener);
+        try {
+            const result = await (useTaskStore.getState() as any).addTasks([
+                { title: 'One', initialProps: { status: 'next', projectId: project.id } },
+                { title: 'Two', initialProps: { status: 'next', projectId: project.id } },
+            ]);
+
+            expect(result.success).toBe(true);
+            expect(result.ids).toHaveLength(2);
+            const { tasks } = useTaskStore.getState();
+            expect(tasks.map((task) => task.title)).toEqual(['One', 'Two']);
+            expect(tasks.map((task) => task.projectId)).toEqual([project.id, project.id]);
+            expect(tasks.map((task) => task.order)).toEqual([0, 1]);
+            expect(listener).toHaveBeenCalledTimes(1);
+            await flushPendingSave();
+            expect(mockStorage.saveData).toHaveBeenCalledTimes(1);
+        } finally {
+            unsubscribe();
+        }
+    });
+
     it('should ignore reserved task fields when adding a task', async () => {
         const { addTask } = useTaskStore.getState();
         const result = await addTask('Safe Task', {
