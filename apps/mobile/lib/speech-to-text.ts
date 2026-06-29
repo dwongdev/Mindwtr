@@ -153,6 +153,13 @@ let whisperRealtimeModuleCache:
 
 type RNFSModule = typeof import('react-native-fs');
 let rnfsModuleCache: RNFSModule | null | undefined;
+let rnfsModuleRequireFailed = false;
+let rnfsModuleImportFailed = false;
+
+const isRNFSNativeModuleEvaluationError = (error: unknown): boolean => {
+  const message = error instanceof Error ? error.message : String(error);
+  return message.includes('RNFSFileTypeRegular') || message.includes('RNFSManager');
+};
 
 const resolveRNFSModule = (value: unknown): RNFSModule | null => {
   const candidates = [
@@ -178,7 +185,8 @@ const getRNFSModule = (): RNFSModule | null => {
     // eslint-disable-next-line @typescript-eslint/no-var-requires
     rnfsModuleCache = resolveRNFSModule(require('react-native-fs'));
     return rnfsModuleCache;
-  } catch {
+  } catch (error) {
+    rnfsModuleRequireFailed = isRNFSNativeModuleEvaluationError(error);
     rnfsModuleCache = null;
     return null;
   }
@@ -186,12 +194,14 @@ const getRNFSModule = (): RNFSModule | null => {
 
 const getRNFSModuleAsync = async (): Promise<RNFSModule | null> => {
   const loaded = getRNFSModule();
-  if (loaded) return loaded;
+  if (loaded || rnfsModuleRequireFailed || rnfsModuleImportFailed) return loaded;
   try {
     const imported = await import('react-native-fs');
     rnfsModuleCache = resolveRNFSModule(imported);
     return rnfsModuleCache;
-  } catch {
+  } catch (error) {
+    rnfsModuleImportFailed = true;
+    rnfsModuleRequireFailed = rnfsModuleRequireFailed || isRNFSNativeModuleEvaluationError(error);
     rnfsModuleCache = null;
     return null;
   }

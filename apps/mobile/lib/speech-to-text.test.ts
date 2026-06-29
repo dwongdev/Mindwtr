@@ -320,6 +320,37 @@ describe('speech-to-text', () => {
     });
   });
 
+  it('does not retry RNFS import after native module evaluation fails', async () => {
+    let rnfsLoadAttempts = 0;
+    vi.resetModules();
+    vi.doMock('react-native-fs', () => {
+      rnfsLoadAttempts += 1;
+      throw new TypeError("Cannot read property 'RNFSFileTypeRegular' of null");
+    });
+
+    try {
+      const freshSpeech = await import('./speech-to-text');
+      fileSystemMock.existingUris = new Set([
+        'file:///document/',
+        'file:///cache/',
+      ]);
+
+      await expect(
+        freshSpeech.resolveWhisperModelPathForConfigAsync(
+          'whisper-tiny.en',
+          'file:///document/whisper-models/ggml-tiny.en.bin'
+        )
+      ).resolves.toMatchObject({
+        uri: 'file:///document/whisper-models/ggml-tiny.en.bin',
+        exists: false,
+      });
+      expect(rnfsLoadAttempts).toBe(1);
+    } finally {
+      vi.doMock('react-native-fs', () => ({ ...rnfsMock, default: rnfsMock }));
+      vi.resetModules();
+    }
+  });
+
   it('resolves a missing Whisper model to the current container whisper-models path', () => {
     fileSystemMock.existingUris = new Set([
       'file:///document/',
