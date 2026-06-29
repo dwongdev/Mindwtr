@@ -1,6 +1,7 @@
 import type { BreakdownInput, ClarifyInput, ReviewSnapshotItem } from './types';
 
-export const MAX_REVIEW_ANALYSIS_ITEMS = 30;
+export const MAX_REVIEW_ANALYSIS_ITEMS = 16;
+export const MAX_REVIEW_ANALYSIS_SUGGESTIONS = 8;
 
 const SYSTEM_PROMPT = [
     'You are a strict GTD coach.',
@@ -82,15 +83,17 @@ export function buildReviewAnalysisPrompt(items: ReviewSnapshotItem[]): { system
         'You are a ruthless GTD coach.',
         `Current time: ${new Date().toISOString()}.`,
         scope,
-        'For each item, suggest ONE action:',
+        `Return 1-${MAX_REVIEW_ANALYSIS_SUGGESTIONS} high-signal suggestions only.`,
+        'Do not return one suggestion per item. Include only items that need action, plus at most one keep suggestion if no action is needed.',
+        'Allowed actions:',
         '- "someday": move to Someday/Maybe.',
         '- "archive": archive it (likely done or irrelevant).',
         '- "breakdown": too big; needs subtasks.',
-        '- "keep": still valid, do nothing.',
+        '- "keep": still valid, do nothing; use for at most one item.',
         'Scheduling rules:',
-        '- If startTime or reviewAt is in the future, choose "keep" unless another explicit reason in the item says otherwise.',
+        '- If startTime or reviewAt is in the future, use "keep" or omit the item unless another explicit reason says it needs action.',
         '- Do not suggest "archive" or claim an item is likely done only because a future-dated item has not changed recently.',
-        'Return strictly valid JSON:',
+        'Return strictly valid compact JSON. Each reason must be 12 words or fewer:',
         '{ "suggestions": [{ "id": "task_id", "action": "someday|archive|breakdown|keep", "reason": "..." }] }',
         'Items:',
         JSON.stringify(scopedItems),

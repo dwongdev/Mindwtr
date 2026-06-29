@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { buildClarifyPrompt, buildCopilotPrompt, buildReviewAnalysisPrompt, MAX_REVIEW_ANALYSIS_ITEMS } from './prompts';
+import { buildClarifyPrompt, buildCopilotPrompt, buildReviewAnalysisPrompt, MAX_REVIEW_ANALYSIS_ITEMS, MAX_REVIEW_ANALYSIS_SUGGESTIONS } from './prompts';
 import type { ReviewSnapshotItem } from './types';
 
 const createItem = (index: number): ReviewSnapshotItem => ({
@@ -22,6 +22,17 @@ describe('buildReviewAnalysisPrompt', () => {
         expect(prompt.user).toContain(`Ignore the remaining 5 items`);
     });
 
+    it('asks for a compact actionable subset instead of one response per stale item', () => {
+        const items = Array.from({ length: 60 }, (_unused, index) => createItem(index));
+        const prompt = buildReviewAnalysisPrompt(items);
+
+        expect(prompt.user).toContain(`Return 1-${MAX_REVIEW_ANALYSIS_SUGGESTIONS} high-signal suggestions only.`);
+        expect(prompt.user).toContain('Do not return one suggestion per item.');
+        expect(prompt.user).toContain('at most one keep suggestion');
+        expect(prompt.user).toContain('Each reason must be 12 words or fewer');
+        expect(prompt.user).toContain('"action": "someday|archive|breakdown|keep"');
+    });
+
     it('keeps scheduling dates in the review payload and warns against archiving future items', () => {
         const item: ReviewSnapshotItem = {
             id: 'future-task',
@@ -36,7 +47,7 @@ describe('buildReviewAnalysisPrompt', () => {
         const scopedItems = JSON.parse(jsonPayload) as ReviewSnapshotItem[];
 
         expect(scopedItems[0]).toEqual(item);
-        expect(prompt.user).toContain('If startTime or reviewAt is in the future, choose "keep"');
+        expect(prompt.user).toContain('If startTime or reviewAt is in the future, use "keep" or omit the item');
         expect(prompt.user).toContain('Do not suggest "archive"');
     });
 });
