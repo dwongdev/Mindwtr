@@ -37,6 +37,13 @@ export const buildCaptureExtra = (message?: string, error?: unknown): Record<str
 };
 
 
+export const buildCaptureDirectoryUri = (rootUri: string, directoryName: string) => {
+    const baseUri = rootUri.endsWith('/') ? rootUri : `${rootUri}/`;
+    const childName = directoryName.replace(/^\/+|\/+$/gu, '');
+    return `${baseUri}${childName}`;
+};
+
+
 export const buildCaptureFileUri = (directoryUri: string, fileName: string) => {
     const baseUri = directoryUri.endsWith('/') ? directoryUri : `${directoryUri}/`;
     return `${baseUri}${fileName}`;

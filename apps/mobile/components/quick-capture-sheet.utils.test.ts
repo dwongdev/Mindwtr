@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+    buildCaptureDirectoryUri,
     buildCaptureExtra,
     buildCaptureFileUri,
     getCaptureFileExtension,
@@ -21,6 +22,13 @@ describe('quick-capture utils', () => {
         expect(getCaptureMimeType('.wav')).toBe('audio/wav');
         expect(getCaptureMimeType('.mp3')).toBe('audio/mpeg');
         expect(getCaptureMimeType('.unknown')).toBe('audio/mp4');
+    });
+
+    it('builds managed capture directory URIs below the root directory', () => {
+        expect(buildCaptureDirectoryUri('file:///document/', 'audio-captures'))
+            .toBe('file:///document/audio-captures');
+        expect(buildCaptureDirectoryUri('file:///document', 'audio-captures'))
+            .toBe('file:///document/audio-captures');
     });
 
     it('builds capture file URIs inside the target directory', () => {

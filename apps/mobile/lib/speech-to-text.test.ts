@@ -39,6 +39,20 @@ vi.mock('expo-file-system', () => ({
     constructor(uri: string) {
       this.uri = uri;
     }
+
+    get exists() {
+      return fileSystemMock.existingUris ? fileSystemMock.existingUris.has(this.uri) : true;
+    }
+
+    create() {
+      if (fileSystemMock.existingUris) {
+        fileSystemMock.existingUris.add(this.uri);
+      }
+    }
+
+    list() {
+      return [] as unknown[];
+    }
   },
   File: class MockFile {
     uri: string;
@@ -212,6 +226,20 @@ describe('speech-to-text', () => {
     });
   });
 
+  it('resolves a missing Whisper model to the current container whisper-models path', () => {
+    fileSystemMock.existingUris = new Set([
+      'file:///document/',
+      'file:///cache/',
+    ]);
+
+    expect(ensureWhisperModelPathForConfig('whisper-tiny.en')).toMatchObject({
+      uri: 'file:///document/whisper-models/ggml-tiny.en.bin',
+      path: '/document/whisper-models/ggml-tiny.en.bin',
+      exists: false,
+      size: 0,
+    });
+  });
+
   it('logs Whisper model search directories and candidates when the model is missing', () => {
     fileSystemMock.existingUris = new Set([
       'file:///document/',
@@ -222,7 +250,7 @@ describe('speech-to-text', () => {
       'whisper-tiny.en',
       'file:///document/ggml-tiny.en.bin'
     )).toMatchObject({
-      uri: 'file:///document/ggml-tiny.en.bin',
+      uri: 'file:///document/whisper-models/ggml-tiny.en.bin',
       exists: false,
       size: 0,
     });

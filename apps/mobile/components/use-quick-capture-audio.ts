@@ -16,6 +16,7 @@ import {
 } from '@mindwtr/core';
 import { loadAIKey } from '../lib/ai-config';
 import { persistAttachmentLocally } from '../lib/attachment-sync';
+import { getAttachmentsDir } from '../lib/attachment-sync-utils';
 import { logInfo } from '../lib/app-log';
 import { useToast } from '../contexts/toast-context';
 import {
@@ -31,6 +32,7 @@ import {
   type SpeechToTextResult,
 } from '../lib/speech-to-text';
 import {
+  buildCaptureDirectoryUri,
   buildCaptureFileUri,
   getCaptureFileExtension,
   getCaptureMimeType,
@@ -85,7 +87,7 @@ const describeCaptureFile = (file: File | null | undefined): Record<string, stri
   if (!file) return { uri: '' };
   const uri = file.uri ?? '';
   try {
-    const info = file.info();
+    const info = file.info() as { exists?: boolean; isDirectory?: boolean; size?: number };
     return {
       uri,
       exists: String(Boolean(info?.exists)),
@@ -106,6 +108,44 @@ const describeCaptureFiles = (files: (File | null | undefined)[]) => files
     .map(([key, value]) => `${index}.${key}=${value}`)
     .join('|'))
   .join('; ');
+
+const describeAttachmentCacheInfo = (uri: string): Record<string, string> => {
+  try {
+    const info = new File(uri).info() as { exists?: boolean; isDirectory?: boolean; size?: number };
+    return {
+      uri,
+      exists: String(Boolean(info?.exists)),
+      isDirectory: String(Boolean(info?.isDirectory)),
+      size: typeof info?.size === 'number' ? String(info.size) : 'unknown',
+    };
+  } catch (error) {
+    return {
+      uri,
+      exists: 'error',
+      error: error instanceof Error ? error.message : String(error),
+    };
+  }
+};
+
+const cacheAudioAttachmentOrThrow = async (attachment: Attachment): Promise<Attachment> => {
+  const sourceUri = attachment.uri;
+  const cached = await persistAttachmentLocally(attachment);
+  const attachmentsDir = await getAttachmentsDir();
+  const cachedInfo = describeAttachmentCacheInfo(cached.uri);
+  const cachedInManagedDir = Boolean(attachmentsDir && cached.uri.startsWith(attachmentsDir));
+  logSpeechCaptureInfo('Quick capture audio attachment cache result', {
+    id: attachment.id,
+    sourceUri,
+    cachedUri: cached.uri,
+    attachmentsDir: attachmentsDir ?? '',
+    cachedInManagedDir: String(cachedInManagedDir),
+    ...cachedInfo,
+  });
+  if (!cachedInManagedDir || cachedInfo.exists !== 'true' || cachedInfo.isDirectory === 'true') {
+    throw new Error(`Audio attachment was not cached into managed storage: ${cached.uri}`);
+  }
+  return cached;
+};
 
 export function useQuickCaptureAudio({
   addTask,
@@ -140,8 +180,15 @@ export function useQuickCaptureAudio({
     }
     for (const root of candidates) {
       try {
-        const dir = new Directory(root, 'audio-captures');
+        const directoryUri = buildCaptureDirectoryUri(root.uri, 'audio-captures');
+        const dir = new Directory(directoryUri);
         dir.create({ intermediates: true, idempotent: true });
+        logSpeechCaptureInfo('Quick capture audio directory ready', {
+          platform: Platform.OS,
+          rootUri: root.uri,
+          directoryUri: dir.uri,
+          exists: String(Boolean(dir.exists)),
+        });
         return dir;
       } catch (error) {
         onWarn('Failed to create audio directory', error);
@@ -467,9 +514,10 @@ export function useQuickCaptureAudio({
         } : null;
         if (attachment) {
           try {
-            attachment = await persistAttachmentLocally(attachment);
+            attachment = await cacheAudioAttachmentOrThrow(attachment);
           } catch (error) {
             onWarn('Failed to persist audio attachment', error);
+            throw error;
           }
         }
 
@@ -592,7 +640,8 @@ export function useQuickCaptureAudio({
       const now = new Date();
       const timestamp = safeFormatDate(now, 'yyyyMMdd-HHmmss');
       const extension = getCaptureFileExtension(uri);
-      const directory = await ensureAudioDirectory();
+      const shouldRelocateRecording = Platform.OS !== 'ios';
+      const directory = shouldRelocateRecording ? await ensureAudioDirectory() : null;
       const fileName = `mindwtr-audio-${timestamp}${extension}`;
       const sourceFile = new File(uri);
       const destinationFile = directory ? new File(buildCaptureFileUri(directory.uri, fileName)) : null;
@@ -604,6 +653,14 @@ export function useQuickCaptureAudio({
         destinationUri: destinationFile?.uri ?? '',
         extension,
       });
+
+      if (!shouldRelocateRecording) {
+        logSpeechCaptureInfo('Quick capture using recorder source without move', {
+          platform: Platform.OS,
+          sourceBeforeUri: uri,
+          candidates: describeCaptureFiles(captureCandidates),
+        });
+      }
 
       if (destinationFile) {
         try {
@@ -708,9 +765,10 @@ export function useQuickCaptureAudio({
       } : null;
       if (attachment) {
         try {
-          attachment = await persistAttachmentLocally(attachment);
+          attachment = await cacheAudioAttachmentOrThrow(attachment);
         } catch (error) {
           onWarn('Failed to persist audio attachment', error);
+          throw error;
         }
       }
 

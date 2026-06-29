@@ -832,6 +832,16 @@ const WHISPER_MODEL_FILES: Record<string, string> = {
   'whisper-base.en': 'ggml-base.en.bin',
 };
 
+const buildWhisperModelDirectoryUri = (rootUri: string): string => {
+  const normalized = rootUri.endsWith('/') ? rootUri : `${rootUri}/`;
+  return `${normalized}${WHISPER_MODEL_DIR_NAME}`;
+};
+
+const buildWhisperModelFileUri = (rootUri: string, fileName: string): string => {
+  const directoryUri = buildWhisperModelDirectoryUri(rootUri);
+  return `${directoryUri.endsWith('/') ? directoryUri : `${directoryUri}/`}${fileName}`;
+};
+
 type WhisperModelResolved = {
   path: string;
   uri: string;
@@ -1001,7 +1011,7 @@ const ensureWhisperModelDirectory = (): string | null => {
   }
   for (const root of roots) {
     try {
-      const dir = new Directory(root, WHISPER_MODEL_DIR_NAME);
+      const dir = new Directory(buildWhisperModelDirectoryUri(root.uri));
       dir.create({ intermediates: true, idempotent: true });
       try {
         const keepFile = new File(dir, WHISPER_MODEL_KEEP_FILE);
@@ -1037,7 +1047,7 @@ const buildWhisperModelCandidates = (
     const appendCandidates = (base?: string | null) => {
       if (!base) return;
       const normalizedBase = base.endsWith('/') ? base : `${base}/`;
-      candidates.push(`${normalizedBase}${WHISPER_MODEL_DIR_NAME}/${fileName}`);
+      candidates.push(buildWhisperModelFileUri(normalizedBase, fileName));
       if (includeRoot) {
         candidates.push(`${normalizedBase}${fileName}`);
       }
@@ -1079,9 +1089,7 @@ export const ensureWhisperModelPathForConfig = (
   if (!fileName) return resolved;
 
   const preferredDir = ensureWhisperModelDirectory();
-  const preferredUri = preferredDir
-    ? `${preferredDir.endsWith('/') ? preferredDir : `${preferredDir}/`}${fileName}`
-    : null;
+  const preferredUri = preferredDir ? `${preferredDir.endsWith('/') ? preferredDir : `${preferredDir}/`}${fileName}` : null;
 
   if (preferredUri) {
     const preferredNormalized = normalizeFilePath(preferredUri);
@@ -1132,6 +1140,11 @@ export const ensureWhisperModelPathForConfig = (
     force: true,
     extra: buildWhisperDiagnostics(modelId, modelPath, resolved, candidates),
   });
+
+  if (preferredUri) {
+    const preferredNormalized = normalizeFilePath(preferredUri);
+    return { path: preferredNormalized.path, uri: preferredNormalized.uri, exists: false, size: 0 };
+  }
 
   return resolved;
 };

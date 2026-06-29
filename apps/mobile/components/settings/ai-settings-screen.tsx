@@ -23,6 +23,7 @@ import {
 import { loadAIKey, saveAIKey } from '@/lib/ai-config';
 import { useToast } from '@/contexts/toast-context';
 import { useThemeColors } from '@/hooks/use-theme-colors';
+import { logInfo } from '@/lib/app-log';
 import { logSettingsError, logSettingsWarn } from '@/lib/settings-utils';
 
 import { AiSettingsAssistantCard } from './ai-settings-assistant-card';
@@ -55,6 +56,21 @@ type RNFSModule = typeof import('react-native-fs');
 let rnfsModuleCache: unknown | null | undefined;
 let rnfsHashModuleCache: WhisperModelNativeHashFs | null | undefined;
 let rnfsDownloadModuleCache: WhisperModelNativeFs | null | undefined;
+
+const buildWhisperModelDirectoryUri = (rootUri: string): string => {
+    const normalized = rootUri.endsWith('/') ? rootUri : `${rootUri}/`;
+    return `${normalized}whisper-models`;
+};
+
+const stringifyWhisperLogDetails = (details?: Record<string, unknown>): Record<string, string> | undefined => {
+    if (!details) return undefined;
+    const extra: Record<string, string> = {};
+    for (const [key, value] of Object.entries(details)) {
+        if (value === undefined || value === null) continue;
+        extra[key] = typeof value === 'string' ? value : JSON.stringify(value);
+    }
+    return extra;
+};
 
 const getRNFSModule = (): unknown | null => {
     if (rnfsModuleCache !== undefined) return rnfsModuleCache;
@@ -355,12 +371,12 @@ export function AISettingsScreen() {
     const getWhisperDirectories = () => {
         const candidates: Directory[] = [];
         try {
-            candidates.push(new Directory(Paths.document, 'whisper-models'));
+            candidates.push(new Directory(buildWhisperModelDirectoryUri(Paths.document.uri)));
         } catch (error) {
             logSettingsWarn('Whisper document directory unavailable', error);
         }
         try {
-            candidates.push(new Directory(Paths.cache, 'whisper-models'));
+            candidates.push(new Directory(buildWhisperModelDirectoryUri(Paths.cache.uri)));
         } catch (error) {
             logSettingsWarn('Whisper cache directory unavailable', error);
         }
@@ -615,6 +631,13 @@ export function AISettingsScreen() {
                             targetFile,
                             nativeFs: nativeDownloadModule,
                             resolveDownloadUrl: resolveWhisperModelDownloadUrl,
+                            logger: (event, details) => {
+                                void logInfo(`Whisper model download ${event}`, {
+                                    scope: 'settings',
+                                    force: true,
+                                    extra: stringifyWhisperLogDetails(details),
+                                });
+                            },
                             expoDownloadFile: async (downloadUrl, destination, options) => {
                                 await File.downloadFileAsync(downloadUrl, destination, options);
                                 return destination;
