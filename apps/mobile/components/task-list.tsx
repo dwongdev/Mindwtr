@@ -2,7 +2,7 @@ import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react'
 import { View, FlatList, Text, TextInput, RefreshControl, Modal, Pressable, TouchableOpacity, useWindowDimensions, type LayoutChangeEvent } from 'react-native';
 import { router } from 'expo-router';
 import { ArrowDown, ArrowUp, ChevronDown, ChevronRight, Folder, GripVertical, MoveVertical } from 'lucide-react-native';
-import { NestableDraggableFlatList, type DragEndParams, type RenderItemParams } from 'react-native-draggable-flatlist';
+import DraggableFlatList, { NestableDraggableFlatList, type DragEndParams, type RenderItemParams } from 'react-native-draggable-flatlist';
 import {
   useTaskStore,
   Task,
@@ -162,6 +162,7 @@ export interface TaskListProps {
   onQuickAddInputFocus?: (targetInput?: number | string) => void;
   projectReorderMode?: boolean;
   onProjectReorderModeChange?: (active: boolean) => void;
+  projectReorderOwnsScroll?: boolean;
   includeArchived?: boolean;
   includeDone?: boolean;
   groupCompletedTasksLast?: boolean;
@@ -207,6 +208,7 @@ function TaskListComponent({
   onQuickAddInputFocus,
   projectReorderMode: projectReorderModeProp,
   onProjectReorderModeChange,
+  projectReorderOwnsScroll = false,
   includeArchived = false,
   includeDone = true,
   groupCompletedTasksLast = false,
@@ -1853,9 +1855,34 @@ function TaskListComponent({
       )}
 
       {projectReorderMode && canUseProjectReorder ? (
-        <View style={styles.staticList}>
-          {projectReorderGroups.map(renderProjectReorderGroup)}
-        </View>
+        projectReorderOwnsScroll && projectReorderGroups.length === 1 ? (
+          // Section-less projects own the scroll, so a single virtualizing list keeps long
+          // lists responsive and tracks the finger (the nested variant disables windowing).
+          <DraggableFlatList
+            data={projectReorderGroups[0].tasks}
+            keyExtractor={(task) => task.id}
+            getItemLayout={getProjectReorderItemLayout}
+            renderItem={renderProjectReorderTask}
+            onDragEnd={(params) => handleProjectTaskDragEnd(projectReorderGroups[0].sectionId, params)}
+            activationDistance={2}
+            animationConfig={PROJECT_REORDER_ANIMATION_CONFIG}
+            autoscrollThreshold={80}
+            autoscrollSpeed={120}
+            dragItemOverflow
+            dragHitSlop={projectDragHitSlop}
+            keyboardShouldPersistTaps="handled"
+            initialNumToRender={14}
+            maxToRenderPerBatch={12}
+            windowSize={7}
+            removeClippedSubviews={false}
+            style={styles.projectDragSelfScrollList}
+            contentContainerStyle={styles.projectDragSelfScrollContent}
+          />
+        ) : (
+          <View style={styles.staticList}>
+            {projectReorderGroups.map(renderProjectReorderGroup)}
+          </View>
+        )
       ) : staticList ? (
         <View style={styles.staticList} onLayout={handleStaticListLayout}>
           {listItems.length === 0 ? (

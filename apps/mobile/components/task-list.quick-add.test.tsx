@@ -119,6 +119,7 @@ vi.mock('lucide-react-native', () => ({
 }));
 
 vi.mock('react-native-draggable-flatlist', () => ({
+  default: (props: any) => React.createElement('DraggableFlatList', props),
   NestableDraggableFlatList: (props: any) => React.createElement('NestableDraggableFlatList', props),
   ScaleDecorator: ({ children, ...props }: any) => React.createElement('ScaleDecorator', props, children),
 }));
@@ -615,6 +616,45 @@ describe('TaskList project quick add', () => {
 
     act(() => {
       row.unmount();
+      tree.unmount();
+    });
+  });
+
+  it('uses a single self-scrolling draggable list when a section-less project owns the scroll', async () => {
+    const longTaskList = Array.from({ length: 130 }, (_, index) => makeTask(
+      `task-${index}`,
+      `Task ${index}`,
+      { order: index },
+    ));
+    let tree!: ReturnType<typeof create>;
+
+    await act(async () => {
+      tree = create(
+        <TaskList
+          allowAdd={false}
+          enableProjectReorder
+          projectId={project.id}
+          projectReorderMode
+          projectReorderOwnsScroll
+          showHeader={false}
+          statusFilter="all"
+          taskSource={longTaskList}
+          title={project.title}
+        />,
+      );
+    });
+
+    // The self-scrolling list owns scroll, so the nested (non-virtualizing) variant must be gone.
+    expect(tree.root.findAllByType('NestableDraggableFlatList' as unknown as React.ElementType)).toHaveLength(0);
+
+    const draggableList = tree.root.findByType('DraggableFlatList' as unknown as React.ElementType);
+    expect(draggableList.props.data).toHaveLength(longTaskList.length);
+    expect(draggableList.props.scrollEnabled).not.toBe(false);
+    expect(draggableList.props.animationConfig).toEqual(expect.objectContaining({
+      overshootClamping: true,
+    }));
+
+    act(() => {
       tree.unmount();
     });
   });

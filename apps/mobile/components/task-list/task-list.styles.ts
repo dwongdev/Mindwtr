@@ -630,6 +630,13 @@ export const styles = StyleSheet.create({
   projectDragList: {
     overflow: 'visible',
   },
+  projectDragSelfScrollList: {
+    flex: 1,
+  },
+  projectDragSelfScrollContent: {
+    paddingHorizontal: 12,
+    paddingBottom: 24,
+  },
   projectDragTaskRow: {
     flexDirection: 'row',
     alignItems: 'stretch',

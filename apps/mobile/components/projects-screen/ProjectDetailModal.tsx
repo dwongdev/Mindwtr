@@ -417,6 +417,7 @@ function ProjectDetailScrollFrame({
     keyboardBottomInset,
     onScroll,
     reorderMode,
+    reorderOwnsScroll,
     scrollRef,
 }: {
     backgroundColor: string;
@@ -424,6 +425,7 @@ function ProjectDetailScrollFrame({
     keyboardBottomInset: number;
     onScroll: (event: NativeSyntheticEvent<NativeScrollEvent>) => void;
     reorderMode: boolean;
+    reorderOwnsScroll: boolean;
     scrollRef: React.RefObject<ScrollView | null>;
 }) {
     const androidScrollViewFocusProps: Partial<ScrollViewProps> & { scrollsChildToFocus?: boolean } = (
@@ -439,8 +441,14 @@ function ProjectDetailScrollFrame({
         keyboardShouldPersistTaps: 'always' as const,
     };
 
-    const scrollNode = reorderMode ? (
-        // Reorder mode needs the nested draggable wrapper required by the library:
+    const scrollNode = reorderOwnsScroll ? (
+        // Section-less reorder uses a single self-scrolling DraggableFlatList that owns the
+        // scroll, so the frame is a plain flex column instead of a nested scroll container.
+        <View style={[{ flex: 1 }, { backgroundColor }]}>
+            {children}
+        </View>
+    ) : reorderMode ? (
+        // Multi-section reorder needs the nested draggable wrapper required by the library:
         // https://github.com/computerjazz/react-native-draggable-flatlist#nesting-draggableflatlists
         <NestableScrollContainer {...scrollProps}>
             {children}
@@ -558,6 +566,9 @@ export function ProjectDetailModal({
     const safeAreaEdges = getProjectDetailModalSafeAreaEdges(presentationStyle);
     const taskListOptions = getProjectDetailTaskListOptions(selectedProject, showCompletedTasks);
     const canManageProjectSections = selectedProject?.status !== 'archived';
+    // Section-less projects reorder through one self-scrolling DraggableFlatList; sectioned
+    // projects keep the nested-list layout (one draggable list per section).
+    const projectReorderOwnsScroll = projectTaskReorderMode && selectedProjectSections.length === 0;
     const showCompletedLabel = showCompletedTasks
         ? tFallback(t, 'common.hideCompleted', 'Hide completed')
         : tFallback(t, 'common.showCompleted', 'Show completed');
@@ -959,6 +970,7 @@ export function ProjectDetailModal({
                                         });
                                     }}
                                     reorderMode={projectTaskReorderMode}
+                                    reorderOwnsScroll={projectReorderOwnsScroll}
                                     scrollRef={projectDetailScrollRef}
                                 >
                                 <View style={[styles.detailsToggle, { backgroundColor: tc.cardBg, borderColor: tc.border }]}>
@@ -1486,7 +1498,7 @@ export function ProjectDetailModal({
                                     </>
                                 )}
 
-                                <View>
+                                <View style={projectReorderOwnsScroll ? styles.projectReorderListFill : undefined}>
                                     <TaskList
                                         statusFilter="all"
                                         title={selectedProject.title}
@@ -1517,6 +1529,7 @@ export function ProjectDetailModal({
                                         sequenceCueLabels={sequenceCueLabels}
                                         onQuickAddInputFocus={scrollProjectInputIntoView}
                                         projectReorderMode={projectTaskReorderMode}
+                                        projectReorderOwnsScroll={projectReorderOwnsScroll}
                                         onProjectReorderModeChange={setProjectTaskReorderMode}
                                     />
                                 </View>

@@ -109,6 +109,9 @@ export const projectsScreenStyles = StyleSheet.create({
     projectDetailRoot: {
         flex: 1,
     },
+    projectReorderListFill: {
+        flex: 1,
+    },
     projectTaskPinnedToolbar: {
         minHeight: 56,
         borderBottomWidth: 1,
