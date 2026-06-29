@@ -140,6 +140,8 @@ export const CLOUD_PROJECT_CREATION_ALLOWED_PROP_KEYS = new Set<keyof Project>([
 ]);
 export const CLOUD_PROJECT_PATCH_ALLOWED_PROP_KEYS = new Set<keyof Project>([
     'title',
+    'deletedAt',
+    'purgedAt',
     ...CLOUD_PROJECT_CREATION_ALLOWED_PROP_KEYS,
 ]);
 export const CLOUD_SECTION_CREATION_ALLOWED_PROP_KEYS = new Set<keyof Section>([

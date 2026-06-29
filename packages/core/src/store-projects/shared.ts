@@ -8,6 +8,8 @@ export type ProjectActions = Pick<
     | 'updateProject'
     | 'deleteProject'
     | 'restoreProject'
+    | 'purgeProject'
+    | 'purgeDeletedProjects'
     | 'duplicateProject'
     | 'toggleProjectFocus'
     | 'addSection'
@@ -45,6 +47,8 @@ export type ProjectCoreActions = Pick<
     | 'updateProject'
     | 'deleteProject'
     | 'restoreProject'
+    | 'purgeProject'
+    | 'purgeDeletedProjects'
     | 'duplicateProject'
     | 'toggleProjectFocus'
 >;

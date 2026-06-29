@@ -100,6 +100,7 @@ export interface Project {
     createdAt: string;
     updatedAt: string;
     deletedAt?: string; // Soft-delete: if set, this item is considered deleted
+    purgedAt?: string; // Permanently removed from Trash, kept for sync tombstone
 }
 
 export interface Section {

@@ -173,6 +173,9 @@ export function validateAppData(
         if (project.deletedAt != null && !isValidIsoTimestamp(project.deletedAt)) {
             return { ok: false, error: 'Invalid data: project deletedAt must be a valid ISO timestamp when present' };
         }
+        if (project.purgedAt != null && !isValidIsoTimestamp(project.purgedAt)) {
+            return { ok: false, error: 'Invalid data: project purgedAt must be a valid ISO timestamp when present' };
+        }
     }
 
     const projectsById = new Map<string, Record<string, unknown>>();

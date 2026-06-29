@@ -119,6 +119,46 @@ describe('purgeExpiredTombstones', () => {
         expect(result.data.areas.map((area) => area.id)).toEqual(['area-recent']);
     });
 
+    it('uses project purgedAt as the project tombstone retention timestamp', () => {
+        const data: AppData = {
+            tasks: [],
+            projects: [
+                {
+                    id: 'project-purged-old',
+                    title: 'Old purged project tombstone',
+                    status: 'active',
+                    color: '#6B7280',
+                    order: 0,
+                    tagIds: [],
+                    createdAt: '2025-01-01T00:00:00.000Z',
+                    updatedAt: '2026-03-20T00:00:00.000Z',
+                    deletedAt: '2026-03-20T00:00:00.000Z',
+                    purgedAt: '2025-01-01T00:00:00.000Z',
+                },
+                {
+                    id: 'project-purged-recent',
+                    title: 'Recent purged project tombstone',
+                    status: 'active',
+                    color: '#6B7280',
+                    order: 1,
+                    tagIds: [],
+                    createdAt: '2025-01-01T00:00:00.000Z',
+                    updatedAt: '2026-03-20T00:00:00.000Z',
+                    deletedAt: '2025-01-01T00:00:00.000Z',
+                    purgedAt: '2026-06-20T00:00:00.000Z',
+                },
+            ],
+            sections: [],
+            areas: [],
+            settings: {},
+        };
+
+        const result = purgeExpiredTombstones(data, '2026-06-29T00:00:00.000Z');
+
+        expect(result.removedProjectTombstones).toBe(1);
+        expect(result.data.projects.map((project) => project.id)).toEqual(['project-purged-recent']);
+    });
+
     it('purges expired person tombstones while keeping recent and active people', () => {
         const data: AppData = {
             tasks: [],

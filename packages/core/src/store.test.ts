@@ -3180,6 +3180,68 @@ describe('TaskStore', () => {
             expect(restoredSection.deletedAt).toBeUndefined();
         });
 
+        it('purges deleted projects while keeping detached tasks live', async () => {
+            const { addProject, addSection, addTask, deleteProject, purgeProject } = useTaskStore.getState();
+            const project = await addProject('Purge Project', '#444444', {
+                attachments: [{
+                    id: 'project-file-1',
+                    kind: 'file',
+                    title: 'Project plan',
+                    uri: '/tmp/project-plan.pdf',
+                    cloudKey: 'attachments/project-plan.pdf',
+                    createdAt: '2026-06-29T00:00:00.000Z',
+                    updatedAt: '2026-06-29T00:00:00.000Z',
+                }],
+            });
+            expect(project).not.toBeNull();
+            if (!project) return;
+            const section = await addSection(project.id, 'Section');
+            expect(section).not.toBeNull();
+            if (!section) return;
+
+            await addTask('Keep Task', { projectId: project.id, sectionId: section.id, status: 'next' });
+            const task = useTaskStore.getState()._allTasks.find((item) => item.title === 'Keep Task')!;
+
+            await deleteProject(project.id);
+            await purgeProject(project.id);
+
+            const state = useTaskStore.getState();
+            const purgedProject = state._allProjects.find((item) => item.id === project.id)!;
+            const purgedSection = state._allSections.find((item) => item.id === section.id)!;
+            const detachedTask = state._allTasks.find((item) => item.id === task.id)!;
+
+            expect(purgedProject.deletedAt).toBeTruthy();
+            expect(purgedProject.purgedAt).toBeTruthy();
+            expect(purgedProject.attachments?.[0]?.cloudKey).toBeUndefined();
+            expect(purgedSection.deletedAt).toBeTruthy();
+            expect(detachedTask.deletedAt).toBeUndefined();
+            expect(detachedTask.projectId).toBeUndefined();
+            expect(detachedTask.sectionId).toBeUndefined();
+            expect(state.projects.find((item) => item.id === project.id)).toBeUndefined();
+            expect(state.settings.attachments?.pendingRemoteDeletes).toEqual([{
+                cloudKey: 'attachments/project-plan.pdf',
+                title: 'Project plan',
+            }]);
+        });
+
+        it('purges all deleted projects from Trash', async () => {
+            const { addProject, deleteProject, purgeDeletedProjects } = useTaskStore.getState();
+            const first = await addProject('First Deleted Project', '#444444');
+            const second = await addProject('Second Deleted Project', '#555555');
+            expect(first).not.toBeNull();
+            expect(second).not.toBeNull();
+            if (!first || !second) return;
+
+            await deleteProject(first.id);
+            await deleteProject(second.id);
+            await purgeDeletedProjects();
+
+            const state = useTaskStore.getState();
+            expect(state._allProjects.filter((project) => project.deletedAt && !project.purgedAt)).toHaveLength(0);
+            expect(state._allProjects.find((project) => project.id === first.id)?.purgedAt).toBeTruthy();
+            expect(state._allProjects.find((project) => project.id === second.id)?.purgedAt).toBeTruthy();
+        });
+
         it('restores only project children deleted by the project cascade', async () => {
             const { addProject, addSection, addTask, deleteTask, deleteProject, restoreProject } = useTaskStore.getState();
             const project = await addProject('Cascade Restore', '#444444');

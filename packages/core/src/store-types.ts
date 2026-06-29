@@ -98,6 +98,10 @@ export interface TaskStore {
     deleteProject: (id: string) => Promise<StoreActionResult>;
     /** Restore a soft-deleted project and its cascaded children */
     restoreProject: (id: string) => Promise<StoreActionResult>;
+    /** Permanently remove a soft-deleted project from Trash */
+    purgeProject: (id: string) => Promise<StoreActionResult>;
+    /** Permanently remove all soft-deleted projects from Trash */
+    purgeDeletedProjects: () => Promise<StoreActionResult>;
     /** Duplicate a project with its sections/tasks (fresh task state) */
     duplicateProject: (id: string) => Promise<Project | null>;
     /** Toggle focus status of a project (max 5) */

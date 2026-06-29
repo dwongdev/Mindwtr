@@ -727,6 +727,7 @@ export class SqliteAdapter {
             { name: 'createdAt', sql: 'ALTER TABLE projects ADD COLUMN createdAt TEXT' },
             { name: 'updatedAt', sql: 'ALTER TABLE projects ADD COLUMN updatedAt TEXT' },
             { name: 'deletedAt', sql: 'ALTER TABLE projects ADD COLUMN deletedAt TEXT' },
+            { name: 'purgedAt', sql: 'ALTER TABLE projects ADD COLUMN purgedAt TEXT' },
         ];
         for (const definition of definitions) {
             if (!names.has(definition.name)) {
@@ -1002,6 +1003,7 @@ export class SqliteAdapter {
             createdAt: String(row.createdAt ?? ''),
             updatedAt: String(row.updatedAt ?? ''),
             deletedAt: row.deletedAt as string | undefined,
+            purgedAt: row.purgedAt as string | undefined,
         };
     }
 
@@ -1369,6 +1371,7 @@ export class SqliteAdapter {
                     'createdAt',
                     'updatedAt',
                     'deletedAt',
+                    'purgedAt',
                 ],
                 data.projects.map((project) => [
                     project.id,
@@ -1391,6 +1394,7 @@ export class SqliteAdapter {
                     project.createdAt,
                     project.updatedAt,
                     project.deletedAt ?? null,
+                    project.purgedAt ?? null,
                 ]),
                 `title=excluded.title,
                  status=excluded.status,
@@ -1410,7 +1414,8 @@ export class SqliteAdapter {
                  revBy=excluded.revBy,
                  createdAt=excluded.createdAt,
                  updatedAt=excluded.updatedAt,
-                 deletedAt=excluded.deletedAt
+                 deletedAt=excluded.deletedAt,
+                 purgedAt=excluded.purgedAt
                  WHERE projects.rev IS NULL OR projects.rev <= excluded.rev`,
             );
 

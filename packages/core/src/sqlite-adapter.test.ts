@@ -166,6 +166,8 @@ describeSqlite('SqliteAdapter', () => {
                     revBy: 'device-desktop',
                     createdAt: now,
                     updatedAt: now,
+                    deletedAt: archivedAt,
+                    purgedAt: archivedAt,
                 },
             ],
             sections: [
@@ -296,6 +298,8 @@ describeSqlite('SqliteAdapter', () => {
         expect(project.sequentialScope).toBe('section');
         expect(project.isFocused).toBe(false);
         expect(project.dueDate).toBe('2026-03-31');
+        expect(project.deletedAt).toBe(archivedAt);
+        expect(project.purgedAt).toBe(archivedAt);
         expect(project.rev).toBe(7);
         expect(project.revBy).toBe('device-desktop');
 

@@ -24,6 +24,13 @@ const getTaskTombstoneTimestamp = (task: Task): number => {
     return parseTimestampOrInfinity(task.deletedAt);
 };
 
+const getProjectTombstoneTimestamp = (project: Project): number => {
+    if (!project.deletedAt) return Number.POSITIVE_INFINITY;
+    const purgedMs = parseTimestampOrInfinity(project.purgedAt);
+    if (Number.isFinite(purgedMs)) return purgedMs;
+    return parseTimestampOrInfinity(project.deletedAt);
+};
+
 const pruneAttachmentTombstones = (
     attachments: Attachment[] | undefined,
     cutoffMs: number
@@ -123,8 +130,8 @@ export const purgeExpiredTombstones = (
 
     const nextProjects: Project[] = [];
     for (const project of data.projects) {
-        const deletedMs = parseTimestampOrInfinity(project.deletedAt);
-        if (project.deletedAt && deletedMs <= cutoffMs) {
+        const tombstoneMs = getProjectTombstoneTimestamp(project);
+        if (project.deletedAt && tombstoneMs <= cutoffMs) {
             removedProjectTombstones += 1;
             continue;
         }
