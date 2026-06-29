@@ -934,7 +934,12 @@ const listDirectorySample = (uri?: string) => {
   }
 };
 
-const buildWhisperDiagnostics = (modelId?: string, modelPath?: string, resolved?: WhisperModelResolved) => {
+const buildWhisperDiagnostics = (
+  modelId?: string,
+  modelPath?: string,
+  resolved?: WhisperModelResolved,
+  candidates: string[] = []
+) => {
   const docUri = Paths.document?.uri ?? '';
   const cacheUri = Paths.cache?.uri ?? '';
   const normalizedDoc = docUri ? normalizeFilePath(docUri).uri : '';
@@ -944,11 +949,20 @@ const buildWhisperDiagnostics = (modelId?: string, modelPath?: string, resolved?
   const whisperDirUri = normalizedDoc
     ? `${normalizedDoc.endsWith('/') ? normalizedDoc : `${normalizedDoc}/`}${WHISPER_MODEL_DIR_NAME}`
     : '';
+  const cacheWhisperDirUri = normalizedCache
+    ? `${normalizedCache.endsWith('/') ? normalizedCache : `${normalizedCache}/`}${WHISPER_MODEL_DIR_NAME}`
+    : '';
   const whisperDirInfo = checkPath(whisperDirUri);
+  const cacheWhisperDirInfo = checkPath(cacheWhisperDirUri);
   const resolvedInfo = resolved ? checkFile(resolved.uri) : { exists: false, size: 0 };
   const documentSample = listDirectorySample(normalizedDoc);
   const cacheSample = listDirectorySample(normalizedCache);
   const whisperDirSample = listDirectorySample(whisperDirUri);
+  const cacheWhisperDirSample = listDirectorySample(cacheWhisperDirUri);
+  const candidateUris = candidates
+    .map((candidate) => normalizeFilePath(candidate).uri)
+    .filter(Boolean)
+    .join(', ');
   return {
     modelId: modelId ?? '',
     modelPath: modelPath ?? '',
@@ -967,6 +981,11 @@ const buildWhisperDiagnostics = (modelId?: string, modelPath?: string, resolved?
     whisperDirExists: String(Boolean(whisperDirInfo.exists)),
     whisperDirIsDir: String(Boolean(whisperDirInfo.isDirectory)),
     whisperDirSample,
+    cacheWhisperDirUri,
+    cacheWhisperDirExists: String(Boolean(cacheWhisperDirInfo.exists)),
+    cacheWhisperDirIsDir: String(Boolean(cacheWhisperDirInfo.isDirectory)),
+    cacheWhisperDirSample,
+    candidateUris,
   };
 };
 
@@ -1111,7 +1130,7 @@ export const ensureWhisperModelPathForConfig = (
   void logWarn('Whisper model missing', {
     scope: 'speech',
     force: true,
-    extra: buildWhisperDiagnostics(modelId, modelPath, resolved),
+    extra: buildWhisperDiagnostics(modelId, modelPath, resolved, candidates),
   });
 
   return resolved;

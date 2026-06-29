@@ -150,6 +150,46 @@ describe('attachment sync', () => {
     expect(result.size).toBe(3);
   });
 
+  it('persists local file attachments by reading bytes when direct copy fails', async () => {
+    const sourceUri = 'file://document/mindwtr-audio-20260628-225702.m4a';
+    fileSystemMock.getInfoAsync.mockResolvedValueOnce({ exists: false });
+    fileSystemMock.copyAsync.mockRejectedValue(new Error('copy failed'));
+    fileSystemMock.readAsStringAsync.mockResolvedValue('AQID');
+
+    const { persistAttachmentLocally } = await import('./attachment-sync');
+
+    const result = await persistAttachmentLocally({
+      id: 'audio-1',
+      kind: 'file',
+      title: 'Audio Note.m4a',
+      uri: sourceUri,
+      mimeType: 'audio/mp4',
+      size: 112780,
+      createdAt: '2026-06-29T02:57:02.559Z',
+      updatedAt: '2026-06-29T02:57:02.559Z',
+      localStatus: 'available',
+    });
+
+    expect(fileSystemMock.copyAsync).toHaveBeenCalledWith(
+      expect.objectContaining({
+        from: sourceUri,
+        to: expect.stringMatching(/^file:\/\/document\/attachments\/audio-1\.m4a\.tmp-/),
+      })
+    );
+    expect(fileSystemMock.readAsStringAsync).toHaveBeenCalledWith(
+      sourceUri,
+      { encoding: 'base64' }
+    );
+    expect(fileSystemMock.writeAsStringAsync).toHaveBeenCalledWith(
+      expect.stringMatching(/^file:\/\/document\/attachments\/audio-1\.m4a\.tmp-/),
+      'AQID',
+      { encoding: 'base64' }
+    );
+    expect(result.uri).toBe('file://document/attachments/audio-1.m4a');
+    expect(result.localStatus).toBe('available');
+    expect(result.size).toBe(112780);
+  });
+
   it('normalizes legacy content-uri attachments when ensuring availability', async () => {
     const contentUri = 'content://com.android.providers.downloads.documents/document/msf%3A1000006031';
     fileSystemMock.getInfoAsync
@@ -725,6 +765,7 @@ describe('attachment sync', () => {
       return { exists: false };
     });
     fileSystemMock.copyAsync.mockRejectedValueOnce(new Error('copy failed'));
+    fileSystemMock.writeAsStringAsync.mockRejectedValueOnce(new Error('write failed'));
     fileSystemMock.readAsStringAsync.mockResolvedValue('AQID');
     const core = await import('@mindwtr/core');
     const appData: AppData = {

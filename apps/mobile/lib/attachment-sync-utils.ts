@@ -209,15 +209,25 @@ export const writeBytesSafely = async (targetUri: string, bytes: Uint8Array): Pr
 
 export const copyFileSafely = async (sourceUri: string, targetUri: string): Promise<void> => {
   const tempUri = buildTempUri(targetUri);
-  await FileSystem.copyAsync({ from: sourceUri, to: tempUri });
+  try {
+    await FileSystem.copyAsync({ from: sourceUri, to: tempUri });
+  } catch {
+    await writeBytesSafely(targetUri, await readFileAsBytes(sourceUri));
+    return;
+  }
   try {
     await FileSystem.moveAsync({ from: tempUri, to: targetUri });
-  } catch (error) {
-    await FileSystem.copyAsync({ from: sourceUri, to: targetUri });
+  } catch {
     try {
-      await FileSystem.deleteAsync(tempUri, { idempotent: true });
+      await FileSystem.copyAsync({ from: sourceUri, to: targetUri });
     } catch {
-      // Ignore cleanup errors for temp file.
+      await writeBytesSafely(targetUri, await readFileAsBytes(sourceUri));
+    } finally {
+      try {
+        await FileSystem.deleteAsync(tempUri, { idempotent: true });
+      } catch {
+        // Ignore cleanup errors for temp file.
+      }
     }
   }
 };

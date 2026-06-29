@@ -84,6 +84,7 @@ vi.mock('whisper.rn/realtime-transcription/adapters/AudioPcmStreamAdapter.js', (
 vi.mock('whisper.rn/realtime-transcription/index.js', () => ({}));
 
 import {
+  ensureWhisperModelPathForConfig,
   prepareAudioForLocalWhisper,
   processAudioCapture,
   REMOTE_SPEECH_TO_TEXT_FOSS_ERROR,
@@ -209,6 +210,33 @@ describe('speech-to-text', () => {
       exists: true,
       size: 77704715,
     });
+  });
+
+  it('logs Whisper model search directories and candidates when the model is missing', () => {
+    fileSystemMock.existingUris = new Set([
+      'file:///document/',
+      'file:///cache/',
+    ]);
+
+    expect(ensureWhisperModelPathForConfig(
+      'whisper-tiny.en',
+      'file:///document/ggml-tiny.en.bin'
+    )).toMatchObject({
+      uri: 'file:///document/ggml-tiny.en.bin',
+      exists: false,
+      size: 0,
+    });
+
+    expect(appLogMock.logWarn).toHaveBeenCalledWith(
+      'Whisper model missing',
+      expect.objectContaining({
+        extra: expect.objectContaining({
+          whisperDirUri: 'file:///document/whisper-models',
+          cacheWhisperDirUri: 'file:///cache/whisper-models',
+          candidateUris: expect.stringContaining('file:///document/whisper-models/ggml-tiny.en.bin'),
+        }),
+      })
+    );
   });
 
   it('fails cleanly when Android Whisper realtime helper modules are unavailable', async () => {
