@@ -51,6 +51,7 @@ vi.mock('./widget-service', () => ({
 vi.mock('./app-log', () => ({
   logError: vi.fn(),
   logWarn: vi.fn(),
+  logInfo: vi.fn(),
 }));
 
 vi.mock('./startup-profiler', () => ({
@@ -123,6 +124,8 @@ describe('mobile storage adapter', () => {
           title: 'Current project',
           status: 'active',
           order: 0,
+          color: '#888888',
+          tagIds: [],
           createdAt: '2026-06-30T00:00:00.000Z',
           updatedAt: '2026-06-30T00:00:00.000Z',
         },
@@ -172,6 +175,68 @@ describe('mobile storage adapter', () => {
     await savePromise;
     await expect(readPromise).resolves.toEqual(currentSnapshot);
     expect(sqliteAdapterGetData).toHaveBeenCalledTimes(1);
+  }, 10_000);
+
+  it('falls back to the JSON backup instead of hanging when a queued SQLite write stalls', async () => {
+    vi.useFakeTimers();
+    try {
+      const backupSnapshot: AppData = {
+        tasks: [],
+        projects: [
+          {
+            id: 'project-backup',
+            title: 'Backup project',
+            status: 'active',
+            order: 0,
+            color: '#888888',
+            tagIds: [],
+            createdAt: '2026-06-30T00:00:00.000Z',
+            updatedAt: '2026-06-30T00:00:00.000Z',
+          },
+        ],
+        sections: [],
+        areas: [],
+        people: [],
+        settings: {},
+      };
+      asyncStorageMock.getItem.mockImplementation((key: string) => (
+        key === 'mindwtr-data' ? Promise.resolve(JSON.stringify(backupSnapshot)) : Promise.resolve(null)
+      ));
+
+      // A SQLite write that never settles, e.g. a lost-promise native bridge call.
+      const stalledSave = vi.fn(() => new Promise<void>(() => {}));
+      const sqliteAdapterGetData = vi.fn(async () => {
+        throw new Error('SQLite read should not run while a write is stalled');
+      });
+
+      const { mobileStorage, __mobileStorageTestUtils } = await import('./storage-adapter');
+      __mobileStorageTestUtils.setSqliteStateForTests({
+        adapter: {
+          getData: sqliteAdapterGetData,
+          saveData: stalledSave,
+          saveTask: sqliteAdapterSaveTask,
+        } as any,
+        client: {},
+      });
+
+      void mobileStorage.saveData(backupSnapshot);
+      await vi.advanceTimersByTimeAsync(0);
+      expect(stalledSave).toHaveBeenCalledTimes(1);
+
+      const readPromise = mobileStorage.getData();
+      let settled = false;
+      void readPromise.then(() => { settled = true; }, () => { settled = true; });
+
+      // Advance well past the bounded wait; the read must give up waiting and fall back.
+      await vi.advanceTimersByTimeAsync(6_000);
+      expect(settled).toBe(true);
+
+      const data = await readPromise;
+      expect(data.projects).toEqual(backupSnapshot.projects);
+      expect(sqliteAdapterGetData).not.toHaveBeenCalled();
+    } finally {
+      vi.useRealTimers();
+    }
   }, 10_000);
 
   it('ignores an unmarked JSON backup startup snapshot', async () => {

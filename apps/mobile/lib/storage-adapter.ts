@@ -5,7 +5,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import { WIDGET_DATA_KEY } from './widget-data';
 import { updateMobileWidgetFromData } from './widget-service';
-import { logError, logWarn } from './app-log';
+import { logError, logInfo, logWarn } from './app-log';
 import { markStartupPhase, measureStartupPhase } from './startup-profiler';
 
 const DATA_KEY = WIDGET_DATA_KEY;
@@ -16,6 +16,12 @@ const EMPTY_APP_DATA: AppData = { tasks: [], projects: [], sections: [], areas: 
 const SQLITE_STARTUP_TIMEOUT_MS = 3_500;
 const SQLITE_QUERY_TIMEOUT_MS = 2_500;
 const SQLITE_RETRY_COOLDOWN_MS = 60_000;
+// Cap how long a read may block on in-flight writes so a stalled save (e.g. a
+// lost-promise native call) degrades to the existing fallback instead of hanging the UI.
+const SQLITE_WRITE_WAIT_TIMEOUT_MS = 3_000;
+// Diagnostics: only log waits/saves slow enough to matter, to keep the shared beta log readable.
+const SQLITE_WRITE_WAIT_LOG_THRESHOLD_MS = 50;
+const SQLITE_SLOW_WRITE_LOG_THRESHOLD_MS = 300;
 
 let saveQueue: Promise<void> = Promise.resolve();
 
@@ -44,6 +50,7 @@ type SqliteState = {
 };
 
 let sqliteStatePromise: Promise<SqliteState> | null = null;
+let sqliteOpenMode = 'unknown';
 let preferJsonBackup = false;
 let preferJsonBackupUntil = 0;
 let didWarnPreferJsonBackup = false;
@@ -61,8 +68,13 @@ const buildStorageExtra = (message?: string, error?: unknown): Record<string, st
     return Object.keys(extra).length ? extra : undefined;
 };
 
-const logStorageWarn = (message: string, error?: unknown) => {
-    void logWarn(message, { scope: 'storage', extra: buildStorageExtra(undefined, error) });
+const logStorageWarn = (message: string, error?: unknown, extra?: Record<string, string>) => {
+    void logWarn(message, { scope: 'storage', extra: { ...buildStorageExtra(undefined, error), ...extra } });
+};
+
+// Diagnostic breadcrumb for the shared beta log; only written when diagnostics logging is on.
+const logStorageInfo = (message: string, extra?: Record<string, string>) => {
+    void logInfo(message, { scope: 'storage', extra });
 };
 
 const logStorageError = (message: string, error?: unknown) => {
@@ -87,6 +99,32 @@ const withOperationTimeout = async <T>(promise: Promise<T>, timeoutMs: number, m
         if (timeoutHandle) {
             clearTimeout(timeoutHandle);
         }
+    }
+};
+
+// Wait for in-flight SQLite writes to finish before reading, but bounded: a save that
+// stalls must not strand reads (each read site falls back when this throws).
+const awaitQueuedSqliteWrites = async (phase: string): Promise<void> => {
+    const startedAt = Date.now();
+    try {
+        await withOperationTimeout(
+            waitForQueuedSqliteWrites(),
+            SQLITE_WRITE_WAIT_TIMEOUT_MS,
+            `Timed out waiting for queued SQLite writes before ${phase}`
+        );
+    } catch (error) {
+        logStorageWarn('[Storage] Gave up waiting for queued SQLite writes; falling back', error, {
+            phase,
+            waitedMs: String(Date.now() - startedAt),
+        });
+        throw error;
+    }
+    const waitedMs = Date.now() - startedAt;
+    if (waitedMs >= SQLITE_WRITE_WAIT_LOG_THRESHOLD_MS) {
+        logStorageInfo('[Storage] Read waited for queued SQLite writes', {
+            phase,
+            waitedMs: String(waitedMs),
+        });
     }
 };
 
@@ -166,6 +204,7 @@ const createSqliteClient = async (): Promise<SqliteClient> => {
     const SQLite = require('expo-sqlite');
     if (PREFER_LEGACY_SQLITE_OPEN && typeof (SQLite as any).openDatabase === 'function') {
         const legacyDb = (SQLite as any).openDatabase(SQLITE_DB_NAME);
+        sqliteOpenMode = 'legacy_preferred';
         markStartupPhase('mobile.storage.sqlite_client.create:end', { mode: 'legacy_preferred' });
         return createLegacyClient(legacyDb);
     }
@@ -174,6 +213,7 @@ const createSqliteClient = async (): Promise<SqliteClient> => {
         try {
             const db = openDatabaseSync(SQLITE_DB_NAME);
             if (db?.runAsync && db?.getAllAsync && db?.getFirstAsync && db?.execAsync) {
+                sqliteOpenMode = 'sync';
                 markStartupPhase('mobile.storage.sqlite_client.create:end', { mode: 'sync' });
                 return {
                     run: async (sql: string, params: unknown[] = []) => {
@@ -199,6 +239,7 @@ const createSqliteClient = async (): Promise<SqliteClient> => {
         try {
             const db = await openDatabaseAsync(SQLITE_DB_NAME);
             if (db?.runAsync && db?.getAllAsync && db?.getFirstAsync && db?.execAsync) {
+                sqliteOpenMode = 'async';
                 markStartupPhase('mobile.storage.sqlite_client.create:end', { mode: 'async' });
                 return {
                     run: async (sql: string, params: unknown[] = []) => {
@@ -221,6 +262,7 @@ const createSqliteClient = async (): Promise<SqliteClient> => {
     }
 
     const legacyDb = (SQLite as any).openDatabase(SQLITE_DB_NAME);
+    sqliteOpenMode = 'legacy';
     markStartupPhase('mobile.storage.sqlite_client.create:end', { mode: 'legacy' });
     return createLegacyClient(legacyDb);
 };
@@ -309,6 +351,20 @@ const initSqliteState = async (): Promise<SqliteState> => {
         client = createLegacyClient(legacyDb);
         adapter = new SqliteAdapter(client);
         await measureStartupPhase('mobile.storage.sqlite_init.ensure_schema_legacy_retry', async () => adapter.ensureSchema());
+    }
+    // Diagnostic: confirm whether WAL actually took effect on this device. The schema PRAGMA
+    // may not switch journal mode on the legacy client (it runs each statement in its own
+    // transaction), so the shared beta log should report the real mode rather than assume WAL.
+    try {
+        const journalRow = await client.get<{ journal_mode?: string }>('PRAGMA journal_mode');
+        const busyRow = await client.get<{ timeout?: number }>('PRAGMA busy_timeout');
+        logStorageInfo('[Storage] SQLite journal mode ready', {
+            journalMode: String(journalRow?.journal_mode ?? 'unknown'),
+            busyTimeoutMs: String(busyRow?.timeout ?? 'unknown'),
+            openMode: sqliteOpenMode,
+        });
+    } catch (error) {
+        logStorageWarn('[Storage] Failed to read SQLite journal mode', error);
     }
     let hasData = false;
     try {
@@ -447,7 +503,7 @@ const createStorage = (): StorageAdapter => {
                 }
                 await measureStartupPhase(
                     'mobile.storage.get_data.await_sqlite_writes',
-                    async () => waitForQueuedSqliteWrites()
+                    async () => awaitQueuedSqliteWrites('get_data')
                 );
                 const { adapter } = await measureStartupPhase('mobile.storage.get_data.sqlite_get_state', async () =>
                     withOperationTimeout(
@@ -494,7 +550,12 @@ const createStorage = (): StorageAdapter => {
                         throw new Error('SQLite disabled in Expo Go');
                     }
                     const { adapter } = await measureStartupPhase('mobile.storage.save_data.sqlite_get_state', async () => getSqliteState());
+                    const writeStartedAt = Date.now();
                     await measureStartupPhase('mobile.storage.save_data.sqlite_write', async () => adapter.saveData(data));
+                    const writeMs = Date.now() - writeStartedAt;
+                    if (writeMs >= SQLITE_SLOW_WRITE_LOG_THRESHOLD_MS) {
+                        logStorageInfo('[Storage] Slow SQLite save', { writeMs: String(writeMs) });
+                    }
                     clearPreferJsonBackup();
                 } catch (error) {
                     markPreferJsonBackup();
@@ -565,7 +626,7 @@ const createStorage = (): StorageAdapter => {
                 });
             }
             try {
-                await waitForQueuedSqliteWrites();
+                await awaitQueuedSqliteWrites('query_tasks');
                 const { adapter } = await withOperationTimeout(
                     getSqliteState(),
                     SQLITE_QUERY_TIMEOUT_MS,
@@ -603,7 +664,7 @@ const createStorage = (): StorageAdapter => {
                 return searchAll(data.tasks, data.projects, query);
             }
             try {
-                await waitForQueuedSqliteWrites();
+                await awaitQueuedSqliteWrites('search_all');
                 const { adapter } = await withOperationTimeout(
                     getSqliteState(),
                     SQLITE_QUERY_TIMEOUT_MS,
