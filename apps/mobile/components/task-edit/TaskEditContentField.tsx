@@ -13,7 +13,9 @@ import { Ionicons } from '@expo/vector-icons';
 import {
     generateUUID,
     getAttachmentDisplayTitle,
+    isMarkdownEditorAssistEnabled,
     resolveAutoTextDirection,
+    useTaskStore,
     type MarkdownSelection,
     type Task,
 } from '@mindwtr/core';
@@ -251,11 +253,13 @@ export function TaskEditContentField({
         }
 
         const currentSelection = getChecklistSelection(key, previousValue);
+        const assistEnabled = isMarkdownEditorAssistEnabled(useTaskStore.getState().settings);
         const pairedInsertion = applyMarkdownPairInsertionWithSelectionFallback(
             previousValue,
             text,
             currentSelection,
             lastChecklistRangeRefs.current[key],
+            { assist: assistEnabled },
         );
         if (pairedInsertion) {
             lastChecklistRangeRefs.current[key] = isRangeSelection(pairedInsertion.result.selection)
@@ -287,11 +291,13 @@ export function TaskEditContentField({
             return;
         }
 
+        const assistEnabled = isMarkdownEditorAssistEnabled(useTaskStore.getState().settings);
         const pairedInsertion = applyMarkdownPairKeyPressWithSelectionFallback(
             previousValue,
             event.nativeEvent.key,
             getChecklistSelection(key, previousValue),
             lastChecklistRangeRefs.current[key],
+            { assist: assistEnabled },
         );
         if (!pairedInsertion) return;
 
