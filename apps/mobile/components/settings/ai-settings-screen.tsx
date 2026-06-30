@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import Constants from 'expo-constants';
 import { Directory, File, Paths } from 'expo-file-system';
-import { Alert, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, Text, TouchableOpacity, View } from 'react-native';
+import { Alert, KeyboardAvoidingView, Modal, NativeModules, Platform, Pressable, ScrollView, Text, TouchableOpacity, View } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -62,10 +62,18 @@ const buildWhisperModelDirectoryUri = (rootUri: string): string => {
     return `${normalized}whisper-models`;
 };
 
+const hasRNFSNativeModule = (): boolean => Boolean(
+    (NativeModules as Record<string, unknown> | undefined)?.RNFSManager
+);
+
 const getRNFSModule = (): unknown | null => {
     if (rnfsModuleCache !== undefined) return rnfsModuleCache;
+    if (!hasRNFSNativeModule()) {
+        rnfsModuleCache = null;
+        return null;
+    }
     try {
-        // eslint-disable-next-line @typescript-eslint/no-var-requires
+        // eslint-disable-next-line @typescript-eslint/no-require-imports
         rnfsModuleCache = require('react-native-fs') as RNFSModule;
         return rnfsModuleCache;
     } catch {

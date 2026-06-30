@@ -50,9 +50,14 @@ const rnfsMock = vi.hoisted(() => ({
   stat: vi.fn(),
 }));
 
-vi.mock('react-native', () => ({
+const reactNativeMock = vi.hoisted(() => ({
+  NativeModules: {
+    RNFSManager: {} as Record<string, unknown> | null,
+  },
   Platform: { OS: 'android' },
 }));
+
+vi.mock('react-native', () => reactNativeMock);
 
 vi.mock('expo-constants', () => constantsMock);
 vi.mock('react-native-fs', () => ({ ...rnfsMock, default: rnfsMock }));
@@ -221,6 +226,7 @@ describe('speech-to-text', () => {
     fileSystemMock.fileUris = null;
     fileSystemMock.fileSizes.clear();
     fileSystemMock.emulateDirectoryFileConstructorBug = false;
+    reactNativeMock.NativeModules.RNFSManager = {};
     vi.clearAllMocks();
   });
 
@@ -320,9 +326,43 @@ describe('speech-to-text', () => {
     });
   });
 
+  it('does not evaluate react-native-fs when the native RNFS module is missing', async () => {
+    let rnfsLoadAttempts = 0;
+    vi.resetModules();
+    reactNativeMock.NativeModules.RNFSManager = null;
+    vi.doMock('react-native-fs', () => {
+      rnfsLoadAttempts += 1;
+      throw new TypeError("Cannot read property 'RNFSFileTypeRegular' of null");
+    });
+
+    try {
+      const freshSpeech = await import('./speech-to-text');
+      fileSystemMock.existingUris = new Set([
+        'file:///document/',
+        'file:///cache/',
+      ]);
+
+      await expect(
+        freshSpeech.resolveWhisperModelPathForConfigAsync(
+          'whisper-tiny.en',
+          'file:///document/whisper-models/ggml-tiny.en.bin'
+        )
+      ).resolves.toMatchObject({
+        uri: 'file:///document/whisper-models/ggml-tiny.en.bin',
+        exists: false,
+      });
+      expect(rnfsLoadAttempts).toBe(0);
+    } finally {
+      reactNativeMock.NativeModules.RNFSManager = {};
+      vi.doMock('react-native-fs', () => ({ ...rnfsMock, default: rnfsMock }));
+      vi.resetModules();
+    }
+  });
+
   it('does not retry RNFS import after native module evaluation fails', async () => {
     let rnfsLoadAttempts = 0;
     vi.resetModules();
+    reactNativeMock.NativeModules.RNFSManager = {};
     vi.doMock('react-native-fs', () => {
       rnfsLoadAttempts += 1;
       throw new TypeError("Cannot read property 'RNFSFileTypeRegular' of null");
@@ -346,6 +386,7 @@ describe('speech-to-text', () => {
       });
       expect(rnfsLoadAttempts).toBe(1);
     } finally {
+      reactNativeMock.NativeModules.RNFSManager = {};
       vi.doMock('react-native-fs', () => ({ ...rnfsMock, default: rnfsMock }));
       vi.resetModules();
     }

@@ -1,5 +1,5 @@
 import { Directory, File, Paths } from 'expo-file-system';
-import { Platform } from 'react-native';
+import { NativeModules, Platform } from 'react-native';
 import type { AudioCaptureMode, AudioFieldStrategy, SpeechToTextSettings } from '@mindwtr/core';
 import { logInfo, logWarn } from './app-log';
 import {
@@ -161,6 +161,10 @@ const isRNFSNativeModuleEvaluationError = (error: unknown): boolean => {
   return message.includes('RNFSFileTypeRegular') || message.includes('RNFSManager');
 };
 
+const hasRNFSNativeModule = (): boolean => Boolean(
+  (NativeModules as Record<string, unknown> | undefined)?.RNFSManager
+);
+
 const resolveRNFSModule = (value: unknown): RNFSModule | null => {
   const candidates = [
     value,
@@ -181,8 +185,14 @@ const resolveRNFSModule = (value: unknown): RNFSModule | null => {
 
 const getRNFSModule = (): RNFSModule | null => {
   if (rnfsModuleCache !== undefined) return rnfsModuleCache;
+  if (!hasRNFSNativeModule()) {
+    rnfsModuleRequireFailed = true;
+    rnfsModuleImportFailed = true;
+    rnfsModuleCache = null;
+    return null;
+  }
   try {
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
     rnfsModuleCache = resolveRNFSModule(require('react-native-fs'));
     return rnfsModuleCache;
   } catch (error) {
@@ -212,13 +222,13 @@ const getWhisperModule = () => {
   try {
     // Use static fallback paths so Metro can bundle this file.
     try {
-      // eslint-disable-next-line @typescript-eslint/no-var-requires
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
       const mod = require('whisper.rn/src/index') as WhisperModule;
       whisperModuleCache = mod;
       return mod;
     } catch (sourceError) {
       try {
-        // eslint-disable-next-line @typescript-eslint/no-var-requires
+        // eslint-disable-next-line @typescript-eslint/no-require-imports
         const mod = require('whisper.rn') as WhisperModule;
         whisperModuleCache = mod;
         return mod;
@@ -239,7 +249,7 @@ const getExpoConstants = (): ExpoConstantsLike | null => {
   if (expoConstantsCache !== undefined) return expoConstantsCache;
   try {
     // Delay loading expo-constants so non-Expo test environments can import this module.
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
     const mod = require('expo-constants') as {
       default?: ExpoConstantsLike | { default?: ExpoConstantsLike };
     } | ExpoConstantsLike | undefined;
@@ -331,11 +341,11 @@ const getWhisperRealtimeModule = () => {
   try {
     // Delay loading Whisper realtime modules so generic task-edit tests can import this file
     // without a native audio stream implementation in the environment.
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
     const adapterModule = require(
       'whisper.rn/realtime-transcription/adapters/AudioPcmStreamAdapter.js'
     ) as { AudioPcmStreamAdapter?: AudioPcmStreamAdapterConstructor } | undefined;
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
     const realtimeModule = require(
       'whisper.rn/realtime-transcription/index.js'
     ) as { RealtimeTranscriber?: RealtimeTranscriberConstructor } | undefined;
