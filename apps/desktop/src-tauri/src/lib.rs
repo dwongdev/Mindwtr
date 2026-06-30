@@ -18,7 +18,7 @@ use std::fs::OpenOptions;
 use std::io::{self, Read, Write};
 use std::net::TcpListener;
 #[cfg(target_os = "macos")]
-use std::os::raw::c_char;
+use std::os::raw::{c_char, c_int};
 #[cfg(target_os = "linux")]
 use std::os::unix::net::{UnixListener, UnixStream};
 #[cfg(target_os = "windows")]
@@ -104,8 +104,9 @@ use sync::{
 };
 use ui::{
     acknowledge_close_request, apply_global_quick_add_shortcut, consume_quick_add_pending,
-    create_quick_add_window, get_system_theme_preference, quit_app, set_global_quick_add_shortcut,
-    set_tray_visible, show_main, show_quick_add_window,
+    create_quick_add_window, get_system_theme_preference, hide_quick_add_window,
+    hide_quick_add_window_for_app, quit_app, set_global_quick_add_shortcut, set_tray_visible,
+    show_main, show_quick_add_window,
 };
 
 #[cfg(any(target_os = "windows", target_os = "linux", test))]
@@ -610,6 +611,8 @@ unsafe extern "C" {
     fn mindwtr_macos_create_security_bookmark(path_cstr: *const c_char) -> *mut c_char;
     fn mindwtr_macos_resolve_security_bookmark(base64_cstr: *const c_char) -> *mut c_char;
     fn mindwtr_macos_free_bookmark_string(ptr: *mut c_char);
+    fn mindwtr_macos_frontmost_application_pid() -> c_int;
+    fn mindwtr_macos_activate_application(pid: c_int);
 
     fn mindwtr_cloudkit_account_status() -> *mut c_char;
     fn mindwtr_cloudkit_ensure_zone() -> *mut c_char;
@@ -674,6 +677,15 @@ struct TaskQueryOptions {
 struct QuickAddPending(Mutex<Option<String>>);
 struct CloseRequestHandled(AtomicBool);
 struct GlobalQuickAddShortcutState(Mutex<Option<String>>);
+
+#[derive(Clone, Copy, Debug, Default)]
+struct QuickAddFocusSnapshot {
+    macos_pid: Option<i32>,
+    windows_hwnd: Option<isize>,
+}
+
+#[derive(Default)]
+struct QuickAddFocusState(Mutex<QuickAddFocusSnapshot>);
 
 struct AudioRecorderState {
     recorder: Mutex<Option<AudioRecorderHandle>>,
@@ -1170,6 +1182,7 @@ pub fn run() {
         .manage(QuickAddPending(Mutex::new(None)))
         .manage(CloseRequestHandled(AtomicBool::new(false)))
         .manage(GlobalQuickAddShortcutState(Mutex::new(None)))
+        .manage(QuickAddFocusState::default())
         .manage(LocalApiServerState::default())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_fs::init())
@@ -1223,7 +1236,7 @@ pub fn run() {
             if let tauri::WindowEvent::CloseRequested { api, .. } = event {
                 api.prevent_close();
                 if window.label() == QUICK_ADD_WINDOW_LABEL {
-                    let _ = window.hide();
+                    let _ = hide_quick_add_window_for_app(window.app_handle());
                     return;
                 }
                 window
@@ -1534,6 +1547,7 @@ pub fn run() {
             consume_quick_add_pending,
             get_system_theme_preference,
             set_global_quick_add_shortcut,
+            hide_quick_add_window,
             is_windows_store_install,
             get_install_source,
             get_launch_at_startup_enabled,

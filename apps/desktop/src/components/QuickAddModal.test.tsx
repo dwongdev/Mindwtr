@@ -188,6 +188,26 @@ describe('QuickAddModal', () => {
         expect(addTask).toHaveBeenCalledWith('Fast capture', expect.objectContaining({ status: 'inbox' }));
     });
 
+    it('asks native code to hide standalone quick add without promoting the main window', async () => {
+        (window as typeof window & { __TAURI_INTERNALS__?: unknown }).__TAURI_INTERNALS__ = {};
+
+        renderQuickAddModal({ standaloneWindow: true });
+
+        await act(async () => {
+            window.dispatchEvent(new CustomEvent('mindwtr:quick-add', {
+                detail: { initialValue: 'Close quietly' },
+            }));
+            await Promise.resolve();
+        });
+
+        fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+
+        await waitFor(() => {
+            expect(tauriMocks.invoke).toHaveBeenCalledWith('hide_quick_add_window');
+        });
+        expect(tauriMocks.hide).not.toHaveBeenCalled();
+    });
+
     it("stars a task for Today's Focus from the add task modal", async () => {
         const addTask = vi.fn(async () => ({ success: true, id: 'task-id' }));
         act(() => {

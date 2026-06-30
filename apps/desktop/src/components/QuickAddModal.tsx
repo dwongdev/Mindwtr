@@ -406,8 +406,8 @@ export function QuickAddModal({ standaloneWindow = false }: QuickAddModalProps) 
 
     const hideStandaloneWindow = useCallback(() => {
         if (!standaloneWindow || !isTauriRuntime()) return;
-        import('@tauri-apps/api/window')
-            .then(({ getCurrentWindow }) => getCurrentWindow().hide())
+        import('@tauri-apps/api/core')
+            .then(({ invoke }) => invoke('hide_quick_add_window'))
             .catch((error) => reportError('Failed to hide quick add window', error));
     }, [standaloneWindow]);
 
