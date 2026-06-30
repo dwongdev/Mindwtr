@@ -15,7 +15,6 @@ import {
   getUsedTaskTokens,
   getFrequentTaskTokens,
   sortTasksBy,
-  matchesHierarchicalToken,
   buildBulkTaskTokenUpdates,
   collectBulkTaskTokens,
   isTaskInActiveProject,
@@ -38,6 +37,11 @@ import { TokenPickerModal } from '../token-picker-modal';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SwipeableTaskItem } from '../swipeable-task-item';
 import { Tag, CheckCircle2 } from 'lucide-react-native';
+import {
+  buildContextsViewFilterSections,
+  taskHasContextOrTag,
+  taskMatchesContextOrTagFilter,
+} from './contexts-view-filter-utils';
 
 type BulkTokenPickerState = {
   field: 'tags' | 'contexts';
@@ -84,7 +88,6 @@ export function ContextsView() {
     setSelectedContexts(requestedTokens);
   }, [requestedTokens]);
 
-  // Combine preset contexts with contexts from tasks
   const contextSourceTasks = tasks.filter((task) => (
     !task.deletedAt
     && task.status !== 'archived'
@@ -92,9 +95,19 @@ export function ContextsView() {
     && isTaskInActiveProject(task, projectById)
     && taskMatchesAreaFilter(task, resolvedAreaFilter, projectById, areaById)
   ));
-  const allContexts = getUsedTaskTokens(
-    contextSourceTasks,
-    (task) => [...(task.contexts || []), ...(task.tags || [])]
+  const allContextTokens = getUsedTaskTokens(contextSourceTasks, (task) => task.contexts, { prefix: '@' });
+  const allTagTokens = getUsedTaskTokens(contextSourceTasks, (task) => task.tags, { prefix: '#' });
+  const filterSections = useMemo(
+    () => buildContextsViewFilterSections({
+      contextTokens: allContextTokens,
+      searchQuery,
+      tagTokens: allTagTokens,
+    }),
+    [allContextTokens, allTagTokens, searchQuery]
+  );
+  const allFilterTokens = useMemo(
+    () => [...allContextTokens, ...allTagTokens],
+    [allContextTokens, allTagTokens]
   );
   const addTagOptions = useMemo(
     () => Array.from(new Set([
@@ -112,19 +125,9 @@ export function ContextsView() {
   );
   const tasksById = useMemo(() => new Map(tasks.map((task) => [task.id, task])), [tasks]);
 
-  // Filter contexts by search query
-  const filteredContexts = searchQuery
-    ? allContexts.filter((ctx) => ctx.toLowerCase().includes(searchQuery.toLowerCase()))
-    : allContexts;
-
-  // ...
-
   const activeTasks = contextSourceTasks;
-  const hasContext = (task: Task) => (task.contexts?.length || 0) > 0 || (task.tags?.length || 0) > 0;
-  const matchesSelected = (task: Task, context: string) => {
-    const tokens = [...(task.contexts || []), ...(task.tags || [])];
-    return tokens.some(token => matchesHierarchicalToken(context, token));
-  };
+  const hasContext = taskHasContextOrTag;
+  const matchesSelected = taskMatchesContextOrTagFilter;
   const noContextSelected = selectedContexts.includes(NO_CONTEXT_TOKEN);
   const filteredTasks = noContextSelected
     ? activeTasks.filter((t) => !hasContext(t))
@@ -296,128 +299,144 @@ export function ContextsView() {
           />
         </View>
 
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          style={[styles.contextsBar, { backgroundColor: tc.cardBg, borderBottomColor: tc.border }]}
-          contentContainerStyle={styles.contextsBarContent}
-        >
-          <Pressable
-            style={[
-              styles.contextButton,
-              {
-                backgroundColor: selectedContexts.length === 0 ? tc.tint : tc.filterBg,
-                borderColor: tc.border,
-              },
-            ]}
-            onPress={() => setSelectedContexts([])}
+        <View style={[styles.contextFiltersPanel, { backgroundColor: tc.cardBg, borderBottomColor: tc.border }]}>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            style={styles.contextsBar}
+            contentContainerStyle={styles.contextsBarContent}
           >
-            <Text
+            <Pressable
               style={[
-                styles.contextButtonText,
-                { color: selectedContexts.length === 0 ? '#FFFFFF' : tc.text },
-              ]}
-            >
-              {t('contexts.all')}
-            </Text>
-            <View
-              style={[
-                styles.contextBadge,
+                styles.contextButton,
                 {
-                  backgroundColor:
-                    selectedContexts.length === 0
-                      ? 'rgba(255, 255, 255, 0.25)'
-                      : isDark
-                        ? 'rgba(255, 255, 255, 0.12)'
-                        : 'rgba(0, 0, 0, 0.08)',
+                  backgroundColor: selectedContexts.length === 0 ? tc.tint : tc.filterBg,
+                  borderColor: tc.border,
                 },
               ]}
+              onPress={() => setSelectedContexts([])}
             >
-              <Text style={[styles.contextBadgeText, { color: selectedContexts.length === 0 ? '#FFFFFF' : tc.secondaryText }]}>
-                {activeTasks.length}
-              </Text>
-            </View>
-          </Pressable>
-
-          <Pressable
-            style={[
-              styles.contextButton,
-              {
-                backgroundColor: noContextSelected ? tc.tint : tc.filterBg,
-                borderColor: tc.border,
-              },
-            ]}
-            onPress={() => setSelectedContexts(noContextSelected ? [] : [NO_CONTEXT_TOKEN])}
-          >
-            <Text
-              style={[
-                styles.contextButtonText,
-                { color: noContextSelected ? '#FFFFFF' : tc.text },
-              ]}
-            >
-              {t('contexts.none')}
-            </Text>
-            <View
-              style={[
-                styles.contextBadge,
-                {
-                  backgroundColor: noContextSelected
-                    ? 'rgba(255, 255, 255, 0.25)'
-                    : isDark
-                      ? 'rgba(255, 255, 255, 0.12)'
-                      : 'rgba(0, 0, 0, 0.08)',
-                },
-              ]}
-            >
-              <Text style={[styles.contextBadgeText, { color: noContextSelected ? '#FFFFFF' : tc.secondaryText }]}>
-                {activeTasks.filter((t) => !hasContext(t)).length}
-              </Text>
-            </View>
-          </Pressable>
-
-          {filteredContexts.map((context) => {
-            const count = activeTasks.filter((t) => matchesSelected(t, context)).length;
-            const isActive = selectedContexts.includes(context);
-            return (
-              <Pressable
-                key={context}
+              <Text
                 style={[
-                  styles.contextButton,
-                  { backgroundColor: isActive ? tc.tint : tc.filterBg, borderColor: tc.border },
+                  styles.contextButtonText,
+                  { color: selectedContexts.length === 0 ? '#FFFFFF' : tc.text },
                 ]}
-                onPress={() => setSelectedContexts((prev) => {
-                  if (prev.includes(NO_CONTEXT_TOKEN)) {
-                    return [context];
-                  }
-                  return prev.includes(context) ? prev.filter((item) => item !== context) : [...prev, context];
-                })}
               >
-                <Text
-                  style={[
-                    styles.contextButtonText,
-                    { color: isActive ? '#FFFFFF' : tc.text },
-                  ]}
-                >
-                  {context}
-                </Text>
-                <View
-                  style={[
-                    styles.contextBadge,
-                    {
-                      backgroundColor: isActive
+                {t('contexts.all')}
+              </Text>
+              <View
+                style={[
+                  styles.contextBadge,
+                  {
+                    backgroundColor:
+                      selectedContexts.length === 0
                         ? 'rgba(255, 255, 255, 0.25)'
                         : isDark
                           ? 'rgba(255, 255, 255, 0.12)'
                           : 'rgba(0, 0, 0, 0.08)',
-                    },
-                  ]}
-                >
-                  <Text style={[styles.contextBadgeText, { color: isActive ? '#FFFFFF' : tc.secondaryText }]}>{count}</Text>
-                </View>
-              </Pressable>
-            );
-          })}
-        </ScrollView>
+                  },
+                ]}
+              >
+                <Text style={[styles.contextBadgeText, { color: selectedContexts.length === 0 ? '#FFFFFF' : tc.secondaryText }]}>
+                  {activeTasks.length}
+                </Text>
+              </View>
+            </Pressable>
+
+            <Pressable
+              style={[
+                styles.contextButton,
+                {
+                  backgroundColor: noContextSelected ? tc.tint : tc.filterBg,
+                  borderColor: tc.border,
+                },
+              ]}
+              onPress={() => setSelectedContexts(noContextSelected ? [] : [NO_CONTEXT_TOKEN])}
+            >
+              <Text
+                style={[
+                  styles.contextButtonText,
+                  { color: noContextSelected ? '#FFFFFF' : tc.text },
+                ]}
+              >
+                {t('contexts.none')}
+              </Text>
+              <View
+                style={[
+                  styles.contextBadge,
+                  {
+                    backgroundColor: noContextSelected
+                      ? 'rgba(255, 255, 255, 0.25)'
+                      : isDark
+                        ? 'rgba(255, 255, 255, 0.12)'
+                        : 'rgba(0, 0, 0, 0.08)',
+                  },
+                ]}
+              >
+                <Text style={[styles.contextBadgeText, { color: noContextSelected ? '#FFFFFF' : tc.secondaryText }]}>
+                  {activeTasks.filter((t) => !hasContext(t)).length}
+                </Text>
+              </View>
+            </Pressable>
+          </ScrollView>
+
+          {filterSections.map((section) => (
+            <View key={section.kind} style={styles.contextFilterSection}>
+              <Text style={[styles.contextFilterSectionLabel, { color: tc.secondaryText }]}>
+                {section.kind === 'contexts' ? t('contexts.title') : t('tags.title')}
+              </Text>
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                style={styles.contextsBar}
+                contentContainerStyle={styles.contextsBarContent}
+              >
+                {section.tokens.map((context) => {
+                  const count = activeTasks.filter((t) => matchesSelected(t, context)).length;
+                  const isActive = selectedContexts.includes(context);
+                  return (
+                    <Pressable
+                      key={context}
+                      style={[
+                        styles.contextButton,
+                        { backgroundColor: isActive ? tc.tint : tc.filterBg, borderColor: tc.border },
+                      ]}
+                      onPress={() => setSelectedContexts((prev) => {
+                        if (prev.includes(NO_CONTEXT_TOKEN)) {
+                          return [context];
+                        }
+                        return prev.includes(context) ? prev.filter((item) => item !== context) : [...prev, context];
+                      })}
+                    >
+                      <Text
+                        style={[
+                          styles.contextButtonText,
+                          { color: isActive ? '#FFFFFF' : tc.text },
+                        ]}
+                      >
+                        {context}
+                      </Text>
+                      <View
+                        style={[
+                          styles.contextBadge,
+                          {
+                            backgroundColor: isActive
+                              ? 'rgba(255, 255, 255, 0.25)'
+                              : isDark
+                                ? 'rgba(255, 255, 255, 0.12)'
+                                : 'rgba(0, 0, 0, 0.08)',
+                          },
+                        ]}
+                      >
+                        <Text style={[styles.contextBadgeText, { color: isActive ? '#FFFFFF' : tc.secondaryText }]}>{count}</Text>
+                      </View>
+                    </Pressable>
+                  );
+                })}
+              </ScrollView>
+            </View>
+          ))}
+        </View>
 
         <View style={styles.content}>
           {selectionMode ? (
@@ -576,7 +595,7 @@ export function ContextsView() {
             showsVerticalScrollIndicator={false}
             ListEmptyComponent={(
               <View style={styles.emptyState}>
-                {allContexts.length === 0 ? (
+                {allFilterTokens.length === 0 ? (
                   <>
                     <Tag size={48} color={tc.secondaryText} strokeWidth={1.5} style={styles.emptyIcon} />
                     <Text style={[styles.emptyTitle, { color: tc.text }]}>{t('contexts.noContexts').split('.')[0]}</Text>
@@ -646,15 +665,28 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     fontSize: 16,
   },
-  contextsBar: {
-    backgroundColor: '#FFFFFF',
+  contextFiltersPanel: {
     borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
+    paddingTop: 4,
+    paddingBottom: 6,
+  },
+  contextFilterSection: {
+    gap: 2,
+  },
+  contextFilterSectionLabel: {
+    paddingHorizontal: 12,
+    paddingTop: 6,
+    fontSize: 11,
+    fontWeight: '700',
+    textTransform: 'uppercase',
+    letterSpacing: 0.4,
+  },
+  contextsBar: {
     maxHeight: 48,
   },
   contextsBarContent: {
     paddingHorizontal: 10,
-    paddingVertical: 8,
+    paddingVertical: 6,
     gap: 6,
     alignItems: 'center',
   },
