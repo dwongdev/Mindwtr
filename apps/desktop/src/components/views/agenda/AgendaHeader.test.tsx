@@ -5,8 +5,6 @@ import { AgendaHeader } from './AgendaHeader';
 
 const resolveText = (key: string, fallback: string) => {
     if (key === 'tags.title') return 'Tags';
-    if (key === 'focus.nextActions') return 'Next Actions';
-    if (key === 'focus.groupBy') return 'Group by';
     return fallback;
 };
 
@@ -32,9 +30,8 @@ describe('AgendaHeader', () => {
             />
         );
 
-        const groupSelect = getByLabelText('Next Actions: Group by') as HTMLSelectElement;
+        const groupSelect = getByLabelText('Group') as HTMLSelectElement;
 
-        expect(groupSelect.title).toBe('Next Actions: Group by');
         expect([...groupSelect.options].map((option) => option.value)).toContain('tag');
 
         fireEvent.change(groupSelect, { target: { value: 'tag' } });
