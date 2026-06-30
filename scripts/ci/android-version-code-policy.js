@@ -30,6 +30,7 @@ const requestedCode = parseInteger('requested Android versionCode', process.env.
 const remoteMaxCode = parseInteger('remote Android versionCode maximum', process.env.REMOTE_MAX_VERSION_CODE || '0', { min: 0 });
 const allowUntracked = truthy(process.env.ALLOW_UNTRACKED_VERSION_CODE);
 const writeAppJson = truthy(process.env.WRITE_APP_JSON);
+const autoBumpAppJson = truthy(process.env.AUTO_BUMP_APP_JSON_VERSION_CODE);
 
 let resolvedCode = requestedCode ?? localCode;
 
@@ -41,14 +42,21 @@ if (requestedCode !== null && !allowUntracked && requestedCode !== localCode) {
 }
 
 if (requestedCode === null && remoteMaxCode >= localCode) {
-  if (!allowUntracked) {
+  if (writeAppJson && autoBumpAppJson) {
+    resolvedCode = remoteMaxCode + 1;
+    console.log(
+      `Google Play already has versionCode ${remoteMaxCode}; bumping app.json to tracked versionCode ${resolvedCode}.`
+    );
+  } else if (!allowUntracked) {
     throw new Error(
       `Google Play already has Android versionCode ${remoteMaxCode}, but apps/mobile/app.json has ${localCode}. `
-      + `Stable release artifacts must be reproducible from the tag, so bump apps/mobile/app.json above ${remoteMaxCode} before tagging.`
+      + `Stable release artifacts must be reproducible from the tag, so bump apps/mobile/app.json above ${remoteMaxCode} before tagging. `
+      + `Release prep can do this with ANDROID_REMOTE_MAX_VERSION_CODE=${remoteMaxCode} ./scripts/bump-version.sh <version>.`
     );
+  } else {
+    resolvedCode = remoteMaxCode + 1;
+    console.log(`Google Play already has versionCode ${remoteMaxCode}; using generated versionCode ${resolvedCode} for this non-stable build.`);
   }
-  resolvedCode = remoteMaxCode + 1;
-  console.log(`Google Play already has versionCode ${remoteMaxCode}; using generated versionCode ${resolvedCode} for this non-stable build.`);
 } else if (requestedCode === null) {
   console.log(`versionCode ok: local ${localCode} > store ${remoteMaxCode}`);
 }

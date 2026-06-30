@@ -70,6 +70,14 @@ json.expo.android = { ...android, versionCode: next };
 fs.writeFileSync(appJsonPath, JSON.stringify(json, null, 2) + '\n');
 console.log(`Bumped Android versionCode: ${current || 0} -> ${next}`);
 NODE
+
+    if [ -n "${ANDROID_REMOTE_MAX_VERSION_CODE:-}" ]; then
+        echo "Ensuring Android versionCode is above Google Play max ${ANDROID_REMOTE_MAX_VERSION_CODE}..."
+        REMOTE_MAX_VERSION_CODE="${ANDROID_REMOTE_MAX_VERSION_CODE}" \
+            AUTO_BUMP_APP_JSON_VERSION_CODE=1 \
+            WRITE_APP_JSON=1 \
+            node scripts/ci/android-version-code-policy.js
+    fi
 }
 
 # Use Node.js script for safe JSON updates
