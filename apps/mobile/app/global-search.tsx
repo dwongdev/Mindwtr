@@ -104,6 +104,22 @@ export default function SearchScreen() {
   const trimmedQuery = query.trim();
   const shouldUseFts = debouncedQuery.length > 0 && !/\b\w+:/i.test(debouncedQuery);
 
+  const hasTaskOnlyFilters = (
+    selectedStatuses.length > 0
+    || selectedTokens.length > 0
+    || locationQuery.trim().length > 0
+    || duePreset !== 'any'
+    || !includeReference
+    || hideFutureTasks
+  );
+  const hasActiveFilters = (
+    hasTaskOnlyFilters
+    || selectedArea !== 'all'
+    || scope !== 'all'
+    || includeCompleted
+  );
+  const hasActiveSearch = trimmedQuery !== '' || hasActiveFilters;
+
   useEffect(() => {
     const handle = setTimeout(() => setDebouncedQuery(trimmedQuery), 200);
     return () => clearTimeout(handle);
@@ -138,8 +154,15 @@ export default function SearchScreen() {
     };
   }, [debouncedQuery, shouldUseFts]);
 
+  const filterOnlyResults = useMemo<SearchResults>(() => {
+    if (!hasActiveFilters) return { tasks: [], projects: [] };
+    return {
+      tasks: _allTasks.filter((task) => !task.deletedAt),
+      projects: hasTaskOnlyFilters ? [] : projects,
+    };
+  }, [_allTasks, hasActiveFilters, hasTaskOnlyFilters, projects]);
   const fallbackResults = trimmedQuery === ''
-    ? { tasks: [] as SearchTaskResult[], projects: [] as SearchProjectResult[] }
+    ? filterOnlyResults
     : searchAll(_allTasks, projects, trimmedQuery);
   const effectiveResults = useMemo(() => {
     if (!ftsResults || (ftsResults.tasks.length + ftsResults.projects.length) === 0) {
@@ -248,11 +271,12 @@ export default function SearchScreen() {
     const scopedTasks = scope === 'projects' ? [] : filteredTasks;
     const totalResults = scopedProjects.length + scopedTasks.length;
     const totalResultsLabel = sourceLimited ? `${sourceLimit}+` : String(totalResults);
-    const results = trimmedQuery === '' ? [] : [
+    const results = !hasActiveSearch ? [] : [
         ...scopedProjects.map(p => ({ type: 'project' as const, item: p })),
         ...scopedTasks.map(t => ({ type: 'task' as const, item: t })),
     ].slice(0, 50);
     const isTruncated = totalResults > results.length || sourceLimited;
+    const noResultsLabel = trimmedQuery ? t('search.noResults') + ' "' + trimmedQuery + '"' : t('search.noResults');
 
     const savedSearches = settings?.savedSearches || [];
     const canSave = trimmedQuery.length > 0;
@@ -374,17 +398,6 @@ export default function SearchScreen() {
         setIncludeReference(true);
         setHideFutureTasks(false);
     };
-    const hasActiveFilters = (
-        selectedStatuses.length > 0
-        || selectedArea !== 'all'
-        || selectedTokens.length > 0
-        || locationQuery.trim().length > 0
-        || duePreset !== 'any'
-        || scope !== 'all'
-        || includeCompleted
-        || !includeReference
-        || hideFutureTasks
-    );
     const activeChips: { key: string; label: string; onPress: () => void }[] = [];
     selectedStatuses.forEach((status) => {
         activeChips.push({
@@ -678,7 +691,7 @@ export default function SearchScreen() {
                     </View>
                 </KeyboardAvoidingView>
             </Modal>
-            {trimmedQuery !== '' && isTruncated && (
+            {hasActiveSearch && isTruncated && (
                 <Text style={[styles.helpText, { color: tc.secondaryText }]}>
                     {t('search.showingFirst')
                         .replace('{shown}', String(results.length))
@@ -700,10 +713,10 @@ export default function SearchScreen() {
                 contentContainerStyle={styles.listContent}
                 keyboardShouldPersistTaps="handled"
                 ListEmptyComponent={
-                    trimmedQuery !== '' && !ftsLoading ? (
+                    hasActiveSearch && !ftsLoading ? (
                         <View style={styles.emptyContainer}>
                             <Text style={[styles.emptyText, { color: tc.secondaryText }]}>
-                                {t('search.noResults')} {'"'}{trimmedQuery}{'"'}
+                                {noResultsLabel}
                             </Text>
                         </View>
                     ) : null

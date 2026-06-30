@@ -1,5 +1,5 @@
 import React from 'react';
-import { FlatList } from 'react-native';
+import { FlatList, Text, TouchableOpacity } from 'react-native';
 import { act, create } from 'react-test-renderer';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Task } from '@mindwtr/core';
@@ -157,6 +157,40 @@ describe('SearchScreen task results', () => {
             visible: true,
             task: expect.objectContaining({ id: 'task-1' }),
         }));
+    });
+
+    it('shows matching tasks when only a tag filter is selected', () => {
+        routeParams.q = '';
+        storeState._allTasks = [
+            makeTask('task-1', 'Client launch', { tags: ['#client'] }),
+            makeTask('task-2', 'Home errands', { tags: ['#home'] }),
+        ];
+
+        let tree!: ReturnType<typeof create>;
+        act(() => {
+            tree = create(<SearchScreen />);
+        });
+
+        const filterButton = tree.root
+            .findAllByType(TouchableOpacity)
+            .find((node) => node.props.accessibilityLabel === 'Filters');
+        expect(filterButton).toBeDefined();
+
+        act(() => {
+            filterButton!.props.onPress();
+        });
+
+        const tagChip = tree.root.findAllByType(TouchableOpacity).find((node) => (
+            node.findAllByType(Text).some((textNode) => textNode.props.children === '#client')
+        ));
+        expect(tagChip).toBeDefined();
+
+        act(() => {
+            tagChip!.props.onPress();
+        });
+
+        const resultList = tree.root.findByType(FlatList);
+        expect(resultList.props.data.map((result: any) => result.item.id)).toEqual(['task-1']);
     });
 
     it('keeps literal CJK substring matches when SQLite search returns partial token matches', async () => {
