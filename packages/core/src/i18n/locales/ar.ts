@@ -1063,6 +1063,7 @@ export const arOverrides: Record<string, string> = {
         'someday.emptyHint': 'استخدم حالة "يومًا ما" للأفكار والأهداف والمشاريع التي قد ترغب في تنفيذها في المستقبل',
         'search.title': 'يبحث',
         'search.placeholder': 'البحث عن المهام والمشاريع...',
+        'search.scopeHint': 'المهام والمشاريع والأشخاص',
         'search.noResults': 'لم يتم العثور على نتائج',
         'search.searching': 'البحث…',
         'search.typeToSearch': 'اكتب للبحث...',

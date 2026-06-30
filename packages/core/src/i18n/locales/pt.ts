@@ -1088,6 +1088,7 @@ export const ptOverrides: Record<string, string> = {
         // Search
         'search.title': 'Pesquisar',
         'search.placeholder': 'Pesquisar tarefas e projetos...',
+        'search.scopeHint': 'Tarefas, projetos, pessoas',
         'search.noResults': 'Nenhum resultado encontrado',
         'search.searching': 'Pesquisando…',
         'search.typeToSearch': 'Digite para pesquisar...',

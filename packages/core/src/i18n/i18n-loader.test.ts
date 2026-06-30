@@ -24,6 +24,14 @@ describe('i18n-loader sync fallback', () => {
         expect(zhHant['nav.settings']).toBe('設置');
     });
 
+    it('loads localized desktop search scope hints for Chinese locales', async () => {
+        const zhHans = await loadTranslations('zh');
+        const zhHant = await loadTranslations('zh-Hant');
+
+        expect(zhHans['search.scopeHint']).toBe('任务、项目和人员');
+        expect(zhHant['search.scopeHint']).toBe('任務、項目和人員');
+    });
+
     it('includes common notice copy for toast titles', async () => {
         const en = await loadTranslations('en');
         const es = await loadTranslations('es');

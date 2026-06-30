@@ -1191,6 +1191,7 @@ export const itOverrides: Record<string, string> = {
         // Search
         'search.title': 'Cerca',
         'search.placeholder': 'Cerca attività e progetti...',
+        'search.scopeHint': 'Attività, progetti, persone',
         'search.noResults': 'Nessun risultato trovato',
         'search.searching': 'Ricerca in corso…',
         'search.typeToSearch': 'Digita per cercare...',

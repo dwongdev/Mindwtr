@@ -1034,6 +1034,7 @@ export const trOverrides: Record<string, string> = {
         'someday.emptyHint': 'Gelecekte yapmak isteyebileceğiniz fikirler, hedefler ve projeler için "Bir gün" durumunu kullanın',
         'search.title': 'Aramak',
         'search.placeholder': 'Görevleri ve projeleri arayın...',
+        'search.scopeHint': 'Görevler, projeler, kişiler',
         'search.noResults': 'Sonuç bulunamadı',
         'search.searching': 'Arama…',
         'search.typeToSearch': 'Aramak için yazın...',

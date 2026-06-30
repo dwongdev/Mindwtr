@@ -1020,6 +1020,7 @@ export const ruOverrides: Record<string, string> = {
         'someday.emptyHint': 'Используйте статус «Когда-нибудь» для идей, целей и проектов, которые вы, возможно, захотите реализовать в будущем.',
         'search.title': 'Поиск',
         'search.placeholder': 'Поиск задач и проектов...',
+        'search.scopeHint': 'Задачи, проекты, люди',
         'search.noResults': 'Результаты не найдены',
         'search.searching': 'Идет поиск…',
         'search.typeToSearch': 'Введите для поиска...',

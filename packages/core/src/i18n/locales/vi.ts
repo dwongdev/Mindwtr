@@ -1322,6 +1322,7 @@ export const viOverrides: Record<string, string> = {
         // Search
         'search.title': 'Tìm kiếm',
         'search.placeholder': 'Tìm kiếm nhiệm vụ và dự án...',
+        'search.scopeHint': 'Nhiệm vụ, dự án, người',
         'search.noResults': 'Không tìm thấy kết quả',
         'search.searching': 'Đang tìm kiếm…',
         'search.typeToSearch': 'Nhập để tìm kiếm...',

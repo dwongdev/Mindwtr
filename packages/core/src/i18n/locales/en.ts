@@ -1331,6 +1331,7 @@ export const en: Record<string, string> = {
         // Search
         'search.title': 'Search',
         'search.placeholder': 'Search tasks and projects...',
+        'search.scopeHint': 'Tasks, projects, people',
         'search.noResults': 'No results found',
         'search.searching': 'Searching…',
         'search.typeToSearch': 'Type to search...',

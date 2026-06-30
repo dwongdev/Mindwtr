@@ -1078,6 +1078,7 @@ export const deOverrides: Record<string, string> = {
         // Search
         'search.title': 'Suchen',
         'search.placeholder': 'Aufgaben and Projekte suchen ...',
+        'search.scopeHint': 'Aufgaben, Projekte, Personen',
         'search.noResults': 'Nichts gefunden',
         'search.searching': 'Suchen ...',
         'search.typeToSearch': 'Tippen für die Suche ...',

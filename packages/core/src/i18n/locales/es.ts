@@ -945,6 +945,7 @@ export const esOverrides: Record<string, string> = {
         'someday.emptyHint': 'Usa el estado "Algún día/Tal vez" para ideas, objetivos, y proyectos que tal vez quieras hacer en un futuro',
         'search.title': 'Buscar',
         'search.placeholder': 'Buscar tareas y proyectos...',
+        'search.scopeHint': 'Tareas, proyectos, personas',
         'search.noResults': 'No se han encontrado resultados',
         'search.searching': 'Buscaring…',
         'search.typeToSearch': 'Escribe para buscar...',

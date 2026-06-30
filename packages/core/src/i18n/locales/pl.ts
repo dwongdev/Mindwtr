@@ -1018,6 +1018,7 @@ export const plOverrides: Record<string, string> = {
         'someday.emptyHint': 'Używaj statusu „Kiedyś/Może” dla pomysłów, celów i projektów, które możesz chcieć zrealizować w przyszłości.',
         'search.title': 'Szukaj',
         'search.placeholder': 'Wyszukaj zadania i projekty...',
+        'search.scopeHint': 'Zadania, projekty, osoby',
         'search.noResults': 'Nie znaleziono żadnych wyników',
         'search.searching': 'Wyszukiwanie…',
         'search.typeToSearch': 'Wpisz, aby wyszukać...',

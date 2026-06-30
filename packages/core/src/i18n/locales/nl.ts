@@ -262,6 +262,7 @@ export const nlOverrides: Record<string, string> = {
         'tags.title': 'Labels',
         'areas.edit': 'Gebied bewerken',
         'common.search': 'Zoeken',
+        'search.scopeHint': 'Taken, projecten, personen',
         'common.done': 'Klaar',
         'common.showCompleted': 'Voltooide tonen',
         'common.hideCompleted': 'Voltooide verbergen',

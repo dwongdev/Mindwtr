@@ -1020,6 +1020,7 @@ export const jaOverrides: Record<string, string> = {
         'someday.emptyHint': '将来やりたいと思うアイデア、目標、プロジェクトには「いつか」ステータスを使用します',
         'search.title': '検索',
         'search.placeholder': 'タスクとプロジェクトを検索...',
+        'search.scopeHint': 'タスク、プロジェクト、人物',
         'search.noResults': '結果が見つかりませんでした',
         'search.searching': '検索中…',
         'search.typeToSearch': '入力して検索...',

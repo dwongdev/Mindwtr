@@ -106,6 +106,12 @@ describe('locale parity', () => {
         }
     });
 
+    it('keeps desktop search scope hint translated in every shipped locale', () => {
+        for (const [language, translations] of Object.entries(shippedLocales)) {
+            expect(translations['search.scopeHint'], `Missing desktop search scope hint in ${language}`).toBeTruthy();
+        }
+    });
+
     it('keeps shipped locales limited to known English keys', () => {
         const englishKeys = new Set(Object.keys(en));
 

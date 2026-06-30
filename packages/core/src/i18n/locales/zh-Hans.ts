@@ -1205,6 +1205,7 @@ export const zhHans: Record<string, string> = {
         'someday.emptyHint': '使用"将来"状态存储未来可能想做的想法、目标和项目',
         'search.title': '搜索',
         'search.placeholder': '搜索任务和项目...',
+        'search.scopeHint': '任务、项目和人员',
         'search.noResults': '未找到结果',
         'search.searching': '正在搜索…',
         'search.typeToSearch': '输入以搜索...',

@@ -1314,6 +1314,7 @@ export const frOverrides: Record<string, string> = {
         // Search
         'search.title': 'Recherche',
         'search.placeholder': 'Rechercher des tâches et des projets…',
+        'search.scopeHint': 'Tâches, projets, personnes',
         'search.noResults': 'Aucun résultat trouvé',
         'search.searching': 'Recherche…',
         'search.typeToSearch': 'Tapez pour rechercher…',

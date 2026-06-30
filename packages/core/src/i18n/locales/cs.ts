@@ -1274,6 +1274,7 @@ export const csOverrides: Record<string, string> = {
         'done.emptyHint': 'Dokončené úkoly přistávají tady — průběžný záznam toho, co jste dotáhli.',
         'search.title': 'Hledání',
         'search.placeholder': 'Hledat úkoly a projekty…',
+        'search.scopeHint': 'Úkoly, projekty, lidé',
         'search.noResults': 'Nic nenalezeno',
         'search.searching': 'Hledám…',
         'search.typeToSearch': 'Pište pro hledání…',

@@ -1025,6 +1025,7 @@ export const koOverrides: Record<string, string> = {
         'someday.emptyHint': '앞으로 하고 싶은 아이디어, 목표, 프로젝트에 대해 "언젠가" 상태를 사용하세요.',
         'search.title': '찾다',
         'search.placeholder': '작업 및 프로젝트 검색...',
+        'search.scopeHint': '작업, 프로젝트, 사람',
         'search.noResults': '검색결과가 없습니다',
         'search.searching': '수색…',
         'search.typeToSearch': '검색할 내용을 입력하세요...',

@@ -1019,6 +1019,7 @@ export const hiOverrides: Record<string, string> = {
         'someday.emptyHint': 'उन विचारों, लक्ष्यों और परियोजनाओं के लिए "किसी दिन" स्थिति का उपयोग करें जिन्हें आप भविष्य में करना चाहते हैं',
         'search.title': 'खोज',
         'search.placeholder': 'कार्य और प्रोजेक्ट खोजें...',
+        'search.scopeHint': 'कार्य, प्रोजेक्ट, लोग',
         'search.noResults': 'कोई परिणाम नहीं मिला',
         'search.searching': 'खोज रहे हैं...',
         'search.typeToSearch': 'खोजने के लिए टाइप करें...',
