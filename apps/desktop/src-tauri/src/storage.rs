@@ -128,6 +128,7 @@ pub(crate) fn open_sqlite(app: &tauri::AppHandle) -> Result<Connection, String> 
     ensure_projects_order_column(&conn)?;
     ensure_column(&conn, "projects", "sequentialScope", "TEXT")?;
     ensure_projects_due_date_column(&conn)?;
+    ensure_projects_purged_at_column(&conn)?;
     ensure_projects_area_order_index(&conn)?;
     ensure_sync_revision_columns(&conn)?;
     ensure_tasks_fts_schema(&conn)?;
@@ -423,6 +424,10 @@ fn ensure_projects_due_date_column(conn: &Connection) -> Result<(), String> {
     )
     .map_err(|e| e.to_string())?;
     Ok(())
+}
+
+fn ensure_projects_purged_at_column(conn: &Connection) -> Result<(), String> {
+    ensure_column(conn, "projects", "purgedAt", "TEXT")
 }
 
 fn ensure_projects_area_order_index(conn: &Connection) -> Result<(), String> {
@@ -1013,6 +1018,11 @@ fn row_to_project_value(row: &rusqlite::Row<'_>) -> Result<Value, rusqlite::Erro
             map.insert("deletedAt".to_string(), Value::String(v));
         }
     }
+    if let Ok(val) = row.get::<_, Option<String>>("purgedAt") {
+        if let Some(v) = val {
+            map.insert("purgedAt".to_string(), Value::String(v));
+        }
+    }
     Ok(Value::Object(map))
 }
 
@@ -1213,7 +1223,7 @@ fn migrate_json_to_sqlite(conn: &mut Connection, data: &Value) -> Result<(), Str
         let tag_ids_json = json_str_or_default(project.get("tagIds"), "[]");
         let attachments_json = json_str(project.get("attachments"));
         tx.execute(
-            "INSERT OR REPLACE INTO projects (id, title, status, color, orderNum, tagIds, isSequential, sequentialScope, isFocused, supportNotes, attachments, dueDate, reviewAt, areaId, areaTitle, rev, revBy, createdAt, updatedAt, deletedAt) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20)",
+            "INSERT OR REPLACE INTO projects (id, title, status, color, orderNum, tagIds, isSequential, sequentialScope, isFocused, supportNotes, attachments, dueDate, reviewAt, areaId, areaTitle, rev, revBy, createdAt, updatedAt, deletedAt, purgedAt) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20, ?21)",
             params![
                 project.get("id").and_then(|v| v.as_str()).unwrap_or_default(),
                 project.get("title").and_then(|v| v.as_str()).unwrap_or_default(),
@@ -1235,6 +1245,7 @@ fn migrate_json_to_sqlite(conn: &mut Connection, data: &Value) -> Result<(), Str
                 project.get("createdAt").and_then(|v| v.as_str()).unwrap_or_default(),
                 project.get("updatedAt").and_then(|v| v.as_str()).unwrap_or_default(),
                 project.get("deletedAt").and_then(|v| v.as_str()),
+                project.get("purgedAt").and_then(|v| v.as_str()),
             ],
         )
         .map_err(|e| e.to_string())?;
@@ -2193,6 +2204,34 @@ mod tests {
     }
 
     #[test]
+    fn ensure_projects_purged_at_column_migrates_legacy_schema() {
+        let conn = Connection::open_in_memory().expect("should open in-memory db");
+        conn.execute_batch(
+            r#"
+            CREATE TABLE projects (
+              id TEXT PRIMARY KEY,
+              title TEXT NOT NULL,
+              status TEXT NOT NULL,
+              color TEXT NOT NULL
+            );
+            "#,
+        )
+        .expect("should create legacy projects table");
+
+        ensure_projects_purged_at_column(&conn).expect("should add purgedAt column");
+
+        let mut stmt = conn
+            .prepare("PRAGMA table_info(projects)")
+            .expect("should inspect project columns");
+        let column_names: Vec<String> = stmt
+            .query_map([], |row| row.get::<_, String>(1))
+            .expect("should read project columns")
+            .map(|row| row.expect("column row"))
+            .collect();
+        assert!(column_names.iter().any(|name| name == "purgedAt"));
+    }
+
+    #[test]
     fn ensure_tasks_organization_indexes_create_energy_and_assignee_indexes() {
         let conn = Connection::open_in_memory().expect("should open in-memory db");
         conn.execute_batch(
@@ -2343,7 +2382,9 @@ mod tests {
                 "isSequential": false,
                 "isFocused": false,
                 "createdAt": "2026-05-01T00:00:00.000Z",
-                "updatedAt": "2026-05-22T00:00:00.000Z"
+                "updatedAt": "2026-05-22T00:00:00.000Z",
+                "deletedAt": "2026-05-23T00:00:00.000Z",
+                "purgedAt": "2026-05-24T00:00:00.000Z"
             }],
             "sections": [{
                 "id": "section-1",
@@ -2414,6 +2455,14 @@ mod tests {
             .expect("should read project");
         assert_eq!(project.get("isSequential"), Some(&Value::Bool(false)));
         assert_eq!(project.get("isFocused"), Some(&Value::Bool(false)));
+        assert_eq!(
+            project.get("deletedAt"),
+            Some(&Value::String("2026-05-23T00:00:00.000Z".into()))
+        );
+        assert_eq!(
+            project.get("purgedAt"),
+            Some(&Value::String("2026-05-24T00:00:00.000Z".into()))
+        );
 
         let section = round_tripped
             .get("sections")
