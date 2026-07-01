@@ -32,6 +32,9 @@ type ProjectRowProps = {
 };
 
 const ROW_ACTION_HIT_SLOP = { top: 12, bottom: 12, left: 12, right: 12 } as const;
+const PROJECT_SWIPE_FRICTION = 1.25;
+const PROJECT_SWIPE_OPEN_THRESHOLD = 72;
+const PROJECT_SWIPE_DRAG_OFFSET = 28;
 
 function getStatusLabel(status: Project['status'], t: (key: string) => string) {
     if (status === 'active') return t('status.active');
@@ -203,6 +206,11 @@ export function ProjectRow({
             ref={swipeableRef}
             renderLeftActions={renderLeftActions}
             renderRightActions={renderRightActions}
+            friction={PROJECT_SWIPE_FRICTION}
+            leftThreshold={PROJECT_SWIPE_OPEN_THRESHOLD}
+            rightThreshold={PROJECT_SWIPE_OPEN_THRESHOLD}
+            dragOffsetFromLeftEdge={PROJECT_SWIPE_DRAG_OFFSET}
+            dragOffsetFromRightEdge={PROJECT_SWIPE_DRAG_OFFSET}
             overshootLeft={false}
             overshootRight={false}
         >
