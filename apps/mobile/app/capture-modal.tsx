@@ -19,6 +19,7 @@ import {
   getUsedTaskTokens,
   isSelectableProjectForTaskAssignment,
   parseQuickAdd,
+  normalizeClockTimeInput,
   resolveDefaultNewTaskAreaId,
   shallow,
   splitQuickAddBulkLines,
@@ -232,9 +233,10 @@ export default function CaptureScreen() {
     () => ({
       knownContexts: contextOptions,
       knownTags: tagOptions,
+      defaultScheduleTime: normalizeClockTimeInput(settings.gtd?.defaultScheduleTime) || undefined,
       preserveText: settings.quickAddAutoClean !== true,
     }),
-    [contextOptions, tagOptions, settings.quickAddAutoClean]
+    [contextOptions, tagOptions, settings.gtd?.defaultScheduleTime, settings.quickAddAutoClean]
   );
 
   useEffect(() => {

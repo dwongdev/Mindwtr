@@ -17,6 +17,7 @@ import {
   hasTimeComponent,
   isSelectableProjectForTaskAssignment,
   parseQuickAdd,
+  normalizeClockTimeInput,
   normalizeFocusTaskLimit,
   resolveDefaultNewTaskAreaId,
   safeFormatDate,
@@ -398,6 +399,7 @@ export function QuickCaptureSheet({
 
     if (trimmed) {
       const parsed = parseQuickAdd(trimmed, projects, new Date(), areas, {
+        defaultScheduleTime: normalizeClockTimeInput(settings.gtd?.defaultScheduleTime) || undefined,
         preserveText: settings.quickAddAutoClean !== true,
       });
       finalTitle = parsed.title || trimmed;
@@ -458,7 +460,7 @@ export function QuickCaptureSheet({
     if (focusNewTask && canFocusNewTask) initialPropsMerged.isFocusedToday = true;
 
     return { title: finalTitle, props: initialPropsMerged, invalidDateCommands };
-  }, [addProject, areas, canFocusNewTask, contextTags, dueDate, dueDateHasTime, focusNewTask, initialProps, prioritiesEnabled, priority, projectId, projects, selectedAreaId, settings.quickAddAutoClean, startTime]);
+  }, [addProject, areas, canFocusNewTask, contextTags, dueDate, dueDateHasTime, focusNewTask, initialProps, prioritiesEnabled, priority, projectId, projects, selectedAreaId, settings.gtd?.defaultScheduleTime, settings.quickAddAutoClean, startTime]);
 
   const buildTaskProps = useCallback((fallbackTitle: string, extraProps?: Partial<Task>) => (
     buildTaskPropsForInput(value, fallbackTitle, extraProps)

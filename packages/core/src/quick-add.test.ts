@@ -144,6 +144,41 @@ describe('quick-add', () => {
         expect(result.props.dueDate).toBe('2025-01-08');
     });
 
+    it('uses default schedule time for start and review commands without explicit time', () => {
+        const now = new Date('2025-01-01T10:00:00Z');
+        const result = parseQuickAdd(
+            'Review proposal /start:tomorrow /review:friday /due:next week',
+            undefined,
+            now,
+            undefined,
+            { defaultScheduleTime: '09:30' },
+        );
+
+        const relativeResult = parseQuickAdd('Task /start: 1d', undefined, now, undefined, {
+            defaultScheduleTime: '09:30',
+        });
+
+        expect(result.title).toBe('Review proposal');
+        expect(result.props.startTime).toBe(new Date(2025, 0, 2, 9, 30, 0, 0).toISOString());
+        expect(result.props.reviewAt).toBe(new Date(2025, 0, 3, 9, 30, 0, 0).toISOString());
+        expect(result.props.dueDate).toBe('2025-01-08');
+        expect(relativeResult.props.startTime).toBe(new Date(2025, 0, 2, 9, 30, 0, 0).toISOString());
+    });
+
+    it('keeps explicit quick-add times ahead of the default schedule time', () => {
+        const now = new Date('2025-01-01T10:00:00Z');
+        const result = parseQuickAdd(
+            'Review proposal /start:tomorrow 2:15pm /review:friday 11am',
+            undefined,
+            now,
+            undefined,
+            { defaultScheduleTime: '09:30' },
+        );
+
+        expect(result.props.startTime).toBe(new Date(2025, 0, 2, 14, 15, 0, 0).toISOString());
+        expect(result.props.reviewAt).toBe(new Date(2025, 0, 3, 11, 0, 0, 0).toISOString());
+    });
+
     it('parses abbreviated weekday commands like /start:mon', () => {
         const now = new Date('2026-02-27T09:40:00Z');
         const result = parseQuickAdd('Task /start:mon', undefined, now);

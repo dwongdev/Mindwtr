@@ -1168,7 +1168,9 @@ export const TaskItem = memo(function TaskItem({
 
         if (suggestion.command === 'due' || suggestion.command === 'start' || suggestion.command === 'review') {
             if (!value) return false;
-            const parsed = parseQuickAddDateCommands(`/${suggestion.command}:${value}`, new Date());
+            const parsed = parseQuickAddDateCommands(`/${suggestion.command}:${value}`, new Date(), {
+                defaultScheduleTime: normalizeClockTimeInput(settings?.gtd?.defaultScheduleTime) || undefined,
+            });
             if (parsed.invalidDateCommands?.length) return false;
             const parsedValue = suggestion.command === 'due'
                 ? parsed.props.dueDate
@@ -1191,6 +1193,7 @@ export const TaskItem = memo(function TaskItem({
         return true;
     }, [
         editDescription,
+        settings?.gtd?.defaultScheduleTime,
         setEditDescription,
         setEditDueDate,
         setEditReviewAt,

@@ -11,6 +11,7 @@ import {
     hasActiveFilterCriteria,
     isTaskInActiveProject,
     parseQuickAdd,
+    normalizeClockTimeInput,
     resolveDefaultNewTaskAreaId,
     safeParseDate,
     shallow,
@@ -263,9 +264,10 @@ export const ListView = memo(function ListView({ title, statusFilter }: ListView
         () => ({
             knownContexts: allContexts,
             knownTags: allTags,
+            defaultScheduleTime: normalizeClockTimeInput(settings.gtd?.defaultScheduleTime) || undefined,
             preserveText: settings.quickAddAutoClean !== true,
         }),
-        [allContexts, allTags, settings.quickAddAutoClean],
+        [allContexts, allTags, settings.gtd?.defaultScheduleTime, settings.quickAddAutoClean],
     );
 
     const {

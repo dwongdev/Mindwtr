@@ -15,6 +15,7 @@ import {
   sortDoneTasksForListView,
   parseQuickAdd,
   formatFocusTaskLimitText,
+  normalizeClockTimeInput,
   resolveDefaultNewTaskAreaId,
   getQuickAddProjectInitialProps,
   getUsedTaskTokens,
@@ -1310,6 +1311,7 @@ function TaskListComponent({
       : (statusFilter !== 'all' ? statusFilter : 'inbox');
 
     const { title: parsedTitle, props, projectTitle, invalidDateCommands } = parseQuickAdd(newTaskTitle, projects, new Date(), areas, {
+      defaultScheduleTime: normalizeClockTimeInput(settings.gtd?.defaultScheduleTime) || undefined,
       preserveText: settings.quickAddAutoClean !== true,
     });
     if (invalidDateCommands && invalidDateCommands.length > 0) {

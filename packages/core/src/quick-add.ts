@@ -4,6 +4,7 @@ import type { Area, Attachment, Project, Task, TaskEnergyLevel, TaskStatus } fro
 import { generateUUID } from './uuid';
 import { normalizeTaskStatus } from './task-status';
 import { normalizeLinkAttachmentInput } from './attachment-link-utils';
+import { normalizeClockTimeInput } from './date';
 
 export interface QuickAddDetectedDate {
     date: string;
@@ -22,6 +23,7 @@ export interface QuickAddResult {
 export interface QuickAddParseOptions {
     knownContexts?: readonly string[];
     knownTags?: readonly string[];
+    defaultScheduleTime?: string | null;
     // When true, keep the user's text exactly as entered: recognized metadata
     // (dates, tags, contexts, ...) is still detected and applied, but never
     // stripped out of the title. Default strips recognized tokens. See #742.
@@ -108,6 +110,10 @@ function restoreEscapes(input: string): string {
 
 type DateDefaultTimeMode = 'now' | 'startOfDay';
 
+type DateCommandParseOptions = {
+    defaultScheduleTime?: string | null;
+};
+
 type ParsedNaturalDate = {
     date: Date;
     hasExplicitTime: boolean;
@@ -117,6 +123,27 @@ function buildDefaultDate(now: Date, defaultTimeMode: DateDefaultTimeMode): Date
     const fallbackHour = defaultTimeMode === 'startOfDay' ? 0 : now.getHours();
     const fallbackMinute = defaultTimeMode === 'startOfDay' ? 0 : now.getMinutes();
     return set(new Date(now), { hours: fallbackHour, minutes: fallbackMinute, seconds: 0, milliseconds: 0 });
+}
+
+function parseDefaultScheduleTime(value?: string | null): { hours: number; minutes: number } | null {
+    const normalized = normalizeClockTimeInput(value);
+    if (!normalized) return null;
+    const [hours, minutes] = normalized.split(':').map(Number);
+    if (!Number.isFinite(hours) || !Number.isFinite(minutes)) return null;
+    return { hours, minutes };
+}
+
+function applyDefaultScheduleTime(
+    parsed: ParsedNaturalDate,
+    defaultScheduleTime?: string | null,
+): ParsedNaturalDate {
+    if (parsed.hasExplicitTime) return parsed;
+    const clock = parseDefaultScheduleTime(defaultScheduleTime);
+    if (!clock) return parsed;
+    return {
+        ...parsed,
+        date: set(parsed.date, { hours: clock.hours, minutes: clock.minutes, seconds: 0, milliseconds: 0 }),
+    };
 }
 
 function hasNaturalTimeHint(text: string): boolean {
@@ -319,13 +346,17 @@ function parseDateCommand(
     command: 'start' | 'due' | 'review',
     working: string,
     now: Date,
+    options: DateCommandParseOptions = {},
 ): { value?: string; working: string; invalidCommand?: string } {
     const match = working.match(new RegExp(`\\/${command}:([\\s\\S]+?)${QUICK_ADD_COMMAND_BOUNDARY}`, 'i'));
     if (!match) return { working };
 
     const dateText = match[1].trim();
     const defaultTimeMode: DateDefaultTimeMode = command === 'due' ? 'now' : 'startOfDay';
-    const parsed = parseNaturalDate(dateText, now, defaultTimeMode);
+    const parsedNaturalDate = parseNaturalDate(dateText, now, defaultTimeMode);
+    const parsed = parsedNaturalDate && command !== 'due'
+        ? applyDefaultScheduleTime(parsedNaturalDate, options.defaultScheduleTime)
+        : parsedNaturalDate;
     if (!parsed) {
         return {
             working,
@@ -342,6 +373,7 @@ function parseDateCommand(
 function parseDateCommandsFromWorking(
     working: string,
     now: Date,
+    options: DateCommandParseOptions = {},
 ): {
     working: string;
     startTime?: string;
@@ -351,7 +383,7 @@ function parseDateCommandsFromWorking(
 } {
     const invalidDateCommands: string[] = [];
 
-    const startResult = parseDateCommand('start', working, now);
+    const startResult = parseDateCommand('start', working, now, options);
     const startTime = startResult.value;
     if (startResult.invalidCommand) invalidDateCommands.push(startResult.invalidCommand);
     working = startResult.working;
@@ -361,7 +393,7 @@ function parseDateCommandsFromWorking(
     if (dueResult.invalidCommand) invalidDateCommands.push(dueResult.invalidCommand);
     working = dueResult.working;
 
-    const reviewResult = parseDateCommand('review', working, now);
+    const reviewResult = parseDateCommand('review', working, now, options);
     const reviewAt = reviewResult.value;
     if (reviewResult.invalidCommand) invalidDateCommands.push(reviewResult.invalidCommand);
     working = reviewResult.working;
@@ -419,7 +451,7 @@ function parseLinkCommandsFromWorking(
 export function parseQuickAddDateCommands(
     input: string,
     now: Date = new Date(),
-    options: { preserveText?: boolean } = {},
+    options: Pick<QuickAddParseOptions, 'preserveText' | 'defaultScheduleTime'> = {},
 ): QuickAddDateCommandsResult {
     const protectedInput = protectEscapes(input.trim());
     const {
@@ -428,7 +460,7 @@ export function parseQuickAddDateCommands(
         dueDate,
         reviewAt,
         invalidDateCommands,
-    } = parseDateCommandsFromWorking(protectedInput, now);
+    } = parseDateCommandsFromWorking(protectedInput, now, options);
 
     return {
         title: options.preserveText === true
@@ -530,7 +562,7 @@ export function parseQuickAdd(
         dueDate,
         reviewAt,
         invalidDateCommands,
-    } = parseDateCommandsFromWorking(working, now);
+    } = parseDateCommandsFromWorking(working, now, options);
     working = workingWithoutDates;
 
     // Status tokens like /next, /waiting, etc.
