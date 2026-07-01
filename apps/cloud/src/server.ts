@@ -15,6 +15,7 @@ import {
     type Area,
     type Attachment,
     type AppData,
+    type PendingRemoteAttachmentDelete,
     type Project,
     type Section,
     type Task,
@@ -302,6 +303,7 @@ type EntityRouteDefinition<T extends CloudEntity> = {
     invalidIdMessage: string;
     listItems: (data: AppData, url: URL) => T[];
     createEntity: (body: Record<string, unknown>, data: AppData, nowIso: string) => T | Response;
+    canPatchDeletedEntity?: (body: Record<string, unknown>) => boolean;
     patchEntity: (body: Record<string, unknown>, existing: T, data: AppData, nowIso: string) => T | Response;
 };
 
@@ -401,7 +403,10 @@ const handleEntityRoute = async <T extends CloudEntity>(
             throwIfRequestAborted(context.signal);
             const data = loadAppData(context.filePath);
             const collection = getEntityCollection(data, route);
-            const idx = collection.findIndex((item) => item.id === entityId && !item.deletedAt);
+            const idx = collection.findIndex((item) => (
+                item.id === entityId
+                && (!item.deletedAt || route.canPatchDeletedEntity?.(bodyResult.body))
+            ));
             if (idx < 0) return errorResponse(`${route.label} not found`, 404);
             const nowIso = new Date().toISOString();
             const updated = route.patchEntity(bodyResult.body, collection[idx], data, nowIso);
@@ -498,10 +503,12 @@ const ENTITY_ROUTES: Array<EntityRouteDefinition<any>> = [
                 revBy: CLOUD_API_REV_BY,
             };
         },
+        canPatchDeletedEntity: isProjectPurgePatch,
         patchEntity: (bodyRecord, existing: Project, data, nowIso): Project | Response => {
             const validatedPatch = validateProjectPatchProps(bodyRecord);
             if (!validatedPatch.ok) return errorResponse(validatedPatch.error, 400);
             const updates = validatedPatch.props;
+            const purgingProject = isProjectPurgePatch(bodyRecord);
             if (typeof updates.title === 'string' && !updates.title.trim()) return errorResponse('Missing project title');
             if (typeof updates.title === 'string' && updates.title.length > MAX_TASK_TITLE_LENGTH) {
                 return errorResponse(`Project title too long (max ${MAX_TASK_TITLE_LENGTH} characters)`, 400);
@@ -519,7 +526,7 @@ const ENTITY_ROUTES: Array<EntityRouteDefinition<any>> = [
             if (areaId && !data.areas.some((area) => area.id === areaId && !area.deletedAt)) {
                 return errorResponse('Area not found', 404);
             }
-            return {
+            const updatedProject = {
                 ...existing,
                 ...updates,
                 title: typeof updates.title === 'string' ? updates.title.trim() : existing.title,
@@ -527,6 +534,16 @@ const ENTITY_ROUTES: Array<EntityRouteDefinition<any>> = [
                 updatedAt: nowIso,
                 rev: normalizeRevision(existing.rev) + 1,
                 revBy: CLOUD_API_REV_BY,
+            };
+            if (!purgingProject) return updatedProject;
+
+            const pendingDeletes = collectPendingRemoteDeletesForProjectPurge(updatedProject, data);
+            data.settings = appendPendingRemoteAttachmentDeletes(data.settings, pendingDeletes);
+            return {
+                ...updatedProject,
+                deletedAt: typeof updatedProject.deletedAt === 'string' ? updatedProject.deletedAt : nowIso,
+                purgedAt: typeof updates.purgedAt === 'string' ? updates.purgedAt : updatedProject.purgedAt,
+                attachments: stripProjectAttachmentRemoteMetadata(updatedProject.attachments),
             };
         },
     },
@@ -674,6 +691,85 @@ function countTokenNamespaces(dataDir: string): number {
 function resolveServerMergeTimestamp(..._dataSets: AppData[]): string {
     return new Date().toISOString();
 }
+
+function isProjectPurgePatch(bodyRecord: Record<string, unknown>): boolean {
+    return typeof bodyRecord.purgedAt === 'string' && bodyRecord.purgedAt.trim().length > 0;
+}
+
+const stripProjectAttachmentRemoteMetadata = (attachments: Project['attachments']): Project['attachments'] => (
+    attachments?.map((attachment) => (
+        attachment.kind === 'file'
+            ? {
+                ...attachment,
+                cloudKey: undefined,
+                localStatus: undefined,
+            }
+            : attachment
+    ))
+);
+
+const getAttachmentCloudKey = (attachment: Attachment): string | null => {
+    if (attachment.kind !== 'file' || !attachment.cloudKey) return null;
+    return normalizeAttachmentRelativePath(attachment.cloudKey);
+};
+
+const collectRetainedAttachmentCloudKeysForProjectPurge = (data: AppData, purgedProjectId: string): Set<string> => {
+    const cloudKeys = new Set<string>();
+    for (const project of data.projects) {
+        if (project.id === purgedProjectId || project.purgedAt) continue;
+        for (const attachment of project.attachments || []) {
+            const cloudKey = getAttachmentCloudKey(attachment);
+            if (cloudKey) cloudKeys.add(cloudKey);
+        }
+    }
+    for (const task of data.tasks) {
+        if (task.purgedAt) continue;
+        for (const attachment of task.attachments || []) {
+            const cloudKey = getAttachmentCloudKey(attachment);
+            if (cloudKey) cloudKeys.add(cloudKey);
+        }
+    }
+    return cloudKeys;
+};
+
+const collectPendingRemoteDeletesForProjectPurge = (
+    project: Project,
+    data: AppData,
+): PendingRemoteAttachmentDelete[] => {
+    const retainedCloudKeys = collectRetainedAttachmentCloudKeysForProjectPurge(data, project.id);
+    const byCloudKey = new Map<string, PendingRemoteAttachmentDelete>();
+    for (const attachment of project.attachments || []) {
+        const cloudKey = getAttachmentCloudKey(attachment);
+        if (!cloudKey || retainedCloudKeys.has(cloudKey) || byCloudKey.has(cloudKey)) continue;
+        byCloudKey.set(cloudKey, {
+            cloudKey,
+            title: attachment.title || cloudKey,
+        });
+    }
+    return Array.from(byCloudKey.values());
+};
+
+const appendPendingRemoteAttachmentDeletes = (
+    settings: AppData['settings'],
+    pendingDeletes: readonly PendingRemoteAttachmentDelete[],
+): AppData['settings'] => {
+    if (pendingDeletes.length === 0) return settings;
+    const byCloudKey = new Map<string, PendingRemoteAttachmentDelete>();
+    for (const existing of settings.attachments?.pendingRemoteDeletes || []) {
+        byCloudKey.set(existing.cloudKey, existing);
+    }
+    for (const pending of pendingDeletes) {
+        if (byCloudKey.has(pending.cloudKey)) continue;
+        byCloudKey.set(pending.cloudKey, pending);
+    }
+    return {
+        ...settings,
+        attachments: {
+            ...settings.attachments,
+            pendingRemoteDeletes: Array.from(byCloudKey.values()),
+        },
+    };
+};
 
 function collectReferencedAttachmentCloudKeys(data: AppData): Set<string> {
     const referenced = new Set<string>();

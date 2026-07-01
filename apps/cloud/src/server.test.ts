@@ -1665,6 +1665,95 @@ describe('cloud server api', () => {
         expect((await areasList.json()).total).toBe(1);
     });
 
+    test('purges deleted REST projects with refcounted remote attachment cleanup', async () => {
+        const iso = '2026-01-01T00:00:00.000Z';
+        const purgeIso = '2026-01-02T00:00:00.000Z';
+        const projectOnlyCloudKey = 'attachments/project-only.bin';
+        const sharedCloudKey = 'attachments/shared.bin';
+        const attachmentBase = {
+            kind: 'file' as const,
+            uri: '',
+            createdAt: iso,
+            updatedAt: iso,
+            localStatus: 'available' as const,
+        };
+
+        const seedData: AppData = {
+            tasks: [makeTestTask({
+                id: 'task-retaining-shared',
+                title: 'Retains shared attachment',
+                attachments: [{
+                    ...attachmentBase,
+                    id: 'task-att-shared',
+                    title: 'shared.bin',
+                    cloudKey: sharedCloudKey,
+                }],
+            })],
+            projects: [{
+                id: 'project-purged',
+                title: 'Purged project',
+                status: 'active',
+                color: '#6B7280',
+                order: 0,
+                tagIds: [],
+                createdAt: iso,
+                updatedAt: iso,
+                deletedAt: iso,
+                attachments: [
+                    {
+                        ...attachmentBase,
+                        id: 'project-att-only',
+                        title: 'project-only.bin',
+                        cloudKey: projectOnlyCloudKey,
+                    },
+                    {
+                        ...attachmentBase,
+                        id: 'project-att-shared',
+                        title: 'shared.bin',
+                        cloudKey: sharedCloudKey,
+                    },
+                ],
+            }],
+            sections: [],
+            areas: [],
+            people: [],
+            settings: {},
+        };
+        const seedResponse = await fetch(`${baseUrl}/v1/data`, {
+            method: 'PUT',
+            headers: {
+                ...authHeaders,
+                'content-type': 'application/json',
+            },
+            body: JSON.stringify(seedData),
+        });
+        expect(seedResponse.status).toBe(200);
+
+        const purgeResponse = await fetch(`${baseUrl}/v1/projects/project-purged`, {
+            method: 'PATCH',
+            headers: {
+                ...authHeaders,
+                'content-type': 'application/json',
+            },
+            body: JSON.stringify({ purgedAt: purgeIso }),
+        });
+        expect(purgeResponse.status).toBe(200);
+        const purgeBody = await purgeResponse.json();
+        expect(purgeBody.project.purgedAt).toBe(purgeIso);
+        expect(purgeBody.project.attachments[0].cloudKey).toBeUndefined();
+        expect(purgeBody.project.attachments[0].localStatus).toBeUndefined();
+
+        const dataResponse = await fetch(`${baseUrl}/v1/data`, { headers: authHeaders });
+        expect(dataResponse.status).toBe(200);
+        const storedData = await dataResponse.json() as AppData;
+        const storedProject = storedData.projects.find((project) => project.id === 'project-purged');
+        expect(storedProject?.attachments?.map((attachment) => attachment.cloudKey)).toEqual([undefined, undefined]);
+        expect(storedData.settings.attachments?.pendingRemoteDeletes).toEqual([{
+            cloudKey: projectOnlyCloudKey,
+            title: 'project-only.bin',
+        }]);
+    });
+
     test('validates REST project, section, and area inputs consistently', async () => {
         const longName = 'x'.repeat(501);
         const reservedProject = await fetch(`${baseUrl}/v1/projects`, {
