@@ -7,6 +7,7 @@ import {
     DEFAULT_AREA_COLOR,
     formatTimeEstimateLabel,
     getQuickAddProjectInitialProps,
+    getTaskMetadataFilterVisibility,
     getWaitingPerson,
     hasActiveFilterCriteria,
     isTaskInActiveProject,
@@ -224,19 +225,37 @@ export const ListView = memo(function ListView({ title, statusFilter }: ListView
     const readOnly = statusFilter === 'done';
     const showViewFilterInput = statusFilter !== 'inbox';
     const normalizedSearchQuery = searchQuery.trim().toLowerCase();
-    const activePriorities = prioritiesEnabled ? selectedPriorities : EMPTY_PRIORITIES;
-    const activeTimeEstimates = timeEstimatesEnabled ? selectedTimeEstimates : EMPTY_ESTIMATES;
+    const metadataProjectMap = useMemo(() => new Map(projects.map((project) => [project.id, project])), [projects]);
+    const metadataAreaById = useMemo(() => new Map(areas.map((area) => [area.id, area])), [areas]);
+    const listFilterableTasks = useMemo(() => {
+        const allowDeferredProjectTasks = statusFilter === 'done' || statusFilter === 'archived';
+        return baseTasks.filter((task) => {
+            if (task.deletedAt) return false;
+            if (statusFilter !== 'all' && task.status !== statusFilter) return false;
+            if (!allowDeferredProjectTasks && !isTaskInActiveProject(task, metadataProjectMap)) return false;
+            if (!taskMatchesAreaFilter(task, resolvedAreaFilter, metadataProjectMap, metadataAreaById)) return false;
+            return true;
+        });
+    }, [baseTasks, metadataAreaById, metadataProjectMap, resolvedAreaFilter, statusFilter]);
+    const metadataFilterVisibility = useMemo(() => getTaskMetadataFilterVisibility(listFilterableTasks, {
+        prioritiesEnabled,
+        timeEstimatesEnabled,
+    }), [listFilterableTasks, prioritiesEnabled, timeEstimatesEnabled]);
+    const showPriorityFilters = metadataFilterVisibility.priority;
+    const showTimeEstimateFilters = metadataFilterVisibility.timeEstimate;
+    const activePriorities = showPriorityFilters ? selectedPriorities : EMPTY_PRIORITIES;
+    const activeTimeEstimates = showTimeEstimateFilters ? selectedTimeEstimates : EMPTY_ESTIMATES;
     const activeListFilterCriteria = useMemo<FilterCriteria>(() => ({
         ...listFilterCriteria,
-        priority: prioritiesEnabled ? activePriorities : undefined,
-        timeEstimates: timeEstimatesEnabled ? activeTimeEstimates : undefined,
-        timeEstimateRange: timeEstimatesEnabled ? listFilterCriteria.timeEstimateRange : undefined,
+        priority: showPriorityFilters ? activePriorities : undefined,
+        timeEstimates: showTimeEstimateFilters ? activeTimeEstimates : undefined,
+        timeEstimateRange: showTimeEstimateFilters ? listFilterCriteria.timeEstimateRange : undefined,
     }), [
         activePriorities,
         activeTimeEstimates,
         listFilterCriteria,
-        prioritiesEnabled,
-        timeEstimatesEnabled,
+        showPriorityFilters,
+        showTimeEstimateFilters,
     ]);
     const defaultAreaMode = getDefaultTaskAreaMode(settings);
     const activeNewTaskAreaId = resolvedAreaFilter !== AREA_FILTER_ALL && resolvedAreaFilter !== AREA_FILTER_NONE
@@ -799,8 +818,8 @@ export const ListView = memo(function ListView({ title, statusFilter }: ListView
     const filterSummary = [
         ...(normalizedSearchQuery ? [`${t('common.search')}: ${searchQuery.trim()}`] : []),
         ...selectedTokens,
-        ...(prioritiesEnabled ? selectedPriorities.map((priority) => t(`priority.${priority}`)) : []),
-        ...(timeEstimatesEnabled ? selectedTimeEstimates.map(formatEstimate) : []),
+        ...(showPriorityFilters ? selectedPriorities.map((priority) => t(`priority.${priority}`)) : []),
+        ...(showTimeEstimateFilters ? selectedTimeEstimates.map(formatEstimate) : []),
         ...(selectedWaitingPerson ? [`${t('process.delegateWhoLabel')}: ${selectedWaitingPerson}`] : []),
     ];
     const hasFilters = filterSummary.length > 0;
@@ -833,17 +852,17 @@ export const ListView = memo(function ListView({ title, statusFilter }: ListView
 
     useEffect(() => {
         let nextCriteria: FilterCriteria | null = null;
-        if (!prioritiesEnabled && selectedPriorities.length > 0) {
+        if (!showPriorityFilters && selectedPriorities.length > 0) {
             nextCriteria = { ...(nextCriteria ?? listFilterCriteria) };
             delete nextCriteria.priority;
         }
-        if (!timeEstimatesEnabled && selectedTimeEstimates.length > 0) {
+        if (!showTimeEstimateFilters && selectedTimeEstimates.length > 0) {
             nextCriteria = { ...(nextCriteria ?? listFilterCriteria) };
             delete nextCriteria.timeEstimates;
             delete nextCriteria.timeEstimateRange;
         }
         if (nextCriteria) setListFilters({ criteria: nextCriteria });
-    }, [listFilterCriteria, prioritiesEnabled, timeEstimatesEnabled, selectedPriorities.length, selectedTimeEstimates.length, setListFilters]);
+    }, [listFilterCriteria, selectedPriorities.length, selectedTimeEstimates.length, setListFilters, showPriorityFilters, showTimeEstimateFilters]);
 
     const openQuickAdd = useCallback((status: TaskStatus | 'all', captureMode?: 'text' | 'audio') => {
         const initialStatus = status === 'all' ? 'inbox' : status;
@@ -990,11 +1009,11 @@ export const ListView = memo(function ListView({ title, statusFilter }: ListView
                     selectedTokens={selectedTokens}
                     tokenCounts={tokenCounts}
                     onToggleToken={toggleTokenFilter}
-                    prioritiesEnabled={prioritiesEnabled}
+                    showPriorityFilters={showPriorityFilters}
                     priorityOptions={priorityOptions}
                     selectedPriorities={selectedPriorities}
                     onTogglePriority={togglePriorityFilter}
-                    timeEstimatesEnabled={timeEstimatesEnabled}
+                    showTimeEstimateFilters={showTimeEstimateFilters}
                     timeEstimateOptions={timeEstimateOptions}
                     selectedTimeEstimates={selectedTimeEstimates}
                     onToggleEstimate={toggleTimeFilter}

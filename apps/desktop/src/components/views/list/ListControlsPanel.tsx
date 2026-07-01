@@ -67,7 +67,7 @@ type ListControlsPanelProps = {
     onToggleSelection: () => void;
     onToggleToken: (token: string) => void;
     onToggleDensity: () => void;
-    prioritiesEnabled: boolean;
+    showPriorityFilters: boolean;
     priorityOptions: TaskPriority[];
     projects: Project[];
     quickAddFooter?: ReactNode;
@@ -90,7 +90,7 @@ type ListControlsPanelProps = {
     t: (key: string) => string;
     taskCount: number;
     timeEstimateOptions: TimeEstimate[];
-    timeEstimatesEnabled: boolean;
+    showTimeEstimateFilters: boolean;
     title: string;
     tokenCounts: Record<string, number>;
     waitingPeople: string[];
@@ -146,7 +146,7 @@ export function ListControlsPanel({
     onToggleSelection,
     onToggleToken,
     onToggleDensity,
-    prioritiesEnabled,
+    showPriorityFilters,
     priorityOptions,
     projects,
     quickAddFooter,
@@ -169,7 +169,7 @@ export function ListControlsPanel({
     t,
     taskCount,
     timeEstimateOptions,
-    timeEstimatesEnabled,
+    showTimeEstimateFilters,
     title,
     tokenCounts,
     waitingPeople,
@@ -347,11 +347,11 @@ export function ListControlsPanel({
                     selectedTokens={selectedTokens}
                     tokenCounts={tokenCounts}
                     onToggleToken={onToggleToken}
-                    prioritiesEnabled={prioritiesEnabled}
+                    showPriorityFilters={showPriorityFilters}
                     priorityOptions={priorityOptions}
                     selectedPriorities={selectedPriorities}
                     onTogglePriority={onTogglePriority}
-                    timeEstimatesEnabled={timeEstimatesEnabled}
+                    showTimeEstimateFilters={showTimeEstimateFilters}
                     timeEstimateOptions={timeEstimateOptions}
                     selectedTimeEstimates={selectedTimeEstimates}
                     onToggleEstimate={onToggleEstimate}

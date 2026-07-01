@@ -33,7 +33,8 @@ type TaskListFiltersSheetProps = {
   onChangeSearchQuery: (value: string) => void;
   onClearFilters: () => void;
   onClose: () => void;
-  prioritiesEnabled: boolean;
+  showEnergyLevelFilters: boolean;
+  showPriorityFilters: boolean;
   priorityOptions: TaskPriority[];
   searchQuery: string;
   selectedEnergyLevels: TaskEnergyLevel[];
@@ -71,7 +72,8 @@ export function TaskListFiltersSheet({
   onChangeSearchQuery,
   onClearFilters,
   onClose,
-  prioritiesEnabled,
+  showEnergyLevelFilters,
+  showPriorityFilters,
   priorityOptions,
   searchQuery,
   selectedEnergyLevels,
@@ -216,7 +218,7 @@ export function TaskListFiltersSheet({
               </>
             ) : null}
 
-            {prioritiesEnabled ? (
+            {showPriorityFilters ? (
               <>
                 <Text style={[styles.taskFilterSectionLabel, { color: themeColors.secondaryText }]}>
                   {resolveText(t, 'filters.priority', 'Priority')}
@@ -229,14 +231,18 @@ export function TaskListFiltersSheet({
               </>
             ) : null}
 
-            <Text style={[styles.taskFilterSectionLabel, { color: themeColors.secondaryText }]}>
-              {resolveText(t, 'taskEdit.energyLevel', 'Energy level')}
-            </Text>
-            <View style={styles.taskFilterChipRow}>
-              {energyLevelOptions.map((energyLevel) => (
-                renderChip(t(`energyLevel.${energyLevel}`), selectedEnergyLevels.includes(energyLevel), () => toggleEnergyLevel(energyLevel), `energy:${energyLevel}`)
-              ))}
-            </View>
+            {showEnergyLevelFilters ? (
+              <>
+                <Text style={[styles.taskFilterSectionLabel, { color: themeColors.secondaryText }]}>
+                  {resolveText(t, 'taskEdit.energyLevel', 'Energy level')}
+                </Text>
+                <View style={styles.taskFilterChipRow}>
+                  {energyLevelOptions.map((energyLevel) => (
+                    renderChip(t(`energyLevel.${energyLevel}`), selectedEnergyLevels.includes(energyLevel), () => toggleEnergyLevel(energyLevel), `energy:${energyLevel}`)
+                  ))}
+                </View>
+              </>
+            ) : null}
 
             {showTimeEstimateFilters ? (
               <>

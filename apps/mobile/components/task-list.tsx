@@ -32,6 +32,7 @@ import {
   tFallback,
   isSelectableProjectForTaskAssignment,
   isTaskInActiveProject,
+  getTaskMetadataFilterVisibility,
   type MultiValueFilterMatchMode,
 } from '@mindwtr/core';
 
@@ -450,7 +451,7 @@ function TaskListComponent({
     undoNotificationsEnabled,
     updateTask,
   ]);
-  const showTimeEstimateFilters = showTimeEstimateFiltersProp && timeEstimatesEnabled && statusFilter !== 'inbox';
+  const timeEstimateFiltersEnabled = showTimeEstimateFiltersProp && timeEstimatesEnabled && statusFilter !== 'inbox';
   const canBulkOrganizeInbox = enableInboxBulkOrganize && statusFilter === 'inbox';
   const canBulkOrganizeProject = enableProjectBulkOrganize && Boolean(projectId);
   const canBulkOrganizeSelection = canBulkOrganizeInbox || canBulkOrganizeProject;
@@ -492,18 +493,6 @@ function TaskListComponent({
       setTimeout(focusInput, 0);
     }
   }, [quickAddAvailable]);
-
-  useEffect(() => {
-    if (!showTimeEstimateFilters && selectedTimeEstimates.length > 0) {
-      setSelectedTimeEstimates([]);
-    }
-  }, [selectedTimeEstimates.length, showTimeEstimateFilters]);
-
-  useEffect(() => {
-    if (!prioritiesEnabled && selectedPriorities.length > 0) {
-      setSelectedPriorities([]);
-    }
-  }, [prioritiesEnabled, selectedPriorities.length]);
 
   const lastProjectIdRef = useRef(projectId);
   const setProjectReorderMode = useCallback((active: boolean) => {
@@ -592,15 +581,42 @@ function TaskListComponent({
     if (!filtersVisible) return selectedTokens;
     return getUsedTaskTokens(filterableTasks, (task) => [...(task.contexts ?? []), ...(task.tags ?? [])]);
   }, [filterableTasks, filtersVisible, selectedTokens]);
-  const showLocationFilter = useMemo(() => {
-    if (locationFilter.trim().length > 0) return true;
-    if (!filtersVisible) return false;
-    return filterableTasks.some((task) => String(task.location ?? '').trim().length > 0);
-  }, [filterableTasks, filtersVisible, locationFilter]);
+  const metadataFilterVisibility = useMemo(() => getTaskMetadataFilterVisibility(filterableTasks, {
+    prioritiesEnabled,
+    timeEstimatesEnabled: timeEstimateFiltersEnabled,
+  }), [filterableTasks, prioritiesEnabled, timeEstimateFiltersEnabled]);
+  const showPriorityFilters = metadataFilterVisibility.priority;
+  const showEnergyLevelFilters = metadataFilterVisibility.energyLevel;
+  const showTimeEstimateFilters = metadataFilterVisibility.timeEstimate;
+  const showLocationFilter = metadataFilterVisibility.location;
+  useEffect(() => {
+    if (!showTimeEstimateFilters && selectedTimeEstimates.length > 0) {
+      setSelectedTimeEstimates([]);
+    }
+  }, [selectedTimeEstimates.length, showTimeEstimateFilters]);
+
+  useEffect(() => {
+    if (!showPriorityFilters && selectedPriorities.length > 0) {
+      setSelectedPriorities([]);
+    }
+  }, [selectedPriorities.length, showPriorityFilters]);
+
+  useEffect(() => {
+    if (!showEnergyLevelFilters && selectedEnergyLevels.length > 0) {
+      setSelectedEnergyLevels([]);
+    }
+  }, [selectedEnergyLevels.length, showEnergyLevelFilters]);
+
+  useEffect(() => {
+    if (!showLocationFilter && locationFilter.trim().length > 0) {
+      setLocationFilter('');
+    }
+  }, [locationFilter, showLocationFilter]);
+
   const taskListFilters = useMemo<MobileTaskListFilters>(() => buildMobileTaskListFilters({
-    energyLevels: selectedEnergyLevels,
-    locationQuery: locationFilter,
-    priorities: prioritiesEnabled ? selectedPriorities : [],
+    energyLevels: showEnergyLevelFilters ? selectedEnergyLevels : [],
+    locationQuery: showLocationFilter ? locationFilter : '',
+    priorities: showPriorityFilters ? selectedPriorities : [],
     searchQuery: taskSearchQuery,
     timeEstimates: showTimeEstimateFilters ? selectedTimeEstimates : [],
     tokens: selectedTokens,
@@ -608,7 +624,9 @@ function TaskListComponent({
   }), [
     contextMatchMode,
     locationFilter,
-    prioritiesEnabled,
+    showEnergyLevelFilters,
+    showLocationFilter,
+    showPriorityFilters,
     selectedEnergyLevels,
     selectedPriorities,
     selectedTimeEstimates,
@@ -640,7 +658,7 @@ function TaskListComponent({
         onPress: () => toggleTokenFilter(token),
       });
     });
-    if (prioritiesEnabled) {
+    if (showPriorityFilters) {
       selectedPriorities.forEach((priority) => {
         chips.push({
           id: `priority:${priority}`,
@@ -649,13 +667,15 @@ function TaskListComponent({
         });
       });
     }
-    selectedEnergyLevels.forEach((energyLevel) => {
-      chips.push({
-        id: `energy:${energyLevel}`,
-        label: t(`energyLevel.${energyLevel}`),
-        onPress: () => toggleEnergyLevelFilter(energyLevel),
+    if (showEnergyLevelFilters) {
+      selectedEnergyLevels.forEach((energyLevel) => {
+        chips.push({
+          id: `energy:${energyLevel}`,
+          label: t(`energyLevel.${energyLevel}`),
+          onPress: () => toggleEnergyLevelFilter(energyLevel),
+        });
       });
-    });
+    }
     if (showTimeEstimateFilters) {
       selectedTimeEstimates.forEach((estimate) => {
         chips.push({
@@ -666,7 +686,7 @@ function TaskListComponent({
       });
     }
     const normalizedLocation = locationFilter.trim();
-    if (normalizedLocation) {
+    if (showLocationFilter && normalizedLocation) {
       chips.push({
         id: 'location',
         label: `${tFallback(t, 'taskEdit.locationLabel', 'Location')}: ${normalizedLocation}`,
@@ -676,7 +696,9 @@ function TaskListComponent({
     return chips;
   }, [
     locationFilter,
-    prioritiesEnabled,
+    showEnergyLevelFilters,
+    showLocationFilter,
+    showPriorityFilters,
     selectedEnergyLevels,
     selectedPriorities,
     selectedTimeEstimates,
@@ -1776,7 +1798,7 @@ function TaskListComponent({
         onChangeSearchQuery={setTaskSearchQuery}
         onClearFilters={clearAllFilters}
         onClose={() => setFiltersVisible(false)}
-        prioritiesEnabled={prioritiesEnabled}
+        showPriorityFilters={showPriorityFilters}
         priorityOptions={PRIORITY_OPTIONS}
         searchQuery={taskSearchQuery}
         selectedEnergyLevels={selectedEnergyLevels}
@@ -1791,6 +1813,7 @@ function TaskListComponent({
         }}
         onChangeContextMatchMode={updateContextMatchMode}
         showContextMatchMode={showContextMatchMode}
+        showEnergyLevelFilters={showEnergyLevelFilters}
         showLocationFilter={showLocationFilter}
         showTimeEstimateFilters={showTimeEstimateFilters}
         t={t}

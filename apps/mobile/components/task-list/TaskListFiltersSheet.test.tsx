@@ -38,7 +38,6 @@ const createProps = (
   onChangeSearchQuery: vi.fn(),
   onClearFilters: vi.fn(),
   onClose: vi.fn(),
-  prioritiesEnabled: false,
   priorityOptions: [],
   searchQuery: '',
   selectedEnergyLevels: [],
@@ -47,16 +46,22 @@ const createProps = (
   selectedTokens: [],
   showContextMatchMode: false,
   showLocationFilter: false,
+  showEnergyLevelFilters: false,
+  showPriorityFilters: false,
   showTimeEstimateFilters: false,
   t: (key: string) => ({
     'common.close': 'Close',
     'common.search': 'Search',
     'filters.label': 'Filters',
+    'filters.priority': 'Priority',
+    'filters.timeEstimate': 'Time estimate',
     'search.placeholder': 'Search tasks',
     'taskEdit.energyLevel': 'Energy level',
     'energyLevel.low': 'Low energy',
     'energyLevel.medium': 'Medium energy',
     'energyLevel.high': 'High energy',
+    'priority.low': 'Low priority',
+    'priority.urgent': 'Urgent priority',
   }[key] ?? key),
   themeColors,
   toggleEnergyLevel: vi.fn(),
@@ -72,6 +77,10 @@ const elementProps = (child: unknown): { children?: React.ReactNode; testID?: st
   React.isValidElement(child)
     ? child.props as { children?: React.ReactNode; testID?: string }
     : null
+);
+
+const hasText = (tree: ReturnType<typeof create>, text: string): boolean => (
+  tree.root.findAllByType(Text).some((node) => node.props.children === text)
 );
 
 describe('TaskListFiltersSheet', () => {
@@ -145,5 +154,43 @@ describe('TaskListFiltersSheet', () => {
     });
 
     expect(onChangeContextMatchMode).toHaveBeenCalledWith('all');
+  });
+
+  it('hides metadata filter sections when no visible tasks use those fields', () => {
+    let tree!: ReturnType<typeof create>;
+
+    act(() => {
+      tree = create(<TaskListFiltersSheet {...createProps()} />);
+    });
+
+    expect(hasText(tree, 'Priority')).toBe(false);
+    expect(hasText(tree, 'Energy level')).toBe(false);
+    expect(hasText(tree, 'Time estimate')).toBe(false);
+  });
+
+  it('shows metadata filter sections when visible tasks use those fields', () => {
+    let tree!: ReturnType<typeof create>;
+
+    act(() => {
+      tree = create(
+        <TaskListFiltersSheet
+          {...createProps({
+            energyLevelOptions: ['low'],
+            priorityOptions: ['urgent'],
+            showEnergyLevelFilters: true,
+            showPriorityFilters: true,
+            showTimeEstimateFilters: true,
+            timeEstimateOptions: ['30min'],
+          })}
+        />
+      );
+    });
+
+    expect(hasText(tree, 'Priority')).toBe(true);
+    expect(hasText(tree, 'Urgent priority')).toBe(true);
+    expect(hasText(tree, 'Energy level')).toBe(true);
+    expect(hasText(tree, 'Low energy')).toBe(true);
+    expect(hasText(tree, 'Time estimate')).toBe(true);
+    expect(hasText(tree, '30m')).toBe(true);
   });
 });

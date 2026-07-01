@@ -5,6 +5,7 @@ import {
   buildMobileTaskListFilterCriteria,
   buildMobileTaskListFilters,
   countActiveMobileTaskFilters,
+  getMobileTaskMetadataFilterVisibility,
   taskMatchesMobileTaskFilters,
   type MobileTaskListFilterInput,
 } from './task-list-filter-utils';
@@ -122,5 +123,32 @@ describe('task-list-filter-utils', () => {
     const customTask = { ...task, timeEstimate: 'custom:150' as const };
     expect(taskMatchesMobileTaskFilters(customTask, makeFilters({ timeEstimates: ['3hr'] }))).toBe(true);
     expect(taskMatchesMobileTaskFilters(customTask, makeFilters({ timeEstimates: ['2hr'] }))).toBe(false);
+  });
+
+  it('shows metadata filters only when visible tasks already use those fields', () => {
+    expect(getMobileTaskMetadataFilterVisibility([], {
+      prioritiesEnabled: true,
+      timeEstimatesEnabled: true,
+    })).toEqual({
+      energyLevel: false,
+      location: false,
+      priority: false,
+      timeEstimate: false,
+    });
+
+    expect(getMobileTaskMetadataFilterVisibility([task], {
+      prioritiesEnabled: true,
+      timeEstimatesEnabled: true,
+    })).toEqual({
+      energyLevel: true,
+      location: true,
+      priority: true,
+      timeEstimate: true,
+    });
+
+    expect(getMobileTaskMetadataFilterVisibility([task], {
+      prioritiesEnabled: false,
+      timeEstimatesEnabled: false,
+    })).toMatchObject({ priority: false, timeEstimate: false });
   });
 });

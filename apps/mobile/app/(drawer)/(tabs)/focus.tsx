@@ -40,6 +40,7 @@ import {
   safeFormatDate,
   safeParseDate,
   safeParseDueDate,
+  getTaskMetadataFilterVisibility,
   shallow,
   type Project,
   type Task,
@@ -377,10 +378,14 @@ export default function FocusScreen() {
       : visibleTitles.join(', ');
   }, [futureStartTasks, showFutureStarts]);
   const tokenOptions = useMemo(() => getFocusTokenOptions(activeTasks), [activeTasks]);
-  const showLocationFilter = useMemo(() => (
-    locationFilter.trim().length > 0
-    || activeTasks.some((task) => String(task.location ?? '').trim().length > 0)
-  ), [activeTasks, locationFilter]);
+  const metadataFilterVisibility = useMemo(() => getTaskMetadataFilterVisibility(activeTasks, {
+    prioritiesEnabled,
+    timeEstimatesEnabled,
+  }), [activeTasks, prioritiesEnabled, timeEstimatesEnabled]);
+  const showPriorityFilters = metadataFilterVisibility.priority;
+  const showEnergyLevelFilters = metadataFilterVisibility.energyLevel;
+  const showTimeEstimateFilters = metadataFilterVisibility.timeEstimate;
+  const showLocationFilter = metadataFilterVisibility.location;
   const activeProjectIds = useMemo(() => (
     new Set(activeTasks.map((task) => task.projectId).filter((projectId): projectId is string => Boolean(projectId)))
   ), [activeTasks]);
@@ -412,29 +417,32 @@ export default function FocusScreen() {
   const currentFilterCriteria = useMemo(() => buildFocusFilterCriteria({
     tokens: selectedTokens,
     projects: selectedProjects,
-    locations: locationFilter.trim() ? [locationFilter.trim()] : [],
-    priorities: prioritiesEnabled ? selectedPriorities : [],
-    energyLevels: selectedEnergyLevels,
+    locations: showLocationFilter && locationFilter.trim() ? [locationFilter.trim()] : [],
+    priorities: showPriorityFilters ? selectedPriorities : [],
+    energyLevels: showEnergyLevelFilters ? selectedEnergyLevels : [],
     contextMatchMode,
-    timeEstimates: timeEstimatesEnabled ? selectedTimeEstimates : [],
+    timeEstimates: showTimeEstimateFilters ? selectedTimeEstimates : [],
   }), [
     contextMatchMode,
     locationFilter,
-    prioritiesEnabled,
+    showEnergyLevelFilters,
+    showPriorityFilters,
     selectedEnergyLevels,
     selectedPriorities,
     selectedProjects,
     selectedTimeEstimates,
     selectedTokens,
-    timeEstimatesEnabled,
+    showTimeEstimateFilters,
   ]);
   const rawEffectiveFilterCriteria = activeSavedFilter?.criteria ?? currentFilterCriteria;
   const effectiveContextMatchMode = rawEffectiveFilterCriteria.contextMatchMode ?? 'all';
   const effectiveFilterCriteria = useMemo<FilterCriteria>(() => ({
     ...rawEffectiveFilterCriteria,
-    ...(prioritiesEnabled ? {} : { priority: undefined }),
-    ...(timeEstimatesEnabled ? {} : { timeEstimates: undefined, timeEstimateRange: undefined }),
-  }), [prioritiesEnabled, rawEffectiveFilterCriteria, timeEstimatesEnabled]);
+    ...(showPriorityFilters ? {} : { priority: undefined }),
+    ...(showEnergyLevelFilters ? {} : { energy: undefined }),
+    ...(showLocationFilter ? {} : { locations: undefined }),
+    ...(showTimeEstimateFilters ? {} : { timeEstimates: undefined, timeEstimateRange: undefined }),
+  }), [rawEffectiveFilterCriteria, showEnergyLevelFilters, showLocationFilter, showPriorityFilters, showTimeEstimateFilters]);
   const hasCurrentFilterCriteria = hasActiveFilterCriteria(currentFilterCriteria);
   const hasFilters = hasActiveFilterCriteria(effectiveFilterCriteria);
   const canSaveFocusPerspective = activeSavedFilterId === null
@@ -844,16 +852,28 @@ export default function FocusScreen() {
   }, [projectOptions, showNoProjectOption]);
 
   useEffect(() => {
-    if (prioritiesEnabled) return;
+    if (showPriorityFilters) return;
     if (selectedPriorities.length === 0) return;
     setSelectedPriorities([]);
-  }, [prioritiesEnabled, selectedPriorities.length]);
+  }, [selectedPriorities.length, showPriorityFilters]);
 
   useEffect(() => {
-    if (timeEstimatesEnabled) return;
+    if (showEnergyLevelFilters) return;
+    if (selectedEnergyLevels.length === 0) return;
+    setSelectedEnergyLevels([]);
+  }, [selectedEnergyLevels.length, showEnergyLevelFilters]);
+
+  useEffect(() => {
+    if (showLocationFilter) return;
+    if (locationFilter.trim().length === 0) return;
+    setLocationFilter('');
+  }, [locationFilter, showLocationFilter]);
+
+  useEffect(() => {
+    if (showTimeEstimateFilters) return;
     if (selectedTimeEstimates.length === 0) return;
     setSelectedTimeEstimates([]);
-  }, [selectedTimeEstimates.length, timeEstimatesEnabled]);
+  }, [selectedTimeEstimates.length, showTimeEstimateFilters]);
 
   const sequentialProjectIds = useMemo(() => {
     return new Set(visibleProjects.filter((project) => project.isSequential).map((project) => project.id));
@@ -1194,21 +1214,21 @@ export default function FocusScreen() {
         onPress: () => toggleProject(project.id),
       });
     });
-    selectedPriorities.forEach((priority) => {
+    (showPriorityFilters ? selectedPriorities : []).forEach((priority) => {
       chips.push({
         id: `priority:${priority}`,
         label: t(`priority.${priority}`),
         onPress: () => togglePriority(priority),
       });
     });
-    selectedEnergyLevels.forEach((energyLevel) => {
+    (showEnergyLevelFilters ? selectedEnergyLevels : []).forEach((energyLevel) => {
       chips.push({
         id: `energy:${energyLevel}`,
         label: t(`energyLevel.${energyLevel}`),
         onPress: () => toggleEnergyLevel(energyLevel),
       });
     });
-    selectedTimeEstimates.forEach((estimate) => {
+    (showTimeEstimateFilters ? selectedTimeEstimates : []).forEach((estimate) => {
       chips.push({
         id: `time:${estimate}`,
         label: formatFocusTimeEstimateLabel(estimate),
@@ -1216,7 +1236,7 @@ export default function FocusScreen() {
       });
     });
     const normalizedLocationFilter = locationFilter.trim();
-    if (normalizedLocationFilter && !activeSavedFilter) {
+    if (showLocationFilter && normalizedLocationFilter && !activeSavedFilter) {
       chips.push({
         id: `location:${normalizedLocationFilter}`,
         label: `${resolveText('taskEdit.locationLabel', 'Location')}: ${normalizedLocationFilter}`,
@@ -1231,6 +1251,10 @@ export default function FocusScreen() {
     locationFilter,
     projectById,
     resolveText,
+    showEnergyLevelFilters,
+    showLocationFilter,
+    showPriorityFilters,
+    showTimeEstimateFilters,
     selectedEnergyLevels,
     selectedPriorities,
     selectedProjects,
@@ -1839,7 +1863,7 @@ export default function FocusScreen() {
                 </>
               ) : null}
 
-              {prioritiesEnabled ? (
+              {showPriorityFilters ? (
                 <>
                   <Text style={[styles.sheetSectionLabel, { color: tc.secondaryText }]}>
                     {resolveText('filters.priority', 'Priority')}
@@ -1852,16 +1876,20 @@ export default function FocusScreen() {
                 </>
               ) : null}
 
-              <Text style={[styles.sheetSectionLabel, { color: tc.secondaryText }]}>
-                {resolveText('taskEdit.energyLevel', 'Energy level')}
-              </Text>
-              <View style={styles.sheetChipRow}>
-                {ENERGY_LEVEL_OPTIONS.map((energyLevel) => (
-                  renderFilterChip(t(`energyLevel.${energyLevel}`), selectedEnergyLevels.includes(energyLevel), () => toggleEnergyLevel(energyLevel))
-                ))}
-              </View>
+              {showEnergyLevelFilters ? (
+                <>
+                  <Text style={[styles.sheetSectionLabel, { color: tc.secondaryText }]}>
+                    {resolveText('taskEdit.energyLevel', 'Energy level')}
+                  </Text>
+                  <View style={styles.sheetChipRow}>
+                    {ENERGY_LEVEL_OPTIONS.map((energyLevel) => (
+                      renderFilterChip(t(`energyLevel.${energyLevel}`), selectedEnergyLevels.includes(energyLevel), () => toggleEnergyLevel(energyLevel))
+                    ))}
+                  </View>
+                </>
+              ) : null}
 
-              {timeEstimatesEnabled && effectiveTimeEstimatePresets.length > 0 ? (
+              {showTimeEstimateFilters && effectiveTimeEstimatePresets.length > 0 ? (
                 <>
                   <Text style={[styles.sheetSectionLabel, { color: tc.secondaryText }]}>
                     {resolveText('filters.timeEstimate', 'Time estimate')}

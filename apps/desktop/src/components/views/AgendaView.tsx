@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { ErrorBoundary } from '../ErrorBoundary';
-import { shallow, useTaskStore, TaskPriority, TimeEstimate, applyFilter, buildAdvancedFilterCriteriaChips, removeAdvancedFilterCriteriaChip, formatFocusTaskLimitText, formatTimeEstimateLabel, generateUUID, getUsedTaskTokens, getFocusSequentialFirstTaskIds, getProjectDeadlineBoosts, hasActiveFilterCriteria, markSavedFilterDeleted, normalizeFocusTaskLimit, safeParseDate, safeParseDueDate, isDueForReview, isTaskInActiveProject, SAVED_FILTER_NO_PROJECT_ID, shouldShowTaskForStart, sortFocusNextActions, sortTasksBySavedPreference, translateWithFallback } from '@mindwtr/core';
+import { shallow, useTaskStore, TaskPriority, TimeEstimate, applyFilter, buildAdvancedFilterCriteriaChips, removeAdvancedFilterCriteriaChip, formatFocusTaskLimitText, formatTimeEstimateLabel, generateUUID, getUsedTaskTokens, getFocusSequentialFirstTaskIds, getProjectDeadlineBoosts, getTaskMetadataFilterVisibility, hasActiveFilterCriteria, markSavedFilterDeleted, normalizeFocusTaskLimit, safeParseDate, safeParseDueDate, isDueForReview, isTaskInActiveProject, SAVED_FILTER_NO_PROJECT_ID, shouldShowTaskForStart, sortFocusNextActions, sortTasksBySavedPreference, translateWithFallback } from '@mindwtr/core';
 import type { FilterCriteria, FocusGroupBy, MultiValueFilterMatchMode, ProjectDeadlineBoost, SavedFilter, SortField, Task, TaskEnergyLevel } from '@mindwtr/core';
 import { useLanguage } from '../../contexts/language-context';
 import { cn } from '../../lib/utils';
@@ -328,8 +328,6 @@ export function AgendaView() {
     const timeEstimatesEnabled = settings?.features?.timeEstimates !== false;
     const pomodoroEnabled = settings?.features?.pomodoro === true;
     const focusTaskLimit = normalizeFocusTaskLimit(settings?.gtd?.focusTaskLimit);
-    const activePriorities = prioritiesEnabled ? selectedPriorities : [];
-    const activeTimeEstimates = timeEstimatesEnabled ? selectedTimeEstimates : [];
     const areaById = useMemo(() => new Map(areas.map((area) => [area.id, area])), [areas]);
     const resolvedAreaFilter = resolveAreaFilter(settings?.filters?.areaId, areas);
 
@@ -365,6 +363,16 @@ export function AgendaView() {
     const priorityOptions: TaskPriority[] = ['low', 'medium', 'high', 'urgent'];
     const energyLevelOptions: TaskEnergyLevel[] = ['low', 'medium', 'high'];
     const timeEstimateOptions: TimeEstimate[] = ['5min', '10min', '15min', '30min', '1hr', '2hr', '3hr', '4hr', '4hr+'];
+    const metadataFilterVisibility = useMemo(() => getTaskMetadataFilterVisibility(activeTasks, {
+        prioritiesEnabled,
+        timeEstimatesEnabled,
+    }), [activeTasks, prioritiesEnabled, timeEstimatesEnabled]);
+    const showPriorityFilters = metadataFilterVisibility.priority;
+    const showEnergyLevelFilters = metadataFilterVisibility.energyLevel;
+    const showTimeEstimateFilters = metadataFilterVisibility.timeEstimate;
+    const showLocationFilter = metadataFilterVisibility.location;
+    const activePriorities = showPriorityFilters ? selectedPriorities : [];
+    const activeTimeEstimates = showTimeEstimateFilters ? selectedTimeEstimates : [];
     const projectOptions = useMemo<AgendaProjectFilterOption[]>(() => {
         const activeProjectIds = new Set(
             activeTasks
@@ -395,17 +403,19 @@ export function AgendaView() {
         tokens: selectedTokens,
         contextMatchMode,
         projects: selectedProjects,
-        locations: locationFilter.trim() ? [locationFilter.trim()] : [],
+        locations: showLocationFilter && locationFilter.trim() ? [locationFilter.trim()] : [],
         priorities: activePriorities,
-        energyLevels: selectedEnergyLevels,
+        energyLevels: showEnergyLevelFilters ? selectedEnergyLevels : [],
         timeEstimates: activeTimeEstimates,
     });
     const rawEffectiveFilterCriteria = activeSavedFilter?.criteria ?? currentFilterCriteria;
     const effectiveContextMatchMode = rawEffectiveFilterCriteria.contextMatchMode ?? 'all';
     const effectiveFilterCriteria: FilterCriteria = {
         ...rawEffectiveFilterCriteria,
-        ...(prioritiesEnabled ? {} : { priority: undefined }),
-        ...(timeEstimatesEnabled ? {} : { timeEstimates: undefined, timeEstimateRange: undefined }),
+        ...(showPriorityFilters ? {} : { priority: undefined }),
+        ...(showEnergyLevelFilters ? {} : { energy: undefined }),
+        ...(showLocationFilter ? {} : { locations: undefined }),
+        ...(showTimeEstimateFilters ? {} : { timeEstimates: undefined, timeEstimateRange: undefined }),
     };
     const hasCurrentFilterCriteria = hasActiveFilterCriteria(currentFilterCriteria);
     const hasFilters = hasActiveFilterCriteria(effectiveFilterCriteria);
@@ -478,26 +488,26 @@ export function AgendaView() {
                 dotColor: (project.areaId ? areaById.get(project.areaId)?.color : undefined) || project.color || undefined,
             });
         });
-        activePriorities.forEach((priority) => {
+        (showPriorityFilters ? activePriorities : []).forEach((priority) => {
             chips.push({
                 id: `priority:${priority}`,
                 label: t(`priority.${priority}`),
             });
         });
-        selectedEnergyLevels.forEach((energyLevel) => {
+        (showEnergyLevelFilters ? selectedEnergyLevels : []).forEach((energyLevel) => {
             chips.push({
                 id: `energy:${energyLevel}`,
                 label: t(`energyLevel.${energyLevel}`),
             });
         });
-        activeTimeEstimates.forEach((estimate) => {
+        (showTimeEstimateFilters ? activeTimeEstimates : []).forEach((estimate) => {
             chips.push({
                 id: `time:${estimate}`,
                 label: formatEstimate(estimate),
             });
         });
         const normalizedLocationFilter = locationFilter.trim();
-        if (normalizedLocationFilter && !activeSavedFilter) {
+        if (showLocationFilter && normalizedLocationFilter && !activeSavedFilter) {
             chips.push({
                 id: `location:${normalizedLocationFilter}`,
                 label: `${resolveText('taskEdit.locationLabel', 'Location')}: ${normalizedLocationFilter}`,
@@ -702,13 +712,19 @@ export function AgendaView() {
         }).catch(() => undefined);
     }, [activeSavedFilterId, filterPendingDelete, settings?.savedFilters, updateSettings]);
     useEffect(() => {
-        if (!prioritiesEnabled && selectedPriorities.length > 0) {
+        if (!showPriorityFilters && selectedPriorities.length > 0) {
             setSelectedPriorities([]);
         }
-        if (!timeEstimatesEnabled && selectedTimeEstimates.length > 0) {
+        if (!showEnergyLevelFilters && selectedEnergyLevels.length > 0) {
+            setSelectedEnergyLevels([]);
+        }
+        if (!showLocationFilter && locationFilter.trim().length > 0) {
+            setLocationFilter('');
+        }
+        if (!showTimeEstimateFilters && selectedTimeEstimates.length > 0) {
             setSelectedTimeEstimates([]);
         }
-    }, [prioritiesEnabled, timeEstimatesEnabled, selectedPriorities.length, selectedTimeEstimates.length]);
+    }, [locationFilter, selectedEnergyLevels.length, selectedPriorities.length, selectedTimeEstimates.length, showEnergyLevelFilters, showLocationFilter, showPriorityFilters, showTimeEstimateFilters]);
 
     useEffect(() => {
         if (!highlightTaskId) return;
@@ -1109,6 +1125,8 @@ export function AgendaView() {
                     formatEstimate={formatEstimate}
                     hasFilters={activeFilterCount > 0}
                     locationFilter={locationFilter}
+                    showEnergyLevelFilters={showEnergyLevelFilters}
+                    showLocationFilter={showLocationFilter}
                     onClearFilters={clearAllFilters}
                     onLocationChange={updateLocationFilter}
                     onSaveFilter={() => setSaveFilterPromptOpen(true)}
@@ -1121,7 +1139,7 @@ export function AgendaView() {
                     onTogglePriority={togglePriorityFilter}
                     onToggleTime={toggleTimeFilter}
                     onToggleToken={toggleTokenFilter}
-                    prioritiesEnabled={prioritiesEnabled}
+                    showPriorityFilters={showPriorityFilters}
                     projectOptions={projectOptions}
                     priorityOptions={priorityOptions}
                     searchInputRef={filterInputRef}
@@ -1136,7 +1154,7 @@ export function AgendaView() {
                     showFiltersPanel={showFiltersPanel}
                     t={t}
                     timeEstimateOptions={timeEstimateOptions}
-                    timeEstimatesEnabled={timeEstimatesEnabled}
+                    showTimeEstimateFilters={showTimeEstimateFilters}
                 />
             )}
 

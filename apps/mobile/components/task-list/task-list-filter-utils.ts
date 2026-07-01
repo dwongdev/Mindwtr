@@ -1,5 +1,6 @@
 import type { FilterCriteria, MultiValueFilterMatchMode, Task, TaskEnergyLevel, TaskPriority, TimeEstimate } from '@mindwtr/core';
 import { hasActiveFilterCriteria, matchesTask, parseSearchQuery, taskMatchesFilterCriteria } from '@mindwtr/core';
+export { getTaskMetadataFilterVisibility as getMobileTaskMetadataFilterVisibility } from '@mindwtr/core';
 
 export type MobileTaskListFilters = {
   criteria: FilterCriteria;

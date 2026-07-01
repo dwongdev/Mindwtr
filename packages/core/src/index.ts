@@ -84,6 +84,14 @@ export type {
 } from './range-selection';
 
 export {
+    getTaskMetadataFilterVisibility,
+} from './task-metadata-filter-visibility';
+export type {
+    TaskMetadataFilterVisibility,
+    TaskMetadataFilterVisibilityOptions,
+} from './task-metadata-filter-visibility';
+
+export {
     buildBulkOrganizeTaskUpdate,
     buildBulkOrganizeTaskUpdates,
     parseBulkOrganizeTokenInput,
