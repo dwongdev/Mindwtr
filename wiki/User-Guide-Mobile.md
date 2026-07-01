@@ -39,7 +39,7 @@ Tap the **Menu** tab to access additional views:
  - 📚 **Reference** — Reference material
  - ✅ **Done** — Recently completed tasks
  - 📦 **Archived** — Completed tasks filed away from normal lists
- - 🗑️ **Trash** — Deleted tasks
+ - 🗑️ **Trash** — Deleted tasks and projects
  - ⚙️ **Settings** — App preferences
 
 ---
