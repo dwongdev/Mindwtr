@@ -1,4 +1,6 @@
 import { readFileSync } from 'node:fs';
+import { dirname, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
     ensureCloudKitReady,
@@ -6,12 +8,13 @@ import {
     writeRemoteCloudKit,
 } from './cloudkit-sync';
 
+const currentDir = dirname(fileURLToPath(import.meta.url));
 const swiftMapperSource = readFileSync(
-    new URL('../modules/cloudkit-sync/ios/CloudKitRecordMapper.swift', import.meta.url),
+    resolve(currentDir, '../modules/cloudkit-sync/ios/CloudKitRecordMapper.swift'),
     'utf8',
 );
 const macosBridgeSource = readFileSync(
-    new URL('../../desktop/src-tauri/src/macos_cloudkit_bridge.m', import.meta.url),
+    resolve(currentDir, '../../desktop/src-tauri/src/macos_cloudkit_bridge.m'),
     'utf8',
 );
 
