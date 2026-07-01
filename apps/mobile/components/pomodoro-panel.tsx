@@ -179,19 +179,21 @@ export function PomodoroPanel({
   );
   const presetOptions = useMemo(() => getPomodoroPresetOptions(customDurations), [customDurations]);
 
-  const cardTitle = tFallback(t, 'pomodoro.title', 'Pomodoro Focus');
+  const cardTitle = tFallback(t, 'pomodoro.mobileTitle', 'Pomodoro Timer');
   const focusDoneLabel = tFallback(t, 'pomodoro.focusComplete', 'Focus session complete. Take a short break.');
   const breakDoneLabel = tFallback(t, 'pomodoro.breakComplete', 'Break complete. Ready for the next focus session.');
   const phaseLabel = timerState.phase === 'focus'
-    ? tFallback(t, 'pomodoro.phaseFocus', 'Focus session')
-    : tFallback(t, 'pomodoro.phaseBreak', 'Break');
+    ? tFallback(t, 'pomodoro.phaseFocusShort', 'Focus')
+    : tFallback(t, 'pomodoro.phaseBreakShort', 'Break');
   const noTaskLabel = tFallback(t, 'pomodoro.noTask', 'No available focus task');
   const loadingLabel = tFallback(t, 'common.loading', 'Loading...');
   const sessionsDoneLabel = tFallback(t, 'pomodoro.sessionsDone', 'Focus sessions completed');
   const pauseLabel = tFallback(t, 'common.pause', 'Pause');
   const startLabel = tFallback(t, 'common.start', 'Start');
   const resetLabel = tFallback(t, 'common.reset', 'Reset');
-  const switchLabel = tFallback(t, 'pomodoro.switchPhase', 'Switch');
+  const switchLabel = timerState.phase === 'focus'
+    ? tFallback(t, 'pomodoro.switchToBreak', 'Switch to Break')
+    : tFallback(t, 'pomodoro.switchToFocus', 'Switch to Focus');
   const markDoneLabel = tFallback(t, 'pomodoro.markTaskDone', 'Mark task done');
   const selectedTaskLabel = tFallback(t, 'pomodoro.selectedTask', 'Timer task');
   const timerOnlyLabel = tFallback(t, 'pomodoro.timerOnly', 'Timer only');
@@ -292,15 +294,8 @@ export function PomodoroPanel({
         <View style={styles.headerText}>
           <Text style={[styles.title, { color: tc.text }]}>{cardTitle}</Text>
         </View>
-        <View
-          style={[
-            styles.phaseBadge,
-            timerState.phase === 'focus'
-              ? { backgroundColor: '#2563EB20', borderColor: '#2563EB', }
-              : { backgroundColor: '#05966920', borderColor: '#059669', },
-          ]}
-        >
-          <Text style={[styles.phaseBadgeText, { color: timerState.phase === 'focus' ? '#2563EB' : '#059669' }]}>
+        <View style={styles.phaseStatus}>
+          <Text style={[styles.phaseStatusText, { color: timerState.phase === 'focus' ? '#2563EB' : '#059669' }]}>
             {phaseLabel}
           </Text>
         </View>
@@ -409,6 +404,8 @@ export function PomodoroPanel({
           </Text>
         </Pressable>
         <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={switchLabel}
           onPress={handleSwitchPhase}
           disabled={isHydratingSession}
           style={[styles.actionSecondary, { borderColor: tc.border, backgroundColor: tc.filterBg }]}
@@ -535,15 +532,13 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '700',
   },
-  phaseBadge: {
-    borderWidth: 1,
-    borderRadius: 999,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
+  phaseStatus: {
+    paddingTop: 2,
   },
-  phaseBadgeText: {
+  phaseStatusText: {
     fontSize: 11,
     fontWeight: '700',
+    textTransform: 'uppercase',
   },
   presetRow: {
     flexDirection: 'row',
