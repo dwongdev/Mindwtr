@@ -149,6 +149,12 @@ vi.mock('@mindwtr/core', () => {
     },
     getQuickAddProjectInitialProps: vi.fn(() => ({})),
     getTranslationsSync: vi.fn(() => ({ 'trash.restoreToInbox': 'Restore' })),
+    getTaskMetadataFilterVisibility: vi.fn(() => ({
+      showEnergy: true,
+      showLocation: true,
+      showPriority: true,
+      showTimeEstimate: true,
+    })),
     getUsedTaskTokens: vi.fn(() => []),
     hasActiveFilterCriteria: vi.fn(() => false),
     isSelectableProjectForTaskAssignment: (item: Project) => item.status === 'active' && !item.deletedAt,
@@ -401,6 +407,28 @@ describe('TaskList project quick add', () => {
       title="Inbox"
     />,
   );
+
+  it("does not show standalone quick-add outside Inbox", async () => {
+    let tree!: ReturnType<typeof create>;
+
+    await act(async () => {
+      tree = create(
+        <TaskList
+          allowAdd
+          showHeader={false}
+          statusFilter="next"
+          taskSource={[]}
+          title="Next"
+        />,
+      );
+    });
+
+    expect(quickAddPropsSpy).not.toHaveBeenCalled();
+
+    act(() => {
+      tree.unmount();
+    });
+  });
 
   it('passes a group control to non-reference list headers', async () => {
     const onChangeGroupBy = vi.fn();

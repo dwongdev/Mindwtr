@@ -412,7 +412,7 @@ function TaskListComponent({
   const shouldGroupCompletedTasks = Boolean(groupCompletedTasksLast && projectId && statusFilter === 'all');
   const projectReorderMode = projectReorderModeProp ?? internalProjectReorderMode;
   const quickAddInputRef = useRef<TextInput | null>(null);
-  const quickAddAvailable = allowAdd && !projectReorderMode;
+  const quickAddAvailable = allowAdd && !projectReorderMode && (Boolean(projectId) || statusFilter === 'inbox');
   const aiEnabled = settings?.ai?.enabled === true;
   const quickAddCopilotEnabled = quickAddAvailable && enableCopilot && aiEnabled;
   const focusTaskLimit = normalizeFocusTaskLimit(settings?.gtd?.focusTaskLimit);
