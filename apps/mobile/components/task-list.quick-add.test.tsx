@@ -149,6 +149,7 @@ vi.mock('@mindwtr/core', () => {
     isSelectableProjectForTaskAssignment: (item: Project) => item.status === 'active' && !item.deletedAt,
     isTaskInActiveProject: vi.fn(() => true),
     matchesTask: vi.fn(() => true),
+    normalizeClockTimeInput: (value?: string | null) => String(value ?? '').trim(),
     normalizeFocusTaskLimit: (value: unknown) => (typeof value === 'number' ? value : 3),
     parseQuickAdd: parseQuickAddMock,
     parseSearchQuery: vi.fn(() => ({ filters: [], text: '' })),

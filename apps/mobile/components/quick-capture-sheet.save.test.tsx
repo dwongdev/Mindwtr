@@ -87,6 +87,7 @@ vi.mock('@mindwtr/core', () => ({
     !project.deletedAt && project.status !== 'archived' && project.status !== 'completed'
   ),
   parseQuickAdd,
+  normalizeClockTimeInput: (value?: string | null) => String(value ?? '').trim(),
   normalizeFocusTaskLimit: (value: unknown) => (typeof value === 'number' ? value : 3),
   resolveDefaultNewTaskAreaId: (settings: any, areas: any[]) => {
     const areaId = settings?.gtd?.defaultAreaId;

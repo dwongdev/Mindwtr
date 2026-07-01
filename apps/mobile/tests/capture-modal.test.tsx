@@ -47,6 +47,7 @@ vi.mock('@mindwtr/core', () => ({
     !project.deletedAt && project.status !== 'archived' && project.status !== 'completed'
   )),
   parseQuickAdd,
+  normalizeClockTimeInput: (value?: string | null) => String(value ?? '').trim(),
   resolveDefaultNewTaskAreaId: (settings: any, areas: any[]) => {
     const areaId = settings?.gtd?.defaultAreaId;
     return typeof areaId === 'string' && areas.some((area) => area.id === areaId && !area.deletedAt)
