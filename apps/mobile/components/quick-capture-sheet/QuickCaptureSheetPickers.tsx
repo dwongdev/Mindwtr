@@ -7,6 +7,7 @@ import { styles } from './quick-capture-sheet.styles';
 
 interface QuickCaptureSheetPickersProps {
   areas: Area[];
+  areaQuery?: string;
   contextInputRef: React.RefObject<TextInput | null>;
   contextOptionsLoading: boolean;
   contextQuery: string;
@@ -14,6 +15,7 @@ interface QuickCaptureSheetPickersProps {
   filteredContexts: string[];
   filteredProjects: Project[];
   hasAddableContextTokens: boolean;
+  hasExactAreaMatch?: boolean;
   hasExactProjectMatch: boolean;
   onAddContextFromQuery: () => void;
   onCloseAreaPicker: () => void;
@@ -21,6 +23,7 @@ interface QuickCaptureSheetPickersProps {
   onClosePriorityPicker: () => void;
   onCloseProjectPicker: () => void;
   onClearContexts: () => void;
+  onAreaQueryChange?: (value: string) => void;
   onContextQueryChange: (value: string) => void;
   onProjectQueryChange: (value: string) => void;
   onRemoveContext: (token: string) => void;
@@ -28,6 +31,7 @@ interface QuickCaptureSheetPickersProps {
   onSelectContext: (token: string) => void;
   onSelectPriority: (priority: TaskPriority | null) => void;
   onSelectProject: (projectId: string | null) => void;
+  onSubmitAreaQuery?: () => void;
   onSubmitContextQuery: () => void;
   onSubmitProjectQuery: () => void;
   pendingStartDate: Date | null;
@@ -56,6 +60,7 @@ interface QuickCaptureSheetPickersProps {
 
 export function QuickCaptureSheetPickers({
   areas,
+  areaQuery = '',
   contextInputRef,
   contextOptionsLoading,
   contextQuery,
@@ -64,6 +69,7 @@ export function QuickCaptureSheetPickers({
   filteredContexts,
   filteredProjects,
   hasAddableContextTokens,
+  hasExactAreaMatch = false,
   hasExactProjectMatch,
   onAddContextFromQuery,
   onCloseAreaPicker,
@@ -71,6 +77,7 @@ export function QuickCaptureSheetPickers({
   onClosePriorityPicker,
   onCloseProjectPicker,
   onClearContexts,
+  onAreaQueryChange = () => {},
   onContextQueryChange,
   onDueDateChange,
   onDueTimeChange,
@@ -81,6 +88,7 @@ export function QuickCaptureSheetPickers({
   onSelectPriority,
   onSelectProject,
   onStartTimeChange,
+  onSubmitAreaQuery = () => {},
   onSubmitContextQuery,
   onSubmitProjectQuery,
   pendingStartDate,
@@ -109,6 +117,10 @@ export function QuickCaptureSheetPickers({
   const overlayStyle = overlayKeyboardInset > 0
     ? [styles.overlay, { paddingBottom: overlayKeyboardInset }]
     : styles.overlay;
+  const trimmedAreaQuery = areaQuery.trim();
+  const visibleAreas = areas
+    .filter((area) => !area.deletedAt)
+    .filter((area) => !trimmedAreaQuery || area.name.toLowerCase().includes(trimmedAreaQuery.toLowerCase()));
 
   return (
     <>
@@ -256,12 +268,33 @@ export function QuickCaptureSheetPickers({
           />
           <View style={[styles.pickerCard, { backgroundColor: tc.cardBg, borderColor: tc.border }]}>
             <Text style={[styles.pickerTitle, { color: tc.text }]} accessibilityRole="header">{t('taskEdit.areaLabel')}</Text>
+            <TextInput
+              value={areaQuery}
+              onChangeText={onAreaQueryChange}
+              placeholder={t('common.search')}
+              placeholderTextColor={tc.secondaryText}
+              style={[styles.pickerInput, { backgroundColor: tc.inputBg, borderColor: tc.border, color: tc.text }]}
+              onSubmitEditing={onSubmitAreaQuery}
+              returnKeyType="done"
+              blurOnSubmit
+              accessibilityLabel={t('taskEdit.areaLabel')}
+            />
+            {!hasExactAreaMatch && trimmedAreaQuery && (
+              <Pressable
+                onPress={onSubmitAreaQuery}
+                style={styles.pickerRow}
+                accessibilityRole="button"
+                accessibilityLabel={`${t('areas.create')}: ${trimmedAreaQuery}`}
+              >
+                <Text style={[styles.pickerRowText, { color: tc.tint }]}>+ {t('areas.create')} &quot;{trimmedAreaQuery}&quot;</Text>
+              </Pressable>
+            )}
             <FlatList
               style={[styles.pickerList, { borderColor: tc.border }]}
               accessibilityRole="list"
               accessibilityLabel={t('taskEdit.areaLabel')}
               contentContainerStyle={styles.pickerListContent}
-              data={areas.filter((area) => !area.deletedAt)}
+              data={visibleAreas}
               keyExtractor={(area) => area.id}
               keyboardShouldPersistTaps="handled"
               ListHeaderComponent={(

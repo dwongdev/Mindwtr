@@ -35,6 +35,7 @@ const storeState = vi.hoisted(() => ({
     allContexts: ['@office'],
     allTags: ['#design'],
   }),
+  addArea: vi.fn().mockResolvedValue(null),
   deleteArea: vi.fn().mockResolvedValue(undefined),
   updateArea: vi.fn().mockResolvedValue(undefined),
   updateSettings: vi.fn().mockResolvedValue(undefined),
@@ -111,6 +112,7 @@ describe('ManageSettingsScreen', () => {
   beforeEach(() => {
     asyncStorageMocks.getItem.mockReset();
     asyncStorageMocks.setItem.mockClear();
+    storeState.addArea.mockClear();
     storeState.deleteArea.mockClear();
     storeState.updateArea.mockClear();
     storeState.updateSettings.mockClear();
@@ -196,6 +198,34 @@ describe('ManageSettingsScreen', () => {
       note: 'Ops lead',
       referenceLink: 'obsidian://people/morgan',
     });
+  });
+
+  it('creates a managed area from the areas section', async () => {
+    asyncStorageMocks.getItem.mockResolvedValue(JSON.stringify({ areas: true }));
+
+    let tree!: renderer.ReactTestRenderer;
+    await renderer.act(async () => {
+      tree = renderer.create(<ManageSettingsScreen />);
+      await flushEffects();
+    });
+
+    await renderer.act(async () => {
+      tree.root.findByProps({ testID: 'manage-area-add' }).props.onPress();
+      await flushEffects();
+    });
+
+    await renderer.act(async () => {
+      tree.root.findByProps({ testID: 'manage-area-name-input' }).props.onChangeText('Work');
+      tree.root.findByProps({ accessibilityLabel: 'Change color: #10b981' }).props.onPress();
+      await flushEffects();
+    });
+
+    await renderer.act(async () => {
+      tree.root.findByProps({ testID: 'manage-editor-save' }).props.onPress();
+      await flushEffects();
+    });
+
+    expect(storeState.addArea).toHaveBeenCalledWith('Work', { color: '#10b981' });
   });
 
   it('updates managed person metadata before propagating a rename', async () => {

@@ -140,6 +140,7 @@ export const TaskItem = memo(function TaskItem({
         setHighlightTask,
         addProject,
         addArea,
+        addPerson,
         addSection,
         lockEditing,
         unlockEditing,
@@ -541,6 +542,14 @@ export const TaskItem = memo(function TaskItem({
         const created = await addArea(trimmed, { color: DEFAULT_PROJECT_COLOR });
         return created?.id ?? null;
     }, [addArea, areas]);
+    const createAssignedToPerson = useCallback(async (name: string) => {
+        const trimmed = name.trim();
+        if (!trimmed) return;
+        const created = await addPerson(trimmed);
+        if (created) {
+            setEditAssignedTo(created.name);
+        }
+    }, [addPerson, setEditAssignedTo]);
     const handleCreateSection = useCallback(async (title: string) => {
         const trimmed = title.trim();
         if (!trimmed) return null;
@@ -692,6 +701,7 @@ export const TaskItem = memo(function TaskItem({
         setEditPriority,
         setEditEnergyLevel,
         setEditAssignedTo,
+        createAssignedToPerson,
         setEditRecurrence,
         setEditRecurrenceStrategy,
         setEditRecurrenceRRule,
@@ -722,6 +732,7 @@ export const TaskItem = memo(function TaskItem({
         setEditPriority,
         setEditEnergyLevel,
         setEditAssignedTo,
+        createAssignedToPerson,
         setEditRecurrence,
         setEditRecurrenceStrategy,
         setEditRecurrenceRRule,

@@ -634,6 +634,7 @@ export type TaskItemFieldRendererHandlers = {
     setEditPriority: (value: TaskPriority | '') => void;
     setEditEnergyLevel: (value: NonNullable<TaskEnergyLevel> | '') => void;
     setEditAssignedTo: (value: string) => void;
+    createAssignedToPerson: (name: string) => void | Promise<void>;
     setEditRecurrence: (value: RecurrenceRule | '') => void;
     setEditRecurrenceStrategy: (value: RecurrenceStrategy) => void;
     setEditRecurrenceRRule: (value: string) => void;
@@ -765,6 +766,7 @@ export function TaskItemFieldRenderer({
         setEditPriority,
         setEditEnergyLevel,
         setEditAssignedTo,
+        createAssignedToPerson,
         setEditRecurrence,
         setEditRecurrenceStrategy,
         setEditRecurrenceRRule,
@@ -1634,7 +1636,7 @@ export function TaskItemFieldRenderer({
         case 'energyLevel':
             return <EnergyLevelField t={t} value={editEnergyLevel} onChange={setEditEnergyLevel} />;
         case 'assignedTo':
-            return <AssignedToField t={t} value={editAssignedTo} options={assignedToOptions} onChange={setEditAssignedTo} />;
+            return <AssignedToField t={t} value={editAssignedTo} options={assignedToOptions} onChange={setEditAssignedTo} onCreatePerson={createAssignedToPerson} />;
         case 'recurrence':
             return (
                 <RecurrenceField

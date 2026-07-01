@@ -342,6 +342,88 @@ describe('Quick capture modal composition', () => {
     expect(flattenStyle(overlay.props.style).paddingBottom).toBe(280);
   });
 
+  it('creates an area from the quick capture area picker query', () => {
+    const onAreaQueryChange = vi.fn();
+    const onSubmitAreaQuery = vi.fn();
+    let tree!: ReturnType<typeof create>;
+    const t = (key: string) => ({
+      'areas.create': 'Create',
+      'common.close': 'Close',
+      'common.search': 'Search',
+      'taskEdit.areaLabel': 'Area',
+      'taskEdit.noAreaOption': 'No Area',
+    }[key] ?? key);
+
+    act(() => {
+      tree = create(
+        <QuickCaptureSheetPickers
+          areas={[]}
+          areaQuery="Work"
+          contextInputRef={{ current: null }}
+          contextOptionsLoading={false}
+          contextQuery=""
+          contextTags={[]}
+          dueDate={null}
+          filteredContexts={[]}
+          filteredProjects={[]}
+          hasAddableContextTokens={false}
+          hasExactAreaMatch={false}
+          hasExactProjectMatch={false}
+          onAddContextFromQuery={vi.fn()}
+          onAreaQueryChange={onAreaQueryChange}
+          onClearContexts={vi.fn()}
+          onCloseAreaPicker={vi.fn()}
+          onCloseContextPicker={vi.fn()}
+          onClosePriorityPicker={vi.fn()}
+          onCloseProjectPicker={vi.fn()}
+          onContextQueryChange={vi.fn()}
+          onDueDateChange={vi.fn()}
+          onDueTimeChange={vi.fn()}
+          onProjectQueryChange={vi.fn()}
+          onRemoveContext={vi.fn()}
+          onSelectArea={vi.fn()}
+          onSelectContext={vi.fn()}
+          onSelectPriority={vi.fn()}
+          onSelectProject={vi.fn()}
+          onStartTimeChange={vi.fn()}
+          onSubmitAreaQuery={onSubmitAreaQuery}
+          onSubmitContextQuery={vi.fn()}
+          onSubmitProjectQuery={vi.fn()}
+          pendingStartDate={null}
+          prioritiesEnabled
+          priorityOptions={['low', 'medium', 'high', 'urgent']}
+          projectQuery=""
+          selectedAreaId={null}
+          selectedPriority={null}
+          showAreaPicker
+          showContextPicker={false}
+          showDatePicker={false}
+          showDueTimePicker={false}
+          showPriorityPicker={false}
+          showProjectPicker={false}
+          startPickerMode={null}
+          startTime={null}
+          t={t}
+          tc={tc}
+        />
+      );
+    });
+
+    const input = tree.root.findAllByType(TextInput).find((node) => node.props.accessibilityLabel === 'Area');
+    expect(input).toBeTruthy();
+    act(() => {
+      input?.props.onChangeText('Home');
+    });
+    expect(onAreaQueryChange).toHaveBeenCalledWith('Home');
+
+    const createRow = tree.root.findByProps({ accessibilityLabel: 'Create: Work' });
+    act(() => {
+      createRow.props.onPress();
+    });
+
+    expect(onSubmitAreaQuery).toHaveBeenCalledTimes(1);
+  });
+
   it('keeps collapsed capture focused on context and hides organizing fields behind More', () => {
     let tree!: ReturnType<typeof create>;
     const t = (key: string) => ({

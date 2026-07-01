@@ -18,6 +18,7 @@ import type {
     TimeEstimate,
     MarkdownSelection,
     MarkdownToolbarResult,
+    Person,
 } from '@mindwtr/core';
 import type { ThemeColors } from '@/hooks/use-theme-colors';
 
@@ -50,6 +51,7 @@ export type TaskEditFieldRendererProps = {
     commitTagDraft: () => void;
     contextInputDraft: string;
     contextTokenSuggestions: string[];
+    createAssignedToPerson: (name: string) => Promise<Person | null>;
     customWeekdays: RecurrenceWeekday[];
     dailyInterval: number;
     descriptionDraft: string;

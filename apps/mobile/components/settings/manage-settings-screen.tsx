@@ -105,6 +105,7 @@ export function ManageSettingsScreen() {
     const settings = useTaskStore((state) => state.settings);
     const tasks = useTaskStore((state) => state.tasks);
     const derivedState = useTaskStore((state) => state.getDerivedState());
+    const addArea = useTaskStore((state) => state.addArea);
     const deleteArea = useTaskStore((state) => state.deleteArea);
     const updateArea = useTaskStore((state) => state.updateArea);
     const updateSettings = useTaskStore((state) => state.updateSettings);
@@ -134,6 +135,7 @@ export function ManageSettingsScreen() {
     const { allContexts, allTags } = derivedState;
     const [editorTarget, setEditorTarget] = useState<
         | { type: 'area'; id: string; name: string; color?: string }
+        | { type: 'newArea' }
         | { type: 'unassignedArea'; color?: string }
         | { type: 'newPerson' }
         | { type: 'person'; id: string; name: string; note?: string; referenceLink?: string }
@@ -232,6 +234,14 @@ export function ManageSettingsScreen() {
         setEditorReferenceLink('');
     };
 
+    const openNewAreaEditor = () => {
+        setEditorTarget({ type: 'newArea' });
+        setEditorName('');
+        setEditorColor(DEFAULT_AREA_COLOR);
+        setEditorNote('');
+        setEditorReferenceLink('');
+    };
+
     const openNewPersonEditor = () => {
         setEditorTarget({ type: 'newPerson' });
         setEditorName('');
@@ -280,6 +290,12 @@ export function ManageSettingsScreen() {
         }
 
         if (!trimmed) return;
+
+        if (editorTarget.type === 'newArea') {
+            await addArea(trimmed, { color: editorColor });
+            closeEditor();
+            return;
+        }
 
         if (editorTarget.type === 'newPerson') {
             const note = editorNote.trim();
@@ -460,6 +476,37 @@ export function ManageSettingsScreen() {
         </View>
     );
 
+    const NewAreaRow = () => (
+        <View style={styles.settingRow}>
+            <View style={{ width: 24, height: 24, borderRadius: 6, backgroundColor: DEFAULT_AREA_COLOR, marginRight: 12 }} />
+            <View style={{ flex: 1, minWidth: 0 }}>
+                <Text style={[styles.settingLabel, { color: tc.text }]} numberOfLines={1}>
+                    {resolveText('areas.new', 'New Area')}
+                </Text>
+                <Text style={[styles.settingDescription, { color: tc.secondaryText }]} numberOfLines={2}>
+                    {resolveText('areas.newHint', 'Create an area for related projects and tasks.')}
+                </Text>
+            </View>
+            <Pressable
+                accessibilityLabel={resolveText('areas.new', 'New Area')}
+                accessibilityRole="button"
+                hitSlop={{ top: 10, right: 10, bottom: 10, left: 10 }}
+                onPress={openNewAreaEditor}
+                style={[
+                    styles.manageEditorButton,
+                    styles.manageEditorButtonPrimary,
+                    { minWidth: 86, flexDirection: 'row', gap: 6 },
+                ]}
+                testID="manage-area-add"
+            >
+                <Ionicons name="add" size={17} color="#FFFFFF" />
+                <Text style={[styles.manageEditorButtonText, styles.manageEditorButtonPrimaryText]}>
+                    {resolveText('common.add', 'Add')}
+                </Text>
+            </Pressable>
+        </View>
+    );
+
     return (
         <SafeAreaView style={[styles.container, { backgroundColor: tc.bg }]} edges={['bottom']}>
             <SettingsTopBar title={t('settings.manage')} />
@@ -481,6 +528,7 @@ export function ManageSettingsScreen() {
                     {sortedAreas.map((area) => (
                         <AreaRow key={area.id} area={area} />
                     ))}
+                    <NewAreaRow />
                 </CollapsibleSection>
 
                 <CollapsibleSection
@@ -592,6 +640,8 @@ export function ManageSettingsScreen() {
                         <Text style={[styles.pickerTitle, { color: tc.text }]}>
                             {editorTarget?.type === 'area'
                                 ? t('areas.edit')
+                                : editorTarget?.type === 'newArea'
+                                    ? resolveText('areas.new', 'New Area')
                                 : editorTarget?.type === 'unassignedArea'
                                     ? unassignedAreaColorLabel
                                 : editorTarget?.type === 'newPerson'
@@ -602,11 +652,16 @@ export function ManageSettingsScreen() {
                         </Text>
                         {editorTarget?.type !== 'unassignedArea' ? (
                             <TextInput
-                                testID={editorTarget?.type === 'newPerson' || editorTarget?.type === 'person' ? 'manage-person-name-input' : undefined}
+                                testID={editorTarget?.type === 'newArea'
+                                    ? 'manage-area-name-input'
+                                    : editorTarget?.type === 'newPerson' || editorTarget?.type === 'person'
+                                        ? 'manage-person-name-input'
+                                        : undefined}
                                 value={editorName}
                                 onChangeText={setEditorName}
                                 placeholder={
                                     editorTarget?.type === 'area'
+                                        || editorTarget?.type === 'newArea'
                                         ? t('projects.areaLabel')
                                         : editorTarget?.type === 'newPerson' || editorTarget?.type === 'person'
                                             ? resolveText('people.namePlaceholder', 'Person name')
@@ -662,7 +717,7 @@ export function ManageSettingsScreen() {
                                 />
                             </>
                         ) : null}
-                        {editorTarget?.type === 'area' || editorTarget?.type === 'unassignedArea' ? (
+                        {editorTarget?.type === 'area' || editorTarget?.type === 'newArea' || editorTarget?.type === 'unassignedArea' ? (
                             <View style={styles.manageColorPicker}>
                                 {AREA_PRESET_COLORS.map((color) => (
                                     <TouchableOpacity

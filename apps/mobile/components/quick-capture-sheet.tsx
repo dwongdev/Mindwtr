@@ -10,6 +10,7 @@ import * as DocumentPicker from 'expo-document-picker';
 import * as FileSystem from 'expo-file-system';
 
 import {
+  DEFAULT_AREA_COLOR,
   DEFAULT_PROJECT_COLOR,
   formatFocusTaskLimitText,
   getQuickAddProjectInitialProps,
@@ -92,10 +93,11 @@ export function QuickCaptureSheet({
   initialValue?: string;
   autoRecord?: boolean;
 }) {
-  const { addTask, addTasks, addProject, updateSettings, projects, settings, areas, getDerivedState } = useTaskStore((state) => ({
+  const { addTask, addTasks, addProject, addArea, updateSettings, projects, settings, areas, getDerivedState } = useTaskStore((state) => ({
     addTask: state.addTask,
     addTasks: state.addTasks,
     addProject: state.addProject,
+    addArea: state.addArea,
     updateSettings: state.updateSettings,
     projects: state.projects,
     settings: state.settings,
@@ -159,6 +161,7 @@ export function QuickCaptureSheet({
   const [projectQuery, setProjectQuery] = useState('');
   const [selectedAreaId, setSelectedAreaId] = useState<string | null>(null);
   const [showAreaPicker, setShowAreaPicker] = useState(false);
+  const [areaQuery, setAreaQuery] = useState('');
   const [priority, setPriority] = useState<TaskPriority | null>(null);
   const [showPriorityPicker, setShowPriorityPicker] = useState(false);
   const [optionsExpanded, setOptionsExpanded] = useState(false);
@@ -314,12 +317,40 @@ export function QuickCaptureSheet({
     Keyboard.dismiss();
   }, [addProject, projectQuery, projects, selectedAreaId]);
 
+  const submitAreaQuery = useCallback(async () => {
+    const name = areaQuery.trim();
+    if (!name) return;
+    const match = areas.find((area) => !area.deletedAt && area.name.trim().toLowerCase() === name.toLowerCase());
+    if (match) {
+      setSelectedAreaId(match.id);
+      setProjectId(null);
+      setShowAreaPicker(false);
+      setAreaQuery('');
+      Keyboard.dismiss();
+      return;
+    }
+    const created = await addArea(name, { color: DEFAULT_AREA_COLOR });
+    if (!created) return;
+    setSelectedAreaId(created.id);
+    setProjectId(null);
+    setShowAreaPicker(false);
+    setAreaQuery('');
+    Keyboard.dismiss();
+  }, [addArea, areaQuery, areas]);
+
   const hasExactProjectMatch = useMemo(() => {
     if (!showProjectPicker) return false;
     if (!projectQuery.trim()) return false;
     const query = projectQuery.trim().toLowerCase();
     return projects.some((project) => project.title.toLowerCase() === query);
   }, [projectQuery, projects, showProjectPicker]);
+
+  const hasExactAreaMatch = useMemo(() => {
+    if (!showAreaPicker) return false;
+    const query = areaQuery.trim().toLowerCase();
+    if (!query) return false;
+    return areas.some((area) => !area.deletedAt && area.name.trim().toLowerCase() === query);
+  }, [areaQuery, areas, showAreaPicker]);
 
   const resetDraftState = useCallback((options?: { keepAddAnother?: boolean; value?: string }) => {
     clearAndroidOptionsExpand();
@@ -346,6 +377,7 @@ export function QuickCaptureSheet({
     setProjectQuery('');
     setShowProjectPicker(false);
     setShowAreaPicker(false);
+    setAreaQuery('');
     setPriority((initialProps?.priority as TaskPriority) ?? null);
     setShowPriorityPicker(false);
     setOptionsExpanded(false);
@@ -485,6 +517,7 @@ export function QuickCaptureSheet({
     setProjectQuery('');
     setShowProjectPicker(false);
     setShowAreaPicker(false);
+    setAreaQuery('');
     setShowPriorityPicker(false);
     setOptionsExpanded(false);
     setAndroidKeyboardAvoidingEnabled(true);
@@ -800,6 +833,7 @@ export function QuickCaptureSheet({
       setProjectId(null);
     }
     setShowAreaPicker(false);
+    setAreaQuery('');
   }, []);
 
   const handleSelectProject = useCallback((nextProjectId: string | null) => {
@@ -882,6 +916,7 @@ export function QuickCaptureSheet({
 
   const pickerProps = {
     areas,
+    areaQuery,
     contextInputRef,
     contextOptionsLoading,
     contextQuery,
@@ -890,10 +925,15 @@ export function QuickCaptureSheet({
     filteredContexts,
     filteredProjects,
     hasAddableContextTokens,
+    hasExactAreaMatch,
     hasExactProjectMatch,
     onAddContextFromQuery: addContextFromQuery,
+    onAreaQueryChange: setAreaQuery,
     onClearContexts: handleClearContexts,
-    onCloseAreaPicker: () => setShowAreaPicker(false),
+    onCloseAreaPicker: () => {
+      setShowAreaPicker(false);
+      setAreaQuery('');
+    },
     onCloseContextPicker: closeContextPicker,
     onClosePriorityPicker: () => setShowPriorityPicker(false),
     onCloseProjectPicker: () => setShowProjectPicker(false),
@@ -908,6 +948,9 @@ export function QuickCaptureSheet({
     onSelectProject: handleSelectProject,
     onStartTimeChange: handleStartTimeChange,
     onSubmitContextQuery: handleContextSubmit,
+    onSubmitAreaQuery: () => {
+      void submitAreaQuery();
+    },
     onSubmitProjectQuery: () => {
       void submitProjectQuery();
     },

@@ -51,6 +51,7 @@ export const useTaskItemStoreState = ({ task, propProject, isEditing, hasQuickAc
             setHighlightTask: state.setHighlightTask,
             addProject: state.addProject,
             addArea: state.addArea,
+            addPerson: state.addPerson,
             addSection: state.addSection,
             lockEditing: state.lockEditing,
             unlockEditing: state.unlockEditing,

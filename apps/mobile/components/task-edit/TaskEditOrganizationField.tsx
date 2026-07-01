@@ -32,6 +32,7 @@ export function TaskEditOrganizationField({
     areas,
     assignedToSuggestions,
     availableStatusOptions,
+    createAssignedToPerson,
     editedTask,
     energyLevelOptions,
     fieldId,
@@ -124,6 +125,10 @@ export function TaskEditOrganizationField({
             </TouchableOpacity>
         </View>
     );
+    const assignedToDraft = String(editedTask.assignedTo ?? '').trim();
+    const assignedToCreateLabel = translateWithFallback(t, 'people.new', 'New Person');
+    const canCreateAssignedToPerson = assignedToDraft.length > 0
+        && !assignedToSuggestions.some((name) => name.trim().toLowerCase() === assignedToDraft.toLowerCase());
 
     switch (fieldId) {
         case 'status':
@@ -323,8 +328,23 @@ export function TaskEditOrganizationField({
                         accessibilityLabel={t('taskEdit.assignedTo')}
                         accessibilityHint={t('taskEdit.assignedToPlaceholder')}
                     />
-                    {assignedToSuggestions.length > 0 && (
+                    {(assignedToSuggestions.length > 0 || canCreateAssignedToPerson) && (
                         <View style={[styles.tokenSuggestionsMenu, { backgroundColor: tc.cardBg, borderColor: tc.border }]}>
+                            {canCreateAssignedToPerson && (
+                                <TouchableOpacity
+                                    style={[
+                                        styles.tokenSuggestionItem,
+                                        assignedToSuggestions.length === 0 ? styles.tokenSuggestionItemLast : null,
+                                    ]}
+                                    onPress={() => {
+                                        void createAssignedToPerson(assignedToDraft);
+                                    }}
+                                    accessibilityRole="button"
+                                    accessibilityLabel={`${assignedToCreateLabel}: ${assignedToDraft}`}
+                                >
+                                    <Text style={[styles.tokenSuggestionText, { color: tc.tint }]}>+ {assignedToCreateLabel} "{assignedToDraft}"</Text>
+                                </TouchableOpacity>
+                            )}
                             {assignedToSuggestions.map((name, index) => (
                                 <TouchableOpacity
                                     key={name}

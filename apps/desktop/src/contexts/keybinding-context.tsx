@@ -557,7 +557,7 @@ export function KeybindingProvider({
                     } else if (vimGoMap[e.key]) {
                         onNavigate(vimGoMap[e.key]);
                     }
-                } else if (pending === 'a') {
+                } else if (pending === 'A') {
                     applyAreaFilterShortcut(e.key);
                 } else if (pending === 'd') {
                     if (e.key === 'd') {
@@ -612,6 +612,7 @@ export function KeybindingProvider({
                     scope?.toggleDoneSelected();
                     break;
                 case 'o':
+                case 'a':
                     e.preventDefault();
                     scope?.focusAddInput?.();
                     break;
@@ -624,7 +625,7 @@ export function KeybindingProvider({
                     setIsHelpOpen(true);
                     break;
                 case 'g':
-                case 'a':
+                case 'A':
                 case 'd':
                     e.preventDefault();
                     pendingRef.current = { key: e.key, timestamp: now };

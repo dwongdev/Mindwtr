@@ -8,7 +8,7 @@ import { useKeybindings } from './keybinding-context';
 import { useUiStore } from '../store/ui-store';
 import { AREA_FILTER_ALL } from '@mindwtr/core';
 
-const DummyList = () => {
+const DummyList = ({ focusAddInput }: { focusAddInput?: () => void } = {}) => {
     const { registerTaskListScope } = useKeybindings();
     const [selectedIndex, setSelectedIndex] = useState(0);
     const ids = ['1', '2'];
@@ -34,9 +34,10 @@ const DummyList = () => {
             editSelected: vi.fn(),
             toggleDoneSelected: vi.fn(),
             deleteSelected: vi.fn(),
+            focusAddInput,
         });
         return () => registerTaskListScope(null);
-    }, [registerTaskListScope, selectNext, selectPrev, selectFirst, selectLast]);
+    }, [focusAddInput, registerTaskListScope, selectNext, selectPrev, selectFirst, selectLast]);
 
     return (
         <div>
@@ -177,6 +178,22 @@ describe('KeybindingProvider (vim)', () => {
         window.removeEventListener('mindwtr:quick-add', quickAddListener);
     });
 
+    it('focuses app-scoped add task with a', () => {
+        const focusAddInput = vi.fn();
+
+        render(
+            <LanguageProvider>
+                <KeybindingProvider currentView="inbox" onNavigate={vi.fn()}>
+                    <DummyList focusAddInput={focusAddInput} />
+                </KeybindingProvider>
+            </LanguageProvider>
+        );
+
+        fireEvent.keyDown(window, { key: 'a' });
+
+        expect(focusAddInput).toHaveBeenCalledTimes(1);
+    });
+
     it('opens settings with Cmd+,', () => {
         const onNavigate = vi.fn();
         render(
@@ -238,7 +255,7 @@ describe('KeybindingProvider (vim)', () => {
             </LanguageProvider>
         );
 
-        fireEvent.keyDown(window, { key: 'a' });
+        fireEvent.keyDown(window, { key: 'A', shiftKey: true });
         fireEvent.keyDown(window, { key: '2' });
 
         await waitFor(() => {
@@ -269,7 +286,7 @@ describe('KeybindingProvider (vim)', () => {
             </LanguageProvider>
         );
 
-        fireEvent.keyDown(window, { key: 'a' });
+        fireEvent.keyDown(window, { key: 'A', shiftKey: true });
         fireEvent.keyDown(window, { key: '0' });
 
         await waitFor(() => {

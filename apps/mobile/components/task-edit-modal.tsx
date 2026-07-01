@@ -96,6 +96,7 @@ function TaskEditModalInner({
         addProject,
         addSection,
         addArea,
+        addPerson,
         deleteTask,
         restoreTask,
         allContexts = [],
@@ -117,6 +118,7 @@ function TaskEditModalInner({
             addProject: state.addProject,
             addSection: state.addSection,
             addArea: state.addArea,
+            addPerson: state.addPerson,
             deleteTask: state.deleteTask,
             restoreTask: state.restoreTask,
             allContexts: derived.allContexts,
@@ -535,6 +537,13 @@ function TaskEditModalInner({
     const applyAssignedToSuggestion = useCallback((assignedTo: string) => {
         setEditedTask((prev) => ({ ...prev, assignedTo }));
     }, [setEditedTask]);
+    const createAssignedToPerson = useCallback(async (name: string) => {
+        const created = await addPerson(name);
+        if (created) {
+            setEditedTask((prev) => ({ ...prev, assignedTo: created.name }));
+        }
+        return created;
+    }, [addPerson, setEditedTask]);
     const closeWaitingAssignmentModal = useCallback(() => {
         setWaitingAssignmentModalVisible(false);
     }, []);
@@ -671,6 +680,7 @@ function TaskEditModalInner({
         commitTagDraft,
         contextInputDraft,
         contextTokenSuggestions,
+        createAssignedToPerson,
         customWeekdays,
         dailyInterval,
         descriptionDraft,
@@ -759,6 +769,7 @@ function TaskEditModalInner({
         commitTagDraft,
         contextInputDraft,
         contextTokenSuggestions,
+        createAssignedToPerson,
         customWeekdays,
         dailyInterval,
         descriptionDraft,

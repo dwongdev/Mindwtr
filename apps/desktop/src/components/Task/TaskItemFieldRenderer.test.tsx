@@ -47,6 +47,7 @@ const t = (key: string) => {
         'taskEdit.tagsPlaceholder': 'Add tags',
         'taskEdit.assignedTo': 'Assigned to',
         'taskEdit.assignedToPlaceholder': 'Delegate to...',
+        'people.new': 'New Person',
         'task.aria.startDate': 'Start date',
         'task.aria.startTime': 'Start time',
         'task.aria.dueDate': 'Due date',
@@ -167,6 +168,7 @@ const createHandlers = (): TaskItemFieldRendererHandlers => ({
     setEditPriority: vi.fn(),
     setEditEnergyLevel: vi.fn(),
     setEditAssignedTo: vi.fn(),
+    createAssignedToPerson: vi.fn(),
     setEditRecurrence: vi.fn(),
     setEditRecurrenceStrategy: vi.fn(),
     setEditRecurrenceRRule: vi.fn(),
@@ -932,6 +934,24 @@ describe('TaskItemFieldRenderer date clear buttons', () => {
         fireEvent.keyDown(input, { key: 'Enter' });
 
         expect(input).toHaveValue('Alex');
+    });
+
+    it('offers to create an assignee from an unmatched assigned-to value', async () => {
+        const handlers = createHandlers();
+        const { findByRole, getByRole } = render(
+            <TaskItemFieldRenderer
+                fieldId="assignedTo"
+                data={createData({ editAssignedTo: 'Morgan', assignedToOptions: ['Alex'] })}
+                handlers={handlers}
+            />
+        );
+
+        const input = getByRole('textbox', { name: 'Assigned to' });
+        fireEvent.focus(input);
+
+        fireEvent.click(await findByRole('option', { name: 'New Person: Morgan' }));
+
+        expect(handlers.createAssignedToPerson).toHaveBeenCalledWith('Morgan');
     });
 
     it('updates weekly recurrence intervals without dropping selected weekdays', () => {

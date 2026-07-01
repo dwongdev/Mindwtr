@@ -61,8 +61,8 @@ export function KeybindingHelpModal({
         { keys: 'gb', labelKey: 'keybindings.goBoard' },
         { keys: 'gd', labelKey: 'keybindings.goDone' },
         { keys: 'ga', labelKey: 'keybindings.goArchived' },
-        { keys: 'a1-a9', labelKey: 'keybindings.switchArea', fallbackLabel: 'Switch to Area 1-9' },
-        { keys: 'a0', labelKey: 'keybindings.clearAreaFilter', fallbackLabel: 'Clear area filter' },
+        { keys: 'A1-A9', labelKey: 'keybindings.switchArea', fallbackLabel: 'Switch to Area 1-9' },
+        { keys: 'A0', labelKey: 'keybindings.clearAreaFilter', fallbackLabel: 'Clear area filter' },
     ];
 
     const vimList: HelpItem[] = [
@@ -74,7 +74,7 @@ export function KeybindingHelpModal({
         { keys: 'Esc', labelKey: 'keybindings.list.cancelEdit' },
         { keys: 'x', labelKey: 'keybindings.list.toggleDone' },
         { keys: 'dd', labelKey: 'keybindings.list.delete' },
-        { keys: 'o', labelKey: 'keybindings.list.newTask' },
+        { keys: 'a / o', labelKey: 'keybindings.list.newTask' },
     ];
 
     const emacsGlobal: HelpItem[] = [
