@@ -65,6 +65,8 @@ export const zhHans: Record<string, string> = {
         'keybindings.openHelp': '查看快捷键',
         'keybindings.openSearch': '打开搜索',
         'keybindings.quickAdd': '快速添加',
+        'keybindings.globalQuickAdd': '全局快速添加',
+        'keybindings.inAppQuickAdd': '应用内快速添加',
         'keybindings.toggleSidebar': '切换侧边栏',
         'keybindings.toggleFocusMode': '切换专注模式',
         'keybindings.focusSidebar': '聚焦侧边栏',

@@ -113,15 +113,18 @@ describe('ListView', () => {
   it.each([
     ['waiting', 'Waiting'],
     ['someday', 'Someday'],
-  ] as const)('focuses quick-add input with o in the %s view', async (statusFilter, title) => {
-    const { getByPlaceholderText } = renderListView(statusFilter, title);
-    const quickAddInput = getByPlaceholderText(/add task/i);
+  ] as const)('opens the default quick-add pane from the %s view using a', (statusFilter, title) => {
+    const quickAddListener = vi.fn();
+    window.addEventListener('mindwtr:quick-add', quickAddListener);
 
-    fireEvent.keyDown(window, { key: 'o' });
+    renderListView(statusFilter, title);
 
-    await waitFor(() => {
-      expect(document.activeElement).toBe(quickAddInput);
-    });
+    fireEvent.keyDown(window, { key: 'a' });
+
+    expect(quickAddListener).toHaveBeenCalledTimes(1);
+    expect((quickAddListener.mock.calls[0]?.[0] as CustomEvent).detail).toBeUndefined();
+
+    window.removeEventListener('mindwtr:quick-add', quickAddListener);
   });
 
   it('keeps future-start inbox tasks visible while hiding future-start next actions', async () => {

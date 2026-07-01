@@ -32,7 +32,8 @@ export function KeybindingHelpModal({
     const isMac = typeof navigator !== 'undefined' && /mac/i.test(navigator.platform);
     const quickAddShortcutDisplay = formatGlobalQuickAddShortcutForDisplay(quickAddShortcut, isMac);
     const sharedGlobal: HelpItem[] = [
-        { keys: quickAddShortcutDisplay, labelKey: 'keybindings.quickAdd' },
+        { keys: quickAddShortcutDisplay, labelKey: 'keybindings.globalQuickAdd', fallbackLabel: 'Global quick add' },
+        { keys: 'a', labelKey: 'keybindings.inAppQuickAdd', fallbackLabel: 'In-app quick add' },
         { keys: MANUAL_SYNC_SHORTCUT_DISPLAY, labelKey: 'settings.syncNow', fallbackLabel: 'Sync now' },
         { keys: 'Ctrl+, / Cmd+,', labelKey: 'keybindings.openSettings' },
         { keys: 'Ctrl-b / Cmd-b', labelKey: 'keybindings.toggleSidebar' },
@@ -74,7 +75,6 @@ export function KeybindingHelpModal({
         { keys: 'Esc', labelKey: 'keybindings.list.cancelEdit' },
         { keys: 'x', labelKey: 'keybindings.list.toggleDone' },
         { keys: 'dd', labelKey: 'keybindings.list.delete' },
-        { keys: 'a / o', labelKey: 'keybindings.list.newTask' },
     ];
 
     const emacsGlobal: HelpItem[] = [
@@ -104,7 +104,6 @@ export function KeybindingHelpModal({
         { keys: 'Esc', labelKey: 'keybindings.list.cancelEdit' },
         { keys: 'Ctrl-t', labelKey: 'keybindings.list.toggleDone' },
         { keys: 'Ctrl-d', labelKey: 'keybindings.list.delete' },
-        { keys: 'Ctrl-o', labelKey: 'keybindings.list.newTask' },
     ];
 
     const globalItems = style === 'emacs' ? emacsGlobal : vimGlobal;

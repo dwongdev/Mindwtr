@@ -101,6 +101,12 @@ function triggerQuickAdd() {
     window.dispatchEvent(new Event('mindwtr:quick-add'));
 }
 
+function getAppScopedShortcutKey(event: KeyboardEvent): string {
+    if (event.key.length !== 1) return event.key;
+    if (event.shiftKey && event.key.toLowerCase() === 'a') return 'A';
+    return event.key;
+}
+
 function triggerTaskEditCancel(taskId: string) {
     const CancelEvent = typeof window.CustomEvent === 'function' ? window.CustomEvent : CustomEvent;
     window.dispatchEvent(new CancelEvent('mindwtr:cancel-task-edit', { detail: { taskId } }));
@@ -232,48 +238,6 @@ export function KeybindingProvider({
     const registerTaskListScope = useCallback((scope: TaskListScope | null) => {
         scopeRef.current = scope;
     }, []);
-
-    const focusFallbackAddTaskTarget = useCallback((): boolean => {
-        const root = document.querySelector<HTMLElement>('[data-main-content]') ?? document.body;
-        const target = Array.from(root.querySelectorAll<HTMLElement>('[data-add-task-trigger]'))
-            .find((element) => {
-                if ('disabled' in element && Boolean((element as HTMLButtonElement).disabled)) return false;
-                const style = window.getComputedStyle(element);
-                return style.display !== 'none' && style.visibility !== 'hidden';
-            });
-        if (!target) return false;
-        target.focus();
-        target.click();
-        return true;
-    }, []);
-
-    const focusActiveAddTaskTarget = useCallback((scope: TaskListScope | null | undefined) => {
-        if (scope?.focusAddInput) {
-            scope.focusAddInput();
-            return;
-        }
-        focusFallbackAddTaskTarget();
-    }, [focusFallbackAddTaskTarget]);
-
-    const focusFallbackFilterInput = useCallback(() => {
-        const root = document.querySelector<HTMLElement>('[data-main-content]') ?? document.body;
-        const input = Array.from(root.querySelectorAll<HTMLElement>('[data-view-filter-input]'))
-            .find((element) => {
-                const tagName = element.tagName.toLowerCase();
-                if (tagName !== 'input' && tagName !== 'textarea') return false;
-                if ('disabled' in element && Boolean((element as HTMLInputElement | HTMLTextAreaElement).disabled)) return false;
-                const rect = element.getBoundingClientRect();
-                if (rect.width <= 0 || rect.height <= 0) return false;
-                const style = window.getComputedStyle(element);
-                return style.display !== 'none' && style.visibility !== 'hidden';
-            });
-        input?.focus();
-    }, []);
-
-    const focusFallbackAddInput = useCallback(() => {
-        if (focusFallbackAddTaskTarget()) return;
-        focusFallbackFilterInput();
-    }, [focusFallbackAddTaskTarget, focusFallbackFilterInput]);
 
     const getFallbackTaskElements = useCallback((): HTMLElement[] => {
         const root = document.querySelector<HTMLElement>('[data-main-content]') ?? document.body;
@@ -466,7 +430,6 @@ export function KeybindingProvider({
         openQuickActions: fallbackOpenQuickActionsSelected,
         toggleDoneSelected: fallbackToggleDoneSelected,
         deleteSelected: fallbackDeleteSelected,
-        focusAddInput: focusFallbackAddInput,
     }), [
         fallbackDeleteSelected,
         fallbackEditSelected,
@@ -476,7 +439,6 @@ export function KeybindingProvider({
         fallbackSelectNext,
         fallbackSelectPrev,
         fallbackToggleDoneSelected,
-        focusFallbackAddInput,
     ]);
 
     const getActiveScope = useCallback((): TaskListScope => {
@@ -619,11 +581,6 @@ export function KeybindingProvider({
                     e.preventDefault();
                     scope?.toggleDoneSelected();
                     break;
-                case 'o':
-                case 'a':
-                    e.preventDefault();
-                    focusActiveAddTaskTarget(scope);
-                    break;
                 case '/':
                     e.preventDefault();
                     triggerGlobalSearch();
@@ -633,7 +590,6 @@ export function KeybindingProvider({
                     setIsHelpOpen(true);
                     break;
                 case 'g':
-                case 'A':
                 case 'd':
                     e.preventDefault();
                     pendingRef.current = { key: e.key, timestamp: now };
@@ -690,10 +646,6 @@ export function KeybindingProvider({
                         e.preventDefault();
                         scope?.deleteSelected();
                         break;
-                    case 'o':
-                        e.preventDefault();
-                        focusActiveAddTaskTarget(scope);
-                        break;
                     case 's':
                         e.preventDefault();
                         triggerGlobalSearch();
@@ -740,6 +692,27 @@ export function KeybindingProvider({
                 return;
             }
             if (!e.metaKey && !e.ctrlKey && !e.altKey && !isEditableTarget(e.target)) {
+                const appShortcutKey = getAppScopedShortcutKey(e);
+                const now = Date.now();
+                if (pendingRef.current.key === 'A' && now - pendingRef.current.timestamp > 700) {
+                    pendingRef.current.key = null;
+                }
+                if (pendingRef.current.key === 'A') {
+                    e.preventDefault();
+                    applyAreaFilterShortcut(appShortcutKey);
+                    pendingRef.current.key = null;
+                    return;
+                }
+                if (!pendingRef.current.key && appShortcutKey === 'A') {
+                    e.preventDefault();
+                    pendingRef.current = { key: 'A', timestamp: now };
+                    return;
+                }
+                if (!pendingRef.current.key && appShortcutKey === 'a') {
+                    e.preventDefault();
+                    triggerQuickAdd();
+                    return;
+                }
                 if (e.key === 'ArrowDown') {
                     if (moveSidebarFocus(e.target, 'next')) {
                         e.preventDefault();
@@ -825,7 +798,6 @@ export function KeybindingProvider({
         toggleDensity,
         currentView,
         getActiveScope,
-        focusActiveAddTaskTarget,
         applyAreaFilterShortcut,
     ]);
 

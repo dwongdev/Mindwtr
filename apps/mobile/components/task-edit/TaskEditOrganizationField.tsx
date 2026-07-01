@@ -342,7 +342,7 @@ export function TaskEditOrganizationField({
                                     accessibilityRole="button"
                                     accessibilityLabel={`${assignedToCreateLabel}: ${assignedToDraft}`}
                                 >
-                                    <Text style={[styles.tokenSuggestionText, { color: tc.tint }]}>+ {assignedToCreateLabel} "{assignedToDraft}"</Text>
+                                    <Text style={[styles.tokenSuggestionText, { color: tc.tint }]}>+ {assignedToCreateLabel} &quot;{assignedToDraft}&quot;</Text>
                                 </TouchableOpacity>
                             )}
                             {assignedToSuggestions.map((name, index) => (

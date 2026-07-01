@@ -78,6 +78,8 @@ export const en: Record<string, string> = {
         'keybindings.openSettings': 'Open Settings',
         'keybindings.openSearch': 'Open search',
         'keybindings.quickAdd': 'Quick add',
+        'keybindings.globalQuickAdd': 'Global quick add',
+        'keybindings.inAppQuickAdd': 'In-app quick add',
         'keybindings.toggleSidebar': 'Toggle sidebar',
         'keybindings.toggleFocusMode': 'Toggle focus mode',
         'keybindings.toggleFullscreen': 'Toggle fullscreen (desktop app)',

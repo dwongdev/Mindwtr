@@ -65,6 +65,8 @@ export const zhHant: Record<string, string> = {
         'keybindings.openHelp': '查看快捷鍵',
         'keybindings.openSearch': '打開搜索',
         'keybindings.quickAdd': '快速添加',
+        'keybindings.globalQuickAdd': '全局快速添加',
+        'keybindings.inAppQuickAdd': '應用內快速添加',
         'keybindings.toggleSidebar': '切換側邊欄',
         'keybindings.toggleFocusMode': '切換專注模式',
         'keybindings.focusSidebar': '聚焦側邊欄',
