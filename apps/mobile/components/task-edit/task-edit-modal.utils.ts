@@ -138,6 +138,7 @@ export const DEFAULT_TASK_EDITOR_VISIBLE: TaskEditorFieldId[] = [
     'description',
     'attachments',
     'checklist',
+    'priority',
 ];
 
 export const TASK_EDITOR_FIXED_FIELDS: TaskEditorFieldId[] = ['status', 'project', 'section', 'area'];

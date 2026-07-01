@@ -99,7 +99,7 @@ describe('task-edit-modal pager sync', () => {
         });
     });
 
-    it('keeps the standard preset shallow while leaving collapsed sections discoverable', () => {
+    it('keeps the standard preset shallow while exposing priority for filterable tasks', () => {
         expect(DEFAULT_TASK_EDITOR_VISIBLE).toEqual(expect.arrayContaining([
             'status',
             'project',
@@ -113,10 +113,10 @@ describe('task-edit-modal pager sync', () => {
             'description',
             'attachments',
             'checklist',
+            'priority',
         ]));
         expect(DEFAULT_TASK_EDITOR_VISIBLE).not.toEqual(expect.arrayContaining([
             'section',
-            'priority',
             'energyLevel',
             'timeEstimate',
             'assignedTo',
@@ -129,10 +129,10 @@ describe('task-edit-modal pager sync', () => {
             'reviewAt',
             'tags',
             'attachments',
+            'priority',
         ]));
         expect(standardPreset.hidden).toEqual(expect.arrayContaining([
             'section',
-            'priority',
             'energyLevel',
             'timeEstimate',
             'assignedTo',
