@@ -1,7 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform } from 'react-native';
 import Constants from 'expo-constants';
-import { AppData, MergeStats, createSyncOrchestrator, ensureFreshLocalSyncSnapshot, runPreSyncAttachmentPhase, useTaskStore, webdavGetJson, webdavHeadFile, webdavPutJson, cloudGetJson, cloudHeadJson, cloudPutJson, flushPendingSave, performSyncCycle, CLOCK_SKEW_THRESHOLD_MS, appendSyncHistory, withRetry, isRetryableWebdavReadError, isWebdavInvalidJsonError, normalizeWebdavUrl, normalizeCloudUrl, sanitizeAppDataForRemote, buildHttpRemoteFileFingerprint, computeStableValueFingerprint, computeSyncPayloadFingerprint, areSyncPayloadsEqual, assertNoPendingAttachmentUploads, buildFastSyncScope, buildMergeSummaryLog, buildPendingAttachmentUploadLogExtra, findPendingAttachmentUploads, hasPendingSyncSideEffects, injectExternalCalendars as injectExternalCalendarsForSync, persistExternalCalendars as persistExternalCalendarsForSync, mergeAppData, cloneAppData, LocalSyncAbort, getInMemoryAppDataSnapshot, shouldRunAttachmentCleanup, createAbortableFetch, normalizeCloudProvider as normalizeCoreCloudProvider, isDropboxUnauthorizedError, parseFastSyncState, serializeFastSyncState, decodeUriSafe, SYNC_FILE_NAME, CLOUD_PROVIDER_DROPBOX, CLOUD_PROVIDER_SELF_HOSTED, type Attachment, type CloudJsonWriteResult, type CloudProvider, type FastSyncState, type PendingAttachmentUpload, type RemoteJsonWriteResult } from '@mindwtr/core';
+import { AppData, MergeStats, createSyncOrchestrator, ensureFreshLocalSyncSnapshot, runPreSyncAttachmentPhase, useTaskStore, webdavGetJson, webdavHeadFile, webdavPutJson, cloudGetJson, cloudHeadJson, cloudPutJson, flushPendingSave, performSyncCycle, CLOCK_SKEW_THRESHOLD_MS, appendSyncHistory, withRetry, isRetryableWebdavReadError, isWebdavInvalidJsonError, normalizeWebdavUrl, normalizeCloudUrl, sanitizeAppDataForRemote, buildHttpRemoteFileFingerprint, computeSyncPayloadFingerprint, areSyncPayloadsEqual, assertNoPendingAttachmentUploads, buildFastSyncScope, buildMergeSummaryLog, buildPendingAttachmentUploadLogExtra, findPendingAttachmentUploads, hasPendingSyncSideEffects, injectExternalCalendars as injectExternalCalendarsForSync, persistExternalCalendars as persistExternalCalendarsForSync, mergeAppData, cloneAppData, LocalSyncAbort, getInMemoryAppDataSnapshot, shouldRunAttachmentCleanup, createAbortableFetch, normalizeCloudProvider as normalizeCoreCloudProvider, isDropboxUnauthorizedError, parseFastSyncState, serializeFastSyncState, decodeUriSafe, SYNC_FILE_NAME, CLOUD_PROVIDER_DROPBOX, CLOUD_PROVIDER_SELF_HOSTED, type Attachment, type CloudJsonWriteResult, type CloudProvider, type FastSyncState, type PendingAttachmentUpload, type RemoteJsonWriteResult } from '@mindwtr/core';
 import { mobileStorage } from './storage-adapter';
 import { logInfo, logSyncError, logWarn, sanitizeLogMessage } from './app-log';
 import { readSyncFile, resolveSyncFileUri, writeSyncFile } from './storage-file';
@@ -13,7 +13,6 @@ import { forceRefreshDropboxAccessToken, getValidDropboxAccessToken, isDropboxCo
 import {
   DropboxConflictError,
   DropboxFileNotFoundError,
-  DropboxUnauthorizedError,
   deleteDropboxFile,
   downloadDropboxAppData,
   getDropboxAppDataMetadata,
@@ -469,6 +468,1087 @@ const shouldSkipSyncForOfflineState = async (
   return false;
 };
 
+type MobileRequestFollowUp = (nextArg?: string) => void;
+
+// One sync cycle. Mirrors the desktop SyncRun structure: shared cycle state lives in
+// fields, backend config and sync phases are methods, and run() sequences them inside
+// a single try/catch/finally. Methods copy field values into single-assignment locals
+// (e.g. webdavConfig) where callbacks need TypeScript's narrowing to hold across awaits.
+class MobileSyncRun {
+  private readonly backend: SyncBackend;
+  private readonly syncPathOverride: string | undefined;
+  private readonly requestFollowUp: MobileRequestFollowUp;
+
+  private step = 'init';
+  private readonly syncDiagnosticStartedAt = Date.now();
+  private syncDiagnosticPhaseStartedAt = this.syncDiagnosticStartedAt;
+  private visibleActivityStarted = false;
+  private syncUrl: string | undefined;
+  private wroteLocal = false;
+  private localSnapshotChangeAt = useTaskStore.getState().lastDataChangeAt;
+  private networkWentOffline = false;
+  private offlineDetectionCause: string | null = null;
+  private lastOfflineNetworkStatus: MobileNetworkStatus | null = null;
+  private networkSubscription: { remove?: () => void } | null = null;
+  private preSyncedLocalData: AppData | null = null;
+  private readonly requestAbortController = new AbortController();
+  private readonly fetchWithAbort = createAbortableFetch(fetch, { baseSignal: this.requestAbortController.signal });
+
+  private webdavConfig: MobileWebDavSyncConfig | null = null;
+  private cloudConfig: MobileCloudSyncConfig | null = null;
+  private cloudProvider: CloudProvider = CLOUD_PROVIDER_SELF_HOSTED;
+  private dropboxClientId = '';
+  private dropboxLastRev: string | null = null;
+  private fileSyncPath: string | null = null;
+  private fileSyncBookmark: string | null = null;
+  private remoteDataForCompare: AppData | null = null;
+  private lastRemoteWriteFingerprint: string | null = null;
+  private lastRemoteWriteMergedServerData = false;
+  private localDataCache: { changeAt: number; data: AppData } | null = null;
+  private readCheckRemoteData: AppData | null | undefined;
+  private webdavRemoteCorrupted = false;
+  private fastSyncScope: ReturnType<typeof buildFastSyncScope> = null;
+
+  constructor(backend: SyncBackend, syncPathOverride: string | undefined, requestFollowUp: MobileRequestFollowUp) {
+    this.backend = backend;
+    this.syncPathOverride = syncPathOverride;
+    this.requestFollowUp = requestFollowUp;
+    activeMobileSyncAbortController = this.requestAbortController;
+    activeMobileSyncAbortReason = null;
+  }
+
+  async run(): Promise<MobileSyncResult> {
+    const backend = this.backend;
+    logSyncInfo('Sync start', { backend });
+    logSyncInfo('Sync diagnostic start', { backend });
+    try {
+      this.subscribeNetworkListener();
+
+      this.step = 'flush';
+      await flushPendingSave();
+      this.logPhaseDiagnostic('flush');
+      this.localSnapshotChangeAt = useTaskStore.getState().lastDataChangeAt;
+
+      if (backend === 'file' && !(await this.resolveFileBackendConfig())) {
+        return { success: true };
+      }
+      if (backend === 'webdav') {
+        await this.resolveWebdavBackendConfig();
+      }
+      if (backend === 'cloud') {
+        await this.resolveCloudBackendConfig();
+      }
+
+      // CloudKit setup — ensure zone and subscription exist before sync cycle.
+      if (backend === 'cloudkit') {
+        if (!isCloudKitAvailable()) {
+          throw new Error('CloudKit is not available on this platform');
+        }
+        this.step = 'cloudkit_setup';
+        logSyncInfo('Sync step', { step: this.step });
+        await ensureCloudKitReady({ signal: this.requestAbortController.signal });
+      }
+
+      // Pre-sync local attachments only when attachment metadata shows real work.
+      await this.runAttachmentPreSyncPhase();
+
+      this.fastSyncScope = buildFastSyncScope({
+        backend,
+        webdavConfig: this.webdavConfig,
+        cloudProvider: this.cloudProvider,
+        cloudConfig: this.cloudConfig,
+        dropboxClientId: this.dropboxClientId,
+      });
+
+      const unchangedFastResult = await this.trySkipUnchangedFastSync();
+      const unchangedResult = unchangedFastResult ?? await this.trySkipUnchangedReadSync();
+      if (unchangedResult) {
+        return unchangedResult;
+      }
+
+      return await this.runMergePhase();
+    } catch (error) {
+      return await this.handleRunError(error);
+    } finally {
+      this.releaseResources();
+    }
+  }
+
+  private queueFollowUp(): void {
+    this.requestFollowUp(this.syncPathOverride);
+  }
+
+  private logPhaseDiagnostic(phase: string, extra?: Record<string, string>): void {
+    logSyncDiagnostic('Sync diagnostic phase', this.syncDiagnosticPhaseStartedAt, {
+      backend: this.backend,
+      phase,
+      step: this.step,
+      ...(extra ?? {}),
+    });
+    this.syncDiagnosticPhaseStartedAt = Date.now();
+  }
+
+  private startVisibleSyncActivity(): void {
+    if (this.visibleActivityStarted) return;
+    this.visibleActivityStarted = true;
+    setMobileSyncActivityState('syncing');
+  }
+
+  private ensureLocalSnapshotFresh = (): void => {
+    ensureFreshLocalSyncSnapshot({
+      localSnapshotChangeAt: this.localSnapshotChangeAt,
+      getCurrentChangeAt: () => useTaskStore.getState().lastDataChangeAt,
+      requestFollowUp: () => this.queueFollowUp(),
+      onStale: ({ localSnapshotChangeAt: snapshotChangeAt, currentChangeAt }) => {
+        logSyncInfo('Sync detected local data changes during cycle; queued follow-up', {
+          backend: this.backend,
+          step: this.step,
+          snapshotChangeAt: String(snapshotChangeAt),
+          currentChangeAt: String(currentChangeAt),
+        });
+      },
+    });
+  };
+
+  private ensureWebdavSyncNotRateLimited(): void {
+    webdavSyncRateLimitController.assertReady(this.backend);
+  }
+
+  private handleWebdavRateLimit(error: unknown): void {
+    if (!webdavSyncRateLimitController.noteError(this.backend, error)) return;
+    logSyncWarning('WebDAV rate limited; pausing remote sync', error);
+  }
+
+  private markNetworkOffline(cause: string, status?: MobileNetworkStatus): void {
+    this.networkWentOffline = true;
+    this.offlineDetectionCause = cause;
+    this.lastOfflineNetworkStatus = status ?? this.lastOfflineNetworkStatus;
+  }
+
+  private ensureNetworkStillAvailable = async (): Promise<void> => {
+    if (!isRemoteSyncBackend(this.backend)) return;
+    if (this.networkWentOffline) {
+      this.requestAbortController.abort();
+      throw new Error('Sync paused: offline state detected');
+    }
+    if (await shouldSkipSyncForOfflineState(this.backend, (status) => this.markNetworkOffline('network-check', status))) {
+      this.requestAbortController.abort();
+      throw new Error('Sync paused: offline state detected');
+    }
+  };
+
+  private subscribeNetworkListener(): void {
+    if (!isRemoteSyncBackend(this.backend)) return;
+    try {
+      this.networkSubscription = Network.addNetworkStateListener((state) => {
+        const status = getMobileNetworkStatus(state);
+        if (isDefinitelyOfflineNetworkStatus(status)) {
+          this.markNetworkOffline('network-listener', status);
+          this.requestAbortController.abort();
+        }
+      });
+    } catch (error) {
+      logSyncWarning('Failed to subscribe to network state during sync', error);
+    }
+  }
+
+  /** Resolve and normalize the file-sync path. Returns false when no path is configured. */
+  private async resolveFileBackendConfig(): Promise<boolean> {
+    const configuredSyncPath = (await getCachedConfigValue(SYNC_PATH_KEY))?.trim() ?? null;
+    let fileSyncPath = this.syncPathOverride || configuredSyncPath;
+    const bookmarkResolution = await resolveBookmarkedFileSyncPath(fileSyncPath);
+    fileSyncPath = bookmarkResolution.path;
+    this.fileSyncBookmark = bookmarkResolution.bookmark;
+    if (!fileSyncPath) {
+      return false;
+    }
+    const normalizedPath = normalizeFileSyncPath(fileSyncPath, Platform.OS);
+    if (normalizedPath && normalizedPath !== fileSyncPath) {
+      fileSyncPath = normalizedPath;
+      await AsyncStorage.setItem(SYNC_PATH_KEY, normalizedPath);
+      syncConfigCache.set(SYNC_PATH_KEY, { value: normalizedPath, readAt: Date.now() });
+      logSyncInfo('Normalized file sync path to iOS file URI');
+    }
+    if (fileSyncPath.startsWith('file://') && IOS_TEMP_INBOX_PATH_PATTERN.test(decodeUriSafe(fileSyncPath))) {
+      throw new Error('Selected iOS sync file is in a temporary Inbox location and is read-only. Re-select a folder in Settings -> Sync.');
+    }
+    if (fileSyncPath.startsWith('content://')) {
+      try {
+        const resolvedPath = await resolveSyncFileUri(fileSyncPath, { createIfMissing: true });
+        if (resolvedPath && resolvedPath !== fileSyncPath) {
+          await AsyncStorage.setItem(SYNC_PATH_KEY, resolvedPath);
+          syncConfigCache.set(SYNC_PATH_KEY, { value: resolvedPath, readAt: Date.now() });
+          logSyncInfo('Normalized SAF sync path');
+          fileSyncPath = resolvedPath;
+        }
+      } catch (error) {
+        logSyncWarning('Failed to normalize SAF sync path', error);
+      }
+    } else if (!isLikelyFilePath(fileSyncPath)) {
+      const trimmed = fileSyncPath.replace(/\/+$/, '');
+      fileSyncPath = `${trimmed}/${SYNC_FILE_NAME}`;
+    }
+    this.fileSyncPath = fileSyncPath;
+    return true;
+  }
+
+  private async resolveWebdavBackendConfig(): Promise<void> {
+    const url = (await getCachedConfigValue(WEBDAV_URL_KEY))?.trim() ?? null;
+    if (!url) throw new Error('WebDAV URL not configured');
+    this.syncUrl = normalizeWebdavUrl(url);
+    const username = (await getCachedConfigValue(WEBDAV_USERNAME_KEY)) ?? '';
+    const password = (await getCachedConfigValue(WEBDAV_PASSWORD_KEY)) ?? '';
+    const allowInsecureHttp = (await getCachedConfigValue(WEBDAV_ALLOW_INSECURE_HTTP_KEY)) === 'true';
+    const allowWeakFingerprint = (await getCachedConfigValue(WEBDAV_ALLOW_WEAK_FINGERPRINT_KEY)) !== 'false';
+    this.webdavConfig = { url: this.syncUrl, username, password, allowInsecureHttp, allowWeakFingerprint };
+  }
+
+  private async resolveCloudBackendConfig(): Promise<void> {
+    const storedCloudProvider = (await getCachedConfigValue(CLOUD_PROVIDER_KEY))?.trim() ?? null;
+    this.cloudProvider = resolveCloudProvider(storedCloudProvider);
+    if (!DROPBOX_SYNC_ENABLED && storedCloudProvider === CLOUD_PROVIDER_DROPBOX) {
+      throw new Error('Dropbox sync is unavailable in this build. Choose Self-hosted Cloud or install the Dropbox-enabled build.');
+    }
+    if (this.cloudProvider === CLOUD_PROVIDER_DROPBOX) {
+      this.dropboxClientId = getDropboxAppKey();
+      if (!this.dropboxClientId) {
+        throw new Error('Dropbox app key is not configured');
+      }
+      this.dropboxLastRev = (await getCachedConfigValue(DROPBOX_LAST_REV_KEY))?.trim() ?? null;
+      this.syncUrl = 'dropbox://Apps/Mindwtr/data.json';
+    } else {
+      const url = (await getCachedConfigValue(CLOUD_URL_KEY))?.trim() ?? null;
+      if (!url) throw new Error('Self-hosted URL not configured');
+      this.syncUrl = normalizeCloudUrl(url);
+      const token = (await getCachedConfigValue(CLOUD_TOKEN_KEY))?.trim() ?? '';
+      const allowInsecureHttp = (await getCachedConfigValue(CLOUD_ALLOW_INSECURE_HTTP_KEY)) === 'true';
+      this.cloudConfig = { url: this.syncUrl, token, allowInsecureHttp };
+    }
+  }
+
+  private async runDropboxOperation<T>(operation: (accessToken: string) => Promise<T>): Promise<T> {
+    let accessToken = await getValidDropboxAccessToken(this.dropboxClientId, this.fetchWithAbort);
+    try {
+      return await operation(accessToken);
+    } catch (error) {
+      if (!isDropboxUnauthorizedError(error)) throw error;
+      accessToken = await forceRefreshDropboxAccessToken(this.dropboxClientId, this.fetchWithAbort);
+      return operation(accessToken);
+    }
+  }
+
+  private readLocalDataForSyncCycle = async (): Promise<AppData> => {
+    const currentChangeAt = useTaskStore.getState().lastDataChangeAt;
+    if (this.localDataCache && this.localDataCache.changeAt === currentChangeAt) {
+      this.localSnapshotChangeAt = currentChangeAt;
+      return this.localDataCache.data;
+    }
+    const inMemorySnapshot = getInMemoryAppDataSnapshot();
+    const baseData = this.preSyncedLocalData
+      ? mergeAppData(this.preSyncedLocalData, inMemorySnapshot)
+      : mergeAppData(await mergeLocalSyncStatus(await mobileStorage.getData()), inMemorySnapshot);
+    const data = await injectExternalCalendars(baseData);
+    this.localSnapshotChangeAt = useTaskStore.getState().lastDataChangeAt;
+    this.localDataCache = {
+      changeAt: this.localSnapshotChangeAt,
+      data,
+    };
+    return data;
+  };
+
+  /** Pre-sync local attachments only when attachment metadata shows real work. */
+  private async runAttachmentPreSyncPhase(): Promise<void> {
+    const backend = this.backend;
+    const attachmentPrepareStartedAt = Date.now();
+    try {
+      const localData = await this.readLocalDataForSyncCycle();
+      const hasAttachmentWork = await hasPendingAttachmentSyncWork(localData);
+      if (hasPendingSyncSideEffects(localData) || hasAttachmentWork) {
+        this.startVisibleSyncActivity();
+      }
+      if (!hasAttachmentWork) {
+        logSyncInfo('Attachment pre-sync skipped', {
+          backend,
+          reason: 'no-pending-work',
+        });
+        logSyncDiagnostic('Sync diagnostic attachment prepare skipped', attachmentPrepareStartedAt, {
+          backend,
+          ...buildSyncDataDiagnostics(localData),
+        });
+      } else {
+        this.step = 'attachments_prepare';
+        logSyncInfo('Sync step', { step: this.step });
+        const webdavConfig = this.webdavConfig;
+        const cloudConfig = this.cloudConfig;
+        const fileSyncPath = this.fileSyncPath;
+        const preSyncResult = await runPreSyncAttachmentPhase({
+          backend,
+          cloudProvider: this.cloudProvider,
+          data: localData,
+          ensureNetworkStillAvailable: this.ensureNetworkStillAvailable,
+          webdav: webdavConfig?.url
+            ? async (data) => {
+              const baseSyncUrl = getBaseSyncUrl(webdavConfig.url);
+              return syncWebdavAttachments(data, webdavConfig, baseSyncUrl, this.requestAbortController.signal);
+            }
+            : undefined,
+          cloudkit: backend === 'cloudkit'
+            ? async (data) => syncCloudKitAttachments(data, this.requestAbortController.signal)
+            : undefined,
+          selfHostedCloud: this.cloudProvider === CLOUD_PROVIDER_SELF_HOSTED && cloudConfig?.url
+            ? async (data) => {
+              const baseSyncUrl = getCloudBaseUrl(cloudConfig.url);
+              return syncCloudAttachments(data, cloudConfig, baseSyncUrl, {
+                assertCurrent: this.ensureLocalSnapshotFresh,
+                signal: this.requestAbortController.signal,
+              });
+            }
+            : undefined,
+          dropbox: this.cloudProvider === CLOUD_PROVIDER_DROPBOX
+            ? async (data) => syncDropboxAttachments(data, this.dropboxClientId, this.fetchWithAbort, {
+              signal: this.requestAbortController.signal,
+            })
+            : undefined,
+          file: fileSyncPath
+            ? async (data) => syncFileAttachments(data, fileSyncPath, this.requestAbortController.signal)
+            : undefined,
+        });
+        if (preSyncResult.mutated) {
+          // Capture pre-sync attachment mutations before stale-snapshot checks so we can persist them on abort.
+          this.preSyncedLocalData = preSyncResult.data ?? localData;
+          this.localDataCache = null;
+          this.ensureLocalSnapshotFresh();
+        }
+        logSyncInfo('Attachment pre-sync complete', {
+          backend,
+          mutated: preSyncResult.mutated ? 'true' : 'false',
+        });
+        logSyncDiagnostic('Sync diagnostic attachment prepare complete', attachmentPrepareStartedAt, {
+          backend,
+          mutated: preSyncResult.mutated ? 'true' : 'false',
+          ...buildSyncDataDiagnostics(preSyncResult.data ?? localData),
+        });
+      }
+    } catch (error) {
+      if (error instanceof LocalSyncAbort) {
+        throw error;
+      }
+      if (this.requestAbortController.signal.aborted) {
+        throw error;
+      }
+      logSyncWarning('Attachment pre-sync warning; continuing sync merge', error);
+    }
+  }
+
+  private readRemoteDataByBackend = async (): Promise<AppData | null> => {
+    if (this.readCheckRemoteData !== undefined) {
+      const data = this.readCheckRemoteData;
+      this.readCheckRemoteData = undefined;
+      this.remoteDataForCompare = data;
+      return data;
+    }
+    await this.ensureNetworkStillAvailable();
+    const backend = this.backend;
+    const webdavConfig = this.webdavConfig;
+    if (backend === 'webdav' && webdavConfig?.url) {
+      this.ensureWebdavSyncNotRateLimited();
+      try {
+        const data = await withRetry(
+          () =>
+            webdavGetJson<AppData>(webdavConfig.url, {
+              ...getMobileWebDavRequestOptions(webdavConfig.allowInsecureHttp),
+              username: webdavConfig.username,
+              password: webdavConfig.password,
+              timeoutMs: DEFAULT_SYNC_TIMEOUT_MS,
+              fetcher: this.fetchWithAbort,
+              allowWeakFingerprint: webdavConfig.allowWeakFingerprint,
+            }),
+          WEBDAV_READ_RETRY_OPTIONS
+        );
+        this.webdavRemoteCorrupted = false;
+        this.remoteDataForCompare = data ?? null;
+        return data;
+      } catch (error) {
+        if (isWebdavInvalidJsonError(error)) {
+          this.webdavRemoteCorrupted = true;
+          this.remoteDataForCompare = null;
+          logSyncWarning('WebDAV remote data.json appears corrupted; treating as missing for repair write', error);
+          return null;
+        }
+        this.handleWebdavRateLimit(error);
+        throw error;
+      }
+    }
+    const cloudConfig = this.cloudConfig;
+    if (backend === 'cloud' && cloudConfig?.url) {
+      const data = await cloudGetJson<AppData>(cloudConfig.url, {
+        ...getMobileCloudRequestOptions(cloudConfig.allowInsecureHttp),
+        token: cloudConfig.token,
+        timeoutMs: DEFAULT_SYNC_TIMEOUT_MS,
+        fetcher: this.fetchWithAbort,
+      });
+      this.remoteDataForCompare = data ?? null;
+      return data;
+    }
+    if (backend === 'cloud' && this.cloudProvider === CLOUD_PROVIDER_DROPBOX) {
+      const { data, rev } = await this.runDropboxOperation((accessToken) =>
+        downloadDropboxAppData(accessToken, this.fetchWithAbort)
+      );
+      this.dropboxLastRev = rev;
+      if (rev) {
+        await AsyncStorage.setItem(DROPBOX_LAST_REV_KEY, rev);
+        syncConfigCache.set(DROPBOX_LAST_REV_KEY, { value: rev, readAt: Date.now() });
+      } else {
+        await AsyncStorage.removeItem(DROPBOX_LAST_REV_KEY);
+        syncConfigCache.set(DROPBOX_LAST_REV_KEY, { value: null, readAt: Date.now() });
+      }
+      this.remoteDataForCompare = data ?? null;
+      return data;
+    }
+    if (backend === 'cloudkit') {
+      const data = await readRemoteCloudKit({ signal: this.requestAbortController.signal });
+      this.remoteDataForCompare = data ?? null;
+      return data;
+    }
+    const fileSyncPath = this.fileSyncPath;
+    if (!fileSyncPath) {
+      throw new Error('No sync folder configured');
+    }
+    const data = await readSyncFile(fileSyncPath, { bookmark: this.fileSyncBookmark });
+    this.remoteDataForCompare = data ?? null;
+    return data;
+  };
+
+  /** Final attachment upload pass right before the remote write when uploads are still pending. */
+  private prepareRemoteWriteData = async (data: AppData): Promise<AppData> => {
+    const pendingUploads = findPendingAttachmentUploads(data);
+    if (pendingUploads.length === 0) {
+      return data;
+    }
+
+    const backend = this.backend;
+    this.step = 'attachments_finalize';
+    logSyncInfo('Sync step', { step: this.step });
+    logSyncInfo('Attachment final sync start', {
+      backend,
+      pending: String(pendingUploads.length),
+    });
+
+    const webdavConfig = this.webdavConfig;
+    const cloudConfig = this.cloudConfig;
+    const fileSyncPath = this.fileSyncPath;
+    if (backend === 'webdav' && webdavConfig?.url) {
+      await this.ensureNetworkStillAvailable();
+      const baseSyncUrl = getBaseSyncUrl(webdavConfig.url);
+      await syncWebdavAttachments(data, webdavConfig, baseSyncUrl, this.requestAbortController.signal);
+    } else if (backend === 'cloudkit') {
+      await this.ensureNetworkStillAvailable();
+      await syncCloudKitAttachments(data, this.requestAbortController.signal);
+    } else if (backend === 'cloud' && this.cloudProvider === CLOUD_PROVIDER_SELF_HOSTED && cloudConfig?.url) {
+      await this.ensureNetworkStillAvailable();
+      const baseSyncUrl = getCloudBaseUrl(cloudConfig.url);
+      await syncCloudAttachments(data, cloudConfig, baseSyncUrl, {
+        assertCurrent: this.ensureLocalSnapshotFresh,
+        signal: this.requestAbortController.signal,
+      });
+    } else if (backend === 'cloud' && this.cloudProvider === CLOUD_PROVIDER_DROPBOX) {
+      await this.ensureNetworkStillAvailable();
+      await syncDropboxAttachments(data, this.dropboxClientId, this.fetchWithAbort, {
+        signal: this.requestAbortController.signal,
+      });
+    } else if (backend === 'file' && fileSyncPath) {
+      await syncFileAttachments(data, fileSyncPath, this.requestAbortController.signal);
+    }
+
+    const remainingUploads = findPendingAttachmentUploads(data);
+    logSyncInfo('Attachment final sync done', {
+      backend,
+      pending: String(remainingUploads.length),
+    });
+    logPendingAttachmentUploads(
+      'Attachment uploads still pending after final sync',
+      backend,
+      'attachments-finalize',
+      remainingUploads
+    );
+
+    return data;
+  };
+
+  private async writeRemoteDataByBackend(data: AppData): Promise<void> {
+    await this.ensureNetworkStillAvailable();
+    this.lastRemoteWriteFingerprint = null;
+    this.lastRemoteWriteMergedServerData = false;
+    const backend = this.backend;
+    logPendingAttachmentUploads(
+      'Remote write blocked by pending attachment uploads',
+      backend,
+      'remote-write',
+      findPendingAttachmentUploads(data)
+    );
+    assertNoPendingAttachmentUploads(data);
+    const sanitized = sanitizeAppDataForRemote(data);
+    const remoteSanitized = this.remoteDataForCompare
+      ? sanitizeAppDataForRemote(this.remoteDataForCompare)
+      : null;
+    if (remoteSanitized && areSyncPayloadsEqual(remoteSanitized, sanitized)) {
+      return;
+    }
+    if (backend === 'webdav') {
+      const webdavConfig = this.webdavConfig;
+      if (!webdavConfig?.url) throw new Error('WebDAV URL not configured');
+      this.ensureWebdavSyncNotRateLimited();
+      if (this.webdavRemoteCorrupted) {
+        logSyncInfo('Repairing corrupted WebDAV data.json with current merged data');
+      }
+      let result: RemoteJsonWriteResult;
+      try {
+        result = await withRetry(
+          () =>
+            webdavPutJson(webdavConfig.url, sanitized, {
+              ...getMobileWebDavRequestOptions(webdavConfig.allowInsecureHttp),
+              username: webdavConfig.username,
+              password: webdavConfig.password,
+              timeoutMs: DEFAULT_SYNC_TIMEOUT_MS,
+              fetcher: this.fetchWithAbort,
+            }),
+          WEBDAV_RETRY_OPTIONS
+        );
+      } catch (error) {
+        this.handleWebdavRateLimit(error);
+        throw error;
+      }
+      const writeResult = normalizeRemoteWriteResult('webdav', result);
+      this.lastRemoteWriteFingerprint = writeResult.fingerprint;
+      this.remoteDataForCompare = sanitized;
+      this.webdavRemoteCorrupted = false;
+      return;
+    }
+    if (backend === 'cloud') {
+      if (this.cloudProvider === CLOUD_PROVIDER_DROPBOX) {
+        try {
+          const result = await this.runDropboxOperation((accessToken) =>
+            uploadDropboxAppData(accessToken, sanitized, this.dropboxLastRev, this.fetchWithAbort)
+          );
+          this.dropboxLastRev = result.rev;
+          if (result.rev) {
+            await AsyncStorage.setItem(DROPBOX_LAST_REV_KEY, result.rev);
+            syncConfigCache.set(DROPBOX_LAST_REV_KEY, { value: result.rev, readAt: Date.now() });
+          } else {
+            await AsyncStorage.removeItem(DROPBOX_LAST_REV_KEY);
+            syncConfigCache.set(DROPBOX_LAST_REV_KEY, { value: null, readAt: Date.now() });
+          }
+          this.remoteDataForCompare = sanitized;
+          return;
+        } catch (error) {
+          if (error instanceof DropboxConflictError) {
+            // Another device wrote between readRemote and writeRemote; retry next cycle.
+            this.queueFollowUp();
+            throw new LocalSyncAbort();
+          }
+          throw error;
+        }
+      }
+      const cloudConfig = this.cloudConfig;
+      if (!cloudConfig?.url) throw new Error('Self-hosted URL not configured');
+      const result = await cloudPutJson(cloudConfig.url, sanitized, {
+        ...getMobileCloudRequestOptions(cloudConfig.allowInsecureHttp),
+        token: cloudConfig.token,
+        timeoutMs: DEFAULT_SYNC_TIMEOUT_MS,
+        fetcher: this.fetchWithAbort,
+      });
+      const writeResult = normalizeRemoteWriteResult('cloud', result);
+      this.lastRemoteWriteFingerprint = writeResult.fingerprint;
+      this.lastRemoteWriteMergedServerData = writeResult.serverMergedRemoteData;
+      if (writeResult.serverMergedRemoteData) {
+        this.remoteDataForCompare = null;
+        this.queueFollowUp();
+      } else {
+        this.remoteDataForCompare = sanitized;
+      }
+      return;
+    }
+    if (backend === 'cloudkit') {
+      await writeRemoteCloudKit(sanitized as AppData, { signal: this.requestAbortController.signal });
+      this.remoteDataForCompare = sanitized;
+      return;
+    }
+    const fileSyncPath = this.fileSyncPath;
+    if (!fileSyncPath) throw new Error('No sync folder configured');
+    await writeSyncFile(fileSyncPath, sanitized, { bookmark: this.fileSyncBookmark });
+    this.remoteDataForCompare = sanitized;
+  }
+
+  private async readRemoteFingerprintForFastCheck(): Promise<string | null> {
+    await this.ensureNetworkStillAvailable();
+    const backend = this.backend;
+    const webdavConfig = this.webdavConfig;
+    if (backend === 'webdav' && webdavConfig?.url) {
+      this.ensureWebdavSyncNotRateLimited();
+      try {
+        const metadata = await withRetry(
+          () =>
+            webdavHeadFile(webdavConfig.url, {
+              ...getMobileWebDavRequestOptions(webdavConfig.allowInsecureHttp),
+              username: webdavConfig.username,
+              password: webdavConfig.password,
+              timeoutMs: DEFAULT_SYNC_TIMEOUT_MS,
+              fetcher: this.fetchWithAbort,
+            }),
+          WEBDAV_READ_RETRY_OPTIONS
+        );
+        if (!metadata?.exists) return null;
+        return metadata.fingerprint;
+      } catch (error) {
+        this.handleWebdavRateLimit(error);
+        throw error;
+      }
+    }
+    const cloudConfig = this.cloudConfig;
+    if (backend === 'cloud' && this.cloudProvider === CLOUD_PROVIDER_SELF_HOSTED && cloudConfig?.url) {
+      const metadata = await cloudHeadJson(cloudConfig.url, {
+        ...getMobileCloudRequestOptions(cloudConfig.allowInsecureHttp),
+        token: cloudConfig.token,
+        timeoutMs: DEFAULT_SYNC_TIMEOUT_MS,
+        fetcher: this.fetchWithAbort,
+      });
+      if (!metadata?.exists) return null;
+      return metadata.fingerprint;
+    }
+    if (backend === 'cloud' && this.cloudProvider === CLOUD_PROVIDER_DROPBOX) {
+      const metadata = await this.runDropboxOperation((accessToken) =>
+        getDropboxAppDataMetadata(accessToken, this.fetchWithAbort)
+      );
+      this.dropboxLastRev = metadata.rev;
+      return metadata.rev ? `dropbox:v1:rev=${metadata.rev}` : null;
+    }
+    return null;
+  }
+
+  private async recordFastSyncState(
+    data: AppData,
+    options: { allowRemoteFingerprintRead?: boolean } = {}
+  ): Promise<void> {
+    const fastSyncScope = this.fastSyncScope;
+    if (!fastSyncScope || hasPendingSyncSideEffects(data)) return;
+    if (useTaskStore.getState().lastDataChangeAt > this.localSnapshotChangeAt) return;
+    if (this.lastRemoteWriteMergedServerData) return;
+    let remoteFingerprint: string | null = null;
+    if (this.backend === 'cloud' && this.cloudProvider === CLOUD_PROVIDER_DROPBOX && this.dropboxLastRev) {
+      remoteFingerprint = `dropbox:v1:rev=${this.dropboxLastRev}`;
+    } else if (this.lastRemoteWriteFingerprint) {
+      remoteFingerprint = this.lastRemoteWriteFingerprint;
+    } else {
+      if (options.allowRemoteFingerprintRead === false) return;
+      try {
+        remoteFingerprint = await this.readRemoteFingerprintForFastCheck();
+      } catch (error) {
+        logSyncWarning('Failed to refresh sync fast-check state', error);
+        return;
+      }
+    }
+    if (!remoteFingerprint) return;
+    await writeFastSyncState({
+      scope: fastSyncScope,
+      localFingerprint: computeSyncPayloadFingerprint(data),
+      remoteFingerprint,
+      checkedAt: new Date().toISOString(),
+    });
+  }
+
+  private async trySkipUnchangedFastSync(): Promise<MobileSyncResult | null> {
+    const fastSyncScope = this.fastSyncScope;
+    if (!fastSyncScope) return null;
+    const fastCheckStartedAt = Date.now();
+    this.step = 'fast-check';
+    logSyncInfo('Sync step', { step: this.step });
+    if (this.preSyncedLocalData) return null;
+    const localDataForFastCheck = await this.readLocalDataForSyncCycle();
+    this.ensureLocalSnapshotFresh();
+    if (hasPendingSyncSideEffects(localDataForFastCheck)) return null;
+
+    const localFingerprint = computeSyncPayloadFingerprint(localDataForFastCheck);
+    const cached = await readFastSyncState(fastSyncScope);
+    if (!cached || cached.localFingerprint !== localFingerprint) return null;
+
+    let remoteFingerprint: string | null = null;
+    try {
+      remoteFingerprint = await this.readRemoteFingerprintForFastCheck();
+    } catch (error) {
+      logSyncWarning('Sync fast check failed; falling back to read-only comparison', error);
+      return null;
+    }
+    if (!remoteFingerprint || remoteFingerprint !== cached.remoteFingerprint) return null;
+
+    await writeFastSyncState({
+      scope: fastSyncScope,
+      localFingerprint,
+      remoteFingerprint,
+      checkedAt: new Date().toISOString(),
+    });
+    await applyLocalSyncStatus({
+      lastSyncAt: new Date().toISOString(),
+      lastSyncStatus: 'success',
+      lastSyncError: undefined,
+    });
+    useTaskStore.getState().setError(null);
+    logSyncInfo('Sync fast check found no changes', {
+      backend: this.backend,
+      elapsedMs: getSyncDiagnosticElapsedMs(fastCheckStartedAt),
+      ...buildSyncDataDiagnostics(localDataForFastCheck),
+    });
+    return { success: true, skipped: 'unchanged' };
+  }
+
+  private async trySkipUnchangedReadSync(): Promise<MobileSyncResult | null> {
+    const readCheckStartedAt = Date.now();
+    this.step = 'read-check';
+    logSyncInfo('Sync step', { step: this.step });
+    if (this.preSyncedLocalData) return null;
+    const localDataForReadCheck = await this.readLocalDataForSyncCycle();
+    this.ensureLocalSnapshotFresh();
+    if (hasPendingSyncSideEffects(localDataForReadCheck)) return null;
+
+    const remoteData = await this.readRemoteDataByBackend();
+    this.ensureLocalSnapshotFresh();
+    if (!remoteData) return null;
+    this.readCheckRemoteData = remoteData;
+
+    const localSanitized = sanitizeAppDataForRemote(localDataForReadCheck);
+    const remoteSanitized = sanitizeAppDataForRemote(remoteData);
+    if (!areSyncPayloadsEqual(remoteSanitized, localSanitized)) return null;
+
+    await this.recordFastSyncState(localDataForReadCheck, { allowRemoteFingerprintRead: false });
+    await applyLocalSyncStatus({
+      lastSyncAt: new Date().toISOString(),
+      lastSyncStatus: 'success',
+      lastSyncError: undefined,
+    });
+    this.readCheckRemoteData = undefined;
+    useTaskStore.getState().setError(null);
+    logSyncInfo('Sync read check found no changes', {
+      backend: this.backend,
+      elapsedMs: getSyncDiagnosticElapsedMs(readCheckStartedAt),
+      ...buildSyncDataDiagnostics(localDataForReadCheck),
+    });
+    return { success: true, skipped: 'unchanged' };
+  }
+
+  /** Full merge cycle plus post-merge attachment sync, cleanup, fast-sync bookkeeping, and store refresh. */
+  private async runMergePhase(): Promise<MobileSyncResult> {
+    const backend = this.backend;
+    this.startVisibleSyncActivity();
+    const syncCycleStartedAt = Date.now();
+    const syncResult = await performSyncCycle({
+      readLocal: this.readLocalDataForSyncCycle,
+      readRemote: this.readRemoteDataByBackend,
+      writeLocal: async (data) => {
+        this.ensureLocalSnapshotFresh();
+        await mobileStorage.saveData(data);
+        this.wroteLocal = true;
+      },
+      clearPendingRemoteWriteAfterLocalAbort: async (pendingAt) => {
+        const current = getInMemoryAppDataSnapshot();
+        if (current.settings.pendingRemoteWriteAt && current.settings.pendingRemoteWriteAt !== pendingAt) return;
+        await mobileStorage.saveData({
+          ...current,
+          settings: {
+            ...current.settings,
+            pendingRemoteWriteAt: undefined,
+            pendingRemoteWriteRetryAt: undefined,
+            pendingRemoteWriteAttempts: undefined,
+          },
+        });
+        this.wroteLocal = true;
+      },
+      flushPendingLocalBeforeRetryRead: flushPendingSave,
+      prepareRemoteWrite: this.prepareRemoteWriteData,
+      writeRemote: async (data) => {
+        this.ensureLocalSnapshotFresh();
+        await this.writeRemoteDataByBackend(data);
+      },
+      onStep: (next) => {
+        this.step = next;
+        logSyncInfo('Sync step', { step: this.step });
+      },
+      historyContext: {
+        backend,
+        type: 'merge',
+      },
+    });
+    if (syncResult.status === 'skipped') {
+      logSyncInfo('Sync skipped while pending remote write backoff is active', {
+        backend,
+        retryInMs: String(Math.ceil(syncResult.retryInMs)),
+      });
+      logSyncDiagnostic('Sync diagnostic skipped', syncCycleStartedAt, {
+        backend,
+        step: this.step,
+        success: 'true',
+        skipped: syncResult.skipped,
+        retryInMs: String(Math.ceil(syncResult.retryInMs)),
+        ...buildSyncDataDiagnostics(syncResult.data),
+      });
+      return { success: true, skipped: 'pendingRemoteWriteBackoff' };
+    }
+    logSyncDiagnostic('Sync diagnostic merge cycle complete', syncCycleStartedAt, {
+      backend,
+      status: syncResult.status,
+      ...buildSyncDataDiagnostics(syncResult.data),
+    });
+
+    const stats = syncResult.stats;
+    const mergeLog = buildMergeSummaryLog(stats, { clockSkewThresholdMs: CLOCK_SKEW_THRESHOLD_MS });
+    if (mergeLog) {
+      void logInfo(
+        mergeLog.message,
+        {
+          scope: 'sync',
+          extra: mergeLog.extra,
+        }
+      );
+    }
+    let mergedData = syncResult.data;
+    let canRecordFastSyncState = true;
+    const markFastSyncStateUnsafe = () => {
+      canRecordFastSyncState = false;
+    };
+    this.ensureLocalSnapshotFresh();
+    await persistExternalCalendars(mergedData);
+
+    const webdavConfig = this.webdavConfig;
+    const cloudConfig = this.cloudConfig;
+    const fileSyncPath = this.fileSyncPath;
+    const applyAttachmentSyncMutation = async (
+      syncAttachments: (candidateData: AppData) => Promise<boolean>
+    ): Promise<void> => {
+      const attachmentSyncStartedAt = Date.now();
+      const candidateData = cloneAppData(mergedData);
+      const mutated = await syncAttachments(candidateData);
+      logSyncDiagnostic('Sync diagnostic attachment sync complete', attachmentSyncStartedAt, {
+        backend,
+        mutated: mutated ? 'true' : 'false',
+        ...buildSyncDataDiagnostics(candidateData),
+      });
+      if (!mutated) return;
+      this.ensureLocalSnapshotFresh();
+      mergedData = candidateData;
+      markFastSyncStateUnsafe();
+      await mobileStorage.saveData(mergedData);
+      this.wroteLocal = true;
+    };
+
+    if (await hasPendingAttachmentSyncWork(mergedData)) {
+      this.step = 'attachments';
+      logSyncInfo('Sync step', { step: this.step });
+      this.ensureLocalSnapshotFresh();
+      if (backend === 'webdav' && webdavConfig?.url) {
+        await this.ensureNetworkStillAvailable();
+        const baseSyncUrl = getBaseSyncUrl(webdavConfig.url);
+        await applyAttachmentSyncMutation((candidateData) =>
+          syncWebdavAttachments(candidateData, webdavConfig, baseSyncUrl, this.requestAbortController.signal)
+        );
+      }
+
+      if (backend === 'cloud' && this.cloudProvider === CLOUD_PROVIDER_SELF_HOSTED && cloudConfig?.url) {
+        await this.ensureNetworkStillAvailable();
+        const baseSyncUrl = getCloudBaseUrl(cloudConfig.url);
+        await applyAttachmentSyncMutation((candidateData) =>
+          syncCloudAttachments(candidateData, cloudConfig, baseSyncUrl, {
+            assertCurrent: this.ensureLocalSnapshotFresh,
+            signal: this.requestAbortController.signal,
+          })
+        );
+      }
+
+      if (backend === 'cloud' && this.cloudProvider === CLOUD_PROVIDER_DROPBOX) {
+        await this.ensureNetworkStillAvailable();
+        await applyAttachmentSyncMutation((candidateData) =>
+          syncDropboxAttachments(candidateData, this.dropboxClientId, this.fetchWithAbort, {
+            signal: this.requestAbortController.signal,
+          })
+        );
+      }
+
+      if (backend === 'file' && fileSyncPath) {
+        await applyAttachmentSyncMutation((candidateData) =>
+          syncFileAttachments(candidateData, fileSyncPath, this.requestAbortController.signal)
+        );
+      }
+    } else {
+      logSyncInfo('Attachment sync skipped', {
+        backend,
+        reason: 'no-pending-work',
+      });
+    }
+
+    await cleanupAttachmentTempFiles();
+
+    if (shouldRunAttachmentCleanup(mergedData.settings.attachments?.lastCleanupAt, CLEANUP_INTERVAL_MS)) {
+      this.step = 'attachments_cleanup';
+      logSyncInfo('Sync step', { step: this.step });
+      this.ensureLocalSnapshotFresh();
+      await this.ensureNetworkStillAvailable();
+      const cleanupResult = await runMobileAttachmentCleanup({
+        appData: mergedData,
+        backend,
+        webdavConfig,
+        cloudConfig,
+        cloudProvider: this.cloudProvider,
+        fileSyncPath,
+        fetcher: this.fetchWithAbort,
+        ensureLocalSnapshotFresh: this.ensureLocalSnapshotFresh,
+        deleteDropboxAttachment: (cloudKey) =>
+          this.runDropboxOperation((accessToken) => deleteDropboxFile(accessToken, cloudKey, this.fetchWithAbort)),
+        isRemoteMissingError: (error) => error instanceof DropboxFileNotFoundError,
+        logSyncInfo,
+        logSyncWarning,
+      });
+      mergedData = cleanupResult.appData;
+      if (cleanupResult.shouldInvalidateFastSyncState) {
+        markFastSyncStateUnsafe();
+      }
+      this.ensureLocalSnapshotFresh();
+      await mobileStorage.saveData(mergedData);
+      this.wroteLocal = true;
+    }
+
+    if (canRecordFastSyncState) {
+      await this.recordFastSyncState(mergedData);
+    }
+
+    this.step = 'refresh';
+    this.ensureLocalSnapshotFresh();
+    await useTaskStore.getState().fetchData({ silent: true });
+    logSyncDiagnostic('Sync diagnostic complete', this.syncDiagnosticStartedAt, {
+      backend,
+      step: this.step,
+      status: syncResult.status,
+      success: 'true',
+      wroteLocal: String(this.wroteLocal),
+      ...buildSyncDataDiagnostics(mergedData),
+    });
+    return { success: true, stats: syncResult.stats };
+  }
+
+  /** Persist attachment pre-sync mutations that would otherwise be lost when a cycle aborts early. */
+  private async persistPreSyncedDataAfterAbort(): Promise<void> {
+    if (!this.preSyncedLocalData || this.wroteLocal) return;
+    const inMemorySnapshot = getInMemoryAppDataSnapshot();
+    const reconciledData = mergeAppData(this.preSyncedLocalData, inMemorySnapshot);
+    await mobileStorage.saveData(reconciledData);
+    this.wroteLocal = true;
+  }
+
+  private async handleRunError(error: unknown): Promise<MobileSyncResult> {
+    const backend = this.backend;
+    if (this.requestAbortController.signal.aborted && activeMobileSyncAbortReason === 'lifecycle') {
+      logSyncInfo('Sync aborted by app lifecycle transition', { backend, step: this.step });
+      logSyncDiagnostic('Sync diagnostic lifecycle abort', this.syncDiagnosticStartedAt, {
+        backend,
+        step: this.step,
+        success: 'true',
+        aborted: 'lifecycle',
+      });
+      this.queueFollowUp();
+      return { success: true };
+    }
+    if (error instanceof LocalSyncAbort) {
+      await this.persistPreSyncedDataAfterAbort();
+      logSyncInfo('Sync requeued after local data changed', {
+        backend,
+        step: this.step,
+        wroteLocal: String(this.wroteLocal),
+      });
+      logSyncDiagnostic('Sync diagnostic requeued', this.syncDiagnosticStartedAt, {
+        backend,
+        step: this.step,
+        success: 'true',
+        wroteLocal: String(this.wroteLocal),
+      });
+      return buildRequeuedSkipResult();
+    }
+    const likelyOfflineRequestError = isLikelyOfflineSyncError(error);
+    if (isRemoteSyncBackend(backend) && (this.networkWentOffline || likelyOfflineRequestError)) {
+      if (!this.offlineDetectionCause && likelyOfflineRequestError) {
+        this.offlineDetectionCause = 'request-error';
+      }
+      await this.persistPreSyncedDataAfterAbort();
+      if (this.wroteLocal) {
+        try {
+          await useTaskStore.getState().fetchData({ silent: true });
+        } catch (fetchError) {
+          logSyncWarning('[Mobile] Failed to refresh store after offline sync skip', fetchError);
+        }
+      }
+      logSyncInfo('Sync skipped after offline detection', {
+        backend,
+        step: this.step,
+        reason: this.offlineDetectionCause ?? 'unknown',
+        ...(this.lastOfflineNetworkStatus ? formatNetworkStatusForLog(this.lastOfflineNetworkStatus) : {}),
+      });
+      logSyncDiagnostic('Sync diagnostic offline skip', this.syncDiagnosticStartedAt, {
+        backend,
+        step: this.step,
+        success: 'true',
+        skipped: 'offline',
+        reason: this.offlineDetectionCause ?? 'unknown',
+      });
+      return buildOfflineSkipResult();
+    }
+    const now = new Date().toISOString();
+    const logPath = await logSyncError(error, { backend, step: this.step, url: this.syncUrl });
+    const logHint = logPath ? ` (log: ${logPath})` : '';
+    const safeMessage = formatSyncErrorMessage(error, backend);
+    logSyncDiagnostic('Sync diagnostic error', this.syncDiagnosticStartedAt, {
+      backend,
+      step: this.step,
+      success: 'false',
+      error: safeMessage,
+    });
+    const nextHistory = appendSyncHistory(useTaskStore.getState().settings, {
+      at: now,
+      status: 'error',
+      backend,
+      type: 'merge',
+      conflicts: 0,
+      conflictIds: [],
+      maxClockSkewMs: 0,
+      timestampAdjustments: 0,
+      details: this.step,
+      error: `${safeMessage}${logHint}`,
+    });
+    try {
+      if (this.wroteLocal) {
+        await useTaskStore.getState().fetchData({ silent: true });
+      }
+      await applyLocalSyncStatus({
+        lastSyncAt: now,
+        lastSyncStatus: 'error',
+        lastSyncError: `${safeMessage}${logHint}`,
+        lastSyncStats: undefined,
+        lastSyncHistory: nextHistory,
+      });
+    } catch (e) {
+      logSyncWarning('[Mobile] Failed to persist sync error', e);
+    }
+
+    return { success: false, error: `${safeMessage}${logHint}` };
+  }
+
+  private releaseResources(): void {
+    if (activeMobileSyncAbortController === this.requestAbortController) {
+      activeMobileSyncAbortController = null;
+      activeMobileSyncAbortReason = null;
+    }
+    try {
+      this.networkSubscription?.remove?.();
+    } catch (error) {
+      logSyncWarning('Failed to unsubscribe network listener after sync', error);
+    }
+  }
+}
+
 const mobileSyncOrchestrator = createSyncOrchestrator<string | undefined, MobileSyncResult>({
   runCycle: async (syncPathOverride, { requestFollowUp }) => {
     const rawBackend = (await getCachedConfigValue(SYNC_BACKEND_KEY))?.trim() ?? null;
@@ -481,991 +1561,7 @@ const mobileSyncOrchestrator = createSyncOrchestrator<string | undefined, Mobile
       return buildOfflineSkipResult();
     }
 
-    logSyncInfo('Sync start', { backend });
-
-    let step = 'init';
-    const syncDiagnosticStartedAt = Date.now();
-    let syncDiagnosticPhaseStartedAt = syncDiagnosticStartedAt;
-    const logSyncPhaseDiagnostic = (phase: string, extra?: Record<string, string>) => {
-      logSyncDiagnostic('Sync diagnostic phase', syncDiagnosticPhaseStartedAt, {
-        backend,
-        phase,
-        step,
-        ...(extra ?? {}),
-      });
-      syncDiagnosticPhaseStartedAt = Date.now();
-    };
-    logSyncInfo('Sync diagnostic start', { backend });
-    let visibleActivityStarted = false;
-    let syncUrl: string | undefined;
-    let wroteLocal = false;
-    let localSnapshotChangeAt = useTaskStore.getState().lastDataChangeAt;
-    let networkWentOffline = false;
-    let offlineDetectionCause: string | null = null;
-    let lastOfflineNetworkStatus: MobileNetworkStatus | null = null;
-    let networkSubscription: { remove?: () => void } | null = null;
-    let preSyncedLocalData: AppData | null = null;
-    const requestAbortController = new AbortController();
-    activeMobileSyncAbortController = requestAbortController;
-    activeMobileSyncAbortReason = null;
-    const fetchWithAbort = createAbortableFetch(fetch, { baseSignal: requestAbortController.signal });
-    const startVisibleSyncActivity = () => {
-      if (visibleActivityStarted) return;
-      visibleActivityStarted = true;
-      setMobileSyncActivityState('syncing');
-    };
-    const ensureLocalSnapshotFresh = () => {
-      ensureFreshLocalSyncSnapshot({
-        localSnapshotChangeAt,
-        getCurrentChangeAt: () => useTaskStore.getState().lastDataChangeAt,
-        requestFollowUp: () => requestFollowUp(syncPathOverride),
-        onStale: ({ localSnapshotChangeAt: snapshotChangeAt, currentChangeAt }) => {
-          logSyncInfo('Sync detected local data changes during cycle; queued follow-up', {
-            backend,
-            step,
-            snapshotChangeAt: String(snapshotChangeAt),
-            currentChangeAt: String(currentChangeAt),
-          });
-        },
-      });
-    };
-    const ensureWebdavSyncNotRateLimited = () => {
-      webdavSyncRateLimitController.assertReady(backend);
-    };
-    const handleWebdavRateLimit = (error: unknown) => {
-      if (!webdavSyncRateLimitController.noteError(backend, error)) return;
-      logSyncWarning('WebDAV rate limited; pausing remote sync', error);
-    };
-    const markNetworkOffline = (cause: string, status?: MobileNetworkStatus) => {
-      networkWentOffline = true;
-      offlineDetectionCause = cause;
-      lastOfflineNetworkStatus = status ?? lastOfflineNetworkStatus;
-    };
-    const ensureNetworkStillAvailable = async () => {
-      if (!isRemoteSyncBackend(backend)) return;
-      if (networkWentOffline) {
-        requestAbortController.abort();
-        throw new Error('Sync paused: offline state detected');
-      }
-      if (await shouldSkipSyncForOfflineState(backend, (status) => markNetworkOffline('network-check', status))) {
-        requestAbortController.abort();
-        throw new Error('Sync paused: offline state detected');
-      }
-    };
-    try {
-      if (isRemoteSyncBackend(backend)) {
-        try {
-          networkSubscription = Network.addNetworkStateListener((state) => {
-            const status = getMobileNetworkStatus(state);
-            if (isDefinitelyOfflineNetworkStatus(status)) {
-              markNetworkOffline('network-listener', status);
-              requestAbortController.abort();
-            }
-          });
-        } catch (error) {
-          logSyncWarning('Failed to subscribe to network state during sync', error);
-        }
-      }
-      let webdavConfig: MobileWebDavSyncConfig | null = null;
-      let cloudConfig: MobileCloudSyncConfig | null = null;
-      let cloudProvider: CloudProvider = CLOUD_PROVIDER_SELF_HOSTED;
-      let dropboxClientId = '';
-      let dropboxLastRev: string | null = null;
-      let fileSyncPath: string | null = null;
-      let fileSyncBookmark: string | null = null;
-      let remoteDataForCompare: AppData | null = null;
-      let lastRemoteWriteFingerprint: string | null = null;
-      let lastRemoteWriteMergedServerData = false;
-      let localDataCache: { changeAt: number; data: AppData } | null = null;
-      let readCheckRemoteData: AppData | null | undefined;
-      let webdavRemoteCorrupted = false;
-      step = 'flush';
-      await flushPendingSave();
-      logSyncPhaseDiagnostic('flush');
-      localSnapshotChangeAt = useTaskStore.getState().lastDataChangeAt;
-      if (backend === 'file') {
-        const configuredSyncPath = (await getCachedConfigValue(SYNC_PATH_KEY))?.trim() ?? null;
-        fileSyncPath = syncPathOverride || configuredSyncPath;
-        const bookmarkResolution = await resolveBookmarkedFileSyncPath(fileSyncPath);
-        fileSyncPath = bookmarkResolution.path;
-        fileSyncBookmark = bookmarkResolution.bookmark;
-        if (!fileSyncPath) {
-          return { success: true };
-        }
-        const normalizedPath = normalizeFileSyncPath(fileSyncPath, Platform.OS);
-        if (normalizedPath && normalizedPath !== fileSyncPath) {
-          fileSyncPath = normalizedPath;
-          await AsyncStorage.setItem(SYNC_PATH_KEY, normalizedPath);
-          syncConfigCache.set(SYNC_PATH_KEY, { value: normalizedPath, readAt: Date.now() });
-          logSyncInfo('Normalized file sync path to iOS file URI');
-        }
-        if (fileSyncPath.startsWith('file://') && IOS_TEMP_INBOX_PATH_PATTERN.test(decodeUriSafe(fileSyncPath))) {
-          throw new Error('Selected iOS sync file is in a temporary Inbox location and is read-only. Re-select a folder in Settings -> Sync.');
-        }
-        if (fileSyncPath.startsWith('content://')) {
-          try {
-            const resolvedPath = await resolveSyncFileUri(fileSyncPath, { createIfMissing: true });
-            if (resolvedPath && resolvedPath !== fileSyncPath) {
-              await AsyncStorage.setItem(SYNC_PATH_KEY, resolvedPath);
-              syncConfigCache.set(SYNC_PATH_KEY, { value: resolvedPath, readAt: Date.now() });
-              logSyncInfo('Normalized SAF sync path');
-              fileSyncPath = resolvedPath;
-            }
-          } catch (error) {
-            logSyncWarning('Failed to normalize SAF sync path', error);
-          }
-        } else if (!isLikelyFilePath(fileSyncPath)) {
-          const trimmed = fileSyncPath.replace(/\/+$/, '');
-          fileSyncPath = `${trimmed}/${SYNC_FILE_NAME}`;
-        }
-      }
-      if (backend === 'webdav') {
-        const url = (await getCachedConfigValue(WEBDAV_URL_KEY))?.trim() ?? null;
-        if (!url) throw new Error('WebDAV URL not configured');
-        syncUrl = normalizeWebdavUrl(url);
-        const username = (await getCachedConfigValue(WEBDAV_USERNAME_KEY)) ?? '';
-        const password = (await getCachedConfigValue(WEBDAV_PASSWORD_KEY)) ?? '';
-        const allowInsecureHttp = (await getCachedConfigValue(WEBDAV_ALLOW_INSECURE_HTTP_KEY)) === 'true';
-        const allowWeakFingerprint = (await getCachedConfigValue(WEBDAV_ALLOW_WEAK_FINGERPRINT_KEY)) !== 'false';
-        webdavConfig = { url: syncUrl, username, password, allowInsecureHttp, allowWeakFingerprint };
-      }
-      if (backend === 'cloud') {
-        const storedCloudProvider = (await getCachedConfigValue(CLOUD_PROVIDER_KEY))?.trim() ?? null;
-        cloudProvider = resolveCloudProvider(storedCloudProvider);
-        if (!DROPBOX_SYNC_ENABLED && storedCloudProvider === CLOUD_PROVIDER_DROPBOX) {
-          throw new Error('Dropbox sync is unavailable in this build. Choose Self-hosted Cloud or install the Dropbox-enabled build.');
-        }
-        if (cloudProvider === CLOUD_PROVIDER_DROPBOX) {
-          dropboxClientId = getDropboxAppKey();
-          if (!dropboxClientId) {
-            throw new Error('Dropbox app key is not configured');
-          }
-          dropboxLastRev = (await getCachedConfigValue(DROPBOX_LAST_REV_KEY))?.trim() ?? null;
-          syncUrl = 'dropbox://Apps/Mindwtr/data.json';
-        } else {
-          const url = (await getCachedConfigValue(CLOUD_URL_KEY))?.trim() ?? null;
-          if (!url) throw new Error('Self-hosted URL not configured');
-          syncUrl = normalizeCloudUrl(url);
-          const token = (await getCachedConfigValue(CLOUD_TOKEN_KEY))?.trim() ?? '';
-          const allowInsecureHttp = (await getCachedConfigValue(CLOUD_ALLOW_INSECURE_HTTP_KEY)) === 'true';
-          cloudConfig = { url: syncUrl, token, allowInsecureHttp };
-        }
-      }
-      const runDropboxOperation = async <T,>(
-        operation: (accessToken: string) => Promise<T>
-      ): Promise<T> => {
-        let accessToken = await getValidDropboxAccessToken(dropboxClientId, fetchWithAbort);
-        try {
-          return await operation(accessToken);
-        } catch (error) {
-          if (!isDropboxUnauthorizedError(error)) throw error;
-          accessToken = await forceRefreshDropboxAccessToken(dropboxClientId, fetchWithAbort);
-          return operation(accessToken);
-        }
-      };
-
-      // CloudKit setup — ensure zone and subscription exist before sync cycle.
-      if (backend === 'cloudkit') {
-        if (!isCloudKitAvailable()) {
-          throw new Error('CloudKit is not available on this platform');
-        }
-        step = 'cloudkit_setup';
-        logSyncInfo('Sync step', { step });
-        await ensureCloudKitReady({ signal: requestAbortController.signal });
-      }
-
-      const readLocalDataForSyncCycle = async (): Promise<AppData> => {
-        const currentChangeAt = useTaskStore.getState().lastDataChangeAt;
-        if (localDataCache && localDataCache.changeAt === currentChangeAt) {
-          localSnapshotChangeAt = currentChangeAt;
-          return localDataCache.data;
-        }
-        const inMemorySnapshot = getInMemoryAppDataSnapshot();
-        const baseData = preSyncedLocalData
-          ? mergeAppData(preSyncedLocalData, inMemorySnapshot)
-          : mergeAppData(await mergeLocalSyncStatus(await mobileStorage.getData()), inMemorySnapshot);
-        const data = await injectExternalCalendars(baseData);
-        localSnapshotChangeAt = useTaskStore.getState().lastDataChangeAt;
-        localDataCache = {
-          changeAt: localSnapshotChangeAt,
-          data,
-        };
-        return data;
-      };
-
-      // Pre-sync local attachments only when attachment metadata shows real work.
-      const attachmentPrepareStartedAt = Date.now();
-      try {
-        const localData = await readLocalDataForSyncCycle();
-        const hasAttachmentWork = await hasPendingAttachmentSyncWork(localData);
-        if (hasPendingSyncSideEffects(localData) || hasAttachmentWork) {
-          startVisibleSyncActivity();
-        }
-        if (!hasAttachmentWork) {
-          logSyncInfo('Attachment pre-sync skipped', {
-            backend,
-            reason: 'no-pending-work',
-          });
-          logSyncDiagnostic('Sync diagnostic attachment prepare skipped', attachmentPrepareStartedAt, {
-            backend,
-            ...buildSyncDataDiagnostics(localData),
-          });
-        } else {
-          step = 'attachments_prepare';
-          logSyncInfo('Sync step', { step });
-          const preSyncResult = await runPreSyncAttachmentPhase({
-            backend,
-            cloudProvider,
-            data: localData,
-            ensureNetworkStillAvailable,
-            webdav: webdavConfig?.url
-              ? async (data) => {
-                const baseSyncUrl = getBaseSyncUrl(webdavConfig.url);
-                return syncWebdavAttachments(data, webdavConfig, baseSyncUrl, requestAbortController.signal);
-              }
-              : undefined,
-            cloudkit: backend === 'cloudkit'
-              ? async (data) => syncCloudKitAttachments(data, requestAbortController.signal)
-              : undefined,
-            selfHostedCloud: cloudProvider === CLOUD_PROVIDER_SELF_HOSTED && cloudConfig?.url
-              ? async (data) => {
-                const baseSyncUrl = getCloudBaseUrl(cloudConfig.url);
-                return syncCloudAttachments(data, cloudConfig, baseSyncUrl, {
-                  assertCurrent: ensureLocalSnapshotFresh,
-                  signal: requestAbortController.signal,
-                });
-              }
-              : undefined,
-            dropbox: cloudProvider === CLOUD_PROVIDER_DROPBOX
-              ? async (data) => syncDropboxAttachments(data, dropboxClientId, fetchWithAbort, {
-                signal: requestAbortController.signal,
-              })
-              : undefined,
-            file: fileSyncPath
-              ? async (data) => syncFileAttachments(data, fileSyncPath, requestAbortController.signal)
-              : undefined,
-          });
-          if (preSyncResult.mutated) {
-            // Capture pre-sync attachment mutations before stale-snapshot checks so we can persist them on abort.
-            preSyncedLocalData = preSyncResult.data ?? localData;
-            localDataCache = null;
-            ensureLocalSnapshotFresh();
-          }
-          logSyncInfo('Attachment pre-sync complete', {
-            backend,
-            mutated: preSyncResult.mutated ? 'true' : 'false',
-          });
-          logSyncDiagnostic('Sync diagnostic attachment prepare complete', attachmentPrepareStartedAt, {
-            backend,
-            mutated: preSyncResult.mutated ? 'true' : 'false',
-            ...buildSyncDataDiagnostics(preSyncResult.data ?? localData),
-          });
-        }
-      } catch (error) {
-        if (error instanceof LocalSyncAbort) {
-          throw error;
-        }
-        if (requestAbortController.signal.aborted) {
-          throw error;
-        }
-        logSyncWarning('Attachment pre-sync warning; continuing sync merge', error);
-      }
-
-      const readRemoteDataByBackend = async (): Promise<AppData | null> => {
-        if (readCheckRemoteData !== undefined) {
-          const data = readCheckRemoteData;
-          readCheckRemoteData = undefined;
-          remoteDataForCompare = data;
-          return data;
-        }
-        await ensureNetworkStillAvailable();
-        if (backend === 'webdav' && webdavConfig?.url) {
-          ensureWebdavSyncNotRateLimited();
-          try {
-            const data = await withRetry(
-              () =>
-                webdavGetJson<AppData>(webdavConfig.url, {
-                  ...getMobileWebDavRequestOptions(webdavConfig.allowInsecureHttp),
-                  username: webdavConfig.username,
-                  password: webdavConfig.password,
-                  timeoutMs: DEFAULT_SYNC_TIMEOUT_MS,
-                  fetcher: fetchWithAbort,
-                  allowWeakFingerprint: webdavConfig.allowWeakFingerprint,
-                }),
-              WEBDAV_READ_RETRY_OPTIONS
-            );
-            webdavRemoteCorrupted = false;
-            remoteDataForCompare = data ?? null;
-            return data;
-          } catch (error) {
-            if (isWebdavInvalidJsonError(error)) {
-              webdavRemoteCorrupted = true;
-              remoteDataForCompare = null;
-              logSyncWarning('WebDAV remote data.json appears corrupted; treating as missing for repair write', error);
-              return null;
-            }
-            handleWebdavRateLimit(error);
-            throw error;
-          }
-        }
-        if (backend === 'cloud' && cloudConfig?.url) {
-          const data = await cloudGetJson<AppData>(cloudConfig.url, {
-            ...getMobileCloudRequestOptions(cloudConfig.allowInsecureHttp),
-            token: cloudConfig.token,
-            timeoutMs: DEFAULT_SYNC_TIMEOUT_MS,
-            fetcher: fetchWithAbort,
-          });
-          remoteDataForCompare = data ?? null;
-          return data;
-        }
-        if (backend === 'cloud' && cloudProvider === CLOUD_PROVIDER_DROPBOX) {
-          const { data, rev } = await runDropboxOperation((accessToken) =>
-            downloadDropboxAppData(accessToken, fetchWithAbort)
-          );
-          dropboxLastRev = rev;
-          if (rev) {
-            await AsyncStorage.setItem(DROPBOX_LAST_REV_KEY, rev);
-            syncConfigCache.set(DROPBOX_LAST_REV_KEY, { value: rev, readAt: Date.now() });
-          } else {
-            await AsyncStorage.removeItem(DROPBOX_LAST_REV_KEY);
-            syncConfigCache.set(DROPBOX_LAST_REV_KEY, { value: null, readAt: Date.now() });
-          }
-          remoteDataForCompare = data ?? null;
-          return data;
-        }
-        if (backend === 'cloudkit') {
-          const data = await readRemoteCloudKit({ signal: requestAbortController.signal });
-          remoteDataForCompare = data ?? null;
-          return data;
-        }
-        if (!fileSyncPath) {
-          throw new Error('No sync folder configured');
-        }
-        const data = await readSyncFile(fileSyncPath, { bookmark: fileSyncBookmark });
-        remoteDataForCompare = data ?? null;
-        return data;
-      };
-
-      const prepareRemoteWriteData = async (data: AppData): Promise<AppData> => {
-        const pendingUploads = findPendingAttachmentUploads(data);
-        if (pendingUploads.length === 0) {
-          return data;
-        }
-
-        step = 'attachments_finalize';
-        logSyncInfo('Sync step', { step });
-        logSyncInfo('Attachment final sync start', {
-          backend,
-          pending: String(pendingUploads.length),
-        });
-
-        if (backend === 'webdav' && webdavConfig?.url) {
-          await ensureNetworkStillAvailable();
-          const baseSyncUrl = getBaseSyncUrl(webdavConfig.url);
-          await syncWebdavAttachments(data, webdavConfig, baseSyncUrl, requestAbortController.signal);
-        } else if (backend === 'cloudkit') {
-          await ensureNetworkStillAvailable();
-          await syncCloudKitAttachments(data, requestAbortController.signal);
-        } else if (backend === 'cloud' && cloudProvider === CLOUD_PROVIDER_SELF_HOSTED && cloudConfig?.url) {
-          await ensureNetworkStillAvailable();
-          const baseSyncUrl = getCloudBaseUrl(cloudConfig.url);
-          await syncCloudAttachments(data, cloudConfig, baseSyncUrl, {
-            assertCurrent: ensureLocalSnapshotFresh,
-            signal: requestAbortController.signal,
-          });
-        } else if (backend === 'cloud' && cloudProvider === CLOUD_PROVIDER_DROPBOX) {
-          await ensureNetworkStillAvailable();
-          await syncDropboxAttachments(data, dropboxClientId, fetchWithAbort, {
-            signal: requestAbortController.signal,
-          });
-        } else if (backend === 'file' && fileSyncPath) {
-          await syncFileAttachments(data, fileSyncPath, requestAbortController.signal);
-        }
-
-        const remainingUploads = findPendingAttachmentUploads(data);
-        logSyncInfo('Attachment final sync done', {
-          backend,
-          pending: String(remainingUploads.length),
-        });
-        logPendingAttachmentUploads(
-          'Attachment uploads still pending after final sync',
-          backend,
-          'attachments-finalize',
-          remainingUploads
-        );
-
-        return data;
-      };
-
-      const writeRemoteDataByBackend = async (data: AppData): Promise<void> => {
-        await ensureNetworkStillAvailable();
-        lastRemoteWriteFingerprint = null;
-        lastRemoteWriteMergedServerData = false;
-        logPendingAttachmentUploads(
-          'Remote write blocked by pending attachment uploads',
-          backend,
-          'remote-write',
-          findPendingAttachmentUploads(data)
-        );
-        assertNoPendingAttachmentUploads(data);
-        const sanitized = sanitizeAppDataForRemote(data);
-        const remoteSanitized = remoteDataForCompare
-          ? sanitizeAppDataForRemote(remoteDataForCompare)
-          : null;
-        if (remoteSanitized && areSyncPayloadsEqual(remoteSanitized, sanitized)) {
-          return;
-        }
-        if (backend === 'webdav') {
-          if (!webdavConfig?.url) throw new Error('WebDAV URL not configured');
-          ensureWebdavSyncNotRateLimited();
-          if (webdavRemoteCorrupted) {
-            logSyncInfo('Repairing corrupted WebDAV data.json with current merged data');
-          }
-          let result: RemoteJsonWriteResult;
-          try {
-            result = await withRetry(
-              () =>
-                webdavPutJson(webdavConfig.url, sanitized, {
-                  ...getMobileWebDavRequestOptions(webdavConfig.allowInsecureHttp),
-                  username: webdavConfig.username,
-                  password: webdavConfig.password,
-                  timeoutMs: DEFAULT_SYNC_TIMEOUT_MS,
-                  fetcher: fetchWithAbort,
-                }),
-              WEBDAV_RETRY_OPTIONS
-            );
-          } catch (error) {
-            handleWebdavRateLimit(error);
-            throw error;
-          }
-          const writeResult = normalizeRemoteWriteResult('webdav', result);
-          lastRemoteWriteFingerprint = writeResult.fingerprint;
-          remoteDataForCompare = sanitized;
-          webdavRemoteCorrupted = false;
-          return;
-        }
-        if (backend === 'cloud') {
-          if (cloudProvider === CLOUD_PROVIDER_DROPBOX) {
-            try {
-              const result = await runDropboxOperation((accessToken) =>
-                uploadDropboxAppData(accessToken, sanitized, dropboxLastRev, fetchWithAbort)
-              );
-              dropboxLastRev = result.rev;
-              if (result.rev) {
-                await AsyncStorage.setItem(DROPBOX_LAST_REV_KEY, result.rev);
-                syncConfigCache.set(DROPBOX_LAST_REV_KEY, { value: result.rev, readAt: Date.now() });
-              } else {
-                await AsyncStorage.removeItem(DROPBOX_LAST_REV_KEY);
-                syncConfigCache.set(DROPBOX_LAST_REV_KEY, { value: null, readAt: Date.now() });
-              }
-              remoteDataForCompare = sanitized;
-              return;
-            } catch (error) {
-              if (error instanceof DropboxConflictError) {
-                // Another device wrote between readRemote and writeRemote; retry next cycle.
-                requestFollowUp(syncPathOverride);
-                throw new LocalSyncAbort();
-              }
-              throw error;
-            }
-          }
-          if (!cloudConfig?.url) throw new Error('Self-hosted URL not configured');
-          const result = await cloudPutJson(cloudConfig.url, sanitized, {
-            ...getMobileCloudRequestOptions(cloudConfig.allowInsecureHttp),
-            token: cloudConfig.token,
-            timeoutMs: DEFAULT_SYNC_TIMEOUT_MS,
-            fetcher: fetchWithAbort,
-          });
-          const writeResult = normalizeRemoteWriteResult('cloud', result);
-          lastRemoteWriteFingerprint = writeResult.fingerprint;
-          lastRemoteWriteMergedServerData = writeResult.serverMergedRemoteData;
-          if (writeResult.serverMergedRemoteData) {
-            remoteDataForCompare = null;
-            requestFollowUp(syncPathOverride);
-          } else {
-            remoteDataForCompare = sanitized;
-          }
-          return;
-        }
-        if (backend === 'cloudkit') {
-          await writeRemoteCloudKit(sanitized as AppData, { signal: requestAbortController.signal });
-          remoteDataForCompare = sanitized;
-          return;
-        }
-        if (!fileSyncPath) throw new Error('No sync folder configured');
-        await writeSyncFile(fileSyncPath, sanitized, { bookmark: fileSyncBookmark });
-        remoteDataForCompare = sanitized;
-      };
-
-      const readRemoteFingerprintForFastCheck = async (): Promise<string | null> => {
-        await ensureNetworkStillAvailable();
-        if (backend === 'webdav' && webdavConfig?.url) {
-          ensureWebdavSyncNotRateLimited();
-          try {
-            const metadata = await withRetry(
-              () =>
-                webdavHeadFile(webdavConfig.url, {
-                  ...getMobileWebDavRequestOptions(webdavConfig.allowInsecureHttp),
-                  username: webdavConfig.username,
-                  password: webdavConfig.password,
-                  timeoutMs: DEFAULT_SYNC_TIMEOUT_MS,
-                  fetcher: fetchWithAbort,
-                }),
-              WEBDAV_READ_RETRY_OPTIONS
-            );
-            if (!metadata?.exists) return null;
-            return metadata.fingerprint;
-          } catch (error) {
-            handleWebdavRateLimit(error);
-            throw error;
-          }
-        }
-        if (backend === 'cloud' && cloudProvider === CLOUD_PROVIDER_SELF_HOSTED && cloudConfig?.url) {
-          const metadata = await cloudHeadJson(cloudConfig.url, {
-            ...getMobileCloudRequestOptions(cloudConfig.allowInsecureHttp),
-            token: cloudConfig.token,
-            timeoutMs: DEFAULT_SYNC_TIMEOUT_MS,
-            fetcher: fetchWithAbort,
-          });
-          if (!metadata?.exists) return null;
-          return metadata.fingerprint;
-        }
-        if (backend === 'cloud' && cloudProvider === CLOUD_PROVIDER_DROPBOX) {
-          const metadata = await runDropboxOperation((accessToken) =>
-            getDropboxAppDataMetadata(accessToken, fetchWithAbort)
-          );
-          dropboxLastRev = metadata.rev;
-          return metadata.rev ? `dropbox:v1:rev=${metadata.rev}` : null;
-        }
-        return null;
-      };
-
-      const fastSyncScope = buildFastSyncScope({
-        backend,
-        webdavConfig,
-        cloudProvider,
-        cloudConfig,
-        dropboxClientId,
-      });
-
-      const recordFastSyncState = async (
-        data: AppData,
-        options: { allowRemoteFingerprintRead?: boolean } = {}
-      ): Promise<void> => {
-        if (!fastSyncScope || hasPendingSyncSideEffects(data)) return;
-        if (useTaskStore.getState().lastDataChangeAt > localSnapshotChangeAt) return;
-        if (lastRemoteWriteMergedServerData) return;
-        let remoteFingerprint: string | null = null;
-        if (backend === 'cloud' && cloudProvider === CLOUD_PROVIDER_DROPBOX && dropboxLastRev) {
-          remoteFingerprint = `dropbox:v1:rev=${dropboxLastRev}`;
-        } else if (lastRemoteWriteFingerprint) {
-          remoteFingerprint = lastRemoteWriteFingerprint;
-        } else {
-          if (options.allowRemoteFingerprintRead === false) return;
-          try {
-            remoteFingerprint = await readRemoteFingerprintForFastCheck();
-          } catch (error) {
-            logSyncWarning('Failed to refresh sync fast-check state', error);
-            return;
-          }
-        }
-        if (!remoteFingerprint) return;
-        await writeFastSyncState({
-          scope: fastSyncScope,
-          localFingerprint: computeSyncPayloadFingerprint(data),
-          remoteFingerprint,
-          checkedAt: new Date().toISOString(),
-        });
-      };
-
-      const trySkipUnchangedFastSync = async (): Promise<MobileSyncResult | null> => {
-        if (!fastSyncScope) return null;
-        const fastCheckStartedAt = Date.now();
-        step = 'fast-check';
-        logSyncInfo('Sync step', { step });
-        if (preSyncedLocalData) return null;
-        const localDataForFastCheck = await readLocalDataForSyncCycle();
-        ensureLocalSnapshotFresh();
-        if (hasPendingSyncSideEffects(localDataForFastCheck)) return null;
-
-        const localFingerprint = computeSyncPayloadFingerprint(localDataForFastCheck);
-        const cached = await readFastSyncState(fastSyncScope);
-        if (!cached || cached.localFingerprint !== localFingerprint) return null;
-
-        let remoteFingerprint: string | null = null;
-        try {
-          remoteFingerprint = await readRemoteFingerprintForFastCheck();
-        } catch (error) {
-          logSyncWarning('Sync fast check failed; falling back to read-only comparison', error);
-          return null;
-        }
-        if (!remoteFingerprint || remoteFingerprint !== cached.remoteFingerprint) return null;
-
-        await writeFastSyncState({
-          scope: fastSyncScope,
-          localFingerprint,
-          remoteFingerprint,
-          checkedAt: new Date().toISOString(),
-        });
-        await applyLocalSyncStatus({
-          lastSyncAt: new Date().toISOString(),
-          lastSyncStatus: 'success',
-          lastSyncError: undefined,
-        });
-        useTaskStore.getState().setError(null);
-        logSyncInfo('Sync fast check found no changes', {
-          backend,
-          elapsedMs: getSyncDiagnosticElapsedMs(fastCheckStartedAt),
-          ...buildSyncDataDiagnostics(localDataForFastCheck),
-        });
-        return { success: true, skipped: 'unchanged' };
-      };
-
-      const trySkipUnchangedReadSync = async (): Promise<MobileSyncResult | null> => {
-        const readCheckStartedAt = Date.now();
-        step = 'read-check';
-        logSyncInfo('Sync step', { step });
-        if (preSyncedLocalData) return null;
-        const localDataForReadCheck = await readLocalDataForSyncCycle();
-        ensureLocalSnapshotFresh();
-        if (hasPendingSyncSideEffects(localDataForReadCheck)) return null;
-
-        const remoteData = await readRemoteDataByBackend();
-        ensureLocalSnapshotFresh();
-        if (!remoteData) return null;
-        readCheckRemoteData = remoteData;
-
-        const localSanitized = sanitizeAppDataForRemote(localDataForReadCheck);
-        const remoteSanitized = sanitizeAppDataForRemote(remoteData);
-        if (!areSyncPayloadsEqual(remoteSanitized, localSanitized)) return null;
-
-        await recordFastSyncState(localDataForReadCheck, { allowRemoteFingerprintRead: false });
-        await applyLocalSyncStatus({
-          lastSyncAt: new Date().toISOString(),
-          lastSyncStatus: 'success',
-          lastSyncError: undefined,
-        });
-        readCheckRemoteData = undefined;
-        useTaskStore.getState().setError(null);
-        logSyncInfo('Sync read check found no changes', {
-          backend,
-          elapsedMs: getSyncDiagnosticElapsedMs(readCheckStartedAt),
-          ...buildSyncDataDiagnostics(localDataForReadCheck),
-        });
-        return { success: true, skipped: 'unchanged' };
-      };
-
-      const unchangedFastResult = await trySkipUnchangedFastSync();
-      const unchangedResult = unchangedFastResult ?? await trySkipUnchangedReadSync();
-      if (unchangedResult) {
-        return unchangedResult;
-      }
-
-      startVisibleSyncActivity();
-      const syncCycleStartedAt = Date.now();
-      const syncResult = await performSyncCycle({
-        readLocal: readLocalDataForSyncCycle,
-        readRemote: readRemoteDataByBackend,
-        writeLocal: async (data) => {
-          ensureLocalSnapshotFresh();
-          await mobileStorage.saveData(data);
-          wroteLocal = true;
-        },
-        clearPendingRemoteWriteAfterLocalAbort: async (pendingAt) => {
-          const current = getInMemoryAppDataSnapshot();
-          if (current.settings.pendingRemoteWriteAt && current.settings.pendingRemoteWriteAt !== pendingAt) return;
-          await mobileStorage.saveData({
-            ...current,
-            settings: {
-              ...current.settings,
-              pendingRemoteWriteAt: undefined,
-              pendingRemoteWriteRetryAt: undefined,
-              pendingRemoteWriteAttempts: undefined,
-            },
-          });
-          wroteLocal = true;
-        },
-        flushPendingLocalBeforeRetryRead: flushPendingSave,
-        prepareRemoteWrite: prepareRemoteWriteData,
-        writeRemote: async (data) => {
-          ensureLocalSnapshotFresh();
-          await writeRemoteDataByBackend(data);
-        },
-        onStep: (next) => {
-          step = next;
-          logSyncInfo('Sync step', { step });
-        },
-        historyContext: {
-          backend,
-          type: 'merge',
-        },
-      });
-      if (syncResult.status === 'skipped') {
-        logSyncInfo('Sync skipped while pending remote write backoff is active', {
-          backend,
-          retryInMs: String(Math.ceil(syncResult.retryInMs)),
-        });
-        logSyncDiagnostic('Sync diagnostic skipped', syncCycleStartedAt, {
-          backend,
-          step,
-          success: 'true',
-          skipped: syncResult.skipped,
-          retryInMs: String(Math.ceil(syncResult.retryInMs)),
-          ...buildSyncDataDiagnostics(syncResult.data),
-        });
-        return { success: true, skipped: 'pendingRemoteWriteBackoff' };
-      }
-      logSyncDiagnostic('Sync diagnostic merge cycle complete', syncCycleStartedAt, {
-        backend,
-        status: syncResult.status,
-        ...buildSyncDataDiagnostics(syncResult.data),
-      });
-
-      const stats = syncResult.stats;
-      const mergeLog = buildMergeSummaryLog(stats, { clockSkewThresholdMs: CLOCK_SKEW_THRESHOLD_MS });
-      if (mergeLog) {
-        void logInfo(
-          mergeLog.message,
-          {
-            scope: 'sync',
-            extra: mergeLog.extra,
-          }
-        );
-      }
-      let mergedData = syncResult.data;
-      let canRecordFastSyncState = true;
-      const markFastSyncStateUnsafe = () => {
-        canRecordFastSyncState = false;
-      };
-      ensureLocalSnapshotFresh();
-      await persistExternalCalendars(mergedData);
-
-      const webdavConfigValue = webdavConfig as MobileWebDavSyncConfig | null;
-      const cloudConfigValue = cloudConfig as MobileCloudSyncConfig | null;
-      const applyAttachmentSyncMutation = async (
-        syncAttachments: (candidateData: AppData) => Promise<boolean>
-      ): Promise<void> => {
-        const attachmentSyncStartedAt = Date.now();
-        const candidateData = cloneAppData(mergedData);
-        const mutated = await syncAttachments(candidateData);
-        logSyncDiagnostic('Sync diagnostic attachment sync complete', attachmentSyncStartedAt, {
-          backend,
-          mutated: mutated ? 'true' : 'false',
-          ...buildSyncDataDiagnostics(candidateData),
-        });
-        if (!mutated) return;
-        ensureLocalSnapshotFresh();
-        mergedData = candidateData;
-        markFastSyncStateUnsafe();
-        await mobileStorage.saveData(mergedData);
-        wroteLocal = true;
-      };
-
-      if (await hasPendingAttachmentSyncWork(mergedData)) {
-        step = 'attachments';
-        logSyncInfo('Sync step', { step });
-        ensureLocalSnapshotFresh();
-        if (backend === 'webdav' && webdavConfigValue?.url) {
-          await ensureNetworkStillAvailable();
-          const baseSyncUrl = getBaseSyncUrl(webdavConfigValue.url);
-          await applyAttachmentSyncMutation((candidateData) =>
-            syncWebdavAttachments(candidateData, webdavConfigValue, baseSyncUrl, requestAbortController.signal)
-          );
-        }
-
-        if (backend === 'cloud' && cloudProvider === CLOUD_PROVIDER_SELF_HOSTED && cloudConfigValue?.url) {
-          await ensureNetworkStillAvailable();
-          const baseSyncUrl = getCloudBaseUrl(cloudConfigValue.url);
-          await applyAttachmentSyncMutation((candidateData) =>
-            syncCloudAttachments(candidateData, cloudConfigValue, baseSyncUrl, {
-              assertCurrent: ensureLocalSnapshotFresh,
-              signal: requestAbortController.signal,
-            })
-          );
-        }
-
-        if (backend === 'cloud' && cloudProvider === CLOUD_PROVIDER_DROPBOX) {
-          await ensureNetworkStillAvailable();
-          await applyAttachmentSyncMutation((candidateData) =>
-            syncDropboxAttachments(candidateData, dropboxClientId, fetchWithAbort, {
-              signal: requestAbortController.signal,
-            })
-          );
-        }
-
-        if (backend === 'file' && fileSyncPath) {
-          await applyAttachmentSyncMutation((candidateData) =>
-            syncFileAttachments(candidateData, fileSyncPath, requestAbortController.signal)
-          );
-        }
-      } else {
-        logSyncInfo('Attachment sync skipped', {
-          backend,
-          reason: 'no-pending-work',
-        });
-      }
-
-      await cleanupAttachmentTempFiles();
-
-      if (shouldRunAttachmentCleanup(mergedData.settings.attachments?.lastCleanupAt, CLEANUP_INTERVAL_MS)) {
-        step = 'attachments_cleanup';
-        logSyncInfo('Sync step', { step });
-        ensureLocalSnapshotFresh();
-        await ensureNetworkStillAvailable();
-        const cleanupResult = await runMobileAttachmentCleanup({
-          appData: mergedData,
-          backend,
-          webdavConfig: webdavConfigValue,
-          cloudConfig: cloudConfigValue,
-          cloudProvider,
-          fileSyncPath,
-          fetcher: fetchWithAbort,
-          ensureLocalSnapshotFresh,
-          deleteDropboxAttachment: (cloudKey) =>
-            runDropboxOperation((accessToken) => deleteDropboxFile(accessToken, cloudKey, fetchWithAbort)),
-          isRemoteMissingError: (error) => error instanceof DropboxFileNotFoundError,
-          logSyncInfo,
-          logSyncWarning,
-        });
-        mergedData = cleanupResult.appData;
-        if (cleanupResult.shouldInvalidateFastSyncState) {
-          markFastSyncStateUnsafe();
-        }
-        ensureLocalSnapshotFresh();
-        await mobileStorage.saveData(mergedData);
-        wroteLocal = true;
-      }
-
-      if (canRecordFastSyncState) {
-        await recordFastSyncState(mergedData);
-      }
-
-      step = 'refresh';
-      ensureLocalSnapshotFresh();
-      await useTaskStore.getState().fetchData({ silent: true });
-      logSyncDiagnostic('Sync diagnostic complete', syncDiagnosticStartedAt, {
-        backend,
-        step,
-        status: syncResult.status,
-        success: 'true',
-        wroteLocal: String(wroteLocal),
-        ...buildSyncDataDiagnostics(mergedData),
-      });
-      return { success: true, stats: syncResult.stats };
-    } catch (error) {
-      if (requestAbortController.signal.aborted && activeMobileSyncAbortReason === 'lifecycle') {
-        logSyncInfo('Sync aborted by app lifecycle transition', { backend, step });
-        logSyncDiagnostic('Sync diagnostic lifecycle abort', syncDiagnosticStartedAt, {
-          backend,
-          step,
-          success: 'true',
-          aborted: 'lifecycle',
-        });
-        requestFollowUp(syncPathOverride);
-        return { success: true };
-      }
-      if (error instanceof LocalSyncAbort) {
-        if (preSyncedLocalData && !wroteLocal) {
-          const inMemorySnapshot = getInMemoryAppDataSnapshot();
-          const reconciledData = mergeAppData(preSyncedLocalData, inMemorySnapshot);
-          await mobileStorage.saveData(reconciledData);
-          wroteLocal = true;
-        }
-        logSyncInfo('Sync requeued after local data changed', {
-          backend,
-          step,
-          wroteLocal: String(wroteLocal),
-        });
-        logSyncDiagnostic('Sync diagnostic requeued', syncDiagnosticStartedAt, {
-          backend,
-          step,
-          success: 'true',
-          wroteLocal: String(wroteLocal),
-        });
-        return buildRequeuedSkipResult();
-      }
-      const likelyOfflineRequestError = isLikelyOfflineSyncError(error);
-      if (isRemoteSyncBackend(backend) && (networkWentOffline || likelyOfflineRequestError)) {
-        if (!offlineDetectionCause && likelyOfflineRequestError) {
-          offlineDetectionCause = 'request-error';
-        }
-        if (preSyncedLocalData && !wroteLocal) {
-          const inMemorySnapshot = getInMemoryAppDataSnapshot();
-          const reconciledData = mergeAppData(preSyncedLocalData, inMemorySnapshot);
-          await mobileStorage.saveData(reconciledData);
-          wroteLocal = true;
-        }
-        if (wroteLocal) {
-          try {
-            await useTaskStore.getState().fetchData({ silent: true });
-          } catch (fetchError) {
-            logSyncWarning('[Mobile] Failed to refresh store after offline sync skip', fetchError);
-          }
-        }
-        logSyncInfo('Sync skipped after offline detection', {
-          backend,
-          step,
-          reason: offlineDetectionCause ?? 'unknown',
-          ...(lastOfflineNetworkStatus ? formatNetworkStatusForLog(lastOfflineNetworkStatus) : {}),
-        });
-        logSyncDiagnostic('Sync diagnostic offline skip', syncDiagnosticStartedAt, {
-          backend,
-          step,
-          success: 'true',
-          skipped: 'offline',
-          reason: offlineDetectionCause ?? 'unknown',
-        });
-        return buildOfflineSkipResult();
-      }
-      const now = new Date().toISOString();
-      const logPath = await logSyncError(error, { backend, step, url: syncUrl });
-      const logHint = logPath ? ` (log: ${logPath})` : '';
-      const safeMessage = formatSyncErrorMessage(error, backend);
-      logSyncDiagnostic('Sync diagnostic error', syncDiagnosticStartedAt, {
-        backend,
-        step,
-        success: 'false',
-        error: safeMessage,
-      });
-      const nextHistory = appendSyncHistory(useTaskStore.getState().settings, {
-        at: now,
-        status: 'error',
-        backend,
-        type: 'merge',
-        conflicts: 0,
-        conflictIds: [],
-        maxClockSkewMs: 0,
-        timestampAdjustments: 0,
-        details: step,
-        error: `${safeMessage}${logHint}`,
-      });
-      try {
-        if (wroteLocal) {
-          await useTaskStore.getState().fetchData({ silent: true });
-        }
-        await applyLocalSyncStatus({
-          lastSyncAt: now,
-          lastSyncStatus: 'error',
-          lastSyncError: `${safeMessage}${logHint}`,
-          lastSyncStats: undefined,
-          lastSyncHistory: nextHistory,
-        });
-      } catch (e) {
-        logSyncWarning('[Mobile] Failed to persist sync error', e);
-      }
-
-      return { success: false, error: `${safeMessage}${logHint}` };
-    } finally {
-      if (activeMobileSyncAbortController === requestAbortController) {
-        activeMobileSyncAbortController = null;
-        activeMobileSyncAbortReason = null;
-      }
-      try {
-        networkSubscription?.remove?.();
-      } catch (error) {
-        logSyncWarning('Failed to unsubscribe network listener after sync', error);
-      }
-    }
+    return new MobileSyncRun(backend, syncPathOverride, requestFollowUp).run();
   },
   onQueuedRunComplete: (queuedResult) => {
     if (!queuedResult.success) {
