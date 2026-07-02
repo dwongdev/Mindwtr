@@ -114,8 +114,11 @@ export const CLOUD_TASK_CREATION_ALLOWED_PROP_KEYS = new Set<keyof Task>([
     'sectionId',
     'areaId',
     'isFocusedToday',
+    'energyLevel',
+    'assignedTo',
     'timeEstimate',
     'reviewAt',
+    'suppressMindwtrReminders',
     'repeatReminderMinutes',
 ]);
 export const CLOUD_TASK_PATCH_ALLOWED_PROP_KEYS = new Set<keyof Task>([

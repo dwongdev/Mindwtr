@@ -365,8 +365,11 @@ describe('cloud server utils', () => {
     test('rejects reserved task creation props', () => {
         expect(__cloudTestUtils.validateTaskCreationProps({
             status: 'next',
+            energyLevel: 'medium',
+            assignedTo: 'person-1',
             projectId: 'p1',
             showFutureRecurrence: true,
+            suppressMindwtrReminders: true,
         }).ok).toBe(true);
 
         const invalid = __cloudTestUtils.validateTaskCreationProps({
@@ -384,7 +387,10 @@ describe('cloud server utils', () => {
         expect(__cloudTestUtils.validateTaskPatchProps({
             title: 'Renamed',
             status: 'next',
+            energyLevel: 'low',
+            assignedTo: 'person-2',
             order: 1,
+            suppressMindwtrReminders: false,
         }).ok).toBe(true);
 
         const invalid = __cloudTestUtils.validateTaskPatchProps({
