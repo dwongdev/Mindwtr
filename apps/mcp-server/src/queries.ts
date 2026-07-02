@@ -1,13 +1,8 @@
 import {
   DEFAULT_PROJECT_COLOR,
   TASK_SQLITE_COLUMNS,
-  getTaskFocusEligibility,
   mapSqliteTaskRow,
-  normalizeFocusTaskLimit,
-  TASK_STATUS_SET,
   parseQuickAdd as parseQuickAddCore,
-  taskToSqliteRow,
-  type AppData as CoreAppData,
   type Area as CoreArea,
   type Person as CorePerson,
   type Project as CoreProject,
@@ -20,7 +15,7 @@ import {
 } from '@mindwtr/core';
 import type { DbClient } from './db.js';
 import { parseJson } from './db.js';
-import { NotFoundError, ValidationError } from './errors.js';
+import { NotFoundError } from './errors.js';
 
 export type TaskStatus = CoreTaskStatus;
 export type Task = CoreTask;
@@ -29,25 +24,6 @@ export type Area = CoreArea;
 export type Person = CorePerson;
 export type Section = CoreSection;
 export type ProjectRef = Pick<CoreProject, 'id' | 'title'>;
-
-const parseTaskStatusInput = (value: unknown): TaskStatus | undefined => {
-  if (value === undefined || value === null) return undefined;
-  if (typeof value !== 'string') {
-    throw new ValidationError(`Invalid task status: ${String(value)}`);
-  }
-  const normalized = value.toLowerCase().trim();
-  if (!TASK_STATUS_SET.has(normalized as TaskStatus)) {
-    throw new ValidationError(`Invalid task status: ${value}`);
-  }
-  return normalized as TaskStatus;
-};
-
-const generateUUID = (): string => {
-  if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) {
-    return crypto.randomUUID();
-  }
-  return `mcp_${Math.random().toString(36).slice(2)}${Date.now().toString(36)}`;
-};
 
 export const parseQuickAdd = (input: string, projects: ProjectRef[]): { title: string; props: Partial<Task> } => {
   const parsed = parseQuickAddCore(input, projects as CoreProject[]);
@@ -91,7 +67,6 @@ export type TaskRow = Task;
 
 type ColumnInfoRow = { name?: unknown };
 type SqliteNameRow = { name?: unknown };
-type SettingsRow = { data?: unknown };
 type TaskSqliteRow = Record<string, unknown>;
 type ProjectSqliteRow = Record<string, unknown> & {
   id: string;
@@ -113,7 +88,6 @@ type ProjectSqliteRow = Record<string, unknown> & {
   updatedAt: string;
   deletedAt?: string | null;
 };
-type ProjectRefRow = Pick<ProjectSqliteRow, 'id' | 'title'>;
 type SectionSqliteRow = Record<string, unknown> & {
   id: string;
   projectId: string;
@@ -357,13 +331,6 @@ const getProjectColumns = (db: DbClient) => {
     projectColumnsCache.set(db, fallback);
     return fallback;
   }
-};
-
-const listProjectRefsForQuickAdd = (db: DbClient): ProjectRef[] => {
-  const rows = db.prepare('SELECT id, title FROM projects WHERE deletedAt IS NULL').all<ProjectRefRow>();
-  return rows
-    .filter((row): row is ProjectRefRow => typeof row.id === 'string' && typeof row.title === 'string')
-    .map((row) => ({ id: row.id, title: row.title }));
 };
 
 export function listProjects(db: DbClient): Project[] {
@@ -620,120 +587,6 @@ export function getPerson(db: DbClient, input: GetPersonInput): Person {
     throw new NotFoundError(`Person not found: ${input.id}`);
   }
   return mapPersonRow(row);
-}
-
-const runInTransaction = <T>(db: DbClient, fn: () => T): T => {
-  db.prepare('BEGIN IMMEDIATE').run();
-  try {
-    const result = fn();
-    db.prepare('COMMIT').run();
-    return result;
-  } catch (error) {
-    try {
-      db.prepare('ROLLBACK').run();
-    } catch {
-      // Best effort rollback.
-    }
-    throw error;
-  }
-};
-
-const getSettingsForFocus = (db: DbClient): CoreAppData['settings'] => {
-  try {
-    const row = db.prepare('SELECT data FROM settings WHERE id = 1').get<SettingsRow>();
-    return parseJson(row?.data, {});
-  } catch {
-    return {};
-  }
-};
-
-export function addTask(db: DbClient, input: AddTaskInput): TaskRow {
-  return runInTransaction(db, () => {
-    const now = new Date().toISOString();
-    let title = (input.title || '').trim();
-    let props: Partial<Task> = {};
-
-    if (input.quickAdd) {
-      const projects = listProjectRefsForQuickAdd(db);
-      const quick = parseQuickAdd(input.quickAdd, projects);
-      title = quick.title || title || input.quickAdd;
-      props = quick.props;
-    }
-
-    if (!title) {
-      throw new ValidationError('Task title is required.');
-    }
-
-    const status = parseTaskStatusInput(input.status) ?? parseTaskStatusInput(props.status) ?? 'inbox';
-    const task: Task = {
-      id: generateUUID(),
-      title,
-      status,
-      priority: (input.priority ?? props.priority) as Task['priority'],
-      energyLevel: (input.energyLevel ?? props.energyLevel) as Task['energyLevel'],
-      assignedTo: (input.assignedTo ?? props.assignedTo) as Task['assignedTo'],
-      taskMode: props.taskMode,
-      startTime: input.startTime ?? props.startTime,
-      dueDate: input.dueDate ?? props.dueDate,
-      recurrence: props.recurrence,
-      pushCount: props.pushCount,
-      tags: input.tags ?? (props.tags as string[] | undefined) ?? [],
-      contexts: input.contexts ?? (props.contexts as string[] | undefined) ?? [],
-      checklist: props.checklist,
-      description: input.description ?? props.description,
-      attachments: props.attachments,
-      location: props.location,
-      projectId: input.projectId ?? props.projectId,
-      order: props.order ?? props.orderNum ?? undefined,
-      orderNum: props.orderNum ?? props.order ?? undefined,
-      isFocusedToday: props.isFocusedToday ?? false,
-      timeEstimate: input.timeEstimate ?? props.timeEstimate,
-      reviewAt: props.reviewAt,
-      completedAt: props.completedAt,
-      createdAt: now,
-      updatedAt: now,
-      deletedAt: undefined,
-      purgedAt: undefined,
-    };
-    if (task.isFocusedToday === true) {
-      const existingTasks = listTasks(db, { status: 'all', includeDeleted: false });
-      const projects = listProjects(db);
-      const settings = getSettingsForFocus(db);
-      const focusTaskLimit = normalizeFocusTaskLimit(settings.gtd?.focusTaskLimit);
-      const focusedCount = existingTasks.filter((candidate) => (
-        candidate.isFocusedToday === true
-        && candidate.status !== 'done'
-        && candidate.status !== 'reference'
-      )).length;
-      const focusCandidate: Task = { ...task, isFocusedToday: false };
-      const focusEligibility = getTaskFocusEligibility(focusCandidate, {
-        tasks: [...existingTasks, focusCandidate],
-        projects,
-        showFutureStarts: settings.appearance?.showFutureStarts,
-      });
-      if (!focusEligibility.eligible || focusedCount >= focusTaskLimit) {
-        task.isFocusedToday = false;
-      }
-    }
-
-    const { insertColumns } = getTaskColumns(db);
-    const insert = db.prepare(`
-      INSERT INTO tasks (
-        ${insertColumns.join(', ')}
-      ) VALUES (
-        ${insertColumns.map((col) => `@${col}`).join(', ')}
-      )
-    `);
-    const taskValues = taskToSqliteRow(task);
-    const taskSqliteRow = Object.fromEntries(
-      TASK_SQLITE_COLUMNS
-        .map((column, index) => [column, taskValues[index]] as const)
-        .filter(([column]) => insertColumns.includes(column))
-    );
-    insert.run(taskSqliteRow);
-
-    return task as TaskRow;
-  });
 }
 
 export type UpdateTaskInput = {

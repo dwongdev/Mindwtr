@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { addTask, getPerson, listPeople, listTasks, parseQuickAdd, type ProjectRef } from './queries.js';
+import { getPerson, listPeople, listTasks, parseQuickAdd, type ProjectRef } from './queries.js';
 import type { DbClient } from './db.js';
 
 const createMockDb = (
@@ -217,70 +217,6 @@ describe('mcp queries', () => {
             sectionId: 's1',
             areaId: 'a1',
         });
-    });
-
-    test('addTask quickAdd uses lightweight project lookup', () => {
-        const now = '2026-02-01T00:00:00.000Z';
-        const { db, calls } = createMockDb([{ id: 'p1', title: 'Home', createdAt: now, updatedAt: now }]);
-
-        const created = addTask(db, { quickAdd: 'Buy milk +Home' });
-
-        expect(created.title).toBe('Buy milk');
-        expect(created.projectId).toBe('p1');
-        const projectLookup = calls.find((call) => call.sql.startsWith('SELECT id, title FROM projects WHERE deletedAt IS NULL'));
-        expect(projectLookup).toBeTruthy();
-    });
-
-    test('addTask quickAdd can focus an implied-next task', () => {
-        const { db } = createMockDb([]);
-
-        const created = addTask(db, { quickAdd: 'Call plumber /* focus' });
-
-        expect(created.title).toBe('Call plumber');
-        expect(created.status).toBe('next');
-        expect(created.isFocusedToday).toBe(true);
-    });
-
-    test('addTask quickAdd respects focus limit', () => {
-        const now = '2026-02-01T00:00:00.000Z';
-        const { db } = createMockDb([
-            { id: 't1', title: 'Focused 1', status: 'next', isFocusedToday: 1, createdAt: now, updatedAt: now },
-            { id: 't2', title: 'Focused 2', status: 'next', isFocusedToday: 1, createdAt: now, updatedAt: now },
-            { id: 't3', title: 'Focused 3', status: 'next', isFocusedToday: 1, createdAt: now, updatedAt: now },
-        ]);
-
-        const created = addTask(db, { quickAdd: 'Over limit /*' });
-
-        expect(created.status).toBe('next');
-        expect(created.isFocusedToday).toBe(false);
-    });
-
-    test('wraps addTask in a transaction', () => {
-        const now = '2026-02-01T00:00:00.000Z';
-        const { db, calls } = createMockDb([{ id: 'p1', title: 'Home', createdAt: now, updatedAt: now }]);
-
-        addTask(db, { title: 'Task in tx' });
-
-        expect(calls.some((call) => call.sql === 'BEGIN IMMEDIATE')).toBe(true);
-        expect(calls.some((call) => call.sql === 'COMMIT')).toBe(true);
-    });
-
-    test('rolls back addTask transaction on error', () => {
-        const { db, calls } = createMockDb([]);
-
-        expect(() => addTask(db, { title: '   ' })).toThrow('Task title is required.');
-
-        expect(calls.some((call) => call.sql === 'BEGIN IMMEDIATE')).toBe(true);
-        expect(calls.some((call) => call.sql === 'ROLLBACK')).toBe(true);
-    });
-
-    test('rejects invalid task status instead of defaulting to inbox', () => {
-        const { db, calls } = createMockDb([]);
-
-        expect(() => addTask(db, { title: 'Task', status: 'not-a-status' as any })).toThrow('Invalid task status: not-a-status');
-
-        expect(calls.some((call) => call.sql === 'BEGIN IMMEDIATE')).toBe(true);
-        expect(calls.some((call) => call.sql === 'ROLLBACK')).toBe(true);
     });
 
     test('maps area, section, text direction, and location fields from task rows', () => {
