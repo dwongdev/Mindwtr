@@ -312,6 +312,10 @@ jobs:
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
           ANALYTICS_HEARTBEAT_URL: ${{ secrets.ANALYTICS_HEARTBEAT_URL }}
+          # Bake the channel: prerelease AABs only ever reach Play testing tracks, stable
+          # AABs ship via Play. Runtime install-referrer detection misfiled testers as
+          # android-unknown because testing-track installs carry no referrer.
+          ANALYTICS_HEARTBEAT_CHANNEL: ${{ contains(inputs.tag || github.event.inputs.tag || github.ref_name, '-') && 'android-internal-test' || 'play-store' }}
           ANALYTICS_RELEASE_VERSION: ${{ inputs.tag || github.event.inputs.tag || github.ref_name }}
           FEEDBACK_ENDPOINT_URL: ${{ vars.FEEDBACK_ENDPOINT_URL || vars.VITE_FEEDBACK_ENDPOINT_URL || 'https://feedback.mindwtr.app' }}
 
@@ -457,6 +461,8 @@ jobs:
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
           ANALYTICS_HEARTBEAT_URL: ${{ secrets.ANALYTICS_HEARTBEAT_URL }}
+          # This APK is attached to the GitHub release and installed directly.
+          ANALYTICS_HEARTBEAT_CHANNEL: android-direct
           ANALYTICS_RELEASE_VERSION: ${{ inputs.tag || github.event.inputs.tag || github.ref_name }}
           FEEDBACK_ENDPOINT_URL: ${{ vars.FEEDBACK_ENDPOINT_URL || vars.VITE_FEEDBACK_ENDPOINT_URL || 'https://feedback.mindwtr.app' }}
 
