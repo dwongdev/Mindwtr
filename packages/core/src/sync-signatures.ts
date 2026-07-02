@@ -76,22 +76,41 @@ const normalizeAttachmentsForContentComparison = (
 export const normalizeTaskForContentComparison = (task: Task): Record<string, unknown> => {
     const hasRecurrence = task.recurrence !== undefined && task.recurrence !== null;
     const comparable: Record<string, unknown> = {
-        ...task,
+        id: task.id,
+        title: task.title,
+        status: task.status === 'inbox' ? undefined : task.status,
+        priority: task.priority,
+        energyLevel: task.energyLevel,
+        assignedTo: task.assignedTo,
+        taskMode: task.taskMode,
+        startTime: task.startTime,
+        relativeStartOffset: task.relativeStartOffset,
+        dueDate: task.dueDate,
+        recurrence: task.recurrence,
         tags: normalizeOptionalArrayForComparison(task.tags),
         contexts: normalizeOptionalArrayForComparison(task.contexts),
         checklist: normalizeOptionalArrayForComparison(task.checklist),
+        description: task.description,
+        textDirection: task.textDirection,
         // Attachment entities merge independently. Ignore file transport/runtime fields here
         // so task conflicts only reflect meaningful task-level attachment changes. Once
         // the parent task is deleted, attachment tombstone cleanup should not keep
         // surfacing as a user-visible task conflict.
         attachments: task.deletedAt ? undefined : normalizeAttachmentsForContentComparison(task.attachments),
+        location: task.location,
+        projectId: task.projectId,
+        sectionId: task.sectionId,
+        areaId: task.areaId,
         isFocusedToday: task.isFocusedToday ? true : undefined,
+        timeEstimate: task.timeEstimate,
         showFutureRecurrence: hasRecurrence && task.showFutureRecurrence ? true : undefined,
         suppressMindwtrReminders: task.suppressMindwtrReminders ? true : undefined,
         pushCount: task.pushCount === 0 ? undefined : task.pushCount,
         repeatReminderMinutes: task.repeatReminderMinutes ? task.repeatReminderMinutes : undefined,
+        reviewAt: task.reviewAt,
+        completedAt: task.completedAt,
+        deletedAt: task.deletedAt,
     };
-    if (task.status === 'inbox') delete comparable.status;
     return comparable;
 };
 

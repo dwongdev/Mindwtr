@@ -30,6 +30,15 @@ describe('normalizeTaskForSyncMerge repeatReminderMinutes', () => {
         const task = normalizeTaskForSyncMerge(taskWith(15), NOW);
         expect(task.repeatReminderMinutes).toBe(15);
     });
+
+    it('drops unknown legacy task fields', () => {
+        const task = normalizeTaskForSyncMerge({
+            ...taskWith(15),
+            removedLegacyField: 'stale remote value',
+        } as Task & Record<string, unknown>, NOW) as Task & Record<string, unknown>;
+
+        expect(task.removedLegacyField).toBeUndefined();
+    });
 });
 
 const normalizeForMerge = (data: AppData, nowIso = NOW): AppData => {

@@ -52,6 +52,17 @@ describe('sync signatures', () => {
         expect(set15).not.toBe(undef);
     });
 
+    it('ignores unknown legacy task fields in content signatures', () => {
+        const base = normalizeTaskForContentComparison(task());
+        const withLegacyField = normalizeTaskForContentComparison({
+            ...task(),
+            removedLegacyField: 'stale remote value',
+        } as Task & Record<string, unknown>);
+
+        expect(toComparableSignature(withLegacyField)).toBe(toComparableSignature(base));
+        expect(withLegacyField).not.toHaveProperty('removedLegacyField');
+    });
+
     it('normalizes area default color and ordering for content comparison', () => {
         const local = normalizeAreaForContentComparison(area({
             color: '#6B7280',
