@@ -240,7 +240,7 @@ describe('mobile storage adapter', () => {
   }, 10_000);
 
   it('runs legacy SQLite connection pragmas outside transactions', async () => {
-    const directExec = vi.fn((_queries, _readOnly, callback) => callback(null, []));
+    const directExec = vi.fn((_queries, _readOnly, callback) => callback?.(null, []));
     const transactionStatements: string[] = [];
     const db = {
       exec: directExec,
@@ -257,8 +257,9 @@ describe('mobile storage adapter', () => {
     const { __mobileStorageTestUtils } = await import('./storage-adapter');
     const { SQLITE_BASE_SCHEMA } = await import('@mindwtr/core');
     const client = __mobileStorageTestUtils.createLegacyClientForTests(db);
+    expect(client.exec).toBeDefined();
 
-    await client.exec(SQLITE_BASE_SCHEMA);
+    await client.exec?.(SQLITE_BASE_SCHEMA);
 
     expect(directExec.mock.calls.map(([queries]) => queries[0].sql)).toEqual([
       'PRAGMA journal_mode = WAL',
