@@ -13,7 +13,7 @@ on:
       play_track:
         description: 'Additional Google Play testing tracks for the normal RC AAB (comma-separated; use beta for open testing). Internal is always published as a profileable build when Play testing runs.'
         required: false
-        default: 'none'
+        default: 'beta'
         type: string
       run_play_testing:
         description: 'Upload the Android AAB to the configured Google Play testing tracks'
@@ -198,28 +198,104 @@ jobs:
       run_msstore: false
     secrets: inherit
 
-  android:
+  android-version-code:
     if: ${{ needs.validate.outputs.retag_recovery != 'true' }}
     needs: validate
+    runs-on: ubuntu-latest
+    name: Android VersionCode Preflight
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    outputs:
+      version_code: ${{ steps.version_code.outputs.resolved_code }}
+      local_version_code: ${{ steps.version_code.outputs.local_code }}
+      remote_max_version_code: ${{ steps.version_code.outputs.remote_max_code }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+        with:
+          ref: ${{ needs.validate.outputs.tag }}
+
+      - name: Authenticate Google Play API
+        if: ${{ github.event_name != 'workflow_dispatch' || inputs.run_play_testing }}
+        id: play_auth
+        uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093 # v3.0.0
+        with:
+          credentials_json: ${{ secrets.ANDROID_SERVICE_ACCOUNT_JSON }}
+          token_format: access_token
+          access_token_scopes: https://www.googleapis.com/auth/androidpublisher
+
+      - name: Resolve Android versionCode
+        id: version_code
+        env:
+          ACCESS_TOKEN: ${{ steps.play_auth.outputs.access_token }}
+          USE_PLAY_TRACKS: ${{ github.event_name != 'workflow_dispatch' || inputs.run_play_testing }}
+        run: |
+          set -euo pipefail
+          PACKAGE="tech.dongdongbh.mindwtr"
+          MAX_CODE=0
+          if [ "$USE_PLAY_TRACKS" = "true" ]; then
+            if [ -z "${ACCESS_TOKEN:-}" ]; then
+              echo "Missing Google Play access token for Android versionCode preflight" >&2
+              exit 1
+            fi
+            EDIT_ID=$(curl -sS -X POST \
+              -H "Authorization: Bearer $ACCESS_TOKEN" \
+              -H "Content-Type: application/json" \
+              "https://androidpublisher.googleapis.com/androidpublisher/v3/applications/$PACKAGE/edits" \
+              -d '{}' | jq -r '.id')
+            if [ -z "$EDIT_ID" ] || [ "$EDIT_ID" = "null" ]; then
+              echo "Failed to create Google Play edit" >&2
+              exit 1
+            fi
+            TRACKS_FILE=$(mktemp)
+            TRACKS_CODE=$(curl -sS -o "$TRACKS_FILE" -w "%{http_code}" \
+              -H "Authorization: Bearer $ACCESS_TOKEN" \
+              "https://androidpublisher.googleapis.com/androidpublisher/v3/applications/$PACKAGE/edits/$EDIT_ID/tracks")
+            TRACKS_JSON=$(cat "$TRACKS_FILE")
+            if [ "$TRACKS_CODE" != "200" ]; then
+              echo "Failed to fetch Google Play tracks (HTTP $TRACKS_CODE): $TRACKS_JSON" >&2
+              exit 1
+            fi
+            if echo "$TRACKS_JSON" | jq -e '.error' >/dev/null; then
+              echo "Failed to fetch Google Play tracks: $TRACKS_JSON" >&2
+              exit 1
+            fi
+            MAX_CODE=$(echo "$TRACKS_JSON" | jq -r '[(.tracks // [])[]? | (.releases // [])[]? | (.versionCodes // [])[]? | tonumber] | max // 0')
+            if [ -z "$MAX_CODE" ] || [ "$MAX_CODE" = "null" ]; then
+              MAX_CODE=0
+            fi
+            curl -sS -X DELETE \
+              -H "Authorization: Bearer $ACCESS_TOKEN" \
+              "https://androidpublisher.googleapis.com/androidpublisher/v3/applications/$PACKAGE/edits/$EDIT_ID" >/dev/null
+          fi
+          REMOTE_MAX_VERSION_CODE="$MAX_CODE" \
+            ALLOW_UNTRACKED_VERSION_CODE=1 \
+            node scripts/ci/android-version-code-policy.js
+
+  android:
+    if: ${{ needs.validate.outputs.retag_recovery != 'true' }}
+    needs: [validate, android-version-code]
     permissions:
       actions: read
       contents: read
     uses: ./.github/workflows/release-android.yml
     with:
       tag: ${{ needs.validate.outputs.tag }}
-      play_track: ${{ github.event_name != 'workflow_dispatch' && 'internal' || (inputs.run_play_testing && format('internal,{0}', inputs.play_track) || 'none') }}
+      play_track: ${{ github.event_name != 'workflow_dispatch' && 'internal,beta' || (inputs.run_play_testing && format('internal,{0}', inputs.play_track) || 'none') }}
+      version_code: ${{ needs['android-version-code'].outputs.version_code }}
       internal_test_release: false
       release_notes: 'Mindwtr release candidate. Please test launch, capture, task editing, task completion, sync settings, and upgrade from the previous stable release.'
       retention_days: '28'
     secrets: inherit
 
   android-foss:
-    if: ${{ always() && needs.validate.outputs.retag_recovery != 'true' && needs.validate.result == 'success' && needs.android.result == 'success' }}
-    needs: [validate, android]
+    if: ${{ always() && needs.validate.outputs.retag_recovery != 'true' && needs.validate.result == 'success' && needs['android-version-code'].result == 'success' }}
+    needs: [validate, android-version-code]
     uses: ./.github/workflows/release-android-foss.yml
     with:
       tag: ${{ needs.validate.outputs.tag }}
-      version_code: ${{ needs.android.outputs.version_code }}
+      version_code: ${{ needs['android-version-code'].outputs.version_code }}
     secrets: inherit
 
   ios-appstore:
