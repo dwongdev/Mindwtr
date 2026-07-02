@@ -119,7 +119,7 @@ export default function InboxScreen() {
         showHeader={false}
         enableBulkActions
         enableInboxBulkOrganize
-        allowAdd={false}
+        allowAdd
         showQuickAddHelp={false}
         emptyText={t('inbox.empty')}
         emptyHint={emptyHint}

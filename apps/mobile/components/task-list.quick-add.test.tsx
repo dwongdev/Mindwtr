@@ -586,7 +586,7 @@ describe('TaskList project quick add', () => {
 
     expect(addTaskMock).toHaveBeenCalledWith('Draft launch checklist', expect.objectContaining({
       projectId: project.id,
-      status: 'next',
+      status: 'inbox',
     }));
     expect(latestQuickAddProps().newTaskTitle).toBe('');
     expect(quickAddFocusMock).toHaveBeenCalledTimes(1);
@@ -615,7 +615,7 @@ describe('TaskList project quick add', () => {
     expect(addTaskMock).toHaveBeenCalledWith('Focus launch checklist', expect.objectContaining({
       isFocusedToday: true,
       projectId: project.id,
-      status: 'next',
+      status: 'inbox',
     }));
 
     act(() => {
@@ -646,7 +646,7 @@ describe('TaskList project quick add', () => {
 
     expect(addTaskMock).toHaveBeenCalledWith('Add launch brief', expect.objectContaining({
       projectId: project.id,
-      status: 'next',
+      status: 'inbox',
     }));
     expect(setHighlightTaskMock).toHaveBeenCalledWith('created-task');
     expect(taskEditModalPropsSpy.mock.calls.at(-1)?.[0]).toEqual(expect.objectContaining({

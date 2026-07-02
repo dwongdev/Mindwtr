@@ -1330,9 +1330,7 @@ function TaskListComponent({
   const handleAddTask = async (options: AddTaskOptions = {}) => {
     if (!newTaskTitle.trim()) return;
 
-    const defaultStatus: TaskStatus = projectId
-      ? 'next'
-      : (statusFilter !== 'all' ? statusFilter : 'inbox');
+    const defaultStatus: TaskStatus = 'inbox';
 
     const { title: parsedTitle, props, projectTitle, invalidDateCommands } = parseQuickAdd(newTaskTitle, projects, new Date(), areas, {
       defaultScheduleTime: normalizeClockTimeInput(settings.gtd?.defaultScheduleTime) || undefined,
