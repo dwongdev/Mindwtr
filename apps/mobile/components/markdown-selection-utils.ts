@@ -51,6 +51,42 @@ export const createIgnoredNativePairChange = (
     };
 };
 
+const getInsertedTextFromChange = (previousValue: string, nextValue: string): string | null => {
+    let start = 0;
+    while (
+        start < previousValue.length
+        && start < nextValue.length
+        && previousValue[start] === nextValue[start]
+    ) {
+        start += 1;
+    }
+
+    let previousEnd = previousValue.length;
+    let nextEnd = nextValue.length;
+    while (
+        previousEnd > start
+        && nextEnd > start
+        && previousValue[previousEnd - 1] === nextValue[nextEnd - 1]
+    ) {
+        previousEnd -= 1;
+        nextEnd -= 1;
+    }
+
+    const insertedText = nextValue.slice(start, nextEnd);
+    return insertedText.length > 0 ? insertedText : null;
+};
+
+export const createIgnoredNativePairChangeFromTextChange = (
+    previousValue: string,
+    nextValue: string,
+    baseSelection: MarkdownSelection,
+    result: MarkdownToolbarResult,
+): IgnoredNativePairChange | null => {
+    const insertedText = getInsertedTextFromChange(previousValue, nextValue);
+    if (!insertedText) return null;
+    return createIgnoredNativePairChange(previousValue, insertedText, baseSelection, result);
+};
+
 export const shouldIgnoreNativePairChange = (
     nextValue: string,
     currentValue: string,

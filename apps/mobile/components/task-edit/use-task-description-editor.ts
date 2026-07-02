@@ -17,6 +17,7 @@ import {
     applyMarkdownPairInsertionWithSelectionFallback,
     applyMarkdownUrlPasteWithSelectionFallback,
     createIgnoredNativePairChange,
+    createIgnoredNativePairChangeFromTextChange,
     shouldIgnoreNativePairKeyPress,
     shouldIgnoreNativePairChange,
     type IgnoredNativePairChange,
@@ -231,6 +232,12 @@ export function useTaskDescriptionEditor({
             { assist: assistEnabled },
         );
         if (pairedInsertion) {
+            ignoredNativePairChangeRef.current = createIgnoredNativePairChangeFromTextChange(
+                previousValue,
+                text,
+                pairedInsertion.baseSelection,
+                pairedInsertion.result,
+            );
             lastDescriptionRangeRef.current = isRangeSelection(pairedInsertion.result.selection)
                 ? pairedInsertion.result.selection
                 : null;

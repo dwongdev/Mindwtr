@@ -27,6 +27,7 @@ import {
     applyMarkdownPairInsertionWithSelectionFallback,
     applyMarkdownPairKeyPressWithSelectionFallback,
     createIgnoredNativePairChange,
+    createIgnoredNativePairChangeFromTextChange,
     shouldIgnoreNativePairKeyPress,
     shouldIgnoreNativePairChange,
     type IgnoredNativePairChange,
@@ -262,6 +263,17 @@ export function TaskEditContentField({
             { assist: assistEnabled },
         );
         if (pairedInsertion) {
+            const ignoredTextChange = createIgnoredNativePairChangeFromTextChange(
+                previousValue,
+                text,
+                pairedInsertion.baseSelection,
+                pairedInsertion.result,
+            );
+            if (ignoredTextChange) {
+                ignoredNativePairChangeRefs.current[key] = ignoredTextChange;
+            } else {
+                delete ignoredNativePairChangeRefs.current[key];
+            }
             lastChecklistRangeRefs.current[key] = isRangeSelection(pairedInsertion.result.selection)
                 ? pairedInsertion.result.selection
                 : null;

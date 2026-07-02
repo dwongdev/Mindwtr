@@ -39,6 +39,7 @@ import {
     applyMarkdownPairInsertionWithSelectionFallback,
     applyMarkdownUrlPasteWithSelectionFallback,
     createIgnoredNativePairChange,
+    createIgnoredNativePairChangeFromTextChange,
     shouldIgnoreNativePairKeyPress,
     shouldIgnoreNativePairChange,
     type IgnoredNativePairChange,
@@ -353,6 +354,12 @@ export function ExpandedMarkdownEditor({
             { assist: assistEnabled },
         );
         if (pairedInsertion) {
+            ignoredNativePairChangeRef.current = createIgnoredNativePairChangeFromTextChange(
+                valueRef.current,
+                nextValue,
+                pairedInsertion.baseSelection,
+                pairedInsertion.result,
+            );
             valueRef.current = pairedInsertion.result.value;
             selectionRef.current = pairedInsertion.result.selection;
             lastRangeSelectionRef.current = isRangeSelection(pairedInsertion.result.selection) ? pairedInsertion.result.selection : null;

@@ -5,6 +5,7 @@ import {
     applyMarkdownPairInsertionWithSelectionFallback,
     applyMarkdownUrlPasteWithSelectionFallback,
     createIgnoredNativePairChange,
+    createIgnoredNativePairChangeFromTextChange,
     shouldIgnoreNativePairChange,
 } from './markdown-selection-utils';
 
@@ -31,6 +32,31 @@ describe('markdown selection replacement fallbacks', () => {
         expect(shouldIgnoreNativePairChange('(()', '()', ignored)).toBe(true);
         expect(shouldIgnoreNativePairChange('(())', '()', ignored)).toBe(true);
         expect(shouldIgnoreNativePairChange('()a', '()', ignored)).toBe(false);
+    });
+
+    it('recognizes duplicate native pair changes after a text change applies the pair first', () => {
+        const paired = applyMarkdownPairInsertionWithSelectionFallback(
+            '',
+            '(',
+            { start: 0, end: 0 },
+        );
+        expect(paired?.result).toEqual({
+            value: '()',
+            selection: { start: 1, end: 1 },
+        });
+
+        const ignored = createIgnoredNativePairChangeFromTextChange(
+            '',
+            '(',
+            paired!.baseSelection,
+            paired!.result,
+        );
+        expect(ignored).not.toBeNull();
+
+        expect(shouldIgnoreNativePairChange('(', '()', ignored!)).toBe(true);
+        expect(shouldIgnoreNativePairChange('(()', '()', ignored!)).toBe(true);
+        expect(shouldIgnoreNativePairChange('(())', '()', ignored!)).toBe(true);
+        expect(shouldIgnoreNativePairChange('()a', '()', ignored!)).toBe(false);
     });
 
     it('uses the last range selection when mobile paste collapses the current selection first', () => {
