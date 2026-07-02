@@ -143,6 +143,10 @@ static const MWFieldSpec kTaskFields[] = {
     {"repeatReminderMinutes", "repeatReminderMinutes", MWFieldKindInt},
     {"reviewAt",       "reviewAt",        MWFieldKindDate},
     {"completedAt",    "completedAt",     MWFieldKindDate},
+    {"statusBeforeProjectArchive", "statusBeforeProjectArchive", MWFieldKindString},
+    {"completedAtBeforeProjectArchive", "completedAtBeforeProjectArchive", MWFieldKindDate},
+    {"isFocusedTodayBeforeProjectArchive", "isFocusedTodayBeforeProjectArchive", MWFieldKindBool},
+    {"projectArchivedAt", "projectArchivedAt", MWFieldKindDate},
     {"rev",            "rev",             MWFieldKindInt},
     {"revBy",          "revBy",           MWFieldKindString},
     {"createdAt",      "createdAt",       MWFieldKindDate},
@@ -189,6 +193,8 @@ static const MWFieldSpec kSectionFields[] = {
     {"createdAt",   "createdAt",          MWFieldKindDate},
     {"updatedAt",   "updatedAt",          MWFieldKindDate},
     {"deletedAt",   "deletedAt",          MWFieldKindDate},
+    {"deletedAtBeforeProjectArchive", "deletedAtBeforeProjectArchive", MWFieldKindDate},
+    {"projectArchivedAt", "projectArchivedAt", MWFieldKindDate},
 };
 static const size_t kSectionFieldsCount = sizeof(kSectionFields) / sizeof(kSectionFields[0]);
 

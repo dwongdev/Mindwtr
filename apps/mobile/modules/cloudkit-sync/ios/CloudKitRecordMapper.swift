@@ -136,6 +136,10 @@ enum CloudKitRecordMapper {
         FieldSpec(jsKey: "repeatReminderMinutes", ckKey: "repeatReminderMinutes", kind: .int),
         FieldSpec(jsKey: "reviewAt", ckKey: "reviewAt", kind: .date),
         FieldSpec(jsKey: "completedAt", ckKey: "completedAt", kind: .date),
+        FieldSpec(jsKey: "statusBeforeProjectArchive", ckKey: "statusBeforeProjectArchive", kind: .string),
+        FieldSpec(jsKey: "completedAtBeforeProjectArchive", ckKey: "completedAtBeforeProjectArchive", kind: .date),
+        FieldSpec(jsKey: "isFocusedTodayBeforeProjectArchive", ckKey: "isFocusedTodayBeforeProjectArchive", kind: .bool),
+        FieldSpec(jsKey: "projectArchivedAt", ckKey: "projectArchivedAt", kind: .date),
         FieldSpec(jsKey: "rev", ckKey: "rev", kind: .int),
         FieldSpec(jsKey: "revBy", ckKey: "revBy", kind: .string),
         FieldSpec(jsKey: "createdAt", ckKey: "createdAt", kind: .date),
@@ -184,6 +188,8 @@ enum CloudKitRecordMapper {
         FieldSpec(jsKey: "createdAt", ckKey: "createdAt", kind: .date),
         FieldSpec(jsKey: "updatedAt", ckKey: "updatedAt", kind: .date),
         FieldSpec(jsKey: "deletedAt", ckKey: "deletedAt", kind: .date),
+        FieldSpec(jsKey: "deletedAtBeforeProjectArchive", ckKey: "deletedAtBeforeProjectArchive", kind: .date),
+        FieldSpec(jsKey: "projectArchivedAt", ckKey: "projectArchivedAt", kind: .date),
     ]
 
     // MARK: - Area Fields

@@ -82,6 +82,44 @@ describe('CloudKit native field specs', () => {
         expect(swiftProjectFields).toContain('purgedAt');
         expect(macosProjectFields).toContain('purgedAt');
     });
+
+    it('maps project archive restore metadata in Swift and macOS CloudKit mappers', () => {
+        const swiftTaskFields = extractSourceBlock(
+            swiftMapperSource,
+            /private static let taskFieldSpecs: \[FieldSpec\] = \[([\s\S]*?)\n    \]/,
+            'Swift task',
+        );
+        const swiftSectionFields = extractSourceBlock(
+            swiftMapperSource,
+            /private static let sectionFieldSpecs: \[FieldSpec\] = \[([\s\S]*?)\n    \]/,
+            'Swift section',
+        );
+        const macosTaskFields = extractSourceBlock(
+            macosBridgeSource,
+            /static const MWFieldSpec kTaskFields\[\] = \{([\s\S]*?)\n\};/,
+            'macOS task',
+        );
+        const macosSectionFields = extractSourceBlock(
+            macosBridgeSource,
+            /static const MWFieldSpec kSectionFields\[\] = \{([\s\S]*?)\n\};/,
+            'macOS section',
+        );
+
+        for (const field of [
+            'statusBeforeProjectArchive',
+            'completedAtBeforeProjectArchive',
+            'isFocusedTodayBeforeProjectArchive',
+            'projectArchivedAt',
+        ]) {
+            expect(swiftTaskFields).toContain(field);
+            expect(macosTaskFields).toContain(field);
+        }
+
+        for (const field of ['deletedAtBeforeProjectArchive', 'projectArchivedAt']) {
+            expect(swiftSectionFields).toContain(field);
+            expect(macosSectionFields).toContain(field);
+        }
+    });
 });
 
 describe('cloudkit-sync abort handling', () => {
