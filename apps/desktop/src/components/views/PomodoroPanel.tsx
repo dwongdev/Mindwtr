@@ -193,7 +193,6 @@ export function PomodoroPanel({ tasks }: PomodoroPanelProps) {
     useEffect(() => {
         saveStoredPomodoroSnapshot(snapshot);
     // Persist the reconciled startup snapshot once, including any session that completed while the app was closed.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
     const commitSnapshot = useCallback((updater: (prev: PomodoroSnapshot) => PomodoroSnapshot) => {
