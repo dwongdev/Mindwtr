@@ -408,7 +408,7 @@ describe('TaskList project quick add', () => {
     />,
   );
 
-  it("does not show standalone quick-add outside Inbox", async () => {
+  it("does not show standalone quick-add outside a project", async () => {
     let tree!: ReturnType<typeof create>;
 
     await act(async () => {
@@ -533,37 +533,13 @@ describe('TaskList project quick add', () => {
     });
   });
 
-  it('assigns standalone quick-add tasks to the selected area filter in active area mode', async () => {
-    selectedAreaIdForNewTasksMock.current = 'area-work';
-    storeState.areas = [{
-      id: 'area-work',
-      name: 'Work',
-      order: 0,
-      createdAt: '2026-06-01T00:00:00.000Z',
-      updatedAt: '2026-06-01T00:00:00.000Z',
-    }];
-    storeState.settings = {
-      ...storeState.settings,
-      gtd: { defaultAreaMode: 'active', defaultAreaId: 'area-home' },
-    };
-
+  it('does not show an in-page composer on the Inbox; capture uses the bottom-bar button', async () => {
     let tree!: ReturnType<typeof create>;
     await act(async () => {
       tree = renderInboxList();
     });
 
-    await act(async () => {
-      latestQuickAddProps().onChangeText('Capture work task');
-    });
-
-    await act(async () => {
-      await latestQuickAddProps().handleAddTask();
-    });
-
-    expect(addTaskMock).toHaveBeenCalledWith('Capture work task', expect.objectContaining({
-      areaId: 'area-work',
-      status: 'inbox',
-    }));
+    expect(quickAddPropsSpy).not.toHaveBeenCalled();
 
     act(() => {
       tree.unmount();

@@ -413,7 +413,9 @@ function TaskListComponent({
   const shouldGroupCompletedTasks = Boolean(groupCompletedTasksLast && projectId && statusFilter === 'all');
   const projectReorderMode = projectReorderModeProp ?? internalProjectReorderMode;
   const quickAddInputRef = useRef<TextInput | null>(null);
-  const quickAddAvailable = allowAdd && !projectReorderMode && (Boolean(projectId) || statusFilter === 'inbox');
+  // Inline quick-add only inside a project view. The Inbox intentionally has no
+  // in-page composer on mobile: capture goes through the bottom-bar + button.
+  const quickAddAvailable = allowAdd && !projectReorderMode && Boolean(projectId);
   const aiEnabled = settings?.ai?.enabled === true;
   const quickAddCopilotEnabled = quickAddAvailable && enableCopilot && aiEnabled;
   const focusTaskLimit = normalizeFocusTaskLimit(settings?.gtd?.focusTaskLimit);

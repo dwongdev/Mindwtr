@@ -119,8 +119,6 @@ export default function InboxScreen() {
         showHeader={false}
         enableBulkActions
         enableInboxBulkOrganize
-        allowAdd
-        showQuickAddHelp={false}
         emptyText={t('inbox.empty')}
         emptyHint={emptyHint}
         emptyActionLabel={emptyActionLabel}
