@@ -4,9 +4,14 @@ const isFossBuild = process.env.FOSS_BUILD === '1' || process.env.FOSS_BUILD ===
 const analyticsHeartbeatDisabled = process.env.ANALYTICS_HEARTBEAT_DISABLED === '1'
   || process.env.ANALYTICS_HEARTBEAT_DISABLED === 'true';
 const configuredAnalyticsHeartbeatUrl = (process.env.ANALYTICS_HEARTBEAT_URL ?? '').trim();
+// Committed default so source-built releases (F-Droid, IzzyOnDroid reproducible builds)
+// send the anonymous opt-out heartbeat too — a CI secret cannot reach those builds, and
+// baking it from source keeps the FOSS APK byte-identical across rebuilds. Dev builds
+// and Expo Go never send regardless of this value.
+const DEFAULT_ANALYTICS_HEARTBEAT_URL = 'https://mindwtr-analytics.mindwtr.workers.dev/';
 const analyticsHeartbeatUrl = analyticsHeartbeatDisabled
   ? ''
-  : configuredAnalyticsHeartbeatUrl;
+  : (configuredAnalyticsHeartbeatUrl || DEFAULT_ANALYTICS_HEARTBEAT_URL);
 const analyticsHeartbeatChannel = (
   process.env.ANALYTICS_HEARTBEAT_CHANNEL
     ?? (isFossBuild && analyticsHeartbeatUrl ? 'fdroid' : '')
