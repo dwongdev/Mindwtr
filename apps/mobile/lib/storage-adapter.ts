@@ -10,6 +10,7 @@ import { markStartupPhase, measureStartupPhase } from './startup-profiler';
 
 const DATA_KEY = WIDGET_DATA_KEY;
 const STARTUP_BACKUP_VERSION_KEY = `${DATA_KEY}:startup-backup-version`;
+const STARTUP_BACKUP_UPDATED_AT_KEY = `${DATA_KEY}:startup-backup-updated-at`;
 const STARTUP_BACKUP_VERSION = '2';
 const LEGACY_DATA_KEYS = ['focus-gtd-data', 'gtd-todo-data', 'gtd-data'];
 const EMPTY_APP_DATA: AppData = { tasks: [], projects: [], sections: [], areas: [], people: [], settings: {} };
@@ -54,6 +55,13 @@ let sqliteOpenMode = 'unknown';
 let preferJsonBackup = false;
 let preferJsonBackupUntil = 0;
 let didWarnPreferJsonBackup = false;
+let latestQueuedWriteStartedAtMs = 0;
+
+const markQueuedWriteStarted = (): number => {
+    const startedAtMs = Math.max(Date.now(), latestQueuedWriteStartedAtMs + 1);
+    latestQueuedWriteStartedAtMs = startedAtMs;
+    return startedAtMs;
+};
 
 const formatError = (error: unknown) => (error instanceof Error ? error.message : String(error));
 const buildStorageExtra = (message?: string, error?: unknown): Record<string, string> | undefined => {
@@ -332,14 +340,42 @@ const parseStoredAppDataJson = (jsonValue: string): AppData => (
     normalizeStoredAppData(JSON.parse(jsonValue) as AppData)
 );
 
-const saveStartupJsonBackup = async (AsyncStorage: any, data: AppData, phasePrefix: string): Promise<void> => {
+const saveStartupJsonBackup = async (
+    AsyncStorage: any,
+    data: AppData,
+    phasePrefix: string,
+    minimumUpdatedAtMs = 0,
+): Promise<void> => {
     const jsonValue = await measureStartupPhase(`${phasePrefix}.json_backup_stringify`, async () => JSON.stringify(data));
+    const updatedAtMs = Math.max(Date.now(), minimumUpdatedAtMs);
     await measureStartupPhase(`${phasePrefix}.json_backup_set`, async () =>
         AsyncStorage.setItem(DATA_KEY, jsonValue)
     );
     await measureStartupPhase(`${phasePrefix}.json_backup_version_set`, async () =>
         AsyncStorage.setItem(STARTUP_BACKUP_VERSION_KEY, STARTUP_BACKUP_VERSION)
     );
+    await measureStartupPhase(`${phasePrefix}.json_backup_updated_at_set`, async () =>
+        AsyncStorage.setItem(STARTUP_BACKUP_UPDATED_AT_KEY, String(updatedAtMs))
+    );
+};
+
+const readStartupJsonBackupUpdatedAt = async (AsyncStorage: any): Promise<number | null> => {
+    const raw = await AsyncStorage.getItem(STARTUP_BACKUP_UPDATED_AT_KEY);
+    if (raw == null) return null;
+    const parsed = Number(raw);
+    return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
+};
+
+const assertJsonBackupFreshEnough = async (AsyncStorage: any, phase: string): Promise<void> => {
+    if (latestQueuedWriteStartedAtMs <= 0) return;
+    const backupUpdatedAtMs = await readStartupJsonBackupUpdatedAt(AsyncStorage);
+    if (backupUpdatedAtMs !== null && backupUpdatedAtMs >= latestQueuedWriteStartedAtMs) return;
+    logStorageWarn('[Storage] Refusing stale JSON backup fallback', undefined, {
+        phase,
+        backupUpdatedAtMs: backupUpdatedAtMs === null ? 'missing' : String(backupUpdatedAtMs),
+        latestQueuedWriteStartedAtMs: String(latestQueuedWriteStartedAtMs),
+    });
+    throw new Error('JSON backup is older than the latest queued SQLite write. Please wait for the save to finish and try again.');
 };
 
 export const getMobileStartupSnapshotFromBackup = async (): Promise<AppData | null> => {
@@ -492,7 +528,8 @@ const createStorage = (): StorageAdapter => {
     return {
         getData: async (): Promise<AppData> => {
             markStartupPhase('mobile.storage.get_data.start');
-            const loadJsonBackup = async () => {
+            const loadJsonBackup = async (phase = 'get_data') => {
+                await assertJsonBackupFreshEnough(AsyncStorage, phase);
                 const jsonValue = await getLegacyJson(AsyncStorage);
                 if (jsonValue == null) {
                     return { ...EMPTY_APP_DATA };
@@ -513,11 +550,11 @@ const createStorage = (): StorageAdapter => {
 
             if (shouldUseJsonBackupFastPath()) {
                 warnPreferJsonBackup();
-                return loadJsonBackup();
+                return loadJsonBackup('json_fast_path');
             }
             if (preferJsonBackup && !shouldUseSqlite) {
                 warnPreferJsonBackup();
-                return loadJsonBackup();
+                return loadJsonBackup('json_preferred_sqlite_disabled');
             }
             if (preferJsonBackup) {
                 warnPreferJsonBackup();
@@ -545,7 +582,7 @@ const createStorage = (): StorageAdapter => {
                     )
                 );
                 data.areas = Array.isArray(data.areas) ? data.areas : [];
-                saveStartupJsonBackup(AsyncStorage, data, 'mobile.storage.get_data').catch((error) => {
+                saveStartupJsonBackup(AsyncStorage, data, 'mobile.storage.get_data', latestQueuedWriteStartedAtMs).catch((error) => {
                     logStorageWarn('[Storage] Failed to refresh startup JSON backup from SQLite load', error);
                 });
                 updateMobileWidgetFromData(data).catch((error) => {
@@ -562,7 +599,7 @@ const createStorage = (): StorageAdapter => {
                     logStorageWarn('[Storage] SQLite load failed, falling back to JSON backup', e);
                 }
                 markPreferJsonBackup();
-                const fallbackData = await measureStartupPhase('mobile.storage.get_data.json_fallback_read', async () => loadJsonBackup());
+                const fallbackData = await measureStartupPhase('mobile.storage.get_data.json_fallback_read', async () => loadJsonBackup('get_data_fallback'));
                 markStartupPhase('mobile.storage.get_data.end');
                 return fallbackData;
             }
@@ -570,6 +607,7 @@ const createStorage = (): StorageAdapter => {
         saveData: async (data: AppData): Promise<void> => {
             return enqueueSave(async () => {
                 markStartupPhase('mobile.storage.save_data.start');
+                const queuedWriteStartedAtMs = markQueuedWriteStarted();
                 try {
                     if (!shouldUseSqlite) {
                         throw new Error('SQLite disabled in Expo Go');
@@ -591,7 +629,7 @@ const createStorage = (): StorageAdapter => {
                     }
                 }
                 try {
-                    await saveStartupJsonBackup(AsyncStorage, data, 'mobile.storage.save_data');
+                    await saveStartupJsonBackup(AsyncStorage, data, 'mobile.storage.save_data', queuedWriteStartedAtMs);
                     await measureStartupPhase('mobile.storage.save_data.widget_update', async () => updateMobileWidgetFromData(data));
                     markStartupPhase('mobile.storage.save_data.end');
                 } catch (e) {
@@ -603,6 +641,7 @@ const createStorage = (): StorageAdapter => {
         },
         saveTask: async (task: Task, snapshot?: AppData): Promise<void> => {
             return enqueueSave(async () => {
+                const queuedWriteStartedAtMs = markQueuedWriteStarted();
                 try {
                     if (!shouldUseSqlite) {
                         throw new Error('SQLite disabled in Expo Go');
@@ -611,7 +650,7 @@ const createStorage = (): StorageAdapter => {
                     await measureStartupPhase('mobile.storage.save_task.sqlite_write', async () => adapter.saveTask(task));
                     clearPreferJsonBackup();
                     if (snapshot) {
-                        await saveStartupJsonBackup(AsyncStorage, snapshot, 'mobile.storage.save_task');
+                        await saveStartupJsonBackup(AsyncStorage, snapshot, 'mobile.storage.save_task', queuedWriteStartedAtMs);
                         await measureStartupPhase('mobile.storage.save_task.widget_update', async () => updateMobileWidgetFromData(snapshot));
                     }
                 } catch (error) {
@@ -622,7 +661,7 @@ const createStorage = (): StorageAdapter => {
                     }
 
                     try {
-                        await saveStartupJsonBackup(AsyncStorage, snapshot, 'mobile.storage.save_task.json_fallback');
+                        await saveStartupJsonBackup(AsyncStorage, snapshot, 'mobile.storage.save_task.json_fallback', queuedWriteStartedAtMs);
                         await measureStartupPhase('mobile.storage.save_task.json_fallback_widget_update', async () =>
                             updateMobileWidgetFromData(snapshot)
                         );
@@ -719,6 +758,7 @@ export const __mobileStorageTestUtils = {
     reset: () => {
         saveQueue = Promise.resolve();
         sqliteStatePromise = null;
+        latestQueuedWriteStartedAtMs = 0;
         clearPreferJsonBackup();
     },
     setSqliteStateForTests: (state: { adapter: Pick<SqliteAdapter, 'saveTask'>; client: Partial<SqliteClient> }) => {

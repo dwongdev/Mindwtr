@@ -112,6 +112,10 @@ describe('mobile storage adapter', () => {
       'mindwtr-data:startup-backup-version',
       '2',
     );
+    expect(asyncStorageMock.setItem).toHaveBeenCalledWith(
+      'mindwtr-data:startup-backup-updated-at',
+      expect.stringMatching(/^\d+$/),
+    );
     expect(updateMobileWidgetFromDataMock).toHaveBeenCalledWith(currentSnapshot);
   }, 10_000);
 
@@ -177,9 +181,11 @@ describe('mobile storage adapter', () => {
     expect(sqliteAdapterGetData).toHaveBeenCalledTimes(1);
   }, 10_000);
 
-  it('falls back to the JSON backup instead of hanging when a queued SQLite write stalls', async () => {
+  it('falls back to a fresh JSON backup instead of hanging when a queued SQLite write stalls', async () => {
     vi.useFakeTimers();
     try {
+      vi.setSystemTime(new Date('2026-06-30T00:00:00.000Z'));
+      const freshBackupUpdatedAt = String(Date.now() + 1);
       const backupSnapshot: AppData = {
         tasks: [],
         projects: [
@@ -199,9 +205,11 @@ describe('mobile storage adapter', () => {
         people: [],
         settings: {},
       };
-      asyncStorageMock.getItem.mockImplementation((key: string) => (
-        key === 'mindwtr-data' ? Promise.resolve(JSON.stringify(backupSnapshot)) : Promise.resolve(null)
-      ));
+      asyncStorageMock.getItem.mockImplementation((key: string) => {
+        if (key === 'mindwtr-data:startup-backup-updated-at') return Promise.resolve(freshBackupUpdatedAt);
+        if (key === 'mindwtr-data') return Promise.resolve(JSON.stringify(backupSnapshot));
+        return Promise.resolve(null);
+      });
 
       // A SQLite write that never settles, e.g. a lost-promise native bridge call.
       const stalledSave = vi.fn(() => new Promise<void>(() => {}));
@@ -233,6 +241,64 @@ describe('mobile storage adapter', () => {
 
       const data = await readPromise;
       expect(data.projects).toEqual(backupSnapshot.projects);
+      expect(sqliteAdapterGetData).not.toHaveBeenCalled();
+    } finally {
+      vi.useRealTimers();
+    }
+  }, 10_000);
+
+  it('rejects a stale JSON backup when a queued SQLite write stalls', async () => {
+    vi.useFakeTimers();
+    try {
+      vi.setSystemTime(new Date('2026-06-30T00:00:00.000Z'));
+      const staleBackupUpdatedAt = String(Date.now() - 1);
+      const staleBackup: AppData = {
+        tasks: [],
+        projects: [
+          {
+            id: 'project-stale-backup',
+            title: 'Stale backup project',
+            status: 'active',
+            order: 0,
+            color: '#888888',
+            tagIds: [],
+            createdAt: '2026-06-29T00:00:00.000Z',
+            updatedAt: '2026-06-29T00:00:00.000Z',
+          },
+        ],
+        sections: [],
+        areas: [],
+        people: [],
+        settings: {},
+      };
+      asyncStorageMock.getItem.mockImplementation((key: string) => {
+        if (key === 'mindwtr-data:startup-backup-updated-at') return Promise.resolve(staleBackupUpdatedAt);
+        if (key === 'mindwtr-data') return Promise.resolve(JSON.stringify(staleBackup));
+        return Promise.resolve(null);
+      });
+
+      const stalledSave = vi.fn(() => new Promise<void>(() => {}));
+      const sqliteAdapterGetData = vi.fn(async () => staleBackup);
+
+      const { mobileStorage, __mobileStorageTestUtils } = await import('./storage-adapter');
+      __mobileStorageTestUtils.setSqliteStateForTests({
+        adapter: {
+          getData: sqliteAdapterGetData,
+          saveData: stalledSave,
+          saveTask: sqliteAdapterSaveTask,
+        } as any,
+        client: {},
+      });
+
+      void mobileStorage.saveData(staleBackup);
+      await vi.advanceTimersByTimeAsync(0);
+      expect(stalledSave).toHaveBeenCalledTimes(1);
+
+      const readPromise = mobileStorage.getData();
+      const readExpectation = expect(readPromise).rejects.toThrow('JSON backup is older than the latest queued SQLite write');
+      await vi.advanceTimersByTimeAsync(6_000);
+
+      await readExpectation;
       expect(sqliteAdapterGetData).not.toHaveBeenCalled();
     } finally {
       vi.useRealTimers();
