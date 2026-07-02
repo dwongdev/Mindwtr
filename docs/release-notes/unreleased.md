@@ -13,6 +13,14 @@ Changes collected after `v1.0.5` and before the next version tag.
 
 - fix(mobile): keep the task description field visible when the Android keyboard opens.
 - fix(mobile): keep full task titles visible in inbox and task lists after editing.
+- fix(desktop): preserve relative start offsets and repeat reminder minutes through desktop SQLite restarts and sync cycles.
+- fix(cloudkit): sync project archive restore metadata for tasks and sections across Apple CloudKit clients.
+- fix(mobile): apply SQLite WAL/foreign-key/busy-timeout pragmas outside legacy transactions and reject stale JSON backup fallbacks after stalled writes.
+- fix(recurrence): stamp recurring follow-up tasks with revision metadata and preserve task text direction.
+- fix(sync): build task content signatures from an explicit allowlist and drop unknown legacy fields during sync normalization.
+- fix(cloud): accept energy level, assignee, and reminder suppression fields through task REST create/patch calls.
+- fix(mcp): remove unused raw-SQL task write helpers so MCP writes stay on the core-backed service path.
+- fix(mobile): narrow mounted screen store subscriptions and align inline capture with Inbox-first capture.
 - ci(android): publish profileable builds to Google Play internal testing while keeping production/beta on the normal release build.
 - fix(desktop): preserve purged project tombstones across SQLite save/load cycles.
 - fix(cloudkit): sync purged project tombstones on Apple devices.

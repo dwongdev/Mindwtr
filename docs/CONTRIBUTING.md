@@ -152,6 +152,16 @@ Optional e2e:
 bun run test:e2e
 ```
 
+## Release maintenance
+
+Before publishing a stable or RC build, validate the platform channels affected by dependency changes, not just the build job that produced the artifact.
+
+Linux desktop releases need an extra smoke pass when Tauri, TLS, WebDAV, AppImage, or packaging dependencies change:
+
+- Launch the AppImage and native packages on an older supported Linux runtime, including a distro with older OpenSSL/libssl packages, before tagging stable.
+- Check Flathub beta/stable output, AppImage, `.deb`/`.rpm`, and AUR binary/source packages for runtime dependency drift.
+- When desktop networking uses `native-tls` or another system library path, confirm the AUR `depends`/`.SRCINFO` entries and package smoke still cover the required runtime libraries.
+
 ## Coding conventions
 
 - TypeScript first.
