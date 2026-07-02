@@ -6,6 +6,7 @@ export const arOverrides: Record<string, string> = {
         'donationPrompt.dismiss': "ربما لاحقًا",
         'donationPrompt.action': "ادعم Mindwtr",
         'settings.donateLinkValue': "تبرع",
+        'settings.documentationLinkValue': "الوثائق",
         'markdown.copyCode': 'نسخ الكود',
         'nav.main': 'رئيسي',
         'nav.inbox': 'البريد الوارد',

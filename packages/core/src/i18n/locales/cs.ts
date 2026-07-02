@@ -6,6 +6,7 @@ export const csOverrides: Record<string, string> = {
         'donationPrompt.dismiss': "Možná později",
         'donationPrompt.action': "Podpořit Mindwtr",
         'settings.donateLinkValue': "Darovat",
+        'settings.documentationLinkValue': "Dokumentace",
         'markdown.copyCode': 'Kopírovat kód',
         'nav.main': 'Hlavní',
         'nav.inbox': 'Schránka',

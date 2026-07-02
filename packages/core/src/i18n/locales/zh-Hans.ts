@@ -6,6 +6,7 @@ export const zhHans: Record<string, string> = {
         'donationPrompt.dismiss': "稍后再说",
         'donationPrompt.action': "支持 Mindwtr",
         'settings.donateLinkValue': "捐赠",
+        'settings.documentationLinkValue': "文档",
         'markdown.copyCode': '复制代码',
         'nav.main': '主页',
         'nav.inbox': '收集箱',

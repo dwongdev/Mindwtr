@@ -7,6 +7,7 @@ export const en: Record<string, string> = {
         'donationPrompt.dismiss': "Maybe later",
         'donationPrompt.action': "Support Mindwtr",
         'settings.donateLinkValue': "Donate",
+        'settings.documentationLinkValue': "Docs",
         'markdown.copyCode': 'Copy code',
 
         // Navigation

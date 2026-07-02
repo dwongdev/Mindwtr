@@ -7,6 +7,7 @@ export const deOverrides: Record<string, string> = {
         'donationPrompt.dismiss': "Vielleicht später",
         'donationPrompt.action': "Mindwtr unterstützen",
         'settings.donateLinkValue': "Spenden",
+        'settings.documentationLinkValue': "Dokumentation",
         'markdown.copyCode': 'Code kopieren',
         
         //Navigation

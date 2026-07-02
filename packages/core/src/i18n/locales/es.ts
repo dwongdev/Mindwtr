@@ -6,6 +6,7 @@ export const esOverrides: Record<string, string> = {
         'donationPrompt.dismiss': "Quizá más tarde",
         'donationPrompt.action': "Apoyar Mindwtr",
         'settings.donateLinkValue': "Donar",
+        'settings.documentationLinkValue': "Documentación",
         'markdown.copyCode': 'Copiar código',
         'nav.main': 'Principal',
         'nav.inbox': 'Bandeja de entrada',

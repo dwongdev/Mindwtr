@@ -6,6 +6,7 @@ export const ruOverrides: Record<string, string> = {
         'donationPrompt.dismiss': "Может быть позже",
         'donationPrompt.action': "Поддержать Mindwtr",
         'settings.donateLinkValue': "Пожертвовать",
+        'settings.documentationLinkValue': "Документация",
         'markdown.copyCode': 'Скопировать код',
         'nav.main': 'Основной',
         'nav.inbox': 'Входящие',

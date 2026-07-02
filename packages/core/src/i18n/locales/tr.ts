@@ -6,6 +6,7 @@ export const trOverrides: Record<string, string> = {
         'donationPrompt.dismiss': "Belki sonra",
         'donationPrompt.action': "Mindwtr’ı destekle",
         'settings.donateLinkValue': "Bağış yap",
+        'settings.documentationLinkValue': "Belgeler",
         'markdown.copyCode': 'Kodu kopyala',
         'nav.main': 'Ana',
         'nav.inbox': 'Gelen kutusu',

@@ -443,7 +443,7 @@ export function AboutSettingsScreen({
                         onPress={() => openLink('https://docs.mindwtr.app')}
                     >
                         <Text style={[styles.settingLabel, { color: tc.text }]}>{t('settings.documentation')}</Text>
-                        <Text style={styles.linkText}>docs.mindwtr.app</Text>
+                        <Text style={styles.linkText}>{tr('settings.documentationLinkValue')}</Text>
                     </TouchableOpacity>
                     <TouchableOpacity
                         style={[styles.settingRow, { borderTopWidth: 1, borderTopColor: tc.border }]}

@@ -6,6 +6,7 @@ export const nlOverrides: Record<string, string> = {
         'donationPrompt.dismiss': "Misschien later",
         'donationPrompt.action': "Mindwtr steunen",
         'settings.donateLinkValue': "Doneren",
+        'settings.documentationLinkValue': "Documentatie",
         'markdown.copyCode': 'Code kopiëren',
         'nav.main': 'Start',
         'nav.board': 'Bordweergave',

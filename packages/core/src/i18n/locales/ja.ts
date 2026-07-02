@@ -6,6 +6,7 @@ export const jaOverrides: Record<string, string> = {
         'donationPrompt.dismiss': "また後で",
         'donationPrompt.action': "Mindwtr を支援",
         'settings.donateLinkValue': "寄付",
+        'settings.documentationLinkValue': "ドキュメント",
         'markdown.copyCode': 'コードをコピー',
         'nav.main': '主要',
         'nav.inbox': '受信箱',

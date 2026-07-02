@@ -6,6 +6,7 @@ export const viOverrides: Record<string, string> = {
         'donationPrompt.dismiss': "Có thể để sau",
         'donationPrompt.action': "Ủng hộ Mindwtr",
         'settings.donateLinkValue': "Đóng góp",
+        'settings.documentationLinkValue': "Tài liệu",
         'markdown.copyCode': 'Sao chép mã',
 
         // Navigation

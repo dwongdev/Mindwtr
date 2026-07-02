@@ -6,6 +6,7 @@ export const koOverrides: Record<string, string> = {
         'donationPrompt.dismiss': "나중에",
         'donationPrompt.action': "Mindwtr 후원",
         'settings.donateLinkValue': "후원",
+        'settings.documentationLinkValue': "문서",
         'markdown.copyCode': '코드 복사',
         'nav.main': '기본',
         'nav.inbox': '받은편지함',

@@ -6,6 +6,7 @@ export const hiOverrides: Record<string, string> = {
         'donationPrompt.dismiss': "शायद बाद में",
         'donationPrompt.action': "Mindwtr का समर्थन करें",
         'settings.donateLinkValue': "दान करें",
+        'settings.documentationLinkValue': "दस्तावेज़",
         'markdown.copyCode': 'कोड कॉपी करें',
         'nav.main': 'मुख्य',
         'nav.inbox': 'इनबॉक्स',
