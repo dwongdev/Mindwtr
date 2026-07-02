@@ -86,6 +86,7 @@
     "typecheck:cloud": "bun run --filter mindwtr-cloud typecheck",
     "typecheck:desktop": "bunx tsc --noEmit -p apps/desktop/tsconfig.json",
     "typecheck:mobile": "bunx tsc --noEmit -p apps/mobile/tsconfig.json",
+    "schema:check": "bun run scripts/check-synced-field-parity.ts",
     "native:test": "cargo test --manifest-path apps/desktop/src-tauri/Cargo.toml",
     "mobile:start": "bun run --filter mobile start",
     "mobile:android": "bun run --filter mobile android",

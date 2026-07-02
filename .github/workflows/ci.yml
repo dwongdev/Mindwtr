@@ -49,6 +49,9 @@ jobs:
       - name: Locale parity check
         run: bun run i18n:check
 
+      - name: Synced field parity check
+        run: bun run schema:check
+
       - name: README heading parity check
         run: bun run docs:check-readme
 
