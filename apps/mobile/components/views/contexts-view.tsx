@@ -12,6 +12,7 @@ import {
 } from 'react-native';
 import {
   useTaskStore,
+  shallow,
   getUsedTaskTokens,
   getFrequentTaskTokens,
   sortTasksBy,
@@ -58,7 +59,16 @@ export function ContextsView() {
     batchDeleteTasks,
     batchUpdateTasks,
     settings,
-  } = useTaskStore();
+  } = useTaskStore((state) => ({
+    tasks: state.tasks,
+    projects: state.projects,
+    updateTask: state.updateTask,
+    deleteTask: state.deleteTask,
+    batchMoveTasks: state.batchMoveTasks,
+    batchDeleteTasks: state.batchDeleteTasks,
+    batchUpdateTasks: state.batchUpdateTasks,
+    settings: state.settings,
+  }), shallow);
   const { isDark } = useTheme();
   const { t } = useLanguage();
   const { token } = useLocalSearchParams<{ token?: string | string[] }>();

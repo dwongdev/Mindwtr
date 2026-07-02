@@ -1,5 +1,5 @@
 import { View, Text, FlatList, Pressable, StyleSheet, Alert } from 'react-native';
-import { projectMatchesAreaFilter, taskMatchesAreaFilter, useTaskStore } from '@mindwtr/core';
+import { projectMatchesAreaFilter, shallow, taskMatchesAreaFilter, useTaskStore } from '@mindwtr/core';
 import type { Project, Task } from '@mindwtr/core';
 import { useTheme } from '../../contexts/theme-context';
 import { useLanguage } from '../../contexts/language-context';
@@ -149,7 +149,19 @@ export default function TrashScreen() {
     purgeDeletedProjects,
     highlightTaskId,
     setHighlightTask,
-  } = useTaskStore();
+  } = useTaskStore((state) => ({
+    _allTasks: state._allTasks,
+    _allProjects: state._allProjects,
+    projects: state.projects,
+    restoreTask: state.restoreTask,
+    restoreProject: state.restoreProject,
+    purgeTask: state.purgeTask,
+    purgeProject: state.purgeProject,
+    purgeDeletedTasks: state.purgeDeletedTasks,
+    purgeDeletedProjects: state.purgeDeletedProjects,
+    highlightTaskId: state.highlightTaskId,
+    setHighlightTask: state.setHighlightTask,
+  }), shallow);
   const { t } = useLanguage();
   useTheme();
   const tc = useThemeColors();

@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useMemo, useCallback, useState } from 'react';
 import { View, Text, FlatList, Pressable, StyleSheet, Alert } from 'react-native';
-import { safeFormatDate, useTaskStore } from '@mindwtr/core';
+import { safeFormatDate, shallow, useTaskStore } from '@mindwtr/core';
 import type { Task } from '@mindwtr/core';
 import { useLanguage } from '../../contexts/language-context';
 
@@ -99,7 +99,14 @@ function ArchivedTaskItem({
 }
 
 export default function ArchivedScreen() {
-    const { _allTasks, projects, updateTask, purgeTask, highlightTaskId, setHighlightTask } = useTaskStore();
+    const { _allTasks, projects, updateTask, purgeTask, highlightTaskId, setHighlightTask } = useTaskStore((state) => ({
+        _allTasks: state._allTasks,
+        projects: state.projects,
+        updateTask: state.updateTask,
+        purgeTask: state.purgeTask,
+        highlightTaskId: state.highlightTaskId,
+        setHighlightTask: state.setHighlightTask,
+    }), shallow);
     const { t } = useLanguage();
     const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
 

@@ -8,6 +8,7 @@ import { X, Calendar as CalendarIcon, Target, Inbox, Clock, Sparkles, Star, Chec
 import {
     formatFocusTaskLimitText,
     useTaskStore,
+    shallow,
     isTaskInActiveProject,
     isDueForReview,
     normalizeFocusTaskLimit,
@@ -52,7 +53,13 @@ function isSameDay(a: Date, b: Date): boolean {
 }
 
 function DailyReviewFlow({ onClose }: { onClose: () => void }) {
-    const { tasks, projects, settings, updateTask, deleteTask } = useTaskStore();
+    const { tasks, projects, settings, updateTask, deleteTask } = useTaskStore((state) => ({
+        tasks: state.tasks,
+        projects: state.projects,
+        settings: state.settings,
+        updateTask: state.updateTask,
+        deleteTask: state.deleteTask,
+    }), shallow);
     const { isDark } = useTheme();
     const { t } = useLanguage();
     const tc = useThemeColors();
