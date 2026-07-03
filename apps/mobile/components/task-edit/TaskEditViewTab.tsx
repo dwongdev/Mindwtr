@@ -238,7 +238,7 @@ function TaskEditViewTabComponent({
           <Text style={[styles.viewLabel, { color: tc.secondaryText }]}>{t('taskEdit.descriptionLabel')}</Text>
           <View style={[styles.viewCard, { borderColor: tc.border, backgroundColor: tc.inputBg }]}
           >
-            <MarkdownText markdown={description} tc={tc} direction={resolvedDirection} />
+            <MarkdownText markdown={description} tc={tc} direction={resolvedDirection} selectable />
           </View>
         </View>
       ) : null}

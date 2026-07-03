@@ -239,10 +239,12 @@ export function MarkdownText({
   markdown,
   tc,
   direction,
+  selectable = false,
 }: {
   markdown: string;
   tc: ThemeColors;
   direction?: 'ltr' | 'rtl';
+  selectable?: boolean;
 }) {
   const renderOptions = useMarkdownRenderOptions();
   const source = (markdown || '').replace(/\r\n/g, '\n');
@@ -278,6 +280,7 @@ export function MarkdownText({
       blocks.push(
         <Text
           key={`h-${i}`}
+          selectable={selectable}
           style={[
             styles.heading,
             { color: tc.text, fontSize: level === 1 ? 16 : level === 2 ? 15 : 14 },
@@ -331,7 +334,7 @@ export function MarkdownText({
           >
             <Ionicons name="copy-outline" size={15} color={tc.secondaryText} />
           </Pressable>
-          <Text style={[styles.codeBlockText, { color: tc.text }, directionStyle]}>
+          <Text selectable={selectable} style={[styles.codeBlockText, { color: tc.text }, directionStyle]}>
             {codeText}
           </Text>
         </View>
@@ -356,7 +359,7 @@ export function MarkdownText({
               <Text style={[styles.taskListMarker, { color: tc.secondaryText }]}>
                 {item.checked ? '☑' : '☐'}
               </Text>
-              <Text style={[styles.paragraph, styles.taskListText, { color: tc.text }, directionStyle]}>
+              <Text selectable={selectable} style={[styles.paragraph, styles.taskListText, { color: tc.text }, directionStyle]}>
                 {renderInline(item.text, tc, `task-li-${start}-${idx}`, renderOptions)}
               </Text>
             </View>
@@ -384,7 +387,7 @@ export function MarkdownText({
               <Text style={[styles.listMarker, { color: tc.secondaryText }]}>
                 {item.marker}
               </Text>
-              <Text style={[styles.paragraph, styles.listItemText, { color: tc.text }, directionStyle]}>
+              <Text selectable={selectable} style={[styles.paragraph, styles.listItemText, { color: tc.text }, directionStyle]}>
                 {renderInline(item.text, tc, `li-${start}-${idx}`, renderOptions)}
               </Text>
             </View>
@@ -411,7 +414,7 @@ export function MarkdownText({
               <Text style={[styles.orderedListMarker, { color: tc.secondaryText }]}>
                 {item.marker}
               </Text>
-              <Text style={[styles.paragraph, styles.listItemText, { color: tc.text }, directionStyle]}>
+              <Text selectable={selectable} style={[styles.paragraph, styles.listItemText, { color: tc.text }, directionStyle]}>
                 {renderInline(item.text, tc, `oli-${start}-${idx}`, renderOptions)}
               </Text>
             </View>
@@ -429,7 +432,7 @@ export function MarkdownText({
     const text = paragraph.join('\n').trim();
     if (text) {
       blocks.push(
-        <Text key={`p-${i}`} style={[styles.paragraph, { color: tc.text }, directionStyle]}>
+        <Text key={`p-${i}`} selectable={selectable} style={[styles.paragraph, { color: tc.text }, directionStyle]}>
           {renderInline(text, tc, `p-${i}`, renderOptions)}
         </Text>
       );
