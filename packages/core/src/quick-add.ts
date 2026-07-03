@@ -342,6 +342,48 @@ function getQuickAddTokenMatches(
         });
 }
 
+type QuickAddNamePrefixMatch = {
+    consumedRaw: string;
+    value: string;
+};
+
+function normalizeQuickAddName(name: string): string {
+    return name.replace(/\s+/g, ' ').trim().toLowerCase();
+}
+
+// Given the raw text captured after a `+`/`!` marker (which greedily spans
+// following words), find the longest known entity name that matches a
+// whole-word prefix, so trailing title words are not swallowed into the token.
+function matchKnownQuickAddNamePrefix(
+    rawToken: string,
+    knownNames: readonly string[],
+): QuickAddNamePrefixMatch | null {
+    if (knownNames.length === 0) return null;
+    const normalizedKnown = new Set(knownNames.map(normalizeQuickAddName));
+    const words = Array.from(rawToken.matchAll(/\S+/gu));
+    for (let count = words.length; count >= 1; count -= 1) {
+        const lastWord = words[count - 1];
+        const end = (lastWord.index ?? 0) + lastWord[0].length;
+        const consumedRaw = rawToken.slice(0, end);
+        const value = restoreEscapes(consumedRaw).replace(/\s+/g, ' ').trim();
+        if (normalizedKnown.has(normalizeQuickAddName(value))) {
+            return { consumedRaw, value };
+        }
+    }
+    return null;
+}
+
+function matchQuickAddQuotedName(working: string, marker: '+' | '!'): { raw: string; value: string } | null {
+    const escapedMarker = marker === '+' ? String.raw`\+` : '!';
+    const match = working.match(new RegExp(String.raw`(?:^|\s)${escapedMarker}"((?:\\.|[^"\\])*)"`, 'u'));
+    if (!match) return null;
+    const rawOffset = match[0].indexOf(`${marker}"`);
+    if (rawOffset < 0) return null;
+    const value = restoreEscapes((match[1] ?? '').replace(/\\(["\\])/g, '$1')).replace(/\s+/g, ' ').trim();
+    if (!value) return null;
+    return { raw: match[0].slice(rawOffset), value };
+}
+
 function parseDateCommand(
     command: 'start' | 'due' | 'review',
     working: string,
@@ -532,18 +574,37 @@ export function parseQuickAdd(
             working = stripToken(working, areaIdMatch[0]);
         }
     } else {
-        const areaMatch = working.match(/(?:^|\s)!([^\s/]+(?:\s+(?![@#+/!])[^/\s]+)*)/);
-        if (areaMatch) {
-            const rawArea = restoreEscapes((areaMatch[1] || '').replace(/\s+/g, ' ').trim());
-            if (rawArea) {
+        const quotedArea = matchQuickAddQuotedName(working, '!');
+        if (quotedArea) {
+            const found = areas?.find((area) => normalizeQuickAddName(area.name) === normalizeQuickAddName(quotedArea.value));
+            if (found) {
+                areaId = found.id;
+                working = stripToken(working, quotedArea.raw);
+            }
+        } else {
+            const areaMatch = working.match(/(?:^|\s)!([^\s/]+(?:\s+(?![@#+/!])[^/\s]+)*)/);
+            if (areaMatch) {
+                const rawFull = areaMatch[1] || '';
                 if (areas && areas.length > 0) {
-                    const found = areas.find((area) => area.name.toLowerCase() === rawArea.toLowerCase());
-                    if (found) areaId = found.id;
-                } else if (/^[0-9a-f-]{8,}$/i.test(rawArea)) {
-                    areaId = rawArea;
+                    const prefixMatch = matchKnownQuickAddNamePrefix(rawFull, areas.map((area) => area.name));
+                    if (prefixMatch) {
+                        const found = areas.find((area) => normalizeQuickAddName(area.name) === normalizeQuickAddName(prefixMatch.value));
+                        if (found) {
+                            areaId = found.id;
+                            working = stripToken(working, `!${prefixMatch.consumedRaw}`);
+                        }
+                    }
+                    // No known area matches: leave the text untouched instead of
+                    // silently swallowing the token and any words after it.
+                } else {
+                    const firstWord = rawFull.match(/\S+/u)?.[0] ?? '';
+                    const restoredFirst = restoreEscapes(firstWord);
+                    if (/^[0-9a-f-]{8,}$/i.test(restoredFirst)) {
+                        areaId = restoredFirst;
+                        working = stripToken(working, `!${firstWord}`);
+                    }
                 }
             }
-            working = stripToken(working, areaMatch[0]);
         }
     }
 
@@ -593,26 +654,45 @@ export function parseQuickAdd(
         }
         working = stripToken(working, projectIdMatch[0]);
     } else {
-        const plusMatch = working.match(/(?:^|\s)\+([^\s/]+(?:\s+(?![@#+/])[^/\s]+)*)/);
-        if (plusMatch) {
-            const rawProject = restoreEscapes((plusMatch[1] || '').replace(/\s+/g, ' ').trim());
-            if (!rawProject) {
-                working = stripToken(working, plusMatch[0]);
-                const strippedTitle = restoreEscapes(working.replace(/\s{2,}/g, ' ').trim());
-                return { title: preserveText ? input.trim() : strippedTitle, props: {} };
+        const quotedProject = matchQuickAddQuotedName(working, '+');
+        if (quotedProject) {
+            const found = projects?.find(
+                (p) => p.status !== 'archived' && normalizeQuickAddName(p.title) === normalizeQuickAddName(quotedProject.value)
+            );
+            if (found) {
+                projectId = found.id;
+            } else {
+                projectTitle = quotedProject.value;
             }
-            if (projects && projects.length > 0) {
-                const found = projects.find(
-                    (p) => p.status !== 'archived' && p.title.toLowerCase() === rawProject.toLowerCase()
-                );
-                if (found) projectId = found.id;
-            } else if (/^[0-9a-f-]{8,}$/i.test(rawProject)) {
-                projectId = rawProject;
+            working = stripToken(working, quotedProject.raw);
+        } else {
+            const plusMatch = working.match(/(?:^|\s)\+([^\s/]+(?:\s+(?![@#+/])[^/\s]+)*)/);
+            if (plusMatch) {
+                const rawFull = plusMatch[1] || '';
+                const activeProjects = (projects ?? []).filter((p) => p.status !== 'archived');
+                const prefixMatch = matchKnownQuickAddNamePrefix(rawFull, activeProjects.map((p) => p.title));
+                if (prefixMatch) {
+                    const found = activeProjects.find(
+                        (p) => normalizeQuickAddName(p.title) === normalizeQuickAddName(prefixMatch.value)
+                    );
+                    if (found) projectId = found.id;
+                    working = stripToken(working, `+${prefixMatch.consumedRaw}`);
+                } else {
+                    const rawProject = restoreEscapes(rawFull.replace(/\s+/g, ' ').trim());
+                    if (!rawProject) {
+                        working = stripToken(working, plusMatch[0]);
+                        const strippedTitle = restoreEscapes(working.replace(/\s{2,}/g, ' ').trim());
+                        return { title: preserveText ? input.trim() : strippedTitle, props: {} };
+                    }
+                    if ((!projects || projects.length === 0) && /^[0-9a-f-]{8,}$/i.test(rawProject)) {
+                        projectId = rawProject;
+                    }
+                    if (!projectId) {
+                        projectTitle = rawProject;
+                    }
+                    working = stripToken(working, plusMatch[0]);
+                }
             }
-            if (!projectId) {
-                projectTitle = rawProject;
-            }
-            working = stripToken(working, plusMatch[0]);
         }
     }
 

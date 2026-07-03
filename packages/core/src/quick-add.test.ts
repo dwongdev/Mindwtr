@@ -421,6 +421,76 @@ describe('quick-add', () => {
         expect(explicitResult.props.areaId).toBe('a2');
     });
 
+    it('matches an existing multi-word project and keeps trailing words in the title', () => {
+        const now = new Date('2026-07-03T10:00:00Z');
+        const projects = [
+            { id: 'p1', title: 'My Project', status: 'active', color: '#000000', tagIds: [], order: 0, createdAt: now.toISOString(), updatedAt: now.toISOString() },
+            { id: 'p2', title: 'My Project Extended', status: 'active', color: '#000000', tagIds: [], order: 1, createdAt: now.toISOString(), updatedAt: now.toISOString() },
+        ];
+
+        const trailing = parseQuickAdd('buy milk +My Project this week', projects as any, now);
+        expect(trailing.props.projectId).toBe('p1');
+        expect(trailing.projectTitle).toBeUndefined();
+        expect(trailing.title).toContain('this week');
+
+        const longest = parseQuickAdd('review +My Project Extended cleanup', projects as any, now);
+        expect(longest.props.projectId).toBe('p2');
+        expect(longest.title).toBe('review cleanup');
+
+        const leading = parseQuickAdd('+My Project buy milk', projects as any, now);
+        expect(leading.props.projectId).toBe('p1');
+        expect(leading.title).toBe('buy milk');
+    });
+
+    it('matches an existing multi-word area and keeps trailing words in the title', () => {
+        const now = new Date('2026-07-03T10:00:00Z');
+        const areas = [
+            { id: 'a1', name: 'Work', color: '#111111', order: 0, createdAt: now.toISOString(), updatedAt: now.toISOString() },
+            { id: 'a2', name: 'Home Stuff', color: '#222222', order: 1, createdAt: now.toISOString(), updatedAt: now.toISOString() },
+        ];
+
+        const single = parseQuickAdd('buy milk !Work call bob', undefined, now, areas as any);
+        expect(single.props.areaId).toBe('a1');
+        expect(single.title).toBe('buy milk call bob');
+
+        const multi = parseQuickAdd('plan !Home Stuff shelf build', undefined, now, areas as any);
+        expect(multi.props.areaId).toBe('a2');
+        expect(multi.title).toBe('plan shelf build');
+    });
+
+    it('leaves an unmatched area token in the text instead of swallowing it', () => {
+        const now = new Date('2026-07-03T10:00:00Z');
+        const areas = [
+            { id: 'a1', name: 'Work', color: '#111111', order: 0, createdAt: now.toISOString(), updatedAt: now.toISOString() },
+        ];
+
+        const result = parseQuickAdd('buy milk !Nowhere extra words', undefined, now, areas as any);
+        expect(result.props.areaId).toBeUndefined();
+        expect(result.title).toBe('buy milk !Nowhere extra words');
+    });
+
+    it('supports quoted project and area names for explicit delimiting', () => {
+        const now = new Date('2026-07-03T10:00:00Z');
+        const projects = [
+            { id: 'p1', title: 'My Project', status: 'active', color: '#000000', tagIds: [], order: 0, createdAt: now.toISOString(), updatedAt: now.toISOString() },
+        ];
+        const areas = [
+            { id: 'a2', name: 'Home Stuff', color: '#222222', order: 1, createdAt: now.toISOString(), updatedAt: now.toISOString() },
+        ];
+
+        const createQuoted = parseQuickAdd('task +"Brand New Proj" more words', projects as any, now);
+        expect(createQuoted.projectTitle).toBe('Brand New Proj');
+        expect(createQuoted.title).toBe('task more words');
+
+        const matchQuoted = parseQuickAdd('task +"My Project" more words', projects as any, now);
+        expect(matchQuoted.props.projectId).toBe('p1');
+        expect(matchQuoted.title).toBe('task more words');
+
+        const areaQuoted = parseQuickAdd('task !"Home Stuff" more words', undefined, now, areas as any);
+        expect(areaQuoted.props.areaId).toBe('a2');
+        expect(areaQuoted.title).toBe('task more words');
+    });
+
     it('uses parsed area before fallback area when creating a project from quick add', () => {
         expect(getQuickAddProjectInitialProps({ areaId: 'parsed-area' }, 'fallback-area')).toEqual({ areaId: 'parsed-area' });
         expect(getQuickAddProjectInitialProps({}, 'fallback-area')).toEqual({ areaId: 'fallback-area' });
