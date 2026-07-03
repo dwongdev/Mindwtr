@@ -27,6 +27,7 @@ export const nlOverrides: Record<string, string> = {
         'nav.archived': 'Gearchiveerd',
         'nav.trash': 'Prullenbak',
         'nav.addTask': 'Taak toevoegen',
+        'task.renameTitle': 'Taak hernoemen',
         'task.createProjectFromTask': 'Project maken van taak',
         'task.duplicateFailed': 'Taak dupliceren mislukt',
         'task.promoteToProjectFailed': 'Project maken van taak mislukt',

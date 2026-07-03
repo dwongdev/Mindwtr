@@ -293,6 +293,7 @@ export const csOverrides: Record<string, string> = {
         'taskStatus.changeStatus': 'Změnit stav',
         'task.toggleDetails': 'Přepnout detaily úkolu',
         'task.hoverHint': 'Kliknutím přepnete detaily / Dvojklikem upravíte',
+        'task.renameTitle': 'Přejmenovat úkol',
         'task.select': 'Vybrat úkol',
         'task.aria.delete': 'Smazat úkol',
         'task.deleteConfirmBody': 'Přesunout tento úkol do Koše?',

@@ -130,6 +130,7 @@ export const esOverrides: Record<string, string> = {
         'list.tasks': 'Tarea list',
         'list.confirmBatchDelete': 'Eliminar selected Tareas?',
         'list.taskDeleted': 'Tarea eliminada',
+        'task.renameTitle': 'Renombrar tarea',
         'task.markedDone': '{title} marcada como hecha',
         'list.tasksDeleted': 'Se eliminaron {{count}} tareas',
         'list.noTasks': 'No se encontraron tareas',

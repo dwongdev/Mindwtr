@@ -266,6 +266,7 @@ export const ruOverrides: Record<string, string> = {
         'taskStatus.changeStatus': 'Изменить статус',
         'task.toggleDetails': 'Переключить сведения о задаче',
         'task.hoverHint': 'Нажмите, чтобы переключить детали / Дважды щелкните, чтобы изменить',
+        'task.renameTitle': 'Переименовать задачу',
         'task.select': 'Выберите задачу',
         'task.aria.delete': 'Удалить задачу',
         'task.aria.status': 'Статус задачи',

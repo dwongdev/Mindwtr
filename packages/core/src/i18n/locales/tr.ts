@@ -269,6 +269,7 @@ export const trOverrides: Record<string, string> = {
         'taskStatus.changeStatus': 'Durumu Değiştir',
         'task.toggleDetails': 'Görev ayrıntılarını değiştir',
         'task.hoverHint': 'Ayrıntıları değiştirmek için tıklayın / Düzenlemek için çift tıklayın',
+        'task.renameTitle': 'Görevi yeniden adlandır',
         'task.select': 'Görev seç',
         'task.aria.delete': 'Görevi sil',
         'task.aria.status': 'Görev durumu',

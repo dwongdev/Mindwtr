@@ -9,7 +9,7 @@ import { AttachmentProgressIndicator } from '../AttachmentProgressIndicator';
 import { RichMarkdown } from '../RichMarkdown';
 import { InlineMarkdown } from '../Markdown';
 import type { KeyboardEvent, MouseEvent, ReactNode } from 'react';
-import { memo, useEffect, useMemo, useRef } from 'react';
+import { memo, useEffect, useMemo, useRef, useState } from 'react';
 import { isImageAttachment } from './task-item-attachment-utils';
 import { AttachmentImage } from './AttachmentImage';
 import { FocusStarIcon } from '../FocusStarIcon';
@@ -18,6 +18,7 @@ interface TaskItemDisplayActions {
     onToggleSelect?: (options?: RangeSelectionOptions) => void;
     onToggleView: () => void;
     onEdit: () => void;
+    onRenameTitle?: (title: string) => void;
     onDelete: () => void;
     onDuplicate: () => void;
     onStatusChange: (status: TaskStatus) => void;
@@ -111,6 +112,7 @@ export const TaskItemDisplay = memo(function TaskItemDisplay({
         onToggleSelect,
         onToggleView,
         onEdit,
+        onRenameTitle,
         onDelete,
         onDuplicate,
         onStatusChange,
@@ -190,6 +192,22 @@ export const TaskItemDisplay = memo(function TaskItemDisplay({
             clearClickTimer();
         };
     }, []);
+    const [renameDraft, setRenameDraft] = useState<string | null>(null);
+    const canInlineRename = !readOnly && !selectionMode && Boolean(onRenameTitle);
+    const startTitleEdit = () => {
+        if (canInlineRename) {
+            setRenameDraft(task.title);
+            return;
+        }
+        onEdit();
+    };
+    const commitInlineRename = () => {
+        if (renameDraft === null) return;
+        const next = renameDraft.replace(/\s+/g, ' ').trim();
+        setRenameDraft(null);
+        if (next && next !== task.title) onRenameTitle?.(next);
+    };
+    const cancelInlineRename = () => setRenameDraft(null);
     const handleTitleClick = (event: MouseEvent<HTMLButtonElement>) => {
         if (selectionMode) {
             onToggleSelect?.({ range: event.shiftKey });
@@ -201,8 +219,9 @@ export const TaskItemDisplay = memo(function TaskItemDisplay({
             return;
         }
         if (!readOnly && event.detail >= 2) {
+            event.stopPropagation();
             clearClickTimer();
-            onEdit();
+            startTitleEdit();
             return;
         }
         clearClickTimer();
@@ -211,10 +230,11 @@ export const TaskItemDisplay = memo(function TaskItemDisplay({
             clickTimerRef.current = null;
         }, 180);
     };
-    const handleTitleDoubleClick = () => {
+    const handleTitleDoubleClick = (event: MouseEvent<HTMLButtonElement>) => {
         if (selectionMode || readOnly) return;
+        event.stopPropagation();
         clearClickTimer();
-        onEdit();
+        startTitleEdit();
     };
     const handleProjectClick = (event: MouseEvent<HTMLSpanElement>, projectId: string) => {
         event.stopPropagation();
@@ -542,6 +562,35 @@ export const TaskItemDisplay = memo(function TaskItemDisplay({
                         aria-label={t('common.edit')}
                         tabIndex={-1}
                     />
+                    {renameDraft !== null ? (
+                        <input
+                            type="text"
+                            value={renameDraft}
+                            autoFocus
+                            onFocus={(event) => event.currentTarget.select()}
+                            onChange={(event) => setRenameDraft(event.target.value)}
+                            onClick={(event) => event.stopPropagation()}
+                            onDoubleClick={(event) => event.stopPropagation()}
+                            onKeyDown={(event) => {
+                                if (event.key === 'Enter') {
+                                    event.preventDefault();
+                                    commitInlineRename();
+                                } else if (event.key === 'Escape') {
+                                    event.preventDefault();
+                                    event.stopPropagation();
+                                    cancelInlineRename();
+                                }
+                            }}
+                            onBlur={commitInlineRename}
+                            aria-label={tFallback(t, 'task.renameTitle', 'Rename task')}
+                            className={cn(
+                                "w-full rounded border border-border bg-background px-0.5 py-0.5 font-semibold text-foreground focus:outline-none focus:ring-2 focus:ring-primary/40",
+                                dense ? "text-sm" : "text-base",
+                                isRtl && "text-right"
+                            )}
+                            dir={resolvedDirection}
+                        />
+                    ) : (
                     <button
                         type="button"
                         onClick={handleTitleClick}
@@ -568,6 +617,7 @@ export const TaskItemDisplay = memo(function TaskItemDisplay({
                             {task.title}
                         </div>
                     </button>
+                    )}
                     {showCompactMeta && descriptionPreview && (
                         <div
                             className={cn(

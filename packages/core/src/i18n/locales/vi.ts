@@ -293,6 +293,7 @@ export const viOverrides: Record<string, string> = {
         'taskStatus.changeStatus': 'Thay đổi trạng thái',
         'task.toggleDetails': 'Bật/tắt chi tiết nhiệm vụ',
         'task.hoverHint': 'Nhấp để bật/tắt chi tiết / Nhấp đúp để chỉnh sửa',
+        'task.renameTitle': 'Đổi tên công việc',
         'task.select': 'Chọn nhiệm vụ',
         'task.aria.delete': 'Xóa nhiệm vụ',
         'task.deleteConfirmBody': 'Chuyển nhiệm vụ này vào thùng rác?',

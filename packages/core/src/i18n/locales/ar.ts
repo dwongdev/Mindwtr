@@ -267,6 +267,7 @@ export const arOverrides: Record<string, string> = {
         'taskStatus.changeStatus': 'تغيير الحالة',
         'task.toggleDetails': 'تبديل تفاصيل المهمة',
         'task.hoverHint': 'انقر لتبديل التفاصيل / انقر نقرًا مزدوجًا للتحرير',
+        'task.renameTitle': 'إعادة تسمية المهمة',
         'task.select': 'حدد المهمة',
         'task.aria.delete': 'حذف المهمة',
         'task.aria.status': 'حالة المهمة',

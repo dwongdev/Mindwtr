@@ -1302,6 +1302,9 @@ export const TaskItem = memo(function TaskItem({
         onToggleSelect,
         onToggleView: () => toggleTaskExpanded(task.id),
         onEdit: startEditing,
+        onRenameTitle: (nextTitle: string) => {
+            void updateTask(task.id, { title: nextTitle });
+        },
         onDelete: () => setShowDeleteConfirm(true),
         onDuplicate: handleDuplicateTask,
         onStatusChange: handleStatusChange,
@@ -1325,6 +1328,7 @@ export const TaskItem = memo(function TaskItem({
         startEditing,
         task.id,
         toggleTaskExpanded,
+        updateTask,
     ]);
     const handleCalendarDragStart = useCallback((event: DragEvent<HTMLDivElement>) => {
         if (!canCalendarDrag) {

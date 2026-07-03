@@ -283,6 +283,7 @@ export const frOverrides: Record<string, string> = {
         'taskStatus.changeStatus': 'Changer le statut',
         'task.toggleDetails': 'Changer les détails de la tâche',
         'task.hoverHint': 'Cliquez pour basculer les détails / Double-cliquez pour modifier.',
+        'task.renameTitle': 'Renommer la tâche',
         'task.select': 'Sélectionnez une tâche',
         'task.aria.delete': 'Supprimer la tâche',
         'task.deleteConfirmBody': 'Déplacer cette tâche vers la corbeille ?',

@@ -263,6 +263,7 @@ export const ptOverrides: Record<string, string> = {
         'taskStatus.changeStatus': 'Alterar status',
         'task.toggleDetails': 'Alternar detalhes da tarefa',
         'task.hoverHint': 'Clique para alternar detalhes / Clique duas vezes para editar',
+        'task.renameTitle': 'Renomear tarefa',
         'task.select': 'Selecione a tarefa',
         'task.aria.delete': 'Excluir tarefa',
         'task.aria.status': 'Status da tarefa',

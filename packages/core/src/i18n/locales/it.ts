@@ -314,6 +314,7 @@ export const itOverrides: Record<string, string> = {
         'taskStatus.changeStatus': 'Cambia stato',
         'task.toggleDetails': 'Mostra/nascondi dettagli attività',
         'task.hoverHint': 'Clicca per aprire i dettagli / Doppio clic per modificare',
+        'task.renameTitle': 'Rinomina attività',
         'task.select': 'Seleziona attività',
         'task.aria.delete': 'Elimina attività',
         'task.deleteConfirmBody': 'Spostare questa attività nel cestino?',

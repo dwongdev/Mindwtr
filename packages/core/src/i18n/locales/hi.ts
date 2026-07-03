@@ -266,6 +266,7 @@ export const hiOverrides: Record<string, string> = {
         'taskStatus.changeStatus': 'स्थिति बदलें',
         'task.toggleDetails': 'कार्य विवरण टॉगल करें',
         'task.hoverHint': 'विवरण टॉगल करने के लिए क्लिक करें / संपादित करने के लिए डबल-क्लिक करें',
+        'task.renameTitle': 'कार्य का नाम बदलें',
         'task.select': 'कार्य चुनें',
         'task.aria.delete': 'कार्य हटाएँ',
         'task.aria.status': 'कार्य की स्थिति',

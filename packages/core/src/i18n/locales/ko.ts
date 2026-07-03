@@ -265,6 +265,7 @@ export const koOverrides: Record<string, string> = {
         'taskStatus.changeStatus': '상태 변경',
         'task.toggleDetails': '할 일 세부정보 전환',
         'task.hoverHint': '세부정보를 전환하려면 클릭하세요. 수정하려면 더블클릭하세요.',
+        'task.renameTitle': '작업 이름 바꾸기',
         'task.select': '작업 선택',
         'task.aria.delete': '할 일 삭제',
         'task.aria.status': '작업 상태',

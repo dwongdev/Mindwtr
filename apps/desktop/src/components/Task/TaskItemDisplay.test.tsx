@@ -73,6 +73,126 @@ describe('TaskItemDisplay', () => {
         expect(getByText('2周前')).toBeInTheDocument();
     });
 
+    it('renames the title in place on double-click and saves with Enter', () => {
+        const onRenameTitle = vi.fn();
+        const onEdit = vi.fn();
+        const { getByText, getByLabelText, queryByLabelText } = render(
+            <LanguageProvider>
+                <TaskItemDisplay
+                    task={baseTask}
+                    language="en"
+                    selectionMode={false}
+                    isViewOpen={false}
+                    actions={{
+                        onToggleView: vi.fn(),
+                        onEdit,
+                        onRenameTitle,
+                        onDelete: vi.fn(),
+                        onDuplicate: vi.fn(),
+                        onStatusChange: vi.fn(),
+                        openAttachment: vi.fn(),
+                    }}
+                    visibleAttachments={[]}
+                    recurrenceRule=""
+                    recurrenceStrategy="strict"
+                    prioritiesEnabled={false}
+                    timeEstimatesEnabled={false}
+                    isStagnant={false}
+                    showQuickDone={false}
+                    readOnly={false}
+                    t={(key: string) => key}
+                />
+            </LanguageProvider>
+        );
+
+        fireEvent.doubleClick(getByText('Localized age'));
+
+        const input = getByLabelText('Rename task') as HTMLInputElement;
+        expect(input.value).toBe('Localized age');
+        expect(onEdit).not.toHaveBeenCalled();
+
+        fireEvent.change(input, { target: { value: 'Renamed task' } });
+        fireEvent.keyDown(input, { key: 'Enter' });
+
+        expect(onRenameTitle).toHaveBeenCalledWith('Renamed task');
+        expect(queryByLabelText('Rename task')).not.toBeInTheDocument();
+    });
+
+    it('cancels the inline rename with Escape without saving', () => {
+        const onRenameTitle = vi.fn();
+        const { getByText, getByLabelText, queryByLabelText } = render(
+            <LanguageProvider>
+                <TaskItemDisplay
+                    task={baseTask}
+                    language="en"
+                    selectionMode={false}
+                    isViewOpen={false}
+                    actions={{
+                        onToggleView: vi.fn(),
+                        onEdit: vi.fn(),
+                        onRenameTitle,
+                        onDelete: vi.fn(),
+                        onDuplicate: vi.fn(),
+                        onStatusChange: vi.fn(),
+                        openAttachment: vi.fn(),
+                    }}
+                    visibleAttachments={[]}
+                    recurrenceRule=""
+                    recurrenceStrategy="strict"
+                    prioritiesEnabled={false}
+                    timeEstimatesEnabled={false}
+                    isStagnant={false}
+                    showQuickDone={false}
+                    readOnly={false}
+                    t={(key: string) => key}
+                />
+            </LanguageProvider>
+        );
+
+        fireEvent.doubleClick(getByText('Localized age'));
+        const input = getByLabelText('Rename task') as HTMLInputElement;
+        fireEvent.change(input, { target: { value: 'Discarded' } });
+        fireEvent.keyDown(input, { key: 'Escape' });
+
+        expect(onRenameTitle).not.toHaveBeenCalled();
+        expect(queryByLabelText('Rename task')).not.toBeInTheDocument();
+    });
+
+    it('falls back to the full editor on double-click when inline rename is unavailable', () => {
+        const onEdit = vi.fn();
+        const { getByText } = render(
+            <LanguageProvider>
+                <TaskItemDisplay
+                    task={baseTask}
+                    language="en"
+                    selectionMode={false}
+                    isViewOpen={false}
+                    actions={{
+                        onToggleView: vi.fn(),
+                        onEdit,
+                        onDelete: vi.fn(),
+                        onDuplicate: vi.fn(),
+                        onStatusChange: vi.fn(),
+                        openAttachment: vi.fn(),
+                    }}
+                    visibleAttachments={[]}
+                    recurrenceRule=""
+                    recurrenceStrategy="strict"
+                    prioritiesEnabled={false}
+                    timeEstimatesEnabled={false}
+                    isStagnant={false}
+                    showQuickDone={false}
+                    readOnly={false}
+                    t={(key: string) => key}
+                />
+            </LanguageProvider>
+        );
+
+        fireEvent.doubleClick(getByText('Localized age'));
+
+        expect(onEdit).toHaveBeenCalled();
+    });
+
     it('hides task age by default', () => {
         const { queryByText } = render(
             <LanguageProvider>

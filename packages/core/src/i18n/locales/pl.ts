@@ -266,6 +266,7 @@ export const plOverrides: Record<string, string> = {
         'taskStatus.changeStatus': 'Zmień stan',
         'task.toggleDetails': 'Przełącz szczegóły zadania',
         'task.hoverHint': 'Kliknij, aby przełączyć szczegóły / Kliknij dwukrotnie, aby edytować',
+        'task.renameTitle': 'Zmień nazwę zadania',
         'task.select': 'Wybierz zadanie',
         'task.aria.delete': 'Usuń zadanie',
         'task.aria.status': 'Stan zadania',

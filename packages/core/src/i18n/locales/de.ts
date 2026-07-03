@@ -290,6 +290,7 @@ export const deOverrides: Record<string, string> = {
         'taskStatus.changeStatus': 'Status ändern',
         'task.toggleDetails': 'Aufgabendetails umschalten',
         'task.hoverHint': 'Tippen zum Details umschalten / Doppelklick zm Bearbeiten',
+        'task.renameTitle': 'Aufgabe umbenennen',
         'task.select': 'Aufgabe auswählen',
         'task.aria.delete': 'Aufgabe löschen',
         'task.aria.status': 'Aufgaben-Status',

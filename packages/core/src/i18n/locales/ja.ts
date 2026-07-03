@@ -266,6 +266,7 @@ export const jaOverrides: Record<string, string> = {
         'taskStatus.changeStatus': 'ステータスの変更',
         'task.toggleDetails': 'タスクの詳細を切り替えます',
         'task.hoverHint': 'クリックして詳細を切り替えます / ダブルクリックして編集します',
+        'task.renameTitle': 'タスク名を変更',
         'task.select': 'タスクの選択',
         'task.aria.delete': 'タスクの削除',
         'task.aria.status': 'タスクのステータス',
