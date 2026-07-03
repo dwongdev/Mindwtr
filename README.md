@@ -249,7 +249,7 @@ You can help in several ways:
 
 ## Documentation
 
-- 📚 [Official Docs](https://docs.mindwtr.app/) - Searchable documentation with better navigation
+- 📚 [Official Docs](https://docs.mindwtr.app/)
 - 🚀 [Getting Started](https://docs.mindwtr.app/start/getting-started)
 - ❓ [FAQ](https://docs.mindwtr.app/start/faq)
 - 🔄 [Data & Sync](https://docs.mindwtr.app/data-sync/)
@@ -292,8 +292,11 @@ Thanks to these monthly sponsors for supporting Mindwtr.
   <a href="https://github.com/davibicudo" title="@davibicudo">
     <img src="docs/assets/sponsors/davibicudo.png" width="60" height="60" alt="@davibicudo" />
   </a>
+  <a href="https://github.com/PLPeeters" title="@PLPeeters">
+    <img src="docs/assets/sponsors/plpeeters.png" width="60" height="60" alt="@PLPeeters" />
+  </a>
 </p>
 
 <p align="center">
-  <sub><a href="https://github.com/jarrydstan">@jarrydstan</a> · <a href="https://github.com/ronmolenda">@ronmolenda</a> · <a href="https://github.com/bepolymathe">@bepolymathe</a> · <a href="https://github.com/karl1990">@karl1990</a> · <a href="https://github.com/srijan">@srijan</a> · <a href="https://github.com/davibicudo">@davibicudo</a></sub>
+  <sub><a href="https://github.com/jarrydstan">@jarrydstan</a> · <a href="https://github.com/ronmolenda">@ronmolenda</a> · <a href="https://github.com/bepolymathe">@bepolymathe</a> · <a href="https://github.com/karl1990">@karl1990</a> · <a href="https://github.com/srijan">@srijan</a> · <a href="https://github.com/davibicudo">@davibicudo</a> · <a href="https://github.com/PLPeeters">@PLPeeters</a></sub>
 </p>

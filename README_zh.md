@@ -245,7 +245,7 @@ Mindwtr 的发展离不开用户与贡献者的支持，感谢大家一起把它
 
 ## 文档
 
-- 📚 [官方文档](https://docs.mindwtr.app/) - 搜索与导航体验更好的文档站
+- 📚 [官方文档](https://docs.mindwtr.app/)
 - 🚀 [快速开始](https://docs.mindwtr.app/start/getting-started)
 - ❓ [FAQ](https://docs.mindwtr.app/start/faq)
 - 🔄 [数据与同步](https://docs.mindwtr.app/data-sync/)
@@ -288,8 +288,11 @@ Mindwtr 的发展离不开用户与贡献者的支持，感谢大家一起把它
   <a href="https://github.com/davibicudo" title="@davibicudo">
     <img src="docs/assets/sponsors/davibicudo.png" width="60" height="60" alt="@davibicudo" />
   </a>
+  <a href="https://github.com/PLPeeters" title="@PLPeeters">
+    <img src="docs/assets/sponsors/plpeeters.png" width="60" height="60" alt="@PLPeeters" />
+  </a>
 </p>
 
 <p align="center">
-  <sub><a href="https://github.com/jarrydstan">@jarrydstan</a> · <a href="https://github.com/ronmolenda">@ronmolenda</a> · <a href="https://github.com/bepolymathe">@bepolymathe</a> · <a href="https://github.com/karl1990">@karl1990</a> · <a href="https://github.com/srijan">@srijan</a> · <a href="https://github.com/davibicudo">@davibicudo</a></sub>
+  <sub><a href="https://github.com/jarrydstan">@jarrydstan</a> · <a href="https://github.com/ronmolenda">@ronmolenda</a> · <a href="https://github.com/bepolymathe">@bepolymathe</a> · <a href="https://github.com/karl1990">@karl1990</a> · <a href="https://github.com/srijan">@srijan</a> · <a href="https://github.com/davibicudo">@davibicudo</a> · <a href="https://github.com/PLPeeters">@PLPeeters</a></sub>
 </p>
