@@ -476,20 +476,25 @@ export const TaskItemDisplay = memo(function TaskItemDisplay({
     // quick-complete check stays hidden at rest and only reveals on row hover (for the
     // 2-minute rule). Actionable lists (next, projects, focus) show it at rest.
     const isInboxItem = task.status === 'inbox';
+    // Waiting/Someday tasks promote to Next instead of completing — the natural
+    // transition when an item unblocks, matching the mobile swipe action.
+    const quickActionIsPromote = task.status === 'waiting' || task.status === 'someday';
     const quickDoneButton = (
         <button
             type="button"
             onClick={(event) => {
                 event.stopPropagation();
-                onStatusChange('done');
+                onStatusChange(quickActionIsPromote ? 'next' : 'done');
             }}
-            aria-label={t('status.done')}
+            aria-label={quickActionIsPromote ? t('status.next') : t('status.done')}
             className={cn(
-                "text-emerald-400 hover:text-emerald-300 p-1 rounded hover:bg-emerald-500/20",
+                quickActionIsPromote
+                    ? "text-sky-400 hover:text-sky-300 p-1 rounded hover:bg-sky-500/20"
+                    : "text-emerald-400 hover:text-emerald-300 p-1 rounded hover:bg-emerald-500/20",
                 isInboxItem && "opacity-0 group-hover:opacity-100 focus:opacity-100 transition-opacity",
             )}
         >
-            <Check className="w-4 h-4" />
+            {quickActionIsPromote ? <ArrowRight className="w-4 h-4" /> : <Check className="w-4 h-4" />}
         </button>
     );
 

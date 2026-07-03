@@ -49,3 +49,4 @@ Changes collected after `v1.0.5` and before the next version tag.
 - fix(mobile): keep the Calendar "add task" sheet above the Android keyboard.
 - fix(recurrence): always show a recurring task's next occurrence date in task previews — newly created unscheduled recurring tasks no longer hide their date until the first completion.
 - fix(recurrence): completing a date-less recurring task now defers the next instance with a date-only start instead of inheriting the completion's time of day (app and local API).
+- feat(desktop): the quick action on Waiting and Someday rows now promotes the task to Next in one click (matching the mobile swipe action), including inside the review flows.
