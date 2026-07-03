@@ -62,6 +62,28 @@ describe('TaskItem', () => {
         expect(await findByRole('menu', { name: /more options/i })).toBeInTheDocument();
     });
 
+    it('stops being a calendar drag source while details are expanded so text stays selectable', async () => {
+        const user = userEvent.setup();
+        const taskWithDescription: Task = {
+            ...mockTask,
+            description: 'Copy me',
+        };
+        const { container, getByRole } = render(
+            <LanguageProvider>
+                <TaskItem task={taskWithDescription} />
+            </LanguageProvider>
+        );
+
+        const root = container.querySelector('[data-task-id="1"]') as HTMLElement;
+        expect(root.getAttribute('draggable')).toBe('true');
+
+        await user.click(getByRole('button', { name: /toggle task details/i }));
+        await waitFor(() => expect(root.getAttribute('draggable')).toBe('false'));
+
+        await user.click(getByRole('button', { name: /toggle task details/i }));
+        await waitFor(() => expect(root.getAttribute('draggable')).toBe('true'));
+    });
+
     it('hides the default status selector when the task editor layout hides status', () => {
         act(() => {
             useTaskStore.setState({

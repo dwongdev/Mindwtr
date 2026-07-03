@@ -291,7 +291,9 @@ export const TaskItem = memo(function TaskItem({
     const isStagnant = (task.pushCount ?? 0) > 3;
     const effectiveReadOnly = readOnly || task.status === 'done';
     const effectiveFocusToggle = effectiveReadOnly ? undefined : focusToggle;
-    const canCalendarDrag = !actionsOverlay && !dragHandle && !selectionMode && !isEditing && !effectiveReadOnly;
+    // An HTML5-draggable ancestor swallows mouse text selection, so rows stop
+    // being calendar-drag sources while their read view is expanded (#815).
+    const canCalendarDrag = !actionsOverlay && !dragHandle && !selectionMode && !isEditing && !effectiveReadOnly && !isTaskExpanded;
     const quickActionFocus = useMemo(() => {
         if (!quickActionMenu || effectiveReadOnly) return undefined;
 

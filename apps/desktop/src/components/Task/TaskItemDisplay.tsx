@@ -651,11 +651,12 @@ export const TaskItemDisplay = memo(function TaskItemDisplay({
                             {task.description && (
                                 <div
                                     className={cn(
-                                        "font-normal text-muted-foreground mt-1 w-full break-words",
+                                        "font-normal text-muted-foreground mt-1 w-full break-words select-text cursor-text",
                                         dense ? "text-xs" : "text-sm",
                                         isRtl && "text-right"
                                     )}
                                     dir={resolvedDirection}
+                                    onMouseDown={(event) => event.stopPropagation()}
                                 >
                                     <RichMarkdown markdown={task.description} />
                                 </div>
