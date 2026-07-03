@@ -52,3 +52,4 @@ Changes collected after `v1.0.5` and before the next version tag.
 - feat(desktop): the quick action on Waiting and Someday rows now promotes the task to Next in one click (matching the mobile swipe action), including inside the review flows.
 - feat(mobile): search no longer hides Done and Archived matches silently — a tappable "N more in Done and Archived" hint includes them in one tap.
 - feat(projects): pick a project's area directly in the create form on desktop and mobile, defaulting to the active area filter.
+- fix(desktop): quick add and capture fields keep the caret visible after accepting a suggestion, and long suggestion lists scroll to keep the highlighted entry in view.
