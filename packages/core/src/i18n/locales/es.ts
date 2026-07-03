@@ -970,6 +970,7 @@ export const esOverrides: Record<string, string> = {
         'search.noSavedSearches': 'Todavía no hay búsquedas guardadas.',
         'search.deleteConfirm': '¿Eliminar esta búsqueda guardada?',
         'search.helpOperators': 'Usa operadores como status:, context:, tag: (etiqueta), project:, due:<=7d. P. ej., context:casa status:next',
+        'search.hiddenCompletedMatches': '{{count}} más en completadas y archivadas',
         'search.includeCompleted': 'Incluir tareas completadas y archivadas',
         'search.includeReference': 'Incluir tareas de referencia',
         'search.include.label': 'Incluir',

@@ -1043,6 +1043,7 @@ export const plOverrides: Record<string, string> = {
         'search.noSavedSearches': 'Nie ma jeszcze zapisanych wyszukiwań.',
         'search.deleteConfirm': 'Usunąć to zapisane wyszukiwanie?',
         'search.helpOperators': 'Użyj operatorów takich jak status:, context:, tag:, project:, due:<=7d. Np. context:dom status:next',
+        'search.hiddenCompletedMatches': '{{count}} więcej w wykonanych i zarchiwizowanych',
         'search.includeCompleted': 'Uwzględnij zadania wykonane i zarchiwizowane',
         'search.includeReference': 'Uwzględnij zadania referencyjne',
         'search.include.label': 'Uwzględnij',

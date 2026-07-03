@@ -1103,6 +1103,7 @@ export const deOverrides: Record<string, string> = {
         'search.noSavedSearches': 'Noch keine gespeicherte Suchabfragen.',
         'search.deleteConfirm': 'Diese gespeicherte Suchabfrage löschen?',
         'search.helpOperators': 'Sie können Operatoren benutzen wie z.B. status:, context:, tag:, project:, due:<=7d.',
+        'search.hiddenCompletedMatches': '{{count}} weitere in Erledigt und Archiviert',
         'search.includeCompleted': 'Erledigte und archivierte Aufgaben einschließen',
         'search.includeReference': 'Referenz-Aufgaben einschließen',
         'search.include.label': 'Einschließen',

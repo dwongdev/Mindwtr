@@ -240,13 +240,7 @@ export default function SearchScreen() {
         if (duePreset === 'next_week') return due >= nextWeekStart && due < nextWeekEnd;
         return true;
     };
-    const filteredTasks = taskResults.filter((task) => {
-        if (hasStatusFilter) {
-            if (!selectedStatuses.includes(task.status)) return false;
-        } else {
-            if (!includeCompleted && (task.status === 'done' || task.status === 'archived')) return false;
-            if (!includeReference && task.status === 'reference') return false;
-        }
+    const passesNonStatusTaskFilters = (task: SearchTaskResult) => {
         if (!shouldShowTaskForStart(task, { showFutureStarts: !hideFutureTasks })) return false;
         if (scope === 'project_tasks' && !task.projectId) return false;
         if (!matchesTaskArea(task)) return false;
@@ -254,6 +248,15 @@ export default function SearchScreen() {
         if (!matchesLocation(task)) return false;
         if (!matchesDue(task)) return false;
         return true;
+    };
+    const filteredTasks = taskResults.filter((task) => {
+        if (hasStatusFilter) {
+            if (!selectedStatuses.includes(task.status)) return false;
+        } else {
+            if (!includeCompleted && (task.status === 'done' || task.status === 'archived')) return false;
+            if (!includeReference && task.status === 'reference') return false;
+        }
+        return passesNonStatusTaskFilters(task);
     });
     const filteredProjects = projectResults.filter((project) => {
         if (normalizedLocationQuery) return false;
@@ -261,6 +264,17 @@ export default function SearchScreen() {
         if (!matchesArea(project.areaId ?? null)) return false;
         return true;
     });
+    // Matches that only the default done/archived exclusion is hiding. Surfacing
+    // them keeps the search honest: a completed task must stay findable (#806).
+    const hiddenCompletedTaskCount = !hasStatusFilter && !includeCompleted && scope !== 'projects'
+        ? taskResults.filter((task) =>
+            (task.status === 'done' || task.status === 'archived') && passesNonStatusTaskFilters(task)
+        ).length
+        : 0;
+    const hiddenArchivedProjectCount = !includeCompleted && scope !== 'tasks' && scope !== 'project_tasks' && !normalizedLocationQuery
+        ? projectResults.filter((project) => project.status === 'archived' && matchesArea(project.areaId ?? null)).length
+        : 0;
+    const hiddenCompletedCount = hiddenCompletedTaskCount + hiddenArchivedProjectCount;
     const editingTask = useMemo<Task | null>(
         () => editingTaskId
             ? _allTasks.find((task) => task.id === editingTaskId && !task.deletedAt) ?? null
@@ -706,6 +720,17 @@ export default function SearchScreen() {
                     </Text>
                 </View>
             )}
+            {hasActiveSearch && hiddenCompletedCount > 0 && (
+                <TouchableOpacity
+                    onPress={() => setIncludeCompleted(true)}
+                    accessibilityRole="button"
+                    style={[styles.hiddenMatchesHint, { backgroundColor: tc.cardBg, borderColor: tc.border }]}
+                >
+                    <Text style={[styles.hiddenMatchesHintText, { color: tc.tint }]}>
+                        {t('search.hiddenCompletedMatches').replace('{{count}}', String(hiddenCompletedCount))}
+                    </Text>
+                </TouchableOpacity>
+            )}
 
             <FlatList
                 data={results}
@@ -831,6 +856,19 @@ const styles = StyleSheet.create({
         gap: 8,
         paddingHorizontal: 16,
         paddingTop: 8,
+    },
+    hiddenMatchesHint: {
+        marginHorizontal: 16,
+        marginTop: 8,
+        paddingVertical: 8,
+        paddingHorizontal: 12,
+        borderRadius: 8,
+        borderWidth: 1,
+    },
+    hiddenMatchesHintText: {
+        fontSize: 13,
+        fontWeight: '600',
+        textAlign: 'center',
     },
     loadingText: {
         fontSize: 12,

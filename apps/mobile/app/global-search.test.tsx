@@ -85,6 +85,7 @@ vi.mock('../contexts/language-context', () => ({
             'filters.label': 'Filters',
             'search.helpOperators': 'Use operators',
             'search.inProjectSuffix': 'in project',
+            'search.hiddenCompletedMatches': '{{count}} more in Done & Archived',
             'search.noResults': 'No results',
             'search.placeholder': 'Search',
             'search.resultTask': 'Task',
@@ -191,6 +192,50 @@ describe('SearchScreen task results', () => {
 
         const resultList = tree.root.findByType(FlatList);
         expect(resultList.props.data.map((result: any) => result.item.id)).toEqual(['task-1']);
+    });
+
+    it('offers to include hidden done and archived matches instead of hiding them silently', () => {
+        storeState._allTasks = [
+            makeTask('task-1', 'Launch checklist', { status: 'done' }),
+            makeTask('task-2', 'Home errands'),
+        ];
+
+        let tree!: ReturnType<typeof create>;
+        act(() => {
+            tree = create(<SearchScreen />);
+        });
+
+        expect(tree.root.findByType(FlatList).props.data).toEqual([]);
+
+        const hint = tree.root.findAllByType(TouchableOpacity).find((node) =>
+            node.findAllByType(Text).some((textNode) =>
+                String(textNode.props.children).includes('more in Done & Archived')
+            )
+        );
+        expect(hint).toBeDefined();
+        expect(hint!.findAllByType(Text).some((textNode) =>
+            String(textNode.props.children).startsWith('1 more')
+        )).toBe(true);
+
+        act(() => {
+            hint!.props.onPress();
+        });
+
+        expect(tree.root.findByType(FlatList).props.data.map((result: any) => result.item.id)).toEqual(['task-1']);
+    });
+
+    it('does not offer hidden matches when nothing matching is done or archived', () => {
+        let tree!: ReturnType<typeof create>;
+        act(() => {
+            tree = create(<SearchScreen />);
+        });
+
+        const hint = tree.root.findAllByType(TouchableOpacity).find((node) =>
+            node.findAllByType(Text).some((textNode) =>
+                String(textNode.props.children).includes('more in Done & Archived')
+            )
+        );
+        expect(hint).toBeUndefined();
     });
 
     it('keeps literal CJK substring matches when SQLite search returns partial token matches', async () => {

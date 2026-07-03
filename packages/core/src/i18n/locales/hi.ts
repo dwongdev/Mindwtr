@@ -1042,6 +1042,7 @@ export const hiOverrides: Record<string, string> = {
         'search.savedSearches': 'सहेजी गई खोजें',
         'search.noSavedSearches': 'अभी तक कोई सहेजी गई खोज नहीं.',
         'search.deleteConfirm': 'इस सहेजी गई खोज को हटाएं?',
+        'search.hiddenCompletedMatches': 'पूर्ण और संग्रहीत में {{count}} और',
         'search.includeCompleted': 'पूर्ण और संग्रहीत कार्य शामिल करें',
         'search.includeReference': 'संदर्भ कार्य शामिल करें',
         'search.include.label': 'शामिल करना',

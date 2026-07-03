@@ -1339,6 +1339,7 @@ export const frOverrides: Record<string, string> = {
         'search.noSavedSearches': 'Aucune recherche enregistrée pour l’instant.',
         'search.deleteConfirm': 'Supprimer cette recherche enregistrée ?',
         'search.helpOperators': 'Utilisez des opérateurs tels que status:, context:, tag:, project:, due:<=7d.',
+        'search.hiddenCompletedMatches': '{{count}} de plus dans terminées et archivées',
         'search.includeCompleted': 'Inclure les tâches terminées et archivées',
         'search.includeReference': 'Inclure les tâches de référence',
         'search.include.label': 'Inclure',

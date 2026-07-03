@@ -1048,6 +1048,7 @@ export const koOverrides: Record<string, string> = {
         'search.savedSearches': '저장된 검색',
         'search.noSavedSearches': '아직 저장된 검색결과가 없습니다.',
         'search.deleteConfirm': '저장된 검색결과를 삭제하시겠습니까?',
+        'search.hiddenCompletedMatches': '완료 및 보관됨에 {{count}}개 더 있음',
         'search.includeCompleted': '완료 및 보관된 작업 포함',
         'search.includeReference': '참조 작업 포함',
         'search.include.label': '포함하다',

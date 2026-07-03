@@ -1364,6 +1364,7 @@ export const en: Record<string, string> = {
         'search.noSavedSearches': 'No saved searches yet.',
         'search.deleteConfirm': 'Delete this saved search?',
         'search.helpOperators': 'Use operators like status:, context:, tag:, project:, due:<=7d.',
+        'search.hiddenCompletedMatches': '{{count}} more in Done and Archived',
         'search.includeCompleted': 'Include Done and Archived tasks',
         'search.includeReference': 'Include Reference tasks',
         'search.include.label': 'Include',
