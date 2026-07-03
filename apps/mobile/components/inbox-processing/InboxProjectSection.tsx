@@ -248,7 +248,7 @@ export function InboxProjectSection({
   return (
     <View style={[styles.singleSection, { borderBottomColor: tc.border }]}>
       <Text style={[styles.stepQuestion, { color: tc.text }]}>
-        📁 {showProjectField ? t('process.moreThanOneStep') : t('inbox.assignProjectQuestion')}
+        {showProjectField ? t('process.moreThanOneStep') : t('inbox.assignProjectQuestion')}
       </Text>
       {showProjectField && (
         <>

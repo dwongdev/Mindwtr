@@ -555,7 +555,7 @@ export default function CaptureScreen() {
               }}
             >
               <Text style={[styles.copilotText, { color: tc.text }]}>
-                ✨ {t('copilot.suggested')}{' '}
+                {t('copilot.suggested')}{' '}
                 {copilotSuggestion.context ? `${copilotSuggestion.context} ` : ''}
                 {timeEstimatesEnabled && copilotSuggestion.timeEstimate ? `${copilotSuggestion.timeEstimate}` : ''}
                 {copilotSuggestion.tags?.length ? copilotSuggestion.tags.join(' ') : ''}
@@ -568,7 +568,7 @@ export default function CaptureScreen() {
           {copilotApplied && (
             <View style={[styles.copilotPill, { borderColor: tc.border, backgroundColor: tc.inputBg }]}>
               <Text style={[styles.copilotText, { color: tc.text }]}>
-                ✅ {t('copilot.applied')}{' '}
+                {t('copilot.applied')}{' '}
                 {copilotContext ? `${copilotContext} ` : ''}
                 {timeEstimatesEnabled && copilotEstimate ? `${copilotEstimate}` : ''}
                 {copilotTags.length ? copilotTags.join(' ') : ''}

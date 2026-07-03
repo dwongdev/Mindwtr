@@ -392,7 +392,7 @@ function TaskEditFormTabComponent({
                             onPress={applyCopilotSuggestion}
                         >
                             <Text style={[styles.copilotText, { color: tc.text }]}>
-                                ✨ {t('copilot.suggested')}{' '}
+                                {t('copilot.suggested')}{' '}
                                 {copilotSuggestion.context ? `${copilotSuggestion.context} ` : ''}
                                 {timeEstimatesEnabled && copilotSuggestion.timeEstimate ? `${copilotSuggestion.timeEstimate}` : ''}
                                 {copilotSuggestion.tags?.length ? copilotSuggestion.tags.join(' ') : ''}
@@ -405,7 +405,7 @@ function TaskEditFormTabComponent({
                     {aiEnabled && copilotApplied && (
                         <View style={[styles.copilotPill, { borderColor: tc.border, backgroundColor: tc.filterBg }]}>
                             <Text style={[styles.copilotText, { color: tc.text }]}>
-                                ✅ {t('copilot.applied')}{' '}
+                                {t('copilot.applied')}{' '}
                                 {copilotContext ? `${copilotContext} ` : ''}
                                 {timeEstimatesEnabled && copilotEstimate ? `${copilotEstimate}` : ''}
                                 {copilotTags.length ? copilotTags.join(' ') : ''}

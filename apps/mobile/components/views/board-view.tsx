@@ -195,7 +195,7 @@ function DraggableTask({
                   {projectTitle && (
                     <View style={[styles.projectBadge, { backgroundColor: resolvedProjectColor + '20', borderColor: resolvedProjectColor }]}>
                       <Text style={[styles.projectBadgeText, { color: resolvedProjectColor }]} numberOfLines={1}>
-                        📁 {projectTitle}
+                        {projectTitle}
                       </Text>
                     </View>
                   )}
