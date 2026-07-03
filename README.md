@@ -233,7 +233,7 @@ Mindwtr is shaped by its users and contributors. Thank you for helping improve i
 
 ### :hearts: Contributing & Support
 
-If you want to get involved, start with [CONTRIBUTING.md](docs/CONTRIBUTING.md).
+If you want to get involved for coding, start with [CONTRIBUTING.md](docs/CONTRIBUTING.md).
 
 You can help in several ways:
 

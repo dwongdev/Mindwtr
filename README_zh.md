@@ -229,7 +229,7 @@ Mindwtr 的发展离不开用户与贡献者的支持，感谢大家一起把它
 
 ### :hearts: 贡献与支持
 
-如果你想参与进来，请先阅读 [CONTRIBUTING.md](docs/CONTRIBUTING.md)。
+如果你想参与代码贡献，请先阅读 [CONTRIBUTING.md](docs/CONTRIBUTING.md)。
 
 你可以通过以下方式帮助项目：
 
