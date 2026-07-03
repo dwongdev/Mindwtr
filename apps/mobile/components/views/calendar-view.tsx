@@ -22,6 +22,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { TaskEditModal } from '@/components/task-edit-modal';
 import { openContextsScreen, openProjectScreen } from '@/lib/task-meta-navigation';
+import { useAndroidKeyboardInset } from '@/lib/use-android-keyboard-inset';
 import { styles } from './calendar/calendar-view.styles';
 import {
   buildTimedCalendarLayouts,
@@ -386,6 +387,7 @@ export function CalendarView() {
   } = useCalendarViewController();
   const { height: screenHeight, width: screenWidth } = useWindowDimensions();
   const insets = useSafeAreaInsets();
+  const composerKeyboardInset = useAndroidKeyboardInset(Boolean(calendarComposer));
   const collapsedSheetSnap = Math.max(
     MONTH_DETAILS_COLLAPSED_SNAP,
     Math.min(MONTH_DETAILS_MID_SNAP, MONTH_DETAILS_MIN_HEIGHT / Math.max(screenHeight, 1))
@@ -699,7 +701,12 @@ export function CalendarView() {
       animationType="fade"
       onRequestClose={closeCalendarComposer}
     >
-      <Pressable style={styles.composerBackdrop} onPress={closeCalendarComposer}>
+      <Pressable
+        style={composerKeyboardInset > 0
+          ? [styles.composerBackdrop, { paddingBottom: composerKeyboardInset }]
+          : styles.composerBackdrop}
+        onPress={closeCalendarComposer}
+      >
         {calendarComposer && (
           <View
             style={[
