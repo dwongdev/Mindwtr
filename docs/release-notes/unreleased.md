@@ -47,3 +47,4 @@ Changes collected after `v1.0.5` and before the next version tag.
 - feat(review): review Waiting For before choosing today's focus in the Daily Review, so items that unblocked can be promoted to Next and picked up in the focus step.
 - feat(checklist)!: the checklist and description are now fully independent — markdown checkbox lines in notes no longer populate or update the task checklist, and checklist edits no longer rewrite the notes (ADR 0022). To bulk-add items, paste the lines into the checklist field.
 - fix(mobile): keep the Calendar "add task" sheet above the Android keyboard.
+- fix(recurrence): always show a recurring task's next occurrence date in task previews — newly created unscheduled recurring tasks no longer hide their date until the first completion.

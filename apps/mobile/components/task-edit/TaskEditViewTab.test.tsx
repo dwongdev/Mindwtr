@@ -254,6 +254,91 @@ describe('TaskEditViewTab', () => {
     expect(tree.root.findByProps({ children: 'Monthly · Next calendar preview: formatted 2026-07-09' })).toBeTruthy();
   });
 
+  it('shows the upcoming occurrence for an unscheduled recurring task without the calendar toggle', () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date(2026, 6, 3, 12, 0, 0));
+    let tree!: renderer.ReactTestRenderer;
+    try {
+      renderer.act(() => {
+        tree = renderer.create(
+          <TaskEditViewTab
+            t={(key) =>
+              ({
+                'taskEdit.recurrenceLabel': 'Recurrence',
+                'status.next': 'Next',
+                'recurrence.monthly': 'Monthly',
+                'recurrence.nextCalendarPreview': 'Next calendar preview',
+              }[key] ?? key)
+            }
+            tc={{
+              text: '#fff',
+              secondaryText: '#aaa',
+              inputBg: '#111',
+              border: '#222',
+              cardBg: '#000',
+              tint: '#3b82f6',
+            } as any}
+            styles={{
+              content: {},
+              contentContainer: {},
+              viewRow: {},
+              viewLabel: {},
+              viewValue: {},
+              viewSection: {},
+              viewPillRow: {},
+              viewPill: {},
+              viewPillText: {},
+              viewCard: {},
+              viewChecklist: {},
+              viewChecklistItem: {},
+              viewChecklistText: {},
+              viewAttachmentGrid: {},
+              viewAttachmentCard: {},
+              viewAttachmentText: {},
+              viewAttachmentSubtext: {},
+              viewAttachmentImage: {},
+            }}
+            mergedTask={{
+              id: 'task-1',
+              title: 'Preview task',
+              status: 'next',
+              tags: [],
+              contexts: [],
+              recurrence: {
+                rule: 'monthly',
+                strategy: 'strict',
+                byMonthDay: [9],
+                rrule: 'FREQ=MONTHLY;BYMONTHDAY=9',
+              },
+              createdAt: '2026-04-01T00:00:00.000Z',
+              updatedAt: '2026-04-01T00:00:00.000Z',
+            }}
+            projects={[]}
+            sections={[]}
+            areas={[]}
+            prioritiesEnabled={false}
+            timeEstimatesEnabled={false}
+            formatTimeEstimateLabel={(value) => String(value)}
+            formatDate={(value) => `formatted ${value}`}
+            formatDueDate={(value) => value}
+            getRecurrenceRuleValue={() => 'monthly'}
+            getRecurrenceStrategyValue={() => 'strict'}
+            applyChecklistUpdate={vi.fn()}
+            visibleAttachments={[]}
+            openAttachment={vi.fn()}
+            isImageAttachment={() => false}
+            textDirectionStyle={{}}
+            resolvedDirection="ltr"
+          />
+        );
+      });
+
+      expect(tree.root.findByProps({ children: 'Monthly · Next calendar preview: formatted 2026-07-09' })).toBeTruthy();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it('hides the status row when the task editor layout hides status', () => {
     let tree!: renderer.ReactTestRenderer;
     renderer.act(() => {

@@ -4,7 +4,7 @@ import { CheckSquare, Square } from 'lucide-react-native';
 import {
   formatRecurrenceLabel,
   getAttachmentDisplayTitle,
-  getProjectedRecurringTaskCalendarDate,
+  getRecurringTaskPreviewDate,
   hasTimeComponent,
   tFallback,
 } from '@mindwtr/core';
@@ -152,7 +152,7 @@ function TaskEditViewTabComponent({
     : undefined;
   const recurrenceLabel = formatRecurrenceLabel({ recurrence: mergedTask.recurrence, t, formatDate }) || undefined;
   const projectedRecurrenceDateLabel = (() => {
-    if (!recurrenceLabel || !mergedTask.recurrence || mergedTask.showFutureRecurrence !== true) return '';
+    if (!recurrenceLabel || !mergedTask.recurrence) return '';
     const nowIso = new Date().toISOString();
     const previewTask = {
       ...mergedTask,
@@ -164,10 +164,9 @@ function TaskEditViewTabComponent({
       createdAt: mergedTask.createdAt ?? nowIso,
       updatedAt: mergedTask.updatedAt ?? nowIso,
       recurrence: mergedTask.recurrence,
-      showFutureRecurrence: true,
     } as Task;
-    const projectedDate = getProjectedRecurringTaskCalendarDate(previewTask, nowIso);
-    return projectedDate ? formatDate(projectedDate) : '';
+    const previewDate = getRecurringTaskPreviewDate(previewTask, nowIso);
+    return previewDate ? formatDate(previewDate) : '';
   })();
   const recurrencePreviewLabel = recurrenceLabel && projectedRecurrenceDateLabel
     ? `${recurrenceLabel} · ${tFallback(t, 'recurrence.nextCalendarPreview', 'Next calendar preview')}: ${projectedRecurrenceDateLabel}`

@@ -180,6 +180,55 @@ describe('TaskItemDisplay', () => {
         expect(getByText('Daily · Repeat every 3 day(s)')).toBeInTheDocument();
     });
 
+    it('shows the upcoming occurrence for an unscheduled recurring task without the calendar toggle', () => {
+        vi.useFakeTimers();
+        vi.setSystemTime(new Date(2026, 6, 3, 12, 0, 0));
+        try {
+            const { getByText } = render(
+                <LanguageProvider>
+                    <TaskItemDisplay
+                        task={{
+                            ...baseTask,
+                            recurrence: {
+                                rule: 'monthly',
+                                strategy: 'strict',
+                                byMonthDay: [9],
+                                rrule: 'FREQ=MONTHLY;BYMONTHDAY=9',
+                            },
+                        }}
+                        language="en"
+                        selectionMode={false}
+                        isViewOpen
+                        actions={{
+                            onToggleView: vi.fn(),
+                            onEdit: vi.fn(),
+                            onDelete: vi.fn(),
+                            onDuplicate: vi.fn(),
+                            onStatusChange: vi.fn(),
+                            openAttachment: vi.fn(),
+                        }}
+                        visibleAttachments={[]}
+                        recurrenceRule="monthly"
+                        recurrenceStrategy="strict"
+                        prioritiesEnabled={false}
+                        timeEstimatesEnabled={false}
+                        isStagnant={false}
+                        showQuickDone={false}
+                        readOnly={false}
+                        t={(key: string) => ({
+                            'recurrence.monthly': 'Monthly',
+                            'recurrence.nextCalendarPreview': 'Next calendar preview',
+                        }[key] ?? key)}
+                    />
+                </LanguageProvider>
+            );
+
+            expect(getByText('Monthly · Next calendar preview: Jul 9, 2026')).toBeInTheDocument();
+        } finally {
+            vi.useRealTimers();
+        }
+    });
+
     it('shows the projected recurrence date in task preview metadata', () => {
         const { getByText } = render(
             <LanguageProvider>

@@ -879,6 +879,22 @@ export function getProjectedRecurringTaskCalendarDate(
     return projectedTask ? getTaskCalendarOccurrenceDate(projectedTask) : undefined;
 }
 
+/**
+ * Toggle-independent date for a recurring task's preview row: the first
+ * upcoming occurrence for unscheduled tasks, or the occurrence after the
+ * current one for scheduled tasks. `showFutureRecurrence` only opts a task
+ * into Calendar projection entities; it must not hide this display date.
+ */
+export function getRecurringTaskPreviewDate(
+    task: Task,
+    projectedAtIso: string = new Date().toISOString()
+): string | undefined {
+    const previewSource: Task = task.showFutureRecurrence ? task : { ...task, showFutureRecurrence: true };
+    const current = createCurrentRecurringCalendarTask(previewSource, projectedAtIso);
+    if (current?.startTime) return current.startTime;
+    return getProjectedRecurringTaskCalendarDate(previewSource, projectedAtIso);
+}
+
 export function createCurrentRecurringCalendarTask(
     task: Task,
     projectedAtIso: string = new Date().toISOString()

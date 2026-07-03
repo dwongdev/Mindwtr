@@ -458,6 +458,7 @@ export {
     formatRecurrenceLabel,
     getProjectedRecurringTaskId,
     getProjectedRecurringTaskCalendarDate,
+    getRecurringTaskPreviewDate,
     getRecurrenceCompletedOccurrencesValue,
     getRecurrenceCountValue,
     getRecurrenceUntilValue,

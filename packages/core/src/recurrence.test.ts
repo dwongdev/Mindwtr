@@ -10,6 +10,7 @@ import {
     formatRecurrenceLabel,
     getProjectedRecurringTaskCalendarDate,
     getProjectedRecurringTaskId,
+    getRecurringTaskPreviewDate,
     getTaskCalendarOccurrenceDate,
     isProjectedRecurringTask,
     normalizeRecurrenceForLoad,
@@ -1080,5 +1081,57 @@ describe('recurrence', () => {
         expect(next?.priority).toBe('urgent');
         expect(next?.energyLevel).toBe('high');
         expect(next?.assignedTo).toBe('Ada');
+    });
+});
+
+describe('getRecurringTaskPreviewDate', () => {
+    const nowIso = '2026-07-03T12:00:00.000Z';
+    const base: Task = {
+        id: 'preview-1',
+        title: 'Pay rent',
+        status: 'next',
+        tags: [],
+        contexts: [],
+        createdAt: nowIso,
+        updatedAt: nowIso,
+    };
+
+    it('shows the first upcoming occurrence for an unscheduled day-of-month rule without the calendar toggle', () => {
+        const task: Task = {
+            ...base,
+            recurrence: { rule: 'monthly', strategy: 'strict', byMonthDay: [9], rrule: 'FREQ=MONTHLY;BYMONTHDAY=9' },
+        };
+        expect(getRecurringTaskPreviewDate(task, nowIso)).toBe('2026-07-09');
+    });
+
+    it('shows the first upcoming occurrence for an unscheduled nth-weekday rule without the calendar toggle', () => {
+        const task: Task = {
+            ...base,
+            recurrence: { rule: 'monthly', strategy: 'strict', byDay: ['3TH'], rrule: 'FREQ=MONTHLY;BYDAY=3TH' },
+        };
+        expect(getRecurringTaskPreviewDate(task, nowIso)).toBe('2026-07-16');
+    });
+
+    it('shows the projected next occurrence for a scheduled task', () => {
+        const task: Task = {
+            ...base,
+            startTime: '2026-07-09',
+            recurrence: { rule: 'monthly', strategy: 'strict', byMonthDay: [9], rrule: 'FREQ=MONTHLY;BYMONTHDAY=9' },
+        };
+        expect(getRecurringTaskPreviewDate(task, nowIso)).toBe('2026-08-09');
+    });
+
+    it('matches the calendar projection when the calendar toggle is enabled', () => {
+        const task: Task = {
+            ...base,
+            showFutureRecurrence: true,
+            recurrence: { rule: 'monthly', strategy: 'strict', byMonthDay: [9], rrule: 'FREQ=MONTHLY;BYMONTHDAY=9' },
+        };
+        expect(getRecurringTaskPreviewDate(task, nowIso)).toBe('2026-07-09');
+    });
+
+    it('returns undefined for done tasks and tasks without recurrence', () => {
+        expect(getRecurringTaskPreviewDate({ ...base, status: 'done' as TaskStatus, recurrence: 'daily' }, nowIso)).toBeUndefined();
+        expect(getRecurringTaskPreviewDate(base, nowIso)).toBeUndefined();
     });
 });
