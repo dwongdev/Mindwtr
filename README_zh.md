@@ -249,7 +249,6 @@ Mindwtr 的发展离不开用户与贡献者的支持，感谢大家一起把它
 - 🚀 [快速开始](https://docs.mindwtr.app/start/getting-started)
 - ❓ [FAQ](https://docs.mindwtr.app/start/faq)
 - 🔄 [数据与同步](https://docs.mindwtr.app/data-sync/)
-- 🔗 [Markdown 链接](https://docs.mindwtr.app/use/markdown-links)
 - 🛠️ [云端部署](https://docs.mindwtr.app/data-sync/cloud-deployment)
 - ☁️ [云端 API](https://docs.mindwtr.app/developers/cloud-api)
 - 🧠 [MCP 服务器](https://docs.mindwtr.app/power-users/mcp)

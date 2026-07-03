@@ -253,7 +253,6 @@ You can help in several ways:
 - 🚀 [Getting Started](https://docs.mindwtr.app/start/getting-started)
 - ❓ [FAQ](https://docs.mindwtr.app/start/faq)
 - 🔄 [Data & Sync](https://docs.mindwtr.app/data-sync/)
-- 🔗 [Markdown Links](https://docs.mindwtr.app/use/markdown-links)
 - 🛠️ [Cloud Deployment](https://docs.mindwtr.app/data-sync/cloud-deployment)
 - ☁️ [Cloud API](https://docs.mindwtr.app/developers/cloud-api)
 - 🧠 [MCP Server](https://docs.mindwtr.app/power-users/mcp)
