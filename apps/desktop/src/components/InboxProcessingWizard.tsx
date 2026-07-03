@@ -1,5 +1,5 @@
 import { memo } from 'react';
-import { ArrowRight, BookOpen, CheckCircle, ChevronLeft, ClipboardList, Clock, Trash2, User, X } from 'lucide-react';
+import { ArrowRight, BookOpen, Check, CheckCircle, ChevronLeft, ClipboardList, Clock, Trash2, User, X } from 'lucide-react';
 import { DEFAULT_PROJECT_COLOR, filterProjectsBySelectedArea, safeFormatDate, safeParseDate, tFallback, type Area, type Project, type Task, type TaskPriority, type TimeEstimate } from '@mindwtr/core';
 
 import { cn } from '../lib/utils';
@@ -412,7 +412,7 @@ export const InboxProcessingWizard = memo(function InboxProcessingWizard({
                         </button>
                         <button
                             onClick={handleRefineNext}
-                            className="flex items-center gap-2 bg-primary text-primary-foreground px-6 py-2 rounded-lg text-sm font-semibold hover:bg-primary/90 transition-colors"
+                            className="flex items-center gap-2 bg-primary text-primary-foreground px-6 py-2 rounded-lg text-sm font-medium hover:bg-primary/90 transition-colors"
                         >
                             {t('process.refineNext')} <ArrowRight className="w-3.5 h-3.5" />
                         </button>
@@ -458,7 +458,7 @@ export const InboxProcessingWizard = memo(function InboxProcessingWizard({
                         <button
                             type="button"
                             onClick={handleLater}
-                            className="w-full flex items-center justify-center gap-2 rounded-lg bg-blue-500 text-white py-2.5 text-sm font-semibold transition-colors hover:bg-blue-600"
+                            className="w-full flex items-center justify-center gap-2 rounded-lg bg-blue-500 text-white py-2.5 text-sm font-medium transition-colors hover:bg-blue-600"
                         >
                             <Clock className="w-4 h-4" /> {laterLabel}
                         </button>
@@ -467,7 +467,7 @@ export const InboxProcessingWizard = memo(function InboxProcessingWizard({
                         <button
                             onClick={handleActionable}
                             className={cn(
-                                'flex items-center justify-center gap-2 bg-primary text-primary-foreground py-3 rounded-lg font-semibold hover:bg-primary/90 transition-colors',
+                                'flex items-center justify-center gap-2 bg-primary text-primary-foreground py-3 rounded-lg font-medium hover:bg-primary/90 transition-colors',
                                 showDoneNowShortcut ? 'flex-1' : 'w-full'
                             )}
                         >
@@ -476,7 +476,7 @@ export const InboxProcessingWizard = memo(function InboxProcessingWizard({
                         {showDoneNowShortcut && (
                             <button
                                 onClick={handleTwoMinDone}
-                                className="flex-1 flex items-center justify-center gap-2 bg-green-500 text-white py-3 rounded-lg font-semibold hover:bg-green-600 transition-colors"
+                                className="flex-1 flex items-center justify-center gap-2 bg-green-500 text-white py-3 rounded-lg font-medium hover:bg-green-600 transition-colors"
                             >
                                 <CheckCircle className="w-4 h-4" /> {t('process.doneIt')}
                             </button>
@@ -830,11 +830,11 @@ export const InboxProcessingWizard = memo(function InboxProcessingWizard({
 
                     <button
                         onClick={isReferenceOrganizationStep ? handleConfirmReference : handleConfirmContexts}
-                        className="w-full py-3 bg-primary text-primary-foreground rounded-lg font-medium hover:bg-primary/90"
+                        className="w-full flex items-center justify-center gap-2 py-3 bg-primary text-primary-foreground rounded-lg font-medium hover:bg-primary/90"
                     >
                         {selectedOrganizationCount > 0
-                            ? `${t('process.next')} → (${selectedOrganizationCount})`
-                            : `${t('process.next')} → (${t('process.noContext')})`}
+                            ? `${t('process.next')} (${selectedOrganizationCount})`
+                            : `${t('process.next')} (${t('process.noContext')})`} <ArrowRight className="w-3.5 h-3.5" />
                     </button>
                 </div>
             )}
@@ -851,7 +851,7 @@ export const InboxProcessingWizard = memo(function InboxProcessingWizard({
                             onClick={() => handleSetProject(currentProject.id)}
                             className="w-full flex items-center justify-center gap-2 py-2 px-3 rounded-lg border border-primary bg-primary/10 text-primary text-sm font-medium hover:bg-primary/20"
                         >
-                            ✓ {currentProject.title}
+                            <Check className="w-4 h-4" /> {currentProject.title}
                         </button>
                     )}
 
@@ -993,9 +993,9 @@ export const InboxProcessingWizard = memo(function InboxProcessingWizard({
 
                                     <button
                                         onClick={() => handleSetProject(null)}
-                                        className="w-full py-3 bg-green-600 text-white rounded-lg font-medium hover:bg-green-700"
+                                        className="w-full py-3 bg-muted rounded-lg font-medium hover:bg-muted/80"
                                     >
-                                        ✓ {t('process.noProject')}
+                                        {t('process.noProject')}
                                     </button>
 
                                     {filteredProjects.length > 0 && (
@@ -1024,9 +1024,9 @@ export const InboxProcessingWizard = memo(function InboxProcessingWizard({
                             ) : (
                                 <button
                                     onClick={() => handleSetProject(null)}
-                                    className="w-full py-3 bg-primary text-primary-foreground rounded-lg font-medium hover:bg-primary/90"
+                                    className="w-full flex items-center justify-center gap-2 py-3 bg-primary text-primary-foreground rounded-lg font-medium hover:bg-primary/90"
                                 >
-                                    {t('process.next')}
+                                    {t('process.next')} <ArrowRight className="w-3.5 h-3.5" />
                                 </button>
                             )}
                         </>
