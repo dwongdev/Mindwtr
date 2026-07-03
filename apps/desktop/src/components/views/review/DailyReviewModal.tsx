@@ -265,11 +265,13 @@ export function DailyReviewGuideModal({ onClose }: DailyReviewGuideModalProps) {
             { id: 'today', title: t('dailyReview.todayStep'), description: t('dailyReview.todayDesc'), icon: Calendar, hasWork: todayHasWork },
         ];
         visibleSteps.push({ id: 'inbox', title: t('dailyReview.inboxStep'), description: t('dailyReview.inboxDesc'), icon: CheckSquare, hasWork: inboxTasks.length > 0 });
+        // Waiting For comes before focus selection: items unblocked today can be
+        // switched to Next here and then picked up in the focus step.
+        visibleSteps.push({ id: 'waiting', title: t('dailyReview.waitingStep'), description: t('dailyReview.waitingDesc'), icon: ArrowRight, hasWork: waitingTasks.length > 0 });
         if (includeFocusStep) {
             visibleSteps.push({ id: 'focus', title: t('dailyReview.focusStep'), description: t('dailyReview.focusDesc'), icon: CheckSquare, hasWork: focusCandidates.length > 0 });
         }
         visibleSteps.push(
-            { id: 'waiting', title: t('dailyReview.waitingStep'), description: t('dailyReview.waitingDesc'), icon: ArrowRight, hasWork: waitingTasks.length > 0 },
             { id: 'completed', title: t('dailyReview.completeTitle'), description: t('dailyReview.completeDesc'), icon: Check, hasWork: true },
         );
         return visibleSteps;

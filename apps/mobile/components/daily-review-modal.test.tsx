@@ -257,6 +257,49 @@ describe('DailyReviewScreen', () => {
     expect(allText).not.toContain("Today's Focus");
   });
 
+  it('reviews waiting items before choosing todays focus', async () => {
+    storeState.tasks = [
+      {
+        id: 'waiting-task',
+        title: 'Waiting for invoice',
+        status: 'waiting',
+        contexts: [],
+        tags: [],
+        createdAt: '2026-03-01T00:00:00.000Z',
+        updatedAt: '2026-03-01T00:00:00.000Z',
+      },
+      {
+        id: 'next-task',
+        title: 'Write report',
+        status: 'next',
+        contexts: [],
+        tags: [],
+        createdAt: '2026-03-01T00:00:00.000Z',
+        updatedAt: '2026-03-01T00:00:00.000Z',
+      },
+    ];
+
+    let tree!: ReturnType<typeof create>;
+    await act(async () => {
+      tree = create(<DailyReviewScreen onClose={vi.fn()} />);
+    });
+
+    expect(tree.root.findAll((node) =>
+      node.props?.accessibilityLabel === 'Follow up today: Waiting for invoice'
+    ).length).toBeGreaterThan(0);
+
+    let pressable = tree.root.find((node) => node.props?.children === 'Next Step') as any;
+    while (pressable.parent && typeof pressable.props?.onPress !== 'function') {
+      pressable = pressable.parent;
+    }
+    await act(async () => {
+      pressable.props.onPress();
+    });
+
+    const rows = tree.root.findAllByType(SwipeableTaskItem);
+    expect(rows.some((row) => row.props.showFocusToggle === true)).toBe(true);
+  });
+
   it('sets a waiting item to follow up today without changing its status', async () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date(2026, 2, 15, 10, 30, 0));

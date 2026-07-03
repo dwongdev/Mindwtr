@@ -131,6 +131,23 @@ describe('DailyReviewGuideModal', () => {
         await waitFor(() => expect(window.localStorage.getItem(storageKey)).toBe('inbox'));
     });
 
+    it('reviews Waiting For before choosing todays focus so unblocked items can be promoted', () => {
+        useTaskStore.setState({
+            _allTasks: [
+                makeTask({ id: 'waiting-1', title: 'Waiting for invoice', status: 'waiting' }),
+                makeTask({ id: 'next-1', title: 'Write report', status: 'next' }),
+            ],
+        });
+
+        render(<DailyReviewGuideModal onClose={vi.fn()} />);
+
+        expect(screen.getByRole('heading', { level: 1, name: 'Waiting For' })).toBeInTheDocument();
+
+        fireEvent.click(screen.getByRole('button', { name: 'Next' }));
+
+        expect(screen.getByRole('heading', { level: 1, name: "Today's Focus" })).toBeInTheDocument();
+    });
+
     it('sets a waiting item to follow up today without changing its status', () => {
         vi.useFakeTimers();
         vi.setSystemTime(new Date(2026, 1, 15, 10, 30, 0));

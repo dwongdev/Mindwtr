@@ -44,4 +44,5 @@ Changes collected after `v1.0.5` and before the next version tag.
 - ci(release): publish RC Play uploads to internal testing and open testing by default, and run Android FOSS in parallel from the same versionCode preflight.
 - fix(checklist): stop task checklist items from being silently lost when the description contains markdown checkbox lines, and keep in-progress checklist typing safe during background refreshes.
 - feat(checklist): paste multi-line text into a checklist item to create one item per line, recognizing bullets, numbering, and `[x]` completion markers.
+- feat(review): review Waiting For before choosing today's focus in the Daily Review, so items that unblocked can be promoted to Next and picked up in the focus step.
 - feat(checklist)!: the checklist and description are now fully independent — markdown checkbox lines in notes no longer populate or update the task checklist, and checklist edits no longer rewrite the notes (ADR 0022). To bulk-add items, paste the lines into the checklist field.

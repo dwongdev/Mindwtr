@@ -229,12 +229,14 @@ function DailyReviewFlow({ onClose }: { onClose: () => void }) {
         const list: DailyReviewStepDefinition[] = [
             { id: 'today', title: t('dailyReview.todayStep'), description: t('dailyReview.todayDesc'), hasWork: todayHasWork },
             { id: 'inbox', title: t('dailyReview.inboxStep'), description: t('dailyReview.inboxDesc'), hasWork: inboxTasks.length > 0 },
+            // Waiting For comes before focus selection: items unblocked today can be
+            // switched to Next here and then picked up in the focus step.
+            { id: 'waiting', title: t('dailyReview.waitingStep'), description: t('dailyReview.waitingDesc'), hasWork: waitingTasks.length > 0 },
         ];
         if (includeFocusStep) {
             list.push({ id: 'focus', title: t('dailyReview.focusStep'), description: t('dailyReview.focusDesc'), hasWork: focusCandidates.length > 0 });
         }
         list.push(
-            { id: 'waiting', title: t('dailyReview.waitingStep'), description: t('dailyReview.waitingDesc'), hasWork: waitingTasks.length > 0 },
             { id: 'complete', title: t('dailyReview.completeTitle'), description: t('dailyReview.completeDesc'), hasWork: true },
         );
         return list;
