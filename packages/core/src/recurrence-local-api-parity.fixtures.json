@@ -202,7 +202,7 @@
     },
     "expected": {
       "status": "next",
-      "startTime": "2025-01-06T14:00:00.000Z",
+      "startTime": "2025-01-06",
       "recurrence": {
         "rule": "daily",
         "strategy": "fluid"

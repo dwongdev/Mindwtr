@@ -951,8 +951,17 @@ fn create_next_recurring_task_for_local_api(
         });
 
     if next_start_time.is_none() && next_due_date.is_none() && next_review_at.is_none() {
-        next_start_time =
-            next_recurring_iso(completed_at, completed_at, rule, "fluid", interval, None);
+        // Date-only deferral: an unscheduled task must not inherit the completion's
+        // time of day. Mirrors the core TypeScript behavior (ISO date prefix).
+        let completed_at_date = completed_at.get(..10).unwrap_or(completed_at);
+        next_start_time = next_recurring_iso(
+            completed_at,
+            completed_at_date,
+            rule,
+            "fluid",
+            interval,
+            None,
+        );
     }
 
     let next_occurrence_anchor = next_due_date

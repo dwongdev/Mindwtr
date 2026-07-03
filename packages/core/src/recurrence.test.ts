@@ -406,8 +406,25 @@ describe('recurrence', () => {
 
         const next = createNextRecurringTask(task, '2025-01-05T14:00:00.000Z', 'next');
         expect(next?.dueDate).toBeUndefined();
-        expect(next?.startTime).toBe('2025-01-08T14:00:00.000Z');
+        expect(next?.startTime).toBe('2025-01-08');
         expect(next?.status).toBe('next');
+    });
+
+    it('keeps regenerated unscheduled recurrences date-only instead of inheriting the completion time', () => {
+        const task: Task = {
+            id: 't2e',
+            title: 'Pay rent',
+            status: 'next',
+            tags: [],
+            contexts: [],
+            recurrence: { rule: 'monthly', strategy: 'strict', byMonthDay: [9], rrule: 'FREQ=MONTHLY;BYMONTHDAY=9' },
+            createdAt: '2026-07-01T00:00:00.000Z',
+            updatedAt: '2026-07-01T00:00:00.000Z',
+        };
+
+        const next = createNextRecurringTask(task, '2026-07-03T12:00:00.000Z', 'done');
+        expect(next?.startTime).toBe('2026-07-09');
+        expect(next?.dueDate).toBeUndefined();
     });
 
     it('falls back to weekly interval when BYDAY is empty', () => {

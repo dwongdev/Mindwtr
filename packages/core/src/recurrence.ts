@@ -1045,8 +1045,13 @@ export function createNextRecurringTask(
         : undefined;
     if (!nextStartTime && !nextDueDate && !nextReviewAt) {
         // When recurrence exists but no schedule fields are set, defer the next instance
-        // from completion so it does not reappear in Next immediately.
-        nextStartTime = nextIsoFrom(completedAtIso, rule, completedAtDate, byDay, interval, byMonthDay, weekStart);
+        // from completion so it does not reappear in Next immediately. Seed with the
+        // completion's date part only: the task never had a time, so its next instance
+        // must stay date-only instead of inheriting the completion's time of day. The
+        // ISO prefix (not the local date) keeps parity with the Rust local API.
+        const completedAtDatePart = /^\d{4}-\d{2}-\d{2}/.exec(completedAtIso)?.[0]
+            ?? format(completedAtDate, 'yyyy-MM-dd');
+        nextStartTime = nextIsoFrom(completedAtDatePart, rule, completedAtDate, byDay, interval, byMonthDay, weekStart);
     }
 
     if (count && completedOccurrences + 1 >= count) {
