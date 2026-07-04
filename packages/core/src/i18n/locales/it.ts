@@ -1481,7 +1481,7 @@ export const itOverrides: Record<string, string> = {
         'settings.backupMobile.recurringTasksWillKeepSupportedRepeatRules': '{{taskCount}} attività ricorrenti manterranno le regole di ripetizione supportate.',
         'settings.syncMobile.importFromTicktick': 'Importa da TickTick',
         'settings.syncMobile.importTicktickCsvOrZipBackupsIntoMindwtrAreas': 'Importa backup CSV o ZIP di TickTick in aree, progetti e attività Mindwtr.',
-        'settings.persistentCaptureLabel': 'Aggiunta rapida nella barra di notifica',
+        'settings.persistentCaptureLabel': 'Cattura rapida nella barra di notifica',
         'settings.persistentCaptureDesc': 'Mantieni una notifica persistente per catturare ovunque, anche dalla schermata di blocco.',
         'captureNotification.title': 'Cattura rapida',
         'captureNotification.text': 'Tocca per catturare nella posta in arrivo',

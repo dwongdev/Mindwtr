@@ -1364,7 +1364,7 @@ export const deOverrides: Record<string, string> = {
         'settings.backupMobile.recurringTasksWillKeepSupportedRepeatRules': '{{taskCount}} wiederkehrende Aufgabe(n) behalten unterstützte Wiederholungsregeln.',
         'settings.syncMobile.importFromTicktick': 'Aus TickTick importieren',
         'settings.syncMobile.importTicktickCsvOrZipBackupsIntoMindwtrAreas': 'TickTick-CSV- oder ZIP-Backups in Mindwtr-Bereiche, Projekte und Aufgaben importieren.',
-        'settings.persistentCaptureLabel': 'Schnelleingabe in der Benachrichtigungsleiste',
+        'settings.persistentCaptureLabel': 'Schnellerfassung in der Benachrichtigungsleiste',
         'settings.persistentCaptureDesc': 'Dauerhafte Benachrichtigung zum Erfassen von überall, auch vom Sperrbildschirm.',
         'captureNotification.title': 'Schnellerfassung',
         'captureNotification.text': 'Tippen, um in den Eingang zu erfassen',

@@ -1796,7 +1796,7 @@ export const frOverrides: Record<string, string> = {
 'settings.syncMobile.unsupportedCloudProviderOnIos': 'Fournisseur cloud non pris en charge sur iOS',
 'settings.syncMobile.useRedirectUri': 'Utiliser l’URI de redirection',
 'settings.syncMobile.webdavEndpointIsReachable': 'Le point de terminaison WebDAV est joignable.',
-'settings.persistentCaptureLabel': 'Ajout rapide dans la barre de notifications',
+'settings.persistentCaptureLabel': 'Capture rapide dans la barre de notifications',
 'settings.persistentCaptureDesc': 'Garde une notification persistante pour capturer depuis n\'importe où, y compris l\'écran de verrouillage.',
 'captureNotification.title': 'Capture rapide',
 'captureNotification.text': 'Touchez pour capturer dans votre boîte d\'entrée',

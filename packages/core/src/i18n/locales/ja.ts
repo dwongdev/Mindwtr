@@ -1277,7 +1277,7 @@ export const jaOverrides: Record<string, string> = {
         'settings.backupMobile.recurringTasksWillKeepSupportedRepeatRules': '{{taskCount}} 件の繰り返しタスクは、対応している繰り返しルールを保持します。',
         'settings.syncMobile.importFromTicktick': 'TickTick からインポート',
         'settings.syncMobile.importTicktickCsvOrZipBackupsIntoMindwtrAreas': 'TickTick の CSV または ZIP バックアップを Mindwtr のエリア、プロジェクト、タスクにインポートします。',
-        'settings.persistentCaptureLabel': '通知バーからクイック追加',
+        'settings.persistentCaptureLabel': '通知バーからクイックキャプチャ',
         'settings.persistentCaptureDesc': 'ロック画面を含め、どこからでもキャプチャできる常駐通知を表示します。',
         'captureNotification.title': 'クイックキャプチャ',
         'captureNotification.text': 'タップしてインボックスにキャプチャ',

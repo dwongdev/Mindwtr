@@ -1829,7 +1829,7 @@ export const csOverrides: Record<string, string> = {
         'settings.backupMobile.recurringTasksWillKeepSupportedRepeatRules': '{{taskCount}} opakovaných úkolů si ponechá podporovaná pravidla opakování.',
         'settings.syncMobile.importFromTicktick': 'Importovat z TickTick',
         'settings.syncMobile.importTicktickCsvOrZipBackupsIntoMindwtrAreas': 'Importujte CSV nebo ZIP zálohy TickTick do oblastí, projektů a úkolů Mindwtr.',
-        'settings.persistentCaptureLabel': 'Rychlé přidání v oznamovací liště',
+        'settings.persistentCaptureLabel': 'Rychlé zachycení v oznamovací liště',
         'settings.persistentCaptureDesc': 'Trvalé oznámení pro zachycení odkudkoli, včetně zamčené obrazovky.',
         'captureNotification.title': 'Rychlé zachycení',
         'captureNotification.text': 'Klepnutím zachytíte do Doručené',

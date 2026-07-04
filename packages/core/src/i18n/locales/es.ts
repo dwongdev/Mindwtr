@@ -1125,7 +1125,7 @@ export const esOverrides: Record<string, string> = {
         'settings.cloudUrlPlaceholder': 'https://example.com',
         'settings.externalCalendarUrlPlaceholder': 'https://example.com/calendar.ics',
         'settings.webdavUrlPlaceholder': 'https://example.com/remote.php/dav/files/<username>/mindwtr',
-        'settings.persistentCaptureLabel': 'Añadido rápido en la barra de notificaciones',
+        'settings.persistentCaptureLabel': 'Captura rápida en la barra de notificaciones',
         'settings.persistentCaptureDesc': 'Mantén una notificación persistente para capturar desde cualquier lugar, incluida la pantalla de bloqueo.',
         'captureNotification.title': 'Captura rápida',
         'captureNotification.text': 'Toca para capturar en tu Bandeja de entrada',

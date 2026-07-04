@@ -1243,7 +1243,7 @@ export const trOverrides: Record<string, string> = {
         'settings.cloudUrlPlaceholder': 'https://example.com',
         'settings.externalCalendarUrlPlaceholder': 'https://example.com/calendar.ics',
         'settings.webdavUrlPlaceholder': 'https://example.com/remote.php/dav/files/<username>/mindwtr',
-        'settings.persistentCaptureLabel': 'Bildirim çubuğunda hızlı ekleme',
+        'settings.persistentCaptureLabel': 'Bildirim çubuğunda hızlı yakalama',
         'settings.persistentCaptureDesc': 'Kilit ekranı dahil her yerden yakalamak için kalıcı bir bildirim tutun.',
         'captureNotification.title': 'Hızlı yakalama',
         'captureNotification.text': 'Gelen kutunuza kaydetmek için dokunun',

@@ -1762,7 +1762,7 @@ export const zhHans: Record<string, string> = {
         'settings.syncMobile.unsupportedCloudProviderOnIos': 'iOS 云端提供商暂不支持',
         'settings.syncMobile.useRedirectUri': '请使用回调地址',
         'settings.syncMobile.webdavEndpointIsReachable': 'WebDAV 端点可访问。',
-        'settings.persistentCaptureLabel': '通知栏快速添加',
+        'settings.persistentCaptureLabel': '通知栏快速收集',
         'settings.persistentCaptureDesc': '保留常驻通知，随时随地（包括锁屏）快速收集。',
         'captureNotification.title': '快速收集',
         'captureNotification.text': '点按即可收集到收件箱',

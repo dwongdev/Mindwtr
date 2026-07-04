@@ -452,7 +452,7 @@ export const nlOverrides: Record<string, string> = {
         'settings.defaultArea': 'Standaardgebied voor nieuwe taken',
         'settings.defaultAreaDesc': 'Geldt voor nieuwe taken, inclusief inbox-vastleggingen. Je kunt het gebied per taak wijzigen of wissen.',
         'settings.defaultAreaNone': 'Geen gebied',
-        'settings.persistentCaptureLabel': 'Snel toevoegen in de notificatiebalk',
+        'settings.persistentCaptureLabel': 'Snelle invoer in de notificatiebalk',
         'settings.persistentCaptureDesc': 'Houd een permanente melding om overal vast te leggen, ook op het vergrendelscherm.',
         'captureNotification.title': 'Snelle invoer',
         'captureNotification.text': 'Tik om vast te leggen in je Inbox',

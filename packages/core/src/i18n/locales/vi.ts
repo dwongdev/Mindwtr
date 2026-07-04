@@ -1810,7 +1810,7 @@ export const viOverrides: Record<string, string> = {
         'settings.syncMobile.unsupportedCloudProviderOnIos': 'Nhà cung cấp đám mây không được hỗ trợ trên iOS',
         'settings.syncMobile.useRedirectUri': 'Dùng URI chuyển hướng',
         'settings.syncMobile.webdavEndpointIsReachable': 'Điểm cuối WebDAV có thể truy cập.',
-        'settings.persistentCaptureLabel': 'Thêm nhanh trên thanh thông báo',
+        'settings.persistentCaptureLabel': 'Ghi nhanh trên thanh thông báo',
         'settings.persistentCaptureDesc': 'Giữ một thông báo cố định để ghi lại từ bất cứ đâu, kể cả màn hình khóa.',
         'captureNotification.title': 'Ghi nhanh',
         'captureNotification.text': 'Nhấn để ghi vào Hộp thư đến',

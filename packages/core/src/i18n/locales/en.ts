@@ -1824,7 +1824,7 @@ export const en: Record<string, string> = {
         'settings.syncMobile.unsupportedCloudProviderOnIos': 'Unsupported cloud provider on iOS',
         'settings.syncMobile.useRedirectUri': 'Use redirect URI',
         'settings.syncMobile.webdavEndpointIsReachable': 'WebDAV endpoint is reachable.',
-        'settings.persistentCaptureLabel': 'Quick add in notification bar',
+        'settings.persistentCaptureLabel': 'Quick capture in notification bar',
         'settings.persistentCaptureDesc': 'Keep a persistent notification to capture from anywhere, including the lock screen.',
         'captureNotification.title': 'Quick capture',
         'captureNotification.text': 'Tap to capture to your Inbox',
