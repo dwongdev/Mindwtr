@@ -410,6 +410,14 @@ export function mapSqliteTaskRow(row: Record<string, unknown>): Task {
     };
 }
 
+export type SqliteSaveDataStats = {
+    incremental: boolean;
+    writtenRows: number;
+    removedRows: number;
+    totalRows: number;
+    settingsWritten: boolean;
+};
+
 export class SqliteAdapter {
     private client: SqliteClient;
     private schemaReadyPromise: Promise<void> | null = null;
@@ -419,6 +427,7 @@ export class SqliteAdapter {
     // changing what the rev-guarded upsert would have produced. Must be nulled
     // whenever a transaction fails, and only repopulated after a successful COMMIT.
     private lastSavedFingerprints: { tables: Map<string, Map<string, string>>; settingsJson: string | null } | null = null;
+    private lastSaveDataStats: SqliteSaveDataStats | null = null;
 
     constructor(client: SqliteClient) {
         this.client = client;
@@ -1229,6 +1238,10 @@ export class SqliteAdapter {
         }
     }
 
+    getLastSaveDataStats(): SqliteSaveDataStats | null {
+        return this.lastSaveDataStats;
+    }
+
     async saveTask(task: Task): Promise<void> {
         await this.ensureSchema();
         await this.client.run('BEGIN IMMEDIATE');
@@ -1255,6 +1268,13 @@ export class SqliteAdapter {
         const nextSave: { tables: Map<string, Map<string, string>>; settingsJson: string | null } = {
             tables: new Map(),
             settingsJson: null,
+        };
+        const stats: SqliteSaveDataStats = {
+            incremental: previousSave !== null,
+            writtenRows: 0,
+            removedRows: 0,
+            totalRows: 0,
+            settingsWritten: false,
         };
         this.lastSavedFingerprints = null;
         await this.client.run('BEGIN IMMEDIATE');
@@ -1288,6 +1308,8 @@ export class SqliteAdapter {
                     }
                 }
                 nextSave.tables.set(table, fingerprints);
+                stats.totalRows += rows.length;
+                stats.writtenRows += changedRows.length;
                 if (changedRows.length === 0) return;
                 const columnList = columns.join(', ');
                 const placeholders = `(${columns.map(() => '?').join(', ')})`;
@@ -1314,6 +1336,7 @@ export class SqliteAdapter {
                     for (const id of previousRows.keys()) {
                         if (!keptIds.has(id)) removedIds.push(id);
                     }
+                    stats.removedRows += removedIds.length;
                     for (const batch of chunkArray(removedIds, SQLITE_ID_INSERT_BATCH_SIZE)) {
                         const placeholders = batch.map(() => '?').join(', ');
                         await this.client.run(`DELETE FROM ${table} WHERE id IN (${placeholders})`, batch);
@@ -1623,6 +1646,7 @@ export class SqliteAdapter {
             const settingsJson = toJson(settingsForSave);
             nextSave.settingsJson = settingsJson;
             if (previousSave?.settingsJson !== settingsJson) {
+                stats.settingsWritten = true;
                 await this.client.run(
                     'INSERT INTO settings (id, data) VALUES (1, ?) ON CONFLICT(id) DO UPDATE SET data=excluded.data',
                     [settingsJson]
@@ -1632,6 +1656,7 @@ export class SqliteAdapter {
             saveStep = 'commit';
             await this.client.run('COMMIT');
             this.lastSavedFingerprints = nextSave;
+            this.lastSaveDataStats = stats;
         } catch (error) {
             await this.client.run('ROLLBACK').catch((rollbackError) => {
                 logWarn('SQLite saveData rollback failed', {

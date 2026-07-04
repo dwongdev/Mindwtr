@@ -1238,6 +1238,12 @@ describeSqlite('SqliteAdapter incremental saveData', () => {
         const writes = statements.filter(({ sql }) =>
             sql.startsWith('INSERT INTO') || sql.startsWith('DELETE FROM') || sql.startsWith('CREATE TEMP TABLE'));
         expect(writes).toEqual([]);
+        expect(adapter.getLastSaveDataStats()).toMatchObject({
+            incremental: true,
+            writtenRows: 0,
+            removedRows: 0,
+            settingsWritten: false,
+        });
     });
 
     it('writes only the rows that changed since the last save', async () => {
@@ -1262,6 +1268,11 @@ describeSqlite('SqliteAdapter incremental saveData', () => {
             { id: 'task-1', title: 'First' },
             { id: 'task-2', title: 'Second edited' },
         ]);
+        expect(adapter.getLastSaveDataStats()).toMatchObject({
+            incremental: true,
+            writtenRows: 1,
+            removedRows: 0,
+        });
     });
 
     it('removes dropped rows with targeted deletes instead of temp-table scans', async () => {

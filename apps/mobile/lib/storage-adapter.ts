@@ -588,6 +588,7 @@ const createStorage = (): StorageAdapter => {
                         'SQLite initialization timed out'
                     )
                 );
+                const readStartedAt = Date.now();
                 const data = await measureStartupPhase('mobile.storage.get_data.sqlite_read', async () =>
                     withOperationTimeout(
                         adapter.getData(),
@@ -595,6 +596,10 @@ const createStorage = (): StorageAdapter => {
                         'SQLite read timed out'
                     )
                 );
+                const readMs = Date.now() - readStartedAt;
+                if (readMs >= SQLITE_SLOW_WRITE_LOG_THRESHOLD_MS) {
+                    logStorageInfo('[Storage] Slow SQLite load', { readMs: String(readMs), ...(sqliteJournalDiagnostics ?? {}) });
+                }
                 data.areas = Array.isArray(data.areas) ? data.areas : [];
                 saveStartupJsonBackup(AsyncStorage, data, 'mobile.storage.get_data', latestQueuedWriteStartedAtMs).catch((error) => {
                     logStorageWarn('[Storage] Failed to refresh startup JSON backup from SQLite load', error);
@@ -631,7 +636,20 @@ const createStorage = (): StorageAdapter => {
                     await measureStartupPhase('mobile.storage.save_data.sqlite_write', async () => adapter.saveData(data));
                     const writeMs = Date.now() - writeStartedAt;
                     if (writeMs >= SQLITE_SLOW_WRITE_LOG_THRESHOLD_MS) {
-                        logStorageInfo('[Storage] Slow SQLite save', { writeMs: String(writeMs), ...(sqliteJournalDiagnostics ?? {}) });
+                        const stats = adapter.getLastSaveDataStats?.();
+                        logStorageInfo('[Storage] Slow SQLite save', {
+                            writeMs: String(writeMs),
+                            ...(stats
+                                ? {
+                                    rowsWritten: String(stats.writtenRows),
+                                    rowsRemoved: String(stats.removedRows),
+                                    rowsTotal: String(stats.totalRows),
+                                    incremental: String(stats.incremental),
+                                    settingsWritten: String(stats.settingsWritten),
+                                }
+                                : {}),
+                            ...(sqliteJournalDiagnostics ?? {}),
+                        });
                     }
                     clearPreferJsonBackup();
                 } catch (error) {
@@ -643,8 +661,18 @@ const createStorage = (): StorageAdapter => {
                     }
                 }
                 try {
+                    const backupStartedAt = Date.now();
                     await saveStartupJsonBackup(AsyncStorage, data, 'mobile.storage.save_data', queuedWriteStartedAtMs);
+                    const jsonBackupMs = Date.now() - backupStartedAt;
+                    const widgetStartedAt = Date.now();
                     await measureStartupPhase('mobile.storage.save_data.widget_update', async () => updateMobileWidgetFromData(data));
+                    const widgetMs = Date.now() - widgetStartedAt;
+                    if (jsonBackupMs + widgetMs >= SQLITE_SLOW_WRITE_LOG_THRESHOLD_MS) {
+                        logStorageInfo('[Storage] Slow post-save backup', {
+                            jsonBackupMs: String(jsonBackupMs),
+                            widgetMs: String(widgetMs),
+                        });
+                    }
                     markStartupPhase('mobile.storage.save_data.end');
                 } catch (e) {
                     markStartupPhase('mobile.storage.save_data.error');
@@ -661,11 +689,26 @@ const createStorage = (): StorageAdapter => {
                         throw new Error('SQLite disabled in Expo Go');
                     }
                     const { adapter } = await measureStartupPhase('mobile.storage.save_task.sqlite_get_state', async () => getSqliteState());
+                    const writeStartedAt = Date.now();
                     await measureStartupPhase('mobile.storage.save_task.sqlite_write', async () => adapter.saveTask(task));
+                    const writeMs = Date.now() - writeStartedAt;
                     clearPreferJsonBackup();
+                    let jsonBackupMs = 0;
+                    let widgetMs = 0;
                     if (snapshot) {
+                        const backupStartedAt = Date.now();
                         await saveStartupJsonBackup(AsyncStorage, snapshot, 'mobile.storage.save_task', queuedWriteStartedAtMs);
+                        jsonBackupMs = Date.now() - backupStartedAt;
+                        const widgetStartedAt = Date.now();
                         await measureStartupPhase('mobile.storage.save_task.widget_update', async () => updateMobileWidgetFromData(snapshot));
+                        widgetMs = Date.now() - widgetStartedAt;
+                    }
+                    if (writeMs + jsonBackupMs + widgetMs >= SQLITE_SLOW_WRITE_LOG_THRESHOLD_MS) {
+                        logStorageInfo('[Storage] Slow task save', {
+                            writeMs: String(writeMs),
+                            jsonBackupMs: String(jsonBackupMs),
+                            widgetMs: String(widgetMs),
+                        });
                     }
                 } catch (error) {
                     markPreferJsonBackup();
