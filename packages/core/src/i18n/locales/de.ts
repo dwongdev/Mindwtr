@@ -526,6 +526,8 @@ export const deOverrides: Record<string, string> = {
         'projects.sequentialWithinSections': 'Innerhalb von Abschnitten',
         'projects.reviewAtHint': 'Erinnerungsdatum für eine Revision diese Projekts.',
         'projects.noNextAction': 'Keine Nächste Aktion',
+        'projects.taskMovedTo': 'Verschoben nach {{name}}',
+        'projects.taskMoveFailed': 'Aufgabe konnte nicht verschoben werden',
         
         //Tutorial
        

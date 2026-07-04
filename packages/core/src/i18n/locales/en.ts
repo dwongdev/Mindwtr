@@ -1291,6 +1291,8 @@ export const en: Record<string, string> = {
         'projects.addToFocus': 'Add to focus',
         'projects.removeFromFocus': 'Remove from focus',
         'projects.maxFocusedProjects': 'Max 5 focused projects',
+        'projects.taskMovedTo': 'Moved to {{name}}',
+        'projects.taskMoveFailed': 'Failed to move task',
         'agenda.inProgress': 'In Progress',
         'agenda.overdue': 'Overdue',
         'agenda.dueToday': 'Due Today',

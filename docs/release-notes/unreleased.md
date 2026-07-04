@@ -60,3 +60,4 @@ Changes collected after `v1.0.5` and before the next version tag.
 - fix(mobile): description text in the task view tab can now be selected and copied with a long-press.
 - fix(desktop): guided inbox processing buttons now use one font weight throughout, "No project needed" is neutral instead of completion-green, and text arrows/checkmarks were replaced with proper icons.
 - fix(mobile): inbox processing, board, and capture labels keep their emoji AND their text on Samsung devices — non-stock Samsung fonts dropped the text that followed an emoji, leaving icon-only buttons.
+- feat(desktop): drag a task from the open project's list onto another project in the sidebar to move it there (it lands after the target's existing tasks), or onto an area header to make it a direct area task; a "Moved to …" toast offers one-click Undo. Works in every sort mode; archived projects don't accept drops (ADR 0023).

@@ -497,6 +497,8 @@ export const trOverrides: Record<string, string> = {
         'projects.sequentialWithinSections': 'Bölümler içinde',
         'projects.reviewAtHint': 'Bu projeyi tekrar ziyaret etmek için Tickler tarihi.',
         'projects.noNextAction': 'Sonraki işlem yok',
+        'projects.taskMovedTo': '{{name}} konumuna taşındı',
+        'projects.taskMoveFailed': 'Görev taşınamadı',
         'review.title': 'Gözden geçirmek',
         'review.intro': 'Açık olun, güncel olun ve yaratıcı olun.',
         'review.openGuide': 'Haftalık İnceleme',

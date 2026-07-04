@@ -14,6 +14,8 @@ export const nlOverrides: Record<string, string> = {
         'projects.sequentialScope': 'Sequentieel bereik',
         'projects.sequentialAcrossSections': 'Over secties heen',
         'projects.sequentialWithinSections': 'Binnen secties',
+        'projects.taskMovedTo': 'Verplaatst naar {{name}}',
+        'projects.taskMoveFailed': 'Taak verplaatsen mislukt',
         'nav.contexts': 'Contexten',
         'nav.next': 'Volgende acties',
         'nav.waiting': 'Wachten',

@@ -490,6 +490,8 @@ export const ruOverrides: Record<string, string> = {
         'projects.sequentialWithinSections': 'Внутри разделов',
         'projects.reviewAtHint': 'Дата Тиклера, чтобы вернуться к этому проекту.',
         'projects.noNextAction': 'Нет следующих действий',
+        'projects.taskMovedTo': 'Перемещено в {{name}}',
+        'projects.taskMoveFailed': 'Не удалось переместить задачу',
         'review.title': 'Обзор',
         'review.intro': 'Будьте ясны, будьте в курсе событий и проявите творческий подход.',
         'review.openGuide': 'Еженедельный обзор',

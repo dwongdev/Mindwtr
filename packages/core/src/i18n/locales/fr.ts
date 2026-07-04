@@ -1266,6 +1266,8 @@ export const frOverrides: Record<string, string> = {
         'projects.addToFocus': 'Ajouter aux priorités du jour',
         'projects.removeFromFocus': 'Retirer des priorités du jour',
         'projects.maxFocusedProjects': 'Maximum 5 projets dans les priorités du jour',
+        'projects.taskMovedTo': 'Déplacée vers {{name}}',
+        'projects.taskMoveFailed': 'Impossible de déplacer la tâche',
         'agenda.inProgress': 'En cours',
         'agenda.overdue': 'En retard',
         'agenda.dueToday': 'À échéance aujourd’hui',

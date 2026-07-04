@@ -526,6 +526,8 @@ export const ptOverrides: Record<string, string> = {
         'projects.sequentialWithinSections': 'Dentro das seções',
         'projects.reviewAtHint': 'Data do Tickler para revisitar este projeto.',
         'projects.noNextAction': 'Nenhuma próxima ação',
+        'projects.taskMovedTo': 'Movida para {{name}}',
+        'projects.taskMoveFailed': 'Falha ao mover a tarefa',
         'review.title': 'Revisão',
         'review.intro': 'Seja claro, atualize-se e seja criativo.',
         'review.openGuide': 'Revisão Semanal',

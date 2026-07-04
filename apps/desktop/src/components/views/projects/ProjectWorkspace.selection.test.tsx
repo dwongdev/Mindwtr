@@ -41,6 +41,11 @@ vi.mock('./SortableRows', () => ({
             <span>{task.title}</span>
         </div>
     ),
+    DraggableProjectTaskRow: ({ task }: { task: Task }) => (
+        <div data-draggable-task-id={task.id} data-task-id={task.id}>
+            <span>{task.title}</span>
+        </div>
+    ),
 }));
 
 vi.mock('../../PromptModal', () => ({
@@ -162,6 +167,7 @@ const defaultProps: ProjectWorkspaceProps = {
     reorderSections: vi.fn(),
     requestConfirmation: vi.fn(),
     restoreProject: vi.fn(),
+    taskDragEndRef: { current: null },
     sections: [],
     selectedProject: project,
     selectedProjectId: project.id,

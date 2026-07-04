@@ -462,6 +462,8 @@ export const esOverrides: Record<string, string> = {
         'projects.nextActionPromptAddNew': 'Añadir una nueva siguiente acción',
         'projects.nextActionPromptPlaceholder': 'Nueva siguiente acción...',
         'projects.nextActionPromptAddButton': 'Añadir siguiente acción',
+        'projects.taskMovedTo': 'Movida a {{name}}',
+        'projects.taskMoveFailed': 'No se pudo mover la tarea',
         'review.title': 'Revisión',
         'review.intro': 'Aclárate, pon tu sistema al día, y deja espacio a la creatividad.',
         'review.openGuide': 'Revisión semanal',

@@ -484,6 +484,8 @@ export const koOverrides: Record<string, string> = {
         'projects.sequentialWithinSections': '섹션별',
         'projects.reviewAtHint': '이 프로젝트를 다시 방문할 날짜를 표시합니다.',
         'projects.noNextAction': '다음 조치 없음',
+        'projects.taskMovedTo': '{{name}}(으)로 이동했습니다',
+        'projects.taskMoveFailed': '작업을 이동하지 못했습니다',
         'review.title': '검토',
         'review.intro': '명확하게, 최신 정보를 얻고 창의력을 발휘하세요.',
         'review.openGuide': '주간 검토',

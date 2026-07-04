@@ -1236,6 +1236,8 @@ export const csOverrides: Record<string, string> = {
         'projects.addToFocus': 'Přidat do fokusu',
         'projects.removeFromFocus': 'Odebrat z fokusu',
         'projects.maxFocusedProjects': 'Max 5 projektů ve fokusu',
+        'projects.taskMovedTo': 'Přesunuto do {{name}}',
+        'projects.taskMoveFailed': 'Úkol se nepodařilo přesunout',
         'agenda.inProgress': 'Probíhá',
         'agenda.overdue': 'Po termínu',
         'agenda.dueToday': 'Dnes termín',

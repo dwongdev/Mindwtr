@@ -2,15 +2,18 @@ import { describe, expect, it } from 'vitest';
 import {
     computeProjectAreaDragResult,
     getProjectAreaContainerId,
+    getProjectAreaContainerInfo,
     getProjectAreaIdFromContainer,
     projectAreaCollisionDetection,
 } from './project-area-dnd';
 
 describe('project-area-dnd', () => {
-    it('parses area container ids', () => {
-        const id = getProjectAreaContainerId('area-1');
-        expect(id).toBe('project-area:area-1');
+    it('parses section-namespaced area container ids', () => {
+        const id = getProjectAreaContainerId('active', 'area-1');
+        expect(id).toBe('project-area:active:area-1');
         expect(getProjectAreaIdFromContainer(id)).toBe('area-1');
+        expect(getProjectAreaContainerInfo(id)).toEqual({ section: 'active', areaId: 'area-1' });
+        expect(getProjectAreaContainerInfo('project-area:bogus:area-1')).toBeNull();
         expect(getProjectAreaIdFromContainer('other')).toBeNull();
     });
 
@@ -69,7 +72,7 @@ describe('project-area-dnd', () => {
     it('moves a project into an area that has no projects yet', () => {
         const result = computeProjectAreaDragResult({
             activeId: 'p1',
-            overId: getProjectAreaContainerId('a-empty'),
+            overId: getProjectAreaContainerId('active', 'a-empty'),
             projectIdsByArea: new Map([
                 ['a1', ['p1', 'p2']],
             ]),
@@ -105,11 +108,11 @@ describe('project-area-dnd', () => {
             collisionRect: { ...rowRect },
             droppableRects: new Map([
                 ['p1', rowRect],
-                [getProjectAreaContainerId('a1'), containerRect],
+                [getProjectAreaContainerId('active', 'a1'), containerRect],
             ]),
             droppableContainers: [
                 buildContainer('p1', rowRect),
-                buildContainer(getProjectAreaContainerId('a1'), containerRect),
+                buildContainer(getProjectAreaContainerId('active', 'a1'), containerRect),
             ],
             pointerCoordinates: { x: 100, y: 25 },
         };
@@ -121,7 +124,7 @@ describe('project-area-dnd', () => {
     it('appends a project when dropped on an area container', () => {
         const result = computeProjectAreaDragResult({
             activeId: 'p1',
-            overId: getProjectAreaContainerId('a2'),
+            overId: getProjectAreaContainerId('active', 'a2'),
             projectIdsByArea: new Map([
                 ['a1', ['p1', 'p2']],
                 ['a2', ['p3']],

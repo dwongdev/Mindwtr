@@ -20,7 +20,7 @@ import {
     splitCompletedTasks,
     updateRangeSelection,
 } from '@mindwtr/core';
-import { DndContext, PointerSensor, MeasuringStrategy, useSensor, useSensors, type DragEndEvent } from '@dnd-kit/core';
+import type { DragEndEvent } from '@dnd-kit/core';
 import { SortableContext, verticalListSortingStrategy, arrayMove } from '@dnd-kit/sortable';
 import { ArrowDown, ArrowUp, CheckCircle2, ChevronDown, ChevronRight, FileText, Folder, PanelLeftOpen, Pencil, Plus, Trash2, X } from 'lucide-react';
 
@@ -40,9 +40,8 @@ import { useProjectSectionActions } from './useProjectSectionActions';
 import { ProjectDetailsHeader } from './ProjectDetailsHeader';
 import { ProjectDetailsFields } from './ProjectDetailsFields';
 import { ProjectNotesSection } from './ProjectNotesSection';
-import { SortableProjectTaskRow } from './SortableRows';
+import { DraggableProjectTaskRow, SortableProjectTaskRow } from './SortableRows';
 import { SectionDropZone, getSectionContainerId, getSectionIdFromContainer, NO_SECTION_CONTAINER } from './section-dnd';
-import { projectTaskCollisionDetection } from './project-task-dnd';
 import {
     DEFAULT_AREA_COLOR,
     getProjectColor,
@@ -51,13 +50,6 @@ import {
     toDateTimeLocalValue,
 } from './projects-utils';
 import type { ConfirmationRequestOptions } from '../../../hooks/useConfirmDialog';
-
-const projectTaskDndMeasuring = {
-    droppable: {
-        strategy: MeasuringStrategy.WhileDragging,
-        frequency: 16,
-    },
-} as const;
 
 const PROJECT_TASK_VIRTUALIZATION_THRESHOLD = 80;
 const PROJECT_TASK_ROW_ESTIMATE = 88;
@@ -317,6 +309,9 @@ type ProjectWorkspaceProps = {
     t: (key: string) => string;
     projectsSidebarCollapsed?: boolean;
     onToggleProjectsSidebar?: () => void;
+    // The Projects view owns the shared DndContext; the workspace registers its
+    // in-list drag-end handling here so the view can delegate non-sidebar drops.
+    taskDragEndRef: RefObject<((event: DragEndEvent) => void) | null>;
     undoNotificationsEnabled: boolean;
     batchMoveTasks: (taskIds: string[], newStatus: TaskStatus) => Promise<unknown> | unknown;
     batchDeleteTasks: (taskIds: string[]) => Promise<unknown> | unknown;
@@ -384,6 +379,7 @@ export function ProjectWorkspace({
     t,
     projectsSidebarCollapsed = false,
     onToggleProjectsSidebar,
+    taskDragEndRef,
     undoNotificationsEnabled,
     batchMoveTasks,
     batchDeleteTasks,
@@ -500,12 +496,6 @@ export function ProjectWorkspace({
         setSectionNotesOpen,
         requestConfirmation,
     });
-
-    const taskSensors = useSensors(
-        useSensor(PointerSensor, {
-            activationConstraint: { distance: 6 },
-        }),
-    );
 
     const normalizedSearchQuery = searchQuery.trim().toLowerCase();
 
@@ -919,8 +909,13 @@ export function ProjectWorkspace({
         return { taskIdsByContainer: idsByContainer, taskIdToContainer: idToContainer };
     }, [sectionTaskGroups]);
 
+    const canReorderProjectTasks = projectTaskSortBy === 'default';
+
     const handleTaskDragEnd = useCallback((event: DragEndEvent) => {
         if (!selectedProject) return;
+        // In non-default sort modes the list is not a drop target; tasks can only
+        // be dragged out to the sidebar (handled by the Projects view).
+        if (!canReorderProjectTasks) return;
 
         const failTaskMove = (error: unknown) => {
             reportError('Failed to reorder project tasks', error);
@@ -980,7 +975,14 @@ export function ProjectWorkspace({
                 reorderProjectTasks(selectedProject.id, nextDestinationItems, getSectionIdFromContainer(destinationContainer)),
             );
         })().catch(failTaskMove);
-    }, [reorderProjectTasks, selectedProject, showToast, taskIdToContainer, taskIdsByContainer, updateTask]);
+    }, [canReorderProjectTasks, reorderProjectTasks, selectedProject, showToast, taskIdToContainer, taskIdsByContainer, updateTask]);
+
+    useEffect(() => {
+        taskDragEndRef.current = handleTaskDragEnd;
+        return () => {
+            taskDragEndRef.current = null;
+        };
+    }, [handleTaskDragEnd, taskDragEndRef]);
 
     const renderSortableTasks = (list: Task[]) => (
         <SortableContext items={list.map((task) => task.id)} strategy={verticalListSortingStrategy}>
@@ -999,6 +1001,23 @@ export function ProjectWorkspace({
                 )}
             />
         </SortableContext>
+    );
+
+    const renderDraggableTasks = (list: Task[]) => (
+        <ProjectTaskRows
+            tasks={list}
+            scrollRef={projectScrollRef}
+            pinnedTaskId={editingTaskId ?? highlightTaskId}
+            renderTask={(task) => (
+                <DraggableProjectTaskRow
+                    key={task.id}
+                    task={task}
+                    project={selectedProject!}
+                    sequenceCue={projectTaskSequenceCues.get(task.id)}
+                    availableSequenceLabel={availableSequenceLabel}
+                />
+            )}
+        />
     );
 
     const renderSelectableTasks = (list: Task[]) => (
@@ -1258,20 +1277,12 @@ export function ProjectWorkspace({
         );
     };
 
-    const canReorderProjectTasks = projectTaskSortBy === 'default';
     const tasksContent = selectionMode ? (
         renderProjectSections(renderSelectableTasks)
     ) : !canReorderProjectTasks ? (
-        renderProjectSections(renderStaticTasks)
+        renderProjectSections(renderDraggableTasks)
     ) : (
-        <DndContext
-            sensors={taskSensors}
-            collisionDetection={projectTaskCollisionDetection}
-            measuring={projectTaskDndMeasuring}
-            onDragEnd={handleTaskDragEnd}
-        >
-            {renderProjectSections(renderSortableTasks)}
-        </DndContext>
+        renderProjectSections(renderSortableTasks)
     );
 
     const visibleAttachments = (selectedProject?.attachments || []).filter((attachment) => !attachment.deletedAt);

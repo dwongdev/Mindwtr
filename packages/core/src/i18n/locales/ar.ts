@@ -553,6 +553,8 @@ export const arOverrides: Record<string, string> = {
         'projects.nextActionPromptAddNew': 'إضافة مهمة جديدة',
         'projects.nextActionPromptPlaceholder': 'عنوان الإجراء التالي',
         'projects.nextActionPromptAddButton': 'إضافة إجراء تالٍ',
+        'projects.taskMovedTo': 'تم النقل إلى {{name}}',
+        'projects.taskMoveFailed': 'تعذر نقل المهمة',
         'review.title': 'مراجعة',
         'review.intro': 'كن واضحًا، وكن محدثًا، وكن مبدعًا.',
         'review.openGuide': 'المراجعة الأسبوعية',

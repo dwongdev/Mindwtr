@@ -119,9 +119,8 @@ function SidebarHarness() {
                 projects={projects}
                 focusedProjectCount={projects.filter((project) => project.isFocused && !project.deletedAt).length}
                 toggleProjectFocus={vi.fn()}
-                updateProject={vi.fn()}
-                reorderProjects={vi.fn()}
                 onDuplicateProject={vi.fn()}
+                draggingSection={null}
             />
         </div>
     );
@@ -169,9 +168,8 @@ function renderSidebarWithSpy(onSelectProject = vi.fn()) {
             projects={projects}
             focusedProjectCount={projects.filter((project) => project.isFocused && !project.deletedAt).length}
             toggleProjectFocus={vi.fn()}
-            updateProject={vi.fn()}
-            reorderProjects={vi.fn()}
             onDuplicateProject={vi.fn()}
+            draggingSection={null}
         />
     );
 
@@ -219,9 +217,8 @@ describe('ProjectsSidebar', () => {
                 projects={[buildProject('project-alpha', 'Alpha', 0)]}
                 focusedProjectCount={0}
                 toggleProjectFocus={vi.fn()}
-                updateProject={vi.fn()}
-                reorderProjects={vi.fn()}
                 onDuplicateProject={vi.fn()}
+                draggingSection={null}
             />
         );
 
@@ -276,9 +273,8 @@ describe('ProjectsSidebar', () => {
                 projects={[]}
                 focusedProjectCount={0}
                 toggleProjectFocus={vi.fn()}
-                updateProject={vi.fn()}
-                reorderProjects={vi.fn()}
                 onDuplicateProject={vi.fn()}
+                draggingSection={null}
             />
         );
 
@@ -360,9 +356,8 @@ describe('ProjectsSidebar', () => {
                 projects={[buildProject('project-long', longTitle, 0)]}
                 focusedProjectCount={0}
                 toggleProjectFocus={vi.fn()}
-                updateProject={vi.fn()}
-                reorderProjects={vi.fn()}
                 onDuplicateProject={vi.fn()}
+                draggingSection={null}
             />
         );
 
@@ -426,9 +421,8 @@ describe('ProjectsSidebar', () => {
                 projects={[waitingProject, archivedProject]}
                 focusedProjectCount={0}
                 toggleProjectFocus={vi.fn()}
-                updateProject={vi.fn()}
-                reorderProjects={vi.fn()}
                 onDuplicateProject={vi.fn()}
+                draggingSection={null}
             />
         );
 
@@ -486,9 +480,8 @@ describe('ProjectsSidebar', () => {
                 projects={[activeProject, waitingProject]}
                 focusedProjectCount={0}
                 toggleProjectFocus={vi.fn()}
-                updateProject={vi.fn()}
-                reorderProjects={vi.fn()}
                 onDuplicateProject={vi.fn()}
+                draggingSection={null}
             />
         );
 

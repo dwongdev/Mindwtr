@@ -490,6 +490,8 @@ export const jaOverrides: Record<string, string> = {
         'projects.sequentialWithinSections': 'セクションごと',
         'projects.reviewAtHint': 'このプロジェクトを再訪するためのティックラーの日付。',
         'projects.noNextAction': '次のアクションはありません',
+        'projects.taskMovedTo': '{{name}} に移動しました',
+        'projects.taskMoveFailed': 'タスクを移動できませんでした',
         'review.title': 'レビュー',
         'review.intro': '明確にして、最新の情報を取得し、創造的になりましょう。',
         'review.openGuide': '週次レビュー',

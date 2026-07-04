@@ -1275,6 +1275,8 @@ export const viOverrides: Record<string, string> = {
         'projects.addToFocus': 'Thêm vào tập trung',
         'projects.removeFromFocus': 'Xóa khỏi tập trung',
         'projects.maxFocusedProjects': 'Tối đa 5 dự án tập trung',
+        'projects.taskMovedTo': 'Đã chuyển đến {{name}}',
+        'projects.taskMoveFailed': 'Không thể di chuyển nhiệm vụ',
         'agenda.inProgress': 'Đang thực hiện',
         'agenda.overdue': 'Quá hạn',
         'agenda.dueToday': 'Đến hạn hôm nay',

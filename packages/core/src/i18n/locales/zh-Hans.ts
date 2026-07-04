@@ -1472,6 +1472,8 @@ export const zhHans: Record<string, string> = {
         'projects.reorderTasks': '排序',
         'projects.taskReorderFailed': '任务排序失败。',
         'projects.removeFromFocus': '移出专注',
+        'projects.taskMovedTo': '已移动到 {{name}}',
+        'projects.taskMoveFailed': '无法移动任务',
         'quickAdd.inputHint': '输入标题，可选添加命令。',
         'quickAdd.inputLabel': '快速记录输入',
         'quickAdd.saveAndEdit': '保存并编辑',

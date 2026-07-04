@@ -1153,6 +1153,8 @@ export const itOverrides: Record<string, string> = {
         'projects.addToFocus': 'Aggiungi al focus',
         'projects.removeFromFocus': 'Rimuovi dal focus',
         'projects.maxFocusedProjects': 'Massimo 5 progetti in focus',
+        'projects.taskMovedTo': 'Spostata in {{name}}',
+        'projects.taskMoveFailed': 'Impossibile spostare l\'attività',
         'agenda.inProgress': 'In corso',
         'agenda.overdue': 'Scadute',
         'agenda.dueToday': 'In scadenza oggi',
