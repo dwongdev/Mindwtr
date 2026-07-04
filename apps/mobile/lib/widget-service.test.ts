@@ -217,5 +217,6 @@ describe('widget-service', () => {
         expect(payloadByKey.get('mindwtr-ios-widget-payload-extra-large')?.items).toHaveLength(24);
         expect(payloadByKey.get('mindwtr-ios-widget-payload')?.items).toHaveLength(12);
         expect(mockIosWidgetReloadTimelines).toHaveBeenCalledWith('MindwtrTasksWidget');
+        expect(mockIosWidgetReloadTimelines).toHaveBeenCalledWith('MindwtrFocusLockWidget');
     });
 });

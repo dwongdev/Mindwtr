@@ -9,6 +9,7 @@ import {
     buildWidgetPayload,
     IOS_WIDGET_APP_GROUP,
     IOS_WIDGET_KIND,
+    IOS_WIDGET_LOCK_KIND,
     IOS_WIDGET_PAYLOAD_KEY,
     IOS_WIDGET_PAYLOAD_KEY_EXTRA_LARGE,
     IOS_WIDGET_PAYLOAD_KEY_LARGE,
@@ -165,6 +166,7 @@ async function updateIosWidgetsFromData(data: AppData, language: Language): Prom
         }
         if (typeof widgetApi.reloadTimelines === 'function') {
             widgetApi.reloadTimelines(IOS_WIDGET_KIND);
+            widgetApi.reloadTimelines(IOS_WIDGET_LOCK_KIND);
         } else if (typeof widgetApi.reloadAllTimelines === 'function') {
             widgetApi.reloadAllTimelines();
         }

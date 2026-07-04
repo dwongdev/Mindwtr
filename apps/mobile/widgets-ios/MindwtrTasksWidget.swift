@@ -11,13 +11,13 @@ private let mindwtrWidgetPayloadKeyExtraLarge = "mindwtr-ios-widget-payload-extr
 private let darkThemeModes: Set<String> = ["dark", "material3-dark", "nord", "oled"]
 private let lightThemeModes: Set<String> = ["light", "material3-light", "eink", "sepia"]
 
-private struct MindwtrWidgetTaskItem: Decodable {
+struct MindwtrWidgetTaskItem: Decodable {
     let id: String
     let title: String
     let statusLabel: String?
 }
 
-private struct MindwtrWidgetPalette: Decodable {
+struct MindwtrWidgetPalette: Decodable {
     let background: String
     let card: String
     let border: String
@@ -27,7 +27,7 @@ private struct MindwtrWidgetPalette: Decodable {
     let onAccent: String
 }
 
-private extension MindwtrWidgetPalette {
+extension MindwtrWidgetPalette {
     static let light = MindwtrWidgetPalette(
         background: "#F8FAFC",
         card: "#FFFFFF",
@@ -49,7 +49,7 @@ private extension MindwtrWidgetPalette {
     )
 }
 
-private struct MindwtrTasksWidgetPayload: Decodable {
+struct MindwtrTasksWidgetPayload: Decodable {
     let headerTitle: String
     let subtitle: String
     let items: [MindwtrWidgetTaskItem]
@@ -75,12 +75,12 @@ private struct MindwtrTasksWidgetPayload: Decodable {
     }
 }
 
-private struct MindwtrTasksWidgetEntry: TimelineEntry {
+struct MindwtrTasksWidgetEntry: TimelineEntry {
     let date: Date
     let payload: MindwtrTasksWidgetPayload
 }
 
-private struct MindwtrTasksWidgetProvider: TimelineProvider {
+struct MindwtrTasksWidgetProvider: TimelineProvider {
     func placeholder(in _: Context) -> MindwtrTasksWidgetEntry {
         MindwtrTasksWidgetEntry(date: Date(), payload: .fallback)
     }

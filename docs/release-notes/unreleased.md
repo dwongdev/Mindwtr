@@ -74,4 +74,5 @@ Changes collected after `v1.0.5` and before the next version tag.
 - ci(release): desktop builds use the prebuilt `@tauri-apps/cli` npm package pinned in the lockfile instead of compiling tauri-cli from source, cutting up to 9 minutes from cold release builds.
 - fix(mobile): tapping the persistent "Quick add" notification now opens Quick Capture directly instead of just bringing the app to the foreground (it now uses the same launch path as the quick-settings tile).
 - fix(mobile): the persistent "Quick add" notification re-pins itself when swiped away — Android 14 lets users dismiss ongoing notifications, so a swipe no longer silently removes the capture handle; turn the setting off in Settings → Notifications to remove it.
+- feat(ios): lock screen widgets (iOS 16+) showing the current focused task — a rectangular widget with the top Today's Focus task, an inline one-liner above the clock, and a circular focused-task counter; tapping opens Focus.
 - fix(release): app version bump tooling no longer overwrites the independently published `mindwtr-mcp` package version, and existing MCP npm versions now skip publish cleanly.
