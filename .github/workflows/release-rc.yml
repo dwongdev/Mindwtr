@@ -100,7 +100,6 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           EVENT_NAME: ${{ github.event_name }}
           TAG: ${{ steps.version.outputs.tag }}
-          CURRENT_RUN_ID: ${{ github.run_id }}
         run: |
           set -euo pipefail
           if [ "$EVENT_NAME" != "push" ]; then
@@ -108,11 +107,12 @@ jobs:
             exit 0
           fi
 
-          prior_count="$(gh api "repos/${GITHUB_REPOSITORY}/actions/workflows/release-rc.yml/runs?event=push&per_page=100" \
-            --jq '[.workflow_runs[] | select(.head_branch == env.TAG and ((.id | tostring) != env.CURRENT_RUN_ID))] | length')"
-          if [ "$prior_count" -gt 0 ]; then
+          # A retag after a FAILED attempt must run the full release from the tag
+          # push. Only an already-published release for this tag is immutable:
+          # then the push validates only, and changes require the next RC number.
+          if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json name >/dev/null 2>&1; then
             echo "retag_recovery=true" >> "$GITHUB_OUTPUT"
-            echo "Existing RC tag-push run(s) found for $TAG. Skipping publication on this automatic retag run; dispatch release-rc.yml manually with explicit upload flags."
+            echo "A GitHub release already exists for $TAG. Skipping publication on this tag push; cut the next RC number to ship changes."
           else
             echo "retag_recovery=false" >> "$GITHUB_OUTPUT"
           fi
