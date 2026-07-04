@@ -1,4 +1,4 @@
-import { Pressable, Alert } from 'react-native';
+import { Alert } from 'react-native';
 import { Swipeable } from 'react-native-gesture-handler';
 import {
     formatFocusTaskLimitText,
@@ -21,6 +21,7 @@ import { ArrowRight, Check, RotateCcw, Trash2 } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 import { ThemeColors } from '../hooks/use-theme-colors';
 import { useToast } from '../contexts/toast-context';
+import { AppPressable } from './app-pressable';
 import { presentProjectNextActionPrompt } from './project-next-action-prompt';
 import { SwipeableTaskItemContent } from './swipeable-task-item/SwipeableTaskItemContent';
 import { ProjectNextActionPromptModal } from './swipeable-task-item/ProjectNextActionPromptModal';
@@ -364,8 +365,9 @@ function SwipeableTaskItemInner({
     const renderLeftActions = () => {
         const LeftIcon = leftAction.action === 'inbox' ? RotateCcw : leftAction.action === 'done' ? Check : ArrowRight;
         return (
-            <Pressable
+            <AppPressable
                 style={[styles.swipeActionLeft, { backgroundColor: leftAction.color }]}
+                pressedColor="rgba(0, 0, 0, 0.18)"
                 onPress={() => {
                     swipeableRef.current?.close();
                     void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => undefined);
@@ -378,13 +380,14 @@ function SwipeableTaskItemInner({
                 <CompactText style={styles.swipeActionText} numberOfLines={1}>
                     {leftAction.label}
                 </CompactText>
-            </Pressable>
+            </AppPressable>
         );
     };
 
     const renderRightActions = () => (
-        <Pressable
+        <AppPressable
             style={styles.swipeActionRight}
+            pressedColor="rgba(0, 0, 0, 0.18)"
             onPress={() => {
                 swipeableRef.current?.close();
                 confirmDelete();
@@ -396,7 +399,7 @@ function SwipeableTaskItemInner({
             <CompactText style={styles.swipeActionText} numberOfLines={1}>
                 {t('common.delete')}
             </CompactText>
-        </Pressable>
+        </AppPressable>
     );
 
     const accessibilityLabel = [

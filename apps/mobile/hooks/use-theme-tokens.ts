@@ -34,6 +34,7 @@ export interface ThemeTokens {
   elevation: (level: M3ElevationLevel) => ElevationStyle;
   state: { rippleColor: string | undefined; stateLayerColor: (s: M3StateName) => string };
   isMaterial: boolean;
+  isDark: boolean;
 }
 
 function m3RolesFor(theme: ResolvableTheme): M3ColorRoles {
@@ -82,6 +83,7 @@ const FALLBACK: ThemeTokens = {
   roles: null, type: M3Typography, shape: M3Shape,
   elevation: () => ({}), state: { rippleColor: undefined, stateLayerColor: () => 'transparent' },
   isMaterial: false,
+  isDark: false,
 };
 
 export function resolveThemeTokens(theme?: ResolvableTheme | null): ThemeTokens {
@@ -96,6 +98,7 @@ export function resolveThemeTokens(theme?: ResolvableTheme | null): ThemeTokens 
     elevation: (level) => buildElevationStyle(level, { isMaterial, roles }),
     state: buildStateLayer({ isMaterial, roles }),
     isMaterial,
+    isDark: theme.isDark,
   };
 }
 

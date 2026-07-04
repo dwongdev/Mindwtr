@@ -62,3 +62,4 @@ Changes collected after `v1.0.5` and before the next version tag.
 - fix(mobile): inbox processing, board, and capture labels keep their emoji AND their text on Samsung devices — non-stock Samsung fonts dropped the text that followed an emoji, leaving icon-only buttons.
 - feat(desktop): drag a task from the open project's list onto another project in the sidebar to move it there (it lands after the target's existing tasks), or onto an area header to make it a direct area task; a "Moved to …" toast offers one-click Undo. Works in every sort mode; archived projects don't accept drops (ADR 0023).
 - feat(tasks): relative start dates now accept 0 (start on the due date itself), so a task like "Wheel trash cans to curb" can stay hidden until the day it is due.
+- feat(mobile): task rows, the swipe Done/Delete buttons, and the task editor's ••• menu items now darken while pressed on every theme (Material 3 keeps its ripple), so common taps give visible feedback.

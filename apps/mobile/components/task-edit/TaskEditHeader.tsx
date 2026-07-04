@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, Modal, Pressable, StyleSheet } from 'react-native';
 
+import { AppPressable } from '../app-pressable';
+
 import { useLanguage } from '../../contexts/language-context';
 import { useThemeColors } from '../../hooks/use-theme-colors';
 
@@ -58,7 +60,7 @@ export function TaskEditHeader({
         >
           <Pressable style={styles.menuOverlay} onPress={() => setMenuVisible(false)}>
             <View style={[styles.menuCard, { backgroundColor: tc.cardBg, borderColor: tc.border }]}>
-              <Pressable
+              <AppPressable
                 style={styles.menuItem}
                 onPress={() => {
                   setMenuVisible(false);
@@ -66,8 +68,8 @@ export function TaskEditHeader({
                 }}
               >
                 <Text style={[styles.menuItemText, { color: tc.text }]}>{t('common.share')}</Text>
-              </Pressable>
-              <Pressable
+              </AppPressable>
+              <AppPressable
                 style={styles.menuItem}
                 onPress={() => {
                   setMenuVisible(false);
@@ -75,9 +77,9 @@ export function TaskEditHeader({
                 }}
               >
                 <Text style={[styles.menuItemText, { color: tc.text }]}>{t('taskEdit.duplicateTask')}</Text>
-              </Pressable>
+              </AppPressable>
               {onPromoteToProject && (
-                <Pressable
+                <AppPressable
                   style={styles.menuItem}
                   onPress={() => {
                     setMenuVisible(false);
@@ -85,10 +87,10 @@ export function TaskEditHeader({
                   }}
                 >
                   <Text style={[styles.menuItemText, { color: tc.text }]}>{createProjectFromTaskLabel}</Text>
-                </Pressable>
+                </AppPressable>
               )}
               {showConvertToReference && onConvertToReference && (
-                <Pressable
+                <AppPressable
                   style={styles.menuItem}
                   onPress={() => {
                     setMenuVisible(false);
@@ -96,9 +98,9 @@ export function TaskEditHeader({
                   }}
                 >
                   <Text style={[styles.menuItemText, { color: tc.text }]}>{t('task.convertToReference')}</Text>
-                </Pressable>
+                </AppPressable>
               )}
-              <Pressable
+              <AppPressable
                 style={styles.menuItem}
                 onPress={() => {
                   setMenuVisible(false);
@@ -106,7 +108,7 @@ export function TaskEditHeader({
                 }}
               >
                 <Text style={[styles.menuItemText, { color: '#EF4444' }]}>{t('common.delete')}</Text>
-              </Pressable>
+              </AppPressable>
             </View>
           </Pressable>
         </Modal>
@@ -163,6 +165,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     borderWidth: 1,
     paddingVertical: 8,
+    overflow: 'hidden',
   },
   menuItem: {
     paddingVertical: 10,

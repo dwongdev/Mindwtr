@@ -18,6 +18,7 @@ import {
 } from '@mindwtr/core';
 import type { Area, Language, Project, ProjectSequenceTaskCue, Task } from '@mindwtr/core';
 import type { ThemeColors } from '../../hooks/use-theme-colors';
+import { AppPressable } from '../app-pressable';
 import { FocusStarIcon } from '../FocusStarIcon';
 import { MarkdownInlineText } from '../markdown-text';
 import { styles } from './swipeable-task-item.styles';
@@ -377,11 +378,10 @@ export function SwipeableTaskItemContent({
         );
     }
 
-    const { isMaterial, shape, state } = useThemeTokens();
+    const { isMaterial, shape } = useThemeTokens();
 
     return (
-        <Pressable
-            android_ripple={isMaterial && state.rippleColor ? { color: state.rippleColor } : undefined}
+        <AppPressable
             style={[
                 styles.taskItem,
                 isMaterial ? { borderRadius: shape.large } : undefined,
@@ -550,6 +550,6 @@ export function SwipeableTaskItemContent({
                     )}
                 </Pressable>
             )}
-        </Pressable>
+        </AppPressable>
     );
 }
