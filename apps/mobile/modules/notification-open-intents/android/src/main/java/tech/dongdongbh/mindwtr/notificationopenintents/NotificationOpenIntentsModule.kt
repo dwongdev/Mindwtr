@@ -32,21 +32,21 @@ class NotificationOpenIntentsModule : Module() {
         ?: return@Function
 
       if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-        val existingChannel = notificationManager.getNotificationChannel(PERSISTENT_CAPTURE_CHANNEL_ID)
-        if (existingChannel == null) {
-          val channel = NotificationChannel(
-            PERSISTENT_CAPTURE_CHANNEL_ID,
-            channelName,
-            NotificationManager.IMPORTANCE_LOW
-          )
-          channel.description = channelName
-          channel.enableLights(false)
-          channel.enableVibration(false)
-          channel.setSound(null, null)
-          channel.setShowBadge(false)
-          channel.lockscreenVisibility = Notification.VISIBILITY_PUBLIC
-          notificationManager.createNotificationChannel(channel)
-        }
+        // Recreate unconditionally: for an existing channel Android applies only the
+        // safe fields (name/description), which keeps the user-visible channel label
+        // in sync with the app language while preserving the user's own overrides.
+        val channel = NotificationChannel(
+          PERSISTENT_CAPTURE_CHANNEL_ID,
+          channelName,
+          NotificationManager.IMPORTANCE_LOW
+        )
+        channel.description = channelName
+        channel.enableLights(false)
+        channel.enableVibration(false)
+        channel.setSound(null, null)
+        channel.setShowBadge(false)
+        channel.lockscreenVisibility = Notification.VISIBILITY_PUBLIC
+        notificationManager.createNotificationChannel(channel)
       }
 
       val openIntent = Intent(Intent.ACTION_VIEW, Uri.parse(PERSISTENT_CAPTURE_URI)).apply {
