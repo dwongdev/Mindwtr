@@ -96,6 +96,7 @@ AGENTS.md
 .gemini
 .kiro
 skills-lock.json
+docs/agents
 
 # CI artifacts
 scripts/ci/__pycache__/
