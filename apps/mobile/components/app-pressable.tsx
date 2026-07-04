@@ -1,5 +1,5 @@
 import React, { useCallback, useState } from 'react';
-import { Platform, Pressable, StyleSheet, View, type GestureResponderEvent, type PressableProps, type StyleProp, type ViewStyle } from 'react-native';
+import { Platform, Pressable, StyleSheet, View, type GestureResponderEvent, type PressableProps, type PressableStateCallbackType, type StyleProp, type ViewStyle } from 'react-native';
 import { useThemeTokens } from '../hooks/use-theme-tokens';
 
 type AppPressableProps = PressableProps & {
@@ -59,7 +59,9 @@ export function AppPressable({ style, children, pressedColor, onPressIn, onPress
             onPressOut={handlePressOut}
             {...rest}
         >
-            {typeof children === 'function' ? children({ pressed, hovered: false }) : children}
+            {/* The cast keeps this portable across react-native versions whose
+                PressableStateCallbackType gained/lost optional members. */}
+            {typeof children === 'function' ? children({ pressed } as PressableStateCallbackType) : children}
             {!rippleHandlesFeedback && pressed ? (
                 <View
                     pointerEvents="none"
