@@ -65,8 +65,6 @@ jobs:
         with:
           workspaces: apps/desktop/src-tauri
 
-      - name: Install Tauri CLI
-        run: cargo install tauri-cli --version "^2.0"
 
       - name: Setup Bun
         uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
@@ -80,7 +78,7 @@ jobs:
         timeout-minutes: 35
         run: |
           cd apps/desktop
-          cargo tauri build
+          bunx tauri build
         shell: bash
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

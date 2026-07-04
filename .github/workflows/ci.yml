@@ -96,8 +96,6 @@ jobs:
     runs-on: ubuntu-latest
     name: Desktop App (Tauri)
     timeout-minutes: 45
-    env:
-      TAURI_CLI_VERSION: "2.11.3"
     steps:
       - name: Checkout code
         uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
@@ -185,19 +183,6 @@ jobs:
         with:
           workspaces: apps/desktop/src-tauri
 
-      - name: Cache Tauri CLI
-        id: cache-tauri-cli
-        uses: actions/cache@9255dc7a253b0ccc959486e2bca901246202afeb # v5.0.1
-        with:
-          path: ~/.cargo/bin/cargo-tauri
-          key: ${{ runner.os }}-cargo-tauri-${{ env.TAURI_CLI_VERSION }}
-
-      - name: Install Tauri CLI
-        if: steps.cache-tauri-cli.outputs.cache-hit != 'true'
-        run: cargo install tauri-cli --version "=${TAURI_CLI_VERSION}"
-
-      - name: Verify Tauri CLI
-        run: cargo tauri --version
 
       - name: Setup Bun
         uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
@@ -235,7 +220,7 @@ jobs:
 
       - name: Build Tauri app (debug, no bundle)
         timeout-minutes: 20
-        run: cd apps/desktop && cargo tauri build --debug --no-bundle
+        run: cd apps/desktop && bunx tauri build --debug --no-bundle
 
   # Mobile app validation
   mobile:
