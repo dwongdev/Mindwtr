@@ -407,7 +407,7 @@ export function Layout({ children, currentView, onViewChange }: LayoutProps) {
         if (manualSyncBusy) return;
         setIsManualSyncing(true);
         try {
-            const result = await SyncService.performSync();
+            const result = await SyncService.performSync({ manual: true });
             if (result.skipped === 'requeued') {
                 showToast('Local changes arrived during sync. Retry queued.', 'info');
             } else if (result.success) {

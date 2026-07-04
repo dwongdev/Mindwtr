@@ -527,7 +527,7 @@ export const useSyncSettings = ({
             const persistedBackend = await SyncService.getSyncBackend();
             const isPendingCloudKitEnable = syncBackend === 'cloudkit' && persistedBackend !== 'cloudkit';
             const result = await SyncService.performSync(
-                isPendingCloudKitEnable ? { backendOverride: 'cloudkit' } : undefined
+                isPendingCloudKitEnable ? { backendOverride: 'cloudkit', manual: true } : { manual: true }
             );
             if (result.skipped === 'requeued') {
                 showToast('Local changes arrived during sync. Retry queued.', 'info');

@@ -582,6 +582,9 @@ type SyncRunResult = {
 
 type SyncRunOptions = {
     backendOverride?: SyncBackend;
+    /** User-initiated sync: always run the full read/merge cycle, never the
+     *  fast-check skip, so a stale cached fingerprint can't hide remote data. */
+    manual?: boolean;
 };
 
 type SyncExecutionContext = {
@@ -1289,6 +1292,7 @@ export class SyncService {
     }
 
     private static async trySkipUnchangedSync(run: SyncRun): Promise<SyncRunResult | null> {
+        if (run.options.manual) return null;
         const { context } = run;
         const scope = buildFastSyncScope(context);
         if (!scope) return null;
