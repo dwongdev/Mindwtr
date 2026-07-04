@@ -1243,6 +1243,11 @@ export const trOverrides: Record<string, string> = {
         'settings.cloudUrlPlaceholder': 'https://example.com',
         'settings.externalCalendarUrlPlaceholder': 'https://example.com/calendar.ics',
         'settings.webdavUrlPlaceholder': 'https://example.com/remote.php/dav/files/<username>/mindwtr',
+        'settings.persistentCaptureLabel': 'Bildirim çubuğunda hızlı ekleme',
+        'settings.persistentCaptureDesc': 'Kilit ekranı dahil her yerden yakalamak için kalıcı bir bildirim tutun.',
+        'captureNotification.title': 'Hızlı ekle',
+        'captureNotification.text': 'Gelen kutunuza kaydetmek için dokunun',
+        'captureNotification.channelName': 'Hızlı yakalama',
 
         // Mind sweep (guided capture)
         'mindSweep.launchButton': 'Zihin temizliği',

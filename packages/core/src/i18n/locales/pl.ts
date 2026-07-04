@@ -1226,6 +1226,11 @@ export const plOverrides: Record<string, string> = {
         'settings.cloudUrlPlaceholder': 'https://example.com',
         'settings.externalCalendarUrlPlaceholder': 'https://example.com/calendar.ics',
         'settings.webdavUrlPlaceholder': 'https://example.com/remote.php/dav/files/<username>/mindwtr',
+        'settings.persistentCaptureLabel': 'Szybkie dodawanie na pasku powiadomień',
+        'settings.persistentCaptureDesc': 'Stałe powiadomienie do przechwytywania z dowolnego miejsca, także z ekranu blokady.',
+        'captureNotification.title': 'Szybkie dodawanie',
+        'captureNotification.text': 'Dotknij, aby zapisać do Skrzynki',
+        'captureNotification.channelName': 'Szybkie przechwytywanie',
 
         // Mind sweep (guided capture)
         'mindSweep.launchButton': 'Oczyść umysł',

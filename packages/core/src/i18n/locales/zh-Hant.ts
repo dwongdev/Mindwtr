@@ -1762,6 +1762,11 @@ export const zhHant: Record<string, string> = {
         'settings.syncMobile.unsupportedCloudProviderOnIos': 'iOS 雲端提供商暫不支持',
         'settings.syncMobile.useRedirectUri': '請使用回調地址',
         'settings.syncMobile.webdavEndpointIsReachable': 'WebDAV 端點可訪問。',
+        'settings.persistentCaptureLabel': '通知列快速新增',
+        'settings.persistentCaptureDesc': '保留常駐通知，隨時隨地（包括鎖定畫面）快速收集。',
+        'captureNotification.title': '快速新增',
+        'captureNotification.text': '點按即可收集到收件匣',
+        'captureNotification.channelName': '快速收集',
 
 
         // Mind sweep (guided capture)

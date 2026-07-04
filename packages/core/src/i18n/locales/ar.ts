@@ -1225,6 +1225,11 @@ export const arOverrides: Record<string, string> = {
         'settings.cloudUrlPlaceholder': 'https://example.com',
         'settings.externalCalendarUrlPlaceholder': 'https://example.com/calendar.ics',
         'settings.webdavUrlPlaceholder': 'https://example.com/remote.php/dav/files/<username>/mindwtr',
+        'settings.persistentCaptureLabel': 'إضافة سريعة في شريط الإشعارات',
+        'settings.persistentCaptureDesc': 'أبقِ إشعارًا دائمًا للالتقاط من أي مكان، بما في ذلك شاشة القفل.',
+        'captureNotification.title': 'إضافة سريعة',
+        'captureNotification.text': 'انقر للالتقاط إلى صندوق الوارد',
+        'captureNotification.channelName': 'التقاط سريع',
 
         // Mind sweep (guided capture)
         'mindSweep.launchButton': 'تفريغ الذهن',
