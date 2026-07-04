@@ -1068,6 +1068,10 @@ export function createNextRecurringTask(
         newStatus = 'next';
     }
 
+    // The next instance keeps its attachments, so the copies intentionally share
+    // cloudKey/uri with the completed instance (unlike duplicateTask, which drops
+    // file attachments). Every remote-delete and cleanup path must therefore
+    // refcount cloudKeys across all tasks before deleting remote bytes.
     const duplicatedAttachments = (task.attachments || [])
         .filter((attachment) => !attachment.deletedAt)
         .map<Attachment>((attachment) => ({
