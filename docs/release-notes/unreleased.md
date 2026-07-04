@@ -70,3 +70,4 @@ Changes collected after `v1.0.5` and before the next version tag.
 - feat(mobile): optional persistent "Quick add" notification on Android (Settings → Notifications) — one swipe from anywhere, including the lock screen, opens Quick Capture.
 - fix(mobile): pull-to-refresh and Settings "Sync now" always read the remote data instead of trusting the unchanged-check cache, matching the desktop manual-sync fix.
 - fix(mobile): the persistent "Quick add" notification channel name in Android system settings now follows the app language instead of staying in the language active when it was first created.
+- fix(sync): the default area for new tasks (fixed area and follow-active-area modes) now syncs between devices — the setting was merged correctly when received but was never included in the uploaded sync document.

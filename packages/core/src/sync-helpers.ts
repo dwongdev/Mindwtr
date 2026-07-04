@@ -195,14 +195,21 @@ export const sanitizeAppDataForRemote = (data: AppData): AppData => {
         }
 
         if (prefs.gtd === true) {
+            // This allowlist must stay in step with the gtd group in
+            // mergeSettingsForSync (sync-merge-settings.ts) — a field present in
+            // the merge but missing here silently never leaves the device.
             if (
                 settings.gtd?.defaultScheduleTime !== undefined
+                || settings.gtd?.defaultAreaMode !== undefined
+                || settings.gtd?.defaultAreaId !== undefined
                 || settings.gtd?.focusTaskLimit !== undefined
                 || settings.gtd?.focusGroupBy !== undefined
                 || settings.gtd?.defaultProjectFlowMode !== undefined
             ) {
                 next.gtd = {
                     ...(settings.gtd.defaultScheduleTime !== undefined ? { defaultScheduleTime: settings.gtd.defaultScheduleTime } : {}),
+                    ...(settings.gtd.defaultAreaMode !== undefined ? { defaultAreaMode: settings.gtd.defaultAreaMode } : {}),
+                    ...(settings.gtd.defaultAreaId !== undefined ? { defaultAreaId: settings.gtd.defaultAreaId } : {}),
                     ...(settings.gtd.focusTaskLimit !== undefined ? { focusTaskLimit: settings.gtd.focusTaskLimit } : {}),
                     ...(settings.gtd.focusGroupBy !== undefined ? { focusGroupBy: settings.gtd.focusGroupBy } : {}),
                     ...(settings.gtd.defaultProjectFlowMode !== undefined ? { defaultProjectFlowMode: settings.gtd.defaultProjectFlowMode } : {}),

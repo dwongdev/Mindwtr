@@ -280,6 +280,8 @@ describe('sync-helpers sanitizeAppDataForRemote', () => {
             syncPreferences: { gtd: true, language: true },
             gtd: {
                 defaultScheduleTime: '09:30',
+                defaultAreaMode: 'fixed',
+                defaultAreaId: 'area-1',
                 focusTaskLimit: 5,
                 focusGroupBy: 'project',
                 defaultProjectFlowMode: 'sequential',
@@ -293,12 +295,29 @@ describe('sync-helpers sanitizeAppDataForRemote', () => {
 
         expect(sanitized.settings.gtd).toEqual({
             defaultScheduleTime: '09:30',
+            defaultAreaMode: 'fixed',
+            defaultAreaId: 'area-1',
             focusTaskLimit: 5,
             focusGroupBy: 'project',
             defaultProjectFlowMode: 'sequential',
         });
         expect(sanitized.settings.language).toBe('en');
         expect(sanitized.settings.timeFormat).toBe('24h');
+    });
+
+    it('uploads a default area that is the only GTD preference set (#default-area-sync)', () => {
+        const data = createData([]);
+        data.settings = {
+            syncPreferences: { gtd: true },
+            gtd: { defaultAreaId: 'area-1', defaultAreaMode: 'fixed' },
+        };
+
+        const sanitized = sanitizeAppDataForRemote(data);
+
+        expect(sanitized.settings.gtd).toEqual({
+            defaultAreaMode: 'fixed',
+            defaultAreaId: 'area-1',
+        });
     });
 
     it('does not include the default schedule time with only synced date/time preferences', () => {
