@@ -1167,7 +1167,7 @@ export function QuickAddModal({ standaloneWindow = false }: QuickAddModalProps) 
                 </div>
                 {captureMode === 'text' ? (
                     <form onSubmit={handleSubmit} className="p-4 space-y-2">
-                        <div className="flex items-stretch gap-2">
+                        <div className="relative">
                             <TaskInput
                                 value={value}
                                 autoFocus={captureMode === 'text'}
@@ -1191,15 +1191,15 @@ export function QuickAddModal({ standaloneWindow = false }: QuickAddModalProps) 
                                     }
                                 }}
                                 placeholder={t('nav.addTask')}
-                                containerClassName="flex-1 min-w-0"
                                 className={cn(
-                                    "w-full bg-card border border-border rounded-lg py-3 px-4 shadow-sm focus:ring-2 focus:ring-primary focus:border-transparent transition-all",
+                                    "w-full bg-card border border-border rounded-lg py-3 pl-4 pr-12 shadow-sm focus:ring-2 focus:ring-primary focus:border-transparent transition-all",
                                 )}
                             />
-                            {/* Icon-only "Add to today's focus" toggle beside the title input;
-                                the label lives in the tooltip/aria-label. On = filled amber star,
-                                matching how focused tasks render in the list. Tapping past the
-                                focus cap explains the block via toast instead of a dead control. */}
+                            {/* "Add to today's focus" star sits inside the field's right edge —
+                                the browser-bookmark idiom, so it reads as "star this capture".
+                                Label lives in the tooltip/aria-label; on = filled amber star,
+                                matching focused tasks in lists. Tapping past the focus cap
+                                explains the block via toast instead of a dead control. */}
                             <button
                                 type="button"
                                 onClick={() => {
@@ -1210,16 +1210,16 @@ export function QuickAddModal({ standaloneWindow = false }: QuickAddModalProps) 
                                     setFocusNewTask((current) => !current);
                                 }}
                                 className={cn(
-                                    'flex w-11 shrink-0 items-center justify-center rounded-lg border shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background',
+                                    'absolute right-2 top-1/2 -translate-y-1/2 flex h-8 w-8 items-center justify-center rounded-md transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
                                     focusNewTask
-                                        ? 'border-amber-400/70 bg-amber-100 text-amber-600 hover:bg-amber-200 dark:bg-amber-500/20 dark:text-amber-300 dark:hover:bg-amber-500/30'
-                                        : 'border-border bg-card text-muted-foreground hover:bg-muted hover:text-amber-500',
+                                        ? 'text-amber-500 hover:bg-amber-500/15'
+                                        : 'text-muted-foreground/70 hover:text-amber-500 hover:bg-muted/60',
                                 )}
                                 aria-label={focusLabel}
                                 aria-pressed={focusNewTask}
                                 title={focusLabel}
                             >
-                                <FocusStarIcon filled={focusNewTask} className="h-4 w-4" />
+                                <FocusStarIcon filled={focusNewTask} className="h-[18px] w-[18px]" />
                             </button>
                         </div>
                         {isPastingImage ? (
