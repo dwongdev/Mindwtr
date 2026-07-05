@@ -88,6 +88,20 @@ jobs:
           WRITE_APP_JSON: "1"
         run: node scripts/ci/android-version-code-policy.js
 
+      - name: Verify committed release version matches the tag
+        run: |
+          TAG="${{ inputs.tag || github.event.inputs.tag || github.ref_name }}"
+          case "$TAG" in
+            v[0-9]*) ;;
+            *) echo "No release tag ('$TAG'); skipping release-version check."; exit 0 ;;
+          esac
+          COMMITTED=$(node -p "require('./apps/mobile/release-version.json').releaseVersion")
+          if [ "v$COMMITTED" != "$TAG" ] && [ "$COMMITTED" != "$TAG" ]; then
+            echo "apps/mobile/release-version.json says '$COMMITTED' but the tag is '$TAG'."
+            echo "Run scripts/bump-version.sh so env-free FOSS builds self-report the right version."
+            exit 1
+          fi
+
       - name: Build FOSS Android APK (Gradle, arm64-v8a only)
         timeout-minutes: 30
         run: |

@@ -1,4 +1,6 @@
 import type { ConfigContext, ExpoConfig } from 'expo/config';
+import { readFileSync } from 'fs';
+import { join } from 'path';
 
 const isFossBuild = process.env.FOSS_BUILD === '1' || process.env.FOSS_BUILD === 'true';
 const analyticsHeartbeatDisabled = process.env.ANALYTICS_HEARTBEAT_DISABLED === '1'
@@ -16,7 +18,17 @@ const analyticsHeartbeatChannel = (
   process.env.ANALYTICS_HEARTBEAT_CHANNEL
     ?? (isFossBuild && analyticsHeartbeatUrl ? 'fdroid' : '')
 ).trim();
-const analyticsReleaseVersion = (process.env.ANALYTICS_RELEASE_VERSION ?? '').trim();
+// Committed by scripts/bump-version.sh so env-free reproducible builds (F-Droid,
+// IzzyOnDroid) still report the full release version including any -rc.N suffix.
+const committedReleaseVersion = (() => {
+  try {
+    const parsed = JSON.parse(readFileSync(join(__dirname, 'release-version.json'), 'utf8'));
+    return String(parsed.releaseVersion ?? '').trim();
+  } catch {
+    return '';
+  }
+})();
+const analyticsReleaseVersion = (process.env.ANALYTICS_RELEASE_VERSION ?? '').trim() || committedReleaseVersion;
 const feedbackEndpointUrl = (process.env.FEEDBACK_ENDPOINT_URL ?? '').trim();
 const dropboxAppKey = (process.env.DROPBOX_APP_KEY ?? '').trim();
 const donationPromptEnabled = process.env.DONATION_PROMPT_ENABLED === '1'

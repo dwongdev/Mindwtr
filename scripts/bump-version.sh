@@ -84,6 +84,11 @@ NODE
 node scripts/update-versions.js "$NEW_VERSION"
 bump_android_version_code
 
+# Record the full release version (including any -rc.N suffix) for builds that
+# cannot receive CI env, e.g. reproducible F-Droid/IzzyOnDroid APKs.
+printf '{\n  "releaseVersion": "%s"\n}\n' "${RELEASE_TAG#v}" > apps/mobile/release-version.json
+echo "Updated apps/mobile/release-version.json to ${RELEASE_TAG#v}"
+
 update_snapcraft() {
     local snapcraft_file="snap/snapcraft.yaml"
     if [ ! -f "$snapcraft_file" ]; then
