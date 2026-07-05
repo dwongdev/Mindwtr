@@ -13,6 +13,8 @@ import {
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import {
+  applyCapturedProject,
+  buildCaptureTaskProps,
   createAIProvider,
   DEFAULT_PROJECT_COLOR,
   getQuickAddProjectInitialProps,
@@ -349,71 +351,58 @@ export default function CaptureScreen() {
 
   const buildTaskInputFromInput = async (inputValue: string): Promise<{ title: string; initialProps: Partial<Task> } | null> => {
     if (!inputValue.trim()) return null;
-    const { title, props, projectTitle, invalidDateCommands, detectedDate } = parseQuickAdd(
-      inputValue,
-      projects,
-      new Date(),
-      areas,
-      quickAddParseOptions
-    );
-    if (
-      props.projectId
-      && !projects.some((project) => project.id === props.projectId && isSelectableProjectForTaskAssignment(project))
-    ) {
-      delete props.projectId;
-    }
-    if (invalidDateCommands && invalidDateCommands.length > 0) {
+    const parsed = parseQuickAdd(inputValue, projects, new Date(), areas, quickAddParseOptions);
+    if (parsed.invalidDateCommands && parsed.invalidDateCommands.length > 0) {
       showToast({
         title: t('common.notice'),
-        message: `${t('quickAdd.invalidDateCommand')}: ${invalidDateCommands.join(', ')}`,
+        message: `${t('quickAdd.invalidDateCommand')}: ${parsed.invalidDateCommands.join(', ')}`,
         tone: 'warning',
         durationMs: 4200,
       });
       return null;
     }
-    const shouldApplyDetectedDate = Boolean(detectedDate?.date && !props.dueDate);
-    const finalTitle = shouldApplyDetectedDate && detectedDate ? detectedDate.titleWithoutDate : (title || inputValue);
-    if (!finalTitle.trim()) return null;
-    const taskProps: Partial<Task> = { status: 'inbox', ...initialProps, ...props };
-    if (!taskProps.status) taskProps.status = 'inbox';
-    if (shouldApplyDetectedDate && detectedDate) {
-      taskProps.dueDate = detectedDate.date;
-    }
-    const requestedProjectTitle = !taskProps.projectId ? (projectTitle || initialProjectTitle) : '';
-    if (requestedProjectTitle) {
-      const inactiveProject = projects.find((project) => (
-        (
-          project.id === requestedProjectTitle
-          || project.title.toLowerCase() === requestedProjectTitle.toLowerCase()
-        )
-        && !isSelectableProjectForTaskAssignment(project)
+
+    // The deep-link `project` param is contextual (an id or a title). It is a
+    // best-effort fallback, not a typed +Project token: resolve a selectable
+    // match up front, and simply skip it when it names an archived project.
+    const surfaceProps: Partial<Task> = { ...initialProps };
+    let fallbackProjectTitleToCreate: string | undefined;
+    if (!parsed.props.projectId && !parsed.projectTitle && initialProjectTitle) {
+      const ref = initialProjectTitle.toLowerCase();
+      const match = projects.find((project) => (
+        project.id === initialProjectTitle || project.title.toLowerCase() === ref
       ));
-      if (inactiveProject) {
-        taskProps.projectId = undefined;
-      } else {
-        const matchedProject = projects.find((project) => (
-          isSelectableProjectForTaskAssignment(project)
-          && (
-            project.id === requestedProjectTitle
-            || project.title.toLowerCase() === requestedProjectTitle.toLowerCase()
-          )
-        ));
-        if (matchedProject) {
-          taskProps.projectId = matchedProject.id;
-        } else {
-          const created = await addProject(
-            requestedProjectTitle,
-            DEFAULT_PROJECT_COLOR,
-            getQuickAddProjectInitialProps(taskProps, defaultNewTaskAreaId),
-          );
-          if (!created) return null;
-          taskProps.projectId = created.id;
-        }
+      if (!match) {
+        fallbackProjectTitleToCreate = initialProjectTitle;
+      } else if (isSelectableProjectForTaskAssignment(match)) {
+        surfaceProps.projectId = match.id;
       }
     }
-    if (taskProps.projectId) {
-      taskProps.areaId = undefined;
+
+    // Capture policy lives in core buildCaptureTaskProps; this modal adds its
+    // description field and copilot suggestions on top.
+    const assembly = buildCaptureTaskProps({
+      parsed: fallbackProjectTitleToCreate
+        ? { ...parsed, projectTitle: fallbackProjectTitleToCreate }
+        : parsed,
+      rawInput: inputValue,
+      projects,
+      initialProps: surfaceProps,
+      selectedAreaId: defaultNewTaskAreaId,
+      starNewTask: false,
+    });
+    if (!assembly.ok) return null;
+    let taskProps = assembly.props;
+    if (assembly.projectToCreate) {
+      const created = await addProject(
+        assembly.projectToCreate.title,
+        assembly.projectToCreate.color,
+        assembly.projectToCreate.initialProps,
+      );
+      if (!created) return null;
+      taskProps = applyCapturedProject(taskProps, created.id);
     }
+
     const description = descriptionValue.trim();
     const parsedDescription = typeof taskProps.description === 'string' ? taskProps.description.trim() : '';
     if (description) {
@@ -422,17 +411,15 @@ export default function CaptureScreen() {
         : description;
     }
     if (copilotContext) {
-      const nextContexts = Array.from(new Set([...(taskProps.contexts ?? []), copilotContext]));
-      taskProps.contexts = nextContexts;
+      taskProps.contexts = Array.from(new Set([...(taskProps.contexts ?? []), copilotContext]));
     }
     if (timeEstimatesEnabled && copilotEstimate && !taskProps.timeEstimate) {
       taskProps.timeEstimate = copilotEstimate;
     }
     if (copilotTags.length) {
-      const nextTags = Array.from(new Set([...(taskProps.tags ?? []), ...copilotTags]));
-      taskProps.tags = nextTags;
+      taskProps.tags = Array.from(new Set([...(taskProps.tags ?? []), ...copilotTags]));
     }
-    return { title: finalTitle, initialProps: taskProps };
+    return { title: assembly.title, initialProps: taskProps };
   };
 
   const createTaskFromInput = async (

@@ -35,7 +35,12 @@ vi.mock('expo-router', () => ({
   useRouter: () => routerMocks,
 }));
 
-vi.mock('@mindwtr/core', () => ({
+vi.mock('@mindwtr/core', async () => {
+  // Capture assembly runs real: it is the pure policy under test.
+  const actual = await vi.importActual<typeof import('@mindwtr/core')>('@mindwtr/core');
+  return {
+  buildCaptureTaskProps: actual.buildCaptureTaskProps,
+  applyCapturedProject: actual.applyCapturedProject,
   createAIProvider: vi.fn(),
   DEFAULT_PROJECT_COLOR: '#94a3b8',
   getQuickAddProjectInitialProps: (props: any, fallbackAreaId?: string | null) => {
@@ -67,7 +72,8 @@ vi.mock('@mindwtr/core', () => ({
   useTaskStore: (selector?: (state: typeof storeState) => unknown) => (
     typeof selector === 'function' ? selector(storeState) : storeState
   ),
-}));
+};
+});
 
 vi.mock('@/contexts/language-context', () => ({
   useLanguage: () => ({
