@@ -17,7 +17,7 @@ import { AgendaFiltersPanel, type AgendaActiveFilterChip, type AgendaProjectFilt
 import { AgendaHeader } from './agenda/AgendaHeader';
 import { AgendaCollapsibleSection, AgendaProjectSection } from './agenda/AgendaSections';
 import { StoreTaskItem } from './list/StoreTaskItem';
-import { groupTasksByArea, groupTasksByContext, groupTasksByEnergy, groupTasksByPerson, groupTasksByPriority, groupTasksByProject, groupTasksByTag, type NextGroupBy, type TaskGroup } from './list/next-grouping';
+import { groupTasks, type NextGroupBy } from './list/next-grouping';
 import { PromptModal } from '../PromptModal';
 import { ConfirmModal } from '../ConfirmModal';
 import { dispatchNavigateEvent } from '../../lib/navigation-events';
@@ -854,54 +854,9 @@ export function AgendaView() {
         sequentialWithinSectionProjectIds,
         sortBySavedPerspective,
     ]);
-    const nextActionGroups = useMemo(() => {
-        if (effectiveNextGroupBy === 'none') return [] as TaskGroup[];
-        if (effectiveNextGroupBy === 'area') {
-            return groupTasksByArea({
-                areas,
-                tasks: sections.nextActions,
-                projectMap,
-                generalLabel: resolveText('settings.general', 'General'),
-            });
-        }
-        if (effectiveNextGroupBy === 'project') {
-            return groupTasksByProject({
-                tasks: sections.nextActions,
-                projectMap,
-                noProjectLabel: resolveText('taskEdit.noProjectOption', 'No project'),
-            });
-        }
-        if (effectiveNextGroupBy === 'priority') {
-            return groupTasksByPriority({
-                tasks: sections.nextActions,
-                getPriorityLabel: (priority) => t(`priority.${priority}`),
-                noPriorityLabel: resolveText('focus.group.noPriority', 'No priority'),
-            });
-        }
-        if (effectiveNextGroupBy === 'energy') {
-            return groupTasksByEnergy({
-                tasks: sections.nextActions,
-                getEnergyLabel: (energy) => t(`energyLevel.${energy}`),
-                noEnergyLabel: resolveText('focus.group.noEnergy', 'No energy'),
-            });
-        }
-        if (effectiveNextGroupBy === 'person') {
-            return groupTasksByPerson({
-                tasks: sections.nextActions,
-                unassignedLabel: resolveText('people.unassigned', 'Unassigned'),
-            });
-        }
-        if (effectiveNextGroupBy === 'tag') {
-            return groupTasksByTag({
-                tasks: sections.nextActions,
-                noTagLabel: resolveText('projects.noTags', 'No tags'),
-            });
-        }
-        return groupTasksByContext({
-            tasks: sections.nextActions,
-            noContextLabel: resolveText('contexts.none', 'No context'),
-        });
-    }, [areas, effectiveNextGroupBy, projectMap, resolveText, sections.nextActions, t]);
+    const nextActionGroups = useMemo(() => (
+        groupTasks(effectiveNextGroupBy, { tasks: sections.nextActions, areas, projectMap, t })
+    ), [areas, effectiveNextGroupBy, projectMap, sections.nextActions, t]);
     const activeGroupCollapseKey = getFocusGroupCollapseKey(effectiveNextGroupBy);
     const collapsedNextActionGroupIds = useMemo(() => new Set(
         activeGroupCollapseKey ? persistedViewState.collapsedGroups[activeGroupCollapseKey] ?? [] : []

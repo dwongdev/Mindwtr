@@ -2,6 +2,7 @@ import { ArrowUpDown, CheckSquare, ChevronDown, ChevronsUpDown, List, SlidersHor
 import { cn } from '../../../lib/utils';
 import type { TaskSortBy } from '@mindwtr/core';
 import type { TaskListGroupBy } from './next-grouping';
+import { GroupBySelect } from './GroupBySelect';
 
 const DEFAULT_GROUP_BY_OPTIONS: TaskListGroupBy[] = ['none', 'context', 'area', 'project', 'tag', 'energy', 'priority', 'person'];
 
@@ -67,55 +68,9 @@ export function ListHeader({
             const value = t('list.densityComfortable');
             return value === 'list.densityComfortable' ? 'Comfortable' : value;
         })();
-    const groupLabel = (() => {
-        const value = t('list.groupBy');
-        return value === 'list.groupBy' ? 'Group' : value;
-    })();
-    const noGroupingLabel = (() => {
-        const value = t('list.groupByNone');
-        return value === 'list.groupByNone' ? 'No grouping' : value;
-    })();
-    const groupByContextLabel = (() => {
-        const value = t('list.groupByContext');
-        return value === 'list.groupByContext' ? 'Context' : value;
-    })();
-    const groupByAreaLabel = (() => {
-        const value = t('list.groupByArea');
-        return value === 'list.groupByArea' ? 'Area' : value;
-    })();
-    const groupByProjectLabel = (() => {
-        const value = t('list.groupByProject');
-        return value === 'list.groupByProject' ? 'Project' : value;
-    })();
-    const groupByTagLabel = (() => {
-        const value = t('taskEdit.tagsLabel');
-        return value === 'taskEdit.tagsLabel' ? 'Tags' : value;
-    })();
-    const groupByPriorityLabel = (() => {
-        const value = t('filters.priority');
-        return value === 'filters.priority' ? 'Priority' : value;
-    })();
-    const groupByEnergyLabel = (() => {
-        const value = t('focus.group.energy');
-        return value === 'focus.group.energy' ? 'Energy' : value;
-    })();
-    const groupByPersonLabel = (() => {
-        const value = t('people.title');
-        return value === 'people.title' ? 'People' : value;
-    })();
     const controlBaseClass = "h-9 text-xs border transition-colors focus:outline-none focus:ring-2 focus:ring-primary/40";
     const controlMutedClass = "bg-card text-muted-foreground border-border hover:bg-muted/70 hover:text-foreground";
     const controlActiveClass = "bg-primary/10 text-primary border-primary";
-    const groupByLabels: Record<TaskListGroupBy, string> = {
-        none: noGroupingLabel,
-        context: groupByContextLabel,
-        area: groupByAreaLabel,
-        project: groupByProjectLabel,
-        tag: groupByTagLabel,
-        energy: groupByEnergyLabel,
-        priority: groupByPriorityLabel,
-        person: groupByPersonLabel,
-    };
 
     return (
         <header className="flex flex-col gap-3 xl:flex-row xl:items-end xl:justify-between">
@@ -183,25 +138,13 @@ export function ListHeader({
                     />
                 </div>
                 {showGroupBy && onChangeGroupBy && (
-                    <div className={cn(controlBaseClass, controlMutedClass, "relative flex min-w-[180px] items-center rounded-lg pl-2") }>
-                        <span className="mr-2 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
-                            {groupLabel}
-                        </span>
-                        <select
-                            value={groupBy}
-                            onChange={(e) => onChangeGroupBy(e.target.value as TaskListGroupBy)}
-                            aria-label={groupLabel}
-                            className="h-full min-w-0 flex-1 appearance-none bg-transparent pr-8 text-xs text-foreground focus:outline-none"
-                        >
-                            {groupByOptions.map((option) => (
-                                <option key={option} value={option}>{groupByLabels[option]}</option>
-                            ))}
-                        </select>
-                        <ChevronDown
-                            className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground"
-                            aria-hidden="true"
-                        />
-                    </div>
+                    <GroupBySelect
+                        value={groupBy}
+                        axes={groupByOptions}
+                        onChange={onChangeGroupBy}
+                        t={t}
+                        className="min-w-[180px]"
+                    />
                 )}
                 <button
                     type="button"

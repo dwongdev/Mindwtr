@@ -4,6 +4,7 @@ import { ReviewHeader, ReviewListControls } from './review/ReviewHeader';
 import { ReviewFiltersBar } from './review/ReviewFiltersBar';
 import { ReviewBulkActions } from './review/ReviewBulkActions';
 import { ReviewTaskList } from './review/ReviewTaskList';
+import { StoreTaskItem } from './list/StoreTaskItem';
 import { BulkSelectionToolbar } from './list/BulkSelectionToolbar';
 import { TaskBulkOrganizeModal } from './list/TaskBulkOrganizeModal';
 import { DailyReviewGuideModal } from './review/DailyReviewModal';
@@ -18,17 +19,8 @@ import { checkBudget } from '../../config/performanceBudgets';
 import { resolveAreaFilter, taskMatchesAreaFilter } from '@mindwtr/core';
 import { useUiStore } from '../../store/ui-store';
 import { usePersistedViewState } from '../../hooks/usePersistedViewState';
-import { tFallback } from '@mindwtr/core';
-import { cn } from '../../lib/utils';
-import {
-    groupTasksByArea,
-    groupTasksByContext,
-    groupTasksByProject,
-    groupTasksByStatus,
-    groupTasksByTag,
-    type ContextsGroupBy,
-    type TaskGroup,
-} from './list/next-grouping';
+import { groupTasks, type ContextsGroupBy, type TaskGroup } from './list/next-grouping';
+import { GroupedTaskSections } from './list/GroupedTaskSections';
 
 const STATUS_OPTIONS: TaskStatus[] = ['inbox', 'next', 'waiting', 'someday', 'done'];
 const REVIEW_VIEW_STATE_STORAGE_KEY = 'mindwtr:view:review:v1';
@@ -182,41 +174,10 @@ export function ReviewView() {
         [filteredTaskIds, multiSelectedIds],
     );
     const allVisibleTasksSelected = filteredTaskIds.length > 0 && selectedVisibleCount === filteredTaskIds.length;
-    const resolveText = useCallback((key: string, fallback: string) => tFallback(t, key, fallback), [t]);
-    const groupedTasks = useMemo<TaskGroup[]>(() => {
-        if (groupBy === 'none') return [];
-        if (groupBy === 'status') {
-            return groupTasksByStatus({
-                tasks: filteredTasks,
-                getStatusLabel: (status) => t(`status.${status}`),
-            });
-        }
-        if (groupBy === 'area') {
-            return groupTasksByArea({
-                areas,
-                tasks: filteredTasks,
-                projectMap: projectMapById,
-                generalLabel: resolveText('settings.general', 'General'),
-            });
-        }
-        if (groupBy === 'project') {
-            return groupTasksByProject({
-                tasks: filteredTasks,
-                projectMap: projectMapById,
-                noProjectLabel: resolveText('taskEdit.noProjectOption', 'No project'),
-            });
-        }
-        if (groupBy === 'tag') {
-            return groupTasksByTag({
-                tasks: filteredTasks,
-                noTagLabel: resolveText('projects.noTags', 'No tags'),
-            });
-        }
-        return groupTasksByContext({
-            tasks: filteredTasks,
-            noContextLabel: resolveText('contexts.none', 'No context'),
-        });
-    }, [areas, filteredTasks, groupBy, projectMapById, resolveText, t]);
+    const groupedTasks = useMemo<TaskGroup[]>(
+        () => groupTasks(groupBy, { tasks: filteredTasks, areas, projectMap: projectMapById, t }),
+        [areas, filteredTasks, groupBy, projectMapById, t],
+    );
     const isGrouping = groupBy !== 'none' && filteredTasks.length > 0;
 
     const bulkStatuses: TaskStatus[] = ['inbox', 'next', 'waiting', 'someday', 'reference', 'done'];
@@ -387,33 +348,20 @@ export function ReviewView() {
                 )}
 
                 {isGrouping ? (
-                    <div className="space-y-2">
-                        {groupedTasks.map((group) => (
-                            <div key={group.id} className="rounded-md border border-border/40 bg-card/30">
-                                <div className={cn(
-                                    'flex items-center justify-between gap-3 border-b border-border/30 px-3 py-2 text-xs font-semibold uppercase tracking-wide',
-                                    group.muted ? 'text-muted-foreground' : 'text-foreground/90',
-                                )}>
-                                    <span className="inline-flex min-w-0 items-center gap-1.5">
-                                        {group.dotColor && (
-                                            <span className="h-2 w-2 shrink-0 rounded-full" style={{ backgroundColor: group.dotColor }} aria-hidden="true" />
-                                        )}
-                                        <span className="truncate">{group.title}</span>
-                                    </span>
-                                    <span className="shrink-0 text-muted-foreground">{group.tasks.length}</span>
-                                </div>
-                                <ReviewTaskList
-                                    tasks={group.tasks}
-                                    showListDetails={showListDetails}
-                                    selectionMode={selectionMode}
-                                    multiSelectedIds={multiSelectedIds}
-                                    highlightTaskId={highlightTaskId}
-                                    onToggleSelect={toggleMultiSelect}
-                                    t={t}
-                                />
-                            </div>
-                        ))}
-                    </div>
+                    <GroupedTaskSections
+                        groups={groupedTasks}
+                        renderTask={(task) => (
+                            <StoreTaskItem
+                                key={task.id}
+                                taskId={task.id}
+                                compactMetaEnabled={showListDetails}
+                                showProjectBadgeInActions={false}
+                                selectionMode={selectionMode}
+                                isMultiSelected={multiSelectedIds.has(task.id)}
+                                onToggleSelectId={toggleMultiSelect}
+                            />
+                        )}
+                    />
                 ) : (
                     <ReviewTaskList
                         tasks={filteredTasks}

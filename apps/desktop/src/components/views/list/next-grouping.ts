@@ -1,4 +1,4 @@
-import { DEFAULT_AREA_COLOR } from '@mindwtr/core';
+import { DEFAULT_AREA_COLOR, tFallback } from '@mindwtr/core';
 import type { Area, Project, Task, TaskEnergyLevel, TaskPriority, TaskStatus } from '@mindwtr/core';
 import { getContextColor } from '../../../lib/context-color';
 
@@ -411,4 +411,55 @@ export function groupTasksByTag({
         });
     });
     return groups;
+}
+
+export type TaskGroupAxis = 'none' | 'status' | 'context' | 'area' | 'project' | 'tag' | 'energy' | 'priority' | 'person';
+
+export type GroupTasksInputs = {
+    tasks: Task[];
+    areas: Area[];
+    projectMap: Map<string, Project>;
+    t: (key: string) => string;
+};
+
+/**
+ * One dispatch for every grouped list: axis in, groups out, i18n label wiring
+ * included. Views declare which axes they offer and where the choice
+ * persists — nothing else.
+ */
+export function groupTasks(axis: TaskGroupAxis, { tasks, areas, projectMap, t }: GroupTasksInputs): TaskGroup[] {
+    switch (axis) {
+        case 'none':
+            return [];
+        case 'status':
+            return groupTasksByStatus({ tasks, getStatusLabel: (status) => t(`status.${status}`) });
+        case 'area':
+            return groupTasksByArea({ areas, tasks, projectMap, generalLabel: tFallback(t, 'settings.general', 'General') });
+        case 'project':
+            return groupTasksByProject({ tasks, projectMap, noProjectLabel: tFallback(t, 'taskEdit.noProjectOption', 'No project') });
+        case 'priority':
+            return groupTasksByPriority({ tasks, getPriorityLabel: (priority) => t(`priority.${priority}`), noPriorityLabel: tFallback(t, 'focus.group.noPriority', 'No priority') });
+        case 'energy':
+            return groupTasksByEnergy({ tasks, getEnergyLabel: (energy) => t(`energyLevel.${energy}`), noEnergyLabel: tFallback(t, 'focus.group.noEnergy', 'No energy') });
+        case 'person':
+            return groupTasksByPerson({ tasks, unassignedLabel: tFallback(t, 'people.unassigned', 'Unassigned') });
+        case 'tag':
+            return groupTasksByTag({ tasks, noTagLabel: tFallback(t, 'projects.noTags', 'No tags') });
+        case 'context':
+            return groupTasksByContext({ tasks, noContextLabel: tFallback(t, 'contexts.none', 'No context') });
+    }
+}
+
+export function getGroupAxisLabel(axis: TaskGroupAxis, t: (key: string) => string): string {
+    switch (axis) {
+        case 'none': return tFallback(t, 'list.groupByNone', 'No grouping');
+        case 'status': return tFallback(t, 'taskEdit.statusLabel', 'Status');
+        case 'context': return tFallback(t, 'list.groupByContext', 'Context');
+        case 'area': return tFallback(t, 'list.groupByArea', 'Area');
+        case 'project': return tFallback(t, 'list.groupByProject', 'Project');
+        case 'tag': return tFallback(t, 'taskEdit.tagsLabel', 'Tags');
+        case 'priority': return tFallback(t, 'filters.priority', 'Priority');
+        case 'energy': return tFallback(t, 'focus.group.energy', 'Energy');
+        case 'person': return tFallback(t, 'people.title', 'People');
+    }
 }

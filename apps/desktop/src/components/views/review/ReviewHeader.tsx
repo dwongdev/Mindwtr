@@ -4,6 +4,7 @@ import type { TaskSortBy } from '@mindwtr/core';
 import { tFallback } from '@mindwtr/core';
 import { cn } from '../../../lib/utils';
 import type { ContextsGroupBy } from '../list/next-grouping';
+import { GroupBySelect } from '../list/GroupBySelect';
 
 type ReviewHeaderProps = {
     title: string;
@@ -86,7 +87,6 @@ export function ReviewListControls({
     const controlMutedClass = "bg-card text-muted-foreground border-border hover:bg-muted/70 hover:text-foreground";
     const controlActiveClass = "bg-primary/10 text-primary border-primary";
     const sortLabel = tFallback(t, 'sort.label', 'Sort');
-    const groupLabel = tFallback(t, 'list.groupBy', 'Group');
 
     return (
         <div className="flex flex-wrap items-center gap-2">
@@ -111,25 +111,12 @@ export function ReviewListControls({
                 </select>
                 <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" aria-hidden="true" />
             </div>
-            <div className={cn(controlBaseClass, controlMutedClass, "relative flex min-w-[150px] items-center rounded-lg pl-2")}>
-                <span className="mr-2 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
-                    {groupLabel}
-                </span>
-                <select
-                    value={groupBy}
-                    onChange={(event) => onChangeGroupBy(event.target.value as ContextsGroupBy)}
-                    aria-label={groupLabel}
-                    className="h-full min-w-0 flex-1 appearance-none bg-transparent pr-8 text-xs text-foreground focus:outline-none"
-                >
-                    <option value="none">{tFallback(t, 'list.groupByNone', 'No grouping')}</option>
-                    <option value="status">{tFallback(t, 'taskEdit.statusLabel', 'Status')}</option>
-                    <option value="tag">{tFallback(t, 'taskEdit.tagsLabel', 'Tags')}</option>
-                    <option value="context">{tFallback(t, 'list.groupByContext', 'Context')}</option>
-                    <option value="area">{tFallback(t, 'list.groupByArea', 'Area')}</option>
-                    <option value="project">{tFallback(t, 'list.groupByProject', 'Project')}</option>
-                </select>
-                <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" aria-hidden="true" />
-            </div>
+            <GroupBySelect
+                value={groupBy}
+                axes={['none', 'status', 'tag', 'context', 'area', 'project'] as const}
+                onChange={onChangeGroupBy}
+                t={t}
+            />
             <button
                 type="button"
                 onClick={onToggleSelection}
