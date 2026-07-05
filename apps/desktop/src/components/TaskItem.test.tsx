@@ -258,11 +258,11 @@ describe('TaskItem', () => {
         });
     });
 
-    it("stars the task for Today's Focus from the editor header", async () => {
+    it("stars even an unclarified inbox task for Today's Focus from the editor header", async () => {
         const editableTask: Task = {
             ...mockTask,
             id: 'editor-star-task',
-            status: 'next',
+            status: 'inbox',
         };
         act(() => {
             useTaskStore.setState((state) => ({

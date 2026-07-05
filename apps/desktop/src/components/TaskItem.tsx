@@ -348,32 +348,50 @@ export const TaskItem = memo(function TaskItem({
                 : focusedCount >= focusTaskLimit
                     ? limitMessage
                     : addLabel;
+        const applyFocus = (nextFocused: boolean) => {
+            void updateTask(task.id, { isFocusedToday: nextFocused })
+                .then((result) => {
+                    if (!result.success) showToast(result.error || 'Failed to update task', 'error');
+                });
+        };
+        const makeToggle = (canAdd: boolean, blockedReason: string) => () => {
+            if (isFocused) {
+                applyFocus(false);
+                return;
+            }
+            if (!canAdd) {
+                showToast(blockedReason, 'info');
+                return;
+            }
+            if (focusedCount >= focusTaskLimit) {
+                showToast(limitMessage, 'info');
+                return;
+            }
+            applyFocus(true);
+        };
+        // The editor is the clarifying surface, so its star may focus unclarified
+        // tasks — same sanctioned exception as the Quick Add star (Focus shows
+        // starred inbox tasks). Deferred/sequential stay blocked: starring those
+        // would drop the task into a Focus list that then hides it.
+        const editorCanAdd = isEligible || focusEligibility.reason === 'clarify';
+        const editorTitle = isFocused
+            ? removeLabel
+            : !editorCanAdd
+                ? ineligibleReason
+                : focusedCount >= focusTaskLimit
+                    ? limitMessage
+                    : addLabel;
 
         return {
             isFocused,
             canToggle,
             label: isFocused ? removeLabel : addLabel,
             title,
-            onToggle: () => {
-                if (isFocused) {
-                    void updateTask(task.id, { isFocusedToday: false })
-                        .then((result) => {
-                            if (!result.success) showToast(result.error || 'Failed to update task', 'error');
-                        });
-                    return;
-                }
-                if (!isEligible) {
-                    showToast(ineligibleReason, 'info');
-                    return;
-                }
-                if (focusedCount >= focusTaskLimit) {
-                    showToast(limitMessage, 'info');
-                    return;
-                }
-                void updateTask(task.id, { isFocusedToday: true })
-                    .then((result) => {
-                        if (!result.success) showToast(result.error || 'Failed to update task', 'error');
-                    });
+            onToggle: makeToggle(isEligible, ineligibleReason),
+            editorStar: {
+                isFocused,
+                title: editorTitle,
+                onToggle: makeToggle(editorCanAdd, ineligibleReason),
             },
         };
     }, [
@@ -1300,11 +1318,9 @@ export const TaskItem = memo(function TaskItem({
             onAcceptTitleSuggestion={handleTitleSuggestionAccept}
             isDoneActionActive={editStatus === 'done'}
             onMarkDone={task.status !== 'done' && task.status !== 'archived' && task.status !== 'reference' ? handleEditorMarkDone : undefined}
-            focusStar={quickActionFocus && task.status !== 'done' && task.status !== 'archived' && task.status !== 'reference' ? {
-                isFocused: quickActionFocus.isFocused,
-                title: quickActionFocus.title,
-                onToggle: quickActionFocus.onToggle,
-            } : undefined}
+            focusStar={quickActionFocus && task.status !== 'done' && task.status !== 'archived' && task.status !== 'reference'
+                ? quickActionFocus.editorStar
+                : undefined}
             onDuplicateTask={handleDuplicateTask}
             onDeleteTask={task.status === 'inbox' ? () => setShowDeleteConfirm(true) : undefined}
             onCancel={handleEditorCancel}
