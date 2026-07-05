@@ -319,18 +319,19 @@ export function ReviewView() {
                     taskCountLabel={`${filteredTasks.length} ${t('common.tasks')}`}
                     onShowDailyGuide={() => setShowDailyGuide(true)}
                     onShowGuide={() => setShowGuide(true)}
+                    filters={(
+                        <ReviewFiltersBar
+                            filterStatus={filterStatus}
+                            statusOptions={statusOptions}
+                            statusCounts={statusCounts}
+                            onSelect={setFilterStatus}
+                            t={t}
+                        />
+                    )}
                     labels={{
                         dailyReview: t('dailyReview.title'),
                         weeklyReview: t('review.openGuide'),
                     }}
-                />
-
-                <ReviewFiltersBar
-                    filterStatus={filterStatus}
-                    statusOptions={statusOptions}
-                    statusCounts={statusCounts}
-                    onSelect={setFilterStatus}
-                    t={t}
                 />
                 <div className="flex flex-wrap items-center gap-2">
                     <input

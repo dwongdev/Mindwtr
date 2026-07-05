@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import { ArrowUpDown, CheckSquare, ChevronDown, List } from 'lucide-react';
 import type { TaskSortBy } from '@mindwtr/core';
 import { tFallback } from '@mindwtr/core';
@@ -9,6 +10,8 @@ type ReviewHeaderProps = {
     taskCountLabel: string;
     onShowDailyGuide: () => void;
     onShowGuide: () => void;
+    /** Status chips, promoted into the header's middle gap. */
+    filters?: ReactNode;
     labels: {
         dailyReview: string;
         weeklyReview: string;
@@ -23,15 +26,17 @@ export function ReviewHeader({
     taskCountLabel,
     onShowDailyGuide,
     onShowGuide,
+    filters,
     labels,
 }: ReviewHeaderProps) {
     return (
-        <header className="flex items-center justify-between">
+        <header className="flex flex-wrap items-center gap-x-6 gap-y-3">
             <div className="space-y-1">
                 <h2 className="text-3xl font-bold tracking-tight">{title}</h2>
                 <p className="text-sm text-muted-foreground">{taskCountLabel}</p>
             </div>
-            <div className="flex items-center gap-3">
+            {filters && <div className="min-w-0 flex-1">{filters}</div>}
+            <div className="ml-auto flex items-center gap-3">
                 <button
                     onClick={onShowDailyGuide}
                     className="bg-muted/50 text-foreground px-4 py-2 rounded-xl hover:bg-muted transition-colors"
