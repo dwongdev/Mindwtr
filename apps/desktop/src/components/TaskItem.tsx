@@ -32,7 +32,6 @@ import { ProjectNextActionPrompt } from './Task/ProjectNextActionPrompt';
 import { TaskQuickActionMenu } from './Task/TaskQuickActionMenu';
 import {
     getRecurrenceRuleValue,
-    getRecurrenceRRuleValue,
     getRecurrenceStrategyValue,
     toDateTimeLocalValue,
 } from './Task/task-item-helpers';
@@ -40,6 +39,7 @@ import { useTaskItemAttachments } from './Task/useTaskItemAttachments';
 import { useTaskItemRecurrence } from './Task/useTaskItemRecurrence';
 import { useTaskItemAi } from './Task/useTaskItemAi';
 import { useTaskItemEditState } from './Task/useTaskItemEditState';
+import { areDraftAttachmentsDirty, isTaskDraftDirty } from './Task/task-draft';
 import { useTaskItemProjectContext } from './Task/useTaskItemProjectContext';
 import { useTaskItemFieldLayout } from './Task/useTaskItemFieldLayout';
 import { useTaskItemSubmit } from './Task/useTaskItemSubmit';
@@ -238,6 +238,7 @@ export const TaskItem = memo(function TaskItem({
         setEditSectionId,
         editAreaId,
         setEditAreaId,
+        draft,
         editStatus,
         setEditStatus,
         editFocusedToday,
@@ -833,30 +834,8 @@ export const TaskItem = memo(function TaskItem({
     }, [editingTaskId, resetEditState, setEditingTaskId, task.id]);
 
     const handleSubmit = useTaskItemSubmit({
-        editAreaId,
-        editAssignedTo,
+        draft,
         editAttachments,
-        editContexts,
-        editDescription,
-        editDueDate,
-        editEnergyLevel,
-        editLocation,
-        editPriority,
-        editProjectId,
-        editRecurrence,
-        editRecurrenceRRule,
-        editRecurrenceStrategy,
-        editShowFutureRecurrence,
-        editReviewAt,
-        editRepeatReminderMinutes,
-        editSectionId,
-        editStartTime,
-        editRelativeStartOffset,
-        editStatus,
-        editFocusedToday,
-        editTags,
-        editTimeEstimate,
-        editTitle,
         editingTaskId,
         setEditingTaskId,
         setIsEditing,
@@ -1062,57 +1041,12 @@ export const TaskItem = memo(function TaskItem({
             })
             .catch((error) => reportError('Failed to mark task done from editor', error));
     }, [handleSubmit, handleTaskCompleted, task.isFocusedToday, task.status]);
-    const hasPendingEdits = useCallback(() => {
-        if (editTitle !== task.title) return true;
-        if (editFocusedToday !== (task.isFocusedToday === true)) return true;
-        if (editDescription !== (task.description || '')) return true;
-        if (editProjectId !== (task.projectId || '')) return true;
-        if (editSectionId !== (task.sectionId || '')) return true;
-        if (editAreaId !== (task.areaId || '')) return true;
-        if (editStatus !== task.status) return true;
-        if (editContexts.trim() !== (task.contexts?.join(', ') || '').trim()) return true;
-        if (editTags.trim() !== (task.tags?.join(', ') || '').trim()) return true;
-        if (editLocation !== (task.location || '')) return true;
-        if (editRecurrence !== getRecurrenceRuleValue(task.recurrence)) return true;
-        if (editRecurrenceStrategy !== getRecurrenceStrategyValue(task.recurrence)) return true;
-        if (editRecurrenceRRule !== getRecurrenceRRuleValue(task.recurrence)) return true;
-        if (editShowFutureRecurrence !== Boolean(task.showFutureRecurrence)) return true;
-        if (editTimeEstimate !== (task.timeEstimate || '')) return true;
-        if (editPriority !== (task.priority || '')) return true;
-        if (editEnergyLevel !== (task.energyLevel || '')) return true;
-        if (editAssignedTo !== (task.assignedTo || '')) return true;
-        if (editDueDate !== toDateTimeLocalValue(task.dueDate)) return true;
-        if (editStartTime !== toDateTimeLocalValue(task.startTime)) return true;
-        if (JSON.stringify(editRelativeStartOffset ?? null) !== JSON.stringify(task.relativeStartOffset ?? null)) return true;
-        if (editReviewAt !== toDateTimeLocalValue(task.reviewAt)) return true;
-        if ((editRepeatReminderMinutes ?? undefined) !== (task.repeatReminderMinutes ?? undefined)) return true;
-        return false;
-    }, [
-        editTitle,
-        editFocusedToday,
-        editDescription,
-        editProjectId,
-        editSectionId,
-        editAreaId,
-        editStatus,
-        editContexts,
-        editTags,
-        editLocation,
-        editRecurrence,
-        editRecurrenceStrategy,
-        editRecurrenceRRule,
-        editShowFutureRecurrence,
-        editTimeEstimate,
-        editPriority,
-        editEnergyLevel,
-        editAssignedTo,
-        editDueDate,
-        editStartTime,
-        editRelativeStartOffset,
-        editReviewAt,
-        editRepeatReminderMinutes,
-        task,
-    ]);
+    // Attachments count as pending edits too: their records are draft-buffered
+    // in useTaskItemAttachments and only persist on Save.
+    const hasPendingEdits = useCallback(
+        () => isTaskDraftDirty(draft, task) || areDraftAttachmentsDirty(editAttachments, task),
+        [draft, editAttachments, task],
+    );
     const taskEditorPresentationSetting = settings?.gtd?.taskEditor?.presentation;
     const resolvedEditorPresentation: TaskEditorPresentation = editorPresentation
         ?? (taskEditorPresentationSetting === 'modal' ? 'modal' : 'inline');

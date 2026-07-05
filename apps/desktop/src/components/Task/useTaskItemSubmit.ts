@@ -1,41 +1,10 @@
 import { useCallback } from 'react';
-import {
-    getRecurrenceCompletedOccurrencesValue,
-    parseRRuleString,
-    type Recurrence,
-    type StoreActionResult,
-    type Task,
-    type TaskEnergyLevel,
-    type TaskPriority,
-    type TaskStatus,
-    type TimeEstimate,
-} from '@mindwtr/core';
+import type { Attachment, StoreActionResult, Task, TaskStatus } from '@mindwtr/core';
+import { taskDraftToUpdatePatch, type TaskDraft } from './task-draft';
 
 type UseTaskItemSubmitParams = {
-    editAreaId: string;
-    editAssignedTo: string;
-    editAttachments: Task['attachments'] | undefined;
-    editContexts: string;
-    editDescription: string;
-    editDueDate: string;
-    editEnergyLevel: TaskEnergyLevel | '';
-    editLocation: string;
-    editPriority: TaskPriority | '';
-    editProjectId: string;
-    editRecurrence: Task['recurrence'] extends infer R ? R extends { rule?: infer Rule } ? Rule | '' : '' : '';
-    editRecurrenceRRule: string;
-    editRecurrenceStrategy: Task['recurrence'] extends infer R ? R extends { strategy?: infer Strategy } ? Strategy : never : never;
-    editShowFutureRecurrence: boolean;
-    editReviewAt: string;
-    editRepeatReminderMinutes: number | undefined;
-    editSectionId: string;
-    editStartTime: string;
-    editRelativeStartOffset: Task['relativeStartOffset'];
-    editStatus: Task['status'];
-    editFocusedToday: boolean;
-    editTags: string;
-    editTimeEstimate: TimeEstimate | '';
-    editTitle: string;
+    draft: TaskDraft;
+    editAttachments: Attachment[] | undefined;
     editingTaskId: string | null;
     setEditingTaskId: (id: string | null) => void;
     setIsEditing: (value: boolean) => void;
@@ -49,30 +18,8 @@ type TaskItemSubmitOptions = {
 };
 
 export function useTaskItemSubmit({
-    editAreaId,
-    editAssignedTo,
+    draft,
     editAttachments,
-    editContexts,
-    editDescription,
-    editDueDate,
-    editEnergyLevel,
-    editLocation,
-    editPriority,
-    editProjectId,
-    editRecurrence,
-    editRecurrenceRRule,
-    editRecurrenceStrategy,
-    editShowFutureRecurrence,
-    editReviewAt,
-    editRepeatReminderMinutes,
-    editSectionId,
-    editStartTime,
-    editRelativeStartOffset,
-    editStatus,
-    editFocusedToday,
-    editTags,
-    editTimeEstimate,
-    editTitle,
     editingTaskId,
     setEditingTaskId,
     setIsEditing,
@@ -82,63 +29,13 @@ export function useTaskItemSubmit({
 }: UseTaskItemSubmitParams) {
     return useCallback(async (event?: React.FormEvent, options?: TaskItemSubmitOptions) => {
         event?.preventDefault();
-        const cleanedTitle = editTitle.trim() ? editTitle.trim() : task.title;
-        if (!cleanedTitle.trim()) return;
-
-        const resolvedProjectId = editProjectId || undefined;
-        const recurrenceValue: Recurrence | undefined = editRecurrence
-            ? { rule: editRecurrence, strategy: editRecurrenceStrategy }
-            : undefined;
-        if (recurrenceValue && editRecurrenceRRule) {
-            const parsed = parseRRuleString(editRecurrenceRRule);
-            if (parsed.byDay && parsed.byDay.length > 0) {
-                recurrenceValue.byDay = parsed.byDay;
-            }
-            if (parsed.byMonthDay && parsed.byMonthDay.length > 0) {
-                recurrenceValue.byMonthDay = parsed.byMonthDay;
-            }
-            if (parsed.count) {
-                recurrenceValue.count = parsed.count;
-            }
-            if (parsed.until) {
-                recurrenceValue.until = parsed.until;
-            }
-            const completedOccurrences = getRecurrenceCompletedOccurrencesValue(task.recurrence);
-            if (typeof completedOccurrences === 'number') {
-                recurrenceValue.completedOccurrences = completedOccurrences;
-            }
-            recurrenceValue.rrule = editRecurrenceRRule;
-        }
-        const currentContexts = editContexts.split(',').map((context) => context.trim()).filter(Boolean);
-        const currentTags = editTags.split(',').map((tag) => tag.trim()).filter(Boolean);
-        const resolvedDescription = editDescription || undefined;
-        const resolvedSectionId = resolvedProjectId ? (editSectionId || undefined) : undefined;
-        const resolvedAreaId = resolvedProjectId ? undefined : (editAreaId || undefined);
-
-        const result = await updateTask(task.id, {
-            title: cleanedTitle,
-            status: options?.statusOverride ?? editStatus,
-            isFocusedToday: editFocusedToday,
-            dueDate: editDueDate || undefined,
-            startTime: editStartTime || undefined,
-            relativeStartOffset: editRelativeStartOffset,
-            projectId: resolvedProjectId,
-            sectionId: resolvedSectionId,
-            areaId: resolvedAreaId,
-            contexts: currentContexts,
-            tags: currentTags,
-            description: resolvedDescription,
-            location: editLocation || undefined,
-            recurrence: recurrenceValue,
-            showFutureRecurrence: recurrenceValue && editShowFutureRecurrence ? true : undefined,
-            timeEstimate: editTimeEstimate || undefined,
-            priority: editPriority || undefined,
-            energyLevel: editEnergyLevel || undefined,
-            assignedTo: editAssignedTo.trim() || undefined,
-            reviewAt: editReviewAt || undefined,
-            repeatReminderMinutes: editRepeatReminderMinutes || undefined,
-            attachments: (editAttachments?.length ?? 0) > 0 ? editAttachments : undefined,
+        const patch = taskDraftToUpdatePatch(draft, task, {
+            statusOverride: options?.statusOverride,
+            attachments: editAttachments,
         });
+        if (!patch) return;
+
+        const result = await updateTask(task.id, patch);
         if (!result.success) {
             showToast(result.error || 'Failed to update task', 'error');
             return result;
@@ -149,30 +46,8 @@ export function useTaskItemSubmit({
         }
         return result;
     }, [
-        editAreaId,
-        editAssignedTo,
+        draft,
         editAttachments,
-        editContexts,
-        editDescription,
-        editDueDate,
-        editEnergyLevel,
-        editLocation,
-        editPriority,
-        editProjectId,
-        editRecurrence,
-        editRecurrenceRRule,
-        editRecurrenceStrategy,
-        editShowFutureRecurrence,
-        editReviewAt,
-        editRepeatReminderMinutes,
-        editSectionId,
-        editStartTime,
-        editRelativeStartOffset,
-        editStatus,
-        editFocusedToday,
-        editTags,
-        editTimeEstimate,
-        editTitle,
         editingTaskId,
         setEditingTaskId,
         setIsEditing,
