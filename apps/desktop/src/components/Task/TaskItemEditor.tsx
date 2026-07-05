@@ -18,6 +18,7 @@ import { SectionSelector } from '../ui/SectionSelector';
 import { TaskInput, type TaskInputAcceptedSuggestion } from './TaskInput';
 import { cn } from '../../lib/utils';
 import { taskEditorLabelClassName } from './task-editor-label';
+import { FocusStarIcon } from '../FocusStarIcon';
 
 interface TaskItemEditorProps {
     t: (key: string) => string;
@@ -79,6 +80,11 @@ interface TaskItemEditorProps {
     onAcceptTitleSuggestion?: (suggestion: TaskInputAcceptedSuggestion) => boolean | Promise<boolean>;
     isDoneActionActive?: boolean;
     onMarkDone?: () => void;
+    focusStar?: {
+        isFocused: boolean;
+        title: string;
+        onToggle: () => void;
+    };
     onDuplicateTask: () => void;
     onDeleteTask?: () => void;
     onCancel: () => void;
@@ -160,6 +166,7 @@ export function TaskItemEditor({
     onAcceptTitleSuggestion,
     isDoneActionActive = false,
     onMarkDone,
+    focusStar,
     onDuplicateTask,
     onDeleteTask,
     onCancel,
@@ -296,6 +303,23 @@ export function TaskItemEditor({
                         containerClassName="flex-1 min-w-0"
                         dir={titleDirection}
                     />
+                    {focusStar && (
+                        <button
+                            type="button"
+                            onClick={focusStar.onToggle}
+                            aria-label={focusStar.title}
+                            aria-pressed={focusStar.isFocused}
+                            title={focusStar.title}
+                            className={cn(
+                                'p-2 rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-primary/40',
+                                focusStar.isFocused
+                                    ? 'text-yellow-500 hover:bg-yellow-100 dark:hover:bg-yellow-900/30'
+                                    : 'text-muted-foreground hover:text-yellow-500 hover:bg-muted/60',
+                            )}
+                        >
+                            <FocusStarIcon filled={focusStar.isFocused} className="w-4 h-4" />
+                        </button>
+                    )}
                     {aiEnabled && (
                         <div className="flex items-center gap-2">
                             <div className="relative" ref={aiMenuRef}>

@@ -1165,33 +1165,61 @@ export function QuickAddModal({ standaloneWindow = false }: QuickAddModalProps) 
                 </div>
                 {captureMode === 'text' ? (
                     <form onSubmit={handleSubmit} className="p-4 space-y-2">
-                        <TaskInput
-                            value={value}
-                            autoFocus={captureMode === 'text'}
-                            projects={projects}
-                            contexts={suggestionTokens}
-                            areas={areas}
-                            onCreateProject={async (title) => {
-                                const created = await addProject(
-                                    title,
-                                    DEFAULT_PROJECT_COLOR,
-                                    getQuickAddProjectInitialProps({}, selectedAreaId)
-                                );
-                                return created?.id ?? null;
-                            }}
-                            onChange={(next) => setValue(next)}
-                            onPaste={handleQuickAddPaste}
-                            onKeyDown={(e) => {
-                                if (e.key === 'Escape') {
-                                    e.preventDefault();
-                                    handleClose();
-                                }
-                            }}
-                            placeholder={t('nav.addTask')}
-                            className={cn(
-                                "w-full bg-card border border-border rounded-lg py-3 px-4 shadow-sm focus:ring-2 focus:ring-primary focus:border-transparent transition-all",
-                            )}
-                        />
+                        <div className="flex items-stretch gap-2">
+                            <TaskInput
+                                value={value}
+                                autoFocus={captureMode === 'text'}
+                                projects={projects}
+                                contexts={suggestionTokens}
+                                areas={areas}
+                                onCreateProject={async (title) => {
+                                    const created = await addProject(
+                                        title,
+                                        DEFAULT_PROJECT_COLOR,
+                                        getQuickAddProjectInitialProps({}, selectedAreaId)
+                                    );
+                                    return created?.id ?? null;
+                                }}
+                                onChange={(next) => setValue(next)}
+                                onPaste={handleQuickAddPaste}
+                                onKeyDown={(e) => {
+                                    if (e.key === 'Escape') {
+                                        e.preventDefault();
+                                        handleClose();
+                                    }
+                                }}
+                                placeholder={t('nav.addTask')}
+                                containerClassName="flex-1 min-w-0"
+                                className={cn(
+                                    "w-full bg-card border border-border rounded-lg py-3 px-4 shadow-sm focus:ring-2 focus:ring-primary focus:border-transparent transition-all",
+                                )}
+                            />
+                            {/* Icon-only "Add to today's focus" toggle beside the title input;
+                                the label lives in the tooltip/aria-label. On = filled amber star,
+                                matching how focused tasks render in the list. Tapping past the
+                                focus cap explains the block via toast instead of a dead control. */}
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    if (focusDisabled) {
+                                        showToast(focusLimitLabel, 'info');
+                                        return;
+                                    }
+                                    setFocusNewTask((current) => !current);
+                                }}
+                                className={cn(
+                                    'flex w-11 shrink-0 items-center justify-center rounded-lg border shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background',
+                                    focusNewTask
+                                        ? 'border-amber-400/70 bg-amber-100 text-amber-600 hover:bg-amber-200 dark:bg-amber-500/20 dark:text-amber-300 dark:hover:bg-amber-500/30'
+                                        : 'border-border bg-card text-muted-foreground hover:bg-muted hover:text-amber-500',
+                                )}
+                                aria-label={focusLabel}
+                                aria-pressed={focusNewTask}
+                                title={focusLabel}
+                            >
+                                <FocusStarIcon filled={focusNewTask} className="h-4 w-4" />
+                            </button>
+                        </div>
                         {isPastingImage ? (
                             <p className="text-xs text-muted-foreground">
                                 {tFallback(t, 'quickAdd.pastedImageSaving', 'Attaching image...')}
@@ -1222,34 +1250,6 @@ export function QuickAddModal({ standaloneWindow = false }: QuickAddModalProps) 
                                 />
                             </div>
                         )}
-                        {/* "Add to today's focus" is a task property, so it joins the property
-                            stack as a labeled field-style toggle (peer of Area) rather than an
-                            orphaned chip or a control jammed beside the title input. On = filled
-                            amber star, matching how focused tasks render in the list. */}
-                        <button
-                            type="button"
-                            onClick={() => {
-                                if (focusDisabled) {
-                                    // Keep the hard focus cap, but explain the block rather
-                                    // than presenting a dead disabled control.
-                                    showToast(focusLimitLabel, 'info');
-                                    return;
-                                }
-                                setFocusNewTask((current) => !current);
-                            }}
-                            className={cn(
-                                'flex w-full items-center gap-2 rounded-lg border px-3 py-2.5 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background',
-                                focusNewTask
-                                    ? 'border-amber-400/70 bg-amber-100 text-amber-700 hover:bg-amber-200 dark:bg-amber-500/20 dark:text-amber-300 dark:hover:bg-amber-500/30'
-                                    : 'border-border bg-card text-muted-foreground hover:bg-muted hover:text-foreground',
-                            )}
-                            aria-label={focusLabel}
-                            aria-pressed={focusNewTask}
-                            title={focusLabel}
-                        >
-                            <FocusStarIcon filled={focusNewTask} className="h-4 w-4 shrink-0" />
-                            <span className="truncate">{focusLabel}</span>
-                        </button>
                         <p className="text-xs text-muted-foreground">{t('quickAdd.help')}</p>
                         {parsedInput.invalidDateCommands && parsedInput.invalidDateCommands.length > 0 ? (
                             <p className="text-xs text-destructive">

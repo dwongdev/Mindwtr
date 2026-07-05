@@ -297,7 +297,9 @@ export const TaskItem = memo(function TaskItem({
     // being calendar-drag sources while their read view is expanded (#815).
     const canCalendarDrag = !actionsOverlay && !dragHandle && !selectionMode && !isEditing && !effectiveReadOnly && !isTaskExpanded;
     const quickActionFocus = useMemo(() => {
-        if (!quickActionMenu || effectiveReadOnly) return undefined;
+        // Also computed while the editor is open: the editor header shows the same
+        // focus star (toggles immediately, like the row star — not part of the draft).
+        if ((!quickActionMenu && !isEditing) || effectiveReadOnly) return undefined;
 
         const now = new Date();
         const isFocused = Boolean(task.isFocusedToday);
@@ -379,6 +381,7 @@ export const TaskItem = memo(function TaskItem({
         effectiveReadOnly,
         focusTaskLimit,
         focusedCount,
+        isEditing,
         projectMap,
         quickActionMenu,
         sequentialProjectIds,
@@ -1297,6 +1300,11 @@ export const TaskItem = memo(function TaskItem({
             onAcceptTitleSuggestion={handleTitleSuggestionAccept}
             isDoneActionActive={editStatus === 'done'}
             onMarkDone={task.status !== 'done' && task.status !== 'archived' && task.status !== 'reference' ? handleEditorMarkDone : undefined}
+            focusStar={quickActionFocus && task.status !== 'done' && task.status !== 'archived' && task.status !== 'reference' ? {
+                isFocused: quickActionFocus.isFocused,
+                title: quickActionFocus.title,
+                onToggle: quickActionFocus.onToggle,
+            } : undefined}
             onDuplicateTask={handleDuplicateTask}
             onDeleteTask={task.status === 'inbox' ? () => setShowDeleteConfirm(true) : undefined}
             onCancel={handleEditorCancel}

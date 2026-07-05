@@ -258,6 +258,50 @@ describe('TaskItem', () => {
         });
     });
 
+    it("stars the task for Today's Focus from the editor header", async () => {
+        const editableTask: Task = {
+            ...mockTask,
+            id: 'editor-star-task',
+            status: 'next',
+        };
+        act(() => {
+            useTaskStore.setState((state) => ({
+                ...state,
+                tasks: [editableTask],
+                _allTasks: [editableTask],
+                _tasksById: new Map([[editableTask.id, editableTask]]),
+                projects: [],
+                _allProjects: [],
+                _projectsById: new Map(),
+                sections: [],
+                _allSections: [],
+                _sectionsById: new Map(),
+                areas: [],
+                _allAreas: [],
+                _areasById: new Map(),
+            }));
+        });
+        const { getAllByRole, getByDisplayValue, getByRole } = render(
+            <LanguageProvider>
+                <TaskItem task={editableTask} />
+            </LanguageProvider>
+        );
+
+        await act(async () => {
+            fireEvent.click(getAllByRole('button', { name: /edit/i })[0]);
+        });
+        await waitFor(() => expect(getByDisplayValue('Test Task')).toBeInTheDocument());
+
+        await act(async () => {
+            fireEvent.click(getByRole('button', { name: "Add to today's focus" }));
+        });
+
+        await waitFor(() => {
+            const updatedTask = useTaskStore.getState()._tasksById.get('editor-star-task');
+            expect(updatedTask?.isFocusedToday).toBe(true);
+        });
+    });
+
     it('applies accepted title suggestions as metadata without keeping the token in the title', async () => {
         const editableTask: Task = {
             ...mockTask,
