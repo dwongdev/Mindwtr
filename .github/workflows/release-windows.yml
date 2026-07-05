@@ -202,8 +202,9 @@ jobs:
         run: |
           $manifest = @"
           <?xml version="1.0" encoding="utf-8"?>
-          <Package xmlns="http://schemas.microsoft.com/appx/manifest/foundation/windows10" 
-                   xmlns:uap="http://schemas.microsoft.com/appx/manifest/uap/windows10" 
+          <Package xmlns="http://schemas.microsoft.com/appx/manifest/foundation/windows10"
+                   xmlns:uap="http://schemas.microsoft.com/appx/manifest/uap/windows10"
+                   xmlns:uap5="http://schemas.microsoft.com/appx/manifest/uap/windows10/5"
                    xmlns:rescap="http://schemas.microsoft.com/appx/manifest/foundation/windows10/restrictedcapabilities">
             <Identity Name="$env:MS_IDENTITY_NAME" 
                       Publisher="$env:MS_PUBLISHER_ID" 
@@ -221,12 +222,18 @@ jobs:
             </Resources>
             <Applications>
               <Application Id="App" Executable="mindwtr.exe" EntryPoint="Windows.FullTrustApplication">
-                <uap:VisualElements DisplayName="Mindwtr" 
-                                    Description="Local-first GTD application" 
-                                    BackgroundColor="transparent" 
-                                    Square150x150Logo="Assets\Square150x150Logo.png" 
+                <uap:VisualElements DisplayName="Mindwtr"
+                                    Description="Local-first GTD application"
+                                    BackgroundColor="transparent"
+                                    Square150x150Logo="Assets\Square150x150Logo.png"
                                     Square44x44Logo="Assets\Square44x44Logo.png">
                 </uap:VisualElements>
+                <Extensions>
+                  <!-- TaskId must match STORE_STARTUP_TASK_ID in src-tauri/src/autostart.rs -->
+                  <uap5:Extension Category="windows.startupTask" Executable="mindwtr.exe" EntryPoint="Windows.FullTrustApplication">
+                    <uap5:StartupTask TaskId="MindwtrStartup" Enabled="false" DisplayName="Mindwtr" />
+                  </uap5:Extension>
+                </Extensions>
               </Application>
             </Applications>
             <Capabilities>
