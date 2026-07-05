@@ -299,7 +299,7 @@ export const en: Record<string, string> = {
         'taskEdit.unblocksLabel': 'Unblocks',
         'taskStatus.changeStatus': 'Change Status',
         'task.toggleDetails': 'Toggle task details',
-        'task.hoverHint': 'Click to toggle details / Double-click to rename',
+        'task.hoverHint': 'Click to toggle details / Double-click to edit',
         'task.renameTitle': 'Rename task',
         'task.select': 'Select task',
         'task.aria.delete': 'Delete task',

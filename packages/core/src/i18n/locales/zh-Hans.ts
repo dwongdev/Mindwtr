@@ -249,7 +249,7 @@ export const zhHans: Record<string, string> = {
         'taskEdit.unblocksLabel': '解除阻塞',
         'taskStatus.changeStatus': '更改状态',
         'task.toggleDetails': '展开/折叠任务详情',
-        'task.hoverHint': '点击展开详情 · 双击重命名',
+        'task.hoverHint': '点击展开详情 · 双击编辑',
         'task.renameTitle': '重命名任务',
         'task.select': '选择任务',
         'task.aria.delete': '删除任务',
