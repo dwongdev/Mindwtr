@@ -523,9 +523,30 @@ const normalizeTaskUpdateForStore = ({
             isFocusedToday: false,
         };
     }
+    // Star ↔ status invariant: a starred task is by definition a clarified Next
+    // Action, so Focus never accumulates unprocessed Inbox items. Starring an
+    // inbox task promotes it to next; demoting a starred task to inbox takes the
+    // star with it. When one patch does both, the star (the more deliberate
+    // action) wins. Creation-side promotion lives in addTask, where focus
+    // eligibility is evaluated before the star commits.
+    const starTurningOn = adjustedUpdates.isFocusedToday === true && task.isFocusedToday !== true;
+    const statusBecomingInbox = hasOwnField(updates, 'status') && updates.status === 'inbox' && task.status !== 'inbox';
+    if (statusBecomingInbox && !starTurningOn) {
+        if ((hasOwnField(adjustedUpdates, 'isFocusedToday') ? adjustedUpdates.isFocusedToday : task.isFocusedToday) === true) {
+            adjustedUpdates = {
+                ...adjustedUpdates,
+                isFocusedToday: false,
+            };
+        }
+    } else if (starTurningOn && (hasOwnField(updates, 'status') ? updates.status : task.status) === 'inbox') {
+        adjustedUpdates = {
+            ...adjustedUpdates,
+            status: 'next',
+        };
+    }
     if (
-        hasOwnField(updates, 'status')
-        && updates.status !== task.status
+        hasOwnField(adjustedUpdates, 'status')
+        && adjustedUpdates.status !== task.status
         && !hasOwnField(updates, 'boardOrder')
     ) {
         adjustedUpdates = {

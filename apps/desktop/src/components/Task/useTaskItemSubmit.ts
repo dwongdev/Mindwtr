@@ -32,6 +32,7 @@ type UseTaskItemSubmitParams = {
     editStartTime: string;
     editRelativeStartOffset: Task['relativeStartOffset'];
     editStatus: Task['status'];
+    editFocusedToday: boolean;
     editTags: string;
     editTimeEstimate: TimeEstimate | '';
     editTitle: string;
@@ -68,6 +69,7 @@ export function useTaskItemSubmit({
     editStartTime,
     editRelativeStartOffset,
     editStatus,
+    editFocusedToday,
     editTags,
     editTimeEstimate,
     editTitle,
@@ -116,6 +118,7 @@ export function useTaskItemSubmit({
         const result = await updateTask(task.id, {
             title: cleanedTitle,
             status: options?.statusOverride ?? editStatus,
+            isFocusedToday: editFocusedToday,
             dueDate: editDueDate || undefined,
             startTime: editStartTime || undefined,
             relativeStartOffset: editRelativeStartOffset,
@@ -166,6 +169,7 @@ export function useTaskItemSubmit({
         editStartTime,
         editRelativeStartOffset,
         editStatus,
+        editFocusedToday,
         editTags,
         editTimeEstimate,
         editTitle,

@@ -578,7 +578,7 @@ describe('QuickCaptureSheet save handling', () => {
     });
 
     expect(addTask).toHaveBeenCalledWith('File Q3 estimated tax payment', expect.objectContaining({
-      status: 'next',
+      status: 'inbox',
       isFocusedToday: true,
     }));
   });

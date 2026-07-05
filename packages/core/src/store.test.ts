@@ -697,6 +697,30 @@ describe('TaskStore', () => {
         expect(mockStorage.saveData).not.toHaveBeenCalled();
     });
 
+    it('keeps the star and status invariant on task updates', async () => {
+        const { addTask, updateTask } = useTaskStore.getState();
+
+        const created = await addTask('Unclarified capture', {});
+        expect(created.success).toBe(true);
+        const id = created.id!;
+        expect(useTaskStore.getState()._tasksById.get(id)?.status).toBe('inbox');
+
+        // Starring an inbox task promotes it to next.
+        const starResult = await updateTask(id, { isFocusedToday: true });
+        expect(starResult).toEqual({ success: true });
+        let task = useTaskStore.getState()._tasksById.get(id);
+        expect(task?.status).toBe('next');
+        expect(task?.isFocusedToday).toBe(true);
+
+        // Demoting a starred task back to inbox drops the star — including via
+        // an editor-shaped patch that re-sends the existing star value.
+        const demoteResult = await updateTask(id, { status: 'inbox', isFocusedToday: true });
+        expect(demoteResult).toEqual({ success: true });
+        task = useTaskStore.getState()._tasksById.get(id);
+        expect(task?.status).toBe('inbox');
+        expect(task?.isFocusedToday).toBe(false);
+    });
+
     it('uses the configured today focus limit when promoting tasks', async () => {
         const { addTask, updateSettings, updateTask } = useTaskStore.getState();
         await updateSettings({ gtd: { focusTaskLimit: 5 } });

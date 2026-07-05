@@ -296,6 +296,14 @@ describe('TaskItem', () => {
             fireEvent.click(getByRole('button', { name: "Add to today's focus" }));
         });
 
+        // The star is a draft field: nothing is committed until Save, so the
+        // row cannot vanish from the list mid-edit.
+        expect(useTaskStore.getState()._tasksById.get('editor-star-task')?.isFocusedToday).not.toBe(true);
+
+        await act(async () => {
+            fireEvent.click(getAllByRole('button', { name: 'Save' })[0]);
+        });
+
         await waitFor(() => {
             const updatedTask = useTaskStore.getState()._tasksById.get('editor-star-task');
             expect(updatedTask?.isFocusedToday).toBe(true);

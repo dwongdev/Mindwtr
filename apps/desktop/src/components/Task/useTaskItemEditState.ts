@@ -28,6 +28,8 @@ type TaskItemEditState = {
     editAreaId: string;
     setEditAreaId: (value: string) => void;
     editStatus: TaskStatus;
+    editFocusedToday: boolean;
+    setEditFocusedToday: (value: boolean) => void;
     setEditStatus: (value: TaskStatus) => void;
     editContexts: string;
     setEditContexts: (value: string) => void;
@@ -76,6 +78,7 @@ export function useTaskItemEditState({
     const [editSectionId, setEditSectionId] = useState(task.sectionId || '');
     const [editAreaId, setEditAreaId] = useState(task.areaId || '');
     const [editStatus, setEditStatus] = useState<TaskStatus>(task.status);
+    const [editFocusedToday, setEditFocusedToday] = useState(task.isFocusedToday === true);
     const [editContexts, setEditContexts] = useState(task.contexts?.join(', ') || '');
     const [editTags, setEditTags] = useState(task.tags?.join(', ') || '');
     const [editDescription, setEditDescription] = useState(task.description || '');
@@ -107,6 +110,7 @@ export function useTaskItemEditState({
         setEditSectionId(task.sectionId || '');
         setEditAreaId(task.areaId || '');
         setEditStatus(task.status);
+        setEditFocusedToday(task.isFocusedToday === true);
         setEditContexts(task.contexts?.join(', ') || '');
         setEditTags(task.tags?.join(', ') || '');
         setEditDescription(task.description || '');
@@ -142,6 +146,8 @@ export function useTaskItemEditState({
         setEditAreaId,
         editStatus,
         setEditStatus,
+        editFocusedToday,
+        setEditFocusedToday,
         editContexts,
         setEditContexts,
         editTags,

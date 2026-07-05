@@ -492,12 +492,9 @@ export function QuickCaptureSheet({
     }
     if (startTime) initialPropsMerged.startTime = startTime.toISOString();
     if (focusNewTask && canFocusNewTask) {
+      // Core addTask promotes a starred inbox capture to next (and keeps it
+      // inbox unstarred if the star is refused) — don't pre-promote here.
       initialPropsMerged.isFocusedToday = true;
-      // Starring a capture commits it to today, which makes it a Next Action —
-      // Focus should not accumulate unclarified inbox items.
-      if (!initialPropsMerged.status || initialPropsMerged.status === 'inbox') {
-        initialPropsMerged.status = 'next';
-      }
     }
 
     return { title: finalTitle, props: initialPropsMerged, invalidDateCommands };

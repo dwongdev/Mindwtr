@@ -920,12 +920,9 @@ export function QuickAddModal({ standaloneWindow = false }: QuickAddModalProps) 
             baseProps.attachments = mergedAttachments;
         }
         if (focusNewTask && canFocusNewTask) {
+            // Core addTask promotes a starred inbox capture to next (and keeps it
+            // inbox unstarred if the star is refused) — don't pre-promote here.
             baseProps.isFocusedToday = true;
-            // Starring a capture commits it to today, which makes it a Next
-            // Action — Focus should not accumulate unclarified inbox items.
-            if (!baseProps.status || baseProps.status === 'inbox') {
-                baseProps.status = 'next';
-            }
         }
         const shouldApplyDetectedDate = Boolean(detectedDate?.date && !baseProps.dueDate);
         if (shouldApplyDetectedDate && detectedDate) {

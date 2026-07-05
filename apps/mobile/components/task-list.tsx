@@ -1389,12 +1389,9 @@ function TaskListComponent({
       initialProps.tags = nextTags;
     }
     if (quickAddFocus && canQuickAddFocus) {
+      // Core addTask promotes a starred inbox capture to next (and keeps it
+      // inbox unstarred if the star is refused) — don't pre-promote here.
       initialProps.isFocusedToday = true;
-      // Starring a capture commits it to today, which makes it a Next Action —
-      // Focus should not accumulate unclarified inbox items.
-      if (!initialProps.status || initialProps.status === 'inbox') {
-        initialProps.status = 'next';
-      }
     }
 
     const result = await addTask(finalTitle, initialProps);
