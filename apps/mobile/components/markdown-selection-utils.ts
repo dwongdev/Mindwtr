@@ -168,4 +168,3 @@ export const applyMarkdownPairInsertionWithSelectionFallback = (
         (prev, next, selection) => applyMarkdownPairInsertion(prev, next, selection, options),
     )
 );
-

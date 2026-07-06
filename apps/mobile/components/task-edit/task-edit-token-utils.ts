@@ -32,4 +32,3 @@ export const replaceTrailingToken = (value: string | undefined, token: string): 
     const head = source.slice(0, lastCommaIndex + 1).trimEnd();
     return `${head} ${token}, `;
 };
-
