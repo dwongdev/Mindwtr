@@ -78,6 +78,14 @@ import { PullSyncIndicator } from '@/components/PullSyncIndicator';
 import { useManualPullSync } from '@/hooks/use-manual-pull-sync';
 import { projectMatchesAreaFilter, taskMatchesAreaFilter } from '@mindwtr/core';
 import { openContextsScreen, openProjectScreen } from '@/lib/task-meta-navigation';
+import {
+  buildFocusListLayoutFrames,
+  collectFocusListLayoutKeys,
+  focusItemLayoutKey,
+  focusSectionHeaderLayoutKey,
+  FOCUS_ESTIMATED_TASK_HEIGHT,
+  FOCUS_LIST_HEADER_LAYOUT_KEY,
+} from '@/components/focus/focus-list-layout';
 
 const PRIORITY_OPTIONS: TaskPriority[] = ['low', 'medium', 'high', 'urgent'];
 const ENERGY_LEVEL_OPTIONS: TaskEnergyLevel[] = ['low', 'medium', 'high'];
@@ -1219,6 +1227,59 @@ export default function FocusScreen() {
     () => sections.find((section) => section.totalCount > 0)?.type ?? null,
     [sections]
   );
+  // Measured-height getItemLayout, mirroring task-list.tsx: without it the
+  // SectionList estimates unmounted regions from a running average, and the
+  // mixed row heights (group headers vs task rows) make Android's scroll
+  // corrections oscillate at the bottom of the list (#826).
+  const focusItemHeightsRef = useRef<Record<string, number>>({});
+  const [focusLayoutVersion, setFocusLayoutVersion] = useState(0);
+  const registerFocusItemHeight = useCallback((itemKey: string, height: number) => {
+    const rounded = Math.round(height);
+    if (!Number.isFinite(rounded) || rounded <= 0) return;
+    if (focusItemHeightsRef.current[itemKey] === rounded) return;
+    focusItemHeightsRef.current[itemKey] = rounded;
+    setFocusLayoutVersion((prev) => prev + 1);
+  }, []);
+  const wasPullRefreshingRef = useRef(false);
+  useEffect(() => {
+    if (wasPullRefreshingRef.current && !pullSync.refreshing) {
+      focusItemHeightsRef.current = {};
+      setFocusLayoutVersion((prev) => prev + 1);
+    }
+    wasPullRefreshingRef.current = pullSync.refreshing;
+  }, [pullSync.refreshing]);
+  useEffect(() => {
+    const activeKeys = collectFocusListLayoutKeys(sections, firstVisibleSectionType);
+    let didPrune = false;
+    Object.keys(focusItemHeightsRef.current).forEach((itemKey) => {
+      if (!activeKeys.has(itemKey)) {
+        delete focusItemHeightsRef.current[itemKey];
+        didPrune = true;
+      }
+    });
+    if (didPrune) {
+      setFocusLayoutVersion((prev) => prev + 1);
+    }
+  }, [firstVisibleSectionType, sections]);
+  const focusItemLayouts = useMemo(() => {
+    // focusLayoutVersion invalidates memoized frames when ref-backed heights change.
+    void focusLayoutVersion;
+    return buildFocusListLayoutFrames(sections, {
+      measuredHeights: focusItemHeightsRef.current,
+      firstVisibleSectionType,
+    });
+  }, [firstVisibleSectionType, focusLayoutVersion, sections]);
+  const getFocusItemLayout = useCallback((_: unknown, index: number) => {
+    const frame = focusItemLayouts[index];
+    if (frame) {
+      return { index, length: frame.length, offset: frame.offset };
+    }
+    return {
+      index,
+      length: FOCUS_ESTIMATED_TASK_HEIGHT,
+      offset: FOCUS_ESTIMATED_TASK_HEIGHT * index,
+    };
+  }, [focusItemLayouts]);
   const hasTasks = focusedTasks.length > 0 || schedule.length > 0 || nextActions.length > 0 || reviewDue.length > 0 || reviewDueProjects.length > 0;
   const activeFilterCount = countFilterCriteria(effectiveFilterCriteria);
   const advancedFilterChips = useMemo<FocusFilterChip[]>(() => {
@@ -1416,8 +1477,20 @@ export default function FocusScreen() {
   }, [resolveText, tc.border, tc.filterBg, tc.onTint, tc.text, tc.tint]);
 
   const renderItem = ({ item, section }: { item: FocusListItem; section: FocusSection }) => {
+    // Margin-free measuring wrapper: its height includes the row's own
+    // margins, matching the cell frames VirtualizedList measures natively.
+    const measureRow = (node: React.ReactNode) => (
+      <View
+        onLayout={(event) => registerFocusItemHeight(
+          focusItemLayoutKey(section.type, item),
+          event.nativeEvent.layout.height,
+        )}
+      >
+        {node}
+      </View>
+    );
     if (item.type === 'groupHeader') {
-      return (
+      return measureRow(
         <View
           accessible
           accessibilityRole="header"
@@ -1447,7 +1520,7 @@ export default function FocusScreen() {
 
     if (item.type === 'project') {
       const project = item.project;
-      return (
+      return measureRow(
         <TouchableOpacity
           accessibilityRole="button"
           accessibilityLabel={`${resolveText('common.open', 'Open')} ${project.title}`}
@@ -1496,7 +1569,7 @@ export default function FocusScreen() {
       resolveText,
     );
 
-    return (
+    return measureRow(
       <View
         style={[
           styles.itemWrapper,
@@ -1532,6 +1605,7 @@ export default function FocusScreen() {
         extraData={focusListVersion}
         keyExtractor={(item) => item.type === 'task' ? item.task.id : item.type === 'project' ? `project:${item.project.id}` : item.id}
         stickySectionHeadersEnabled={false}
+        getItemLayout={getFocusItemLayout}
         initialNumToRender={FOCUS_LIST_INITIAL_RENDER_COUNT}
         maxToRenderPerBatch={FOCUS_LIST_BATCH_RENDER_COUNT}
         windowSize={FOCUS_LIST_WINDOW_SIZE}
@@ -1550,6 +1624,12 @@ export default function FocusScreen() {
           />
         )}
         ListHeaderComponent={(
+          <View
+            onLayout={(event) => registerFocusItemHeight(
+              FOCUS_LIST_HEADER_LAYOUT_KEY,
+              event.nativeEvent.layout.height,
+            )}
+          >
           <View style={styles.header}>
             {pomodoroEnabled && (
               <PomodoroPanel
@@ -1692,9 +1772,16 @@ export default function FocusScreen() {
               </View>
             ) : null}
           </View>
+          </View>
         )}
         renderSectionHeader={({ section }) => (
           section.totalCount > 0 ? (
+            <View
+              onLayout={(event) => registerFocusItemHeight(
+                focusSectionHeaderLayoutKey(section, section.type === firstVisibleSectionType),
+                event.nativeEvent.layout.height,
+              )}
+            >
             <Pressable
               accessibilityRole="button"
               accessibilityLabel={section.title}
@@ -1721,6 +1808,7 @@ export default function FocusScreen() {
               </CompactText>
               <View style={[styles.sectionLine, { backgroundColor: tc.border }]} />
             </Pressable>
+            </View>
           ) : null
         )}
         renderItem={renderItem}
