@@ -183,13 +183,33 @@ async function updateIosWidgetsFromData(data: AppData, language: Language): Prom
     }
 }
 
+// Storage fires widget updates on every save and load, but the native render
+// (Android RemoteViews / iOS timeline reload) costs seconds on mid-range
+// devices while the payload build costs milliseconds (#766). Remember what was
+// last rendered and skip the native update when nothing any widget shows
+// changed. System events for new/resized widgets render through
+// widget-task-handler directly, so they never depend on this path.
+const WIDGET_FINGERPRINT_MAX_ITEMS = 50;
+let lastRenderedWidgetFingerprint: string | null = null;
+
+export function resetMobileWidgetRenderCache(): void {
+    lastRenderedWidgetFingerprint = null;
+}
+
 export async function updateMobileWidgetFromData(data: AppData): Promise<boolean> {
     if (Platform.OS !== 'android' && Platform.OS !== 'ios') return false;
     const language = await resolvePayloadLanguage(data);
-    if (Platform.OS === 'android') {
-        return await updateAndroidWidgetsFromData(data, language);
+    const fingerprint = `${language}:${JSON.stringify(
+        buildPayloadFromData(data, language, WIDGET_FINGERPRINT_MAX_ITEMS),
+    )}`;
+    if (fingerprint === lastRenderedWidgetFingerprint) return true;
+    const updated = Platform.OS === 'android'
+        ? await updateAndroidWidgetsFromData(data, language)
+        : await updateIosWidgetsFromData(data, language);
+    if (updated) {
+        lastRenderedWidgetFingerprint = fingerprint;
     }
-    return await updateIosWidgetsFromData(data, language);
+    return updated;
 }
 
 export async function updateMobileWidgetFromStore(): Promise<boolean> {

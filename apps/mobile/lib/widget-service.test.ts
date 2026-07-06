@@ -39,7 +39,7 @@ vi.mock('react-native-widgetkit', () => ({
     setItem: mockIosWidgetSetItem,
 }));
 
-import { updateMobileWidgetFromData } from './widget-service';
+import { resetMobileWidgetRenderCache, updateMobileWidgetFromData } from './widget-service';
 
 type WidgetElement = ReactElement<{
     children?: WidgetElement | WidgetElement[];
@@ -88,6 +88,23 @@ describe('widget-service', () => {
         mockIosWidgetReloadTimelines.mockReset();
         mockIosWidgetSetItem.mockReset();
         mockRequestWidgetUpdate.mockReset();
+        resetMobileWidgetRenderCache();
+    });
+
+    it('skips the native render when nothing any widget shows changed (#766)', async () => {
+        const data = buildData(3);
+        expect(await updateMobileWidgetFromData(data)).toBe(true);
+        expect(mockRequestWidgetUpdate).toHaveBeenCalledTimes(1);
+
+        expect(await updateMobileWidgetFromData({ ...data, tasks: data.tasks.map((task) => ({ ...task })) })).toBe(true);
+        expect(mockRequestWidgetUpdate).toHaveBeenCalledTimes(1);
+
+        const changed = {
+            ...data,
+            tasks: data.tasks.map((task, index) => (index === 0 ? { ...task, title: 'Renamed' } : task)),
+        };
+        expect(await updateMobileWidgetFromData(changed)).toBe(true);
+        expect(mockRequestWidgetUpdate).toHaveBeenCalledTimes(2);
     });
 
     it('uses Android widget height to render more rows during app-driven updates', async () => {
