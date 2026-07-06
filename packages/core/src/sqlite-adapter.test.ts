@@ -1275,6 +1275,22 @@ describeSqlite('SqliteAdapter incremental saveData', () => {
         });
     });
 
+    it('treats content-identical task clones as unchanged without relying on object identity (#766)', async () => {
+        const data = baseData();
+        await adapter.saveData(data);
+        statements = [];
+        await adapter.saveData({
+            ...data,
+            tasks: data.tasks.map((task) => ({ ...task })),
+        });
+        expect(statements.filter(({ sql }) => sql.startsWith('INSERT INTO tasks'))).toEqual([]);
+        expect(adapter.getLastSaveDataStats()).toMatchObject({
+            incremental: true,
+            writtenRows: 0,
+            removedRows: 0,
+        });
+    });
+
     it('removes dropped rows with targeted deletes instead of temp-table scans', async () => {
         const data = baseData();
         await adapter.saveData(data);

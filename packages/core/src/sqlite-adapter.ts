@@ -257,6 +257,23 @@ export const taskToSqliteRow = (task: Task): unknown[] => {
         task.purgedAt ?? null,
     ];
 };
+// Serialized row + fingerprint cache keyed by task object identity. Store and
+// sync updates are immutable — a changed task is a new object — and
+// taskToSqliteRow is pure, so an unchanged object always serializes to the
+// same row. This turns the per-save serialization/fingerprint pass over every
+// task into a lookup for unchanged rows, which dominated saveData time on
+// large mobile libraries (#766).
+type TaskRowEntry = { row: unknown[]; fingerprint: string };
+const taskRowEntryCache = new WeakMap<Task, TaskRowEntry>();
+const getTaskRowEntry = (task: Task): TaskRowEntry => {
+    const cached = taskRowEntryCache.get(task);
+    if (cached) return cached;
+    const row = taskToSqliteRow(task);
+    const entry: TaskRowEntry = { row, fingerprint: JSON.stringify(row) };
+    taskRowEntryCache.set(task, entry);
+    return entry;
+};
+
 const READ_PAGE_SIZE = 1000;
 const FTS_LOCK_TTL_MS = 5 * 60 * 1000;
 const FTS_LOCK_REFRESH_INTERVAL_MS = Math.max(15_000, Math.floor(FTS_LOCK_TTL_MS / 3));
@@ -1248,13 +1265,13 @@ export class SqliteAdapter {
         try {
             const columnList = TASK_UPSERT_COLUMNS.join(', ');
             const placeholders = TASK_UPSERT_COLUMNS.map(() => '?').join(', ');
-            const row = taskToSqliteRow(task);
+            const entry = getTaskRowEntry(task);
             await this.client.run(
                 `INSERT INTO tasks (${columnList}) VALUES (${placeholders}) ON CONFLICT(id) DO UPDATE SET ${TASK_UPSERT_UPDATE_CLAUSE}`,
-                row
+                entry.row
             );
             await this.client.run('COMMIT');
-            this.lastSavedFingerprints?.tables.get('tasks')?.set(String(row[0]), JSON.stringify(row));
+            this.lastSavedFingerprints?.tables.get('tasks')?.set(String(entry.row[0]), entry.fingerprint);
         } catch (error) {
             this.lastSavedFingerprints = null;
             await this.client.run('ROLLBACK').catch(() => undefined);
@@ -1295,13 +1312,15 @@ export class SqliteAdapter {
                 rows: unknown[][],
                 updateClause: string,
                 chunkSize = 200,
+                precomputedFingerprints?: string[],
             ) => {
                 const previousRows = previousSave?.tables.get(table);
                 const fingerprints = new Map<string, string>();
                 const changedRows: unknown[][] = [];
-                for (const row of rows) {
+                for (let i = 0; i < rows.length; i += 1) {
+                    const row = rows[i];
                     const id = String(row[0]);
-                    const fingerprint = JSON.stringify(row);
+                    const fingerprint = precomputedFingerprints?.[i] ?? JSON.stringify(row);
                     fingerprints.set(id, fingerprint);
                     if (previousRows?.get(id) !== fingerprint) {
                         changedRows.push(row);
@@ -1572,11 +1591,14 @@ export class SqliteAdapter {
             );
 
             saveStep = 'tasks';
+            const taskRowEntries = data.tasks.map(getTaskRowEntry);
             await upsertBatch(
                 'tasks',
                 [...TASK_UPSERT_COLUMNS],
-                data.tasks.map(taskToSqliteRow),
+                taskRowEntries.map((entry) => entry.row),
                 TASK_UPSERT_UPDATE_CLAUSE,
+                200,
+                taskRowEntries.map((entry) => entry.fingerprint),
             );
 
             saveStep = 'sync-task-ids';
