@@ -4,6 +4,7 @@ import {
   collectFocusListLayoutKeys,
   focusItemLayoutKey,
   focusSectionHeaderLayoutKey,
+  reconcileFocusListMeasuredHeights,
   FOCUS_ESTIMATED_GROUP_HEADER_HEIGHT,
   FOCUS_ESTIMATED_LIST_HEADER_HEIGHT,
   FOCUS_ESTIMATED_SECTION_HEADER_HEIGHT,
@@ -104,5 +105,65 @@ describe('focus-list-layout (#826)', () => {
       focusSectionHeaderLayoutKey(sections[0], true),
       focusItemLayoutKey('focus', task('a', 2)),
     ]));
+  });
+
+  describe('reconcileFocusListMeasuredHeights', () => {
+    it('carries a measurement to the successor key when a revision bump re-keys a row', () => {
+      const sections: FocusLayoutSection[] = [
+        { type: 'focus', totalCount: 1, expanded: true, data: [task('a', 2)] },
+      ];
+      const { heights, changed } = reconcileFocusListMeasuredHeights(sections, 'focus', {
+        [focusItemLayoutKey('focus', task('a', 1))]: 132,
+      });
+      expect(changed).toBe(true);
+      expect(heights[focusItemLayoutKey('focus', task('a', 2))]).toBe(132);
+      expect(heights[focusItemLayoutKey('focus', task('a', 1))]).toBeUndefined();
+    });
+
+    it('keeps a fresh measurement over a stale one and drops rows that left the list', () => {
+      const sections: FocusLayoutSection[] = [
+        { type: 'focus', totalCount: 1, expanded: true, data: [task('a', 2)] },
+      ];
+      const { heights, changed } = reconcileFocusListMeasuredHeights(sections, 'focus', {
+        [focusItemLayoutKey('focus', task('a', 1))]: 132,
+        [focusItemLayoutKey('focus', task('a', 2))]: 140,
+        [focusItemLayoutKey('focus', task('gone', 1))]: 90,
+      });
+      expect(changed).toBe(true);
+      expect(heights[focusItemLayoutKey('focus', task('a', 2))]).toBe(140);
+      expect(heights[focusItemLayoutKey('focus', task('gone', 1))]).toBeUndefined();
+      expect(Object.keys(heights)).toHaveLength(1);
+    });
+
+    it('reports no change when every measurement key is still active', () => {
+      const sections: FocusLayoutSection[] = [
+        { type: 'focus', totalCount: 1, expanded: true, data: [task('a', 2)] },
+      ];
+      const input = { [focusItemLayoutKey('focus', task('a', 2))]: 120 };
+      const { heights, changed } = reconcileFocusListMeasuredHeights(sections, 'focus', input);
+      expect(changed).toBe(false);
+      expect(heights).toEqual(input);
+    });
+
+    it('carries group header measurements across count changes despite @ in group ids', () => {
+      const group = (count: number): FocusLayoutSection['data'][number] => (
+        { type: 'groupHeader', id: 'ctx:@home', count }
+      );
+      const sections: FocusLayoutSection[] = [
+        { type: 'next', totalCount: 1, expanded: true, data: [group(4), task('a')] },
+      ];
+      const { heights } = reconcileFocusListMeasuredHeights(sections, 'next', {
+        [focusItemLayoutKey('next', group(3))]: 52,
+      });
+      expect(heights[focusItemLayoutKey('next', group(4))]).toBe(52);
+    });
+
+    it('carries the section header measurement when its variant changes', () => {
+      const section: FocusLayoutSection = { type: 'focus', totalCount: 2, expanded: true, data: [task('a'), task('b')] };
+      const { heights } = reconcileFocusListMeasuredHeights([section], 'focus', {
+        [focusSectionHeaderLayoutKey({ ...section, totalCount: 1 }, true)]: 44,
+      });
+      expect(heights[focusSectionHeaderLayoutKey(section, true)]).toBe(44);
+    });
   });
 });

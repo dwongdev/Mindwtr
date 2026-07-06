@@ -88,3 +88,4 @@ Changes collected after `v1.0.5` and before the next version tag.
 - fix(desktop): opening the inline editor or expanding details in the Contexts, Archive, and Search lists no longer paints the following rows over the expanded content — virtualized rows now re-measure when their size changes.
 - fix(mobile): the Focus list no longer oscillates or stutters during long scrolls on Android — it now reports measured row heights instead of letting the list estimate them from a running average.
 - feat(inbox): converting a capture into a project can now split it into several actions — extra actions typed in the split step return to the Inbox with the project attached for their own clarify pass, while the original capture becomes the project's first next action.
+- fix(mobile): task and Focus lists keep a row's measured height when the row's content revision changes (edit, sync update), instead of falling back to an estimated height until the next re-measure.

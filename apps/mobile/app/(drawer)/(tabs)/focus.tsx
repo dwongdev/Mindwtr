@@ -80,9 +80,9 @@ import { projectMatchesAreaFilter, taskMatchesAreaFilter } from '@mindwtr/core';
 import { openContextsScreen, openProjectScreen } from '@/lib/task-meta-navigation';
 import {
   buildFocusListLayoutFrames,
-  collectFocusListLayoutKeys,
   focusItemLayoutKey,
   focusSectionHeaderLayoutKey,
+  reconcileFocusListMeasuredHeights,
   FOCUS_ESTIMATED_TASK_HEIGHT,
   FOCUS_LIST_HEADER_LAYOUT_KEY,
 } from '@/components/focus/focus-list-layout';
@@ -1249,15 +1249,13 @@ export default function FocusScreen() {
     wasPullRefreshingRef.current = pullSync.refreshing;
   }, [pullSync.refreshing]);
   useEffect(() => {
-    const activeKeys = collectFocusListLayoutKeys(sections, firstVisibleSectionType);
-    let didPrune = false;
-    Object.keys(focusItemHeightsRef.current).forEach((itemKey) => {
-      if (!activeKeys.has(itemKey)) {
-        delete focusItemHeightsRef.current[itemKey];
-        didPrune = true;
-      }
-    });
-    if (didPrune) {
+    const { heights, changed } = reconcileFocusListMeasuredHeights(
+      sections,
+      firstVisibleSectionType,
+      focusItemHeightsRef.current,
+    );
+    if (changed) {
+      focusItemHeightsRef.current = heights;
       setFocusLayoutVersion((prev) => prev + 1);
     }
   }, [firstVisibleSectionType, sections]);

@@ -1010,12 +1010,15 @@ function TaskListComponent({
     let didPrune = false;
     Object.keys(itemHeightsRef.current).forEach((itemKey) => {
       if (!activeItemKeys.has(itemKey)) {
-        // A revision bump re-keys a still-listed row; until its onLayout
-        // re-fires (which needs a pixel-height change), frames serve the
-        // estimate instead of the known height.
+        // A revision bump re-keys a still-listed row without remounting it,
+        // so onLayout only re-fires if the pixel height actually changed.
+        // Carry the measurement to the successor key; otherwise the frame
+        // falls back to the estimate (suspected cause of the unreproduced
+        // mid-list gap). The log keeps feeding that investigation.
         const successor = activeKeysByPrefix.get(itemKey.split('@layout:')[0]);
         if (successor !== undefined && itemHeightsRef.current[successor] === undefined) {
-          logListLayoutAnomaly('measured height orphaned by revision change', {
+          itemHeightsRef.current[successor] = itemHeightsRef.current[itemKey];
+          logListLayoutAnomaly('measured height carried across revision re-key', {
             itemKey: itemKey.split('@layout:')[0],
             previousHeight: itemHeightsRef.current[itemKey],
           });

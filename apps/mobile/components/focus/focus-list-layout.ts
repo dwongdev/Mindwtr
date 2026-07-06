@@ -6,6 +6,13 @@ export const FOCUS_ESTIMATED_PROJECT_HEIGHT = 88;
 
 export const FOCUS_LIST_HEADER_LAYOUT_KEY = 'focus-list-header';
 
+// Separates a key's stable identity (row) from its revision (content version).
+// Matches task-list-layout's convention; unlike a bare '@' it cannot collide
+// with group ids, which hold user text such as '@home'.
+const FOCUS_LAYOUT_REVISION_SEPARATOR = '@layout:';
+
+const focusLayoutKeyIdentity = (key: string): string => key.split(FOCUS_LAYOUT_REVISION_SEPARATOR)[0];
+
 type FocusLayoutRevision = string | number | null | undefined;
 
 export type FocusLayoutListItem =
@@ -26,23 +33,22 @@ export function focusSectionHeaderLayoutKey(
   section: Pick<FocusLayoutSection, 'type' | 'totalCount' | 'expanded'>,
   isFirstVisible: boolean,
 ): string {
-  return [
-    'section-header',
-    section.type,
+  const variant = [
     isFirstVisible ? 'first' : 'rest',
     section.expanded ? 'expanded' : 'collapsed',
     section.totalCount,
   ].join(':');
+  return `section-header:${section.type}${FOCUS_LAYOUT_REVISION_SEPARATOR}${variant}`;
 }
 
 export function focusItemLayoutKey(sectionType: string, item: FocusLayoutListItem): string {
   if (item.type === 'task') {
-    return `${sectionType}:task:${item.task.id}@${item.task.rev ?? item.task.updatedAt ?? ''}`;
+    return `${sectionType}:task:${item.task.id}${FOCUS_LAYOUT_REVISION_SEPARATOR}${item.task.rev ?? item.task.updatedAt ?? ''}`;
   }
   if (item.type === 'project') {
-    return `${sectionType}:project:${item.project.id}@${item.project.rev ?? item.project.updatedAt ?? ''}`;
+    return `${sectionType}:project:${item.project.id}${FOCUS_LAYOUT_REVISION_SEPARATOR}${item.project.rev ?? item.project.updatedAt ?? ''}`;
   }
-  return `${sectionType}:group:${item.id}:${item.count}`;
+  return `${sectionType}:group:${item.id}${FOCUS_LAYOUT_REVISION_SEPARATOR}${item.count}`;
 }
 
 function estimateFocusItemHeight(item: FocusLayoutListItem): number {
@@ -99,4 +105,39 @@ export function collectFocusListLayoutKeys(
     }
   }
   return keys;
+}
+
+// Drops measurements for rows that left the list and carries a measurement to
+// a row's successor key when a revision bump re-keys it. SectionList cells do
+// not remount on a re-key, so onLayout only re-fires if the pixel height
+// actually changed — without the carry-over the frame falls back to the
+// estimate and the scroll math jumps.
+export function reconcileFocusListMeasuredHeights(
+  sections: readonly FocusLayoutSection[],
+  firstVisibleSectionType: string | null,
+  measuredHeights: Readonly<Record<string, number>>,
+): { heights: Record<string, number>; changed: boolean } {
+  const activeKeys = collectFocusListLayoutKeys(sections, firstVisibleSectionType);
+  const activeKeyByIdentity = new Map<string, string>();
+  activeKeys.forEach((key) => {
+    activeKeyByIdentity.set(focusLayoutKeyIdentity(key), key);
+  });
+  const heights: Record<string, number> = {};
+  let changed = false;
+  for (const [key, height] of Object.entries(measuredHeights)) {
+    if (activeKeys.has(key)) {
+      heights[key] = height;
+      continue;
+    }
+    changed = true;
+    const successor = activeKeyByIdentity.get(focusLayoutKeyIdentity(key));
+    if (
+      successor !== undefined
+      && heights[successor] === undefined
+      && measuredHeights[successor] === undefined
+    ) {
+      heights[successor] = height;
+    }
+  }
+  return { heights, changed };
 }
