@@ -2,12 +2,12 @@ import React, { type ReactNode, useMemo } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { CircleDot, Repeat } from 'lucide-react-native';
 import { useThemeTokens } from '../../hooks/use-theme-tokens';
+import { useStatusColors } from '../../hooks/use-status-colors';
 import {
     getInlineMarkdownPreview,
     getTaskAgeLabel,
     getTaskDateCoherenceIssues,
     getTaskUrgency,
-    getStatusColor,
     formatTimeEstimateLabel,
     hasTimeComponent,
     resolveTaskTextDirection,
@@ -155,7 +155,7 @@ export function SwipeableTaskItemContent({
         && task.status !== 'done'
         && task.status !== 'reference'
         && !!ageLabel;
-    const statusColors = getStatusColor(task.status);
+    const statusColors = useStatusColors()[task.status];
     const isAvailableNextAction = sequenceCue === 'available';
     const descriptionPreview = useMemo(
         () => getInlineMarkdownPreview(task.description ?? ''),

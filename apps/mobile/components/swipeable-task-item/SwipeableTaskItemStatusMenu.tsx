@@ -1,7 +1,8 @@
 import React from 'react';
 import { Modal, Pressable, Text, View } from 'react-native';
-import { getStatusColor, TaskStatus } from '@mindwtr/core';
+import { TaskStatus } from '@mindwtr/core';
 import type { ThemeColors } from '../../hooks/use-theme-colors';
+import { useStatusColors } from '../../hooks/use-status-colors';
 import { styles } from './swipeable-task-item.styles';
 
 interface SwipeableTaskItemStatusMenuProps {
@@ -23,6 +24,7 @@ export function SwipeableTaskItemStatusMenu({
     t,
     visible,
 }: SwipeableTaskItemStatusMenuProps) {
+    const statusColors = useStatusColors();
     return (
         <Modal
             visible={visible}
@@ -38,7 +40,7 @@ export function SwipeableTaskItemStatusMenu({
                     </Text>
                     <View style={styles.menuGrid}>
                         {QUICK_STATUS_OPTIONS.map((status) => {
-                            const colors = getStatusColor(status);
+                            const colors = statusColors[status];
                             return (
                                 <Pressable
                                     key={status}

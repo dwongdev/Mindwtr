@@ -4,7 +4,6 @@ import {
     getFocusStarBlockedText,
     formatRecurrenceLabel,
     getProjectNextActionPromptData,
-    getStatusColor,
     hasTimeComponent,
     normalizeFocusTaskLimit,
     safeFormatDate,
@@ -20,6 +19,7 @@ import React, { useCallback, useRef, useState } from 'react';
 import { ArrowRight, Check, RotateCcw, Trash2 } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 import { ThemeColors } from '../hooks/use-theme-colors';
+import { useStatusColors } from '../hooks/use-status-colors';
 import { useToast } from '../contexts/toast-context';
 import { AppPressable } from './app-pressable';
 import { presentProjectNextActionPrompt } from './project-next-action-prompt';
@@ -175,6 +175,7 @@ function SwipeableTaskItemInner({
     const ignorePressUntil = useRef<number>(0);
     const { t, language } = useLanguage();
     const { showToast } = useToast();
+    const statusColors = useStatusColors();
     const {
         addTask,
         updateTask,
@@ -334,15 +335,15 @@ function SwipeableTaskItemInner({
     // Status-aware left swipe action
     const getLeftAction = (): { label: string; color: string; action: TaskStatus } => {
         if (task.status === 'done') {
-            return { label: t('archived.restoreToInbox') || 'Restore', color: getStatusColor('inbox').text, action: 'inbox' };
+            return { label: t('archived.restoreToInbox') || 'Restore', color: statusColors.inbox.text, action: 'inbox' };
         } else if (task.status === 'next') {
-            return { label: t('common.done') || 'Done', color: getStatusColor('done').text, action: 'done' };
+            return { label: t('common.done') || 'Done', color: statusColors.done.text, action: 'done' };
         } else if (task.status === 'waiting' || task.status === 'someday' || task.status === 'reference') {
-            return { label: t('status.next') || 'Next', color: getStatusColor('next').text, action: 'next' };
+            return { label: t('status.next') || 'Next', color: statusColors.next.text, action: 'next' };
         } else if (task.status === 'inbox') {
-            return { label: t('status.next') || 'Next', color: getStatusColor('next').text, action: 'next' };
+            return { label: t('status.next') || 'Next', color: statusColors.next.text, action: 'next' };
         } else {
-            return { label: t('common.done') || 'Done', color: getStatusColor('done').text, action: 'done' };
+            return { label: t('common.done') || 'Done', color: statusColors.done.text, action: 'done' };
         }
     };
 
