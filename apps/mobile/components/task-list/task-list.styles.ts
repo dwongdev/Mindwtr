@@ -624,12 +624,6 @@ export const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  projectDragGroup: {
-    paddingHorizontal: 12,
-  },
-  projectDragList: {
-    overflow: 'visible',
-  },
   projectDragSelfScrollList: {
     flex: 1,
   },

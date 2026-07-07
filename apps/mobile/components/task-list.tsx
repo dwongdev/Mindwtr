@@ -2,7 +2,7 @@ import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react'
 import { View, FlatList, Text, TextInput, RefreshControl, Modal, Pressable, TouchableOpacity, useWindowDimensions, type LayoutChangeEvent } from 'react-native';
 import { router } from 'expo-router';
 import { ArrowDown, ArrowUp, ChevronDown, ChevronRight, GripVertical } from 'lucide-react-native';
-import DraggableFlatList, { NestableDraggableFlatList, type DragEndParams, type RenderItemParams } from 'react-native-draggable-flatlist';
+import DraggableFlatList, { type DragEndParams, type RenderItemParams } from 'react-native-draggable-flatlist';
 import {
   applyCapturedProject,
   buildCaptureTaskProps,
@@ -89,7 +89,10 @@ import { styles } from './task-list/task-list.styles';
 import {
   buildProjectTaskReorderGroups,
   buildStaticListVirtualWindow,
+  flattenProjectReorderGroups,
+  resolveProjectReorderDropPlan,
   resolveStaticListViewportHeight,
+  type ProjectReorderFlatItem,
   type ProjectTaskReorderGroup,
   sortProjectTasksByOrder,
 } from './task-list-utils';
@@ -184,7 +187,6 @@ export interface TaskListProps {
   onQuickAddInputFocus?: (targetInput?: number | string) => void;
   projectReorderMode?: boolean;
   onProjectReorderModeChange?: (active: boolean) => void;
-  projectReorderOwnsScroll?: boolean;
   includeArchived?: boolean;
   includeDone?: boolean;
   groupCompletedTasksLast?: boolean;
@@ -232,7 +234,6 @@ function TaskListComponent({
   onQuickAddInputFocus,
   projectReorderMode: projectReorderModeProp,
   onProjectReorderModeChange,
-  projectReorderOwnsScroll = false,
   includeArchived = false,
   includeDone = true,
   groupCompletedTasksLast = false,
@@ -1052,6 +1053,14 @@ function TaskListComponent({
   }, [canUseProjectReorder, listItems, projectSections.length, shouldGroupCompletedTasks]);
   const projectSectionIds = useMemo(() => projectSections.map((section) => section.id), [projectSections]);
   const hasProjectReorderItems = projectReorderGroups.some((group) => group.tasks.length > 0) || projectSections.length > 1;
+  const projectReorderFlatItems = useMemo(
+    () => flattenProjectReorderGroups(projectReorderGroups),
+    [projectReorderGroups],
+  );
+  const projectReorderHasHeaders = useMemo(
+    () => projectReorderFlatItems.some((item) => item.type === 'header'),
+    [projectReorderFlatItems],
+  );
   const groupByOptions: ReferenceGroupBy[] = ['none', 'area', 'project', 'tag'];
   const getReferenceGroupLabel = useCallback((groupBy: ReferenceGroupBy) => {
     switch (groupBy) {
@@ -1116,23 +1125,34 @@ function TaskListComponent({
     setProjectReorderMode(!projectReorderMode);
   }, [canUseProjectReorder, exitSelectionMode, projectReorderMode, setProjectReorderMode]);
 
-  const handleProjectTaskDragEnd = useCallback((
-    sectionId: string | null | undefined,
-    params: DragEndParams<Task>,
-  ) => {
+  const handleProjectTaskDragEnd = useCallback((params: DragEndParams<ProjectReorderFlatItem<Task>>) => {
     if (!projectId) return;
     if (params.from === params.to) return;
-    const orderedIds = params.data.map((task) => task.id);
-
-    void Promise.resolve(reorderProjectTasks(projectId, orderedIds, sectionId)).catch((error) => {
+    const moved = params.data[params.to];
+    if (!moved || moved.type !== 'task') return;
+    const plan = resolveProjectReorderDropPlan(params.data, moved.task.id);
+    if (!plan) return;
+    const reportFailure = (error: unknown) => {
       void logError(error, { scope: 'project', extra: { message: 'Failed to reorder project tasks' } });
       showToast({
         title: t('common.notice'),
         message: tFallback(t, 'projects.taskReorderFailed', 'Failed to reorder tasks.'),
         tone: 'error',
       });
-    });
-  }, [projectId, reorderProjectTasks, showToast, t]);
+    };
+    const sourceSectionId = moved.task.sectionId ?? null;
+    if (sourceSectionId === plan.sectionId) {
+      void Promise.resolve(reorderProjectTasks(projectId, plan.orderedIds, plan.sectionId)).catch(reportFailure);
+      return;
+    }
+    // Crossing a header re-homes the task into the section it was dropped in.
+    void (async () => {
+      await Promise.resolve(updateTask(moved.task.id, {
+        sectionId: plan.sectionId ?? undefined,
+      }));
+      await Promise.resolve(reorderProjectTasks(projectId, plan.orderedIds, plan.sectionId));
+    })().catch(reportFailure);
+  }, [projectId, reorderProjectTasks, showToast, t, updateTask]);
 
   const handleProjectSectionMove = useCallback((sectionId: string, offset: -1 | 1) => {
     if (!projectId) return;
@@ -1576,14 +1596,14 @@ function TaskListComponent({
     rowContext,
   ]);
 
-  const getProjectReorderItemLayout = useCallback((_: ArrayLike<Task> | null | undefined, index: number) => ({
+  const getProjectReorderItemLayout = useCallback((_: ArrayLike<ProjectReorderFlatItem<Task>> | null | undefined, index: number) => ({
     index,
     length: PROJECT_REORDER_ITEM_HEIGHT,
     offset: PROJECT_REORDER_ITEM_HEIGHT * index,
   }), []);
 
-  const renderProjectReorderTask = useCallback(({ drag, isActive, item }: RenderItemParams<Task>) => {
-    const statusLabel = t(`status.${item.status}`);
+  const renderProjectReorderTaskRow = useCallback((task: Task, drag: () => void, isActive: boolean) => {
+    const statusLabel = t(`status.${task.status}`);
 
     return (
       <View
@@ -1592,7 +1612,7 @@ function TaskListComponent({
           { height: PROJECT_REORDER_ITEM_HEIGHT },
           isActive && styles.projectDragTaskRowActive,
         ]}
-        testID={`project-task-reorder-row-${item.id}`}
+        testID={`project-task-reorder-row-${task.id}`}
       >
         <View
           style={[
@@ -1604,7 +1624,7 @@ function TaskListComponent({
             numberOfLines={2}
             style={[styles.projectReorderTaskTitle, { color: themeColorsMemo.text }]}
           >
-            {item.title}
+            {task.title}
           </Text>
           <CompactText
             numberOfLines={1}
@@ -1614,7 +1634,7 @@ function TaskListComponent({
           </CompactText>
         </View>
         <TouchableOpacity
-          accessibilityLabel={`${tFallback(t, 'board.dragTask', 'Drag task')}: ${item.title}`}
+          accessibilityLabel={`${tFallback(t, 'board.dragTask', 'Drag task')}: ${task.title}`}
           accessibilityRole="button"
           activeOpacity={0.85}
           disabled={isActive}
@@ -1623,7 +1643,7 @@ function TaskListComponent({
             styles.projectDragHandle,
             { backgroundColor: themeColorsMemo.filterBg, borderColor: themeColorsMemo.border },
           ]}
-          testID={`project-task-drag-handle-${item.id}`}
+          testID={`project-task-drag-handle-${task.id}`}
         >
           <GripVertical size={20} color={themeColorsMemo.secondaryText} />
         </TouchableOpacity>
@@ -1688,7 +1708,7 @@ function TaskListComponent({
     );
   }, [getListItemLayoutKey, registerItemHeight, renderTask, themeColorsMemo.secondaryText, themeColorsMemo.text]);
 
-  const renderProjectReorderGroup = useCallback((group: ProjectTaskReorderGroup<Task>) => {
+  const renderProjectReorderHeader = useCallback((group: ProjectTaskReorderGroup<Task>) => {
     const sectionIndex = typeof group.sectionId === 'string' ? projectSectionIds.indexOf(group.sectionId) : -1;
     const canReorderSection = sectionIndex >= 0 && projectSectionIds.length > 1;
     const canMoveSectionUp = canReorderSection && sectionIndex > 0;
@@ -1697,83 +1717,65 @@ function TaskListComponent({
     const moveSectionDownLabel = tFallback(t, 'projects.moveSectionDown', 'Move section down');
 
     return (
-      <View key={group.id} style={styles.projectDragGroup}>
-        {group.title ? (
-          <View style={styles.sectionHeader}>
-            <View style={styles.sectionHeaderTitleBlock}>
-              <Text style={[styles.sectionTitle, { color: group.muted ? themeColorsMemo.secondaryText : themeColorsMemo.text }]} numberOfLines={1}>
-                {group.title}
-              </Text>
-              <Text style={[styles.sectionCount, { color: themeColorsMemo.secondaryText }]}>
-                {group.tasks.length}
-              </Text>
-            </View>
-            {canReorderSection && typeof group.sectionId === 'string' ? (
-              <View style={styles.sectionReorderControls}>
-                <TouchableOpacity
-                  accessibilityLabel={`${moveSectionUpLabel}: ${group.title}`}
-                  accessibilityRole="button"
-                  disabled={!canMoveSectionUp}
-                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                  onPress={() => handleProjectSectionMove(group.sectionId as string, -1)}
-                  style={[
-                    styles.sectionReorderButton,
-                    { borderColor: themeColorsMemo.border, backgroundColor: themeColorsMemo.filterBg },
-                    !canMoveSectionUp && styles.sectionReorderButtonDisabled,
-                  ]}
-                >
-                  <ArrowUp size={16} color={themeColorsMemo.secondaryText} />
-                </TouchableOpacity>
-                <TouchableOpacity
-                  accessibilityLabel={`${moveSectionDownLabel}: ${group.title}`}
-                  accessibilityRole="button"
-                  disabled={!canMoveSectionDown}
-                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                  onPress={() => handleProjectSectionMove(group.sectionId as string, 1)}
-                  style={[
-                    styles.sectionReorderButton,
-                    { borderColor: themeColorsMemo.border, backgroundColor: themeColorsMemo.filterBg },
-                    !canMoveSectionDown && styles.sectionReorderButtonDisabled,
-                  ]}
-                >
-                  <ArrowDown size={16} color={themeColorsMemo.secondaryText} />
-                </TouchableOpacity>
-              </View>
-            ) : null}
+      <View style={styles.sectionHeader}>
+        <View style={styles.sectionHeaderTitleBlock}>
+          <Text style={[styles.sectionTitle, { color: group.muted ? themeColorsMemo.secondaryText : themeColorsMemo.text }]} numberOfLines={1}>
+            {group.title}
+          </Text>
+          <Text style={[styles.sectionCount, { color: themeColorsMemo.secondaryText }]}>
+            {group.tasks.length}
+          </Text>
+        </View>
+        {canReorderSection && typeof group.sectionId === 'string' ? (
+          <View style={styles.sectionReorderControls}>
+            <TouchableOpacity
+              accessibilityLabel={`${moveSectionUpLabel}: ${group.title}`}
+              accessibilityRole="button"
+              disabled={!canMoveSectionUp}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              onPress={() => handleProjectSectionMove(group.sectionId as string, -1)}
+              style={[
+                styles.sectionReorderButton,
+                { borderColor: themeColorsMemo.border, backgroundColor: themeColorsMemo.filterBg },
+                !canMoveSectionUp && styles.sectionReorderButtonDisabled,
+              ]}
+            >
+              <ArrowUp size={16} color={themeColorsMemo.secondaryText} />
+            </TouchableOpacity>
+            <TouchableOpacity
+              accessibilityLabel={`${moveSectionDownLabel}: ${group.title}`}
+              accessibilityRole="button"
+              disabled={!canMoveSectionDown}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              onPress={() => handleProjectSectionMove(group.sectionId as string, 1)}
+              style={[
+                styles.sectionReorderButton,
+                { borderColor: themeColorsMemo.border, backgroundColor: themeColorsMemo.filterBg },
+                !canMoveSectionDown && styles.sectionReorderButtonDisabled,
+              ]}
+            >
+              <ArrowDown size={16} color={themeColorsMemo.secondaryText} />
+            </TouchableOpacity>
           </View>
-        ) : null}
-        {group.tasks.length > 0 ? (
-          <NestableDraggableFlatList
-            data={group.tasks}
-            getItemLayout={getProjectReorderItemLayout}
-            keyExtractor={(task) => task.id}
-            renderItem={renderProjectReorderTask}
-            onDragEnd={(params) => handleProjectTaskDragEnd(group.sectionId, params)}
-            activationDistance={2}
-            animationConfig={PROJECT_REORDER_ANIMATION_CONFIG}
-            autoscrollThreshold={80}
-            autoscrollSpeed={120}
-            dragItemOverflow
-            dragHitSlop={projectDragHitSlop}
-            style={styles.projectDragList}
-            removeClippedSubviews={false}
-          />
         ) : null}
       </View>
     );
   }, [
     handleProjectSectionMove,
-    handleProjectTaskDragEnd,
-    getProjectReorderItemLayout,
-    projectDragHitSlop,
     projectSectionIds,
-    renderProjectReorderTask,
     t,
     themeColorsMemo.border,
     themeColorsMemo.filterBg,
     themeColorsMemo.secondaryText,
     themeColorsMemo.text,
   ]);
+
+  const renderProjectReorderItem = useCallback(({ drag, isActive, item }: RenderItemParams<ProjectReorderFlatItem<Task>>) => {
+    if (item.type === 'header') {
+      return renderProjectReorderHeader(item.group);
+    }
+    return renderProjectReorderTaskRow(item.task, drag, isActive);
+  }, [renderProjectReorderHeader, renderProjectReorderTaskRow]);
 
   const projectReorderToggle = canUseProjectReorder && hasProjectReorderItems && !projectReorderMode ? (
     <TouchableOpacity
@@ -1944,39 +1946,35 @@ function TaskListComponent({
       )}
 
       {projectReorderMode && canUseProjectReorder ? (
-        projectReorderOwnsScroll && projectReorderGroups.length === 1 ? (
-          // Section-less projects own the scroll, so a single virtualizing list keeps long
-          // lists responsive and tracks the finger (the nested variant disables windowing).
-          <DraggableFlatList
-            data={projectReorderGroups[0].tasks}
-            keyExtractor={(task) => task.id}
-            getItemLayout={getProjectReorderItemLayout}
-            renderItem={renderProjectReorderTask}
-            onDragEnd={(params) => handleProjectTaskDragEnd(projectReorderGroups[0].sectionId, params)}
-            activationDistance={2}
-            animationConfig={PROJECT_REORDER_ANIMATION_CONFIG}
-            autoscrollThreshold={80}
-            autoscrollSpeed={120}
-            dragItemOverflow
-            dragHitSlop={projectDragHitSlop}
-            keyboardShouldPersistTaps="handled"
-            initialNumToRender={14}
-            maxToRenderPerBatch={12}
-            windowSize={7}
-            removeClippedSubviews={false}
-            // DraggableFlatList's outer container takes containerStyle; `style`
-            // lands on the inner FlatList. Without flex on the container it
-            // auto-sizes to the inner list's flex basis of 0, rendering an
-            // empty screen in reorder mode (#784).
-            containerStyle={styles.projectDragSelfScrollList}
-            style={styles.projectDragSelfScrollList}
-            contentContainerStyle={styles.projectDragSelfScrollContent}
-          />
-        ) : (
-          <View style={styles.staticList}>
-            {projectReorderGroups.map(renderProjectReorderGroup)}
-          </View>
-        )
+        // One flat self-scrolling list for sectioned and section-less projects alike:
+        // section headers are fixed rows, so dragging a task past a header drops it
+        // into that section (per-section nested lists could never move tasks across
+        // sections, and the nested variant also disabled windowing — #784).
+        <DraggableFlatList
+          data={projectReorderFlatItems}
+          keyExtractor={(item) => item.key}
+          getItemLayout={projectReorderHasHeaders ? undefined : getProjectReorderItemLayout}
+          renderItem={renderProjectReorderItem}
+          onDragEnd={handleProjectTaskDragEnd}
+          activationDistance={2}
+          animationConfig={PROJECT_REORDER_ANIMATION_CONFIG}
+          autoscrollThreshold={80}
+          autoscrollSpeed={120}
+          dragItemOverflow
+          dragHitSlop={projectDragHitSlop}
+          keyboardShouldPersistTaps="handled"
+          initialNumToRender={14}
+          maxToRenderPerBatch={12}
+          windowSize={7}
+          removeClippedSubviews={false}
+          // DraggableFlatList's outer container takes containerStyle; `style`
+          // lands on the inner FlatList. Without flex on the container it
+          // auto-sizes to the inner list's flex basis of 0, rendering an
+          // empty screen in reorder mode (#784).
+          containerStyle={styles.projectDragSelfScrollList}
+          style={styles.projectDragSelfScrollList}
+          contentContainerStyle={styles.projectDragSelfScrollContent}
+        />
       ) : staticList ? (
         <View style={styles.staticList} onLayout={handleStaticListLayout}>
           {listItems.length === 0 ? (

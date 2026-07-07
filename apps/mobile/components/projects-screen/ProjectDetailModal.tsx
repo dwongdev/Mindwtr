@@ -21,7 +21,6 @@ import DateTimePicker from '@react-native-community/datetimepicker';
 import { Ionicons } from '@expo/vector-icons';
 import { GripVertical } from 'lucide-react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
-import { NestableScrollContainer } from 'react-native-draggable-flatlist';
 import {
     type Attachment,
     getAttachmentDisplayTitle,
@@ -417,7 +416,6 @@ function ProjectDetailScrollFrame({
     children,
     keyboardBottomInset,
     onScroll,
-    reorderMode,
     reorderOwnsScroll,
     scrollRef,
 }: {
@@ -425,7 +423,6 @@ function ProjectDetailScrollFrame({
     children: React.ReactNode;
     keyboardBottomInset: number;
     onScroll: (event: NativeSyntheticEvent<NativeScrollEvent>) => void;
-    reorderMode: boolean;
     reorderOwnsScroll: boolean;
     scrollRef: React.RefObject<ScrollView | null>;
 }) {
@@ -443,17 +440,11 @@ function ProjectDetailScrollFrame({
     };
 
     const scrollNode = reorderOwnsScroll ? (
-        // Section-less reorder uses a single self-scrolling DraggableFlatList that owns the
+        // Reorder mode uses a single self-scrolling DraggableFlatList that owns the
         // scroll, so the frame is a plain flex column instead of a nested scroll container.
         <View style={[{ flex: 1 }, { backgroundColor }]}>
             {children}
         </View>
-    ) : reorderMode ? (
-        // Multi-section reorder needs the nested draggable wrapper required by the library:
-        // https://github.com/computerjazz/react-native-draggable-flatlist#nesting-draggableflatlists
-        <NestableScrollContainer {...scrollProps}>
-            {children}
-        </NestableScrollContainer>
     ) : (
         // Normal mode stays on a plain ScrollView so Swipeable rows keep horizontal gestures.
         <ScrollView
@@ -569,9 +560,9 @@ export function ProjectDetailModal({
     const safeAreaEdges = getProjectDetailModalSafeAreaEdges(presentationStyle);
     const taskListOptions = getProjectDetailTaskListOptions(selectedProject, showCompletedTasks);
     const canManageProjectSections = selectedProject?.status !== 'archived';
-    // Section-less projects reorder through one self-scrolling DraggableFlatList; sectioned
-    // projects keep the nested-list layout (one draggable list per section).
-    const projectReorderOwnsScroll = projectTaskReorderMode && selectedProjectSections.length === 0;
+    // Reorder mode always renders one self-scrolling DraggableFlatList (section
+    // headers are fixed rows inside it), so it owns the scroll for every project.
+    const projectReorderOwnsScroll = projectTaskReorderMode;
     const showCompletedLabel = showCompletedTasks
         ? tFallback(t, 'common.hideCompleted', 'Hide completed')
         : tFallback(t, 'common.showCompleted', 'Show completed');
@@ -1001,7 +992,6 @@ export function ProjectDetailModal({
                                             return { offsetY, viewportHeight };
                                         });
                                     }}
-                                    reorderMode={projectTaskReorderMode}
                                     reorderOwnsScroll={projectReorderOwnsScroll}
                                     scrollRef={projectDetailScrollRef}
                                 >
@@ -1561,7 +1551,6 @@ export function ProjectDetailModal({
                                         sequenceCueLabels={sequenceCueLabels}
                                         onQuickAddInputFocus={scrollProjectInputIntoView}
                                         projectReorderMode={projectTaskReorderMode}
-                                        projectReorderOwnsScroll={projectReorderOwnsScroll}
                                         onProjectReorderModeChange={setProjectTaskReorderMode}
                                     />
                                 </View>

@@ -721,7 +721,7 @@ describe('TaskList project quick add', () => {
       );
     });
 
-    const draggableList = tree.root.findByType('NestableDraggableFlatList' as unknown as React.ElementType);
+    const draggableList = tree.root.findByType('DraggableFlatList' as unknown as React.ElementType);
     expect(draggableList.props.data).toHaveLength(longTaskList.length);
     expect(draggableList.props.renderPlaceholder).toBeUndefined();
     expect(draggableList.props.animationConfig).toEqual(expect.objectContaining({
@@ -735,7 +735,7 @@ describe('TaskList project quick add', () => {
           drag: vi.fn(),
           getIndex: () => 80,
           isActive: false,
-          item: longTaskList[80],
+          item: { type: 'task', key: longTaskList[80].id, task: longTaskList[80] },
         }),
       );
     });
@@ -766,7 +766,6 @@ describe('TaskList project quick add', () => {
           enableProjectReorder
           projectId={project.id}
           projectReorderMode
-          projectReorderOwnsScroll
           showHeader={false}
           statusFilter="all"
           taskSource={longTaskList}
