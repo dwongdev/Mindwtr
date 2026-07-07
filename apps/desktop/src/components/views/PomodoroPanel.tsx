@@ -43,7 +43,6 @@ export function PomodoroPanel({ tasks }: PomodoroPanelProps) {
     useEffect(() => {
         // Re-read persisted state on mount, including any session that completed while the app was closed.
         hydratePomodoro(autoStartOptions);
-        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
     useEffect(() => {
