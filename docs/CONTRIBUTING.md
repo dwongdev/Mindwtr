@@ -42,10 +42,11 @@ When opening an issue, include:
 
 ### 4) Keep product fit in mind
 
-Mindwtr focuses on GTD and practical execution. Contributions are most likely to be accepted when they:
+Mindwtr focuses on GTD and practical execution, and is built to be **simple by default and powerful when you need it**: progressive disclosure, less by default, no feature creep. *Don't show me a cockpit when I just want to ride a bike.* Contributions are most likely to be accepted when they:
 
 - Keep workflows simple by default
 - Avoid unnecessary UI complexity
+- Prefer inference over configuration: if the right behavior can be determined automatically (platform, install channel, existing data, context), implement that instead of adding a setting — and reuse an existing switch before minting a new one (for example, update checks adapt to the install channel instead of offering a toggle)
 - Preserve data safety and reliability
 - Work consistently across platforms when applicable
 
