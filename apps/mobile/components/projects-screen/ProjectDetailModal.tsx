@@ -19,6 +19,7 @@ import {
 } from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { Ionicons } from '@expo/vector-icons';
+import { GripVertical } from 'lucide-react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { NestableScrollContainer } from 'react-native-draggable-flatlist';
 import {
@@ -768,11 +769,14 @@ export function ProjectDetailModal({
                     testID="project-task-reorder-toggle"
                 >
                     <View style={styles.projectTaskPinnedControlIcon}>
-                        <Ionicons
-                            name={projectTaskReorderMode ? 'checkmark' : 'reorder-three-outline'}
-                            size={20}
-                            color={projectTaskReorderMode ? tc.onTint : tc.secondaryText}
-                        />
+                        {projectTaskReorderMode ? (
+                            <Ionicons name="checkmark" size={20} color={tc.onTint} />
+                        ) : (
+                            // Grip dots mirror the drag handles shown in reorder mode;
+                            // the hamburger-style reorder-three read as a menu, and the
+                            // up-down arrows belong to the Sort control (#784).
+                            <GripVertical size={20} color={tc.secondaryText} />
+                        )}
                     </View>
                 </TouchableOpacity>
             ) : null}

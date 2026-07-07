@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import { View, FlatList, Text, TextInput, RefreshControl, Modal, Pressable, TouchableOpacity, useWindowDimensions, type LayoutChangeEvent } from 'react-native';
 import { router } from 'expo-router';
-import { ArrowDown, ArrowUp, ChevronDown, ChevronRight, GripVertical, MoveVertical } from 'lucide-react-native';
+import { ArrowDown, ArrowUp, ChevronDown, ChevronRight, GripVertical } from 'lucide-react-native';
 import DraggableFlatList, { NestableDraggableFlatList, type DragEndParams, type RenderItemParams } from 'react-native-draggable-flatlist';
 import {
   applyCapturedProject,
@@ -1786,7 +1786,7 @@ function TaskListComponent({
       ]}
       testID="project-task-reorder-toggle"
     >
-      <MoveVertical size={20} color={themeColorsMemo.secondaryText} />
+      <GripVertical size={20} color={themeColorsMemo.secondaryText} />
     </TouchableOpacity>
   ) : null;
 

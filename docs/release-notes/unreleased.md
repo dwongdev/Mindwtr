@@ -97,3 +97,4 @@ Changes collected after `v1.0.5` and before the next version tag.
 - perf(mobile): home screen and lock screen widgets only re-render when something they show actually changed — previously every save and sync cycle re-rendered the widgets (several seconds on mid-range Android devices), stalling task actions behind background work.
 - fix(mobile): the Quick Capture "Add another" switch is now sticky — turn it on once and every Enter saves the task and keeps the sheet open for the next capture, across sheet opens, until you turn it off.
 - fix(mobile): entering Task order in a project without sections no longer shows an empty list — the reorder list's container had zero height, so the tasks were invisible; dragging by the handle works again.
+- fix(mobile): the project Task order toolbar button now shows drag-handle grip dots instead of a hamburger-style icon, matching the handles you drag in reorder mode (the up-down arrows stay reserved for Sort).

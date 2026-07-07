@@ -47,6 +47,7 @@ vi.mock('@expo/vector-icons', async () => {
 vi.mock('lucide-react-native', () => ({
     CheckCircle2: () => null,
     ClipboardCheck: () => null,
+    GripVertical: () => null,
     X: () => null,
 }));
 
