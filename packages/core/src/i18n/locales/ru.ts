@@ -188,6 +188,8 @@ export const ruOverrides: Record<string, string> = {
         'taskEdit.tagsLabel': 'Теги',
         'taskEdit.tagsPlaceholder': '#urgent, #idea',
         'taskEdit.timeEstimateLabel': 'Оценка времени',
+        'taskEdit.timeSpentLabel': 'Затраченное время',
+        'taskEdit.timeSpentPlaceholder': 'минуты',
         'taskEdit.recurrenceLabel': 'Повторение',
         'taskEdit.descriptionLabel': 'Описание',
         'taskEdit.descriptionPlaceholder': 'Добавить заметки...',

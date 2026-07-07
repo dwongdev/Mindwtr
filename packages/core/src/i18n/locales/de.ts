@@ -212,6 +212,8 @@ export const deOverrides: Record<string, string> = {
         'taskEdit.tagsLabel': 'Schlagwörter',
         'taskEdit.tagsPlaceholder': '#urgent, #idea',
         'taskEdit.timeEstimateLabel': 'Zeiteinschätzung',
+        'taskEdit.timeSpentLabel': 'Aufgewendete Zeit',
+        'taskEdit.timeSpentPlaceholder': 'Minuten',
         'taskEdit.recurrenceLabel': 'Wiederholen',
         'taskEdit.descriptionLabel': 'Beschreibung',
         'taskEdit.descriptionPlaceholder': 'Notizen hinzufügen ...',

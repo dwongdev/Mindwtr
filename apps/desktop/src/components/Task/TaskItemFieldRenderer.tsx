@@ -61,6 +61,7 @@ import {
     StatusField,
     TagsField,
     TimeEstimateField,
+    TimeSpentField,
 } from './fields/TaskMetadataFields';
 import { QuickDateChips } from '../QuickDateChips';
 import {
@@ -600,6 +601,7 @@ export type TaskItemFieldRendererData = {
     editShowFutureRecurrence: boolean;
     monthlyRecurrence: MonthlyRecurrenceInfo;
     editTimeEstimate: TimeEstimate | '';
+    editTimeSpentMinutes: number | undefined;
     editContexts: string;
     editTags: string;
     editLocation: string;
@@ -641,6 +643,7 @@ export type TaskItemFieldRendererHandlers = {
     setEditShowFutureRecurrence: (value: boolean) => void;
     openCustomRecurrence: () => void;
     setEditTimeEstimate: (value: TimeEstimate | '') => void;
+    setEditTimeSpentMinutes: (value: number | undefined) => void;
     setEditContexts: (value: string) => void;
     setEditTags: (value: string) => void;
     setEditLocation: (value: string) => void;
@@ -682,6 +685,7 @@ export function TaskItemFieldRenderer({
         editShowFutureRecurrence,
         monthlyRecurrence,
         editTimeEstimate,
+        editTimeSpentMinutes,
         editContexts,
         editTags,
         editLocation,
@@ -773,6 +777,7 @@ export function TaskItemFieldRenderer({
         setEditShowFutureRecurrence,
         openCustomRecurrence,
         setEditTimeEstimate,
+        setEditTimeSpentMinutes,
         setEditContexts,
         setEditTags,
         setEditLocation,
@@ -1661,7 +1666,12 @@ export function TaskItemFieldRenderer({
                 />
             );
         case 'timeEstimate':
-            return <TimeEstimateField t={t} value={editTimeEstimate} onChange={setEditTimeEstimate} />;
+            return (
+                <div className="flex gap-2 w-full">
+                    <TimeEstimateField t={t} value={editTimeEstimate} onChange={setEditTimeEstimate} />
+                    <TimeSpentField t={t} value={editTimeSpentMinutes} onChange={setEditTimeSpentMinutes} />
+                </div>
+            );
         case 'contexts':
             return (
                 <ContextsField

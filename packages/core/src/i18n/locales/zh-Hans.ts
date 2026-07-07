@@ -175,6 +175,8 @@ export const zhHans: Record<string, string> = {
         'taskEdit.tagsLabel': '标签',
         'taskEdit.tagsPlaceholder': '#紧急, #想法',
         'taskEdit.timeEstimateLabel': '时间预估',
+        'taskEdit.timeSpentLabel': '已用时间',
+        'taskEdit.timeSpentPlaceholder': '分钟',
         'taskEdit.recurrenceLabel': '重复',
         'taskEdit.descriptionLabel': '描述',
         'taskEdit.descriptionPlaceholder': '添加备注...',

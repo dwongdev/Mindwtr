@@ -787,3 +787,38 @@ export function TagsField({
         />
     );
 }
+
+export function TimeSpentField({
+    t,
+    value,
+    onChange,
+}: {
+    t: (key: string) => string;
+    value: number | undefined;
+    onChange: (value: number | undefined) => void;
+}) {
+    return (
+        <div className="flex flex-col gap-1 w-full">
+            <label className={taskEditorLabelClassName}>{t('taskEdit.timeSpentLabel')}</label>
+            <input
+                type="number"
+                min={0}
+                step={5}
+                inputMode="numeric"
+                aria-label={t('taskEdit.timeSpentLabel')}
+                value={value ?? ''}
+                onChange={(event) => {
+                    const raw = event.target.value;
+                    if (!raw) {
+                        onChange(undefined);
+                        return;
+                    }
+                    const parsed = Number(raw);
+                    onChange(Number.isFinite(parsed) && parsed > 0 ? Math.round(parsed) : undefined);
+                }}
+                placeholder={t('taskEdit.timeSpentPlaceholder')}
+                className="text-xs bg-muted/50 border border-border rounded px-2 py-1 w-full text-foreground placeholder:text-muted-foreground"
+            />
+        </div>
+    );
+}

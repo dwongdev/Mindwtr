@@ -191,6 +191,8 @@ export const trOverrides: Record<string, string> = {
         'taskEdit.tagsLabel': 'Etiketler',
         'taskEdit.tagsPlaceholder': '#urgent, #idea',
         'taskEdit.timeEstimateLabel': 'Zaman Tahmini',
+        'taskEdit.timeSpentLabel': 'Harcanan Zaman',
+        'taskEdit.timeSpentPlaceholder': 'dakika',
         'taskEdit.recurrenceLabel': 'Tekrarlama',
         'taskEdit.descriptionLabel': 'Tanım',
         'taskEdit.descriptionPlaceholder': 'Not ekle...',

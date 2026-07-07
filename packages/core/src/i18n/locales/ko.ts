@@ -187,6 +187,8 @@ export const koOverrides: Record<string, string> = {
         'taskEdit.tagsLabel': '태그',
         'taskEdit.tagsPlaceholder': '#urgent, #idea',
         'taskEdit.timeEstimateLabel': '예상 시간',
+        'taskEdit.timeSpentLabel': '소요 시간',
+        'taskEdit.timeSpentPlaceholder': '분',
         'taskEdit.recurrenceLabel': '회귀',
         'taskEdit.descriptionLabel': '설명',
         'taskEdit.descriptionPlaceholder': '메모 추가...',

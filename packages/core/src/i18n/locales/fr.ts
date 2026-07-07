@@ -198,6 +198,8 @@ export const frOverrides: Record<string, string> = {
         'taskEdit.tagsLabel': 'Tags',
         'taskEdit.tagsPlaceholder': '#urgent, #idea',
         'taskEdit.timeEstimateLabel': 'Estimation du temps',
+        'taskEdit.timeSpentLabel': 'Temps passé',
+        'taskEdit.timeSpentPlaceholder': 'minutes',
         'taskEdit.recurrenceLabel': 'Récurrence',
         'taskEdit.descriptionLabel': 'Description',
         'taskEdit.descriptionPlaceholder': 'Ajouter des notes…',

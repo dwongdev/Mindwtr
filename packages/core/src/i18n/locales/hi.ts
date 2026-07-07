@@ -188,6 +188,8 @@ export const hiOverrides: Record<string, string> = {
         'taskEdit.tagsLabel': 'टैग',
         'taskEdit.tagsPlaceholder': '#urgent, #idea',
         'taskEdit.timeEstimateLabel': 'समय का अनुमान',
+        'taskEdit.timeSpentLabel': 'बिताया गया समय',
+        'taskEdit.timeSpentPlaceholder': 'मिनट',
         'taskEdit.recurrenceLabel': 'पुनरावृत्ति',
         'taskEdit.descriptionLabel': 'विवरण',
         'taskEdit.descriptionPlaceholder': 'नोट्स जोड़ें...',

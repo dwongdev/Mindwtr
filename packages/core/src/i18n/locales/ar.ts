@@ -182,6 +182,8 @@ export const arOverrides: Record<string, string> = {
         'taskEdit.tagsLabel': 'العلامات',
         'taskEdit.tagsPlaceholder': '#urgent، #idea',
         'taskEdit.timeEstimateLabel': 'تقدير الوقت',
+        'taskEdit.timeSpentLabel': 'الوقت المستغرق',
+        'taskEdit.timeSpentPlaceholder': 'دقائق',
         'taskEdit.recurrenceLabel': 'تكرار',
         'taskEdit.descriptionLabel': 'وصف',
         'taskEdit.descriptionPlaceholder': 'إضافة ملاحظات...',

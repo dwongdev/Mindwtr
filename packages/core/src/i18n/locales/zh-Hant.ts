@@ -175,6 +175,8 @@ export const zhHant: Record<string, string> = {
         'taskEdit.tagsLabel': '標籤',
         'taskEdit.tagsPlaceholder': '#緊急, #想法',
         'taskEdit.timeEstimateLabel': '時間預估',
+        'taskEdit.timeSpentLabel': '已用時間',
+        'taskEdit.timeSpentPlaceholder': '分鐘',
         'taskEdit.recurrenceLabel': '重複',
         'taskEdit.descriptionLabel': '描述',
         'taskEdit.descriptionPlaceholder': '添加備註...',

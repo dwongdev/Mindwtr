@@ -206,6 +206,8 @@ export const csOverrides: Record<string, string> = {
         'taskEdit.tagsLabel': 'Štítky',
         'taskEdit.tagsPlaceholder': '#urgentní, #nápad',
         'taskEdit.timeEstimateLabel': 'Odhad času',
+        'taskEdit.timeSpentLabel': 'Strávený čas',
+        'taskEdit.timeSpentPlaceholder': 'minuty',
         'taskEdit.recurrenceLabel': 'Opakování',
         'taskEdit.descriptionLabel': 'Popis',
         'taskEdit.descriptionPlaceholder': 'Přidat poznámky…',

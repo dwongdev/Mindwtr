@@ -208,6 +208,8 @@ export const en: Record<string, string> = {
         'taskEdit.tagsLabel': 'Tags',
         'taskEdit.tagsPlaceholder': '#urgent, #idea',
         'taskEdit.timeEstimateLabel': 'Time Estimate',
+        'taskEdit.timeSpentLabel': 'Time Spent',
+        'taskEdit.timeSpentPlaceholder': 'minutes',
         'taskEdit.recurrenceLabel': 'Recurrence',
         'taskEdit.descriptionLabel': 'Description',
         'taskEdit.descriptionPlaceholder': 'Add notes...',

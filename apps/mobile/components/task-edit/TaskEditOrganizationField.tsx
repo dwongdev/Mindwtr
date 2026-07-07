@@ -419,6 +419,25 @@ export function TaskEditOrganizationField({
                             accessibilityLabel={`${t('taskEdit.timeEstimateLabel')}: ${customTimeEstimateLabel}`}
                         />
                     )}
+                    <Text style={[styles.label, { color: tc.secondaryText, marginTop: 12 }]}>
+                        {translateWithFallback(t, 'taskEdit.timeSpentLabel', 'Time Spent')}
+                    </Text>
+                    <TextInput
+                        style={[styles.input, inputStyle]}
+                        value={typeof editedTask.timeSpentMinutes === 'number' ? String(editedTask.timeSpentMinutes) : ''}
+                        onChangeText={(text) => {
+                            const digits = text.replace(/[^0-9]/g, '');
+                            setEditedTask((prev) => ({
+                                ...prev,
+                                timeSpentMinutes: digits ? Number(digits) : undefined,
+                            }));
+                        }}
+                        keyboardType="number-pad"
+                        onFocus={(event) => handleInputFocus(event.nativeEvent.target)}
+                        placeholder={translateWithFallback(t, 'taskEdit.timeSpentPlaceholder', 'minutes')}
+                        placeholderTextColor={tc.secondaryText}
+                        accessibilityLabel={translateWithFallback(t, 'taskEdit.timeSpentLabel', 'Time Spent')}
+                    />
                 </View>
             );
         }

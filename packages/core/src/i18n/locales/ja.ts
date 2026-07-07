@@ -188,6 +188,8 @@ export const jaOverrides: Record<string, string> = {
         'taskEdit.tagsLabel': 'タグ',
         'taskEdit.tagsPlaceholder': '#urgent、#idea',
         'taskEdit.timeEstimateLabel': '所要時間の目安',
+        'taskEdit.timeSpentLabel': '作業時間',
+        'taskEdit.timeSpentPlaceholder': '分',
         'taskEdit.recurrenceLabel': '再発',
         'taskEdit.descriptionLabel': '説明',
         'taskEdit.descriptionPlaceholder': 'メモを追加...',

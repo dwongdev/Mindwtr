@@ -203,6 +203,8 @@ export const viOverrides: Record<string, string> = {
         'taskEdit.tagsLabel': 'Thẻ',
         'taskEdit.tagsPlaceholder': '#khẩn cấp, #ý tưởng',
         'taskEdit.timeEstimateLabel': 'Ước tính thời gian',
+        'taskEdit.timeSpentLabel': 'Thời gian đã dành',
+        'taskEdit.timeSpentPlaceholder': 'phút',
         'taskEdit.recurrenceLabel': 'Lặp lại',
         'taskEdit.descriptionLabel': 'Mô tả',
         'taskEdit.descriptionPlaceholder': 'Thêm ghi chú...',

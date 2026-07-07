@@ -54,6 +54,8 @@ export type TaskItemEditState = {
     setEditShowFutureRecurrence: (value: boolean) => void;
     editTimeEstimate: TimeEstimate | '';
     setEditTimeEstimate: (value: TimeEstimate | '') => void;
+    editTimeSpentMinutes: number | undefined;
+    setEditTimeSpentMinutes: (value: number | undefined) => void;
     editPriority: TaskPriority | '';
     setEditPriority: (value: TaskPriority | '') => void;
     editEnergyLevel: TaskEnergyLevel | '';
@@ -108,6 +110,7 @@ export function useTaskItemEditState({
         setEditRecurrenceRRule: (value: string) => setField('recurrenceRRule', value),
         setEditShowFutureRecurrence: (value: boolean) => setField('showFutureRecurrence', value),
         setEditTimeEstimate: (value: TimeEstimate | '') => setField('timeEstimate', value),
+        setEditTimeSpentMinutes: (value: number | undefined) => setField('timeSpentMinutes', value),
         setEditPriority: (value: TaskPriority | '') => setField('priority', value),
         setEditEnergyLevel: (value: TaskEnergyLevel | '') => setField('energyLevel', value),
         setEditAssignedTo: (value: string) => setField('assignedTo', value),
@@ -141,6 +144,7 @@ export function useTaskItemEditState({
         editRecurrenceRRule: draft.recurrenceRRule,
         editShowFutureRecurrence: draft.showFutureRecurrence,
         editTimeEstimate: draft.timeEstimate,
+        editTimeSpentMinutes: draft.timeSpentMinutes,
         editPriority: draft.priority,
         editEnergyLevel: draft.energyLevel,
         editAssignedTo: draft.assignedTo,

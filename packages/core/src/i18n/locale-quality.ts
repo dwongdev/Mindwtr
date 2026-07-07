@@ -63,6 +63,7 @@ export const allowedEnglishMirrorKeysByLocale: Record<string, readonly string[]>
         'task.aria.tags',
         'taskEdit.descriptionLabel',
         'taskEdit.tagsLabel',
+        'taskEdit.timeSpentPlaceholder',
     ],
 };
 
