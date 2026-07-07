@@ -143,6 +143,7 @@ function TaskEditModalInner({
     ]);
     const prioritiesEnabled = settings.features?.priorities !== false;
     const timeEstimatesEnabled = settings.features?.timeEstimates !== false;
+    const timeSpentEnabled = settings.features?.pomodoro === true && settings.gtd?.pomodoro?.linkTask === true;
     const resetCopilotStateRef = useRef<() => void>(() => {});
     const descriptionToolbarInteractionUntilRef = useRef(0);
     const {
@@ -743,6 +744,7 @@ function TaskEditModalInner({
         tc,
         timeEstimateOptions,
         timeEstimatesEnabled,
+        timeSpentEnabled,
         titleDraft,
         toggleQuickContextToken,
         toggleQuickTagToken,
@@ -831,6 +833,7 @@ function TaskEditModalInner({
         tc,
         timeEstimateOptions,
         timeEstimatesEnabled,
+        timeSpentEnabled,
         titleDraft,
         toggleQuickContextToken,
         toggleQuickTagToken,

@@ -134,6 +134,7 @@ const createData = (overrides: Partial<TaskItemFieldRendererData> = {}): TaskIte
     monthlyRecurrence: { pattern: 'date', interval: 1 },
     editTimeEstimate: '',
     editTimeSpentMinutes: undefined,
+    timeSpentEnabled: true,
     editContexts: '',
     editTags: '',
     editLocation: '',

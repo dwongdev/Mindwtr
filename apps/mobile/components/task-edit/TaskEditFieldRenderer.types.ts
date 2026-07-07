@@ -120,6 +120,7 @@ export type TaskEditFieldRendererProps = {
     tc: ThemeColors;
     timeEstimateOptions: PickerOption<TimeEstimate>[];
     timeEstimatesEnabled: boolean;
+    timeSpentEnabled: boolean;
     titleDraft: string;
     toggleQuickContextToken: (token: string) => void;
     toggleQuickTagToken: (token: string) => void;

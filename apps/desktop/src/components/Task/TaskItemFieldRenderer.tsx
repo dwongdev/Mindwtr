@@ -602,6 +602,7 @@ export type TaskItemFieldRendererData = {
     monthlyRecurrence: MonthlyRecurrenceInfo;
     editTimeEstimate: TimeEstimate | '';
     editTimeSpentMinutes: number | undefined;
+    timeSpentEnabled: boolean;
     editContexts: string;
     editTags: string;
     editLocation: string;
@@ -686,6 +687,7 @@ export function TaskItemFieldRenderer({
         monthlyRecurrence,
         editTimeEstimate,
         editTimeSpentMinutes,
+        timeSpentEnabled,
         editContexts,
         editTags,
         editLocation,
@@ -1666,6 +1668,11 @@ export function TaskItemFieldRenderer({
                 />
             );
         case 'timeEstimate':
+            // Time spent is opt-in: it only appears while the Pomodoro timer's
+            // task linking is engaged, so the default editor stays estimate-only.
+            if (!timeSpentEnabled) {
+                return <TimeEstimateField t={t} value={editTimeEstimate} onChange={setEditTimeEstimate} />;
+            }
             return (
                 <div className="flex gap-2 w-full">
                     <TimeEstimateField t={t} value={editTimeEstimate} onChange={setEditTimeEstimate} />

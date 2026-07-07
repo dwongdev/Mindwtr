@@ -56,6 +56,7 @@ interface TaskItemDisplayProps {
     recurrenceStrategy: RecurrenceStrategy;
     prioritiesEnabled: boolean;
     timeEstimatesEnabled: boolean;
+    timeSpentEnabled?: boolean;
     isStagnant: boolean;
     showQuickDone: boolean;
     showStatusSelect?: boolean;
@@ -105,6 +106,7 @@ export const TaskItemDisplay = memo(function TaskItemDisplay({
     visibleAttachments,
     prioritiesEnabled,
     timeEstimatesEnabled,
+    timeSpentEnabled = false,
     isStagnant,
     showQuickDone,
     showStatusSelect = true,
@@ -506,7 +508,7 @@ export const TaskItemDisplay = memo(function TaskItemDisplay({
                     label={formatTimeEstimate(task.timeEstimate)}
                 />
             )}
-            {Boolean(task.timeSpentMinutes) && (
+            {timeSpentEnabled && Boolean(task.timeSpentMinutes) && (
                 <MetadataBadge
                     variant="estimate"
                     icon={History}

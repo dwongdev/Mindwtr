@@ -305,10 +305,14 @@ export const TaskItem = memo(function TaskItem({
         if (status === 'inbox') setEditFocusedToday(false);
     }, [setEditStatus, setEditFocusedToday]);
     const effectiveFocusToggle = effectiveReadOnly ? undefined : focusToggle;
+    // Time tracking is opt-in: every time-spent surface (editor field, badge,
+    // quick-start) stays hidden unless the Pomodoro timer and its task linking
+    // are both enabled, so the default GTD experience is unchanged.
+    const timeSpentEnabled = settings?.features?.pomodoro === true
+        && settings?.gtd?.pomodoro?.linkTask === true;
     // Task-row entry point into the shared pomodoro store: link this task and
     // start a focus session (never a free-running clock), then show the timer.
-    const pomodoroQuickStartEligible = settings?.features?.pomodoro === true
-        && settings?.gtd?.pomodoro?.linkTask === true
+    const pomodoroQuickStartEligible = timeSpentEnabled
         && !effectiveReadOnly
         && task.status !== 'archived'
         && task.status !== 'reference';
@@ -619,6 +623,7 @@ export const TaskItem = memo(function TaskItem({
         monthlyRecurrence,
         editTimeEstimate,
         editTimeSpentMinutes,
+        timeSpentEnabled,
         editContexts,
         editTags,
         editLocation,
@@ -655,6 +660,7 @@ export const TaskItem = memo(function TaskItem({
         monthlyRecurrence,
         editTimeEstimate,
         editTimeSpentMinutes,
+        timeSpentEnabled,
         editContexts,
         editTags,
         editLocation,
@@ -1386,6 +1392,7 @@ export const TaskItem = memo(function TaskItem({
                                 recurrenceStrategy={recurrenceStrategy}
                                 prioritiesEnabled={prioritiesEnabled}
                                 timeEstimatesEnabled={timeEstimatesEnabled}
+                                timeSpentEnabled={timeSpentEnabled}
                                 isStagnant={isStagnant}
                                 showQuickDone={showQuickDone}
                                 showStatusSelect={showConfiguredStatusSelect}
