@@ -140,6 +140,21 @@ pub(crate) fn open_sqlite(app: &tauri::AppHandle) -> Result<Connection, String> 
     Ok(conn)
 }
 
+// Sort orders are sparse and may be fractional (midpoints written by older app
+// versions or synced from other devices). Binding them as i64 silently turned
+// fractional values into NULL, which dropped the task to the bottom of its list
+// after the next sync reload (#784). Keep integral values as JSON integers so
+// round-trips stay byte-identical for the common case.
+fn json_number_from_f64(value: f64) -> Option<Value> {
+    if !value.is_finite() {
+        return None;
+    }
+    if value.fract() == 0.0 && value.abs() <= 9_007_199_254_740_992.0 {
+        return Some(Value::Number((value as i64).into()));
+    }
+    serde_json::Number::from_f64(value).map(Value::Number)
+}
+
 fn is_retryable_storage_error(message: &str) -> bool {
     let normalized = message.to_ascii_lowercase();
     normalized.contains("database is locked")
@@ -678,9 +693,9 @@ fn upsert_task_row(conn: &Connection, task: &Value) -> Result<(), String> {
             task.get("sectionId").and_then(|v| v.as_str()),
             task.get("areaId").and_then(|v| v.as_str()),
             task.get("orderNum")
-                .and_then(|v| v.as_i64())
-                .or_else(|| task.get("order").and_then(|v| v.as_i64())),
-            task.get("boardOrder").and_then(|v| v.as_i64()),
+                .and_then(|v| v.as_f64())
+                .or_else(|| task.get("order").and_then(|v| v.as_f64())),
+            task.get("boardOrder").and_then(|v| v.as_f64()),
             task.get("isFocusedToday").and_then(|v| v.as_bool()).unwrap_or(false) as i32,
             task.get("timeEstimate").and_then(|v| v.as_str()),
             task.get("suppressMindwtrReminders").and_then(|v| v.as_bool()).unwrap_or(false) as i32,
@@ -850,15 +865,15 @@ fn row_to_task_value(row: &rusqlite::Row<'_>) -> Result<Value, rusqlite::Error> 
             map.insert("areaId".to_string(), Value::String(v));
         }
     }
-    if let Ok(val) = row.get::<_, Option<i64>>("orderNum") {
-        if let Some(v) = val {
-            map.insert("order".to_string(), Value::Number(v.into()));
-            map.insert("orderNum".to_string(), Value::Number(v.into()));
+    if let Ok(val) = row.get::<_, Option<f64>>("orderNum") {
+        if let Some(num) = val.and_then(json_number_from_f64) {
+            map.insert("order".to_string(), num.clone());
+            map.insert("orderNum".to_string(), num);
         }
     }
-    if let Ok(val) = row.get::<_, Option<i64>>("boardOrder") {
-        if let Some(v) = val {
-            map.insert("boardOrder".to_string(), Value::Number(v.into()));
+    if let Ok(val) = row.get::<_, Option<f64>>("boardOrder") {
+        if let Some(num) = val.and_then(json_number_from_f64) {
+            map.insert("boardOrder".to_string(), num);
         }
     }
     if let Ok(val) = row.get::<_, i64>("isFocusedToday") {
@@ -962,9 +977,9 @@ fn row_to_project_value(row: &rusqlite::Row<'_>) -> Result<Value, rusqlite::Erro
         "color".to_string(),
         Value::String(row.get::<_, String>("color")?),
     );
-    if let Ok(val) = row.get::<_, Option<i64>>("orderNum") {
-        if let Some(v) = val {
-            map.insert("order".to_string(), Value::Number(v.into()));
+    if let Ok(val) = row.get::<_, Option<f64>>("orderNum") {
+        if let Some(num) = val.and_then(json_number_from_f64) {
+            map.insert("order".to_string(), num);
         }
     }
     let tag_ids_raw: Option<String> = row.get("tagIds")?;
@@ -1057,9 +1072,9 @@ fn row_to_section_value(row: &rusqlite::Row<'_>) -> Result<Value, rusqlite::Erro
             map.insert("description".to_string(), Value::String(v));
         }
     }
-    if let Ok(val) = row.get::<_, Option<i64>>("orderNum") {
-        if let Some(v) = val {
-            map.insert("order".to_string(), Value::Number(v.into()));
+    if let Ok(val) = row.get::<_, Option<f64>>("orderNum") {
+        if let Some(num) = val.and_then(json_number_from_f64) {
+            map.insert("order".to_string(), num);
         }
     }
     if let Ok(val) = row.get::<_, i64>("isCollapsed") {
@@ -1201,9 +1216,9 @@ fn migrate_json_to_sqlite(conn: &mut Connection, data: &Value) -> Result<(), Str
                 task.get("sectionId").and_then(|v| v.as_str()),
                 task.get("areaId").and_then(|v| v.as_str()),
                 task.get("orderNum")
-                    .and_then(|v| v.as_i64())
-                    .or_else(|| task.get("order").and_then(|v| v.as_i64())),
-                task.get("boardOrder").and_then(|v| v.as_i64()),
+                    .and_then(|v| v.as_f64())
+                    .or_else(|| task.get("order").and_then(|v| v.as_f64())),
+                task.get("boardOrder").and_then(|v| v.as_f64()),
                 task.get("isFocusedToday").and_then(|v| v.as_bool()).unwrap_or(false) as i32,
                 task.get("timeEstimate").and_then(|v| v.as_str()),
                 task.get("suppressMindwtrReminders").and_then(|v| v.as_bool()).unwrap_or(false) as i32,
@@ -1247,7 +1262,7 @@ fn migrate_json_to_sqlite(conn: &mut Connection, data: &Value) -> Result<(), Str
                 project.get("title").and_then(|v| v.as_str()).unwrap_or_default(),
                 project.get("status").and_then(|v| v.as_str()).unwrap_or("active"),
                 project.get("color").and_then(|v| v.as_str()).unwrap_or("#6B7280"),
-                project.get("order").and_then(|v| v.as_i64()),
+                project.get("order").and_then(|v| v.as_f64()),
                 tag_ids_json,
                 project.get("isSequential").and_then(|v| v.as_bool()).unwrap_or(false) as i32,
                 project.get("sequentialScope").and_then(|v| v.as_str()),
@@ -1282,7 +1297,7 @@ fn migrate_json_to_sqlite(conn: &mut Connection, data: &Value) -> Result<(), Str
                 area.get("name").and_then(|v| v.as_str()).unwrap_or_default(),
                 area.get("color").and_then(|v| v.as_str()),
                 area.get("icon").and_then(|v| v.as_str()),
-                area.get("order").and_then(|v| v.as_i64()).unwrap_or(0),
+                area.get("order").and_then(|v| v.as_f64()).unwrap_or(0.0),
                 area.get("deletedAt").and_then(|v| v.as_str()),
                 area.get("deletedAtBeforeProjectArchive")
                     .and_then(|v| v.as_str()),
@@ -1309,7 +1324,7 @@ fn migrate_json_to_sqlite(conn: &mut Connection, data: &Value) -> Result<(), Str
                 section.get("projectId").and_then(|v| v.as_str()).unwrap_or_default(),
                 section.get("title").and_then(|v| v.as_str()).unwrap_or_default(),
                 section.get("description").and_then(|v| v.as_str()),
-                section.get("order").and_then(|v| v.as_i64()),
+                section.get("order").and_then(|v| v.as_f64()),
                 section.get("isCollapsed").and_then(|v| v.as_bool()).unwrap_or(false) as i32,
                 section.get("rev").and_then(|v| v.as_i64()),
                 section.get("revBy").and_then(|v| v.as_str()),
@@ -1414,10 +1429,9 @@ pub(crate) fn read_sqlite_data(conn: &Connection) -> Result<Value, String> {
                     map.insert("icon".to_string(), Value::String(v));
                 }
             }
-            map.insert(
-                "order".to_string(),
-                Value::Number((row.get::<_, i64>("orderNum")?).into()),
-            );
+            if let Some(num) = json_number_from_f64(row.get::<_, f64>("orderNum")?) {
+                map.insert("order".to_string(), num);
+            }
             if let Ok(val) = row.get::<_, Option<String>>("deletedAt") {
                 if let Some(v) = val {
                     map.insert("deletedAt".to_string(), Value::String(v));
@@ -2281,6 +2295,46 @@ mod tests {
         assert!(index_names
             .iter()
             .any(|name| name == "idx_tasks_assignedTo"));
+    }
+
+    #[test]
+    fn sqlite_round_trip_preserves_fractional_sort_orders() {
+        // Sparse reorders and other devices can produce fractional orders; binding
+        // them as i64 used to store NULL and drop the task to the bottom after the
+        // next sync reload (#784).
+        let conn = Connection::open_in_memory().expect("should open in-memory db");
+        conn.execute_batch(SQLITE_SCHEMA)
+            .expect("should create schema");
+        let task = serde_json::json!({
+            "id": "task-fractional-order",
+            "title": "Dragged task",
+            "status": "next",
+            "order": 1536.5,
+            "boardOrder": 12.25,
+            "createdAt": "2026-05-01T00:00:00.000Z",
+            "updatedAt": "2026-05-22T00:00:00.000Z"
+        });
+
+        upsert_task_row(&conn, &task).expect("should upsert task");
+        let round_tripped = read_sqlite_data(&conn).expect("should read sqlite data");
+        let task = round_tripped
+            .get("tasks")
+            .and_then(|value| value.as_array())
+            .and_then(|tasks| tasks.first())
+            .expect("should read task");
+
+        assert_eq!(
+            task.get("order").and_then(|v| v.as_f64()),
+            Some(1536.5)
+        );
+        assert_eq!(
+            task.get("orderNum").and_then(|v| v.as_f64()),
+            Some(1536.5)
+        );
+        assert_eq!(
+            task.get("boardOrder").and_then(|v| v.as_f64()),
+            Some(12.25)
+        );
     }
 
     #[test]

@@ -121,6 +121,52 @@ describe('reorderProjectTasks', () => {
         const saved = saveData.mock.calls.at(-1)?.[0] as AppData | undefined;
         expect(saved?.tasks.filter((task) => task.rev === 2).map((task) => task.id)).toEqual([movedId]);
     });
+
+    it('writes integer orders for sparse moves so integer-typed storage keeps them (#784)', async () => {
+        const tasks = seedProjectTasks(3).map((task, index) => ({
+            ...task,
+            order: [0, 5, 1024][index],
+            orderNum: [0, 5, 1024][index],
+        }));
+        useTaskStore.setState({
+            tasks,
+            _allTasks: tasks,
+            _tasksById: new Map(tasks.map((task) => [task.id, task])),
+        });
+
+        // task-2 dropped between orders 0 and 5: midpoint 2.5 must round to an integer.
+        await useTaskStore.getState().reorderProjectTasks(project.id, ['task-0', 'task-2', 'task-1']);
+
+        const moved = useTaskStore.getState()._allTasks.find((task) => task.id === 'task-2');
+        expect(moved?.order).toBe(2);
+        expect(Number.isInteger(moved?.order)).toBe(true);
+    });
+
+    it('rebalances to integer orders when no integer gap exists between neighbors', async () => {
+        const tasks = seedProjectTasks(3).map((task, index) => ({
+            ...task,
+            order: [3, 4, 1024][index],
+            orderNum: [3, 4, 1024][index],
+        }));
+        useTaskStore.setState({
+            tasks,
+            _allTasks: tasks,
+            _tasksById: new Map(tasks.map((task) => [task.id, task])),
+        });
+
+        // task-2 dropped between orders 3 and 4: no integer fits, so every task
+        // is renumbered instead of writing a fractional midpoint.
+        await useTaskStore.getState().reorderProjectTasks(project.id, ['task-0', 'task-2', 'task-1']);
+
+        const state = useTaskStore.getState()._allTasks;
+        for (const task of state) {
+            expect(Number.isInteger(task.order)).toBe(true);
+        }
+        const sortedIds = [...state]
+            .sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
+            .map((task) => task.id);
+        expect(sortedIds).toEqual(['task-0', 'task-2', 'task-1']);
+    });
 });
 
 describe('reorderProjects', () => {

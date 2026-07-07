@@ -2,7 +2,6 @@ import { buildSaveSnapshot, ensureDeviceId, getNextDataChangeAt, getTaskOrder, n
 import type { OrderingActions, Project, ProjectActionContext, Section, Task, TaskStatus } from './shared';
 
 const ORDER_STEP = 1024;
-const ORDER_EPSILON = 0.000001;
 
 type SparseOrderPlan =
     | { kind: 'single'; id: string; order: number }
@@ -68,13 +67,17 @@ const sparseOrderForMove = (
     const previousOrder = previousId ? finiteOrder(orderById.get(previousId)) : undefined;
     const nextOrder = nextId ? finiteOrder(orderById.get(nextId)) : undefined;
 
+    // Orders must stay integers: fractional midpoints don't survive integer-typed
+    // storage layers (desktop SQLite bound orderNum as i64, CloudKit stores INT64),
+    // where they degrade to NULL/truncation and the task jumps after a sync (#784).
     if (!previousId && !nextId) return finiteOrder(orderById.get(movedId)) ?? 0;
-    if (!previousId) return nextOrder === undefined ? 0 : nextOrder - ORDER_STEP;
+    if (!previousId) return nextOrder === undefined ? 0 : Math.floor(nextOrder) - ORDER_STEP;
     if (previousOrder === undefined) return null;
-    if (!nextId) return previousOrder + ORDER_STEP;
-    if (nextOrder === undefined) return previousOrder + ORDER_STEP;
-    if (nextOrder - previousOrder <= ORDER_EPSILON) return null;
-    return (previousOrder + nextOrder) / 2;
+    if (!nextId) return Math.floor(previousOrder) + ORDER_STEP;
+    if (nextOrder === undefined) return Math.floor(previousOrder) + ORDER_STEP;
+    const midpoint = Math.floor((previousOrder + nextOrder) / 2);
+    if (midpoint <= previousOrder || midpoint >= nextOrder) return null;
+    return midpoint;
 };
 
 const createSparseOrderPlan = (
