@@ -1,3 +1,7 @@
+// The fully-populated round-trip test fixtures exceed serde_json::json!'s
+// default macro recursion depth.
+#![recursion_limit = "256"]
+
 use base64::engine::general_purpose::URL_SAFE_NO_PAD;
 use base64::Engine;
 use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
@@ -272,6 +276,7 @@ CREATE TABLE IF NOT EXISTS tasks (
   boardOrder INTEGER,
   isFocusedToday INTEGER,
   timeEstimate TEXT,
+  timeSpentMinutes INTEGER,
   suppressMindwtrReminders INTEGER,
   repeatReminderMinutes INTEGER,
   reviewAt TEXT,

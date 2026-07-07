@@ -169,6 +169,7 @@ export const normalizeTaskForSyncMerge = (task: Task, nowIso: string): Task => {
         areaId: normalized.areaId,
         isFocusedToday: normalized.isFocusedToday === true,
         timeEstimate: normalized.timeEstimate,
+        timeSpentMinutes: normalized.timeSpentMinutes,
         showFutureRecurrence: hasRecurrence && normalized.showFutureRecurrence === true ? true : undefined,
         suppressMindwtrReminders: normalized.suppressMindwtrReminders === true,
         repeatReminderMinutes: normalized.repeatReminderMinutes,

@@ -52,6 +52,14 @@ describe('sync signatures', () => {
         expect(set15).not.toBe(undef);
     });
 
+    it('omits timeSpentMinutes from the task signature when zero, includes it when set', () => {
+        const undef = toComparableSignature(normalizeTaskForContentComparison(task()));
+        const zero = toComparableSignature(normalizeTaskForContentComparison(task({ timeSpentMinutes: 0 })));
+        const set75 = toComparableSignature(normalizeTaskForContentComparison(task({ timeSpentMinutes: 75 })));
+        expect(zero).toBe(undef);
+        expect(set75).not.toBe(undef);
+    });
+
     it('ignores unknown legacy task fields in content signatures', () => {
         const base = normalizeTaskForContentComparison(task());
         const withLegacyField = normalizeTaskForContentComparison({

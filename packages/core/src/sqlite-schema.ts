@@ -33,6 +33,7 @@ CREATE TABLE IF NOT EXISTS tasks (
   boardOrder INTEGER,
   isFocusedToday INTEGER,
   timeEstimate TEXT,
+  timeSpentMinutes INTEGER,
   suppressMindwtrReminders INTEGER,
   repeatReminderMinutes INTEGER,
   reviewAt TEXT,

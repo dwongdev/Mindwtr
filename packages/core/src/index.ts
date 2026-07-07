@@ -637,6 +637,12 @@ export {
 } from './schedule-utils';
 
 export {
+    addTimeSpentMinutes,
+    normalizeTimeSpentMinutes,
+    TIME_SPENT_MAX_MINUTES,
+} from './time-spent';
+
+export {
     getDailyDigestSummary,
 } from './digest-utils';
 export type {

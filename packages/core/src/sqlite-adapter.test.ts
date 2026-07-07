@@ -127,6 +127,7 @@ describeSqlite('SqliteAdapter', () => {
                     revBy: 'device-desktop',
                     boardOrder: 4,
                     repeatReminderMinutes: 30,
+                    timeSpentMinutes: 95,
                     tags: ['#docs', '#writing'],
                     contexts: ['@computer'],
                     recurrence: {
@@ -291,6 +292,7 @@ describeSqlite('SqliteAdapter', () => {
         expect(task.revBy).toBe('device-desktop');
         expect(task.boardOrder).toBe(4);
         expect(task.repeatReminderMinutes).toBe(30);
+        expect(task.timeSpentMinutes).toBe(95);
 
         const project = loaded.projects[0];
         expect(project.title).toBe('Mindwtr');
@@ -326,6 +328,7 @@ describeSqlite('SqliteAdapter', () => {
             .map((column) => column.name);
 
         expect(taskColumns).toContain('repeatReminderMinutes');
+        expect(taskColumns).toContain('timeSpentMinutes');
     });
 
     it('updates a single task row through saveTask while preserving unrelated data', async () => {

@@ -3,6 +3,7 @@ import {
     normalizeRecurrenceForLoad,
     normalizeRelativeStartOffset,
     normalizeRepeatReminderMinutes,
+    normalizeTimeSpentMinutes,
     searchAll,
     type Area,
     type AppData,
@@ -57,6 +58,14 @@ function validateTaskRepeatReminderMinutes(value: Record<string, unknown>): stri
     return 'Invalid task repeatReminderMinutes';
 }
 
+function validateTaskTimeSpentMinutes(value: Record<string, unknown>): string | null {
+    if (!hasOwnField(value, 'timeSpentMinutes')) return null;
+    const minutes = value.timeSpentMinutes;
+    if (minutes === undefined || minutes === null || minutes === 0) return null;
+    if (normalizeTimeSpentMinutes(minutes) === minutes) return null;
+    return 'Invalid task timeSpentMinutes';
+}
+
 function validateTaskRelativeStartOffset(value: Record<string, unknown>): string | null {
     if (!hasOwnField(value, 'relativeStartOffset')) return null;
     const offset = value.relativeStartOffset;
@@ -96,6 +105,7 @@ function validateTaskRecurrence(value: Record<string, unknown>): string | null {
 
 function validateTaskPropValues(value: Record<string, unknown>): string | null {
     return validateTaskRepeatReminderMinutes(value)
+        ?? validateTaskTimeSpentMinutes(value)
         ?? validateTaskRelativeStartOffset(value)
         ?? validateTaskRecurrence(value);
 }

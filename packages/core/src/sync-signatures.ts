@@ -120,6 +120,7 @@ export const normalizeTaskForContentComparison = (task: Task): Record<string, un
         areaId: task.areaId,
         isFocusedToday: task.isFocusedToday ? true : undefined,
         timeEstimate: task.timeEstimate,
+        timeSpentMinutes: task.timeSpentMinutes ? task.timeSpentMinutes : undefined,
         showFutureRecurrence: hasRecurrence && task.showFutureRecurrence ? true : undefined,
         suppressMindwtrReminders: task.suppressMindwtrReminders ? true : undefined,
         pushCount: task.pushCount === 0 ? undefined : task.pushCount,

@@ -31,6 +31,13 @@ describe('normalizeTaskForSyncMerge repeatReminderMinutes', () => {
         expect(task.repeatReminderMinutes).toBe(15);
     });
 
+    it('coerces an invalid timeSpentMinutes to undefined and preserves a valid one', () => {
+        const invalid = normalizeTaskForSyncMerge({ ...taskWith(15), timeSpentMinutes: -20 }, NOW);
+        expect(invalid.timeSpentMinutes).toBeUndefined();
+        const valid = normalizeTaskForSyncMerge({ ...taskWith(15), timeSpentMinutes: 75 }, NOW);
+        expect(valid.timeSpentMinutes).toBe(75);
+    });
+
     it('drops unknown legacy task fields', () => {
         const task = normalizeTaskForSyncMerge({
             ...taskWith(15),

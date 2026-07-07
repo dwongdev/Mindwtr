@@ -1,6 +1,7 @@
 import type { Task, TaskStatus } from './types';
 import { normalizeRecurrenceForLoad } from './recurrence';
 import { normalizeRepeatReminderMinutes } from './schedule-utils';
+import { normalizeTimeSpentMinutes } from './time-spent';
 import { normalizeRelativeStartOffset } from './task-relative-start';
 import { safeParseDate } from './date';
 
@@ -106,6 +107,7 @@ export function normalizeTaskForLoad(task: Task, nowIso: string = new Date().toI
         orderNum: normalizedOrder,
         recurrence: normalizeRecurrenceForLoad(task.recurrence),
         repeatReminderMinutes: normalizeRepeatReminderMinutes(task.repeatReminderMinutes),
+        timeSpentMinutes: normalizeTimeSpentMinutes(task.timeSpentMinutes),
         relativeStartOffset,
         rev,
         ...(revBy ? { revBy } : {}),
