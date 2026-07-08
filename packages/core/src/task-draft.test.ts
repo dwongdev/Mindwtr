@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { Task } from '@mindwtr/core';
+import type { Task } from './types';
 
 import {
     areDraftAttachmentsDirty,
@@ -89,6 +89,28 @@ describe('task-draft', () => {
             completedOccurrences: 3,
             rrule: 'FREQ=WEEKLY;BYDAY=MO;COUNT=5',
         });
+    });
+
+    it('keeps checklist data out of description patches', () => {
+        const withChecklist: Task = {
+            ...baseTask,
+            checklist: [
+                {
+                    id: 'check-1',
+                    text: 'Standalone checklist item',
+                    completed: false,
+                    createdAt: baseTask.createdAt,
+                    updatedAt: baseTask.updatedAt,
+                },
+            ],
+        };
+        const draft = createTaskDraft(withChecklist);
+        const patch = taskDraftToUpdatePatch(
+            { ...draft, description: '- [ ] Markdown text only' },
+            withChecklist,
+        );
+        expect(patch?.description).toBe('- [ ] Markdown text only');
+        expect(patch).not.toHaveProperty('checklist');
     });
 
     it('splits token fields and drops empties in the patch', () => {

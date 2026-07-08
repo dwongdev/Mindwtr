@@ -1,15 +1,17 @@
 import { useCallback, useMemo, useState, type Dispatch, type SetStateAction } from 'react';
-import type {
-    Attachment,
-    RecurrenceRule,
-    RecurrenceStrategy,
-    Task,
-    TaskEnergyLevel,
-    TaskPriority,
-    TaskStatus,
-    TimeEstimate,
+import {
+    createTaskDraft,
+    type Attachment,
+    type RecurrenceRule,
+    type RecurrenceStrategy,
+    type Task,
+    type TaskDraft,
+    type TaskDraftField,
+    type TaskEnergyLevel,
+    type TaskPriority,
+    type TaskStatus,
+    type TimeEstimate,
 } from '@mindwtr/core';
-import { createTaskDraft, type TaskDraft, type TaskDraftField } from './task-draft';
 
 type UseTaskItemEditStateOptions = {
     task: Task;

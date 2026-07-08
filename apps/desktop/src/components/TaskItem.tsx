@@ -19,6 +19,8 @@ import {
     resolveFocusStarAction,
     parseQuickAddDateCommands,
     useTaskStore,
+    areDraftAttachmentsDirty,
+    isTaskDraftDirty,
 } from '@mindwtr/core';
 import { cn } from '../lib/utils';
 import { useObsidianStore } from '../store/obsidian-store';
@@ -39,7 +41,6 @@ import { useTaskItemAttachments } from './Task/useTaskItemAttachments';
 import { useTaskItemRecurrence } from './Task/useTaskItemRecurrence';
 import { useTaskItemAi } from './Task/useTaskItemAi';
 import { useTaskItemEditState } from './Task/useTaskItemEditState';
-import { areDraftAttachmentsDirty, isTaskDraftDirty } from './Task/task-draft';
 import { useTaskItemProjectContext } from './Task/useTaskItemProjectContext';
 import { useTaskItemFieldLayout } from './Task/useTaskItemFieldLayout';
 import { useTaskItemSubmit } from './Task/useTaskItemSubmit';

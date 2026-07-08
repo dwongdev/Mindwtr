@@ -374,6 +374,22 @@ export type {
 } from './task-utils';
 
 export {
+    areDraftAttachmentsDirty,
+    createTaskDraft,
+    getTaskDraftRecurrenceRRuleValue,
+    getTaskDraftRecurrenceRuleValue,
+    getTaskDraftRecurrenceStrategyValue,
+    isTaskDraftDirty,
+    taskDraftToUpdatePatch,
+    toTaskDraftDateTimeLocalValue,
+    TASK_DRAFT_FIELD_KEYS,
+} from './task-draft';
+export type {
+    TaskDraft,
+    TaskDraftField,
+} from './task-draft';
+
+export {
     collectTaskTokenUsage,
     getFrequentTaskTokens,
     getFrequentTaskTokensFromUsage,

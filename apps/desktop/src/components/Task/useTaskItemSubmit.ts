@@ -1,6 +1,12 @@
 import { useCallback } from 'react';
-import type { Attachment, StoreActionResult, Task, TaskStatus } from '@mindwtr/core';
-import { taskDraftToUpdatePatch, type TaskDraft } from './task-draft';
+import {
+    taskDraftToUpdatePatch,
+    type Attachment,
+    type StoreActionResult,
+    type Task,
+    type TaskDraft,
+    type TaskStatus,
+} from '@mindwtr/core';
 
 type UseTaskItemSubmitParams = {
     draft: TaskDraft;

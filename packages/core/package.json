@@ -13,6 +13,7 @@
     "./sync-helpers": "./src/sync-helpers.ts",
     "./sync-service-utils": "./src/sync-service-utils.ts",
     "./task-utils": "./src/task-utils.ts",
+    "./task-draft": "./src/task-draft.ts",
     "./contexts": "./src/contexts.ts",
     "./i18n": "./src/i18n.ts",
     "./i18n-storage": "./src/i18n-storage.ts",
