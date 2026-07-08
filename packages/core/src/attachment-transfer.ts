@@ -58,6 +58,12 @@ export const reportProgress = (
     });
 };
 
+/**
+ * Collect the live attachment objects of non-deleted tasks and projects, keyed
+ * by id. The map holds the same object references that sit inside `appData` —
+ * callers that mutate them (see {@link runAttachmentTransferLifecycle}) must
+ * build the map from a cloned AppData.
+ */
 export const collectAttachmentsById = (appData: AppData): Map<string, Attachment> => {
     const attachmentsById = new Map<string, Attachment>();
     for (const task of appData.tasks) {
@@ -100,6 +106,17 @@ const defaultResolveLocalPath = (uri: string): string => {
     }
 };
 
+/**
+ * Reconcile each file attachment's local presence with its cloud state:
+ * refresh `localStatus`, upload local-only files, download cloud-only ones.
+ *
+ * Mutates the attachment objects in place (`localStatus`, and whatever the
+ * upload/download callbacks set, e.g. `cloudKey`). Because the SQLite adapter
+ * caches serialized task rows by task object identity, callers MUST pass
+ * attachments collected from a cloned AppData (`cloneAppData`/`structuredClone`)
+ * and persist that clone — mutating tasks already held by the store would make
+ * the row cache serve stale rows and silently skip persisting these changes.
+ */
 export async function runAttachmentTransferLifecycle(
     options: AttachmentTransferLifecycleOptions,
 ): Promise<boolean> {
