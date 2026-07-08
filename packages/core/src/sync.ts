@@ -44,6 +44,7 @@ import {
 import { purgeExpiredTombstones } from './sync-tombstones';
 import { nextRevision, SYNC_BACKUP_RESTORE_REV_BY } from './sync-revision';
 import { summarizeMergeStats } from './sync-log-utils';
+import { executeSyncCycle } from './sync-cycle';
 
 export type {
     ClockSkewDirection,
@@ -61,6 +62,8 @@ export type {
 export { CLOCK_SKEW_THRESHOLD_MS, DELETE_VS_LIVE_AMBIGUOUS_WINDOW_MS, SYNC_REPAIR_REV_BY } from './sync-types';
 export { normalizeAppData } from './sync-normalization';
 export { purgeExpiredTombstones } from './sync-tombstones';
+export { createSyncCycleExecutor, executeSyncCycle } from './sync-cycle';
+export type { SyncCycleExecutor, SyncCycleOperation } from './sync-cycle';
 
 export const appendSyncHistory = (
     settings: AppData['settings'] | undefined,
@@ -126,8 +129,6 @@ const PENDING_REMOTE_WRITE_MAX_ATTEMPTS = 12;
 const ATTACHMENT_URI_DECODE_LIMIT = 32;
 const ATTACHMENT_TRAVERSAL_SEGMENT_PATTERN = /(^|[\\/])\.\.([\\/]|$)/;
 const ATTACHMENT_TRAVERSAL_SEGMENT_CACHE_LIMIT = 1024;
-
-let syncCycleMutex: Promise<void> = Promise.resolve();
 
 type ComparisonNormalizer<T> = (item: T) => unknown;
 
@@ -1008,24 +1009,6 @@ const withPendingRemoteWriteRetry = (data: AppData, nowIso: string, error?: unkn
     };
 };
 
-const runWithSyncCycleMutex = async <Result>(operation: () => Promise<Result>): Promise<Result> => {
-    const previous = syncCycleMutex;
-    let release!: () => void;
-    const current = new Promise<void>((resolve) => {
-        release = resolve;
-    });
-    syncCycleMutex = current;
-    await previous.catch(() => undefined);
-    try {
-        return await operation();
-    } finally {
-        release();
-        if (syncCycleMutex === current) {
-            syncCycleMutex = Promise.resolve();
-        }
-    }
-};
-
 async function performSyncCycleUnlocked(io: SyncCycleIO): Promise<SyncCycleResult> {
     const nowIso = io.now ? io.now() : new Date().toISOString();
     const yieldToUi = async () => {
@@ -1243,5 +1226,5 @@ async function performSyncCycleUnlocked(io: SyncCycleIO): Promise<SyncCycleResul
 }
 
 export async function performSyncCycle(io: SyncCycleIO): Promise<SyncCycleResult> {
-    return runWithSyncCycleMutex(() => performSyncCycleUnlocked(io));
+    return executeSyncCycle(() => performSyncCycleUnlocked(io));
 }

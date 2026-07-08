@@ -191,6 +191,8 @@ export {
 export {
     appendSyncHistory,
     CLOCK_SKEW_THRESHOLD_MS,
+    createSyncCycleExecutor,
+    executeSyncCycle,
     mergeAppData,
     mergeAppDataWithStats,
     normalizeAppData,
@@ -207,6 +209,8 @@ export type {
     MergeResult,
     MergeStats,
     SyncCycleIO,
+    SyncCycleExecutor,
+    SyncCycleOperation,
     SyncCycleResult,
     SyncHistoryEntry,
     SyncStep,
