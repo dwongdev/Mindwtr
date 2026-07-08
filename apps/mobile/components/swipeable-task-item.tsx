@@ -25,6 +25,7 @@ import { presentProjectNextActionPrompt } from './project-next-action-prompt';
 import { SwipeableTaskItemContent } from './swipeable-task-item/SwipeableTaskItemContent';
 import { ProjectNextActionPromptModal } from './swipeable-task-item/ProjectNextActionPromptModal';
 import { SwipeableTaskItemStatusMenu } from './swipeable-task-item/SwipeableTaskItemStatusMenu';
+import { CompletedAtPicker } from './completed-at-picker';
 import { styles } from './swipeable-task-item/swipeable-task-item.styles';
 import { CompactText } from '@/components/compact-text';
 import { useSwipeableChecklist } from './swipeable-task-item/useSwipeableChecklist';
@@ -268,6 +269,30 @@ function SwipeableTaskItemInner({
                 showActionFailure(getUnknownErrorMessage(error));
             });
     }, [onStatusChange, openProjectNextActionPromptIfNeeded, showActionFailure, task.id, task.status]);
+
+    const [completedAtPicker, setCompletedAtPicker] = useState<null | 'complete' | 'edit'>(null);
+    const applyCompletedAt = useCallback((iso: string) => {
+        const mode = completedAtPicker;
+        setCompletedAtPicker(null);
+        if (!mode) return;
+        const updates: Partial<Task> = mode === 'complete'
+            ? { status: 'done', completedAt: iso }
+            : { completedAt: iso };
+        void Promise.resolve(updateTask(task.id, updates))
+            .then((result) => {
+                const failure = getActionFailureMessage(result);
+                if (failure) {
+                    showActionFailure(failure);
+                    return;
+                }
+                if (mode === 'complete' && task.status !== 'done') {
+                    openProjectNextActionPromptIfNeeded(task.id);
+                }
+            })
+            .catch((error) => {
+                showActionFailure(getUnknownErrorMessage(error));
+            });
+    }, [completedAtPicker, openProjectNextActionPromptIfNeeded, showActionFailure, task.id, task.status, updateTask]);
 
     const handlePromoteProjectNextAction = useCallback((nextTaskId: string) => {
         if (isProjectNextActionSubmitting) return;
@@ -519,6 +544,9 @@ function SwipeableTaskItemInner({
             localChecklist={localChecklist}
             onAccessibilityAction={handleAccessibilityAction}
             onContextPress={onContextPress}
+            onEditCompletedAt={(task.status === 'done' || task.status === 'archived') && !selectionMode
+                ? () => setCompletedAtPicker('edit')
+                : undefined}
             onLongPress={handleLongPress}
             onOpenStatusMenu={() => setShowStatusMenu(true)}
             onPress={handlePress}
@@ -569,10 +597,20 @@ function SwipeableTaskItemInner({
                 visible={showStatusMenu}
                 onClose={() => setShowStatusMenu(false)}
                 onStatusChange={handleStatusChange}
+                onBackdatedComplete={task.status === 'done' ? undefined : () => setCompletedAtPicker('complete')}
                 taskStatus={task.status}
                 tc={tc}
                 t={t}
             />
+            {completedAtPicker ? (
+                <CompletedAtPicker
+                    initialValue={completedAtPicker === 'edit' ? (task.completedAt || task.updatedAt) : undefined}
+                    onCancel={() => setCompletedAtPicker(null)}
+                    onConfirm={applyCompletedAt}
+                    t={t}
+                    tc={tc}
+                />
+            ) : null}
             {projectNextActionPrompt ? (
                 <ProjectNextActionPromptModal
                     visible={Boolean(projectNextActionPrompt)}

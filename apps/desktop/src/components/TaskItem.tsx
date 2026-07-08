@@ -31,6 +31,7 @@ import { TaskItemEditorSurface } from './Task/TaskItemEditorSurface';
 import { TaskItemFieldRenderer } from './Task/TaskItemFieldRenderer';
 import { TaskItemOverlays } from './Task/TaskItemOverlays';
 import { ProjectNextActionPrompt } from './Task/ProjectNextActionPrompt';
+import { PromptModal } from './PromptModal';
 import { TaskQuickActionMenu } from './Task/TaskQuickActionMenu';
 import {
     getRecurrenceRuleValue,
@@ -284,6 +285,7 @@ export const TaskItem = memo(function TaskItem({
     });
     const [showDiscardConfirm, setShowDiscardConfirm] = useState(false);
     const [showWaitingAssignmentPrompt, setShowWaitingAssignmentPrompt] = useState(false);
+    const [completedAtPrompt, setCompletedAtPrompt] = useState<null | 'complete' | 'edit'>(null);
     const [projectNextActionPrompt, setProjectNextActionPrompt] = useState<ProjectNextActionPromptState | null>(null);
     const [projectNextActionTitle, setProjectNextActionTitle] = useState('');
     const prioritiesEnabled = settings?.features?.priorities !== false;
@@ -1001,6 +1003,38 @@ export const TaskItem = memo(function TaskItem({
         undoLabel,
         undoNotificationsEnabled,
     ]);
+    const requestBackdatedComplete = useCallback(() => setCompletedAtPrompt('complete'), []);
+    const requestEditCompletedAt = useCallback(() => setCompletedAtPrompt('edit'), []);
+    const closeCompletedAtPrompt = useCallback(() => setCompletedAtPrompt(null), []);
+    const applyCompletedAtPrompt = useCallback((value: string) => {
+        const mode = completedAtPrompt;
+        setCompletedAtPrompt(null);
+        const parsed = new Date(value);
+        if (!mode || Number.isNaN(parsed.getTime())) return;
+        const completedAt = parsed.toISOString();
+        if (mode === 'complete') {
+            const previousStatus = task.status;
+            const wasFocusedToday = task.isFocusedToday === true;
+            void updateTask(task.id, { status: 'done', completedAt })
+                .then((result) => {
+                    if (!result.success) {
+                        throw new Error(result.error || 'Failed to complete task');
+                    }
+                    if (previousStatus !== 'done') {
+                        handleTaskCompleted(previousStatus, wasFocusedToday);
+                    }
+                })
+                .catch((error) => reportError('Failed to complete task', error));
+            return;
+        }
+        void updateTask(task.id, { completedAt })
+            .then((result) => {
+                if (!result.success) {
+                    throw new Error(result.error || 'Failed to update completion time');
+                }
+            })
+            .catch((error) => reportError('Failed to update completion time', error));
+    }, [completedAtPrompt, handleTaskCompleted, task.id, task.isFocusedToday, task.status, updateTask]);
     const handleStatusChange = useCallback((nextStatus: TaskStatus) => {
         if (nextStatus === 'waiting' && task.status !== 'waiting') {
             setShowWaitingAssignmentPrompt(true);
@@ -1312,6 +1346,8 @@ export const TaskItem = memo(function TaskItem({
         onDelete: handleDeleteTask,
         onDuplicate: handleDuplicateTask,
         onStatusChange: handleStatusChange,
+        onRequestBackdatedComplete: requestBackdatedComplete,
+        onEditCompletedAt: requestEditCompletedAt,
         onOpenQuickActions: handleOpenQuickActionButton,
         onOpenProject: project ? handleOpenProject : undefined,
         onOpenContextToken: handleOpenContextToken,
@@ -1332,6 +1368,8 @@ export const TaskItem = memo(function TaskItem({
         openAttachment,
         pomodoroQuickStart,
         project,
+        requestBackdatedComplete,
+        requestEditCompletedAt,
         startEditing,
         task.id,
         toggleTaskExpanded,
@@ -1528,6 +1566,22 @@ export const TaskItem = memo(function TaskItem({
                 textLoading={textLoading}
                 weekdayLabels={recurrenceWeekdayLabels}
             />
+            {completedAtPrompt && (
+                <PromptModal
+                    isOpen
+                    title={tFallback(t, 'task.completedAtPromptTitle', 'Completion time')}
+                    defaultValue={toDateTimeLocalValue(
+                        completedAtPrompt === 'edit'
+                            ? (task.completedAt || task.updatedAt)
+                            : new Date().toISOString()
+                    )}
+                    inputType="datetime-local"
+                    confirmLabel={t('common.save')}
+                    cancelLabel={t('common.cancel')}
+                    onCancel={closeCompletedAtPrompt}
+                    onConfirm={applyCompletedAtPrompt}
+                />
+            )}
         </>
     );
 });

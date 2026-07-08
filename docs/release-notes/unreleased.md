@@ -11,6 +11,7 @@ Changes collected after `v1.0.5` and before the next version tag.
 
 ## Full Change List
 
+- feat(tasks): adjust a task's completion timestamp — tap or click the Completed time in Done/Archived views to correct it, or right-click Done (desktop) / long-press Done in the status menu (mobile) to complete a task as of an earlier time; backdated completions anchor "repeat after completion" recurrence to the actual completion time.
 - feat(review): surface stale tasks and projects as a Weekly Review step without requiring AI, and add a "Review in 1 week" action beside "Mark reviewed".
 - feat(tasks): render Markdown consistently in description displays — desktop rows show a rendered first-line preview, and mobile Trash/Archived previews no longer show raw Markdown source.
 - fix(mobile): keep the task description field visible when the Android keyboard opens.

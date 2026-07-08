@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useMemo, useCallback, useState } from 'react';
 import { View, Text, FlatList, Pressable, StyleSheet, Alert } from 'react-native';
-import { getInlineMarkdownPreview, safeFormatDate, shallow, useTaskStore } from '@mindwtr/core';
+import { getInlineMarkdownPreview, safeFormatDate, shallow, taskMatchesAreaFilter, tFallback, useTaskStore } from '@mindwtr/core';
 import type { Task } from '@mindwtr/core';
 import { MarkdownInlineText } from '@/components/markdown-text';
 import { useLanguage } from '../../contexts/language-context';
@@ -8,9 +8,9 @@ import { useLanguage } from '../../contexts/language-context';
 import { useMobileAreaFilter } from '@/hooks/use-mobile-area-filter';
 import { useThemeColors } from '@/hooks/use-theme-colors';
 import type { ThemeColors } from '@/hooks/use-theme-colors';
-import { taskMatchesAreaFilter } from '@mindwtr/core';
 import { openContextsScreen, openProjectScreen } from '@/lib/task-meta-navigation';
 import { TaskEditModal } from '@/components/task-edit-modal';
+import { CompletedAtPicker } from '@/components/completed-at-picker';
 import { Swipeable, GestureHandlerRootView } from 'react-native-gesture-handler';
 import { Archive } from 'lucide-react-native';
 
@@ -20,7 +20,9 @@ function ArchivedTaskItem({
     onOpen,
     onRestore,
     onDelete,
+    onEditCompletedAt,
     completedLabel,
+    editCompletedAtLabel,
     isHighlighted
 }: {
     task: Task;
@@ -28,7 +30,9 @@ function ArchivedTaskItem({
     onOpen: () => void;
     onRestore: () => void;
     onDelete: () => void;
+    onEditCompletedAt: () => void;
     completedLabel: string;
+    editCompletedAtLabel: string;
     isHighlighted?: boolean;
 }) {
     const swipeableRef = useRef<Swipeable>(null);
@@ -92,9 +96,20 @@ function ArchivedTaskItem({
                             numberOfLines={1}
                         />
                     )}
-                    <Text style={[styles.archivedDate, { color: tc.secondaryText }]}>
-                        {completedLabel}: {completionDateLabel}
-                    </Text>
+                    <Pressable
+                        onPress={(event) => {
+                            event.stopPropagation();
+                            onEditCompletedAt();
+                        }}
+                        hitSlop={6}
+                        accessibilityRole="button"
+                        accessibilityLabel={editCompletedAtLabel}
+                        style={styles.archivedDateButton}
+                    >
+                        <Text style={[styles.archivedDate, { color: tc.secondaryText }]}>
+                            {completedLabel}: {completionDateLabel}
+                        </Text>
+                    </Pressable>
                 </View>
                 <View style={[styles.statusIndicator, { backgroundColor: '#6B7280' }]} />
             </Pressable>
@@ -169,6 +184,18 @@ export default function ArchivedScreen() {
         updateTask(taskId, { status: 'inbox' });
     }, [updateTask]);
 
+    const [completedAtTaskId, setCompletedAtTaskId] = useState<string | null>(null);
+    const completedAtTask = useMemo(
+        () => completedAtTaskId ? _allTasks.find((task) => task.id === completedAtTaskId) ?? null : null,
+        [_allTasks, completedAtTaskId],
+    );
+    const applyCompletedAt = useCallback((iso: string) => {
+        const taskId = completedAtTaskId;
+        setCompletedAtTaskId(null);
+        if (!taskId) return;
+        updateTask(taskId, { completedAt: iso });
+    }, [completedAtTaskId, updateTask]);
+
     const handleDelete = useCallback((taskId: string) => {
         Alert.alert(
             'Delete Permanently?',
@@ -191,7 +218,9 @@ export default function ArchivedScreen() {
             onOpen={() => handleOpenTask(item.id)}
             onRestore={() => handleRestore(item.id)}
             onDelete={() => handleDelete(item.id)}
+            onEditCompletedAt={() => setCompletedAtTaskId(item.id)}
             completedLabel={t('list.done') || 'Completed'}
+            editCompletedAtLabel={tFallback(t, 'task.editCompletedAt', 'Edit completion time')}
             isHighlighted={item.id === highlightTaskId}
         />
     ), [tc, handleDelete, handleOpenTask, handleRestore, highlightTaskId, t]);
@@ -244,6 +273,15 @@ export default function ArchivedScreen() {
                     onContextNavigate={openContextsScreen}
                     onTagNavigate={openContextsScreen}
                 />
+                {completedAtTask ? (
+                    <CompletedAtPicker
+                        initialValue={completedAtTask.completedAt || completedAtTask.updatedAt}
+                        onCancel={() => setCompletedAtTaskId(null)}
+                        onConfirm={applyCompletedAt}
+                        t={t}
+                        tc={tc}
+                    />
+                ) : null}
             </View>
         </GestureHandlerRootView>
     );
@@ -301,6 +339,9 @@ const styles = StyleSheet.create({
     archivedDate: {
         fontSize: 12,
         fontStyle: 'italic',
+    },
+    archivedDateButton: {
+        alignSelf: 'flex-start',
     },
     statusIndicator: {
         width: 4,

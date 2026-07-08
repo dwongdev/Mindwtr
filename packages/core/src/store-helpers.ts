@@ -6,6 +6,7 @@ import {
 } from './task-token-usage';
 import { resolveRelativeStartUpdates } from './task-relative-start';
 import { rescheduleTask } from './task-utils';
+import { safeParseDate } from './date';
 import { filterNotDeleted } from './sync-helpers';
 import { nextRevision, normalizeRevision } from './sync-revision';
 import type { AiSettings, AppData, Area, Person, Project, Section, Task, TaskStatus } from './types';
@@ -63,19 +64,27 @@ export function applyTaskUpdates(oldTask: Task, updates: Partial<Task>, now: str
     let nextRecurringTask: Task | null = null;
     const isCompleteStatus = (status: TaskStatus) => status === 'done' || status === 'archived';
 
+    // A caller-supplied completedAt backdates the completion (e.g. "I actually
+    // finished this yesterday") and must also anchor after-completion recurrence,
+    // because the next instance is spawned here and never recomputed later.
+    const explicitCompletedAt = typeof updates.completedAt === 'string' && safeParseDate(updates.completedAt)
+        ? updates.completedAt
+        : undefined;
+
     if (statusChanged && incomingStatus === 'done') {
+        const completedAt = explicitCompletedAt ?? now;
         finalUpdates = {
             ...updatesToApply,
             status: incomingStatus,
-            completedAt: now,
+            completedAt,
             isFocusedToday: false,
         };
-        nextRecurringTask = createNextRecurringTask(oldTask, now, oldTask.status);
+        nextRecurringTask = createNextRecurringTask(oldTask, completedAt, oldTask.status);
     } else if (statusChanged && incomingStatus === 'archived') {
         finalUpdates = {
             ...updatesToApply,
             status: incomingStatus,
-            completedAt: oldTask.completedAt || now,
+            completedAt: explicitCompletedAt ?? (oldTask.completedAt || now),
             isFocusedToday: false,
         };
     } else if (statusChanged && isCompleteStatus(oldTask.status) && !isCompleteStatus(incomingStatus)) {

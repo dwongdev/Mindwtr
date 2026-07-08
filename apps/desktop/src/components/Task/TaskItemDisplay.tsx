@@ -22,6 +22,8 @@ interface TaskItemDisplayActions {
     onDelete: () => void;
     onDuplicate: () => void;
     onStatusChange: (status: TaskStatus) => void;
+    onRequestBackdatedComplete?: () => void;
+    onEditCompletedAt?: () => void;
     onOpenQuickActions?: (event: MouseEvent<HTMLButtonElement>) => void;
     onOpenProject?: (projectId: string) => void;
     onOpenContextToken?: (token: string) => void;
@@ -131,6 +133,8 @@ export const TaskItemDisplay = memo(function TaskItemDisplay({
         onDelete,
         onDuplicate,
         onStatusChange,
+        onRequestBackdatedComplete,
+        onEditCompletedAt,
         onOpenQuickActions,
         onOpenProject,
         onOpenContextToken,
@@ -366,12 +370,28 @@ export const TaskItemDisplay = memo(function TaskItemDisplay({
         && task.status !== 'reference';
     const renderCompletionMetadataBadge = () => {
         if (!completionLabel) return null;
-        return (
+        const badge = (
             <MetadataBadge
                 variant="info"
                 icon={Check}
                 label={`${tFallback(t, 'list.done', 'Completed')}: ${completionLabel}`}
             />
+        );
+        if (!onEditCompletedAt || readOnly || selectionMode) return badge;
+        const editCompletedAtLabel = tFallback(t, 'task.editCompletedAt', 'Edit completion time');
+        return (
+            <button
+                type="button"
+                onClick={(event) => {
+                    event.stopPropagation();
+                    onEditCompletedAt();
+                }}
+                title={editCompletedAtLabel}
+                aria-label={editCompletedAtLabel}
+                className="rounded focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 hover:opacity-80 transition-opacity"
+            >
+                {badge}
+            </button>
         );
     };
     const renderProjectDeadlineMetadataBadge = () => {
@@ -530,6 +550,7 @@ export const TaskItemDisplay = memo(function TaskItemDisplay({
     // Waiting/Someday tasks promote to Next instead of completing — the natural
     // transition when an item unblocks, matching the mobile swipe action.
     const quickActionIsPromote = task.status === 'waiting' || task.status === 'someday';
+    const canBackdateComplete = !quickActionIsPromote && Boolean(onRequestBackdatedComplete);
     const quickDoneButton = (
         <button
             type="button"
@@ -537,6 +558,14 @@ export const TaskItemDisplay = memo(function TaskItemDisplay({
                 event.stopPropagation();
                 onStatusChange(quickActionIsPromote ? 'next' : 'done');
             }}
+            onContextMenu={canBackdateComplete ? (event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                onRequestBackdatedComplete?.();
+            } : undefined}
+            title={canBackdateComplete
+                ? tFallback(t, 'task.completeBackdateHint', 'Right-click to complete with a different time')
+                : undefined}
             aria-label={quickActionIsPromote ? t('status.next') : t('status.done')}
             className={cn(
                 quickActionIsPromote

@@ -1,11 +1,13 @@
 import React from 'react';
 import { Modal, Pressable, Text, View } from 'react-native';
-import { TaskStatus } from '@mindwtr/core';
+import { TaskStatus, tFallback } from '@mindwtr/core';
 import type { ThemeColors } from '../../hooks/use-theme-colors';
 import { useStatusColors } from '../../hooks/use-status-colors';
 import { styles } from './swipeable-task-item.styles';
 
 interface SwipeableTaskItemStatusMenuProps {
+    /** Long-press on the Done option completes the task with a picked timestamp. */
+    onBackdatedComplete?: () => void;
     onClose: () => void;
     onStatusChange: (status: TaskStatus) => void;
     taskStatus: TaskStatus;
@@ -17,6 +19,7 @@ interface SwipeableTaskItemStatusMenuProps {
 const QUICK_STATUS_OPTIONS: TaskStatus[] = ['inbox', 'next', 'waiting', 'someday', 'done', 'reference'];
 
 export function SwipeableTaskItemStatusMenu({
+    onBackdatedComplete,
     onClose,
     onStatusChange,
     taskStatus,
@@ -53,8 +56,15 @@ export function SwipeableTaskItemStatusMenu({
                                         onStatusChange(status);
                                         onClose();
                                     }}
+                                    onLongPress={status === 'done' && onBackdatedComplete ? () => {
+                                        onBackdatedComplete();
+                                        onClose();
+                                    } : undefined}
                                     accessibilityRole="button"
                                     accessibilityLabel={t(`status.${status}`)}
+                                    accessibilityHint={status === 'done' && onBackdatedComplete
+                                        ? tFallback(t, 'task.completeBackdateHintMobile', 'Long-press to complete with a different time')
+                                        : undefined}
                                     accessibilityState={{ selected: taskStatus === status }}
                                 >
                                     <View style={[styles.menuDot, { backgroundColor: colors.text }]} />

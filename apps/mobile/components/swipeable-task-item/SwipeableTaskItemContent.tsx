@@ -44,6 +44,7 @@ interface SwipeableTaskItemContentProps {
     interactionDisabled?: boolean;
     onAccessibilityAction: (event: { nativeEvent: { actionName: string } }) => void;
     onContextPress?: (context: string) => void;
+    onEditCompletedAt?: () => void;
     onLongPress: () => void;
     onOpenStatusMenu: () => void;
     onPress: () => void;
@@ -85,6 +86,7 @@ export function SwipeableTaskItemContent({
     localChecklist,
     onAccessibilityAction,
     onContextPress,
+    onEditCompletedAt,
     onLongPress,
     onOpenStatusMenu,
     onPress,
@@ -301,12 +303,18 @@ export function SwipeableTaskItemContent({
 
     if (completionLabel) {
         addMetaPart(
-            <CompactText
-                key="completed"
-                style={[styles.metaText, { color: tc.secondaryText }]}
-            >
-                {`${t('list.done') || 'Completed'}: ${completionLabel}`}
-            </CompactText>,
+            renderMetaItem({
+                key: 'completed',
+                onPress: canNavigateMeta && onEditCompletedAt ? onEditCompletedAt : undefined,
+                accessibilityLabel: tFallback(t, 'task.editCompletedAt', 'Edit completion time'),
+                children: (
+                    <CompactText
+                        style={[styles.metaText, { color: tc.secondaryText }]}
+                    >
+                        {`${t('list.done') || 'Completed'}: ${completionLabel}`}
+                    </CompactText>
+                ),
+            }),
             'completed'
         );
     }

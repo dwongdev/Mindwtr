@@ -49,6 +49,12 @@ vi.mock('@mindwtr/core', () => ({
   getInlineMarkdownPreview: vi.fn((markdown: string) => (markdown || '').split('\n')[0] ?? ''),
   safeFormatDate: vi.fn(() => 'May 12, 2026, 8:30 AM'),
   taskMatchesAreaFilter: vi.fn(() => true),
+  tFallback: (t: (key: string) => string, key: string, fallback: string) => t(key) || fallback,
+}));
+
+vi.mock('@react-native-community/datetimepicker', () => ({
+  __esModule: true,
+  default: () => null,
 }));
 
 vi.mock('@/components/markdown-text', () => ({

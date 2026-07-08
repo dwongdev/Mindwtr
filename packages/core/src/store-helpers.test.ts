@@ -570,3 +570,78 @@ describe('derived store state helpers', () => {
         expect([...derived.sequentialWithinSectionProjectIds]).toEqual(['section-wide']);
     });
 });
+
+describe('completion timestamp updates', () => {
+    const now = '2026-07-08T10:00:00.000Z';
+
+    it('uses a caller-supplied completedAt when completing a task', () => {
+        const task = createTask('t1', undefined, 0, { status: 'next' });
+        const { updatedTask } = applyTaskUpdates(
+            task,
+            { status: 'done', completedAt: '2026-07-07T18:00:00.000Z' },
+            now
+        );
+        expect(updatedTask.completedAt).toBe('2026-07-07T18:00:00.000Z');
+        expect(updatedTask.status).toBe('done');
+    });
+
+    it('falls back to now when the supplied completedAt is invalid', () => {
+        const task = createTask('t2', undefined, 0, { status: 'next' });
+        const { updatedTask } = applyTaskUpdates(
+            task,
+            { status: 'done', completedAt: 'not-a-date' },
+            now
+        );
+        expect(updatedTask.completedAt).toBe(now);
+    });
+
+    it('anchors after-completion recurrence to the backdated completion time', () => {
+        const task = createTask('t3', undefined, 0, {
+            status: 'next',
+            dueDate: '2026-07-01',
+            recurrence: { rule: 'weekly', strategy: 'fluid' },
+        });
+        const { nextRecurringTask } = applyTaskUpdates(
+            task,
+            { status: 'done', completedAt: '2026-07-04T09:00:00.000Z' },
+            now
+        );
+        // Fluid weekly: next due = completed date + 7 days, not click date + 7.
+        expect(nextRecurringTask?.dueDate).toBe('2026-07-11');
+    });
+
+    it('keeps click-time anchoring when no completedAt is supplied', () => {
+        const task = createTask('t4', undefined, 0, {
+            status: 'next',
+            dueDate: '2026-07-01',
+            recurrence: { rule: 'weekly', strategy: 'fluid' },
+        });
+        const { nextRecurringTask } = applyTaskUpdates(task, { status: 'done' }, now);
+        expect(nextRecurringTask?.dueDate).toBe('2026-07-15');
+    });
+
+    it('uses a caller-supplied completedAt when archiving a task', () => {
+        const task = createTask('t5', undefined, 0, { status: 'next' });
+        const { updatedTask } = applyTaskUpdates(
+            task,
+            { status: 'archived', completedAt: '2026-07-06T08:00:00.000Z' },
+            now
+        );
+        expect(updatedTask.completedAt).toBe('2026-07-06T08:00:00.000Z');
+    });
+
+    it('passes completedAt edits through on an already-done task', () => {
+        const task = createTask('t6', undefined, 0, {
+            status: 'done',
+            completedAt: '2026-07-08T09:00:00.000Z',
+        });
+        const { updatedTask, nextRecurringTask } = applyTaskUpdates(
+            task,
+            { completedAt: '2026-07-05T12:00:00.000Z' },
+            now
+        );
+        expect(updatedTask.completedAt).toBe('2026-07-05T12:00:00.000Z');
+        expect(updatedTask.status).toBe('done');
+        expect(nextRecurringTask).toBeNull();
+    });
+});

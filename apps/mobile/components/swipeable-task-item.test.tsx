@@ -221,6 +221,11 @@ vi.mock('expo-linking', () => ({
   openURL: vi.fn(),
 }));
 
+vi.mock('@react-native-community/datetimepicker', () => ({
+  __esModule: true,
+  default: () => null,
+}));
+
 vi.mock('expo-clipboard', () => ({
   setStringAsync: vi.fn(async () => {}),
 }));
