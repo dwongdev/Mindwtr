@@ -35,6 +35,7 @@ type Labels = {
     obsidianEnable: string;
     obsidianVaultPath: string;
     obsidianVaultPathHint: string;
+    obsidianDetectedVaults: string;
     obsidianScanFolders: string;
     obsidianScanFoldersHint: string;
     obsidianInboxFile: string;

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { safeFormatDate } from '@mindwtr/core';
 import { ChevronDown, ChevronRight, ExternalLink } from 'lucide-react';
 
@@ -6,10 +6,16 @@ import { cn } from '../../../lib/utils';
 
 const OBSIDIAN_INTEGRATION_GUIDE_URL = 'https://docs.mindwtr.app/power-users/obsidian';
 
+type DetectedObsidianVault = {
+    name: string;
+    path: string;
+};
+
 type Labels = {
     obsidianVault: string;
     obsidianVaultDesc: string;
     obsidianEnable: string;
+    obsidianDetectedVaults: string;
     obsidianVaultPath: string;
     obsidianVaultPathHint: string;
     obsidianScanFolders: string;
@@ -101,6 +107,27 @@ export function SettingsObsidianSection({
     onRescanObsidian,
 }: SettingsObsidianSectionProps) {
     const [open, setOpen] = useState(false);
+    const [detectedVaults, setDetectedVaults] = useState<DetectedObsidianVault[]>([]);
+
+    useEffect(() => {
+        // Obsidian publishes its vault registry, so known vaults are offered
+        // one-click instead of making everyone browse the filesystem.
+        if (!open || !isTauri) return;
+        let cancelled = false;
+        (async () => {
+            try {
+                const { invoke } = await import('@tauri-apps/api/core');
+                const vaults = await invoke<DetectedObsidianVault[]>('list_obsidian_vaults');
+                if (!cancelled) setDetectedVaults(Array.isArray(vaults) ? vaults : []);
+            } catch {
+                if (!cancelled) setDetectedVaults([]);
+            }
+        })();
+        return () => {
+            cancelled = true;
+        };
+    }, [open, isTauri]);
+    const selectableVaults = detectedVaults.filter((vault) => vault.path !== obsidianVaultPath);
 
     return (
         <div className="bg-card border border-border rounded-lg">
@@ -167,6 +194,22 @@ export function SettingsObsidianSection({
                                 {t.browse}
                             </button>
                         </div>
+                        {selectableVaults.length > 0 && (
+                            <div className="flex flex-wrap items-center gap-2">
+                                <span className="text-xs text-muted-foreground">{t.obsidianDetectedVaults}</span>
+                                {selectableVaults.map((vault) => (
+                                    <button
+                                        key={vault.path}
+                                        type="button"
+                                        title={vault.path}
+                                        onClick={() => onObsidianVaultPathChange(vault.path)}
+                                        className="text-xs px-2.5 py-1 rounded-full border border-border bg-muted/50 text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+                                    >
+                                        {vault.name}
+                                    </button>
+                                ))}
+                            </div>
+                        )}
                         <p className="text-xs text-muted-foreground">{t.obsidianVaultPathHint}</p>
                         {obsidianVaultWarning && (
                             <p className="text-xs text-amber-600">

@@ -832,6 +832,74 @@ pub(crate) fn expand_obsidian_vault_scope(
     Ok(true)
 }
 
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct DetectedObsidianVault {
+    name: String,
+    path: String,
+}
+
+fn obsidian_registry_paths() -> Vec<PathBuf> {
+    let mut paths = Vec::new();
+    // Obsidian keeps a registry of every vault it has opened in
+    // <config-dir>/obsidian/obsidian.json on all three platforms.
+    if let Some(config_dir) = dirs::config_dir() {
+        paths.push(config_dir.join("obsidian").join("obsidian.json"));
+    }
+    #[cfg(target_os = "linux")]
+    {
+        if let Some(home) = dirs::home_dir() {
+            // Flatpak-packaged Obsidian keeps its config inside the sandbox home.
+            paths.push(home.join(".var/app/md.obsidian.Obsidian/config/obsidian/obsidian.json"));
+        }
+    }
+    paths
+}
+
+pub(crate) fn parse_obsidian_vault_registry(contents: &str) -> Vec<String> {
+    let Ok(value) = serde_json::from_str::<Value>(contents) else {
+        return Vec::new();
+    };
+    let Some(vaults) = value.get("vaults").and_then(|entry| entry.as_object()) else {
+        return Vec::new();
+    };
+    let mut paths: Vec<String> = vaults
+        .values()
+        .filter_map(|vault| vault.get("path").and_then(|path| path.as_str()))
+        .map(str::to_string)
+        .collect();
+    paths.sort();
+    paths.dedup();
+    paths
+}
+
+#[tauri::command]
+pub(crate) fn list_obsidian_vaults() -> Vec<DetectedObsidianVault> {
+    let mut vaults = Vec::new();
+    let mut seen = std::collections::HashSet::new();
+    for registry in obsidian_registry_paths() {
+        let Ok(contents) = fs::read_to_string(&registry) else {
+            continue;
+        };
+        for path in parse_obsidian_vault_registry(&contents) {
+            if !seen.insert(path.clone()) {
+                continue;
+            }
+            // The registry can hold stale entries; only offer vaults that still exist.
+            if !Path::new(&path).is_dir() {
+                continue;
+            }
+            let name = Path::new(&path)
+                .file_name()
+                .and_then(|value| value.to_str())
+                .unwrap_or(path.as_str())
+                .to_string();
+            vaults.push(DetectedObsidianVault { name, path });
+        }
+    }
+    vaults
+}
+
 #[tauri::command]
 pub(crate) fn check_obsidian_vault_marker(vault_path: String) -> Result<bool, String> {
     let trimmed = vault_path.trim();
@@ -1104,5 +1172,25 @@ mod tests {
         assert!(!is_valid_calendar_url("file://agenda.ics"));
         assert!(!is_valid_calendar_url("file:///tmp/agenda.txt"));
         assert!(!is_valid_calendar_url("file:///tmp/bad%ZZ.ics"));
+    }
+
+    #[test]
+    fn parses_obsidian_vault_registry_paths() {
+        let registry = r#"{
+            "vaults": {
+                "a1b2": { "path": "/home/user/Vaults/Notes", "ts": 1, "open": true },
+                "c3d4": { "path": "/home/user/Vaults/Work", "ts": 2 },
+                "dupe": { "path": "/home/user/Vaults/Notes", "ts": 3 }
+            }
+        }"#;
+        assert_eq!(
+            super::parse_obsidian_vault_registry(registry),
+            vec![
+                "/home/user/Vaults/Notes".to_string(),
+                "/home/user/Vaults/Work".to_string(),
+            ]
+        );
+        assert!(super::parse_obsidian_vault_registry("not json").is_empty());
+        assert!(super::parse_obsidian_vault_registry("{}").is_empty());
     }
 }

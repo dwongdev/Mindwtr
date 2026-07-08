@@ -68,8 +68,8 @@ use autostart::{get_launch_at_startup_enabled, set_launch_at_startup_enabled};
 use config::{
     check_obsidian_vault_marker, expand_external_calendar_file_scopes, expand_obsidian_vault_scope,
     get_ai_key, get_cloud_config, get_external_calendars, get_obsidian_config, get_sync_backend,
-    get_webdav_config, get_webdav_password, set_ai_key, set_cloud_config, set_external_calendars,
-    set_obsidian_config, set_sync_backend, set_webdav_config,
+    get_webdav_config, get_webdav_password, list_obsidian_vaults, set_ai_key, set_cloud_config,
+    set_external_calendars, set_obsidian_config, set_sync_backend, set_webdav_config,
 };
 use install::{
     check_microsoft_store_update, diagnostics_enabled, get_install_source, get_linux_distro,
@@ -1492,6 +1492,7 @@ pub fn run() {
             set_obsidian_config,
             expand_obsidian_vault_scope,
             check_obsidian_vault_marker,
+            list_obsidian_vaults,
             start_obsidian_watcher,
             stop_obsidian_watcher,
             obsidian_toggle_task,

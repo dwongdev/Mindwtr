@@ -9,6 +9,7 @@ const t = {
     obsidianEnable: 'Enable Obsidian integration',
     obsidianVaultPath: 'Vault folder',
     obsidianVaultPathHint: 'Select the root folder of your vault.',
+    obsidianDetectedVaults: 'Detected vaults:',
     obsidianScanFolders: 'Scan folders',
     obsidianScanFoldersHint: 'One relative folder per line.',
     obsidianInboxFile: 'Mindwtr inbox note',
