@@ -12,12 +12,15 @@ import * as FileSystem from 'expo-file-system';
 import {
   applyCapturedProject,
   buildCaptureTaskProps,
+  filterCaptureAreas,
+  filterCaptureProjects,
+  hasExactCaptureAreaMatch,
+  hasExactCaptureProjectMatch,
+  resolveCaptureAreaQuery,
+  resolveCaptureProjectQuery,
   canStarNewCapture,
-  DEFAULT_AREA_COLOR,
-  DEFAULT_PROJECT_COLOR,
   formatFocusTaskLimitText,
   getDefaultTaskAreaMode,
-  getQuickAddProjectInitialProps,
   getUsedTaskTokens,
   hasTimeComponent,
   isSelectableProjectForTaskAssignment,
@@ -190,16 +193,11 @@ export function QuickCaptureSheet({
     projectsRef.current = projects;
   }, [projects]);
 
-  const filteredProjects = useMemo(() => {
-    if (!showProjectPicker) return [];
-    const visibleProjects = projects.filter(isSelectableProjectForTaskAssignment);
-    const areaFilteredProjects = selectedAreaId
-      ? visibleProjects.filter((project) => project.areaId === selectedAreaId)
-      : visibleProjects;
-    const query = projectQuery.trim().toLowerCase();
-    if (!query) return areaFilteredProjects;
-    return areaFilteredProjects.filter((project) => project.title.toLowerCase().includes(query));
-  }, [projectQuery, projects, selectedAreaId, showProjectPicker]);
+  const filteredProjects = useMemo(() => (
+    showProjectPicker
+      ? filterCaptureProjects(projects, { selectedAreaId, query: projectQuery })
+      : []
+  ), [projectQuery, projects, selectedAreaId, showProjectPicker]);
 
   const clearContextOptionsLoad = useCallback(() => {
     if (!contextOptionsLoadTimerRef.current) return;
@@ -298,25 +296,21 @@ export function QuickCaptureSheet({
   }, [addContextFromQuery]);
 
   const submitProjectQuery = useCallback(async () => {
-    const title = projectQuery.trim();
-    if (!title) return;
-    const match = projects.find((project) => project.title.toLowerCase() === title.toLowerCase());
-    if (match) {
-      if (!isSelectableProjectForTaskAssignment(match)) return;
-      setProjectId(match.id);
-      setSelectedAreaId(null);
-      setShowProjectPicker(false);
-      setProjectQuery('');
-      Keyboard.dismiss();
-      return;
+    const resolution = resolveCaptureProjectQuery(projects, projectQuery, selectedAreaId);
+    if (resolution.kind === 'empty') return;
+    let nextProjectId: string | null = null;
+    if (resolution.kind === 'select') {
+      nextProjectId = resolution.project.id;
+    } else {
+      const created = await addProject(
+        resolution.projectToCreate.title,
+        resolution.projectToCreate.color,
+        resolution.projectToCreate.initialProps,
+      );
+      if (!created) return;
+      nextProjectId = created.id;
     }
-    const created = await addProject(
-      title,
-      DEFAULT_PROJECT_COLOR,
-      getQuickAddProjectInitialProps({}, selectedAreaId)
-    );
-    if (!created) return;
-    setProjectId(created.id);
+    setProjectId(nextProjectId);
     setSelectedAreaId(null);
     setShowProjectPicker(false);
     setProjectQuery('');
@@ -324,39 +318,34 @@ export function QuickCaptureSheet({
   }, [addProject, projectQuery, projects, selectedAreaId]);
 
   const submitAreaQuery = useCallback(async () => {
-    const name = areaQuery.trim();
-    if (!name) return;
-    const match = areas.find((area) => !area.deletedAt && area.name.trim().toLowerCase() === name.toLowerCase());
-    if (match) {
-      setSelectedAreaId(match.id);
-      setProjectId(null);
-      setShowAreaPicker(false);
-      setAreaQuery('');
-      Keyboard.dismiss();
-      return;
+    const resolution = resolveCaptureAreaQuery(areas, areaQuery);
+    if (resolution.kind === 'empty') return;
+    let nextAreaId: string | null = null;
+    if (resolution.kind === 'select') {
+      nextAreaId = resolution.area.id;
+    } else {
+      const created = await addArea(resolution.areaToCreate.name, { color: resolution.areaToCreate.color });
+      if (!created) return;
+      nextAreaId = created.id;
     }
-    const created = await addArea(name, { color: DEFAULT_AREA_COLOR });
-    if (!created) return;
-    setSelectedAreaId(created.id);
+    setSelectedAreaId(nextAreaId);
     setProjectId(null);
     setShowAreaPicker(false);
     setAreaQuery('');
     Keyboard.dismiss();
   }, [addArea, areaQuery, areas]);
 
-  const hasExactProjectMatch = useMemo(() => {
-    if (!showProjectPicker) return false;
-    if (!projectQuery.trim()) return false;
-    const query = projectQuery.trim().toLowerCase();
-    return projects.some((project) => project.title.toLowerCase() === query);
-  }, [projectQuery, projects, showProjectPicker]);
+  const hasExactProjectMatch = useMemo(() => (
+    showProjectPicker && hasExactCaptureProjectMatch(projects, projectQuery)
+  ), [projectQuery, projects, showProjectPicker]);
 
-  const hasExactAreaMatch = useMemo(() => {
-    if (!showAreaPicker) return false;
-    const query = areaQuery.trim().toLowerCase();
-    if (!query) return false;
-    return areas.some((area) => !area.deletedAt && area.name.trim().toLowerCase() === query);
-  }, [areaQuery, areas, showAreaPicker]);
+  const filteredAreas = useMemo(() => (
+    showAreaPicker ? filterCaptureAreas(areas, areaQuery) : []
+  ), [areaQuery, areas, showAreaPicker]);
+
+  const hasExactAreaMatch = useMemo(() => (
+    showAreaPicker && hasExactCaptureAreaMatch(areas, areaQuery)
+  ), [areaQuery, areas, showAreaPicker]);
 
   const resetDraftState = useCallback((options?: { keepAddAnother?: boolean; value?: string }) => {
     clearAndroidOptionsExpand();
@@ -896,8 +885,8 @@ export function QuickCaptureSheet({
   }, [confirmBulkQuickAdd, showToast, t]);
 
   const pickerProps = {
-    areas,
     areaQuery,
+    filteredAreas,
     contextInputRef,
     contextOptionsLoading,
     contextQuery,

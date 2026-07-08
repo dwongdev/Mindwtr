@@ -6,7 +6,7 @@ import type { ThemeColors } from '@/hooks/use-theme-colors';
 import { styles } from './quick-capture-sheet.styles';
 
 interface QuickCaptureSheetPickersProps {
-  areas: Area[];
+  filteredAreas: Area[];
   areaQuery?: string;
   contextInputRef: React.RefObject<TextInput | null>;
   contextOptionsLoading: boolean;
@@ -59,8 +59,8 @@ interface QuickCaptureSheetPickersProps {
 }
 
 export function QuickCaptureSheetPickers({
-  areas,
   areaQuery = '',
+  filteredAreas,
   contextInputRef,
   contextOptionsLoading,
   contextQuery,
@@ -118,9 +118,6 @@ export function QuickCaptureSheetPickers({
     ? [styles.overlay, { paddingBottom: overlayKeyboardInset }]
     : styles.overlay;
   const trimmedAreaQuery = areaQuery.trim();
-  const visibleAreas = areas
-    .filter((area) => !area.deletedAt)
-    .filter((area) => !trimmedAreaQuery || area.name.toLowerCase().includes(trimmedAreaQuery.toLowerCase()));
 
   return (
     <>
@@ -294,7 +291,7 @@ export function QuickCaptureSheetPickers({
               accessibilityRole="list"
               accessibilityLabel={t('taskEdit.areaLabel')}
               contentContainerStyle={styles.pickerListContent}
-              data={visibleAreas}
+              data={filteredAreas}
               keyExtractor={(area) => area.id}
               keyboardShouldPersistTaps="handled"
               ListHeaderComponent={(

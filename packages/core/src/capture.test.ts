@@ -1,6 +1,15 @@
 import { describe, expect, it } from 'vitest';
-import type { Project } from './types';
-import { applyCapturedProject, buildCaptureTaskProps } from './capture';
+import type { Area, Project } from './types';
+import {
+    applyCapturedProject,
+    buildCaptureTaskProps,
+    filterCaptureAreas,
+    filterCaptureProjects,
+    hasExactCaptureAreaMatch,
+    hasExactCaptureProjectMatch,
+    resolveCaptureAreaQuery,
+    resolveCaptureProjectQuery,
+} from './capture';
 
 const makeProject = (overrides: Partial<Project>): Project => ({
     id: 'project-1',
@@ -15,6 +24,16 @@ const makeProject = (overrides: Partial<Project>): Project => ({
 });
 
 const parsedBase = { title: 'Write brief', props: {}, projectTitle: undefined, detectedDate: undefined, invalidDateCommands: undefined };
+
+const makeArea = (overrides: Partial<Area>): Area => ({
+    id: 'area-1',
+    name: 'Work',
+    color: '#3b82f6',
+    order: 0,
+    createdAt: '2026-01-01T00:00:00.000Z',
+    updatedAt: '2026-01-01T00:00:00.000Z',
+    ...overrides,
+});
 
 describe('buildCaptureTaskProps', () => {
     it('defaults to an inbox capture with the parsed title', () => {
@@ -134,5 +153,53 @@ describe('applyCapturedProject', () => {
     it('attaches the created project and clears the direct area', () => {
         expect(applyCapturedProject({ status: 'inbox', areaId: 'area-1' }, 'p-new'))
             .toEqual({ status: 'inbox', areaId: undefined, projectId: 'p-new' });
+    });
+});
+
+describe('capture picker helpers', () => {
+    it('filters assignable projects by selected area and query', () => {
+        const visible = makeProject({ id: 'p-visible', title: 'Launch Plan', areaId: 'area-1' });
+        const otherArea = makeProject({ id: 'p-other', title: 'Launch Ops', areaId: 'area-2' });
+        const archived = makeProject({ id: 'p-archived', title: 'Launch Archive', areaId: 'area-1', status: 'archived' });
+        expect(filterCaptureProjects([visible, otherArea, archived], { selectedAreaId: 'area-1', query: 'plan' }))
+            .toEqual([visible]);
+    });
+
+    it('treats an archived exact project-title match as createable, not selected', () => {
+        const archived = makeProject({ id: 'p-archived', title: 'Launch', status: 'archived' });
+        expect(hasExactCaptureProjectMatch([archived], 'Launch')).toBe(false);
+        expect(resolveCaptureProjectQuery([archived], 'Launch', 'area-1')).toMatchObject({
+            kind: 'create',
+            projectToCreate: { title: 'Launch', initialProps: { areaId: 'area-1' } },
+        });
+    });
+
+    it('selects an assignable exact project-title match', () => {
+        const project = makeProject({ id: 'p-active', title: 'Launch' });
+        expect(hasExactCaptureProjectMatch([project], 'launch')).toBe(true);
+        expect(resolveCaptureProjectQuery([project], 'launch')).toMatchObject({
+            kind: 'select',
+            project: { id: 'p-active' },
+        });
+    });
+
+    it('filters live areas and treats deleted exact area-name matches as createable', () => {
+        const live = makeArea({ id: 'area-live', name: 'Work' });
+        const deleted = makeArea({ id: 'area-deleted', name: 'Archive', deletedAt: '2026-01-02T00:00:00.000Z' });
+        expect(filterCaptureAreas([live, deleted], 'wor')).toEqual([live]);
+        expect(hasExactCaptureAreaMatch([deleted], 'Archive')).toBe(false);
+        expect(resolveCaptureAreaQuery([deleted], 'Archive')).toMatchObject({
+            kind: 'create',
+            areaToCreate: { name: 'Archive' },
+        });
+    });
+
+    it('selects a live exact area-name match', () => {
+        const area = makeArea({ id: 'area-live', name: 'Work' });
+        expect(hasExactCaptureAreaMatch([area], 'work')).toBe(true);
+        expect(resolveCaptureAreaQuery([area], 'work')).toMatchObject({
+            kind: 'select',
+            area: { id: 'area-live' },
+        });
     });
 });

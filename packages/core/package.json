@@ -26,6 +26,7 @@
     "./uuid": "./src/uuid.ts",
     "./date": "./src/date.ts",
     "./quick-add": "./src/quick-add.ts",
+    "./capture": "./src/capture.ts",
     "./area-filter": "./src/area-filter.ts",
     "./calendar-scheduling": "./src/calendar-scheduling.ts",
     "./schedule-utils": "./src/schedule-utils.ts",

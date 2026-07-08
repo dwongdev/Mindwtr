@@ -36,7 +36,7 @@ describe('Quick capture modal composition', () => {
     act(() => {
       tree = create(
         <QuickCaptureSheetPickers
-          areas={[]}
+          filteredAreas={[]}
           contextInputRef={{ current: null }}
           contextOptionsLoading={false}
           contextQuery=""
@@ -93,7 +93,7 @@ describe('Quick capture modal composition', () => {
     act(() => {
       tree = create(
         <QuickCaptureSheetPickers
-          areas={[]}
+          filteredAreas={[]}
           contextInputRef={{ current: null }}
           contextOptionsLoading={false}
           contextQuery=""
@@ -289,7 +289,7 @@ describe('Quick capture modal composition', () => {
     act(() => {
       tree = create(
         <QuickCaptureSheetPickers
-          areas={[]}
+          filteredAreas={[]}
           contextInputRef={{ current: null }}
           contextOptionsLoading={false}
           contextQuery=""
@@ -357,7 +357,7 @@ describe('Quick capture modal composition', () => {
     act(() => {
       tree = create(
         <QuickCaptureSheetPickers
-          areas={[]}
+          filteredAreas={[]}
           areaQuery="Work"
           contextInputRef={{ current: null }}
           contextOptionsLoading={false}
