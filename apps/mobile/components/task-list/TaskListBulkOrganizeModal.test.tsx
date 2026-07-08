@@ -157,8 +157,23 @@ describe('TaskListBulkOrganizeModal', () => {
 
     expect(onApply).toHaveBeenCalledWith(expect.objectContaining({
       projectId: 'project-trip',
-      status: 'next',
     }));
+    // Status defaults to "Keep status": untouched statuses must not be rewritten.
+    expect(onApply.mock.calls[0][0]).not.toHaveProperty('status');
+  });
+
+  it('includes status only after explicitly picking one', () => {
+    const onApply = vi.fn();
+    const tree = renderModal({ onApply });
+
+    act(() => {
+      buttonWithText(tree, 'Someday').props.onPress();
+    });
+    act(() => {
+      buttonWithText(tree, 'Apply to selected').props.onPress();
+    });
+
+    expect(onApply).toHaveBeenCalledWith(expect.objectContaining({ status: 'someday' }));
   });
 
   it('preserves the keep sentinel as the first picker option', () => {

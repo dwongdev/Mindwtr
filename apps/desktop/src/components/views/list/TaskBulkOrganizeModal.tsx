@@ -42,7 +42,7 @@ export function TaskBulkOrganizeModal({
     onApply,
     onCancel,
 }: TaskBulkOrganizeModalProps) {
-    const [status, setStatus] = useState<BulkOrganizeStatus>('next');
+    const [status, setStatus] = useState<BulkOrganizeStatus | typeof KEEP_VALUE>(KEEP_VALUE);
     const [projectChoice, setProjectChoice] = useState(KEEP_VALUE);
     const [areaChoice, setAreaChoice] = useState(KEEP_VALUE);
     const [contextsInput, setContextsInput] = useState('');
@@ -55,7 +55,7 @@ export function TaskBulkOrganizeModal({
 
     useEffect(() => {
         if (!isOpen) return;
-        setStatus('next');
+        setStatus(KEEP_VALUE);
         setProjectChoice(KEEP_VALUE);
         setAreaChoice(KEEP_VALUE);
         setContextsInput('');
@@ -94,10 +94,11 @@ export function TaskBulkOrganizeModal({
         }
 
         const input: BulkOrganizeTaskUpdateInput = {
-            status,
             contexts: parseBulkOrganizeTokenInput(contextsInput, '@'),
             tags: parseBulkOrganizeTokenInput(tagsInput, '#'),
         };
+
+        if (status !== KEEP_VALUE) input.status = status;
 
         if (projectChoice !== KEEP_VALUE) {
             input.projectId = projectChoice === NONE_VALUE ? null : projectChoice;
@@ -155,11 +156,13 @@ export function TaskBulkOrganizeModal({
                             <select
                                 value={status}
                                 onChange={(event) => {
-                                    setStatus(event.currentTarget.value as BulkOrganizeStatus);
+                                    const value = event.currentTarget.value;
+                                    setStatus(value === KEEP_VALUE ? KEEP_VALUE : value as BulkOrganizeStatus);
                                     setShowValidation(false);
                                 }}
                                 className="h-9 w-full rounded-md border border-border bg-card px-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
                             >
+                                <option value={KEEP_VALUE}>{tFallback(t, 'bulk.keepStatus', 'Keep status')}</option>
                                 {STATUS_OPTIONS.map((option) => (
                                     <option key={option} value={option}>
                                         {tFallback(t, `status.${option}`, option)}

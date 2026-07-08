@@ -58,7 +58,7 @@ export function TaskListBulkOrganizeModal({
 }: TaskListBulkOrganizeModalProps) {
   const filledButton = useFilledButtonColors();
   const keyboardInset = useAndroidKeyboardInset(visible);
-  const [status, setStatus] = useState<BulkOrganizeStatus>('next');
+  const [status, setStatus] = useState<BulkOrganizeStatus | typeof KEEP_VALUE>(KEEP_VALUE);
   const [projectChoice, setProjectChoice] = useState(KEEP_VALUE);
   const [areaChoice, setAreaChoice] = useState(KEEP_VALUE);
   const [projectPickerVisible, setProjectPickerVisible] = useState(false);
@@ -73,7 +73,7 @@ export function TaskListBulkOrganizeModal({
 
   useEffect(() => {
     if (!visible) return;
-    setStatus('next');
+    setStatus(KEEP_VALUE);
     setProjectChoice(KEEP_VALUE);
     setAreaChoice(KEEP_VALUE);
     setProjectPickerVisible(false);
@@ -184,10 +184,11 @@ export function TaskListBulkOrganizeModal({
       return;
     }
     const input: BulkOrganizeTaskUpdateInput = {
-      status,
       contexts: parseBulkOrganizeTokenInput(contextsInput, '@'),
       tags: parseBulkOrganizeTokenInput(tagsInput, '#'),
     };
+
+    if (status !== KEEP_VALUE) input.status = status;
 
     if (projectChoice !== KEEP_VALUE) {
       input.projectId = projectChoice === NONE_VALUE ? null : projectChoice;
@@ -252,6 +253,14 @@ export function TaskListBulkOrganizeModal({
                   {tFallback(t, 'bulk.organizeStatus', 'Status')}
                 </Text>
                 <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.bulkOrganizeChipRow}>
+                  {renderChip(
+                    tFallback(t, 'bulk.keepStatus', 'Keep status'),
+                    status === KEEP_VALUE,
+                    () => {
+                      setStatus(KEEP_VALUE);
+                      setShowValidation(false);
+                    },
+                  )}
                   {STATUS_OPTIONS.map((option) => renderChip(
                     tFallback(t, `status.${option}`, option),
                     status === option,
