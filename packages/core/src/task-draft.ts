@@ -222,6 +222,14 @@ export function taskDraftToUpdatePatch(
     }
     const splitTokens = (value: string) => value.split(',').map((token) => token.trim()).filter(Boolean);
 
+    // Attachment removal soft-deletes records, so a legitimate buffer is never
+    // shorter than the stored list. An empty/absent buffer means the caller has
+    // nothing to say about attachments — omit the key entirely; an explicit
+    // `attachments: undefined` would spread-wipe stored records and tombstones.
+    const attachmentsPatch = (options.attachments?.length ?? 0) > 0
+        ? { attachments: options.attachments }
+        : {};
+
     return {
         title: cleanedTitle,
         status: options.statusOverride ?? draft.status,
@@ -247,6 +255,6 @@ export function taskDraftToUpdatePatch(
         assignedTo: draft.assignedTo.trim() || undefined,
         reviewAt: draft.reviewAt || undefined,
         repeatReminderMinutes: draft.repeatReminderMinutes || undefined,
-        attachments: (options.attachments?.length ?? 0) > 0 ? options.attachments : undefined,
+        ...attachmentsPatch,
     };
 }

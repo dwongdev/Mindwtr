@@ -118,4 +118,20 @@ describe('task-draft', () => {
         const patch = taskDraftToUpdatePatch({ ...draft, contexts: '@office, , @home ', tags: '' }, baseTask);
         expect(patch).toMatchObject({ contexts: ['@office', '@home'], tags: [] });
     });
+    it('omits the attachments key when the draft buffer is empty or absent', () => {
+        const withAttachment: Task = {
+            ...baseTask,
+            attachments: [{ id: 'a1', kind: 'link', uri: 'https://a', title: 'A', createdAt: baseTask.createdAt, updatedAt: baseTask.updatedAt }],
+        };
+        const draft = createTaskDraft(withAttachment);
+        const noOption = taskDraftToUpdatePatch(draft, withAttachment);
+        expect(noOption && 'attachments' in noOption).toBe(false);
+        const emptyBuffer = taskDraftToUpdatePatch(draft, withAttachment, { attachments: [] });
+        expect(emptyBuffer && 'attachments' in emptyBuffer).toBe(false);
+        // A populated buffer (including soft-deleted records) passes through.
+        const removedAll = taskDraftToUpdatePatch(draft, withAttachment, {
+            attachments: [{ ...withAttachment.attachments![0], deletedAt: '2026-01-02T00:00:00.000Z' }],
+        });
+        expect(removedAll?.attachments?.[0]?.deletedAt).toBe('2026-01-02T00:00:00.000Z');
+    });
 });

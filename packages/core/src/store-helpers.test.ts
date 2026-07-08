@@ -630,6 +630,23 @@ describe('completion timestamp updates', () => {
         expect(updatedTask.completedAt).toBe('2026-07-06T08:00:00.000Z');
     });
 
+    it('preserves attachments when completing a task', () => {
+        const task = createTask('t7', undefined, 0, {
+            status: 'next',
+            attachments: [{
+                id: 'att-1',
+                kind: 'file',
+                uri: 'file:///doc.pdf',
+                title: 'doc.pdf',
+                createdAt: '2026-01-01T00:00:00.000Z',
+                updatedAt: '2026-01-01T00:00:00.000Z',
+            }],
+        });
+        const { updatedTask } = applyTaskUpdates(task, { status: 'done' }, now);
+        expect(updatedTask.status).toBe('done');
+        expect(updatedTask.attachments).toEqual(task.attachments);
+    });
+
     it('passes completedAt edits through on an already-done task', () => {
         const task = createTask('t6', undefined, 0, {
             status: 'done',
