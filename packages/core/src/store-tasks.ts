@@ -26,7 +26,13 @@ import { normalizeRecurrenceForLoad } from './recurrence';
 import { normalizeRepeatReminderMinutes } from './schedule-utils';
 import { normalizeFocusTaskLimit } from './focus-utils';
 import { getTaskFocusEligibility, isTaskFutureStart } from './task-utils';
-import { resolveTaskContainerHierarchy } from './task-container-rules';
+import {
+    buildTaskContainerMovePatch,
+    normalizeOptionalContainerId,
+    reserveTaskContainerProjectOrder,
+    resolveTaskContainerAssignment,
+    resolveTaskContainerHierarchy,
+} from './task-container-rules';
 import { resolveDefaultNewTaskAreaId } from './area-utils';
 import { findSelectableProjectByTitleAndArea } from './project-utils';
 import { buildNewProject } from './store-projects/project-actions';
@@ -163,10 +169,6 @@ type TaskActionContext = {
 const actionOk = (extra?: Omit<StoreActionResult, 'success'>): StoreActionResult => ({ success: true, ...extra });
 const actionFail = (error: string): StoreActionResult => ({ success: false, error });
 const hasOwnField = (value: object, field: PropertyKey): boolean => Object.prototype.hasOwnProperty.call(value, field);
-const normalizeOptionalReferenceId = (value: unknown): string | undefined => (
-    typeof value === 'string' && value.trim().length > 0 ? value.trim() : undefined
-);
-const normalizeProjectIdInput = normalizeOptionalReferenceId;
 
 const applyVisibleTaskChanges = (
     visibleTasks: Task[],
@@ -272,120 +274,13 @@ const mutateTasks = async (
     return missing ? actionFail(options.missingMessage ?? 'Task not found') : actionOk();
 };
 
-const validateExistingProjectId = (
-    projectId: unknown,
-    allProjects: AppData['projects']
-): { ok: true; projectId?: string } | { ok: false; error: string } => {
-    const normalizedProjectId = normalizeProjectIdInput(projectId);
-    if (!normalizedProjectId) {
-        return { ok: true, projectId: undefined };
-    }
-    const exists = allProjects.some((project) => project.id === normalizedProjectId && !project.deletedAt);
-    if (exists) {
-        return { ok: true, projectId: normalizedProjectId };
-    }
-    return { ok: false, error: 'Project not found' };
-};
-
-const validateExistingAreaId = (
-    areaId: unknown,
-    allAreas: AppData['areas']
-): { ok: true; areaId?: string } | { ok: false; error: string } => {
-    const normalizedAreaId = normalizeOptionalReferenceId(areaId);
-    if (!normalizedAreaId) {
-        return { ok: true, areaId: undefined };
-    }
-    const exists = allAreas.some((area) => area.id === normalizedAreaId && !area.deletedAt);
-    if (exists) {
-        return { ok: true, areaId: normalizedAreaId };
-    }
-    return { ok: false, error: 'Area not found' };
-};
-
-const resolveTaskContainerAssignment = ({
-    projectId,
-    sectionId,
-    areaId,
-    allProjects,
-    allSections,
-    allAreas,
-}: {
-    projectId: unknown;
-    sectionId: unknown;
-    areaId: unknown;
-    allProjects: AppData['projects'];
-    allSections: AppData['sections'];
-    allAreas: AppData['areas'];
-}):
-    | { ok: true; projectId?: string; sectionId?: string; areaId?: string }
-    | { ok: false; error: string } => {
-    const projectValidation = validateExistingProjectId(projectId, allProjects);
-    if (!projectValidation.ok) return projectValidation;
-
-    let resolvedProjectId = projectValidation.projectId;
-    const resolvedSectionId = normalizeOptionalReferenceId(sectionId);
-    if (resolvedSectionId) {
-        const section = allSections.find((candidate) => candidate.id === resolvedSectionId && !candidate.deletedAt);
-        if (!section) {
-            return { ok: false, error: 'Section not found' };
-        }
-        const liveProjectExists = allProjects.some((candidate) => candidate.id === section.projectId && !candidate.deletedAt);
-        if (!liveProjectExists) {
-            return { ok: false, error: 'Section not found' };
-        }
-        if (resolvedProjectId && section.projectId !== resolvedProjectId) {
-            return { ok: false, error: 'Section does not belong to project' };
-        }
-        const resolved = resolveTaskContainerHierarchy({
-            projectId: resolvedProjectId,
-            sectionId: resolvedSectionId,
-            areaId: areaId === undefined ? undefined : normalizeOptionalReferenceId(areaId),
-            sectionProjectId: section.projectId,
-        });
-        return {
-            ok: true,
-            projectId: resolved.projectId,
-            sectionId: resolved.sectionId,
-            areaId: resolved.areaId,
-        };
-    }
-
-    if (resolvedProjectId) {
-        const resolved = resolveTaskContainerHierarchy({
-            projectId: resolvedProjectId,
-            sectionId: undefined,
-            areaId: areaId === undefined ? undefined : normalizeOptionalReferenceId(areaId),
-        });
-        return {
-            ok: true,
-            projectId: resolved.projectId,
-            sectionId: resolved.sectionId,
-            areaId: resolved.areaId,
-        };
-    }
-
-    const areaValidation = validateExistingAreaId(areaId, allAreas);
-    if (!areaValidation.ok) return areaValidation;
-    const resolved = resolveTaskContainerHierarchy({
-        projectId: undefined,
-        sectionId: undefined,
-        areaId: areaValidation.areaId,
-    });
-    return {
-        ok: true,
-        projectId: resolved.projectId,
-        sectionId: resolved.sectionId,
-        areaId: resolved.areaId,
-    };
-};
-
 const sanitizeRestoredTaskContainerReferences = (
     task: Task,
     state: TaskStore,
 ): Pick<Task, 'projectId' | 'sectionId' | 'areaId'> => {
-    let projectId = normalizeOptionalReferenceId(task.projectId);
-    let sectionId = normalizeOptionalReferenceId(task.sectionId);
-    let areaId = normalizeOptionalReferenceId(task.areaId);
+    let projectId = normalizeOptionalContainerId(task.projectId);
+    let sectionId = normalizeOptionalContainerId(task.sectionId);
+    let areaId = normalizeOptionalContainerId(task.areaId);
 
     const liveProjectIds = new Set(
         state._allProjects
@@ -423,7 +318,6 @@ const sanitizeRestoredTaskContainerReferences = (
 const prepareTaskUpdatesForStore = ({
     task,
     updates,
-    allTasks,
     allProjects,
     allSections,
     allAreas,
@@ -432,58 +326,36 @@ const prepareTaskUpdatesForStore = ({
 }: {
     task: Task;
     updates: Partial<Task>;
-    allTasks: Task[];
     allProjects: AppData['projects'];
     allSections: AppData['sections'];
     allAreas: AppData['areas'];
     reserveProjectOrder?: boolean;
     projectOrderReserver?: ProjectOrderReserver;
 }): { ok: true; updates: Partial<Task> } | { ok: false; error: string } => {
-    const hasProjectUpdate = hasOwnField(updates, 'projectId');
-    const nextProjectId = hasProjectUpdate
-        ? normalizeProjectIdInput(updates.projectId)
-        : task.projectId;
-    const projectChanged = (task.projectId ?? undefined) !== (nextProjectId ?? undefined);
-    const candidateSectionId = hasOwnField(updates, 'sectionId')
-        ? updates.sectionId
-        : hasProjectUpdate && projectChanged
-            ? undefined
-            : task.sectionId;
-    const candidateAreaId = hasOwnField(updates, 'areaId')
-        ? updates.areaId
-        : hasProjectUpdate && projectChanged && nextProjectId
-            ? undefined
-            : task.areaId;
-    const containerResolution = resolveTaskContainerAssignment({
-        projectId: nextProjectId,
-        sectionId: candidateSectionId,
-        areaId: candidateAreaId,
+    const containerPatch = buildTaskContainerMovePatch({
+        task,
+        updates,
         allProjects,
         allSections,
         allAreas,
+        reserveProjectOrder,
+        projectOrderReserver,
     });
-    if (!containerResolution.ok) return containerResolution;
+    if (!containerPatch.ok) return containerPatch;
 
     const adjustedUpdates = normalizeTaskUpdateForStore({
         task,
         updates: {
             ...updates,
-            projectId: containerResolution.projectId,
-            sectionId: containerResolution.sectionId,
-            areaId: containerResolution.areaId,
+            ...containerPatch.updates,
         },
-        allTasks,
-        reserveProjectOrder,
-        projectOrderReserver,
     });
 
     return {
         ok: true,
         updates: {
             ...adjustedUpdates,
-            projectId: containerResolution.projectId,
-            sectionId: containerResolution.sectionId,
-            areaId: containerResolution.areaId,
+            ...containerPatch.updates,
         },
     };
 };
@@ -491,17 +363,10 @@ const prepareTaskUpdatesForStore = ({
 const normalizeTaskUpdateForStore = ({
     task,
     updates,
-    allTasks,
-    reserveProjectOrder,
-    projectOrderReserver,
 }: {
     task: Task;
     updates: Partial<Task>;
-    allTasks: Task[];
-    reserveProjectOrder?: boolean;
-    projectOrderReserver?: ProjectOrderReserver;
 }): Partial<Task> => {
-    const shouldReserveProjectOrder = reserveProjectOrder !== false;
     let adjustedUpdates = updates;
     if (hasOwnField(updates, 'recurrence')) {
         adjustedUpdates = {
@@ -557,81 +422,7 @@ const normalizeTaskUpdateForStore = ({
             boardOrder: undefined,
         };
     }
-    if (!Object.prototype.hasOwnProperty.call(updates, 'projectId')) {
-        return adjustedUpdates;
-    }
-
-    const rawProjectId = updates.projectId;
-    const normalizedProjectId =
-        typeof rawProjectId === 'string' && rawProjectId.trim().length > 0
-            ? rawProjectId
-            : undefined;
-    const nextProjectId = normalizedProjectId ?? undefined;
-    const projectChanged = (task.projectId ?? undefined) !== nextProjectId;
-    if (projectChanged) {
-        const shouldClearSection = !Object.prototype.hasOwnProperty.call(updates, 'sectionId');
-        const hasTaskOrderOverride = hasOrder || hasOrderNum;
-        if (nextProjectId) {
-            if (shouldReserveProjectOrder && !hasTaskOrderOverride) {
-                const nextOrder = (projectOrderReserver ?? createProjectOrderReserver(allTasks))(nextProjectId);
-                adjustedUpdates = {
-                    ...adjustedUpdates,
-                    order: nextOrder,
-                    orderNum: nextOrder,
-                };
-            }
-            if (!Object.prototype.hasOwnProperty.call(updates, 'areaId')) {
-                adjustedUpdates = {
-                    ...adjustedUpdates,
-                    areaId: undefined,
-                };
-            }
-            if (shouldClearSection) {
-                adjustedUpdates = {
-                    ...adjustedUpdates,
-                    sectionId: undefined,
-                };
-            }
-        } else {
-            adjustedUpdates = {
-                ...adjustedUpdates,
-                projectId: undefined,
-                order: undefined,
-                orderNum: undefined,
-                sectionId: undefined,
-            };
-        }
-    } else if (normalizedProjectId !== updates.projectId) {
-        adjustedUpdates = {
-            ...adjustedUpdates,
-            projectId: normalizedProjectId,
-        };
-    }
-
     return adjustedUpdates;
-};
-
-const reserveProjectOrderForPreparedUpdates = ({
-    task,
-    updates,
-    projectOrderReserver,
-}: {
-    task: Task;
-    updates: Partial<Task>;
-    projectOrderReserver: ProjectOrderReserver;
-}): Partial<Task> => {
-    if (!hasOwnField(updates, 'projectId')) return updates;
-    if (hasOwnField(updates, 'order') || hasOwnField(updates, 'orderNum')) return updates;
-    const nextProjectId = typeof updates.projectId === 'string' && updates.projectId.trim().length > 0
-        ? updates.projectId
-        : undefined;
-    if (!nextProjectId || (task.projectId ?? undefined) === nextProjectId) return updates;
-    const nextOrder = projectOrderReserver(nextProjectId);
-    return {
-        ...updates,
-        order: nextOrder,
-        orderNum: nextOrder,
-    };
 };
 
 const createTaskQueryMatcher = (
@@ -696,8 +487,8 @@ export const createTaskActions = ({ set, get, getStorage, debouncedSave, trackIm
             const initialTaskProps = item.initialProps;
             const hasExplicitAreaId = hasOwnField(initialTaskProps, 'areaId');
             const shouldApplyDefaultArea = !hasExplicitAreaId
-                && !normalizeProjectIdInput(initialTaskProps.projectId)
-                && !normalizeOptionalReferenceId(initialTaskProps.sectionId);
+                && !normalizeOptionalContainerId(initialTaskProps.projectId)
+                && !normalizeOptionalContainerId(initialTaskProps.sectionId);
             const defaultAreaId = shouldApplyDefaultArea
                 ? resolveDefaultNewTaskAreaId(currentState.settings, currentState._allAreas)
                 : undefined;
@@ -819,7 +610,6 @@ export const createTaskActions = ({ set, get, getStorage, debouncedSave, trackIm
         const preparedUpdates = prepareTaskUpdatesForStore({
             task: existingTask,
             updates,
-            allTasks: currentState._allTasks,
             allProjects: currentState._allProjects,
             allSections: currentState._allSections,
             allAreas: currentState._allAreas,
@@ -1098,7 +888,7 @@ export const createTaskActions = ({ set, get, getStorage, debouncedSave, trackIm
                 return { error: errorMessage };
             }
 
-            const explicitAreaId = normalizeOptionalReferenceId(options?.areaId);
+            const explicitAreaId = normalizeOptionalContainerId(options?.areaId);
             const sourceProject = sourceTask.projectId ? state._projectsById.get(sourceTask.projectId) : undefined;
             const inheritedAreaId = explicitAreaId ?? sourceTask.areaId ?? sourceProject?.areaId;
             const targetAreaId = inheritedAreaId && state._allAreas.some((area) => area.id === inheritedAreaId && !area.deletedAt)
@@ -1151,7 +941,6 @@ export const createTaskActions = ({ set, get, getStorage, debouncedSave, trackIm
                     sectionId: undefined,
                     areaId: undefined,
                 },
-                allTasks: state._allTasks,
                 allProjects: nextAllProjects,
                 allSections: state._allSections,
                 allAreas: state._allAreas,
@@ -1266,7 +1055,6 @@ export const createTaskActions = ({ set, get, getStorage, debouncedSave, trackIm
             const preparedUpdates = prepareTaskUpdatesForStore({
                 task,
                 updates,
-                allTasks: state._allTasks,
                 allProjects: state._allProjects,
                 allSections: state._allSections,
                 allAreas: state._allAreas,
@@ -1292,11 +1080,11 @@ export const createTaskActions = ({ set, get, getStorage, debouncedSave, trackIm
                 const task = newAllTasksBase[index];
                 const preparedUpdates = preparedUpdatesById.get(task.id);
                 if (!preparedUpdates) continue;
-                const adjustedUpdates = reserveProjectOrderForPreparedUpdates({
+                const adjustedUpdates = reserveTaskContainerProjectOrder({
                     task,
                     updates: preparedUpdates,
                     projectOrderReserver,
-                });
+                }) as Partial<Task>;
                 const { updatedTask, nextRecurringTask } = applyTaskUpdates(
                     task,
                     {

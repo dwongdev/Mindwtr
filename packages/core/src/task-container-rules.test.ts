@@ -1,6 +1,55 @@
 import { describe, expect, it } from 'vitest';
 
-import { resolveTaskContainerHierarchy } from './task-container-rules';
+import {
+    buildTaskContainerMovePatch,
+    resolveTaskContainerAssignment,
+    resolveTaskContainerHierarchy,
+} from './task-container-rules';
+import type { Area, Project, Section, Task } from './types';
+
+const now = '2026-07-08T00:00:00.000Z';
+
+const makeProject = (overrides: Partial<Project> = {}): Project => ({
+    id: 'project-1',
+    title: 'Project 1',
+    status: 'active',
+    color: '#2563eb',
+    order: 0,
+    tagIds: [],
+    createdAt: now,
+    updatedAt: now,
+    ...overrides,
+});
+
+const makeSection = (overrides: Partial<Section> = {}): Section => ({
+    id: 'section-1',
+    projectId: 'project-1',
+    title: 'Section 1',
+    order: 0,
+    createdAt: now,
+    updatedAt: now,
+    ...overrides,
+});
+
+const makeArea = (overrides: Partial<Area> = {}): Area => ({
+    id: 'area-1',
+    name: 'Area 1',
+    order: 0,
+    createdAt: now,
+    updatedAt: now,
+    ...overrides,
+});
+
+const makeTask = (overrides: Partial<Task> = {}): Task => ({
+    id: 'task-1',
+    title: 'Task 1',
+    status: 'next',
+    tags: [],
+    contexts: [],
+    createdAt: now,
+    updatedAt: now,
+    ...overrides,
+});
 
 describe('resolveTaskContainerHierarchy', () => {
     it('infers the project from a valid section and clears area scope', () => {
@@ -25,6 +74,106 @@ describe('resolveTaskContainerHierarchy', () => {
             projectId: 'project-1',
             sectionId: undefined,
             areaId: undefined,
+        });
+    });
+});
+
+describe('resolveTaskContainerAssignment', () => {
+    it('rejects a section that belongs to a different explicit project', () => {
+        expect(resolveTaskContainerAssignment({
+            projectId: 'project-2',
+            sectionId: 'section-1',
+            areaId: undefined,
+            allProjects: [makeProject(), makeProject({ id: 'project-2', title: 'Project 2' })],
+            allSections: [makeSection()],
+            allAreas: [],
+        })).toEqual({ ok: false, error: 'Section does not belong to project' });
+    });
+
+    it('rejects deleted container references', () => {
+        expect(resolveTaskContainerAssignment({
+            projectId: 'project-1',
+            sectionId: undefined,
+            areaId: undefined,
+            allProjects: [makeProject({ deletedAt: now })],
+            allSections: [],
+            allAreas: [],
+        })).toEqual({ ok: false, error: 'Project not found' });
+
+        expect(resolveTaskContainerAssignment({
+            projectId: undefined,
+            sectionId: undefined,
+            areaId: 'area-1',
+            allProjects: [],
+            allSections: [],
+            allAreas: [makeArea({ deletedAt: now })],
+        })).toEqual({ ok: false, error: 'Area not found' });
+    });
+});
+
+describe('buildTaskContainerMovePatch', () => {
+    it('moves a task into a project, clears area scope, and reserves project order', () => {
+        const result = buildTaskContainerMovePatch({
+            task: makeTask({ areaId: 'area-1' }),
+            updates: { projectId: 'project-1' },
+            allProjects: [makeProject()],
+            allSections: [],
+            allAreas: [makeArea()],
+            projectOrderReserver: () => 42,
+        });
+
+        expect(result).toEqual({
+            ok: true,
+            updates: {
+                projectId: 'project-1',
+                sectionId: undefined,
+                areaId: undefined,
+                order: 42,
+                orderNum: 42,
+            },
+        });
+    });
+
+    it('infers the project when moving a task into a section', () => {
+        const result = buildTaskContainerMovePatch({
+            task: makeTask({ areaId: 'area-1' }),
+            updates: { sectionId: 'section-1' },
+            allProjects: [makeProject()],
+            allSections: [makeSection()],
+            allAreas: [makeArea()],
+            projectOrderReserver: () => 12,
+        });
+
+        expect(result).toEqual({
+            ok: true,
+            updates: {
+                projectId: 'project-1',
+                sectionId: 'section-1',
+                areaId: undefined,
+                order: 12,
+                orderNum: 12,
+            },
+        });
+    });
+
+    it('clears section and project order when moving a task out of a project', () => {
+        const result = buildTaskContainerMovePatch({
+            task: makeTask({ projectId: 'project-1', sectionId: 'section-1', order: 7, orderNum: 7 }),
+            updates: { projectId: undefined },
+            allProjects: [makeProject()],
+            allSections: [makeSection()],
+            allAreas: [makeArea()],
+        });
+
+        expect(result).toEqual({
+            ok: true,
+            updates: {
+                projectId: undefined,
+                sectionId: undefined,
+                areaId: undefined,
+                order: undefined,
+                orderNum: undefined,
+            },
         });
     });
 });
