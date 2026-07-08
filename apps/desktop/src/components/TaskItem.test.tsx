@@ -177,7 +177,13 @@ describe('TaskItem', () => {
     });
 
     it('shows a delete action while editing inbox tasks', async () => {
-        const { getAllByRole, getByRole, findByRole } = render(
+        act(() => {
+            useTaskStore.setState({
+                tasks: [mockTask],
+                _allTasks: [mockTask],
+            } as never);
+        });
+        const { getAllByRole, queryByRole, findByRole } = render(
             <LanguageProvider>
                 <TaskItem task={mockTask} />
             </LanguageProvider>
@@ -191,7 +197,13 @@ describe('TaskItem', () => {
             fireEvent.click(deleteButton);
         });
 
-        expect(getByRole('dialog', { name: /^delete$/i })).toBeInTheDocument();
+        // Deleting is immediate (soft delete to Trash with an undo toast);
+        // no confirmation dialog appears.
+        expect(queryByRole('dialog', { name: /^delete$/i })).not.toBeInTheDocument();
+        await waitFor(() => {
+            const stored = useTaskStore.getState()._allTasks.find((candidate) => candidate.id === mockTask.id);
+            expect(stored?.deletedAt).toBeTruthy();
+        });
     });
 
     it('does not show the edit-mode delete action for non-inbox tasks', async () => {

@@ -1,4 +1,3 @@
-import { Alert } from 'react-native';
 import { Swipeable } from 'react-native-gesture-handler';
 import {
     getFocusStarBlockedText,
@@ -386,7 +385,7 @@ function SwipeableTaskItemInner({
             pressedColor="rgba(0, 0, 0, 0.18)"
             onPress={() => {
                 swipeableRef.current?.close();
-                confirmDelete();
+                handleDelete();
             }}
             accessibilityLabel={t('task.aria.delete') || 'Delete task'}
             accessibilityRole="button"
@@ -428,42 +427,31 @@ function SwipeableTaskItemInner({
         onPress();
     };
 
-    const confirmDelete = () => {
-        Alert.alert(
-            task.title,
-            t('task.deleteConfirmBody') || 'Move this task to Trash?',
-            [
-                { text: t('common.cancel') || 'Cancel', style: 'cancel' },
-                {
-                    text: t('common.delete') || 'Delete',
-                    style: 'destructive',
-                    onPress: () => {
-                        void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning).catch(() => undefined);
-                        cancelPendingChecklist();
-                        let deletePromise: Promise<unknown>;
-                        try {
-                            deletePromise = Promise.resolve(onDelete());
-                        } catch (error) {
-                            deletePromise = Promise.reject(error);
-                        }
-                        void deletePromise
-                            .then(() => {
-                                if (!undoNotificationsEnabled) return;
-                                showToast({
-                                    title: t('common.notice') || 'Notice',
-                                    message: t('list.taskDeleted') || 'Task deleted',
-                                    tone: 'info',
-                                    actionLabel: t('common.undo') || 'Undo',
-                                    onAction: () => { void restoreTask(task.id); },
-                                    durationMs: 5200,
-                                });
-                            })
-                            .catch(() => undefined);
-                    },
-                },
-            ],
-            { cancelable: true }
-        );
+    // Deleting is a recoverable move to Trash, so it happens immediately with
+    // an undo toast instead of a confirmation alert. Permanent purge (in Trash)
+    // keeps its confirmation.
+    const handleDelete = () => {
+        void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning).catch(() => undefined);
+        cancelPendingChecklist();
+        let deletePromise: Promise<unknown>;
+        try {
+            deletePromise = Promise.resolve(onDelete());
+        } catch (error) {
+            deletePromise = Promise.reject(error);
+        }
+        void deletePromise
+            .then(() => {
+                if (!undoNotificationsEnabled) return;
+                showToast({
+                    title: t('common.notice') || 'Notice',
+                    message: t('list.taskDeleted') || 'Task deleted',
+                    tone: 'info',
+                    actionLabel: t('common.undo') || 'Undo',
+                    onAction: () => { void restoreTask(task.id); },
+                    durationMs: 5200,
+                });
+            })
+            .catch(() => undefined);
     };
 
     const handleLongPress = () => {
@@ -506,7 +494,7 @@ function SwipeableTaskItemInner({
             return;
         }
         if (actionName === 'delete') {
-            confirmDelete();
+            handleDelete();
         }
     };
 

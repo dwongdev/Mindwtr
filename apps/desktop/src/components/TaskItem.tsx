@@ -282,7 +282,6 @@ export const TaskItem = memo(function TaskItem({
         resetAttachmentState,
     });
     const [showDiscardConfirm, setShowDiscardConfirm] = useState(false);
-    const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
     const [showWaitingAssignmentPrompt, setShowWaitingAssignmentPrompt] = useState(false);
     const [projectNextActionPrompt, setProjectNextActionPrompt] = useState<ProjectNextActionPromptState | null>(null);
     const [projectNextActionTitle, setProjectNextActionTitle] = useState('');
@@ -957,6 +956,24 @@ export const TaskItem = memo(function TaskItem({
             })
             .catch((error) => reportError('Failed to move task to waiting', error));
     }, [moveTask, task.id, updateTask]);
+    // Deleting is a recoverable move to Trash, so it happens immediately with an
+    // undo toast instead of a confirmation prompt. Permanent purge (in Trash)
+    // keeps its confirmation.
+    const handleDeleteTask = useCallback(() => {
+        void deleteTask(task.id);
+        if (!undoNotificationsEnabled) return;
+        showToast(
+            tFallback(t, 'task.aria.delete', 'Task deleted'),
+            'info',
+            5000,
+            {
+                label: undoLabel,
+                onClick: () => {
+                    void restoreTask(task.id);
+                },
+            }
+        );
+    }, [deleteTask, restoreTask, showToast, t, task.id, undoLabel, undoNotificationsEnabled]);
     const handleTaskCompleted = useCallback((previousStatus: TaskStatus, wasFocusedToday: boolean) => {
         if (undoNotificationsEnabled) {
             showToast(
@@ -1277,7 +1294,7 @@ export const TaskItem = memo(function TaskItem({
                 };
             })() : undefined}
             onDuplicateTask={handleDuplicateTask}
-            onDeleteTask={task.status === 'inbox' ? () => setShowDeleteConfirm(true) : undefined}
+            onDeleteTask={task.status === 'inbox' ? handleDeleteTask : undefined}
             onCancel={handleEditorCancel}
             onSubmit={handleSubmit}
         />
@@ -1291,7 +1308,7 @@ export const TaskItem = memo(function TaskItem({
         onRenameTitle: (nextTitle: string) => {
             void updateTask(task.id, { title: nextTitle });
         },
-        onDelete: () => setShowDeleteConfirm(true),
+        onDelete: handleDeleteTask,
         onDuplicate: handleDuplicateTask,
         onStatusChange: handleStatusChange,
         onOpenQuickActions: handleOpenQuickActionButton,
@@ -1302,6 +1319,7 @@ export const TaskItem = memo(function TaskItem({
         focusToggle: effectiveFocusToggle,
         pomodoroQuickStart,
     }), [
+        handleDeleteTask,
         handleDuplicateTask,
         effectiveFocusToggle,
         handleOpenContextToken,
@@ -1431,9 +1449,7 @@ export const TaskItem = memo(function TaskItem({
                     onRename={() => setRenameRequestToken((token) => token + 1)}
                     onDuplicate={handleDuplicateTask}
                     onPromoteToProject={handlePromoteTaskToProject}
-                    onDelete={() => {
-                        setShowDeleteConfirm(true);
-                    }}
+                    onDelete={handleDeleteTask}
                     onStatusChange={handleStatusChange}
                     onCreateArea={handleCreateArea}
                     onUpdateTask={(updates) => updateTask(task.id, updates)}
@@ -1469,18 +1485,15 @@ export const TaskItem = memo(function TaskItem({
                 customMonthDay={customMonthDay}
                 customOrdinal={customOrdinal}
                 customWeekday={customWeekday}
-                deleteTask={deleteTask}
                 handleAddLinkAttachment={handleAddLinkAttachment}
                 handleAudioError={handleAudioError}
                 handleDiscardChanges={handleDiscardChanges}
-                handleOpenDeleteConfirm={setShowDeleteConfirm}
                 handleOpenDiscardConfirm={setShowDiscardConfirm}
                 imageAttachment={imageAttachment}
                 imageSource={imageSource}
                 onOpenImageExternally={openImageExternally}
                 onOpenTextExternally={openTextExternally}
                 openAudioExternally={openAudioExternally}
-                openDeleteConfirm={showDeleteConfirm}
                 openDiscardConfirm={showDiscardConfirm}
                 openLinkPrompt={showLinkPrompt}
                 linkPromptDefaultValue={linkPromptDefaultValue}
@@ -1499,7 +1512,6 @@ export const TaskItem = memo(function TaskItem({
                 onCancelWaitingAssignmentPrompt={closeWaitingAssignmentPrompt}
                 onConfirmWaitingAssignmentPrompt={applyWaitingAssignment}
                 waitingAssignmentDefaultValue={task.assignedTo || ''}
-                restoreTask={restoreTask}
                 retryAudioTranscription={retryAudioTranscription}
                 setCustomInterval={setCustomInterval}
                 setCustomMode={setCustomMode}
@@ -1508,15 +1520,11 @@ export const TaskItem = memo(function TaskItem({
                 setCustomWeekday={setCustomWeekday}
                 setShowCustomRecurrence={setShowCustomRecurrence}
                 showCustomRecurrence={showCustomRecurrence}
-                showToast={showToast}
                 t={t}
-                taskId={task.id}
                 textAttachment={textAttachment}
                 textContent={textContent}
                 textError={textError}
                 textLoading={textLoading}
-                undoLabel={undoLabel}
-                undoNotificationsEnabled={undoNotificationsEnabled}
                 weekdayLabels={recurrenceWeekdayLabels}
             />
         </>

@@ -23,18 +23,15 @@ type TaskItemOverlaysProps = {
     customMonthDay: number;
     customOrdinal: '1' | '2' | '3' | '4' | '-1';
     customWeekday: RecurrenceWeekday;
-    deleteTask: (taskId: string) => Promise<unknown>;
     handleAddLinkAttachment: (value: string) => boolean;
     handleAudioError: () => void;
     handleDiscardChanges: () => void;
-    handleOpenDeleteConfirm: (open: boolean) => void;
     handleOpenDiscardConfirm: (open: boolean) => void;
     imageAttachment: any;
     imageSource: string | null;
     onOpenImageExternally: () => void;
     onOpenTextExternally: () => void;
     openAudioExternally: () => void;
-    openDeleteConfirm: boolean;
     openDiscardConfirm: boolean;
     openLinkPrompt: boolean;
     linkPromptDefaultValue: string;
@@ -45,7 +42,6 @@ type TaskItemOverlaysProps = {
     onCancelWaitingAssignmentPrompt: () => void;
     onConfirmWaitingAssignmentPrompt: (value: string) => void;
     waitingAssignmentDefaultValue: string;
-    restoreTask: (taskId: string) => Promise<unknown>;
     retryAudioTranscription: () => void;
     setCustomInterval: (value: number) => void;
     setCustomMode: (value: 'date' | 'nth') => void;
@@ -54,15 +50,11 @@ type TaskItemOverlaysProps = {
     setCustomWeekday: (value: RecurrenceWeekday) => void;
     setShowCustomRecurrence: (value: boolean) => void;
     showCustomRecurrence: boolean;
-    showToast: (message: string, tone?: 'info' | 'error' | 'success', durationMs?: number, action?: { label: string; onClick: () => void }) => void;
     t: (key: string) => string;
-    taskId: string;
     textAttachment: any;
     textContent: string;
     textError: string | null;
     textLoading: boolean;
-    undoNotificationsEnabled: boolean;
-    undoLabel: string;
     weekdayLabels: Record<RecurrenceWeekday, string>;
 };
 
@@ -83,18 +75,15 @@ export function TaskItemOverlays({
     customMonthDay,
     customOrdinal,
     customWeekday,
-    deleteTask,
     handleAddLinkAttachment,
     handleAudioError,
     handleDiscardChanges,
-    handleOpenDeleteConfirm,
     handleOpenDiscardConfirm,
     imageAttachment,
     imageSource,
     onOpenImageExternally,
     onOpenTextExternally,
     openAudioExternally,
-    openDeleteConfirm,
     openDiscardConfirm,
     openLinkPrompt,
     linkPromptDefaultValue,
@@ -105,7 +94,6 @@ export function TaskItemOverlays({
     onCancelWaitingAssignmentPrompt,
     onConfirmWaitingAssignmentPrompt,
     waitingAssignmentDefaultValue,
-    restoreTask,
     retryAudioTranscription,
     setCustomInterval,
     setCustomMode,
@@ -114,15 +102,11 @@ export function TaskItemOverlays({
     setCustomWeekday,
     setShowCustomRecurrence,
     showCustomRecurrence,
-    showToast,
     t,
-    taskId,
     textAttachment,
     textContent,
     textError,
     textLoading,
-    undoLabel,
-    undoNotificationsEnabled,
     weekdayLabels,
 }: TaskItemOverlaysProps) {
     const resolveText = (key: string, fallback: string) => {
@@ -191,33 +175,6 @@ export function TaskItemOverlays({
                     cancelLabel={t('common.cancel')}
                     onCancel={onCancelWaitingAssignmentPrompt}
                     onConfirm={onConfirmWaitingAssignmentPrompt}
-                />
-            )}
-            {openDeleteConfirm && (
-                <ConfirmModal
-                    isOpen={openDeleteConfirm}
-                    title={resolveText('common.delete', 'Delete task')}
-                    description={resolveText('task.deleteConfirmBody', 'Move this task to Trash?')}
-                    confirmLabel={resolveText('common.delete', 'Delete')}
-                    cancelLabel={t('common.cancel')}
-                    onCancel={() => handleOpenDeleteConfirm(false)}
-                    onConfirm={() => {
-                        handleOpenDeleteConfirm(false);
-                        void deleteTask(taskId);
-                        const deletedMessage = resolveText('task.aria.delete', 'Task deleted');
-                        if (!undoNotificationsEnabled) return;
-                        showToast(
-                            deletedMessage,
-                            'info',
-                            5000,
-                            {
-                                label: undoLabel,
-                                onClick: () => {
-                                    void restoreTask(taskId);
-                                },
-                            },
-                        );
-                    }}
                 />
             )}
             {openDiscardConfirm && (

@@ -423,7 +423,7 @@ it('uses the shared rounded star treatment for focused tasks', () => {
   expect(star.props.strokeWidth).toBe(2);
 });
 
-  it('confirms deletion before invoking onDelete', async () => {
+  it('deletes immediately with an undo toast instead of a confirmation', async () => {
     const alertSpy = vi.spyOn(Alert, 'alert');
     const onDelete = vi.fn();
 
@@ -462,23 +462,11 @@ it('uses the shared rounded star treatment for focused tasks', () => {
       deleteAction.props.onPress();
     });
 
-    expect(alertSpy).toHaveBeenCalledWith(
-      'Pay rent',
-      'Move this task to Trash?',
-      expect.arrayContaining([
-        expect.objectContaining({ text: 'Cancel', style: 'cancel' }),
-        expect.objectContaining({ text: 'Delete', style: 'destructive', onPress: expect.any(Function) }),
-      ]),
-      { cancelable: true }
-    );
-    expect(onDelete).not.toHaveBeenCalled();
-
-    const alertButtons = alertSpy.mock.calls[0]?.[2] as { text?: string; onPress?: () => void }[];
-    const destructiveAction = alertButtons.find((button) => button.text === 'Delete');
-    expect(destructiveAction?.onPress).toBeTypeOf('function');
+    // Deleting moves the task to Trash immediately; the undo toast replaces a
+    // confirmation prompt.
+    expect(alertSpy).not.toHaveBeenCalled();
 
     await renderer.act(async () => {
-      destructiveAction?.onPress?.();
       await Promise.resolve();
     });
 
@@ -1450,10 +1438,7 @@ it('uses the shared rounded star treatment for focused tasks', () => {
       deleteAction.props.onPress();
     });
 
-    const alertButtons = alertSpy.mock.calls[0]?.[2] as { text?: string; onPress?: () => void }[];
-    const destructiveAction = alertButtons.find((button) => button.text === 'Delete');
     renderer.act(() => {
-      destructiveAction?.onPress?.();
       tree.unmount();
       vi.runAllTimers();
     });
