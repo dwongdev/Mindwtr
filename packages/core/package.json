@@ -42,6 +42,7 @@
     "./attachment-hash": "./src/attachment-hash.ts",
     "./attachment-validation": "./src/attachment-validation.ts",
     "./attachment-progress": "./src/attachment-progress.ts",
+    "./attachment-transfer": "./src/attachment-transfer.ts",
     "./attachment-cleanup": "./src/attachment-cleanup.ts",
     "./backup-transfer": "./src/backup-transfer.ts",
     "./ics": "./src/ics.ts",

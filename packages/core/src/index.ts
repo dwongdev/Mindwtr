@@ -894,6 +894,17 @@ export type {
 } from './attachment-progress';
 
 export {
+    collectAttachmentsById,
+    normalizePendingRemoteDeletes,
+    reportProgress,
+    runAttachmentTransferLifecycle,
+    validateAttachmentHash,
+} from './attachment-transfer';
+export type {
+    AttachmentTransferLifecycleOptions,
+} from './attachment-transfer';
+
+export {
     applyAttachmentCleanupResult,
     findDeletedAttachmentsForFileCleanup,
     findLiveAttachmentResourceReferences,
