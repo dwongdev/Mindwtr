@@ -49,9 +49,12 @@ const CHANNEL_PINNED_INSTALL_SOURCES = new Set<InstallSource>([
 // background badge check. The manual About-page check remains user-initiated.
 const AUTO_UPDATE_CHECK_QUIET_INSTALL_SOURCES = new Set<InstallSource>(['scoop']);
 
+// Null/undefined means detection has not settled yet — stay quiet rather than
+// risk phoning home from a quiet channel that just hasn't been identified yet.
+// A resolved 'unknown' source (detection ran, nothing matched) may auto-check.
 export const isAutoUpdateCheckAllowed = (
     installSource: InstallSource | null | undefined,
-): boolean => !installSource || !AUTO_UPDATE_CHECK_QUIET_INSTALL_SOURCES.has(installSource);
+): boolean => Boolean(installSource) && !AUTO_UPDATE_CHECK_QUIET_INSTALL_SOURCES.has(installSource as InstallSource);
 
 const UPDATE_NOW_ACTION_LABEL = 'Update now';
 const MS_STORE_UPDATE_ACTION_LABEL = 'Update in Microsoft Store';

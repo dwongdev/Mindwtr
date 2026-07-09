@@ -43,12 +43,16 @@ describe('desktop update targets', () => {
         expect(isDesktopUpdateReminderAllowed(null)).toBe(false);
     });
 
-    it('blocks unsolicited background checks for scoop installs only', () => {
+    it('blocks unsolicited background checks for scoop installs and unresolved sources', () => {
         expect(isAutoUpdateCheckAllowed('scoop')).toBe(false);
         expect(isAutoUpdateCheckAllowed('direct')).toBe(true);
         expect(isAutoUpdateCheckAllowed('winget')).toBe(true);
         expect(isAutoUpdateCheckAllowed('flatpak')).toBe(true);
-        expect(isAutoUpdateCheckAllowed(null)).toBe(true);
+        expect(isAutoUpdateCheckAllowed('unknown')).toBe(true);
+        // Not resolved yet — must stay quiet: the install might be a quiet
+        // channel that simply has not been identified yet (#829 rc.4 report).
+        expect(isAutoUpdateCheckAllowed(null)).toBe(false);
+        expect(isAutoUpdateCheckAllowed(undefined)).toBe(false);
     });
 
     it('routes Microsoft Store update reminders to the Store updates page', () => {

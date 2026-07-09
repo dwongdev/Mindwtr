@@ -58,6 +58,10 @@ export function useSettingsAboutPage({
     const [appVersion, setAppVersion] = useState('0.1.0');
     const [logPath, setLogPath] = useState('');
     const [installSource, setInstallSource] = useState<InstallSource>('unknown');
+    // The background update check must not run before detection settles: the
+    // initial 'unknown' would pass the quiet-channel gate and phone GitHub even
+    // on installs (e.g. Scoop) that must stay offline unless asked.
+    const [installSourceResolved, setInstallSourceResolved] = useState(false);
     const [installChannel, setInstallChannel] = useState<string | null>(null);
     const [isCheckingUpdate, setIsCheckingUpdate] = useState(false);
     const [updateInfo, setUpdateInfo] = useState<UpdateInfo | null>(null);
@@ -90,6 +94,7 @@ export function useSettingsAboutPage({
         if (!isTauri) {
             setInstallSource('github-release');
             setInstallChannel(null);
+            setInstallSourceResolved(true);
             return;
         }
         let cancelled = false;
@@ -103,11 +108,13 @@ export function useSettingsAboutPage({
                 if (!cancelled) {
                     setInstallSource(source);
                     setInstallChannel(channel);
+                    setInstallSourceResolved(true);
                 }
             } catch (error) {
                 if (!cancelled) {
                     setInstallSource('unknown');
                     setInstallChannel(null);
+                    setInstallSourceResolved(true);
                 }
                 reportError('Failed to detect install source', error);
             }
@@ -184,7 +191,9 @@ export function useSettingsAboutPage({
     useEffect(() => {
         if (!isTauri || !appVersion || appVersion === 'web') return;
         // Quiet channels (e.g. Scoop) never phone home on their own; updates
-        // are only checked when the user clicks the button.
+        // are only checked when the user clicks the button. Wait for install
+        // source detection so a quiet channel is never checked as 'unknown'.
+        if (!installSourceResolved) return;
         if (!isAutoUpdateCheckAllowed(installSource)) return;
         let lastCheck = 0;
         try {
@@ -220,7 +229,7 @@ export function useSettingsAboutPage({
         return () => {
             cancelled = true;
         };
-    }, [appVersion, installSource, isTauri, persistUpdateBadge]);
+    }, [appVersion, installSource, installSourceResolved, isTauri, persistUpdateBadge]);
 
     const openLink = useCallback(async (url: string): Promise<boolean> => {
         const nextUrl = url.trim();
